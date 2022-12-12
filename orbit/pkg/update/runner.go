@@ -30,6 +30,17 @@ type Runner struct {
 	localHashes map[string][]byte
 }
 
+// UpdateRunnerOptTargets updates the RunnerOptions.Targets with the given target
+func (r *Runner) UpdateRunnerOptTargets(target string) {
+	// check if target already exists
+	for _, t := range r.opt.Targets {
+		if t == target {
+			return
+		}
+	}
+	r.opt.Targets = append(r.opt.Targets, target)
+}
+
 // NewRunner creates a new runner with the provided options. The runner must be
 // started with Execute.
 func NewRunner(updater *Updater, opt RunnerOptions) (*Runner, error) {
@@ -123,8 +134,6 @@ func (r *Runner) UpdateAction() (bool, error) {
 		if err != nil {
 			return didUpdate, fmt.Errorf("select hash for cache: %w", err)
 		}
-		// Check whether the hash of the repository is different than
-		// that of the target local file.
 		if !bytes.Equal(r.localHashes[target], metaHash) {
 			// Update detected
 			log.Info().Str("target", target).Msg("update detected")

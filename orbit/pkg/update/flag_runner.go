@@ -129,14 +129,15 @@ func (r *FlagRunner) DoFlagsUpdate() (bool, error) {
 // ExtensionRunner is a specialized runner to periodically check and update flags from Fleet
 // It is designed with Execute and Interrupt functions to be compatible with oklog/run
 //
-// It uses an OrbitClient, along with FlagUpdateOptions to connect to Fleet
+// It uses an OrbitClient, along with ExtensionUpdateOptions and updateRunner to connect to Fleet
 type ExtensionRunner struct {
 	configFetcher OrbitConfigFetcher
 	opt           ExtensionUpdateOptions
 	cancel        chan struct{}
+	updateRunner  *Runner
 }
 
-// ExtensionUpdateOptions is options provided for the flag update runner
+// ExtensionUpdateOptions is options provided for the extensions fetch/update runner
 type ExtensionUpdateOptions struct {
 	// CheckInterval is the interval to check for updates
 	CheckInterval time.Duration
@@ -144,14 +145,18 @@ type ExtensionUpdateOptions struct {
 	RootDir string
 }
 
-func NewExtensionUpdateRunner(configFetcher OrbitConfigFetcher, opt ExtensionUpdateOptions) *ExtensionRunner {
+// NewExtensionConfigUpdateRunner creates a new runner with provided options
+// The runner must be started with Execute
+func NewExtensionConfigUpdateRunner(configFetcher OrbitConfigFetcher, opt ExtensionUpdateOptions, updateRunner *Runner) *ExtensionRunner {
 	return &ExtensionRunner{
 		configFetcher: configFetcher,
 		opt:           opt,
 		cancel:        make(chan struct{}),
+		updateRunner:  updateRunner,
 	}
 }
 
+// Execute starts the loop checking for updates
 func (r *ExtensionRunner) Execute() error {
 	log.Debug().Msg("starting extension runner")
 
@@ -163,13 +168,13 @@ func (r *ExtensionRunner) Execute() error {
 		case <-r.cancel:
 			return nil
 		case <-ticker.C:
-			log.Info().Msg("calling extensions update")
-			didExtensionsUpdate, err := r.DoExtensionUpdate()
+			log.Info().Msg("calling /config API to fetch/update extensions")
+			didExtensionsUpdate, err := r.DoExtensionConfigUpdate()
 			if err != nil {
-				log.Info().Msg("ext update failed")
+				log.Info().Err(err).Msg("ext update failed")
 			}
 			if didExtensionsUpdate {
-				log.Info().Msg("ext updated")
+				log.Info().Msg("successfully updated/fetched extensions from /config API")
 				return nil
 			}
 		}
@@ -177,28 +182,53 @@ func (r *ExtensionRunner) Execute() error {
 	}
 }
 
+// Interrupt is the oklog/run interrupt method that stops orbit when interrupt is received
 func (r *ExtensionRunner) Interrupt(err error) {
 	close(r.cancel)
 	log.Debug().Err(err).Msg(("interrupt extension runner"))
 }
 
-func (r *ExtensionRunner) DoExtensionUpdate() (bool, error) {
-
+// DoExtensionConfigUpdate calls the /config API endpoint to grab extensions from Fleet
+// It parses the extensions, computes the local hash, and writes the binary path to extension.load file
+func (r *ExtensionRunner) DoExtensionConfigUpdate() (bool, error) {
+	// call "/config" API endpoint to grab orbit configs from Fleet
 	config, err := r.configFetcher.GetConfig()
 	if err != nil {
-		return false, fmt.Errorf("error getting extensions config from fleet: %w", err)
+		return false, fmt.Errorf("extensionsUpdate: error getting extensions config from fleet: %w", err)
 	}
 
+	extensionAutoLoadFile := filepath.Join(r.opt.RootDir, "extensions.load")
 	if len(config.Extensions) == 0 {
+		// Extensions from Fleet is empty
+		// this can be either because of:
+		// 1. the default state, where no extensions are configured to begin with, or
+		// 2. extensions were previously were configured, but now are deleted and reverted to empty state
+
+		// Handle case 1, where our autoload file does not exist, so there is nothing to update and no error
+		stat, err := os.Stat(extensionAutoLoadFile)
+		if errors.Is(err, os.ErrNotExist) {
+			log.Debug().Msg(extensionAutoLoadFile + " not found, nothing to update")
+			return false, nil
+		}
+
+		if stat.Size() > 0 {
+			// handle case 2: create/truncate the extensions.load file and let the runner interrupt, so that
+			// osquery can't startup without the extensions that were previously loaded
+			_, err := os.Create(extensionAutoLoadFile)
+			if err != nil {
+				return false, fmt.Errorf("extensionsUpdate: error creating file %s, %w", extensionAutoLoadFile, err)
+			}
+			// we want to return true here, and restart with the empty extensions.load file
+			// so that we "unload" the previously loaded extensions
+			return true, nil
+		}
 		return false, nil
 	}
 
-	log.Info().Msg(string(config.Extensions))
-
 	type ExtensionInfo struct {
-		LocalPath string `json:"local_path"`
-		Platform  string `json:"platform"`
-		TufTarget string `json:"tuf_target"`
+		Platform string `json:"platform"`
+		Channel  string `json:"channel"`
+		FileName string `json:"file_name"`
 	}
 
 	var data map[string]ExtensionInfo
@@ -207,18 +237,46 @@ func (r *ExtensionRunner) DoExtensionUpdate() (bool, error) {
 		return false, fmt.Errorf("error unmarshing json extensions config from fleet: %w", err)
 	}
 
-	extensionAutoLoadFile := filepath.Join(r.opt.RootDir, "extensions.load")
 	var sb strings.Builder
 	for k, v := range data {
-		log.Info().Msg(k)
-		log.Info().Msg(v.LocalPath)
-		// todo: check goos platform and check the platform field
-		sb.WriteString(v.LocalPath + "\n")
+		// we don't want path traversal and the like in the filename
+		if strings.Contains(v.FileName, "..") || strings.Contains(v.FileName, "/") {
+			log.Info().Msgf("invalid characters found in filename (%s) for extension (%s): skipping", v.FileName, k)
+			continue
+		}
+
+		// add "extensions/" as a prefix to the target name, since that's the namespace we expect for extensions on TUF
+		target := "extensions/" + k
+
+		// update our view of targets
+		r.updateRunner.UpdateRunnerOptTargets(target)
+		r.updateRunner.updater.SetExtentionsTargetInfo(target, v.Platform, v.Channel, v.FileName)
+
+		path := filepath.Join(r.updateRunner.updater.opt.RootDirectory, "bin", "extensions", k, v.Platform, v.Channel, v.FileName)
+
+		meta, err := r.updateRunner.updater.Lookup(target)
+		if err != nil {
+			return false, fmt.Errorf("unable to lookup metadata for target: %s, %w", target, err)
+		}
+
+		_, localHash, err := fileHashes(meta, path)
+		if err != nil {
+			// OK, not an error, expected on initial that path doesn't exist
+			return false, nil
+		}
+
+		// update local hashes
+		log.Info().Msgf("updating local hash(%s)=%x", target, localHash)
+		r.updateRunner.localHashes[target] = localHash
+
+		sb.WriteString(path + "\n")
 	}
 	if err := os.WriteFile(extensionAutoLoadFile, []byte(sb.String()), constant.DefaultFileMode); err != nil {
 		return false, fmt.Errorf("error writing extensions autoload file: %w", err)
 	}
 
+	// we don't want to return true, because we don't want to restart
+	// UpdateAction() will fetch the new targets and restart for us if needed
 	return false, nil
 }
 
@@ -264,12 +322,6 @@ func writeFlagFile(rootDir string, data map[string]string) error {
 			sb.WriteString(k + "\n")
 		}
 	}
-	// include our extensions autoload file in the flags if it exists
-	extensionAutoloadFile := filepath.Join(rootDir, "extensions.load")
-	if _, err := os.Stat(extensionAutoloadFile); err == nil {
-		sb.WriteString("--extensions_autoload=" + extensionAutoloadFile)
-	}
-
 	if err := os.WriteFile(flagfile, []byte(sb.String()), constant.DefaultFileMode); err != nil {
 		return fmt.Errorf("writing flagfile %s failed: %w", flagfile, err)
 	}

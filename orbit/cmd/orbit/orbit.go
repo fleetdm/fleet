@@ -107,7 +107,7 @@ func main() {
 		&cli.DurationFlag{
 			Name:    "update-interval",
 			Usage:   "How often to check for updates",
-			Value:   15 * time.Minute,
+			Value:   1 * time.Minute,
 			EnvVars: []string{"ORBIT_UPDATE_INTERVAL"},
 		},
 		&cli.BoolFlag{
@@ -266,8 +266,10 @@ func main() {
 
 		// NOTE: When running in dev-mode, even if `disable-updates` is set,
 		// it fetches osqueryd once as part of initialization.
+		var updater *update.Updater
+		var updateRunner *update.Runner
 		if !c.Bool("disable-updates") || c.Bool("dev-mode") {
-			updater, err := update.NewUpdater(opt)
+			updater, err = update.NewUpdater(opt)
 			if err != nil {
 				return fmt.Errorf("create updater: %w", err)
 			}
@@ -275,20 +277,17 @@ func main() {
 				log.Info().Err(err).Msg("update metadata. using saved metadata")
 			}
 
-			targets := []string{"orbit", "osqueryd", "extensions"}
-			//targets := []string{"orbit", "osqueryd"}
+			targets := []string{"orbit", "osqueryd"}
 			if c.Bool("fleet-desktop") {
 				targets = append(targets, "desktop")
 			}
 			if c.Bool("dev-mode") {
 				targets = targets[1:] // exclude orbit itself on dev-mode.
 			}
-			log.Info().Msg("******** creating a new updater ********")
-			updateRunner, err := update.NewRunner(updater, update.RunnerOptions{
+			updateRunner, err = update.NewRunner(updater, update.RunnerOptions{
 				CheckInterval: c.Duration("update-interval"),
 				Targets:       targets,
 			})
-			log.Info().Msg("done ********")
 			if err != nil {
 				return err
 			}
@@ -296,7 +295,6 @@ func main() {
 			// Perform early check for updates before starting any sub-system.
 			// This is to prevent bugs in other sub-systems to mess up with
 			// the download of available updates.
-			log.Info().Msg("doing an early upgrade ********")
 			didUpdate, err := updateRunner.UpdateAction()
 			if err != nil {
 				log.Info().Err(err).Msg("early update check failed")
@@ -326,7 +324,7 @@ func main() {
 			}
 		} else {
 			log.Info().Msg("running with auto updates disabled")
-			updater := update.NewDisabled(opt)
+			updater = update.NewDisabled(opt)
 			osquerydPath, err = updater.ExecutableLocalPath("osqueryd")
 			if err != nil {
 				log.Fatal().Err(err).Msg("locate osqueryd")
@@ -517,16 +515,35 @@ func main() {
 		}
 		g.Add(flagRunner.Execute, flagRunner.Interrupt)
 
-		const orbitExtensionUpdateInterval = 60 * time.Second
-		extRunner := update.NewExtensionUpdateRunner(orbitClient, update.ExtensionUpdateOptions{
-			CheckInterval: orbitExtensionUpdateInterval,
-			RootDir:       c.String("root-dir"),
-		})
+		// only setup extensions autoupdate if we have enabled updates
+		if !c.Bool("disable-updates") || c.Bool("dev-mode") {
+			const orbitExtensionUpdateInterval = 60 * time.Second
+			extRunner := update.NewExtensionConfigUpdateRunner(orbitClient, update.ExtensionUpdateOptions{
+				CheckInterval: orbitExtensionUpdateInterval,
+				RootDir:       c.String("root-dir"),
+			}, updateRunner)
 
-		if _, err := extRunner.DoExtensionUpdate(); err != nil {
-			log.Info().Err(err).Msg("initial ext update failed")
+			if _, err := extRunner.DoExtensionConfigUpdate(); err != nil {
+				// just log, OK to continue since this will get retry
+				log.Info().Err(err).Msg("initial update to fetch extensions from /config API failed")
+			}
+
+			// call UpdateAction on the updateRunner after we have fetched extensions from Fleet
+			_, err := updateRunner.UpdateAction()
+			if err != nil {
+				// OK, initial call may fail, ok to continue
+				log.Debug().Err(err).Msg("extensions update action failed")
+			}
+
+			extensionAutoLoadFile := filepath.Join(c.String("root-dir"), "extensions.load")
+			stat, err := os.Stat(extensionAutoLoadFile)
+			// we only want to add the extensions_autoload flag to osquery, if the file exists and size > 0
+			if !errors.Is(err, os.ErrNotExist) && stat.Size() > 0 {
+				log.Debug().Msg("adding --extensions_autoload flag for file " + extensionAutoLoadFile)
+				options = append(options, osquery.WithFlags([]string{"--extensions_autoload", extensionAutoLoadFile}))
+			}
+			g.Add(extRunner.Execute, extRunner.Interrupt)
 		}
-		g.Add(extRunner.Execute, extRunner.Interrupt)
 
 		trw := token.NewReadWriter(filepath.Join(c.String("root-dir"), "identifier"))
 

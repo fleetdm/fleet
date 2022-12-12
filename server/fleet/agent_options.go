@@ -369,10 +369,10 @@ type osqueryCommandLineFlags struct {
 	EventsOptimize                      bool   `json:"events_optimize"`
 	ExtensionsAutoload                  string `json:"extensions_autoload"`
 	ExtensionsDefaultIndex              bool   `json:"extensions_default_index"`
-	ExtensionsInterval                  string `json:"extensions_interval"`
+	ExtensionsInterval                  uint64 `json:"extensions_interval"`
 	ExtensionsRequire                   string `json:"extensions_require"`
 	ExtensionsSocket                    string `json:"extensions_socket"`
-	ExtensionsTimeout                   string `json:"extensions_timeout"`
+	ExtensionsTimeout                   uint64 `json:"extensions_timeout"`
 	Force                               bool   `json:"force"`
 	HashCacheMax                        uint32 `json:"hash_cache_max"`
 	HostIdentifier                      string `json:"host_identifier"`
