@@ -208,7 +208,7 @@ const reducer = (state: InitialStateType, action: IAction) => {
     }
     case ACTIONS.SET_CONFIG: {
       const { config } = action;
-      // config.sandbox_enabled = true; // MDM TODO: uncomment for sandbox dev
+      // config.sandbox_enabled = true; // TODO: uncomment for sandbox dev
 
       return {
         ...state,
