@@ -43,10 +43,6 @@ func (svc *Service) GetAppleBM(ctx context.Context) (*fleet.AppleBM, error) {
 	// TODO: default team will have to be set when https://github.com/fleetdm/fleet/issues/8733
 	// is implemented.
 	appleBM.DefaultTeam = ""
-	// TODO: is that path from the prototype `/mdm/apple/mdm` still the path we
-	// want to use for the official feature? AIUI, this is the path hit for
-	// requests to enroll devices (or at least that's what I think "check-in"
-	// is?) and execute MDM commands.
 	appleBM.MDMServerURL = appCfg.ServerSettings.ServerURL + apple_mdm.MDMPath
 
 	return appleBM, nil
@@ -76,11 +72,19 @@ func getAppleBMAccountDetail(ctx context.Context, depStorage storage.AllStorage)
 	}
 
 	var account struct {
-		AdminID string `json:"admin_id"`
-		OrgName string `json:"org_name"`
+		AdminID       string `json:"admin_id"`
+		FacilitatorID string `json:"facilitator_id"`
+		OrgName       string `json:"org_name"`
 	}
 	if err := json.NewDecoder(res.Body).Decode(&account); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "decode apple GET /account response")
+	}
+
+	if account.AdminID == "" {
+		// fallback to facilitator ID, as this is the same information but for
+		// older versions of the Apple API.
+		// https://github.com/fleetdm/fleet/issues/7515#issuecomment-1346579398
+		account.AdminID = account.FacilitatorID
 	}
 	return &fleet.AppleBM{
 		AppleID: account.AdminID,
