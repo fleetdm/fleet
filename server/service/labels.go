@@ -259,6 +259,15 @@ func listHostsInLabelEndpoint(ctx context.Context, request interface{}, svc flee
 		return listLabelsResponse{Err: err}, nil
 	}
 
+	var mdmSolution *fleet.MDMSolution
+	if req.ListOptions.MDMIDFilter != nil {
+		var err error
+		mdmSolution, err = svc.GetMDMSolution(ctx, *req.ListOptions.MDMIDFilter)
+		if err != nil && !fleet.IsNotFound(err) { // ignore not found, just return nil for the MDM solution in that case
+			return listHostsResponse{Err: err}, nil
+		}
+	}
+
 	hostResponses := make([]fleet.HostResponse, len(hosts))
 	for i, host := range hosts {
 		h, err := fleet.HostResponseForHost(ctx, svc, host)
@@ -268,7 +277,7 @@ func listHostsInLabelEndpoint(ctx context.Context, request interface{}, svc flee
 
 		hostResponses[i] = *h
 	}
-	return listHostsResponse{Hosts: hostResponses}, nil
+	return listHostsResponse{Hosts: hostResponses, MDMSolution: mdmSolution}, nil
 }
 
 func (svc *Service) ListHostsInLabel(ctx context.Context, lid uint, opt fleet.HostListOptions) ([]*fleet.Host, error) {
