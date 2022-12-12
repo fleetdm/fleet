@@ -1,5 +1,5 @@
 import React, { useState, useRef, useLayoutEffect } from "react";
-import { v4 as uuidv4 } from "uuid";
+import { uniqueId } from "lodash";
 
 import ReactTooltip from "react-tooltip";
 
@@ -26,7 +26,7 @@ const TruncatedTextCell = ({
     }
   }, []);
 
-  const id = uuidv4();
+  const tooltipId = uniqueId();
   const tooltipDisabled = offsetWidth === scrollWidth;
 
   return (
@@ -34,7 +34,7 @@ const TruncatedTextCell = ({
       <div
         className={"data-table__truncated-text"}
         data-tip
-        data-for={id}
+        data-for={tooltipId}
         data-tip-disable={tooltipDisabled}
       >
         <span
@@ -49,7 +49,7 @@ const TruncatedTextCell = ({
         place="bottom"
         effect="solid"
         backgroundColor="#3e4771"
-        id={id}
+        id={tooltipId}
         data-html
         className={"truncated-tooltip"} // responsive widths
       >

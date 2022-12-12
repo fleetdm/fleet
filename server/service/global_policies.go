@@ -7,6 +7,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -23,6 +24,7 @@ type globalPolicyRequest struct {
 	Description string `json:"description"`
 	Resolution  string `json:"resolution"`
 	Platform    string `json:"platform"`
+	Critical    bool   `json:"critical" premium:"true"`
 }
 
 type globalPolicyResponse struct {
@@ -41,6 +43,7 @@ func globalPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 		Description: req.Description,
 		Resolution:  req.Resolution,
 		Platform:    req.Platform,
+		Critical:    req.Critical,
 	})
 	if err != nil {
 		return globalPolicyResponse{Err: err}, nil
@@ -330,6 +333,11 @@ func (svc *Service) ApplyPolicySpecs(ctx context.Context, policies []*fleet.Poli
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
 		return errors.New("user must be authenticated to apply policies")
+	}
+	if !license.IsPremium(ctx) {
+		for i := range policies {
+			policies[i].Critical = false
+		}
 	}
 	if err := svc.ds.ApplyPolicySpecs(ctx, vc.UserID(), policies); err != nil {
 		return ctxerr.Wrap(ctx, err, "applying policy specs")

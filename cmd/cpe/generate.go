@@ -71,7 +71,8 @@ func cpe() string {
 
 	file, err := os.Create(filepath.Join(cwd, "etagenv"))
 	panicif(err)
-	file.WriteString(fmt.Sprintf(`ETAG=%s`, remoteEtag))
+	_, err = file.WriteString(fmt.Sprintf(`ETAG=%s`, remoteEtag))
+	panicif(err)
 	file.Close()
 
 	return dbPath

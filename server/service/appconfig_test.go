@@ -242,7 +242,7 @@ func echoHandler() http.Handler {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		w.Write(dump)
+		w.Write(dump) //nolint:errcheck
 	})
 }
 

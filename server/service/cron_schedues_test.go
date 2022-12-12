@@ -123,12 +123,12 @@ func TestCronSchedulesService(t *testing.T) {
 	require.NoError(t, svc.TriggerCronSchedule(ctx, "test_sched")) // first trigger sent ok and will run successfully
 
 	time.Sleep(10 * time.Millisecond)
-	require.Error(t, svc.TriggerCronSchedule(ctx, "test_sched")) // error because first job is pending
+	require.ErrorContains(t, svc.TriggerCronSchedule(ctx, "test_sched"), "conflicts with current status of test_sched") // error because first job is pending
 
-	require.Error(t, svc.TriggerCronSchedule(ctx, "test_sched")) // error because first job is pending
+	require.ErrorContains(t, svc.TriggerCronSchedule(ctx, "test_sched"), "conflicts with current status of test_sched") // error because first job is pending
 
 	time.Sleep(2 * time.Second)
-	require.Error(t, svc.TriggerCronSchedule(ctx, "test_sched_2")) // error because unrecognized name
+	require.ErrorContains(t, svc.TriggerCronSchedule(ctx, "test_sched2"), "invalid name; supported trigger name is test_sched") // error because unrecognized name
 
 	time.Sleep(100 * time.Millisecond)
 	require.Equal(t, uint32(3), atomic.LoadUint32(&jobsDone)) // 2 regularly scheduled (at 1s and 2s) plus 1 triggered

@@ -50,9 +50,11 @@
     - [Online hosts](#online-hosts)
     - [Offline hosts](#offline-hosts)
   - [Why aren't "additional queries" being applied to hosts enrolled in a team?](why-arent-additional-queries-being-applied-to-hosts-enrolled-in-a-team)
-  - [Why am I seeing an error when using the `after` key in `api/v1/fleet/hosts`?](#why-am-i-seeing-an-error-when-using-the-after-key-in-apiv1fleethosts)  
+  - [Why am I seeing an error when using the `after` key in `api/v1/fleet/hosts`?](#why-am-i-seeing-an-error-when-using-the-after-key-in-apiv1fleethosts)
   - [What can I do if Fleet is slow or unresponsive after enabling a feature?](#what-can-i-do-if-fleet-is-slow-or-unresponseive-after-enabling-a-feature)
   - [Why am I seeing an "unsupported key" error when updating agent options?](#why-am-i-seeing-an-unsupported-key-error-when-updating-agent-options)
+  - [How can I renew my Apple Business Manager server token?](#how-can-i-renew-my-apple-business-manager-server-token)
+
 ## How can I switch to Fleet from Kolide Fleet?
 
 To migrate to Fleet from Kolide Fleet, please follow the steps outlined in the [Upgrading Fleet section](https://fleetdm.com/docs/deploying/upgrading-fleet) of the documentation.
@@ -141,7 +143,7 @@ Live query results are never logged to the filesystem of the Fleet server. See [
 
 ## Why does my query work locally with osquery but not in Fleet?
 
-If you're seeing query results using `osqueryi` but not through Fleet, the most likely culprit is a permissions issue. Check out the [osquery docs](https://osquery.readthedocs.io/en/stable/deployment/process-auditing/#full-disk-access) for more details and instructions for setting up Full Disk Access. 
+If you're seeing query results using `osqueryi` but not through Fleet, the most likely culprit is a permissions issue. Check out the [osquery docs](https://osquery.readthedocs.io/en/stable/deployment/process-auditing/#full-disk-access) for more details and instructions for setting up Full Disk Access.
 
 ## Can I use the Fleet API to fetch results from a scheduled query pack?
 
@@ -175,7 +177,7 @@ You can also do this by setting the `targets` field in the [YAML configuration f
 
 The following are reasons why a host may not be updating a policy's response:
 
-* The policy's query includes tables that are not compatible with this host's platform. For example, if your policy's query contains the [`apps` table](https://osquery.io/schema/5.0.1/#apps), which is only compatible on hosts running macOS, this policy will not update its response if this host is running Windows or Linux. 
+* The policy's query includes tables that are not compatible with this host's platform. For example, if your policy's query contains the [`apps` table](https://osquery.io/schema/5.0.1/#apps), which is only compatible on hosts running macOS, this policy will not update its response if this host is running Windows or Linux.
 
 * The policy's query includes invalid SQL syntax. If your policy's query includes invalid syntax, this policy will not update its response. You can check the syntax of your query by heading to the **Queries** page, selecting your query, and then selecting "Save."
 
@@ -189,9 +191,9 @@ If your device is showing up as an offline host in the Fleet instance, and you'r
 
 Fleet relies on UUIDs so any overlap with host IP addresses should not cause a problem. The only time this might be an issue is if you are running a query that involves a specific IP address that exists in multiple locations as it might return multiple results - [Fleet's teams feature](https://fleetdm.com/docs/using-fleet/teams) can be used to restrict queries to specific hosts.
 
-## Can Orbit run alongside osquery?
+## Can fleetd run alongside osquery?
 
-Yes, Orbit can be run alongside osquery. The osquery instance that Orbit runs uses its own database directory that is stored within the Orbit directory.
+Yes, fleetd can be run alongside an existing, separately-installed osqueryd. If you have an existing osqueryd installed on a given host, you don't have to remove it prior to installing fleetd.  The osquery instance provided by fleetd uses its own database directory that doesn't interfere with other osquery isntances installed on the host.
 
 ## Can I control how Orbit handles updates?
 
@@ -211,15 +213,15 @@ You can specify a major (4), minor (4.0) or patch (4.6.0) version as well as the
 
 ## When will the newest version of osquery be available to Orbit?
 
-When a new osquery version is released, it is pushed to the `edge` channel for beta testing. As soon as that version is deemed stable by the osquery project, it is moved to the `stable` channel. Some versions may take a little longer than others to be tested and moved from `edge` to `stable`, especially when there are major changes. 
+When a new osquery version is released, it is pushed to the `edge` channel for beta testing. As soon as that version is deemed stable by the osquery project, it is moved to the `stable` channel. Some versions may take a little longer than others to be tested and moved from `edge` to `stable`, especially when there are major changes.
 
 ## Where does Orbit get update information?
 
-Orbit checks for update metadata and downloads binaries at `tuf.fleetctl.com`. 
+Orbit checks for update metadata and downloads binaries at `tuf.fleetctl.com`.
 
 ## Can I bundle osquery extensions into Orbit?
 
-This isn't supported yet, but we're working on it! 
+This isn't supported yet, but we're working on it!
 
 ## What happens to osquery logs if my Fleet server or my logging destination is offline?
 
@@ -243,7 +245,7 @@ This isn't currently supported, but we're working on it! You can track that issu
 
 ## Can I create reports based on historical data in Fleet?
 
-Currently, Fleet only stores the current state of your hosts (when they last communicated with Fleet). The best way at the moment to maintain historical data would be to use the [REST API](https://fleetdm.com/docs/using-fleet/rest-api) or the [`fleetctl` CLI](https://fleetdm.com/docs/using-fleet/fleetctl-cli) to retrieve it manually. Then save the data you need to your schedule. 
+Currently, Fleet only stores the current state of your hosts (when they last communicated with Fleet). The best way at the moment to maintain historical data would be to use the [REST API](https://fleetdm.com/docs/using-fleet/rest-api) or the [`fleetctl` CLI](https://fleetdm.com/docs/using-fleet/fleetctl-cli) to retrieve it manually. Then save the data you need to your schedule.
 
 ## When do I need fleetctl vs. the REST API vs. the Fleet UI?
 
@@ -251,7 +253,7 @@ Currently, Fleet only stores the current state of your hosts (when they last com
 
 The [REST API](https://fleetdm.com/docs/using-fleet/rest-api) is somewhat similar to fleetctl, but it tends to be used more by other computer programs rather than human users (although humans can use it too). For example, our [Fleet UI](https://fleetdm.com/docs/using-fleet/rest-api) talks to the server via the REST API. Folks can also use the REST API if they want to build their own programs that talk to the Fleet server.
 
-The [Fleet UI](https://fleetdm.com/docs/using-fleet/fleet-ui) is built for human users to make interfacing with the Fleet server user-friendly and visually appealing. It also makes things simpler and more accessible to a broader range of users. 
+The [Fleet UI](https://fleetdm.com/docs/using-fleet/fleet-ui) is built for human users to make interfacing with the Fleet server user-friendly and visually appealing. It also makes things simpler and more accessible to a broader range of users.
 
 ## Why can't I run queries with `fleetctl` using a new API-only user?
 
@@ -259,11 +261,11 @@ In versions prior to Fleet 4.13, a password reset is needed before a new API-onl
 
 ## Can I audit actions taken in Fleet?
 
-The [REST API `activities` endpoint](https://fleetdm.com/docs/using-fleet/rest-api#activities) provides a full breakdown of actions taken on packs, queries, policies, and teams (Available in Fleet Premium) through the UI, the REST API, or `fleetctl`.  
+The [REST API `activities` endpoint](https://fleetdm.com/docs/using-fleet/rest-api#activities) provides a full breakdown of actions taken on packs, queries, policies, and teams (Available in Fleet Premium) through the UI, the REST API, or `fleetctl`.
 
 ## How often is the software inventory updated?
 
-By default, Fleet will query hosts for software inventory hourly. If you'd like to set a different interval, you can update the [periodicity](https://fleetdm.com/docs/deploying/configuration#periodicity) in your vulnerabilities configuration. 
+By default, Fleet will query hosts for software inventory hourly. If you'd like to set a different interval, you can update the [periodicity](https://fleetdm.com/docs/deploying/configuration#periodicity) in your vulnerabilities configuration.
 
 ## Can I group results from multiple hosts?
 
@@ -369,11 +371,11 @@ A host could also be offline if there is a connection issue between the osquery 
 
 ## Why aren't "additional queries" being applied to hosts enrolled in a team?
 
-Changes were introduced in Fleet v4.20.0 that caused the `features.additional_queries` set in at the global level to no longer apply to hosts assigned to a team. If you would like those queries to be applied to hosts assigned to a team, you will need to be include these queries under `features.additional_queries` in each team's [configuration](https://fleetdm.com/docs/using-fleet/configuration-files#teams). 
+Changes were introduced in Fleet v4.20.0 that caused the `features.additional_queries` set in at the global level to no longer apply to hosts assigned to a team. If you would like those queries to be applied to hosts assigned to a team, you will need to be include these queries under `features.additional_queries` in each team's [configuration](https://fleetdm.com/docs/using-fleet/configuration-files#teams).
 
 ## Why am I seeing an error when using the `after` key in `api/v1/fleet/hosts`?
 
-There is a [bug](https://github.com/fleetdm/fleet/issues/8443) in MySQL validation in some versions of Fleet when using the `created_at` and `updated_at` columns as `order_key` along with an `after` filter. Adding `h.` to the column in `order_key` will return your results. 
+There is a [bug](https://github.com/fleetdm/fleet/issues/8443) in MySQL validation in some versions of Fleet when using the `created_at` and `updated_at` columns as `order_key` along with an `after` filter. Adding `h.` to the column in `order_key` will return your results.
 
 ```
 {{host}}/api/v1/fleet/hosts?order_key=h.created_at&order_direction=desc&after=2022-10-22T20:22:03Z
@@ -394,8 +396,16 @@ When updating agent options, you may see an error similar to this:
 If you’re not using the latest osquery, use the fleetctl apply --force command to override validation.
 ```
 
-This error indicates that you're providing a config option that isn't valid in the current version of osquery, typically because you're setting a command line flag through the configuration key. This has always been unsupported through the config plugin, but osquery has recently become more opinionated and Fleet now validates the configuration to make sure there aren't errors in the osquery agent. 
+This error indicates that you're providing a config option that isn't valid in the current version of osquery, typically because you're setting a command line flag through the configuration key. This has always been unsupported through the config plugin, but osquery has recently become more opinionated and Fleet now validates the configuration to make sure there aren't errors in the osquery agent.
 
 If you are not using the latest version of osquery, you can create a config YAML file and apply it with `fleetctl` using the `--force` flag to override the validation:
 
 ```fleetctl apply --force -f config.yaml```
+
+## How can I renew my Apple Business Manager server token?
+
+> This feature is currently in development and is not ready for production use.
+
+If you have configured Fleet with an Apple Business Manager server token for mobile device management (a Fleet Premium feature), you will eventually need to renew that token. [As documented in the Apple Business Manager User Guide](https://support.apple.com/en-ca/guide/apple-business-manager/axme0f8659ec/web), the token expires after a year or whenever the account that downloaded the token has their password changed.
+
+When that happens, the token is rejected by Apple and must be renewed. The detailed steps are documented in the Apple documentation link above - in short, the Apple Business Manager Administrator or Content Manager must sign in to their account and download a new server token for the Fleet MDM server, and all Fleet instances must be restarted with that new token provided instead of the old one (see the [MDM configuration documentation](https://fleetdm.com/docs/deploying/configuration#mdm-mobile-device-management-in-progress) for details on how to do that).

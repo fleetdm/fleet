@@ -79,7 +79,7 @@ func killPID(pid int32) error {
 
 	for _, process := range processes {
 		if pid == process.Pid {
-			process.Kill()
+			process.Kill() //nolint:errcheck
 			break
 		}
 	}

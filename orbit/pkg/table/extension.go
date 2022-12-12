@@ -123,7 +123,9 @@ func (r *Runner) Interrupt(err error) {
 		cancel()
 	}
 	if srv := r.getSrv(); srv != nil {
-		srv.Shutdown(context.Background())
+		if err := srv.Shutdown(context.Background()); err != nil {
+			log.Debug().Err(err).Msg("shutdown extension")
+		}
 	}
 }
 

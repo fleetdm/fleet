@@ -8,7 +8,9 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
+	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/google/uuid"
 )
 
@@ -290,6 +292,28 @@ func (svc *Service) CarveBlock(ctx context.Context, payload fleet.CarveBlockPayl
 
 	// Request is now authenticated
 
+	if err := svc.validateCarveBlock(payload, carve); err != nil {
+		carve.Error = ptr.String(err.Error())
+		if errRecord := svc.carveStore.UpdateCarve(ctx, carve); err != nil {
+			logging.WithExtras(ctx, "validate_carve_error", errRecord, "carve_id", carve.ID)
+		}
+
+		return ctxerr.Wrap(ctx, err, "validate carve block")
+	}
+
+	if err := svc.carveStore.NewBlock(ctx, carve, payload.BlockId, payload.Data); err != nil {
+		carve.Error = ptr.String(err.Error())
+		if errRecord := svc.carveStore.UpdateCarve(ctx, carve); err != nil {
+			logging.WithExtras(ctx, "record_carve_error", errRecord, "carve_id", carve.ID)
+		}
+
+		return ctxerr.Wrap(ctx, err, "save carve block data")
+	}
+
+	return nil
+}
+
+func (svc *Service) validateCarveBlock(payload fleet.CarveBlockPayload, carve *fleet.CarveMetadata) error {
 	if payload.BlockId > carve.BlockCount-1 {
 		return fmt.Errorf("block_id exceeds expected max (%d): %d", carve.BlockCount-1, payload.BlockId)
 	}
@@ -300,10 +324,6 @@ func (svc *Service) CarveBlock(ctx context.Context, payload fleet.CarveBlockPayl
 
 	if int64(len(payload.Data)) > carve.BlockSize {
 		return fmt.Errorf("exceeded declared block size %d: %d", carve.BlockSize, len(payload.Data))
-	}
-
-	if err := svc.carveStore.NewBlock(ctx, carve, payload.BlockId, payload.Data); err != nil {
-		return ctxerr.Wrap(ctx, err, "save block data")
 	}
 
 	return nil

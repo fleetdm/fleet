@@ -253,7 +253,7 @@ To add this device to Fleet, double-click to open your installer.
 To add other devices to Fleet, distribute this installer using Chef, Ansible, Jamf, or Puppet. Learn how: https://fleetdm.com/docs/using-fleet/adding-hosts
 `, path)
 			if !disableOpenFolder {
-				open.Start(filepath.Dir(path))
+				open.Start(filepath.Dir(path)) //nolint:errcheck
 			}
 			return nil
 		},

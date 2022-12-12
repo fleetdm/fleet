@@ -74,7 +74,9 @@ This ticket was created automatically by your Fleet Zendesk integration.
 	)),
 
 	FailingPolicyDescription: template.Must(template.New("").Parse(
-		`Hosts:
+		`{{ if .PolicyCritical }}This policy is marked as **Critical** in Fleet.
+
+{{ end }}Hosts:
 {{ $end := len .Hosts }}{{ if gt $end 50 }}{{ $end = 50 }}{{ end }}
 {{ range slice .Hosts 0 $end }}
 * [{{ .DisplayName }}]({{ $.FleetURL }}/hosts/{{ .ID }})
@@ -100,14 +102,6 @@ type zendeskVulnTplArgs struct {
 	EPSSProbability  *float64
 	CVSSScore        *float64
 	CISAKnownExploit *bool
-}
-
-type zendeskFailingPoliciesTplArgs struct {
-	FleetURL   string
-	PolicyID   uint
-	PolicyName string
-	TeamID     *uint
-	Hosts      []fleet.PolicySetHost
 }
 
 // ZendeskClient defines the method required for the client that makes API calls
@@ -304,13 +298,7 @@ func (z *Zendesk) runVuln(ctx context.Context, cli ZendeskClient, args zendeskAr
 }
 
 func (z *Zendesk) runFailingPolicy(ctx context.Context, cli ZendeskClient, args zendeskArgs) error {
-	tplArgs := &zendeskFailingPoliciesTplArgs{
-		FleetURL:   z.FleetURL,
-		PolicyName: args.FailingPolicy.PolicyName,
-		PolicyID:   args.FailingPolicy.PolicyID,
-		TeamID:     args.FailingPolicy.TeamID,
-		Hosts:      args.FailingPolicy.Hosts,
-	}
+	tplArgs := newFailingPoliciesTplArgs(z.FleetURL, args.FailingPolicy)
 
 	createdTicket, err := z.createTemplatedTicket(ctx, cli, zendeskTemplates.FailingPolicySummary, zendeskTemplates.FailingPolicyDescription, tplArgs)
 	if err != nil {
@@ -419,10 +407,11 @@ func QueueZendeskFailingPolicyJob(ctx context.Context, ds fleet.Datastore, logge
 	level.Info(logger).Log(attrs...)
 
 	args := &failingPolicyArgs{
-		PolicyID:   policy.ID,
-		PolicyName: policy.Name,
-		TeamID:     policy.TeamID,
-		Hosts:      hosts,
+		PolicyID:       policy.ID,
+		PolicyName:     policy.Name,
+		PolicyCritical: policy.Critical,
+		TeamID:         policy.TeamID,
+		Hosts:          hosts,
 	}
 	job, err := QueueJob(ctx, ds, zendeskName, zendeskArgs{FailingPolicy: args})
 	if err != nil {

@@ -221,6 +221,13 @@ func (s *integrationTestSuite) TestPolicyDeletionLogsActivity() {
 		policyIDs = append(policyIDs, resp.Policy.PolicyData.ID)
 	}
 
+	// critical is premium only.
+	s.DoJSON("POST", "/api/latest/fleet/policies", fleet.PolicyPayload{
+		Name:     "policy3",
+		Query:    "select * from time;",
+		Critical: true,
+	}, http.StatusBadRequest, new(struct{}))
+
 	prevActivities := listActivitiesResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &prevActivities)
 	require.GreaterOrEqual(t, len(prevActivities.Activities), 2)
@@ -2414,10 +2421,10 @@ func (s *integrationTestSuite) TestHostDeviceMapping() {
 	require.Len(t, listResp.DeviceMapping, 0)
 
 	// create some mappings
-	s.ds.ReplaceHostDeviceMapping(ctx, hosts[0].ID, []*fleet.HostDeviceMapping{
+	require.NoError(t, s.ds.ReplaceHostDeviceMapping(ctx, hosts[0].ID, []*fleet.HostDeviceMapping{
 		{HostID: hosts[0].ID, Email: "a@b.c", Source: "google_chrome_profiles"},
 		{HostID: hosts[0].ID, Email: "b@b.c", Source: "google_chrome_profiles"},
-	})
+	}))
 
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_mapping", hosts[0].ID), nil, http.StatusOK, &listResp)
 	require.Len(t, listResp.DeviceMapping, 2)
@@ -2498,7 +2505,7 @@ func (s *integrationTestSuite) TestListHostsDeviceMappingSize() {
 		mappings = append(mappings, &fleet.HostDeviceMapping{HostID: hosts[0].ID, Email: testEmail, Source: "google_chrome_profiles"})
 	}
 
-	s.ds.ReplaceHostDeviceMapping(ctx, hosts[0].ID, mappings)
+	require.NoError(t, s.ds.ReplaceHostDeviceMapping(ctx, hosts[0].ID, mappings))
 
 	var listHosts listHostsResponse
 	s.DoJSON("GET", "/api/latest/fleet/hosts?device_mapping=true", nil, http.StatusOK, &listHosts)
@@ -5195,6 +5202,12 @@ func (s *integrationTestSuite) TestCarve() {
 		Data:      []byte("p1."),
 	}, http.StatusInternalServerError, &blockResp) // TODO: should be 400, see #4406
 
+	checkCarveError := func(id uint, err string) {
+		var getResp getCarveResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/carves/%d", id), nil, http.StatusOK, &getResp)
+		require.Equal(t, err, *getResp.Carve.Error)
+	}
+
 	// sending a block with unexpected block id (expects 0, got 1)
 	s.DoJSON("POST", "/api/osquery/carve/block", carveBlockRequest{
 		BlockId:   1,
@@ -5202,6 +5215,7 @@ func (s *integrationTestSuite) TestCarve() {
 		RequestId: "r1",
 		Data:      []byte("p1."),
 	}, http.StatusInternalServerError, &blockResp) // TODO: should be 400, see #4406
+	checkCarveError(1, "block_id does not match expected block (0): 1")
 
 	// sending a block with valid payload, block 0
 	s.DoJSON("POST", "/api/osquery/carve/block", carveBlockRequest{
@@ -5230,6 +5244,7 @@ func (s *integrationTestSuite) TestCarve() {
 		RequestId: "r1",
 		Data:      []byte("p2."),
 	}, http.StatusInternalServerError, &blockResp) // TODO: should be 400, see #4406
+	checkCarveError(1, "block_id does not match expected block (2): 1")
 
 	// sending final block with too many bytes
 	blockResp = carveBlockResponse{}
@@ -5239,6 +5254,7 @@ func (s *integrationTestSuite) TestCarve() {
 		RequestId: "r1",
 		Data:      []byte("p3extra"),
 	}, http.StatusInternalServerError, &blockResp) // TODO: should be 400, see #4406
+	checkCarveError(1, "exceeded declared block size 3: 7")
 
 	// sending actual final block
 	blockResp = carveBlockResponse{}
@@ -5258,6 +5274,7 @@ func (s *integrationTestSuite) TestCarve() {
 		RequestId: "r1",
 		Data:      []byte("p4."),
 	}, http.StatusInternalServerError, &blockResp) // TODO: should be 400, see #4406
+	checkCarveError(1, "block_id exceeds expected max (2): 3")
 }
 
 func (s *integrationTestSuite) TestPasswordReset() {
@@ -5868,6 +5885,11 @@ func (s *integrationTestSuite) TestPingEndpoints() {
 	s.DoRawNoAuth("HEAD", "/api/fleet/device/ping", nil, http.StatusOK)
 }
 
+func (s *integrationTestSuite) TestAppleMDMNotConfigured() {
+	var resp getAppleMDMResponse
+	s.DoJSON("GET", "/api/latest/fleet/mdm/apple", nil, http.StatusNotFound, &resp)
+}
+
 // this test can be deleted once the "v1" version is removed.
 func (s *integrationTestSuite) TestAPIVersion_v1_2022_04() {
 	t := s.T()
@@ -5952,7 +5974,8 @@ func startExternalServiceWebServer(t *testing.T) string {
 		case "/rest/api/2/project/qux":
 			switch usr, _, _ := r.BasicAuth(); usr {
 			case "ok":
-				w.Write([]byte(jiraProjectResponsePayload))
+				_, err := w.Write([]byte(jiraProjectResponsePayload))
+				require.NoError(t, err)
 			case "fail":
 				w.WriteHeader(http.StatusUnauthorized)
 			default:
@@ -5961,7 +5984,8 @@ func startExternalServiceWebServer(t *testing.T) string {
 		case "/rest/api/2/project/qux2":
 			switch usr, _, _ := r.BasicAuth(); usr {
 			case "ok":
-				w.Write([]byte(jiraProjectResponsePayload))
+				_, err := w.Write([]byte(jiraProjectResponsePayload))
+				require.NoError(t, err)
 			case "fail":
 				w.WriteHeader(http.StatusUnauthorized)
 			default:
@@ -5970,7 +5994,8 @@ func startExternalServiceWebServer(t *testing.T) string {
 		case "/api/v2/groups/122.json":
 			switch _, pwd, _ := r.BasicAuth(); pwd {
 			case "ok":
-				w.Write([]byte(`{"group": {"id": 122,"name": "test122"}}`))
+				_, err := w.Write([]byte(`{"group": {"id": 122,"name": "test122"}}`))
+				require.NoError(t, err)
 			case "fail":
 				w.WriteHeader(http.StatusUnauthorized)
 			default:
@@ -5979,7 +6004,8 @@ func startExternalServiceWebServer(t *testing.T) string {
 		case "/api/v2/groups/123.json":
 			switch _, pwd, _ := r.BasicAuth(); pwd {
 			case "ok":
-				w.Write([]byte(`{"group": {"id": 123,"name": "test123"}}`))
+				_, err := w.Write([]byte(`{"group": {"id": 123,"name": "test123"}}`))
+				require.NoError(t, err)
 			case "fail":
 				w.WriteHeader(http.StatusUnauthorized)
 			default:

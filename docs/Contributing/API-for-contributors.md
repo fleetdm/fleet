@@ -1,8 +1,10 @@
 # API for contributors
 
 - [Packs](#packs)
+- [Mobile device management (MDM) - IN PROGRESS](#mobile-device-management-mdm-in-progress)
 - [Get or apply configuration files](#get-or-apply-configuration-files)
 - [Live query](#live-query)
+- [Trigger cron schedule](#trigger-cron-schedule)
 - [Device-authenticated routes](#device-authenticated-routes)
 - [Downloadable installers](#downloadable-installers)
 - [Setup](#setup)
@@ -207,7 +209,7 @@ The API routes to control packs are supported for backwards compatibility.
       "label_ids": [
         8
       ],
-      "team_ids": [],
+      "team_ids": []
     },
     {
       "created_at": "2021-01-19T17:08:31Z",
@@ -221,7 +223,7 @@ The API routes to control packs are supported for backwards compatibility.
         6
       ],
       "team_ids": []
-    },
+    }
   ]
 }
 ```
@@ -516,6 +518,39 @@ Delete pack by name.
 
 ---
 
+## Mobile device management (MDM) - IN PROGRESS
+
+> This feature is currently in development and is not ready for use.
+
+The MDM endpoints exist to support the related command-line interface sub-commands of `fleetctl`, such as `fleetctl generate mdm-apple` and `fleetctl get mdm-apple`, as well as the Web UI.
+
+- [Get Apple MDM](#get-apple-mdm)
+
+### Get Apple MDM
+
+`GET /api/v1/fleet/mdm/apple`
+
+#### Parameters
+
+None.
+
+#### Example
+
+`GET /api/v1/fleet/mdm/apple`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "common_name": "APSP:04u52i98aewuh-xxxx-xxxx-xxxx-xxxx",
+  "serial_number": "1234567890987654321",
+  "issuer": "Apple Application Integration 2 Certification Authority",
+  "renew_date": "2023-09-30T00:00:00Z"
+}
+```
+
 ## Get or apply configuration files
 
 These API routes are used by the `fleetctl` CLI tool. Users can manage Fleet with `fleetctl` and [configuration files in YAML syntax](https://fleetdm.com/docs/using-fleet/configuration-files/).
@@ -523,14 +558,14 @@ These API routes are used by the `fleetctl` CLI tool. Users can manage Fleet wit
 - [Get queries](#get-queries)
 - [Get query](#get-query)
 - [Apply queries](#apply-queries)
-- [Apply policies](#aaply-policies)
+- [Apply policies](#apply-policies)
 - [Get packs](#get-packs)
 - [Apply packs](#apply-packs)
 - [Get pack by name](#get-pack-by-name)
 - [Apply team](#apply-team)
 - [Apply labels](#apply-labels)
 - [Get labels](#get-labels)
-- [Get label](#get-label-spec)
+- [Get label](#get-label)
 - [Get enroll secrets](#get-enroll-secrets)
 - [Modify enroll secrets](#modify-enroll-secrets)
 
@@ -781,18 +816,22 @@ NOTE: when updating a policy, team and platform will be ignored.
       "name": "new policy",
       "description": "This will be a new policy because a policy with the name 'new policy' doesn't exist in Fleet.",
       "query": "SELECT * FROM osquery_info",
-      "resolution": "some resolution steps here"
+      "resolution": "some resolution steps here",
+      "critical": false
     },
     {
       "name": "Is FileVault enabled on macOS devices?",
       "query": "SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT “” AND filevault_status = ‘on’ LIMIT 1;",
       "description": "Checks to make sure that the FileVault feature is enabled on macOS devices.",
       "resolution": "Choose Apple menu > System Preferences, then click Security & Privacy. Click the FileVault tab. Click the Lock icon, then enter an administrator name and password. Click Turn On FileVault.",
-      "platform": "darwin"
+      "platform": "darwin",
+      "critical": true
     }
   ]
 }
 ```
+
+The field `critical` is available in Fleet Premium.
 
 ##### Default response
 
@@ -1063,7 +1102,7 @@ If the `name` is not already associated with an existing team, this API route cr
           "secret": "bhD5kiX2J+KBgZSk118qO61ZIdX/v8On"
         }
       ]
-t    }
+    }
   ]
 }
 ```
@@ -1301,8 +1340,8 @@ These API routes are used by the Fleet UI.
 - [Count targets](#count-targets)
 - [Run live query](#run-live-query)
 - [Run live query by name](#run-live-query-by-name)
-- [Retrieve live query results (standard WebSocket API)](#retrieve-live-query-results-standard-web-socket-api)
-- [Retrieve live query results (SockJS)](#retrieve-live-query-results-sock-js)
+- [Retrieve live query results (standard WebSocket API)](#retrieve-live-query-results-standard-websocket-api)
+- [Retrieve live query results (SockJS)](#retrieve-live-query-results-sockjs)
 
 ### Check live query status
 
@@ -1965,7 +2004,7 @@ currently pending.
 
 ---
 
-### Device-authenticated routes
+## Device-authenticated routes
 
 Device-authenticated routes are routes used by the Fleet Desktop application. Unlike most other routes, Fleet user's API token does not authenticate them. They use a device-specific token.
 
@@ -2378,7 +2417,7 @@ If an installer with the provided parameters is found.
 
 If an installer with the provided parameters doesn't exist.
 
-### Setup
+## Setup
 
 Sets up a new Fleet instance with the given parameters.
 

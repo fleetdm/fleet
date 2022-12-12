@@ -164,6 +164,6 @@ func TestCustomHeadersConfig(t *testing.T) {
 		"--custom-header", "X-Fleet-MoreTest:another",
 		"--address", srv.URL,
 	})
-	runAppNoChecks([]string{"get", "packs", "--config", configFile})
+	runAppNoChecks([]string{"get", "packs", "--config", configFile}) //nolint:errcheck
 	require.True(t, called)
 }

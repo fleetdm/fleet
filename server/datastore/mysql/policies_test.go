@@ -1296,52 +1296,59 @@ func testPoliciesSave(t *testing.T, ds *Datastore) {
 	var nfe *notFoundError
 	require.True(t, errors.As(err, &nfe))
 
-	gp, err := ds.NewGlobalPolicy(ctx, &user1.ID, fleet.PolicyPayload{
+	payload := fleet.PolicyPayload{
 		Name:        "global query",
 		Query:       "select 1;",
 		Description: "global query desc",
 		Resolution:  "global query resolution",
-	})
+	}
+	gp, err := ds.NewGlobalPolicy(ctx, &user1.ID, payload)
 	require.NoError(t, err)
+	require.Equal(t, gp.Name, payload.Name)
+	require.Equal(t, gp.Query, payload.Query)
+	require.Equal(t, gp.Description, payload.Description)
+	require.Equal(t, *gp.Resolution, payload.Resolution)
+	require.Equal(t, gp.Critical, payload.Critical)
 
-	tp1, err := ds.NewTeamPolicy(ctx, team1.ID, &user1.ID, fleet.PolicyPayload{
+	payload = fleet.PolicyPayload{
 		Name:        "team1 query",
 		Query:       "select 2;",
 		Description: "team1 query desc",
 		Resolution:  "team1 query resolution",
-	})
+		Critical:    true,
+	}
+	tp1, err := ds.NewTeamPolicy(ctx, team1.ID, &user1.ID, payload)
 	require.NoError(t, err)
+	require.Equal(t, tp1.Name, payload.Name)
+	require.Equal(t, tp1.Query, payload.Query)
+	require.Equal(t, tp1.Description, payload.Description)
+	require.Equal(t, *tp1.Resolution, payload.Resolution)
+	require.Equal(t, tp1.Critical, payload.Critical)
 
 	// Change name only of a global query.
-	gp.Name = "global query updated"
-	err = ds.SavePolicy(ctx, gp)
+	gp2 := *gp
+	gp2.Name = "global query updated"
+	gp2.Critical = true
+	err = ds.SavePolicy(ctx, &gp2)
 	require.NoError(t, err)
 	gp, err = ds.Policy(ctx, gp.ID)
 	require.NoError(t, err)
-	assert.Equal(t, "global query updated", gp.Name)
-	assert.Equal(t, "select 1;", gp.Query)
-	assert.Equal(t, "global query desc", gp.Description)
-	require.NotNil(t, gp.Resolution)
-	assert.Equal(t, "global query resolution", *gp.Resolution)
-	require.NotNil(t, gp.AuthorID)
-	assert.Equal(t, user1.ID, *gp.AuthorID)
+	gp2.UpdateCreateTimestamps = gp.UpdateCreateTimestamps
+	require.Equal(t, &gp2, gp)
 
 	// Change name, query, description and resolution of a team policy.
-	tp1.Name = "team1 query updated"
-	tp1.Query = "select 12;"
-	tp1.Description = "team1 query desc updated"
-	tp1.Resolution = ptr.String("team1 query resolution updated")
-	err = ds.SavePolicy(ctx, tp1)
+	tp2 := *tp1
+	tp2.Name = "team1 query updated"
+	tp2.Query = "select 12;"
+	tp2.Description = "team1 query desc updated"
+	tp2.Resolution = ptr.String("team1 query resolution updated")
+	tp2.Critical = false
+	err = ds.SavePolicy(ctx, &tp2)
 	require.NoError(t, err)
 	tp1, err = ds.Policy(ctx, tp1.ID)
+	tp2.UpdateCreateTimestamps = tp1.UpdateCreateTimestamps
 	require.NoError(t, err)
-	assert.Equal(t, "team1 query updated", tp1.Name)
-	assert.Equal(t, "select 12;", tp1.Query)
-	assert.Equal(t, "team1 query desc updated", tp1.Description)
-	require.NotNil(t, tp1.Resolution)
-	assert.Equal(t, "team1 query resolution updated", *tp1.Resolution)
-	require.NotNil(t, tp1.AuthorID)
-	assert.Equal(t, user1.ID, *tp1.AuthorID)
+	require.Equal(t, tp1, &tp2)
 }
 
 func testPoliciesDelUser(t *testing.T, ds *Datastore) {

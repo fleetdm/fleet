@@ -131,7 +131,7 @@ func main() {
 		return nil
 	}
 
-	app.Run(os.Args)
+	app.Run(os.Args) //nolint:errcheck
 }
 
 func exitErrHandler(c *cli.Context, err error) {

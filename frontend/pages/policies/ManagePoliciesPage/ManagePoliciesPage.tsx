@@ -461,7 +461,7 @@ const ManagePolicyPage = ({
         {showInheritedPoliciesButton && globalPolicies && (
           <RevealButton
             isShowing={showInheritedPolicies}
-            baseClass={baseClass}
+            className={baseClass}
             hideText={inheritedPoliciesButtonText(
               showInheritedPolicies,
               globalPolicies.length

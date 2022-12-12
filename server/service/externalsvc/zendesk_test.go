@@ -41,7 +41,8 @@ func TestZendesk(t *testing.T) {
 		}
 
 		w.WriteHeader(http.StatusCreated)
-		w.Write([]byte(`{"ticket": {"id": 35436}}`))
+		_, err := w.Write([]byte(`{"ticket": {"id": 35436}}`))
+		require.NoError(t, err)
 	}))
 	defer srv.Close()
 

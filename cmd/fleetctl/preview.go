@@ -261,7 +261,9 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 				context = "preview"
 				config.Contexts["preview"] = contextConfig
 			}
-			c.Set("context", context)
+			if err := c.Set("context", context); err != nil {
+				return fmt.Errorf("Error setting context: %w", err)
+			}
 
 			if err := writeConfig(configPath, config); err != nil {
 				return fmt.Errorf("Error writing fleetctl configuration: %w", err)
