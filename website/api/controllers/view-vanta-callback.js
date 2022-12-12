@@ -46,7 +46,7 @@ module.exports = {
       throw {redirect: '/'};
     }
 
-    let recordOfThisAuthorization = await ExternalAuthorization.findOne({emailAddress: this.req.signedCookies.oauthSourceIdForFleet});
+    let recordOfThisAuthorization = await VantaConnection.findOne({emailAddress: this.req.signedCookies.oauthSourceIdForFleet});
     // console.log(inputs);
 
     let vantaAuthorizationResponse = await sails.helpers.http.post(
@@ -61,10 +61,11 @@ module.exports = {
       }
     );
 
-    await ExternalAuthorization.updateOne({id: recordOfThisAuthorization.id}).set({
+    await VantaConnection.updateOne({id: recordOfThisAuthorization.id}).set({
       authToken: vantaAuthorizationResponse.access_token,
       authTokenExpiresAt: Date.now() + (vantaAuthorizationResponse.expires_in * 1000),
       refreshToken: vantaAuthorizationResponse.refresh_token,
+      isConnectedToVanta: true,
     });
 
     return {
