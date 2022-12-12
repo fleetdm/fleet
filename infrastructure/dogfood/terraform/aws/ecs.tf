@@ -300,6 +300,10 @@ resource "aws_ecs_task_definition" "backend" {
             name  = "FLEET_MDM_APPLE_SERVER_ADDRESS"
             value = "dogfood.fleetdm.com"
           },
+          {
+            name  = "FLEET_MYSQL_MAX_OPEN_CONNS"
+            value = var.fleet_max_open_conns
+          }
         ]
       }
   ])

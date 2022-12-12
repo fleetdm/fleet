@@ -129,3 +129,7 @@ variable "extra_security_group_cidrs" {
 variable "rds_initial_snapshot" {
   default = null
 }
+
+variable "fleet_max_open_cons" {
+  default = "50"
+}
