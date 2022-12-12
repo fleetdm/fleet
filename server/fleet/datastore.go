@@ -523,9 +523,10 @@ type Datastore interface {
 	///////////////////////////////////////////////////////////////////////////////
 	// Cron Stats
 
-	// GetLatestCronStats returns the most recent cron stats for the named cron schedule. If no rows
-	// are found, it returns an empty CronStats struct.
-	GetLatestCronStats(ctx context.Context, name string) (CronStats, error)
+	// GetLatestCronStats returns a slice of no more than two cron stats records, where index 0 (if
+	// present) is the most recently created scheduled run, and index 1 (if present) represents a
+	// triggered run that is currently pending.
+	GetLatestCronStats(ctx context.Context, name string) ([]CronStats, error)
 	// InsertCronStats inserts cron stats for the named cron schedule.
 	InsertCronStats(ctx context.Context, statsType CronStatsType, name string, instance string, status CronStatsStatus) (int, error)
 	// UpdateCronStats updates the status of the identified cron stats record.

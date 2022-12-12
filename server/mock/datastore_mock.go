@@ -397,7 +397,7 @@ type UnlockFunc func(ctx context.Context, name string, owner string) error
 
 type DBLocksFunc func(ctx context.Context) ([]*fleet.DBLock, error)
 
-type GetLatestCronStatsFunc func(ctx context.Context, name string) (fleet.CronStats, error)
+type GetLatestCronStatsFunc func(ctx context.Context, name string) ([]fleet.CronStats, error)
 
 type InsertCronStatsFunc func(ctx context.Context, statsType fleet.CronStatsType, name string, instance string, status fleet.CronStatsStatus) (int, error)
 
@@ -2215,7 +2215,7 @@ func (s *DataStore) DBLocks(ctx context.Context) ([]*fleet.DBLock, error) {
 	return s.DBLocksFunc(ctx)
 }
 
-func (s *DataStore) GetLatestCronStats(ctx context.Context, name string) (fleet.CronStats, error) {
+func (s *DataStore) GetLatestCronStats(ctx context.Context, name string) ([]fleet.CronStats, error) {
 	s.GetLatestCronStatsFuncInvoked = true
 	return s.GetLatestCronStatsFunc(ctx, name)
 }
