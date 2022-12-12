@@ -68,10 +68,13 @@ export const reconcileMutuallyExclusiveHostParams = ({
   osVersion,
 }: IMutuallyExclusiveHostParams): Record<string, unknown> => {
   if (label) {
-    // backend api now allows label + low disk space and label + mdm id.
-    // all other params are still mutually exclusive.
+    // backend api now allows (label + low disk space) OR (label + mdm id) OR
+    // (label + mdm enrollment status). all other params are still mutually exclusive.
     if (mdmId) {
       return { mdm_id: mdmId };
+    }
+    if (mdmEnrollmentStatus) {
+      return { mdm_enrollment_status: mdmEnrollmentStatus };
     }
     if (lowDiskSpaceHosts) {
       return { low_disk_space: lowDiskSpaceHosts };

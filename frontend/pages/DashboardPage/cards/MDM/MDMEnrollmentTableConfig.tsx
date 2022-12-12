@@ -6,6 +6,10 @@ import TextCell from "components/TableContainer/DataTable/TextCell";
 import TooltipWrapper from "components/TooltipWrapper";
 import ViewAllHostsLink from "components/ViewAllHostsLink";
 
+interface IIMdmEnrollmentData extends IMdmEnrollmentCardData {
+  selectedPlatformLabelId?: number;
+}
+
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
 interface ICellProps {
@@ -13,7 +17,7 @@ interface ICellProps {
     value: string;
   };
   row: {
-    original: IMdmEnrollmentCardData;
+    original: IIMdmEnrollmentData;
   };
 }
 
@@ -106,6 +110,7 @@ const enrollmentTableHeaders = [
         <ViewAllHostsLink
           queryParams={{ mdm_enrollment_status: statusParam() }}
           className="mdm-solution-link"
+          platformLabelId={cellProps.row.original.selectedPlatformLabelId}
         />
       );
     },
@@ -113,8 +118,28 @@ const enrollmentTableHeaders = [
   },
 ];
 
-const generateEnrollmentTableHeaders = (): IDataColumn[] => {
+export const generateEnrollmentTableHeaders = (): IDataColumn[] => {
   return enrollmentTableHeaders;
 };
 
-export default generateEnrollmentTableHeaders;
+const enhanceEnrollmentData = (
+  enrollmentData: IMdmEnrollmentCardData[],
+  selectedPlatformLabelId?: number
+): IIMdmEnrollmentData[] => {
+  return Object.values(enrollmentData).map((data) => {
+    return {
+      ...data,
+      selectedPlatformLabelId,
+    };
+  });
+};
+
+export const generateEnrollmentDataSet = (
+  enrollmentData: IMdmEnrollmentCardData[] | null,
+  selectedPlatformLabelId?: number
+): IIMdmEnrollmentData[] => {
+  if (!enrollmentData) {
+    return [];
+  }
+  return [...enhanceEnrollmentData(enrollmentData, selectedPlatformLabelId)];
+};

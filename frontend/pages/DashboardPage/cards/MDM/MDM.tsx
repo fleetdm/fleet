@@ -11,7 +11,10 @@ import {
   generateSolutionsTableHeaders,
   generateSolutionsDataSet,
 } from "./MDMSolutionsTableConfig";
-import generateEnrollmentTableHeaders from "./MDMEnrollmentTableConfig";
+import {
+  generateEnrollmentTableHeaders,
+  generateEnrollmentDataSet,
+} from "./MDMEnrollmentTableConfig";
 
 interface IMdmCardProps {
   error: Error | null;
@@ -74,6 +77,10 @@ const Mdm = ({
     mdmSolutions,
     selectedPlatformLabelId
   );
+  const enrollmentDataSet = generateEnrollmentDataSet(
+    mdmEnrollmentData,
+    selectedPlatformLabelId
+  );
 
   // Renders opaque information as host information is loading
   const opacity = isFetching ? { opacity: 0 } : { opacity: 1 };
@@ -120,7 +127,7 @@ const Mdm = ({
               ) : (
                 <TableContainer
                   columns={enrollmentTableHeaders}
-                  data={mdmEnrollmentData}
+                  data={enrollmentDataSet}
                   isLoading={isFetching}
                   defaultSortHeader={ENROLLMENT_DEFAULT_SORT_HEADER}
                   defaultSortDirection={ENROLLMENT_DEFAULT_SORT_DIRECTION}

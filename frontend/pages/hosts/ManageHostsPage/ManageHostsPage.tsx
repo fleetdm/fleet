@@ -1563,18 +1563,25 @@ const ManageHostsPage = ({
     ) {
       const renderFilterPill = () => {
         switch (true) {
-          // backend allows for pill combos label x low disk space
+          // backend allows for pill combos (label + low disk space) OR
+          // (label + mdm solution) OR (label + mdm enrollment status)
           case showSelectedLabel && !!lowDiskSpaceHosts:
             return (
               <>
                 {renderLabelFilterPill()} {renderLowDiskSpaceFilterBlock()}
               </>
             );
-
           case showSelectedLabel && !!mdmId:
             return (
               <>
                 {renderLabelFilterPill()} {renderMDMSolutionFilterBlock()}
+              </>
+            );
+
+          case showSelectedLabel && !!mdmEnrollmentStatus:
+            return (
+              <>
+                {renderLabelFilterPill()} {renderMDMEnrollmentFilterBlock()}
               </>
             );
           case showSelectedLabel:

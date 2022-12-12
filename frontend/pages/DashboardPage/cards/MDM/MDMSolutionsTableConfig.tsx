@@ -123,5 +123,3 @@ export const generateSolutionsDataSet = (
   }
   return [...enhanceSolutionsData(solutions, selectedPlatformLabelId)];
 };
-
-export default { generateSolutionsTableHeaders, generateSolutionsDataSet };
