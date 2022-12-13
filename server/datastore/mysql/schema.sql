@@ -40,9 +40,10 @@ INSERT INTO `app_config_json` VALUES (1,'{\"features\": {\"enable_host_users\": 
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `automation_iterations` (
-  `policyID` int(11) NOT NULL,
+  `policy_id` int(10) unsigned NOT NULL,
   `interation` int(11) NOT NULL,
-  PRIMARY KEY (`policyID`)
+  PRIMARY KEY (`policy_id`),
+  CONSTRAINT `automation_iterations_ibfk_1` FOREIGN KEY (`policy_id`) REFERENCES `policies` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;

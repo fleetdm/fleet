@@ -13,12 +13,13 @@ func Up_20221202115820(tx *sql.Tx) error {
 	for name, query := range map[string]string{
 		"create table": `
 			CREATE TABLE automation_iterations (
-				policyID INTEGER NOT NULL PRIMARY KEY,
-				interation INTEGER NOT NULL
+				policy_id INT UNSIGNED NOT NULL PRIMARY KEY,
+				interation INT NOT NULL,
+				FOREIGN KEY (policy_id) REFERENCES policies(id) ON DELETE CASCADE
 			);
 		`,
 		"alter table": `
-			ALTER TABLE policy_membership ADD COLUMN automation_iteration INTEGER NULL;
+			ALTER TABLE policy_membership ADD COLUMN automation_iteration INT NULL;
 		`,
 	} {
 		if _, err := tx.Exec(query); err != nil {
