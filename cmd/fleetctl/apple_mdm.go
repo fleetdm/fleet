@@ -202,10 +202,10 @@ func generateMDMAppleBMCommand() *cli.Command {
 			publicKeyPath := c.String("public-key")
 			privateKeyPath := c.String("private-key")
 
-			cn := "FleetDM"
+			const cn = "FleetDM"
 
-			// Apple doesn't check the expiry
-			validityDays := 30
+			// Apple doesn't check the expiry of the public key certificate. It does not matter what value we use.
+			const validityDays = 30
 
 			fmt.Fprintf(
 				c.App.Writer,
