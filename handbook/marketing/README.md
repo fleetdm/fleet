@@ -662,5 +662,5 @@ These groups maintain the following [Slack channels](https://fleetdm.com/handboo
 | `#g-community`              | Kathy Satterlee                                                     |
 
 
-<meta name="maintainedBy" value="timmy-k">
+<meta name="maintainedBy" value="jarodreyes">
 <meta name="title" value="🫧 Marketing">
