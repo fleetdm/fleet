@@ -197,10 +197,41 @@ func wmiGetSMBiosUUID() (string, error) {
 	return strings.TrimSpace(outputByLines[1]), nil
 }
 
+// It perform a UUID sanity check on a given byte array
+func isValidUUID(uuidBytes []byte) (bool, error) {
+	// SMBIOS constants from spec here - https://www.dmtf.org/sites/default/files/standards/documents/DSP0134_3.1.1.pdf
+	const uuidSize int = 0x10 // UUID size is calculated with field offset value (0xA) + node field length (6 bytes)
+
+	// Sanity check on size
+	if len(uuidBytes) != uuidSize {
+		return false, errors.New("Invalid input UUID size")
+	}
+
+	// UUID field sanity check for null values
+	// Logic is based on https://github.com/ContinuumLLC/godep-go-smbios/blob/ab7c733f1be8e55ed3e0587d1aa2d5883fe8801e/smbios/decoder.go#L135
+	only0xFF, only0x00 := true, true
+	for i := 0; i < uuidSize && (only0x00 || only0xFF); i++ {
+		if uuidBytes[i] != 0x00 {
+			only0x00 = false
+		}
+		if uuidBytes[i] != 0xFF {
+			only0xFF = false
+		}
+	}
+
+	if only0xFF {
+		return false, errors.New("UUID is not currently present in the system, but it can be set.")
+	}
+	if only0x00 {
+		return false, errors.New("UUID is not present in the system.")
+	}
+
+	return true, nil
+}
+
 // It obtains the BIOS UUID value by reading the SMBIOS "System Information"
 // structure data on the OS SMBIOS interface.
-// On Windows, the SMBIOS "System Information" data can be obtained by calling
-// GetSystemFirmwareTable()
+// On Windows, the SMBIOS "System Information" data can be obtained by calling GetSystemFirmwareTable()
 // https://learn.microsoft.com/en-us/windows/win32/api/sysinfoapi/nf-sysinfoapi-getsystemfirmwaretable
 // Instead of just calling this native API, this function relies on Digital Ocean's go-smbios
 // library. This package smbios provides detection and access to System Management BIOS (SMBIOS) and
@@ -235,35 +266,25 @@ func hardwareGetSMBiosUUID() (string, error) {
 	const revMajorVersion int = 0x3          // SMBIOS revision that most of the current BIOS have - v3 specs were released in 2015
 	const minLegacyMajorVersion int = 0x2    // Minimum SMBIOS Major rev that supports UUID little-endian encoding
 	const minLegacyMinorVersion int = 0x6    // Minimum SMBIOS Minor rev that supports UUID little-endian encoding
-	const uuidSize int = 0x10                // UUID size is calculated with field offset value (0xA) + node field length (6 bytes)
-
-	var smBiosUUID string = ""
 
 	// Walking the obtained SMBIOS data
 	for _, rawBiosStruct := range structSMBIOSdata {
 		if (rawBiosStruct.Header.Type == systemInformationType) && (rawBiosStruct.Header.Length >= minBiosStructSize) {
 			uuidBytes := rawBiosStruct.Formatted[uuidOffset:]
 
-			// UUID field sanity check for null values
-			// Logic is based on https://github.com/ContinuumLLC/godep-go-smbios/blob/ab7c733f1be8e55ed3e0587d1aa2d5883fe8801e/smbios/decoder.go#L135
-			only0xFF, only0x00 := true, true
-			for i := 0; i < uuidSize && (only0x00 || only0xFF); i++ {
-				if uuidBytes[i] != 0x00 {
-					only0x00 = false
-				}
-				if uuidBytes[i] != 0xFF {
-					only0xFF = false
-				}
+			// UUID sanity check
+			isValidUUID, err := isValidUUID(uuidBytes)
+			if err != nil {
+				return "", fmt.Errorf("%v", err)
 			}
 
-			if only0xFF {
-				return "", errors.New("UUID is not currently present in the system, but it can be set.")
-			}
-			if only0x00 {
-				return "", errors.New("UUID is not present in the system.")
+			if !isValidUUID {
+				return "", errors.New("invalid UUID")
 			}
 
-			// As off version 2.6 of the SMBIOS specification, the first 3 fields of the UUID are supposed to be encoded on little-endian(section 7.2.1)
+			// As of version 2.6 of the SMBIOS specification, the first 3 fields of the UUID are
+			// supposed to be encoded in little-endian (section 7.2.1)
+			var smBiosUUID string = ""
 			if (biosMajor >= revMajorVersion) || (biosMajor >= minLegacyMajorVersion && biosMinor >= minLegacyMinorVersion) {
 				smBiosUUID = fmt.Sprintf("%02X%02X%02X%02X-%02X%02X-%02X%02X-%02X%02X-%02X%02X%02X%02X%02X%02X",
 					uuidBytes[3], uuidBytes[2], uuidBytes[1], uuidBytes[0], uuidBytes[5], uuidBytes[4], uuidBytes[7], uuidBytes[6], uuidBytes[8], uuidBytes[9], uuidBytes[10], uuidBytes[11], uuidBytes[12], uuidBytes[13], uuidBytes[14], uuidBytes[15])
@@ -272,11 +293,11 @@ func hardwareGetSMBiosUUID() (string, error) {
 					uuidBytes[0], uuidBytes[1], uuidBytes[2], uuidBytes[3], uuidBytes[4], uuidBytes[5], uuidBytes[6], uuidBytes[7], uuidBytes[8], uuidBytes[9], uuidBytes[10], uuidBytes[11], uuidBytes[12], uuidBytes[13], uuidBytes[14], uuidBytes[15])
 			}
 
-			break
+			return smBiosUUID, nil
 		}
 	}
 
-	return smBiosUUID, nil
+	return "", errors.New("UUID was not found")
 }
 
 // It attempts to get SMBIOS UUID through WMI, and if this mechanism fails, it fallback into reading
