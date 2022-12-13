@@ -473,6 +473,8 @@ spec:
   integrations:
     jira: null
     zendesk: null
+  mdm:
+    apple_bm_terms_expired: false
   org_info:
     org_logo_url: ""
     org_name: ""
@@ -592,7 +594,8 @@ spec:
       },
       "interval": "0s"
     },
-    "integrations": { "jira": null, "zendesk": null }
+    "integrations": { "jira": null, "zendesk": null },
+    "mdm": { "apple_bm_terms_expired": false }
   }
 }
 `
@@ -638,6 +641,8 @@ spec:
         result_log_file: /dev/null
         status_log_file: /dev/null
       plugin: filesystem
+  mdm:
+    apple_bm_terms_expired: false
   org_info:
     org_logo_url: ""
     org_name: ""
@@ -821,7 +826,10 @@ spec:
           "status_log_file": "/dev/null"
         }
       }
-    }
+    },
+		"mdm": {
+			"apple_bm_terms_expired": false
+		}
   }
 }
 `
