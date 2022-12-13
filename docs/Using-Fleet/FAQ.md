@@ -15,6 +15,7 @@
     - [What are my options for storing the osquery logs?](#what-are-my-options-for-storing-the-osquery-logs)
     - [Troubleshooting](#troubleshooting)
   - [Why does the same query come back faster sometimes?](#why-does-the-same-query-come-back-faster-sometimes)
+  - [Why don't my query results appear sorted based upon the ORDER BY clause I specified in my SQL query?](#why-dont-my-query-results-appear-sorted-based-upon-the-ORDER-BY-clause-I-specified-in-my-SQL-query)
   - [What happens if I have a query on a team policy and I also have it scheduled to run separately?](#what-happens-if-i-have-a-query-on-a-team-policy-and-i-also-have-it-scheduled-to-run-separately)
   - [Why aren’t my live queries being logged?](#why-arent-my-live-queries-being-logged)
   - [Why does my query work locally with osquery but not in Fleet?](#why-does-my-query-work-locally-with-osquery-but-not-in-fleet)
@@ -132,6 +133,10 @@ Don't worry, this behavior is expected; it's part of how osquery works.
 
 Fleet and osquery work together by communicating with heartbeats. Depending on how close the next heartbeat is, Fleet might return results a few seconds faster or slower.
 >By the way, to get around a phenomena called the "thundering herd problem", these heartbeats aren't exactly the same number of seconds apart each time. osquery implements a "splay", a few ± milliseconds that are added to or subtracted from the heartbeat interval to prevent these thundering herds. This helps prevent situations where many thousands of devices might unnecessarily attempt to communicate with the Fleet server at exactly the same time. (If you've ever used Socket.io, a similar phenomena can occur with that tool's automatic WebSocket reconnects.)
+
+## Why don't my query results appear sorted based upon the ORDER BY clause I specified in my SQL query? 
+
+When a query executes in Fleet, the query is sent to all hosts at the same time, but results are returned from hosts at different times. In Fleet, results are shown immediately when Fleet receives a response from a host. Fleet does not sort the overall results across all hosts (the sort UI toggle is used for this). Instead, Fleet prioritizes speed when displaying the results.  This means that if you use an 'ORDER BY' clause selection criteria in a query, the results may not initially appear with your desired order, however, the sort UI toggle allows you to sort by ascending or descending order for any of the displayed columns.
 
 ## What happens if I have a query on a team policy and I also have it scheduled to run separately?
 
