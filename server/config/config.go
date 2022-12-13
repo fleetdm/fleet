@@ -1124,11 +1124,15 @@ func (man Manager) LoadConfig() FleetConfig {
 			Duration: man.getConfigDuration("session.duration"),
 		},
 		Osquery: OsqueryConfig{
-			NodeKeySize:                      man.getConfigInt("osquery.node_key_size"),
-			HostIdentifier:                   man.getConfigString("osquery.host_identifier"),
-			EnrollCooldown:                   man.getConfigDuration("osquery.enroll_cooldown"),
-			StatusLogPlugin:                  man.getConfigString("osquery.status_log_plugin"),
-			ResultLogPlugin:                  man.getConfigString("osquery.result_log_plugin"),
+			NodeKeySize:     man.getConfigInt("osquery.node_key_size"),
+			HostIdentifier:  man.getConfigString("osquery.host_identifier"),
+			EnrollCooldown:  man.getConfigDuration("osquery.enroll_cooldown"),
+			StatusLogPlugin: man.getConfigString("osquery.status_log_plugin"),
+			ResultLogPlugin: man.getConfigString("osquery.result_log_plugin"),
+			// StatusLogFile is deprecated. FilesystemConfig.StatusLogFile is used instead.
+			StatusLogFile: man.getConfigString("osquery.status_log_file"),
+			// ResultLogFile is deprecated. FilesystemConfig.ResultLogFile is used instead.
+			ResultLogFile:                    man.getConfigString("osquery.result_log_file"),
 			LabelUpdateInterval:              man.getConfigDuration("osquery.label_update_interval"),
 			PolicyUpdateInterval:             man.getConfigDuration("osquery.policy_update_interval"),
 			DetailUpdateInterval:             man.getConfigDuration("osquery.detail_update_interval"),
