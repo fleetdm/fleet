@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/google/uuid"
@@ -876,7 +877,8 @@ func (a *agent) mdmWindows() []map[string]string {
 	autopilot := rand.Intn(2) == 1
 	ix := rand.Intn(len(possibleMDMServerURLs))
 	serverURL := possibleMDMServerURLs[ix]
-	providerID := fleet.MDMNameFromServerURL(serverURL)
+	fleetMDMURL := a.serverAddress + apple_mdm.MDMPath
+	providerID := fleet.MDMNameFromServerURL(serverURL, fleetMDMURL)
 	installType := "Microsoft Workstation"
 	if rand.Intn(4) == 1 {
 		installType = "Microsoft Server"

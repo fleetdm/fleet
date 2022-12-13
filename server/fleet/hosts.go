@@ -398,6 +398,7 @@ const (
 	WellKnownMDMVMWare    = "VMware Workspace ONE"
 	WellKnownMDMIntune    = "Intune"
 	WellKnownMDMSimpleMDM = "SimpleMDM"
+	WellKnownMDMFleet     = "Fleet"
 )
 
 var mdmNameFromServerURLChecks = map[string]string{
@@ -410,8 +411,12 @@ var mdmNameFromServerURLChecks = map[string]string{
 
 // MDMNameFromServerURL returns the MDM solution name corresponding to the
 // given server URL. If no match is found, it returns the unknown MDM name.
-func MDMNameFromServerURL(serverURL string) string {
+func MDMNameFromServerURL(serverURL, fleetMDMURL string) string {
 	serverURL = strings.ToLower(serverURL)
+	if serverURL == strings.ToLower(fleetMDMURL) {
+		return WellKnownMDMFleet
+	}
+
 	for check, name := range mdmNameFromServerURLChecks {
 		if strings.Contains(serverURL, check) {
 			return name

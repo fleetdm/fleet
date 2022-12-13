@@ -2138,8 +2138,8 @@ func (ds *Datastore) getOrInsertMunkiIssues(ctx context.Context, errors, warning
 	return msgToID, nil
 }
 
-func (ds *Datastore) SetOrUpdateMDMData(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string, installedFromDep bool, name string) error {
-	mdmID, err := ds.getOrInsertMDMSolution(ctx, serverURL, name)
+func (ds *Datastore) SetOrUpdateMDMData(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string, installedFromDep bool, name, fleetMDMURL string) error {
+	mdmID, err := ds.getOrInsertMDMSolution(ctx, serverURL, name, fleetMDMURL)
 	if err != nil {
 		return err
 	}
@@ -2183,9 +2183,9 @@ func (ds *Datastore) SetOrUpdateHostOrbitInfo(ctx context.Context, hostID uint, 
 	)
 }
 
-func (ds *Datastore) getOrInsertMDMSolution(ctx context.Context, serverURL string, mdmName string) (mdmID uint, err error) {
+func (ds *Datastore) getOrInsertMDMSolution(ctx context.Context, serverURL, mdmName, fleetMDMURL string) (mdmID uint, err error) {
 	if mdmName == "" {
-		mdmName = fleet.MDMNameFromServerURL(serverURL)
+		mdmName = fleet.MDMNameFromServerURL(serverURL, fleetMDMURL)
 	}
 	readStmt := &parameterizedStmt{
 		Statement: `SELECT id FROM mobile_device_management_solutions WHERE name = ? AND server_url = ?`,

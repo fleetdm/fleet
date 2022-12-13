@@ -949,6 +949,10 @@ func (svc *Service) SubmitDistributedQueryResults(
 var noSuchTableRegexp = regexp.MustCompile(`^no such table: \S+$`)
 
 func (svc *Service) directIngestDetailQuery(ctx context.Context, host *fleet.Host, name string, rows []map[string]string, failed bool) (ingested bool, err error) {
+	appCfg, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return false, osqueryError{message: "ingest detail query: " + err.Error()}
+	}
 	features, err := svc.HostFeatures(ctx, host)
 	if err != nil {
 		return false, osqueryError{message: "ingest detail query: " + err.Error()}
@@ -969,6 +973,14 @@ func (svc *Service) directIngestDetailQuery(ctx context.Context, host *fleet.Hos
 		return true, nil
 	} else if query.DirectTaskIngestFunc != nil {
 		err = query.DirectTaskIngestFunc(ctx, svc.logger, host, svc.task, rows, failed)
+		if err != nil {
+			return false, osqueryError{
+				message: fmt.Sprintf("ingesting query %s: %s", name, err.Error()),
+			}
+		}
+		return true, nil
+	} else if query.DirectAppConfigIngestFunc != nil {
+		err = query.DirectAppConfigIngestFunc(ctx, svc.logger, host, appCfg, svc.ds, rows, failed)
 		if err != nil {
 			return false, osqueryError{
 				message: fmt.Sprintf("ingesting query %s: %s", name, err.Error()),

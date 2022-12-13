@@ -410,7 +410,7 @@ func TestDetailQueriesOSVersionWindows(t *testing.T) {
 
 func TestDirectIngestMDMMac(t *testing.T) {
 	ds := new(mock.Store)
-	ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string, installedFromDep bool, name string) error {
+	ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string, installedFromDep bool, name, fleetMDMURL string) error {
 		require.False(t, enrolled)
 		require.False(t, installedFromDep)
 		require.Empty(t, serverURL)
@@ -419,11 +419,14 @@ func TestDirectIngestMDMMac(t *testing.T) {
 
 	var host fleet.Host
 
-	err := directIngestMDMMac(context.Background(), log.NewNopLogger(), &host, ds, []map[string]string{}, true)
+	var appCfg fleet.AppConfig
+	appCfg.ApplyDefaults()
+
+	err := directIngestMDMMac(context.Background(), log.NewNopLogger(), &host, &appCfg, ds, []map[string]string{}, true)
 	require.NoError(t, err)
 	require.False(t, ds.SetOrUpdateMDMDataFuncInvoked)
 
-	err = directIngestMDMMac(context.Background(), log.NewNopLogger(), &host, ds, []map[string]string{
+	err = directIngestMDMMac(context.Background(), log.NewNopLogger(), &host, &appCfg, ds, []map[string]string{
 		{
 			"enrolled":           "false",
 			"installed_from_dep": "",
@@ -436,7 +439,7 @@ func TestDirectIngestMDMMac(t *testing.T) {
 
 func TestDirectIngestMDMWindows(t *testing.T) {
 	ds := new(mock.Store)
-	ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string, installedFromDep bool, name string) error {
+	ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string, installedFromDep bool, name, fleetMDMURL string) error {
 		require.True(t, enrolled)
 		require.True(t, installedFromDep)
 		require.True(t, isServer)
@@ -444,12 +447,15 @@ func TestDirectIngestMDMWindows(t *testing.T) {
 		return nil
 	}
 
+	var appCfg fleet.AppConfig
+	appCfg.ApplyDefaults()
+
 	var host fleet.Host
-	err := directIngestMDMWindows(context.Background(), log.NewNopLogger(), &host, ds, []map[string]string{}, true)
+	err := directIngestMDMWindows(context.Background(), log.NewNopLogger(), &host, &appCfg, ds, []map[string]string{}, true)
 	require.NoError(t, err)
 	require.False(t, ds.SetOrUpdateMDMDataFuncInvoked)
 
-	err = directIngestMDMWindows(context.Background(), log.NewNopLogger(), &host, ds, []map[string]string{
+	err = directIngestMDMWindows(context.Background(), log.NewNopLogger(), &host, &appCfg, ds, []map[string]string{
 		{"key": "discovery_service_url", "value": "some url"},
 		{"key": "autopilot", "value": "true"},
 		{"key": "provider_id", "value": "1337"},

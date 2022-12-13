@@ -14,6 +14,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/publicip"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/service/async"
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
@@ -30,16 +31,22 @@ type DetailQuery struct {
 	// empty, run on all platforms.
 	Platforms []string
 	// IngestFunc translates a query result into an update to the host struct,
-	// around data that lives on the hosts table.
+	// around data that lives on the hosts table. No other IngestFunc field should
+	// be set.
 	IngestFunc func(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error
 	// DirectIngestFunc gathers results from a query and directly works with the datastore to
 	// persist them. This is usually used for host data that is stored in a separate table.
-	// DirectTaskIngestFunc must not be set if this is set.
+	// No other IngestFunc field should be set.
 	DirectIngestFunc func(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error
 	// DirectTaskIngestFunc is similar to DirectIngestFunc except that it uses a task to
 	// ingest the results. This is for ingestion that can be either sync or async.
-	// DirectIngestFunc must not be set if this is set.
+	// No other IngestFunc field should be set.
 	DirectTaskIngestFunc func(ctx context.Context, logger log.Logger, host *fleet.Host, task *async.Task, rows []map[string]string, failed bool) error
+	// DirectAppConfigIngestFunc is similar to DirectIngestFunc except that it
+	// also receives the current AppConfig as argument. No other IngestFunc field
+	// should be set.
+	// TODO: anyone has better ideas on how to provide the AppConfig to an ingestion?
+	DirectAppConfigIngestFunc func(ctx context.Context, logger log.Logger, host *fleet.Host, appCfg *fleet.AppConfig, ds fleet.Datastore, rows []map[string]string, failed bool) error
 }
 
 // RunsForPlatform determines whether this detail query should run on the given platform
@@ -439,10 +446,10 @@ func ingestKubequeryInfo(ctx context.Context, logger log.Logger, host *fleet.Hos
 // This map should not be modified at runtime.
 var extraDetailQueries = map[string]DetailQuery{
 	"mdm": {
-		Query:            `select enrolled, server_url, installed_from_dep from mdm;`,
-		DirectIngestFunc: directIngestMDMMac,
-		Platforms:        []string{"darwin"},
-		Discovery:        discoveryTable("mdm"),
+		Query:                     `select enrolled, server_url, installed_from_dep from mdm;`,
+		DirectAppConfigIngestFunc: directIngestMDMMac,
+		Platforms:                 []string{"darwin"},
+		Discovery:                 discoveryTable("mdm"),
 	},
 	"mdm_windows": {
 		Query: `
@@ -471,8 +478,8 @@ var extraDetailQueries = map[string]DetailQuery{
 			)
 			;
 		`,
-		DirectIngestFunc: directIngestMDMWindows,
-		Platforms:        []string{"windows"},
+		DirectAppConfigIngestFunc: directIngestMDMWindows,
+		Platforms:                 []string{"windows"},
 	},
 	"munki_info": {
 		Query:            `select version, errors, warnings from munki_info;`,
@@ -1230,7 +1237,7 @@ func directIngestUsers(ctx context.Context, logger log.Logger, host *fleet.Host,
 	return nil
 }
 
-func directIngestMDMMac(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error {
+func directIngestMDMMac(ctx context.Context, logger log.Logger, host *fleet.Host, appCfg *fleet.AppConfig, ds fleet.Datastore, rows []map[string]string, failed bool) error {
 	if len(rows) == 0 || failed {
 		// assume the extension is not there
 		return nil
@@ -1256,10 +1263,11 @@ func directIngestMDMMac(ctx context.Context, logger log.Logger, host *fleet.Host
 		}
 	}
 
-	return ds.SetOrUpdateMDMData(ctx, host.ID, false, enrolled, rows[0]["server_url"], installedFromDep, "")
+	fleetMDMURL := appCfg.ServerSettings.ServerURL + apple_mdm.MDMPath
+	return ds.SetOrUpdateMDMData(ctx, host.ID, false, enrolled, rows[0]["server_url"], installedFromDep, "", fleetMDMURL)
 }
 
-func directIngestMDMWindows(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error {
+func directIngestMDMWindows(ctx context.Context, logger log.Logger, host *fleet.Host, appCfg *fleet.AppConfig, ds fleet.Datastore, rows []map[string]string, failed bool) error {
 	if failed {
 		level.Error(logger).Log("op", "directIngestMDMWindows", "err", "failed")
 		return nil
@@ -1271,7 +1279,8 @@ func directIngestMDMWindows(ctx context.Context, logger log.Logger, host *fleet.
 	_, autoPilot := data["autopilot"]
 	isServer := strings.Contains(strings.ToLower(data["installation_type"]), "server")
 	_, enrolled := data["provider_id"]
-	return ds.SetOrUpdateMDMData(ctx, host.ID, isServer, enrolled, data["discovery_service_url"], autoPilot, data["provider_id"])
+	fleetMDMURL := appCfg.ServerSettings.ServerURL + apple_mdm.MDMPath
+	return ds.SetOrUpdateMDMData(ctx, host.ID, isServer, enrolled, data["discovery_service_url"], autoPilot, data["provider_id"], fleetMDMURL)
 }
 
 func directIngestMunkiInfo(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error {
