@@ -6,48 +6,44 @@ Users with the Admin role receive all permissions.
 
 ## User permissions
 
-| **Action**                                                                         | Observer | Maintainer | Admin |
-| ----------------------------------------------------                               | -------- | ---------- | ----- |
-| View all [activity](https://fleetdm.com/docs/using-fleet/rest-api#activities)                                                                  | ✅       | ✅         | ✅    |
-| View all hosts                                                                    | ✅       | ✅         | ✅    |
+| **Action**                                                                                                                                 | Observer | Maintainer | Admin |
+| ----------------------------------------------------                                                                                       | -------- | ---------- | ----- |
+| View all [activity](https://fleetdm.com/docs/using-fleet/rest-api#activities)                                                              | ✅       | ✅         | ✅    |
+| View all hosts                                                                                                                             | ✅       | ✅         | ✅    |
 | Filter hosts using [labels](https://fleetdm.com/docs/using-fleet/rest-api#labels)                                                          | ✅       | ✅         | ✅    |
-| Target hosts using labels                                                          | ✅       | ✅         | ✅    |
-| Add and delete hosts                                                               |          | ✅         | ✅    |
-| Transfer hosts between teams\*                                                     |          | ✅         | ✅    |
-| Create, edit, and delete labels                                                    |          | ✅         | ✅    |
-| View all software                                                                  | ✅       | ✅         | ✅    |
-| Filter software by [vulnerabilities](https://fleetdm.com/docs/using-fleet/vulnerability-processing#vulnerability-processing)                                                 | ✅       | ✅         | ✅    |
-| Filter hosts by software                                                           | ✅       | ✅         | ✅    |
-| Filter software by team\*                                                          | ✅       | ✅         | ✅    |
-| Manage [vulnerability automations](https://fleetdm.com/docs/using-fleet/automations#vulnerability-automations)                                                  |          |            | ✅    |
-| Run only designated, **observer can run** ,queries as live queries against all hosts | ✅       | ✅         | ✅    |
-| Run any query as [live query](https://fleetdm.com/docs/using-fleet/fleet-ui#run-a-query) against all hosts                                      |          | ✅         | ✅    |
-| Create, edit, and delete queries                                                   |          | ✅         | ✅    |
-| View all queries                                                                   | ✅       | ✅         | ✅    |
-| Add, edit, and remove queries from all schedules                                  |          | ✅         | ✅    |
-| Create, edit, view, and delete packs                                               |          | ✅         | ✅    |
-| View all policies                                                                  | ✅       | ✅         | ✅    |
-| Filter hosts using policies                                                        | ✅       | ✅         | ✅    |
-| Create, edit, and delete policies for all hosts                                    |          | ✅         | ✅    |
-| Create, edit, and delete policies for all hosts assigned to team\*                 |          | ✅         | ✅    |
-| Manage [policy automations](https://fleetdm.com/docs/using-fleet/automations#policy-automations)                                                         |          |            | ✅    |
-| Create, edit, view, and delete users                                               |          |            | ✅    |
-| Add and remove team members\*                                                      |          |            | ✅    |
-| Create, edit, and delete teams\*                                                   |          |            | ✅    |
-| Create, edit, and delete [enroll secrets](https://fleetdm.com/docs/deploying/faq#when-do-i-need-to-deploy-a-new-enroll-secret-to-my-hosts)                                           |          | ✅         | ✅    |
-| Create, edit, and delete [enroll secrets for teams](https://fleetdm.com/docs/using-fleet/rest-api#get-enroll-secrets-for-a-team)\*                                |          | ✅         | ✅    |
-| Edit [organization settings](https://fleetdm.com/docs/using-fleet/configuration-files#organization-settings)                                                         |          |            | ✅    |
-| Edit [agent options](https://fleetdm.com/docs/using-fleet/configuration-files#agent-options)                                                                 |          |            | ✅    |
-| Edit [agent options for hosts assigned to teams](https://fleetdm.com/docs/using-fleet/configuration-files#team-agent-options)\*                                   |          |            | ✅    |
-| Initiate [file carving](https://fleetdm.com/docs/using-fleet/rest-api#file-carving)                                                              |          | ✅         | ✅    |
-| Retrieve contents from file carving                                                |          |            | ✅    |
-| View Apple mobile device management (MDM) certificate information                  |          |            | ✅    |
-| View Apple Business Manager (BM) information                                       |          |            | ✅    |
-| Generate Apple Business Manager (BM) DEP key pair                                       |          |            | ✅    |
-
-
-
-
+| Target hosts using labels                                                                                                                  | ✅       | ✅         | ✅    |
+| Add and delete hosts                                                                                                                       |          | ✅         | ✅    |
+| Transfer hosts between teams\*                                                                                                             |          | ✅         | ✅    |
+| Create, edit, and delete labels                                                                                                            |          | ✅         | ✅    |
+| View all software                                                                                                                          | ✅       | ✅         | ✅    |
+| Filter software by [vulnerabilities](https://fleetdm.com/docs/using-fleet/vulnerability-processing#vulnerability-processing)               | ✅       | ✅         | ✅    |
+| Filter hosts by software                                                                                                                   | ✅       | ✅         | ✅    |
+| Filter software by team\*                                                                                                                  | ✅       | ✅         | ✅    |
+| Manage [vulnerability automations](https://fleetdm.com/docs/using-fleet/automations#vulnerability-automations)                             |          |            | ✅    |
+| Run only designated, **observer can run** ,queries as live queries against all hosts                                                       | ✅       | ✅         | ✅    |
+| Run any query as [live query](https://fleetdm.com/docs/using-fleet/fleet-ui#run-a-query) against all hosts                                 |          | ✅         | ✅    |
+| Create, edit, and delete queries                                                                                                           |          | ✅         | ✅    |
+| View all queries                                                                                                                           | ✅       | ✅         | ✅    |
+| Add, edit, and remove queries from all schedules                                                                                           |          | ✅         | ✅    |
+| Create, edit, view, and delete packs                                                                                                       |          | ✅         | ✅    |
+| View all policies                                                                                                                          | ✅       | ✅         | ✅    |
+| Filter hosts using policies                                                                                                                | ✅       | ✅         | ✅    |
+| Create, edit, and delete policies for all hosts                                                                                            |          | ✅         | ✅    |
+| Create, edit, and delete policies for all hosts assigned to team\*                                                                         |          | ✅         | ✅    |
+| Manage [policy automations](https://fleetdm.com/docs/using-fleet/automations#policy-automations)                                           |          |            | ✅    |
+| Create, edit, view, and delete users                                                                                                       |          |            | ✅    |
+| Add and remove team members\*                                                                                                              |          |            | ✅    |
+| Create, edit, and delete teams\*                                                                                                           |          |            | ✅    |
+| Create, edit, and delete [enroll secrets](https://fleetdm.com/docs/deploying/faq#when-do-i-need-to-deploy-a-new-enroll-secret-to-my-hosts) |          | ✅         | ✅    |
+| Create, edit, and delete [enroll secrets for teams](https://fleetdm.com/docs/using-fleet/rest-api#get-enroll-secrets-for-a-team)\*         |          | ✅         | ✅    |
+| Edit [organization settings](https://fleetdm.com/docs/using-fleet/configuration-files#organization-settings)                               |          |            | ✅    |
+| Edit [agent options](https://fleetdm.com/docs/using-fleet/configuration-files#agent-options)                                               |          |            | ✅    |
+| Edit [agent options for hosts assigned to teams](https://fleetdm.com/docs/using-fleet/configuration-files#team-agent-options)\*            |          |            | ✅    |
+| Initiate [file carving](https://fleetdm.com/docs/using-fleet/rest-api#file-carving)                                                        |          | ✅         | ✅    |
+| Retrieve contents from file carving                                                                                                        |          |            | ✅    |
+| View Apple mobile device management (MDM) certificate information                                                                          |          |            | ✅    |
+| View Apple Business Manager (BM) information                                                                                               |          |            | ✅    |
+| Generate Apple Business Manager (BM) DEP key pair                                                                                          |          |            | ✅    |
 
 \*Applies only to Fleet Premium
 
