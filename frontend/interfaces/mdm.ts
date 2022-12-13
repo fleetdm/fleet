@@ -28,10 +28,3 @@ export interface IMdmSummaryResponse {
   mobile_device_management_enrollment_status: IMdmEnrollementStatus;
   mobile_device_management_solution: IMdmSolution[] | null;
 }
-
-export interface IHostMdmResponse {
-  enrollment_status: string | null;
-  server_url: string | null;
-  name: string | null;
-  id: number;
-}

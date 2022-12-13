@@ -6,7 +6,7 @@ import TextCell from "components/TableContainer/DataTable/TextCell";
 import TooltipWrapper from "components/TooltipWrapper";
 import ViewAllHostsLink from "components/ViewAllHostsLink";
 
-interface IIMdmEnrollmentData extends IMdmEnrollmentCardData {
+interface IMdmEnrollmentData extends IMdmEnrollmentCardData {
   selectedPlatformLabelId?: number;
 }
 
@@ -17,7 +17,7 @@ interface ICellProps {
     value: string;
   };
   row: {
-    original: IIMdmEnrollmentData;
+    original: IMdmEnrollmentData;
   };
 }
 
@@ -125,7 +125,7 @@ export const generateEnrollmentTableHeaders = (): IDataColumn[] => {
 const enhanceEnrollmentData = (
   enrollmentData: IMdmEnrollmentCardData[],
   selectedPlatformLabelId?: number
-): IIMdmEnrollmentData[] => {
+): IMdmEnrollmentData[] => {
   return Object.values(enrollmentData).map((data) => {
     return {
       ...data,
@@ -137,7 +137,7 @@ const enhanceEnrollmentData = (
 export const generateEnrollmentDataSet = (
   enrollmentData: IMdmEnrollmentCardData[] | null,
   selectedPlatformLabelId?: number
-): IIMdmEnrollmentData[] => {
+): IMdmEnrollmentData[] => {
   if (!enrollmentData) {
     return [];
   }
