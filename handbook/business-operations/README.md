@@ -41,7 +41,7 @@ When attending a conference or traveling for Fleet, please make a post in [#help
 - The price of your flight (feel free to optimize a direct flight if there is one that is less than double the price of the cheapest non-direct flight).
 - The price of your hotel per night (dry cleaning is allowable if the stay is over 3 days).
 - The price of the admission fees if attending a conference.
-- $100 allowance per day for food and beverage **(please use your personal credit card for movies, mini bars, and entertainment, except when entertaining guests who contribute actively in code/community on a quarterly basis, or in-market sales or customer contacts on an open Salesforce opportunity with qualified budget worth $100k+ ΔARR)**.
+- $100 allowance per day for food and beverage **(please use your personal credit card for movies, mini bars, and entertainment, except when entertaining guests who contribute actively in code/community on a quarterly basis, or who are Salesforce contacts on an open, qualified opportunity with a budget of at least $200k+ ΔARR)**.
 - Customer/Partner Facing Events:
   - Gala/Black Tie Events: Tuxedo or Gown Rental, $150-$225 USD per event is reimbursable. **(The event must be customer specific and the invitation must state black tie only)**.
 The monthly limit on your Brex card will be increased temporarily as necessary to accommodate the increased spending associated with the conference.
