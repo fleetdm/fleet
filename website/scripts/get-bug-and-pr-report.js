@@ -66,7 +66,7 @@ module.exports = {
           ).retry();
           // Add the results to the allIssuesWithBugLabel array.
           allIssuesWithBugLabel = allIssuesWithBugLabel.concat(issuesWithBugLabel);
-          // If we recieved less results than we requested, we've reached the last page of the results.
+          // If we received less results than we requested, we've reached the last page of the results.
           return issuesWithBugLabel.length !== NUMBER_OF_RESULTS_REQUESTED;
         }, 10000);
 
@@ -111,14 +111,14 @@ module.exports = {
             baseHeaders
           ).retry();
 
-          // Filter the PRs we recieved from Github using the pull request's merged_at date.
+          // Filter the PRs we received from Github using the pull request's merged_at date.
           let resultsToAdd = closedPullRequests.filter((pullRequest)=>{
             return threeWeeksAgo <= new Date(pullRequest.merged_at);
           });
 
           // Add the filtered array of PRs to the array of all pull requests merged in the past three weeks.
           pullRequestsMergedInThePastThreeWeeks = pullRequestsMergedInThePastThreeWeeks.concat(resultsToAdd);
-          // Stop when we've recieved results from the third page.
+          // Stop when we've received results from the third page.
           return pageNumberForPaginatedResults === 3;
         });
 
@@ -165,7 +165,7 @@ module.exports = {
           ).retry();
           // Add the results to the array of results.
           allOpenPullRequests = allOpenPullRequests.concat(pullRequests);
-          // If we recieved less results than we requested, we've reached the last page of the results.
+          // If we received less results than we requested, we've reached the last page of the results.
           return pullRequests.length !== NUMBER_OF_RESULTS_REQUESTED;
         }, 10000);
         for(let pullRequest of allOpenPullRequests) {
