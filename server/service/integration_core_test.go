@@ -2535,7 +2535,7 @@ type macadminsDataResponse struct {
 	} `json:"macadmins"`
 }
 
-func (s *integrationTestSuite) TestGetMacadminsAData() {
+func (s *integrationTestSuite) TestGetMacadminsData() {
 	t := s.T()
 
 	ctx := context.Background()
