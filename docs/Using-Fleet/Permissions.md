@@ -42,7 +42,8 @@ Users with the Admin role receive all permissions.
 | Initiate [file carving](https://fleetdm.com/docs/using-fleet/rest-api#file-carving)                                                              |          | ✅         | ✅    |
 | Retrieve contents from file carving                                                |          |            | ✅    |
 | View Apple mobile device management (MDM) certificate information                  |          |            | ✅    |
-| View Apple business manager (BM) information                                       |          |            | ✅    |
+| View Apple Business Manager (BM) information                                       |          |            | ✅    |
+| Generate Apple Business Manager (BM) DEP key pair                                       |          |            | ✅    |
 
 
 
