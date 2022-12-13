@@ -127,7 +127,7 @@ const Mdm = (): JSX.Element => {
             <Button onClick={toggleRequestModal} variant="brand">
               Request
             </Button>
-            <p>2. Go to your email to download to download your CSR.</p>
+            <p>2. Go to your email to download your CSR.</p>
             <p>
               3.{" "}
               <CustomLink
