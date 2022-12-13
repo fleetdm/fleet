@@ -57,6 +57,17 @@ func (m MDMAppleEnrollmentProfile) AuthzType() string {
 	return "mdm_apple_enrollment_profile"
 }
 
+// MDMAppleDEPKeyPair contains the DEP public key certificate and private key pair. Both are PEM encoded.
+type MDMAppleDEPKeyPair struct {
+	PublicKey  []byte `json:"public_key"`
+	PrivateKey []byte `json:"private_key"`
+}
+
+// AuthzType implements authz.AuthzTyper.
+func (m MDMAppleDEPKeyPair) AuthzType() string {
+	return "mdm_apple_dep_key_pair"
+}
+
 // MDMAppleCommandResult holds the result of a command execution provided by the target device.
 type MDMAppleCommandResult struct {
 	// ID is the enrollment ID. This should be the same as the device ID.
