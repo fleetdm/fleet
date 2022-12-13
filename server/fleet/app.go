@@ -125,6 +125,10 @@ type AppConfig struct {
 	WebhookSettings WebhookSettings `json:"webhook_settings"`
 	Integrations    Integrations    `json:"integrations"`
 
+	// MDM settings holds settings that apply to the Mobile Device Management
+	// feature.
+	MDM MDMSettings `json:"mdm"`
+
 	// when true, strictDecoding causes the UnmarshalJSON method to return an
 	// error if there are unknown fields in the raw JSON.
 	strictDecoding bool
@@ -197,6 +201,8 @@ func (c *AppConfig) Clone() (interface{}, error) {
 		}
 	}
 
+	// MDMSettings: nothing needs cloning
+
 	return &clone, nil
 }
 
@@ -267,6 +273,16 @@ func (d *Duration) UnmarshalJSON(b []byte) error {
 	default:
 		return fmt.Errorf("invalid duration type: %T", value)
 	}
+}
+
+type MDMSettings struct {
+	// AppleBMTermsExpired is set to true if an Apple Business Manager request
+	// failed due to Apple's terms and conditions having changed and need the
+	// user to explicitly accept them. It cannot be set manually via the
+	// PATCH /config API, it is only set automatically, internally, by detecting
+	// the 403 Forbidden error with body T_C_NOT_SIGNED returned by the Apple BM
+	// API.
+	AppleBMTermsExpired bool `json:"apple_bm_terms_expired"`
 }
 
 type WebhookSettings struct {

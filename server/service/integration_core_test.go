@@ -4418,12 +4418,27 @@ func (s *integrationTestSuite) TestSessionInfo() {
 
 func (s *integrationTestSuite) TestAppConfig() {
 	t := s.T()
+	ctx := context.Background()
 
 	// get the app config
 	var acResp appConfigResponse
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
 	assert.Equal(t, "free", acResp.License.Tier)
 	assert.Equal(t, "FleetTest", acResp.OrgInfo.OrgName) // set in SetupSuite
+	assert.False(t, acResp.MDM.AppleBMTermsExpired)
+
+	// set the apple BM terms expired flag, and we'll check again at the end of
+	// this test to make sure it wasn't modified by any PATCH request (it cannot
+	// be set via this endpoint).
+	appCfg, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	appCfg.MDM.AppleBMTermsExpired = true
+	err = s.ds.SaveAppConfig(ctx, appCfg)
+	require.NoError(t, err)
+
+	acResp = appConfigResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	assert.True(t, acResp.MDM.AppleBMTermsExpired)
 
 	// no server settings set for the URL, so not possible to test the
 	// certificate endpoint
@@ -4454,6 +4469,7 @@ func (s *integrationTestSuite) TestAppConfig() {
   }`), http.StatusOK, &acResp)
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
 	require.Equal(t, string(*acResp.AgentOptions), "{}")
+	assert.True(t, acResp.MDM.AppleBMTermsExpired)
 
 	// test a change that does modify the agent options.
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
@@ -4589,6 +4605,23 @@ func (s *integrationTestSuite) TestAppConfig() {
 
 	s.DoJSON("GET", "/api/latest/fleet/spec/enroll_secret", nil, http.StatusOK, &specResp)
 	require.Len(t, specResp.Spec.Secrets, 0)
+
+	// try to update the apple bm terms flag via PATCH /config, not allowed
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": { "apple_bm_terms_expired": false }
+  }`), http.StatusBadRequest, &acResp)
+
+	// verify that the Apple BM terms expired flag was never modified
+	acResp = appConfigResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	assert.True(t, acResp.MDM.AppleBMTermsExpired)
+
+	// set the apple BM terms back to false
+	appCfg, err = s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	appCfg.MDM.AppleBMTermsExpired = false
+	err = s.ds.SaveAppConfig(ctx, appCfg)
+	require.NoError(t, err)
 
 	// test setting the default app config we use for new installs (this check
 	// ensures that the default config passes the validation)

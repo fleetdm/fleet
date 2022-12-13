@@ -137,6 +137,7 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 
 			WebhookSettings: config.WebhookSettings,
 			Integrations:    config.Integrations,
+			MDM:             config.MDM,
 		},
 		appConfigResponseFields: appConfigResponseFields{
 			UpdateInterval:  updateIntervalConfig,
@@ -245,6 +246,9 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		return nil, err
 	}
 
+	// keep this original value, as it cannot be modified via this request.
+	origAppleBMTerms := appConfig.MDM.AppleBMTermsExpired
+
 	license, err := svc.License(ctx)
 	if err != nil {
 		return nil, err
@@ -334,6 +338,17 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	fleet.ValidateEnabledHostStatusIntegrations(appConfig.WebhookSettings.HostStatusWebhook, invalid)
 	if invalid.HasErrors() {
 		return nil, ctxerr.Wrap(ctx, invalid)
+	}
+
+	// TODO: should we just ignore that field if provided in the modify payload?
+	// By returning an error, we prevent using the output of fleetctl get config
+	// as input to fleetctl apply or this endpoint.
+	if origAppleBMTerms != appConfig.MDM.AppleBMTermsExpired {
+		// best-effort way to detect if that field has been provided in the modify
+		// request - it cannot be modified manually, this behaves as if it was an
+		// unknown field provided in the payload.
+		err = fleet.NewUserMessageError(errors.New(`json: unknown field "mdm.apple_bm_terms_expired"`), http.StatusBadRequest)
+		return nil, ctxerr.Wrap(ctx, err)
 	}
 
 	// do not send a test email in dry-run mode, so this is a good place to stop
