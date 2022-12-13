@@ -26,6 +26,10 @@
     vertical-align: bottom;
     padding: 6px;
 
+    .children-wrapper {
+      gap: 0; // TODO: Refactor to include global spacing and new svg icons
+    }
+
     .fleeticon-chevronleft,
     .fleeticon-chevronright {
       &:before {

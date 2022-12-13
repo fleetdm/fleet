@@ -350,6 +350,10 @@
   &__action-button-container {
     display: flex;
     align-items: center;
+
+    .children-wrapper {
+      gap: $pad-small;
+    }
   }
 
   &__device_mapping {

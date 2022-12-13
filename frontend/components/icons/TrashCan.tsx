@@ -1,15 +1,20 @@
 import React from "react";
 import { COLORS, Colors } from "styles/var/colors";
+import { SIZES, Sizes } from "styles/var/sizes";
 
 interface ITrashCanProps {
   color?: Colors;
+  size?: Sizes;
 }
 
-const TrashCan = ({ color = "core-fleet-blue" }: ITrashCanProps) => {
+const TrashCan = ({
+  color = "core-fleet-blue",
+  size = "medium",
+}: ITrashCanProps) => {
   return (
     <svg
-      width="16"
-      height="16"
+      width={SIZES[size]}
+      height={SIZES[size]}
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       viewBox="0 0 16 16"

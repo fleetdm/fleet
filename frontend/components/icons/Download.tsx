@@ -1,14 +1,16 @@
 import React from "react";
 import { COLORS, Colors } from "styles/var/colors";
+import { SIZES, Sizes } from "styles/var/sizes";
 
 interface IDownload {
   color?: Colors;
+  size: Sizes;
 }
-const Download = ({ color = "core-fleet-blue" }: IDownload) => {
+const Download = ({ color = "core-fleet-blue", size = "small" }: IDownload) => {
   return (
     <svg
-      width="16"
-      height="16"
+      width={SIZES[size]}
+      height={SIZES[size]}
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       viewBox="0 0 16 16"

@@ -13,10 +13,13 @@
     &:focus-visible {
       outline: 1px solid $core-vibrant-blue;
     }
+
+    .children-wrapper {
+      gap: 12px;
+    }
   }
 
   &__tile-icon {
-    margin-right: px-to-rem(12);
     white-space: nowrap;
   }
 

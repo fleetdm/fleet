@@ -299,12 +299,11 @@
   &__export-btn {
     padding-left: $pad-medium;
 
-    img {
-      width: 13px;
-      height: 13px;
-      margin-left: 8px;
-      position: relative;
-      top: -2px;
+    .children-wrapper {
+      gap: 7px; // Figma styleguide 7px
+    }
+    .icon {
+      padding-bottom: 2px; // Match Dogfood TODO: Revisit vertical positioning
     }
   }
 }
