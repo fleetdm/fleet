@@ -522,7 +522,7 @@ Delete pack by name.
 
 > This feature is currently in development and is not ready for use.
 
-The MDM endpoints exist to support the related command-line interface sub-commands of `fleetctl`, such as `fleetctl generate mdm-apple` and `fleetctl get mdm-apple`, as well as the Web UI.
+The MDM endpoints exist to support the related command-line interface sub-commands of `fleetctl`, such as `fleetctl generate mdm-apple` and `fleetctl get mdm-apple`, as well as the Fleet UI.
 
 - [Get Apple MDM](#get-apple-mdm)
 - [Get Apple BM](#get-apple-bm)
