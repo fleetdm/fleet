@@ -209,7 +209,7 @@ The API routes to control packs are supported for backwards compatibility.
       "label_ids": [
         8
       ],
-      "team_ids": [],
+      "team_ids": []
     },
     {
       "created_at": "2021-01-19T17:08:31Z",
@@ -223,7 +223,7 @@ The API routes to control packs are supported for backwards compatibility.
         6
       ],
       "team_ids": []
-    },
+    }
   ]
 }
 ```
@@ -525,6 +525,7 @@ Delete pack by name.
 The MDM endpoints exist to support the related command-line interface sub-commands of `fleetctl`, such as `fleetctl generate mdm-apple` and `fleetctl get mdm-apple`, as well as the Web UI.
 
 - [Get Apple MDM](#get-apple-mdm)
+- [Get Apple BM](#get-apple-bm)
 
 ### Get Apple MDM
 
@@ -551,6 +552,34 @@ None.
 }
 ```
 
+### Get Apple BM
+
+_Available in Fleet Premium_
+
+`GET /api/v1/fleet/mdm/apple_bm`
+
+#### Parameters
+
+None.
+
+#### Example
+
+`GET /api/v1/fleet/mdm/apple_bm`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "apple_id": "example@fleetdm.com",
+  "org_name": "Fleet Device Management",
+  "mdm_server_url": "https://example.com/mdm/apple/mdm",
+  "renew_date": "2023-11-29T00:00:00Z",
+  "default_team": ""
+}
+```
+
 ## Get or apply configuration files
 
 These API routes are used by the `fleetctl` CLI tool. Users can manage Fleet with `fleetctl` and [configuration files in YAML syntax](https://fleetdm.com/docs/using-fleet/configuration-files/).
@@ -558,14 +587,14 @@ These API routes are used by the `fleetctl` CLI tool. Users can manage Fleet wit
 - [Get queries](#get-queries)
 - [Get query](#get-query)
 - [Apply queries](#apply-queries)
-- [Apply policies](#aaply-policies)
+- [Apply policies](#apply-policies)
 - [Get packs](#get-packs)
 - [Apply packs](#apply-packs)
 - [Get pack by name](#get-pack-by-name)
 - [Apply team](#apply-team)
 - [Apply labels](#apply-labels)
 - [Get labels](#get-labels)
-- [Get label](#get-label-spec)
+- [Get label](#get-label)
 - [Get enroll secrets](#get-enroll-secrets)
 - [Modify enroll secrets](#modify-enroll-secrets)
 
@@ -816,18 +845,22 @@ NOTE: when updating a policy, team and platform will be ignored.
       "name": "new policy",
       "description": "This will be a new policy because a policy with the name 'new policy' doesn't exist in Fleet.",
       "query": "SELECT * FROM osquery_info",
-      "resolution": "some resolution steps here"
+      "resolution": "some resolution steps here",
+      "critical": false
     },
     {
       "name": "Is FileVault enabled on macOS devices?",
       "query": "SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT “” AND filevault_status = ‘on’ LIMIT 1;",
       "description": "Checks to make sure that the FileVault feature is enabled on macOS devices.",
       "resolution": "Choose Apple menu > System Preferences, then click Security & Privacy. Click the FileVault tab. Click the Lock icon, then enter an administrator name and password. Click Turn On FileVault.",
-      "platform": "darwin"
+      "platform": "darwin",
+      "critical": true
     }
   ]
 }
 ```
+
+The field `critical` is available in Fleet Premium.
 
 ##### Default response
 
@@ -1098,7 +1131,7 @@ If the `name` is not already associated with an existing team, this API route cr
           "secret": "bhD5kiX2J+KBgZSk118qO61ZIdX/v8On"
         }
       ]
-t    }
+    }
   ]
 }
 ```
@@ -1336,8 +1369,8 @@ These API routes are used by the Fleet UI.
 - [Count targets](#count-targets)
 - [Run live query](#run-live-query)
 - [Run live query by name](#run-live-query-by-name)
-- [Retrieve live query results (standard WebSocket API)](#retrieve-live-query-results-standard-web-socket-api)
-- [Retrieve live query results (SockJS)](#retrieve-live-query-results-sock-js)
+- [Retrieve live query results (standard WebSocket API)](#retrieve-live-query-results-standard-websocket-api)
+- [Retrieve live query results (SockJS)](#retrieve-live-query-results-sockjs)
 
 ### Check live query status
 

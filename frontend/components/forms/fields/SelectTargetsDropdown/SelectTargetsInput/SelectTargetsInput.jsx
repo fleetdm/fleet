@@ -1,9 +1,8 @@
 import React, { Component } from "react";
 import PropTypes from "prop-types";
-import { difference, isEqual } from "lodash";
+import { difference, isEqual, uniqueId } from "lodash";
 import Select from "react-select";
 import "react-select/dist/react-select.css";
-import { v4 as uuidv4 } from "uuid";
 
 import debounce from "utilities/debounce";
 import targetInterface from "interfaces/target";
@@ -43,7 +42,7 @@ class SelectTargetsInput extends Component {
       // must have unique key to select correctly
       const uuidTargets = targets.map((target) => ({
         ...target,
-        uuid: uuidv4(),
+        uuid: uniqueId(),
       }));
 
       this.setState({ uuidTargets });
@@ -53,7 +52,7 @@ class SelectTargetsInput extends Component {
       // must have unique key to deselect correctly
       const uuidSelectedTargets = selectedTargets.map((target) => ({
         ...target,
-        uuid: uuidv4(),
+        uuid: uniqueId(),
       }));
 
       this.setState({ uuidSelectedTargets });

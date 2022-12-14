@@ -1,0 +1,1 @@
+* Fix `fleetctl query` to use custom HTTP headers if configured.

@@ -275,7 +275,7 @@ const ScheduleEditorModal = ({
         <div>
           <RevealButton
             isShowing={showAdvancedOptions}
-            baseClass={baseClass}
+            className={baseClass}
             hideText={"Hide advanced options"}
             showText={"Show advanced options"}
             caretPosition={"after"}

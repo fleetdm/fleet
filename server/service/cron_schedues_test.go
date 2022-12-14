@@ -129,9 +129,9 @@ func TestCronSchedulesService(t *testing.T) {
 	require.NoError(t, svc.TriggerCronSchedule(ctx, "test_sched")) // first trigger sent ok and will run successfully
 
 	time.Sleep(10 * time.Millisecond)
-	require.Error(t, svc.TriggerCronSchedule(ctx, "test_sched")) // error because first job is pending
+	require.ErrorContains(t, svc.TriggerCronSchedule(ctx, "test_sched"), "conflicts with current status of test_sched") // error because first job is pending
 
-	require.Error(t, svc.TriggerCronSchedule(ctx, "test_sched")) // error because first job is pending
+	require.ErrorContains(t, svc.TriggerCronSchedule(ctx, "test_sched"), "conflicts with current status of test_sched") // error because first job is pending
 
 	<-ticker.C
 	require.Error(t, svc.TriggerCronSchedule(ctx, "test_sched_2")) // error because unrecognized name

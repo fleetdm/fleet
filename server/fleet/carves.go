@@ -27,6 +27,8 @@ type CarveMetadata struct {
 	SessionId string `json:"session_id" db:"session_id"`
 	// Expired is whether the carve has "expired" (data has been purged).
 	Expired bool `json:"expired" db:"expired"`
+	// Error is the error message if the carve failed.
+	Error *string `json:"error" db:"error"`
 
 	// MaxBlock is the highest block number currently stored for this carve.
 	// This value is not stored directly, but generated from the carve_blocks

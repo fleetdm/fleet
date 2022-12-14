@@ -14,6 +14,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
 const (
@@ -56,11 +57,24 @@ func (c *CarveStore) NewCarve(ctx context.Context, metadata *fleet.CarveMetadata
 		Bucket: &c.bucket,
 		Key:    &objectKey,
 	})
+
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "s3 multipart carve create")
+		// even if we fail to create the multipart upload, we still want to create
+		// the carve in the database and register an error, this way the user can
+		// still fetch the carve and check its status
+		metadata.Error = ptr.String(err.Error())
+		if _, err := c.metadatadb.NewCarve(ctx, metadata); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "creating carve metadata")
+		}
+		return nil, ctxerr.Wrap(ctx, err, "creating multipart upload")
 	}
+
 	metadata.SessionId = *res.UploadId
-	return c.metadatadb.NewCarve(ctx, metadata)
+	savedMetadata, err := c.metadatadb.NewCarve(ctx, metadata)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "creating carve metadata")
+	}
+	return savedMetadata, nil
 }
 
 // UpdateCarve updates carve definition in database

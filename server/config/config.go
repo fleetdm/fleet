@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -17,6 +18,8 @@ import (
 	"strings"
 	"time"
 
+	nanodep_client "github.com/micromdm/nanodep/client"
+	"github.com/micromdm/nanodep/tokenpki"
 	"github.com/spf13/cast"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -48,6 +51,7 @@ type MysqlConfig struct {
 // RedisConfig defines configs related to Redis
 type RedisConfig struct {
 	Address                   string
+	Username                  string
 	Password                  string
 	Database                  int
 	UseTLS                    bool          `yaml:"use_tls"`
@@ -351,8 +355,6 @@ type MDMAppleConfig struct {
 
 // MDMAppleDEP holds the Apple DEP (Device Enrollment Program) configuration.
 type MDMAppleDEP struct {
-	// Token holds the tokens to authenticate to ABM
-	Token string `yaml:"token"`
 	// SyncPeriodicity is the duration between DEP device syncing (fetching and setting
 	// of DEP profiles).
 	SyncPeriodicity time.Duration `yaml:"sync_periodicity"`
@@ -425,6 +427,17 @@ type MDMConfig struct {
 	appleSCEP        *tls.Certificate
 	appleSCEPPEMCert []byte
 	appleSCEPPEMKey  []byte
+
+	AppleBMServerToken      string `yaml:"apple_bm_server_token"`
+	AppleBMServerTokenBytes string `yaml:"apple_bm_server_token_bytes"`
+	AppleBMCert             string `yaml:"apple_bm_cert"`
+	AppleBMCertBytes        string `yaml:"apple_bm_cert_bytes"`
+	AppleBMKey              string `yaml:"apple_bm_key"`
+	AppleBMKeyBytes         string `yaml:"apple_bm_key_bytes"`
+
+	// the following fields hold the decrypted, validated Apple BM token set the
+	// first time AppleBM is called.
+	appleBMToken *nanodep_client.OAuth1Tokens
 }
 
 type x509KeyPairConfig struct {
@@ -504,6 +517,17 @@ func (m *MDMConfig) IsAppleSCEPSet() bool {
 	return pair.IsSet()
 }
 
+func (m *MDMConfig) IsAppleBMSet() bool {
+	pair := x509KeyPairConfig{
+		m.AppleBMCert,
+		[]byte(m.AppleBMCertBytes),
+		m.AppleBMKey,
+		[]byte(m.AppleBMKeyBytes),
+	}
+	// the BM token options is not taken into account by pair.IsSet
+	return pair.IsSet() || m.AppleBMServerToken != "" || m.AppleBMServerTokenBytes != ""
+}
+
 // AppleAPNs returns the parsed and validated TLS certificate for Apple APNs.
 // It parses and validates it if it hasn't been done yet.
 func (m *MDMConfig) AppleAPNs() (cert *tls.Certificate, pemCert, pemKey []byte, err error) {
@@ -544,6 +568,64 @@ func (m *MDMConfig) AppleSCEP() (cert *tls.Certificate, pemCert, pemKey []byte, 
 		m.appleSCEPPEMKey = pair.keyBytes
 	}
 	return m.appleSCEP, m.appleSCEPPEMCert, m.appleSCEPPEMKey, nil
+}
+
+// AppleBM returns the parsed, validated and decrypted server token for Apple
+// Business Manager. It also parses and validates the Apple BM certificate and
+// private key in the process, in order to decrypt the token.
+func (m *MDMConfig) AppleBM() (tok *nanodep_client.OAuth1Tokens, err error) {
+	if m.appleBMToken == nil {
+		pair := x509KeyPairConfig{
+			m.AppleBMCert,
+			[]byte(m.AppleBMCertBytes),
+			m.AppleBMKey,
+			[]byte(m.AppleBMKeyBytes),
+		}
+		cert, err := pair.Parse(true)
+		if err != nil {
+			return nil, fmt.Errorf("Apple BM configuration: %w", err)
+		}
+		encToken, err := m.loadAppleBMEncryptedToken()
+		if err != nil {
+			return nil, fmt.Errorf("Apple BM configuration: %w", err)
+		}
+		bmKey, err := tokenpki.RSAKeyFromPEM(pair.keyBytes)
+		if err != nil {
+			return nil, fmt.Errorf("Apple BM configuration: parse private key: %w", err)
+		}
+		token, err := tokenpki.DecryptTokenJSON(encToken, cert.Leaf, bmKey)
+		if err != nil {
+			return nil, fmt.Errorf("Apple BM configuration: decrypt token: %w", err)
+		}
+		var jsonTok nanodep_client.OAuth1Tokens
+		if err := json.Unmarshal(token, &jsonTok); err != nil {
+			return nil, fmt.Errorf("Apple BM configuration: unmarshal JSON token: %w", err)
+		}
+		if jsonTok.AccessTokenExpiry.Before(time.Now()) {
+			return nil, errors.New("Apple BM configuration: token is expired")
+		}
+		m.appleBMToken = &jsonTok
+	}
+	return m.appleBMToken, nil
+}
+
+func (m *MDMConfig) loadAppleBMEncryptedToken() ([]byte, error) {
+	if m.AppleBMServerToken == "" && m.AppleBMServerTokenBytes == "" {
+		return nil, errors.New("no token provided")
+	}
+	if m.AppleBMServerToken != "" && m.AppleBMServerTokenBytes != "" {
+		return nil, errors.New("only one of the token path or bytes must be provided")
+	}
+
+	tokBytes := []byte(m.AppleBMServerTokenBytes)
+	if m.AppleBMServerTokenBytes == "" {
+		b, err := os.ReadFile(m.AppleBMServerToken)
+		if err != nil {
+			return nil, fmt.Errorf("reading token file: %w", err)
+		}
+		tokBytes = b
+	}
+	return tokBytes, nil
 }
 
 type TLS struct {
@@ -623,6 +705,8 @@ func (man Manager) addConfigs() {
 	// Redis
 	man.addConfigString("redis.address", "localhost:6379",
 		"Redis server address (host:port)")
+	man.addConfigString("redis.username", "",
+		"Redis server username")
 	man.addConfigString("redis.password", "",
 		"Redis server password (prefer env variable for security)")
 	man.addConfigInt("redis.database", 0,
@@ -886,7 +970,6 @@ func (man Manager) addConfigs() {
 	man.addConfigInt("mdm_apple.scep.signer.validity_days", 365, "Days signed client certificates will be valid")
 	man.addConfigInt("mdm_apple.scep.signer.allow_renewal_days", 14, "Allowable renewal days for client certificates")
 	man.addConfigString("mdm_apple.scep.challenge", "", "SCEP static challenge for enrollment")
-	man.addConfigString("mdm_apple.dep.token", "", "MDM DEP Auth Token")
 	man.addConfigDuration("mdm_apple.dep.sync_periodicity", 1*time.Minute, "How much time to wait for DEP profile assignment")
 
 	// MDM config
@@ -898,6 +981,12 @@ func (man Manager) addConfigs() {
 	man.addConfigString("mdm.apple_scep_cert_bytes", "", "Apple SCEP PEM-encoded certificate bytes")
 	man.addConfigString("mdm.apple_scep_key", "", "Apple SCEP PEM-encoded private key path")
 	man.addConfigString("mdm.apple_scep_key_bytes", "", "Apple SCEP PEM-encoded private key bytes")
+	man.addConfigString("mdm.apple_bm_server_token", "", "Apple Business Manager encrypted server token path (.p7m file)")
+	man.addConfigString("mdm.apple_bm_server_token_bytes", "", "Apple Business Manager encrypted server token bytes")
+	man.addConfigString("mdm.apple_bm_cert", "", "Apple Business Manager PEM-encoded certificate path")
+	man.addConfigString("mdm.apple_bm_cert_bytes", "", "Apple Business Manager PEM-encoded certificate bytes")
+	man.addConfigString("mdm.apple_bm_key", "", "Apple Business Manager PEM-encoded private key path")
+	man.addConfigString("mdm.apple_bm_key_bytes", "", "Apple Business Manager PEM-encoded private key bytes")
 
 	// Hide the official MDM flags as we don't want it to be discoverable for users for now
 	mdmFlags := []string{
@@ -909,6 +998,12 @@ func (man Manager) addConfigs() {
 		"mdm.apple_scep_cert_bytes",
 		"mdm.apple_scep_key",
 		"mdm.apple_scep_key_bytes",
+		"mdm.apple_bm_server_token",
+		"mdm.apple_bm_server_token_bytes",
+		"mdm.apple_bm_cert",
+		"mdm.apple_bm_cert_bytes",
+		"mdm.apple_bm_key",
+		"mdm.apple_bm_key_bytes",
 	}
 	for _, mdmFlag := range mdmFlags {
 		if flag := man.command.PersistentFlags().Lookup(flagNameFromConfigKey(mdmFlag)); flag != nil {
@@ -947,6 +1042,7 @@ func (man Manager) LoadConfig() FleetConfig {
 		MysqlReadReplica: loadMysqlConfig("mysql_read_replica"),
 		Redis: RedisConfig{
 			Address:                   man.getConfigString("redis.address"),
+			Username:                  man.getConfigString("redis.username"),
 			Password:                  man.getConfigString("redis.password"),
 			Database:                  man.getConfigInt("redis.database"),
 			UseTLS:                    man.getConfigBool("redis.use_tls"),
@@ -1135,19 +1231,24 @@ func (man Manager) LoadConfig() FleetConfig {
 				Challenge: man.getConfigString("mdm_apple.scep.challenge"),
 			},
 			DEP: MDMAppleDEP{
-				Token:           man.getConfigString("mdm_apple.dep.token"),
 				SyncPeriodicity: man.getConfigDuration("mdm_apple.dep.sync_periodicity"),
 			},
 		},
 		MDM: MDMConfig{
-			AppleAPNsCert:      man.getConfigString("mdm.apple_apns_cert"),
-			AppleAPNsCertBytes: man.getConfigString("mdm.apple_apns_cert_bytes"),
-			AppleAPNsKey:       man.getConfigString("mdm.apple_apns_key"),
-			AppleAPNsKeyBytes:  man.getConfigString("mdm.apple_apns_key_bytes"),
-			AppleSCEPCert:      man.getConfigString("mdm.apple_scep_cert"),
-			AppleSCEPCertBytes: man.getConfigString("mdm.apple_scep_cert_bytes"),
-			AppleSCEPKey:       man.getConfigString("mdm.apple_scep_key"),
-			AppleSCEPKeyBytes:  man.getConfigString("mdm.apple_scep_key_bytes"),
+			AppleAPNsCert:           man.getConfigString("mdm.apple_apns_cert"),
+			AppleAPNsCertBytes:      man.getConfigString("mdm.apple_apns_cert_bytes"),
+			AppleAPNsKey:            man.getConfigString("mdm.apple_apns_key"),
+			AppleAPNsKeyBytes:       man.getConfigString("mdm.apple_apns_key_bytes"),
+			AppleSCEPCert:           man.getConfigString("mdm.apple_scep_cert"),
+			AppleSCEPCertBytes:      man.getConfigString("mdm.apple_scep_cert_bytes"),
+			AppleSCEPKey:            man.getConfigString("mdm.apple_scep_key"),
+			AppleSCEPKeyBytes:       man.getConfigString("mdm.apple_scep_key_bytes"),
+			AppleBMServerToken:      man.getConfigString("mdm.apple_bm_server_token"),
+			AppleBMServerTokenBytes: man.getConfigString("mdm.apple_bm_server_token_bytes"),
+			AppleBMCert:             man.getConfigString("mdm.apple_bm_cert"),
+			AppleBMCertBytes:        man.getConfigString("mdm.apple_bm_cert_bytes"),
+			AppleBMKey:              man.getConfigString("mdm.apple_bm_key"),
+			AppleBMKeyBytes:         man.getConfigString("mdm.apple_bm_key_bytes"),
 		},
 	}
 
