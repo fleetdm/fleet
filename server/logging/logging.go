@@ -136,7 +136,7 @@ func NewJSONLogger(name string, config Config, logger log.Logger) (fleet.JSONLog
 		writer, err := NewPubSubLogWriter(
 			config.PubSub.Project,
 			config.PubSub.Topic,
-			false,
+			config.PubSub.AddAttributes,
 			logger,
 		)
 		if err != nil {

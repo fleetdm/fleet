@@ -352,7 +352,7 @@ the way that the Fleet server works.
 			liveQueryStore := live_query.NewRedisLiveQuery(redisPool)
 			ssoSessionStore := sso.NewSessionStore(redisPool)
 
-			// Set common configuration.
+			// Set common configuration for all logging.
 			loggingConfig := logging.Config{
 				Filesystem: logging.FilesystemConfig{
 					EnableLogRotation:    config.Filesystem.EnableLogRotation,
@@ -379,8 +379,7 @@ the way that the Fleet server works.
 					StsAssumeRoleArn: config.Lambda.StsAssumeRoleArn,
 				},
 				PubSub: logging.PubSubConfig{
-					Project:       config.PubSub.Project,
-					AddAttributes: config.PubSub.AddAttributes,
+					Project: config.PubSub.Project,
 				},
 				KafkaREST: logging.KafkaRESTConfig{
 					ProxyHost:        config.KafkaREST.ProxyHost,
@@ -411,6 +410,7 @@ the way that the Fleet server works.
 			loggingConfig.Kinesis.StreamName = config.Kinesis.ResultStream
 			loggingConfig.Lambda.Function = config.Lambda.ResultFunction
 			loggingConfig.PubSub.Topic = config.PubSub.ResultTopic
+			loggingConfig.PubSub.AddAttributes = config.PubSub.AddAttributes
 			loggingConfig.KafkaREST.Topic = config.KafkaREST.ResultTopic
 
 			osquerydResultLogger, err := logging.NewJSONLogger("result", loggingConfig, logger)
