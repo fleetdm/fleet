@@ -234,7 +234,7 @@ const QueryPage = ({
 
   return (
     <>
-      <MainContent className={baseClass}>
+      <MainContent className={baseClass} router={router}>
         <div className={`${baseClass}_wrapper`}>{renderScreen()}</div>
       </MainContent>
       {showSidebar && (

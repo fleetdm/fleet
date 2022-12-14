@@ -262,7 +262,7 @@ const PolicyPage = ({
 
   return (
     <>
-      <MainContent className={baseClass}>
+      <MainContent className={baseClass} router={router}>
         <div className={`${baseClass}__wrapper`}>{renderScreen()}</div>
       </MainContent>
       {showSidebar && (

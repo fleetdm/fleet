@@ -177,7 +177,7 @@ const ManageQueriesPage = ({
   const isTableDataLoading = isFetchingFleetQueries || queriesList === null;
 
   return (
-    <MainContent className={baseClass}>
+    <MainContent className={baseClass} router={router}>
       <div className={`${baseClass}__wrapper`}>
         <div className={`${baseClass}__header-wrap`}>
           <div className={`${baseClass}__header`}>

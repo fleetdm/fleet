@@ -391,7 +391,7 @@ const TeamDetailsWrapper = ({
     : availableTeams?.filter((t) => permissions.isTeamAdmin(currentUser, t.id));
 
   return (
-    <MainContent className={baseClass}>
+    <MainContent className={baseClass} router={router}>
       <>
         <TabsWrapper>
           {isGlobalAdmin ? (

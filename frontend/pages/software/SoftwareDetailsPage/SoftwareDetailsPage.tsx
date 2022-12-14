@@ -2,6 +2,7 @@ import React, { useContext } from "react";
 import { useErrorHandler } from "react-error-boundary";
 import { useQuery } from "react-query";
 import PATHS from "router/paths";
+import { InjectedRouter } from "react-router";
 
 import { AppContext } from "context/app";
 import {
@@ -25,10 +26,12 @@ interface ISoftwareDetailsProps {
   params: {
     software_id: string;
   };
+  router: InjectedRouter;
 }
 
 const SoftwareDetailsPage = ({
   params: { software_id },
+  router,
 }: ISoftwareDetailsProps): JSX.Element => {
   const { isPremiumTier } = useContext(AppContext);
   const handlePageError = useErrorHandler();
@@ -69,7 +72,7 @@ const SoftwareDetailsPage = ({
   }
 
   return (
-    <MainContent className={baseClass}>
+    <MainContent className={baseClass} router={router}>
       <div className={`${baseClass}__wrapper`}>
         <div className={`${baseClass}__header-links`}>
           <BackLink text="Back to software" path={PATHS.MANAGE_SOFTWARE} />

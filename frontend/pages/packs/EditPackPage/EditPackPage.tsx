@@ -220,7 +220,7 @@ const EditPacksPage = ({
   };
 
   return (
-    <MainContent className={baseClass}>
+    <MainContent className={baseClass} router={router}>
       <div className={`${baseClass}__wrapper`}>
         <div className={`${baseClass}__header-links`}>
           <BackLink text="Back to packs" path={PATHS.MANAGE_PACKS} />

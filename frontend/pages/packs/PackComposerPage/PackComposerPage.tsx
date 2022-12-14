@@ -72,7 +72,7 @@ const PackComposerPage = ({ router }: IPackComposerPageProps): JSX.Element => {
 
   return (
     <>
-      <MainContent className={baseClass}>
+      <MainContent className={baseClass} router={router}>
         <PackForm
           className={`${baseClass}__pack-form`}
           handleSubmit={handleSubmit}
