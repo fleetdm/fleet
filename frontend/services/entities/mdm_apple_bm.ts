@@ -10,8 +10,8 @@ export default {
     return sendRequest("GET", path);
   },
   loadKeys: () => {
-    const { MDM_APPLE } = endpoints;
-    const path = `${MDM_APPLE}/keys`;
+    const { MDM_APPLE_BM_KEYS } = endpoints;
+    const path = MDM_APPLE_BM_KEYS;
 
     // MDM TODO: Originally written for certificate_chain for certificate, refactor for keys when backend is merged
     return sendRequest("GET", path).then(({ certificate_chain }) => {
