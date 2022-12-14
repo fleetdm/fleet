@@ -423,6 +423,12 @@ func newAutomationsSchedule(
 			},
 		),
 		schedule.WithJob(
+			"fire_outdated_automations",
+			func(ctx context.Context) error {
+				return scheduleFailingPoliciesAutomation(ctx, ds, kitlog.With(logger, "automation", "fire_outdated_automations"), failingPoliciesSet)
+			},
+		),
+		schedule.WithJob(
 			"failing_policies_automation",
 			func(ctx context.Context) error {
 				return triggerFailingPoliciesAutomation(ctx, ds, kitlog.With(logger, "automation", "failing_policies"), failingPoliciesSet)
@@ -431,6 +437,30 @@ func newAutomationsSchedule(
 	)
 
 	return s, nil
+}
+
+func scheduleFailingPoliciesAutomation(
+	ctx context.Context,
+	ds fleet.Datastore,
+	logger kitlog.Logger,
+	failingPoliciesSet fleet.FailingPolicySet,
+) error {
+	for {
+		batch, err := ds.OutdatedAutomationBatch(ctx)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "OutdatedAutomationBatch")
+		}
+		if len(batch) == 0 {
+			break
+		}
+		logger.Log("adding_hosts", len(batch))
+		for _, p := range batch {
+			if err := failingPoliciesSet.AddHost(p.PolicyID, p.Host); err != nil {
+				return ctxerr.Wrap(ctx, err, "failingPolicesSet.AddHost")
+			}
+		}
+	}
+	return nil
 }
 
 func triggerFailingPoliciesAutomation(
