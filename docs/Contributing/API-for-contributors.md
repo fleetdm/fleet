@@ -572,7 +572,7 @@ None.
 
 ```json
 {
-  "apple_id": "example@fleetdm.com",
+  "apple_id": "apple@example.com",
   "org_name": "Fleet Device Management",
   "mdm_server_url": "https://example.com/mdm/apple/mdm",
   "renew_date": "2023-11-29T00:00:00Z",

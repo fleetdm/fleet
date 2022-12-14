@@ -1,5 +1,31 @@
 # Why this way?
 
+## Why open source?
+
+### Benefits
+
+Open-source software development is easier than proprietary models. Instead of limiting input to a select group, we welcome contributions from a diverse community of passionate professionals. These unique perspectives help us test assumptions, overcome biases, and discover innovations faster than we would on our own.
+
+Here are the key benefits of open-source software development:
+
+- **Transparency.** Everyone has access to the source code, including executives, employees, and even end users. Anyone can confirm claims with first-hand evidence.   
+- **Modifiability.** Anybody can make improvements at any time. You can build on existing ideas or start something brand new. Every contribution benefits the project as a whole.
+- **Community.** Open-source contributors really care. They love solving problems and sharing solutions. As their careers grow, so does the community, which helps drive adoption.
+
+### Security
+
+So much visibility might make people nervous. But open-source projects have practices in place that encourage collaboration and promote security. Osquery uses configuration management, issue tracking, and code reviews as part of their development process. [Learn more about osquery’s security measures](https://github.com/osquery/osquery/blob/master/ASSURANCE.md#security-implemented-in-development-lifecycle-processes).
+
+We’ve adopted similar policies at Fleet. Anybody in our community can suggest changes, but only Fleeties with appropriate access can merge them.
+
+### Results 
+
+Open source isn’t just a development model. It’s a movement. It’s an effective, authentic way for individuals to achieve a common goal.
+
+Since 2020, Fleet has given visibility into over 1.65 million servers and workstations. Fortune 1000 companies like Uber, Atlassian, and [Wayfair](https://fleetdm.com/device-management/fleet-user-stories-wayfair) now have the insights they need to easily maintain continuous compliance.
+
+Our community made this happen. That includes feedback from our customers. Your suggestions directly shape [the direction of our product](https://fleetdm.com/pricing). After all, we’re here to help you.
+
 ## Why do we use a wireframe-first approach?
 
 Wireframing (or "drafting," as we often refer to it at Fleet) provides a clear overview of page layout, information architecture, user flow, and functionality. The wireframe-first approach extends beyond what users see on their screens. Wireframe-first is also excellent for drafting APIs, config settings, CLI options, and even business processes. 
