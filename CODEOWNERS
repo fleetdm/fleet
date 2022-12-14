@@ -18,7 +18,7 @@ go.mod @fleetdm/go
 /CODEOWNERS @zwass @mikermcneil
 
 # Changelog
-/CHANGELOG.md @noahtalerman @zhumo @zwass
+/CHANGELOG.md @zhumo
 
 # Fleet documentation
 /docs/ @chris-mcgillicuddy @ksatter @jarodreyes
