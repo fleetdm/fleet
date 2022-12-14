@@ -33,6 +33,7 @@ const AddPolicyModal = ({
     setLastEditedQueryDescription,
     setLastEditedQueryBody,
     setLastEditedQueryResolution,
+    setLastEditedQueryCritical,
     setLastEditedQueryPlatform,
     setPolicyTeamId,
   } = useContext(PolicyContext);
@@ -44,6 +45,7 @@ const AddPolicyModal = ({
     setLastEditedQueryDescription(selectedPolicy.description);
     setLastEditedQueryBody(selectedPolicy.query);
     setLastEditedQueryResolution(selectedPolicy.resolution);
+    setLastEditedQueryCritical(selectedPolicy.critical || false);
     setPolicyTeamId(teamId);
     setLastEditedQueryPlatform(selectedPolicy.platform || null);
     router.push(PATHS.NEW_POLICY);
