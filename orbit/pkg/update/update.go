@@ -70,8 +70,8 @@ func (ts Targets) SetTargetChannel(target, channel string) {
 	ts[target] = t
 }
 
-// UpdateRunnerOptTargets sets/updates the TargetInfo for extension targets
-func (u *Updater) SetExtentionsTargetInfo(name, platform, channel, file string) {
+// SetExtensionsTargetInfo sets/updates the TargetInfo for extension targets
+func (u *Updater) SetExtensionsTargetInfo(name, platform, channel, file string) {
 	u.opt.Targets[name] = TargetInfo{
 		Platform:   platform,
 		Channel:    channel,

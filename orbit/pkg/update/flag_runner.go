@@ -168,7 +168,7 @@ func (r *ExtensionRunner) Execute() error {
 		case <-r.cancel:
 			return nil
 		case <-ticker.C:
-			log.Info().Msg("calling /config API to fetch/update extensions")
+			log.Debug().Msg("calling /config API to fetch/update extensions")
 			didExtensionsUpdate, err := r.DoExtensionConfigUpdate()
 			if err != nil {
 				log.Info().Err(err).Msg("ext update failed")
@@ -190,10 +190,13 @@ func (r *ExtensionRunner) Interrupt(err error) {
 
 // DoExtensionConfigUpdate calls the /config API endpoint to grab extensions from Fleet
 // It parses the extensions, computes the local hash, and writes the binary path to extension.load file
+//
+// It returns a (bool, error), where bool indicates whether orbit should restart
 func (r *ExtensionRunner) DoExtensionConfigUpdate() (bool, error) {
 	// call "/config" API endpoint to grab orbit configs from Fleet
 	config, err := r.configFetcher.GetConfig()
 	if err != nil {
+		// we do not want orbit to restart
 		return false, fmt.Errorf("extensionsUpdate: error getting extensions config from fleet: %w", err)
 	}
 
@@ -202,72 +205,89 @@ func (r *ExtensionRunner) DoExtensionConfigUpdate() (bool, error) {
 		// Extensions from Fleet is empty
 		// this can be either because of:
 		// 1. the default state, where no extensions are configured to begin with, or
-		// 2. extensions were previously were configured, but now are deleted and reverted to empty state
+		// 2. extensions were previously configured, but now are deleted and reverted to empty state
 
 		// Handle case 1, where our autoload file does not exist, so there is nothing to update and no error
 		stat, err := os.Stat(extensionAutoLoadFile)
 		if errors.Is(err, os.ErrNotExist) {
 			log.Debug().Msg(extensionAutoLoadFile + " not found, nothing to update")
+			// we do not want orbit to restart
 			return false, nil
 		}
 
 		if stat.Size() > 0 {
 			// handle case 2: create/truncate the extensions.load file and let the runner interrupt, so that
 			// osquery can't startup without the extensions that were previously loaded
-			_, err := os.Create(extensionAutoLoadFile)
+			// WriteFile will create the file if it doesn't exist, and it handles Close for us
+			err := os.WriteFile(extensionAutoLoadFile, []byte(""), constant.DefaultFileMode)
 			if err != nil {
+				// we do not want orbit to restart
 				return false, fmt.Errorf("extensionsUpdate: error creating file %s, %w", extensionAutoLoadFile, err)
 			}
 			// we want to return true here, and restart with the empty extensions.load file
 			// so that we "unload" the previously loaded extensions
 			return true, nil
 		}
+		// we do not want orbit to restart
 		return false, nil
 	}
 
 	type ExtensionInfo struct {
 		Platform string `json:"platform"`
 		Channel  string `json:"channel"`
-		FileName string `json:"file_name"`
 	}
 
 	var data map[string]ExtensionInfo
 	err = json.Unmarshal(config.Extensions, &data)
 	if err != nil {
+		// we do not want orbit to restart
 		return false, fmt.Errorf("error unmarshing json extensions config from fleet: %w", err)
 	}
 
 	var sb strings.Builder
-	for k, v := range data {
+	for extensionName, extensionInfo := range data {
+		// infer filename from extension name
+		// osquery enforces .ext, so we just add that
+		// we expect filename to match extension name
+		filename := extensionName + ".ext"
+
 		// we don't want path traversal and the like in the filename
-		if strings.Contains(v.FileName, "..") || strings.Contains(v.FileName, "/") {
-			log.Info().Msgf("invalid characters found in filename (%s) for extension (%s): skipping", v.FileName, k)
+		if strings.Contains(filename, "..") || strings.Contains(filename, "/") {
+			log.Info().Msgf("invalid characters found in filename (%s) for extension (%s): skipping", filename, extensionName)
 			continue
 		}
 
-		// add "extensions/" as a prefix to the target name, since that's the namespace we expect for extensions on TUF
-		target := "extensions/" + k
+		// add "extensions/" as a prefix to the targetName, since that's the namespace we expect for extensions on TUF
+		targetName := "extensions/" + extensionName
+		platform := extensionInfo.Platform
+		channel := extensionInfo.Channel
+
+		rootDir := r.updateRunner.updater.opt.RootDirectory
 
 		// update our view of targets
-		r.updateRunner.UpdateRunnerOptTargets(target)
-		r.updateRunner.updater.SetExtentionsTargetInfo(target, v.Platform, v.Channel, v.FileName)
+		r.updateRunner.UpdateRunnerOptTargets(targetName)
+		r.updateRunner.updater.SetExtensionsTargetInfo(targetName, platform, channel, filename)
 
-		path := filepath.Join(r.updateRunner.updater.opt.RootDirectory, "bin", "extensions", k, v.Platform, v.Channel, v.FileName)
+		// the full path to where the extension would be on disk, for e.g. for extension name "hello_world"
+		// the path is: <root-dir>/bin/extensions/hello_world/<platform>/<channel>/hello_world.ext
+		path := filepath.Join(rootDir, "bin", "extensions", extensionName, platform, channel, filename)
 
-		meta, err := r.updateRunner.updater.Lookup(target)
+		meta, err := r.updateRunner.updater.Lookup(targetName)
 		if err != nil {
-			return false, fmt.Errorf("unable to lookup metadata for target: %s, %w", target, err)
+			// we do not want orbit to restart
+			return false, fmt.Errorf("unable to lookup metadata for target: %s, %w", targetName, err)
 		}
 
 		_, localHash, err := fileHashes(meta, path)
 		if err != nil {
-			// OK, not an error, expected on initial that path doesn't exist
+			// OK, not an error, expected on initial run that path doesn't exist
+			// we do not want orbit to restart
 			return false, nil
 		}
 
 		// update local hashes
-		log.Info().Msgf("updating local hash(%s)=%x", target, localHash)
-		r.updateRunner.localHashes[target] = localHash
+		log.Info().Msgf("updating local hash(%s)=%x", targetName, localHash)
+		r.updateRunner.localHashes[targetName] = localHash
 
 		sb.WriteString(path + "\n")
 	}
@@ -275,8 +295,8 @@ func (r *ExtensionRunner) DoExtensionConfigUpdate() (bool, error) {
 		return false, fmt.Errorf("error writing extensions autoload file: %w", err)
 	}
 
-	// we don't want to return true, because we don't want to restart
-	// UpdateAction() will fetch the new targets and restart for us if needed
+	// we do not want orbit to restart
+	// runner.UpdateAction() will fetch the new targets and restart for us if needed
 	return false, nil
 }
 
