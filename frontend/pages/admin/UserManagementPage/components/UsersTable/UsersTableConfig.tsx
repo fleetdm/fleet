@@ -1,7 +1,7 @@
 import React from "react";
 
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
-import StatusCell from "components/TableContainer/DataTable/StatusCell/StatusCell";
+import StatusIndicator from "components/StatusIndicator";
 import TextCell from "components/TableContainer/DataTable/TextCell/TextCell";
 import { IInvite } from "interfaces/invite";
 import { IUser } from "interfaces/user";
@@ -94,7 +94,7 @@ const generateTableHeaders = (
       ),
       accessor: "status",
       Cell: (cellProps: ICellProps) => (
-        <StatusCell value={cellProps.cell.value} />
+        <StatusIndicator value={cellProps.cell.value} />
       ),
     },
     {

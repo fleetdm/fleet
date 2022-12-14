@@ -51,6 +51,7 @@ type MysqlConfig struct {
 // RedisConfig defines configs related to Redis
 type RedisConfig struct {
 	Address                   string
+	Username                  string
 	Password                  string
 	Database                  int
 	UseTLS                    bool          `yaml:"use_tls"`
@@ -704,6 +705,8 @@ func (man Manager) addConfigs() {
 	// Redis
 	man.addConfigString("redis.address", "localhost:6379",
 		"Redis server address (host:port)")
+	man.addConfigString("redis.username", "",
+		"Redis server username")
 	man.addConfigString("redis.password", "",
 		"Redis server password (prefer env variable for security)")
 	man.addConfigInt("redis.database", 0,
@@ -1039,6 +1042,7 @@ func (man Manager) LoadConfig() FleetConfig {
 		MysqlReadReplica: loadMysqlConfig("mysql_read_replica"),
 		Redis: RedisConfig{
 			Address:                   man.getConfigString("redis.address"),
+			Username:                  man.getConfigString("redis.username"),
 			Password:                  man.getConfigString("redis.password"),
 			Database:                  man.getConfigInt("redis.database"),
 			UseTLS:                    man.getConfigBool("redis.use_tls"),
