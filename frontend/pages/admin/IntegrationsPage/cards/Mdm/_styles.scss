@@ -20,6 +20,26 @@
         max-width: 65%;
       }
     }
+
+    h4 {
+      margin-bottom: 0;
+    }
+
+    p {
+      margin: 0;
+    }
+
+    .mdm-integrations__edit-team-btn {
+      margin-left: 12px;
+
+      .children-wrapper {
+        gap: $pad-small;
+      }
+    }
+
+    .component__tooltip-wrapper__tip-text {
+      max-width: initial;
+    }
   }
 
   &__section-description,

@@ -13,7 +13,11 @@ import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
 import Spinner from "components/Spinner";
 import DataError from "components/DataError";
+import Icon from "components/Icon";
+import TooltipWrapper from "components/TooltipWrapper";
+
 import RequestModal from "./components/RequestModal";
+import EditTeamModal from "./components/EditTeamModal";
 
 // MDM TODO: key validation?
 // import { isValidKeys } from "../../..";
@@ -23,7 +27,7 @@ const baseClass = "mdm-integrations";
 const readableDate = (date: string) => {
   const dateString = new Date(date);
 
-  return new Intl.DateTimeFormat("en-US", {
+  return new Intl.DateTimeFormat(navigator.language, {
     year: "numeric",
     month: "long",
     day: "numeric",
@@ -31,10 +35,11 @@ const readableDate = (date: string) => {
 };
 
 const Mdm = (): JSX.Element => {
-  const { isPremiumTier, isMdmEnabled } = useContext(AppContext);
+  const { isPremiumTier } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
   const [showRequestModal, setShowRequestModal] = useState(false);
+  const [showEditTeamModal, setShowEditTeamModal] = useState(false);
 
   const {
     data: mdmApple,
@@ -44,7 +49,7 @@ const Mdm = (): JSX.Element => {
     ["mdmAppleAPI"],
     () => mdmAppleAPI.loadAll(),
     {
-      enabled: isMdmEnabled && isPremiumTier,
+      enabled: isPremiumTier,
       staleTime: 5000,
     }
   );
@@ -57,7 +62,7 @@ const Mdm = (): JSX.Element => {
     ["mdmAppleBmAPI"],
     () => mdmAppleBmAPI.loadAll(),
     {
-      enabled: isMdmEnabled && isPremiumTier,
+      enabled: isPremiumTier,
       staleTime: 5000,
     }
   );
@@ -68,12 +73,16 @@ const Mdm = (): JSX.Element => {
     error: fetchKeysError,
     isFetching: isFetchingKeys,
   } = useQuery<string, Error>(["keys"], () => mdmAppleBmAPI.loadKeys(), {
-    enabled: !!isMdmEnabled && isPremiumTier,
+    enabled: isPremiumTier,
     refetchOnWindowFocus: false,
   });
 
   const toggleRequestModal = () => {
     setShowRequestModal(!showRequestModal);
+  };
+
+  const toggleEditTeamModal = () => {
+    setShowEditTeamModal(!showEditTeamModal);
   };
 
   const onDownloadKeys = (evt: React.MouseEvent) => {
@@ -159,26 +168,14 @@ const Mdm = (): JSX.Element => {
           Inc. requires an Apple Push Notification service (APNs) certificate.
         </div>
         <div className={`${baseClass}__section-information`}>
-          <p>
-            <b>Common name (CN)</b>
-            <br />
-            {mdmApple.common_name}
-          </p>
-          <p>
-            <b>Serial number</b>
-            <br />
-            {mdmApple.serial_number}
-          </p>
-          <p>
-            <b>Issuer</b>
-            <br />
-            {mdmApple.issuer}
-          </p>
-          <p>
-            <b>Renew date</b>
-            <br />
-            {readableDate(mdmApple.renew_date)}
-          </p>
+          <h4>Common name (CN)</h4>
+          <p>{mdmApple.common_name}</p>
+          <h4>Serial number</h4>
+          <p>{mdmApple.serial_number}</p>
+          <h4>Issuer</h4>
+          <p>{mdmApple.issuer}</p>
+          <h4>Renew date</h4>
+          <p>{readableDate(mdmApple.renew_date)}</p>
         </div>
       </>
     );
@@ -237,31 +234,29 @@ const Mdm = (): JSX.Element => {
           unboxed, Apple Inc. requires a server token.
         </div>
         <div className={`${baseClass}__section-information`}>
+          <h4>
+            <TooltipWrapper tipContent="macOS hosts will be added to this team when they’re first unboxed.">
+              Team
+            </TooltipWrapper>
+          </h4>
           <p>
-            <b>Team</b>
-            <br />
-            {mdmAppleBm.default_team || "No team"}
+            {mdmAppleBm.default_team || "No team"}{" "}
+            <Button
+              className={`${baseClass}__edit-team-btn`}
+              onClick={toggleEditTeamModal}
+              variant="text-icon"
+            >
+              Edit <Icon name="pencil" />
+            </Button>
           </p>
-          <p>
-            <b>Apple ID</b>
-            <br />
-            {mdmAppleBm.apple_id}
-          </p>
-          <p>
-            <b>Organization name</b>
-            <br />
-            {mdmAppleBm.organization_name}
-          </p>
-          <p>
-            <b>MDM Server URL</b>
-            <br />
-            {mdmAppleBm.mdm_server_url}
-          </p>
-          <p>
-            <b>Renew date</b>
-            <br />
-            {readableDate(mdmAppleBm.renew_date)}
-          </p>
+          <h4>Apple ID</h4>
+          <p>{mdmAppleBm.apple_id}</p>
+          <h4>Organization name</h4>
+          <p>{mdmAppleBm.organization_name}</p>
+          <h4>MDM Server URL</h4>
+          <p>{mdmAppleBm.mdm_server_url}</p>
+          <h4>Renew date</h4>
+          <p>{readableDate(mdmAppleBm.renew_date)}</p>
         </div>
       </>
     );
@@ -283,6 +278,12 @@ const Mdm = (): JSX.Element => {
         <RequestModal
           onCancel={toggleRequestModal}
           onRequest={toggleRequestModal}
+        />
+      )}
+      {showEditTeamModal && (
+        <EditTeamModal
+          onCancel={toggleEditTeamModal}
+          onEdit={toggleEditTeamModal}
         />
       )}
     </div>
