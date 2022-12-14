@@ -314,6 +314,7 @@ the way that the Fleet server works.
 
 			redisPool, err := redis.NewPool(redis.PoolConfig{
 				Server:                    config.Redis.Address,
+				Username:                  config.Redis.Username,
 				Password:                  config.Redis.Password,
 				Database:                  config.Redis.Database,
 				UseTLS:                    config.Redis.UseTLS,
