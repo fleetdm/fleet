@@ -47,7 +47,7 @@ const Mdm = (): JSX.Element => {
     error: errorMdmApple,
   } = useQuery<IMdmApple, Error, IMdmApple>(
     ["mdmAppleAPI"],
-    () => mdmAppleAPI.loadAll(),
+    () => mdmAppleAPI.getAppleAPNInfo(),
     {
       enabled: isPremiumTier,
       staleTime: 5000,
@@ -60,7 +60,7 @@ const Mdm = (): JSX.Element => {
     error: errorMdmAppleBm,
   } = useQuery<IMdmAppleBm, Error, IMdmAppleBm>(
     ["mdmAppleBmAPI"],
-    () => mdmAppleBmAPI.loadAll(),
+    () => mdmAppleBmAPI.getAppleBMInfo(),
     {
       enabled: isPremiumTier,
       staleTime: 5000,

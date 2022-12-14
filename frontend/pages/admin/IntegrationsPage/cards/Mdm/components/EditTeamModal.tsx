@@ -5,21 +5,18 @@ import Button from "components/buttons/Button";
 
 interface IEditTeamModal {
   onCancel: () => void;
-  onRequest: () => void;
+  onEdit: () => void;
 }
 
 const baseClass = "edit-team-modal";
 
-const EditTeamModal = ({
-  onCancel,
-  onRequest,
-}: IEditTeamModal): JSX.Element => {
+const EditTeamModal = ({ onCancel, onEdit }: IEditTeamModal): JSX.Element => {
   return (
     <Modal title="Edit team" onExit={onCancel} className={baseClass}>
       <>
         Cool beans
         <div className="modal-cta-wrap">
-          <Button onClick={onRequest} variant="brand">
+          <Button onClick={onEdit} variant="brand">
             Save
           </Button>
           <Button onClick={onCancel} variant="inverse">

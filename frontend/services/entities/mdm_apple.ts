@@ -4,7 +4,7 @@ import { sendRequest } from "services/mock_service/service/service"; // MDM TODO
 import endpoints from "utilities/endpoints";
 
 export default {
-  loadAll: () => {
+  getAppleAPNInfo: () => {
     const { MDM_APPLE } = endpoints;
     const path = MDM_APPLE;
     return sendRequest("GET", path);
