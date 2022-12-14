@@ -2,7 +2,7 @@ import React from "react";
 import classnames from "classnames";
 import ReactTooltip from "react-tooltip";
 
-interface IStatusCellProps {
+interface IStatusIndicatorProps {
   value: string;
   tooltip?: {
     id: number;
@@ -17,14 +17,17 @@ const generateClassTag = (rawValue: string): string => {
   return rawValue.replace(" ", "-").toLowerCase();
 };
 
-const StatusCell = ({ value, tooltip }: IStatusCellProps): JSX.Element => {
+const StatusIndicator = ({
+  value,
+  tooltip,
+}: IStatusIndicatorProps): JSX.Element => {
   const classTag = generateClassTag(value);
   const statusClassName = classnames(
-    "data-table__status",
-    `data-table__status--${classTag}`,
+    "status-indicator",
+    `status-indicator--${classTag}`,
     `status--${classTag}`
   );
-  const cellContent = tooltip ? (
+  const indicatorContent = tooltip ? (
     <>
       <span
         className="host-status tooltip tooltip__tooltip-icon"
@@ -48,7 +51,7 @@ const StatusCell = ({ value, tooltip }: IStatusCellProps): JSX.Element => {
   ) : (
     <>{value}</>
   );
-  return <span className={statusClassName}>{cellContent}</span>;
+  return <span className={statusClassName}>{indicatorContent}</span>;
 };
 
-export default StatusCell;
+export default StatusIndicator;

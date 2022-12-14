@@ -307,7 +307,7 @@
       </div>
       <div purpose="newsletter-form" class="text-center" v-if="cloudSuccess">
         <h4>Great!</h4>
-        <p>You're all set to recieve updates on Fleet releases.</p>
+        <p>You're all set to receive updates on Fleet releases.</p>
       </div>
       <div purpose="newsletter-form" class="d-flex flex-row justify-content-lg-start justify-content-center align-items-center w-100" v-else>
         <ajax-form class="w-100" action="createOrUpdateOneNewsletterSubscription" :form-errors.sync="formErrors" :form-data="formData" :form-rules="formRules" :syncing.sync="syncing" :cloud-error.sync="cloudError" @submitted="submittedNewsletterForm()">

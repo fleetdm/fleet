@@ -1653,6 +1653,13 @@ func (s *integrationEnterpriseTestSuite) TestListHosts() {
 	require.Nil(t, summaryResp.LowDiskSpaceCount)
 }
 
+func (s *integrationEnterpriseTestSuite) TestAppleMDMNotConfigured() {
+	var mdmResp getAppleMDMResponse
+	s.DoJSON("GET", "/api/latest/fleet/mdm/apple", nil, http.StatusNotFound, &mdmResp)
+	var bmResp getAppleBMResponse
+	s.DoJSON("GET", "/api/latest/fleet/mdm/apple_bm", nil, http.StatusNotFound, &bmResp)
+}
+
 func (s *integrationEnterpriseTestSuite) TestGlobalPolicyCreateReadPatch() {
 	fields := []string{"Query", "Name", "Description", "Resolution", "Platform", "Critical"}
 

@@ -22,7 +22,7 @@ jobs:
     #
     # Also not run if author is dependabot (it doesn't have access to Github secrets).
     if: ${{ (github.repository == 'fleetdm/fleet') && (github.actor != 'dependabot[bot]') }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     environment: Docker Hub
     steps:
       - name: Checkout
@@ -57,3 +57,18 @@ jobs:
       # Explicitly push the docker images as GoReleaser will not do so in snapshot mode
       - name: Publish Docker images
         run: docker push fleetdm/fleet --all-tags
+
+      - name: Get tag
+        run: |
+          echo "TAG=$(git rev-parse --abbrev-ref HEAD)" >> $GITHUB_OUTPUT
+        id: docker
+
+      - name: Push To quay.io
+        id: push-to-quay
+        uses: redhat-actions/push-to-registry@v2
+        with:
+          image: fleetdm/fleet
+          tags: ${{ steps.docker.outputs.TAG }}
+          registry: quay.io/
+          username: fleetdm+fleetreleaser
+          password: ${{ secrets.QUAY_REGISTRY_PASSWORD }}

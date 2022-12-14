@@ -7,7 +7,7 @@ import ReactTooltip from "react-tooltip";
 // @ts-ignore
 import Checkbox from "components/forms/fields/Checkbox";
 import LinkCell from "components/TableContainer/DataTable/LinkCell/LinkCell";
-import StatusCell from "components/TableContainer/DataTable/StatusCell/StatusCell";
+import StatusIndicator from "components/StatusIndicator";
 import { IPolicyStats } from "interfaces/policy";
 import PATHS from "router/paths";
 import sortUtils from "utilities/sort";
@@ -204,7 +204,7 @@ const generateTableHeaders = (options: {
       disableSortBy: true,
       accessor: "webhook",
       Cell: (cellProps: ICellProps): JSX.Element => (
-        <StatusCell value={cellProps.cell.value} />
+        <StatusIndicator value={cellProps.cell.value} />
       ),
     });
 

@@ -95,32 +95,32 @@ module.exports.custom = {
   *                                                                          *
   ***************************************************************************/
   githubRepoDRIByPath: {
-    'README.md': ['chris-mcgillicuddy'],// (github brandfront)
-    'tools/fleetctl-npm/README.md': ['chris-mcgillicuddy', 'mike-j-thomas'],//« brandfront for fleetctl package on npm
+    'README.md': ['chris-mcgillicuddy', 'jarodreyes'],// (github brandfront)
+    'tools/fleetctl-npm/README.md': ['chris-mcgillicuddy', 'mike-j-thomas', 'jarodreyes', 'zwass'],//« brandfront for fleetctl package on npm
 
     'CODEOWNERS': ['zwass', 'mikermcneil'],
 
     'articles': ['chris-mcgillicuddy', 'mike-j-thomas', 'eashaw', 'zwass', 'mikermcneil'],
 
-    'handbook': ['chris-mcgillicuddy', 'mike-j-thomas', 'eashaw', 'mikermcneil', 'zwass'],// (default for handbook)
+    'handbook': ['chris-mcgillicuddy', 'mike-j-Thomas', 'eashaw', 'mikermcneil', 'zwass'],// (default for handbook)
     'handbook/company': 'mikermcneil',
     'handbook/business-operations': ['hollidayn', 'charlottechance'],
     'handbook/engineering': 'zwass',
     'handbook/product': ['noahtalerman', 'zhumo'],
     'handbook/security': 'guillaumeross',
     'handbook/customers': ['alexmitchelliii','zayhanlon'],
-    'handbook/marketing': ['mike-j-thomas','chris-mcgillicuddy'],
+    'handbook/marketing': ['jarodreyes', 'mike-j-thomas','chris-mcgillicuddy'],
 
     'website': 'mikermcneil',// (default for website)
     'website/views': 'eashaw',
     'website/assets': 'eashaw',
-    'website/config/routes.js': ['eashaw', 'mike-j-thomas'],// (for managing website URLs)
+    'website/config/routes.js': ['eashaw', 'mike-j-thomas', 'jarodreyes'],// (for managing website URLs)
     'website/package.json': 'eashaw',
 
-    'docs': ['chris-mcgillicuddy', 'zwass', 'mikermcneil'],// (default for docs)
+    'docs': ['chris-mcgillicuddy', 'zwass', 'mikermcneil', 'jarodreyes', 'ksatter'],// (default for docs)
     'docs/images': ['chris-mcgillicuddy', 'noahtalerman', 'eashaw', 'mike-j-thomas'],
-    'docs/Using-Fleet/REST-API.md': 'ksatter',
-    'docs/Contributing/API-for-contributors.md': 'ksatter',
+    'docs/Using-Fleet/REST-API.md': ['ksatter','lukeheath'],
+    'docs/Contributing/API-for-contributors.md': ['ksatter','lukeheath'],
     'docs/Deploying/FAQ.md': ['ksatter'],
     'docs/Contributing/FAQ.md': ['ksatter'],
     'docs/Using-Fleet/FAQ.md': ['ksatter'],
@@ -129,16 +129,16 @@ module.exports.custom = {
     'schema': ['guillaumeross','zhumo','eashaw','zwass'],// (Osquery table schema)
   },
   confidentialGithubRepoDRIByPath: {
-    'readme.md': ['mikermcneil', 'zwass'],
+    'readme.md': ['mikermcneil', 'zwass', 'charlottechance', 'hollidayn'],
     // GitHub issue templates
     '.github/ISSUE_TEMPLATE': ['mikermcneil', 'zwass'],
     '.github/ISSUE_TEMPLATE/2-website-changes.md': 'mike-j-thomas',
     '.github/ISSUE_TEMPLATE/3-opportunity Fleet Premium PoV.md': 'alexmitchelliii',
     '.github/ISSUE_TEMPLATE/3-sale.md': 'alexmitchelliii',
-    '.github/ISSUE_TEMPLATE/4-release.md': 'noahtalerman',
+    '.github/ISSUE_TEMPLATE/4-release.md': ['noahtalerman', 'zwass', 'zhumo'],
     '.github/ISSUE_TEMPLATE/5-monthly-accounting.md': 'hollidayn',
     '.github/ISSUE_TEMPLATE/6-speaking-event.md': 'mike-j-thomas',
-    '.github/ISSUE_TEMPLATE/9-renewal-process.md': ['hollidayn', 'alexmitchelliii'],
+    '.github/ISSUE_TEMPLATE/9-renewal-process.md': ['zayhanlon', 'hollidayn', 'alexmitchelliii'],
     '.github/ISSUE_TEMPLATE/hiring.md': 'charlottechance',
     '.github/ISSUE_TEMPLATE/onboarding.md': 'charlottechance',
     '.github/ISSUE_TEMPLATE/y-offboarding.md': 'charlottechance',
