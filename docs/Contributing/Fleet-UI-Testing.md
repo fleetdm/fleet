@@ -255,7 +255,7 @@ is simpler than E2E tests. We highly utilize react-testing-library to interface 
 import React from "react";
 import { render, screen } from "@testing-library/react";
 
-import { renderWithSetup } from "test/testingUtils";
+import { renderWithSetup } from "test/test-utils";
 
 import ResetPasswordForm from "./ResetPasswordForm";
 
