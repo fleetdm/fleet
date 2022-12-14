@@ -12,9 +12,9 @@ func init() {
 func Up_20221202115820(tx *sql.Tx) error {
 	for name, query := range map[string]string{
 		"create table": `
-			CREATE TABLE automation_iterations (
+			CREATE TABLE policy_automation_iterations (
 				policy_id INT UNSIGNED NOT NULL PRIMARY KEY,
-				interation INT NOT NULL,
+				iteration INT NOT NULL,
 				FOREIGN KEY (policy_id) REFERENCES policies(id) ON DELETE CASCADE
 			);
 		`,

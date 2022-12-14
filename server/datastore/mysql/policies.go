@@ -697,6 +697,71 @@ func (ds *Datastore) IncrementPolicyViolationDays(ctx context.Context) error {
 	})
 }
 
+func (ds *Datastore) IncreasePolicyAutomationIteration(ctx context.Context, policyID uint) error {
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, `
+			INSERT INTO policy_automation_iterations (policy_id, iteration) VALUES (?,1)
+			ON DUPLICATE KEY UPDATE iteration = iteration + 1;
+		`, policyID)
+		return err
+	})
+}
+
+// OutdatedAutomationBatch returns a batch of hosts that had a failing policy.
+func (ds *Datastore) OutdatedAutomationBatch(ctx context.Context) ([]fleet.PolicyFailure, error) {
+	var failures []fleet.PolicyFailure
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		failures = failures[:0] // for retry
+		var hostIDs []uint
+
+		rows, err := tx.QueryContext(ctx, `
+			SELECT ai.policy_id, pm.host_id, h.hostname, h.computer_name
+				FROM policy_automation_iterations ai
+			    JOIN policy_membership pm ON pm.policy_id = ai.policy_id
+			        AND (pm.automation_iteration < ai.iteration
+			               OR pm.automation_iteration IS NULL)
+				JOIN hosts h ON pm.host_id = h.id
+				WHERE NOT pm.passes
+				LIMIT 1000
+				FOR UPDATE;
+		`)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var f fleet.PolicyFailure
+			if err := rows.Scan(&f.PolicyID, &f.Host.ID, &f.Host.Hostname, &f.Host.DisplayName); err != nil {
+				return err
+			}
+			failures = append(failures, f)
+			hostIDs = append(hostIDs, f.Host.ID)
+		}
+		if err := rows.Err(); err != nil {
+			return err
+		}
+		if len(hostIDs) == 0 {
+			return nil
+		}
+		query := `
+			UPDATE policy_membership pm SET pm.automation_iteration = (
+				SELECT ai.iteration
+				FROM policy_automation_iterations ai
+				WHERE pm.policy_id = ai.policy_id
+		   ) WHERE pm.host_id IN (?);`
+		query, args, err := sqlx.In(query, hostIDs)
+		if err != nil {
+			return err
+		}
+		_, err = tx.ExecContext(ctx, query, args...)
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+	return failures, nil
+}
+
 func incrementViolationDaysDB(ctx context.Context, tx sqlx.ExtContext) error {
 	const (
 		statsID        = 0
