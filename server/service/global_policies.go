@@ -299,6 +299,11 @@ func resetAutomationEndpoint(ctx context.Context, request interface{}, svc fleet
 }
 
 func (svc *Service) ResetAutomation(ctx context.Context, teamIDs, policyIDs []uint) error {
+	ac, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return err
+	}
+	allAutoPolicies := automationPolicies(ac.WebhookSettings.FailingPoliciesWebhook, ac.Integrations.Jira, ac.Integrations.Zendesk)
 	pIDs := make(map[uint]struct{})
 	for _, id := range policyIDs {
 		pIDs[id] = struct{}{}
@@ -332,18 +337,76 @@ func (svc *Service) ResetAutomation(ctx context.Context, teamIDs, policyIDs []ui
 		if err := svc.authz.Authorize(ctx, &fleet.Team{ID: id}, fleet.ActionWrite); err != nil {
 			return err
 		}
+		t, err := svc.ds.Team(ctx, id)
+		if err != nil {
+			return err
+		}
+		for pID := range teamAutomationPolicies(t.Config.WebhookSettings.FailingPoliciesWebhook, t.Config.Integrations.Jira, t.Config.Integrations.Zendesk) {
+			allAutoPolicies[pID] = struct{}{}
+		}
 	}
 	if hasGlobal {
 		if err := svc.authz.Authorize(ctx, &fleet.AppConfig{}, fleet.ActionWrite); err != nil {
 			return err
 		}
 	}
+	if len(tIDs) == 0 && !hasGlobal {
+		svc.authz.SkipAuthorization(ctx)
+		return nil
+	}
 	for id := range pIDs {
+		if _, ok := allAutoPolicies[id]; !ok {
+			continue
+		}
 		if err := svc.ds.IncreasePolicyAutomationIteration(ctx, id); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+func automationPolicies(wh fleet.FailingPoliciesWebhookSettings, ji []*fleet.JiraIntegration, zi []*fleet.ZendeskIntegration) map[uint]struct{} {
+	enabled := wh.Enable
+	for _, j := range ji {
+		if j.EnableFailingPolicies {
+			enabled = true
+		}
+	}
+	for _, z := range zi {
+		if z.EnableFailingPolicies {
+			enabled = true
+		}
+	}
+	pols := make(map[uint]struct{}, len(wh.PolicyIDs))
+	if !enabled {
+		return pols
+	}
+	for _, pid := range wh.PolicyIDs {
+		pols[pid] = struct{}{}
+	}
+	return pols
+}
+
+func teamAutomationPolicies(wh fleet.FailingPoliciesWebhookSettings, ji []*fleet.TeamJiraIntegration, zi []*fleet.TeamZendeskIntegration) map[uint]struct{} {
+	enabled := wh.Enable
+	for _, j := range ji {
+		if j.EnableFailingPolicies {
+			enabled = true
+		}
+	}
+	for _, z := range zi {
+		if z.EnableFailingPolicies {
+			enabled = true
+		}
+	}
+	pols := make(map[uint]struct{}, len(wh.PolicyIDs))
+	if !enabled {
+		return pols
+	}
+	for _, pid := range wh.PolicyIDs {
+		pols[pid] = struct{}{}
+	}
+	return pols
 }
 
 /////////////////////////////////////////////////////////////////////////////////
