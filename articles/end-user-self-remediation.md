@@ -22,6 +22,10 @@ Beyond identifying failing hosts, Fleet policies can include steps for bringing 
 
 ## Give end users easy access with Fleet Desktop
 
+<div purpose="embedded-content">
+	<iframe src="https://www.youtube.com/embed/cI2vDG3PbVo" allowfullscreen></iframe>
+</div>
+
 Fleet Desktop gives your employees visibility into security issues on their computers.
 
 Selecting Fleet Desktop from the menu bar shows the device’s compliance status. Employees with non-compliant devices can click “My device” to find out which policies are failing.
@@ -38,11 +42,15 @@ If you’re new to Fleet, you’ll want to install osquery and enroll your devic
 
 When you’re adding hosts to Fleet, make sure the installer includes Fleet Desktop as part of the package. You can do this in the Fleet UI or with the fleetctl CLI.
 
+![Generate installer](../website/assets/images/articles/install-osquery-and-enroll-macos-devices-into-fleet-1-454x225@2x.png)
+
 Once installed on the target host, Fleet Desktop will be managed by Orbit. This will keep osquery and Fleet Desktop up to date on your end users’ hosts.
 
 Read [Including Fleet Desktop](https://fleetdm.com/docs/using-fleet/adding-hosts#including-fleet-desktop) for installer instructions.
 
 ### Add policies with resolution instructions
+
+![Add a policy modal in Fleet](../website/assets/images/articles/what-are-fleet-policies-1-1080x720@2x.png)
 
 So, you’ve deployed Fleet and installed Fleet Desktop on your hosts (employees’ computers). Now, it’s time to create your policies.
 
@@ -109,4 +117,3 @@ See how easy implementing end user self-remediation can be. [Sign up for Sandbox
 <meta name="authorGitHubUsername" value="chris-mcgillicuddy">
 <meta name="publishedOn" value="2022-12-15">
 <meta name="articleTitle" value="End-user self remediation: empower your employees to fix security issues with Fleet">
-<meta name="articleImageUrl" value="../website/assets/images/articles/osquery-for-threat-hunting-1600x900@2x.jpg">
