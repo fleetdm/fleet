@@ -282,7 +282,7 @@ func testLabelsListHostsInLabel(t *testing.T, db *Datastore) {
 	require.NoError(t, db.SetOrUpdateHostDisksSpace(context.Background(), h3.ID, 30, 15))
 
 	ctx := context.Background()
-	const simpleMDM, kandji, unknown = "https://simplemdm.com", "https://kandji.io", "https://url.com"
+	const simpleMDM, kandji = "https://simplemdm.com", "https://kandji.io"
 	err = db.SetOrUpdateMDMData(ctx, h1.ID, false, true, simpleMDM, true, "") // enrollment: automatic
 	require.NoError(t, err)
 	err = db.SetOrUpdateMDMData(ctx, h2.ID, false, true, kandji, true, "") // enrollment: automatic
