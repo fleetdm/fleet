@@ -22,6 +22,7 @@ import TableContainer from "components/TableContainer";
 import TableDataError from "components/DataError";
 import CustomLink from "components/CustomLink";
 
+import RequestCSRModal from "./components/RequestCSRModal";
 import AddIntegrationModal from "./components/AddIntegrationModal";
 import DeleteIntegrationModal from "./components/DeleteIntegrationModal";
 import EditIntegrationModal from "./components/EditIntegrationModal";
@@ -398,6 +399,12 @@ const IntegrationsPage = (): JSX.Element => {
 
   return (
     <div className={`${baseClass}`}>
+      <RequestCSRModal
+        userEmail="test@email.com"
+        orgName="test co"
+        onSubmit={() => alert("submited")}
+        onCancel={() => alert("canceled")}
+      />
       <p className={`${baseClass}__page-description`}>
         Add or edit integrations to create tickets when Fleet detects new
         vulnerabilities.

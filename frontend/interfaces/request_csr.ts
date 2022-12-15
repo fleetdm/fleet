@@ -1,4 +1,4 @@
 export interface IRequestCSRFormData {
-  email: string;
-  orgName: string;
+  email: string | undefined;
+  orgName: string | undefined;
 }
