@@ -1,4 +1,6 @@
-import React, { FormEvent, useState } from "react";
+import React, { FormEvent, useState, useContext } from "react";
+
+import { AppContext } from "context/app";
 
 import { IRequestCSRFormData } from "interfaces/request_csr";
 
@@ -6,14 +8,13 @@ import Button from "components/buttons/Button";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import Spinner from "components/Spinner";
+import { request } from "http";
 
-const baseClass = "request-csr-form";
+const baseClass = "request-csr";
 
 interface IRequestCSRFormProps {
-  onCancel: () => void;
   onSubmit: (formData: IRequestCSRFormData, destination: string) => void;
-  userEmail: string;
-  currentOrgName: string;
+  onCancel: () => void;
   requestCSRDestination: string;
   testingConnection?: boolean;
 }
@@ -24,21 +25,19 @@ interface IFormField {
 }
 
 const RequestCSRForm = ({
-  onCancel,
   onSubmit,
-  userEmail,
-  currentOrgName,
+  onCancel,
   requestCSRDestination,
   testingConnection,
 }: IRequestCSRFormProps): JSX.Element => {
-  // define state
-  const [formData, setFormData] = useState<IRequestCSRFormData>({
-    email: userEmail,
-    orgName: currentOrgName,
-  });
-  const [destination, setDestination] = useState(requestCSRDestination);
+  const { currentUser, config } = useContext(AppContext);
+  const email = currentUser?.email;
+  const orgName = config?.org_info?.org_name;
 
-  const { email, orgName } = formData;
+  const [formData, setFormData] = useState<IRequestCSRFormData>({
+    email,
+    orgName,
+  });
 
   const onInputChange = ({ name, value }: IFormField) => {
     setFormData({ ...formData, [name]: value });
@@ -46,8 +45,7 @@ const RequestCSRForm = ({
 
   const onFormSubmit = (evt: FormEvent): void => {
     evt.preventDefault();
-
-    return onSubmit({ email, orgName }, destination);
+    return onSubmit({ email, orgName }, requestCSRDestination);
   };
 
   return (
@@ -63,7 +61,7 @@ const RequestCSRForm = ({
           onSubmit={onFormSubmit}
           autoComplete="off"
         >
-          <div>
+          <div className="bottom-label">
             {/* TODO: validate as work email */}
             <InputField
               name="email"
@@ -81,7 +79,7 @@ const RequestCSRForm = ({
             onChange={onInputChange}
             label="Organization name"
             parseTarget
-            value={email}
+            value={orgName}
           />
           <div className="modal-cta-wrap">
             <Button type="submit" variant="brand">

@@ -4,7 +4,6 @@ import { Params } from "react-router/lib/Router";
 import SandboxGate from "components/Sandbox/SandboxGate";
 import SandboxDemoMessage from "components/Sandbox/SandboxDemoMessage";
 import OrgSettingsForm from "./components/OrgSettingsForm";
-import RequestCSRModal from "../IntegrationsPage/components/RequestCSRModal";
 
 interface IAppSettingsPageProps {
   params: Params;
@@ -17,12 +16,6 @@ const AppSettingsPage = ({ params }: IAppSettingsPageProps): JSX.Element => {
 
   return (
     <div className={`${baseClass} body-wrap`}>
-      <RequestCSRModal
-        userEmail="test@email.com"
-        orgName="test co"
-        onSubmit={() => alert("submited")}
-        onCancel={() => alert("canceled")}
-      />
       <p className={`${baseClass}__page-description`}>
         Set your organization information and configure SSO and SMTP
       </p>
