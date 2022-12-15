@@ -587,7 +587,7 @@ FROM
 	"disk_encryption_linux": {
 		// This query doesn't do any filtering as we've seen what's possibly an osquery bug because it's returning bad
 		// results if we filter further, so we'll do the filtering in Go.
-		Query:            `SELECT * FROM disk_encryption`,
+		Query:            `SELECT de.encrypted, m.path FROM disk_encryption de JOIN mounts m ON m.device_alias = de.name;`,
 		Platforms:        fleet.HostLinuxOSs,
 		DirectIngestFunc: directIngestDiskEncryptionLinux,
 		// the "disk_encryption" table doesn't need a Discovery query as it is an official
@@ -1299,7 +1299,7 @@ func directIngestDiskEncryptionLinux(ctx context.Context, logger log.Logger, hos
 
 	encrypted := false
 	for _, row := range rows {
-		if row["name"] == "/dev/dm-1" && row["encrypted"] == "1" {
+		if row["path"] == "/" && row["encrypted"] == "1" {
 			encrypted = true
 			break
 		}

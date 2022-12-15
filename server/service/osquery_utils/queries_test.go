@@ -851,11 +851,9 @@ func TestDirectIngestDiskEncryptionLinux(t *testing.T) {
 
 	expectEncrypted = true
 	err = directIngestDiskEncryptionLinux(context.Background(), log.NewNopLogger(), &host, ds, []map[string]string{
-		{"name": "/dev/vda", "encrypted": "0"},
-		{"name": "/dev/vda1", "encrypted": "0"},
-		{"name": "/dev/vda2", "encrypted": "0"},
-		{"name": "/dev/dm-0", "encrypted": "1"},
-		{"name": "/dev/dm-1", "encrypted": "1"},
+		{"path": "/etc/hosts", "encrypted": "0"},
+		{"path": "/tmp", "encrypted": "0"},
+		{"path": "/", "encrypted": "1"},
 	}, false)
 	require.NoError(t, err)
 	require.True(t, ds.SetOrUpdateHostDisksEncryptionFuncInvoked)
