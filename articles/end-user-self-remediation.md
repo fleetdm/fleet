@@ -1,6 +1,6 @@
 # End-user self remediation: empower your employees to fix security issues with Fleet
 
-Nobody likes nagging their colleagues or scrambling to address urgent requests. Fortunately, there’s a strategy you can use to maintain security standards and reduce operational costs. It’s called end user self-remediation. And Fleet policies with Fleet Desktop make iimplementation easy.
+Nobody likes nagging their colleagues or scrambling to address urgent requests. Fortunately, there’s a strategy you can use to maintain security standards and reduce operational costs. It’s called end user self-remediation. And Fleet policies with Fleet Desktop make implementation easy.
 
 ## Empower without overwhelming
 
