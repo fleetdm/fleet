@@ -82,8 +82,8 @@ import EmptyHosts from "./components/EmptyHosts";
 import PoliciesFilter from "./components/PoliciesFilter";
 // @ts-ignore
 import EditColumnsModal from "./components/EditColumnsModal/EditColumnsModal";
-import TransferHostModal from "./components/TransferHostModal";
-import DeleteHostModal from "./components/DeleteHostModal";
+import TransferHostModal from "../components/TransferHostModal";
+import DeleteHostModal from "../components/DeleteHostModal";
 import DeleteLabelModal from "./components/DeleteLabelModal";
 import EditColumnsIcon from "../../../../assets/images/icon-edit-columns-16x16@2x.png";
 import PencilIcon from "../../../../assets/images/icon-pencil-14x14@2x.png";
@@ -1408,7 +1408,8 @@ const ManageHostsPage = ({
         teams={teams}
         onSubmit={onTransferHostSubmit}
         onCancel={toggleTransferHostModal}
-        isUpdatingHosts={isUpdatingHosts}
+        isUpdating={isUpdatingHosts}
+        multipleHosts={selectedHostIds.length > 1}
       />
     );
   };
@@ -1419,7 +1420,7 @@ const ManageHostsPage = ({
       onSubmit={onDeleteHostSubmit}
       onCancel={toggleDeleteHostModal}
       isAllMatchingHostsSelected={isAllMatchingHostsSelected}
-      isUpdatingHosts={isUpdatingHosts}
+      isUpdating={isUpdatingHosts}
     />
   );
 
