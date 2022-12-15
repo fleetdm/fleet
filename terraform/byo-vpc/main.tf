@@ -28,7 +28,7 @@ module "rds" {
   version = "7.6.0"
 
   name           = var.rds_config.name
-  engine         = "aurora-postgresql"
+  engine         = "aurora-mysql"
   engine_version = var.rds_config.engine_version
   instance_class = var.rds_config.instance_class
 
@@ -59,10 +59,12 @@ module "redis" {
   source  = "cloudposse/elasticache-redis/aws"
   version = "0.48.0"
 
-  replication_group_id = var.redis_config.replication_group_id
-  availability_zones   = var.redis_config.availability_zones
-  vpc_id               = var.vpc_config.vpc_id
-  description          = "lsjdfldjlfjds"
+  name                          = var.redis_config.name
+  replication_group_id          = var.redis_config.replication_group_id == null ? var.redis_config.name : var.redis_config.replication_group_id
+  elasticache_subnet_group_name = var.redis_config.elasticache_subnet_group_name == null ? var.redis_config.name : var.redis_config.elasticache_subnet_group_name
+  availability_zones            = var.redis_config.availability_zones
+  vpc_id                        = var.vpc_config.vpc_id
+  description                   = "lsjdfldjlfjds"
   #allowed_security_group_ids = concat(var.redis_config.allowed_security_group_ids, module.byo-db.ecs.security_group)
   subnets                    = var.redis_config.subnets
   cluster_size               = var.redis_config.cluster_size

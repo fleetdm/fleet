@@ -27,6 +27,9 @@ module "byo-vpc" {
       subnets = module.vpc.private_subnets
     }
   }
+  rds_config = {
+    subnets = module.vpc.database_subnets
+  }
   redis_config = {
     subnets            = module.vpc.elasticache_subnets
     availability_zones = var.vpc.azs
