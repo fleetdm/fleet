@@ -1,2 +1,4 @@
-- add counts_update_at attribute to GET /hosts/summary/mdm response. add mdm information to UI for
+- add counts_update_at attribute to GET /hosts/summary/mdm response. update GET /labels/:id/hosts to
+  filter by mdm_id and mdm_enrollment_status query params. add mobile_device_management_solution to
+  response from GET /labels/:id/hosts when including mdm_id query param. add mdm information to UI for
   windows/all dashboard and host details.
