@@ -865,11 +865,14 @@ The following rituals are engaged in by the directly responsible individual (DRI
 | Pull request review           | Daily               | Engineers go through pull requests for which their review has been requested.                                                          | Zach Wasserman |
 | Engineering group discussions | Weekly              | See "Group Weeklies".                                                                                                                  | Zach Wasserman |
 | Oncall handoff               | Weekly              | Hand off the oncall engineering responsibilities to the next oncall engineer.                                                        | Zach Wasserman |
+| Vulnerability alerts (fleetdm.com)   | Weekly              | Review and remediate or dismiss [vulnerability alerts](https://github.com/fleetdm/fleet/security) for the fleetdm.com codebase on GitHub. | Eric Shaw |
+| Vulnerability alerts (frontend)   | Weekly              | Review and remediate or dismiss [vulnerability alerts](https://github.com/fleetdm/fleet/security) for the Fleet frontend codebase (and related JS) on GitHub. | Luke Heath |
+| Vulnerability alerts (backend)   | Weekly              | Review and remediate or dismiss [vulnerability alerts](https://github.com/fleetdm/fleet/security) for the Fleet backend codebase (and all Go code) on GitHub. | Tomás Touceda |
 | Release ritual                | Every three weeks   | Go through the process of releasing the next iteration of Fleet.                                                                       | Zach Wasserman |
 | Create patch release branch   | Every patch release | Go through the process of creating a patch release branch, cherry picking commits, and pushing the branch to github.com/fleetdm/fleet. | Luke Heath     |
 | Bug review   | Weekly | Review bugs that are in QA's inbox. | Reed Haynes     |
 | Release testing/QA | Every three weeks | Every release cycle, by end of day Wednesday of release week, all issues move to "Ready for release" on the 🚀Release board. | Reed Haynes |
-| Release testing/QA report | Every three weeks | Every release cycle, on the Monday of release week, the (DRI for the release ritual)[https://fleetdm.com/handbook/engineering#rituals] is updated on status of testing. | Reed Haynes |
+| Release testing/QA report | Every three weeks | Every release cycle, on the Monday of release week, the DRI for the release ritual is updated on status of testing. | Reed Haynes |
 
 ## Fleet Sandbox Oncall
 
