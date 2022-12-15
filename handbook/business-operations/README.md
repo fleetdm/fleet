@@ -41,7 +41,7 @@ When attending a conference or traveling for Fleet, please make a post in [#help
 - The price of your flight (feel free to optimize a direct flight if there is one that is less than double the price of the cheapest non-direct flight).
 - The price of your hotel per night (dry cleaning is allowable if the stay is over 3 days).
 - The price of the admission fees if attending a conference.
-- $100 allowance per day for food and beverage **(movies, and mini bars are not allowed)**.
+- $100 allowance per day for food and beverage **(please use your personal credit card for movies, mini bars, and entertainment, except when entertaining guests who contribute actively in code/community on a quarterly basis, or who are Salesforce contacts on an open, qualified opportunity with a budget of at least $160k+ ΔARR)**.
 - Customer/Partner Facing Events:
   - Gala/Black Tie Events: Tuxedo or Gown Rental, $150-$225 USD per event is reimbursable. **(The event must be customer specific and the invitation must state black tie only)**.
 The monthly limit on your Brex card will be increased temporarily as necessary to accommodate the increased spending associated with the conference.
@@ -163,6 +163,10 @@ Either way, it's up to you to make sure that your responsibilities are covered, 
 
 #### New parent leave
 Fleet gives new parents six weeks of paid leave. After six weeks, if you don't feel ready to return yet, we'll set up a quick call to discuss and work together to come up with a plan to help you return to work gradually or when you're ready.
+
+#### Compensation changes
+Fleet evaluates compensation during annual workiversaries. Supervisors and managers will document compensation changes and effective date in employee 1:1 docs and email confirmation to Charlie. Charlie will make sure that a copy of the compensation change is added to the [¶¶People Operations folder](https://drive.google.com/drive/folders/1NKZ0UTmLbOPOeAA-iaEote3_diqu8Cbw?usp=share_link) for record keeping. (For the forseeable (pre series B) future, comp changes will originate during zach/mike 1:1s in our agenda doc.)
+Additional steps: Charlie will update the respective payroll platform (Gusto or Pilot) and update the [Equity spreadsheet](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit?usp=sharing) (internal doc).
 
 
 ### Payroll

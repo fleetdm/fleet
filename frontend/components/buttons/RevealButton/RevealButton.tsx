@@ -1,10 +1,12 @@
 import React from "react";
+import classnames from "classnames";
 import Button from "components/buttons/Button";
 import TooltipWrapper from "components/TooltipWrapper";
+import Icon from "components/Icon";
 
 export interface IRevealButtonProps {
   isShowing: boolean;
-  baseClass: string;
+  className?: string;
   hideText: string;
   showText: string;
   caretPosition?: "before" | "after";
@@ -16,8 +18,11 @@ export interface IRevealButtonProps {
     | ((evt: React.MouseEvent<HTMLButtonElement>) => void);
 }
 
+const baseClass = "reveal-button";
+
 const RevealButton = ({
   isShowing,
+  className,
   hideText,
   showText,
   caretPosition,
@@ -26,31 +31,47 @@ const RevealButton = ({
   tooltipHtml,
   onClick,
 }: IRevealButtonProps): JSX.Element => {
-  const classNameGenerator = () => {
-    if (caretPosition === "before") {
-      return isShowing ? "reveal upcaretbefore" : "reveal rightcaretbefore";
-    }
-    if (caretPosition === "after") {
-      return isShowing ? "reveal upcaretafter" : "reveal downcaretafter";
-    }
-    return "reveal";
-  };
+  const classNames = classnames(baseClass, className);
 
-  const buttonText = isShowing ? hideText : showText;
+  const buttonContent = () => {
+    const text = isShowing ? hideText : showText;
+
+    const buttonText = tooltipHtml ? (
+      <TooltipWrapper tipContent={tooltipHtml}>{text}</TooltipWrapper>
+    ) : (
+      text
+    );
+
+    return (
+      <>
+        {caretPosition === "before" && (
+          <Icon
+            name="chevron"
+            direction={isShowing ? "right" : "down"}
+            color="core-fleet-blue"
+          />
+        )}
+        {buttonText}
+        {caretPosition === "after" && (
+          <Icon
+            name="chevron"
+            direction={isShowing ? "up" : "down"}
+            color="core-fleet-blue"
+          />
+        )}
+      </>
+    );
+  };
 
   return (
     <Button
-      variant="unstyled"
-      className={`reveal-button ${classNameGenerator()}`}
+      variant="text-icon"
+      className={classNames}
       onClick={onClick}
       autofocus={autofocus}
       disabled={disabled}
     >
-      {tooltipHtml ? (
-        <TooltipWrapper tipContent={tooltipHtml}>{buttonText}</TooltipWrapper>
-      ) : (
-        buttonText
-      )}
+      {buttonContent()}
     </Button>
   );
 };

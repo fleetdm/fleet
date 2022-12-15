@@ -1,3 +1,6 @@
+$shadow-width: 40px;
+$shadow-transition-width: 10px;
+
 .data-table-block {
   position: relative;
   display: inline-block;
@@ -9,9 +12,30 @@
       border: 1px solid $ui-fleet-blue-15;
       border-radius: 6px;
       margin-top: $pad-small;
-      box-shadow: inset -8px 0 17px -10px #e8edf4;
       flex-grow: 1;
       width: 100%;
+
+      // Shadow
+      background-image: 
+      /* Shadows */ linear-gradient(
+          to right,
+          white,
+          $transparent
+        ),
+        linear-gradient(to left, white, $transparent),
+        /* Shadow covers */
+          linear-gradient(to right, $ui-shadow, white $shadow-transition-width),
+        linear-gradient(to left, $ui-shadow, white $shadow-transition-width);
+
+      background-position: left center, right center, left center, right center;
+      background-repeat: no-repeat;
+      background-color: white;
+      background-size: $shadow-width 100%, $shadow-width 100%, 50% 100%,
+        50% 100%;
+
+      /* Opera doesn't support this in the shorthand */
+      background-attachment: local, local, scroll, scroll;
+      // End shadow
     }
 
     &__table {
@@ -20,13 +44,24 @@
       border-collapse: collapse;
       color: $core-fleet-black;
       font-size: $x-small;
+    }
 
+    tbody {
       .component__tooltip-wrapper {
         margin: 10px 0; // vertical padding multiline text with tooltip
       }
 
       .component__tooltip-wrapper__element {
         white-space: initial; // wraps long text with tooltip
+      }
+
+      tr:hover {
+        background-color: $ui-off-white-opaque; // opaque needed for horizontal scroll shadow
+      }
+
+      .single-row:hover {
+        cursor: pointer;
+        background-color: $ui-vibrant-blue-10-opaque; // opaque needed for horizontal scroll shadow
       }
     }
 
@@ -35,14 +70,6 @@
 
       &:last-child {
         border-bottom: 0;
-      }
-
-      &.single-row {
-        cursor: pointer;
-
-        &:hover {
-          background-color: rgba($core-vibrant-blue, 0.1);
-        }
       }
 
       // override styles of checkbox data cells
@@ -58,7 +85,7 @@
     }
 
     thead {
-      background-color: $ui-off-white;
+      background-color: $ui-off-white-opaque; // opaque needed for horizontal scroll shadow
       color: $core-fleet-black;
       text-align: left;
       border-bottom: 1px solid $ui-fleet-blue-15;
@@ -192,9 +219,7 @@
           font-style: italic;
         }
       }
-      tr:hover {
-        background-color: $ui-off-white;
-      }
+
       .disable-highlight:hover {
         background-color: initial;
       }

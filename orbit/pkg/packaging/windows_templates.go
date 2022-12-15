@@ -30,6 +30,9 @@ var windowsWixTemplate = template.Must(template.New("").Option("missingkey=error
       <RegistrySearch Key="SOFTWARE\FleetDM\Orbit" Root="HKLM" Type="raw" Id="APPLICATIONFOLDER_REGSEARCH" Name="Path" />
     </Property>
 
+    <Property Id="ARPNOREPAIR" Value="yes" Secure="yes" />
+    <Property Id="ARPNOMODIFY" Value="yes" Secure="yes" />
+
     <MediaTemplate EmbedCab="yes" />
 
     <MajorUpgrade AllowDowngrades="yes" />
@@ -91,6 +94,14 @@ var windowsWixTemplate = template.Must(template.New("").Option("missingkey=error
         </Directory>
       </Directory>
     </Directory>
+
+    <CustomAction Id="StopOrbit_cmd" Property="WixQuietExecCmdLine" Value='"[WindowsFolder]System32\taskkill.exe" /F /IM osqueryd.exe /IM fleet-desktop.exe /IM orbit.exe' />
+    <CustomAction Id="StopOrbit" BinaryKey="WixCA" DllEntry="WixQuietExec" Execute="immediate" Return="check"/>
+
+    <InstallExecuteSequence>
+      <Custom Action='StopOrbit_cmd' Before='RemoveFiles'>(NOT UPGRADINGPRODUCTCODE) AND (REMOVE="ALL")</Custom>
+      <Custom Action='StopOrbit' After='StopOrbit_cmd'>(NOT UPGRADINGPRODUCTCODE) AND (REMOVE="ALL")</Custom>
+    </InstallExecuteSequence>
 
     <Feature Id="Orbit" Title="Fleet osquery" Level="1" Display="hidden">
       <ComponentGroupRef Id="OrbitFiles" />

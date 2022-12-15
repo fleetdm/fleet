@@ -36,7 +36,7 @@ func TestJira(t *testing.T) {
 		}
 
 		w.WriteHeader(http.StatusCreated)
-		w.Write([]byte(`
+		_, err := w.Write([]byte(`
         {
           "id": "10000",
           "key": "ED-24",
@@ -50,7 +50,9 @@ func TestJira(t *testing.T) {
           }
         }
       `))
+		require.NoError(t, err)
 	}))
+
 	defer srv.Close()
 
 	t.Run("failure", func(t *testing.T) {

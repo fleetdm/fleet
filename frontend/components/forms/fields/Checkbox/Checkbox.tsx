@@ -20,6 +20,7 @@ export interface ICheckboxProps {
   indeterminate?: boolean;
   parseTarget?: boolean;
   tooltip?: string;
+  isLeftLabel?: boolean;
 }
 
 const Checkbox = (props: ICheckboxProps) => {
@@ -35,6 +36,7 @@ const Checkbox = (props: ICheckboxProps) => {
     indeterminate,
     parseTarget,
     tooltip,
+    isLeftLabel,
   } = props;
 
   const handleChange = () => {
@@ -46,7 +48,11 @@ const Checkbox = (props: ICheckboxProps) => {
     return onChange(!value);
   };
 
-  const checkBoxClass = classnames(baseClass, className);
+  const checkBoxClass = classnames(
+    { inverse: isLeftLabel },
+    className,
+    baseClass
+  );
   const formFieldProps = {
     ...pick(props, ["hint", "label", "error", "name"]),
     className: wrapperClassName,
@@ -63,7 +69,7 @@ const Checkbox = (props: ICheckboxProps) => {
       <label htmlFor={name} className={checkBoxClass}>
         <input
           checked={value}
-          className={`${checkBoxClass}__input`}
+          className={`${baseClass}__input`}
           disabled={disabled}
           id={name}
           name={name}
@@ -72,15 +78,14 @@ const Checkbox = (props: ICheckboxProps) => {
           type="checkbox"
         />
         <span className={checkBoxTickClass} />
-
         {tooltip ? (
-          <span className={`${checkBoxClass}__label-tooltip tooltip`}>
+          <span className={`${baseClass}__label-tooltip tooltip`}>
             <TooltipWrapper tipContent={tooltip}>
               {children as string}
             </TooltipWrapper>
           </span>
         ) : (
-          <span className={`${checkBoxClass}__label`}>{children} </span>
+          <span className={`${baseClass}__label`}>{children} </span>
         )}
       </label>
     </FormField>

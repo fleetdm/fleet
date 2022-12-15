@@ -91,7 +91,12 @@ func (c *Client) LiveQueryWithContext(ctx context.Context, query string, labels 
 		wssURL.Scheme = "ws"
 	}
 	wssURL.Path = c.urlPrefix + "/api/latest/fleet/results/websocket"
-	conn, _, err := dialer.Dial(wssURL.String(), nil)
+	// Ensure custom headers (set by config) are added to websocket request
+	headers := make(http.Header)
+	for k, v := range c.customHeaders {
+		headers.Set(k, v)
+	}
+	conn, _, err := dialer.Dial(wssURL.String(), headers)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "upgrade live query result websocket")
 	}

@@ -32,7 +32,7 @@ describe("CustomLink - component", () => {
       />
     );
 
-    const icon = screen.getByTestId("Icon");
+    const icon = screen.getByTestId("icon");
 
     expect(icon).toBeInTheDocument();
     expect(icon.closest("a")).toHaveAttribute("target", "_blank");

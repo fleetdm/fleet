@@ -11,7 +11,7 @@ This guide includes everything you need to know about Fleet’s editorial proces
 | Assign & schedule | Chris McGillicuddy |
 | Review | Chris McGillicuddy |
 | Artwork | Mike Thomas |
-| Publication | Tim Kern |
+| Publication | Jarod Reyes |
 
 ## Who can publish articles?
 

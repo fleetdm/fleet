@@ -62,6 +62,7 @@ const PolicyPage = ({
     setLastEditedQueryDescription,
     setLastEditedQueryBody,
     setLastEditedQueryResolution,
+    setLastEditedQueryCritical,
     setLastEditedQueryPlatform,
     setPolicyTeamId,
   } = useContext(PolicyContext);
@@ -75,6 +76,7 @@ const PolicyPage = ({
   useEffect(() => {
     // cleanup when component unmounts
     return () => {
+      setLastEditedQueryCritical(false);
       setLastEditedQueryPlatform(null);
     };
   }, []);
@@ -121,6 +123,7 @@ const PolicyPage = ({
         setLastEditedQueryDescription(returnedQuery.description);
         setLastEditedQueryBody(returnedQuery.query);
         setLastEditedQueryResolution(returnedQuery.resolution);
+        setLastEditedQueryCritical(returnedQuery.critical);
         setLastEditedQueryPlatform(returnedQuery.platform);
         setPolicyTeamId(returnedQuery.team_id || 0);
       },

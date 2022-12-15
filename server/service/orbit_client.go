@@ -219,7 +219,8 @@ func (oc *OrbitClient) authenticatedRequest(verb string, path string, params int
 	s := params.(setOrbitNodeKeyer)
 	s.setOrbitNodeKey(nodeKey)
 
-	switch oc.request(verb, path, params, resp); {
+	err = oc.request(verb, path, params, resp)
+	switch {
 	case err == nil:
 		oc.setEnrolled(true)
 		return nil

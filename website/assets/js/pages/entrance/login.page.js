@@ -24,13 +24,16 @@ parasails.registerPage('login', {
 
     // Server error state for the form
     cloudError: '',
+    showCustomerLogin: true,
   },
 
   //  ╦  ╦╔═╗╔═╗╔═╗╦ ╦╔═╗╦  ╔═╗
   //  ║  ║╠╣ ║╣ ║  ╚╦╝║  ║  ║╣
   //  ╩═╝╩╚  ╚═╝╚═╝ ╩ ╚═╝╩═╝╚═╝
   beforeMount: function() {
-    //…
+    if(window.location.search === '?admin') {
+      this.showCustomerLogin = false;
+    }
   },
   mounted: async function() {
     //…

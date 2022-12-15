@@ -8,7 +8,9 @@ import (
 	"net/url"
 	"os"
 	"strconv"
+	"time"
 
+	"github.com/fatih/color"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
 	"gopkg.in/guregu/null.v3"
 
@@ -34,19 +36,25 @@ type specGeneric struct {
 }
 
 func defaultTable(writer io.Writer) *tablewriter.Table {
-	w := writerOrStdout(writer)
-	table := tablewriter.NewWriter(w)
+	table := tablewriter.NewWriter(writer)
 	table.SetRowLine(true)
 	return table
 }
 
-func writerOrStdout(writer io.Writer) io.Writer {
-	var w io.Writer
-	w = os.Stdout
-	if writer != nil {
-		w = writer
-	}
-	return w
+func borderlessTabularTable(writer io.Writer) *tablewriter.Table {
+	table := tablewriter.NewWriter(writer)
+	table.SetRowLine(false)
+	table.SetAutoWrapText(false)
+	table.SetAlignment(tablewriter.ALIGN_LEFT)
+	table.SetCenterSeparator("")
+	table.SetColumnSeparator("")
+	table.SetRowSeparator("")
+	table.SetHeaderLine(false)
+	table.SetBorder(false)
+	table.SetTablePadding("\t")
+	table.SetNoWhiteSpace(true)
+
+	return table
 }
 
 func yamlFlag() cli.Flag {
@@ -64,22 +72,20 @@ func jsonFlag() cli.Flag {
 }
 
 func printJSON(spec interface{}, writer io.Writer) error {
-	w := writerOrStdout(writer)
 	b, err := json.Marshal(spec)
 	if err != nil {
 		return err
 	}
-	fmt.Fprintf(w, "%s\n", b)
+	fmt.Fprintf(writer, "%s\n", b)
 	return nil
 }
 
 func printYaml(spec interface{}, writer io.Writer) error {
-	w := writerOrStdout(writer)
 	b, err := yaml.Marshal(spec)
 	if err != nil {
 		return err
 	}
-	fmt.Fprintf(w, "---\n%s", string(b))
+	fmt.Fprintf(writer, "---\n%s", string(b))
 	return nil
 }
 
@@ -273,6 +279,8 @@ func getCommand() *cli.Command {
 			getUserRolesCommand(),
 			getTeamsCommand(),
 			getSoftwareCommand(),
+			getMDMAppleCommand(),
+			getMDMAppleBMCommand(),
 		},
 	}
 }
@@ -493,7 +501,7 @@ func getLabelsCommand() *cli.Command {
 
 				if c.Bool(yamlFlagName) || c.Bool(jsonFlagName) {
 					for _, label := range labels {
-						printLabel(c, label)
+						printLabel(c, label) //nolint:errcheck
 					}
 					return nil
 				}
@@ -527,7 +535,7 @@ func getLabelsCommand() *cli.Command {
 				return err
 			}
 
-			printLabel(c, label)
+			printLabel(c, label) //nolint:errcheck
 			return nil
 		},
 	}
@@ -730,16 +738,22 @@ func getCarvesCommand() *cli.Command {
 					completion = "Expired"
 				}
 
+				errored := "no"
+				if c.Error != nil {
+					errored = "yes"
+				}
+
 				data = append(data, []string{
 					strconv.FormatInt(c.ID, 10),
-					c.CreatedAt.Local().String(),
+					c.CreatedAt.String(),
 					c.RequestId,
 					strconv.FormatInt(c.CarveSize, 10),
 					completion,
+					errored,
 				})
 			}
 
-			columns := []string{"id", "created_at", "request_id", "carve_size", "completion"}
+			columns := []string{"id", "created_at", "request_id", "carve_size", "completion", "errored"}
 			printTable(c, columns, data)
 
 			return nil
@@ -782,6 +796,15 @@ func getCarveCommand() *cli.Command {
 				return errors.New("-stdout and -outfile must not be specified together")
 			}
 
+			carve, err := client.GetCarve(id)
+			if err != nil {
+				return err
+			}
+
+			if carve.Error != nil {
+				return errors.New(*carve.Error)
+			}
+
 			if stdout || outFile != "" {
 				out := os.Stdout
 				if outFile != "" {
@@ -803,11 +826,6 @@ func getCarveCommand() *cli.Command {
 				}
 
 				return nil
-			}
-
-			carve, err := client.GetCarve(id)
-			if err != nil {
-				return err
 			}
 
 			if err := printYaml(carve, c.App.Writer); err != nil {
@@ -880,6 +898,12 @@ func printTable(c *cli.Context, columns []string, data [][]string) {
 	table := defaultTable(c.App.Writer)
 	table.SetHeader(columns)
 	table.AppendBulk(data)
+	table.Render()
+}
+
+func printKeyValueTable(c *cli.Context, rows [][]string) {
+	table := borderlessTabularTable(c.App.Writer)
+	table.AppendBulk(rows)
 	table.Render()
 }
 
@@ -1017,6 +1041,111 @@ func getSoftwareCommand() *cli.Command {
 			}
 			columns := []string{"Name", "Version", "Source", "CPE", "# of CVEs"}
 			printTable(c, columns, data)
+
+			return nil
+		},
+	}
+}
+
+func getMDMAppleCommand() *cli.Command {
+	return &cli.Command{
+		Name:    "mdm_apple",
+		Hidden:  true, // TODO: temporary, until the MDM feature is officially released
+		Aliases: []string{"mdm-apple"},
+		Usage:   "Show Apple Push Notification Service (APNs) information",
+		Flags: []cli.Flag{
+			configFlag(),
+			contextFlag(),
+			debugFlag(),
+		},
+		Action: func(c *cli.Context) error {
+			const expirationWarning = 30 * 24 * time.Hour // 30 days
+
+			client, err := clientFromCLI(c)
+			if err != nil {
+				return err
+			}
+
+			mdm, err := client.GetAppleMDM()
+			if err != nil {
+				var nfe service.NotFoundErr
+				if errors.As(err, &nfe) {
+					log(c, "Error: No Apple Push Notification service (APNs) certificate found. Use `fleetctl generate mdm-apple` and then `fleet serve` with `mdm` configuration to turn on MDM features.\n")
+					return nil
+				}
+				return fmt.Errorf("could not get Apple MDM information: %w", err)
+			}
+
+			printKeyValueTable(c, [][]string{
+				{"Common name (CN):", mdm.CommonName},
+				{"Serial number:", mdm.SerialNumber},
+				{"Issuer:", mdm.Issuer},
+				{"Renew date:", mdm.RenewDate.Format("January 2, 2006")},
+			})
+
+			warnDate := time.Now().Add(expirationWarning)
+			if mdm.RenewDate.Before(time.Now()) {
+				// certificate is expired, print an error
+				color.New(color.FgRed).Fprintln(c.App.Writer, "\nERROR: Your Apple Push Notification service (APNs) certificate is expired. MDM features are turned off. To renew your APNs certificate, follow these instructions: [TODO link to documentation]")
+			} else if mdm.RenewDate.Before(warnDate) {
+				// certificate will soon expire, print a warning
+				color.New(color.FgYellow).Fprintln(c.App.Writer, "\nWARNING: Your Apple Push Notification service (APNs) certificate is less than 30 days from expiration. If it expires, MDM features will be turned off. To renew your APNs certificate, follow these instructions: [TODO link to documentation]")
+			}
+
+			return nil
+		},
+	}
+}
+
+func getMDMAppleBMCommand() *cli.Command {
+	return &cli.Command{
+		Name:    "mdm_apple_bm",
+		Hidden:  true, // TODO: temporary, until the MDM feature is officially released
+		Aliases: []string{"mdm-apple-bm"},
+		Usage:   "Show information about Apple Business Manager for automatic enrollment",
+		Flags: []cli.Flag{
+			configFlag(),
+			contextFlag(),
+			debugFlag(),
+		},
+		Action: func(c *cli.Context) error {
+			const expirationWarning = 30 * 24 * time.Hour // 30 days
+
+			client, err := clientFromCLI(c)
+			if err != nil {
+				return err
+			}
+
+			bm, err := client.GetAppleBM()
+			if err != nil {
+				var nfe service.NotFoundErr
+				if errors.As(err, &nfe) {
+					log(c, "Error: No Apple Business Manager server token found. Use `fleetctl generate mdm-apple-bm` and then `fleet serve` with `mdm` configuration to automatically enroll macOS hosts to Fleet.\n")
+					return nil
+				}
+				return fmt.Errorf("could not get Apple BM information: %w", err)
+			}
+
+			defaultTeam := bm.DefaultTeam
+			if defaultTeam == "" {
+				defaultTeam = "No team"
+			}
+			printKeyValueTable(c, [][]string{
+				{"Apple ID:", bm.AppleID},
+				{"Organization name:", bm.OrgName},
+				{"MDM server URL:", bm.MDMServerURL},
+				{"Renew date:", bm.RenewDate.Format("January 2, 2006")},
+				{"Default team:", defaultTeam},
+			})
+
+			warnDate := time.Now().Add(expirationWarning)
+			if bm.RenewDate.Before(time.Now()) {
+				// certificate is expired, print an error
+				color.New(color.FgRed).Fprintln(c.App.Writer, "\nERROR: Your Apple Business Manager (ABM) server token is expired. Laptops newly purchased via ABM will not automatically enroll in Fleet. To renew your ABM server token, follow these instructions: https://fleetdm.com/docs/using-fleet/faq#how-can-i-renew-my-apple-business-manager-server-token")
+			} else if bm.RenewDate.Before(warnDate) {
+				// certificate will soon expire, print a warning
+				color.New(color.FgYellow).Fprintln(c.App.Writer, "\nWARNING: Your Apple Business Manager (ABM) server token is less than 30 days from expiration. If it expires, laptops newly purchased via ABM will not automatically enroll in Fleet. To renew your ABM server token, follow these instructions: https://fleetdm.com/docs/using-fleet/faq#how-can-i-renew-my-apple-business-manager-server-token")
+			}
 
 			return nil
 		},

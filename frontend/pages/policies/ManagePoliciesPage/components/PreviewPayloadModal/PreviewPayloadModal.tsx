@@ -27,6 +27,7 @@ const PreviewPayloadModal = ({
       resolution: "Turn on Gatekeeper feature in System Preferences.",
       passing_host_count: 2000,
       failing_host_count: 300,
+      critical: false,
     },
     hosts: [
       {

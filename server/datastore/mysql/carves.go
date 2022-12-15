@@ -11,7 +11,7 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-func (ds *Datastore) NewCarve(ctx context.Context, metadata *fleet.CarveMetadata) (*fleet.CarveMetadata, error) {
+func upsertCarveDB(ctx context.Context, writer sqlx.ExecerContext, metadata *fleet.CarveMetadata) (int64, error) {
 	stmt := `INSERT INTO carve_metadata (
 		host_id,
 		created_at,
@@ -21,8 +21,10 @@ func (ds *Datastore) NewCarve(ctx context.Context, metadata *fleet.CarveMetadata
 		carve_size,
 		carve_id,
 		request_id,
-		session_id
+		session_id,
+		error
 	) VALUES (
+		?,
 		?,
 		?,
 		?,
@@ -34,7 +36,7 @@ func (ds *Datastore) NewCarve(ctx context.Context, metadata *fleet.CarveMetadata
 		?
 	)`
 
-	result, err := ds.writer.ExecContext(
+	result, err := writer.ExecContext(
 		ctx,
 		stmt,
 		metadata.HostId,
@@ -46,14 +48,20 @@ func (ds *Datastore) NewCarve(ctx context.Context, metadata *fleet.CarveMetadata
 		metadata.CarveId,
 		metadata.RequestId,
 		metadata.SessionId,
+		metadata.Error,
 	)
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "insert carve metadata")
+	}
+	return result.LastInsertId()
+}
+
+func (ds *Datastore) NewCarve(ctx context.Context, metadata *fleet.CarveMetadata) (*fleet.CarveMetadata, error) {
+	id, err := upsertCarveDB(ctx, ds.writer, metadata)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "insert carve metadata")
 	}
-
-	id, _ := result.LastInsertId()
 	metadata.ID = id
-
 	return metadata, nil
 }
 
@@ -67,7 +75,8 @@ func updateCarveDB(ctx context.Context, exec sqlx.ExecerContext, metadata *fleet
 	stmt := `
 		UPDATE carve_metadata SET
 			max_block = ?,
-			expired = ?
+			expired = ?,
+			error = ?
 		WHERE id = ?
 	`
 	_, err := exec.ExecContext(
@@ -75,6 +84,7 @@ func updateCarveDB(ctx context.Context, exec sqlx.ExecerContext, metadata *fleet
 		stmt,
 		metadata.MaxBlock,
 		metadata.Expired,
+		metadata.Error,
 		metadata.ID,
 	)
 	return ctxerr.Wrap(ctx, err, "update carve metadata")
@@ -154,7 +164,8 @@ const carveSelectFields = `
 			request_id,
 			session_id,
 			expired,
-			max_block
+			max_block,
+			error
 `
 
 func (ds *Datastore) Carve(ctx context.Context, carveId int64) (*fleet.CarveMetadata, error) {

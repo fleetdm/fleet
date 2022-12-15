@@ -217,7 +217,7 @@ func addMetrics(r *mux.Router) {
 		route.Handler(PrometheusMetricsHandler(route.GetName(), route.GetHandler()))
 		return nil
 	}
-	r.Walk(walkFn)
+	r.Walk(walkFn) //nolint:errcheck
 }
 
 // desktopRateLimitMaxBurst is the max burst used for device request rate limiting.
@@ -234,7 +234,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	// user-authenticated endpoints
 	ue := newUserAuthenticatedEndpointer(svc, opts, r, apiVersions...)
 
-	ue.GET("/api/_version_/fleet/trigger", triggerEndpoint, getTriggerRequest{})
+	ue.POST("/api/_version_/fleet/trigger", triggerEndpoint, triggerRequest{})
 
 	ue.GET("/api/_version_/fleet/me", meEndpoint, nil)
 	ue.GET("/api/_version_/fleet/sessions/{id:[0-9]+}", getInfoAboutSessionEndpoint, getInfoAboutSessionRequest{})
@@ -419,6 +419,8 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 		ue.GET("/api/_version_/fleet/mdm/apple/devices", listMDMAppleDevicesEndpoint, listMDMAppleDevicesRequest{})
 		ue.GET("/api/_version_/fleet/mdm/apple/dep/devices", listMDMAppleDEPDevicesEndpoint, listMDMAppleDEPDevicesRequest{})
 	}
+	ue.GET("/api/_version_/fleet/mdm/apple", getAppleMDMEndpoint, nil)
+	ue.GET("/api/_version_/fleet/mdm/apple_bm", getAppleBMEndpoint, nil)
 
 	errorLimiter := ratelimit.NewErrorMiddleware(limitStore)
 

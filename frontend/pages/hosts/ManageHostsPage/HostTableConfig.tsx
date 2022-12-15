@@ -11,7 +11,7 @@ import DiskSpaceGraph from "components/DiskSpaceGraph";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 import IssueCell from "components/TableContainer/DataTable/IssueCell/IssueCell";
 import LinkCell from "components/TableContainer/DataTable/LinkCell/LinkCell";
-import StatusCell from "components/TableContainer/DataTable/StatusCell/StatusCell";
+import StatusIndicator from "components/StatusIndicator";
 import TextCell from "components/TableContainer/DataTable/TextCell/TextCell";
 import TooltipWrapper from "components/TooltipWrapper";
 import {
@@ -208,12 +208,7 @@ const allHostTableHeaders: IDataColumn[] = [
           Status
         </TooltipWrapper>
       );
-      return (
-        <HeaderCell
-          value={titleWithToolTip}
-          isSortedDesc={headerProps.column.isSortedDesc}
-        />
-      );
+      return <HeaderCell value={titleWithToolTip} disableSortBy />;
     },
     disableSortBy: true,
     accessor: "status",
@@ -223,7 +218,7 @@ const allHostTableHeaders: IDataColumn[] = [
         id: cellProps.row.original.id,
         tooltipText: getHostStatusTooltipText(value),
       };
-      return <StatusCell value={value} tooltip={tooltip} />;
+      return <StatusIndicator value={value} tooltip={tooltip} />;
     },
   },
   {

@@ -26,6 +26,7 @@ type teamPolicyRequest struct {
 	Description string `json:"description"`
 	Resolution  string `json:"resolution"`
 	Platform    string `json:"platform"`
+	Critical    bool   `json:"critical" premium:"true"`
 }
 
 type teamPolicyResponse struct {
@@ -44,6 +45,7 @@ func teamPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 		Description: req.Description,
 		Resolution:  req.Resolution,
 		Platform:    req.Platform,
+		Critical:    req.Critical,
 	})
 	if err != nil {
 		return teamPolicyResponse{Err: err}, nil
@@ -320,6 +322,9 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 	}
 	if p.Platform != nil {
 		policy.Platform = *p.Platform
+	}
+	if p.Critical != nil {
+		policy.Critical = *p.Critical
 	}
 	logging.WithExtras(ctx, "name", policy.Name, "sql", policy.Query)
 

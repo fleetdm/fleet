@@ -184,7 +184,7 @@ func testRecordScheduledQueryStatsSync(t *testing.T, ds *mock.Store, pool fleet.
 
 	conn := redis.ConfigureDoer(pool, pool.Get())
 	defer conn.Close()
-	defer conn.Do("DEL", hashKey)
+	defer conn.Do("DEL", hashKey) //nolint:errcheck
 
 	n, err := redigo.Int(conn.Do("EXISTS", hashKey))
 	require.NoError(t, err)
@@ -228,7 +228,7 @@ func testRecordScheduledQueryStatsAsync(t *testing.T, ds *mock.Store, pool fleet
 
 	conn := redis.ConfigureDoer(pool, pool.Get())
 	defer conn.Close()
-	defer conn.Do("DEL", hashKey)
+	defer conn.Do("DEL", hashKey) //nolint:errcheck
 
 	res, err := redigo.StringMap(conn.Do("HGETALL", hashKey))
 	require.NoError(t, err)

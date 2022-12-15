@@ -54,7 +54,7 @@ interface INumberCellProps extends IRowProps {
 
 interface IPillCellProps extends IRowProps {
   cell: {
-    value: [string, number];
+    value: { indicator: string; id: number };
   };
 }
 
@@ -236,6 +236,10 @@ const enhanceAllScheduledQueryData = (
       system_time_p50: scheduledQuery.stats?.system_time_p50,
       total_executions: scheduledQuery.stats?.total_executions,
     };
+    console.log(
+      "performanceIndicator(scheduledQueryPerformance)",
+      performanceIndicator(scheduledQueryPerformance)
+    );
     return {
       name: scheduledQuery.name,
       query_name: scheduledQuery.query_name,
@@ -250,10 +254,10 @@ const enhanceAllScheduledQueryData = (
       version: scheduledQuery.version,
       shard: scheduledQuery.shard,
       type: teamId ? "team_scheduled_query" : "global_scheduled_query",
-      performance: [
-        performanceIndicator(scheduledQueryPerformance),
-        scheduledQuery.id,
-      ],
+      performance: {
+        indicator: performanceIndicator(scheduledQueryPerformance),
+        id: scheduledQuery.id,
+      },
     };
   });
 };

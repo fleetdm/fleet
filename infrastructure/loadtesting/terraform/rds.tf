@@ -8,8 +8,11 @@ resource "random_pet" "db_secret_postfix" {
 }
 
 resource "aws_secretsmanager_secret" "database_password_secret" {
-  name       = "/fleet/database/password/master-2-${random_pet.db_secret_postfix.id}"
-  kms_key_id = aws_kms_key.main.id
+  name                    = "/fleet/database/password/master-2-${random_pet.db_secret_postfix.id}"
+  kms_key_id              = aws_kms_key.main.id
+  # No need to keep these around to potentially break re-using the same
+  # workspace.
+  recovery_window_in_days = 0
 }
 
 resource "aws_secretsmanager_secret_version" "database_password_secret_version" {
