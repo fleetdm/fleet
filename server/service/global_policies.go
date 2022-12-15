@@ -278,6 +278,75 @@ func (svc *Service) ModifyGlobalPolicy(ctx context.Context, id uint, p fleet.Mod
 }
 
 /////////////////////////////////////////////////////////////////////////////////
+// Reset automation
+/////////////////////////////////////////////////////////////////////////////////
+
+type resetAutomationRequest struct {
+	TeamIDs   []uint `query:"team_ids,optional"`
+	PolicyIDs []uint `query:"policy_ids,optional"`
+}
+
+type resetAutomationResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r resetAutomationResponse) error() error { return r.Err }
+
+func resetAutomationEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	req := request.(*resetAutomationRequest)
+	err := svc.ResetAutomation(ctx, req.TeamIDs, req.PolicyIDs)
+	return resetAutomationResponse{Err: err}, nil
+}
+
+func (svc *Service) ResetAutomation(ctx context.Context, teamIDs, policyIDs []uint) error {
+	pIDs := make(map[uint]struct{})
+	for _, id := range policyIDs {
+		pIDs[id] = struct{}{}
+	}
+	for _, teamID := range teamIDs {
+		p1, p2, err := svc.ds.ListTeamPolicies(ctx, teamID)
+		if err != nil {
+			return err
+		}
+		for _, p := range p1 {
+			pIDs[p.ID] = struct{}{}
+		}
+		for _, p := range p2 {
+			pIDs[p.ID] = struct{}{}
+		}
+	}
+	hasGlobal := false
+	tIDs := make(map[uint]struct{})
+	for id := range pIDs {
+		p, err := svc.ds.Policy(ctx, id)
+		if err != nil {
+			return err
+		}
+		if p.TeamID == nil {
+			hasGlobal = true
+		} else {
+			tIDs[*p.TeamID] = struct{}{}
+		}
+	}
+	for id := range tIDs {
+		if err := svc.authz.Authorize(ctx, &fleet.Team{ID: id}, fleet.ActionWrite); err != nil {
+			return err
+		}
+	}
+	if hasGlobal {
+		if err := svc.authz.Authorize(ctx, &fleet.AppConfig{}, fleet.ActionWrite); err != nil {
+			return err
+		}
+	}
+	for id := range pIDs {
+		if err := svc.ds.IncreasePolicyAutomationIteration(ctx, id); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+/////////////////////////////////////////////////////////////////////////////////
 // Apply Spec
 /////////////////////////////////////////////////////////////////////////////////
 
