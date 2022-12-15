@@ -9,6 +9,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/health"
+	"github.com/micromdm/nanodep/godep"
 )
 
 type CarveStore interface {
@@ -714,6 +715,10 @@ type Datastore interface {
 
 	// MDMAppleListDevices lists all the MDM enrolled devices.
 	MDMAppleListDevices(ctx context.Context) ([]MDMAppleDevice, error)
+
+	// IngestMDMAppleDevicesIntoHosts creates new Fleet host records for MDM enrolled devices that are
+	// not already enrolled in Fleet.
+	IngestMDMAppleDevicesIntoHosts(ctx context.Context, devices []godep.Device) (int64, error)
 }
 
 const (

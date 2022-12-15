@@ -60,9 +60,10 @@ func (ds *Datastore) NewHost(ctx context.Context, host *fleet.Host) (*fleet.Host
 			distributed_interval,
 			logger_tls_period,
 			config_tls_refresh,
-			refetch_requested
+			refetch_requested,
+			hardware_serial
 		)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		`
 		result, err := tx.ExecContext(
 			ctx,
@@ -85,6 +86,7 @@ func (ds *Datastore) NewHost(ctx context.Context, host *fleet.Host) (*fleet.Host
 			host.LoggerTLSPeriod,
 			host.ConfigTLSRefresh,
 			host.RefetchRequested,
+			host.HardwareSerial,
 		)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "new host")

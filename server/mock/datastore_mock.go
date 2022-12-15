@@ -9,6 +9,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/micromdm/nanodep/godep"
 )
 
 var _ fleet.Datastore = (*DataStore)(nil)
@@ -508,6 +509,8 @@ type MDMAppleInstallerDetailsByTokenFunc func(ctx context.Context, token string)
 type ListMDMAppleInstallersFunc func(ctx context.Context) ([]fleet.MDMAppleInstaller, error)
 
 type MDMAppleListDevicesFunc func(ctx context.Context) ([]fleet.MDMAppleDevice, error)
+
+type IngestMDMAppleDevicesIntoHostsFunc func(ctx context.Context, devices []godep.Device) (int64, error)
 
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
@@ -1253,6 +1256,9 @@ type DataStore struct {
 
 	MDMAppleListDevicesFunc        MDMAppleListDevicesFunc
 	MDMAppleListDevicesFuncInvoked bool
+
+	IngestMDMAppleDevicesIntoHostsFunc        IngestMDMAppleDevicesIntoHostsFunc
+	IngestMDMAppleDevicesIntoHostsFuncInvoked bool
 }
 
 func (s *DataStore) HealthCheck() error {
@@ -2493,4 +2499,9 @@ func (s *DataStore) ListMDMAppleInstallers(ctx context.Context) ([]fleet.MDMAppl
 func (s *DataStore) MDMAppleListDevices(ctx context.Context) ([]fleet.MDMAppleDevice, error) {
 	s.MDMAppleListDevicesFuncInvoked = true
 	return s.MDMAppleListDevicesFunc(ctx)
+}
+
+func (s *DataStore) IngestMDMAppleDevicesIntoHosts(ctx context.Context, devices []godep.Device) (int64, error) {
+	s.IngestMDMAppleDevicesIntoHostsFuncInvoked = true
+	return s.IngestMDMAppleDevicesIntoHostsFunc(ctx, devices)
 }

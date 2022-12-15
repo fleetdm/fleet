@@ -212,7 +212,7 @@ func TestEnrollAgent(t *testing.T) {
 	ds.EnrollHostFunc = func(ctx context.Context, osqueryHostId, nodeKey string, teamID *uint, cooldown time.Duration) (*fleet.Host, error) {
 		assert.Equal(t, ptr.Uint(3), teamID)
 		return &fleet.Host{
-			OsqueryHostID: osqueryHostId, NodeKey: nodeKey,
+			OsqueryHostID: &osqueryHostId, NodeKey: &nodeKey,
 		}, nil
 	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
@@ -243,7 +243,7 @@ func TestEnrollAgentEnforceLimit(t *testing.T) {
 		ds.EnrollHostFunc = func(ctx context.Context, osqueryHostId, nodeKey string, teamID *uint, cooldown time.Duration) (*fleet.Host, error) {
 			hostIDSeq++
 			return &fleet.Host{
-				ID: hostIDSeq, OsqueryHostID: osqueryHostId, NodeKey: nodeKey,
+				ID: hostIDSeq, OsqueryHostID: &osqueryHostId, NodeKey: &nodeKey,
 			}, nil
 		}
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
@@ -326,7 +326,7 @@ func TestEnrollAgentDetails(t *testing.T) {
 	}
 	ds.EnrollHostFunc = func(ctx context.Context, osqueryHostId, nodeKey string, teamID *uint, cooldown time.Duration) (*fleet.Host, error) {
 		return &fleet.Host{
-			OsqueryHostID: osqueryHostId, NodeKey: nodeKey,
+			OsqueryHostID: &osqueryHostId, NodeKey: &nodeKey,
 		}, nil
 	}
 	var gotHost *fleet.Host
@@ -535,7 +535,7 @@ func TestHostDetailQueries(t *testing.T) {
 
 		Platform:        "darwin",
 		DetailUpdatedAt: mockClock.Now(),
-		NodeKey:         "test_key",
+		NodeKey:         ptr.String("test_key"),
 		Hostname:        "test_hostname",
 		UUID:            "test_uuid",
 	}
@@ -604,7 +604,7 @@ func TestQueriesAndHostFeatures(t *testing.T) {
 	host := fleet.Host{
 		ID:       1,
 		Platform: "darwin",
-		NodeKey:  "test_key",
+		NodeKey:  ptr.String("test_key"),
 		Hostname: "test_hostname",
 		UUID:     "test_uuid",
 		TeamID:   nil,
@@ -1941,7 +1941,7 @@ func TestUpdateHostIntervals(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := hostctx.NewContext(ctx, &fleet.Host{
 				ID:                  1,
-				NodeKey:             "123456",
+				NodeKey:             ptr.String("123456"),
 				DistributedInterval: tt.initIntervals.DistributedInterval,
 				ConfigTLSRefresh:    tt.initIntervals.ConfigTLSRefresh,
 				LoggerTLSPeriod:     tt.initIntervals.LoggerTLSPeriod,
