@@ -337,7 +337,7 @@ Lastly, remove your Fleet Premium license key:
 No. The agent options set using your software orchestration tool will override the default agent options that appear in the **Settings > Organization settings > Global agent options** page. On this page, if you hit the **Save** button, the options that appear in the Fleet UI will override the agent options set using your software orchestration.
 
 ### How can I uninstall the osquery agent?
-To uninstall the osquery agent, follow the below instructions for your Operating System.
+To uninstall the osquery agent, follow the below instructions for your operating system.
 
 #### MacOS
 Run the Orbit [cleanup script](https://github.com/fleetdm/fleet/blob/main/orbit/tools/cleanup/cleanup_macos.sh)
