@@ -142,3 +142,11 @@ export const createCustomRenderer = (renderOptions: ICustomRenderOptions) => {
     return renderResults;
   };
 };
+
+// eslint-disable-next-line import/prefer-default-export
+export const renderWithSetup = (component: JSX.Element) => {
+  return {
+    user: userEvent.setup(),
+    ...render(component),
+  };
+};

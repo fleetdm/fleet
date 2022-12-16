@@ -344,6 +344,18 @@ For the address of the Redis server that Fleet should connect to, include the ho
   	address: 127.0.0.1:7369
   ```
 
+##### redis_username
+
+The username to use when connecting to the Redis instance.
+
+- Default value: `<empty>`
+- Environment variable: `FLEET_REDIS_USERNAME`
+- Config file format:
+  ```
+  redis:
+  	username: foobar
+  ```
+
 ##### redis_password
 
 The password to use when connecting to the Redis instance.

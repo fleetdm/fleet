@@ -48,6 +48,7 @@ func SetupRedis(tb testing.TB, cleanupKeyPrefix string, cluster, redir, readRepl
 
 	var (
 		addr     = "127.0.0.1:"
+		username = ""
 		password = ""
 		database = 0
 		useTLS   = false
@@ -60,6 +61,7 @@ func SetupRedis(tb testing.TB, cleanupKeyPrefix string, cluster, redir, readRepl
 
 	pool, err := redis.NewPool(redis.PoolConfig{
 		Server:                    addr,
+		Username:                  username,
 		Password:                  password,
 		Database:                  database,
 		UseTLS:                    useTLS,

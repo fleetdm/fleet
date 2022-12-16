@@ -8,7 +8,7 @@ import format from "date-fns/format";
 // @ts-ignore
 import Checkbox from "components/forms/fields/Checkbox";
 import LinkCell from "components/TableContainer/DataTable/LinkCell/LinkCell";
-import StatusCell from "components/TableContainer/DataTable/StatusCell/StatusCell";
+import StatusIndicator from "components/StatusIndicator";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 
@@ -148,7 +148,7 @@ const generateTableHeaders = (): IDataColumn[] => {
       Header: "Status",
       disableSortBy: true,
       accessor: "status",
-      Cell: (cellProps) => <StatusCell value={cellProps.cell.value} />,
+      Cell: (cellProps) => <StatusIndicator value={cellProps.cell.value} />,
     },
   ];
   return tableHeaders;

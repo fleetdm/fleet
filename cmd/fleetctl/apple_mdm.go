@@ -18,15 +18,16 @@ import (
 	"github.com/groob/plist"
 	"github.com/micromdm/micromdm/mdm/appmanifest"
 	"github.com/micromdm/micromdm/mdm/mdm"
-	"github.com/micromdm/nanodep/tokenpki"
 	"github.com/olekukonko/tablewriter"
 	"github.com/urfave/cli/v2"
 )
 
 const (
-	apnsKeyPath    = "fleet-mdm-apple-apns.key"
-	scepCACertPath = "fleet-mdm-apple-scep.crt"
-	scepCAKeyPath  = "fleet-mdm-apple-scep.key"
+	apnsKeyPath         = "fleet-mdm-apple-apns.key"
+	scepCACertPath      = "fleet-mdm-apple-scep.crt"
+	scepCAKeyPath       = "fleet-mdm-apple-scep.key"
+	bmPublicKeyCertPath = "fleet-apple-mdm-bm-public-key.crt"
+	bmPrivateKeyPath    = "fleet-apple-mdm-bm-private.key"
 )
 
 func appleMDMCommand() *cli.Command {
@@ -41,7 +42,6 @@ func appleMDMCommand() *cli.Command {
 			debugFlag(),
 		},
 		Subcommands: []*cli.Command{
-			appleMDMSetupCommand(),
 			appleMDMEnrollmentProfilesCommand(),
 			appleMDMEnqueueCommandCommand(),
 			appleMDMDEPCommand(),
@@ -64,6 +64,7 @@ func generateCommand() *cli.Command {
 		},
 		Subcommands: []*cli.Command{
 			generateMDMAppleCommand(),
+			generateMDMAppleBMCommand(),
 		},
 	}
 }
@@ -111,6 +112,7 @@ func generateMDMAppleCommand() *cli.Command {
 				c.App.Writer,
 				`Sending certificate signing request (CSR) for Apple Push Notification service (APNs) to %s...
 Generating APNs key, Simple Certificate Enrollment Protocol (SCEP) certificate, and SCEP key...
+
 `,
 				email,
 			)
@@ -178,126 +180,56 @@ Next, use the generated certificates to deploy Fleet with `+"`mdm`"+` configurat
 	}
 }
 
-func appleMDMSetupCommand() *cli.Command {
+func generateMDMAppleBMCommand() *cli.Command {
 	return &cli.Command{
-		Name:  "setup",
-		Usage: "Setup commands for Apple MDM",
-		Subcommands: []*cli.Command{
-			appleMDMSetupDEPCommand(),
-		},
-	}
-}
-
-func appleMDMSetupDEPCommand() *cli.Command {
-	return &cli.Command{
-		Name:  "dep",
-		Usage: "Configure DEP token",
-		Subcommands: []*cli.Command{
-			appleMDMSetDEPTokenInitCommand(),
-			appleMDMSetDEPTokenFinalizeCommand(),
-		},
-	}
-}
-
-func appleMDMSetDEPTokenInitCommand() *cli.Command {
-	return &cli.Command{
-		Name:  "init",
-		Usage: "Start DEP token configuration",
+		Name:    "mdm-apple-bm",
+		Aliases: []string{"mdm_apple_bm"},
+		Usage:   "Generate Apple Business Manager public and private keys to enable automatic enrollment for macOS hosts.",
 		Flags: []cli.Flag{
-			configFlag(),
-			contextFlag(),
+			&cli.StringFlag{
+				Name:  "public-key",
+				Usage: "The output path for the Apple Business Manager public key certificate.",
+				Value: bmPublicKeyCertPath,
+			},
+			&cli.StringFlag{
+				Name:  "private-key",
+				Usage: "The output path for the Apple Business Manager private key.",
+				Value: bmPrivateKeyPath,
+			},
 		},
 		Action: func(c *cli.Context) error {
-			const (
-				cn = "fleet"
-				// Setting validityDays to 10 in case user doing the init command
-				// is different than user uploading to Apple.
-				// (Though we've heard from other users that Apple doesn't really check
-				// the expiration of this public key.)
-				validityDays = 10
-				pemCertPath  = "fleet-mdm-apple-dep.crt"
-				pemKeyPath   = "fleet-mdm-apple-dep.key"
-			)
-			key, cert, err := tokenpki.SelfSignedRSAKeypair(cn, validityDays)
+			publicKeyPath := c.String("public-key")
+			privateKeyPath := c.String("private-key")
+
+			publicKeyPEM, privateKeyPEM, err := apple_mdm.NewDEPKeyPairPEM()
 			if err != nil {
-				return fmt.Errorf("generate encryption keypair: %w", err)
+				return fmt.Errorf("generate key pair: %w", err)
 			}
-			pemCert := tokenpki.PEMCertificate(cert.Raw)
-			pemKey := tokenpki.PEMRSAPrivateKey(key)
-			if err := os.WriteFile(pemCertPath, pemCert, defaultFileMode); err != nil {
-				return fmt.Errorf("write certificate: %w", err)
+
+			if err := os.WriteFile(publicKeyPath, publicKeyPEM, defaultFileMode); err != nil {
+				return fmt.Errorf("write public key: %w", err)
 			}
-			if err := os.WriteFile(pemKeyPath, pemKey, defaultFileMode); err != nil {
+
+			if err := os.WriteFile(privateKeyPath, privateKeyPEM, defaultFileMode); err != nil {
 				return fmt.Errorf("write private key: %w", err)
 			}
-			fmt.Printf("Successfully generated DEP public and private key: %s, %s\n", pemCertPath, pemKeyPath)
-			fmt.Printf("Upload %s to your Apple Business MDM server. (Don't forget to click \"Save\" after uploading it.)", pemCertPath)
-			return nil
-		},
-	}
-}
 
-func appleMDMSetDEPTokenFinalizeCommand() *cli.Command {
-	var (
-		pemCertPath        string
-		pemKeyPath         string
-		encryptedTokenPath string
-	)
-	return &cli.Command{
-		Name:  "finalize",
-		Usage: "Finalize DEP token configuration for an automatic enrollment",
-		Flags: []cli.Flag{
-			&cli.StringFlag{
-				Name:        "certificate",
-				Usage:       "Path to the certificate generated in the init step",
-				Destination: &pemCertPath,
-				Required:    true,
-			},
-			&cli.StringFlag{
-				Name:        "private-key",
-				Usage:       "Path to the private key file generated in the init step",
-				Destination: &pemKeyPath,
-				Required:    true,
-			},
-			&cli.StringFlag{
-				Name:        "encrypted-token",
-				Usage:       "Path to the encrypted token file downloaded from Apple Business (*.p7m)",
-				Destination: &encryptedTokenPath,
-				Required:    true,
-			},
-		},
-		Action: func(c *cli.Context) error {
-			pemCert, err := os.ReadFile(pemCertPath)
-			if err != nil {
-				return fmt.Errorf("read certificate: %w", err)
-			}
-			depCert, err := tokenpki.CertificateFromPEM(pemCert)
-			if err != nil {
-				return fmt.Errorf("parse certificate: %w", err)
-			}
-			pemKey, err := os.ReadFile(pemKeyPath)
-			if err != nil {
-				return fmt.Errorf("read private key: %w", err)
-			}
-			depKey, err := tokenpki.RSAKeyFromPEM(pemKey)
-			if err != nil {
-				return fmt.Errorf("parse private key: %w", err)
-			}
-			encryptedToken, err := os.ReadFile(encryptedTokenPath)
-			if err != nil {
-				return fmt.Errorf("read encrypted token: %w", err)
-			}
-			token, err := tokenpki.DecryptTokenJSON(encryptedToken, depCert, depKey)
-			if err != nil {
-				return fmt.Errorf("decrypt token: %w", err)
-			}
-			//nolint:gosec // G101: no credentials, just the file name.
-			tokenPath := "fleet-mdm-apple-dep.token"
-			if err := os.WriteFile(tokenPath, token, defaultFileMode); err != nil {
-				return fmt.Errorf("write token file: %w", err)
-			}
-			fmt.Printf("Successfully generated token file: %s.\n", tokenPath)
-			fmt.Printf("Set FLEET_MDM_APPLE_DEP_TOKEN=$(cat %s) when running Fleet.\n", tokenPath)
+			fmt.Fprintf(
+				c.App.Writer,
+				`Success!
+
+Generated your public key at %s
+
+Generated your private key at %s
+
+Visit https://business.apple.com/ and create a new MDM server with the public key. Then, download the new MDM server's token.
+
+Next, deploy Fleet with with `+"`mdm`"+` configuration: https://fleetdm.com/docs/deploying/configuration#mdm-mobile-device-management-in-progress
+`,
+				publicKeyPath,
+				privateKeyPath,
+			)
+
 			return nil
 		},
 	}

@@ -1,5 +1,5 @@
 import React from "react";
-import StatusCell from "components/TableContainer/DataTable/StatusCell";
+import StatusIndicator from "components/StatusIndicator";
 import Button from "components/buttons/Button";
 import { IHostPolicy } from "interfaces/policy";
 import { PolicyResponse } from "utilities/constants";
@@ -71,7 +71,9 @@ const generatePolicyTableHeaders = (
       accessor: "response",
       disableSortBy: true,
       Cell: (cellProps) => {
-        return <StatusCell value={getPolicyStatus(cellProps.row.original)} />;
+        return (
+          <StatusIndicator value={getPolicyStatus(cellProps.row.original)} />
+        );
       },
     },
     {

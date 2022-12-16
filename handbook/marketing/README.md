@@ -621,10 +621,10 @@ The following table lists the Marketing, Brand, and Community group's rituals, f
 | Outside contributions        | Weekly | Check pull requests for outside contributions every Monday | Drew Baker|
 | Weekly article               | Weekly | Publish an article and promote it on social media | Drew Baker|
 | Missed demo follow up        | Weekly | Email all leads who missed a scheduled demo | Andrew Bare |
-| Weekly ins and outs          | Weekly | Track marketing team ins and outs        | Tim Kern          |
+| Weekly ins and outs          | Weekly | Track marketing team ins and outs        | Jarod Reyes          |
 | Podcast outreach             | Weekly | Conduct podcast outreach twice a week     | Drew Baker        |
 | Weekly update                | Weekly | Update the marketing KPIs in the ["🌈 Weekly updates" spreadsheet](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0) | Drew Baker        |
-| Update the "Release" field on the #g-marketing board   | Every 3 weeks | <ul><li>Go to the [marketing board](https://github.com/orgs/fleetdm/projects/37/views/2)</li><li>add a 3-week iteration with the correct release number</li></ul> | Tim Kern        |
+| Update the "Release" field on the #g-marketing board   | Every 3 weeks | <ul><li>Go to the [marketing board](https://github.com/orgs/fleetdm/projects/37/views/2)</li><li>add a 3-week iteration with the correct release number</li></ul> | Jarod Reyes        |
 | Monthly conference checks    | Monthly | Check for conference openings and sponsorship opportunities on the 1st of every month | Drew Baker|
 | Freshen up pinned posts      | Quarterly | Swap out or remove pinned posts on the brand Twitter account and LinkedIn company page | Drew Baker | 
 | Documentation quality | On request | Review pull requests to the docs for spelling, punctuation, and grammar | Chris McGillicuddy |
@@ -653,14 +653,14 @@ These groups maintain the following [Slack channels](https://fleetdm.com/handboo
 
 | Slack channel               | [DRI](https://fleetdm.com/handbook/company#group-slack-channels)    |
 |:----------------------------|:--------------------------------------------------------------------|
-| `#g-marketing`              | Tim Kern                                                            |
-| `#help-public-relations`    | Tim Kern                                                            |
-| `#help-promote`             | Tim Kern                                                            |
+| `#g-marketing`              | Jarod Reyes                                                            |
+| `#help-public-relations`    | Jarod Reyes                                                            |
+| `#help-promote`             | Jarod Reyes                                                            |
 | `#help-swag`                | Drew Baker                                                          |
 | `#oooh-websites`            | Mike Thomas                                                         |
 | `#help-p1`		                | Mike McNeil                                                         |
 | `#g-community`              | Kathy Satterlee                                                     |
 
 
-<meta name="maintainedBy" value="timmy-k">
+<meta name="maintainedBy" value="jarodreyes">
 <meta name="title" value="🫧 Marketing">

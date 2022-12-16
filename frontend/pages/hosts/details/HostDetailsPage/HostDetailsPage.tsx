@@ -119,6 +119,7 @@ const HostDetailsPage = ({
     setLastEditedQueryDescription,
     setLastEditedQueryBody,
     setLastEditedQueryResolution,
+    setLastEditedQueryCritical,
     setPolicyTeamId,
   } = useContext(PolicyContext);
   const { renderFlash } = useContext(NotificationContext);
@@ -400,6 +401,7 @@ const HostDetailsPage = ({
     );
     setLastEditedQueryBody(osPolicyQuery);
     setLastEditedQueryResolution("");
+    setLastEditedQueryCritical(false);
     router.replace(NEW_POLICY);
   };
 

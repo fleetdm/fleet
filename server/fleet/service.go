@@ -573,6 +573,9 @@ type Service interface {
 	// ListMDMAppleDEPDevices lists all the devices added to this MDM server in Apple Business Manager (ABM).
 	ListMDMAppleDEPDevices(ctx context.Context) ([]MDMAppleDEPDevice, error)
 
+	// NewMDMAppleDEPKeyPair creates a public private key pair for use with the Apple MDM DEP token.
+	NewMDMAppleDEPKeyPair(ctx context.Context) (*MDMAppleDEPKeyPair, error)
+
 	// EnqueueMDMAppleCommand enqueues a command for execution on the given devices.
 	EnqueueMDMAppleCommand(ctx context.Context, command *MDMAppleCommand, deviceIDs []string, noPush bool) (status int, result *CommandEnqueueResult, err error)
 
