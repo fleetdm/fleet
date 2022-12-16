@@ -192,7 +192,7 @@ func writePowershellInstallerUtilsFile(opt Options, rootPath string) error {
 	}
 
 	if err := ioutil.WriteFile(path, contents.Bytes(), constant.DefaultFileMode); err != nil {
-		return fmt.Errorf("epowershell installer utils file write: %w", err)
+		return fmt.Errorf("powershell installer utils file write: %w", err)
 	}
 
 	return nil
