@@ -63,11 +63,6 @@ type MDMAppleDEPKeyPair struct {
 	PrivateKey []byte `json:"private_key"`
 }
 
-// AuthzType implements authz.AuthzTyper.
-func (m MDMAppleDEPKeyPair) AuthzType() string {
-	return "mdm_apple_dep_key_pair"
-}
-
 // MDMAppleCommandResult holds the result of a command execution provided by the target device.
 type MDMAppleCommandResult struct {
 	// ID is the enrollment ID. This should be the same as the device ID.

@@ -557,13 +557,6 @@ allow {
   action == [read, write][_]
 }
 
-# Global admins can generate Apple MDM DEP key pairs.
-allow {
-  object.type == "mdm_apple_dep_key_pair"
-  subject.global_role == admin
-  action == [read, write][_]
-}
-
 # Global admins can read and write Apple DEP devices.
 allow {
   object.type == "mdm_apple_dep_device"

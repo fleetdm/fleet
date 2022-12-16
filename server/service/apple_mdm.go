@@ -477,9 +477,9 @@ func newMDMAppleDEPKeyPairEndpoint(ctx context.Context, request interface{}, svc
 }
 
 func (svc *Service) NewMDMAppleDEPKeyPair(ctx context.Context) (*fleet.MDMAppleDEPKeyPair, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleDEPKeyPair{}, fleet.ActionWrite); err != nil {
-		return nil, ctxerr.Wrap(ctx, err)
-	}
+	// skipauth: Generating a new key pair does not actually make any changes to fleet, or expose any
+	// information. The user must configure fleet with the new key pair and restart the server.
+	svc.authz.SkipAuthorization(ctx)
 
 	publicKeyPEM, privateKeyPEM, err := apple_mdm.NewDEPKeyPairPEM()
 	if err != nil {
