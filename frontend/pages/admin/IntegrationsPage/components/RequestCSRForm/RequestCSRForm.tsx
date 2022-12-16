@@ -31,14 +31,15 @@ const RequestCSRForm = ({
   testingConnection,
 }: IRequestCSRFormProps): JSX.Element => {
   const { currentUser, config } = useContext(AppContext);
-  const email = currentUser?.email;
-  const orgName = config?.org_info?.org_name;
 
   const [formData, setFormData] = useState<IRequestCSRFormData>({
-    email,
-    orgName,
+    email: currentUser?.email || "",
+    orgName: config?.org_info?.org_name || "",
   });
 
+  const { email, orgName } = formData;
+
+  // destructure change event to its name and value
   const onInputChange = ({ name, value }: IFormField) => {
     setFormData({ ...formData, [name]: value });
   };
