@@ -13,9 +13,7 @@ import (
 // triggered run that is currently pending.
 func (ds *Datastore) GetLatestCronStats(ctx context.Context, name string) ([]fleet.CronStats, error) {
 	stmt := `
-SELECT
-	id, name, instance, stats_type, status, created_at, updated_at
-FROM (
+(
 	SELECT
 		id, name, instance, stats_type, status, created_at, updated_at
 	FROM
@@ -26,11 +24,9 @@ FROM (
 		AND (status = 'pending' OR status = 'completed')
 	ORDER BY
 		created_at DESC
-	LIMIT 1) cs1
+	LIMIT 1)
 UNION
-SELECT
-	id, name, instance, stats_type, status, created_at, updated_at
-FROM (
+(
 	SELECT
 		id, name, instance, stats_type, status, created_at, updated_at
 	FROM
@@ -41,9 +37,7 @@ FROM (
 		AND (status = 'pending' OR status = 'completed')
 	ORDER BY
 		created_at DESC
-	LIMIT 1) cs2
-ORDER BY
-	stats_type ASC`
+	LIMIT 1)`
 
 	var res []fleet.CronStats
 	err := sqlx.SelectContext(ctx, ds.reader, &res, stmt, name, name)

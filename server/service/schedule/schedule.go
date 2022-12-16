@@ -568,8 +568,7 @@ func (s *Schedule) getLatestStats() (fleet.CronStats, fleet.CronStats, error) {
 		case fleet.CronStatsTypeTriggered:
 			triggered = stats
 		default:
-			// this should not happen so log for debugging
-			level.Debug(s.logger).Log("msg", fmt.Sprintf("get latest stats unexpected type: %s", stats.StatsType))
+			level.Error(s.logger).Log("msg", fmt.Sprintf("get latest stats unexpected type: %s", stats.StatsType))
 		}
 	}
 
