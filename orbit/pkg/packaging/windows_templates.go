@@ -35,6 +35,14 @@ var windowsWixTemplate = template.Must(template.New("").Option("missingkey=error
 
     <MediaTemplate EmbedCab="yes" />
 
+    <Property Id="POWERSHELLEXE">
+      <RegistrySearch Id="POWERSHELLEXE"
+                      Type="raw"
+                      Root="HKLM"
+                      Key="SOFTWARE\Microsoft\PowerShell\1\ShellIds\Microsoft.PowerShell"
+                      Name="Path" />
+    </Property>
+
     <MajorUpgrade AllowDowngrades="yes" />
 
     <Directory Id="TARGETDIR" Name="SourceDir">
@@ -90,23 +98,50 @@ var windowsWixTemplate = template.Must(template.New("").Option("missingkey=error
                 />
               </Component>
             </Directory>
+            <Component Id="C_INSTALLER_UTILS">
+              <File KeyPath="yes" Source="installer_utils.ps1">
+                <PermissionEx Sddl="O:SYG:SYD:P(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)(A;OICI;0x1200a9;;;BU)" />
+              </File>
+            </Component>
           </Directory>
         </Directory>
       </Directory>
     </Directory>
 
-    <CustomAction Id="StopOrbit_cmd" Property="WixQuietExecCmdLine" Value='"[WindowsFolder]System32\taskkill.exe" /F /IM osqueryd.exe /IM fleet-desktop.exe /IM orbit.exe' />
-    <CustomAction Id="StopOrbit" BinaryKey="WixCA" DllEntry="WixQuietExec" Execute="immediate" Return="check"/>
+    <SetProperty Id="CA_UninstallOsquery"
+                 Before ="CA_UninstallOsquery"
+                 Sequence="execute"
+                 Value='&quot;[POWERSHELLEXE]&quot; -NoLogo -NonInteractive -NoProfile -ExecutionPolicy Bypass -File "[ORBITROOT]bin\installer_utils.ps1" -uninstallOsquery' />
+
+    <CustomAction Id="CA_UninstallOsquery"
+                  BinaryKey="WixCA"
+                  DllEntry="WixQuietExec64"
+                  Execute="deferred"
+                  Return="check"
+                  Impersonate="no" />
+
+   <SetProperty Id="CA_StopOrbit"
+                 Before ="CA_StopOrbit"
+                 Sequence="execute"
+                 Value='&quot;[POWERSHELLEXE]&quot; -NoLogo -NonInteractive -NoProfile -ExecutionPolicy Bypass -File "[ORBITROOT]bin\installer_utils.ps1" -stopOrbit' />
+
+    <CustomAction Id="CA_StopOrbit"
+                  BinaryKey="WixCA"
+                  DllEntry="WixQuietExec64"
+                  Execute="deferred"
+                  Return="check"
+                  Impersonate="no" />  
 
     <InstallExecuteSequence>
-      <Custom Action='StopOrbit_cmd' Before='RemoveFiles'>(NOT UPGRADINGPRODUCTCODE) AND (REMOVE="ALL")</Custom>
-      <Custom Action='StopOrbit' After='StopOrbit_cmd'>(NOT UPGRADINGPRODUCTCODE) AND (REMOVE="ALL")</Custom>
+      <Custom Action='CA_StopOrbit' Before='RemoveFiles'>(NOT UPGRADINGPRODUCTCODE) AND (REMOVE="ALL")</Custom> <!-- Only happens during uninstall -->
+      <Custom Action='CA_UninstallOsquery' After='InstallFiles'>NOT Installed AND NOT WIX_UPGRADE_DETECTED</Custom> <!-- Only happens during first install -->
     </InstallExecuteSequence>
 
     <Feature Id="Orbit" Title="Fleet osquery" Level="1" Display="hidden">
       <ComponentGroupRef Id="OrbitFiles" />
       <ComponentRef Id="C_ORBITROOT_REMOVAL" />
       <ComponentRef Id="C_ORBITBIN" />
+      <ComponentRef Id="C_INSTALLER_UTILS" />
       <ComponentRef Id="C_ORBITROOT" />
     </Feature>
 
@@ -171,4 +206,427 @@ var windowsOsqueryEventLogTemplate = template.Must(template.New("").Option("miss
 		</resources>
 	</localization>
 </instrumentationManifest>
+`))
+
+var windowsPSInstallerUtils = template.Must(template.New("").Option("missingkey=error").Parse(
+	`param(
+  [switch] $uninstallOsquery = $false,
+  [switch] $uninstallOrbit = $false,
+  [switch] $stopOrbit = $false,
+  [switch] $help = $false
+)
+
+$ErrorActionPreference = "SilentlyContinue"
+
+$code = @"
+using Microsoft.Win32;
+using System;
+using System.IO;
+using System.Runtime.InteropServices;
+
+public class RegistryUtils
+{
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    internal static extern IntPtr GetCurrentProcess();
+
+    [DllImport("advapi32.dll", ExactSpelling = true, SetLastError = true)]
+    internal static extern bool AdjustTokenPrivileges(IntPtr htok, bool disall,
+        ref TokPriv1Luid newst, int len, IntPtr prev, IntPtr relen);
+
+    [DllImport("advapi32.dll", ExactSpelling = true, SetLastError = true)]
+    internal static extern bool OpenProcessToken(IntPtr h, int acc, ref IntPtr phtok);
+
+    [DllImport("advapi32.dll", SetLastError = true)]
+    internal static extern bool LookupPrivilegeValue(string host, string name, ref long pluid);
+
+    [DllImport("advapi32.dll", SetLastError = true)]
+    static extern int RegLoadKey(UInt32 hKey, String lpSubKey, String lpFile);
+
+    [DllImport("advapi32.dll", SetLastError = true)]
+    static extern int RegUnLoadKey(UInt32 hKey, string lpSubKey);
+
+    [StructLayout(LayoutKind.Sequential, Pack = 1)]
+    internal struct TokPriv1Luid
+    {
+        public int Count;
+        public long Luid;
+        public int Attr;
+    }
+
+    internal const int SE_PRIVILEGE_ENABLED = 0x00000002;
+    internal const int SE_PRIVILEGE_DISABLED = 0x00000000;
+    internal const int TOKEN_QUERY = 0x00000008;
+    internal const int TOKEN_ADJUST_PRIVILEGES = 0x00000020;
+
+    public static bool EnablePrivilege(string privilege, bool disable)
+    {
+        TokPriv1Luid tp;
+        IntPtr htok = IntPtr.Zero;
+
+        if (!OpenProcessToken(GetCurrentProcess(), TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY, ref htok))
+        {
+            return false;
+        }
+
+        tp.Count = 1;
+        tp.Luid = 0;
+
+        if (disable)
+        {
+            tp.Attr = SE_PRIVILEGE_DISABLED;
+        }
+        else
+        {
+            tp.Attr = SE_PRIVILEGE_ENABLED;
+        }
+
+        if (!LookupPrivilegeValue(null, privilege, ref tp.Luid))
+        {
+            return false;
+        }
+
+        if (!AdjustTokenPrivileges(htok, false, ref tp, 0, IntPtr.Zero, IntPtr.Zero))
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+
+    public static void LoadUsersHives()
+    {
+        try
+        {
+            if (EnablePrivilege("SeRestorePrivilege", false) && EnablePrivilege("SeBackupPrivilege", false))
+            {
+                string usersRoot = System.Environment.GetEnvironmentVariable("SystemDrive") + "\\users\\";
+                string[] userDir = System.IO.Directory.GetDirectories(usersRoot, "*", System.IO.SearchOption.TopDirectoryOnly);
+
+                foreach (string fullDirectoryName in userDir)
+                {
+                    string userDirName = new DirectoryInfo(fullDirectoryName).Name;
+                    if (userDirName.Length == 0)
+                    {
+                        continue;
+                    }
+
+                    string targetFile = fullDirectoryName + "\\NTUSER.DAT";
+                    if (!File.Exists(targetFile))
+                    {
+                        continue;
+                    }
+
+                    const uint HKEY_USERS = 0x80000003;
+                    int ret = RegLoadKey(HKEY_USERS, userDirName, targetFile);
+                }
+            }
+        }
+        catch
+        {
+
+        }
+    }
+
+    public static void UnloadUsersHives()
+    {
+        try
+        {
+            if (EnablePrivilege("SeRestorePrivilege", false) && EnablePrivilege("SeBackupPrivilege", false))
+            {
+                string usersRoot = System.Environment.GetEnvironmentVariable("SystemDrive") + "\\users\\";
+                string[] userDir = System.IO.Directory.GetDirectories(usersRoot, "*", System.IO.SearchOption.TopDirectoryOnly);
+
+                foreach (string fullDirectoryName in userDir)
+                {
+                    var userDirName = new DirectoryInfo(fullDirectoryName).Name;
+                    if (userDirName.Length == 0)
+                    {
+                        continue;
+                    }
+
+                    const uint HKEY_USERS = 0x80000003;
+                    RegUnLoadKey(HKEY_USERS, userDirName);
+                }
+            }
+        }
+        catch
+        {
+
+        }
+    }
+
+    public static void RemoveOsqueryInstallationFromUserHives()
+    {
+        try
+        {
+            LoadUsersHives();
+
+            foreach (var username in Registry.Users.GetSubKeyNames())
+            {
+                string targetKey = username + "\\SOFTWARE\\Microsoft\\Installer\\Products\\";
+                RegistryKey rootKey = Registry.Users.OpenSubKey(targetKey, writable: true);
+
+                if (rootKey != null)
+                {
+                    foreach (var productEntry in rootKey.GetSubKeyNames())
+                    {
+                        RegistryKey productKey = rootKey.OpenSubKey(productEntry);
+                        if (productKey != null)
+                        {
+                            if ((string)productKey.GetValue("ProductName") == "osquery")
+                            {
+                                productKey.Close();
+                                rootKey.DeleteSubKeyTree(productEntry);
+                            }
+                        }
+                    }
+                }
+            }
+
+            UnloadUsersHives();
+        }
+        catch
+        {
+
+        }
+    }
+}
+"@
+
+Add-Type -TypeDefinition $code -Language CSharp
+
+function Test-Administrator  
+{  
+    [OutputType([bool])]
+    param()
+    process {
+        [Security.Principal.WindowsPrincipal]$user = [Security.Principal.WindowsIdentity]::GetCurrent();
+        return $user.IsInRole([Security.Principal.WindowsBuiltinRole]::Administrator);
+    }
+}
+
+function Do-Help {
+  $programName = (Get-Item $PSCommandPath ).Name
+  
+  Write-Host "Usage: $programName (-uninstallOsquery|-uninstallOrbit|-stopOrbit|-help)" -foregroundcolor Yellow
+  Write-Host ""
+  Write-Host "  Only one of the following options can be used. Using multiple will result in "
+  Write-Host "  options being ignored."
+  Write-Host "    -uninstallOsquery         Uninstall Osquery"
+  Write-Host "    -uninstallOrbit           Uninstall Orbit"
+  Write-Host "    -stopOrbit                Stop Orbit"
+  Write-Host ""
+  Write-Host "    -help                     Shows this help screen"
+  
+  Exit 1
+}
+
+#Stops Osquery service and related processes
+function Stop-Osquery {
+
+  $kServiceName = "osqueryd"
+  
+  # Stop Service
+  Stop-Service -Name $kServiceName
+  Start-Sleep -Milliseconds 1000
+
+  # Ensure that no process left running
+  Get-Process -Name $kServiceName | Stop-Process -Force
+}
+
+#Stops Orbit service and related processes
+function Stop-Orbit {
+
+  # Stop Service
+  Stop-Service -Name "Fleet osquery"
+  Start-Sleep -Milliseconds 1000
+
+  # Ensure that no process left running
+  Get-Process -Name "orbit" | Stop-Process -Force
+  Get-Process -Name "osqueryd" | Stop-Process -Force
+  Get-Process -Name "fleet-desktop" | Stop-Process -Force
+  Start-Sleep -Milliseconds 1000
+}
+
+#Revove Orbit footprint from registry and disk
+function Force-Remove-Orbit {
+
+  #Stoping Orbit
+  Stop-Orbit
+
+  #Remove Service
+  $service = Get-WmiObject -Class Win32_Service -Filter "Name='Fleet osquery'"
+  $service.delete()    
+
+  #Removing Program files entries
+  $targetPath = $Env:Programfiles + "\\Orbit"
+  Remove-Item -LiteralPath $targetPath -Force -Recurse
+
+  #Remove HKLM registry entries
+  Get-ChildItem "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall" -Recurse |  Where-Object {($_.ValueCount -gt 0)} | ForEach-Object {
+    
+    # Filter for osquery entries
+    $properties = Get-ItemProperty $_.PSPath  |  Where-Object {($_.DisplayName -eq "Fleet osquery")}     
+    if ($properties) {
+     
+      #Remove Registry Entries
+      $regKey = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\" + $_.PSChildName
+      Get-Item $regKey | Remove-Item -Force
+
+      return
+    }
+  }   
+}
+
+
+#Revove Osquery footprint from registry and disk
+function Force-Remove-Osquery {
+
+  #Stoping Osquery
+  Stop-Osquery
+
+  #Remove Service
+  $service = Get-WmiObject -Class Win32_Service -Filter "Name='osqueryd'"
+  $service.delete() | Out-Null
+
+  #Remove HKLM registry entries and disk footprint
+  Get-ChildItem "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall" -Recurse |  Where-Object {($_.ValueCount -gt 0)} | ForEach-Object {
+    
+    # Filter for osquery entries
+    $properties = Get-ItemProperty $_.PSPath  |  Where-Object {($_.DisplayName -eq "osquery")}     
+    if ($properties) {
+
+      #Remove files from osquery location 
+      if ($properties.InstallLocation){
+        Remove-Item -LiteralPath $properties.InstallLocation -Force -Recurse
+      }
+      
+      #Remove Registry Entries
+      $regKey = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\" + $_.PSChildName
+      Get-Item $regKey | Remove-Item -Force
+
+      return
+    }
+  }   
+
+  #Remove user entries if present
+  [RegistryUtils]::RemoveOsqueryInstallationFromUserHives()
+}
+
+function Graceful-Product-Uninstall($productName) {
+
+  if (!$productName) {
+    Write-Host "Product name should be provided" -foregroundcolor Yellow
+    return $false
+  }
+
+  # Grabbing the location of msiexec.exe
+  $targetBinPath = Resolve-Path "$env:windir\system32\msiexec.exe"
+  if (!(Test-Path $targetBinPath)) {
+    Write-Host "msiexec.exe cannot be located." -foregroundcolor Yellow
+    return $false
+  }
+
+  # Creating a COM instance of the WindowsInstaller.Installer COM object
+  $Installer = New-Object -ComObject WindowsInstaller.Installer
+  if (!$Installer) {
+    Write-Host "There was a problem retrieving the installed packages." -foregroundcolor Yellow
+    return $false
+  }
+
+  # Enumerating the installed packages
+  $ProductEnumFlag = 7 #installed packaged enumeration flag
+  $InstallerProducts = $Installer.ProductsEx("", "", $ProductEnumFlag); 
+  if (!$InstallerProducts) {
+    Write-Host "Installed packages cannot be retrieved." -foregroundcolor Yellow
+    return $false
+  }
+
+  # Iterating over the installed packages results and checking for osquery package
+  ForEach ($Product in $InstallerProducts) {
+
+      $ProductCode = $null
+      $VersionString = $null
+      $ProductPath = $null
+
+      try {
+          $ProductCode = $Product.ProductCode()
+          $VersionString = $Product.InstallProperty("VersionString")
+          $ProductPath = $Product.InstallProperty("ProductName")
+      }
+      catch { }
+
+      if ($ProductPath -like $productName) {
+        Write-Host "Graceful uninstall of $ProductPath version $VersionString."  -foregroundcolor Cyan
+        $InstallProcess = Start-Process $targetBinPath -ArgumentList "/quiet /x $ProductCode" -PassThru -Verb RunAs -Wait
+        if ($InstallProcess.ExitCode -eq 0) {
+          return $true
+        } else {
+          Write-Host "There was an error uninstalling osquery. Error code was: $($InstallProcess.ExitCode)." -foregroundcolor Yellow
+          return $false
+        }
+      }
+  }
+
+  return $false
+}
+
+
+function Main {
+  # Is Administrator check
+  if (-not (Test-Administrator)) {
+    Write-Host "Please run this script with Admin privileges!" -foregroundcolor Red
+    Exit -1
+  }
+
+  # Help commands
+  if ($help) {
+    Do-Help
+    Exit -1
+  } 
+   
+  if ($uninstallOsquery) {
+    Write-Host "About to uninstall Osquery." -foregroundcolor Yellow
+
+    Stop-Osquery
+  
+    if (Graceful-Product-Uninstall("osquery")) {
+      Write-Host "Osquery was gracefully uninstalled." -foregroundcolor Cyan
+    } else {
+      Force-Remove-Osquery
+      Write-Host "Osquery was uninstalled." -foregroundcolor Cyan
+    }
+    Exit 0
+
+  } elseif ($uninstallOrbit) {
+    Write-Host "About to uninstall Orbit." -foregroundcolor Yellow
+
+    Stop-Orbit
+  
+    if (Graceful-Product-Uninstall("Fleet osquery")) {
+      Force-Remove-Orbit
+      Write-Host "Orbit was gracefully uninstalled." -foregroundcolor Cyan
+    } else {
+      Force-Remove-Orbit
+      Write-Host "Orbit was uninstalled." -foregroundcolor Cyan
+    }
+    Exit 0
+  } elseif ($stopOrbit) {
+    Write-Host "About to stop Orbit and remove it from system." -foregroundcolor Yellow
+
+    Stop-Orbit
+
+    Write-Host "Orbit was stopped." -foregroundcolor Cyan
+    Exit 0
+  } else {
+    Write-Host "Invalid option selected: please see -help for usage details." -foregroundcolor Red
+    Do-Help
+    Exit -1
+
+  }
+}
+
+$null = Main
 `))
