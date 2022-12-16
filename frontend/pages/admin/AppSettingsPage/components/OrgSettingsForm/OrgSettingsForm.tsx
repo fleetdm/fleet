@@ -20,7 +20,6 @@ import HostStatusWebhook from "../../cards/HostStatusWebhook";
 import Statistics from "../../cards/Statistics";
 import Advanced from "../../cards/Advanced";
 import FleetDesktop from "../../cards/FleetDesktop";
-import Mdm from "../../../IntegrationsPage/cards/Mdm"; // MDM TODO: Remove when Gabe's page level is merged in for MDM
 
 interface IOrgSettingsForm {
   section: string;
