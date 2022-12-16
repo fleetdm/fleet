@@ -11,6 +11,7 @@ export interface IMdmAppleBm {
   organization_name: string;
   mdm_server_url: string;
   renew_date: string;
+}
 
 export interface IMdmEnrollmentCardData {
   status: "Enrolled (manual)" | "Enrolled (automatic)" | "Unenrolled";
