@@ -509,6 +509,10 @@ type ListMDMAppleInstallersFunc func(ctx context.Context) ([]fleet.MDMAppleInsta
 
 type MDMAppleListDevicesFunc func(ctx context.Context) ([]fleet.MDMAppleDevice, error)
 
+type IncreasePolicyAutomationIterationFunc func(ctx context.Context, policyID uint) error
+
+type OutdatedAutomationBatchFunc func(ctx context.Context) ([]fleet.PolicyFailure, error)
+
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
 	HealthCheckFuncInvoked bool
@@ -1253,6 +1257,12 @@ type DataStore struct {
 
 	MDMAppleListDevicesFunc        MDMAppleListDevicesFunc
 	MDMAppleListDevicesFuncInvoked bool
+
+	IncreasePolicyAutomationIterationFunc        IncreasePolicyAutomationIterationFunc
+	IncreasePolicyAutomationIterationFuncInvoked bool
+
+	OutdatedAutomationBatchFunc        OutdatedAutomationBatchFunc
+	OutdatedAutomationBatchFuncInvoked bool
 }
 
 func (s *DataStore) HealthCheck() error {
@@ -2493,4 +2503,14 @@ func (s *DataStore) ListMDMAppleInstallers(ctx context.Context) ([]fleet.MDMAppl
 func (s *DataStore) MDMAppleListDevices(ctx context.Context) ([]fleet.MDMAppleDevice, error) {
 	s.MDMAppleListDevicesFuncInvoked = true
 	return s.MDMAppleListDevicesFunc(ctx)
+}
+
+func (s *DataStore) IncreasePolicyAutomationIteration(ctx context.Context, policyID uint) error {
+	s.IncreasePolicyAutomationIterationFuncInvoked = true
+	return s.IncreasePolicyAutomationIterationFunc(ctx, policyID)
+}
+
+func (s *DataStore) OutdatedAutomationBatch(ctx context.Context) ([]fleet.PolicyFailure, error) {
+	s.OutdatedAutomationBatchFuncInvoked = true
+	return s.OutdatedAutomationBatchFunc(ctx)
 }

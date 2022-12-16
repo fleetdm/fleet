@@ -582,4 +582,8 @@ type Service interface {
 
 	// TriggerCronSchedule attempts to trigger an ad-hoc run of the named cron schedule.
 	TriggerCronSchedule(ctx context.Context, name string) error
+
+	// ResetAutomation sets the policies and all policies of the listed teams to fire again
+	// for all hosts that are already marked as failing.
+	ResetAutomation(ctx context.Context, teamIDs, policyIDs []uint) error
 }

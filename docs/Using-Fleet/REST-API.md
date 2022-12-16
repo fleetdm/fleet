@@ -3340,6 +3340,7 @@ Deletes the label specified by ID.
 - [Add policy](#add-policy)
 - [Remove policies](#remove-policies)
 - [Edit policy](#edit-policy)
+- [Run automation for all failing hosts of a policy](#run-automation-for-all-failing-hosts-of-a-policy)
 
 `In Fleet 4.3.0, the Policies feature was introduced.`
 
@@ -3645,6 +3646,44 @@ Where `query_id` references an existing `query`.
     "failing_host_count": 0
   }
 }
+```
+
+### Run Automation for all failing hosts of a policy.
+
+Normally automations (Webhook/Integrations) runs on all hosts when a policy-check
+fails but didn't fail before. This feature to mark policies to call automation for
+all hosts that already fail the policy, too and possibly again.
+
+`POST /api/v1/fleet/automations/reset`
+
+#### Parameters
+
+| Name        | Type     | In   | Description                                              |
+| ----------  | -------- | ---- | -------------------------------------------------------- |
+| team_ids    | list     | body | Run automation for all hosts in policies of these teams  |
+| policy_ids  | list     | body | Run automations for all hosts these policies             |
+
+_Teams are available in Fleet Premium_
+
+#### Example Edit Policy
+
+`POST /api/v1/fleet/automations/reset`
+
+##### Request body
+
+```json
+{
+    "team_ids": [1],
+    "policy_ids": [1, 2, 3]
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{}
 ```
 
 ---
