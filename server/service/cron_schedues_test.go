@@ -101,25 +101,31 @@ func TestCronSchedulesService(t *testing.T) {
 		Status:    fleet.CronStatsStatusCompleted,
 	})
 	jobsDone := uint32(0)
+	startCh := make(chan struct{}, 1)
 
 	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{StartCronSchedules: []TestNewScheduleFunc{
 		func(ctx context.Context, ds fleet.Datastore) fleet.NewCronScheduleFunc {
 			return func() (fleet.CronSchedule, error) {
 				s := schedule.New(
-					ctx, "test_sched", "id", 1*time.Second, locker, statsStore,
-					schedule.WithJob("test_job", func(ctx context.Context) error {
+					ctx, "test_sched", "id", 3*time.Second, locker, statsStore,
+					schedule.WithJob("test_jobb", func(ctx context.Context) error {
 						time.Sleep(100 * time.Millisecond)
 						atomic.AddUint32(&jobsDone, 1)
 						return nil
 					}),
 				)
+				startCh <- struct{}{}
 				return s, nil
 			}
 		},
 	}})
+	<-startCh
+	ticker := time.NewTicker(3 * time.Second)
+	defer ticker.Stop()
 
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
 
+	time.Sleep(10 * time.Millisecond)
 	require.NoError(t, svc.TriggerCronSchedule(ctx, "test_sched")) // first trigger sent ok and will run successfully
 
 	time.Sleep(10 * time.Millisecond)
@@ -127,9 +133,10 @@ func TestCronSchedulesService(t *testing.T) {
 
 	require.ErrorContains(t, svc.TriggerCronSchedule(ctx, "test_sched"), "conflicts with current status of test_sched") // error because first job is pending
 
-	time.Sleep(2 * time.Second)
-	require.ErrorContains(t, svc.TriggerCronSchedule(ctx, "test_sched2"), "invalid name; supported trigger name is test_sched") // error because unrecognized name
+	<-ticker.C
+	require.Error(t, svc.TriggerCronSchedule(ctx, "test_sched_2")) // error because unrecognized name
 
-	time.Sleep(100 * time.Millisecond)
-	require.Equal(t, uint32(3), atomic.LoadUint32(&jobsDone)) // 2 regularly scheduled (at 1s and 2s) plus 1 triggered
+	<-ticker.C
+	time.Sleep(1500 * time.Millisecond)
+	require.Equal(t, uint32(3), atomic.LoadUint32(&jobsDone)) // 2 regularly scheduled (at 3s and 6s) plus 1 triggered
 }
