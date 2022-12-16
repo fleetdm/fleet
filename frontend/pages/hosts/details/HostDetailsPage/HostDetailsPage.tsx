@@ -55,10 +55,10 @@ import PoliciesCard from "../cards/Policies";
 import ScheduleCard from "../cards/Schedule";
 import PacksCard from "../cards/Packs";
 import SelectQueryModal from "./modals/SelectQueryModal";
-import TransferHostModal from "./modals/TransferHostModal";
 import PolicyDetailsModal from "../cards/Policies/HostPoliciesTable/PolicyDetailsModal";
-import DeleteHostModal from "./modals/DeleteHostModal";
 import OSPolicyModal from "./modals/OSPolicyModal";
+import TransferHostModal from "../../components/TransferHostModal";
+import DeleteHostModal from "../../components/DeleteHostModal";
 
 import parseOsVersion from "./modals/OSPolicyModal/helpers";
 import DeleteIcon from "../../../../../assets/images/icon-action-delete-14x14@2x.png";
@@ -717,7 +717,7 @@ const HostDetailsPage = ({
             onCancel={() => setShowDeleteHostModal(false)}
             onSubmit={onDestroyHost}
             hostName={host?.display_name}
-            isUpdatingHost={isUpdatingHost}
+            isUpdating={isUpdatingHost}
           />
         )}
         {showQueryHostModal && host && (
@@ -736,7 +736,7 @@ const HostDetailsPage = ({
             onSubmit={onTransferHostSubmit}
             teams={teams || []}
             isGlobalAdmin={isGlobalAdmin as boolean}
-            isUpdatingHost={isUpdatingHost}
+            isUpdating={isUpdatingHost}
           />
         )}
         {!!host && showPolicyDetailsModal && (
