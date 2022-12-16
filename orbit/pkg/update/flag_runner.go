@@ -225,10 +225,9 @@ func (r *ExtensionRunner) DoExtensionConfigUpdate() (bool, error) {
 				// we want to return true here, and restart with the empty extensions.load file
 				// so that we "unload" the previously loaded extensions
 				return true, nil
-			} else {
-				// we do not want orbit to restart
-				return false, nil
 			}
+			// we do not want orbit to restart
+			return false, nil
 		default:
 			// we do not want orbit to restart, just log the error
 			log.Debug().Err(err).Msg("extensionsUpdate: error stating file at " + extensionAutoLoadFile)
