@@ -31,6 +31,8 @@ import {
   generateTableHeaders,
   combineDataSets,
 } from "./IntegrationsTableConfig";
+import { IRequestCSRFormData } from "interfaces/request_csr";
+import { IRegistrationFormData } from "interfaces/registration_form_data";
 
 const baseClass = "integrations-management";
 const noIntegrationsClass = "no-integrations";
@@ -397,13 +399,16 @@ const IntegrationsPage = (): JSX.Element => {
 
   const tableData = combineJiraAndZendesk();
 
+  const onRequestCSR = (formData: IRequestCSRFormData, destination: string) => {
+    alert("submited");
+  };
+
   return (
     <div className={`${baseClass}`}>
       <RequestCSRModal
-        userEmail="test@email.com"
-        orgName="test co"
-        onSubmit={() => alert("submited")}
+        onSubmit={onRequestCSR}
         onCancel={() => alert("canceled")}
+        destination="testination"
       />
       <p className={`${baseClass}__page-description`}>
         Add or edit integrations to create tickets when Fleet detects new
