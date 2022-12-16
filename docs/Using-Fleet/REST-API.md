@@ -3673,7 +3673,8 @@ _Teams are available in Fleet Premium_
 
 ```json
 {
-    "team"
+    "team_ids": [1],
+    "policy_ids": [1, 2, 3]
 }
 ```
 
