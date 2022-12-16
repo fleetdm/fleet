@@ -15,6 +15,7 @@ module "byo-db" {
       subnets = var.vpc_config.networking.subnets
     }
   }
+  alb_config = var.alb_config
 }
 
 resource "random_password" "rds" {

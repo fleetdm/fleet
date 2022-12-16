@@ -34,4 +34,8 @@ module "byo-vpc" {
     subnets            = module.vpc.elasticache_subnets
     availability_zones = var.vpc.azs
   }
+  alb_config = {
+    subnets         = module.vpc.public_subnets
+    certificate_arn = var.certificate_arn
+  }
 }

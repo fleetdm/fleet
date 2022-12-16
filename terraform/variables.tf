@@ -36,3 +36,7 @@ variable "vpc" {
     enable_nat_gateway                    = true
   }
 }
+
+variable "certificate_arn" {
+  type = string
+}

@@ -158,3 +158,13 @@ variable "migration_config" {
   description = "The configuration object for Fleet's migration task."
   nullable    = false
 }
+
+variable "alb_config" {
+  type = object({
+    name            = optional(string, "fleet")
+    subnets         = list(string)
+    security_groups = optional(list(string), [])
+    access_logs     = optional(map(string), {})
+    certificate_arn = string
+  })
+}

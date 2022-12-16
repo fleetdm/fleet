@@ -80,3 +80,13 @@ variable "redis_config" {
     parameter                     = []
   }
 }
+
+variable "alb_config" {
+  type = object({
+    name            = optional(string, "fleet")
+    subnets         = list(string)
+    security_groups = optional(list(string), [])
+    access_logs     = optional(map(string), {})
+    certificate_arn = string
+  })
+}
