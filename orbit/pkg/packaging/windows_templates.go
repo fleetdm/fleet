@@ -98,11 +98,6 @@ var windowsWixTemplate = template.Must(template.New("").Option("missingkey=error
                 />
               </Component>
             </Directory>
-            <Component Id="C_INSTALLER_UTILS">
-              <File KeyPath="yes" Source="installer_utils.ps1">
-                <PermissionEx Sddl="O:SYG:SYD:P(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)(A;OICI;0x1200a9;;;BU)" />
-              </File>
-            </Component>
           </Directory>
         </Directory>
       </Directory>
@@ -111,7 +106,7 @@ var windowsWixTemplate = template.Must(template.New("").Option("missingkey=error
     <SetProperty Id="CA_UninstallOsquery"
                  Before ="CA_UninstallOsquery"
                  Sequence="execute"
-                 Value='&quot;[POWERSHELLEXE]&quot; -NoLogo -NonInteractive -NoProfile -ExecutionPolicy Bypass -File "[ORBITROOT]bin\installer_utils.ps1" -uninstallOsquery' />
+                 Value='&quot;[POWERSHELLEXE]&quot; -NoLogo -NonInteractive -NoProfile -ExecutionPolicy Bypass -File "[ORBITROOT]installer_utils.ps1" -uninstallOsquery' />
 
     <CustomAction Id="CA_UninstallOsquery"
                   BinaryKey="WixCA"
@@ -123,7 +118,7 @@ var windowsWixTemplate = template.Must(template.New("").Option("missingkey=error
    <SetProperty Id="CA_StopOrbit"
                  Before ="CA_StopOrbit"
                  Sequence="execute"
-                 Value='&quot;[POWERSHELLEXE]&quot; -NoLogo -NonInteractive -NoProfile -ExecutionPolicy Bypass -File "[ORBITROOT]bin\installer_utils.ps1" -stopOrbit' />
+                 Value='&quot;[POWERSHELLEXE]&quot; -NoLogo -NonInteractive -NoProfile -ExecutionPolicy Bypass -File "[ORBITROOT]installer_utils.ps1" -stopOrbit' />
 
     <CustomAction Id="CA_StopOrbit"
                   BinaryKey="WixCA"
@@ -141,7 +136,6 @@ var windowsWixTemplate = template.Must(template.New("").Option("missingkey=error
       <ComponentGroupRef Id="OrbitFiles" />
       <ComponentRef Id="C_ORBITROOT_REMOVAL" />
       <ComponentRef Id="C_ORBITBIN" />
-      <ComponentRef Id="C_INSTALLER_UTILS" />
       <ComponentRef Id="C_ORBITROOT" />
     </Feature>
 
