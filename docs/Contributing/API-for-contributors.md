@@ -599,6 +599,8 @@ None.
 }
 ```
 
+Note that the `public_key` and `private_key` are base64 encoded and should be decoded before writing them to files.
+
 ## Get or apply configuration files
 
 These API routes are used by the `fleetctl` CLI tool. Users can manage Fleet with `fleetctl` and [configuration files in YAML syntax](https://fleetdm.com/docs/using-fleet/configuration-files/).
