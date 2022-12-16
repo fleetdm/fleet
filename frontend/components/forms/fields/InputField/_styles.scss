@@ -10,6 +10,7 @@
   box-sizing: border-box;
   height: 40px;
   transition: border-color 100ms;
+  width: 100%;
 
   &::placeholder {
     color: $ui-fleet-black-50;
