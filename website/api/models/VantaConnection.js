@@ -13,16 +13,24 @@ module.exports = {
     //  ╠═╝╠╦╝║║║║║ ║ ║╚╗╔╝║╣ ╚═╗
     //  ╩  ╩╚═╩╩ ╩╩ ╩ ╩ ╚╝ ╚═╝╚═╝
     emailAddress: {
+      description: 'The email address provided when this Vanta connection was created.',
+      type: 'string',
+      required: true,
+      isEmail: true,
+    },
+
+    vantaSourceId: {
+      description: 'The generated source ID for this Vanta Connection.',
       type: 'string',
       unique: true,
       required: true,
-      description: 'The email address provided when this Vanta connection was created.',
     },
 
     fleetInstanceUrl: {
+      description: 'The full URL of the Fleet instance that will be connected to Vanta.',
       type: 'string',
       required: true,
-      description: 'The full URL of the Fleet instance that will be connected to Vanta.'
+      unique: true,
     },
 
     fleetApiKey: {
@@ -42,7 +50,7 @@ module.exports = {
       description: 'A JS timestamp of when the authorization token will expire.'
     },
 
-    vantarefreshToken: {
+    vantaRefreshToken: {
       type: 'string',
       description: 'The token used to request new authorization tokens from this external service.'
     },
@@ -56,12 +64,7 @@ module.exports = {
       type: 'boolean',
       description: 'whether this external connection is authorized to send data to Vanta on behalf of the user.',
       extendedDescription: 'This value is set to false if the automated `send-data-to-vanta` script encounters an error when sending data to Vanta.'
-    },
-
-    lastErrorAboutThisConnection: {
-      type: 'json',
-      description: 'The last error that was logged regarding this Vanta connection',
-      extendedDescription: 'This information can be used to diagnose why a isConnectedToVanta value is false'
+      defaultsTo: false,
     }
 
     //  ╔═╗╔╦╗╔╗ ╔═╗╔╦╗╔═╗
