@@ -240,7 +240,7 @@ module.exports.routes = {
     locals: {
       layout: 'layouts/layout-sandbox',
     }
-   },
+  },
 
   'GET /vanta-callback': {
     action: 'view-vanta-callback',

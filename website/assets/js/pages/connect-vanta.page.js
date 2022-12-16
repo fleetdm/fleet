@@ -8,7 +8,9 @@ parasails.registerPage('connect-vanta', {
     formErrors: { },
     formRules: {
       emailAddress: {required: true, isEmail: true},
-      fleetInstanceUrl: {required: true},
+      fleetInstanceUrl: {required: true, custom:(value)=>{
+        return !! _.startsWith(value, 'https://') || _.startsWith(value, 'http://');
+      }},
       fleetApiKey: {required: true},
     },
     syncing: false,
