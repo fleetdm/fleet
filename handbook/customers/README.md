@@ -5,7 +5,7 @@
 This workflow outlines the process that sales and customer success can follow when a new deal closes. 
 
 1. (AE) A customer is sent an order form
-    - If the customer requires the use of their own legal contract, the account executive (AE) will send that contract to the business operations (BizOps) team for review. Then: 
+    - If the customer requires the use of their own legal contract, the account executive (AE) sends that contract to the business operations (BizOps) team for review. Then: 
     - If the customer can use DocuSign, the AE sends out the order form. The AE must cc themselves and BizOps on the order so that all parties receive a fully executed copy when signing is complete. 
     - If the customer does not use DocuSign, the AE sends out the order form directly to the customer. 
         - The AE then sends the paper signed copy to BizOps for Fleet review and execution (via DocuSign by the CEO).  

@@ -2,26 +2,50 @@ package mysql
 
 import (
 	"context"
-	"database/sql"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/jmoiron/sqlx"
 )
 
-func (ds *Datastore) GetLatestCronStats(ctx context.Context, name string) (fleet.CronStats, error) {
-	stmt := `SELECT id, name, instance, created_at, updated_at, stats_type, status FROM cron_stats WHERE name = ? ORDER BY created_at DESC LIMIT 1`
+// GetLatestCronStats returns a slice of no more than two cron stats records, where index 0 (if
+// present) is the most recently created scheduled run, and index 1 (if present) represents a
+// triggered run that is currently pending.
+func (ds *Datastore) GetLatestCronStats(ctx context.Context, name string) ([]fleet.CronStats, error) {
+	stmt := `
+(
+	SELECT
+		id, name, instance, stats_type, status, created_at, updated_at
+	FROM
+		cron_stats
+	WHERE
+		name = ?
+		AND stats_type = 'scheduled'
+		AND (status = 'pending' OR status = 'completed')
+	ORDER BY
+		created_at DESC
+	LIMIT 1)
+UNION
+(
+	SELECT
+		id, name, instance, stats_type, status, created_at, updated_at
+	FROM
+		cron_stats
+	WHERE
+		name = ?
+		AND stats_type = 'triggered'
+		AND (status = 'pending' OR status = 'completed')
+	ORDER BY
+		created_at DESC
+	LIMIT 1)`
 
-	var res fleet.CronStats
-	err := sqlx.GetContext(ctx, ds.reader, &res, stmt, name)
-	switch {
-	case err == sql.ErrNoRows:
-		return fleet.CronStats{}, nil
-	case err != nil:
-		return fleet.CronStats{}, ctxerr.Wrap(ctx, err, "select cron stats")
-	default:
-		return res, nil
+	var res []fleet.CronStats
+	err := sqlx.SelectContext(ctx, ds.reader, &res, stmt, name, name)
+	if err != nil {
+		return []fleet.CronStats{}, ctxerr.Wrap(ctx, err, "select cron stats")
 	}
+
+	return res, nil
 }
 
 func (ds *Datastore) InsertCronStats(ctx context.Context, statsType fleet.CronStatsType, name string, instance string, status fleet.CronStatsStatus) (int, error) {

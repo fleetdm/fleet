@@ -16,7 +16,6 @@ const dashboardPage = {
         cy.getAttached(".dashboard-page__wrapper").within(() => {
           cy.findByText(/platform/i).should("exist");
           cy.getAttached(".hosts-summary").should("exist");
-          cy.getAttached(".home-mdm").should("exist");
           cy.getAttached(".operating-systems").should("exist");
           // "get" because we expect it not to exist
           cy.get(".home-software").should("not.exist");

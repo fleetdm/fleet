@@ -20,6 +20,7 @@ import {
   IMacadminsResponse,
   IPackStats,
   IHostResponse,
+  IHostMdmData,
 } from "interfaces/host";
 import { ILabel } from "interfaces/label";
 import { IHostPolicy } from "interfaces/policy";
@@ -200,6 +201,22 @@ const HostDetailsPage = ({
     }
   );
 
+  const { data: mdm, refetch: refetchMdm } = useQuery<IHostMdmData>(
+    ["mdm", hostIdFromURL],
+    () => hostAPI.getMdm(hostIdFromURL),
+    {
+      enabled: !!hostIdFromURL,
+      refetchOnMount: false,
+      refetchOnReconnect: false,
+      refetchOnWindowFocus: false,
+      retry: false,
+      onError: (err) => {
+        // no handling needed atm. data is simply not shown.
+        console.error(err);
+      },
+    }
+  );
+
   const { data: macadmins, refetch: refetchMacadmins } = useQuery(
     ["macadmins", hostIdFromURL],
     () => hostAPI.loadHostDetailsExtension(hostIdFromURL, "macadmins"),
@@ -216,6 +233,7 @@ const HostDetailsPage = ({
   const refetchExtensions = () => {
     deviceMapping !== null && refetchDeviceMapping();
     macadmins !== null && refetchMacadmins();
+    mdm !== null && refetchMdm();
   };
 
   const {
@@ -638,7 +656,8 @@ const HostDetailsPage = ({
               <AboutCard
                 aboutData={aboutData}
                 deviceMapping={deviceMapping}
-                macadmins={macadmins}
+                munki={macadmins?.munki}
+                mdm={mdm}
                 wrapFleetHelper={wrapFleetHelper}
               />
               <div className="col-2">
