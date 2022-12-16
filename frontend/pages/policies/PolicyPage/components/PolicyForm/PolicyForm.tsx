@@ -227,14 +227,17 @@ const PolicyForm = ({
     if (!isEditMode) {
       setIsNewPolicyModalOpen(true);
     } else {
-      onUpdate({
+      const payload: IPolicyFormData = {
         name: lastEditedQueryName,
         description: lastEditedQueryDescription,
         query: lastEditedQueryBody,
         resolution: lastEditedQueryResolution,
-        critical: lastEditedQueryCritical,
         platform: newPlatformString,
-      });
+      };
+      if (isPremiumTier) {
+        payload.critical = lastEditedQueryCritical;
+      }
+      onUpdate(payload);
     }
 
     setIsEditingName(false);
