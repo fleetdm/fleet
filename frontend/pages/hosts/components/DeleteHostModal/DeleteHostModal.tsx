@@ -26,6 +26,15 @@ const DeleteHostModal = ({
   hostName,
   isUpdating,
 }: IDeleteHostModalProps): JSX.Element => {
+  const hostText = () => {
+    if (selectedHostIds) {
+      return `${selectedHostIds.length}${
+        isAllMatchingHostsSelected ? "+" : ""
+      } ${selectedHostIds.length === 1 ? "host" : "hosts"}`;
+    }
+    return hostName;
+  };
+
   return (
     <Modal
       title={"Delete host"}
@@ -35,14 +44,7 @@ const DeleteHostModal = ({
     >
       <form className={`${baseClass}__form`}>
         <p>
-          This action will delete{" "}
-          <b>
-            {hostName}
-            {selectedHostIds?.length}
-            {isAllMatchingHostsSelected && "+"}{" "}
-            {selectedHostIds?.length === 1 ? "host" : "hosts"}
-          </b>{" "}
-          from your Fleet instance.
+          This action will delete <b>{hostText()}</b> from your Fleet instance.
         </p>
         <p>If the hosts come back online, they will automatically re-enroll.</p>
         <p>
