@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20221202115820, Down_20221202115820)
+	MigrationClient.AddMigration(Up_20221216115820, Down_20221216115820)
 }
 
-func Up_20221202115820(tx *sql.Tx) error {
+func Up_20221216115820(tx *sql.Tx) error {
 	for name, query := range map[string]string{
 		"create table": `
 			CREATE TABLE policy_automation_iterations (
@@ -29,6 +29,6 @@ func Up_20221202115820(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20221202115820(tx *sql.Tx) error {
+func Down_20221216115820(tx *sql.Tx) error {
 	return nil
 }
