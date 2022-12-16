@@ -453,7 +453,7 @@ func scheduleFailingPoliciesAutomation(
 		if len(batch) == 0 {
 			break
 		}
-		logger.Log("adding_hosts", len(batch))
+		level.Debug(logger).Log("adding_hosts", len(batch))
 		for _, p := range batch {
 			if err := failingPoliciesSet.AddHost(p.PolicyID, p.Host); err != nil {
 				return ctxerr.Wrap(ctx, err, "failingPolicesSet.AddHost")
