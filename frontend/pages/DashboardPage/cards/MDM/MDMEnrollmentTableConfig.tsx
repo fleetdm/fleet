@@ -1,10 +1,14 @@
 import React from "react";
 
-import { IDataTableMdmFormat } from "interfaces/macadmins";
+import { IMdmEnrollmentCardData } from "interfaces/mdm";
 
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import TooltipWrapper from "components/TooltipWrapper";
 import ViewAllHostsLink from "components/ViewAllHostsLink";
+
+interface IMdmEnrollmentData extends IMdmEnrollmentCardData {
+  selectedPlatformLabelId?: number;
+}
 
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
@@ -13,7 +17,7 @@ interface ICellProps {
     value: string;
   };
   row: {
-    original: IDataTableMdmFormat;
+    original: IMdmEnrollmentData;
   };
 }
 
@@ -50,17 +54,17 @@ const enrollmentTableHeaders = [
         if (status === "Enrolled (automatic)") {
           return `
                 <span>
-                  Hosts automatically enrolled to an MDM solution <br/>
-                  the first time the host is used. Administrators <br />
-                  might have a higher level of control over these <br />
-                  hosts.
+                  Hosts automatically enrolled to an MDM solution <br />
+                  using Apple Automated Device Enrollment (DEP) <br />
+                  or Windows Autopilot. Administrators can block <br />
+                  users from unenrolling these hosts from MDM.
                 </span>
               `;
         }
         return `
                 <span>
-                  Hosts manually enrolled to an MDM solution by a<br />
-                  user or administrator.
+                  Hosts manually enrolled to an MDM solution. Users <br />
+                  can unenroll these hosts from MDM.
                 </span>
               `;
       };
@@ -106,6 +110,7 @@ const enrollmentTableHeaders = [
         <ViewAllHostsLink
           queryParams={{ mdm_enrollment_status: statusParam() }}
           className="mdm-solution-link"
+          platformLabelId={cellProps.row.original.selectedPlatformLabelId}
         />
       );
     },
@@ -113,8 +118,28 @@ const enrollmentTableHeaders = [
   },
 ];
 
-const generateEnrollmentTableHeaders = (): IDataColumn[] => {
+export const generateEnrollmentTableHeaders = (): IDataColumn[] => {
   return enrollmentTableHeaders;
 };
 
-export default generateEnrollmentTableHeaders;
+const enhanceEnrollmentData = (
+  enrollmentData: IMdmEnrollmentCardData[],
+  selectedPlatformLabelId?: number
+): IMdmEnrollmentData[] => {
+  return Object.values(enrollmentData).map((data) => {
+    return {
+      ...data,
+      selectedPlatformLabelId,
+    };
+  });
+};
+
+export const generateEnrollmentDataSet = (
+  enrollmentData: IMdmEnrollmentCardData[] | null,
+  selectedPlatformLabelId?: number
+): IMdmEnrollmentData[] => {
+  if (!enrollmentData) {
+    return [];
+  }
+  return [...enhanceEnrollmentData(enrollmentData, selectedPlatformLabelId)];
+};

@@ -31,6 +31,8 @@ export default {
   LOGIN: `/${API_VERSION}/fleet/login`,
   LOGOUT: `/${API_VERSION}/fleet/logout`,
   MACADMINS: `/${API_VERSION}/fleet/macadmins`,
+  MDM_SUMMARY: `/${API_VERSION}/fleet/hosts/summary/mdm`,
+  HOST_MDM: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/mdm`,
   ME: `/${API_VERSION}/fleet/me`,
   OS_VERSIONS: `/${API_VERSION}/fleet/os_versions`,
   OSQUERY_OPTIONS: `/${API_VERSION}/fleet/spec/osquery_options`,

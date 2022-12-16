@@ -10,7 +10,6 @@ import { NotificationContext } from "context/notification";
 import deviceUserAPI from "services/entities/device_user";
 import {
   IHost,
-  IHostResponse,
   IDeviceMappingResponse,
   IMacadminsResponse,
   IDeviceUserResponse,
@@ -295,9 +294,8 @@ const DeviceUserPage = ({
                   <AboutCard
                     aboutData={aboutData}
                     deviceMapping={deviceMapping}
-                    macadmins={macadmins}
+                    munki={macadmins?.munki}
                     wrapFleetHelper={wrapFleetHelper}
-                    deviceUser
                   />
                 </TabPanel>
                 <TabPanel>
