@@ -282,8 +282,8 @@ func (svc *Service) ModifyGlobalPolicy(ctx context.Context, id uint, p fleet.Mod
 /////////////////////////////////////////////////////////////////////////////////
 
 type resetAutomationRequest struct {
-	TeamIDs   []uint `query:"team_ids,optional"`
-	PolicyIDs []uint `query:"policy_ids,optional"`
+	TeamIDs   []uint `json:"team_ids" premium:"true"`
+	PolicyIDs []uint `json:"policy_ids"`
 }
 
 type resetAutomationResponse struct {
