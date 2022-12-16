@@ -13,6 +13,11 @@ export const isPremiumTier = (config: IConfig): boolean => {
   return config.license.tier === "premium";
 };
 
+// MDM TODO: Ensure we grabbed the correct config key when backend is merged
+export const isMdmEnabled = (config: IConfig): boolean => {
+  return config.mdm_enabled === true;
+};
+
 export const isGlobalAdmin = (user: IUser): boolean => {
   return user.global_role === "admin";
 };
@@ -106,6 +111,7 @@ export default {
   isSandboxMode,
   isFreeTier,
   isPremiumTier,
+  isMdmEnabled,
   isGlobalAdmin,
   isGlobalMaintainer,
   isGlobalObserver,

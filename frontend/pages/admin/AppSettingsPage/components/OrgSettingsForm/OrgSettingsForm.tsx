@@ -184,6 +184,7 @@ const OrgSettingsForm = ({
               handleSubmit={onFormSubmit}
               isUpdatingSettings={isUpdatingSettings}
             />
+            // <Mdm /> // MDM TODO: Uncomment this as a shortcut to view MDM page before Gabe's work is done
           )}
         </>
       );
