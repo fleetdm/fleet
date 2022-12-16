@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/rs/zerolog/log"
@@ -28,6 +29,7 @@ type Runner struct {
 	opt         RunnerOptions
 	cancel      chan struct{}
 	localHashes map[string][]byte
+	mu          sync.Mutex
 }
 
 // UpdateRunnerOptTargets updates the RunnerOptions.Targets with the given target
@@ -38,6 +40,8 @@ func (r *Runner) UpdateRunnerOptTargets(target string) {
 			return
 		}
 	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
 	r.opt.Targets = append(r.opt.Targets, target)
 }
 

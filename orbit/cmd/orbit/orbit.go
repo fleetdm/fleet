@@ -519,6 +519,8 @@ func main() {
 		g.Add(flagRunner.Execute, flagRunner.Interrupt)
 
 		// only setup extensions autoupdate if we have enabled updates
+		// for extensions autoupdate, we can only proceed after orbit is enrolled in fleet
+		// and all relevant things for it (like certs, enroll secrets, tls proxy, etc) is configured
 		if !c.Bool("disable-updates") || c.Bool("dev-mode") {
 			const orbitExtensionUpdateInterval = 60 * time.Second
 			extRunner := update.NewExtensionConfigUpdateRunner(orbitClient, update.ExtensionUpdateOptions{
@@ -535,15 +537,25 @@ func main() {
 			_, err := updateRunner.UpdateAction()
 			if err != nil {
 				// OK, initial call may fail, ok to continue
-				log.Debug().Err(err).Msg("extensions update action failed")
+				log.Info().Err(err).Msg("initial extensions update action failed")
 			}
 
 			extensionAutoLoadFile := filepath.Join(c.String("root-dir"), "extensions.load")
 			stat, err := os.Stat(extensionAutoLoadFile)
 			// we only want to add the extensions_autoload flag to osquery, if the file exists and size > 0
-			if !errors.Is(err, os.ErrNotExist) && stat.Size() > 0 {
-				log.Debug().Msg("adding --extensions_autoload flag for file " + extensionAutoLoadFile)
-				options = append(options, osquery.WithFlags([]string{"--extensions_autoload", extensionAutoLoadFile}))
+			switch {
+			case err == nil:
+				if stat.Size() > 0 {
+					log.Debug().Msg("adding --extensions_autoload flag for file " + extensionAutoLoadFile)
+					options = append(options, osquery.WithFlags([]string{"--extensions_autoload", extensionAutoLoadFile}))
+				} else {
+					// OK, expected as well when extensions are unloaded, just debug log
+					log.Debug().Msg("found empty extensions.load file at " + extensionAutoLoadFile)
+				}
+			case errors.Is(err, os.ErrNotExist):
+				// OK, nothing to do.
+			default:
+				log.Error().Err(err).Msg("error with extensions.load file at " + extensionAutoLoadFile)
 			}
 			g.Add(extRunner.Execute, extRunner.Interrupt)
 		}

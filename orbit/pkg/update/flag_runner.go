@@ -206,30 +206,34 @@ func (r *ExtensionRunner) DoExtensionConfigUpdate() (bool, error) {
 		// this can be either because of:
 		// 1. the default state, where no extensions are configured to begin with, or
 		// 2. extensions were previously configured, but now are deleted and reverted to empty state
-
+		switch stat, err := os.Stat(extensionAutoLoadFile); {
 		// Handle case 1, where our autoload file does not exist, so there is nothing to update and no error
-		stat, err := os.Stat(extensionAutoLoadFile)
-		if errors.Is(err, os.ErrNotExist) {
+		case errors.Is(err, os.ErrNotExist):
 			log.Debug().Msg(extensionAutoLoadFile + " not found, nothing to update")
 			// we do not want orbit to restart
 			return false, nil
-		}
-
-		if stat.Size() > 0 {
+		case err == nil:
 			// handle case 2: create/truncate the extensions.load file and let the runner interrupt, so that
 			// osquery can't startup without the extensions that were previously loaded
 			// WriteFile will create the file if it doesn't exist, and it handles Close for us
-			err := os.WriteFile(extensionAutoLoadFile, []byte(""), constant.DefaultFileMode)
-			if err != nil {
+			if stat.Size() > 0 {
+				err := os.WriteFile(extensionAutoLoadFile, []byte(""), constant.DefaultFileMode)
+				if err != nil {
+					// we do not want orbit to restart
+					return false, fmt.Errorf("extensionsUpdate: error creating file %s, %w", extensionAutoLoadFile, err)
+				}
+				// we want to return true here, and restart with the empty extensions.load file
+				// so that we "unload" the previously loaded extensions
+				return true, nil
+			} else {
 				// we do not want orbit to restart
-				return false, fmt.Errorf("extensionsUpdate: error creating file %s, %w", extensionAutoLoadFile, err)
+				return false, nil
 			}
-			// we want to return true here, and restart with the empty extensions.load file
-			// so that we "unload" the previously loaded extensions
-			return true, nil
+		default:
+			// we do not want orbit to restart, just log the error
+			log.Debug().Err(err).Msg("extensionsUpdate: error stating file at " + extensionAutoLoadFile)
+			return false, nil
 		}
-		// we do not want orbit to restart
-		return false, nil
 	}
 
 	type ExtensionInfo struct {
@@ -252,7 +256,7 @@ func (r *ExtensionRunner) DoExtensionConfigUpdate() (bool, error) {
 		filename := extensionName + ".ext"
 
 		// we don't want path traversal and the like in the filename
-		if strings.Contains(filename, "..") || strings.Contains(filename, "/") {
+		if strings.Contains(filename, "..") || strings.Contains(filename, "/") || strings.Contains(filename, "\\") {
 			log.Info().Msgf("invalid characters found in filename (%s) for extension (%s): skipping", filename, extensionName)
 			continue
 		}
@@ -272,6 +276,12 @@ func (r *ExtensionRunner) DoExtensionConfigUpdate() (bool, error) {
 		// the path is: <root-dir>/bin/extensions/hello_world/<platform>/<channel>/hello_world.ext
 		path := filepath.Join(rootDir, "bin", "extensions", extensionName, platform, channel, filename)
 
+		if err := r.updateRunner.updater.UpdateMetadata(); err != nil {
+			// Consider this a non-fatal error since it will be common to be offline
+			// or otherwise unable to retrieve the metadata.
+			return false, fmt.Errorf("update metadata: %w", err)
+		}
+
 		meta, err := r.updateRunner.updater.Lookup(targetName)
 		if err != nil {
 			// we do not want orbit to restart
@@ -287,7 +297,9 @@ func (r *ExtensionRunner) DoExtensionConfigUpdate() (bool, error) {
 
 		// update local hashes
 		log.Info().Msgf("updating local hash(%s)=%x", targetName, localHash)
+		r.updateRunner.mu.Lock()
 		r.updateRunner.localHashes[targetName] = localHash
+		r.updateRunner.mu.Unlock()
 
 		sb.WriteString(path + "\n")
 	}
