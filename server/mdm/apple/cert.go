@@ -12,12 +12,17 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/micromdm/nanodep/tokenpki"
 	"github.com/micromdm/scep/v2/depot"
 )
 
 const defaultFleetDMAPIURL = "https://fleetdm.com"
 
 const getSignedAPNSCSRPath = "/api/v1/get_signed_apns_csr"
+
+const depCertificateCommonName = "FleetDM"
+
+const depCertificateExpiryDays = 30
 
 // emailAddressOID defined by https://oidref.com/1.2.840.113549.1.9.1
 var emailAddressOID = []int{1, 2, 840, 113549, 1, 9, 1}
@@ -121,4 +126,20 @@ func NewSCEPCACertKey() (*x509.Certificate, *rsa.PrivateKey, error) {
 	}
 
 	return cert, key, nil
+}
+
+// NEWDEPKeyPairPEM generates a new public key certificate and private key for downloading the Apple DEP token.
+// The public key is returned as a PEM encoded certificate.
+func NewDEPKeyPairPEM() ([]byte, []byte, error) {
+
+	// Note, Apple doesn't check the expiry
+	key, cert, err := tokenpki.SelfSignedRSAKeypair(depCertificateCommonName, depCertificateExpiryDays)
+	if err != nil {
+		return nil, nil, fmt.Errorf("generate encryption keypair: %w", err)
+	}
+
+	publicKeyPEM := tokenpki.PEMCertificate(cert.Raw)
+	privateKeyPEM := tokenpki.PEMRSAPrivateKey(key)
+
+	return publicKeyPEM, privateKeyPEM, nil
 }

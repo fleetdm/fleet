@@ -159,6 +159,8 @@ func TestAppleMDMAuthorization(t *testing.T) {
 		checkAuthErr(t, err, shouldFailWithAuth)
 		_, err = svc.ListMDMAppleDEPDevices(ctx)
 		checkAuthErr(t, err, shouldFailWithAuth)
+		_, err = svc.NewMDMAppleDEPKeyPair(ctx)
+		checkAuthErr(t, err, shouldFailWithAuth)
 		_, _, err = svc.EnqueueMDMAppleCommand(ctx, &fleet.MDMAppleCommand{Command: &mdm.Command{}}, nil, false)
 		checkAuthErr(t, err, shouldFailWithAuth)
 	}
