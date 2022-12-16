@@ -10,11 +10,9 @@ module.exports = {
   inputs: {
     state: {
       type: 'string',
-      required: true
     },
     code: {
       type: 'string',
-      required: true,
     }
   },
 
@@ -25,10 +23,25 @@ module.exports = {
       viewTemplatePath: 'pages/vanta-callback'
     },
 
-    redirect: {
-      description: 'The requesting user',
+    stateDoesNotMatch: {
+      description: 'The requesting user\'s state cookie could not be matched with the query parameters set by Vanta',
       responseType: 'redirect',
     },
+
+    missingCookies: {
+      description: 'The requesting user is missing cookies required to verify their identity',
+      responseType: 'redirect',
+    },
+
+    redirect: {
+      description: 'No query parameters recieved from Vanta, the requesting user will be sent to the homepage.',
+      responseType: 'redirect',
+    },
+
+    couldNotAuthorize: {
+      description: 'Vanta returned a non-200 response when an authorization token was requested for this Vanta connection.',
+      responseType: '400',
+    }
 
 
   },
@@ -36,18 +49,23 @@ module.exports = {
 
   fn: async function (inputs) {
 
+    // If we're missing any query parameters sent from Vanta, redirect to the homepage.
+    if(!inputs.state || !inputs.code) {
+      throw {redirect: '/'};
+    }
+    // If query parameters were provided, but they don't match
     if(this.req.signedCookies.state !== inputs.state){
-      sails.log('mismatched state :o');
-      throw {redirect: '/'};
+      throw {stateDoesNotMatch: '/'};
+    }
+    if(!this.req.signedCookies.oauthSourceIdForFleet || !this.req.signedCookies.state){
+      throw {missingCookies: '/'};
     }
 
-    if(!this.req.signedCookies.oauthSourceIdForFleet){
-      sails.log('missing source id cookie!');
-      throw {redirect: '/'};
-    }
+    let recordOfThisAuthorization = await VantaConnection.findOne({vantaSourceId: this.req.signedCookies.oauthSourceIdForFleet});
 
-    let recordOfThisAuthorization = await VantaConnection.findOne({emailAddress: this.req.signedCookies.oauthSourceIdForFleet});
-    // console.log(inputs);
+    if(!recordOfThisAuthorization){
+      throw new Error(`When a user tried to connect their Vanta account with their Fleet instance, the VantaConnection record associated with the request could not be found.`);
+    }
 
     let vantaAuthorizationResponse = await sails.helpers.http.post(
       'https://api.vanta.com/oauth/token',
@@ -56,15 +74,17 @@ module.exports = {
         'client_secret': sails.config.custom.vantaAuthorizationClientSecret,
         'code': inputs.code,
         'redirect_uri': sails.config.custom.baseUrl+'/vanta-callback',
-        'source_id': recordOfThisAuthorization.emailAddress,
+        'source_id': recordOfThisAuthorization.vantaSourceId,
         'grant_type': 'authorization_code',
       }
-    );
+    ).catch(()=>{
+      throw 'couldNotAuthorize';
+    });
 
     await VantaConnection.updateOne({id: recordOfThisAuthorization.id}).set({
-      authToken: vantaAuthorizationResponse.access_token,
-      authTokenExpiresAt: Date.now() + (vantaAuthorizationResponse.expires_in * 1000),
-      refreshToken: vantaAuthorizationResponse.refresh_token,
+      vantaToken: vantaAuthorizationResponse.access_token,
+      vantaTokenExpiresAt: Date.now() + (vantaAuthorizationResponse.expires_in * 1000),
+      vantaRefreshToken: vantaAuthorizationResponse.refresh_token,
       isConnectedToVanta: true,
     });
 
