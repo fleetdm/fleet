@@ -711,7 +711,7 @@ func (ds *Datastore) IncreasePolicyAutomationIteration(ctx context.Context, poli
 func (ds *Datastore) OutdatedAutomationBatch(ctx context.Context) ([]fleet.PolicyFailure, error) {
 	var failures []fleet.PolicyFailure
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		failures = failures[:0] // for retry
+		failures = failures[:0] // In case of retry (from withRetryTxx) empty the list of failures.
 		var hostIDs []uint
 
 		rows, err := tx.QueryContext(ctx, `
