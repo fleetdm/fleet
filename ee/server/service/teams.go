@@ -66,7 +66,7 @@ func (svc *Service) NewTeam(ctx context.Context, p fleet.TeamPayload) (*fleet.Te
 		return nil, err
 	}
 
-	if err := svc.GenerateActivity(
+	if err := svc.ds.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
 		fleet.ActivityTypeCreatedTeam,
@@ -174,7 +174,7 @@ func (svc *Service) ModifyTeamAgentOptions(ctx context.Context, teamID uint, tea
 		return nil, err
 	}
 
-	if err := svc.GenerateActivity(
+	if err := svc.ds.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
 		fleet.ActivityTypeEditedAgentOptions,
@@ -327,7 +327,7 @@ func (svc *Service) DeleteTeam(ctx context.Context, teamID uint) error {
 
 	logging.WithExtras(ctx, "id", teamID)
 
-	if err := svc.GenerateActivity(
+	if err := svc.ds.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
 		fleet.ActivityTypeDeletedTeam,
@@ -484,7 +484,7 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 	}
 
 	if len(details) > 0 {
-		if err := svc.GenerateActivity(
+		if err := svc.ds.NewActivity(
 			ctx,
 			authz.UserFromContext(ctx),
 			fleet.ActivityTypeAppliedSpecTeam,

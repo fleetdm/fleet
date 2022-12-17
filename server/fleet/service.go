@@ -15,8 +15,7 @@ import (
 //
 // TODO: find if there's a better way to accomplish this and standardize.
 type EnterpriseOverrides struct {
-	HostFeatures     func(context context.Context, host *Host) (*Features, error)
-	GenerateActivity func(ctx context.Context, user *User, activityType string, details *map[string]interface{}) error
+	HostFeatures func(context context.Context, host *Host) (*Features, error)
 }
 
 type OsqueryService interface {
@@ -458,8 +457,7 @@ type Service interface {
 	///////////////////////////////////////////////////////////////////////////////
 	// ActivitiesService
 
-	GenerateActivity(ctx context.Context, user *User, activityType string, details *map[string]interface{}) error
-	ListActivities(ctx context.Context, opt ListOptions) ([]*Activity, error)
+	ListActivities(ctx context.Context, opt ListActivitiesOptions) ([]*Activity, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// UserRolesService

@@ -11,12 +11,12 @@ import (
 )
 
 // NewActivity stores an activity item that the user performed
-func (ds *Datastore) NewActivity(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) (*fleet.Activity, error) {
+func (ds *Datastore) NewActivity(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error {
 	detailsBytes, err := json.Marshal(details)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "marshaling activity details")
+		return ctxerr.Wrap(ctx, err, "marshaling activity details")
 	}
-	res, err := ds.writer.ExecContext(ctx,
+	_, err = ds.writer.ExecContext(ctx,
 		`INSERT INTO activities (user_id, user_name, activity_type, details) VALUES(?,?,?,?)`,
 		user.ID,
 		user.Name,
@@ -24,16 +24,15 @@ func (ds *Datastore) NewActivity(ctx context.Context, user *fleet.User, activity
 		detailsBytes,
 	)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "new activity")
+		return ctxerr.Wrap(ctx, err, "new activity")
 	}
-	id, err := res.LastInsertId()
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "getting last id after inserting activity")
-	}
-	return activityDB(ctx, ds.writer, uint(id))
+	return nil
 }
 
-var activityStmt = `
+// ListActivities returns a slice of activities performed across the organization
+func (ds *Datastore) ListActivities(ctx context.Context, opt fleet.ListActivitiesOptions) ([]*fleet.Activity, error) {
+	activities := []*fleet.Activity{}
+	query := `
 SELECT 
 	a.id,
 	a.user_id,
@@ -42,29 +41,21 @@ SELECT
 	a.details,
 	coalesce(u.name, a.user_name) as name,
 	u.gravatar_url,
-	u.email
-FROM activities a 
-LEFT JOIN users u ON (a.user_id=u.id)`
+	u.email,
+	a.streamed
+FROM activities a
+LEFT JOIN users u ON (a.user_id=u.id)
+WHERE true`
 
-func activityDB(ctx context.Context, q sqlx.QueryerContext, id uint) (*fleet.Activity, error) {
-	stmt := activityStmt + " WHERE a.id = ?"
-	var activity fleet.Activity
-	if err := sqlx.GetContext(ctx, q, &activity, stmt, id); err != nil {
-		if err == sql.ErrNoRows {
-			return nil, ctxerr.Wrap(ctx, notFound("Activity").WithID(id))
-		}
-		return nil, ctxerr.Wrap(ctx, err, "select activity")
+	var args []interface{}
+	if opt.Streamed != nil {
+		query += " AND a.streamed = ?"
+		args = append(args, *opt.Streamed)
 	}
-	return &activity, nil
-}
 
-// ListActivities returns a slice of activities performed across the organization
-func (ds *Datastore) ListActivities(ctx context.Context, opt fleet.ListOptions) ([]*fleet.Activity, error) {
-	activities := []*fleet.Activity{}
-	stmt := activityStmt + " WHERE true"
-	stmt = appendListOptionsToSQL(stmt, opt)
+	query = appendListOptionsToSQL(query, opt.ListOptions)
 
-	err := sqlx.SelectContext(ctx, ds.reader, &activities, stmt)
+	err := sqlx.SelectContext(ctx, ds.reader, &activities, query, args...)
 	if err == sql.ErrNoRows {
 		return nil, ctxerr.Wrap(ctx, notFound("Activity"))
 	} else if err != nil {
@@ -72,4 +63,16 @@ func (ds *Datastore) ListActivities(ctx context.Context, opt fleet.ListOptions) 
 	}
 
 	return activities, nil
+}
+
+func (ds *Datastore) MarkActivitiesAsStreamed(ctx context.Context, activityIDs []uint) error {
+	stmt := `UPDATE activities SET streamed = true WHERE id IN (?);`
+	query, args, err := sqlx.In(stmt, activityIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "sqlx.In mark activities as streamed")
+	}
+	if _, err := ds.writer.ExecContext(ctx, query, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "exec mark activities as streamed")
+	}
+	return nil
 }

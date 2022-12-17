@@ -15,13 +15,12 @@ import (
 type Service struct {
 	fleet.Service
 
-	ds          fleet.Datastore
-	logger      kitlog.Logger
-	config      config.FleetConfig
-	clock       clock.Clock
-	authz       *authz.Authorizer
-	depStorage  storage.AllStorage
-	auditLogger fleet.JSONLogger
+	ds         fleet.Datastore
+	logger     kitlog.Logger
+	config     config.FleetConfig
+	clock      clock.Clock
+	authz      *authz.Authorizer
+	depStorage storage.AllStorage
 }
 
 func NewService(
@@ -30,7 +29,6 @@ func NewService(
 	logger kitlog.Logger,
 	config config.FleetConfig,
 	mailService fleet.MailService,
-	auditLogger fleet.JSONLogger,
 	c clock.Clock,
 	depStorage storage.AllStorage,
 ) (*Service, error) {
@@ -40,21 +38,19 @@ func NewService(
 	}
 
 	eeservice := &Service{
-		Service:     svc,
-		ds:          ds,
-		logger:      logger,
-		config:      config,
-		clock:       c,
-		authz:       authorizer,
-		depStorage:  depStorage,
-		auditLogger: auditLogger,
+		Service:    svc,
+		ds:         ds,
+		logger:     logger,
+		config:     config,
+		clock:      c,
+		authz:      authorizer,
+		depStorage: depStorage,
 	}
 
 	// Override methods that can't be easily overriden via
 	// embedding.
 	svc.SetEnterpriseOverrides(fleet.EnterpriseOverrides{
-		HostFeatures:     eeservice.HostFeatures,
-		GenerateActivity: eeservice.GenerateActivity,
+		HostFeatures: eeservice.HostFeatures,
 	})
 
 	return eeservice, nil

@@ -469,6 +469,12 @@ type ListQueryOptions struct {
 	OnlyObserverCanRun bool
 }
 
+type ListActivitiesOptions struct {
+	ListOptions
+
+	Streamed *bool
+}
+
 // ApplySpecOptions are the options available when applying a YAML or JSON spec.
 type ApplySpecOptions struct {
 	// Force indicates that any validation error in the incoming payload should

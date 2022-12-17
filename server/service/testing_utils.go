@@ -141,8 +141,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		panic(err)
 	}
 	if lic.IsPremium() {
-		var auditLogger fleet.JSONLogger = writer
-		svc, err = eeservice.NewService(svc, ds, kitlog.NewNopLogger(), fleetConfig, mailer, auditLogger, c, depStorage)
+		svc, err = eeservice.NewService(svc, ds, kitlog.NewNopLogger(), fleetConfig, mailer, c, depStorage)
 		if err != nil {
 			panic(err)
 		}

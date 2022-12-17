@@ -52,8 +52,8 @@ func TestDeletePack(t *testing.T) {
 			Disabled:    false,
 		}, true, nil
 	}
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) (*fleet.Activity, error) {
-		return nil, nil
+	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error {
+		return nil
 	}
 
 	name := writeTmpYml(t, `---
@@ -95,8 +95,8 @@ func TestDeleteQuery(t *testing.T) {
 			ObserverCanRun: false,
 		}, nil
 	}
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) (*fleet.Activity, error) {
-		return nil, nil
+	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error {
+		return nil
 	}
 
 	name := writeTmpYml(t, `---

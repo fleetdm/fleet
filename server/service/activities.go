@@ -23,7 +23,9 @@ func (r listActivitiesResponse) error() error { return r.Err }
 
 func listActivitiesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
 	req := request.(*listActivitiesRequest)
-	activities, err := svc.ListActivities(ctx, req.ListOptions)
+	activities, err := svc.ListActivities(ctx, fleet.ListActivitiesOptions{
+		ListOptions: req.ListOptions,
+	})
 	if err != nil {
 		return listActivitiesResponse{Err: err}, nil
 	}
@@ -32,18 +34,9 @@ func listActivitiesEndpoint(ctx context.Context, request interface{}, svc fleet.
 }
 
 // ListActivities returns a slice of activities for the whole organization
-func (svc *Service) ListActivities(ctx context.Context, opt fleet.ListOptions) ([]*fleet.Activity, error) {
+func (svc *Service) ListActivities(ctx context.Context, opt fleet.ListActivitiesOptions) ([]*fleet.Activity, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Activity{}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
 	return svc.ds.ListActivities(ctx, opt)
-}
-
-func (svc *Service) GenerateActivity(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error {
-	if svc.EnterpriseOverrides != nil && svc.EnterpriseOverrides.GenerateActivity != nil {
-		return svc.EnterpriseOverrides.GenerateActivity(ctx, user, activityType, details)
-	}
-
-	_, err := fleet.CreateActivity(ctx, svc.ds, user, activityType, details)
-	return err
 }

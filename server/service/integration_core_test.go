@@ -2049,16 +2049,16 @@ func (s *integrationTestSuite) TestListActivities() {
 	u := s.users["admin1@example.com"]
 	details := make(map[string]interface{})
 
-	prevActivities, err := s.ds.ListActivities(ctx, fleet.ListOptions{})
+	prevActivities, err := s.ds.ListActivities(ctx, fleet.ListActivitiesOptions{})
 	require.NoError(t, err)
 
-	_, err = s.ds.NewActivity(ctx, &u, fleet.ActivityTypeAppliedSpecPack, &details)
+	err = s.ds.NewActivity(ctx, &u, fleet.ActivityTypeAppliedSpecPack, &details)
 	require.NoError(t, err)
 
-	_, err = s.ds.NewActivity(ctx, &u, fleet.ActivityTypeDeletedPack, &details)
+	err = s.ds.NewActivity(ctx, &u, fleet.ActivityTypeDeletedPack, &details)
 	require.NoError(t, err)
 
-	_, err = s.ds.NewActivity(ctx, &u, fleet.ActivityTypeEditedPack, &details)
+	err = s.ds.NewActivity(ctx, &u, fleet.ActivityTypeEditedPack, &details)
 	require.NoError(t, err)
 
 	lenPage := len(prevActivities) + 2

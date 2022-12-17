@@ -1182,13 +1182,16 @@ osquery:
 #### activity_enable_audit_log
 
 This enables/disables the log output for audit events.
+See the `activity_audit_log_plugin` option below that specifies the logging destination.
+
+The audit events are logged in an asynchronous fashion, it can take up to 5 minutes for an event to be logged.
 
 - Default value: `false`
 - Environment variable: `FLEET_ACTIVITY_ENABLE_AUDIT_LOG`
 - Config file format:
   ```yaml
   activity:
-  	enable_audit_log: true
+    enable_audit_log: true
   ```
 
 #### activity_audit_log_plugin
@@ -1203,7 +1206,7 @@ Options are `filesystem`, `firehose`, `kinesis`, `lambda`, `pubsub`, `kafkarest`
 - Config file format:
   ```yaml
   activity:
-  	audit_log_plugin: firehose
+    audit_log_plugin: firehose
   ```
 
 #### Logging (Fleet server logging)
@@ -1307,7 +1310,7 @@ The path which audit logs will be logged to.
 - Config file format:
   ```yaml
   filesystem:
-  	audit_log_file: /var/log/fleet/audit.log
+    audit_log_file: /var/log/fleet/audit.log
   ```
 
 ##### filesystem_enable_log_rotation
@@ -1472,7 +1475,7 @@ Name of the Firehose stream to audit logs.
 - Config file format:
   ```yaml
   firehose:
-  	audit_stream: fleet_audit
+    audit_stream: fleet_audit
   ```
 
 The IAM role used to send to Firehose must allow the following permissions on
@@ -1619,7 +1622,7 @@ Name of the Kinesis stream to write audit logs.
 - Config file format:
   ```yaml
   kinesis:
-  	audit_stream: fleet_audit
+    audit_stream: fleet_audit
   ```
 
 The IAM role used to send to Kinesis must allow the following permissions on
@@ -1636,7 +1639,6 @@ osquery:
   osquery_result_log_plugin: kinesis
 kinesis:
   region: ca-central-1
-  result_log_file: /var/log/osquery/result.log
   access_key_id: AKIAIOSFODNN7EXAMPLE
   secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
   sts_assume_role_arn: arn:aws:iam::1234567890:role/firehose-role

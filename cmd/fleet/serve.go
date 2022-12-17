@@ -596,7 +596,7 @@ the way that the Fleet server works.
 			}
 
 			if license.IsPremium() {
-				svc, err = eeservice.NewService(svc, ds, logger, config, mailService, auditLogger, clock.C, depStorage)
+				svc, err = eeservice.NewService(svc, ds, logger, config, mailService, clock.C, depStorage)
 				if err != nil {
 					initFatal(err, "initial Fleet Premium service")
 				}
@@ -642,6 +642,14 @@ the way that the Fleet server works.
 					return newAppleMDMDEPProfileAssigner(ctx, instanceID, config.MDMApple.DEP.SyncPeriodicity, ds, depStorage, logger, config.Logging.Debug)
 				}); err != nil {
 					initFatal(err, "failed to register apple_mdm_dep_profile_assigner schedule")
+				}
+			}
+
+			if license.IsPremium() && config.Activity.EnableAuditLog {
+				if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
+					return newActivitiesStreamingSchedule(ctx, instanceID, ds, logger, auditLogger)
+				}); err != nil {
+					initFatal(err, "failed to register activities streaming schedule")
 				}
 			}
 

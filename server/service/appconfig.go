@@ -409,7 +409,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		newAgentOptions = string(*obfuscatedConfig.AgentOptions)
 	}
 	if oldAgentOptions != newAgentOptions {
-		if err := svc.GenerateActivity(
+		if err := svc.ds.NewActivity(
 			ctx,
 			authz.UserFromContext(ctx),
 			fleet.ActivityTypeEditedAgentOptions,

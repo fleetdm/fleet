@@ -169,7 +169,7 @@ func (svc *Service) NewDistributedQueryCampaign(ctx context.Context, queryString
 	if queryID != nil {
 		activityData["query_name"] = query.Name
 	}
-	if err := svc.GenerateActivity(
+	if err := svc.ds.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
 		fleet.ActivityTypeLiveQuery,

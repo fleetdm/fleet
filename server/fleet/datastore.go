@@ -437,8 +437,9 @@ type Datastore interface {
 	///////////////////////////////////////////////////////////////////////////////
 	// ActivitiesStore
 
-	NewActivity(ctx context.Context, user *User, activityType string, details *map[string]interface{}) (*Activity, error)
-	ListActivities(ctx context.Context, opt ListOptions) ([]*Activity, error)
+	NewActivity(ctx context.Context, user *User, activityType string, details *map[string]interface{}) error
+	ListActivities(ctx context.Context, opt ListActivitiesOptions) ([]*Activity, error)
+	MarkActivitiesAsStreamed(ctx context.Context, activityIDs []uint) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// StatisticsStore

@@ -1,7 +1,6 @@
 package fleet
 
 import (
-	"context"
 	"encoding/json"
 )
 
@@ -57,20 +56,10 @@ type Activity struct {
 	ActorEmail    *string          `json:"actor_email" db:"email"`
 	Type          string           `json:"type" db:"activity_type"`
 	Details       *json.RawMessage `json:"details" db:"details"`
+	Streamed      *bool            `json:"-" db:"streamed"`
 }
 
 // AuthzType implement AuthzTyper to be able to verify access to activities
 func (*Activity) AuthzType() string {
 	return "activity"
-}
-
-// CreateActivity allocates an activity on a Datastore.
-func CreateActivity(
-	ctx context.Context,
-	ds Datastore,
-	user *User,
-	activityType string,
-	details *map[string]interface{},
-) (*Activity, error) {
-	return ds.NewActivity(ctx, user, activityType, details)
 }
