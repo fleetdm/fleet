@@ -109,7 +109,7 @@ const AppSettingsPage = ({ params }: IAppSettingsPageProps) => {
   }
 
   return (
-    <div className={`${baseClass} body-wrap`}>
+    <div className={`${baseClass}`}>
       <p className={`${baseClass}__page-description`}>
         Set your organization information and configure SSO and SMTP
       </p>

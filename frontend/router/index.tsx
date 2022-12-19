@@ -114,6 +114,10 @@ const routes = (
                   component={AppSettingsPage}
                 />
                 <Route path="integrations" component={AdminIntegrationsPage} />
+                <Route
+                  path="integrations/:section"
+                  component={AdminIntegrationsPage}
+                />
                 <Route path="users" component={AdminUserManagementPage} />
                 <Route component={PremiumRoutes}>
                   <Route path="teams" component={AdminTeamManagementPage} />

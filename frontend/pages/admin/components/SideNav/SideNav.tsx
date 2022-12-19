@@ -18,8 +18,8 @@ export interface ISideNavItem<T> {
 interface ISideNavProps {
   navItems: ISideNavItem<IAppConfigFormProps>[];
   activeItem: string;
-  isLoading: boolean;
   CurrentCard: (passedProps: any) => JSX.Element; // TODO: typing
+  isLoading?: boolean;
   className?: string;
 }
 
@@ -42,6 +42,7 @@ const SideNav = ({
             <ul className={`${baseClass}__nav-list`}>
               {navItems.map((navItem) => (
                 <SideNavItem
+                  key={navItem.title}
                   title={navItem.title}
                   path={navItem.path}
                   isActive={navItem.urlSection === activeItem}
