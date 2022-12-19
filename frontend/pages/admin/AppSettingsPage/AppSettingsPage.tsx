@@ -138,7 +138,6 @@ const AppSettingsPage = ({ params }: IAppSettingsPageProps) => {
                 )
               : () => <Spinner />
           }
-          isLoading={isLoading}
         />
       </SandboxGate>
     </div>

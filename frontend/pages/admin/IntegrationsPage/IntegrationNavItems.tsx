@@ -1,9 +1,8 @@
-import React from "react";
-
 import PATHS from "router/paths";
 
 import { ISideNavItem } from "../components/SideNav/SideNav";
 import Integrations from "./cards/Integrations";
+import Mdm from "./cards/Mdm/Mdm";
 
 const INTEGRATION_SETTINGS_NAV_ITEMS: ISideNavItem<any>[] = [
   // TODO: types
@@ -17,7 +16,7 @@ const INTEGRATION_SETTINGS_NAV_ITEMS: ISideNavItem<any>[] = [
     title: "Mobile Device Management (MDM)",
     urlSection: "mdm",
     path: PATHS.ADMIN_INTEGRATIONS_MDM,
-    Card: () => <p>INTEGRATE WITH MDM PAGE HERE</p>,
+    Card: Mdm,
   },
 ];
 

@@ -2,7 +2,6 @@ import React from "react";
 import classnames from "classnames";
 
 import { IAppConfigFormProps } from "pages/admin/AppSettingsPage/cards/constants";
-import Spinner from "components/Spinner";
 
 import SideNavItem from "../SideNavItem";
 
@@ -19,14 +18,12 @@ interface ISideNavProps {
   navItems: ISideNavItem<IAppConfigFormProps>[];
   activeItem: string;
   CurrentCard: (passedProps: any) => JSX.Element; // TODO: typing
-  isLoading?: boolean;
   className?: string;
 }
 
 const SideNav = ({
   navItems,
   activeItem,
-  isLoading,
   CurrentCard,
   className,
 }: ISideNavProps) => {
@@ -34,27 +31,23 @@ const SideNav = ({
 
   return (
     <div className={classes}>
-      {isLoading ? (
-        <Spinner />
-      ) : (
-        <div className={`${baseClass}__container`}>
-          <nav>
-            <ul className={`${baseClass}__nav-list`}>
-              {navItems.map((navItem) => (
-                <SideNavItem
-                  key={navItem.title}
-                  title={navItem.title}
-                  path={navItem.path}
-                  isActive={navItem.urlSection === activeItem}
-                />
-              ))}
-            </ul>
-          </nav>
-          <div className={`${baseClass}__card-container`}>
-            <CurrentCard />
-          </div>
+      <div className={`${baseClass}__container`}>
+        <nav aria-label="settings">
+          <ul className={`${baseClass}__nav-list`}>
+            {navItems.map((navItem) => (
+              <SideNavItem
+                key={navItem.title}
+                title={navItem.title}
+                path={navItem.path}
+                isActive={navItem.urlSection === activeItem}
+              />
+            ))}
+          </ul>
+        </nav>
+        <div className={`${baseClass}__card-container`}>
+          <CurrentCard />
         </div>
-      )}
+      </div>
     </div>
   );
 };

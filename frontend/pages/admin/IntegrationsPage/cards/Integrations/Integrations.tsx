@@ -398,6 +398,7 @@ const Integrations = () => {
 
   return (
     <div className={`${baseClass}`}>
+      <h2 className={`${baseClass}__title`}>Ticket Destinations</h2>
       {loadingIntegrationsError ? (
         <TableDataError />
       ) : (

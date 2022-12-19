@@ -1,5 +1,25 @@
 .integrations-management {
 
+  &__title {
+    padding-bottom: $pad-small;
+    max-width: 100%;
+    font-size: $medium;
+    font-weight: $regular;
+    color: $core-fleet-black;
+    border-bottom: solid 1px $ui-fleet-blue-15;
+    margin: 0 0 $pad-xxlarge;
+
+    @media (min-width: $break-990) {
+      max-width: 65%;
+    }
+  }
+
+  .table-container {
+    @media (min-width: $break-990) {
+      max-width: 65%;
+    }
+  }
+
   .no-integrations {
     display: flex;
     flex-direction: column;

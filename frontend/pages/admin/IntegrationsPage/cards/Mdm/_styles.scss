@@ -15,9 +15,6 @@
       color: $core-fleet-black;
       border-bottom: solid 1px $ui-fleet-blue-15;
       margin: 0 0 $pad-xxlarge;
-      @media (min-width: $break-990) {
-        max-width: 65%;
-      }
     }
 
     h4 {

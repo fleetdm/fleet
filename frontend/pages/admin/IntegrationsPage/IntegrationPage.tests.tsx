@@ -7,6 +7,7 @@ import IntegrationsPage from "./IntegrationsPage";
 describe("Integrations Page", () => {
   it("renders the MDM section in the side nav if MDM feature is enabled", () => {
     const render = createCustomRenderer({
+      withBackendMock: true,
       context: {
         app: { isMdmEnabled: true },
       },
