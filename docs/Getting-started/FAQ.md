@@ -8,40 +8,89 @@
 
 ## Using Fleet
 
-- [How can I switch to Fleet from Kolide Fleet?](#how-can-i-switch-to-fleet-from-kolide-fleet)
-- [Has anyone stress tested Fleet? How many clients can the Fleet server handle?](#has-anyone-stress-tested-fleet-how-many-clients-can-the-fleet-server-handle)
-- [Can I target my hosts using their enroll secrets?](#can-I-target-my-hosts-using-their-enroll-secrets)
-- [How often do labels refresh? Is the refresh frequency configurable?](#how-often-do-labels-refresh-is-the-refresh-frequency-configurable)
-- [How do I revoke the authorization tokens for a user?](#how-do-i-revoke-the-authorization-tokens-for-a-user)
-- [How do I monitor the performance of my queries?](#how-do-i-monitor-the-performance-of-my-queries)
-- [How do I monitor a Fleet server?](#how-do-i-monitor-a-fleet-server)
-- [Why is the “Add User” button disabled?](#why-is-the-add-user-button-disabled)
-- [Can I disable password-based authentication in the Fleet UI?](#can-i-disable-password-based-authentication-in-the-fleet-ui)
-- [Where are my query results?](#where-are-my-query-results)
-- [Why aren’t my live queries being logged?](#why-arent-my-live-queries-being-logged)
-- [Can I use the Fleet API to fetch results from a scheduled query pack?](#can-i-use-the-fleet-api-to-fetch-results-from-a-scheduled-query-pack)
-- [How do I automatically add hosts to packs when the hosts enroll to Fleet?](#how-do-i-automatically-add-hosts-to-packs-when-the-hosts-enroll-to-Fleet)
-- [How do I automatically assign a host to a team when it enrolls with Fleet?](#how-do-i-automatically-assign-a-host-to-a-team-when-it-enrolls-with-fleet)
-- [How do I resolve an "unknown column" error when upgrading Fleet?](#how-do-i-resolve-an-unknown-column-error-when-upgrading-fleet)
-- [Why is my host not updating a policy's response.](#why-is-my-host-not-updating-a-policys-response)
-- [What should I do if my computer is showing up as an offline host?](#what-should-i-do-if-my-computer-is-showing-up-as-an-offline-host)
-- [How does Fleet deal with IP duplication?](#how-does-fleet-deal-with-ip-duplication)
-- [Can Orbit run alongside osquery?](#can-orbit-run-alongside-osquery)
-- [Can I disable auto updates for Orbit?](#can-i-disable-auto-updates-for-orbit)
-- [Can I bundle osquery extensions into Orbit?](#can-i-bundle-osquery-extensions-into-orbit)
-- [How does Fleet work with osquery extensions?](#how-does-fleet-work-with-osquery-extensions)
-- [Why am I seeing "unknown certificate error" when adding hosts to my dev server?](#why-am-i-seeing-"unknown-certificate-error"-when-adding-hosts-to-my-dev-server)
-- [Can I hide known vulnerabilities that I feel are insignificant?](#can-i-hide-known-vulnerabilities-that-i-feel-are-insignificant)
-- [Can I create reports based on historical data in Fleet?](#can-i-create-reports-based-on-historical-data-in-fleet)
-- [Why can't I run queries with `fleetctl` using a new API-only user?](#why-cant-i-run-queries-with-fleetctl-using-a-new-api-only-user)
-- [Why am I getting an error about self-signed certificates when running `fleetctl preview`?](#why-am-i-getting-an-error-about-self-signed-certificates-when-running-fleetctl-preview)
-- [Can I audit actions taken in Fleet?](#can-i-audit-actions-taken-in-fleet)
-- [How often is the software inventory updated?](#how-often-is-the-software-inventory-updated)
-- [Can I group results from multiple hosts?](#can-i-group-results-from-multiple-hosts)
-- [Will updating fleetctl lead to loss of data in fleetctl preview?](will-updating-fleetctl-lead-to-loss-of-data-in-fleetctl-preview?)
-- [How do I downgrade from Fleet Premium to Fleet Free?](how-do-i-downgrade-from-fleet-premium-to-fleet-free)
-- [If I use a software orchestration tool (Ansible, Chef, Puppet, etc.) to manage agent options, do I have to apply the same options in the Fleet UI?](#if-i-use-a-software-orchestration-tool-ansible-chef-puppet-etc-to-manage-agent-options-do-i-have-to-apply-the-same-options-in-the-fleet-ui)
-- [How can I uninstall the osquery agent?](#how-can-i-uninstall-the-osquery-agent)
+- [FAQs](#faqs)
+  - [Using Fleet](#using-fleet)
+    - [How can I switch to Fleet from Kolide Fleet?](#how-can-i-switch-to-fleet-from-kolide-fleet)
+    - [Has anyone stress tested Fleet? How many hosts can the Fleet server handle?](#has-anyone-stress-tested-fleet-how-many-hosts-can-the-fleet-server-handle)
+    - [Can I target my hosts using their enroll secrets?](#can-i-target-my-hosts-using-their-enroll-secrets)
+    - [How often do labels refresh? Is the refresh frequency configurable?](#how-often-do-labels-refresh-is-the-refresh-frequency-configurable)
+    - [How do I revoke the authorization tokens for a user?](#how-do-i-revoke-the-authorization-tokens-for-a-user)
+    - [How do I monitor the performance of my queries?](#how-do-i-monitor-the-performance-of-my-queries)
+    - [How do I monitor a Fleet server?](#how-do-i-monitor-a-fleet-server)
+    - [Why is the “Add User” button disabled?](#why-is-the-add-user-button-disabled)
+    - [Can I disable password-based authentication in the Fleet UI?](#can-i-disable-password-based-authentication-in-the-fleet-ui)
+    - [Where are my query results?](#where-are-my-query-results)
+      - [Live queries](#live-queries)
+    - [Scheduled queries](#scheduled-queries)
+    - [What are my options for storing the osquery logs?](#what-are-my-options-for-storing-the-osquery-logs)
+      - [Troubleshooting](#troubleshooting)
+    - [Why does the same query come back faster sometimes?](#why-does-the-same-query-come-back-faster-sometimes)
+    - [What happens if I have a query on a team policy and I also have it scheduled to run separately?](#what-happens-if-i-have-a-query-on-a-team-policy-and-i-also-have-it-scheduled-to-run-separately)
+    - [Why aren’t my live queries being logged?](#why-arent-my-live-queries-being-logged)
+    - [Why does my query work locally with osquery but not in Fleet?](#why-does-my-query-work-locally-with-osquery-but-not-in-fleet)
+    - [Can I use the Fleet API to fetch results from a scheduled query pack?](#can-i-use-the-fleet-api-to-fetch-results-from-a-scheduled-query-pack)
+    - [How do I automatically add hosts to packs when the hosts enroll to Fleet?](#how-do-i-automatically-add-hosts-to-packs-when-the-hosts-enroll-to-fleet)
+    - [How do I automatically assign a host to a team when it enrolls with Fleet?](#how-do-i-automatically-assign-a-host-to-a-team-when-it-enrolls-with-fleet)
+    - [Why my host is not updating a policy's response.](#why-my-host-is-not-updating-a-policys-response)
+    - [What should I do if my computer is showing up as an offline host?](#what-should-i-do-if-my-computer-is-showing-up-as-an-offline-host)
+    - [Fleet preview fails with Invalid interpolation. What should I do?](#fleet-preview-fails-with-invalid-interpolation-what-should-i-do)
+    - [How does Fleet deal with IP duplication?](#how-does-fleet-deal-with-ip-duplication)
+    - [Can Orbit run alongside osquery?](#can-orbit-run-alongside-osquery)
+    - [Can I disable auto-updates for Orbit?](#can-i-disable-auto-updates-for-orbit)
+    - [Can I bundle osquery extensions into Orbit?](#can-i-bundle-osquery-extensions-into-orbit)
+    - [What happens to osquery logs if my Fleet server or my logging destination is offline?](#what-happens-to-osquery-logs-if-my-fleet-server-or-my-logging-destination-is-offline)
+    - [How does Fleet work with osquery extensions?](#how-does-fleet-work-with-osquery-extensions)
+    - [Why do I see "Unknown Certificate Error" when adding hosts to my dev server?](#why-do-i-see-unknown-certificate-error-when-adding-hosts-to-my-dev-server)
+    - [Can I hide known vulnerabilities that I feel are insignificant?](#can-i-hide-known-vulnerabilities-that-i-feel-are-insignificant)
+    - [Can I create reports based on historical data in Fleet?](#can-i-create-reports-based-on-historical-data-in-fleet)
+    - [When do I need fleetctl vs the REST API vs the Fleet UI?](#when-do-i-need-fleetctl-vs-the-rest-api-vs-the-fleet-ui)
+    - [Why can't I run queries with `fleetctl` using a new API-only user?](#why-cant-i-run-queries-with-fleetctl-using-a-new-api-only-user)
+    - [Why am I getting an error about self-signed certificates when running `fleetctl preview`?](#why-am-i-getting-an-error-about-self-signed-certificates-when-running-fleetctl-preview)
+    - [Can I audit actions taken in Fleet?](#can-i-audit-actions-taken-in-fleet)
+    - [How often is the software inventory updated?](#how-often-is-the-software-inventory-updated)
+    - [Can I group results from multiple hosts?](#can-i-group-results-from-multiple-hosts)
+    - [Will updating fleetctl lead to loss of data in fleetctl preview?](#will-updating-fleetctl-lead-to-loss-of-data-in-fleetctl-preview)
+    - [Can I disable usage statistics via the config file or a CLI flag?](#can-i-disable-usage-statistics-via-the-config-file-or-a-cli-flag)
+    - [How do I downgrade from Fleet Premium to Fleet Free?](#how-do-i-downgrade-from-fleet-premium-to-fleet-free)
+    - [If I use a software orchestration tool (Ansible, Chef, Puppet, etc.) to manage agent options, do I have to apply the same options in the Fleet UI?](#if-i-use-a-software-orchestration-tool-ansible-chef-puppet-etc-to-manage-agent-options-do-i-have-to-apply-the-same-options-in-the-fleet-ui)
+    - [How can I uninstall the osquery agent?](#how-can-i-uninstall-the-osquery-agent)
+      - [MacOS](#macos)
+      - [Windows](#windows)
+      - [Ubuntu](#ubuntu)
+      - [CentOS](#centos)
+  - [Deploying](#deploying)
+    - [How do I get support for working with Fleet?](#how-do-i-get-support-for-working-with-fleet)
+    - [Can multiple instances of the Fleet server be run behind a load-balancer?](#can-multiple-instances-of-the-fleet-server-be-run-behind-a-load-balancer)
+    - [Why aren't my osquery agents connecting to Fleet?](#why-arent-my-osquery-agents-connecting-to-fleet)
+      - [Common problems](#common-problems)
+    - [How do I fix "certificate verify failed" errors from osqueryd?](#how-do-i-fix-certificate-verify-failed-errors-from-osqueryd)
+    - [What do I need to do to change the Fleet server TLS certificate?](#what-do-i-need-to-do-to-change-the-fleet-server-tls-certificate)
+    - [How do I use a proxy server with Fleet?](#how-do-i-use-a-proxy-server-with-fleet)
+    - [I'm only getting partial results from live queries](#im-only-getting-partial-results-from-live-queries)
+    - [When do I need to deploy a new enroll secret to my hosts?](#when-do-i-need-to-deploy-a-new-enroll-secret-to-my-hosts)
+    - [How do I migrate hosts from one Fleet server to another (eg. testing to production)?](#how-do-i-migrate-hosts-from-one-fleet-server-to-another-eg-testing-to-production)
+    - [What do I do about "too many open files" errors?](#what-do-i-do-about-too-many-open-files-errors)
+    - [I upgraded my database, but Fleet is still running slowly. What could be going on?](#i-upgraded-my-database-but-fleet-is-still-running-slowly-what-could-be-going-on)
+    - [Why am I receiving a database connection error when attempting to "prepare" the database?](#why-am-i-receiving-a-database-connection-error-when-attempting-to-prepare-the-database)
+    - [Is Fleet available as a SaaS product?](#is-fleet-available-as-a-saas-product)
+    - [What MySQL versions are supported?](#what-mysql-versions-are-supported)
+    - [What are the MySQL user requirements?](#what-are-the-mysql-user-requirements)
+    - [Does Fleet support MySQL replication?](#does-fleet-support-mysql-replication)
+    - [What is duplicate enrollment and how do I fix it?](#what-is-duplicate-enrollment-and-how-do-i-fix-it)
+    - [How long are osquery enroll secrets valid?](#how-long-are-osquery-enroll-secrets-valid)
+    - [Should I use multiple enroll secrets?](#should-i-use-multiple-enroll-secrets)
+    - [How can enroll secrets be rotated?](#how-can-enroll-secrets-be-rotated)
+    - [How do I resolve an "unknown column" error when upgrading Fleet?](#how-do-i-resolve-an-unknown-column-error-when-upgrading-fleet)
+    - [What API endpoints should I expose to the public internet?](#what-api-endpoints-should-i-expose-to-the-public-internet)
+    - [What is the minimum version of MySQL required by Fleet?](#what-is-the-minimum-version-of-mysql-required-by-fleet)
+    - [How do I migrate from Fleet Free to Fleet Premium?](#how-do-i-migrate-from-fleet-free-to-fleet-premium)
+    - [Will my older version of Fleet work with Redis 6?](#will-my-older-version-of-fleet-work-with-redis-6)
+  - [Contributing](#contributing)
+    - [Enrolling in multiple Fleet servers](#enrolling-in-multiple-fleet-servers)
+    - [Make errors](#make-errors)
+      - [`dep: command not found`](#dep-command-not-found)
+      - [`undefined: Asset`](#undefined-asset)
+    - [Adding hosts for testing](#adding-hosts-for-testing)
 
 ### How can I switch to Fleet from Kolide Fleet?
 
@@ -99,17 +148,20 @@ If a user has SSO enabled, the Login page in the Fleet UI displays the “Email�
 
 Live query results (executed in the web UI or `fleetctl query`) are pushed directly to the UI where the query is running. The results never go to a file unless you as the user manually save them.
 
-#### Scheduled queries
+### Scheduled queries
 
-Scheduled query results (queries that are scheduled to run in Packs) are typically sent to the Fleet server, and will be available on the filesystem of the server at the path configurable by [`--osquery_result_log_file`](https://fleetdm.com/docs/deploying/configuration#osquery-result-log-file). This defaults to `/tmp/osquery_result`.
+Scheduled query results (queries that are scheduled to run individually or in Packs) from enrolled hosts can be logged by Fleet.
+For results to go to Fleet, the osquery `--logger_plugin` flag must be set to `tls`.
 
-It is possible to configure osqueryd to log query results outside of Fleet. For results to go to Fleet, the `--logger_plugin` flag must be set to `tls`.
-
-#### What are my options for storing the osquery logs?
+### What are my options for storing the osquery logs?
 
 Folks typically use Fleet to ship logs to data aggregation systems like Splunk, the ELK stack, and Graylog.
 
-The [logger configuration options](https://fleetdm.com/docs/deploying/configuration#osquery-status-log-plugin) allow you to select the log output plugin. Using the log outputs you can route the logs to your chosen aggregation system.
+Fleet supports multiple logging destinations for scheduled query results and status logs, the `--osquery_result_log_plugin` and `--osquery_status_log_plugin` can be set to:
+`filesystem`, `firehose`, `kinesis`, `lambda`, `pubsub`, `kafkarest`, and `stdout`.
+See:
+  - https://fleetdm.com/docs/deploying/configuration#osquery-result-log-plugin.
+  - https://fleetdm.com/docs/deploying/configuration#osquery-status-log-plugin.
 
 #### Troubleshooting
 
