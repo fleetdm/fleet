@@ -2131,7 +2131,7 @@ func TestDistributedQueriesLogsManyErrors(t *testing.T) {
 	var logData map[string]interface{}
 	err = json.Unmarshal([]byte(parts[0]), &logData)
 	require.NoError(t, err)
-	assert.Equal(t, "something went wrong || something went wrong", logData["err"])
+	assert.Equal(t, "error in query ingestion || something went wrong || something went wrong", logData["err"])
 	assert.Equal(t, "Missing authorization check", logData["internal"])
 }
 
