@@ -22,7 +22,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	kitlog "github.com/go-kit/kit/log"
-	"github.com/micromdm/nanodep/client"
 	nanodep_client "github.com/micromdm/nanodep/client"
 )
 
@@ -68,11 +67,11 @@ func main() {
 	}
 
 	httpClient := fleethttp.NewClient()
-	depTransport := client.NewTransport(httpClient.Transport, httpClient, depStorage, nil)
-	depClient := client.NewClient(fleethttp.NewClient(), depTransport)
+	depTransport := nanodep_client.NewTransport(httpClient.Transport, httpClient, depStorage, nil)
+	depClient := nanodep_client.NewClient(fleethttp.NewClient(), depTransport)
 
 	ctx := context.Background()
-	req, err := client.NewRequestWithContext(ctx, apple_mdm.DEPName, depStorage, "GET", "/account", nil)
+	req, err := nanodep_client.NewRequestWithContext(ctx, apple_mdm.DEPName, depStorage, "GET", "/account", nil)
 	if err != nil {
 		log.Fatalf("new request: %v", err)
 	}

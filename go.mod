@@ -320,6 +320,6 @@ replace github.com/kolide/kit => github.com/zwass/kit v0.0.0-20210625184505-ec5b
 
 replace github.com/micromdm/nanomdm => github.com/fleetdm/nanomdm v0.3.1-0.20221005204003-0c868c49ef10
 
-replace github.com/micromdm/nanodep => github.com/fleetdm/nanodep v0.1.1-0.20221005204411-eefd72d47e93
+replace github.com/micromdm/nanodep => ../nanodep
 
 replace github.com/micromdm/scep/v2 => github.com/fleetdm/scep/v2 v2.1.1-0.20220729212655-4f19f0a10a03
