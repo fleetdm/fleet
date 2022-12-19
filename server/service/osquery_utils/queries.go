@@ -155,8 +155,7 @@ limit 1
 		os.codename as display_version
 	
 	FROM
-		os_version os,
-		kernel_info k`,
+		os_version os`,
 		Platforms: []string{"windows"},
 		IngestFunc: func(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error {
 			if len(rows) != 1 {
