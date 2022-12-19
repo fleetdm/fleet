@@ -822,7 +822,8 @@ func (svc *Service) SubmitDistributedQueryResults(
 
 		// live queries we do want to ingest even if the query had issues, because we want to inform the user of these
 		// issues
-		// same applies to policies, since it's a 3 state result, one of them being failure
+		// same applies to policies, since it's a 3 state result, one of them being failure, and labels take this state
+		// into account as well
 
 		var err error
 		switch {
@@ -830,6 +831,8 @@ func (svc *Service) SubmitDistributedQueryResults(
 			err = svc.ingestDistributedQuery(ctx, *host, query, rows, failed, messages[query])
 		case strings.HasPrefix(query, hostPolicyQueryPrefix):
 			err = ingestMembershipQuery(hostPolicyQueryPrefix, query, rows, policyResults, failed)
+		case strings.HasPrefix(query, hostLabelQueryPrefix):
+			err = ingestMembershipQuery(hostLabelQueryPrefix, query, rows, labelResults, failed)
 		}
 		logIngestionError(ctx, err)
 
@@ -853,8 +856,6 @@ func (svc *Service) SubmitDistributedQueryResults(
 			name := strings.TrimPrefix(query, hostAdditionalQueryPrefix)
 			additionalResults[name] = rows
 			additionalUpdated = true
-		case strings.HasPrefix(query, hostLabelQueryPrefix):
-			err = ingestMembershipQuery(hostLabelQueryPrefix, query, rows, labelResults, failed)
 		default:
 			err = osqueryError{message: "unknown query prefix: " + query}
 		}
