@@ -151,6 +151,9 @@ describe("App settings flow", () => {
 
     it("edits fleet web address", () => {
       cy.findByText(/fleet web address/i).click();
+
+      // eslint-disable-next-line cypress/no-unnecessary-waiting
+      cy.wait(3000);
       cy.findByLabelText(/fleet app url/i)
         .clear()
         .type("https://localhost:5000");
@@ -333,6 +336,8 @@ describe("App settings flow", () => {
         force: true,
       });
 
+      // eslint-disable-next-line cypress/no-unnecessary-waiting
+      cy.wait(3000);
       cy.findByRole("button", { name: /save/i })
         .invoke("attr", "disabled", false)
         .click();
@@ -347,6 +352,9 @@ describe("App settings flow", () => {
 
     it("edits advanced options", () => {
       cy.findByText(/advanced options/i).click();
+
+      // eslint-disable-next-line cypress/no-unnecessary-waiting
+      cy.wait(3000);
       cy.findByLabelText(/domain/i)
         .click()
         .type("http://www.fleetdm.com");
