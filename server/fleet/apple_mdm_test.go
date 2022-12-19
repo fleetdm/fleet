@@ -1,4 +1,4 @@
-package main
+package fleet
 
 import (
 	"fmt"
@@ -7,7 +7,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/require"
 )
 
@@ -32,19 +31,22 @@ func TestIsMDMAppleCheckinReq(t *testing.T) {
 }
 
 func TestDecodeMDMAppleCheckinRequest(t *testing.T) {
+	testSerial := "test-serial"
+	testUDID := "test-udid"
+
 	// decode host details from request XML if MessageType is "Authenticate"
 	req := &http.Request{
 		Header: map[string][]string{
 			"Content-Type": {"application/x-apple-aspen-mdm-checkin"},
 		},
 		Method: http.MethodPost,
-		Body:   io.NopCloser(strings.NewReader(xmlForTest("Authenticate", "F5JM992LF193", "663b07bb783e9ade1dae4fbb92ea12afc0ce5b69", "MacBook Pro"))),
+		Body:   io.NopCloser(strings.NewReader(xmlForTest("Authenticate", testSerial, testUDID, "MacBook Pro"))),
 	}
-	host := &fleet.MDMAppleHostDetails{}
+	host := &MDMAppleHostDetails{}
 	err := decodeMDMAppleCheckinReq(req, host)
 	require.NoError(t, err)
-	require.Equal(t, "F5JM992LF193", host.SerialNumber)
-	require.Equal(t, "663b07bb783e9ade1dae4fbb92ea12afc0ce5b69", host.UDID)
+	require.Equal(t, testSerial, host.SerialNumber)
+	require.Equal(t, testUDID, host.UDID)
 	// require.Equal(t, "MacBook Pro", host.Model)
 
 	// do nothing if MessageType is not "Authenticate"
@@ -53,9 +55,9 @@ func TestDecodeMDMAppleCheckinRequest(t *testing.T) {
 			"Content-Type": {"application/x-apple-aspen-mdm-checkin"},
 		},
 		Method: http.MethodPost,
-		Body:   io.NopCloser(strings.NewReader(xmlForTest("TokenUpdate", "F5JM992LF193", "663b07bb783e9ade1dae4fbb92ea12afc0ce5b69", "MacBook Pro"))),
+		Body:   io.NopCloser(strings.NewReader(xmlForTest("TokenUpdate", testSerial, testUDID, "MacBook Pro"))),
 	}
-	host = &fleet.MDMAppleHostDetails{}
+	host = &MDMAppleHostDetails{}
 	err = decodeMDMAppleCheckinReq(req, host)
 	require.NoError(t, err)
 	require.Empty(t, host.SerialNumber)

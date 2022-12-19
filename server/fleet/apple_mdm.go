@@ -1,9 +1,15 @@
 package fleet
 
 import (
+	"context"
 	"encoding/json"
+	"fmt"
+	"net/http"
+	"strings"
 
+	kitlog "github.com/go-kit/kit/log"
 	"github.com/micromdm/nanodep/godep"
+	nanohttp "github.com/micromdm/nanomdm/http"
 	"github.com/micromdm/nanomdm/mdm"
 )
 
@@ -173,4 +179,63 @@ type MDMAppleHostDetails struct {
 	SerialNumber string
 	UDID         string
 	Model        string
+}
+
+type MDMHostIngester interface {
+	Ingest(context.Context, *http.Request) error
+}
+
+type MDMAppleHostIngester struct {
+	ds     Datastore
+	logger kitlog.Logger
+}
+
+func NewMDMAppleHostIngester(ds Datastore, logger kitlog.Logger) *MDMAppleHostIngester {
+	return &MDMAppleHostIngester{ds: ds, logger: logger}
+}
+
+func (ingester *MDMAppleHostIngester) Ingest(ctx context.Context, r *http.Request) error {
+	if isMDMAppleCheckinReq(r) {
+		host := MDMAppleHostDetails{}
+		if err := decodeMDMAppleCheckinReq(r, &host); err != nil {
+			return fmt.Errorf("decode checkin request: %w", err)
+		}
+		if err := ingester.ds.IngestMDMAppleDeviceFromCheckin(ctx, host); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func isMDMAppleCheckinReq(r *http.Request) bool {
+	contentType := r.Header.Get("Content-Type")
+	fmt.Println("content type in func", contentType)
+	if strings.HasPrefix(contentType, "application/x-apple-aspen-mdm-checkin") {
+		return true
+	}
+	return false
+}
+
+func decodeMDMAppleCheckinReq(r *http.Request, dest *MDMAppleHostDetails) error {
+	req := *r
+	bodyBytes, err := nanohttp.ReadAllAndReplaceBody(&req) // TODO: dev test
+	if err != nil {
+		return err
+	}
+	msg, err := mdm.DecodeCheckin(bodyBytes)
+	if err != nil {
+		return err
+	}
+	switch m := msg.(type) {
+	case *mdm.Authenticate:
+		dest.SerialNumber = m.SerialNumber
+		dest.UDID = m.UDID
+		// dest.Model = m.Model
+		fmt.Println(m.SerialNumber, m.UDID) // TODO: add model to the struct
+		return nil
+	default:
+		// these aren't the requests you're looking for, move along
+		fmt.Println("wrong message type")
+		return nil
+	}
 }
