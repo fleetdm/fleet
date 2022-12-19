@@ -22,7 +22,11 @@ import TableContainer from "components/TableContainer";
 import TableDataError from "components/DataError";
 import CustomLink from "components/CustomLink";
 
+<<<<<<< HEAD
 import RequestCSRModal from "./cards/Mdm/components/RequestCSRModal";
+=======
+import RequestCSRModal from "./components/RequestCSRModal";
+>>>>>>> ca7bec80f65ab72648226e3407fa80e988b2e9b1
 import AddIntegrationModal from "./components/AddIntegrationModal";
 import DeleteIntegrationModal from "./components/DeleteIntegrationModal";
 import EditIntegrationModal from "./components/EditIntegrationModal";
@@ -31,7 +35,12 @@ import {
   generateTableHeaders,
   combineDataSets,
 } from "./IntegrationsTableConfig";
+<<<<<<< HEAD
 import Mdm from "./cards/Mdm/Mdm";
+=======
+import { IRequestCSRFormData } from "interfaces/request_csr";
+import { IRegistrationFormData } from "interfaces/registration_form_data";
+>>>>>>> ca7bec80f65ab72648226e3407fa80e988b2e9b1
 
 const baseClass = "integrations-management";
 const noIntegrationsClass = "no-integrations";
@@ -400,7 +409,19 @@ const IntegrationsPage = (): JSX.Element => {
 
   return (
     <div className={`${baseClass}`}>
+<<<<<<< HEAD
       <Mdm />
+=======
+      {/* TODO: Move this into MDM settings tab once that exists */}
+      {/* TODO: replace these test props with the real functions */}
+      <RequestCSRModal
+        onSubmit={(formData: IRequestCSRFormData, destination: string) => {
+          alert("submited");
+        }}
+        onCancel={() => alert("canceled")}
+        destination="testination"
+      />
+>>>>>>> ca7bec80f65ab72648226e3407fa80e988b2e9b1
       <p className={`${baseClass}__page-description`}>
         Add or edit integrations to create tickets when Fleet detects new
         vulnerabilities.

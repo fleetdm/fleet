@@ -40,7 +40,7 @@ const Mdm = (): JSX.Element => {
   const { renderFlash } = useContext(NotificationContext);
 
   // TODO: Set below default state to false
-  const [showRequestModal, setShowRequestModal] = useState(true);
+  const [showRequestCSRModal, setShowRequestCSRModal] = useState(true);
   const [showEditTeamModal, setShowEditTeamModal] = useState(false);
 
   const {
@@ -79,8 +79,8 @@ const Mdm = (): JSX.Element => {
     refetchOnWindowFocus: false,
   });
 
-  const toggleRequestModal = () => {
-    setShowRequestModal(!showRequestModal);
+  const toggleRequestCSRModal = () => {
+    setShowRequestCSRModal(!showRequestCSRModal);
   };
 
   const toggleEditTeamModal = () => {
@@ -135,7 +135,7 @@ const Mdm = (): JSX.Element => {
               Push Notification Service (APNs) and a certificate and key for
               Simple Certificate Enrollment Protocol (SCEP).
             </p>
-            <Button onClick={toggleRequestModal} variant="brand">
+            <Button onClick={toggleRequestCSRModal} variant="brand">
               Request
             </Button>
             <p>2. Go to your email to download your CSR.</p>
@@ -264,6 +264,7 @@ const Mdm = (): JSX.Element => {
     );
   };
   const requestCSR = (formData: IRequestCSRFormData, destination: string) => {
+    // TODO: Implement real request handler
     alert("submited");
   };
 
@@ -279,10 +280,10 @@ const Mdm = (): JSX.Element => {
           {isLoadingMdmAppleBm ? <Spinner /> : renderMdmAppleBm()}
         </div>
       )}
-      {showRequestModal && (
+      {showRequestCSRModal && (
         <RequestCSRModal
           onSubmit={requestCSR}
-          onCancel={toggleRequestModal}
+          onCancel={toggleRequestCSRModal}
           // TODO: encapsulate destination within the modal component?
           destination="testination"
         />
