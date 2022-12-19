@@ -720,7 +720,7 @@ type Datastore interface {
 	// not already enrolled in Fleet.
 	IngestMDMAppleDevicesFromDEPSync(ctx context.Context, devices []godep.Device) (int64, error)
 
-	// IngestMDMAppleDeviceFromCheckin creates a new Fleet host record for an MDM enrolled device that are
+	// IngestMDMAppleDeviceFromCheckin creates a new Fleet host record for an MDM-enrolled device that is
 	// not already enrolled in Fleet.
 	IngestMDMAppleDeviceFromCheckin(ctx context.Context, mdmHost MDMAppleHostDetails) error
 }
