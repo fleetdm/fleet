@@ -217,7 +217,6 @@ using Microsoft.Win32;
 using System;
 using System.IO;
 using System.Runtime.InteropServices;
-
 public class RegistryUtils
 {
 
@@ -260,6 +259,7 @@ public class RegistryUtils
 
         if (!OpenProcessToken(GetCurrentProcess(), TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY, ref htok))
         {
+            Console.WriteLine("EnablePrivilege - Failed to obtain handle to primary access token");
             return false;
         }
 
@@ -277,11 +277,13 @@ public class RegistryUtils
 
         if (!LookupPrivilegeValue(null, privilege, ref tp.Luid))
         {
+            Console.WriteLine("EnablePrivilege - Failed to lookup privilege {0}", privilege);
             return false;
         }
 
         if (!AdjustTokenPrivileges(htok, false, ref tp, 0, IntPtr.Zero, IntPtr.Zero))
         {
+            Console.WriteLine("EnablePrivilege - Failed to modify privilege {0}", privilege);
             return false;
         }
 
@@ -313,7 +315,8 @@ public class RegistryUtils
                     }
 
                     const uint HKEY_USERS = 0x80000003;
-                    int ret = RegLoadKey(HKEY_USERS, userDirName, targetFile);
+                    int retRegLoadKey = RegLoadKey(HKEY_USERS, userDirName, targetFile);
+                    Console.WriteLine("RegLoadKey result was {0}", retRegLoadKey);
                 }
             }
         }
@@ -341,7 +344,8 @@ public class RegistryUtils
                     }
 
                     const uint HKEY_USERS = 0x80000003;
-                    RegUnLoadKey(HKEY_USERS, userDirName);
+                    int retRegUnLoadKey = RegUnLoadKey(HKEY_USERS, userDirName);
+                    Console.WriteLine("RegUnLoadKey result was {0}", retRegUnLoadKey);
                 }
             }
         }
@@ -381,9 +385,9 @@ public class RegistryUtils
 
             UnloadUsersHives();
         }
-        catch
+        catch (Exception ex)
         {
-
+            Console.WriteLine("There was an exception when removing osquery installer from user hives: {0}", ex.ToString());
         }
     }
 }
