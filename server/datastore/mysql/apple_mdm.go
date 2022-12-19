@@ -247,17 +247,20 @@ func ingestMDMAppleDeviceFromCheckinDB(
 	tx sqlx.ExtContext,
 	mdmHost fleet.MDMAppleHostDetails,
 ) error {
-	stmt := `SELECT id, uuid, hardware_serial FROM hosts WHERE uuid = ? OR hardware_serial = ?`
-
-	if mdmHost.SerialNumber == "" || mdmHost.UDID == "" {
-		// TODO: usage error?
+	if mdmHost.SerialNumber == "" {
+		return ctxerr.New(ctx, "ingest mdm apple host from checkin expected device serial number but got empty string")
 	}
+	if mdmHost.UDID == "" {
+		return ctxerr.New(ctx, "ingest mdm apple host from checkin expected unique device id but got empty string")
+	}
+
+	stmt := `SELECT id, uuid, hardware_serial FROM hosts WHERE uuid = ? OR hardware_serial = ?`
 
 	var foundHost fleet.Host
 	err := sqlx.GetContext(ctx, tx, &foundHost, stmt, mdmHost.UDID, mdmHost.SerialNumber)
 	switch {
 	case err != nil && !errors.Is(err, sql.ErrNoRows):
-		return err
+		return ctxerr.Wrap(ctx, err, "get mdm apple host by serial number or udid")
 
 	case errors.Is(err, sql.ErrNoRows):
 		return insertMDMAppleHostDB(ctx, tx, mdmHost)
@@ -289,7 +292,7 @@ func updateMDMAppleHostDB(ctx context.Context, tx sqlx.ExtContext, hostID uint, 
 		"darwin",
 		hostID,
 	); err != nil {
-		return err
+		return ctxerr.Wrap(ctx, err, "update mdm apple host")
 	}
 
 	return nil
@@ -318,7 +321,7 @@ func insertMDMAppleHostDB(ctx context.Context, tx sqlx.ExtContext, mdmHost fleet
 		"2000-01-01 00:00:00",
 		nil,
 	); err != nil {
-		return err
+		return ctxerr.Wrap(ctx, err, "insert mdm apple host")
 	}
 
 	return nil
@@ -328,7 +331,6 @@ func (ds *Datastore) IngestMDMAppleDevicesFromDEPSync(ctx context.Context, devic
 	if len(devices) < 1 {
 		return 0, nil
 	}
-	// TODO: remove length checks if we want to include `nano_devices` in the union select
 	filtered := filterMDMAppleDevices(devices)
 	if len(filtered) < 1 {
 		return 0, nil
@@ -336,7 +338,6 @@ func (ds *Datastore) IngestMDMAppleDevicesFromDEPSync(ctx context.Context, devic
 
 	us, args := unionSelectDevices(filtered)
 
-	// TODO: add COALESCE(GROUP_CONCAT(DISTINCT us.hardware_model), '') if we are decide to include `nano_devices` in the union select
 	stmt := fmt.Sprintf(`
 		INSERT INTO hosts (hardware_serial, hardware_model, platform, last_enrolled_at, detail_updated_at, osquery_host_id) (
 			SELECT
@@ -357,12 +358,12 @@ func (ds *Datastore) IngestMDMAppleDevicesFromDEPSync(ctx context.Context, devic
 
 	res, err := ds.writer.ExecContext(ctx, stmt, args...)
 	if err != nil {
-		return 0, ctxerr.Wrap(ctx, err, "ingest mdm enrolled hosts insert")
+		return 0, ctxerr.Wrap(ctx, err, "ingest mdm apple hosts from dep sync insert")
 	}
 
 	n, err := res.RowsAffected()
 	if err != nil {
-		return 0, ctxerr.Wrap(ctx, err, "ingest mdm enrolled hosts rows affected")
+		return 0, ctxerr.Wrap(ctx, err, "ingest mdm apple hosts from dep sync rows affected")
 	}
 
 	return n, nil
@@ -389,7 +390,6 @@ func filterMDMAppleDevices(devices []godep.Device) []godep.Device {
 	return filtered
 }
 
-// TODO: do we want to batch groups of serials instead of altogether?
 func unionSelectDevices(devices []godep.Device) (stmt string, args []interface{}) {
 	for i, d := range devices {
 		if i == 0 {
@@ -402,14 +402,3 @@ func unionSelectDevices(devices []godep.Device) (stmt string, args []interface{}
 
 	return stmt, args
 }
-
-// // TODO: alternate approach if we want to also check `nano_devices` table
-// func unionSelectDevices(devices []godep.Device) (stmt string, args []interface{}) {
-// 	stmt = "SELECT serial_number AS hardware_serial, NULL AS hardware_model FROM nano_devices"
-// 	for _, d := range devices {
-// 		stmt += " UNION SELECT ?, ?"
-// 		args = append(args, d.SerialNumber, d.Model)
-// 	}
-
-// 	return stmt, args
-// }
