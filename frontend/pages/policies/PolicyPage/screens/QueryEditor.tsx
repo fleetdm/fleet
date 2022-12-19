@@ -77,7 +77,6 @@ const QueryEditor = ({
       formData.team_id = policyTeamId;
     }
     setIsUpdatingPolicy(true);
-
     const payload: IPolicyFormData = {
       name: formData.name,
       description: formData.description,
@@ -87,6 +86,7 @@ const QueryEditor = ({
     };
     if (isPremiumTier) {
       payload.critical = formData.critical;
+      payload.team_id = formData.team_id;
     }
 
     try {
