@@ -405,7 +405,7 @@ func TestDetailQueriesOSVersionWindows(t *testing.T) {
 	))
 
 	assert.NoError(t, ingest(context.Background(), log.NewNopLogger(), &host, rows))
-	assert.Equal(t, "Windows 10 Enterprise LTSC 1809", host.OSVersion)
+	assert.Equal(t, "Windows 10 Enterprise LTSC ", host.OSVersion)
 }
 
 func TestDirectIngestMDMMac(t *testing.T) {
@@ -514,17 +514,6 @@ func TestDirectIngestOSWindows(t *testing.T) {
 			},
 			data: []map[string]string{
 				{"name": "Microsoft Windows 11 Enterprise", "display_version": "21H2", "release_id": "", "arch": "64-bit", "kernel_version": "10.0.22000.795"},
-			},
-		},
-		{
-			expected: fleet.OperatingSystem{
-				Name:          "Microsoft Windows 10 Enterprise LTSC",
-				Version:       "1809",
-				Arch:          "64-bit",
-				KernelVersion: "10.0.17763",
-			},
-			data: []map[string]string{
-				{"name": "Microsoft Windows 10 Enterprise LTSC", "display_version": "", "release_id": "1809", "arch": "64-bit", "kernel_version": "10.0.17763"},
 			},
 		},
 	}
