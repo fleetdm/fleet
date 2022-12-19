@@ -980,6 +980,8 @@ func cronActivitiesStreaming(
 			streamedIDs = append(streamedIDs, activity.ID)
 		}
 
+		logger.Log("streamed-events", len(streamedIDs))
+
 		// (3) Mark the streamed activities as streamed.
 		if err := ds.MarkActivitiesAsStreamed(ctx, streamedIDs); err != nil {
 			multiErr = multierror.Append(multiErr, ctxerr.Wrap(ctx, err, "mark activities as streamed"))

@@ -17,7 +17,7 @@ func Up_20221216160025(tx *sql.Tx) error {
 		return errors.Wrap(err, "adding streamed column to activities")
 	}
 	if _, err := tx.Exec(
-		"CREATE INDEX activities_streamed_idx ON activities (id, streamed);",
+		"CREATE INDEX activities_streamed_idx ON activities (streamed);",
 	); err != nil {
 		return errors.Wrap(err, "create activities_streamed_idx")
 	}

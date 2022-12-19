@@ -10,7 +10,7 @@ CREATE TABLE `activities` (
   `streamed` tinyint(1) NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`),
   KEY `fk_activities_user_id` (`user_id`),
-  KEY `activities_streamed_idx` (`id`,`streamed`),
+  KEY `activities_streamed_idx` (`streamed`),
   CONSTRAINT `activities_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 /*!40101 SET character_set_client = @saved_cs_client */;
