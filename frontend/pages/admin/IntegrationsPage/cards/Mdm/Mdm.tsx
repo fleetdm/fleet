@@ -8,6 +8,7 @@ import { NotificationContext } from "context/notification";
 import mdmAppleAPI from "services/entities/mdm_apple";
 import mdmAppleBmAPI from "services/entities/mdm_apple_bm";
 import { IMdmApple, IMdmAppleBm } from "interfaces/mdm";
+import { IRequestCSRFormData } from "interfaces/request_csr";
 
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
@@ -16,7 +17,7 @@ import DataError from "components/DataError";
 import Icon from "components/Icon";
 import TooltipWrapper from "components/TooltipWrapper";
 
-import RequestModal from "./components/RequestModal";
+import RequestCSRModal from "./components/RequestCSRModal";
 import EditTeamModal from "./components/EditTeamModal";
 
 // MDM TODO: key validation?
@@ -38,7 +39,8 @@ const Mdm = (): JSX.Element => {
   const { isPremiumTier } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
-  const [showRequestModal, setShowRequestModal] = useState(false);
+  // TODO: Set below default state to false
+  const [showRequestModal, setShowRequestModal] = useState(true);
   const [showEditTeamModal, setShowEditTeamModal] = useState(false);
 
   const {
@@ -261,6 +263,9 @@ const Mdm = (): JSX.Element => {
       </>
     );
   };
+  const requestCSR = (formData: IRequestCSRFormData, destination: string) => {
+    alert("submited");
+  };
 
   return (
     <div className={baseClass}>
@@ -275,9 +280,11 @@ const Mdm = (): JSX.Element => {
         </div>
       )}
       {showRequestModal && (
-        <RequestModal
+        <RequestCSRModal
+          onSubmit={requestCSR}
           onCancel={toggleRequestModal}
-          onRequest={toggleRequestModal}
+          // TODO: encapsulate destination within the modal component?
+          destination="testination"
         />
       )}
       {showEditTeamModal && (

@@ -22,7 +22,7 @@ import TableContainer from "components/TableContainer";
 import TableDataError from "components/DataError";
 import CustomLink from "components/CustomLink";
 
-import RequestCSRModal from "./components/RequestCSRModal";
+import RequestCSRModal from "./cards/Mdm/components/RequestCSRModal";
 import AddIntegrationModal from "./components/AddIntegrationModal";
 import DeleteIntegrationModal from "./components/DeleteIntegrationModal";
 import EditIntegrationModal from "./components/EditIntegrationModal";
@@ -31,8 +31,7 @@ import {
   generateTableHeaders,
   combineDataSets,
 } from "./IntegrationsTableConfig";
-import { IRequestCSRFormData } from "interfaces/request_csr";
-import { IRegistrationFormData } from "interfaces/registration_form_data";
+import Mdm from "./cards/Mdm/Mdm";
 
 const baseClass = "integrations-management";
 const noIntegrationsClass = "no-integrations";
@@ -401,15 +400,7 @@ const IntegrationsPage = (): JSX.Element => {
 
   return (
     <div className={`${baseClass}`}>
-      {/* TODO: Move this into MDM settings tab once that exists */}
-      {/* TODO: replace these test props with the real functions */}
-      <RequestCSRModal
-        onSubmit={(formData: IRequestCSRFormData, destination: string) => {
-          alert("submited");
-        }}
-        onCancel={() => alert("canceled")}
-        destination="testination"
-      />
+      <Mdm />
       <p className={`${baseClass}__page-description`}>
         Add or edit integrations to create tickets when Fleet detects new
         vulnerabilities.

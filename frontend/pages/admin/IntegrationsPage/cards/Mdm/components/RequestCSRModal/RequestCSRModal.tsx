@@ -2,7 +2,7 @@ import React from "react";
 
 import Modal from "components/Modal";
 import { IRequestCSRFormData } from "interfaces/request_csr";
-import RequestCSRForm from "../RequestCSRForm";
+import RequestCSRForm from "./RequestCSRForm";
 
 const baseClass = " modal request-csr-modal";
 
