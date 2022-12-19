@@ -716,6 +716,12 @@ type Datastore interface {
 
 	// MDMAppleListDevices lists all the MDM enrolled devices.
 	MDMAppleListDevices(ctx context.Context) ([]MDMAppleDevice, error)
+
+	// IncreasePolicyAutomationIteration marks the policy to fire automation again.
+	IncreasePolicyAutomationIteration(ctx context.Context, policyID uint) error
+
+	// OutdatedAutomationBatch returns a batch of hosts that had a failing policy.
+	OutdatedAutomationBatch(ctx context.Context) ([]PolicyFailure, error)
 }
 
 const (
@@ -724,6 +730,11 @@ const (
 	// Default batch size for loading IDs of or inserting new munki issues.
 	DefaultMunkiIssuesBatchSize = 100
 )
+
+type PolicyFailure struct {
+	PolicyID uint
+	Host     PolicySetHost
+}
 
 type MySQLProcess struct {
 	Id      int     `json:"id" db:"Id"`
