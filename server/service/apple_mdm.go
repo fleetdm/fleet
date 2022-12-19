@@ -23,7 +23,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/groob/plist"
 	"github.com/micromdm/micromdm/mdm/appmanifest"
-	"github.com/micromdm/nanodep/client"
 	"github.com/micromdm/nanodep/godep"
 	"github.com/micromdm/nanomdm/mdm"
 	"github.com/micromdm/nanomdm/push"
@@ -94,53 +93,24 @@ func (svc *Service) mdmAppleEnrollURL(token string, appConfig *fleet.AppConfig) 
 // setDEPProfile define a "DEP profile" on https://mdmenrollment.apple.com and
 // sets the returned Profile UUID as the current DEP profile to apply to newly sync DEP devices.
 func (svc *Service) setDEPProfile(ctx context.Context, enrollmentProfile *fleet.MDMAppleEnrollmentProfile, appConfig *fleet.AppConfig) error {
-	httpClient := fleethttp.NewClient()
-	depTransport := client.NewTransport(httpClient.Transport, httpClient, svc.depStorage, nil)
-	depClient := client.NewClient(fleethttp.NewClient(), depTransport)
-
-	var depProfileRequest map[string]interface{}
+	var depProfileRequest godep.Profile
 	if err := json.Unmarshal(*enrollmentProfile.DEPProfile, &depProfileRequest); err != nil {
-		return fmt.Errorf("invalid DEP profile: %w", err)
+		return ctxerr.Wrap(ctx, err, "invalid DEP profile")
 	}
 
 	// Override url and configuration_web_url with Fleet's enroll path (publicly accessible address).
 	enrollURL := svc.mdmAppleEnrollURL(enrollmentProfile.Token, appConfig)
-	depProfileRequest["url"] = enrollURL
-	depProfileRequest["configuration_web_url"] = enrollURL
-	depProfile, err := json.Marshal(depProfileRequest)
+	depProfileRequest.URL = enrollURL
+	depProfileRequest.ConfigurationWebURL = enrollURL
+
+	depClient := godep.NewClient(svc.depStorage, fleethttp.NewClient())
+	res, err := depClient.DefineProfile(ctx, apple_mdm.DEPName, &depProfileRequest)
 	if err != nil {
-		return fmt.Errorf("reserializing DEP profile: %w", err)
+		return ctxerr.Wrap(ctx, err, "apple POST /profile request failed")
 	}
 
-	defineProfileRequest, err := client.NewRequestWithContext(
-		ctx, apple_mdm.DEPName, svc.depStorage, "POST", "/profile", bytes.NewReader(depProfile),
-	)
-	if err != nil {
-		return fmt.Errorf("create profile request: %w", err)
-	}
-	defineProfileHTTPResponse, err := depClient.Do(defineProfileRequest)
-	if err != nil {
-		return fmt.Errorf("exec profile request: %w", err)
-	}
-	defer defineProfileHTTPResponse.Body.Close()
-	if defineProfileHTTPResponse.StatusCode != http.StatusOK {
-		return fmt.Errorf("profile request: %s", defineProfileHTTPResponse.Status)
-	}
-	defineProfileResponseBody, err := io.ReadAll(defineProfileHTTPResponse.Body)
-	if err != nil {
-		return fmt.Errorf("read profile response: %w", err)
-	}
-	type depProfileResponseFields struct {
-		ProfileUUID string `json:"profile_uuid"`
-	}
-	defineProfileResponse := depProfileResponseFields{}
-	if err := json.Unmarshal(defineProfileResponseBody, &defineProfileResponse); err != nil {
-		return fmt.Errorf("parse profile response: %w", err)
-	}
-	if err := svc.depStorage.StoreAssignerProfile(
-		ctx, apple_mdm.DEPName, defineProfileResponse.ProfileUUID,
-	); err != nil {
-		return fmt.Errorf("set profile UUID: %w", err)
+	if err := svc.depStorage.StoreAssignerProfile(ctx, apple_mdm.DEPName, res.ProfileUUID); err != nil {
+		return ctxerr.Wrap(ctx, err, "set profile UUID")
 	}
 	return nil
 }
