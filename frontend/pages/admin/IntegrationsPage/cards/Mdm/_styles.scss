@@ -21,10 +21,6 @@
       margin-bottom: 0;
     }
 
-    p {
-      margin: 0;
-    }
-
     .mdm-integrations__edit-team-btn {
       margin-left: 12px;
 
@@ -46,6 +42,12 @@
     width: 100%;
     @media (min-width: $break-990) {
       width: 60%;
+    }
+  }
+
+  &__section-information {
+    p {
+      margin: 0;
     }
   }
 }
