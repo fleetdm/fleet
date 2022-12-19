@@ -440,6 +440,7 @@ func TestDirectIngestMDMWindows(t *testing.T) {
 		return nil
 	}
 
+	var host fleet.Host
 	err := directIngestMDMWindows(context.Background(), log.NewNopLogger(), &host, ds, []map[string]string{
 		{"key": "discovery_service_url", "value": "some url"},
 		{"key": "autopilot", "value": "true"},
@@ -727,7 +728,6 @@ func TestDirectIngestSoftware(t *testing.T) {
 				&fleet.Host{ID: uint(i)},
 				ds,
 				tc.data,
-				false,
 			)
 
 			require.NoError(t, err)

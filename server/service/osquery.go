@@ -824,7 +824,7 @@ func (svc *Service) SubmitDistributedQueryResults(
 			// if a query failed, don't try to ingest it
 			continue
 		}
-		
+
 		var err error
 		switch {
 		case strings.HasPrefix(query, hostDetailQueryPrefix):
