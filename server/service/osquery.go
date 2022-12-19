@@ -820,12 +820,24 @@ func (svc *Service) SubmitDistributedQueryResults(
 			ll.Log("query", query, "message", messages[query], "hostID", host.ID)
 		}
 
+		// live queries we do want to ingest even if the query had issues, because we want to inform the user of these
+		// issues
+		// same applies to policies, since it's a 3 state result, one of them being failure
+
+		var err error
+		switch {
+		case strings.HasPrefix(query, hostDistributedQueryPrefix):
+			err = svc.ingestDistributedQuery(ctx, *host, query, rows, failed, messages[query])
+		case strings.HasPrefix(query, hostPolicyQueryPrefix):
+			err = ingestMembershipQuery(hostPolicyQueryPrefix, query, rows, policyResults, failed)
+		}
+		logIngestionError(ctx, err)
+
 		if failed {
 			// if a query failed, don't try to ingest it
 			continue
 		}
 
-		var err error
 		switch {
 		case strings.HasPrefix(query, hostDetailQueryPrefix):
 			trimmedQuery := strings.TrimPrefix(query, hostDetailQueryPrefix)
@@ -843,18 +855,10 @@ func (svc *Service) SubmitDistributedQueryResults(
 			additionalUpdated = true
 		case strings.HasPrefix(query, hostLabelQueryPrefix):
 			err = ingestMembershipQuery(hostLabelQueryPrefix, query, rows, labelResults, failed)
-		case strings.HasPrefix(query, hostPolicyQueryPrefix):
-			err = ingestMembershipQuery(hostPolicyQueryPrefix, query, rows, policyResults, failed)
-		case strings.HasPrefix(query, hostDistributedQueryPrefix):
-			err = svc.ingestDistributedQuery(ctx, *host, query, rows, failed, messages[query])
 		default:
 			err = osqueryError{message: "unknown query prefix: " + query}
 		}
-
-		if err != nil {
-			logging.WithErr(ctx, ctxerr.New(ctx, "error in query ingestion"))
-			logging.WithExtras(ctx, "ingestion-err", err)
-		}
+		logIngestionError(ctx, err)
 	}
 
 	ac, err := svc.ds.AppConfig(ctx)
@@ -949,6 +953,13 @@ func (svc *Service) SubmitDistributedQueryResults(
 	}
 
 	return nil
+}
+
+func logIngestionError(ctx context.Context, err error) {
+	if err != nil {
+		logging.WithErr(ctx, ctxerr.New(ctx, "error in query ingestion"))
+		logging.WithExtras(ctx, "ingestion-err", err)
+	}
 }
 
 var noSuchTableRegexp = regexp.MustCompile(`^no such table: \S+$`)
