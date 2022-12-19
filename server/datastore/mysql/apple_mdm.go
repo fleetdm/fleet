@@ -3,10 +3,14 @@ package mysql
 import (
 	"context"
 	"database/sql"
+	"errors"
+	"fmt"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/jmoiron/sqlx"
+	"github.com/micromdm/nanodep/godep"
 )
 
 func (ds *Datastore) NewMDMAppleEnrollmentProfile(
@@ -231,3 +235,181 @@ WHERE
 	}
 	return devices, nil
 }
+
+func (ds *Datastore) IngestMDMAppleDeviceFromCheckin(ctx context.Context, mdmHost fleet.MDMAppleHostDetails) error {
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		return ingestMDMAppleDeviceFromCheckinDB(ctx, tx, mdmHost)
+	})
+}
+
+func ingestMDMAppleDeviceFromCheckinDB(
+	ctx context.Context,
+	tx sqlx.ExtContext,
+	mdmHost fleet.MDMAppleHostDetails,
+) error {
+	stmt := `SELECT id, uuid, hardware_serial FROM hosts WHERE uuid = ? OR hardware_serial = ?`
+
+	if mdmHost.SerialNumber == "" || mdmHost.UDID == "" {
+		// TODO: usage error?
+	}
+
+	var foundHost fleet.Host
+	err := sqlx.GetContext(ctx, tx, &foundHost, stmt, mdmHost.UDID, mdmHost.SerialNumber)
+	switch {
+	case err != nil && !errors.Is(err, sql.ErrNoRows):
+		return err
+
+	case errors.Is(err, sql.ErrNoRows):
+		return insertMDMAppleHostDB(ctx, tx, mdmHost)
+
+	case foundHost.HardwareSerial != mdmHost.SerialNumber || foundHost.UUID != mdmHost.UDID:
+		return updateMDMAppleHostDB(ctx, tx, foundHost.ID, mdmHost)
+
+	default:
+		// ok, nothing to do here
+		return nil
+	}
+}
+
+func updateMDMAppleHostDB(ctx context.Context, tx sqlx.ExtContext, hostID uint, mdmHost fleet.MDMAppleHostDetails) error {
+	updateStmt := `
+		UPDATE hosts SET
+			hardware_serial = ?,
+			uuid = ?,
+			hardware_model = ?,
+			platform =  ?
+		WHERE id = ?`
+
+	if _, err := tx.ExecContext(
+		ctx,
+		updateStmt,
+		mdmHost.SerialNumber,
+		mdmHost.UDID,
+		mdmHost.Model,
+		"darwin",
+		hostID,
+	); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func insertMDMAppleHostDB(ctx context.Context, tx sqlx.ExtContext, mdmHost fleet.MDMAppleHostDetails) error {
+	insertStmt := `
+		INSERT INTO hosts (
+			hardware_serial,
+			uuid, 
+			hardware_model, 
+			platform, 
+			last_enrolled_at, 
+			detail_updated_at, 
+			osquery_host_id
+		) VALUES (?,?,?,?,?,?,?)`
+
+	if _, err := tx.ExecContext(
+		ctx,
+		insertStmt,
+		mdmHost.SerialNumber,
+		mdmHost.UDID,
+		mdmHost.Model,
+		"darwin",
+		"2000-01-01 00:00:00",
+		"2000-01-01 00:00:00",
+		nil,
+	); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (ds *Datastore) IngestMDMAppleDevicesFromDEPSync(ctx context.Context, devices []godep.Device) (int64, error) {
+	if len(devices) < 1 {
+		return 0, nil
+	}
+	// TODO: remove length checks if we want to include `nano_devices` in the union select
+	filtered := filterMDMAppleDevices(devices)
+	if len(filtered) < 1 {
+		return 0, nil
+	}
+
+	us, args := unionSelectDevices(filtered)
+
+	// TODO: add COALESCE(GROUP_CONCAT(DISTINCT us.hardware_model), '') if we are decide to include `nano_devices` in the union select
+	stmt := fmt.Sprintf(`
+		INSERT INTO hosts (hardware_serial, hardware_model, platform, last_enrolled_at, detail_updated_at, osquery_host_id) (
+			SELECT
+				us.hardware_serial,
+				us.hardware_model,
+				'darwin' AS platform,
+				'2000-01-01 00:00:00' AS last_enrolled_at,
+				'2000-01-01 00:00:00' AS detail_updated_at,
+				NULL AS osquery_host_id
+			FROM (%s) us
+			LEFT JOIN hosts h ON us.hardware_serial = h.hardware_serial
+		WHERE
+			h.id IS NULL
+		GROUP BY
+			us.hardware_serial)`,
+		us,
+	)
+
+	res, err := ds.writer.ExecContext(ctx, stmt, args...)
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "ingest mdm enrolled hosts insert")
+	}
+
+	n, err := res.RowsAffected()
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "ingest mdm enrolled hosts rows affected")
+	}
+
+	return n, nil
+}
+
+func filterMDMAppleDevices(devices []godep.Device) []godep.Device {
+	var filtered []godep.Device
+	for _, device := range devices {
+		// We currently only support macOS devices so we screen out iOS and tvOS.
+		if strings.ToLower(device.OS) != "osx" {
+			continue
+		}
+		// We currently only listen for an op_type of "added", the other
+		// op_types are ambiguous and it would be needless to ingest the device
+		// every single time we get an update.
+		if strings.ToLower(device.OpType) == "added" ||
+			// The op_type field is only applicable with the SyncDevices API call,
+			// Empty op_type come from the first call to FetchDevices without a cursor,
+			// and we do want to assign profiles to them.
+			strings.ToLower(device.OpType) == "" {
+			filtered = append(filtered, device)
+		}
+	}
+	return filtered
+}
+
+// TODO: do we want to batch groups of serials instead of altogether?
+func unionSelectDevices(devices []godep.Device) (stmt string, args []interface{}) {
+	for i, d := range devices {
+		if i == 0 {
+			stmt = "SELECT ? hardware_serial, ? hardware_model"
+		} else {
+			stmt += " UNION SELECT ?, ?"
+		}
+		args = append(args, d.SerialNumber, d.Model)
+	}
+
+	return stmt, args
+}
+
+// // TODO: alternate approach if we want to also check `nano_devices` table
+// func unionSelectDevices(devices []godep.Device) (stmt string, args []interface{}) {
+// 	stmt = "SELECT serial_number AS hardware_serial, NULL AS hardware_model FROM nano_devices"
+// 	for _, d := range devices {
+// 		stmt += " UNION SELECT ?, ?"
+// 		args = append(args, d.SerialNumber, d.Model)
+// 	}
+
+// 	return stmt, args
+// }

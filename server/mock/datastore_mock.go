@@ -510,7 +510,9 @@ type ListMDMAppleInstallersFunc func(ctx context.Context) ([]fleet.MDMAppleInsta
 
 type MDMAppleListDevicesFunc func(ctx context.Context) ([]fleet.MDMAppleDevice, error)
 
-type IngestMDMAppleDevicesIntoHostsFunc func(ctx context.Context, devices []godep.Device) (int64, error)
+type IngestMDMAppleDevicesFromDEPSyncFunc func(ctx context.Context, devices []godep.Device) (int64, error)
+
+type IngestMDMAppleDeviceFromCheckinFunc func(ctx context.Context, mdmHost fleet.MDMAppleHostDetails) error
 
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
@@ -1257,8 +1259,11 @@ type DataStore struct {
 	MDMAppleListDevicesFunc        MDMAppleListDevicesFunc
 	MDMAppleListDevicesFuncInvoked bool
 
-	IngestMDMAppleDevicesIntoHostsFunc        IngestMDMAppleDevicesIntoHostsFunc
-	IngestMDMAppleDevicesIntoHostsFuncInvoked bool
+	IngestMDMAppleDevicesFromDEPSyncFunc        IngestMDMAppleDevicesFromDEPSyncFunc
+	IngestMDMAppleDevicesFromDEPSyncFuncInvoked bool
+
+	IngestMDMAppleDeviceFromCheckinFunc        IngestMDMAppleDeviceFromCheckinFunc
+	IngestMDMAppleDeviceFromCheckinFuncInvoked bool
 }
 
 func (s *DataStore) HealthCheck() error {
@@ -2501,7 +2506,12 @@ func (s *DataStore) MDMAppleListDevices(ctx context.Context) ([]fleet.MDMAppleDe
 	return s.MDMAppleListDevicesFunc(ctx)
 }
 
-func (s *DataStore) IngestMDMAppleDevicesIntoHosts(ctx context.Context, devices []godep.Device) (int64, error) {
-	s.IngestMDMAppleDevicesIntoHostsFuncInvoked = true
-	return s.IngestMDMAppleDevicesIntoHostsFunc(ctx, devices)
+func (s *DataStore) IngestMDMAppleDevicesFromDEPSync(ctx context.Context, devices []godep.Device) (int64, error) {
+	s.IngestMDMAppleDevicesFromDEPSyncFuncInvoked = true
+	return s.IngestMDMAppleDevicesFromDEPSyncFunc(ctx, devices)
+}
+
+func (s *DataStore) IngestMDMAppleDeviceFromCheckin(ctx context.Context, mdmHost fleet.MDMAppleHostDetails) error {
+	s.IngestMDMAppleDeviceFromCheckinFuncInvoked = true
+	return s.IngestMDMAppleDeviceFromCheckinFunc(ctx, mdmHost)
 }

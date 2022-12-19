@@ -716,9 +716,13 @@ type Datastore interface {
 	// MDMAppleListDevices lists all the MDM enrolled devices.
 	MDMAppleListDevices(ctx context.Context) ([]MDMAppleDevice, error)
 
-	// IngestMDMAppleDevicesIntoHosts creates new Fleet host records for MDM enrolled devices that are
+	// IngestMDMAppleDevicesFromDEPSync creates new Fleet host records for MDM-enrolled devices that are
 	// not already enrolled in Fleet.
-	IngestMDMAppleDevicesIntoHosts(ctx context.Context, devices []godep.Device) (int64, error)
+	IngestMDMAppleDevicesFromDEPSync(ctx context.Context, devices []godep.Device) (int64, error)
+
+	// IngestMDMAppleDeviceFromCheckin creates a new Fleet host record for an MDM enrolled device that are
+	// not already enrolled in Fleet.
+	IngestMDMAppleDeviceFromCheckin(ctx context.Context, mdmHost MDMAppleHostDetails) error
 }
 
 const (

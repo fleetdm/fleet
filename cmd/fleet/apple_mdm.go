@@ -1,19 +1,27 @@
 package main
 
 import (
+	"context"
 	"crypto/x509"
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	"github.com/getsentry/sentry-go"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"github.com/micromdm/nanomdm/certverify"
+	nanohttp "github.com/micromdm/nanomdm/http"
 	httpmdm "github.com/micromdm/nanomdm/http/mdm"
+
 	nanomdm_log "github.com/micromdm/nanomdm/log"
+	"github.com/micromdm/nanomdm/mdm"
 	nanomdm_service "github.com/micromdm/nanomdm/service"
 	"github.com/micromdm/nanomdm/service/certauth"
 	"github.com/micromdm/nanomdm/service/nanomdm"
@@ -31,11 +39,12 @@ func registerAppleMDMProtocolServices(
 	mdmStorage *mysql.NanoMDMStorage,
 	scepStorage *apple_mdm.SCEPMySQLDepot,
 	logger kitlog.Logger,
+	mdmHostIngester MDMHostIngester,
 ) error {
 	if err := registerSCEP(mux, scepConfig, scepCertPEM, scepKeyPEM, scepStorage, logger); err != nil {
 		return fmt.Errorf("scep: %w", err)
 	}
-	if err := registerMDM(mux, scepCertPEM, mdmStorage, logger); err != nil {
+	if err := registerMDM(mux, scepCertPEM, mdmStorage, logger, mdmHostIngester); err != nil {
 		return fmt.Errorf("mdm: %w", err)
 	}
 	return nil
@@ -119,6 +128,7 @@ func registerMDM(
 	scepCAPEM []byte,
 	mdmStorage *mysql.NanoMDMStorage,
 	logger kitlog.Logger,
+	mdmHostIngester MDMHostIngester,
 ) error {
 	certVerifier, err := certverify.NewPoolVerifier(scepCAPEM, x509.ExtKeyUsageClientAuth)
 	if err != nil {
@@ -129,13 +139,95 @@ func registerMDM(
 	// As usual, handlers are applied from bottom to top:
 	// 1. Extract and verify MDM signature.
 	// 2. Verify signer certificate with CA.
-	// 3. Verify new or enrolled certificate (certauth.CertAuth which wraps the MDM service)
+	// 3. Verify new or enrolled certificate (certauth.CertAuth which wraps the MDM service).
+	// 4. Pass a copy of the request to Fleet middleware that ingests new hosts from pending MDM
+	// enrollments and updates the Fleet hosts table accordingly with the UDID and serial number of
+	// the device.
 	// 4. Run actual MDM service operation (checkin handler or command and results handler).
 	var mdmService nanomdm_service.CheckinAndCommandService = nanomdm.New(mdmStorage, nanomdm.WithLogger(mdmLogger))
 	mdmService = certauth.New(mdmService, mdmStorage)
 	var mdmHandler http.Handler = httpmdm.CheckinAndCommandHandler(mdmService, mdmLogger.With("handler", "checkin-command"))
+	mdmHandler = MDMHostIngesterMiddleware(mdmHandler, mdmHostIngester, logger)
 	mdmHandler = httpmdm.CertVerifyMiddleware(mdmHandler, certVerifier, mdmLogger.With("handler", "cert-verify"))
 	mdmHandler = httpmdm.CertExtractMdmSignatureMiddleware(mdmHandler, mdmLogger.With("handler", "cert-extract"))
 	mux.Handle(apple_mdm.MDMPath, mdmHandler)
 	return nil
+}
+
+// MDMHostIngesterMiddleware watches incoming requests in order to ingest new Fleet hosts from pending
+// MDM enrollments. It updates the Fleet hosts table accordingly with the UDID and serial number of
+// the device.
+func MDMHostIngesterMiddleware(next http.Handler, ingester MDMHostIngester, logger kitlog.Logger) http.HandlerFunc {
+	logger = kitlog.With(logger, "component", "mdm-apple-host-ingester")
+
+	return func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		if err := ingester.Ingest(ctx, r); err != nil {
+			level.Error(logger).Log("err", "ingest checkin request", "details", err)
+			sentry.CaptureException(err)
+			ctxerr.Handle(ctx, err)
+			// TODO: discuss error handling approach
+			http.Error(w, http.StatusText(http.StatusUnprocessableEntity), http.StatusUnprocessableEntity)
+		}
+		next.ServeHTTP(w, r)
+	}
+}
+
+type MDMHostIngester interface {
+	Ingest(context.Context, *http.Request) error
+}
+
+type MDMAppleHostIngester struct {
+	ds     fleet.Datastore
+	logger kitlog.Logger
+}
+
+func NewMDMAppleHostIngester(ds fleet.Datastore, logger kitlog.Logger) *MDMAppleHostIngester {
+	return &MDMAppleHostIngester{ds: ds, logger: logger}
+}
+
+func (ingester *MDMAppleHostIngester) Ingest(ctx context.Context, r *http.Request) error {
+	if isMDMAppleCheckinReq(r) {
+		host := fleet.MDMAppleHostDetails{}
+		if err := decodeMDMAppleCheckinReq(r, &host); err != nil {
+			return ctxerr.Wrap(ctx, err, "decode checkin request")
+		}
+		if err := ingester.ds.IngestMDMAppleDeviceFromCheckin(ctx, host); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func isMDMAppleCheckinReq(r *http.Request) bool {
+	contentType := r.Header.Get("Content-Type")
+	fmt.Println("content type in func", contentType)
+	if strings.HasPrefix(contentType, "application/x-apple-aspen-mdm-checkin") {
+		return true
+	}
+	return false
+}
+
+func decodeMDMAppleCheckinReq(r *http.Request, dest *fleet.MDMAppleHostDetails) error {
+	req := *r
+	bodyBytes, err := nanohttp.ReadAllAndReplaceBody(&req) // TODO: dev test
+	if err != nil {
+		return err
+	}
+	msg, err := mdm.DecodeCheckin(bodyBytes)
+	if err != nil {
+		return err
+	}
+	switch m := msg.(type) {
+	case *mdm.Authenticate:
+		dest.SerialNumber = m.SerialNumber
+		dest.UDID = m.UDID
+		// dest.Model = m.Model
+		fmt.Println(m.SerialNumber, m.UDID) // TODO: add model to the struct
+		return nil
+	default:
+		// these aren't the requests you're looking for, move along
+		fmt.Println("wrong message type")
+		return nil
+	}
 }

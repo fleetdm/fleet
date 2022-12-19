@@ -166,3 +166,11 @@ type MDMAppleCommand struct {
 func (m MDMAppleCommand) AuthzType() string {
 	return "mdm_apple_command"
 }
+
+// MDMAppleHostDetails represents the device identifiers used to ingest an MDM device as a Fleet
+// host pending enrollment
+type MDMAppleHostDetails struct {
+	SerialNumber string
+	UDID         string
+	Model        string
+}

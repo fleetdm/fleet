@@ -666,6 +666,7 @@ the way that the Fleet server works.
 					mdmStorage,
 					scepStorage,
 					logger,
+					NewMDMAppleHostIngester(ds, logger),
 				); err != nil {
 					initFatal(err, "setup mdm apple services")
 				}
