@@ -818,14 +818,19 @@ func (svc *Service) SubmitDistributedQueryResults(
 				ll = level.Error(svc.logger)
 			}
 			ll.Log("query", query, "message", messages[query], "hostID", host.ID)
-
 		}
+
+		if failed {
+			// if a query failed, don't try to ingest it
+			continue
+		}
+		
 		var err error
 		switch {
 		case strings.HasPrefix(query, hostDetailQueryPrefix):
 			trimmedQuery := strings.TrimPrefix(query, hostDetailQueryPrefix)
 			var ingested bool
-			ingested, err = svc.directIngestDetailQuery(ctx, host, trimmedQuery, rows, failed)
+			ingested, err = svc.directIngestDetailQuery(ctx, host, trimmedQuery, rows)
 			if !ingested && err == nil {
 				err = svc.ingestDetailQuery(ctx, host, trimmedQuery, rows)
 				// No err != nil check here because ingestDetailQuery could have updated
@@ -948,7 +953,7 @@ func (svc *Service) SubmitDistributedQueryResults(
 
 var noSuchTableRegexp = regexp.MustCompile(`^no such table: \S+$`)
 
-func (svc *Service) directIngestDetailQuery(ctx context.Context, host *fleet.Host, name string, rows []map[string]string, failed bool) (ingested bool, err error) {
+func (svc *Service) directIngestDetailQuery(ctx context.Context, host *fleet.Host, name string, rows []map[string]string) (ingested bool, err error) {
 	features, err := svc.HostFeatures(ctx, host)
 	if err != nil {
 		return false, osqueryError{message: "ingest detail query: " + err.Error()}
@@ -960,7 +965,7 @@ func (svc *Service) directIngestDetailQuery(ctx context.Context, host *fleet.Hos
 		return false, osqueryError{message: "unknown detail query " + name}
 	}
 	if query.DirectIngestFunc != nil {
-		err = query.DirectIngestFunc(ctx, svc.logger, host, svc.ds, rows, failed)
+		err = query.DirectIngestFunc(ctx, svc.logger, host, svc.ds, rows)
 		if err != nil {
 			return false, osqueryError{
 				message: fmt.Sprintf("ingesting query %s: %s", name, err.Error()),
@@ -968,7 +973,7 @@ func (svc *Service) directIngestDetailQuery(ctx context.Context, host *fleet.Hos
 		}
 		return true, nil
 	} else if query.DirectTaskIngestFunc != nil {
-		err = query.DirectTaskIngestFunc(ctx, svc.logger, host, svc.task, rows, failed)
+		err = query.DirectTaskIngestFunc(ctx, svc.logger, host, svc.task, rows)
 		if err != nil {
 			return false, osqueryError{
 				message: fmt.Sprintf("ingesting query %s: %s", name, err.Error()),

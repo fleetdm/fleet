@@ -59,7 +59,7 @@ func TestDetailQueryScheduledQueryStats(t *testing.T) {
 	ingest := GetDetailQueries(config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}}, nil)["scheduled_query_stats"].DirectTaskIngestFunc
 
 	ctx := context.Background()
-	assert.NoError(t, ingest(ctx, log.NewNopLogger(), &host, task, nil, false))
+	assert.NoError(t, ingest(ctx, log.NewNopLogger(), &host, task, nil))
 	assert.Len(t, host.PackStats, 0)
 
 	resJSON := `
@@ -140,7 +140,7 @@ func TestDetailQueryScheduledQueryStats(t *testing.T) {
 	var rows []map[string]string
 	require.NoError(t, json.Unmarshal([]byte(resJSON), &rows))
 
-	assert.NoError(t, ingest(ctx, log.NewNopLogger(), &host, task, rows, false))
+	assert.NoError(t, ingest(ctx, log.NewNopLogger(), &host, task, rows))
 	assert.Len(t, gotPackStats, 2)
 	sort.Slice(gotPackStats, func(i, j int) bool {
 		return gotPackStats[i].PackName < gotPackStats[j].PackName
@@ -221,7 +221,7 @@ func TestDetailQueryScheduledQueryStats(t *testing.T) {
 		},
 	)
 
-	assert.NoError(t, ingest(ctx, log.NewNopLogger(), &host, task, nil, false))
+	assert.NoError(t, ingest(ctx, log.NewNopLogger(), &host, task, nil))
 	assert.Len(t, gotPackStats, 0)
 }
 
@@ -419,17 +419,13 @@ func TestDirectIngestMDMMac(t *testing.T) {
 
 	var host fleet.Host
 
-	err := directIngestMDMMac(context.Background(), log.NewNopLogger(), &host, ds, []map[string]string{}, true)
-	require.NoError(t, err)
-	require.False(t, ds.SetOrUpdateMDMDataFuncInvoked)
-
-	err = directIngestMDMMac(context.Background(), log.NewNopLogger(), &host, ds, []map[string]string{
+	err := directIngestMDMMac(context.Background(), log.NewNopLogger(), &host, ds, []map[string]string{
 		{
 			"enrolled":           "false",
 			"installed_from_dep": "",
 			"server_url":         "",
 		},
-	}, false)
+	})
 	require.NoError(t, err)
 	require.True(t, ds.SetOrUpdateMDMDataFuncInvoked)
 }
@@ -444,17 +440,12 @@ func TestDirectIngestMDMWindows(t *testing.T) {
 		return nil
 	}
 
-	var host fleet.Host
-	err := directIngestMDMWindows(context.Background(), log.NewNopLogger(), &host, ds, []map[string]string{}, true)
-	require.NoError(t, err)
-	require.False(t, ds.SetOrUpdateMDMDataFuncInvoked)
-
-	err = directIngestMDMWindows(context.Background(), log.NewNopLogger(), &host, ds, []map[string]string{
+	err := directIngestMDMWindows(context.Background(), log.NewNopLogger(), &host, ds, []map[string]string{
 		{"key": "discovery_service_url", "value": "some url"},
 		{"key": "autopilot", "value": "true"},
 		{"key": "provider_id", "value": "1337"},
 		{"key": "installation_type", "value": "Windows SeRvEr 99.9"},
-	}, false)
+	})
 	require.NoError(t, err)
 	require.True(t, ds.SetOrUpdateMDMDataFuncInvoked)
 }
@@ -477,7 +468,7 @@ func TestDirectIngestChromeProfiles(t *testing.T) {
 	err := directIngestChromeProfiles(context.Background(), log.NewNopLogger(), &host, ds, []map[string]string{
 		{"email": "test@example.com"},
 		{"email": "test+2@example.com"},
-	}, false)
+	})
 
 	require.NoError(t, err)
 	require.True(t, ds.ReplaceHostDeviceMappingFuncInvoked)
@@ -500,7 +491,7 @@ func TestDirectIngestBattery(t *testing.T) {
 	err := directIngestBattery(context.Background(), log.NewNopLogger(), &host, ds, []map[string]string{
 		{"serial_number": "a", "cycle_count": "2", "health": "Good"},
 		{"serial_number": "c", "cycle_count": "3", "health": strings.Repeat("z", 100)},
-	}, false)
+	})
 
 	require.NoError(t, err)
 	require.True(t, ds.ReplaceHostBatteriesFuncInvoked)
@@ -546,7 +537,7 @@ func TestDirectIngestOSWindows(t *testing.T) {
 			return nil
 		}
 
-		err := directIngestOSWindows(context.Background(), log.NewNopLogger(), &host, ds, tt.data, false)
+		err := directIngestOSWindows(context.Background(), log.NewNopLogger(), &host, ds, tt.data)
 		require.NoError(t, err)
 
 		require.True(t, ds.UpdateHostOperatingSystemFuncInvoked)
@@ -669,7 +660,7 @@ func TestDirectIngestOSUnixLike(t *testing.T) {
 				return nil
 			}
 
-			err := directIngestOSUnixLike(context.Background(), log.NewNopLogger(), &fleet.Host{ID: uint(i)}, ds, tc.data, false)
+			err := directIngestOSUnixLike(context.Background(), log.NewNopLogger(), &fleet.Host{ID: uint(i)}, ds, tc.data)
 
 			require.NoError(t, err)
 			require.True(t, ds.UpdateHostOperatingSystemFuncInvoked)
@@ -780,7 +771,7 @@ func TestDirectIngestWindowsUpdateHistory(t *testing.T) {
 		{"date": "1657929207", "title": "Security Intelligence Update for Microsoft Defender Antivirus - KB2267602 (Version 1.371.203.0)"},
 	}
 
-	err := directIngestWindowsUpdateHistory(context.Background(), log.NewNopLogger(), &host, ds, payload, false)
+	err := directIngestWindowsUpdateHistory(context.Background(), log.NewNopLogger(), &host, ds, payload)
 	require.NoError(t, err)
 	require.True(t, ds.InsertWindowsUpdatesFuncInvoked)
 }
@@ -814,22 +805,17 @@ func TestDirectDiskEncryption(t *testing.T) {
 	expectEncrypted = true
 	err := directIngestDiskEncryption(context.Background(), log.NewNopLogger(), &host, ds, []map[string]string{
 		{"col1": "1"},
-	}, false)
+	})
 	require.NoError(t, err)
 	require.True(t, ds.SetOrUpdateHostDisksEncryptionFuncInvoked)
 	ds.SetOrUpdateHostDisksEncryptionFuncInvoked = false
 
 	// set to false (osquery returned nothing)
 	expectEncrypted = false
-	err = directIngestDiskEncryption(context.Background(), log.NewNopLogger(), &host, ds, []map[string]string{}, false)
+	err = directIngestDiskEncryption(context.Background(), log.NewNopLogger(), &host, ds, []map[string]string{})
 	require.NoError(t, err)
 	require.True(t, ds.SetOrUpdateHostDisksEncryptionFuncInvoked)
 	ds.SetOrUpdateHostDisksEncryptionFuncInvoked = false
-
-	// failed osquery result (should not update the host)
-	err = directIngestDiskEncryption(context.Background(), log.NewNopLogger(), &host, ds, []map[string]string{}, true)
-	require.NoError(t, err)
-	require.False(t, ds.SetOrUpdateHostDisksEncryptionFuncInvoked)
 }
 
 func TestDirectIngestDiskEncryptionLinux(t *testing.T) {
@@ -844,7 +830,7 @@ func TestDirectIngestDiskEncryptionLinux(t *testing.T) {
 	}
 
 	expectEncrypted = false
-	err := directIngestDiskEncryptionLinux(context.Background(), log.NewNopLogger(), &host, ds, []map[string]string{}, false)
+	err := directIngestDiskEncryptionLinux(context.Background(), log.NewNopLogger(), &host, ds, []map[string]string{})
 	require.NoError(t, err)
 	require.True(t, ds.SetOrUpdateHostDisksEncryptionFuncInvoked)
 	ds.SetOrUpdateHostDisksEncryptionFuncInvoked = false
@@ -854,7 +840,7 @@ func TestDirectIngestDiskEncryptionLinux(t *testing.T) {
 		{"path": "/etc/hosts", "encrypted": "0"},
 		{"path": "/tmp", "encrypted": "0"},
 		{"path": "/", "encrypted": "1"},
-	}, false)
+	})
 	require.NoError(t, err)
 	require.True(t, ds.SetOrUpdateHostDisksEncryptionFuncInvoked)
 }
