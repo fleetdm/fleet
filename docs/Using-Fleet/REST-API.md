@@ -831,6 +831,9 @@ None.
   "features": {
     "additional_queries": null
   },
+  "mdm": {
+    "apple_bm_terms_expired": false
+  },
   "agent_options": {
     "spec": {
       "config": {
@@ -1073,6 +1076,9 @@ Modifies the Fleet's configuration with the supplied information.
   "license": {
     "tier": "free",
     "expiration": "0001-01-01T00:00:00Z"
+  },
+  "mdm": {
+    "apple_bm_terms_expired": false
   },
   "agent_options": {
     "config": {
