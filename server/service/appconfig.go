@@ -676,7 +676,7 @@ func encodePEMCertificate(buf io.Writer, cert *x509.Certificate) error {
 }
 
 func (svc *Service) HostFeatures(ctx context.Context, host *fleet.Host) (*fleet.Features, error) {
-	if svc.EnterpriseOverrides != nil && svc.EnterpriseOverrides.HostFeatures != nil {
+	if svc.EnterpriseOverrides != nil {
 		return svc.EnterpriseOverrides.HostFeatures(ctx, host)
 	}
 
