@@ -143,9 +143,9 @@ Generated when applying policy specs.
 
 This activity contains a field "policies" where each item is a policy spec with the following fields:
 - "name": Name of the applied policy.
-- "query": SQL query of the policy
-- "description": Description of the policy
-- "critical": Marks the policy as high impact
+- "query": SQL query of the policy.
+- "description": Description of the policy.
+- "critical": Marks the policy as high impact.
 - "resolution": Describes how to solve a failing policy.
 - "team": Name of the team this policy belongs to.
 - "platform": Comma-separated string to indicate the target platforms.

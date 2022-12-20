@@ -46,7 +46,7 @@ func (d dummyActivity) ActivityName() string {
 	return d.name
 }
 
-func (d dummyActivity) Documentation() (string, string, string) {
+func (d dummyActivity) Documentation() (activity string, details string, detailsExample string) {
 	return "", "", ""
 }
 
