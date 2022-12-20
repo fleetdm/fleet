@@ -181,6 +181,7 @@
     border: 0;
     margin: 1px 0 0;
     padding: $pad-small;
+    animation: fade-in 100ms linear;
   }
 
   .Select-noresults {
