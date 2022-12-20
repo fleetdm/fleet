@@ -810,7 +810,7 @@ func newAppleMDMDEPProfileAssigner(
 	loggingDebug bool,
 ) (*schedule.Schedule, error) {
 	const name = string(fleet.CronAppleMDMDEPProfileAssigner)
-	depClient := godep.NewClient(depStorage, fleethttp.NewClient())
+	depClient := fleet.NewDEPClient(depStorage, ds)
 	assignerOpts := []depsync.AssignerOption{
 		depsync.WithAssignerLogger(NewNanoDEPLogger(kitlog.With(logger, "component", "nanodep-assigner"))),
 	}

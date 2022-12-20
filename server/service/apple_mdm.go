@@ -13,7 +13,6 @@ import (
 	"text/template"
 
 	"github.com/docker/go-units"
-	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -103,7 +102,7 @@ func (svc *Service) setDEPProfile(ctx context.Context, enrollmentProfile *fleet.
 	depProfileRequest.URL = enrollURL
 	depProfileRequest.ConfigurationWebURL = enrollURL
 
-	depClient := godep.NewClient(svc.depStorage, fleethttp.NewClient())
+	depClient := fleet.NewDEPClient(svc.depStorage, svc.ds)
 	res, err := depClient.DefineProfile(ctx, apple_mdm.DEPName, &depProfileRequest)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "apple POST /profile request failed")
@@ -408,7 +407,7 @@ func (svc *Service) ListMDMAppleDEPDevices(ctx context.Context) ([]fleet.MDMAppl
 	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleDEPDevice{}, fleet.ActionWrite); err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
-	depClient := godep.NewClient(svc.depStorage, fleethttp.NewClient())
+	depClient := fleet.NewDEPClient(svc.depStorage, svc.ds)
 
 	// TODO(lucas): Use cursors and limit to fetch in multiple requests.
 	// This single-request version supports up to 1000 devices (max to return in one call).
