@@ -280,7 +280,8 @@ func updateMDMAppleHostDB(ctx context.Context, tx sqlx.ExtContext, hostID uint, 
 			hardware_serial = ?,
 			uuid = ?,
 			hardware_model = ?,
-			platform =  ?
+			platform =  ?,
+			refetch_requested = ?
 		WHERE id = ?`
 
 	if _, err := tx.ExecContext(
@@ -290,6 +291,7 @@ func updateMDMAppleHostDB(ctx context.Context, tx sqlx.ExtContext, hostID uint, 
 		mdmHost.UDID,
 		mdmHost.Model,
 		"darwin",
+		1,
 		hostID,
 	); err != nil {
 		return ctxerr.Wrap(ctx, err, "update mdm apple host")
@@ -307,10 +309,11 @@ func insertMDMAppleHostDB(ctx context.Context, tx sqlx.ExtContext, mdmHost fleet
 			platform, 
 			last_enrolled_at, 
 			detail_updated_at, 
-			osquery_host_id
-		) VALUES (?,?,?,?,?,?,?)`
+			osquery_host_id,
+			refetch_requested
+		) VALUES (?,?,?,?,?,?,?,?)`
 
-	if _, err := tx.ExecContext(
+	res, err := tx.ExecContext(
 		ctx,
 		insertStmt,
 		mdmHost.SerialNumber,
@@ -320,10 +323,43 @@ func insertMDMAppleHostDB(ctx context.Context, tx sqlx.ExtContext, mdmHost fleet
 		"2000-01-01 00:00:00",
 		"2000-01-01 00:00:00",
 		nil,
-	); err != nil {
+		1,
+	)
+	if err != nil {
 		return ctxerr.Wrap(ctx, err, "insert mdm apple host")
 	}
 
+	id, err := res.LastInsertId()
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "last insert id mdm apple host")
+	}
+	if id < 1 {
+		return ctxerr.Wrap(ctx, err, "ingest mdm apple host unexpected last insert id")
+	}
+
+	if err := upsertMDMAppleHostRelatedTables(ctx, tx, id); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func upsertMDMAppleHostRelatedTables(ctx context.Context, tx sqlx.ExtContext, hostID int64) error {
+	_, err := tx.ExecContext(ctx, `
+			INSERT INTO host_seen_times (host_id, seen_time) VALUES (?, NOW())
+			ON DUPLICATE KEY UPDATE seen_time = VALUES(seen_time)`,
+		hostID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "upsert mdm apple host seen times")
+	}
+
+	_, err = tx.ExecContext(ctx, `
+			INSERT INTO host_display_names (host_id, display_name) VALUES (?, '')
+			ON DUPLICATE KEY UPDATE display_name = display_name`,
+		hostID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "upsert mdm apple host display names")
+	}
 	return nil
 }
 
@@ -336,37 +372,76 @@ func (ds *Datastore) IngestMDMAppleDevicesFromDEPSync(ctx context.Context, devic
 		return 0, nil
 	}
 
-	us, args := unionSelectDevices(filtered)
+	var resCount int64
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		us, args := unionSelectDevices(filtered)
 
-	stmt := fmt.Sprintf(`
-		INSERT INTO hosts (hardware_serial, hardware_model, platform, last_enrolled_at, detail_updated_at, osquery_host_id) (
+		stmt := fmt.Sprintf(`
+		INSERT INTO hosts (hardware_serial, hardware_model, platform, last_enrolled_at, detail_updated_at, osquery_host_id, refetch_requested) (
 			SELECT
 				us.hardware_serial,
-				us.hardware_model,
+				COALESCE(GROUP_CONCAT(DISTINCT us.hardware_model), ''),
 				'darwin' AS platform,
 				'2000-01-01 00:00:00' AS last_enrolled_at,
 				'2000-01-01 00:00:00' AS detail_updated_at,
-				NULL AS osquery_host_id
+				NULL AS osquery_host_id,
+				1 AS refetch_requested
 			FROM (%s) us
 			LEFT JOIN hosts h ON us.hardware_serial = h.hardware_serial
 		WHERE
 			h.id IS NULL
 		GROUP BY
 			us.hardware_serial)`,
-		us,
-	)
+			us,
+		)
 
-	res, err := ds.writer.ExecContext(ctx, stmt, args...)
-	if err != nil {
-		return 0, ctxerr.Wrap(ctx, err, "ingest mdm apple hosts from dep sync insert")
-	}
+		res, err := tx.ExecContext(ctx, stmt, args...)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "ingest mdm apple hosts from dep sync insert")
+		}
 
-	n, err := res.RowsAffected()
-	if err != nil {
-		return 0, ctxerr.Wrap(ctx, err, "ingest mdm apple hosts from dep sync rows affected")
-	}
+		n, err := res.RowsAffected()
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "ingest mdm apple hosts from dep sync rows affected")
+		}
+		resCount = n
 
-	return n, nil
+		// update host seen times
+		args = []interface{}{}
+		parts := []string{}
+		for _, d := range filtered {
+			args = append(args, d.SerialNumber)
+			parts = append(parts, "?")
+		}
+
+		_, err = tx.ExecContext(ctx, fmt.Sprintf(`
+			INSERT INTO host_seen_times (host_id, seen_time) (SELECT
+				id, NOW()
+				FROM hosts
+			WHERE
+				hardware_serial IN(%s))
+			ON DUPLICATE KEY UPDATE seen_time = VALUES(seen_time)`, strings.Join(parts, ",")),
+			args...)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "ingest mdm apple host seen times")
+		}
+
+		_, err = tx.ExecContext(ctx, fmt.Sprintf(`
+			INSERT INTO host_display_names (host_id, display_name) (SELECT
+				id, ''
+				FROM hosts
+			WHERE
+				hardware_serial IN(%s))
+			ON DUPLICATE KEY UPDATE display_name = VALUES(display_name)`, strings.Join(parts, ",")),
+			args...)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "ingest mdm apple host display names")
+		}
+
+		return nil
+	})
+
+	return resCount, err
 }
 
 func filterMDMAppleDevices(devices []godep.Device) []godep.Device {

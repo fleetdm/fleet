@@ -222,7 +222,6 @@ func (ingester *MDMAppleHostIngester) Ingest(ctx context.Context, r *http.Reques
 
 func isMDMAppleCheckinReq(r *http.Request) bool {
 	contentType := r.Header.Get("Content-Type")
-	fmt.Println("content type in func", contentType)
 	if strings.HasPrefix(contentType, "application/x-apple-aspen-mdm-checkin") {
 		return true
 	}
@@ -248,7 +247,6 @@ func decodeMDMAppleCheckinReq(r *http.Request, dest *MDMAppleHostDetails) error 
 		return nil
 	default:
 		// these aren't the requests you're looking for, move along
-		fmt.Println("wrong message type")
 		return nil
 	}
 }

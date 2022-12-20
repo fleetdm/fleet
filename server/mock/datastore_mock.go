@@ -1268,7 +1268,7 @@ type DataStore struct {
 
 	IngestMDMAppleDeviceFromCheckinFunc        IngestMDMAppleDeviceFromCheckinFunc
 	IngestMDMAppleDeviceFromCheckinFuncInvoked bool
-	
+
 	IncreasePolicyAutomationIterationFunc        IncreasePolicyAutomationIterationFunc
 	IncreasePolicyAutomationIterationFuncInvoked bool
 

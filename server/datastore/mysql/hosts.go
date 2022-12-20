@@ -783,6 +783,7 @@ func (ds *Datastore) CleanupIncomingHosts(ctx context.Context, now time.Time) ([
 		WHERE
 		  hostname = '' AND
 		  osquery_version = '' AND
+		  hardware_serial = '' AND
 		  created_at < (? - INTERVAL 5 MINUTE)`
 		if err := sqlx.SelectContext(ctx, tx, &ids, selectIDs, now); err != nil {
 			return ctxerr.Wrap(ctx, err, "load incoming hosts to cleanup")
@@ -798,7 +799,7 @@ func (ds *Datastore) CleanupIncomingHosts(ctx context.Context, now time.Time) ([
 
 		cleanupHosts := `
 		DELETE FROM hosts
-		WHERE hostname = '' AND osquery_version = ''
+		WHERE hostname = '' AND osquery_version = '' AND hardware_serial = ''
 		AND created_at < (? - INTERVAL 5 MINUTE)
 		`
 		if _, err := tx.ExecContext(ctx, cleanupHosts, now); err != nil {
