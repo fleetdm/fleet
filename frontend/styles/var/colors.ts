@@ -17,6 +17,7 @@ export const COLORS = {
   "ui-off-white": "#F9FAFC",
   "ui-blue-hover": "#5D5AE7",
   "ui-blue-pressed": "#4B4AB4",
+  "ui-blue-focused-outline": "#D9D9FE",
   "ui-blue-50": "#B4B2FE",
   "ui-blue-25": "#D9D9FE",
   "ui-blue-10": "#F1F0FF",
