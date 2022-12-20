@@ -2106,9 +2106,9 @@ func testIncreasePolicyAutomationIteration(t *testing.T, ds *Datastore) {
 func testOutdatedAutomationBatch(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
-	h1, err := ds.NewHost(ctx, &fleet.Host{OsqueryHostID: "host1", NodeKey: "host1"})
+	h1, err := ds.NewHost(ctx, &fleet.Host{OsqueryHostID: ptr.String("host1"), NodeKey: ptr.String("host1")})
 	require.NoError(t, err)
-	h2, err := ds.NewHost(ctx, &fleet.Host{OsqueryHostID: "host2", NodeKey: "host2"})
+	h2, err := ds.NewHost(ctx, &fleet.Host{OsqueryHostID: ptr.String("host2"), NodeKey: ptr.String("host2")})
 	require.NoError(t, err)
 
 	pol1, err := ds.NewGlobalPolicy(ctx, nil, fleet.PolicyPayload{Name: "policy1"})
