@@ -34,19 +34,19 @@ module.exports = {
     },
     invalidToken: {
       description: 'The provided token for the api-only user could not be used to authorize requests from fleetdm.com',
-      statusCode: 401,
+      statusCode: 403,
     },
     invalidLicense: {
       description: 'The Fleet instance provided is on the Free tier.',
-      statusCode: 401,
+      statusCode: 400,
     },
     nonApiOnlyUser: {
       description: 'The provided API token for this Fleet instance is not associated with an api-only user.',
-      statusCode: 403,
+      statusCode: 400,
     },
     insufficientPermissions:{
       description: 'The api-only user associated with the provided token does not have the propper permissions to query the users endpoint.',
-      statusCode: 401,
+      statusCode: 403,
     },
 
   },
