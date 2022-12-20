@@ -591,7 +591,7 @@ export const humanHostLastRestart = (
       restartDate.getMilliseconds() - millisecondsLastRestart
     );
 
-    return formatDistanceToNow(new Date(restartDate), { addSuffix: true });
+    return restartDate.toString();
   } catch {
     return "Unavailable";
   }
@@ -604,7 +604,7 @@ export const humanHostLastSeen = (lastSeen: string): string => {
   return formatDistanceToNow(new Date(lastSeen), { addSuffix: true });
 };
 
-export const humanHostLastSeenWithDateTip = (lastSeen: string) => {
+export const humanHostTimeDiffWithDateTip = (lastSeen: string) => {
   const id = uniqueId();
   return (
     <>
