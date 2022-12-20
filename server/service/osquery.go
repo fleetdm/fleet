@@ -820,46 +820,14 @@ func (svc *Service) SubmitDistributedQueryResults(
 			ll.Log("query", query, "message", messages[query], "hostID", host.ID)
 		}
 
-		// live queries we do want to ingest even if the query had issues, because we want to inform the user of these
-		// issues
-		// same applies to policies, since it's a 3 state result, one of them being failure, and labels take this state
-		// into account as well
-
 		var err error
-		switch {
-		case strings.HasPrefix(query, hostDistributedQueryPrefix):
-			err = svc.ingestDistributedQuery(ctx, *host, query, rows, failed, messages[query])
-		case strings.HasPrefix(query, hostPolicyQueryPrefix):
-			err = ingestMembershipQuery(hostPolicyQueryPrefix, query, rows, policyResults, failed)
-		case strings.HasPrefix(query, hostLabelQueryPrefix):
-			err = ingestMembershipQuery(hostLabelQueryPrefix, query, rows, labelResults, failed)
+		detailUpdated, additionalUpdated, err = svc.ingestQueryResults(
+			ctx, query, host, rows, failed, messages, policyResults, labelResults, additionalResults,
+		)
+		if err != nil {
+			logging.WithErr(ctx, ctxerr.New(ctx, "error in query ingestion"))
+			logging.WithExtras(ctx, "ingestion-err", err)
 		}
-		logIngestionError(ctx, err)
-
-		if failed {
-			// if a query failed, don't try to ingest it
-			continue
-		}
-
-		switch {
-		case strings.HasPrefix(query, hostDetailQueryPrefix):
-			trimmedQuery := strings.TrimPrefix(query, hostDetailQueryPrefix)
-			var ingested bool
-			ingested, err = svc.directIngestDetailQuery(ctx, host, trimmedQuery, rows)
-			if !ingested && err == nil {
-				err = svc.ingestDetailQuery(ctx, host, trimmedQuery, rows)
-				// No err != nil check here because ingestDetailQuery could have updated
-				// successfully some values of host.
-				detailUpdated = true
-			}
-		case strings.HasPrefix(query, hostAdditionalQueryPrefix):
-			name := strings.TrimPrefix(query, hostAdditionalQueryPrefix)
-			additionalResults[name] = rows
-			additionalUpdated = true
-		default:
-			err = osqueryError{message: "unknown query prefix: " + query}
-		}
-		logIngestionError(ctx, err)
 	}
 
 	ac, err := svc.ds.AppConfig(ctx)
@@ -956,11 +924,57 @@ func (svc *Service) SubmitDistributedQueryResults(
 	return nil
 }
 
-func logIngestionError(ctx context.Context, err error) {
-	if err != nil {
-		logging.WithErr(ctx, ctxerr.New(ctx, "error in query ingestion"))
-		logging.WithExtras(ctx, "ingestion-err", err)
+func (svc *Service) ingestQueryResults(
+	ctx context.Context,
+	query string,
+	host *fleet.Host,
+	rows []map[string]string,
+	failed bool,
+	messages map[string]string,
+	policyResults map[uint]*bool,
+	labelResults map[uint]*bool,
+	additionalResults fleet.OsqueryDistributedQueryResults,
+) (bool, bool, error) {
+	var detailUpdated, additionalUpdated bool
+
+	// live queries we do want to ingest even if the query had issues, because we want to inform the user of these
+	// issues
+	// same applies to policies, since it's a 3 state result, one of them being failure, and labels take this state
+	// into account as well
+
+	var err error
+	switch {
+	case strings.HasPrefix(query, hostDistributedQueryPrefix):
+		err = svc.ingestDistributedQuery(ctx, *host, query, rows, failed, messages[query])
+	case strings.HasPrefix(query, hostPolicyQueryPrefix):
+		err = ingestMembershipQuery(hostPolicyQueryPrefix, query, rows, policyResults, failed)
+	case strings.HasPrefix(query, hostLabelQueryPrefix):
+		err = ingestMembershipQuery(hostLabelQueryPrefix, query, rows, labelResults, failed)
 	}
+
+	if failed {
+		// if a query failed, and it might be a detailed query or host additional, don't even try to ingest it
+		return false, false, err
+	}
+
+	switch {
+	case strings.HasPrefix(query, hostDetailQueryPrefix):
+		trimmedQuery := strings.TrimPrefix(query, hostDetailQueryPrefix)
+		var ingested bool
+		ingested, err = svc.directIngestDetailQuery(ctx, host, trimmedQuery, rows)
+		if !ingested && err == nil {
+			err = svc.ingestDetailQuery(ctx, host, trimmedQuery, rows)
+			// No err != nil check here because ingestDetailQuery could have updated
+			// successfully some values of host.
+			detailUpdated = true
+		}
+	case strings.HasPrefix(query, hostAdditionalQueryPrefix):
+		name := strings.TrimPrefix(query, hostAdditionalQueryPrefix)
+		additionalResults[name] = rows
+		additionalUpdated = true
+	}
+
+	return detailUpdated, additionalUpdated, err
 }
 
 var noSuchTableRegexp = regexp.MustCompile(`^no such table: \S+$`)
