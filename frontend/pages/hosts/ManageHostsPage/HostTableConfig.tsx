@@ -18,6 +18,7 @@ import {
   humanHostMemory,
   humanHostLastRestart,
   humanHostLastSeen,
+  humanHostLastSeenWithDateTip,
   humanHostDetailUpdated,
   hostTeamName,
 } from "utilities/helpers";
@@ -387,7 +388,10 @@ const allHostTableHeaders: IDataColumn[] = [
     },
     accessor: "seen_time",
     Cell: (cellProps: ICellProps) => (
-      <TextCell value={cellProps.cell.value} formatter={humanHostLastSeen} />
+      <TextCell
+        value={cellProps.cell.value}
+        formatter={humanHostLastSeenWithDateTip}
+      />
     ),
   },
   {

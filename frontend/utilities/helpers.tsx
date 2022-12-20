@@ -1,10 +1,22 @@
-import { isEmpty, flatMap, omit, pick, size, memoize, reduce } from "lodash";
+import React from "react";
+import ReactTooltip from "react-tooltip";
+import {
+  isEmpty,
+  flatMap,
+  omit,
+  pick,
+  size,
+  memoize,
+  reduce,
+  uniqueId,
+} from "lodash";
 import md5 from "js-md5";
 import {
   formatDistanceToNow,
   isAfter,
   intervalToDuration,
   formatDuration,
+  intlFormat,
 } from "date-fns";
 import yaml from "js-yaml";
 
@@ -590,6 +602,38 @@ export const humanHostLastSeen = (lastSeen: string): string => {
     return "Never";
   }
   return formatDistanceToNow(new Date(lastSeen), { addSuffix: true });
+};
+
+export const humanHostLastSeenWithDateTip = (lastSeen: string) => {
+  const id = uniqueId();
+  return (
+    <>
+      <span className={"date-tooltip"} data-tip data-for={`tooltip-${id}`}>
+        {humanHostLastSeen(lastSeen)}
+      </span>
+      <ReactTooltip
+        className="date-tooltip-text"
+        place="top"
+        type="dark"
+        effect="solid"
+        id={`tooltip-${id}`}
+        backgroundColor="#3e4771"
+      >
+        {intlFormat(
+          new Date(lastSeen),
+          {
+            year: "numeric",
+            month: "numeric",
+            day: "numeric",
+            hour: "numeric",
+            minute: "numeric",
+            second: "numeric",
+          },
+          { locale: window.navigator.languages[0] }
+        )}
+      </ReactTooltip>
+    </>
+  );
 };
 
 export const humanHostEnrolled = (enrolled: string): string => {
