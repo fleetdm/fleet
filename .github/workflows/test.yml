@@ -21,7 +21,7 @@ on:
       - docker-compose.yml
       - webpack.config.js
       - tsconfig.json
-      - /.github/workflows/test.yml
+      - .github/workflows/test.yml
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
