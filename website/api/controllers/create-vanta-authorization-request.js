@@ -73,7 +73,7 @@ module.exports = {
       throw 'connectionAlreadyExists';
     } else if(existingConnectionRecord) {
       // If an inactive and incomplete Vanta connection exists that uses the same API token and email address, we'll use the sourceId from that record for this request.
-      sourceIDForThisRequest = existingConnectionRecord.sourceId;
+      sourceIDForThisRequest = existingConnectionRecord.vantaSourceId;
     }
 
 
@@ -86,7 +86,7 @@ module.exports = {
       throw new Error(`When sending a request to a Fleet instance's /me endpoint to verify that a token meets the requirements for a Vanta connection, an error occurred: ${error}`);
     });
 
-    // Throw an error if the provided API token is not an API-only user. This way, we can be sure that a provided token does not expire.
+    // Throw an error if the provided API token is not an API-only user.
     if(!responseFromFleetInstance.user.api_only) {
       throw 'nonApiOnlyUser';
     }
