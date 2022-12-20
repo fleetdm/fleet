@@ -7,8 +7,8 @@ import Button from "components/buttons/Button";
 import DiskSpaceGraph from "components/DiskSpaceGraph";
 import {
   humanHostMemory,
-  humanHostDetailUpdated,
   wrapFleetHelper,
+  humanHostTimeDiffWithDateTip,
 } from "utilities/helpers";
 import getHostStatusTooltipText from "pages/hosts/helpers";
 import StatusIndicator from "components/StatusIndicator";
@@ -212,9 +212,8 @@ const HostSummary = ({
               {deviceUser ? "My device" : titleData.display_name || "---"}
             </h1>
             <p className="last-fetched">
-              {`Last fetched ${humanHostDetailUpdated(
-                titleData.detail_updated_at
-              )}`}
+              Last fetched{" "}
+              {humanHostTimeDiffWithDateTip(titleData.detail_updated_at)}
               &nbsp;
             </p>
             {renderRefetch()}
