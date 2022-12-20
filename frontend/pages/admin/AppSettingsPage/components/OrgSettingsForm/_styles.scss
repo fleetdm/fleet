@@ -72,6 +72,7 @@
   &__section {
     @include clearfix;
     margin: 0 0 $pad-large;
+    animation: fade-in 200ms ease-out;
 
     .upcaret::after {
       content: url("../assets/images/icon-collapse-black-16x16@2x.png");
