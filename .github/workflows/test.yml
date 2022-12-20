@@ -41,7 +41,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest-8-cores]
+        os: [ubuntu-latest-4-cores]
         go-version: ['^1.19.4']
         fleet-tier: [free, premium]
     runs-on: ${{ matrix.os }}
