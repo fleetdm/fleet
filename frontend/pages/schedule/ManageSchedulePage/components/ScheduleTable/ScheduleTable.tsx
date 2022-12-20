@@ -13,8 +13,6 @@ import {
 } from "interfaces/scheduled_query";
 
 import { ITeam } from "interfaces/team";
-
-import Icon from "components/Icon";
 import TableContainer from "components/TableContainer";
 import EmptyTable from "components/EmptyTable";
 import {
@@ -24,7 +22,6 @@ import {
 } from "./ScheduleTableConfig";
 
 const baseClass = "schedule-table";
-const noScheduleClass = "no-schedule";
 
 const TAGGED_TEMPLATES = {
   hostsByTeamRoute: (teamId: number | undefined | null) => {
