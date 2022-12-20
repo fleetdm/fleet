@@ -10,13 +10,13 @@ module.exports = {
   inputs: {
     state: {
       type: 'string',
-      description: 'The state provided to Vanta when an authorization request was created'
+      description: 'The state provided to Vanta when an authorization request was created',
       required: true,
     },
 
     code: {
       type: 'string',
-      description: 'The parameter that will be exchanged for a Vanta authorization token for this request.'
+      description: 'The parameter that will be exchanged for a Vanta authorization token for this request.',
       required: true,
     }
   },
