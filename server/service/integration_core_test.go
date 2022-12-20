@@ -2047,18 +2047,17 @@ func (s *integrationTestSuite) TestListActivities() {
 
 	ctx := context.Background()
 	u := s.users["admin1@example.com"]
-	details := make(map[string]interface{})
 
 	prevActivities, err := s.ds.ListActivities(ctx, fleet.ListOptions{})
 	require.NoError(t, err)
 
-	err = s.ds.NewActivity(ctx, &u, fleet.ActivityTypeAppliedSpecPack, &details)
+	err = s.ds.NewActivity(ctx, &u, fleet.ActivityTypeAppliedSpecPack{})
 	require.NoError(t, err)
 
-	err = s.ds.NewActivity(ctx, &u, fleet.ActivityTypeDeletedPack, &details)
+	err = s.ds.NewActivity(ctx, &u, fleet.ActivityTypeDeletedPack{})
 	require.NoError(t, err)
 
-	err = s.ds.NewActivity(ctx, &u, fleet.ActivityTypeEditedPack, &details)
+	err = s.ds.NewActivity(ctx, &u, fleet.ActivityTypeEditedPack{})
 	require.NoError(t, err)
 
 	lenPage := len(prevActivities) + 2
@@ -2066,16 +2065,16 @@ func (s *integrationTestSuite) TestListActivities() {
 	var listResp listActivitiesResponse
 	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &listResp, "per_page", strconv.Itoa(lenPage), "order_key", "id")
 	require.Len(t, listResp.Activities, lenPage)
-	assert.Equal(t, fleet.ActivityTypeAppliedSpecPack, listResp.Activities[lenPage-2].Type)
-	assert.Equal(t, fleet.ActivityTypeDeletedPack, listResp.Activities[lenPage-1].Type)
+	assert.Equal(t, fleet.ActivityTypeAppliedSpecPack{}.ActivityName(), listResp.Activities[lenPage-2].Type)
+	assert.Equal(t, fleet.ActivityTypeDeletedPack{}.ActivityName(), listResp.Activities[lenPage-1].Type)
 
 	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &listResp, "per_page", strconv.Itoa(lenPage), "order_key", "id", "page", "1")
 	require.Len(t, listResp.Activities, 1)
-	assert.Equal(t, fleet.ActivityTypeEditedPack, listResp.Activities[0].Type)
+	assert.Equal(t, fleet.ActivityTypeEditedPack{}.ActivityName(), listResp.Activities[0].Type)
 
 	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &listResp, "per_page", "1", "order_key", "id", "order_direction", "desc")
 	require.Len(t, listResp.Activities, 1)
-	assert.Equal(t, fleet.ActivityTypeEditedPack, listResp.Activities[0].Type)
+	assert.Equal(t, fleet.ActivityTypeEditedPack{}.ActivityName(), listResp.Activities[0].Type)
 }
 
 func (s *integrationTestSuite) TestListGetCarves() {
@@ -4468,7 +4467,7 @@ func (s *integrationTestSuite) TestAppConfig() {
 	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &listActivities, "order_key", "id", "order_direction", "desc")
 	if !assert.Len(t, listActivities.Activities, 0) {
 		// if there is an activity, make sure it is not edited_agent_options
-		require.NotEqual(t, fleet.ActivityTypeEditedAgentOptions, listActivities.Activities[0].Type)
+		require.NotEqual(t, fleet.ActivityTypeEditedAgentOptions{}.ActivityName(), listActivities.Activities[0].Type)
 	}
 
 	// and it did not update the appconfig
@@ -4488,7 +4487,7 @@ func (s *integrationTestSuite) TestAppConfig() {
   }`), http.StatusOK, &acResp)
 	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &listActivities, "order_key", "id", "order_direction", "desc")
 	require.True(t, len(listActivities.Activities) > 0)
-	require.Equal(t, fleet.ActivityTypeEditedAgentOptions, listActivities.Activities[0].Type)
+	require.Equal(t, fleet.ActivityTypeEditedAgentOptions{}.ActivityName(), listActivities.Activities[0].Type)
 	require.NotNil(t, listActivities.Activities[0].Details)
 	assert.JSONEq(t, `{"global": true, "team_id": null, "team_name": null}`, string(*listActivities.Activities[0].Details))
 

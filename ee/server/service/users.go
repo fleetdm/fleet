@@ -55,8 +55,7 @@ func (svc *Service) GetSSOUser(ctx context.Context, auth fleet.Auth) (*fleet.Use
 	err = svc.ds.NewActivity(
 		ctx,
 		user,
-		fleet.ActivityTypeUserAddedBySSO,
-		&map[string]interface{}{},
+		fleet.ActivityTypeUserAddedBySSO{},
 	)
 	if err != nil {
 		return nil, err

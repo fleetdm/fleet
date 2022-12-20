@@ -412,8 +412,9 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		if err := svc.ds.NewActivity(
 			ctx,
 			authz.UserFromContext(ctx),
-			fleet.ActivityTypeEditedAgentOptions,
-			&map[string]interface{}{"global": true, "team_id": nil, "team_name": nil},
+			fleet.ActivityTypeEditedAgentOptions{
+				Global: true,
+			},
 		); err != nil {
 			return nil, err
 		}
