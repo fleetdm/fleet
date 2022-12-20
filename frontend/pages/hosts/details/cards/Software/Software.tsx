@@ -4,7 +4,7 @@ import { InjectedRouter } from "react-router";
 import { Row } from "react-table";
 import PATHS from "router/paths";
 
-import { ISoftware, ISoftwareResponse } from "interfaces/software";
+import { ISoftware } from "interfaces/software";
 import { VULNERABLE_DROPDOWN_OPTIONS } from "utilities/constants";
 import { buildQueryStringFromParams } from "utilities/url";
 
@@ -28,7 +28,7 @@ export interface ITableSoftware extends Omit<ISoftware, "vulnerabilities"> {
 
 interface ISoftwareTableProps {
   isLoading: boolean;
-  software: ISoftwareResponse;
+  software: ISoftware[];
   deviceUser?: boolean;
   deviceType?: string;
   softwareInventoryEnabled?: boolean;

@@ -13,7 +13,8 @@
     flex-direction: column;
     gap: $pad-small; // 4px from header to info text
 
-    h2 {
+    h2,
+    h2 a {
       text-align: center;
       font-size: $small;
       font-weight: $bold;
@@ -22,15 +23,30 @@
 
     p {
       text-align: center;
-      color: $core-fleet-black;
+      color: $core-fleet-blue;
       font-size: $x-small;
       margin: 0;
+    }
+
+    ul {
+      margin: 0;
+      padding: 0;
+      color: $core-fleet-black;
+      list-style: none;
+
+      li {
+        &::before {
+          content: "•";
+          color: $core-vibrant-blue;
+          margin-right: $pad-medium;
+        }
+      }
     }
   }
 
   &__cta-buttons {
     display: flex;
     justify-content: center;
-    gap: $pad-small; // 8px between buttons
+    gap: $pad-medium; // 16px between buttons
   }
 }

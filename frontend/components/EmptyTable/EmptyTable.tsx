@@ -9,8 +9,9 @@ const baseClass = "empty-table";
 
 export interface IEmptyTableProps {
   iconName?: IconNames;
-  headerText?: string;
-  infoText?: JSX.Element | string;
+  header?: JSX.Element | string;
+  info?: JSX.Element | string;
+  additionalInfo?: JSX.Element | string;
   className?: string;
   primaryButton?: JSX.Element;
   secondaryButton?: JSX.Element;
@@ -18,8 +19,9 @@ export interface IEmptyTableProps {
 
 const EmptyTable = ({
   iconName,
-  headerText,
-  infoText,
+  header,
+  info,
+  additionalInfo,
   className,
   primaryButton,
   secondaryButton,
@@ -34,10 +36,11 @@ const EmptyTable = ({
         </div>
       )}
       <div className={`${baseClass}__inner`}>
-        {headerText && <h2>{headerText}</h2>}
-        {infoText && <p>{infoText}</p>}
+        {header && <h2>{header}</h2>}
+        {info && <p>{info}</p>}
+        {additionalInfo && <p>{additionalInfo}</p>}
       </div>
-      {!!primaryButton && (
+      {primaryButton && (
         <div className={`${baseClass}__cta-buttons`}>
           {primaryButton}
           {secondaryButton && secondaryButton}

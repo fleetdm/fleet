@@ -2,11 +2,14 @@ import Alert from "./Alert";
 import CalendarCheck from "./CalendarCheck";
 import Check from "./Check";
 import Chevron from "./Chevron";
-<<<<<<< HEAD
 import Ex from "./Ex";
-=======
+import EmptyHosts from "./EmptyHosts";
+import EmptyIntegrations from "./EmptyIntegrations";
+import EmptyPolicies from "./EmptyPolicies";
+import EmptyQueries from "./EmptyQueries";
+import EmptySchedule from "./EmptySchedule";
 import EmptySoftware from "./EmptySoftware";
->>>>>>> 58073c8e2 (Work towards empty component)
+import EmptyTeams from "./EmptyTeams";
 import ExternalLink from "./ExternalLink";
 import Issue from "./Issue";
 import Plus from "./Plus";
@@ -41,7 +44,13 @@ export const ICON_MAP = {
   chevron: Chevron,
   check: Check,
   ex: Ex,
+  "empty-hosts": EmptyHosts,
+  "empty-integrations": EmptyIntegrations,
+  "empty-policies": EmptyPolicies,
+  "empty-queries": EmptyQueries,
+  "empty-schedule": EmptySchedule,
   "empty-software": EmptySoftware,
+  "empty-teams": EmptyTeams,
   "external-link": ExternalLink,
   "low-disk-space-hosts": LowDiskSpaceHosts,
   "missing-hosts": MissingHosts,

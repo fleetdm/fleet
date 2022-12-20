@@ -1,4 +1,5 @@
 import React, { useState, useContext, useEffect, useCallback } from "react";
+import { IconNames } from "components/icons";
 import { useQuery } from "react-query";
 import { InjectedRouter, Params } from "react-router/lib/Router";
 import { RouteProps } from "react-router/lib/Route";
@@ -74,11 +75,11 @@ import {
   HOST_SELECT_STATUSES,
 } from "./constants";
 import { isAcceptableStatus, getNextLocationPath } from "./helpers";
+import EmptyTable from "components/EmptyTable";
 import DeleteSecretModal from "../../../components/EnrollSecrets/DeleteSecretModal";
 import SecretEditorModal from "../../../components/EnrollSecrets/SecretEditorModal";
 import AddHostsModal from "../../../components/AddHostsModal";
 import EnrollSecretModal from "../../../components/EnrollSecrets/EnrollSecretModal";
-import NoHosts from "./components/NoHosts";
 import EmptyHosts from "./components/EmptyHosts";
 import PoliciesFilter from "./components/PoliciesFilter";
 // @ts-ignore
@@ -109,6 +110,16 @@ interface ITableQueryProps {
   searchQuery: string;
   sortHeader: string;
   sortDirection: string;
+}
+
+interface IEmptyTableProps {
+  iconName?: IconNames;
+  header?: JSX.Element | string;
+  info?: JSX.Element | string;
+  additionalInfo?: JSX.Element | string;
+  className?: string;
+  primaryButton?: JSX.Element;
+  secondaryButton?: JSX.Element;
 }
 
 const CSV_HOSTS_TITLE = "Hosts";
@@ -1679,12 +1690,42 @@ const ManageHostsPage = ({
         osVersion
       );
 
+      const emptyState = () => {
+        const emptyHosts: IEmptyTableProps = {
+          header: "Devices will show up here once they’re added to Fleet.",
+          info:
+            "Expecting to see devices? Try again in a few seconds as the system catches up.",
+        };
+        if (!includesNameCardFilter) {
+          emptyHosts.iconName = "empty-hosts";
+        }
+        if (includesNameCardFilter) {
+          emptyHosts.header = "No hosts match the current criteria";
+          emptyHosts.info =
+            "Expecting to see new hosts? Try again in a few seconds as the system catches up.";
+        }
+        if (canEnrollHosts) {
+          emptyHosts.header = "Add your devices to Fleet";
+          emptyHosts.info = "Generate an installer to add your own devices.";
+          emptyHosts.primaryButton = (
+            <Button variant="brand" onClick={toggleAddHostsModal} type="button">
+              Add hosts
+            </Button>
+          );
+        }
+        return emptyHosts;
+      };
+
       return (
-        <NoHosts
-          toggleAddHostsModal={toggleAddHostsModal}
-          canEnrollHosts={canEnrollHosts}
-          includesNameCardFilter={includesNameCardFilter}
-        />
+        <>
+          {EmptyTable({
+            iconName: "empty-hosts", // TODO: Fix types to use emptyState().iconName
+            header: emptyState().header,
+            info: emptyState().info,
+            additionalInfo: emptyState().additionalInfo,
+            primaryButton: emptyState().primaryButton,
+          })}
+        </>
       );
     }
 

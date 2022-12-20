@@ -1,5 +1,6 @@
 import React, { useCallback, useContext, useState } from "react";
 import { useQuery } from "react-query";
+import { IconNames } from "components/icons";
 
 import { NotificationContext } from "context/notification";
 import PATHS from "router/paths";
@@ -15,6 +16,7 @@ import teamsAPI, { ILoadTeamsResponse } from "services/entities/teams";
 import Button from "components/buttons/Button";
 import TableContainer from "components/TableContainer";
 import TableDataError from "components/DataError";
+import EmptyTable from "components/EmptyTable";
 import CreateUserModal from "pages/admin/UserManagementPage/components/CreateUserModal";
 import { DEFAULT_CREATE_USER_ERRORS } from "utilities/constants";
 import EditUserModal from "../../../UserManagementPage/components/EditUserModal";
@@ -39,6 +41,16 @@ interface IMembersPageProps {
   params: {
     team_id: string;
   };
+}
+
+interface IEmptyTableProps {
+  iconName?: IconNames;
+  header?: JSX.Element | string;
+  info?: JSX.Element | string;
+  additionalInfo?: JSX.Element | string;
+  className?: string;
+  primaryButton?: JSX.Element;
+  secondaryButton?: JSX.Element;
 }
 
 const MembersPage = ({
@@ -339,6 +351,44 @@ const MembersPage = ({
     }
   };
 
+  // TODO: Refactor
+
+  const emptyState = () => {
+    const emptyMembers: IEmptyTableProps = {
+      header: "This team doesn't have any members yet.",
+      info:
+        "Expecting to see new team members listed here? Try again in a few seconds as the system catches up.",
+    };
+    if (isGlobalAdmin) {
+      emptyMembers.primaryButton = (
+        <Button
+          variant="brand"
+          className={`${noMembersClass}__create-button`}
+          onClick={toggleAddUserModal}
+        >
+          Add member
+        </Button>
+      );
+    }
+    if (isTeamAdmin) {
+      emptyMembers.primaryButton = (
+        <Button
+          variant="brand"
+          className={`${noMembersClass}__create-button`}
+          onClick={toggleCreateMemberModal}
+        >
+          Create user
+        </Button>
+      );
+    }
+    if (searchString !== "") {
+      emptyMembers.header = "We couldn’t find any members.";
+      emptyMembers.info =
+        "Expecting to see members? Try again in a few seconds as the system catches up.";
+    }
+    return emptyMembers;
+  };
+
   const NoMembersComponent = useCallback(() => {
     return (
       <div className={`${noMembersClass}`}>
@@ -417,7 +467,14 @@ const MembersPage = ({
           hideActionButton={memberIds.length === 0 && searchString === ""}
           onQueryChange={({ searchQuery }) => setSearchString(searchQuery)}
           inputPlaceHolder={"Search"}
-          emptyComponent={NoMembersComponent}
+          emptyComponent={() =>
+            EmptyTable({
+              // TODO: Need an image for this empty state
+              header: emptyState().header,
+              info: emptyState().info,
+              primaryButton: emptyState().primaryButton,
+            })
+          }
           showMarkAllPages={false}
           isAllPagesSelected={false}
           searchable={memberIds.length > 0 || searchString !== ""}

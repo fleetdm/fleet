@@ -47,7 +47,7 @@ import TeamsDropdownHeader, {
 import LastUpdatedText from "components/LastUpdatedText";
 import MainContent from "components/MainContent";
 import CustomLink from "components/CustomLink";
-import EmptyPage from "components/EmptyTable";
+import EmptyTable from "components/EmptyTable";
 
 import generateSoftwareTableHeaders from "./SoftwareTableConfig";
 import ManageAutomationsModal from "./components/ManageAutomationsModal";
@@ -530,37 +530,45 @@ const ManageSoftwarePage = ({
     router.push(path);
   };
 
-  const emptyHeaderText = () => {
+  const emptyState = () => {
     if (!isSoftwareEnabled) {
-      return "Software inventory disabled";
+      return {
+        iconName: "empty-software",
+        header: "Software inventory disabled",
+        info: (
+          <>
+            Users with the admin role can{" "}
+            <CustomLink
+              url="https://fleetdm.com/docs/using-fleet/vulnerability-processing#configuration"
+              text="turn on software inventory"
+              newTab
+            />
+            .
+          </>
+        ),
+      };
     }
     if (isCollectingInventory) {
-      return "No software detected";
+      return {
+        iconName: "empty-software",
+        header: "No software detected",
+        info:
+          "This report is updated every hour to protect the performance of your devices.",
+      };
     }
     if (currentTeam && filterVuln) {
-      return "No vulnerable software detected";
+      return {
+        iconName: "empty-software",
+        header: "No vulnerable software detected",
+        info:
+          "This report is updated every hour to protect the performance of your devices.",
+      };
     }
-    return "No software matches the current search criteria";
-  };
-
-  const emptyInfoText = () => {
-    if (!isSoftwareEnabled) {
-      return (
-        <>
-          Users with the admin role can{" "}
-          <CustomLink
-            url="https://fleetdm.com/docs/using-fleet/vulnerability-processing#configuration"
-            text="turn on software inventory"
-            newTab
-          />
-          .
-        </>
-      );
-    }
-    if (isCollectingInventory || (currentTeam && filterVuln)) {
-      return "This report is updated every hour to protect the performance of your devices.";
-    }
-    return "Try again in about 1 hour as the system catches up.";
+    return {
+      iconName: "empty-software",
+      header: "No software matches the current search criteria",
+      info: "Try again in about 1 hour as the system catches up.",
+    };
   };
 
   return !availableTeams ||
@@ -582,10 +590,10 @@ const ManageSoftwarePage = ({
               isLoading={isFetchingSoftware || isFetchingCount}
               resultsTitle={"software items"}
               emptyComponent={() =>
-                EmptyPage({
-                  iconName: "empty-software",
-                  headerText: emptyHeaderText(),
-                  infoText: emptyInfoText(),
+                EmptyTable({
+                  iconName: "empty-software", // TODO: Fix types to use emptyState().iconName
+                  header: emptyState().header,
+                  info: emptyState().info,
                 })
               }
               defaultSortHeader={DEFAULT_SORT_HEADER}

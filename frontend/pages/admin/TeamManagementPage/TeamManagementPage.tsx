@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useContext } from "react";
+import { IconNames } from "components/icons";
 import { useQuery } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
 
@@ -14,6 +15,7 @@ import teamsAPI, {
 import Button from "components/buttons/Button";
 import TableContainer from "components/TableContainer";
 import TableDataError from "components/DataError";
+import EmptyTable from "components/EmptyTable";
 import CustomLink from "components/CustomLink";
 
 import CreateTeamModal from "./components/CreateTeamModal";
@@ -23,6 +25,16 @@ import { generateTableHeaders, generateDataSet } from "./TeamTableConfig";
 
 const baseClass = "team-management";
 const noTeamsClass = "no-teams";
+
+interface IEmptyTableProps {
+  iconName?: IconNames;
+  header?: JSX.Element | string;
+  info?: JSX.Element | string;
+  additionalInfo?: JSX.Element | string;
+  className?: string;
+  primaryButton?: JSX.Element;
+  secondaryButton?: JSX.Element;
+}
 
 const TeamManagementPage = (): JSX.Element => {
   const { renderFlash } = useContext(NotificationContext);
@@ -197,35 +209,35 @@ const TeamManagementPage = (): JSX.Element => {
     }
   };
 
-  const NoTeamsComponent = () => {
-    return (
-      <div className={`${noTeamsClass}`}>
-        <div className={`${noTeamsClass}__inner`}>
-          <div className={`${noTeamsClass}__inner-text`}>
-            <h1>Set up team permissions</h1>
-            <p>
-              Keep your organization organized and efficient by ensuring every
-              user has the correct access to the right hosts.
-            </p>
-            <p>
-              Want to learn more?&nbsp;
-              <CustomLink
-                url="https://fleetdm.com/docs/using-fleet/teams"
-                text="Read about teams"
-                newTab
-              />
-            </p>
-            <Button
-              variant="brand"
-              className={`${noTeamsClass}__create-button`}
-              onClick={toggleCreateTeamModal}
-            >
-              Create team
-            </Button>
-          </div>
-        </div>
-      </div>
-    );
+  const emptyState = () => {
+    const noTeams: IEmptyTableProps = {
+      iconName: "empty-teams",
+      header: "Set up team permissions",
+      info:
+        "Keep your organization organized and efficient by ensuring every user has the correct access to the right hosts.",
+      additionalInfo: (
+        <>
+          {" "}
+          Want to learn more?&nbsp;
+          <CustomLink
+            url="https://fleetdm.com/docs/using-fleet/teams"
+            text="Read about teams"
+            newTab
+          />
+        </>
+      ),
+      primaryButton: (
+        <Button
+          variant="brand"
+          className={`${noTeamsClass}__create-button`}
+          onClick={toggleCreateTeamModal}
+        >
+          Create team
+        </Button>
+      ),
+    };
+
+    return noTeams;
   };
 
   const tableHeaders = generateTableHeaders(onActionSelection);
@@ -252,7 +264,15 @@ const TeamManagementPage = (): JSX.Element => {
           onActionButtonClick={toggleCreateTeamModal}
           onQueryChange={onQueryChange}
           resultsTitle={"teams"}
-          emptyComponent={NoTeamsComponent}
+          emptyComponent={() =>
+            EmptyTable({
+              iconName: "empty-teams", // TODO: Fix types to use emptyState().iconName
+              header: emptyState().header,
+              info: emptyState().info,
+              additionalInfo: emptyState().additionalInfo,
+              primaryButton: emptyState().primaryButton,
+            })
+          }
           showMarkAllPages={false}
           isAllPagesSelected={false}
           searchable={teams && teams.length > 0 && searchString !== ""}
