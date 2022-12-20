@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	kitlog "github.com/go-kit/kit/log"
+	"github.com/go-kit/kit/log/level"
 	nanodep_client "github.com/micromdm/nanodep/client"
 	"github.com/micromdm/nanodep/godep"
 )
@@ -45,21 +47,22 @@ type AppConfigUpdater interface {
 type termsChangedDoer struct {
 	doer    nanodep_client.Doer
 	updater AppConfigUpdater
+	logger  kitlog.Logger
 }
 
 func (d termsChangedDoer) Do(req *http.Request) (*http.Response, error) {
 	// make the actual DEP request
-	res, err := d.doer.Do(req)
+	res, reqErr := d.doer.Do(req)
 
 	// if the request failed due to terms not signed, or if it succeeded,
 	// update the app config flag accordingly. If it failed for any other
 	// reason, do not update the flag.
-	termsExpired := err != nil && godep.IsTermsNotSigned(err)
-	if err == nil || termsExpired {
+	termsExpired := reqErr != nil && godep.IsTermsNotSigned(reqErr)
+	if reqErr == nil || termsExpired {
 		appCfg, err := d.updater.AppConfig(req.Context())
 		if err != nil {
-			// TODO: log at least
-			return res, err
+			level.Error(d.logger).Log("msg", "Apple DEP client: failed to get app config", "err", err)
+			return res, reqErr
 		}
 
 		var mustSaveAppCfg bool
@@ -75,19 +78,25 @@ func (d termsChangedDoer) Do(req *http.Request) (*http.Response, error) {
 
 		if mustSaveAppCfg {
 			if err := d.updater.SaveAppConfig(req.Context(), appCfg); err != nil {
-				// TODO: log at least
+				level.Error(d.logger).Log("msg", "Apple DEP client: failed to save app config", "err", err)
 			}
+			level.Debug(d.logger).Log("msg", "Apple DEP client: updated app config Terms Expired flag",
+				"apple_bm_terms_expired", appCfg.MDM.AppleBMTermsExpired)
 		}
 	}
 
-	return res, err
+	return res, reqErr
 }
 
 // NewDEPClient creates an Apple DEP API HTTP client based on the provided
 // storage that will flag the AppConfig's AppleBMTermsExpired field whenever
 // the status of the terms changes.
-func NewDEPClient(storage godep.ClientStorage, appCfgUpdater AppConfigUpdater) *godep.Client {
+func NewDEPClient(storage godep.ClientStorage, appCfgUpdater AppConfigUpdater, logger kitlog.Logger) *godep.Client {
 	return godep.NewClient(storage, fleethttp.NewClient(), godep.WithMiddleware(func(d nanodep_client.Doer) nanodep_client.Doer {
-		return termsChangedDoer{doer: d, updater: appCfgUpdater}
+		return termsChangedDoer{
+			doer:    d,
+			updater: appCfgUpdater,
+			logger:  logger,
+		}
 	}))
 }

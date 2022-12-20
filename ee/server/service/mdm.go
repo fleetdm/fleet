@@ -6,6 +6,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	kitlog "github.com/go-kit/kit/log"
 	"github.com/micromdm/nanodep/storage"
 )
 
@@ -28,7 +29,7 @@ func (svc *Service) GetAppleBM(ctx context.Context) (*fleet.AppleBM, error) {
 		return nil, err
 	}
 
-	appleBM, err := getAppleBMAccountDetail(ctx, svc.depStorage, svc.ds)
+	appleBM, err := getAppleBMAccountDetail(ctx, svc.depStorage, svc.ds, svc.logger)
 	if err != nil {
 		return nil, err
 	}
@@ -43,8 +44,8 @@ func (svc *Service) GetAppleBM(ctx context.Context) (*fleet.AppleBM, error) {
 	return appleBM, nil
 }
 
-func getAppleBMAccountDetail(ctx context.Context, depStorage storage.AllStorage, ds fleet.Datastore) (*fleet.AppleBM, error) {
-	depClient := fleet.NewDEPClient(depStorage, ds)
+func getAppleBMAccountDetail(ctx context.Context, depStorage storage.AllStorage, ds fleet.Datastore, logger kitlog.Logger) (*fleet.AppleBM, error) {
+	depClient := fleet.NewDEPClient(depStorage, ds, logger)
 	res, err := depClient.AccountDetail(ctx, apple_mdm.DEPName)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "apple GET /account request failed")
