@@ -820,14 +820,16 @@ func (svc *Service) SubmitDistributedQueryResults(
 			ll.Log("query", query, "message", messages[query], "hostID", host.ID)
 		}
 
-		var err error
-		detailUpdated, additionalUpdated, err = svc.ingestQueryResults(
+		ingestedDetailUpdated, ingestedAdditionalUpdated, err := svc.ingestQueryResults(
 			ctx, query, host, rows, failed, messages, policyResults, labelResults, additionalResults,
 		)
 		if err != nil {
 			logging.WithErr(ctx, ctxerr.New(ctx, "error in query ingestion"))
 			logging.WithExtras(ctx, "ingestion-err", err)
 		}
+
+		detailUpdated = detailUpdated || ingestedDetailUpdated
+		additionalUpdated = additionalUpdated || ingestedAdditionalUpdated
 	}
 
 	ac, err := svc.ds.AppConfig(ctx)
