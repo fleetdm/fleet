@@ -242,8 +242,8 @@ module.exports.routes = {
     }
   },
 
-  'GET /vanta-callback': {
-    action: 'view-vanta-callback',
+  'GET /vanta-authorization': {
+    action: 'view-vanta-authorization',
     locals: {
       layout: 'layouts/layout-sandbox',
     }
