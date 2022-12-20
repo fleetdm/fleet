@@ -1,3 +1,4 @@
+<!-- DO NOT EDIT. This document is automatically generated. -->
 # Audit Activities
 
 Fleet logs the following information for administrative actions (in JSON):

@@ -14,7 +14,8 @@ import (
 func main() {
 	var b strings.Builder
 
-	b.WriteString(`# Audit Activities
+	b.WriteString(`<!-- DO NOT EDIT. This document is automatically generated. -->
+# Audit Activities
 
 Fleet logs the following information for administrative actions (in JSON):
 
