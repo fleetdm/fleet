@@ -18,7 +18,7 @@ import {
   humanHostMemory,
   humanHostLastRestart,
   humanHostLastSeen,
-  humanHostLastSeenWithDateTip,
+  humanHostTimeDiffWithDateTip,
   humanHostDetailUpdated,
   hostTeamName,
 } from "utilities/helpers";
@@ -363,7 +363,7 @@ const allHostTableHeaders: IDataColumn[] = [
     Cell: (cellProps: ICellProps) => (
       <TextCell
         value={cellProps.cell.value}
-        formatter={humanHostDetailUpdated}
+        formatter={humanHostTimeDiffWithDateTip}
       />
     ),
   },
@@ -390,7 +390,7 @@ const allHostTableHeaders: IDataColumn[] = [
     Cell: (cellProps: ICellProps) => (
       <TextCell
         value={cellProps.cell.value}
-        formatter={humanHostLastSeenWithDateTip}
+        formatter={humanHostTimeDiffWithDateTip}
       />
     ),
   },
@@ -418,7 +418,10 @@ const allHostTableHeaders: IDataColumn[] = [
       const { uptime, detail_updated_at } = cellProps.row.original;
 
       return (
-        <TextCell value={humanHostLastRestart(detail_updated_at, uptime)} />
+        <TextCell
+          value={humanHostLastRestart(detail_updated_at, uptime)}
+          formatter={humanHostTimeDiffWithDateTip}
+        />
       );
     },
   },
