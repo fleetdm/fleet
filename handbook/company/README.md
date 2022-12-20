@@ -8,7 +8,7 @@ We are dedicated to
 
 - 🧑‍🚀 automating IT and security.
 - 🪟 privacy, transparency, and trust through open source software.
-- 💻 a different way to manage computers.
+- 💻 a better way to manage computers.
 
 > 5 things is too many.  But we also care deeply about
 > - 💍 reducing the proliferation of agents and growing the adoption of osquery (one agent to rule them all).
@@ -18,7 +18,7 @@ We are dedicated to
 
 The Fleet handbook is inspired by the [GitLab team handbook](https://about.gitlab.com/handbook/about/).  It shares the same [advantages](https://about.gitlab.com/handbook/about/#advantages) and will probably undergo a similar [evolution](https://about.gitlab.com/handbook/ceo/#evolution-of-the-handbook).
 
-While [GitLab's handbook](https://about.gitlab.com/handbook/) inspires this handbook, it is nowhere near as complete (yet!)  We will continue adding and updating this handbook and gradually migrating information from [Fleet's shared Google Drive folder](https://drive.google.com/drive/u/0/folders/1StSOI3HNcsl9VleXxNWfUBT2co7h44OG) as time allows.
+While [GitLab's handbook](https://about.gitlab.com/handbook/) inspires this handbook, it is nowhere near as complete (yet!)  We will continue adding and updating this handbook and gradually migrating information from [Fleet's shared Google Drive folder](https://drive.google.com/drive/folders/1lA38aTxsl4_qDtHCrYHcAaadES5ws0yJ) as time allows.
 
 ## Culture
 

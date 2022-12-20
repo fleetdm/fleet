@@ -524,9 +524,10 @@ type Datastore interface {
 	///////////////////////////////////////////////////////////////////////////////
 	// Cron Stats
 
-	// GetLatestCronStats returns the most recent cron stats for the named cron schedule. If no rows
-	// are found, it returns an empty CronStats struct.
-	GetLatestCronStats(ctx context.Context, name string) (CronStats, error)
+	// GetLatestCronStats returns a slice of no more than two cron stats records, where index 0 (if
+	// present) is the most recently created scheduled run, and index 1 (if present) represents a
+	// triggered run that is currently pending.
+	GetLatestCronStats(ctx context.Context, name string) ([]CronStats, error)
 	// InsertCronStats inserts cron stats for the named cron schedule.
 	InsertCronStats(ctx context.Context, statsType CronStatsType, name string, instance string, status CronStatsStatus) (int, error)
 	// UpdateCronStats updates the status of the identified cron stats record.
@@ -723,6 +724,12 @@ type Datastore interface {
 	// IngestMDMAppleDeviceFromCheckin creates a new Fleet host record for an MDM-enrolled device that is
 	// not already enrolled in Fleet.
 	IngestMDMAppleDeviceFromCheckin(ctx context.Context, mdmHost MDMAppleHostDetails) error
+
+	// IncreasePolicyAutomationIteration marks the policy to fire automation again.
+	IncreasePolicyAutomationIteration(ctx context.Context, policyID uint) error
+
+	// OutdatedAutomationBatch returns a batch of hosts that had a failing policy.
+	OutdatedAutomationBatch(ctx context.Context) ([]PolicyFailure, error)
 }
 
 const (
@@ -731,6 +738,11 @@ const (
 	// Default batch size for loading IDs of or inserting new munki issues.
 	DefaultMunkiIssuesBatchSize = 100
 )
+
+type PolicyFailure struct {
+	PolicyID uint
+	Host     PolicySetHost
+}
 
 type MySQLProcess struct {
 	Id      int     `json:"id" db:"Id"`

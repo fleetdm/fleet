@@ -454,6 +454,44 @@ func (svc *Service) ListMDMAppleDEPDevices(ctx context.Context) ([]fleet.MDMAppl
 	return devices, nil
 }
 
+type newMDMAppleDEPKeyPairResponse struct {
+	PublicKey  []byte `json:"public_key,omitempty"`
+	PrivateKey []byte `json:"private_key,omitempty"`
+	Err        error  `json:"error,omitempty"`
+}
+
+func (r newMDMAppleDEPKeyPairResponse) error() error { return r.Err }
+
+func newMDMAppleDEPKeyPairEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	keyPair, err := svc.NewMDMAppleDEPKeyPair(ctx)
+	if err != nil {
+		return newMDMAppleDEPKeyPairResponse{
+			Err: err,
+		}, nil
+	}
+
+	return newMDMAppleDEPKeyPairResponse{
+		PublicKey:  keyPair.PublicKey,
+		PrivateKey: keyPair.PrivateKey,
+	}, nil
+}
+
+func (svc *Service) NewMDMAppleDEPKeyPair(ctx context.Context) (*fleet.MDMAppleDEPKeyPair, error) {
+	// skipauth: Generating a new key pair does not actually make any changes to fleet, or expose any
+	// information. The user must configure fleet with the new key pair and restart the server.
+	svc.authz.SkipAuthorization(ctx)
+
+	publicKeyPEM, privateKeyPEM, err := apple_mdm.NewDEPKeyPairPEM()
+	if err != nil {
+		return nil, fmt.Errorf("generate key pair: %w", err)
+	}
+
+	return &fleet.MDMAppleDEPKeyPair{
+		PublicKey:  publicKeyPEM,
+		PrivateKey: privateKeyPEM,
+	}, nil
+}
+
 type enqueueMDMAppleCommandRequest struct {
 	Command   string   `json:"command"`
 	DeviceIDs []string `json:"device_ids"`

@@ -2779,6 +2779,13 @@ func (s *integrationTestSuite) TestGetMacadminsData() {
 		}
 	}
 
+	// TODO: ideally we'd pull this out into its own function that specifically tests
+	// the mdm summary endpoint. We can add additional tests for testing the platform
+	// and team_id query params for this endpoint.
+	mdmAgg := getHostMDMSummaryResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts/summary/mdm", nil, http.StatusOK, &mdmAgg)
+	assert.NotZero(t, mdmAgg.AggregatedMDMData.CountsUpdatedAt)
+
 	team, err := s.ds.NewTeam(context.Background(), &fleet.Team{
 		Name:        "team1" + t.Name(),
 		Description: "desc team1",
@@ -2897,6 +2904,26 @@ func (s *integrationTestSuite) TestLabels() {
 	// lists hosts in invalid label
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", lbl2.ID+1), nil, http.StatusOK, &listHostsResp)
 	assert.Len(t, listHostsResp.Hosts, 0)
+
+	// set MDM information on a host
+	require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), hosts[0].ID, false, true, "https://simplemdm.com", false, ""))
+	var mdmID uint
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(context.Background(), q, &mdmID,
+			`SELECT id FROM mobile_device_management_solutions WHERE name = ? AND server_url = ?`, fleet.WellKnownMDMSimpleMDM, "https://simplemdm.com")
+	})
+	// generate aggregated stats
+	require.NoError(t, s.ds.GenerateAggregatedMunkiAndMDM(context.Background()))
+
+	// list host in label by mdm_id
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", lbl2.ID), nil, http.StatusOK, &listHostsResp, "mdm_id", fmt.Sprint(mdmID))
+	require.Len(t, listHostsResp.Hosts, 1)
+	assert.Nil(t, listHostsResp.Software)
+	assert.Nil(t, listHostsResp.MunkiIssue)
+	require.NotNil(t, listHostsResp.MDMSolution)
+	assert.Equal(t, mdmID, listHostsResp.MDMSolution.ID)
+	assert.Equal(t, fleet.WellKnownMDMSimpleMDM, listHostsResp.MDMSolution.Name)
+	assert.Equal(t, "https://simplemdm.com", listHostsResp.MDMSolution.ServerURL)
 
 	// delete a label by id
 	var delIDResp deleteLabelByIDResponse

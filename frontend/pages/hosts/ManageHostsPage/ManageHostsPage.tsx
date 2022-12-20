@@ -33,7 +33,8 @@ import {
 } from "interfaces/enroll_secret";
 import { IHost } from "interfaces/host";
 import { ILabel } from "interfaces/label";
-import { IMdmSolution, IMunkiIssuesAggregate } from "interfaces/macadmins";
+import { IMunkiIssuesAggregate } from "interfaces/macadmins";
+import { IMdmSolution } from "interfaces/mdm";
 import {
   formatOperatingSystemDisplayName,
   IOperatingSystemVersion,
@@ -82,8 +83,8 @@ import EmptyHosts from "./components/EmptyHosts";
 import PoliciesFilter from "./components/PoliciesFilter";
 // @ts-ignore
 import EditColumnsModal from "./components/EditColumnsModal/EditColumnsModal";
-import TransferHostModal from "./components/TransferHostModal";
-import DeleteHostModal from "./components/DeleteHostModal";
+import TransferHostModal from "../components/TransferHostModal";
+import DeleteHostModal from "../components/DeleteHostModal";
 import DeleteLabelModal from "./components/DeleteLabelModal";
 import EditColumnsIcon from "../../../../assets/images/icon-edit-columns-16x16@2x.png";
 import PencilIcon from "../../../../assets/images/icon-pencil-14x14@2x.png";
@@ -1247,11 +1248,13 @@ const ManageHostsPage = ({
       case "automatic":
         TooltipDescription = (
           <span className={`tooltip__tooltip-text`}>
-            Hosts automatically enrolled <br />
-            to an MDM solution the first time <br />
-            the host is used. Administrators <br />
-            might have a higher level of control <br />
-            over these hosts.
+            Hosts automatically enrolled in <br />
+            an MDM solution using Apple <br />
+            Automated Device Enrollment <br />
+            (DEP) or Windows Autopilot. <br />
+            Administrators can block users <br />
+            from unenrolling these hosts <br />
+            from MDM.
           </span>
         );
         break;
@@ -1259,8 +1262,8 @@ const ManageHostsPage = ({
         TooltipDescription = (
           <span className={`tooltip__tooltip-text`}>
             Hosts manually enrolled to an <br />
-            MDM solution by a user or <br />
-            administrator.
+            MDM solution. Users can unenroll <br />
+            these hosts from MDM.
           </span>
         );
         break;
@@ -1408,7 +1411,8 @@ const ManageHostsPage = ({
         teams={teams}
         onSubmit={onTransferHostSubmit}
         onCancel={toggleTransferHostModal}
-        isUpdatingHosts={isUpdatingHosts}
+        isUpdating={isUpdatingHosts}
+        multipleHosts={selectedHostIds.length > 1}
       />
     );
   };
@@ -1419,7 +1423,7 @@ const ManageHostsPage = ({
       onSubmit={onDeleteHostSubmit}
       onCancel={toggleDeleteHostModal}
       isAllMatchingHostsSelected={isAllMatchingHostsSelected}
-      isUpdatingHosts={isUpdatingHosts}
+      isUpdating={isUpdatingHosts}
     />
   );
 
@@ -1560,11 +1564,25 @@ const ManageHostsPage = ({
     ) {
       const renderFilterPill = () => {
         switch (true) {
-          // backend allows for pill combos label x low disk space
+          // backend allows for pill combos (label + low disk space) OR
+          // (label + mdm solution) OR (label + mdm enrollment status)
           case showSelectedLabel && !!lowDiskSpaceHosts:
             return (
               <>
                 {renderLabelFilterPill()} {renderLowDiskSpaceFilterBlock()}
+              </>
+            );
+          case showSelectedLabel && !!mdmId:
+            return (
+              <>
+                {renderLabelFilterPill()} {renderMDMSolutionFilterBlock()}
+              </>
+            );
+
+          case showSelectedLabel && !!mdmEnrollmentStatus:
+            return (
+              <>
+                {renderLabelFilterPill()} {renderMDMEnrollmentFilterBlock()}
               </>
             );
           case showSelectedLabel:

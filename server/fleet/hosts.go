@@ -495,8 +495,9 @@ type AggregatedMDMStatus struct {
 
 // AggregatedMDMData contains aggregated data from mdm installations.
 type AggregatedMDMData struct {
-	MDMStatus    AggregatedMDMStatus      `json:"mobile_device_management_enrollment_status"`
-	MDMSolutions []AggregatedMDMSolutions `json:"mobile_device_management_solution"`
+	CountsUpdatedAt time.Time                `json:"counts_updated_at"`
+	MDMStatus       AggregatedMDMStatus      `json:"mobile_device_management_enrollment_status"`
+	MDMSolutions    []AggregatedMDMSolutions `json:"mobile_device_management_solution"`
 }
 
 // MDMSolution represents a single MDM solution, as returned by the list hosts

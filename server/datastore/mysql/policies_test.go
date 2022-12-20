@@ -45,6 +45,8 @@ func TestPolicies(t *testing.T) {
 		{"CleanupPolicyMembership", testPolicyCleanupPolicyMembership},
 		{"DeleteAllPolicyMemberships", testDeleteAllPolicyMemberships},
 		{"PolicyViolationDays", testPolicyViolationDays},
+		{"IncreasePolicyAutomationIteration", testIncreasePolicyAutomationIteration},
+		{"OutdatedAutomationBatch", testOutdatedAutomationBatch},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -2076,4 +2078,99 @@ func testDeleteAllPolicyMemberships(t *testing.T, ds *Datastore) {
 	err = ds.writer.Get(&count, "select COUNT(*) from policy_membership")
 	require.NoError(t, err)
 	require.Equal(t, 0, count)
+}
+
+func testIncreasePolicyAutomationIteration(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	pol1, err := ds.NewGlobalPolicy(ctx, nil, fleet.PolicyPayload{Name: "policy1"})
+	require.NoError(t, err)
+	pol2, err := ds.NewGlobalPolicy(ctx, nil, fleet.PolicyPayload{Name: "policy2"})
+	require.NoError(t, err)
+	require.NoError(t, ds.IncreasePolicyAutomationIteration(ctx, pol1.ID))
+	require.NoError(t, ds.IncreasePolicyAutomationIteration(ctx, pol2.ID))
+	require.NoError(t, ds.IncreasePolicyAutomationIteration(ctx, pol2.ID))
+	require.NoError(t, ds.IncreasePolicyAutomationIteration(ctx, pol2.ID))
+	type at []struct {
+		PolicyID  uint `db:"policy_id"`
+		Iteration int  `db:"iteration"`
+	}
+	var automations at
+	err = ds.writer.Select(&automations, `SELECT policy_id, iteration FROM policy_automation_iterations;`)
+	require.NoError(t, err)
+	require.ElementsMatch(t, automations, at{
+		{pol1.ID, 1},
+		{pol2.ID, 3},
+	})
+}
+
+func testOutdatedAutomationBatch(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	h1, err := ds.NewHost(ctx, &fleet.Host{OsqueryHostID: "host1", NodeKey: "host1"})
+	require.NoError(t, err)
+	h2, err := ds.NewHost(ctx, &fleet.Host{OsqueryHostID: "host2", NodeKey: "host2"})
+	require.NoError(t, err)
+
+	pol1, err := ds.NewGlobalPolicy(ctx, nil, fleet.PolicyPayload{Name: "policy1"})
+	require.NoError(t, err)
+	pol2, err := ds.NewGlobalPolicy(ctx, nil, fleet.PolicyPayload{Name: "policy2"})
+	require.NoError(t, err)
+
+	err = ds.RecordPolicyQueryExecutions(ctx, h1, map[uint]*bool{pol1.ID: ptr.Bool(false), pol2.ID: ptr.Bool(true)}, time.Now(), false)
+	require.NoError(t, err)
+	err = ds.RecordPolicyQueryExecutions(ctx, h2, map[uint]*bool{pol1.ID: ptr.Bool(false), pol2.ID: ptr.Bool(false)}, time.Now(), false)
+	require.NoError(t, err)
+
+	batch, err := ds.OutdatedAutomationBatch(ctx)
+	require.NoError(t, err)
+	require.ElementsMatch(t, batch, []fleet.PolicyFailure{})
+
+	require.NoError(t, ds.IncreasePolicyAutomationIteration(ctx, pol1.ID))
+	batch, err = ds.OutdatedAutomationBatch(ctx)
+	require.NoError(t, err)
+	require.ElementsMatch(t, batch, []fleet.PolicyFailure{
+		{
+			PolicyID: pol1.ID,
+			Host: fleet.PolicySetHost{
+				ID: h1.ID,
+			},
+		},
+		{
+			PolicyID: pol1.ID,
+			Host: fleet.PolicySetHost{
+				ID: h2.ID,
+			},
+		},
+	})
+
+	batch, err = ds.OutdatedAutomationBatch(ctx)
+	require.NoError(t, err)
+	require.ElementsMatch(t, batch, []fleet.PolicyFailure{})
+
+	require.NoError(t, ds.IncreasePolicyAutomationIteration(ctx, pol1.ID))
+	require.NoError(t, ds.IncreasePolicyAutomationIteration(ctx, pol2.ID))
+	batch, err = ds.OutdatedAutomationBatch(ctx)
+	require.NoError(t, err)
+	require.ElementsMatch(t, batch, []fleet.PolicyFailure{
+		{
+			PolicyID: pol1.ID,
+			Host: fleet.PolicySetHost{
+				ID: h1.ID,
+			},
+		}, {
+			PolicyID: pol1.ID,
+			Host: fleet.PolicySetHost{
+				ID: h2.ID,
+			},
+		}, {
+			PolicyID: pol2.ID,
+			Host: fleet.PolicySetHost{
+				ID: h2.ID,
+			},
+		},
+	})
+
+	batch, err = ds.OutdatedAutomationBatch(ctx)
+	require.NoError(t, err)
+	require.ElementsMatch(t, batch, []fleet.PolicyFailure{})
 }

@@ -7,6 +7,7 @@ import {
   getLabelParam,
   reconcileMutuallyExclusiveHostParams,
 } from "utilities/url";
+import { ISelectedPlatform } from "interfaces/platform";
 
 export interface ISortOption {
   key: string;
@@ -98,6 +99,14 @@ const getSortParams = (sortOptions?: ISortOption[]) => {
     order_key: sortItem.key,
     order_direction: sortItem.direction,
   };
+};
+
+const createMdmParams = (platform?: ISelectedPlatform, teamId?: number) => {
+  if (platform === "all") {
+    return buildQueryStringFromParams({ team_id: teamId });
+  }
+
+  return buildQueryStringFromParams({ platform, team_id: teamId });
 };
 
 export default {
@@ -275,5 +284,22 @@ export default {
         label_id: labelId,
       },
     });
+  },
+
+  getMdm: (id: number) => {
+    const { HOST_MDM } = endpoints;
+    return sendRequest("GET", HOST_MDM(id));
+  },
+
+  getMdmSummary: (platform?: ISelectedPlatform, teamId?: number) => {
+    const { MDM_SUMMARY } = endpoints;
+
+    if (!platform || platform === "linux") {
+      throw new Error("mdm not supported for this platform");
+    }
+
+    const params = createMdmParams(platform, teamId);
+    const fullPath = params !== "" ? `${MDM_SUMMARY}?${params}` : MDM_SUMMARY;
+    return sendRequest("GET", fullPath);
   },
 };

@@ -831,3 +831,30 @@ func TestDirectDiskEncryption(t *testing.T) {
 	require.NoError(t, err)
 	require.False(t, ds.SetOrUpdateHostDisksEncryptionFuncInvoked)
 }
+
+func TestDirectIngestDiskEncryptionLinux(t *testing.T) {
+	ds := new(mock.Store)
+	var expectEncrypted bool
+	ds.SetOrUpdateHostDisksEncryptionFunc = func(ctx context.Context, id uint, encrypted bool) error {
+		assert.Equal(t, expectEncrypted, encrypted)
+		return nil
+	}
+	host := fleet.Host{
+		ID: 1,
+	}
+
+	expectEncrypted = false
+	err := directIngestDiskEncryptionLinux(context.Background(), log.NewNopLogger(), &host, ds, []map[string]string{}, false)
+	require.NoError(t, err)
+	require.True(t, ds.SetOrUpdateHostDisksEncryptionFuncInvoked)
+	ds.SetOrUpdateHostDisksEncryptionFuncInvoked = false
+
+	expectEncrypted = true
+	err = directIngestDiskEncryptionLinux(context.Background(), log.NewNopLogger(), &host, ds, []map[string]string{
+		{"path": "/etc/hosts", "encrypted": "0"},
+		{"path": "/tmp", "encrypted": "0"},
+		{"path": "/", "encrypted": "1"},
+	}, false)
+	require.NoError(t, err)
+	require.True(t, ds.SetOrUpdateHostDisksEncryptionFuncInvoked)
+}

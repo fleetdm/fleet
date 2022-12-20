@@ -1825,6 +1825,111 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicyCreateReadPatch() {
 	require.Equal(s.T(), listPol.Policies[1], getPol2.Policy)
 }
 
+func (s *integrationEnterpriseTestSuite) TestResetAutomation() {
+	ctx := context.Background()
+
+	team1, err := s.ds.NewTeam(context.Background(), &fleet.Team{
+		ID:          42,
+		Name:        "team1",
+		Description: "desc team1",
+	})
+	require.NoError(s.T(), err)
+
+	createPol1 := &teamPolicyResponse{}
+	createPol1Req := &teamPolicyRequest{
+		Query:       "query",
+		Name:        "name1",
+		Description: "description",
+		Resolution:  "resolution",
+		Platform:    "linux",
+		Critical:    true,
+	}
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team1.ID), createPol1Req, http.StatusOK, &createPol1)
+
+	createPol2 := &teamPolicyResponse{}
+	createPol2Req := &teamPolicyRequest{
+		Query:       "query",
+		Name:        "name2",
+		Description: "description",
+		Resolution:  "resolution",
+		Platform:    "linux",
+		Critical:    false,
+	}
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team1.ID), createPol2Req, http.StatusOK, &createPol2)
+
+	createPol3 := &teamPolicyResponse{}
+	createPol3Req := &teamPolicyRequest{
+		Query:       "query",
+		Name:        "name3",
+		Description: "description",
+		Resolution:  "resolution",
+		Platform:    "linux",
+		Critical:    false,
+	}
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team1.ID), createPol3Req, http.StatusOK, &createPol3)
+
+	var tmResp teamResponse
+	// modify the team's config - enable the webhook
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team1.ID), fleet.TeamPayload{WebhookSettings: &fleet.TeamWebhookSettings{
+		FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
+			Enable:         true,
+			DestinationURL: "http://127/",
+			PolicyIDs:      []uint{createPol1.Policy.ID, createPol2.Policy.ID},
+			HostBatchSize:  12345,
+		},
+	}}, http.StatusOK, &tmResp)
+
+	h1, err := s.ds.NewHost(ctx, &fleet.Host{})
+	require.NoError(s.T(), err)
+
+	err = s.ds.RecordPolicyQueryExecutions(ctx, h1, map[uint]*bool{
+		createPol1.Policy.ID: ptr.Bool(false),
+		createPol2.Policy.ID: ptr.Bool(false),
+		createPol3.Policy.ID: ptr.Bool(false), // This policy is not activated for automation in config.
+	}, time.Now(), false)
+	require.NoError(s.T(), err)
+
+	pfs, err := s.ds.OutdatedAutomationBatch(ctx)
+	require.NoError(s.T(), err)
+	require.Empty(s.T(), pfs)
+
+	s.DoJSON("POST", "/api/latest/fleet/automations/reset", resetAutomationRequest{
+		TeamIDs:   nil,
+		PolicyIDs: []uint{},
+	}, http.StatusOK, &tmResp)
+
+	pfs, err = s.ds.OutdatedAutomationBatch(ctx)
+	require.NoError(s.T(), err)
+	require.Empty(s.T(), pfs)
+
+	s.DoJSON("POST", "/api/latest/fleet/automations/reset", resetAutomationRequest{
+		TeamIDs:   nil,
+		PolicyIDs: []uint{createPol1.Policy.ID, createPol2.Policy.ID, createPol3.Policy.ID},
+	}, http.StatusOK, &tmResp)
+
+	pfs, err = s.ds.OutdatedAutomationBatch(ctx)
+	require.NoError(s.T(), err)
+	require.Len(s.T(), pfs, 2)
+
+	s.DoJSON("POST", "/api/latest/fleet/automations/reset", resetAutomationRequest{
+		TeamIDs:   []uint{team1.ID},
+		PolicyIDs: nil,
+	}, http.StatusOK, &tmResp)
+
+	pfs, err = s.ds.OutdatedAutomationBatch(ctx)
+	require.NoError(s.T(), err)
+	require.Len(s.T(), pfs, 2)
+
+	s.DoJSON("POST", "/api/latest/fleet/automations/reset", resetAutomationRequest{
+		TeamIDs:   nil,
+		PolicyIDs: []uint{createPol2.Policy.ID},
+	}, http.StatusOK, &tmResp)
+
+	pfs, err = s.ds.OutdatedAutomationBatch(ctx)
+	require.NoError(s.T(), err)
+	require.Len(s.T(), pfs, 1)
+}
+
 // allEqual compares all fields of a struct.
 // If a field is a pointer on one side but not on the other, then it follows that pointer. This is useful for optional
 // arguments.

@@ -1,0 +1,1 @@
+* Windows installer now ensures that the installed osquery version gets removed before installing Orbit

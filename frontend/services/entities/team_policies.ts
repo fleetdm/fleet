@@ -5,7 +5,15 @@ import { ILoadTeamPoliciesResponse, IPolicyFormData } from "interfaces/policy";
 
 export default {
   create: (data: IPolicyFormData) => {
-    const { name, description, query, team_id, resolution, platform } = data;
+    const {
+      name,
+      description,
+      query,
+      team_id,
+      resolution,
+      platform,
+      critical,
+    } = data;
     const { TEAMS } = endpoints;
     const path = `${TEAMS}/${team_id}/policies`;
 
@@ -15,10 +23,19 @@ export default {
       query,
       resolution,
       platform,
+      critical,
     });
   },
   update: (id: number, data: IPolicyFormData) => {
-    const { name, description, query, team_id, resolution, platform } = data;
+    const {
+      name,
+      description,
+      query,
+      team_id,
+      resolution,
+      platform,
+      critical,
+    } = data;
     const { TEAMS } = endpoints;
     const path = `${TEAMS}/${team_id}/policies/${id}`;
 
@@ -28,6 +45,7 @@ export default {
       query,
       resolution,
       platform,
+      critical,
     });
   },
   destroy: (team_id: number, ids: number[]) => {
