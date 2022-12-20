@@ -604,12 +604,12 @@ export const humanHostLastSeen = (lastSeen: string): string => {
   return formatDistanceToNow(new Date(lastSeen), { addSuffix: true });
 };
 
-export const humanHostTimeDiffWithDateTip = (lastSeen: string) => {
+export const humanHostTimeDiffWithDateTip = (timeString: string) => {
   const id = uniqueId();
   return (
     <>
       <span className={"date-tooltip"} data-tip data-for={`tooltip-${id}`}>
-        {humanHostLastSeen(lastSeen)}
+        {humanHostLastSeen(timeString)}
       </span>
       <ReactTooltip
         className="date-tooltip-text"
@@ -620,7 +620,7 @@ export const humanHostTimeDiffWithDateTip = (lastSeen: string) => {
         backgroundColor="#3e4771"
       >
         {intlFormat(
-          new Date(lastSeen),
+          new Date(timeString),
           {
             year: "numeric",
             month: "numeric",
