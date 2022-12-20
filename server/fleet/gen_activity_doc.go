@@ -56,6 +56,9 @@ Example:
 			fmt.Fprintf(&b, "#### Example\n\n```json\n%s\n```\n\n", detailsExampleDoc)
 		}
 	}
+	b.WriteString(`
+
+<meta name="pageOrderInSection" value="1400">`)
 
 	if err := os.WriteFile(os.Args[1], []byte(b.String()), 0600); err != nil {
 		panic(err)
