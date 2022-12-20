@@ -46,6 +46,9 @@
       <cloud-error purpose="cloud-error" v-else-if="cloudError === 'connectionAlreadyExists'">
         The Fleet instance URL provided is already connected to a Vanta account. To change or disable this integration, <a href="/contact">contact us.</a>
       </cloud-error>
+      <cloud-error purpose="cloud-error" v-else-if="cloudError === 'invalidLicense'">
+        This integration is only available for Fleet Premium customers.
+      </cloud-error>
       <cloud-error purpose="cloud-error" v-else-if="cloudError"></cloud-error>
       <ajax-button style="height: 44px;" purpose="submit-button" spinner="true" type="submit" :syncing="syncing" class="btn btn-block btn-lg btn-info" v-if="!cloudError">Connect</ajax-button>
     </ajax-form>

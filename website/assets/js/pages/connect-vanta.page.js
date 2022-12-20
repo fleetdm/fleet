@@ -37,8 +37,7 @@ parasails.registerPage('connect-vanta', {
       this.vantaAuthorizationRequestURL = await Cloud.createVantaAuthorizationRequest.with(argins);
     },
 
-    submittedAuthorizationForm: async function(){
-      console.log(this.vantaAuthorizationRequestURL);
+    submittedAuthorizationForm: async function() {
       this.syncing = true;
       window.location = this.vantaAuthorizationRequestURL;
     },
