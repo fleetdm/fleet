@@ -169,12 +169,12 @@ func (r *ExtensionRunner) Execute() error {
 			return nil
 		case <-ticker.C:
 			log.Debug().Msg("calling /config API to fetch/update extensions")
-			didExtensionsUpdate, err := r.DoExtensionConfigUpdate()
+			extensionsCleared, err := r.DoExtensionConfigUpdate()
 			if err != nil {
 				log.Info().Err(err).Msg("ext update failed")
 			}
-			if didExtensionsUpdate {
-				log.Info().Msg("successfully updated/fetched extensions from /config API")
+			if extensionsCleared {
+				log.Info().Msg("extensions were cleared on the server")
 				return nil
 			}
 		}
@@ -192,6 +192,7 @@ func (r *ExtensionRunner) Interrupt(err error) {
 // It parses the extensions, computes the local hash, and writes the binary path to extension.load file
 //
 // It returns a (bool, error), where bool indicates whether orbit should restart
+// It only returns (true, nil) when extensions were previously configured and now are cleared
 func (r *ExtensionRunner) DoExtensionConfigUpdate() (bool, error) {
 	// call "/config" API endpoint to grab orbit configs from Fleet
 	config, err := r.configFetcher.GetConfig()
@@ -230,8 +231,7 @@ func (r *ExtensionRunner) DoExtensionConfigUpdate() (bool, error) {
 			return false, nil
 		default:
 			// we do not want orbit to restart, just log the error
-			log.Debug().Err(err).Msg("extensionsUpdate: error stating file at " + extensionAutoLoadFile)
-			return false, nil
+			return false, fmt.Errorf("stat file: %s", extensionAutoLoadFile)
 		}
 	}
 

@@ -34,14 +34,14 @@ type Runner struct {
 
 // UpdateRunnerOptTargets updates the RunnerOptions.Targets with the given target
 func (r *Runner) UpdateRunnerOptTargets(target string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
 	// check if target already exists
 	for _, t := range r.opt.Targets {
 		if t == target {
 			return
 		}
 	}
-	r.mu.Lock()
-	defer r.mu.Unlock()
 	r.opt.Targets = append(r.opt.Targets, target)
 }
 
