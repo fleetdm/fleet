@@ -79,6 +79,8 @@ func clientFromCLI(c *cli.Context) (*service.Client, error) {
 		// This is just a warning, continue ...
 	}
 
+	// TODO(mna): add check here that AppConfig's Apple BM terms are not expired.
+
 	return fleet, nil
 }
 
