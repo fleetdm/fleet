@@ -40,31 +40,25 @@ module.exports = {
       extendedDescription: 'This token must be for an API-only user and needs to have admin privileges on the user\'s Fleet instance'
     },
 
-    vantaToken: {
+    vantaAuthToken: {
       type: 'string',
-      description: 'The token used to authorize requests to this external service.'
+      description: 'A token used to authorize requests to Vanta on behalf of this Vanta customer.'
     },
 
-    vantaTokenExpiresAt: {
+    vantaAuthTokenExpiresAt: {
       type: 'number',
-      description: 'A JS timestamp of when the authorization token will expire.'
+      description: 'A JS timestamp of when this connection\'s authorization token will expire.'
     },
 
     vantaRefreshToken: {
       type: 'string',
-      description: 'The token used to request new authorization tokens from this external service.'
-    },
-
-    dataLastSentToVantaAt: {
-      type: 'number',
-      description: 'A JS timestamp representing the last time data was sent to Vanta'
+      description: 'The token used to request new authorization tokens for this Vanta connection.'
     },
 
     isConnectedToVanta: {
       type: 'boolean',
-      description: 'whether this external connection is authorized to send data to Vanta on behalf of the user.',
-      extendedDescription: 'This value is set to false if the automated `send-data-to-vanta` script encounters an error when sending data to Vanta.'
       defaultsTo: false,
+      description: 'whether this Vanta connection is authorized to send data to Vanta on behalf of the user.',
     }
 
     //  ╔═╗╔╦╗╔╗ ╔═╗╔╦╗╔═╗
