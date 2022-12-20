@@ -15,12 +15,18 @@ $base-class: "button";
       color: $active;
     }
   } @else {
-    &:hover:not(.button--disabled),
-    &:focus {
+    &:hover:not(.button--disabled) {
       background-color: $hover;
     }
 
-    &:active {
+    &:focus-visible {
+      outline-color: #d9d9fe;
+      outline-offset: 2px;
+      outline-style: solid;
+      outline-width: 2px;
+    }
+
+    &:hover:active {
       background-color: $active;
     }
   }
