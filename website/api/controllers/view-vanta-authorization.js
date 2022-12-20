@@ -65,7 +65,7 @@ module.exports = {
         'client_id': sails.config.custom.vantaAuthorizationClientId,
         'client_secret': sails.config.custom.vantaAuthorizationClientSecret,
         'code': inputs.code,
-        'redirect_uri': sails.config.custom.baseUrl+'/vanta-callback',
+        'redirect_uri': sails.config.custom.baseUrl+'/vanta-authorization',
         'source_id': recordOfThisAuthorization.vantaSourceId,
         'grant_type': 'authorization_code',
       }

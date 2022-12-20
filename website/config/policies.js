@@ -45,7 +45,7 @@ module.exports.policies = {
   'unsubscribe-from-all-newsletters': true,
   'view-osquery-table-details': true,
   'view-connect-vanta': true,
-  'view-vanta-callback': true,
+  'view-vanta-authorization': true,
   'create-vanta-authorization-request': true,
 
 };
