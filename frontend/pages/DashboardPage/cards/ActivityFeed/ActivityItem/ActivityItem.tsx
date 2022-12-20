@@ -278,7 +278,14 @@ const ActivityItem = ({
           >
             {intlFormat(
               activityCreatedAt,
-              {},
+              {
+                year: "numeric",
+                month: "numeric",
+                day: "numeric",
+                hour: "numeric",
+                minute: "numeric",
+                second: "numeric",
+              },
               { locale: window.navigator.languages[0] }
             )}
           </ReactTooltip>
