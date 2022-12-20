@@ -221,6 +221,13 @@ func (s *integrationTestSuite) TestPolicyDeletionLogsActivity() {
 		policyIDs = append(policyIDs, resp.Policy.PolicyData.ID)
 	}
 
+	// critical is premium only.
+	s.DoJSON("POST", "/api/latest/fleet/policies", fleet.PolicyPayload{
+		Name:     "policy3",
+		Query:    "select * from time;",
+		Critical: true,
+	}, http.StatusBadRequest, new(struct{}))
+
 	prevActivities := listActivitiesResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &prevActivities)
 	require.GreaterOrEqual(t, len(prevActivities.Activities), 2)
@@ -2772,6 +2779,13 @@ func (s *integrationTestSuite) TestGetMacadminsData() {
 		}
 	}
 
+	// TODO: ideally we'd pull this out into its own function that specifically tests
+	// the mdm summary endpoint. We can add additional tests for testing the platform
+	// and team_id query params for this endpoint.
+	mdmAgg := getHostMDMSummaryResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts/summary/mdm", nil, http.StatusOK, &mdmAgg)
+	assert.NotZero(t, mdmAgg.AggregatedMDMData.CountsUpdatedAt)
+
 	team, err := s.ds.NewTeam(context.Background(), &fleet.Team{
 		Name:        "team1" + t.Name(),
 		Description: "desc team1",
@@ -2890,6 +2904,26 @@ func (s *integrationTestSuite) TestLabels() {
 	// lists hosts in invalid label
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", lbl2.ID+1), nil, http.StatusOK, &listHostsResp)
 	assert.Len(t, listHostsResp.Hosts, 0)
+
+	// set MDM information on a host
+	require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), hosts[0].ID, false, true, "https://simplemdm.com", false, ""))
+	var mdmID uint
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(context.Background(), q, &mdmID,
+			`SELECT id FROM mobile_device_management_solutions WHERE name = ? AND server_url = ?`, fleet.WellKnownMDMSimpleMDM, "https://simplemdm.com")
+	})
+	// generate aggregated stats
+	require.NoError(t, s.ds.GenerateAggregatedMunkiAndMDM(context.Background()))
+
+	// list host in label by mdm_id
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", lbl2.ID), nil, http.StatusOK, &listHostsResp, "mdm_id", fmt.Sprint(mdmID))
+	require.Len(t, listHostsResp.Hosts, 1)
+	assert.Nil(t, listHostsResp.Software)
+	assert.Nil(t, listHostsResp.MunkiIssue)
+	require.NotNil(t, listHostsResp.MDMSolution)
+	assert.Equal(t, mdmID, listHostsResp.MDMSolution.ID)
+	assert.Equal(t, fleet.WellKnownMDMSimpleMDM, listHostsResp.MDMSolution.Name)
+	assert.Equal(t, "https://simplemdm.com", listHostsResp.MDMSolution.ServerURL)
 
 	// delete a label by id
 	var delIDResp deleteLabelByIDResponse
@@ -4258,7 +4292,7 @@ func (s *integrationTestSuite) TestPacksBadRequests() {
 	}
 }
 
-func (s *integrationTestSuite) TestTeamsEndpointsWithoutLicense() {
+func (s *integrationTestSuite) TestPremiumEndpointsWithoutLicense() {
 	t := s.T()
 
 	// list teams, none
@@ -4314,6 +4348,11 @@ func (s *integrationTestSuite) TestTeamsEndpointsWithoutLicense() {
 	// modify team enroll secrets
 	s.DoJSON("PATCH", "/api/latest/fleet/teams/123/secrets", modifyTeamEnrollSecretsRequest{Secrets: []fleet.EnrollSecret{{Secret: "DEF"}}}, http.StatusPaymentRequired, &secResp)
 	assert.Len(t, secResp.Secrets, 0)
+
+	// get apple BM configuration
+	var appleBMResp getAppleBMResponse
+	s.DoJSON("GET", "/api/latest/fleet/mdm/apple_bm", nil, http.StatusPaymentRequired, &appleBMResp)
+	assert.Nil(t, appleBMResp.AppleBM)
 }
 
 // TestGlobalPoliciesBrowsing tests that team users can browse (read) global policies (see #3722).
@@ -5195,6 +5234,12 @@ func (s *integrationTestSuite) TestCarve() {
 		Data:      []byte("p1."),
 	}, http.StatusInternalServerError, &blockResp) // TODO: should be 400, see #4406
 
+	checkCarveError := func(id uint, err string) {
+		var getResp getCarveResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/carves/%d", id), nil, http.StatusOK, &getResp)
+		require.Equal(t, err, *getResp.Carve.Error)
+	}
+
 	// sending a block with unexpected block id (expects 0, got 1)
 	s.DoJSON("POST", "/api/osquery/carve/block", carveBlockRequest{
 		BlockId:   1,
@@ -5202,6 +5247,7 @@ func (s *integrationTestSuite) TestCarve() {
 		RequestId: "r1",
 		Data:      []byte("p1."),
 	}, http.StatusInternalServerError, &blockResp) // TODO: should be 400, see #4406
+	checkCarveError(1, "block_id does not match expected block (0): 1")
 
 	// sending a block with valid payload, block 0
 	s.DoJSON("POST", "/api/osquery/carve/block", carveBlockRequest{
@@ -5230,6 +5276,7 @@ func (s *integrationTestSuite) TestCarve() {
 		RequestId: "r1",
 		Data:      []byte("p2."),
 	}, http.StatusInternalServerError, &blockResp) // TODO: should be 400, see #4406
+	checkCarveError(1, "block_id does not match expected block (2): 1")
 
 	// sending final block with too many bytes
 	blockResp = carveBlockResponse{}
@@ -5239,6 +5286,7 @@ func (s *integrationTestSuite) TestCarve() {
 		RequestId: "r1",
 		Data:      []byte("p3extra"),
 	}, http.StatusInternalServerError, &blockResp) // TODO: should be 400, see #4406
+	checkCarveError(1, "exceeded declared block size 3: 7")
 
 	// sending actual final block
 	blockResp = carveBlockResponse{}
@@ -5258,6 +5306,7 @@ func (s *integrationTestSuite) TestCarve() {
 		RequestId: "r1",
 		Data:      []byte("p4."),
 	}, http.StatusInternalServerError, &blockResp) // TODO: should be 400, see #4406
+	checkCarveError(1, "block_id exceeds expected max (2): 3")
 }
 
 func (s *integrationTestSuite) TestPasswordReset() {

@@ -41,7 +41,7 @@
   - [Can I group results from multiple hosts?](#can-i-group-results-from-multiple-hosts)
   - [How do I downgrade from Fleet Premium to Fleet Free?](#how-do-i-downgrade-from-fleet-premium-to-fleet-free)
   - [If I use a software orchestration tool (Ansible, Chef, Puppet, etc.) to manage agent options, do I have to apply the same options in the Fleet UI?](#if-i-use-a-software-orchestration-tool-ansible-chef-puppet-etc-to-manage-agent-options-do-i-have-to-apply-the-same-options-in-the-fleet-ui)
-  - [How can I uninstall Orbit/Fleet Desktop?](#how-can-i-uninstall-orbitfleet-desktop)
+  - [How can I uninstall the osquery agent?](#how-can-i-uninstall-the-osquery-agent)
     - [MacOS](#macos)
     - [Windows](#windows)
     - [Ubuntu](#ubuntu)
@@ -191,9 +191,9 @@ If your device is showing up as an offline host in the Fleet instance, and you'r
 
 Fleet relies on UUIDs so any overlap with host IP addresses should not cause a problem. The only time this might be an issue is if you are running a query that involves a specific IP address that exists in multiple locations as it might return multiple results - [Fleet's teams feature](https://fleetdm.com/docs/using-fleet/teams) can be used to restrict queries to specific hosts.
 
-## Can Orbit run alongside osquery?
+## Can fleetd run alongside osquery?
 
-Yes, Orbit can be run alongside osquery. The osquery instance that Orbit runs uses its own database directory that is stored within the Orbit directory.
+Yes, fleetd can be run alongside an existing, separately-installed osqueryd. If you have an existing osqueryd installed on a given host, you don't have to remove it prior to installing fleetd.  The osquery instance provided by fleetd uses its own database directory that doesn't interfere with other osquery isntances installed on the host.
 
 ## Can I control how Orbit handles updates?
 
@@ -330,8 +330,8 @@ Lastly, remove your Fleet Premium license key:
 
 No. The agent options set using your software orchestration tool will override the default agent options that appear in the **Settings > Organization settings > Agent options** page. On this page, if you hit the **Save** button, the options that appear in the Fleet UI will override the agent options set using your software orchestration.
 
-## How can I uninstall Orbit/Fleet Desktop?
-To uninstall Orbit/Fleet Desktop, follow the below instructions for your Operating System.
+## How can I uninstall the osquery agent?
+To uninstall the osquery agent, follow the below instructions for your operating system.
 
 ### MacOS
 Run the Orbit [cleanup script](https://github.com/fleetdm/fleet/blob/main/orbit/tools/cleanup/cleanup_macos.sh)

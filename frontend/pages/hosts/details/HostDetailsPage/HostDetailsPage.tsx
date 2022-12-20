@@ -20,6 +20,7 @@ import {
   IMacadminsResponse,
   IPackStats,
   IHostResponse,
+  IHostMdmData,
 } from "interfaces/host";
 import { ILabel } from "interfaces/label";
 import { IHostPolicy } from "interfaces/policy";
@@ -54,10 +55,10 @@ import PoliciesCard from "../cards/Policies";
 import ScheduleCard from "../cards/Schedule";
 import PacksCard from "../cards/Packs";
 import SelectQueryModal from "./modals/SelectQueryModal";
-import TransferHostModal from "./modals/TransferHostModal";
 import PolicyDetailsModal from "../cards/Policies/HostPoliciesTable/PolicyDetailsModal";
-import DeleteHostModal from "./modals/DeleteHostModal";
 import OSPolicyModal from "./modals/OSPolicyModal";
+import TransferHostModal from "../../components/TransferHostModal";
+import DeleteHostModal from "../../components/DeleteHostModal";
 
 import parseOsVersion from "./modals/OSPolicyModal/helpers";
 import DeleteIcon from "../../../../../assets/images/icon-action-delete-14x14@2x.png";
@@ -119,6 +120,7 @@ const HostDetailsPage = ({
     setLastEditedQueryDescription,
     setLastEditedQueryBody,
     setLastEditedQueryResolution,
+    setLastEditedQueryCritical,
     setPolicyTeamId,
   } = useContext(PolicyContext);
   const { renderFlash } = useContext(NotificationContext);
@@ -199,6 +201,22 @@ const HostDetailsPage = ({
     }
   );
 
+  const { data: mdm, refetch: refetchMdm } = useQuery<IHostMdmData>(
+    ["mdm", hostIdFromURL],
+    () => hostAPI.getMdm(hostIdFromURL),
+    {
+      enabled: !!hostIdFromURL,
+      refetchOnMount: false,
+      refetchOnReconnect: false,
+      refetchOnWindowFocus: false,
+      retry: false,
+      onError: (err) => {
+        // no handling needed atm. data is simply not shown.
+        console.error(err);
+      },
+    }
+  );
+
   const { data: macadmins, refetch: refetchMacadmins } = useQuery(
     ["macadmins", hostIdFromURL],
     () => hostAPI.loadHostDetailsExtension(hostIdFromURL, "macadmins"),
@@ -215,6 +233,7 @@ const HostDetailsPage = ({
   const refetchExtensions = () => {
     deviceMapping !== null && refetchDeviceMapping();
     macadmins !== null && refetchMacadmins();
+    mdm !== null && refetchMdm();
   };
 
   const {
@@ -400,6 +419,7 @@ const HostDetailsPage = ({
     );
     setLastEditedQueryBody(osPolicyQuery);
     setLastEditedQueryResolution("");
+    setLastEditedQueryCritical(false);
     router.replace(NEW_POLICY);
   };
 
@@ -636,7 +656,8 @@ const HostDetailsPage = ({
               <AboutCard
                 aboutData={aboutData}
                 deviceMapping={deviceMapping}
-                macadmins={macadmins}
+                munki={macadmins?.munki}
+                mdm={mdm}
                 wrapFleetHelper={wrapFleetHelper}
               />
               <div className="col-2">
@@ -696,7 +717,7 @@ const HostDetailsPage = ({
             onCancel={() => setShowDeleteHostModal(false)}
             onSubmit={onDestroyHost}
             hostName={host?.display_name}
-            isUpdatingHost={isUpdatingHost}
+            isUpdating={isUpdatingHost}
           />
         )}
         {showQueryHostModal && host && (
@@ -715,7 +736,7 @@ const HostDetailsPage = ({
             onSubmit={onTransferHostSubmit}
             teams={teams || []}
             isGlobalAdmin={isGlobalAdmin as boolean}
-            isUpdatingHost={isUpdatingHost}
+            isUpdating={isUpdatingHost}
           />
         )}
         {!!host && showPolicyDetailsModal && (

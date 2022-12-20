@@ -1,6 +1,7 @@
 import React from "react";
 import { render, screen } from "@testing-library/react";
 import { noop } from "lodash";
+// TODOL Replace renderWithAppContext with createCustomRenderer
 import { renderWithAppContext } from "test/test-utils";
 
 import TeamsDropdown from "./TeamsDropdown";

@@ -123,7 +123,7 @@ the account verification message.)`,
     )
     .timeout(5000)
     .intercept(['requestFailed', 'non200Response'], (err)=>{
-      // If we recieved a non-200 response from the cloud provisioner API, we'll throw a 500 error.
+      // If we received a non-200 response from the cloud provisioner API, we'll throw a 500 error.
       return new Error('When attempting to provision a new user who just signed up ('+emailAddress+'), the cloud provisioner gave a non 200 response. The incomplete user record has not been saved in the database, and the user will be asked to try signing up again. Raw response received from provisioner: '+err.stack);
     })
     .intercept({name: 'TimeoutError'}, (err)=>{

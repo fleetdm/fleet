@@ -24,8 +24,8 @@ module.exports = {
 
   fn: async function ({ numberOfHosts }) {
 
-    // Determine the price, 1 dollar * host * month (Billed anually)
-    let price = 2.00 * numberOfHosts * 12;
+    // Determine the price, 5 dollars * host * month (Billed anually)
+    let price = 5.00 * numberOfHosts * 12;
 
     let quote = await Quote.create({
       numberOfHosts: numberOfHosts,

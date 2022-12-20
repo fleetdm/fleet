@@ -529,6 +529,7 @@ type Service interface {
 	// Apple MDM
 
 	GetAppleMDM(ctx context.Context) (*AppleMDM, error)
+	GetAppleBM(ctx context.Context) (*AppleBM, error)
 
 	// NewMDMAppleEnrollmentProfile creates and returns new enrollment profile.
 	// Such enrollment profiles allow devices to enroll to Fleet MDM.
@@ -570,6 +571,9 @@ type Service interface {
 	// ListMDMAppleDEPDevices lists all the devices added to this MDM server in Apple Business Manager (ABM).
 	ListMDMAppleDEPDevices(ctx context.Context) ([]MDMAppleDEPDevice, error)
 
+	// NewMDMAppleDEPKeyPair creates a public private key pair for use with the Apple MDM DEP token.
+	NewMDMAppleDEPKeyPair(ctx context.Context) (*MDMAppleDEPKeyPair, error)
+
 	// EnqueueMDMAppleCommand enqueues a command for execution on the given devices.
 	EnqueueMDMAppleCommand(ctx context.Context, command *MDMAppleCommand, deviceIDs []string, noPush bool) (status int, result *CommandEnqueueResult, err error)
 
@@ -578,4 +582,8 @@ type Service interface {
 
 	// TriggerCronSchedule attempts to trigger an ad-hoc run of the named cron schedule.
 	TriggerCronSchedule(ctx context.Context, name string) error
+
+	// ResetAutomation sets the policies and all policies of the listed teams to fire again
+	// for all hosts that are already marked as failing.
+	ResetAutomation(ctx context.Context, teamIDs, policyIDs []uint) error
 }

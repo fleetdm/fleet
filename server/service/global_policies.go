@@ -7,6 +7,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -23,6 +24,7 @@ type globalPolicyRequest struct {
 	Description string `json:"description"`
 	Resolution  string `json:"resolution"`
 	Platform    string `json:"platform"`
+	Critical    bool   `json:"critical" premium:"true"`
 }
 
 type globalPolicyResponse struct {
@@ -41,6 +43,7 @@ func globalPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 		Description: req.Description,
 		Resolution:  req.Resolution,
 		Platform:    req.Platform,
+		Critical:    req.Critical,
 	})
 	if err != nil {
 		return globalPolicyResponse{Err: err}, nil
@@ -275,6 +278,138 @@ func (svc *Service) ModifyGlobalPolicy(ctx context.Context, id uint, p fleet.Mod
 }
 
 /////////////////////////////////////////////////////////////////////////////////
+// Reset automation
+/////////////////////////////////////////////////////////////////////////////////
+
+type resetAutomationRequest struct {
+	TeamIDs   []uint `json:"team_ids" premium:"true"`
+	PolicyIDs []uint `json:"policy_ids"`
+}
+
+type resetAutomationResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r resetAutomationResponse) error() error { return r.Err }
+
+func resetAutomationEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	req := request.(*resetAutomationRequest)
+	err := svc.ResetAutomation(ctx, req.TeamIDs, req.PolicyIDs)
+	return resetAutomationResponse{Err: err}, nil
+}
+
+func (svc *Service) ResetAutomation(ctx context.Context, teamIDs, policyIDs []uint) error {
+	ac, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return err
+	}
+	allAutoPolicies := automationPolicies(ac.WebhookSettings.FailingPoliciesWebhook, ac.Integrations.Jira, ac.Integrations.Zendesk)
+	pIDs := make(map[uint]struct{})
+	for _, id := range policyIDs {
+		pIDs[id] = struct{}{}
+	}
+	for _, teamID := range teamIDs {
+		p1, p2, err := svc.ds.ListTeamPolicies(ctx, teamID)
+		if err != nil {
+			return err
+		}
+		for _, p := range p1 {
+			pIDs[p.ID] = struct{}{}
+		}
+		for _, p := range p2 {
+			pIDs[p.ID] = struct{}{}
+		}
+	}
+	hasGlobal := false
+	tIDs := make(map[uint]struct{})
+	for id := range pIDs {
+		p, err := svc.ds.Policy(ctx, id)
+		if err != nil {
+			return err
+		}
+		if p.TeamID == nil {
+			hasGlobal = true
+		} else {
+			tIDs[*p.TeamID] = struct{}{}
+		}
+	}
+	for id := range tIDs {
+		if err := svc.authz.Authorize(ctx, &fleet.Team{ID: id}, fleet.ActionWrite); err != nil {
+			return err
+		}
+		t, err := svc.ds.Team(ctx, id)
+		if err != nil {
+			return err
+		}
+		for pID := range teamAutomationPolicies(t.Config.WebhookSettings.FailingPoliciesWebhook, t.Config.Integrations.Jira, t.Config.Integrations.Zendesk) {
+			allAutoPolicies[pID] = struct{}{}
+		}
+	}
+	if hasGlobal {
+		if err := svc.authz.Authorize(ctx, &fleet.AppConfig{}, fleet.ActionWrite); err != nil {
+			return err
+		}
+	}
+	if len(tIDs) == 0 && !hasGlobal {
+		svc.authz.SkipAuthorization(ctx)
+		return nil
+	}
+	for id := range pIDs {
+		if _, ok := allAutoPolicies[id]; !ok {
+			continue
+		}
+		if err := svc.ds.IncreasePolicyAutomationIteration(ctx, id); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func automationPolicies(wh fleet.FailingPoliciesWebhookSettings, ji []*fleet.JiraIntegration, zi []*fleet.ZendeskIntegration) map[uint]struct{} {
+	enabled := wh.Enable
+	for _, j := range ji {
+		if j.EnableFailingPolicies {
+			enabled = true
+		}
+	}
+	for _, z := range zi {
+		if z.EnableFailingPolicies {
+			enabled = true
+		}
+	}
+	pols := make(map[uint]struct{}, len(wh.PolicyIDs))
+	if !enabled {
+		return pols
+	}
+	for _, pid := range wh.PolicyIDs {
+		pols[pid] = struct{}{}
+	}
+	return pols
+}
+
+func teamAutomationPolicies(wh fleet.FailingPoliciesWebhookSettings, ji []*fleet.TeamJiraIntegration, zi []*fleet.TeamZendeskIntegration) map[uint]struct{} {
+	enabled := wh.Enable
+	for _, j := range ji {
+		if j.EnableFailingPolicies {
+			enabled = true
+		}
+	}
+	for _, z := range zi {
+		if z.EnableFailingPolicies {
+			enabled = true
+		}
+	}
+	pols := make(map[uint]struct{}, len(wh.PolicyIDs))
+	if !enabled {
+		return pols
+	}
+	for _, pid := range wh.PolicyIDs {
+		pols[pid] = struct{}{}
+	}
+	return pols
+}
+
+/////////////////////////////////////////////////////////////////////////////////
 // Apply Spec
 /////////////////////////////////////////////////////////////////////////////////
 
@@ -330,6 +465,11 @@ func (svc *Service) ApplyPolicySpecs(ctx context.Context, policies []*fleet.Poli
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
 		return errors.New("user must be authenticated to apply policies")
+	}
+	if !license.IsPremium(ctx) {
+		for i := range policies {
+			policies[i].Critical = false
+		}
 	}
 	if err := svc.ds.ApplyPolicySpecs(ctx, vc.UserID(), policies); err != nil {
 		return ctxerr.Wrap(ctx, err, "applying policy specs")

@@ -653,7 +653,8 @@ None.
       "request_id": "fleet_distributed_query_31",
       "session_id": "f73922ed-40a4-4e98-a50a-ccda9d3eb755",
       "expired": false,
-      "max_block": 1
+      "max_block": 1,
+      "error": "S3 multipart carve upload: EntityTooSmall: Your proposed upload is smaller than the minimum allowed object size"
     }
   ]
 }
@@ -2289,7 +2290,7 @@ Returns the information of the host specified using the `uuid`, `osquery_host_id
             "platform": "",
             "label_type": "builtin",
             "label_membership_type": "dynamic"
-        },
+        }
     ],
     "packs": [
           {
@@ -2610,6 +2611,7 @@ Retrieves MDM enrollment summary. Windows servers are excluded from the aggregat
 
 ```json
 {
+  "counts_updated_at": "2021-03-21T12:32:44Z",
   "mobile_device_management_enrollment_status": {
     "enrolled_manual_hosts_count": 0,
     "enrolled_automated_hosts_count": 2,
@@ -2723,7 +2725,7 @@ Retrieves aggregated host's MDM enrollment status and Munki versions.
 ```json
 {
   "macadmins": {
-    "counts_updated_at": "2021-03-21 12:32:44",
+    "counts_updated_at": "2021-03-21T12:32:44Z",
     "munki_versions": [
       {
         "version": "5.5",
@@ -3231,8 +3233,8 @@ Returns a list of the hosts that belong to the specified label.
 | query                    | string  | query | Search query keywords. Searchable fields include `hostname`, `machine_serial`, `uuid`, and `ipv4`.                                                                                                                         |
 | team_id                  | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts in the specified team.                                                                                                                                |
 | disable_failing_policies | boolean | query | If "true", hosts will return failing policies as 0 regardless of whether there are any that failed for the host. This is meant to be used when increased performance is needed in exchange for the extra information.      |
+| mdm_id                  | integer | query | The ID of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider and URL).      |
 | low_disk_space           | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts with less GB of disk space available than this value. Must be a number between 1-100.                                                                 |
-
 #### Example
 
 `GET /api/v1/fleet/labels/6/hosts&query=floobar`
@@ -3339,6 +3341,7 @@ Deletes the label specified by ID.
 - [Add policy](#add-policy)
 - [Remove policies](#remove-policies)
 - [Edit policy](#edit-policy)
+- [Run automation for all failing hosts of a policy](#run-automation-for-all-failing-hosts-of-a-policy)
 
 `In Fleet 4.3.0, the Policies feature was introduced.`
 
@@ -3468,7 +3471,7 @@ An error is returned if both "query" and "query_id" are set on the request.
 | resolution  | string  | body | The resolution steps for the policy. |
 | query_id    | integer | body | An existing query's ID (legacy).     |
 | platform    | string  | body | Comma-separated target platforms, currently supported values are "windows", "linux", "darwin". The default, an empty string means target all platforms. |
-| critical    | boolean | body | Mark policy as critical/high impact. |
+| critical    | boolean | body | _Available in Fleet Premium_ Mark policy as critical/high impact. |
 
 Either `query` or `query_id` must be provided.
 
@@ -3601,7 +3604,7 @@ Where `query_id` references an existing `query`.
 | description | string  | body | The query's description.             |
 | resolution  | string  | body | The resolution steps for the policy. |
 | platform    | string  | body | Comma-separated target platforms, currently supported values are "windows", "linux", "darwin". The default, an empty string means target all platforms. |
-| critical    | boolean | body | Mark policy as critical/high impact. |
+| critical    | boolean | body | _Available in Fleet Premium_ Mark policy as critical/high impact. |
 
 #### Example Edit Policy
 
@@ -3644,6 +3647,44 @@ Where `query_id` references an existing `query`.
     "failing_host_count": 0
   }
 }
+```
+
+### Run Automation for all failing hosts of a policy.
+
+Normally automations (Webhook/Integrations) runs on all hosts when a policy-check
+fails but didn't fail before. This feature to mark policies to call automation for
+all hosts that already fail the policy, too and possibly again.
+
+`POST /api/v1/fleet/automations/reset`
+
+#### Parameters
+
+| Name        | Type     | In   | Description                                              |
+| ----------  | -------- | ---- | -------------------------------------------------------- |
+| team_ids    | list     | body | Run automation for all hosts in policies of these teams  |
+| policy_ids  | list     | body | Run automations for all hosts these policies             |
+
+_Teams are available in Fleet Premium_
+
+#### Example Edit Policy
+
+`POST /api/v1/fleet/automations/reset`
+
+##### Request body
+
+```json
+{
+    "team_ids": [1],
+    "policy_ids": [1, 2, 3]
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{}
 ```
 
 ---
@@ -3796,7 +3837,7 @@ The semantics for creating a team policy are the same as for global policies, se
 | resolution  | string  | body | The resolution steps for the policy. |
 | query_id    | integer | body | An existing query's ID (legacy).     |
 | platform    | string  | body | Comma-separated target platforms, currently supported values are "windows", "linux", "darwin". The default, an empty string means target all platforms. |
-| critical    | boolean | body | Mark policy as critical/high impact. |
+| critical    | boolean | body | _Available in Fleet Premium_ Mark policy as critical/high impact. |
 
 Either `query` or `query_id` must be provided.
 
@@ -3891,7 +3932,7 @@ Either `query` or `query_id` must be provided.
 | description | string  | body | The query's description.             |
 | resolution  | string  | body | The resolution steps for the policy. |
 | platform    | string  | body | Comma-separated target platforms, currently supported values are "windows", "linux", "darwin". The default, an empty string means target all platforms. |
-| critical    | boolean | body | Mark policy as critical/high impact. |
+| critical    | boolean | body | _Available in Fleet Premium_ Mark policy as critical/high impact. |
 
 #### Example Edit Policy
 
@@ -5113,7 +5154,7 @@ _Available in Fleet Premium_
       "agent_options": {
         "config": {
           "options": {
-=            "pack_delimiter": "/",
+            "pack_delimiter": "/",
             "logger_tls_period": 10,
             "distributed_plugin": "tls",
             "disable_distributed": false,
@@ -5150,7 +5191,7 @@ _Available in Fleet Premium_
         "spec": {
           "config": {
             "options": {
-=              "pack_delimiter": "/",
+              "pack_delimiter": "/",
               "logger_tls_period": 10,
               "distributed_plugin": "tls",
               "disable_distributed": false,
@@ -5213,7 +5254,7 @@ _Available in Fleet Premium_
     "agent_options": {
       "config": {
         "options": {
-=          "pack_delimiter": "/",
+          "pack_delimiter": "/",
           "logger_tls_period": 10,
           "distributed_plugin": "tls",
           "disable_distributed": false,
@@ -5369,7 +5410,7 @@ _Available in Fleet Premium_
     "agent_options": {
       "config": {
         "options": {
-=          "pack_delimiter": "/",
+          "pack_delimiter": "/",
           "logger_tls_period": 10,
           "distributed_plugin": "tls",
           "disable_distributed": false,

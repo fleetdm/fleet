@@ -1,0 +1,1 @@
+* When WMI call fails on Windows, UUID can now be retrieved by reading the SMBIOS interface.

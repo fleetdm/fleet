@@ -53,6 +53,7 @@ const QueryEditor = ({
     lastEditedQueryDescription,
     lastEditedQueryBody,
     lastEditedQueryResolution,
+    lastEditedQueryCritical,
     lastEditedQueryPlatform,
     policyTeamId,
   } = useContext(PolicyContext);
@@ -112,6 +113,7 @@ const QueryEditor = ({
       lastEditedQueryDescription,
       lastEditedQueryBody,
       lastEditedQueryResolution,
+      lastEditedQueryCritical,
       lastEditedQueryPlatform,
     });
 

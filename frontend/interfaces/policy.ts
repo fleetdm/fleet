@@ -12,6 +12,7 @@ export default PropTypes.shape({
   name: PropTypes.string.isRequired,
   query: PropTypes.string.isRequired,
   resoluton: PropTypes.string.isRequired,
+  critical: PropTypes.bool,
   response: PropTypes.string,
   team_id: PropTypes.number,
   updated_at: PropTypes.string.isRequired,
@@ -34,6 +35,7 @@ export interface IPolicy {
   team_id?: number;
   created_at: string;
   updated_at: string;
+  critical: boolean;
 }
 
 // Used on the manage hosts page and other places where aggregate stats are displayed
@@ -61,6 +63,7 @@ export interface ILoadTeamPoliciesResponse {
 export interface IPolicyFormData {
   description?: string | number | boolean | undefined;
   resolution?: string | number | boolean | undefined;
+  critical?: boolean;
   platform?: IPlatformString;
   name?: string | number | boolean | undefined;
   query?: string | number | boolean | undefined;
@@ -75,5 +78,6 @@ export interface IPolicyNew {
   description: string;
   query: string;
   resolution: string;
+  critical: boolean;
   platform: IPlatformString;
 }

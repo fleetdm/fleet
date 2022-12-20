@@ -51,7 +51,6 @@ import (
 	"github.com/go-kit/kit/log/level"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/kolide/kit/version"
-	nanodep_client "github.com/micromdm/nanodep/client"
 	"github.com/micromdm/nanomdm/cryptoutil"
 	"github.com/micromdm/nanomdm/push/buford"
 	nanomdm_pushsvc "github.com/micromdm/nanomdm/push/service"
@@ -315,6 +314,7 @@ the way that the Fleet server works.
 
 			redisPool, err := redis.NewPool(redis.PoolConfig{
 				Server:                    config.Redis.Address,
+				Username:                  config.Redis.Username,
 				Password:                  config.Redis.Password,
 				Database:                  config.Redis.Database,
 				UseTLS:                    config.Redis.UseTLS,
@@ -394,7 +394,6 @@ the way that the Fleet server works.
 				appleSCEPKeyPEM  []byte
 				appleAPNsCertPEM []byte
 				appleAPNsKeyPEM  []byte
-				appleBMToken     *nanodep_client.OAuth1Tokens
 				depStorage       *mysql.NanoDEPStorage
 				mdmStorage       *mysql.NanoMDMStorage
 				mdmPushService   *nanomdm_pushsvc.PushService
@@ -448,7 +447,10 @@ the way that the Fleet server works.
 				if err != nil {
 					initFatal(err, "validate Apple BM token, certificate and key")
 				}
-				appleBMToken = tok
+				depStorage, err = mds.NewMDMAppleDEPStorage(*tok)
+				if err != nil {
+					initFatal(err, "initialize Apple BM DEP storage")
+				}
 			}
 
 			if config.MDMApple.Enable {
@@ -470,10 +472,6 @@ the way that the Fleet server works.
 				mdmStorage, err = mds.NewMDMAppleMDMStorage(appleAPNsCertPEM, appleAPNsKeyPEM)
 				if err != nil {
 					initFatal(err, "initialize mdm apple MySQL storage")
-				}
-				depStorage, err = mds.NewMDMAppleDEPStorage(*appleBMToken)
-				if err != nil {
-					initFatal(err, "initialize mdm apple dep storage")
 				}
 				nanoMDMLogger := NewNanoMDMLogger(kitlog.With(logger, "component", "apple-mdm-push"))
 				pushProviderFactory := buford.NewPushProviderFactory()
@@ -516,7 +514,7 @@ the way that the Fleet server works.
 			}
 
 			if license.IsPremium() {
-				svc, err = eeservice.NewService(svc, ds, logger, config, mailService, clock.C)
+				svc, err = eeservice.NewService(svc, ds, logger, config, mailService, clock.C, depStorage)
 				if err != nil {
 					initFatal(err, "initial Fleet Premium service")
 				}

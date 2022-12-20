@@ -2,7 +2,7 @@
 # All settings related to how Fleet is deployed in Kubernetes
 hostName: fleet.localhost
 replicas: 3 # The number of Fleet instances to deploy
-imageTag: v4.24.0 # Version of Fleet to deploy
+imageTag: v4.24.1 # Version of Fleet to deploy
 podAnnotations: {} # Additional annotations to add to the Fleet pod
 serviceAccountAnnotations: {} # Additional annotations to add to the Fleet service account
 resources:
@@ -50,17 +50,21 @@ ingress:
   #  - secretName: chart-example-tls
   #    hosts:
   #      - chart-example.local
-  
+
 ## Section: Fleet
 # All of the settings relating to configuring the Fleet server
 fleet:
   listenPort: 8080
-  # Name of the Secret resource storing TLS and S3 bucket secrets
+  # Name of the Secret resource storing S3 bucket and optionally TLS secrets
   secretName: fleet
   # Whether or not to run `fleet db prepare` to run SQL migrations before starting Fleet
   autoApplySQLMigrations: true
   tls:
     enabled: true
+    # Set to true if you need a separate secret for just TLS data.
+    # Useful with cert-manager and similar deployments.
+    uniqueTLSSecret: false
+    secretName: fleet-tls
     compatibility: modern
     certSecretKey: server.cert
     keySecretKey: server.key

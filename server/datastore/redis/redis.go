@@ -44,6 +44,7 @@ func (p *clusterPool) Mode() fleet.RedisMode {
 // PoolConfig holds the redis pool configuration options.
 type PoolConfig struct {
 	Server                    string
+	Username                  string
 	Password                  string
 	Database                  int
 	UseTLS                    bool
@@ -71,7 +72,7 @@ type PoolConfig struct {
 }
 
 // NewPool creates a Redis connection pool using the provided server
-// address, password and database.
+// address, username, password and database.
 func NewPool(config PoolConfig) (fleet.RedisPool, error) {
 	cluster, err := newCluster(config)
 	if err != nil {
@@ -249,6 +250,7 @@ func newCluster(conf PoolConfig) (*redisc.Cluster, error) {
 		redis.DialUseTLS(conf.UseTLS),
 		redis.DialConnectTimeout(conf.ConnTimeout),
 		redis.DialKeepAlive(conf.KeepAlive),
+		redis.DialUsername(conf.Username),
 		redis.DialPassword(conf.Password),
 		redis.DialWriteTimeout(conf.WriteTimeout),
 		redis.DialReadTimeout(conf.ReadTimeout),
