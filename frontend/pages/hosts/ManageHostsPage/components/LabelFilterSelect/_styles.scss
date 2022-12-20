@@ -67,6 +67,7 @@
     width: 300px;
     margin-top: 0;
     z-index: 2;
+    animation: fade-in 150ms linear;
   }
 
   .label-filter-select__menu-list {
