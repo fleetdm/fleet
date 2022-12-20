@@ -2,8 +2,41 @@
     from {
         opacity: 0;
     }
-
     to {
         opacity: 1;
+    }
+}
+
+@keyframes fade-and-scale {
+    from {
+        opacity: 0;
+        transform: scaleY(0);
+        transform-origin: top center;
+    }
+    to {
+        opacity: 1;
+        transform: scaleY(1);
+        transform-origin: top center;
+    }
+}
+
+@keyframes scale-up {
+    from {
+        transform: scale(0.5);
+    }
+    to {
+        transform: scale(1);
+    }
+}
+
+// Page transition animation
+@keyframes page-transition {
+    from {
+        opacity: 0;
+        transform: translateX(100%);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
     }
 }
