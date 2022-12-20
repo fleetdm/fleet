@@ -1,5 +1,3 @@
-// This component is used on the ManageSoftwarePage.tsx
-
 import React from "react";
 import { IconNames } from "components/icons";
 import classnames from "classnames";

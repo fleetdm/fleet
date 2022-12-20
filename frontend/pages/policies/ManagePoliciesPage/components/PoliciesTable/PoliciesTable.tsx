@@ -62,7 +62,7 @@ const PoliciesTable = ({
       header: (
         <>
           Ask yes or no questions about{" "}
-          <a href={MANAGE_HOSTS}>all your hosts</a>.
+          <a href={MANAGE_HOSTS}>all your hosts</a>
         </>
       ),
       info: (
@@ -86,7 +86,6 @@ const PoliciesTable = ({
           >
             {currentTeam.name}
           </a>
-          .
         </>
       );
     }

@@ -54,6 +54,7 @@ const PacksTable = ({
     [setSearchString]
   );
 
+  // TODO: REFACTOR
   const NoPacksComponent = useCallback(() => {
     return (
       <div className={`${noPacksClass}`}>

@@ -58,7 +58,7 @@ const QueriesTable = ({
   const emptyState = () => {
     const noQueries: IEmptyTableProps = {
       iconName: "empty-queries",
-      header: "You don't have any queries.",
+      header: "You don't have any queries",
       info: "A query is a specific question you can ask about your devices.",
     };
     if (searchString) {
