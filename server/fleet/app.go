@@ -100,6 +100,11 @@ type VulnerabilitySettings struct {
 	DatabasesPath string `json:"databases_path"`
 }
 
+// MDM is part of AppConfig and defines the mdm settings.
+type MDM struct {
+	AppleBMDefaultTeam string `json:"apple_bm_default_team"`
+}
+
 // AppConfig holds server configuration that can be changed via the API.
 //
 // Note: management of deprecated fields is done on JSON-marshalling and uses
@@ -124,6 +129,8 @@ type AppConfig struct {
 
 	WebhookSettings WebhookSettings `json:"webhook_settings"`
 	Integrations    Integrations    `json:"integrations"`
+
+	MDM MDM `json:"mdm"`
 
 	// when true, strictDecoding causes the UnmarshalJSON method to return an
 	// error if there are unknown fields in the raw JSON.

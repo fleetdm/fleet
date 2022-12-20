@@ -254,6 +254,8 @@ spec:
       destination_url: ""
       enable_vulnerabilities_webhook: false
       host_batch_size: 0
+  mdm:
+    apple_bm_default_team: ""
 ```
 
 ### Settings
@@ -1116,6 +1118,23 @@ agent_options:
   command_line_flags:
     enable_file_events: true
 ```
+
+#### MDM Setting
+
+MDM Options, currently supports Apple Business Manager.
+
+**Applies only to Fleet Premium**.
+
+##### mdm.apple_bm_default_team
+
+Set name of default team to use with Apple Business Manager.
+
+- Default value: ""
+- Config file format:
+  ```yaml
+  mdm:
+    team: "Workstations"
+  ```
 
 #### Advanced configuration
 

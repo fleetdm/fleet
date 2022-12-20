@@ -1125,8 +1125,12 @@ func getMDMAppleBMCommand() *cli.Command {
 				}
 				return fmt.Errorf("could not get Apple BM information: %w", err)
 			}
+			config, err := client.GetAppConfig()
+			if err != nil {
+				return fmt.Errorf("could not get app config: %w", err)
+			}
 
-			defaultTeam := bm.DefaultTeam
+			defaultTeam := config.MDM.AppleBMDefaultTeam
 			if defaultTeam == "" {
 				defaultTeam = "No team"
 			}
