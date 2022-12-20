@@ -11,7 +11,12 @@ import versionAPI from "services/entities/version";
 import Avatar from "components/Avatar";
 import Button from "components/buttons/Button";
 
-import { generateRole, generateTeam, greyCell } from "utilities/helpers";
+import {
+  generateRole,
+  generateTeam,
+  greyCell,
+  humanHostTimeDiffWithDateTip,
+} from "utilities/helpers";
 
 interface IUserSidePanelProps {
   currentUser: IUser;
@@ -53,11 +58,10 @@ const UserSidePanel = ({
   const roleText = generateRole(teams, globalRole);
   const teamsText = generateTeam(teams, globalRole);
 
-  const lastUpdatedAt =
-    updatedAt &&
-    formatDistanceToNow(new Date(updatedAt), {
-      addSuffix: true,
-    });
+  const lastUpdatedAt = updatedAt && humanHostTimeDiffWithDateTip(updatedAt);
+  // formatDistanceToNow(new Date(updatedAt), {
+  //   addSuffix: true,
+  // });
 
   return (
     <div className={baseClass}>

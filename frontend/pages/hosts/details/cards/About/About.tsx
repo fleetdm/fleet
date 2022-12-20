@@ -3,7 +3,11 @@ import React from "react";
 import ReactTooltip from "react-tooltip";
 
 import { IHostMdmData, IMunkiData, IDeviceUser } from "interfaces/host";
-import { humanHostLastRestart, humanHostEnrolled } from "utilities/helpers";
+import {
+  humanHostLastRestart,
+  humanHostEnrolled,
+  humanHostTimeDiffWithDateTip,
+} from "utilities/helpers";
 
 interface IAboutProps {
   aboutData: { [key: string]: any };
@@ -157,9 +161,11 @@ const About = ({
         <div className="info-grid__block">
           <span className="info-grid__header">Last restarted</span>
           <span className="info-grid__data">
-            {humanHostLastRestart(
-              aboutData.detail_updated_at,
-              aboutData.uptime
+            {humanHostTimeDiffWithDateTip(
+              humanHostLastRestart(
+                aboutData.detail_updated_at,
+                aboutData.uptime
+              )
             )}
           </span>
         </div>
