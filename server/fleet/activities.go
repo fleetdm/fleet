@@ -5,6 +5,8 @@ import (
 )
 
 const (
+	// ActivityTypeUserLoggedIn is the activity type for logging in a user
+	ActivityTypeUserLoggedIn = "user_logged_in"
 	// ActivityTypeCreatedPack is the activity type for created packs
 	ActivityTypeCreatedPack = "created_pack"
 	// ActivityTypeEditedPack is the activity type for edited packs
@@ -45,6 +47,18 @@ const (
 	ActivityTypeEditedAgentOptions = "edited_agent_options"
 	// ActivityTypeAppliedSpecTeam is the activity type for a team spec applied
 	ActivityTypeAppliedSpecTeam = "applied_spec_team"
+	// ActivityTypeCreatedUser is the activity type for created users.
+	ActivityTypeCreatedUser = "created_user"
+	// ActivityTypeDeletedUser is the activity type for deleted users.
+	ActivityTypeDeletedUser = "deleted_user"
+	// ActivityTypeChangedUserGlobalRole is the activity type for changed user global role.
+	ActivityTypeChangedUserGlobalRole = "changed_user_global_role"
+	// ActivityTypeDeletedUserGlobalRole is the activity type for deleted user global role.
+	ActivityTypeDeletedUserGlobalRole = "deleted_user_global_role"
+	// ActivityTypeChangedUserTeamRole is the activity type for changed user team role.
+	ActivityTypeChangedUserTeamRole = "changed_user_team_role"
+	// ActivityTypeDeletedUserTeamRole is the activity type for deleted user team role.
+	ActivityTypeDeletedUserTeamRole = "deleted_user_team_role"
 )
 
 type Activity struct {

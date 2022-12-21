@@ -4482,7 +4482,7 @@ func (s *integrationTestSuite) TestAppConfig() {
 	// corresponding activity should not have been created.
 	var listActivities listActivitiesResponse
 	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &listActivities, "order_key", "id", "order_direction", "desc")
-	if !assert.Len(t, listActivities.Activities, 0) {
+	if !assert.Len(t, listActivities.Activities, 1) {
 		// if there is an activity, make sure it is not edited_agent_options
 		require.NotEqual(t, fleet.ActivityTypeEditedAgentOptions, listActivities.Activities[0].Type)
 	}
@@ -4504,7 +4504,7 @@ func (s *integrationTestSuite) TestAppConfig() {
 		"agent_options": { "config": {"views": {"foo": "bar"}} }
   }`), http.StatusOK, &acResp)
 	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &listActivities, "order_key", "id", "order_direction", "desc")
-	require.True(t, len(listActivities.Activities) > 0)
+	require.True(t, len(listActivities.Activities) > 1)
 	require.Equal(t, fleet.ActivityTypeEditedAgentOptions, listActivities.Activities[0].Type)
 	require.NotNil(t, listActivities.Activities[0].Details)
 	assert.JSONEq(t, `{"global": true, "team_id": null, "team_name": null}`, string(*listActivities.Activities[0].Details))
