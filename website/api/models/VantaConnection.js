@@ -14,13 +14,14 @@ module.exports = {
     //  ╩  ╩╚═╩╩ ╩╩ ╩ ╩ ╚╝ ╚═╝╚═╝
     emailAddress: {
       description: 'The email address provided when this Vanta connection was created.',
+      extendedDescription: 'This will be used to contact the user who created this request if any problems occur.',
       type: 'string',
       required: true,
       isEmail: true,
     },
 
     vantaSourceId: {
-      description: 'The generated source ID for this Vanta Connection.',
+      description: 'The generated source ID that will be used the identifier for this for this Vanta Connection in Vanta.',
       type: 'string',
       unique: true,
       required: true,
@@ -28,6 +29,7 @@ module.exports = {
 
     fleetInstanceUrl: {
       description: 'The full URL of the Fleet instance that will be connected to Vanta.',
+      example: 'https://fleet.example.com',
       type: 'string',
       required: true,
       unique: true,
@@ -58,7 +60,8 @@ module.exports = {
     isConnectedToVanta: {
       type: 'boolean',
       defaultsTo: false,
-      description: 'whether this Vanta connection is authorized to send data to Vanta on behalf of the user.',
+      description: 'Whether this Vanta connection has been authorized to send data to Vanta on behalf of the user.',
+      extendedDescription: 'If this value is true, data from the Fleet instance associated with this connection be sent to Vanta in the send-data-to-vanta script.'
     }
 
     //  ╔═╗╔╦╗╔╗ ╔═╗╔╦╗╔═╗
