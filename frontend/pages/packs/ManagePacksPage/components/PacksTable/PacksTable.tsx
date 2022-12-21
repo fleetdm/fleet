@@ -73,6 +73,7 @@ const PacksTable = ({
       ),
     };
     if (searchString) {
+      delete emptyPacks.iconName;
       emptyPacks.header = "No packs match the current search criteria.";
       emptyPacks.info =
         "Expecting to see packs? Try again in a few seconds as the system catches up.";

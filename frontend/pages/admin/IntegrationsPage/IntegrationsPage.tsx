@@ -418,7 +418,7 @@ const IntegrationsPage = (): JSX.Element => {
           resultsTitle={"integrations"}
           emptyComponent={() =>
             EmptyTable({
-              iconName: "empty-integrations",
+              iconName: emptyState().iconName,
               header: emptyState().header,
               info: emptyState().info,
               additionalInfo: emptyState().additionalInfo,

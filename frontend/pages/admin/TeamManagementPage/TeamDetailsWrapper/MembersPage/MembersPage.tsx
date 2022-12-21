@@ -372,6 +372,7 @@ const MembersPage = ({
       );
     }
     if (searchString !== "") {
+      delete emptyMembers.iconName;
       emptyMembers.header = "We couldn’t find any members.";
       emptyMembers.info =
         "Expecting to see members? Try again in a few seconds as the system catches up.";

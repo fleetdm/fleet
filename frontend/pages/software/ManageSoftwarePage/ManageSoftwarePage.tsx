@@ -533,11 +533,11 @@ const ManageSoftwarePage = ({
 
   const emptyState = () => {
     const emptySoftware: IEmptyTableProps = {
-      iconName: "empty-software",
       header: "No software matches the current search criteria",
       info: "Try again in about 1 hour as the system catches up.",
     };
     if (!isSoftwareEnabled) {
+      emptySoftware.iconName = "empty-software";
       emptySoftware.header = "Software inventory disabled";
       emptySoftware.info = (
         <>
@@ -552,11 +552,13 @@ const ManageSoftwarePage = ({
       );
     }
     if (isCollectingInventory) {
+      emptySoftware.iconName = "empty-software";
       emptySoftware.header = "No software detected";
       emptySoftware.info =
         "This report is updated every hour to protect the performance of your devices.";
     }
     if (currentTeam && filterVuln) {
+      emptySoftware.iconName = "empty-software";
       emptySoftware.header = "No vulnerable software detected";
       emptySoftware.info =
         "This report is updated every hour to protect the performance of your devices.";
