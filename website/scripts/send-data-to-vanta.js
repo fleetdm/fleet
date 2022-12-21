@@ -14,7 +14,7 @@ module.exports = {
 
     sails.log('Syncing Fleet instance data with Vanta for '+allActiveVantaConnections.length+(allActiveVantaConnections.length > 1 ? ' connections.' : ' connection.'));
 
-    // Create an empty object to store caught errors. We don't want this script to stop running if there is an error with a single Vanta integration, so instead, we'll store any errors that occur and stop the script for that connection if any occur, and we'll log them individually before the script is done.
+    // Create an empty object to store caught errors. We don't want this script to stop running if there is an error with a single Vanta integration, so instead, we'll store any errors that occur and bail early for that connection if any occur, and we'll log them individually before the script is done.
     let errorReportById = {};
 
     // use sails.helpers.flow.simutaniouslyForEach to send data for each connection record.
@@ -33,12 +33,12 @@ module.exports = {
           grant_type: 'refresh_token',// eslint-disable-line camelcase
         },
         headers: { accept: 'application/json' }
-      }).catch((err)=>{
+      }).tolerate((err)=>{
         // If an error occurs while sending a request to Vanta, we'll add the error to the errorReportById object, with this connections ID set as the key.
         errorReportById[connectionIdAsString] = new Error(`Could not refresh the token for Vanta connection (id: ${connectionIdAsString}). Full error: ${err}`);
       });
 
-      if(errorReportById[connectionIdAsString]){// If there was an error with the previous request, stop the script for this Vanta connection.
+      if(errorReportById[connectionIdAsString]){// If there was an error with the previous request, bail early for this Vanta connection.
         return;
       }
 
@@ -58,11 +58,11 @@ module.exports = {
         {},
         {'Authorization': 'Bearer '+updatedRecord.fleetApiKey }
       )
-      .catch((err)=>{// If an error occurs while sending a request to the Fleet instance, we'll add the error to the errorReportById object, with this connections ID set as the key.
+      .tolerate((err)=>{// If an error occurs while sending a request to the Fleet instance, we'll add the error to the errorReportById object, with this connections ID set as the key.
         errorReportById[connectionIdAsString] = new Error(`When sending a request to the /users endpoint of a Fleet instance for a VantaConnection (id: ${connectionIdAsString}), the Fleet instance returned an Error: ${err}`);
       });
 
-      if(errorReportById[connectionIdAsString]){// If there was an error with the previous request, stop the script for this Vanta connection.
+      if(errorReportById[connectionIdAsString]){// If there was an error with the previous request, bail early for this Vanta connection.
         return;
       }
 
@@ -129,11 +129,12 @@ module.exports = {
         pageNumberForPossiblePaginatedResults++;
         // If we recieved less results than we requested, we've reached the last page of the results.
         return getHostsResponse.hosts.length !== numberOfHostsPerRequest;
-      }, 10000).intercept('tookTooLong', ()=>{// If an error occurs while sending a request to the Fleet instance, we'll add the error to the errorReportById object, with this connections ID set as the key.
+      }, 10000)
+      .tolerate(()=>{// If an error occurs while sending a request to the Fleet instance, we'll add the error to the errorReportById object, with this connections ID set as the key.
         errorReportById[connectionIdAsString] = new Error(`When requesting all hosts from a Fleet instance for a VantaConnection (id: ${connectionIdAsString}), the Fleet instance did not respond with all of it's hosts in the set amount of time.`);
       });
 
-      if(errorReportById[connectionIdAsString]){// If an error occured in the previous request, we'll stop the script for this connection.
+      if(errorReportById[connectionIdAsString]){// If an error occured in the previous request, we'll bail early for this connection.
         return;
       }
 
@@ -150,7 +151,7 @@ module.exports = {
         let macOsHostToSyncWithVanta = {
           displayName: host.display_name,
           uniqueId: hostIdAsString,
-          externalUrl: updatedRecord.fleetInstanceUrl + '/hosts/'+hostIdAsString,
+          externalUrl: updatedRecord.fleetInstanceUrl + encodeURIComponent('/hosts/'+hostIdAsString),
           collectedTimestamp: host.updated_at,
           osName: 'macOS', // Setting the osName for all macOS hosts to 'macOS'. Different versions of macOS have different prefixes, (e.g., a macOS host running 12.6 would be returned as "macOS 12.6.1", while a mac running version 10.15.7 would be displayed as "Mac OS X 10.15.7")
           osVersion: host.os_version.replace(/^([\D]+)\s(.+)/g, '$2'), // removing everything but the version number (XX.XX.XX) from the host's os_version value.
@@ -172,8 +173,8 @@ module.exports = {
           {'Authorization': 'bearer '+updatedRecord.fleetApiKey}
         )
         .retry()
-        .catch((err)=>{// If an error occurs while sending a request to the Fleet instance, we'll throw an error.
-          throw new Error(`When sending a request to the Fleet instance's /hosts/${host.id} endpoint for a Vanta connection (id: ${connectionIdAsString}), an error occurred: ${err}`);
+        .intercept((err)=>{// If an error occurs while sending a request to the Fleet instance, we'll throw an error.
+          return new Error(`When sending a request to the Fleet instance's /hosts/${host.id} endpoint for a Vanta connection (id: ${connectionIdAsString}), an error occurred: ${err}`);
         });
 
         // Build a drive object for this host, using the host's disk_encryption_enabled value to set the boolean values for `encrytped` and `filevaultEnabled`
@@ -206,11 +207,11 @@ module.exports = {
 
         // Add the host to the array of macOS hosts to sync with Vanta
         macHostsToSyncWithVanta.push(macOsHostToSyncWithVanta);
-      }).catch((err)=>{// If an error occurs while sending requests for each host, add the error to the errorReportById object.
+      }).tolerate((err)=>{// If an error occurs while sending requests for each host, add the error to the errorReportById object.
         errorReportById[connectionIdAsString] = new Error(`When building an array of macOS hosts for a Vanta connection (id: ${connectionIdAsString}), an error occured: ${err}`);
       });// After every macOS host
 
-      if(errorReportById[connectionIdAsString]){// If an error occured while gathering detailed host information, we'll stop the script for this connection.
+      if(errorReportById[connectionIdAsString]){// If an error occured while gathering detailed host information, we'll bail early for this connection.
         return;
       }
 
@@ -231,11 +232,11 @@ module.exports = {
           'authorization': 'Bearer '+updatedRecord.vantaAuthToken,
           'content-type': 'application/json',
         },
-      }).catch((err)=>{// If an error occurs while sending a request to Vanta, we'll add the error to the errorReportById object, with this connections ID set as the key.
+      }).tolerate((err)=>{// If an error occurs while sending a request to Vanta, we'll add the error to the errorReportById object, with this connections ID set as the key.
         errorReportById[connectionIdAsString] = new Error(`vantaError: When sending a PUT request to the Vanta's '/user_account/sync_all' endpoint for a Vanta connection (id: ${connectionIdAsString}), an error occurred: ${err}`);
       });
 
-      if(errorReportById[connectionIdAsString]){// If an error occured in the previous request, we'll stop the script for this connection.
+      if(errorReportById[connectionIdAsString]){// If an error occured in the previous request, we'll bail early for this connection.
         return;
       }
 
@@ -247,7 +248,7 @@ module.exports = {
         url: 'https://api.vanta.com/v1/resources/macos_user_computer/sync_all',
         body: {
           sourceId: vantaConnection.vantaSourceId,
-          resourceId: '63868a569c18bd7adc6b7907',//TODO: resourceID for hosts in vanta application,
+          resourceId: '63868a569c18bd7adc6b7907',
           resources: macHostsToSyncWithVanta,
         },
         headers: {
@@ -255,11 +256,11 @@ module.exports = {
           'authorization': 'Bearer '+updatedRecord.vantaAuthToken,
           'content-type': 'application/json',
         },
-      }).catch((err)=>{// If an error occurs while sending a request to Vanta, we'll add the error to the errorReportById object, with this connections ID set as the key.
+      }).tolerate((err)=>{// If an error occurs while sending a request to Vanta, we'll add the error to the errorReportById object, with this connections ID set as the key.
         errorReportById[connectionIdAsString] = new Error(`vantaError: When sending a PUT request to the Vanta's '/macos_user_computer/sync_all' endpoint for a Vanta connection (id: ${connectionIdAsString}), an error occurred: ${err}`);
       });
 
-      if(errorReportById[connectionIdAsString]){// If an error occured in the previous request, we'll stop the script for this connection.
+      if(errorReportById[connectionIdAsString]){// If an error occured in the previous request, we'll bail early for this connection.
         return;
       }
 
@@ -279,7 +280,7 @@ module.exports = {
       }
     }//∞
 
-    sails.log('Information has been sent to Vanta for '+(allActiveVantaConnections.length - numberOfLoggedErrors)+(allActiveVantaConnections.length - numberOfLoggedErrors > 1 ? ' connections.' : ' connection.'));
+    sails.log('Information has been sent to Vanta for '+(allActiveVantaConnections.length - numberOfLoggedErrors)+(allActiveVantaConnections.length - numberOfLoggedErrors > 1 || numberOfLoggedErrors === allActiveVantaConnections.length ? ' connections.' : ' connection.'));
 
   }
 
