@@ -69,17 +69,21 @@ module.exports = {
         'source_id': recordOfThisAuthorization.vantaSourceId,
         'grant_type': 'authorization_code',
       }
-    ).catch((error)=>{// If an error occurs while sending an authorization request, throw an error.
-      throw new Error(`When requesting an authorization token from Vanta for a Vanta connection with id ${recordOfThisAuthorization.id}, an error occurred. Full error: ${error}`);
+    ).intercept((error)=>{// If an error occurs while sending an authorization request, throw an error.
+      return new Error(`When requesting an authorization token from Vanta for a Vanta connection with id ${recordOfThisAuthorization.id}, an error occurred. Full error: ${error}`);
     });
 
     // Update the VantaConnection record for this request with information from the authorization response from Vanta.
-    await VantaConnection.updateOne({id: recordOfThisAuthorization.id}).set({
+    let updatedRecord = await VantaConnection.updateOne({id: recordOfThisAuthorization.id}).set({
       vantaAuthToken: vantaAuthorizationResponse.access_token,
       vantaAuthTokenExpiresAt: Date.now() + (vantaAuthorizationResponse.expires_in * 1000), // The expires_in value in the response from Vanta is the number of seconds until the access_token expires, so we'll create a new JS timestamp set to that time.
       vantaRefreshToken: vantaAuthorizationResponse.refresh_token,
       isConnectedToVanta: true,
     });
+
+    if(!updatedRecord){
+      throw new Error(`When trying to update a VantaConnection record (id: ${recordOfThisAuthorization.id}) with an authorization token from Vanta, the database record associated with this request has gone missing.`);
+    }
 
     return {
       showSuccessMessage: true
