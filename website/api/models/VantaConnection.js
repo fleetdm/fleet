@@ -1,7 +1,7 @@
 /**
  * VantaConnection.js
  *
- * @description :: A model definition represents a database table/collection.
+ * @description :: An organization who is a customer of Vanta.
  * @docs        :: https://sailsjs.com/docs/concepts/models-and-orm/models
  */
 
