@@ -41,7 +41,7 @@
 - [Will updating fleetctl lead to loss of data in fleetctl preview?](will-updating-fleetctl-lead-to-loss-of-data-in-fleetctl-preview?)
 - [How do I downgrade from Fleet Premium to Fleet Free?](how-do-i-downgrade-from-fleet-premium-to-fleet-free)
 - [If I use a software orchestration tool (Ansible, Chef, Puppet, etc.) to manage agent options, do I have to apply the same options in the Fleet UI?](#if-i-use-a-software-orchestration-tool-ansible-chef-puppet-etc-to-manage-agent-options-do-i-have-to-apply-the-same-options-in-the-fleet-ui)
-- [How can I uninstall Orbit/Fleet Desktop?](#how-can-i-uninstall-orbit-fleet-desktop)
+- [How can I uninstall the osquery agent?](#how-can-i-uninstall-the-osquery-agent)
 
 ### How can I switch to Fleet from Kolide Fleet?
 
@@ -336,8 +336,8 @@ Lastly, remove your Fleet Premium license key:
 
 No. The agent options set using your software orchestration tool will override the default agent options that appear in the **Settings > Organization settings > Global agent options** page. On this page, if you hit the **Save** button, the options that appear in the Fleet UI will override the agent options set using your software orchestration.
 
-### How can I uninstall Orbit/Fleet Desktop?
-To uninstall Orbit/Fleet Desktop, follow the below instructions for your Operating System.
+### How can I uninstall the osquery agent?
+To uninstall the osquery agent, follow the below instructions for your operating system.
 
 #### MacOS
 Run the Orbit [cleanup script](https://github.com/fleetdm/fleet/blob/main/orbit/tools/cleanup/cleanup_macos.sh)

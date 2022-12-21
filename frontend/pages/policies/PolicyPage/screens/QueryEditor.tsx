@@ -43,7 +43,7 @@ const QueryEditor = ({
   onOpenSchemaSidebar,
   renderLiveQueryWarning,
 }: IQueryEditorProps): JSX.Element | null => {
-  const { currentUser } = useContext(AppContext);
+  const { currentUser, isPremiumTier } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
   // Note: The PolicyContext values should always be used for any mutable policy data such as query name
@@ -53,6 +53,7 @@ const QueryEditor = ({
     lastEditedQueryDescription,
     lastEditedQueryBody,
     lastEditedQueryResolution,
+    lastEditedQueryCritical,
     lastEditedQueryPlatform,
     policyTeamId,
   } = useContext(PolicyContext);
@@ -76,8 +77,20 @@ const QueryEditor = ({
       formData.team_id = policyTeamId;
     }
     setIsUpdatingPolicy(true);
+    const payload: IPolicyFormData = {
+      name: formData.name,
+      description: formData.description,
+      query: formData.query,
+      resolution: formData.resolution,
+      platform: formData.platform,
+    };
+    if (isPremiumTier) {
+      payload.critical = formData.critical;
+      payload.team_id = formData.team_id;
+    }
+
     try {
-      const policy: IPolicy = await createPolicy(formData).then(
+      const policy: IPolicy = await createPolicy(payload).then(
         (data) => data.policy
       );
       setIsUpdatingPolicy(false);
@@ -112,6 +125,7 @@ const QueryEditor = ({
       lastEditedQueryDescription,
       lastEditedQueryBody,
       lastEditedQueryResolution,
+      lastEditedQueryCritical,
       lastEditedQueryPlatform,
     });
 

@@ -13,7 +13,9 @@ interface ITransferHostModal {
   teams: ITeam[];
   onSubmit: (team: ITeam) => void;
   onCancel: () => void;
-  isUpdatingHost: boolean;
+  isUpdating: boolean;
+  /** Manage host page only */
+  multipleHosts?: boolean;
 }
 
 interface INoTeamOption {
@@ -32,7 +34,8 @@ const TransferHostModal = ({
   onSubmit,
   teams,
   isGlobalAdmin,
-  isUpdatingHost,
+  isUpdating,
+  multipleHosts,
 }: ITransferHostModal): JSX.Element => {
   const [selectedTeam, setSelectedTeam] = useState<ITeam | INoTeamOption>();
 
@@ -67,21 +70,21 @@ const TransferHostModal = ({
       <form className={`${baseClass}__form`}>
         <Dropdown
           wrapperClassName={`${baseClass}__team-dropdown-wrapper`}
-          label={"Transfer host to:"}
+          label={`Transfer ${multipleHosts ? "selected hosts" : "host"} to:`}
           value={selectedTeam && selectedTeam.id}
           options={createTeamDropdownOptions()}
           onChange={onChangeSelectTeam}
           placeholder={"Select a team"}
           searchable={false}
         />
-        {isGlobalAdmin && (
+        {isGlobalAdmin ? (
           <p>
-            Team not here?&nbsp;
+            Team not here?{" "}
             <Link to={PATHS.ADMIN_TEAMS} className={`${baseClass}__team-link`}>
               Create a team
             </Link>
           </p>
-        )}
+        ) : null}
         <div className="modal-cta-wrap">
           <Button
             disabled={selectedTeam === undefined}
@@ -89,7 +92,7 @@ const TransferHostModal = ({
             variant="brand"
             onClick={onSubmitTransferHost}
             className="transfer-loading"
-            isLoading={isUpdatingHost}
+            isLoading={isUpdating}
           >
             Transfer
           </Button>

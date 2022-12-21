@@ -225,6 +225,11 @@ module.exports = {
               // > • What about images referenced in markdown files? :: For documentation and handbook files, they need to be referenced using an absolute URL of the src-- e.g. ![](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/foo.png). For articles, you can use the absolute URL of the src - e.g. ![](https://fleetdm.com/images/articles/foo.png) OR the relative repo path e.g. ![](../website/assets/images/articles/foo.png). See also https://github.com/fleetdm/fleet/issues/706#issuecomment-884641081 for reasoning.
               // > • What about GitHub-style emojis like `:white_check_mark:`?  :: Use actual unicode emojis instead.  Need to revisit this?  Visit https://github.com/fleetdm/fleet/pull/1380/commits/19a6e5ffc70bf41569293db44100e976f3e2bda7 for more info.
               let mdString = await sails.helpers.fs.read(pageSourcePath);
+
+              // Look for non example @fleetdm.com email addresses in the Markdown string, if any are found, throw an error.
+              if(mdString.match(/[A-Z0-9._%+-]+@fleetdm\.com/gi)) {
+                throw new Error(`A Markdown file (${pageSourcePath}) contains a @fleetdm.com email address. To resolve this error, remove the email address in that file or change it to be an @example.com email address and try running this script again.`);
+              }
               mdString = mdString.replace(/(```)([a-zA-Z0-9\-]*)(\s*\n)/g, '$1\n' + '<!-- __LANG=%' + '$2' + '%__ -->' + '$3'); // « Based on the github-flavored markdown's language annotation, (e.g. ```js```) add a temporary marker to code blocks that can be parsed post-md-compilation when this is HTML.  Note: This is an HTML comment because it is easy to over-match and "accidentally" add it underneath each code block as well (being an HTML comment ensures it doesn't show up or break anything).  For more information, see https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L198-L202
               mdString = mdString.replace(/(<call-to-action[\s\S]+[^>\n+])\n+(>)/g, '$1$2'); // « Removes any newlines that might exist before the closing `>` when the <call-to-action> compontent is added to markdown files.
               let htmlString = await sails.helpers.strings.toHtml(mdString);

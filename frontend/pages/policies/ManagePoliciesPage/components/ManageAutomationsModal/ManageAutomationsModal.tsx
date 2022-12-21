@@ -325,7 +325,7 @@ const ManageAutomationsModal = ({
   const renderPreview = () =>
     !isWebhookEnabled ? (
       <PreviewTicketModal
-        type={getIntegrationType(selectedIntegration)}
+        integrationType={getIntegrationType(selectedIntegration)}
         onCancel={togglePreviewModal}
       />
     ) : (

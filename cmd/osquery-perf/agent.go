@@ -993,6 +993,22 @@ func (a *agent) diskEncryption() []map[string]string {
 	return []map[string]string{}
 }
 
+func (a *agent) diskEncryptionLinux() []map[string]string {
+	// 50% of results have encryption enabled
+	enabled := rand.Intn(2) == 1
+	if enabled {
+		return []map[string]string{
+			{"path": "/etc", "encrypted": "0"},
+			{"path": "/tmp", "encrypted": "0"},
+			{"path": "/", "encrypted": "1"},
+		}
+	}
+	return []map[string]string{
+		{"path": "/etc", "encrypted": "0"},
+		{"path": "/tmp", "encrypted": "0"},
+	}
+}
+
 func (a *agent) processQuery(name, query string) (handled bool, results []map[string]string, status *fleet.OsqueryStatus) {
 	const (
 		hostPolicyQueryPrefix = "fleet_policy_query_"
@@ -1067,6 +1083,13 @@ func (a *agent) processQuery(name, query string) (handled bool, results []map[st
 		ss := fleet.OsqueryStatus(rand.Intn(2))
 		if ss == fleet.StatusOK {
 			results = a.diskSpace()
+		}
+		return true, results, &ss
+
+	case strings.HasPrefix(name, hostDetailQueryPrefix+"disk_encryption_linux"):
+		ss := fleet.OsqueryStatus(rand.Intn(2))
+		if ss == fleet.StatusOK {
+			results = a.diskEncryptionLinux()
 		}
 		return true, results, &ss
 	case strings.HasPrefix(name, hostDetailQueryPrefix+"disk_encryption_"):

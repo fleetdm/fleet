@@ -544,13 +544,20 @@ func (ds *Datastore) applyHostLabelFilters(filter fleet.TeamFilter, lid uint, qu
 	if opt.ListOptions.OrderKey == "display_name" {
 		query += ` JOIN host_display_names hdn ON h.id = hdn.host_id `
 	}
+
+	if opt.MDMIDFilter != nil || opt.MDMEnrollmentStatusFilter != "" {
+		query += ` JOIN host_mdm hmdm ON h.id = hmdm.host_id `
+	}
+
 	query += fmt.Sprintf(` WHERE lm.label_id = ? AND %s `, ds.whereFilterHostsByTeams(filter, "h"))
 	if opt.LowDiskSpaceFilter != nil {
 		query += ` AND hd.gigs_disk_space_available < ? `
 		params = append(params, *opt.LowDiskSpaceFilter)
 	}
+
 	query, params = filterHostsByStatus(ds.clock.Now(), query, opt, params)
 	query, params = filterHostsByTeam(query, opt, params)
+	query, params = filterHostsByMDM(query, opt, params)
 	query, params = searchLike(query, params, opt.MatchQuery, hostSearchColumns...)
 
 	query = appendListOptionsToSQL(query, opt.ListOptions)

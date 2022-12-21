@@ -18,7 +18,6 @@ import (
 	"github.com/groob/plist"
 	"github.com/micromdm/micromdm/mdm/appmanifest"
 	"github.com/micromdm/micromdm/mdm/mdm"
-	"github.com/micromdm/nanodep/tokenpki"
 	"github.com/olekukonko/tablewriter"
 	"github.com/urfave/cli/v2"
 )
@@ -202,29 +201,15 @@ func generateMDMAppleBMCommand() *cli.Command {
 			publicKeyPath := c.String("public-key")
 			privateKeyPath := c.String("private-key")
 
-			const cn = "FleetDM"
-
-			// Apple doesn't check the expiry of the public key certificate. It does not matter what value we use.
-			const validityDays = 30
-
-			fmt.Fprintf(
-				c.App.Writer,
-				`Generating Apple Business Manager public key and private key...
-
-`,
-			)
-
-			key, cert, err := tokenpki.SelfSignedRSAKeypair(cn, validityDays)
+			publicKeyPEM, privateKeyPEM, err := apple_mdm.NewDEPKeyPairPEM()
 			if err != nil {
-				return fmt.Errorf("generate encryption keypair: %w", err)
+				return fmt.Errorf("generate key pair: %w", err)
 			}
 
-			publicKeyPEM := tokenpki.PEMCertificate(cert.Raw)
 			if err := os.WriteFile(publicKeyPath, publicKeyPEM, defaultFileMode); err != nil {
 				return fmt.Errorf("write public key: %w", err)
 			}
 
-			privateKeyPEM := tokenpki.PEMRSAPrivateKey(key)
 			if err := os.WriteFile(privateKeyPath, privateKeyPEM, defaultFileMode); err != nil {
 				return fmt.Errorf("write private key: %w", err)
 			}

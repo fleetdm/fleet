@@ -592,9 +592,11 @@ FROM
 		// osquery table on darwin and linux, it is always present.
 	},
 	"disk_encryption_linux": {
-		Query:            `SELECT 1 FROM (SELECT encrypted, path FROM disk_encryption FULL OUTER JOIN mounts ON mounts.device_alias = disk_encryption.name) WHERE encrypted = 1 AND path = '/';`,
+		// This query doesn't do any filtering as we've seen what's possibly an osquery bug because it's returning bad
+		// results if we filter further, so we'll do the filtering in Go.
+		Query:            `SELECT de.encrypted, m.path FROM disk_encryption de JOIN mounts m ON m.device_alias = de.name;`,
 		Platforms:        fleet.HostLinuxOSs,
-		DirectIngestFunc: directIngestDiskEncryption,
+		DirectIngestFunc: directIngestDiskEncryptionLinux,
 		// the "disk_encryption" table doesn't need a Discovery query as it is an official
 		// osquery table on darwin and linux, it is always present.
 	},
@@ -1296,6 +1298,23 @@ func directIngestMunkiInfo(ctx context.Context, logger log.Logger, host *fleet.H
 	errors, warnings := rows[0]["errors"], rows[0]["warnings"]
 	errList, warnList := splitCleanSemicolonSeparated(errors), splitCleanSemicolonSeparated(warnings)
 	return ds.SetOrUpdateMunkiInfo(ctx, host.ID, rows[0]["version"], errList, warnList)
+}
+
+func directIngestDiskEncryptionLinux(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error {
+	if failed {
+		level.Error(logger).Log("op", "directIngestDiskEncryptionLinux", "err", "failed")
+		return nil
+	}
+
+	encrypted := false
+	for _, row := range rows {
+		if row["path"] == "/" && row["encrypted"] == "1" {
+			encrypted = true
+			break
+		}
+	}
+
+	return ds.SetOrUpdateHostDisksEncryption(ctx, host.ID, encrypted)
 }
 
 func directIngestDiskEncryption(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error {

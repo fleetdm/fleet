@@ -63,7 +63,7 @@ To run all Go linters and static analyzers, run the following:
 make lint-go
 ```
 
-### Javascript unit tests
+### Javascript unit and integration tests
 
 To run all JS unit tests, run the following:
 

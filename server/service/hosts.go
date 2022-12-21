@@ -1113,17 +1113,25 @@ func (svc *Service) AggregatedMDMData(ctx context.Context, teamID *uint, platfor
 		return fleet.AggregatedMDMData{}, err
 	}
 
-	var err error
-	data := fleet.AggregatedMDMData{}
-	data.MDMStatus, _, err = svc.ds.AggregatedMDMStatus(ctx, teamID, platform)
+	mdmStatus, mdmStatusUpdatedAt, err := svc.ds.AggregatedMDMStatus(ctx, teamID, platform)
 	if err != nil {
 		return fleet.AggregatedMDMData{}, err
 	}
-	data.MDMSolutions, _, err = svc.ds.AggregatedMDMSolutions(ctx, teamID, platform)
+	mdmSolutions, mdmSolutionsUpdatedAt, err := svc.ds.AggregatedMDMSolutions(ctx, teamID, platform)
 	if err != nil {
 		return fleet.AggregatedMDMData{}, err
 	}
-	return data, nil
+
+	countsUpdatedAt := mdmStatusUpdatedAt
+	if mdmStatusUpdatedAt.Before(mdmSolutionsUpdatedAt) {
+		countsUpdatedAt = mdmSolutionsUpdatedAt
+	}
+
+	return fleet.AggregatedMDMData{
+		MDMStatus:       mdmStatus,
+		MDMSolutions:    mdmSolutions,
+		CountsUpdatedAt: countsUpdatedAt,
+	}, nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////

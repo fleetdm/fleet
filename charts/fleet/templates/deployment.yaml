@@ -269,10 +269,16 @@ spec:
           httpGet:
             path: /healthz
             port: {{ .Values.fleet.listenPort }}
+            {{- if .Values.fleet.tls.enabled }}
+            scheme: HTTPS
+            {{- end }}
         readinessProbe:
           httpGet:
             path: /healthz
             port: {{ .Values.fleet.listenPort }}
+            {{- if .Values.fleet.tls.enabled }}
+            scheme: HTTPS
+            {{- end }}
         {{- if or (.Values.fleet.tls.enabled) (.Values.mysql.tls.enabled) (eq .Values.osquery.logging.statusPlugin "filesystem") (eq .Values.osquery.logging.resultPlugin "filesystem") }}
         volumeMounts:
           - name: tmp
@@ -330,7 +336,11 @@ spec:
         {{- if .Values.fleet.tls.enabled }}
         - name: fleet-tls
           secret:
+            {{- if .Values.fleet.tls.uniqueTLSSecret }}
+            secretName: "{{ .Values.fleet.tls.secretName }}"
+            {{- else }}
             secretName: "{{ .Values.fleet.secretName }}"
+            {{- end }}
         {{- end }}
         {{- if .Values.mysql.tls.enabled }}
         - name: mysql-tls

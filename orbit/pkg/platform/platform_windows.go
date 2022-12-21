@@ -197,13 +197,15 @@ func wmiGetSMBiosUUID() (string, error) {
 	return strings.TrimSpace(outputByLines[1]), nil
 }
 
-// It perform a UUID sanity check on a given byte array
-func isValidUUID(uuidBytes []byte) (bool, error) {
+// It performs a UUID sanity check on a given byte array
+// The sectionPayloadBytes buffer contains the Smbios Structure Type 1 payload - This includes the actual UUID bytes + Optional section strings
+func isValidUUID(sectionPayloadBytes []byte) (bool, error) {
 	// SMBIOS constants from spec here - https://www.dmtf.org/sites/default/files/standards/documents/DSP0134_3.1.1.pdf
-	const uuidSize int = 0x10 // UUID size is calculated with field offset value (0xA) + node field length (6 bytes)
+	const uuidSize int = 0x10 // UUID size is calculated with field offset value (0xA) + node field length (6 bytes) - 16 bytes - 128bits long
 
-	// Sanity check on size
-	if len(uuidBytes) != uuidSize {
+	// Sanity check on min size of the input buffer
+	// Buffer should be long enough to contain an UUID
+	if len(sectionPayloadBytes) < uuidSize {
 		return false, errors.New("Invalid input UUID size")
 	}
 
@@ -211,10 +213,10 @@ func isValidUUID(uuidBytes []byte) (bool, error) {
 	// Logic is based on https://github.com/ContinuumLLC/godep-go-smbios/blob/ab7c733f1be8e55ed3e0587d1aa2d5883fe8801e/smbios/decoder.go#L135
 	only0xFF, only0x00 := true, true
 	for i := 0; i < uuidSize && (only0x00 || only0xFF); i++ {
-		if uuidBytes[i] != 0x00 {
+		if sectionPayloadBytes[i] != 0x00 {
 			only0x00 = false
 		}
-		if uuidBytes[i] != 0xFF {
+		if sectionPayloadBytes[i] != 0xFF {
 			only0xFF = false
 		}
 	}
