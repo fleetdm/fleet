@@ -601,12 +601,18 @@ export const humanHostLastSeen = (lastSeen: string): string => {
   if (!lastSeen || lastSeen < "2016-07-28T00:00:00Z") {
     return "Never";
   }
+  if (lastSeen === "Unavailable") {
+    return "Unavailable";
+  }
+  console.log(`lastSeen that passed check: ${lastSeen}`);
   return formatDistanceToNow(new Date(lastSeen), { addSuffix: true });
 };
 
 export const humanHostTimeDiffWithDateTip = (timeString: string) => {
   const id = uniqueId();
-  return (
+  return timeString === "Unavailable" ? (
+    <span>Unavailable</span>
+  ) : (
     <>
       <span className={"date-tooltip"} data-tip data-for={`tooltip-${id}`}>
         {humanHostLastSeen(timeString)}

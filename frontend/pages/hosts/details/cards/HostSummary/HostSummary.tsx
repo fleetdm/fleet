@@ -212,9 +212,10 @@ const HostSummary = ({
               {deviceUser ? "My device" : titleData.display_name || "---"}
             </h1>
             <p className="last-fetched">
-              Last fetched{" "}
-              {humanHostTimeDiffWithDateTip(titleData.detail_updated_at)}
-              &nbsp;
+              {titleData.detail_updated_at
+                ? humanHostTimeDiffWithDateTip(titleData.detail_updated_at)
+                : // &nbsp;
+                  "Unavailable"}
             </p>
             {renderRefetch()}
           </div>
