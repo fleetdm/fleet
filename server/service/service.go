@@ -130,6 +130,65 @@ func (s *Service) SendEmail(mail fleet.Email) error {
 	return s.mailService.SendEmail(mail)
 }
 
+// logRoleChangeActivities stores the activities for role changes, globally and in teams.
+func (svc *Service) logRoleChangeActivities(ctx context.Context, adminUser *fleet.User, oldRole *string, oldTeams []fleet.UserTeam, user *fleet.User) error {
+	if user.GlobalRole != nil && (oldRole == nil || *oldRole != *user.GlobalRole) {
+		if err := svc.ds.NewActivity(
+			ctx,
+			adminUser,
+			fleet.ActivityTypeChangedUserGlobalRole,
+			&map[string]interface{}{"user_name": user.Name, "user_id": user.ID, "user_email": user.Email, "role": *user.GlobalRole},
+		); err != nil {
+			return err
+		}
+	}
+	if user.GlobalRole == nil && oldRole != nil {
+		if err := svc.ds.NewActivity(
+			ctx,
+			adminUser,
+			fleet.ActivityTypeDeletedUserGlobalRole,
+			&map[string]interface{}{"user_name": user.Name, "user_id": user.ID, "user_email": user.Email, "role": *oldRole},
+		); err != nil {
+			return err
+		}
+	}
+	oldTeamsLookup := make(map[uint]fleet.UserTeam, len(oldTeams))
+	for _, t := range oldTeams {
+		oldTeamsLookup[t.ID] = t
+	}
+
+	newTeamLookup := make(map[uint]struct{}, len(user.Teams))
+	for _, t := range user.Teams {
+		newTeamLookup[t.ID] = struct{}{}
+		o, ok := oldTeamsLookup[t.ID]
+		if ok && o.Role == t.Role {
+			continue
+		}
+		if err := svc.ds.NewActivity(
+			ctx,
+			adminUser,
+			fleet.ActivityTypeChangedUserTeamRole,
+			&map[string]interface{}{"user_name": user.Name, "user_id": user.ID, "user_email": user.Email, "team_name": t.Name, "team_id": t.ID, "role": t.Role},
+		); err != nil {
+			return err
+		}
+	}
+	for _, o := range oldTeams {
+		if _, ok := newTeamLookup[o.ID]; ok {
+			continue
+		}
+		if err := svc.ds.NewActivity(
+			ctx,
+			adminUser,
+			fleet.ActivityTypeDeletedUserTeamRole,
+			&map[string]interface{}{"user_name": user.Name, "user_id": user.ID, "user_email": user.Email, "team_name": o.Name, "team_id": o.ID, "role": o.Role},
+		); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 type validationMiddleware struct {
 	fleet.Service
 	ds              fleet.Datastore
