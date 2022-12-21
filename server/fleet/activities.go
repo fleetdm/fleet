@@ -5,6 +5,8 @@ import (
 )
 
 const (
+	// ActivityTypeUserLoggedIn is the activity type for logging in a user
+	ActivityTypeUserLoggedIn = "user_logged_in"
 	// ActivityTypeCreatedPack is the activity type for created packs
 	ActivityTypeCreatedPack = "created_pack"
 	// ActivityTypeEditedPack is the activity type for edited packs
