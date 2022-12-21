@@ -17,6 +17,7 @@ import {
   IConfig,
   CONFIG_DEFAULT_RECENT_VULNERABILITY_MAX_AGE_IN_DAYS,
 } from "interfaces/config";
+import { IEmptyTableProps } from "interfaces/empty_table";
 import {
   IJiraIntegration,
   IZendeskIntegration,
@@ -51,7 +52,6 @@ import EmptyTable from "components/EmptyTable";
 
 import generateSoftwareTableHeaders from "./SoftwareTableConfig";
 import ManageAutomationsModal from "./components/ManageAutomationsModal";
-import { IEmptyTableProps } from "interfaces/empty_table";
 
 interface IManageSoftwarePageProps {
   router: InjectedRouter;

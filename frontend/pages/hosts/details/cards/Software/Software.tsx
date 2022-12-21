@@ -119,6 +119,7 @@ const SoftwareTable = ({
   //   );
   // }
 
+  // TODO: Refactor this component to show the correct search
   // // TODO: Rework after backend is adjusted to differentiate empty search/filter results from
   // // collecting inventory
   // const isCollectingInventory =
