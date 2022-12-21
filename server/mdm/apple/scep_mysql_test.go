@@ -15,7 +15,7 @@ import (
 )
 
 func setup(t *testing.T) *apple_mdm.SCEPMySQLDepot {
-	ds := mysql.CreateMySQLDS(t)
+	ds := mysql.CreateNamedMySQLDS(t, t.Name())
 	cert, key, err := apple_mdm.NewSCEPCACertKey()
 	require.NoError(t, err)
 	publicKeyPEM := tokenpki.PEMCertificate(cert.Raw)
@@ -25,7 +25,7 @@ func setup(t *testing.T) *apple_mdm.SCEPMySQLDepot {
 	return depot
 }
 
-func TestSerial(t *testing.T) {
+func TestAppleMDMSCEPSerial(t *testing.T) {
 	depot := setup(t)
 	tests := []struct {
 		name    string
@@ -44,7 +44,7 @@ func TestSerial(t *testing.T) {
 	}
 }
 
-func TestPutAndHasCN(t *testing.T) {
+func TestAppleMDMPutAndHasCN(t *testing.T) {
 	depot := setup(t)
 
 	name := "FleetDM Identity"
