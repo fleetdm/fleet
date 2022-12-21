@@ -13,6 +13,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	kitlog "github.com/go-kit/kit/log"
+	"github.com/jmoiron/sqlx"
 	"github.com/micromdm/nanodep/godep"
 	"github.com/stretchr/testify/require"
 )
@@ -20,6 +21,7 @@ import (
 func TestIngestMDMAppleDevicesFromDEPSync(t *testing.T) {
 	ds := CreateMySQLDS(t)
 	ctx := context.Background()
+	createBuiltinLabels(t, ds)
 
 	for i := 0; i < 10; i++ {
 		_, err := ds.NewHost(ctx, &fleet.Host{
@@ -63,6 +65,9 @@ func TestIngestMDMAppleDevicesFromDEPSync(t *testing.T) {
 	gotSerials := []string{}
 	for _, h := range hosts {
 		gotSerials = append(gotSerials, h.HardwareSerial)
+		if h.HardwareSerial == "abc" || h.HardwareSerial == "xyz" {
+			checkMDMHostRelatedTables(t, ds, h.ID)
+		}
 	}
 	require.ElementsMatch(t, wantSerials, gotSerials)
 }
@@ -82,6 +87,7 @@ func TestIngestMDMAppleDeviceFromCheckin(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			defer TruncateTables(t, ds)
+			createBuiltinLabels(t, ds)
 
 			c.fn(t, ds)
 		})
@@ -143,6 +149,7 @@ func testIngestMDMAppleCheckinAfterDEPSync(t *testing.T, ds *Datastore) {
 	// is not available from the DEP sync endpoint
 	require.Equal(t, testSerial, hosts[0].HardwareSerial)
 	require.Equal(t, "", hosts[0].UUID)
+	checkMDMHostRelatedTables(t, ds, hosts[0].ID)
 
 	// now simulate the initial MDM checkin by that same host
 	err = ingester.Ingest(ctx, &http.Request{
@@ -156,6 +163,7 @@ func testIngestMDMAppleCheckinAfterDEPSync(t *testing.T, ds *Datastore) {
 	hosts = listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{}, 1)
 	require.Equal(t, testSerial, hosts[0].HardwareSerial)
 	require.Equal(t, testUUID, hosts[0].UUID)
+	checkMDMHostRelatedTables(t, ds, hosts[0].ID)
 }
 
 func testIngestMDMAppleCheckinBeforeDEPSync(t *testing.T, ds *Datastore) {
@@ -178,6 +186,7 @@ func testIngestMDMAppleCheckinBeforeDEPSync(t *testing.T, ds *Datastore) {
 	hosts := listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{}, 1)
 	require.Equal(t, testSerial, hosts[0].HardwareSerial)
 	require.Equal(t, testUUID, hosts[0].UUID)
+	checkMDMHostRelatedTables(t, ds, hosts[0].ID)
 
 	// no effect if same host appears in DEP sync
 	n, err := ds.IngestMDMAppleDevicesFromDEPSync(ctx, []godep.Device{
@@ -189,6 +198,7 @@ func testIngestMDMAppleCheckinBeforeDEPSync(t *testing.T, ds *Datastore) {
 	hosts = listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{}, 1)
 	require.Equal(t, testSerial, hosts[0].HardwareSerial)
 	require.Equal(t, testUUID, hosts[0].UUID)
+	checkMDMHostRelatedTables(t, ds, hosts[0].ID)
 }
 
 func testIngestMDMAppleCheckinMultipleAuthenticateRequests(t *testing.T, ds *Datastore) {
@@ -218,9 +228,36 @@ func testIngestMDMAppleCheckinMultipleAuthenticateRequests(t *testing.T, ds *Dat
 		Method: http.MethodPost,
 		Body:   io.NopCloser(strings.NewReader(xmlForTest("Authenticate", testSerial, testUUID, "MacBook Pro"))),
 	})
+	require.NoError(t, err)
 	hosts = listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{}, 1)
 	require.Equal(t, testSerial, hosts[0].HardwareSerial)
 	require.Equal(t, testUUID, hosts[0].UUID)
+}
+
+// checkMDMHostRelatedTables checks that rows are inserted for new MDM hosts in each of
+// host_display_names, host_seen_times, and label_membership. Note that related tables records for
+// pre-existing hosts are created outside of the MDM enrollment flows so they are not checked in
+// some tests above (e.g., testIngestMDMAppleHostAlreadyExistsInFleet)
+func checkMDMHostRelatedTables(t *testing.T, ds *Datastore, hostID uint) {
+	var ok bool
+	err := sqlx.GetContext(context.Background(), ds.reader, &ok, `SELECT 1 FROM host_display_names WHERE host_id = ?`, hostID)
+	require.NoError(t, err)
+	require.True(t, ok)
+
+	ok = false
+	err = sqlx.GetContext(context.Background(), ds.reader, &ok, `SELECT 1 FROM host_seen_times WHERE host_id = ?`, hostID)
+	require.NoError(t, err)
+	require.True(t, ok)
+
+	var labels []fleet.Label
+	err = sqlx.SelectContext(context.Background(), ds.reader, &labels, `SELECT * FROM labels`)
+	fmt.Printf("labels %+v", labels)
+	var labelsOK []bool
+	err = sqlx.SelectContext(context.Background(), ds.reader, &labelsOK, `SELECT 1 FROM label_membership WHERE host_id = ?`, hostID)
+	require.NoError(t, err)
+	require.Len(t, labelsOK, 2)
+	require.True(t, labelsOK[0])
+	require.True(t, labelsOK[1])
 }
 
 func xmlForTest(msgType string, serial string, udid string, model string) string {
@@ -239,4 +276,29 @@ func xmlForTest(msgType string, serial string, udid string, model string) string
 	<string>%s</string>
 </dict>
 </plist>`, msgType, serial, udid, model)
+}
+
+// createBuiltinLabels creates entries for "All Hosts" and "macOS" labels, which are assumed to be
+// extant for MDM flows
+func createBuiltinLabels(t *testing.T, ds *Datastore) {
+	_, err := ds.writer.Exec(`
+		INSERT INTO labels (
+			name,
+			description,
+			query,
+			platform,
+			label_type
+		) VALUES (?, ?, ?, ?, ?), (?, ?, ?, ?, ?)`,
+		"All Hosts",
+		"",
+		"",
+		"",
+		fleet.LabelTypeBuiltIn,
+		"macOS",
+		"",
+		"",
+		"",
+		fleet.LabelTypeBuiltIn,
+	)
+	require.NoError(t, err)
 }

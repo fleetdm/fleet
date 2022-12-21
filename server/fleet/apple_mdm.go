@@ -234,7 +234,7 @@ func isMDMAppleCheckinReq(r *http.Request) bool {
 }
 
 func decodeMDMAppleCheckinReq(r *http.Request, dest *MDMAppleHostDetails) (bool, error) {
-	bodyBytes, err := nanohttp.ReadAllAndReplaceBody(r) // TODO: dev test
+	bodyBytes, err := nanohttp.ReadAllAndReplaceBody(r)
 	if err != nil {
 		return false, err
 	}
@@ -246,8 +246,7 @@ func decodeMDMAppleCheckinReq(r *http.Request, dest *MDMAppleHostDetails) (bool,
 	case *mdm.Authenticate:
 		dest.SerialNumber = m.SerialNumber
 		dest.UDID = m.UDID
-		// dest.Model = m.Model
-		fmt.Println(m.SerialNumber, m.UDID) // TODO: add model to the struct
+		dest.Model = m.Model
 		return true, nil
 	default:
 		// these aren't the requests you're looking for, move along

@@ -339,40 +339,16 @@ func insertMDMAppleHostDB(ctx context.Context, tx sqlx.ExtContext, mdmHost fleet
 		return ctxerr.Wrap(ctx, err, "ingest mdm apple host unexpected last insert id")
 	}
 
-	if err := upsertMDMAppleHostRelatedTables(ctx, tx, id); err != nil {
-		return err
+	if err := upsertMDMAppleHostSeenTimesDB(ctx, tx, uint(id)); err != nil {
+		return ctxerr.Wrap(ctx, err, "ingest mdm apple host upsert related tables")
 	}
 
-	return nil
-}
-
-func upsertMDMAppleHostRelatedTables(ctx context.Context, tx sqlx.ExtContext, hostID int64) error {
-	_, err := tx.ExecContext(ctx, `
-			INSERT INTO host_seen_times (host_id, seen_time) VALUES (?, NOW())
-			ON DUPLICATE KEY UPDATE seen_time = VALUES(seen_time)`,
-		hostID)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "upsert mdm apple host seen times")
+	if err := upsertMDMAppleHostDisplayNamesDB(ctx, tx, uint(id)); err != nil {
+		return ctxerr.Wrap(ctx, err, "ingest mdm apple host upsert related tables")
 	}
 
-	_, err = tx.ExecContext(ctx, `
-			INSERT INTO host_display_names (host_id, display_name) VALUES (?, '')
-			ON DUPLICATE KEY UPDATE display_name = display_name`,
-		hostID)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "upsert mdm apple host display names")
-	}
-
-	// Label assignment usually happens when the distributed query results are
-	// received, we can't count on osquery during MDM enrollment, so we're
-	// assiging the labels to the host here.
-	_, err = tx.ExecContext(ctx, `
-			INSERT INTO label_membership (host_id, label_id) VALUES(?, (
-				SELECT id FROM labels WHERE name = 'All Hosts' AND label_type = 1)), (?, (
-				SELECT id FROM labels WHERE name = 'macOS' AND label_type = 1)) 
-			ON DUPLICATE KEY UPDATE host_id = host_id`, hostID, hostID)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "upsert mdm apple host label membership")
+	if err := upsertMDMAppleHostLabelMembershipDB(ctx, tx, uint(id)); err != nil {
+		return ctxerr.Wrap(ctx, err, "ingest mdm apple host upsert related tables")
 	}
 
 	return nil
@@ -382,14 +358,14 @@ func (ds *Datastore) IngestMDMAppleDevicesFromDEPSync(ctx context.Context, devic
 	if len(devices) < 1 {
 		return 0, nil
 	}
-	filtered := filterMDMAppleDevices(devices)
-	if len(filtered) < 1 {
+	filteredDevices := filterMDMAppleDevices(devices)
+	if len(filteredDevices) < 1 {
 		return 0, nil
 	}
 
 	var resCount int64
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		us, args := unionSelectDevices(filtered)
+		us, args := unionSelectDevices(filteredDevices)
 
 		stmt := fmt.Sprintf(`
 		INSERT INTO hosts (hardware_serial, hardware_model, platform, last_enrolled_at, detail_updated_at, osquery_host_id, refetch_requested) (
@@ -421,42 +397,110 @@ func (ds *Datastore) IngestMDMAppleDevicesFromDEPSync(ctx context.Context, devic
 		}
 		resCount = n
 
-		// update host seen times
+		// get new host ids
 		args = []interface{}{}
 		parts := []string{}
-		for _, d := range filtered {
+		for _, d := range filteredDevices {
 			args = append(args, d.SerialNumber)
 			parts = append(parts, "?")
 		}
-
-		_, err = tx.ExecContext(ctx, fmt.Sprintf(`
-			INSERT INTO host_seen_times (host_id, seen_time) (SELECT
-				id, NOW()
-				FROM hosts
-			WHERE
-				hardware_serial IN(%s))
-			ON DUPLICATE KEY UPDATE seen_time = VALUES(seen_time)`, strings.Join(parts, ",")),
+		var hostIDs []uint
+		err = sqlx.SelectContext(ctx, tx, &hostIDs, fmt.Sprintf(`
+			SELECT id FROM hosts WHERE hardware_serial IN(%s)`,
+			strings.Join(parts, ",")),
 			args...)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "ingest mdm apple host seen times")
+			return ctxerr.Wrap(ctx, err, "ingest mdm apple host get host ids")
 		}
 
-		_, err = tx.ExecContext(ctx, fmt.Sprintf(`
-			INSERT INTO host_display_names (host_id, display_name) (SELECT
-				id, ''
-				FROM hosts
-			WHERE
-				hardware_serial IN(%s))
-			ON DUPLICATE KEY UPDATE display_name = VALUES(display_name)`, strings.Join(parts, ",")),
-			args...)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "ingest mdm apple host display names")
+		if err := upsertMDMAppleHostSeenTimesDB(ctx, tx, hostIDs...); err != nil {
+			return ctxerr.Wrap(ctx, err, "ingest mdm apple host upsert related tables")
+		}
+
+		if err := upsertMDMAppleHostDisplayNamesDB(ctx, tx, hostIDs...); err != nil {
+			return ctxerr.Wrap(ctx, err, "ingest mdm apple host upsert related tables")
+		}
+
+		if err := upsertMDMAppleHostLabelMembershipDB(ctx, tx, hostIDs...); err != nil {
+			return ctxerr.Wrap(ctx, err, "ingest mdm apple host upsert related tables")
 		}
 
 		return nil
 	})
 
 	return resCount, err
+}
+
+func upsertMDMAppleHostSeenTimesDB(ctx context.Context, tx sqlx.ExtContext, hostIDs ...uint) error {
+	args := []interface{}{}
+	parts := []string{}
+	for _, id := range hostIDs {
+		args = append(args, id)
+		parts = append(parts, "(?, NOW())")
+	}
+
+	_, err := tx.ExecContext(ctx, fmt.Sprintf(`
+			INSERT INTO host_seen_times (host_id, seen_time) VALUES %s
+			ON DUPLICATE KEY UPDATE seen_time = VALUES(seen_time)`, strings.Join(parts, ",")),
+		args...)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "upsert host seen times")
+	}
+
+	return nil
+}
+
+func upsertMDMAppleHostDisplayNamesDB(ctx context.Context, tx sqlx.ExtContext, hostIDs ...uint) error {
+	args := []interface{}{}
+	parts := []string{}
+	for _, id := range hostIDs {
+		args = append(args, id)
+		parts = append(parts, "(?, '')")
+	}
+
+	_, err := tx.ExecContext(ctx, fmt.Sprintf(`
+			INSERT INTO host_display_names (host_id, display_name) VALUES %s
+			ON DUPLICATE KEY UPDATE display_name = VALUES(display_name)`, strings.Join(parts, ",")),
+		args...)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "upsert host display names")
+	}
+
+	return nil
+}
+
+func upsertMDMAppleHostLabelMembershipDB(ctx context.Context, tx sqlx.ExtContext, hostIDs ...uint) error {
+	// Builtin label memberships are usually inserted when the first distributed query results are
+	// received; however, we want to insert pending MDM hosts now because it may still be some time
+	// before osquery is running on these devices. Because these are Apple devices, we're adding
+	// them to the "All Hosts" and "macOS" labels.
+	labelIDs := []uint{}
+	err := sqlx.SelectContext(ctx, tx, &labelIDs, `SELECT id FROM labels WHERE label_type = 1 AND (name = 'All Hosts' OR name = 'macOS')`)
+	switch {
+	case err != nil:
+		return ctxerr.Wrap(ctx, err, "get builtin labels")
+	case len(labelIDs) != 2:
+		// Builtin labels can get deleted so it is important that we check that they still exist
+		// before we continue.
+		return ctxerr.New(ctx, fmt.Sprintf("expected 2 builtin labels but got %d", len(labelIDs)))
+	default:
+		// continue
+	}
+
+	parts := []string{}
+	args := []interface{}{}
+	for _, id := range hostIDs {
+		parts = append(parts, "(?,?),(?,?)")
+		args = append(args, id, labelIDs[0], id, labelIDs[1])
+	}
+	_, err = tx.ExecContext(ctx, fmt.Sprintf(`
+			INSERT INTO label_membership (host_id, label_id) VALUES %s 
+			ON DUPLICATE KEY UPDATE host_id = host_id`, strings.Join(parts, ",")), args...)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "upsert label membership")
+	}
+
+	return nil
 }
 
 func filterMDMAppleDevices(devices []godep.Device) []godep.Device {

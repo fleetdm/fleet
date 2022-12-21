@@ -43,11 +43,12 @@ func TestDecodeMDMAppleCheckinRequest(t *testing.T) {
 		Body:   io.NopCloser(strings.NewReader(xmlForTest("Authenticate", testSerial, testUDID, "MacBook Pro"))),
 	}
 	host := &MDMAppleHostDetails{}
-	err := decodeMDMAppleCheckinReq(req, host)
+	ok, err := decodeMDMAppleCheckinReq(req, host)
 	require.NoError(t, err)
+	require.True(t, ok)
 	require.Equal(t, testSerial, host.SerialNumber)
 	require.Equal(t, testUDID, host.UDID)
-	// require.Equal(t, "MacBook Pro", host.Model)
+	require.Equal(t, "MacBook Pro", host.Model)
 
 	// do nothing if MessageType is not "Authenticate"
 	req = &http.Request{
@@ -58,8 +59,9 @@ func TestDecodeMDMAppleCheckinRequest(t *testing.T) {
 		Body:   io.NopCloser(strings.NewReader(xmlForTest("TokenUpdate", testSerial, testUDID, "MacBook Pro"))),
 	}
 	host = &MDMAppleHostDetails{}
-	err = decodeMDMAppleCheckinReq(req, host)
+	ok, err = decodeMDMAppleCheckinReq(req, host)
 	require.NoError(t, err)
+	require.True(t, !ok)
 	require.Empty(t, host.SerialNumber)
 	require.Empty(t, host.UDID)
 }
