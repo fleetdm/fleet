@@ -877,7 +877,8 @@ func (a *agent) mdmWindows() []map[string]string {
 	autopilot := rand.Intn(2) == 1
 	ix := rand.Intn(len(possibleMDMServerURLs))
 	serverURL := possibleMDMServerURLs[ix]
-	fleetMDMURL := a.serverAddress + apple_mdm.MDMPath
+	// we ignore the error here, it can only fail if serverAddress is unparsable
+	fleetMDMURL, _ := apple_mdm.ResolveAppleMDMURL(a.serverAddress)
 	providerID := fleet.MDMNameFromServerURL(serverURL, fleetMDMURL)
 	installType := "Microsoft Workstation"
 	if rand.Intn(4) == 1 {

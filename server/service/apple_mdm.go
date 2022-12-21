@@ -773,8 +773,14 @@ var enrollmentProfileMobileconfigTemplate = template.Must(template.New("").Parse
 </plist>`))
 
 func generateEnrollmentProfileMobileconfig(orgName, fleetURL, scepChallenge, topic string) ([]byte, error) {
-	scepURL := fleetURL + apple_mdm.SCEPPath
-	serverURL := fleetURL + apple_mdm.MDMPath
+	scepURL, err := apple_mdm.ResolveAppleSCEPURL(fleetURL)
+	if err != nil {
+		return nil, fmt.Errorf("resolve Apple SCEP url: %w", err)
+	}
+	serverURL, err := apple_mdm.ResolveAppleMDMURL(fleetURL)
+	if err != nil {
+		return nil, fmt.Errorf("resolve Apple MDM url: %w", err)
+	}
 
 	var buf bytes.Buffer
 	if err := enrollmentProfileMobileconfigTemplate.Execute(&buf, struct {

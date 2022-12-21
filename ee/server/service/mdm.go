@@ -24,6 +24,10 @@ func (svc *Service) GetAppleBM(ctx context.Context) (*fleet.AppleBM, error) {
 	if err != nil {
 		return nil, err
 	}
+	mdmServerURL, err := apple_mdm.ResolveAppleMDMURL(appCfg.ServerSettings.ServerURL)
+	if err != nil {
+		return nil, err
+	}
 	tok, err := svc.config.MDM.AppleBM()
 	if err != nil {
 		return nil, err
@@ -39,7 +43,7 @@ func (svc *Service) GetAppleBM(ctx context.Context) (*fleet.AppleBM, error) {
 	// TODO: default team will have to be set when https://github.com/fleetdm/fleet/issues/8733
 	// is implemented.
 	appleBM.DefaultTeam = ""
-	appleBM.MDMServerURL = appCfg.ServerSettings.ServerURL + apple_mdm.MDMPath
+	appleBM.MDMServerURL = mdmServerURL
 
 	return appleBM, nil
 }

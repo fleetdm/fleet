@@ -1265,7 +1265,10 @@ func directIngestMDMMac(ctx context.Context, logger log.Logger, host *fleet.Host
 		}
 	}
 
-	fleetMDMURL := appCfg.ServerSettings.ServerURL + apple_mdm.MDMPath
+	fleetMDMURL, err := apple_mdm.ResolveAppleMDMURL(appCfg.ServerSettings.ServerURL)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "resolve Apple MDM url")
+	}
 	return ds.SetOrUpdateMDMData(ctx, host.ID, false, enrolled, rows[0]["server_url"], installedFromDep, "", fleetMDMURL)
 }
 
@@ -1281,7 +1284,10 @@ func directIngestMDMWindows(ctx context.Context, logger log.Logger, host *fleet.
 	_, autoPilot := data["autopilot"]
 	isServer := strings.Contains(strings.ToLower(data["installation_type"]), "server")
 	_, enrolled := data["provider_id"]
-	fleetMDMURL := appCfg.ServerSettings.ServerURL + apple_mdm.MDMPath
+	fleetMDMURL, err := apple_mdm.ResolveAppleMDMURL(appCfg.ServerSettings.ServerURL)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "resolve Apple MDM url")
+	}
 	return ds.SetOrUpdateMDMData(ctx, host.ID, isServer, enrolled, data["discovery_service_url"], autoPilot, data["provider_id"], fleetMDMURL)
 }
 

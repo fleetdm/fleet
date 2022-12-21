@@ -1,5 +1,9 @@
 package apple_mdm
 
+import (
+	"net/url"
+)
+
 // DEPName is the identifier/name used in nanodep MySQL storage which
 // holds the DEP configuration.
 //
@@ -17,3 +21,24 @@ const (
 	// InstallerPath is the HTTP path that serves installers to Apple devices.
 	InstallerPath = "/api/mdm/apple/installer"
 )
+
+func ResolveAppleMDMURL(serverURL string) (string, error) {
+	return resolveURL(serverURL, MDMPath)
+}
+
+func ResolveAppleEnrollMDMURL(serverURL string) (string, error) {
+	return resolveURL(serverURL, EnrollPath)
+}
+
+func ResolveAppleSCEPURL(serverURL string) (string, error) {
+	return resolveURL(serverURL, SCEPPath)
+}
+
+func resolveURL(serverURL, path string) (string, error) {
+	u, err := url.Parse(serverURL)
+	if err != nil {
+		return "", err
+	}
+	u.Path = path.Join(u.Path, path)
+	return u.String(), nil
+}
