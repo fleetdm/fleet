@@ -2,6 +2,7 @@ package apple_mdm
 
 import (
 	"net/url"
+	"path"
 )
 
 // DEPName is the identifier/name used in nanodep MySQL storage which
@@ -34,11 +35,11 @@ func ResolveAppleSCEPURL(serverURL string) (string, error) {
 	return resolveURL(serverURL, SCEPPath)
 }
 
-func resolveURL(serverURL, path string) (string, error) {
+func resolveURL(serverURL, relPath string) (string, error) {
 	u, err := url.Parse(serverURL)
 	if err != nil {
 		return "", err
 	}
-	u.Path = path.Join(u.Path, path)
+	u.Path = path.Join(u.Path, relPath)
 	return u.String(), nil
 }
