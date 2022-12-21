@@ -32,6 +32,15 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityTypeLiveQuery{},
 
 	ActivityTypeUserAddedBySSO{},
+
+	ActivityTypeUserLoggedIn{},
+
+	ActivityTypeCreatedUser{},
+	ActivityTypeDeletedUser{},
+	ActivityTypeChangedUserGlobalRole{},
+	ActivityTypeDeletedUserGlobalRole{},
+	ActivityTypeChangedUserTeamRole{},
+	ActivityTypeDeletedUserTeamRole{},
 }
 
 type ActivityDetails interface {
@@ -426,6 +435,178 @@ type Activity struct {
 	ActorEmail    *string          `json:"actor_email" db:"email"`
 	Type          string           `json:"type" db:"activity_type"`
 	Details       *json.RawMessage `json:"details" db:"details"`
+}
+
+type ActivityTypeUserLoggedIn struct {
+	PublicIP string `json:"public_ip"`
+}
+
+func (a ActivityTypeUserLoggedIn) ActivityName() string {
+	return "user_logged_in"
+}
+
+func (a ActivityTypeUserLoggedIn) Documentation() (activity string, details string, detailsExample string) {
+	return `Generated when users successfully log in to Fleet.`,
+		`This activity contains the following fields:
+- "public_ip": Public IP of the login request.`, `{
+	"public_ip": "168.226.215.82"
+}`
+}
+
+type ActivityTypeCreatedUser struct {
+	UserID    uint   `json:"user_id"`
+	UserName  string `json:"user_name"`
+	UserEmail string `json:"user_email"`
+}
+
+func (a ActivityTypeCreatedUser) ActivityName() string {
+	return "created_user"
+}
+
+func (a ActivityTypeCreatedUser) Documentation() (activity string, details string, detailsExample string) {
+	return `Generated when a user is created.`,
+		`This activity contains the following fields:
+- "user_id": Unique ID of the created user in Fleet.
+- "user_name": Name of the created user.
+- "user_email": E-mail of the created user.`, `{
+	"user_id": 42,
+	"user_name": "Foo",
+	"user_email": "foo@example.com"
+}`
+}
+
+type ActivityTypeDeletedUser struct {
+	UserID    uint   `json:"user_id"`
+	UserName  string `json:"user_name"`
+	UserEmail string `json:"user_email"`
+}
+
+func (a ActivityTypeDeletedUser) ActivityName() string {
+	return "deleted_user"
+}
+
+func (a ActivityTypeDeletedUser) Documentation() (activity string, details string, detailsExample string) {
+	return `Generated when a user is deleted.`,
+		`This activity contains the following fields:
+- "user_id": Unique ID of the deleted user in Fleet.
+- "user_name": Name of the deleted user.
+- "user_email": E-mail of the deleted user.`, `{
+	"user_id": 42,
+	"user_name": "Foo",
+	"user_email": "foo@example.com"
+}`
+}
+
+type ActivityTypeChangedUserGlobalRole struct {
+	UserID    uint   `json:"user_id"`
+	UserName  string `json:"user_name"`
+	UserEmail string `json:"user_email"`
+	Role      string `json:"role"`
+}
+
+func (a ActivityTypeChangedUserGlobalRole) ActivityName() string {
+	return "changed_user_global_role"
+}
+
+func (a ActivityTypeChangedUserGlobalRole) Documentation() (activity string, details string, detailsExample string) {
+	return `Generated when user global roles are changed.`,
+		`This activity contains the following fields:
+- "user_id": Unique ID of the edited user in Fleet.
+- "user_name": Name of the edited user.
+- "user_email": E-mail of the edited user.
+- "role": New global role of the edited user.`, `{
+	"user_id": 42,
+	"user_name": "Foo",
+	"user_email": "foo@example.com",
+	"role": "Observer"
+}`
+}
+
+type ActivityTypeDeletedUserGlobalRole struct {
+	UserID    uint   `json:"user_id"`
+	UserName  string `json:"user_name"`
+	UserEmail string `json:"user_email"`
+	OldRole   string `json:"role"`
+}
+
+func (a ActivityTypeDeletedUserGlobalRole) ActivityName() string {
+	return "deleted_user_global_role"
+}
+
+func (a ActivityTypeDeletedUserGlobalRole) Documentation() (activity string, details string, detailsExample string) {
+	return `Generated when user global roles are deleted.`,
+		`This activity contains the following fields:
+- "user_id": Unique ID of the edited user in Fleet.
+- "user_name": Name of the edited user.
+- "user_email": E-mail of the edited user.
+- "role": Deleted global role of the edited user.`, `{
+	"user_id": 43,
+	"user_name": "Foo",
+	"user_email": "foo@example.com",
+	"role": "Maintainer"
+}`
+}
+
+type ActivityTypeChangedUserTeamRole struct {
+	UserID    uint   `json:"user_id"`
+	UserName  string `json:"user_name"`
+	UserEmail string `json:"user_email"`
+	Role      string `json:"role"`
+	TeamID    uint   `json:"team_id"`
+	TeamName  string `json:"team_name"`
+}
+
+func (a ActivityTypeChangedUserTeamRole) ActivityName() string {
+	return "changed_user_team_role"
+}
+
+func (a ActivityTypeChangedUserTeamRole) Documentation() (activity string, details string, detailsExample string) {
+	return `Generated when user team roles are changed.`,
+		`This activity contains the following fields:
+- "user_id": Unique ID of the edited user in Fleet.
+- "user_name": Name of the edited user.
+- "user_email": E-mail of the edited user.
+- "role": Team role set to the edited user.
+- "team_id": Unique ID of the team of the changed role.
+- "team_name": Name of the team of the changed role.`, `{
+	"user_id": 43,
+	"user_name": "Foo",
+	"user_email": "foo@example.com",
+	"role": "Maintainer",
+	"team_id": 5,
+	"team_name": "Bar"
+}`
+}
+
+type ActivityTypeDeletedUserTeamRole struct {
+	UserID    uint   `json:"user_id"`
+	UserName  string `json:"user_name"`
+	UserEmail string `json:"user_email"`
+	Role      string `json:"role"`
+	TeamID    uint   `json:"team_id"`
+	TeamName  string `json:"team_name"`
+}
+
+func (a ActivityTypeDeletedUserTeamRole) ActivityName() string {
+	return "deleted_user_team_role"
+}
+
+func (a ActivityTypeDeletedUserTeamRole) Documentation() (activity string, details string, detailsExample string) {
+	return `Generated when user team roles are deleted.`,
+		`This activity contains the following fields:
+- "user_id": Unique ID of the edited user in Fleet.
+- "user_name": Name of the edited user.
+- "user_email": E-mail of the edited user.
+- "role": Team role deleted from the edited user.
+- "team_id": Unique ID of the team of the deleted role.
+- "team_name": Name of the team of the deleted role.`, `{
+	"user_id": 44,
+	"user_name": "Foo",
+	"user_email": "foo@example.com",
+	"role": "Observer",
+	"team_id": 2,
+	"team_name": "Zoo"
+}`
 }
 
 // AuthzType implement AuthzTyper to be able to verify access to activities

@@ -16,6 +16,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
+	"github.com/fleetdm/fleet/v4/server/contexts/publicip"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/sso"
@@ -153,7 +154,11 @@ func (svc *Service) Login(ctx context.Context, email, password string) (*fleet.U
 	// skipauth: No user context available yet to authorize against.
 	svc.authz.SkipAuthorization(ctx)
 
-	logging.WithLevel(logging.WithExtras(logging.WithNoUser(ctx), "email", email), level.Info)
+	logging.WithLevel(logging.WithExtras(logging.WithNoUser(ctx),
+		"op", "login",
+		"email", email,
+		"public_ip", publicip.FromContext(ctx),
+	), level.Info)
 
 	// If there is an error, sleep until the request has taken at least 1
 	// second. This means that generally a login failure for any reason will
@@ -187,6 +192,11 @@ func (svc *Service) Login(ctx context.Context, email, password string) (*fleet.U
 		return nil, nil, fleet.NewAuthFailedError(err.Error())
 	}
 
+	if err := svc.ds.NewActivity(ctx, user, fleet.ActivityTypeUserLoggedIn{
+		PublicIP: publicip.FromContext(ctx),
+	}); err != nil {
+		return nil, nil, err
+	}
 	return user, session, nil
 }
 

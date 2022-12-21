@@ -362,6 +362,151 @@ Generated when new users are added via SSO JIT provisioning
 
 This activity does not contain any detail fields.
 
+### Type `user_logged_in`
+
+Generated when users successfully log in to Fleet.
+
+This activity contains the following fields:
+- "public_ip": Public IP of the login request.
+
+#### Example
+
+```json
+{
+	"public_ip": "168.226.215.82"
+}
+```
+
+### Type `created_user`
+
+Generated when a user is created.
+
+This activity contains the following fields:
+- "user_id": Unique ID of the created user in Fleet.
+- "user_name": Name of the created user.
+- "user_email": E-mail of the created user.
+
+#### Example
+
+```json
+{
+	"user_id": 42,
+	"user_name": "Foo",
+	"user_email": "foo@example.com"
+}
+```
+
+### Type `deleted_user`
+
+Generated when a user is deleted.
+
+This activity contains the following fields:
+- "user_id": Unique ID of the deleted user in Fleet.
+- "user_name": Name of the deleted user.
+- "user_email": E-mail of the deleted user.
+
+#### Example
+
+```json
+{
+	"user_id": 42,
+	"user_name": "Foo",
+	"user_email": "foo@example.com"
+}
+```
+
+### Type `changed_user_global_role`
+
+Generated when user global roles are changed.
+
+This activity contains the following fields:
+- "user_id": Unique ID of the edited user in Fleet.
+- "user_name": Name of the edited user.
+- "user_email": E-mail of the edited user.
+- "role": New global role of the edited user.
+
+#### Example
+
+```json
+{
+	"user_id": 42,
+	"user_name": "Foo",
+	"user_email": "foo@example.com",
+	"role": "Observer"
+}
+```
+
+### Type `deleted_user_global_role`
+
+Generated when user global roles are deleted.
+
+This activity contains the following fields:
+- "user_id": Unique ID of the edited user in Fleet.
+- "user_name": Name of the edited user.
+- "user_email": E-mail of the edited user.
+- "role": Deleted global role of the edited user.
+
+#### Example
+
+```json
+{
+	"user_id": 43,
+	"user_name": "Foo",
+	"user_email": "foo@example.com",
+	"role": "Maintainer"
+}
+```
+
+### Type `changed_user_team_role`
+
+Generated when user team roles are changed.
+
+This activity contains the following fields:
+- "user_id": Unique ID of the edited user in Fleet.
+- "user_name": Name of the edited user.
+- "user_email": E-mail of the edited user.
+- "role": Team role set to the edited user.
+- "team_id": Unique ID of the team of the changed role.
+- "team_name": Name of the team of the changed role.
+
+#### Example
+
+```json
+{
+	"user_id": 43,
+	"user_name": "Foo",
+	"user_email": "foo@example.com",
+	"role": "Maintainer",
+	"team_id": 5,
+	"team_name": "Bar"
+}
+```
+
+### Type `deleted_user_team_role`
+
+Generated when user team roles are deleted.
+
+This activity contains the following fields:
+- "user_id": Unique ID of the edited user in Fleet.
+- "user_name": Name of the edited user.
+- "user_email": E-mail of the edited user.
+- "role": Team role deleted from the edited user.
+- "team_id": Unique ID of the team of the deleted role.
+- "team_name": Name of the team of the deleted role.
+
+#### Example
+
+```json
+{
+	"user_id": 44,
+	"user_name": "Foo",
+	"user_email": "foo@example.com",
+	"role": "Observer",
+	"team_id": 2,
+	"team_name": "Zoo"
+}
+```
+
 
 
 <meta name="pageOrderInSection" value="1400">

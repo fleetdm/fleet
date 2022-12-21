@@ -49,7 +49,13 @@ Example:
 
 `)
 
+	activityMap := map[string]struct{}{}
 	for _, activity := range fleet.ActivityDetailsList {
+		if _, ok := activityMap[activity.ActivityName()]; ok {
+			panic(fmt.Sprintf("type %s already used", activity.ActivityName()))
+		}
+		activityMap[activity.ActivityName()] = struct{}{}
+
 		fmt.Fprintf(&b, "### Type `%s`\n\n", activity.ActivityName())
 		activityTypeDoc, detailsDoc, detailsExampleDoc := activity.Documentation()
 		fmt.Fprintf(&b, activityTypeDoc+"\n\n"+detailsDoc+"\n\n")
