@@ -7,7 +7,7 @@
       <ul>
         <li>Vanta only supports up to 1000 hosts.</li>
         <li>The integration currently only supports macOS hosts.</li>
-        <li>We are currently unable to provide macOS auto-update status. In Vanta, all hosts will appear as false. <a href="/queries/automatic-installation-of-operating-system-updates-is-enabled-mac-os" target="_blank">Use this query</a> to see the true list of hosts with auto-update complete.</li>
+        <li>We are currently unable to provide macOS screen lock status. In Vanta, all hosts will appear as false. <a href="/queries/screen-lock-enabled-mac-os" target="_blank">Use this query</a> to see the true list of hosts with screen lock turned on via MDM.</li>
         <li>This integration is only available to Fleet Premium customers.</li>
       </ul>
     </div>
@@ -26,7 +26,7 @@
         <p purpose="input-bottom-label">The full url of your fleet instance (e.g. https://fleet.acme.com)</p>
       </div>
       <div class="form-group mb-4">
-        <label for="fleetInstanceUrl">Admin API-only user key</label>
+        <label for="fleetInstanceUrl">API-only user token (admin only)</label>
         <input id="fleetApiKey" type="text" class="form-control d-flex w-100" :class="[formErrors.fleetApiKey ? 'is-invalid' : '']" v-model.trim="formData.fleetApiKey">
         <div class="invalid-feedback"></div>
         <p purpose="input-bottom-label">Here’s how you can create an <a href="/docs/using-fleet/fleetctl-cli#create-an-api-only-user" target="_blank">API-only user.</a></p>
