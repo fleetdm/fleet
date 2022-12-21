@@ -24,6 +24,9 @@ module.exports = {
 
 
   exits: {
+    success: {
+      outputType: 'string'
+    },
     connectionAlreadyExists: {
       description: 'The Fleet instance url provided is already connected to a Vanta account.',
       statusCode: 409,
@@ -82,8 +85,8 @@ module.exports = {
     .retry()
     .intercept('requestFailed','fleetInstanceNotResponding')
     .intercept('non200Response', 'invalidToken')
-    .catch((error)=>{
-      throw new Error(`When sending a request to a Fleet instance's /me endpoint to verify that a token meets the requirements for a Vanta connection, an error occurred: ${error}`);
+    .intercept((error)=>{
+      return new Error(`When sending a request to a Fleet instance's /me endpoint to verify that a token meets the requirements for a Vanta connection, an error occurred: ${error}`);
     });
 
     // Throw an error if the provided API token is not an API-only user.
@@ -102,8 +105,8 @@ module.exports = {
     .retry()
     .intercept('requestFailed','fleetInstanceNotResponding')
     .intercept('non200Response', 'invalidToken')
-    .catch((error)=>{
-      throw new Error(`When sending a request to a Fleet instance's /config API endpoint for a Vanta connection, an error occurred: ${error}`);
+    .intercept((error)=>{
+      return new Error(`When sending a request to a Fleet instance's /config API endpoint for a Vanta connection, an error occurred: ${error}`);
     });
 
     // If the user's Fleet instance has a free license, we'll throw the 'invalidLicense' exit and let the user know that this is only available for Fleet Premium subscribers.
