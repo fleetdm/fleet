@@ -5,12 +5,6 @@ data "aws_iam_policy_document" "fleet" {
     resources = ["*"]
   }
 
-  // allow fleet application to obtain the database password from secrets manager
-  statement {
-    effect    = "Allow"
-    actions   = ["secretsmanager:GetSecretValue"]
-    resources = [var.fleet_config.database.password_secret_arn]
-  }
 }
 
 data "aws_iam_policy_document" "assume_role" {
@@ -21,6 +15,15 @@ data "aws_iam_policy_document" "assume_role" {
       identifiers = ["ecs.amazonaws.com", "ecs-tasks.amazonaws.com"]
       type        = "Service"
     }
+  }
+}
+
+data "aws_iam_policy_document" "fleet-execution" {
+  // allow fleet application to obtain the database password from secrets manager
+  statement {
+    effect    = "Allow"
+    actions   = ["secretsmanager:GetSecretValue"]
+    resources = [var.fleet_config.database.password_secret_arn]
   }
 }
 
@@ -42,6 +45,17 @@ resource "aws_iam_role_policy_attachment" "main" {
   count      = var.fleet_config.iam_role_arn == null ? 1 : 0
   policy_arn = aws_iam_policy.main[0].arn
   role       = aws_iam_role.main[0].name
+}
+
+resource "aws_iam_policy" "execution" {
+  name        = "fleet-iam-policy-execution"
+  description = "IAM policy that Fleet application uses to define access to AWS resources"
+  policy      = data.aws_iam_policy_document.fleet-execution.json
+}
+
+resource "aws_iam_role_policy_attachment" "execution" {
+  policy_arn = aws_iam_policy.execution.arn
+  role       = aws_iam_role.execution.name
 }
 
 resource "aws_iam_role" "execution" {

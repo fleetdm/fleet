@@ -9,7 +9,7 @@ module "byo-db" {
       password_secret_arn = module.secrets-manager-1.secret_arns["database-password"]
     }
     redis = {
-      address = module.redis.endpoint
+      address = "${module.redis.endpoint}:${module.redis.port}"
     }
     networking = {
       subnets = var.vpc_config.networking.subnets
@@ -33,6 +33,11 @@ module "rds" {
   engine_version = var.rds_config.engine_version
   instance_class = var.rds_config.instance_class
 
+  instances = {
+    one = {}
+    two = {}
+  }
+
   vpc_id  = var.vpc_config.vpc_id
   subnets = var.rds_config.subnets
 
@@ -49,6 +54,7 @@ module "rds" {
   enabled_cloudwatch_logs_exports = var.rds_config.enabled_cloudwatch_logs_exports
   master_username                 = var.rds_config.master_username
   master_password                 = random_password.rds.result
+  database_name                   = "fleet"
 }
 
 data "aws_subnet" "redis" {
@@ -77,6 +83,13 @@ module "redis" {
   at_rest_encryption_enabled = var.redis_config.at_rest_encryption_enabled
   transit_encryption_enabled = var.redis_config.transit_encryption_enabled
   parameter                  = var.redis_config.parameter
+  additional_security_group_rules = [{
+    type        = "ingress"
+    from_port   = 0
+    to_port     = 65535
+    protocol    = "tcp"
+    cidr_blocks = ["10.0.0.0/8"]
+  }]
 }
 
 module "secrets-manager-1" {

@@ -110,14 +110,6 @@ resource "aws_ecs_task_definition" "backend" {
             value = tostring(var.fleet_config.redis.use_tls)
           },
           {
-            name  = "FLEET_OSQUERY_STATUS_LOG_PLUGIN"
-            value = "firehose"
-          },
-          {
-            name  = "FLEET_OSQUERY_RESULT_LOG_PLUGIN"
-            value = "firehose"
-          },
-          {
             name  = "FLEET_SERVER_TLS"
             value = "false"
           },
@@ -175,4 +167,11 @@ resource "aws_security_group" "main" {
   count  = var.fleet_config.security_groups == null ? 1 : 0
   name   = "fleet"
   vpc_id = var.vpc_id
+  egress {
+    from_port        = 0
+    to_port          = 0
+    protocol         = "-1"
+    cidr_blocks      = ["0.0.0.0/0"]
+    ipv6_cidr_blocks = ["::/0"]
+  }
 }
