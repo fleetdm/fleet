@@ -57,6 +57,11 @@ module.exports = {
       // If no record of this authorization could be found, but the user has a `state` and `vantaSourceId` cookie, throw an error.
       throw new Error(`When a user tried to connect their Vanta account with their Fleet instance. No VantaConnection record with the sourceID ${this.req.signedCookies.vantaSourceId} could be found.`);
     }
+    if(recordOfThisAuthorization.isConnectedToVanta) {
+      return {
+        showSuccessMessage: true,
+      }
+    }
 
     // Send an authorization request to Vanta,
     let vantaAuthorizationResponse = await sails.helpers.http.post(

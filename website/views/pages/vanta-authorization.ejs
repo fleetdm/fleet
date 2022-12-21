@@ -8,11 +8,11 @@
     <div v-else>
       <div v-if="connectionError === 'missingCookies'">
         <h1 class="pb-2">We've encountered an unexpected error.</h1>
-        <p>When trying to authorize a connection between fleetdm.com and your Vanta account, one or more of the required cookies were missing. Please ensure your browser has the ability to store cookies on fleetdm.com, and <a href="/connect-vanta">try again.</a></p>
+        <p>When trying to connect Fleet to your Vanta account, one or more of the required cookies were missing.<br class="d-none d-lg-block"> Please ensure your browser has the ability to store cookies on fleetdm.com, and <a href="/connect-vanta">try again.</a></p>
       </div>
       <div v-else-if="connectionError === 'mismatchedState'">
         <h1 class="pb-2">We've encountered an unexpected error.</h1>
-        <p>When trying to connect your Vanta account and Fleet instance, your identity could not be verified.<br class="d-none d-lg-block"> Please make sure your browser has the ability to store cookies from fleetdm.com and <a href="/connect-vanta">try again</a>, or <a href="/contact">contact us</a>.</p>
+        <p>When trying to connect Fleet to your Vanta account, your identity could not be verified.<br class="d-none d-lg-block"> Please make sure your browser has the ability to store cookies from fleetdm.com and <a href="/connect-vanta">try again</a> or <a href="/contact">contact us</a>.</p>
       </div>
     </div>
   </div>
