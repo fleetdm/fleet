@@ -1,5 +1,4 @@
 import React, { useState, useContext, useCallback } from "react";
-import { IconNames } from "components/icons";
 import { useQuery } from "react-query";
 import memoize from "memoize-one";
 
@@ -13,6 +12,7 @@ import {
   IIntegrations,
 } from "interfaces/integration";
 import { IApiError } from "interfaces/errors";
+import { IEmptyTableProps } from "interfaces/empty_table";
 
 import Button from "components/buttons/Button";
 // @ts-ignore
@@ -42,16 +42,6 @@ const BAD_REQUEST_ERROR =
   "Invalid login credentials or URL. Please correct and try again.";
 const UNKNOWN_ERROR =
   "We experienced an error when attempting to connect. Please try again later.";
-
-interface IEmptyTableProps {
-  iconName?: IconNames;
-  header?: JSX.Element | string;
-  info?: JSX.Element | string;
-  additionalInfo?: JSX.Element | string;
-  className?: string;
-  primaryButton?: JSX.Element;
-  secondaryButton?: JSX.Element;
-}
 
 const IntegrationsPage = (): JSX.Element => {
   const { renderFlash } = useContext(NotificationContext);
@@ -374,11 +364,11 @@ const IntegrationsPage = (): JSX.Element => {
   };
 
   const emptyState = () => {
-    const noIntegrations: IEmptyTableProps = {
+    const emptyIntegrations: IEmptyTableProps = {
       iconName: "empty-integrations",
       header: "Set up integrations",
       info:
-        "Create tickets automatically when Fleet detects new vulnerabilities.",
+        "Create tickets automatically when Fleet detects new software vulnerabilities or hosts failing policies.",
       additionalInfo: (
         <>
           Want to learn more?&nbsp;
@@ -399,7 +389,7 @@ const IntegrationsPage = (): JSX.Element => {
         </Button>
       ),
     };
-    return noIntegrations;
+    return emptyIntegrations;
   };
 
   const tableHeaders = generateTableHeaders(onActionSelection);
@@ -428,7 +418,7 @@ const IntegrationsPage = (): JSX.Element => {
           resultsTitle={"integrations"}
           emptyComponent={() =>
             EmptyTable({
-              iconName: "empty-integrations", // TODO: Fix types to use emptyState().iconName
+              iconName: "empty-integrations",
               header: emptyState().header,
               info: emptyState().info,
               additionalInfo: emptyState().additionalInfo,

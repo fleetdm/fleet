@@ -5,6 +5,7 @@ import Chevron from "./Chevron";
 import Ex from "./Ex";
 import EmptyHosts from "./EmptyHosts";
 import EmptyIntegrations from "./EmptyIntegrations";
+import EmptyMembers from "./EmptyMembers";
 import EmptyPolicies from "./EmptyPolicies";
 import EmptyQueries from "./EmptyQueries";
 import EmptySchedule from "./EmptySchedule";
@@ -36,6 +37,7 @@ import Clipboard from "./Clipboard";
 import Eye from "./Eye";
 import Pencil from "./Pencil";
 import TrashCan from "./TrashCan";
+import EmptyPacks from "./EmptyPacks";
 
 // a mapping of the usable names of icons to the icon source.
 export const ICON_MAP = {
@@ -46,6 +48,8 @@ export const ICON_MAP = {
   ex: Ex,
   "empty-hosts": EmptyHosts,
   "empty-integrations": EmptyIntegrations,
+  "empty-members": EmptyMembers,
+  "empty-packs": EmptyPacks,
   "empty-policies": EmptyPolicies,
   "empty-queries": EmptyQueries,
   "empty-schedule": EmptySchedule,

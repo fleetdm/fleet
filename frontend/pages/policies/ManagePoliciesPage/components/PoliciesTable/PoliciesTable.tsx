@@ -6,6 +6,7 @@ import paths from "router/paths";
 
 import { IPolicyStats } from "interfaces/policy";
 import { ITeamSummary } from "interfaces/team";
+import { IEmptyTableProps } from "interfaces/empty_table";
 
 import Button from "components/buttons/Button";
 import Spinner from "components/Spinner";
@@ -32,16 +33,6 @@ interface IPoliciesTableProps {
   currentAutomatedPolicies?: number[];
 }
 
-interface IEmptyTableProps {
-  iconName?: IconNames;
-  header?: JSX.Element | string;
-  info?: JSX.Element | string;
-  additionalInfo?: JSX.Element | string;
-  className?: string;
-  primaryButton?: JSX.Element;
-  secondaryButton?: JSX.Element;
-}
-
 const PoliciesTable = ({
   policiesList,
   isLoading,
@@ -57,7 +48,7 @@ const PoliciesTable = ({
   const { config } = useContext(AppContext);
 
   const emptyState = () => {
-    const noPolicies: IEmptyTableProps = {
+    const emptyPolicies: IEmptyTableProps = {
       iconName: "empty-policies",
       header: (
         <>
@@ -76,7 +67,7 @@ const PoliciesTable = ({
     };
 
     if (currentTeam) {
-      noPolicies.header = (
+      emptyPolicies.header = (
         <>
           Ask yes or no questions about hosts assigned to{" "}
           <a
@@ -90,7 +81,7 @@ const PoliciesTable = ({
       );
     }
     if (canAddOrDeletePolicy) {
-      noPolicies.primaryButton = (
+      emptyPolicies.primaryButton = (
         <Button
           variant="brand"
           className={`${baseClass}__select-policy-button`}
@@ -101,7 +92,7 @@ const PoliciesTable = ({
       );
     }
 
-    return noPolicies;
+    return emptyPolicies;
   };
 
   return (
@@ -137,7 +128,7 @@ const PoliciesTable = ({
           primarySelectActionButtonText={"Delete"}
           emptyComponent={() =>
             EmptyTable({
-              iconName: "empty-policies", // TODO: Fix types to use emptyState().iconName
+              iconName: emptyState().iconName,
               header: emptyState().header,
               info: emptyState().info,
               additionalInfo: emptyState().additionalInfo,

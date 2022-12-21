@@ -51,6 +51,7 @@ import EmptyTable from "components/EmptyTable";
 
 import generateSoftwareTableHeaders from "./SoftwareTableConfig";
 import ManageAutomationsModal from "./components/ManageAutomationsModal";
+import { IEmptyTableProps } from "interfaces/empty_table";
 
 interface IManageSoftwarePageProps {
   router: InjectedRouter;
@@ -531,44 +532,36 @@ const ManageSoftwarePage = ({
   };
 
   const emptyState = () => {
-    if (!isSoftwareEnabled) {
-      return {
-        iconName: "empty-software",
-        header: "Software inventory disabled",
-        info: (
-          <>
-            Users with the admin role can{" "}
-            <CustomLink
-              url="https://fleetdm.com/docs/using-fleet/vulnerability-processing#configuration"
-              text="turn on software inventory"
-              newTab
-            />
-            .
-          </>
-        ),
-      };
-    }
-    if (isCollectingInventory) {
-      return {
-        iconName: "empty-software",
-        header: "No software detected",
-        info:
-          "This report is updated every hour to protect the performance of your devices.",
-      };
-    }
-    if (currentTeam && filterVuln) {
-      return {
-        iconName: "empty-software",
-        header: "No vulnerable software detected",
-        info:
-          "This report is updated every hour to protect the performance of your devices.",
-      };
-    }
-    return {
+    const emptySoftware: IEmptyTableProps = {
       iconName: "empty-software",
       header: "No software matches the current search criteria",
       info: "Try again in about 1 hour as the system catches up.",
     };
+    if (!isSoftwareEnabled) {
+      emptySoftware.header = "Software inventory disabled";
+      emptySoftware.info = (
+        <>
+          Users with the admin role can{" "}
+          <CustomLink
+            url="https://fleetdm.com/docs/using-fleet/vulnerability-processing#configuration"
+            text="turn on software inventory"
+            newTab
+          />
+          .
+        </>
+      );
+    }
+    if (isCollectingInventory) {
+      emptySoftware.header = "No software detected";
+      emptySoftware.info =
+        "This report is updated every hour to protect the performance of your devices.";
+    }
+    if (currentTeam && filterVuln) {
+      emptySoftware.header = "No vulnerable software detected";
+      emptySoftware.info =
+        "This report is updated every hour to protect the performance of your devices.";
+    }
+    return emptySoftware;
   };
 
   return !availableTeams ||
@@ -591,7 +584,7 @@ const ManageSoftwarePage = ({
               resultsTitle={"software items"}
               emptyComponent={() =>
                 EmptyTable({
-                  iconName: "empty-software", // TODO: Fix types to use emptyState().iconName
+                  iconName: emptyState().iconName,
                   header: emptyState().header,
                   info: emptyState().info,
                 })

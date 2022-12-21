@@ -5,14 +5,15 @@ import React from "react";
 import { InjectedRouter } from "react-router";
 import paths from "router/paths";
 
-import Button from "components/buttons/Button";
-import { IconNames } from "components/icons";
 import {
   IScheduledQuery,
   IEditScheduledQuery,
 } from "interfaces/scheduled_query";
-
 import { ITeam } from "interfaces/team";
+import { IEmptyTableProps } from "interfaces/empty_table";
+
+import Button from "components/buttons/Button";
+import CustomLink from "components/CustomLink";
 import TableContainer from "components/TableContainer";
 import EmptyTable from "components/EmptyTable";
 import {
@@ -42,16 +43,6 @@ interface IScheduleTableProps {
   loadingTeamQueriesTableData: boolean;
 }
 
-interface IEmptyTableProps {
-  iconName?: IconNames;
-  header?: JSX.Element | string;
-  info?: JSX.Element | string;
-  additionalInfo?: JSX.Element | string;
-  className?: string;
-  primaryButton?: JSX.Element;
-  secondaryButton?: JSX.Element;
-}
-
 const ScheduleTable = ({
   router,
   onRemoveScheduledQueryClick,
@@ -71,10 +62,21 @@ const ScheduleTable = ({
 
   const emptyState = () => {
     const emptySchedule: IEmptyTableProps = {
+      iconName: "empty-schedule",
       header: (
         <>
           Schedule queries to run at regular intervals on{" "}
-          <a href={MANAGE_HOSTS}>all your hosts</a>.
+          <a href={MANAGE_HOSTS}>all your hosts</a>
+        </>
+      ),
+      additionalInfo: (
+        <>
+          Want to learn more?&nbsp;
+          <CustomLink
+            url="https://fleetdm.com/docs/using-fleet/fleet-ui#schedule-a-query"
+            text="Read about scheduling a query"
+            newTab
+          />
         </>
       ),
       primaryButton: (
@@ -168,7 +170,7 @@ const ScheduleTable = ({
           disableCount
           emptyComponent={() =>
             EmptyTable({
-              iconName: "empty-schedule", // TODO: Fix types to use emptyState().iconName
+              iconName: emptyState().iconName,
               header: emptyState().header,
               info: emptyState().info,
               additionalInfo: emptyState().additionalInfo,
@@ -200,7 +202,7 @@ const ScheduleTable = ({
         primarySelectActionButtonText={"Remove"}
         emptyComponent={() =>
           EmptyTable({
-            iconName: "empty-schedule", // TODO: Fix types to use emptyState().iconName
+            iconName: emptyState().iconName,
             header: emptyState().header,
             info: emptyState().info,
             additionalInfo: emptyState().additionalInfo,

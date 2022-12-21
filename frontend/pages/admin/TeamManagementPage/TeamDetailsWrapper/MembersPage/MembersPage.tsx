@@ -7,6 +7,7 @@ import PATHS from "router/paths";
 import { IApiError } from "interfaces/errors";
 import { IUser, IUserFormErrors } from "interfaces/user";
 import { INewMembersBody, ITeam } from "interfaces/team";
+import { IEmptyTableProps } from "interfaces/empty_table";
 import { Link } from "react-router";
 import { AppContext } from "context/app";
 import usersAPI from "services/entities/users";
@@ -41,16 +42,6 @@ interface IMembersPageProps {
   params: {
     team_id: string;
   };
-}
-
-interface IEmptyTableProps {
-  iconName?: IconNames;
-  header?: JSX.Element | string;
-  info?: JSX.Element | string;
-  additionalInfo?: JSX.Element | string;
-  className?: string;
-  primaryButton?: JSX.Element;
-  secondaryButton?: JSX.Element;
 }
 
 const MembersPage = ({
@@ -351,10 +342,9 @@ const MembersPage = ({
     }
   };
 
-  // TODO: Refactor
-
   const emptyState = () => {
     const emptyMembers: IEmptyTableProps = {
+      iconName: "empty-members",
       header: "This team doesn't have any members yet.",
       info:
         "Expecting to see new team members listed here? Try again in a few seconds as the system catches up.",
@@ -388,52 +378,6 @@ const MembersPage = ({
     }
     return emptyMembers;
   };
-
-  const NoMembersComponent = useCallback(() => {
-    return (
-      <div className={`${noMembersClass}`}>
-        <div className={`${noMembersClass}__inner`}>
-          <div className={`${noMembersClass}__inner-text`}>
-            {searchString === "" ? (
-              <>
-                <h1>This team doesn&apos;t have any members yet.</h1>
-                <p>
-                  Expecting to see new team members listed here? Try again in a
-                  few seconds as the system catches up.
-                </p>
-                {isGlobalAdmin && (
-                  <Button
-                    variant="brand"
-                    className={`${noMembersClass}__create-button`}
-                    onClick={toggleAddUserModal}
-                  >
-                    Add member
-                  </Button>
-                )}
-                {isTeamAdmin && (
-                  <Button
-                    variant="brand"
-                    className={`${noMembersClass}__create-button`}
-                    onClick={toggleCreateMemberModal}
-                  >
-                    Create user
-                  </Button>
-                )}
-              </>
-            ) : (
-              <>
-                <h2>We couldn’t find any members.</h2>
-                <p>
-                  Expecting to see members? Try again in a few seconds as the
-                  system catches up.
-                </p>
-              </>
-            )}
-          </div>
-        </div>
-      </div>
-    );
-  }, [searchString, toggleAddUserModal]);
 
   const tableHeaders = generateTableHeaders(onActionSelection);
 
@@ -469,7 +413,7 @@ const MembersPage = ({
           inputPlaceHolder={"Search"}
           emptyComponent={() =>
             EmptyTable({
-              // TODO: Need an image for this empty state
+              iconName: emptyState().iconName,
               header: emptyState().header,
               info: emptyState().info,
               primaryButton: emptyState().primaryButton,

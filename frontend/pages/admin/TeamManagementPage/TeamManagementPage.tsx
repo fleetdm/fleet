@@ -7,6 +7,7 @@ import { NotificationContext } from "context/notification";
 import { AppContext } from "context/app";
 import { ITeam } from "interfaces/team";
 import { IApiError } from "interfaces/errors";
+import { IEmptyTableProps } from "interfaces/empty_table";
 import teamsAPI, {
   ILoadTeamsResponse,
   ITeamFormData,
@@ -25,16 +26,6 @@ import { generateTableHeaders, generateDataSet } from "./TeamTableConfig";
 
 const baseClass = "team-management";
 const noTeamsClass = "no-teams";
-
-interface IEmptyTableProps {
-  iconName?: IconNames;
-  header?: JSX.Element | string;
-  info?: JSX.Element | string;
-  additionalInfo?: JSX.Element | string;
-  className?: string;
-  primaryButton?: JSX.Element;
-  secondaryButton?: JSX.Element;
-}
 
 const TeamManagementPage = (): JSX.Element => {
   const { renderFlash } = useContext(NotificationContext);
@@ -210,7 +201,7 @@ const TeamManagementPage = (): JSX.Element => {
   };
 
   const emptyState = () => {
-    const noTeams: IEmptyTableProps = {
+    const emptyTeams: IEmptyTableProps = {
       iconName: "empty-teams",
       header: "Set up team permissions",
       info:
@@ -237,7 +228,7 @@ const TeamManagementPage = (): JSX.Element => {
       ),
     };
 
-    return noTeams;
+    return emptyTeams;
   };
 
   const tableHeaders = generateTableHeaders(onActionSelection);
@@ -266,7 +257,7 @@ const TeamManagementPage = (): JSX.Element => {
           resultsTitle={"teams"}
           emptyComponent={() =>
             EmptyTable({
-              iconName: "empty-teams", // TODO: Fix types to use emptyState().iconName
+              iconName: "empty-teams",
               header: emptyState().header,
               info: emptyState().info,
               additionalInfo: emptyState().additionalInfo,

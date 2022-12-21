@@ -1,9 +1,9 @@
 /* eslint-disable react/prop-types */
-import React, { useCallback, useContext, useState } from "react";
-import { IconNames } from "components/icons";
+import React, { useContext, useState } from "react";
 
 import { AppContext } from "context/app";
 import { IQuery } from "interfaces/query";
+import { IEmptyTableProps } from "interfaces/empty_table";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 
 import Button from "components/buttons/Button";
@@ -29,16 +29,6 @@ interface IQueriesTableProps {
   isOnlyObserver?: boolean;
 }
 
-interface IEmptyTableProps {
-  iconName?: IconNames;
-  header?: JSX.Element | string;
-  info?: JSX.Element | string;
-  additionalInfo?: JSX.Element | string;
-  className?: string;
-  primaryButton?: JSX.Element;
-  secondaryButton?: JSX.Element;
-}
-
 const QueriesTable = ({
   queriesList,
   isLoading,
@@ -56,18 +46,18 @@ const QueriesTable = ({
   };
 
   const emptyState = () => {
-    const noQueries: IEmptyTableProps = {
+    const emptyQueries: IEmptyTableProps = {
       iconName: "empty-queries",
       header: "You don't have any queries",
       info: "A query is a specific question you can ask about your devices.",
     };
     if (searchString) {
-      noQueries.header = "No queries match the current search criteria.";
-      noQueries.info =
+      emptyQueries.header = "No queries match the current search criteria.";
+      emptyQueries.info =
         "Expecting to see queries? Try again in a few seconds as the system catches up.";
     }
     if (!isOnlyObserver) {
-      noQueries.additionalInfo = (
+      emptyQueries.additionalInfo = (
         <>
           Create a new query, or{" "}
           <CustomLink
@@ -77,7 +67,7 @@ const QueriesTable = ({
           />
         </>
       );
-      noQueries.primaryButton = (
+      emptyQueries.primaryButton = (
         <Button
           variant="brand"
           className={`${baseClass}__create-button`}
@@ -88,7 +78,7 @@ const QueriesTable = ({
       );
     }
 
-    return noQueries;
+    return emptyQueries;
   };
 
   // const NoQueriesComponent = useCallback(() => {
@@ -145,7 +135,7 @@ const QueriesTable = ({
     return (
       <div className={`${baseClass}`}>
         {EmptyTable({
-          iconName: "empty-queries", // TODO: Fix types to use emptyState().iconName
+          iconName: emptyState().iconName,
           header: emptyState().header,
           info: emptyState().info,
           additionalInfo: emptyState().additionalInfo,
@@ -175,7 +165,7 @@ const QueriesTable = ({
         primarySelectActionButtonText={"Delete"}
         emptyComponent={() =>
           EmptyTable({
-            iconName: "empty-queries", // TODO: Fix types to use emptyState().iconName
+            iconName: emptyState().iconName,
             header: emptyState().header,
             info: emptyState().info,
             additionalInfo: emptyState().additionalInfo,

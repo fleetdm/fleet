@@ -43,6 +43,8 @@ import {
 import { IPolicy, IStoredPolicyResponse } from "interfaces/policy";
 import { ISoftware } from "interfaces/software";
 import { ITeam } from "interfaces/team";
+import { IEmptyTableProps } from "interfaces/empty_table";
+
 import sortUtils from "utilities/sort";
 import {
   HOSTS_SEARCH_BOX_PLACEHOLDER,
@@ -60,6 +62,7 @@ import { IActionButtonProps } from "components/TableContainer/DataTable/ActionBu
 import TeamsDropdown from "components/TeamsDropdown";
 import Spinner from "components/Spinner";
 import MainContent from "components/MainContent";
+import EmptyTable from "components/EmptyTable";
 
 import { getValidatedTeamId } from "utilities/helpers";
 import {
@@ -75,7 +78,6 @@ import {
   HOST_SELECT_STATUSES,
 } from "./constants";
 import { isAcceptableStatus, getNextLocationPath } from "./helpers";
-import EmptyTable from "components/EmptyTable";
 import DeleteSecretModal from "../../../components/EnrollSecrets/DeleteSecretModal";
 import SecretEditorModal from "../../../components/EnrollSecrets/SecretEditorModal";
 import AddHostsModal from "../../../components/AddHostsModal";
@@ -110,16 +112,6 @@ interface ITableQueryProps {
   searchQuery: string;
   sortHeader: string;
   sortDirection: string;
-}
-
-interface IEmptyTableProps {
-  iconName?: IconNames;
-  header?: JSX.Element | string;
-  info?: JSX.Element | string;
-  additionalInfo?: JSX.Element | string;
-  className?: string;
-  primaryButton?: JSX.Element;
-  secondaryButton?: JSX.Element;
 }
 
 const CSV_HOSTS_TITLE = "Hosts";
@@ -1719,7 +1711,7 @@ const ManageHostsPage = ({
       return (
         <>
           {EmptyTable({
-            iconName: "empty-hosts", // TODO: Fix types to use emptyState().iconName
+            iconName: emptyState().iconName,
             header: emptyState().header,
             info: emptyState().info,
             additionalInfo: emptyState().additionalInfo,
