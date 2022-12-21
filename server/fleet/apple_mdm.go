@@ -210,9 +210,17 @@ func NewMDMAppleHostIngester(ds Datastore, logger kitlog.Logger) *MDMAppleHostIn
 func (ingester *MDMAppleHostIngester) Ingest(ctx context.Context, r *http.Request) error {
 	if isMDMAppleCheckinReq(r) {
 		host := MDMAppleHostDetails{}
-		if err := decodeMDMAppleCheckinReq(r, &host); err != nil {
+
+		ok, err := decodeMDMAppleCheckinReq(r, &host)
+		switch {
+		case err != nil:
 			return fmt.Errorf("decode checkin request: %w", err)
+		case !ok:
+			return nil
+		default:
+			// continue
 		}
+
 		if err := ingester.ds.IngestMDMAppleDeviceFromCheckin(ctx, host); err != nil {
 			return err
 		}
@@ -222,21 +230,17 @@ func (ingester *MDMAppleHostIngester) Ingest(ctx context.Context, r *http.Reques
 
 func isMDMAppleCheckinReq(r *http.Request) bool {
 	contentType := r.Header.Get("Content-Type")
-	if strings.HasPrefix(contentType, "application/x-apple-aspen-mdm-checkin") {
-		return true
-	}
-	return false
+	return strings.HasPrefix(contentType, "application/x-apple-aspen-mdm-checkin")
 }
 
-func decodeMDMAppleCheckinReq(r *http.Request, dest *MDMAppleHostDetails) error {
-	req := *r
-	bodyBytes, err := nanohttp.ReadAllAndReplaceBody(&req) // TODO: dev test
+func decodeMDMAppleCheckinReq(r *http.Request, dest *MDMAppleHostDetails) (bool, error) {
+	bodyBytes, err := nanohttp.ReadAllAndReplaceBody(r) // TODO: dev test
 	if err != nil {
-		return err
+		return false, err
 	}
 	msg, err := mdm.DecodeCheckin(bodyBytes)
 	if err != nil {
-		return err
+		return false, err
 	}
 	switch m := msg.(type) {
 	case *mdm.Authenticate:
@@ -244,9 +248,9 @@ func decodeMDMAppleCheckinReq(r *http.Request, dest *MDMAppleHostDetails) error 
 		dest.UDID = m.UDID
 		// dest.Model = m.Model
 		fmt.Println(m.SerialNumber, m.UDID) // TODO: add model to the struct
-		return nil
+		return true, nil
 	default:
 		// these aren't the requests you're looking for, move along
-		return nil
+		return false, nil
 	}
 }

@@ -281,7 +281,8 @@ func updateMDMAppleHostDB(ctx context.Context, tx sqlx.ExtContext, hostID uint, 
 			uuid = ?,
 			hardware_model = ?,
 			platform =  ?,
-			refetch_requested = ?
+			refetch_requested = ?,
+			osquery_host_id = ?
 		WHERE id = ?`
 
 	if _, err := tx.ExecContext(
@@ -292,6 +293,7 @@ func updateMDMAppleHostDB(ctx context.Context, tx sqlx.ExtContext, hostID uint, 
 		mdmHost.Model,
 		"darwin",
 		1,
+		mdmHost.UDID,
 		hostID,
 	); err != nil {
 		return ctxerr.Wrap(ctx, err, "update mdm apple host")
@@ -322,7 +324,7 @@ func insertMDMAppleHostDB(ctx context.Context, tx sqlx.ExtContext, mdmHost fleet
 		"darwin",
 		"2000-01-01 00:00:00",
 		"2000-01-01 00:00:00",
-		nil,
+		mdmHost.UDID,
 		1,
 	)
 	if err != nil {
@@ -360,6 +362,19 @@ func upsertMDMAppleHostRelatedTables(ctx context.Context, tx sqlx.ExtContext, ho
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "upsert mdm apple host display names")
 	}
+
+	// Label assignment usually happens when the distributed query results are
+	// received, we can't count on osquery during MDM enrollment, so we're
+	// assiging the labels to the host here.
+	_, err = tx.ExecContext(ctx, `
+			INSERT INTO label_membership (host_id, label_id) VALUES(?, (
+				SELECT id FROM labels WHERE name = 'All Hosts' AND label_type = 1)), (?, (
+				SELECT id FROM labels WHERE name = 'macOS' AND label_type = 1)) 
+			ON DUPLICATE KEY UPDATE host_id = host_id`, hostID, hostID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "upsert mdm apple host label membership")
+	}
+
 	return nil
 }
 
