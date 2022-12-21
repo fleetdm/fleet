@@ -32,7 +32,7 @@ module.exports = {
       statusCode: 409,
     },
     fleetInstanceNotResponding: {
-      description: 'The Fleet instance did not respond.',
+      description: 'A http request to the user\'s Fleet instance failed.',
       statusCode: 404,
     },
     invalidToken: {
@@ -40,7 +40,7 @@ module.exports = {
       statusCode: 403,
     },
     invalidLicense: {
-      description: 'The Fleet instance provided is on the Free tier.',
+      description: 'The Fleet instance provided is using a Free license.',
       statusCode: 400,
     },
     nonApiOnlyUser: {
@@ -68,22 +68,23 @@ module.exports = {
     let generatedSourceIdSuffix = await sails.helpers.strings.random.with({len: 20, style: 'url-friendly'});
     let sourceIDForThisRequest = 'fleet_'+generatedSourceIdSuffix;
 
-    // If A Vanta Connection already exists for the provided Fleet instance url, we'll throw a 'connectionAlreadyExists' exit, and the user will be asked to contact us to make changes to the existing vanta connection.
-    if(existingConnectionRecord.isConnectedToVanta) {
-      throw 'connectionAlreadyExists';
-    } else if(existingConnectionRecord.fleetApiKey !== inputs.fleetApiKey && existingConnectionRecord.emailAddress !== inputs.emailAddress) {
+    if(existingConnectionRecord) {
+      // If an active Vanta connection exists for the provided Fleet instance url, we'll throw a 'connectionAlreadyExists' exit, and the user will be asked to contact us to make changes to the existing vanta connection.
+      if(existingConnectionRecord.isConnectedToVanta) {
+        throw 'connectionAlreadyExists';
+      } else if(existingConnectionRecord.fleetApiKey !== inputs.fleetApiKey && existingConnectionRecord.emailAddress !== inputs.emailAddress) {
       // If an incomplete connection exists, and the API token and email address provided do not match. The user will be asked to contact us to make changes to their connection.
-      throw 'connectionAlreadyExists';
-    } else if(existingConnectionRecord) {
-      // If an inactive and incomplete Vanta connection exists that uses the same API token and email address, we'll use the sourceId from that record for this request.
-      sourceIDForThisRequest = existingConnectionRecord.vantaSourceId;
+        throw 'connectionAlreadyExists';
+      } else {
+        // If an inactive and incomplete Vanta connection exists that uses the same API token and email address, we'll use the sourceId from that record for this request.
+        sourceIDForThisRequest = existingConnectionRecord.vantaSourceId;
+      }
     }
 
 
     // Check the fleet instance url and API key provided
     let responseFromFleetInstance = await sails.helpers.http.get(inputs.fleetInstanceUrl+'/api/v1/fleet/me',{},{'Authorization': 'Bearer ' +inputs.fleetApiKey})
-    .retry()
-    .intercept('requestFailed','fleetInstanceNotResponding')
+    .intercept('requestFailed', 'fleetInstanceNotResponding')
     .intercept('non200Response', 'invalidToken')
     .intercept((error)=>{
       return new Error(`When sending a request to a Fleet instance's /me endpoint to verify that a token meets the requirements for a Vanta connection, an error occurred: ${error}`);
@@ -102,7 +103,6 @@ module.exports = {
 
     // Send a request to the provided Fleet instance's /config endpoint to check their license tier.
     let configResponse = await sails.helpers.http.get(inputs.fleetInstanceUrl+'/api/v1/fleet/config', {}, {'Authorization': 'Bearer ' +inputs.fleetApiKey})
-    .retry()
     .intercept('requestFailed','fleetInstanceNotResponding')
     .intercept('non200Response', 'invalidToken')
     .intercept((error)=>{
