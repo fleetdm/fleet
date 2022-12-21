@@ -49,15 +49,15 @@ func TestDEPClient(t *testing.T) {
 
 			switch token {
 			case validToken:
-				w.Write([]byte(`{"auth_session_token": "ok"}`))
+				_, _ = w.Write([]byte(`{"auth_session_token": "ok"}`))
 			case termsChangedAfterAuthToken:
-				w.Write([]byte(`{"auth_session_token": "fail"}`))
+				_, _ = w.Write([]byte(`{"auth_session_token": "fail"}`))
 			case termsChangedToken:
 				w.WriteHeader(http.StatusForbidden)
-				w.Write([]byte(`{"code": "T_C_NOT_SIGNED"}`))
+				_, _ = w.Write([]byte(`{"code": "T_C_NOT_SIGNED"}`))
 			case invalidToken:
 				w.WriteHeader(http.StatusForbidden)
-				w.Write([]byte(`{"code": "ACCESS_DENIED"}`))
+				_, _ = w.Write([]byte(`{"code": "ACCESS_DENIED"}`))
 			default:
 				w.WriteHeader(http.StatusUnauthorized)
 			}
@@ -68,13 +68,13 @@ func TestDEPClient(t *testing.T) {
 		authSsn := r.Header.Get("X-Adm-Auth-Session")
 		if authSsn == "fail" {
 			w.WriteHeader(http.StatusForbidden)
-			w.Write([]byte(`{"code": "T_C_NOT_SIGNED"}`))
+			_, _ = w.Write([]byte(`{"code": "T_C_NOT_SIGNED"}`))
 			return
 		}
 
 		// otherwise, return account information, details not important for this
 		// test.
-		w.Write([]byte(`{"admin_id": "test"}`))
+		_, _ = w.Write([]byte(`{"admin_id": "test"}`))
 	}))
 	defer srv.Close()
 
