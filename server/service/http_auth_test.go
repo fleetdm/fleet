@@ -172,6 +172,9 @@ func setupAuthTest(t *testing.T) (fleet.Datastore, map[string]fleet.User, *httpt
 		sessions[sessionKey] = session
 		return session, nil
 	}
+	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error {
+		return nil
+	}
 	return ds, usersMap, server
 }
 
