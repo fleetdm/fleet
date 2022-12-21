@@ -31,7 +31,7 @@ interface ISoftwareTableProps {
   software: ISoftware[];
   deviceUser?: boolean;
   deviceType?: string;
-  softwareInventoryEnabled?: boolean;
+  isSoftwareEnabled?: boolean;
   router?: InjectedRouter;
 }
 
@@ -47,9 +47,8 @@ const SoftwareTable = ({
   software,
   deviceUser,
   deviceType,
-  softwareInventoryEnabled,
-  router,
   isSoftwareEnabled,
+  router,
 }: ISoftwareTableProps): JSX.Element => {
   const [searchString, setSearchString] = useState("");
   const [filterVuln, setFilterVuln] = useState(false);
