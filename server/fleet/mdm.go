@@ -46,7 +46,7 @@ type AppConfigUpdater interface {
 // storage that will flag the AppConfig's AppleBMTermsExpired field whenever
 // the status of the terms changes.
 func NewDEPClient(storage godep.ClientStorage, appCfgUpdater AppConfigUpdater, logger kitlog.Logger) *godep.Client {
-	return godep.NewClient(storage, fleethttp.NewClient(), godep.WithErrHook(func(ctx context.Context, reqErr error) error {
+	return godep.NewClient(storage, fleethttp.NewClient(), godep.WithAfterHook(func(ctx context.Context, reqErr error) error {
 		// if the request failed due to terms not signed, or if it succeeded,
 		// update the app config flag accordingly. If it failed for any other
 		// reason, do not update the flag.
