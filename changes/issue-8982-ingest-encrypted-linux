@@ -1,1 +1,0 @@
-* Fix how we are querying and ingesting disk encryption in linux to workaround an osquery bug.
