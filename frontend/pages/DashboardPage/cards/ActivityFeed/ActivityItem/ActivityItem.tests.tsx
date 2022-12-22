@@ -17,7 +17,7 @@ describe("Activity Feed", () => {
       created_at: currentDate.toISOString(),
     });
 
-    render(<ActivityItem activity={activity} />);
+    render(<ActivityItem activity={activity} isPremiumTier />);
 
     // waiting for the activity data to render
     await screen.findByText("Rachel");
@@ -31,7 +31,7 @@ describe("Activity Feed", () => {
     const activity = createMockActivity({
       type: ActivityType.CreatedPack,
     });
-    render(<ActivityItem activity={activity} />);
+    render(<ActivityItem activity={activity} isPremiumTier />);
 
     expect(screen.getByText("created pack.")).toBeInTheDocument();
   });
@@ -41,7 +41,7 @@ describe("Activity Feed", () => {
       type: ActivityType.CreatedPack,
       details: { pack_name: "Test pack" },
     });
-    render(<ActivityItem activity={activity} />);
+    render(<ActivityItem activity={activity} isPremiumTier />);
 
     expect(screen.getByText("created pack .")).toBeInTheDocument();
     expect(screen.getByText("Test pack")).toBeInTheDocument();
@@ -49,7 +49,7 @@ describe("Activity Feed", () => {
 
   it("renders a live_query type activity", () => {
     const activity = createMockActivity({ type: ActivityType.LiveQuery });
-    render(<ActivityItem activity={activity} />);
+    render(<ActivityItem activity={activity} isPremiumTier />);
 
     expect(screen.getByText("ran a live query .")).toBeInTheDocument();
   });
@@ -61,7 +61,7 @@ describe("Activity Feed", () => {
         targets_count: 10,
       },
     });
-    render(<ActivityItem activity={activity} />);
+    render(<ActivityItem activity={activity} isPremiumTier />);
 
     expect(
       screen.getByText("ran a live query on 10 hosts.")
@@ -76,7 +76,7 @@ describe("Activity Feed", () => {
         query_sql: "SELECT * FROM users",
       },
     });
-    render(<ActivityItem activity={activity} />);
+    render(<ActivityItem activity={activity} isPremiumTier />);
 
     expect(
       screen.getByText("ran the query as a live query .")
@@ -89,7 +89,7 @@ describe("Activity Feed", () => {
     const activity = createMockActivity({
       type: ActivityType.AppliedSpecPack,
     });
-    render(<ActivityItem activity={activity} />);
+    render(<ActivityItem activity={activity} isPremiumTier />);
 
     expect(
       screen.getByText("edited a pack using fleetctl.")
@@ -100,7 +100,7 @@ describe("Activity Feed", () => {
     const activity = createMockActivity({
       type: ActivityType.AppliedSpecPolicy,
     });
-    render(<ActivityItem activity={activity} />);
+    render(<ActivityItem activity={activity} isPremiumTier />);
 
     expect(
       screen.getByText("edited policies using fleetctl.")
@@ -111,7 +111,7 @@ describe("Activity Feed", () => {
     const activity = createMockActivity({
       type: ActivityType.AppliedSpecSavedQuery,
     });
-    render(<ActivityItem activity={activity} />);
+    render(<ActivityItem activity={activity} isPremiumTier />);
 
     expect(
       screen.getByText("edited a query using fleetctl.")
@@ -123,7 +123,7 @@ describe("Activity Feed", () => {
       type: ActivityType.AppliedSpecSavedQuery,
       details: { specs: [createMockQuery(), createMockQuery()] },
     });
-    render(<ActivityItem activity={activity} />);
+    render(<ActivityItem activity={activity} isPremiumTier />);
 
     expect(
       screen.getByText("edited queries using fleetctl.")
@@ -135,7 +135,7 @@ describe("Activity Feed", () => {
       type: ActivityType.AppliedSpecTeam,
       details: { teams: [createMockTeamSummary()] },
     });
-    render(<ActivityItem activity={activity} />);
+    render(<ActivityItem activity={activity} isPremiumTier />);
 
     expect(screen.getByText("edited team using fleetctl.")).toBeInTheDocument();
     expect(screen.getByText("Team 1")).toBeInTheDocument();
@@ -148,7 +148,7 @@ describe("Activity Feed", () => {
         teams: [createMockTeamSummary(), createMockTeamSummary()],
       },
     });
-    render(<ActivityItem activity={activity} />);
+    render(<ActivityItem activity={activity} isPremiumTier />);
 
     expect(
       screen.getByText("edited multiple teams using fleetctl.")
@@ -159,7 +159,7 @@ describe("Activity Feed", () => {
     const activity = createMockActivity({
       type: ActivityType.UserAddedBySSO,
     });
-    render(<ActivityItem activity={activity} />);
+    render(<ActivityItem activity={activity} isPremiumTier />);
 
     expect(screen.getByText("was added to Fleet by SSO.")).toBeInTheDocument();
   });
@@ -169,7 +169,7 @@ describe("Activity Feed", () => {
       type: ActivityType.EditedAgentOptions,
       details: { team_name: "Test Team 1" },
     });
-    render(<ActivityItem activity={activity} />);
+    render(<ActivityItem activity={activity} isPremiumTier />);
 
     expect(
       screen.getByText("edited agent options on team.")
@@ -182,7 +182,7 @@ describe("Activity Feed", () => {
       type: ActivityType.EditedAgentOptions,
       details: { global: true },
     });
-    render(<ActivityItem activity={activity} />);
+    render(<ActivityItem activity={activity} isPremiumTier />);
 
     expect(screen.getByText("edited agent options.")).toBeInTheDocument();
   });

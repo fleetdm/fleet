@@ -14,7 +14,7 @@ describe("Activity Feed", () => {
       withBackendMock: true,
     });
 
-    render(<ActivityFeed setShowActivityFeedTitle={noop} />);
+    render(<ActivityFeed setShowActivityFeedTitle={noop} isPremiumTier />);
 
     // waiting for the activity data to render
     await screen.findByText("Rachel");
@@ -29,7 +29,7 @@ describe("Activity Feed", () => {
       withBackendMock: true,
     });
 
-    render(<ActivityFeed setShowActivityFeedTitle={noop} />);
+    render(<ActivityFeed setShowActivityFeedTitle={noop} isPremiumTier />);
 
     // waiting for the activity data to render
     await screen.findByText("Rachel");
@@ -44,7 +44,7 @@ describe("Activity Feed", () => {
       withBackendMock: true,
     });
 
-    render(<ActivityFeed setShowActivityFeedTitle={noop} />);
+    render(<ActivityFeed setShowActivityFeedTitle={noop} isPremiumTier />);
 
     // waiting for the activity data to render
     await screen.findAllByText("Rachel");
@@ -57,7 +57,7 @@ describe("Activity Feed", () => {
       withBackendMock: true,
     });
 
-    render(<ActivityFeed setShowActivityFeedTitle={noop} />);
+    render(<ActivityFeed setShowActivityFeedTitle={noop} isPremiumTier />);
 
     // waiting for the activity data to render
     await screen.findAllByText("Rachel");
@@ -72,7 +72,9 @@ describe("Activity Feed", () => {
       withBackendMock: true,
     });
 
-    const { user } = render(<ActivityFeed setShowActivityFeedTitle={noop} />);
+    const { user } = render(
+      <ActivityFeed setShowActivityFeedTitle={noop} isPremiumTier />
+    );
 
     // waiting for the activity data to render
     await screen.findAllByText("Rachel");

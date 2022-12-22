@@ -19,8 +19,14 @@ export enum ActivityType {
   AppliedSpecPolicy = "applied_spec_policy",
   AppliedSpecSavedQuery = "applied_spec_saved_query",
   AppliedSpecTeam = "applied_spec_team",
-  UserAddedBySSO = "user_added_by_sso",
   EditedAgentOptions = "edited_agent_options",
+  UserAddedBySSO = "user_added_by_sso",
+  UserLoggedIn = "user_logged_in",
+  UserCreated = "created_user",
+  UserDeleted = "deleted_user",
+  UserChangedGlobalRole = "changed_user_global_role",
+  UserChangedTeamRole = "changed_user_team_role",
+  UserDeletedTeamRole = "deleted_user_team_role",
 }
 export interface IActivity {
   created_at: string;
@@ -46,4 +52,7 @@ export interface IActivityDetails {
   targets_count?: number;
   specs?: IQuery[] | IPolicy[];
   global?: boolean;
+  public_ip?: string;
+  user_email?: string;
+  role?: string;
 }
