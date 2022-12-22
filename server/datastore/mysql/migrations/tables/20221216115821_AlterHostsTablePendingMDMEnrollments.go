@@ -7,7 +7,7 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20221216115820, Down_20221216115821)
+	MigrationClient.AddMigration(Up_20221216115821, Down_20221216115821)
 }
 
 func Up_20221216115821(tx *sql.Tx) error {
