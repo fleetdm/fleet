@@ -29,7 +29,7 @@
 
 * Windows installer now ensures that the installed osquery version gets removed before installing Orbit.
 
-* Updated Go to 1.19.4.
+* Build on Ubuntu 20 to resolve glibc changes that were causing issues for older Docker runtimes.
 
 * During deleting host flow, inform users how to prevent re-enrolling hosts.
 
