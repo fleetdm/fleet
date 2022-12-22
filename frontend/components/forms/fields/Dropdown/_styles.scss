@@ -254,9 +254,12 @@
         border: 1px solid $ui-fleet-black-75;
         vertical-align: middle;
         margin-top: 0;
+        display: inline-flex;
+        flex-direction: row-reverse;
 
         .Select-value-label {
           font-size: $x-small;
+          align-self: center;
         }
       }
     }
