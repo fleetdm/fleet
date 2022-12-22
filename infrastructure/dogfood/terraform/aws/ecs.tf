@@ -297,6 +297,10 @@ resource "aws_ecs_task_definition" "backend" {
             value = "1"
           },
           {
+            name  = "FLEET_DEV_MDM_ENABLED"
+            value = "1"
+          },
+          {
             name  = "FLEET_MDM_APPLE_SERVER_ADDRESS"
             value = "dogfood.fleetdm.com"
           },
