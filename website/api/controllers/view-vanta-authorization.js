@@ -60,7 +60,7 @@ module.exports = {
     if(recordOfThisAuthorization.isConnectedToVanta) {
       return {
         showSuccessMessage: true,
-      }
+      };
     }
 
     // Send an authorization request to Vanta,
