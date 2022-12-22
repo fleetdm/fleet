@@ -88,6 +88,13 @@
         color: $ui-gray;
         text-indent: 0;
       }
+
+      &:hover {
+        &::after {
+          content: url("../assets/images/icon-close-vibrant-blue-16x16@2x.png");
+          transform: scale(0.5);
+        }
+      }
     }
 
     .Select-value-label {
@@ -256,6 +263,10 @@
         margin-top: 0;
         display: inline-flex;
         flex-direction: row-reverse;
+
+        .Select-value-icon:hover {
+          background-color: initial;
+        }
 
         .Select-value-label {
           font-size: $x-small;
