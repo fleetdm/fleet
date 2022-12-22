@@ -1,1 +1,0 @@
-* Build on Ubuntu 20 to resolve glibc changes that were causing issues for older Docker runtimes.
