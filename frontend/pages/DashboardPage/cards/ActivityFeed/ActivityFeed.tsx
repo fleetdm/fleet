@@ -58,7 +58,6 @@ const ActivityFeed = ({
         return data.activities;
       },
       onSuccess: (results) => {
-        console.log(activities);
         setShowActivityFeedTitle(true);
         if (results.length < DEFAULT_PAGE_SIZE) {
           setShowMore(false);

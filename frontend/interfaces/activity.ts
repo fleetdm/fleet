@@ -27,6 +27,7 @@ export enum ActivityType {
   UserChangedGlobalRole = "changed_user_global_role",
   UserChangedTeamRole = "changed_user_team_role",
   UserDeletedTeamRole = "deleted_user_team_role",
+  UserDeletedGlobalRole = "deleted_user_global_role",
 }
 export interface IActivity {
   created_at: string;

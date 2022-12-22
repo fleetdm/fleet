@@ -299,4 +299,33 @@ describe("Activity Feed", () => {
     expect(screen.getByText("newuser@example.com")).toBeInTheDocument();
     expect(screen.getByText("Test Team")).toBeInTheDocument();
   });
+
+  it("renders a deleted_user_global_role type activity globally for premium users", () => {
+    const activity = createMockActivity({
+      type: ActivityType.UserDeletedGlobalRole,
+      details: { user_email: "newuser@example.com", role: "maintainer" },
+    });
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    expect(screen.getByText("removed", { exact: false })).toBeInTheDocument();
+    expect(screen.getByText("newuser@example.com")).toBeInTheDocument();
+    expect(screen.getByText("maintainer")).toBeInTheDocument();
+    expect(
+      screen.getByText("for all teams.", { exact: false })
+    ).toBeInTheDocument();
+  });
+
+  it("renders a deleted_user_global_role type activity globally for free users", () => {
+    const activity = createMockActivity({
+      type: ActivityType.UserDeletedGlobalRole,
+      details: { user_email: "newuser@example.com", role: "maintainer" },
+    });
+    render(<ActivityItem activity={activity} isPremiumTier={false} />);
+
+    expect(screen.getByText("removed", { exact: false })).toBeInTheDocument();
+    expect(screen.getByText("newuser@example.com")).toBeInTheDocument();
+    expect(screen.getByText("maintainer")).toBeInTheDocument();
+    const forAllTeams = screen.queryByText("for all teams.");
+    expect(forAllTeams).toBeNull();
+  });
 });
