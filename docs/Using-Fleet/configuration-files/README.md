@@ -913,7 +913,7 @@ If you are using `fleetctl` to manage your TUF server, these same conventions ap
 fleetctl updates add --path /path/to/local/TUF/repo --target /path/to/extensions/binary/hello_world.ext --name extensions/hello_world --platform macos --version 0.1
 ```
 
-After successfully configuring the agent options, and pushing the extension as a target on your TUF server, orbit will periodically check with the TUF server for updates to these extensions. 
+After successfully configuring the agent options, and pushing the extension as a target on your TUF server, Orbit will periodically check with the TUF server for updates to these extensions. 
 
 ##### Example Agent options YAML
 
