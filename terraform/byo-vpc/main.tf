@@ -41,7 +41,7 @@ module "rds" {
   vpc_id  = var.vpc_config.vpc_id
   subnets = var.rds_config.subnets
 
-  allowed_security_groups = concat(module.byo-db.ecs.security_groups, var.rds_config.allowed_security_groups)
+  allowed_security_groups = concat(module.byo-db.byo-ecs.security_groups, var.rds_config.allowed_security_groups)
   allowed_cidr_blocks     = var.rds_config.allowed_cidr_blocks
 
   storage_encrypted   = true
@@ -55,6 +55,7 @@ module "rds" {
   master_username                 = var.rds_config.master_username
   master_password                 = random_password.rds.result
   database_name                   = "fleet"
+  skip_final_snapshot             = true
 }
 
 data "aws_subnet" "redis" {
