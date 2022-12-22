@@ -540,7 +540,8 @@ func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt
     COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,
     COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,
     COALESCE(hst.seen_time, h.created_at) AS seen_time,
-    t.name AS team_name
+    t.name AS team_name,
+    COALESCE(hu.software_updated_at, h.created_at) AS software_updated_at
 	`
 
 	if opt.DeviceMapping {
@@ -657,6 +658,7 @@ func (ds *Datastore) applyHostFilters(opt fleet.HostListOptions, sql string, fil
 
 	sql += fmt.Sprintf(`FROM hosts h
     LEFT JOIN host_seen_times hst ON (h.id = hst.host_id)
+    LEFT JOIN host_updates hu ON (h.id = hu.host_id)
     LEFT JOIN teams t ON (h.team_id = t.id)
     LEFT JOIN host_disks hd ON hd.host_id = h.id
     %s
@@ -667,8 +669,22 @@ func (ds *Datastore) applyHostFilters(opt fleet.HostListOptions, sql string, fil
     %s
     %s
 		WHERE TRUE AND %s AND %s AND %s AND %s
-    `, deviceMappingJoin, policyMembershipJoin, failingPoliciesJoin, mdmJoin, operatingSystemJoin, munkiJoin, displayNameJoin, ds.whereFilterHostsByTeams(filter, "h"),
-		softwareFilter, munkiFilter, lowDiskSpaceFilter,
+    `,
+
+		// JOINs
+		deviceMappingJoin,
+		policyMembershipJoin,
+		failingPoliciesJoin,
+		mdmJoin,
+		operatingSystemJoin,
+		munkiJoin,
+		displayNameJoin,
+
+		// Conditions
+		ds.whereFilterHostsByTeams(filter, "h"),
+		softwareFilter,
+		munkiFilter,
+		lowDiskSpaceFilter,
 	)
 
 	now := ds.clock.Now()

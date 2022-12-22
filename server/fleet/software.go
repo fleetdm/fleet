@@ -72,6 +72,9 @@ func (s *AuthzSoftwareInventory) AuthzType() string {
 type HostSoftware struct {
 	// Software is the software information.
 	Software []Software `json:"software,omitempty" csv:"-"`
+
+	// SoftwareUpdatedAt is the time that the host software was last updated
+	SoftwareUpdatedAt time.Time `json:"software_updated_at" db:"software_updated_at" csv:"software_updated_at"`
 }
 
 type SoftwareIterator interface {

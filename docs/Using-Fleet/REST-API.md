@@ -1664,6 +1664,7 @@ None.
 
 ## Hosts
 
+- [On the different timestamps in the host data structure](#on-the-different-timestamps-in-the-host-data-structure)
 - [List hosts](#list-hosts)
 - [Count hosts](#count-hosts)
 - [Get hosts summary](#get-hosts-summary)
@@ -1681,6 +1682,29 @@ None.
 - [Get aggregated host's mobile device management (MDM) and Munki information](#get-aggregated-hosts-macadmin-mobile-device-management-mdm-and-munki-information)
 - [Get host OS versions](#get-host-os-versions)
 - [Get hosts report in CSV](#get-hosts-report-in-csv)
+
+### On the different timestamps in the host data structure
+
+Hosts have a set of timestamps usually named with an "_at" suffix, such as created_at, enrolled_at, etc. Before we go 
+through each of them and what they mean, we need to understand a bit more about how the host data structure is 
+represented in the database.
+
+The table `hosts` is the main one. It holds the core data for a host. A host doesn't exist if there is no row for it in 
+this table. This table also holds most of the timestamps, but it doesn't hold all of the host data. This is an important
+detail as we'll see below.
+
+There's adjacent tables to this one that usually follow the name convention `host_<extra data descriptor>`. Examples of 
+this are: `host_additional` that holds additional query results, `host_software` that links a host with many rows from 
+the `software` table.
+
+- created_at: the time the row in the database was created, which usually corresponds to the first enrollment of the host.
+- updated_at: the last time the row in the database for the `hosts` table was updated.
+- detail_updated_at: the last time we updated the host data (any of it, regardless of the location) based on 
+- label_updated_at:
+- last_enrolled_at:
+- policy_updated_at:
+- seen_time:
+- software_updated_at:
 
 ### List hosts
 
@@ -1750,6 +1774,7 @@ If `after` is being used with `created_at` or `updated_at`, the table must be sp
       "updated_at": "2020-11-05T06:03:39Z",
       "id": 1,
       "detail_updated_at": "2020-11-05T05:09:45Z",
+      "software_updated_at": "2020-11-05T05:09:44Z",
       "label_updated_at": "2020-11-05T05:14:51Z",
       "seen_time": "2020-11-05T06:03:39Z",
       "hostname": "2ceca32fe484",
@@ -2029,6 +2054,7 @@ Returns the information of the specified host.
     ],
     "id": 1,
     "detail_updated_at": "2021-08-19T21:07:53Z",
+    "software_updated_at": "2020-11-05T05:09:44Z",
     "label_updated_at": "2021-08-19T21:07:53Z",
     "last_enrolled_at": "2021-08-19T02:02:22Z",
     "seen_time": "2021-08-19T21:14:58Z",
@@ -2218,6 +2244,7 @@ Returns the information of the host specified using the `uuid`, `osquery_host_id
     "label_updated_at": "2022-10-14T17:07:12Z",
     "policy_updated_at": "2022-10-14T17:07:12Z",
     "last_enrolled_at": "2022-02-10T02:29:13Z",
+    "software_updated_at": "2020-11-05T05:09:44Z",
     "seen_time": "2022-10-14T17:45:41Z",
     "refetch_requested": false,
     "hostname": "23cfc9caacf0",
@@ -3253,6 +3280,7 @@ Returns a list of the hosts that belong to the specified label.
       "detail_updated_at": "2021-02-03T21:58:10Z",
       "label_updated_at": "2021-02-03T21:58:10Z",
       "last_enrolled_at": "2021-02-03T16:11:43Z",
+      "software_updated_at": "2020-11-05T05:09:44Z",
       "seen_time": "2021-02-03T21:58:20Z",
       "refetch_requested": false,
       "hostname": "floobar42",
@@ -5002,6 +5030,7 @@ The returned lists are filtered based on the hosts the requesting user has acces
         "detail_updated_at": "2021-02-03T21:58:10Z",
         "label_updated_at": "2021-02-03T21:58:10Z",
         "last_enrolled_at": "2021-02-03T16:11:43Z",
+        "software_updated_at": "2020-11-05T05:09:44Z",
         "seen_time": "2021-02-03T21:58:20Z",
         "hostname": "7a2f41482833",
         "uuid": "a2064cef-0000-0000-afb9-283e3c1d487e",
@@ -5040,6 +5069,7 @@ The returned lists are filtered based on the hosts the requesting user has acces
         "detail_updated_at": "2021-02-03T21:58:10Z",
         "label_updated_at": "2021-02-03T21:58:10Z",
         "last_enrolled_at": "2021-02-03T16:11:43Z",
+        "software_updated_at": "2020-11-05T05:09:44Z",
         "seen_time": "2021-02-03T21:58:20Z",
         "hostname": "78c96e72746c",
         "uuid": "a2064cef-0000-0000-afb9-283e3c1d487e",
