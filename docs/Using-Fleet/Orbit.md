@@ -67,7 +67,7 @@ Now run that installer (double click, on a Mac) to enroll your own computer as a
 | Package tooling for Linux `.deb`     | ✅     |
 | Package tooling for Linux `.rpm`     | ✅     |
 | Package tooling for Windows `.msi`   | ✅     |
-| Manage/update osquery extensions     | 🔜     |
+| Manage/update osquery extensions     | ✅     |
 | Manage cgroups for Linux performance | 🔜     |
 
 ## Usage
@@ -123,6 +123,12 @@ For example, the following would be a typical drop-in usage of Orbit:
 ```sh
 orbit -- --flagfile=flags.txt
 ```
+
+### Osquery extensions
+
+Orbit can be used to remotely deploy and manage osquery extensions. This saves the time and energy required to maintain extensions using a separate tool like Munki or an MDM solution.
+
+To learn how to deploy and manage extensions with Orbit, watch [this Loom video](https://www.loom.com/share/ad5dfbd8ec204092a757737f986b772b).
 
 ## Packaging
 
