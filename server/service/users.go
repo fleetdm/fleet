@@ -277,6 +277,9 @@ func (svc *Service) ModifyUser(ctx context.Context, userID uint, p fleet.UserPay
 		return nil, err
 	}
 
+	oldGlobalRole := user.GlobalRole
+	oldTeams := user.Teams
+
 	if err := svc.authz.Authorize(ctx, user, fleet.ActionWrite); err != nil {
 		return nil, err
 	}
@@ -375,6 +378,16 @@ func (svc *Service) ModifyUser(ctx context.Context, userID uint, p fleet.UserPay
 		return nil, err
 	}
 
+	// load user again to get team-details like names.
+	user, err = svc.User(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	adminUser := authz.UserFromContext(ctx)
+	if err := logRoleChangeActivities(ctx, svc.ds, adminUser, oldGlobalRole, oldTeams, user); err != nil {
+		return nil, err
+	}
+
 	return user, nil
 }
 
@@ -410,7 +423,21 @@ func (svc *Service) DeleteUser(ctx context.Context, id uint) error {
 	if err := svc.authz.Authorize(ctx, user, fleet.ActionWrite); err != nil {
 		return err
 	}
-	return svc.ds.DeleteUser(ctx, id)
+	if err := svc.ds.DeleteUser(ctx, id); err != nil {
+		return err
+	}
+
+	adminUser := authz.UserFromContext(ctx)
+	if err := svc.ds.NewActivity(
+		ctx,
+		adminUser,
+		fleet.ActivityTypeDeletedUser,
+		&map[string]interface{}{"user_name": user.Name, "user_id": user.ID, "user_email": user.Email},
+	); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
