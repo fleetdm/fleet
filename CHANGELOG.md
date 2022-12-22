@@ -19,7 +19,7 @@
 * Added `fleetctl trigger` command to trigger an ad hoc run of all jobs in a specified cron
   schedule.
 
-* Added the `fleetctl get mdm_apple` command to retrieve the Apple MDM configuration information.
+* Added the `fleetctl get mdm_apple` command to retrieve the Apple MDM configuration information. MDM features are not ready for production and are currently in development. These features are disabled by default.
 
 * Added the `fleetctl get mdm_apple_bm` command to retrieve the Apple Business Manager configuration information.
 
