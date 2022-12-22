@@ -884,7 +884,8 @@ spec:
 
 > This feature requires [Orbit, the Fleet agent manager](https://fleetdm.com/announcements/introducing-orbit-your-fleet-agent-manager), along with a custom TUF auto-update server.
 
-The `extensions` key inside of `agent_options` allows you to remotely manage and deploy osquery extensions. 
+The `extensions` key inside of `agent_options` allows you to remotely manage and deploy osquery extensions. Just like other `agent_options` the `extensions` key can be applied either to a team specific one or the global one. 
+
 
 This is best illustrated with an example. Here is an example of using the `extensions` key:
 
@@ -914,6 +915,11 @@ fleetctl updates add --path /path/to/local/TUF/repo --target /path/to/extensions
 ```
 
 After successfully configuring the agent options, and pushing the extension as a target on your TUF server, Orbit will periodically check with the TUF server for updates to these extensions. 
+
+If you are using a self-hosted TUF server, you must also manage all of Orbit's versions, including osquery, Fleet Desktop and osquery extensions.
+
+Fleet recommends deploying extensions created with osquery-go or natively with C++, instead of Python. Extensions written in Python requires the user to compile it into a single packaged binary along with all the dependencies.
+
 
 ##### Example Agent options YAML
 
