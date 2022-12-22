@@ -115,6 +115,15 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  userDeletedGlobalRole: (activity: IActivity, isPremiumTier: boolean) => {
+    return (
+      <>
+        removed <b>{activity.details?.user_email}</b> as{" "}
+        <b>{activity.details?.role}</b>
+        {isPremiumTier && " for all teams"}.
+      </>
+    );
+  },
   userChangedTeamRole: (activity: IActivity) => {
     return (
       <>
@@ -129,15 +138,6 @@ const TAGGED_TEMPLATES = {
       <>
         removed <b>{activity.details?.user_email}</b> from the{" "}
         <b>{activity.details?.team_name}</b> team.
-      </>
-    );
-  },
-  userDeletedGlobalRole: (activity: IActivity, isPremiumTier: boolean) => {
-    return (
-      <>
-        removed <b>{activity.details?.user_email}</b> as{" "}
-        <b>{activity.details?.role}</b>
-        {isPremiumTier && " for all teams"}.
       </>
     );
   },
@@ -201,14 +201,14 @@ const getDetail = (
     case ActivityType.UserChangedGlobalRole: {
       return TAGGED_TEMPLATES.userChangedGlobalRole(activity, isPremiumTier);
     }
+    case ActivityType.UserDeletedGlobalRole: {
+      return TAGGED_TEMPLATES.userDeletedGlobalRole(activity, isPremiumTier);
+    }
     case ActivityType.UserChangedTeamRole: {
       return TAGGED_TEMPLATES.userChangedTeamRole(activity);
     }
     case ActivityType.UserDeletedTeamRole: {
       return TAGGED_TEMPLATES.userDeletedTeamRole(activity);
-    }
-    case ActivityType.UserDeletedGlobalRole: {
-      return TAGGED_TEMPLATES.userDeletedGlobalRole(activity, isPremiumTier);
     }
     default: {
       return TAGGED_TEMPLATES.defaultActivityTemplate(activity);
