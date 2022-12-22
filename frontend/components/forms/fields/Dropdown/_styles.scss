@@ -252,9 +252,13 @@
 
       .Select-value {
         margin-top: 1px;
+        border: 1px solid #6a67fe;
+        background-color: #f1f0ff;
+        vertical-align: middle;
 
         .Select-value-label {
           font-size: $x-small;
+          height: 16px;
         }
       }
     }
