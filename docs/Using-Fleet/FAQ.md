@@ -24,7 +24,7 @@
   - [Why is my host not updating a policy's response?](#why-is-my-host-not-updating-a-policys-response)
   - [What should I do if my computer is showing up as an offline host?](#what-should-i-do-if-my-computer-is-showing-up-as-an-offline-host)
   - [How does Fleet deal with IP duplication?](#how-does-fleet-deal-with-ip-duplication)
-  - [Can fleetd run alongside osquery?](#can-fleetd-run-alongside-osquery)
+  - [Can Orbit run alongside osquery?](#can-orbit-run-alongside-osquery)
   - [Can I control how Orbit handles updates?](#can-i-control-how-orbit-handles-updates)
   - [When will the newest version of osquery be available to Orbit?](#when-will-the-newest-version-of-osquery-be-available-to-orbit)
   - [Where does Orbit get update information?](#where-does-orbit-get-update-information)
@@ -49,9 +49,9 @@
   - [How does Fleet determines online and offline status?](#how-does-fleet-determines-online-and-offline-status)
     - [Online hosts](#online-hosts)
     - [Offline hosts](#offline-hosts)
-  - [Why aren't "additional queries" being applied to hosts enrolled in a team?](#why-arent-additional-queries-being-applied-to-hosts-enrolled-in-a-team)
+  - [Why aren't "additional queries" being applied to hosts enrolled in a team?](why-arent-additional-queries-being-applied-to-hosts-enrolled-in-a-team)
   - [Why am I seeing an error when using the `after` key in `api/v1/fleet/hosts`?](#why-am-i-seeing-an-error-when-using-the-after-key-in-apiv1fleethosts)
-  - [What can I do if Fleet is slow or unresponsive after enabling a feature?](#what-can-i-do-if-fleet-is-slow-or-unresponsive-after-enabling-a-feature)
+  - [What can I do if Fleet is slow or unresponsive after enabling a feature?](#what-can-i-do-if-fleet-is-slow-or-unresponseive-after-enabling-a-feature)
   - [Why am I seeing an "unsupported key" error when updating agent options?](#why-am-i-seeing-an-unsupported-key-error-when-updating-agent-options)
   - [How can I renew my Apple Business Manager server token?](#how-can-i-renew-my-apple-business-manager-server-token)
 
@@ -113,7 +113,7 @@ For results to go to Fleet, the osquery `--logger_plugin` flag must be set to `t
 
 Folks typically use Fleet to ship logs to data aggregation systems like Splunk, the ELK stack, and Graylog.
 
-Fleet supports multiple logging destinations for scheduled query results and status logs, the `--osquery_result_log_plugin` and `--osquery_status_log_plugin` can be set to:
+Fleet supports multiple logging destinations for scheduled query results and status logs. The `--osquery_result_log_plugin` and `--osquery_status_log_plugin` can be set to:
 `filesystem`, `firehose`, `kinesis`, `lambda`, `pubsub`, `kafkarest`, and `stdout`.
 See:
   - https://fleetdm.com/docs/deploying/configuration#osquery-result-log-plugin.
