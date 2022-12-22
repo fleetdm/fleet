@@ -128,7 +128,7 @@ orbit -- --flagfile=flags.txt
 
 Orbit can be used to remotely deploy and manage osquery extensions. This saves the time and energy required to maintain extensions using a separate tool like Munki or an MDM solution.
 
-To learn how to deploy extensions with Orbit, watch [this Loom video](https://www.loom.com/share/ad5dfbd8ec204092a757737f986b772b).
+[Learn how](https://fleetdm.com/docs/using-fleet/configuration-files#code-extensions-code-option)
 
 ## Packaging
 
