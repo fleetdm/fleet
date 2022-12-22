@@ -155,7 +155,10 @@ const About = ({
         <div className="info-grid__block">
           <span className="info-grid__header">Added to Fleet</span>
           <span className="info-grid__data">
-            {wrapFleetHelper(humanHostEnrolled, aboutData.last_enrolled_at)}
+            {/* {wrapFleetHelper(humanHostEnrolled, aboutData.last_enrolled_at)} */}
+            {humanHostTimeDiffWithDateTip(
+              aboutData.last_enrolled_at ?? "Unavailable"
+            )}
           </span>
         </div>
         <div className="info-grid__block">
