@@ -1,7 +1,6 @@
 package tables
 
 import (
-	"fmt"
 	"testing"
 	"time"
 
@@ -9,11 +8,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20221214145238(t *testing.T) {
+func TestUp_20221216115821(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	someString := func() string {
-		fmt.Println("called some string")
 		s, err := server.GenerateRandomText(16)
 		require.NoError(t, err)
 		return s
