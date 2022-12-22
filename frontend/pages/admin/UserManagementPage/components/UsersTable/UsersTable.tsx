@@ -16,11 +16,11 @@ import teamsAPI, { ILoadTeamsResponse } from "services/entities/teams";
 import usersAPI from "services/entities/users";
 import invitesAPI from "services/entities/invites";
 
+import { DEFAULT_CREATE_USER_ERRORS } from "utilities/constants";
 import TableContainer, { ITableQueryData } from "components/TableContainer";
 import TableDataError from "components/DataError";
 import Modal from "components/Modal";
-import { DEFAULT_CREATE_USER_ERRORS } from "utilities/constants";
-import EmptyUsers from "../EmptyUsers";
+import EmptyTable from "components/EmptyTable";
 import { generateTableHeaders, combineDataSets } from "./UsersTableConfig";
 import DeleteUserModal from "../DeleteUserModal";
 import ResetPasswordModal from "../ResetPasswordModal";
@@ -520,6 +520,12 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
     tableData = combineUsersAndInvites(users, invites, currentUser?.id);
   }
 
+  const emptyState = {
+    header: "No users match the current criteria.",
+    info:
+      "Expecting to see users? Try again in a few seconds as the system catches up.",
+  };
+
   return (
     <>
       {/* TODO: find a way to move these controls into the table component */}
@@ -537,7 +543,7 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
           onActionButtonClick={toggleCreateUserModal}
           onQueryChange={onTableQueryChange}
           resultsTitle={"users"}
-          emptyComponent={EmptyUsers}
+          emptyComponent={() => EmptyTable(emptyState)}
           searchable
           showMarkAllPages={false}
           isAllPagesSelected={false}

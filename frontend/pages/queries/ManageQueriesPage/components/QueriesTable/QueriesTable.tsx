@@ -12,6 +12,7 @@ import CustomLink from "components/CustomLink";
 import EmptyTable from "components/EmptyTable";
 
 import generateTableHeaders from "./QueriesTableConfig";
+import Icon from "components/Icon";
 
 const baseClass = "queries-table";
 
@@ -52,11 +53,11 @@ const QueriesTable = ({
       info: "A query is a specific question you can ask about your devices.",
     };
     if (searchString) {
+      delete emptyQueries.iconName;
       emptyQueries.header = "No queries match the current search criteria.";
       emptyQueries.info =
         "Expecting to see queries? Try again in a few seconds as the system catches up.";
-    }
-    if (!isOnlyObserver) {
+    } else if (!isOnlyObserver) {
       emptyQueries.additionalInfo = (
         <>
           Create a new query, or{" "}
@@ -80,53 +81,6 @@ const QueriesTable = ({
 
     return emptyQueries;
   };
-
-  // const NoQueriesComponent = useCallback(() => {
-  //   return (
-  //     <div className={`${noQueriesClass}`}>
-  //       <div className={`${noQueriesClass}__inner`}>
-  //         <Icon name="empty-queries" />
-  //         <div className={`${noQueriesClass}__inner-text`}>
-  //           {searchString ? (
-  //             <div className={`${noQueriesClass}__no-results`}>
-  //               <h2>No queries match the current search criteria.</h2>
-  //               <p>
-  //                 Expecting to see queries? Try again in a few seconds as the
-  //                 system catches up.
-  //               </p>
-  //             </div>
-  //           ) : (
-  //             <div className={`${noQueriesClass}__none-created`}>
-  //               <h2>You don&apos;t have any queries.</h2>
-  //               <p>
-  //                 A query is a specific question you can ask about your devices.
-  //               </p>
-  //               {!isOnlyObserver && (
-  //                 <>
-  //                   <p>
-  //                     Create a new query, or{" "}
-  //                     <CustomLink
-  //                       url="https://fleetdm.com/docs/using-fleet/standard-query-library"
-  //                       text="import Fleet’s standard query library"
-  //                       newTab
-  //                     />
-  //                   </p>
-  //                   <Button
-  //                     variant="brand"
-  //                     className={`${baseClass}__create-button`}
-  //                     onClick={onCreateQueryClick}
-  //                   >
-  //                     Create new query
-  //                   </Button>
-  //                 </>
-  //               )}
-  //             </div>
-  //           )}
-  //         </div>
-  //       </div>
-  //     </div>
-  //   );
-  // }, [searchString, onCreateQueryClick]);
 
   const tableHeaders = currentUser && generateTableHeaders(currentUser);
 

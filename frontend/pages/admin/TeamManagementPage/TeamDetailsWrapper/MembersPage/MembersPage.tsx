@@ -349,7 +349,12 @@ const MembersPage = ({
       info:
         "Expecting to see new team members listed here? Try again in a few seconds as the system catches up.",
     };
-    if (isGlobalAdmin) {
+    if (searchString !== "") {
+      delete emptyMembers.iconName;
+      emptyMembers.header = "We couldn’t find any members.";
+      emptyMembers.info =
+        "Expecting to see members? Try again in a few seconds as the system catches up.";
+    } else if (isGlobalAdmin) {
       emptyMembers.primaryButton = (
         <Button
           variant="brand"
@@ -359,8 +364,7 @@ const MembersPage = ({
           Add member
         </Button>
       );
-    }
-    if (isTeamAdmin) {
+    } else if (isTeamAdmin) {
       emptyMembers.primaryButton = (
         <Button
           variant="brand"
@@ -370,12 +374,6 @@ const MembersPage = ({
           Create user
         </Button>
       );
-    }
-    if (searchString !== "") {
-      delete emptyMembers.iconName;
-      emptyMembers.header = "We couldn’t find any members.";
-      emptyMembers.info =
-        "Expecting to see members? Try again in a few seconds as the system catches up.";
     }
     return emptyMembers;
   };
