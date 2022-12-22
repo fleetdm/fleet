@@ -17,11 +17,11 @@ describe("Activity Feed", () => {
     render(<ActivityFeed setShowActivityFeedTitle={noop} isPremiumTier />);
 
     // waiting for the activity data to render
-    await screen.findByText("Rachel");
+    await screen.findByText("Test User");
 
-    expect(screen.getByText("Rachel")).toBeInTheDocument();
-    expect(screen.getByText("Gabe")).toBeInTheDocument();
-    expect(screen.getByText("Luke")).toBeInTheDocument();
+    expect(screen.getByText("Test User")).toBeInTheDocument();
+    expect(screen.getByText("Test User 2")).toBeInTheDocument();
+    expect(screen.getByText("Test User 3")).toBeInTheDocument();
   });
 
   it("disables next pagination when there are no more activities", async () => {
@@ -32,7 +32,7 @@ describe("Activity Feed", () => {
     render(<ActivityFeed setShowActivityFeedTitle={noop} isPremiumTier />);
 
     // waiting for the activity data to render
-    await screen.findByText("Rachel");
+    await screen.findByText("Test User");
 
     expect(screen.getByRole("button", { name: "Next" })).toBeDisabled();
   });
@@ -47,7 +47,7 @@ describe("Activity Feed", () => {
     render(<ActivityFeed setShowActivityFeedTitle={noop} isPremiumTier />);
 
     // waiting for the activity data to render
-    await screen.findAllByText("Rachel");
+    await screen.findAllByText("Test User");
 
     expect(screen.getByRole("button", { name: "Next" })).toBeEnabled();
   });
@@ -60,7 +60,7 @@ describe("Activity Feed", () => {
     render(<ActivityFeed setShowActivityFeedTitle={noop} isPremiumTier />);
 
     // waiting for the activity data to render
-    await screen.findAllByText("Rachel");
+    await screen.findAllByText("Test User");
 
     expect(screen.getByRole("button", { name: "Previous" })).toBeDisabled();
   });
@@ -77,7 +77,7 @@ describe("Activity Feed", () => {
     );
 
     // waiting for the activity data to render
-    await screen.findAllByText("Rachel");
+    await screen.findAllByText("Test User");
 
     await user.click(screen.getByRole("button", { name: "Next" }));
 

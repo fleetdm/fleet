@@ -94,42 +94,42 @@ const TAGGED_TEMPLATES = {
   },
   userCreated: (activity: IActivity) => {
     return (
-      <span>
-        created a user <b>{activity.details?.user_email}</b>.
-      </span>
+      <>
+        created a user <b> {activity.details?.user_email}</b>.
+      </>
     );
   },
   userDeleted: (activity: IActivity) => {
     return (
-      <span>
+      <>
         deleted a user <b>{activity.details?.user_email}</b>.
-      </span>
+      </>
     );
   },
   userChangedGlobalRole: (activity: IActivity, isPremiumTier: boolean) => {
     return (
-      <span>
+      <>
         changed <b>{activity.details?.user_email}</b> to{" "}
         <b>{activity.details?.role}</b>
         {isPremiumTier && " for all teams"}.
-      </span>
+      </>
     );
   },
   userChangedTeamRole: (activity: IActivity) => {
     return (
-      <span>
+      <>
         changed <b>{activity.details?.user_email}</b> to{" "}
         <b>{activity.details?.role}</b> for the{" "}
         <b>{activity.details?.team_name}</b> team.
-      </span>
+      </>
     );
   },
   userDeletedTeamRole: (activity: IActivity) => {
     return (
-      <span>
+      <>
         removed <b>{activity.details?.user_email}</b> from the{" "}
         <b>{activity.details?.team_name}</b> team.
-      </span>
+      </>
     );
   },
 
@@ -143,9 +143,9 @@ const TAGGED_TEMPLATES = {
     return !entityName ? (
       `${activityType}.`
     ) : (
-      <span>
+      <>
         {activityType} <b>{entityName}</b>.
-      </span>
+      </>
     );
   },
 };
