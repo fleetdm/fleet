@@ -251,14 +251,12 @@
       flex-grow: 1;
 
       .Select-value {
-        margin-top: 1px;
-        border: 1px solid #6a67fe;
-        background-color: #f1f0ff;
+        border: 1px solid $ui-fleet-black-75;
         vertical-align: middle;
+        margin-top: 0;
 
         .Select-value-label {
           font-size: $x-small;
-          height: 16px;
         }
       }
     }
