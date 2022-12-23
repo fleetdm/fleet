@@ -127,7 +127,7 @@
     - name: Detect and surface issues with devices
       tier: Free
       comingSoon: false
-    - name: Mark issues as critical
+    - name: Mark policies as critical
       tier: Premium
       comingSoon: false
     - name: Vulnerability scores (EPSS and CVSS)
