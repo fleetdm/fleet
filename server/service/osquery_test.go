@@ -25,7 +25,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/live_query/live_query_mock"
-	"github.com/fleetdm/fleet/v4/server/logging"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	mockresult "github.com/fleetdm/fleet/v4/server/mock/mockresult"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -441,7 +440,7 @@ func TestSubmitStatusLogs(t *testing.T) {
 	serv := ((svc.(validationMiddleware)).Service).(*Service)
 
 	testLogger := &testJSONLogger{}
-	serv.osqueryLogWriter = &logging.OsqueryLogger{Status: testLogger}
+	serv.osqueryLogWriter = &OsqueryLogger{Status: testLogger}
 
 	logs := []string{
 		`{"severity":"0","filename":"tls.cpp","line":"216","message":"some message","version":"1.8.2","decorations":{"host_uuid":"uuid_foobar","username":"zwass"}}`,
@@ -469,7 +468,7 @@ func TestSubmitResultLogs(t *testing.T) {
 	serv := ((svc.(validationMiddleware)).Service).(*Service)
 
 	testLogger := &testJSONLogger{}
-	serv.osqueryLogWriter = &logging.OsqueryLogger{Result: testLogger}
+	serv.osqueryLogWriter = &OsqueryLogger{Result: testLogger}
 
 	logs := []string{
 		`{"name":"system_info","hostIdentifier":"some_uuid","calendarTime":"Fri Sep 30 17:55:15 2016 UTC","unixTime":"1475258115","decorations":{"host_uuid":"some_uuid","username":"zwass"},"columns":{"cpu_brand":"Intel(R) Core(TM) i7-4770HQ CPU @ 2.20GHz","hostname":"hostimus","physical_memory":"17179869184"},"action":"added"}`,

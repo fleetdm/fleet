@@ -76,6 +76,7 @@ func (svc Service) NewTeamPolicy(ctx context.Context, teamID uint, p fleet.Polic
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "creating policy")
 	}
+
 	// Note: Issue #4191 proposes that we move to SQL transactions for actions so that we can
 	// rollback an action in the event of an error writing the associated activity
 	if err := svc.ds.NewActivity(
@@ -86,7 +87,7 @@ func (svc Service) NewTeamPolicy(ctx context.Context, teamID uint, p fleet.Polic
 			Name: policy.Name,
 		},
 	); err != nil {
-		return nil, err
+		return nil, ctxerr.Wrap(ctx, err, "create activity for team policy creation")
 	}
 	return policy, nil
 }
@@ -251,7 +252,7 @@ func (svc Service) DeleteTeamPolicies(ctx context.Context, teamID uint, ids []ui
 				Name: policiesByID[id].Name,
 			},
 		); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "adding new activity for deleted policy")
+			return nil, ctxerr.Wrap(ctx, err, "create activity for policy deletion")
 		}
 	}
 
@@ -336,6 +337,7 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "saving policy")
 	}
+
 	// Note: Issue #4191 proposes that we move to SQL transactions for actions so that we can
 	// rollback an action in the event of an error writing the associated activity
 	if err := svc.ds.NewActivity(
@@ -346,7 +348,7 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 			Name: policy.Name,
 		},
 	); err != nil {
-		return nil, err
+		return nil, ctxerr.Wrap(ctx, err, "create activity for policy modification")
 	}
 
 	return policy, nil

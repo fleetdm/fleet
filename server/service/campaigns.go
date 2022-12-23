@@ -174,7 +174,7 @@ func (svc *Service) NewDistributedQueryCampaign(ctx context.Context, queryString
 		authz.UserFromContext(ctx),
 		activityData,
 	); err != nil {
-		return nil, err
+		return nil, ctxerr.Wrap(ctx, err, "create activity for campaign creation")
 	}
 	return campaign, nil
 }

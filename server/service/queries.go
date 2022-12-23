@@ -190,7 +190,7 @@ func (svc *Service) NewQuery(ctx context.Context, p fleet.QueryPayload) (*fleet.
 			Name: query.Name,
 		},
 	); err != nil {
-		return nil, err
+		return nil, ctxerr.Wrap(ctx, err, "create activity for query creation")
 	}
 
 	return query, nil
@@ -273,7 +273,7 @@ func (svc *Service) ModifyQuery(ctx context.Context, id uint, p fleet.QueryPaylo
 			Name: query.Name,
 		},
 	); err != nil {
-		return nil, err
+		return nil, ctxerr.Wrap(ctx, err, "create activity for query modification")
 	}
 
 	return query, nil
@@ -322,13 +322,16 @@ func (svc *Service) DeleteQuery(ctx context.Context, name string) error {
 		return err
 	}
 
-	return svc.ds.NewActivity(
+	if err := svc.ds.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
 		fleet.ActivityTypeDeletedSavedQuery{
 			Name: name,
 		},
-	)
+	); err != nil {
+		return ctxerr.Wrap(ctx, err, "create activity for query deletion")
+	}
+	return nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -374,13 +377,16 @@ func (svc *Service) DeleteQueryByID(ctx context.Context, id uint) error {
 		return ctxerr.Wrap(ctx, err, "delete query")
 	}
 
-	return svc.ds.NewActivity(
+	if err := svc.ds.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
 		fleet.ActivityTypeDeletedSavedQuery{
 			Name: query.Name,
 		},
-	)
+	); err != nil {
+		return ctxerr.Wrap(ctx, err, "create activity for query deletion by id")
+	}
+	return nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -430,17 +436,15 @@ func (svc *Service) DeleteQueries(ctx context.Context, ids []uint) (uint, error)
 		return n, err
 	}
 
-	err = svc.ds.NewActivity(
+	if err := svc.ds.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
 		fleet.ActivityTypeDeletedMultipleSavedQuery{
 			IDs: ids,
 		},
-	)
-	if err != nil {
-		return n, err
+	); err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "create activity for query deletions")
 	}
-
 	return n, nil
 }
 
@@ -506,13 +510,16 @@ func (svc *Service) ApplyQuerySpecs(ctx context.Context, specs []*fleet.QuerySpe
 		return ctxerr.Wrap(ctx, err, "applying queries")
 	}
 
-	return svc.ds.NewActivity(
+	if err := svc.ds.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
 		fleet.ActivityTypeAppliedSpecSavedQuery{
 			Specs: specs,
 		},
-	)
+	); err != nil {
+		return ctxerr.Wrap(ctx, err, "create activity for query spec")
+	}
+	return nil
 }
 
 func queryFromSpec(spec *fleet.QuerySpec) *fleet.Query {

@@ -74,7 +74,7 @@ func (svc *Service) NewTeam(ctx context.Context, p fleet.TeamPayload) (*fleet.Te
 			Name: team.Name,
 		},
 	); err != nil {
-		return nil, err
+		return nil, ctxerr.Wrap(ctx, err, "create activity for team creation")
 	}
 
 	return team, nil
@@ -332,14 +332,17 @@ func (svc *Service) DeleteTeam(ctx context.Context, teamID uint) error {
 
 	logging.WithExtras(ctx, "id", teamID)
 
-	return svc.ds.NewActivity(
+	if err := svc.ds.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
 		fleet.ActivityTypeDeletedTeam{
 			ID:   teamID,
 			Name: name,
 		},
-	)
+	); err != nil {
+		return ctxerr.Wrap(ctx, err, "create activity for team deletion")
+	}
+	return nil
 }
 
 func (svc *Service) GetTeam(ctx context.Context, teamID uint) (*fleet.Team, error) {
@@ -490,7 +493,7 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 				Teams: details,
 			},
 		); err != nil {
-			return ctxerr.Wrap(ctx, err, "create applied team spec activity")
+			return ctxerr.Wrap(ctx, err, "create activity for team spec")
 		}
 	}
 	return nil

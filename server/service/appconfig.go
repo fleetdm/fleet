@@ -416,7 +416,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 				Global: true,
 			},
 		); err != nil {
-			return nil, err
+			return nil, ctxerr.Wrap(ctx, err, "create activity for app config modification")
 		}
 	}
 
