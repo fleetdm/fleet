@@ -81,8 +81,10 @@ func (svc Service) NewTeamPolicy(ctx context.Context, teamID uint, p fleet.Polic
 	if err := svc.ds.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
-		fleet.ActivityTypeCreatedPolicy,
-		&map[string]interface{}{"policy_id": policy.ID, "policy_name": policy.Name},
+		fleet.ActivityTypeCreatedPolicy{
+			ID:   policy.ID,
+			Name: policy.Name,
+		},
 	); err != nil {
 		return nil, err
 	}
@@ -244,8 +246,10 @@ func (svc Service) DeleteTeamPolicies(ctx context.Context, teamID uint, ids []ui
 		if err := svc.ds.NewActivity(
 			ctx,
 			authz.UserFromContext(ctx),
-			fleet.ActivityTypeDeletedPolicy,
-			&map[string]interface{}{"policy_id": id, "policy_name": policiesByID[id].Name},
+			fleet.ActivityTypeDeletedPolicy{
+				ID:   id,
+				Name: policiesByID[id].Name,
+			},
 		); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "adding new activity for deleted policy")
 		}
@@ -337,8 +341,10 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 	if err := svc.ds.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
-		fleet.ActivityTypeEditedPolicy,
-		&map[string]interface{}{"policy_id": policy.ID, "policy_name": policy.Name},
+		fleet.ActivityTypeEditedPolicy{
+			ID:   policy.ID,
+			Name: policy.Name,
+		},
 	); err != nil {
 		return nil, err
 	}

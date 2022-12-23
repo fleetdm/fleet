@@ -11,8 +11,8 @@ import (
 )
 
 // NewActivity stores an activity item that the user performed
-func (ds *Datastore) NewActivity(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error {
-	detailsBytes, err := json.Marshal(details)
+func (ds *Datastore) NewActivity(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+	detailsBytes, err := json.Marshal(activity)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "marshaling activity details")
 	}
@@ -20,7 +20,7 @@ func (ds *Datastore) NewActivity(ctx context.Context, user *fleet.User, activity
 		`INSERT INTO activities (user_id, user_name, activity_type, details) VALUES(?,?,?,?)`,
 		user.ID,
 		user.Name,
-		activityType,
+		activity.ActivityName(),
 		detailsBytes,
 	)
 	if err != nil {

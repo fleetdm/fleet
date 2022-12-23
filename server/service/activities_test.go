@@ -107,8 +107,8 @@ func Test_logRoleChangeActivities(t *testing.T) {
 	ctx := context.Background()
 	ds := new(mock.Store)
 	var activities []string
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error {
-		activities = append(activities, activityType)
+	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+		activities = append(activities, activity.ActivityName())
 		return nil
 	}
 	for _, tt := range tests {

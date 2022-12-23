@@ -437,7 +437,7 @@ type Datastore interface {
 	///////////////////////////////////////////////////////////////////////////////
 	// ActivitiesStore
 
-	NewActivity(ctx context.Context, user *User, activityType string, details *map[string]interface{}) error
+	NewActivity(ctx context.Context, user *User, activity ActivityDetails) error
 	ListActivities(ctx context.Context, opt ListOptions) ([]*Activity, error)
 
 	///////////////////////////////////////////////////////////////////////////////
