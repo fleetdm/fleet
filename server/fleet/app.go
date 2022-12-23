@@ -402,7 +402,7 @@ type Features struct {
 	EnableHostUsers         bool               `json:"enable_host_users"`
 	EnableSoftwareInventory bool               `json:"enable_software_inventory"`
 	AdditionalQueries       *json.RawMessage   `json:"additional_queries,omitempty"`
-	DetailQueryOverrides    map[string]*string `json:"detail_query_overrides"`
+	DetailQueryOverrides    map[string]*string `json:"detail_query_overrides,omitempty"`
 }
 
 func (f *Features) ApplyDefaultsForNewInstalls() {
