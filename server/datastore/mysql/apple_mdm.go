@@ -339,10 +339,6 @@ func insertMDMAppleHostDB(ctx context.Context, tx sqlx.ExtContext, mdmHost fleet
 		return ctxerr.Wrap(ctx, err, "ingest mdm apple host unexpected last insert id")
 	}
 
-	if err := upsertMDMAppleHostSeenTimesDB(ctx, tx, uint(id)); err != nil {
-		return ctxerr.Wrap(ctx, err, "ingest mdm apple host upsert related tables")
-	}
-
 	if err := upsertMDMAppleHostDisplayNamesDB(ctx, tx, uint(id)); err != nil {
 		return ctxerr.Wrap(ctx, err, "ingest mdm apple host upsert related tables")
 	}
@@ -413,10 +409,6 @@ func (ds *Datastore) IngestMDMAppleDevicesFromDEPSync(ctx context.Context, devic
 			return ctxerr.Wrap(ctx, err, "ingest mdm apple host get host ids")
 		}
 
-		if err := upsertMDMAppleHostSeenTimesDB(ctx, tx, hostIDs...); err != nil {
-			return ctxerr.Wrap(ctx, err, "ingest mdm apple host upsert related tables")
-		}
-
 		if err := upsertMDMAppleHostDisplayNamesDB(ctx, tx, hostIDs...); err != nil {
 			return ctxerr.Wrap(ctx, err, "ingest mdm apple host upsert related tables")
 		}
@@ -429,25 +421,6 @@ func (ds *Datastore) IngestMDMAppleDevicesFromDEPSync(ctx context.Context, devic
 	})
 
 	return resCount, err
-}
-
-func upsertMDMAppleHostSeenTimesDB(ctx context.Context, tx sqlx.ExtContext, hostIDs ...uint) error {
-	args := []interface{}{}
-	parts := []string{}
-	for _, id := range hostIDs {
-		args = append(args, id)
-		parts = append(parts, "(?, NOW())")
-	}
-
-	_, err := tx.ExecContext(ctx, fmt.Sprintf(`
-			INSERT INTO host_seen_times (host_id, seen_time) VALUES %s
-			ON DUPLICATE KEY UPDATE seen_time = VALUES(seen_time)`, strings.Join(parts, ",")),
-		args...)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "upsert host seen times")
-	}
-
-	return nil
 }
 
 func upsertMDMAppleHostDisplayNamesDB(ctx context.Context, tx sqlx.ExtContext, hostIDs ...uint) error {
