@@ -1121,7 +1121,7 @@ agent_options:
 
 #### MDM settings
 
-MDM Options, currently supports Apple Business Manager.
+Fleet currently supports Apple Business Manager for mobile device management (MDM).
 
 **Applies only to Fleet Premium**.
 
