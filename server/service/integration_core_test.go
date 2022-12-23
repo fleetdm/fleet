@@ -314,6 +314,26 @@ func (s *integrationTestSuite) TestAppConfigAdditionalQueriesCanBeRemoved() {
 	assert.True(t, config.HostExpirySettings.HostExpiryEnabled)
 }
 
+func (s *integrationTestSuite) TestAppConfigDetailQueriesOverrides() {
+	t := s.T()
+
+	spec := []byte(`
+  features:
+    additional_queries:
+      time: SELECT * FROM time
+    enable_host_users: true
+	detail_query_overrides:
+		users: null
+		software_linux: "select * from blah;"
+`)
+	s.applyConfig(spec)
+
+	config := s.getConfig()
+	require.NotNil(t, config.Features.DetailQueryOverrides)
+	require.Nil(t, config.Features.DetailQueryOverrides["users"])
+	require.Equal(t, "select * from blah", config.Features.DetailQueryOverrides["software_linux"])
+}
+
 func (s *integrationTestSuite) TestAppConfigDefaultValues() {
 	config := s.getConfig()
 	s.Run("Update interval", func() {

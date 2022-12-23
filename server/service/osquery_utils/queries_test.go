@@ -14,6 +14,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/async"
 	"github.com/go-kit/kit/log"
 	"github.com/stretchr/testify/assert"
@@ -670,6 +671,21 @@ func TestDangerousReplaceQuery(t *testing.T) {
 	require.NoError(t, os.Unsetenv("FLEET_DANGEROUS_REPLACE_USERS"))
 	queries = GetDetailQueries(config.FleetConfig{}, &fleet.Features{EnableHostUsers: true})
 	assert.Equal(t, originalQuery, queries["users"].Query)
+}
+
+func TestAppConfigReplaceQuery(t *testing.T) {
+	queries := GetDetailQueries(config.FleetConfig{}, &fleet.Features{EnableHostUsers: true})
+	originalQuery := queries["users"].Query
+
+	replacementMap := make(map[string]*string)
+	replacementMap["users"] = ptr.String("select 1 from blah")
+	queries = GetDetailQueries(config.FleetConfig{}, &fleet.Features{EnableHostUsers: true, DetailQueryOverrides: replacementMap})
+	assert.NotEqual(t, originalQuery, queries["users"].Query)
+
+	replacementMap["users"] = nil
+	queries = GetDetailQueries(config.FleetConfig{}, &fleet.Features{EnableHostUsers: true, DetailQueryOverrides: replacementMap})
+	_, exists := queries["users"]
+	assert.False(t, exists)
 }
 
 func TestDirectIngestSoftware(t *testing.T) {

@@ -1201,6 +1201,18 @@ func GetDetailQueries(fleetConfig config.FleetConfig, features *fleet.Features) 
 		}
 	}
 
+	if features != nil {
+		for name, override := range features.DetailQueryOverrides {
+			if override == nil {
+				delete(generatedMap, name)
+			} else {
+				query := generatedMap[name]
+				query.Query = *override
+				generatedMap[name] = query
+			}
+		}
+	}
+
 	return generatedMap
 }
 
