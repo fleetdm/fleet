@@ -124,11 +124,14 @@
     - name: Standard query and policy library
       tier: Free
       comingSoon: false
-    - name: Detect and surface issues with devices
-      tier: Free
-      comingSoon: false
     - name: Policy and vulnerability automations (webhook, Zendesk, JIRA, ServiceNow*)
       tier: Free
+      comingSoon: false
+    - name: Detect and surface issues with devices (policies)
+      tier: Free
+      comingSoon: false
+    - name: Mark policies as critical
+      tier: Premium
       comingSoon: false
     - name: Vulnerability scores (EPSS and CVSS)
       tier: Premium
