@@ -1004,7 +1004,7 @@ Modifies the Fleet's configuration with the supplied information.
 | email                             | string  | body  | _integrations.zendesk[] settings_. The Zendesk user email to use for this Zendesk integration. |
 | api_token                         | string  | body  | _integrations.zendesk[] settings_. The Zendesk API token to use for this Zendesk integration. |
 | group_id                          | integer | body  | _integrations.zendesk[] settings_. The Zendesk group id to use for this integration. Zendesk tickets will be created in this group. |
-| apple_bm_default_team             | string  | body  | _mdm setting_. The default team to use with Apple Business Manager. |
+| apple_bm_default_team             | string  | body  | _mdm settings_. The default team to use with Apple Business Manager. |
 | additional_queries                | boolean | body  | Whether or not additional queries are enabled on hosts.                                                                                                                                |
 | force                             | bool    | query | Force apply the agent options even if there are validation errors.                                                                                                 |
 | dry_run                           | bool    | query | Validate the configuration and return any validation errors, but do not apply the changes.                                                                         |
