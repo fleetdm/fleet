@@ -259,11 +259,11 @@ func ingestMDMAppleDeviceFromCheckinDB(
 	var foundHost fleet.Host
 	err := sqlx.GetContext(ctx, tx, &foundHost, stmt, mdmHost.UDID, mdmHost.SerialNumber)
 	switch {
-	case err != nil && !errors.Is(err, sql.ErrNoRows):
-		return ctxerr.Wrap(ctx, err, "get mdm apple host by serial number or udid")
-
 	case errors.Is(err, sql.ErrNoRows):
 		return insertMDMAppleHostDB(ctx, tx, mdmHost)
+
+	case err != nil:
+		return ctxerr.Wrap(ctx, err, "get mdm apple host by serial number or udid")
 
 	case foundHost.HardwareSerial != mdmHost.SerialNumber || foundHost.UUID != mdmHost.UDID:
 		return updateMDMAppleHostDB(ctx, tx, foundHost.ID, mdmHost)
