@@ -107,6 +107,9 @@
     - name: Just-in-time provisioning
       tier: Premium
       comingSoon: false
+    - name: Vanta integration
+      tier: Premium
+      comingSoon: false
 - categoryName: Monitoring
   features:
     - name: Schedule and automate custom queries

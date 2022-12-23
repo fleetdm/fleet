@@ -880,6 +880,46 @@ spec:
   agent_options:
 ```
 
+##### `extensions` option
+
+> This feature requires [Orbit, the Fleet agent manager](https://fleetdm.com/announcements/introducing-orbit-your-fleet-agent-manager), along with a custom TUF auto-update server.
+
+The `extensions` key inside of `agent_options` allows you to remotely manage and deploy osquery extensions. Just like other `agent_options` the `extensions` key can be applied either to a team specific one or the global one. 
+
+
+This is best illustrated with an example. Here is an example of using the `extensions` key:
+
+```yaml
+apiVersion: v1
+kind: config
+spec:
+  agent_options:
+    extensions: # requires Fleet's osquery installer
+      hello_world:
+        channel: 'stable'
+        platform: 'macos'
+```
+ 
+In the above example, we are configuring our `hello_world` extension. We do this by creating a `hello_world` sub-key under `extensions`, and then specifying the `channel` and `platform` keys for that extension. 
+
+Next, you will need to make sure to push the binary file of our `hello_world` extension as a target on your TUF server. This step needs to follow these conventions:
+
+* The binary file of the extension, must have the same name as the extension, followed by the `.ext`. In the above case, the filename should be `hello_world.ext`
+* The target name for the TUF server must be named as `extensions/<extension_name>`. For the above example, this would be `extensions/hello_world`
+* `platform` is one of `macos`, `linux`, or `windows`
+
+If you are using `fleetctl` to manage your TUF server, these same conventions apply. You can run the following command to add a new target:
+
+```bash
+fleetctl updates add --path /path/to/local/TUF/repo --target /path/to/extensions/binary/hello_world.ext --name extensions/hello_world --platform macos --version 0.1
+```
+
+After successfully configuring the agent options, and pushing the extension as a target on your TUF server, Orbit will periodically check with the TUF server for updates to these extensions. 
+
+If you are using a self-hosted TUF server, you must also manage all of Orbit's versions, including osquery, Fleet Desktop and osquery extensions.
+
+Fleet recommends deploying extensions created with osquery-go or natively with C++, instead of Python. Extensions written in Python requires the user to compile it into a single packaged binary along with all the dependencies.
+
 
 ##### Example Agent options YAML
 
