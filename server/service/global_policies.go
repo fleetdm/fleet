@@ -73,8 +73,10 @@ func (svc Service) NewGlobalPolicy(ctx context.Context, p fleet.PolicyPayload) (
 	if err := svc.ds.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
-		fleet.ActivityTypeCreatedPolicy,
-		&map[string]interface{}{"policy_id": policy.ID, "policy_name": policy.Name},
+		fleet.ActivityTypeCreatedPolicy{
+			ID:   policy.ID,
+			Name: policy.Name,
+		},
 	); err != nil {
 		return nil, err
 	}
@@ -211,8 +213,10 @@ func (svc Service) DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uint
 		if err := svc.ds.NewActivity(
 			ctx,
 			authz.UserFromContext(ctx),
-			fleet.ActivityTypeDeletedPolicy,
-			&map[string]interface{}{"policy_id": id, "policy_name": policiesByID[id].Name},
+			fleet.ActivityTypeDeletedPolicy{
+				ID:   id,
+				Name: policiesByID[id].Name,
+			},
 		); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "adding new activity for deleted policy")
 		}
@@ -479,7 +483,8 @@ func (svc *Service) ApplyPolicySpecs(ctx context.Context, policies []*fleet.Poli
 	return svc.ds.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
-		fleet.ActivityTypeAppliedSpecPolicy,
-		&map[string]interface{}{"policies": policies},
+		fleet.ActivityTypeAppliedSpecPolicy{
+			Policies: policies,
+		},
 	)
 }

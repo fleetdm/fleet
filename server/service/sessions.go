@@ -192,8 +192,8 @@ func (svc *Service) Login(ctx context.Context, email, password string) (*fleet.U
 		return nil, nil, fleet.NewAuthFailedError(err.Error())
 	}
 
-	if err := svc.ds.NewActivity(ctx, user, fleet.ActivityTypeUserLoggedIn, &map[string]interface{}{
-		"public_ip": publicip.FromContext(ctx),
+	if err := svc.ds.NewActivity(ctx, user, fleet.ActivityTypeUserLoggedIn{
+		PublicIP: publicip.FromContext(ctx),
 	}); err != nil {
 		return nil, nil, err
 	}
@@ -511,6 +511,16 @@ func (svc *Service) LoginSSOUser(ctx context.Context, user *fleet.User, redirect
 	result := &fleet.SSOSession{
 		Token:       session.Key,
 		RedirectURL: redirectURL,
+	}
+	err = svc.ds.NewActivity(
+		ctx,
+		user,
+		fleet.ActivityTypeUserLoggedIn{
+			PublicIP: publicip.FromContext(ctx),
+		},
+	)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "create activity in sso callback")
 	}
 	return result, nil
 }

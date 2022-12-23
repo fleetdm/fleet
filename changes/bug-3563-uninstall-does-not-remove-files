@@ -1,1 +1,0 @@
-* Windows installer now ensures that no files are left on the filesystem when orbit uninstallation process is kicked off

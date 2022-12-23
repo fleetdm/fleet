@@ -45,8 +45,12 @@ func logRoleChangeActivities(ctx context.Context, ds fleet.Datastore, adminUser 
 		if err := ds.NewActivity(
 			ctx,
 			adminUser,
-			fleet.ActivityTypeChangedUserGlobalRole,
-			&map[string]interface{}{"user_name": user.Name, "user_id": user.ID, "user_email": user.Email, "role": *user.GlobalRole},
+			fleet.ActivityTypeChangedUserGlobalRole{
+				UserID:    user.ID,
+				UserName:  user.Name,
+				UserEmail: user.Email,
+				Role:      *user.GlobalRole,
+			},
 		); err != nil {
 			return err
 		}
@@ -55,8 +59,12 @@ func logRoleChangeActivities(ctx context.Context, ds fleet.Datastore, adminUser 
 		if err := ds.NewActivity(
 			ctx,
 			adminUser,
-			fleet.ActivityTypeDeletedUserGlobalRole,
-			&map[string]interface{}{"user_name": user.Name, "user_id": user.ID, "user_email": user.Email, "role": *oldRole},
+			fleet.ActivityTypeDeletedUserGlobalRole{
+				UserID:    user.ID,
+				UserName:  user.Name,
+				UserEmail: user.Email,
+				OldRole:   *oldRole,
+			},
 		); err != nil {
 			return err
 		}
@@ -76,8 +84,14 @@ func logRoleChangeActivities(ctx context.Context, ds fleet.Datastore, adminUser 
 		if err := ds.NewActivity(
 			ctx,
 			adminUser,
-			fleet.ActivityTypeChangedUserTeamRole,
-			&map[string]interface{}{"user_name": user.Name, "user_id": user.ID, "user_email": user.Email, "team_name": t.Name, "team_id": t.ID, "role": t.Role},
+			fleet.ActivityTypeChangedUserTeamRole{
+				UserID:    user.ID,
+				UserName:  user.Name,
+				UserEmail: user.Email,
+				Role:      t.Role,
+				TeamID:    t.ID,
+				TeamName:  t.Name,
+			},
 		); err != nil {
 			return err
 		}
@@ -89,8 +103,14 @@ func logRoleChangeActivities(ctx context.Context, ds fleet.Datastore, adminUser 
 		if err := ds.NewActivity(
 			ctx,
 			adminUser,
-			fleet.ActivityTypeDeletedUserTeamRole,
-			&map[string]interface{}{"user_name": user.Name, "user_id": user.ID, "user_email": user.Email, "team_name": o.Name, "team_id": o.ID, "role": o.Role},
+			fleet.ActivityTypeDeletedUserTeamRole{
+				UserID:    user.ID,
+				UserName:  user.Name,
+				UserEmail: user.Email,
+				Role:      o.Role,
+				TeamID:    o.ID,
+				TeamName:  o.Name,
+			},
 		); err != nil {
 			return err
 		}

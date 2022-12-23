@@ -431,8 +431,11 @@ func (svc *Service) DeleteUser(ctx context.Context, id uint) error {
 	if err := svc.ds.NewActivity(
 		ctx,
 		adminUser,
-		fleet.ActivityTypeDeletedUser,
-		&map[string]interface{}{"user_name": user.Name, "user_id": user.ID, "user_email": user.Email},
+		fleet.ActivityTypeDeletedUser{
+			UserID:    user.ID,
+			UserName:  user.Name,
+			UserEmail: user.Email,
+		},
 	); err != nil {
 		return err
 	}
