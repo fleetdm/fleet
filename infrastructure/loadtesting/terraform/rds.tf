@@ -26,7 +26,7 @@ module "aurora_mysql" { #tfsec:ignore:aws-rds-enable-performance-insights-encryp
 
   name                  = "${local.name}-mysql"
   engine                = "aurora-mysql"
-  engine_version        = "5.7.mysql_aurora.2.10.0"
+  engine_version        = "5.7.mysql_aurora.2.10.2"
   instance_type         = "db.r6g.4xlarge"
   instance_type_replica = "db.r6g.4xlarge"
 
