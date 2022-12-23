@@ -515,9 +515,8 @@ func (svc *Service) LoginSSOUser(ctx context.Context, user *fleet.User, redirect
 	err = svc.ds.NewActivity(
 		ctx,
 		user,
-		fleet.ActivityTypeUserLoggedIn,
-		&map[string]interface{}{
-			"public_ip": publicip.FromContext(ctx),
+		fleet.ActivityTypeUserLoggedIn{
+			PublicIP: publicip.FromContext(ctx),
 		},
 	)
 	if err != nil {
