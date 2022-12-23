@@ -162,8 +162,8 @@ func MDMHostIngesterMiddleware(next http.Handler, ingester fleet.MDMHostIngester
 			level.Error(logger).Log("err", "ingest checkin request", "details", err)
 			sentry.CaptureException(err)
 			ctxerr.Handle(ctx, err)
-			// TODO: discuss error handling approach
-			http.Error(w, http.StatusText(http.StatusUnprocessableEntity), http.StatusUnprocessableEntity)
+			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+			return
 		}
 		next.ServeHTTP(w, r)
 	}
