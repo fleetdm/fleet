@@ -244,6 +244,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	if err != nil {
 		return nil, err
 	}
+	oldAppConfig := appConfig.Copy()
 
 	license, err := svc.License(ctx)
 	if err != nil {
@@ -332,8 +333,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	fleet.ValidateEnabledVulnerabilitiesIntegrations(appConfig.WebhookSettings.VulnerabilitiesWebhook, appConfig.Integrations, invalid)
 	fleet.ValidateEnabledFailingPoliciesIntegrations(appConfig.WebhookSettings.FailingPoliciesWebhook, appConfig.Integrations, invalid)
 	fleet.ValidateEnabledHostStatusIntegrations(appConfig.WebhookSettings.HostStatusWebhook, invalid)
-
-	svc.validateMDM(ctx, appConfig.MDM, invalid)
+	svc.validateMDM(ctx, license, &oldAppConfig.MDM, &appConfig.MDM, invalid)
 
 	if invalid.HasErrors() {
 		return nil, ctxerr.Wrap(ctx, invalid)
@@ -394,7 +394,6 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	if license.Tier != "premium" {
 		// reset transparency url to empty for downgraded licenses
 		appConfig.FleetDesktop.TransparencyURL = ""
-		appConfig.MDM = fleet.MDM{}
 	}
 
 	if err := svc.ds.SaveAppConfig(ctx, appConfig); err != nil {
@@ -426,8 +425,18 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	return obfuscatedConfig, nil
 }
 
-func (svc *Service) validateMDM(ctx context.Context, mdm fleet.MDM, invalid *fleet.InvalidArgumentError) {
-	if name := mdm.AppleBMDefaultTeam; name != "" {
+func (svc *Service) validateMDM(
+	ctx context.Context,
+	license *fleet.LicenseInfo,
+	oldMdm *fleet.MDM,
+	mdm *fleet.MDM,
+	invalid *fleet.InvalidArgumentError,
+) {
+	if name := mdm.AppleBMDefaultTeam; name != "" && name != oldMdm.AppleBMDefaultTeam {
+		if !license.IsPremium() {
+			invalid.Append("mdm.apple_bm_default_team", ErrMissingLicense.Error())
+			return
+		}
 		if _, err := svc.ds.TeamByName(ctx, name); err != nil {
 			invalid.Append("apple_bm_default_team", "team name not found")
 		}

@@ -103,6 +103,11 @@ type VulnerabilitySettings struct {
 // MDM is part of AppConfig and defines the mdm settings.
 type MDM struct {
 	AppleBMDefaultTeam string `json:"apple_bm_default_team"`
+
+	/////////////////////////////////////////////////////////////////
+	// WARNING: If you add to this struct make sure it's taken into
+	// account in the AppConfig Clone implementation!
+	/////////////////////////////////////////////////////////////////
 }
 
 // AppConfig holds server configuration that can be changed via the API.
@@ -151,9 +156,15 @@ type legacyConfig struct {
 	HostSettings *Features `json:"host_settings"`
 }
 
+// Clone implements cloner.
 func (c *AppConfig) Clone() (interface{}, error) {
+	return c.Copy(), nil
+}
+
+// Copy returns a copy of the AppConfig.
+func (c *AppConfig) Copy() *AppConfig {
 	if c == nil {
-		return nil, nil
+		return nil
 	}
 
 	var clone AppConfig
@@ -204,7 +215,7 @@ func (c *AppConfig) Clone() (interface{}, error) {
 		}
 	}
 
-	return &clone, nil
+	return &clone
 }
 
 // EnrichedAppConfig contains the AppConfig along with additional fleet

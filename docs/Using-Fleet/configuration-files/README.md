@@ -1119,7 +1119,7 @@ agent_options:
     enable_file_events: true
 ```
 
-#### MDM Setting
+#### MDM settings
 
 MDM Options, currently supports Apple Business Manager.
 
