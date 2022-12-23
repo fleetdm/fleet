@@ -490,7 +490,10 @@ const DashboardPage = ({
     title: "Activity",
     showTitle: showActivityFeedTitle,
     children: (
-      <ActivityFeed setShowActivityFeedTitle={setShowActivityFeedTitle} />
+      <ActivityFeed
+        setShowActivityFeedTitle={setShowActivityFeedTitle}
+        isPremiumTier={isPremiumTier || false}
+      />
     ),
   });
 
