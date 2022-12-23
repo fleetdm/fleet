@@ -293,6 +293,9 @@ func updateMDMAppleHostDB(ctx context.Context, tx sqlx.ExtContext, hostID uint, 
 		mdmHost.Model,
 		"darwin",
 		1,
+		// Set osquery_host_id to the device UUID mimicking what EnrollOrbit does.
+		// TODO: see https://github.com/fleetdm/fleet/issues/9033 for why this is
+		// not ideal, and improve the handling based on whatever is decided there.
 		mdmHost.UDID,
 		hostID,
 	); err != nil {
