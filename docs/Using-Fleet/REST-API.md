@@ -1699,12 +1699,12 @@ the `software` table.
 
 - created_at: the time the row in the database was created, which usually corresponds to the first enrollment of the host.
 - updated_at: the last time the row in the database for the `hosts` table was updated.
-- detail_updated_at: the last time we updated the host data (any of it, regardless of the location) based on 
-- label_updated_at:
-- last_enrolled_at:
-- policy_updated_at:
-- seen_time:
-- software_updated_at:
+- detail_updated_at: the last time we updated the host data (any of it, regardless of the location) based on the results from the detail queries.
+- label_updated_at: the last time we updated the label membership for the host based on the results from the queries ran.
+- last_enrolled_at: the last time the host enrolled.
+- policy_updated_at: the last time we updated the policy results for the host based on the queries ran.
+- seen_time: the last time the host contacted the fleet server, regardless of what operation it was for.
+- software_updated_at: the last time software changed for the host in any way.
 
 ### List hosts
 
