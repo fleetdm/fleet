@@ -1184,7 +1184,7 @@ osquery:
 This enables/disables the log output for audit events.
 See the `activity_audit_log_plugin` option below that specifies the logging destination.
 
-The audit events are logged in an asynchronous fashion, it can take up to 5 minutes for an event to be logged.
+The audit events are logged in an asynchronous fashion. It can take up to 5 minutes for an event to be logged.
 
 - Default value: `false`
 - Environment variable: `FLEET_ACTIVITY_ENABLE_AUDIT_LOG`
