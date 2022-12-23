@@ -479,17 +479,18 @@ func upsertMDMAppleHostLabelMembershipDB(ctx context.Context, tx sqlx.ExtContext
 func filterMDMAppleDevices(devices []godep.Device) []godep.Device {
 	var filtered []godep.Device
 	for _, device := range devices {
-		// We currently only support macOS devices so we screen out iOS and tvOS.
+		// We currently only support macOS devices so we screen out iOS
+		// and tvOS.
 		if strings.ToLower(device.OS) != "osx" {
 			continue
 		}
-		// We currently only listen for an op_type of "added", the other
-		// op_types are ambiguous and it would be needless to ingest the device
-		// every single time we get an update.
+		// We currently only listen for an op_type of "added", the
+		// other op_types are ambiguous and it would be needless to
+		// ingest the device every single time we get an update.
 		if strings.ToLower(device.OpType) == "added" ||
-			// The op_type field is only applicable with the SyncDevices API call,
-			// Empty op_type come from the first call to FetchDevices without a cursor,
-			// and we do want to assign profiles to them.
+			// The op_type field is only applicable with the SyncDevices
+			// API call, Empty op_type come from the first call to
+			// FetchDevices without a cursor.
 			strings.ToLower(device.OpType) == "" {
 			filtered = append(filtered, device)
 		}
