@@ -406,7 +406,7 @@ jobs:
     - name: Install msi
       shell: pwsh
       run: |
-        msiexec /i ${{ steps.download.outputs.download-path }}\fleet-osquery.msi /quiet /passive /lv log.txt
+        Start-Process msiexec -ArgumentList "/i ${{ steps.download.outputs.download-path }}\fleet-osquery.msi /quiet /passive /lv log.txt" -Wait
 
     - name: Wait enroll
       run: |

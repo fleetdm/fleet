@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"context"
+	"encoding/json"
 	"sort"
 	"testing"
 
@@ -30,6 +31,27 @@ func TestActivity(t *testing.T) {
 	}
 }
 
+type dummyActivity struct {
+	name    string `json:"-"`
+	details map[string]interface{}
+}
+
+func (d dummyActivity) MarshalJSON() ([]byte, error) {
+	b, err := json.Marshal(d.details)
+	if err != nil {
+		return nil, err
+	}
+	return b, nil
+}
+
+func (d dummyActivity) ActivityName() string {
+	return d.name
+}
+
+func (d dummyActivity) Documentation() (activity string, details string, detailsExample string) {
+	return "", "", ""
+}
+
 func testActivityUsernameChange(t *testing.T, ds *Datastore) {
 	u := &fleet.User{
 		Password:    []byte("asd"),
@@ -41,8 +63,14 @@ func testActivityUsernameChange(t *testing.T, ds *Datastore) {
 	_, err := ds.NewUser(context.Background(), u)
 	require.NoError(t, err)
 
-	require.NoError(t, ds.NewActivity(context.Background(), u, "test1", &map[string]interface{}{"detail": 1, "sometext": "aaa"}))
-	require.NoError(t, ds.NewActivity(context.Background(), u, "test2", &map[string]interface{}{"detail": 2}))
+	require.NoError(t, ds.NewActivity(context.Background(), u, dummyActivity{
+		name:    "test1",
+		details: map[string]interface{}{"detail": 1, "sometext": "aaa"},
+	}))
+	require.NoError(t, ds.NewActivity(context.Background(), u, dummyActivity{
+		name:    "test2",
+		details: map[string]interface{}{"detail": 2},
+	}))
 
 	activities, err := ds.ListActivities(context.Background(), fleet.ListActivitiesOptions{})
 	require.NoError(t, err)
@@ -79,8 +107,14 @@ func testActivityNew(t *testing.T, ds *Datastore) {
 	}
 	_, err := ds.NewUser(context.Background(), u)
 	require.Nil(t, err)
-	require.NoError(t, ds.NewActivity(context.Background(), u, "test1", &map[string]interface{}{"detail": 1, "sometext": "aaa"}))
-	require.NoError(t, ds.NewActivity(context.Background(), u, "test2", &map[string]interface{}{"detail": 2}))
+	require.NoError(t, ds.NewActivity(context.Background(), u, dummyActivity{
+		name:    "test1",
+		details: map[string]interface{}{"detail": 1, "sometext": "aaa"},
+	}))
+	require.NoError(t, ds.NewActivity(context.Background(), u, dummyActivity{
+		name:    "test2",
+		details: map[string]interface{}{"detail": 2},
+	}))
 
 	opt := fleet.ListActivitiesOptions{
 		ListOptions: fleet.ListOptions{
@@ -127,9 +161,18 @@ func testListActivitiesStreamed(t *testing.T, ds *Datastore) {
 	_, err := ds.NewUser(context.Background(), u)
 	require.Nil(t, err)
 
-	require.NoError(t, ds.NewActivity(context.Background(), u, "test1", &map[string]interface{}{"detail": 1, "sometext": "aaa"}))
-	require.NoError(t, ds.NewActivity(context.Background(), u, "test2", &map[string]interface{}{"detail": 2}))
-	require.NoError(t, ds.NewActivity(context.Background(), u, "test3", &map[string]interface{}{"detail": 3}))
+	require.NoError(t, ds.NewActivity(context.Background(), u, dummyActivity{
+		name:    "test1",
+		details: map[string]interface{}{"detail": 1, "sometext": "aaa"},
+	}))
+	require.NoError(t, ds.NewActivity(context.Background(), u, dummyActivity{
+		name:    "test2",
+		details: map[string]interface{}{"detail": 2},
+	}))
+	require.NoError(t, ds.NewActivity(context.Background(), u, dummyActivity{
+		name:    "test3",
+		details: map[string]interface{}{"detail": 3},
+	}))
 
 	activities, err := ds.ListActivities(context.Background(), fleet.ListActivitiesOptions{})
 	require.NoError(t, err)

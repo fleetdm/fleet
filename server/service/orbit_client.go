@@ -95,6 +95,8 @@ func NewOrbitClient(rootDir string, addr string, rootCA string, insecureSkipVeri
 type OrbitConfig struct {
 	// Flags holds the osquery startup flags to use when running osquery.
 	Flags json.RawMessage
+	// Extensions holds the orbit managed extensions
+	Extensions json.RawMessage
 }
 
 // GetConfig returns the Orbit config fetched from Fleet server for this instance of OrbitClient.
@@ -105,7 +107,8 @@ func (oc *OrbitClient) GetConfig() (*OrbitConfig, error) {
 		return nil, err
 	}
 	return &OrbitConfig{
-		Flags: resp.Flags,
+		Flags:      resp.Flags,
+		Extensions: resp.Extensions,
 	}, nil
 }
 

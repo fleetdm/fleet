@@ -1,0 +1,21 @@
+<div id="vanta-authorization" v-cloak>
+
+  <div class="container d-flex flex-column align-items-center justify-content-center" >
+    <div v-if="showSuccessMessage">
+      <h1 class="pb-2">You're all set up!</h1>
+      <p>Please <a href="/contact">contact</a> Fleet if you need to change or stop your Fleet and Vanta integration.</p>
+    </div>
+    <div v-else>
+      <div v-if="connectionError === 'missingCookies'">
+        <h1 class="pb-2">We've encountered an unexpected error.</h1>
+        <p>When trying to connect Fleet to your Vanta account, one or more of the required cookies were missing.<br class="d-none d-lg-block"> Please ensure your browser has the ability to store cookies on fleetdm.com, and <a href="/connect-vanta">try again.</a></p>
+      </div>
+      <div v-else-if="connectionError === 'mismatchedState'">
+        <h1 class="pb-2">We've encountered an unexpected error.</h1>
+        <p>When trying to connect Fleet to your Vanta account, your identity could not be verified.<br class="d-none d-lg-block"> Please make sure your browser has the ability to store cookies from fleetdm.com and <a href="/connect-vanta">try again</a> or <a href="/contact">contact us</a>.</p>
+      </div>
+    </div>
+  </div>
+
+</div>
+<%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>

@@ -1,2 +1,0 @@
-- Fixed bug where manually triggering a cron run that preempts a regularly scheduled run causes
-  an unexpected shift in the start time of the next interval.

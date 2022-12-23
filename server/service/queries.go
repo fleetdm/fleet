@@ -185,8 +185,10 @@ func (svc *Service) NewQuery(ctx context.Context, p fleet.QueryPayload) (*fleet.
 	if err := svc.ds.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
-		fleet.ActivityTypeCreatedSavedQuery,
-		&map[string]interface{}{"query_id": query.ID, "query_name": query.Name},
+		fleet.ActivityTypeCreatedSavedQuery{
+			ID:   query.ID,
+			Name: query.Name,
+		},
 	); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "create activity for query creation")
 	}
@@ -266,8 +268,10 @@ func (svc *Service) ModifyQuery(ctx context.Context, id uint, p fleet.QueryPaylo
 	if err := svc.ds.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
-		fleet.ActivityTypeEditedSavedQuery,
-		&map[string]interface{}{"query_id": query.ID, "query_name": query.Name},
+		fleet.ActivityTypeEditedSavedQuery{
+			ID:   query.ID,
+			Name: query.Name,
+		},
 	); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "create activity for query modification")
 	}
@@ -321,8 +325,9 @@ func (svc *Service) DeleteQuery(ctx context.Context, name string) error {
 	if err := svc.ds.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
-		fleet.ActivityTypeDeletedSavedQuery,
-		&map[string]interface{}{"query_name": name},
+		fleet.ActivityTypeDeletedSavedQuery{
+			Name: name,
+		},
 	); err != nil {
 		return ctxerr.Wrap(ctx, err, "create activity for query deletion")
 	}
@@ -375,8 +380,9 @@ func (svc *Service) DeleteQueryByID(ctx context.Context, id uint) error {
 	if err := svc.ds.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
-		fleet.ActivityTypeDeletedSavedQuery,
-		&map[string]interface{}{"query_name": query.Name},
+		fleet.ActivityTypeDeletedSavedQuery{
+			Name: query.Name,
+		},
 	); err != nil {
 		return ctxerr.Wrap(ctx, err, "create activity for query deletion by id")
 	}
@@ -433,12 +439,12 @@ func (svc *Service) DeleteQueries(ctx context.Context, ids []uint) (uint, error)
 	if err := svc.ds.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
-		fleet.ActivityTypeDeletedMultipleSavedQuery,
-		&map[string]interface{}{"query_ids": ids},
+		fleet.ActivityTypeDeletedMultipleSavedQuery{
+			IDs: ids,
+		},
 	); err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "create activity for query deletions")
 	}
-
 	return n, nil
 }
 
@@ -507,8 +513,9 @@ func (svc *Service) ApplyQuerySpecs(ctx context.Context, specs []*fleet.QuerySpe
 	if err := svc.ds.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
-		fleet.ActivityTypeAppliedSpecSavedQuery,
-		&map[string]interface{}{"specs": specs},
+		fleet.ActivityTypeAppliedSpecSavedQuery{
+			Specs: specs,
+		},
 	); err != nil {
 		return ctxerr.Wrap(ctx, err, "create activity for query spec")
 	}
