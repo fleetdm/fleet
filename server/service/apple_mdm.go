@@ -9,6 +9,8 @@ import (
 	"io"
 	"mime/multipart"
 	"net/http"
+	"net/url"
+	"path"
 	"strconv"
 	"text/template"
 
@@ -82,13 +84,25 @@ func (svc *Service) NewMDMAppleEnrollmentProfile(ctx context.Context, enrollment
 		}
 	}
 
-	profile.EnrollmentURL = svc.mdmAppleEnrollURL(profile.Token, appConfig)
+	enrollmentURL, err := svc.mdmAppleEnrollURL(profile.Token, appConfig)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+	profile.EnrollmentURL = enrollmentURL
 
 	return profile, nil
 }
 
-func (svc *Service) mdmAppleEnrollURL(token string, appConfig *fleet.AppConfig) string {
-	return fmt.Sprintf("%s%s?token=%s", appConfig.ServerSettings.ServerURL, apple_mdm.EnrollPath, token)
+func (svc *Service) mdmAppleEnrollURL(token string, appConfig *fleet.AppConfig) (string, error) {
+	enrollURL, err := url.Parse(appConfig.ServerSettings.ServerURL)
+	if err != nil {
+		return "", err
+	}
+	enrollURL.Path = path.Join(enrollURL.Path, apple_mdm.EnrollPath)
+	q := enrollURL.Query()
+	q.Set("token", token)
+	enrollURL.RawQuery = q.Encode()
+	return enrollURL.String(), nil
 }
 
 // setDEPProfile define a "DEP profile" on https://mdmenrollment.apple.com and
@@ -104,7 +118,10 @@ func (svc *Service) setDEPProfile(ctx context.Context, enrollmentProfile *fleet.
 	}
 
 	// Override url and configuration_web_url with Fleet's enroll path (publicly accessible address).
-	enrollURL := svc.mdmAppleEnrollURL(enrollmentProfile.Token, appConfig)
+	enrollURL, err := svc.mdmAppleEnrollURL(enrollmentProfile.Token, appConfig)
+	if err != nil {
+		return fmt.Errorf("generating enrollment URL: %w", err)
+	}
 	depProfileRequest["url"] = enrollURL
 	depProfileRequest["configuration_web_url"] = enrollURL
 	depProfile, err := json.Marshal(depProfileRequest)
@@ -181,7 +198,11 @@ func (svc *Service) ListMDMAppleEnrollmentProfiles(ctx context.Context) ([]*flee
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 	for i := range enrollments {
-		enrollments[i].EnrollmentURL = svc.mdmAppleEnrollURL(enrollments[i].Token, appConfig)
+		enrollURL, err := svc.mdmAppleEnrollURL(enrollments[i].Token, appConfig)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err)
+		}
+		enrollments[i].EnrollmentURL = enrollURL
 	}
 	return enrollments, nil
 }
@@ -804,8 +825,8 @@ var enrollmentProfileMobileconfigTemplate = template.Must(template.New("").Parse
 </plist>`))
 
 func generateEnrollmentProfileMobileconfig(orgName, fleetURL, scepChallenge, topic string) ([]byte, error) {
-	scepURL := fleetURL + apple_mdm.SCEPPath
-	serverURL := fleetURL + apple_mdm.MDMPath
+	scepURL := path.Join(fleetURL, apple_mdm.SCEPPath)
+	serverURL := path.Join(fleetURL, apple_mdm.MDMPath)
 
 	var buf bytes.Buffer
 	if err := enrollmentProfileMobileconfigTemplate.Execute(&buf, struct {

@@ -7,10 +7,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20221216160025, Down_20221216160025)
+	MigrationClient.AddMigration(Up_20221220195935, Down_20221220195935)
 }
 
-func Up_20221216160025(tx *sql.Tx) error {
+func Up_20221220195935(tx *sql.Tx) error {
 	if _, err := tx.Exec(
 		"ALTER TABLE `activities` ADD COLUMN `streamed` TINYINT(1) NOT NULL DEFAULT FALSE;",
 	); err != nil {
@@ -24,6 +24,6 @@ func Up_20221216160025(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20221216160025(tx *sql.Tx) error {
+func Down_20221220195935(tx *sql.Tx) error {
 	return nil
 }
