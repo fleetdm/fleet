@@ -7,15 +7,13 @@ import RequestCSRForm from "./RequestCSRForm";
 const baseClass = " modal request-csr-modal";
 
 interface IRequestCSRModalProps {
-  onSubmit: (formData: IRequestCSRFormData, destination: string) => void;
+  onSubmit: (formData: IRequestCSRFormData, destination?: string) => void;
   onCancel: () => void;
-  destination: string;
 }
 
 const RequestCSRModal = ({
   onSubmit,
   onCancel,
-  destination,
 }: IRequestCSRModalProps): JSX.Element => {
   return (
     <Modal title="Request" onExit={onCancel} className={baseClass}>
@@ -28,11 +26,7 @@ const RequestCSRModal = ({
           fleetdm.com will send your CSR to the below email. Your certificate
           and key for SCEP will be downloaded in the browser.
         </p>
-        <RequestCSRForm
-          onSubmit={onSubmit}
-          onCancel={onCancel}
-          destination={destination}
-        />
+        <RequestCSRForm onSubmit={onSubmit} onCancel={onCancel} />
       </>
     </Modal>
   );

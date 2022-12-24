@@ -13,9 +13,8 @@ import { request } from "http";
 const baseClass = "request-csr";
 
 interface IRequestCSRFormProps {
-  onSubmit: (formData: IRequestCSRFormData, destination: string) => void;
+  onSubmit: (formData: IRequestCSRFormData, destination?: string) => void;
   onCancel: () => void;
-  destination: string;
   testingConnection?: boolean;
 }
 
@@ -27,7 +26,6 @@ interface IFormField {
 const RequestCSRForm = ({
   onSubmit,
   onCancel,
-  destination,
   testingConnection,
 }: IRequestCSRFormProps): JSX.Element => {
   const { currentUser, config } = useContext(AppContext);
@@ -46,7 +44,7 @@ const RequestCSRForm = ({
 
   const onFormSubmit = (evt: FormEvent): void => {
     evt.preventDefault();
-    return onSubmit({ email, orgName }, destination);
+    return onSubmit({ email, orgName });
   };
 
   return (

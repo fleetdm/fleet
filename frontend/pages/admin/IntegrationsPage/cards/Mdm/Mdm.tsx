@@ -263,9 +263,13 @@ const Mdm = (): JSX.Element => {
       </>
     );
   };
-  const requestCSR = (formData: IRequestCSRFormData, destination: string) => {
+
+  // request destination from https://github.com/fleetdm/fleet/pull/8408
+  const requestCSR = (
+    formData: IRequestCSRFormData,
+    destination = "https://www.fleetdm.com//api/v1/get_signed_apns_csr"
+  ) => {
     // TODO: Implement real request handler
-    alert("submited");
   };
 
   return (
@@ -285,7 +289,6 @@ const Mdm = (): JSX.Element => {
           onSubmit={requestCSR}
           onCancel={toggleRequestCSRModal}
           // TODO: encapsulate destination within the modal component?
-          destination="testination"
         />
       )}
       {showEditTeamModal && (
