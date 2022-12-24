@@ -130,7 +130,7 @@
     - name: Detect and surface issues with devices
       tier: Free
       comingSoon: false
-    - name: Policy and vulnerability automations &#10; (webhook, Zendesk, JIRA, ServiceNow*)
+    - name: Policy and vulnerability automations (webhook, Zendesk, JIRA, ServiceNow*)
       tier: Free
       comingSoon: false
     - name: Vulnerability scores (EPSS and CVSS)
