@@ -3,7 +3,27 @@ parasails.registerPage('pricing', {
   //  ║║║║║ ║ ║╠═╣║    ╚═╗ ║ ╠═╣ ║ ║╣
   //  ╩╝╚╝╩ ╩ ╩╩ ╩╩═╝  ╚═╝ ╩ ╩ ╩ ╩ ╚═╝
   data: {
-    //…
+    formData: {
+      macos: 0,
+      windows: 0,
+      servers: 0,
+      iot: 0,
+      containers: 0
+    },
+
+    // For tracking client-side validation errors in our form.
+    // > Has property set to `true` for each invalid property in `formData`.
+    formErrors: { /* … */ },
+
+    pricingCalculatorFormRules: {},
+
+    // Syncing / loading state
+    syncing: false,
+
+    // Server error state
+    cloudError: '',
+    estimatedCost: '', // For pricing calculator
+    displaySecurityPricingMode: true, // For pricing mode switch
   },
 
   //  ╦  ╦╔═╗╔═╗╔═╗╦ ╦╔═╗╦  ╔═╗
@@ -30,6 +50,14 @@ parasails.registerPage('pricing', {
       // > https://github.com/papercups-io/chat-widget/blob/master/src/index.tsx#L4-L6
       // > ~Dec 31, 2020
       window.dispatchEvent(new Event('papercups:open'));
-    }
+    },
+    updateEstimatedTotal: function() {
+      let total = (7 * this.formData.macos) +
+      (7 * this.formData.windows) +
+      (7 * this.formData.servers) +
+      (7 * this.formData.iot) +
+      (7 * this.formData.containers);
+      this.estimatedCost = total;
+    },
   }
 });
