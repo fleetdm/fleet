@@ -899,9 +899,11 @@ type getHostMDMRequest struct {
 }
 
 type getHostMDMResponse struct {
-	Err error `json:"error,omitempty"`
 	*fleet.HostMDM
+	Err error `json:"error,omitempty"`
 }
+
+func (r getHostMDMResponse) error() error { return r.Err }
 
 func getHostMDM(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
 	req := request.(*getHostMDMRequest)
@@ -1098,14 +1100,15 @@ func (svc *Service) MDMData(ctx context.Context, id uint) (*fleet.HostMDM, error
 		return nil, err
 	}
 
-	var mdm *fleet.HostMDM
-	switch hmdm, err := svc.ds.GetHostMDM(ctx, id); {
-	case err != nil && !fleet.IsNotFound(err):
-		return nil, err
+	hmdm, err := svc.ds.GetHostMDM(ctx, id)
+	switch {
 	case err == nil:
-		mdm = hmdm
+		return hmdm, nil
+	case fleet.IsNotFound(err):
+		return nil, nil
+	default:
+		return nil, ctxerr.Wrap(ctx, err, "get host mdm")
 	}
-	return mdm, nil
 }
 
 func (svc *Service) AggregatedMDMData(ctx context.Context, teamID *uint, platform string) (fleet.AggregatedMDMData, error) {

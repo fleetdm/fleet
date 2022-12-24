@@ -2557,6 +2557,8 @@ in [Fleet's osquery installers](https://fleetdm.com/docs/using-fleet/adding-host
 
 Retrieves a host's MDM enrollment status and MDM server URL.
 
+If the host exists but is not enrolled to an MDM server, then this API returns `null`.
+
 `GET /api/v1/fleet/hosts/{id}/mdm`
 
 #### Parameters

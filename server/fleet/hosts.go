@@ -432,6 +432,9 @@ func (h *HostMDM) EnrollmentStatus() string {
 }
 
 func (h *HostMDM) MarshalJSON() ([]byte, error) {
+	if h == nil {
+		return []byte("null"), nil
+	}
 	var jsonMDM struct {
 		EnrollmentStatus string `json:"enrollment_status"`
 		ServerURL        string `json:"server_url"`
