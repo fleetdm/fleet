@@ -29,7 +29,7 @@ type getQueryResponse struct {
 
 func (r getQueryResponse) error() error { return r.Err }
 
-func getQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func getQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getQueryRequest)
 	query, err := svc.GetQuery(ctx, req.ID)
 	if err != nil {
@@ -61,7 +61,7 @@ type listQueriesResponse struct {
 
 func (r listQueriesResponse) error() error { return r.Err }
 
-func listQueriesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func listQueriesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*listQueriesRequest)
 	queries, err := svc.ListQueries(ctx, req.ListOptions)
 	if err != nil {
@@ -125,7 +125,7 @@ type createQueryResponse struct {
 
 func (r createQueryResponse) error() error { return r.Err }
 
-func createQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func createQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*createQueryRequest)
 	query, err := svc.NewQuery(ctx, req.QueryPayload)
 	if err != nil {
@@ -212,7 +212,7 @@ type modifyQueryResponse struct {
 
 func (r modifyQueryResponse) error() error { return r.Err }
 
-func modifyQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func modifyQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*modifyQueryRequest)
 	query, err := svc.ModifyQuery(ctx, req.ID, req.QueryPayload)
 	if err != nil {
@@ -293,7 +293,7 @@ type deleteQueryResponse struct {
 
 func (r deleteQueryResponse) error() error { return r.Err }
 
-func deleteQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func deleteQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*deleteQueryRequest)
 	err := svc.DeleteQuery(ctx, req.Name)
 	if err != nil {
@@ -348,7 +348,7 @@ type deleteQueryByIDResponse struct {
 
 func (r deleteQueryByIDResponse) error() error { return r.Err }
 
-func deleteQueryByIDEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func deleteQueryByIDEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*deleteQueryByIDRequest)
 	err := svc.DeleteQueryByID(ctx, req.ID)
 	if err != nil {
@@ -404,7 +404,7 @@ type deleteQueriesResponse struct {
 
 func (r deleteQueriesResponse) error() error { return r.Err }
 
-func deleteQueriesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func deleteQueriesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*deleteQueriesRequest)
 	deleted, err := svc.DeleteQueries(ctx, req.IDs)
 	if err != nil {
@@ -462,7 +462,7 @@ type applyQuerySpecsResponse struct {
 
 func (r applyQuerySpecsResponse) error() error { return r.Err }
 
-func applyQuerySpecsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func applyQuerySpecsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*applyQuerySpecsRequest)
 	err := svc.ApplyQuerySpecs(ctx, req.Specs)
 	if err != nil {
@@ -541,7 +541,7 @@ type getQuerySpecsResponse struct {
 
 func (r getQuerySpecsResponse) error() error { return r.Err }
 
-func getQuerySpecsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func getQuerySpecsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	specs, err := svc.GetQuerySpecs(ctx)
 	if err != nil {
 		return getQuerySpecsResponse{Err: err}, nil
@@ -585,7 +585,7 @@ type getQuerySpecResponse struct {
 
 func (r getQuerySpecResponse) error() error { return r.Err }
 
-func getQuerySpecEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func getQuerySpecEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getGenericSpecRequest)
 	spec, err := svc.GetQuerySpec(ctx, req.Name)
 	if err != nil {

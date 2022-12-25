@@ -64,7 +64,7 @@ type getPackResponse struct {
 
 func (r getPackResponse) error() error { return r.Err }
 
-func getPackEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func getPackEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getPackRequest)
 	pack, err := svc.GetPack(ctx, req.ID)
 	if err != nil {
@@ -104,7 +104,7 @@ type createPackResponse struct {
 
 func (r createPackResponse) error() error { return r.Err }
 
-func createPackEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func createPackEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*createPackRequest)
 	pack, err := svc.NewPack(ctx, req.PackPayload)
 	if err != nil {
@@ -197,7 +197,7 @@ type modifyPackResponse struct {
 
 func (r modifyPackResponse) error() error { return r.Err }
 
-func modifyPackEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func modifyPackEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*modifyPackRequest)
 	pack, err := svc.ModifyPack(ctx, req.ID, req.PackPayload)
 	if err != nil {
@@ -292,7 +292,7 @@ type listPacksResponse struct {
 
 func (r listPacksResponse) error() error { return r.Err }
 
-func listPacksEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func listPacksEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*listPacksRequest)
 	packs, err := svc.ListPacks(ctx, fleet.PackListOptions{ListOptions: req.ListOptions, IncludeSystemPacks: false})
 	if err != nil {
@@ -332,7 +332,7 @@ type deletePackResponse struct {
 
 func (r deletePackResponse) error() error { return r.Err }
 
-func deletePackEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func deletePackEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*deletePackRequest)
 	err := svc.DeletePack(ctx, req.Name)
 	if err != nil {
@@ -385,7 +385,7 @@ type deletePackByIDResponse struct {
 
 func (r deletePackByIDResponse) error() error { return r.Err }
 
-func deletePackByIDEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func deletePackByIDEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*deletePackByIDRequest)
 	err := svc.DeletePackByID(ctx, req.ID)
 	if err != nil {
@@ -436,7 +436,7 @@ type applyPackSpecsResponse struct {
 
 func (r applyPackSpecsResponse) error() error { return r.Err }
 
-func applyPackSpecsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func applyPackSpecsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*applyPackSpecsRequest)
 	_, err := svc.ApplyPackSpecs(ctx, req.Specs)
 	if err != nil {
@@ -510,7 +510,7 @@ type getPackSpecsResponse struct {
 
 func (r getPackSpecsResponse) error() error { return r.Err }
 
-func getPackSpecsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func getPackSpecsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	specs, err := svc.GetPackSpecs(ctx)
 	if err != nil {
 		return getPackSpecsResponse{Err: err}, nil
@@ -537,7 +537,7 @@ type getPackSpecResponse struct {
 
 func (r getPackSpecResponse) error() error { return r.Err }
 
-func getPackSpecEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func getPackSpecEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getGenericSpecRequest)
 	spec, err := svc.GetPackSpec(ctx, req.Name)
 	if err != nil {

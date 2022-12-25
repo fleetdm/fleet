@@ -33,7 +33,7 @@ type runLiveQueryResponse struct {
 
 func (r runLiveQueryResponse) error() error { return r.Err }
 
-func runLiveQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func runLiveQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*runLiveQueryRequest)
 
 	// The period used here should always be less than the request timeout for any load
