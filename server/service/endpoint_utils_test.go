@@ -3,7 +3,6 @@ package service
 import (
 	"bytes"
 	"context"
-	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -254,7 +253,7 @@ func TestUniversalDecoderQueryAndListPlayNice(t *testing.T) {
 
 type stringErrorer string
 
-func (s stringErrorer) error() error { return errors.New(string(s)) }
+func (s stringErrorer) error() error { return nil }
 
 func TestEndpointer(t *testing.T) {
 	r := mux.NewRouter()
