@@ -338,7 +338,9 @@ type CleanupHostOperatingSystemsFunc func(ctx context.Context) error
 
 type NewActivityFunc func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error
 
-type ListActivitiesFunc func(ctx context.Context, opt fleet.ListOptions) ([]*fleet.Activity, error)
+type ListActivitiesFunc func(ctx context.Context, opt fleet.ListActivitiesOptions) ([]*fleet.Activity, error)
+
+type MarkActivitiesAsStreamedFunc func(ctx context.Context, activityIDs []uint) error
 
 type ShouldSendStatisticsFunc func(ctx context.Context, frequency time.Duration, config config.FleetConfig) (fleet.StatisticsPayload, bool, error)
 
@@ -1007,6 +1009,9 @@ type DataStore struct {
 
 	ListActivitiesFunc        ListActivitiesFunc
 	ListActivitiesFuncInvoked bool
+
+	MarkActivitiesAsStreamedFunc        MarkActivitiesAsStreamedFunc
+	MarkActivitiesAsStreamedFuncInvoked bool
 
 	ShouldSendStatisticsFunc        ShouldSendStatisticsFunc
 	ShouldSendStatisticsFuncInvoked bool
@@ -2086,9 +2091,14 @@ func (s *DataStore) NewActivity(ctx context.Context, user *fleet.User, activity 
 	return s.NewActivityFunc(ctx, user, activity)
 }
 
-func (s *DataStore) ListActivities(ctx context.Context, opt fleet.ListOptions) ([]*fleet.Activity, error) {
+func (s *DataStore) ListActivities(ctx context.Context, opt fleet.ListActivitiesOptions) ([]*fleet.Activity, error) {
 	s.ListActivitiesFuncInvoked = true
 	return s.ListActivitiesFunc(ctx, opt)
+}
+
+func (s *DataStore) MarkActivitiesAsStreamed(ctx context.Context, activityIDs []uint) error {
+	s.MarkActivitiesAsStreamedFuncInvoked = true
+	return s.MarkActivitiesAsStreamedFunc(ctx, activityIDs)
 }
 
 func (s *DataStore) ShouldSendStatistics(ctx context.Context, frequency time.Duration, config config.FleetConfig) (fleet.StatisticsPayload, bool, error) {

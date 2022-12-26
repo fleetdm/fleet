@@ -78,7 +78,7 @@ func (svc Service) NewGlobalPolicy(ctx context.Context, p fleet.PolicyPayload) (
 			Name: policy.Name,
 		},
 	); err != nil {
-		return nil, err
+		return nil, ctxerr.Wrap(ctx, err, "create activity for global policy creation")
 	}
 	return policy, nil
 }
@@ -218,7 +218,7 @@ func (svc Service) DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uint
 				Name: policiesByID[id].Name,
 			},
 		); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "adding new activity for deleted policy")
+			return nil, ctxerr.Wrap(ctx, err, "create activity for policy deletion")
 		}
 	}
 	return ids, nil
@@ -480,11 +480,14 @@ func (svc *Service) ApplyPolicySpecs(ctx context.Context, policies []*fleet.Poli
 	}
 	// Note: Issue #4191 proposes that we move to SQL transactions for actions so that we can
 	// rollback an action in the event of an error writing the associated activity
-	return svc.ds.NewActivity(
+	if err := svc.ds.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
 		fleet.ActivityTypeAppliedSpecPolicy{
 			Policies: policies,
 		},
-	)
+	); err != nil {
+		return ctxerr.Wrap(ctx, err, "create activity for policy spec")
+	}
+	return nil
 }

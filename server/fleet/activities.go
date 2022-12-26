@@ -435,6 +435,7 @@ type Activity struct {
 	ActorEmail    *string          `json:"actor_email" db:"email"`
 	Type          string           `json:"type" db:"activity_type"`
 	Details       *json.RawMessage `json:"details" db:"details"`
+	Streamed      *bool            `json:"-" db:"streamed"`
 }
 
 type ActivityTypeUserLoggedIn struct {

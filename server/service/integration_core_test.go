@@ -2048,7 +2048,7 @@ func (s *integrationTestSuite) TestListActivities() {
 	ctx := context.Background()
 	u := s.users["admin1@example.com"]
 
-	prevActivities, err := s.ds.ListActivities(ctx, fleet.ListOptions{})
+	prevActivities, err := s.ds.ListActivities(ctx, fleet.ListActivitiesOptions{})
 	require.NoError(t, err)
 
 	err = s.ds.NewActivity(ctx, &u, fleet.ActivityTypeAppliedSpecPack{})
