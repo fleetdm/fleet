@@ -244,11 +244,6 @@ func checkMDMHostRelatedTables(t *testing.T, ds *Datastore, hostID uint) {
 	require.NoError(t, err)
 	require.True(t, ok)
 
-	ok = false
-	err = sqlx.GetContext(context.Background(), ds.reader, &ok, `SELECT 1 FROM host_seen_times WHERE host_id = ?`, hostID)
-	require.NoError(t, err)
-	require.True(t, ok)
-
 	var labelsOK []bool
 	err = sqlx.SelectContext(context.Background(), ds.reader, &labelsOK, `SELECT 1 FROM label_membership WHERE host_id = ?`, hostID)
 	require.NoError(t, err)
