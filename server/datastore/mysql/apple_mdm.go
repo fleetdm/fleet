@@ -9,6 +9,8 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/go-kit/kit/log"
+	"github.com/go-kit/kit/log/level"
 	"github.com/jmoiron/sqlx"
 	"github.com/micromdm/nanodep/godep"
 )
@@ -238,7 +240,7 @@ WHERE
 
 func (ds *Datastore) IngestMDMAppleDeviceFromCheckin(ctx context.Context, mdmHost fleet.MDMAppleHostDetails) error {
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		return ingestMDMAppleDeviceFromCheckinDB(ctx, tx, mdmHost)
+		return ingestMDMAppleDeviceFromCheckinDB(ctx, tx, mdmHost, ds.logger)
 	})
 }
 
@@ -246,6 +248,7 @@ func ingestMDMAppleDeviceFromCheckinDB(
 	ctx context.Context,
 	tx sqlx.ExtContext,
 	mdmHost fleet.MDMAppleHostDetails,
+	logger log.Logger,
 ) error {
 	if mdmHost.SerialNumber == "" {
 		return ctxerr.New(ctx, "ingest mdm apple host from checkin expected device serial number but got empty string")
@@ -260,7 +263,7 @@ func ingestMDMAppleDeviceFromCheckinDB(
 	err := sqlx.GetContext(ctx, tx, &foundHost, stmt, mdmHost.UDID, mdmHost.SerialNumber)
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
-		return insertMDMAppleHostDB(ctx, tx, mdmHost)
+		return insertMDMAppleHostDB(ctx, tx, mdmHost, logger)
 
 	case err != nil:
 		return ctxerr.Wrap(ctx, err, "get mdm apple host by serial number or udid")
@@ -305,7 +308,7 @@ func updateMDMAppleHostDB(ctx context.Context, tx sqlx.ExtContext, hostID uint, 
 	return nil
 }
 
-func insertMDMAppleHostDB(ctx context.Context, tx sqlx.ExtContext, mdmHost fleet.MDMAppleHostDetails) error {
+func insertMDMAppleHostDB(ctx context.Context, tx sqlx.ExtContext, mdmHost fleet.MDMAppleHostDetails, logger log.Logger) error {
 	insertStmt := `
 		INSERT INTO hosts (
 			hardware_serial,
@@ -346,7 +349,7 @@ func insertMDMAppleHostDB(ctx context.Context, tx sqlx.ExtContext, mdmHost fleet
 		return ctxerr.Wrap(ctx, err, "ingest mdm apple host upsert related tables")
 	}
 
-	if err := upsertMDMAppleHostLabelMembershipDB(ctx, tx, uint(id)); err != nil {
+	if err := upsertMDMAppleHostLabelMembershipDB(ctx, tx, logger, uint(id)); err != nil {
 		return ctxerr.Wrap(ctx, err, "ingest mdm apple host upsert related tables")
 	}
 
@@ -416,7 +419,7 @@ func (ds *Datastore) IngestMDMAppleDevicesFromDEPSync(ctx context.Context, devic
 			return ctxerr.Wrap(ctx, err, "ingest mdm apple host upsert related tables")
 		}
 
-		if err := upsertMDMAppleHostLabelMembershipDB(ctx, tx, hostIDs...); err != nil {
+		if err := upsertMDMAppleHostLabelMembershipDB(ctx, tx, ds.logger, hostIDs...); err != nil {
 			return ctxerr.Wrap(ctx, err, "ingest mdm apple host upsert related tables")
 		}
 
@@ -445,20 +448,22 @@ func upsertMDMAppleHostDisplayNamesDB(ctx context.Context, tx sqlx.ExtContext, h
 	return nil
 }
 
-func upsertMDMAppleHostLabelMembershipDB(ctx context.Context, tx sqlx.ExtContext, hostIDs ...uint) error {
-	// Builtin label memberships are usually inserted when the first distributed query results are
-	// received; however, we want to insert pending MDM hosts now because it may still be some time
-	// before osquery is running on these devices. Because these are Apple devices, we're adding
-	// them to the "All Hosts" and "macOS" labels.
+func upsertMDMAppleHostLabelMembershipDB(ctx context.Context, tx sqlx.ExtContext, logger log.Logger, hostIDs ...uint) error {
+	// Builtin label memberships are usually inserted when the first distributed
+	// query results are received; however, we want to insert pending MDM hosts
+	// now because it may still be some time before osquery is running on these
+	// devices. Because these are Apple devices, we're adding them to the "All
+	// Hosts" and "macOS" labels.
 	labelIDs := []uint{}
 	err := sqlx.SelectContext(ctx, tx, &labelIDs, `SELECT id FROM labels WHERE label_type = 1 AND (name = 'All Hosts' OR name = 'macOS')`)
 	switch {
 	case err != nil:
 		return ctxerr.Wrap(ctx, err, "get builtin labels")
 	case len(labelIDs) != 2:
-		// Builtin labels can get deleted so it is important that we check that they still exist
-		// before we continue.
-		return ctxerr.New(ctx, fmt.Sprintf("expected 2 builtin labels but got %d", len(labelIDs)))
+		// Builtin labels can get deleted so it is important that we check that
+		// they still exist before we continue.
+		level.Error(logger).Log("err", fmt.Sprintf("expected 2 builtin labels but got %d", len(labelIDs)))
+		return nil
 	default:
 		// continue
 	}
