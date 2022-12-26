@@ -9,6 +9,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/health"
+	"github.com/micromdm/nanodep/godep"
 )
 
 type CarveStore interface {
@@ -200,10 +201,12 @@ type Datastore interface {
 	EnrolledHostIDs(ctx context.Context) ([]uint, error)
 	CountEnrolledHosts(ctx context.Context) (int, error)
 
+	// TODO(sarah): Reconcile pending mdm hosts feature with original motivation to cleanup "dead incoming host"
+
 	// CleanupIncomingHosts deletes hosts that have enrolled but never updated their status details. This clears dead
 	// "incoming hosts" that never complete their registration.
-	// A host is considered incoming if both the hostname and osquery_version fields are empty. This means that multiple
-	// different osquery queries failed to populate details.
+	// A host is considered incoming if each of the hostname and osquery_version and hardware_serial
+	// fields are empty. This means that multiple different osquery queries failed to populate details.
 	CleanupIncomingHosts(ctx context.Context, now time.Time) ([]uint, error)
 	// GenerateHostStatusStatistics retrieves the count of online, offline, MIA and new hosts.
 	GenerateHostStatusStatistics(ctx context.Context, filter TeamFilter, now time.Time, platform *string, lowDiskSpace *int) (*HostSummary, error)
@@ -716,6 +719,14 @@ type Datastore interface {
 
 	// MDMAppleListDevices lists all the MDM enrolled devices.
 	MDMAppleListDevices(ctx context.Context) ([]MDMAppleDevice, error)
+
+	// IngestMDMAppleDevicesFromDEPSync creates new Fleet host records for MDM-enrolled devices that are
+	// not already enrolled in Fleet.
+	IngestMDMAppleDevicesFromDEPSync(ctx context.Context, devices []godep.Device) (int64, error)
+
+	// IngestMDMAppleDeviceFromCheckin creates a new Fleet host record for an MDM-enrolled device that is
+	// not already enrolled in Fleet.
+	IngestMDMAppleDeviceFromCheckin(ctx context.Context, mdmHost MDMAppleHostDetails) error
 
 	// IncreasePolicyAutomationIteration marks the policy to fire automation again.
 	IncreasePolicyAutomationIteration(ctx context.Context, policyID uint) error

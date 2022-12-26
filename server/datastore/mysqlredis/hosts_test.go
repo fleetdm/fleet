@@ -29,7 +29,7 @@ func TestEnforceHostLimit(t *testing.T) {
 		ds.EnrollHostFunc = func(ctx context.Context, osqueryHostId, nodeKey string, teamID *uint, cooldown time.Duration) (*fleet.Host, error) {
 			hostIDSeq++
 			return &fleet.Host{
-				ID: hostIDSeq, OsqueryHostID: osqueryHostId, NodeKey: nodeKey,
+				ID: hostIDSeq, OsqueryHostID: &osqueryHostId, NodeKey: &nodeKey,
 			}, nil
 		}
 		ds.NewHostFunc = func(ctx context.Context, host *fleet.Host) (*fleet.Host, error) {

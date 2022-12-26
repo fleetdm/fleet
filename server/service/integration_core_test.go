@@ -526,7 +526,7 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         t.Name() + "1",
+		NodeKey:         ptr.String(t.Name() + "1"),
 		UUID:            t.Name() + "1",
 		Hostname:        t.Name() + "foo.local",
 		PrimaryIP:       "192.168.1.1",
@@ -668,8 +668,8 @@ func (s *integrationTestSuite) TestGlobalPolicies() {
 			LabelUpdatedAt:  time.Now(),
 			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now().Add(-time.Duration(i) * time.Minute),
-			OsqueryHostID:   fmt.Sprintf("%s%d", t.Name(), i),
-			NodeKey:         fmt.Sprintf("%s%d", t.Name(), i),
+			OsqueryHostID:   ptr.String(fmt.Sprintf("%s%d", t.Name(), i)),
+			NodeKey:         ptr.String(fmt.Sprintf("%s%d", t.Name(), i)),
 			UUID:            fmt.Sprintf("%s%d", t.Name(), i),
 			Hostname:        fmt.Sprintf("%sfoo.local%d", t.Name(), i),
 		})
@@ -861,8 +861,8 @@ func (s *integrationTestSuite) createHosts(t *testing.T) []*fleet.Host {
 			LabelUpdatedAt:  time.Now(),
 			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now().Add(-time.Duration(i) * time.Minute),
-			OsqueryHostID:   fmt.Sprintf("%s%d", t.Name(), i),
-			NodeKey:         fmt.Sprintf("%s%d", t.Name(), i),
+			OsqueryHostID:   ptr.String(fmt.Sprintf("%s%d", t.Name(), i)),
+			NodeKey:         ptr.String(fmt.Sprintf("%s%d", t.Name(), i)),
 			UUID:            uuid.New().String(),
 			Hostname:        fmt.Sprintf("%sfoo.local%d", t.Name(), i),
 			Platform:        platforms[i],
@@ -1620,8 +1620,8 @@ func (s *integrationTestSuite) TestGlobalPoliciesProprietary() {
 			LabelUpdatedAt:  time.Now(),
 			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now().Add(-time.Duration(i) * time.Minute),
-			OsqueryHostID:   fmt.Sprintf("%s%d", t.Name(), i),
-			NodeKey:         fmt.Sprintf("%s%d", t.Name(), i),
+			OsqueryHostID:   ptr.String(fmt.Sprintf("%s%d", t.Name(), i)),
+			NodeKey:         ptr.String(fmt.Sprintf("%s%d", t.Name(), i)),
 			UUID:            fmt.Sprintf("%s%d", t.Name(), i),
 			Hostname:        fmt.Sprintf("%sfoo.local%d", t.Name(), i),
 			Platform:        "darwin",
@@ -1749,8 +1749,8 @@ func (s *integrationTestSuite) TestTeamPoliciesProprietary() {
 			LabelUpdatedAt:  time.Now(),
 			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now().Add(-time.Duration(i) * time.Minute),
-			OsqueryHostID:   fmt.Sprintf("%s%d", t.Name(), i),
-			NodeKey:         fmt.Sprintf("%s%d", t.Name(), i),
+			OsqueryHostID:   ptr.String(fmt.Sprintf("%s%d", t.Name(), i)),
+			NodeKey:         ptr.String(fmt.Sprintf("%s%d", t.Name(), i)),
 			UUID:            fmt.Sprintf("%s%d", t.Name(), i),
 			Hostname:        fmt.Sprintf("%sfoo.local%d", t.Name(), i),
 			Platform:        "darwin",
@@ -2544,12 +2544,12 @@ func (s *integrationTestSuite) TestGetMacadminsData() {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         t.Name() + "1",
+		NodeKey:         ptr.String(t.Name() + "1"),
 		UUID:            t.Name() + "1",
 		Hostname:        t.Name() + "foo.local",
 		PrimaryIP:       "192.168.1.1",
 		PrimaryMac:      "30-65-EC-6F-C4-58",
-		OsqueryHostID:   "1",
+		OsqueryHostID:   ptr.String("1"),
 		Platform:        "darwin",
 	})
 	require.NoError(t, err)
@@ -2560,12 +2560,12 @@ func (s *integrationTestSuite) TestGetMacadminsData() {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         t.Name() + "2",
+		NodeKey:         ptr.String(t.Name() + "2"),
 		UUID:            t.Name() + "2",
 		Hostname:        t.Name() + "foo.local2",
 		PrimaryIP:       "192.168.1.2",
 		PrimaryMac:      "30-65-EC-6F-C4-59",
-		OsqueryHostID:   "2",
+		OsqueryHostID:   ptr.String("2"),
 		Platform:        "darwin",
 	})
 	require.NoError(t, err)
@@ -2576,12 +2576,12 @@ func (s *integrationTestSuite) TestGetMacadminsData() {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         t.Name() + "3",
+		NodeKey:         ptr.String(t.Name() + "3"),
 		UUID:            t.Name() + "3",
 		Hostname:        t.Name() + "foo.local3",
 		PrimaryIP:       "192.168.1.3",
 		PrimaryMac:      "30-65-EC-6F-C4-5F",
-		OsqueryHostID:   "3",
+		OsqueryHostID:   ptr.String("3"),
 		Platform:        "darwin",
 	})
 	require.NoError(t, err)
@@ -2592,12 +2592,12 @@ func (s *integrationTestSuite) TestGetMacadminsData() {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         t.Name() + "4",
+		NodeKey:         ptr.String(t.Name() + "4"),
 		UUID:            t.Name() + "4",
 		Hostname:        t.Name() + "foo.local4",
 		PrimaryIP:       "192.168.1.4",
 		PrimaryMac:      "30-65-EC-6F-C4-5A",
-		OsqueryHostID:   "4",
+		OsqueryHostID:   ptr.String("4"),
 		Platform:        "darwin",
 	})
 	require.NoError(t, err)
@@ -2608,12 +2608,12 @@ func (s *integrationTestSuite) TestGetMacadminsData() {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         t.Name() + "5",
+		NodeKey:         ptr.String(t.Name() + "5"),
 		UUID:            t.Name() + "5",
 		Hostname:        t.Name() + "foo.local5",
 		PrimaryIP:       "192.168.1.5",
 		PrimaryMac:      "30-65-EC-6F-D5-5A",
-		OsqueryHostID:   "5",
+		OsqueryHostID:   ptr.String("5"),
 		Platform:        "darwin",
 	})
 	require.NoError(t, err)
@@ -4709,8 +4709,8 @@ func (s *integrationTestSuite) TestPaginateListSoftware() {
 			LabelUpdatedAt:  time.Now(),
 			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now(),
-			NodeKey:         t.Name() + strconv.Itoa(i),
-			OsqueryHostID:   t.Name() + strconv.Itoa(i),
+			NodeKey:         ptr.String(t.Name() + strconv.Itoa(i)),
+			OsqueryHostID:   ptr.String(t.Name() + strconv.Itoa(i)),
 			UUID:            t.Name() + strconv.Itoa(i),
 			Hostname:        t.Name() + "foo" + strconv.Itoa(i) + ".local",
 			PrimaryIP:       "192.168.1." + strconv.Itoa(i),
@@ -5047,7 +5047,7 @@ func (s *integrationTestSuite) TestOsqueryConfig() {
 	t := s.T()
 
 	hosts := s.createHosts(t)
-	req := getClientConfigRequest{NodeKey: hosts[0].NodeKey}
+	req := getClientConfigRequest{NodeKey: *hosts[0].NodeKey}
 	var resp getClientConfigResponse
 	s.DoJSON("POST", "/api/osquery/config", req, http.StatusOK, &resp)
 
@@ -5121,7 +5121,7 @@ func (s *integrationTestSuite) TestReenrollHostCleansPolicies() {
 	// re-enroll the host, but using a different platform
 	j, err := json.Marshal(&enrollAgentRequest{
 		EnrollSecret:   t.Name(),
-		HostIdentifier: host.OsqueryHostID,
+		HostIdentifier: *host.OsqueryHostID,
 		HostDetails:    map[string](map[string]string){"os_version": map[string]string{"platform": "windows"}},
 	})
 	require.NoError(t, err)
@@ -5155,7 +5155,7 @@ func (s *integrationTestSuite) TestCarve() {
 	// begin a carve with an invalid node key
 	var errRes map[string]interface{}
 	s.DoJSON("POST", "/api/osquery/carve/begin", carveBeginRequest{
-		NodeKey:    hosts[0].NodeKey + "zzz",
+		NodeKey:    *hosts[0].NodeKey + "zzz",
 		BlockCount: 1,
 		BlockSize:  1,
 		CarveSize:  1,
@@ -5165,7 +5165,7 @@ func (s *integrationTestSuite) TestCarve() {
 
 	// invalid carve size
 	s.DoJSON("POST", "/api/osquery/carve/begin", carveBeginRequest{
-		NodeKey:    hosts[0].NodeKey,
+		NodeKey:    *hosts[0].NodeKey,
 		BlockCount: 3,
 		BlockSize:  3,
 		CarveSize:  0,
@@ -5175,7 +5175,7 @@ func (s *integrationTestSuite) TestCarve() {
 
 	// invalid block size too big
 	s.DoJSON("POST", "/api/osquery/carve/begin", carveBeginRequest{
-		NodeKey:    hosts[0].NodeKey,
+		NodeKey:    *hosts[0].NodeKey,
 		BlockCount: 3,
 		BlockSize:  maxBlockSize + 1,
 		CarveSize:  maxCarveSize,
@@ -5185,7 +5185,7 @@ func (s *integrationTestSuite) TestCarve() {
 
 	// invalid carve size too big
 	s.DoJSON("POST", "/api/osquery/carve/begin", carveBeginRequest{
-		NodeKey:    hosts[0].NodeKey,
+		NodeKey:    *hosts[0].NodeKey,
 		BlockCount: 3,
 		BlockSize:  maxBlockSize,
 		CarveSize:  maxCarveSize + 1,
@@ -5195,7 +5195,7 @@ func (s *integrationTestSuite) TestCarve() {
 
 	// invalid carve size, does not match blocks
 	s.DoJSON("POST", "/api/osquery/carve/begin", carveBeginRequest{
-		NodeKey:    hosts[0].NodeKey,
+		NodeKey:    *hosts[0].NodeKey,
 		BlockCount: 3,
 		BlockSize:  3,
 		CarveSize:  1,
@@ -5206,7 +5206,7 @@ func (s *integrationTestSuite) TestCarve() {
 	// valid carve begin
 	var beginResp carveBeginResponse
 	s.DoJSON("POST", "/api/osquery/carve/begin", carveBeginRequest{
-		NodeKey:    hosts[0].NodeKey,
+		NodeKey:    *hosts[0].NodeKey,
 		BlockCount: 3,
 		BlockSize:  3,
 		CarveSize:  8,
@@ -5475,7 +5475,7 @@ func (s *integrationTestSuite) TestGetHostLastOpenedAt() {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         t.Name() + "1",
+		NodeKey:         ptr.String(t.Name() + "1"),
 		UUID:            t.Name() + "1",
 		Hostname:        t.Name() + "foo.local",
 		PrimaryIP:       "192.168.1.1",
@@ -5723,7 +5723,7 @@ func (s *integrationTestSuite) TestGetHostBatteries() {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         strings.ReplaceAll(t.Name(), "/", "_") + "1",
+		NodeKey:         ptr.String(strings.ReplaceAll(t.Name(), "/", "_") + "1"),
 		UUID:            t.Name() + "1",
 		Hostname:        t.Name() + "foo.local",
 		PrimaryIP:       "192.168.1.1",
@@ -5747,7 +5747,7 @@ func (s *integrationTestSuite) TestGetHostBatteries() {
 	}, *getHostResp.Host.Batteries)
 
 	// same for get host by identifier
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s", host.NodeKey), nil, http.StatusOK, &getHostResp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s", *host.NodeKey), nil, http.StatusOK, &getHostResp)
 	require.Equal(t, host.ID, getHostResp.Host.ID)
 	// only cycle count and health are returned
 	require.ElementsMatch(t, []*fleet.HostBattery{
@@ -5765,8 +5765,8 @@ func (s *integrationTestSuite) TestGetHostDiskEncryption() {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         strings.ReplaceAll(t.Name(), "/", "_") + "1",
-		OsqueryHostID:   strings.ReplaceAll(t.Name(), "/", "_") + "1",
+		NodeKey:         ptr.String(strings.ReplaceAll(t.Name(), "/", "_") + "1"),
+		OsqueryHostID:   ptr.String(strings.ReplaceAll(t.Name(), "/", "_") + "1"),
 		UUID:            t.Name() + "1",
 		Hostname:        t.Name() + "foo.local",
 		PrimaryIP:       "192.168.1.1",
@@ -5780,8 +5780,8 @@ func (s *integrationTestSuite) TestGetHostDiskEncryption() {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         strings.ReplaceAll(t.Name(), "/", "_") + "2",
-		OsqueryHostID:   strings.ReplaceAll(t.Name(), "/", "_") + "2",
+		NodeKey:         ptr.String(strings.ReplaceAll(t.Name(), "/", "_") + "2"),
+		OsqueryHostID:   ptr.String(strings.ReplaceAll(t.Name(), "/", "_") + "2"),
 		UUID:            t.Name() + "2",
 		Hostname:        t.Name() + "foo2.local",
 		PrimaryIP:       "192.168.1.2",
@@ -5795,8 +5795,8 @@ func (s *integrationTestSuite) TestGetHostDiskEncryption() {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         strings.ReplaceAll(t.Name(), "/", "_") + "3",
-		OsqueryHostID:   strings.ReplaceAll(t.Name(), "/", "_") + "3",
+		NodeKey:         ptr.String(strings.ReplaceAll(t.Name(), "/", "_") + "3"),
+		OsqueryHostID:   ptr.String(strings.ReplaceAll(t.Name(), "/", "_") + "3"),
 		UUID:            t.Name() + "3",
 		Hostname:        t.Name() + "foo3.local",
 		PrimaryIP:       "192.168.1.3",
