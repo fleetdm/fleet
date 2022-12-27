@@ -1,6 +1,6 @@
 # Fleet 4.25.0 | Extra security and MDM visibility
 
-![Fleet 4.25.0](../website/assets/images/articles/fleet-???.jpg)
+![Fleet 4.25.0](../website/assets/images/articles/fleet-4.25.0-1600x900@2x.jpg)
 
 Fleet 4.25.0 is up and running. Check out the full [changelog](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.25.0) or continue reading to get the highlights.
 
@@ -13,6 +13,8 @@ For upgrade instructions, see our [upgrade guide](https://fleetdm.com/docs/deplo
 
 ## Mark high-impact policies as critical
 **Available in Fleet Premium**
+
+![Critical policy and automatic Jira ticket](../website/assets/images/articles/critical-policy-1600x900.jpg)
 
 In a perfect world, every computer in your fleet would pass every policy. In reality, that’s unlikely. But there are certain policies that would pose greater security risks if they fail. Fleet 4.25.0 helps you mitigate the harm these failed policies might cause.
 
@@ -32,9 +34,11 @@ By making this data easier to find, we hope you’ll have the peace of mind to g
 ## View MDM status of Windows workstations
 **Available in Fleet Free and Fleet Premium**
 
+![MDM status for Mac and Windows workstations](../website/assets/images/articles/windows-mdm-1600x1060.jpg)
+
 Enrolling computers in mobile device management (MDM) is no small task, especially if your fleet has thousands of devices on different operating systems. Fleet 4.25.0 makes it easy to monitor the progress of MDM enrollment and migration.
 
-On the Fleet homepage, you’ll see a section for MDM. This now displays both Mac and Windows workstations. The Solutions tab shows how many hosts are using a particular MDM, which is determined by the MDM's server URL. The Enrollment tab shows how many hosts have been enrolled in MDM manually or automatically, as well as the number of hosts that are currently unenrolled.
+On the Fleet UI homepage, you’ll see a section for MDM. This now displays both Mac and Windows workstations. The Solutions tab shows how many hosts are using a particular MDM, which is determined by the MDM's server URL. The Enrollment tab shows how many hosts have been enrolled in MDM manually or automatically, as well as the number of hosts that are currently unenrolled.
 
 You can apply MDM solutions and enrollment as filters to view lists of individual hosts. Hovering over an MDM solution or enrollment method gives you the option to view all hosts. This takes you to the Hosts page, where you’ll find vital information about specific Mac and Windows workstations.
 
@@ -81,4 +85,4 @@ Visit our (Upgrade guide)[https://fleetdm.com/docs/deploying/upgrading-fleet] in
 <meta name="authorGitHubUsername" value="noahtalerman">
 <meta name="publishedOn" value="2022-12-28">
 <meta name="articleTitle" value="Fleet 4.25.0 | Extra security and MDM visibility">
-<meta name="articleImageUrl" value="../website/assets/images/articles/fleet-4.???.jpg">
+<meta name="articleImageUrl" value="../website/assets/images/articles/fleet-4.25.0-1600x900@2x.jpg">
