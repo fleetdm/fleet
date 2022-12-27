@@ -7,9 +7,9 @@ Fleet 4.25.0 is up and running. Check out the full [changelog](https://github.co
 For upgrade instructions, see our [upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in the Fleet docs.
 
 ## Highlights
-- Mark high-impact policies as critical
-- View login attempts and user updates
-- View MDM status of Windows workstations
+- Mark high-impact policies as critical.
+- View login attempts and user updates.
+- View MDM status of Windows workstations.
 
 ## Mark high-impact policies as critical
 **Available in Fleet Premium**
