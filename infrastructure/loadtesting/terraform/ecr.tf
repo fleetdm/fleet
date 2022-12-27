@@ -1,3 +1,7 @@
+locals {
+  loadtest_tag = "${var.git_branch != null ? var.git_branch : var.tag}"
+}
+
 resource "aws_kms_key" "main" {
   description             = "${local.prefix}-${random_pet.db_secret_postfix.id}"
   deletion_window_in_days = 10
@@ -38,7 +42,7 @@ data "docker_registry_image" "dockerhub" {
 }
 
 resource "docker_registry_image" "loadtest" {
-  name          = "${aws_ecr_repository.fleet.repository_url}:loadtest-${var.tag}-${split(":", data.docker_registry_image.dockerhub.sha256_digest)[1]}"
+  name          = "${aws_ecr_repository.fleet.repository_url}:loadtest-${local.loadtest_tag}-${split(":", data.docker_registry_image.dockerhub.sha256_digest)[1]}"
   keep_remotely = true
 
   build {
@@ -46,7 +50,7 @@ resource "docker_registry_image" "loadtest" {
     dockerfile = "loadtest.Dockerfile"
     platform   = "linux/amd64"
     build_args = {
-      TAG = var.tag
+      TAG = local.loadtest_tag
     }
     pull_parent = true
   }
