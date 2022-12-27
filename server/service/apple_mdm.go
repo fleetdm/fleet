@@ -44,7 +44,7 @@ type createMDMAppleEnrollmentProfileResponse struct {
 
 func (r createMDMAppleEnrollmentProfileResponse) error() error { return r.Err }
 
-func createMDMAppleEnrollmentProfilesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func createMDMAppleEnrollmentProfilesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*createMDMAppleEnrollmentProfileRequest)
 
 	enrollmentProfile, err := svc.NewMDMAppleEnrollmentProfile(ctx, fleet.MDMAppleEnrollmentProfilePayload{
@@ -171,7 +171,7 @@ type listMDMAppleEnrollmentProfilesResponse struct {
 
 func (r listMDMAppleEnrollmentProfilesResponse) error() error { return r.Err }
 
-func listMDMAppleEnrollmentsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func listMDMAppleEnrollmentsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	enrollmentProfiles, err := svc.ListMDMAppleEnrollmentProfiles(ctx)
 	if err != nil {
 		return listMDMAppleEnrollmentProfilesResponse{
@@ -218,7 +218,7 @@ type getMDMAppleCommandResultsResponse struct {
 
 func (r getMDMAppleCommandResultsResponse) error() error { return r.Err }
 
-func getMDMAppleCommandResultsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func getMDMAppleCommandResultsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getMDMAppleCommandResultsRequest)
 	results, err := svc.GetMDMAppleCommandResults(ctx, req.CommandUUID)
 	if err != nil {
@@ -269,7 +269,7 @@ func (uploadAppleInstallerRequest) DecodeRequest(ctx context.Context, r *http.Re
 
 func (r uploadAppleInstallerResponse) error() error { return r.Err }
 
-func uploadAppleInstallerEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func uploadAppleInstallerEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*uploadAppleInstallerRequest)
 	ff, err := req.Installer.Open()
 	if err != nil {
@@ -357,7 +357,7 @@ type getAppleInstallerDetailsResponse struct {
 
 func (r getAppleInstallerDetailsResponse) error() error { return r.Err }
 
-func getAppleInstallerEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func getAppleInstallerEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getAppleInstallerDetailsRequest)
 	installer, err := svc.GetMDMAppleInstallerByID(ctx, req.ID)
 	if err != nil {
@@ -390,7 +390,7 @@ type deleteAppleInstallerDetailsResponse struct {
 
 func (r deleteAppleInstallerDetailsResponse) error() error { return r.Err }
 
-func deleteAppleInstallerEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func deleteAppleInstallerEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*deleteAppleInstallerDetailsRequest)
 	if err := svc.DeleteMDMAppleInstaller(ctx, req.ID); err != nil {
 		return deleteAppleInstallerDetailsResponse{Err: err}, nil
@@ -418,7 +418,7 @@ type listMDMAppleDevicesResponse struct {
 
 func (r listMDMAppleDevicesResponse) error() error { return r.Err }
 
-func listMDMAppleDevicesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func listMDMAppleDevicesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	devices, err := svc.ListMDMAppleDevices(ctx)
 	if err != nil {
 		return listMDMAppleDevicesResponse{Err: err}, nil
@@ -445,7 +445,7 @@ type listMDMAppleDEPDevicesResponse struct {
 
 func (r listMDMAppleDEPDevicesResponse) error() error { return r.Err }
 
-func listMDMAppleDEPDevicesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func listMDMAppleDEPDevicesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	devices, err := svc.ListMDMAppleDEPDevices(ctx)
 	if err != nil {
 		return listMDMAppleDEPDevicesResponse{Err: err}, nil
@@ -483,7 +483,7 @@ type newMDMAppleDEPKeyPairResponse struct {
 
 func (r newMDMAppleDEPKeyPairResponse) error() error { return r.Err }
 
-func newMDMAppleDEPKeyPairEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func newMDMAppleDEPKeyPairEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	keyPair, err := svc.NewMDMAppleDEPKeyPair(ctx)
 	if err != nil {
 		return newMDMAppleDEPKeyPairResponse{
@@ -528,7 +528,7 @@ type enqueueMDMAppleCommandResponse struct {
 func (r enqueueMDMAppleCommandResponse) error() error { return r.Err }
 func (r enqueueMDMAppleCommandResponse) Status() int  { return r.status }
 
-func enqueueMDMAppleCommandEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func enqueueMDMAppleCommandEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*enqueueMDMAppleCommandRequest)
 	rawCommand, err := base64.RawStdEncoding.DecodeString(req.Command)
 	if err != nil {
@@ -698,7 +698,7 @@ func (r mdmAppleEnrollResponse) hijackRender(ctx context.Context, w http.Respons
 	}
 }
 
-func mdmAppleEnrollEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func mdmAppleEnrollEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*mdmAppleEnrollRequest)
 
 	profile, err := svc.GetMDMAppleEnrollmentProfileByToken(ctx, req.Token)
@@ -885,7 +885,7 @@ func (r mdmAppleGetInstallerResponse) hijackRender(ctx context.Context, w http.R
 	}
 }
 
-func mdmAppleGetInstallerEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func mdmAppleGetInstallerEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*mdmAppleGetInstallerRequest)
 	installer, err := svc.GetMDMAppleInstallerByToken(ctx, req.Token)
 	if err != nil {
@@ -914,7 +914,7 @@ type mdmAppleHeadInstallerRequest struct {
 	Token string `query:"token"`
 }
 
-func mdmAppleHeadInstallerEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func mdmAppleHeadInstallerEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*mdmAppleHeadInstallerRequest)
 	installer, err := svc.GetMDMAppleInstallerDetailsByToken(ctx, req.Token)
 	if err != nil {
@@ -947,7 +947,7 @@ type listMDMAppleInstallersResponse struct {
 
 func (r listMDMAppleInstallersResponse) error() error { return r.Err }
 
-func listMDMAppleInstallersEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func listMDMAppleInstallersEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	installers, err := svc.ListMDMAppleInstallers(ctx)
 	if err != nil {
 		return listMDMAppleInstallersResponse{

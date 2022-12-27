@@ -1242,8 +1242,8 @@ func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now().Add(-1 * time.Minute),
-		OsqueryHostID:   t.Name(),
-		NodeKey:         t.Name(),
+		OsqueryHostID:   ptr.String(t.Name()),
+		NodeKey:         ptr.String(t.Name()),
 		UUID:            uuid.New().String(),
 		Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
 		Platform:        "darwin",
@@ -1357,8 +1357,8 @@ func (s *integrationEnterpriseTestSuite) TestCustomTransparencyURL() {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now().Add(-1 * time.Minute),
-		OsqueryHostID:   t.Name(),
-		NodeKey:         t.Name(),
+		OsqueryHostID:   ptr.String(t.Name()),
+		NodeKey:         ptr.String(t.Name()),
 		UUID:            uuid.New().String(),
 		Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
 		Platform:        "darwin",
@@ -1517,8 +1517,8 @@ func (s *integrationEnterpriseTestSuite) TestDistributedReadWithFeatures() {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now().Add(-1 * time.Minute),
-		OsqueryHostID:   t.Name(),
-		NodeKey:         t.Name(),
+		OsqueryHostID:   ptr.String(t.Name()),
+		NodeKey:         ptr.String(t.Name()),
 		UUID:            uuid.New().String(),
 		Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
 		Platform:        "darwin",
@@ -1532,7 +1532,7 @@ func (s *integrationEnterpriseTestSuite) TestDistributedReadWithFeatures() {
 	require.NoError(t, err)
 
 	// get distributed queries for the host
-	req := getDistributedQueriesRequest{NodeKey: host.NodeKey}
+	req := getDistributedQueriesRequest{NodeKey: *host.NodeKey}
 	var dqResp getDistributedQueriesResponse
 	s.DoJSON("POST", "/api/osquery/distributed/read", req, http.StatusOK, &dqResp)
 	require.Contains(t, dqResp.Queries, "fleet_detail_query_users")
@@ -1545,7 +1545,7 @@ func (s *integrationEnterpriseTestSuite) TestDistributedReadWithFeatures() {
 
 	err = s.ds.UpdateHostRefetchRequested(context.Background(), host.ID, true)
 	require.NoError(t, err)
-	req = getDistributedQueriesRequest{NodeKey: host.NodeKey}
+	req = getDistributedQueriesRequest{NodeKey: *host.NodeKey}
 	dqResp = getDistributedQueriesResponse{}
 	s.DoJSON("POST", "/api/osquery/distributed/read", req, http.StatusOK, &dqResp)
 	require.NotContains(t, dqResp.Queries, "fleet_detail_query_users")
@@ -1562,8 +1562,8 @@ func (s *integrationEnterpriseTestSuite) TestListHosts() {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now().Add(-1 * time.Minute),
-		OsqueryHostID:   t.Name(),
-		NodeKey:         t.Name(),
+		OsqueryHostID:   ptr.String(t.Name()),
+		NodeKey:         ptr.String(t.Name()),
 		UUID:            uuid.New().String(),
 		Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
 		Platform:        "darwin",
@@ -1574,8 +1574,8 @@ func (s *integrationEnterpriseTestSuite) TestListHosts() {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now().Add(-1 * time.Minute),
-		OsqueryHostID:   t.Name() + "2",
-		NodeKey:         t.Name() + "2",
+		OsqueryHostID:   ptr.String(t.Name() + "2"),
+		NodeKey:         ptr.String(t.Name() + "2"),
 		UUID:            uuid.New().String(),
 		Hostname:        fmt.Sprintf("%sbar.local", t.Name()),
 		Platform:        "linux",
@@ -1586,8 +1586,8 @@ func (s *integrationEnterpriseTestSuite) TestListHosts() {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now().Add(-1 * time.Minute),
-		OsqueryHostID:   t.Name() + "3",
-		NodeKey:         t.Name() + "3",
+		OsqueryHostID:   ptr.String(t.Name() + "3"),
+		NodeKey:         ptr.String(t.Name() + "3"),
 		UUID:            uuid.New().String(),
 		Hostname:        fmt.Sprintf("%sbaz.local", t.Name()),
 		Platform:        "windows",

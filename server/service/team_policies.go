@@ -36,7 +36,7 @@ type teamPolicyResponse struct {
 
 func (r teamPolicyResponse) error() error { return r.Err }
 
-func teamPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func teamPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*teamPolicyRequest)
 	resp, err := svc.NewTeamPolicy(ctx, req.TeamID, fleet.PolicyPayload{
 		QueryID:     req.QueryID,
@@ -108,7 +108,7 @@ type listTeamPoliciesResponse struct {
 
 func (r listTeamPoliciesResponse) error() error { return r.Err }
 
-func listTeamPoliciesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func listTeamPoliciesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*listTeamPoliciesRequest)
 	tmPols, inheritedPols, err := svc.ListTeamPolicies(ctx, req.TeamID)
 	if err != nil {
@@ -149,7 +149,7 @@ type getTeamPolicyByIDResponse struct {
 
 func (r getTeamPolicyByIDResponse) error() error { return r.Err }
 
-func getTeamPolicyByIDEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func getTeamPolicyByIDEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getTeamPolicyByIDRequest)
 	teamPolicy, err := svc.GetTeamPolicyByIDQueries(ctx, req.TeamID, req.PolicyID)
 	if err != nil {
@@ -191,7 +191,7 @@ type deleteTeamPoliciesResponse struct {
 
 func (r deleteTeamPoliciesResponse) error() error { return r.Err }
 
-func deleteTeamPoliciesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func deleteTeamPoliciesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*deleteTeamPoliciesRequest)
 	resp, err := svc.DeleteTeamPolicies(ctx, req.TeamID, req.IDs)
 	if err != nil {
@@ -276,7 +276,7 @@ type modifyTeamPolicyResponse struct {
 
 func (r modifyTeamPolicyResponse) error() error { return r.Err }
 
-func modifyTeamPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func modifyTeamPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*modifyTeamPolicyRequest)
 	resp, err := svc.ModifyTeamPolicy(ctx, req.TeamID, req.PolicyID, req.ModifyPolicyPayload)
 	if err != nil {

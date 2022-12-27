@@ -862,6 +862,17 @@ func newAppleMDMDEPProfileAssigner(
 		depStorage,
 		depsync.WithLogger(NewNanoDEPLogger(kitlog.With(logger, "component", "nanodep-syncer"))),
 		depsync.WithCallback(func(ctx context.Context, isFetch bool, resp *godep.DeviceResponse) error {
+			n, err := ds.IngestMDMAppleDevicesFromDEPSync(ctx, resp.Devices)
+			switch {
+			case err != nil:
+				level.Error(kitlog.With(logger, "cron", name, "component", "nanodep-syncer")).Log("err", err)
+				sentry.CaptureException(err)
+			case n > 0:
+				level.Info(kitlog.With(logger, "cron", name, "component", "nanodep-syncer")).Log("msg", fmt.Sprintf("%d new mdm devices added to hosts", n))
+			default:
+				// ok
+			}
+
 			return assigner.ProcessDeviceResponse(ctx, resp)
 		}),
 	)

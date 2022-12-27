@@ -31,7 +31,7 @@ type createDistributedQueryCampaignResponse struct {
 
 func (r createDistributedQueryCampaignResponse) error() error { return r.Err }
 
-func createDistributedQueryCampaignEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func createDistributedQueryCampaignEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*createDistributedQueryCampaignRequest)
 	campaign, err := svc.NewDistributedQueryCampaign(ctx, req.QuerySQL, req.QueryID, req.Selected)
 	if err != nil {
@@ -194,7 +194,7 @@ type distributedQueryCampaignTargetsByNames struct {
 	Hosts  []string `json:"hosts"`
 }
 
-func createDistributedQueryCampaignByNamesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func createDistributedQueryCampaignByNamesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*createDistributedQueryCampaignByNamesRequest)
 	campaign, err := svc.NewDistributedQueryCampaignByNames(ctx, req.QuerySQL, req.QueryID, req.Selected.Hosts, req.Selected.Labels)
 	if err != nil {

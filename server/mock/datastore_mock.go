@@ -9,6 +9,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/micromdm/nanodep/godep"
 )
 
 var _ fleet.Datastore = (*DataStore)(nil)
@@ -510,6 +511,10 @@ type MDMAppleInstallerDetailsByTokenFunc func(ctx context.Context, token string)
 type ListMDMAppleInstallersFunc func(ctx context.Context) ([]fleet.MDMAppleInstaller, error)
 
 type MDMAppleListDevicesFunc func(ctx context.Context) ([]fleet.MDMAppleDevice, error)
+
+type IngestMDMAppleDevicesFromDEPSyncFunc func(ctx context.Context, devices []godep.Device) (int64, error)
+
+type IngestMDMAppleDeviceFromCheckinFunc func(ctx context.Context, mdmHost fleet.MDMAppleHostDetails) error
 
 type IncreasePolicyAutomationIterationFunc func(ctx context.Context, policyID uint) error
 
@@ -1262,6 +1267,12 @@ type DataStore struct {
 
 	MDMAppleListDevicesFunc        MDMAppleListDevicesFunc
 	MDMAppleListDevicesFuncInvoked bool
+
+	IngestMDMAppleDevicesFromDEPSyncFunc        IngestMDMAppleDevicesFromDEPSyncFunc
+	IngestMDMAppleDevicesFromDEPSyncFuncInvoked bool
+
+	IngestMDMAppleDeviceFromCheckinFunc        IngestMDMAppleDeviceFromCheckinFunc
+	IngestMDMAppleDeviceFromCheckinFuncInvoked bool
 
 	IncreasePolicyAutomationIterationFunc        IncreasePolicyAutomationIterationFunc
 	IncreasePolicyAutomationIterationFuncInvoked bool
@@ -2513,6 +2524,16 @@ func (s *DataStore) ListMDMAppleInstallers(ctx context.Context) ([]fleet.MDMAppl
 func (s *DataStore) MDMAppleListDevices(ctx context.Context) ([]fleet.MDMAppleDevice, error) {
 	s.MDMAppleListDevicesFuncInvoked = true
 	return s.MDMAppleListDevicesFunc(ctx)
+}
+
+func (s *DataStore) IngestMDMAppleDevicesFromDEPSync(ctx context.Context, devices []godep.Device) (int64, error) {
+	s.IngestMDMAppleDevicesFromDEPSyncFuncInvoked = true
+	return s.IngestMDMAppleDevicesFromDEPSyncFunc(ctx, devices)
+}
+
+func (s *DataStore) IngestMDMAppleDeviceFromCheckin(ctx context.Context, mdmHost fleet.MDMAppleHostDetails) error {
+	s.IngestMDMAppleDeviceFromCheckinFuncInvoked = true
+	return s.IngestMDMAppleDeviceFromCheckinFunc(ctx, mdmHost)
 }
 
 func (s *DataStore) IncreasePolicyAutomationIteration(ctx context.Context, policyID uint) error {

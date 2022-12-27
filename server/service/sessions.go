@@ -40,7 +40,7 @@ type getInfoAboutSessionResponse struct {
 
 func (r getInfoAboutSessionResponse) error() error { return r.Err }
 
-func getInfoAboutSessionEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func getInfoAboutSessionEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getInfoAboutSessionRequest)
 	session, err := svc.GetInfoAboutSession(ctx, req.ID)
 	if err != nil {
@@ -86,7 +86,7 @@ type deleteSessionResponse struct {
 
 func (r deleteSessionResponse) error() error { return r.Err }
 
-func deleteSessionEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func deleteSessionEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*deleteSessionRequest)
 	err := svc.DeleteSession(ctx, req.ID)
 	if err != nil {
@@ -126,7 +126,7 @@ type loginResponse struct {
 
 func (r loginResponse) error() error { return r.Err }
 
-func loginEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func loginEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*loginRequest)
 	req.Email = strings.ToLower(req.Email)
 
@@ -210,7 +210,7 @@ type logoutResponse struct {
 
 func (r logoutResponse) error() error { return r.Err }
 
-func logoutEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func logoutEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	err := svc.Logout(ctx)
 	if err != nil {
 		return logoutResponse{Err: err}, nil
@@ -261,7 +261,7 @@ type initiateSSOResponse struct {
 
 func (r initiateSSOResponse) error() error { return r.Err }
 
-func initiateSSOEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func initiateSSOEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*initiateSSORequest)
 	idProviderURL, err := svc.InitiateSSO(ctx, req.RelayURL)
 	if err != nil {
@@ -356,7 +356,7 @@ func (r callbackSSOResponse) error() error { return r.Err }
 func (r callbackSSOResponse) html() string { return r.content }
 
 func makeCallbackSSOEndpoint(urlPrefix string) handlerFunc {
-	return func(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	return func(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 		authResponse := request.(fleet.Auth)
 		session, err := getSSOSession(ctx, svc, authResponse)
 		var resp callbackSSOResponse
@@ -536,7 +536,7 @@ type ssoSettingsResponse struct {
 
 func (r ssoSettingsResponse) error() error { return r.Err }
 
-func settingsSSOEndpoint(ctx context.Context, _ interface{}, svc fleet.Service) (interface{}, error) {
+func settingsSSOEndpoint(ctx context.Context, _ interface{}, svc fleet.Service) (errorer, error) {
 	settings, err := svc.SSOSettings(ctx)
 	if err != nil {
 		return ssoSettingsResponse{Err: err}, nil
@@ -674,7 +674,7 @@ func (r demologinResponse) error() error { return r.Err }
 func (r demologinResponse) html() string { return r.content }
 
 func makeDemologinEndpoint(urlPrefix string) handlerFunc {
-	return func(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	return func(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 		req := request.(demologinRequest)
 
 		if !svc.SandboxEnabled() {
