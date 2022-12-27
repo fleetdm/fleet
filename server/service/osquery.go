@@ -95,7 +95,7 @@ type enrollAgentResponse struct {
 
 func (r enrollAgentResponse) error() error { return r.Err }
 
-func enrollAgentEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func enrollAgentEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*enrollAgentRequest)
 	nodeKey, err := svc.EnrollAgent(ctx, req.EnrollSecret, req.HostIdentifier, req.HostDetails)
 	if err != nil {
@@ -311,15 +311,23 @@ type getClientConfigResponse struct {
 
 func (r getClientConfigResponse) error() error { return r.Err }
 
-func getClientConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+// MarshalJSON implements json.Marshaler.
+//
+// Osquery expects the response for configs to be at the
+// top-level of the JSON response.
+func (r getClientConfigResponse) MarshalJSON() ([]byte, error) {
+	return json.Marshal(r.Config)
+}
+
+func getClientConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	config, err := svc.GetClientConfig(ctx)
 	if err != nil {
 		return getClientConfigResponse{Err: err}, nil
 	}
 
-	// We return the config here explicitly because osquery exepects the
-	// response for configs to be at the top-level of the JSON response
-	return config, nil
+	return getClientConfigResponse{
+		Config: config,
+	}, nil
 }
 
 func (svc *Service) GetClientConfig(ctx context.Context) (map[string]interface{}, error) {
@@ -495,7 +503,7 @@ type getDistributedQueriesResponse struct {
 
 func (r getDistributedQueriesResponse) error() error { return r.Err }
 
-func getDistributedQueriesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func getDistributedQueriesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	queries, discovery, accelerate, err := svc.GetDistributedQueries(ctx)
 	if err != nil {
 		return getDistributedQueriesResponse{Err: err}, nil
@@ -747,7 +755,7 @@ type submitDistributedQueryResultsResponse struct {
 
 func (r submitDistributedQueryResultsResponse) error() error { return r.Err }
 
-func submitDistributedQueryResultsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func submitDistributedQueryResultsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	shim := request.(*submitDistributedQueryResultsRequestShim)
 	req, err := shim.toRequest(ctx)
 	if err != nil {
@@ -1202,7 +1210,7 @@ type submitLogsResponse struct {
 
 func (r submitLogsResponse) error() error { return r.Err }
 
-func submitLogsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func submitLogsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*submitLogsRequest)
 
 	var err error

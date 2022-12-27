@@ -34,7 +34,7 @@ type globalPolicyResponse struct {
 
 func (r globalPolicyResponse) error() error { return r.Err }
 
-func globalPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func globalPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*globalPolicyRequest)
 	resp, err := svc.NewGlobalPolicy(ctx, fleet.PolicyPayload{
 		QueryID:     req.QueryID,
@@ -94,7 +94,7 @@ type listGlobalPoliciesResponse struct {
 
 func (r listGlobalPoliciesResponse) error() error { return r.Err }
 
-func listGlobalPoliciesEndpoint(ctx context.Context, _ interface{}, svc fleet.Service) (interface{}, error) {
+func listGlobalPoliciesEndpoint(ctx context.Context, _ interface{}, svc fleet.Service) (errorer, error) {
 	resp, err := svc.ListGlobalPolicies(ctx)
 	if err != nil {
 		return listGlobalPoliciesResponse{Err: err}, nil
@@ -125,7 +125,7 @@ type getPolicyByIDResponse struct {
 
 func (r getPolicyByIDResponse) error() error { return r.Err }
 
-func getPolicyByIDEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func getPolicyByIDEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getPolicyByIDRequest)
 	policy, err := svc.GetPolicyByIDQueries(ctx, req.PolicyID)
 	if err != nil {
@@ -162,7 +162,7 @@ type deleteGlobalPoliciesResponse struct {
 
 func (r deleteGlobalPoliciesResponse) error() error { return r.Err }
 
-func deleteGlobalPoliciesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func deleteGlobalPoliciesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*deleteGlobalPoliciesRequest)
 	resp, err := svc.DeleteGlobalPolicies(ctx, req.IDs)
 	if err != nil {
@@ -268,7 +268,7 @@ type modifyGlobalPolicyResponse struct {
 
 func (r modifyGlobalPolicyResponse) error() error { return r.Err }
 
-func modifyGlobalPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func modifyGlobalPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*modifyGlobalPolicyRequest)
 	resp, err := svc.ModifyGlobalPolicy(ctx, req.PolicyID, req.ModifyPolicyPayload)
 	if err != nil {
@@ -296,7 +296,7 @@ type resetAutomationResponse struct {
 
 func (r resetAutomationResponse) error() error { return r.Err }
 
-func resetAutomationEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func resetAutomationEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*resetAutomationRequest)
 	err := svc.ResetAutomation(ctx, req.TeamIDs, req.PolicyIDs)
 	return resetAutomationResponse{Err: err}, nil
@@ -427,7 +427,7 @@ type applyPolicySpecsResponse struct {
 
 func (r applyPolicySpecsResponse) error() error { return r.Err }
 
-func applyPolicySpecsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func applyPolicySpecsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*applyPolicySpecsRequest)
 	err := svc.ApplyPolicySpecs(ctx, req.Specs)
 	if err != nil {

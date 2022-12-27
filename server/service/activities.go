@@ -21,7 +21,7 @@ type listActivitiesResponse struct {
 
 func (r listActivitiesResponse) error() error { return r.Err }
 
-func listActivitiesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func listActivitiesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*listActivitiesRequest)
 	activities, err := svc.ListActivities(ctx, fleet.ListActivitiesOptions{
 		ListOptions: req.ListOptions,
