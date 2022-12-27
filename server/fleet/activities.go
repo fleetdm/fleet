@@ -41,6 +41,9 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityTypeDeletedUserGlobalRole{},
 	ActivityTypeChangedUserTeamRole{},
 	ActivityTypeDeletedUserTeamRole{},
+
+	ActivityTypeMDMEnrolled{},
+	ActivityTypeMDMUnenrolled{},
 }
 
 type ActivityDetails interface {
@@ -429,7 +432,7 @@ func (a ActivityTypeUserAddedBySSO) Documentation() (activity string, details st
 type Activity struct {
 	CreateTimestamp
 	ID            uint             `json:"id" db:"id"`
-	ActorFullName string           `json:"actor_full_name" db:"name"`
+	ActorFullName *string          `json:"actor_full_name" db:"name"`
 	ActorID       *uint            `json:"actor_id" db:"user_id"`
 	ActorGravatar *string          `json:"actor_gravatar" db:"gravatar_url"`
 	ActorEmail    *string          `json:"actor_email" db:"email"`
@@ -607,6 +610,40 @@ func (a ActivityTypeDeletedUserTeamRole) Documentation() (activity string, detai
 	"role": "Observer",
 	"team_id": 2,
 	"team_name": "Zoo"
+}`
+}
+
+type ActivityTypeMDMEnrolled struct {
+	HostSerial       string `json:"host_serial"`
+	InstalledFromDEP bool   `json:"installed_from_dep"`
+}
+
+func (a ActivityTypeMDMEnrolled) ActivityName() string {
+	return "mdm_enrolled"
+}
+
+func (a ActivityTypeMDMEnrolled) Documentation() (activity string, details string, detailsExample string) {
+	return `Generated when a host is enrolled in Fleet's MDM.`,
+		`This activity contains the following fields:
+- "host_id": Unique ID of the host in Fleet.`, `{
+  "host_id": 1
+}`
+}
+
+type ActivityTypeMDMUnenrolled struct {
+	HostSerial       string `json:"host_serial"`
+	InstalledFromDEP bool   `json:"installed_from_dep"`
+}
+
+func (a ActivityTypeMDMUnenrolled) ActivityName() string {
+	return "mdm_unenrolled"
+}
+
+func (a ActivityTypeMDMUnenrolled) Documentation() (activity string, details string, detailsExample string) {
+	return `Generated when a host is unenrolled from Fleet's MDM.`,
+		`This activity contains the following fields:
+- "host_id": Unique ID of the host in Fleet.`, `{
+  "host_id": 1
 }`
 }
 

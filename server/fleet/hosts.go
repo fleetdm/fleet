@@ -561,3 +561,8 @@ type EnrollHostLimiter interface {
 	CanEnrollNewHost(ctx context.Context) (ok bool, err error)
 	SyncEnrolledHostIDs(ctx context.Context) error
 }
+
+type HostMDMCheckinInfo struct {
+	HardwareSerial   string `json:"hardware_serial" db:"hardware_serial"`
+	InstalledFromDEP bool   `json:"installed_from_dep" db:"installed_from_dep"`
+}

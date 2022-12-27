@@ -840,7 +840,7 @@ func TestCronActivitiesStreaming(t *testing.T) {
 		jsonRawMessage := json.RawMessage(details)
 		return &fleet.Activity{
 			ID:            id,
-			ActorFullName: actorName,
+			ActorFullName: &actorName,
 			ActorID:       &actorID,
 			ActorGravatar: &actorGravatar,
 			ActorEmail:    &actorEmail,

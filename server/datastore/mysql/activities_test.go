@@ -75,7 +75,7 @@ func testActivityUsernameChange(t *testing.T, ds *Datastore) {
 	activities, err := ds.ListActivities(context.Background(), fleet.ListActivitiesOptions{})
 	require.NoError(t, err)
 	assert.Len(t, activities, 2)
-	assert.Equal(t, "fullname", activities[0].ActorFullName)
+	assert.Equal(t, "fullname", *activities[0].ActorFullName)
 
 	u.Name = "newname"
 	err = ds.SaveUser(context.Background(), u)
@@ -84,7 +84,7 @@ func testActivityUsernameChange(t *testing.T, ds *Datastore) {
 	activities, err = ds.ListActivities(context.Background(), fleet.ListActivitiesOptions{})
 	require.NoError(t, err)
 	assert.Len(t, activities, 2)
-	assert.Equal(t, "newname", activities[0].ActorFullName)
+	assert.Equal(t, "newname", *activities[0].ActorFullName)
 	assert.Equal(t, "http://asd.com", *activities[0].ActorGravatar)
 	assert.Equal(t, "email@asd.com", *activities[0].ActorEmail)
 
@@ -94,7 +94,7 @@ func testActivityUsernameChange(t *testing.T, ds *Datastore) {
 	activities, err = ds.ListActivities(context.Background(), fleet.ListActivitiesOptions{})
 	require.NoError(t, err)
 	assert.Len(t, activities, 2)
-	assert.Equal(t, "fullname", activities[0].ActorFullName)
+	assert.Equal(t, "fullname", *activities[0].ActorFullName)
 	assert.Nil(t, activities[0].ActorGravatar)
 }
 
@@ -125,7 +125,7 @@ func testActivityNew(t *testing.T, ds *Datastore) {
 	activities, err := ds.ListActivities(context.Background(), opt)
 	require.NoError(t, err)
 	assert.Len(t, activities, 1)
-	assert.Equal(t, "fullname", activities[0].ActorFullName)
+	assert.Equal(t, "fullname", *activities[0].ActorFullName)
 	assert.Equal(t, "test1", activities[0].Type)
 
 	opt = fleet.ListActivitiesOptions{
@@ -137,7 +137,7 @@ func testActivityNew(t *testing.T, ds *Datastore) {
 	activities, err = ds.ListActivities(context.Background(), opt)
 	require.NoError(t, err)
 	assert.Len(t, activities, 1)
-	assert.Equal(t, "fullname", activities[0].ActorFullName)
+	assert.Equal(t, "fullname", *activities[0].ActorFullName)
 	assert.Equal(t, "test2", activities[0].Type)
 
 	opt = fleet.ListActivitiesOptions{

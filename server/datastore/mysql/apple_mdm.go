@@ -239,8 +239,12 @@ WHERE
 }
 
 func (ds *Datastore) IngestMDMAppleDeviceFromCheckin(ctx context.Context, mdmHost fleet.MDMAppleHostDetails) error {
+	appCfg, err := ds.AppConfig(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "ingest mdm apple host get app config")
+	}
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		return ingestMDMAppleDeviceFromCheckinDB(ctx, tx, mdmHost, ds.logger)
+		return ingestMDMAppleDeviceFromCheckinDB(ctx, tx, mdmHost, ds.logger, appCfg)
 	})
 }
 
@@ -249,6 +253,7 @@ func ingestMDMAppleDeviceFromCheckinDB(
 	tx sqlx.ExtContext,
 	mdmHost fleet.MDMAppleHostDetails,
 	logger log.Logger,
+	appCfg *fleet.AppConfig,
 ) error {
 	if mdmHost.SerialNumber == "" {
 		return ctxerr.New(ctx, "ingest mdm apple host from checkin expected device serial number but got empty string")
@@ -263,7 +268,7 @@ func ingestMDMAppleDeviceFromCheckinDB(
 	err := sqlx.GetContext(ctx, tx, &foundHost, stmt, mdmHost.UDID, mdmHost.SerialNumber)
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
-		return insertMDMAppleHostDB(ctx, tx, mdmHost, logger)
+		return insertMDMAppleHostDB(ctx, tx, mdmHost, logger, appCfg)
 
 	case err != nil:
 		return ctxerr.Wrap(ctx, err, "get mdm apple host by serial number or udid")
@@ -308,7 +313,13 @@ func updateMDMAppleHostDB(ctx context.Context, tx sqlx.ExtContext, hostID uint, 
 	return nil
 }
 
-func insertMDMAppleHostDB(ctx context.Context, tx sqlx.ExtContext, mdmHost fleet.MDMAppleHostDetails, logger log.Logger) error {
+func insertMDMAppleHostDB(
+	ctx context.Context,
+	tx sqlx.ExtContext,
+	mdmHost fleet.MDMAppleHostDetails,
+	logger log.Logger,
+	appCfg *fleet.AppConfig,
+) error {
 	insertStmt := `
 		INSERT INTO hosts (
 			hardware_serial,
@@ -346,13 +357,16 @@ func insertMDMAppleHostDB(ctx context.Context, tx sqlx.ExtContext, mdmHost fleet
 	}
 
 	if err := upsertMDMAppleHostDisplayNamesDB(ctx, tx, uint(id)); err != nil {
-		return ctxerr.Wrap(ctx, err, "ingest mdm apple host upsert related tables")
+		return ctxerr.Wrap(ctx, err, "ingest mdm apple host upsert display names")
 	}
 
 	if err := upsertMDMAppleHostLabelMembershipDB(ctx, tx, logger, uint(id)); err != nil {
-		return ctxerr.Wrap(ctx, err, "ingest mdm apple host upsert related tables")
+		return ctxerr.Wrap(ctx, err, "ingest mdm apple host upsert label membership")
 	}
 
+	if err := upsertMDMAppleHostMDMInfoDB(ctx, tx, appCfg.ServerSettings.ServerURL, false, uint(id)); err != nil {
+		return ctxerr.Wrap(ctx, err, "ingest mdm apple host upsert MDM info")
+	}
 	return nil
 }
 
@@ -365,8 +379,13 @@ func (ds *Datastore) IngestMDMAppleDevicesFromDEPSync(ctx context.Context, devic
 		return 0, nil
 	}
 
+	appCfg, err := ds.AppConfig(ctx)
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "ingest mdm apple host get app config")
+	}
+
 	var resCount int64
-	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		us, args := unionSelectDevices(filteredDevices)
 
 		stmt := fmt.Sprintf(`
@@ -416,11 +435,15 @@ func (ds *Datastore) IngestMDMAppleDevicesFromDEPSync(ctx context.Context, devic
 		}
 
 		if err := upsertMDMAppleHostDisplayNamesDB(ctx, tx, hostIDs...); err != nil {
-			return ctxerr.Wrap(ctx, err, "ingest mdm apple host upsert related tables")
+			return ctxerr.Wrap(ctx, err, "ingest mdm apple host upsert display names")
 		}
 
 		if err := upsertMDMAppleHostLabelMembershipDB(ctx, tx, ds.logger, hostIDs...); err != nil {
-			return ctxerr.Wrap(ctx, err, "ingest mdm apple host upsert related tables")
+			return ctxerr.Wrap(ctx, err, "ingest mdm apple host upsert label membership")
+		}
+
+		if err := upsertMDMAppleHostMDMInfoDB(ctx, tx, appCfg.ServerSettings.ServerURL, true, hostIDs...); err != nil {
+			return ctxerr.Wrap(ctx, err, "ingest mdm apple host upsert MDM info")
 		}
 
 		return nil
@@ -446,6 +469,38 @@ func upsertMDMAppleHostDisplayNamesDB(ctx context.Context, tx sqlx.ExtContext, h
 	}
 
 	return nil
+}
+
+func upsertMDMAppleHostMDMInfoDB(ctx context.Context, tx sqlx.ExtContext, serverURL string, fromSync bool, hostIDs ...uint) error {
+	result, err := tx.ExecContext(ctx, `
+		INSERT INTO mobile_device_management_solutions (name, server_url) VALUES (?, ?)
+		ON DUPLICATE KEY UPDATE server_url = VALUES(server_url)`,
+		serverURL, "fleet")
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "last insert id mdm apple host")
+	}
+
+	mdmID, err := result.LastInsertId()
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "last insert id mdm apple host")
+	}
+
+	// if the device is coming from the DEP sync, we don't consider it enrolled
+	// yet.
+	enrolled := !fromSync
+
+	args := []interface{}{}
+	parts := []string{}
+	for _, id := range hostIDs {
+		args = append(args, enrolled, serverURL, fromSync, mdmID, false, id)
+		parts = append(parts, "(?, ?, ?, ?, ?, ?)")
+	}
+
+	_, err = tx.ExecContext(ctx, fmt.Sprintf(`
+		INSERT INTO host_mdm (enrolled, server_url, installed_from_dep, mdm_id, is_server, host_id) VALUES %s
+		ON DUPLICATE KEY UPDATE enrolled = VALUES(enrolled)`, strings.Join(parts, ",")), args...)
+
+	return ctxerr.Wrap(ctx, err, "upsert host mdm info")
 }
 
 func upsertMDMAppleHostLabelMembershipDB(ctx context.Context, tx sqlx.ExtContext, logger log.Logger, hostIDs ...uint) error {

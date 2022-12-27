@@ -12,7 +12,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
-	kitlog "github.com/go-kit/kit/log"
 	"github.com/jmoiron/sqlx"
 	"github.com/micromdm/nanodep/godep"
 	"github.com/stretchr/testify/require"
@@ -96,8 +95,6 @@ func TestIngestMDMAppleDeviceFromCheckin(t *testing.T) {
 
 func testIngestMDMAppleHostAlreadyExistsInFleet(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
-	ingester := fleet.NewMDMAppleHostIngester(ds, kitlog.NewNopLogger())
-
 	testSerial := "test-serial"
 	testUUID := "test-uuid"
 
@@ -117,13 +114,13 @@ func testIngestMDMAppleHostAlreadyExistsInFleet(t *testing.T, ds *Datastore) {
 	require.Equal(t, testSerial, hosts[0].HardwareSerial)
 	require.Equal(t, testUUID, hosts[0].UUID)
 
-	err = ingester.Ingest(ctx, &http.Request{
+	err = fleet.HandleMDMCheckinRequest(ctx, &http.Request{
 		Header: map[string][]string{
 			"Content-Type": {"application/x-apple-aspen-mdm-checkin"},
 		},
 		Method: http.MethodPost,
 		Body:   io.NopCloser(strings.NewReader(xmlForTest("Authenticate", testSerial, testUUID, "MacBook Pro"))),
-	})
+	}, ds)
 	require.NoError(t, err)
 	hosts = listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{}, 1)
 	require.Equal(t, testSerial, hosts[0].HardwareSerial)
@@ -132,8 +129,6 @@ func testIngestMDMAppleHostAlreadyExistsInFleet(t *testing.T, ds *Datastore) {
 
 func testIngestMDMAppleCheckinAfterDEPSync(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
-	ingester := fleet.NewMDMAppleHostIngester(ds, kitlog.NewNopLogger())
-
 	testSerial := "test-serial"
 	testUUID := "test-uuid"
 
@@ -152,13 +147,13 @@ func testIngestMDMAppleCheckinAfterDEPSync(t *testing.T, ds *Datastore) {
 	checkMDMHostRelatedTables(t, ds, hosts[0].ID)
 
 	// now simulate the initial MDM checkin by that same host
-	err = ingester.Ingest(ctx, &http.Request{
+	err = fleet.HandleMDMCheckinRequest(ctx, &http.Request{
 		Header: map[string][]string{
 			"Content-Type": {"application/x-apple-aspen-mdm-checkin"},
 		},
 		Method: http.MethodPost,
 		Body:   io.NopCloser(strings.NewReader(xmlForTest("Authenticate", testSerial, testUUID, "MacBook Pro"))),
-	})
+	}, ds)
 	require.NoError(t, err)
 	hosts = listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{}, 1)
 	require.Equal(t, testSerial, hosts[0].HardwareSerial)
@@ -168,19 +163,17 @@ func testIngestMDMAppleCheckinAfterDEPSync(t *testing.T, ds *Datastore) {
 
 func testIngestMDMAppleCheckinBeforeDEPSync(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
-	ingester := fleet.NewMDMAppleHostIngester(ds, kitlog.NewNopLogger())
-
 	testSerial := "test-serial"
 	testUUID := "test-uuid"
 
 	// ingest host on initial mdm checkin
-	err := ingester.Ingest(ctx, &http.Request{
+	err := fleet.HandleMDMCheckinRequest(ctx, &http.Request{
 		Header: map[string][]string{
 			"Content-Type": {"application/x-apple-aspen-mdm-checkin"},
 		},
 		Method: http.MethodPost,
 		Body:   io.NopCloser(strings.NewReader(xmlForTest("Authenticate", testSerial, testUUID, "MacBook Pro"))),
-	})
+	}, ds)
 	require.NoError(t, err)
 
 	hosts := listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{}, 1)
@@ -203,31 +196,29 @@ func testIngestMDMAppleCheckinBeforeDEPSync(t *testing.T, ds *Datastore) {
 
 func testIngestMDMAppleCheckinMultipleAuthenticateRequests(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
-	ingester := fleet.NewMDMAppleHostIngester(ds, kitlog.NewNopLogger())
-
 	testSerial := "test-serial"
 	testUUID := "test-uuid"
 
-	err := ingester.Ingest(ctx, &http.Request{
+	err := fleet.HandleMDMCheckinRequest(ctx, &http.Request{
 		Header: map[string][]string{
 			"Content-Type": {"application/x-apple-aspen-mdm-checkin"},
 		},
 		Method: http.MethodPost,
 		Body:   io.NopCloser(strings.NewReader(xmlForTest("Authenticate", testSerial, testUUID, "MacBook Pro"))),
-	})
+	}, ds)
 	require.NoError(t, err)
 	hosts := listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{}, 1)
 	require.Equal(t, testSerial, hosts[0].HardwareSerial)
 	require.Equal(t, testUUID, hosts[0].UUID)
 
 	// duplicate Authenticate request has no effect
-	err = ingester.Ingest(ctx, &http.Request{
+	err = fleet.HandleMDMCheckinRequest(ctx, &http.Request{
 		Header: map[string][]string{
 			"Content-Type": {"application/x-apple-aspen-mdm-checkin"},
 		},
 		Method: http.MethodPost,
 		Body:   io.NopCloser(strings.NewReader(xmlForTest("Authenticate", testSerial, testUUID, "MacBook Pro"))),
-	})
+	}, ds)
 	require.NoError(t, err)
 	hosts = listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{}, 1)
 	require.Equal(t, testSerial, hosts[0].HardwareSerial)

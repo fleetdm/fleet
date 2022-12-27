@@ -200,6 +200,8 @@ type GetHostMunkiIssuesFunc func(ctx context.Context, hostID uint) ([]*fleet.Hos
 
 type GetHostMDMFunc func(ctx context.Context, hostID uint) (*fleet.HostMDM, error)
 
+type GetHostMDMCheckinInfoFunc func(ctx context.Context, hostUUID string) (*fleet.HostMDMCheckinInfo, error)
+
 type AggregatedMunkiVersionFunc func(ctx context.Context, teamID *uint) ([]fleet.AggregatedMunkiVersion, time.Time, error)
 
 type AggregatedMunkiIssuesFunc func(ctx context.Context, teamID *uint) ([]fleet.AggregatedMunkiIssue, time.Time, error)
@@ -799,6 +801,9 @@ type DataStore struct {
 
 	GetHostMDMFunc        GetHostMDMFunc
 	GetHostMDMFuncInvoked bool
+
+	GetHostMDMCheckinInfoFunc        GetHostMDMCheckinInfoFunc
+	GetHostMDMCheckinInfoFuncInvoked bool
 
 	AggregatedMunkiVersionFunc        AggregatedMunkiVersionFunc
 	AggregatedMunkiVersionFuncInvoked bool
@@ -1744,6 +1749,11 @@ func (s *DataStore) GetHostMunkiIssues(ctx context.Context, hostID uint) ([]*fle
 func (s *DataStore) GetHostMDM(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
 	s.GetHostMDMFuncInvoked = true
 	return s.GetHostMDMFunc(ctx, hostID)
+}
+
+func (s *DataStore) GetHostMDMCheckinInfo(ctx context.Context, hostUUID string) (*fleet.HostMDMCheckinInfo, error) {
+	s.GetHostMDMCheckinInfoFuncInvoked = true
+	return s.GetHostMDMCheckinInfoFunc(ctx, hostUUID)
 }
 
 func (s *DataStore) AggregatedMunkiVersion(ctx context.Context, teamID *uint) ([]fleet.AggregatedMunkiVersion, time.Time, error) {

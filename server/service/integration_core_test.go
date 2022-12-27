@@ -190,7 +190,7 @@ func (s *integrationTestSuite) TestQueryCreationLogsActivity() {
 	for _, activity := range activities.Activities {
 		if activity.Type == "created_saved_query" {
 			found = true
-			assert.Equal(t, "Test Name admin1@example.com", activity.ActorFullName)
+			assert.Equal(t, "Test Name admin1@example.com", *activity.ActorFullName)
 			require.NotNil(t, activity.ActorGravatar)
 			assert.Equal(t, "http://iii.com", *activity.ActorGravatar)
 		}
