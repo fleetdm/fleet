@@ -206,6 +206,18 @@ resource "aws_ecs_task_definition" "backend" {
             name      = "FLEET_MDM_APPLE_DEP_TOKEN"
             valueFrom = "${aws_secretsmanager_secret.dep.arn}:token::"
           },
+          {
+            name      = "FLEET_MDM_APPLE_BM_SERVER_TOKEN_BYTES"
+            valueFrom = "${aws_secretsmanager_secret.dep.arn}:token-encrypted::"
+          },
+          {
+            name      = "FLEET_MDM_APPLE_BM_CERT_BYTES"
+            valueFrom = "${aws_secretsmanager_secret.dep.arn}:cert::"
+          },
+          {
+            name      = "FLEET_MDM_APPLE_BM_KEY_BYTES"
+            valueFrom = "${aws_secretsmanager_secret.dep.arn}:key::"
+          },
         ]
         environment = [
           {
