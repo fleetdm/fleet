@@ -120,7 +120,7 @@ resource "aws_rds_cluster_parameter_group" "example_mysql" {
 
 resource "null_resource" "rds_guardian" {
   triggers = {
-    security_group_id = module.aurora_mysql.aws_rds_cluster.this
+    rds_cluster = module.aurora_mysql.rds_cluster_endpoint
   }
 
   lifecycle {
