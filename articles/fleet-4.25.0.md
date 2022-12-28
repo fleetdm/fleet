@@ -14,7 +14,7 @@ For upgrade instructions, see our [upgrade guide](https://fleetdm.com/docs/deplo
 ## Mark high-impact policies as critical
 **Available in Fleet Premium**
 
-![Critical policy and automatic Jira ticket](../website/assets/images/articles/critical-policy-1600x900.jpg)
+![Critical policy and automatic Jira ticket](../website/assets/images/articles/fleet-4.25.0-critical-policy-800x450@2x.jpg)
 
 In a perfect world, every computer in your fleet would pass every policy. In reality, that’s unlikely. But there are certain policies that would pose greater security risks if they fail. Fleet 4.25.0 helps you mitigate the harm these failed policies might cause.
 
@@ -36,7 +36,7 @@ By making this data easier to find, we hope you’ll have the peace of mind to g
 ## View MDM status of Windows workstations
 **Available in Fleet Free and Fleet Premium**
 
-![MDM status for Mac and Windows workstations](../website/assets/images/articles/windows-mdm-1600x1060.jpg)
+![MDM status for Mac and Windows workstations](../website/assets/images/articles/fleet-4.25.0-windows-mdm-800x530@2x.jpg)
 
 Enrolling computers in mobile device management (MDM) is no small task, especially if your fleet has thousands of devices on different operating systems. Fleet 4.25.0 makes it easy to monitor the progress of MDM enrollment and migration.
 
