@@ -23,6 +23,8 @@ When you’re creating or editing a policy, you now have the ability to mark it 
 ## View login attempts and user updates
 **Available in Fleet Free and Fleet Premium**
 
+![View login attempts and user updates](../website/assets/images/articles/fleet-4.25.0-activity-feed-800x450@2x.jpg)
+
 Fleet provides easy access to valuable data about an organization's workstations and servers. But it was hard to know who has access to Fleet and who recently logged in to see this data. We fixed that in Fleet 4.25.0.
 
 Updates to Fleet accounts now appear in the activity feed. Notifications appear when a user has been created, deleted, or edited — such as changing their level of access. You’ll see the user’s email address and their role. Premium customers can see the user’s team as well. 
