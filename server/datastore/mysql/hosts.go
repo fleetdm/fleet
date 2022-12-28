@@ -2141,7 +2141,36 @@ func (ds *Datastore) getOrInsertMunkiIssues(ctx context.Context, errors, warning
 	return msgToID, nil
 }
 
-func (ds *Datastore) SetOrUpdateMDMData(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string, installedFromDep bool, name string) error {
+func (ds *Datastore) SetOrUpdateMDMData(
+	ctx context.Context,
+	hostID uint,
+	isServer, enrolled bool,
+	serverURL string,
+	installedFromDep bool,
+	name string,
+) error {
+	// MDM queries return an empty server URL when the host is not enrolled to an MDM.
+	if serverURL == "" {
+		// We use the reader even if it might miss some not replicated rows,
+		// because it will eventually catch up on subsequent ingestions and
+		// the entry will be deleted.
+		var id uint
+		switch err := sqlx.GetContext(ctx, ds.reader, &id,
+			`SELECT host_id FROM host_mdm WHERE host_id = ?`, hostID,
+		); {
+		case err == nil:
+			if _, err := ds.writer.ExecContext(ctx, `DELETE FROM host_mdm WHERE host_id = ?`, hostID); err != nil {
+				return ctxerr.Wrapf(ctx, err, "delete host_mdm row: %d", hostID)
+			}
+			return nil
+		case errors.Is(err, sql.ErrNoRows):
+			return nil
+		default:
+			return ctxerr.Wrapf(ctx, err, "getting host_mdm row: %d", hostID)
+		}
+
+	}
+
 	mdmID, err := ds.getOrInsertMDMSolution(ctx, serverURL, name)
 	if err != nil {
 		return err
@@ -2423,25 +2452,25 @@ func (ds *Datastore) AggregatedMDMSolutions(ctx context.Context, teamID *uint, p
 func (ds *Datastore) GenerateAggregatedMunkiAndMDM(ctx context.Context) error {
 	var (
 		platforms = []string{"", "darwin", "windows"}
-		ids       []uint
+		teamIDs   []uint
 	)
 
-	if err := sqlx.SelectContext(ctx, ds.reader, &ids, `SELECT id FROM teams`); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader, &teamIDs, `SELECT id FROM teams`); err != nil {
 		return ctxerr.Wrap(ctx, err, "list teams")
 	}
 
-	for _, id := range ids {
-		if err := ds.generateAggregatedMunkiVersion(ctx, &id); err != nil {
+	for _, teamID := range teamIDs {
+		if err := ds.generateAggregatedMunkiVersion(ctx, &teamID); err != nil {
 			return ctxerr.Wrap(ctx, err, "generating aggregated munki version")
 		}
-		if err := ds.generateAggregatedMunkiIssues(ctx, &id); err != nil {
+		if err := ds.generateAggregatedMunkiIssues(ctx, &teamID); err != nil {
 			return ctxerr.Wrap(ctx, err, "generating aggregated munki issues")
 		}
 		for _, platform := range platforms {
-			if err := ds.generateAggregatedMDMStatus(ctx, &id, platform); err != nil {
+			if err := ds.generateAggregatedMDMStatus(ctx, &teamID, platform); err != nil {
 				return ctxerr.Wrap(ctx, err, "generating aggregated mdm status")
 			}
-			if err := ds.generateAggregatedMDMSolutions(ctx, &id, platform); err != nil {
+			if err := ds.generateAggregatedMDMSolutions(ctx, &teamID, platform); err != nil {
 				return ctxerr.Wrap(ctx, err, "generating aggregated mdm solutions")
 			}
 		}
