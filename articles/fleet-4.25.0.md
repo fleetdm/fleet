@@ -44,7 +44,7 @@ On the Fleet UI homepage, you’ll see a section for MDM. This now displays both
 
 You can apply MDM solutions and enrollment as filters to view lists of individual hosts. Hovering over an MDM solution or enrollment method gives you the option to view all hosts. This takes you to the Hosts page, where you’ll find vital information about specific Mac and Windows workstations.
 
-##Fleet MDM
+## Fleet MDM
 **MDM features are not ready for production and are currently in development. These features are disabled by default.**
 
 Fleet is building a cross-platform MDM to give IT and security teams the visibility and openness they need. Here are the latest developments:
