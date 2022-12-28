@@ -190,7 +190,7 @@ func (s *integrationTestSuite) TestQueryCreationLogsActivity() {
 	for _, activity := range activities.Activities {
 		if activity.Type == "created_saved_query" {
 			found = true
-			assert.Equal(t, "Test Name admin1@example.com", activity.ActorFullName)
+			assert.Equal(t, "Test Name admin1@example.com", *activity.ActorFullName)
 			require.NotNil(t, activity.ActorGravatar)
 			assert.Equal(t, "http://iii.com", *activity.ActorGravatar)
 		}
@@ -2801,6 +2801,26 @@ func (s *integrationTestSuite) TestGetMacadminsData() {
 
 	agg = getAggregatedMacadminsDataResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/macadmins", nil, http.StatusNotFound, &agg, "team_id", "9999999")
+
+	// Hardcode response type because we are using a custom json marshaling so
+	// using getHostMDMResponse fails with "JSON unmarshaling is not supported for HostMDM".
+	type jsonMDM struct {
+		EnrollmentStatus string `json:"enrollment_status"`
+		ServerURL        string `json:"server_url"`
+		Name             string `json:"name,omitempty"`
+		ID               *uint  `json:"id,omitempty"`
+	}
+	type getHostMDMResponseTest struct {
+		HostMDM *jsonMDM
+		Err     error `json:"error,omitempty"`
+	}
+	ghr := getHostMDMResponseTest{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/mdm", hostNothing.ID), nil, http.StatusOK, &ghr)
+	require.Nil(t, ghr.HostMDM)
+
+	ghr = getHostMDMResponseTest{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/mdm", 999999), nil, http.StatusNotFound, &ghr)
+	require.Nil(t, ghr.HostMDM)
 }
 
 func (s *integrationTestSuite) TestLabels() {

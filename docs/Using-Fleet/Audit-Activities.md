@@ -507,6 +507,40 @@ This activity contains the following fields:
 }
 ```
 
+### Type `mdm_enrolled`
+
+Generated when a host is enrolled in Fleet's MDM.
+
+This activity contains the following fields:
+- "host_serial": Serial number of the host.
+- "installed_from_dep": Whether the host was enrolled via DEP.
+
+#### Example
+
+```json
+{
+  "host_serial": "C08VQ2AXHT96",
+  "installed_from_dep": true
+}
+```
+
+### Type `mdm_unenrolled`
+
+Generated when a host is unenrolled from Fleet's MDM.
+
+This activity contains the following fields:
+- "host_serial": Serial number of the host.
+- "installed_from_dep": Whether the host was enrolled via DEP.
+
+#### Example
+
+```json
+{
+  "host_serial": "C08VQ2AXHT96",
+  "installed_from_dep": true
+}
+```
+
 
 
 <meta name="pageOrderInSection" value="1400">

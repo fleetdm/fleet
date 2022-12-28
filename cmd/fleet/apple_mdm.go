@@ -35,12 +35,12 @@ func registerAppleMDMProtocolServices(
 	mdmStorage *mysql.NanoMDMStorage,
 	scepStorage *apple_mdm.SCEPMySQLDepot,
 	logger kitlog.Logger,
-	mdmHostIngester fleet.MDMHostIngester,
+	ds fleet.Datastore,
 ) error {
 	if err := registerSCEP(mux, scepConfig, scepCertPEM, scepKeyPEM, scepStorage, logger); err != nil {
 		return fmt.Errorf("scep: %w", err)
 	}
-	if err := registerMDM(mux, scepCertPEM, mdmStorage, logger, mdmHostIngester); err != nil {
+	if err := registerMDM(mux, scepCertPEM, mdmStorage, ds, logger); err != nil {
 		return fmt.Errorf("mdm: %w", err)
 	}
 	return nil
@@ -123,8 +123,8 @@ func registerMDM(
 	mux *http.ServeMux,
 	scepCAPEM []byte,
 	mdmStorage *mysql.NanoMDMStorage,
+	ds fleet.Datastore,
 	logger kitlog.Logger,
-	mdmHostIngester fleet.MDMHostIngester,
 ) error {
 	certVerifier, err := certverify.NewPoolVerifier(scepCAPEM, x509.ExtKeyUsageClientAuth)
 	if err != nil {
@@ -143,22 +143,23 @@ func registerMDM(
 	var mdmService nanomdm_service.CheckinAndCommandService = nanomdm.New(mdmStorage, nanomdm.WithLogger(mdmLogger))
 	mdmService = certauth.New(mdmService, mdmStorage)
 	var mdmHandler http.Handler = httpmdm.CheckinAndCommandHandler(mdmService, mdmLogger.With("handler", "checkin-command"))
-	mdmHandler = MDMHostIngesterMiddleware(mdmHandler, mdmHostIngester, logger)
+	mdmHandler = MDMCheckinMiddleware(mdmHandler, ds, logger)
 	mdmHandler = httpmdm.CertVerifyMiddleware(mdmHandler, certVerifier, mdmLogger.With("handler", "cert-verify"))
 	mdmHandler = httpmdm.CertExtractMdmSignatureMiddleware(mdmHandler, mdmLogger.With("handler", "cert-extract"))
 	mux.Handle(apple_mdm.MDMPath, mdmHandler)
 	return nil
 }
 
-// MDMHostIngesterMiddleware watches incoming requests in order to ingest new Fleet hosts from pending
-// MDM enrollments. It updates the Fleet hosts table accordingly with the UDID and serial number of
-// the device.
-func MDMHostIngesterMiddleware(next http.Handler, ingester fleet.MDMHostIngester, logger kitlog.Logger) http.HandlerFunc {
+// MDMCheckinMiddleware watches incoming requests in order to
+// take actions on the different MDM check-in lifecycle
+// events, this might include enrolling a new host during
+// Authentication or adding activities on CheckOut.
+func MDMCheckinMiddleware(next http.Handler, ds fleet.Datastore, logger kitlog.Logger) http.HandlerFunc {
 	logger = kitlog.With(logger, "component", "mdm-apple-host-ingester")
 
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
-		if err := ingester.Ingest(ctx, r); err != nil {
+		if err := fleet.HandleMDMCheckinRequest(ctx, r, ds); err != nil {
 			level.Error(logger).Log("err", "ingest checkin request", "details", err)
 			sentry.CaptureException(err)
 			ctxerr.Handle(ctx, err)

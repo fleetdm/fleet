@@ -398,6 +398,7 @@ const (
 	WellKnownMDMVMWare    = "VMware Workspace ONE"
 	WellKnownMDMIntune    = "Intune"
 	WellKnownMDMSimpleMDM = "SimpleMDM"
+	WellKnownMDMFleet     = "Fleet"
 )
 
 var mdmNameFromServerURLChecks = map[string]string{
@@ -432,6 +433,9 @@ func (h *HostMDM) EnrollmentStatus() string {
 }
 
 func (h *HostMDM) MarshalJSON() ([]byte, error) {
+	if h == nil {
+		return []byte("null"), nil
+	}
 	var jsonMDM struct {
 		EnrollmentStatus string `json:"enrollment_status"`
 		ServerURL        string `json:"server_url"`
@@ -560,4 +564,9 @@ type HostDetailOptions struct {
 type EnrollHostLimiter interface {
 	CanEnrollNewHost(ctx context.Context) (ok bool, err error)
 	SyncEnrolledHostIDs(ctx context.Context) error
+}
+
+type HostMDMCheckinInfo struct {
+	HardwareSerial   string `json:"hardware_serial" db:"hardware_serial"`
+	InstalledFromDEP bool   `json:"installed_from_dep" db:"installed_from_dep"`
 }

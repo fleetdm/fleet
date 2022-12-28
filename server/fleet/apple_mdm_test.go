@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/micromdm/nanomdm/mdm"
 	"github.com/stretchr/testify/require"
 )
 
@@ -34,7 +35,6 @@ func TestDecodeMDMAppleCheckinRequest(t *testing.T) {
 	testSerial := "test-serial"
 	testUDID := "test-udid"
 
-	// decode host details from request XML if MessageType is "Authenticate"
 	req := &http.Request{
 		Header: map[string][]string{
 			"Content-Type": {"application/x-apple-aspen-mdm-checkin"},
@@ -42,28 +42,14 @@ func TestDecodeMDMAppleCheckinRequest(t *testing.T) {
 		Method: http.MethodPost,
 		Body:   io.NopCloser(strings.NewReader(xmlForTest("Authenticate", testSerial, testUDID, "MacBook Pro"))),
 	}
-	host := &MDMAppleHostDetails{}
-	ok, err := decodeMDMAppleCheckinReq(req, host)
+	msg, err := decodeMDMAppleCheckinReq(req)
 	require.NoError(t, err)
+	require.NotNil(t, msg)
+	msgAuth, ok := msg.(*mdm.Authenticate)
 	require.True(t, ok)
-	require.Equal(t, testSerial, host.SerialNumber)
-	require.Equal(t, testUDID, host.UDID)
-	require.Equal(t, "MacBook Pro", host.Model)
-
-	// do nothing if MessageType is not "Authenticate"
-	req = &http.Request{
-		Header: map[string][]string{
-			"Content-Type": {"application/x-apple-aspen-mdm-checkin"},
-		},
-		Method: http.MethodPost,
-		Body:   io.NopCloser(strings.NewReader(xmlForTest("TokenUpdate", testSerial, testUDID, "MacBook Pro"))),
-	}
-	host = &MDMAppleHostDetails{}
-	ok, err = decodeMDMAppleCheckinReq(req, host)
-	require.NoError(t, err)
-	require.True(t, !ok)
-	require.Empty(t, host.SerialNumber)
-	require.Empty(t, host.UDID)
+	require.Equal(t, testSerial, msgAuth.SerialNumber)
+	require.Equal(t, testUDID, msgAuth.UDID)
+	require.Equal(t, "MacBook Pro", msgAuth.Model)
 }
 
 func xmlForTest(msgType string, serial string, udid string, model string) string {
