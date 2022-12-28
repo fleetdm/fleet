@@ -57,7 +57,7 @@ Fleet is building a cross-platform MDM to give IT and security teams the visibil
 - Added `fleetctl` command to generate APNs CSR and SCEP CA certificate and key pair.
 - Added `fleetctl` command to generate DEP public and private keys.
 
-Are you interested in the Fleet MDM beta? (Schedule a call)[https://calendly.com/fleetdm/demo] to save your spot.
+Are you interested in the Fleet MDM beta? [Schedule a call](https://calendly.com/fleetdm/demo) to save your spot.
 
 ## More new features, improvements, and bug fixes
 - Added ability to log all successful logins as activity and all attempts with IP in `stderr`.
@@ -80,7 +80,7 @@ schedule.
 - Fixed the alignment of the "copy" and "show" button icons in the Manage enroll secrets and Get API token modals.
 
 ## Ready to upgrade?
-Visit our (Upgrade guide)[https://fleetdm.com/docs/deploying/upgrading-fleet] in the Fleet docs for instructions on updating to Fleet 4.25.0.
+Visit our [Upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in the Fleet docs for instructions on updating to Fleet 4.25.0.
 
 <meta name="category" value="releases">
 <meta name="authorFullName" value="Noah Talerman">
