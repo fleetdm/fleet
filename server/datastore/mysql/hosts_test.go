@@ -130,7 +130,8 @@ func TestHosts(t *testing.T) {
 		{"SetOrUpdateHostDisksSpace", testHostsSetOrUpdateHostDisksSpace},
 		{"HostIDsByOSID", testHostIDsByOSID},
 		{"SetOrUpdateHostDisksEncryption", testHostsSetOrUpdateHostDisksEncryption},
-		{"TestHostOrder", testHostOrder},
+		{"HostOrder", testHostOrder},
+		{"UnenrollFromMDM", testHostsUnenrollFromMDM},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -869,6 +870,100 @@ func testHostsListQuery(t *testing.T, ds *Datastore) {
 	err = json.Unmarshal(*gotHosts[2].DeviceMapping, &dm)
 	require.NoError(t, err)
 	require.Nil(t, dm)
+}
+
+func testHostsUnenrollFromMDM(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	h, err := ds.NewHost(ctx, &fleet.Host{
+		Platform:        "darwin",
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   ptr.String("foo"),
+		NodeKey:         ptr.String("foo"),
+		UUID:            fmt.Sprintf("foo"),
+		Hostname:        "foo.local",
+	})
+	h2, err := ds.NewHost(ctx, &fleet.Host{
+		Platform:        "darwin",
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   ptr.String("foo2"),
+		NodeKey:         ptr.String("foo2"),
+		UUID:            fmt.Sprintf("foo2"),
+		Hostname:        "foo2.local",
+	})
+
+	_, err = ds.GetHostMDM(ctx, h.ID)
+	require.Error(t, err)
+	require.True(t, fleet.IsNotFound(err))
+	_, err = ds.GetHostMDM(ctx, h2.ID)
+	require.Error(t, err)
+	require.True(t, fleet.IsNotFound(err))
+
+	// Set hosts to be enrolled to an MDM.
+	const simpleMDM = "https://simplemdm.com"
+	err = ds.SetOrUpdateMDMData(ctx, h.ID, false, true, simpleMDM, true, "")
+	require.NoError(t, err)
+	err = ds.SetOrUpdateMDMData(ctx, h2.ID, false, true, simpleMDM, true, "")
+	require.NoError(t, err)
+
+	for _, hi := range []*fleet.Host{h, h2} {
+		hmdm, err := ds.GetHostMDM(ctx, hi.ID)
+		require.NoError(t, err)
+		require.Equal(t, hi.ID, hmdm.HostID)
+		require.True(t, hmdm.Enrolled)
+		require.True(t, hmdm.InstalledFromDep)
+		require.NotNil(t, hmdm.MDMID)
+		require.Equal(t, simpleMDM, hmdm.ServerURL)
+	}
+
+	err = ds.GenerateAggregatedMunkiAndMDM(ctx)
+	require.NoError(t, err)
+
+	// Check that both hosts are counted.
+	solutions, _, err := ds.AggregatedMDMSolutions(ctx, nil, "darwin")
+	require.NoError(t, err)
+	require.Len(t, solutions, 1)
+	require.Equal(t, 2, solutions[0].HostsCount)
+
+	// Host `h` unenrolls from MDM, so MDM query returns empty server_url.
+	err = ds.SetOrUpdateMDMData(ctx, h.ID, false, true, "", true, "")
+	require.NoError(t, err)
+
+	// host_mdm entry should not exist anymore.
+	_, err = ds.GetHostMDM(ctx, h.ID)
+	require.Error(t, err)
+	require.True(t, fleet.IsNotFound(err))
+
+	err = ds.GenerateAggregatedMunkiAndMDM(ctx)
+	require.NoError(t, err)
+
+	solutions, _, err = ds.AggregatedMDMSolutions(ctx, nil, "darwin")
+	require.NoError(t, err)
+	require.Len(t, solutions, 1)
+	require.Equal(t, 1, solutions[0].HostsCount)
+
+	// Host `h2` unenrolls from MDM, so MDM query returns empty server_url.
+	err = ds.SetOrUpdateMDMData(ctx, h2.ID, false, true, "", true, "")
+	require.NoError(t, err)
+
+	// host_mdm entry should not exist anymore.
+	_, err = ds.GetHostMDM(ctx, h2.ID)
+	require.Error(t, err)
+	require.True(t, fleet.IsNotFound(err))
+
+	err = ds.GenerateAggregatedMunkiAndMDM(ctx)
+	require.NoError(t, err)
+
+	// No solutions should be listed now (both hosts are unenrolled).
+	solutions, _, err = ds.AggregatedMDMSolutions(ctx, nil, "darwin")
+	require.NoError(t, err)
+	require.Len(t, solutions, 0)
 }
 
 func testHostsListMDM(t *testing.T, ds *Datastore) {
