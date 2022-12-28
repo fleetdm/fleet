@@ -21,6 +21,11 @@ func Up_20221227163855(tx *sql.Tx) error {
 		return errors.Wrap(err, "select mobile_device_management_solutions")
 	}
 
+	if len(mdmIDs) == 0 {
+		// Nothing to clean up.
+		return nil
+	}
+
 	// Cleanup mobile_device_management_solutions.
 	query, args, err := sqlx.In(
 		"DELETE FROM mobile_device_management_solutions WHERE id IN (?)",
