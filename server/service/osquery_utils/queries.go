@@ -14,6 +14,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/publicip"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/service/async"
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
@@ -383,7 +384,7 @@ func ingestKubequeryInfo(ctx context.Context, logger log.Logger, host *fleet.Hos
 // This map should not be modified at runtime.
 var extraDetailQueries = map[string]DetailQuery{
 	"mdm": {
-		Query:            `select enrolled, server_url, installed_from_dep from mdm;`,
+		Query:            `select enrolled, server_url, installed_from_dep, payload_identifier from mdm;`,
 		DirectIngestFunc: directIngestMDMMac,
 		Platforms:        []string{"darwin"},
 		Discovery:        discoveryTable("mdm"),
@@ -1114,7 +1115,15 @@ func directIngestMDMMac(ctx context.Context, logger log.Logger, host *fleet.Host
 		}
 	}
 
-	return ds.SetOrUpdateMDMData(ctx, host.ID, false, enrolled, rows[0]["server_url"], installedFromDep, "")
+	name := ""
+
+	// If the PayloadIdentifier is Fleet's MDM then use Fleet as name of the MDM solution.
+	// (For Fleet MDM we cannot use the URL because Fleet can be deployed On-Prem.)
+	if payloadIdentifier := rows[0]["payload_identifier"]; payloadIdentifier == apple_mdm.PayloadIdentifier {
+		name = fleet.WellKnownMDMFleet
+	}
+
+	return ds.SetOrUpdateMDMData(ctx, host.ID, false, enrolled, rows[0]["server_url"], installedFromDep, name)
 }
 
 func directIngestMDMWindows(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {

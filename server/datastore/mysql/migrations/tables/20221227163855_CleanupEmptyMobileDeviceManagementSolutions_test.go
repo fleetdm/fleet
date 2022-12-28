@@ -25,7 +25,8 @@ INSERT INTO mobile_device_management_solutions
 	VALUES
 		(1, 'foo', ''),
 		(2, '', ''),
-		(3, '', 'valid.example.com');`) // Fleet might fail to derive a "name" for a valid MDM
+		(3, 'valid-name', 'valid.example.com'),
+		(4, '', 'foo.example.com');`)
 	execNoErr(t, db, `
 INSERT INTO host_mdm
 	(host_id, enrolled, server_url, installed_from_dep, mdm_id, is_server)
@@ -42,7 +43,7 @@ INSERT INTO host_mdm
 	require.NoError(t, err)
 	require.Len(t, solutions, 1)
 	require.Equal(t, solutions[0].ServerURL, "valid.example.com")
-	require.Equal(t, solutions[0].Name, "")
+	require.Equal(t, solutions[0].Name, "valid-name")
 
 	var mdmHosts []fleet.HostMDM
 	err = db.Select(&mdmHosts, `SELECT host_id, mdm_id FROM host_mdm;`)

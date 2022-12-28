@@ -390,7 +390,7 @@ type HostMunkiIssue struct {
 }
 
 // List of well-known MDM solution names. Those correspond to names stored in
-// the mobile_device_management_solutions table, created via (data) migrations.
+// the mobile_device_management_solutions table.
 const (
 	UnknownMDMName        = ""
 	WellKnownMDMKandji    = "Kandji"
