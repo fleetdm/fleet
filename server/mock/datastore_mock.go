@@ -200,6 +200,8 @@ type GetHostMunkiIssuesFunc func(ctx context.Context, hostID uint) ([]*fleet.Hos
 
 type GetHostMDMFunc func(ctx context.Context, hostID uint) (*fleet.HostMDM, error)
 
+type GetHostMDMCheckinInfoFunc func(ctx context.Context, hostUUID string) (*fleet.HostMDMCheckinInfo, error)
+
 type AggregatedMunkiVersionFunc func(ctx context.Context, teamID *uint) ([]fleet.AggregatedMunkiVersion, time.Time, error)
 
 type AggregatedMunkiIssuesFunc func(ctx context.Context, teamID *uint) ([]fleet.AggregatedMunkiIssue, time.Time, error)
@@ -335,6 +337,8 @@ type ListOperatingSystemsFunc func(ctx context.Context) ([]fleet.OperatingSystem
 type UpdateHostOperatingSystemFunc func(ctx context.Context, hostID uint, hostOS fleet.OperatingSystem) error
 
 type CleanupHostOperatingSystemsFunc func(ctx context.Context) error
+
+type UpdateHostTablesOnMDMUnenrollFunc func(ctx context.Context, uuid string) error
 
 type NewActivityFunc func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error
 
@@ -800,6 +804,9 @@ type DataStore struct {
 	GetHostMDMFunc        GetHostMDMFunc
 	GetHostMDMFuncInvoked bool
 
+	GetHostMDMCheckinInfoFunc        GetHostMDMCheckinInfoFunc
+	GetHostMDMCheckinInfoFuncInvoked bool
+
 	AggregatedMunkiVersionFunc        AggregatedMunkiVersionFunc
 	AggregatedMunkiVersionFuncInvoked bool
 
@@ -1003,6 +1010,9 @@ type DataStore struct {
 
 	CleanupHostOperatingSystemsFunc        CleanupHostOperatingSystemsFunc
 	CleanupHostOperatingSystemsFuncInvoked bool
+
+	UpdateHostTablesOnMDMUnenrollFunc        UpdateHostTablesOnMDMUnenrollFunc
+	UpdateHostTablesOnMDMUnenrollFuncInvoked bool
 
 	NewActivityFunc        NewActivityFunc
 	NewActivityFuncInvoked bool
@@ -1746,6 +1756,11 @@ func (s *DataStore) GetHostMDM(ctx context.Context, hostID uint) (*fleet.HostMDM
 	return s.GetHostMDMFunc(ctx, hostID)
 }
 
+func (s *DataStore) GetHostMDMCheckinInfo(ctx context.Context, hostUUID string) (*fleet.HostMDMCheckinInfo, error) {
+	s.GetHostMDMCheckinInfoFuncInvoked = true
+	return s.GetHostMDMCheckinInfoFunc(ctx, hostUUID)
+}
+
 func (s *DataStore) AggregatedMunkiVersion(ctx context.Context, teamID *uint) ([]fleet.AggregatedMunkiVersion, time.Time, error) {
 	s.AggregatedMunkiVersionFuncInvoked = true
 	return s.AggregatedMunkiVersionFunc(ctx, teamID)
@@ -2084,6 +2099,11 @@ func (s *DataStore) UpdateHostOperatingSystem(ctx context.Context, hostID uint, 
 func (s *DataStore) CleanupHostOperatingSystems(ctx context.Context) error {
 	s.CleanupHostOperatingSystemsFuncInvoked = true
 	return s.CleanupHostOperatingSystemsFunc(ctx)
+}
+
+func (s *DataStore) UpdateHostTablesOnMDMUnenroll(ctx context.Context, uuid string) error {
+	s.UpdateHostTablesOnMDMUnenrollFuncInvoked = true
+	return s.UpdateHostTablesOnMDMUnenrollFunc(ctx, uuid)
 }
 
 func (s *DataStore) NewActivity(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
