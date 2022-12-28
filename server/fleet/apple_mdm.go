@@ -211,8 +211,9 @@ func HandleMDMCheckinRequest(ctx context.Context, r *http.Request, ds Datastore)
 			host.SerialNumber = m.SerialNumber
 			host.UDID = m.UDID
 			host.Model = m.Model
-			return ds.IngestMDMAppleDeviceFromCheckin(ctx, host)
-		case *mdm.TokenUpdate:
+			if err := ds.IngestMDMAppleDeviceFromCheckin(ctx, host); err != nil {
+				return err
+			}
 			info, err := ds.GetHostMDMCheckinInfo(ctx, m.Enrollment.UDID)
 			if err != nil {
 				return err
