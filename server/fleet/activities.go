@@ -625,8 +625,10 @@ func (a ActivityTypeMDMEnrolled) ActivityName() string {
 func (a ActivityTypeMDMEnrolled) Documentation() (activity string, details string, detailsExample string) {
 	return `Generated when a host is enrolled in Fleet's MDM.`,
 		`This activity contains the following fields:
-- "host_id": Unique ID of the host in Fleet.`, `{
-  "host_id": 1
+- "host_serial": Serial number of the host.
+- "installed_from_dep": Whether the host was enrolled via DEP.`, `{
+  "host_serial": "C08VQ2AXHT96",
+  "installed_from_dep": true
 }`
 }
 
@@ -642,8 +644,10 @@ func (a ActivityTypeMDMUnenrolled) ActivityName() string {
 func (a ActivityTypeMDMUnenrolled) Documentation() (activity string, details string, detailsExample string) {
 	return `Generated when a host is unenrolled from Fleet's MDM.`,
 		`This activity contains the following fields:
-- "host_id": Unique ID of the host in Fleet.`, `{
-  "host_id": 1
+- "host_serial": Serial number of the host.
+- "installed_from_dep": Whether the host was enrolled via DEP.`, `{
+  "host_serial": "C08VQ2AXHT96",
+  "installed_from_dep": true
 }`
 }
 

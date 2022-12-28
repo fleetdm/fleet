@@ -22,6 +22,7 @@ func TestActivity(t *testing.T) {
 		{"UsernameChange", testActivityUsernameChange},
 		{"New", testActivityNew},
 		{"ListActivitiesStreamed", testListActivitiesStreamed},
+		{"EmptyUser", testActivityEmptyUser},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -207,4 +208,14 @@ func testListActivitiesStreamed(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.Len(t, streamed, 1)
 	require.Equal(t, streamed[0], activities[0])
+}
+
+func testActivityEmptyUser(t *testing.T, ds *Datastore) {
+	require.NoError(t, ds.NewActivity(context.Background(), nil, dummyActivity{
+		name:    "test1",
+		details: map[string]interface{}{"detail": 1, "sometext": "aaa"},
+	}))
+	activities, err := ds.ListActivities(context.Background(), fleet.ListActivitiesOptions{})
+	require.NoError(t, err)
+	assert.Len(t, activities, 1)
 }

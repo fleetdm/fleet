@@ -398,6 +398,7 @@ const (
 	WellKnownMDMVMWare    = "VMware Workspace ONE"
 	WellKnownMDMIntune    = "Intune"
 	WellKnownMDMSimpleMDM = "SimpleMDM"
+	WellKnownMDMFleet     = "Fleet"
 )
 
 var mdmNameFromServerURLChecks = map[string]string{
