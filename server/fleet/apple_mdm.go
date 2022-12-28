@@ -223,6 +223,9 @@ func HandleMDMCheckinRequest(ctx context.Context, r *http.Request, ds Datastore)
 				InstalledFromDEP: info.InstalledFromDEP,
 			})
 		case *mdm.CheckOut:
+			if err := ds.UpdateHostTablesOnMDMUnenroll(ctx, m.UDID); err != nil {
+				return err
+			}
 			info, err := ds.GetHostMDMCheckinInfo(ctx, m.Enrollment.UDID)
 			if err != nil {
 				return err

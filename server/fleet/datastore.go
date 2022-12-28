@@ -438,6 +438,8 @@ type Datastore interface {
 	// upgraded from a prior version).
 	CleanupHostOperatingSystems(ctx context.Context) error
 
+	UpdateHostTablesOnMDMUnenroll(ctx context.Context, uuid string) error
+
 	///////////////////////////////////////////////////////////////////////////////
 	// ActivitiesStore
 

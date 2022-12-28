@@ -539,6 +539,16 @@ func upsertMDMAppleHostLabelMembershipDB(ctx context.Context, tx sqlx.ExtContext
 	return nil
 }
 
+func (ds *Datastore) UpdateHostTablesOnMDMUnenroll(ctx context.Context, uuid string) error {
+	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, `
+			UPDATE host_mdm
+			SET enrolled = 0
+			WHERE host_id = (SELECT id FROM hosts WHERE uuid = ?)`, uuid)
+		return err
+	})
+}
+
 func filterMDMAppleDevices(devices []godep.Device) []godep.Device {
 	var filtered []godep.Device
 	for _, device := range devices {

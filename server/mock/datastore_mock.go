@@ -338,6 +338,8 @@ type UpdateHostOperatingSystemFunc func(ctx context.Context, hostID uint, hostOS
 
 type CleanupHostOperatingSystemsFunc func(ctx context.Context) error
 
+type UpdateHostTablesOnMDMUnenrollFunc func(ctx context.Context, uuid string) error
+
 type NewActivityFunc func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error
 
 type ListActivitiesFunc func(ctx context.Context, opt fleet.ListActivitiesOptions) ([]*fleet.Activity, error)
@@ -1008,6 +1010,9 @@ type DataStore struct {
 
 	CleanupHostOperatingSystemsFunc        CleanupHostOperatingSystemsFunc
 	CleanupHostOperatingSystemsFuncInvoked bool
+
+	UpdateHostTablesOnMDMUnenrollFunc        UpdateHostTablesOnMDMUnenrollFunc
+	UpdateHostTablesOnMDMUnenrollFuncInvoked bool
 
 	NewActivityFunc        NewActivityFunc
 	NewActivityFuncInvoked bool
@@ -2094,6 +2099,11 @@ func (s *DataStore) UpdateHostOperatingSystem(ctx context.Context, hostID uint, 
 func (s *DataStore) CleanupHostOperatingSystems(ctx context.Context) error {
 	s.CleanupHostOperatingSystemsFuncInvoked = true
 	return s.CleanupHostOperatingSystemsFunc(ctx)
+}
+
+func (s *DataStore) UpdateHostTablesOnMDMUnenroll(ctx context.Context, uuid string) error {
+	s.UpdateHostTablesOnMDMUnenrollFuncInvoked = true
+	return s.UpdateHostTablesOnMDMUnenrollFunc(ctx, uuid)
 }
 
 func (s *DataStore) NewActivity(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
