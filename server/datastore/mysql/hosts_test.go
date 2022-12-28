@@ -886,6 +886,7 @@ func testHostsUnenrollFromMDM(t *testing.T, ds *Datastore) {
 		UUID:            fmt.Sprintf("foo"),
 		Hostname:        "foo.local",
 	})
+	require.Error(t, err)
 	h2, err := ds.NewHost(ctx, &fleet.Host{
 		Platform:        "darwin",
 		DetailUpdatedAt: time.Now(),
@@ -897,6 +898,7 @@ func testHostsUnenrollFromMDM(t *testing.T, ds *Datastore) {
 		UUID:            fmt.Sprintf("foo2"),
 		Hostname:        "foo2.local",
 	})
+	require.Error(t, err)
 
 	_, err = ds.GetHostMDM(ctx, h.ID)
 	require.Error(t, err)
