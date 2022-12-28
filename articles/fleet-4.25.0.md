@@ -80,7 +80,7 @@ schedule.
 - Fixed the alignment of the "copy" and "show" button icons in the Manage enroll secrets and Get API token modals.
 
 ## Ready to upgrade?
-Visit our [Upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in the Fleet docs for instructions on updating to Fleet 4.25.0.
+Visit our [upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in the Fleet docs for instructions on updating to Fleet 4.25.0.
 
 <meta name="category" value="releases">
 <meta name="authorFullName" value="Noah Talerman">
