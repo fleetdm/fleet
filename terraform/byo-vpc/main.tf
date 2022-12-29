@@ -1,7 +1,7 @@
 module "byo-db" {
   source = "./byo-db"
   vpc_id = var.vpc_config.vpc_id
-  fleet_config = {
+  fleet_config = merge(var.fleet_config, {
     database = {
       address             = module.rds.cluster_endpoint
       database            = "fleet"
@@ -14,8 +14,10 @@ module "byo-db" {
     networking = {
       subnets = var.vpc_config.networking.subnets
     }
-  }
-  alb_config = var.alb_config
+  })
+  ecs_cluster      = var.ecs_cluster
+  migration_config = var.migration_config
+  alb_config       = var.alb_config
 }
 
 resource "random_password" "rds" {

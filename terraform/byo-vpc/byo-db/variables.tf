@@ -55,22 +55,22 @@ variable "fleet_config" {
     image                       = optional(string, "fleetdm/fleet:v4.22.1")
     extra_environment_variables = optional(map(string), {})
     extra_secrets               = optional(map(string), {})
-    security_groups             = optional(list(string))
-    iam_role_arn                = optional(string)
+    security_groups             = optional(list(string), null)
+    iam_role_arn                = optional(string, null)
     database = object({
       password_secret_arn = string
       user                = string
       database            = string
       address             = string
-      rr_address          = optional(string)
+      rr_address          = optional(string, null)
     })
     redis = object({
       address = string
       use_tls = optional(bool, true)
     })
     awslogs = optional(object({
-      name      = optional(string)
-      region    = optional(string)
+      name      = optional(string, null)
+      region    = optional(string, null)
       prefix    = optional(string, "fleet")
       retention = optional(number, 5)
       }), {
@@ -79,17 +79,12 @@ variable "fleet_config" {
       prefix    = "fleet"
       retention = 5
     })
-    loadbalancer = optional(object({
+    loadbalancer = object({
       arn = string
-      }), {
-      arn = null
     })
-    networking = optional(object({
-      subnets         = optional(list(string))
-      security_groups = optional(list(string))
-      }), {
-      subnets         = null
-      security_groups = null
+    networking = object({
+      subnets         = list(string)
+      security_groups = optional(list(string), null)
     })
     autoscaling = optional(object({
       max_capacity                 = optional(number, 5)

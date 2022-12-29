@@ -27,15 +27,15 @@ module "byo-vpc" {
       subnets = module.vpc.private_subnets
     }
   }
-  rds_config = {
+  rds_config = merge(var.rds_config, {
     subnets = module.vpc.database_subnets
-  }
-  redis_config = {
+  })
+  redis_config = merge(var.redis_config, {
     subnets            = module.vpc.elasticache_subnets
     availability_zones = var.vpc.azs
-  }
-  alb_config = {
+  })
+  alb_config = merge(var.alb_config, {
     subnets         = module.vpc.public_subnets
     certificate_arn = var.certificate_arn
-  }
+  })
 }
