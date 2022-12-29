@@ -487,6 +487,12 @@ type ListQueryOptions struct {
 	OnlyObserverCanRun bool
 }
 
+type ListActivitiesOptions struct {
+	ListOptions
+
+	Streamed *bool
+}
+
 // ApplySpecOptions are the options available when applying a YAML or JSON spec.
 type ApplySpecOptions struct {
 	// Force indicates that any validation error in the incoming payload should
@@ -588,6 +594,7 @@ type Logging struct {
 	Json   bool          `json:"json"`
 	Result LoggingPlugin `json:"result"`
 	Status LoggingPlugin `json:"status"`
+	Audit  LoggingPlugin `json:"audit"`
 }
 
 type UpdateIntervalConfig struct {
@@ -629,6 +636,7 @@ type FirehoseConfig struct {
 	Region       string `json:"region"`
 	StatusStream string `json:"status_stream"`
 	ResultStream string `json:"result_stream"`
+	AuditStream  string `json:"audit_stream"`
 }
 
 // KinesisConfig shadows config.KinesisConfig only exposing a subset of fields
@@ -636,6 +644,7 @@ type KinesisConfig struct {
 	Region       string `json:"region"`
 	StatusStream string `json:"status_stream"`
 	ResultStream string `json:"result_stream"`
+	AuditStream  string `json:"audit_stream"`
 }
 
 // LambdaConfig shadows config.LambdaConfig only exposing a subset of fields
@@ -643,11 +652,13 @@ type LambdaConfig struct {
 	Region         string `json:"region"`
 	StatusFunction string `json:"status_function"`
 	ResultFunction string `json:"result_function"`
+	AuditFunction  string `json:"audit_function"`
 }
 
 // KafkaRESTConfig shadows config.KafkaRESTConfig
 type KafkaRESTConfig struct {
 	StatusTopic string `json:"status_topic"`
 	ResultTopic string `json:"result_topic"`
+	AuditTopic  string `json:"audit_topic"`
 	ProxyHost   string `json:"proxyhost"`
 }

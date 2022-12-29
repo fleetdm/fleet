@@ -23,7 +23,8 @@ type filesystemLogWriter struct {
 	writer io.WriteCloser
 }
 
-// NewFilesystemLogWriter creates a log file for osquery status/result logs.
+// NewFilesystemLogWriter creates a logger that writes to a file.
+//
 // The logFile can be rotated by sending a `SIGHUP` signal to Fleet if
 // enableRotation is true
 //
@@ -43,25 +44,25 @@ func NewFilesystemLogWriter(path string, appLogger log.Logger, enableRotation bo
 	}
 	// Use lumberjack logger that supports rotation
 	file.Close()
-	osquerydLogger := &lumberjack.Logger{
+	fsLogger := &lumberjack.Logger{
 		Filename:   path,
 		MaxSize:    500, // megabytes
 		MaxBackups: 3,
 		MaxAge:     28, // days
 		Compress:   enableCompression,
 	}
-	appLogger = log.With(appLogger, "component", "osqueryd-logger")
+	appLogger = log.With(appLogger, "component", "filesystem-logger")
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, syscall.SIGHUP)
 	go func() {
 		for {
 			<-sig // block on signal
-			if err := osquerydLogger.Rotate(); err != nil {
+			if err := fsLogger.Rotate(); err != nil {
 				appLogger.Log("err", err)
 			}
 		}
 	}()
-	return &filesystemLogWriter{osquerydLogger}, nil
+	return &filesystemLogWriter{fsLogger}, nil
 }
 
 // If writer is based on bufio we want to flush after a batch of
