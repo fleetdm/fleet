@@ -268,8 +268,7 @@ func checkWinVulnerabilities(
 
 	if !config.DisableDataSync {
 		// Sync MSRC definitions
-		client := fleethttp.NewClient()
-		err = msrc.Sync(ctx, client, vulnPath, os)
+		err = msrc.SyncFromGithub(ctx, vulnPath, os)
 		if err != nil {
 			errHandler(ctx, logger, "updating msrc definitions", err)
 		}
@@ -319,8 +318,7 @@ func checkOvalVulnerabilities(
 	}
 
 	// Sync on disk OVAL definitions with current OS Versions.
-	client := fleethttp.NewClient()
-	downloaded, err := oval.Refresh(ctx, client, versions, vulnPath)
+	downloaded, err := oval.Refresh(ctx, versions, vulnPath)
 	if err != nil {
 		errHandler(ctx, logger, "updating oval definitions", err)
 	}

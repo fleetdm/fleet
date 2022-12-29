@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/download"
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 
 	"github.com/google/go-github/v37/github"
@@ -84,7 +85,8 @@ func removeOldDefs(date time.Time, path string) (map[string]bool, error) {
 
 // Sync syncs the oval definitions for one or more platforms.
 // If 'platforms' is nil, then all supported platforms will be synched.
-func Sync(client *http.Client, dstDir string, platforms []Platform) error {
+func Sync(dstDir string, platforms []Platform) error {
+	client := fleethttp.NewClient()
 	sources, err := getOvalSources(ghNvdFileGetter(client))
 	if err != nil {
 		return err
@@ -123,7 +125,6 @@ func Sync(client *http.Client, dstDir string, platforms []Platform) error {
 // Returns a slice of Platforms of the newly downloaded OVAL files.
 func Refresh(
 	ctx context.Context,
-	client *http.Client,
 	versions *fleet.OSVersions,
 	vulnPath string,
 ) ([]Platform, error) {
@@ -136,7 +137,7 @@ func Refresh(
 
 	toDownload := whatToDownload(versions, existing, now)
 	if len(toDownload) > 0 {
-		err = Sync(client, vulnPath, toDownload)
+		err = Sync(vulnPath, toDownload)
 		if err != nil {
 			return nil, err
 		}
