@@ -384,12 +384,31 @@ func (ds *Datastore) IngestMDMAppleDevicesFromDEPSync(ctx context.Context, devic
 		return 0, ctxerr.Wrap(ctx, err, "ingest mdm apple host get app config")
 	}
 
+	args := []interface{}{nil}
+	if name := appCfg.MDM.AppleBMDefaultTeam; name != "" {
+		team, err := ds.TeamByName(ctx, name)
+		if err != nil {
+			return 0, ctxerr.Wrap(ctx, err, "ingest mdm apple host get team by name")
+		}
+		args[0] = team.ID
+	}
+
 	var resCount int64
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		us, args := unionSelectDevices(filteredDevices)
+		us, unionArgs := unionSelectDevices(filteredDevices)
+		args = append(args, unionArgs...)
 
 		stmt := fmt.Sprintf(`
-		INSERT INTO hosts (hardware_serial, hardware_model, platform, last_enrolled_at, detail_updated_at, osquery_host_id, refetch_requested) (
+		INSERT INTO hosts (
+			hardware_serial,
+			hardware_model,
+			platform,
+			last_enrolled_at,
+			detail_updated_at,
+			osquery_host_id,
+			refetch_requested,
+			team_id
+		) (
 			SELECT
 				us.hardware_serial,
 				COALESCE(GROUP_CONCAT(DISTINCT us.hardware_model), ''),
@@ -397,7 +416,8 @@ func (ds *Datastore) IngestMDMAppleDevicesFromDEPSync(ctx context.Context, devic
 				'2000-01-01 00:00:00' AS last_enrolled_at,
 				'2000-01-01 00:00:00' AS detail_updated_at,
 				NULL AS osquery_host_id,
-				1 AS refetch_requested
+				1 AS refetch_requested,
+				? AS team_id
 			FROM (%s) us
 			LEFT JOIN hosts h ON us.hardware_serial = h.hardware_serial
 		WHERE

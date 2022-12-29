@@ -71,6 +71,67 @@ func TestIngestMDMAppleDevicesFromDEPSync(t *testing.T) {
 	require.ElementsMatch(t, wantSerials, gotSerials)
 }
 
+func TestDEPSyncTeamAssignment(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	ctx := context.Background()
+	createBuiltinLabels(t, ds)
+
+	depDevices := []godep.Device{
+		{SerialNumber: "abc", Model: "MacBook Pro", OS: "OSX", OpType: "added"},
+		{SerialNumber: "def", Model: "MacBook Pro", OS: "OSX", OpType: "added"},
+	}
+
+	n, err := ds.IngestMDMAppleDevicesFromDEPSync(ctx, depDevices)
+	require.NoError(t, err)
+	require.Equal(t, int64(2), n)
+
+	hosts := listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{}, 2)
+	for _, h := range hosts {
+		require.Nil(t, h.TeamID)
+	}
+
+	// create a team
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "test team"})
+	require.NoError(t, err)
+
+	// assign the team as the default team for DEP devices
+	ac, err := ds.AppConfig(context.Background())
+	require.NoError(t, err)
+	ac.MDM.AppleBMDefaultTeam = team.Name
+	err = ds.SaveAppConfig(context.Background(), ac)
+	require.NoError(t, err)
+
+	depDevices = []godep.Device{
+		{SerialNumber: "abc", Model: "MacBook Pro", OS: "OSX", OpType: "added"},
+		{SerialNumber: "xyz", Model: "MacBook Pro", OS: "OSX", OpType: "added"},
+	}
+
+	n, err = ds.IngestMDMAppleDevicesFromDEPSync(ctx, depDevices)
+	require.NoError(t, err)
+	require.Equal(t, int64(1), n)
+
+	hosts = listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{}, 3)
+	for _, h := range hosts {
+		if h.HardwareSerial == "xyz" {
+			require.EqualValues(t, team.ID, *h.TeamID)
+		} else {
+			require.Nil(t, h.TeamID)
+		}
+	}
+
+	ac.MDM.AppleBMDefaultTeam = "non-existent"
+	err = ds.SaveAppConfig(context.Background(), ac)
+	require.NoError(t, err)
+
+	depDevices = []godep.Device{
+		{SerialNumber: "jqk", Model: "MacBook Pro", OS: "OSX", OpType: "added"},
+	}
+
+	n, err = ds.IngestMDMAppleDevicesFromDEPSync(ctx, depDevices)
+	require.Error(t, err)
+	require.Zero(t, n)
+}
+
 func TestHandleMDMCheckinRequest(t *testing.T) {
 	ds := CreateMySQLDS(t)
 
