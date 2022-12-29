@@ -17,7 +17,7 @@ const (
 	// InstallerPath is the HTTP path that serves installers to Apple devices.
 	InstallerPath = "/api/mdm/apple/installer"
 
-	// PayloadIdentifier is the value for the "<key>PayloadIdentifier</key>"
+	// FleetPayloadIdentifier is the value for the "<key>PayloadIdentifier</key>"
 	// used by Fleet MDM on the enrollment profile.
-	PayloadIdentifier = "com.fleetdm.fleet.mdm.apple"
+	FleetPayloadIdentifier = "com.fleetdm.fleet.mdm.apple"
 )

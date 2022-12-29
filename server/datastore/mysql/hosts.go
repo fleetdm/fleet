@@ -2216,9 +2216,6 @@ func (ds *Datastore) SetOrUpdateHostOrbitInfo(ctx context.Context, hostID uint, 
 }
 
 func (ds *Datastore) getOrInsertMDMSolution(ctx context.Context, serverURL string, mdmName string) (mdmID uint, err error) {
-	if mdmName == "" {
-		mdmName = fleet.MDMNameFromServerURL(serverURL)
-	}
 	readStmt := &parameterizedStmt{
 		Statement: `SELECT id FROM mobile_device_management_solutions WHERE name = ? AND server_url = ?`,
 		Args:      []interface{}{mdmName, serverURL},
