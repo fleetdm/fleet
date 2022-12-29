@@ -9,7 +9,7 @@ variable "vpc_config" {
 
 variable "rds_config" {
   type = object({
-    name                            = optional(string, "fleet-test")
+    name                            = optional(string, "fleet")
     engine_version                  = optional(string, "8.0.mysql_aurora.3.02.2")
     instance_class                  = optional(string, "db.t4g.large")
     subnets                         = optional(list(string), [])
@@ -23,7 +23,7 @@ variable "rds_config" {
     master_username                 = optional(string, "fleet")
   })
   default = {
-    name                            = "fleet-test"
+    name                            = "fleet"
     engine_version                  = "8.0.mysql_aurora.3.02.2"
     instance_class                  = "db.t4g.large"
     subnets                         = []
