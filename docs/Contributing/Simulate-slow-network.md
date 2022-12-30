@@ -42,3 +42,5 @@ Configure 1 second of latency with 500ms of jitter in all DB requests:
 curl -s -XPOST -d '{"type" : "latency", "attributes" : {"latency" : 1000, "jitter": 500}}' http://localhost:8474/proxies/mysql/toxics
 {"attributes":{"latency":5000,"jitter":0},"name":"latency_downstream","type":"latency","stream":"downstream","toxicity":1}%
 ```
+
+<meta name="pageOrderInSection" value="1400">
