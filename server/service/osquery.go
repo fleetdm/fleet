@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"regexp"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -991,8 +990,6 @@ func (svc *Service) ingestQueryResults(
 
 	return detailUpdated, additionalUpdated, err
 }
-
-var noSuchTableRegexp = regexp.MustCompile(`^no such table: \S+$`)
 
 func (svc *Service) directIngestDetailQuery(ctx context.Context, host *fleet.Host, name string, rows []map[string]string) (ingested bool, err error) {
 	features, err := svc.HostFeatures(ctx, host)
