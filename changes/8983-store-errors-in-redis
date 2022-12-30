@@ -1,0 +1,1 @@
+* Store osquery query execution errors and Fleet result ingestion errors in redis

@@ -819,7 +819,11 @@ func (svc *Service) SubmitDistributedQueryResults(
 		// osquery docs say any nonzero (string) value for status indicates a query error
 		status, ok := statuses[query]
 		failed := ok && status != fleet.StatusOK
-		if failed && messages[query] != "" && !noSuchTableRegexp.MatchString(messages[query]) {
+		if failed && messages[query] != "" {
+			ctxerr.Handle(ctx,
+				fmt.Errorf("query execution: query: %s, message: %s", query, messages[query]),
+			)
+
 			ll := level.Debug(svc.logger)
 			// We'd like to log these as error for troubleshooting and improving of distributed queries.
 			if messages[query] == "distributed query is denylisted" {
@@ -832,6 +836,7 @@ func (svc *Service) SubmitDistributedQueryResults(
 			ctx, query, host, rows, failed, messages, policyResults, labelResults, additionalResults,
 		)
 		if err != nil {
+			ctxerr.Handle(ctx, fmt.Errorf("query ingestion: %s", err))
 			logging.WithErr(ctx, ctxerr.New(ctx, "error in query ingestion"))
 			logging.WithExtras(ctx, "ingestion-err", err)
 		}

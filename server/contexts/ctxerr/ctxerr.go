@@ -76,6 +76,7 @@ func setMetadata(ctx context.Context, data map[string]interface{}) map[string]in
 		data["host"] = map[string]interface{}{
 			"platform":        h.Platform,
 			"osquery_version": h.OsqueryVersion,
+			"os_version":      h.OSVersion,
 		}
 	}
 
