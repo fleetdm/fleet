@@ -44,6 +44,7 @@ type MDMEnrollStatus string
 const (
 	MDMEnrollStatusManual     = MDMEnrollStatus("manual")
 	MDMEnrollStatusAutomatic  = MDMEnrollStatus("automatic")
+	MDMEnrollStatusPending    = MDMEnrollStatus("pending")
 	MDMEnrollStatusUnenrolled = MDMEnrollStatus("unenrolled")
 )
 
@@ -407,6 +408,7 @@ var mdmNameFromServerURLChecks = map[string]string{
 	"airwatch":  WellKnownMDMVMWare,
 	"microsoft": WellKnownMDMIntune,
 	"simplemdm": WellKnownMDMSimpleMDM,
+	"fleetdm":   WellKnownMDMFleet,
 }
 
 // MDMNameFromServerURL returns the MDM solution name corresponding to the
@@ -427,6 +429,8 @@ func (h *HostMDM) EnrollmentStatus() string {
 		return "Enrolled (manual)"
 	case h.Enrolled && h.InstalledFromDep:
 		return "Enrolled (automated)"
+	case !h.Enrolled && h.InstalledFromDep:
+		return "Pending"
 	default:
 		return "Unenrolled"
 	}
@@ -493,6 +497,7 @@ type AggregatedMunkiIssue struct {
 type AggregatedMDMStatus struct {
 	EnrolledManualHostsCount    int `json:"enrolled_manual_hosts_count" db:"enrolled_manual_hosts_count"`
 	EnrolledAutomatedHostsCount int `json:"enrolled_automated_hosts_count" db:"enrolled_automated_hosts_count"`
+	PendingHostsCount           int `json:"pending_hosts_count" db:"pending_hosts_count"`
 	UnenrolledHostsCount        int `json:"unenrolled_hosts_count" db:"unenrolled_hosts_count"`
 	HostsCount                  int `json:"hosts_count" db:"hosts_count"`
 }
