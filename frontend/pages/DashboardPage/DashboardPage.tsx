@@ -292,6 +292,7 @@ const DashboardPage = ({
         const {
           enrolled_manual_hosts_count,
           enrolled_automated_hosts_count,
+          pending_hosts_count,
           unenrolled_hosts_count,
           hosts_count,
         } = mobile_device_management_enrollment_status;
@@ -307,17 +308,25 @@ const DashboardPage = ({
             whatToRetrieve={"MDM information"}
           />
         );
-        setMdmEnrollmentData([
-          {
-            status: "Enrolled (manual)",
-            hosts: enrolled_manual_hosts_count,
-          },
-          {
-            status: "Enrolled (automatic)",
-            hosts: enrolled_automated_hosts_count,
-          },
-          { status: "Unenrolled", hosts: unenrolled_hosts_count },
-        ]);
+        setMdmEnrollmentData(() => {
+          const rows: IMdmEnrollmentCardData[] = [
+            {
+              status: "On (manual)",
+              hosts: enrolled_manual_hosts_count,
+            },
+            {
+              status: "On (automatic)",
+              hosts: enrolled_automated_hosts_count,
+            },
+            { status: "Off", hosts: unenrolled_hosts_count },
+          ];
+          isPremiumTier &&
+            rows.push({
+              status: "Pending",
+              hosts: pending_hosts_count,
+            });
+          return rows;
+        });
         setMdmSolutions(mobile_device_management_solution);
         setShowMdmCard(true);
       },
@@ -552,7 +561,7 @@ const DashboardPage = ({
     titleDetail: mdmTitleDetail,
     showTitle: !isMacAdminsFetching,
     description: (
-      <p>MDM can be used to manage configuration on your workstations.</p>
+      <p>MDM is used to change settings and install software on your hosts.</p>
     ),
     children: (
       <Mdm

@@ -34,7 +34,7 @@ import {
 import { IHost } from "interfaces/host";
 import { ILabel } from "interfaces/label";
 import { IMunkiIssuesAggregate } from "interfaces/macadmins";
-import { IMdmSolution } from "interfaces/mdm";
+import { formatMdmStatusForDisplay, IMdmSolution } from "interfaces/mdm";
 import {
   formatOperatingSystemDisplayName,
   IOperatingSystemVersion,
@@ -1231,39 +1231,43 @@ const ManageHostsPage = ({
   const renderMDMEnrollmentFilterBlock = () => {
     if (!mdmEnrollmentStatus) return null;
 
-    let label: string;
-    switch (mdmEnrollmentStatus) {
-      case "automatic":
-        label = "MDM enrolled (automatic)";
-        break;
-      case "manual":
-        label = "MDM enrolled (manual)";
-        break;
-      default:
-        label = "Unenrolled";
-    }
-
+    const label = `MDM status: ${formatMdmStatusForDisplay(
+      mdmEnrollmentStatus
+    )}`;
+    // TODO: Consider implementing a global helper that could be used for various MDM tooltips around
+    // the UI (e.g., managage hosts page, host details page, dashboard, etc.)
     let TooltipDescription: JSX.Element;
     switch (mdmEnrollmentStatus) {
       case "automatic":
         TooltipDescription = (
           <span className={`tooltip__tooltip-text`}>
-            Hosts automatically enrolled in <br />
-            an MDM solution using Apple <br />
+            MDM was turned on <br />
+            automatically using Apple <br />
             Automated Device Enrollment <br />
             (DEP) or Windows Autopilot. <br />
-            Administrators can block users <br />
-            from unenrolling these hosts <br />
-            from MDM.
+            Administrators can block <br />
+            device users from turning <br />
+            MDM off.
           </span>
         );
         break;
       case "manual":
         TooltipDescription = (
           <span className={`tooltip__tooltip-text`}>
-            Hosts manually enrolled to an <br />
-            MDM solution. Users can unenroll <br />
-            these hosts from MDM.
+            MDM was turned on <br />
+            manually. Device users can <br />
+            turn MDM off.
+          </span>
+        );
+        break;
+      case "pending":
+        TooltipDescription = (
+          <span className={`tooltip__tooltip-text`}>
+            Hosts ordered using Apple <br />
+            Business Manager (ABM). <br />
+            They will automatically enroll <br />
+            to Fleet and turn on MDM <br />
+            when they&apos;re unboxed.
           </span>
         );
         break;

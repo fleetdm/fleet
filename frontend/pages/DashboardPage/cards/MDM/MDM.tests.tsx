@@ -29,9 +29,9 @@ describe("MDM Card", () => {
         error={null}
         isFetching={false}
         mdmEnrollmentData={[
-          { status: "Enrolled (automatic)", hosts: 10 },
-          { status: "Enrolled (manual)", hosts: 5 },
-          { status: "Unenrolled", hosts: 1 },
+          { status: "On (automatic)", hosts: 10 },
+          { status: "On (manual)", hosts: 5 },
+          { status: "Off", hosts: 1 },
         ]}
         mdmSolutions={[]}
       />

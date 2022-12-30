@@ -1,6 +1,6 @@
 import React from "react";
 
-import { IMdmEnrollmentCardData } from "interfaces/mdm";
+import { formatMdmStatusForUrl, IMdmEnrollmentCardData } from "interfaces/mdm";
 
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import TooltipWrapper from "components/TooltipWrapper";
@@ -41,7 +41,49 @@ interface IDataColumn {
   Cell: (props: ICellProps) => JSX.Element;
   disableHidden?: boolean;
   disableSortBy?: boolean;
+  manualSortBy?: boolean;
 }
+
+// TODO: Consider implementing a global helper that could be used for various MDM tooltips around
+// the UI (e.g., managage hosts page, host details page, dashboard, etc.)
+const mdmStatusTooltipText = (status: string): string => {
+  switch (status) {
+    case "Pending":
+      return `
+        <span>
+          Hosts ordered via Apple Business Manager (ABM). <br />
+          These will automatically enroll to Fleet and turn on <br />
+          MDM when they&apos;re unboxed.
+        <span />
+      `;
+    case "On (automatic)":
+      return `
+        <span>
+          MDM was turned on automatically using Apple <br />
+          Automated Device Enrollment (DEP) or Windows <br />
+          Autopilot. Administrators can block end users from <br />
+          turning MDM off.
+        <span />
+      `;
+    case "On (manual)":
+      return `
+        <span>
+          MDM was turned on manually. End users can turn <br />
+          MDM off.
+        <span />
+      `;
+    // TODO: Figma doesn't include a tooltip for this row on the dashboard card, but there is a
+    // tooltip on the label filter pill for the manage hosts page. Confirm what is intended.
+    // case "Off":
+    //   return `
+    //     <span>
+    //       Hosts not enrolled to an MDM solution.
+    //     </ span>
+    //   `;
+    default:
+      return "";
+  }
+};
 
 const enrollmentTableHeaders = [
   {
@@ -50,37 +92,19 @@ const enrollmentTableHeaders = [
     disableSortBy: true,
     accessor: "status",
     Cell: (cellProps: IStringCellProps) => {
-      const tooltipText = (status: string): string => {
-        if (status === "Enrolled (automatic)") {
-          return `
-                <span>
-                  Hosts automatically enrolled to an MDM solution <br />
-                  using Apple Automated Device Enrollment (DEP) <br />
-                  or Windows Autopilot. Administrators can block <br />
-                  users from unenrolling these hosts from MDM.
-                </span>
-              `;
-        }
-        return `
-                <span>
-                  Hosts manually enrolled to an MDM solution. Users <br />
-                  can unenroll these hosts from MDM.
-                </span>
-              `;
-      };
-
-      if (cellProps.cell.value === "Unenrolled") {
+      const tipContent = mdmStatusTooltipText(cellProps.cell.value);
+      if (!tipContent) {
         return <TextCell value={cellProps.cell.value} />;
       }
+
       return (
         <span className="name-container">
-          <TooltipWrapper tipContent={tooltipText(cellProps.cell.value)}>
+          <TooltipWrapper tipContent={tipContent}>
             {cellProps.cell.value}
           </TooltipWrapper>
         </span>
       );
     },
-    sortType: "caseInsensitive",
   },
   {
     title: "Hosts",
@@ -96,19 +120,13 @@ const enrollmentTableHeaders = [
     disableGlobalFilter: true,
     accessor: "linkToFilteredHosts",
     Cell: (cellProps: IStringCellProps) => {
-      const statusParam = () => {
-        switch (cellProps.row.original.status) {
-          case "Enrolled (automatic)":
-            return "automatic";
-          case "Enrolled (manual)":
-            return "manual";
-          default:
-            return "unenrolled";
-        }
-      };
       return (
         <ViewAllHostsLink
-          queryParams={{ mdm_enrollment_status: statusParam() }}
+          queryParams={{
+            mdm_enrollment_status: formatMdmStatusForUrl(
+              cellProps.row.original.status
+            ),
+          }}
           className="mdm-solution-link"
           platformLabelId={cellProps.row.original.selectedPlatformLabelId}
         />
@@ -126,7 +144,7 @@ const enhanceEnrollmentData = (
   enrollmentData: IMdmEnrollmentCardData[],
   selectedPlatformLabelId?: number
 ): IMdmEnrollmentData[] => {
-  return Object.values(enrollmentData).map((data) => {
+  return enrollmentData.map((data) => {
     return {
       ...data,
       selectedPlatformLabelId,

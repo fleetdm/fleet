@@ -3,6 +3,7 @@ import React from "react";
 import ReactTooltip from "react-tooltip";
 
 import { IHostMdmData, IMunkiData, IDeviceUser } from "interfaces/host";
+import { formatMdmStatusForDisplay } from "interfaces/mdm";
 import { humanHostLastRestart, humanHostEnrolled } from "utilities/helpers";
 
 interface IAboutProps {
@@ -50,17 +51,22 @@ const About = ({
     ) : null;
   };
 
+  // TODO: Confirm whether MDM information should be shown for unenrolled hosts if Fleet MDM is enabled.
   const renderMdmData = () => {
-    if (!mdm || mdm.enrollment_status === "Unenrolled") {
+    if (!mdm) {
       return null;
     }
+
+    const status = formatMdmStatusForDisplay(mdm.enrollment_status);
+    if (!status || status === "Off") {
+      return null;
+    }
+
     return (
       <>
         <div className="info-grid__block">
-          <span className="info-grid__header">MDM enrollment</span>
-          <span className="info-grid__data">
-            {mdm.enrollment_status || "---"}
-          </span>
+          <span className="info-grid__header">MDM status</span>
+          <span className="info-grid__data">{status}</span>
         </div>
         <div className="info-grid__block">
           <span className="info-grid__header">MDM server URL</span>

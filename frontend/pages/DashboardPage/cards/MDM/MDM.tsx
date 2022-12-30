@@ -26,6 +26,7 @@ interface IMdmCardProps {
 
 const DEFAULT_SORT_DIRECTION = "desc";
 const SOLUTIONS_DEFAULT_SORT_HEADER = "hosts_count";
+// TODO: Default sort for enrollment status table needs to be fixed.
 const ENROLLMENT_DEFAULT_SORT_DIRECTION = "asc";
 const ENROLLMENT_DEFAULT_SORT_HEADER = "status";
 const PAGE_SIZE = 8;
@@ -97,7 +98,7 @@ const Mdm = ({
           <Tabs selectedIndex={navTabIndex} onSelect={onTabChange}>
             <TabList>
               <Tab>Solutions</Tab>
-              <Tab>Enrollment</Tab>
+              <Tab>Status</Tab>
             </TabList>
             <TabPanel>
               {error ? (
