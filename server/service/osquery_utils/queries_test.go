@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"os"
 	"sort"
 	"strings"
 	"testing"
@@ -25,7 +24,7 @@ func TestDetailQueryNetworkInterfaces(t *testing.T) {
 	var initialHost fleet.Host
 	host := initialHost
 
-	ingest := GetDetailQueries(config.FleetConfig{}, nil)["network_interface_unix"].IngestFunc
+	ingest := GetDetailQueries(context.Background(), config.FleetConfig{}, nil)["network_interface_unix"].IngestFunc
 
 	assert.NoError(t, ingest(context.Background(), log.NewNopLogger(), &host, nil))
 	assert.Equal(t, initialHost, host)
@@ -57,7 +56,7 @@ func TestDetailQueryScheduledQueryStats(t *testing.T) {
 		return nil
 	}
 
-	ingest := GetDetailQueries(config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}}, nil)["scheduled_query_stats"].DirectTaskIngestFunc
+	ingest := GetDetailQueries(context.Background(), config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}}, nil)["scheduled_query_stats"].DirectTaskIngestFunc
 
 	ctx := context.Background()
 	assert.NoError(t, ingest(ctx, log.NewNopLogger(), &host, task, nil))
@@ -235,7 +234,7 @@ func sortedKeysCompare(t *testing.T, m map[string]DetailQuery, expectedKeys []st
 }
 
 func TestGetDetailQueries(t *testing.T) {
-	queriesNoConfig := GetDetailQueries(config.FleetConfig{}, nil)
+	queriesNoConfig := GetDetailQueries(context.Background(), config.FleetConfig{}, nil)
 
 	baseQueries := []string{
 		"network_interface_unix",
@@ -266,15 +265,15 @@ func TestGetDetailQueries(t *testing.T) {
 	require.Len(t, queriesNoConfig, len(baseQueries))
 	sortedKeysCompare(t, queriesNoConfig, baseQueries)
 
-	queriesWithoutWinOSVuln := GetDetailQueries(config.FleetConfig{Vulnerabilities: config.VulnerabilitiesConfig{DisableWinOSVulnerabilities: true}}, nil)
+	queriesWithoutWinOSVuln := GetDetailQueries(context.Background(), config.FleetConfig{Vulnerabilities: config.VulnerabilitiesConfig{DisableWinOSVulnerabilities: true}}, nil)
 	require.Len(t, queriesWithoutWinOSVuln, 22)
 
-	queriesWithUsers := GetDetailQueries(config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}}, &fleet.Features{EnableHostUsers: true})
+	queriesWithUsers := GetDetailQueries(context.Background(), config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}}, &fleet.Features{EnableHostUsers: true})
 	qs := append(baseQueries, "users", "scheduled_query_stats")
 	require.Len(t, queriesWithUsers, len(qs))
 	sortedKeysCompare(t, queriesWithUsers, qs)
 
-	queriesWithUsersAndSoftware := GetDetailQueries(config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}}, &fleet.Features{EnableHostUsers: true, EnableSoftwareInventory: true})
+	queriesWithUsersAndSoftware := GetDetailQueries(context.Background(), config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}}, &fleet.Features{EnableHostUsers: true, EnableSoftwareInventory: true})
 	qs = append(baseQueries, "users", "software_macos", "software_linux", "software_windows", "scheduled_query_stats")
 	require.Len(t, queriesWithUsersAndSoftware, len(qs))
 	sortedKeysCompare(t, queriesWithUsersAndSoftware, qs)
@@ -284,7 +283,7 @@ func TestDetailQueriesOSVersionUnixLike(t *testing.T) {
 	var initialHost fleet.Host
 	host := initialHost
 
-	ingest := GetDetailQueries(config.FleetConfig{}, nil)["os_version"].IngestFunc
+	ingest := GetDetailQueries(context.Background(), config.FleetConfig{}, nil)["os_version"].IngestFunc
 
 	assert.NoError(t, ingest(context.Background(), log.NewNopLogger(), &host, nil))
 	assert.Equal(t, initialHost, host)
@@ -358,7 +357,7 @@ func TestDetailQueriesOSVersionWindows(t *testing.T) {
 	var initialHost fleet.Host
 	host := initialHost
 
-	ingest := GetDetailQueries(config.FleetConfig{}, nil)["os_version_windows"].IngestFunc
+	ingest := GetDetailQueries(context.Background(), config.FleetConfig{}, nil)["os_version_windows"].IngestFunc
 
 	assert.NoError(t, ingest(context.Background(), log.NewNopLogger(), &host, nil))
 	assert.Equal(t, initialHost, host)
@@ -660,30 +659,18 @@ func TestDirectIngestOSUnixLike(t *testing.T) {
 	}
 }
 
-func TestDangerousReplaceQuery(t *testing.T) {
-	queries := GetDetailQueries(config.FleetConfig{}, &fleet.Features{EnableHostUsers: true})
-	originalQuery := queries["users"].Query
-
-	t.Setenv("FLEET_DANGEROUS_REPLACE_USERS", "select * from blah")
-	queries = GetDetailQueries(config.FleetConfig{}, &fleet.Features{EnableHostUsers: true})
-	assert.NotEqual(t, originalQuery, queries["users"].Query)
-
-	require.NoError(t, os.Unsetenv("FLEET_DANGEROUS_REPLACE_USERS"))
-	queries = GetDetailQueries(config.FleetConfig{}, &fleet.Features{EnableHostUsers: true})
-	assert.Equal(t, originalQuery, queries["users"].Query)
-}
-
 func TestAppConfigReplaceQuery(t *testing.T) {
-	queries := GetDetailQueries(config.FleetConfig{}, &fleet.Features{EnableHostUsers: true})
+	queries := GetDetailQueries(context.Background(), config.FleetConfig{}, &fleet.Features{EnableHostUsers: true})
 	originalQuery := queries["users"].Query
 
 	replacementMap := make(map[string]*string)
 	replacementMap["users"] = ptr.String("select 1 from blah")
-	queries = GetDetailQueries(config.FleetConfig{}, &fleet.Features{EnableHostUsers: true, DetailQueryOverrides: replacementMap})
+	queries = GetDetailQueries(context.Background(), config.FleetConfig{}, &fleet.Features{EnableHostUsers: true, DetailQueryOverrides: replacementMap})
 	assert.NotEqual(t, originalQuery, queries["users"].Query)
+	assert.Equal(t, "select 1 from blah", queries["users"].Query)
 
 	replacementMap["users"] = nil
-	queries = GetDetailQueries(config.FleetConfig{}, &fleet.Features{EnableHostUsers: true, DetailQueryOverrides: replacementMap})
+	queries = GetDetailQueries(context.Background(), config.FleetConfig{}, &fleet.Features{EnableHostUsers: true, DetailQueryOverrides: replacementMap})
 	_, exists := queries["users"]
 	assert.False(t, exists)
 }
