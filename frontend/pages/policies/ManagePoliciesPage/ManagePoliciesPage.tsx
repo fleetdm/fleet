@@ -354,8 +354,6 @@ const ManagePolicyPage = ({
     }
   }
 
-  const emptyState = () => {};
-
   return !availableTeams ? (
     <Spinner />
   ) : (
