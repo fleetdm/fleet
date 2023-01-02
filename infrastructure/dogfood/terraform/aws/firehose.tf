@@ -79,6 +79,16 @@ data "aws_iam_policy_document" "osquery_results_policy_doc" {
     // This bucket is single-purpose and using a wildcard is not problematic
     resources = [aws_s3_bucket.osquery-results.arn, "${aws_s3_bucket.osquery-results.arn}/*"] #tfsec:ignore:aws-iam-no-policy-wildcards
   }
+
+  statement {
+    effect = "Allow"
+    actions = ["es:*"]
+    resources = [
+      "${aws_opensearch_domain.main.arn}",
+      "${aws_opensearch_domain.main.arn}/*",
+    ]
+ 
+  }
 }
 
 data "aws_iam_policy_document" "osquery_status_policy_doc" {
@@ -142,6 +152,13 @@ resource "aws_kinesis_firehose_delivery_stream" "osquery_results" {
   s3_configuration {
     role_arn   = aws_iam_role.firehose-results.arn
     bucket_arn = aws_s3_bucket.osquery-results.arn
+  }
+
+  elasticsearch_configuration {
+    domain_arn = aws_opensearch_domain.main.arn
+    role_arn   = aws_iam_role.firehose-results.arn
+    index_name = "osquery_results"
+    type_name  = "osquery_results"
   }
 }
 
