@@ -533,7 +533,7 @@ const ManageSoftwarePage = ({
 
   const emptyState = () => {
     const emptySoftware: IEmptyTableProps = {
-      header: "No software matches the current search criteria",
+      header: "No software match the current search criteria",
       info: "Try again in about 1 hour as the system catches up.",
     };
     if (!isSoftwareEnabled) {

@@ -82,7 +82,6 @@ import DeleteSecretModal from "../../../components/EnrollSecrets/DeleteSecretMod
 import SecretEditorModal from "../../../components/EnrollSecrets/SecretEditorModal";
 import AddHostsModal from "../../../components/AddHostsModal";
 import EnrollSecretModal from "../../../components/EnrollSecrets/EnrollSecretModal";
-import EmptyHosts from "./components/EmptyHosts";
 import PoliciesFilter from "./components/PoliciesFilter";
 // @ts-ignore
 import EditColumnsModal from "./components/EditColumnsModal/EditColumnsModal";
@@ -1738,6 +1737,21 @@ const ManageHostsPage = ({
       currentTeam
     );
 
+    const emptyState = () => {
+      const emptyHosts: IEmptyTableProps = {
+        header: "No hosts match the current criteria",
+        info:
+          "Expecting to see new hosts? Try again in a few seconds as the system catches up.",
+      };
+      if (isLastPage) {
+        emptyHosts.header = "No more hosts to display";
+        emptyHosts.info =
+          "Expecting to see more hosts? Try again in a few seconds as the system catches up.";
+      }
+
+      return emptyHosts;
+    };
+
     return (
       <TableContainer
         columns={tableColumns}
@@ -1764,7 +1778,12 @@ const ManageHostsPage = ({
         searchable
         renderCount={renderHostCount}
         searchToolTipText={HOSTS_SEARCH_BOX_TOOLTIP}
-        emptyComponent={EmptyHosts}
+        emptyComponent={() =>
+          EmptyTable({
+            header: emptyState().header,
+            info: emptyState().info,
+          })
+        }
         customControl={renderCustomControls}
         onActionButtonClick={toggleEditColumnsModal}
         onPrimarySelectActionClick={onDeleteHostsClick}
