@@ -84,21 +84,9 @@ const QueriesTable = ({
 
   const tableHeaders = currentUser && generateTableHeaders(currentUser);
 
-  // Queries have not been created
-  if (!isLoading && queriesList?.length === 0) {
-    return (
-      <div className={`${baseClass}`}>
-        {EmptyTable({
-          iconName: emptyState().iconName,
-          header: emptyState().header,
-          info: emptyState().info,
-          additionalInfo: emptyState().additionalInfo,
-          primaryButton: emptyState().primaryButton,
-        })}
-      </div>
-    );
-  }
+  const searchable = !(queriesList?.length === 0 && searchString === "");
 
+  console.log("queriesList", queriesList);
   return tableHeaders && !isLoading ? (
     <div className={`${baseClass}`}>
       <TableContainer
@@ -112,7 +100,7 @@ const QueriesTable = ({
         isAllPagesSelected={false}
         onQueryChange={handleSearchChange}
         inputPlaceHolder="Search by name"
-        searchable={!!queriesList}
+        searchable={searchable}
         onPrimarySelectActionClick={onDeleteQueryClick}
         primarySelectActionButtonVariant="text-icon"
         primarySelectActionButtonIcon="delete"
@@ -126,7 +114,7 @@ const QueriesTable = ({
             primaryButton: emptyState().primaryButton,
           })
         }
-        customControl={customControl}
+        customControl={searchable ? customControl : undefined}
         isClientSideFilter
         searchQueryColumn="name"
         selectedDropdownFilter={selectedDropdownFilter}

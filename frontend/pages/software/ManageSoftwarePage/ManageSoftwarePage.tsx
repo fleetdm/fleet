@@ -566,6 +566,8 @@ const ManageSoftwarePage = ({
     return emptySoftware;
   };
 
+  const searchable = !!software?.software;
+
   return !availableTeams ||
     !globalConfig ||
     (!softwareConfig && !softwareConfigError) ? (
@@ -598,13 +600,13 @@ const ManageSoftwarePage = ({
               showMarkAllPages={false}
               isAllPagesSelected={false}
               disableNextPage={isLastPage}
-              searchable
+              searchable={searchable}
               inputPlaceHolder="Search software by name or vulnerabilities (CVEs)"
               onQueryChange={onQueryChange}
               additionalQueries={filterVuln ? "vulnerable" : ""} // additionalQueries serves as a trigger
               // for the useDeepEffect hook to fire onQueryChange for events happeing outside of
               // the TableContainer
-              customControl={renderVulnFilterDropdown}
+              customControl={searchable ? renderVulnFilterDropdown : undefined}
               stackControls
               renderCount={renderSoftwareCount}
               renderFooter={renderTableFooter}
