@@ -1,20 +1,16 @@
 import React from "react";
 
 import Modal from "components/Modal";
-import { IRequestCSRFormData } from "interfaces/request_csr";
+import requestCSR from "services/entities/mdm_csr";
 import RequestCSRForm from "./RequestCSRForm";
 
 const baseClass = " modal request-csr-modal";
 
 interface IRequestCSRModalProps {
-  onSubmit: (formData: IRequestCSRFormData, destination?: string) => void;
   onCancel: () => void;
 }
 
-const RequestCSRModal = ({
-  onSubmit,
-  onCancel,
-}: IRequestCSRModalProps): JSX.Element => {
+const RequestCSRModal = ({ onCancel }: IRequestCSRModalProps): JSX.Element => {
   return (
     <Modal title="Request" onExit={onCancel} className={baseClass}>
       <>
@@ -26,7 +22,7 @@ const RequestCSRModal = ({
           fleetdm.com will send your CSR to the below email. Your certificate
           and key for SCEP will be downloaded in the browser.
         </p>
-        <RequestCSRForm onSubmit={onSubmit} onCancel={onCancel} />
+        <RequestCSRForm onSubmit={requestCSR} onCancel={onCancel} />
       </>
     </Modal>
   );

@@ -8,12 +8,11 @@ import Button from "components/buttons/Button";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import Spinner from "components/Spinner";
-import { request } from "http";
 
 const baseClass = "request-csr";
 
 interface IRequestCSRFormProps {
-  onSubmit: (formData: IRequestCSRFormData, destination?: string) => void;
+  onSubmit: (formData: IRequestCSRFormData) => any;
   onCancel: () => void;
   testingConnection?: boolean;
 }
@@ -42,7 +41,7 @@ const RequestCSRForm = ({
     setFormData({ ...formData, [name]: value });
   };
 
-  const onFormSubmit = (evt: FormEvent): void => {
+  const onFormSubmit = (evt: FormEvent): Promise<string> => {
     evt.preventDefault();
     return onSubmit({ email, orgName });
   };

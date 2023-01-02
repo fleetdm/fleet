@@ -8,7 +8,6 @@ import { NotificationContext } from "context/notification";
 import mdmAppleAPI from "services/entities/mdm_apple";
 import mdmAppleBmAPI from "services/entities/mdm_apple_bm";
 import { IMdmApple, IMdmAppleBm } from "interfaces/mdm";
-import { IRequestCSRFormData } from "interfaces/request_csr";
 
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
@@ -264,14 +263,6 @@ const Mdm = (): JSX.Element => {
     );
   };
 
-  // request destination from https://github.com/fleetdm/fleet/pull/8408
-  const requestCSR = (
-    formData: IRequestCSRFormData,
-    destination = "https://www.fleetdm.com//api/v1/get_signed_apns_csr"
-  ) => {
-    // TODO: Implement real request handler
-  };
-
   return (
     <div className={baseClass}>
       <div className={`${baseClass}__section`}>
@@ -285,11 +276,7 @@ const Mdm = (): JSX.Element => {
         </div>
       )}
       {showRequestCSRModal && (
-        <RequestCSRModal
-          onSubmit={requestCSR}
-          onCancel={toggleRequestCSRModal}
-          // TODO: encapsulate destination within the modal component?
-        />
+        <RequestCSRModal onCancel={toggleRequestCSRModal} />
       )}
       {showEditTeamModal && (
         <EditTeamModal
