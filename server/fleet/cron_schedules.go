@@ -18,6 +18,7 @@ const (
 	CronVulnerabilities            CronScheduleName = "vulnerabilities"
 	CronAutomations                CronScheduleName = "automations"
 	CronIntegrations               CronScheduleName = "integrations"
+	CronActivitiesStreaming        CronScheduleName = "activities_streaming"
 )
 
 type CronSchedulesService interface {

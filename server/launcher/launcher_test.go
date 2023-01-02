@@ -119,7 +119,7 @@ func newTLSService(t *testing.T) *mock.TLSService {
 			nodeKey string,
 		) (host *fleet.Host, debug bool, err error) {
 			return &fleet.Host{
-				NodeKey: nodeKey,
+				NodeKey: &nodeKey,
 			}, false, nil
 		},
 		GetClientConfigFunc: func(

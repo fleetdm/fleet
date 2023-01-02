@@ -1,19 +1,33 @@
 # Testing and local development
 
-- [License key](#license-key)
-- [Simulated hosts](#hosts)
-- [Test suite](#test-suite)
-- [End-to-end tests](#end-to-end-tests)
-- [Test hosts](#test-hosts)
-- [Email](#email)
-- [Database backup/restore](#database-backuprestore)
-- [Seeding Data](https://fleetdm.com/docs/contributing/seeding-data)
-- [MySQL shell](#mysql-shell)
-- [Redis REPL](#redis-repl)
-- [Testing SSO](#testing-sso)
-- [Testing Kinesis Logging](#testing-kinesis-logging)
-- [Testing pre-built installers](#testing-pre-built-installers)
-- [Telemetry](#telemetry)
+- [Testing and local development](#testing-and-local-development)
+  - [License key](#license-key)
+  - [Simulated hosts](#simulated-hosts)
+  - [Test suite](#test-suite)
+    - [Go unit tests](#go-unit-tests)
+    - [Go linters](#go-linters)
+    - [Javascript unit and integration tests](#javascript-unit-and-integration-tests)
+    - [Javascript linters](#javascript-linters)
+    - [MySQL tests](#mysql-tests)
+    - [Email tests](#email-tests)
+    - [Network tests](#network-tests)
+    - [Viewing test coverage](#viewing-test-coverage)
+  - [End-to-end tests](#end-to-end-tests)
+    - [Preparation](#preparation)
+    - [Run tests](#run-tests)
+    - [Interactive](#interactive)
+    - [Command line](#command-line)
+  - [Test hosts](#test-hosts)
+  - [Email](#email)
+    - [Manually testing email with MailHog](#manually-testing-email-with-mailhog)
+  - [Development database management](#development-database-management)
+  - [MySQL shell](#mysql-shell)
+  - [Redis REPL](#redis-repl)
+  - [Testing SSO](#testing-sso)
+    - [Configuration](#configuration)
+  - [Testing Kinesis Logging](#testing-kinesis-logging)
+  - [Testing pre-built installers](#testing-pre-built-installers)
+  - [Telemetry](#telemetry)
 
 ## License key
 
@@ -402,6 +416,12 @@ awslocal kinesis get-records --shard-iterator AAAAAAAAAAERtiUrWGI0sq99TtpKnmDu6h
         }
     ],
 [...]
+```
+
+The `Data` field is base64 encoded. You can use the following command to decode:
+```
+echo eyJob3N0SWRlbnRpZmllciI6Ijg3OGE2ZWRmLTcxMzEtNGUyOC05NWEyLWQzNDQ5MDVjYWNhYiIsImNhbGVuZGFyVGltZSI6IldlZCBNYXIgIDIgMjI6MDI6NTQgMjAyMiBVVEMiLCJ1bml4VGltZSI6IjE2NDYyNTg1NzQiLCJzZXZlcml0eSI6IjAiLCJmaWxlbmFtZSI6Imdsb2dfbG9nZ2VyLmNwcCIsImxpbmUiOiI0OSIsIm1lc3NhZ2UiOiJDb3VsZCBub3QgZ2V0IFJQTSBoZWFkZXIgZmxhZy4iLCJ2ZXJzaW9uIjoiNC45LjAiLCJkZWNvcmF0aW9ucyI6eyJob3N0X3V1aWQiOiJlYjM5NDZiMi0wMDAwLTAwMDAtYjg4OC0yNTkxYTFiNjY2ZTkiLCJob3N0bmFtZSI6ImUwMDg4ZDI4YTYzZiJ9fQo= | base64 -d
+{"hostIdentifier":"878a6edf-7131-4e28-95a2-d344905cacab","calendarTime":"Wed Mar  2 22:02:54 2022 UTC","unixTime":"1646258574","severity":"0","filename":"glog_logger.cpp","line":"49","message":"Could not get RPM header flag.","version":"4.9.0","decorations":{"host_uuid":"eb3946b2-0000-0000-b888-2591a1b666e9","hostname":"e0088d28a63f"}}
 ```
 
 ## Testing pre-built installers

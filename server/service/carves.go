@@ -29,7 +29,7 @@ type listCarvesResponse struct {
 
 func (r listCarvesResponse) error() error { return r.Err }
 
-func listCarvesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func listCarvesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*listCarvesRequest)
 	carves, err := svc.ListCarves(ctx, req.ListOptions)
 	if err != nil {
@@ -66,7 +66,7 @@ type getCarveResponse struct {
 
 func (r getCarveResponse) error() error { return r.Err }
 
-func getCarveEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func getCarveEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getCarveRequest)
 	carve, err := svc.GetCarve(ctx, req.ID)
 	if err != nil {
@@ -74,7 +74,6 @@ func getCarveEndpoint(ctx context.Context, request interface{}, svc fleet.Servic
 	}
 
 	return getCarveResponse{Carve: *carve}, nil
-
 }
 
 func (svc *Service) GetCarve(ctx context.Context, id int64) (*fleet.CarveMetadata, error) {
@@ -101,7 +100,7 @@ type getCarveBlockResponse struct {
 
 func (r getCarveBlockResponse) error() error { return r.Err }
 
-func getCarveBlockEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func getCarveBlockEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getCarveBlockRequest)
 	data, err := svc.GetBlock(ctx, req.ID, req.BlockId)
 	if err != nil {
@@ -162,7 +161,7 @@ type carveBeginResponse struct {
 
 func (r carveBeginResponse) error() error { return r.Err }
 
-func carveBeginEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func carveBeginEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*carveBeginRequest)
 
 	payload := fleet.CarveBeginPayload{
@@ -257,7 +256,7 @@ type carveBlockResponse struct {
 
 func (r carveBlockResponse) error() error { return r.Err }
 
-func carveBlockEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func carveBlockEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*carveBlockRequest)
 
 	payload := fleet.CarveBlockPayload{

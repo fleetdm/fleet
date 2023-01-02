@@ -49,6 +49,8 @@ type orbitGetConfigResponse struct {
 	Err        error           `json:"error,omitempty"`
 }
 
+func (r orbitGetConfigResponse) error() error { return r.Err }
+
 func (e orbitError) Error() string {
 	return e.message
 }
@@ -68,7 +70,7 @@ func (r EnrollOrbitResponse) hijackRender(ctx context.Context, w http.ResponseWr
 	}
 }
 
-func enrollOrbitEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func enrollOrbitEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*EnrollOrbitRequest)
 	nodeKey, err := svc.EnrollOrbit(ctx, req.HardwareUUID, req.EnrollSecret)
 	if err != nil {
@@ -121,7 +123,7 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hardwareUUID string, enroll
 	return orbitNodeKey, nil
 }
 
-func getOrbitConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func getOrbitConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	opts, extensions, err := svc.GetOrbitConfig(ctx)
 	if err != nil {
 		return orbitGetConfigResponse{Err: err}, nil
@@ -180,10 +182,12 @@ func (r orbitPingResponse) hijackRender(ctx context.Context, w http.ResponseWrit
 	writeCapabilitiesHeader(w, fleet.ServerOrbitCapabilities)
 }
 
+func (r orbitPingResponse) error() error { return nil }
+
 // NOTE: we're intentionally not reading the capabilities header in this
 // endpoint as is unauthenticated and we don't want to trust whatever comes in
 // there.
-func orbitPingEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func orbitPingEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	svc.DisableAuthForPing(ctx)
 	return orbitPingResponse{}, nil
 }
@@ -211,7 +215,7 @@ type setOrUpdateDeviceTokenResponse struct {
 
 func (r setOrUpdateDeviceTokenResponse) error() error { return r.Err }
 
-func setOrUpdateDeviceTokenEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func setOrUpdateDeviceTokenEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*setOrUpdateDeviceTokenRequest)
 	if err := svc.SetOrUpdateDeviceAuthToken(ctx, req.DeviceAuthToken); err != nil {
 		return setOrUpdateDeviceTokenResponse{Err: err}, nil

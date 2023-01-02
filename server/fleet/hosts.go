@@ -129,14 +129,14 @@ type Host struct {
 	// OsqueryHostID is the key used in the request context that is
 	// used to retrieve host information.  It is sent from osquery and may currently be
 	// a GUID or a Host Name, but in either case, it MUST be unique
-	OsqueryHostID    string    `json:"-" db:"osquery_host_id" csv:"-"`
+	OsqueryHostID    *string   `json:"-" db:"osquery_host_id" csv:"-"`
 	DetailUpdatedAt  time.Time `json:"detail_updated_at" db:"detail_updated_at" csv:"detail_updated_at"` // Time that the host details were last updated
 	LabelUpdatedAt   time.Time `json:"label_updated_at" db:"label_updated_at" csv:"label_updated_at"`    // Time that the host labels were last updated
 	PolicyUpdatedAt  time.Time `json:"policy_updated_at" db:"policy_updated_at" csv:"policy_updated_at"` // Time that the host policies were last updated
 	LastEnrolledAt   time.Time `json:"last_enrolled_at" db:"last_enrolled_at" csv:"last_enrolled_at"`    // Time that the host last enrolled
 	SeenTime         time.Time `json:"seen_time" db:"seen_time" csv:"seen_time"`                         // Time that the host was last "seen"
 	RefetchRequested bool      `json:"refetch_requested" db:"refetch_requested" csv:"refetch_requested"`
-	NodeKey          string    `json:"-" db:"node_key" csv:"-"`
+	NodeKey          *string   `json:"-" db:"node_key" csv:"-"`
 	OrbitNodeKey     *string   `json:"-" db:"orbit_node_key" csv:"-"`
 	Hostname         string    `json:"hostname" db:"hostname" csv:"hostname"` // there is a fulltext index on this field
 	UUID             string    `json:"uuid" db:"uuid" csv:"uuid"`             // there is a fulltext index on this field
@@ -398,6 +398,7 @@ const (
 	WellKnownMDMVMWare    = "VMware Workspace ONE"
 	WellKnownMDMIntune    = "Intune"
 	WellKnownMDMSimpleMDM = "SimpleMDM"
+	WellKnownMDMFleet     = "Fleet"
 )
 
 var mdmNameFromServerURLChecks = map[string]string{
@@ -432,6 +433,9 @@ func (h *HostMDM) EnrollmentStatus() string {
 }
 
 func (h *HostMDM) MarshalJSON() ([]byte, error) {
+	if h == nil {
+		return []byte("null"), nil
+	}
 	var jsonMDM struct {
 		EnrollmentStatus string `json:"enrollment_status"`
 		ServerURL        string `json:"server_url"`
@@ -560,4 +564,9 @@ type HostDetailOptions struct {
 type EnrollHostLimiter interface {
 	CanEnrollNewHost(ctx context.Context) (ok bool, err error)
 	SyncEnrolledHostIDs(ctx context.Context) error
+}
+
+type HostMDMCheckinInfo struct {
+	HardwareSerial   string `json:"hardware_serial" db:"hardware_serial"`
+	InstalledFromDEP bool   `json:"installed_from_dep" db:"installed_from_dep"`
 }

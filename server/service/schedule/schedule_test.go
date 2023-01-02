@@ -650,6 +650,7 @@ func TestTriggerMultipleInstances(t *testing.T) {
 	}
 
 	for _, c := range cases {
+		c := c
 		ctx, cancelFunc := context.WithCancel(context.Background())
 
 		instanceIDs := strings.Split("abcdef", "")
