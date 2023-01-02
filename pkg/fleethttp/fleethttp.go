@@ -129,5 +129,6 @@ func NewGithubClient() *http.Client {
 			},
 		))
 	}
+	fmt.Println("FYI: Using regular HTTP client.")
 	return NewClient()
 }

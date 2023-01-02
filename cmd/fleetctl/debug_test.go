@@ -99,14 +99,13 @@ func TestDebugConnectionCommand(t *testing.T) {
 		// get the invalid certificate (for example.com)
 		dir := t.TempDir()
 		certPath := filepath.Join(dir, "cert.pem")
-		require.NoError(t, ioutil.WriteFile(certPath, []byte(exampleDotComCertDotPem), 0600))
+		require.NoError(t, ioutil.WriteFile(certPath, []byte(exampleDotComCertDotPem), 0o600))
 
 		buf, err := runAppNoChecks([]string{"debug", "connection", "--fleet-certificate", certPath, srv.URL})
 		// 2 successes: resolve host, dial address
 		t.Log(buf.String())
 		require.Equal(t, 2, strings.Count(buf.String(), "Success:"))
 		// 1 failure: invalid certificate
-		t.Log(err)
 		require.Error(t, err)
 		require.Equal(t, 1, strings.Count(err.Error(), "Fail: certificate:"))
 	})
@@ -124,7 +123,7 @@ func rawCertToPemFile(t *testing.T, raw []byte) string {
 
 	dir := t.TempDir()
 	certPath := filepath.Join(dir, "cert.pem")
-	require.NoError(t, ioutil.WriteFile(certPath, buf.Bytes(), 0600))
+	require.NoError(t, ioutil.WriteFile(certPath, buf.Bytes(), 0o600))
 	return certPath
 }
 
