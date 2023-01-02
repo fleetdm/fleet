@@ -1191,21 +1191,21 @@ func GetDetailQueries(ctx context.Context, fleetConfig config.FleetConfig, featu
 		var unknownQueries []string
 
 		for name, override := range features.DetailQueryOverrides {
+			query, ok := generatedMap[name]
+			if !ok {
+				unknownQueries = append(unknownQueries, name)
+				continue
+			}
 			if override == nil {
 				delete(generatedMap, name)
 			} else {
-				query, ok := generatedMap[name]
-				if !ok {
-					unknownQueries = append(unknownQueries, name)
-					continue
-				}
 				query.Query = *override
 				generatedMap[name] = query
 			}
 		}
 
 		if len(unknownQueries) > 0 {
-			logging.WithExtras(ctx, "unknown-queries", strings.Join(unknownQueries, ","))
+			logging.WithErr(ctx, ctxerr.New(ctx, fmt.Sprintf("unknown-queries: %s", strings.Join(unknownQueries, ","))))
 		}
 	}
 
