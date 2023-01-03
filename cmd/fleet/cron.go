@@ -868,7 +868,7 @@ func newAppleMDMDEPProfileAssigner(
 				level.Error(kitlog.With(logger, "cron", name, "component", "nanodep-syncer")).Log("err", err)
 				sentry.CaptureException(err)
 			case n > 0:
-				level.Info(kitlog.With(logger, "cron", name, "component", "nanodep-syncer")).Log("msg", fmt.Sprintf("%d new mdm devices added to hosts", n))
+				level.Info(kitlog.With(logger, "cron", name, "component", "nanodep-syncer")).Log("msg", fmt.Sprintf("added %d new mdm device(s) to pending hosts", n))
 			default:
 				// ok
 			}
