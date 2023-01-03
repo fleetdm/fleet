@@ -13,6 +13,7 @@ const Check = ({ color = "core-fleet-blue" }: ICheckProps) => {
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       viewBox="0 0 16 16"
+      className="check"
     >
       <g clipPath="url(#a)">
         <path

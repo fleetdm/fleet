@@ -1,4 +1,4 @@
-import React, { FormEvent, useState, useContext } from "react";
+import React, { FormEvent, useState, useContext, useEffect } from "react";
 
 import { AppContext } from "context/app";
 
@@ -10,7 +10,7 @@ import InputField from "components/forms/fields/InputField";
 import Spinner from "components/Spinner";
 import requestCSR from "services/entities/mdm_csr";
 import DataError from "components/DataError";
-
+import Check from "components/icons/Check";
 import Modal from "components/Modal";
 
 const baseClass = "modal request-csr-modal";
@@ -38,6 +38,13 @@ const RequestCSRModal = ({
   const [requestState, setRequestState] = useState<
     "loading" | "error" | "success" | "invalid" | undefined
   >(undefined);
+  const [invalidMessage, setInvalidMessage] = useState<string>("");
+
+  useEffect(() => {
+    requestState === "invalid"
+      ? setInvalidMessage("Must be a valid work email")
+      : setInvalidMessage("");
+  }, [requestState]);
 
   const { email, orgName } = formData;
 
@@ -54,8 +61,19 @@ const RequestCSRModal = ({
   const renderRequestCSRForm = () => {
     switch (requestState) {
       case "success":
-        // TODO
-        return <p>hooray!</p>;
+        return (
+          <div className="success">
+            <Check />
+            <h2>You&apos;re almost there</h2>
+            <p>
+              Go to your <strong>{email}</strong> email to download your CSR.
+              <br />
+              Your certificate and key for SCEP will be downloaded in the
+              browser. You&apos;ll need these later.
+            </p>
+            <Button onClick={onCancel}>Got it</Button>
+          </div>
+        );
         break;
       case "error":
         return <DataError />;
@@ -85,6 +103,7 @@ const RequestCSRModal = ({
                   label="Email"
                   parseTarget
                   value={email}
+                  error={invalidMessage}
                 />
                 <p>
                   Apple Inc. requires a work email (ex.

@@ -14,4 +14,15 @@
       }
     }
   }
+
+  .check {
+    border-radius: 50%;
+    border-color: $core-fleet-blue;
+    border: solid;
+    padding: 5px;
+  }
+
+  .success {
+    text-align: center;
+  }
 }
