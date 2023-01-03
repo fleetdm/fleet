@@ -23,7 +23,7 @@ import (
 const (
 	vendorCertEnvName = "VENDOR_CERT_PEM"
 	vendorKeyEnvName  = "VENDOR_KEY_PEM"
-	vendorPassEnvName = "VENDOR_KEY_PASSPHRASE"
+	vendorPassEnvName = "VENDOR_KEY_PASSPHRASE" //nolint:gosec
 	csrEnvName        = "CSR_BASE64"
 
 	rsaPrivateKeyPEMBlockType = "RSA PRIVATE KEY"
@@ -96,7 +96,7 @@ func processRequest(vendorCertPEM, vendorKeyPEM, vendorKeyPassphrase, csrBase64 
 	}
 
 	// Decode CSR input
-	csr, err := base64.StdEncoding.DecodeString(string(csrBase64))
+	csr, err := base64.StdEncoding.DecodeString(csrBase64)
 	if err != nil {
 		return nil, fmt.Errorf("base64 decode csr: %w", err)
 	}
