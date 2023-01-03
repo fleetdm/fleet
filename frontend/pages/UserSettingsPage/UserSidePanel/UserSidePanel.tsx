@@ -9,13 +9,9 @@ import versionAPI from "services/entities/version";
 
 import Avatar from "components/Avatar";
 import Button from "components/buttons/Button";
+import HumanTimeDiffWithDateTip from "components/HumanTimeDiffWithDateTip";
 
-import {
-  generateRole,
-  generateTeam,
-  greyCell,
-  humanHostTimeDiffWithDateTip,
-} from "utilities/helpers";
+import { generateRole, generateTeam, greyCell } from "utilities/helpers";
 
 interface IUserSidePanelProps {
   currentUser: IUser;
@@ -57,7 +53,9 @@ const UserSidePanel = ({
   const roleText = generateRole(teams, globalRole);
   const teamsText = generateTeam(teams, globalRole);
 
-  const lastUpdatedAt = updatedAt && humanHostTimeDiffWithDateTip(updatedAt);
+  const lastUpdatedAt = updatedAt && (
+    <HumanTimeDiffWithDateTip timeString={updatedAt} />
+  );
 
   return (
     <div className={baseClass}>

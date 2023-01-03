@@ -608,40 +608,6 @@ export const humanHostLastSeen = (lastSeen: string): string => {
   return formatDistanceToNow(new Date(lastSeen), { addSuffix: true });
 };
 
-export const humanHostTimeDiffWithDateTip = (timeString: string) => {
-  const id = uniqueId();
-  return timeString === "Unavailable" ? (
-    <span>Unavailable</span>
-  ) : (
-    <>
-      <span className={"date-tooltip"} data-tip data-for={`tooltip-${id}`}>
-        {humanHostLastSeen(timeString)}
-      </span>
-      <ReactTooltip
-        className="date-tooltip-text"
-        place="top"
-        type="dark"
-        effect="solid"
-        id={`tooltip-${id}`}
-        backgroundColor="#3e4771"
-      >
-        {intlFormat(
-          new Date(timeString),
-          {
-            year: "numeric",
-            month: "numeric",
-            day: "numeric",
-            hour: "numeric",
-            minute: "numeric",
-            second: "numeric",
-          },
-          { locale: window.navigator.languages[0] }
-        )}
-      </ReactTooltip>
-    </>
-  );
-};
-
 export const humanHostEnrolled = (enrolled: string): string => {
   if (!enrolled || enrolled < "2016-07-28T00:00:00Z") {
     return "Never";

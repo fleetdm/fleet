@@ -262,7 +262,6 @@ const ActivityItem = ({
             className={`${baseClass}__details-bottomline`}
             data-tip
             data-for={`activity-${activity.id}`}
-            title={new Date(activity.created_at).toString()}
           >
             {formatDistanceToNowStrict(activityCreatedAt, {
               addSuffix: true,

@@ -14,12 +14,11 @@ import LinkCell from "components/TableContainer/DataTable/LinkCell/LinkCell";
 import StatusIndicator from "components/StatusIndicator";
 import TextCell from "components/TableContainer/DataTable/TextCell/TextCell";
 import TooltipWrapper from "components/TooltipWrapper";
+import HumanTimeDiffWithDateTip from "components/HumanTimeDiffWithDateTip";
 import {
   humanHostMemory,
   humanHostLastRestart,
   humanHostLastSeen,
-  humanHostTimeDiffWithDateTip,
-  humanHostDetailUpdated,
   hostTeamName,
 } from "utilities/helpers";
 import { IConfig } from "interfaces/config";
@@ -363,7 +362,7 @@ const allHostTableHeaders: IDataColumn[] = [
     Cell: (cellProps: ICellProps) => (
       <TextCell
         value={cellProps.cell.value}
-        formatter={humanHostTimeDiffWithDateTip}
+        formatter={HumanTimeDiffWithDateTip}
       />
     ),
   },
@@ -390,7 +389,7 @@ const allHostTableHeaders: IDataColumn[] = [
     Cell: (cellProps: ICellProps) => (
       <TextCell
         value={cellProps.cell.value}
-        formatter={humanHostTimeDiffWithDateTip}
+        formatter={HumanTimeDiffWithDateTip}
       />
     ),
   },
@@ -420,7 +419,7 @@ const allHostTableHeaders: IDataColumn[] = [
       return (
         <TextCell
           value={humanHostLastRestart(detail_updated_at, uptime)}
-          formatter={humanHostTimeDiffWithDateTip}
+          formatter={HumanTimeDiffWithDateTip}
         />
       );
     },
