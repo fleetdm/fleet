@@ -566,7 +566,7 @@ const ManageSoftwarePage = ({
     return emptySoftware;
   };
 
-  const searchable = !!software?.software;
+  const searchable = !!software?.software || searchQuery !== "";
 
   return !availableTeams ||
     !globalConfig ||
