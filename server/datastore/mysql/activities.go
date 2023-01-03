@@ -16,10 +16,18 @@ func (ds *Datastore) NewActivity(ctx context.Context, user *fleet.User, activity
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "marshaling activity details")
 	}
+
+	var userID *uint
+	var userName *string
+	if user != nil {
+		userID = &user.ID
+		userName = &user.Name
+	}
+
 	_, err = ds.writer.ExecContext(ctx,
 		`INSERT INTO activities (user_id, user_name, activity_type, details) VALUES(?,?,?,?)`,
-		user.ID,
-		user.Name,
+		userID,
+		userName,
 		activity.ActivityName(),
 		detailsBytes,
 	)
