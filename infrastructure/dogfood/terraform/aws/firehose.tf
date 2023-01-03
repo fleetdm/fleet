@@ -1,5 +1,5 @@
 // Customer keys are not supported in our Fleet Terraforms at the moment. We will evaluate the
-// possibility of providing this capability in the future. 
+// possibility of providing this capability in the future.
 // No versioning on this bucket is by design.
 // Bucket logging is not supported in our Fleet Terraforms at the moment. It can be enabled by the
 // organizations deploying Fleet, and we will evaluate the possibility of providing this capability
@@ -87,8 +87,23 @@ data "aws_iam_policy_document" "osquery_results_policy_doc" {
       "${aws_opensearch_domain.main.arn}",
       "${aws_opensearch_domain.main.arn}/*",
     ]
- 
   }
+
+  statement {
+    effect  = "Allow"
+    actions = [
+            "ec2:DescribeVpcs",
+            "ec2:DescribeVpcAttribute",
+            "ec2:DescribeSubnets",
+            "ec2:DescribeSecurityGroups",
+            "ec2:DescribeNetworkInterfaces",
+            "ec2:CreateNetworkInterface",
+            "ec2:CreateNetworkInterfacePermission",
+            "ec2:DeleteNetworkInterface"
+          ]
+    resources = ["*"]
+  }
+
 }
 
 data "aws_iam_policy_document" "osquery_status_policy_doc" {
@@ -147,7 +162,7 @@ data "aws_iam_policy_document" "osquery_firehose_assume_role" {
 
 resource "aws_kinesis_firehose_delivery_stream" "osquery_results" {
   name        = "osquery_results"
-  destination = "s3"
+  destination = "elasticsearch"
 
   s3_configuration {
     role_arn   = aws_iam_role.firehose-results.arn
@@ -158,7 +173,12 @@ resource "aws_kinesis_firehose_delivery_stream" "osquery_results" {
     domain_arn = aws_opensearch_domain.main.arn
     role_arn   = aws_iam_role.firehose-results.arn
     index_name = "osquery_results"
-    type_name  = "osquery_results"
+
+    vpc_config {
+      subnet_ids         = [module.vpc.private_subnets[0]]
+      role_arn           = aws_iam_role.firehose-results.arn
+      security_group_ids = [aws_security_group.os.id]
+    }
   }
 }
 
