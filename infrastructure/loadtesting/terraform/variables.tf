@@ -19,3 +19,9 @@ variable "loadtest_containers" {
   type        = number
   default     = 0
 }
+
+variable "db_instance_type" {
+  description = "The type of the loadtesting db instances.  Default is db.r6g.4xlarge."
+  type        = string
+  default     = "db.r6g.4xlarge"
+}
