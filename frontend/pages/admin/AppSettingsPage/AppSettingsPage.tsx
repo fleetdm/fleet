@@ -97,8 +97,16 @@ const AppSettingsPage = ({ params }: IAppSettingsPageProps) => {
     [appConfig, refetchConfig, renderFlash]
   );
 
+  // filter out non-premium options
+  let navItems = ORG_SETTINGS_NAV_ITEMS;
+  if (!isPremiumTier) {
+    navItems = ORG_SETTINGS_NAV_ITEMS.filter(
+      (item) => item.urlSection !== "fleet-desktop"
+    );
+  }
+
   const currentFormSection =
-    ORG_SETTINGS_NAV_ITEMS.find((item) => item.urlSection === section) ??
+    navItems.find((item) => item.urlSection === section) ??
     DEFAULT_SETTINGS_SECTION;
 
   const CurrentCard = currentFormSection.Card;
@@ -124,7 +132,7 @@ const AppSettingsPage = ({ params }: IAppSettingsPageProps) => {
       >
         <SideNav
           className={`${baseClass}__side-nav`}
-          navItems={ORG_SETTINGS_NAV_ITEMS}
+          navItems={navItems}
           activeItem={currentFormSection.urlSection}
           CurrentCard={
             !isLoadingAppConfig && appConfig ? (

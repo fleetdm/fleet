@@ -17,7 +17,7 @@ export interface ISideNavItem<T> {
 interface ISideNavProps {
   navItems: ISideNavItem<IAppConfigFormProps>[];
   activeItem: string;
-  CurrentCard: JSX.Element; // TODO: typing
+  CurrentCard: JSX.Element;
   className?: string;
 }
 
