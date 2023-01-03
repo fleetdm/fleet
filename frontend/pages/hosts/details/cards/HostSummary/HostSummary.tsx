@@ -214,8 +214,7 @@ const HostSummary = ({
             <p className="last-fetched">
               {titleData.detail_updated_at
                 ? humanHostTimeDiffWithDateTip(titleData.detail_updated_at)
-                : // &nbsp;
-                  "Unavailable"}
+                : "Unavailable"}
             </p>
             {renderRefetch()}
           </div>

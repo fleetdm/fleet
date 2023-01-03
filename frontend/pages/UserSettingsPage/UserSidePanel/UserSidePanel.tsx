@@ -1,5 +1,4 @@
 import React, { useContext, useEffect, useState } from "react";
-import { formatDistanceToNow } from "date-fns";
 
 import { IUser } from "interfaces/user";
 import { IVersionData } from "interfaces/version";
@@ -59,9 +58,6 @@ const UserSidePanel = ({
   const teamsText = generateTeam(teams, globalRole);
 
   const lastUpdatedAt = updatedAt && humanHostTimeDiffWithDateTip(updatedAt);
-  // formatDistanceToNow(new Date(updatedAt), {
-  //   addSuffix: true,
-  // });
 
   return (
     <div className={baseClass}>
