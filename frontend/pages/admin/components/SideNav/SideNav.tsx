@@ -17,7 +17,7 @@ export interface ISideNavItem<T> {
 interface ISideNavProps {
   navItems: ISideNavItem<IAppConfigFormProps>[];
   activeItem: string;
-  CurrentCard: (passedProps: any) => JSX.Element; // TODO: typing
+  CurrentCard: JSX.Element; // TODO: typing
   className?: string;
 }
 
@@ -44,9 +44,7 @@ const SideNav = ({
             ))}
           </ul>
         </nav>
-        <div className={`${baseClass}__card-container`}>
-          <CurrentCard />
-        </div>
+        <div className={`${baseClass}__card-container`}>{CurrentCard}</div>
       </div>
     </div>
   );

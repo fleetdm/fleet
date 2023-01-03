@@ -46,7 +46,7 @@ const IntegrationsPage = ({ params }: IIntegrationSettingsPageProps) => {
         className={`${baseClass}__side-nav`}
         navItems={navItems}
         activeItem={currentSection.urlSection}
-        CurrentCard={() => <CurrentCard />}
+        CurrentCard={<CurrentCard />}
       />
     </div>
   );

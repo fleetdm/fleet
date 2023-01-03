@@ -31,11 +31,11 @@ const AppSettingsPage = ({ params }: IAppSettingsPageProps) => {
   const { renderFlash } = useContext(NotificationContext);
   const handlePageError = useErrorHandler();
 
-  const { data: appConfig, isLoading, refetch: refetchConfig } = useQuery<
-    IConfig,
-    Error,
-    IConfig
-  >(["config"], () => configAPI.loadAll(), {
+  const {
+    data: appConfig,
+    isLoading: isLoadingAppConfig,
+    refetch: refetchConfig,
+  } = useQuery<IConfig, Error, IConfig>(["config"], () => configAPI.loadAll(), {
     select: (data: IConfig) => data,
     onSuccess: (data) => {
       setConfig(data);
@@ -43,16 +43,16 @@ const AppSettingsPage = ({ params }: IAppSettingsPageProps) => {
   });
 
   const onFormSubmit = useCallback(
-    (formData: Partial<IConfig>) => {
+    (formUpdates: Partial<IConfig>) => {
       if (!appConfig) {
         return false;
       }
 
       setIsUpdatingSettings(true);
 
-      const diff = deepDifference(formData, appConfig);
-      // send all formData.agent_options because diff overrides all agent options
-      diff.agent_options = formData.agent_options;
+      const diff = deepDifference(formUpdates, appConfig);
+      // send all formUpdates.agent_options because diff overrides all agent options
+      diff.agent_options = formUpdates.agent_options;
 
       configAPI
         .update(diff)
@@ -127,16 +127,16 @@ const AppSettingsPage = ({ params }: IAppSettingsPageProps) => {
           navItems={ORG_SETTINGS_NAV_ITEMS}
           activeItem={currentFormSection.urlSection}
           CurrentCard={
-            !isLoading && appConfig
-              ? () => (
-                  <CurrentCard
-                    appConfig={appConfig}
-                    handleSubmit={onFormSubmit}
-                    isUpdatingSettings={isUpdatingSettings}
-                    isPremiumTier={isPremiumTier}
-                  />
-                )
-              : () => <Spinner />
+            !isLoadingAppConfig && appConfig ? (
+              <CurrentCard
+                appConfig={appConfig}
+                handleSubmit={onFormSubmit}
+                isUpdatingSettings={isUpdatingSettings}
+                isPremiumTier={isPremiumTier}
+              />
+            ) : (
+              <Spinner />
+            )
           }
         />
       </SandboxGate>
