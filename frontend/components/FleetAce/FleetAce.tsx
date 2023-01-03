@@ -12,6 +12,7 @@ import "./mode";
 import "./theme";
 
 export interface IFleetAceProps {
+  focus?: boolean;
   error?: string | null;
   fontSize?: number;
   label?: string;
@@ -33,6 +34,7 @@ export interface IFleetAceProps {
 const baseClass = "fleet-ace";
 
 const FleetAce = ({
+  focus,
   error,
   fontSize = 14,
   label,
@@ -131,6 +133,7 @@ const FleetAce = ({
         width="100%"
         wrapEnabled={wrapEnabled}
         style={style}
+        focus={focus}
         commands={[
           {
             name: "commandName",
