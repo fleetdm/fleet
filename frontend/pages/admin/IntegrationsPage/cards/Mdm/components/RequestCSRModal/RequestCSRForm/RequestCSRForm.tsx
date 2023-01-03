@@ -8,11 +8,11 @@ import Button from "components/buttons/Button";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import Spinner from "components/Spinner";
+import requestCSR from "services/entities/mdm_csr";
 
 const baseClass = "request-csr";
 
 interface IRequestCSRFormProps {
-  onSubmit: (formData: IRequestCSRFormData) => any;
   onCancel: () => void;
   testingConnection?: boolean;
 }
@@ -23,7 +23,6 @@ interface IFormField {
 }
 
 const RequestCSRForm = ({
-  onSubmit,
   onCancel,
   testingConnection,
 }: IRequestCSRFormProps): JSX.Element => {
@@ -34,6 +33,10 @@ const RequestCSRForm = ({
     orgName: config?.org_info?.org_name || "",
   });
 
+  const [requestState, setRequestState] = useState<
+    "loading" | "error" | "success" | undefined
+  >(undefined);
+
   const { email, orgName } = formData;
 
   // destructure change event to its name and value
@@ -41,9 +44,9 @@ const RequestCSRForm = ({
     setFormData({ ...formData, [name]: value });
   };
 
-  const onFormSubmit = (evt: FormEvent): Promise<string> => {
+  const onFormSubmit = (evt: FormEvent) => {
     evt.preventDefault();
-    return onSubmit({ email, orgName });
+    return requestCSR({ email, orgName }, setRequestState);
   };
 
   return (
@@ -60,7 +63,6 @@ const RequestCSRForm = ({
           autoComplete="off"
         >
           <div className="bottom-label">
-            {/* TODO: validate as work email */}
             <InputField
               name="email"
               onChange={onInputChange}
@@ -80,7 +82,11 @@ const RequestCSRForm = ({
             value={orgName}
           />
           <div className="modal-cta-wrap">
-            <Button type="submit" variant="brand">
+            <Button
+              type="submit"
+              variant="brand"
+              isLoading={requestState === "loading"}
+            >
               Request
             </Button>
             <Button onClick={onCancel} variant="inverse">

@@ -22,7 +22,7 @@ const RequestCSRModal = ({ onCancel }: IRequestCSRModalProps): JSX.Element => {
           fleetdm.com will send your CSR to the below email. Your certificate
           and key for SCEP will be downloaded in the browser.
         </p>
-        <RequestCSRForm onSubmit={requestCSR} onCancel={onCancel} />
+        <RequestCSRForm onCancel={onCancel} />
       </>
     </Modal>
   );
