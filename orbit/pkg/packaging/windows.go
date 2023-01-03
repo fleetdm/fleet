@@ -91,6 +91,10 @@ func BuildMSI(opt Options) (string, error) {
 		return "", fmt.Errorf("write eventlog file: %w", err)
 	}
 
+	if err := writePowershellInstallerUtilsFile(opt, orbitRoot); err != nil {
+		return "", fmt.Errorf("write powershell installer utils file: %w", err)
+	}
+
 	if err := writeWixFile(opt, tmpDir); err != nil {
 		return "", fmt.Errorf("write wix file: %w", err)
 	}
@@ -170,6 +174,25 @@ func writeEventLogFile(opt Options, rootPath string) error {
 
 	if err := ioutil.WriteFile(path, contents.Bytes(), constant.DefaultFileMode); err != nil {
 		return fmt.Errorf("event log manifest creation: %w", err)
+	}
+
+	return nil
+}
+
+func writePowershellInstallerUtilsFile(opt Options, rootPath string) error {
+	// Powershell installer utils file is going to be built and dumped into working directory
+	path := filepath.Join(rootPath, "installer_utils.ps1")
+	if err := secure.MkdirAll(filepath.Dir(path), constant.DefaultDirMode); err != nil {
+		return fmt.Errorf("powershell installer utils location creation: %w", err)
+	}
+
+	var contents bytes.Buffer
+	if err := windowsPSInstallerUtils.Execute(&contents, opt); err != nil {
+		return fmt.Errorf("powershell installer utils transform: %w", err)
+	}
+
+	if err := ioutil.WriteFile(path, contents.Bytes(), constant.DefaultFileMode); err != nil {
+		return fmt.Errorf("powershell installer utils file write: %w", err)
 	}
 
 	return nil

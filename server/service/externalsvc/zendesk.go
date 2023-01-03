@@ -48,7 +48,9 @@ func NewZendeskClient(opts *ZendeskOptions) (*Zendesk, error) {
 	subparts := strings.Split(url.Host, ".")
 	subdomain := subparts[0]
 
-	client.SetSubdomain(subdomain)
+	if err := client.SetSubdomain(subdomain); err != nil {
+		return nil, err
+	}
 	client.SetCredential(zendesk.NewAPITokenCredential(opts.Email, opts.APIToken))
 
 	return &Zendesk{
@@ -154,7 +156,9 @@ func NewZendeskTestClient(opts *ZendeskOptions) (*Zendesk, error) {
 		return nil, err
 	}
 	testURL := fmt.Sprint(opts.URL, "/api/v2")
-	client.SetEndpointURL(testURL)
+	if err := client.SetEndpointURL(testURL); err != nil {
+		return nil, err
+	}
 	client.SetCredential(zendesk.NewAPITokenCredential(opts.Email, opts.APIToken))
 
 	return &Zendesk{

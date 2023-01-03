@@ -37,10 +37,11 @@ type Job interface {
 // failingPolicyArgs are the args common to all integrations that can process
 // failing policies.
 type failingPolicyArgs struct {
-	PolicyID   uint                  `json:"policy_id"`
-	PolicyName string                `json:"policy_name"`
-	Hosts      []fleet.PolicySetHost `json:"hosts"`
-	TeamID     *uint                 `json:"team_id,omitempty"`
+	PolicyID       uint                  `json:"policy_id"`
+	PolicyName     string                `json:"policy_name"`
+	PolicyCritical bool                  `json:"policy_critical"`
+	Hosts          []fleet.PolicySetHost `json:"hosts"`
+	TeamID         *uint                 `json:"team_id,omitempty"`
 }
 
 // vulnArgs are the args common to all integrations that can process
@@ -166,4 +167,24 @@ func (w *Worker) processJob(ctx context.Context, job *fleet.Job) error {
 	}
 
 	return j.Run(ctx, args)
+}
+
+type failingPoliciesTplArgs struct {
+	FleetURL       string
+	PolicyID       uint
+	PolicyName     string
+	PolicyCritical bool
+	TeamID         *uint
+	Hosts          []fleet.PolicySetHost
+}
+
+func newFailingPoliciesTplArgs(fleetURL string, args *failingPolicyArgs) *failingPoliciesTplArgs {
+	return &failingPoliciesTplArgs{
+		FleetURL:       fleetURL,
+		PolicyName:     args.PolicyName,
+		PolicyID:       args.PolicyID,
+		PolicyCritical: args.PolicyCritical,
+		TeamID:         args.TeamID,
+		Hosts:          args.Hosts,
+	}
 }

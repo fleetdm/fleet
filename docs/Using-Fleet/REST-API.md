@@ -653,7 +653,8 @@ None.
       "request_id": "fleet_distributed_query_31",
       "session_id": "f73922ed-40a4-4e98-a50a-ccda9d3eb755",
       "expired": false,
-      "max_block": 1
+      "max_block": 1,
+      "error": "S3 multipart carve upload: EntityTooSmall: Your proposed upload is smaller than the minimum allowed object size"
     }
   ]
 }
@@ -1706,7 +1707,7 @@ None.
 | os_version              | string  | query | The version of the operating system to filter hosts by. `os_name` must also be specified with `os_version`                                                                                                                                                                                                                                  |
 | device_mapping          | boolean | query | Indicates whether `device_mapping` should be included for each host. See ["Get host's Google Chrome profiles](#get-host's-google-chrome-profiles) for more information about this feature.                                                                                                                                                  |
 | mdm_id                  | integer | query | The ID of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider and URL).                                                                                                                                                                                                |
-| mdm_enrollment_status   | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Can be one of 'manual', 'automatic' or 'unenrolled'.                                                                                                                                                                                                             |
+| mdm_enrollment_status   | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Can be one of 'manual', 'automatic', 'pending', or 'unenrolled'.                                                                                                                                                                                                             |
 | munki_issue_id          | integer | query | The ID of the _munki issue_ (a Munki-reported error or warning message) to filter hosts by (that is, filter hosts that are affected by that corresponding error or warning message).                                                                                                                                                        |
 | low_disk_space          | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts with less GB of disk space available than this value. Must be a number between 1-100.                                                                                                                                                                                  |
 | disable_failing_policies| boolean | query | If "true", hosts will return failing policies as 0 regardless of whether there are any that failed for the host. This is meant to be used when increased performance is needed in exchange for the extra information.                                                                                                                       |
@@ -1851,7 +1852,7 @@ Response payload with the `munki_issue_id` filter provided:
 | os_version              | string  | query | The version of the operating system to filter hosts by. `os_name` must also be specified with `os_version`                                                                                                                                                                                                                                  |
 | label_id                | integer | query | A valid label ID. Can only be used in combination with `order_key`, `order_direction`, `after`, `status`, `query` and `team_id`.                                                                                                                                                                                                            |
 | mdm_id                  | integer | query | The ID of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider and URL).                                                                                                                                                                                                |
-| mdm_enrollment_status   | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Can be one of 'manual', 'automatic' or 'unenrolled'.                                                                                                                                                                                                             |
+| mdm_enrollment_status   | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Can be one of 'manual', 'automatic', 'pending', or 'unenrolled'.                                                                                                                                                                                                             |
 | munki_issue_id          | integer | query | The ID of the _munki issue_ (a Munki-reported error or warning message) to filter hosts by (that is, filter hosts that are affected by that corresponding error or warning message).                                                                                                                                                        |
 | low_disk_space          | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts with less GB of disk space available than this value. Must be a number between 1-100.                                                                                                                                                                                  |
 
@@ -2128,7 +2129,8 @@ Returns the information of the specified host.
         "description": "this is a query",
         "resolution": "fix with these steps...",
         "platform": "windows,linux",
-        "response": "pass"
+        "response": "pass",
+        "critical": false
       },
       {
         "id": 2,
@@ -2137,7 +2139,8 @@ Returns the information of the specified host.
         "description": "this is another query",
         "resolution": "fix with these other steps...",
         "platform": "darwin",
-        "response": "fail"
+        "response": "fail",
+        "critical": false
       },
       {
         "id": 3,
@@ -2146,7 +2149,8 @@ Returns the information of the specified host.
         "description": "",
         "resolution": "",
         "platform": "",
-        "response": ""
+        "response": "",
+        "critical": false
       }
     ],
     "issues": {
@@ -2286,7 +2290,7 @@ Returns the information of the host specified using the `uuid`, `osquery_host_id
             "platform": "",
             "label_type": "builtin",
             "label_membership_type": "dynamic"
-        },
+        }
     ],
     "packs": [
           {
@@ -2319,8 +2323,9 @@ Returns the information of the host specified using the `uuid`, `osquery_host_id
             "platform": "darwin,linux",
             "created_at": "2022-09-02T18:52:19Z",
             "updated_at": "2022-09-02T18:52:19Z",
-            "response": "fail"
-        },
+            "response": "fail",
+            "critical": false
+        }
     ],
     "batteries": [
       {
@@ -2552,6 +2557,8 @@ in [Fleet's osquery installers](https://fleetdm.com/docs/using-fleet/adding-host
 
 Retrieves a host's MDM enrollment status and MDM server URL.
 
+If the host exists but is not enrolled to an MDM server, then this API returns `null`.
+
 `GET /api/v1/fleet/hosts/{id}/mdm`
 
 #### Parameters
@@ -2606,6 +2613,7 @@ Retrieves MDM enrollment summary. Windows servers are excluded from the aggregat
 
 ```json
 {
+  "counts_updated_at": "2021-03-21T12:32:44Z",
   "mobile_device_management_enrollment_status": {
     "enrolled_manual_hosts_count": 0,
     "enrolled_automated_hosts_count": 2,
@@ -2719,7 +2727,7 @@ Retrieves aggregated host's MDM enrollment status and Munki versions.
 ```json
 {
   "macadmins": {
-    "counts_updated_at": "2021-03-21 12:32:44",
+    "counts_updated_at": "2021-03-21T12:32:44Z",
     "munki_versions": [
       {
         "version": "5.5",
@@ -2879,7 +2887,7 @@ requested by a web browser.
 | os_name                 | string  | query | The name of the operating system to filter hosts by. `os_version` must also be specified with `os_name`                                                                                                                                                                                                                                     |
 | os_version              | string  | query | The version of the operating system to filter hosts by. `os_name` must also be specified with `os_version`                                                                                                                                                                                                                                  |
 | mdm_id                  | integer | query | The ID of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider and URL).                                                                                                                                                                                                |
-| mdm_enrollment_status   | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Can be one of 'manual', 'automatic' or 'unenrolled'.                                                                                                                                                                                                             |
+| mdm_enrollment_status   | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Can be one of 'manual', 'automatic', 'pending', or 'unenrolled'.                                                                                                                                                                                                             |
 | munki_issue_id          | integer | query | The ID of the _munki issue_ (a Munki-reported error or warning message) to filter hosts by (that is, filter hosts that are affected by that corresponding error or warning message).                                                                                                                                                        |
 | low_disk_space          | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts with less GB of disk space available than this value. Must be a number between 1-100.                                                                                                                                                                                  |
 | label_id                | integer | query | A valid label ID. Can only be used in combination with `order_key`, `order_direction`, `status`, `query` and `team_id`.                                                                                                                                                                                                                     |
@@ -3227,8 +3235,8 @@ Returns a list of the hosts that belong to the specified label.
 | query                    | string  | query | Search query keywords. Searchable fields include `hostname`, `machine_serial`, `uuid`, and `ipv4`.                                                                                                                         |
 | team_id                  | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts in the specified team.                                                                                                                                |
 | disable_failing_policies | boolean | query | If "true", hosts will return failing policies as 0 regardless of whether there are any that failed for the host. This is meant to be used when increased performance is needed in exchange for the extra information.      |
+| mdm_id                  | integer | query | The ID of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider and URL).      |
 | low_disk_space           | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts with less GB of disk space available than this value. Must be a number between 1-100.                                                                 |
-
 #### Example
 
 `GET /api/v1/fleet/labels/6/hosts&query=floobar`
@@ -3335,6 +3343,7 @@ Deletes the label specified by ID.
 - [Add policy](#add-policy)
 - [Remove policies](#remove-policies)
 - [Edit policy](#edit-policy)
+- [Run automation for all failing hosts of a policy](#run-automation-for-all-failing-hosts-of-a-policy)
 
 `In Fleet 4.3.0, the Policies feature was introduced.`
 
@@ -3370,6 +3379,7 @@ For example, a policy might ask “Is Gatekeeper enabled on macOS devices?“ Th
       "name": "Gatekeeper enabled",
       "query": "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
       "description": "Checks if gatekeeper is enabled on macOS devices",
+      "critical": false,
       "author_id": 42,
       "author_name": "John",
       "author_email": "john@example.com",
@@ -3386,6 +3396,7 @@ For example, a policy might ask “Is Gatekeeper enabled on macOS devices?“ Th
       "name": "Windows machines with encrypted hard disks",
       "query": "SELECT 1 FROM bitlocker_info WHERE protection_status = 1;",
       "description": "Checks if the hard disk is encrypted on Windows devices",
+      "critical": true,
       "author_id": 43,
       "author_name": "Alice",
       "author_email": "alice@example.com",
@@ -3426,6 +3437,7 @@ For example, a policy might ask “Is Gatekeeper enabled on macOS devices?“ Th
       "name": "Gatekeeper enabled",
       "query": "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
       "description": "Checks if gatekeeper is enabled on macOS devices",
+      "critical": false,
       "author_id": 42,
       "author_name": "John",
       "author_email": "john@example.com",
@@ -3461,6 +3473,7 @@ An error is returned if both "query" and "query_id" are set on the request.
 | resolution  | string  | body | The resolution steps for the policy. |
 | query_id    | integer | body | An existing query's ID (legacy).     |
 | platform    | string  | body | Comma-separated target platforms, currently supported values are "windows", "linux", "darwin". The default, an empty string means target all platforms. |
+| critical    | boolean | body | _Available in Fleet Premium_ Mark policy as critical/high impact. |
 
 Either `query` or `query_id` must be provided.
 
@@ -3476,7 +3489,8 @@ Either `query` or `query_id` must be provided.
   "query": "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
   "description": "Checks if gatekeeper is enabled on macOS devices",
   "resolution": "Resolution steps",
-  "platform": "darwin"
+  "platform": "darwin",
+  "critical": true
 }
 ```
 
@@ -3491,6 +3505,7 @@ Either `query` or `query_id` must be provided.
     "name": "Gatekeeper enabled",
     "query": "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
     "description": "Checks if gatekeeper is enabled on macOS devices",
+    "critical": true,
     "author_id": 42,
     "author_name": "John",
     "author_email": "john@example.com",
@@ -3530,6 +3545,7 @@ Where `query_id` references an existing `query`.
     "name": "Gatekeeper enabled",
     "query": "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
     "description": "Checks if gatekeeper is enabled on macOS devices",
+    "critical": true,
     "author_id": 42,
     "author_name": "John",
     "author_email": "john@example.com",
@@ -3590,6 +3606,7 @@ Where `query_id` references an existing `query`.
 | description | string  | body | The query's description.             |
 | resolution  | string  | body | The resolution steps for the policy. |
 | platform    | string  | body | Comma-separated target platforms, currently supported values are "windows", "linux", "darwin". The default, an empty string means target all platforms. |
+| critical    | boolean | body | _Available in Fleet Premium_ Mark policy as critical/high impact. |
 
 #### Example Edit Policy
 
@@ -3602,6 +3619,7 @@ Where `query_id` references an existing `query`.
   "name": "Gatekeeper enabled",
   "query": "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
   "description": "Checks if gatekeeper is enabled on macOS devices",
+  "critical": true,
   "resolution": "Resolution steps",
   "platform": "darwin"
 }
@@ -3618,6 +3636,7 @@ Where `query_id` references an existing `query`.
     "name": "Gatekeeper enabled",
     "query": "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
     "description": "Checks if gatekeeper is enabled on macOS devices",
+    "critical": true,
     "author_id": 43,
     "author_name": "John",
     "author_email": "john@example.com",
@@ -3630,6 +3649,44 @@ Where `query_id` references an existing `query`.
     "failing_host_count": 0
   }
 }
+```
+
+### Run Automation for all failing hosts of a policy.
+
+Normally automations (Webhook/Integrations) runs on all hosts when a policy-check
+fails but didn't fail before. This feature to mark policies to call automation for
+all hosts that already fail the policy, too and possibly again.
+
+`POST /api/v1/fleet/automations/reset`
+
+#### Parameters
+
+| Name        | Type     | In   | Description                                              |
+| ----------  | -------- | ---- | -------------------------------------------------------- |
+| team_ids    | list     | body | Run automation for all hosts in policies of these teams  |
+| policy_ids  | list     | body | Run automations for all hosts these policies             |
+
+_Teams are available in Fleet Premium_
+
+#### Example Edit Policy
+
+`POST /api/v1/fleet/automations/reset`
+
+##### Request body
+
+```json
+{
+    "team_ids": [1],
+    "policy_ids": [1, 2, 3]
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{}
 ```
 
 ---
@@ -3654,7 +3711,7 @@ Team policies work the same as policies, but at the team level.
 
 | Name               | Type    | In   | Description                                                                                                   |
 | ------------------ | ------- | ---- | ------------------------------------------------------------------------------------------------------------- |
-| id            | integer | url  | Required. Defines what team id to operate on                                                                            |
+| id                 | integer | url  | Required. Defines what team id to operate on                                                                            |
 
 #### Example
 
@@ -3672,6 +3729,7 @@ Team policies work the same as policies, but at the team level.
       "name": "Gatekeeper enabled",
       "query": "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
       "description": "Checks if gatekeeper is enabled on macOS devices",
+      "critical": true,
       "author_id": 42,
       "author_name": "John",
       "author_email": "john@example.com",
@@ -3688,6 +3746,7 @@ Team policies work the same as policies, but at the team level.
       "name": "Windows machines with encrypted hard disks",
       "query": "SELECT 1 FROM bitlocker_info WHERE protection_status = 1;",
       "description": "Checks if the hard disk is encrypted on Windows devices",
+      "critical": false,
       "author_id": 43,
       "author_name": "Alice",
       "author_email": "alice@example.com",
@@ -3706,6 +3765,7 @@ Team policies work the same as policies, but at the team level.
       "name": "Arbitrary Test Policy (all platforms) (all teams)",
       "query": "SELECT 1 FROM osquery_info WHERE 1=1;",
       "description": "If you're seeing this, mostly likely this is because someone is testing out failing policies in dogfood. You can ignore this.",
+      "critical": true,
       "author_id": 77,
       "author_name": "Test Admin",
       "author_email": "test@admin.com",
@@ -3747,6 +3807,7 @@ Team policies work the same as policies, but at the team level.
     "name": "Gatekeeper enabled",
     "query": "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
     "description": "Checks if gatekeeper is enabled on macOS devices",
+    "critical": true,
     "author_id": 42,
     "author_name": "John",
     "author_email": "john@example.com",
@@ -3778,6 +3839,7 @@ The semantics for creating a team policy are the same as for global policies, se
 | resolution  | string  | body | The resolution steps for the policy. |
 | query_id    | integer | body | An existing query's ID (legacy).     |
 | platform    | string  | body | Comma-separated target platforms, currently supported values are "windows", "linux", "darwin". The default, an empty string means target all platforms. |
+| critical    | boolean | body | _Available in Fleet Premium_ Mark policy as critical/high impact. |
 
 Either `query` or `query_id` must be provided.
 
@@ -3792,6 +3854,7 @@ Either `query` or `query_id` must be provided.
   "name": "Gatekeeper enabled",
   "query": "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
   "description": "Checks if gatekeeper is enabled on macOS devices",
+  "critical": true,
   "resolution": "Resolution steps",
   "platform": "darwin"
 }
@@ -3808,6 +3871,7 @@ Either `query` or `query_id` must be provided.
     "name": "Gatekeeper enabled",
     "query": "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
     "description": "Checks if gatekeeper is enabled on macOS devices",
+    "critical": true,
     "author_id": 42,
     "author_name": "John",
     "author_email": "john@example.com",
@@ -3870,6 +3934,7 @@ Either `query` or `query_id` must be provided.
 | description | string  | body | The query's description.             |
 | resolution  | string  | body | The resolution steps for the policy. |
 | platform    | string  | body | Comma-separated target platforms, currently supported values are "windows", "linux", "darwin". The default, an empty string means target all platforms. |
+| critical    | boolean | body | _Available in Fleet Premium_ Mark policy as critical/high impact. |
 
 #### Example Edit Policy
 
@@ -3882,6 +3947,7 @@ Either `query` or `query_id` must be provided.
   "name": "Gatekeeper enabled",
   "query": "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
   "description": "Checks if gatekeeper is enabled on macOS devices",
+  "critical": true,
   "resolution": "Resolution steps",
   "platform": "darwin"
 }
@@ -3898,6 +3964,7 @@ Either `query` or `query_id` must be provided.
     "name": "Gatekeeper enabled",
     "query": "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
     "description": "Checks if gatekeeper is enabled on macOS devices",
+    "critical": true,
     "author_id": 43,
     "author_name": "John",
     "author_email": "john@example.com",
@@ -5089,7 +5156,7 @@ _Available in Fleet Premium_
       "agent_options": {
         "config": {
           "options": {
-=            "pack_delimiter": "/",
+            "pack_delimiter": "/",
             "logger_tls_period": 10,
             "distributed_plugin": "tls",
             "disable_distributed": false,
@@ -5126,7 +5193,7 @@ _Available in Fleet Premium_
         "spec": {
           "config": {
             "options": {
-=              "pack_delimiter": "/",
+              "pack_delimiter": "/",
               "logger_tls_period": 10,
               "distributed_plugin": "tls",
               "disable_distributed": false,
@@ -5189,7 +5256,7 @@ _Available in Fleet Premium_
     "agent_options": {
       "config": {
         "options": {
-=          "pack_delimiter": "/",
+          "pack_delimiter": "/",
           "logger_tls_period": 10,
           "distributed_plugin": "tls",
           "disable_distributed": false,
@@ -5345,7 +5412,7 @@ _Available in Fleet Premium_
     "agent_options": {
       "config": {
         "options": {
-=          "pack_delimiter": "/",
+          "pack_delimiter": "/",
           "logger_tls_period": 10,
           "distributed_plugin": "tls",
           "disable_distributed": false,

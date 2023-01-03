@@ -21,7 +21,7 @@ type getTeamScheduleResponse struct {
 
 func (r getTeamScheduleResponse) error() error { return r.Err }
 
-func getTeamScheduleEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func getTeamScheduleEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getTeamScheduleRequest)
 	resp := getTeamScheduleResponse{Scheduled: []scheduledQueryResponse{}}
 	queries, err := svc.GetTeamScheduledQueries(ctx, req.TeamID, req.ListOptions)
@@ -81,7 +81,7 @@ func nullIntToPtrUint(v *null.Int) *uint {
 	return ptr.Uint(uint(v.ValueOrZero()))
 }
 
-func teamScheduleQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func teamScheduleQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*teamScheduleQueryRequest)
 	resp, err := svc.TeamScheduleQuery(ctx, req.TeamID, &fleet.ScheduledQuery{
 		QueryID:  uintValueOrZero(req.QueryID),
@@ -133,7 +133,7 @@ type modifyTeamScheduleResponse struct {
 
 func (r modifyTeamScheduleResponse) error() error { return r.Err }
 
-func modifyTeamScheduleEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func modifyTeamScheduleEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*modifyTeamScheduleRequest)
 	resp, err := svc.ModifyTeamScheduledQueries(ctx, req.TeamID, req.ScheduledQueryID, req.ScheduledQueryPayload)
 	if err != nil {
@@ -176,7 +176,7 @@ type deleteTeamScheduleResponse struct {
 
 func (r deleteTeamScheduleResponse) error() error { return r.Err }
 
-func deleteTeamScheduleEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func deleteTeamScheduleEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*deleteTeamScheduleRequest)
 	err := svc.DeleteTeamScheduledQueries(ctx, req.TeamID, req.ScheduledQueryID)
 	if err != nil {

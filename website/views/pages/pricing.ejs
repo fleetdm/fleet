@@ -1,13 +1,10 @@
-<div id="pricing">
+<div id="pricing" v-cloak>
   <div class="pb-5">
-    <div
-      style="max-width: 1260px"
-      class="container-fluid pt-3 px-2 px-sm-4 mx-auto"
-    >
-      <section id="pricing-section" class="container-fluid px-1 d-flex flex-column justify-content-center pt-5 mx-auto">
+    <div style="max-width: 1260px" class="container-fluid pt-3 px-2 px-sm-4 mx-auto">
+      <div id="pricing-section" class="container-fluid px-1 d-flex flex-column justify-content-center pt-5 mx-auto">
         <h1 style="font-size: 28px; line-height: 38px; margin-bottom: 0;" class="text-center">Choose your plan</h1>
         <p class="text-center mb-5">
-          Telemetry that scales with your organization.
+          Device management that scales with your organization.
         </p>
         <div class="d-flex justify-content-center p-0">
           <div class="container-fluid d-flex flex-wrap justify-content-center p-0">
@@ -29,11 +26,9 @@
                       A flexible solution to get accurate, actionable data from your servers and workstations.
                     </p>
                   </div>
-                  <a
-                    style="max-width: 242px; font-size:16px;"
-                    class="btn btn-block btn-lg btn-info mt-3 mb-4 mx-auto"
-                    href="/try-fleet/register"
-                    >See Fleet in Sandbox</a>
+                  <a style="max-width: 242px; font-size:16px;" class="btn btn-block btn-lg btn-info mt-3 mb-4 mx-auto" href="/try-fleet/register">
+                    See Fleet in Sandbox
+                  </a>
                 </div>
               </div>
             </div>
@@ -44,10 +39,10 @@
                     <p class="font-weight-bold mb-0">
                       Premium
                     </p>
-                    <h2 style="color: #6b6cfa; line-height: 32px;">$2</h2>
+                    <h2 style="color: #6b6cfa; line-height: 32px;">$5</h2>
                     <p class="mb-0" style="line-height: 24px;">/host/month</p>
                     <p style="color: #8f8ea1; font-size: 12px; line-height:20px;" class="mb-0">
-                      (USD, billed annually at $24)
+                      (USD, billed annually at $60)
                     </p>
                   </div>
                   <div style="max-width: 242px;" class="mx-auto mb-4">
@@ -55,10 +50,7 @@
                       An enterprise plan that delivers rich endpoint data with dedicated support to organizations at scale.
                     </p>
                   </div>
-                  <a
-                    style="max-width: 242px; font-size:16px;"
-                    class="btn btn-block btn-lg btn-info mt-3 mb-4 mx-auto"
-                    href="/customers/register">
+                  <a style="max-width: 242px; font-size:16px;" class="btn btn-block btn-lg btn-info mt-3 mb-4 mx-auto" href="/customers/register">
                     Get your license key
                   </a>
                 </div>
@@ -66,1022 +58,58 @@
             </div>
           </div>
         </div>
-      </section>
+      </div>
       <p class=" contact-msg text-center" style="font-weight: bold;">Does your organization have a large server fleet?  <a target="_blank" href="https://calendly.com/fleetdm/demo?utm_source=pricing+demo+top">Talk to an expert</a>.</p>
-      <section id="features" class="d-flex flex-column justify-content-center p-0 pt-2 mx-auto">
-          <div class="container-fluid d-flex flex-column flex-sm-row flex-wrap justify-content-center p-0">
-            <div style="max-width: 810px" class="w-100 px-1" >
-              <div style="border-radius: 15px" class="card mb-4">
-                <div class="card-body py-md-5 pl-3 pr-2 px-md-5">
+      <div id="features" class="d-flex flex-column justify-content-center p-0 pt-2 mx-auto">
+        <div class="container-fluid d-flex flex-column flex-sm-row flex-wrap justify-content-center p-0">
+          <div style="max-width: 810px" class="w-100 px-1" >
+            <div style="border-radius: 15px" class="card mb-4">
+              <div class="card-body py-md-5 pl-3 pr-2 px-md-5">
+                <div purpose="pricing-table-category" v-for="(category, index) in pricingTable">
                   <div class="row mb-4">
                     <div class="col-7">
-                      <p class="m-0" style="font-weight: bold;">Support</p>
+                      <p class="m-0" style="font-weight: bold;">
+                        {{category.categoryName}}
+                      </p>
                     </div>
-                    <div class="col-2 m-0 px-0 px-md-2">
+                    <div class="col-2 m-0 px-0 px-md-2" v-if="index === 0">
                       <p class="text-center" style="font-weight: bold; font-size: 15px">
                         <span class="d-none d-md-inline">Fleet </span>Free
                       </p>
                     </div>
-                    <div class="col-3 m-0 pr-2 px-0 px-md-2 ">
+                    <div class="col-3 m-0 pr-2 px-0 px-md-2" v-if="index === 0">
                       <p class="text-center" style="font-weight: bold; font-size: 15px">
                         <span class="d-none d-md-inline">Fleet </span>Premium
                       </p>
                     </div>
                   </div>
-                  <div class="row mb-3">
+                  <div class="row mb-3" v-for="feature in category.features">
                     <div class="col-7 d-flex">
-                      <img
-                        alt="a bullet point ellipse"
-                        src="/images/ellipse-6x6@2x.png"
-                        style="width: 6px; height: 6px; margin-top: 09.6px"
-                      />
-                      <p class="ml-2 my-0">Public issue tracker (GitHub)</p>
-                    </div>
-                    <div class="col-2">
-                      <img
-                        alt="a check mark"
-                        class="mx-auto"
-                        src="/images/check-16x16@2x.png"
-                        style="width: 16px; height: 16px"
-                      />
-                    </div>
-                    <div class="col-3">
-                      <img
-                        alt="a check mark"
-                        class="mx-auto"
-                        src="/images/check-16x16@2x.png"
-                        style="width: 16px; height: 16px"
-                      />
-                    </div>
-                  </div>
-                  <div class="row mb-3">
-                    <div class="col-7 d-flex">
-                      <img
-                        alt="a bullet point ellipse"
-                        src="/images/ellipse-6x6@2x.png"
-                        style="width: 6px; height: 6px; margin-top: 09.6px"
-                      />
-                      <p class="ml-2 my-0">Community Slack channel</p>
-                    </div>
-                    <div class="col-2">
-                      <img
-                        alt="a check mark"
-                        class="mx-auto"
-                        src="/images/check-16x16@2x.png"
-                        style="width: 16px; height: 16px"
-                      />
-                    </div>
-                    <div class="col-3">
-                      <img
-                        alt="a check mark"
-                        class="mx-auto"
-                        src="/images/check-16x16@2x.png"
-                        style="width: 16px; height: 16px"
-                      />
-                    </div>
-                  </div>
-                  <div class="row mb-3">
-                    <div class="col-7 d-flex">
-                      <img
-                        alt="a bullet point ellipse"
-                        src="/images/ellipse-6x6@2x.png"
-                        style="width: 6px; height: 6px; margin-top: 09.6px"
-                      />
-                      <p class="ml-2 my-0">Unlimited email support (confidential)</p>
-                    </div>
-                    <div class="col-2"></div>
-                    <div class="col-3">
-                      <img
-                        alt="a check mark"
-                        class="mx-auto"
-                        src="/images/check-16x16@2x.png"
-                        style="width: 16px; height: 16px"
-                      />
-                    </div>
-                  </div>
-                  <div class="row mb-3">
-                    <div class="col-7 d-flex">
-                      <img
-                        alt="a bullet point ellipse"
-                        src="/images/ellipse-6x6@2x.png"
-                        style="width: 6px; height: 6px; margin-top: 09.6px"
-                      />
-                      <p class="ml-2 my-0">Phone and video call support</p>
-                    </div>
-                    <div class="col-2"></div>
-                    <div class="col-3">
-                      <img
-                        alt="a check mark"
-                        class="mx-auto"
-                        src="/images/check-16x16@2x.png"
-                        style="width: 16px; height: 16px"
-                      />
-                    </div>
-                  </div>
-                  <div class="row mb-4 mt-5">
-                    <div class="col-10 col-sm-8">
-                      <p class="m-0" style="font-weight: bold;">
-                        Inventory management
-                      </p>
-                    </div>
-                    <div class="col-1 col-sm-2"></div>
-                    <div class="col-1 col-sm-2"></div>
-                  </div>
-                  <div class="row mb-3">
-                    <div class="col-7 d-flex">
-                      <img
-                        alt="a bullet point ellipse"
-                        src="/images/ellipse-6x6@2x.png"
-                        style="width: 6px; height: 6px; margin-top: 09.6px"
-                      />
-                      <p class="ml-2 my-0">Secure REST API</p>
-                    </div>
-                    <div class="col-2">
-                      <img
-                        alt="a check mark"
-                        class="mx-auto"
-                        src="/images/check-16x16@2x.png"
-                        style="width: 16px; height: 16px"
-                      />
-                    </div>
-                    <div class="col-3">
-                      <img
-                        alt="a check mark"
-                        class="mx-auto"
-                        src="/images/check-16x16@2x.png"
-                        style="width: 16px; height: 16px"
-                      />
-                    </div>
-                  </div>
-                  <div class="row mb-3">
-                    <div class="col-7 d-flex">
-                      <img
-                        alt="a bullet point ellipse"
-                        src="/images/ellipse-6x6@2x.png"
-                        style="width: 6px; height: 6px; margin-top: 09.6px"
-                      />
-                      <p class="ml-2 my-0">Command line tool (CLI)</p>
-                    </div>
-                    <div class="col-2">
-                      <img
-                        alt="a check mark"
-                        class="mx-auto"
-                        src="/images/check-16x16@2x.png"
-                        style="width: 16px; height: 16px"
-                      />
-                    </div>
-                    <div class="col-3">
-                      <img
-                        alt="a check mark"
-                        class="mx-auto"
-                        src="/images/check-16x16@2x.png"
-                        style="width: 16px; height: 16px"
-                      />
-                    </div>
-                  </div>
-                  <div class="row mb-3">
-                    <div class="col-7 d-flex">
-                      <img
-                        alt="a bullet point ellipse"
-                        src="/images/ellipse-6x6@2x.png"
-                        style="width: 6px; height: 6px; margin-top: 09.6px"
-                      />
-                      <p class="ml-2 my-0">Realtime device inventory dashboard</p>
-                    </div>
-                    <div class="col-2">
-                      <img
-                        alt="a check mark"
-                        class="mx-auto"
-                        src="/images/check-16x16@2x.png"
-                        style="width: 16px; height: 16px"
-                      />
-                    </div>
-                    <div class="col-3">
-                      <img
-                        alt="a check mark"
-                        class="mx-auto"
-                        src="/images/check-16x16@2x.png"
-                        style="width: 16px; height: 16px"
-                      />
-                    </div>
-                  </div>
-                  <div class="row mb-3">
-                    <div class="col-7 d-flex">
-                      <img
-                        alt="a bullet point ellipse"
-                        src="/images/ellipse-6x6@2x.png"
-                        style="width: 6px; height: 6px; margin-top: 09.6px"
-                      />
-                      <p class="ml-2 my-0">Browse installed software packages</p>
-                    </div>
-                    <div class="col-2">
-                      <img
-                        alt="a check mark"
-                        class="mx-auto"
-                        src="/images/check-16x16@2x.png"
-                        style="width: 16px; height: 16px"
-                      />
-                    </div>
-                    <div class="col-3">
-                      <img
-                        alt="a check mark"
-                        class="mx-auto"
-                        src="/images/check-16x16@2x.png"
-                        style="width: 16px; height: 16px"
-                      />
-                    </div>
-                  </div>
-                  <div class="row mb-3">
-                    <div class="col-7 d-flex">
-                      <img
-                        alt="a bullet point ellipse"
-                        src="/images/ellipse-6x6@2x.png"
-                        style="width: 6px; height: 6px; margin-top: 09.6px"
-                      />
+                      <img alt="a bullet point ellipse" src="/images/ellipse-6x6@2x.png" style="width: 6px; height: 6px; margin-top: 09.6px"/>
                       <p class="ml-2 my-0">
-                        Search devices by IP, serial, hostname, UUID
+                        {{feature.name}} {{feature.comingSoon ? '*' : ''}}
                       </p>
                     </div>
                     <div class="col-2">
-                      <img
-                        alt="a check mark"
-                        class="mx-auto"
-                        src="/images/check-16x16@2x.png"
-                        style="width: 16px; height: 16px"
-                      />
+                      <img alt="a check mark" class="mx-auto" src="/images/check-16x16@2x.png" style="width: 16px; height: 16px" v-if="feature.tier === 'Free'">
                     </div>
                     <div class="col-3">
-                      <img
-                        alt="a check mark"
-                        class="mx-auto"
-                        src="/images/check-16x16@2x.png"
-                        style="width: 16px; height: 16px"
-                      />
+                      <img alt="a check mark" class="mx-auto" src="/images/check-16x16@2x.png" style="width: 16px; height: 16px">
                     </div>
                   </div>
-                  <div class="row mb-3">
-                    <div class="col-7 d-flex">
-                      <img
-                        alt="a bullet point ellipse"
-                        src="/images/ellipse-6x6@2x.png"
-                        style="width: 6px; height: 6px; margin-top: 09.6px"
-                      />
-                      <p class="ml-2 my-0">
-                        Target and configure specific groups of devices
-                      </p>
-                    </div>
-                    <div class="col-2"></div>
-                    <div class="col-3">
-                      <img
-                        alt="a check mark"
-                        class="mx-auto"
-                        src="/images/check-16x16@2x.png"
-                        style="width: 16px; height: 16px"
-                      />
-                    </div>
-                  </div>
-                  <div class="row mb-3">
-                    <div class="col-7 d-flex">
-                      <img
-                        alt="a bullet point ellipse"
-                        src="/images/ellipse-6x6@2x.png"
-                        style="width: 6px; height: 6px; margin-top: 09.6px"
-                      />
-                      <p class="ml-2 my-0">
-                        Aggregate insights for groups of devices
-                      </p>
-                    </div>
-                    <div class="col-2"></div>
-                    <div class="col-3">
-                      <img
-                        alt="a check mark"
-                        class="mx-auto"
-                        src="/images/check-16x16@2x.png"
-                        style="width: 16px; height: 16px"
-                      />
-                    </div>
-                  </div>
-                  <div class="row mb-4 mt-5">
-                    <div class="col-10 col-sm-8">
-                      <p class="m-0" style="font-weight: bold;">Collaboration</p>
-                    </div>
-                    <div class="col-1 col-sm-2"></div>
-                    <div class="col-1 col-sm-3"></div>
-                  </div>
-                  <div class="row mb-3">
-                    <div class="col-7 d-flex">
-                      <img
-                        alt="a bullet point ellipse"
-                        src="/images/ellipse-6x6@2x.png"
-                        style="width: 6px; height: 6px; margin-top: 09.6px"
-                      />
-                      <p class="ml-2 my-0">Shareable device health reports</p>
-                    </div>
-                    <div class="col-2">
-                      <img
-                        alt="a check mark"
-                        class="mx-auto"
-                        src="/images/check-16x16@2x.png"
-                        style="width: 16px; height: 16px"
-                      />
-                    </div>
-                    <div class="col-3">
-                      <img
-                        alt="a check mark"
-                        class="mx-auto"
-                        src="/images/check-16x16@2x.png"
-                        style="width: 16px; height: 16px"
-                      />
-                    </div>
-                  </div>
-                  <div class="row mb-3">
-                    <div class="col-7 d-flex">
-                      <img
-                        alt="a bullet point ellipse"
-                        src="/images/ellipse-6x6@2x.png"
-                        style="width: 6px; height: 6px; margin-top: 09.6px"
-                      />
-                      <p class="ml-2 my-0">Versionable queries and config (GitOps)</p>
-                    </div>
-                    <div class="col-2">
-                      <img
-                        alt="a check mark"
-                        class="mx-auto"
-                        src="/images/check-16x16@2x.png"
-                        style="width: 16px; height: 16px"
-                      />
-                    </div>
-                    <div class="col-3">
-                      <img
-                        alt="a check mark"
-                        class="mx-auto"
-                        src="/images/check-16x16@2x.png"
-                        style="width: 16px; height: 16px"
-                      />
-                    </div>
-                  </div>
-                  <div class="row mb-3">
-                    <div class="col-7 d-flex">
-                      <img
-                        alt="a bullet point ellipse"
-                        src="/images/ellipse-6x6@2x.png"
-                        style="width: 6px; height: 6px; margin-top: 09.6px"
-                      />
-                      <p class="ml-2 my-0">Human-to-device mapping</p>
-                    </div>
-                    <div class="col-2">
-                      <img
-                        alt="a check mark"
-                        class="mx-auto"
-                        src="/images/check-16x16@2x.png"
-                        style="width: 16px; height: 16px"
-                      />
-                    </div>
-                    <div class="col-3">
-                      <img
-                        alt="a check mark"
-                        class="mx-auto"
-                        src="/images/check-16x16@2x.png"
-                        style="width: 16px; height: 16px"
-                      />
-                    </div>
-                  </div>
-                  <div class="row mb-3">
-                    <div class="col-7 d-flex">
-                      <img
-                        alt="a bullet point ellipse"
-                        src="/images/ellipse-6x6@2x.png"
-                        style="width: 6px; height: 6px; margin-top: 09.6px"
-                      />
-                      <p class="ml-2 my-0">Scope transparency</p>
-                    </div>
-                    <div class="col-2">
-                      <img
-                        alt="a check mark"
-                        class="mx-auto"
-                        src="/images/check-16x16@2x.png"
-                        style="width: 16px; height: 16px"
-                      />
-                    </div>
-                    <div class="col-3">
-                      <img
-                        alt="a check mark"
-                        class="mx-auto"
-                        src="/images/check-16x16@2x.png"
-                        style="width: 16px; height: 16px"
-                      />
-                    </div>
-                  </div>
-                  <div class="row mb-3">
-                    <div class="col-7 d-flex">
-                      <img
-                        alt="a bullet point ellipse"
-                        src="/images/ellipse-6x6@2x.png"
-                        style="width: 6px; height: 6px; margin-top: 09.6px"
-                      />
-                      <p class="ml-2 my-0">Multiple teams</p>
-                    </div>
-                    <div class="col-2"></div>
-                    <div class="col-3">
-                      <img
-                        alt="a check mark"
-                        class="mx-auto"
-                        src="/images/check-16x16@2x.png"
-                        style="width: 16px; height: 16px"
-                      />
-                    </div>
-                  </div>
-                  <div class="row mb-4 mt-5">
-                    <div class="col-7 pr-0 pr-md-2">
-                      <p class="m-0" style="font-weight: bold;">
-                        Security and compliance
-                      </p>
-                    </div>
-                    <div class="col-2"></div>
-                    <div class="col-2"></div>
-                  </div>
-                  <div class="row mb-3">
-                    <div class="col-7 d-flex">
-                      <img
-                        alt="a bullet point ellipse"
-                        src="/images/ellipse-6x6@2x.png"
-                        style="width: 6px; height: 6px; margin-top: 09.6px"
-                      />
-                      <p class="ml-2 my-0">Single sign on (SSO, SAML)</p>
-                    </div>
-                    <div class="col-2">
-                      <img
-                        alt="a check mark"
-                        class="mx-auto"
-                        src="/images/check-16x16@2x.png"
-                        style="width: 16px; height: 16px"
-                      />
-                    </div>
-                    <div class="col-3">
-                      <img
-                        alt="a check mark"
-                        class="mx-auto"
-                        src="/images/check-16x16@2x.png"
-                        style="width: 16px; height: 16px"
-                      />
-                    </div>
-                  </div>
-                  <div class="row mb-3">
-                    <div class="col-7 d-flex">
-                      <img
-                        alt="a bullet point ellipse"
-                        src="/images/ellipse-6x6@2x.png"
-                        style="width: 6px; height: 6px; margin-top: 09.6px"
-                      />
-                      <p class="ml-2 my-0">Audit queries and user activities</p>
-                    </div>
-                    <div class="col-2">
-                      <img
-                        alt="a check mark"
-                        class="mx-auto"
-                        src="/images/check-16x16@2x.png"
-                        style="width: 16px; height: 16px"
-                      />
-                    </div>
-                    <div class="col-3">
-                      <img
-                        alt="a check mark"
-                        class="mx-auto"
-                        src="/images/check-16x16@2x.png"
-                        style="width: 16px; height: 16px"
-                      />
-                    </div>
-                  </div>
-                  <div class="row mb-3">
-                    <div class="col-7 d-flex">
-                      <img
-                        alt="a bullet point ellipse"
-                        src="/images/ellipse-6x6@2x.png"
-                        style="width: 6px; height: 6px; margin-top: 09.6px"
-                      />
-                      <p class="ml-2 my-0">
-                        Grant API-only access
-                      </p>
-                    </div>
-                    <div class="col-2">
-                      <img
-                        alt="a check mark"
-                        class="mx-auto"
-                        src="/images/check-16x16@2x.png"
-                        style="width: 16px; height: 16px"
-                      />
-                    </div>
-                    <div class="col-3">
-                      <img
-                        alt="a check mark"
-                        class="mx-auto"
-                        src="/images/check-16x16@2x.png"
-                        style="width: 16px; height: 16px"
-                      />
-                    </div>
-                  </div>
-                  <div class="row mb-3">
-                    <div class="col-7 d-flex">
-                      <img
-                        alt="a bullet point ellipse"
-                        src="/images/ellipse-6x6@2x.png"
-                        style="width: 6px; height: 6px; margin-top: 09.6px"
-                      />
-                      <p class="ml-2 my-0">Role-based access control</p>
-                    </div>
-                    <div class="col-2">
-                      <img
-                          alt="a check mark"
-                          class="mx-auto"
-                          src="/images/check-16x16@2x.png"
-                          style="width: 16px; height: 16px"
-                        />
-                    </div>
-                    <div class="col-3">
-                      <img
-                        alt="a check mark"
-                        class="mx-auto"
-                        src="/images/check-16x16@2x.png"
-                        style="width: 16px; height: 16px"
-                      />
-                    </div>
-                  </div>
-                  <div class="row mb-3">
-                    <div class="col-7 d-flex">
-                      <img
-                        alt="a bullet point ellipse"
-                        src="/images/ellipse-6x6@2x.png"
-                        style="width: 6px; height: 6px; margin-top: 09.6px"
-                      />
-                      <p class="ml-2 my-0">Just-in-time provisioning</p>
-                    </div>
-                    <div class="col-2"></div>
-                    <div class="col-3">
-                      <img
-                        alt="a check mark"
-                        class="mx-auto"
-                        src="/images/check-16x16@2x.png"
-                        style="width: 16px; height: 16px"
-                      />
-                    </div>
-                  </div>
-                  <div class="row mb-4 mt-5">
-                    <div class="col-7 pr-0 pr-md-2">
-                      <p class="m-0" style="font-weight: bold;">Monitoring</p>
-                    </div>
-                    <div class="col-2"></div>
-                    <div class="col-2"></div>
-                  </div>
-                  <div class="row mb-3">
-                    <div class="col-7 d-flex">
-                      <img
-                        alt="a bullet point ellipse"
-                        src="/images/ellipse-6x6@2x.png"
-                        style="width: 6px; height: 6px; margin-top: 09.6px"
-                      />
-                      <p class="ml-2 my-0">Schedule and automate custom queries</p>
-                    </div>
-                    <div class="col-2">
-                      <img
-                        alt="a check mark"
-                        class="mx-auto"
-                        src="/images/check-16x16@2x.png"
-                        style="width: 16px; height: 16px"
-                      />
-                    </div>
-                    <div class="col-3">
-                      <img
-                        alt="a check mark"
-                        class="mx-auto"
-                        src="/images/check-16x16@2x.png"
-                        style="width: 16px; height: 16px"
-                      />
-                    </div>
-                  </div>
-                  <div class="row mb-3">
-                    <div class="col-7 d-flex">
-                      <img
-                        alt="a bullet point ellipse"
-                        src="/images/ellipse-6x6@2x.png"
-                        style="width: 6px; height: 6px; margin-top: 09.6px"
-                      />
-                      <p class="ml-2 my-0">
-                        Detect vulnerable software
-                      </p>
-                    </div>
-                    <div class="col-2">
-                      <img
-                        alt="a check mark"
-                        class="mx-auto"
-                        src="/images/check-16x16@2x.png"
-                        style="width: 16px; height: 16px"
-                      />
-                    </div>
-                    <div class="col-3">
-                      <img
-                        alt="a check mark"
-                        class="mx-auto"
-                        src="/images/check-16x16@2x.png"
-                        style="width: 16px; height: 16px"
-                      />
-                    </div>
-                  </div>
-                  <div class="row mb-3">
-                    <div class="col-7 d-flex">
-                      <img
-                        alt="a bullet point ellipse"
-                        src="/images/ellipse-6x6@2x.png"
-                        style="width: 6px; height: 6px; margin-top: 09.6px"
-                      />
-                      <p class="ml-2 my-0">Query performance monitoring</p>
-                    </div>
-                    <div class="col-2">
-                      <img
-                        alt="a check mark"
-                        class="mx-auto"
-                        src="/images/check-16x16@2x.png"
-                        style="width: 16px; height: 16px"
-                      />
-                    </div>
-                    <div class="col-3">
-                      <img
-                        alt="a check mark"
-                        class="mx-auto"
-                        src="/images/check-16x16@2x.png"
-                        style="width: 16px; height: 16px"
-                      />
-                    </div>
-                  </div>
-                  <div class="row mb-3">
-                    <div class="col-7 d-flex">
-                      <img
-                        alt="a bullet point ellipse"
-                        src="/images/ellipse-6x6@2x.png"
-                        style="width: 6px; height: 6px; margin-top: 09.6px"
-                      />
-                      <p class="ml-2 my-0">Standard query and policy library</p>
-                    </div>
-                    <div class="col-2">
-                      <img
-                        alt="a check mark"
-                        class="mx-auto"
-                        src="/images/check-16x16@2x.png"
-                        style="width: 16px; height: 16px"
-                      />
-                    </div>
-                    <div class="col-3">
-                      <img
-                        alt="a check mark"
-                        class="mx-auto"
-                        src="/images/check-16x16@2x.png"
-                        style="width: 16px; height: 16px"
-                      />
-                    </div>
-                  </div>
-                  <div class="row mb-3">
-                    <div class="col-7 d-flex">
-                      <img
-                        alt="a bullet point ellipse"
-                        src="/images/ellipse-6x6@2x.png"
-                        style="width: 6px; height: 6px; margin-top: 09.6px"
-                      />
-                      <p class="ml-2 my-0">
-                        Detect and surface issues with devices
-                      </p>
-                    </div>
-                    <div class="col-2">
-                      <img
-                        alt="a check mark"
-                        class="mx-auto"
-                        src="/images/check-16x16@2x.png"
-                        style="width: 16px; height: 16px"
-                      />
-                    </div>
-                    <div class="col-3">
-                      <img
-                        alt="a check mark"
-                        class="mx-auto"
-                        src="/images/check-16x16@2x.png"
-                        style="width: 16px; height: 16px"
-                      />
-                    </div>
-                  </div>
-                  <div class="row mb-3">
-                    <div class="col-7 d-flex">
-                      <img
-                        alt="a bullet point ellipse"
-                        src="/images/ellipse-6x6@2x.png"
-                        style="width: 6px; height: 6px; margin-top: 09.6px"
-                      />
-                      <p class="ml-2 my-0">
-                        Policy and vulnerability automations
-                        <br>
-                        (webhook, Zendesk, JIRA, ServiceNow*)
-                      </p>
-                    </div>
-                    <div class="col-2">
-                      <img
-                        alt="a check mark"
-                        class="mx-auto"
-                        src="/images/check-16x16@2x.png"
-                        style="width: 16px; height: 16px"
-                      />
-                    </div>
-                    <div class="col-3">
-                      <img
-                        alt="a check mark"
-                        class="mx-auto"
-                        src="/images/check-16x16@2x.png"
-                        style="width: 16px; height: 16px"
-                      />
-                    </div>
-                  </div>
-                  <div class="row mb-3">
-                    <div class="col-7 d-flex">
-                      <img
-                        alt="a bullet point ellipse"
-                        src="/images/ellipse-6x6@2x.png"
-                        style="width: 6px; height: 6px; margin-top: 09.6px"
-                      />
-                      <p class="ml-2 my-0">Vulnerability scores (EPSS and CVSS)</p>
-                    </div>
-                    <div class="col-2"></div>
-                    <div class="col-3">
-                      <img
-                        alt="a check mark"
-                        class="mx-auto"
-                        src="/images/check-16x16@2x.png"
-                        style="width: 16px; height: 16px"
-                      />
-                    </div>
-                  </div>
-                  <div class="row mb-3">
-                    <div class="col-7 d-flex">
-                      <img
-                        alt="a bullet point ellipse"
-                        src="/images/ellipse-6x6@2x.png"
-                        style="width: 6px; height: 6px; margin-top: 09.6px"
-                      />
-                      <p class="ml-2 my-0">CISA known exploited vulnerabilities</p>
-                    </div>
-                    <div class="col-2"></div>
-                    <div class="col-3">
-                      <img
-                        alt="a check mark"
-                        class="mx-auto"
-                        src="/images/check-16x16@2x.png"
-                        style="width: 16px; height: 16px"
-                      />
-                    </div>
-                  </div>
-                  <div class="row mb-3">
-                    <div class="col-7 d-flex">
-                      <img
-                        alt="a bullet point ellipse"
-                        src="/images/ellipse-6x6@2x.png"
-                        style="width: 6px; height: 6px; margin-top: 09.6px"
-                      />
-                      <p class="ml-2 my-0">End-user self-service</p>
-                    </div>
-                    <div class="col-2"></div>
-                    <div class="col-3">
-                      <img
-                        alt="a check mark"
-                        class="mx-auto"
-                        src="/images/check-16x16@2x.png"
-                        style="width: 16px; height: 16px"
-                      />
-                    </div>
-                  </div>
-                  <div class="row mb-4 mt-5">
-                    <div class="col-7">
-                      <p class="m-0" style="font-weight: bold;">Data outputs</p>
-                    </div>
-                    <div class="col-2"></div>
-                    <div class="col-2"></div>
-                  </div>
-                  <div class="row mb-3">
-                    <div class="col-7 d-flex">
-                      <img
-                        alt="a bullet point ellipse"
-                        src="/images/ellipse-6x6@2x.png"
-                        style="width: 6px; height: 6px; margin-top: 09.6px"
-                      />
-                      <p class="ml-2 my-0">
-                        Flexible log destinations
-                        <br>
-                        (AWS Kinesis, Lambda, GCP, Kafka)
-                      </p>
-                    </div>
-                    <div class="col-2">
-                      <img
-                        alt="a check mark"
-                        class="mx-auto"
-                        src="/images/check-16x16@2x.png"
-                        style="width: 16px; height: 16px"
-                      />
-                    </div>
-                    <div class="col-3">
-                      <img
-                        alt="a check mark"
-                        class="mx-auto"
-                        src="/images/check-16x16@2x.png"
-                        style="width: 16px; height: 16px"
-                      />
-                    </div>
-                  </div>
-                  <div class="row mb-3">
-                    <div class="col-7 d-flex">
-                      <img
-                        alt="a bullet point ellipse"
-                        src="/images/ellipse-6x6@2x.png"
-                        style="width: 6px; height: 6px; margin-top: 09.6px"
-                      />
-                      <p class="ml-2 my-0">File carving (AWS S3)</p>
-                    </div>
-                    <div class="col-2">
-                      <img
-                        alt="a check mark"
-                        class="mx-auto"
-                        src="/images/check-16x16@2x.png"
-                        style="width: 16px; height: 16px"
-                      />
-                    </div>
-                    <div class="col-3">
-                      <img
-                        alt="a check mark"
-                        class="mx-auto"
-                        src="/images/check-16x16@2x.png"
-                        style="width: 16px; height: 16px"
-                      />
-                    </div>
-                  </div>
-                  <div class="row mb-4 mt-5">
-                    <div class="col-7">
-                      <p class="m-0" style="font-weight: bold;">Deployment</p>
-                    </div>
-                    <div class="col-2"></div>
-                    <div class="col-2"></div>
-                  </div>
-                  <div class="row mb-3">
-                    <div class="col-7 d-flex">
-                      <img
-                        alt="a bullet point ellipse"
-                        src="/images/ellipse-6x6@2x.png"
-                        style="width: 6px; height: 6px; margin-top: 09.6px"
-                      />
-                      <p class="ml-2 my-0">Self-managed</p>
-                    </div>
-                    <div class="col-2">
-                      <img
-                        alt="a check mark"
-                        class="mx-auto"
-                        src="/images/check-16x16@2x.png"
-                        style="width: 16px; height: 16px"
-                      />
-                    </div>
-                    <div class="col-3">
-                      <img
-                        alt="a check mark"
-                        class="mx-auto"
-                        src="/images/check-16x16@2x.png"
-                        style="width: 16px; height: 16px"
-                      />
-                    </div>
-                  </div>
-                  <div class="row mb-3">
-                    <div class="col-7 d-flex">
-                      <img
-                        alt="a bullet point ellipse"
-                        src="/images/ellipse-6x6@2x.png"
-                        style="width: 6px; height: 6px; margin-top: 09.6px"
-                      />
-                      <p class="ml-2 my-0">
-                        Deployment tools (Helm, Terraform)
-                      </p>
-                    </div>
-                    <div class="col-2">
-                      <img
-                        alt="a check mark"
-                        class="mx-auto"
-                        src="/images/check-16x16@2x.png"
-                        style="width: 16px; height: 16px"
-                      />
-                    </div>
-                    <div class="col-3">
-                      <img
-                        alt="a check mark"
-                        class="mx-auto"
-                        src="/images/check-16x16@2x.png"
-                        style="width: 16px; height: 16px"
-                      />
-                    </div>
-                  </div>
-                  <div class="row mb-3">
-                    <div class="col-7 d-flex">
-                      <img
-                        alt="a bullet point ellipse"
-                        src="/images/ellipse-6x6@2x.png"
-                        style="width: 6px; height: 6px; margin-top: 09.6px"
-                      />
-                      <p class="ml-2 my-0">Configure osquery startup flags remotely*</p>
-                    </div>
-                    <div class="col-2">
-                      <img
-                        alt="a check mark"
-                        class="mx-auto"
-                        src="/images/check-16x16@2x.png"
-                        style="width: 16px; height: 16px"
-                      />
-                    </div>
-                    <div class="col-3">
-                      <img
-                        alt="a check mark"
-                        class="mx-auto"
-                        src="/images/check-16x16@2x.png"
-                        style="width: 16px; height: 16px"
-                      />
-                    </div>
-                  </div>
-                  <div class="row mb-3">
-                    <div class="col-7 d-flex">
-                      <img
-                        alt="a bullet point ellipse"
-                        src="/images/ellipse-6x6@2x.png"
-                        style="width: 6px; height: 6px; margin-top: 09.6px"
-                      />
-                      <p class="ml-2 my-0">Autoupdate osquery agents</p>
-                    </div>
-                    <div class="col-2">
-                      <img
-                        alt="a check mark"
-                        class="mx-auto"
-                        src="/images/check-16x16@2x.png"
-                        style="width: 16px; height: 16px"
-                      />
-                    </div>
-                    <div class="col-3">
-                      <img
-                        alt="a check mark"
-                        class="mx-auto"
-                        src="/images/check-16x16@2x.png"
-                        style="width: 16px; height: 16px"
-                      />
-                    </div>
-                  </div>
-                  <div class="row mb-3">
-                    <div class="col-7 d-flex">
-                      <img
-                        alt="a bullet point ellipse"
-                        src="/images/ellipse-6x6@2x.png"
-                        style="width: 6px; height: 6px; margin-top: 09.6px"
-                      />
-                      <p class="ml-2 my-0">Self-managed autoupdate registry</p>
-                    </div>
-                    <div class="col-2"></div>
-                    <div class="col-3">
-                      <img
-                        alt="a check mark"
-                        class="mx-auto"
-                        src="/images/check-16x16@2x.png"
-                        style="width: 16px; height: 16px"
-                      />
-                    </div>
-                  </div>
-                  <div class="row mb-3">
-                    <div class="col-7 d-flex">
-                      <img
-                        alt="a bullet point ellipse"
-                        src="/images/ellipse-6x6@2x.png"
-                        style="width: 6px; height: 6px; margin-top: 09.6px"
-                      />
-                      <p class="ml-2 my-0">
-                        Manage osquery extensions remotely*
-                      </p>
-                    </div>
-                    <div class="col-2"></div>
-                    <div class="col-3">
-                      <img
-                        alt="a check mark"
-                        class="mx-auto"
-                        src="/images/check-16x16@2x.png"
-                        style="width: 16px; height: 16px"
-                      />
-                    </div>
-                  </div>
-                  <p style="font-size: 13px; left: 0" class="mt-5 mb-0 w-100">
-                    * Coming soon
-                  </p>
                 </div>
+                <p style="font-size: 13px; left: 0" class="mt-5 mb-0 w-100">
+                  * Coming soon
+                </p>
               </div>
             </div>
           </div>
-
+        </div>
         <div style="color: #192147;" class="container-fluid d-flex flex-column justify-content-center pt-5 mx-auto">
           <h2 class="text-center mb-4">FAQ</h2>
           <div style="max-width: 800px;" class="container-fluid d-flex flex-column justify-content-center mb-5">
             <div style="border-bottom: 1px solid #E2E4EA; padding-right: 20px;" class="position-relative">
-              <p id="faq__question1" style="cursor: pointer;" class="faq-question pt-3 mb-3" data-toggle="collapse" data-target="#faq__answer1" aria-controls="faq__answer1">
+              <p id="faq__question1" style="cursor: pointer;" class="font-weight-bold pt-3 mb-3" data-toggle="collapse" data-target="#faq__answer1" aria-controls="faq__answer1">
                 Is Fleet MIT licensed?
                 <span style="color: #6A67FE; right: 0; top: 24px;" class="position-absolute fa fa-angle-down"></span>
               </p>
@@ -1090,11 +118,11 @@
               </p>
             </div>
             <div style="border-bottom: 1px solid #E2E4EA; padding-right: 20px;" class="position-relative">
-              <p id="faq__question2" style="cursor: pointer;" class="faq-question pt-3 mb-3" data-toggle="collapse" data-target="#faq__answer2" aria-controls="faq__answer2">
+              <p id="faq__question2" style="cursor: pointer;" class="font-weight-bold pt-3 mb-3" data-toggle="collapse" data-target="#faq__answer2" aria-controls="faq__answer2">
                 What is your commitment to open source stewardship?
                 <span style="color: #6A67FE; right: 0; top: 24px;" class="position-absolute fa fa-angle-down"></span>
               </p>
-              <ol id="faq__answer2" class="faq-list collapse" aria-labelledby="faq__question2">
+              <ol id="faq__answer2" purpose="faq-list" class="collapse" aria-labelledby="faq__question2">
                 <li>When a feature is free and open source we won't move that feature to a paid tier. Features might be removed from the open source codebase in other cases, for example when combining features from multiple tiers into one new feature.</li>
                 <li>The majority of new capabilities added to Fleet will benefit all users, not just customers.</li>
                 <li>We won't introduce features into the open source codebase with a fixed delay; if a feature is planned to land in both it will be released simultaneously in both.</li>
@@ -1108,7 +136,7 @@
 
             </div>
             <div style="border-bottom: 1px solid #E2E4EA; padding-right: 20px;" class="position-relative">
-              <p id="faq__question3" style="cursor: pointer;" class="faq-question pt-3 mb-3" data-toggle="collapse" data-target="#faq__answer3" aria-controls="faq__answer3">
+              <p id="faq__question3" style="cursor: pointer;" class="font-weight-bold pt-3 mb-3" data-toggle="collapse" data-target="#faq__answer3" aria-controls="faq__answer3">
                 How do I contact Fleet for support?
                 <span style="color: #6A67FE; right: 0; top: 24px;" class="position-absolute fa fa-angle-down"></span>
               </p>
@@ -1117,7 +145,7 @@
               </p>
             </div>
             <div style="border-bottom: 1px solid #E2E4EA; padding-right: 20px;" class="position-relative">
-              <p id="faq__question4" style="cursor: pointer;" class="faq-question pt-3 mb-3" data-toggle="collapse" data-target="#faq__answer4" aria-controls="faq__answer3">
+              <p id="faq__question4" style="cursor: pointer;" class="font-weight-bold pt-3 mb-3" data-toggle="collapse" data-target="#faq__answer4" aria-controls="faq__answer3">
                 What if we choose not to renew?
                 <span style="color: #6A67FE; right: 0; top: 24px;" class="position-absolute fa fa-angle-down"></span>
               </p>
@@ -1126,7 +154,7 @@
               </p>
             </div>
             <div style="border-bottom: 1px solid #E2E4EA; padding-right: 20px;" class="position-relative">
-              <p id="faq__question5" style="cursor: pointer;" class="faq-question pt-3 mb-3" data-toggle="collapse" data-target="#faq__answer5" aria-controls="faq__answer4">
+              <p id="faq__question5" style="cursor: pointer;" class="font-weight-bold pt-3 mb-3" data-toggle="collapse" data-target="#faq__answer5" aria-controls="faq__answer4">
                 Can we buy a licence to access premium features with reduced support for a reduced cost?
                 <span style="color: #6A67FE; right: 0; top: 24px;" class="position-absolute fa fa-angle-down"></span>
               </p>
@@ -1135,7 +163,7 @@
               </p>
             </div>
             <div style="border-bottom: 1px solid #E2E4EA; padding-right: 20px;" class="position-relative">
-              <p id="faq__question6" style="cursor: pointer;" class="faq-question pt-3 mb-3" data-toggle="collapse" data-target="#faq__answer6" aria-controls="faq__answer5">
+              <p id="faq__question6" style="cursor: pointer;" class="font-weight-bold pt-3 mb-3" data-toggle="collapse" data-target="#faq__answer6" aria-controls="faq__answer5">
                 Do you offer pricing for ephemeral hosts which may scale up or down?
                 <span style="color: #6A67FE; right: 0; top: 24px;" class="position-absolute fa fa-angle-down"></span>
               </p>
@@ -1144,7 +172,7 @@
               </p>
             </div>
             <div style="border-bottom: 1px solid #E2E4EA; padding-right: 20px;" class="position-relative">
-              <p id="faq__question7" style="cursor: pointer;" class="faq-question pt-3 mb-3" data-toggle="collapse" data-target="#faq__answer7" aria-controls="faq__answer8">
+              <p id="faq__question7" style="cursor: pointer;" class="font-weight-bold pt-3 mb-3" data-toggle="collapse" data-target="#faq__answer7" aria-controls="faq__answer8">
                 When run locally, what resources does the Fleet app typically consume on an individual instance, and when run in HA, at high volume? And how is latency on an individual instance vs clustered deployment?
                 <span style="color: #6A67FE; right: 0; top: 24px;" class="position-absolute fa fa-angle-down"></span>
               </p>
@@ -1153,7 +181,7 @@
               </p>
             </div>
             <div style="border-bottom: 1px solid #E2E4EA; padding-right: 20px;" class="position-relative">
-              <p id="faq__question8" style="cursor: pointer;" class="faq-question pt-3 mb-3" data-toggle="collapse" data-target="#faq__answer8" aria-controls="faq__answer10">
+              <p id="faq__question8" style="cursor: pointer;" class="font-weight-bold pt-3 mb-3" data-toggle="collapse" data-target="#faq__answer8" aria-controls="faq__answer10">
                 Where's the data stored?
                 <span style="color: #6A67FE; right: 0; top: 24px;" class="position-absolute fa fa-angle-down"></span>
               </p>
@@ -1162,7 +190,7 @@
               </p>
             </div>
             <div style="border-bottom: 1px solid #E2E4EA; padding-right: 20px;" class="position-relative">
-              <p id="faq__question9" style="cursor: pointer;" class="faq-question pt-3 mb-3" data-toggle="collapse" data-target="#faq__answer9" aria-controls="faq__answer11">
+              <p id="faq__question9" style="cursor: pointer;" class="font-weight-bold pt-3 mb-3" data-toggle="collapse" data-target="#faq__answer9" aria-controls="faq__answer11">
                 Can I fork Fleet's source code and build upon it myself to create my own features?
                 <span style="color: #6A67FE; right: 0; top: 24px;" class="position-absolute fa fa-angle-down"></span>
               </p>
@@ -1171,7 +199,7 @@
               </p>
             </div>
             <div style="border-bottom: 1px solid #E2E4EA; padding-right: 20px;" class="position-relative">
-              <p id="faq__question10" style="cursor: pointer;" class="faq-question pt-3 mb-3" data-toggle="collapse" data-target="#faq__answer10" aria-controls="faq__answer12">
+              <p id="faq__question10" style="cursor: pointer;" class="font-weight-bold pt-3 mb-3" data-toggle="collapse" data-target="#faq__answer10" aria-controls="faq__answer12">
                 Can I buy support or services separate from Fleet Premium?
                 <span style="color: #6A67FE; right: 0; top: 24px;" class="position-absolute fa fa-angle-down"></span>
               </p>
@@ -1181,7 +209,6 @@
             </div>
           </div>
         </div>
-
         <div style="max-width: 1260px;" class="container-fluid py-5 px-4 px-sm-5 mx-auto">
           <div style="max-width: 800px" class="mx-auto">
             <div style="max-width: 800px;" class="d-flex position-relative px-0 px-md-3 mx-auto">
@@ -1196,33 +223,19 @@
             </div>
           </div>
         </div>
-
-      </section>
-      <section id="questions" class="py-5 mx-auto border-top">
-        <h2 class="text-center">
-          Still got questions?
-        </h2>
-        <div
-          class="tpbutton btn-toolbar justify-content-center"
-          style="text-align: center"
-        >
-          <button
-            style="max-width: 250px"
-            class="btn btn-block btn-md btn-primary my-3 mx-2"
-            @click="clickChatButton()"
-          >
+      </div>
+      <div id="questions" class="py-5 mx-auto border-top">
+        <h2 class="text-center">Still got questions?</h2>
+        <div class="tpbutton btn-toolbar justify-content-center" style="text-align: center" >
+          <button style="max-width: 250px" class="btn btn-block btn-md btn-primary my-3 mx-2" @click="clickChatButton()">
             Ask us anything
           </button>
-          <a
-            style="max-width: 350px"
-            class="btn btn-block btn-lg btn-white my-3 mx-2"
-            purpose="animated-arrow-button"
-            target="_blank"
-            href="https://calendly.com/fleetdm/demo?utm_source=pricing+demo+bottom"
-            >Talk to an expert
+          <a style="max-width: 350px" class="btn btn-block btn-lg btn-white my-3 mx-2" purpose="animated-arrow-button" target="_blank" href="https://calendly.com/fleetdm/demo?utm_source=pricing+demo+bottom">
+            Talk to an expert
           </a>
         </div>
-      </section>
+      </div>
     </div>
   </div>
 </div>
+<%- /* Expose locals as `window.SAILS_LOCALS` :: */ exposeLocalsToBrowser() %>

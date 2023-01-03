@@ -170,7 +170,7 @@ func (ts *withServer) DoRawWithHeaders(
 
 	resp, err := client.Do(req)
 	require.NoError(t, err)
-	assert.Equal(t, expectedStatusCode, resp.StatusCode)
+	require.Equal(t, expectedStatusCode, resp.StatusCode)
 
 	return resp
 }

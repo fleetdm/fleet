@@ -7,7 +7,7 @@
     color: $core-fleet-black;
     display: block;
     margin-bottom: $pad-small;
-    height: $form-field-label-height;
+    min-height: $form-field-label-height;
 
     &--error {
       font-weight: $bold;

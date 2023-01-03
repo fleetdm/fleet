@@ -821,6 +821,51 @@ You can verify that your agent options are valid by using [the fleetctl apply co
 
 Existing options will be overwritten by the application of this file.
 
+##### `command_line_flags` option
+
+> This feature requires [Orbit, the Fleet agent manager](https://fleetdm.com/announcements/introducing-orbit-your-fleet-agent-manager).
+
+The `command_line_flags` key inside of `agent_options` allows you to remotely manage the osquery command line flags. These command line flags are options that typically require osquery to restart for them to take effect. But with Orbit, you can use the `command_line_flags` key to take care of that. Orbit will write these to the flagfile on the host and pass it to osquery. 
+
+To see the full list of these osquery command line flags, please run `osquery` with the `--help` switch.
+
+Just like the other `agent_options` above, remove the dashed lines (`--`) for Fleet to successfully update them.
+
+Here is an example of using the `command_line_flags` key:
+
+```yaml
+apiVersion: v1
+kind: config
+spec:
+  agent_options:
+    command_line_flags: # requires Fleet's osquery installer
+      verbose: true
+      disable_watchdog: false
+      logger_path: /path/to/logger
+```
+
+Note that the `command_line_flags` key does not support the `overrides` key, which is documented below.
+
+You can verfiy that these flags have taken effect on the hosts by running a query against the `osquery_flags` table.
+
+If you revoked an old enroll secret, this feature won't work for hosts that were added to Fleet using this old enroll secret. This is because Orbit uses the enroll secret to receive new flags from Fleet. For these hosts, all existing features will work as expected.
+
+For further documentation on how to rotate enroll secrets, please see [this guide](https://fleetdm.com/docs/deploying/faq#how-can-enroll-secrets-be-rotated).
+
+If you prefer to deploy a new package with the updated enroll secret:
+
+1. Check which hosts need a new enroll secret by running the following query: `SELECT * FROM orbit_info WHERE enrolled = false`.
+
+> The hosts that don't have Orbit installed will return an error because the `orbit_info` table doesn't exist. You can safely ignore these errors.
+
+2. In Fleet, head to the Hosts page and select **Add hosts** to find the fleetctl package command with an active enroll secret.
+
+3. Copy and run the fleetctl package command to create a new package. Distribute this package to the hosts that returned results in step 1.
+
+4. Done!
+
+
+
 > In order for these options to be applied to your hosts, the `osquery` agent must be configured to use the `tls` config plugin and pointed to the correct endpoint. If you are using Orbit to enroll your hosts, this is done automatically. 
 
 ```
@@ -834,6 +879,46 @@ kind: config
 spec:
   agent_options:
 ```
+
+##### `extensions` option
+
+> This feature requires [Orbit, the Fleet agent manager](https://fleetdm.com/announcements/introducing-orbit-your-fleet-agent-manager), along with a custom TUF auto-update server.
+
+The `extensions` key inside of `agent_options` allows you to remotely manage and deploy osquery extensions. Just like other `agent_options` the `extensions` key can be applied either to a team specific one or the global one. 
+
+
+This is best illustrated with an example. Here is an example of using the `extensions` key:
+
+```yaml
+apiVersion: v1
+kind: config
+spec:
+  agent_options:
+    extensions: # requires Fleet's osquery installer
+      hello_world:
+        channel: 'stable'
+        platform: 'macos'
+```
+ 
+In the above example, we are configuring our `hello_world` extension. We do this by creating a `hello_world` sub-key under `extensions`, and then specifying the `channel` and `platform` keys for that extension. 
+
+Next, you will need to make sure to push the binary file of our `hello_world` extension as a target on your TUF server. This step needs to follow these conventions:
+
+* The binary file of the extension, must have the same name as the extension, followed by the `.ext`. In the above case, the filename should be `hello_world.ext`
+* The target name for the TUF server must be named as `extensions/<extension_name>`. For the above example, this would be `extensions/hello_world`
+* `platform` is one of `macos`, `linux`, or `windows`
+
+If you are using `fleetctl` to manage your TUF server, these same conventions apply. You can run the following command to add a new target:
+
+```bash
+fleetctl updates add --path /path/to/local/TUF/repo --target /path/to/extensions/binary/hello_world.ext --name extensions/hello_world --platform macos --version 0.1
+```
+
+After successfully configuring the agent options, and pushing the extension as a target on your TUF server, Orbit will periodically check with the TUF server for updates to these extensions. 
+
+If you are using a self-hosted TUF server, you must also manage all of Orbit's versions, including osquery, Fleet Desktop and osquery extensions.
+
+Fleet recommends deploying extensions created with osquery-go or natively with C++, instead of Python. Extensions written in Python requires the user to compile it into a single packaged binary along with all the dependencies.
 
 
 ##### Example Agent options YAML

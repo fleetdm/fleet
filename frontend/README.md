@@ -1,45 +1,29 @@
-# Fleet front-end
+# Fleet frontend
 
-The Fleet front-end is a Single Page Application using React with Typescript and Hooks.
+The Fleet frontend is a Single Page Application using React with Typescript and Hooks.
 
 ## Table of contents
 - [Running the Fleet web app](#running-the-fleet-web-app)
-- [Storybook](#storybook)
+- [Testing](#testing)
 - [Directory Structure](#directory-structure)
-- [Deprecated](#deprecated)
 - [Patterns](#patterns)
+- [Storybook](#storybook)
 
 ## Running the Fleet web app
 
 For details instruction on building and serving the Fleet web application
 consult the [Contributing documentation](../docs/Contributing/README.md).
 
-## Storybook
+## Testing
 
-[Storybook](https://storybook.js.org/) is a tool to document and visualize components, and we
-use it to capture our global components used across Fleet. Storybook is key when developing new
-features and testing components before release. It runs a separate server exposed on port `6006`.
-To run this server, do the following:
+Visit the [overview of Fleet UI testing](../docs/Contributing/Fleet-UI-Testing.md) for more information on our testing strategy, philosophies, and tools.
 
-- Go to your root fleet project directory
-- Run `make deps`
-- Run `yarn storybook`
+To run unit or integration tests in `ComponentName.tests.tsx`, run `yarn test -- ComponentName.tests.tsx`. To [test all Javascript components](https://fleetdm.com/docs/contributing/testing-and-local-development#javascript-unit-tests) run `yarn test`.
 
-The URL `localhost:6006` should automatically show in your browser. If not, visit it manually.
+To run E2E tests, visit [our Cypress testing documentation](../cypress/README.md).
 
-As mentioned, there are two key times Storybook should be used:
+For more information on how our front-end tests work, visit our [frontend test directory](./test/README.md).
 
-1. When building new features
-
-As we create new features, we re-use Fleet components often. Running Storybook before implementing
-new UI elements can clarify if new components need to be created or already exist. This helps us
-avoid duplicating code.
-
-2. Testing components
-
-After creating a component, create a new file, `component.stories.tsx`, within its directory. Then,
-fill it with the appropriate Storybook code to create a new Storybook entry. You will be able to visualize
-the component within Storybook to determine if it looks and behaves as expected.
 
 ## Directory structure
 
@@ -51,11 +35,13 @@ typical directory structure for a component is as follows:
 └── ComponentName
   ├── _styles.scss
   ├── ComponentName.tsx
+  |-- ComponentName.tests.tsx
   ├── index.ts
 ```
 
 - `_styles.scss`: The component css styles
 - `ComponentName.tsx`: The React component
+- `ComponentName.tests.tsx`: The React component unit/integration tests
 - `index.ts`: Exports the React component
   - This file is helpful as it allows other components to import the component
     by it's directory name. Without this file the component name would have to
@@ -118,6 +104,11 @@ includes variables for the app color hex codes, fonts (families, weights and siz
 The templates directory contains the HTML file that renders the React application via including the `bundle.js`
 and `bundle.css` files. The HTML page also includes the HTML element in which the React application is mounted.
 
+### [test](./test)
+
+The test directory includes test helpers, API request mocks, and stubbed data entities for use in test files.
+More on test helpers, stubs, and request mocks [here](./test/README.md).
+
 ### [utilities](./utilities)
 
 The utilities directory contains re-usable functions and constants for use throughout the
@@ -125,14 +116,21 @@ application. The functions include helpers to convert an array of objects to
 CSV, debounce functions to prevent multiple form submissions, format API errors,
 etc.
 
-## Deprecated
-
-These directories and files are still used (as of 4/22/22) but are being replaced by newer code:
-
-- [Form.jsx Higher Order Component](./components/forms/README.md); now creating forms with local states with React Hooks (i.e. `useState`)
-
-To view the deprecated documentation, [click here](./README_deprecated.md).
-
 ## Patterns
 
 The list of patterns used in the Fleet UI codebase can be found [here](./docs/patterns.md).
+
+## Storybook
+
+[Storybook](https://storybook.js.org/) is a tool to document and visualize components, and we
+use it to capture our global components used across Fleet. Storybook is key when developing new
+features and testing components before release. It runs a separate server exposed on port `6006`.
+To run this server, do the following:
+
+- Go to your root fleet project directory
+- Run `make deps`
+- Run `yarn storybook`
+
+The URL `localhost:6006` should automatically show in your browser. If not, visit it manually.
+
+Running Storybook before implementing new UI elements can clarify if new components need to be created or already exist. When creating a component, you can create a new file, `component.stories.tsx`, within its directory. Then, fill it with the appropriate Storybook code to create a new Storybook entry. You will be able to visualize the component within Storybook to determine if it looks and behaves as expected.

@@ -18,6 +18,7 @@ require (
 	github.com/cenkalti/backoff/v4 v4.1.3
 	github.com/davecgh/go-spew v1.1.1
 	github.com/dgraph-io/badger/v2 v2.2007.2
+	github.com/digitalocean/go-smbios v0.0.0-20180907143718-390a4f403a8e
 	github.com/docker/docker v20.10.17+incompatible
 	github.com/docker/go-units v0.4.0
 	github.com/doug-martin/goqu/v9 v9.18.0
@@ -85,7 +86,7 @@ require (
 	github.com/throttled/throttled/v2 v2.8.0
 	github.com/tj/assert v0.0.3
 	github.com/ulikunitz/xz v0.5.10
-	github.com/urfave/cli/v2 v2.3.0
+	github.com/urfave/cli/v2 v2.23.5
 	github.com/valyala/fasthttp v1.34.0
 	go.elastic.co/apm/module/apmhttp v1.15.0
 	go.elastic.co/apm/module/apmsql v1.15.0
@@ -277,6 +278,7 @@ require (
 	github.com/xanzy/ssh-agent v0.3.1 // indirect
 	github.com/xeipuuv/gojsonpointer v0.0.0-20190905194746-02993c407bfb // indirect
 	github.com/xeipuuv/gojsonreference v0.0.0-20180127040603-bd5ef7bd5415 // indirect
+	github.com/xrash/smetrics v0.0.0-20201216005158-039620a65673 // indirect
 	github.com/yashtewari/glob-intersection v0.1.0 // indirect
 	github.com/yusufpapurcu/wmi v1.2.2 // indirect
 	go.elastic.co/apm v1.15.0 // indirect
@@ -313,7 +315,7 @@ require (
 
 replace github.com/kolide/kit => github.com/zwass/kit v0.0.0-20210625184505-ec5b5c5cce9c
 
-replace github.com/micromdm/nanomdm => github.com/fleetdm/nanomdm v0.3.1-0.20221005204003-0c868c49ef10
+replace github.com/micromdm/nanomdm => github.com/fleetdm/nanomdm v0.3.1-0.20221221183439-b4a379587352
 
 replace github.com/micromdm/nanodep => github.com/fleetdm/nanodep v0.1.1-0.20221005204411-eefd72d47e93
 

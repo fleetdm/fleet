@@ -156,7 +156,12 @@ const generateTableHeaders = (currentUser: IUser): IDataColumn[] => {
       disableSortBy: true,
       accessor: "performance",
       Cell: (cellProps: ICellProps) => (
-        <PillCell value={[cellProps.cell.value, cellProps.row.original.id]} />
+        <PillCell
+          value={{
+            indicator: cellProps.cell.value,
+            id: cellProps.row.original.id,
+          }}
+        />
       ),
     },
     {

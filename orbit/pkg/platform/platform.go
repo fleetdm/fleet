@@ -17,6 +17,14 @@ var (
 	ErrComChannelNotFound = errors.New("comm channel not found")
 )
 
+type UUIDSource string
+
+const (
+	UUIDSourceInvalid  = "UUID_Source_Invalid"
+	UUIDSourceWMI      = "UUID_Source_WMI"
+	UUIDSourceHardware = "UUID_Source_Hardware"
+)
+
 // readPidFromFile reads a PID from a file
 func readPidFromFile(destDir string, destFile string) (int32, error) {
 	// Defense programming - sanity checks on inputs
@@ -79,7 +87,7 @@ func killPID(pid int32) error {
 
 	for _, process := range processes {
 		if pid == process.Pid {
-			process.Kill()
+			process.Kill() //nolint:errcheck
 			break
 		}
 	}

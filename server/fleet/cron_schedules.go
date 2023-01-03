@@ -3,7 +3,22 @@ package fleet
 import (
 	"fmt"
 	"net/http"
+	"sort"
+	"strings"
 	"time"
+)
+
+type CronScheduleName string
+
+// List of recognized cron schedule names.
+const (
+	CronAppleMDMDEPProfileAssigner CronScheduleName = "apple_mdm_dep_profile_assigner"
+	CronCleanupsThenAggregation    CronScheduleName = "cleanups_then_aggregation"
+	CronUsageStatistics            CronScheduleName = "usage_statistics"
+	CronVulnerabilities            CronScheduleName = "vulnerabilities"
+	CronAutomations                CronScheduleName = "automations"
+	CronIntegrations               CronScheduleName = "integrations"
+	CronActivitiesStreaming        CronScheduleName = "activities_streaming"
 )
 
 type CronSchedulesService interface {
@@ -47,7 +62,7 @@ func (cs *CronSchedules) StartCronSchedule(fn NewCronScheduleFunc) error {
 func (cs *CronSchedules) TriggerCronSchedule(name string) error {
 	sched, ok := cs.Schedules[name]
 	if !ok {
-		return triggerNotFoundError{name: name}
+		return triggerNotFoundError{name: name, msg: cs.formatSupportedTriggerNames()}
 	}
 	stats, err := sched.Trigger()
 	switch {
@@ -66,7 +81,20 @@ func (cs *CronSchedules) ScheduleNames() []string {
 	for _, sched := range cs.Schedules {
 		res = append(res, sched.Name())
 	}
+	sort.Strings(res)
 	return res
+}
+
+func (cs *CronSchedules) formatSupportedTriggerNames() string {
+	names := cs.ScheduleNames()
+	switch len(names) {
+	case 0:
+		return "no supported triggers"
+	case 1:
+		return fmt.Sprintf("supported trigger name is %s", names[0])
+	default:
+		return fmt.Sprintf("supported trigger names are %s, and %s", strings.Join(names[:len(names)-1], fmt.Sprint(", ")), names[len(names)-1])
+	}
 }
 
 type triggerConflictError struct {
@@ -86,24 +114,29 @@ func (e triggerConflictError) Error() string {
 	return msg
 }
 
+func (e triggerConflictError) IsConflict() bool {
+	return true
+}
+
 func (e triggerConflictError) StatusCode() int {
 	return http.StatusConflict
 }
 
 type triggerNotFoundError struct {
 	name string
+	msg  string
 }
 
 func (e triggerNotFoundError) Error() string {
-	msg := "unrecognized name"
-	if e.name != "" {
-		msg += fmt.Sprintf(": %s", e.name)
-	}
-	return msg
+	return fmt.Sprintf("invalid name; %s", e.msg)
 }
 
 func (e triggerNotFoundError) IsNotFound() bool {
 	return true
+}
+
+func (e triggerNotFoundError) StatusCode() int {
+	return http.StatusNotFound
 }
 
 // CronStats represents statistics recorded in connection with a named set of jobs (sometimes

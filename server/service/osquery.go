@@ -95,7 +95,7 @@ type enrollAgentResponse struct {
 
 func (r enrollAgentResponse) error() error { return r.Err }
 
-func enrollAgentEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func enrollAgentEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*enrollAgentRequest)
 	nodeKey, err := svc.EnrollAgent(ctx, req.EnrollSecret, req.HostIdentifier, req.HostDetails)
 	if err != nil {
@@ -311,15 +311,23 @@ type getClientConfigResponse struct {
 
 func (r getClientConfigResponse) error() error { return r.Err }
 
-func getClientConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+// MarshalJSON implements json.Marshaler.
+//
+// Osquery expects the response for configs to be at the
+// top-level of the JSON response.
+func (r getClientConfigResponse) MarshalJSON() ([]byte, error) {
+	return json.Marshal(r.Config)
+}
+
+func getClientConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	config, err := svc.GetClientConfig(ctx)
 	if err != nil {
 		return getClientConfigResponse{Err: err}, nil
 	}
 
-	// We return the config here explicitly because osquery exepects the
-	// response for configs to be at the top-level of the JSON response
-	return config, nil
+	return getClientConfigResponse{
+		Config: config,
+	}, nil
 }
 
 func (svc *Service) GetClientConfig(ctx context.Context) (map[string]interface{}, error) {
@@ -495,7 +503,7 @@ type getDistributedQueriesResponse struct {
 
 func (r getDistributedQueriesResponse) error() error { return r.Err }
 
-func getDistributedQueriesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func getDistributedQueriesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	queries, discovery, accelerate, err := svc.GetDistributedQueries(ctx)
 	if err != nil {
 		return getDistributedQueriesResponse{Err: err}, nil
@@ -747,7 +755,7 @@ type submitDistributedQueryResultsResponse struct {
 
 func (r submitDistributedQueryResultsResponse) error() error { return r.Err }
 
-func submitDistributedQueryResultsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func submitDistributedQueryResultsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	shim := request.(*submitDistributedQueryResultsRequestShim)
 	req, err := shim.toRequest(ctx)
 	if err != nil {
@@ -818,38 +826,18 @@ func (svc *Service) SubmitDistributedQueryResults(
 				ll = level.Error(svc.logger)
 			}
 			ll.Log("query", query, "message", messages[query], "hostID", host.ID)
-
-		}
-		var err error
-		switch {
-		case strings.HasPrefix(query, hostDetailQueryPrefix):
-			trimmedQuery := strings.TrimPrefix(query, hostDetailQueryPrefix)
-			var ingested bool
-			ingested, err = svc.directIngestDetailQuery(ctx, host, trimmedQuery, rows, failed)
-			if !ingested && err == nil {
-				err = svc.ingestDetailQuery(ctx, host, trimmedQuery, rows)
-				// No err != nil check here because ingestDetailQuery could have updated
-				// successfully some values of host.
-				detailUpdated = true
-			}
-		case strings.HasPrefix(query, hostAdditionalQueryPrefix):
-			name := strings.TrimPrefix(query, hostAdditionalQueryPrefix)
-			additionalResults[name] = rows
-			additionalUpdated = true
-		case strings.HasPrefix(query, hostLabelQueryPrefix):
-			err = ingestMembershipQuery(hostLabelQueryPrefix, query, rows, labelResults, failed)
-		case strings.HasPrefix(query, hostPolicyQueryPrefix):
-			err = ingestMembershipQuery(hostPolicyQueryPrefix, query, rows, policyResults, failed)
-		case strings.HasPrefix(query, hostDistributedQueryPrefix):
-			err = svc.ingestDistributedQuery(ctx, *host, query, rows, failed, messages[query])
-		default:
-			err = osqueryError{message: "unknown query prefix: " + query}
 		}
 
+		ingestedDetailUpdated, ingestedAdditionalUpdated, err := svc.ingestQueryResults(
+			ctx, query, host, rows, failed, messages, policyResults, labelResults, additionalResults,
+		)
 		if err != nil {
 			logging.WithErr(ctx, ctxerr.New(ctx, "error in query ingestion"))
 			logging.WithExtras(ctx, "ingestion-err", err)
 		}
+
+		detailUpdated = detailUpdated || ingestedDetailUpdated
+		additionalUpdated = additionalUpdated || ingestedAdditionalUpdated
 	}
 
 	ac, err := svc.ds.AppConfig(ctx)
@@ -946,9 +934,62 @@ func (svc *Service) SubmitDistributedQueryResults(
 	return nil
 }
 
+func (svc *Service) ingestQueryResults(
+	ctx context.Context,
+	query string,
+	host *fleet.Host,
+	rows []map[string]string,
+	failed bool,
+	messages map[string]string,
+	policyResults map[uint]*bool,
+	labelResults map[uint]*bool,
+	additionalResults fleet.OsqueryDistributedQueryResults,
+) (bool, bool, error) {
+	var detailUpdated, additionalUpdated bool
+
+	// live queries we do want to ingest even if the query had issues, because we want to inform the user of these
+	// issues
+	// same applies to policies, since it's a 3 state result, one of them being failure, and labels take this state
+	// into account as well
+
+	var err error
+	switch {
+	case strings.HasPrefix(query, hostDistributedQueryPrefix):
+		err = svc.ingestDistributedQuery(ctx, *host, query, rows, failed, messages[query])
+	case strings.HasPrefix(query, hostPolicyQueryPrefix):
+		err = ingestMembershipQuery(hostPolicyQueryPrefix, query, rows, policyResults, failed)
+	case strings.HasPrefix(query, hostLabelQueryPrefix):
+		err = ingestMembershipQuery(hostLabelQueryPrefix, query, rows, labelResults, failed)
+	}
+
+	if failed {
+		// if a query failed, and it might be a detailed query or host additional, don't even try to ingest it
+		return false, false, err
+	}
+
+	switch {
+	case strings.HasPrefix(query, hostDetailQueryPrefix):
+		trimmedQuery := strings.TrimPrefix(query, hostDetailQueryPrefix)
+		var ingested bool
+		ingested, err = svc.directIngestDetailQuery(ctx, host, trimmedQuery, rows)
+		if !ingested && err == nil {
+			err = svc.ingestDetailQuery(ctx, host, trimmedQuery, rows)
+			// No err != nil check here because ingestDetailQuery could have updated
+			// successfully some values of host.
+			detailUpdated = true
+		}
+	case strings.HasPrefix(query, hostAdditionalQueryPrefix):
+		name := strings.TrimPrefix(query, hostAdditionalQueryPrefix)
+		additionalResults[name] = rows
+		additionalUpdated = true
+	}
+
+	return detailUpdated, additionalUpdated, err
+}
+
 var noSuchTableRegexp = regexp.MustCompile(`^no such table: \S+$`)
 
-func (svc *Service) directIngestDetailQuery(ctx context.Context, host *fleet.Host, name string, rows []map[string]string, failed bool) (ingested bool, err error) {
+func (svc *Service) directIngestDetailQuery(ctx context.Context, host *fleet.Host, name string, rows []map[string]string) (ingested bool, err error) {
 	features, err := svc.HostFeatures(ctx, host)
 	if err != nil {
 		return false, osqueryError{message: "ingest detail query: " + err.Error()}
@@ -960,7 +1001,7 @@ func (svc *Service) directIngestDetailQuery(ctx context.Context, host *fleet.Hos
 		return false, osqueryError{message: "unknown detail query " + name}
 	}
 	if query.DirectIngestFunc != nil {
-		err = query.DirectIngestFunc(ctx, svc.logger, host, svc.ds, rows, failed)
+		err = query.DirectIngestFunc(ctx, svc.logger, host, svc.ds, rows)
 		if err != nil {
 			return false, osqueryError{
 				message: fmt.Sprintf("ingesting query %s: %s", name, err.Error()),
@@ -968,7 +1009,7 @@ func (svc *Service) directIngestDetailQuery(ctx context.Context, host *fleet.Hos
 		}
 		return true, nil
 	} else if query.DirectTaskIngestFunc != nil {
-		err = query.DirectTaskIngestFunc(ctx, svc.logger, host, svc.task, rows, failed)
+		err = query.DirectTaskIngestFunc(ctx, svc.logger, host, svc.task, rows)
 		if err != nil {
 			return false, osqueryError{
 				message: fmt.Sprintf("ingesting query %s: %s", name, err.Error()),
@@ -1169,7 +1210,7 @@ type submitLogsResponse struct {
 
 func (r submitLogsResponse) error() error { return r.Err }
 
-func submitLogsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func submitLogsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*submitLogsRequest)
 
 	var err error

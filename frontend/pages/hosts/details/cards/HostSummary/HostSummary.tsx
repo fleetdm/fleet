@@ -11,8 +11,7 @@ import {
   wrapFleetHelper,
 } from "utilities/helpers";
 import getHostStatusTooltipText from "pages/hosts/helpers";
-import StatusCell from "components/TableContainer/DataTable/StatusCell";
-// TODO: Refactor StatusCell into smaller non-table-specific StatusIndicator component to be wrapped by StatusCell
+import StatusIndicator from "components/StatusIndicator";
 import IssueIcon from "../../../../../../assets/images/icon-issue-fleet-black-50-16x16@2x.png";
 
 const baseClass = "host-summary";
@@ -137,7 +136,7 @@ const HostSummary = ({
       <div className="info-flex">
         <div className="info-flex__item info-flex__item--title">
           <span className="info-flex__header">Status</span>
-          <StatusCell
+          <StatusIndicator
             value={status || ""} // temporary work around of integration test bug
             tooltip={{
               id,

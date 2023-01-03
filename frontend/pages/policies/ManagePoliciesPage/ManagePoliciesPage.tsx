@@ -77,6 +77,7 @@ const ManagePolicyPage = ({
     setLastEditedQueryName,
     setLastEditedQueryDescription,
     setLastEditedQueryResolution,
+    setLastEditedQueryCritical,
     setLastEditedQueryPlatform,
   } = useContext(PolicyContext);
 
@@ -238,6 +239,7 @@ const ManagePolicyPage = ({
     setLastEditedQueryName("");
     setLastEditedQueryDescription("");
     setLastEditedQueryResolution("");
+    setLastEditedQueryCritical(false);
     toggleAddPolicyModal();
   };
 
@@ -461,7 +463,7 @@ const ManagePolicyPage = ({
         {showInheritedPoliciesButton && globalPolicies && (
           <RevealButton
             isShowing={showInheritedPolicies}
-            baseClass={baseClass}
+            className={baseClass}
             hideText={inheritedPoliciesButtonText(
               showInheritedPolicies,
               globalPolicies.length

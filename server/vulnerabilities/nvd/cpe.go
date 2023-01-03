@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -14,6 +13,7 @@ import (
 
 	"github.com/doug-martin/goqu/v9"
 	"github.com/fleetdm/fleet/v4/pkg/download"
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/oval"
@@ -31,10 +31,11 @@ const (
 
 var cpeDBRegex = regexp.MustCompile(`^cpe-.*\.sqlite\.gz$`)
 
-func GetLatestNVDRelease(client *http.Client) (*github.RepositoryRelease, error) {
-	ghclient := github.NewClient(client)
-	ctx := context.Background()
-	releases, _, err := ghclient.Repositories.ListReleases(ctx, owner, repo, &github.ListOptions{Page: 0, PerPage: 10})
+func GetLatestGithubNVDRelease() (*github.RepositoryRelease, error) {
+	githubClient := github.NewClient(fleethttp.NewGithubClient())
+	releases, _, err := githubClient.Repositories.ListReleases(
+		context.Background(), owner, repo, &github.ListOptions{Page: 0, PerPage: 10},
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -51,15 +52,11 @@ func GetLatestNVDRelease(client *http.Client) (*github.RepositoryRelease, error)
 
 // DownloadCPEDB downloads the CPE database to the given vulnPath. If cpeDBURL is empty, attempts to download it
 // from the latest release of github.com/fleetdm/nvd. Skips downloading if CPE database is newer than the release.
-func DownloadCPEDB(
-	vulnPath string,
-	client *http.Client,
-	cpeDBURL string,
-) error {
+func DownloadCPEDBFromGithub(vulnPath string, cpeDBURL string) error {
 	path := filepath.Join(vulnPath, cpeDBFilename)
 
 	if cpeDBURL == "" {
-		release, err := GetLatestNVDRelease(client)
+		release, err := GetLatestGithubNVDRelease()
 		if err != nil {
 			return err
 		}
@@ -91,7 +88,9 @@ func DownloadCPEDB(
 	if err != nil {
 		return err
 	}
-	if err := download.DownloadAndExtract(client, u, path); err != nil {
+
+	githubClient := fleethttp.NewGithubClient()
+	if err := download.DownloadAndExtract(githubClient, u, path); err != nil {
 		return err
 	}
 

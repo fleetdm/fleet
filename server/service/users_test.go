@@ -77,6 +77,9 @@ func TestUserAuth(t *testing.T) {
 	ds.ListSessionsForUserFunc = func(ctx context.Context, id uint) ([]*fleet.Session, error) {
 		return nil, nil
 	}
+	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+		return nil
+	}
 
 	testCases := []struct {
 		name string
@@ -1283,7 +1286,7 @@ func TestTeamAdminAddRoleOtherTeam(t *testing.T) {
 	}
 
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: adminTeam2})
-	adminTeam2.SetPassword("p4ssw0rd.", 10, 10)
+	require.NoError(t, adminTeam2.SetPassword("p4ssw0rd.1337", 10, 10))
 
 	// adminTeam2 tries to add itself to team with ID=3 as admin.
 	_, err := svc.ModifyUser(ctx, adminTeam2.ID, fleet.UserPayload{

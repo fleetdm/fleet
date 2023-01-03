@@ -11,6 +11,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
+	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -246,8 +247,8 @@ func testLabelsListHostsInLabel(t *testing.T, db *Datastore) {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		OsqueryHostID:   "1",
-		NodeKey:         "1",
+		OsqueryHostID:   ptr.String("1"),
+		NodeKey:         ptr.String("1"),
 		UUID:            "1",
 		Hostname:        "foo.local",
 	})
@@ -258,8 +259,8 @@ func testLabelsListHostsInLabel(t *testing.T, db *Datastore) {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		OsqueryHostID:   "2",
-		NodeKey:         "2",
+		OsqueryHostID:   ptr.String("2"),
+		NodeKey:         ptr.String("2"),
 		UUID:            "2",
 		Hostname:        "bar.local",
 	})
@@ -270,8 +271,8 @@ func testLabelsListHostsInLabel(t *testing.T, db *Datastore) {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		OsqueryHostID:   "3",
-		NodeKey:         "3",
+		OsqueryHostID:   ptr.String("3"),
+		NodeKey:         ptr.String("3"),
 		UUID:            "3",
 		Hostname:        "baz.local",
 	})
@@ -279,6 +280,24 @@ func testLabelsListHostsInLabel(t *testing.T, db *Datastore) {
 	require.NoError(t, db.SetOrUpdateHostDisksSpace(context.Background(), h1.ID, 10, 5))
 	require.NoError(t, db.SetOrUpdateHostDisksSpace(context.Background(), h2.ID, 20, 10))
 	require.NoError(t, db.SetOrUpdateHostDisksSpace(context.Background(), h3.ID, 30, 15))
+
+	ctx := context.Background()
+	const simpleMDM, kandji = "https://simplemdm.com", "https://kandji.io"
+	err = db.SetOrUpdateMDMData(ctx, h1.ID, false, true, simpleMDM, true, "") // enrollment: automatic
+	require.NoError(t, err)
+	err = db.SetOrUpdateMDMData(ctx, h2.ID, false, true, kandji, true, "") // enrollment: automatic
+	require.NoError(t, err)
+	err = db.SetOrUpdateMDMData(ctx, h3.ID, false, false, simpleMDM, false, "") // enrollment: unenrolled
+	require.NoError(t, err)
+
+	var simpleMDMID uint
+	ExecAdhocSQL(t, db, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &simpleMDMID, `SELECT id FROM mobile_device_management_solutions WHERE name = ? AND server_url = ?`, fleet.WellKnownMDMSimpleMDM, simpleMDM)
+	})
+	var kandjiID uint
+	ExecAdhocSQL(t, db, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &kandjiID, `SELECT id FROM mobile_device_management_solutions WHERE name = ? AND server_url = ?`, fleet.WellKnownMDMKandji, kandji)
+	})
 
 	l1 := &fleet.LabelSpec{
 		ID:    1,
@@ -303,6 +322,10 @@ func testLabelsListHostsInLabel(t *testing.T, db *Datastore) {
 	listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{LowDiskSpaceFilter: ptr.Int(25)}, 2)
 	listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{LowDiskSpaceFilter: ptr.Int(15)}, 1)
 	listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{LowDiskSpaceFilter: ptr.Int(5)}, 0)
+
+	listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{MDMIDFilter: ptr.Uint(99)}, 0)
+	listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{MDMIDFilter: ptr.Uint(simpleMDMID)}, 2)
+	listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{MDMIDFilter: ptr.Uint(kandjiID)}, 1)
 }
 
 func listHostsInLabelCheckCount(
@@ -323,8 +346,8 @@ func testLabelsListHostsInLabelAndStatus(t *testing.T, db *Datastore) {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		OsqueryHostID:   "1",
-		NodeKey:         "1",
+		OsqueryHostID:   ptr.String("1"),
+		NodeKey:         ptr.String("1"),
 		UUID:            "1",
 		Hostname:        "foo.local",
 	})
@@ -336,8 +359,8 @@ func testLabelsListHostsInLabelAndStatus(t *testing.T, db *Datastore) {
 		LabelUpdatedAt:  lastSeenTime,
 		PolicyUpdatedAt: lastSeenTime,
 		SeenTime:        lastSeenTime,
-		OsqueryHostID:   "2",
-		NodeKey:         "2",
+		OsqueryHostID:   ptr.String("2"),
+		NodeKey:         ptr.String("2"),
 		UUID:            "2",
 		Hostname:        "bar.local",
 	})
@@ -347,8 +370,8 @@ func testLabelsListHostsInLabelAndStatus(t *testing.T, db *Datastore) {
 		LabelUpdatedAt:  lastSeenTime,
 		PolicyUpdatedAt: lastSeenTime,
 		SeenTime:        lastSeenTime,
-		OsqueryHostID:   "3",
-		NodeKey:         "3",
+		OsqueryHostID:   ptr.String("3"),
+		NodeKey:         ptr.String("3"),
 		UUID:            "3",
 		Hostname:        "baz.local",
 	})
@@ -386,8 +409,8 @@ func testLabelsListHostsInLabelAndTeamFilter(deferred bool, t *testing.T, db *Da
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		OsqueryHostID:   "1",
-		NodeKey:         "1",
+		OsqueryHostID:   ptr.String("1"),
+		NodeKey:         ptr.String("1"),
 		UUID:            "1",
 		Hostname:        "foo.local",
 	})
@@ -399,8 +422,8 @@ func testLabelsListHostsInLabelAndTeamFilter(deferred bool, t *testing.T, db *Da
 		LabelUpdatedAt:  lastSeenTime,
 		PolicyUpdatedAt: lastSeenTime,
 		SeenTime:        lastSeenTime,
-		OsqueryHostID:   "2",
-		NodeKey:         "2",
+		OsqueryHostID:   ptr.String("2"),
+		NodeKey:         ptr.String("2"),
 		UUID:            "2",
 		Hostname:        "bar.local",
 	})
@@ -468,8 +491,8 @@ func testLabelsListUniqueHostsInLabels(t *testing.T, db *Datastore) {
 			LabelUpdatedAt:  time.Now(),
 			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now(),
-			OsqueryHostID:   strconv.Itoa(i),
-			NodeKey:         strconv.Itoa(i),
+			OsqueryHostID:   ptr.String(strconv.Itoa(i)),
+			NodeKey:         ptr.String(strconv.Itoa(i)),
 			UUID:            strconv.Itoa(i),
 			Hostname:        fmt.Sprintf("host_%d", i),
 		})
@@ -591,8 +614,8 @@ func setupLabelSpecsTest(t *testing.T, ds fleet.Datastore) []*fleet.LabelSpec {
 			LabelUpdatedAt:  time.Now(),
 			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now(),
-			OsqueryHostID:   strconv.Itoa(i),
-			NodeKey:         strconv.Itoa(i),
+			OsqueryHostID:   ptr.String(strconv.Itoa(i)),
+			NodeKey:         ptr.String(strconv.Itoa(i)),
 			UUID:            strconv.Itoa(i),
 			Hostname:        strconv.Itoa(i),
 		})
@@ -674,8 +697,8 @@ func testLabelsSave(t *testing.T, db *Datastore) {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		OsqueryHostID:   "1",
-		NodeKey:         "1",
+		OsqueryHostID:   ptr.String("1"),
+		NodeKey:         ptr.String("1"),
 		UUID:            "1",
 		Hostname:        "foo.local",
 	})
@@ -738,8 +761,8 @@ func testLabelsRecordNonexistentQueryLabelExecution(t *testing.T, db *Datastore)
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		OsqueryHostID:   "1",
-		NodeKey:         "1",
+		OsqueryHostID:   ptr.String("1"),
+		NodeKey:         ptr.String("1"),
 		UUID:            "1",
 		Hostname:        "foo.local",
 	})
@@ -844,8 +867,8 @@ func testListHostsInLabelFailingPolicies(t *testing.T, ds *Datastore) {
 			LabelUpdatedAt:  time.Now(),
 			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now().Add(-time.Duration(i) * time.Minute),
-			OsqueryHostID:   strconv.Itoa(i),
-			NodeKey:         fmt.Sprintf("%d", i),
+			OsqueryHostID:   ptr.String(strconv.Itoa(i)),
+			NodeKey:         ptr.String(fmt.Sprintf("%d", i)),
 			UUID:            fmt.Sprintf("%d", i),
 			Hostname:        fmt.Sprintf("foo.local%d", i),
 		})

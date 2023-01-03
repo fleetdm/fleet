@@ -80,7 +80,7 @@ func TestApplyUserRoles(t *testing.T) {
 	require.NoError(t, err)
 	defer os.Remove(tmpFile.Name())
 
-	tmpFile.WriteString(`
+	_, err = tmpFile.WriteString(`
 ---
 apiVersion: v1
 kind: user_roles
@@ -95,7 +95,7 @@ spec:
       - role: maintainer
         team: team1
 `)
-
+	require.NoError(t, err)
 	assert.Equal(t, "[+] applied user roles\n", runAppForTest(t, []string{"apply", "-f", tmpFile.Name()}))
 	require.Len(t, userRoleSpecList[1].Teams, 1)
 	assert.Equal(t, fleet.RoleMaintainer, userRoleSpecList[1].Teams[0].Role)
@@ -145,7 +145,7 @@ func TestApplyTeamSpecs(t *testing.T) {
 		return nil
 	}
 
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error {
+	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
 		return nil
 	}
 
@@ -241,7 +241,7 @@ func TestApplyAppConfig(t *testing.T) {
 		return userRoleSpecList, nil
 	}
 
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error {
+	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
 		return nil
 	}
 
@@ -316,11 +316,11 @@ func TestApplyAppConfigDryRunIssue(t *testing.T) {
 		return userRoleSpecList[1], nil
 	}
 
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error {
+	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
 		return nil
 	}
 
-	var currentAppConfig = &fleet.AppConfig{
+	currentAppConfig := &fleet.AppConfig{
 		OrgInfo: fleet.OrgInfo{OrgName: "Fleet"}, ServerSettings: fleet.ServerSettings{ServerURL: "https://example.org"},
 	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
@@ -507,7 +507,7 @@ func TestApplyPolicies(t *testing.T) {
 		}
 		return nil, errors.New("unexpected team name!")
 	}
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error {
+	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
 		return nil
 	}
 
@@ -609,7 +609,7 @@ func TestApplyPacks(t *testing.T) {
 	ds.ListPacksFunc = func(ctx context.Context, opt fleet.PackListOptions) ([]*fleet.Pack, error) {
 		return nil, nil
 	}
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error {
+	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
 		return nil
 	}
 
@@ -672,7 +672,7 @@ func TestApplyQueries(t *testing.T) {
 		appliedQueries = queries
 		return nil
 	}
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error {
+	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
 		return nil
 	}
 
@@ -809,7 +809,7 @@ func TestApplySpecs(t *testing.T) {
 		}
 
 		// activities
-		ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error {
+		ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
 			return nil
 		}
 

@@ -208,9 +208,47 @@ module.exports.routes = {
     },
   },
 
+  'GET /admin/email-preview': {
+    action: 'admin/view-email-templates',
+    locals: {
+      layout: 'layouts/layout-customer'
+    },
+  },
+
+  'GET /admin/email-preview/*': {
+    action: 'admin/view-email-template-preview',
+    skipAssets: true,
+    locals: {
+      layout: 'layouts/layout-customer'
+    },
+  },
+
   'GET /tables/:tableName': {
     action: 'view-osquery-table-details',
   },
+
+  'GET /admin/generate-license': {
+    action: 'admin/view-generate-license',
+    locals: {
+      layout: 'layouts/layout-customer'
+    }
+  },
+
+
+  'GET /connect-vanta': {
+    action: 'view-connect-vanta',
+    locals: {
+      layout: 'layouts/layout-sandbox',
+    }
+  },
+
+  'GET /vanta-authorization': {
+    action: 'view-vanta-authorization',
+    locals: {
+      layout: 'layouts/layout-sandbox',
+    }
+  },
+
 
 
   //  ╦  ╔═╗╔═╗╔═╗╔═╗╦ ╦  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗
@@ -348,5 +386,7 @@ module.exports.routes = {
   'POST /api/v1/entrance/update-password-and-login':    { action: 'entrance/update-password-and-login' },
   'POST /api/v1/deliver-demo-signup':                   { action: 'deliver-demo-signup' },
   'POST /api/v1/create-or-update-one-newsletter-subscription': { action: 'create-or-update-one-newsletter-subscription' },
-  '/api/v1/unsubscribe-from-all-newsletters': { action: 'unsubscribe-from-all-newsletters' }
+  '/api/v1/unsubscribe-from-all-newsletters': { action: 'unsubscribe-from-all-newsletters' },
+  'POST /api/v1/admin/generate-license-key': { action: 'admin/generate-license-key' },
+  'POST /api/v1/create-vanta-authorization-request': { action: 'create-vanta-authorization-request' },
 };

@@ -1,0 +1,1 @@
+- Fixed an issue that made the first SCEP enrollment during the MDM check-in flow fail in a new setup.

@@ -23,6 +23,8 @@ import FleetAce from "components/FleetAce";
 import validateQuery from "components/forms/validators/validate_query";
 import Button from "components/buttons/Button";
 import RevealButton from "components/buttons/RevealButton";
+import Checkbox from "components/forms/fields/Checkbox";
+import TooltipWrapper from "components/TooltipWrapper";
 import Spinner from "components/Spinner";
 import AutoSizeInputField from "components/forms/fields/AutoSizeInputField";
 import NewPolicyModal from "../NewPolicyModal";
@@ -88,11 +90,13 @@ const PolicyForm = ({
     lastEditedQueryDescription,
     lastEditedQueryBody,
     lastEditedQueryResolution,
+    lastEditedQueryCritical,
     lastEditedQueryPlatform,
     setLastEditedQueryName,
     setLastEditedQueryDescription,
     setLastEditedQueryBody,
     setLastEditedQueryResolution,
+    setLastEditedQueryCritical,
     setLastEditedQueryPlatform,
   } = useContext(PolicyContext);
 
@@ -105,6 +109,7 @@ const PolicyForm = ({
     isOnGlobalTeam,
     isTeamAdmin,
     isTeamMaintainer,
+    isPremiumTier,
   } = useContext(AppContext);
 
   const debounceSQL = useDebouncedCallback((sql: string) => {
@@ -222,13 +227,17 @@ const PolicyForm = ({
     if (!isEditMode) {
       setIsNewPolicyModalOpen(true);
     } else {
-      onUpdate({
+      const payload: IPolicyFormData = {
         name: lastEditedQueryName,
         description: lastEditedQueryDescription,
         query: lastEditedQueryBody,
         resolution: lastEditedQueryResolution,
         platform: newPlatformString,
-      });
+      };
+      if (isPremiumTier) {
+        payload.critical = lastEditedQueryCritical;
+      }
+      onUpdate(payload);
     }
 
     setIsEditingName(false);
@@ -407,6 +416,27 @@ const PolicyForm = ({
     return platformCompatibility.render();
   };
 
+  const renderCriticalPolicy = () => {
+    return (
+      <Checkbox
+        name="critical-policy"
+        className="critical-policy"
+        onChange={(value: boolean) => setLastEditedQueryCritical(value)}
+        value={lastEditedQueryCritical}
+        isLeftLabel
+      >
+        <TooltipWrapper
+          tipContent={
+            "<p>If automations are turned on, this<br/> information is included.</p>"
+          }
+          isDelayed
+        >
+          Critical:
+        </TooltipWrapper>
+      </Checkbox>
+    );
+  };
+
   const renderRunForObserver = (
     <form className={`${baseClass}__wrapper`}>
       <div className={`${baseClass}__title-bar`}>
@@ -422,7 +452,7 @@ const PolicyForm = ({
       </div>
       <RevealButton
         isShowing={showQueryEditor}
-        baseClass={baseClass}
+        className={baseClass}
         hideText="Hide SQL"
         showText="Show SQL"
         onClick={() => setShowQueryEditor(!showQueryEditor)}
@@ -467,6 +497,7 @@ const PolicyForm = ({
           {renderPlatformCompatibility()}
         </span>
         {isEditMode && platformSelector.render()}
+        {isEditMode && isPremiumTier && renderCriticalPolicy()}
         {renderLiveQueryWarning()}
         <div className={`${baseClass}__button-wrap`}>
           <span

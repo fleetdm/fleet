@@ -40,7 +40,7 @@ func TestGlobalPoliciesAuth(t *testing.T) {
 	ds.ApplyPolicySpecsFunc = func(ctx context.Context, authorID uint, specs []*fleet.PolicySpec) error {
 		return nil
 	}
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error {
+	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
 		return nil
 	}
 	ds.SavePolicyFunc = func(ctx context.Context, p *fleet.Policy) error {

@@ -44,9 +44,12 @@ func (r *orbitGetConfigRequest) orbitHostNodeKey() string {
 }
 
 type orbitGetConfigResponse struct {
-	Flags json.RawMessage `json:"command_line_startup_flags,omitempty"`
-	Err   error           `json:"error,omitempty"`
+	Flags      json.RawMessage `json:"command_line_startup_flags,omitempty"`
+	Extensions json.RawMessage `json:"extensions,omitempty"`
+	Err        error           `json:"error,omitempty"`
 }
+
+func (r orbitGetConfigResponse) error() error { return r.Err }
 
 func (e orbitError) Error() string {
 	return e.message
@@ -67,7 +70,7 @@ func (r EnrollOrbitResponse) hijackRender(ctx context.Context, w http.ResponseWr
 	}
 }
 
-func enrollOrbitEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func enrollOrbitEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*EnrollOrbitRequest)
 	nodeKey, err := svc.EnrollOrbit(ctx, req.HardwareUUID, req.EnrollSecret)
 	if err != nil {
@@ -120,51 +123,51 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hardwareUUID string, enroll
 	return orbitNodeKey, nil
 }
 
-func getOrbitConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
-	opts, err := svc.GetOrbitFlags(ctx)
+func getOrbitConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	opts, extensions, err := svc.GetOrbitConfig(ctx)
 	if err != nil {
 		return orbitGetConfigResponse{Err: err}, nil
 	}
-	return orbitGetConfigResponse{Flags: opts}, nil
+	return orbitGetConfigResponse{Flags: opts, Extensions: extensions}, nil
 }
 
-func (svc *Service) GetOrbitFlags(ctx context.Context) (json.RawMessage, error) {
+func (svc *Service) GetOrbitConfig(ctx context.Context) (json.RawMessage, json.RawMessage, error) {
 	// this is not a user-authenticated endpoint
 	svc.authz.SkipAuthorization(ctx)
 
 	host, ok := hostctx.FromContext(ctx)
 	if !ok {
-		return nil, orbitError{message: "internal error: missing host from request context"}
+		return nil, nil, orbitError{message: "internal error: missing host from request context"}
 	}
 
 	// team ID is not nil, get team specific flags and options
 	if host.TeamID != nil {
 		teamAgentOptions, err := svc.ds.TeamAgentOptions(ctx, *host.TeamID)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 
 		if teamAgentOptions != nil && len(*teamAgentOptions) > 0 {
 			var opts fleet.AgentOptions
 			if err := json.Unmarshal(*teamAgentOptions, &opts); err != nil {
-				return nil, err
+				return nil, nil, err
 			}
-			return opts.CommandLineStartUpFlags, nil
+			return opts.CommandLineStartUpFlags, opts.Extensions, nil
 		}
 	}
 
 	// team ID is nil, get global flags and options
 	config, err := svc.ds.AppConfig(ctx)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	var opts fleet.AgentOptions
 	if config.AgentOptions != nil {
 		if err := json.Unmarshal(*config.AgentOptions, &opts); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 	}
-	return opts.CommandLineStartUpFlags, nil
+	return opts.CommandLineStartUpFlags, opts.Extensions, nil
 }
 
 /////////////////////////////////////////////////////////////////////////////////
@@ -179,10 +182,12 @@ func (r orbitPingResponse) hijackRender(ctx context.Context, w http.ResponseWrit
 	writeCapabilitiesHeader(w, fleet.ServerOrbitCapabilities)
 }
 
+func (r orbitPingResponse) error() error { return nil }
+
 // NOTE: we're intentionally not reading the capabilities header in this
 // endpoint as is unauthenticated and we don't want to trust whatever comes in
 // there.
-func orbitPingEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func orbitPingEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	svc.DisableAuthForPing(ctx)
 	return orbitPingResponse{}, nil
 }
@@ -210,7 +215,7 @@ type setOrUpdateDeviceTokenResponse struct {
 
 func (r setOrUpdateDeviceTokenResponse) error() error { return r.Err }
 
-func setOrUpdateDeviceTokenEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func setOrUpdateDeviceTokenEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*setOrUpdateDeviceTokenRequest)
 	if err := svc.SetOrUpdateDeviceAuthToken(ctx, req.DeviceAuthToken); err != nil {
 		return setOrUpdateDeviceTokenResponse{Err: err}, nil

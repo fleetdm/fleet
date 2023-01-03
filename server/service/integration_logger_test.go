@@ -162,10 +162,10 @@ func (s *integrationLoggerTestSuite) TestOsqueryEndpointsLogErrors() {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         t.Name() + "1234",
+		NodeKey:         ptr.String(t.Name() + "1234"),
 		UUID:            "1",
 		Hostname:        "foo.local",
-		OsqueryHostID:   t.Name(),
+		OsqueryHostID:   ptr.String(t.Name()),
 		PrimaryIP:       "192.168.1.1",
 		PrimaryMac:      "30-65-EC-6F-C4-58",
 	})
@@ -190,18 +190,18 @@ func (s *integrationLoggerTestSuite) TestSubmitLog() {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         t.Name() + "1234",
+		NodeKey:         ptr.String(t.Name() + "1234"),
 		UUID:            "1",
 		Hostname:        "foo.local",
 		PrimaryIP:       "192.168.1.1",
 		PrimaryMac:      "30-65-EC-6F-C4-58",
-		OsqueryHostID:   t.Name(),
+		OsqueryHostID:   ptr.String(t.Name()),
 	})
 	require.NoError(t, err)
 
 	// submit status logs
 	req := submitLogsRequest{
-		NodeKey: h.NodeKey,
+		NodeKey: *h.NodeKey,
 		LogType: "status",
 		Data:    nil,
 	}
@@ -215,7 +215,7 @@ func (s *integrationLoggerTestSuite) TestSubmitLog() {
 
 	// submit results logs
 	req = submitLogsRequest{
-		NodeKey: h.NodeKey,
+		NodeKey: *h.NodeKey,
 		LogType: "result",
 		Data:    nil,
 	}
@@ -229,7 +229,7 @@ func (s *integrationLoggerTestSuite) TestSubmitLog() {
 
 	// submit invalid type logs
 	req = submitLogsRequest{
-		NodeKey: h.NodeKey,
+		NodeKey: *h.NodeKey,
 		LogType: "unknown",
 		Data:    nil,
 	}
@@ -245,7 +245,7 @@ func (s *integrationLoggerTestSuite) TestSubmitLog() {
 		"node_key": %q,
 		"log_type": "status",
 		"data":     null
-	}`, h.NodeKey)
+	}`, *h.NodeKey)
 	require.NoError(t, err)
 	require.NoError(t, gw.Close())
 
@@ -265,7 +265,7 @@ func (s *integrationLoggerTestSuite) TestEnrollAgentLogsErrors() {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         "1234",
+		NodeKey:         ptr.String("1234"),
 		UUID:            "1",
 		Hostname:        "foo.local",
 		PrimaryIP:       "192.168.1.1",

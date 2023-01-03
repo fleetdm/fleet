@@ -13,6 +13,7 @@ linters:
     - typecheck
     - unconvert
     - unused
+    - errcheck
 
 linters-settings:
   depguard:
@@ -21,6 +22,14 @@ linters-settings:
     packages-with-error-message:
       - github.com/pkg/errors: "use ctxerr if a context.Context is available or stdlib errors.New / fmt.Errorf with the %w verb"
 
+  errcheck:
+    check-type-assertions: false
+    check-blank: false
+    ignore: fmt:.*
+    disable-default-exclusions: false
+    exclude-functions:
+      - "(github.com/go-kit/log.Logger).Log"
+  
   gosec:
     config:
       G306: "0644"

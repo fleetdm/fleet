@@ -459,6 +459,11 @@ func TestCarveCarveBlockBlockCountExceedError(t *testing.T) {
 		assert.Equal(t, metadata.SessionId, sessionId)
 		return metadata, nil
 	}
+	ms.UpdateCarveFunc = func(ctx context.Context, carve *fleet.CarveMetadata) error {
+		assert.NotNil(t, carve.Error)
+		assert.Equal(t, *carve.Error, "block_id exceeds expected max (22): 23")
+		return nil
+	}
 
 	payload := fleet.CarveBlockPayload{
 		Data:      []byte("this is the carve data :)"),
@@ -490,6 +495,11 @@ func TestCarveCarveBlockBlockCountMatchError(t *testing.T) {
 		assert.Equal(t, metadata.SessionId, sessionId)
 		return metadata, nil
 	}
+	ms.UpdateCarveFunc = func(ctx context.Context, carve *fleet.CarveMetadata) error {
+		assert.NotNil(t, carve.Error)
+		assert.Equal(t, *carve.Error, "block_id does not match expected block (4): 7")
+		return nil
+	}
 
 	payload := fleet.CarveBlockPayload{
 		Data:      []byte("this is the carve data :)"),
@@ -520,6 +530,11 @@ func TestCarveCarveBlockBlockSizeError(t *testing.T) {
 	ms.CarveBySessionIdFunc = func(ctx context.Context, sessionId string) (*fleet.CarveMetadata, error) {
 		assert.Equal(t, metadata.SessionId, sessionId)
 		return metadata, nil
+	}
+	ms.UpdateCarveFunc = func(ctx context.Context, carve *fleet.CarveMetadata) error {
+		assert.NotNil(t, carve.Error)
+		assert.Equal(t, *carve.Error, "exceeded declared block size 16: 37")
+		return nil
 	}
 
 	payload := fleet.CarveBlockPayload{
@@ -554,6 +569,11 @@ func TestCarveCarveBlockNewBlockError(t *testing.T) {
 	}
 	ms.NewBlockFunc = func(ctx context.Context, carve *fleet.CarveMetadata, blockId int64, data []byte) error {
 		return errors.New("kaboom!")
+	}
+	ms.UpdateCarveFunc = func(ctx context.Context, carve *fleet.CarveMetadata) error {
+		assert.NotNil(t, carve.Error)
+		assert.Equal(t, *carve.Error, "kaboom!")
+		return nil
 	}
 
 	payload := fleet.CarveBlockPayload{

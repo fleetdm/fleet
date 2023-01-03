@@ -1,11 +1,11 @@
 .platform-compatibility {
   display: flex;
-  font-size: $xx-small;
+  font-size: $x-small;
   align-items: center;
   padding-top: $pad-medium;
 
   b,
-  img,
+  svg,
   span {
     display: flex;
     align-items: center;
@@ -17,12 +17,10 @@
 
   .platform {
     padding-left: 0px;
-  }
 
-  img {
-    height: 16px;
-    width: 16px;
-    padding-left: 12px;
-    padding-right: $pad-xsmall;
+    .icon {
+      padding-left: 12px;
+      padding-right: $pad-xsmall;
+    }
   }
 }

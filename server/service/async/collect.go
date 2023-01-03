@@ -106,7 +106,7 @@ func (c *collector) exec(ctx context.Context) {
 		c.addSkipStats(failed)
 		return
 	}
-	defer conn.Do("DEL", keyLock)
+	defer conn.Do("DEL", keyLock) //nolint:errcheck
 
 	// at this point, the lock has been acquired, execute the collector handler
 	ctx, cancel := context.WithTimeout(ctx, time.Duration(c.lockTimeout.Seconds())*time.Second)

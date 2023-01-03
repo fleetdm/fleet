@@ -4,11 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"net/http"
 	"os"
 	"path/filepath"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/msrc"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/msrc/io"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/msrc/parsed"
@@ -34,7 +34,7 @@ func main() {
 	panicif(err)
 
 	now := time.Now()
-	httpC := http.DefaultClient
+	httpC := fleethttp.NewGithubClient()
 
 	ctx := context.Background()
 	ghAPI := io.NewGitHubClient(httpC, github.NewClient(httpC).Repositories, wd)

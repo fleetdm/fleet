@@ -23,7 +23,8 @@ type filesystemLogWriter struct {
 	writer io.WriteCloser
 }
 
-// NewFilesystemLogWriter creates a log file for osquery status/result logs.
+// NewFilesystemLogWriter creates a logger that writes to a file.
+//
 // The logFile can be rotated by sending a `SIGHUP` signal to Fleet if
 // enableRotation is true
 //
@@ -43,25 +44,25 @@ func NewFilesystemLogWriter(path string, appLogger log.Logger, enableRotation bo
 	}
 	// Use lumberjack logger that supports rotation
 	file.Close()
-	osquerydLogger := &lumberjack.Logger{
+	fsLogger := &lumberjack.Logger{
 		Filename:   path,
 		MaxSize:    500, // megabytes
 		MaxBackups: 3,
-		MaxAge:     28, //days
+		MaxAge:     28, // days
 		Compress:   enableCompression,
 	}
-	appLogger = log.With(appLogger, "component", "osqueryd-logger")
+	appLogger = log.With(appLogger, "component", "filesystem-logger")
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, syscall.SIGHUP)
 	go func() {
 		for {
-			<-sig //block on signal
-			if err := osquerydLogger.Rotate(); err != nil {
+			<-sig // block on signal
+			if err := fsLogger.Rotate(); err != nil {
 				appLogger.Log("err", err)
 			}
 		}
 	}()
-	return &filesystemLogWriter{osquerydLogger}, nil
+	return &filesystemLogWriter{fsLogger}, nil
 }
 
 // If writer is based on bufio we want to flush after a batch of
@@ -107,7 +108,7 @@ func (l *rawLogWriter) Write(b []byte) (int, error) {
 		return 0, errors.New("filesystemLogWriter: can't write to closed file")
 	}
 	if _, statErr := os.Stat(l.file.Name()); errors.Is(statErr, os.ErrNotExist) {
-		f, err := secure.OpenFile(l.file.Name(), os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0644)
+		f, err := secure.OpenFile(l.file.Name(), os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0o644)
 		if err != nil {
 			return 0, fmt.Errorf("create file for filesystemLogWriter %s: %w", l.file.Name(), err)
 		}
@@ -148,5 +149,5 @@ func (l *rawLogWriter) Close() error {
 }
 
 func openFile(path string) (*os.File, error) {
-	return os.OpenFile(path, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0644)
+	return os.OpenFile(path, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0o644)
 }

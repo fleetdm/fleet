@@ -327,7 +327,7 @@ const PlatformWrapper = ({
               </p>
             </div>
             <RevealButton
-              baseClass={baseClass}
+              className={baseClass}
               isShowing={showPlainOsquery}
               hideText={"Plain osquery"}
               showText={"Plain osquery"}

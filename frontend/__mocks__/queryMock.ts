@@ -9,8 +9,8 @@ const DEFAULT_QUERY_MOCK: IQuery = {
   query: "SELECT * FROM users",
   saved: true,
   author_id: 1,
-  author_name: "Rachel",
-  author_email: "rachel@fleetdm.com",
+  author_name: "Test User",
+  author_email: "test@example.com",
   observer_can_run: false,
   packs: [],
 };

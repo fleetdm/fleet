@@ -344,6 +344,18 @@ For the address of the Redis server that Fleet should connect to, include the ho
   	address: 127.0.0.1:7369
   ```
 
+##### redis_username
+
+The username to use when connecting to the Redis instance.
+
+- Default value: `<empty>`
+- Environment variable: `FLEET_REDIS_USERNAME`
+- Config file format:
+  ```
+  redis:
+  	username: foobar
+  ```
+
 ##### redis_password
 
 The password to use when connecting to the Redis instance.
@@ -852,7 +864,7 @@ The size of the session key.
 
 ##### session_duration
 
-This is the amount of time that a session should last. Whenever a user logs in, the time is reset to the specified, or default, duration. 
+This is the amount of time that a session should last. Whenever a user logs in, the time is reset to the specified, or default, duration.
 
 Valid time units are `s`, `m`, `h`.
 
@@ -1167,6 +1179,36 @@ osquery:
   result_log_plugin: firehose
 ```
 
+#### activity_enable_audit_log
+
+This enables/disables the log output for audit events.
+See the `activity_audit_log_plugin` option below that specifies the logging destination.
+
+The audit events are logged in an asynchronous fashion. It can take up to 5 minutes for an event to be logged.
+
+- Default value: `false`
+- Environment variable: `FLEET_ACTIVITY_ENABLE_AUDIT_LOG`
+- Config file format:
+  ```yaml
+  activity:
+    enable_audit_log: true
+  ```
+
+#### activity_audit_log_plugin
+
+This is the log output plugin that should be used for audit logs.
+This flag only has effect if `activity_enable_audit_log` is set to `true`.
+
+Options are `filesystem`, `firehose`, `kinesis`, `lambda`, `pubsub`, `kafkarest`, and `stdout`.
+
+- Default value: `filesystem`
+- Environment variable: `FLEET_ACTIVITY_AUDIT_LOG_PLUGIN`
+- Config file format:
+  ```yaml
+  activity:
+    audit_log_plugin: firehose
+  ```
+
 #### Logging (Fleet server logging)
 
 ##### logging_debug
@@ -1257,9 +1299,25 @@ The path which osquery result logs will be logged to.
   	result_log_file: /var/log/osquery/result.log
   ```
 
+##### filesystem_audit_log_file
+
+This flag only has effect if `activity_audit_log_plugin` is set to `filesystem` (the default value) and if `activity_enable_audit_log` is set to `true`.
+
+The path which audit logs will be logged to.
+
+- Default value: `/tmp/audit`
+- Environment variable: `FLEET_FILESYSTEM_AUDIT_LOG_FILE`
+- Config file format:
+  ```yaml
+  filesystem:
+    audit_log_file: /var/log/fleet/audit.log
+  ```
+
 ##### filesystem_enable_log_rotation
 
-This flag only has effect if `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `filesystem` (the default value).
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `filesystem` (the default value).
+- `activity_audit_log_plugin` is set to `filesystem` and `activity_enable_audit_log` is set to `true`.
 
 This flag will cause the osquery result and status log files to be automatically
 rotated when files reach a size of 500 Mb or an age of 28 days.
@@ -1302,9 +1360,11 @@ filesystem:
 
 ##### firehose_region
 
-This flag only has effect if `osquery_status_log_plugin` is set to `firehose`.
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `firehose`.
+- `activity_audit_log_plugin` is set to `firehose` and `activity_enable_audit_log` is set to `true`.
 
-AWS region to use for Firehose connection
+AWS region to use for Firehose connection.
 
 - Default value: none
 - Environment variable: `FLEET_FIREHOSE_REGION`
@@ -1316,7 +1376,9 @@ AWS region to use for Firehose connection
 
 ##### firehose_access_key_id
 
-This flag only has effect if `osquery_status_log_plugin` or `osquery_result_log_plugin` are set to `firehose`.
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `firehose`.
+- `activity_audit_log_plugin` is set to `firehose` and `activity_enable_audit_log` is set to `true`.
 
 If `firehose_access_key_id` and `firehose_secret_access_key` are omitted, Fleet will try to use [AWS STS](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_temp.html) credentials.
 
@@ -1332,7 +1394,9 @@ AWS access key ID to use for Firehose authentication.
 
 ##### firehose_secret_access_key
 
-This flag only has effect if `osquery_status_log_plugin` or `osquery_result_log_plugin` are set to `firehose`.
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `firehose`.
+- `activity_audit_log_plugin` is set to `firehose` and `activity_enable_audit_log` is set to `true`.
 
 AWS secret access key to use for Firehose authentication.
 
@@ -1346,8 +1410,9 @@ AWS secret access key to use for Firehose authentication.
 
 ##### firehose_sts_assume_role_arn
 
-This flag only has effect if `osquery_status_log_plugin` or
-`osquery_result_log_plugin` are set to `firehose`.
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `firehose`.
+- `activity_audit_log_plugin` is set to `firehose` and `activity_enable_audit_log` is set to `true`.
 
 AWS STS role ARN to use for Firehose authentication.
 
@@ -1399,6 +1464,27 @@ the stream listed:
 - `firehose:DescribeDeliveryStream`
 - `firehose:PutRecordBatch`
 
+##### firehose_audit_stream
+
+This flag only has effect if `activity_audit_log_plugin` is set to `firehose`.
+
+Name of the Firehose stream to audit logs.
+
+- Default value: none
+- Environment variable: `FLEET_FIREHOSE_AUDIT_STREAM`
+- Config file format:
+  ```yaml
+  firehose:
+    audit_stream: fleet_audit
+  ```
+
+The IAM role used to send to Firehose must allow the following permissions on
+the stream listed:
+
+- `firehose:DescribeDeliveryStream`
+- `firehose:PutRecordBatch`
+
+
 ##### Example YAML
 
 ```yaml
@@ -1418,7 +1504,9 @@ firehose:
 
 ##### kinesis_region
 
-This flag only has effect if `osquery_status_log_plugin` is set to `kinesis`.
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `kinesis`.
+- `activity_audit_log_plugin` is set to `kinesis` and `activity_enable_audit_log` is set to `true`.
 
 AWS region to use for Kinesis connection
 
@@ -1432,8 +1520,9 @@ AWS region to use for Kinesis connection
 
 ##### kinesis_access_key_id
 
-This flag only has effect if `osquery_status_log_plugin` or
-`osquery_result_log_plugin` are set to `kinesis`.
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `kinesis`.
+- `activity_audit_log_plugin` is set to `kinesis` and `activity_enable_audit_log` is set to `true`.
 
 If `kinesis_access_key_id` and `kinesis_secret_access_key` are omitted, Fleet
 will try to use
@@ -1452,8 +1541,9 @@ AWS access key ID to use for Kinesis authentication.
 
 ##### kinesis_secret_access_key
 
-This flag only has effect if `osquery_status_log_plugin` or
-`osquery_result_log_plugin` are set to `kinesis`.
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `kinesis`.
+- `activity_audit_log_plugin` is set to `kinesis` and `activity_enable_audit_log` is set to `true`.
 
 AWS secret access key to use for Kinesis authentication.
 
@@ -1467,8 +1557,9 @@ AWS secret access key to use for Kinesis authentication.
 
 ##### kinesis_sts_assume_role_arn
 
-This flag only has effect if `osquery_status_log_plugin` or
-`osquery_result_log_plugin` are set to `kinesis`.
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `kinesis`.
+- `activity_audit_log_plugin` is set to `kinesis` and `activity_enable_audit_log` is set to `true`.
 
 AWS STS role ARN to use for Kinesis authentication.
 
@@ -1520,6 +1611,26 @@ the stream listed:
 - `kinesis:DescribeStream`
 - `kinesis:PutRecords`
 
+##### kinesis_audit_stream
+
+This flag only has effect if `activity_audit_log_plugin` is set to `kinesis`.
+
+Name of the Kinesis stream to write audit logs.
+
+- Default value: none
+- Environment variable: `FLEET_KINESIS_AUDIT_STREAM`
+- Config file format:
+  ```yaml
+  kinesis:
+    audit_stream: fleet_audit
+  ```
+
+The IAM role used to send to Kinesis must allow the following permissions on
+the stream listed:
+
+- `kinesis:DescribeStream`
+- `kinesis:PutRecords`
+
 ##### Example YAML
 
 ```yaml
@@ -1528,7 +1639,6 @@ osquery:
   osquery_result_log_plugin: kinesis
 kinesis:
   region: ca-central-1
-  result_log_file: /var/log/osquery/result.log
   access_key_id: AKIAIOSFODNN7EXAMPLE
   secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
   sts_assume_role_arn: arn:aws:iam::1234567890:role/firehose-role
@@ -1536,14 +1646,15 @@ kinesis:
   result_stream: osquery_result
 ```
 
-
 #### Lambda
 
 ##### lambda_region
 
-This flag only has effect if `osquery_status_log_plugin` is set to `lambda`.
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `lambda`.
+- `activity_audit_log_plugin` is set to `lambda` and `activity_enable_audit_log` is set to `true`.
 
-AWS region to use for Lambda connection
+AWS region to use for Lambda connection.
 
 - Default value: none
 - Environment variable: `FLEET_LAMBDA_REGION`
@@ -1555,8 +1666,9 @@ AWS region to use for Lambda connection
 
 ##### lambda_access_key_id
 
-This flag only has effect if `osquery_status_log_plugin` or
-`osquery_result_log_plugin` are set to `lambda`.
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `lambda`.
+- `activity_audit_log_plugin` is set to `lambda` and `activity_enable_audit_log` is set to `true`.
 
 If `lambda_access_key_id` and `lambda_secret_access_key` are omitted, Fleet
 will try to use
@@ -1575,8 +1687,9 @@ AWS access key ID to use for Lambda authentication.
 
 ##### lambda_secret_access_key
 
-This flag only has effect if `osquery_status_log_plugin` or
-`osquery_result_log_plugin` are set to `lambda`.
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `lambda`.
+- `activity_audit_log_plugin` is set to `lambda` and `activity_enable_audit_log` is set to `true`.
 
 AWS secret access key to use for Lambda authentication.
 
@@ -1590,8 +1703,9 @@ AWS secret access key to use for Lambda authentication.
 
 ##### lambda_sts_assume_role_arn
 
-This flag only has effect if `osquery_status_log_plugin` or
-`osquery_result_log_plugin` are set to `lambda`.
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `lambda`.
+- `activity_audit_log_plugin` is set to `lambda` and `activity_enable_audit_log` is set to `true`.
 
 AWS STS role ARN to use for Lambda authentication.
 
@@ -1641,6 +1755,25 @@ the function listed:
 
 - `lambda:InvokeFunction`
 
+##### lambda_audit_function
+
+This flag only has effect if `activity_audit_log_plugin` is set to `lambda`.
+
+Name of the Lambda function to write audit logs.
+
+- Default value: none
+- Environment variable: `FLEET_LAMBDA_AUDIT_FUNCTION`
+- Config file format:
+  ```yaml
+  lambda:
+    audit_function: auditFunction
+  ```
+
+The IAM role used to send to Lambda must allow the following permissions on
+the function listed:
+
+- `lambda:InvokeFunction`
+
 ##### Example YAML
 
 ```yaml
@@ -1660,7 +1793,9 @@ lambda:
 
 ##### pubsub_project
 
-This flag only has effect if `osquery_status_log_plugin` is set to `pubsub`.
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `pubsub`.
+- `activity_audit_log_plugin` is set to `pubsub` and `activity_enable_audit_log` is set to `true`.
 
 The identifier of the Google Cloud project containing the pubsub topics to
 publish logs to.
@@ -1678,7 +1813,7 @@ for authentication with the service.
 
 ##### pubsub_result_topic
 
-This flag only has effect if `osquery_status_log_plugin` is set to `pubsub`.
+This flag only has effect if `osquery_result_log_plugin` is set to `pubsub`.
 
 The identifier of the pubsub topic that client results will be published to.
 
@@ -1702,6 +1837,20 @@ The identifier of the pubsub topic that osquery status logs will be published to
   ```
   pubsub:
     status_topic: osquery_status
+  ```
+
+##### pubsub_audit_topic
+
+This flag only has effect if `osquery_audit_log_plugin` is set to `pubsub`.
+
+The identifier of the pubsub topic that client results will be published to.
+
+- Default value: none
+- Environment variable: `FLEET_PUBSUB_AUDIT_TOPIC`
+- Config file format:
+  ```yaml
+  pubsub:
+    audit_topic: fleet_audit
   ```
 
 ##### pubsub_add_attributes
@@ -1744,7 +1893,9 @@ pubsub:
 
 ##### kafkarest_proxyhost
 
-This flag only has effect if `osquery_status_log_plugin` or `osquery_result_log_plugin` is set to `kafkarest`.
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `kafkarest`.
+- `activity_audit_log_plugin` is set to `kafkarest` and `activity_enable_audit_log` is set to `true`.
 
 The URL of the host which to check for the topic existence and post messages to the specified topic.
 
@@ -1781,12 +1932,28 @@ The identifier of the kafka topic that osquery result logs will be published to.
 - Config file format:
   ```yaml
   kafkarest:
-    status_topic: osquery_result
+    result_topic: osquery_result
+  ```
+
+##### kafkarest_audit_topic
+
+This flag only has effect if `osquery_audit_log_plugin` is set to `kafkarest`.
+
+The identifier of the kafka topic that audit logs will be published to.
+
+- Default value: none
+- Environment variable: `FLEET_KAFKAREST_AUDIT_TOPIC`
+- Config file format:
+  ```yaml
+  kafkarest:
+    audit_topic: fleet_audit
   ```
 
 ##### kafkarest_timeout
 
-This flag only has effect if `osquery_status_log_plugin` or `osquery_result_log_plugin` is set to `kafkarest`.
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `kafkarest`.
+- `activity_audit_log_plugin` is set to `kafkarest` and `activity_enable_audit_log` is set to `true`.
 
 The timeout value for the http post attempt. Value is in units of seconds.
 
@@ -1800,7 +1967,9 @@ The timeout value for the http post attempt. Value is in units of seconds.
 
 ##### kafkarest_content_type_value
 
-This flag only has effect if `osquery_status_log_plugin` is set to `kafkarest`.
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `kafkarest`.
+- `activity_audit_log_plugin` is set to `kafkarest` and `activity_enable_audit_log` is set to `true`.
 
 The value of the Content-Type header to use in Kafka REST Proxy API calls. More information about available versions
 can be found [here](https://docs.confluent.io/platform/current/kafka-rest/api.html#content-types). _Note: only JSON format is supported_
@@ -1824,6 +1993,7 @@ kafkarest:
   result_topic: osquery_result
   status_topic: osquery_status
 ```
+
 #### S3 file carving backend
 
 ##### s3_bucket
@@ -2089,7 +2259,7 @@ Maximum age of a vulnerability (a CVE) to be considered "recent". The age is cal
        recent_vulnerability_max_age: 48h
   ```
 
-### disable_win_os_vulnerabilities
+##### disable_win_os_vulnerabilities
 
 If using osquery 5.4 or later, Fleet by default will fetch and store all applied Windows updates and use that for detecting Windows
 vulnerabilities — which might be a writing-intensive process (depending on the number of Windows hosts
@@ -2102,7 +2272,6 @@ in your Fleet). Setting this to true will cause Fleet to skip both processes.
   vulnerabilities:
   	disable_win_os_vulnerabilities: true
   ```
-
 
 ##### Example YAML
 
@@ -2130,6 +2299,431 @@ on the Fleet web server.
     database_path: /some/path
   ```
 
+#### Sentry
+
+##### DSN
+
+If set, then `Fleet serve` will capture errors and panics and push them to Sentry.
+
+- Default value: `""`
+- Environment variable: `FLEET_SENTRY_DSN`
+- Config file format:
+  ```
+  sentry:
+    dsn: "https://somedsnprovidedby.sentry.com/"
+  ```
+
+<meta name="pageOrderInSection" value="300">
+
+#### Prometheus
+
+##### basic_auth.username
+
+This is the username to use for HTTP Basic Auth on the `/metrics` endpoint.
+If not set, then the Prometheus `/metrics` endpoint is disabled.
+
+- Default value: `""`
+- Environment variable: `FLEET_PROMETHEUS_BASIC_AUTH_USERNAME`
+- Config file format:
+  ```yaml
+  prometheus:
+    basic_auth:
+      username: "foo"
+  ```
+
+##### basic_auth.password
+
+This is the password to use for HTTP Basic Auth on the `/metrics` endpoint.
+If not set, then the Prometheus `/metrics` endpoint is disabled.
+
+- Default value: `""`
+- Environment variable: `FLEET_PROMETHEUS_BASIC_AUTH_PASSWORD`
+- Config file format:
+  ```yaml
+  prometheus:
+    basic_auth:
+      password: "bar"
+  ```
+
+#### Packaging
+
+These configurations control how Fleet interacts with the
+packaging server (coming soon).  These features are currently only intended to be used within
+Fleet sandbox, but this is subject to change.
+
+##### packaging_global_enroll_secret
+
+This is the enroll secret for adding hosts to the global scope. If this value is
+set, the server won't allow changes to the enroll secret via the config
+endpoints.
+
+This value should be treated as a secret. We recommend using a
+cryptographically secure pseudo random string. For example, using `openssl`:
+
+```
+openssl rand -base64 24
+```
+
+This config only takes effect if you don't have a global enroll secret already
+stored in your database.
+
+- Default value: `""`
+- Environment variable: `FLEET_PACKAGING_GLOBAL_ENROLL_SECRET`
+- Config file format:
+  ```yaml
+  packaging:
+    global_enroll_secret: "xyz"
+  ```
+
+##### packaging_s3_bucket
+
+This is the name of the S3 bucket to store pre-built Orbit installers.
+
+- Default value: ""
+- Environment variable: `FLEET_PACKAGING_S3_BUCKET`
+- Config file format:
+  ```
+  packaging:
+    s3:
+      bucket: some-bucket
+  ```
+
+##### packaging_s3_prefix
+
+This is the prefix to prepend when searching for installers.
+
+- Default value: ""
+- Environment variable: `FLEET_PACKAGING_S3_PREFIX`
+- Config file format:
+  ```
+  packaging:
+    s3:
+      prefix:
+        installers-go-here/
+  ```
+
+##### packaging_s3_access_key_id
+
+This is the AWS access key ID for S3 authentication.
+
+If `s3_access_key_id` and `s3_secret_access_key` are omitted, Fleet will try to use
+[the default credential provider chain](https://docs.aws.amazon.com/sdk-for-go/v1/developer-guide/configuring-sdk.html#specifying-credentials).
+
+The IAM identity used in this context must be allowed to perform the following actions on the bucket: `s3:GetObject`, `s3:ListBucket`.
+
+- Default value: ""
+- Environment variable: `FLEET_PACKAGING_S3_ACCESS_KEY_ID`
+- Config file format:
+  ```
+  packaging:
+    s3:
+      access_key_id: AKIAIOSFODNN7EXAMPLE
+  ```
+
+##### packaging_s3_secret_access_key
+
+This is the AWS secret access key for S3 authentication.
+
+- Default value: ""
+- Environment variable: `FLEET_PACKAGING_S3_SECRET_ACCESS_KEY`
+- Config file format:
+  ```
+  packaging:
+    s3:
+      secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+  ```
+
+##### packaging_s3_sts_assume_role_arn
+
+This is the AWS STS role ARN for S3 authentication.
+
+- Default value: ""
+- Environment variable: `FLEET_PACKAGING_S3_STS_ASSUME_ROLE_ARN`
+- Config file format:
+  ```
+  packaging:
+    s3:
+      sts_assume_role_arn: arn:aws:iam::1234567890:role/some-s3-role
+  ```
+
+##### packaging_s3_endpoint_url
+
+This is the AWS S3 Endpoint URL. Override when using a different S3 compatible object storage backend (such as Minio)
+or running S3 locally with LocalStack. Leave this blank to use the default AWS S3 service endpoint.
+
+- Default value: ""
+- Environment variable: `FLEET_PACKAGING_S3_ENDPOINT_URL`
+- Config file format:
+  ```
+  packaging:
+    s3:
+      endpoint_url: http://localhost:9000
+  ```
+
+##### packaging_s3_disable_ssl
+
+This is the AWS S3 Disable SSL. It's useful for local testing.
+
+- Default value: false
+- Environment variable: `FLEET_PACKAGING_S3_DISABLE_SSL`
+- Config file format:
+  ```
+  packaging:
+    s3:
+      disable_ssl: false
+  ```
+
+##### packaging_s3_force_s3_path_style
+
+This is the AWS S3 Force S3 Path Style. Set this to `true` to force the request to use path-style addressing
+(e.g., `http://s3.amazonaws.com/BUCKET/KEY`). By default, the S3 client
+will use virtual hosted bucket addressing when possible
+(`http://BUCKET.s3.amazonaws.com/KEY`).
+
+See the [Virtual hosting of buckets doc](http://docs.aws.amazon.com/AmazonS3/latest/dev/VirtualHosting.html) for details.
+
+- Default value: false
+- Environment variable: `FLEET_PACKAGING_S3_FORCE_S3_PATH_STYLE`
+- Config file format:
+  ```
+  packaging:
+    s3:
+      force_s3_path_style: false
+  ```
+
+##### packaging_s3_region
+
+This is the AWS S3 Region. Leave it blank to enable region discovery.
+
+Minio users must set this to any non-empty value (e.g., `minio`), as Minio does not support region discovery.
+
+- Default value: ""
+- Environment variable: `FLEET_PACKAGING_S3_REGION`
+- Config file format:
+  ```
+  packaging:
+    s3:
+      region: us-east-1
+  ```
+
+##### Example YAML
+
+```yaml
+packaging:
+  s3:
+    bucket: some-bucket
+    prefix: installers-go-here/
+    access_key_id: AKIAIOSFODNN7EXAMPLE
+    secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+    sts_assume_role_arn: arn:aws:iam::1234567890:role/some-s3-role
+    region: us-east-1
+```
+
+#### MDM (mobile device management) - IN PROGRESS
+
+> This feature is currently in development and is not ready for use.
+
+##### apple_apns_cert
+
+This is the path to the Apple Push Notification service (APNs) certificate. The APNs certificate is a PEM-encoded X.509 certificate that's typically generated via `fleetctl generate mdm-apple`. Only one of `apple_apns_cert` and `apple_apns_cert_bytes` can be set.
+
+- Default value: ""
+- Environment variable: `FLEET_MDM_APPLE_APNS_CERT`
+- Config file format:
+  ```
+  mdm:
+    apple_apns_cert: /path/to/apns_cert.pem
+  ```
+
+##### apple_apns_cert_bytes
+
+The content of the Apple Push Notification service (APNs) certificate. An X.509 certificate, PEM-encoded. Typically generated via `fleetctl generate mdm-apple`. Only one of `apple_apns_cert` and `apple_apns_cert_bytes` can be set.
+
+- Default value: ""
+- Environment variable: `FLEET_MDM_APPLE_APNS_CERT_BYTES`
+- Config file format:
+  ```
+  mdm:
+    apple_apns_cert_bytes: |
+      -----BEGIN CERTIFICATE-----
+      ... PEM-encoded content ...
+      -----END CERTIFICATE-----
+  ```
+
+##### apple_apns_key
+
+This is the path to a PEM-encoded private key for the Apple Push Notification service (APNs). It's typically generated via `fleetctl generate mdm-apple`. Only one of `apple_apns_key` and `apple_apns_key_bytes` can be set.
+
+- Default value: ""
+- Environment variable: `FLEET_MDM_APPLE_APNS_KEY`
+- Config file format:
+  ```
+  mdm:
+    apple_apns_key: /path/to/apns_key.pem
+  ```
+
+##### apple_apns_key_bytes
+
+The content of the PEM-encoded private key for the Apple Push Notification service (APNs). Typically generated via `fleetctl generate mdm-apple`. Only one of `apple_apns_key` and `apple_apns_key_bytes` can be set.
+
+- Default value: ""
+- Environment variable: `FLEET_MDM_APPLE_APNS_KEY_BYTES`
+- Config file format:
+  ```
+  mdm:
+    apple_apns_key_bytes: |
+      -----BEGIN RSA PRIVATE KEY-----
+      ... PEM-encoded content ...
+      -----END RSA PRIVATE KEY-----
+  ```
+
+##### apple_scep_cert
+
+This is the path to the Simple Certificate Enrollment Protocol (SCEP) certificate.  The SCEP certificate is a PEM-encoded X.509 certificate that's typically generated via `fleetctl generate mdm-apple`. Only one of `apple_scep_cert` and `apple_scep_cert_bytes` can be set.
+
+- Default value: ""
+- Environment variable: `FLEET_MDM_APPLE_SCEP_CERT`
+- Config file format:
+  ```
+  mdm:
+    apple_scep_cert: /path/to/scep_cert.pem
+  ```
+
+##### apple_scep_cert_bytes
+
+The content of the Simple Certificate Enrollment Protocol (SCEP) certificate. An X.509 certificate, PEM-encoded. Typically generated via `fleetctl generate mdm-apple`. Only one of `apple_scep_cert` and `apple_scep_cert_bytes` can be set.
+
+- Default value: ""
+- Environment variable: `FLEET_MDM_APPLE_SCEP_CERT_BYTES`
+- Config file format:
+  ```
+  mdm:
+    apple_scep_cert_bytes: |
+      -----BEGIN CERTIFICATE-----
+      ... PEM-encoded content ...
+      -----END CERTIFICATE-----
+  ```
+
+##### apple_scep_key
+
+This is the path to a PEM-encoded private key for the Simple Certificate Enrollment Protocol (SCEP). It's typically generated via `fleetctl generate mdm-apple`. Only one of `apple_scep_key` and `apple_scep_key_bytes` can be set.
+
+- Default value: ""
+- Environment variable: `FLEET_MDM_APPLE_SCEP_KEY`
+- Config file format:
+  ```
+  mdm:
+    apple_scep_key: /path/to/scep_key.pem
+  ```
+
+##### apple_scep_key_bytes
+
+The content of the PEM-encoded private key for the Simple Certificate Enrollment Protocol (SCEP). Typically generated via `fleetctl generate mdm-apple`. Only one of `apple_scep_key` and `apple_scep_key_bytes` can be set.
+
+- Default value: ""
+- Environment variable: `FLEET_MDM_APPLE_SCEP_KEY_BYTES`
+- Config file format:
+  ```
+  mdm:
+    apple_scep_key_bytes: |
+      -----BEGIN RSA PRIVATE KEY-----
+      ... PEM-encoded content ...
+      -----END RSA PRIVATE KEY-----
+  ```
+
+##### apple_bm_server_token
+
+This is the path to the Apple Business Manager encrypted server token (a `.p7m` file) downloaded from Apple Business Manager. Only one of `apple_bm_server_token` and `apple_bm_server_token_bytes` can be set.
+
+- Default value: ""
+- Environment variable: `FLEET_MDM_APPLE_BM_SERVER_TOKEN`
+- Config file format:
+  ```
+  mdm:
+    apple_bm_server_token: /path/to/server_token.p7m
+  ```
+
+##### apple_bm_server_token_bytes
+
+This is the content of the Apple Business Manager encrypted server token downloaded from Apple Business Manager. Only one of `apple_bm_server_token` and `apple_bm_server_token_bytes` can be set.
+
+- Default value: ""
+- Environment variable: `FLEET_MDM_APPLE_BM_SERVER_TOKEN_BYTES`
+- Config file format:
+  ```
+  mdm:
+    apple_bm_server_token_bytes: |
+      Content-Type: application/pkcs7-mime; name="smime.p7m"; smime-type=enveloped-data
+      Content-Transfer-Encoding: base64
+      ... rest of content ...
+  ```
+
+##### apple_bm_cert
+
+This is the path to the Apple Business Manager certificate.  The certificate is a PEM-encoded X.509 certificate that's typically generated via `fleetctl generate mdm-apple-bm`. Only one of `apple_bm_cert` and `apple_bm_cert_bytes` can be set.
+
+- Default value: ""
+- Environment variable: `FLEET_MDM_APPLE_BM_CERT`
+- Config file format:
+  ```
+  mdm:
+    apple_bm_cert: /path/to/bm_cert.pem
+  ```
+
+##### apple_bm_cert_bytes
+
+This is the content of the Apple Business Manager certificate. The certificate is a PEM-encoded X.509 certificate that's typically generated via `fleetctl generate mdm-apple-bm`. Only one of `apple_bm_cert` and `apple_bm_cert_bytes` can be set.
+
+- Default value: ""
+- Environment variable: `FLEET_MDM_APPLE_BM_CERT_BYTES`
+- Config file format:
+  ```
+  mdm:
+    apple_bm_cert_bytes: |
+      -----BEGIN CERTIFICATE-----
+      ... PEM-encoded content ...
+      -----END CERTIFICATE-----
+  ```
+
+##### apple_bm_key
+
+This is the path to a PEM-encoded private key for the Apple Business Manager. It's typically generated via `fleetctl generate mdm-apple-bm`. Only one of `apple_bm_key` and `apple_bm_key_bytes` can be set.
+
+- Default value: ""
+- Environment variable: `FLEET_MDM_APPLE_BM_KEY`
+- Config file format:
+  ```
+  mdm:
+    apple_bm_key: /path/to/private_key.pem
+  ```
+
+##### apple_bm_key_bytes
+
+This is the content of the PEM-encoded private key for the Apple Business Manager. It's typically generated via `fleetctl generate mdm-apple-bm`. Only one of `apple_bm_key` and `apple_bm_key_bytes` can be set.
+
+- Default value: ""
+- Environment variable: `FLEET_MDM_APPLE_BM_KEY_BYTES`
+- Config file format:
+  ```
+  mdm:
+    apple_bm_key_bytes: |
+      -----BEGIN RSA PRIVATE KEY-----
+      ... PEM-encoded content ...
+      -----END RSA PRIVATE KEY-----
+  ```
+
+##### Example YAML
+
+```yaml
+mdm:
+  apple_apns_cert: /path/to/apns_cert
+  apple_apns_key: /path/to/apns_key
+  apple_scep_cert: /path/to/scep_cert
+  apple_scep_key: /path/to/scep_key
+  apple_bm_server_token: /path/to/server_token.p7m
+  apple_bm_cert: /path/to/bm_cert
+  apple_bm_key: /path/to/private_key
+```
 
 ## Managing osquery configurations
 
@@ -2364,223 +2958,3 @@ Follow these steps to configure Fleet SSO with Google Workspace. This will requi
 Fleet features are sometimes gated behind feature flags. This will usually be due to not-yet-stable APIs or not-fully-tested performance characteristics.
 
 Feature flags on the server are controlled by environment variables prefixed with `FLEET_BETA_`.
-
-#### Sentry
-
-##### DSN
-
-If set then `Fleet serve` will capture errors and panics and push them to Sentry.
-
-- Default value: `""`
-- Environment variable: `FLEET_SENTRY_DSN`
-- Config file format:
-  ```
-  sentry:
-    dsn: "https://somedsnprovidedby.sentry.com/"
-  ```
-
-<meta name="pageOrderInSection" value="300">
-
-#### Prometheus
-
-##### basic_auth.username
-
-Username to use for HTTP Basic Auth on the `/metrics` endpoint.
-If not set, then the Prometheus `/metrics` endpoint is disabled.
-
-- Default value: `""`
-- Environment variable: `FLEET_PROMETHEUS_BASIC_AUTH_USERNAME`
-- Config file format:
-  ```yaml
-  prometheus:
-    basic_auth:
-      username: "foo"
-  ```
-
-##### basic_auth.password
-
-Password to use for HTTP Basic Auth on the `/metrics` endpoint.
-If not set then the Prometheus `/metrics` endpoint is disabled.
-
-- Default value: `""`
-- Environment variable: `FLEET_PROMETHEUS_BASIC_AUTH_PASSWORD`
-- Config file format:
-  ```yaml
-  prometheus:
-    basic_auth:
-      password: "bar"
-  ```
-
-#### Packaging
-
-Configurations used to control how Fleet interacts with the (coming soon)
-packaging server.  These features are currently only intended to be used within
-Fleet sandbox, but this is subject to change.
-
-##### packaging_global_enroll_secret
-
-Enroll secret to use for adding hosts to the global scope. If this value is
-set, the server won't allow changes to the enroll secret via the config
-endpoints.
-
-This value should be treated as a secret, we recommend using a
-cryptographically secure pseudo random string. For example, using `openssl`:
-
-```
-openssl rand -base64 24
-```
-
-This config only takes effect if you don't have a global enroll secret already
-stored in your database.
-
-- Default value: `""`
-- Environment variable: `FLEET_PACKAGING_GLOBAL_ENROLL_SECRET`
-- Config file format:
-  ```yaml
-  packaging:
-    global_enroll_secret: "xyz"
-  ```
-
-##### packaging_s3_bucket
-
-Name of the S3 bucket to use to store pre-built Orbit installers.
-
-- Default value: ""
-- Environment variable: `FLEET_PACKAGING_S3_BUCKET`
-- Config file format:
-  ```
-  packaging:
-    s3:
-      bucket: some-bucket
-  ```
-
-##### packaging_s3_prefix
-
-Prefix to prepend when searching for installers.
-
-- Default value: ""
-- Environment variable: `FLEET_PACKAGING_S3_PREFIX`
-- Config file format:
-  ```
-  packaging:
-    s3:
-      prefix:
-        installers-go-here/
-  ```
-
-##### packaging_s3_access_key_id
-
-AWS access key ID to use for S3 authentication.
-
-If `s3_access_key_id` and `s3_secret_access_key` are omitted, Fleet will try to use
-[the default credential provider chain](https://docs.aws.amazon.com/sdk-for-go/v1/developer-guide/configuring-sdk.html#specifying-credentials).
-
-The IAM identity used in this context must be allowed to perform the following actions on the bucket: `s3:GetObject`, `s3:ListBucket`.
-
-- Default value: ""
-- Environment variable: `FLEET_PACKAGING_S3_ACCESS_KEY_ID`
-- Config file format:
-  ```
-  packaging:
-    s3:
-      access_key_id: AKIAIOSFODNN7EXAMPLE
-  ```
-
-##### packaging_s3_secret_access_key
-
-AWS secret access key to use for S3 authentication.
-
-- Default value: ""
-- Environment variable: `FLEET_PACKAGING_S3_SECRET_ACCESS_KEY`
-- Config file format:
-  ```
-  packaging:
-    s3:
-      secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
-  ```
-
-##### packaging_s3_sts_assume_role_arn
-
-AWS STS role ARN to use for S3 authentication.
-
-- Default value: ""
-- Environment variable: `FLEET_PACKAGING_S3_STS_ASSUME_ROLE_ARN`
-- Config file format:
-  ```
-  packaging:
-    s3:
-      sts_assume_role_arn: arn:aws:iam::1234567890:role/some-s3-role
-  ```
-
-##### packaging_s3_endpoint_url
-
-AWS S3 Endpoint URL. Override when using a different S3 compatible object storage backend (such as Minio)
-or running s3 locally with LocalStack. Leave this blank to use the default AWS S3 service endpoint.
-
-- Default value: ""
-- Environment variable: `FLEET_PACKAGING_S3_ENDPOINT_URL`
-- Config file format:
-  ```
-  packaging:
-    s3:
-      endpoint_url: http://localhost:9000
-  ```
-
-##### packaging_s3_disable_ssl
-
-AWS S3 Disable SSL. Useful for local testing.
-
-- Default value: false
-- Environment variable: `FLEET_PACKAGING_S3_DISABLE_SSL`
-- Config file format:
-  ```
-  packaging:
-    s3:
-      disable_ssl: false
-  ```
-
-##### packaging_s3_force_s3_path_style
-
-AWS S3 Force S3 Path Style. Set this to `true` to force the request to use path-style addressing,
-i.e., `http://s3.amazonaws.com/BUCKET/KEY`. By default, the S3 client
-will use virtual hosted bucket addressing when possible
-(`http://BUCKET.s3.amazonaws.com/KEY`).
-
-See [here](http://docs.aws.amazon.com/AmazonS3/latest/dev/VirtualHosting.html) for details.
-
-- Default value: false
-- Environment variable: `FLEET_PACKAGING_S3_FORCE_S3_PATH_STYLE`
-- Config file format:
-  ```
-  packaging:
-    s3:
-      force_s3_path_style: false
-  ```
-
-##### packaging_s3_region
-
-AWS S3 Region. Leave blank to enable region discovery.
-
-Minio users must set this to any non-empty value (e.g., `minio`), as Minio does not support region discovery.
-
-- Default value: ""
-- Environment variable: `FLEET_PACKAGING_S3_REGION`
-- Config file format:
-  ```
-  packaging:
-    s3:
-      region: us-east-1
-  ```
-
-##### Example YAML
-
-```yaml
-packaging:
-  s3:
-    bucket: some-bucket
-    prefix: installers-go-here/
-    access_key_id: AKIAIOSFODNN7EXAMPLE
-    secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
-    sts_assume_role_arn: arn:aws:iam::1234567890:role/some-s3-role
-    region: us-east-1
-```

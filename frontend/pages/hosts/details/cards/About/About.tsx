@@ -2,26 +2,23 @@ import React from "react";
 
 import ReactTooltip from "react-tooltip";
 
-import { IMDMData, IMunkiData, IDeviceUser } from "interfaces/host";
+import { IHostMdmData, IMunkiData, IDeviceUser } from "interfaces/host";
 import { humanHostLastRestart, humanHostEnrolled } from "utilities/helpers";
 
 interface IAboutProps {
   aboutData: { [key: string]: any };
   deviceMapping?: IDeviceUser[];
-  macadmins?: {
-    munki: IMunkiData | null;
-    mobile_device_management: IMDMData | null;
-  } | null;
+  munki?: IMunkiData | null;
+  mdm?: IHostMdmData | null;
   wrapFleetHelper: (helperFn: (value: any) => string, value: string) => string;
-  deviceUser?: boolean;
 }
 
 const About = ({
   aboutData,
   deviceMapping,
-  macadmins,
+  munki,
+  mdm,
   wrapFleetHelper,
-  deviceUser,
 }: IAboutProps): JSX.Element => {
   const renderSerialAndIPs = () => {
     return (
@@ -43,10 +40,6 @@ const About = ({
   };
 
   const renderMunkiData = () => {
-    if (!macadmins) {
-      return null;
-    }
-    const { munki } = macadmins;
     return munki ? (
       <>
         <div className="info-grid__block">
@@ -58,11 +51,10 @@ const About = ({
   };
 
   const renderMdmData = () => {
-    if (!macadmins?.mobile_device_management) {
+    if (!mdm || mdm.enrollment_status === "Unenrolled") {
       return null;
     }
-    const mdm = macadmins.mobile_device_management;
-    return mdm.enrollment_status !== "Unenrolled" ? (
+    return (
       <>
         <div className="info-grid__block">
           <span className="info-grid__header">MDM enrollment</span>
@@ -75,7 +67,7 @@ const About = ({
           <span className="info-grid__data">{mdm.server_url || "---"}</span>
         </div>
       </>
-    ) : null;
+    );
   };
 
   const renderDeviceUser = () => {
