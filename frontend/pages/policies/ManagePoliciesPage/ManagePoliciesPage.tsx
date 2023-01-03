@@ -395,17 +395,19 @@ const ManagePolicyPage = ({
                     <span>Manage automations</span>
                   </Button>
                 )}
-              {canAddOrDeletePolicy && (
-                <div className={`${baseClass}__action-button-container`}>
-                  <Button
-                    variant="brand"
-                    className={`${baseClass}__select-policy-button`}
-                    onClick={onAddPolicyClick}
-                  >
-                    Add a policy
-                  </Button>
-                </div>
-              )}
+              {canAddOrDeletePolicy &&
+                ((!!teamId && !isFetchingTeamPolicies) ||
+                  !isFetchingGlobalPolicies) && (
+                  <div className={`${baseClass}__action-button-container`}>
+                    <Button
+                      variant="brand"
+                      className={`${baseClass}__select-policy-button`}
+                      onClick={onAddPolicyClick}
+                    >
+                      Add a policy
+                    </Button>
+                  </div>
+                )}
             </div>
           )}
         </div>

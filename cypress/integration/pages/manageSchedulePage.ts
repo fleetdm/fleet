@@ -5,7 +5,7 @@ const manageSchedulePage = {
 
   hidesButton: (text: string) => {
     if (text === "Advanced") {
-      cy.getAttached(".no-schedule__cta-buttons").within(() => {
+      cy.getAttached(".empty-table__cta-buttons").within(() => {
         cy.contains("button", text).should("not.exist");
       });
     } else cy.contains("button", text).should("not.exist");
@@ -25,7 +25,7 @@ const manageSchedulePage = {
   },
 
   allowsAddSchedule: () => {
-    cy.getAttached(".no-schedule__cta-buttons").within(() => {
+    cy.getAttached(".empty-table__cta-buttons").within(() => {
       cy.findByRole("button", { name: /schedule a query/i }).click({
         force: true,
       });
