@@ -5,7 +5,6 @@ package fleethttp
 import (
 	"context"
 	"crypto/tls"
-	"fmt"
 	"net/http"
 	"os"
 	"time"
@@ -122,13 +121,11 @@ func noFollowRedirect(*http.Request, []*http.Request) error {
 // token for authentication (as OAuth2 static token).
 func NewGithubClient() *http.Client {
 	if githubToken := os.Getenv("NETWORK_TEST_GITHUB_TOKEN"); githubToken != "" {
-		fmt.Println("FYI: Using HTTP client with Github token.")
 		return oauth2.NewClient(context.Background(), oauth2.StaticTokenSource(
 			&oauth2.Token{
 				AccessToken: githubToken,
 			},
 		))
 	}
-	fmt.Println("FYI: Using regular HTTP client.")
 	return NewClient()
 }
