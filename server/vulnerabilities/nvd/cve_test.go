@@ -45,7 +45,6 @@ var firefox93WindowsVulnerabilities = []string{
 	"CVE-2021-43545",
 	"CVE-2021-43539",
 
-	// These were published on Dec 22nd, 2022.
 	"CVE-2022-34480",
 	"CVE-2022-26387",
 	"CVE-2022-22759",
@@ -105,34 +104,43 @@ var firefox93WindowsVulnerabilities = []string{
 	"CVE-2022-26381",
 	"CVE-2022-1802",
 	"CVE-2022-34483",
+	"CVE-2022-29915",
 }
 
 var cvetests = []struct {
 	cpe  string
 	cves []string
+	// continuesToUpdate indicates if the product/software
+	// continues to register new CVE vulnerabilities.
+	continuestoUpdate bool
 }{
 	{
-		"cpe:2.3:a:1password:1password:3.9.9:*:*:*:*:macos:*:*",
-		[]string{"CVE-2012-6369"},
+		cpe:               "cpe:2.3:a:1password:1password:3.9.9:*:*:*:*:macos:*:*",
+		cves:              []string{"CVE-2012-6369"},
+		continuestoUpdate: false,
 	},
 	{
-		"cpe:2.3:a:1password:1password:3.9.9:*:*:*:*:*:*:*",
-		[]string{"CVE-2012-6369"},
+		cpe:               "cpe:2.3:a:1password:1password:3.9.9:*:*:*:*:*:*:*",
+		cves:              []string{"CVE-2012-6369"},
+		continuestoUpdate: false,
 	},
 	{
-		"cpe:2.3:a:pypa:pip:9.0.3:*:*:*:*:python:*:*",
-		[]string{
+		cpe: "cpe:2.3:a:pypa:pip:9.0.3:*:*:*:*:python:*:*",
+		cves: []string{
 			"CVE-2019-20916",
 			"CVE-2021-3572",
 		},
+		continuestoUpdate: false,
 	},
 	{
-		"cpe:2.3:a:mozilla:firefox:93.0:*:*:*:*:windows:*:*",
-		firefox93WindowsVulnerabilities,
+		cpe:               "cpe:2.3:a:mozilla:firefox:93.0:*:*:*:*:windows:*:*",
+		cves:              firefox93WindowsVulnerabilities,
+		continuestoUpdate: true,
 	},
 	{
-		"cpe:2.3:a:mozilla:firefox:93.0.100:*:*:*:*:windows:*:*",
-		firefox93WindowsVulnerabilities,
+		cpe:               "cpe:2.3:a:mozilla:firefox:93.0.100:*:*:*:*:windows:*:*",
+		cves:              firefox93WindowsVulnerabilities,
+		continuestoUpdate: true,
 	},
 }
 
@@ -207,7 +215,17 @@ func TestTranslateCPEToCVE(t *testing.T) {
 
 			printMemUsage()
 
-			require.ElementsMatch(t, cvesFound, tt.cves, tt.cpe)
+			if tt.continuestoUpdate {
+				// Given that new vulnerabilities can be found on these
+				// packages/products, we check that at least the
+				// known ones are found.
+				for _, cve := range tt.cves {
+					require.Contains(t, cvesFound, cve, tt.cpe)
+				}
+			} else {
+				// Check for exact match of CVEs found.
+				require.ElementsMatch(t, cvesFound, tt.cves, tt.cpe)
+			}
 		})
 	}
 
