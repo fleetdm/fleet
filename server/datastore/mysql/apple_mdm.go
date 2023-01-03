@@ -457,7 +457,6 @@ func upsertMDMAppleHostDisplayNamesDB(ctx context.Context, tx sqlx.ExtContext, h
 	args := []interface{}{}
 	parts := []string{}
 	for _, h := range hosts {
-		// name := fmt.Sprintf("%s (%s)", h.HardwareModel, h.HardwareSerial)
 		args = append(args, h.ID, h.DisplayName())
 		parts = append(parts, "(?, ?)")
 	}
@@ -575,13 +574,6 @@ func filterMDMAppleDevices(devices []godep.Device) []godep.Device {
 
 func unionSelectDevices(devices []godep.Device) (stmt string, args []interface{}) {
 	for i, d := range devices {
-		// if i == 0 {
-		// 	stmt = "SELECT ? hostname, ? hardware_serial, ? hardware_model"
-		// } else {
-		// 	stmt += " UNION SELECT ?, ?, ?"
-		// }
-		// name := fmt.Sprintf("%s (%s)", d.Model, d.SerialNumber)
-		// args = append(args, name, d.SerialNumber, d.Model)
 		if i == 0 {
 			stmt = "SELECT ? hardware_serial, ? hardware_model"
 		} else {
