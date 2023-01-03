@@ -7,16 +7,14 @@ const baseClass = "search-field";
 
 export interface ISearchFieldProps {
   placeholder: string;
-  defaultValue?: string;
   onChange: (value: string) => void;
 }
 
 const SearchField = ({
   placeholder,
-  defaultValue = "",
   onChange,
 }: ISearchFieldProps): JSX.Element => {
-  const [searchQueryInput, setSearchQueryInput] = useState(defaultValue);
+  const [searchQueryInput, setSearchQueryInput] = useState("");
 
   const debouncedOnChange = useDebouncedCallback((newValue: string) => {
     onChange(newValue);
