@@ -1,0 +1,2 @@
+- Added option to filter hosts by MDM enrollment status "pending" to surface devices ordered through Apple Business Manager that are still pending
+  enrollment in Fleet's MDM.

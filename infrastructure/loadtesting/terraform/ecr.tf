@@ -1,5 +1,5 @@
 locals {
-  loadtest_tag = "${var.git_branch != null ? var.git_branch : var.tag}"
+  loadtest_tag = var.git_branch != null ? var.git_branch : var.tag
 }
 
 resource "aws_kms_key" "main" {
@@ -20,6 +20,8 @@ resource "aws_ecr_repository" "fleet" {
     encryption_type = "KMS"
     kms_key         = aws_kms_key.main.arn
   }
+
+  force_delete = true
 }
 
 data "aws_ecr_authorization_token" "token" {}

@@ -130,11 +130,13 @@ const SelectTargetsMenuWrapper = (
             </>
           )}
         </div>
-        <TargetDetails
-          target={moreInfoTarget}
-          className={`${baseClass}__spotlight`}
-          handleBackToResults={handleBackToResults}
-        />
+        <div className={`${baseClass}__option-details`}>
+          <TargetDetails
+            target={moreInfoTarget}
+            className={`${baseClass}__spotlight`}
+            handleBackToResults={handleBackToResults}
+          />
+        </div>
       </div>
     );
   };
