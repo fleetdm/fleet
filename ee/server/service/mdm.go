@@ -42,7 +42,7 @@ func (svc *Service) GetAppleBM(ctx context.Context) (*fleet.AppleBM, error) {
 	appleBM.RenewDate = tok.AccessTokenExpiry
 	// TODO: default team will have to be set when https://github.com/fleetdm/fleet/issues/8733
 	// is implemented.
-	appleBM.DefaultTeam = ""
+	appleBM.DefaultTeam = appCfg.MDM.AppleBMDefaultTeam
 	appleBM.MDMServerURL = appCfg.ServerSettings.ServerURL + apple_mdm.MDMPath
 
 	return appleBM, nil

@@ -473,6 +473,8 @@ spec:
   integrations:
     jira: null
     zendesk: null
+  mdm:
+    apple_bm_default_team: ""
   org_info:
     org_logo_url: ""
     org_name: ""
@@ -592,7 +594,8 @@ spec:
       },
       "interval": "0s"
     },
-    "integrations": { "jira": null, "zendesk": null }
+    "integrations": { "jira": null, "zendesk": null },
+	"mdm": { "apple_bm_default_team": "" }
   }
 }
 `
@@ -618,6 +621,8 @@ spec:
   integrations:
     jira: null
     zendesk: null
+  mdm:
+    apple_bm_default_team: ""
   license:
     expiration: "0001-01-01T00:00:00Z"
     tier: free
@@ -790,6 +795,9 @@ spec:
     "integrations": {
       "jira": null,
       "zendesk": null
+    },
+    "mdm": {
+      "apple_bm_default_team": ""
     },
     "update_interval": {
       "osquery_detail": "1h0m0s",
