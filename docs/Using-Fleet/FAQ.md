@@ -106,15 +106,18 @@ Live query results (executed in the web UI or `fleetctl query`) are pushed direc
 
 ### Scheduled queries
 
-Scheduled query results (queries that are scheduled to run in Packs) are typically sent to the Fleet server, and will be available on the filesystem of the server at the path configurable by [`--osquery_result_log_file`](https://fleetdm.com/docs/deploying/configuration#osquery-result-log-file). This defaults to `/tmp/osquery_result`.
-
-It is possible to configure osqueryd to log query results outside of Fleet. For results to go to Fleet, the `--logger_plugin` flag must be set to `tls`.
+Scheduled query results (queries that are scheduled to run individually or in Packs) from enrolled hosts can be logged by Fleet.
+For results to go to Fleet, the osquery `--logger_plugin` flag must be set to `tls`.
 
 ### What are my options for storing the osquery logs?
 
 Folks typically use Fleet to ship logs to data aggregation systems like Splunk, the ELK stack, and Graylog.
 
-The [logger configuration options](https://fleetdm.com/docs/deploying/configuration#osquery-status-log-plugin) allow you to select the log output plugin. Using the log outputs you can route the logs to your chosen aggregation system.
+Fleet supports multiple logging destinations for scheduled query results and status logs. The `--osquery_result_log_plugin` and `--osquery_status_log_plugin` can be set to:
+`filesystem`, `firehose`, `kinesis`, `lambda`, `pubsub`, `kafkarest`, and `stdout`.
+See:
+  - https://fleetdm.com/docs/deploying/configuration#osquery-result-log-plugin.
+  - https://fleetdm.com/docs/deploying/configuration#osquery-status-log-plugin.
 
 ### Troubleshooting
 
