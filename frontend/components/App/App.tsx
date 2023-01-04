@@ -59,7 +59,7 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
         const timestamp = await configAPI.loadSandboxExpiry();
         setSandboxExpiry(timestamp as string);
         const hostCount = await hostCountAPI.load({});
-        const noSandboxHosts = hostCount.count !== 0;
+        const noSandboxHosts = hostCount.count === 0;
         setNoSandboxHosts(noSandboxHosts);
       }
       setConfig(config);
