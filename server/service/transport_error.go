@@ -18,7 +18,7 @@ import (
 	"github.com/go-sql-driver/mysql"
 )
 
-// erroer interface is implemented by response structs to encode business logic errors
+// errorer interface is implemented by response structs to encode business logic errors
 type errorer interface {
 	error() error
 }

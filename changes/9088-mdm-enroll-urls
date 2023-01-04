@@ -1,0 +1,1 @@
+- Fixed an issue causing enrollment profiles to fail if the server URL had a trailing slash.

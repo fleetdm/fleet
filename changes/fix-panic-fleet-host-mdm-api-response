@@ -1,0 +1,1 @@
+* Fix panic in `/api/{version}/fleet/hosts/{d}/mdm` when the host does not have MDM data.

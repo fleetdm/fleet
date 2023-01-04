@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 
+	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -38,6 +39,27 @@ func (svc *Service) NewUser(ctx context.Context, p fleet.UserPayload) (*fleet.Us
 	if err != nil {
 		return nil, err
 	}
+
+	adminUser := authz.UserFromContext(ctx)
+	if adminUser == nil {
+		// In case of invites the user created herself.
+		adminUser = user
+	}
+	if err := svc.ds.NewActivity(
+		ctx,
+		adminUser,
+		fleet.ActivityTypeCreatedUser{
+			UserID:    user.ID,
+			UserName:  user.Name,
+			UserEmail: user.Email,
+		},
+	); err != nil {
+		return nil, err
+	}
+	if err := logRoleChangeActivities(ctx, svc.ds, adminUser, nil, nil, user); err != nil {
+		return nil, err
+	}
+
 	return user, nil
 }
 

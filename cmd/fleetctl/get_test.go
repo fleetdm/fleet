@@ -473,6 +473,8 @@ spec:
   integrations:
     jira: null
     zendesk: null
+  mdm:
+    apple_bm_default_team: ""
   org_info:
     org_logo_url: ""
     org_name: ""
@@ -592,7 +594,8 @@ spec:
       },
       "interval": "0s"
     },
-    "integrations": { "jira": null, "zendesk": null }
+    "integrations": { "jira": null, "zendesk": null },
+	"mdm": { "apple_bm_default_team": "" }
   }
 }
 `
@@ -618,6 +621,8 @@ spec:
   integrations:
     jira: null
     zendesk: null
+  mdm:
+    apple_bm_default_team: ""
   license:
     expiration: "0001-01-01T00:00:00Z"
     tier: free
@@ -630,6 +635,7 @@ spec:
         enable_log_rotation: false
         result_log_file: /dev/null
         status_log_file: /dev/null
+        audit_log_file: /dev/null
       plugin: filesystem
     status:
       config:
@@ -637,6 +643,15 @@ spec:
         enable_log_rotation: false
         result_log_file: /dev/null
         status_log_file: /dev/null
+        audit_log_file: /dev/null
+      plugin: filesystem
+    audit:
+      config:
+        enable_log_compression: false
+        enable_log_rotation: false
+        result_log_file: /dev/null
+        status_log_file: /dev/null
+        audit_log_file: /dev/null
       plugin: filesystem
   org_info:
     org_logo_url: ""
@@ -781,6 +796,9 @@ spec:
       "jira": null,
       "zendesk": null
     },
+    "mdm": {
+      "apple_bm_default_team": ""
+    },
     "update_interval": {
       "osquery_detail": "1h0m0s",
       "osquery_policy": "1h0m0s"
@@ -809,7 +827,8 @@ spec:
           "enable_log_compression": false,
           "enable_log_rotation": false,
           "result_log_file": "/dev/null",
-          "status_log_file": "/dev/null"
+          "status_log_file": "/dev/null",
+          "audit_log_file": "/dev/null"
         }
       },
       "status": {
@@ -818,7 +837,18 @@ spec:
           "enable_log_compression": false,
           "enable_log_rotation": false,
           "result_log_file": "/dev/null",
-          "status_log_file": "/dev/null"
+          "status_log_file": "/dev/null",
+          "audit_log_file": "/dev/null"
+        }
+      },
+      "audit": {
+        "plugin": "filesystem",
+        "config": {
+          "enable_log_compression": false,
+          "enable_log_rotation": false,
+          "result_log_file": "/dev/null",
+          "status_log_file": "/dev/null",
+          "audit_log_file": "/dev/null"
         }
       }
     }

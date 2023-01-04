@@ -17,6 +17,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/stretchr/testify/require"
 )
 
@@ -55,13 +56,13 @@ func loadSoftware(
 
 	h, err := ds.NewHost(context.Background(), &fleet.Host{
 		Hostname:        string(p),
-		NodeKey:         string(p),
+		NodeKey:         ptr.String(string(p)),
 		UUID:            string(p),
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		OsqueryHostID:   osqueryHostID,
+		OsqueryHostID:   &osqueryHostID,
 		Platform:        s.Platform,
 		OSVersion:       s.Name,
 	})

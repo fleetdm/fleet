@@ -136,117 +136,98 @@ func (svc *Service) LoggingConfig(ctx context.Context) (*fleet.Logging, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.AppConfig{}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
+
 	conf := svc.config
 	logging := &fleet.Logging{
 		Debug: conf.Logging.Debug,
 		Json:  conf.Logging.JSON,
 	}
 
-	switch conf.Osquery.StatusLogPlugin {
-	case "", "filesystem":
-		logging.Status = fleet.LoggingPlugin{
-			Plugin: "filesystem",
-			Config: fleet.FilesystemConfig{FilesystemConfig: conf.Filesystem},
-		}
-	case "kinesis":
-		logging.Status = fleet.LoggingPlugin{
-			Plugin: "kinesis",
-			Config: fleet.KinesisConfig{
-				Region:       conf.Kinesis.Region,
-				StatusStream: conf.Kinesis.StatusStream,
-				ResultStream: conf.Kinesis.ResultStream,
-			},
-		}
-	case "firehose":
-		logging.Status = fleet.LoggingPlugin{
-			Plugin: "firehose",
-			Config: fleet.FirehoseConfig{
-				Region:       conf.Firehose.Region,
-				StatusStream: conf.Firehose.StatusStream,
-				ResultStream: conf.Firehose.ResultStream,
-			},
-		}
-	case "lambda":
-		logging.Status = fleet.LoggingPlugin{
-			Plugin: "lambda",
-			Config: fleet.LambdaConfig{
-				Region:         conf.Lambda.Region,
-				StatusFunction: conf.Lambda.StatusFunction,
-				ResultFunction: conf.Lambda.ResultFunction,
-			},
-		}
-	case "pubsub":
-		logging.Status = fleet.LoggingPlugin{
-			Plugin: "pubsub",
-			Config: fleet.PubSubConfig{PubSubConfig: conf.PubSub},
-		}
-	case "stdout":
-		logging.Status = fleet.LoggingPlugin{Plugin: "stdout"}
-	case "kafkarest":
-		logging.Status = fleet.LoggingPlugin{
-			Plugin: "kafkarest",
-			Config: fleet.KafkaRESTConfig{
-				StatusTopic: conf.KafkaREST.StatusTopic,
-				ProxyHost:   conf.KafkaREST.ProxyHost,
-			},
-		}
-	default:
-		return nil, ctxerr.Errorf(ctx, "unrecognized logging plugin: %s", conf.Osquery.StatusLogPlugin)
+	loggings := []struct {
+		plugin string
+		target *fleet.LoggingPlugin
+	}{
+		{
+			plugin: conf.Osquery.StatusLogPlugin,
+			target: &logging.Status,
+		},
+		{
+			plugin: conf.Osquery.ResultLogPlugin,
+			target: &logging.Result,
+		},
 	}
 
-	switch conf.Osquery.ResultLogPlugin {
-	case "", "filesystem":
-		logging.Result = fleet.LoggingPlugin{
-			Plugin: "filesystem",
-			Config: fleet.FilesystemConfig{FilesystemConfig: conf.Filesystem},
-		}
-	case "kinesis":
-		logging.Result = fleet.LoggingPlugin{
-			Plugin: "kinesis",
-			Config: fleet.KinesisConfig{
-				Region:       conf.Kinesis.Region,
-				StatusStream: conf.Kinesis.StatusStream,
-				ResultStream: conf.Kinesis.ResultStream,
-			},
-		}
-	case "firehose":
-		logging.Result = fleet.LoggingPlugin{
-			Plugin: "firehose",
-			Config: fleet.FirehoseConfig{
-				Region:       conf.Firehose.Region,
-				StatusStream: conf.Firehose.StatusStream,
-				ResultStream: conf.Firehose.ResultStream,
-			},
-		}
-	case "lambda":
-		logging.Result = fleet.LoggingPlugin{
-			Plugin: "lambda",
-			Config: fleet.LambdaConfig{
-				Region:         conf.Lambda.Region,
-				StatusFunction: conf.Lambda.StatusFunction,
-				ResultFunction: conf.Lambda.ResultFunction,
-			},
-		}
-	case "pubsub":
-		logging.Result = fleet.LoggingPlugin{
-			Plugin: "pubsub",
-			Config: fleet.PubSubConfig{PubSubConfig: conf.PubSub},
-		}
-	case "stdout":
-		logging.Result = fleet.LoggingPlugin{
-			Plugin: "stdout",
-		}
-	case "kafkarest":
-		logging.Result = fleet.LoggingPlugin{
-			Plugin: "kafkarest",
-			Config: fleet.KafkaRESTConfig{
-				ResultTopic: conf.KafkaREST.ResultTopic,
-				ProxyHost:   conf.KafkaREST.ProxyHost,
-			},
-		}
-	default:
-		return nil, ctxerr.Errorf(ctx, "unrecognized logging plugin: %s", conf.Osquery.ResultLogPlugin)
+	if conf.Activity.EnableAuditLog {
+		loggings = append(loggings, struct {
+			plugin string
+			target *fleet.LoggingPlugin
+		}{
+			plugin: conf.Activity.AuditLogPlugin,
+			target: &logging.Audit,
+		})
+	}
 
+	for _, lp := range loggings {
+		switch lp.plugin {
+		case "", "filesystem":
+			*lp.target = fleet.LoggingPlugin{
+				Plugin: "filesystem",
+				Config: fleet.FilesystemConfig{
+					FilesystemConfig: conf.Filesystem,
+				},
+			}
+		case "kinesis":
+			*lp.target = fleet.LoggingPlugin{
+				Plugin: "kinesis",
+				Config: fleet.KinesisConfig{
+					Region:       conf.Kinesis.Region,
+					StatusStream: conf.Kinesis.StatusStream,
+					ResultStream: conf.Kinesis.ResultStream,
+					AuditStream:  conf.Kinesis.AuditStream,
+				},
+			}
+		case "firehose":
+			*lp.target = fleet.LoggingPlugin{
+				Plugin: "firehose",
+				Config: fleet.FirehoseConfig{
+					Region:       conf.Firehose.Region,
+					StatusStream: conf.Firehose.StatusStream,
+					ResultStream: conf.Firehose.ResultStream,
+					AuditStream:  conf.Firehose.AuditStream,
+				},
+			}
+		case "lambda":
+			*lp.target = fleet.LoggingPlugin{
+				Plugin: "lambda",
+				Config: fleet.LambdaConfig{
+					Region:         conf.Lambda.Region,
+					StatusFunction: conf.Lambda.StatusFunction,
+					ResultFunction: conf.Lambda.ResultFunction,
+					AuditFunction:  conf.Lambda.AuditFunction,
+				},
+			}
+		case "pubsub":
+			*lp.target = fleet.LoggingPlugin{
+				Plugin: "pubsub",
+				Config: fleet.PubSubConfig{
+					PubSubConfig: conf.PubSub,
+				},
+			}
+		case "stdout":
+			*lp.target = fleet.LoggingPlugin{Plugin: "stdout"}
+		case "kafkarest":
+			*lp.target = fleet.LoggingPlugin{
+				Plugin: "kafkarest",
+				Config: fleet.KafkaRESTConfig{
+					StatusTopic: conf.KafkaREST.StatusTopic,
+					ResultTopic: conf.KafkaREST.ResultTopic,
+					AuditTopic:  conf.KafkaREST.AuditTopic,
+					ProxyHost:   conf.KafkaREST.ProxyHost,
+				},
+			}
+		default:
+			return nil, ctxerr.Errorf(ctx, "unrecognized logging plugin: %s", lp.plugin)
+		}
 	}
 	return logging, nil
 }

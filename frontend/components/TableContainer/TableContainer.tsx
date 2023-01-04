@@ -34,6 +34,7 @@ interface ITableContainerProps {
   manualSortBy?: boolean;
   defaultSortHeader?: string;
   defaultSortDirection?: string;
+  defaultSearchQuery?: string;
   actionButtonText?: string;
   actionButtonIcon?: string;
   actionButtonVariant?: ButtonVariant;
@@ -97,6 +98,7 @@ const TableContainer = ({
   filters,
   isLoading,
   manualSortBy = false,
+  defaultSearchQuery = "",
   defaultSortHeader = "name",
   defaultSortDirection = "asc",
   inputPlaceHolder = "Search",
@@ -143,7 +145,7 @@ const TableContainer = ({
   setExportRows,
   resetPageIndex,
 }: ITableContainerProps): JSX.Element => {
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState(defaultSearchQuery);
   const [sortHeader, setSortHeader] = useState(defaultSortHeader || "");
   const [sortDirection, setSortDirection] = useState(
     defaultSortDirection || ""
@@ -269,6 +271,7 @@ const TableContainer = ({
         <div className={`${baseClass}__search-input wide-search`}>
           <SearchField
             placeholder={inputPlaceHolder}
+            defaultValue={searchQuery}
             onChange={onSearchQueryChange}
           />
         </div>
@@ -349,6 +352,7 @@ const TableContainer = ({
               >
                 <SearchField
                   placeholder={inputPlaceHolder}
+                  defaultValue={searchQuery}
                   onChange={onSearchQueryChange}
                 />
               </div>

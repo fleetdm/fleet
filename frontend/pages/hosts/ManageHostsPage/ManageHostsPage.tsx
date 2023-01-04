@@ -1762,6 +1762,7 @@ const ManageHostsPage = ({
         defaultSortDirection={
           (sortBy[0] && sortBy[0].direction) || DEFAULT_SORT_DIRECTION
         }
+        defaultSearchQuery={searchQuery}
         pageSize={100}
         actionButtonText={"Edit columns"}
         actionButtonIcon={EditColumnsIcon}
