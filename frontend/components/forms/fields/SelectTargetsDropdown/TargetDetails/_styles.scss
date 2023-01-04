@@ -1,23 +1,11 @@
 .host-target,
 .label-target {
-  padding: $pad-large;
+  width: 100%;
 
   &__back {
     color: $core-fleet-black;
     font-size: $xx-small;
     display: none;
-
-    @include breakpoint(ltdesktop) {
-      display: inline-block;
-      position: absolute;
-      top: 10px;
-      left: 10px;
-      padding: 10px;
-
-      &:active {
-        top: 10px;
-      }
-    }
   }
 
   @include breakpoint(ltdesktop) {
@@ -81,7 +69,6 @@
   &__labels-list {
     font-size: $small;
     font-weight: $regular;
-    line-height: 1.85;
     letter-spacing: 0.5px;
     color: $core-fleet-black;
     list-style: none;
@@ -126,7 +113,7 @@
   &__icon {
     color: $core-fleet-blue;
     margin-right: $pad-small;
-    width: 21px;
+    width: 30px;
   }
 
   &__hosts {
@@ -156,7 +143,6 @@
   &__description {
     font-size: $pad-medium;
     font-weight: $regular;
-    line-height: 1.71;
     color: $core-fleet-black;
     margin: 0 0 $pad-small;
   }
@@ -173,7 +159,6 @@
 
     th {
       font-weight: $bold;
-      line-height: 2.3;
       color: $core-fleet-black;
       padding-right: $pad-small;
     }

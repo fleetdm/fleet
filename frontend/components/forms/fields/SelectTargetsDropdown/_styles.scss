@@ -210,31 +210,4 @@
       padding: 0 $pad-medium;
     }
   }
-
-  @include breakpoint(ltdesktop) {
-    .Select-menu-outer {
-      .Select-menu {
-        min-width: 665px;
-
-        &::after {
-          display: none;
-        }
-      }
-    }
-
-    &.show-preview {
-      .Select-menu-outer {
-        .Select-menu {
-          left: auto;
-          right: 0;
-        }
-      }
-
-      .Select-menu {
-        left: 0;
-        right: auto;
-        position: absolute;
-      }
-    }
-  }
 }
