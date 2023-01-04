@@ -47,6 +47,8 @@ You can apply MDM solutions and enrollment as filters to view lists of individua
 ## Fleet MDM
 **MDM features are not ready for production and are currently in development. These features are disabled by default.**
 
+![The path to a better MDM](../website/assets/images/articles/fleetmdm-800x450@2x.jpg)
+
 Fleet is building a cross-platform MDM to give IT and security teams the visibility and openness they need. Here are the latest developments:
 
 - Added API endpoint to generate DEP public and private keys.
