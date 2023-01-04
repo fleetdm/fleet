@@ -8,6 +8,7 @@
   - [How do I revoke the authorization tokens for a user?](#how-do-i-revoke-the-authorization-tokens-for-a-user)
   - [How do I monitor the performance of my queries?](#how-do-i-monitor-the-performance-of-my-queries)
   - [How do I monitor a Fleet server?](#how-do-i-monitor-a-fleet-server)
+  - [Why is the “Add User” button disabled?](#why-is-the-add-user-button-disabled)
   - [Can I disable password-based authentication in the Fleet UI?](#can-i-disable-password-based-authentication-in-the-fleet-ui)
   - [Where are my query results?](#where-are-my-query-results)
     - [Live queries](#live-queries)
@@ -25,7 +26,7 @@
   - [What should I do if my computer is showing up as an offline host?](#what-should-i-do-if-my-computer-is-showing-up-as-an-offline-host)
   - [How does Fleet deal with IP duplication?](#how-does-fleet-deal-with-ip-duplication)
   - [Can Orbit run alongside osquery?](#can-orbit-run-alongside-osquery)
-  - [Can I control how Orbit handles updates?](#can-i-control-how-orbit-handles-updates)
+  - [Can I control how fleetd handles updates?](#can-i-control-how-fleetd-handles-updates)
   - [When will the newest version of osquery be available to Orbit?](#when-will-the-newest-version-of-osquery-be-available-to-orbit)
   - [Where does Orbit get update information?](#where-does-orbit-get-update-information)
   - [Can I bundle osquery extensions into Orbit?](#can-i-bundle-osquery-extensions-into-orbit)
@@ -88,6 +89,12 @@ Fleet can live query the `osquery_schedule` table. Performing this live query al
 ## How do I monitor a Fleet server?
 
 Fleet provides standard interfaces for monitoring and alerting. See the [Monitoring Fleet](https://fleetdm.com/docs/using-fleet/monitoring-fleet) documentation for details.
+
+## Why is the “Add User” button disabled?
+
+The “Add User” button is disabled if SMTP (email) has not been configured for the Fleet server. Currently, there is no way to add new users without email capabilities.
+
+One way to hack around this is to use a simulated mailserver like [Mailhog](https://github.com/mailhog/MailHog). You can retrieve the email that was “sent” in the Mailhog UI, and provide users with the invite URL manually.
 
 ## Can I disable password-based authentication in the Fleet UI?
 
@@ -198,7 +205,7 @@ Fleet relies on UUIDs so any overlap with host IP addresses should not cause a p
 
 Yes, fleetd can be run alongside an existing, separately-installed osqueryd. If you have an existing osqueryd installed on a given host, you don't have to remove it prior to installing fleetd.  The osquery instance provided by fleetd uses its own database directory that doesn't interfere with other osquery isntances installed on the host.
 
-## Can I control how Orbit handles updates?
+## Can I control how fleetd handles updates?
 
 Yes, auto-updates can be disabled entirely by passing `--disable-updates` as a flag when running `fleetctl package` to generate your installer (easy) or by deploying a modified systemd file to your hosts (more complicated). We'd recommend the flag:
 
