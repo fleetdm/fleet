@@ -66,6 +66,15 @@ resource "aws_s3_bucket_public_access_block" "osquery-status" {
   restrict_public_buckets = true
 }
 
+resource "aws_cloudwatch_log_group" "kinesisfirehose" {
+  name = "kinesisfirehose"
+}
+
+resource "aws_cloudwatch_log_stream" "osquery_results" {
+  name           = "osquery_results"
+  log_group_name = aws_cloudwatch_log_group.kinesisfirehose.name
+}
+
 data "aws_iam_policy_document" "osquery_results_policy_doc" {
   statement {
     effect = "Allow"
@@ -104,6 +113,12 @@ data "aws_iam_policy_document" "osquery_results_policy_doc" {
     resources = ["*"]
   }
 
+  statement {
+    effect    = "Allow"
+    actions   = ["logs:PutLogEvents"]
+    resources = [aws_cloudwatch_log_stream.osquery_results.arn]
+
+  }
 }
 
 data "aws_iam_policy_document" "osquery_status_policy_doc" {
@@ -160,6 +175,18 @@ data "aws_iam_policy_document" "osquery_firehose_assume_role" {
   }
 }
 
+resource "aws_security_group" "kinesis" {
+  name   = "kinesis-dogfood"
+  vpc_id = module.vpc.vpc_id
+
+  egress {
+    from_port       = 443
+    to_port         = 443
+    protocol        = "tcp"
+    security_groups = [aws_security_group.os.id]
+  }
+}
+
 resource "aws_kinesis_firehose_delivery_stream" "osquery_results" {
   name        = "osquery_results"
   destination = "elasticsearch"
@@ -177,7 +204,13 @@ resource "aws_kinesis_firehose_delivery_stream" "osquery_results" {
     vpc_config {
       subnet_ids         = [module.vpc.private_subnets[0]]
       role_arn           = aws_iam_role.firehose-results.arn
-      security_group_ids = [aws_security_group.os.id]
+      security_group_ids = [aws_security_group.kinesis.id, aws_security_group.os.id]
+    }
+
+    cloudwatch_logging_options {
+      enabled         = true
+      log_group_name  = "kinesisfirehose"
+      log_stream_name = "osquery_results"
     }
   }
 }
