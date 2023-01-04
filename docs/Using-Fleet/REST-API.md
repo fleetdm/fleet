@@ -2584,7 +2584,7 @@ If the host exists but is not enrolled to an MDM server, then this API returns `
 
 ```json
 {
-  "enrollment_status": "Enrolled (automated)",
+  "enrollment_status": "On (automatic)",
   "server_url": "some.mdm.com",
   "name": "Some MDM",
   "id": 3
@@ -2693,7 +2693,7 @@ Retrieves a host's MDM enrollment status, MDM server URL, and Munki version.
       }
     ],
     "mobile_device_management": {
-      "enrollment_status": "Enrolled (automated)",
+      "enrollment_status": "On (automatic)",
       "server_url": "http://some.url/mdm",
       "name": "MDM Vendor Name",
       "id": 999
