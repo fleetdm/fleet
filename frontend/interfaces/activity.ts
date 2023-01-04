@@ -28,6 +28,8 @@ export enum ActivityType {
   UserDeletedGlobalRole = "deleted_user_global_role",
   UserChangedTeamRole = "changed_user_team_role",
   UserDeletedTeamRole = "deleted_user_team_role",
+  MdmEnrolled = "mdm_enrolled",
+  MdmUnenrolled = "mdm_unenrolled",
 }
 export interface IActivity {
   created_at: string;
@@ -56,4 +58,6 @@ export interface IActivityDetails {
   public_ip?: string;
   user_email?: string;
   role?: string;
+  host_serial?: string;
+  installed_from_dep?: boolean;
 }

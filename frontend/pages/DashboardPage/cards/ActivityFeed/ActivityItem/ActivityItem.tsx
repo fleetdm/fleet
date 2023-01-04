@@ -141,6 +141,30 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  mdmEnrolled: (activity: IActivity) => {
+    return (
+      <>
+        An end user turned on MDM features for a host with serial number
+        <b>
+          {activity.details?.host_serial} (
+          {activity.details?.installed_from_dep ? "automatic" : "manual"})
+        </b>
+        .
+      </>
+    );
+  },
+  mdmUnenrolled: (activity: IActivity) => {
+    return (
+      <>
+        An end user turned off MDM features for a host with serial number
+        <b>
+          {activity.details?.host_serial} (
+          {activity.details?.installed_from_dep ? "automatic" : "manual"})
+        </b>
+        .
+      </>
+    );
+  },
 
   defaultActivityTemplate: (activity: IActivity) => {
     const entityName = find(activity.details, (_, key) =>
@@ -209,6 +233,12 @@ const getDetail = (
     }
     case ActivityType.UserDeletedTeamRole: {
       return TAGGED_TEMPLATES.userDeletedTeamRole(activity);
+    }
+    case ActivityType.MdmEnrolled: {
+      return TAGGED_TEMPLATES.mdmEnrolled(activity);
+    }
+    case ActivityType.MdmUnenrolled: {
+      return TAGGED_TEMPLATES.mdmUnenrolled(activity);
     }
     default: {
       return TAGGED_TEMPLATES.defaultActivityTemplate(activity);
