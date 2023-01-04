@@ -388,7 +388,7 @@ const allHostTableHeaders: IDataColumn[] = [
     accessor: "seen_time",
     Cell: (cellProps: ICellProps) => (
       <TextCell
-        value={cellProps.cell.value}
+        value={{ timeString: cellProps.cell.value }}
         formatter={HumanTimeDiffWithDateTip}
       />
     ),
@@ -418,7 +418,9 @@ const allHostTableHeaders: IDataColumn[] = [
 
       return (
         <TextCell
-          value={humanHostLastRestart(detail_updated_at, uptime)}
+          value={{
+            timeString: humanHostLastRestart(detail_updated_at, uptime),
+          }}
           formatter={HumanTimeDiffWithDateTip}
         />
       );

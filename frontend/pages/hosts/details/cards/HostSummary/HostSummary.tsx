@@ -200,6 +200,12 @@ const HostSummary = ({
     );
   };
 
+  const lastFetched = titleData.detail_updated_at ? (
+    <HumanTimeDiffWithDateTip timeString={titleData.detail_updated_at} />
+  ) : (
+    ": unavailable"
+  );
+
   return (
     <>
       <div className="header title">
@@ -208,14 +214,10 @@ const HostSummary = ({
             <h1 className="display-name">
               {deviceUser ? "My device" : titleData.display_name || "---"}
             </h1>
+
             <p className="last-fetched">
-              {titleData.detail_updated_at ? (
-                <HumanTimeDiffWithDateTip
-                  timeString={titleData.detail_updated_at}
-                />
-              ) : (
-                "Unavailable"
-              )}
+              {"Last fetched"} {lastFetched}
+              &nbsp;
             </p>
             {renderRefetch()}
           </div>
