@@ -128,6 +128,10 @@ func (r *Runner) UpdateAction() (bool, error) {
 		return false, fmt.Errorf("update metadata: %w", err)
 	}
 
+	needsSymlinkUpdate, err := r.needsSymlinkUpdate()
+	if err != nil {
+		return false, fmt.Errorf("check symlink failed: %w", err)
+	}
 	var didUpdate bool
 	for _, target := range r.opt.Targets {
 		meta, err := r.updater.Lookup(target)
@@ -140,7 +144,7 @@ func (r *Runner) UpdateAction() (bool, error) {
 		}
 		// Check whether the hash of the repository is different than
 		// that of the target local file.
-		if !bytes.Equal(r.localHashes[target], metaHash) {
+		if !bytes.Equal(r.localHashes[target], metaHash) || needsSymlinkUpdate {
 			// Update detected
 			log.Info().Str("target", target).Msg("update detected")
 			if err := r.updateTarget(target); err != nil {
@@ -154,6 +158,27 @@ func (r *Runner) UpdateAction() (bool, error) {
 	}
 
 	return didUpdate, nil
+}
+
+func (r *Runner) needsSymlinkUpdate() (bool, error) {
+	localTarget, err := r.updater.Get("orbit")
+	if err != nil {
+		return false, fmt.Errorf("get binary: %w", err)
+	}
+	path := localTarget.ExecPath
+
+	// Symlink Orbit binary
+	linkPath := filepath.Join(r.updater.opt.RootDirectory, "bin", "orbit", filepath.Base(path))
+
+	existingPath, err := os.Readlink(linkPath)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return true, nil
+		}
+		return false, fmt.Errorf("read existing symlink: %w", err)
+	}
+
+	return existingPath != path, nil
 }
 
 func (r *Runner) updateTarget(target string) error {
