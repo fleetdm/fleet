@@ -26,7 +26,7 @@
   - [What should I do if my computer is showing up as an offline host?](#what-should-i-do-if-my-computer-is-showing-up-as-an-offline-host)
   - [How does Fleet deal with IP duplication?](#how-does-fleet-deal-with-ip-duplication)
   - [Can Orbit run alongside osquery?](#can-orbit-run-alongside-osquery)
-  - [Can I control how Orbit handles updates?](#can-i-control-how-orbit-handles-updates)
+  - [Can I control how fleetd handles updates?](#can-i-control-how-fleetd-handles-updates)
   - [When will the newest version of osquery be available to Orbit?](#when-will-the-newest-version-of-osquery-be-available-to-orbit)
   - [Where does Orbit get update information?](#where-does-orbit-get-update-information)
   - [Can I bundle osquery extensions into Orbit?](#can-i-bundle-osquery-extensions-into-orbit)
