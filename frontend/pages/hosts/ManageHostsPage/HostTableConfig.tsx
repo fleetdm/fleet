@@ -361,7 +361,7 @@ const allHostTableHeaders: IDataColumn[] = [
     accessor: "detail_updated_at",
     Cell: (cellProps: ICellProps) => (
       <TextCell
-        value={cellProps.cell.value}
+        value={{ timeString: cellProps.cell.value }}
         formatter={HumanTimeDiffWithDateTip}
       />
     ),

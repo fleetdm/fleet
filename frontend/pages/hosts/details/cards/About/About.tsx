@@ -143,7 +143,6 @@ const About = ({
       </div>
     );
   };
-
   return (
     <div className="section about">
       <p className="section__header">About</p>

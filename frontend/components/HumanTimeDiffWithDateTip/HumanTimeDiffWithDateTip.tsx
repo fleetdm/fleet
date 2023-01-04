@@ -5,9 +5,7 @@ import { humanHostLastSeen } from "utilities/helpers";
 import ReactTooltip from "react-tooltip";
 import intlFormat from "date-fns/intlFormat";
 
-// TODO - timeString needs to be any for certain places this is being used
-// Once those usese of 'any' are improved, this can be of type 'string'
-export default (timeString: string | any): JSX.Element => {
+export default ({ timeString }: { timeString: string }): JSX.Element => {
   const id = uniqueId();
   return timeString === "Unavailable" ? (
     <span>Unavailable</span>

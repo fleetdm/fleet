@@ -604,7 +604,6 @@ export const humanHostLastSeen = (lastSeen: string): string => {
   if (lastSeen === "Unavailable") {
     return "Unavailable";
   }
-  console.log(`lastSeen that passed check: ${lastSeen}`);
   return formatDistanceToNow(new Date(lastSeen), { addSuffix: true });
 };
 

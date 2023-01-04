@@ -1,7 +1,7 @@
 import React from "react";
 
 interface ITextCellProps {
-  value: string | number | boolean;
+  value: string | number | boolean | { timeString: string };
   formatter?: (val: any) => JSX.Element | string; // string, number, or null
   greyed?: boolean;
   classes?: string;
@@ -18,7 +18,6 @@ const TextCell = ({
   if (typeof value === "boolean") {
     val = value.toString();
   }
-
   return (
     <span className={`text-cell ${classes} ${greyed && "grey-cell"}`}>
       {formatter(val)}
