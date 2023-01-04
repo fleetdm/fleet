@@ -131,8 +131,9 @@ func TestHosts(t *testing.T) {
 		{"SetOrUpdateHostDisksSpace", testHostsSetOrUpdateHostDisksSpace},
 		{"HostIDsByOSID", testHostIDsByOSID},
 		{"SetOrUpdateHostDisksEncryption", testHostsSetOrUpdateHostDisksEncryption},
-		{"TestHostOrder", testHostOrder},
+		{"HostOrder", testHostOrder},
 		{"GetHostMDMCheckinInfo", testHostsGetHostMDMCheckinInfo},
+		{"UnenrollFromMDM", testHostsUnenrollFromMDM},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -873,6 +874,102 @@ func testHostsListQuery(t *testing.T, ds *Datastore) {
 	require.Nil(t, dm)
 }
 
+func testHostsUnenrollFromMDM(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	h, err := ds.NewHost(ctx, &fleet.Host{
+		Platform:        "darwin",
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   ptr.String("foo"),
+		NodeKey:         ptr.String("foo"),
+		UUID:            fmt.Sprintf("foo"),
+		Hostname:        "foo.local",
+	})
+	require.NoError(t, err)
+	h2, err := ds.NewHost(ctx, &fleet.Host{
+		Platform:        "darwin",
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   ptr.String("foo2"),
+		NodeKey:         ptr.String("foo2"),
+		UUID:            fmt.Sprintf("foo2"),
+		Hostname:        "foo2.local",
+	})
+	require.NoError(t, err)
+
+	_, err = ds.GetHostMDM(ctx, h.ID)
+	require.Error(t, err)
+	require.True(t, fleet.IsNotFound(err))
+	_, err = ds.GetHostMDM(ctx, h2.ID)
+	require.Error(t, err)
+	require.True(t, fleet.IsNotFound(err))
+
+	// Set hosts to be enrolled to an MDM.
+	const simpleMDM = "https://simplemdm.com"
+	err = ds.SetOrUpdateMDMData(ctx, h.ID, false, true, simpleMDM, true, "")
+	require.NoError(t, err)
+	err = ds.SetOrUpdateMDMData(ctx, h2.ID, false, true, simpleMDM, true, "")
+	require.NoError(t, err)
+
+	for _, hi := range []*fleet.Host{h, h2} {
+		hmdm, err := ds.GetHostMDM(ctx, hi.ID)
+		require.NoError(t, err)
+		require.Equal(t, hi.ID, hmdm.HostID)
+		require.True(t, hmdm.Enrolled)
+		require.True(t, hmdm.InstalledFromDep)
+		require.NotNil(t, hmdm.MDMID)
+		require.Equal(t, simpleMDM, hmdm.ServerURL)
+	}
+
+	err = ds.GenerateAggregatedMunkiAndMDM(ctx)
+	require.NoError(t, err)
+
+	// Check that both hosts are counted.
+	solutions, _, err := ds.AggregatedMDMSolutions(ctx, nil, "darwin")
+	require.NoError(t, err)
+	require.Len(t, solutions, 1)
+	require.Equal(t, 2, solutions[0].HostsCount)
+
+	// Host `h` unenrolls from MDM, so MDM query returns empty server_url.
+	err = ds.SetOrUpdateMDMData(ctx, h.ID, false, true, "", true, "")
+	require.NoError(t, err)
+
+	// host_mdm entry should not exist anymore.
+	_, err = ds.GetHostMDM(ctx, h.ID)
+	require.Error(t, err)
+	require.True(t, fleet.IsNotFound(err))
+
+	err = ds.GenerateAggregatedMunkiAndMDM(ctx)
+	require.NoError(t, err)
+
+	solutions, _, err = ds.AggregatedMDMSolutions(ctx, nil, "darwin")
+	require.NoError(t, err)
+	require.Len(t, solutions, 1)
+	require.Equal(t, 1, solutions[0].HostsCount)
+
+	// Host `h2` unenrolls from MDM, so MDM query returns empty server_url.
+	err = ds.SetOrUpdateMDMData(ctx, h2.ID, false, true, "", true, "")
+	require.NoError(t, err)
+
+	// host_mdm entry should not exist anymore.
+	_, err = ds.GetHostMDM(ctx, h2.ID)
+	require.Error(t, err)
+	require.True(t, fleet.IsNotFound(err))
+
+	err = ds.GenerateAggregatedMunkiAndMDM(ctx)
+	require.NoError(t, err)
+
+	// No solutions should be listed now (both hosts are unenrolled).
+	solutions, _, err = ds.AggregatedMDMSolutions(ctx, nil, "darwin")
+	require.NoError(t, err)
+	require.Len(t, solutions, 0)
+}
+
 func testHostsListMDM(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
@@ -900,13 +997,13 @@ func testHostsListMDM(t *testing.T, ds *Datastore) {
 	require.Equal(t, int64(1), n)
 
 	const simpleMDM, kandji, unknown = "https://simplemdm.com", "https://kandji.io", "https://url.com"
-	err = ds.SetOrUpdateMDMData(ctx, hostIDs[0], false, true, simpleMDM, true, "") // enrollment: automatic
+	err = ds.SetOrUpdateMDMData(ctx, hostIDs[0], false, true, simpleMDM, true, fleet.WellKnownMDMSimpleMDM) // enrollment: automatic
 	require.NoError(t, err)
-	err = ds.SetOrUpdateMDMData(ctx, hostIDs[1], false, true, kandji, true, "") // enrollment: automatic
+	err = ds.SetOrUpdateMDMData(ctx, hostIDs[1], false, true, kandji, true, fleet.WellKnownMDMKandji) // enrollment: automatic
 	require.NoError(t, err)
-	err = ds.SetOrUpdateMDMData(ctx, hostIDs[2], false, true, unknown, false, "") // enrollment: manual
+	err = ds.SetOrUpdateMDMData(ctx, hostIDs[2], false, true, unknown, false, fleet.UnknownMDMName) // enrollment: manual
 	require.NoError(t, err)
-	err = ds.SetOrUpdateMDMData(ctx, hostIDs[3], false, false, simpleMDM, false, "") // enrollment: unenrolled
+	err = ds.SetOrUpdateMDMData(ctx, hostIDs[3], false, false, simpleMDM, false, fleet.WellKnownMDMSimpleMDM) // enrollment: unenrolled
 	require.NoError(t, err)
 
 	var simpleMDMID uint
@@ -3937,7 +4034,7 @@ func testHostMDMAndMunki(t *testing.T, ds *Datastore) {
 	urlMDMID := *hmdm.MDMID
 	assert.Equal(t, fleet.UnknownMDMName, hmdm.Name)
 
-	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 455, false, true, "https://kandji.io", true, "")) // kandji mdm name
+	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 455, false, true, "https://kandji.io", true, fleet.WellKnownMDMKandji)) // kandji mdm name
 	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 432, false, false, "url3", true, ""))
 
 	hmdm, err = ds.GetHostMDM(context.Background(), 432)
@@ -3972,7 +4069,7 @@ func testHostMDMAndMunki(t *testing.T, ds *Datastore) {
 	require.ErrorIs(t, err, sql.ErrNoRows)
 
 	// switch to simplemdm in an update
-	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 455, false, true, "https://simplemdm.com", false, "")) // now simplemdm name
+	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 455, false, true, "https://simplemdm.com", false, fleet.WellKnownMDMSimpleMDM)) // now simplemdm name
 
 	hmdm, err = ds.GetHostMDM(context.Background(), 455)
 	require.NoError(t, err)
@@ -3997,7 +4094,7 @@ func testHostMDMAndMunki(t *testing.T, ds *Datastore) {
 
 	// switch to a different Kandji server URL, will have a different MDM ID as
 	// even though this is another Kandji, the URL is different.
-	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 455, false, true, "https://kandji.io/2", false, ""))
+	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 455, false, true, "https://kandji.io/2", false, fleet.WellKnownMDMKandji))
 
 	hmdm, err = ds.GetHostMDM(context.Background(), 455)
 	require.NoError(t, err)
@@ -4183,13 +4280,13 @@ func testAggregatedHostMDMAndMunki(t *testing.T, ds *Datastore) {
 		},
 	})
 
-	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 432, false, true, "url", false, ""))                  // manual enrollment
-	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 123, false, true, "url", false, ""))                  // manual enrollment
-	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 124, false, true, "url", false, ""))                  // manual enrollment
-	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 455, false, true, "https://simplemdm.com", true, "")) // automatic enrollment
-	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 999, false, false, "https://kandji.io", false, ""))   // unenrolled
-	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 875, false, false, "https://kandji.io", true, ""))    // pending enrollment
-	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 1337, false, false, "https://fleetdm.com", true, "")) // pending enrollment
+	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 432, false, true, "url", false, ""))                                           // manual enrollment
+	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 123, false, true, "url", false, ""))                                           // manual enrollment
+	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 124, false, true, "url", false, ""))                                           // manual enrollment
+	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 455, false, true, "https://simplemdm.com", true, fleet.WellKnownMDMSimpleMDM)) // automatic enrollment
+	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 999, false, false, "https://kandji.io", false, fleet.WellKnownMDMKandji))      // unenrolled
+	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 875, false, false, "https://kandji.io", true, fleet.WellKnownMDMKandji))       // pending enrollment
+	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 1337, false, false, "https://fleetdm.com", true, fleet.WellKnownMDMFleet))     // pending enrollment
 
 	require.NoError(t, ds.GenerateAggregatedMunkiAndMDM(context.Background()))
 
@@ -4245,11 +4342,11 @@ func testAggregatedHostMDMAndMunki(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.AddHostsToTeam(context.Background(), &team1.ID, []uint{h3.ID}))
 	require.NoError(t, ds.AddHostsToTeam(context.Background(), &team1.ID, []uint{h4.ID}))
 
-	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), h1.ID, false, true, "https://simplemdm.com", false, ""))
+	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), h1.ID, false, true, "https://simplemdm.com", false, fleet.WellKnownMDMSimpleMDM))
 	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), h2.ID, false, true, "url", false, ""))
 
 	// Add a server, this will be ignored in lists and aggregated data.
-	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), h4.ID, true, true, "https://simplemdm.com", false, ""))
+	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), h4.ID, true, true, "https://simplemdm.com", false, fleet.WellKnownMDMSimpleMDM))
 
 	require.NoError(t, ds.SetOrUpdateMunkiInfo(context.Background(), h1.ID, "1.2.3", []string{"d"}, nil))
 	require.NoError(t, ds.SetOrUpdateMunkiInfo(context.Background(), h2.ID, "1.2.3", []string{"d"}, []string{"e"}))
@@ -4943,7 +5040,7 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{policy.ID: ptr.Bool(true)}, time.Now(), false))
 	// Update host_mdm.
-	err = ds.SetOrUpdateMDMData(context.Background(), host.ID, false, false, "", false, "")
+	err = ds.SetOrUpdateMDMData(context.Background(), host.ID, false, false, "foo.mdm.example.com", false, "")
 	require.NoError(t, err)
 	// Update host_munki_info.
 	err = ds.SetOrUpdateMunkiInfo(context.Background(), host.ID, "42", []string{"a"}, []string{"b"})

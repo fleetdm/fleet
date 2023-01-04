@@ -1,0 +1,1 @@
+* Fix ingestion of MDM data with empty server URLs (meaning the host is not enrolled to an MDM server).

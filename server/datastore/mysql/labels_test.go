@@ -283,11 +283,11 @@ func testLabelsListHostsInLabel(t *testing.T, db *Datastore) {
 
 	ctx := context.Background()
 	const simpleMDM, kandji = "https://simplemdm.com", "https://kandji.io"
-	err = db.SetOrUpdateMDMData(ctx, h1.ID, false, true, simpleMDM, true, "") // enrollment: automatic
+	err = db.SetOrUpdateMDMData(ctx, h1.ID, false, true, simpleMDM, true, fleet.WellKnownMDMSimpleMDM) // enrollment: automatic
 	require.NoError(t, err)
-	err = db.SetOrUpdateMDMData(ctx, h2.ID, false, true, kandji, true, "") // enrollment: automatic
+	err = db.SetOrUpdateMDMData(ctx, h2.ID, false, true, kandji, true, fleet.WellKnownMDMKandji) // enrollment: automatic
 	require.NoError(t, err)
-	err = db.SetOrUpdateMDMData(ctx, h3.ID, false, false, simpleMDM, false, "") // enrollment: unenrolled
+	err = db.SetOrUpdateMDMData(ctx, h3.ID, false, false, simpleMDM, false, fleet.WellKnownMDMSimpleMDM) // enrollment: unenrolled
 	require.NoError(t, err)
 
 	var simpleMDMID uint
