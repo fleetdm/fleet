@@ -6,12 +6,12 @@ const baseClass = "sandbox-expiry-message";
 
 interface ISandboxExpiryMessageProps {
   expiry: string;
-  isNoHostsSandboxMode?: boolean;
+  isNoSandboxHosts?: boolean;
 }
 
 const SandboxExpiryMessage = ({
   expiry,
-  isNoHostsSandboxMode,
+  isNoSandboxHosts,
 }: ISandboxExpiryMessageProps) => {
   return (
     <a
@@ -22,7 +22,7 @@ const SandboxExpiryMessage = ({
     >
       <p>Your Fleet Sandbox expires in {expiry}.</p>
       <span>
-        {isNoHostsSandboxMode ? (
+        {isNoSandboxHosts ? (
           <>
             It&apos;s time to enroll your first host! Navigate to Hosts &gt; Add
             Hosts to get started

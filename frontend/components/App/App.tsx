@@ -47,7 +47,7 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
     setConfig,
     setEnrollSecret,
     setSandboxExpiry,
-    setIsNoHostsSandboxMode,
+    setIsNoSandboxHosts,
   } = useContext(AppContext);
 
   const [isLoading, setIsLoading] = useState(false);
@@ -59,7 +59,7 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
         const timestamp = await configAPI.loadSandboxExpiry();
         setSandboxExpiry(timestamp as string);
         const hostCount = await hostCountAPI.load({});
-        setIsNoHostsSandboxMode(hostCount === 0);
+        setIsNoSandboxHosts(hostCount === 0);
       }
       setConfig(config);
     } catch (error) {

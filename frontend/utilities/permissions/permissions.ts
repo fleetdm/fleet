@@ -5,7 +5,7 @@ export const isSandboxMode = (config: IConfig): boolean => {
   return !!config.sandbox_enabled; // TODO: confirm null/undefined config should treated as false based on final API spec
 };
 
-export const isNoHostsSandboxMode = (
+export const isNoSandboxHosts = (
   config: IConfig,
   noHosts: boolean
 ): boolean => {
@@ -116,7 +116,7 @@ const isNoAccess = (user: IUser): boolean => {
 
 export default {
   isSandboxMode,
-  isNoHostsSandboxMode,
+  isNoSandboxHosts,
   isFreeTier,
   isPremiumTier,
   isMdmEnabled,
