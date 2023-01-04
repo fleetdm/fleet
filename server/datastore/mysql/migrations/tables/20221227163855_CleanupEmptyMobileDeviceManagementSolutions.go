@@ -2,7 +2,6 @@ package tables
 
 import (
 	"database/sql"
-	"fmt"
 
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
@@ -30,8 +29,6 @@ func Up_20221227163855(tx *sql.Tx) error {
 		// Nothing to clean up.
 		return nil
 	}
-
-	fmt.Printf("Cleaning up %d MDM solutions...\n", len(mdmIDs))
 
 	// Cleanup mobile_device_management_solutions.
 	query, args, err := sqlx.In(
