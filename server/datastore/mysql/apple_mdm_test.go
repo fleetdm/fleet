@@ -64,8 +64,8 @@ func TestIngestMDMAppleDevicesFromDEPSync(t *testing.T) {
 	gotSerials := []string{}
 	for _, h := range hosts {
 		gotSerials = append(gotSerials, h.HardwareSerial)
-		if h.HardwareSerial == "abc" || h.HardwareSerial == "xyz" {
-			checkMDMHostRelatedTables(t, ds, h.ID)
+		if hs := h.HardwareSerial; hs == "abc" || hs == "xyz" {
+			checkMDMHostRelatedTables(t, ds, h.ID, hs, "MacBook Pro")
 		}
 	}
 	require.ElementsMatch(t, wantSerials, gotSerials)
@@ -219,7 +219,7 @@ func testIngestMDMAppleCheckinAfterDEPSync(t *testing.T, ds *Datastore) {
 	// is not available from the DEP sync endpoint
 	require.Equal(t, testSerial, hosts[0].HardwareSerial)
 	require.Equal(t, "", hosts[0].UUID)
-	checkMDMHostRelatedTables(t, ds, hosts[0].ID)
+	checkMDMHostRelatedTables(t, ds, hosts[0].ID, testSerial, "MacBook Pro")
 
 	// now simulate the initial MDM checkin by that same host
 	err = fleet.HandleMDMCheckinRequest(ctx, &http.Request{
@@ -233,7 +233,7 @@ func testIngestMDMAppleCheckinAfterDEPSync(t *testing.T, ds *Datastore) {
 	hosts = listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{}, 1)
 	require.Equal(t, testSerial, hosts[0].HardwareSerial)
 	require.Equal(t, testUUID, hosts[0].UUID)
-	checkMDMHostRelatedTables(t, ds, hosts[0].ID)
+	checkMDMHostRelatedTables(t, ds, hosts[0].ID, testSerial, "MacBook Pro")
 
 	// an activity is created
 	activities, err := ds.ListActivities(context.Background(), fleet.ListActivitiesOptions{})
@@ -276,7 +276,7 @@ func testIngestMDMAppleCheckinBeforeDEPSync(t *testing.T, ds *Datastore) {
 	hosts := listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{}, 1)
 	require.Equal(t, testSerial, hosts[0].HardwareSerial)
 	require.Equal(t, testUUID, hosts[0].UUID)
-	checkMDMHostRelatedTables(t, ds, hosts[0].ID)
+	checkMDMHostRelatedTables(t, ds, hosts[0].ID, testSerial, "MacBook Pro")
 
 	// no effect if same host appears in DEP sync
 	n, err := ds.IngestMDMAppleDevicesFromDEPSync(ctx, []godep.Device{
@@ -288,7 +288,7 @@ func testIngestMDMAppleCheckinBeforeDEPSync(t *testing.T, ds *Datastore) {
 	hosts = listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{}, 1)
 	require.Equal(t, testSerial, hosts[0].HardwareSerial)
 	require.Equal(t, testUUID, hosts[0].UUID)
-	checkMDMHostRelatedTables(t, ds, hosts[0].ID)
+	checkMDMHostRelatedTables(t, ds, hosts[0].ID, testSerial, "MacBook Pro")
 }
 
 func testIngestMDMAppleCheckinMultipleAuthenticateRequests(t *testing.T, ds *Datastore) {
@@ -361,11 +361,11 @@ func testIngestMDMAppleCheckinCheckoutRequests(t *testing.T, ds *Datastore) {
 // host_display_names, host_seen_times, and label_membership. Note that related tables records for
 // pre-existing hosts are created outside of the MDM enrollment flows so they are not checked in
 // some tests above (e.g., testIngestMDMAppleHostAlreadyExistsInFleet)
-func checkMDMHostRelatedTables(t *testing.T, ds *Datastore, hostID uint) {
-	var ok bool
-	err := sqlx.GetContext(context.Background(), ds.reader, &ok, `SELECT 1 FROM host_display_names WHERE host_id = ?`, hostID)
+func checkMDMHostRelatedTables(t *testing.T, ds *Datastore, hostID uint, expectedSerial string, expectedModel string) {
+	var displayName string
+	err := sqlx.GetContext(context.Background(), ds.reader, &displayName, `SELECT display_name FROM host_display_names WHERE host_id = ?`, hostID)
 	require.NoError(t, err)
-	require.True(t, ok)
+	require.Equal(t, fmt.Sprintf("%s (%s)", expectedModel, expectedSerial), displayName)
 
 	var labelsOK []bool
 	err = sqlx.SelectContext(context.Background(), ds.reader, &labelsOK, `SELECT 1 FROM label_membership WHERE host_id = ?`, hostID)

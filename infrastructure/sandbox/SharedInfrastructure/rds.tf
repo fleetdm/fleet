@@ -47,7 +47,7 @@ resource "aws_secretsmanager_secret_version" "mysql" {
 
 module "main" {
   source  = "terraform-aws-modules/rds-aurora/aws"
-  version = "6.2.0"
+  version = "7.6.0"
 
   name           = var.prefix
   engine         = "aurora-mysql"
