@@ -496,12 +496,12 @@ const ManageSchedulePage = ({
               {selectedTeamId ? (
                 <p>
                   Schedule queries for{" "}
-                  <strong>all hosts assigned to this team.</strong>
+                  <strong>all hosts assigned to this team</strong>
                 </p>
               ) : (
                 <p>
                   Schedule queries to run at regular intervals across{" "}
-                  <strong>all of your hosts.</strong>
+                  <strong>all of your hosts</strong>
                 </p>
               )}
             </div>

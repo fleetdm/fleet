@@ -143,7 +143,7 @@ describe("Policies flow (empty)", () => {
       managePoliciesPage.visitManagePoliciesPage();
     });
     it("creates a custom policy", () => {
-      cy.getAttached(".policies-table__action-button-container").within(() => {
+      cy.getAttached(".empty-table__cta-buttons").within(() => {
         cy.findByText(/add a policy/i).click();
       });
       cy.findByText(/create your own policy/i).click();
