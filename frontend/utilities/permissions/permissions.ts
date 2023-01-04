@@ -5,6 +5,13 @@ export const isSandboxMode = (config: IConfig): boolean => {
   return !!config.sandbox_enabled; // TODO: confirm null/undefined config should treated as false based on final API spec
 };
 
+export const isNoHostsSandboxMode = (
+  config: IConfig,
+  noHosts: boolean
+): boolean => {
+  return !!config.sandbox_enabled && noHosts;
+};
+
 export const isFreeTier = (config: IConfig): boolean => {
   return config.license.tier === "free";
 };
@@ -109,6 +116,7 @@ const isNoAccess = (user: IUser): boolean => {
 
 export default {
   isSandboxMode,
+  isNoHostsSandboxMode,
   isFreeTier,
   isPremiumTier,
   isMdmEnabled,

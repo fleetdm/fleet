@@ -18,7 +18,8 @@ const SandboxGate = ({
 }: ISandboxGateProps): JSX.Element => {
   const { isSandboxMode } = useContext(AppContext);
 
-  return <>{isSandboxMode ? fallbackComponent() : <>{children}</>}</>;
+  const isSandboxModeFake = true;
+  return <>{isSandboxModeFake ? fallbackComponent() : <>{children}</>}</>;
 };
 
 export default SandboxGate;

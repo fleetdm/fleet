@@ -6,20 +6,33 @@ const baseClass = "sandbox-expiry-message";
 
 interface ISandboxExpiryMessageProps {
   expiry: string;
+  isNoHostsSandboxMode?: boolean;
 }
 
-const SandboxExpiryMessage = ({ expiry }: ISandboxExpiryMessageProps) => {
+const SandboxExpiryMessage = ({
+  expiry,
+  isNoHostsSandboxMode,
+}: ISandboxExpiryMessageProps) => {
   return (
     <a
-      href="https://fleetdm.com/docs/deploying"
+      href="https://fleetdm.com/docs/using-fleet/learn-how-to-use-fleet#how-to-add-your-device-to-fleet"
       target="_blank"
       rel="noreferrer"
       className={baseClass}
     >
       <p>Your Fleet Sandbox expires in {expiry}.</p>
       <span>
-        Learn how to deploy Fleet
-        <img alt="Open external link" src={ExternalLinkIcon} />
+        {isNoHostsSandboxMode ? (
+          <>
+            It&apos;s time to enroll your first host! Navigate to Hosts &gt; Add
+            Hosts to get started
+          </>
+        ) : (
+          <>
+            Learn how to use Fleet{" "}
+            <img alt="Open external link" src={ExternalLinkIcon} />
+          </>
+        )}
       </span>
     </a>
   );

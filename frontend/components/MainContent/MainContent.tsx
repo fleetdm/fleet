@@ -25,7 +25,7 @@ const MainContent = ({
   className,
 }: IMainContentProps): JSX.Element => {
   const classes = classnames(baseClass, className);
-  const { sandboxExpiry } = useContext(AppContext);
+  const { sandboxExpiry, isNoHostsSandboxMode } = useContext(AppContext);
 
   const expiry =
     sandboxExpiry === undefined
@@ -35,7 +35,12 @@ const MainContent = ({
   return (
     <div className={classes}>
       <SandboxGate
-        fallbackComponent={() => <SandboxExpiryMessage expiry={expiry} />}
+        fallbackComponent={() => (
+          <SandboxExpiryMessage
+            expiry={expiry}
+            isNoHostsSandboxMode={isNoHostsSandboxMode}
+          />
+        )}
       />
       {children}
     </div>

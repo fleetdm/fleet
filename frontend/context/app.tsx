@@ -14,6 +14,7 @@ enum ACTIONS {
   SET_CONFIG = "SET_CONFIG",
   SET_ENROLL_SECRET = "SET_ENROLL_SECRET",
   SET_SANDBOX_EXPIRY = "SET_SANDBOX_EXPIRY",
+  SET_IS_NO_HOSTS_SANDBOX_MODE = "SET_IS_NO_HOSTS_SANDBOX_MODE",
   SET_FILTERED_HOSTS_PATH = "SET_FILTERED_HOSTS_PATH",
 }
 
@@ -45,6 +46,11 @@ interface ISetSandboxExpiryAction {
   sandboxExpiry: string;
 }
 
+interface ISetIsNoHostsSandboxModeAction {
+  type: ACTIONS.SET_IS_NO_HOSTS_SANDBOX_MODE;
+  isNoHostsSandboxMode: boolean;
+}
+
 interface ISetFilteredHostsPathAction {
   type: ACTIONS.SET_FILTERED_HOSTS_PATH;
   filteredHostsPath: string;
@@ -57,6 +63,7 @@ type IAction =
   | ISetCurrentUserAction
   | ISetEnrollSecretAction
   | ISetSandboxExpiryAction
+  | ISetIsNoHostsSandboxModeAction
   | ISetFilteredHostsPathAction;
 
 type Props = {
@@ -88,6 +95,7 @@ type InitialStateType = {
   isOnlyObserver?: boolean;
   isNoAccess?: boolean;
   sandboxExpiry?: string;
+  isNoHostsSandboxMode?: boolean;
   filteredHostsPath?: string;
   setAvailableTeams: (availableTeams: ITeamSummary[]) => void;
   setCurrentUser: (user: IUser) => void;
@@ -95,6 +103,7 @@ type InitialStateType = {
   setConfig: (config: IConfig) => void;
   setEnrollSecret: (enrollSecret: IEnrollSecret[]) => void;
   setSandboxExpiry: (sandboxExpiry: string) => void;
+  setIsNoHostsSandboxMode: (isNoHostsSandboxMode: boolean) => void;
   setFilteredHostsPath: (filteredHostsPath: string) => void;
 };
 
@@ -131,6 +140,7 @@ export const initialState = {
   setConfig: () => null,
   setEnrollSecret: () => null,
   setSandboxExpiry: () => null,
+  setIsNoHostsSandboxMode: () => null,
   setFilteredHostsPath: () => null,
 };
 
@@ -290,6 +300,12 @@ const AppProvider = ({ children }: Props): JSX.Element => {
     },
     setSandboxExpiry: (sandboxExpiry: string) => {
       dispatch({ type: ACTIONS.SET_SANDBOX_EXPIRY, sandboxExpiry });
+    },
+    setIsNoHostsSandboxMode: (isNoHostsSandboxMode: boolean) => {
+      dispatch({
+        type: ACTIONS.SET_IS_NO_HOSTS_SANDBOX_MODE,
+        isNoHostsSandboxMode,
+      });
     },
     setFilteredHostsPath: (filteredHostsPath: string) => {
       dispatch({ type: ACTIONS.SET_FILTERED_HOSTS_PATH, filteredHostsPath });

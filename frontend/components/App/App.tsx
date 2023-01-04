@@ -13,6 +13,7 @@ import useDeepEffect from "hooks/useDeepEffect";
 
 import usersAPI from "services/entities/users";
 import configAPI from "services/entities/config";
+import hostCountAPI from "services/entities/host_count";
 
 import { ErrorBoundary } from "react-error-boundary";
 // @ts-ignore
@@ -46,6 +47,7 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
     setConfig,
     setEnrollSecret,
     setSandboxExpiry,
+    setIsNoHostsSandboxMode,
   } = useContext(AppContext);
 
   const [isLoading, setIsLoading] = useState(false);
@@ -56,6 +58,8 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
       if (config.sandbox_enabled) {
         const timestamp = await configAPI.loadSandboxExpiry();
         setSandboxExpiry(timestamp as string);
+        const hostCount = await hostCountAPI.load({});
+        setIsNoHostsSandboxMode(hostCount === 0);
       }
       setConfig(config);
     } catch (error) {
