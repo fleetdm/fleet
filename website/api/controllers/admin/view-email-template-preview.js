@@ -45,6 +45,7 @@ module.exports = {
   fn: async function ({template, raw}) {
 
     var path = require('path');
+    var moment = require(sails.config.appPath + '/assets/dependencies/moment.js');
     var url = require('url');
     var util = require('util');
     // Determine appropriate email layout and fake data to use.
@@ -85,6 +86,32 @@ module.exports = {
         fakeData = {
           firstName: 'Fleet',
           lastName: 'user',
+        };
+        break;
+      case 'email-subscription-cancellation-confirmation':
+        layout = 'layout-email';
+        fakeData = {
+          firstName: 'Fleet',
+          lastName: 'user',
+          accountExpiresAt: moment(new Date()).format('MMM Do')+', '+moment(new Date()).format('YYYY'),
+        };
+        break;
+      case 'email-subscription-renewal-confirmation':
+        layout = 'layout-email';
+        fakeData = {
+          firstName: 'Fleet',
+          lastName: 'user',
+        };
+        break;
+      case 'email-upcoming-subscription-renewal':
+        layout = 'layout-email';
+        fakeData = {
+          firstName: 'Fleet',
+          lastName: 'user',
+          subscriptionPriceInWholeDollars: 60,
+          numberOfHosts: 10,
+          subscriptionCostPerHost: 6,
+
         };
         break;
       default:

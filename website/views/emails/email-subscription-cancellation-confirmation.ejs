@@ -1,0 +1,15 @@
+<% /* Note: This is injected into `views/layouts/layout-email.ejs` */ %>
+<h1 style="margin-bottom: 32px; font-weight: 800; font-size: 24px;">Cancellation confirmation</h1>
+<p style="margin-bottom: 32px;">Hello <%= firstName+' '+lastName %>,</p>
+
+<p style="margin-bottom: 32px;">This email confirms that your Fleet Premium subscription has been cancelled. We’re sorry to see you go, but thanks for using Fleet.</p>
+<h1 style="margin-bottom: 32px; font-weight: 800; font-size: 24px;">Having second thoughts?</h1>
+
+<p style="margin-bottom: 32px;">We’ll keep your information on ice until <span style="font-weight: 800;"><%= accountDataExpiresAt %></span> in case you change your mind.</p>
+<h1 style="margin-bottom: 32px; font-weight: 800; font-size: 24px;">Help us improve</h1>
+
+
+<p style="margin-bottom: 32px;">We’d love to know why you cancelled. If you have any feedback, please reply to this email or <a style="color: #6A67FE;" href="<%= url.resolve(sails.config.custom.baseUrl,'/contact') %>">contact us.</a>.</p>
+
+<p style="margin-bottom: 32px;">Thank you again for being a customer,</p>
+<p style="margin-bottom: 32px;">The Fleet team.</p>
