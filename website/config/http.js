@@ -50,7 +50,7 @@ module.exports.http = {
     ***************************************************************************/
 
     bodyParser: function(req, res, next) {
-      var skipper = require('skipper');
+      var skipper = require('skipper')();
       var rawParser = require('body-parser').raw({type: '*/*'});
       // If a request contains a stripe-signature header, use the rawParser to send the raw request body.
       if (req.headers && req.headers['stripe-signature']) {
