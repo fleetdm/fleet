@@ -111,7 +111,7 @@ module.exports = {
           subscriptionPriceInWholeDollars: 60,
           numberOfHosts: 10,
           subscriptionCostPerHost: 6,
-
+          nextBillingAt: moment(new Date()).format('MMM Do')+', '+moment(new Date()).format('YYYY'),
         };
         break;
       default:
