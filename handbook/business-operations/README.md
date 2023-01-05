@@ -6,7 +6,7 @@
 - [BizOps](#bizops)
 
 
-## Finance
+## Finance test
 
 #### Monthly accounting
 Create a new issue for the current month and year named "Closing out YYYY-MM" using the [monthly accounting issue template](https://github.com/fleetdm/confidential/blob/main/.github/ISSUE_TEMPLATE/5-monthly-accounting.md) in GitHub and complete all of the tasks in the issue.  
