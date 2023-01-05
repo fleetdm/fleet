@@ -3,7 +3,7 @@
 
     <div purpose="renewal-notification" class="d-flex flex-row justify-content-start align-items-center" v-if="subscriptionHasBeenRecentlyRenewed">
       <div class="pr-4">
-        <img style="height: 24px;" src="/images/icon-green-check-circle-24x24@2x.png">
+        <img alt="A green checkmark" style="height: 24px;" src="/images/icon-green-check-circle-24x24@2x.png">
       </div>
       <div class="d-flex flex-column">
         <p>Your Fleet Premium subscription has successfully renewed.</p>
@@ -13,7 +13,7 @@
 
     <div purpose="subscription-expiring-notification" v-if="subscriptionExpiresSoon" class="d-flex flex-row justify-content-start align-items-center">
       <div class="pr-4">
-        <img style="height: 24px;" src="/images/info-16x16@2x.png">
+        <img alt="Information icon" style="height: 24px;" src="/images/info-16x16@2x.png">
       </div>
       <div class="d-flex flex-column">
         <p>Your Fleet Premium subscription will automatically renew on <js-timestamp :at="thisSubscription.nextBillingAt" always-show-year format="billing"></js-timestamp>.</p>

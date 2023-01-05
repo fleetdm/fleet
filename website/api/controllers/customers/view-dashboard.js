@@ -24,7 +24,8 @@ module.exports = {
   fn: async function () {
 
     const today = Date.now();
-    const oneYearAgoInMs = today - (1000 * 60 * 60 * 24 * 365);
+    const oneYearInMs = (1000 * 60 * 60 * 24 * 365);
+    const oneYearAgoInMs = today - oneYearInMs;
     const thirtyDaysAgoInMs = today - (1000 * 60 * 60 * 24 * 30);
     const thirtyDaysFromNowInMs = today + (1000 * 60 * 60 * 24 * 30);
     let subscriptionHasBeenRecentlyRenewed = false;
