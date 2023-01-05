@@ -184,9 +184,9 @@ the account verification message.)`,
       'https://hooks.zapier.com/hooks/catch/3627242/bqsf4rj/',
       {
         'emailAddress': newEmailAddress,
-        'organization': signupReason === 'Buy a license' ? organization : '?',
-        'firstName': signupReason === 'Buy a license' ? firstName : '?',
-        'lastName': signupReason === 'Buy a license' ? lastName : '?',
+        'organization': organization ? organization : '?',
+        'firstName': firstName !== emailAddress.split('@')[0] ? firstName : '?',
+        'lastName': lastName !== emailAddress.split('@')[1] ? lastName : '?',
         'signupReason': signupReason,
         'webhookSecret': sails.config.custom.zapierSandboxWebhookSecret
       }
