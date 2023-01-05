@@ -399,6 +399,7 @@ const IntegrationsPage = (): JSX.Element => {
 
   return (
     <div className={`${baseClass}`}>
+      {/* TODO: put Mdm in the right place, as a tab under Gabe's new side-nav layout in Integrations */}
       <Mdm />
       <p className={`${baseClass}__page-description`}>
         Add or edit integrations to create tickets when Fleet detects new

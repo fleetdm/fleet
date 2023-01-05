@@ -38,8 +38,7 @@ const Mdm = (): JSX.Element => {
   const { isPremiumTier } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
-  // TODO: Set below default state to false
-  const [showRequestCSRModal, setShowRequestCSRModal] = useState(true);
+  const [showRequestCSRModal, setShowRequestCSRModal] = useState(false);
   const [showEditTeamModal, setShowEditTeamModal] = useState(false);
 
   const {
