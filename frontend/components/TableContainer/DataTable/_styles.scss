@@ -9,14 +9,14 @@ $shadow-transition-width: 10px;
   .data-table {
     &__wrapper {
       position: relative;
-      border: 1px solid $ui-fleet-blue-15;
+      border: 1px solid $ui-fleet-black-10;
       border-radius: 6px;
       margin-top: $pad-small;
       flex-grow: 1;
       width: 100%;
 
       // Shadow
-      background-image: 
+      background-image:
       /* Shadows */ linear-gradient(
           to right,
           white,
@@ -73,7 +73,7 @@ $shadow-transition-width: 10px;
     }
 
     tr {
-      border-bottom: 1px solid $ui-fleet-blue-15;
+      border-bottom: 1px solid $ui-fleet-black-10;
 
       &:last-child {
         border-bottom: 0;
@@ -95,7 +95,7 @@ $shadow-transition-width: 10px;
       background-color: $ui-off-white-opaque; // opaque needed for horizontal scroll shadow
       color: $core-fleet-black;
       text-align: left;
-      border-bottom: 1px solid $ui-fleet-blue-15;
+      border-bottom: 1px solid $ui-fleet-black-10;
 
       // resize header icons
       img {
@@ -116,7 +116,7 @@ $shadow-transition-width: 10px;
       th {
         padding: $pad-medium $pad-large;
         white-space: nowrap;
-        border-right: 1px solid $ui-fleet-blue-15;
+        border-right: 1px solid $ui-fleet-black-10;
 
         &:first-child {
           border-top-left-radius: 6px;

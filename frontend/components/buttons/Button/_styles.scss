@@ -15,7 +15,7 @@ $base-class: "button";
       background-color: rgba(#192147, .05);
 
       &:active {
-        background-color: $ui-fleet-blue-15;
+        background-color: $ui-fleet-black-10;
       }
     }
 
@@ -334,7 +334,7 @@ $base-class: "button";
     display: block;
     width: 100%;
     border-radius: 0px;
-    border-bottom: 1px solid $ui-fleet-blue-15;
+    border-bottom: 1px solid $ui-fleet-black-10;
 
     &:active {
       box-shadow: none;
