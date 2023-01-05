@@ -41,6 +41,9 @@ const Mdm = (): JSX.Element => {
   const [showRequestCSRModal, setShowRequestCSRModal] = useState(false);
   const [showEditTeamModal, setShowEditTeamModal] = useState(false);
 
+  // For local testing, uncomment line 46, line 47, and uncomment line 127
+
+  // let {
   const {
     data: mdmApple,
     isLoading: isLoadingMdmApple,
@@ -120,6 +123,8 @@ const Mdm = (): JSX.Element => {
       return <DataError />;
     }
 
+    // For local testing, uncomment the below line
+    // mdmApple = undefined;
     if (!mdmApple) {
       return (
         <>
