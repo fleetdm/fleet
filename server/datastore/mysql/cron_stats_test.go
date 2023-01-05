@@ -105,7 +105,7 @@ func TestCleanupCronStats(t *testing.T) {
 	ctx := context.Background()
 	ds := CreateMySQLDS(t)
 	now := time.Now().UTC().Truncate(time.Second)
-	twoWeeksAgo := now.Add(-2 * 24 * time.Hour)
+	twoDaysAgo := now.Add(-2 * 24 * time.Hour)
 	name := "test_sched"
 	instance := "test_instance"
 
@@ -152,13 +152,13 @@ func TestCleanupCronStats(t *testing.T) {
 			shouldCleanupMaxAge:     false,
 		},
 		{
-			createdAt:               twoWeeksAgo.Add(1 * time.Hour),
+			createdAt:               twoDaysAgo.Add(1 * time.Hour),
 			status:                  fleet.CronStatsStatusCompleted,
 			shouldCleanupMaxPending: false,
 			shouldCleanupMaxAge:     false,
 		},
 		{
-			createdAt:               twoWeeksAgo.Add(-1 * time.Hour),
+			createdAt:               twoDaysAgo.Add(-1 * time.Hour),
 			status:                  fleet.CronStatsStatusCompleted,
 			shouldCleanupMaxPending: false,
 			shouldCleanupMaxAge:     true,
