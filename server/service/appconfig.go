@@ -248,7 +248,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	oldAppConfig := appConfig.Copy()
 
 	// keep this original value, as it cannot be modified via this request.
-	origAppleBMTerms := appConfig.MDM.AppleBMTermsExpired
+	origAppleBMTerms := oldAppConfig.MDM.AppleBMTermsExpired
 
 	license, err := svc.License(ctx)
 	if err != nil {
@@ -343,16 +343,11 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		return nil, ctxerr.Wrap(ctx, invalid)
 	}
 
-	// TODO: should we just ignore that field if provided in the modify payload?
-	// By returning an error, we prevent using the output of fleetctl get config
-	// as input to fleetctl apply or this endpoint.
-	if origAppleBMTerms != appConfig.MDM.AppleBMTermsExpired {
-		// best-effort way to detect if that field has been provided in the modify
-		// request - it cannot be modified manually, this behaves as if it was an
-		// unknown field provided in the payload.
-		err = fleet.NewUserMessageError(errors.New(`json: unknown field "mdm.apple_bm_terms_expired"`), http.StatusBadRequest)
-		return nil, ctxerr.Wrap(ctx, err)
-	}
+	// ignore AppleBMTermsExpired if provided in the modify payload
+	// we don't return an error in this case because it would prevent
+	// using the output of fleetctl get config as input to fleetctl apply
+	// or this endpoint.
+	appConfig.MDM.AppleBMTermsExpired = origAppleBMTerms
 
 	// do not send a test email in dry-run mode, so this is a good place to stop
 	// (we also delete the removed integrations after that, which we don't want

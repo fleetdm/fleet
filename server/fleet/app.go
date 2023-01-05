@@ -102,8 +102,14 @@ type VulnerabilitySettings struct {
 
 // MDM is part of AppConfig and defines the mdm settings.
 type MDM struct {
-	AppleBMDefaultTeam  string `json:"apple_bm_default_team"`
-	AppleBMTermsExpired bool   `json:"apple_bm_terms_expired"`
+	AppleBMDefaultTeam string `json:"apple_bm_default_team"`
+	// AppleBMTermsExpired is set to true if an Apple Business Manager request
+	// failed due to Apple's terms and conditions having changed and need the
+	// user to explicitly accept them. It cannot be set manually via the
+	// PATCH /config API, it is only set automatically, internally, by detecting
+	// the 403 Forbidden error with body T_C_NOT_SIGNED returned by the Apple BM
+	// API.
+	AppleBMTermsExpired bool `json:"apple_bm_terms_expired"`
 
 	/////////////////////////////////////////////////////////////////
 	// WARNING: If you add to this struct make sure it's taken into
@@ -196,6 +202,7 @@ func (c *AppConfig) Copy() *AppConfig {
 	// SSOSettings: nothing needs cloning
 	// FleetDesktop: nothing needs cloning
 	// VulnerabilitySettings: nothing needs cloning
+	// MDM: nothing needs cloning
 
 	if c.WebhookSettings.FailingPoliciesWebhook.PolicyIDs != nil {
 		clone.WebhookSettings.FailingPoliciesWebhook.PolicyIDs = make([]uint, len(c.WebhookSettings.FailingPoliciesWebhook.PolicyIDs))
@@ -286,16 +293,6 @@ func (d *Duration) UnmarshalJSON(b []byte) error {
 	default:
 		return fmt.Errorf("invalid duration type: %T", value)
 	}
-}
-
-type MDMSettings struct {
-	// AppleBMTermsExpired is set to true if an Apple Business Manager request
-	// failed due to Apple's terms and conditions having changed and need the
-	// user to explicitly accept them. It cannot be set manually via the
-	// PATCH /config API, it is only set automatically, internally, by detecting
-	// the 403 Forbidden error with body T_C_NOT_SIGNED returned by the Apple BM
-	// API.
-	AppleBMTermsExpired bool `json:"apple_bm_terms_expired"`
 }
 
 type WebhookSettings struct {

@@ -4691,10 +4691,12 @@ func (s *integrationTestSuite) TestAppConfig() {
 	s.DoJSON("GET", "/api/latest/fleet/spec/enroll_secret", nil, http.StatusOK, &specResp)
 	require.Len(t, specResp.Spec.Secrets, 0)
 
-	// try to update the apple bm terms flag via PATCH /config, not allowed
+	// try to update the apple bm terms flag via PATCH /config
+	// request is ok but modified value is ignored
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"mdm": { "apple_bm_terms_expired": false }
-  }`), http.StatusBadRequest, &acResp)
+  }`), http.StatusOK, &acResp)
+	assert.True(t, acResp.MDM.AppleBMTermsExpired)
 
 	// verify that the Apple BM terms expired flag was never modified
 	acResp = appConfigResponse{}

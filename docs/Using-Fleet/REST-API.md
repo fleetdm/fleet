@@ -832,6 +832,7 @@ None.
     "additional_queries": null
   },
   "mdm": {
+    "apple_bm_default_team": "",
     "apple_bm_terms_expired": false
   },
   "agent_options": {
@@ -1082,6 +1083,7 @@ Modifies the Fleet's configuration with the supplied information.
     "expiration": "0001-01-01T00:00:00Z"
   },
   "mdm": {
+    "apple_bm_default_team": "",
     "apple_bm_terms_expired": false
   },
   "agent_options": {

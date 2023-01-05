@@ -419,9 +419,6 @@ func TestDirectIngestMDMMac(t *testing.T) {
 
 	var host fleet.Host
 
-	var appCfg fleet.AppConfig
-	appCfg.ApplyDefaults()
-
 	err := directIngestMDMMac(context.Background(), log.NewNopLogger(), &host, ds, []map[string]string{
 		{
 			"enrolled":           "false",
@@ -442,9 +439,6 @@ func TestDirectIngestMDMWindows(t *testing.T) {
 		require.NotEmpty(t, serverURL)
 		return nil
 	}
-
-	var appCfg fleet.AppConfig
-	appCfg.ApplyDefaults()
 
 	var host fleet.Host
 	err := directIngestMDMWindows(context.Background(), log.NewNopLogger(), &host, ds, []map[string]string{
