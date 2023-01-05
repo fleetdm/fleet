@@ -88,14 +88,6 @@ module.exports = {
           lastName: 'user',
         };
         break;
-      case 'email-subscription-cancellation-confirmation':
-        layout = 'layout-email';
-        fakeData = {
-          firstName: 'Fleet',
-          lastName: 'user',
-          accountExpiresAt: moment(new Date()).format('MMM Do')+', '+moment(new Date()).format('YYYY'),
-        };
-        break;
       case 'email-subscription-renewal-confirmation':
         layout = 'layout-email';
         fakeData = {
