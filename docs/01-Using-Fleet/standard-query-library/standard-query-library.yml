@@ -535,7 +535,7 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: Automatic login disabled (macOS)
+  name: Automatic login disabled (macOS) (MDM Required)
   query: SELECT 1 FROM managed_policies WHERE domain = 'com.apple.loginwindow' AND name = 'com.apple.login.mcx.DisableAutoLoginClient' AND value = 1 LIMIT 1;
   description: "Checks that a mobile device management (MDM) solution configures the Mac to prevent login in without a password."
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that disables automatic login."
@@ -546,7 +546,7 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: Secure keyboard entry for Terminal application enabled (macOS)
+  name: Secure keyboard entry for Terminal application enabled (macOS) (MDM Required)
   query: SELECT 1 FROM managed_policies WHERE domain = 'com.apple.Terminal' AND name = 'SecureKeyboardEntry' AND value = 1 LIMIT 1;
   description: "Checks that a mobile device management (MDM) solution configures the Mac to enabled secure keyboard entry for the Terminal application."
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that enables secure keyboard entry for the Terminal application."
@@ -681,7 +681,7 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: Screen lock enabled (macOS)
+  name: Screen lock enabled (macOS) (MDM Required)
   query: SELECT 1 FROM managed_policies WHERE name='askForPassword' AND value='1';
   description: "Checks that a mobile device management (MDM) solution configures the Mac to enable screen lock."
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that enables screen lock."
@@ -725,7 +725,7 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: Automatic updates enabled (macOS)
+  name: Automatic updates enabled (macOS) (MDM Required)
   query: SELECT 1 FROM managed_policies WHERE domain='com.apple.SoftwareUpdate' AND name='AutomaticCheckEnabled' AND value=1 LIMIT 1;
   description: "Checks that a mobile device management (MDM) solution configures the Mac to automatically check for updates."
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that enables automatic updates."
@@ -736,7 +736,7 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: Automatic update downloads enabled (macOS)
+  name: Automatic update downloads enabled (macOS) (MDM Required)
   query: SELECT 1 FROM managed_policies WHERE domain='com.apple.SoftwareUpdate' AND name='AutomaticDownload' AND value=1 LIMIT 1;
   description: "Checks that a mobile device management (MDM) solution configures the Mac to automatically download updates."
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that enables automatic update downloads."
@@ -747,7 +747,7 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: Automatic installation of application updates is enabled (macOS)
+  name: Automatic installation of application updates is enabled (macOS) (MDM Required)
   query: SELECT 1 FROM managed_policies WHERE domain='com.apple.SoftwareUpdate' AND name='AutomaticallyInstallAppUpdates' AND value=1 LIMIT 1;
   description: "Checks that a mobile device management (MDM) solution configures the Mac to automatically install updates to App Store applications."
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that enables automatic installation of application updates."
@@ -758,7 +758,7 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: Automatic security and data file updates is enabled (macOS)
+  name: Automatic security and data file updates is enabled (macOS) (MDM Required)
   query: SELECT 1 FROM managed_policies WHERE domain='com.apple.SoftwareUpdate' AND name='CriticalUpdateInstall' AND value=1 LIMIT 1;
   description: "Checks that a mobile device management (MDM) solution configures the Mac to automatically download updates to built-in macOS security tools such as malware removal tools."
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that enables automatic security and data update installation."
@@ -769,7 +769,7 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: Automatic installation of operating system updates is enabled (macOS)
+  name: Automatic installation of operating system updates is enabled (macOS) (MDM Required)
   query: SELECT 1 FROM managed_policies WHERE domain='com.apple.SoftwareUpdate' AND name='AutomaticallyInstallMacOSUpdates' AND value=1 LIMIT 1;
   description: "Checks that a mobile device management (MDM) solution configures the Mac to automatically install operating system updates."
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that enables automatic installation of operating system updates."
@@ -780,7 +780,7 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: Time and date are configured to be updated automatically (macOS)
+  name: Time and date are configured to be updated automatically (macOS) (MDM Required)
   query: SELECT 1 FROM managed_policies WHERE domain='com.apple.applicationaccess' AND name='forceAutomaticDateAndTime' AND value=1 LIMIT 1;
   description: "Checks that a mobile device management (MDM) solution configures the Mac to automatically update the time and date."
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that enables automatic time and date configuration."
@@ -791,7 +791,7 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: Lock screen after inactivity of 20 minutes or less (macOS)
+  name: Lock screen after inactivity of 20 minutes or less (macOS) (MDM Required)
   query: SELECT 1 WHERE EXISTS (SELECT CAST(value as integer(4)) valueint from managed_policies WHERE domain = 'com.apple.screensaver' AND name = 'askForPasswordDelay' AND valueint <= 60 LIMIT 1) AND EXISTS (SELECT CAST(value as integer(4)) valueint from managed_policies WHERE domain = 'com.apple.screensaver' AND name = 'idleTime' AND valueint <= 1140 LIMIT 1) AND EXISTS (SELECT 1 from managed_policies WHERE domain='com.apple.screensaver' AND name='askForPassword' AND value=1 LIMIT 1);
   description: "Checks that a mobile device management (MDM) solution configures the Mac to lock the screen after 20 minutes or less."
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that enables the screen saver after inactivity of 20 minutes or less."
@@ -802,7 +802,7 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: Internet sharing is blocked (macOS)
+  name: Internet sharing is blocked (macOS) (MDM Required)
   query: SELECT 1 FROM managed_policies WHERE domain='com.apple.MCX' AND name='forceInternetSharingOff' AND value='1' LIMIT 1;
   description: "Checks that a mobile device management (MDM) solution configures the Mac to prevent Internet sharing."
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that prevents Internet sharing."
@@ -813,7 +813,7 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: Content caching is disabled (macOS)
+  name: Content caching is disabled (macOS) (MDM Required)
   query: SELECT 1 FROM managed_policies WHERE domain='com.apple.applicationaccess' AND name='allowContentCaching' AND value='0' LIMIT 1;
   description: "Checks that a mobile device management (MDM) solution configures the Mac to disable content caching."
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that disables content caching."
@@ -824,7 +824,7 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: Ad tracking is limited (macOS)
+  name: Ad tracking is limited (macOS) (MDM Required)
   query: SELECT 1 FROM managed_policies WHERE domain='com.apple.AdLib' AND name='forceLimitAdTracking' AND value='1' LIMIT 1;
   description: "Checks that a mobile device management (MDM) solution configures the Mac to limit advertisement tracking."
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that disables advertisement tracking."
@@ -835,7 +835,7 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: iCloud Desktop and Document sync is disabled (macOS)
+  name: iCloud Desktop and Document sync is disabled (macOS) (MDM Required)
   query: SELECT 1 FROM managed_policies WHERE domain='com.apple.icloud.managed' AND name='DisableCloudSync' AND value='1' LIMIT 1;
   description: "Checks that a mobile device management (MDM) solution configures the Mac to prevent iCloud Desktop and Documents sync."
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile to prevent iCloud Desktop and Documents sync."
@@ -846,7 +846,7 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: Firewall logging is enabled (macOS)
+  name: Firewall logging is enabled (macOS) (MDM Required)
   query: SELECT 1 FROM managed_policies WHERE domain='com.apple.security.firewall' AND name='EnableLogging' AND value='1' LIMIT 1;
   description: "Checks that a mobile device management (MDM) solution configures the Mac to log firewall activity."
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that enables firewall logging."
@@ -857,7 +857,7 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: Guest account disabled (macOS)
+  name: Guest account disabled (macOS) (MDM Required)
   query: SELECT 1 FROM managed_policies WHERE domain='com.apple.loginwindow' AND name='DisableGuestAccount' AND value='1' LIMIT 1;
   description: "Checks that a mobile device management (MDM) solution configures the Mac to prevent the use of a guest account."
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that disables the guest account."
@@ -868,7 +868,7 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: Guest access to shared folders is disabled (macOS)
+  name: Guest access to shared folders is disabled (macOS) (MDM Required)
   query: SELECT 1 FROM managed_policies WHERE domain='com.apple.AppleFileServer' AND name='guestAccess' AND value='0' LIMIT 1;
   description: "Checks that a mobile device management (MDM) solution configures the Mac to prevent guest access to shared folders."
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that prevents guest access to shared folders."
