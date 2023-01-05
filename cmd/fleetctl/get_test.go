@@ -624,6 +624,7 @@ spec:
     zendesk: null
   mdm:
     apple_bm_default_team: ""
+    apple_bm_terms_expired: false
   license:
     expiration: "0001-01-01T00:00:00Z"
     tier: free
@@ -654,8 +655,6 @@ spec:
         status_log_file: /dev/null
         audit_log_file: /dev/null
       plugin: filesystem
-  mdm:
-    apple_bm_terms_expired: false
   org_info:
     org_logo_url: ""
     org_name: ""
@@ -799,9 +798,10 @@ spec:
       "jira": null,
       "zendesk": null
     },
-    "mdm": {
-      "apple_bm_default_team": ""
-    },
+		"mdm": {
+      "apple_bm_default_team": "",
+			"apple_bm_terms_expired": false
+		},
     "update_interval": {
       "osquery_detail": "1h0m0s",
       "osquery_policy": "1h0m0s"
@@ -854,10 +854,7 @@ spec:
           "audit_log_file": "/dev/null"
         }
       }
-    },
-		"mdm": {
-			"apple_bm_terms_expired": false
-		}
+    }
   }
 }
 `
