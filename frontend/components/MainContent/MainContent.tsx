@@ -27,7 +27,7 @@ const MainContent = ({
   className,
 }: IMainContentProps): JSX.Element => {
   const classes = classnames(baseClass, className);
-  const { sandboxExpiry, config, isSandboxMode, isPremiumTier } = useContext(
+  const { sandboxExpiry, config, isSandboxMode, isPremiumTier, noSandboxHosts } = useContext(
     AppContext
   );
 
@@ -45,7 +45,7 @@ const MainContent = ({
       )}
       <SandboxGate
         fallbackComponent={() => (
-          <SandboxExpiryMessage expiry={sandboxExpiryTime} />
+          <SandboxExpiryMessage expiry={expiry} noSandboxHosts={noSandboxHosts} />
         )}
       />
       {children}
