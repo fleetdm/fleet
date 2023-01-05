@@ -42,7 +42,7 @@ const RequestCSRModal = ({
 
   useEffect(() => {
     requestState === "invalid"
-      ? setInvalidMessage("Must be a valid work email")
+      ? setInvalidMessage("Email")
       : setInvalidMessage("");
   }, [requestState]);
 
