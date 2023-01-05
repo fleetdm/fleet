@@ -1,17 +1,17 @@
 module.exports = {
 
 
-  friendlyName: 'Recieve Stripe subscription events',
+  friendlyName: 'Receive Stripe subscription events',
 
 
-  description: 'Recieves events from Stripe about subscription renewals and send ',
+  description: 'Receive events from Stripe about subscription renewals',
 
 
   exits: {
     success: { description: 'A Stripe event has successfully been received' },
     invalidRequestingIp: {description: 'The webhook received a request from a non stripe IP address', responseType: 'unauthorized'},
-    missingStripeHeader: { description: 'The webhook recieved a request with no stripe-signature header', responseType: 'unauthorized'},
-    missingRequestBody: { description: 'The webhook recieved a request with no body', responseType: 'badRequest'},
+    missingStripeHeader: { description: 'The webhook received a request with no stripe-signature header', responseType: 'unauthorized'},
+    missingRequestBody: { description: 'The webhook received a request with no body', responseType: 'badRequest'},
     subscriptionUpdated: { description: 'A subscription had been successfully renewed.', responseType: 'ok' },
     subscriptionRenewalEmailSent: { description: 'A user had been sent an email notification of their subscritpion renewal', responseType: 'ok' },
   },
@@ -57,7 +57,7 @@ module.exports = {
       stripeEvent = stripe.webhooks.constructEvent(this.req.body, stripeSignatureHeader, sails.config.custom.stripeSubscriptionWebhookSecret);
     } catch (err) {
       // throw an error if there was an error constructing the event.
-      throw new Error(`When the webhook recieved a valid request from Stripe, the event provided could not be constructed by the stripe.webhooks.constructEvent method. Full error ${err}`);
+      throw new Error(`When the webhook received a valid request from Stripe, the event provided could not be constructed by the stripe.webhooks.constructEvent method. Full error ${err}`);
     }
 
     let stripeEventData = stripeEvent.data.object;
@@ -72,7 +72,7 @@ module.exports = {
     let subscriptionForThisEvent = await Subscription.findOne({stripeSubscriptionId: subscriptionIdToFind}).populate('User');
 
     if(!subscriptionForThisEvent){
-      throw new Error(`The Stripe subscription events webhook recieved a event for a subscription with stripeSubscriptionId: ${subscriptionIdToFind}, but no matching record was found in our database.`);
+      throw new Error(`The Stripe subscription events webhook received a event for a subscription with stripeSubscriptionId: ${subscriptionIdToFind}, but no matching record was found in our database.`);
     }
 
     let userForThisSubscription = subscriptionForThisEvent.user;
@@ -137,7 +137,7 @@ module.exports = {
 
       return exits.subscriptionUpdated;
     }
-    // FUTURE: send emails about failed payments with a link to the Stripe invoice. (stripeEvent.type === 'invoice.payment_failed' && stripeEventData.billing_reason === 'subscription_cycle')
+    // FUTURE: send emails about failed payments. (stripeEvent.type === 'invoice.payment_failed' && stripeEventData.billing_reason === 'subscription_cycle')
 
 
     return;

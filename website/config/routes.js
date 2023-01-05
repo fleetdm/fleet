@@ -366,7 +366,7 @@ module.exports.routes = {
   //  ╚╩╝╚═╝╚═╝╩ ╩╚═╝╚═╝╩ ╩╚═╝
   'POST /api/v1/webhooks/receive-usage-analytics': { action: 'webhooks/receive-usage-analytics', csrf: false },
   '/api/v1/webhooks/github': { action: 'webhooks/receive-from-github', csrf: false },
-  'POST /api/v1/webhooks/recieve-stripe-subscription-events': { action: 'webhooks/recieve-stripe-subscription-events', csrf: false },
+  'POST /api/v1/webhooks/receive-stripe-subscription-events': { action: 'webhooks/receive-stripe-subscription-events', csrf: false },
 
 
   //  ╔═╗╔═╗╦  ╔═╗╔╗╔╔╦╗╔═╗╔═╗╦╔╗╔╔╦╗╔═╗
