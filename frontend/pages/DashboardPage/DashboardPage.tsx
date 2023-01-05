@@ -309,14 +309,14 @@ const DashboardPage = ({
         );
         setMdmEnrollmentData([
           {
-            status: "Enrolled (manual)",
+            status: "On (manual)",
             hosts: enrolled_manual_hosts_count,
           },
           {
-            status: "Enrolled (automatic)",
+            status: "On (automatic)",
             hosts: enrolled_automated_hosts_count,
           },
-          { status: "Unenrolled", hosts: unenrolled_hosts_count },
+          { status: "Off", hosts: unenrolled_hosts_count },
         ]);
         setMdmSolutions(mobile_device_management_solution);
         setShowMdmCard(true);

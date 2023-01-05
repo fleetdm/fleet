@@ -436,13 +436,13 @@ func MDMNameFromServerURL(serverURL string) string {
 func (h *HostMDM) EnrollmentStatus() string {
 	switch {
 	case h.Enrolled && !h.InstalledFromDep:
-		return "Enrolled (manual)"
+		return "On (manual)"
 	case h.Enrolled && h.InstalledFromDep:
-		return "Enrolled (automated)"
+		return "On (automatic)"
 	case !h.Enrolled && h.InstalledFromDep:
 		return "Pending"
 	default:
-		return "Unenrolled"
+		return "Off"
 	}
 }
 
