@@ -18,15 +18,18 @@ const requestCSR = async (
   const token = local.getItem("auth_token");
   const url = "https://www.fleetdm.com/api/v1/get_signed_apns_csr";
   try {
-    await axios({
-      method: "post",
-      url,
-      data: formData,
-      responseType: "json",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
+    // await axios({
+    //   method: "post",
+    //   url,
+    //   data: formData,
+    //   responseType: "json",
+    //   headers: {
+    //     Authorization: `Bearer ${token}`,
+    //   },
+    // });
+    alert(
+      "Dummy success placeholder – did not actually request from API (which is WIP)"
+    );
     setRequestState("success");
   } catch (error) {
     if (error === "invalid") {
