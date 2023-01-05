@@ -1,12 +1,13 @@
 import React from "react";
 import { find, lowerCase, noop } from "lodash";
-import { formatDistanceToNowStrict } from "date-fns";
+import { intlFormat, formatDistanceToNowStrict } from "date-fns";
 
 import { ActivityType, IActivity, IActivityDetails } from "interfaces/activity";
 import { addGravatarUrlToResource } from "utilities/helpers";
 import Avatar from "components/Avatar";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
+import ReactTooltip from "react-tooltip";
 
 const baseClass = "activity-item";
 
@@ -237,6 +238,8 @@ const ActivityItem = ({
     ? addGravatarUrlToResource({ email: actor_email })
     : { gravatarURL: DEFAULT_GRAVATAR_URL };
 
+  const activityCreatedAt = new Date(activity.created_at);
+
   return (
     <div className={baseClass}>
       <Avatar
@@ -257,12 +260,34 @@ const ActivityItem = ({
           <br />
           <span
             className={`${baseClass}__details-bottomline`}
-            title={new Date(activity.created_at).toString()}
+            data-tip
+            data-for={`activity-${activity.id}`}
           >
-            {formatDistanceToNowStrict(new Date(activity.created_at), {
+            {formatDistanceToNowStrict(activityCreatedAt, {
               addSuffix: true,
             })}
           </span>
+          <ReactTooltip
+            className="date-tooltip"
+            place="top"
+            type="dark"
+            effect="solid"
+            id={`activity-${activity.id}`}
+            backgroundColor="#3e4771"
+          >
+            {intlFormat(
+              activityCreatedAt,
+              {
+                year: "numeric",
+                month: "numeric",
+                day: "numeric",
+                hour: "numeric",
+                minute: "numeric",
+                second: "numeric",
+              },
+              { locale: window.navigator.languages[0] }
+            )}
+          </ReactTooltip>
         </p>
       </div>
     </div>

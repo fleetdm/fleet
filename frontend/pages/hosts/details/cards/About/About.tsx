@@ -1,9 +1,10 @@
 import React from "react";
 
 import ReactTooltip from "react-tooltip";
+import HumanTimeDiffWithDateTip from "components/HumanTimeDiffWithDateTip";
 
 import { IHostMdmData, IMunkiData, IDeviceUser } from "interfaces/host";
-import { humanHostLastRestart, humanHostEnrolled } from "utilities/helpers";
+import { humanHostLastRestart } from "utilities/helpers";
 
 interface IAboutProps {
   aboutData: { [key: string]: any };
@@ -18,7 +19,6 @@ const About = ({
   deviceMapping,
   munki,
   mdm,
-  wrapFleetHelper,
 }: IAboutProps): JSX.Element => {
   const renderSerialAndIPs = () => {
     return (
@@ -143,7 +143,6 @@ const About = ({
       </div>
     );
   };
-
   return (
     <div className="section about">
       <p className="section__header">About</p>
@@ -151,16 +150,20 @@ const About = ({
         <div className="info-grid__block">
           <span className="info-grid__header">Added to Fleet</span>
           <span className="info-grid__data">
-            {wrapFleetHelper(humanHostEnrolled, aboutData.last_enrolled_at)}
+            <HumanTimeDiffWithDateTip
+              timeString={aboutData.last_enrolled_at ?? "Unavailable"}
+            />
           </span>
         </div>
         <div className="info-grid__block">
           <span className="info-grid__header">Last restarted</span>
           <span className="info-grid__data">
-            {humanHostLastRestart(
-              aboutData.detail_updated_at,
-              aboutData.uptime
-            )}
+            <HumanTimeDiffWithDateTip
+              timeString={humanHostLastRestart(
+                aboutData.detail_updated_at,
+                aboutData.uptime
+              )}
+            />
           </span>
         </div>
         <div className="info-grid__block">
