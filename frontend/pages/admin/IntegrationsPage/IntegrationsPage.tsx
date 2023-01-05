@@ -39,8 +39,6 @@ const IntegrationsPage = ({ params }: IIntegrationSettingsPageProps) => {
 
   return (
     <div className={`${baseClass}`}>
-      {/* TODO: put Mdm in the right place, as a tab under Gabe's new side-nav layout in Integrations */}
-      <Mdm />
       <p className={`${baseClass}__page-description`}>
         {isMdmEnabled ? MDM_ENABLED_DESCRIPTION : MDM_DISABLED_DESCRIPTION}
       </p>
