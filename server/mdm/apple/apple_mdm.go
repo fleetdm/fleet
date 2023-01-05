@@ -21,6 +21,10 @@ const (
 	EnrollPath = "/api/mdm/apple/enroll"
 	// InstallerPath is the HTTP path that serves installers to Apple devices.
 	InstallerPath = "/api/mdm/apple/installer"
+
+	// FleetPayloadIdentifier is the value for the "<key>PayloadIdentifier</key>"
+	// used by Fleet MDM on the enrollment profile.
+	FleetPayloadIdentifier = "com.fleetdm.fleet.mdm.apple"
 )
 
 func ResolveAppleMDMURL(serverURL string) (string, error) {

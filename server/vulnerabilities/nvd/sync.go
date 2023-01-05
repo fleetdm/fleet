@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -33,13 +32,11 @@ type SyncOptions struct {
 
 // Sync downloads all the vulnerability data sources.
 func Sync(opts SyncOptions) error {
-	client := fleethttp.NewClient()
-
-	if err := DownloadCPEDB(opts.VulnPath, client, opts.CPEDBURL); err != nil {
+	if err := DownloadCPEDBFromGithub(opts.VulnPath, opts.CPEDBURL); err != nil {
 		return fmt.Errorf("sync CPE database: %w", err)
 	}
 
-	if err := DownloadCPETranslations(opts.VulnPath, client, opts.CPETranslationsURL); err != nil {
+	if err := DownloadCPETranslationsFromGithub(opts.VulnPath, opts.CPETranslationsURL); err != nil {
 		return fmt.Errorf("sync CPE translations: %w", err)
 	}
 
@@ -47,11 +44,11 @@ func Sync(opts SyncOptions) error {
 		return fmt.Errorf("sync NVD CVE feed: %w", err)
 	}
 
-	if err := DownloadEPSSFeed(opts.VulnPath, client); err != nil {
+	if err := DownloadEPSSFeed(opts.VulnPath); err != nil {
 		return fmt.Errorf("sync EPSS CVE feed: %w", err)
 	}
 
-	if err := DownloadCISAKnownExploitsFeed(opts.VulnPath, client); err != nil {
+	if err := DownloadCISAKnownExploitsFeed(opts.VulnPath); err != nil {
 		return fmt.Errorf("sync CISA known exploits feed: %w", err)
 	}
 
@@ -64,7 +61,7 @@ const (
 )
 
 // DownloadEPSSFeed downloads the EPSS scores feed.
-func DownloadEPSSFeed(vulnPath string, client *http.Client) error {
+func DownloadEPSSFeed(vulnPath string) error {
 	urlString := epssFeedsURL + "/" + epssFilename
 	u, err := url.Parse(urlString)
 	if err != nil {
@@ -72,6 +69,7 @@ func DownloadEPSSFeed(vulnPath string, client *http.Client) error {
 	}
 	path := filepath.Join(vulnPath, strings.TrimSuffix(epssFilename, ".gz"))
 
+	client := fleethttp.NewClient()
 	err = download.DownloadAndExtract(client, u, path)
 	if err != nil {
 		return fmt.Errorf("download %s: %w", u, err)
@@ -160,7 +158,7 @@ type knownExploitedVulnerability struct {
 }
 
 // DownloadCISAKnownExploitsFeed downloads the CISA known exploited vulnerabilities feed.
-func DownloadCISAKnownExploitsFeed(vulnPath string, client *http.Client) error {
+func DownloadCISAKnownExploitsFeed(vulnPath string) error {
 	path := filepath.Join(vulnPath, cisaKnownExploitsFilename)
 
 	u, err := url.Parse(cisaKnownExploitsURL)
@@ -168,6 +166,7 @@ func DownloadCISAKnownExploitsFeed(vulnPath string, client *http.Client) error {
 		return err
 	}
 
+	client := fleethttp.NewClient()
 	err = download.Download(client, u, path)
 	if err != nil {
 		return fmt.Errorf("download cisa known exploits: %w", err)

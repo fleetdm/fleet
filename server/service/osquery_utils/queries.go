@@ -31,22 +31,16 @@ type DetailQuery struct {
 	// empty, run on all platforms.
 	Platforms []string
 	// IngestFunc translates a query result into an update to the host struct,
-	// around data that lives on the hosts table. No other IngestFunc field should
-	// be set.
+	// around data that lives on the hosts table.
 	IngestFunc func(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error
 	// DirectIngestFunc gathers results from a query and directly works with the datastore to
 	// persist them. This is usually used for host data that is stored in a separate table.
-	// No other IngestFunc field should be set.
+	// DirectTaskIngestFunc must not be set if this is set.
 	DirectIngestFunc func(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error
 	// DirectTaskIngestFunc is similar to DirectIngestFunc except that it uses a task to
 	// ingest the results. This is for ingestion that can be either sync or async.
-	// No other IngestFunc field should be set.
+	// DirectIngestFunc must not be set if this is set.
 	DirectTaskIngestFunc func(ctx context.Context, logger log.Logger, host *fleet.Host, task *async.Task, rows []map[string]string) error
-	// DirectAppConfigIngestFunc is similar to DirectIngestFunc except that it
-	// also receives the current AppConfig as argument. No other IngestFunc field
-	// should be set.
-	// TODO: anyone has better ideas on how to provide the AppConfig to an ingestion?
-	DirectAppConfigIngestFunc func(ctx context.Context, logger log.Logger, host *fleet.Host, appCfg *fleet.AppConfig, ds fleet.Datastore, rows []map[string]string) error
 }
 
 // RunsForPlatform determines whether this detail query should run on the given platform
@@ -160,7 +154,7 @@ limit 1
 	SELECT
 		os.name,
 		os.codename as display_version
-
+	
 	FROM
 		os_version os`,
 		Platforms: []string{"windows"},
@@ -390,10 +384,10 @@ func ingestKubequeryInfo(ctx context.Context, logger log.Logger, host *fleet.Hos
 // This map should not be modified at runtime.
 var extraDetailQueries = map[string]DetailQuery{
 	"mdm": {
-		Query:                     `select enrolled, server_url, installed_from_dep from mdm;`,
-		DirectAppConfigIngestFunc: directIngestMDMMac,
-		Platforms:                 []string{"darwin"},
-		Discovery:                 discoveryTable("mdm"),
+		Query:            `select enrolled, server_url, installed_from_dep, payload_identifier from mdm;`,
+		DirectIngestFunc: directIngestMDMMac,
+		Platforms:        []string{"darwin"},
+		Discovery:        discoveryTable("mdm"),
 	},
 	"mdm_windows": {
 		Query: `
@@ -422,8 +416,8 @@ var extraDetailQueries = map[string]DetailQuery{
 			)
 			;
 		`,
-		DirectAppConfigIngestFunc: directIngestMDMWindows,
-		Platforms:                 []string{"windows"},
+		DirectIngestFunc: directIngestMDMWindows,
+		Platforms:        []string{"windows"},
 	},
 	"munki_info": {
 		Query:            `select version, errors, warnings from munki_info;`,
@@ -455,7 +449,7 @@ var extraDetailQueries = map[string]DetailQuery{
 		os.arch,
 		k.version as kernel_version,
 		os.codename as display_version
-
+	
 	FROM
 		os_version os,
 		kernel_info k`,
@@ -1095,7 +1089,7 @@ func directIngestUsers(ctx context.Context, logger log.Logger, host *fleet.Host,
 	return nil
 }
 
-func directIngestMDMMac(ctx context.Context, logger log.Logger, host *fleet.Host, appCfg *fleet.AppConfig, ds fleet.Datastore, rows []map[string]string) error {
+func directIngestMDMMac(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
 	if len(rows) == 0 {
 		// assume the extension is not there
 		return nil
@@ -1121,14 +1115,33 @@ func directIngestMDMMac(ctx context.Context, logger log.Logger, host *fleet.Host
 		}
 	}
 
-	fleetMDMURL, err := apple_mdm.ResolveAppleMDMURL(appCfg.ServerSettings.ServerURL)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "resolve Apple MDM url")
-	}
-	return ds.SetOrUpdateMDMData(ctx, host.ID, false, enrolled, rows[0]["server_url"], installedFromDep, "", fleetMDMURL)
+	return ds.SetOrUpdateMDMData(ctx,
+		host.ID,
+		false,
+		enrolled,
+		rows[0]["server_url"],
+		installedFromDep,
+		deduceMDMNameMacOS(rows[0]),
+	)
 }
 
-func directIngestMDMWindows(ctx context.Context, logger log.Logger, host *fleet.Host, appCfg *fleet.AppConfig, ds fleet.Datastore, rows []map[string]string) error {
+func deduceMDMNameMacOS(row map[string]string) string {
+	// If the PayloadIdentifier is Fleet's MDM then use Fleet as name of the MDM solution.
+	// (For Fleet MDM we cannot use the URL because Fleet can be deployed On-Prem.)
+	if payloadIdentifier := row["payload_identifier"]; payloadIdentifier == apple_mdm.FleetPayloadIdentifier {
+		return fleet.WellKnownMDMFleet
+	}
+	return fleet.MDMNameFromServerURL(row["server_url"])
+}
+
+func deduceMDMNameWindows(data map[string]string) string {
+	if name := data["provider_id"]; name != "" {
+		return name
+	}
+	return fleet.MDMNameFromServerURL(data["discovery_service_url"])
+}
+
+func directIngestMDMWindows(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
 	data := make(map[string]string, len(rows))
 	for _, r := range rows {
 		data[r["key"]] = r["value"]
@@ -1136,11 +1149,14 @@ func directIngestMDMWindows(ctx context.Context, logger log.Logger, host *fleet.
 	_, autoPilot := data["autopilot"]
 	isServer := strings.Contains(strings.ToLower(data["installation_type"]), "server")
 	_, enrolled := data["provider_id"]
-	fleetMDMURL, err := apple_mdm.ResolveAppleMDMURL(appCfg.ServerSettings.ServerURL)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "resolve Apple MDM url")
-	}
-	return ds.SetOrUpdateMDMData(ctx, host.ID, isServer, enrolled, data["discovery_service_url"], autoPilot, data["provider_id"], fleetMDMURL)
+	return ds.SetOrUpdateMDMData(ctx,
+		host.ID,
+		isServer,
+		enrolled,
+		data["discovery_service_url"],
+		autoPilot,
+		deduceMDMNameWindows(data),
+	)
 }
 
 func directIngestMunkiInfo(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {

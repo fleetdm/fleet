@@ -21,9 +21,11 @@ type listActivitiesResponse struct {
 
 func (r listActivitiesResponse) error() error { return r.Err }
 
-func listActivitiesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func listActivitiesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*listActivitiesRequest)
-	activities, err := svc.ListActivities(ctx, req.ListOptions)
+	activities, err := svc.ListActivities(ctx, fleet.ListActivitiesOptions{
+		ListOptions: req.ListOptions,
+	})
 	if err != nil {
 		return listActivitiesResponse{Err: err}, nil
 	}
@@ -32,7 +34,7 @@ func listActivitiesEndpoint(ctx context.Context, request interface{}, svc fleet.
 }
 
 // ListActivities returns a slice of activities for the whole organization
-func (svc *Service) ListActivities(ctx context.Context, opt fleet.ListOptions) ([]*fleet.Activity, error) {
+func (svc *Service) ListActivities(ctx context.Context, opt fleet.ListActivitiesOptions) ([]*fleet.Activity, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Activity{}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
@@ -45,8 +47,12 @@ func logRoleChangeActivities(ctx context.Context, ds fleet.Datastore, adminUser 
 		if err := ds.NewActivity(
 			ctx,
 			adminUser,
-			fleet.ActivityTypeChangedUserGlobalRole,
-			&map[string]interface{}{"user_name": user.Name, "user_id": user.ID, "user_email": user.Email, "role": *user.GlobalRole},
+			fleet.ActivityTypeChangedUserGlobalRole{
+				UserID:    user.ID,
+				UserName:  user.Name,
+				UserEmail: user.Email,
+				Role:      *user.GlobalRole,
+			},
 		); err != nil {
 			return err
 		}
@@ -55,8 +61,12 @@ func logRoleChangeActivities(ctx context.Context, ds fleet.Datastore, adminUser 
 		if err := ds.NewActivity(
 			ctx,
 			adminUser,
-			fleet.ActivityTypeDeletedUserGlobalRole,
-			&map[string]interface{}{"user_name": user.Name, "user_id": user.ID, "user_email": user.Email, "role": *oldRole},
+			fleet.ActivityTypeDeletedUserGlobalRole{
+				UserID:    user.ID,
+				UserName:  user.Name,
+				UserEmail: user.Email,
+				OldRole:   *oldRole,
+			},
 		); err != nil {
 			return err
 		}
@@ -76,8 +86,14 @@ func logRoleChangeActivities(ctx context.Context, ds fleet.Datastore, adminUser 
 		if err := ds.NewActivity(
 			ctx,
 			adminUser,
-			fleet.ActivityTypeChangedUserTeamRole,
-			&map[string]interface{}{"user_name": user.Name, "user_id": user.ID, "user_email": user.Email, "team_name": t.Name, "team_id": t.ID, "role": t.Role},
+			fleet.ActivityTypeChangedUserTeamRole{
+				UserID:    user.ID,
+				UserName:  user.Name,
+				UserEmail: user.Email,
+				Role:      t.Role,
+				TeamID:    t.ID,
+				TeamName:  t.Name,
+			},
 		); err != nil {
 			return err
 		}
@@ -89,8 +105,14 @@ func logRoleChangeActivities(ctx context.Context, ds fleet.Datastore, adminUser 
 		if err := ds.NewActivity(
 			ctx,
 			adminUser,
-			fleet.ActivityTypeDeletedUserTeamRole,
-			&map[string]interface{}{"user_name": user.Name, "user_id": user.ID, "user_email": user.Email, "team_name": o.Name, "team_id": o.ID, "role": o.Role},
+			fleet.ActivityTypeDeletedUserTeamRole{
+				UserID:    user.ID,
+				UserName:  user.Name,
+				UserEmail: user.Email,
+				Role:      o.Role,
+				TeamID:    o.ID,
+				TeamName:  o.Name,
+			},
 		); err != nil {
 			return err
 		}

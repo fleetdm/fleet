@@ -420,8 +420,8 @@ github.com/fleetdm/goose v0.0.0-20221011170007-06aacf8ac547 h1:3Vlgx6mJYFlj3GPB3
 github.com/fleetdm/goose v0.0.0-20221011170007-06aacf8ac547/go.mod h1:d7Q+0eCENnKQUhkfAUVLfGnD4QcgJMF/uB9WRTN9TDI=
 github.com/fleetdm/nanodep v0.1.1-0.20221221202251-71b67ab1da24 h1:XhczaxKV3J4NjztroidSnYKyq5xtxF+amBYdBWeik58=
 github.com/fleetdm/nanodep v0.1.1-0.20221221202251-71b67ab1da24/go.mod h1:QzQrCUTmSr9HotzKZAcfmy+czbEGK8Mq26hA+0DN4ag=
-github.com/fleetdm/nanomdm v0.3.1-0.20221005204003-0c868c49ef10 h1:0UqWDMG4mb2ywA1EYa3yfC0JqAMS4LdD6lsmHGVHkZw=
-github.com/fleetdm/nanomdm v0.3.1-0.20221005204003-0c868c49ef10/go.mod h1:MJ03vNSdJguAqmjTg8wDKBL9Dav+H2kOgrKiaY/lDVc=
+github.com/fleetdm/nanomdm v0.3.1-0.20221221183439-b4a379587352 h1:4upMq8JmV+Q1VDHvZNtsj6qHARIZ/+rVcVWu6u31Z30=
+github.com/fleetdm/nanomdm v0.3.1-0.20221221183439-b4a379587352/go.mod h1:MJ03vNSdJguAqmjTg8wDKBL9Dav+H2kOgrKiaY/lDVc=
 github.com/fleetdm/scep/v2 v2.1.1-0.20220729212655-4f19f0a10a03 h1:oW24iL1GfGWW1VhyWrVdw7VdnyvFePyzR88zvfnTqCo=
 github.com/fleetdm/scep/v2 v2.1.1-0.20220729212655-4f19f0a10a03/go.mod h1:PajjVSF3LaELUh847MlOtanfqrF8R2DOO4oS3NSPemI=
 github.com/flynn/go-shlex v0.0.0-20150515145356-3f9db97f8568/go.mod h1:xEzjJPgXI435gkrCt3MPfRiAkVrwSbHsst4LCFVfpJc=

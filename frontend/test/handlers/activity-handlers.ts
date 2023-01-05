@@ -3,6 +3,8 @@ import { rest } from "msw";
 import createMockActivity from "__mocks__/activityMock";
 import { baseUrl } from "test/test-utils";
 
+import { ActivityType } from "interfaces/activity";
+
 export const defaultActivityHandler = rest.get(
   baseUrl("/activities"),
   (req, res, context) => {
@@ -10,8 +12,8 @@ export const defaultActivityHandler = rest.get(
       context.json({
         activities: [
           createMockActivity(),
-          createMockActivity({ id: 2, actor_full_name: "Gabe" }),
-          createMockActivity({ id: 3, actor_full_name: "Luke" }),
+          createMockActivity({ id: 2, actor_full_name: "Test User 2" }),
+          createMockActivity({ id: 3, actor_full_name: "Test User 3" }),
         ],
       })
     );
