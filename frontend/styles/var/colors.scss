@@ -11,7 +11,7 @@ $core-dark-blue-grey: #506e92;
 $ui-fleet-black-75: #515774;
 $ui-fleet-black-50: #8b8fa2;
 $ui-fleet-black-25: #c5c7d1;
-$ui-fleet-blue-15: #e2e4ea;
+$ui-fleet-black-10: #e2e4ea;
 $ui-fleet-blue-10: #F9FAFC;
 $ui-dark-blue-gray: #afbec1;
 $ui-blue-gray: #dbe3e5;
@@ -48,8 +48,9 @@ $gradients-bright-gradient: linear-gradient(180deg, #ae6ddf 0%, #6a67fe 100%);
 // Colors for over (hover) and down (active) buttons styles
 $core-vibrant-red-over: #e93661;
 $core-vibrant-red-down: #cb3559;
-$core-vibrant-blue-over: #5855eb;
-$core-vibrant-blue-down: #3f3cd4;
+$core-vibrant-blue-over: #5d5ae7;
+$core-vibrant-blue-down: #4b4ab4;
+$core-focused-outline: #d9d9fe;
 $core-fleet-blue-over: #303860;
 $core-fleet-blue-down: $core-fleet-black;
 
