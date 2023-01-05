@@ -10,7 +10,7 @@ import InputField from "components/forms/fields/InputField";
 import Spinner from "components/Spinner";
 import requestCSR from "services/entities/mdm_csr";
 import DataError from "components/DataError";
-import Check from "components/icons/Check";
+import Icon from "components/Icon";
 import Modal from "components/Modal";
 
 const baseClass = "modal request-csr-modal";
@@ -37,7 +37,7 @@ const RequestCSRModal = ({
 
   const [requestState, setRequestState] = useState<
     "loading" | "error" | "success" | "invalid" | undefined
-  >(undefined);
+  >("success");
   const [invalidMessage, setInvalidMessage] = useState<string>("");
 
   useEffect(() => {
@@ -63,7 +63,7 @@ const RequestCSRModal = ({
       case "success":
         return (
           <div className="success">
-            <Check />
+            <Icon name="circled-check" />
             <h2>You&apos;re almost there</h2>
             <p>
               Go to your <strong>{email}</strong> email to download your CSR.
