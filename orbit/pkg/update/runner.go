@@ -128,10 +128,6 @@ func (r *Runner) UpdateAction() (bool, error) {
 		return false, fmt.Errorf("update metadata: %w", err)
 	}
 
-	needsSymlinkUpdate, err := r.needsSymlinkUpdate()
-	if err != nil {
-		return false, fmt.Errorf("check symlink failed: %w", err)
-	}
 	var didUpdate bool
 	for _, target := range r.opt.Targets {
 		meta, err := r.updater.Lookup(target)
@@ -142,6 +138,17 @@ func (r *Runner) UpdateAction() (bool, error) {
 		if err != nil {
 			return didUpdate, fmt.Errorf("select hash for cache: %w", err)
 		}
+
+		// Check if we need to update the orbit symlink (e.g. if channel changed)
+		needsSymlinkUpdate := false
+		if target == "orbit" {
+			var err error
+			needsSymlinkUpdate, err = r.needsOrbitSymlinkUpdate()
+			if err != nil {
+				return false, fmt.Errorf("check symlink failed: %w", err)
+			}
+		}
+
 		// Check whether the hash of the repository is different than
 		// that of the target local file.
 		if !bytes.Equal(r.localHashes[target], metaHash) || needsSymlinkUpdate {
@@ -160,7 +167,7 @@ func (r *Runner) UpdateAction() (bool, error) {
 	return didUpdate, nil
 }
 
-func (r *Runner) needsSymlinkUpdate() (bool, error) {
+func (r *Runner) needsOrbitSymlinkUpdate() (bool, error) {
 	localTarget, err := r.updater.Get("orbit")
 	if err != nil {
 		return false, fmt.Errorf("get binary: %w", err)

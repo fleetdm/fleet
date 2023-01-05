@@ -44,10 +44,11 @@ func TestNewRunner(t *testing.T) {
 	require.FileExists(t, execPath)
 
 	// Create another Runner but with the target already existing.
+	// This should be true since orbit needs to restart
 	r2, err := NewRunner(u, runnerOpts)
 	require.NoError(t, err)
 
 	didUpdate, err = r2.UpdateAction()
 	require.NoError(t, err)
-	require.False(t, didUpdate)
+	require.True(t, didUpdate)
 }
