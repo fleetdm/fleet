@@ -49,11 +49,16 @@ module.exports.http = {
     *                                                                          *
     ***************************************************************************/
 
-    // bodyParser: (function _configureBodyParser(){
-    //   var skipper = require('skipper');
-    //   var middlewareFn = skipper({ strict: true });
-    //   return middlewareFn;
-    // })(),
+    bodyParser: function(req, res, next) {
+      var skipper = require('skipper');
+      var rawParser = require("body-parser").raw({type: "*/*"});
+      // If a request contains a stripe-signature header, use the rawParser to send the raw request body.
+      if (req.headers && req.headers['stripe-signature']) {
+        return rawParser(req, res, next);
+      }
+      // Otherwise use Skipper to parse the body
+      return skipper(req, res, next);
+    },
 
   },
 
