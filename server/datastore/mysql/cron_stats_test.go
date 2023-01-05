@@ -105,7 +105,7 @@ func TestCleanupCronStats(t *testing.T) {
 	ctx := context.Background()
 	ds := CreateMySQLDS(t)
 	now := time.Now().UTC().Truncate(time.Second)
-	twoWeeksAgo := now.Add(-14 * 24 * time.Hour)
+	twoWeeksAgo := now.Add(-2 * 24 * time.Hour)
 	name := "test_sched"
 	instance := "test_instance"
 
