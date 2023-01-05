@@ -349,7 +349,7 @@ const ManageHostsPage = ({
     }
   );
 
-  useQuery<IStoredPolicyResponse, Error>(
+  const { isLoading: isLoadingPolicy } = useQuery<IStoredPolicyResponse, Error>(
     ["policy"],
     () => globalPoliciesAPI.load(policyId),
     {
@@ -357,8 +357,13 @@ const ManageHostsPage = ({
       onSuccess: ({ policy: policyAPIResponse }) => {
         setPolicy(policyAPIResponse);
       },
+      onError: () => {
+        setHasHostErrors(true);
+      },
     }
   );
+
+  console.log("hasPolicyErrors", hasHostErrors);
 
   const { data: osVersions } = useQuery<
     IOSVersionsResponse,
@@ -1645,7 +1650,14 @@ const ManageHostsPage = ({
   };
 
   const renderTable = () => {
-    if (!config || !currentUser || !hosts || !teamSync) {
+    if (
+      !config ||
+      !currentUser ||
+      isHostCountLoading ||
+      isHostsLoading ||
+      isLoadingPolicy ||
+      !teamSync
+    ) {
       return <Spinner />;
     }
 
@@ -1709,7 +1721,7 @@ const ManageHostsPage = ({
     return (
       <TableContainer
         columns={tableColumns}
-        data={hosts}
+        data={hosts || []}
         isLoading={isHostsLoading || isHostCountLoading}
         manualSortBy
         defaultSortHeader={(sortBy[0] && sortBy[0].key) || DEFAULT_SORT_HEADER}
