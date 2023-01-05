@@ -363,8 +363,6 @@ const ManageHostsPage = ({
     }
   );
 
-  console.log("hasPolicyErrors", hasHostErrors);
-
   const { data: osVersions } = useQuery<
     IOSVersionsResponse,
     Error,
