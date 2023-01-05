@@ -94,6 +94,7 @@ import PolicyIcon from "../../../../assets/images/icon-policy-fleet-black-12x12@
 import DownloadIcon from "../../../../assets/images/icon-download-12x12@2x.png";
 import LabelFilterSelect from "./components/LabelFilterSelect";
 import FilterPill from "./components/FilterPill";
+import ManualEnrollMdmModal from "../details/DeviceUserPage/ManualEnrollMdmModal";
 
 interface IManageHostsProps {
   route: RouteProps;
@@ -1389,14 +1390,15 @@ const ManageHostsPage = ({
         ? teamSecrets?.[0].secret
         : globalSecrets?.[0].secret;
     return (
-      <AddHostsModal
-        currentTeam={currentTeam}
-        enrollSecret={enrollSecret}
-        isLoading={isLoadingTeams || isGlobalSecretsLoading}
-        isSandboxMode={!!isSandboxMode}
-        onCancel={toggleAddHostsModal}
-        openEnrollSecretModal={() => setShowEnrollSecretModal(true)}
-      />
+      <ManualEnrollMdmModal onCancel={() => undefined} />
+      // <AddHostsModal
+      //   currentTeam={currentTeam}
+      //   enrollSecret={enrollSecret}
+      //   isLoading={isLoadingTeams || isGlobalSecretsLoading}
+      //   isSandboxMode={!!isSandboxMode}
+      //   onCancel={toggleAddHostsModal}
+      //   openEnrollSecretModal={() => setShowEnrollSecretModal(true)}
+      // />
     );
   };
 
