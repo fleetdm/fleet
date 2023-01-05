@@ -626,7 +626,7 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: MDM Enrolled (macOS)
+  name: MDM Enrolled (macOS) (MDM Required)
   query: SELECT 1 from mdm WHERE enrolled='true';
   description: "Required: osquery deployed with Orbit, or manual installation of macadmins/osquery-extension. Checks that a mac is enrolled to MDM. Add a AND on identity_certificate_uuid to check for a specific MDM."
   resolution: "Enroll device to MDM"
