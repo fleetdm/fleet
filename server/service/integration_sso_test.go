@@ -131,6 +131,20 @@ func (s *integrationSSOTestSuite) TestSSOLogin() {
 	assert.Equal(t, "sso_user2@example.com", auth.UserID())
 	assert.Equal(t, "SSO User 2", auth.UserDisplayName())
 	require.Contains(t, body, "Redirecting to Fleet at  ...")
+
+	// a new activity item is created
+	activitiesResp := listActivitiesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &activitiesResp)
+	require.NoError(t, activitiesResp.Err)
+	require.NotEmpty(t, activitiesResp.Activities)
+	require.Condition(t, func() bool {
+		for _, a := range activitiesResp.Activities {
+			if (a.Type == fleet.ActivityTypeUserLoggedIn{}.ActivityName()) && *a.ActorEmail == auth.UserID() {
+				return true
+			}
+		}
+		return false
+	})
 }
 
 func inflate(t *testing.T, s string) *sso.AuthnRequest {

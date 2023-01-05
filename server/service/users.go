@@ -34,7 +34,7 @@ type createUserResponse struct {
 
 func (r createUserResponse) error() error { return r.Err }
 
-func createUserEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func createUserEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*createUserRequest)
 	user, err := svc.CreateUser(ctx, req.UserPayload)
 	if err != nil {
@@ -72,7 +72,7 @@ func (svc *Service) CreateUser(ctx context.Context, p fleet.UserPayload) (*fleet
 // Create User From Invite
 ////////////////////////////////////////////////////////////////////////////////
 
-func createUserFromInviteEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func createUserFromInviteEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*createUserRequest)
 	user, err := svc.CreateUserFromInvite(ctx, req.UserPayload)
 	if err != nil {
@@ -126,7 +126,7 @@ type listUsersResponse struct {
 
 func (r listUsersResponse) error() error { return r.Err }
 
-func listUsersEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func listUsersEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*listUsersRequest)
 	users, err := svc.ListUsers(ctx, req.ListOptions)
 	if err != nil {
@@ -156,7 +156,7 @@ func (svc *Service) ListUsers(ctx context.Context, opt fleet.UserListOptions) ([
 // Me (get own current user)
 ////////////////////////////////////////////////////////////////////////////////
 
-func meEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func meEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	user, err := svc.AuthenticatedUser(ctx)
 	if err != nil {
 		return getUserResponse{Err: err}, nil
@@ -204,7 +204,7 @@ type getUserResponse struct {
 
 func (r getUserResponse) error() error { return r.Err }
 
-func getUserEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func getUserEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getUserRequest)
 	user, err := svc.User(ctx, req.ID)
 	if err != nil {
@@ -260,7 +260,7 @@ type modifyUserResponse struct {
 
 func (r modifyUserResponse) error() error { return r.Err }
 
-func modifyUserEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func modifyUserEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*modifyUserRequest)
 	user, err := svc.ModifyUser(ctx, req.ID, req.UserPayload)
 	if err != nil {
@@ -276,6 +276,9 @@ func (svc *Service) ModifyUser(ctx context.Context, userID uint, p fleet.UserPay
 		setAuthCheckedOnPreAuthErr(ctx)
 		return nil, err
 	}
+
+	oldGlobalRole := user.GlobalRole
+	oldTeams := user.Teams
 
 	if err := svc.authz.Authorize(ctx, user, fleet.ActionWrite); err != nil {
 		return nil, err
@@ -375,6 +378,16 @@ func (svc *Service) ModifyUser(ctx context.Context, userID uint, p fleet.UserPay
 		return nil, err
 	}
 
+	// load user again to get team-details like names.
+	user, err = svc.User(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	adminUser := authz.UserFromContext(ctx)
+	if err := logRoleChangeActivities(ctx, svc.ds, adminUser, oldGlobalRole, oldTeams, user); err != nil {
+		return nil, err
+	}
+
 	return user, nil
 }
 
@@ -392,7 +405,7 @@ type deleteUserResponse struct {
 
 func (r deleteUserResponse) error() error { return r.Err }
 
-func deleteUserEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func deleteUserEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*deleteUserRequest)
 	err := svc.DeleteUser(ctx, req.ID)
 	if err != nil {
@@ -410,7 +423,24 @@ func (svc *Service) DeleteUser(ctx context.Context, id uint) error {
 	if err := svc.authz.Authorize(ctx, user, fleet.ActionWrite); err != nil {
 		return err
 	}
-	return svc.ds.DeleteUser(ctx, id)
+	if err := svc.ds.DeleteUser(ctx, id); err != nil {
+		return err
+	}
+
+	adminUser := authz.UserFromContext(ctx)
+	if err := svc.ds.NewActivity(
+		ctx,
+		adminUser,
+		fleet.ActivityTypeDeletedUser{
+			UserID:    user.ID,
+			UserName:  user.Name,
+			UserEmail: user.Email,
+		},
+	); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -429,7 +459,7 @@ type requirePasswordResetResponse struct {
 
 func (r requirePasswordResetResponse) error() error { return r.Err }
 
-func requirePasswordResetEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func requirePasswordResetEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*requirePasswordResetRequest)
 	user, err := svc.RequirePasswordReset(ctx, req.ID, req.Require)
 	if err != nil {
@@ -481,7 +511,7 @@ type changePasswordResponse struct {
 
 func (r changePasswordResponse) error() error { return r.Err }
 
-func changePasswordEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func changePasswordEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*changePasswordRequest)
 	err := svc.ChangePassword(ctx, req.OldPassword, req.NewPassword)
 	return changePasswordResponse{Err: err}, nil
@@ -537,7 +567,7 @@ type getInfoAboutSessionsForUserResponse struct {
 
 func (r getInfoAboutSessionsForUserResponse) error() error { return r.Err }
 
-func getInfoAboutSessionsForUserEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func getInfoAboutSessionsForUserEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getInfoAboutSessionsForUserRequest)
 	sessions, err := svc.GetInfoAboutSessionsForUser(ctx, req.ID)
 	if err != nil {
@@ -589,7 +619,7 @@ type deleteSessionsForUserResponse struct {
 
 func (r deleteSessionsForUserResponse) error() error { return r.Err }
 
-func deleteSessionsForUserEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func deleteSessionsForUserEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*deleteSessionsForUserRequest)
 	err := svc.DeleteSessionsForUser(ctx, req.ID)
 	if err != nil {
@@ -621,7 +651,7 @@ type changeEmailResponse struct {
 
 func (r changeEmailResponse) error() error { return r.Err }
 
-func changeEmailEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func changeEmailEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*changeEmailRequest)
 	newEmailAddress, err := svc.ChangeUserEmail(ctx, req.Token)
 	if err != nil {
@@ -774,7 +804,7 @@ type performRequiredPasswordResetResponse struct {
 
 func (r performRequiredPasswordResetResponse) error() error { return r.Err }
 
-func performRequiredPasswordResetEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func performRequiredPasswordResetEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*performRequiredPasswordResetRequest)
 	user, err := svc.PerformRequiredPasswordReset(ctx, req.Password)
 	if err != nil {
@@ -859,7 +889,7 @@ type resetPasswordResponse struct {
 
 func (r resetPasswordResponse) error() error { return r.Err }
 
-func resetPasswordEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func resetPasswordEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*resetPasswordRequest)
 	err := svc.ResetPassword(ctx, req.PasswordResetToken, req.NewPassword)
 	return resetPasswordResponse{Err: err}, nil
@@ -934,7 +964,7 @@ type forgotPasswordResponse struct {
 func (r forgotPasswordResponse) error() error { return r.Err }
 func (r forgotPasswordResponse) Status() int  { return http.StatusAccepted }
 
-func forgotPasswordEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func forgotPasswordEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*forgotPasswordRequest)
 	// Any error returned by the service should not be returned to the
 	// client to prevent information disclosure (it will be logged in the

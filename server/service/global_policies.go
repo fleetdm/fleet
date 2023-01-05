@@ -34,7 +34,7 @@ type globalPolicyResponse struct {
 
 func (r globalPolicyResponse) error() error { return r.Err }
 
-func globalPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func globalPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*globalPolicyRequest)
 	resp, err := svc.NewGlobalPolicy(ctx, fleet.PolicyPayload{
 		QueryID:     req.QueryID,
@@ -73,10 +73,12 @@ func (svc Service) NewGlobalPolicy(ctx context.Context, p fleet.PolicyPayload) (
 	if err := svc.ds.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
-		fleet.ActivityTypeCreatedPolicy,
-		&map[string]interface{}{"policy_id": policy.ID, "policy_name": policy.Name},
+		fleet.ActivityTypeCreatedPolicy{
+			ID:   policy.ID,
+			Name: policy.Name,
+		},
 	); err != nil {
-		return nil, err
+		return nil, ctxerr.Wrap(ctx, err, "create activity for global policy creation")
 	}
 	return policy, nil
 }
@@ -92,7 +94,7 @@ type listGlobalPoliciesResponse struct {
 
 func (r listGlobalPoliciesResponse) error() error { return r.Err }
 
-func listGlobalPoliciesEndpoint(ctx context.Context, _ interface{}, svc fleet.Service) (interface{}, error) {
+func listGlobalPoliciesEndpoint(ctx context.Context, _ interface{}, svc fleet.Service) (errorer, error) {
 	resp, err := svc.ListGlobalPolicies(ctx)
 	if err != nil {
 		return listGlobalPoliciesResponse{Err: err}, nil
@@ -123,7 +125,7 @@ type getPolicyByIDResponse struct {
 
 func (r getPolicyByIDResponse) error() error { return r.Err }
 
-func getPolicyByIDEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func getPolicyByIDEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getPolicyByIDRequest)
 	policy, err := svc.GetPolicyByIDQueries(ctx, req.PolicyID)
 	if err != nil {
@@ -160,7 +162,7 @@ type deleteGlobalPoliciesResponse struct {
 
 func (r deleteGlobalPoliciesResponse) error() error { return r.Err }
 
-func deleteGlobalPoliciesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func deleteGlobalPoliciesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*deleteGlobalPoliciesRequest)
 	resp, err := svc.DeleteGlobalPolicies(ctx, req.IDs)
 	if err != nil {
@@ -211,10 +213,12 @@ func (svc Service) DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uint
 		if err := svc.ds.NewActivity(
 			ctx,
 			authz.UserFromContext(ctx),
-			fleet.ActivityTypeDeletedPolicy,
-			&map[string]interface{}{"policy_id": id, "policy_name": policiesByID[id].Name},
+			fleet.ActivityTypeDeletedPolicy{
+				ID:   id,
+				Name: policiesByID[id].Name,
+			},
 		); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "adding new activity for deleted policy")
+			return nil, ctxerr.Wrap(ctx, err, "create activity for policy deletion")
 		}
 	}
 	return ids, nil
@@ -264,7 +268,7 @@ type modifyGlobalPolicyResponse struct {
 
 func (r modifyGlobalPolicyResponse) error() error { return r.Err }
 
-func modifyGlobalPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func modifyGlobalPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*modifyGlobalPolicyRequest)
 	resp, err := svc.ModifyGlobalPolicy(ctx, req.PolicyID, req.ModifyPolicyPayload)
 	if err != nil {
@@ -292,7 +296,7 @@ type resetAutomationResponse struct {
 
 func (r resetAutomationResponse) error() error { return r.Err }
 
-func resetAutomationEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func resetAutomationEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*resetAutomationRequest)
 	err := svc.ResetAutomation(ctx, req.TeamIDs, req.PolicyIDs)
 	return resetAutomationResponse{Err: err}, nil
@@ -423,7 +427,7 @@ type applyPolicySpecsResponse struct {
 
 func (r applyPolicySpecsResponse) error() error { return r.Err }
 
-func applyPolicySpecsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func applyPolicySpecsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*applyPolicySpecsRequest)
 	err := svc.ApplyPolicySpecs(ctx, req.Specs)
 	if err != nil {
@@ -476,10 +480,14 @@ func (svc *Service) ApplyPolicySpecs(ctx context.Context, policies []*fleet.Poli
 	}
 	// Note: Issue #4191 proposes that we move to SQL transactions for actions so that we can
 	// rollback an action in the event of an error writing the associated activity
-	return svc.ds.NewActivity(
+	if err := svc.ds.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
-		fleet.ActivityTypeAppliedSpecPolicy,
-		&map[string]interface{}{"policies": policies},
-	)
+		fleet.ActivityTypeAppliedSpecPolicy{
+			Policies: policies,
+		},
+	); err != nil {
+		return ctxerr.Wrap(ctx, err, "create activity for policy spec")
+	}
+	return nil
 }

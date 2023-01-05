@@ -118,13 +118,13 @@ func NewHost(tb testing.TB, ds fleet.Datastore, name, ip, key, uuid string, now 
 	osqueryHostID, _ := server.GenerateRandomText(10)
 	h := &fleet.Host{
 		Hostname:        name,
-		NodeKey:         key,
+		NodeKey:         &key,
 		UUID:            uuid,
 		DetailUpdatedAt: now,
 		LabelUpdatedAt:  now,
 		PolicyUpdatedAt: now,
 		SeenTime:        now,
-		OsqueryHostID:   osqueryHostID,
+		OsqueryHostID:   &osqueryHostID,
 		Platform:        "darwin",
 		PublicIP:        ip,
 		PrimaryIP:       ip,

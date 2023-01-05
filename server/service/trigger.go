@@ -16,7 +16,7 @@ type triggerResponse struct {
 
 func (r triggerResponse) error() error { return r.Err }
 
-func triggerEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func triggerEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	_, err := svc.AuthenticatedUser(ctx)
 	if err != nil {
 		return triggerResponse{Err: err}, nil

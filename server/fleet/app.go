@@ -100,6 +100,16 @@ type VulnerabilitySettings struct {
 	DatabasesPath string `json:"databases_path"`
 }
 
+// MDM is part of AppConfig and defines the mdm settings.
+type MDM struct {
+	AppleBMDefaultTeam string `json:"apple_bm_default_team"`
+
+	/////////////////////////////////////////////////////////////////
+	// WARNING: If you add to this struct make sure it's taken into
+	// account in the AppConfig Clone implementation!
+	/////////////////////////////////////////////////////////////////
+}
+
 // AppConfig holds server configuration that can be changed via the API.
 //
 // Note: management of deprecated fields is done on JSON-marshalling and uses
@@ -125,6 +135,8 @@ type AppConfig struct {
 	WebhookSettings WebhookSettings `json:"webhook_settings"`
 	Integrations    Integrations    `json:"integrations"`
 
+	MDM MDM `json:"mdm"`
+
 	// when true, strictDecoding causes the UnmarshalJSON method to return an
 	// error if there are unknown fields in the raw JSON.
 	strictDecoding bool
@@ -144,9 +156,15 @@ type legacyConfig struct {
 	HostSettings *Features `json:"host_settings"`
 }
 
+// Clone implements cloner.
 func (c *AppConfig) Clone() (interface{}, error) {
+	return c.Copy(), nil
+}
+
+// Copy returns a copy of the AppConfig.
+func (c *AppConfig) Copy() *AppConfig {
 	if c == nil {
-		return nil, nil
+		return nil
 	}
 
 	var clone AppConfig
@@ -197,7 +215,7 @@ func (c *AppConfig) Clone() (interface{}, error) {
 		}
 	}
 
-	return &clone, nil
+	return &clone
 }
 
 // EnrichedAppConfig contains the AppConfig along with additional fleet
@@ -469,6 +487,12 @@ type ListQueryOptions struct {
 	OnlyObserverCanRun bool
 }
 
+type ListActivitiesOptions struct {
+	ListOptions
+
+	Streamed *bool
+}
+
 // ApplySpecOptions are the options available when applying a YAML or JSON spec.
 type ApplySpecOptions struct {
 	// Force indicates that any validation error in the incoming payload should
@@ -570,6 +594,7 @@ type Logging struct {
 	Json   bool          `json:"json"`
 	Result LoggingPlugin `json:"result"`
 	Status LoggingPlugin `json:"status"`
+	Audit  LoggingPlugin `json:"audit"`
 }
 
 type UpdateIntervalConfig struct {
@@ -611,6 +636,7 @@ type FirehoseConfig struct {
 	Region       string `json:"region"`
 	StatusStream string `json:"status_stream"`
 	ResultStream string `json:"result_stream"`
+	AuditStream  string `json:"audit_stream"`
 }
 
 // KinesisConfig shadows config.KinesisConfig only exposing a subset of fields
@@ -618,6 +644,7 @@ type KinesisConfig struct {
 	Region       string `json:"region"`
 	StatusStream string `json:"status_stream"`
 	ResultStream string `json:"result_stream"`
+	AuditStream  string `json:"audit_stream"`
 }
 
 // LambdaConfig shadows config.LambdaConfig only exposing a subset of fields
@@ -625,11 +652,13 @@ type LambdaConfig struct {
 	Region         string `json:"region"`
 	StatusFunction string `json:"status_function"`
 	ResultFunction string `json:"result_function"`
+	AuditFunction  string `json:"audit_function"`
 }
 
 // KafkaRESTConfig shadows config.KafkaRESTConfig
 type KafkaRESTConfig struct {
 	StatusTopic string `json:"status_topic"`
 	ResultTopic string `json:"result_topic"`
+	AuditTopic  string `json:"audit_topic"`
 	ProxyHost   string `json:"proxyhost"`
 }

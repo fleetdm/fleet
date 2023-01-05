@@ -75,7 +75,7 @@ func (r *appConfigResponse) UnmarshalJSON(data []byte) error {
 
 func (r appConfigResponse) error() error { return r.Err }
 
-func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
 		return nil, errors.New("could not fetch user")
@@ -196,7 +196,7 @@ type modifyAppConfigRequest struct {
 	json.RawMessage
 }
 
-func modifyAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func modifyAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*modifyAppConfigRequest)
 	config, err := svc.ModifyAppConfig(ctx, req.RawMessage, fleet.ApplySpecOptions{
 		Force:  req.Force,
@@ -244,6 +244,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	if err != nil {
 		return nil, err
 	}
+	oldAppConfig := appConfig.Copy()
 
 	license, err := svc.License(ctx)
 	if err != nil {
@@ -332,6 +333,8 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	fleet.ValidateEnabledVulnerabilitiesIntegrations(appConfig.WebhookSettings.VulnerabilitiesWebhook, appConfig.Integrations, invalid)
 	fleet.ValidateEnabledFailingPoliciesIntegrations(appConfig.WebhookSettings.FailingPoliciesWebhook, appConfig.Integrations, invalid)
 	fleet.ValidateEnabledHostStatusIntegrations(appConfig.WebhookSettings.HostStatusWebhook, invalid)
+	svc.validateMDM(ctx, license, &oldAppConfig.MDM, &appConfig.MDM, invalid)
+
 	if invalid.HasErrors() {
 		return nil, ctxerr.Wrap(ctx, invalid)
 	}
@@ -388,8 +391,8 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	}
 
-	// reset transparency url to empty for downgraded licenses
-	if license.Tier != "premium" && appConfig.FleetDesktop.TransparencyURL != "" {
+	if license.Tier != "premium" {
+		// reset transparency url to empty for downgraded licenses
 		appConfig.FleetDesktop.TransparencyURL = ""
 	}
 
@@ -412,14 +415,33 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		if err := svc.ds.NewActivity(
 			ctx,
 			authz.UserFromContext(ctx),
-			fleet.ActivityTypeEditedAgentOptions,
-			&map[string]interface{}{"global": true, "team_id": nil, "team_name": nil},
+			fleet.ActivityTypeEditedAgentOptions{
+				Global: true,
+			},
 		); err != nil {
-			return nil, err
+			return nil, ctxerr.Wrap(ctx, err, "create activity for app config modification")
 		}
 	}
 
 	return obfuscatedConfig, nil
+}
+
+func (svc *Service) validateMDM(
+	ctx context.Context,
+	license *fleet.LicenseInfo,
+	oldMdm *fleet.MDM,
+	mdm *fleet.MDM,
+	invalid *fleet.InvalidArgumentError,
+) {
+	if name := mdm.AppleBMDefaultTeam; name != "" && name != oldMdm.AppleBMDefaultTeam {
+		if !license.IsPremium() {
+			invalid.Append("mdm.apple_bm_default_team", ErrMissingLicense.Error())
+			return
+		}
+		if _, err := svc.ds.TeamByName(ctx, name); err != nil {
+			invalid.Append("apple_bm_default_team", "team name not found")
+		}
+	}
 }
 
 func validateSSOSettings(p fleet.AppConfig, existing *fleet.AppConfig, invalid *fleet.InvalidArgumentError, license *fleet.LicenseInfo) {
@@ -466,7 +488,7 @@ type applyEnrollSecretSpecResponse struct {
 
 func (r applyEnrollSecretSpecResponse) error() error { return r.Err }
 
-func applyEnrollSecretSpecEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func applyEnrollSecretSpecEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*applyEnrollSecretSpecRequest)
 	err := svc.ApplyEnrollSecretSpec(ctx, req.Spec)
 	if err != nil {
@@ -507,7 +529,7 @@ type getEnrollSecretSpecResponse struct {
 
 func (r getEnrollSecretSpecResponse) error() error { return r.Err }
 
-func getEnrollSecretSpecEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func getEnrollSecretSpecEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	specs, err := svc.GetEnrollSecretSpec(ctx)
 	if err != nil {
 		return getEnrollSecretSpecResponse{Err: err}, nil
@@ -538,7 +560,7 @@ type versionResponse struct {
 
 func (r versionResponse) error() error { return r.Err }
 
-func versionEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func versionEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	info, err := svc.Version(ctx)
 	if err != nil {
 		return versionResponse{Err: err}, nil
@@ -566,7 +588,7 @@ type getCertificateResponse struct {
 
 func (r getCertificateResponse) error() error { return r.Err }
 
-func getCertificateEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func getCertificateEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	chain, err := svc.CertificateChain(ctx)
 	if err != nil {
 		return getCertificateResponse{Err: err}, nil

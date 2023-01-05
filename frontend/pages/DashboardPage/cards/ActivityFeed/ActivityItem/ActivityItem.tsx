@@ -77,15 +77,67 @@ const TAGGED_TEMPLATES = {
       "edited multiple teams using fleetctl."
     );
   },
-  userAddedBySSOTempalte: () => {
-    return "was added to Fleet by SSO.";
-  },
   editAgentOptions: (activity: IActivity) => {
     return activity.details?.global ? (
       "edited agent options."
     ) : (
       <>
         edited agent options on <b>{activity.details?.team_name}</b> team.
+      </>
+    );
+  },
+  userAddedBySSOTempalte: () => {
+    return "was added to Fleet by SSO.";
+  },
+  userLoggedIn: (activity: IActivity) => {
+    return `successfully logged in from public IP ${activity.details?.public_ip}.`;
+  },
+  userCreated: (activity: IActivity) => {
+    return (
+      <>
+        created a user <b> {activity.details?.user_email}</b>.
+      </>
+    );
+  },
+  userDeleted: (activity: IActivity) => {
+    return (
+      <>
+        deleted a user <b>{activity.details?.user_email}</b>.
+      </>
+    );
+  },
+  userChangedGlobalRole: (activity: IActivity, isPremiumTier: boolean) => {
+    return (
+      <>
+        changed <b>{activity.details?.user_email}</b> to{" "}
+        <b>{activity.details?.role}</b>
+        {isPremiumTier && " for all teams"}.
+      </>
+    );
+  },
+  userDeletedGlobalRole: (activity: IActivity, isPremiumTier: boolean) => {
+    return (
+      <>
+        removed <b>{activity.details?.user_email}</b> as{" "}
+        <b>{activity.details?.role}</b>
+        {isPremiumTier && " for all teams"}.
+      </>
+    );
+  },
+  userChangedTeamRole: (activity: IActivity) => {
+    return (
+      <>
+        changed <b>{activity.details?.user_email}</b> to{" "}
+        <b>{activity.details?.role}</b> for the{" "}
+        <b>{activity.details?.team_name}</b> team.
+      </>
+    );
+  },
+  userDeletedTeamRole: (activity: IActivity) => {
+    return (
+      <>
+        removed <b>{activity.details?.user_email}</b> from the{" "}
+        <b>{activity.details?.team_name}</b> team.
       </>
     );
   },
@@ -100,15 +152,16 @@ const TAGGED_TEMPLATES = {
     return !entityName ? (
       `${activityType}.`
     ) : (
-      <span>
+      <>
         {activityType} <b>{entityName}</b>.
-      </span>
+      </>
     );
   },
 };
 
 const getDetail = (
   activity: IActivity,
+  isPremiumTier: boolean,
   onDetailsClick?: (details: IActivityDetails) => void
 ) => {
   switch (activity.type) {
@@ -130,11 +183,32 @@ const getDetail = (
     case ActivityType.AppliedSpecTeam: {
       return TAGGED_TEMPLATES.editTeamCtlActivityTemplate(activity);
     }
+    case ActivityType.EditedAgentOptions: {
+      return TAGGED_TEMPLATES.editAgentOptions(activity);
+    }
     case ActivityType.UserAddedBySSO: {
       return TAGGED_TEMPLATES.userAddedBySSOTempalte();
     }
-    case ActivityType.EditedAgentOptions: {
-      return TAGGED_TEMPLATES.editAgentOptions(activity);
+    case ActivityType.UserLoggedIn: {
+      return TAGGED_TEMPLATES.userLoggedIn(activity);
+    }
+    case ActivityType.UserCreated: {
+      return TAGGED_TEMPLATES.userCreated(activity);
+    }
+    case ActivityType.UserDeleted: {
+      return TAGGED_TEMPLATES.userDeleted(activity);
+    }
+    case ActivityType.UserChangedGlobalRole: {
+      return TAGGED_TEMPLATES.userChangedGlobalRole(activity, isPremiumTier);
+    }
+    case ActivityType.UserDeletedGlobalRole: {
+      return TAGGED_TEMPLATES.userDeletedGlobalRole(activity, isPremiumTier);
+    }
+    case ActivityType.UserChangedTeamRole: {
+      return TAGGED_TEMPLATES.userChangedTeamRole(activity);
+    }
+    case ActivityType.UserDeletedTeamRole: {
+      return TAGGED_TEMPLATES.userDeletedTeamRole(activity);
     }
     default: {
       return TAGGED_TEMPLATES.defaultActivityTemplate(activity);
@@ -144,6 +218,7 @@ const getDetail = (
 
 interface IActivityItemProps {
   activity: IActivity;
+  isPremiumTier: boolean;
 
   /** A handler for handling clicking on the details of an activity. Not all
    * activites have more details so this is optional. An example of additonal
@@ -154,6 +229,7 @@ interface IActivityItemProps {
 
 const ActivityItem = ({
   activity,
+  isPremiumTier,
   onDetailsClick = noop,
 }: IActivityItemProps) => {
   const { actor_email } = activity;
@@ -171,11 +247,18 @@ const ActivityItem = ({
       <div className={`${baseClass}__details`}>
         <p>
           <span className={`${baseClass}__details-topline`}>
-            <b>{activity.actor_full_name}</b>{" "}
-            {getDetail(activity, onDetailsClick)}
+            {activity.type === ActivityType.UserLoggedIn ? (
+              <b>{activity.actor_email} </b>
+            ) : (
+              <b>{activity.actor_full_name} </b>
+            )}
+            {getDetail(activity, isPremiumTier, onDetailsClick)}
           </span>
           <br />
-          <span className={`${baseClass}__details-bottomline`}>
+          <span
+            className={`${baseClass}__details-bottomline`}
+            title={new Date(activity.created_at).toString()}
+          >
             {formatDistanceToNowStrict(new Date(activity.created_at), {
               addSuffix: true,
             })}

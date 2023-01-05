@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/rs/zerolog/log"
@@ -28,6 +29,20 @@ type Runner struct {
 	opt         RunnerOptions
 	cancel      chan struct{}
 	localHashes map[string][]byte
+	mu          sync.Mutex
+}
+
+// UpdateRunnerOptTargets updates the RunnerOptions.Targets with the given target
+func (r *Runner) UpdateRunnerOptTargets(target string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	// check if target already exists
+	for _, t := range r.opt.Targets {
+		if t == target {
+			return
+		}
+	}
+	r.opt.Targets = append(r.opt.Targets, target)
 }
 
 // NewRunner creates a new runner with the provided options. The runner must be
@@ -123,9 +138,20 @@ func (r *Runner) UpdateAction() (bool, error) {
 		if err != nil {
 			return didUpdate, fmt.Errorf("select hash for cache: %w", err)
 		}
+
+		// Check if we need to update the orbit symlink (e.g. if channel changed)
+		needsSymlinkUpdate := false
+		if target == "orbit" {
+			var err error
+			needsSymlinkUpdate, err = r.needsOrbitSymlinkUpdate()
+			if err != nil {
+				return false, fmt.Errorf("check symlink failed: %w", err)
+			}
+		}
+
 		// Check whether the hash of the repository is different than
 		// that of the target local file.
-		if !bytes.Equal(r.localHashes[target], metaHash) {
+		if !bytes.Equal(r.localHashes[target], metaHash) || needsSymlinkUpdate {
 			// Update detected
 			log.Info().Str("target", target).Msg("update detected")
 			if err := r.updateTarget(target); err != nil {
@@ -139,6 +165,27 @@ func (r *Runner) UpdateAction() (bool, error) {
 	}
 
 	return didUpdate, nil
+}
+
+func (r *Runner) needsOrbitSymlinkUpdate() (bool, error) {
+	localTarget, err := r.updater.Get("orbit")
+	if err != nil {
+		return false, fmt.Errorf("get binary: %w", err)
+	}
+	path := localTarget.ExecPath
+
+	// Symlink Orbit binary
+	linkPath := filepath.Join(r.updater.opt.RootDirectory, "bin", "orbit", filepath.Base(path))
+
+	existingPath, err := os.Readlink(linkPath)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return true, nil
+		}
+		return false, fmt.Errorf("read existing symlink: %w", err)
+	}
+
+	return existingPath != path, nil
 }
 
 func (r *Runner) updateTarget(target string) error {

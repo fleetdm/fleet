@@ -6,7 +6,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/nettest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
@@ -18,11 +17,9 @@ import (
 func TestDownloadEPSSFeed(t *testing.T) {
 	nettest.Run(t)
 
-	client := fleethttp.NewClient()
-
 	tempDir := t.TempDir()
 
-	err := DownloadEPSSFeed(tempDir, client)
+	err := DownloadEPSSFeed(tempDir)
 	require.NoError(t, err)
 
 	assert.FileExists(t, filepath.Join(tempDir, strings.TrimSuffix(epssFilename, ".gz")))
@@ -31,11 +28,9 @@ func TestDownloadEPSSFeed(t *testing.T) {
 func TestDownloadCISAKnownExploitsFeed(t *testing.T) {
 	nettest.Run(t)
 
-	client := fleethttp.NewClient()
-
 	tempDir := t.TempDir()
 
-	err := DownloadCISAKnownExploitsFeed(tempDir, client)
+	err := DownloadCISAKnownExploitsFeed(tempDir)
 	require.NoError(t, err)
 
 	assert.FileExists(t, filepath.Join(tempDir, cisaKnownExploitsFilename))
@@ -75,11 +70,9 @@ func TestLoadCVEMeta(t *testing.T) {
 func TestDownloadCPETranslations(t *testing.T) {
 	nettest.Run(t)
 
-	client := fleethttp.NewClient()
-
 	tempDir := t.TempDir()
 
-	err := DownloadCPETranslations(tempDir, client, "")
+	err := DownloadCPETranslationsFromGithub(tempDir, "")
 	require.NoError(t, err)
 
 	assert.FileExists(t, filepath.Join(tempDir, cpeTranslationsFilename))

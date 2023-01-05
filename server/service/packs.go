@@ -64,7 +64,7 @@ type getPackResponse struct {
 
 func (r getPackResponse) error() error { return r.Err }
 
-func getPackEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func getPackEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getPackRequest)
 	pack, err := svc.GetPack(ctx, req.ID)
 	if err != nil {
@@ -104,7 +104,7 @@ type createPackResponse struct {
 
 func (r createPackResponse) error() error { return r.Err }
 
-func createPackEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func createPackEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*createPackRequest)
 	pack, err := svc.NewPack(ctx, req.PackPayload)
 	if err != nil {
@@ -170,10 +170,12 @@ func (svc *Service) NewPack(ctx context.Context, p fleet.PackPayload) (*fleet.Pa
 	if err := svc.ds.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
-		fleet.ActivityTypeCreatedPack,
-		&map[string]interface{}{"pack_id": pack.ID, "pack_name": pack.Name},
+		fleet.ActivityTypeCreatedPack{
+			ID:   pack.ID,
+			Name: pack.Name,
+		},
 	); err != nil {
-		return nil, err
+		return nil, ctxerr.Wrap(ctx, err, "create activity for pack creation")
 	}
 
 	return &pack, nil
@@ -195,7 +197,7 @@ type modifyPackResponse struct {
 
 func (r modifyPackResponse) error() error { return r.Err }
 
-func modifyPackEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func modifyPackEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*modifyPackRequest)
 	pack, err := svc.ModifyPack(ctx, req.ID, req.PackPayload)
 	if err != nil {
@@ -264,10 +266,12 @@ func (svc *Service) ModifyPack(ctx context.Context, id uint, p fleet.PackPayload
 	if err := svc.ds.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
-		fleet.ActivityTypeEditedPack,
-		&map[string]interface{}{"pack_id": pack.ID, "pack_name": pack.Name},
+		fleet.ActivityTypeEditedPack{
+			ID:   pack.ID,
+			Name: pack.Name,
+		},
 	); err != nil {
-		return nil, err
+		return nil, ctxerr.Wrap(ctx, err, "create activity for pack modification")
 	}
 
 	return pack, err
@@ -288,7 +292,7 @@ type listPacksResponse struct {
 
 func (r listPacksResponse) error() error { return r.Err }
 
-func listPacksEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func listPacksEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*listPacksRequest)
 	packs, err := svc.ListPacks(ctx, fleet.PackListOptions{ListOptions: req.ListOptions, IncludeSystemPacks: false})
 	if err != nil {
@@ -328,7 +332,7 @@ type deletePackResponse struct {
 
 func (r deletePackResponse) error() error { return r.Err }
 
-func deletePackEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func deletePackEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*deletePackRequest)
 	err := svc.DeletePack(ctx, req.Name)
 	if err != nil {
@@ -355,12 +359,16 @@ func (svc *Service) DeletePack(ctx context.Context, name string) error {
 		return err
 	}
 
-	return svc.ds.NewActivity(
+	if err := svc.ds.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
-		fleet.ActivityTypeDeletedPack,
-		&map[string]interface{}{"pack_name": name},
-	)
+		fleet.ActivityTypeDeletedPack{
+			Name: pack.Name,
+		},
+	); err != nil {
+		return ctxerr.Wrap(ctx, err, "create activity for pack deletion")
+	}
+	return nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -377,7 +385,7 @@ type deletePackByIDResponse struct {
 
 func (r deletePackByIDResponse) error() error { return r.Err }
 
-func deletePackByIDEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func deletePackByIDEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*deletePackByIDRequest)
 	err := svc.DeletePackByID(ctx, req.ID)
 	if err != nil {
@@ -402,12 +410,16 @@ func (svc *Service) DeletePackByID(ctx context.Context, id uint) error {
 		return err
 	}
 
-	return svc.ds.NewActivity(
+	if err := svc.ds.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
-		fleet.ActivityTypeDeletedPack,
-		&map[string]interface{}{"pack_name": pack.Name},
-	)
+		fleet.ActivityTypeDeletedPack{
+			Name: pack.Name,
+		},
+	); err != nil {
+		return ctxerr.Wrap(ctx, err, "create activity for pack deletion by id")
+	}
+	return nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -424,7 +436,7 @@ type applyPackSpecsResponse struct {
 
 func (r applyPackSpecsResponse) error() error { return r.Err }
 
-func applyPackSpecsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func applyPackSpecsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*applyPackSpecsRequest)
 	_, err := svc.ApplyPackSpecs(ctx, req.Specs)
 	if err != nil {
@@ -477,12 +489,14 @@ func (svc *Service) ApplyPackSpecs(ctx context.Context, specs []*fleet.PackSpec)
 		return nil, err
 	}
 
-	return result, svc.ds.NewActivity(
+	if err := svc.ds.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
-		fleet.ActivityTypeAppliedSpecPack,
-		&map[string]interface{}{},
-	)
+		fleet.ActivityTypeAppliedSpecPack{},
+	); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "create activity for pack spec")
+	}
+	return result, nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -496,7 +510,7 @@ type getPackSpecsResponse struct {
 
 func (r getPackSpecsResponse) error() error { return r.Err }
 
-func getPackSpecsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func getPackSpecsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	specs, err := svc.GetPackSpecs(ctx)
 	if err != nil {
 		return getPackSpecsResponse{Err: err}, nil
@@ -523,7 +537,7 @@ type getPackSpecResponse struct {
 
 func (r getPackSpecResponse) error() error { return r.Err }
 
-func getPackSpecEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func getPackSpecEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getGenericSpecRequest)
 	spec, err := svc.GetPackSpec(ctx, req.Name)
 	if err != nil {

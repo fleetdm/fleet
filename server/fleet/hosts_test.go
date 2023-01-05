@@ -1,6 +1,7 @@
 package fleet
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -119,5 +120,45 @@ func TestPlatformFromHost(t *testing.T) {
 		fleetPlatform := PlatformFromHost(tc.host)
 		require.Equal(t, tc.expPlatform, fleetPlatform)
 
+	}
+}
+
+func TestHostDisplayName(t *testing.T) {
+	const (
+		computerName   = "K0mpu73rN4M3"
+		hostname       = "h0s7N4ME"
+		hardwareModel  = "M0D3l"
+		hardwareSerial = "53r14l"
+	)
+	for _, tc := range []struct {
+		host     Host
+		expected string
+	}{
+		{
+			host:     Host{ComputerName: computerName, Hostname: hostname, HardwareModel: hardwareModel, HardwareSerial: hardwareSerial},
+			expected: computerName, // If ComputerName is present, DisplayName is ComputerName
+		},
+		{
+			host:     Host{ComputerName: "", Hostname: "h0s7N4ME", HardwareModel: "M0D3l", HardwareSerial: "53r14l"},
+			expected: hostname, // If ComputerName is empty, DisplayName is Hostname (if present)
+		},
+		{
+			host:     Host{ComputerName: "", Hostname: "", HardwareModel: "M0D3l", HardwareSerial: "53r14l"},
+			expected: fmt.Sprintf("%s (%s)", hardwareModel, hardwareSerial), // If ComputerName and Hostname are empty, DisplayName is composite of HardwareModel and HardwareSerial (if both are present)
+		},
+		{
+			host:     Host{ComputerName: "", Hostname: "", HardwareModel: "", HardwareSerial: hardwareSerial},
+			expected: "", // If HarwareModel and/or HardwareSerial are empty, DisplayName is also empty
+		},
+		{
+			host:     Host{ComputerName: "", Hostname: "", HardwareModel: hardwareModel, HardwareSerial: ""},
+			expected: "", // If HarwareModel and/or HardwareSerial are empty, DisplayName is also empty
+		},
+		{
+			host:     Host{ComputerName: "", Hostname: "", HardwareModel: "", HardwareSerial: ""},
+			expected: "", // If HarwareModel and/or HardwareSerial are empty, DisplayName is also empty
+		},
+	} {
+		require.Equal(t, tc.expected, tc.host.DisplayName())
 	}
 }

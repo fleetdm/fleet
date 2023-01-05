@@ -96,6 +96,7 @@ const NewPolicyModal = ({
         query: queryValue,
         resolution,
         platform: newPlatformString,
+        critical,
       });
     }
   };

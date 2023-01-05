@@ -3,8 +3,8 @@ package msrc
 import (
 	"context"
 	"fmt"
-	"net/http"
 
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/msrc/io"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/msrc/parsed"
@@ -58,10 +58,12 @@ func bulletinsDelta(
 	return toDownload, toDelete
 }
 
-// Sync syncs the local msrc security bulletins (contained in dstDir) for one or more operating systems with the security
-// bulletin published in Github.
+// SyncFromGithub syncs the local msrc security bulletins (contained in dstDir) for one or more operating
+// systems with the security bulletin published in Github.
+//
 // If 'os' is nil, then all security bulletins will be synched.
-func Sync(ctx context.Context, client *http.Client, dstDir string, os []fleet.OperatingSystem) error {
+func SyncFromGithub(ctx context.Context, dstDir string, os []fleet.OperatingSystem) error {
+	client := fleethttp.NewGithubClient()
 	rep := github.NewClient(client).Repositories
 	gh := io.NewGitHubClient(client, rep, dstDir)
 	fs := io.NewFSClient(dstDir)

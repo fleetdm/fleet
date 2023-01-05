@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 )
@@ -44,6 +45,7 @@ type MDMEnrollStatus string
 const (
 	MDMEnrollStatusManual     = MDMEnrollStatus("manual")
 	MDMEnrollStatusAutomatic  = MDMEnrollStatus("automatic")
+	MDMEnrollStatusPending    = MDMEnrollStatus("pending")
 	MDMEnrollStatusUnenrolled = MDMEnrollStatus("unenrolled")
 )
 
@@ -129,14 +131,14 @@ type Host struct {
 	// OsqueryHostID is the key used in the request context that is
 	// used to retrieve host information.  It is sent from osquery and may currently be
 	// a GUID or a Host Name, but in either case, it MUST be unique
-	OsqueryHostID    string    `json:"-" db:"osquery_host_id" csv:"-"`
+	OsqueryHostID    *string   `json:"-" db:"osquery_host_id" csv:"-"`
 	DetailUpdatedAt  time.Time `json:"detail_updated_at" db:"detail_updated_at" csv:"detail_updated_at"` // Time that the host details were last updated
 	LabelUpdatedAt   time.Time `json:"label_updated_at" db:"label_updated_at" csv:"label_updated_at"`    // Time that the host labels were last updated
 	PolicyUpdatedAt  time.Time `json:"policy_updated_at" db:"policy_updated_at" csv:"policy_updated_at"` // Time that the host policies were last updated
 	LastEnrolledAt   time.Time `json:"last_enrolled_at" db:"last_enrolled_at" csv:"last_enrolled_at"`    // Time that the host last enrolled
 	SeenTime         time.Time `json:"seen_time" db:"seen_time" csv:"seen_time"`                         // Time that the host was last "seen"
 	RefetchRequested bool      `json:"refetch_requested" db:"refetch_requested" csv:"refetch_requested"`
-	NodeKey          string    `json:"-" db:"node_key" csv:"-"`
+	NodeKey          *string   `json:"-" db:"node_key" csv:"-"`
 	OrbitNodeKey     *string   `json:"-" db:"orbit_node_key" csv:"-"`
 	Hostname         string    `json:"hostname" db:"hostname" csv:"hostname"` // there is a fulltext index on this field
 	UUID             string    `json:"uuid" db:"uuid" csv:"uuid"`             // there is a fulltext index on this field
@@ -201,12 +203,21 @@ type Host struct {
 	DeviceMapping *json.RawMessage `json:"device_mapping,omitempty" db:"device_mapping" csv:"-"`
 }
 
-// DisplayName returns ComputerName if it isn't empty or HostName otherwise.
+// DisplayName returns ComputerName if it isn't empty. Otherwise, it returns Hostname if it isn't
+// empty. If Hostname is empty and both HardwareSerial and HardwareModel are not empty, it returns a
+// composite string with HardwareModel and HardwareSerial. If all else fails, it returns an empty
+// string.
 func (h *Host) DisplayName() string {
-	if cn := h.ComputerName; cn != "" {
-		return cn
+	switch {
+	case h.ComputerName != "":
+		return h.ComputerName
+	case h.Hostname != "":
+		return h.Hostname
+	case h.HardwareModel != "" && h.HardwareSerial != "":
+		return fmt.Sprintf("%s (%s)", h.HardwareModel, h.HardwareSerial)
+	default:
+		return ""
 	}
-	return h.Hostname
 }
 
 type HostIssues struct {
@@ -390,7 +401,7 @@ type HostMunkiIssue struct {
 }
 
 // List of well-known MDM solution names. Those correspond to names stored in
-// the mobile_device_management_solutions table, created via (data) migrations.
+// the mobile_device_management_solutions table.
 const (
 	UnknownMDMName        = ""
 	WellKnownMDMKandji    = "Kandji"
@@ -398,6 +409,7 @@ const (
 	WellKnownMDMVMWare    = "VMware Workspace ONE"
 	WellKnownMDMIntune    = "Intune"
 	WellKnownMDMSimpleMDM = "SimpleMDM"
+	WellKnownMDMFleet     = "Fleet"
 )
 
 var mdmNameFromServerURLChecks = map[string]string{
@@ -406,6 +418,7 @@ var mdmNameFromServerURLChecks = map[string]string{
 	"airwatch":  WellKnownMDMVMWare,
 	"microsoft": WellKnownMDMIntune,
 	"simplemdm": WellKnownMDMSimpleMDM,
+	"fleetdm":   WellKnownMDMFleet,
 }
 
 // MDMNameFromServerURL returns the MDM solution name corresponding to the
@@ -426,12 +439,17 @@ func (h *HostMDM) EnrollmentStatus() string {
 		return "Enrolled (manual)"
 	case h.Enrolled && h.InstalledFromDep:
 		return "Enrolled (automated)"
+	case !h.Enrolled && h.InstalledFromDep:
+		return "Pending"
 	default:
 		return "Unenrolled"
 	}
 }
 
 func (h *HostMDM) MarshalJSON() ([]byte, error) {
+	if h == nil {
+		return []byte("null"), nil
+	}
 	var jsonMDM struct {
 		EnrollmentStatus string `json:"enrollment_status"`
 		ServerURL        string `json:"server_url"`
@@ -489,6 +507,7 @@ type AggregatedMunkiIssue struct {
 type AggregatedMDMStatus struct {
 	EnrolledManualHostsCount    int `json:"enrolled_manual_hosts_count" db:"enrolled_manual_hosts_count"`
 	EnrolledAutomatedHostsCount int `json:"enrolled_automated_hosts_count" db:"enrolled_automated_hosts_count"`
+	PendingHostsCount           int `json:"pending_hosts_count" db:"pending_hosts_count"`
 	UnenrolledHostsCount        int `json:"unenrolled_hosts_count" db:"unenrolled_hosts_count"`
 	HostsCount                  int `json:"hosts_count" db:"hosts_count"`
 }
@@ -560,4 +579,9 @@ type HostDetailOptions struct {
 type EnrollHostLimiter interface {
 	CanEnrollNewHost(ctx context.Context) (ok bool, err error)
 	SyncEnrolledHostIDs(ctx context.Context) error
+}
+
+type HostMDMCheckinInfo struct {
+	HardwareSerial   string `json:"hardware_serial" db:"hardware_serial"`
+	InstalledFromDEP bool   `json:"installed_from_dep" db:"installed_from_dep"`
 }

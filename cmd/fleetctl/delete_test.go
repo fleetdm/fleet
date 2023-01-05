@@ -52,7 +52,7 @@ func TestDeletePack(t *testing.T) {
 			Disabled:    false,
 		}, true, nil
 	}
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error {
+	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
 		return nil
 	}
 
@@ -95,7 +95,7 @@ func TestDeleteQuery(t *testing.T) {
 			ObserverCanRun: false,
 		}, nil
 	}
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error {
+	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
 		return nil
 	}
 
