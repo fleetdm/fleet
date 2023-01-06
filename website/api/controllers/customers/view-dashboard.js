@@ -25,9 +25,9 @@ module.exports = {
 
     const today = Date.now();
     const oneYearInMs = (1000 * 60 * 60 * 24 * 365);
-    const oneYearAgoInMs = today - oneYearInMs;
-    const thirtyDaysAgoInMs = today - (1000 * 60 * 60 * 24 * 30);
-    const thirtyDaysFromNowInMs = today + (1000 * 60 * 60 * 24 * 30);
+    const oneYearAgoAt = today - oneYearInMs;
+    const thirtyDaysAgoAt = today - (1000 * 60 * 60 * 24 * 30);
+    const thirtyDaysFromNowAt = today + (1000 * 60 * 60 * 24 * 30);
     let subscriptionHasBeenRecentlyRenewed = false;
     let subscriptionExpiresSoon = false;
 
@@ -40,12 +40,12 @@ module.exports = {
     }
 
     // If this subscription is over a year old, and was renewed in the past 30 days set subscriptionHasBeenRecentlyRenewed to true.
-    if(thisSubscription.createdAt >= oneYearAgoInMs && (thisSubscription.nextBillingAt - oneYearInMs) >= thirtyDaysAgoInMs) {
+    if(thisSubscription.createdAt >= oneYearAgoAt && (thisSubscription.nextBillingAt - oneYearInMs) >= thirtyDaysAgoAt) {
       subscriptionHasBeenRecentlyRenewed = true;
     }
 
     // If this subscription will renew in the next 30 days, set subscriptionExpiresSoon to true.
-    if(thisSubscription.nextBillingAt <= thirtyDaysFromNowInMs){
+    if(thisSubscription.nextBillingAt <= thirtyDaysFromNowAt){
       subscriptionExpiresSoon = true;
     }
 
