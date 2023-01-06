@@ -7,82 +7,74 @@ module.exports = {
   description: 'Receive events from Stripe about subscription renewals',
 
 
-  exits: {
-    success: { description: 'A Stripe event has successfully been received' },
-    invalidRequestingIp: {description: 'The webhook received a request from a non stripe IP address', responseType: 'unauthorized'},
-    missingStripeHeader: { description: 'The webhook received a request with no stripe-signature header', responseType: 'unauthorized'},
-    missingRequestBody: { description: 'The webhook received a request with no body', responseType: 'badRequest'},
-    subscriptionUpdated: { description: 'A subscription had been successfully renewed.', responseType: 'ok' },
-    subscriptionRenewalEmailSent: { description: 'A user had been sent an email notification of their subscritpion renewal', responseType: 'ok' },
+  inputs: {
+    id: {
+      type: 'string',
+      required: true,
+    }
+    type: {
+      type: 'string',
+      required: true,
+    },
+    object: {
+      type: 'string',
+      isIn: ['event'],
+      required: true,
+    },
+    data: {
+      type: {object: {}},
+      required: true,
+    },
+    webhookSignature: {
+      type: 'string',
+      required: true,
+    },
   },
 
 
-  fn: async function (exits) {
-    const stripe = require('stripe');
-    const moment = require(sails.config.appPath + '/assets/dependencies/moment.js');
-    const VALID_STRIPE_IP_ADDRESSES = [
-      '3.18.12.63',
-      '3.130.192.231',
-      '13.235.14.237',
-      '13.235.122.149',
-      '18.211.135.69',
-      '35.154.171.200',
-      '52.15.183.38',
-      '54.88.130.119',
-      '54.88.130.237',
-      '54.187.174.169',
-      '54.187.205.235',
-      '54.187.216.72'
-    ];
+  exits: {
+    success: { description: 'A Stripe event has successfully been received' },
+    missingStripeHeader: { description: 'The webhook received a request with no stripe-signature header', responseType: 'unauthorized'},
+  },
 
-    // If the requesting IP address is not in the list of IP addresses that stripe uses, return a
-    if(!_.contains(VALID_STRIPE_IP_ADDRESSES, this.req.get('cf-connecting-ip'))){
-      throw 'invalidRequestingIp';
-    }
-    // If this request is missing a stripe-signature header,
+
+  fn: async function ({id, type, object, data, webhookSignature}) {
+    const moment = require(sails.config.appPath + '/assets/dependencies/moment.js');
+
     if(!this.req.get('stripe-signature')) {
       throw 'missingStripeHeader';
     }
 
-    const stripeSignatureHeader = this.req.get('stripe-signature');
-
-    if(!this.req.body){
-      throw 'missingRequestBody';
+    if (!sails.config.custom.stripeSubscriptionWebhookSecret) {
+      throw new Error('No Stripe webhook secret configured!  (Please set `sails.config.custom.stripeSubscriptionWebhookSecret`.)');
     }
 
-    let stripeEvent;
-
-    // Construct a stripe event from the raw request body.
-    try {
-      stripeEvent = stripe.webhooks.constructEvent(this.req.body, stripeSignatureHeader, sails.config.custom.stripeSubscriptionWebhookSecret);
-    } catch (err) {
-      // throw an error if there was an error constructing the event.
-      throw new Error(`When the webhook received a valid request from Stripe, the event provided could not be constructed by the stripe.webhooks.constructEvent method. Full error ${err}`);
+    if (sails.config.custom.stripeSubscriptionWebhookSecret !== webhookSignature) {
+      throw new Error('Received unexpected Stripe webhook request with webhookSignature set to: '+botSignature);
     }
 
-    let stripeEventData = stripeEvent.data.object;
+    let stripeEventData = data.object;
 
-    // If this event has no subscription ID, we'll return a 200 reponse.
+    // If this event does not include a subscription ID, we'll ignore it and return a 200 response.
     if(!stripeEventData.subscription) {
-      return exits.success();
+      return;
     }
 
     // Find the subscription record for this event.
     let subscriptionIdToFind = stripeEventData.subscription;
-    let subscriptionForThisEvent = await Subscription.findOne({stripeSubscriptionId: subscriptionIdToFind}).populate('User');
+    let subscriptionForThisEvent = await Subscription.findOne({stripeSubscriptionId: subscriptionIdToFind}).populate('user');
 
-    if(!subscriptionForThisEvent){
+    if(!subscriptionForThisEvent) {
       throw new Error(`The Stripe subscription events webhook received a event for a subscription with stripeSubscriptionId: ${subscriptionIdToFind}, but no matching record was found in our database.`);
     }
 
     let userForThisSubscription = subscriptionForThisEvent.user;
 
     // If this event is an upcoming subscription renewal, we'll send the user an email.
-    if(stripeEvent.type === 'invoice.upcoming' && stripeEventData.billing_reason === 'upcoming') {
-
+    if(type === 'invoice.upcoming' && stripeEventData.billing_reason === 'upcoming') {
       // Get the subscription cost per host for the Subscription renewal notification email.
       let subscriptionCostPerHost = Math.floor(subscriptionForThisEvent.subscriptionPrice / subscriptionForThisEvent.numberOfHosts / 12);
-
+      let upcomingBillingAt = stripeEventData.next_payment_attempt * 1000;
       // Send a upcoming subscription renewal email.
       await sails.helpers.sendTemplateEmail.with({
         to: userForThisSubscription.emailAddress,
@@ -96,18 +88,23 @@ module.exports = {
           subscriptionPriceInWholeDollars: subscriptionForThisEvent.subscriptionPrice,
           numberOfHosts: subscriptionForThisEvent.numberOfHosts,
           subscriptionCostPerHost: subscriptionCostPerHost,
-          nextBillingAt: moment(new Date()).format('MMM Do')+', '+moment(new Date()).format('YYYY'),
+          nextBillingAt: moment(upcomingBillingAt).format('MMM Do')+', '+moment(upcomingBillingAt).format('YYYY'),
         }
       });
 
-      return exits.subscriptionRenewalEmailSent;
-
-    } else if(stripeEvent.type === 'invoice.paid' && stripeEventData.billing_reason === 'subscription_cycle') {
+    } else if(type === 'invoice.paid' && stripeEventData.billing_reason === 'subscription_cycle') {
     // If event is from a Fleet Premium subscription renewal invoice being paid, we'll generate a new license key,
     // update the subscription's database record, and send the user a renewal confirmation email.
 
-      // Convert the timestamp from Stripe into a JS timestamp.
-      let nextBillingAtInMs = stripeEventData.period_end * 1000;
+      if(!stripeEventData.lines || !stripeEventData.lines.data[0]) {
+        throw new Error(`When the Stripe subscription events webhook received an event for a paid invoice for subscription id: ${subscriptionIdToFind}, the event data object is missing information about the paid invoice. Check the Stripe dashboard to see the data for this event (Stripe event id: ${id})`);
+      }
+
+      // Get the information about the paid invoice from the stripe event.
+      let paidInvoiceInformation = stripeEventData.lines.data[0];
+
+      // Convert the new subscription cycle's period end timestamp from Stripe into a JS timestamp.
+      let nextBillingAtInMs = paidInvoiceInformation.period.end * 1000;
 
       // Generate a new license key for this subscription
       let newLicenseKeyForThisSubscription = await sails.helpers.createLicenseKey.with({
@@ -117,7 +114,7 @@ module.exports = {
       });
 
       // Update the subscription record
-      await Subscription.updateOne({id: subscriptionForThisEvent.id}).with({
+      await Subscription.updateOne({id: subscriptionForThisEvent.id}).set({
         fleetLicenseKey: newLicenseKeyForThisSubscription,
         nextBillingAt: nextBillingAtInMs
       });
@@ -135,9 +132,8 @@ module.exports = {
         }
       });
 
-      return exits.subscriptionUpdated;
     }
-    // FUTURE: send emails about failed payments. (stripeEvent.type === 'invoice.payment_failed' && stripeEventData.billing_reason === 'subscription_cycle')
+    // FUTURE: send emails about failed payments. (type === 'invoice.payment_failed' && stripeEventData.billing_reason === 'subscription_cycle')
 
 
     return;
