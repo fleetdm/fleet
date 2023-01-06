@@ -40,7 +40,7 @@ module.exports = {
     }
 
     // If this subscription is over a year old, and was renewed in the past 30 days set subscriptionHasBeenRecentlyRenewed to true.
-    if(thisSubscription.createdAt >= oneYearAgoAt && (thisSubscription.nextBillingAt - oneYearInMs) >= thirtyDaysAgoAt) {
+    if(thisSubscription.createdAt <= oneYearAgoAt && (thisSubscription.nextBillingAt - oneYearInMs) >= thirtyDaysAgoAt) {
       subscriptionHasBeenRecentlyRenewed = true;
     }
 
