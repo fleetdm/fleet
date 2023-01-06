@@ -36,6 +36,7 @@ import Spinner from "components/Spinner";
 import Button from "components/buttons/Button";
 import TabsWrapper from "components/TabsWrapper";
 import MainContent from "components/MainContent";
+import InfoBanner from "components/InfoBanner";
 import BackLink from "components/BackLink";
 
 import {
@@ -632,6 +633,7 @@ const HostDetailsPage = ({
             path={filteredHostsPath || PATHS.MANAGE_HOSTS}
           />
         </div>
+        <InfoBanner color="yellow">Info banner here</InfoBanner>
         <HostSummaryCard
           statusClassName={statusClassName}
           titleData={titleData}

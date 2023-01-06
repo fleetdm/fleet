@@ -1,7 +1,11 @@
 .info-banner {
   padding: $pad-medium;
   border-radius: $border-radius;
-  border: 1px solid #d9d9fe;
+  border: 1px solid $ui-vibrant-blue-25;
   background-color: $ui-vibrant-blue-10;
   font-size: 14px;
+
+  &__yellow {
+    background-color: $ui-yellow-banner;
+  }
 }
