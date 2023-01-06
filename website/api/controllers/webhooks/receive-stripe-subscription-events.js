@@ -16,11 +16,6 @@ module.exports = {
       type: 'string',
       required: true,
     },
-    object: {
-      type: 'string',
-      isIn: ['event'],
-      required: true,
-    },
     data: {
       type: {object: {}},
       required: true,
@@ -38,7 +33,7 @@ module.exports = {
   },
 
 
-  fn: async function ({id, type, object, data, webhookSignature}) {
+  fn: async function ({id, type, data, webhookSignature}) {
     const moment = require(sails.config.appPath + '/assets/dependencies/moment.js');
 
     if(!this.req.get('stripe-signature')) {
@@ -50,7 +45,7 @@ module.exports = {
     }
 
     if (sails.config.custom.stripeSubscriptionWebhookSecret !== webhookSignature) {
-      throw new Error('Received unexpected Stripe webhook request with webhookSignature set to: '+botSignature);
+      throw new Error('Received unexpected Stripe webhook request with webhookSignature set to: '+webhookSignature);
     }
 
     let stripeEventData = data.object;
