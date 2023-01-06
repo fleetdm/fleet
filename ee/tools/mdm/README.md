@@ -1,4 +1,4 @@
-## MDM Push CSR generation tool
+# MDM Push CSR generation tool
 
 ### Build
 
@@ -18,10 +18,10 @@ The following environment variables must be configured:
 `CSR_BASE64` - Base64 encoded CSR submitted from the Fleet server or `fleetctl` on behalf of the user. (Note: this is
 accepted as an environment variable to mitigate against command injection attacks from untrusted user input.)
 
-The program outputs the email from the signing request, and the signed request as JSON. For example:
+The program outputs the email and org from the signing request, and the signed request as JSON. For example:
 
 ```json
-{"email":"fleetuser@example.com","request":"PD94bWw..."}
+{"email":"fleetuser@example.com","org":"ExampleOrg","request":"PD94bWw..."}
 ```
 
 The email should be validated against the email denylist, and then the request contents should be
