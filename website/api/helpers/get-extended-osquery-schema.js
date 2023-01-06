@@ -23,7 +23,7 @@ module.exports = {
     let YAML = require('yaml');
     let topLvlRepoPath = path.resolve(sails.config.appPath, '../');
 
-    let VERSION_OF_OSQUERY_SCHEMA_TO_USE = '5.4.0';
+    let VERSION_OF_OSQUERY_SCHEMA_TO_USE = '5.6.0';
     // Getting the specified osquery schema from the osquery/osquery-site GitHub repo.
     let rawOsqueryTables = await sails.helpers.http.get('https://raw.githubusercontent.com/osquery/osquery-site/source/src/data/osquery_schema_versions/'+VERSION_OF_OSQUERY_SCHEMA_TO_USE+'.json');
 
@@ -72,6 +72,13 @@ module.exports = {
         let sampleYamlSchemaForThisTable =`name: ${expandedTableToPush.name}\ndescription: >- # (required) string - The description for this table. Note: this field supports markdown\n\t# Add description here\nexamples: >- # (optional) string - An example query for this table. Note: This field supports markdown\n\t# Add examples here\nnotes: >- # (optional) string - Notes about this table. Note: This field supports markdown.\n\t# Add notes here\ncolumns: # (required)\n\t- name: # (required) string - The name of the column\n\t  description: # (required) string - The column's description\n\t  type: # (required) string - the column's data type\n\t  required: # (required) boolean - whether or not this column is required to query this table.`;
 
         expandedTableToPush.fleetRepoUrl = 'https://github.com/fleetdm/fleet/new/main/schema/tables/?filename='+encodeURIComponent('/tables/'+expandedTableToPush.name)+'.yml&value='+encodeURIComponent(sampleYamlSchemaForThisTable);
+
+        // Grab the last example in the array as is usually the most rich example.
+        // TODO: adjust the UI to show all examples.
+        let examples = expandedTableToPush.examples;
+        if (examples.length > 0) {
+          expandedTableToPush.examples = '```\n' + examples[examples.length- 1] + '\n```';
+        }
 
         expandedTables.push(expandedTableToPush);
       } else { // If this table exists in the Fleet overrides schema, we'll override the values
