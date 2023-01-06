@@ -177,7 +177,7 @@ describe(
       });
       it("hides access to Fleet Desktop settings", () => {
         cy.visit("settings/organization");
-        cy.getAttached(".org-settings-form__form-nav-list").within(() => {
+        cy.findByRole("navigation", { name: "settings" }).within(() => {
           cy.findByText(/organization info/i).should("exist");
           cy.findByText(/fleet desktop/i).should("not.exist");
         });

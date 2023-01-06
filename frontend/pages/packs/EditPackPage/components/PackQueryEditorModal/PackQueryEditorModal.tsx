@@ -197,6 +197,7 @@ const PackQueryEditorModal = ({
             placeholder={"Select query"}
             value={selectedQuery?.id}
             wrapperClassName={`${baseClass}__select-query-dropdown-wrapper`}
+            autoFocus
           />
         )}
         <InputField

@@ -1234,13 +1234,13 @@ const ManageHostsPage = ({
     let label: string;
     switch (mdmEnrollmentStatus) {
       case "automatic":
-        label = "MDM enrolled (automatic)";
+        label = "MDM status: On (automatic)";
         break;
       case "manual":
-        label = "MDM enrolled (manual)";
+        label = "MDM status: On (manual)";
         break;
       default:
-        label = "Unenrolled";
+        label = "MDM status: Off";
     }
 
     let TooltipDescription: JSX.Element;
@@ -1716,7 +1716,6 @@ const ManageHostsPage = ({
         defaultSortDirection={
           (sortBy[0] && sortBy[0].direction) || DEFAULT_SORT_DIRECTION
         }
-        defaultSearchQuery={searchQuery}
         pageSize={100}
         actionButtonText={"Edit columns"}
         actionButtonIcon={EditColumnsIcon}

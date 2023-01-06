@@ -904,6 +904,9 @@ None.
   "integrations": {
     "jira": null
   },
+  "mdm": {
+    "apple_bm_default_team": ""
+  },
   "logging": {
     "debug": false,
     "json": false,
@@ -1001,6 +1004,7 @@ Modifies the Fleet's configuration with the supplied information.
 | email                             | string  | body  | _integrations.zendesk[] settings_. The Zendesk user email to use for this Zendesk integration. |
 | api_token                         | string  | body  | _integrations.zendesk[] settings_. The Zendesk API token to use for this Zendesk integration. |
 | group_id                          | integer | body  | _integrations.zendesk[] settings_. The Zendesk group id to use for this integration. Zendesk tickets will be created in this group. |
+| apple_bm_default_team             | string  | body  | _mdm settings_. The default team to use with Apple Business Manager. |
 | additional_queries                | boolean | body  | Whether or not additional queries are enabled on hosts.                                                                                                                                |
 | force                             | bool    | query | Force apply the agent options even if there are validation errors.                                                                                                 |
 | dry_run                           | bool    | query | Validate the configuration and return any validation errors, but do not apply the changes.                                                                         |
@@ -1127,6 +1131,9 @@ Modifies the Fleet's configuration with the supplied information.
         "enable_software_vulnerabilities": false
       }
     ]
+  },
+  "mdm": {
+    "apple_bm_default_team": ""
   },
   "logging": {
       "debug": false,
@@ -1705,7 +1712,7 @@ None.
 | os_id                   | integer | query | The ID of the operating system to filter hosts by.                                                                                                                                                                                                                                                                                          |
 | os_name                 | string  | query | The name of the operating system to filter hosts by. `os_version` must also be specified with `os_name`                                                                                                                                                                                                                                     |
 | os_version              | string  | query | The version of the operating system to filter hosts by. `os_name` must also be specified with `os_version`                                                                                                                                                                                                                                  |
-| device_mapping          | boolean | query | Indicates whether `device_mapping` should be included for each host. See ["Get host's Google Chrome profiles](#get-host's-google-chrome-profiles) for more information about this feature.                                                                                                                                                  |
+| device_mapping          | boolean | query | Indicates whether `device_mapping` should be included for each host. See ["Get host's Google Chrome profiles](#get-hosts-google-chrome-profiles) for more information about this feature.                                                                                                                                                  |
 | mdm_id                  | integer | query | The ID of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider and URL).                                                                                                                                                                                                |
 | mdm_enrollment_status   | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Can be one of 'manual', 'automatic', 'pending', or 'unenrolled'.                                                                                                                                                                                                             |
 | munki_issue_id          | integer | query | The ID of the _munki issue_ (a Munki-reported error or warning message) to filter hosts by (that is, filter hosts that are affected by that corresponding error or warning message).                                                                                                                                                        |
@@ -2577,7 +2584,7 @@ If the host exists but is not enrolled to an MDM server, then this API returns `
 
 ```json
 {
-  "enrollment_status": "Enrolled (automated)",
+  "enrollment_status": "On (automatic)",
   "server_url": "some.mdm.com",
   "name": "Some MDM",
   "id": 3
@@ -2686,7 +2693,7 @@ Retrieves a host's MDM enrollment status, MDM server URL, and Munki version.
       }
     ],
     "mobile_device_management": {
-      "enrollment_status": "Enrolled (automated)",
+      "enrollment_status": "On (automatic)",
       "server_url": "http://some.url/mdm",
       "name": "MDM Vendor Name",
       "id": 999

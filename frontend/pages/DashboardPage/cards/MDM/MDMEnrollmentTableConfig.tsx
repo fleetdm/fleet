@@ -51,7 +51,7 @@ const enrollmentTableHeaders = [
     accessor: "status",
     Cell: (cellProps: IStringCellProps) => {
       const tooltipText = (status: string): string => {
-        if (status === "Enrolled (automatic)") {
+        if (status === "On (automatic)") {
           return `
                 <span>
                   Hosts automatically enrolled to an MDM solution <br />
@@ -69,7 +69,7 @@ const enrollmentTableHeaders = [
               `;
       };
 
-      if (cellProps.cell.value === "Unenrolled") {
+      if (cellProps.cell.value === "Off") {
         return <TextCell value={cellProps.cell.value} />;
       }
       return (
@@ -98,9 +98,9 @@ const enrollmentTableHeaders = [
     Cell: (cellProps: IStringCellProps) => {
       const statusParam = () => {
         switch (cellProps.row.original.status) {
-          case "Enrolled (automatic)":
+          case "On (automatic)":
             return "automatic";
-          case "Enrolled (manual)":
+          case "On (manual)":
             return "manual";
           default:
             return "unenrolled";

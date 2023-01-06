@@ -74,7 +74,6 @@ module.exports = {
       'chris-mcgillicuddy',
       'rfairburn',
       'artemist-work',
-      'fx5',
       'marcosd4h',
       'zayhanlon',
       'bradmacd',

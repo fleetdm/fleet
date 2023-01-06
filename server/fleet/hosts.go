@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 )
@@ -202,12 +203,21 @@ type Host struct {
 	DeviceMapping *json.RawMessage `json:"device_mapping,omitempty" db:"device_mapping" csv:"-"`
 }
 
-// DisplayName returns ComputerName if it isn't empty or HostName otherwise.
+// DisplayName returns ComputerName if it isn't empty. Otherwise, it returns Hostname if it isn't
+// empty. If Hostname is empty and both HardwareSerial and HardwareModel are not empty, it returns a
+// composite string with HardwareModel and HardwareSerial. If all else fails, it returns an empty
+// string.
 func (h *Host) DisplayName() string {
-	if cn := h.ComputerName; cn != "" {
-		return cn
+	switch {
+	case h.ComputerName != "":
+		return h.ComputerName
+	case h.Hostname != "":
+		return h.Hostname
+	case h.HardwareModel != "" && h.HardwareSerial != "":
+		return fmt.Sprintf("%s (%s)", h.HardwareModel, h.HardwareSerial)
+	default:
+		return ""
 	}
-	return h.Hostname
 }
 
 type HostIssues struct {
@@ -391,7 +401,7 @@ type HostMunkiIssue struct {
 }
 
 // List of well-known MDM solution names. Those correspond to names stored in
-// the mobile_device_management_solutions table, created via (data) migrations.
+// the mobile_device_management_solutions table.
 const (
 	UnknownMDMName        = ""
 	WellKnownMDMKandji    = "Kandji"
@@ -426,13 +436,13 @@ func MDMNameFromServerURL(serverURL string) string {
 func (h *HostMDM) EnrollmentStatus() string {
 	switch {
 	case h.Enrolled && !h.InstalledFromDep:
-		return "Enrolled (manual)"
+		return "On (manual)"
 	case h.Enrolled && h.InstalledFromDep:
-		return "Enrolled (automated)"
+		return "On (automatic)"
 	case !h.Enrolled && h.InstalledFromDep:
 		return "Pending"
 	default:
-		return "Unenrolled"
+		return "Off"
 	}
 }
 
