@@ -11,7 +11,7 @@ module.exports = {
     id: {
       type: 'string',
       required: true,
-    }
+    },
     type: {
       type: 'string',
       required: true,
