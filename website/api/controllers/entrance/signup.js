@@ -184,9 +184,9 @@ the account verification message.)`,
       'https://hooks.zapier.com/hooks/catch/3627242/bqsf4rj/',
       {
         'emailAddress': newEmailAddress,
-        'organization': organization ? organization : '?',
-        'firstName': firstName !== emailAddress.split('@')[0] ? firstName : '?',
-        'lastName': lastName !== emailAddress.split('@')[1] ? lastName : '?',
+        'organization': organization ? organization : '?',// « organization input is optional
+        'firstName': firstName !== emailAddress.split('@')[0] ? firstName : '?',// « firstName input is always set, but it might have just been a guess based on email.  And if was a guess, let's just use "?" instead.
+        'lastName': lastName !== emailAddress.split('@')[1] ? lastName : '?',// « lastName input is always set, like firstName
         'signupReason': signupReason,
         'webhookSecret': sails.config.custom.zapierSandboxWebhookSecret
       }
