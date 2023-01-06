@@ -230,7 +230,7 @@ func createPushCertificateRequest(vendorKey *rsa.PrivateKey, vendorCert *x509.Ce
 }
 
 func makeCertChain(mdmPEM, wwdrPEM, rootPEM string) string {
-	return string(mdmPEM) + string(wwdrPEM) + string(rootPEM)
+	return mdmPEM + wwdrPEM + rootPEM
 }
 
 func pemCert(derBytes []byte) []byte {
