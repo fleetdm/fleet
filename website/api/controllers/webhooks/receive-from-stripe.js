@@ -65,7 +65,7 @@ module.exports = {
 
     let userForThisSubscription = subscriptionForThisEvent.user;
 
-    // If this event is an upcoming subscription renewal, we'll send the user an email.
+    // If stripe thinks this subscription renews in 7 days, we'll send the user an subscription reminder email.
     if(type === 'invoice.upcoming' && stripeEventData.billing_reason === 'upcoming') {
       // Get the subscription cost per host for the Subscription renewal notification email.
       let subscriptionCostPerHost = Math.floor(subscriptionForThisEvent.subscriptionPrice / subscriptionForThisEvent.numberOfHosts / 12);
@@ -83,13 +83,12 @@ module.exports = {
           subscriptionPriceInWholeDollars: subscriptionForThisEvent.subscriptionPrice,
           numberOfHosts: subscriptionForThisEvent.numberOfHosts,
           subscriptionCostPerHost: subscriptionCostPerHost,
-          nextBillingAt: moment(upcomingBillingAt).format('MMM Do')+', '+moment(upcomingBillingAt).format('YYYY'),
+          nextBillingAt: upcomingBillingAt,
         }
       });
 
     } else if(type === 'invoice.paid' && stripeEventData.billing_reason === 'subscription_cycle') {
-    // If event is from a Fleet Premium subscription renewal invoice being paid, we'll generate a new license key,
-    // update the subscription's database record, and send the user a renewal confirmation email.
+    // If the event was triggered by a user's card successfully being charged by Stripe, we'll generate a new license key, update the subscription's database record, and send the user a renewal confirmation email.
 
       if(!stripeEventData.lines || !stripeEventData.lines.data[0]) {
         throw new Error(`When the Stripe subscription events webhook received an event for a paid invoice for subscription id: ${subscriptionIdToFind}, the event data object is missing information about the paid invoice. Check the Stripe dashboard to see the data for this event (Stripe event id: ${id})`);
@@ -99,19 +98,19 @@ module.exports = {
       let paidInvoiceInformation = stripeEventData.lines.data[0];
 
       // Convert the new subscription cycle's period end timestamp from Stripe into a JS timestamp.
-      let nextBillingAtInMs = paidInvoiceInformation.period.end * 1000;
+      let nextBillingAt = paidInvoiceInformation.period.end * 1000;
 
       // Generate a new license key for this subscription
       let newLicenseKeyForThisSubscription = await sails.helpers.createLicenseKey.with({
         numberOfHosts: subscriptionForThisEvent.numberOfHosts,
         organization: subscriptionForThisEvent.user.organization,
-        expiresAt: nextBillingAtInMs,
+        expiresAt: nextBillingAt,
       });
 
       // Update the subscription record
       await Subscription.updateOne({id: subscriptionForThisEvent.id}).set({
         fleetLicenseKey: newLicenseKeyForThisSubscription,
-        nextBillingAt: nextBillingAtInMs
+        nextBillingAt: nextBillingAt
       });
 
       // Send subscription renewal email

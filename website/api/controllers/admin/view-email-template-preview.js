@@ -45,7 +45,7 @@ module.exports = {
   fn: async function ({template, raw}) {
 
     var path = require('path');
-    var moment = require(sails.config.appPath + '/assets/dependencies/moment.js');
+    var moment = require('moment');
     var url = require('url');
     var util = require('util');
     // Determine appropriate email layout and fake data to use.
@@ -103,7 +103,7 @@ module.exports = {
           subscriptionPriceInWholeDollars: 60,
           numberOfHosts: 10,
           subscriptionCostPerHost: 6,
-          nextBillingAt: moment(new Date()).format('MMM Do')+', '+moment(new Date()).format('YYYY'),
+          nextBillingAt: Date.now() + (1000 * 60 * 60 * 24 * 7),
         };
         break;
       default:
@@ -126,7 +126,7 @@ module.exports = {
 
     let sampleHtml = await sails.renderView(
       emailTemplatePath,
-      Object.assign({layout, url, util, _ }, fakeData)
+      Object.assign({layout, url, util, _, moment }, fakeData)
     )
     .intercept((err)=>{
       err.message = 'Whoops, that email template failed to render.  Could there be some fake data missing for this particular template in the `switch` statement api/controllers/admin/view-email-template-preview.js?  Any chance you need to re-lift the app after making backend changes?\nMore details: '+err.message;

@@ -2,7 +2,7 @@
 <h1 style="margin-bottom: 32px; font-weight: bold; font-size: 24px;">Your subscription will renew soon</h1>
 <p style="margin-bottom: 32px;">Hello <%= firstName+' '+lastName %>,</p>
 
-<p style="margin-bottom: 32px;">This is a reminder that your Fleet Premium subscription for <span style="font-weight: 700;">$<%= subscriptionPriceInWholeDollars %>/year</span> (<%= numberOfHosts %> devices @ $<%= subscriptionCostPerHost %>/device/month) will automatically renew on <span style="font-weight: 700;"><%= nextBillingAt %></span>.</p>
+<p style="margin-bottom: 32px;">This is a reminder that your Fleet Premium subscription for <span style="font-weight: 700;">$<%= subscriptionPriceInWholeDollars %>/year</span> (<%= numberOfHosts %> devices @ $<%= subscriptionCostPerHost %>/device/month) will automatically renew <span style="font-weight: 700;"><%= moment(nextBillingAt).fromNow() %></span>.</p>
 
 
 <p style="margin-bottom: 32px;">To avoid disruptions to you service, please log in to your  <a style="color: #6A67FE;" href="<%= url.resolve(sails.config.custom.baseUrl,'/customers/dashboard')%>">customer dashboard</a> to check if your payment method/billing information is up to date.</p>
