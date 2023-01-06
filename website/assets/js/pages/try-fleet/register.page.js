@@ -46,7 +46,7 @@ parasails.registerPage('register', {
       let signupArgins = _.clone(argins);
       if(!this.formData.firstName){
         if(this.formData.lastName) {// If a user provided a lastName but no firstName, we'll set the firstName to '?' instead of a fragment of the users email address.
-          signupArgins.firstName = '?'
+          signupArgins.firstName = '?';
         } else {
           signupArgins.firstName = argins.emailAddress.split('@')[0];
         }
