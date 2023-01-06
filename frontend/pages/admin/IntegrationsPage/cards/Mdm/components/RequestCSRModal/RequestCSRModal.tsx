@@ -8,7 +8,6 @@ import Button from "components/buttons/Button";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import Spinner from "components/Spinner";
-import requestCSR from "services/entities/mdm_csr";
 import DataError from "components/DataError";
 import Icon from "components/Icon";
 import Modal from "components/Modal";
@@ -53,9 +52,12 @@ const RequestCSRModal = ({
     setFormData({ ...formData, [name]: value });
   };
 
-  const onFormSubmit = (evt: FormEvent) => {
+  const onFormSubmit = (evt: FormEvent): void => {
     evt.preventDefault();
-    return requestCSR({ email, orgName }, setRequestState);
+
+    // TODO: once API is finished, change below to actually call it
+    setRequestState("loading");
+    setTimeout(() => setRequestState("success"), 1000);
   };
 
   const renderRequestCSRForm = () => {
