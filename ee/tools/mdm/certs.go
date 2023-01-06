@@ -249,7 +249,7 @@ func loadKey(keyPem, password []byte) (*rsa.PrivateKey, error) {
 		return nil, errors.New("PEM decode failed")
 	}
 	if pemBlock.Type != rsaPrivateKeyPEMBlockType {
-		return nil, errors.New("unmatched type or headers")
+		return nil, fmt.Errorf("unmatched type: %s", pemBlock.Type)
 	}
 
 	b, err := x509.DecryptPEMBlock(pemBlock, password)
