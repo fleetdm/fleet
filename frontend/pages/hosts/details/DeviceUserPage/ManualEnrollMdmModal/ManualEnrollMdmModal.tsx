@@ -1,7 +1,9 @@
-import React from "react";
+import React, { useState } from "react";
 
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
+
+import mdmAPI from "services/entities/mdm";
 
 export interface IInfoModalProps {
   onCancel: () => void;
@@ -10,19 +12,38 @@ export interface IInfoModalProps {
 const baseClass = "manual-enroll-mdm-modal";
 
 const ManualEnrollMdmModal = ({ onCancel }: IInfoModalProps): JSX.Element => {
-  // const handleDownload = () => {};
+  const [showDownloading, setshowDownloading] = useState(false);
+
+  const handleDownload = async () => {
+    setshowDownloading(true);
+    setTimeout(() => {
+      setshowDownloading(false);
+    }, 1000);
+
+    try {
+      await mdmAPI.downloadEnrollmentProfile();
+    } catch (e) {
+      console.error("error downloading profile:", e);
+    }
+  };
 
   return (
     <Modal title="Turn on MDM" onExit={onCancel} className={baseClass}>
       <div>
-        <p>
+        <p className={`${baseClass}__description`}>
           To turn on MDM, Apple Inc. requires that you download and install a
           profile
         </p>
         <ol>
           <li>
             <span>Download your profile.</span>
-            <Button type="button" onClick={() => undefined} variant="brand">
+            <Button
+              type="button"
+              onClick={handleDownload}
+              variant="brand"
+              isLoading={showDownloading}
+              className={`${baseClass}__download-button`}
+            >
               Download
             </Button>
           </li>
