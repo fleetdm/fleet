@@ -171,7 +171,7 @@ redis_cluster_members = toset([
 target_group_arn_suffix = "targetgroup/fleetdm/0f3bec83c8b02f58"
 ```
 
-We'll need some of thes values in the next step.
+We'll need some of these values in the next step.
 
 ## Prepare the database
 
