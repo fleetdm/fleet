@@ -52,6 +52,7 @@ const AddMemberModal = ({
           placeholder={"Search users by name"}
           disabledOptions={disabledMembers}
           value={selectedMembers}
+          autoFocus
         />
         <p>
           User not here?&nbsp;

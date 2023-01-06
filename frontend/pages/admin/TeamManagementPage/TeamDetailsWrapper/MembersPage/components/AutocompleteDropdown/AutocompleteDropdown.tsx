@@ -26,6 +26,7 @@ interface IAutocompleteDropdownProps {
   disabledOptions: number[];
   disabled?: boolean;
   className?: string;
+  autoFocus?: boolean;
 }
 
 const debounceOptions = {
@@ -57,6 +58,7 @@ const AutocompleteDropdown = ({
   className,
   disabled,
   disabledOptions,
+  autoFocus,
   placeholder,
   onChange,
   id,
@@ -125,6 +127,7 @@ const AutocompleteDropdown = ({
         filterOptions={filterOptions}
         multi
         searchable
+        autoFocus={autoFocus}
       />
     </div>
   );

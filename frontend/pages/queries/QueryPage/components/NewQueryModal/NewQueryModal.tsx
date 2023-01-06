@@ -90,6 +90,7 @@ const NewQueryModal = ({
             inputClassName={`${baseClass}__query-save-modal-name`}
             label="Name"
             placeholder="What is your query called?"
+            autofocus
           />
           <InputField
             name="description"

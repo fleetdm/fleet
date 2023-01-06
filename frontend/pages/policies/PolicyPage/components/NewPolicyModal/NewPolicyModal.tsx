@@ -117,6 +117,7 @@ const NewPolicyModal = ({
             inputClassName={`${baseClass}__policy-save-modal-name`}
             label="Name"
             placeholder="What yes or no question does your policy ask about your devices?"
+            autofocus
           />
           <InputField
             name="description"
