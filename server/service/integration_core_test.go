@@ -2672,7 +2672,7 @@ func (s *integrationTestSuite) TestGetMacadminsData() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/macadmins", hostAll.ID), nil, http.StatusOK, &macadminsData)
 	require.NotNil(t, macadminsData.Macadmins)
 	assert.Equal(t, "url", macadminsData.Macadmins.MDM.ServerURL)
-	assert.Equal(t, "Enrolled (manual)", macadminsData.Macadmins.MDM.EnrollmentStatus)
+	assert.Equal(t, "On (manual)", macadminsData.Macadmins.MDM.EnrollmentStatus)
 	assert.Nil(t, macadminsData.Macadmins.MDM.Name)
 	require.NotNil(t, macadminsData.Macadmins.MDM.ID)
 	assert.NotZero(t, *macadminsData.Macadmins.MDM.ID)
@@ -2699,7 +2699,7 @@ func (s *integrationTestSuite) TestGetMacadminsData() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/macadmins", hostAll.ID), nil, http.StatusOK, &macadminsData)
 	require.NotNil(t, macadminsData.Macadmins)
 	assert.Equal(t, "https://simplemdm.com", macadminsData.Macadmins.MDM.ServerURL)
-	assert.Equal(t, "Enrolled (automated)", macadminsData.Macadmins.MDM.EnrollmentStatus)
+	assert.Equal(t, "On (automatic)", macadminsData.Macadmins.MDM.EnrollmentStatus)
 	require.NotNil(t, macadminsData.Macadmins.MDM.Name)
 	assert.Equal(t, fleet.WellKnownMDMSimpleMDM, *macadminsData.Macadmins.MDM.Name)
 	require.NotNil(t, macadminsData.Macadmins.MDM.ID)
@@ -2713,7 +2713,7 @@ func (s *integrationTestSuite) TestGetMacadminsData() {
 	macadminsData = macadminsDataResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/macadmins", hostAll.ID), nil, http.StatusOK, &macadminsData)
 	require.NotNil(t, macadminsData.Macadmins)
-	assert.Equal(t, "Unenrolled", macadminsData.Macadmins.MDM.EnrollmentStatus)
+	assert.Equal(t, "Off", macadminsData.Macadmins.MDM.EnrollmentStatus)
 	assert.Nil(t, macadminsData.Macadmins.MDM.Name)
 	require.NotNil(t, macadminsData.Macadmins.MDM.ID)
 	assert.NotZero(t, *macadminsData.Macadmins.MDM.ID)
@@ -2748,7 +2748,7 @@ func (s *integrationTestSuite) TestGetMacadminsData() {
 	require.Nil(t, macadminsData.Macadmins.Munki)
 	require.Len(t, macadminsData.Macadmins.MunkiIssues, 0)
 	assert.Equal(t, "https://kandji.io", macadminsData.Macadmins.MDM.ServerURL)
-	assert.Equal(t, "Enrolled (automated)", macadminsData.Macadmins.MDM.EnrollmentStatus)
+	assert.Equal(t, "On (automatic)", macadminsData.Macadmins.MDM.EnrollmentStatus)
 
 	// host without mdm_id still works, returns nil id and unknown name
 	macadminsData = macadminsDataResponse{}
@@ -2758,7 +2758,7 @@ func (s *integrationTestSuite) TestGetMacadminsData() {
 	assert.Nil(t, macadminsData.Macadmins.MDM.Name)
 	assert.Nil(t, macadminsData.Macadmins.MDM.ID)
 	require.Nil(t, macadminsData.Macadmins.Munki)
-	assert.Equal(t, "Enrolled (automated)", macadminsData.Macadmins.MDM.EnrollmentStatus)
+	assert.Equal(t, "On (automatic)", macadminsData.Macadmins.MDM.EnrollmentStatus)
 
 	// generate aggregated data
 	require.NoError(t, s.ds.GenerateAggregatedMunkiAndMDM(context.Background()))
