@@ -10,18 +10,25 @@ module.exports = {
   inputs: {
     id: {
       type: 'string',
+      description: 'The unique identifier for this Stripe event.',
+      moreInfoUrl: 'https://stripe.com/docs/api/events/object#event_object-id',
       required: true,
     },
     type: {
       type: 'string',
+      description: 'The type of this Stripe event.',
+      moreInfoUrl: 'https://stripe.com/docs/api/events/object#event_object-type',
       required: true,
     },
     data: {
       type: {object: {}},
+      description: 'An object containing data associated with this Stripe event.',
+      moreInfoUrl: 'https://stripe.com/docs/api/events/object#event_object-data',
       required: true,
     },
     webhookSecret: {
       type: 'string',
+      description: 'Used to verify that requests are coming from Stripe.',
       required: true,
     },
   },
