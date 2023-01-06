@@ -73,13 +73,13 @@ func main() {
 
 	out, err := processRequest(vendorCertPEM, vendorKeyPEM, vendorKeyPassphrase, csrBase64)
 	if err != nil {
-		log.Fatalf("process request: %s", err.Error())
+		log.Fatalf("process request: %s", err)
 	}
 
 	// Write output as JSON
 	outJSON, err := json.Marshal(out)
 	if err != nil {
-		log.Fatalf("encode request JSON: %s", err.Error())
+		log.Fatalf("encode request JSON: %s", err)
 	}
 	fmt.Println(string(outJSON))
 }
