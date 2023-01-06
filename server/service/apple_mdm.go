@@ -810,7 +810,7 @@ var enrollmentProfileMobileconfigTemplate = template.Must(template.New("").Parse
 	<key>PayloadDisplayName</key>
 	<string>{{ .Organization }} Enrollment</string>
 	<key>PayloadIdentifier</key>
-	<string>com.fleetdm.fleet.mdm.apple</string>
+	<string>` + apple_mdm.FleetPayloadIdentifier + `</string>
 	<key>PayloadOrganization</key>
 	<string>{{ .Organization }}</string>
 	<key>PayloadScope</key>

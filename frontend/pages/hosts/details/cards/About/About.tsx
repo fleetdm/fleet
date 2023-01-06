@@ -51,7 +51,7 @@ const About = ({
   };
 
   const renderMdmData = () => {
-    if (!mdm || mdm.enrollment_status === "Unenrolled") {
+    if (!mdm || mdm.enrollment_status === "Off") {
       return null;
     }
     return (

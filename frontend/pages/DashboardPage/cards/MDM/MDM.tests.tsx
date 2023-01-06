@@ -29,9 +29,9 @@ describe("MDM Card", () => {
         error={null}
         isFetching={false}
         mdmEnrollmentData={[
-          { status: "Enrolled (automatic)", hosts: 10 },
-          { status: "Enrolled (manual)", hosts: 5 },
-          { status: "Unenrolled", hosts: 1 },
+          { status: "On (automatic)", hosts: 10 },
+          { status: "On (manual)", hosts: 5 },
+          { status: "Off", hosts: 1 },
         ]}
         mdmSolutions={[]}
       />
@@ -41,17 +41,17 @@ describe("MDM Card", () => {
 
     expect(
       screen.getByRole("row", {
-        name: /Enrolled \(automatic\)(.*?)10 host/i,
+        name: /On \(automatic\)(.*?)10 host/i,
       })
     ).toBeInTheDocument();
     expect(
       screen.getByRole("row", {
-        name: /Enrolled \(manual\)(.*?)5 host/i,
+        name: /On \(manual\)(.*?)5 host/i,
       })
     ).toBeInTheDocument();
     expect(
       screen.getByRole("row", {
-        name: /Unenrolled(.*?)1 host/i,
+        name: /Off(.*?)1 host/i,
       })
     ).toBeInTheDocument();
   });

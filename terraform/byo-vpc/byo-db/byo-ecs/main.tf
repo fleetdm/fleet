@@ -164,10 +164,12 @@ resource "aws_cloudwatch_log_group" "main" { #tfsec:ignore:aws-cloudwatch-log-gr
 }
 
 resource "aws_security_group" "main" {
-  count  = var.fleet_config.security_groups == null ? 1 : 0
-  name   = "fleet"
-  vpc_id = var.vpc_id
+  count       = var.fleet_config.security_groups == null ? 1 : 0
+  name        = "fleet"
+  description = "Fleet's ECS Service Security Group"
+  vpc_id      = var.vpc_id
   egress {
+    description      = "Egress to all"
     from_port        = 0
     to_port          = 0
     protocol         = "-1"
@@ -175,6 +177,7 @@ resource "aws_security_group" "main" {
     ipv6_cidr_blocks = ["::/0"]
   }
   ingress {
+    description = "Ingress only on container port"
     from_port   = 8080
     to_port     = 8080
     protocol    = "TCP"
