@@ -1,5 +1,10 @@
 package apple_mdm
 
+import (
+	"net/url"
+	"path"
+)
+
 // DEPName is the identifier/name used in nanodep MySQL storage which
 // holds the DEP configuration.
 //
@@ -21,3 +26,24 @@ const (
 	// used by Fleet MDM on the enrollment profile.
 	FleetPayloadIdentifier = "com.fleetdm.fleet.mdm.apple"
 )
+
+func ResolveAppleMDMURL(serverURL string) (string, error) {
+	return resolveURL(serverURL, MDMPath)
+}
+
+func ResolveAppleEnrollMDMURL(serverURL string) (string, error) {
+	return resolveURL(serverURL, EnrollPath)
+}
+
+func ResolveAppleSCEPURL(serverURL string) (string, error) {
+	return resolveURL(serverURL, SCEPPath)
+}
+
+func resolveURL(serverURL, relPath string) (string, error) {
+	u, err := url.Parse(serverURL)
+	if err != nil {
+		return "", err
+	}
+	u.Path = path.Join(u.Path, relPath)
+	return u.String(), nil
+}

@@ -637,7 +637,7 @@ func testHostsDelete(t *testing.T, ds *Datastore) {
 	err = ds.DeleteHost(context.Background(), host.ID)
 	require.NoError(t, err)
 
-	host, err = ds.Host(context.Background(), host.ID)
+	_, err = ds.Host(context.Background(), host.ID)
 	assert.NotNil(t, err)
 }
 
@@ -4889,7 +4889,7 @@ func testOSVersions(t *testing.T, ds *Datastore) {
 	require.Equal(t, expected, osVersions.OSVersions)
 
 	// non-existent team
-	osVersions, err = ds.OSVersions(ctx, ptr.Uint(404), nil, nil, nil)
+	_, err = ds.OSVersions(ctx, ptr.Uint(404), nil, nil, nil)
 	require.Error(t, err)
 
 	// new host with arm64

@@ -137,6 +137,7 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 
 			WebhookSettings: config.WebhookSettings,
 			Integrations:    config.Integrations,
+			MDM:             config.MDM,
 		},
 		appConfigResponseFields: appConfigResponseFields{
 			UpdateInterval:  updateIntervalConfig,
@@ -246,6 +247,9 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	}
 	oldAppConfig := appConfig.Copy()
 
+	// keep this original value, as it cannot be modified via this request.
+	origAppleBMTerms := oldAppConfig.MDM.AppleBMTermsExpired
+
 	license, err := svc.License(ctx)
 	if err != nil {
 		return nil, err
@@ -338,6 +342,12 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	if invalid.HasErrors() {
 		return nil, ctxerr.Wrap(ctx, invalid)
 	}
+
+	// ignore AppleBMTermsExpired if provided in the modify payload
+	// we don't return an error in this case because it would prevent
+	// using the output of fleetctl get config as input to fleetctl apply
+	// or this endpoint.
+	appConfig.MDM.AppleBMTermsExpired = origAppleBMTerms
 
 	// do not send a test email in dry-run mode, so this is a good place to stop
 	// (we also delete the removed integrations after that, which we don't want
