@@ -34,7 +34,6 @@ module.exports = {
 
 
   fn: async function ({id, type, data, webhookSecret}) {
-    const moment = require(sails.config.appPath + '/assets/dependencies/moment.js');
 
     if(!this.req.get('stripe-signature')) {
       throw 'missingStripeHeader';
