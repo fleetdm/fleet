@@ -12,6 +12,7 @@ import {
   IIntegrations,
 } from "interfaces/integration";
 import { IApiError } from "interfaces/errors";
+import { IEmptyTableProps } from "interfaces/empty_table";
 
 import Button from "components/buttons/Button";
 // @ts-ignore
@@ -20,6 +21,7 @@ import configAPI from "services/entities/config";
 
 import TableContainer from "components/TableContainer";
 import TableDataError from "components/DataError";
+import EmptyTable from "components/EmptyTable";
 import CustomLink from "components/CustomLink";
 
 import AddIntegrationModal from "./components/AddIntegrationModal";
@@ -41,7 +43,7 @@ const BAD_REQUEST_ERROR =
 const UNKNOWN_ERROR =
   "We experienced an error when attempting to connect. Please try again later.";
 
-const Integrations = () => {
+const Integrations = (): JSX.Element => {
   const { renderFlash } = useContext(NotificationContext);
 
   const [showAddIntegrationModal, setShowAddIntegrationModal] = useState(false);
@@ -361,35 +363,33 @@ const Integrations = () => {
     }
   };
 
-  const NoIntegrationsComponent = () => {
-    return (
-      <div className={`${noIntegrationsClass}`}>
-        <div className={`${noIntegrationsClass}__inner`}>
-          <div className={`${noIntegrationsClass}__inner-text`}>
-            <h2>Set up integrations</h2>
-            <p>
-              Create tickets automatically when Fleet detects new
-              vulnerabilities.
-            </p>
-            <p>
-              Want to learn more?&nbsp;
-              <CustomLink
-                url="https://fleetdm.com/docs/using-fleet/automations"
-                text="Read about automations"
-                newTab
-              />
-            </p>
-            <Button
-              variant="brand"
-              className={`${noIntegrationsClass}__add-button`}
-              onClick={toggleAddIntegrationModal}
-            >
-              Add integration
-            </Button>
-          </div>
-        </div>
-      </div>
-    );
+  const emptyState = () => {
+    const emptyIntegrations: IEmptyTableProps = {
+      iconName: "empty-integrations",
+      header: "Set up integrations",
+      info:
+        "Create tickets automatically when Fleet detects new software vulnerabilities or hosts failing policies.",
+      additionalInfo: (
+        <>
+          Want to learn more?&nbsp;
+          <CustomLink
+            url="https://fleetdm.com/docs/using-fleet/automations"
+            text="Read about automations"
+            newTab
+          />
+        </>
+      ),
+      primaryButton: (
+        <Button
+          variant="brand"
+          className={`${noIntegrationsClass}__add-button`}
+          onClick={toggleAddIntegrationModal}
+        >
+          Add integration
+        </Button>
+      ),
+    };
+    return emptyIntegrations;
   };
 
   const tableHeaders = generateTableHeaders(onActionSelection);
@@ -399,6 +399,10 @@ const Integrations = () => {
   return (
     <div className={`${baseClass}`}>
       <h2 className={`${baseClass}__title`}>Ticket Destinations</h2>
+      <p className={`${baseClass}__page-description`}>
+        Add or edit integrations to create tickets when Fleet detects new
+        vulnerabilities.
+      </p>
       {loadingIntegrationsError ? (
         <TableDataError />
       ) : (
@@ -413,7 +417,15 @@ const Integrations = () => {
           actionButtonVariant={"brand"}
           onActionButtonClick={toggleAddIntegrationModal}
           resultsTitle={"integrations"}
-          emptyComponent={NoIntegrationsComponent}
+          emptyComponent={() =>
+            EmptyTable({
+              iconName: emptyState().iconName,
+              header: emptyState().header,
+              info: emptyState().info,
+              additionalInfo: emptyState().additionalInfo,
+              primaryButton: emptyState().primaryButton,
+            })
+          }
           showMarkAllPages={false}
           isAllPagesSelected={false}
           disablePagination
