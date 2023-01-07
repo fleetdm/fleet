@@ -1,0 +1,342 @@
+#fleet-mdm {
+
+
+  h1 {
+    font-weight: 800;
+    font-size: 64px;
+    line-height: 54px;
+  }
+  h2 {
+    font-weight: 800;
+    font-size: 32px;
+    line-height: 38px;
+    margin-bottom: 40px;
+  }
+  h3 {
+    font-weight: 800;
+    font-size: 24px;
+    line-height: 32px;
+  }
+  h4 {
+    color: #515774;
+    font-weight: 500;
+    font-size: 18px;
+    line-height: 24px;
+    img {
+      vertical-align: baseline;
+    }
+  }
+  p {
+    font-size: 16px;
+    line-height: 24px;
+  }
+
+  [purpose='hero-background'] {
+    background: linear-gradient(270deg, #F3EAEE -0.36%, #FFFFFF 99.57%);
+    padding-top: 80px;
+    padding-bottom: 80px;
+    padding-left: 80px;
+    padding-right: 80px;
+  }
+  [purpose='hero-container'] {
+    max-width: 1200px;
+
+  }
+  [purpose='hero-text'] {
+    max-width: 520px;
+    margin-bottom: 40px;
+    h1 {
+      margin-bottom: 32px;
+    }
+    p {
+      font-size: 18px;
+      line-height: 27px;
+      margin-bottom: 32px;
+    }
+  }
+  [purpose='hero-image'] {
+    max-height: 430px;
+    max-width: 630px;
+  }
+
+  [purpose='page-container'] {
+    padding-left: 40px;
+    padding-right: 40px;
+  }
+
+  [purpose='section'] {
+    margin-top: 120px;
+    margin-bottom: 120px;
+
+  }
+  [purpose='feature'] {
+    margin-top: 60px;
+    max-width: 960px;
+    div {
+      max-width: 480px;
+    }
+  }
+  [purpose='feature-image'] {
+    height: 100%;
+    img {
+      max-height: 300px;
+    }
+
+  }
+  [purpose='mdm-roadmap-image'] {
+    padding-bottom: 80px;
+    max-width: 540px;
+    height: auto;
+    width: 100%;
+  }
+
+  [purpose='checklists'] {
+    margin-bottom: 80px;
+  }
+  [purpose='checklist'] {
+    p {
+      padding-left: 24px;
+      text-indent: -24px;
+    }
+    p::before {
+      content: " ";
+      background-image: url('/images/icon-checkmark-purple-circle-12x12@2x.png');
+      background-size: 16px 16px;
+      display: inline-block;
+      position: relative;
+      top: 2px;
+      margin-right: 12px;
+      width: 16px;
+      height: 16px;
+      content: '';
+    }
+  }
+
+  [purpose='button-row'] {
+    max-width: 360px;
+    a {
+      font-weight: 700;
+      font-size: 16px;
+      line-height: 24px;
+    }
+    [purpose='mdm-beta-button'] {
+      margin-right: 32px;
+      background: #FF5C83;
+      border-radius: 8px;
+      padding-left: 32px;
+      padding-right: 32px;
+      height: 48px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      color: #FFF;
+    }
+  }
+
+  [purpose='logos'] {
+    height: 80px;
+    max-width: 1200px;
+    margin-left: auto;
+    margin-right: auto;
+    img {
+      margin-top: 23.5px;
+      margin-bottom: 23.5px;
+      padding-left: 35px;
+      padding-right: 35px;
+    }
+    [purpose='snowflake-logo'] {
+      height: 30px;
+    }
+    [purpose='wayfair-logo'] {
+      height: 33px;
+    }
+    [purpose='uber-logo'] {
+      height: 29px;
+    }
+    [purpose='atlassian-logo'] {
+      height: 22px;
+    }
+    [purpose='segment-logo'] {
+      height: 32px;
+    }
+  }
+
+  [purpose='tweets-container'] {
+    padding-top: 120px;
+    padding-bottom: 120px;
+    background-color: @ui-off-white;
+  }
+  [purpose='tweets']::-webkit-scrollbar {
+    display: none;
+  }
+  [purpose='tweets'] {
+    overflow-x: scroll;
+    scroll-behavior: smooth;
+    padding-left: 120px;
+    padding-right: 120px;
+    margin-top: 80px;
+    margin-bottom: 16px;
+    scrollbar-height: none;
+  }
+  [purpose='tweet-cards-right-padding'] {
+    min-width: 120px;
+  }
+  [purpose='tweet-card'] {
+    min-width: 367px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    margin-left: 8px;
+    margin-right: 8px;
+    margin-bottom: 8px;
+    text-align: left;
+    background: #FFFFFF;
+    padding: 40px;
+    border: 1px solid #E2E4EA;
+    box-sizing: border-box;
+    box-shadow: 0px 4px 16px rgba(0, 0, 0, 0.1);
+    border-radius: 16px;
+  }
+
+  [purpose='tweets-page-indicator'] {
+    margin-bottom: 40px;
+    li {
+      padding: 4px;
+      height: 16px;
+      width: 16px;
+      border-radius: 100%;
+      margin-right: 8px;
+      background-color: #E2E4EA;
+    }
+    li.selected {
+      background-color: #8b8fa2;
+    }
+  }
+
+  [purpose='animated-arrow-button-red'] {
+
+    display: inline;
+    padding-right: 40px;
+    cursor: pointer;
+    position: relative;
+    width: fit-content;
+    min-width: 125px;
+    font-weight: bold;
+    user-select: none;
+    transition: 0.2s ease-in-out;
+    -o-transition: 0.2s ease-in-out;
+    -ms-transition: 0.2s ease-in-out;
+    -moz-transition: 0.2s ease-in-out;
+    -webkit-transition: 0.2s ease-in-out;
+    &:after {
+    content: url('/images/arrow-right-red-16x16@2x.png');
+    transform: scale(0.5);
+    position: absolute;
+    top: -5px;
+    left: 80%; // <--- here
+    transition: 0.2s ease-in-out;
+    -o-transition: 0.2s ease-in-out;
+    -ms-transition: 0.2s ease-in-out;
+    -moz-transition: 0.2s ease-in-out;
+    -webkit-transition: 0.2s ease-in-out;
+    /*   opacity: 0; */
+    }
+    &:hover:after {
+    left: 82%; // <--- here
+    transition: 0.2s ease-in-out;
+    -o-transition: 0.2s ease-in-out;
+    -ms-transition: 0.2s ease-in-out;
+    -moz-transition: 0.2s ease-in-out;
+    -webkit-transition: 0.2s ease-in-out;
+    /*   opacity:1; */
+    }
+  }
+
+
+
+  @media (min-width: 1200px){
+    [purpose='hero-container'] {
+
+    }
+    [purpose='page-container'] {
+      padding-left: 120px;
+      padding-right: 120px;
+    }
+  }
+  @media (max-width: 1200px){
+    [purpose='logos'] {
+      height: 58px;
+      max-width: 1200px;
+      margin-left: auto;
+      margin-right: auto;
+      img {
+        margin-top: 23.5px;
+        margin-bottom: 23.5px;
+        padding-left: 25px;
+        padding-right: 25px;
+      }
+      [purpose='snowflake-logo'] {
+        height: 21px;
+      }
+      [purpose='wayfair-logo'] {
+        height: 23px;
+      }
+      [purpose='uber-logo'] {
+        height: 20px;
+      }
+      [purpose='atlassian-logo'] {
+        height: 16px;
+      }
+      [purpose='segment-logo'] {
+        height: 22px;
+      }
+    }
+    [purpose='hero-image'] {
+      max-height: 430px;
+      max-width: 630px;
+    }
+  }
+  @media (max-width: 991px) {
+    [purpose='hero-text'] {
+      text-align: center;
+      max-width: 680px;
+    }
+    [purpose='button-row'] {
+      margin-right: auto;
+      margin-left: auto;
+    }
+  }
+  @media (max-width: 768px) {
+    [purpose='page-container'] {
+      padding-left: 40px;
+      padding-right: 40px;
+    }
+    [purpose='checklists'] {
+      margin-bottom: 40px;
+    }
+    [purpose='hero-image'] {
+      width: 100%;
+    }
+    [purpose='hero-background'] {
+      padding-top: 60px;
+      padding-bottom: 60px;
+      padding-left: 20px;
+      padding-right: 20px;
+    }
+    [purpose='button-row'] {
+      max-width: 100%;
+      [purpose='mdm-beta-button'] {
+        margin-right: 0px;
+        width: 100%;
+        margin-bottom: 24px;
+      }
+    }
+  }
+  @media (max-width: 325px){
+    [purpose='page-container'] {
+      padding-left: 20px;
+      padding-right: 20px;
+    }
+  }
+
+}
