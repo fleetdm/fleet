@@ -29,6 +29,9 @@ const mdmAppleBm = {
   renew_date: "2023-09-30T00:00:00Z",
 };
 
+// MDM TODO: Remove mock when backend is merged
+const mdmEnrollmentProfile = {};
+
 const hosts = {
   hosts: [
     {
@@ -388,4 +391,5 @@ export default {
   labels,
   mdmApple,
   mdmAppleBm,
+  mdmEnrollmentProfile,
 };

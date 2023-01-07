@@ -240,6 +240,7 @@ const ScheduleEditorModal = ({
             placeholder={"Select query"}
             value={selectedQuery?.id}
             wrapperClassName={`${baseClass}__select-query-dropdown-wrapper`}
+            autoFocus
           />
         )}
         <Dropdown

@@ -11,7 +11,6 @@ import (
 	"time"
 
 	eewebhooks "github.com/fleetdm/fleet/v4/ee/server/webhooks"
-	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -268,8 +267,7 @@ func checkWinVulnerabilities(
 
 	if !config.DisableDataSync {
 		// Sync MSRC definitions
-		client := fleethttp.NewClient()
-		err = msrc.Sync(ctx, client, vulnPath, os)
+		err = msrc.SyncFromGithub(ctx, vulnPath, os)
 		if err != nil {
 			errHandler(ctx, logger, "updating msrc definitions", err)
 		}
@@ -319,8 +317,7 @@ func checkOvalVulnerabilities(
 	}
 
 	// Sync on disk OVAL definitions with current OS Versions.
-	client := fleethttp.NewClient()
-	downloaded, err := oval.Refresh(ctx, client, versions, vulnPath)
+	downloaded, err := oval.Refresh(ctx, versions, vulnPath)
 	if err != nil {
 		errHandler(ctx, logger, "updating oval definitions", err)
 	}
@@ -843,7 +840,7 @@ func newAppleMDMDEPProfileAssigner(
 	loggingDebug bool,
 ) (*schedule.Schedule, error) {
 	const name = string(fleet.CronAppleMDMDEPProfileAssigner)
-	depClient := godep.NewClient(depStorage, fleethttp.NewClient())
+	depClient := fleet.NewDEPClient(depStorage, ds, logger)
 	assignerOpts := []depsync.AssignerOption{
 		depsync.WithAssignerLogger(NewNanoDEPLogger(kitlog.With(logger, "component", "nanodep-assigner"))),
 	}
@@ -868,7 +865,7 @@ func newAppleMDMDEPProfileAssigner(
 				level.Error(kitlog.With(logger, "cron", name, "component", "nanodep-syncer")).Log("err", err)
 				sentry.CaptureException(err)
 			case n > 0:
-				level.Info(kitlog.With(logger, "cron", name, "component", "nanodep-syncer")).Log("msg", fmt.Sprintf("%d new mdm devices added to hosts", n))
+				level.Info(kitlog.With(logger, "cron", name, "component", "nanodep-syncer")).Log("msg", fmt.Sprintf("added %d new mdm device(s) to pending hosts", n))
 			default:
 				// ok
 			}

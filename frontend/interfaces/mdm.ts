@@ -14,7 +14,7 @@ export interface IMdmAppleBm {
 }
 
 export interface IMdmEnrollmentCardData {
-  status: "Enrolled (manual)" | "Enrolled (automatic)" | "Unenrolled";
+  status: "On (manual)" | "On (automatic)" | "Off";
   hosts: number;
 }
 

@@ -100,6 +100,23 @@ type VulnerabilitySettings struct {
 	DatabasesPath string `json:"databases_path"`
 }
 
+// MDM is part of AppConfig and defines the mdm settings.
+type MDM struct {
+	AppleBMDefaultTeam string `json:"apple_bm_default_team"`
+	// AppleBMTermsExpired is set to true if an Apple Business Manager request
+	// failed due to Apple's terms and conditions having changed and need the
+	// user to explicitly accept them. It cannot be set manually via the
+	// PATCH /config API, it is only set automatically, internally, by detecting
+	// the 403 Forbidden error with body T_C_NOT_SIGNED returned by the Apple BM
+	// API.
+	AppleBMTermsExpired bool `json:"apple_bm_terms_expired"`
+
+	/////////////////////////////////////////////////////////////////
+	// WARNING: If you add to this struct make sure it's taken into
+	// account in the AppConfig Clone implementation!
+	/////////////////////////////////////////////////////////////////
+}
+
 // AppConfig holds server configuration that can be changed via the API.
 //
 // Note: management of deprecated fields is done on JSON-marshalling and uses
@@ -125,6 +142,8 @@ type AppConfig struct {
 	WebhookSettings WebhookSettings `json:"webhook_settings"`
 	Integrations    Integrations    `json:"integrations"`
 
+	MDM MDM `json:"mdm"`
+
 	// when true, strictDecoding causes the UnmarshalJSON method to return an
 	// error if there are unknown fields in the raw JSON.
 	strictDecoding bool
@@ -144,9 +163,15 @@ type legacyConfig struct {
 	HostSettings *Features `json:"host_settings"`
 }
 
+// Clone implements cloner.
 func (c *AppConfig) Clone() (interface{}, error) {
+	return c.Copy(), nil
+}
+
+// Copy returns a copy of the AppConfig.
+func (c *AppConfig) Copy() *AppConfig {
 	if c == nil {
-		return nil, nil
+		return nil
 	}
 
 	var clone AppConfig
@@ -177,6 +202,7 @@ func (c *AppConfig) Clone() (interface{}, error) {
 	// SSOSettings: nothing needs cloning
 	// FleetDesktop: nothing needs cloning
 	// VulnerabilitySettings: nothing needs cloning
+	// MDM: nothing needs cloning
 
 	if c.WebhookSettings.FailingPoliciesWebhook.PolicyIDs != nil {
 		clone.WebhookSettings.FailingPoliciesWebhook.PolicyIDs = make([]uint, len(c.WebhookSettings.FailingPoliciesWebhook.PolicyIDs))
@@ -197,7 +223,7 @@ func (c *AppConfig) Clone() (interface{}, error) {
 		}
 	}
 
-	return &clone, nil
+	return &clone
 }
 
 // EnrichedAppConfig contains the AppConfig along with additional fleet

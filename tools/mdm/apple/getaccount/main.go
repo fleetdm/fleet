@@ -7,7 +7,6 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"flag"
@@ -22,8 +21,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	kitlog "github.com/go-kit/kit/log"
-	"github.com/micromdm/nanodep/client"
 	nanodep_client "github.com/micromdm/nanodep/client"
+	"github.com/micromdm/nanodep/godep"
 )
 
 func main() {
@@ -67,29 +66,17 @@ func main() {
 		log.Fatal(err)
 	}
 
-	httpClient := fleethttp.NewClient()
-	depTransport := client.NewTransport(httpClient.Transport, httpClient, depStorage, nil)
-	depClient := client.NewClient(fleethttp.NewClient(), depTransport)
+	depClient := godep.NewClient(depStorage, fleethttp.NewClient())
 
 	ctx := context.Background()
-	req, err := client.NewRequestWithContext(ctx, apple_mdm.DEPName, depStorage, "GET", "/account", nil)
+	res, err := depClient.AccountDetail(ctx, apple_mdm.DEPName)
 	if err != nil {
-		log.Fatalf("new request: %v", err)
-	}
-	res, err := depClient.Do(req)
-	if err != nil {
-		log.Fatalf("execute request: %v", err)
-	}
-	defer res.Body.Close()
-	fmt.Printf("status: %d\n", res.StatusCode)
-	body, err := ioutil.ReadAll(res.Body)
-	if err != nil {
-		log.Fatalf("read response body: %v", err)
+		log.Fatal(err)
 	}
 
-	var buf bytes.Buffer
-	if err := json.Indent(&buf, body, "", "  "); err != nil {
+	b, err := json.MarshalIndent(res, "", "  ")
+	if err != nil {
 		log.Fatalf("pretty-format body: %v", err)
 	}
-	fmt.Printf("body: \n%s\n", buf.String())
+	fmt.Printf("body: \n%s\n", string(b))
 }
