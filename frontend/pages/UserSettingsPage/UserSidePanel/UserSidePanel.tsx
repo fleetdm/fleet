@@ -1,5 +1,4 @@
 import React, { useContext, useEffect, useState } from "react";
-import { formatDistanceToNow } from "date-fns";
 
 import { IUser } from "interfaces/user";
 import { IVersionData } from "interfaces/version";
@@ -10,6 +9,7 @@ import versionAPI from "services/entities/version";
 
 import Avatar from "components/Avatar";
 import Button from "components/buttons/Button";
+import HumanTimeDiffWithDateTip from "components/HumanTimeDiffWithDateTip";
 
 import { generateRole, generateTeam, greyCell } from "utilities/helpers";
 
@@ -53,11 +53,9 @@ const UserSidePanel = ({
   const roleText = generateRole(teams, globalRole);
   const teamsText = generateTeam(teams, globalRole);
 
-  const lastUpdatedAt =
-    updatedAt &&
-    formatDistanceToNow(new Date(updatedAt), {
-      addSuffix: true,
-    });
+  const lastUpdatedAt = updatedAt && (
+    <HumanTimeDiffWithDateTip timeString={updatedAt} />
+  );
 
   return (
     <div className={baseClass}>

@@ -33,6 +33,7 @@ class Dropdown extends Component {
     wrapperClassName: PropTypes.string,
     parseTarget: PropTypes.bool,
     tooltip: PropTypes.string,
+    autoFocus: PropTypes.bool,
   };
 
   static defaultProps = {
@@ -47,6 +48,7 @@ class Dropdown extends Component {
     placeholder: "Select one...", // if value undefined
     parseTarget: false,
     tooltip: "",
+    autoFocus: false,
   };
 
   onMenuOpen = () => {
@@ -122,6 +124,7 @@ class Dropdown extends Component {
       value,
       wrapperClassName,
       searchable,
+      autoFocus,
     } = this.props;
 
     const formFieldProps = pick(this.props, [
@@ -155,6 +158,7 @@ class Dropdown extends Component {
           value={value}
           onOpen={onMenuOpen}
           onClose={onMenuClose}
+          autoFocus={autoFocus}
         />
       </FormField>
     );

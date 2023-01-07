@@ -137,6 +137,7 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 
 			WebhookSettings: config.WebhookSettings,
 			Integrations:    config.Integrations,
+			MDM:             config.MDM,
 		},
 		appConfigResponseFields: appConfigResponseFields{
 			UpdateInterval:  updateIntervalConfig,
@@ -244,6 +245,10 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	if err != nil {
 		return nil, err
 	}
+	oldAppConfig := appConfig.Copy()
+
+	// keep this original value, as it cannot be modified via this request.
+	origAppleBMTerms := oldAppConfig.MDM.AppleBMTermsExpired
 
 	license, err := svc.License(ctx)
 	if err != nil {
@@ -332,9 +337,17 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	fleet.ValidateEnabledVulnerabilitiesIntegrations(appConfig.WebhookSettings.VulnerabilitiesWebhook, appConfig.Integrations, invalid)
 	fleet.ValidateEnabledFailingPoliciesIntegrations(appConfig.WebhookSettings.FailingPoliciesWebhook, appConfig.Integrations, invalid)
 	fleet.ValidateEnabledHostStatusIntegrations(appConfig.WebhookSettings.HostStatusWebhook, invalid)
+	svc.validateMDM(ctx, license, &oldAppConfig.MDM, &appConfig.MDM, invalid)
+
 	if invalid.HasErrors() {
 		return nil, ctxerr.Wrap(ctx, invalid)
 	}
+
+	// ignore AppleBMTermsExpired if provided in the modify payload
+	// we don't return an error in this case because it would prevent
+	// using the output of fleetctl get config as input to fleetctl apply
+	// or this endpoint.
+	appConfig.MDM.AppleBMTermsExpired = origAppleBMTerms
 
 	// do not send a test email in dry-run mode, so this is a good place to stop
 	// (we also delete the removed integrations after that, which we don't want
@@ -388,8 +401,8 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	}
 
-	// reset transparency url to empty for downgraded licenses
-	if license.Tier != "premium" && appConfig.FleetDesktop.TransparencyURL != "" {
+	if license.Tier != "premium" {
+		// reset transparency url to empty for downgraded licenses
 		appConfig.FleetDesktop.TransparencyURL = ""
 	}
 
@@ -421,6 +434,24 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	}
 
 	return obfuscatedConfig, nil
+}
+
+func (svc *Service) validateMDM(
+	ctx context.Context,
+	license *fleet.LicenseInfo,
+	oldMdm *fleet.MDM,
+	mdm *fleet.MDM,
+	invalid *fleet.InvalidArgumentError,
+) {
+	if name := mdm.AppleBMDefaultTeam; name != "" && name != oldMdm.AppleBMDefaultTeam {
+		if !license.IsPremium() {
+			invalid.Append("mdm.apple_bm_default_team", ErrMissingLicense.Error())
+			return
+		}
+		if _, err := svc.ds.TeamByName(ctx, name); err != nil {
+			invalid.Append("apple_bm_default_team", "team name not found")
+		}
+	}
 }
 
 func validateSSOSettings(p fleet.AppConfig, existing *fleet.AppConfig, invalid *fleet.InvalidArgumentError, license *fleet.LicenseInfo) {

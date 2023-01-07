@@ -60,12 +60,12 @@ type Service struct {
 	cronSchedulesService fleet.CronSchedulesService
 }
 
-func (s *Service) LookupGeoIP(ctx context.Context, ip string) *fleet.GeoLocation {
-	return s.geoIP.Lookup(ctx, ip)
+func (svc *Service) LookupGeoIP(ctx context.Context, ip string) *fleet.GeoLocation {
+	return svc.geoIP.Lookup(ctx, ip)
 }
 
-func (s *Service) SetEnterpriseOverrides(overrides fleet.EnterpriseOverrides) {
-	s.EnterpriseOverrides = &overrides
+func (svc *Service) SetEnterpriseOverrides(overrides fleet.EnterpriseOverrides) {
+	svc.EnterpriseOverrides = &overrides
 }
 
 // OsqueryLogger holds osqueryd's status and result loggers.
@@ -137,8 +137,8 @@ func NewService(
 	return validationMiddleware{svc, ds, sso}, nil
 }
 
-func (s *Service) SendEmail(mail fleet.Email) error {
-	return s.mailService.SendEmail(mail)
+func (svc *Service) SendEmail(mail fleet.Email) error {
+	return svc.mailService.SendEmail(mail)
 }
 
 type validationMiddleware struct {

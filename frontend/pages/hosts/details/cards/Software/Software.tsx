@@ -31,7 +31,7 @@ interface ISoftwareTableProps {
   software: ISoftware[];
   deviceUser?: boolean;
   deviceType?: string;
-  softwareInventoryEnabled?: boolean;
+  isSoftwareEnabled?: boolean;
   router?: InjectedRouter;
 }
 
@@ -39,6 +39,7 @@ interface IRowProps extends Row {
   original: {
     id?: number;
   };
+  isSoftwareEnabled?: boolean;
 }
 
 const SoftwareTable = ({
@@ -46,7 +47,7 @@ const SoftwareTable = ({
   software,
   deviceUser,
   deviceType,
-  softwareInventoryEnabled,
+  isSoftwareEnabled,
   router,
 }: ISoftwareTableProps): JSX.Element => {
   const [searchString, setSearchString] = useState("");
@@ -108,15 +109,6 @@ const SoftwareTable = ({
   const EmptySoftwareSearch = () => (
     <EmptyState title="software" reason="empty-search" />
   );
-
-  if (softwareInventoryEnabled === false) {
-    return (
-      <div className="section section--software">
-        <p className="section__header">Software</p>
-        <EmptyState title="software" reason="disabled" />
-      </div>
-    );
-  }
 
   return (
     <div className="section section--software">

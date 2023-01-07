@@ -217,6 +217,7 @@ const LabelForm = ({
           hint={aceHintText}
           handleSubmit={noop}
           wrapEnabled
+          focus
         />
       )}
 

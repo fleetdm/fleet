@@ -60,9 +60,9 @@ How to schedule a query:
 
 5. Select **Schedule**.
 
-With [the teams feature](https://fleetdm.com/docs/using-fleet/teams), you can schedule queries for groups of hosts. This allows you to collect different data for each group.
+With Fleet Premium, you can schedule queries for groups of hosts using [the teams feature](https://fleetdm.com/docs/using-fleet/teams). This allows you to collect different data for each group.
 
-> In Fleet, groups of hosts are called "teams."
+> In Fleet Premium, groups of hosts are called "teams."
 
 How to use teams to schedule queries for a group of hosts:
 
