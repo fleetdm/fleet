@@ -249,6 +249,14 @@ module.exports.routes = {
     }
   },
 
+  'GET /fleet-mdm': {
+    action: 'view-fleet-mdm',
+    locals: {
+      pageTitleForMeta: 'TODO | Fleet for osquery',
+      pageDescriptionForMeta: 'TODO'
+    }
+  },
+
 
 
   //  ╦  ╔═╗╔═╗╔═╗╔═╗╦ ╦  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗
