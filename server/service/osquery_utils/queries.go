@@ -1236,7 +1236,7 @@ func GetDetailQueries(ctx context.Context, fleetConfig config.FleetConfig, featu
 		}
 
 		if len(unknownQueries) > 0 {
-			logging.WithErr(ctx, ctxerr.New(ctx, fmt.Sprintf("unknown-queries: %s", strings.Join(unknownQueries, ","))))
+			logging.WithErr(ctx, ctxerr.New(ctx, fmt.Sprintf("detail_query_overrides: unknown queries: %s", strings.Join(unknownQueries, ","))))
 		}
 	}
 
