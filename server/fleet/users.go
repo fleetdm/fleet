@@ -4,12 +4,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/fleetdm/fleet/v4/server"
+	"github.com/fleetdm/fleet/v4/server/config"
+	"golang.org/x/crypto/bcrypt"
 	"net/mail"
 	"time"
 	"unicode"
-
-	"github.com/fleetdm/fleet/v4/server"
-	"golang.org/x/crypto/bcrypt"
 )
 
 // User is the model struct that represents a Fleet user.
@@ -315,9 +315,16 @@ func (u *User) SetPassword(plaintext string, keySize, cost int) error {
 // at least 1 number
 func ValidatePasswordRequirements(password string) error {
 	var (
-		number bool
-		symbol bool
+		number             bool
+		symbol             bool
+		PasswordLength     int
+		PasswordComplexity bool
 	)
+
+	authCfg := config.AuthConfig{
+		PasswordLength:     PasswordLength,
+		PasswordComplexity: PasswordComplexity,
+	}
 
 	for _, s := range password {
 		switch {
@@ -328,9 +335,9 @@ func ValidatePasswordRequirements(password string) error {
 		}
 	}
 
-	if len(password) >= 12 &&
-		number &&
-		symbol {
+	if len(password) >= authCfg.PasswordLength && !authCfg.PasswordComplexity {
+		return nil
+	} else if len(password) >= authCfg.PasswordLength && authCfg.PasswordComplexity && number && symbol {
 		return nil
 	}
 

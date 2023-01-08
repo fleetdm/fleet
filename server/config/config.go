@@ -111,8 +111,10 @@ func (s *ServerConfig) DefaultHTTPServer(ctx context.Context, handler http.Handl
 
 // AuthConfig defines configs related to user authorization
 type AuthConfig struct {
-	BcryptCost  int `yaml:"bcrypt_cost"`
-	SaltKeySize int `yaml:"salt_key_size"`
+	BcryptCost         int  `yaml:"bcrypt_cost"`
+	SaltKeySize        int  `yaml:"salt_key_size"`
+	PasswordLength     int  `yaml:"password_length"`
+	PasswordComplexity bool `yaml:"password_complexity"`
 }
 
 // AppConfig defines configs related to HTTP
@@ -784,6 +786,10 @@ func (man Manager) addConfigs() {
 		"Bcrypt iterations")
 	man.addConfigInt("auth.salt_key_size", 24,
 		"Size of salt for passwords")
+	man.addConfigInt("auth.password_length", 12,
+		"Password length requirement")
+	man.addConfigBool("auth.password_complexity", true,
+		"Require password complexity")
 
 	// App
 	man.addConfigString("app.token_key", "CHANGEME",
@@ -1115,8 +1121,10 @@ func (man Manager) LoadConfig() FleetConfig {
 			SandboxEnabled: man.getConfigBool("server.sandbox_enabled"),
 		},
 		Auth: AuthConfig{
-			BcryptCost:  man.getConfigInt("auth.bcrypt_cost"),
-			SaltKeySize: man.getConfigInt("auth.salt_key_size"),
+			BcryptCost:         man.getConfigInt("auth.bcrypt_cost"),
+			SaltKeySize:        man.getConfigInt("auth.salt_key_size"),
+			PasswordLength:     man.getConfigInt("auth.password_length"),
+			PasswordComplexity: man.getConfigBool("auth.password_complexity"),
 		},
 		App: AppConfig{
 			TokenKeySize:              man.getConfigInt("app.token_key_size"),
