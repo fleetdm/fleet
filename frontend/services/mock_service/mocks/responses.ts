@@ -23,11 +23,14 @@ const mdmApple = {
 // MDM TODO: Remove mock when backend is merged
 const mdmAppleBm = {
   default_team: "Mock backend response Apples",
-  apple_id: "Mock backend response rachel@fleetdm.com",
+  apple_id: "Mock backend response test@example.com",
   organization_name: "Mock backend response Fleet Device Management",
   mdm_server_url: "Mock backend response https://fleet.organization.com/mdm",
   renew_date: "2023-09-30T00:00:00Z",
 };
+
+// MDM TODO: Remove mock when backend is merged
+const mdmEnrollmentProfile = {};
 
 const hosts = {
   hosts: [
@@ -388,4 +391,5 @@ export default {
   labels,
   mdmApple,
   mdmAppleBm,
+  mdmEnrollmentProfile,
 };

@@ -23,6 +23,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/jmoiron/sqlx"
+	"github.com/micromdm/nanodep/godep"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -131,7 +132,9 @@ func TestHosts(t *testing.T) {
 		{"SetOrUpdateHostDisksSpace", testHostsSetOrUpdateHostDisksSpace},
 		{"HostIDsByOSID", testHostIDsByOSID},
 		{"SetOrUpdateHostDisksEncryption", testHostsSetOrUpdateHostDisksEncryption},
-		{"TestHostOrder", testHostOrder},
+		{"HostOrder", testHostOrder},
+		{"GetHostMDMCheckinInfo", testHostsGetHostMDMCheckinInfo},
+		{"UnenrollFromMDM", testHostsUnenrollFromMDM},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -154,7 +157,7 @@ func testUpdateHost(t *testing.T, ds *Datastore, updateHostFunc func(context.Con
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: policyUpdatedAt,
 		SeenTime:        time.Now(),
-		NodeKey:         "1",
+		NodeKey:         ptr.String("1"),
 		UUID:            "1",
 		Hostname:        "foo.local",
 		PrimaryIP:       "192.168.1.1",
@@ -219,7 +222,7 @@ func testHostsDeleteWithSoftware(t *testing.T, ds *Datastore) {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         "1",
+		NodeKey:         ptr.String("1"),
 		UUID:            "1",
 		Hostname:        "foo.local",
 		PrimaryIP:       "192.168.1.1",
@@ -249,7 +252,7 @@ func testSaveHostPackStatsDB(t *testing.T, ds *Datastore) {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         "1",
+		NodeKey:         ptr.String("1"),
 		UUID:            "1",
 		Hostname:        "foo.local",
 		PrimaryIP:       "192.168.1.1",
@@ -365,7 +368,7 @@ func testHostsSavePackStatsOverwrites(t *testing.T, ds *Datastore) {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         "1",
+		NodeKey:         ptr.String("1"),
 		UUID:            "1",
 		Hostname:        "foo.local",
 		PrimaryIP:       "192.168.1.1",
@@ -519,7 +522,7 @@ func testHostsWithTeamPackStats(t *testing.T, ds *Datastore) {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         "1",
+		NodeKey:         ptr.String("1"),
 		UUID:            "1",
 		Hostname:        "foo.local",
 		PrimaryIP:       "192.168.1.1",
@@ -625,7 +628,7 @@ func testHostsDelete(t *testing.T, ds *Datastore) {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         "1",
+		NodeKey:         ptr.String("1"),
 		UUID:            "1",
 		Hostname:        "foo.local",
 	})
@@ -635,7 +638,7 @@ func testHostsDelete(t *testing.T, ds *Datastore) {
 	err = ds.DeleteHost(context.Background(), host.ID)
 	require.NoError(t, err)
 
-	host, err = ds.Host(context.Background(), host.ID)
+	_, err = ds.Host(context.Background(), host.ID)
 	assert.NotNil(t, err)
 }
 
@@ -654,8 +657,8 @@ func testHostsListFilterAdditional(t *testing.T, ds *Datastore) {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		OsqueryHostID:   "foobar",
-		NodeKey:         "nodekey",
+		OsqueryHostID:   ptr.String("foobar"),
+		NodeKey:         ptr.String("nodekey"),
 		UUID:            "uuid",
 		Hostname:        "foobar.local",
 	})
@@ -691,8 +694,8 @@ func testHostsListStatus(t *testing.T, ds *Datastore) {
 			LabelUpdatedAt:  time.Now(),
 			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now().Add(-time.Duration(i) * time.Minute * 2),
-			OsqueryHostID:   strconv.Itoa(i),
-			NodeKey:         fmt.Sprintf("%d", i),
+			OsqueryHostID:   ptr.String(strconv.Itoa(i)),
+			NodeKey:         ptr.String(fmt.Sprintf("%d", i)),
 			UUID:            fmt.Sprintf("%d", i),
 			Hostname:        fmt.Sprintf("foo.local%d", i),
 		})
@@ -732,8 +735,8 @@ func testHostsListQuery(t *testing.T, ds *Datastore) {
 			LabelUpdatedAt:  time.Now(),
 			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now(),
-			OsqueryHostID:   strconv.Itoa(i),
-			NodeKey:         fmt.Sprintf("%d", i),
+			OsqueryHostID:   ptr.String(strconv.Itoa(i)),
+			NodeKey:         ptr.String(fmt.Sprintf("%d", i)),
 			UUID:            fmt.Sprintf("uuid_00%d", i),
 			Hostname:        hostname,
 			HardwareSerial:  fmt.Sprintf("serial00%d", i),
@@ -872,6 +875,102 @@ func testHostsListQuery(t *testing.T, ds *Datastore) {
 	require.Nil(t, dm)
 }
 
+func testHostsUnenrollFromMDM(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	h, err := ds.NewHost(ctx, &fleet.Host{
+		Platform:        "darwin",
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   ptr.String("foo"),
+		NodeKey:         ptr.String("foo"),
+		UUID:            fmt.Sprintf("foo"),
+		Hostname:        "foo.local",
+	})
+	require.NoError(t, err)
+	h2, err := ds.NewHost(ctx, &fleet.Host{
+		Platform:        "darwin",
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   ptr.String("foo2"),
+		NodeKey:         ptr.String("foo2"),
+		UUID:            fmt.Sprintf("foo2"),
+		Hostname:        "foo2.local",
+	})
+	require.NoError(t, err)
+
+	_, err = ds.GetHostMDM(ctx, h.ID)
+	require.Error(t, err)
+	require.True(t, fleet.IsNotFound(err))
+	_, err = ds.GetHostMDM(ctx, h2.ID)
+	require.Error(t, err)
+	require.True(t, fleet.IsNotFound(err))
+
+	// Set hosts to be enrolled to an MDM.
+	const simpleMDM = "https://simplemdm.com"
+	err = ds.SetOrUpdateMDMData(ctx, h.ID, false, true, simpleMDM, true, "")
+	require.NoError(t, err)
+	err = ds.SetOrUpdateMDMData(ctx, h2.ID, false, true, simpleMDM, true, "")
+	require.NoError(t, err)
+
+	for _, hi := range []*fleet.Host{h, h2} {
+		hmdm, err := ds.GetHostMDM(ctx, hi.ID)
+		require.NoError(t, err)
+		require.Equal(t, hi.ID, hmdm.HostID)
+		require.True(t, hmdm.Enrolled)
+		require.True(t, hmdm.InstalledFromDep)
+		require.NotNil(t, hmdm.MDMID)
+		require.Equal(t, simpleMDM, hmdm.ServerURL)
+	}
+
+	err = ds.GenerateAggregatedMunkiAndMDM(ctx)
+	require.NoError(t, err)
+
+	// Check that both hosts are counted.
+	solutions, _, err := ds.AggregatedMDMSolutions(ctx, nil, "darwin")
+	require.NoError(t, err)
+	require.Len(t, solutions, 1)
+	require.Equal(t, 2, solutions[0].HostsCount)
+
+	// Host `h` unenrolls from MDM, so MDM query returns empty server_url.
+	err = ds.SetOrUpdateMDMData(ctx, h.ID, false, true, "", true, "")
+	require.NoError(t, err)
+
+	// host_mdm entry should not exist anymore.
+	_, err = ds.GetHostMDM(ctx, h.ID)
+	require.Error(t, err)
+	require.True(t, fleet.IsNotFound(err))
+
+	err = ds.GenerateAggregatedMunkiAndMDM(ctx)
+	require.NoError(t, err)
+
+	solutions, _, err = ds.AggregatedMDMSolutions(ctx, nil, "darwin")
+	require.NoError(t, err)
+	require.Len(t, solutions, 1)
+	require.Equal(t, 1, solutions[0].HostsCount)
+
+	// Host `h2` unenrolls from MDM, so MDM query returns empty server_url.
+	err = ds.SetOrUpdateMDMData(ctx, h2.ID, false, true, "", true, "")
+	require.NoError(t, err)
+
+	// host_mdm entry should not exist anymore.
+	_, err = ds.GetHostMDM(ctx, h2.ID)
+	require.Error(t, err)
+	require.True(t, fleet.IsNotFound(err))
+
+	err = ds.GenerateAggregatedMunkiAndMDM(ctx)
+	require.NoError(t, err)
+
+	// No solutions should be listed now (both hosts are unenrolled).
+	solutions, _, err = ds.AggregatedMDMSolutions(ctx, nil, "darwin")
+	require.NoError(t, err)
+	require.Len(t, solutions, 0)
+}
+
 func testHostsListMDM(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
@@ -882,8 +981,8 @@ func testHostsListMDM(t *testing.T, ds *Datastore) {
 			LabelUpdatedAt:  time.Now(),
 			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now().Add(-time.Duration(i) * time.Minute * 2),
-			OsqueryHostID:   strconv.Itoa(i),
-			NodeKey:         fmt.Sprintf("%d", i),
+			OsqueryHostID:   ptr.String(strconv.Itoa(i)),
+			NodeKey:         ptr.String(fmt.Sprintf("%d", i)),
 			UUID:            fmt.Sprintf("%d", i),
 			Hostname:        fmt.Sprintf("foo.local%d", i),
 		})
@@ -891,14 +990,21 @@ func testHostsListMDM(t *testing.T, ds *Datastore) {
 		hostIDs = append(hostIDs, h.ID)
 	}
 
+	// enrollment: pending
+	n, err := ds.IngestMDMAppleDevicesFromDEPSync(ctx, []godep.Device{
+		{SerialNumber: "532141num832", Model: "MacBook Pro", OS: "OSX", OpType: "added"},
+	})
+	require.NoError(t, err)
+	require.Equal(t, int64(1), n)
+
 	const simpleMDM, kandji, unknown = "https://simplemdm.com", "https://kandji.io", "https://url.com"
-	err := ds.SetOrUpdateMDMData(ctx, hostIDs[0], false, true, simpleMDM, true, "") // enrollment: automatic
+	err = ds.SetOrUpdateMDMData(ctx, hostIDs[0], false, true, simpleMDM, true, fleet.WellKnownMDMSimpleMDM) // enrollment: automatic
 	require.NoError(t, err)
-	err = ds.SetOrUpdateMDMData(ctx, hostIDs[1], false, true, kandji, true, "") // enrollment: automatic
+	err = ds.SetOrUpdateMDMData(ctx, hostIDs[1], false, true, kandji, true, fleet.WellKnownMDMKandji) // enrollment: automatic
 	require.NoError(t, err)
-	err = ds.SetOrUpdateMDMData(ctx, hostIDs[2], false, true, unknown, false, "") // enrollment: manual
+	err = ds.SetOrUpdateMDMData(ctx, hostIDs[2], false, true, unknown, false, fleet.UnknownMDMName) // enrollment: manual
 	require.NoError(t, err)
-	err = ds.SetOrUpdateMDMData(ctx, hostIDs[3], false, false, simpleMDM, false, "") // enrollment: unenrolled
+	err = ds.SetOrUpdateMDMData(ctx, hostIDs[3], false, false, simpleMDM, false, fleet.WellKnownMDMSimpleMDM) // enrollment: unenrolled
 	require.NoError(t, err)
 
 	var simpleMDMID uint
@@ -929,6 +1035,9 @@ func testHostsListMDM(t *testing.T, ds *Datastore) {
 
 	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{MDMEnrollmentStatusFilter: fleet.MDMEnrollStatusAutomatic, MDMIDFilter: &kandjiID}, 1)
 	assert.Equal(t, 1, len(hosts))
+
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{MDMEnrollmentStatusFilter: fleet.MDMEnrollStatusPending}, 1)
+	assert.Equal(t, 1, len(hosts))
 }
 
 func testHostsListMunkiIssueID(t *testing.T, ds *Datastore) {
@@ -941,8 +1050,8 @@ func testHostsListMunkiIssueID(t *testing.T, ds *Datastore) {
 			LabelUpdatedAt:  time.Now(),
 			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now().Add(-time.Duration(i) * time.Minute * 2),
-			OsqueryHostID:   strconv.Itoa(i),
-			NodeKey:         fmt.Sprintf("%d", i),
+			OsqueryHostID:   ptr.String(strconv.Itoa(i)),
+			NodeKey:         ptr.String(fmt.Sprintf("%d", i)),
 			UUID:            fmt.Sprintf("%d", i),
 			Hostname:        fmt.Sprintf("foo.local%d", i),
 		})
@@ -1021,8 +1130,8 @@ func testHostsEnroll(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		assert.NotZero(t, h.LastEnrolledAt)
 
-		assert.Equal(t, tt.uuid, h.OsqueryHostID)
-		assert.Equal(t, tt.nodeKey, h.NodeKey)
+		assert.Equal(t, tt.uuid, *h.OsqueryHostID)
+		assert.Equal(t, tt.nodeKey, *h.NodeKey)
 
 		// This host should be allowed to re-enroll immediately if cooldown is disabled
 		_, err = ds.EnrollHost(context.Background(), tt.uuid, tt.nodeKey+"new", nil, 0)
@@ -1049,7 +1158,7 @@ func testHostsLoadHostByNodeKey(t *testing.T, ds *Datastore) {
 		h, err := ds.EnrollHost(context.Background(), tt.uuid, tt.nodeKey, nil, 0)
 		require.NoError(t, err)
 
-		returned, err := ds.LoadHostByNodeKey(context.Background(), h.NodeKey)
+		returned, err := ds.LoadHostByNodeKey(context.Background(), *h.NodeKey)
 		require.NoError(t, err)
 		assert.Equal(t, h, returned)
 	}
@@ -1067,43 +1176,43 @@ func testHostsLoadHostByNodeKeyCaseSensitive(t *testing.T, ds *Datastore) {
 		h, err := ds.EnrollHost(context.Background(), tt.uuid, tt.nodeKey, nil, 0)
 		require.NoError(t, err)
 
-		_, err = ds.LoadHostByNodeKey(context.Background(), strings.ToUpper(h.NodeKey))
+		_, err = ds.LoadHostByNodeKey(context.Background(), strings.ToUpper(*h.NodeKey))
 		require.Error(t, err, "node key authentication should be case sensitive")
 	}
 }
 
 func testHostsSearch(t *testing.T, ds *Datastore) {
 	h1, err := ds.NewHost(context.Background(), &fleet.Host{
-		OsqueryHostID:   "1234",
+		OsqueryHostID:   ptr.String("1234"),
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         "1",
+		NodeKey:         ptr.String("1"),
 		UUID:            "1",
 		Hostname:        "fo.local",
 	})
 	require.NoError(t, err)
 
 	h2, err := ds.NewHost(context.Background(), &fleet.Host{
-		OsqueryHostID:   "5679",
+		OsqueryHostID:   ptr.String("5679"),
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         "2",
+		NodeKey:         ptr.String("2"),
 		UUID:            "2",
 		Hostname:        "bar.local",
 	})
 	require.NoError(t, err)
 
 	h3, err := ds.NewHost(context.Background(), &fleet.Host{
-		OsqueryHostID:   "99999",
+		OsqueryHostID:   ptr.String("99999"),
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         "3",
+		NodeKey:         ptr.String("3"),
 		UUID:            "abc-def-ghi",
 		Hostname:        "foo-bar.local",
 	})
@@ -1258,8 +1367,8 @@ func testHostsSearchLimit(t *testing.T, ds *Datastore) {
 			LabelUpdatedAt:  time.Now(),
 			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now(),
-			OsqueryHostID:   fmt.Sprintf("host%d", i),
-			NodeKey:         fmt.Sprintf("%d", i),
+			OsqueryHostID:   ptr.String(fmt.Sprintf("host%d", i)),
+			NodeKey:         ptr.String(fmt.Sprintf("%d", i)),
 			UUID:            fmt.Sprintf("%d", i),
 			Hostname:        fmt.Sprintf("foo.%d.local", i),
 		})
@@ -1288,8 +1397,8 @@ func testHostsGenerateStatusStatistics(t *testing.T, ds *Datastore) {
 	// Online
 	h, err := ds.NewHost(context.Background(), &fleet.Host{
 		ID:              1,
-		OsqueryHostID:   "1",
-		NodeKey:         "1",
+		OsqueryHostID:   ptr.String("1"),
+		NodeKey:         ptr.String("1"),
 		DetailUpdatedAt: mockClock.Now().Add(-30 * time.Second),
 		LabelUpdatedAt:  mockClock.Now().Add(-30 * time.Second),
 		PolicyUpdatedAt: mockClock.Now().Add(-30 * time.Second),
@@ -1306,8 +1415,8 @@ func testHostsGenerateStatusStatistics(t *testing.T, ds *Datastore) {
 	// Online
 	h, err = ds.NewHost(context.Background(), &fleet.Host{
 		ID:              2,
-		OsqueryHostID:   "2",
-		NodeKey:         "2",
+		OsqueryHostID:   ptr.String("2"),
+		NodeKey:         ptr.String("2"),
 		DetailUpdatedAt: mockClock.Now().Add(-1 * time.Minute),
 		LabelUpdatedAt:  mockClock.Now().Add(-1 * time.Minute),
 		PolicyUpdatedAt: mockClock.Now().Add(-1 * time.Minute),
@@ -1324,8 +1433,8 @@ func testHostsGenerateStatusStatistics(t *testing.T, ds *Datastore) {
 	// Offline
 	h, err = ds.NewHost(context.Background(), &fleet.Host{
 		ID:              3,
-		OsqueryHostID:   "3",
-		NodeKey:         "3",
+		OsqueryHostID:   ptr.String("3"),
+		NodeKey:         ptr.String("3"),
 		DetailUpdatedAt: mockClock.Now().Add(-1 * time.Hour),
 		LabelUpdatedAt:  mockClock.Now().Add(-1 * time.Hour),
 		PolicyUpdatedAt: mockClock.Now().Add(-1 * time.Hour),
@@ -1341,8 +1450,8 @@ func testHostsGenerateStatusStatistics(t *testing.T, ds *Datastore) {
 	// MIA
 	h, err = ds.NewHost(context.Background(), &fleet.Host{
 		ID:              4,
-		OsqueryHostID:   "4",
-		NodeKey:         "4",
+		OsqueryHostID:   ptr.String("4"),
+		NodeKey:         ptr.String("4"),
 		DetailUpdatedAt: mockClock.Now().Add(-35 * (24 * time.Hour)),
 		LabelUpdatedAt:  mockClock.Now().Add(-35 * (24 * time.Hour)),
 		PolicyUpdatedAt: mockClock.Now().Add(-35 * (24 * time.Hour)),
@@ -1436,9 +1545,9 @@ func testHostsMarkSeen(t *testing.T, ds *Datastore) {
 
 	h1, err := ds.NewHost(context.Background(), &fleet.Host{
 		ID:              1,
-		OsqueryHostID:   "1",
+		OsqueryHostID:   ptr.String("1"),
 		UUID:            "1",
-		NodeKey:         "1",
+		NodeKey:         ptr.String("1"),
 		DetailUpdatedAt: aDayAgo,
 		LabelUpdatedAt:  aDayAgo,
 		PolicyUpdatedAt: aDayAgo,
@@ -1473,9 +1582,9 @@ func testHostsMarkSeenMany(t *testing.T, ds *Datastore) {
 
 	h1, err := ds.NewHost(context.Background(), &fleet.Host{
 		ID:              1,
-		OsqueryHostID:   "1",
+		OsqueryHostID:   ptr.String("1"),
 		UUID:            "1",
-		NodeKey:         "1",
+		NodeKey:         ptr.String("1"),
 		DetailUpdatedAt: aDayAgo,
 		LabelUpdatedAt:  aDayAgo,
 		PolicyUpdatedAt: aDayAgo,
@@ -1485,9 +1594,9 @@ func testHostsMarkSeenMany(t *testing.T, ds *Datastore) {
 
 	h2, err := ds.NewHost(context.Background(), &fleet.Host{
 		ID:              2,
-		OsqueryHostID:   "2",
+		OsqueryHostID:   ptr.String("2"),
 		UUID:            "2",
-		NodeKey:         "2",
+		NodeKey:         ptr.String("2"),
 		DetailUpdatedAt: aDayAgo,
 		LabelUpdatedAt:  aDayAgo,
 		PolicyUpdatedAt: aDayAgo,
@@ -1531,9 +1640,9 @@ func testHostsCleanupIncoming(t *testing.T, ds *Datastore) {
 
 	h1, err := ds.NewHost(context.Background(), &fleet.Host{
 		ID:              1,
-		OsqueryHostID:   "1",
+		OsqueryHostID:   ptr.String("1"),
 		UUID:            "1",
-		NodeKey:         "1",
+		NodeKey:         ptr.String("1"),
 		DetailUpdatedAt: mockClock.Now(),
 		LabelUpdatedAt:  mockClock.Now(),
 		PolicyUpdatedAt: mockClock.Now(),
@@ -1543,9 +1652,9 @@ func testHostsCleanupIncoming(t *testing.T, ds *Datastore) {
 
 	h2, err := ds.NewHost(context.Background(), &fleet.Host{
 		ID:              2,
-		OsqueryHostID:   "2",
+		OsqueryHostID:   ptr.String("2"),
 		UUID:            "2",
-		NodeKey:         "2",
+		NodeKey:         ptr.String("2"),
 		Hostname:        "foobar",
 		OsqueryVersion:  "3.2.3",
 		DetailUpdatedAt: mockClock.Now(),
@@ -1583,8 +1692,8 @@ func testHostsIDsByName(t *testing.T, ds *Datastore) {
 			LabelUpdatedAt:  time.Now(),
 			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now(),
-			OsqueryHostID:   fmt.Sprintf("host%d", i),
-			NodeKey:         fmt.Sprintf("%d", i),
+			OsqueryHostID:   ptr.String(fmt.Sprintf("host%d", i)),
+			NodeKey:         ptr.String(fmt.Sprintf("%d", i)),
 			UUID:            fmt.Sprintf("%d", i),
 			Hostname:        fmt.Sprintf("foo.%d.local", i),
 		})
@@ -1633,8 +1742,8 @@ func testLoadHostByNodeKeyLoadsDisk(t *testing.T, ds *Datastore) {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		OsqueryHostID:   "foobar",
-		NodeKey:         "nodekey",
+		OsqueryHostID:   ptr.String("foobar"),
+		NodeKey:         ptr.String("nodekey"),
 		UUID:            "uuid",
 		Hostname:        "foobar.local",
 	})
@@ -1657,8 +1766,8 @@ func testLoadHostByNodeKeyUsesStmt(t *testing.T, ds *Datastore) {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		OsqueryHostID:   "foobar",
-		NodeKey:         "nodekey",
+		OsqueryHostID:   ptr.String("foobar"),
+		NodeKey:         ptr.String("nodekey"),
 		UUID:            "uuid",
 		Hostname:        "foobar.local",
 	})
@@ -1668,8 +1777,8 @@ func testLoadHostByNodeKeyUsesStmt(t *testing.T, ds *Datastore) {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		OsqueryHostID:   "foobar2",
-		NodeKey:         "nodekey2",
+		OsqueryHostID:   ptr.String("foobar2"),
+		NodeKey:         ptr.String("nodekey2"),
 		UUID:            "uuid2",
 		Hostname:        "foobar2.local",
 	})
@@ -1709,8 +1818,8 @@ func testHostsAdditional(t *testing.T, ds *Datastore) {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		OsqueryHostID:   "foobar",
-		NodeKey:         "nodekey",
+		OsqueryHostID:   ptr.String("foobar"),
+		NodeKey:         ptr.String("nodekey"),
 		UUID:            "uuid",
 		Hostname:        "foobar.local",
 	})
@@ -1779,8 +1888,8 @@ func testHostsByIdentifier(t *testing.T, ds *Datastore) {
 			LabelUpdatedAt:  now,
 			PolicyUpdatedAt: now,
 			SeenTime:        now,
-			OsqueryHostID:   fmt.Sprintf("osquery_host_id_%d", i),
-			NodeKey:         fmt.Sprintf("node_key_%d", i),
+			OsqueryHostID:   ptr.String(fmt.Sprintf("osquery_host_id_%d", i)),
+			NodeKey:         ptr.String(fmt.Sprintf("node_key_%d", i)),
 			UUID:            fmt.Sprintf("uuid_%d", i),
 			Hostname:        fmt.Sprintf("hostname_%d", i),
 		})
@@ -1869,7 +1978,7 @@ func testHostsSaveUsers(t *testing.T, ds *Datastore) {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         "1",
+		NodeKey:         ptr.String("1"),
 		UUID:            "1",
 		Hostname:        "foo.local",
 		PrimaryIP:       "192.168.1.1",
@@ -1936,7 +2045,7 @@ func testHostsSaveUsersWithoutUid(t *testing.T, ds *Datastore) {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         "1",
+		NodeKey:         ptr.String("1"),
 		UUID:            "1",
 		Hostname:        "foo.local",
 		PrimaryIP:       "192.168.1.1",
@@ -1991,8 +2100,8 @@ func addHostSeenLast(t *testing.T, ds fleet.Datastore, i, days int) {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now().Add(-1 * time.Duration(days) * 24 * time.Hour),
-		OsqueryHostID:   fmt.Sprintf("%d", i),
-		NodeKey:         fmt.Sprintf("%d", i),
+		OsqueryHostID:   ptr.String(fmt.Sprintf("%d", i)),
+		NodeKey:         ptr.String(fmt.Sprintf("%d", i)),
 		UUID:            fmt.Sprintf("%d", i),
 		Hostname:        fmt.Sprintf("foo.local%d", i),
 		PrimaryIP:       fmt.Sprintf("192.168.1.%d", i),
@@ -2045,8 +2154,8 @@ func testHostsListByPolicy(t *testing.T, ds *Datastore) {
 			LabelUpdatedAt:  time.Now(),
 			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now().Add(-time.Duration(i) * time.Minute),
-			OsqueryHostID:   strconv.Itoa(i),
-			NodeKey:         fmt.Sprintf("%d", i),
+			OsqueryHostID:   ptr.String(strconv.Itoa(i)),
+			NodeKey:         ptr.String(fmt.Sprintf("%d", i)),
 			UUID:            fmt.Sprintf("%d", i),
 			Hostname:        fmt.Sprintf("foo.local%d", i),
 		})
@@ -2097,8 +2206,8 @@ func testHostsListBySoftware(t *testing.T, ds *Datastore) {
 			LabelUpdatedAt:  time.Now(),
 			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now().Add(-time.Duration(i) * time.Minute),
-			OsqueryHostID:   strconv.Itoa(i),
-			NodeKey:         fmt.Sprintf("%d", i),
+			OsqueryHostID:   ptr.String(strconv.Itoa(i)),
+			NodeKey:         ptr.String(fmt.Sprintf("%d", i)),
 			UUID:            fmt.Sprintf("%d", i),
 			Hostname:        fmt.Sprintf("foo.local%d", i),
 		})
@@ -2182,8 +2291,8 @@ func testHostsListByOperatingSystemID(t *testing.T, ds *Datastore) {
 			LabelUpdatedAt:  time.Now(),
 			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now().Add(-time.Duration(i) * time.Minute),
-			OsqueryHostID:   strconv.Itoa(i),
-			NodeKey:         fmt.Sprintf("%d", i),
+			OsqueryHostID:   ptr.String(strconv.Itoa(i)),
+			NodeKey:         ptr.String(fmt.Sprintf("%d", i)),
 			UUID:            fmt.Sprintf("%d", i),
 			Hostname:        fmt.Sprintf("foo.local%d", i),
 		})
@@ -2250,8 +2359,8 @@ func testHostsListByOSNameAndVersion(t *testing.T, ds *Datastore) {
 			LabelUpdatedAt:  time.Now(),
 			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now().Add(-time.Duration(i) * time.Minute),
-			OsqueryHostID:   strconv.Itoa(i),
-			NodeKey:         fmt.Sprintf("%d", i),
+			OsqueryHostID:   ptr.String(strconv.Itoa(i)),
+			NodeKey:         ptr.String(fmt.Sprintf("%d", i)),
 			UUID:            fmt.Sprintf("%d", i),
 			Hostname:        fmt.Sprintf("foo.local%d", i),
 		})
@@ -2332,8 +2441,8 @@ func testHostsListFailingPolicies(t *testing.T, ds *Datastore) {
 			LabelUpdatedAt:  time.Now(),
 			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now().Add(-time.Duration(i) * time.Minute),
-			OsqueryHostID:   strconv.Itoa(i),
-			NodeKey:         fmt.Sprintf("%d", i),
+			OsqueryHostID:   ptr.String(strconv.Itoa(i)),
+			NodeKey:         ptr.String(fmt.Sprintf("%d", i)),
 			UUID:            fmt.Sprintf("%d", i),
 			Hostname:        fmt.Sprintf("foo.local%d", i),
 		})
@@ -2425,8 +2534,8 @@ func testHostsReadsLessRows(t *testing.T, ds *Datastore) {
 			LabelUpdatedAt:  time.Now(),
 			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now().Add(-time.Duration(i) * time.Minute),
-			OsqueryHostID:   strconv.Itoa(i),
-			NodeKey:         fmt.Sprintf("%d", i),
+			OsqueryHostID:   ptr.String(strconv.Itoa(i)),
+			NodeKey:         ptr.String(fmt.Sprintf("%d", i)),
 			UUID:            fmt.Sprintf("%d", i),
 			Hostname:        fmt.Sprintf("foo.local%d", i),
 		})
@@ -2503,12 +2612,12 @@ func testHostsUpdateTonsOfUsers(t *testing.T, ds *Datastore) {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         "1",
+		NodeKey:         ptr.String("1"),
 		UUID:            "1",
 		Hostname:        "foo.local",
 		PrimaryIP:       "192.168.1.1",
 		PrimaryMac:      "30-65-EC-6F-C4-58",
-		OsqueryHostID:   "1",
+		OsqueryHostID:   ptr.String("1"),
 	})
 	require.NoError(t, err)
 	require.NotNil(t, host1)
@@ -2518,12 +2627,12 @@ func testHostsUpdateTonsOfUsers(t *testing.T, ds *Datastore) {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         "2",
+		NodeKey:         ptr.String("2"),
 		UUID:            "2",
 		Hostname:        "foo2.local",
 		PrimaryIP:       "192.168.1.2",
 		PrimaryMac:      "30-65-EC-6F-C4-58",
-		OsqueryHostID:   "2",
+		OsqueryHostID:   ptr.String("2"),
 	})
 	require.NoError(t, err)
 	require.NotNil(t, host2)
@@ -2684,12 +2793,12 @@ func testHostsSavePackStatsConcurrent(t *testing.T, ds *Datastore) {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         "1",
+		NodeKey:         ptr.String("1"),
 		UUID:            "1",
 		Hostname:        "foo.local",
 		PrimaryIP:       "192.168.1.1",
 		PrimaryMac:      "30-65-EC-6F-C4-58",
-		OsqueryHostID:   "1",
+		OsqueryHostID:   ptr.String("1"),
 	})
 	require.NoError(t, err)
 	require.NotNil(t, host1)
@@ -2699,12 +2808,12 @@ func testHostsSavePackStatsConcurrent(t *testing.T, ds *Datastore) {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         "2",
+		NodeKey:         ptr.String("2"),
 		UUID:            "2",
 		Hostname:        "foo.local2",
 		PrimaryIP:       "192.168.1.2",
 		PrimaryMac:      "30-65-EC-6F-C4-58",
-		OsqueryHostID:   "2",
+		OsqueryHostID:   ptr.String("2"),
 	})
 	require.NoError(t, err)
 	require.NotNil(t, host2)
@@ -2879,8 +2988,8 @@ func testHostsExpiration(t *testing.T, ds *Datastore) {
 			LabelUpdatedAt:  time.Now(),
 			PolicyUpdatedAt: time.Now(),
 			SeenTime:        seenTime,
-			OsqueryHostID:   strconv.Itoa(i),
-			NodeKey:         fmt.Sprintf("%d", i),
+			OsqueryHostID:   ptr.String(strconv.Itoa(i)),
+			NodeKey:         ptr.String(fmt.Sprintf("%d", i)),
 			UUID:            fmt.Sprintf("%d", i),
 			Hostname:        fmt.Sprintf("foo.local%d", i),
 		})
@@ -2926,7 +3035,7 @@ func testHostsAllPackStats(t *testing.T, ds *Datastore) {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         "1",
+		NodeKey:         ptr.String("1"),
 		UUID:            "1",
 		Hostname:        "foo.local",
 		PrimaryIP:       "192.168.1.1",
@@ -3097,13 +3206,13 @@ func testHostsPackStatsMultipleHosts(t *testing.T, ds *Datastore) {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         "1",
+		NodeKey:         ptr.String("1"),
 		UUID:            "1",
 		Hostname:        "foo.local",
 		PrimaryIP:       "192.168.1.1",
 		PrimaryMac:      "30-65-EC-6F-C4-58",
 		Platform:        "darwin",
-		OsqueryHostID:   osqueryHostID1,
+		OsqueryHostID:   &osqueryHostID1,
 	})
 	require.NoError(t, err)
 	require.NotNil(t, host1)
@@ -3113,13 +3222,13 @@ func testHostsPackStatsMultipleHosts(t *testing.T, ds *Datastore) {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         "2",
+		NodeKey:         ptr.String("2"),
 		UUID:            "2",
 		Hostname:        "bar.local",
 		PrimaryIP:       "192.168.1.2",
 		PrimaryMac:      "30-65-EC-6F-C4-59",
 		Platform:        "darwin",
-		OsqueryHostID:   osqueryHostID2,
+		OsqueryHostID:   &osqueryHostID2,
 	})
 	require.NoError(t, err)
 	require.NotNil(t, host2)
@@ -3226,13 +3335,13 @@ func testHostsPackStatsForPlatform(t *testing.T, ds *Datastore) {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         "1",
+		NodeKey:         ptr.String("1"),
 		UUID:            "1",
 		Hostname:        "foo.local",
 		PrimaryIP:       "192.168.1.1",
 		PrimaryMac:      "30-65-EC-6F-C4-58",
 		Platform:        "darwin",
-		OsqueryHostID:   osqueryHostID1,
+		OsqueryHostID:   &osqueryHostID1,
 	})
 	require.NoError(t, err)
 	require.NotNil(t, host1)
@@ -3242,13 +3351,13 @@ func testHostsPackStatsForPlatform(t *testing.T, ds *Datastore) {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         "2",
+		NodeKey:         ptr.String("2"),
 		UUID:            "2",
 		Hostname:        "foo.local.2",
 		PrimaryIP:       "192.168.1.2",
 		PrimaryMac:      "30-65-EC-6F-C4-59",
 		Platform:        "rhel",
-		OsqueryHostID:   osqueryHostID2,
+		OsqueryHostID:   &osqueryHostID2,
 	})
 	require.NoError(t, err)
 	require.NotNil(t, host2)
@@ -3516,8 +3625,8 @@ func testHostsPackStatsForPlatform(t *testing.T, ds *Datastore) {
 func testHostsNoSeenTime(t *testing.T, ds *Datastore) {
 	h1, err := ds.NewHost(context.Background(), &fleet.Host{
 		ID:              1,
-		OsqueryHostID:   "1",
-		NodeKey:         "1",
+		OsqueryHostID:   ptr.String("1"),
+		NodeKey:         ptr.String("1"),
 		Platform:        "linux",
 		Hostname:        "host1",
 		DetailUpdatedAt: time.Now(),
@@ -3616,8 +3725,8 @@ func testHostsNoSeenTime(t *testing.T, ds *Datastore) {
 
 	h2, err := ds.NewHost(context.Background(), &fleet.Host{
 		ID:              2,
-		OsqueryHostID:   "2",
-		NodeKey:         "2",
+		OsqueryHostID:   ptr.String("2"),
+		NodeKey:         ptr.String("2"),
 		Platform:        "windows",
 		Hostname:        "host2",
 		DetailUpdatedAt: time.Now(),
@@ -3662,8 +3771,8 @@ func testHostsNoSeenTime(t *testing.T, ds *Datastore) {
 
 	h3, err := ds.NewHost(context.Background(), &fleet.Host{
 		ID:              3,
-		OsqueryHostID:   "3",
-		NodeKey:         "3",
+		OsqueryHostID:   ptr.String("3"),
+		NodeKey:         ptr.String("3"),
 		Platform:        "darwin",
 		Hostname:        "host3",
 		DetailUpdatedAt: time.Now(),
@@ -3700,8 +3809,8 @@ func testHostDeviceMapping(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 	h, err := ds.NewHost(ctx, &fleet.Host{
 		ID:              1,
-		OsqueryHostID:   "1",
-		NodeKey:         "1",
+		OsqueryHostID:   ptr.String("1"),
+		NodeKey:         ptr.String("1"),
 		Platform:        "linux",
 		Hostname:        "host1",
 		DetailUpdatedAt: time.Now(),
@@ -3744,8 +3853,8 @@ func testHostDeviceMapping(t *testing.T, ds *Datastore) {
 	// create additional hosts to test device mapping of multiple hosts in ListHosts results
 	h2, err := ds.NewHost(ctx, &fleet.Host{
 		ID:              2,
-		OsqueryHostID:   "2",
-		NodeKey:         "2",
+		OsqueryHostID:   ptr.String("2"),
+		NodeKey:         ptr.String("2"),
 		Platform:        "linux",
 		Hostname:        "host2",
 		DetailUpdatedAt: time.Now(),
@@ -3763,8 +3872,8 @@ func testHostDeviceMapping(t *testing.T, ds *Datastore) {
 	// create third host with no device mapping
 	_, err = ds.NewHost(ctx, &fleet.Host{
 		ID:              3,
-		OsqueryHostID:   "3",
-		NodeKey:         "3",
+		OsqueryHostID:   ptr.String("3"),
+		NodeKey:         ptr.String("3"),
 		Platform:        "linux",
 		Hostname:        "host3",
 		DetailUpdatedAt: time.Now(),
@@ -3821,8 +3930,8 @@ func testHostsReplaceHostDeviceMapping(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 	h, err := ds.NewHost(ctx, &fleet.Host{
 		ID:              1,
-		OsqueryHostID:   "1",
-		NodeKey:         "1",
+		OsqueryHostID:   ptr.String("1"),
+		NodeKey:         ptr.String("1"),
 		Platform:        "linux",
 		Hostname:        "host1",
 		DetailUpdatedAt: time.Now(),
@@ -3973,7 +4082,7 @@ func testHostMDMAndMunki(t *testing.T, ds *Datastore) {
 	urlMDMID := *hmdm.MDMID
 	assert.Equal(t, fleet.UnknownMDMName, hmdm.Name)
 
-	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 455, false, true, "https://kandji.io", true, "")) // kandji mdm name
+	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 455, false, true, "https://kandji.io", true, fleet.WellKnownMDMKandji)) // kandji mdm name
 	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 432, false, false, "url3", true, ""))
 
 	hmdm, err = ds.GetHostMDM(context.Background(), 432)
@@ -4008,7 +4117,7 @@ func testHostMDMAndMunki(t *testing.T, ds *Datastore) {
 	require.ErrorIs(t, err, sql.ErrNoRows)
 
 	// switch to simplemdm in an update
-	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 455, false, true, "https://simplemdm.com", false, "")) // now simplemdm name
+	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 455, false, true, "https://simplemdm.com", false, fleet.WellKnownMDMSimpleMDM)) // now simplemdm name
 
 	hmdm, err = ds.GetHostMDM(context.Background(), 455)
 	require.NoError(t, err)
@@ -4033,7 +4142,7 @@ func testHostMDMAndMunki(t *testing.T, ds *Datastore) {
 
 	// switch to a different Kandji server URL, will have a different MDM ID as
 	// even though this is another Kandji, the URL is different.
-	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 455, false, true, "https://kandji.io/2", false, ""))
+	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 455, false, true, "https://kandji.io/2", false, fleet.WellKnownMDMKandji))
 
 	hmdm, err = ds.GetHostMDM(context.Background(), 455)
 	require.NoError(t, err)
@@ -4219,25 +4328,27 @@ func testAggregatedHostMDMAndMunki(t *testing.T, ds *Datastore) {
 		},
 	})
 
-	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 432, false, true, "url", false, ""))
-	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 123, false, true, "url", false, ""))
-	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 124, false, true, "url", false, ""))
-	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 455, false, true, "https://simplemdm.com", true, ""))
-	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 999, false, false, "https://kandji.io", true, ""))
-	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 875, false, false, "https://kandji.io", true, ""))
+	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 432, false, true, "url", false, ""))                                           // manual enrollment
+	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 123, false, true, "url", false, ""))                                           // manual enrollment
+	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 124, false, true, "url", false, ""))                                           // manual enrollment
+	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 455, false, true, "https://simplemdm.com", true, fleet.WellKnownMDMSimpleMDM)) // automatic enrollment
+	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 999, false, false, "https://kandji.io", false, fleet.WellKnownMDMKandji))      // unenrolled
+	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 875, false, false, "https://kandji.io", true, fleet.WellKnownMDMKandji))       // pending enrollment
+	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 1337, false, false, "https://fleetdm.com", true, fleet.WellKnownMDMFleet))     // pending enrollment
 
 	require.NoError(t, ds.GenerateAggregatedMunkiAndMDM(context.Background()))
 
 	status, _, err = ds.AggregatedMDMStatus(context.Background(), nil, "")
 	require.NoError(t, err)
-	assert.Equal(t, 6, status.HostsCount)
-	assert.Equal(t, 2, status.UnenrolledHostsCount)
+	assert.Equal(t, 7, status.HostsCount)
+	assert.Equal(t, 1, status.UnenrolledHostsCount)
+	assert.Equal(t, 2, status.PendingHostsCount)
 	assert.Equal(t, 3, status.EnrolledManualHostsCount)
 	assert.Equal(t, 1, status.EnrolledAutomatedHostsCount)
 
 	solutions, _, err = ds.AggregatedMDMSolutions(context.Background(), nil, "")
 	require.NoError(t, err)
-	require.Len(t, solutions, 3) // 3 different urls
+	require.Len(t, solutions, 4) // 4 different urls
 	for _, sol := range solutions {
 		switch sol.ServerURL {
 		case "url":
@@ -4249,8 +4360,11 @@ func testAggregatedHostMDMAndMunki(t *testing.T, ds *Datastore) {
 		case "https://kandji.io":
 			assert.Equal(t, 2, sol.HostsCount)
 			assert.Equal(t, fleet.WellKnownMDMKandji, sol.Name)
+		case "https://fleetdm.com":
+			assert.Equal(t, 1, sol.HostsCount)
+			assert.Equal(t, fleet.WellKnownMDMFleet, sol.Name)
 		default:
-			require.Fail(t, "unknown MDM solutions URL: %s", sol.ServerURL)
+			require.Fail(t, fmt.Sprintf("unknown MDM solutions URL: %s", sol.ServerURL))
 		}
 	}
 
@@ -4276,11 +4390,11 @@ func testAggregatedHostMDMAndMunki(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.AddHostsToTeam(context.Background(), &team1.ID, []uint{h3.ID}))
 	require.NoError(t, ds.AddHostsToTeam(context.Background(), &team1.ID, []uint{h4.ID}))
 
-	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), h1.ID, false, true, "https://simplemdm.com", false, ""))
+	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), h1.ID, false, true, "https://simplemdm.com", false, fleet.WellKnownMDMSimpleMDM))
 	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), h2.ID, false, true, "url", false, ""))
 
 	// Add a server, this will be ignored in lists and aggregated data.
-	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), h4.ID, true, true, "https://simplemdm.com", false, ""))
+	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), h4.ID, true, true, "https://simplemdm.com", false, fleet.WellKnownMDMSimpleMDM))
 
 	require.NoError(t, ds.SetOrUpdateMunkiInfo(context.Background(), h1.ID, "1.2.3", []string{"d"}, nil))
 	require.NoError(t, ds.SetOrUpdateMunkiInfo(context.Background(), h2.ID, "1.2.3", []string{"d"}, []string{"e"}))
@@ -4380,8 +4494,8 @@ func testHostsLite(t *testing.T, ds *Datastore) {
 	now := time.Now()
 	h, err := ds.NewHost(context.Background(), &fleet.Host{
 		ID:                  1,
-		OsqueryHostID:       "foobar",
-		NodeKey:             "nodekey",
+		OsqueryHostID:       ptr.String("foobar"),
+		NodeKey:             ptr.String("nodekey"),
 		Hostname:            "foobar.local",
 		UUID:                "uuid",
 		Platform:            "darwin",
@@ -4410,8 +4524,8 @@ func testHostsLite(t *testing.T, ds *Datastore) {
 	require.Equal(t, uint(1), h.ID)
 	require.NotEmpty(t, h.CreatedAt)
 	require.NotEmpty(t, h.UpdatedAt)
-	require.Equal(t, "foobar", h.OsqueryHostID)
-	require.Equal(t, "nodekey", h.NodeKey)
+	require.Equal(t, "foobar", *h.OsqueryHostID)
+	require.Equal(t, "nodekey", *h.NodeKey)
 	require.Equal(t, "foobar.local", h.Hostname)
 	require.Equal(t, "uuid", h.UUID)
 	require.Equal(t, "darwin", h.Platform)
@@ -4430,8 +4544,8 @@ func testUpdateOsqueryIntervals(t *testing.T, ds *Datastore) {
 	now := time.Now()
 	h, err := ds.NewHost(context.Background(), &fleet.Host{
 		ID:                  1,
-		OsqueryHostID:       "foobar",
-		NodeKey:             "nodekey",
+		OsqueryHostID:       ptr.String("foobar"),
+		NodeKey:             ptr.String("nodekey"),
 		Hostname:            "foobar.local",
 		UUID:                "uuid",
 		Platform:            "darwin",
@@ -4465,8 +4579,8 @@ func testUpdateRefetchRequested(t *testing.T, ds *Datastore) {
 	now := time.Now()
 	h, err := ds.NewHost(context.Background(), &fleet.Host{
 		ID:                  1,
-		OsqueryHostID:       "foobar",
-		NodeKey:             "nodekey",
+		OsqueryHostID:       ptr.String("foobar"),
+		NodeKey:             ptr.String("nodekey"),
 		Hostname:            "foobar.local",
 		UUID:                "uuid",
 		Platform:            "darwin",
@@ -4503,7 +4617,7 @@ func testHostsSaveHostUsers(t *testing.T, ds *Datastore) {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         "1",
+		NodeKey:         ptr.String("1"),
 		UUID:            "1",
 		Hostname:        "foo.local",
 		PrimaryIP:       "192.168.1.1",
@@ -4544,7 +4658,7 @@ func testHostsLoadHostByDeviceAuthToken(t *testing.T, ds *Datastore) {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         "1",
+		NodeKey:         ptr.String("1"),
 		UUID:            "1",
 		Hostname:        "foo.local",
 		PrimaryIP:       "192.168.1.1",
@@ -4577,9 +4691,9 @@ func testHostsSetOrUpdateDeviceAuthToken(t *testing.T, ds *Datastore) {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         "1",
+		NodeKey:         ptr.String("1"),
 		UUID:            "1",
-		OsqueryHostID:   "1",
+		OsqueryHostID:   ptr.String("1"),
 		Hostname:        "foo.local",
 		PrimaryIP:       "192.168.1.1",
 		PrimaryMac:      "30-65-EC-6F-C4-58",
@@ -4590,9 +4704,9 @@ func testHostsSetOrUpdateDeviceAuthToken(t *testing.T, ds *Datastore) {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         "2",
+		NodeKey:         ptr.String("2"),
 		UUID:            "2",
-		OsqueryHostID:   "2",
+		OsqueryHostID:   ptr.String("2"),
 		Hostname:        "foo.local2",
 		PrimaryIP:       "192.168.1.2",
 		PrimaryMac:      "30-65-EC-6F-C4-59",
@@ -4732,8 +4846,8 @@ func testOSVersions(t *testing.T, ds *Datastore) {
 		host.LabelUpdatedAt = time.Now()
 		host.PolicyUpdatedAt = time.Now()
 		host.SeenTime = time.Now()
-		host.OsqueryHostID = strconv.Itoa(i)
-		host.NodeKey = strconv.Itoa(i)
+		host.OsqueryHostID = ptr.String(strconv.Itoa(i))
+		host.NodeKey = ptr.String(strconv.Itoa(i))
 		host.UUID = strconv.Itoa(i)
 		host.Hostname = fmt.Sprintf("%d.localdomain", i)
 
@@ -4823,7 +4937,7 @@ func testOSVersions(t *testing.T, ds *Datastore) {
 	require.Equal(t, expected, osVersions.OSVersions)
 
 	// non-existent team
-	osVersions, err = ds.OSVersions(ctx, ptr.Uint(404), nil, nil, nil)
+	_, err = ds.OSVersions(ctx, ptr.Uint(404), nil, nil, nil)
 	require.Error(t, err)
 
 	// new host with arm64
@@ -4832,8 +4946,8 @@ func testOSVersions(t *testing.T, ds *Datastore) {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		OsqueryHostID:   "666",
-		NodeKey:         "666",
+		OsqueryHostID:   ptr.String("666"),
+		NodeKey:         ptr.String("666"),
 		UUID:            "666",
 		Hostname:        fmt.Sprintf("%s.localdomain", "666"),
 	})
@@ -4876,7 +4990,7 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         "1",
+		NodeKey:         ptr.String("1"),
 		UUID:            "1",
 		Hostname:        "foo.local",
 	})
@@ -4974,7 +5088,7 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{policy.ID: ptr.Bool(true)}, time.Now(), false))
 	// Update host_mdm.
-	err = ds.SetOrUpdateMDMData(context.Background(), host.ID, false, false, "", false, "")
+	err = ds.SetOrUpdateMDMData(context.Background(), host.ID, false, false, "foo.mdm.example.com", false, "")
 	require.NoError(t, err)
 	// Update host_munki_info.
 	err = ds.SetOrUpdateMunkiInfo(context.Background(), host.ID, "42", []string{"a"}, []string{"b"})
@@ -5041,8 +5155,8 @@ func testHostIDsByOSVersion(t *testing.T, ds *Datastore) {
 			LabelUpdatedAt:  time.Now(),
 			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now(),
-			OsqueryHostID:   fmt.Sprintf("host%d", i),
-			NodeKey:         fmt.Sprintf("%d", i),
+			OsqueryHostID:   ptr.String(fmt.Sprintf("host%d", i)),
+			NodeKey:         ptr.String(fmt.Sprintf("%d", i)),
 			UUID:            fmt.Sprintf("%d", i),
 			Hostname:        fmt.Sprintf("foo.%d.local", i),
 			Platform:        getPlatform(i),
@@ -5077,8 +5191,8 @@ func testHostsReplaceHostBatteries(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 	h1, err := ds.NewHost(ctx, &fleet.Host{
 		ID:              1,
-		OsqueryHostID:   "1",
-		NodeKey:         "1",
+		OsqueryHostID:   ptr.String("1"),
+		NodeKey:         ptr.String("1"),
 		Platform:        "linux",
 		Hostname:        "host1",
 		DetailUpdatedAt: time.Now(),
@@ -5089,8 +5203,8 @@ func testHostsReplaceHostBatteries(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	h2, err := ds.NewHost(ctx, &fleet.Host{
 		ID:              2,
-		OsqueryHostID:   "2",
-		NodeKey:         "2",
+		OsqueryHostID:   ptr.String("2"),
+		NodeKey:         ptr.String("2"),
 		Platform:        "linux",
 		Hostname:        "host2",
 		DetailUpdatedAt: time.Now(),
@@ -5169,8 +5283,8 @@ func testCountHostsNotResponding(t *testing.T, ds *Datastore) {
 
 	// responsive
 	_, err := ds.NewHost(ctx, &fleet.Host{
-		OsqueryHostID:       "1",
-		NodeKey:             "1",
+		OsqueryHostID:       ptr.String("1"),
+		NodeKey:             ptr.String("1"),
 		Platform:            "linux",
 		Hostname:            "host1",
 		DistributedInterval: 10,
@@ -5188,8 +5302,8 @@ func testCountHostsNotResponding(t *testing.T, ds *Datastore) {
 	// not responsive
 	_, err = ds.NewHost(ctx, &fleet.Host{
 		ID:                  2,
-		OsqueryHostID:       "2",
-		NodeKey:             "2",
+		OsqueryHostID:       ptr.String("2"),
+		NodeKey:             ptr.String("2"),
 		Platform:            "linux",
 		Hostname:            "host2",
 		DistributedInterval: 10,
@@ -5206,8 +5320,8 @@ func testCountHostsNotResponding(t *testing.T, ds *Datastore) {
 
 	// responsive
 	_, err = ds.NewHost(ctx, &fleet.Host{
-		OsqueryHostID:       "3",
-		NodeKey:             "3",
+		OsqueryHostID:       ptr.String("3"),
+		NodeKey:             ptr.String("3"),
 		Platform:            "linux",
 		Hostname:            "host3",
 		DistributedInterval: 10,
@@ -5224,8 +5338,8 @@ func testCountHostsNotResponding(t *testing.T, ds *Datastore) {
 
 	// not responsive
 	_, err = ds.NewHost(ctx, &fleet.Host{
-		OsqueryHostID:       "4",
-		NodeKey:             "4",
+		OsqueryHostID:       ptr.String("4"),
+		NodeKey:             ptr.String("4"),
 		Platform:            "linux",
 		Hostname:            "host4",
 		DistributedInterval: 10,
@@ -5242,8 +5356,8 @@ func testCountHostsNotResponding(t *testing.T, ds *Datastore) {
 
 	// was responsive but hasn't been seen in past 7 days so it is not counted
 	_, err = ds.NewHost(ctx, &fleet.Host{
-		OsqueryHostID:       "5",
-		NodeKey:             "5",
+		OsqueryHostID:       ptr.String("5"),
+		NodeKey:             ptr.String("5"),
 		Platform:            "linux",
 		Hostname:            "host5",
 		DistributedInterval: 10,
@@ -5261,8 +5375,8 @@ func testCountHostsNotResponding(t *testing.T, ds *Datastore) {
 	// distributed interval (1h1m) is greater than osquery detail interval (1h)
 	// so measurement period for non-responsiveness is 2h2m
 	_, err = ds.NewHost(ctx, &fleet.Host{
-		OsqueryHostID:       "6",
-		NodeKey:             "6",
+		OsqueryHostID:       ptr.String("6"),
+		NodeKey:             ptr.String("6"),
 		Platform:            "linux",
 		Hostname:            "host6",
 		DistributedInterval: uint((1*time.Hour + 1*time.Minute).Seconds()),        // 1h1m
@@ -5380,9 +5494,9 @@ func testHostsSetOrUpdateHostDisksSpace(t *testing.T, ds *Datastore) {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         "1",
+		NodeKey:         ptr.String("1"),
 		UUID:            "1",
-		OsqueryHostID:   "1",
+		OsqueryHostID:   ptr.String("1"),
 		Hostname:        "foo.local",
 		PrimaryIP:       "192.168.1.1",
 		PrimaryMac:      "30-65-EC-6F-C4-58",
@@ -5393,9 +5507,9 @@ func testHostsSetOrUpdateHostDisksSpace(t *testing.T, ds *Datastore) {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         "2",
+		NodeKey:         ptr.String("2"),
 		UUID:            "2",
-		OsqueryHostID:   "2",
+		OsqueryHostID:   ptr.String("2"),
 		Hostname:        "foo.local2",
 		PrimaryIP:       "192.168.1.2",
 		PrimaryMac:      "30-65-EC-6F-C4-59",
@@ -5418,7 +5532,7 @@ func testHostsSetOrUpdateHostDisksSpace(t *testing.T, ds *Datastore) {
 	require.Equal(t, 1.0, h.GigsDiskSpaceAvailable)
 	require.Equal(t, 2.0, h.PercentDiskSpaceAvailable)
 
-	h, err = ds.LoadHostByNodeKey(context.Background(), host2.NodeKey)
+	h, err = ds.LoadHostByNodeKey(context.Background(), *host2.NodeKey)
 	require.NoError(t, err)
 	require.Equal(t, 3.0, h.GigsDiskSpaceAvailable)
 	require.Equal(t, 4.0, h.PercentDiskSpaceAvailable)
@@ -5435,11 +5549,11 @@ func testHostsSetOrUpdateHostDisksSpace(t *testing.T, ds *Datastore) {
 // testHostOrder tests listing a host sorted by different keys.
 func testHostOrder(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
-	_, err := ds.NewHost(ctx, &fleet.Host{ID: 1, OsqueryHostID: "1", Hostname: "0001", NodeKey: "1"})
+	_, err := ds.NewHost(ctx, &fleet.Host{ID: 1, OsqueryHostID: ptr.String("1"), Hostname: "0001", NodeKey: ptr.String("1")})
 	require.NoError(t, err)
-	_, err = ds.NewHost(ctx, &fleet.Host{ID: 2, OsqueryHostID: "2", Hostname: "0002", ComputerName: "0004", NodeKey: "2"})
+	_, err = ds.NewHost(ctx, &fleet.Host{ID: 2, OsqueryHostID: ptr.String("2"), Hostname: "0002", ComputerName: "0004", NodeKey: ptr.String("2")})
 	require.NoError(t, err)
-	_, err = ds.NewHost(ctx, &fleet.Host{ID: 3, OsqueryHostID: "3", Hostname: "0003", NodeKey: "3"})
+	_, err = ds.NewHost(ctx, &fleet.Host{ID: 3, OsqueryHostID: ptr.String("3"), Hostname: "0003", NodeKey: ptr.String("3")})
 	require.NoError(t, err)
 	chk := func(hosts []*fleet.Host, expect ...string) {
 		require.Len(t, hosts, len(expect))
@@ -5566,9 +5680,9 @@ func testHostsSetOrUpdateHostDisksEncryption(t *testing.T, ds *Datastore) {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         "1",
+		NodeKey:         ptr.String("1"),
 		UUID:            "1",
-		OsqueryHostID:   "1",
+		OsqueryHostID:   ptr.String("1"),
 		Hostname:        "foo.local",
 		PrimaryIP:       "192.168.1.1",
 		PrimaryMac:      "30-65-EC-6F-C4-58",
@@ -5579,9 +5693,9 @@ func testHostsSetOrUpdateHostDisksEncryption(t *testing.T, ds *Datastore) {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         "2",
+		NodeKey:         ptr.String("2"),
 		UUID:            "2",
-		OsqueryHostID:   "2",
+		OsqueryHostID:   ptr.String("2"),
 		Hostname:        "foo.local2",
 		PrimaryIP:       "192.168.1.2",
 		PrimaryMac:      "30-65-EC-6F-C4-59",
@@ -5608,4 +5722,29 @@ func testHostsSetOrUpdateHostDisksEncryption(t *testing.T, ds *Datastore) {
 	h, err = ds.Host(context.Background(), host2.ID)
 	require.NoError(t, err)
 	require.True(t, *h.DiskEncryptionEnabled)
+}
+
+func testHostsGetHostMDMCheckinInfo(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	host, err := ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         ptr.String("1"),
+		UUID:            "1",
+		OsqueryHostID:   ptr.String("1"),
+		Hostname:        "foo.local",
+		PrimaryIP:       "192.168.1.1",
+		PrimaryMac:      "30-65-EC-6F-C4-58",
+		HardwareSerial:  "123456789",
+	})
+	require.NoError(t, err)
+	err = ds.SetOrUpdateMDMData(ctx, host.ID, false, true, "https://fleetdm.com", true, fleet.WellKnownMDMFleet)
+	require.NoError(t, err)
+
+	info, err := ds.GetHostMDMCheckinInfo(ctx, host.UUID)
+	require.NoError(t, err)
+	require.Equal(t, host.HardwareSerial, info.HardwareSerial)
+	require.Equal(t, true, info.InstalledFromDEP)
 }
