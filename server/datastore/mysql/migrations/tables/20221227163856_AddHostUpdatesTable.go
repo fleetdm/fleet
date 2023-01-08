@@ -11,6 +11,8 @@ func init() {
 }
 
 func Up_20221227163856(tx *sql.Tx) error {
+	// software_updated_at is NULL in case we want to add more
+	// update related columns to this table in the future.
 	_, err := tx.Exec(`
 		CREATE TABLE host_updates (
 			host_id int(10) unsigned NOT NULL PRIMARY KEY,

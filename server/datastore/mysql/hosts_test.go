@@ -2242,8 +2242,8 @@ func testHostsListBySoftwareChangedAt(t *testing.T, ds *Datastore) {
 			LabelUpdatedAt:  time.Now(),
 			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now().Add(-time.Duration(i) * time.Minute),
-			OsqueryHostID:   strconv.Itoa(i),
-			NodeKey:         fmt.Sprintf("%d", i),
+			OsqueryHostID:   ptr.String(strconv.Itoa(i)),
+			NodeKey:         ptr.String(fmt.Sprintf("%d", i)),
 			UUID:            fmt.Sprintf("%d", i),
 			Hostname:        fmt.Sprintf("foo.local%d", i),
 		})
@@ -2253,6 +2253,20 @@ func testHostsListBySoftwareChangedAt(t *testing.T, ds *Datastore) {
 	filter := fleet.TeamFilter{User: test.UserAdmin}
 
 	hosts := listHostsCheckCount(t, ds, filter, fleet.HostListOptions{}, 10)
+	require.Equal(t, hosts[0].SoftwareUpdatedAt, hosts[0].CreatedAt)
+
+	host, err := ds.Host(context.Background(), hosts[0].ID)
+	require.NoError(t, err)
+	require.Equal(t, host.SoftwareUpdatedAt, host.CreatedAt)
+
+	host, err = ds.HostByIdentifier(context.Background(), *hosts[0].OsqueryHostID)
+	require.NoError(t, err)
+	require.Equal(t, host.SoftwareUpdatedAt, host.CreatedAt)
+
+	foundHosts, err := ds.SearchHosts(context.Background(), filter, "foo.local0")
+	require.NoError(t, err)
+	require.Len(t, foundHosts, 1)
+	require.Equal(t, foundHosts[0].SoftwareUpdatedAt, foundHosts[0].CreatedAt)
 
 	software := []fleet.Software{
 		{Name: "foo", Version: "0.0.2", Source: "chrome_extensions"},
@@ -2272,7 +2286,7 @@ func testHostsListBySoftwareChangedAt(t *testing.T, ds *Datastore) {
 	// because nothing changed
 	require.NoError(t, ds.UpdateHostSoftware(context.Background(), host1.ID, software))
 
-	hosts, err := ds.ListHosts(context.Background(), filter, fleet.HostListOptions{
+	hosts, err = ds.ListHosts(context.Background(), filter, fleet.HostListOptions{
 		ListOptions: fleet.ListOptions{OrderKey: "software_updated_at", OrderDirection: fleet.OrderDescending},
 	})
 	require.NoError(t, err)
@@ -2280,6 +2294,19 @@ func testHostsListBySoftwareChangedAt(t *testing.T, ds *Datastore) {
 	require.Len(t, hosts, 10)
 	require.Equal(t, host2.ID, hosts[0].ID)
 	require.Equal(t, host1.ID, hosts[1].ID)
+
+	host, err = ds.Host(context.Background(), hosts[0].ID)
+	require.NoError(t, err)
+	require.Greater(t, host.SoftwareUpdatedAt, host.CreatedAt)
+
+	host, err = ds.HostByIdentifier(context.Background(), *hosts[0].OsqueryHostID)
+	require.NoError(t, err)
+	require.Greater(t, host.SoftwareUpdatedAt, host.CreatedAt)
+
+	foundHosts, err = ds.SearchHosts(context.Background(), filter, "foo.local2")
+	require.NoError(t, err)
+	require.Len(t, foundHosts, 1)
+	require.Greater(t, foundHosts[0].SoftwareUpdatedAt, foundHosts[0].CreatedAt)
 }
 
 func testHostsListByOperatingSystemID(t *testing.T, ds *Datastore) {

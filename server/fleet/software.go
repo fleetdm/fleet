@@ -5,8 +5,10 @@ import (
 )
 
 // Must be kept in sync with the vendor column definition.
-const SoftwareVendorMaxLength = 114
-const SoftwareVendorMaxLengthFmt = "%.111s..."
+const (
+	SoftwareVendorMaxLength    = 114
+	SoftwareVendorMaxLengthFmt = "%.111s..."
+)
 
 type Vulnerabilities []CVE
 
