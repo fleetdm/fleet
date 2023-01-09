@@ -65,6 +65,7 @@ var ServerOrbitCapabilities = CapabilityMap{
 // ServerDeviceCapabilities is a set of capabilities that server-side,
 // Device-related endpoint supports.
 // **it shouldn't be modified at runtime**
+// TODO(mna): should this be updated to indicate the MDM manual enrollment profile support?
 var ServerDeviceCapabilities = CapabilityMap{}
 
 // CapabilitiesHeader is the header name used to communicate the capabilities.

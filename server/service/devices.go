@@ -335,3 +335,35 @@ func transparencyURL(ctx context.Context, request interface{}, svc fleet.Service
 
 	return transparencyURLResponse{RedirectURL: transparencyURL}, nil
 }
+
+////////////////////////////////////////////////////////////////////////////////
+// Get Current Device's MDM Apple Enrollment Profile
+////////////////////////////////////////////////////////////////////////////////
+
+type getDeviceMDMManualEnrollProfileRequest struct {
+	Token string `url:"token"`
+}
+
+func (r *getDeviceMDMManualEnrollProfileRequest) deviceAuthToken() string {
+	return r.Token
+}
+
+type getDeviceMDMManualEnrollProfileResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r getDeviceMDMManualEnrollProfileResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (r getDeviceMDMManualEnrollProfileResponse) error() error { return r.Err }
+
+func getDeviceMDMManualEnrollProfileEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	host, ok := hostctx.FromContext(ctx)
+	if !ok {
+		err := ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
+		return getDeviceMDMManualEnrollProfileResponse{Err: err}, nil
+	}
+	_ = host
+	return getDeviceMDMManualEnrollProfileResponse{}, nil
+}
