@@ -1,7 +1,6 @@
 import Alert from "./Alert";
 import CalendarCheck from "./CalendarCheck";
 import Check from "./Check";
-import CircledCheck from "./CircledCheck";
 import Chevron from "./Chevron";
 import Ex from "./Ex";
 import ExternalLink from "./ExternalLink";
@@ -37,7 +36,6 @@ export const ICON_MAP = {
   "calendar-check": CalendarCheck,
   chevron: Chevron,
   check: Check,
-  "circled-check": CircledCheck,
   ex: Ex,
   "external-link": ExternalLink,
   "low-disk-space-hosts": LowDiskSpaceHosts,
