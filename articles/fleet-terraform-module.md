@@ -1,7 +1,5 @@
 # Keep Fleet running smoothly on AWS with the new Terraform module
 
-![???](../website/assets/images/articles/???.jpg)
-
 The #1 way we see Fleet deployed today is via Terraform to AWS. In the past, we used our Dogfood environment as an example of this deployment. Some customers chose to pull this example code from the Dogfood segment of our repo. This article addresses upcoming changes to our Terraform pattern that will disrupt usage of the code in Dogfood, the reasons for these changes, and how you can use our new pattern to avoid breaking changes.
 
 ## Reasons for the change
@@ -10,11 +8,11 @@ We’re glad the Dogfood environment has been helpful. But Dogfood's Terraform c
 
 And because we didn’t intend for people to use Dogfood’s Terraform, there were no means in place to see who used the code for deployment. So we wouldn’t know whether to contact you about breaking changes or updates.
 
-We needed a solution that makes it easier to test new features — and easier to deploy Fleet to unique environments.
+We needed a solution that makes it easier to test new features and easier to deploy Fleet to unique environments.
 
 ## Introducing the Fleet Terraform module
 
-Modules are the classic solution to this Terraform issue. Making a module with a simple interface would let teams deploy Fleet in AWS ASAP. You’d have minimal code to maintain and you could keep environments updated as Fleet evolves.
+Modules are the classic solution to this Terraform issue. Making a module with a streamlined interface would let teams deploy Fleet in AWS ASAP. You’d have minimal code to maintain and you could keep environments updated as Fleet evolves.
 
 The basic install had to be as simple as possible. Would you use a module if you had to pass in every single thing to make it work? Probably not.
 
@@ -183,4 +181,3 @@ resources on the side or refining the installation for deployment at scale. See 
 <meta name="authorGitHubUsername" value="zwinnerman-fleetdm">
 <meta name="publishedOn" value="2023-01-09">
 <meta name="articleTitle" value="Keep Fleet running smoothly on AWS with the new Terraform module">
-<meta name="articleImageUrl" value="../website/assets/images/articles/???.jpg">
