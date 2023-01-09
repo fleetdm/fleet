@@ -124,12 +124,12 @@ organize and categorize GitHub issues. This reduces the total number of labels r
 maintaining an expressive labeling system. For example, instead of a label called
 `platform-dev-backend`, we use `#platform :dev ~backend`.
 
-| Special character | Label type  | Rules        | Examples                            |
-|:------------------|:------------|:-------------|:------------------------------------|
-| `#`               | Noun        | One only     | `#platform`, `#interface`, `#agent`
-| `:`               | Verb        | One or more  | `:dev`, `:research`, `:design`
-| `~`               | Adjective   | One or more  | `~blocked`, `~frontend`, `~backend`
-| `!`               | OKR         | One only     | `!vuln`, `!desktop`, `!upgrade`
+| Special character | Label type  | Examples                            |
+|:------------------|:------------|:------------------------------------|
+| `#`               | Noun        | `#platform`, `#interface`, `#agent`
+| `:`               | Verb        | `:dev`, `:research`, `:design`
+| `~`               | Adjective   | `~blocked`, `~frontend`, `~backend`
+| `!`               | OKR         | `!vuln`, `!desktop`, `!upgrade`
 
 ## Rituals
 
