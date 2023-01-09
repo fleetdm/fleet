@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/build"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
@@ -40,6 +41,7 @@ const (
 type Updater struct {
 	opt    Options
 	client *client.Client
+	mu     sync.Mutex
 }
 
 // Options are the options that can be provided when creating an Updater.
@@ -68,6 +70,17 @@ func (ts Targets) SetTargetChannel(target, channel string) {
 	t := ts[target]
 	t.Channel = channel
 	ts[target] = t
+}
+
+// SetExtensionsTargetInfo sets/updates the TargetInfo for extension targets
+func (u *Updater) SetExtensionsTargetInfo(name, platform, channel, file string) {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+	u.opt.Targets[name] = TargetInfo{
+		Platform:   platform,
+		Channel:    channel,
+		TargetFile: file,
+	}
 }
 
 // TargetInfo holds all the information to track target updates.

@@ -45,10 +45,9 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		fleetConfig.Filesystem.EnableLogRotation,
 		fleetConfig.Filesystem.EnableLogCompression,
 	)
-
 	require.NoError(t, err)
 
-	osqlogger := &logging.OsqueryLogger{Status: writer, Result: writer}
+	osqlogger := &OsqueryLogger{Status: writer, Result: writer}
 	logger := kitlog.NewNopLogger()
 
 	var ssoStore sso.SessionStore
@@ -142,7 +141,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		panic(err)
 	}
 	if lic.IsPremium() {
-		svc, err = eeservice.NewService(svc, ds, kitlog.NewNopLogger(), fleetConfig, mailer, c)
+		svc, err = eeservice.NewService(svc, ds, kitlog.NewNopLogger(), fleetConfig, mailer, c, depStorage)
 		if err != nil {
 			panic(err)
 		}
@@ -285,6 +284,7 @@ func testKinesisPluginConfig() config.FleetConfig {
 	c := config.TestConfig()
 	c.Osquery.ResultLogPlugin = "kinesis"
 	c.Osquery.StatusLogPlugin = "kinesis"
+	c.Activity.AuditLogPlugin = "kinesis"
 	c.Kinesis = config.KinesisConfig{
 		Region:           "us-east-1",
 		AccessKeyID:      "foo",
@@ -292,6 +292,7 @@ func testKinesisPluginConfig() config.FleetConfig {
 		StsAssumeRoleArn: "baz",
 		StatusStream:     "test-status-stream",
 		ResultStream:     "test-result-stream",
+		AuditStream:      "test-audit-stream",
 	}
 	return c
 }
@@ -300,6 +301,7 @@ func testFirehosePluginConfig() config.FleetConfig {
 	c := config.TestConfig()
 	c.Osquery.ResultLogPlugin = "firehose"
 	c.Osquery.StatusLogPlugin = "firehose"
+	c.Activity.AuditLogPlugin = "firehose"
 	c.Firehose = config.FirehoseConfig{
 		Region:           "us-east-1",
 		AccessKeyID:      "foo",
@@ -307,6 +309,7 @@ func testFirehosePluginConfig() config.FleetConfig {
 		StsAssumeRoleArn: "baz",
 		StatusStream:     "test-status-firehose",
 		ResultStream:     "test-result-firehose",
+		AuditStream:      "test-audit-firehose",
 	}
 	return c
 }
@@ -315,6 +318,7 @@ func testLambdaPluginConfig() config.FleetConfig {
 	c := config.TestConfig()
 	c.Osquery.ResultLogPlugin = "lambda"
 	c.Osquery.StatusLogPlugin = "lambda"
+	c.Activity.AuditLogPlugin = "lambda"
 	c.Lambda = config.LambdaConfig{
 		Region:           "us-east-1",
 		AccessKeyID:      "foo",
@@ -322,6 +326,7 @@ func testLambdaPluginConfig() config.FleetConfig {
 		StsAssumeRoleArn: "baz",
 		ResultFunction:   "result-func",
 		StatusFunction:   "status-func",
+		AuditFunction:    "audit-func",
 	}
 	return c
 }
@@ -330,10 +335,12 @@ func testPubSubPluginConfig() config.FleetConfig {
 	c := config.TestConfig()
 	c.Osquery.ResultLogPlugin = "pubsub"
 	c.Osquery.StatusLogPlugin = "pubsub"
+	c.Activity.AuditLogPlugin = "pubsub"
 	c.PubSub = config.PubSubConfig{
 		Project:       "test",
 		StatusTopic:   "status-topic",
 		ResultTopic:   "result-topic",
+		AuditTopic:    "audit-topic",
 		AddAttributes: false,
 	}
 	return c
@@ -343,12 +350,17 @@ func testStdoutPluginConfig() config.FleetConfig {
 	c := config.TestConfig()
 	c.Osquery.ResultLogPlugin = "stdout"
 	c.Osquery.StatusLogPlugin = "stdout"
+	c.Activity.AuditLogPlugin = "stdout"
 	return c
 }
 
 func testUnrecognizedPluginConfig() config.FleetConfig {
 	c := config.TestConfig()
-	c.Osquery = config.OsqueryConfig{ResultLogPlugin: "bar", StatusLogPlugin: "bar"}
+	c.Osquery = config.OsqueryConfig{
+		ResultLogPlugin: "bar",
+		StatusLogPlugin: "bar",
+	}
+	c.Activity.AuditLogPlugin = "bar"
 	return c
 }
 

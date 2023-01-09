@@ -269,8 +269,10 @@ func main() {
 
 		// NOTE: When running in dev-mode, even if `disable-updates` is set,
 		// it fetches osqueryd once as part of initialization.
+		var updater *update.Updater
+		var updateRunner *update.Runner
 		if !c.Bool("disable-updates") || c.Bool("dev-mode") {
-			updater, err := update.NewUpdater(opt)
+			updater, err = update.NewUpdater(opt)
 			if err != nil {
 				return fmt.Errorf("create updater: %w", err)
 			}
@@ -285,7 +287,7 @@ func main() {
 			if c.Bool("dev-mode") {
 				targets = targets[1:] // exclude orbit itself on dev-mode.
 			}
-			updateRunner, err := update.NewRunner(updater, update.RunnerOptions{
+			updateRunner, err = update.NewRunner(updater, update.RunnerOptions{
 				CheckInterval: c.Duration("update-interval"),
 				Targets:       targets,
 			})
@@ -325,7 +327,7 @@ func main() {
 			}
 		} else {
 			log.Info().Msg("running with auto updates disabled")
-			updater := update.NewDisabled(opt)
+			updater = update.NewDisabled(opt)
 			osquerydPath, err = updater.ExecutableLocalPath("osqueryd")
 			if err != nil {
 				log.Fatal().Err(err).Msg("locate osqueryd")
@@ -515,6 +517,48 @@ func main() {
 			log.Info().Err(err).Msg("initial flags update failed")
 		}
 		g.Add(flagRunner.Execute, flagRunner.Interrupt)
+
+		// only setup extensions autoupdate if we have enabled updates
+		// for extensions autoupdate, we can only proceed after orbit is enrolled in fleet
+		// and all relevant things for it (like certs, enroll secrets, tls proxy, etc) is configured
+		if !c.Bool("disable-updates") || c.Bool("dev-mode") {
+			const orbitExtensionUpdateInterval = 60 * time.Second
+			extRunner := update.NewExtensionConfigUpdateRunner(orbitClient, update.ExtensionUpdateOptions{
+				CheckInterval: orbitExtensionUpdateInterval,
+				RootDir:       c.String("root-dir"),
+			}, updateRunner)
+
+			if _, err := extRunner.DoExtensionConfigUpdate(); err != nil {
+				// just log, OK to continue since this will get retry
+				log.Info().Err(err).Msg("initial update to fetch extensions from /config API failed")
+			}
+
+			// call UpdateAction on the updateRunner after we have fetched extensions from Fleet
+			_, err := updateRunner.UpdateAction()
+			if err != nil {
+				// OK, initial call may fail, ok to continue
+				log.Info().Err(err).Msg("initial extensions update action failed")
+			}
+
+			extensionAutoLoadFile := filepath.Join(c.String("root-dir"), "extensions.load")
+			stat, err := os.Stat(extensionAutoLoadFile)
+			// we only want to add the extensions_autoload flag to osquery, if the file exists and size > 0
+			switch {
+			case err == nil:
+				if stat.Size() > 0 {
+					log.Debug().Msg("adding --extensions_autoload flag for file " + extensionAutoLoadFile)
+					options = append(options, osquery.WithFlags([]string{"--extensions_autoload", extensionAutoLoadFile}))
+				} else {
+					// OK, expected as well when extensions are unloaded, just debug log
+					log.Debug().Msg("found empty extensions.load file at " + extensionAutoLoadFile)
+				}
+			case errors.Is(err, os.ErrNotExist):
+				// OK, nothing to do.
+			default:
+				log.Error().Err(err).Msg("error with extensions.load file at " + extensionAutoLoadFile)
+			}
+			g.Add(extRunner.Execute, extRunner.Interrupt)
+		}
 
 		trw := token.NewReadWriter(filepath.Join(c.String("root-dir"), "identifier"))
 
@@ -837,20 +881,14 @@ func (d *desktopRunner) interrupt(err error) {
 // shell out to osquery (on Linux and macOS) or to wmic (on Windows), and get the system uuid
 func getUUID(osqueryPath string) (string, error) {
 	if runtime.GOOS == "windows" {
-		args := []string{"/C", "wmic csproduct get UUID"}
-		out, err := exec.Command("cmd", args...).Output()
+		uuidData, uuidSource, err := platform.GetSMBiosUUID()
 		if err != nil {
 			return "", err
 		}
-		uuidOutputStr := string(out)
-		if len(uuidOutputStr) == 0 {
-			return "", errors.New("get UUID: output from wmi is empty")
-		}
-		outputByLines := strings.Split(strings.TrimRight(uuidOutputStr, "\n"), "\n")
-		if len(outputByLines) < 2 {
-			return "", errors.New("get UUID: unexpected output")
-		}
-		return strings.TrimSpace(outputByLines[1]), nil
+
+		log.Debug().Msgf("UUID source was %s.", uuidSource)
+
+		return uuidData, nil
 	}
 	type UuidOutput struct {
 		UuidString string `json:"uuid"`

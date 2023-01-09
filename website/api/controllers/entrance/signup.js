@@ -123,7 +123,7 @@ the account verification message.)`,
     )
     .timeout(5000)
     .intercept(['requestFailed', 'non200Response'], (err)=>{
-      // If we recieved a non-200 response from the cloud provisioner API, we'll throw a 500 error.
+      // If we received a non-200 response from the cloud provisioner API, we'll throw a 500 error.
       return new Error('When attempting to provision a new user who just signed up ('+emailAddress+'), the cloud provisioner gave a non 200 response. The incomplete user record has not been saved in the database, and the user will be asked to try signing up again. Raw response received from provisioner: '+err.stack);
     })
     .intercept({name: 'TimeoutError'}, (err)=>{
@@ -184,9 +184,9 @@ the account verification message.)`,
       'https://hooks.zapier.com/hooks/catch/3627242/bqsf4rj/',
       {
         'emailAddress': newEmailAddress,
-        'organization': signupReason === 'Buy a license' ? organization : '?',
-        'firstName': signupReason === 'Buy a license' ? firstName : '?',
-        'lastName': signupReason === 'Buy a license' ? lastName : '?',
+        'organization': organization ? organization : '?',// « organization input is optional
+        'firstName': firstName !== emailAddress.split('@')[0] ? firstName : '?',// « firstName input is always set, but it might have just been a guess based on email.  And if was a guess, let's just use "?" instead.
+        'lastName': lastName !== emailAddress.split('@')[1] ? lastName : '?',// « lastName input is always set, like firstName
         'signupReason': signupReason,
         'webhookSecret': sails.config.custom.zapierSandboxWebhookSecret
       }

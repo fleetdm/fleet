@@ -38,7 +38,7 @@ const hostDetailsPage = {
       });
   },
 
-  allowsTransferHost: (create: boolean) => {
+  allowsTransferHost: (create?: boolean) => {
     cy.findByRole("button", { name: /transfer/i }).click();
     if (create) {
       cy.findByText(/create a team/i).should("exist");

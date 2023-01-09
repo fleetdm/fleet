@@ -26,14 +26,13 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/migrations/data"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/migrations/tables"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/mdm/apple/scep/scep_mysql"
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/goose"
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"github.com/go-sql-driver/mysql"
 	"github.com/hashicorp/go-multierror"
 	"github.com/jmoiron/sqlx"
-	"github.com/micromdm/nanodep/client"
 	nanodep_client "github.com/micromdm/nanodep/client"
 	nanodep_mysql "github.com/micromdm/nanodep/storage/mysql"
 	nanomdm_mysql "github.com/micromdm/nanomdm/storage/mysql"
@@ -108,14 +107,14 @@ func (ds *Datastore) loadOrPrepareStmt(ctx context.Context, query string) *sqlx.
 	return stmt
 }
 
-// NewMDMAppleSCEPDepot returns a *scep_mysql.MySQLDepot that uses the Datastore
+// NewMDMAppleSCEPDepot returns a *apple_mdm.MySQLDepot that uses the Datastore
 // underlying MySQL writer *sql.DB.
-func (ds *Datastore) NewMDMAppleSCEPDepot(caCertPEM []byte, caKeyPEM []byte) (*scep_mysql.MySQLDepot, error) {
-	s, err := scep_mysql.NewMySQLDepot(ds.writer.DB, caCertPEM, caKeyPEM)
+func (ds *Datastore) NewMDMAppleSCEPDepot(caCertPEM []byte, caKeyPEM []byte) (*apple_mdm.SCEPMySQLDepot, error) {
+	depot, err := apple_mdm.NewSCEPMySQLDepot(ds.writer.DB, caCertPEM, caKeyPEM)
 	if err != nil {
 		return nil, err
 	}
-	return s, nil
+	return depot, nil
 }
 
 // NewMDMAppleMDMStorage returns a MySQL nanomdm storage that uses the Datastore
@@ -205,7 +204,7 @@ func (s *NanoDEPStorage) RetrieveAuthTokens(ctx context.Context, name string) (*
 //
 // Leaving this unimplemented as DEP auth tokens are not stored in MySQL storage,
 // instead they are loaded to memory at startup.
-func (s *NanoDEPStorage) StoreAuthTokens(ctx context.Context, name string, tokens *client.OAuth1Tokens) error {
+func (s *NanoDEPStorage) StoreAuthTokens(ctx context.Context, name string, tokens *nanodep_client.OAuth1Tokens) error {
 	return errors.New("unimplemented")
 }
 

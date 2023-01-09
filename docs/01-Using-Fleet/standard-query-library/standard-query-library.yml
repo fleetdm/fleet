@@ -1034,19 +1034,3 @@ spec:
   purpose: inventory
   tags: inventory
   contributors: zwass
----
-apiVersion: v1
-kind: query
-spec:
-  name: macOS Auto-updates enforced by MDM
-  platform: darwin
-  description: Finds all hosts where a mobile device management (MDM) solution enforces macOS auto-updates.
-  query: >-
-    SELECT * 
-    FROM managed_policies AS mp
-    WHERE mp.domain = "com.apple.SoftwareUpdate"
-    AND mp.name = "AutomaticallyInstallMacOSUpdates"
-    AND mp.value = "0";
-  purpose: compliance
-  tags: compliance
-  contributors: zhumo

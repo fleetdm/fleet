@@ -93,7 +93,11 @@ const EnrollSecretRow = ({
   };
 
   return (
-    <div className={`${baseClass}__secret`} key={uniqueId()}>
+    <div
+      className={`${baseClass}__secret`}
+      key={uniqueId()}
+      data-testid="osquery-secret"
+    >
       <InputField
         disabled
         inputWrapperClass={`${baseClass}__secret-input`}

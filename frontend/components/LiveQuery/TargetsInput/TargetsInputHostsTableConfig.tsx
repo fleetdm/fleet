@@ -6,7 +6,7 @@ import { Row } from "react-table";
 import { IDataColumn } from "interfaces/datatable_config";
 
 import TextCell from "components/TableContainer/DataTable/TextCell";
-import StatusCell from "components/TableContainer/DataTable/StatusCell/StatusCell";
+import StatusIndicator from "components/StatusIndicator";
 import RemoveIcon from "../../../../assets/images/icon-action-remove-20x20@2x.png";
 
 // NOTE: cellProps come from react-table
@@ -44,7 +44,7 @@ export const generateTableHeaders = (
       Header: "Status",
       disableSortBy: true,
       accessor: "status",
-      Cell: (cellProps) => <StatusCell value={cellProps.cell.value} />,
+      Cell: (cellProps) => <StatusIndicator value={cellProps.cell.value} />,
     },
     {
       title: "Private IP address",

@@ -5,7 +5,7 @@
 This workflow outlines the process that sales and customer success can follow when a new deal closes. 
 
 1. (AE) A customer is sent an order form
-    - If the customer requires the use of their own legal contract, the account executive (AE) will send that contract to the business operations (BizOps) team for review. Then: 
+    - If the customer requires the use of their own legal contract, the account executive (AE) sends that contract to the business operations (BizOps) team for review. Then: 
     - If the customer can use DocuSign, the AE sends out the order form. The AE must cc themselves and BizOps on the order so that all parties receive a fully executed copy when signing is complete. 
     - If the customer does not use DocuSign, the AE sends out the order form directly to the customer. 
         - The AE then sends the paper signed copy to BizOps for Fleet review and execution (via DocuSign by the CEO).  
@@ -239,9 +239,12 @@ To change a customer's credit card number, you identify the customer's account e
 Occasionally, we will need to track public issues for customers that wish to remain anonymous on our public issue tracker. To do this, we choose an appropriate minor planet name from this [Wikipedia page](https://en.wikipedia.org/wiki/List_of_named_minor_planets_(alphabetical)) and create a label which we attach to the issue and any future issues for this customer.
 
 ## Generating a trial license key
-Fleet's self-service license dispenser is the best way to generate trial license keys for small deployments of Fleet Premium.
+1. Fleet's self-service license key creator is the best way to generate a proof of concept (POC) or renewal/expansion Fleet Premium license key. 
+    - [Here is a tutorial on using the self-service method](https://www.loom.com/share/b519e6a42a7d479fa628e394ee1d1517) (internal video)
+    - Pre-sales license key DRI is the Director of Solutions Architecture
+    - Post-sales license key DRI is the VP of Customer Success
 
-To generate a trial license key for a larger deployment, [create an opportunity issue](https://github.com/fleetdm/confidential/issues/new/choose) for the customer and follow the instructions in the issue for generating a trial license key.
+2. Legacy method: [create an opportunity issue](https://github.com/fleetdm/confidential/issues/new/choose) for the customer and follow the instructions in the issue for generating a trial license key.
 
 ## Customer contracts
 Fleet's subscription agreement is available at [fleetdm.com/terms](https://fleetdm.com/terms). 

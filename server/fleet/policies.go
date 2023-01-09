@@ -109,7 +109,7 @@ type ModifyPolicyPayload struct {
 	// If non-nil, empty string targets all platforms.
 	Platform *string `json:"platform"`
 	// Critical marks the policy as high impact.
-	Critical *bool `json:"critical"`
+	Critical *bool `json:"critical" premium:"true"`
 }
 
 // Verify verifies the policy payload is valid.

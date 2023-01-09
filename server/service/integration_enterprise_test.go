@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"reflect"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -100,7 +102,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 	var listActivities listActivitiesResponse
 	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &listActivities, "order_key", "id", "order_direction", "desc")
 	require.True(t, len(listActivities.Activities) > 0)
-	assert.Equal(t, fleet.ActivityTypeAppliedSpecTeam, listActivities.Activities[0].Type)
+	assert.Equal(t, fleet.ActivityTypeAppliedSpecTeam{}.ActivityName(), listActivities.Activities[0].Type)
 	require.NotNil(t, listActivities.Activities[0].Details)
 	assert.JSONEq(t, fmt.Sprintf(`{"teams": [{"id": %d, "name": %q}]}`, team.ID, team.Name), string(*listActivities.Activities[0].Details))
 
@@ -215,7 +217,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 	// an activity was created for the newly created team via the applied spec
 	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &listActivities, "order_key", "id", "order_direction", "desc")
 	require.True(t, len(listActivities.Activities) > 0)
-	assert.Equal(t, fleet.ActivityTypeAppliedSpecTeam, listActivities.Activities[0].Type)
+	assert.Equal(t, fleet.ActivityTypeAppliedSpecTeam{}.ActivityName(), listActivities.Activities[0].Type)
 	require.NotNil(t, listActivities.Activities[0].Details)
 	assert.JSONEq(t, fmt.Sprintf(`{"teams": [{"id": %d, "name": %q}]}`, team.ID, team.Name), string(*listActivities.Activities[0].Details))
 
@@ -665,7 +667,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 	var listActivities listActivitiesResponse
 	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &listActivities, "order_key", "id", "order_direction", "desc")
 	require.True(t, len(listActivities.Activities) > 0)
-	assert.Equal(t, fleet.ActivityTypeEditedAgentOptions, listActivities.Activities[0].Type)
+	assert.Equal(t, fleet.ActivityTypeEditedAgentOptions{}.ActivityName(), listActivities.Activities[0].Type)
 	require.NotNil(t, listActivities.Activities[0].Details)
 	assert.JSONEq(t, fmt.Sprintf(`{"global": false, "team_id": %d, "team_name": %q}`, tm1ID, team.Name), string(*listActivities.Activities[0].Details))
 
@@ -1240,8 +1242,8 @@ func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now().Add(-1 * time.Minute),
-		OsqueryHostID:   t.Name(),
-		NodeKey:         t.Name(),
+		OsqueryHostID:   ptr.String(t.Name()),
+		NodeKey:         ptr.String(t.Name()),
 		UUID:            uuid.New().String(),
 		Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
 		Platform:        "darwin",
@@ -1355,8 +1357,8 @@ func (s *integrationEnterpriseTestSuite) TestCustomTransparencyURL() {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now().Add(-1 * time.Minute),
-		OsqueryHostID:   t.Name(),
-		NodeKey:         t.Name(),
+		OsqueryHostID:   ptr.String(t.Name()),
+		NodeKey:         ptr.String(t.Name()),
 		UUID:            uuid.New().String(),
 		Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
 		Platform:        "darwin",
@@ -1473,7 +1475,7 @@ func (s *integrationEnterpriseTestSuite) TestSSOJITProvisioning() {
 	require.NotEmpty(t, activitiesResp.Activities)
 	require.Condition(t, func() bool {
 		for _, a := range activitiesResp.Activities {
-			if a.Type == fleet.ActivityTypeUserAddedBySSO && *a.ActorEmail == auth.UserID() {
+			if (a.Type == fleet.ActivityTypeUserAddedBySSO{}.ActivityName()) && *a.ActorEmail == auth.UserID() {
 				return true
 			}
 		}
@@ -1515,8 +1517,8 @@ func (s *integrationEnterpriseTestSuite) TestDistributedReadWithFeatures() {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now().Add(-1 * time.Minute),
-		OsqueryHostID:   t.Name(),
-		NodeKey:         t.Name(),
+		OsqueryHostID:   ptr.String(t.Name()),
+		NodeKey:         ptr.String(t.Name()),
 		UUID:            uuid.New().String(),
 		Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
 		Platform:        "darwin",
@@ -1530,7 +1532,7 @@ func (s *integrationEnterpriseTestSuite) TestDistributedReadWithFeatures() {
 	require.NoError(t, err)
 
 	// get distributed queries for the host
-	req := getDistributedQueriesRequest{NodeKey: host.NodeKey}
+	req := getDistributedQueriesRequest{NodeKey: *host.NodeKey}
 	var dqResp getDistributedQueriesResponse
 	s.DoJSON("POST", "/api/osquery/distributed/read", req, http.StatusOK, &dqResp)
 	require.Contains(t, dqResp.Queries, "fleet_detail_query_users")
@@ -1543,7 +1545,7 @@ func (s *integrationEnterpriseTestSuite) TestDistributedReadWithFeatures() {
 
 	err = s.ds.UpdateHostRefetchRequested(context.Background(), host.ID, true)
 	require.NoError(t, err)
-	req = getDistributedQueriesRequest{NodeKey: host.NodeKey}
+	req = getDistributedQueriesRequest{NodeKey: *host.NodeKey}
 	dqResp = getDistributedQueriesResponse{}
 	s.DoJSON("POST", "/api/osquery/distributed/read", req, http.StatusOK, &dqResp)
 	require.NotContains(t, dqResp.Queries, "fleet_detail_query_users")
@@ -1560,8 +1562,8 @@ func (s *integrationEnterpriseTestSuite) TestListHosts() {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now().Add(-1 * time.Minute),
-		OsqueryHostID:   t.Name(),
-		NodeKey:         t.Name(),
+		OsqueryHostID:   ptr.String(t.Name()),
+		NodeKey:         ptr.String(t.Name()),
 		UUID:            uuid.New().String(),
 		Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
 		Platform:        "darwin",
@@ -1572,8 +1574,8 @@ func (s *integrationEnterpriseTestSuite) TestListHosts() {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now().Add(-1 * time.Minute),
-		OsqueryHostID:   t.Name() + "2",
-		NodeKey:         t.Name() + "2",
+		OsqueryHostID:   ptr.String(t.Name() + "2"),
+		NodeKey:         ptr.String(t.Name() + "2"),
 		UUID:            uuid.New().String(),
 		Hostname:        fmt.Sprintf("%sbar.local", t.Name()),
 		Platform:        "linux",
@@ -1584,8 +1586,8 @@ func (s *integrationEnterpriseTestSuite) TestListHosts() {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now().Add(-1 * time.Minute),
-		OsqueryHostID:   t.Name() + "3",
-		NodeKey:         t.Name() + "3",
+		OsqueryHostID:   ptr.String(t.Name() + "3"),
+		NodeKey:         ptr.String(t.Name() + "3"),
 		UUID:            uuid.New().String(),
 		Hostname:        fmt.Sprintf("%sbaz.local", t.Name()),
 		Platform:        "windows",
@@ -1649,4 +1651,301 @@ func (s *integrationEnterpriseTestSuite) TestListHosts() {
 	s.DoJSON("GET", "/api/latest/fleet/host_summary", nil, http.StatusOK, &summaryResp, "team_id", "1", "platform", "linux")
 	require.Equal(t, uint(0), summaryResp.TotalsHostsCount)
 	require.Nil(t, summaryResp.LowDiskSpaceCount)
+}
+
+func (s *integrationEnterpriseTestSuite) TestAppleMDMNotConfigured() {
+	var mdmResp getAppleMDMResponse
+	s.DoJSON("GET", "/api/latest/fleet/mdm/apple", nil, http.StatusNotFound, &mdmResp)
+	var bmResp getAppleBMResponse
+	s.DoJSON("GET", "/api/latest/fleet/mdm/apple_bm", nil, http.StatusNotFound, &bmResp)
+}
+
+func (s *integrationEnterpriseTestSuite) TestGlobalPolicyCreateReadPatch() {
+	fields := []string{"Query", "Name", "Description", "Resolution", "Platform", "Critical"}
+
+	createPol1 := &globalPolicyResponse{}
+	createPol1Req := &globalPolicyRequest{
+		Query:       "query",
+		Name:        "name1",
+		Description: "description",
+		Resolution:  "resolution",
+		Platform:    "linux",
+		Critical:    true,
+	}
+	s.DoJSON("POST", "/api/latest/fleet/policies", createPol1Req, http.StatusOK, &createPol1)
+	allEqual(s.T(), createPol1Req, createPol1.Policy, fields...)
+
+	createPol2 := &globalPolicyResponse{}
+	createPol2Req := &globalPolicyRequest{
+		Query:       "query",
+		Name:        "name2",
+		Description: "description",
+		Resolution:  "resolution",
+		Platform:    "linux",
+		Critical:    false,
+	}
+	s.DoJSON("POST", "/api/latest/fleet/policies", createPol2Req, http.StatusOK, &createPol2)
+	allEqual(s.T(), createPol2Req, createPol2.Policy, fields...)
+
+	listPol := &listGlobalPoliciesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/policies", nil, http.StatusOK, listPol)
+	require.Len(s.T(), listPol.Policies, 2)
+	sort.Slice(listPol.Policies, func(i, j int) bool {
+		return listPol.Policies[i].Name < listPol.Policies[j].Name
+	})
+	require.Equal(s.T(), createPol1.Policy, listPol.Policies[0])
+	require.Equal(s.T(), createPol2.Policy, listPol.Policies[1])
+
+	patchPol1Req := &modifyGlobalPolicyRequest{
+		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
+			Name:        ptr.String("newName1"),
+			Query:       ptr.String("newQuery"),
+			Description: ptr.String("newDescription"),
+			Resolution:  ptr.String("newResolution"),
+			Platform:    ptr.String("windows"),
+			Critical:    ptr.Bool(false),
+		},
+	}
+	patchPol1 := &modifyGlobalPolicyResponse{}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", createPol1.Policy.ID), patchPol1Req, http.StatusOK, patchPol1)
+	allEqual(s.T(), patchPol1Req, patchPol1.Policy, fields...)
+
+	patchPol2Req := &modifyGlobalPolicyRequest{
+		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
+			Name:        ptr.String("newName2"),
+			Query:       ptr.String("newQuery"),
+			Description: ptr.String("newDescription"),
+			Resolution:  ptr.String("newResolution"),
+			Platform:    ptr.String("windows"),
+			Critical:    ptr.Bool(true),
+		},
+	}
+	patchPol2 := &modifyGlobalPolicyResponse{}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", createPol2.Policy.ID), patchPol2Req, http.StatusOK, patchPol2)
+	allEqual(s.T(), patchPol2Req, patchPol2.Policy, fields...)
+
+	listPol = &listGlobalPoliciesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/policies", nil, http.StatusOK, listPol)
+	require.Len(s.T(), listPol.Policies, 2)
+	sort.Slice(listPol.Policies, func(i, j int) bool {
+		return listPol.Policies[i].Name < listPol.Policies[j].Name
+	})
+	// not using require.Equal because "PATCH policies" returns the wrong updated timestamp.
+	allEqual(s.T(), patchPol1.Policy, listPol.Policies[0], fields...)
+	allEqual(s.T(), patchPol2.Policy, listPol.Policies[1], fields...)
+
+	getPol2 := &getPolicyByIDResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/policies/%d", createPol2.Policy.ID), nil, http.StatusOK, getPol2)
+	require.Equal(s.T(), listPol.Policies[1], getPol2.Policy)
+}
+
+func (s *integrationEnterpriseTestSuite) TestTeamPolicyCreateReadPatch() {
+	fields := []string{"Query", "Name", "Description", "Resolution", "Platform", "Critical"}
+
+	team1, err := s.ds.NewTeam(context.Background(), &fleet.Team{
+		ID:          42,
+		Name:        "team1",
+		Description: "desc team1",
+	})
+	require.NoError(s.T(), err)
+
+	createPol1 := &teamPolicyResponse{}
+	createPol1Req := &teamPolicyRequest{
+		Query:       "query",
+		Name:        "name1",
+		Description: "description",
+		Resolution:  "resolution",
+		Platform:    "linux",
+		Critical:    true,
+	}
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team1.ID), createPol1Req, http.StatusOK, &createPol1)
+	allEqual(s.T(), createPol1Req, createPol1.Policy, fields...)
+
+	createPol2 := &teamPolicyResponse{}
+	createPol2Req := &teamPolicyRequest{
+		Query:       "query",
+		Name:        "name2",
+		Description: "description",
+		Resolution:  "resolution",
+		Platform:    "linux",
+		Critical:    false,
+	}
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team1.ID), createPol2Req, http.StatusOK, &createPol2)
+	allEqual(s.T(), createPol2Req, createPol2.Policy, fields...)
+
+	listPol := &listTeamPoliciesResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team1.ID), nil, http.StatusOK, listPol)
+	require.Len(s.T(), listPol.Policies, 2)
+	sort.Slice(listPol.Policies, func(i, j int) bool {
+		return listPol.Policies[i].Name < listPol.Policies[j].Name
+	})
+	require.Equal(s.T(), createPol1.Policy, listPol.Policies[0])
+	require.Equal(s.T(), createPol2.Policy, listPol.Policies[1])
+
+	patchPol1Req := &modifyTeamPolicyRequest{
+		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
+			Name:        ptr.String("newName1"),
+			Query:       ptr.String("newQuery"),
+			Description: ptr.String("newDescription"),
+			Resolution:  ptr.String("newResolution"),
+			Platform:    ptr.String("windows"),
+			Critical:    ptr.Bool(false),
+		},
+	}
+	patchPol1 := &modifyTeamPolicyResponse{}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team1.ID, createPol1.Policy.ID), patchPol1Req, http.StatusOK, patchPol1)
+	allEqual(s.T(), patchPol1Req, patchPol1.Policy, fields...)
+
+	patchPol2Req := &modifyTeamPolicyRequest{
+		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
+			Name:        ptr.String("newName2"),
+			Query:       ptr.String("newQuery"),
+			Description: ptr.String("newDescription"),
+			Resolution:  ptr.String("newResolution"),
+			Platform:    ptr.String("windows"),
+			Critical:    ptr.Bool(true),
+		},
+	}
+	patchPol2 := &modifyTeamPolicyResponse{}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team1.ID, createPol2.Policy.ID), patchPol2Req, http.StatusOK, patchPol2)
+	allEqual(s.T(), patchPol2Req, patchPol2.Policy, fields...)
+
+	listPol = &listTeamPoliciesResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team1.ID), nil, http.StatusOK, listPol)
+	require.Len(s.T(), listPol.Policies, 2)
+	sort.Slice(listPol.Policies, func(i, j int) bool {
+		return listPol.Policies[i].Name < listPol.Policies[j].Name
+	})
+	// not using require.Equal because "PATCH policies" returns the wrong updated timestamp.
+	allEqual(s.T(), patchPol1.Policy, listPol.Policies[0], fields...)
+	allEqual(s.T(), patchPol2.Policy, listPol.Policies[1], fields...)
+
+	getPol2 := &getPolicyByIDResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team1.ID, createPol2.Policy.ID), nil, http.StatusOK, getPol2)
+	require.Equal(s.T(), listPol.Policies[1], getPol2.Policy)
+}
+
+func (s *integrationEnterpriseTestSuite) TestResetAutomation() {
+	ctx := context.Background()
+
+	team1, err := s.ds.NewTeam(context.Background(), &fleet.Team{
+		ID:          42,
+		Name:        "team1",
+		Description: "desc team1",
+	})
+	require.NoError(s.T(), err)
+
+	createPol1 := &teamPolicyResponse{}
+	createPol1Req := &teamPolicyRequest{
+		Query:       "query",
+		Name:        "name1",
+		Description: "description",
+		Resolution:  "resolution",
+		Platform:    "linux",
+		Critical:    true,
+	}
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team1.ID), createPol1Req, http.StatusOK, &createPol1)
+
+	createPol2 := &teamPolicyResponse{}
+	createPol2Req := &teamPolicyRequest{
+		Query:       "query",
+		Name:        "name2",
+		Description: "description",
+		Resolution:  "resolution",
+		Platform:    "linux",
+		Critical:    false,
+	}
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team1.ID), createPol2Req, http.StatusOK, &createPol2)
+
+	createPol3 := &teamPolicyResponse{}
+	createPol3Req := &teamPolicyRequest{
+		Query:       "query",
+		Name:        "name3",
+		Description: "description",
+		Resolution:  "resolution",
+		Platform:    "linux",
+		Critical:    false,
+	}
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team1.ID), createPol3Req, http.StatusOK, &createPol3)
+
+	var tmResp teamResponse
+	// modify the team's config - enable the webhook
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team1.ID), fleet.TeamPayload{WebhookSettings: &fleet.TeamWebhookSettings{
+		FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
+			Enable:         true,
+			DestinationURL: "http://127/",
+			PolicyIDs:      []uint{createPol1.Policy.ID, createPol2.Policy.ID},
+			HostBatchSize:  12345,
+		},
+	}}, http.StatusOK, &tmResp)
+
+	h1, err := s.ds.NewHost(ctx, &fleet.Host{})
+	require.NoError(s.T(), err)
+
+	err = s.ds.RecordPolicyQueryExecutions(ctx, h1, map[uint]*bool{
+		createPol1.Policy.ID: ptr.Bool(false),
+		createPol2.Policy.ID: ptr.Bool(false),
+		createPol3.Policy.ID: ptr.Bool(false), // This policy is not activated for automation in config.
+	}, time.Now(), false)
+	require.NoError(s.T(), err)
+
+	pfs, err := s.ds.OutdatedAutomationBatch(ctx)
+	require.NoError(s.T(), err)
+	require.Empty(s.T(), pfs)
+
+	s.DoJSON("POST", "/api/latest/fleet/automations/reset", resetAutomationRequest{
+		TeamIDs:   nil,
+		PolicyIDs: []uint{},
+	}, http.StatusOK, &tmResp)
+
+	pfs, err = s.ds.OutdatedAutomationBatch(ctx)
+	require.NoError(s.T(), err)
+	require.Empty(s.T(), pfs)
+
+	s.DoJSON("POST", "/api/latest/fleet/automations/reset", resetAutomationRequest{
+		TeamIDs:   nil,
+		PolicyIDs: []uint{createPol1.Policy.ID, createPol2.Policy.ID, createPol3.Policy.ID},
+	}, http.StatusOK, &tmResp)
+
+	pfs, err = s.ds.OutdatedAutomationBatch(ctx)
+	require.NoError(s.T(), err)
+	require.Len(s.T(), pfs, 2)
+
+	s.DoJSON("POST", "/api/latest/fleet/automations/reset", resetAutomationRequest{
+		TeamIDs:   []uint{team1.ID},
+		PolicyIDs: nil,
+	}, http.StatusOK, &tmResp)
+
+	pfs, err = s.ds.OutdatedAutomationBatch(ctx)
+	require.NoError(s.T(), err)
+	require.Len(s.T(), pfs, 2)
+
+	s.DoJSON("POST", "/api/latest/fleet/automations/reset", resetAutomationRequest{
+		TeamIDs:   nil,
+		PolicyIDs: []uint{createPol2.Policy.ID},
+	}, http.StatusOK, &tmResp)
+
+	pfs, err = s.ds.OutdatedAutomationBatch(ctx)
+	require.NoError(s.T(), err)
+	require.Len(s.T(), pfs, 1)
+}
+
+// allEqual compares all fields of a struct.
+// If a field is a pointer on one side but not on the other, then it follows that pointer. This is useful for optional
+// arguments.
+func allEqual(t *testing.T, expect, actual interface{}, fields ...string) {
+	require.NotEmpty(t, fields)
+	t.Helper()
+	expV := reflect.Indirect(reflect.ValueOf(expect))
+	actV := reflect.Indirect(reflect.ValueOf(actual))
+	for _, f := range fields {
+		e, a := expV.FieldByName(f), actV.FieldByName(f)
+		switch {
+		case e.Kind() == reflect.Ptr && a.Kind() != reflect.Ptr && !e.IsZero():
+			e = e.Elem()
+		case a.Kind() == reflect.Ptr && e.Kind() != reflect.Ptr && !a.IsZero():
+			a = a.Elem()
+		}
+		require.Equal(t, e.Interface(), a.Interface(), "%s", f)
+	}
 }

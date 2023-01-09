@@ -212,6 +212,7 @@ export interface IConfig {
       };
     };
   };
+  mdm_enabled?: boolean;
 }
 
 export interface IWebhookSettings {

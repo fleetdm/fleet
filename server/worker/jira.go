@@ -103,15 +103,6 @@ type jiraVulnTplArgs struct {
 	CISAKnownExploit *bool
 }
 
-type jiraFailingPoliciesTplArgs struct {
-	FleetURL       string
-	PolicyID       uint
-	PolicyName     string
-	PolicyCritical bool
-	TeamID         *uint
-	Hosts          []fleet.PolicySetHost
-}
-
 // JiraClient defines the method required for the client that makes API calls
 // to Jira.
 type JiraClient interface {
@@ -306,14 +297,7 @@ func (j *Jira) runVuln(ctx context.Context, cli JiraClient, args jiraArgs) error
 }
 
 func (j *Jira) runFailingPolicy(ctx context.Context, cli JiraClient, args jiraArgs) error {
-	tplArgs := &jiraFailingPoliciesTplArgs{
-		FleetURL:       j.FleetURL,
-		PolicyName:     args.FailingPolicy.PolicyName,
-		PolicyID:       args.FailingPolicy.PolicyID,
-		PolicyCritical: args.FailingPolicy.PolicyCritical,
-		TeamID:         args.FailingPolicy.TeamID,
-		Hosts:          args.FailingPolicy.Hosts,
-	}
+	tplArgs := newFailingPoliciesTplArgs(j.FleetURL, args.FailingPolicy)
 
 	createdIssue, err := j.createTemplatedIssue(ctx, cli, jiraTemplates.FailingPolicySummary, jiraTemplates.FailingPolicyDescription, tplArgs)
 	if err != nil {

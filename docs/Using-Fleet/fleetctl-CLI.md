@@ -286,13 +286,13 @@ To use fleetctl with an API-only user, you will need to log in with `fleetctl lo
 ### Get the API token of an API-only user
 To get the API key of an API-only user, you need to call the Login API with the credentials supplied during user creation.
 
-For example, say the credentials provided were `api@fleetdm.com` for the email and `foobar12345` for the password. You may call the [Log in API](https://fleetdm.com/docs/using-fleet/rest-api#log-in) like so:
+For example, say the credentials provided were `api@example.com` for the email and `foobar12345` for the password. You may call the [Log in API](https://fleetdm.com/docs/using-fleet/rest-api#log-in) like so:
 
 ```sh
 curl --location --request POST 'https://myfleetdomain.com/api/v1/fleet/login' \
 --header 'Content-Type: application/json' \
 --data-raw '{
-    "email": "api@fleetdm.com",
+    "email": "api@example.com",
     "password": "foobar12345"
 }'
 ```
@@ -304,7 +304,7 @@ The [Log in API](https://fleetdm.com/docs/using-fleet/rest-api#log-in) will retu
     "user": {
         "id": 82,
         "name": "API User",
-        "email": "api@fleetdm.com",
+        "email": "api@example.com",
         "global_role": "observer",
         "api_only": true
     },

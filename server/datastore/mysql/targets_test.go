@@ -44,12 +44,12 @@ func testTargetsCountHosts(t *testing.T, ds *Datastore) {
 	initHost := func(seenTime time.Time, distributedInterval uint, configTLSRefresh uint, teamID *uint) *fleet.Host {
 		hostCount += 1
 		h, err := ds.NewHost(context.Background(), &fleet.Host{
-			OsqueryHostID:       strconv.Itoa(hostCount),
+			OsqueryHostID:       ptr.String(strconv.Itoa(hostCount)),
 			DetailUpdatedAt:     mockClock.Now(),
 			LabelUpdatedAt:      mockClock.Now(),
 			PolicyUpdatedAt:     mockClock.Now(),
 			SeenTime:            mockClock.Now(),
-			NodeKey:             strconv.Itoa(hostCount),
+			NodeKey:             ptr.String(strconv.Itoa(hostCount)),
 			DistributedInterval: distributedInterval,
 			ConfigTLSRefresh:    configTLSRefresh,
 			TeamID:              teamID,
@@ -278,8 +278,8 @@ func testTargetsHostIDsInTargets(t *testing.T, ds *Datastore) {
 	initHost := func() *fleet.Host {
 		hostCount += 1
 		h, err := ds.NewHost(context.Background(), &fleet.Host{
-			OsqueryHostID:   strconv.Itoa(hostCount),
-			NodeKey:         strconv.Itoa(hostCount),
+			OsqueryHostID:   ptr.String(strconv.Itoa(hostCount)),
+			NodeKey:         ptr.String(strconv.Itoa(hostCount)),
 			DetailUpdatedAt: time.Now(),
 			LabelUpdatedAt:  time.Now(),
 			PolicyUpdatedAt: time.Now(),
@@ -372,12 +372,12 @@ func testTargetsHostIDsInTargetsTeam(t *testing.T, ds *Datastore) {
 	initHost := func(seenTime time.Time, distributedInterval uint, configTLSRefresh uint, teamID *uint) *fleet.Host {
 		hostCount += 1
 		h, err := ds.NewHost(context.Background(), &fleet.Host{
-			OsqueryHostID:       strconv.Itoa(hostCount),
+			OsqueryHostID:       ptr.String(strconv.Itoa(hostCount)),
 			DetailUpdatedAt:     mockClock.Now(),
 			LabelUpdatedAt:      mockClock.Now(),
 			PolicyUpdatedAt:     mockClock.Now(),
 			SeenTime:            mockClock.Now(),
-			NodeKey:             strconv.Itoa(hostCount),
+			NodeKey:             ptr.String(strconv.Itoa(hostCount)),
 			DistributedInterval: distributedInterval,
 			ConfigTLSRefresh:    configTLSRefresh,
 			TeamID:              teamID,

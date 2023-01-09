@@ -496,12 +496,12 @@ const ManageSchedulePage = ({
               {selectedTeamId ? (
                 <p>
                   Schedule queries for{" "}
-                  <strong>all hosts assigned to this team.</strong>
+                  <strong>all hosts assigned to this team</strong>
                 </p>
               ) : (
                 <p>
                   Schedule queries to run at regular intervals across{" "}
-                  <strong>all of your hosts.</strong>
+                  <strong>all of your hosts</strong>
                 </p>
               )}
             </div>
@@ -536,7 +536,7 @@ const ManageSchedulePage = ({
         inheritedScheduledQueriesList.length > 0 ? (
           <RevealButton
             isShowing={showInheritedQueries}
-            baseClass={baseClass}
+            className={baseClass}
             hideText={`Hide ${inheritedScheduledQueriesList.length} inherited ${inheritedQueryOrQueries}`}
             showText={`Show ${inheritedScheduledQueriesList.length} inherited ${inheritedQueryOrQueries}`}
             caretPosition={"before"}

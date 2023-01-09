@@ -26,6 +26,7 @@ type teamPolicyRequest struct {
 	Description string `json:"description"`
 	Resolution  string `json:"resolution"`
 	Platform    string `json:"platform"`
+	Critical    bool   `json:"critical" premium:"true"`
 }
 
 type teamPolicyResponse struct {
@@ -35,7 +36,7 @@ type teamPolicyResponse struct {
 
 func (r teamPolicyResponse) error() error { return r.Err }
 
-func teamPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func teamPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*teamPolicyRequest)
 	resp, err := svc.NewTeamPolicy(ctx, req.TeamID, fleet.PolicyPayload{
 		QueryID:     req.QueryID,
@@ -44,6 +45,7 @@ func teamPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 		Description: req.Description,
 		Resolution:  req.Resolution,
 		Platform:    req.Platform,
+		Critical:    req.Critical,
 	})
 	if err != nil {
 		return teamPolicyResponse{Err: err}, nil
@@ -74,15 +76,18 @@ func (svc Service) NewTeamPolicy(ctx context.Context, teamID uint, p fleet.Polic
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "creating policy")
 	}
+
 	// Note: Issue #4191 proposes that we move to SQL transactions for actions so that we can
 	// rollback an action in the event of an error writing the associated activity
 	if err := svc.ds.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
-		fleet.ActivityTypeCreatedPolicy,
-		&map[string]interface{}{"policy_id": policy.ID, "policy_name": policy.Name},
+		fleet.ActivityTypeCreatedPolicy{
+			ID:   policy.ID,
+			Name: policy.Name,
+		},
 	); err != nil {
-		return nil, err
+		return nil, ctxerr.Wrap(ctx, err, "create activity for team policy creation")
 	}
 	return policy, nil
 }
@@ -103,7 +108,7 @@ type listTeamPoliciesResponse struct {
 
 func (r listTeamPoliciesResponse) error() error { return r.Err }
 
-func listTeamPoliciesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func listTeamPoliciesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*listTeamPoliciesRequest)
 	tmPols, inheritedPols, err := svc.ListTeamPolicies(ctx, req.TeamID)
 	if err != nil {
@@ -144,7 +149,7 @@ type getTeamPolicyByIDResponse struct {
 
 func (r getTeamPolicyByIDResponse) error() error { return r.Err }
 
-func getTeamPolicyByIDEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func getTeamPolicyByIDEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getTeamPolicyByIDRequest)
 	teamPolicy, err := svc.GetTeamPolicyByIDQueries(ctx, req.TeamID, req.PolicyID)
 	if err != nil {
@@ -186,7 +191,7 @@ type deleteTeamPoliciesResponse struct {
 
 func (r deleteTeamPoliciesResponse) error() error { return r.Err }
 
-func deleteTeamPoliciesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func deleteTeamPoliciesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*deleteTeamPoliciesRequest)
 	resp, err := svc.DeleteTeamPolicies(ctx, req.TeamID, req.IDs)
 	if err != nil {
@@ -242,10 +247,12 @@ func (svc Service) DeleteTeamPolicies(ctx context.Context, teamID uint, ids []ui
 		if err := svc.ds.NewActivity(
 			ctx,
 			authz.UserFromContext(ctx),
-			fleet.ActivityTypeDeletedPolicy,
-			&map[string]interface{}{"policy_id": id, "policy_name": policiesByID[id].Name},
+			fleet.ActivityTypeDeletedPolicy{
+				ID:   id,
+				Name: policiesByID[id].Name,
+			},
 		); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "adding new activity for deleted policy")
+			return nil, ctxerr.Wrap(ctx, err, "create activity for policy deletion")
 		}
 	}
 
@@ -269,7 +276,7 @@ type modifyTeamPolicyResponse struct {
 
 func (r modifyTeamPolicyResponse) error() error { return r.Err }
 
-func modifyTeamPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func modifyTeamPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*modifyTeamPolicyRequest)
 	resp, err := svc.ModifyTeamPolicy(ctx, req.TeamID, req.PolicyID, req.ModifyPolicyPayload)
 	if err != nil {
@@ -330,15 +337,18 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "saving policy")
 	}
+
 	// Note: Issue #4191 proposes that we move to SQL transactions for actions so that we can
 	// rollback an action in the event of an error writing the associated activity
 	if err := svc.ds.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
-		fleet.ActivityTypeEditedPolicy,
-		&map[string]interface{}{"policy_id": policy.ID, "policy_name": policy.Name},
+		fleet.ActivityTypeEditedPolicy{
+			ID:   policy.ID,
+			Name: policy.Name,
+		},
 	); err != nil {
-		return nil, err
+		return nil, ctxerr.Wrap(ctx, err, "create activity for policy modification")
 	}
 
 	return policy, nil

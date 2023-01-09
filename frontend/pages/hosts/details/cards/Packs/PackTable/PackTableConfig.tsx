@@ -33,7 +33,7 @@ interface ICellProps extends IRowProps {
 
 interface IPillCellProps extends IRowProps {
   cell: {
-    value: [string, number];
+    value: { indicator: string; id: number };
   };
 }
 
@@ -51,7 +51,7 @@ interface IDataColumn {
 interface IPackTable extends Partial<IQueryStats> {
   frequency: string;
   last_run: string;
-  performance: (string | number)[];
+  performance: { indicator: string; id: number };
 }
 
 // NOTE: cellProps come from react-table
@@ -123,10 +123,10 @@ const enhancePackData = (query_stats: IQueryStats[]): IPackTable[] => {
       last_executed: query.last_executed,
       frequency: secondsToHms(query.interval),
       last_run: humanQueryLastRun(query.last_executed),
-      performance: [
-        performanceIndicator(scheduledQueryPerformance),
-        query.scheduled_query_id || uniqueId(),
-      ],
+      performance: {
+        indicator: performanceIndicator(scheduledQueryPerformance),
+        id: query.scheduled_query_id || parseInt(uniqueId(), 10),
+      },
     };
   });
 };

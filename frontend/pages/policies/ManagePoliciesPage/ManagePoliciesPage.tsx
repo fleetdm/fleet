@@ -77,6 +77,7 @@ const ManagePolicyPage = ({
     setLastEditedQueryName,
     setLastEditedQueryDescription,
     setLastEditedQueryResolution,
+    setLastEditedQueryCritical,
     setLastEditedQueryPlatform,
   } = useContext(PolicyContext);
 
@@ -238,6 +239,7 @@ const ManagePolicyPage = ({
     setLastEditedQueryName("");
     setLastEditedQueryDescription("");
     setLastEditedQueryResolution("");
+    setLastEditedQueryCritical(false);
     toggleAddPolicyModal();
   };
 
@@ -393,17 +395,19 @@ const ManagePolicyPage = ({
                     <span>Manage automations</span>
                   </Button>
                 )}
-              {canAddOrDeletePolicy && (
-                <div className={`${baseClass}__action-button-container`}>
-                  <Button
-                    variant="brand"
-                    className={`${baseClass}__select-policy-button`}
-                    onClick={onAddPolicyClick}
-                  >
-                    Add a policy
-                  </Button>
-                </div>
-              )}
+              {canAddOrDeletePolicy &&
+                ((!!teamId && !isFetchingTeamPolicies) ||
+                  !isFetchingGlobalPolicies) && (
+                  <div className={`${baseClass}__action-button-container`}>
+                    <Button
+                      variant="brand"
+                      className={`${baseClass}__select-policy-button`}
+                      onClick={onAddPolicyClick}
+                    >
+                      Add a policy
+                    </Button>
+                  </div>
+                )}
             </div>
           )}
         </div>
@@ -461,7 +465,7 @@ const ManagePolicyPage = ({
         {showInheritedPoliciesButton && globalPolicies && (
           <RevealButton
             isShowing={showInheritedPolicies}
-            baseClass={baseClass}
+            className={baseClass}
             hideText={inheritedPoliciesButtonText(
               showInheritedPolicies,
               globalPolicies.length

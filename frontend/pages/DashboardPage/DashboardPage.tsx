@@ -12,12 +12,15 @@ import {
 import { IHostSummary, IHostSummaryPlatforms } from "interfaces/host_summary";
 import { ILabelSummary } from "interfaces/label";
 import {
-  IDataTableMdmFormat,
-  IMdmSolution,
   IMacadminAggregate,
   IMunkiIssuesAggregate,
   IMunkiVersionsAggregate,
 } from "interfaces/macadmins";
+import {
+  IMdmEnrollmentCardData,
+  IMdmSolution,
+  IMdmSummaryResponse,
+} from "interfaces/mdm";
 import { ISelectedPlatform } from "interfaces/platform";
 import { ISoftwareResponse } from "interfaces/software";
 import { ITeam } from "interfaces/team";
@@ -26,6 +29,7 @@ import hostSummaryAPI from "services/entities/host_summary";
 import macadminsAPI from "services/entities/macadmins";
 import softwareAPI from "services/entities/software";
 import teamsAPI, { ILoadTeamsResponse } from "services/entities/teams";
+import hosts from "services/entities/hosts";
 import sortUtils from "utilities/sort";
 import {
   PLATFORM_DROPDOWN_OPTIONS,
@@ -105,11 +109,12 @@ const DashboardPage = ({
   const [softwarePageIndex, setSoftwarePageIndex] = useState(0);
   const [softwareActionUrl, setSoftwareActionUrl] = useState<string>();
   const [showMunkiCard, setShowMunkiCard] = useState(true);
+  const [showMdmCard, setShowMdmCard] = useState(true);
   const [showAddHostsModal, setShowAddHostsModal] = useState(false);
   const [showOperatingSystemsUI, setShowOperatingSystemsUI] = useState(false);
   const [showHostsUI, setShowHostsUI] = useState(false); // Hides UI on first load only
-  const [formattedMdmData, setFormattedMdmData] = useState<
-    IDataTableMdmFormat[]
+  const [mdmEnrollmentData, setMdmEnrollmentData] = useState<
+    IMdmEnrollmentCardData[]
   >([]);
   const [mdmSolutions, setMdmSolutions] = useState<IMdmSolution[] | null>([]);
 
@@ -270,6 +275,55 @@ const DashboardPage = ({
     }
   );
 
+  const { isFetching: isMdmFetching, error: errorMdm } = useQuery<
+    IMdmSummaryResponse,
+    Error
+  >(
+    [`mdm-${selectedPlatform}`, currentTeam?.id],
+    () => hosts.getMdmSummary(selectedPlatform, currentTeam?.id),
+    {
+      enabled: selectedPlatform !== "linux",
+      onSuccess: (data) => {
+        const {
+          mobile_device_management_enrollment_status,
+          mobile_device_management_solution,
+          counts_updated_at,
+        } = data;
+        const {
+          enrolled_manual_hosts_count,
+          enrolled_automated_hosts_count,
+          unenrolled_hosts_count,
+          hosts_count,
+        } = mobile_device_management_enrollment_status;
+
+        if (hosts_count === 0 && mobile_device_management_solution === null) {
+          setShowMdmCard(false);
+          return;
+        }
+
+        setMdmTitleDetail(
+          <LastUpdatedText
+            lastUpdatedAt={counts_updated_at}
+            whatToRetrieve={"MDM information"}
+          />
+        );
+        setMdmEnrollmentData([
+          {
+            status: "On (manual)",
+            hosts: enrolled_manual_hosts_count,
+          },
+          {
+            status: "On (automatic)",
+            hosts: enrolled_automated_hosts_count,
+          },
+          { status: "Off", hosts: unenrolled_hosts_count },
+        ]);
+        setMdmSolutions(mobile_device_management_solution);
+        setShowMdmCard(true);
+      },
+    }
+  );
+
   const { isFetching: isMacAdminsFetching, error: errorMacAdmins } = useQuery<
     IMacadminAggregate,
     Error
@@ -281,40 +335,11 @@ const DashboardPage = ({
       enabled: selectedPlatform === "darwin",
       onSuccess: (data) => {
         const {
-          counts_updated_at: macadmins_counts_updated_at,
-          mobile_device_management_enrollment_status,
-          mobile_device_management_solution,
-        } = data.macadmins;
-        const {
-          enrolled_manual_hosts_count,
-          enrolled_automated_hosts_count,
-          unenrolled_hosts_count,
-        } = mobile_device_management_enrollment_status;
-
-        const {
           counts_updated_at: munki_counts_updated_at,
           munki_versions,
           munki_issues,
         } = data.macadmins;
 
-        setMdmTitleDetail(
-          <LastUpdatedText
-            lastUpdatedAt={macadmins_counts_updated_at}
-            whatToRetrieve={"MDM enrollment"}
-          />
-        );
-        setFormattedMdmData([
-          {
-            status: "Enrolled (manual)",
-            hosts: enrolled_manual_hosts_count,
-          },
-          {
-            status: "Enrolled (automatic)",
-            hosts: enrolled_automated_hosts_count,
-          },
-          { status: "Unenrolled", hosts: unenrolled_hosts_count },
-        ]);
-        setMdmSolutions(mobile_device_management_solution);
         setMunkiVersionsData(munki_versions);
         setMunkiIssuesData(munki_issues);
         setShowMunkiCard(!!munki_versions);
@@ -343,6 +368,8 @@ const DashboardPage = ({
       if (selectedPlatform !== "all") {
         const labelValue = PLATFORM_NAME_TO_LABEL_NAME[selectedPlatform];
         setSelectedPlatformLabelId(getLabel(labelValue, labels)?.id);
+      } else {
+        setSelectedPlatformLabelId(undefined);
       }
     }
   }, [labels, selectedPlatform]);
@@ -463,7 +490,10 @@ const DashboardPage = ({
     title: "Activity",
     showTitle: showActivityFeedTitle,
     children: (
-      <ActivityFeed setShowActivityFeedTitle={setShowActivityFeedTitle} />
+      <ActivityFeed
+        setShowActivityFeedTitle={setShowActivityFeedTitle}
+        isPremiumTier={isPremiumTier || false}
+      />
     ),
   });
 
@@ -522,21 +552,15 @@ const DashboardPage = ({
     titleDetail: mdmTitleDetail,
     showTitle: !isMacAdminsFetching,
     description: (
-      <p>
-        MDM is used to manage configuration on macOS devices.{" "}
-        <CustomLink
-          url="https://support.apple.com/guide/deployment/intro-to-mdm-depc0aadd3fe/web"
-          text="Learn about MDM"
-          newTab
-        />
-      </p>
+      <p>MDM can be used to manage configuration on your workstations.</p>
     ),
     children: (
       <Mdm
-        isMacAdminsFetching={isMacAdminsFetching}
-        errorMacAdmins={errorMacAdmins}
-        formattedMdmData={formattedMdmData}
+        isFetching={isMdmFetching}
+        error={errorMdm}
+        mdmEnrollmentData={mdmEnrollmentData}
         mdmSolutions={mdmSolutions}
+        selectedPlatformLabelId={selectedPlatformLabelId}
       />
     ),
   });
@@ -566,8 +590,9 @@ const DashboardPage = ({
               {LearnFleetCard}
             </>
           )}
-        {SoftwareCard}
+        {!software && SoftwareCard}
         {!currentTeam && isOnGlobalTeam && <>{ActivityFeedCard}</>}
+        {showMdmCard && <>{MDMCard}</>}
       </div>
     );
   };
@@ -575,7 +600,7 @@ const DashboardPage = ({
   const macOSLayout = () => (
     <>
       <div className={`${baseClass}__section`}>{OperatingSystemsCard}</div>
-      <div className={`${baseClass}__section`}>{MDMCard}</div>
+      {showMdmCard && <div className={`${baseClass}__section`}>{MDMCard}</div>}
       {showMunkiCard && (
         <div className={`${baseClass}__section`}>{MunkiCard}</div>
       )}
@@ -583,7 +608,10 @@ const DashboardPage = ({
   );
 
   const windowsLayout = () => (
-    <div className={`${baseClass}__section`}>{OperatingSystemsCard}</div>
+    <>
+      <div className={`${baseClass}__section`}>{OperatingSystemsCard}</div>
+      {showMdmCard && <div className={`${baseClass}__section`}>{MDMCard}</div>}
+    </>
   );
   const linuxLayout = () => null;
 

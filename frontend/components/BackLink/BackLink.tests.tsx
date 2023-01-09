@@ -7,7 +7,7 @@ describe("BackLink - component", () => {
     render(<BackLink text="Back to software" />);
 
     const text = screen.getByText("Back to software");
-    const icon = screen.getByTestId("Icon");
+    const icon = screen.getByTestId("icon");
 
     expect(text).toBeInTheDocument();
     expect(icon).toBeInTheDocument();

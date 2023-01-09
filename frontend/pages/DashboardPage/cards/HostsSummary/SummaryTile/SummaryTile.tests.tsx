@@ -1,7 +1,7 @@
 import React from "react";
 
 import { render, screen } from "@testing-library/react";
-import { renderWithSetup } from "test/testingUtils";
+import { renderWithSetup } from "test/test-utils";
 import paths from "router/paths";
 import SummaryTile from "./SummaryTile";
 
@@ -60,12 +60,11 @@ describe("SummaryTile - component", () => {
 
     const title = screen.getByText("Windows hosts");
     const count = screen.getByText("200");
-    // TOOD: Fix icon assertion
-    // const icon = screen.getByRole("svg");
+    const icon = screen.queryByTestId("icon");
 
     expect(title).toBeInTheDocument();
     expect(count).toBeInTheDocument();
-    // expect(icon).toBeInTheDocument();
+    expect(icon).toBeInTheDocument();
   });
 
   it("does not render icon if not provided", () => {
@@ -80,7 +79,7 @@ describe("SummaryTile - component", () => {
       />
     );
 
-    const icon = screen.queryByRole("img");
+    const icon = screen.queryByRole("svg");
 
     expect(icon).toBeNull();
   });

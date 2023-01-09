@@ -8,6 +8,7 @@
   - [How do I revoke the authorization tokens for a user?](#how-do-i-revoke-the-authorization-tokens-for-a-user)
   - [How do I monitor the performance of my queries?](#how-do-i-monitor-the-performance-of-my-queries)
   - [How do I monitor a Fleet server?](#how-do-i-monitor-a-fleet-server)
+  - [Why is the “Add User” button disabled?](#why-is-the-add-user-button-disabled)
   - [Can I disable password-based authentication in the Fleet UI?](#can-i-disable-password-based-authentication-in-the-fleet-ui)
   - [Where are my query results?](#where-are-my-query-results)
     - [Live queries](#live-queries)
@@ -25,7 +26,7 @@
   - [What should I do if my computer is showing up as an offline host?](#what-should-i-do-if-my-computer-is-showing-up-as-an-offline-host)
   - [How does Fleet deal with IP duplication?](#how-does-fleet-deal-with-ip-duplication)
   - [Can Orbit run alongside osquery?](#can-orbit-run-alongside-osquery)
-  - [Can I control how Orbit handles updates?](#can-i-control-how-orbit-handles-updates)
+  - [Can I control how fleetd handles updates?](#can-i-control-how-fleetd-handles-updates)
   - [When will the newest version of osquery be available to Orbit?](#when-will-the-newest-version-of-osquery-be-available-to-orbit)
   - [Where does Orbit get update information?](#where-does-orbit-get-update-information)
   - [Can I bundle osquery extensions into Orbit?](#can-i-bundle-osquery-extensions-into-orbit)
@@ -41,7 +42,7 @@
   - [Can I group results from multiple hosts?](#can-i-group-results-from-multiple-hosts)
   - [How do I downgrade from Fleet Premium to Fleet Free?](#how-do-i-downgrade-from-fleet-premium-to-fleet-free)
   - [If I use a software orchestration tool (Ansible, Chef, Puppet, etc.) to manage agent options, do I have to apply the same options in the Fleet UI?](#if-i-use-a-software-orchestration-tool-ansible-chef-puppet-etc-to-manage-agent-options-do-i-have-to-apply-the-same-options-in-the-fleet-ui)
-  - [How can I uninstall Orbit/Fleet Desktop?](#how-can-i-uninstall-orbitfleet-desktop)
+  - [How can I uninstall the osquery agent?](#how-can-i-uninstall-the-osquery-agent)
     - [MacOS](#macos)
     - [Windows](#windows)
     - [Ubuntu](#ubuntu)
@@ -89,6 +90,12 @@ Fleet can live query the `osquery_schedule` table. Performing this live query al
 
 Fleet provides standard interfaces for monitoring and alerting. See the [Monitoring Fleet](https://fleetdm.com/docs/using-fleet/monitoring-fleet) documentation for details.
 
+## Why is the “Add User” button disabled?
+
+The “Add User” button is disabled if SMTP (email) has not been configured for the Fleet server. Currently, there is no way to add new users without email capabilities.
+
+One way to hack around this is to use a simulated mailserver like [Mailhog](https://github.com/mailhog/MailHog). You can retrieve the email that was “sent” in the Mailhog UI, and provide users with the invite URL manually.
+
 ## Can I disable password-based authentication in the Fleet UI?
 
 Some folks like to enforce users with SAML SSO enabled to login only via the SSO and not via password.
@@ -106,15 +113,18 @@ Live query results (executed in the web UI or `fleetctl query`) are pushed direc
 
 ### Scheduled queries
 
-Scheduled query results (queries that are scheduled to run in Packs) are typically sent to the Fleet server, and will be available on the filesystem of the server at the path configurable by [`--osquery_result_log_file`](https://fleetdm.com/docs/deploying/configuration#osquery-result-log-file). This defaults to `/tmp/osquery_result`.
-
-It is possible to configure osqueryd to log query results outside of Fleet. For results to go to Fleet, the `--logger_plugin` flag must be set to `tls`.
+Scheduled query results (queries that are scheduled to run individually or in Packs) from enrolled hosts can be logged by Fleet.
+For results to go to Fleet, the osquery `--logger_plugin` flag must be set to `tls`.
 
 ### What are my options for storing the osquery logs?
 
 Folks typically use Fleet to ship logs to data aggregation systems like Splunk, the ELK stack, and Graylog.
 
-The [logger configuration options](https://fleetdm.com/docs/deploying/configuration#osquery-status-log-plugin) allow you to select the log output plugin. Using the log outputs you can route the logs to your chosen aggregation system.
+Fleet supports multiple logging destinations for scheduled query results and status logs. The `--osquery_result_log_plugin` and `--osquery_status_log_plugin` can be set to:
+`filesystem`, `firehose`, `kinesis`, `lambda`, `pubsub`, `kafkarest`, and `stdout`.
+See:
+  - https://fleetdm.com/docs/deploying/configuration#osquery-result-log-plugin.
+  - https://fleetdm.com/docs/deploying/configuration#osquery-status-log-plugin.
 
 ### Troubleshooting
 
@@ -191,11 +201,11 @@ If your device is showing up as an offline host in the Fleet instance, and you'r
 
 Fleet relies on UUIDs so any overlap with host IP addresses should not cause a problem. The only time this might be an issue is if you are running a query that involves a specific IP address that exists in multiple locations as it might return multiple results - [Fleet's teams feature](https://fleetdm.com/docs/using-fleet/teams) can be used to restrict queries to specific hosts.
 
-## Can Orbit run alongside osquery?
+## Can fleetd run alongside osquery?
 
-Yes, Orbit can be run alongside osquery. The osquery instance that Orbit runs uses its own database directory that is stored within the Orbit directory.
+Yes, fleetd can be run alongside an existing, separately-installed osqueryd. If you have an existing osqueryd installed on a given host, you don't have to remove it prior to installing fleetd.  The osquery instance provided by fleetd uses its own database directory that doesn't interfere with other osquery isntances installed on the host.
 
-## Can I control how Orbit handles updates?
+## Can I control how fleetd handles updates?
 
 Yes, auto-updates can be disabled entirely by passing `--disable-updates` as a flag when running `fleetctl package` to generate your installer (easy) or by deploying a modified systemd file to your hosts (more complicated). We'd recommend the flag:
 
@@ -330,8 +340,8 @@ Lastly, remove your Fleet Premium license key:
 
 No. The agent options set using your software orchestration tool will override the default agent options that appear in the **Settings > Organization settings > Agent options** page. On this page, if you hit the **Save** button, the options that appear in the Fleet UI will override the agent options set using your software orchestration.
 
-## How can I uninstall Orbit/Fleet Desktop?
-To uninstall Orbit/Fleet Desktop, follow the below instructions for your Operating System.
+## How can I uninstall the osquery agent?
+To uninstall the osquery agent, follow the below instructions for your operating system.
 
 ### MacOS
 Run the Orbit [cleanup script](https://github.com/fleetdm/fleet/blob/main/orbit/tools/cleanup/cleanup_macos.sh)

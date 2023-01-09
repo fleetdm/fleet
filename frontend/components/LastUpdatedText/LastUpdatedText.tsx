@@ -7,7 +7,7 @@ import TooltipWrapper from "components/TooltipWrapper";
 const baseClass = "component__last-updated-text";
 
 interface ILastUpdatedTextProps {
-  lastUpdatedAt: string;
+  lastUpdatedAt?: string;
   whatToRetrieve: string;
 }
 const LastUpdatedText = ({

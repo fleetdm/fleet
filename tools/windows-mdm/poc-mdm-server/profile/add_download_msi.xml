@@ -1,0 +1,8 @@
+<Add>
+	<CmdID>xxcmdidxx</CmdID>
+	<Item>
+		<Target>
+			<LocURI>./Device/Vendor/MSFT/EnterpriseDesktopAppManagement/MSI/%7B90413BF7-7D99-482E-A7FB-C6616CC871FC%7D/DownloadInstall</LocURI>
+		</Target>
+	</Item>
+</Add>

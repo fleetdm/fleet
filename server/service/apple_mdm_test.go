@@ -183,4 +183,40 @@ func TestAppleMDMAuthorization(t *testing.T) {
 	require.NoError(t, err)
 	_, err = svc.GetMDMAppleInstallerDetailsByToken(ctx, "foo")
 	require.NoError(t, err)
+	// Generating a new key pair does not actually make any changes to fleet, or expose any
+	// information. The user must configure fleet with the new key pair and restart the server.
+	_, err = svc.NewMDMAppleDEPKeyPair(ctx)
+	require.NoError(t, err)
+}
+
+func TestMDMAppleEnrollURL(t *testing.T) {
+	svc := Service{}
+
+	cases := []struct {
+		appConfig   *fleet.AppConfig
+		expectedURL string
+	}{
+		{
+			appConfig: &fleet.AppConfig{
+				ServerSettings: fleet.ServerSettings{
+					ServerURL: "https://foo.example.com",
+				},
+			},
+			expectedURL: "https://foo.example.com/api/mdm/apple/enroll?token=tok",
+		},
+		{
+			appConfig: &fleet.AppConfig{
+				ServerSettings: fleet.ServerSettings{
+					ServerURL: "https://foo.example.com/",
+				},
+			},
+			expectedURL: "https://foo.example.com/api/mdm/apple/enroll?token=tok",
+		},
+	}
+
+	for _, tt := range cases {
+		enrollURL, err := svc.mdmAppleEnrollURL("tok", tt.appConfig)
+		require.NoError(t, err)
+		require.Equal(t, tt.expectedURL, enrollURL)
+	}
 }

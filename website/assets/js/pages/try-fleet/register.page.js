@@ -42,10 +42,23 @@ parasails.registerPage('register', {
 
     // Using handle-submitting to add firstName, and lastName values to our formData before sending it to signup.js
     handleSubmittingRegisterForm: async function(argins) {
-      argins.firstName = argins.emailAddress.split('@')[0];
-      argins.lastName = argins.emailAddress.split('@')[1];
-      argins.signupReason = 'Try Fleet Sandbox';
-      return await Cloud.signup.with(argins);
+      // Creating a copy of the formdata to submit to the signup action. Otherwise, any changes to the formData before we call our signup action would be visible to the user.
+      let signupArgins = _.clone(argins);
+      if(!this.formData.firstName){
+        if(this.formData.lastName) {// If a user provided a lastName but no firstName, we'll set the firstName to '?' instead of a fragment of the users email address.
+          signupArgins.firstName = '?';
+        } else {
+          signupArgins.firstName = argins.emailAddress.split('@')[0];
+        }
+      }
+      if(!this.formData.lastName) {
+        if(this.formData.firstName) {// If a user provided a firstName but no lastName, we'll set the lastName to '?' instead of a fragment of the users email address.
+          signupArgins.lastName = '?';
+        }
+        signupArgins.lastName = argins.emailAddress.split('@')[1];
+      }
+      signupArgins.signupReason = 'Try Fleet Sandbox';
+      return await Cloud.signup.with(signupArgins);
     },
 
     // After the form is submitted, we'll redirect the user to their Fleet sandbox instance.
