@@ -329,6 +329,7 @@ var hostRefs = []string{
 	"windows_updates",
 	"host_disks",
 	"operating_system_vulnerabilities",
+	"host_updates",
 }
 
 func (ds *Datastore) DeleteHost(ctx context.Context, hid uint) error {
@@ -408,6 +409,7 @@ SELECT
   hd.encrypted as disk_encryption_enabled,
   COALESCE(hst.seen_time, h.created_at) AS seen_time,
   t.name AS team_name,
+  COALESCE(hu.software_updated_at, h.created_at) AS software_updated_at,
   (
     SELECT
       additional
@@ -416,12 +418,13 @@ SELECT
     WHERE
       host_id = h.id
   ) AS additional,
-  coalesce(failing_policies.count, 0) as failing_policies_count,
-  coalesce(failing_policies.count, 0) as total_issues_count
+  COALESCE(failing_policies.count, 0) AS failing_policies_count,
+  COALESCE(failing_policies.count, 0) AS total_issues_count
 FROM
   hosts h
   LEFT JOIN teams t ON (h.team_id = t.id)
   LEFT JOIN host_seen_times hst ON (h.id = hst.host_id)
+  LEFT JOIN host_updates hu ON (h.id = hu.host_id)
   LEFT JOIN host_disks hd ON hd.host_id = h.id
   JOIN (
     SELECT
@@ -542,7 +545,8 @@ func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt
     COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,
     COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,
     COALESCE(hst.seen_time, h.created_at) AS seen_time,
-    t.name AS team_name
+    t.name AS team_name,
+    COALESCE(hu.software_updated_at, h.created_at) AS software_updated_at
 	`
 
 	if opt.DeviceMapping {
@@ -659,6 +663,7 @@ func (ds *Datastore) applyHostFilters(opt fleet.HostListOptions, sql string, fil
 
 	sql += fmt.Sprintf(`FROM hosts h
     LEFT JOIN host_seen_times hst ON (h.id = hst.host_id)
+    LEFT JOIN host_updates hu ON (h.id = hu.host_id)
     LEFT JOIN teams t ON (h.team_id = t.id)
     LEFT JOIN host_disks hd ON hd.host_id = h.id
     %s
@@ -669,8 +674,22 @@ func (ds *Datastore) applyHostFilters(opt fleet.HostListOptions, sql string, fil
     %s
     %s
 		WHERE TRUE AND %s AND %s AND %s AND %s
-    `, deviceMappingJoin, policyMembershipJoin, failingPoliciesJoin, mdmJoin, operatingSystemJoin, munkiJoin, displayNameJoin, ds.whereFilterHostsByTeams(filter, "h"),
-		softwareFilter, munkiFilter, lowDiskSpaceFilter,
+    `,
+
+		// JOINs
+		deviceMappingJoin,
+		policyMembershipJoin,
+		failingPoliciesJoin,
+		mdmJoin,
+		operatingSystemJoin,
+		munkiJoin,
+		displayNameJoin,
+
+		// Conditions
+		ds.whereFilterHostsByTeams(filter, "h"),
+		softwareFilter,
+		munkiFilter,
+		lowDiskSpaceFilter,
 	)
 
 	now := ds.clock.Now()
@@ -1359,9 +1378,11 @@ func (ds *Datastore) SearchHosts(ctx context.Context, filter fleet.TeamFilter, m
     h.orbit_node_key,
     COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,
     COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,
-    COALESCE(hst.seen_time, h.created_at) AS seen_time
+    COALESCE(hst.seen_time, h.created_at) AS seen_time,
+	COALESCE(hu.software_updated_at, h.created_at) AS software_updated_at
   FROM hosts h
   LEFT JOIN host_seen_times hst ON (h.id = hst.host_id)
+  LEFT JOIN host_updates hu ON (h.id = hu.host_id)
   LEFT JOIN host_disks hd ON hd.host_id = h.id
   WHERE TRUE`
 
@@ -1461,9 +1482,11 @@ func (ds *Datastore) HostByIdentifier(ctx context.Context, identifier string) (*
       h.orbit_node_key,
       COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,
       COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,
-      COALESCE(hst.seen_time, h.created_at) AS seen_time
+      COALESCE(hst.seen_time, h.created_at) AS seen_time,
+	  COALESCE(hu.software_updated_at, h.created_at) AS software_updated_at
     FROM hosts h
     LEFT JOIN host_seen_times hst ON (h.id = hst.host_id)
+	LEFT JOIN host_updates hu ON (h.id = hu.host_id)
     LEFT JOIN host_disks hd ON hd.host_id = h.id
     WHERE ? IN (h.hostname, h.osquery_host_id, h.node_key, h.uuid)
     LIMIT 1
