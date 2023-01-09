@@ -1,6 +1,7 @@
 import React from "react";
 import { COLORS, Colors } from "styles/var/colors";
 import { SIZES, Sizes } from "styles/var/sizes";
+
 interface IExProps {
   color?: Colors;
   size?: Sizes;
