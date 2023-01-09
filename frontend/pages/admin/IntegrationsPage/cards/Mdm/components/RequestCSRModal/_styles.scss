@@ -16,20 +16,8 @@
     }
   }
 
-  .check {
-    border-radius: 50%;
-    border-color: $core-fleet-blue;
-    border: solid;
-    padding: 5px;
-  }
-
   .success {
     text-align: center;
-
-    svg {
-      width: 48px;
-      height: 48px;
-    }
   }
 
   .data-error__inner {
