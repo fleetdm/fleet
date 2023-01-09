@@ -57,7 +57,7 @@ const RequestCSRModal = ({ onCancel }: IRequestCSRModalProps): JSX.Element => {
   const RequestCSRSuccess = () => {
     return (
       <div className="success">
-        <Icon name="circled-check" />
+        <Icon name="success" size="extra-large" />
         <h2>You&apos;re almost there</h2>
         <p>
           Go to your <strong>{email}</strong> email to download your CSR.
