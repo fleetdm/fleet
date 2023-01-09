@@ -37,7 +37,6 @@ import InfoModal from "./InfoModal";
 import InfoIcon from "../../../../../assets/images/icon-info-purple-14x14@2x.png";
 import FleetIcon from "../../../../../assets/images/fleet-avatar-24x24@2x.png";
 import PolicyDetailsModal from "../cards/Policies/HostPoliciesTable/PolicyDetailsModal";
-import InfoBanner from "components/InfoBanner";
 
 const baseClass = "device-user";
 

@@ -1,15 +1,16 @@
 import React from "react";
 import { COLORS, Colors } from "styles/var/colors";
-
+import { SIZES, Sizes } from "styles/var/sizes";
 interface IExProps {
   color?: Colors;
+  size?: Sizes;
 }
 
-const Ex = ({ color = "status-error" }: IExProps) => {
+const Ex = ({ size = "small", color = "status-error" }: IExProps) => {
   return (
     <svg
-      width="16"
-      height="16"
+      width={SIZES[size]}
+      height={SIZES[size]}
       viewBox="0 0 16 16"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"

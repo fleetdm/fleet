@@ -38,6 +38,7 @@ import TabsWrapper from "components/TabsWrapper";
 import MainContent from "components/MainContent";
 import InfoBanner from "components/InfoBanner";
 import BackLink from "components/BackLink";
+import Icon from "components/Icon";
 
 import {
   normalizeEmptyValues,
@@ -633,7 +634,92 @@ const HostDetailsPage = ({
             path={filteredHostsPath || PATHS.MANAGE_HOSTS}
           />
         </div>
-        <InfoBanner color="yellow">Info banner here</InfoBanner>
+        <InfoBanner pageLevel>
+          Page level info banner children text only
+        </InfoBanner>
+        <InfoBanner color="yellow" pageLevel>
+          Page level info banner children text only yellow
+        </InfoBanner>
+        <InfoBanner
+          cta={
+            <>
+              <Icon name="issue" color="core-fleet-purple" /> Optional CTA
+              auto-spaces for optional icon, text, button{" "}
+              <Button variant="brand">Button</Button>
+            </>
+          }
+          pageLevel
+        >
+          Page level info banner children text
+        </InfoBanner>
+        <InfoBanner
+          cta={
+            <>
+              <Icon name="issue" color="core-fleet-purple" /> Optional CTA
+              auto-spaces for optional icon, text, button{" "}
+              <Button variant="brand">Button</Button>
+            </>
+          }
+          pageLevel
+          closable
+        >
+          Page level info banner children text that&apos;s closable
+        </InfoBanner>
+        <InfoBanner
+          cta={
+            <>
+              <Icon name="issue" color="core-fleet-purple" /> Optional CTA
+              auto-spaces for optional icon, text, button{" "}
+            </>
+          }
+          pageLevel
+          link="http://fleetdm.com"
+        >
+          Page level info banner children text that links out
+        </InfoBanner>
+        <InfoBanner
+          cta={
+            <>
+              <Icon name="issue" color="core-fleet-purple" /> Optional CTA
+              auto-spaces for optional icon, text, button{" "}
+              <Button variant="brand">Button</Button>
+            </>
+          }
+          color="yellow"
+          pageLevel
+        >
+          Page level info banner children text yellow
+        </InfoBanner>
+        <InfoBanner closable>
+          In page info banner children text that&apos;s closable
+        </InfoBanner>
+        <InfoBanner color="yellow">
+          In page info banner children text only yellow
+        </InfoBanner>
+        <InfoBanner
+          cta={
+            <>
+              <Icon name="issue" color="core-fleet-purple" /> Optional CTA
+              auto-spaces for optional icon, text, button{" "}
+              <Button variant="brand">Button</Button>
+            </>
+          }
+        >
+          In page info banner children text only
+        </InfoBanner>
+        <InfoBanner
+          cta={
+            <>
+              <Icon name="issue" color="core-fleet-purple" /> Optional CTA
+              auto-spaces for optional icon, text, button{" "}
+              <Button variant="brand">Button</Button>
+            </>
+          }
+          color="yellow"
+          closable
+        >
+          In page info banner children text yellow that&apos;s closable
+        </InfoBanner>
         <HostSummaryCard
           statusClassName={statusClassName}
           titleData={titleData}
