@@ -65,7 +65,6 @@ const InfoBanner = ({
   }
 
   if (link) {
-    console.log("link", link);
     return (
       <a
         href={link}
