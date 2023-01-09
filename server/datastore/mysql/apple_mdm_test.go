@@ -3,9 +3,6 @@ package mysql
 import (
 	"context"
 	"fmt"
-	"io"
-	"net/http"
-	"strings"
 	"testing"
 	"time"
 
@@ -71,7 +68,7 @@ func TestIngestMDMAppleDevicesFromDEPSync(t *testing.T) {
 	require.ElementsMatch(t, wantSerials, gotSerials)
 }
 
-func TestHandleMDMCheckinRequest(t *testing.T) {
+func TestMDMEnrollment(t *testing.T) {
 	ds := CreateMySQLDS(t)
 
 	cases := []struct {
@@ -79,10 +76,10 @@ func TestHandleMDMCheckinRequest(t *testing.T) {
 		fn   func(t *testing.T, ds *Datastore)
 	}{
 		{"TestHostAlreadyExistsInFleet", testIngestMDMAppleHostAlreadyExistsInFleet},
-		{"TestCheckinAfterDEPSync", testIngestMDMAppleCheckinAfterDEPSync},
+		{"TestIngestAfterDEPSync", testIngestMDMAppleIngestAfterDEPSync},
 		{"TestBeforeDEPSync", testIngestMDMAppleCheckinBeforeDEPSync},
-		{"TestMultipleAuthenticateRequests", testIngestMDMAppleCheckinMultipleAuthenticateRequests},
-		{"TestCheckOutRequests", testIngestMDMAppleCheckinCheckoutRequests},
+		{"TestMultipleIngest", testIngestMDMAppleCheckinMultipleIngest},
+		{"TestCheckOut", testUpdateHostTablesOnMDMUnenroll},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -117,38 +114,26 @@ func testIngestMDMAppleHostAlreadyExistsInFleet(t *testing.T, ds *Datastore) {
 	require.Equal(t, testSerial, hosts[0].HardwareSerial)
 	require.Equal(t, testUUID, hosts[0].UUID)
 
-	err = fleet.HandleMDMCheckinRequest(ctx, &http.Request{
-		Header: map[string][]string{
-			"Content-Type": {"application/x-apple-aspen-mdm-checkin"},
-		},
-		Method: http.MethodPost,
-		Body:   io.NopCloser(strings.NewReader(xmlForTest("Authenticate", testSerial, testUUID, "MacBook Pro"))),
-	}, ds)
+	err = ds.IngestMDMAppleDeviceFromCheckin(ctx, fleet.MDMAppleHostDetails{
+		UDID:         testUUID,
+		SerialNumber: testSerial,
+	})
 	require.NoError(t, err)
+
 	hosts = listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{}, 1)
 	require.Equal(t, testSerial, hosts[0].HardwareSerial)
 	require.Equal(t, testUUID, hosts[0].UUID)
-
-	// an activity is created
-	activities, err := ds.ListActivities(context.Background(), fleet.ListActivitiesOptions{})
-	require.NoError(t, err)
-	require.Len(t, activities, 1)
-	require.Empty(t, activities[0].ActorID)
-	require.JSONEq(
-		t,
-		`{"host_serial":"test-serial", "installed_from_dep":true}`,
-		string(*activities[0].Details),
-	)
 }
 
-func testIngestMDMAppleCheckinAfterDEPSync(t *testing.T, ds *Datastore) {
+func testIngestMDMAppleIngestAfterDEPSync(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 	testSerial := "test-serial"
 	testUUID := "test-uuid"
+	testModel := "MacBook Pro"
 
 	// simulate a host that is first ingested via DEP (e.g., the device was added via Apple Business Manager)
 	n, err := ds.IngestMDMAppleDevicesFromDEPSync(ctx, []godep.Device{
-		{SerialNumber: testSerial, Model: "MacBook Pro", OS: "OSX", OpType: "added"},
+		{SerialNumber: testSerial, Model: testModel, OS: "OSX", OpType: "added"},
 	})
 	require.NoError(t, err)
 	require.Equal(t, int64(1), n)
@@ -158,68 +143,43 @@ func testIngestMDMAppleCheckinAfterDEPSync(t *testing.T, ds *Datastore) {
 	// is not available from the DEP sync endpoint
 	require.Equal(t, testSerial, hosts[0].HardwareSerial)
 	require.Equal(t, "", hosts[0].UUID)
-	checkMDMHostRelatedTables(t, ds, hosts[0].ID, testSerial, "MacBook Pro")
+	checkMDMHostRelatedTables(t, ds, hosts[0].ID, testSerial, testModel)
 
 	// now simulate the initial MDM checkin by that same host
-	err = fleet.HandleMDMCheckinRequest(ctx, &http.Request{
-		Header: map[string][]string{
-			"Content-Type": {"application/x-apple-aspen-mdm-checkin"},
-		},
-		Method: http.MethodPost,
-		Body:   io.NopCloser(strings.NewReader(xmlForTest("Authenticate", testSerial, testUUID, "MacBook Pro"))),
-	}, ds)
+	err = ds.IngestMDMAppleDeviceFromCheckin(ctx, fleet.MDMAppleHostDetails{
+		UDID:         testUUID,
+		SerialNumber: testSerial,
+	})
 	require.NoError(t, err)
+
 	hosts = listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{}, 1)
 	require.Equal(t, testSerial, hosts[0].HardwareSerial)
 	require.Equal(t, testUUID, hosts[0].UUID)
-	checkMDMHostRelatedTables(t, ds, hosts[0].ID, testSerial, "MacBook Pro")
-
-	// an activity is created
-	activities, err := ds.ListActivities(context.Background(), fleet.ListActivitiesOptions{})
-	require.NoError(t, err)
-	require.Len(t, activities, 1)
-	require.Empty(t, activities[0].ActorID)
-	require.JSONEq(
-		t,
-		`{"host_serial":"test-serial", "installed_from_dep":true}`,
-		string(*activities[0].Details),
-	)
+	checkMDMHostRelatedTables(t, ds, hosts[0].ID, testSerial, testModel)
 }
 
 func testIngestMDMAppleCheckinBeforeDEPSync(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 	testSerial := "test-serial"
 	testUUID := "test-uuid"
+	testModel := "MacBook Pro"
 
 	// ingest host on initial mdm checkin
-	err := fleet.HandleMDMCheckinRequest(ctx, &http.Request{
-		Header: map[string][]string{
-			"Content-Type": {"application/x-apple-aspen-mdm-checkin"},
-		},
-		Method: http.MethodPost,
-		Body:   io.NopCloser(strings.NewReader(xmlForTest("Authenticate", testSerial, testUUID, "MacBook Pro"))),
-	}, ds)
+	err := ds.IngestMDMAppleDeviceFromCheckin(ctx, fleet.MDMAppleHostDetails{
+		UDID:         testUUID,
+		SerialNumber: testSerial,
+		Model:        testModel,
+	})
 	require.NoError(t, err)
-
-	// an activity is created
-	activities, err := ds.ListActivities(context.Background(), fleet.ListActivitiesOptions{})
-	require.NoError(t, err)
-	require.Len(t, activities, 1)
-	require.Empty(t, activities[0].ActorID)
-	require.JSONEq(
-		t,
-		`{"host_serial":"test-serial", "installed_from_dep":false}`,
-		string(*activities[0].Details),
-	)
 
 	hosts := listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{}, 1)
 	require.Equal(t, testSerial, hosts[0].HardwareSerial)
 	require.Equal(t, testUUID, hosts[0].UUID)
-	checkMDMHostRelatedTables(t, ds, hosts[0].ID, testSerial, "MacBook Pro")
+	checkMDMHostRelatedTables(t, ds, hosts[0].ID, testSerial, testModel)
 
 	// no effect if same host appears in DEP sync
 	n, err := ds.IngestMDMAppleDevicesFromDEPSync(ctx, []godep.Device{
-		{SerialNumber: testSerial, Model: "MacBook Pro", OS: "OSX", OpType: "added"},
+		{SerialNumber: testSerial, Model: testModel, OS: "OSX", OpType: "added"},
 	})
 	require.NoError(t, err)
 	require.Equal(t, int64(0), n)
@@ -227,79 +187,65 @@ func testIngestMDMAppleCheckinBeforeDEPSync(t *testing.T, ds *Datastore) {
 	hosts = listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{}, 1)
 	require.Equal(t, testSerial, hosts[0].HardwareSerial)
 	require.Equal(t, testUUID, hosts[0].UUID)
-	checkMDMHostRelatedTables(t, ds, hosts[0].ID, testSerial, "MacBook Pro")
+	checkMDMHostRelatedTables(t, ds, hosts[0].ID, testSerial, testModel)
 }
 
-func testIngestMDMAppleCheckinMultipleAuthenticateRequests(t *testing.T, ds *Datastore) {
+func testIngestMDMAppleCheckinMultipleIngest(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 	testSerial := "test-serial"
 	testUUID := "test-uuid"
 
-	err := fleet.HandleMDMCheckinRequest(ctx, &http.Request{
-		Header: map[string][]string{
-			"Content-Type": {"application/x-apple-aspen-mdm-checkin"},
-		},
-		Method: http.MethodPost,
-		Body:   io.NopCloser(strings.NewReader(xmlForTest("Authenticate", testSerial, testUUID, "MacBook Pro"))),
-	}, ds)
+	err := ds.IngestMDMAppleDeviceFromCheckin(ctx, fleet.MDMAppleHostDetails{
+		UDID:         testUUID,
+		SerialNumber: testSerial,
+	})
 	require.NoError(t, err)
+
 	hosts := listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{}, 1)
 	require.Equal(t, testSerial, hosts[0].HardwareSerial)
 	require.Equal(t, testUUID, hosts[0].UUID)
 
 	// duplicate Authenticate request has no effect
-	err = fleet.HandleMDMCheckinRequest(ctx, &http.Request{
-		Header: map[string][]string{
-			"Content-Type": {"application/x-apple-aspen-mdm-checkin"},
-		},
-		Method: http.MethodPost,
-		Body:   io.NopCloser(strings.NewReader(xmlForTest("Authenticate", testSerial, testUUID, "MacBook Pro"))),
-	}, ds)
+	err = ds.IngestMDMAppleDeviceFromCheckin(ctx, fleet.MDMAppleHostDetails{
+		UDID:         testUUID,
+		SerialNumber: testSerial,
+	})
 	require.NoError(t, err)
+
 	hosts = listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{}, 1)
 	require.Equal(t, testSerial, hosts[0].HardwareSerial)
 	require.Equal(t, testUUID, hosts[0].UUID)
 }
 
-func testIngestMDMAppleCheckinCheckoutRequests(t *testing.T, ds *Datastore) {
+func testUpdateHostTablesOnMDMUnenroll(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 	testSerial := "test-serial"
 	testUUID := "test-uuid"
-	err := fleet.HandleMDMCheckinRequest(ctx, &http.Request{
-		Header: map[string][]string{
-			"Content-Type": {"application/x-apple-aspen-mdm-checkin"},
-		},
-		Method: http.MethodPost,
-		Body:   io.NopCloser(strings.NewReader(xmlForTest("Authenticate", testSerial, testUUID, "MacBook Pro"))),
-	}, ds)
+	err := ds.IngestMDMAppleDeviceFromCheckin(ctx, fleet.MDMAppleHostDetails{
+		UDID:         testUUID,
+		SerialNumber: testSerial,
+	})
 	require.NoError(t, err)
 
-	// CheckOut request updates MDM data and adds an activity
-	err = fleet.HandleMDMCheckinRequest(ctx, &http.Request{
-		Header: map[string][]string{
-			"Content-Type": {"application/x-apple-aspen-mdm-checkin"},
-		},
-		Method: http.MethodPost,
-		Body:   io.NopCloser(strings.NewReader(xmlForTest("CheckOut", "", testUUID, ""))),
-	}, ds)
+	// check that an entry in host_mdm exists
+	var count int
+	err = sqlx.GetContext(context.Background(), ds.reader, &count, `SELECT COUNT(*) FROM host_mdm WHERE host_id = (SELECT id FROM hosts WHERE uuid = ?)`, testUUID)
+	require.NoError(t, err)
+	require.Equal(t, 1, count)
+
+	err = ds.UpdateHostTablesOnMDMUnenroll(ctx, testUUID)
 	require.NoError(t, err)
 
-	activities, err := ds.ListActivities(context.Background(), fleet.ListActivitiesOptions{})
+	err = sqlx.GetContext(context.Background(), ds.reader, &count, `SELECT COUNT(*) FROM host_mdm WHERE host_id = ?`, testUUID)
 	require.NoError(t, err)
-	require.Len(t, activities, 2)
-	require.Equal(t, "mdm_unenrolled", activities[1].Type)
-	require.Empty(t, activities[1].ActorID)
-	require.JSONEq(
-		t,
-		`{"host_serial":"test-serial", "installed_from_dep":false}`,
-		string(*activities[1].Details),
-	)
+	require.Equal(t, 0, count)
 }
 
-// checkMDMHostRelatedTables checks that rows are inserted for new MDM hosts in each of
-// host_display_names, host_seen_times, and label_membership. Note that related tables records for
-// pre-existing hosts are created outside of the MDM enrollment flows so they are not checked in
-// some tests above (e.g., testIngestMDMAppleHostAlreadyExistsInFleet)
+// checkMDMHostRelatedTables checks that rows are inserted for new MDM hosts in
+// each of host_display_names, host_seen_times, and label_membership. Note that
+// related tables records for pre-existing hosts are created outside of the MDM
+// enrollment flows so they are not checked in some tests above (e.g.,
+// testIngestMDMAppleHostAlreadyExistsInFleet)
 func checkMDMHostRelatedTables(t *testing.T, ds *Datastore, hostID uint, expectedSerial string, expectedModel string) {
 	var displayName string
 	err := sqlx.GetContext(context.Background(), ds.reader, &displayName, `SELECT display_name FROM host_display_names WHERE host_id = ?`, hostID)
@@ -327,24 +273,6 @@ func checkMDMHostRelatedTables(t *testing.T, ds *Datastore, hostID uint, expecte
 	require.NoError(t, err)
 	require.Equal(t, fleet.WellKnownMDMFleet, mdmSolution.Name)
 	require.Equal(t, appCfg.ServerSettings.ServerURL, mdmSolution.ServerURL)
-}
-
-func xmlForTest(msgType string, serial string, udid string, model string) string {
-	return fmt.Sprintf(`
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-	<key>MessageType</key>
-	<string>%s</string>
-	<key>SerialNumber</key>
-	<string>%s</string>
-	<key>UDID</key>
-	<string>%s</string>
-	<key>Model</key>
-	<string>%s</string>
-</dict>
-</plist>`, msgType, serial, udid, model)
 }
 
 // createBuiltinLabels creates entries for "All Hosts" and "macOS" labels, which are assumed to be

@@ -113,6 +113,7 @@ func NewSCEPCACertKey() (*x509.Certificate, *rsa.PrivateKey, error) {
 
 	caCert := depot.NewCACert(
 		depot.WithYears(10),
+		depot.WithCommonName("FleetDM"),
 	)
 
 	crtBytes, err := caCert.SelfSign(rand.Reader, key.Public(), key)

@@ -953,3 +953,119 @@ func (svc *Service) ListMDMAppleInstallers(ctx context.Context) ([]fleet.MDMAppl
 	}
 	return installers, nil
 }
+
+////////////////////////////////////////////////////////////////////////////////
+// Implementation of nanomdm's CheckinAndCommandService interface
+////////////////////////////////////////////////////////////////////////////////
+
+type MDMAppleCheckinAndCommandService struct {
+	ds fleet.Datastore
+}
+
+func NewMDMAppleCheckinAndCommandService(ds fleet.Datastore) *MDMAppleCheckinAndCommandService {
+	return &MDMAppleCheckinAndCommandService{ds: ds}
+}
+
+// Authenticate handles MDM [Authenticate][1] requests.
+//
+// This method is executed after the request has been handled by nanomdm, note
+// that at this point you can't send any commands to the device yet because we
+// haven't received a token, nor a PushMagic.
+//
+// We use it to perform post-enrollment taks such as creating a host record,
+// adding activities to the log, etc.
+//
+// [1]: https://developer.apple.com/documentation/devicemanagement/authenticate
+func (svc *MDMAppleCheckinAndCommandService) Authenticate(r *mdm.Request, m *mdm.Authenticate) error {
+	host := fleet.MDMAppleHostDetails{}
+	host.SerialNumber = m.SerialNumber
+	host.UDID = m.UDID
+	host.Model = m.Model
+	if err := svc.ds.IngestMDMAppleDeviceFromCheckin(r.Context, host); err != nil {
+		return err
+	}
+	info, err := svc.ds.GetHostMDMCheckinInfo(r.Context, m.Enrollment.UDID)
+	if err != nil {
+		return err
+	}
+	return svc.ds.NewActivity(r.Context, nil, &fleet.ActivityTypeMDMEnrolled{
+		HostSerial:       info.HardwareSerial,
+		InstalledFromDEP: info.InstalledFromDEP,
+	})
+}
+
+// TokenUpdate handles MDM [TokenUpdate][1] requests.
+//
+// This method is executed after the request has been handled by nanomdm.
+//
+// [1]: https://developer.apple.com/documentation/devicemanagement/token_update
+func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.TokenUpdate) error {
+	return nil
+}
+
+// CheckOut handles MDM [CheckOut][1] requests.
+//
+// This method is executed after the request has been handled by nanomdm, note
+// that this message is sent on a best-effort basis, don't rely exclusively on
+// it.
+//
+// [1]: https://developer.apple.com/documentation/devicemanagement/check_out
+func (svc *MDMAppleCheckinAndCommandService) CheckOut(r *mdm.Request, m *mdm.CheckOut) error {
+	info, err := svc.ds.GetHostMDMCheckinInfo(r.Context, m.Enrollment.UDID)
+	if err != nil {
+		return err
+	}
+	if err := svc.ds.UpdateHostTablesOnMDMUnenroll(r.Context, m.UDID); err != nil {
+		return err
+	}
+	return svc.ds.NewActivity(r.Context, nil, &fleet.ActivityTypeMDMUnenrolled{
+		HostSerial:       info.HardwareSerial,
+		InstalledFromDEP: info.InstalledFromDEP,
+	})
+
+}
+
+// SetBootstrapToken handles MDM [SetBootstrapToken][1] requests.
+//
+// This method is executed after the request has been handled by nanomdm.
+//
+// [1]: https://developer.apple.com/documentation/devicemanagement/set_bootstrap_token
+func (svc *MDMAppleCheckinAndCommandService) SetBootstrapToken(*mdm.Request, *mdm.SetBootstrapToken) error {
+	return nil
+}
+
+// GetBootstrapToken handles MDM [GetBootstrapToken][1] requests.
+//
+// This method is executed after the request has been handled by nanomdm.
+//
+// [1]: https://developer.apple.com/documentation/devicemanagement/get_bootstrap_token
+func (svc *MDMAppleCheckinAndCommandService) GetBootstrapToken(*mdm.Request, *mdm.GetBootstrapToken) (*mdm.BootstrapToken, error) {
+	return nil, nil
+}
+
+// UserAuthenticate handles MDM [UserAuthenticate][1] requests.
+//
+// This method is executed after the request has been handled by nanomdm.
+//
+// [1]: https://developer.apple.com/documentation/devicemanagement/userauthenticate
+func (svc *MDMAppleCheckinAndCommandService) UserAuthenticate(*mdm.Request, *mdm.UserAuthenticate) ([]byte, error) {
+	return nil, nil
+}
+
+// DeclarativeManagement handles MDM [DeclarativeManagement][1] requests.
+//
+// This method is executed after the request has been handled by nanomdm.
+//
+// [1]: https://developer.apple.com/documentation/devicemanagement/declarative_management_checkin
+func (svc *MDMAppleCheckinAndCommandService) DeclarativeManagement(*mdm.Request, *mdm.DeclarativeManagement) ([]byte, error) {
+	return nil, nil
+}
+
+// CommandAndReportResults handles MDM [Commands and Queries][1].
+//
+// This method is executed after the request has been handled by nanomdm.
+//
+// [1]: https://developer.apple.com/documentation/devicemanagement/commands_and_queries
+func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(*mdm.Request, *mdm.CommandResults) (*mdm.Command, error) {
+	return nil, nil
+}
