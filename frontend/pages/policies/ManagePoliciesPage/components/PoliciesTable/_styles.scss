@@ -20,12 +20,6 @@
     }
   }
 
-  &__empty-table {
-    text-align: center;
-    font-size: $x-small;
-    color: $core-fleet-black;
-  }
-
   &__action-button-container {
     display: flex;
     justify-content: center;
@@ -34,63 +28,6 @@
 
 .has-not-run {
   width: 20px;
-}
-
-.no-policies {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-  padding-top: $pad-xxxlarge;
-
-  h1 {
-    font-size: $large;
-    font-weight: $regular;
-    line-height: normal;
-    letter-spacing: normal;
-    color: $core-fleet-black;
-  }
-
-  h2 {
-    font-size: $small;
-    font-weight: $bold;
-    margin: 0 0 $pad-large;
-    line-height: 20px;
-    color: $core-fleet-black;
-  }
-
-  &__inner {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-
-    h1 {
-      font-size: $small;
-      font-weight: $bold;
-      margin-bottom: $pad-medium;
-    }
-
-    img {
-      width: 322px;
-    }
-
-    p {
-      color: $core-fleet-black;
-      font-weight: $regular;
-      font-size: $x-small;
-      margin: 0;
-      margin-bottom: $pad-large;
-    }
-  }
-
-  &__inner-text {
-    width: 500px;
-    padding: $pad-xxlarge 0;
-  }
-
-  &__bullet-text {
-    text-align: center;
-  }
 }
 
 .no-team-policy {

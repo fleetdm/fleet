@@ -49,6 +49,7 @@
       &__section {
         @include clearfix;
         margin: 0 0 $pad-large;
+        animation: fade-in 200ms ease-out;
 
         .upcaret::after {
           content: url("../assets/images/icon-collapse-black-16x16@2x.png");
@@ -75,7 +76,7 @@
           font-size: $medium;
           font-weight: $regular;
           color: $core-fleet-black;
-          border-bottom: solid 1px $ui-fleet-blue-15;
+          border-bottom: solid 1px $ui-fleet-black-10;
           margin: 0 0 $pad-xxlarge;
 
           @media (min-width: $break-990) {
@@ -198,7 +199,7 @@
           border-radius: 20%;
           height: 120px;
           width: 120px;
-          border: 1px solid $ui-fleet-blue-15;
+          border: 1px solid $ui-fleet-black-10;
           background-color: $ui-light-grey;
           position: relative;
           bottom: -20px;
