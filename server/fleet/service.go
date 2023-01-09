@@ -544,6 +544,10 @@ type Service interface {
 	// Desktop, in the My Device page). See #8701.
 	GetMDMAppleEnrollmentProfileByToken(ctx context.Context, enrollmentToken string) (profile []byte, err error)
 
+	// GetDeviceMDMAppleEnrollmentProfile loads the raw (PList-format) enrollment
+	// profile for the currently authenticated device.
+	GetDeviceMDMAppleEnrollmentProfile(ctx context.Context) ([]byte, error)
+
 	// GetMDMAppleCommandResults returns the execution results of a command identified by a CommandUUID.
 	// The map returned has a result for each target device ID.
 	GetMDMAppleCommandResults(ctx context.Context, commandUUID string) (map[string]*MDMAppleCommandResult, error)

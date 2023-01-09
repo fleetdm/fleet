@@ -3,10 +3,12 @@ package service
 import (
 	"context"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
+	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
@@ -349,21 +351,60 @@ func (r *getDeviceMDMManualEnrollProfileRequest) deviceAuthToken() string {
 }
 
 type getDeviceMDMManualEnrollProfileResponse struct {
+	// Profile field is used in hijackRender for the response.
+	Profile []byte
+
 	Err error `json:"error,omitempty"`
 }
 
 func (r getDeviceMDMManualEnrollProfileResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
-	w.WriteHeader(http.StatusNoContent)
+	// TODO(mna): does this filename look ok?
+	w.Header().Add("Content-Disposition", `attachment; filename="fleet-mdm-enrollment-profile.mobileconfig"`)
+	w.Header().Set("Content-Length", strconv.FormatInt(int64(len(r.Profile)), 10))
+	w.Header().Set("Content-Type", "application/x-apple-aspen-config")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+
+	if n, err := w.Write(r.Profile); err != nil {
+		logging.WithExtras(ctx, "err", err, "written", n)
+	}
 }
 
 func (r getDeviceMDMManualEnrollProfileResponse) error() error { return r.Err }
 
 func getDeviceMDMManualEnrollProfileEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
-	host, ok := hostctx.FromContext(ctx)
-	if !ok {
+	// this call ensures that the authentication was done, no need to actually
+	// use the host
+	if _, ok := hostctx.FromContext(ctx); !ok {
 		err := ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
 		return getDeviceMDMManualEnrollProfileResponse{Err: err}, nil
 	}
-	_ = host
-	return getDeviceMDMManualEnrollProfileResponse{}, nil
+
+	profile, err := svc.GetDeviceMDMAppleEnrollmentProfile(ctx)
+	if err != nil {
+		return getDeviceMDMManualEnrollProfileResponse{Err: err}, nil
+	}
+	return getDeviceMDMManualEnrollProfileResponse{Profile: profile}, nil
+}
+
+func (svc *Service) GetDeviceMDMAppleEnrollmentProfile(ctx context.Context) ([]byte, error) {
+	// skipauth: service is called by device-authenticated endpoint, adding
+	// SkipAuth call here just to indicate explicitly that no additional
+	// authorization is required.
+	svc.authz.SkipAuthorization(ctx)
+
+	appConfig, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+
+	mobileConfig, err := generateEnrollmentProfileMobileconfig(
+		appConfig.OrgInfo.OrgName,
+		appConfig.ServerSettings.ServerURL,
+		svc.config.MDMApple.SCEP.Challenge,
+		svc.mdmPushCertTopic,
+	)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+	return mobileConfig, nil
 }
