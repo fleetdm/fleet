@@ -3,7 +3,6 @@ package osquery_utils
 import (
 	"context"
 	"fmt"
-	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -12,6 +11,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/publicip"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
@@ -1191,7 +1191,7 @@ func directIngestDiskEncryption(ctx context.Context, logger log.Logger, host *fl
 	return ds.SetOrUpdateHostDisksEncryption(ctx, host.ID, encrypted)
 }
 
-func GetDetailQueries(fleetConfig config.FleetConfig, features *fleet.Features) map[string]DetailQuery {
+func GetDetailQueries(ctx context.Context, fleetConfig config.FleetConfig, features *fleet.Features) map[string]DetailQuery {
 	generatedMap := make(map[string]DetailQuery)
 	for key, query := range hostDetailQueries {
 		generatedMap[key] = query
@@ -1218,17 +1218,25 @@ func GetDetailQueries(fleetConfig config.FleetConfig, features *fleet.Features) 
 		generatedMap["scheduled_query_stats"] = scheduledQueryStats
 	}
 
-	for _, env := range os.Environ() {
-		prefix := "FLEET_DANGEROUS_REPLACE_"
-		if !strings.HasPrefix(env, prefix) {
-			continue
+	if features != nil {
+		var unknownQueries []string
+
+		for name, override := range features.DetailQueryOverrides {
+			query, ok := generatedMap[name]
+			if !ok {
+				unknownQueries = append(unknownQueries, name)
+				continue
+			}
+			if override == nil {
+				delete(generatedMap, name)
+			} else {
+				query.Query = *override
+				generatedMap[name] = query
+			}
 		}
-		if i := strings.Index(env, "="); i >= 0 {
-			queryName := strings.ToLower(strings.TrimPrefix(env[:i], prefix))
-			newQuery := env[i+1:]
-			query := generatedMap[queryName]
-			query.Query = newQuery
-			generatedMap[queryName] = query
+
+		if len(unknownQueries) > 0 {
+			logging.WithErr(ctx, ctxerr.New(ctx, fmt.Sprintf("detail_query_overrides: unknown queries: %s", strings.Join(unknownQueries, ","))))
 		}
 	}
 

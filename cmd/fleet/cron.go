@@ -11,7 +11,6 @@ import (
 	"time"
 
 	eewebhooks "github.com/fleetdm/fleet/v4/ee/server/webhooks"
-	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -841,7 +840,7 @@ func newAppleMDMDEPProfileAssigner(
 	loggingDebug bool,
 ) (*schedule.Schedule, error) {
 	const name = string(fleet.CronAppleMDMDEPProfileAssigner)
-	depClient := godep.NewClient(depStorage, fleethttp.NewClient())
+	depClient := fleet.NewDEPClient(depStorage, ds, logger)
 	assignerOpts := []depsync.AssignerOption{
 		depsync.WithAssignerLogger(NewNanoDEPLogger(kitlog.With(logger, "component", "nanodep-assigner"))),
 	}

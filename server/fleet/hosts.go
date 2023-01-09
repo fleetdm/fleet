@@ -425,6 +425,7 @@ var mdmNameFromServerURLChecks = map[string]string{
 // given server URL. If no match is found, it returns the unknown MDM name.
 func MDMNameFromServerURL(serverURL string) string {
 	serverURL = strings.ToLower(serverURL)
+
 	for check, name := range mdmNameFromServerURLChecks {
 		if strings.Contains(serverURL, check) {
 			return name
