@@ -62,8 +62,8 @@ const RequestCSRModal = ({ onCancel }: IRequestCSRModalProps): JSX.Element => {
         <p>
           Go to your <strong>{email}</strong> email to download your CSR.
           <br />
-          Your certificate and key for SCEP will be downloaded in the browser.
-          You&apos;ll need these later.
+          Your APNs key and SCEP certificate and key will be downloaded in the
+          browser. You&apos;ll need these later.
         </p>
         <Button onClick={onCancel}>Got it</Button>
       </div>
@@ -84,8 +84,8 @@ const RequestCSRModal = ({ onCancel }: IRequestCSRModalProps): JSX.Element => {
           to connect Fleet to Apple Developer. Apple Inc. requires the following
           information. <br />
           <br />
-          fleetdm.com will send your CSR to the below email. Your certificate
-          and key for SCEP will be downloaded in the browser.
+          fleetdm.com will send your CSR to the below email. Your APNs key and
+          SCEP certificate and key will be downloaded in the browser.
         </p>
         <form
           className={`${baseClass}__form`}
