@@ -359,9 +359,14 @@ type getDeviceMDMManualEnrollProfileResponse struct {
 
 func (r getDeviceMDMManualEnrollProfileResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
 	// TODO(mna): does this filename look ok?
+	// make the browser download the content to a file
 	w.Header().Add("Content-Disposition", `attachment; filename="fleet-mdm-enrollment-profile.mobileconfig"`)
+	// explicitly set the content length before the write, so the caller can
+	// detect short writes (if it fails to send the full content properly)
 	w.Header().Set("Content-Length", strconv.FormatInt(int64(len(r.Profile)), 10))
-	w.Header().Set("Content-Type", "application/x-apple-aspen-config")
+	// this content type will make macos open the profile with the proper application
+	w.Header().Set("Content-Type", "application/x-apple-aspen-config; charset=urf-8")
+	// prevent detection of content, obey the provided content-type
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 
 	if n, err := w.Write(r.Profile); err != nil {
