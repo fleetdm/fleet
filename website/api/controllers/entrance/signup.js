@@ -102,8 +102,9 @@ the account verification message.)`,
     // Provisioning a Fleet sandbox instance for the new user. Note: Because this is the only place where we provision Sandbox instances, We'll provision a Sandbox instance BEFORE
     // creating the new User record. This way, if this fails, we won't save the new record to the database, and the user will see an error on the signup form asking them to try again.
 
+    const TIME_SANDBOX_IS_VALID_FOR_IN_MS = (5*24*60*60*1000); // 5 days
     // Creating an expiration JS timestamp for the Fleet sandbox instance. NOTE: We send this value to the cloud provisioner API as an ISO 8601 string.
-    let fleetSandboxExpiresAt = Date.now() + (24*60*60*1000);
+    let fleetSandboxExpiresAt = Date.now() + TIME_SANDBOX_IS_VALID_FOR_IN_MS;
 
     // Creating a fleetSandboxDemoKey, this will be used for the user's password when we log them into their Sandbox instance.
     let fleetSandboxDemoKey = await sails.helpers.strings.uuid();
