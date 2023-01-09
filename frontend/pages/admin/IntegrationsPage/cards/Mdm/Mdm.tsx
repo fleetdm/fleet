@@ -41,6 +41,8 @@ const Mdm = (): JSX.Element => {
   const [showRequestCSRModal, setShowRequestCSRModal] = useState(false);
   const [showEditTeamModal, setShowEditTeamModal] = useState(false);
 
+  const [showCSRFlag, setShowCSRFlag] = useState(true);
+
   const {
     data: mdmApple,
     isLoading: isLoadingMdmApple,
@@ -120,12 +122,7 @@ const Mdm = (): JSX.Element => {
       return <DataError />;
     }
 
-    // for dev work on RequestCSRModal, disable mdmApple by uncommenting the following two lines and
-    // commenting the line after them
-
-    // const devShowCSRFlag = true;
-    // if (!mdmApple || devShowCSRFlag) {
-    if (!mdmApple) {
+    if (!mdmApple || showCSRFlag) {
       return (
         <>
           <div className={`${baseClass}__section-description`}>
@@ -280,7 +277,10 @@ const Mdm = (): JSX.Element => {
         </div>
       )}
       {showRequestCSRModal && (
-        <RequestCSRModal onCancel={toggleRequestCSRModal} />
+        <RequestCSRModal
+          onCancel={toggleRequestCSRModal}
+          setShowCSRFlag={setShowCSRFlag}
+        />
       )}
       {showEditTeamModal && (
         <EditTeamModal

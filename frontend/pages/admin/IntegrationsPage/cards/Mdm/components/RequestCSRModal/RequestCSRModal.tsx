@@ -14,6 +14,7 @@ import Modal from "components/Modal";
 const baseClass = "modal request-csr-modal";
 interface IRequestCSRModalProps {
   onCancel: () => void;
+  setShowCSRFlag: (showCSR: boolean) => void;
 }
 
 interface IFormField {
@@ -21,7 +22,10 @@ interface IFormField {
   value: string;
 }
 
-const RequestCSRModal = ({ onCancel }: IRequestCSRModalProps): JSX.Element => {
+const RequestCSRModal = ({
+  onCancel,
+  setShowCSRFlag,
+}: IRequestCSRModalProps): JSX.Element => {
   const { currentUser, config } = useContext(AppContext);
 
   const [formData, setFormData] = useState<IRequestCSRFormData>({
@@ -65,7 +69,14 @@ const RequestCSRModal = ({ onCancel }: IRequestCSRModalProps): JSX.Element => {
           Your APNs key and SCEP certificate and key will be downloaded in the
           browser. You&apos;ll need these later.
         </p>
-        <Button onClick={onCancel}>Got it</Button>
+        <Button
+          onClick={() => {
+            onCancel();
+            setShowCSRFlag(false);
+          }}
+        >
+          Got it
+        </Button>
       </div>
     );
   };
