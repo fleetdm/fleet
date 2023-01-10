@@ -627,7 +627,10 @@ const HostDetailsPage = ({
     <MainContent className={baseClass}>
       <div className={`${baseClass}__wrapper`}>
         <div className={`${baseClass}__header-links`}>
-          <BackLink text="Back to all hosts" path={filteredHostsPath} />
+          <BackLink
+            text="Back to all hosts"
+            path={filteredHostsPath || PATHS.MANAGE_HOSTS}
+          />
         </div>
         <HostSummaryCard
           statusClassName={statusClassName}
