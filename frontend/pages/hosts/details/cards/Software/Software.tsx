@@ -1,18 +1,19 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useContext, useEffect, useMemo, useState } from "react";
 import { useDebouncedCallback } from "use-debounce";
 import { InjectedRouter } from "react-router";
 import { Row } from "react-table";
 import PATHS from "router/paths";
 
-import { ISoftware, ISoftwareResponse } from "interfaces/software";
+import { AppContext } from "context/app";
+import { ISoftware } from "interfaces/software";
 import { VULNERABLE_DROPDOWN_OPTIONS } from "utilities/constants";
 import { buildQueryStringFromParams } from "utilities/url";
 
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
 import TableContainer from "components/TableContainer";
+import EmptySoftwareTable from "pages/software/components/EmptySoftwareTable";
 
-import EmptyState from "../EmptyState";
 import SoftwareVulnCount from "./SoftwareVulnCount";
 
 import {
@@ -28,7 +29,7 @@ export interface ITableSoftware extends Omit<ISoftware, "vulnerabilities"> {
 
 interface ISoftwareTableProps {
   isLoading: boolean;
-  software: ISoftwareResponse;
+  software: ISoftware[];
   deviceUser?: boolean;
   deviceType?: string;
   isSoftwareEnabled?: boolean;
@@ -49,6 +50,8 @@ const SoftwareTable = ({
   deviceType,
   router,
 }: ISoftwareTableProps): JSX.Element => {
+  const { isSandboxMode } = useContext(AppContext);
+
   const [searchString, setSearchString] = useState("");
   const [filterVuln, setFilterVuln] = useState(false);
   const [filters, setFilters] = useState({
@@ -67,10 +70,9 @@ const SoftwareTable = ({
     300
   );
 
-  const tableSoftware = useMemo(
-    () => generateSoftwareTableData(software.software),
-    [software]
-  );
+  const tableSoftware = useMemo(() => generateSoftwareTableData(software), [
+    software,
+  ]);
   const tableHeaders = useMemo(
     () => generateSoftwareTableHeaders(deviceUser, router),
     [deviceUser, router]
@@ -106,19 +108,16 @@ const SoftwareTable = ({
     );
   };
 
-  const EmptySoftwareSearch = () => (
-    <EmptyState title="software" reason="empty-search" />
-  );
-
+  console.log("software?.length", software?.length);
   return (
     <div className="section section--software">
       <p className="section__header">Software</p>
 
-      {software?.software.length ? (
+      {software?.length ? (
         <>
           {software && (
             <SoftwareVulnCount
-              softwareList={software.software}
+              softwareList={software}
               deviceUser={deviceUser}
             />
           )}
@@ -136,7 +135,13 @@ const SoftwareTable = ({
                 }
                 onQueryChange={onQueryChange}
                 resultsTitle={"software items"}
-                emptyComponent={EmptySoftwareSearch}
+                emptyComponent={() => (
+                  <EmptySoftwareTable
+                    isFilterVulnerable={filterVuln}
+                    isSearching={searchString !== ""}
+                    isSandboxMode={isSandboxMode}
+                  />
+                )}
                 showMarkAllPages={false}
                 isAllPagesSelected={false}
                 searchable
@@ -151,7 +156,7 @@ const SoftwareTable = ({
           )}
         </>
       ) : (
-        <EmptyState title="software" />
+        <EmptySoftwareTable />
       )}
     </div>
   );
