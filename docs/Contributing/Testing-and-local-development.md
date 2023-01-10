@@ -480,7 +480,7 @@ This will output two files `fleet-apple-mdm-bm-public-key.crt` and `fleet-apple-
 
 ### Encrypted token
 
-Ask @GuillaumeRoss to create an account for you in [ABM](https://github.com/fleetdm/fleet/blob/main/tools/mdm/apple/glossary-and-protocols.md#abm-apple-business-manager) 
+Ask @zwass to create an account for you in [ABM](https://github.com/fleetdm/fleet/blob/main/tools/mdm/apple/glossary-and-protocols.md#abm-apple-business-manager)
 
 Once you have access:
 
@@ -525,7 +525,7 @@ FLEET_MDM_APPLE_APNS_KEY=/path/to/mdmcert.download.push.key \
  ./build/fleet serve --dev --dev_license --logging_debug
 ```
 
-The server needs to run behind TLS with a valid certificate, so in a separate terminal window/tab, create a local tunnel to your server using `ngrok` (`brew install ngrok/ngrok/ngrok` if you don't have it.)
+Note: if you need to enroll VMs using MDM, the server needs to run behind TLS with a valid certificate. In a separate terminal window/tab, create a local tunnel to your server using `ngrok` (`brew install ngrok/ngrok/ngrok` if you don't have it.)
 
 ```
 ngrok http https://localhost:8080
@@ -542,7 +542,7 @@ Choose and download a VM software, some options:
 - VMware Fusion: https://www.vmware.com/products/fusion.html
 - UTM: https://mac.getutm.app/
 
-If you need a license ask @lukeheath or @zwass in [#g-mdm](https://fleetdm.slack.com/archives/C03C41L5YEL)
+If you need a license please use your Brex card (and submit the receipt on Brex.)
 
 With the software in place, you need to create a VM and install macOS, the steps to do this vary depending on your software of choice.
 
