@@ -395,7 +395,7 @@ func getDeviceMDMManualEnrollProfileEndpoint(ctx context.Context, request interf
 func (svc *Service) GetDeviceMDMAppleEnrollmentProfile(ctx context.Context) ([]byte, error) {
 	// must be device-authenticated, no additional authorization is required
 	if !svc.authz.IsAuthenticatedWith(ctx, authz.AuthnDeviceToken) {
-		return nil, ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("authentication error: not device authenticated"))
+		return nil, ctxerr.Wrap(ctx, fleet.NewPermissionError("forbidden: only device-authenticated hosts can access this endpoint"))
 	}
 
 	appConfig, err := svc.ds.AppConfig(ctx)
