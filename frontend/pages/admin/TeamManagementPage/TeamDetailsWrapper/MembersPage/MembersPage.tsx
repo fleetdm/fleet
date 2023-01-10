@@ -1,11 +1,13 @@
 import React, { useCallback, useContext, useState } from "react";
 import { useQuery } from "react-query";
+import { IconNames } from "components/icons";
 
 import { NotificationContext } from "context/notification";
 import PATHS from "router/paths";
 import { IApiError } from "interfaces/errors";
 import { IUser, IUserFormErrors } from "interfaces/user";
 import { INewMembersBody, ITeam } from "interfaces/team";
+import { IEmptyTableProps } from "interfaces/empty_table";
 import { Link } from "react-router";
 import { AppContext } from "context/app";
 import usersAPI from "services/entities/users";
@@ -15,6 +17,7 @@ import teamsAPI, { ILoadTeamsResponse } from "services/entities/teams";
 import Button from "components/buttons/Button";
 import TableContainer from "components/TableContainer";
 import TableDataError from "components/DataError";
+import EmptyTable from "components/EmptyTable";
 import CreateUserModal from "pages/admin/UserManagementPage/components/CreateUserModal";
 import { DEFAULT_CREATE_USER_ERRORS } from "utilities/constants";
 import EditUserModal from "../../../UserManagementPage/components/EditUserModal";
@@ -339,51 +342,41 @@ const MembersPage = ({
     }
   };
 
-  const NoMembersComponent = useCallback(() => {
-    return (
-      <div className={`${noMembersClass}`}>
-        <div className={`${noMembersClass}__inner`}>
-          <div className={`${noMembersClass}__inner-text`}>
-            {searchString === "" ? (
-              <>
-                <h1>This team doesn&apos;t have any members yet.</h1>
-                <p>
-                  Expecting to see new team members listed here? Try again in a
-                  few seconds as the system catches up.
-                </p>
-                {isGlobalAdmin && (
-                  <Button
-                    variant="brand"
-                    className={`${noMembersClass}__create-button`}
-                    onClick={toggleAddUserModal}
-                  >
-                    Add member
-                  </Button>
-                )}
-                {isTeamAdmin && (
-                  <Button
-                    variant="brand"
-                    className={`${noMembersClass}__create-button`}
-                    onClick={toggleCreateMemberModal}
-                  >
-                    Create user
-                  </Button>
-                )}
-              </>
-            ) : (
-              <>
-                <h2>We couldn’t find any members.</h2>
-                <p>
-                  Expecting to see members? Try again in a few seconds as the
-                  system catches up.
-                </p>
-              </>
-            )}
-          </div>
-        </div>
-      </div>
-    );
-  }, [searchString, toggleAddUserModal]);
+  const emptyState = () => {
+    const emptyMembers: IEmptyTableProps = {
+      iconName: "empty-members",
+      header: "This team doesn't have any members yet.",
+      info:
+        "Expecting to see new team members listed here? Try again in a few seconds as the system catches up.",
+    };
+    if (searchString !== "") {
+      delete emptyMembers.iconName;
+      emptyMembers.header = "We couldn’t find any members.";
+      emptyMembers.info =
+        "Expecting to see members? Try again in a few seconds as the system catches up.";
+    } else if (isGlobalAdmin) {
+      emptyMembers.primaryButton = (
+        <Button
+          variant="brand"
+          className={`${noMembersClass}__create-button`}
+          onClick={toggleAddUserModal}
+        >
+          Add member
+        </Button>
+      );
+    } else if (isTeamAdmin) {
+      emptyMembers.primaryButton = (
+        <Button
+          variant="brand"
+          className={`${noMembersClass}__create-button`}
+          onClick={toggleCreateMemberModal}
+        >
+          Create user
+        </Button>
+      );
+    }
+    return emptyMembers;
+  };
 
   const tableHeaders = generateTableHeaders(onActionSelection);
 
@@ -417,7 +410,14 @@ const MembersPage = ({
           hideActionButton={memberIds.length === 0 && searchString === ""}
           onQueryChange={({ searchQuery }) => setSearchString(searchQuery)}
           inputPlaceHolder={"Search"}
-          emptyComponent={NoMembersComponent}
+          emptyComponent={() =>
+            EmptyTable({
+              iconName: emptyState().iconName,
+              header: emptyState().header,
+              info: emptyState().info,
+              primaryButton: emptyState().primaryButton,
+            })
+          }
           showMarkAllPages={false}
           isAllPagesSelected={false}
           searchable={memberIds.length > 0 || searchString !== ""}

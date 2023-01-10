@@ -401,7 +401,7 @@ type HostMunkiIssue struct {
 }
 
 // List of well-known MDM solution names. Those correspond to names stored in
-// the mobile_device_management_solutions table, created via (data) migrations.
+// the mobile_device_management_solutions table.
 const (
 	UnknownMDMName        = ""
 	WellKnownMDMKandji    = "Kandji"
@@ -425,6 +425,7 @@ var mdmNameFromServerURLChecks = map[string]string{
 // given server URL. If no match is found, it returns the unknown MDM name.
 func MDMNameFromServerURL(serverURL string) string {
 	serverURL = strings.ToLower(serverURL)
+
 	for check, name := range mdmNameFromServerURLChecks {
 		if strings.Contains(serverURL, check) {
 			return name
@@ -436,13 +437,13 @@ func MDMNameFromServerURL(serverURL string) string {
 func (h *HostMDM) EnrollmentStatus() string {
 	switch {
 	case h.Enrolled && !h.InstalledFromDep:
-		return "Enrolled (manual)"
+		return "On (manual)"
 	case h.Enrolled && h.InstalledFromDep:
-		return "Enrolled (automated)"
+		return "On (automatic)"
 	case !h.Enrolled && h.InstalledFromDep:
 		return "Pending"
 	default:
-		return "Unenrolled"
+		return "Off"
 	}
 }
 

@@ -16,7 +16,6 @@ import (
 	"github.com/go-kit/kit/log/level"
 	"github.com/micromdm/nanomdm/certverify"
 	httpmdm "github.com/micromdm/nanomdm/http/mdm"
-
 	nanomdm_log "github.com/micromdm/nanomdm/log"
 	nanomdm_service "github.com/micromdm/nanomdm/service"
 	"github.com/micromdm/nanomdm/service/certauth"

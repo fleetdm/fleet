@@ -162,3 +162,29 @@ func TestHostDisplayName(t *testing.T) {
 		require.Equal(t, tc.expected, tc.host.DisplayName())
 	}
 }
+
+func TestMDMEnrollmentStatus(t *testing.T) {
+	for _, tc := range []struct {
+		hostMDM  HostMDM
+		expected string
+	}{
+		{
+			hostMDM:  HostMDM{Enrolled: true, InstalledFromDep: true},
+			expected: "On (automatic)",
+		},
+		{
+			hostMDM:  HostMDM{Enrolled: true, InstalledFromDep: false},
+			expected: "On (manual)",
+		},
+		{
+			hostMDM:  HostMDM{Enrolled: false, InstalledFromDep: true},
+			expected: "Pending",
+		},
+		{
+			hostMDM:  HostMDM{Enrolled: false, InstalledFromDep: false},
+			expected: "Off",
+		},
+	} {
+		require.Equal(t, tc.expected, tc.hostMDM.EnrollmentStatus())
+	}
+}

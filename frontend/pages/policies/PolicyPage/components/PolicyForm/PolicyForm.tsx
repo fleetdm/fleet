@@ -484,7 +484,7 @@ const PolicyForm = ({
         <FleetAce
           value={lastEditedQueryBody}
           error={errors.query}
-          label="Query:"
+          label="Query"
           labelActionComponent={renderLabelComponent()}
           name="query editor"
           onLoad={onLoad}
@@ -492,6 +492,7 @@ const PolicyForm = ({
           onChange={onChangePolicy}
           handleSubmit={promptSavePolicy}
           wrapEnabled
+          focus={!isEditMode}
         />
         <span className={`${baseClass}__platform-compatibility`}>
           {renderPlatformCompatibility()}
