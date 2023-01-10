@@ -52,12 +52,13 @@ parasails.registerPage('fleet-mdm', {
   //  ║║║║ ║ ║╣ ╠╦╝╠═╣║   ║ ║║ ║║║║╚═╗
   //  ╩╝╚╝ ╩ ╚═╝╩╚═╩ ╩╚═╝ ╩ ╩╚═╝╝╚╝╚═╝
   methods: {
-    //…
+    // TODO before merge: Clean these up.
     updateCurrentTweetsPage: async function() {
       let tweetsDiv = $('div[purpose="tweets"]')[0];
       let currentTweetDivScrollAmount = tweetsDiv.scrollLeft;
-      let pageThisShouldBe = ((currentTweetDivScrollAmount) / this.tweetCardWidth);
+      let pageThisShouldBe = ((currentTweetDivScrollAmount) / this.tweetCardWidth) / this.howManyTweetsCanFitOnThisPage;
       let pageToIndicate = Math.round(pageThisShouldBe) > 0 ? Math.round(pageThisShouldBe) + 1 : 1;
+      console.log(pageToIndicate);
       if(pageToIndicate > this.numberOfTweetPages){
         pageToIndicate = this.numberOfTweetPages;
       }
@@ -71,6 +72,8 @@ parasails.registerPage('fleet-mdm', {
       this.numberOfTweetPages = Math.floor(6/this.howManyTweetsCanFitOnThisPage);
       if(this.numberOfTweetPages === Infinity) {
         this.numberOfTweetPages = 6;
+      } else if (this.numberOfTweetPages === 1){
+        this.numberOfTweetPages = 2;
       }
       await this.forceRender();
     },
