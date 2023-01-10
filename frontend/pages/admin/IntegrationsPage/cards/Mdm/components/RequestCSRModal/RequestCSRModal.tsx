@@ -65,9 +65,12 @@ const RequestCSRModal = ({
         <h2>You&apos;re almost there</h2>
         <p>
           Go to your <strong>{email}</strong> email to download your CSR.
-          <br />
+        </p>
+        <p>
           Your APNs key and SCEP certificate and key will be downloaded in the
-          browser. You&apos;ll need these later.
+          browser.
+          <br />
+          You&apos;ll need these later.
         </p>
         <Button
           onClick={() => {
