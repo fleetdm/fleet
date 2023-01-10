@@ -20,9 +20,9 @@ parasails.registerComponent('scrollableTweets', {
   data: function () {
     return {
       currentTweetPage: 1,
-      numberOfTweetPages: 2,
-      howManyTweetsCanFitOnThisPage: 3,
-      tweetsPaddingWidth: 0,
+      numberOfTweetCards: 6,
+      numberOfTweetPages: 0,
+      numberOfTweetsPerPage: 0,
       tweetCardWidth: 0,
     };
   },
@@ -116,7 +116,7 @@ parasails.registerComponent('scrollableTweets', {
     <div purpose="" class="mx-auto">
       <nav aria-label="..." >
         <ul purpose="tweets-page-indicator" class="pagination pagination-sm">
-          <li class="page-item" :class="[currentTweetPage === pageNumber ? 'selected' : '']" v-for="pageNumber in numberOfTweetPages" @click="scrollTweetDivHorizontally(pageNumber)"></li>
+          <li class="page-item" :class="[currentTweetPage === pageNumber ? 'selected' : '']" v-for="pageNumber in numberOfTweetPages" @click="scrollTweetsDivToPage(pageNumber)"></li>
         </ul>
       </nav>
     </div>
@@ -131,7 +131,7 @@ parasails.registerComponent('scrollableTweets', {
   },
   mounted: async function(){
     await this.updateNumberOfTweetPages(); // Update the number of pages for the tweet page indicator.
-    window.addEventListener('mousewheel', this.updateTweetsPageIndicator); // Add a mouse wheel event listener to update the tweet page indicator when a user scrolls the div.
+    window.addEventListener('wheel', this.updateCurrentPageIndicator); // Add a mouse wheel event listener to update the tweet page indicator when a user scrolls the div.
     window.addEventListener('resize', this.updateNumberOfTweetPages); // Add an event listener to update the number of tweet pages based on how many tweet cards can fit on the screen.
   },
   beforeDestroy: function() {
@@ -146,32 +146,32 @@ parasails.registerComponent('scrollableTweets', {
     updateNumberOfTweetPages: async function() {
       // Get the first tweet card in the tweets div.
       let firstTweetCardDiv = $('div[purpose="tweet-card"]')[0];
-      // Update the tweetCardWidth value to be the actual width of a tweet card.
+      // Update the tweetCardWidth to have 16 pixels of padding.
       this.tweetCardWidth = firstTweetCardDiv.clientWidth + 16;
-      let tweetsDiv = document.querySelector('div[purpose="tweets"]');
-      let tweetsPadding = window.getComputedStyle(tweetsDiv).getPropertyValue('padding-left');
-      this.tweetsPaddingWidth = parseInt(tweetsPadding);
       let usersScreenWidth = window.innerWidth;
-      this.howManyTweetsCanFitOnThisPage = Math.floor(usersScreenWidth/this.tweetCardWidth);
-      this.numberOfTweetPages = Math.max(Math.floor(6 / this.howManyTweetsCanFitOnThisPage), 2);
+      // Get the number of tweets that can be visible on the user's screen
+      this.numberOfTweetsPerPage = Math.floor(usersScreenWidth/this.tweetCardWidth);
+      // Divide the number of tweet cards by the number of tweets that can fit on a users screen
+      this.numberOfTweetPages = Math.floor(this.numberOfTweetCards / this.numberOfTweetsPerPage);
       await this.forceRender();
     },
-    updateTweetsPageIndicator: function() {
+    updateCurrentPageIndicator: function() {
       // Get the tweets div.
       let tweetsDiv = document.querySelector('div[purpose="tweets"]');
       // Get the amount the tweets div has been scrolled to the left.
       let currentTweetDivScrollAmount = tweetsDiv.scrollLeft;
       // Divide the current amount scrolled by the width of a tweet card, and divide that value by how many tweet cards we can show on a page.
-      let pageThisShouldBe = ((currentTweetDivScrollAmount) / this.tweetCardWidth) / this.howManyTweetsCanFitOnThisPage;
+      let pageThisShouldBe = ((currentTweetDivScrollAmount) / this.tweetCardWidth) / this.numberOfTweetsPerPage;
       // Round that value to the nearest whole number, if the number rounds to 0, then set it to be 1.
       let pageToIndicate = Math.round(pageThisShouldBe) > 0 ? Math.round(pageThisShouldBe) + 1 : 1;
+      // Update the currentTweetPage value
       this.currentTweetPage = pageToIndicate;
     },
-    scrollTweetDivHorizontally: function(page) {
+    scrollTweetsDivToPage: function(page) {
       let tweetsDiv = document.querySelector('div[purpose="tweets"]');
       if(page === this.currentTweetPage){ // If the page it is currently on is selected, do nothing.
         return;
-      } else if(page === 1){// If the first page was selected, scroll to the div to the starting position.
+      } else if(page === 1){// If the first page was selected, scroll the tweets div to the starting position.
         tweetsDiv.scroll(0, 9000);
       } else if(page !== this.currentTweetPage) { // If any other page was selected, scroll the tweets div.
         // Get the amount we need to scroll for a single page.
