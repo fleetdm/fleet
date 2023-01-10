@@ -128,8 +128,15 @@ func TestDEPSyncTeamAssignment(t *testing.T) {
 	}
 
 	n, err = ds.IngestMDMAppleDevicesFromDEPSync(ctx, depDevices)
-	require.Error(t, err)
-	require.Zero(t, n)
+	require.NoError(t, err)
+	require.EqualValues(t, n, 1)
+
+	hosts = listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{}, 4)
+	for _, h := range hosts {
+		if h.HardwareSerial == "jqk" {
+			require.Nil(t, h.TeamID)
+		}
+	}
 }
 
 func TestHandleMDMCheckinRequest(t *testing.T) {

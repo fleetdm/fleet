@@ -388,10 +388,15 @@ func (ds *Datastore) IngestMDMAppleDevicesFromDEPSync(ctx context.Context, devic
 	args := []interface{}{nil}
 	if name := appCfg.MDM.AppleBMDefaultTeam; name != "" {
 		team, err := ds.TeamByName(ctx, name)
-		if err != nil {
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
+			// If the team doesn't exist, we still ingest the device, but it won't
+			// belong to any team.
+		case err != nil:
 			return 0, ctxerr.Wrap(ctx, err, "ingest mdm apple host get team by name")
+		default:
+			args[0] = team.ID
 		}
-		args[0] = team.ID
 	}
 
 	var resCount int64
