@@ -73,11 +73,19 @@ module.exports = {
 
         expandedTableToPush.fleetRepoUrl = 'https://github.com/fleetdm/fleet/new/main/schema/tables/?filename='+encodeURIComponent('/tables/'+expandedTableToPush.name)+'.yml&value='+encodeURIComponent(sampleYamlSchemaForThisTable);
 
-        // Grab the last example in the array as is usually the most rich example.
+        // As the table might have multiple examples, we grab only one until we
+        // adjust the UI to better display multiple examples (paddings, UX,
+        // etc.)
+        //
+        // We pick the last example in the array as they progressively build in
+        // complexity and the last is usually the richest.
+        //
         // TODO: adjust the UI to show all examples.
-        let examples = expandedTableToPush.examples;
-        if (examples.length > 0) {
-          expandedTableToPush.examples = '```\n' + examples[examples.length- 1] + '\n```';
+        let examplesFromOsquerySchema = expandedTableToPush.examples;
+        if (examplesFromOsquerySchema.length > 0) {
+          // Examples are parsed as markdown, so we wrap the example in a code
+          // fence so it renders as a code block.
+          expandedTableToPush.examples = '```\n' + examplesFromOsquerySchema[examplesFromOsquerySchema.length - 1] + '\n```';
         }
 
         expandedTables.push(expandedTableToPush);
