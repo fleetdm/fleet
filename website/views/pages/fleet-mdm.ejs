@@ -6,7 +6,7 @@
         <p>Legacy MDMs have left you in the dark for way too long. Fleet’s cross-platform MDM gives IT teams more visibility out of the box.</p>
         <div purpose="button-row" class="d-flex flex-sm-row flex-column justify-content-center align-items-center">
           <a purpose="mdm-beta-button" @click="clickOpenSignupModal()">Join the beta</a>
-          <a purpose="animated-arrow-button-red">Talk to an expert</a>
+          <a href="https://calendly.com/fleetdm/demo?utm_source=platform+demo" target="_blank" purpose="animated-arrow-button-red">Talk to an expert</a>
         </div>
       </div>
       <img alt="The MDM page hero image" purpose="hero-image" class="d-none d-sm-block" src="/images/fleet-mdm-hero-1006x595@2x.png">
@@ -16,7 +16,7 @@
 
     <div purpose="section" class="mx-auto mb-0">
       <div class="d-flex flex-column text-left text-md-center">
-        <h4><img alt="The Fleet Device Management brandmark" style="height: 16px; margin-right: 8px; display: inline;" src="/images/logo-brandmark-32x32@2x.png"> Device management with telemetry</h4>
+        <h4>Device management with telemetry</h4>
         <h2 class="mb-0">Fleet delivers real-time answers to every team and tool</h2>
       </div>
     </div>
@@ -37,14 +37,14 @@
       </div>
       <div class="d-flex flex-column">
         <h3>Real-time visibility</h3>
-        <p>Don't worry about your workstation configuration being out of date. Fleet makes it easy to see which settings have been applied to your devices. Real-time results allow you to see the status of your entire fleet at any given moment. Scheduled queries allow you to build workflows around those results.</p>
+        <p>Don't worry about your workstation configuration being out of date. Fleet makes it easy to see which settings have been applied to your devices. Real-time results reveal the status of your entire fleet at any given moment. Launch custom workflows around those results with scheduled queries.</p>
       </div>
     </div>
 
     <div purpose="feature" class="d-flex flex-md-row flex-column-reverse justify-content-between mx-auto align-items-center">
       <div class="d-flex flex-column">
         <h3>Built for customization</h3>
-        <p>Instead of giving you a pre-configured static MDM, we prefer a more collaborative approach. Including compatibility with GitOps workflows and a ton of integrations that allow you to consume Fleet output where it’s most valuable to your engineering and IT teams. Our API and CLI provide the flexibility to program Fleet as you see fit.</p>
+        <p>Instead of forcing you to use a static MDM, we went for a more collaborative approach. Deliver data where it benefits your engineering and IT teams the most with GitOps compatibility and a ton of integrations. Our API and CLI provide the flexibility to program Fleet as you see fit.</p>
       </div>
       <div purpose="feature-image">
         <img alt="MDM feature image" src="images/mdm-feature-image-3-360x300@2x.png">
@@ -53,12 +53,12 @@
 
     <div purpose="button-row" style="margin-top: 60px;" class="d-flex flex-sm-row flex-column justify-content-center align-items-center mx-auto">
       <a purpose="mdm-beta-button" @click="clickOpenSignupModal()">Join the beta</a>
-      <a purpose="animated-arrow-button-red">Talk to an expert</a>
+      <a href="https://calendly.com/fleetdm/demo?utm_source=platform+demo" target="_blank" purpose="animated-arrow-button-red">Talk to an expert</a>
     </div>
 
     <div purpose="section" class="d-flex flex-column justify-content-center mx-auto">
       <div class="text-left text-md-center">
-        <h4><img alt="The Fleet Device Management brandmark" style="height: 16px; margin-right: 8px; display: inline;" src="/images/logo-brandmark-32x32@2x.png">Fleet MDM roadmap</h4>
+        <h4>Fleet MDM roadmap</h4>
         <h2>The path to a better MDM starts here</h2>
       </div>
       <div purpose="checklists" class="d-flex flex-lg-row flex-column justify-content-center align-items-center">
@@ -89,109 +89,21 @@
       </div>
       <div purpose="button-row" class="d-flex flex-sm-row flex-column justify-content-center align-items-center w-100 w-sm-auto mx-auto">
         <a purpose="mdm-beta-button" @click="clickOpenSignupModal()">Join the beta</a>
-        <a purpose="animated-arrow-button-red">Talk to an expert</a>
+        <a href="https://calendly.com/fleetdm/demo?utm_source=platform+demo" target="_blank" purpose="animated-arrow-button-red">Talk to an expert</a>
       </div>
 
     </div>
   </div>
   <div purpose="tweets-container" class="container-fluid px-md-0 d-flex flex-column justify-content-center">
     <div purpose="section-heading" style="max-width: 720px" class="mx-auto text-left text-md-center">
-      <h4><img alt="The Fleet Device Management brandmark" style="height: 16px; margin-right: 8px; display: inline;" src="/images/logo-brandmark-32x32@2x.png">Don’t know osquery?</h4>
+      <h4>Don’t know osquery?</h4>
       <h2>Dedicated support from osquery experts</h2>
 
       <p>Osquery is the open-source agent that powers Fleet. And we have the most osquery experts around. We’ll help you realize the potential of this tool for your organization.</p>
     </div>
 
-    <div purpose="tweets" id="tweets" class="d-flex flex-row flex-nowrap">
+    <scrollable-tweets></scrollable-tweets>
 
-      <div purpose="tweet-card" class="card">
-        <div class="mb-4">
-          <a href="https://twitter.com/Uber"><img width="87" height="38" alt="Uber logo" src="/images/social-proof-logo-uber-87x38@2x.png"/></a>
-        </div>
-        <p class="pb-2 mb-1">Exciting. This is a team that listens to feedback.</p>
-        <div class="row px-3 pt-2">
-          <div>
-            <p class="font-weight-bold m-0">Erik Gomez</p>
-            <p class="m-0">Staff Software Engineer <a href="https://twitter.com/Uber">@Uber</a></p>
-          </div>
-        </div>
-      </div>
-      <%// Square tweet%>
-      <div purpose="tweet-card" class="card">
-        <div class="mb-4">
-          <a href="https://twitter.com/Square"><img width="131" height="38" alt="Square logo" src="/images/social-proof-logo-square-131x38@2x.png"/></a>
-        </div>
-        <p class="pb-2 mb-1">Mad props to how easy making a deploy pkg of Orbit was. I wish everyone made stuff that easy.</p>
-        <div class="row px-3 pt-2">
-          <div>
-            <p class="font-weight-bold m-0">Wesley Whetstone</p>
-            <p class="m-0">CPE <a href="https://twitter.com/Square">@Square</a></p>
-          </div>
-        </div>
-      </div>
-      <%// Atlassian tweet%>
-      <div purpose="tweet-card" class="card">
-        <div class="mb-4">
-          <a href="https://twitter.com/atlassian"><img width="162" height="20" alt="Atlassian logo" src="/images/social-proof-logo-atlassian-162x20@2x.png"/></a>
-        </div>
-        <p class="pb-2 mb-1"><a href="https://twitter.com/hashtag/fleet">#Fleet</a>’s come a long way - to now being the top open-source <a href="https://twitter.com/hashtag/fleet">#osquery</a> manager. Just in the past 6 months.</p>
-        <div class="row px-3 pt-2">
-          <div>
-            <p class="font-weight-bold m-0">Brendan Shaklovitz</p>
-            <p class="m-0">Senior SRE <a href="https://twitter.com/atlassian">@Atlassian</a></p>
-          </div>
-        </div>
-      </div>
-      <%// Osquery tweet%>
-      <div id="2" purpose="tweet-card" class="card">
-        <div class="mb-4">
-          <a href="https://twitter.com/osquery"><img width="140" height="36" alt="osquery logo" src="/images/social-proof-logo-osquery-140x36@2x.png"/></a>
-        </div>
-        <p class="pb-2 mb-1">It’s great to see the new release of Fleet containing some really cool new features that make <a href="https://twitter.com/osquery">@osquery</a> much more usable in practical environments. I’m really impressed with the work that <a href="https://twitter.com/thezachw">@thezachw</a> and crew are doing at <a href="https://twitter.com/fleetctl">@fleetctl</a>.</p>
-        <div class="row px-3 pt-2">
-          <div>
-            <p class="font-weight-bold m-0">Mike Arpaia</p>
-            <p class="m-0">Creator of <a href="https://twitter.com/osquery">@osquery</a></p>
-          </div>
-        </div>
-      </div>
-      <%// Wayfair tweet%>
-      <div purpose="tweet-card" class="card">
-        <div class="mb-4">
-          <a href="https://twitter.com/Wayfair"><img width="136" height="32" alt="Wayfair logo" src="/images/social-proof-logo-wayfair-136x32@2x.png"/></a>
-        </div>
-        <p class="pb-2 mb-1"><a href="https://twitter.com/hashtag/osquery">#osquery</a> is one of the best tools out there and <a href="https://twitter.com/hashtag/fleetdm">#fleetdm</a> makes it even better. Highly recommend it if you want to monitor, detect and investigate threats on a scale and also for infra/sys admin.</p>
-        <p>I have used it on 15k servers and it’s really scalable.</p>
-        <div class="row px-3 pt-2">
-          <div>
-            <p class="font-weight-bold m-0">Ahmed Elshaer</p>
-            <p class="m-0">DFIR, Blue Teaming, SecOps <a href="https://twitter.com/Wayfair">@wayfair</a></p>
-          </div>
-        </div>
-      </div>
-      <%// Comcast tweet%>
-      <div purpose="tweet-card" class="card">
-        <div class="mb-4">
-          <a href="https://twitter.com/comcast"><img width="107" height="38" alt="Comcast logo" src="/images/social-proof-logo-comcast-107x38.png"/></a>
-        </div>
-        <p class="pb-2 mb-1">With the power of osquery, you need a scalable & resilient platform to manage your workloads. Fleet is the "just right" open-source, enterprise grade solution.</p>
-        <div class="row px-3 pt-2">
-          <div>
-            <p class="font-weight-bold m-0">Abubakar Yousafzai</p>
-            <p class="m-0">Security Software Development & Engineering <a href="https://twitter.com/comcast">@Comcast</a></p>
-          </div>
-        </div>
-      </div>
-      <div purpose="tweet-cards-right-padding">
-      </div>
-    </div>
-    <div purpose="" class="mx-auto">
-      <nav aria-label="..." >
-        <ul purpose="tweets-page-indicator" class="pagination pagination-sm">
-          <li class="page-item" :class="[currentTweetPage === pageNumber ? 'selected' : '']" v-for="pageNumber in numberOfTweetPages" @click="scrollTweetDivHorizontally(pageNumber)"></li>
-        </ul>
-      </nav>
-    </div>
     <div purpose="logos" class="d-flex flex-wrap justify-content-center align-items-center">
       <img alt="The Snowflake logo" purpose="snowflake-logo" src="/images/logo-snowflake-muted-151x30@2x.png">
       <img alt="The Wayfair logo" purpose="wayfair-logo" src="/images/logo-wayfair-muted-150x33@2x.png">
