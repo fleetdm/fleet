@@ -16,7 +16,7 @@ import DataError from "components/DataError";
 import Icon from "components/Icon";
 import TooltipWrapper from "components/TooltipWrapper";
 
-import RequestModal from "./components/RequestModal";
+import RequestCSRModal from "./components/RequestCSRModal";
 import EditTeamModal from "./components/EditTeamModal";
 
 // MDM TODO: key validation?
@@ -38,8 +38,10 @@ const Mdm = (): JSX.Element => {
   const { isPremiumTier } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
-  const [showRequestModal, setShowRequestModal] = useState(false);
+  const [showRequestCSRModal, setShowRequestCSRModal] = useState(false);
   const [showEditTeamModal, setShowEditTeamModal] = useState(false);
+
+  const [showCSRFlag, setShowCSRFlag] = useState(true);
 
   const {
     data: mdmApple,
@@ -77,8 +79,8 @@ const Mdm = (): JSX.Element => {
     refetchOnWindowFocus: false,
   });
 
-  const toggleRequestModal = () => {
-    setShowRequestModal(!showRequestModal);
+  const toggleRequestCSRModal = () => {
+    setShowRequestCSRModal(!showRequestCSRModal);
   };
 
   const toggleEditTeamModal = () => {
@@ -120,7 +122,7 @@ const Mdm = (): JSX.Element => {
       return <DataError />;
     }
 
-    if (!mdmApple) {
+    if (!mdmApple || showCSRFlag) {
       return (
         <>
           <div className={`${baseClass}__section-description`}>
@@ -133,7 +135,7 @@ const Mdm = (): JSX.Element => {
               Push Notification Service (APNs) and a certificate and key for
               Simple Certificate Enrollment Protocol (SCEP).
             </p>
-            <Button onClick={toggleRequestModal} variant="brand">
+            <Button onClick={toggleRequestCSRModal} variant="brand">
               Request
             </Button>
             <p>2. Go to your email to download your CSR.</p>
@@ -274,10 +276,10 @@ const Mdm = (): JSX.Element => {
           {isLoadingMdmAppleBm ? <Spinner /> : renderMdmAppleBm()}
         </div>
       )}
-      {showRequestModal && (
-        <RequestModal
-          onCancel={toggleRequestModal}
-          onRequest={toggleRequestModal}
+      {showRequestCSRModal && (
+        <RequestCSRModal
+          onCancel={toggleRequestCSRModal}
+          setShowCSRFlag={setShowCSRFlag}
         />
       )}
       {showEditTeamModal && (
