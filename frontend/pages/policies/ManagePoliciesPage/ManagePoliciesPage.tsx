@@ -131,7 +131,6 @@ const ManagePolicyPage = ({
         setTeamPolicies(data.policies);
         setInheritedPolicies(data.inherited_policies);
       },
-      staleTime: 5000,
     }
   );
 
@@ -167,7 +166,6 @@ const ManagePolicyPage = ({
     {
       enabled: !!teamId && canAddOrDeletePolicy,
       select: (data) => data.team,
-      staleTime: 5000,
     }
   );
 
