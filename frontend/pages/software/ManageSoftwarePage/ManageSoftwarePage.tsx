@@ -111,6 +111,7 @@ const ManageSoftwarePage = ({
     currentTeam,
     isOnGlobalTeam,
     isPremiumTier,
+    noSandboxHosts,
   } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
@@ -549,11 +550,13 @@ const ManageSoftwarePage = ({
               isLoading={isFetchingSoftware || isFetchingCount}
               resultsTitle={"software items"}
               emptyComponent={() =>
-                EmptySoftware(
-                  (!isSoftwareEnabled && "disabled") ||
+                EmptySoftware({
+                  message:
+                    (!isSoftwareEnabled && "disabled") ||
                     (isCollectingInventory && "collecting") ||
-                    "default"
-                )
+                    "default",
+                  noSandboxHosts,
+                })
               }
               defaultSortHeader={DEFAULT_SORT_HEADER}
               defaultSortDirection={DEFAULT_SORT_DIRECTION}
