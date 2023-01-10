@@ -1,7 +1,9 @@
 package service
 
 import (
+	"io"
 	"net/http"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -9,7 +11,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/live_query/live_query_mock"
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
+	"github.com/groob/plist"
 	nanodep_client "github.com/micromdm/nanodep/client"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -69,10 +73,46 @@ func (s *integrationMDMTestSuite) TestAppleGetAppleMDM() {
 	s.DoJSON("GET", "/api/latest/fleet/mdm/apple", nil, http.StatusOK, &mdmResp)
 	// returned values are dummy, this is a test certificate
 	require.Equal(t, "Certificate Authority", mdmResp.Issuer)
+	require.NotZero(t, mdmResp.SerialNumber)
+	require.Equal(t, "Generic-cert", mdmResp.CommonName)
+	require.NotZero(t, mdmResp.RenewDate)
 
 	// GET /api/latest/fleet/mdm/apple_bm is not tested because it makes a call
 	// to an Apple API that would a) fail because we use dummy token/certs and b)
 	// could get us in trouble with many invalid requests.
+	// TODO: eventually add a way to mock the apple API, maybe with a test http
+	// server running and a way to use its URL instead of Apple's. (#8948)
+}
+
+func (s *integrationMDMTestSuite) TestDeviceMDMManualEnroll() {
+	t := s.T()
+
+	token := "token_test_manual_enroll"
+	createHostAndDeviceToken(t, s.ds, token)
+
+	// invalid token fails
+	s.DoRaw("GET", "/api/latest/fleet/device/invalid_token/mdm/apple/manual_enrollment_profile", nil, http.StatusUnauthorized)
+
+	// valid token downloads the profile
+	resp := s.DoRaw("GET", "/api/latest/fleet/device/"+token+"/mdm/apple/manual_enrollment_profile", nil, http.StatusOK)
+	body, err := io.ReadAll(resp.Body)
+	resp.Body.Close()
+	require.NoError(t, err)
+	require.Contains(t, resp.Header, "Content-Disposition")
+	require.Contains(t, resp.Header, "Content-Type")
+	require.Contains(t, resp.Header, "X-Content-Type-Options")
+	require.Contains(t, resp.Header.Get("Content-Disposition"), "attachment;")
+	require.Contains(t, resp.Header.Get("Content-Type"), "application/x-apple-aspen-config")
+	require.Contains(t, resp.Header.Get("X-Content-Type-Options"), "nosniff")
+	headerLen, err := strconv.Atoi(resp.Header.Get("Content-Length"))
+	require.NoError(t, err)
+	require.Equal(t, len(body), headerLen)
+
+	var profile struct {
+		PayloadIdentifier string `plist:"PayloadIdentifier"`
+	}
+	require.NoError(t, plist.Unmarshal(body, &profile))
+	require.Equal(t, apple_mdm.FleetPayloadIdentifier, profile.PayloadIdentifier)
 }
 
 var (
