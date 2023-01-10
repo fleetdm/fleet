@@ -15,7 +15,6 @@ import (
 	"text/template"
 
 	"github.com/docker/go-units"
-	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -25,7 +24,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/groob/plist"
 	"github.com/micromdm/micromdm/mdm/appmanifest"
-	"github.com/micromdm/nanodep/client"
 	"github.com/micromdm/nanodep/godep"
 	"github.com/micromdm/nanomdm/mdm"
 	"github.com/micromdm/nanomdm/push"
@@ -108,56 +106,27 @@ func (svc *Service) mdmAppleEnrollURL(token string, appConfig *fleet.AppConfig) 
 // setDEPProfile define a "DEP profile" on https://mdmenrollment.apple.com and
 // sets the returned Profile UUID as the current DEP profile to apply to newly sync DEP devices.
 func (svc *Service) setDEPProfile(ctx context.Context, enrollmentProfile *fleet.MDMAppleEnrollmentProfile, appConfig *fleet.AppConfig) error {
-	httpClient := fleethttp.NewClient()
-	depTransport := client.NewTransport(httpClient.Transport, httpClient, svc.depStorage, nil)
-	depClient := client.NewClient(fleethttp.NewClient(), depTransport)
-
-	var depProfileRequest map[string]interface{}
+	var depProfileRequest godep.Profile
 	if err := json.Unmarshal(*enrollmentProfile.DEPProfile, &depProfileRequest); err != nil {
-		return fmt.Errorf("invalid DEP profile: %w", err)
+		return ctxerr.Wrap(ctx, err, "invalid DEP profile")
 	}
 
-	// Override url and configuration_web_url with Fleet's enroll path (publicly accessible address).
 	enrollURL, err := svc.mdmAppleEnrollURL(enrollmentProfile.Token, appConfig)
 	if err != nil {
 		return fmt.Errorf("generating enrollment URL: %w", err)
 	}
-	depProfileRequest["url"] = enrollURL
-	depProfileRequest["configuration_web_url"] = enrollURL
-	depProfile, err := json.Marshal(depProfileRequest)
+	// Override url and configuration_web_url with Fleet's enroll path (publicly accessible address).
+	depProfileRequest.URL = enrollURL
+	depProfileRequest.ConfigurationWebURL = enrollURL
+
+	depClient := fleet.NewDEPClient(svc.depStorage, svc.ds, svc.logger)
+	res, err := depClient.DefineProfile(ctx, apple_mdm.DEPName, &depProfileRequest)
 	if err != nil {
-		return fmt.Errorf("reserializing DEP profile: %w", err)
+		return ctxerr.Wrap(ctx, err, "apple POST /profile request failed")
 	}
 
-	defineProfileRequest, err := client.NewRequestWithContext(
-		ctx, apple_mdm.DEPName, svc.depStorage, "POST", "/profile", bytes.NewReader(depProfile),
-	)
-	if err != nil {
-		return fmt.Errorf("create profile request: %w", err)
-	}
-	defineProfileHTTPResponse, err := depClient.Do(defineProfileRequest)
-	if err != nil {
-		return fmt.Errorf("exec profile request: %w", err)
-	}
-	defer defineProfileHTTPResponse.Body.Close()
-	if defineProfileHTTPResponse.StatusCode != http.StatusOK {
-		return fmt.Errorf("profile request: %s", defineProfileHTTPResponse.Status)
-	}
-	defineProfileResponseBody, err := io.ReadAll(defineProfileHTTPResponse.Body)
-	if err != nil {
-		return fmt.Errorf("read profile response: %w", err)
-	}
-	type depProfileResponseFields struct {
-		ProfileUUID string `json:"profile_uuid"`
-	}
-	defineProfileResponse := depProfileResponseFields{}
-	if err := json.Unmarshal(defineProfileResponseBody, &defineProfileResponse); err != nil {
-		return fmt.Errorf("parse profile response: %w", err)
-	}
-	if err := svc.depStorage.StoreAssignerProfile(
-		ctx, apple_mdm.DEPName, defineProfileResponse.ProfileUUID,
-	); err != nil {
-		return fmt.Errorf("set profile UUID: %w", err)
+	if err := svc.depStorage.StoreAssignerProfile(ctx, apple_mdm.DEPName, res.ProfileUUID); err != nil {
+		return ctxerr.Wrap(ctx, err, "set profile UUID")
 	}
 	return nil
 }
@@ -459,7 +428,7 @@ func (svc *Service) ListMDMAppleDEPDevices(ctx context.Context) ([]fleet.MDMAppl
 	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleDEPDevice{}, fleet.ActionWrite); err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
-	depClient := godep.NewClient(svc.depStorage, fleethttp.NewClient())
+	depClient := fleet.NewDEPClient(svc.depStorage, svc.ds, svc.logger)
 
 	// TODO(lucas): Use cursors and limit to fetch in multiple requests.
 	// This single-request version supports up to 1000 devices (max to return in one call).
@@ -825,8 +794,14 @@ var enrollmentProfileMobileconfigTemplate = template.Must(template.New("").Parse
 </plist>`))
 
 func generateEnrollmentProfileMobileconfig(orgName, fleetURL, scepChallenge, topic string) ([]byte, error) {
-	scepURL := path.Join(fleetURL, apple_mdm.SCEPPath)
-	serverURL := path.Join(fleetURL, apple_mdm.MDMPath)
+	scepURL, err := apple_mdm.ResolveAppleSCEPURL(fleetURL)
+	if err != nil {
+		return nil, fmt.Errorf("resolve Apple SCEP url: %w", err)
+	}
+	serverURL, err := apple_mdm.ResolveAppleMDMURL(fleetURL)
+	if err != nil {
+		return nil, fmt.Errorf("resolve Apple MDM url: %w", err)
+	}
 
 	var buf bytes.Buffer
 	if err := enrollmentProfileMobileconfigTemplate.Execute(&buf, struct {

@@ -21,6 +21,22 @@
     border: 1px solid @core-vibrant-blue;
     outline: none;
   }
+  [purpose='email-input']:focus-visible {
+    border: 1px solid @core-vibrant-blue;
+    outline: none;
+  }
+  [purpose='email-input'] {
+    position: relative;
+    span {
+      position: absolute;
+      right: 12px;
+      top: 18px;
+      font-size: 10px;
+      font-weight: 700;
+      color: @core-fleet-black-50;
+      line-height: 18px;
+    }
+  }
   input::placeholder {
     color: #8B8FA2;
   }

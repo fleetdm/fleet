@@ -5,11 +5,8 @@ import TooltipWrapper from "components/TooltipWrapper";
 
 import Button from "components/buttons/Button";
 import DiskSpaceGraph from "components/DiskSpaceGraph";
-import {
-  humanHostMemory,
-  humanHostDetailUpdated,
-  wrapFleetHelper,
-} from "utilities/helpers";
+import HumanTimeDiffWithDateTip from "components/HumanTimeDiffWithDateTip";
+import { humanHostMemory, wrapFleetHelper } from "utilities/helpers";
 import getHostStatusTooltipText from "pages/hosts/helpers";
 import StatusIndicator from "components/StatusIndicator";
 import IssueIcon from "../../../../../../assets/images/icon-issue-fleet-black-50-16x16@2x.png";
@@ -203,6 +200,12 @@ const HostSummary = ({
     );
   };
 
+  const lastFetched = titleData.detail_updated_at ? (
+    <HumanTimeDiffWithDateTip timeString={titleData.detail_updated_at} />
+  ) : (
+    ": unavailable"
+  );
+
   return (
     <>
       <div className="header title">
@@ -211,10 +214,9 @@ const HostSummary = ({
             <h1 className="display-name">
               {deviceUser ? "My device" : titleData.display_name || "---"}
             </h1>
+
             <p className="last-fetched">
-              {`Last fetched ${humanHostDetailUpdated(
-                titleData.detail_updated_at
-              )}`}
+              {"Last fetched"} {lastFetched}
               &nbsp;
             </p>
             {renderRefetch()}

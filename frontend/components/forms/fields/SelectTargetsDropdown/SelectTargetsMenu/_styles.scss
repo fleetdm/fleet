@@ -7,7 +7,7 @@
     font-weight: $bold;
     font-size: $x-small;
     color: $core-fleet-black;
-    border-bottom: 1px solid $ui-fleet-blue-15;
+    border-bottom: 1px solid $ui-fleet-black-10;
 
     &::first-letter {
       text-transform: uppercase;
@@ -24,7 +24,7 @@
     overflow-y: scroll;
     max-height: 100%;
     padding: 0 $pad-large;
-    border-right: 1px solid $ui-fleet-blue-15;
+    border-right: 1px solid $ui-fleet-black-10;
     background-color: $core-white;
   }
 

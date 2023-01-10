@@ -282,7 +282,7 @@ module.exports = {
         }
         // After we've made sure that this table has all the required values, we'll add the url of the table's YAML file in the Fleet GitHub repo as the `fleetRepoUrl`  and the location of this table on fleetdm.com as the `url` before adding it to our merged schema.
         fleetOverrideToPush.url = 'https://fleetdm.com/tables/'+encodeURIComponent(fleetOverrideToPush.name);
-        fleetOverrideToPush.fleetRepoUrl = 'https://github.com/edit/fleetdm/fleet/schema/tables/'+encodeURIComponent(fleetOverrideToPush.name)+'.yml';
+        fleetOverrideToPush.fleetRepoUrl = 'https://github.com/fleetdm/fleet/blob/main/schema/tables/'+encodeURIComponent(fleetOverrideToPush.name)+'.yml';
         expandedTables.push(fleetOverrideToPush);
       }//∞ After each Fleet overrides table
     }

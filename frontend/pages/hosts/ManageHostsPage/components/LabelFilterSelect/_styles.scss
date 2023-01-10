@@ -11,7 +11,7 @@
   }
 
   .label-filter-select__control {
-    border: 1px solid $ui-fleet-blue-15;
+    border: 1px solid $ui-fleet-black-10;
     background-color: $ui-light-grey;
     border-radius: $border-radius;
     height: 40px;
@@ -67,6 +67,7 @@
     width: 300px;
     margin-top: 0;
     z-index: 2;
+    animation: fade-in 150ms ease-out;
   }
 
   .label-filter-select__menu-list {

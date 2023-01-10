@@ -44,7 +44,7 @@
 
 .Select {
   &.dropdown__select {
-    border: 1px solid $ui-fleet-blue-15;
+    border: 1px solid $ui-fleet-black-10;
     border-radius: $border-radius;
     &:hover {
       box-shadow: none;
@@ -188,6 +188,7 @@
     border: 0;
     margin: 1px 0 0;
     padding: $pad-small;
+    animation: fade-in 150ms ease-out;
   }
 
   .Select-noresults {
