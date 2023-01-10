@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
@@ -392,10 +393,10 @@ func getDeviceMDMManualEnrollProfileEndpoint(ctx context.Context, request interf
 }
 
 func (svc *Service) GetDeviceMDMAppleEnrollmentProfile(ctx context.Context) ([]byte, error) {
-	// skipauth: service is called by device-authenticated endpoint, adding
-	// SkipAuth call here just to indicate explicitly that no additional
-	// authorization is required.
-	svc.authz.SkipAuthorization(ctx)
+	// must be device-authenticated, no additional authorization is required
+	if !svc.authz.IsAuthenticatedWith(ctx, authz.AuthnDeviceToken) {
+		return nil, ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("authentication error: not device authenticated"))
+	}
 
 	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
