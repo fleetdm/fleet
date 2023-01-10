@@ -68,7 +68,7 @@ module.exports.routes = {
     }
   },
 
-  'r|/((device-management|securing|releases|engineering|guides|announcements|podcasts|report|deploy)/(.+))$|': {
+  'r|/((success-stories|securing|releases|engineering|guides|announcements|podcasts|report|deploy)/(.+))$|': {
     skipAssets: false,
     action: 'articles/view-basic-article',
     locals: {
@@ -76,7 +76,7 @@ module.exports.routes = {
     }
   },// Handles /device-management/foo, /securing/foo, /releases/foo, /engineering/foo, /guides/foo, /announcements/foo, /deploy/foo, /podcasts/foo, /report/foo
 
-  'r|^/((device-management|securing|releases|engineering|guides|announcements|articles|podcasts|report|deploy))/*$|category': {
+  'r|^/((success-stories|securing|releases|engineering|guides|announcements|articles|podcasts|report|deploy))/*$|category': {
     skipAssets: false,
     action: 'articles/view-articles',
     locals: {
@@ -249,7 +249,7 @@ module.exports.routes = {
     }
   },
 
-  'GET /fleet-mdm': {
+  'GET /device-management': {
     action: 'view-fleet-mdm',
     locals: {
       pageTitleForMeta: 'TODO | Fleet for osquery',
@@ -311,6 +311,9 @@ module.exports.routes = {
   'GET /handbook/digital-experience/how-to-submit-and-publish-an-article': '/handbook/marketing/how-to-submit-and-publish-an-article',
   'GET /handbook/digital-experience/markdown-guide': '/handbook/marketing/markdown-guide',
   'GET /handbook/quality': '/handbook/engineering#quality',
+  'GET /device-management/fleet-user-stories-f100': '/success-stories/fleet-user-stories-wayfair',
+  'GET /device-management/fleet-user-stories-schrodinger': '/success-stories/fleet-user-stories-wayfair',
+  'GET /device-management/fleet-user-stories-wayfair': '/success-stories/fleet-user-stories-wayfair',
 
 
   //  ╔╦╗╦╔═╗╔═╗  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗   ┬   ╔╦╗╔═╗╦ ╦╔╗╔╦  ╔═╗╔═╗╔╦╗╔═╗
