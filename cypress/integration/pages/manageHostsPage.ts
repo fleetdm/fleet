@@ -9,6 +9,8 @@ const manageHostsPage = {
       .click();
     cy.contains("button", /add secret/i).click();
     cy.contains("button", /save/i).click();
+    // eslint-disable-next-line cypress/no-unnecessary-waiting
+    cy.wait(500);
     cy.contains("button", /done/i).click();
   },
 
