@@ -1,7 +1,7 @@
 /**
  * <scrollable-tweets>
  * -----------------------------------------------------------------------------
- * A button with a built-in loading spinner.
+ * A horizontally scrolling row of tweets with an auto-updating page indicator
  *
  * @type {Component}
  *
