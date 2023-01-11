@@ -236,8 +236,16 @@ spec:
     issuer_uri: ""
     metadata: ""
     metadata_url: ""
-  vulnerability_settings:
-    databases_path: ""
+  vulnerabilities:
+    databases_path: "/tmp/vulndbs"
+    periodicity: 1h
+    cpe_database_url: ""
+    cpe_translations_url: ""
+    cve_feed_prefix_url: ""
+    current_instance_checks: "auto"
+    disable_data_sync: false
+    recent_vulnerability_max_age: 30d
+    disable_win_os_vulnerabilities: false
   webhook_settings:
     failing_policies_webhook:
       destination_url: ""
@@ -623,15 +631,15 @@ A URL that references the identity provider metadata.
 
 #### Vulnerability settings
 
-##### vulnerability_settings.databases_path
+##### vulnerabilities.databases_path
 
 Path to a directory on the local filesystem (accessible to the Fleet server) where the various vulnerability databases will be stored.
 
 - Optional setting, must be set to enable vulnerability detection (string).
-- Default value: "".
+- Default value: "/tmp/vulndb".
 - Config file format:
   ```yaml
-  vulnerability_settings:
+  vulnerabilities:
     databases_path: "/path/to/dir"
   ```
 
