@@ -150,7 +150,7 @@ parasails.registerComponent('scrollableTweets', {
       this.tweetCardWidth = firstTweetCardDiv.clientWidth + 16;
       let usersScreenWidth = window.innerWidth;
       // Get the number of tweets that can be visible on the user's screen
-      this.numberOfTweetsPerPage = Math.floor(usersScreenWidth/this.tweetCardWidth);
+      this.numberOfTweetsPerPage = Math.max(Math.floor(usersScreenWidth/this.tweetCardWidth), 1);
       // Divide the number of tweet cards by the number of tweets that can fit on a users screen
       this.numberOfTweetPages = Math.ceil(this.numberOfTweetCards / this.numberOfTweetsPerPage);
       await this.forceRender();
