@@ -34,7 +34,7 @@ const ViewAllHostsLink = ({
     : endpoint;
 
   return (
-    <Link className={viewAllHostsLinkClass} to={path} title="host-link">
+    <Link className={viewAllHostsLinkClass} to={path}>
       {!condensed && <span>View all hosts</span>}
       <Icon
         name="chevron"
