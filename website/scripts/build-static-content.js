@@ -108,7 +108,7 @@ module.exports = {
               contributorProfiles.push({
                 name: username,
                 handle: username,
-                avatarUrl: 'https://my.feralgoblin.com/cass/200/200?text='+username,
+                avatarUrl: 'https://placekitten.com/200/200',
                 htmlUrl: 'https://github.com/'+encodeURIComponent(username),
               });
             }
