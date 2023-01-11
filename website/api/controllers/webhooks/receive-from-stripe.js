@@ -110,7 +110,7 @@ module.exports = {
       let newLicenseKeyForThisSubscription = await sails.helpers.createLicenseKey.with({
         numberOfHosts: subscriptionForThisEvent.numberOfHosts,
         organization: subscriptionForThisEvent.user.organization,
-        expiresAt: paidInvoiceInformation.period.end,
+        expiresAt: nextBillingAt,
       });
 
       // Update the subscription record
