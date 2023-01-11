@@ -152,7 +152,7 @@ parasails.registerComponent('scrollableTweets', {
       // Get the number of tweets that can be visible on the user's screen
       this.numberOfTweetsPerPage = Math.floor(usersScreenWidth/this.tweetCardWidth);
       // Divide the number of tweet cards by the number of tweets that can fit on a users screen
-      this.numberOfTweetPages = Math.floor(this.numberOfTweetCards / this.numberOfTweetsPerPage);
+      this.numberOfTweetPages = Math.ceil(this.numberOfTweetCards / this.numberOfTweetsPerPage);
       await this.forceRender();
     },
     updateCurrentPageIndicator: function() {
@@ -161,9 +161,8 @@ parasails.registerComponent('scrollableTweets', {
       // Get the amount the tweets div has been scrolled to the left.
       let currentTweetDivScrollAmount = tweetsDiv.scrollLeft;
       // Divide the current amount scrolled by the width of a tweet card, and divide that value by how many tweet cards we can show on a page.
-      let pageThisShouldBe = ((currentTweetDivScrollAmount) / this.tweetCardWidth) / this.numberOfTweetsPerPage;
-      // Round that value to the nearest whole number, if the number rounds to 0, then set it to be 1.
-      let pageToIndicate = Math.round(pageThisShouldBe) > 0 ? Math.round(pageThisShouldBe) + 1 : 1;
+      let pageCurrentlyViewed = ((currentTweetDivScrollAmount) / this.tweetCardWidth) / this.numberOfTweetsPerPage;
+      let pageToIndicate = Math.ceil(pageCurrentlyViewed + 1);
       // Update the currentTweetPage value
       this.currentTweetPage = pageToIndicate;
     },
