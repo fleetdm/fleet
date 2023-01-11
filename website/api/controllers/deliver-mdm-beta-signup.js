@@ -58,7 +58,7 @@ module.exports = {
     .timeout(5000)
     .tolerate(['non200Response', 'requestFailed', {name: 'TimeoutError'}], (err)=>{
       // Note that Zapier responds with a 2xx status code even if something goes wrong, so just because this message is not logged doesn't mean everything is hunky dory.  More info: https://github.com/fleetdm/fleet/pull/6380#issuecomment-1204395762
-      sails.log.warn(`When a user submitted the MDM beta signup form, an error occurred while sending a request to Zapier. Raw error: ${err}`);
+      sails.log.warn(`When a user submitted the MDM beta signup form, an error occurred while sending a request to Zapier. Raw error: ${require('util').inspect(err)}`);
       return;
     });
 
