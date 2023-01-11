@@ -1,6 +1,7 @@
 import React, { useCallback, useContext } from "react";
 import PATHS from "router/paths";
 import { InjectedRouter } from "react-router/lib/Router";
+import ReactTooltip from "react-tooltip";
 
 import { DEFAULT_POLICY, DEFAULT_POLICIES } from "pages/policies/constants";
 
@@ -66,7 +67,33 @@ const AddPolicyModal = ({
         onClick={() => onAddPolicy(policy)}
       >
         <>
-          <span className="info__header">{policy.name}</span>
+          <div className={`${baseClass}__policy-name`}>
+            <span className="info__header">{policy.name}</span>
+            {policy.mdm_required && (
+              <>
+                <a
+                  target="_blank"
+                  rel="noreferrer"
+                  href="https://fleetdm.com/docs/deploying/configuration#mdm-mobile-device-management-in-progress"
+                  className={`${baseClass}__mdm-policy`}
+                  data-tip
+                  data-for={`tooltip-${policy.id}`}
+                >
+                  MDM
+                </a>
+                <ReactTooltip
+                  className={`${baseClass}__mdm-policy-tooltip`}
+                  place="top"
+                  type="dark"
+                  effect="solid"
+                  id={`tooltip-${policy.id}`}
+                  backgroundColor="#3e4771"
+                >
+                  MDM is required to successfully run this policy
+                </ReactTooltip>
+              </>
+            )}
+          </div>
           <span className="info__data">{policy.description}</span>
         </>
       </Button>

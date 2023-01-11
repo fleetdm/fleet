@@ -94,4 +94,5 @@ export interface IPolicyNew {
   resolution: string;
   critical: boolean;
   platform: IPlatformString;
+  mdm_required?: boolean;
 }
