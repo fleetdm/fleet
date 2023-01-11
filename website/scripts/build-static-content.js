@@ -10,10 +10,11 @@ module.exports = {
   inputs: {
     dry: { type: 'boolean', description: 'Whether to make this a dry run.  (.sailsrc file will not be overwritten.  HTML files will not be generated.)' },
     skipGithubRequests: { type: 'boolean', description: 'Whether to minimize requests to the GitHub API which usually can be skipped during local development, such as requests used for fetching GitHub avatar URLs'},
+    githubToken: { type: 'string', description: 'If provided, A GitHub token will be used to authenticate requests to the GitHub API'},
   },
 
 
-  fn: async function ({ dry, skipGithubRequests }) {
+  fn: async function ({ dry, skipGithubRequests, githubToken }) {
 
     let path = require('path');
     let YAML = require('yaml');
@@ -23,6 +24,14 @@ module.exports = {
 
     // The data we're compiling will get built into this dictionary and then written on top of the .sailsrc file.
     let builtStaticContent = {};
+
+    let baseHeadersForGithubRequests = {
+      'User-Agent': 'Fleet-Standard-Query-Library',
+      'Accept': 'application/vnd.github.v3+json',
+    };
+    if(githubToken) {
+      baseHeadersForGithubRequests['Authorization'] = `token ${githubToken}`;
+    }
 
     await sails.helpers.flow.simultaneously([
       async()=>{// Parse query library from YAML and prepare to bake them into the Sails app's configuration.
@@ -106,7 +115,7 @@ module.exports = {
               contributorProfiles.push({
                 name: username,
                 handle: username,
-                avatarUrl: 'https://placekitten.com/200/200',
+                avatarUrl: 'https://my.feralgoblin.com/cass/200/200?text='+username,
                 htmlUrl: 'https://github.com/'+encodeURIComponent(username),
               });
             }
@@ -116,7 +125,7 @@ module.exports = {
           await sails.helpers.flow.simultaneouslyForEach(githubUsernames, async(username)=>{
             githubDataByUsername[username] = await sails.helpers.http.get.with({
               url: 'https://api.github.com/users/' + encodeURIComponent(username),
-              headers: { 'User-Agent': 'Fleet-Standard-Query-Library', Accept: 'application/vnd.github.v3+json' }
+              headers: baseHeadersForGithubRequests,
             }).catch((err)=>{// If the above GET requests return a non 200 response we'll look for signs that the user has hit their GitHub API rate limit.
               if (err.raw.statusCode === 403 && err.raw.headers['x-ratelimit-remaining'] === '0') {// If the user has reached their GitHub API rate limit, we'll throw an error that suggest they run this script with the `--skipGithubRequests` flag.
                 throw new Error('GitHub API rate limit exceeded. If you\'re running this script in a development environment, use the `--skipGithubRequests` flag to skip querying the GitHub API. See full error for more details:\n'+err);
