@@ -269,18 +269,20 @@ func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServ
 	limitStore, _ := memstore.New(0)
 	rootMux := http.NewServeMux()
 
-	mdmStorage := opts[0].MDMStorage
-	scepStorage := opts[0].SCEPStorage
-	if mdmStorage != nil && scepStorage != nil {
-		err := RegisterAppleMDMProtocolServices(
-			rootMux,
-			cfg.MDMApple.SCEP,
-			mdmStorage,
-			scepStorage,
-			logger,
-			&MDMAppleCheckinAndCommandService{ds: ds},
-		)
-		require.NoError(t, err)
+	if len(opts) > 0 {
+		mdmStorage := opts[0].MDMStorage
+		scepStorage := opts[0].SCEPStorage
+		if mdmStorage != nil && scepStorage != nil {
+			err := RegisterAppleMDMProtocolServices(
+				rootMux,
+				cfg.MDMApple.SCEP,
+				mdmStorage,
+				scepStorage,
+				logger,
+				&MDMAppleCheckinAndCommandService{ds: ds},
+			)
+			require.NoError(t, err)
+		}
 	}
 
 	apiHandler := MakeHandler(svc, cfg, logger, limitStore, WithLoginRateLimit(throttled.PerMin(100)))
