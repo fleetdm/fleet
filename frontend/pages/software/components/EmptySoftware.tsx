@@ -6,9 +6,15 @@ import CustomLink from "components/CustomLink";
 
 const baseClass = "manage-software-page";
 
-type IEmptySoftware = "disabled" | "collecting" | "default" | "";
+type IEmptySoftwareProps = {
+  message: "disabled" | "collecting" | "default" | "";
+  noSandboxHosts?: boolean;
+};
 
-const EmptySoftware = (message: IEmptySoftware): JSX.Element => {
+const EmptySoftware = ({
+  message,
+  noSandboxHosts,
+}: IEmptySoftwareProps): JSX.Element => {
   switch (message) {
     case "disabled": {
       return (
@@ -31,8 +37,17 @@ const EmptySoftware = (message: IEmptySoftware): JSX.Element => {
       return (
         <div className={`${baseClass}__empty-software`}>
           <div className="empty-software__inner">
-            <h1>Fleet is collecting software inventory.</h1>
-            <p>Try again in about 1 hour as the system catches up.</p>
+            <h1>
+              {noSandboxHosts
+                ? "Fleet begins collecting software inventory after a host is enrolled"
+                : "Fleet is collecting software inventory"}
+            </h1>
+            <p>
+              Try again in about{" "}
+              {noSandboxHosts
+                ? "5 minutes after host enrollment."
+                : "1 hour as the system catches up."}
+            </p>
           </div>
         </div>
       );
