@@ -831,6 +831,10 @@ None.
   "features": {
     "additional_queries": null
   },
+  "mdm": {
+    "apple_bm_default_team": "",
+    "apple_bm_terms_expired": false
+  },
   "agent_options": {
     "spec": {
       "config": {
@@ -903,6 +907,9 @@ None.
   },
   "integrations": {
     "jira": null
+  },
+  "mdm": {
+    "apple_bm_default_team": ""
   },
   "logging": {
     "debug": false,
@@ -1001,6 +1008,7 @@ Modifies the Fleet's configuration with the supplied information.
 | email                             | string  | body  | _integrations.zendesk[] settings_. The Zendesk user email to use for this Zendesk integration. |
 | api_token                         | string  | body  | _integrations.zendesk[] settings_. The Zendesk API token to use for this Zendesk integration. |
 | group_id                          | integer | body  | _integrations.zendesk[] settings_. The Zendesk group id to use for this integration. Zendesk tickets will be created in this group. |
+| apple_bm_default_team             | string  | body  | _mdm settings_. The default team to use with Apple Business Manager. |
 | additional_queries                | boolean | body  | Whether or not additional queries are enabled on hosts.                                                                                                                                |
 | force                             | bool    | query | Force apply the agent options even if there are validation errors.                                                                                                 |
 | dry_run                           | bool    | query | Validate the configuration and return any validation errors, but do not apply the changes.                                                                         |
@@ -1074,6 +1082,10 @@ Modifies the Fleet's configuration with the supplied information.
     "tier": "free",
     "expiration": "0001-01-01T00:00:00Z"
   },
+  "mdm": {
+    "apple_bm_default_team": "",
+    "apple_bm_terms_expired": false
+  },
   "agent_options": {
     "config": {
       "options": {
@@ -1127,6 +1139,9 @@ Modifies the Fleet's configuration with the supplied information.
         "enable_software_vulnerabilities": false
       }
     ]
+  },
+  "mdm": {
+    "apple_bm_default_team": ""
   },
   "logging": {
       "debug": false,
@@ -1664,6 +1679,7 @@ None.
 
 ## Hosts
 
+- [On the different timestamps in the host data structure](#on-the-different-timestamps-in-the-host-data-structure)
 - [List hosts](#list-hosts)
 - [Count hosts](#count-hosts)
 - [Get hosts summary](#get-hosts-summary)
@@ -1681,6 +1697,29 @@ None.
 - [Get aggregated host's mobile device management (MDM) and Munki information](#get-aggregated-hosts-macadmin-mobile-device-management-mdm-and-munki-information)
 - [Get host OS versions](#get-host-os-versions)
 - [Get hosts report in CSV](#get-hosts-report-in-csv)
+
+### On the different timestamps in the host data structure
+
+Hosts have a set of timestamps usually named with an "_at" suffix, such as created_at, enrolled_at, etc. Before we go 
+through each of them and what they mean, we need to understand a bit more about how the host data structure is 
+represented in the database.
+
+The table `hosts` is the main one. It holds the core data for a host. A host doesn't exist if there is no row for it in 
+this table. This table also holds most of the timestamps, but it doesn't hold all of the host data. This is an important
+detail as we'll see below.
+
+There's adjacent tables to this one that usually follow the name convention `host_<extra data descriptor>`. Examples of 
+this are: `host_additional` that holds additional query results, `host_software` that links a host with many rows from 
+the `software` table.
+
+- `created_at`: the time the row in the database was created, which usually corresponds to the first enrollment of the host.
+- `updated_at`: the last time the row in the database for the `hosts` table was updated.
+- `detail_updated_at`: the last time Fleet updated host data, based on the results from the detail queries (this includes updates to host associated tables, e.g. `host_users`).
+- `label_updated_at`: the last time Fleet updated the label membership for the host based on the results from the queries ran.
+- `last_enrolled_at`: the last time the host enrolled to Fleet.
+- `policy_updated_at`: the last time we updated the policy results for the host based on the queries ran.
+- `seen_time`: the last time the host contacted the fleet server, regardless of what operation it was for.
+- `software_updated_at`: the last time software changed for the host in any way.
 
 ### List hosts
 
@@ -1705,9 +1744,9 @@ None.
 | os_id                   | integer | query | The ID of the operating system to filter hosts by.                                                                                                                                                                                                                                                                                          |
 | os_name                 | string  | query | The name of the operating system to filter hosts by. `os_version` must also be specified with `os_name`                                                                                                                                                                                                                                     |
 | os_version              | string  | query | The version of the operating system to filter hosts by. `os_name` must also be specified with `os_version`                                                                                                                                                                                                                                  |
-| device_mapping          | boolean | query | Indicates whether `device_mapping` should be included for each host. See ["Get host's Google Chrome profiles](#get-host's-google-chrome-profiles) for more information about this feature.                                                                                                                                                  |
+| device_mapping          | boolean | query | Indicates whether `device_mapping` should be included for each host. See ["Get host's Google Chrome profiles](#get-hosts-google-chrome-profiles) for more information about this feature.                                                                                                                                                  |
 | mdm_id                  | integer | query | The ID of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider and URL).                                                                                                                                                                                                |
-| mdm_enrollment_status   | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Can be one of 'manual', 'automatic' or 'unenrolled'.                                                                                                                                                                                                             |
+| mdm_enrollment_status   | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Can be one of 'manual', 'automatic', 'pending', or 'unenrolled'.                                                                                                                                                                                                             |
 | munki_issue_id          | integer | query | The ID of the _munki issue_ (a Munki-reported error or warning message) to filter hosts by (that is, filter hosts that are affected by that corresponding error or warning message).                                                                                                                                                        |
 | low_disk_space          | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts with less GB of disk space available than this value. Must be a number between 1-100.                                                                                                                                                                                  |
 | disable_failing_policies| boolean | query | If "true", hosts will return failing policies as 0 regardless of whether there are any that failed for the host. This is meant to be used when increased performance is needed in exchange for the extra information.                                                                                                                       |
@@ -1750,6 +1789,7 @@ If `after` is being used with `created_at` or `updated_at`, the table must be sp
       "updated_at": "2020-11-05T06:03:39Z",
       "id": 1,
       "detail_updated_at": "2020-11-05T05:09:45Z",
+      "software_updated_at": "2020-11-05T05:09:44Z",
       "label_updated_at": "2020-11-05T05:14:51Z",
       "seen_time": "2020-11-05T06:03:39Z",
       "hostname": "2ceca32fe484",
@@ -1852,7 +1892,7 @@ Response payload with the `munki_issue_id` filter provided:
 | os_version              | string  | query | The version of the operating system to filter hosts by. `os_name` must also be specified with `os_version`                                                                                                                                                                                                                                  |
 | label_id                | integer | query | A valid label ID. Can only be used in combination with `order_key`, `order_direction`, `after`, `status`, `query` and `team_id`.                                                                                                                                                                                                            |
 | mdm_id                  | integer | query | The ID of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider and URL).                                                                                                                                                                                                |
-| mdm_enrollment_status   | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Can be one of 'manual', 'automatic' or 'unenrolled'.                                                                                                                                                                                                             |
+| mdm_enrollment_status   | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Can be one of 'manual', 'automatic', 'pending', or 'unenrolled'.                                                                                                                                                                                                             |
 | munki_issue_id          | integer | query | The ID of the _munki issue_ (a Munki-reported error or warning message) to filter hosts by (that is, filter hosts that are affected by that corresponding error or warning message).                                                                                                                                                        |
 | low_disk_space          | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts with less GB of disk space available than this value. Must be a number between 1-100.                                                                                                                                                                                  |
 
@@ -2029,6 +2069,7 @@ Returns the information of the specified host.
     ],
     "id": 1,
     "detail_updated_at": "2021-08-19T21:07:53Z",
+    "software_updated_at": "2020-11-05T05:09:44Z",
     "label_updated_at": "2021-08-19T21:07:53Z",
     "last_enrolled_at": "2021-08-19T02:02:22Z",
     "seen_time": "2021-08-19T21:14:58Z",
@@ -2218,6 +2259,7 @@ Returns the information of the host specified using the `uuid`, `osquery_host_id
     "label_updated_at": "2022-10-14T17:07:12Z",
     "policy_updated_at": "2022-10-14T17:07:12Z",
     "last_enrolled_at": "2022-02-10T02:29:13Z",
+    "software_updated_at": "2020-11-05T05:09:44Z",
     "seen_time": "2022-10-14T17:45:41Z",
     "refetch_requested": false,
     "hostname": "23cfc9caacf0",
@@ -2577,7 +2619,7 @@ If the host exists but is not enrolled to an MDM server, then this API returns `
 
 ```json
 {
-  "enrollment_status": "Enrolled (automated)",
+  "enrollment_status": "On (automatic)",
   "server_url": "some.mdm.com",
   "name": "Some MDM",
   "id": 3
@@ -2686,7 +2728,7 @@ Retrieves a host's MDM enrollment status, MDM server URL, and Munki version.
       }
     ],
     "mobile_device_management": {
-      "enrollment_status": "Enrolled (automated)",
+      "enrollment_status": "On (automatic)",
       "server_url": "http://some.url/mdm",
       "name": "MDM Vendor Name",
       "id": 999
@@ -2887,7 +2929,7 @@ requested by a web browser.
 | os_name                 | string  | query | The name of the operating system to filter hosts by. `os_version` must also be specified with `os_name`                                                                                                                                                                                                                                     |
 | os_version              | string  | query | The version of the operating system to filter hosts by. `os_name` must also be specified with `os_version`                                                                                                                                                                                                                                  |
 | mdm_id                  | integer | query | The ID of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider and URL).                                                                                                                                                                                                |
-| mdm_enrollment_status   | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Can be one of 'manual', 'automatic' or 'unenrolled'.                                                                                                                                                                                                             |
+| mdm_enrollment_status   | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Can be one of 'manual', 'automatic', 'pending', or 'unenrolled'.                                                                                                                                                                                                             |
 | munki_issue_id          | integer | query | The ID of the _munki issue_ (a Munki-reported error or warning message) to filter hosts by (that is, filter hosts that are affected by that corresponding error or warning message).                                                                                                                                                        |
 | low_disk_space          | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts with less GB of disk space available than this value. Must be a number between 1-100.                                                                                                                                                                                  |
 | label_id                | integer | query | A valid label ID. Can only be used in combination with `order_key`, `order_direction`, `status`, `query` and `team_id`.                                                                                                                                                                                                                     |
@@ -3255,6 +3297,7 @@ Returns a list of the hosts that belong to the specified label.
       "detail_updated_at": "2021-02-03T21:58:10Z",
       "label_updated_at": "2021-02-03T21:58:10Z",
       "last_enrolled_at": "2021-02-03T16:11:43Z",
+      "software_updated_at": "2020-11-05T05:09:44Z",
       "seen_time": "2021-02-03T21:58:20Z",
       "refetch_requested": false,
       "hostname": "floobar42",
@@ -5004,6 +5047,7 @@ The returned lists are filtered based on the hosts the requesting user has acces
         "detail_updated_at": "2021-02-03T21:58:10Z",
         "label_updated_at": "2021-02-03T21:58:10Z",
         "last_enrolled_at": "2021-02-03T16:11:43Z",
+        "software_updated_at": "2020-11-05T05:09:44Z",
         "seen_time": "2021-02-03T21:58:20Z",
         "hostname": "7a2f41482833",
         "uuid": "a2064cef-0000-0000-afb9-283e3c1d487e",
@@ -5042,6 +5086,7 @@ The returned lists are filtered based on the hosts the requesting user has acces
         "detail_updated_at": "2021-02-03T21:58:10Z",
         "label_updated_at": "2021-02-03T21:58:10Z",
         "last_enrolled_at": "2021-02-03T16:11:43Z",
+        "software_updated_at": "2020-11-05T05:09:44Z",
         "seen_time": "2021-02-03T21:58:20Z",
         "hostname": "78c96e72746c",
         "uuid": "a2064cef-0000-0000-afb9-283e3c1d487e",

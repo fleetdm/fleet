@@ -33,7 +33,6 @@ import (
 	"github.com/go-sql-driver/mysql"
 	"github.com/hashicorp/go-multierror"
 	"github.com/jmoiron/sqlx"
-	"github.com/micromdm/nanodep/client"
 	nanodep_client "github.com/micromdm/nanodep/client"
 	nanodep_mysql "github.com/micromdm/nanodep/storage/mysql"
 	nanomdm_mysql "github.com/micromdm/nanomdm/storage/mysql"
@@ -205,7 +204,7 @@ func (s *NanoDEPStorage) RetrieveAuthTokens(ctx context.Context, name string) (*
 //
 // Leaving this unimplemented as DEP auth tokens are not stored in MySQL storage,
 // instead they are loaded to memory at startup.
-func (s *NanoDEPStorage) StoreAuthTokens(ctx context.Context, name string, tokens *client.OAuth1Tokens) error {
+func (s *NanoDEPStorage) StoreAuthTokens(ctx context.Context, name string, tokens *nanodep_client.OAuth1Tokens) error {
 	return errors.New("unimplemented")
 }
 

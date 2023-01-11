@@ -13,19 +13,12 @@
       font-size: $medium;
       font-weight: $regular;
       color: $core-fleet-black;
-      border-bottom: solid 1px $ui-fleet-blue-15;
+      border-bottom: solid 1px $ui-fleet-black-10;
       margin: 0 0 $pad-xxlarge;
-      @media (min-width: $break-990) {
-        max-width: 65%;
-      }
     }
 
     h4 {
       margin-bottom: 0;
-    }
-
-    p {
-      margin: 0;
     }
 
     .mdm-integrations__edit-team-btn {
@@ -49,6 +42,12 @@
     width: 100%;
     @media (min-width: $break-990) {
       width: 60%;
+    }
+  }
+
+  &__section-information {
+    p {
+      margin: 0;
     }
   }
 }

@@ -338,7 +338,6 @@ const TableContainer = ({
             {customControl && customControl()}
           </span>
         </div>
-
         <div className={`${baseClass}__search`}>
           {/* Render search bar only if not empty component */}
           {searchable && !wideSearch && (
