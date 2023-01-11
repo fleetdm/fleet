@@ -108,7 +108,6 @@ const SoftwareTable = ({
     );
   };
 
-  console.log("software?.length", software?.length);
   return (
     <div className="section section--software">
       <p className="section__header">Software</p>
@@ -156,7 +155,10 @@ const SoftwareTable = ({
           )}
         </>
       ) : (
-        <EmptySoftwareTable />
+        <EmptySoftwareTable
+          isSandboxMode={isSandboxMode}
+          isFilterVulnerable={filterVuln}
+        />
       )}
     </div>
   );
