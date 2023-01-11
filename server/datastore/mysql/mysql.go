@@ -773,11 +773,21 @@ func appendLimitOffsetToSelect(ds *goqu.SelectDataset, opts fleet.ListOptions) *
 	return ds
 }
 
+// Appends the list options SQL to the passed in SQL string. This appended
+// SQL is determined by the passed in options.
+//
+// NOTE: this method will mutate the options argument if no explicit PerPage
+// option is set (a default value will be provided) or if the cursor approach is used.
 func appendListOptionsToSQL(sql string, opts *fleet.ListOptions) string {
 	sql, _ = appendListOptionsWithCursorToSQL(sql, nil, opts)
 	return sql
 }
 
+// Appends the list options SQL to the passed in SQL string. This appended
+// SQL is determined by the passed in options. This supports cursor options
+//
+// NOTE: this method will mutate the options argument if no explicit PerPage option
+// is set (a default value will be provided) or if the cursor approach is used.
 func appendListOptionsWithCursorToSQL(sql string, params []interface{}, opts *fleet.ListOptions) (string, []interface{}) {
 	orderKey := sanitizeColumn(opts.OrderKey)
 
