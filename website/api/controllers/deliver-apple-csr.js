@@ -1,10 +1,10 @@
 module.exports = {
 
 
-  friendlyName: 'Deliver signed CSR for APNS',
+  friendlyName: 'Deliver Apple CSR.',
 
 
-  description: 'Generates and delivers a signed certificate signing request to a user.',
+  description: 'Generates and delivers a signed certificate signing request to a requesting user\'s email address.',
 
   extendedDescription: 'Uses the mdm-gen-cert binary to generate a signed CSR for the user and sends the result to the requesting user\'s email address',
 
@@ -81,8 +81,8 @@ module.exports = {
         VENDOR_KEY_PASSPHRASE: sails.config.custom.mdmVendorKeyPassphrase,
         CSR_BASE64: csr
       },
-    }).catch((err)=>{
-      throw new Error(`When trying to generate a signed CSR for a user, an error occured. Full error: ${err}`);
+    }).intercept((err)=>{
+      return new Error(`When trying to generate a signed CSR for a user, an error occured while running the mdm-gen-cert command. Full error: ${err}`);
     });
 
     // Parse the JSON result from the mdm-gen-cert command
@@ -90,15 +90,15 @@ module.exports = {
 
     // Throw an error if the result from the mdm-gen-cert command is missing an email value.
     if(!generateCertificateResult.email) {
-      throw new Error('The result from the mdm-gen-cert command did not contain a email');
+      throw new Error('When trying to generate a signed CSR for a user, the result from the mdm-gen-cert command did not contain a email.');
     }
     // Throw an error if the result from the mdm-gen-cert command is missing an org value.
     if(!generateCertificateResult.org) {
-      throw new Error('The result from the mdm-gen-cert command did not contain an organization name');
+      throw new Error('When trying to generate a signed CSR for a user, the result from the mdm-gen-cert command did not contain an organization name');
     }
     // Throw an error if the result from the mdm-gen-cert command is missing an result value.
     if(!generateCertificateResult.result) {
-      throw new Error('The result from the mdm-gen-cert command did not contain a certificate');
+      throw new Error('When trying to generate a signed CSR for a user, the result from the mdm-gen-cert command did not contain a certificate');
     }
 
     // Get the domain from the provided email
@@ -128,10 +128,9 @@ module.exports = {
         name: 'apple-apns-request.txt',
         type: 'text/plain',
       }],
-    }).catch((err)=>{
-      throw new Error(`When trying to send a signed CSR to a user (${generateCertificateResult.email}), an error occured. Full error: ${err}`);
+    }).intercept((err)=>{
+      return new Error(`When trying to send a signed CSR to a user (${generateCertificateResult.email}), an error occured. Full error: ${err}`);
     });
-
 
     // Send a message to the #mdm-csr-signups channel
     await sails.helpers.http.post(sails.config.custom.slackWebhookUrlForMDMSignups, {

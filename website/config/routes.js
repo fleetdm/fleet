@@ -390,5 +390,5 @@ module.exports.routes = {
   '/api/v1/unsubscribe-from-all-newsletters': { action: 'unsubscribe-from-all-newsletters' },
   'POST /api/v1/admin/generate-license-key': { action: 'admin/generate-license-key' },
   'POST /api/v1/create-vanta-authorization-request': { action: 'create-vanta-authorization-request' },
-  'POST /api/v1/get_signed_apns_csr ': { action: 'deliver-signed-csr-for-apns', csrf: false},
+  'POST /api/v1/deliver-apple-csr ': { action: 'deliver-apple-csr', csrf: false},
 };

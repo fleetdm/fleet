@@ -47,6 +47,6 @@ module.exports.policies = {
   'view-connect-vanta': true,
   'view-vanta-authorization': true,
   'create-vanta-authorization-request': true,
-  'deliver-signed-csr-for-apns': true,
+  'deliver-apple-csr': true,
 
 };
