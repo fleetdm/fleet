@@ -9,22 +9,24 @@ module.exports = {
 
   inputs: {
 
-    fullName: {
-      required: true,
-      type: 'string',
-      description: 'The name provided when a user submitted the mdm beta signup form',
-    },
-    jobTitle: {
-      required: true,
-      type: 'string',
-      description: 'The job title provided when a user submitted the mdm beta signup form',
-    },
     emailAddress: {
       required: true,
       type: 'string',
       description: 'The email address provided when a user submitted the mdm beta signup form.',
       example: 'hermione@hogwarts.edu'
-    }
+    },
+
+    fullName: {
+      required: true,
+      type: 'string',
+      description: 'The name provided when a user submitted the mdm beta signup form',
+    },
+
+    jobTitle: {
+      required: true,
+      type: 'string',
+      description: 'The job title provided when a user submitted the mdm beta signup form',
+    },
   },
 
 
@@ -39,8 +41,8 @@ module.exports = {
 
   fn: async function({emailAddress, fullName, jobTitle}) {
 
-    if(!sails.config.custom.zapierMdmWebhookSecret) {
-      throw new Error('Message not delivered: zapierMdmWebhookSecret needs to be configured in sails.config.custom.');
+    if(!sails.config.custom.zapierSandboxWebhookSecret) {
+      throw new Error('Message not delivered: zapierSandboxWebhookSecret needs to be configured in sails.config.custom.');
     }
 
     // Send a POST request to Zapier
@@ -50,7 +52,7 @@ module.exports = {
         'emailAddress': emailAddress,
         'fullName': fullName,
         'jobTitle': jobTitle,
-        'webhookSecret': sails.config.custom.zapierMdmWebhookSecret
+        'webhookSecret': sails.config.custom.zapierSandboxWebhookSecret
       }
     )
     .timeout(5000)
