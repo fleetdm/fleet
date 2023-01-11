@@ -22,7 +22,7 @@ module.exports = {
     expiresAt: {
       type: 'number',
       required: true,
-      description: 'A JS Timestamp representing when this license will expire.'
+      description: 'A Epoch timestamp (seconds) representing when this license will expire.'
     }
 
   },
