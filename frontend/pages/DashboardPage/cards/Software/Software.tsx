@@ -1,9 +1,10 @@
-import React from "react";
+import React, { useContext } from "react";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 import { Row } from "react-table";
 import { InjectedRouter } from "react-router";
 import PATHS from "router/paths";
 
+import { AppContext } from "context/app";
 import { buildQueryStringFromParams } from "utilities/url";
 
 import TabsWrapper from "components/TabsWrapper";
@@ -52,6 +53,8 @@ const Software = ({
   software,
   router,
 }: ISoftwareCardProps): JSX.Element => {
+  const { noSandboxHosts } = useContext(AppContext);
+
   const tableHeaders = generateTableHeaders();
 
   const handleRowSelect = (row: IRowProps) => {
@@ -95,7 +98,7 @@ const Software = ({
                   resultsTitle={"software"}
                   emptyComponent={() => (
                     <EmptySoftwareTable
-                      isCollectingSoftware={isCollectingInventory}
+                      isCollectingSoftware={isCollectingInventory} noSandboxHosts={noSandboxHosts}
                     />
                   )}
                   showMarkAllPages={false}
@@ -123,7 +126,7 @@ const Software = ({
                   resultsTitle={"software"}
                   emptyComponent={() => (
                     <EmptySoftwareTable
-                      isCollectingSoftware={isCollectingInventory}
+                      isCollectingSoftware={isCollectingInventory} noSandboxHosts={noSandboxHosts}
                       isFilterVulnerable
                     />
                   )}
