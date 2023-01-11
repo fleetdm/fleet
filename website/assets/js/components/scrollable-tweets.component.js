@@ -163,6 +163,9 @@ parasails.registerComponent('scrollableTweets', {
       // Divide the current amount scrolled by the width of a tweet card, and divide that value by how many tweet cards we can show on a page.
       let pageCurrentlyViewed = ((currentTweetDivScrollAmount) / this.tweetCardWidth) / this.numberOfTweetsPerPage;
       let pageToIndicate = Math.ceil(pageCurrentlyViewed + 1);
+      if(pageToIndicate > this.numberOfTweetPages){
+        pageToIndicate = this.numberOfTweetPages;
+      }
       // Update the currentTweetPage value
       this.currentTweetPage = pageToIndicate;
     },
