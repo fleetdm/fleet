@@ -436,15 +436,11 @@ func applyPolicySpecsEndpoint(ctx context.Context, request interface{}, svc flee
 	return applyPolicySpecsResponse{}, nil
 }
 
-// TODO: add tests for activities?
-func (svc *Service) ApplyPolicySpecs(ctx context.Context, policies []*fleet.PolicySpec) error {
+// checkPolicySpecAuthorization verifies that the user is authorized to modify the
+// policies defined in the spec.
+func (svc *Service) checkPolicySpecAuthorization(ctx context.Context, policies []*fleet.PolicySpec) error {
 	checkGlobalPolicyAuth := false
 	for _, policy := range policies {
-		if err := policy.Verify(); err != nil {
-			return ctxerr.Wrap(ctx, &fleet.BadRequestError{
-				Message: fmt.Sprintf("policy spec payload verification: %s", err),
-			})
-		}
 		if policy.Team != "" {
 			team, err := svc.ds.TeamByName(ctx, policy.Team)
 			if err != nil {
@@ -455,7 +451,7 @@ func (svc *Service) ApplyPolicySpecs(ctx context.Context, policies []*fleet.Poli
 					TeamID: &team.ID,
 				},
 			}, fleet.ActionWrite); err != nil {
-				return err
+				return ctxerr.Wrap(ctx, err)
 			}
 		} else {
 			checkGlobalPolicyAuth = true
@@ -463,9 +459,27 @@ func (svc *Service) ApplyPolicySpecs(ctx context.Context, policies []*fleet.Poli
 	}
 	if checkGlobalPolicyAuth {
 		if err := svc.authz.Authorize(ctx, &fleet.Policy{}, fleet.ActionWrite); err != nil {
-			return err
+			return ctxerr.Wrap(ctx, err)
 		}
 	}
+	return nil
+}
+
+func (svc *Service) ApplyPolicySpecs(ctx context.Context, policies []*fleet.PolicySpec) error {
+	// Check authorization first.
+	if err := svc.checkPolicySpecAuthorization(ctx, policies); err != nil {
+		return ctxerr.Wrap(ctx, err)
+	}
+
+	// After the authorization check, check the policy fields.
+	for _, policy := range policies {
+		if err := policy.Verify(); err != nil {
+			return ctxerr.Wrap(ctx, &fleet.BadRequestError{
+				Message: fmt.Sprintf("policy spec payload verification: %s", err),
+			})
+		}
+	}
+
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
 		return errors.New("user must be authenticated to apply policies")
