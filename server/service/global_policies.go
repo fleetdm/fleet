@@ -451,7 +451,7 @@ func (svc *Service) checkPolicySpecAuthorization(ctx context.Context, policies [
 					TeamID: &team.ID,
 				},
 			}, fleet.ActionWrite); err != nil {
-				return ctxerr.Wrap(ctx, err)
+				return err
 			}
 		} else {
 			checkGlobalPolicyAuth = true
@@ -459,7 +459,7 @@ func (svc *Service) checkPolicySpecAuthorization(ctx context.Context, policies [
 	}
 	if checkGlobalPolicyAuth {
 		if err := svc.authz.Authorize(ctx, &fleet.Policy{}, fleet.ActionWrite); err != nil {
-			return ctxerr.Wrap(ctx, err)
+			return err
 		}
 	}
 	return nil
@@ -468,7 +468,7 @@ func (svc *Service) checkPolicySpecAuthorization(ctx context.Context, policies [
 func (svc *Service) ApplyPolicySpecs(ctx context.Context, policies []*fleet.PolicySpec) error {
 	// Check authorization first.
 	if err := svc.checkPolicySpecAuthorization(ctx, policies); err != nil {
-		return ctxerr.Wrap(ctx, err)
+		return err
 	}
 
 	// After the authorization check, check the policy fields.
