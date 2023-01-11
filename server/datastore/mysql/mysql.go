@@ -773,12 +773,12 @@ func appendLimitOffsetToSelect(ds *goqu.SelectDataset, opts fleet.ListOptions) *
 	return ds
 }
 
-func appendListOptionsToSQL(sql string, opts fleet.ListOptions) string {
+func appendListOptionsToSQL(sql string, opts *fleet.ListOptions) string {
 	sql, _ = appendListOptionsWithCursorToSQL(sql, nil, opts)
 	return sql
 }
 
-func appendListOptionsWithCursorToSQL(sql string, params []interface{}, opts fleet.ListOptions) (string, []interface{}) {
+func appendListOptionsWithCursorToSQL(sql string, params []interface{}, opts *fleet.ListOptions) (string, []interface{}) {
 	orderKey := sanitizeColumn(opts.OrderKey)
 
 	if opts.After != "" && orderKey != "" {
@@ -810,14 +810,18 @@ func appendListOptionsWithCursorToSQL(sql string, params []interface{}, opts fle
 
 		sql = fmt.Sprintf("%s ORDER BY %s %s", sql, orderKey, direction)
 	}
-	// REVIEW: If caller doesn't supply a limit apply a default limit of 1000
-	// to insure that an unbounded query with many results doesn't consume too
-	// much memory or hang
+	// REVIEW: If caller doesn't supply a limit apply a default limit to insure
+	// that an unbounded query with many results doesn't consume too much memory
+	// or hang
 	if opts.PerPage == 0 {
 		opts.PerPage = defaultSelectLimit
 	}
 
-	sql = fmt.Sprintf("%s LIMIT %d", sql, opts.PerPage)
+	perPage := opts.PerPage
+	if opts.IncludeMetadata {
+		perPage++
+	}
+	sql = fmt.Sprintf("%s LIMIT %d", sql, perPage)
 
 	offset := opts.PerPage * opts.Page
 

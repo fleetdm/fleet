@@ -1,0 +1,2 @@
+- add `meta` attribute to `GET /activities` endpointthat includes pagination metadata. fix edge case
+  on UI for pagination buttons on activities card.

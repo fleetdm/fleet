@@ -289,7 +289,7 @@ func (ds *Datastore) ListLabels(ctx context.Context, filter fleet.TeamFilter, op
 		`, ds.whereFilterHostsByTeams(filter, "h"),
 	)
 
-	query = appendListOptionsToSQL(query, opt)
+	query = appendListOptionsToSQL(query, &opt)
 	labels := []*fleet.Label{}
 
 	if err := sqlx.SelectContext(ctx, ds.reader, &labels, query); err != nil {
@@ -562,7 +562,7 @@ func (ds *Datastore) applyHostLabelFilters(filter fleet.TeamFilter, lid uint, qu
 	query, params = filterHostsByMDM(query, opt, params)
 	query, params = searchLike(query, params, opt.MatchQuery, hostSearchColumns...)
 
-	query = appendListOptionsToSQL(query, opt.ListOptions)
+	query = appendListOptionsToSQL(query, &opt.ListOptions)
 	return query, params
 }
 
