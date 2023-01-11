@@ -14,7 +14,7 @@ module.exports = {
   },
 
 
-  fn: async function ({ dry, skipGithubRequests, githubToken }) {
+  fn: async function ({ dry, skipGithubRequests, githubAccessToken }) {
 
     let path = require('path');
     let YAML = require('yaml');
@@ -123,7 +123,7 @@ module.exports = {
 
           if(githubAccessToken) {
             // If a GitHub access token was provided, add it to the baseHeadersForGithubRequests object.
-            baseHeadersForGithubRequests['Authorization'] = `token ${githubToken}`;
+            baseHeadersForGithubRequests['Authorization'] = `token ${githubAccessToken}`;
           }
           await sails.helpers.flow.simultaneouslyForEach(githubUsernames, async(username)=>{
             githubDataByUsername[username] = await sails.helpers.http.get.with({
