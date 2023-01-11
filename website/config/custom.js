@@ -116,6 +116,8 @@ module.exports.custom = {
     'website/assets': 'eashaw',
     'website/config/routes.js': ['eashaw', 'mike-j-thomas', 'jarodreyes'],// (for managing website URLs)
     'website/package.json': 'eashaw',
+    '.github/workflows/deploy-fleet-website.yml': ['eashaw','mikermcneil'],// (website deploy script)
+    '.github/workflows/test-website.yml': ['eashaw','mikermcneil'],// (website CI test script)
 
     'docs': ['chris-mcgillicuddy', 'zwass', 'mikermcneil', 'zhumo', 'jarodreyes', 'ksatter'],// (default for docs)
     'docs/images': ['chris-mcgillicuddy', 'noahtalerman', 'eashaw', 'mike-j-thomas'],
