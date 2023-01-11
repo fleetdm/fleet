@@ -10,7 +10,7 @@ module.exports = {
   inputs: {
     dry: { type: 'boolean', description: 'Whether to make this a dry run.  (.sailsrc file will not be overwritten.  HTML files will not be generated.)' },
     skipGithubRequests: { type: 'boolean', description: 'Whether to minimize requests to the GitHub API which usually can be skipped during local development, such as requests used for fetching GitHub avatar URLs'},
-    githubToken: { type: 'string', description: 'If provided, A GitHub token will be used to authenticate requests to the GitHub API'},
+    githubAccessToken: { type: 'string', description: 'If provided, A GitHub token will be used to authenticate requests to the GitHub API'},
   },
 
 
@@ -25,13 +25,6 @@ module.exports = {
     // The data we're compiling will get built into this dictionary and then written on top of the .sailsrc file.
     let builtStaticContent = {};
 
-    let baseHeadersForGithubRequests = {
-      'User-Agent': 'Fleet-Standard-Query-Library',
-      'Accept': 'application/vnd.github.v3+json',
-    };
-    if(githubToken) {
-      baseHeadersForGithubRequests['Authorization'] = `token ${githubToken}`;
-    }
 
     await sails.helpers.flow.simultaneously([
       async()=>{// Parse query library from YAML and prepare to bake them into the Sails app's configuration.
@@ -122,6 +115,16 @@ module.exports = {
             query.contributors = contributorProfiles;
           }
         } else {// If the --skipGithubRequests flag was not provided, we'll query GitHub's API to get additional information about each contributor.
+
+          let baseHeadersForGithubRequests = {
+            'User-Agent': 'Fleet-Standard-Query-Library',
+            'Accept': 'application/vnd.github.v3+json',
+          };
+
+          if(githubAccessToken) {
+            // If a GitHub access token was provided, add it to the baseHeadersForGithubRequests object.
+            baseHeadersForGithubRequests['Authorization'] = `token ${githubToken}`;
+          }
           await sails.helpers.flow.simultaneouslyForEach(githubUsernames, async(username)=>{
             githubDataByUsername[username] = await sails.helpers.http.get.with({
               url: 'https://api.github.com/users/' + encodeURIComponent(username),
