@@ -123,18 +123,18 @@
       <ajax-form action="deliverMdmBetaSignup" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-data="formData" :form-rules="formRules" :form-errors.sync="formErrors" @submitted="submittedForm()">
           <div class="form-group">
             <label for="fullName">Name</label>
-            <input class="form-control" id="fullName" :class="[formErrors.fullName ? 'is-invalid' : '']" v-model.trim="formData.fullName">
+            <input class="form-control" id="fullName" :class="[formErrors.fullName ? 'is-invalid' : '']" v-model.trim="formData.fullName" @input="typeClearOneFormError('fullName')">
             <div class="invalid-feedback" v-if="formErrors.fullName">Please enter your name.</div>
           </div>
           <div class="form-group">
             <label for="emailAddress">Email</label>
-            <input class="form-control" id="emailAddress" :class="[formErrors.emailAddress ? 'is-invalid' : '']" v-model.trim="formData.emailAddress">
-            <div class="invalid-feedback" v-if="formErrors.emailAddress">Please enter your email address.</div>
+            <input class="form-control" id="emailAddress" :class="[formErrors.emailAddress ? 'is-invalid' : '']" v-model.trim="formData.emailAddress" @input="typeClearOneFormError('emailAddress')">
+            <div class="invalid-feedback" v-if="formErrors.emailAddress" focus-first>This doesn’t appear to be a valid email address</div>
           </div>
           <div class="form-group">
             <label for="jobTitle">Job Title</label>
-            <input class="form-control" id="jobTitle" :class="[formErrors.jobTitle ? 'is-invalid' : '']" v-model.trim="formData.jobTitle">
-            <div class="invalid-feedback" v-if="formErrors.jobTitle">Please enter your Job title.</div>
+            <input class="form-control" id="jobTitle" :class="[formErrors.jobTitle ? 'is-invalid' : '']" v-model.trim="formData.jobTitle" @input="typeClearOneFormError('jobTitle')">
+            <div class="invalid-feedback" v-if="formErrors.jobTitle">Please enter your job title.</div>
           </div>
           <cloud-error v-if="cloudError"></cloud-error>
         <div class="border-0 justify-content-center">
