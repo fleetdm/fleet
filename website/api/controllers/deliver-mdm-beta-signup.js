@@ -13,7 +13,6 @@ module.exports = {
       required: true,
       type: 'string',
       description: 'The name provided when a user submitted the mdm beta signup form',
-      example: 'hermione@hogwarts.edu'
     },
     jobTitle: {
       required: true,
