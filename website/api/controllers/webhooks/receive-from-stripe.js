@@ -116,7 +116,7 @@ module.exports = {
       // Update the subscription record
       await Subscription.updateOne({id: subscriptionForThisEvent.id}).set({
         fleetLicenseKey: newLicenseKeyForThisSubscription,
-        nextBillingAt: nextBillingAt;
+        nextBillingAt: nextBillingAt
       });
 
       // Send subscription renewal email
