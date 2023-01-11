@@ -152,7 +152,7 @@ resource "helm_release" "main" {
 
   set {
     name  = "replicas"
-    value = "2"
+    value = "1"
   }
 
   set {
