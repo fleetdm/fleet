@@ -72,6 +72,17 @@
       justify-content: center;
       align-items: center;
       color: #FFF;
+      position: relative;
+    }
+    [purpose='mdm-beta-button']::before {
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0) 100%);
+      content: ' ';
+      position: absolute;
+      top: 0;
+      left: -5px;
+      width: 55%;
+      height: 100%;
+      transform: skew(-10deg);
     }
     [purpose='animated-arrow-button-red'] {
       display: inline;
