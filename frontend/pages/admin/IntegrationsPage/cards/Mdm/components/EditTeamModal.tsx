@@ -20,31 +20,27 @@ const EditTeamModal = ({
   onCancel,
   currentDefaultTeamName,
 }: IEditTeamModal): JSX.Element => {
-  // availableTeams: Array<ITeamSummary>
   const { availableTeams } = useContext(AppContext);
 
   const teamNameOptions = availableTeams?.map((teamSummary) => {
     return { value: teamSummary.name, label: teamSummary.name };
   });
 
-  const [defaultTeamName, setDefaultTeamName] = useState<string | undefined>(
+  const [defaultTeamName, setDefaultTeamName] = useState(
     currentDefaultTeamName
   );
 
-  const [requestState, setRequestState] = useState<"loading" | undefined>(
-    undefined
-  );
+  const [isLoading, setIsLoading] = useState(false);
 
-  const onFormSubmit = async (event: FormEvent): Promise<void> => {
+  const onFormSubmit = async (event: FormEvent) => {
     event.preventDefault();
     try {
-      setRequestState("loading");
-      const response = await configAPI.update({
+      setIsLoading(true);
+      await configAPI.update({
         mdm: { apple_bm_default_team: defaultTeamName },
       });
-      setRequestState(undefined);
-      onCancel();
-    } catch {
+      setIsLoading(false);
+    } finally {
       onCancel();
     }
   };
@@ -66,11 +62,7 @@ const EditTeamModal = ({
           </p>
         </div>
         <div className="modal-cta-wrap">
-          <Button
-            type="submit"
-            variant="brand"
-            isLoading={requestState === "loading"}
-          >
+          <Button type="submit" variant="brand" isLoading={isLoading}>
             Save
           </Button>
           <Button onClick={onCancel} variant="inverse">

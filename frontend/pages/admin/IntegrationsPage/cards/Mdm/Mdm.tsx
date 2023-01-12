@@ -285,7 +285,7 @@ const Mdm = (): JSX.Element => {
       {showEditTeamModal && (
         <EditTeamModal
           onCancel={toggleEditTeamModal}
-          currentDefaultTeamName={mdmAppleBm?.default_team ?? "No default team"}
+          currentDefaultTeamName={mdmAppleBm?.default_team}
         />
       )}
     </div>
