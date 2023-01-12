@@ -1,7 +1,6 @@
 import React, { ReactChild, useContext } from "react";
 import classnames from "classnames";
 import { formatDistanceToNow } from "date-fns";
-import { InjectedRouter } from "react-router";
 
 import SandboxExpiryMessage from "components/Sandbox/SandboxExpiryMessage";
 import AppleBMTermsMessage from "components/MDM/AppleBMTermsMessage";
@@ -15,7 +14,6 @@ interface IMainContentProps {
    * This can be used to apply styles directly onto the main content div
    */
   className?: string;
-  router: InjectedRouter;
 }
 
 const baseClass = "main-content";
@@ -27,23 +25,28 @@ const baseClass = "main-content";
 const MainContent = ({
   children,
   className,
-  router,
 }: IMainContentProps): JSX.Element => {
   const classes = classnames(baseClass, className);
-  const { sandboxExpiry, config } = useContext(AppContext);
+  const { sandboxExpiry, config, isSandboxMode, isPremiumTier } = useContext(
+    AppContext
+  );
 
-  const appleBmTermsExpired = config?.mdm.apple_bm_terms_expired || false;
+  const isAppleBmTermsExpired = config?.mdm?.apple_bm_terms_expired;
 
-  const expiry =
+  const sandboxExpiryTime =
     sandboxExpiry === undefined
       ? "..."
       : formatDistanceToNow(new Date(sandboxExpiry));
 
   return (
     <div className={classes}>
-      {appleBmTermsExpired && <AppleBMTermsMessage router={router} />}
+      {isAppleBmTermsExpired && isPremiumTier && !isSandboxMode && (
+        <AppleBMTermsMessage />
+      )}
       <SandboxGate
-        fallbackComponent={() => <SandboxExpiryMessage expiry={expiry} />}
+        fallbackComponent={() => (
+          <SandboxExpiryMessage expiry={sandboxExpiryTime} />
+        )}
       />
       {children}
     </div>

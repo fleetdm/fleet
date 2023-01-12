@@ -150,7 +150,7 @@ const ManagePacksPage = ({ router }: IManagePacksPageProps): JSX.Element => {
   };
 
   return (
-    <MainContent className={baseClass} router={router}>
+    <MainContent className={baseClass}>
       <div className={`${baseClass}__wrapper`}>
         <div className={`${baseClass}__header-wrap`}>
           <div className={`${baseClass}__header`}>

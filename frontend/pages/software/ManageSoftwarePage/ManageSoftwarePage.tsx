@@ -573,7 +573,7 @@ const ManageSoftwarePage = ({
     (!softwareConfig && !softwareConfigError) ? (
     <Spinner />
   ) : (
-    <MainContent router={router}>
+    <MainContent>
       <div className={`${baseClass}__wrapper`}>
         {renderHeader()}
         <div className={`${baseClass}__table`}>

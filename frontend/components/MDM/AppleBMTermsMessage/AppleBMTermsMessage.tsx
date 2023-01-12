@@ -1,43 +1,36 @@
 import React from "react";
 
 import PATHS from "router/paths";
-import { InjectedRouter } from "react-router";
+import { browserHistory } from "react-router";
 import Button from "components/buttons/Button";
-
-import ExternalLinkIcon from "../../../../assets/images/icon-external-link-black-12x12@2x.png";
+import CustomLink from "components/CustomLink";
 
 const baseClass = "apple-bm-terms-message";
 
-interface IAppleBMTermsMessage {
-  router: InjectedRouter; // v3
-}
-
-const AppleBMTermsMessage = ({ router }: IAppleBMTermsMessage) => {
+const AppleBMTermsMessage = () => {
   const onClick = (): void => {
-    router.push(PATHS.MANAGE_HOSTS);
+    browserHistory.push(PATHS.MANAGE_HOSTS);
   };
 
   return (
-    <a
-      href="https://business.apple.com/"
-      target="_blank"
-      rel="noreferrer"
-      className={baseClass}
-    >
+    <div className={baseClass}>
       <p>
         Your organization can’t automatically enroll macOS hosts until you
         accept the new terms and conditions for Apple Business Manager (ABM). An
         ABM administrator can accept these terms. Done?{" "}
-        <Button onClick={onClick} variant="text-link">
+        <Button onClick={onClick} variant="unstyled">
           Go to Hosts
         </Button>{" "}
         to remove this banner.
       </p>
-      <span>
-        Go to ABM
-        <img alt="Open external link" src={ExternalLinkIcon} />
-      </span>
-    </a>
+      <CustomLink
+        url="https://business.apple.com/"
+        text="Go to ABM"
+        className={`${baseClass}__new-tab`}
+        newTab
+        black
+      />
+    </div>
   );
 };
 

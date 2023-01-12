@@ -224,7 +224,7 @@ const UserSettingsPage = ({
 
   return (
     <>
-      <MainContent className={baseClass} router={router}>
+      <MainContent className={baseClass}>
         <SandboxGate
           fallbackComponent={() => (
             <SandboxDemoMessage

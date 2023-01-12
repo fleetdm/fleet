@@ -650,7 +650,7 @@ const DashboardPage = ({
   };
 
   return (
-    <MainContent className={baseClass} router={router}>
+    <MainContent className={baseClass}>
       <div className={`${baseClass}__wrapper`}>
         <div className={`${baseClass}__header`}>
           <div className={`${baseClass}__text`}>

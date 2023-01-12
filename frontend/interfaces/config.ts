@@ -43,9 +43,9 @@ export default PropTypes.shape({
   organization: PropTypes.string,
   device_count: PropTypes.number,
   expiration: PropTypes.string,
-  mdm: {
+  mdm: PropTypes.shape({
     apple_bm_terms_expired: PropTypes.bool,
-  },
+  }),
   note: PropTypes.string,
   // vulnerability_settings: PropTypes.any, TODO
   enable_host_status_webhook: PropTypes.bool,

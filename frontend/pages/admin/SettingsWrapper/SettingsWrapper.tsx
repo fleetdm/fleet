@@ -70,7 +70,7 @@ const SettingsWrapper = ({
   const classNames = classnames(baseClass, { "sandbox-mode": isSandboxMode });
 
   return (
-    <MainContent className={classNames} router={router}>
+    <MainContent className={classNames}>
       <div className={`${baseClass}_wrapper`}>
         <TabsWrapper>
           <h1>Settings</h1>

@@ -181,7 +181,7 @@ const LabelPage = ({
 
   return (
     <>
-      <MainContent className={baseClass} router={router}>
+      <MainContent className={baseClass}>
         <div className={`${baseClass}__wrapper`}>
           {isLoading ? (
             <Spinner />

@@ -355,7 +355,7 @@ const ManagePolicyPage = ({
   return !availableTeams ? (
     <Spinner />
   ) : (
-    <MainContent className={baseClass} router={router}>
+    <MainContent className={baseClass}>
       <div className={`${baseClass}__wrapper`}>
         <div className={`${baseClass}__header-wrap`}>
           <div className={`${baseClass}__header`}>

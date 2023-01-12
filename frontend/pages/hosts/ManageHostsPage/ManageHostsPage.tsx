@@ -1850,7 +1850,7 @@ const ManageHostsPage = ({
 
   return (
     <>
-      <MainContent router={router}>
+      <MainContent>
         <div className={`${baseClass}`}>
           <div className="header-wrap">
             {renderHeader()}

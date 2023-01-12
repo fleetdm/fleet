@@ -624,7 +624,7 @@ const HostDetailsPage = ({
   };
 
   return (
-    <MainContent className={baseClass} router={router}>
+    <MainContent className={baseClass}>
       <div className={`${baseClass}__wrapper`}>
         <div className={`${baseClass}__header-links`}>
           <BackLink text="Back to all hosts" path={filteredHostsPath} />
