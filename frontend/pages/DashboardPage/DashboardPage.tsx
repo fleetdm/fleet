@@ -590,7 +590,7 @@ const DashboardPage = ({
               {LearnFleetCard}
             </>
           )}
-        {!software && SoftwareCard}
+        {software?.software && SoftwareCard}
         {!currentTeam && isOnGlobalTeam && <>{ActivityFeedCard}</>}
         {showMdmCard && <>{MDMCard}</>}
       </div>
