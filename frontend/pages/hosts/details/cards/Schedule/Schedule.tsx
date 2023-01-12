@@ -2,9 +2,9 @@ import React from "react";
 
 import { IQueryStats } from "interfaces/query_stats";
 import TableContainer from "components/TableContainer";
+import EmptyTable from "components/EmptyTable";
 
 import { generateTableHeaders, generateDataSet } from "./ScheduleTableConfig";
-import EmptyTable from "components/EmptyTable";
 
 const baseClass = "schedule";
 
