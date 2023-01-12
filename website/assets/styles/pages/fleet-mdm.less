@@ -76,14 +76,22 @@
     }
     [purpose='mdm-beta-button']::before {
       background: linear-gradient(180deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0) 100%);
+      opacity: 1;
       content: ' ';
       position: absolute;
       top: 0;
       left: -5px;
-      width: 55%;
+      width: 50%;
       height: 100%;
       transform: skew(-10deg);
+      transition: left 0.5s ease-in, opacity 0.50s ease-in, width 0.5s ease-in;
     }
+    [purpose='mdm-beta-button']:hover:before {
+      opacity: 0;
+      left: 160px;
+      width: 110%;
+    }
+
     [purpose='animated-arrow-button-red'] {
       display: inline;
       padding-right: 40px;
