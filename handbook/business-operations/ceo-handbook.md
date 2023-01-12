@@ -25,7 +25,7 @@ If you don’t share a meeting with Mike, please post in the #help-ceo channel w
 “Emergency” requests must be addressed the same day. If you need to contact the CEO ASAP, please post in #help-p1 Slack channel. This will send a text message to Mike’s cell phone, even if it’s in "do not disturb" mode.
 
 ## OKR planning
-OKRs help to inform what to prioritize and communicate company goals while encouraging cross-team collaboration.
+OKRs (Objective Key Results) help to inform what to prioritize and communicate company goals while encouraging cross-team collaboration.
 At the end of the quarter and key points throughout the quarter (every three weeks), we review the status of each OKR (depending on the KR, either 100% or ≥70% completion is considered "success")
 - Review topdown and departmental OKRs as they are turned in.
 - OKRs are finalized one week from when topdown OKRs were initially reviewed.

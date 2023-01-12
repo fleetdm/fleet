@@ -21,11 +21,15 @@ go.mod @fleetdm/go
 /CHANGELOG.md @noahtalerman
 
 # Fleet documentation
-/docs/ @chris-mcgillicuddy
+# TODO: will anyone be auto-requested as reviewer for docs?
+# previously this was:
+# /docs/ @chris-mcgillicuddy
+# then mikermcneil added more folks, but it was a bad idea that resulted in a lot of extra notifications to ≥3 people.
+# So instead, who will be DRI for reviewing docs?
 
 # REST API reference documentation
-/docs/Using-Fleet/REST-API.md @ksatter
-/docs/Contributing/API-for-contributors.md @ksatter
+/docs/Using-Fleet/REST-API.md @ksatter @lukeheath
+/docs/Contributing/API-for-contributors.md @ksatter @lukeheath
 
 # Standard query library YAML
 /docs/01-Using-Fleet/standard-query-library/standard-query-library.yml @guillaumeross
@@ -45,31 +49,32 @@ go.mod @fleetdm/go
 # - CEO is DRI for pricing
 # - Mo is DRI for features table
 # - Eric is DRI for website frontend code
-/website/views/pages/pricing.ejs @zhumo @eashaw @mikermcneil
+/website/views/pages/pricing.ejs @zhumo @jarodreyes @alexmitchelliii @eashaw @mikermcneil
 
 # Website redirects and URLs
-/website/config/routes.js @eashaw
+/website/config/routes.js @eashaw @jarodreyes
 
 # Website backend, scripts, deps
-/website/api/ @mikermcneil
-/website/config/ @mikermcneil
-/website/scripts/ @mikermcneil
-/website/package.json @eashaw
+/website/api/ @mikermcneil @eashaw
+/website/config/ @mikermcneil @eashaw
+/website/scripts/ @mikermcneil @eashaw
+/website/package.json @mikermcneil @eashaw
 
 # GitHub brandfront
-/README.md @chris-mcgillicuddy
+/README.md @jarodreyes @mikermcneil
 
 # NPM brandfront (npmjs.com/package/fleetctl)
-/tools/fleetctl-npm/README.md @chris-mcgillicuddy
+/tools/fleetctl-npm/README.md @jarodreyes
 
 # Handbook
 /handbook/company @mikermcneil
 /handbook/business-operations @hollidayn
+/handbook/business-operations/ceo-handbook.md @charlottechance
 /handbook/security @guillaumeross
 /handbook/engineering @zwass
 /handbook/product @zhumo
 /handbook/customers @alexmitchelliii
-/handbook/marketing @mikermcneil
+/handbook/marketing @jarodreyes
 /handbook/README.md @eashaw
 
 #

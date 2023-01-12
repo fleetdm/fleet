@@ -1,5 +1,31 @@
 # Why this way?
 
+## Why open source?
+
+### Benefits
+
+Open-source software development is easier than proprietary models. Instead of limiting input to a select group, we welcome contributions from a diverse community of passionate professionals. These unique perspectives help us test assumptions, overcome biases, and discover innovations faster than we would on our own.
+
+Here are the key benefits of open-source software development:
+
+- **Transparency.** Everyone has access to the source code, including executives, employees, and even end users. Anyone can confirm claims with first-hand evidence.   
+- **Modifiability.** Anybody can make improvements at any time. You can build on existing ideas or start something brand new. Every contribution benefits the project as a whole.
+- **Community.** Open-source contributors really care. They love solving problems and sharing solutions. As their careers grow, so does the community, which helps drive adoption.
+
+### Security
+
+So much visibility might make people nervous. But open-source projects have practices in place that encourage collaboration and promote security. Osquery uses configuration management, issue tracking, and code reviews as part of their development process. [Learn more about osquery’s security measures](https://github.com/osquery/osquery/blob/master/ASSURANCE.md#security-implemented-in-development-lifecycle-processes).
+
+We’ve adopted similar policies at Fleet. Anybody in our community can suggest changes, but only Fleeties with appropriate access can merge them.
+
+### Results 
+
+Open source isn’t just a development model. It’s a movement. It’s an effective, authentic way for individuals to achieve a common goal.
+
+Since 2020, Fleet has given visibility into over 1.65 million servers and workstations. Fortune 1000 companies like Uber, Atlassian, and [Wayfair](https://fleetdm.com/device-management/fleet-user-stories-wayfair) now have the insights they need to easily maintain continuous compliance.
+
+Our community made this happen. That includes feedback from our customers. Your suggestions directly shape [the direction of our product](https://fleetdm.com/pricing). After all, we’re here to help you.
+
 ## Why do we use a wireframe-first approach?
 
 Wireframing (or "drafting," as we often refer to it at Fleet) provides a clear overview of page layout, information architecture, user flow, and functionality. The wireframe-first approach extends beyond what users see on their screens. Wireframe-first is also excellent for drafting APIs, config settings, CLI options, and even business processes. 
@@ -71,6 +97,21 @@ We use the concept of [directly responsible individuals](https://fleetdm.com/han
 Groups are organized around goals. Connecting people with the same goals helps them produce better results by fostering freer communication. While groups sometimes align with the organization chart, some groups consist of people who do not report to the same manager. For example, [product groups](https://fleetdm.com/handbook/product) like `#g-agent` include engineers, not just the product manager.
 
 Every group at Fleet maintains specific Slack channels, which all group members join and keep unmuted.  Everyone else at Fleet is encouraged to mute these channels, using them only as needed.  Each channel has a directly responsible individual responsible for keeping up with all new messages, even if they aren't explicitly mentioned (`@`).
+
+## Why does Fleet value Openness?
+A lot of thought went into making Openness one of our values.
+
+It might be easier to keep company information confidential. You don’t have to think so hard about what should or shouldn’t be public. Declassifying information later carries risk. Anything you release affects how people see your company.
+
+But we prefer to focus on the benefits.
+
+Sharing information helps other organizations, which means helping more end users.
+
+Everything we release is free marketing. Publicizing information is marketing itself. We’re an open-source company after all.
+
+Sure, people might point out our mistakes. But that just helps us grow. And that’s what open source is all about: creating and improving tools together as a community.
+
+For more thoughts on Fleet's values, visit the [Values section of the Company page in our handbook](https://fleetdm.com/handbook/company#openness).
 
 <meta name="maintainedBy" value="mikermcneil">
 <meta name="title" value="Why this way?">

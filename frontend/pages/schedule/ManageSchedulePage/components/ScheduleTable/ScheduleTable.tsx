@@ -5,24 +5,24 @@ import React from "react";
 import { InjectedRouter } from "react-router";
 import paths from "router/paths";
 
-import Button from "components/buttons/Button";
 import {
   IScheduledQuery,
   IEditScheduledQuery,
 } from "interfaces/scheduled_query";
-
 import { ITeam } from "interfaces/team";
+import { IEmptyTableProps } from "interfaces/empty_table";
 
+import Button from "components/buttons/Button";
+import CustomLink from "components/CustomLink";
 import TableContainer from "components/TableContainer";
+import EmptyTable from "components/EmptyTable";
 import {
   generateInheritedQueriesTableHeaders,
   generateTableHeaders,
   generateDataSet,
 } from "./ScheduleTableConfig";
-import scheduleSvg from "../../../../../../assets/images/no-schedule-322x138@2x.png";
 
 const baseClass = "schedule-table";
-const noScheduleClass = "no-schedule";
 
 const TAGGED_TEMPLATES = {
   hostsByTeamRoute: (teamId: number | undefined | null) => {
@@ -60,70 +60,67 @@ const ScheduleTable = ({
 
   const handleAdvanced = () => router.push(MANAGE_PACKS);
 
-  const NoScheduledQueries = () => {
-    return (
-      <div
-        className={`${noScheduleClass} ${
-          selectedTeamData?.id && "no-team-schedule"
-        }`}
-      >
-        <div className={`${noScheduleClass}__inner`}>
-          <img src={scheduleSvg} alt="No Schedule" />
-          <div className={`${noScheduleClass}__inner-text`}>
-            <p>
-              <b>
-                {selectedTeamData ? (
-                  <>
-                    Schedule queries for all hosts assigned to{" "}
-                    <a
-                      href={
-                        MANAGE_HOSTS +
-                        TAGGED_TEMPLATES.hostsByTeamRoute(selectedTeamData.id)
-                      }
-                    >
-                      {selectedTeamData.name}
-                    </a>
-                  </>
-                ) : (
-                  <>
-                    Schedule queries to run at regular intervals on{" "}
-                    <a href={MANAGE_HOSTS}>all your hosts</a>
-                  </>
-                )}
-              </b>
-              {isOnGlobalTeam ? (
-                <>
-                  <b>,</b>
-                  <br /> or go to your osquery packs via the ‘Advanced’ button.{" "}
-                </>
-              ) : (
-                <>
-                  <b>.</b>
-                </>
-              )}
-            </p>
-            <div className={`${noScheduleClass}__cta-buttons`}>
-              <Button
-                variant="brand"
-                className={`${noScheduleClass}__schedule-button`}
-                onClick={toggleScheduleEditorModal}
-              >
-                Schedule a query
-              </Button>
-              {isOnGlobalTeam && (
-                <Button
-                  variant="inverse"
-                  onClick={handleAdvanced}
-                  className={`${baseClass}__advanced-button`}
-                >
-                  Advanced
-                </Button>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-    );
+  const emptyState = () => {
+    const emptySchedule: IEmptyTableProps = {
+      iconName: "empty-schedule",
+      header: (
+        <>
+          Schedule queries to run at regular intervals on{" "}
+          <a href={MANAGE_HOSTS}>all your hosts</a>
+        </>
+      ),
+      additionalInfo: (
+        <>
+          Want to learn more?&nbsp;
+          <CustomLink
+            url="https://fleetdm.com/docs/using-fleet/fleet-ui#schedule-a-query"
+            text="Read about scheduling a query"
+            newTab
+          />
+        </>
+      ),
+      primaryButton: (
+        <Button
+          variant="brand"
+          className={`${baseClass}__schedule-button`}
+          onClick={toggleScheduleEditorModal}
+        >
+          Schedule a query
+        </Button>
+      ),
+    };
+
+    if (selectedTeamData) {
+      emptySchedule.header = (
+        <>
+          Schedule queries for all hosts assigned to{" "}
+          <a
+            href={
+              MANAGE_HOSTS +
+              TAGGED_TEMPLATES.hostsByTeamRoute(selectedTeamData.id)
+            }
+          >
+            {selectedTeamData.name}
+          </a>
+        </>
+      );
+    }
+
+    if (isOnGlobalTeam) {
+      emptySchedule.info = (
+        <>Or go to your osquery packs via the ‘Advanced’ button. </>
+      );
+      emptySchedule.secondaryButton = (
+        <Button
+          variant="inverse"
+          onClick={handleAdvanced}
+          className={`${baseClass}__advanced-button`}
+        >
+          Advanced
+        </Button>
+      );
+    }
+    return emptySchedule;
   };
 
   const onActionSelection = (
@@ -171,7 +168,16 @@ const ScheduleTable = ({
           searchable={false}
           disablePagination
           disableCount
-          emptyComponent={NoScheduledQueries}
+          emptyComponent={() =>
+            EmptyTable({
+              iconName: emptyState().iconName,
+              header: emptyState().header,
+              info: emptyState().info,
+              additionalInfo: emptyState().additionalInfo,
+              primaryButton: emptyState().primaryButton,
+              secondaryButton: emptyState().secondaryButton,
+            })
+          }
         />
       </div>
     );
@@ -194,7 +200,16 @@ const ScheduleTable = ({
         primarySelectActionButtonVariant="text-icon"
         primarySelectActionButtonIcon="remove"
         primarySelectActionButtonText={"Remove"}
-        emptyComponent={NoScheduledQueries}
+        emptyComponent={() =>
+          EmptyTable({
+            iconName: emptyState().iconName,
+            header: emptyState().header,
+            info: emptyState().info,
+            additionalInfo: emptyState().additionalInfo,
+            primaryButton: emptyState().primaryButton,
+            secondaryButton: emptyState().secondaryButton,
+          })
+        }
         isClientSidePagination
       />
     </div>

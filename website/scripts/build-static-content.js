@@ -10,10 +10,11 @@ module.exports = {
   inputs: {
     dry: { type: 'boolean', description: 'Whether to make this a dry run.  (.sailsrc file will not be overwritten.  HTML files will not be generated.)' },
     skipGithubRequests: { type: 'boolean', description: 'Whether to minimize requests to the GitHub API which usually can be skipped during local development, such as requests used for fetching GitHub avatar URLs'},
+    githubAccessToken: { type: 'string', description: 'If provided, A GitHub token will be used to authenticate requests to the GitHub API'},
   },
 
 
-  fn: async function ({ dry, skipGithubRequests }) {
+  fn: async function ({ dry, skipGithubRequests, githubAccessToken }) {
 
     let path = require('path');
     let YAML = require('yaml');
@@ -42,6 +43,7 @@ module.exports = {
           } else if (query.resolution === undefined) {
             query.resolution = 'N/A';// « We set this to a string here so that the data type is always string.  We use N/A so folks can see there's no remediation and contribute if desired.
           }
+          query.requiresMdm = false;
           if (query.tags) {
             if(!_.isString(query.tags)) {
               queriesWithProblematicTags.push(query);
@@ -51,8 +53,13 @@ module.exports = {
               let formattedTags = [];
               for (let tag of tagsToFormat) {
                 if(tag !== '') {// « Ignoring any blank tags caused by trailing commas in the YAML.
-                  // Removing any extra whitespace from tags and changing them to be in lower case.
-                  formattedTags.push(_.trim(tag.toLowerCase()));
+                  // If a query has a 'requires MDM' tag, we'll set requiresMDM to true for this query, and we'll ingore this tag.
+                  if(_.trim(tag.toLowerCase()) === 'mdm required'){
+                    query.requiresMdm = true;
+                  } else {
+                    // Removing any extra whitespace from tags and changing them to be in lower case.
+                    formattedTags.push(_.trim(tag.toLowerCase()));
+                  }
                 }
               }
               // Removing any duplicate tags.
@@ -113,10 +120,20 @@ module.exports = {
             query.contributors = contributorProfiles;
           }
         } else {// If the --skipGithubRequests flag was not provided, we'll query GitHub's API to get additional information about each contributor.
+
+          let baseHeadersForGithubRequests = {
+            'User-Agent': 'Fleet-Standard-Query-Library',
+            'Accept': 'application/vnd.github.v3+json',
+          };
+
+          if(githubAccessToken) {
+            // If a GitHub access token was provided, add it to the baseHeadersForGithubRequests object.
+            baseHeadersForGithubRequests['Authorization'] = `token ${githubAccessToken}`;
+          }
           await sails.helpers.flow.simultaneouslyForEach(githubUsernames, async(username)=>{
             githubDataByUsername[username] = await sails.helpers.http.get.with({
               url: 'https://api.github.com/users/' + encodeURIComponent(username),
-              headers: { 'User-Agent': 'Fleet-Standard-Query-Library', Accept: 'application/vnd.github.v3+json' }
+              headers: baseHeadersForGithubRequests,
             }).catch((err)=>{// If the above GET requests return a non 200 response we'll look for signs that the user has hit their GitHub API rate limit.
               if (err.raw.statusCode === 403 && err.raw.headers['x-ratelimit-remaining'] === '0') {// If the user has reached their GitHub API rate limit, we'll throw an error that suggest they run this script with the `--skipGithubRequests` flag.
                 throw new Error('GitHub API rate limit exceeded. If you\'re running this script in a development environment, use the `--skipGithubRequests` flag to skip querying the GitHub API. See full error for more details:\n'+err);
@@ -225,6 +242,11 @@ module.exports = {
               // > • What about images referenced in markdown files? :: For documentation and handbook files, they need to be referenced using an absolute URL of the src-- e.g. ![](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/foo.png). For articles, you can use the absolute URL of the src - e.g. ![](https://fleetdm.com/images/articles/foo.png) OR the relative repo path e.g. ![](../website/assets/images/articles/foo.png). See also https://github.com/fleetdm/fleet/issues/706#issuecomment-884641081 for reasoning.
               // > • What about GitHub-style emojis like `:white_check_mark:`?  :: Use actual unicode emojis instead.  Need to revisit this?  Visit https://github.com/fleetdm/fleet/pull/1380/commits/19a6e5ffc70bf41569293db44100e976f3e2bda7 for more info.
               let mdString = await sails.helpers.fs.read(pageSourcePath);
+
+              // Look for non example @fleetdm.com email addresses in the Markdown string, if any are found, throw an error.
+              if(mdString.match(/[A-Z0-9._%+-]+@fleetdm\.com/gi)) {
+                throw new Error(`A Markdown file (${pageSourcePath}) contains a @fleetdm.com email address. To resolve this error, remove the email address in that file or change it to be an @example.com email address and try running this script again.`);
+              }
               mdString = mdString.replace(/(```)([a-zA-Z0-9\-]*)(\s*\n)/g, '$1\n' + '<!-- __LANG=%' + '$2' + '%__ -->' + '$3'); // « Based on the github-flavored markdown's language annotation, (e.g. ```js```) add a temporary marker to code blocks that can be parsed post-md-compilation when this is HTML.  Note: This is an HTML comment because it is easy to over-match and "accidentally" add it underneath each code block as well (being an HTML comment ensures it doesn't show up or break anything).  For more information, see https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L198-L202
               mdString = mdString.replace(/(<call-to-action[\s\S]+[^>\n+])\n+(>)/g, '$1$2'); // « Removes any newlines that might exist before the closing `>` when the <call-to-action> compontent is added to markdown files.
               let htmlString = await sails.helpers.strings.toHtml(mdString);
@@ -472,7 +494,7 @@ module.exports = {
                 // If the article is categorized as 'product' we'll replace the category with 'use-cases', or if it is categorized as 'success story' we'll replace it with 'device-management'
                 rootRelativeUrlPath = (
                   '/' +
-                  (encodeURIComponent(embeddedMetadata.category === 'success stories' ? 'device-management' : embeddedMetadata.category === 'security' ? 'securing' : embeddedMetadata.category)) + '/' +
+                  (encodeURIComponent(embeddedMetadata.category === 'success stories' ? 'success-stories' : embeddedMetadata.category === 'security' ? 'securing' : embeddedMetadata.category)) + '/' +
                   (pageUnextensionedLowercasedRelPath.split(/\//).map((fileOrFolderName) => encodeURIComponent(fileOrFolderName.replace(/^[0-9]+[\-]+/,''))).join('/'))
                 );
               }
@@ -638,6 +660,42 @@ module.exports = {
         builtStaticContent.compiledPagePartialsAppPath = APP_PATH_TO_COMPILED_PAGE_PARTIALS;
 
       },
+      async()=>{
+        // Validate the pricing table yaml and add it to builtStaticContent.pricingTable.
+        let RELATIVE_PATH_TO_PRICING_TABLE_YML_IN_FLEET_REPO = 'handbook/product/pricing-features-table.yml';// TODO: Is there a better home for this file?
+        let yaml = await sails.helpers.fs.read(path.join(topLvlRepoPath, RELATIVE_PATH_TO_PRICING_TABLE_YML_IN_FLEET_REPO)).intercept('doesNotExist', (err)=>new Error(`Could not find pricing table features YAML file at "${RELATIVE_PATH_TO_PRICING_TABLE_YML_IN_FLEET_REPO}".  Was it accidentally moved?  Raw error: `+err.message));
+        let pricingTableCategories = YAML.parse(yaml, {prettyErrors: true});
+
+        for(let category of pricingTableCategories){
+          if(!category.categoryName){ // Throw an error if a category is missing a categoryName.
+            throw new Error('Could not build pricing table config from pricing-features-table.yml, a category in the pricing table configuration is missing a categoryName. To resolve, make sure every category in the pricing table YAML file has a categoryName');
+          }
+          if(!category.features){// Throw an error if a category is missing `features`.
+            throw new Error('Could not build pricing table config from pricing-features-table.yml, the "'+category.categoryName+'" category in the yaml file is missing features. To resolve, add an array of features to this category.');
+          }
+          if(!_.isArray(category.features)){ // Throw an error if a category's `features`` is not an array.
+            throw new Error('Could not build pricing table config from pricing-features-table.yml, The value of the "'+category.categoryName+'" category is invalid, to resolve, change the features for this category to be an array of objects.');
+          }
+          // Validate all features in a category.
+          for(let feature of category.features){
+            if(!feature.name) { // Throw an error if a feature is missing a `name`.
+              throw new Error('Could not build pricing table config from pricing-features-table.yml. A feature in the "'+category.categoryName+'" category is missing a "name". To resolve, add a "name" to this feature '+feature);
+            }
+            if(!feature.tier) { // Throw an error if a feature is missing a `tier`.
+              throw new Error('Could not build pricing table config from pricing-features-table.yml. The "'+feature.name+'" feature is missing a "tier". To resolve, add a "tier" (either "Free" or "Premium") to this feature.');
+            } else if(!_.contains(['Free', 'Premium'], feature.tier)){ // Throw an error if a feature's `tier` is not either "Free" or "Premium".
+              throw new Error('Could not build pricing table config from pricing-features-table.yml. The "'+feature.name+'" feature has an invalid "tier". to resolve, change the value of this features "tier" (currently set to '+feature.tier+') to be either "Free" or "Premium".');
+            }
+            if(feature.comingSoon === undefined) { // Throw an error if a feature is missing a `comingSoon` value
+              throw new Error('Could not build pricing table config from pricing-features-table.yml. The "'+feature.name+'" feature is missing a "comingSoon" value (boolean). To resolve, add a comingSoon value to this feature.');
+            } else if(typeof feature.comingSoon !== 'boolean'){ // Throw an error if the `comingSoon` value is not a boolean.
+              throw new Error('Could not build pricing table config from pricing-features-table.yml. The "'+feature.name+'" feature has an invalid "comingSoon" value (currently set to '+feature.comingSoon+'). To resolve, change the value of "comingSoon" for this feature to be either "true" or "false".');
+            }
+          }
+        }
+        builtStaticContent.pricingTable = pricingTableCategories;
+      },
+
     ]);
 
     //  ██████╗ ███████╗██████╗ ██╗      █████╗  ██████╗███████╗       ███████╗ █████╗ ██╗██╗     ███████╗██████╗  ██████╗

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/url"
 	"os"
@@ -10,7 +11,6 @@ import (
 	"time"
 
 	eewebhooks "github.com/fleetdm/fleet/v4/ee/server/webhooks"
-	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -19,6 +19,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/policies"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/externalsvc"
 	"github.com/fleetdm/fleet/v4/server/service/schedule"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/msrc"
@@ -30,6 +31,7 @@ import (
 	"github.com/getsentry/sentry-go"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
+	"github.com/hashicorp/go-multierror"
 	"github.com/micromdm/nanodep/godep"
 	nanodep_log "github.com/micromdm/nanodep/log"
 	depsync "github.com/micromdm/nanodep/sync"
@@ -41,17 +43,18 @@ func errHandler(ctx context.Context, logger kitlog.Logger, msg string, err error
 	ctxerr.Handle(ctx, err)
 }
 
-func startVulnerabilitiesSchedule(
+func newVulnerabilitiesSchedule(
 	ctx context.Context,
 	instanceID string,
 	ds fleet.Datastore,
 	logger kitlog.Logger,
 	config *config.VulnerabilitiesConfig,
-) *schedule.Schedule {
+) (*schedule.Schedule, error) {
+	const name = string(fleet.CronVulnerabilities)
 	interval := config.Periodicity
-	vulnerabilitiesLogger := kitlog.With(logger, "cron", "vulnerabilities")
+	vulnerabilitiesLogger := kitlog.With(logger, "cron", name)
 	s := schedule.New(
-		ctx, "vulnerabilities", instanceID, interval, ds, ds,
+		ctx, name, instanceID, interval, ds, ds,
 		schedule.WithLogger(vulnerabilitiesLogger),
 		schedule.WithJob(
 			"cron_vulnerabilities",
@@ -67,8 +70,8 @@ func startVulnerabilitiesSchedule(
 			},
 		),
 	)
-	s.Start()
-	return s
+
+	return s, nil
 }
 
 func cronVulnerabilities(
@@ -264,8 +267,7 @@ func checkWinVulnerabilities(
 
 	if !config.DisableDataSync {
 		// Sync MSRC definitions
-		client := fleethttp.NewClient()
-		err = msrc.Sync(ctx, client, vulnPath, os)
+		err = msrc.SyncFromGithub(ctx, vulnPath, os)
 		if err != nil {
 			errHandler(ctx, logger, "updating msrc definitions", err)
 		}
@@ -315,8 +317,7 @@ func checkOvalVulnerabilities(
 	}
 
 	// Sync on disk OVAL definitions with current OS Versions.
-	client := fleethttp.NewClient()
-	downloaded, err := oval.Refresh(ctx, client, versions, vulnPath)
+	downloaded, err := oval.Refresh(ctx, versions, vulnPath)
 	if err != nil {
 		errHandler(ctx, logger, "updating oval definitions", err)
 	}
@@ -385,7 +386,7 @@ func checkNVDVulnerabilities(
 	return vulns
 }
 
-func startAutomationsSchedule(
+func newAutomationsSchedule(
 	ctx context.Context,
 	instanceID string,
 	ds fleet.Datastore,
@@ -394,7 +395,7 @@ func startAutomationsSchedule(
 	failingPoliciesSet fleet.FailingPolicySet,
 ) (*schedule.Schedule, error) {
 	const (
-		name            = "automations"
+		name            = string(fleet.CronAutomations)
 		defaultInterval = 24 * time.Hour
 	)
 	appConfig, err := ds.AppConfig(ctx)
@@ -422,14 +423,44 @@ func startAutomationsSchedule(
 			},
 		),
 		schedule.WithJob(
+			"fire_outdated_automations",
+			func(ctx context.Context) error {
+				return scheduleFailingPoliciesAutomation(ctx, ds, kitlog.With(logger, "automation", "fire_outdated_automations"), failingPoliciesSet)
+			},
+		),
+		schedule.WithJob(
 			"failing_policies_automation",
 			func(ctx context.Context) error {
 				return triggerFailingPoliciesAutomation(ctx, ds, kitlog.With(logger, "automation", "failing_policies"), failingPoliciesSet)
 			},
 		),
 	)
-	s.Start()
+
 	return s, nil
+}
+
+func scheduleFailingPoliciesAutomation(
+	ctx context.Context,
+	ds fleet.Datastore,
+	logger kitlog.Logger,
+	failingPoliciesSet fleet.FailingPolicySet,
+) error {
+	for {
+		batch, err := ds.OutdatedAutomationBatch(ctx)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "OutdatedAutomationBatch")
+		}
+		if len(batch) == 0 {
+			break
+		}
+		level.Debug(logger).Log("adding_hosts", len(batch))
+		for _, p := range batch {
+			if err := failingPoliciesSet.AddHost(p.PolicyID, p.Host); err != nil {
+				return ctxerr.Wrap(ctx, err, "failingPolicesSet.AddHost")
+			}
+		}
+	}
+	return nil
 }
 
 func triggerFailingPoliciesAutomation(
@@ -486,14 +517,14 @@ func triggerFailingPoliciesAutomation(
 	return nil
 }
 
-func startIntegrationsSchedule(
+func newIntegrationsSchedule(
 	ctx context.Context,
 	instanceID string,
 	ds fleet.Datastore,
 	logger kitlog.Logger,
 ) (*schedule.Schedule, error) {
 	const (
-		name            = "integrations"
+		name            = string(fleet.CronIntegrations)
 		defaultInterval = 10 * time.Minute
 	)
 
@@ -559,8 +590,6 @@ func startIntegrationsSchedule(
 		}),
 	)
 
-	s.Start()
-
 	return s, nil
 }
 
@@ -617,14 +646,18 @@ func newFailerClient(forcedFailures string) *worker.TestAutomationFailer {
 	return failerClient
 }
 
-func startCleanupsAndAggregationSchedule(
+func newCleanupsAndAggregationSchedule(
 	ctx context.Context, instanceID string, ds fleet.Datastore, logger kitlog.Logger, enrollHostLimiter fleet.EnrollHostLimiter,
-) {
-	schedule.New(
-		ctx, "cleanups_then_aggregation", instanceID, 1*time.Hour, ds, ds,
+) (*schedule.Schedule, error) {
+	const (
+		name            = string(fleet.CronCleanupsThenAggregation)
+		defaultInterval = 1 * time.Hour
+	)
+	s := schedule.New(
+		ctx, name, instanceID, defaultInterval, ds, ds,
 		// Using leader for the lock to be backwards compatilibity with old deployments.
 		schedule.WithAltLockID("leader"),
-		schedule.WithLogger(kitlog.With(logger, "cron", "cleanups_then_aggregation")),
+		schedule.WithLogger(kitlog.With(logger, "cron", name)),
 		// Run cleanup jobs first.
 		schedule.WithJob(
 			"distributed_query_campaigns",
@@ -714,13 +747,19 @@ func startCleanupsAndAggregationSchedule(
 				return ds.UpdateOSVersions(ctx)
 			},
 		),
-	).Start()
+	)
+
+	return s, nil
 }
 
-func startSendStatsSchedule(ctx context.Context, instanceID string, ds fleet.Datastore, config config.FleetConfig, logger kitlog.Logger) {
-	schedule.New(
-		ctx, "stats", instanceID, 1*time.Hour, ds, ds,
-		schedule.WithLogger(kitlog.With(logger, "cron", "stats")),
+func newUsageStatisticsSchedule(ctx context.Context, instanceID string, ds fleet.Datastore, config config.FleetConfig, license *fleet.LicenseInfo, logger kitlog.Logger) (*schedule.Schedule, error) {
+	const (
+		name            = string(fleet.CronUsageStatistics)
+		defaultInterval = 1 * time.Hour
+	)
+	s := schedule.New(
+		ctx, name, instanceID, defaultInterval, ds, ds,
+		schedule.WithLogger(kitlog.With(logger, "cron", name)),
 		schedule.WithJob(
 			"try_send_statistics",
 			func(ctx context.Context) error {
@@ -729,7 +768,9 @@ func startSendStatsSchedule(ctx context.Context, instanceID string, ds fleet.Dat
 				return trySendStatistics(ctx, ds, fleet.StatisticsFrequency, "https://fleetdm.com/api/v1/webhooks/receive-usage-analytics", config)
 			},
 		),
-	).Start()
+	)
+
+	return s, nil
 }
 
 func trySendStatistics(ctx context.Context, ds fleet.Datastore, frequency time.Duration, url string, config config.FleetConfig) error {
@@ -786,10 +827,10 @@ func (l *NanoDEPLogger) With(keyvals ...interface{}) nanodep_log.Logger {
 	}
 }
 
-// startAppleMDMDEPProfileAssigner creates the schedule to run the DEP syncer+assigner.
+// newAppleMDMDEPProfileAssigner creates the schedule to run the DEP syncer+assigner.
 // The DEP syncer+assigner fetches devices from Apple Business Manager (aka ABM) and applies
 // the current configured DEP profile to them.
-func startAppleMDMDEPProfileAssigner(
+func newAppleMDMDEPProfileAssigner(
 	ctx context.Context,
 	instanceID string,
 	periodicity time.Duration,
@@ -797,8 +838,9 @@ func startAppleMDMDEPProfileAssigner(
 	depStorage *mysql.NanoDEPStorage,
 	logger kitlog.Logger,
 	loggingDebug bool,
-) {
-	depClient := godep.NewClient(depStorage, fleethttp.NewClient())
+) (*schedule.Schedule, error) {
+	const name = string(fleet.CronAppleMDMDEPProfileAssigner)
+	depClient := fleet.NewDEPClient(depStorage, ds, logger)
 	assignerOpts := []depsync.AssignerOption{
 		depsync.WithAssignerLogger(NewNanoDEPLogger(kitlog.With(logger, "component", "nanodep-assigner"))),
 	}
@@ -817,12 +859,23 @@ func startAppleMDMDEPProfileAssigner(
 		depStorage,
 		depsync.WithLogger(NewNanoDEPLogger(kitlog.With(logger, "component", "nanodep-syncer"))),
 		depsync.WithCallback(func(ctx context.Context, isFetch bool, resp *godep.DeviceResponse) error {
+			n, err := ds.IngestMDMAppleDevicesFromDEPSync(ctx, resp.Devices)
+			switch {
+			case err != nil:
+				level.Error(kitlog.With(logger, "cron", name, "component", "nanodep-syncer")).Log("err", err)
+				sentry.CaptureException(err)
+			case n > 0:
+				level.Info(kitlog.With(logger, "cron", name, "component", "nanodep-syncer")).Log("msg", fmt.Sprintf("added %d new mdm device(s) to pending hosts", n))
+			default:
+				// ok
+			}
+
 			return assigner.ProcessDeviceResponse(ctx, resp)
 		}),
 	)
-	logger = kitlog.With(logger, "cron", "apple_mdm_dep_profile_assigner")
-	schedule.New(
-		ctx, "apple_mdm_dep_profile_assigner", instanceID, periodicity, ds, ds,
+	logger = kitlog.With(logger, "cron", name)
+	s := schedule.New(
+		ctx, name, instanceID, periodicity, ds, ds,
 		schedule.WithLogger(logger),
 		schedule.WithJob("dep_syncer", func(ctx context.Context) error {
 			profileUUID, profileModTime, err := depStorage.RetrieveAssignerProfile(ctx, apple_mdm.DEPName)
@@ -847,5 +900,109 @@ func startAppleMDMDEPProfileAssigner(
 			}
 			return syncer.Run(ctx)
 		}),
-	).Start()
+	)
+
+	return s, nil
+}
+
+func cleanupCronStatsOnShutdown(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, instanceID string) {
+	if err := ds.UpdateAllCronStatsForInstance(ctx, instanceID, fleet.CronStatsStatusPending, fleet.CronStatsStatusCanceled); err != nil {
+		logger.Log("err", "cancel pending cron stats for instance", "details", err)
+	}
+}
+
+func newActivitiesStreamingSchedule(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	logger kitlog.Logger,
+	auditLogger fleet.JSONLogger,
+) (*schedule.Schedule, error) {
+	const (
+		name     = string(fleet.CronActivitiesStreaming)
+		interval = 5 * time.Minute
+	)
+	logger = kitlog.With(logger, "cron", name)
+	s := schedule.New(
+		ctx, name, instanceID, interval, ds, ds,
+		schedule.WithLogger(logger),
+		schedule.WithJob(
+			"cron_activities_streaming",
+			func(ctx context.Context) error {
+				return cronActivitiesStreaming(ctx, ds, logger, auditLogger)
+			},
+		),
+	)
+	return s, nil
+}
+
+var ActivitiesToStreamBatchCount uint = 500
+
+func cronActivitiesStreaming(
+	ctx context.Context,
+	ds fleet.Datastore,
+	logger kitlog.Logger,
+	auditLogger fleet.JSONLogger,
+) error {
+	page := uint(0)
+	for {
+		// (1) Get batch of activities that haven't been streamed.
+		activitiesToStream, err := ds.ListActivities(ctx, fleet.ListActivitiesOptions{
+			ListOptions: fleet.ListOptions{
+				OrderKey:       "id",
+				OrderDirection: fleet.OrderAscending,
+				PerPage:        ActivitiesToStreamBatchCount,
+				Page:           page,
+			},
+			Streamed: ptr.Bool(false),
+		})
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "list activities")
+		}
+		if len(activitiesToStream) == 0 {
+			return nil
+		}
+
+		// (2) Stream the activities.
+		var (
+			streamedIDs []uint
+			multiErr    error
+		)
+		// We stream one activity at a time (instead of writing them all with
+		// one auditLogger.Write call) to know which ones succeeded/failed,
+		// and also because this method happens asynchronously,
+		// so we don't need real-time performance.
+		for _, activity := range activitiesToStream {
+			b, err := json.Marshal(activity)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "marshal activity")
+			}
+			if err := auditLogger.Write(ctx, []json.RawMessage{json.RawMessage(b)}); err != nil {
+				if len(streamedIDs) == 0 {
+					return ctxerr.Wrapf(ctx, err, "stream first activity: %d", activity.ID)
+				}
+				multiErr = multierror.Append(multiErr, ctxerr.Wrapf(ctx, err, "stream activity: %d", activity.ID))
+				// We stop streaming upon the first error (will retry on next cron iteration)
+				break
+			}
+			streamedIDs = append(streamedIDs, activity.ID)
+		}
+
+		logger.Log("streamed-events", len(streamedIDs))
+
+		// (3) Mark the streamed activities as streamed.
+		if err := ds.MarkActivitiesAsStreamed(ctx, streamedIDs); err != nil {
+			multiErr = multierror.Append(multiErr, ctxerr.Wrap(ctx, err, "mark activities as streamed"))
+		}
+
+		// If there was an error while streaming or updating activities, return.
+		if multiErr != nil {
+			return multiErr
+		}
+
+		if len(activitiesToStream) < int(ActivitiesToStreamBatchCount) {
+			return nil
+		}
+		page += 1
+	}
 }

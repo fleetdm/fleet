@@ -8,8 +8,11 @@ resource "random_pet" "db_secret_postfix" {
 }
 
 resource "aws_secretsmanager_secret" "database_password_secret" {
-  name       = "/fleet/database/password/master-2-${random_pet.db_secret_postfix.id}"
-  kms_key_id = aws_kms_key.main.id
+  name                    = "/fleet/database/password/master-2-${random_pet.db_secret_postfix.id}"
+  kms_key_id              = aws_kms_key.main.id
+  # No need to keep these around to potentially break re-using the same
+  # workspace.
+  recovery_window_in_days = 0
 }
 
 resource "aws_secretsmanager_secret_version" "database_password_secret_version" {
@@ -23,9 +26,9 @@ module "aurora_mysql" { #tfsec:ignore:aws-rds-enable-performance-insights-encryp
 
   name                  = "${local.name}-mysql"
   engine                = "aurora-mysql"
-  engine_version        = "5.7.mysql_aurora.2.10.0"
-  instance_type         = "db.r6g.4xlarge"
-  instance_type_replica = "db.r6g.4xlarge"
+  engine_version        = "5.7.mysql_aurora.2.10.2"
+  instance_type         = var.db_instance_type
+  instance_type_replica = var.db_instance_type
 
   iam_database_authentication_enabled = true
   storage_encrypted                   = true
@@ -45,10 +48,7 @@ module "aurora_mysql" { #tfsec:ignore:aws-rds-enable-performance-insights-encryp
   # Old Jump box?
   # allowed_security_groups = ["sg-0063a978193fdf7ee"]
 
-  replica_count         = 1
-  replica_scale_enabled = true
-  replica_scale_min     = 1
-  replica_scale_max     = 1
+  replica_count         = 2
   snapshot_identifier   = "arn:aws:rds:us-east-2:917007347864:cluster-snapshot:cleaned"
 
   monitoring_interval           = 60

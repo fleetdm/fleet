@@ -1,8 +1,10 @@
 # API for contributors
 
 - [Packs](#packs)
+- [Mobile device management (MDM) - IN PROGRESS](#mobile-device-management-mdm-in-progress)
 - [Get or apply configuration files](#get-or-apply-configuration-files)
 - [Live query](#live-query)
+- [Trigger cron schedule](#trigger-cron-schedule)
 - [Device-authenticated routes](#device-authenticated-routes)
 - [Downloadable installers](#downloadable-installers)
 - [Setup](#setup)
@@ -207,7 +209,7 @@ The API routes to control packs are supported for backwards compatibility.
       "label_ids": [
         8
       ],
-      "team_ids": [],
+      "team_ids": []
     },
     {
       "created_at": "2021-01-19T17:08:31Z",
@@ -221,7 +223,7 @@ The API routes to control packs are supported for backwards compatibility.
         6
       ],
       "team_ids": []
-    },
+    }
   ]
 }
 ```
@@ -516,6 +518,89 @@ Delete pack by name.
 
 ---
 
+## Mobile device management (MDM) - IN PROGRESS
+
+> This feature is currently in development and is not ready for use.
+
+The MDM endpoints exist to support the related command-line interface sub-commands of `fleetctl`, such as `fleetctl generate mdm-apple` and `fleetctl get mdm-apple`, as well as the Fleet UI.
+
+- [Get Apple MDM](#get-apple-mdm)
+- [Get Apple BM](#get-apple-bm)
+
+### Get Apple MDM
+
+`GET /api/v1/fleet/mdm/apple`
+
+#### Parameters
+
+None.
+
+#### Example
+
+`GET /api/v1/fleet/mdm/apple`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "common_name": "APSP:04u52i98aewuh-xxxx-xxxx-xxxx-xxxx",
+  "serial_number": "1234567890987654321",
+  "issuer": "Apple Application Integration 2 Certification Authority",
+  "renew_date": "2023-09-30T00:00:00Z"
+}
+```
+
+### Get Apple BM
+
+_Available in Fleet Premium_
+
+`GET /api/v1/fleet/mdm/apple_bm`
+
+#### Parameters
+
+None.
+
+#### Example
+
+`GET /api/v1/fleet/mdm/apple_bm`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "apple_id": "apple@example.com",
+  "org_name": "Fleet Device Management",
+  "mdm_server_url": "https://example.com/mdm/apple/mdm",
+  "renew_date": "2023-11-29T00:00:00Z",
+  "default_team": ""
+}
+```
+
+### Generate Apple DEP Key Pair
+
+#### Parameters
+
+None.
+
+#### Example
+
+`POST /api/v1/fleet/mdm/apple/dep/key_pair`
+
+##### Default response
+
+```
+{
+  "public_key": "LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUNzVENDQVptZ0F3SUJBZ0lCQVRBTkJna3Foa2lHOXcwQkFRc0ZBREFTTVJBd0RnWURWUVFERXdkR2JHVmwKZEVSTk1CNFhEVEl5TVRJeE16RTFNREl6TmxvWERUSXpNREV4TWpFMU1USXpObG93RWpFUU1BNEdBMVVFQXhNSApSbXhsWlhSRVRUQ0NBU0l3RFFZSktvWklodmNOQVFFQkJRQURnZ0VQQURDQ0FRb0NnZ0VCQU1jbXIxOVNiQUhaCnVZNnJBa254dVBCV0tkSFlrSXpJY2JGMHErZ0ZKZVU3cUlwU0FQWFhmeUpFTXpyQXhpZStPSi9QSXhkTHZTZVoKdXA2Qzg5VHM1VEwrWjhKZmR3T2ZLQVFIUWpyQVpGZkxkdUh0SjNRZnk3di9rbmZ3VzNNSU9XZ00zcDQ3a0xzOAowZnJzNmVuTlpXZElsNUMyV1NpOXVGVVVQcFJTbm1Ha1AvK2QydmNCaWdIOHQ0K3RuV3NYdjhpekxqcHhhanV6CjN0Vlp3SFA0cjBQZTdIM0I0eDZINmlKZmxRZzI4Z3owbDZWa0c2NjVKT2NMLzlDSmNtOWpWRmpxb0RmZTVjUFAKMVFNbFpyb1FCaFhOUHN3bEhRWTkzekJFK3VSRUVNL1N1d0dZcGZLYjQwSDM0S1B1U3Y5SXZHTjIzTXdNM01FMwppNEFBWGJQOGZNTUNBd0VBQWFNU01CQXdEZ1lEVlIwUEFRSC9CQVFEQWdXZ01BMEdDU3FHU0liM0RRRUJDd1VBCkE0SUJBUUM5ZFcyRXBxemp1VWhhbk1CSXJpK09VWVhrekR2eVB6bGxTMXd0UVdQQ0s4cFJ5Rk5TM3RkakVXT2kKSTcyOVh2UmtpNjhNZStqRlpxSkxFWHpWUlkwb29aSWhhcG5lNUZoNzlCbkIrWGl6TFQ0TStDNHJ5RVQwOXg4SQpaWHJuY1BKME9ueUdVemlFK0szWEI2dVNLeWN1a3pZci9sRVBBMGlQRTZpM0dNYjljenJFL2NOQURrRXZwcjU2CjN1SFdMU3hwK1U5QmJyaTNDSXBoR1NvSWxnTVBEaUE1RkpiOXc0SnlMK0crZ3Q4c1BlcUZkZDYyRDRpV3U5a0wKMVZBUjRSU2xPcWt1cTVXREZVcUxsVGJFMS9oY1lqcVVUczRrSWhENmN6MkcxQlBnMUU2WVpRZWp6U0ZpeGR1MApYUy9UTTByUFBKNithUC82V1BNRWpJcGVRcmNvCi0tLS0tRU5EIENFUlRJRklDQVRFLS0tLS0K",
+  "private_key": "LS0tLS1CRUdJTiBSU0EgUFJJVkFURSBLRVktLS0tLQpNSUlFb3dJQkFBS0NBUUVBeHlhdlgxSnNBZG01anFzQ1NmRzQ4RllwMGRpUWpNaHhzWFNyNkFVbDVUdW9pbElBCjlkZC9Ja1F6T3NER0o3NDRuODhqRjB1OUo1bTZub0x6MU96bE12NW53bDkzQTU4b0JBZENPc0JrVjh0MjRlMG4KZEIvTHUvK1NkL0JiY3dnNWFBemVuanVRdXp6Uit1enA2YzFsWjBpWGtMWlpLTDI0VlJRK2xGS2VZYVEvLzUzYQo5d0dLQWZ5M2o2MmRheGUveUxNdU9uRnFPN1BlMVZuQWMvaXZROTdzZmNIakhvZnFJbCtWQ0RieURQU1hwV1FiCnJya2s1d3YvMElseWIyTlVXT3FnTjk3bHc4L1ZBeVZtdWhBR0ZjMCt6Q1VkQmozZk1FVDY1RVFRejlLN0FaaWwKOHB2alFmZmdvKzVLLzBpOFkzYmN6QXpjd1RlTGdBQmRzL3g4d3dJREFRQUJBb0lCQUZRMUFFeGU3bnB0MUc4RgowZ2J3SlpIQjdSYms2bUlNMHo0RXBqZUtEYmI2M2MzMjFKOGV5b3Z6cUhHOFYwMHd1b0tnTkNkQ2lDMjVhOVpnCmFyZHFuNU5MVFJZOEJYZkxrVUQ2ekw5STRHVGJERjZGUjN4cmdWcnh1cjNxTE5EYjltSVBwd1hqQzlTUDUvMmcKdFZ0OTFOV3lOUndrYmxpeXQ4R0p1TmhBZ3VXbnJLQmw5b3o1QkpCU3JLZTJPUE5ERm5mbUs1NFM1VzRKakZZMApFTUV3Z2ZiL2xQZjluWFZwRG9QeEl3QnJmRU5oU3oxcVI0bzJPbVFyRGNOQUNZU05razRjbXVIMHpxc3J5aFg4CkNhajhCcllOemxaeGNPTmpmK1NxUkdvVndjdzZKbzNKazBEREZHeEVaOHBEUThJTXgzRUQ1SE4rbW1SaGRMQmoKT0pRZVhVRUNnWUVBeWZDaFArSVNzMGNtcEM3WUFrK1UrVHNTTElnY3BTTHdReFF2RGFmRWFtMHJoWDJQdDk1ZgpJN1NCTlM3TmlNR0xCVk4rWHg0RHlsT3RYaGNzTm5YUU5qU3J3ZFNHTGxFbU5wWDJXR0x4Znp4REVVbFFSS3FEClY2RHBDaHdmY2tCTFRUNkVaRDlnV21DOGZIYUNPc0JDUHR1VStLQUpFa1FRaVk1VlRLSjYrMkVDZ1lFQS9IYnQKKzIvWFJzSW84VkE4QmhjMitDYyt4YUNrK3dvTVByZ0d4OWxrMTR2R0hDcCtDY2ZGZThqU2NHMDhzU3RKTnJCVgp0cHgvbm1yYklyMzUxVkxlMFNLQ2R2aHF5ajBXQWlWVDhDL0VjcUxGV0VwNG5mY1ZnVHIxRjBGMUptR0Y4WVNYCk41VEh4Tnc4VjZLUDVmWEM2dVVFMkNpZnR1bkxqSGFSNXZCakxxTUNnWUVBdlNjTE0zYUVRNjlTejVrZE5sVHEKMnVUczZnOTRuV256bVRGdnZaKzJ5R1dIelp0R0lsbEZ6b0VHUWhXYjZndzROdjMxTWcxQVNhVkZrQXV1bXppUgpsaVNSK1pZak5ZRkhoUHZFNnhlSzA3NVRwLzUvRkVLUGttWWp3eGVDa1JjT01jVnNaeVpDRDRYcko3NHR6L0JFClhQSjdRTU5PbS9CcmVSMThZck1TOVNFQ2dZQjhqZnhaV1ZNL1FKbE1mTVl3UnhIQ21qSVk5R21ReE9OSHFpa0cKUGhYSFZkazJtaXcyalEyOFJWYTFTdDl2bFNoNHg4Ung1SUg5MlVBbHdzNVlWWnRDV0tFL0tzNGMyc2haNUtxbAp6QnRDWjFXdmVvWkpnTlptUEgwZ3JSV3NDdDgzU2JBRkp1enNEYS9qbUhzZi9BRGZQSUFJV1BwN0ZwdHF3REM1ClhBM0N1d0tCZ0c0QVVmMUZralNYRFBlL2JoVjhtZG4rZCtzN2g2RjZkRWttNnEya1dyS1B4V2lFdlN3QlZEQWoKQjhIRlNtNW1pcHNTTXhQbFVEZDRPSXRSUzVUM1AwcStRZENZNkwzemhmSFBCUzdhTlZaRUJXdVNlY2lDRk0wSQo3MjFSK081TitMTlFwN1N6VWUxRll1WWdhandFSE9KMW82d1ArZWloMmQyVVQyQ09Ed1NrCi0tLS0tRU5EIFJTQSBQUklWQVRFIEtFWS0tLS0tCg=="
+}
+```
+
+Note that the `public_key` and `private_key` are base64 encoded and should be decoded before writing them to files.
+
 ## Get or apply configuration files
 
 These API routes are used by the `fleetctl` CLI tool. Users can manage Fleet with `fleetctl` and [configuration files in YAML syntax](https://fleetdm.com/docs/using-fleet/configuration-files/).
@@ -523,14 +608,14 @@ These API routes are used by the `fleetctl` CLI tool. Users can manage Fleet wit
 - [Get queries](#get-queries)
 - [Get query](#get-query)
 - [Apply queries](#apply-queries)
-- [Apply policies](#aaply-policies)
+- [Apply policies](#apply-policies)
 - [Get packs](#get-packs)
 - [Apply packs](#apply-packs)
 - [Get pack by name](#get-pack-by-name)
 - [Apply team](#apply-team)
 - [Apply labels](#apply-labels)
 - [Get labels](#get-labels)
-- [Get label](#get-label-spec)
+- [Get label](#get-label)
 - [Get enroll secrets](#get-enroll-secrets)
 - [Modify enroll secrets](#modify-enroll-secrets)
 
@@ -781,18 +866,22 @@ NOTE: when updating a policy, team and platform will be ignored.
       "name": "new policy",
       "description": "This will be a new policy because a policy with the name 'new policy' doesn't exist in Fleet.",
       "query": "SELECT * FROM osquery_info",
-      "resolution": "some resolution steps here"
+      "resolution": "some resolution steps here",
+      "critical": false
     },
     {
       "name": "Is FileVault enabled on macOS devices?",
       "query": "SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT “” AND filevault_status = ‘on’ LIMIT 1;",
       "description": "Checks to make sure that the FileVault feature is enabled on macOS devices.",
       "resolution": "Choose Apple menu > System Preferences, then click Security & Privacy. Click the FileVault tab. Click the Lock icon, then enter an administrator name and password. Click Turn On FileVault.",
-      "platform": "darwin"
+      "platform": "darwin",
+      "critical": true
     }
   ]
 }
 ```
+
+The field `critical` is available in Fleet Premium.
 
 ##### Default response
 
@@ -1063,7 +1152,7 @@ If the `name` is not already associated with an existing team, this API route cr
           "secret": "bhD5kiX2J+KBgZSk118qO61ZIdX/v8On"
         }
       ]
-t    }
+    }
   ]
 }
 ```
@@ -1301,12 +1390,12 @@ These API routes are used by the Fleet UI.
 - [Count targets](#count-targets)
 - [Run live query](#run-live-query)
 - [Run live query by name](#run-live-query-by-name)
-- [Retrieve live query results (standard WebSocket API)](#retrieve-live-query-results-standard-web-socket-api)
-- [Retrieve live query results (SockJS)](#retrieve-live-query-results-sock-js)
+- [Retrieve live query results (standard WebSocket API)](#retrieve-live-query-results-standard-websocket-api)
+- [Retrieve live query results (SockJS)](#retrieve-live-query-results-sockjs)
 
 ### Check live query status
 
-This checks the status of the Fleet's ability to run a live query. If an error is present in the response, Fleet won't be able to run a live query successfully. The Fleet UI uses this endpoint to make sure that the Fleet instance is correctly configured to run live queries.
+This checks the status of Fleet's ability to run a live query. If an error is present in the response, Fleet won't be able to run a live query successfully. The Fleet UI uses this endpoint to make sure that the Fleet instance is correctly configured to run live queries.
 
 `GET /api/v1/fleet/status/live_query`
 
@@ -1934,7 +2023,38 @@ o
 ]
 ```
 
-### Device-authenticated routes
+---
+
+## Trigger cron schedule
+
+This API is used by the `fleetctl` CLI tool to make requests to trigger an ad hoc run of all jobs in
+a specified cron schedule.
+
+### Trigger
+
+This makes a request to trigger the specified cron schedule. Upon receiving the request, the Fleet
+server first checks the current status of the schedule, and it returns an error if a run is
+currently pending.
+
+`POST /api/latest/fleet/trigger`
+
+#### Parameters
+
+| Name            | Type   | In    | Description                                        |
+| --------------- | ------ | ----- | ---------------------------------------------------|
+| name            | string | query | The name of the cron schedule to trigger.          |
+
+#### Example
+
+`POST /api/latest/fleet/trigger?name=automations`
+
+##### Default response
+
+`Status: 200`
+
+---
+
+## Device-authenticated routes
 
 Device-authenticated routes are routes used by the Fleet Desktop application. Unlike most other routes, Fleet user's API token does not authenticate them. They use a device-specific token.
 
@@ -2347,7 +2467,7 @@ If an installer with the provided parameters is found.
 
 If an installer with the provided parameters doesn't exist.
 
-### Setup
+## Setup
 
 Sets up a new Fleet instance with the given parameters.
 

@@ -1,12 +1,13 @@
 import React from "react";
 import { find, lowerCase, noop } from "lodash";
-import { formatDistanceToNowStrict } from "date-fns";
+import { intlFormat, formatDistanceToNowStrict } from "date-fns";
 
-import { ActivityType, IActivity } from "interfaces/activity";
+import { ActivityType, IActivity, IActivityDetails } from "interfaces/activity";
 import { addGravatarUrlToResource } from "utilities/helpers";
 import Avatar from "components/Avatar";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
+import ReactTooltip from "react-tooltip";
 
 const baseClass = "activity-item";
 
@@ -14,7 +15,10 @@ const DEFAULT_GRAVATAR_URL =
   "https://www.gravatar.com/avatar/00000000000000000000000000000000?d=blank&size=200";
 
 const TAGGED_TEMPLATES = {
-  liveQueryActivityTemplate: (activity: IActivity) => {
+  liveQueryActivityTemplate: (
+    activity: IActivity,
+    onDetailsClick?: (details: IActivityDetails) => void
+  ) => {
     const count = activity.details?.targets_count;
     const queryName = activity.details?.query_name;
     const querySql = activity.details?.query_sql;
@@ -37,15 +41,12 @@ const TAGGED_TEMPLATES = {
         <span>
           ran {savedQueryName} a live query {hostCount}.
         </span>
-
-        {/* TODO: the API does not yet send back querySql yet so will implement
-        the onClick handler when we get it. We dont show this for now. */}
-        {false && (
+        {querySql && (
           <>
             <Button
               className={`${baseClass}__show-query-link`}
               variant="text-link"
-              onClick={noop}
+              onClick={() => onDetailsClick?.({ query_sql: querySql })}
             >
               Show query{" "}
               <Icon className={`${baseClass}__show-query-icon`} name="eye" />
@@ -77,15 +78,67 @@ const TAGGED_TEMPLATES = {
       "edited multiple teams using fleetctl."
     );
   },
-  userAddedBySSOTempalte: () => {
-    return "was added to Fleet by SSO.";
-  },
   editAgentOptions: (activity: IActivity) => {
     return activity.details?.global ? (
       "edited agent options."
     ) : (
       <>
         edited agent options on <b>{activity.details?.team_name}</b> team.
+      </>
+    );
+  },
+  userAddedBySSOTempalte: () => {
+    return "was added to Fleet by SSO.";
+  },
+  userLoggedIn: (activity: IActivity) => {
+    return `successfully logged in from public IP ${activity.details?.public_ip}.`;
+  },
+  userCreated: (activity: IActivity) => {
+    return (
+      <>
+        created a user <b> {activity.details?.user_email}</b>.
+      </>
+    );
+  },
+  userDeleted: (activity: IActivity) => {
+    return (
+      <>
+        deleted a user <b>{activity.details?.user_email}</b>.
+      </>
+    );
+  },
+  userChangedGlobalRole: (activity: IActivity, isPremiumTier: boolean) => {
+    return (
+      <>
+        changed <b>{activity.details?.user_email}</b> to{" "}
+        <b>{activity.details?.role}</b>
+        {isPremiumTier && " for all teams"}.
+      </>
+    );
+  },
+  userDeletedGlobalRole: (activity: IActivity, isPremiumTier: boolean) => {
+    return (
+      <>
+        removed <b>{activity.details?.user_email}</b> as{" "}
+        <b>{activity.details?.role}</b>
+        {isPremiumTier && " for all teams"}.
+      </>
+    );
+  },
+  userChangedTeamRole: (activity: IActivity) => {
+    return (
+      <>
+        changed <b>{activity.details?.user_email}</b> to{" "}
+        <b>{activity.details?.role}</b> for the{" "}
+        <b>{activity.details?.team_name}</b> team.
+      </>
+    );
+  },
+  userDeletedTeamRole: (activity: IActivity) => {
+    return (
+      <>
+        removed <b>{activity.details?.user_email}</b> from the{" "}
+        <b>{activity.details?.team_name}</b> team.
       </>
     );
   },
@@ -100,17 +153,24 @@ const TAGGED_TEMPLATES = {
     return !entityName ? (
       `${activityType}.`
     ) : (
-      <span>
+      <>
         {activityType} <b>{entityName}</b>.
-      </span>
+      </>
     );
   },
 };
 
-const getDetail = (activity: IActivity) => {
+const getDetail = (
+  activity: IActivity,
+  isPremiumTier: boolean,
+  onDetailsClick?: (details: IActivityDetails) => void
+) => {
   switch (activity.type) {
     case ActivityType.LiveQuery: {
-      return TAGGED_TEMPLATES.liveQueryActivityTemplate(activity);
+      return TAGGED_TEMPLATES.liveQueryActivityTemplate(
+        activity,
+        onDetailsClick
+      );
     }
     case ActivityType.AppliedSpecPack: {
       return TAGGED_TEMPLATES.editPackCtlActivityTemplate();
@@ -124,11 +184,32 @@ const getDetail = (activity: IActivity) => {
     case ActivityType.AppliedSpecTeam: {
       return TAGGED_TEMPLATES.editTeamCtlActivityTemplate(activity);
     }
+    case ActivityType.EditedAgentOptions: {
+      return TAGGED_TEMPLATES.editAgentOptions(activity);
+    }
     case ActivityType.UserAddedBySSO: {
       return TAGGED_TEMPLATES.userAddedBySSOTempalte();
     }
-    case ActivityType.EditedAgentOptions: {
-      return TAGGED_TEMPLATES.editAgentOptions(activity);
+    case ActivityType.UserLoggedIn: {
+      return TAGGED_TEMPLATES.userLoggedIn(activity);
+    }
+    case ActivityType.UserCreated: {
+      return TAGGED_TEMPLATES.userCreated(activity);
+    }
+    case ActivityType.UserDeleted: {
+      return TAGGED_TEMPLATES.userDeleted(activity);
+    }
+    case ActivityType.UserChangedGlobalRole: {
+      return TAGGED_TEMPLATES.userChangedGlobalRole(activity, isPremiumTier);
+    }
+    case ActivityType.UserDeletedGlobalRole: {
+      return TAGGED_TEMPLATES.userDeletedGlobalRole(activity, isPremiumTier);
+    }
+    case ActivityType.UserChangedTeamRole: {
+      return TAGGED_TEMPLATES.userChangedTeamRole(activity);
+    }
+    case ActivityType.UserDeletedTeamRole: {
+      return TAGGED_TEMPLATES.userDeletedTeamRole(activity);
     }
     default: {
       return TAGGED_TEMPLATES.defaultActivityTemplate(activity);
@@ -138,13 +219,26 @@ const getDetail = (activity: IActivity) => {
 
 interface IActivityItemProps {
   activity: IActivity;
+  isPremiumTier: boolean;
+
+  /** A handler for handling clicking on the details of an activity. Not all
+   * activites have more details so this is optional. An example of additonal
+   * details is showing the query for a live query action.
+   */
+  onDetailsClick?: (details: IActivityDetails) => void;
 }
 
-const ActivityItem = ({ activity }: IActivityItemProps) => {
+const ActivityItem = ({
+  activity,
+  isPremiumTier,
+  onDetailsClick = noop,
+}: IActivityItemProps) => {
   const { actor_email } = activity;
   const { gravatarURL } = actor_email
     ? addGravatarUrlToResource({ email: actor_email })
     : { gravatarURL: DEFAULT_GRAVATAR_URL };
+
+  const activityCreatedAt = new Date(activity.created_at);
 
   return (
     <div className={baseClass}>
@@ -156,14 +250,44 @@ const ActivityItem = ({ activity }: IActivityItemProps) => {
       <div className={`${baseClass}__details`}>
         <p>
           <span className={`${baseClass}__details-topline`}>
-            <b>{activity.actor_full_name}</b> {getDetail(activity)}
+            {activity.type === ActivityType.UserLoggedIn ? (
+              <b>{activity.actor_email} </b>
+            ) : (
+              <b>{activity.actor_full_name} </b>
+            )}
+            {getDetail(activity, isPremiumTier, onDetailsClick)}
           </span>
           <br />
-          <span className={`${baseClass}__details-bottomline`}>
-            {formatDistanceToNowStrict(new Date(activity.created_at), {
+          <span
+            className={`${baseClass}__details-bottomline`}
+            data-tip
+            data-for={`activity-${activity.id}`}
+          >
+            {formatDistanceToNowStrict(activityCreatedAt, {
               addSuffix: true,
             })}
           </span>
+          <ReactTooltip
+            className="date-tooltip"
+            place="top"
+            type="dark"
+            effect="solid"
+            id={`activity-${activity.id}`}
+            backgroundColor="#3e4771"
+          >
+            {intlFormat(
+              activityCreatedAt,
+              {
+                year: "numeric",
+                month: "numeric",
+                day: "numeric",
+                hour: "numeric",
+                minute: "numeric",
+                second: "numeric",
+              },
+              { locale: window.navigator.languages[0] }
+            )}
+          </ReactTooltip>
         </p>
       </div>
     </div>

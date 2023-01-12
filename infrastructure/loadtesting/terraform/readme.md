@@ -6,6 +6,7 @@ If you require changes beyond whats described here, contact @zwinnerman-fleetdm.
 ### Deploying your code to the loadtesting environment
 
 1. Push your branch to https://github.com/fleetdm/fleet and wait for the build to complete (https://github.com/fleetdm/fleet/actions).
+1. arm64 (M1/M2/etc) Mac Only: run `helpers/setup-darwin_arm64.sh` to build terraform plugins that lack arm64 builds in the registry.  Alternatively, you can use the amd64 terraform binary, which works with Rosetta 2.
 1. Initialize your terraform environment with `terraform init`.
 1. Select a workspace for your test: `terraform workspace new WORKSPACE-NAME; terraform workspace select WORKSPACE-NAME`. Ensure your `WORKSPACE-NAME` contains only alphanumeric characters and hyphens, as it is used to generate names for AWS resources.
 1. Apply terraform with your branch name with `terraform apply -var tag=BRANCH_NAME` and type `yes` to approve execution of the plan. This takes a while to complete (many minutes).
@@ -38,6 +39,12 @@ There are a few main places of interest to monitor the load and resource usage:
 * To monitor Redis load, go to Amazon ElastiCache, select the redis cluster to monitor, and go to "Metrics".
 
 ### Troubleshooting
+
+#### Using a release tag instead of a branch
+
+Since the tag name on Dockerhub doesn't match the tag name on GitHub, this presents a special use case when wanting to deploy a release tag.  In this case, you can use the optional `-var github_branch` in order to specify the separate tag.  For example, you would use the following to deploy a loadtest of version 4.25.0:
+
+`terraform apply -var tag=v4.25.0 -var github_branch=fleet-v4.25.0 -var loadtest_containers=8`
 
 #### General Troubleshooting
 

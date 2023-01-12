@@ -1,9 +1,14 @@
 package fleet
 
 import (
+	"context"
 	"encoding/json"
+	"fmt"
+	"net/http"
+	"strings"
 
 	"github.com/micromdm/nanodep/godep"
+	nanohttp "github.com/micromdm/nanomdm/http"
 	"github.com/micromdm/nanomdm/mdm"
 )
 
@@ -55,6 +60,12 @@ type MDMAppleEnrollmentProfile struct {
 // AuthzType implements authz.AuthzTyper.
 func (m MDMAppleEnrollmentProfile) AuthzType() string {
 	return "mdm_apple_enrollment_profile"
+}
+
+// MDMAppleDEPKeyPair contains the DEP public key certificate and private key pair. Both are PEM encoded.
+type MDMAppleDEPKeyPair struct {
+	PublicKey  []byte `json:"public_key"`
+	PrivateKey []byte `json:"private_key"`
 }
 
 // MDMAppleCommandResult holds the result of a command execution provided by the target device.
@@ -165,4 +176,87 @@ type MDMAppleCommand struct {
 // AuthzType implements authz.AuthzTyper.
 func (m MDMAppleCommand) AuthzType() string {
 	return "mdm_apple_command"
+}
+
+// MDMAppleHostDetails represents the device identifiers used to ingest an MDM device as a Fleet
+// host pending enrollment.
+// See also https://developer.apple.com/documentation/devicemanagement/authenticaterequest.
+type MDMAppleHostDetails struct {
+	SerialNumber string
+	UDID         string
+	Model        string
+}
+
+// HandleMDMCheckinRequest handles incoming http requests
+// that follow Apple's MDM checkin protocol.
+//
+// - For valid Authenticate checkin requests, it decodes
+// the XML body and ingests new host details into the
+// associated datastore.
+// - For TokenUpdate and CheckOut requests it creates
+// activity logs.
+//
+// See also
+// https://developer.apple.com/documentation/devicemanagement/check-in.
+func HandleMDMCheckinRequest(ctx context.Context, r *http.Request, ds Datastore) error {
+	if isMDMAppleCheckinReq(r) {
+		msg, err := decodeMDMAppleCheckinReq(r)
+		if err != nil {
+			return fmt.Errorf("decode checkin request: %w", err)
+		}
+
+		switch m := msg.(type) {
+		case *mdm.Authenticate:
+			host := MDMAppleHostDetails{}
+			host.SerialNumber = m.SerialNumber
+			host.UDID = m.UDID
+			host.Model = m.Model
+			if err := ds.IngestMDMAppleDeviceFromCheckin(ctx, host); err != nil {
+				return err
+			}
+			info, err := ds.GetHostMDMCheckinInfo(ctx, m.Enrollment.UDID)
+			if err != nil {
+				return err
+			}
+			return ds.NewActivity(ctx, nil, &ActivityTypeMDMEnrolled{
+				HostSerial:       info.HardwareSerial,
+				InstalledFromDEP: info.InstalledFromDEP,
+			})
+		case *mdm.CheckOut:
+			if err := ds.UpdateHostTablesOnMDMUnenroll(ctx, m.UDID); err != nil {
+				return err
+			}
+			info, err := ds.GetHostMDMCheckinInfo(ctx, m.Enrollment.UDID)
+			if err != nil {
+				return err
+			}
+			return ds.NewActivity(ctx, nil, &ActivityTypeMDMUnenrolled{
+				HostSerial:       info.HardwareSerial,
+				InstalledFromDEP: info.InstalledFromDEP,
+			})
+		default:
+			// these aren't the requests you're looking for, move along
+			return nil
+		}
+	}
+
+	return nil
+}
+
+func isMDMAppleCheckinReq(r *http.Request) bool {
+	contentType := r.Header.Get("Content-Type")
+	return strings.HasPrefix(contentType, "application/x-apple-aspen-mdm-checkin")
+}
+
+func decodeMDMAppleCheckinReq(r *http.Request) (interface{}, error) {
+	bodyBytes, err := nanohttp.ReadAllAndReplaceBody(r)
+	if err != nil {
+		return nil, err
+	}
+	msg, err := mdm.DecodeCheckin(bodyBytes)
+	if err != nil {
+		return nil, err
+	}
+
+	return msg, nil
 }

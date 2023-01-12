@@ -19,6 +19,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service"
 
+	"github.com/fleetdm/fleet/v4/orbit/pkg/augeas"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/build"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/execuser"
@@ -151,7 +152,9 @@ func main() {
 			if strings.HasPrefix(executable, "/var/lib/orbit") {
 				rootDir = "/var/lib/orbit"
 			}
-			c.Set("root-dir", rootDir)
+			if err := c.Set("root-dir", rootDir); err != nil {
+				return fmt.Errorf("failed to set root-dir: %w", err)
+			}
 		}
 
 		return nil
@@ -266,8 +269,10 @@ func main() {
 
 		// NOTE: When running in dev-mode, even if `disable-updates` is set,
 		// it fetches osqueryd once as part of initialization.
+		var updater *update.Updater
+		var updateRunner *update.Runner
 		if !c.Bool("disable-updates") || c.Bool("dev-mode") {
-			updater, err := update.NewUpdater(opt)
+			updater, err = update.NewUpdater(opt)
 			if err != nil {
 				return fmt.Errorf("create updater: %w", err)
 			}
@@ -282,7 +287,7 @@ func main() {
 			if c.Bool("dev-mode") {
 				targets = targets[1:] // exclude orbit itself on dev-mode.
 			}
-			updateRunner, err := update.NewRunner(updater, update.RunnerOptions{
+			updateRunner, err = update.NewRunner(updater, update.RunnerOptions{
 				CheckInterval: c.Duration("update-interval"),
 				Targets:       targets,
 			})
@@ -322,7 +327,7 @@ func main() {
 			}
 		} else {
 			log.Info().Msg("running with auto updates disabled")
-			updater := update.NewDisabled(opt)
+			updater = update.NewDisabled(opt)
 			osquerydPath, err = updater.ExecutableLocalPath("osqueryd")
 			if err != nil {
 				log.Fatal().Err(err).Msg("locate osqueryd")
@@ -513,6 +518,48 @@ func main() {
 		}
 		g.Add(flagRunner.Execute, flagRunner.Interrupt)
 
+		// only setup extensions autoupdate if we have enabled updates
+		// for extensions autoupdate, we can only proceed after orbit is enrolled in fleet
+		// and all relevant things for it (like certs, enroll secrets, tls proxy, etc) is configured
+		if !c.Bool("disable-updates") || c.Bool("dev-mode") {
+			const orbitExtensionUpdateInterval = 60 * time.Second
+			extRunner := update.NewExtensionConfigUpdateRunner(orbitClient, update.ExtensionUpdateOptions{
+				CheckInterval: orbitExtensionUpdateInterval,
+				RootDir:       c.String("root-dir"),
+			}, updateRunner)
+
+			if _, err := extRunner.DoExtensionConfigUpdate(); err != nil {
+				// just log, OK to continue since this will get retry
+				log.Info().Err(err).Msg("initial update to fetch extensions from /config API failed")
+			}
+
+			// call UpdateAction on the updateRunner after we have fetched extensions from Fleet
+			_, err := updateRunner.UpdateAction()
+			if err != nil {
+				// OK, initial call may fail, ok to continue
+				log.Info().Err(err).Msg("initial extensions update action failed")
+			}
+
+			extensionAutoLoadFile := filepath.Join(c.String("root-dir"), "extensions.load")
+			stat, err := os.Stat(extensionAutoLoadFile)
+			// we only want to add the extensions_autoload flag to osquery, if the file exists and size > 0
+			switch {
+			case err == nil:
+				if stat.Size() > 0 {
+					log.Debug().Msg("adding --extensions_autoload flag for file " + extensionAutoLoadFile)
+					options = append(options, osquery.WithFlags([]string{"--extensions_autoload", extensionAutoLoadFile}))
+				} else {
+					// OK, expected as well when extensions are unloaded, just debug log
+					log.Debug().Msg("found empty extensions.load file at " + extensionAutoLoadFile)
+				}
+			case errors.Is(err, os.ErrNotExist):
+				// OK, nothing to do.
+			default:
+				log.Error().Err(err).Msg("error with extensions.load file at " + extensionAutoLoadFile)
+			}
+			g.Add(extRunner.Execute, extRunner.Interrupt)
+		}
+
 		trw := token.NewReadWriter(filepath.Join(c.String("root-dir"), "identifier"))
 
 		if err := trw.LoadOrGenerate(); err != nil {
@@ -597,6 +644,15 @@ func main() {
 					}
 				}
 			}()
+		}
+
+		// On Windows, where augeas doesn't work, we have a stubbed CopyLenses that always returns
+		// `"", nil`. Therefore there's no platform-specific stuff required here
+		augeasPath, err := augeas.CopyLenses(c.String("root-dir"))
+		if err != nil {
+			log.Warn().Err(err).Msg("failed to copy augeas lenses, augeas may not be available")
+		} else if augeasPath != "" {
+			options = append(options, osquery.WithFlags([]string{"--augeas_lenses", augeasPath}))
 		}
 
 		// --force is sometimes needed when an older osquery process has not
@@ -825,20 +881,14 @@ func (d *desktopRunner) interrupt(err error) {
 // shell out to osquery (on Linux and macOS) or to wmic (on Windows), and get the system uuid
 func getUUID(osqueryPath string) (string, error) {
 	if runtime.GOOS == "windows" {
-		args := []string{"/C", "wmic csproduct get UUID"}
-		out, err := exec.Command("cmd", args...).Output()
+		uuidData, uuidSource, err := platform.GetSMBiosUUID()
 		if err != nil {
 			return "", err
 		}
-		uuidOutputStr := string(out)
-		if len(uuidOutputStr) == 0 {
-			return "", errors.New("get UUID: output from wmi is empty")
-		}
-		outputByLines := strings.Split(strings.TrimRight(uuidOutputStr, "\n"), "\n")
-		if len(outputByLines) < 2 {
-			return "", errors.New("get UUID: unexpected output")
-		}
-		return strings.TrimSpace(outputByLines[1]), nil
+
+		log.Debug().Msgf("UUID source was %s.", uuidSource)
+
+		return uuidData, nil
 	}
 	type UuidOutput struct {
 		UuidString string `json:"uuid"`

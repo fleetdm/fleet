@@ -19,6 +19,8 @@ type PolicyPayload struct {
 	Name string
 	// Query is the policy query (ignored if QueryID != nil).
 	Query string
+	// Critical marks the policy as high impact.
+	Critical bool
 	// Description is the policy description text (ignored if QueryID != nil).
 	Description string
 	// Resolution indicates the steps needed to solve a failing policy.
@@ -106,6 +108,8 @@ type ModifyPolicyPayload struct {
 	// Platform is a comma-separated string to indicate the target platforms.
 	// If non-nil, empty string targets all platforms.
 	Platform *string `json:"platform"`
+	// Critical marks the policy as high impact.
+	Critical *bool `json:"critical" premium:"true"`
 }
 
 // Verify verifies the policy payload is valid.
@@ -136,6 +140,8 @@ type PolicyData struct {
 	Name string `json:"name" db:"name"`
 	// Query is the actual query to run on the osquery agents.
 	Query string `json:"query" db:"query"`
+	// Critical marks the policy as high impact.
+	Critical bool `json:"critical" db:"critical"`
 	// Description describes the policy.
 	Description string `json:"description" db:"description"`
 	// AuthorID is the ID of the author of the policy.
@@ -198,6 +204,8 @@ type PolicySpec struct {
 	Query string `json:"query"`
 	// Description describes the policy.
 	Description string `json:"description"`
+	// Critical marks the policy as high impact.
+	Critical bool `json:"critical"`
 	// Resolution describes how to solve a failing policy.
 	Resolution string `json:"resolution,omitempty"`
 	// Team is the name of the team.

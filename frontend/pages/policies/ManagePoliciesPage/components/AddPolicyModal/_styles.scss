@@ -1,5 +1,16 @@
 .add-policy-modal {
+  height: 80%;
+  overflow: hidden;
+  .modal__content {
+    height: 100%;
+    overflow: scroll;
+    margin-top: 0;
+  }
+  &__create-policy {
+    padding-top: 1.5rem;
+  }
   &__policy-selection {
     padding: $pad-large 0;
+    height: 100%;
   }
 }

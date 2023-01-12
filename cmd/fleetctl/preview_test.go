@@ -24,7 +24,7 @@ func TestPreview(t *testing.T) {
 	})
 
 	var output *bytes.Buffer
-	nettest.RunWithNetRetry(t, func() error {
+	require.NoError(t, nettest.RunWithNetRetry(t, func() error {
 		var err error
 		output, err = runAppNoChecks([]string{
 			"preview", "--config", configPath,
@@ -32,7 +32,7 @@ func TestPreview(t *testing.T) {
 			"--disable-open-browser",
 		})
 		return err
-	})
+	}))
 
 	queriesRe := regexp.MustCompile(`applied ([0-9]+) queries`)
 	policiesRe := regexp.MustCompile(`applied ([0-9]+) policies`)

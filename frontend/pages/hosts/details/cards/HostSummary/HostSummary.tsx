@@ -5,11 +5,10 @@ import TooltipWrapper from "components/TooltipWrapper";
 
 import Button from "components/buttons/Button";
 import DiskSpaceGraph from "components/DiskSpaceGraph";
-import {
-  humanHostMemory,
-  humanHostDetailUpdated,
-  wrapFleetHelper,
-} from "utilities/helpers";
+import HumanTimeDiffWithDateTip from "components/HumanTimeDiffWithDateTip";
+import { humanHostMemory, wrapFleetHelper } from "utilities/helpers";
+import getHostStatusTooltipText from "pages/hosts/helpers";
+import StatusIndicator from "components/StatusIndicator";
 import IssueIcon from "../../../../../../assets/images/icon-issue-fleet-black-50-16x16@2x.png";
 
 const baseClass = "host-summary";
@@ -72,7 +71,7 @@ const HostSummary = ({
           </Button>
         </div>
         <ReactTooltip
-          place="bottom"
+          place="top"
           effect="solid"
           id="refetch-tooltip"
           backgroundColor="#3e4771"
@@ -129,13 +128,18 @@ const HostSummary = ({
   );
 
   const renderSummary = () => {
+    const { status, id } = titleData;
     return (
       <div className="info-flex">
         <div className="info-flex__item info-flex__item--title">
           <span className="info-flex__header">Status</span>
-          <span className={`${statusClassName} info-flex__data`}>
-            {titleData.status}
-          </span>
+          <StatusIndicator
+            value={status || ""} // temporary work around of integration test bug
+            tooltip={{
+              id,
+              tooltipText: getHostStatusTooltipText(status),
+            }}
+          />
         </div>
         {titleData.issues?.total_issues_count > 0 &&
           isPremiumTier &&
@@ -147,7 +151,8 @@ const HostSummary = ({
             baseClass="info-flex"
             gigsDiskSpaceAvailable={titleData.gigs_disk_space_available}
             percentDiskSpaceAvailable={titleData.percent_disk_space_available}
-            id={"disk-space-tooltip"}
+            id={`disk-space-tooltip-${titleData.id}`}
+            platform={titleData.platform}
           />
         </div>
         {typeof diskEncryption?.enabled === "boolean" &&
@@ -195,6 +200,12 @@ const HostSummary = ({
     );
   };
 
+  const lastFetched = titleData.detail_updated_at ? (
+    <HumanTimeDiffWithDateTip timeString={titleData.detail_updated_at} />
+  ) : (
+    ": unavailable"
+  );
+
   return (
     <>
       <div className="header title">
@@ -203,10 +214,9 @@ const HostSummary = ({
             <h1 className="display-name">
               {deviceUser ? "My device" : titleData.display_name || "---"}
             </h1>
+
             <p className="last-fetched">
-              {`Last fetched ${humanHostDetailUpdated(
-                titleData.detail_updated_at
-              )}`}
+              {"Last fetched"} {lastFetched}
               &nbsp;
             </p>
             {renderRefetch()}

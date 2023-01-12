@@ -47,7 +47,7 @@ func makeStreamDistributedQueryCampaignResultsHandler(svc fleet.Service, logger 
 			defer func() {
 				if p := recover(); p != nil {
 					logger.Log("err", p, "msg", "panic in result handler")
-					conn.WriteJSONError("panic in result handler")
+					conn.WriteJSONError("panic in result handler") //nolint:errcheck
 				}
 				session.Close(0, "none")
 			}()
@@ -63,7 +63,7 @@ func makeStreamDistributedQueryCampaignResultsHandler(svc fleet.Service, logger 
 			vc, err := authViewer(context.Background(), string(token), svc)
 			if err != nil || !vc.CanPerformActions() {
 				logger.Log("err", err, "msg", "unauthorized viewer")
-				conn.WriteJSONError("unauthorized")
+				conn.WriteJSONError("unauthorized") //nolint:errcheck
 				return
 			}
 
@@ -72,12 +72,12 @@ func makeStreamDistributedQueryCampaignResultsHandler(svc fleet.Service, logger 
 			msg, err := conn.ReadJSONMessage()
 			if err != nil {
 				logger.Log("err", err, "msg", "reading select_campaign JSON")
-				conn.WriteJSONError("error reading select_campaign")
+				conn.WriteJSONError("error reading select_campaign") //nolint:errcheck
 				return
 			}
 			if msg.Type != "select_campaign" {
 				logger.Log("err", "unexpected msg type, expected select_campaign", "msg-type", msg.Type)
-				conn.WriteJSONError("expected select_campaign")
+				conn.WriteJSONError("expected select_campaign") //nolint:errcheck
 				return
 			}
 
@@ -87,12 +87,12 @@ func makeStreamDistributedQueryCampaignResultsHandler(svc fleet.Service, logger 
 			err = json.Unmarshal(*(msg.Data.(*json.RawMessage)), &info)
 			if err != nil {
 				logger.Log("err", err, "msg", "unmarshaling select_campaign data")
-				conn.WriteJSONError("error unmarshaling select_campaign data")
+				conn.WriteJSONError("error unmarshaling select_campaign data") //nolint:errcheck
 				return
 			}
 			if info.CampaignID == 0 {
 				logger.Log("err", "campaign ID not set")
-				conn.WriteJSONError("0 is not a valid campaign ID")
+				conn.WriteJSONError("0 is not a valid campaign ID") //nolint:errcheck
 				return
 			}
 

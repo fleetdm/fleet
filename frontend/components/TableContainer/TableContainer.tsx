@@ -21,6 +21,11 @@ export interface ITableQueryData {
   sortHeader: string;
   sortDirection: string;
 }
+interface IRowProps extends Row {
+  original: {
+    id?: number;
+  };
+}
 
 interface ITableContainerProps {
   columns: any; // TODO: Figure out type
@@ -29,6 +34,7 @@ interface ITableContainerProps {
   manualSortBy?: boolean;
   defaultSortHeader?: string;
   defaultSortDirection?: string;
+  defaultSearchQuery?: string;
   actionButtonText?: string;
   actionButtonIcon?: string;
   actionButtonVariant?: ButtonVariant;
@@ -73,7 +79,7 @@ interface ITableContainerProps {
   onPrimarySelectActionClick?: (selectedItemIds: number[]) => void;
   customControl?: () => JSX.Element;
   stackControls?: boolean;
-  onSelectSingleRow?: (value: Row) => void;
+  onSelectSingleRow?: (value: Row | IRowProps) => void;
   filters?: Record<string, string | number | boolean>;
   renderCount?: () => JSX.Element | null;
   renderFooter?: () => JSX.Element | null;
@@ -92,6 +98,7 @@ const TableContainer = ({
   filters,
   isLoading,
   manualSortBy = false,
+  defaultSearchQuery = "",
   defaultSortHeader = "name",
   defaultSortDirection = "asc",
   inputPlaceHolder = "Search",
@@ -138,7 +145,7 @@ const TableContainer = ({
   setExportRows,
   resetPageIndex,
 }: ITableContainerProps): JSX.Element => {
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState(defaultSearchQuery);
   const [sortHeader, setSortHeader] = useState(defaultSortHeader || "");
   const [sortDirection, setSortDirection] = useState(
     defaultSortDirection || ""
@@ -264,6 +271,7 @@ const TableContainer = ({
         <div className={`${baseClass}__search-input wide-search`}>
           <SearchField
             placeholder={inputPlaceHolder}
+            defaultValue={searchQuery}
             onChange={onSearchQueryChange}
           />
         </div>
@@ -330,7 +338,6 @@ const TableContainer = ({
             {customControl && customControl()}
           </span>
         </div>
-
         <div className={`${baseClass}__search`}>
           {/* Render search bar only if not empty component */}
           {searchable && !wideSearch && (
@@ -345,6 +352,7 @@ const TableContainer = ({
               >
                 <SearchField
                   placeholder={inputPlaceHolder}
+                  defaultValue={searchQuery}
                   onChange={onSearchQueryChange}
                 />
               </div>

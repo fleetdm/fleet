@@ -1,0 +1,211 @@
+module.exports = {
+
+
+  friendlyName: 'Get bug and PR report',
+
+
+  description: 'Get information about open bugs and closed pull requests in the fleetdm/fleet GitHub repo.',
+
+
+  inputs: {
+
+  },
+
+
+  fn: async function ({}) {
+
+    sails.log('Getting metrics for issues with the "bug" label and pull requests in the fleetdm/fleet Github repo...');
+
+    if(!sails.config.custom.githubAccessToken) {
+      throw new Error('Missing GitHub access token! To use this script, a GitHub access token is required. To resolve, add a GitHub access token to your local configuration (website/config/local.js) as sails.config.custom.githubAccessToken or provide one when running this script. (ex: "sails_custom__githubAccessToken=YOUR_PERSONAL_ACCESS_TOKEN sails run get-bug-and-pr-report")');
+    }
+
+    let baseHeaders = {
+      'User-Agent': 'Fleet average open time',
+      'Authorization': `token ${sails.config.custom.githubAccessToken}`
+    };
+
+    const ONE_DAY_IN_MILLISECONDS = (1000 * 60 * 60 * 24);
+    const todaysDate = new Date;
+    const threeWeeksAgo = new Date(Date.now() - (21 * ONE_DAY_IN_MILLISECONDS));
+    const NUMBER_OF_RESULTS_REQUESTED = 100;
+
+    let daysSinceBugsWereOpened = [];
+    let daysSincePullRequestsWereOpened = [];
+    let commitToMergeTimesInDays = [];
+
+
+    await sails.helpers.flow.simultaneously([
+
+      //   ██████╗ ██████╗ ███████╗███╗   ██╗    ██████╗ ██╗   ██╗ ██████╗ ███████╗
+      //  ██╔═══██╗██╔══██╗██╔════╝████╗  ██║    ██╔══██╗██║   ██║██╔════╝ ██╔════╝
+      //  ██║   ██║██████╔╝█████╗  ██╔██╗ ██║    ██████╔╝██║   ██║██║  ███╗███████╗
+      //  ██║   ██║██╔═══╝ ██╔══╝  ██║╚██╗██║    ██╔══██╗██║   ██║██║   ██║╚════██║
+      //  ╚██████╔╝██║     ███████╗██║ ╚████║    ██████╔╝╚██████╔╝╚██████╔╝███████║
+      //   ╚═════╝ ╚═╝     ╚══════╝╚═╝  ╚═══╝    ╚═════╝  ╚═════╝  ╚═════╝ ╚══════╝
+      //
+      async()=>{
+
+        let pageNumberForPossiblePaginatedResults = 0;
+        let allIssuesWithBugLabel = [];
+
+        // Fetch all open issues in the fleetdm/fleet repo with the bug label.
+        // Note: This will send requests to GitHub until the number of results is less than the number we requested.
+        await sails.helpers.flow.until(async ()=>{
+          // Increment the page of results we're requesting.
+          pageNumberForPossiblePaginatedResults += 1;
+          let issuesWithBugLabel = await sails.helpers.http.get(
+            `https://api.github.com/repos/fleetdm/fleet/issues`,
+            {
+              'state': 'open',
+              'labels': 'bug',
+              'per_page': NUMBER_OF_RESULTS_REQUESTED,
+              'page': pageNumberForPossiblePaginatedResults,
+            },
+            baseHeaders
+          ).retry();
+          // Add the results to the allIssuesWithBugLabel array.
+          allIssuesWithBugLabel = allIssuesWithBugLabel.concat(issuesWithBugLabel);
+          // If we received less results than we requested, we've reached the last page of the results.
+          return issuesWithBugLabel.length !== NUMBER_OF_RESULTS_REQUESTED;
+        }, 10000);
+
+        // iterate through the allIssuesWithBugLabel array, adding the number
+        for(let issue of allIssuesWithBugLabel) {
+          // Create a date object from the issue's created_at timestamp.
+          let issueOpenedOn = new Date(issue.created_at);
+          // Get the amount of time this issue has been open in milliseconds.
+          let timeOpenInMS = Math.abs(todaysDate - issueOpenedOn);
+          // Convert the miliseconds to days and add the value to the daysSinceBugsWereOpened array
+          let timeOpenInDays = timeOpenInMS / ONE_DAY_IN_MILLISECONDS;
+          daysSinceBugsWereOpened.push(timeOpenInDays);
+        }
+
+      },
+      //   ██████╗██╗      ██████╗ ███████╗███████╗██████╗     ██████╗ ██████╗ ███████╗
+      //  ██╔════╝██║     ██╔═══██╗██╔════╝██╔════╝██╔══██╗    ██╔══██╗██╔══██╗██╔════╝
+      //  ██║     ██║     ██║   ██║███████╗█████╗  ██║  ██║    ██████╔╝██████╔╝███████╗
+      //  ██║     ██║     ██║   ██║╚════██║██╔══╝  ██║  ██║    ██╔═══╝ ██╔══██╗╚════██║
+      //  ╚██████╗███████╗╚██████╔╝███████║███████╗██████╔╝    ██║     ██║  ██║███████║
+      //   ╚═════╝╚══════╝ ╚═════╝ ╚══════╝╚══════╝╚═════╝     ╚═╝     ╚═╝  ╚═╝╚══════╝
+      //
+      async()=>{
+
+        let pageNumberForPaginatedResults = 0;
+        let pullRequestsMergedInThePastThreeWeeks = [];
+
+
+        // Fetch the last 300 closed pull requests from the fleetdm/fleet GitHub Repo
+        await sails.helpers.flow.until(async ()=>{
+          // Increment the page of results we're requesting.
+          pageNumberForPaginatedResults += 1;
+          let closedPullRequests = await sails.helpers.http.get(
+            `https://api.github.com/repos/fleetdm/fleet/pulls`,
+            {
+              'state': 'closed',
+              'sort': 'updated',
+              'direction': 'desc',
+              'per_page': NUMBER_OF_RESULTS_REQUESTED,
+              'page': pageNumberForPaginatedResults,
+            },
+            baseHeaders
+          ).retry();
+
+          // Filter the PRs we received from Github using the pull request's merged_at date.
+          let resultsToAdd = closedPullRequests.filter((pullRequest)=>{
+            return threeWeeksAgo <= new Date(pullRequest.merged_at);
+          });
+
+          // Add the filtered array of PRs to the array of all pull requests merged in the past three weeks.
+          pullRequestsMergedInThePastThreeWeeks = pullRequestsMergedInThePastThreeWeeks.concat(resultsToAdd);
+          // Stop when we've received results from the third page.
+          return pageNumberForPaginatedResults === 3;
+        });
+
+
+        // To get the timestamp of the first commit for each pull request, we'll need to send a request to the commits API endpoint.
+        await sails.helpers.flow.simultaneouslyForEach(pullRequestsMergedInThePastThreeWeeks, async (pullRequest)=>{
+          // Create a date object from the PR's merged_at timestamp.
+          let pullRequestMergedOn = new Date(pullRequest.merged_at);
+          // https://docs.github.com/en/rest/commits/commits#list-commits
+          let commitsOnThisPullRequest = await sails.helpers.http.get(pullRequest.commits_url, {}, baseHeaders).retry();
+          // Create a new Date from the timestamp of the first commit on this pull request.
+          let firstCommitAt = new Date(commitsOnThisPullRequest[0].commit.author.date); // https://docs.github.com/en/rest/commits/commits#list-commits--code-samples
+          // Get the amount of time this issue has been open in milliseconds.
+          let timeFromCommitToMergeInMS = pullRequestMergedOn - firstCommitAt;
+          // Convert the miliseconds to days and add the value to the daysSincePullRequestsWereOpened array.
+          let timeFromFirstCommitInDays = timeFromCommitToMergeInMS / ONE_DAY_IN_MILLISECONDS;
+          commitToMergeTimesInDays.push(timeFromFirstCommitInDays);
+        });
+
+      },
+      //   ██████╗ ██████╗ ███████╗███╗   ██╗    ██████╗ ██████╗ ███████╗
+      //  ██╔═══██╗██╔══██╗██╔════╝████╗  ██║    ██╔══██╗██╔══██╗██╔════╝
+      //  ██║   ██║██████╔╝█████╗  ██╔██╗ ██║    ██████╔╝██████╔╝███████╗
+      //  ██║   ██║██╔═══╝ ██╔══╝  ██║╚██╗██║    ██╔═══╝ ██╔══██╗╚════██║
+      //  ╚██████╔╝██║     ███████╗██║ ╚████║    ██║     ██║  ██║███████║
+      //   ╚═════╝ ╚═╝     ╚══════╝╚═╝  ╚═══╝    ╚═╝     ╚═╝  ╚═╝╚══════╝
+      //
+      async()=>{
+        let pullRequestResultsPageNumber = 0;
+        let allOpenPullRequests = [];
+        // Fetch all open pull requests in the fleetdm/fleet repo.
+        // Note: This will send requests to GitHub until the number of results is less than the number we requested.
+        await sails.helpers.flow.until(async ()=>{
+          // Increment the page of results we're requesting.
+          pullRequestResultsPageNumber += 1;
+          let pullRequests = await sails.helpers.http.get(
+            `https://api.github.com/repos/fleetdm/fleet/pulls`,
+            {
+              'state': 'open',
+              'per_page': NUMBER_OF_RESULTS_REQUESTED,
+              'page': pullRequestResultsPageNumber,
+            },
+            baseHeaders
+          ).retry();
+          // Add the results to the array of results.
+          allOpenPullRequests = allOpenPullRequests.concat(pullRequests);
+          // If we received less results than we requested, we've reached the last page of the results.
+          return pullRequests.length !== NUMBER_OF_RESULTS_REQUESTED;
+        }, 10000);
+        for(let pullRequest of allOpenPullRequests) {
+          // Create a date object from the PR's created_at timestamp.
+          let pullRequestOpenedOn = new Date(pullRequest.created_at);
+          // Get the amount of time this issue has been open in milliseconds.
+          let timeOpenInMS = Math.abs(todaysDate - pullRequestOpenedOn);
+          // Convert the miliseconds to days and add the value to the daysSincePullRequestsWereOpened array
+          let timeOpenInDays = timeOpenInMS / ONE_DAY_IN_MILLISECONDS;
+          daysSincePullRequestsWereOpened.push(timeOpenInDays);
+        }
+
+      }
+
+    ]);
+
+    // Get the averages from the arrays of results.
+    let averageNumberOfDaysBugsAreOpenFor = Math.round(_.sum(daysSinceBugsWereOpened)/daysSinceBugsWereOpened.length);
+    let averageNumberOfDaysFromCommitToMerge = Math.round(_.sum(commitToMergeTimesInDays)/commitToMergeTimesInDays.length);
+    let averageDaysPullRequestsAreOpenFor = Math.round(_.sum(daysSincePullRequestsWereOpened)/daysSincePullRequestsWereOpened.length);
+
+    // Log the results
+    sails.log(`
+    Bugs:
+    ---------------------------
+    Number of open issues with the "bug" label: ${daysSinceBugsWereOpened.length}
+    Average open time: ${averageNumberOfDaysBugsAreOpenFor} days.
+
+
+    Closed pull requests:
+    ---------------------------
+    Number of pull requests merged in the past three weeks: ${commitToMergeTimesInDays.length}
+    Average time from first commit to merge: ${averageNumberOfDaysFromCommitToMerge} days.
+
+
+    Open pull requests
+    ---------------------------
+    Number of open pull requests in the fleetdm/fleet Github repo: ${daysSincePullRequestsWereOpened.length}
+    Average open time: ${averageDaysPullRequestsAreOpenFor} days.`);
+  }
+
+};
+

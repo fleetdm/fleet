@@ -16,7 +16,6 @@ const dashboardPage = {
         cy.getAttached(".dashboard-page__wrapper").within(() => {
           cy.findByText(/platform/i).should("exist");
           cy.getAttached(".hosts-summary").should("exist");
-          cy.getAttached(".home-mdm").should("exist");
           cy.getAttached(".operating-systems").should("exist");
           // "get" because we expect it not to exist
           cy.get(".home-software").should("not.exist");
@@ -67,8 +66,9 @@ const dashboardPage = {
         cy.getAttached(".dashboard-page__wrapper").within(() => {
           cy.findByText(/platform/i).should("exist");
           cy.getAttached(".hosts-summary").should("exist");
-          cy.getAttached(".home-software").should("exist");
           cy.getAttached(".activity-feed").should("exist");
+          // hidden if no software
+          cy.get(".home-software").should("not.exist");
           if (tier === "premium") {
             cy.getAttached(".hosts-missing").should("exist");
             cy.getAttached(".hosts-low-space").should("exist");
@@ -83,7 +83,8 @@ const dashboardPage = {
         cy.getAttached(".dashboard-page__wrapper").within(() => {
           cy.findByText(/platform/i).should("exist");
           cy.getAttached(".hosts-summary").should("exist");
-          cy.getAttached(".home-software").should("exist");
+          // hidden if no software
+          cy.get(".home-software").should("not.exist");
           cy.get(".activity-feed").should("not.exist");
           if (tier === "premium") {
             cy.getAttached(".hosts-missing").should("exist");

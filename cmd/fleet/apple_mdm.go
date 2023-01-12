@@ -7,10 +7,11 @@ import (
 	"net/http"
 
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
-	"github.com/fleetdm/fleet/v4/server/mdm/apple/scep/scep_ca"
-	"github.com/fleetdm/fleet/v4/server/mdm/apple/scep/scep_mysql"
+	"github.com/getsentry/sentry-go"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"github.com/micromdm/nanomdm/certverify"
@@ -27,15 +28,18 @@ import (
 // the MDM services to Apple devices.
 func registerAppleMDMProtocolServices(
 	mux *http.ServeMux,
-	config config.MDMAppleSCEPConfig,
+	scepConfig config.MDMAppleSCEPConfig,
+	scepCertPEM []byte,
+	scepKeyPEM []byte,
 	mdmStorage *mysql.NanoMDMStorage,
-	scepStorage *scep_mysql.MySQLDepot,
+	scepStorage *apple_mdm.SCEPMySQLDepot,
 	logger kitlog.Logger,
+	ds fleet.Datastore,
 ) error {
-	if err := registerSCEP(mux, config, scepStorage, logger); err != nil {
+	if err := registerSCEP(mux, scepConfig, scepCertPEM, scepKeyPEM, scepStorage, logger); err != nil {
 		return fmt.Errorf("scep: %w", err)
 	}
-	if err := registerMDM(mux, []byte(config.CA.PEMCert), mdmStorage, logger); err != nil {
+	if err := registerMDM(mux, scepCertPEM, mdmStorage, ds, logger); err != nil {
 		return fmt.Errorf("mdm: %w", err)
 	}
 	return nil
@@ -45,29 +49,34 @@ func registerAppleMDMProtocolServices(
 // Returns the SCEP CA certificate that can be used by verifiers.
 func registerSCEP(
 	mux *http.ServeMux,
-	config config.MDMAppleSCEPConfig,
-	scepStorage *scep_mysql.MySQLDepot,
+	scepConfig config.MDMAppleSCEPConfig,
+	scepCertPEM []byte,
+	scepKeyPEM []byte,
+	scepStorage *apple_mdm.SCEPMySQLDepot,
 	logger kitlog.Logger,
 ) error {
-	scepCACrt, scepCAKey, err := scep_ca.Load(
-		[]byte(config.CA.PEMCert),
-		[]byte(config.CA.PEMKey),
-	)
+	scepCACert, err := apple_mdm.DecodeCertPEM(scepCertPEM)
 	if err != nil {
-		return fmt.Errorf("load SCEP CA: %w", err)
+		return fmt.Errorf("load SCEP CA certificate: %w", err)
 	}
+
+	scepCAKey, err := apple_mdm.DecodePrivateKeyPEM(scepKeyPEM)
+	if err != nil {
+		return fmt.Errorf("load SCEP CA private key: %w", err)
+	}
+
 	var signer scepserver.CSRSigner = scep_depot.NewSigner(
 		scepStorage,
-		scep_depot.WithValidityDays(config.Signer.ValidityDays),
-		scep_depot.WithAllowRenewalDays(config.Signer.AllowRenewalDays),
+		scep_depot.WithValidityDays(scepConfig.Signer.ValidityDays),
+		scep_depot.WithAllowRenewalDays(scepConfig.Signer.AllowRenewalDays),
 	)
-	scepChallenge := config.Challenge
+	scepChallenge := scepConfig.Challenge
 	if scepChallenge == "" {
 		return errors.New("missing SCEP challenge")
 	}
 
 	signer = scepserver.ChallengeMiddleware(scepChallenge, signer)
-	scepService, err := scepserver.NewService(scepCACrt, scepCAKey, signer,
+	scepService, err := scepserver.NewService(scepCACert, scepCAKey, signer,
 		scepserver.WithLogger(kitlog.With(logger, "component", "mdm-apple-scep")),
 	)
 	if err != nil {
@@ -113,6 +122,7 @@ func registerMDM(
 	mux *http.ServeMux,
 	scepCAPEM []byte,
 	mdmStorage *mysql.NanoMDMStorage,
+	ds fleet.Datastore,
 	logger kitlog.Logger,
 ) error {
 	certVerifier, err := certverify.NewPoolVerifier(scepCAPEM, x509.ExtKeyUsageClientAuth)
@@ -124,13 +134,37 @@ func registerMDM(
 	// As usual, handlers are applied from bottom to top:
 	// 1. Extract and verify MDM signature.
 	// 2. Verify signer certificate with CA.
-	// 3. Verify new or enrolled certificate (certauth.CertAuth which wraps the MDM service)
+	// 3. Verify new or enrolled certificate (certauth.CertAuth which wraps the MDM service).
+	// 4. Pass a copy of the request to Fleet middleware that ingests new hosts from pending MDM
+	// enrollments and updates the Fleet hosts table accordingly with the UDID and serial number of
+	// the device.
 	// 4. Run actual MDM service operation (checkin handler or command and results handler).
 	var mdmService nanomdm_service.CheckinAndCommandService = nanomdm.New(mdmStorage, nanomdm.WithLogger(mdmLogger))
 	mdmService = certauth.New(mdmService, mdmStorage)
 	var mdmHandler http.Handler = httpmdm.CheckinAndCommandHandler(mdmService, mdmLogger.With("handler", "checkin-command"))
+	mdmHandler = MDMCheckinMiddleware(mdmHandler, ds, logger)
 	mdmHandler = httpmdm.CertVerifyMiddleware(mdmHandler, certVerifier, mdmLogger.With("handler", "cert-verify"))
 	mdmHandler = httpmdm.CertExtractMdmSignatureMiddleware(mdmHandler, mdmLogger.With("handler", "cert-extract"))
 	mux.Handle(apple_mdm.MDMPath, mdmHandler)
 	return nil
+}
+
+// MDMCheckinMiddleware watches incoming requests in order to
+// take actions on the different MDM check-in lifecycle
+// events, this might include enrolling a new host during
+// Authentication or adding activities on CheckOut.
+func MDMCheckinMiddleware(next http.Handler, ds fleet.Datastore, logger kitlog.Logger) http.HandlerFunc {
+	logger = kitlog.With(logger, "component", "mdm-apple-host-ingester")
+
+	return func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		if err := fleet.HandleMDMCheckinRequest(ctx, r, ds); err != nil {
+			level.Error(logger).Log("err", "ingest checkin request", "details", err)
+			sentry.CaptureException(err)
+			ctxerr.Handle(ctx, err)
+			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+			return
+		}
+		next.ServeHTTP(w, r)
+	}
 }

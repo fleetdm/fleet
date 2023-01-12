@@ -47,7 +47,9 @@ func Labels2() []fleet.Label {
 
 func Up_20170223171234(tx *sql.Tx) error {
 	// Remove the old labels
-	Down_20161229171615(tx)
+	if err := Down_20161229171615(tx); err != nil {
+		return err
+	}
 
 	// Insert the new labels
 	sql := `
@@ -85,7 +87,9 @@ func Down_20170223171234(tx *sql.Tx) error {
 	}
 
 	// Insert the old labels
-	Up_20161229171615(tx)
+	if err := Up_20161229171615(tx); err != nil {
+		return err
+	}
 
 	return nil
 }

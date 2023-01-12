@@ -217,7 +217,7 @@ func addMetrics(r *mux.Router) {
 		route.Handler(PrometheusMetricsHandler(route.GetName(), route.GetHandler()))
 		return nil
 	}
-	r.Walk(walkFn)
+	r.Walk(walkFn) //nolint:errcheck
 }
 
 // desktopRateLimitMaxBurst is the max burst used for device request rate limiting.
@@ -233,6 +233,8 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 
 	// user-authenticated endpoints
 	ue := newUserAuthenticatedEndpointer(svc, opts, r, apiVersions...)
+
+	ue.POST("/api/_version_/fleet/trigger", triggerEndpoint, triggerRequest{})
 
 	ue.GET("/api/_version_/fleet/me", meEndpoint, nil)
 	ue.GET("/api/_version_/fleet/sessions/{id:[0-9]+}", getInfoAboutSessionEndpoint, getInfoAboutSessionRequest{})
@@ -290,6 +292,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.StartingAtVersion("2022-04").POST("/api/_version_/fleet/policies/delete", deleteGlobalPoliciesEndpoint, deleteGlobalPoliciesRequest{})
 	ue.EndingAtVersion("v1").PATCH("/api/_version_/fleet/global/policies/{policy_id}", modifyGlobalPolicyEndpoint, modifyGlobalPolicyRequest{})
 	ue.StartingAtVersion("2022-04").PATCH("/api/_version_/fleet/policies/{policy_id}", modifyGlobalPolicyEndpoint, modifyGlobalPolicyRequest{})
+	ue.POST("/api/_version_/fleet/automations/reset", resetAutomationEndpoint, resetAutomationRequest{})
 
 	// Alias /api/_version_/fleet/team/ -> /api/_version_/fleet/teams/
 	ue.WithAltPaths("/api/_version_/fleet/team/{team_id}/policies").
@@ -416,7 +419,10 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 		ue.GET("/api/_version_/fleet/mdm/apple/installers", listMDMAppleInstallersEndpoint, listMDMAppleInstallersRequest{})
 		ue.GET("/api/_version_/fleet/mdm/apple/devices", listMDMAppleDevicesEndpoint, listMDMAppleDevicesRequest{})
 		ue.GET("/api/_version_/fleet/mdm/apple/dep/devices", listMDMAppleDEPDevicesEndpoint, listMDMAppleDEPDevicesRequest{})
+		ue.POST("/api/_version_/fleet/mdm/apple/dep/key_pair", newMDMAppleDEPKeyPairEndpoint, nil)
 	}
+	ue.GET("/api/_version_/fleet/mdm/apple", getAppleMDMEndpoint, nil)
+	ue.GET("/api/_version_/fleet/mdm/apple_bm", getAppleBMEndpoint, nil)
 
 	errorLimiter := ratelimit.NewErrorMiddleware(limitStore)
 

@@ -240,6 +240,7 @@ const ScheduleEditorModal = ({
             placeholder={"Select query"}
             value={selectedQuery?.id}
             wrapperClassName={`${baseClass}__select-query-dropdown-wrapper`}
+            autoFocus
           />
         )}
         <Dropdown
@@ -275,7 +276,7 @@ const ScheduleEditorModal = ({
         <div>
           <RevealButton
             isShowing={showAdvancedOptions}
-            baseClass={baseClass}
+            className={baseClass}
             hideText={"Hide advanced options"}
             showText={"Show advanced options"}
             caretPosition={"after"}

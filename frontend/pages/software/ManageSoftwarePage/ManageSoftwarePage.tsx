@@ -5,6 +5,8 @@ import React, {
   useMemo,
   useState,
 } from "react";
+import { Row } from "react-table";
+import PATHS from "router/paths";
 import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router/lib/Router";
 import { useDebouncedCallback } from "use-debounce";
@@ -15,6 +17,7 @@ import {
   IConfig,
   CONFIG_DEFAULT_RECENT_VULNERABILITY_MAX_AGE_IN_DAYS,
 } from "interfaces/config";
+import { IEmptyTableProps } from "interfaces/empty_table";
 import {
   IJiraIntegration,
   IZendeskIntegration,
@@ -30,6 +33,7 @@ import {
   GITHUB_NEW_ISSUE_LINK,
   VULNERABLE_DROPDOWN_OPTIONS,
 } from "utilities/constants";
+import { buildQueryStringFromParams, QueryParams } from "utilities/url";
 
 import Button from "components/buttons/Button";
 // @ts-ignore
@@ -44,10 +48,10 @@ import TeamsDropdownHeader, {
 import LastUpdatedText from "components/LastUpdatedText";
 import MainContent from "components/MainContent";
 import CustomLink from "components/CustomLink";
+import EmptyTable from "components/EmptyTable";
 
 import generateSoftwareTableHeaders from "./SoftwareTableConfig";
 import ManageAutomationsModal from "./components/ManageAutomationsModal";
-import EmptySoftware from "../components/EmptySoftware";
 
 interface IManageSoftwarePageProps {
   router: InjectedRouter;
@@ -86,6 +90,13 @@ interface ISoftwareAutomations {
 interface IHeaderButtonsState extends ITeamsDropdownState {
   isLoading: boolean;
 }
+
+interface IRowProps extends Row {
+  original: {
+    id?: number;
+  };
+}
+
 const DEFAULT_SORT_DIRECTION = "desc";
 const DEFAULT_PAGE_SIZE = 20;
 
@@ -507,9 +518,55 @@ const ManageSoftwarePage = ({
       softwareCount;
 
   const softwareTableHeaders = useMemo(
-    () => generateSoftwareTableHeaders(isPremiumTier),
-    [isPremiumTier]
+    () => generateSoftwareTableHeaders(router, isPremiumTier),
+    [isPremiumTier, router]
   );
+  const handleRowSelect = (row: IRowProps) => {
+    const queryParams = { software_id: row.original.id };
+
+    const path = queryParams
+      ? `${PATHS.MANAGE_HOSTS}?${buildQueryStringFromParams(queryParams)}`
+      : PATHS.MANAGE_HOSTS;
+
+    router.push(path);
+  };
+
+  const emptyState = () => {
+    const emptySoftware: IEmptyTableProps = {
+      header: "No software match the current search criteria",
+      info: "Try again in about 1 hour as the system catches up.",
+    };
+    if (!isSoftwareEnabled) {
+      emptySoftware.iconName = "empty-software";
+      emptySoftware.header = "Software inventory disabled";
+      emptySoftware.info = (
+        <>
+          Users with the admin role can{" "}
+          <CustomLink
+            url="https://fleetdm.com/docs/using-fleet/vulnerability-processing#configuration"
+            text="turn on software inventory"
+            newTab
+          />
+          .
+        </>
+      );
+    }
+    if (isCollectingInventory) {
+      emptySoftware.iconName = "empty-software";
+      emptySoftware.header = "No software detected";
+      emptySoftware.info =
+        "This report is updated every hour to protect the performance of your devices.";
+    }
+    if (currentTeam && filterVuln) {
+      emptySoftware.iconName = "empty-software";
+      emptySoftware.header = "No vulnerable software detected";
+      emptySoftware.info =
+        "This report is updated every hour to protect the performance of your devices.";
+    }
+    return emptySoftware;
+  };
+
+  const searchable = !!software?.software || searchQuery !== "";
 
   return !availableTeams ||
     !globalConfig ||
@@ -530,11 +587,11 @@ const ManageSoftwarePage = ({
               isLoading={isFetchingSoftware || isFetchingCount}
               resultsTitle={"software items"}
               emptyComponent={() =>
-                EmptySoftware(
-                  (!isSoftwareEnabled && "disabled") ||
-                    (isCollectingInventory && "collecting") ||
-                    "default"
-                )
+                EmptyTable({
+                  iconName: emptyState().iconName,
+                  header: emptyState().header,
+                  info: emptyState().info,
+                })
               }
               defaultSortHeader={DEFAULT_SORT_HEADER}
               defaultSortDirection={DEFAULT_SORT_DIRECTION}
@@ -543,18 +600,20 @@ const ManageSoftwarePage = ({
               showMarkAllPages={false}
               isAllPagesSelected={false}
               disableNextPage={isLastPage}
-              searchable
+              searchable={searchable}
               inputPlaceHolder="Search software by name or vulnerabilities (CVEs)"
               onQueryChange={onQueryChange}
               additionalQueries={filterVuln ? "vulnerable" : ""} // additionalQueries serves as a trigger
               // for the useDeepEffect hook to fire onQueryChange for events happeing outside of
               // the TableContainer
-              customControl={renderVulnFilterDropdown}
+              customControl={searchable ? renderVulnFilterDropdown : undefined}
               stackControls
               renderCount={renderSoftwareCount}
               renderFooter={renderTableFooter}
               disableActionButton
               hideActionButton
+              disableMultiRowSelect
+              onSelectSingleRow={handleRowSelect}
             />
           )}
         </div>

@@ -26,7 +26,10 @@ func init() {
 
 func main() {
 	app := createApp(os.Stdin, os.Stdout, exitErrHandler)
-	app.Run(os.Args)
+	if err := app.Run(os.Args); err != nil {
+		fmt.Fprintf(os.Stdout, "Error: %+v\n", err)
+		os.Exit(1)
+	}
 }
 
 // exitErrHandler implements cli.ExitErrHandlerFunc. If there is an error, prints it to stderr and exits with status 1.
@@ -87,6 +90,7 @@ func createApp(reader io.Reader, writer io.Writer, exitErrHandler cli.ExitErrHan
 		vulnerabilityDataStreamCommand(),
 		packageCommand(),
 		appleMDMCommand(),
+		generateCommand(),
 		{
 			// It's become common for folks to unintentionally install fleetctl when they actually
 			// need the Fleet server. This is hopefully a more helpful error message.
@@ -96,6 +100,7 @@ func createApp(reader io.Reader, writer io.Writer, exitErrHandler cli.ExitErrHan
 				return errors.New("This is not the binary you're looking for. Please use the fleet server binary for prepare commands.")
 			},
 		},
+		triggerCommand(),
 	}
 	return app
 }

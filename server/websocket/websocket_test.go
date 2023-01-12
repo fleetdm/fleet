@@ -52,11 +52,11 @@ func writeJSONMessage(t *testing.T, conn *websocket.Conn, typ string, data inter
 	require.Nil(t, err)
 
 	// Writes from the client to the server do not include the "a"
-	conn.WriteMessage(websocket.TextMessage, d)
+	require.NoError(t, conn.WriteMessage(websocket.TextMessage, d))
 }
 
 func TestWriteJSONMessage(t *testing.T) {
-	var cases = []struct {
+	cases := []struct {
 		typ  string
 		data interface{}
 	}{
@@ -114,7 +114,7 @@ func TestWriteJSONMessage(t *testing.T) {
 }
 
 func TestWriteJSONError(t *testing.T) {
-	var cases = []struct {
+	cases := []struct {
 		err interface{}
 	}{
 		{
@@ -165,7 +165,7 @@ func TestWriteJSONError(t *testing.T) {
 }
 
 func TestReadJSONMessage(t *testing.T) {
-	var cases = []struct {
+	cases := []struct {
 		typ  string
 		data interface{}
 		err  error
@@ -243,7 +243,7 @@ func TestReadJSONMessage(t *testing.T) {
 }
 
 func TestReadAuthToken(t *testing.T) {
-	var cases = []struct {
+	cases := []struct {
 		typ   string
 		data  authData
 		token string

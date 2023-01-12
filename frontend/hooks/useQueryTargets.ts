@@ -1,6 +1,5 @@
 import { useQuery, UseQueryResult } from "react-query";
-import { filter } from "lodash";
-import { v4 as uuidv4 } from "uuid";
+import { filter, uniqueId } from "lodash";
 
 import { IHost } from "interfaces/host";
 import { ILabel } from "interfaces/label";
@@ -53,20 +52,23 @@ const getTargets = async (
       const all = filter(
         labels,
         ({ display_text: text }) => text === "All Hosts"
-      ).map((label) => ({ ...label, uuid: uuidv4() }));
+      ).map((label) => ({ ...label, uuid: uniqueId() }));
 
       const platforms = filter(
         labels,
         ({ display_text: text }) =>
           text === "macOS" || text === "MS Windows" || text === "All Linux"
-      ).map((label) => ({ ...label, uuid: uuidv4() }));
+      ).map((label) => ({ ...label, uuid: uniqueId() }));
 
       const other = filter(
         labels,
         ({ label_type: type }) => type === "regular"
-      ).map((label) => ({ ...label, uuid: uuidv4() }));
+      ).map((label) => ({ ...label, uuid: uniqueId() }));
 
-      const teams = targets.teams.map((team) => ({ ...team, uuid: uuidv4() }));
+      const teams = targets.teams.map((team) => ({
+        ...team,
+        uuid: uniqueId(),
+      }));
 
       const labelCount =
         all.length + platforms.length + other.length + teams.length;

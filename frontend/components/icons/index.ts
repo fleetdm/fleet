@@ -3,8 +3,17 @@ import CalendarCheck from "./CalendarCheck";
 import Check from "./Check";
 import Chevron from "./Chevron";
 import Ex from "./Ex";
-
+import EmptyHosts from "./EmptyHosts";
+import EmptyIntegrations from "./EmptyIntegrations";
+import EmptyMembers from "./EmptyMembers";
+import EmptyPacks from "./EmptyPacks";
+import EmptyPolicies from "./EmptyPolicies";
+import EmptyQueries from "./EmptyQueries";
+import EmptySchedule from "./EmptySchedule";
+import EmptySoftware from "./EmptySoftware";
+import EmptyTeams from "./EmptyTeams";
 import ExternalLink from "./ExternalLink";
+import Issue from "./Issue";
 import Plus from "./Plus";
 
 import LowDiskSpaceHosts from "./LowDiskSpaceHosts";
@@ -37,9 +46,19 @@ export const ICON_MAP = {
   chevron: Chevron,
   check: Check,
   ex: Ex,
+  "empty-hosts": EmptyHosts,
+  "empty-integrations": EmptyIntegrations,
+  "empty-members": EmptyMembers,
+  "empty-packs": EmptyPacks,
+  "empty-policies": EmptyPolicies,
+  "empty-queries": EmptyQueries,
+  "empty-schedule": EmptySchedule,
+  "empty-software": EmptySoftware,
+  "empty-teams": EmptyTeams,
   "external-link": ExternalLink,
   "low-disk-space-hosts": LowDiskSpaceHosts,
   "missing-hosts": MissingHosts,
+  issue: Issue,
   plus: Plus,
   clipboard: Clipboard,
   eye: Eye,

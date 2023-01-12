@@ -111,7 +111,7 @@ type countAllHostsResponse struct {
 
 func (r countAllHostsResponse) error() error { return r.Err }
 
-func countAllHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func countAllHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
     req := request.(*countAllHostsRequest)
     count, err := svc.CountAllHosts(ctx)
     if err != nil {

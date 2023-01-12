@@ -1,5 +1,4 @@
 import React from "react";
-import { uniqueId } from "lodash";
 
 import { IQueryStats } from "interfaces/query_stats";
 import { performanceIndicator, secondsToDhms } from "utilities/helpers";
@@ -29,7 +28,10 @@ interface ICellProps extends IRowProps {
 
 interface IPillCellProps extends IRowProps {
   cell: {
-    value: [string, number];
+    value: {
+      indicator: string;
+      id: number;
+    };
   };
 }
 
@@ -46,7 +48,7 @@ interface IDataColumn {
 
 interface IScheduleTable extends Partial<IQueryStats> {
   frequency: string;
-  performance: (string | number)[];
+  performance: { indicator: string; id: number };
 }
 
 // NOTE: cellProps come from react-table
@@ -102,10 +104,10 @@ const enhanceScheduleData = (query_stats: IQueryStats[]): IScheduleTable[] => {
     return {
       query_name: query.query_name,
       frequency: secondsToDhms(query.interval),
-      performance: [
-        performanceIndicator(scheduledQueryPerformance),
-        query.scheduled_query_id || uniqueId(),
-      ],
+      performance: {
+        indicator: performanceIndicator(scheduledQueryPerformance),
+        id: query.scheduled_query_id,
+      },
     };
   });
 };

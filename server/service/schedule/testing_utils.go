@@ -10,6 +10,30 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
+type NopLocker struct{}
+
+func (NopLocker) Lock(context.Context, string, string, time.Duration) (bool, error) {
+	return true, nil
+}
+
+func (NopLocker) Unlock(context.Context, string, string) error {
+	return nil
+}
+
+type NopStatsStore struct{}
+
+func (NopStatsStore) GetLatestCronStats(ctx context.Context, name string) ([]fleet.CronStats, error) {
+	return []fleet.CronStats{}, nil
+}
+
+func (NopStatsStore) InsertCronStats(ctx context.Context, statsType fleet.CronStatsType, name string, instance string, status fleet.CronStatsStatus) (int, error) {
+	return 0, nil
+}
+
+func (NopStatsStore) UpdateCronStats(ctx context.Context, id int, status fleet.CronStatsStatus) error {
+	return nil
+}
+
 func SetupMockLocker(name string, owner string, expiresAt time.Time) *MockLock {
 	return &MockLock{name: name, owner: owner, expiresAt: expiresAt}
 }
@@ -102,7 +126,7 @@ type MockStatsStore struct {
 	UpdateStatsCalled chan struct{}
 }
 
-func (m *MockStatsStore) GetLatestCronStats(ctx context.Context, name string) (fleet.CronStats, error) {
+func (m *MockStatsStore) GetLatestCronStats(ctx context.Context, name string) ([]fleet.CronStats, error) {
 	m.Lock()
 	defer m.Unlock()
 
@@ -110,17 +134,24 @@ func (m *MockStatsStore) GetLatestCronStats(ctx context.Context, name string) (f
 		m.GetStatsCalled <- struct{}{}
 	}
 
-	var res fleet.CronStats
-	for _, row := range m.stats {
-		r := row
-		switch {
-		case r.Name != name:
+	latest := make(map[fleet.CronStatsType]fleet.CronStats)
+	for _, s := range m.stats {
+		if s.Name != name {
 			continue
-		case res.CreatedAt.After(r.CreatedAt) && res.ID > r.ID:
-			continue
-		default:
-			res = r
 		}
+		curr := latest[s.StatsType]
+		if s.CreatedAt.Before(curr.CreatedAt) {
+			continue
+		}
+		latest[s.StatsType] = s
+	}
+
+	res := []fleet.CronStats{}
+	if s, ok := latest[fleet.CronStatsTypeScheduled]; ok {
+		res = append(res, s)
+	}
+	if s, ok := latest[fleet.CronStatsTypeTriggered]; ok {
+		res = append(res, s)
 	}
 
 	return res, nil
@@ -135,7 +166,7 @@ func (m *MockStatsStore) InsertCronStats(ctx context.Context, statsType fleet.Cr
 	}
 
 	id := len(m.stats) + 1
-	m.stats[id] = fleet.CronStats{ID: id, StatsType: statsType, Name: name, Instance: instance, Status: status, CreatedAt: time.Now().Truncate(time.Second), UpdatedAt: time.Now().Truncate(time.Second)}
+	m.stats[id] = fleet.CronStats{ID: id, StatsType: statsType, Name: name, Instance: instance, Status: status, CreatedAt: time.Now().Truncate(1 * time.Second), UpdatedAt: time.Now().Truncate(time.Second)}
 
 	return id, nil
 }
@@ -153,7 +184,7 @@ func (m *MockStatsStore) UpdateCronStats(ctx context.Context, id int, status fle
 		return errors.New("update failed, id not found")
 	}
 	s.Status = status
-	s.UpdatedAt = time.Now().Truncate(time.Second)
+	s.UpdatedAt = time.Now().Truncate(1 * time.Second)
 	m.stats[id] = s
 
 	return nil

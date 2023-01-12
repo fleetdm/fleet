@@ -21,6 +21,7 @@ on:
       - docker-compose.yml
       - webpack.config.js
       - tsconfig.json
+      - .github/workflows/test.yml
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
@@ -40,8 +41,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest]
-        go-version: ['^1.19.3']
+        os: [ubuntu-latest-4-cores]
+        go-version: ['^1.19.4']
         fleet-tier: [free, premium]
     runs-on: ${{ matrix.os }}
     steps:

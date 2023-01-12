@@ -121,14 +121,15 @@
               </button>
             </div>
             <div id="mobileDropdowns" class="py-2">
-              <a purpose="mobile-dropdown-toggle" class="d-flex align-items-center collapsed" data-toggle="collapse" data-target="#mobileNavbarToggleUseCases" aria-haspopup="true" aria-expanded="false">Use cases</a>
+              <a purpose="mobile-dropdown-toggle" class="d-flex align-items-center collapsed" data-toggle="collapse" data-target="#mobileNavbarToggleUseCases" aria-haspopup="true" aria-expanded="false">Platform</a>
               <div class="d-block">
                 <div id="mobileNavbarToggleUseCases" purpose="mobile-dropdown" class="collapse align-items-start" data-parent="#mobileDropdowns">
                   <a href="/platform">How it works</a>
+                  <a href="/device-management"><div>Device management <span purpose="beta-label">Beta</span></div></a>
                   <span>SUCCESS STORIES</span>
-                  <a class="pl-3" href="/device-management/fleet-user-stories-wayfair">Wayfair</a>
-                  <a class="pl-3" href="/device-management/fleet-user-stories-schrodinger">Schrödinger</a>
-                  <a class="pl-3" href="/device-management/fleet-user-stories-f100">F100 security & networking co.</a>
+                  <a class="pl-3" href="/success-stories/fleet-user-stories-wayfair">Wayfair</a>
+                  <a class="pl-3" href="/success-stories/fleet-user-stories-schrodinger">Schrödinger</a>
+                  <a class="pl-3" href="/success-stories/fleet-user-stories-f100">F100 security & networking co.</a>
                 </div>
               </div>
               <hr>
@@ -168,14 +169,15 @@
           <%/* Desktop Navigation bar */%>
           <div purpose="header-nav" class="d-none d-lg-flex align-items-center">
             <div purpose="dropdown-button" class="btn-group">
-              <a class="dropdown-toggle d-flex align-items-center py-2 px-3" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Use cases</a>
+              <a class="dropdown-toggle d-flex align-items-center py-2 px-3" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Platform</a>
               <div purpose="header-dropdown" class="dropdown-menu">
                 <a class="dropdown-item mb-1" href="/platform">How it works</a>
+                <a class="dropdown-item mb-1" href="/device-management"><div>Device management <span purpose="beta-label">Beta</span></div></a>
                 <div class="dropdown-divider"></div>
                 <h6 class="muted dropdown-header">SUCCESS STORIES</h6>
-                <a class="dropdown-item mb-1" href="/device-management/fleet-user-stories-wayfair">Wayfair</a>
-                <a class="dropdown-item mb-1" href="/device-management/fleet-user-stories-schrodinger">Schrödinger</a>
-                <a class="dropdown-item" href="/device-management/fleet-user-stories-f100">F100 security & networking co.</a>
+                <a class="dropdown-item mb-1" href="/success-stories/fleet-user-stories-wayfair">Wayfair</a>
+                <a class="dropdown-item mb-1" href="/success-stories/fleet-user-stories-schrodinger">Schrödinger</a>
+                <a class="dropdown-item" href="/success-stories/fleet-user-stories-f100">F100 security & networking co.</a>
               </div>
             </div>
             <div purpose="dropdown-button" class="btn-group">
@@ -226,7 +228,7 @@
           <div style="font-size: 11px; line-height: 18px;" class="d-sm-flex d-block flex-sm-row justify-content-center mr-4 mr-md-auto">
             <img alt="Creative Commons Licence CC BY-SA 4.0" src="/images/logo-creative-commons-160x30@2x.png" style="width: 80px; height: 15px;" class="mr-2 mb-2 mb-sm-0"/>
             <div class="d-flex">
-              © 2022 Fleet Device Management Inc.
+              © 2023 Fleet Device Management Inc.
               <a style="font-size: 12px; font-weight:  700; text-underline-offset: 5px; text-decoration: underline; color: #515774" class="ml-2" href="/legal/privacy">Privacy</a>
             </div>
           </div>
@@ -301,13 +303,18 @@
     <script src="/js/components/cloud-error.component.js"></script>
     <script src="/js/components/js-timestamp.component.js"></script>
     <script src="/js/components/modal.component.js"></script>
+    <script src="/js/components/scrollable-tweets.component.js"></script>
     <script src="/js/components/stripe-card-element.component.js"></script>
     <script src="/js/utilities/open-stripe-checkout.js"></script>
     <script src="/js/pages/account/account-overview.page.js"></script>
     <script src="/js/pages/account/edit-password.page.js"></script>
     <script src="/js/pages/account/edit-profile.page.js"></script>
+    <script src="/js/pages/admin/email-preview.page.js"></script>
+    <script src="/js/pages/admin/email-templates.page.js"></script>
+    <script src="/js/pages/admin/generate-license.page.js"></script>
     <script src="/js/pages/articles/articles.page.js"></script>
     <script src="/js/pages/articles/basic-article.page.js"></script>
+    <script src="/js/pages/connect-vanta.page.js"></script>
     <script src="/js/pages/contact.page.js"></script>
     <script src="/js/pages/customers/dashboard.page.js"></script>
     <script src="/js/pages/customers/new-license.page.js"></script>
@@ -319,6 +326,7 @@
     <script src="/js/pages/entrance/new-password.page.js"></script>
     <script src="/js/pages/entrance/signup.page.js"></script>
     <script src="/js/pages/faq.page.js"></script>
+    <script src="/js/pages/fleet-mdm.page.js"></script>
     <script src="/js/pages/get-started.page.js"></script>
     <script src="/js/pages/handbook/basic-handbook.page.js"></script>
     <script src="/js/pages/homepage.page.js"></script>
@@ -338,6 +346,7 @@
     <script src="/js/pages/try-fleet/sandbox-expired.page.js"></script>
     <script src="/js/pages/try-fleet/sandbox-login.page.js"></script>
     <script src="/js/pages/try-fleet/sandbox-teleporter.page.js"></script>
+    <script src="/js/pages/vanta-authorization.page.js"></script>
     <!--SCRIPTS END-->
 
     <% /* Display an overlay if the current browser is not supported.

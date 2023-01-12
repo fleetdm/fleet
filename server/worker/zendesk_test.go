@@ -77,7 +77,8 @@ func TestZendeskRun(t *testing.T) {
 		}
 
 		w.WriteHeader(http.StatusCreated)
-		w.Write([]byte(`{}`))
+		_, err = w.Write([]byte(`{}`))
+		require.NoError(t, err)
 	}))
 	defer srv.Close()
 
@@ -295,10 +296,12 @@ func TestZendeskQueueFailingPolicyJob(t *testing.T) {
 }
 
 type mockZendeskClient struct {
-	opts externalsvc.ZendeskOptions
+	opts    externalsvc.ZendeskOptions
+	tickets []zendesk.Ticket
 }
 
 func (c *mockZendeskClient) CreateZendeskTicket(ctx context.Context, ticket *zendesk.Ticket) (*zendesk.Ticket, error) {
+	c.tickets = append(c.tickets, *ticket)
 	return &zendesk.Ticket{}, nil
 }
 
@@ -361,6 +364,7 @@ func TestZendeskRunClientUpdate(t *testing.T) {
 	}
 
 	var groupIDs []int64
+	var clients []*mockZendeskClient
 	zendeskJob := &Zendesk{
 		FleetURL:  "http://example.com",
 		Datastore: ds,
@@ -368,7 +372,9 @@ func TestZendeskRunClientUpdate(t *testing.T) {
 		NewClientFunc: func(opts *externalsvc.ZendeskOptions) (ZendeskClient, error) {
 			// keep track of group IDs received in calls to NewClientFunc
 			groupIDs = append(groupIDs, opts.GroupID)
-			return &mockZendeskClient{opts: *opts}, nil
+			c := &mockZendeskClient{opts: *opts}
+			clients = append(clients, c)
+			return c, nil
 		},
 	}
 
@@ -383,7 +389,7 @@ func TestZendeskRunClientUpdate(t *testing.T) {
 	require.NoError(t, err)
 
 	// run it globally again - it will reuse the cached client
-	err = zendeskJob.Run(ctx, json.RawMessage(`{"failing_policy":{"policy_id": 1, "policy_name": "test-policy", "hosts": []}}`))
+	err = zendeskJob.Run(ctx, json.RawMessage(`{"failing_policy":{"policy_id": 1, "policy_name": "test-policy", "hosts": [], "policy_critical": true}}`))
 	require.NoError(t, err)
 
 	// run it for team 123 a second time
@@ -398,4 +404,16 @@ func TestZendeskRunClientUpdate(t *testing.T) {
 	require.Equal(t, []int64{0, 1, 2}, groupIDs)
 	require.Equal(t, 5, globalCount) // app config is requested every time
 	require.Equal(t, 3, teamCount)
+
+	require.Len(t, clients, 3)
+
+	require.Len(t, clients[0].tickets, 2)
+	require.NotContains(t, clients[0].tickets[0].Comment.Body, "Critical")
+	require.Contains(t, clients[0].tickets[1].Comment.Body, "Critical")
+
+	require.Len(t, clients[1].tickets, 1)
+	require.NotContains(t, clients[1].tickets[0].Comment.Body, "Critical")
+
+	require.Len(t, clients[2].tickets, 1)
+	require.NotContains(t, clients[2].tickets[0].Comment.Body, "Critical")
 }

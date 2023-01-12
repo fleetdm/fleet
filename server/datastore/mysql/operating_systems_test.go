@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -294,8 +295,8 @@ func TestCleanupHostOperatingSystems(t *testing.T) {
 			LabelUpdatedAt:  time.Now(),
 			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now(),
-			OsqueryHostID:   fmt.Sprintf("host%d", i),
-			NodeKey:         fmt.Sprintf("%d", i),
+			OsqueryHostID:   ptr.String(fmt.Sprintf("host%d", i)),
+			NodeKey:         ptr.String(fmt.Sprintf("%d", i)),
 			UUID:            fmt.Sprintf("%d", i),
 			Hostname:        fmt.Sprintf("foo.%d.local", i),
 		})
@@ -345,17 +346,17 @@ func TestCleanupHostOperatingSystems(t *testing.T) {
 	assertDeletedOS([]uint{})
 
 	// nothing to clean up
-	ds.CleanupHostOperatingSystems(ctx)
+	require.NoError(t, ds.CleanupHostOperatingSystems(ctx))
 	assertDeletedHostOS([]uint{})
 	assertDeletedOS([]uint{})
 
 	// delete some hosts
 	var deletedHostIDs []uint
-	ds.DeleteHost(ctx, testHosts[0].ID)
-	ds.DeleteHost(ctx, testHosts[1].ID)
+	require.NoError(t, ds.DeleteHost(ctx, testHosts[0].ID))
+	require.NoError(t, ds.DeleteHost(ctx, testHosts[1].ID))
 	deletedHostIDs = append(deletedHostIDs, testHosts[0].ID, testHosts[1].ID)
 
-	ds.CleanupHostOperatingSystems(ctx)
+	require.NoError(t, ds.CleanupHostOperatingSystems(ctx))
 
 	// clean up removes host_operating_system record for deleted hosts
 	assertDeletedHostOS(deletedHostIDs)
@@ -364,10 +365,10 @@ func TestCleanupHostOperatingSystems(t *testing.T) {
 	assertDeletedOS([]uint{})
 
 	// delete remaining host for seedOSList[0]
-	ds.DeleteHost(ctx, testHosts[5].ID)
+	require.NoError(t, ds.DeleteHost(ctx, testHosts[5].ID))
 	deletedHostIDs = append(deletedHostIDs, testHosts[5].ID)
 
-	ds.CleanupHostOperatingSystems(ctx)
+	require.NoError(t, ds.CleanupHostOperatingSystems(ctx))
 
 	// clean up removes host_operating_system record for deleted hosts
 	assertDeletedHostOS(deletedHostIDs)

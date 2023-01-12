@@ -116,14 +116,14 @@ const addContextWrappers = (
  * This will also set up the @testing-library/user-events and expose a user object
  * you can use to perform user interactions.
  */
-export const createCustomRenderer = (renderOptions: ICustomRenderOptions) => {
+export const createCustomRenderer = (renderOptions?: ICustomRenderOptions) => {
   let CustomWrapperComponent = ({ children }: IChildrenProp) => <>{children}</>;
 
-  if (renderOptions.withBackendMock) {
+  if (renderOptions?.withBackendMock) {
     CustomWrapperComponent = addQueryProviderWrapper(CustomWrapperComponent);
   }
 
-  if (renderOptions.context !== undefined) {
+  if (renderOptions?.context !== undefined) {
     CustomWrapperComponent = addContextWrappers(
       renderOptions.context,
       CustomWrapperComponent
@@ -140,5 +140,13 @@ export const createCustomRenderer = (renderOptions: ICustomRenderOptions) => {
     };
 
     return renderResults;
+  };
+};
+
+// eslint-disable-next-line import/prefer-default-export
+export const renderWithSetup = (component: JSX.Element) => {
+  return {
+    user: userEvent.setup(),
+    ...render(component),
   };
 };

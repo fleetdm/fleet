@@ -1,0 +1,182 @@
+#osquery 5.5.1
+
+account_policy_data SELECT * users join account_policy_data using (uid)
+acpi_tables SELECT * FROM acpi_tables
+ad_config SELECT * FROM ad_config
+alf SELECT * FROM alf
+alf_exceptions SELECT * FROM alf_exceptions
+alf_explicit_auths SELECT * FROM alf_explicit_auths
+app_schemes SELECT * FROM app_schemes
+apps SELECT * FROM apps
+arp_cache SELECT * FROM arp_cache
+asl SELECT * FROM asl
+atom_packages SELECT * FROM atom_packages
+augeas SELECT * from augeas where path = '/etc/hosts'
+authorization_mechanisms SELECT * FROM authorization_mechanisms
+authorizations SELECT * FROM authorizations
+authorized_keys SELECT * from users join authorized_keys using (uid)
+azure_instance_metadata SELECT * FROM azure_instance_metadata
+azure_instance_tags SELECT * FROM azure_instance_tags
+battery SELECT * FROM battery
+block_devices SELECT * FROM block_devices
+browser_plugins SELECT * FROM browser_plugins
+carbon_black_info SELECT * FROM carbon_black_info
+carves SELECT * FROM carves
+certificates SELECT * FROM certificates
+chrome_extension_content_scripts SELECT * FROM chrome_extension_content_scripts
+chrome_extensions SELECT * FROM chrome_extensions
+cpu_time SELECT * FROM cpu_time
+cpuid SELECT * FROM cpuid
+crashes SELECT * FROM users JOIN crashes USING (uid)
+crontab SELECT * FROM crontab
+cups_destinations SELECT * FROM cups_destinations
+cups_jobs SELECT * FROM cups_jobs
+curl select url, round_trip_time, response_code from curl where url = 'https://github.com/osquery/osquery'
+curl_certificate SELECT * from curl_certificate where hostname = 'osquery.io'
+device_file SELECT * FROM device_file
+device_firmware SELECT * FROM device_firmware
+device_hash SELECT * FROM device_hash
+device_partitions SELECT * FROM device_partitions
+disk_encryption SELECT * FROM disk_encryption
+disk_events SELECT * FROM disk_events
+dns_resolvers SELECT * FROM dns_resolvers
+docker_container_envs SELECT * FROM docker_container_envs
+docker_container_fs_changes SELECT * FROM docker_container_fs_changes where id = '<id>'
+docker_container_labels SELECT * FROM docker_container_labels
+docker_container_mounts SELECT * FROM docker_container_mounts
+docker_container_networks SELECT * FROM docker_container_networks
+docker_container_ports SELECT * FROM docker_container_ports
+docker_container_processes SELECT * FROM docker_container_processes where id = '<id>'
+docker_container_stats SELECT * FROM docker_container_stats where id = '<id>'
+docker_containers SELECT * FROM docker_containers
+docker_image_history SELECT * FROM docker_image_history
+docker_image_labels SELECT * FROM docker_image_labels
+docker_image_layers SELECT * FROM docker_image_layers
+docker_images SELECT * FROM docker_images
+docker_info SELECT * FROM docker_info
+docker_network_labels SELECT * FROM docker_network_labels
+docker_networks SELECT * FROM docker_networks
+docker_version SELECT * FROM docker_version
+docker_volume_labels SELECT * FROM docker_volume_labels
+docker_volumes SELECT * FROM docker_volumes
+ec2_instance_metadata SELECT * FROM ec2_instance_metadata
+ec2_instance_tags SELECT * FROM ec2_instance_tags
+es_process_events SELECT * FROM es_process_events
+es_process_file_events SELECT * FROM es_process_file_events
+etc_hosts SELECT * FROM etc_hosts
+etc_protocols SELECT * FROM etc_protocols
+etc_services SELECT * FROM etc_services
+event_taps SELECT * FROM event_taps
+extended_attributes select * from extended_attributes where directory = '/tmp/';
+fan_speed_sensors SELECT * FROM fan_speed_sensors
+file select * from file where directory = '/etc/'
+file_events SELECT * FROM file_events
+firefox_addons SELECT * FROM firefox_addons
+gatekeeper SELECT * FROM gatekeeper
+gatekeeper_approved_apps SELECT * FROM gatekeeper_approved_apps
+groups SELECT * FROM groups
+hardware_events SELECT * FROM hardware_events
+hash select * from hash where directory = '/etc/'
+homebrew_packages SELECT * FROM homebrew_packages
+ibridge_info SELECT * FROM ibridge_info
+interface_addresses SELECT * FROM interface_addresses
+interface_details SELECT * FROM interface_details
+interface_ipv6 SELECT * FROM interface_ipv6
+iokit_devicetree SELECT * FROM iokit_devicetree
+iokit_registry SELECT * FROM iokit_registry
+kernel_extensions SELECT * FROM kernel_extensions
+kernel_info SELECT * FROM kernel_info
+kernel_panics SELECT * FROM kernel_panics
+keychain_acls SELECT * FROM keychain_acls
+keychain_items SELECT * FROM keychain_items
+known_hosts SELECT * FROM known_hosts
+last SELECT * FROM last
+launchd SELECT * FROM launchd
+launchd_overrides SELECT * FROM launchd_overrides
+listening_ports SELECT * FROM listening_ports
+load_average SELECT * FROM load_average
+location_services SELECT * FROM location_services
+logged_in_users SELECT * FROM logged_in_users
+magic SELECT * FROM magic where path = '/var/db/receipts/com.apple.pkg.Numbers11.bom';
+managed_policies SELECT * FROM managed_policies
+mdfind SELECT count(*) from mdfind where query = 'kMDItemTextContent == \"osquery\"'
+mdls select * from mdls where path = '/Library/Preferences/com.apple.apsd.plist'
+memory_array_mapped_addresses SELECT * FROM memory_array_mapped_addresses
+memory_arrays SELECT * FROM memory_arrays
+memory_device_mapped_addresses SELECT * FROM memory_device_mapped_addresses
+memory_devices SELECT * FROM memory_devices
+memory_error_info SELECT * FROM memory_error_info
+mounts SELECT * FROM mounts
+nfs_shares SELECT * FROM nfs_shares
+npm_packages SELECT * FROM npm_packages
+nvram SELECT * FROM nvram
+oem_strings SELECT * FROM oem_strings
+os_version SELECT * FROM os_version
+osquery_events SELECT * FROM osquery_events
+osquery_extensions SELECT * FROM osquery_extensions
+osquery_flags SELECT * FROM osquery_flags
+osquery_info SELECT * FROM osquery_info
+osquery_packs SELECT * FROM osquery_packs
+osquery_registry SELECT * FROM osquery_registry
+osquery_schedule SELECT * FROM osquery_schedule
+package_bom SELECT * from package_bom where path = '/var/db/receipts/com.apple.pkg.Numbers11.bom'
+package_install_history SELECT * FROM package_install_history
+package_receipts SELECT * FROM package_receipts
+password_policy SELECT * FROM password_policy
+pci_devices SELECT * FROM pci_devices
+platform_info SELECT * FROM platform_info
+plist SELECT * from plist where path = '/Library/Preferences/com.apple.apsd.plist'
+power_sensors SELECT * FROM power_sensors
+preferences SELECT * FROM preferences
+process_envs SELECT * FROM process_envs
+process_events SELECT * FROM process_events
+process_memory_map SELECT * FROM process_memory_map
+process_open_files SELECT * FROM process_open_files
+process_open_sockets SELECT * FROM process_open_sockets
+processes SELECT * FROM processes
+prometheus_metrics SELECT * FROM prometheus_metrics
+python_packages SELECT * FROM python_packages
+quicklook_cache SELECT * FROM quicklook_cache
+routes SELECT * FROM routes
+running_apps SELECT * FROM running_apps
+safari_extensions SELECT * FROM safari_extensions
+sandboxes SELECT * FROM sandboxes
+screenlock SELECT * FROM screenlock
+shared_folders SELECT * FROM shared_folders
+sharing_preferences SELECT * FROM sharing_preferences
+shell_history SELECT * FROM shell_history
+signature SELECT * FROM signature WHERE path = '/bin/ls'
+sip_config SELECT * FROM sip_config
+smbios_tables SELECT * FROM smbios_tables
+smc_keys SELECT * FROM smc_keys
+socket_events SELECT * FROM socket_events
+ssh_configs SELECT * FROM ssh_configs
+startup_items SELECT * FROM startup_items
+sudoers SELECT * FROM sudoers
+suid_bin SELECT * FROM suid_bin
+system_controls SELECT * FROM system_controls
+system_extensions SELECT * FROM system_extensions
+system_info SELECT * FROM system_info
+temperature_sensors SELECT * FROM temperature_sensors
+time SELECT * FROM time
+time_machine_backups SELECT * FROM time_machine_backups
+time_machine_destinations SELECT * FROM time_machine_destinations
+ulimit_info SELECT * FROM ulimit_info
+unified_log NEW SELECT * FROM unified_log NEW
+uptime SELECT * FROM uptime
+usb_devices SELECT * FROM usb_devices
+user_events SELECT * FROM user_events
+user_groups SELECT * FROM user_groups
+user_interaction_events SELECT * FROM user_interaction_events
+user_ssh_keys select * from users join user_ssh_keys using (uid) 
+users SELECT * FROM users
+virtual_memory_info SELECT * FROM virtual_memory_info
+wifi_networks SELECT * FROM wifi_networks
+wifi_status SELECT * FROM wifi_status
+wifi_survey SELECT * FROM wifi_survey
+xprotect_entries SELECT * FROM xprotect_entries
+xprotect_meta SELECT * FROM xprotect_meta
+xprotect_reports SELECT * FROM xprotect_reports
+yara SELECT * FROM yara
+yara_events SELECT * FROM yara_events
+ycloud_instance_metadata SELECT * FROM ycloud_instance_metadata

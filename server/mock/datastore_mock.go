@@ -9,6 +9,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/micromdm/nanodep/godep"
 )
 
 var _ fleet.Datastore = (*DataStore)(nil)
@@ -199,6 +200,8 @@ type GetHostMunkiIssuesFunc func(ctx context.Context, hostID uint) ([]*fleet.Hos
 
 type GetHostMDMFunc func(ctx context.Context, hostID uint) (*fleet.HostMDM, error)
 
+type GetHostMDMCheckinInfoFunc func(ctx context.Context, hostUUID string) (*fleet.HostMDMCheckinInfo, error)
+
 type AggregatedMunkiVersionFunc func(ctx context.Context, teamID *uint) ([]fleet.AggregatedMunkiVersion, time.Time, error)
 
 type AggregatedMunkiIssuesFunc func(ctx context.Context, teamID *uint) ([]fleet.AggregatedMunkiIssue, time.Time, error)
@@ -335,9 +338,13 @@ type UpdateHostOperatingSystemFunc func(ctx context.Context, hostID uint, hostOS
 
 type CleanupHostOperatingSystemsFunc func(ctx context.Context) error
 
-type NewActivityFunc func(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error
+type UpdateHostTablesOnMDMUnenrollFunc func(ctx context.Context, uuid string) error
 
-type ListActivitiesFunc func(ctx context.Context, opt fleet.ListOptions) ([]*fleet.Activity, error)
+type NewActivityFunc func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error
+
+type ListActivitiesFunc func(ctx context.Context, opt fleet.ListActivitiesOptions) ([]*fleet.Activity, error)
+
+type MarkActivitiesAsStreamedFunc func(ctx context.Context, activityIDs []uint) error
 
 type ShouldSendStatisticsFunc func(ctx context.Context, frequency time.Duration, config config.FleetConfig) (fleet.StatisticsPayload, bool, error)
 
@@ -397,11 +404,13 @@ type UnlockFunc func(ctx context.Context, name string, owner string) error
 
 type DBLocksFunc func(ctx context.Context) ([]*fleet.DBLock, error)
 
-type GetLatestCronStatsFunc func(ctx context.Context, name string) (fleet.CronStats, error)
+type GetLatestCronStatsFunc func(ctx context.Context, name string) ([]fleet.CronStats, error)
 
 type InsertCronStatsFunc func(ctx context.Context, statsType fleet.CronStatsType, name string, instance string, status fleet.CronStatsStatus) (int, error)
 
 type UpdateCronStatsFunc func(ctx context.Context, id int, status fleet.CronStatsStatus) error
+
+type UpdateAllCronStatsForInstanceFunc func(ctx context.Context, instance string, fromStatus fleet.CronStatsStatus, toStatus fleet.CronStatsStatus) error
 
 type CleanupCronStatsFunc func(ctx context.Context) error
 
@@ -429,7 +438,7 @@ type UpdateHostSoftwareFunc func(ctx context.Context, hostID uint, software []fl
 
 type UpdateHostFunc func(ctx context.Context, host *fleet.Host) error
 
-type ListScheduledQueriesInPackFunc func(ctx context.Context, packID uint) ([]*fleet.ScheduledQuery, error)
+type ListScheduledQueriesInPackFunc func(ctx context.Context, packID uint) (fleet.ScheduledQueryList, error)
 
 type UpdateHostRefetchRequestedFunc func(ctx context.Context, hostID uint, value bool) error
 
@@ -506,6 +515,14 @@ type MDMAppleInstallerDetailsByTokenFunc func(ctx context.Context, token string)
 type ListMDMAppleInstallersFunc func(ctx context.Context) ([]fleet.MDMAppleInstaller, error)
 
 type MDMAppleListDevicesFunc func(ctx context.Context) ([]fleet.MDMAppleDevice, error)
+
+type IngestMDMAppleDevicesFromDEPSyncFunc func(ctx context.Context, devices []godep.Device) (int64, error)
+
+type IngestMDMAppleDeviceFromCheckinFunc func(ctx context.Context, mdmHost fleet.MDMAppleHostDetails) error
+
+type IncreasePolicyAutomationIterationFunc func(ctx context.Context, policyID uint) error
+
+type OutdatedAutomationBatchFunc func(ctx context.Context) ([]fleet.PolicyFailure, error)
 
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
@@ -787,6 +804,9 @@ type DataStore struct {
 	GetHostMDMFunc        GetHostMDMFunc
 	GetHostMDMFuncInvoked bool
 
+	GetHostMDMCheckinInfoFunc        GetHostMDMCheckinInfoFunc
+	GetHostMDMCheckinInfoFuncInvoked bool
+
 	AggregatedMunkiVersionFunc        AggregatedMunkiVersionFunc
 	AggregatedMunkiVersionFuncInvoked bool
 
@@ -991,11 +1011,17 @@ type DataStore struct {
 	CleanupHostOperatingSystemsFunc        CleanupHostOperatingSystemsFunc
 	CleanupHostOperatingSystemsFuncInvoked bool
 
+	UpdateHostTablesOnMDMUnenrollFunc        UpdateHostTablesOnMDMUnenrollFunc
+	UpdateHostTablesOnMDMUnenrollFuncInvoked bool
+
 	NewActivityFunc        NewActivityFunc
 	NewActivityFuncInvoked bool
 
 	ListActivitiesFunc        ListActivitiesFunc
 	ListActivitiesFuncInvoked bool
+
+	MarkActivitiesAsStreamedFunc        MarkActivitiesAsStreamedFunc
+	MarkActivitiesAsStreamedFuncInvoked bool
 
 	ShouldSendStatisticsFunc        ShouldSendStatisticsFunc
 	ShouldSendStatisticsFuncInvoked bool
@@ -1092,6 +1118,9 @@ type DataStore struct {
 
 	UpdateCronStatsFunc        UpdateCronStatsFunc
 	UpdateCronStatsFuncInvoked bool
+
+	UpdateAllCronStatsForInstanceFunc        UpdateAllCronStatsForInstanceFunc
+	UpdateAllCronStatsForInstanceFuncInvoked bool
 
 	CleanupCronStatsFunc        CleanupCronStatsFunc
 	CleanupCronStatsFuncInvoked bool
@@ -1248,6 +1277,18 @@ type DataStore struct {
 
 	MDMAppleListDevicesFunc        MDMAppleListDevicesFunc
 	MDMAppleListDevicesFuncInvoked bool
+
+	IngestMDMAppleDevicesFromDEPSyncFunc        IngestMDMAppleDevicesFromDEPSyncFunc
+	IngestMDMAppleDevicesFromDEPSyncFuncInvoked bool
+
+	IngestMDMAppleDeviceFromCheckinFunc        IngestMDMAppleDeviceFromCheckinFunc
+	IngestMDMAppleDeviceFromCheckinFuncInvoked bool
+
+	IncreasePolicyAutomationIterationFunc        IncreasePolicyAutomationIterationFunc
+	IncreasePolicyAutomationIterationFuncInvoked bool
+
+	OutdatedAutomationBatchFunc        OutdatedAutomationBatchFunc
+	OutdatedAutomationBatchFuncInvoked bool
 }
 
 func (s *DataStore) HealthCheck() error {
@@ -1715,6 +1756,11 @@ func (s *DataStore) GetHostMDM(ctx context.Context, hostID uint) (*fleet.HostMDM
 	return s.GetHostMDMFunc(ctx, hostID)
 }
 
+func (s *DataStore) GetHostMDMCheckinInfo(ctx context.Context, hostUUID string) (*fleet.HostMDMCheckinInfo, error) {
+	s.GetHostMDMCheckinInfoFuncInvoked = true
+	return s.GetHostMDMCheckinInfoFunc(ctx, hostUUID)
+}
+
 func (s *DataStore) AggregatedMunkiVersion(ctx context.Context, teamID *uint) ([]fleet.AggregatedMunkiVersion, time.Time, error) {
 	s.AggregatedMunkiVersionFuncInvoked = true
 	return s.AggregatedMunkiVersionFunc(ctx, teamID)
@@ -2055,14 +2101,24 @@ func (s *DataStore) CleanupHostOperatingSystems(ctx context.Context) error {
 	return s.CleanupHostOperatingSystemsFunc(ctx)
 }
 
-func (s *DataStore) NewActivity(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error {
-	s.NewActivityFuncInvoked = true
-	return s.NewActivityFunc(ctx, user, activityType, details)
+func (s *DataStore) UpdateHostTablesOnMDMUnenroll(ctx context.Context, uuid string) error {
+	s.UpdateHostTablesOnMDMUnenrollFuncInvoked = true
+	return s.UpdateHostTablesOnMDMUnenrollFunc(ctx, uuid)
 }
 
-func (s *DataStore) ListActivities(ctx context.Context, opt fleet.ListOptions) ([]*fleet.Activity, error) {
+func (s *DataStore) NewActivity(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+	s.NewActivityFuncInvoked = true
+	return s.NewActivityFunc(ctx, user, activity)
+}
+
+func (s *DataStore) ListActivities(ctx context.Context, opt fleet.ListActivitiesOptions) ([]*fleet.Activity, error) {
 	s.ListActivitiesFuncInvoked = true
 	return s.ListActivitiesFunc(ctx, opt)
+}
+
+func (s *DataStore) MarkActivitiesAsStreamed(ctx context.Context, activityIDs []uint) error {
+	s.MarkActivitiesAsStreamedFuncInvoked = true
+	return s.MarkActivitiesAsStreamedFunc(ctx, activityIDs)
 }
 
 func (s *DataStore) ShouldSendStatistics(ctx context.Context, frequency time.Duration, config config.FleetConfig) (fleet.StatisticsPayload, bool, error) {
@@ -2210,7 +2266,7 @@ func (s *DataStore) DBLocks(ctx context.Context) ([]*fleet.DBLock, error) {
 	return s.DBLocksFunc(ctx)
 }
 
-func (s *DataStore) GetLatestCronStats(ctx context.Context, name string) (fleet.CronStats, error) {
+func (s *DataStore) GetLatestCronStats(ctx context.Context, name string) ([]fleet.CronStats, error) {
 	s.GetLatestCronStatsFuncInvoked = true
 	return s.GetLatestCronStatsFunc(ctx, name)
 }
@@ -2223,6 +2279,11 @@ func (s *DataStore) InsertCronStats(ctx context.Context, statsType fleet.CronSta
 func (s *DataStore) UpdateCronStats(ctx context.Context, id int, status fleet.CronStatsStatus) error {
 	s.UpdateCronStatsFuncInvoked = true
 	return s.UpdateCronStatsFunc(ctx, id, status)
+}
+
+func (s *DataStore) UpdateAllCronStatsForInstance(ctx context.Context, instance string, fromStatus fleet.CronStatsStatus, toStatus fleet.CronStatsStatus) error {
+	s.UpdateAllCronStatsForInstanceFuncInvoked = true
+	return s.UpdateAllCronStatsForInstanceFunc(ctx, instance, fromStatus, toStatus)
 }
 
 func (s *DataStore) CleanupCronStats(ctx context.Context) error {
@@ -2290,7 +2351,7 @@ func (s *DataStore) UpdateHost(ctx context.Context, host *fleet.Host) error {
 	return s.UpdateHostFunc(ctx, host)
 }
 
-func (s *DataStore) ListScheduledQueriesInPack(ctx context.Context, packID uint) ([]*fleet.ScheduledQuery, error) {
+func (s *DataStore) ListScheduledQueriesInPack(ctx context.Context, packID uint) (fleet.ScheduledQueryList, error) {
 	s.ListScheduledQueriesInPackFuncInvoked = true
 	return s.ListScheduledQueriesInPackFunc(ctx, packID)
 }
@@ -2483,4 +2544,24 @@ func (s *DataStore) ListMDMAppleInstallers(ctx context.Context) ([]fleet.MDMAppl
 func (s *DataStore) MDMAppleListDevices(ctx context.Context) ([]fleet.MDMAppleDevice, error) {
 	s.MDMAppleListDevicesFuncInvoked = true
 	return s.MDMAppleListDevicesFunc(ctx)
+}
+
+func (s *DataStore) IngestMDMAppleDevicesFromDEPSync(ctx context.Context, devices []godep.Device) (int64, error) {
+	s.IngestMDMAppleDevicesFromDEPSyncFuncInvoked = true
+	return s.IngestMDMAppleDevicesFromDEPSyncFunc(ctx, devices)
+}
+
+func (s *DataStore) IngestMDMAppleDeviceFromCheckin(ctx context.Context, mdmHost fleet.MDMAppleHostDetails) error {
+	s.IngestMDMAppleDeviceFromCheckinFuncInvoked = true
+	return s.IngestMDMAppleDeviceFromCheckinFunc(ctx, mdmHost)
+}
+
+func (s *DataStore) IncreasePolicyAutomationIteration(ctx context.Context, policyID uint) error {
+	s.IncreasePolicyAutomationIterationFuncInvoked = true
+	return s.IncreasePolicyAutomationIterationFunc(ctx, policyID)
+}
+
+func (s *DataStore) OutdatedAutomationBatch(ctx context.Context) ([]fleet.PolicyFailure, error) {
+	s.OutdatedAutomationBatchFuncInvoked = true
+	return s.OutdatedAutomationBatchFunc(ctx)
 }

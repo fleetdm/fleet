@@ -1,8 +1,12 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useDebouncedCallback } from "use-debounce";
+import { InjectedRouter } from "react-router";
+import { Row } from "react-table";
+import PATHS from "router/paths";
 
 import { ISoftware } from "interfaces/software";
 import { VULNERABLE_DROPDOWN_OPTIONS } from "utilities/constants";
+import { buildQueryStringFromParams } from "utilities/url";
 
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
@@ -27,7 +31,15 @@ interface ISoftwareTableProps {
   software: ISoftware[];
   deviceUser?: boolean;
   deviceType?: string;
-  softwareInventoryEnabled?: boolean;
+  isSoftwareEnabled?: boolean;
+  router?: InjectedRouter;
+}
+
+interface IRowProps extends Row {
+  original: {
+    id?: number;
+  };
+  isSoftwareEnabled?: boolean;
 }
 
 const SoftwareTable = ({
@@ -35,7 +47,8 @@ const SoftwareTable = ({
   software,
   deviceUser,
   deviceType,
-  softwareInventoryEnabled,
+  isSoftwareEnabled,
+  router,
 }: ISoftwareTableProps): JSX.Element => {
   const [searchString, setSearchString] = useState("");
   const [filterVuln, setFilterVuln] = useState(false);
@@ -58,12 +71,27 @@ const SoftwareTable = ({
   const tableSoftware = useMemo(() => generateSoftwareTableData(software), [
     software,
   ]);
-  const tableHeaders = useMemo(() => generateSoftwareTableHeaders(deviceUser), [
-    deviceUser,
-  ]);
+  const tableHeaders = useMemo(
+    () => generateSoftwareTableHeaders(deviceUser, router),
+    [deviceUser, router]
+  );
 
   const onVulnFilterChange = (value: boolean) => {
     setFilterVuln(value);
+  };
+
+  const handleRowSelect = (row: IRowProps) => {
+    if (deviceUser || !router) {
+      return;
+    }
+
+    const queryParams = { software_id: row.original.id };
+
+    const path = queryParams
+      ? `${PATHS.MANAGE_HOSTS}?${buildQueryStringFromParams(queryParams)}`
+      : PATHS.MANAGE_HOSTS;
+
+    router.push(path);
   };
 
   const renderVulnFilterDropdown = () => {
@@ -81,15 +109,6 @@ const SoftwareTable = ({
   const EmptySoftwareSearch = () => (
     <EmptyState title="software" reason="empty-search" />
   );
-
-  if (softwareInventoryEnabled === false) {
-    return (
-      <div className="section section--software">
-        <p className="section__header">Software</p>
-        <EmptyState title="software" reason="disabled" />
-      </div>
-    );
-  }
 
   return (
     <div className="section section--software">
@@ -125,6 +144,8 @@ const SoftwareTable = ({
                 isClientSidePagination
                 pageSize={20}
                 isClientSideFilter
+                disableMultiRowSelect={!deviceUser && !!router} // device user cannot view hosts by software
+                onSelectSingleRow={handleRowSelect}
               />
             </div>
           )}

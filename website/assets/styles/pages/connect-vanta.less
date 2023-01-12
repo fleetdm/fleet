@@ -1,0 +1,50 @@
+#connect-vanta {
+  padding-top: 80px;
+  padding-bottom: 80px;
+
+  h1 {
+    font-size: 28px;
+    line-height: 38px;
+  }
+
+  [purpose='vanta-notes'] {
+    background-color: @core-vibrant-blue-10;
+    border-radius: 8px;
+    padding: 24px;
+    margin-top: 32px;
+    margin-bottom: 32px;
+  }
+
+  [purpose='vanta-form'] {
+    label {
+      font-weight: 700;
+    }
+    input {
+      height: 40px;
+      border-radius: 6px;
+    }
+    [purpose='input-bottom-label'] {
+      padding-top: 4px;
+      font-size: 14px;
+      line-height: 20px;
+    }
+    [purpose='submit-button'] {
+      border-radius: 6px;
+      padding-top: 10px;
+      padding-bottom: 10px;
+      font-size: 16px;
+    }
+  }
+
+  @media (max-width: 768px) {
+    padding-top: 40px;
+    padding-left: 40px;
+    padding-right: 40px;
+  }
+
+  @media (max-width: 575px) {
+    padding-left: 25px;
+    padding-right: 25px;
+  }
+
+}

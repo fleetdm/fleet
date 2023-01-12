@@ -3,13 +3,14 @@ import classnames from "classnames";
 
 import { IconNames, ICON_MAP } from "components/icons";
 import { Colors } from "styles/var/colors";
+import { ICON_SIZES, IconSizes } from "styles/var/icon_sizes";
 
 interface IIconProps {
   name: IconNames;
   color?: Colors;
   direction?: "up" | "down" | "left" | "right";
   className?: string;
-  size?: "small" | "medium" | "large";
+  size?: IconSizes;
 }
 
 const baseClass = "icon";
@@ -35,7 +36,7 @@ const Icon = ({ name, color, direction, className, size }: IIconProps) => {
   const IconComponent = ICON_MAP[name];
 
   return (
-    <div className={classNames} data-testid="Icon">
+    <div className={classNames} data-testid="icon">
       <IconComponent {...props} />
     </div>
   );

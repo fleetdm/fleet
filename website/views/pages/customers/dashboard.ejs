@@ -1,5 +1,26 @@
 <div id="dashboard" v-cloak>
   <div class="container pb-5 px-3 px-xl-0">
+
+    <div purpose="renewal-notification" class="d-flex flex-row justify-content-start align-items-center" v-if="subscriptionHasBeenRecentlyRenewed">
+      <div class="pr-4">
+        <img alt="A green checkmark" style="height: 24px;" src="/images/icon-green-check-circle-24x24@2x.png">
+      </div>
+      <div class="d-flex flex-column">
+        <p>Your Fleet Premium subscription has successfully renewed.</p>
+        <p>To continue using Fleet, please <strong>attach your new license key</strong> to your Fleet instance.</p>
+      </div>
+    </div>
+
+    <div purpose="subscription-expiring-notification" v-if="subscriptionExpiresSoon" class="d-flex flex-row justify-content-start align-items-center">
+      <div class="pr-4">
+        <img alt="Information icon" style="height: 24px;" src="/images/info-16x16@2x.png">
+      </div>
+      <div class="d-flex flex-column">
+        <p>Your Fleet Premium subscription will automatically renew on <js-timestamp :at="thisSubscription.nextBillingAt" always-show-year format="billing"></js-timestamp>.</p>
+        <p>Please <a href="/contact">contact us</a> to change your number of devices, or to cancel your subscription.</p>
+      </div>
+    </div>
+
     <div class="pb-4">
       <h3>Your license</h3>
       <div purpose="license-card" class="card card-body">
@@ -74,7 +95,7 @@
           <div class="row pb-3 mx-0">
             <div style="max-width: 16px;" class="col-1 px-0"><img style="margin-top: 5px; height: 16px; width: 16px;" src="/images/icon-calendar-32x32@2x.png" alt="A calendar icon"></div>
             <div class="col pl-3">
-              <p>{{thisSubscription.numberOfHosts}} devices @ $1.00/device/month</p>
+              <p>{{thisSubscription.numberOfHosts}} devices @ ${{thisSubscription.subscriptionPrice / thisSubscription.numberOfHosts / 12}}.00/device/month</p>
               <p>Billed annually at ${{thisSubscription.subscriptionPrice}}.00/yr</p>
               <p>Next payment on <js-timestamp :at="thisSubscription.nextBillingAt" always-show-year format="billing"></js-timestamp></p>
             </div>

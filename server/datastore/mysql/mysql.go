@@ -5,7 +5,6 @@ import (
 	"context"
 	"crypto/tls"
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -27,14 +26,13 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/migrations/data"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/migrations/tables"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/mdm/apple/scep/scep_mysql"
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/goose"
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"github.com/go-sql-driver/mysql"
 	"github.com/hashicorp/go-multierror"
 	"github.com/jmoiron/sqlx"
-	"github.com/micromdm/nanodep/client"
 	nanodep_client "github.com/micromdm/nanodep/client"
 	nanodep_mysql "github.com/micromdm/nanodep/storage/mysql"
 	nanomdm_mysql "github.com/micromdm/nanomdm/storage/mysql"
@@ -109,14 +107,14 @@ func (ds *Datastore) loadOrPrepareStmt(ctx context.Context, query string) *sqlx.
 	return stmt
 }
 
-// NewMDMAppleSCEPDepot returns a *scep_mysql.MySQLDepot that uses the Datastore
+// NewMDMAppleSCEPDepot returns a *apple_mdm.MySQLDepot that uses the Datastore
 // underlying MySQL writer *sql.DB.
-func (ds *Datastore) NewMDMAppleSCEPDepot(caCertPEM []byte, caKeyPEM []byte) (*scep_mysql.MySQLDepot, error) {
-	s, err := scep_mysql.NewMySQLDepot(ds.writer.DB, caCertPEM, caKeyPEM)
+func (ds *Datastore) NewMDMAppleSCEPDepot(caCertPEM []byte, caKeyPEM []byte) (*apple_mdm.SCEPMySQLDepot, error) {
+	depot, err := apple_mdm.NewSCEPMySQLDepot(ds.writer.DB, caCertPEM, caKeyPEM)
 	if err != nil {
 		return nil, err
 	}
-	return s, nil
+	return depot, nil
 }
 
 // NewMDMAppleMDMStorage returns a MySQL nanomdm storage that uses the Datastore
@@ -175,19 +173,15 @@ func (s *NanoMDMStorage) StorePushCert(ctx context.Context, pemCert, pemKey []by
 
 // NewMDMAppleDEPStorage returns a MySQL nanodep storage that uses the Datastore
 // underlying MySQL writer *sql.DB.
-func (ds *Datastore) NewMDMAppleDEPStorage(depTokens []byte) (*NanoDEPStorage, error) {
+func (ds *Datastore) NewMDMAppleDEPStorage(tok nanodep_client.OAuth1Tokens) (*NanoDEPStorage, error) {
 	s, err := nanodep_mysql.New(nanodep_mysql.WithDB(ds.writer.DB))
 	if err != nil {
 		return nil, err
 	}
 
-	var tokens nanodep_client.OAuth1Tokens
-	if err := json.Unmarshal(depTokens, &tokens); err != nil {
-		return nil, err
-	}
 	return &NanoDEPStorage{
 		MySQLStorage: s,
-		tokens:       tokens,
+		tokens:       tok,
 	}, nil
 }
 
@@ -210,7 +204,7 @@ func (s *NanoDEPStorage) RetrieveAuthTokens(ctx context.Context, name string) (*
 //
 // Leaving this unimplemented as DEP auth tokens are not stored in MySQL storage,
 // instead they are loaded to memory at startup.
-func (s *NanoDEPStorage) StoreAuthTokens(ctx context.Context, name string, tokens *client.OAuth1Tokens) error {
+func (s *NanoDEPStorage) StoreAuthTokens(ctx context.Context, name string, tokens *nanodep_client.OAuth1Tokens) error {
 	return errors.New("unimplemented")
 }
 
@@ -341,7 +335,9 @@ func New(config config.MysqlConfig, c clock.Clock, opts ...DBOption) (*Datastore
 
 	for _, setOpt := range opts {
 		if setOpt != nil {
-			setOpt(options)
+			if err := setOpt(options); err != nil {
+				return nil, err
+			}
 		}
 	}
 
@@ -508,8 +504,14 @@ func (ds *Datastore) loadMigrations(
 	reader dbReader,
 ) (tableRecs []int64, dataRecs []int64, err error) {
 	// We need to run the following to trigger the creation of the migration status tables.
-	tables.MigrationClient.GetDBVersion(writer)
-	data.MigrationClient.GetDBVersion(writer)
+	_, err = tables.MigrationClient.GetDBVersion(writer)
+	if err != nil {
+		return nil, nil, err
+	}
+	_, err = data.MigrationClient.GetDBVersion(writer)
+	if err != nil {
+		return nil, nil, err
+	}
 	// version_id > 0 to skip the bootstrap migration that creates the migration tables.
 	if err := sqlx.SelectContext(ctx, reader, &tableRecs,
 		"SELECT version_id FROM "+tables.MigrationClient.TableName+" WHERE version_id > 0 AND is_applied ORDER BY id ASC",

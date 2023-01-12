@@ -307,7 +307,7 @@ func testRecordPolicyQueryExecutionsSync(t *testing.T, ds *mock.Store, pool flee
 		PolicyUpdatedAt: lastYear,
 	}
 
-	var yes, no = true, false
+	yes, no := true, false
 	results := map[uint]*bool{1: &yes, 2: &yes, 3: &no, 4: nil}
 	keyList, keyTs := fmt.Sprintf(policyPassHostKey, host.ID), fmt.Sprintf(policyPassReportedKey, host.ID)
 
@@ -323,7 +323,7 @@ func testRecordPolicyQueryExecutionsSync(t *testing.T, ds *mock.Store, pool flee
 
 	conn := redis.ConfigureDoer(pool, pool.Get())
 	defer conn.Close()
-	defer conn.Do("DEL", keyList, keyTs)
+	defer conn.Do("DEL", keyList, keyTs) //nolint:errcheck
 
 	n, err := redigo.Int(conn.Do("EXISTS", keyList))
 	require.NoError(t, err)
@@ -350,7 +350,7 @@ func testRecordPolicyQueryExecutionsAsync(t *testing.T, ds *mock.Store, pool fle
 		Platform:        "linux",
 		PolicyUpdatedAt: lastYear,
 	}
-	var yes, no = true, false
+	yes, no := true, false
 	results := map[uint]*bool{1: &yes, 2: &yes, 3: &no, 4: nil}
 	keyList, keyTs := fmt.Sprintf(policyPassHostKey, host.ID), fmt.Sprintf(policyPassReportedKey, host.ID)
 
@@ -372,7 +372,7 @@ func testRecordPolicyQueryExecutionsAsync(t *testing.T, ds *mock.Store, pool fle
 
 	conn := redis.ConfigureDoer(pool, pool.Get())
 	defer conn.Close()
-	defer conn.Do("DEL", keyList, keyTs)
+	defer conn.Do("DEL", keyList, keyTs) //nolint:errcheck
 
 	res, err := redigo.Strings(conn.Do("LRANGE", keyList, 0, -1))
 	require.NoError(t, err)

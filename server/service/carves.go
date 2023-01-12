@@ -8,7 +8,9 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
+	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/google/uuid"
 )
 
@@ -27,7 +29,7 @@ type listCarvesResponse struct {
 
 func (r listCarvesResponse) error() error { return r.Err }
 
-func listCarvesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func listCarvesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*listCarvesRequest)
 	carves, err := svc.ListCarves(ctx, req.ListOptions)
 	if err != nil {
@@ -64,7 +66,7 @@ type getCarveResponse struct {
 
 func (r getCarveResponse) error() error { return r.Err }
 
-func getCarveEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func getCarveEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getCarveRequest)
 	carve, err := svc.GetCarve(ctx, req.ID)
 	if err != nil {
@@ -72,7 +74,6 @@ func getCarveEndpoint(ctx context.Context, request interface{}, svc fleet.Servic
 	}
 
 	return getCarveResponse{Carve: *carve}, nil
-
 }
 
 func (svc *Service) GetCarve(ctx context.Context, id int64) (*fleet.CarveMetadata, error) {
@@ -99,7 +100,7 @@ type getCarveBlockResponse struct {
 
 func (r getCarveBlockResponse) error() error { return r.Err }
 
-func getCarveBlockEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func getCarveBlockEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getCarveBlockRequest)
 	data, err := svc.GetBlock(ctx, req.ID, req.BlockId)
 	if err != nil {
@@ -160,7 +161,7 @@ type carveBeginResponse struct {
 
 func (r carveBeginResponse) error() error { return r.Err }
 
-func carveBeginEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func carveBeginEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*carveBeginRequest)
 
 	payload := fleet.CarveBeginPayload{
@@ -255,7 +256,7 @@ type carveBlockResponse struct {
 
 func (r carveBlockResponse) error() error { return r.Err }
 
-func carveBlockEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func carveBlockEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*carveBlockRequest)
 
 	payload := fleet.CarveBlockPayload{
@@ -290,6 +291,28 @@ func (svc *Service) CarveBlock(ctx context.Context, payload fleet.CarveBlockPayl
 
 	// Request is now authenticated
 
+	if err := svc.validateCarveBlock(payload, carve); err != nil {
+		carve.Error = ptr.String(err.Error())
+		if errRecord := svc.carveStore.UpdateCarve(ctx, carve); err != nil {
+			logging.WithExtras(ctx, "validate_carve_error", errRecord, "carve_id", carve.ID)
+		}
+
+		return ctxerr.Wrap(ctx, err, "validate carve block")
+	}
+
+	if err := svc.carveStore.NewBlock(ctx, carve, payload.BlockId, payload.Data); err != nil {
+		carve.Error = ptr.String(err.Error())
+		if errRecord := svc.carveStore.UpdateCarve(ctx, carve); err != nil {
+			logging.WithExtras(ctx, "record_carve_error", errRecord, "carve_id", carve.ID)
+		}
+
+		return ctxerr.Wrap(ctx, err, "save carve block data")
+	}
+
+	return nil
+}
+
+func (svc *Service) validateCarveBlock(payload fleet.CarveBlockPayload, carve *fleet.CarveMetadata) error {
 	if payload.BlockId > carve.BlockCount-1 {
 		return fmt.Errorf("block_id exceeds expected max (%d): %d", carve.BlockCount-1, payload.BlockId)
 	}
@@ -300,10 +323,6 @@ func (svc *Service) CarveBlock(ctx context.Context, payload fleet.CarveBlockPayl
 
 	if int64(len(payload.Data)) > carve.BlockSize {
 		return fmt.Errorf("exceeded declared block size %d: %d", carve.BlockSize, len(payload.Data))
-	}
-
-	if err := svc.carveStore.NewBlock(ctx, carve, payload.BlockId, payload.Data); err != nil {
-		return ctxerr.Wrap(ctx, err, "save block data")
 	}
 
 	return nil

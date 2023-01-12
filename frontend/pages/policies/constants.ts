@@ -17,6 +17,7 @@ export const DEFAULT_POLICY = {
   failing_host_count: 300,
   created_at: "",
   updated_at: "",
+  critical: false,
 };
 
 // We disable some linting and prettier for DEFAULT_POLICIES object because we
@@ -33,6 +34,7 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
     description:
       "Checks that both ClamAV's daemon and its updater service (freshclam) are running.",
     resolution: "Ensure ClamAV and Freshclam are installed and running.",
+    critical: false,
     platform: "linux",
   },
   {
@@ -44,6 +46,7 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
       "Checks the version of Malware Removal Tool (MRT) and the built-in macOS AV (Xprotect). Replace version numbers with the latest version regularly.",
     resolution:
       "To enable automatic security definition updates, on the failing device, select System Preferences > Software Update > Advanced > Turn on Install system data files and security updates.",
+    critical: false,
     platform: "darwin",
   },
   {
@@ -55,6 +58,7 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
       "Checks the status of antivirus and signature updates from the Windows Security Center.",
     resolution:
       "Ensure Windows Defender or your third-party antivirus is running, up to date, and visible in the Windows Security Center.",
+    critical: false,
     platform: "windows",
   },
   {
@@ -66,6 +70,7 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
       "Checks that a mobile device management (MDM) solution configures the Mac to prevent log in without a password.",
     resolution:
       "Contact your IT administrator to ensure your Mac is receiving a profile that disables automatic login.",
+    critical: false,
     platform: "darwin",
   },
   {
@@ -77,6 +82,7 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
       "Checks if the device mounted at / is encrypted. There are many ways to encrypt Linux systems. You may need to adapt this query, or submit an issue in the Fleet repo.",
     resolution:
       "Ensure the image deployed to your Linux workstation includes full disk encryption.",
+    critical: false,
     platform: "linux",
   },
   {
@@ -88,6 +94,7 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
       "Checks to make sure that full disk encryption (FileVault) is enabled on macOS devices.",
     resolution:
       "To enable full disk encryption, on the failing device, select System Preferences > Security & Privacy > FileVault > Turn On FileVault.",
+    critical: false,
     platform: "darwin",
   },
   {
@@ -99,6 +106,7 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
       "Checks to make sure that full disk encryption is enabled on Windows devices.",
     resolution:
       "To get additional information, run the following osquery query on the failing device: SELECT * FROM bitlocker_info. In the query results, if protection_status is 2, then the status cannot be determined. If it is 0, it is considered unprotected. Use the additional results (percent_encrypted, conversion_status, etc.) to help narrow down the specific reason why Windows considers the volume unprotected.",
+    critical: false,
     platform: "windows",
   },
   {
@@ -109,6 +117,7 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
       "Checks to make sure that the Gatekeeper feature is enabled on macOS devices. Gatekeeper tries to ensure only trusted software is run on a mac machine.",
     resolution:
       "To enable Gatekeeper, on the failing device, run the following command in the Terminal app: /usr/sbin/spctl --master-enable.",
+    critical: false,
     platform: "darwin",
   },
   {
@@ -118,6 +127,7 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
     description:
       "Required: osquery deployed with Orbit, or manual installation of macadmins/osquery-extension. Checks that a Mac is enrolled to MDM. Add a AND on identity_certificate_uuid to check for a specific MDM.",
     resolution: "Enroll device to MDM",
+    critical: false,
     platform: "darwin",
   },
   {
@@ -129,6 +139,7 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
       "Checks that a mobile device management (MDM) solution configures the Mac to enabled secure keyboard entry for the Terminal application.",
     resolution:
       "Contact your IT administrator to ensure your Mac is receiving a profile that enables secure keyboard entry for the Terminal application.",
+    critical: false,
     platform: "darwin",
   },
   {
@@ -140,6 +151,7 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
       "Checks to make sure that the System Integrity Protection feature is enabled.",
     resolution:
       "To enable System Integrity Protection, on the failing device, run the following command in the Terminal app: /usr/sbin/spctl --master-enable.",
+    critical: false,
     platform: "darwin",
   },
   {
@@ -149,6 +161,7 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
     description: "Checks if the firewall is enabled.",
     resolution:
       "In System Preferences, open Security & Privacy, navigate to the Firewall tab and click Turn On Firewall.",
+    critical: false,
     platform: "darwin",
   },
   {
@@ -160,6 +173,7 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
       "Checks that a mobile device management (MDM) solution configures the Mac to enable screen lock.",
     resolution:
       "Contact your IT administrator to ensure your Mac is receiving a profile that enables screen lock.",
+    critical: false,
     platform: "darwin",
   },
   {
@@ -171,6 +185,7 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
       "Checks if the screen lock is enabled and configured to lock the system within 30 minutes or less.",
     resolution:
       "Contact your IT administrator to enable the Interactive Logon: Machine inactivity limit setting with a value of 1800 seconds or lower.",
+    critical: false,
     platform: "windows",
   },
   {
@@ -182,6 +197,7 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
       "Checks that the password policy requires at least 10 characters. Requires osquery 5.4.0 or newer.",
     resolution:
       "Contact your IT administrator to confirm that your Mac is receiving configuration profiles for password length.",
+    critical: false,
     platform: "darwin",
   },
   {
@@ -191,6 +207,7 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
     description: "Checks that the operating system is up to date.",
     resolution:
       "From the Apple menu () in the corner of your screen choose System Preferences. Then select Software Update and select Upgrade Now. You might be asked to restart or enter your password.",
+    critical: false,
     platform: "darwin",
   },
   {
@@ -202,6 +219,7 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
       "Checks that a mobile device management (MDM) solution configures the Mac to automatically check for updates.",
     resolution:
       "Contact your IT administrator to ensure your Mac is receiving a profile that enables automatic updates.",
+    critical: false,
     platform: "darwin",
   },
   {
@@ -213,6 +231,7 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
       "Checks that a mobile device management (MDM) solution configures the Mac to automatically download updates.",
     resolution:
       "Contact your IT administrator to ensure your Mac is receiving a profile that enables automatic update downloads.",
+    critical: false,
     platform: "darwin",
   },
   {
@@ -224,6 +243,7 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
       "Checks that a mobile device management (MDM) solution configures the Mac to automatically install updates to Apple applications.",
     resolution:
       "Contact your IT administrator to ensure your Mac is receiving a profile that enables installation of application updates.",
+    critical: false,
     platform: "darwin",
   },
   {
@@ -235,6 +255,7 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
       "Checks that a mobile device management (MDM) solution configures the Mac to automatically download updates to built-in macOS security tools such as malware removal tools.",
     resolution:
       "Contact your IT administrator to ensure your Mac is receiving a profile that enables automatic security and data update installation.",
+    critical: false,
     platform: "darwin",
   },
   {
@@ -247,6 +268,7 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
       "Checks that a mobile device management (MDM) solution configures the Mac to automatically install operating system updates.",
     resolution:
       "Contact your IT administrator to ensure your Mac is receiving a profile that enables automatic installation of operating system updates.",
+    critical: false,
     platform: "darwin",
   },
   {
@@ -258,6 +280,7 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
       "Checks that a mobile device management (MDM) solution configures the Mac to automatically update the time and date.",
     resolution:
       "Contact your IT administrator to ensure your Mac is receiving a profile that enables automatic time and date configuration.",
+    critical: false,
     platform: "darwin",
   },
   {
@@ -269,6 +292,7 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
       "Checks that a mobile device management (MDM) solution configures the Mac to lock the screen after 20 minutes or less.",
     resolution:
       "Contact your IT administrator to ensure your Mac is receiving a profile that enables the screen saver after inactivity of 20 minutes or less.",
+    critical: false,
     platform: "darwin",
   },
   {
@@ -280,6 +304,7 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
       "Checks that a mobile device management (MDM) solution configures the Mac to prevent Internet sharing.",
     resolution:
       "Contact your IT administrator to ensure your Mac is receiving a profile that prevents Internet sharing.",
+    critical: false,
     platform: "darwin",
   },
   {
@@ -291,6 +316,7 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
       "Checks that a mobile device management (MDM) solution configures the Mac to disable content caching.",
     resolution:
       "Contact your IT administrator to ensure your Mac is receiving a profile that disables content caching.",
+    critical: false,
     platform: "darwin",
   },
   {
@@ -302,6 +328,7 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
       "Checks that a mobile device management (MDM) solution configures the Mac to limit advertisement tracking.",
     resolution:
       "Contact your IT administrator to ensure your Mac is receiving a profile that disables advertisement tracking.",
+    critical: false,
     platform: "darwin",
   },
   {
@@ -313,6 +340,7 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
       "Checks that a mobile device management (MDM) solution configures the Mac to prevent iCloud Desktop and Documents sync.",
     resolution:
       "Contact your IT administrator to ensure your Mac is receiving a profile to prevent iCloud Desktop and Documents sync.",
+    critical: false,
     platform: "darwin",
   },
   {
@@ -324,6 +352,7 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
       "Checks that a mobile device management (MDM) solution configures the Mac to log firewall activity.",
     resolution:
       "Contact your IT administrator to ensure your Mac is receiving a profile that enables firewall logging.",
+    critical: false,
     platform: "darwin",
   },
   {
@@ -335,6 +364,7 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
       "Checks that a mobile device management (MDM) solution configures the Mac to prevent the use of a guest account.",
     resolution:
       "Contact your IT administrator to ensure your Mac is receiving a profile that disables the guest account.",
+    critical: false,
     platform: "darwin",
   },
   {
@@ -346,6 +376,7 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
       "Checks that a mobile device management (MDM) solution configures the Mac to prevent guest access to shared folders.",
     resolution:
       "Contact your IT administrator to ensure your Mac is receiving a profile that prevents guest access to shared folders.",
+    critical: false,
     platform: "darwin",
   },
   {
@@ -357,6 +388,7 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
       "Checks if a Group Policy configures the computer to enable the domain profile for Windows Firewall. The domain profile applies to networks where the host system can authenticate to a domain controller. Some auditors require that this setting is configured by a Group Policy.",
     resolution:
       "Contact your IT administrator to ensure your computer is receiving a Group Policy that enables the domain profile for Windows Firewall.",
+    critical: false,
     platform: "windows",
   },
   {
@@ -368,6 +400,7 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
       "Checks if a Group Policy configures the computer to enable the private profile for Windows Firewall. The private profile applies to networks where the host system is connected to a private or home network. Some auditors require that this setting is configured by a Group Policy.",
     resolution:
       "Contact your IT administrator to ensure your computer is receiving a Group Policy that enables the private profile for Windows Firewall.",
+    critical: false,
     platform: "windows",
   },
   {
@@ -379,6 +412,7 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
       "Checks if a Group Policy configures the computer to enable the public profile for Windows Firewall. The public profile applies to networks where the host system is connected to public networks such as Wi-Fi hotspots at coffee shops and airports. Some auditors require that this setting is configured by a Group Policy.",
     resolution:
       "Contact your IT administrator to ensure your computer is receiving a Group Policy that enables the public profile for Windows Firewall.",
+    critical: false,
     platform: "windows",
   },
   {
@@ -389,6 +423,7 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
     description: "Checks that the SMBv1 client is disabled.",
     resolution:
       "Contact your IT administrator to discuss disabling SMBv1 on your system.",
+    critical: false,
     platform: "windows",
   },
   {
@@ -399,6 +434,7 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
     description: "Checks that the SMBv1 server is disabled.",
     resolution:
       "Contact your IT administrator to discuss disabling SMBv1 on your system.",
+    critical: false,
     platform: "windows",
   },
   {
@@ -410,6 +446,7 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
       "Checks if a Group Policy configures the computer to disable LLMNR. Some auditors requires that this setting is configured by a Group Policy.",
     resolution:
       "Contact your IT administrator to ensure your computer is receiving a Group Policy that disables LLMNR on your system.",
+    critical: false,
     platform: "windows",
   },
   {
@@ -421,28 +458,30 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
       "Checks if a Group Policy configures the computer to enable Automatic Updates. When enabled, the computer downloads and installs security and other important updates automatically. Some auditors requires that this setting is configured by a Group Policy.",
     resolution:
       "Contact your IT administrator to ensure your computer is receiving a Group policy that enables Automatic Updates.",
+    critical: false,
     platform: "windows",
   },
   {
     key: 38,
     query:
-      "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM file WHERE filename like '%%Emergency Kit%%.pdf' AND (path LIKE '/Users/%%/Downloads/%%' OR path LIKE '/Users/%%/Desktop/%%'));",
+      "SELECT EXISTS(SELECT 1 FROM file WHERE filename like '%Emergency Kit%.pdf' AND (path LIKE '/Users/%%/Downloads/%%' OR path LIKE '/Users/%%/Desktop/%%')) as does_1p_ek_exist;",
     name: "No 1Password emergency kit stored on desktop or in downloads (macOS)",
     description:
       "Looks for PDF files with file names typically used by 1Password for emergency recovery kits.",
     resolution:
       "Delete 1Password emergency kits from your computer, and empty the trash. 1Password emergency kits should only be printed and stored in a physically secure location.",
-    platform: "darwin", 
+    critical: false,
+    platform: "darwin",
   },
   {
     key: 39,
     query:
       "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM users CROSS JOIN user_ssh_keys USING (uid) WHERE encrypted='0');",
     name: "No unencrypted SSH keys present",
-    description:
-      "Checks if unencrypted SSH keys are present on the system.",
+    description: "Checks if unencrypted SSH keys are present on the system.",
     resolution:
       "Remove SSH keys that are not necessary, and encrypt those that are. On Mac and Linux, use this command to encrypt your existing SSH keys: ssh-keygen -o -p -f path/to/keyfile",
+    critical: false,
     platform: "darwin",
   },
   {
@@ -454,6 +493,7 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
       "Looks for certificate material linked to a company's Apple Developer account, which should only be present on build servers and not workstations. Replace *ABCDEFG* with your company's identifier.",
     resolution:
       "Ensure your official Apple builds, signing and notarization happen on a centralized system, and remove these certificates from workstations.",
+    critical: false,
     platform: "darwin",
   },
 ];

@@ -91,9 +91,9 @@ Once a relevant sponsorship opportunity and its prospectus are reviewed:
  
 4. Schedule a meeting with the representatives at the event to discuss pricing and sponsorship tiers.
  
-5. Invoices should be received at billing@fleetdm.com and sent to Eric Shaw for approval.
+5. Invoices should be sent to Nathan Holliday for approval.
  
-6. Eric Shaw (Business Operations) will route the signatures required over to Mike McNeil (CEO) with DocuSign.
+6. Nathan Holliday (Business Operations) will route the signatures required over to Mike McNeil (CEO) with DocuSign.
  
 7. Once you complete the above steps, use the [Speaking events issue template](https://github.com/fleetdm/confidential/issues/new?assignees=mike-j-thomas&labels=&template=6-speaking-event.md&title=Speaking+event) to prepare speakers and participants for the event.
 
@@ -260,7 +260,7 @@ Once approved in the sheet, or submitted through [Typeform](https://admin.typefo
 
 When an estimated shipping date is available, notify the requestor by email with an update on shipping, thank them for being a part of the community, and provide the tracking number once shipped.
 
-Printful order information can be found on [Printful](https://www.printful.com/dashboard/default/orders) or billing@fleetdm.com.
+Printful order information can be found on [Printful](https://www.printful.com/dashboard/default/orders).
 
 At this time, double-check that information within Salesforce and Typeform is accurate according to the [enrichment process.](https://docs.google.com/document/d/1zOv39O989bPRNTIcLNNE4ESUI5Ry2XII3XuRpJqNN7g/edit?usp=sharing)
 
@@ -422,6 +422,52 @@ Use "bcc" so recipients don't see each other's email addresses and send an email
 
   `sails run deliver-release-announcement --emailAddresses='["foo@example.com","bar@example.com"]'`
 
+### Newsletter emails
+
+The content for our newsletter emails comes from our articles. Because our HTML emails require that the styles are added inline, we generate HTML emails by using a script and manually QA them before sending them out to subscribers.
+
+#### Generating emails for the Fleet newsletter
+
+To convert a Markdown article into an email for the newsletter, you'll need the following:
+
+- A local copy of the [Fleet repo](https://github.com/fleetdm/fleet).
+- [Node.js](https://nodejs.org/en/download/)
+- (Optional) [Sails.js](https://sailsjs.com) installed globally on your machine (`npm install sails -g`)
+
+Once you have the above follow these steps:
+
+1. Open your terminal program, and navigate to the `website/` folder of your local copy of the Fleet repo.
+
+>Note: If this is your first time running this script, you will need to run `npm install` inside of the `website/` folder to install the website's dependencies.
+
+2. Run the `build-html-email` script and pass in the filename of the Markdown article you would like to convert with the `--articleFilename` flag.
+  
+  - **With Node**, you will need to use `node ./node_modules/sails/bin/sails run build-html-email` to execute the script. e.g., `node ./node_modules/sails/bin/sails run build-html-email --articleFilename="fleet-4.19.0.md"`
+  - **With Sails.js installed globally** you can use `sails run build-html-email` to execute the script. e.g., `sails run build-html-email --articleFilename="fleet-4.19.0.md"`
+
+> Note: Only Markdown (`.md`) files are supported by the build-html-email script. The file extension is optional when providing the articleFilename.
+
+4. Once the script is complete, a new email partial will be added to the `website/views/emails/newsletter-partials/` folder.
+
+> Note: If an email partial has already been created from the specified Markdown article, the old version will be overwritten by the new file.
+
+5. Start the website server locally to preview the generated email. To test the changes locally, open a terminal window in the `website/` folder of the Fleet repo and run the following command:
+  
+  - **With Node.js:** start the server by running `node ./node_modules/sails/bin/sails lift`.
+  - **With Sails.js installed globally:** start the server by running `sails lift`.
+
+6. With the server lifted, navigate to http://localhost:2024/admin/email-preview and login with the test admin user credentials (email:`admin@example.com` pw: `abc123`). 
+
+  Click on the generated email in the list of emails generated from Markdown content and navigate to the preview page. On this page, you can view the see how the email will look on a variety of screen sizes.
+
+  When you've made sure the content of the email looks good at all screen sizes, commit the new email partial to a new branch and open a pull request to add the file. You can request a review from a member of the digital experience team.
+
+**Things to keep in mind when generating newsletter emails:**
+
+- The emails will be generated using the Markdown file locally, any changes present in the local Markdown file will be reflected in the generated email.
+- HTML elements in the Markdown file can cause rendering issues when previewing the generated email. If you see a "Script error" overlay while trying to preview an email, reach out to [Eric Shaw](https://github.com/eashaw) for help.
+- The filename of the generated email will have periods changed to dashes. e.g., The generated email partial for `fleet-4.19.0.md` would be `fleet-4-19-0.ejs`
+
 ### Using Figma
 
 We use Figma for most of our design work. This includes the Fleet product, our website, and our marketing collateral. 
@@ -575,10 +621,10 @@ The following table lists the Marketing, Brand, and Community group's rituals, f
 | Outside contributions        | Weekly | Check pull requests for outside contributions every Monday | Drew Baker|
 | Weekly article               | Weekly | Publish an article and promote it on social media | Drew Baker|
 | Missed demo follow up        | Weekly | Email all leads who missed a scheduled demo | Andrew Bare |
-| Weekly ins and outs          | Weekly | Track marketing team ins and outs        | Tim Kern          |
+| Weekly ins and outs          | Weekly | Track marketing team ins and outs        | Jarod Reyes          |
 | Podcast outreach             | Weekly | Conduct podcast outreach twice a week     | Drew Baker        |
 | Weekly update                | Weekly | Update the marketing KPIs in the ["🌈 Weekly updates" spreadsheet](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0) | Drew Baker        |
-| Update the "Release" field on the #g-marketing board   | Every 3 weeks | <ul><li>Go to the [marketing board](https://github.com/orgs/fleetdm/projects/37/views/2)</li><li>add a 3-week iteration with the correct release number</li></ul> | Tim Kern        |
+| Update the "Release" field on the #g-marketing board   | Every 3 weeks | <ul><li>Go to the [marketing board](https://github.com/orgs/fleetdm/projects/37/views/2)</li><li>add a 3-week iteration with the correct release number</li></ul> | Jarod Reyes        |
 | Monthly conference checks    | Monthly | Check for conference openings and sponsorship opportunities on the 1st of every month | Drew Baker|
 | Freshen up pinned posts      | Quarterly | Swap out or remove pinned posts on the brand Twitter account and LinkedIn company page | Drew Baker | 
 | Documentation quality | On request | Review pull requests to the docs for spelling, punctuation, and grammar | Chris McGillicuddy |
@@ -607,14 +653,14 @@ These groups maintain the following [Slack channels](https://fleetdm.com/handboo
 
 | Slack channel               | [DRI](https://fleetdm.com/handbook/company#group-slack-channels)    |
 |:----------------------------|:--------------------------------------------------------------------|
-| `#g-marketing`              | Tim Kern                                                            |
-| `#help-public-relations`    | Tim Kern                                                            |
-| `#help-promote`             | Tim Kern                                                            |
+| `#g-marketing`              | Jarod Reyes                                                            |
+| `#help-public-relations`    | Jarod Reyes                                                            |
+| `#help-promote`             | Jarod Reyes                                                            |
 | `#help-swag`                | Drew Baker                                                          |
 | `#oooh-websites`            | Mike Thomas                                                         |
 | `#help-p1`		                | Mike McNeil                                                         |
 | `#g-community`              | Kathy Satterlee                                                     |
 
 
-<meta name="maintainedBy" value="timmy-k">
+<meta name="maintainedBy" value="jarodreyes">
 <meta name="title" value="🫧 Marketing">

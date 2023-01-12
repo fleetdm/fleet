@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -17,6 +18,8 @@ import (
 	"strings"
 	"time"
 
+	nanodep_client "github.com/micromdm/nanodep/client"
+	"github.com/micromdm/nanodep/tokenpki"
 	"github.com/spf13/cast"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -48,6 +51,7 @@ type MysqlConfig struct {
 // RedisConfig defines configs related to Redis
 type RedisConfig struct {
 	Address                   string
+	Username                  string
 	Password                  string
 	Database                  int
 	UseTLS                    bool          `yaml:"use_tls"`
@@ -126,16 +130,24 @@ type SessionConfig struct {
 
 // OsqueryConfig defines configs related to osquery
 type OsqueryConfig struct {
-	NodeKeySize                      int           `yaml:"node_key_size"`
-	HostIdentifier                   string        `yaml:"host_identifier"`
-	EnrollCooldown                   time.Duration `yaml:"enroll_cooldown"`
-	StatusLogPlugin                  string        `yaml:"status_log_plugin"`
-	ResultLogPlugin                  string        `yaml:"result_log_plugin"`
-	LabelUpdateInterval              time.Duration `yaml:"label_update_interval"`
-	PolicyUpdateInterval             time.Duration `yaml:"policy_update_interval"`
-	DetailUpdateInterval             time.Duration `yaml:"detail_update_interval"`
-	StatusLogFile                    string        `yaml:"status_log_file"`
-	ResultLogFile                    string        `yaml:"result_log_file"`
+	NodeKeySize          int           `yaml:"node_key_size"`
+	HostIdentifier       string        `yaml:"host_identifier"`
+	EnrollCooldown       time.Duration `yaml:"enroll_cooldown"`
+	StatusLogPlugin      string        `yaml:"status_log_plugin"`
+	ResultLogPlugin      string        `yaml:"result_log_plugin"`
+	LabelUpdateInterval  time.Duration `yaml:"label_update_interval"`
+	PolicyUpdateInterval time.Duration `yaml:"policy_update_interval"`
+	DetailUpdateInterval time.Duration `yaml:"detail_update_interval"`
+
+	// StatusLogFile is deprecated. It was replaced by FilesystemConfig.StatusLogFile.
+	//
+	// TODO(lucas): We should at least add a warning if this field is populated.
+	StatusLogFile string `yaml:"status_log_file"`
+	// ResultLogFile is deprecated. It was replaced by FilesystemConfig.ResultLogFile.
+	//
+	// TODO(lucas): We should at least add a warning if this field is populated.
+	ResultLogFile string `yaml:"result_log_file"`
+
 	EnableLogRotation                bool          `yaml:"enable_log_rotation"`
 	MaxJitterPercent                 int           `yaml:"max_jitter_percent"`
 	EnableAsyncHostProcessing        string        `yaml:"enable_async_host_processing"` // true/false or per-task
@@ -213,6 +225,14 @@ type LoggingConfig struct {
 	TracingType string `yaml:"tracing_type"`
 }
 
+// ActivityConfig defines configs related to activities.
+type ActivityConfig struct {
+	// EnableAuditLog enables logging for audit activities.
+	EnableAuditLog bool `yaml:"enable_audit_log"`
+	// AuditLogPlugin sets the plugin to use to log activities.
+	AuditLogPlugin string `yaml:"audit_log_plugin"`
+}
+
 // FirehoseConfig defines configs for the AWS Firehose logging plugin
 type FirehoseConfig struct {
 	Region           string
@@ -222,6 +242,7 @@ type FirehoseConfig struct {
 	StsAssumeRoleArn string `yaml:"sts_assume_role_arn"`
 	StatusStream     string `yaml:"status_stream"`
 	ResultStream     string `yaml:"result_stream"`
+	AuditStream      string `yaml:"audit_stream"`
 }
 
 // KinesisConfig defines configs for the AWS Kinesis logging plugin
@@ -233,6 +254,7 @@ type KinesisConfig struct {
 	StsAssumeRoleArn string `yaml:"sts_assume_role_arn"`
 	StatusStream     string `yaml:"status_stream"`
 	ResultStream     string `yaml:"result_stream"`
+	AuditStream      string `yaml:"audit_stream"`
 }
 
 // LambdaConfig defines configs for the AWS Lambda logging plugin
@@ -243,6 +265,7 @@ type LambdaConfig struct {
 	StsAssumeRoleArn string `yaml:"sts_assume_role_arn"`
 	StatusFunction   string `yaml:"status_function"`
 	ResultFunction   string `yaml:"result_function"`
+	AuditFunction    string `yaml:"audit_function"`
 }
 
 // S3Config defines config to enable file carving storage to an S3 bucket
@@ -263,6 +286,7 @@ type PubSubConfig struct {
 	Project       string `json:"project"`
 	StatusTopic   string `json:"status_topic" yaml:"status_topic"`
 	ResultTopic   string `json:"result_topic" yaml:"result_topic"`
+	AuditTopic    string `json:"audit_topic" yaml:"audit_topic"`
 	AddAttributes bool   `json:"add_attributes" yaml:"add_attributes"`
 }
 
@@ -270,6 +294,7 @@ type PubSubConfig struct {
 type FilesystemConfig struct {
 	StatusLogFile        string `json:"status_log_file" yaml:"status_log_file"`
 	ResultLogFile        string `json:"result_log_file" yaml:"result_log_file"`
+	AuditLogFile         string `json:"audit_log_file" yaml:"audit_log_file"`
 	EnableLogRotation    bool   `json:"enable_log_rotation" yaml:"enable_log_rotation"`
 	EnableLogCompression bool   `json:"enable_log_compression" yaml:"enable_log_compression"`
 }
@@ -278,6 +303,7 @@ type FilesystemConfig struct {
 type KafkaRESTConfig struct {
 	StatusTopic      string `json:"status_topic" yaml:"status_topic"`
 	ResultTopic      string `json:"result_topic" yaml:"result_topic"`
+	AuditTopic       string `json:"audit_topic" yaml:"audit_topic"`
 	ProxyHost        string `json:"proxyhost" yaml:"proxyhost"`
 	ContentTypeValue string `json:"content_type_value" yaml:"content_type_value"`
 	Timeout          int    `json:"timeout" yaml:"timeout"`
@@ -345,39 +371,19 @@ type MDMAppleConfig struct {
 
 	// SCEP holds the SCEP protocol and server configuration.
 	SCEP MDMAppleSCEPConfig `yaml:"scep"`
-	// MDM holds the MDM core protocol and server configuration.
-	MDM MDMAppleMDMConfig `yaml:"mdm"`
 	// DEP holds the MDM DEP configuration.
 	DEP MDMAppleDEP `yaml:"dep"`
 }
 
 // MDMAppleDEP holds the Apple DEP (Device Enrollment Program) configuration.
 type MDMAppleDEP struct {
-	// Token holds the tokens to authenticate to ABM
-	Token string `yaml:"token"`
 	// SyncPeriodicity is the duration between DEP device syncing (fetching and setting
 	// of DEP profiles).
 	SyncPeriodicity time.Duration `yaml:"sync_periodicity"`
 }
 
-// MDMAppleMDMConfig holds the Apple MDM core protocol and server configuration.
-type MDMAppleMDMConfig struct {
-	// PushCert contains the Apple Push Notification Service (APNS) certificate
-	PushCert MDMApplePushCert `yaml:"push_cert"`
-}
-
-// MDMApplePushCert holds the Apple Push Notification Service (APNS) certificate.
-type MDMApplePushCert struct {
-	// PEMCert contains the PEM-encoded certificate.
-	PEMCert string `yaml:"pem_cert"`
-	// PEMKey contains the unencrypted PEM-encoded private key.
-	PEMKey string `yaml:"pem_key"`
-}
-
 // MDMAppleSCEPConfig holds SCEP protocol and server configuration.
 type MDMAppleSCEPConfig struct {
-	// CA holds all the configuration for the SCEP CA certificate.
-	CA SCEPCAConfig `yaml:"ca"`
 	// Signer holds the SCEP signer configuration.
 	Signer SCEPSignerConfig `yaml:"signer"`
 	// Challenge is the SCEP challenge for SCEP enrollment requests.
@@ -390,14 +396,6 @@ type SCEPSignerConfig struct {
 	ValidityDays int `yaml:"validity_days"`
 	// AllowRenewalDays are the allowable renewal days for certificates.
 	AllowRenewalDays int `yaml:"allow_renewal_days"`
-}
-
-// SCEPCAConfig holds the SCEP CA certificate.
-type SCEPCAConfig struct {
-	// PEMCert contains the PEM-encoded certificate.
-	PEMCert string `yaml:"pem_cert"`
-	// PEMKey contains the unencrypted PEM-encoded private key.
-	PEMKey string `yaml:"pem_key"`
 }
 
 // FleetConfig stores the application configuration. Each subcategory is
@@ -413,6 +411,7 @@ type FleetConfig struct {
 	App              AppConfig
 	Session          SessionConfig
 	Osquery          OsqueryConfig
+	Activity         ActivityConfig
 	Logging          LoggingConfig
 	Firehose         FirehoseConfig
 	Kinesis          KinesisConfig
@@ -428,7 +427,228 @@ type FleetConfig struct {
 	GeoIP            GeoIPConfig
 	Prometheus       PrometheusConfig
 	Packaging        PackagingConfig
+	MDM              MDMConfig
 	MDMApple         MDMAppleConfig `yaml:"mdm_apple"`
+}
+
+type MDMConfig struct {
+	AppleAPNsCert      string `yaml:"apple_apns_cert"`
+	AppleAPNsCertBytes string `yaml:"apple_apns_cert_bytes"`
+	AppleAPNsKey       string `yaml:"apple_apns_key"`
+	AppleAPNsKeyBytes  string `yaml:"apple_apns_key_bytes"`
+	AppleSCEPCert      string `yaml:"apple_scep_cert"`
+	AppleSCEPCertBytes string `yaml:"apple_scep_cert_bytes"`
+	AppleSCEPKey       string `yaml:"apple_scep_key"`
+	AppleSCEPKeyBytes  string `yaml:"apple_scep_key_bytes"`
+
+	// the following fields hold the parsed, validated TLS certificate set the
+	// first time AppleAPNs or AppleSCEP is called, as well as the PEM-encoded
+	// bytes for the certificate and private key.
+	appleAPNs        *tls.Certificate
+	appleAPNsPEMCert []byte
+	appleAPNsPEMKey  []byte
+	appleSCEP        *tls.Certificate
+	appleSCEPPEMCert []byte
+	appleSCEPPEMKey  []byte
+
+	AppleBMServerToken      string `yaml:"apple_bm_server_token"`
+	AppleBMServerTokenBytes string `yaml:"apple_bm_server_token_bytes"`
+	AppleBMCert             string `yaml:"apple_bm_cert"`
+	AppleBMCertBytes        string `yaml:"apple_bm_cert_bytes"`
+	AppleBMKey              string `yaml:"apple_bm_key"`
+	AppleBMKeyBytes         string `yaml:"apple_bm_key_bytes"`
+
+	// the following fields hold the decrypted, validated Apple BM token set the
+	// first time AppleBM is called.
+	appleBMToken *nanodep_client.OAuth1Tokens
+}
+
+type x509KeyPairConfig struct {
+	certPath  string
+	certBytes []byte
+	keyPath   string
+	keyBytes  []byte
+}
+
+func (x *x509KeyPairConfig) IsSet() bool {
+	// if any setting is provided, then the key pair is considered set
+	return x.certPath != "" || len(x.certBytes) != 0 || x.keyPath != "" || len(x.keyBytes) != 0
+}
+
+func (x *x509KeyPairConfig) Parse(keepLeaf bool) (*tls.Certificate, error) {
+	if x.certPath == "" && len(x.certBytes) == 0 {
+		return nil, errors.New("no certificate provided")
+	}
+	if x.certPath != "" && len(x.certBytes) != 0 {
+		return nil, errors.New("only one of the certificate path or bytes must be provided")
+	}
+	if x.keyPath == "" && len(x.keyBytes) == 0 {
+		return nil, errors.New("no key provided")
+	}
+	if x.keyPath != "" && len(x.keyBytes) != 0 {
+		return nil, errors.New("only one of the key path or bytes must be provided")
+	}
+
+	if len(x.certBytes) == 0 {
+		b, err := os.ReadFile(x.certPath)
+		if err != nil {
+			return nil, fmt.Errorf("reading certificate file: %w", err)
+		}
+		x.certBytes = b
+	}
+	if len(x.keyBytes) == 0 {
+		b, err := os.ReadFile(x.keyPath)
+		if err != nil {
+			return nil, fmt.Errorf("reading key file: %w", err)
+		}
+		x.keyBytes = b
+	}
+
+	cert, err := tls.X509KeyPair(x.certBytes, x.keyBytes)
+	if err != nil {
+		return nil, fmt.Errorf("parse key pair: %w", err)
+	}
+
+	if keepLeaf {
+		// X509KeyPair does not store the parsed certificate leaf
+		parsed, err := x509.ParseCertificate(cert.Certificate[0])
+		if err != nil {
+			return nil, fmt.Errorf("parse certificate: %w", err)
+		}
+		cert.Leaf = parsed
+	}
+	return &cert, nil
+}
+
+func (m *MDMConfig) IsAppleAPNsSet() bool {
+	pair := x509KeyPairConfig{
+		m.AppleAPNsCert,
+		[]byte(m.AppleAPNsCertBytes),
+		m.AppleAPNsKey,
+		[]byte(m.AppleAPNsKeyBytes),
+	}
+	return pair.IsSet()
+}
+
+func (m *MDMConfig) IsAppleSCEPSet() bool {
+	pair := x509KeyPairConfig{
+		m.AppleSCEPCert,
+		[]byte(m.AppleSCEPCertBytes),
+		m.AppleSCEPKey,
+		[]byte(m.AppleSCEPKeyBytes),
+	}
+	return pair.IsSet()
+}
+
+func (m *MDMConfig) IsAppleBMSet() bool {
+	pair := x509KeyPairConfig{
+		m.AppleBMCert,
+		[]byte(m.AppleBMCertBytes),
+		m.AppleBMKey,
+		[]byte(m.AppleBMKeyBytes),
+	}
+	// the BM token options is not taken into account by pair.IsSet
+	return pair.IsSet() || m.AppleBMServerToken != "" || m.AppleBMServerTokenBytes != ""
+}
+
+// AppleAPNs returns the parsed and validated TLS certificate for Apple APNs.
+// It parses and validates it if it hasn't been done yet.
+func (m *MDMConfig) AppleAPNs() (cert *tls.Certificate, pemCert, pemKey []byte, err error) {
+	if m.appleAPNs == nil {
+		pair := x509KeyPairConfig{
+			m.AppleAPNsCert,
+			[]byte(m.AppleAPNsCertBytes),
+			m.AppleAPNsKey,
+			[]byte(m.AppleAPNsKeyBytes),
+		}
+		cert, err := pair.Parse(true)
+		if err != nil {
+			return nil, nil, nil, fmt.Errorf("Apple MDM APNs configuration: %w", err)
+		}
+		m.appleAPNs = cert
+		m.appleAPNsPEMCert = pair.certBytes
+		m.appleAPNsPEMKey = pair.keyBytes
+	}
+	return m.appleAPNs, m.appleAPNsPEMCert, m.appleAPNsPEMKey, nil
+}
+
+// AppleSCEP returns the parsed and validated TLS certificate for Apple SCEP.
+// It parses and validates it if it hasn't been done yet.
+func (m *MDMConfig) AppleSCEP() (cert *tls.Certificate, pemCert, pemKey []byte, err error) {
+	if m.appleSCEP == nil {
+		pair := x509KeyPairConfig{
+			m.AppleSCEPCert,
+			[]byte(m.AppleSCEPCertBytes),
+			m.AppleSCEPKey,
+			[]byte(m.AppleSCEPKeyBytes),
+		}
+		cert, err := pair.Parse(false)
+		if err != nil {
+			return nil, nil, nil, fmt.Errorf("Apple MDM SCEP configuration: %w", err)
+		}
+		m.appleSCEP = cert
+		m.appleSCEPPEMCert = pair.certBytes
+		m.appleSCEPPEMKey = pair.keyBytes
+	}
+	return m.appleSCEP, m.appleSCEPPEMCert, m.appleSCEPPEMKey, nil
+}
+
+// AppleBM returns the parsed, validated and decrypted server token for Apple
+// Business Manager. It also parses and validates the Apple BM certificate and
+// private key in the process, in order to decrypt the token.
+func (m *MDMConfig) AppleBM() (tok *nanodep_client.OAuth1Tokens, err error) {
+	if m.appleBMToken == nil {
+		pair := x509KeyPairConfig{
+			m.AppleBMCert,
+			[]byte(m.AppleBMCertBytes),
+			m.AppleBMKey,
+			[]byte(m.AppleBMKeyBytes),
+		}
+		cert, err := pair.Parse(true)
+		if err != nil {
+			return nil, fmt.Errorf("Apple BM configuration: %w", err)
+		}
+		encToken, err := m.loadAppleBMEncryptedToken()
+		if err != nil {
+			return nil, fmt.Errorf("Apple BM configuration: %w", err)
+		}
+		bmKey, err := tokenpki.RSAKeyFromPEM(pair.keyBytes)
+		if err != nil {
+			return nil, fmt.Errorf("Apple BM configuration: parse private key: %w", err)
+		}
+		token, err := tokenpki.DecryptTokenJSON(encToken, cert.Leaf, bmKey)
+		if err != nil {
+			return nil, fmt.Errorf("Apple BM configuration: decrypt token: %w", err)
+		}
+		var jsonTok nanodep_client.OAuth1Tokens
+		if err := json.Unmarshal(token, &jsonTok); err != nil {
+			return nil, fmt.Errorf("Apple BM configuration: unmarshal JSON token: %w", err)
+		}
+		if jsonTok.AccessTokenExpiry.Before(time.Now()) {
+			return nil, errors.New("Apple BM configuration: token is expired")
+		}
+		m.appleBMToken = &jsonTok
+	}
+	return m.appleBMToken, nil
+}
+
+func (m *MDMConfig) loadAppleBMEncryptedToken() ([]byte, error) {
+	if m.AppleBMServerToken == "" && m.AppleBMServerTokenBytes == "" {
+		return nil, errors.New("no token provided")
+	}
+	if m.AppleBMServerToken != "" && m.AppleBMServerTokenBytes != "" {
+		return nil, errors.New("only one of the token path or bytes must be provided")
+	}
+
+	tokBytes := []byte(m.AppleBMServerTokenBytes)
+	if m.AppleBMServerTokenBytes == "" {
+		b, err := os.ReadFile(m.AppleBMServerToken)
+		if err != nil {
+			return nil, fmt.Errorf("reading token file: %w", err)
+		}
+		tokBytes = b
+	}
+	return tokBytes, nil
 }
 
 type TLS struct {
@@ -508,6 +728,8 @@ func (man Manager) addConfigs() {
 	// Redis
 	man.addConfigString("redis.address", "localhost:6379",
 		"Redis server address (host:port)")
+	man.addConfigString("redis.username", "",
+		"Redis server username")
 	man.addConfigString("redis.password", "",
 		"Redis server password (prefer env variable for security)")
 	man.addConfigInt("redis.database", 0,
@@ -627,6 +849,12 @@ func (man Manager) addConfigs() {
 	man.addConfigDuration("osquery.min_software_last_opened_at_diff", 1*time.Hour,
 		"Minimum time difference of the software's last opened timestamp (compared to the last one saved) to trigger an update to the database")
 
+	// Activities
+	man.addConfigBool("activity.enable_audit_log", false,
+		"Enable audit logs")
+	man.addConfigString("activity.audit_log_plugin", "filesystem",
+		"Log plugin to use for audit logs")
+
 	// Logging
 	man.addConfigBool("logging.debug", false,
 		"Enable debug logging")
@@ -653,6 +881,8 @@ func (man Manager) addConfigs() {
 		"Firehose stream name for status logs")
 	man.addConfigString("firehose.result_stream", "",
 		"Firehose stream name for result logs")
+	man.addConfigString("firehose.audit_stream", "",
+		"Firehose stream name for audit logs")
 
 	// Kinesis
 	man.addConfigString("kinesis.region", "", "AWS Region to use")
@@ -666,6 +896,8 @@ func (man Manager) addConfigs() {
 		"Kinesis stream name for status logs")
 	man.addConfigString("kinesis.result_stream", "",
 		"Kinesis stream name for result logs")
+	man.addConfigString("kinesis.audit_stream", "",
+		"Kinesis stream name for audit logs")
 
 	// Lambda
 	man.addConfigString("lambda.region", "", "AWS Region to use")
@@ -677,6 +909,8 @@ func (man Manager) addConfigs() {
 		"Lambda function name for status logs")
 	man.addConfigString("lambda.result_function", "",
 		"Lambda function name for result logs")
+	man.addConfigString("lambda.audit_function", "",
+		"Lambda function name for audit logs")
 
 	// S3 for file carving
 	man.addConfigString("s3.bucket", "", "Bucket where to store file carves")
@@ -693,6 +927,7 @@ func (man Manager) addConfigs() {
 	man.addConfigString("pubsub.project", "", "Google Cloud Project to use")
 	man.addConfigString("pubsub.status_topic", "", "PubSub topic for status logs")
 	man.addConfigString("pubsub.result_topic", "", "PubSub topic for result logs")
+	man.addConfigString("pubsub.audit_topic", "", "PubSub topic for audit logs")
 	man.addConfigBool("pubsub.add_attributes", false, "Add PubSub attributes in addition to the message body")
 
 	// Filesystem
@@ -700,6 +935,8 @@ func (man Manager) addConfigs() {
 		"Log file path to use for status logs")
 	man.addConfigString("filesystem.result_log_file", filepath.Join(os.TempDir(), "osquery_result"),
 		"Log file path to use for result logs")
+	man.addConfigString("filesystem.audit_log_file", filepath.Join(os.TempDir(), "audit"),
+		"Log file path to use for audit logs")
 	man.addConfigBool("filesystem.enable_log_rotation", false,
 		"Enable automatic rotation for osquery log files")
 	man.addConfigBool("filesystem.enable_log_compression", false,
@@ -708,6 +945,7 @@ func (man Manager) addConfigs() {
 	// KafkaREST
 	man.addConfigString("kafkarest.status_topic", "", "Kafka REST topic for status logs")
 	man.addConfigString("kafkarest.result_topic", "", "Kafka REST topic for result logs")
+	man.addConfigString("kafkarest.audit_topic", "", "Kafka REST topic for audit logs")
 	man.addConfigString("kafkarest.proxyhost", "", "Kafka REST proxy host url")
 	man.addConfigString("kafkarest.content_type_value", "application/vnd.kafka.json.v1+json",
 		"Kafka REST proxy content type header (defaults to \"application/vnd.kafka.json.v1+json\"")
@@ -766,17 +1004,51 @@ func (man Manager) addConfigs() {
 	man.addConfigBool("packaging.s3.disable_ssl", false, "Disable SSL (typically for local testing)")
 	man.addConfigBool("packaging.s3.force_s3_path_style", false, "Set this to true to force path-style addressing, i.e., `http://s3.amazonaws.com/BUCKET/KEY`")
 
-	// MDM Apple config
+	// MDM Apple config (prototype)
 	man.addConfigBool("mdm_apple.enable", false, "Enable MDM Apple functionality")
-	man.addConfigString("mdm_apple.scep.ca.cert_pem", "", "SCEP CA PEM-encoded certificate")
-	man.addConfigString("mdm_apple.scep.ca.key_pem", "", "SCEP CA PEM-encoded private key")
 	man.addConfigInt("mdm_apple.scep.signer.validity_days", 365, "Days signed client certificates will be valid")
 	man.addConfigInt("mdm_apple.scep.signer.allow_renewal_days", 14, "Allowable renewal days for client certificates")
 	man.addConfigString("mdm_apple.scep.challenge", "", "SCEP static challenge for enrollment")
-	man.addConfigString("mdm_apple.mdm.push.cert_pem", "", "MDM APNS PEM-encoded certificate")
-	man.addConfigString("mdm_apple.mdm.push.key_pem", "", "MDM APNS PEM-encoded private key")
-	man.addConfigString("mdm_apple.dep.token", "", "MDM DEP Auth Token")
 	man.addConfigDuration("mdm_apple.dep.sync_periodicity", 1*time.Minute, "How much time to wait for DEP profile assignment")
+
+	// MDM config
+	man.addConfigString("mdm.apple_apns_cert", "", "Apple APNs PEM-encoded certificate path")
+	man.addConfigString("mdm.apple_apns_cert_bytes", "", "Apple APNs PEM-encoded certificate bytes")
+	man.addConfigString("mdm.apple_apns_key", "", "Apple APNs PEM-encoded private key path")
+	man.addConfigString("mdm.apple_apns_key_bytes", "", "Apple APNs PEM-encoded private key bytes")
+	man.addConfigString("mdm.apple_scep_cert", "", "Apple SCEP PEM-encoded certificate path")
+	man.addConfigString("mdm.apple_scep_cert_bytes", "", "Apple SCEP PEM-encoded certificate bytes")
+	man.addConfigString("mdm.apple_scep_key", "", "Apple SCEP PEM-encoded private key path")
+	man.addConfigString("mdm.apple_scep_key_bytes", "", "Apple SCEP PEM-encoded private key bytes")
+	man.addConfigString("mdm.apple_bm_server_token", "", "Apple Business Manager encrypted server token path (.p7m file)")
+	man.addConfigString("mdm.apple_bm_server_token_bytes", "", "Apple Business Manager encrypted server token bytes")
+	man.addConfigString("mdm.apple_bm_cert", "", "Apple Business Manager PEM-encoded certificate path")
+	man.addConfigString("mdm.apple_bm_cert_bytes", "", "Apple Business Manager PEM-encoded certificate bytes")
+	man.addConfigString("mdm.apple_bm_key", "", "Apple Business Manager PEM-encoded private key path")
+	man.addConfigString("mdm.apple_bm_key_bytes", "", "Apple Business Manager PEM-encoded private key bytes")
+
+	// Hide the official MDM flags as we don't want it to be discoverable for users for now
+	mdmFlags := []string{
+		"mdm.apple_apns_cert",
+		"mdm.apple_apns_cert_bytes",
+		"mdm.apple_apns_key",
+		"mdm.apple_apns_key_bytes",
+		"mdm.apple_scep_cert",
+		"mdm.apple_scep_cert_bytes",
+		"mdm.apple_scep_key",
+		"mdm.apple_scep_key_bytes",
+		"mdm.apple_bm_server_token",
+		"mdm.apple_bm_server_token_bytes",
+		"mdm.apple_bm_cert",
+		"mdm.apple_bm_cert_bytes",
+		"mdm.apple_bm_key",
+		"mdm.apple_bm_key_bytes",
+	}
+	for _, mdmFlag := range mdmFlags {
+		if flag := man.command.PersistentFlags().Lookup(flagNameFromConfigKey(mdmFlag)); flag != nil {
+			flag.Hidden = true
+		}
+	}
 }
 
 // LoadConfig will load the config variables into a fully initialized
@@ -809,6 +1081,7 @@ func (man Manager) LoadConfig() FleetConfig {
 		MysqlReadReplica: loadMysqlConfig("mysql_read_replica"),
 		Redis: RedisConfig{
 			Address:                   man.getConfigString("redis.address"),
+			Username:                  man.getConfigString("redis.username"),
 			Password:                  man.getConfigString("redis.password"),
 			Database:                  man.getConfigInt("redis.database"),
 			UseTLS:                    man.getConfigBool("redis.use_tls"),
@@ -855,12 +1128,14 @@ func (man Manager) LoadConfig() FleetConfig {
 			Duration: man.getConfigDuration("session.duration"),
 		},
 		Osquery: OsqueryConfig{
-			NodeKeySize:                      man.getConfigInt("osquery.node_key_size"),
-			HostIdentifier:                   man.getConfigString("osquery.host_identifier"),
-			EnrollCooldown:                   man.getConfigDuration("osquery.enroll_cooldown"),
-			StatusLogPlugin:                  man.getConfigString("osquery.status_log_plugin"),
-			ResultLogPlugin:                  man.getConfigString("osquery.result_log_plugin"),
-			StatusLogFile:                    man.getConfigString("osquery.status_log_file"),
+			NodeKeySize:     man.getConfigInt("osquery.node_key_size"),
+			HostIdentifier:  man.getConfigString("osquery.host_identifier"),
+			EnrollCooldown:  man.getConfigDuration("osquery.enroll_cooldown"),
+			StatusLogPlugin: man.getConfigString("osquery.status_log_plugin"),
+			ResultLogPlugin: man.getConfigString("osquery.result_log_plugin"),
+			// StatusLogFile is deprecated. FilesystemConfig.StatusLogFile is used instead.
+			StatusLogFile: man.getConfigString("osquery.status_log_file"),
+			// ResultLogFile is deprecated. FilesystemConfig.ResultLogFile is used instead.
 			ResultLogFile:                    man.getConfigString("osquery.result_log_file"),
 			LabelUpdateInterval:              man.getConfigDuration("osquery.label_update_interval"),
 			PolicyUpdateInterval:             man.getConfigDuration("osquery.policy_update_interval"),
@@ -879,6 +1154,10 @@ func (man Manager) LoadConfig() FleetConfig {
 			AsyncHostRedisScanKeysCount:      man.getConfigInt("osquery.async_host_redis_scan_keys_count"),
 			MinSoftwareLastOpenedAtDiff:      man.getConfigDuration("osquery.min_software_last_opened_at_diff"),
 		},
+		Activity: ActivityConfig{
+			EnableAuditLog: man.getConfigBool("activity.enable_audit_log"),
+			AuditLogPlugin: man.getConfigString("activity.audit_log_plugin"),
+		},
 		Logging: LoggingConfig{
 			Debug:                man.getConfigBool("logging.debug"),
 			JSON:                 man.getConfigBool("logging.json"),
@@ -895,6 +1174,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			StsAssumeRoleArn: man.getConfigString("firehose.sts_assume_role_arn"),
 			StatusStream:     man.getConfigString("firehose.status_stream"),
 			ResultStream:     man.getConfigString("firehose.result_stream"),
+			AuditStream:      man.getConfigString("firehose.audit_stream"),
 		},
 		Kinesis: KinesisConfig{
 			Region:           man.getConfigString("kinesis.region"),
@@ -903,6 +1183,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			SecretAccessKey:  man.getConfigString("kinesis.secret_access_key"),
 			StatusStream:     man.getConfigString("kinesis.status_stream"),
 			ResultStream:     man.getConfigString("kinesis.result_stream"),
+			AuditStream:      man.getConfigString("kinesis.audit_stream"),
 			StsAssumeRoleArn: man.getConfigString("kinesis.sts_assume_role_arn"),
 		},
 		Lambda: LambdaConfig{
@@ -911,6 +1192,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			SecretAccessKey:  man.getConfigString("lambda.secret_access_key"),
 			StatusFunction:   man.getConfigString("lambda.status_function"),
 			ResultFunction:   man.getConfigString("lambda.result_function"),
+			AuditFunction:    man.getConfigString("lambda.audit_function"),
 			StsAssumeRoleArn: man.getConfigString("lambda.sts_assume_role_arn"),
 		},
 		S3: S3Config{
@@ -928,17 +1210,20 @@ func (man Manager) LoadConfig() FleetConfig {
 			Project:       man.getConfigString("pubsub.project"),
 			StatusTopic:   man.getConfigString("pubsub.status_topic"),
 			ResultTopic:   man.getConfigString("pubsub.result_topic"),
+			AuditTopic:    man.getConfigString("pubsub.audit_topic"),
 			AddAttributes: man.getConfigBool("pubsub.add_attributes"),
 		},
 		Filesystem: FilesystemConfig{
 			StatusLogFile:        man.getConfigString("filesystem.status_log_file"),
 			ResultLogFile:        man.getConfigString("filesystem.result_log_file"),
+			AuditLogFile:         man.getConfigString("filesystem.audit_log_file"),
 			EnableLogRotation:    man.getConfigBool("filesystem.enable_log_rotation"),
 			EnableLogCompression: man.getConfigBool("filesystem.enable_log_compression"),
 		},
 		KafkaREST: KafkaRESTConfig{
 			StatusTopic:      man.getConfigString("kafkarest.status_topic"),
 			ResultTopic:      man.getConfigString("kafkarest.result_topic"),
+			AuditTopic:       man.getConfigString("kafkarest.audit_topic"),
 			ProxyHost:        man.getConfigString("kafkarest.proxyhost"),
 			ContentTypeValue: man.getConfigString("kafkarest.content_type_value"),
 			Timeout:          man.getConfigInt("kafkarest.timeout"),
@@ -990,26 +1275,31 @@ func (man Manager) LoadConfig() FleetConfig {
 		MDMApple: MDMAppleConfig{
 			Enable: man.getConfigBool("mdm_apple.enable"),
 			SCEP: MDMAppleSCEPConfig{
-				CA: SCEPCAConfig{
-					PEMCert: man.getConfigString("mdm_apple.scep.ca.cert_pem"),
-					PEMKey:  man.getConfigString("mdm_apple.scep.ca.key_pem"),
-				},
 				Signer: SCEPSignerConfig{
 					ValidityDays:     man.getConfigInt("mdm_apple.scep.signer.validity_days"),
 					AllowRenewalDays: man.getConfigInt("mdm_apple.scep.signer.allow_renewal_days"),
 				},
 				Challenge: man.getConfigString("mdm_apple.scep.challenge"),
 			},
-			MDM: MDMAppleMDMConfig{
-				PushCert: MDMApplePushCert{
-					PEMCert: man.getConfigString("mdm_apple.mdm.push.cert_pem"),
-					PEMKey:  man.getConfigString("mdm_apple.mdm.push.key_pem"),
-				},
-			},
 			DEP: MDMAppleDEP{
-				Token:           man.getConfigString("mdm_apple.dep.token"),
 				SyncPeriodicity: man.getConfigDuration("mdm_apple.dep.sync_periodicity"),
 			},
+		},
+		MDM: MDMConfig{
+			AppleAPNsCert:           man.getConfigString("mdm.apple_apns_cert"),
+			AppleAPNsCertBytes:      man.getConfigString("mdm.apple_apns_cert_bytes"),
+			AppleAPNsKey:            man.getConfigString("mdm.apple_apns_key"),
+			AppleAPNsKeyBytes:       man.getConfigString("mdm.apple_apns_key_bytes"),
+			AppleSCEPCert:           man.getConfigString("mdm.apple_scep_cert"),
+			AppleSCEPCertBytes:      man.getConfigString("mdm.apple_scep_cert_bytes"),
+			AppleSCEPKey:            man.getConfigString("mdm.apple_scep_key"),
+			AppleSCEPKeyBytes:       man.getConfigString("mdm.apple_scep_key_bytes"),
+			AppleBMServerToken:      man.getConfigString("mdm.apple_bm_server_token"),
+			AppleBMServerTokenBytes: man.getConfigString("mdm.apple_bm_server_token_bytes"),
+			AppleBMCert:             man.getConfigString("mdm.apple_bm_cert"),
+			AppleBMCertBytes:        man.getConfigString("mdm.apple_bm_cert_bytes"),
+			AppleBMKey:              man.getConfigString("mdm.apple_bm_key"),
+			AppleBMKeyBytes:         man.getConfigString("mdm.apple_bm_key_bytes"),
 		},
 	}
 
@@ -1093,8 +1383,8 @@ func (man Manager) getInterfaceVal(key string) interface{} {
 // addConfigString adds a string config to the config options
 func (man Manager) addConfigString(key, defVal, usage string) {
 	man.command.PersistentFlags().String(flagNameFromConfigKey(key), defVal, getFlagUsage(key, usage))
-	man.viper.BindPFlag(key, man.command.PersistentFlags().Lookup(flagNameFromConfigKey(key)))
-	man.viper.BindEnv(key, envNameFromConfigKey(key))
+	man.viper.BindPFlag(key, man.command.PersistentFlags().Lookup(flagNameFromConfigKey(key))) //nolint:errcheck
+	man.viper.BindEnv(key, envNameFromConfigKey(key))                                          //nolint:errcheck
 
 	// Add default
 	man.addDefault(key, defVal)
@@ -1131,8 +1421,8 @@ func (man Manager) getConfigTLSProfile() string {
 // addConfigInt adds a int config to the config options
 func (man Manager) addConfigInt(key string, defVal int, usage string) {
 	man.command.PersistentFlags().Int(flagNameFromConfigKey(key), defVal, getFlagUsage(key, usage))
-	man.viper.BindPFlag(key, man.command.PersistentFlags().Lookup(flagNameFromConfigKey(key)))
-	man.viper.BindEnv(key, envNameFromConfigKey(key))
+	man.viper.BindPFlag(key, man.command.PersistentFlags().Lookup(flagNameFromConfigKey(key))) //nolint:errcheck
+	man.viper.BindEnv(key, envNameFromConfigKey(key))                                          //nolint:errcheck
 
 	// Add default
 	man.addDefault(key, defVal)
@@ -1152,8 +1442,8 @@ func (man Manager) getConfigInt(key string) int {
 // addConfigBool adds a bool config to the config options
 func (man Manager) addConfigBool(key string, defVal bool, usage string) {
 	man.command.PersistentFlags().Bool(flagNameFromConfigKey(key), defVal, getFlagUsage(key, usage))
-	man.viper.BindPFlag(key, man.command.PersistentFlags().Lookup(flagNameFromConfigKey(key)))
-	man.viper.BindEnv(key, envNameFromConfigKey(key))
+	man.viper.BindPFlag(key, man.command.PersistentFlags().Lookup(flagNameFromConfigKey(key))) //nolint:errcheck
+	man.viper.BindEnv(key, envNameFromConfigKey(key))                                          //nolint:errcheck
 
 	// Add default
 	man.addDefault(key, defVal)
@@ -1173,8 +1463,8 @@ func (man Manager) getConfigBool(key string) bool {
 // addConfigDuration adds a duration config to the config options
 func (man Manager) addConfigDuration(key string, defVal time.Duration, usage string) {
 	man.command.PersistentFlags().Duration(flagNameFromConfigKey(key), defVal, getFlagUsage(key, usage))
-	man.viper.BindPFlag(key, man.command.PersistentFlags().Lookup(flagNameFromConfigKey(key)))
-	man.viper.BindEnv(key, envNameFromConfigKey(key))
+	man.viper.BindPFlag(key, man.command.PersistentFlags().Lookup(flagNameFromConfigKey(key))) //nolint:errcheck
+	man.viper.BindEnv(key, envNameFromConfigKey(key))                                          //nolint:errcheck
 
 	// Add default
 	man.addDefault(key, defVal)
@@ -1312,6 +1602,10 @@ func TestConfig() FleetConfig {
 			DetailUpdateInterval: 1 * time.Hour,
 			MaxJitterPercent:     0,
 		},
+		Activity: ActivityConfig{
+			EnableAuditLog: true,
+			AuditLogPlugin: "filesystem",
+		},
 		Logging: LoggingConfig{
 			Debug:         true,
 			DisableBanner: true,
@@ -1319,6 +1613,7 @@ func TestConfig() FleetConfig {
 		Filesystem: FilesystemConfig{
 			StatusLogFile: testLogFile,
 			ResultLogFile: testLogFile,
+			AuditLogFile:  testLogFile,
 		},
 	}
 }

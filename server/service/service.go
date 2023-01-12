@@ -13,7 +13,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/logging"
 	"github.com/fleetdm/fleet/v4/server/service/async"
 	"github.com/fleetdm/fleet/v4/server/sso"
 	kitlog "github.com/go-kit/kit/log"
@@ -36,7 +35,7 @@ type Service struct {
 	config         config.FleetConfig
 	clock          clock.Clock
 
-	osqueryLogWriter *logging.OsqueryLogger
+	osqueryLogWriter *OsqueryLogger
 
 	mailService     fleet.MailService
 	ssoSessionStore sso.SessionStore
@@ -57,14 +56,28 @@ type Service struct {
 	mdmStorage       nanomdm_storage.AllStorage
 	mdmPushService   nanomdm_push.Pusher
 	mdmPushCertTopic string
+
+	cronSchedulesService fleet.CronSchedulesService
 }
 
-func (s *Service) LookupGeoIP(ctx context.Context, ip string) *fleet.GeoLocation {
-	return s.geoIP.Lookup(ctx, ip)
+func (svc *Service) LookupGeoIP(ctx context.Context, ip string) *fleet.GeoLocation {
+	return svc.geoIP.Lookup(ctx, ip)
 }
 
-func (s *Service) SetEnterpriseOverrides(overrides fleet.EnterpriseOverrides) {
-	s.EnterpriseOverrides = &overrides
+func (svc *Service) SetEnterpriseOverrides(overrides fleet.EnterpriseOverrides) {
+	svc.EnterpriseOverrides = &overrides
+}
+
+// OsqueryLogger holds osqueryd's status and result loggers.
+type OsqueryLogger struct {
+	// Status holds the osqueryd's status logger.
+	//
+	// See https://osquery.readthedocs.io/en/stable/deployment/logging/#status-logs
+	Status fleet.JSONLogger
+	// Result holds the osqueryd's result logger.
+	//
+	// See https://osquery.readthedocs.io/en/stable/deployment/logging/#results-logs
+	Result fleet.JSONLogger
 }
 
 // NewService creates a new service from the config struct
@@ -74,7 +87,7 @@ func NewService(
 	task *async.Task,
 	resultStore fleet.QueryResultStore,
 	logger kitlog.Logger,
-	osqueryLogger *logging.OsqueryLogger,
+	osqueryLogger *OsqueryLogger,
 	config config.FleetConfig,
 	mailService fleet.MailService,
 	c clock.Clock,
@@ -89,6 +102,7 @@ func NewService(
 	mdmStorage nanomdm_storage.AllStorage,
 	mdmPushService nanomdm_push.Pusher,
 	mdmPushCertTopic string,
+	cronSchedulesService fleet.CronSchedulesService,
 ) (fleet.Service, error) {
 	authorizer, err := authz.NewAuthorizer()
 	if err != nil {
@@ -96,34 +110,35 @@ func NewService(
 	}
 
 	svc := &Service{
-		ds:                ds,
-		task:              task,
-		carveStore:        carveStore,
-		installerStore:    installerStore,
-		resultStore:       resultStore,
-		liveQueryStore:    lq,
-		logger:            logger,
-		config:            config,
-		clock:             c,
-		osqueryLogWriter:  osqueryLogger,
-		mailService:       mailService,
-		ssoSessionStore:   sso,
-		failingPolicySet:  failingPolicySet,
-		authz:             authorizer,
-		jitterH:           make(map[time.Duration]*jitterHashTable),
-		jitterMu:          new(sync.Mutex),
-		geoIP:             geoIP,
-		enrollHostLimiter: enrollHostLimiter,
-		depStorage:        depStorage,
-		mdmStorage:        mdmStorage,
-		mdmPushService:    mdmPushService,
-		mdmPushCertTopic:  mdmPushCertTopic,
+		ds:                   ds,
+		task:                 task,
+		carveStore:           carveStore,
+		installerStore:       installerStore,
+		resultStore:          resultStore,
+		liveQueryStore:       lq,
+		logger:               logger,
+		config:               config,
+		clock:                c,
+		osqueryLogWriter:     osqueryLogger,
+		mailService:          mailService,
+		ssoSessionStore:      sso,
+		failingPolicySet:     failingPolicySet,
+		authz:                authorizer,
+		jitterH:              make(map[time.Duration]*jitterHashTable),
+		jitterMu:             new(sync.Mutex),
+		geoIP:                geoIP,
+		enrollHostLimiter:    enrollHostLimiter,
+		depStorage:           depStorage,
+		mdmStorage:           mdmStorage,
+		mdmPushService:       mdmPushService,
+		mdmPushCertTopic:     mdmPushCertTopic,
+		cronSchedulesService: cronSchedulesService,
 	}
 	return validationMiddleware{svc, ds, sso}, nil
 }
 
-func (s *Service) SendEmail(mail fleet.Email) error {
-	return s.mailService.SendEmail(mail)
+func (svc *Service) SendEmail(mail fleet.Email) error {
+	return svc.mailService.SendEmail(mail)
 }
 
 type validationMiddleware struct {

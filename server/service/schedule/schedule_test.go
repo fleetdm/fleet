@@ -16,35 +16,19 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-type nopLocker struct{}
-
-func (nopLocker) Lock(context.Context, string, string, time.Duration) (bool, error) {
-	return true, nil
-}
-
-func (nopLocker) Unlock(context.Context, string, string) error {
-	return nil
-}
-
-type nopStatsStore struct{}
-
-func (nopStatsStore) GetLatestCronStats(ctx context.Context, name string) (fleet.CronStats, error) {
-	return fleet.CronStats{}, nil
-}
-
-func (nopStatsStore) InsertCronStats(ctx context.Context, statsType fleet.CronStatsType, name string, instance string, status fleet.CronStatsStatus) (int, error) {
-	return 0, nil
-}
-
-func (nopStatsStore) UpdateCronStats(ctx context.Context, id int, status fleet.CronStatsStatus) error {
-	return nil
-}
-
 func TestNewSchedule(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	jobRan := false
-	s := New(ctx, "test_new_schedule", "test_instance", 10*time.Millisecond, nopLocker{}, nopStatsStore{},
+	s := New(ctx, "test_new_schedule", "test_instance", 1*time.Second, NopLocker{}, SetUpMockStatsStore("test_new_schedule", fleet.CronStats{
+		ID:        1,
+		StatsType: fleet.CronStatsTypeScheduled,
+		Name:      "test_new_schedule",
+		Instance:  "test_instance",
+		CreatedAt: time.Now().Truncate(1 * time.Second),
+		UpdatedAt: time.Now().Truncate(1 * time.Second),
+		Status:    fleet.CronStatsStatusCompleted,
+	}),
 		WithJob("test_job", func(ctx context.Context) error {
 			jobRan = true
 			return nil
@@ -52,7 +36,7 @@ func TestNewSchedule(t *testing.T) {
 	)
 	s.Start()
 
-	time.Sleep(1 * time.Second)
+	time.Sleep(1200 * time.Millisecond)
 	cancel()
 
 	select {
@@ -68,11 +52,20 @@ func TestScheduleLocker(t *testing.T) {
 
 	name := "test_schedule_locker"
 	instance := "test_instance"
-	interval := 10 * time.Millisecond
+	interval := 1 * time.Second
 	locker := SetupMockLocker(name, instance, time.Now().Add(-interval))
+	statsStore := SetUpMockStatsStore(name, fleet.CronStats{
+		ID:        1,
+		StatsType: fleet.CronStatsTypeScheduled,
+		Name:      name,
+		Instance:  instance,
+		CreatedAt: time.Now().Truncate(1 * time.Second).Add(-interval),
+		UpdatedAt: time.Now().Truncate(1 * time.Second).Add(-interval),
+		Status:    fleet.CronStatsStatusCompleted,
+	})
 
 	jobRunCount := 0
-	s := New(ctx, name, instance, interval, locker, &nopStatsStore{},
+	s := New(ctx, name, instance, interval, locker, statsStore,
 		WithJob("test_job", func(ctx context.Context) error {
 			jobRunCount++
 			return nil
@@ -80,7 +73,7 @@ func TestScheduleLocker(t *testing.T) {
 	)
 	s.Start()
 
-	time.Sleep(1 * time.Second)
+	time.Sleep(2200 * time.Millisecond)
 	cancel()
 
 	select {
@@ -167,7 +160,15 @@ func TestMultipleSchedules(t *testing.T) {
 			opts = append(opts, WithJob(job.ID, job.Fn))
 			jobNames = append(jobNames, job.ID)
 		}
-		s := New(ctx, tc.name, tc.instanceID, tc.interval, nopLocker{}, nopStatsStore{}, opts...)
+		s := New(ctx, tc.name, tc.instanceID, tc.interval, NopLocker{}, SetUpMockStatsStore(tc.name, fleet.CronStats{
+			ID:        1,
+			StatsType: fleet.CronStatsTypeScheduled,
+			Name:      tc.name,
+			Instance:  tc.instanceID,
+			CreatedAt: time.Now().Truncate(1 * time.Second),
+			UpdatedAt: time.Now().Truncate(1 * time.Second),
+			Status:    fleet.CronStatsStatusCompleted,
+		}), opts...)
 		s.Start()
 		ss = append(ss, s)
 	}
@@ -194,7 +195,15 @@ func TestMultipleJobsInOrder(t *testing.T) {
 
 	jobs := make(chan int)
 
-	s := New(ctx, "test_schedule", "test_instance", 1000*time.Millisecond, nopLocker{}, nopStatsStore{},
+	s := New(ctx, "test_schedule", "test_instance", 1000*time.Millisecond, NopLocker{}, SetUpMockStatsStore("test_schedule", fleet.CronStats{
+		ID:        1,
+		StatsType: fleet.CronStatsTypeScheduled,
+		Name:      "test_schedule",
+		Instance:  "test_instance",
+		CreatedAt: time.Now().Truncate(1 * time.Second),
+		UpdatedAt: time.Now().Truncate(1 * time.Second),
+		Status:    fleet.CronStatsStatusCompleted,
+	}),
 		WithJob("test_job_1", func(ctx context.Context) error {
 			jobs <- 1
 			return nil
@@ -247,11 +256,19 @@ func TestMultipleJobsInOrder(t *testing.T) {
 
 func TestConfigReloadCheck(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
-	initialSchedInterval := 200 * time.Millisecond
+	initialSchedInterval := 1 * time.Millisecond
 	newSchedInterval := 2600 * time.Millisecond
 
 	jobsRun := 0
-	s := New(ctx, "test_schedule", "test_instance", initialSchedInterval, nopLocker{}, nopStatsStore{},
+	s := New(ctx, "test_schedule", "test_instance", initialSchedInterval, NopLocker{}, SetUpMockStatsStore("test_schedule", fleet.CronStats{
+		ID:        1,
+		StatsType: fleet.CronStatsTypeScheduled,
+		Name:      "test_schedule",
+		Instance:  "test_instance",
+		CreatedAt: time.Now().Truncate(1 * time.Second).Add(-initialSchedInterval),
+		UpdatedAt: time.Now().Truncate(1 * time.Second).Add(-initialSchedInterval),
+		Status:    fleet.CronStatsStatusCompleted,
+	}),
 		WithConfigReloadInterval(100*time.Millisecond, func(_ context.Context) (time.Duration, error) {
 			return newSchedInterval, nil
 		}),
@@ -284,7 +301,15 @@ func TestJobPanicRecover(t *testing.T) {
 
 	jobRan := false
 
-	s := New(ctx, "test_new_schedule", "test_instance", 10*time.Millisecond, nopLocker{}, nopStatsStore{},
+	s := New(ctx, "test_schedule", "test_instance", 1*time.Second, NopLocker{}, SetUpMockStatsStore("test_schedule", fleet.CronStats{
+		ID:        1,
+		StatsType: fleet.CronStatsTypeScheduled,
+		Name:      "test_schedule",
+		Instance:  "test_instance",
+		CreatedAt: time.Now().Truncate(1 * time.Second).Add(-1 * time.Second),
+		UpdatedAt: time.Now().Truncate(1 * time.Second).Add(-1 * time.Second),
+		Status:    fleet.CronStatsStatusCompleted,
+	}),
 		WithJob("job_1", func(ctx context.Context) error {
 			panic("job_1")
 		}),
@@ -294,7 +319,7 @@ func TestJobPanicRecover(t *testing.T) {
 		}))
 	s.Start()
 
-	time.Sleep(1 * time.Second)
+	time.Sleep(1200 * time.Millisecond)
 	cancel()
 
 	select {
@@ -324,8 +349,8 @@ func TestScheduleReleaseLock(t *testing.T) {
 		StatsType: fleet.CronStatsTypeScheduled,
 		Name:      name,
 		Instance:  instance,
-		CreatedAt: time.Now().Truncate(time.Second).Add(-schedInterval),
-		UpdatedAt: time.Now().Truncate(time.Second).Add(-schedInterval),
+		CreatedAt: time.Now().Truncate(1 * time.Second).Add(-schedInterval),
+		UpdatedAt: time.Now().Truncate(1 * time.Second).Add(-schedInterval),
 		Status:    fleet.CronStatsStatusCompleted,
 	})
 
@@ -373,7 +398,7 @@ func TestScheduleHoldLock(t *testing.T) {
 	jobDuration := 2100 * time.Millisecond
 
 	ml := SetupMockLocker(name, instance, time.Now().Add(-schedInterval))
-	ml.AddChannels(t, "unlocked")
+	require.NoError(t, ml.AddChannels(t, "unlocked"))
 
 	ms := SetUpMockStatsStore(name, fleet.CronStats{
 		ID:        1,
@@ -417,12 +442,11 @@ func TestScheduleHoldLock(t *testing.T) {
 		require.Equal(t, 4, ml.GetLockCount())
 		require.WithinRange(t, time.Now(),
 			start.Add(3*schedInterval).Add(jobDuration),
-			start.Add(3*schedInterval).Add(jobDuration).Add(1*time.Second),
-		)
+			start.Add(3*schedInterval).Add(jobDuration).Add(2*time.Second))
 	}
 }
 
-func TestMultipleScheduleInstancesConfigChanges(t *testing.T) {
+func TestMultipleScheduleInstancesConfigChangesDS(t *testing.T) {
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()
 
@@ -432,7 +456,8 @@ func TestMultipleScheduleInstancesConfigChanges(t *testing.T) {
 	ds := mysql.CreateMySQLDS(t)
 	defer ds.Close()
 
-	ds.InsertCronStats(ctx, fleet.CronStatsTypeScheduled, name, "a", fleet.CronStatsStatusCompleted)
+	_, err := ds.InsertCronStats(ctx, fleet.CronStatsTypeScheduled, name, "a", fleet.CronStatsStatusCompleted)
+	require.NoError(t, err)
 
 	ac, err := ds.AppConfig(ctx)
 	require.NoError(t, err)
@@ -499,4 +524,176 @@ func TestMultipleScheduleInstancesConfigChanges(t *testing.T) {
 
 	<-time.After(10 * time.Second)
 	require.Equal(t, uint32(3), atomic.LoadUint32(&jobsRun))
+}
+
+func TestTriggerSingleInstance(t *testing.T) {
+	ctx, cancelFn := context.WithCancel(context.Background())
+
+	name := "test_trigger_single_instance"
+	instanceID := "test_instance"
+	schedInterval := 4 * time.Second
+	jobRuntime := 1200 * time.Millisecond
+
+	locker := SetupMockLocker(name, instanceID, time.Now().Truncate(1*time.Second))
+	statsStore := SetUpMockStatsStore(name, fleet.CronStats{
+		ID:        1,
+		StatsType: fleet.CronStatsTypeScheduled,
+		Name:      name,
+		Instance:  instanceID,
+		CreatedAt: time.Now().Truncate(1 * time.Second),
+		UpdatedAt: time.Now().Truncate(1 * time.Second),
+
+		Status: fleet.CronStatsStatusCompleted,
+	})
+
+	jobsRun := uint32(0)
+	s := New(
+		ctx, name, instanceID, schedInterval, locker, statsStore,
+		WithJob("test_job", func(ctx context.Context) error {
+			time.Sleep(jobRuntime)
+			atomic.AddUint32(&jobsRun, 1)
+			return nil
+		}),
+	)
+	s.Start()
+
+	ticker := time.NewTicker(schedInterval) // 4s interval
+	time.Sleep(200 * time.Millisecond)
+	_, err := s.Trigger() // triggered run starts at 0.2s and runs until 1s
+	require.NoError(t, err)
+	_, err = s.Trigger() // ignored because triggered run is pending
+	require.NoError(t, err)
+	_, err = s.Trigger() // ignored because triggered run is pending
+	require.NoError(t, err)
+	_, err = s.Trigger() // ignored because triggered run is pending
+	require.NoError(t, err)
+	_, err = s.Trigger() // ignored because triggered run is pending
+	require.NoError(t, err)
+
+	// scheduled run starts on schedule tick at 4s and runs until 4.8s
+	<-ticker.C
+	require.Equal(t, uint32(1), atomic.LoadUint32(&jobsRun)) // only 1 job completed so far
+
+	time.Sleep(100 * time.Millisecond)
+	_, err = s.Trigger() // ignored because scheduled run is pending
+	require.NoError(t, err)
+
+	time.Sleep(100 * time.Millisecond)
+	_, err = s.Trigger() // ignored because scheduled run is pending
+	require.NoError(t, err)
+
+	time.Sleep(2000 * time.Millisecond)
+	_, err = s.Trigger() // triggered run starts at 5.2s and runs until 6s
+	require.NoError(t, err)
+
+	// scheduled run starts on schedule tick at 8s and runs until 8.8s
+	<-ticker.C
+	require.Equal(t, uint32(3), atomic.LoadUint32(&jobsRun)) // only three jobs completed so far (2 triggered, 1 scheduled)
+
+	time.Sleep(3600 * time.Millisecond)
+
+	_, err = s.Trigger() // triggered run starts at 11.6 and runs until at 12.4s
+	require.NoError(t, err)
+
+	// nothing runs on this schedule tick because the triggered run is still pending
+	<-ticker.C
+	require.Equal(t, uint32(4), atomic.LoadUint32(&jobsRun)) // only four jobs completed so far (2 triggered, 2 scheduled)
+
+	// scheduled run starts on schedule tick at 16s and runs until 16.4s
+	<-ticker.C
+
+	require.Equal(t, uint32(5), atomic.LoadUint32(&jobsRun)) // only five jobs completed so far (3 triggered, 2 scheduled)
+
+	time.Sleep(2000 * time.Millisecond)
+	cancelFn()
+	ticker.Stop()
+
+	// six total jobs:
+	//   triggered at 0.2s
+	//   scheduled at 4s
+	//   triggered at 5s
+	//   scheduled at 8s
+	//   triggered at 11.6s
+	//   scheduled at 16s
+	// NOTE: times may vary by ~1s because MySQL timestamps are truncated by 1s
+	require.Equal(t, uint32(6), atomic.LoadUint32(&jobsRun))
+}
+
+func TestTriggerMultipleInstances(t *testing.T) {
+	schedInterval := 1 * time.Second
+	testDuration := 3900 * time.Millisecond
+
+	cases := []struct {
+		name         string
+		triggerDelay time.Duration
+		jobRuntime   time.Duration
+		jobsExpected int
+	}{
+		{
+			name:         "test_trigger_long_runtime",
+			triggerDelay: 10 * time.Millisecond,
+			jobRuntime:   1300 * time.Millisecond,
+			jobsExpected: 2, // 1 triggered plus 1 scheduled (at 2s)
+		},
+		{
+			name:         "test_trigger_short_runtime",
+			triggerDelay: 10 * time.Millisecond,
+			jobRuntime:   400 * time.Millisecond,
+			jobsExpected: 4, // 1 triggered plus 3 scheduled (at 1s, 2s, 3s)
+		},
+		{
+			name:         "test_no_trigger_while_pending",
+			triggerDelay: 1100 * time.Millisecond,
+			jobRuntime:   200 * time.Millisecond,
+			jobsExpected: 3, // none triggered, 3 scheduled (at 1s, 2s, 3s)
+		},
+	}
+
+	for _, c := range cases {
+		c := c
+		ctx, cancelFunc := context.WithCancel(context.Background())
+
+		instanceIDs := strings.Split("abcdef", "")
+		locker := SetupMockLocker(c.name, instanceIDs[0], time.Now().Add(-schedInterval))
+		statsStore := SetUpMockStatsStore(c.name, fleet.CronStats{
+			ID:        1,
+			StatsType: fleet.CronStatsTypeScheduled,
+			Name:      c.name,
+			Instance:  instanceIDs[0],
+			CreatedAt: time.Now().Add(-schedInterval).Add(-c.jobRuntime),
+			UpdatedAt: time.Now().Add(-schedInterval),
+			Status:    fleet.CronStatsStatusCompleted,
+		})
+
+		jobsRun := uint32(0)
+		scheduleInstances := []*Schedule{}
+		newInstanceWithSchedule := func(id string) {
+			s := New(
+				ctx, c.name, id, schedInterval, locker, statsStore,
+				WithJob("test_job", func(ctx context.Context) error {
+					time.Sleep(c.jobRuntime)
+					atomic.AddUint32(&jobsRun, 1)
+					return nil
+				}),
+			)
+			s.Start()
+			scheduleInstances = append(scheduleInstances, s)
+		}
+		// simulate multiple schedule instances
+		for _, id := range instanceIDs {
+			newInstanceWithSchedule(id)
+		}
+
+		timer := time.NewTimer(testDuration)
+
+		go func() {
+			time.Sleep(c.triggerDelay)
+			_, err := scheduleInstances[1].Trigger()
+			require.NoError(t, err)
+		}()
+
+		<-timer.C
+		require.Equal(t, uint32(c.jobsExpected), atomic.LoadUint32(&jobsRun))
+		cancelFunc()
+	}
 }

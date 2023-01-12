@@ -7,7 +7,19 @@ html, body {
   height: 100%;
   margin: 0;
 }
-
+[purpose='beta-label'] {
+  background: #8B8FA2;
+  display: inline-block;
+  padding: 1px 3px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  color: #FFF;
+  font-weight: 700;
+  font-size: 11px;
+  line-height: 20px;
+  margin-left: 8px;
+  vertical-align: middle;
+}
 [purpose='page-wrap'] {
   height: 100%;
   height: auto !important;//lesshint-disable-line importantRule,duplicateProperty
@@ -15,35 +27,20 @@ html, body {
   position: relative;
   padding-bottom: @footer-height;
 }
-.homepage-cta-banner {
-  background-color: ;
-  color: #000;
 
-  a {
-    color: #000;
-  }
-}
-// Apply this margin when there is a CTA banner on the homepage
-.homepage-cta-banner + .homepage-header-top {
-  top: 52px;
-}
-.homepage-cta-banner {
-  background-color: #A182DF;
-  color: #FFF;
-  a {
-    color: #FFF;
-  }
-}
-[purpose='header-report-cta'] {
+[purpose='header-ribbon-cta'] {
+  background-color: @core-fleet-black;
   p {
     font-size: 14px;
     line-height: 20px;
+    color: #fff;
   }
   a {
     font-size: 14px;
     line-height: 20px;
     font-weight: 700;
     text-decoration: underline;
+    color: #ff5c83;
   }
 }
 
@@ -108,6 +105,13 @@ html, body {
         color: #6a67fe;
         text-decoration: none;
       }
+      [purpose='beta-label'] {
+        color: #FFF;
+        font-weight: 700;
+        font-size: 11px;
+        line-height: 20px;
+        margin-bottom: 0px;
+      }
     }
   }
   // Header navigation links
@@ -137,6 +141,7 @@ html, body {
       }
     }
   }
+
 } // Homepage header styles
 &.homepage-header {
   z-index: 999;

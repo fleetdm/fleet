@@ -404,7 +404,7 @@ const QueryForm = ({
       </div>
       <RevealButton
         isShowing={showQueryEditor}
-        baseClass={baseClass}
+        className={baseClass}
         hideText="Hide SQL"
         showText="Show SQL"
         onClick={() => setShowQueryEditor(!showQueryEditor)}
@@ -451,7 +451,7 @@ const QueryForm = ({
         <FleetAce
           value={lastEditedQueryBody}
           error={errors.query}
-          label="Query:"
+          label="Query"
           labelActionComponent={renderLabelComponent()}
           name="query editor"
           onLoad={onLoad}
@@ -459,6 +459,7 @@ const QueryForm = ({
           onChange={onChangeQuery}
           handleSubmit={promptSaveQuery}
           wrapEnabled
+          focus={!isEditMode}
         />
         <span className={`${baseClass}__platform-compatibility`}>
           {renderPlatformCompatibility()}

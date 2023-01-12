@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
+	"errors"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -242,7 +243,7 @@ func echoHandler() http.Handler {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		w.Write(dump)
+		w.Write(dump) //nolint:errcheck
 	})
 }
 
@@ -621,4 +622,103 @@ func TestTransparencyURLDowngradeLicense(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "f1337", ac.OrgInfo.OrgName)
 	require.Equal(t, "", ac.FleetDesktop.TransparencyURL)
+}
+
+func TestService_ModifyAppConfig_MDM(t *testing.T) {
+	ds := new(mock.Store)
+
+	admin := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
+
+	const licenseErr = "missing or invalid license"
+	const notFoundErr = "not found"
+	testCases := []struct {
+		name          string
+		licenseTier   string
+		oldMDM        fleet.MDM
+		newMDM        fleet.MDM
+		expectedMDM   fleet.MDM
+		expectedError string
+		findTeam      bool
+	}{
+		{
+			name:        "nochange",
+			licenseTier: "free",
+		}, {
+			name:          "newDefaultTeamNoLicense",
+			licenseTier:   "free",
+			newMDM:        fleet.MDM{AppleBMDefaultTeam: "foobar"},
+			expectedError: licenseErr,
+		}, {
+			name:          "notFoundNew",
+			licenseTier:   "premium",
+			newMDM:        fleet.MDM{AppleBMDefaultTeam: "foobar"},
+			expectedError: notFoundErr,
+		}, {
+			name:          "notFoundEdit",
+			licenseTier:   "premium",
+			oldMDM:        fleet.MDM{AppleBMDefaultTeam: "foobar"},
+			newMDM:        fleet.MDM{AppleBMDefaultTeam: "bar"},
+			expectedError: notFoundErr,
+		}, {
+			name:        "foundNew",
+			licenseTier: "premium",
+			findTeam:    true,
+			newMDM:      fleet.MDM{AppleBMDefaultTeam: "foobar"},
+			expectedMDM: fleet.MDM{AppleBMDefaultTeam: "foobar"},
+		}, {
+			name:        "foundEdit",
+			licenseTier: "premium",
+			findTeam:    true,
+			oldMDM:      fleet.MDM{AppleBMDefaultTeam: "bar"},
+			newMDM:      fleet.MDM{AppleBMDefaultTeam: "foobar"},
+			expectedMDM: fleet.MDM{AppleBMDefaultTeam: "foobar"},
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: tt.licenseTier}})
+			ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
+
+			dsAppConfig := &fleet.AppConfig{
+				OrgInfo:        fleet.OrgInfo{OrgName: "Test"},
+				ServerSettings: fleet.ServerSettings{ServerURL: "https://example.org"},
+				MDM:            tt.oldMDM,
+			}
+
+			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+				return dsAppConfig, nil
+			}
+
+			ds.SaveAppConfigFunc = func(ctx context.Context, conf *fleet.AppConfig) error {
+				*dsAppConfig = *conf
+				return nil
+			}
+			ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
+				if tt.findTeam {
+					return &fleet.Team{}, nil
+				}
+				return nil, errors.New(notFoundErr)
+			}
+
+			ac, err := svc.AppConfig(ctx)
+			require.NoError(t, err)
+			require.Equal(t, tt.oldMDM, ac.MDM)
+
+			raw, err := json.Marshal(tt.newMDM)
+			require.NoError(t, err)
+			raw = []byte(`{"mdm":` + string(raw) + `}`)
+			modified, err := svc.ModifyAppConfig(ctx, raw, fleet.ApplySpecOptions{})
+			if tt.expectedError != "" {
+				require.Error(t, err)
+				require.ErrorContains(t, err, tt.expectedError)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, tt.expectedMDM, modified.MDM)
+			ac, err = svc.AppConfig(ctx)
+			require.NoError(t, err)
+			require.Equal(t, tt.expectedMDM, ac.MDM)
+		})
+	}
 }

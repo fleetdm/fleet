@@ -503,17 +503,19 @@ func (ds *Datastore) ListHostsInLabel(ctx context.Context, filter fleet.TeamFilt
       COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,
       COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,
       COALESCE(hst.seen_time, h.created_at) as seen_time,
+	  COALESCE(hu.software_updated_at, h.created_at) AS software_updated_at,
       (SELECT name FROM teams t WHERE t.id = h.team_id) AS team_name
       %s
     FROM label_membership lm
     JOIN hosts h ON (lm.host_id = h.id)
     LEFT JOIN host_seen_times hst ON (h.id=hst.host_id)
+	LEFT JOIN host_updates hu ON (h.id = hu.host_id)
     LEFT JOIN host_disks hd ON (h.id=hd.host_id)
     %s
 	`
 	failingPoliciesSelect := `,
-		coalesce(failing_policies.count, 0) as failing_policies_count,
-		coalesce(failing_policies.count, 0) as total_issues_count
+		COALESCE(failing_policies.count, 0) AS failing_policies_count,
+		COALESCE(failing_policies.count, 0) AS total_issues_count
 	`
 	failingPoliciesJoin := `LEFT JOIN (
 		SELECT host_id, count(*) as count FROM policy_membership WHERE passes = 0
@@ -544,13 +546,20 @@ func (ds *Datastore) applyHostLabelFilters(filter fleet.TeamFilter, lid uint, qu
 	if opt.ListOptions.OrderKey == "display_name" {
 		query += ` JOIN host_display_names hdn ON h.id = hdn.host_id `
 	}
+
+	if opt.MDMIDFilter != nil || opt.MDMEnrollmentStatusFilter != "" {
+		query += ` JOIN host_mdm hmdm ON h.id = hmdm.host_id `
+	}
+
 	query += fmt.Sprintf(` WHERE lm.label_id = ? AND %s `, ds.whereFilterHostsByTeams(filter, "h"))
 	if opt.LowDiskSpaceFilter != nil {
 		query += ` AND hd.gigs_disk_space_available < ? `
 		params = append(params, *opt.LowDiskSpaceFilter)
 	}
+
 	query, params = filterHostsByStatus(ds.clock.Now(), query, opt, params)
 	query, params = filterHostsByTeam(query, opt, params)
+	query, params = filterHostsByMDM(query, opt, params)
 	query, params = searchLike(query, params, opt.MatchQuery, hostSearchColumns...)
 
 	query = appendListOptionsToSQL(query, opt.ListOptions)

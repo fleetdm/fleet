@@ -29,10 +29,11 @@ import Spinner from "components/Spinner";
 import TeamsDropdown from "components/TeamsDropdown";
 import TableDataError from "components/DataError";
 import MainContent from "components/MainContent";
+import ShowQueryModal from "components/modals/ShowQueryModal";
+
 import ScheduleTable from "./components/ScheduleTable";
 import ScheduleEditorModal from "./components/ScheduleEditorModal";
 import RemoveScheduledQueryModal from "./components/RemoveScheduledQueryModal";
-import ShowQueryModal from "./components/ShowQueryModal";
 
 const baseClass = "manage-schedule-page";
 
@@ -495,12 +496,12 @@ const ManageSchedulePage = ({
               {selectedTeamId ? (
                 <p>
                   Schedule queries for{" "}
-                  <strong>all hosts assigned to this team.</strong>
+                  <strong>all hosts assigned to this team</strong>
                 </p>
               ) : (
                 <p>
                   Schedule queries to run at regular intervals across{" "}
-                  <strong>all of your hosts.</strong>
+                  <strong>all of your hosts</strong>
                 </p>
               )}
             </div>
@@ -535,7 +536,7 @@ const ManageSchedulePage = ({
         inheritedScheduledQueriesList.length > 0 ? (
           <RevealButton
             isShowing={showInheritedQueries}
-            baseClass={baseClass}
+            className={baseClass}
             hideText={`Hide ${inheritedScheduledQueriesList.length} inherited ${inheritedQueryOrQueries}`}
             showText={`Show ${inheritedScheduledQueriesList.length} inherited ${inheritedQueryOrQueries}`}
             caretPosition={"before"}

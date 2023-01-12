@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/facebookincubator/nvdtools/cpedict"
-	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/nettest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
@@ -148,12 +147,10 @@ func TestCPETranslations(t *testing.T) {
 func TestSyncCPEDatabase(t *testing.T) {
 	nettest.Run(t)
 
-	client := fleethttp.NewClient()
-
 	tempDir := t.TempDir()
 
 	// first time, db doesn't exist, so it downloads
-	err := DownloadCPEDB(tempDir, client, "")
+	err := DownloadCPEDBFromGithub(tempDir, "")
 	require.NoError(t, err)
 
 	dbPath := filepath.Join(tempDir, "cpe.sqlite")
@@ -193,7 +190,7 @@ func TestSyncCPEDatabase(t *testing.T) {
 	require.NoError(t, err)
 
 	// then it will download
-	err = DownloadCPEDB(tempDir, client, "")
+	err = DownloadCPEDBFromGithub(tempDir, "")
 	require.NoError(t, err)
 
 	// let's register the mtime for the db
@@ -214,7 +211,7 @@ func TestSyncCPEDatabase(t *testing.T) {
 	time.Sleep(2 * time.Second)
 
 	// let's check it doesn't download because it's new enough
-	err = DownloadCPEDB(tempDir, client, "")
+	err = DownloadCPEDBFromGithub(tempDir, "")
 	require.NoError(t, err)
 	stat, err = os.Stat(dbPath)
 	require.NoError(t, err)
@@ -303,9 +300,8 @@ func TestSyncsCPEFromURL(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	client := fleethttp.NewClient()
 	tempDir := t.TempDir()
-	err := DownloadCPEDB(tempDir, client, ts.URL+"/hello-world.gz")
+	err := DownloadCPEDBFromGithub(tempDir, ts.URL+"/hello-world.gz")
 	require.NoError(t, err)
 
 	dbPath := filepath.Join(tempDir, "cpe.sqlite")
@@ -1139,18 +1135,16 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 	}
 	nettest.Run(t)
 
-	client := fleethttp.NewClient()
-
 	tempDir := t.TempDir()
 
-	err := DownloadCPEDB(tempDir, client, "")
+	err := DownloadCPEDBFromGithub(tempDir, "")
 	require.NoError(t, err)
 
 	dbPath := filepath.Join(tempDir, "cpe.sqlite")
 	db, err := sqliteDB(dbPath)
 	require.NoError(t, err)
 
-	err = DownloadCPETranslations(tempDir, client, "")
+	err = DownloadCPETranslationsFromGithub(tempDir, "")
 	require.NoError(t, err)
 
 	cpeTranslationsPath := filepath.Join(".", cpeTranslationsFilename)

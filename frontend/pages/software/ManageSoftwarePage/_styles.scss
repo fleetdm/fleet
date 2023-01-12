@@ -56,31 +56,6 @@
     }
   }
 
-  &__empty-software {
-    margin: 80px auto 0;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-
-    .empty-software__inner {
-      display: flex;
-      flex-direction: column;
-
-      h1 {
-        font-size: $small;
-        font-weight: $bold;
-        margin-bottom: $pad-medium;
-      }
-
-      p {
-        color: $core-fleet-black;
-        font-weight: $regular;
-        font-size: $x-small;
-        margin: 0;
-      }
-    }
-  }
-
   &__table {
     .table-container {
       &__header-left {
@@ -174,12 +149,6 @@
             tbody {
               .name__cell {
                 width: $col-md;
-                a {
-                  text-decoration: none;
-                  &:hover {
-                    text-decoration: underline;
-                  }
-                }
               }
               .version__cell {
                 width: 0;
@@ -204,6 +173,7 @@
                   justify-content: space-between;
                   .hosts-cell__link {
                     display: flex;
+                    white-space: nowrap;
                   }
                 }
               }

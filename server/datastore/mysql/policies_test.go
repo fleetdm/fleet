@@ -45,6 +45,8 @@ func TestPolicies(t *testing.T) {
 		{"CleanupPolicyMembership", testPolicyCleanupPolicyMembership},
 		{"DeleteAllPolicyMemberships", testDeleteAllPolicyMemberships},
 		{"PolicyViolationDays", testPolicyViolationDays},
+		{"IncreasePolicyAutomationIteration", testIncreasePolicyAutomationIteration},
+		{"OutdatedAutomationBatch", testOutdatedAutomationBatch},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -197,24 +199,24 @@ func testPoliciesMembershipView(deferred bool, t *testing.T, ds *Datastore) {
 
 	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
 	host1, err := ds.NewHost(ctx, &fleet.Host{
-		OsqueryHostID:   "1234",
+		OsqueryHostID:   ptr.String("1234"),
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         "1",
+		NodeKey:         ptr.String("1"),
 		UUID:            "1",
 		Hostname:        "foo.local",
 	})
 	require.NoError(t, err)
 
 	host2, err := ds.NewHost(ctx, &fleet.Host{
-		OsqueryHostID:   "5679",
+		OsqueryHostID:   ptr.String("5679"),
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         "2",
+		NodeKey:         ptr.String("2"),
 		UUID:            "2",
 		Hostname:        "bar.local",
 	})
@@ -638,12 +640,12 @@ func newTestHostWithPlatform(t *testing.T, ds *Datastore, hostname, platform str
 	nodeKey, err := server.GenerateRandomText(32)
 	require.NoError(t, err)
 	host, err := ds.NewHost(context.Background(), &fleet.Host{
-		OsqueryHostID:   uuid.NewString(),
+		OsqueryHostID:   ptr.String(uuid.NewString()),
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         nodeKey,
+		NodeKey:         &nodeKey,
 		UUID:            uuid.NewString(),
 		Hostname:        hostname,
 		Platform:        platform,
@@ -878,12 +880,12 @@ func testPolicyQueriesForHost(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	host1, err := ds.NewHost(context.Background(), &fleet.Host{
-		OsqueryHostID:   "1234",
+		OsqueryHostID:   ptr.String("1234"),
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         "1",
+		NodeKey:         ptr.String("1"),
 		UUID:            "1",
 		Hostname:        "foo.local",
 	})
@@ -894,12 +896,12 @@ func testPolicyQueriesForHost(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	host2, err := ds.NewHost(context.Background(), &fleet.Host{
-		OsqueryHostID:   "5679",
+		OsqueryHostID:   ptr.String("5679"),
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         "2",
+		NodeKey:         ptr.String("2"),
 		UUID:            "2",
 		Hostname:        "bar.local",
 	})
@@ -1036,12 +1038,12 @@ func testTeamPolicyTransfer(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	host1, err := ds.NewHost(ctx, &fleet.Host{
-		OsqueryHostID:   "1234",
+		OsqueryHostID:   ptr.String("1234"),
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         "1",
+		NodeKey:         ptr.String("1"),
 		UUID:            "1",
 		Hostname:        "foo.local",
 	})
@@ -1296,52 +1298,59 @@ func testPoliciesSave(t *testing.T, ds *Datastore) {
 	var nfe *notFoundError
 	require.True(t, errors.As(err, &nfe))
 
-	gp, err := ds.NewGlobalPolicy(ctx, &user1.ID, fleet.PolicyPayload{
+	payload := fleet.PolicyPayload{
 		Name:        "global query",
 		Query:       "select 1;",
 		Description: "global query desc",
 		Resolution:  "global query resolution",
-	})
+	}
+	gp, err := ds.NewGlobalPolicy(ctx, &user1.ID, payload)
 	require.NoError(t, err)
+	require.Equal(t, gp.Name, payload.Name)
+	require.Equal(t, gp.Query, payload.Query)
+	require.Equal(t, gp.Description, payload.Description)
+	require.Equal(t, *gp.Resolution, payload.Resolution)
+	require.Equal(t, gp.Critical, payload.Critical)
 
-	tp1, err := ds.NewTeamPolicy(ctx, team1.ID, &user1.ID, fleet.PolicyPayload{
+	payload = fleet.PolicyPayload{
 		Name:        "team1 query",
 		Query:       "select 2;",
 		Description: "team1 query desc",
 		Resolution:  "team1 query resolution",
-	})
+		Critical:    true,
+	}
+	tp1, err := ds.NewTeamPolicy(ctx, team1.ID, &user1.ID, payload)
 	require.NoError(t, err)
+	require.Equal(t, tp1.Name, payload.Name)
+	require.Equal(t, tp1.Query, payload.Query)
+	require.Equal(t, tp1.Description, payload.Description)
+	require.Equal(t, *tp1.Resolution, payload.Resolution)
+	require.Equal(t, tp1.Critical, payload.Critical)
 
 	// Change name only of a global query.
-	gp.Name = "global query updated"
-	err = ds.SavePolicy(ctx, gp)
+	gp2 := *gp
+	gp2.Name = "global query updated"
+	gp2.Critical = true
+	err = ds.SavePolicy(ctx, &gp2)
 	require.NoError(t, err)
 	gp, err = ds.Policy(ctx, gp.ID)
 	require.NoError(t, err)
-	assert.Equal(t, "global query updated", gp.Name)
-	assert.Equal(t, "select 1;", gp.Query)
-	assert.Equal(t, "global query desc", gp.Description)
-	require.NotNil(t, gp.Resolution)
-	assert.Equal(t, "global query resolution", *gp.Resolution)
-	require.NotNil(t, gp.AuthorID)
-	assert.Equal(t, user1.ID, *gp.AuthorID)
+	gp2.UpdateCreateTimestamps = gp.UpdateCreateTimestamps
+	require.Equal(t, &gp2, gp)
 
 	// Change name, query, description and resolution of a team policy.
-	tp1.Name = "team1 query updated"
-	tp1.Query = "select 12;"
-	tp1.Description = "team1 query desc updated"
-	tp1.Resolution = ptr.String("team1 query resolution updated")
-	err = ds.SavePolicy(ctx, tp1)
+	tp2 := *tp1
+	tp2.Name = "team1 query updated"
+	tp2.Query = "select 12;"
+	tp2.Description = "team1 query desc updated"
+	tp2.Resolution = ptr.String("team1 query resolution updated")
+	tp2.Critical = false
+	err = ds.SavePolicy(ctx, &tp2)
 	require.NoError(t, err)
 	tp1, err = ds.Policy(ctx, tp1.ID)
+	tp2.UpdateCreateTimestamps = tp1.UpdateCreateTimestamps
 	require.NoError(t, err)
-	assert.Equal(t, "team1 query updated", tp1.Name)
-	assert.Equal(t, "select 12;", tp1.Query)
-	assert.Equal(t, "team1 query desc updated", tp1.Description)
-	require.NotNil(t, tp1.Resolution)
-	assert.Equal(t, "team1 query resolution updated", *tp1.Resolution)
-	require.NotNil(t, tp1.AuthorID)
-	assert.Equal(t, user1.ID, *tp1.AuthorID)
+	require.Equal(t, tp1, &tp2)
 }
 
 func testPoliciesDelUser(t *testing.T, ds *Datastore) {
@@ -1388,12 +1397,12 @@ func testFlippingPoliciesForHost(t *testing.T, ds *Datastore) {
 	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
 	ctx := context.Background()
 	host1, err := ds.NewHost(ctx, &fleet.Host{
-		OsqueryHostID:   "test-1",
+		OsqueryHostID:   ptr.String("test-1"),
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         "test-1",
+		NodeKey:         ptr.String("test-1"),
 		UUID:            "test-1",
 		Hostname:        "foo.local",
 		Platform:        "windows",
@@ -1587,12 +1596,12 @@ func testPolicyPlatformUpdate(t *testing.T, ds *Datastore) {
 	for i, pl := range platforms {
 		id := fmt.Sprintf("%s-%d", strings.ReplaceAll(t.Name(), "/", "_"), i)
 		h, err := ds.NewHost(ctx, &fleet.Host{
-			OsqueryHostID:   id,
+			OsqueryHostID:   &id,
 			DetailUpdatedAt: time.Now(),
 			LabelUpdatedAt:  time.Now(),
 			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now(),
-			NodeKey:         id,
+			NodeKey:         &id,
 			UUID:            id,
 			Hostname:        id,
 			Platform:        pl,
@@ -1607,12 +1616,12 @@ func testPolicyPlatformUpdate(t *testing.T, ds *Datastore) {
 	for i, pl := range platforms {
 		id := fmt.Sprintf("g%s-%d", strings.ReplaceAll(t.Name(), "/", "_"), i)
 		h, err := ds.NewHost(ctx, &fleet.Host{
-			OsqueryHostID:   id,
+			OsqueryHostID:   &id,
 			DetailUpdatedAt: time.Now(),
 			LabelUpdatedAt:  time.Now(),
 			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now(),
-			NodeKey:         id,
+			NodeKey:         &id,
 			UUID:            id,
 			Hostname:        id,
 			Platform:        pl,
@@ -1789,12 +1798,12 @@ func testPolicyViolationDays(t *testing.T, ds *Datastore) {
 	for i, name := range []string{"h1", "h2", "h3"} {
 		id := fmt.Sprintf("%s-%d", strings.ReplaceAll(t.Name(), "/", "_"), i)
 		h, err := ds.NewHost(ctx, &fleet.Host{
-			OsqueryHostID:   id,
+			OsqueryHostID:   &id,
 			DetailUpdatedAt: then,
 			LabelUpdatedAt:  then,
 			PolicyUpdatedAt: then,
 			SeenTime:        then,
-			NodeKey:         id,
+			NodeKey:         &id,
 			UUID:            id,
 			Hostname:        name,
 		})
@@ -1882,12 +1891,12 @@ func testPolicyCleanupPolicyMembership(t *testing.T, ds *Datastore) {
 	for i, pl := range platforms {
 		id := fmt.Sprintf("%s-%d", strings.ReplaceAll(t.Name(), "/", "_"), i)
 		h, err := ds.NewHost(ctx, &fleet.Host{
-			OsqueryHostID:   id,
+			OsqueryHostID:   &id,
 			DetailUpdatedAt: time.Now(),
 			LabelUpdatedAt:  time.Now(),
 			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now(),
-			NodeKey:         id,
+			NodeKey:         &id,
 			UUID:            id,
 			Hostname:        id,
 			Platform:        pl,
@@ -2034,12 +2043,12 @@ func testDeleteAllPolicyMemberships(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	host, err := ds.NewHost(ctx, &fleet.Host{
-		OsqueryHostID:   "567898",
+		OsqueryHostID:   ptr.String("567898"),
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         "4",
+		NodeKey:         ptr.String("4"),
 		UUID:            "4",
 		Hostname:        "bar.local",
 	})
@@ -2069,4 +2078,99 @@ func testDeleteAllPolicyMemberships(t *testing.T, ds *Datastore) {
 	err = ds.writer.Get(&count, "select COUNT(*) from policy_membership")
 	require.NoError(t, err)
 	require.Equal(t, 0, count)
+}
+
+func testIncreasePolicyAutomationIteration(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	pol1, err := ds.NewGlobalPolicy(ctx, nil, fleet.PolicyPayload{Name: "policy1"})
+	require.NoError(t, err)
+	pol2, err := ds.NewGlobalPolicy(ctx, nil, fleet.PolicyPayload{Name: "policy2"})
+	require.NoError(t, err)
+	require.NoError(t, ds.IncreasePolicyAutomationIteration(ctx, pol1.ID))
+	require.NoError(t, ds.IncreasePolicyAutomationIteration(ctx, pol2.ID))
+	require.NoError(t, ds.IncreasePolicyAutomationIteration(ctx, pol2.ID))
+	require.NoError(t, ds.IncreasePolicyAutomationIteration(ctx, pol2.ID))
+	type at []struct {
+		PolicyID  uint `db:"policy_id"`
+		Iteration int  `db:"iteration"`
+	}
+	var automations at
+	err = ds.writer.Select(&automations, `SELECT policy_id, iteration FROM policy_automation_iterations;`)
+	require.NoError(t, err)
+	require.ElementsMatch(t, automations, at{
+		{pol1.ID, 1},
+		{pol2.ID, 3},
+	})
+}
+
+func testOutdatedAutomationBatch(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	h1, err := ds.NewHost(ctx, &fleet.Host{OsqueryHostID: ptr.String("host1"), NodeKey: ptr.String("host1")})
+	require.NoError(t, err)
+	h2, err := ds.NewHost(ctx, &fleet.Host{OsqueryHostID: ptr.String("host2"), NodeKey: ptr.String("host2")})
+	require.NoError(t, err)
+
+	pol1, err := ds.NewGlobalPolicy(ctx, nil, fleet.PolicyPayload{Name: "policy1"})
+	require.NoError(t, err)
+	pol2, err := ds.NewGlobalPolicy(ctx, nil, fleet.PolicyPayload{Name: "policy2"})
+	require.NoError(t, err)
+
+	err = ds.RecordPolicyQueryExecutions(ctx, h1, map[uint]*bool{pol1.ID: ptr.Bool(false), pol2.ID: ptr.Bool(true)}, time.Now(), false)
+	require.NoError(t, err)
+	err = ds.RecordPolicyQueryExecutions(ctx, h2, map[uint]*bool{pol1.ID: ptr.Bool(false), pol2.ID: ptr.Bool(false)}, time.Now(), false)
+	require.NoError(t, err)
+
+	batch, err := ds.OutdatedAutomationBatch(ctx)
+	require.NoError(t, err)
+	require.ElementsMatch(t, batch, []fleet.PolicyFailure{})
+
+	require.NoError(t, ds.IncreasePolicyAutomationIteration(ctx, pol1.ID))
+	batch, err = ds.OutdatedAutomationBatch(ctx)
+	require.NoError(t, err)
+	require.ElementsMatch(t, batch, []fleet.PolicyFailure{
+		{
+			PolicyID: pol1.ID,
+			Host: fleet.PolicySetHost{
+				ID: h1.ID,
+			},
+		},
+		{
+			PolicyID: pol1.ID,
+			Host: fleet.PolicySetHost{
+				ID: h2.ID,
+			},
+		},
+	})
+
+	batch, err = ds.OutdatedAutomationBatch(ctx)
+	require.NoError(t, err)
+	require.ElementsMatch(t, batch, []fleet.PolicyFailure{})
+
+	require.NoError(t, ds.IncreasePolicyAutomationIteration(ctx, pol1.ID))
+	require.NoError(t, ds.IncreasePolicyAutomationIteration(ctx, pol2.ID))
+	batch, err = ds.OutdatedAutomationBatch(ctx)
+	require.NoError(t, err)
+	require.ElementsMatch(t, batch, []fleet.PolicyFailure{
+		{
+			PolicyID: pol1.ID,
+			Host: fleet.PolicySetHost{
+				ID: h1.ID,
+			},
+		}, {
+			PolicyID: pol1.ID,
+			Host: fleet.PolicySetHost{
+				ID: h2.ID,
+			},
+		}, {
+			PolicyID: pol2.ID,
+			Host: fleet.PolicySetHost{
+				ID: h2.ID,
+			},
+		},
+	})
+
+	batch, err = ds.OutdatedAutomationBatch(ctx)
+	require.NoError(t, err)
+	require.ElementsMatch(t, batch, []fleet.PolicyFailure{})
 }

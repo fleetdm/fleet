@@ -47,9 +47,14 @@ type NotFoundErr interface {
 	Error() string
 }
 
-type notFoundErr struct{}
+type notFoundErr struct {
+	msg string
+}
 
 func (e notFoundErr) Error() string {
+	if e.msg != "" {
+		return e.msg
+	}
 	return "The resource was not found"
 }
 
@@ -62,6 +67,23 @@ func (e notFoundErr) NotFound() bool {
 // explicitly.
 func (e notFoundErr) Is(other error) bool {
 	return other == sql.ErrNoRows
+}
+
+type ConflictErr interface {
+	Conflict() bool
+	Error() string
+}
+
+type conflictErr struct {
+	msg string
+}
+
+func (e conflictErr) Error() string {
+	return e.msg
+}
+
+func (e conflictErr) Conflict() bool {
+	return true
 }
 
 type serverError struct {

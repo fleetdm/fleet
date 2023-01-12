@@ -69,10 +69,12 @@ func (svc *Service) NewTeam(ctx context.Context, p fleet.TeamPayload) (*fleet.Te
 	if err := svc.ds.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
-		fleet.ActivityTypeCreatedTeam,
-		&map[string]interface{}{"team_id": team.ID, "team_name": team.Name},
+		fleet.ActivityTypeCreatedTeam{
+			ID:   team.ID,
+			Name: team.Name,
+		},
 	); err != nil {
-		return nil, err
+		return nil, ctxerr.Wrap(ctx, err, "create activity for team creation")
 	}
 
 	return team, nil
@@ -177,8 +179,11 @@ func (svc *Service) ModifyTeamAgentOptions(ctx context.Context, teamID uint, tea
 	if err := svc.ds.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
-		fleet.ActivityTypeEditedAgentOptions,
-		&map[string]interface{}{"global": false, "team_id": team.ID, "team_name": team.Name},
+		fleet.ActivityTypeEditedAgentOptions{
+			Global:   false,
+			TeamID:   &team.ID,
+			TeamName: &team.Name,
+		},
 	); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "create edited agent options activity")
 	}
@@ -327,12 +332,17 @@ func (svc *Service) DeleteTeam(ctx context.Context, teamID uint) error {
 
 	logging.WithExtras(ctx, "id", teamID)
 
-	return svc.ds.NewActivity(
+	if err := svc.ds.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
-		fleet.ActivityTypeDeletedTeam,
-		&map[string]interface{}{"team_id": teamID, "team_name": name},
-	)
+		fleet.ActivityTypeDeletedTeam{
+			ID:   teamID,
+			Name: name,
+		},
+	); err != nil {
+		return ctxerr.Wrap(ctx, err, "create activity for team deletion")
+	}
+	return nil
 }
 
 func (svc *Service) GetTeam(ctx context.Context, teamID uint) (*fleet.Team, error) {
@@ -410,11 +420,7 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 		return err
 	}
 
-	type activityDetail struct {
-		ID   uint   `json:"id"`
-		Name string `json:"name"`
-	}
-	var details []activityDetail
+	var details []fleet.TeamActivityDetail
 
 	for _, spec := range specs {
 		var secrets []*fleet.EnrollSecret
@@ -462,7 +468,7 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "creating team from spec")
 			}
-			details = append(details, activityDetail{
+			details = append(details, fleet.TeamActivityDetail{
 				ID:   team.ID,
 				Name: team.Name,
 			})
@@ -473,7 +479,7 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 			return ctxerr.Wrap(ctx, err, "editing team from spec")
 		}
 
-		details = append(details, activityDetail{
+		details = append(details, fleet.TeamActivityDetail{
 			ID:   team.ID,
 			Name: team.Name,
 		})
@@ -483,10 +489,11 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 		if err := svc.ds.NewActivity(
 			ctx,
 			authz.UserFromContext(ctx),
-			fleet.ActivityTypeAppliedSpecTeam,
-			&map[string]interface{}{"teams": details},
+			fleet.ActivityTypeAppliedSpecTeam{
+				Teams: details,
+			},
 		); err != nil {
-			return ctxerr.Wrap(ctx, err, "create applied team spec activity")
+			return ctxerr.Wrap(ctx, err, "create activity for team spec")
 		}
 	}
 	return nil

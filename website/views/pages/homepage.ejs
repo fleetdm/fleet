@@ -5,9 +5,9 @@
     <div purpose="hero-banner">
         <div class="container-lg">
           <div purpose="hero-text" class="container-fluid px-0 text-center">
-            <span class="text-left text-md-center align-self-start text-nowrap mb-0" style="text-transform: uppercase;">Lightweight, programmable telemetry</span>
-            <h1 style="max-width: 780px;" class="mx-auto text-left text-md-center">Solve computer mysteries</h1>
-            <h6 style="max-width: 780px;" class="mx-auto mb-0 text-left text-md-center">Fleet gives visibility into over 1.65 million servers and workstations. See how easy it can be to get all the answers you need.</h6>
+            <span class="text-left text-md-center align-self-start text-nowrap mb-0" style="text-transform: uppercase;">Lightweight, open-source telemetry</span>
+            <h1 style="max-width: 780px;" class="mx-auto text-left text-md-center">Knowledge is power</h1>
+            <h6 style="max-width: 780px;" class="mx-auto mb-0 text-left text-md-center">Fleet gives visibility into over 1.65 million servers and workstations. See how easy it can be to solve security and compliance mysteries.</h6>
             <div style="max-width: 500px;" class="mt-5 mx-auto mb-0 d-flex flex-column align-items-center justify-content-center">
               <a purpose="round-button" class="d-sm-flex align-items-center justify-content-center mx-auto mx-sm-0" href="/try-fleet/register?tryitnow">
                 Try it out
@@ -38,24 +38,36 @@
 
 
   <%// Homepage content %>
-  <div purpose="homepage-section" style="background: #F4F6FA;" class="container-fluid justify-content center">
+  <div purpose="homepage-section" style="background: #F4F6FA;" class="container-fluid justify-content-center">
     <div class="text-left mx-auto">
       <div style="max-width: 1200px;" class="d-flex flex-lg-row flex-column align-items-center justify-content-between mx-auto">
         <div purpose="homepage-top-text-block">
-          <h2 class="text-left pb-3">Fleet for osquery makes it easy to investigate all your servers and workstations</h2>
-          <p class="pb-3 pb-lg-4">Ask any question about any endpoint anywhere. Fleet is compatible with every MDM and EDR platform on the market. Our open-source agent protects privacy and performance.</p>
+          <h2 class="text-left pb-3">Turn your servers and workstations into a living, breathing API</h2>
+          <p class="pb-3 pb-lg-4">Fleet makes it easy to optimize osquery. The lightweight agent lets you inspect all of your Mac, Windows, and Linux devices. Ask any question about any endpoint anywhere. Since Fleet is open source, you have complete control of your data.</p>
           <a purpose="round-button" class="d-flex align-items-center justify-content-center mx-auto mx-sm-0 text-nowrap mt-3" @click="clickOpenVideoModal()">
             <img style="height: 24px; margin-right: 12px;" src="/images/icon-play-20x24@2x.png" alt="a small red play button"> See Fleet in action
           </a>
         </div>
         <img purpose="top-image" src="/images/feature-fleet-ui-600x394@2x.png" alt="Fleet for osquery">
+      </div>
     </div>
+  </div>
+  <%// Fleet Cloud Banner %>
+  <div purpose="banner-container" class="container-fluid justify-content-center align-items-center">
+    <div purpose="fleet-cloud-banner" class="d-flex flex-lg-row flex-column p-0 mx-auto">
+      <div purpose="banner-hero-image" class="p-0">
+      </div>
+      <div class="d-flex flex-column justify-content-center align-items-center p-4" purpose="banner-text">
+        <div>
+          <h1>Instant deployment with<br>Fleet Managed Cloud.</h1>
+          <a purpose="fleet-cloud-banner-btn" class="d-flex justify-content-center pb-2 align-self-start" href="https://kqphpqst851.typeform.com/to/yoo5smT9" target="_blank">Join the beta</a>
+        </div>
+      </div>
     </div>
   </div>
   <%// Product images and checklists %>
-  <div purpose="homepage-section" class="container-fluid justify-content center">
+  <div purpose="homepage-section" class="container-fluid justify-content-center">
     <div style="max-width: 1200px;" class="container-fluid px-0 justify-content-center">
-
       <%// First image and feature checklist %>
       <div purpose="features" class="container-lg d-flex flex-wrap flex-lg-nowrap justify-content-center justify-content-lg-between align-items-center mt-0">
         <div purpose="feature-image" class="d-flex flex-shrink-1">
@@ -63,8 +75,8 @@
         </div>
         <div purpose="features-text" class="text-left pl-lg-4 pl-0 m-0">
           <div class="mx-auto mx-lg-0">
-            <h2 class="mb-4">Accurate, comprehensive, up-to-date data</h2>
-            <p>Get real-time results from all your endpoints — all in one place. Fleet fits into any security and compliance ecosystem. Our transparent approach makes adoption easier. So, you can find clues faster.</p>
+            <h2 class="mb-4">Accurate, comprehensive, up-to-date data — all in one place</h2>
+            <p>Get real-time results from all of your endpoints. Discover granular insights with the Fleet dashboard. No need to worry about overlooked data. Fleet seamlessly fits into any software ecosystem. The transparency Fleet provides employees makes adoption quick and easy.</p>
             <div purpose="features-check-list" class="pt-4 mx-auto text-left">
               <div class="row">
                 <div class="col-sm-6 col-12"><p>Single source of truth</p></div>
@@ -83,8 +95,8 @@
       <div purpose="features" class="d-flex flex-wrap flex-lg-nowrap justify-content-lg-between justify-content-center align-items-center">
         <div purpose="features-text" class="text-left m-0 pr-0 pr-lg-4">
           <div>
-          <h2 class="mb-4">No downtime risks or performance hits</h2>
-          <p>Some security agents strain your systems. Fortunately, Fleet uses osquery. This open-source solution was built to be deployed across hundreds of thousands of devices. Because your tools shouldn’t slow you down.</p>
+          <h2 class="mb-4">Safe for production infrastructure and the CEO's laptop</h2>
+          <p>Some security agents strain your systems or shock your users. That’s why Fleet uses osquery, an open-source agent made for high-performance environments. IT and security teams all over the world rely on osquery to quickly enroll laptops, servers, containers, VMs, and VDIs.</p>
           <div purpose="features-check-list" class="pt-4 mx-auto text-left">
             <div class="row">
               <div class="col-sm-6 col-12"><p>Lightweight security agent</p></div>
@@ -106,8 +118,8 @@
       <div purpose="features" class="d-flex flex-wrap flex-lg-nowrap justify-content-center justify-content-lg-between align-items-center">
         <div purpose="features-text" class="text-left m-0 order-1 pl-0 pl-lg-4">
           <div>
-            <h2 class="mb-4">Complete control over the queries you run</h2>
-            <p>Create complex, custom queries just for your organization. Or copy and paste queries that have been vetted by the Fleet community. Either way, webhooks will help you automate IT admin and security compliance.</p>
+            <h2 class="mb-4">Complete control over the queries you run and what you collect</h2>
+            <p>Adapt out-of-the-box policies, import packs from the community, or start from scratch. Run live queries in Fleet’s dashboard or use the API to easily build your own. Launch custom workflows whenever Fleet finds compliance issues or vulnerabilities that are actually installed on your computers.</p>
             <div purpose="features-check-list" class="pt-4 mx-auto text-left">
               <div class="row">
                 <div class="col-sm-6 col-12"><p>Developer-friendly</p></div>
@@ -131,7 +143,7 @@
       <div purpose="homepage-text-block" class="text-left text-lg-center mx-sm-auto">
         <h2 class="mb-3">Collect and push predictable data</h2>
         <p>
-          Automate scheduled queries to collect logs from all your endpoints. Focus on any log destination or easily build your own.
+          Automate scheduled queries to collect logs from all your endpoints. Send logs anywhere, whether that's to Snowflake, to Splunk, to a cloud function, or even to a custom adapter.
         </p>
       </div>
       <div purpose="log-destination-grid" class="container d-flex flex-wrap justify-content-center p-0 pt-4 mx-auto">
@@ -295,7 +307,7 @@
       </div>
       <div purpose="newsletter-form" class="text-center" v-if="cloudSuccess">
         <h4>Great!</h4>
-        <p>You're all set to recieve updates on Fleet releases.</p>
+        <p>You're all set to receive updates on Fleet releases.</p>
       </div>
       <div purpose="newsletter-form" class="d-flex flex-row justify-content-lg-start justify-content-center align-items-center w-100" v-else>
         <ajax-form class="w-100" action="createOrUpdateOneNewsletterSubscription" :form-errors.sync="formErrors" :form-data="formData" :form-rules="formRules" :syncing.sync="syncing" :cloud-error.sync="cloudError" @submitted="submittedNewsletterForm()">
