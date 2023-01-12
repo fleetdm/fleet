@@ -106,11 +106,11 @@ module.exports = {
 
     // If the email domain is in the list of banned email domains list, we'll return the invalidEmailDomain response to the user.
     if(_.includes(bannedEmailDomainsForCSRSigning, emailDomain.toLowerCase())){
-      return 'invalidEmailDomain';
+      throw 'invalidEmailDomain';
     }
 
     // Create a new CertificateSigningRequest record in the database.
-    await CertificateSigningRequest.createOne({
+    await CertificateSigningRequest.create({
       emailAddress: generateCertificateResult.email,
       organization: generateCertificateResult.org,
     });
