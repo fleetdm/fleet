@@ -21,7 +21,7 @@ describe("Device User Page", () => {
     await user.click(screen.getByRole("tab", { name: "Software" }));
 
     expect(
-      screen.getByText("No installed software detected on this host.")
+      screen.getByText("No installed software detected on this host")
     ).toBeInTheDocument();
   });
 });
