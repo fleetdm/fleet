@@ -35,7 +35,7 @@ const Policies = ({
             <>
               {" "}
               No policies are checked{" "}
-              {deviceUser ? `on your device` : `for this host`}.
+              {deviceUser ? `on your device` : `for this host`}
             </>
           }
           info={
