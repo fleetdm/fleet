@@ -45,6 +45,11 @@ parasails.registerPage('device-management', {
     closeModal: function () {
       this.modal = '';
     },
+    typeClearOneFormError: async function(field) {
+      if(this.formErrors[field]){
+        this.formErrors = _.omit(this.formErrors, field);
+      }
+    },
     submittedForm: function() {
       this.showSignupFormSuccess = true;
     },
