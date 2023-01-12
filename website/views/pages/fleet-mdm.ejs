@@ -94,16 +94,18 @@
 
     </div>
   </div>
-  <div purpose="tweets-container" class="container-fluid px-md-0 d-flex flex-column justify-content-center">
+  <div purpose="tweets-container" class="container-fluid px-md-0 pb-0 d-flex flex-column justify-content-center">
     <div purpose="section-heading" style="max-width: 720px" class="mx-auto text-left text-md-center">
       <h4>Don’t know osquery?</h4>
       <h2>Dedicated support from osquery experts</h2>
 
       <p>Osquery is the open-source agent that powers Fleet. And we have the most osquery experts around. We’ll help you realize the potential of this tool for your organization.</p>
     </div>
-
+  </div>
+  <div style="background-color: #F9FAFC;">
     <scrollable-tweets></scrollable-tweets>
-
+  </div>
+  <div purpose="tweets-container" class="container-fluid px-md-0 d-flex pt-0 flex-column justify-content-center">
     <div purpose="logos" class="d-flex flex-wrap justify-content-center align-items-center">
       <img alt="The Snowflake logo" purpose="snowflake-logo" src="/images/logo-snowflake-muted-151x30@2x.png">
       <img alt="The Wayfair logo" purpose="wayfair-logo" src="/images/logo-wayfair-muted-150x33@2x.png">
@@ -123,18 +125,18 @@
       <ajax-form action="deliverMdmBetaSignup" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-data="formData" :form-rules="formRules" :form-errors.sync="formErrors" @submitted="submittedForm()">
           <div class="form-group">
             <label for="fullName">Name</label>
-            <input class="form-control" id="fullName" :class="[formErrors.fullName ? 'is-invalid' : '']" v-model.trim="formData.fullName">
+            <input class="form-control" id="fullName" :class="[formErrors.fullName ? 'is-invalid' : '']" v-model.trim="formData.fullName" @input="typeClearOneFormError('fullName')">
             <div class="invalid-feedback" v-if="formErrors.fullName">Please enter your name.</div>
           </div>
           <div class="form-group">
             <label for="emailAddress">Email</label>
-            <input class="form-control" id="emailAddress" :class="[formErrors.emailAddress ? 'is-invalid' : '']" v-model.trim="formData.emailAddress">
-            <div class="invalid-feedback" v-if="formErrors.emailAddress">Please enter your email address.</div>
+            <input class="form-control" id="emailAddress" :class="[formErrors.emailAddress ? 'is-invalid' : '']" v-model.trim="formData.emailAddress" @input="typeClearOneFormError('emailAddress')">
+            <div class="invalid-feedback" v-if="formErrors.emailAddress" focus-first>This doesn’t appear to be a valid email address</div>
           </div>
           <div class="form-group">
             <label for="jobTitle">Job Title</label>
-            <input class="form-control" id="jobTitle" :class="[formErrors.jobTitle ? 'is-invalid' : '']" v-model.trim="formData.jobTitle">
-            <div class="invalid-feedback" v-if="formErrors.jobTitle">Please enter your Job title.</div>
+            <input class="form-control" id="jobTitle" :class="[formErrors.jobTitle ? 'is-invalid' : '']" v-model.trim="formData.jobTitle" @input="typeClearOneFormError('jobTitle')">
+            <div class="invalid-feedback" v-if="formErrors.jobTitle">Please enter your job title.</div>
           </div>
           <cloud-error v-if="cloudError"></cloud-error>
         <div class="border-0 justify-content-center">
