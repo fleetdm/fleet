@@ -1,7 +1,7 @@
 module.exports = {
 
 
-  friendlyName: 'Deliver Apple CSR.',
+  friendlyName: 'Deliver Apple CSR',
 
 
   description: 'Generates and delivers a signed certificate signing request to a requesting user\'s email address.',
@@ -10,7 +10,7 @@ module.exports = {
 
 
   inputs: {
-    csr: {
+    unsignedCsrData: {
       required: true,
       type: 'string',
       description: 'Base64 encoded CSR submitted from the Fleet server or `fleetctl` on behalf of the user.'
@@ -28,9 +28,13 @@ module.exports = {
       description: 'This email address is on a denylist of domains and was not delivered.'
     },
 
+    badRequest: {
+      responseType: 'badRequest'
+    }
+
   },
 
-  fn: async function({csr}) {
+  fn: async function({unsignedCsrData}) {
     let path = require('path');
 
     let signingToolExists = await sails.helpers.fs.exists(path.resolve(sails.config.appPath, '.tools/mdm-gen-cert'));
@@ -79,7 +83,7 @@ module.exports = {
         VENDOR_CERT_PEM: sails.config.custom.mdmVendorCertPem,
         VENDOR_KEY_PEM: sails.config.custom.mdmVendorKeyPem,
         VENDOR_KEY_PASSPHRASE: sails.config.custom.mdmVendorKeyPassphrase,
-        CSR_BASE64: csr
+        CSR_BASE64: unsignedCsrData
       },
     }).intercept((err)=>{
       return new Error(`When trying to generate a signed CSR for a user, an error occured while running the mdm-gen-cert command. Full error: ${err}`);
@@ -99,6 +103,17 @@ module.exports = {
     // Throw an error if the result from the mdm-gen-cert command is missing an result value.
     if(!generateCertificateResult.result) {
       throw new Error('When trying to generate a signed CSR for a user, the result from the mdm-gen-cert command did not contain a certificate');
+    }
+
+    // Check to make sure that the email included in the result is a valid email address.
+    try {
+      CertificateSigningRequest.validate('emailAddress', generateCertificateResult.email)
+    } catch (err) {
+      if (err.code === 'E_VIOLATES_RULES') {
+        throw 'badRequest';
+      } else {
+        throw err;
+      }
     }
 
     // Get the domain from the provided email
@@ -132,7 +147,7 @@ module.exports = {
       return new Error(`When trying to send a signed CSR to a user (${generateCertificateResult.email}), an error occured. Full error: ${err}`);
     });
 
-    // Send a message to the #mdm-csr-signups channel
+    // Send a message to Slack.
     await sails.helpers.http.post(sails.config.custom.slackWebhookUrlForMDMSignups, {
       text: `An MDM CSR was generated for ${generateCertificateResult.org} - ${generateCertificateResult.email}`
     });
