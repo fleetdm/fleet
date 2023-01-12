@@ -4,7 +4,7 @@ module.exports = {
   friendlyName: 'Deliver Apple CSR',
 
 
-  description: 'Generates and delivers a signed certificate signing request to a requesting user\'s email address.',
+  description: 'Generate and deliver a signed certificate signing request to a requesting user\'s email address.',
 
   extendedDescription: 'Uses the mdm-gen-cert binary to generate a signed CSR for the user and sends the result to the requesting user\'s email address',
 
