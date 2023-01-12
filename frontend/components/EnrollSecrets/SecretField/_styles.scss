@@ -26,18 +26,19 @@
     }
   }
 
-  &__secret-copy-icon {
-    margin-left: $pad-small;
-    margin-right: $pad-small;
+  &__secret-copy-icon,
+  &__show-secret {
+    padding: $pad-xsmall;
   }
 
   .buttons {
     display: flex;
     align-items: center;
     position: absolute;
-    right: 16px;
+    right: 12px;
     top: 12px;
     height: 16px;
+    gap: $pad-xsmall;
 
     span {
       font-weight: $regular;

@@ -9,4 +9,9 @@
   .button--text-link {
     font-weight: $regular;
   }
+
+  &__transfer,
+  &__enable {
+    margin-right: $pad-small;
+  }
 }

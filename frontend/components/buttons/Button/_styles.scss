@@ -12,7 +12,7 @@ $base-class: "button";
 
   @if $inverse {
     &:hover {
-      background-color: rgba(#192147, .05);
+      background-color: rgba(#192147, 0.05);
 
       &:active {
         background-color: $ui-fleet-black-10;
@@ -34,7 +34,6 @@ $base-class: "button";
         border-radius: 6px;
       }
     }
-
   } @else {
     &:hover:not(.button--disabled) {
       background-color: $hover;
@@ -45,7 +44,7 @@ $base-class: "button";
     }
 
     &:focus-visible {
-      @include button-focus-outline()
+      @include button-focus-outline();
     }
   }
 }
@@ -84,7 +83,7 @@ $base-class: "button";
     display: flex;
     flex-direction: row;
     align-items: center;
-    gap: $pad-xsmall;
+    gap: $pad-small;
   }
 
   &--brand {

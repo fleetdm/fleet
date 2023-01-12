@@ -253,6 +253,11 @@
     align-items: center;
     margin-bottom: $pad-medium;
     gap: $pad-small; // between multiple filter pills
+
+    .edit-label,
+    .delete-label {
+      margin: 0 7px; // match old icon styling transform 0.5
+    }
   }
 
   &__policies-filter-pill {
@@ -299,9 +304,6 @@
   &__export-btn {
     padding-left: $pad-medium;
 
-    .children-wrapper {
-      gap: 7px; // Figma styleguide 7px
-    }
     .icon {
       padding-bottom: 2px; // Match Dogfood TODO: Revisit vertical positioning
     }

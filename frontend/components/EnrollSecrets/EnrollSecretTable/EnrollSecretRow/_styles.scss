@@ -3,6 +3,11 @@
     display: flex;
     align-items: center;
     margin-bottom: $pad-medium;
+    gap: 12px;
+
+    .button {
+      margin-right: 8px;
+    }
   }
 
   .form-field {
@@ -47,6 +52,7 @@
     right: 16px;
     top: 12px;
     height: 16px;
+    gap: 12px;
 
     span {
       font-weight: $regular;

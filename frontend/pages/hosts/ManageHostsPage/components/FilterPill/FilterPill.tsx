@@ -47,7 +47,7 @@ const FilterPill = ({
               variant={"small-text-icon"}
               title={label}
             >
-              <Icon name="ex" color="core-fleet-blue" />
+              <Icon name="ex" color="core-fleet-blue" size="small" />
             </Button>
           </div>
         </span>
