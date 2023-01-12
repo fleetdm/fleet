@@ -31,9 +31,12 @@ const EmptySoftwareTable = ({
   };
   if (isCollectingSoftware) {
     emptySoftware.header = "No software detected";
-    emptySoftware.info = `This report is updated every ${
-      isSandboxMode ? "5 minutes" : "hour"
-    } to protect the performance of your devices.`;
+    emptySoftware.info =
+      "This report is updated every hour to protect the performance of your devices.";
+    if (isSandboxMode) {
+      emptySoftware.info =
+        "Fleet begins collecting software inventory after a host is enrolled.";
+    }
   }
   if (isSoftwareDisabled) {
     emptySoftware.header = "Software inventory disabled";
