@@ -107,7 +107,7 @@ module.exports = {
 
     // Check to make sure that the email included in the result is a valid email address.
     try {
-      CertificateSigningRequest.validate('emailAddress', generateCertificateResult.email)
+      CertificateSigningRequest.validate('emailAddress', generateCertificateResult.email);
     } catch (err) {
       if (err.code === 'E_VIOLATES_RULES') {
         throw 'badRequest';
