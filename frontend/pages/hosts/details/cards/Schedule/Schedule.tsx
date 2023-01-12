@@ -4,6 +4,7 @@ import { IQueryStats } from "interfaces/query_stats";
 import TableContainer from "components/TableContainer";
 
 import { generateTableHeaders, generateDataSet } from "./ScheduleTableConfig";
+import EmptyTable from "components/EmptyTable";
 
 const baseClass = "schedule";
 
@@ -24,13 +25,11 @@ const Schedule = ({
     <div className="section section--schedule">
       <p className="section__header">Schedule</p>
       {!schedule || !schedule.length ? (
-        <div className="results__data">
-          <b>No queries are scheduled for this host.</b>
-          <p>
-            Expecting to see queries? Try selecting “Refetch” to ask this host
-            to report new vitals.
-          </p>
-        </div>
+        <EmptyTable
+          header="No queries are scheduled for this host"
+          info="Expecting to see queries? Try selecting “Refetch” to ask this host
+            to report new vitals."
+        />
       ) : (
         <div className={`${wrapperClassName}`}>
           <TableContainer
