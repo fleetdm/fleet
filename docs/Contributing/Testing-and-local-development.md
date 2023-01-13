@@ -28,7 +28,7 @@
   - [Testing Kinesis Logging](#testing-kinesis-logging)
   - [Testing pre-built installers](#testing-pre-built-installers)
   - [Telemetry](#telemetry)
-  - [MDM setup](#mdm-setup)
+  - [MDM setup and testing](#mdm-setup-and-testing)
 
 ## License key
 
@@ -363,7 +363,7 @@ FLEET_KINESIS_ENDPOINT_URL=http://localhost:4566
 FLEET_KINESIS_ACCESS_KEY_ID=default
 FLEET_KINESIS_SECRET_ACCESS_KEY=default
 FLEET_KINESIS_STATUS_STREAM=sample_status
-FLEET_KINESIS_RESULT_STREAM=sample_result 
+FLEET_KINESIS_RESULT_STREAM=sample_result
 ```
 
 Here's a sample command for running `fleet serve`:
@@ -436,11 +436,11 @@ Pre-built installers are kept in a blob storage like AWS S3. As part of your you
 4. Set `FLEET_SERVER_SANDBOX_ENABLED=1`, as the endpoint to retrieve the installer is only available in the sandbox.
 
 ```
-FLEET_SERVER_SANDBOX_ENABLED=1 FLEET_PACKAGING_GLOBAL_ENROLL_SECRET=xyz  ./build/fleet serve --dev 
+FLEET_SERVER_SANDBOX_ENABLED=1 FLEET_PACKAGING_GLOBAL_ENROLL_SECRET=xyz  ./build/fleet serve --dev
 ```
 
 Be sure to replace the `FLEET_PACKAGING_GLOBAL_ENROLL_SECRET` value above with the global enroll
-secret from the `fleetctl package` command used to build the installers. 
+secret from the `fleetctl package` command used to build the installers.
 
 MinIO also offers a web interface at http://localhost:9001. Credentials are `minio` / `minio123!`.
 
@@ -531,6 +531,11 @@ Note: if you need to enroll VMs using MDM, the server needs to run behind TLS wi
 ngrok http https://localhost:8080
 ```
 
+> NOTE: If this is your first time using ngrok this command will fail and you will see a message
+> about signing up. Open the sign up link and complete the sign up flow. You can rerun the same command
+> and ngrok should work this time. After this open the forwarding link, you will be asked to confirm that you'd like
+> to be forwarded to your local server and should accept.
+
 Don't forget to edit your Fleet server settings (through the UI or `fleetctl`) to use the URL `ngrok` provides to you. You need to do this whenever you restart `ngrok`.
 
 ### Testing MDM
@@ -546,7 +551,13 @@ If you need a license please use your Brex card (and submit the receipt on Brex.
 
 With the software in place, you need to create a VM and install macOS, the steps to do this vary depending on your software of choice.
 
-We've used [this guide](https://travellingtechguy.blog/vmware-dep/) in the past, please reach out in [#g-mdm](https://fleetdm.slack.com/archives/C03C41L5YEL) before starting so you can get the right serial numbers.
+
+If you are using VMWare, we've used [this guide](https://travellingtechguy.blog/vmware-dep/) in the
+past, please reach out in [#g-mdm](https://fleetdm.slack.com/archives/C03C41L5YEL) before starting
+so you can get the right serial numbers.
+
+If you are using UTM, you can simply click "Create a New Virtual Machine" button with the default
+settings. This creates a VM running the latest macOS.
 
 #### Testing manual enrollment
 
@@ -559,6 +570,8 @@ fleetctl apple-mdm enrollment-profiles create-manual
 2. Open the URL that the command outputs in your VM, download and install the configuration profile.
 
 #### Testing DEP enrollment
+
+> NOTE: Currently this is not possible for M1 Mac machines.
 
 1. Create a DEP profile with:
 
