@@ -95,21 +95,21 @@ module.exports.custom = {
   *                                                                          *
   ***************************************************************************/
   githubRepoDRIByPath: {
-    'README.md': ['chris-mcgillicuddy', 'jarodreyes', 'mike-j-thomas', 'zwass'],// (github brandfront)
-    'tools/fleetctl-npm/README.md': ['chris-mcgillicuddy', 'mike-j-thomas', 'jarodreyes', 'zwass'],//« brandfront for fleetctl package on npm
+    'README.md': ['mikermcneil', 'jarodreyes', 'mike-j-thomas', 'zwass'],// (github brandfront)
+    'tools/fleetctl-npm/README.md': ['mikermcneil', 'mike-j-thomas', 'jarodreyes', 'zwass'],//« brandfront for fleetctl package on npm
 
     'CODEOWNERS': ['zwass', 'mikermcneil'],
 
-    'articles': ['chris-mcgillicuddy', 'mike-j-thomas', 'eashaw', 'zwass', 'mikermcneil'],
+    'articles': ['mike-j-thomas', 'eashaw', 'zwass', 'mikermcneil'],
 
-    'handbook': ['chris-mcgillicuddy', 'mike-j-thomas', 'eashaw', 'mikermcneil', 'zwass'],// (default for handbook)
+    'handbook': ['mike-j-thomas', 'eashaw', 'mikermcneil', 'zwass'],// (default for handbook)
     'handbook/company': 'mikermcneil',
     'handbook/business-operations': ['hollidayn', 'charlottechance'],
     'handbook/engineering': 'zwass',
     'handbook/product': ['noahtalerman', 'zhumo'],
     'handbook/security': 'guillaumeross',
     'handbook/customers': ['alexmitchelliii','zayhanlon'],
-    'handbook/marketing': ['jarodreyes', 'mike-j-thomas','chris-mcgillicuddy'],
+    'handbook/marketing': ['jarodreyes', 'mike-j-thomas'],
 
     'website': 'mikermcneil',// (default for website)
     'website/views': 'eashaw',
