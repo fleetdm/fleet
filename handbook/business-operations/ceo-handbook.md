@@ -39,7 +39,7 @@ At the end of the quarter and key points throughout the quarter (every three wee
 Every month Charlie will do the prep work for the monthly "✌️ All hands 🖐👋🤲👏🙌🤘" call.
   1. In the ["👋 All hands" folder](https://drive.google.com/drive/folders/1cw_lL3_Xu9ZOXKGPghh8F4tc0ND9kQeY?usp=sharing), create a new folder using "yyyy-mm - All Hands - yyyy month name".
   2. Download a copy of the previous month's keynote file and rename the copy with the same name used to create the new folder.
-  3. Update "🧑‍🚀 Welcome!" slide to reflect new hires since last month's All Hands meeting (pull this from the [🧑‍🚀 Fleeties spreasheet](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit?pli=1#gid=0) using "**name** <em>(pronoun)</em>, position".
+  3. Update "🧑‍🚀 Welcome!" slide to reflect new hires since last month's All Hands meeting (pull this from the [🧑‍🚀 Fleeties spreadsheet](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit?pli=1#gid=0) using "**name** <em>(pronoun)</em>, position".
   4. **If applicable** Update "🦉 Welcome!" slide to reflect new investors or advisors using "**name** <em>(pronoun)</em>, position, company".
   5. **If applicable** Update "🤝 Welcome!" slide to reflect new customers.
   6. Update slides that contain dates to reflect current All Hands date.
