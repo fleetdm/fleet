@@ -71,7 +71,6 @@ module.exports = {
       'roperzh',
       'zhumo',
       'ghernandez345',
-      'chris-mcgillicuddy',
       'rfairburn',
       'artemist-work',
       'marcosd4h',
