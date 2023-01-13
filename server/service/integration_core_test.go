@@ -2747,8 +2747,8 @@ func (s *integrationTestSuite) TestGetMacadminsData() {
 	// insert a host_mdm row for hostMDMNoID without any mdm_id
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx,
-			`INSERT INTO host_mdm (host_id, enrolled, server_url, installed_from_dep) VALUES (?, ?, ?, ?)`,
-			hostMDMNoID.ID, true, "https://simplemdm.com", true)
+			`INSERT INTO host_mdm (host_id, enrolled, server_url, installed_from_dep, is_server) VALUES (?, ?, ?, ?, ?)`,
+			hostMDMNoID.ID, true, "https://simplemdm.com", true, false)
 		return err
 	})
 
@@ -5810,7 +5810,7 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 	res.Body.Close()
 	require.NoError(t, err)
 	require.Len(t, rows, len(hosts)+1) // all hosts + header row
-	require.Len(t, rows[0], 46)        // total number of cols
+	require.Len(t, rows[0], 48)        // total number of cols
 	t.Log(rows[0])
 
 	const (

@@ -79,6 +79,7 @@ func TestHosts(t *testing.T) {
 		{"ListStatus", testHostsListStatus},
 		{"ListQuery", testHostsListQuery},
 		{"ListMDM", testHostsListMDM},
+		{"SelectHostMDM", testHostMDMSelect},
 		{"ListMunkiIssueID", testHostsListMunkiIssueID},
 		{"Enroll", testHostsEnroll},
 		{"LoadHostByNodeKey", testHostsLoadHostByNodeKey},
@@ -1038,6 +1039,130 @@ func testHostsListMDM(t *testing.T, ds *Datastore) {
 
 	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{MDMEnrollmentStatusFilter: fleet.MDMEnrollStatusPending}, 1)
 	assert.Equal(t, 1, len(hosts))
+}
+
+func testHostMDMSelect(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	mdmServerURL := "https://mdm.example.com"
+
+	cases := []struct {
+		host                 fleet.HostMDM
+		expectedMDMStatus    *string
+		expectedMDMServerURL *string
+	}{
+		{
+			host: fleet.HostMDM{
+				IsServer:         false,
+				InstalledFromDep: false,
+				Enrolled:         false,
+			},
+			expectedMDMStatus:    ptr.String("Off"),
+			expectedMDMServerURL: ptr.String(mdmServerURL),
+		},
+		{
+			host: fleet.HostMDM{
+				IsServer:         false,
+				InstalledFromDep: true,
+				Enrolled:         false,
+			},
+			expectedMDMStatus:    ptr.String("Pending"),
+			expectedMDMServerURL: ptr.String(mdmServerURL),
+		},
+		{
+			host: fleet.HostMDM{
+				IsServer:         false,
+				InstalledFromDep: true,
+				Enrolled:         true,
+			},
+			expectedMDMStatus:    ptr.String("On (automatic)"),
+			expectedMDMServerURL: ptr.String(mdmServerURL),
+		},
+		{
+			host: fleet.HostMDM{
+				IsServer:         false,
+				InstalledFromDep: false,
+				Enrolled:         true,
+			},
+			expectedMDMStatus:    ptr.String("On (manual)"),
+			expectedMDMServerURL: ptr.String(mdmServerURL),
+		},
+		{
+			host: fleet.HostMDM{
+				IsServer:         true,
+				InstalledFromDep: false,
+				Enrolled:         false,
+			},
+			expectedMDMStatus:    nil,
+			expectedMDMServerURL: nil,
+		},
+		{
+			host: fleet.HostMDM{
+				IsServer:         true,
+				InstalledFromDep: true,
+				Enrolled:         false,
+			},
+			expectedMDMStatus:    nil,
+			expectedMDMServerURL: nil,
+		},
+		{
+			host: fleet.HostMDM{
+				IsServer:         true,
+				InstalledFromDep: true,
+				Enrolled:         true,
+			},
+			expectedMDMStatus:    nil,
+			expectedMDMServerURL: nil,
+		},
+		{
+			host: fleet.HostMDM{
+				IsServer:         true,
+				InstalledFromDep: false,
+				Enrolled:         true,
+			},
+			expectedMDMStatus:    nil,
+			expectedMDMServerURL: nil,
+		},
+	}
+
+	h, err := ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   ptr.String("osquery-host-id"),
+		NodeKey:         ptr.String("node-key"),
+		UUID:            "uuid",
+		Hostname:        "hostname",
+	})
+	require.NoError(t, err)
+
+	for _, c := range cases {
+		require.NoError(t, ds.SetOrUpdateMDMData(ctx, h.ID, c.host.IsServer, c.host.Enrolled, mdmServerURL, c.host.InstalledFromDep, "test")) // enrollment: automatic
+
+		hosts, err := ds.ListHosts(ctx, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{})
+		require.NoError(t, err)
+		require.Len(t, hosts, 1)
+		require.Equal(t, h.ID, hosts[0].ID)
+		require.Equal(t, c.expectedMDMStatus, hosts[0].MDMEnrollmentStatus)
+		require.Equal(t, c.expectedMDMServerURL, hosts[0].MDMServerURL)
+
+		hosts, err = ds.SearchHosts(ctx, fleet.TeamFilter{User: test.UserAdmin}, "")
+		require.NoError(t, err)
+		require.Len(t, hosts, 1)
+		require.Equal(t, h.ID, hosts[0].ID)
+		require.Equal(t, c.expectedMDMStatus, hosts[0].MDMEnrollmentStatus)
+		require.Equal(t, c.expectedMDMServerURL, hosts[0].MDMServerURL)
+
+		host, err := ds.Host(ctx, h.ID)
+		require.NoError(t, err)
+		require.Equal(t, c.expectedMDMStatus, host.MDMEnrollmentStatus)
+		require.Equal(t, c.expectedMDMServerURL, host.MDMServerURL)
+
+		host, err = ds.HostByIdentifier(ctx, h.UUID)
+		require.NoError(t, err)
+		require.Equal(t, c.expectedMDMStatus, host.MDMEnrollmentStatus)
+		require.Equal(t, c.expectedMDMServerURL, host.MDMServerURL)
+	}
 }
 
 func testHostsListMunkiIssueID(t *testing.T, ds *Datastore) {
