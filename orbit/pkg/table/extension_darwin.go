@@ -3,6 +3,7 @@
 package table
 
 import (
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/menubar"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/privaterelay"
 	"github.com/osquery/osquery-go"
 	"github.com/osquery/osquery-go/plugin/table"
@@ -18,6 +19,7 @@ func platformTables() []osquery.OsqueryPlugin {
 	return []osquery.OsqueryPlugin{
 		// Fleet tables
 		table.NewPlugin("icloud_private_relay", privaterelay.Columns(), privaterelay.Generate),
+		table.NewPlugin("menu_bar", menubar.Columns(), menubar.Generate),
 
 		// Macadmins extension tables
 		table.NewPlugin("filevault_users", filevaultusers.FileVaultUsersColumns(), filevaultusers.FileVaultUsersGenerate),
