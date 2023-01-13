@@ -43,10 +43,10 @@ The following is the subset of proposed engineering meetings. Each group is free
      - what did we do good?
      - what could we have done better?
      - what did we learn?
-  - Scrum items:
-     - Objectives / Epics: TBD - Will probably not be used (further discussion needed)
-     - User Story - A description of missing functionality typically visible by our customers. The description answers three questions: Who is the user that wants it? What is the task? and What is the purpose of it (what problem it solves or what value it adds). Typically written in this format: As the <user> I would like to <have something done or changed> so that I can <benefit fro it in this specific way> . A Story will include all the tasks required in order to achieve it or will have technical-sub-task/s bound to it. 
-     - Technical Sub Task - Typically a task that is part of a bigger Story. e.g. design, code, create a test/document. Will typically be blocking the Story they are part of. 
+- Scrum items:
+  - Objectives / Epics: TBD - Will probably not be used (further discussion needed)
+  - User Story - A description of missing functionality typically visible by our customers. The description answers three questions: Who is the user that wants it? What is the task? and What is the purpose of it (what problem it solves or what value it adds). Typically written in this format: As the <user> I would like to <have something done or changed> so that I can <benefit fro it in this specific way> . A Story will include all the tasks required in order to achieve it or will have technical-sub-task/s bound to it. 
+  - Technical Sub Task - Typically a task that is part of a bigger Story. e.g. design, code, create a test/document. Will typically be blocking the Story they are part of. 
 
 ### Eng Together
 
