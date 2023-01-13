@@ -45,7 +45,7 @@ const EmptySoftware = ({
             <p>
               Try again in about{" "}
               {noSandboxHosts
-                ? "5 minutes after host enrollment."
+                ? "15 minutes after host enrollment."
                 : "1 hour as the system catches up."}
             </p>
           </div>
