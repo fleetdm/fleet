@@ -187,8 +187,8 @@ describe("Hosts flow", () => {
         cy.getAttached("tbody>tr").should("have.length.greaterThan", 0);
         cy.findByPlaceholderText(/search/i).type("Ash");
         cy.getAttached("tbody>tr").should("have.length", 0);
-        cy.getAttached(".empty-users").within(() => {
-          cy.findByText(/no users matched/i).should("exist");
+        cy.getAttached(".empty-table__container").within(() => {
+          cy.findByText(/no users match/i).should("exist");
         });
       });
     });
