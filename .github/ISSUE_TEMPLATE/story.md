@@ -48,10 +48,9 @@ TODO
 
 ## Requirements
 <!-- Describe the required outcomes -->
-TODO
-1. 
-2. 
-3. 
+1. TODO
+2. TODO?
+3. TODO?
 
 <!-- Things we tend to forget about -->
 - **Documentation** Do you want a guide written about this? What things/aspects should we make sure is covered by the documentation?
@@ -61,36 +60,32 @@ TODO
 - **Other depts.** Should other Fleet departments such as marketing, sales, CX be informed after this is shipped?
 - **Premium** Should this be a premium-only feature? If so, make sure to update the pricing page. 
 
-## Design
-### UI
+### Design
+#### UI
 
-TODO
-<!-- Insert the link to the relevant Figma file. Remove this section if there are no changes necessary. -->
+TODO?
+<!-- Insert the link to the relevant Figma file. Remove this section if there are no changes to the user interface. -->
 
-### API
+#### CLI
 
-TODO
+TODO?
+<!-- Specify what changes to the CLI are required. Remove this section if there are no changes to the CLI. -->
+
+## Compatibility
+### REST API changes
+
+TODO?
 <!-- Specify what changes to the API are required.Remove this section if there are no changes necessary. -->
 
-### CLI
+### Database schema migrations
 
-TODO
-<!-- Specify what changes to the CLI are required. Remove this section if there are no changes necessary. -->
+TODO?
+<!-- Specify what changes to the database schema are required. Remove this section if there are no changes necessary. -->
 
-## Related
+## Technical sub-tasks (if any)
 
-<!-- Insert related items such as parent epic or other relevant pieces of informations -->
-
-### Child issues
-
-Interface team
+<!--
+It is simplest to use only a single user story issue.  If additional issues for technical sub-tasks are necessary, they're listed here: 
 - TODO
-
-Platform team
 - TODO
-
-Agent team
-- TODO
-
-Documentation
-- TODO
+-->
