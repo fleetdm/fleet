@@ -1,25 +1,25 @@
 ---
-name: 🎟  Technical Sub Task
-about: Specify a SCRUM sub task. 
+name: 🎟  Technical sub-task
+about: Specify an optional technical sub-task for a Scrum user story. 
 title: ''
 labels: ''
 assignees: ''
 
 ---
 
-## Related story
+## Related user story
 
-The parent user story for this technical sub-task is: TODO
+TODO
+<!-- A technical sub-task always belongs to exactly one story.  The parent user story for this technical sub-task is linked here.   -->
 
 ## Task
 
 TODO
 <!-- 
 - What needs to be done.
-- If this sub-task is part of a user-story, bind it to the Story. Otherwise, provide a reason why this task is necessary. 
 -->
 
-## Condition of Satisfaction
+## Condition of satisfaction
 
 TODO
 <!--
