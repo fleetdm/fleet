@@ -633,6 +633,16 @@ const HostDetailsPage = ({
             text="Back to all hosts"
             path={filteredHostsPath || PATHS.MANAGE_HOSTS}
           />
+          {host?.platform !== "darwin" &&
+            host?.mdm?.enrollment_status !== "Unenrolled" && (
+              // TODO: Change to ===
+              <InfoBanner color="yellow" pageLevel>
+                To change settings and install software, ask the end user to
+                follow the <strong>Turn on MDM</strong> instructions on their{" "}
+                <strong>My device</strong> page.
+              </InfoBanner>
+            )}
+          <BackLink text="Back to all hosts" path={filteredHostsPath} />
         </div>
         <HostSummaryCard
           statusClassName={statusClassName}
