@@ -18,7 +18,7 @@ type sntpRequest struct{}
 var _ orbit_table.Extension = sntpRequest{}
 
 // Name partially implements orbit_table.Extension.
-func (o sntpRequest) Name() string {
+func (t sntpRequest) Name() string {
 	return "sntp_request"
 }
 
