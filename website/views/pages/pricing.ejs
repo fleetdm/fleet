@@ -187,7 +187,7 @@
                     </div>
                     <div purpose="exterprise-calculator-result" class="d-flex flex-end flex-md-row flex-column align-items-md-center align-items-end justify-content-between">
                       <p class="mb-2">Estimated cost:</p>
-                      <h3>${{estimatedCost ? estimatedCost : ' - '}}/month</h3>
+                      <h3>${{estimatedCost ? estimatedCost.toFixed(2) : ' - '}}/month</h3>
                     </div>
                   </div>
               </div>

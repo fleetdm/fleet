@@ -4,11 +4,6 @@ parasails.registerPage('pricing', {
   //  ╩╝╚╝╩ ╩ ╩╩ ╩╩═╝  ╚═╝ ╩ ╩ ╩ ╩ ╚═╝
   data: {
     formData: {
-      macos: 0,
-      windows: 0,
-      servers: 0,
-      iot: 0,
-      containers: 0
     },
 
     // For tracking client-side validation errors in our form.
@@ -52,12 +47,14 @@ parasails.registerPage('pricing', {
       window.dispatchEvent(new Event('papercups:open'));
     },
     updateEstimatedTotal: function() {
-      let total = (7 * this.formData.macos) +
-      (7 * this.formData.windows) +
-      (7 * this.formData.servers) +
-      (7 * this.formData.iot) +
-      (7 * this.formData.containers);
-      this.estimatedCost = total;
+      let total =
+      (7 * (this.formData.macos ? this.formData.macos : 0)) +
+      (7 * (this.formData.windows ? this.formData.windows : 0)) +
+      (1.50 * (this.formData.servers ? this.formData.servers : 0)) +
+      (1.50 * (this.formData.iot ? this.formData.iot : 0)) +
+      (1.50 * (this.formData.containers ? this.formData.containers : 0))
+
+      this.estimatedCost = Number(total);
     },
   }
 });
