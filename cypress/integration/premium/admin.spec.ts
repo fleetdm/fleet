@@ -380,8 +380,8 @@ describe("Premium tier - Global Admin user", () => {
     });
     it("allows global admin to see and click all CTA buttons", () => {
       manageHostsPage.allowsAddHosts();
-      manageHostsPage.allowsManageAndAddSecrets();
       manageHostsPage.allowsAddLabelForm();
+      manageHostsPage.allowsManageAndAddSecrets();
     });
   });
   describe("Host details page", () => {
