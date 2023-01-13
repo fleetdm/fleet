@@ -12,7 +12,7 @@ In this guide, we'll cover the following concepts:
 ### How to add your device to Fleet
 
 Once you log into Fleet, you are presented with the **Home** page.
-
+asdggdsagsdgsd sd
 To add your device: 
 
 1. Select **Add hosts**. In Fleet, devices are referred to as "hosts."
