@@ -77,7 +77,11 @@ import {
   DEFAULT_PAGE_SIZE,
   HOST_SELECT_STATUSES,
 } from "./constants";
-import { isAcceptableStatus, getNextLocationPath } from "./helpers";
+import {
+  isAcceptableStatus,
+  getNextLocationPath,
+  isValidPolicyResponse,
+} from "./helpers";
 import DeleteSecretModal from "../../../components/EnrollSecrets/DeleteSecretModal";
 import SecretEditorModal from "../../../components/EnrollSecrets/SecretEditorModal";
 import AddHostsModal from "../../../components/AddHostsModal";
@@ -353,6 +357,33 @@ const ManageHostsPage = ({
     }
   );
 
+  // NOTE: used to reset page number to 0 when modifying filters
+  const handleResetPageIndex = () => {
+    setTableQueryData({
+      ...tableQueryData,
+      pageIndex: 0,
+    } as ITableQueryProps);
+
+    setResetPageIndex(true);
+  };
+
+  const handleClearFilter = (omitParams: string[]) => {
+    handleResetPageIndex();
+
+    router.replace(
+      getNextLocationPath({
+        pathPrefix: PATHS.MANAGE_HOSTS,
+        routeTemplate,
+        routeParams,
+        queryParams: omit(queryParams, omitParams),
+      })
+    );
+  };
+
+  const handleClearPoliciesFilter = () => {
+    handleClearFilter(["policy_id", "policy_response"]);
+  };
+
   const { isLoading: isLoadingPolicy } = useQuery<IStoredPolicyResponse, Error>(
     ["policy"],
     () => globalPoliciesAPI.load(policyId),
@@ -365,12 +396,15 @@ const ManageHostsPage = ({
       onError: (error: any) => {
         if (error.data.message === "Resource Not Found") {
           setIsInvalidPolicyId(true);
+          handleClearPoliciesFilter();
         }
         setHasHostErrors(true);
         console.log("print error", error.data);
       },
     }
   );
+
+  console.log("isInvalidPolicyId", isInvalidPolicyId);
 
   const { data: osVersions } = useQuery<
     IOSVersionsResponse,
@@ -532,8 +566,8 @@ const ManageHostsPage = ({
       globalFilter: searchQuery,
       sortBy,
       teamId: selectedTeam?.id,
-      policyId: policy?.id,
-      policyResponse: policy?.id ? policyResponse : undefined,
+      policyId,
+      policyResponse: policyId ? policyResponse : undefined,
       softwareId,
       status,
       mdmId,
@@ -592,32 +626,6 @@ const ManageHostsPage = ({
     return true;
   };
 
-  // NOTE: used to reset page number to 0 when modifying filters
-  const handleResetPageIndex = () => {
-    setTableQueryData({
-      ...tableQueryData,
-      pageIndex: 0,
-    } as ITableQueryProps);
-
-    setResetPageIndex(true);
-  };
-
-  const handleChangePoliciesFilter = (response: PolicyResponse) => {
-    handleResetPageIndex();
-
-    router.replace(
-      getNextLocationPath({
-        pathPrefix: PATHS.MANAGE_HOSTS,
-        routeTemplate,
-        routeParams,
-        queryParams: Object.assign({}, queryParams, {
-          policyId: policy?.id,
-          policyResponse: policy?.id ? policyResponse : undefined,
-        }),
-      })
-    );
-  };
-
   const handleClearRouteParam = () => {
     handleResetPageIndex();
 
@@ -631,7 +639,7 @@ const ManageHostsPage = ({
     );
   };
 
-  const handleClearFilter = (omitParams: string[]) => {
+  const handleChangePoliciesFilter = (response: PolicyResponse) => {
     handleResetPageIndex();
 
     router.replace(
@@ -639,13 +647,9 @@ const ManageHostsPage = ({
         pathPrefix: PATHS.MANAGE_HOSTS,
         routeTemplate,
         routeParams,
-        queryParams: omit(queryParams, omitParams),
+        queryParams: { ...queryParams, policy_response: response },
       })
     );
-  };
-
-  const handleClearPoliciesFilter = () => {
-    handleClearFilter(["policy_id", "policy_response"]);
   };
 
   const handleClearOSFilter = () => {
@@ -784,18 +788,18 @@ const ManageHostsPage = ({
       if (currentTeam) {
         newQueryParams.team_id = currentTeam.id;
       }
-
       if (status) {
         newQueryParams.status = status;
       }
+
+      console.log("policyResponse", policyResponse);
+      console.log("policyid", policyId);
+      console.log("isInvalidPolicyId", isInvalidPolicyId);
+
       // iff valid policy ID
       if (policyResponse && policy?.id) {
         newQueryParams.policy_id = policy.id;
         newQueryParams.policy_response = policyResponse;
-        if (isInvalidPolicyId) {
-          delete newQueryParams.policy_id;
-          delete newQueryParams.policy_response;
-        }
       } else if (softwareId) {
         newQueryParams.software_id = softwareId;
       } else if (mdmId) {
@@ -831,7 +835,9 @@ const ManageHostsPage = ({
       availableTeams,
       currentTeam,
       currentUser,
-      policy,
+      policyId,
+      policyResponse,
+      isValidPolicyResponse,
       queryParams,
       softwareId,
       status,
@@ -1019,7 +1025,7 @@ const ManageHostsPage = ({
         globalFilter: searchQuery,
         sortBy,
         teamId: currentTeam?.id,
-        policyId: policy?.id,
+        policyId,
         policyResponse: policy?.id ? policyResponse : undefined,
         softwareId,
         status,
@@ -1697,6 +1703,7 @@ const ManageHostsPage = ({
       const includesNameCardFilter = !!(
         software_id ||
         policy_id ||
+        policyResponse ||
         mdm_id ||
         mdm_enrollment_status ||
         low_disk_space ||
