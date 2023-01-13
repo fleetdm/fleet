@@ -23,7 +23,7 @@ go.mod @fleetdm/go
 # Fleet documentation
 # TODO: will anyone be auto-requested as reviewer for docs?
 # previously this was:
-# /docs/ @chris-mcgillicuddy
+# /docs/ @mikermcneil
 # then mikermcneil added more folks, but it was a bad idea that resulted in a lot of extra notifications to ≥3 people.
 # So instead, who will be DRI for reviewing docs?
 
@@ -38,7 +38,7 @@ go.mod @fleetdm/go
 /schema @guillaumeross
 
 # Articles
-/articles @chris-mcgillicuddy
+/articles @mikermcneil
 
 # Website
 /website/ @eashaw
