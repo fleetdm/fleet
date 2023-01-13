@@ -20,12 +20,8 @@ go.mod @fleetdm/go
 # Changelog
 /CHANGELOG.md @noahtalerman
 
-# Fleet documentation
-# TODO: will anyone be auto-requested as reviewer for docs?
-# previously this was:
-# /docs/ @mikermcneil
-# then mikermcneil added more folks, but it was a bad idea that resulted in a lot of extra notifications to ≥3 people.
-# So instead, who will be DRI for reviewing docs?
+# Fleet documentation (who is auto-requested as reviewer for changes to docs?)
+/docs/ @ksatter
 
 # REST API reference documentation
 /docs/Using-Fleet/REST-API.md @ksatter @lukeheath
