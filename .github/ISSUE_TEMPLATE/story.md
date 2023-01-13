@@ -24,23 +24,27 @@ Things to consider:
 - How many users does this affect? How do you know? Share metrics or links to videos. 
 -->
 
+<!--
 ## Condition of satisfaction
 
 TODO
+-->
 <!--
 Describe what would cause this issue to be resolved.
 e.g. "In our web page, when deleting a user, a message appears to ask if we are sure about the deletion."
 -->
-
+<!--
 ## Business case
 
 TODO
+-->
 <!--
 Why should Fleet work on this problem? How does this contribute to our reaching our strategic goals?
 -->
-
+<!--
 ## Measurement
 TODO
+-->
 <!--
 - How will we know that the problem has been solved or improved? 
 - What is the current state of the measurement?
@@ -48,45 +52,50 @@ TODO
 -->
 
 ## Requirements
-<!-- Describe the required outcomes -->
-
-1. TODO
-2. TODO?
-3. TODO?
-
 
 <!-- Things we tend to forget about -->
+- **Design changes** Does this story include changes to the user interface, or to how the CLI is used?
+- **Compatibility** Does this story require changes to the database schema and need schema migrations?  Does it introduce breaking changes or non-reversible changes to Fleet's REST API or CLI usage?
 - **Documentation** Do you want a guide written about this? What things/aspects should we make sure is covered by the documentation?
 - **Transparency** Do we need to update the transparency guide to reflect new functionality?
 - **Analytics** How are we going to measure usage and success? Make sure engineering knows these need to be built.
 - **QA** Any special QA notes?
-- **Other depts.** Should other Fleet departments such as marketing, sales, CX be informed after this is shipped?
-- **Premium** Should this be a premium-only feature? If so, make sure to update the pricing page. 
+<!-- - **Other depts.** Should other Fleet departments such as marketing, sales, CX be informed after this is shipped?  McNeil: Yes, always, at the demo. -->
+- **Premium feature** Should this be a premium-only feature? If so, make sure to update the pricing page, and that relevant code lives in the `ee/` directory.
+
+<!-- Describe the required outcomes -->
+<!--
+1. TODO?
+2. TODO?
+3. TODO?
+-->
 
 ### Design
+
 #### UI
 
 TODO?
 <!-- Insert the link to the relevant Figma file. Remove this section if there are no changes to the user interface. -->
 
-#### CLI
+#### CLI usage
 
 TODO?
-<!-- Specify what changes to the CLI are required. Remove this section if there are no changes to the CLI. -->
+<!-- Specify what changes to the CLI usage are required. Remove this section if there are no changes to the CLI. -->
 
-## Compatibility
-### REST API changes
+
+### Compatibility
+#### REST API changes
 
 TODO?
 <!-- Specify what changes to the API are required.Remove this section if there are no changes necessary. -->
 
-### Database schema migrations
+#### Database schema migrations
 
 TODO?
 <!-- Specify what changes to the database schema are required. Remove this section if there are no changes necessary. -->
 
 ## Technical sub-tasks (if any)
-
+N/A
 <!--
 It is simplest to use only a single user story issue.  If additional issues for technical sub-tasks are necessary, they're listed here: 
 - TODO
