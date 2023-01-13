@@ -119,8 +119,8 @@ module.exports.custom = {
     '.github/workflows/deploy-fleet-website.yml': ['eashaw','mikermcneil'],// (website deploy script)
     '.github/workflows/test-website.yml': ['eashaw','mikermcneil'],// (website CI test script)
 
-    'docs': ['chris-mcgillicuddy', 'zwass', 'mikermcneil', 'zhumo', 'jarodreyes', 'ksatter'],// (default for docs)
-    'docs/images': ['chris-mcgillicuddy', 'noahtalerman', 'eashaw', 'mike-j-thomas'],
+    'docs': ['zwass', 'mikermcneil', 'zhumo', 'jarodreyes', 'ksatter'],// (default for docs)
+    'docs/images': ['noahtalerman', 'eashaw', 'mike-j-thomas'],
     'docs/Using-Fleet/REST-API.md': ['ksatter','lukeheath'],
     'docs/Contributing/API-for-contributors.md': ['ksatter','lukeheath'],
     'docs/Deploying/FAQ.md': ['ksatter'],
