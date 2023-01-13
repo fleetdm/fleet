@@ -1,37 +1,38 @@
 ---
 name: 🎟  Story
-about: Specify a SCRUM User Story.
+about: Specify a Scrum user story.  (e.g. "As a user, I want to sign in with SSO.")
 title: ''
 labels: ''
 assignees: ''
 
 ---
 
-## User Story 
+## User story 
 
 TODO
+
 <!-- 
 Describe in a way of a user story what needs to be done, who wants it and for what purpose.
-Typically use this format:
-"As the ___ I/we would like to do ___ so that ___"
-e.g. "As the customer I would like to be asked twice before deleting a user so that I do not accidentally delete a user."
+Use this format:
+"As a _________, I want to __________ so that ___"
+e.g. "As an admin I would like to be asked for confirmation before deleting a user so that I do not accidentally delete a user."
 
 Things to consider:
-- Who are the affected users? 
+- Who is the human? (As a `___________`)
 - What is the current situation? Why does the current situation hurt? 
 - What are they doing right now to resolve this issue? Why is this so bad?
 - How many users does this affect? How do you know? Share metrics or links to videos. 
 -->
 
-## Condition of Satisfaction
+## Condition of satisfaction
 
 TODO
 <!--
-Describe what would cause this isse to be resolved.
+Describe what would cause this issue to be resolved.
 e.g. "In our web page, when deleting a user, a message appears to ask if we are sure about the deletion."
 -->
 
-## Business Case
+## Business case
 
 TODO
 <!--
@@ -48,9 +49,11 @@ TODO
 
 ## Requirements
 <!-- Describe the required outcomes -->
+
 1. TODO
 2. TODO?
 3. TODO?
+
 
 <!-- Things we tend to forget about -->
 - **Documentation** Do you want a guide written about this? What things/aspects should we make sure is covered by the documentation?
