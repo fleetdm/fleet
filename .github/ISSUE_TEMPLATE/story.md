@@ -1,21 +1,34 @@
 ---
-name: 🎟  New feature work
-about: Specify a planned, new feature in Fleet so that engineering can provide an estimation on the time required for implementation.
+name: 🎟  Story
+about: Specify a SCRUM User Story.
 title: ''
 labels: ''
 assignees: ''
 
 ---
 
-## Problem
+## User Story 
 
 TODO
 <!-- 
-Motivate this feature by describing what is the user's problem. 
+Describe in a way of a user story what needs to be done, who wants it and for what purpose.
+Typically use this format:
+"As the ___ I/we would like to do ___ so that ___"
+e.g. "As the customer I would like to be asked twice before deleting a user so that I do not accidentally delete a user."
+
+Things to consider:
 - Who are the affected users? 
 - What is the current situation? Why does the current situation hurt? 
 - What are they doing right now to resolve this issue? Why is this so bad?
 - How many users does this affect? How do you know? Share metrics or links to videos. 
+-->
+
+## Condition of Satisfaction
+
+TODO
+<!--
+Describe what would cause this isse to be resolved.
+e.g. "In our web page, when deleting a user, a message appears to ask if we are sure about the deletion."
 -->
 
 ## Business Case
