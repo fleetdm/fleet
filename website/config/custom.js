@@ -100,7 +100,7 @@ module.exports.custom = {
 
     'CODEOWNERS': ['zwass', 'mikermcneil'],
 
-    'articles': ['mike-j-thomas', 'eashaw', 'zwass', 'mikermcneil'],
+    'articles': ['jarodreyes', 'mike-j-thomas', 'eashaw', 'zwass', 'mikermcneil'],
 
     'handbook': ['mike-j-thomas', 'eashaw', 'mikermcneil', 'zwass'],// (default for handbook)
     'handbook/company': 'mikermcneil',
