@@ -196,9 +196,7 @@ const ManageHostsPage = ({
   const [showNoEnrollSecretBanner, setShowNoEnrollSecretBanner] = useState(
     true
   );
-  const [showInvalidPolicyIdBanner, setShowInvalidPolicyIdBanner] = useState(
-    false
-  );
+  const [isInvalidPolicyId, setIsInvalidPolicyId] = useState(false);
   const [showDeleteSecretModal, setShowDeleteSecretModal] = useState(false);
   const [showSecretEditorModal, setShowSecretEditorModal] = useState(false);
   const [showEnrollSecretModal, setShowEnrollSecretModal] = useState(false);
@@ -366,7 +364,7 @@ const ManageHostsPage = ({
       },
       onError: (error: any) => {
         if (error.data.message === "Resource Not Found") {
-          setShowInvalidPolicyIdBanner(true);
+          setIsInvalidPolicyId(true);
         }
         setHasHostErrors(true);
         console.log("print error", error.data);
@@ -792,7 +790,12 @@ const ManageHostsPage = ({
       }
       // iff valid policy ID
       if (policyResponse && policy?.id) {
+        newQueryParams.policy_id = policy.id;
         newQueryParams.policy_response = policyResponse;
+        if (isInvalidPolicyId) {
+          delete newQueryParams.policy_id;
+          delete newQueryParams.policy_response;
+        }
       } else if (softwareId) {
         newQueryParams.software_id = softwareId;
       } else if (mdmId) {
@@ -1565,27 +1568,6 @@ const ManageHostsPage = ({
   const renderActiveFilterBlock = () => {
     const showSelectedLabel = selectedLabel && selectedLabel.type !== "all";
 
-    const renderFilterPill = () => {
-      switch (true) {
-        case showSelectedLabel:
-          return renderLabelFilterPill();
-        case !!policy?.id && !isLoadingPolicies:
-          return renderPoliciesFilterBlock();
-        case !!softwareId:
-          return renderSoftwareFilterBlock();
-        case !!mdmId:
-          return renderMDMSolutionFilterBlock();
-        case !!mdmEnrollmentStatus:
-          return renderMDMEnrollmentFilterBlock();
-        case !!osId || (!!osName && !!osVersion):
-          return renderOSFilterBlock();
-        case !!munkiIssueId:
-          return renderMunkiIssueFilterBlock();
-        default:
-          return null;
-      }
-    };
-
     if (
       selectedLabel ||
       policyId ||
@@ -1597,7 +1579,6 @@ const ManageHostsPage = ({
       (osName && osVersion) ||
       munkiIssueId
     ) {
-<<<<<<< HEAD
       const renderFilterPill = () => {
         switch (true) {
           // backend allows for pill combos (label + low disk space) OR
@@ -1623,7 +1604,7 @@ const ManageHostsPage = ({
             );
           case showSelectedLabel:
             return renderLabelFilterPill();
-          case !!policyId && validPolicyId && !isLoadingPolicy:
+          case !!policyId && !isLoadingPolicy && !isInvalidPolicyId:
             return renderPoliciesFilterBlock();
           case !!softwareId:
             return renderSoftwareFilterBlock();
@@ -1642,8 +1623,6 @@ const ManageHostsPage = ({
         }
       };
 
-=======
->>>>>>> 1ce41afcd (Work towards scalability)
       return (
         <div className={`${baseClass}__labels-active-filter-wrap`}>
           {renderFilterPill()}
@@ -1881,8 +1860,7 @@ const ManageHostsPage = ({
 
   const renderInvalidPolicyIdBanner = () => {
     return (
-      !policy?.id &&
-      showInvalidPolicyIdBanner && (
+      isInvalidPolicyId && (
         <div className={`${baseClass}__no-valid-policy-banner`}>
           <div>
             <span>
@@ -1893,9 +1871,7 @@ const ManageHostsPage = ({
           <div className={`dismiss-banner-button`}>
             <Button
               variant="unstyled"
-              onClick={() =>
-                setShowInvalidPolicyIdBanner(!showInvalidPolicyIdBanner)
-              }
+              onClick={() => setIsInvalidPolicyId(!isInvalidPolicyId)}
             >
               <img alt="Dismiss no enroll secret banner" src={CloseIconBlack} />
             </Button>
