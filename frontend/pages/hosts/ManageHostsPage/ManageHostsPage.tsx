@@ -550,8 +550,9 @@ const ManageHostsPage = ({
       retrieveHostCount(omit(options, "device_mapping"));
       setCurrentQueryOptions(options);
     }
-
-    setFilteredHostsPath(location.pathname + location.search);
+    if (!location.search.includes("software_id")) {
+      setFilteredHostsPath(location.pathname + location.search);
+    }
   }, [availableTeams, currentTeam, location, labels]);
 
   const isLastPage =
