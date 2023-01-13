@@ -1,3 +1,56 @@
+## Fleet 4.26.0 (Jan 13, 2023)
+
+* Added functionality to ingest device information from Apple MDM endpoints so that an MDM device can
+  be surfaced in Fleet results while the initial enrollment of the device is pending.
+
+* Added new activities to the activities API when a host is enrolled/unenrolled from Fleet's MDM.
+
+* Added option to filter hosts by MDM enrollment status "pending" to surface devices ordered through
+  Apple Business Manager that are still pending enrollment in Fleet's MDM.
+
+* Added a flag to indicate if the Apple Business Manager terms and conditions have changed and must
+  be accepted to have automatic enrollment of hosts work again. A banner is added to the output of
+  `fleetctl` commands when this is the case.
+
+* Added side navigation layout to the integration page and conditionally show MDM section.
+
+* Added application configuration: mdm.apple_bm_default_team.
+
+* Added modal to allow user to download an enrollment profile required for Fleet MDM enrollment.
+
+* Added new configuration option to set default team for Apple Business Manager.
+
+* Added a software_updated_at column denoting when software was updated for a host.
+
+* Generate audit log for activities (supported log plugins are: `filesystem`, `firehose`, `kinesis`, `lambda`, `pubsub`, `kafkarest`, and `stdout`).
+
+* Added locally-formated datetime tooltips.
+
+* Updated software empty states.
+
+* Autofocus first entry of all forms for better UX.
+
+* Added pendo to sandbox instances.
+
+* Added bookmarkability of url when it includes the `query` query param on the manage hosts page.
+
+* Pack target details show on right side of dropdown.
+
+* Updated buttons to the the new style guide.
+
+* Added a way to override a detail query or disable it through app config.
+
+* Invalid query string will not result in neverending spinner.
+
+* Fixed an issue causing enrollment profiles to fail if the server URL had a trailing slash.
+
+* Fixed an issue that made the first SCEP enrollment during the MDM check-in flow fail in a new setup.
+
+* Fixed panic in `/api/{version}/fleet/hosts/{d}/mdm` when the host does not have MDM data.
+
+* Fixed ingestion of MDM data with empty server URLs (meaning the host is not enrolled to an MDM server).
+
+* Removed stale time from loading team policies/policy automation so users are provided accurate team data when toggling between teams.
 
 ## Fleet 4.25.0 (Dec 22, 2022)
 
