@@ -11,8 +11,8 @@ go.mod @fleetdm/go
 /infrastructure/ @zwinnerman-fleetdm @edwardsb @rfairburn
 /charts/ @zwinnerman-fleetdm @edwardsb @rfairburn
 
-# GitHub settings + actions
-/.github/ @fleetdm/g-platform
+# GitHub settings + actions + issue templates
+/.github/ @zwass @mikermcneil
 
 # Codeowners file
 /CODEOWNERS @zwass @mikermcneil
