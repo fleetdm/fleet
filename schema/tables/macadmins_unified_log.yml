@@ -1,7 +1,8 @@
 name: macadmins_unified_log
 notes: Requires [macadmins-extension](https://github.com/macadmins/osquery-extension/), which is included by default on osquery packages built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
 description: Allows querying macOS [unified logs](https://developer.apple.com/documentation/os/logging).
-platforms: darwin
+platforms: 
+  - darwin
 evented: false
 examples: >-
   Select the log entries that happened during the last minute and are related to `LaunchServices`. Convert the UNIX time to a human readable format,  and the signature table to verify its cryptographic signature.
