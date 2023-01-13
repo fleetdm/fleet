@@ -22,8 +22,9 @@ TODO
 ## Condition of satisfaction
 
 TODO
+
 <!--
-Describe the conditions that will resolve this issue.
+Describe the conditions that will resolve this issue.  The "definition of done".
 -->
 
 
