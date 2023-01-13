@@ -14,6 +14,7 @@ parasails.registerPage('device-management', {
       fullName: {required: true },
       emailAddress: {required: true, isEmail: true},
       jobTitle: {required: true },
+      numberOfHosts: {required: true },
     },
     cloudError: '',
     // Syncing / loading state
@@ -42,8 +43,9 @@ parasails.registerPage('device-management', {
     clickOpenSignupModal: function() {
       this.modal = 'beta-signup';
     },
-    closeModal: function () {
+    closeModal: async function () {
       this.modal = '';
+      await this._resetForms();
     },
     typeClearOneFormError: async function(field) {
       if(this.formErrors[field]){
@@ -52,6 +54,13 @@ parasails.registerPage('device-management', {
     },
     submittedForm: function() {
       this.showSignupFormSuccess = true;
+    },
+    _resetForms: async function() {
+      this.cloudError = '';
+      this.formData = {};
+      this.formRules = {};
+      this.formErrors = {};
+      await this.forceRender();
     },
   }
 });
