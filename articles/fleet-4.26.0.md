@@ -1,4 +1,4 @@
-# Fleet 4.26.0 | Easier osquery extensions, automatic activity logs, and cleaner data lakes
+# Fleet 4.26.0 | Easier osquery extensions, external audit log destinations, and cleaner data lakes
 
 ![Fleet 4.26.0](../website/assets/images/articles/fleet-???.jpg)
 
@@ -7,30 +7,30 @@ Fleet 4.26.0 is up and running. Check out the full [changelog](https://github.co
 For upgrade instructions, see our [upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in the Fleet docs.
 
 ## Highlights
-- Manage osquery extensions with Fleetd.
+- Manage osquery extensions with fleetd.
 - Log user activity for audits.
 - Ingest the latest software data.
 
-## Manage osquery extensions with Fleetd
+## Manage osquery extensions with fleetd
 **Available in Fleet Premium**
 
-[Orbit, the Fleet agent manager](https://fleetdm.com/announcements/introducing-orbit-your-fleet-agent-manager), used to only deploy and upgrade osquery and Fleet Desktop on employees’ machines. But many Fleet users require osquery extensions to suit their situations. That meant managing extensions separately with a tool like Munki or a mobile device management (MDM) system.
+Fleetd used to only deploy and upgrade osquery and Fleet Desktop on employees’ machines. But many Fleet users require osquery extensions to suit their situations. That meant managing extensions separately with a tool like Munki or a mobile device management (MDM) system.
 
-Fleet 4.26.0 brings the deployment and management of extensions into Orbit — saving you the time and energy it would take to maintain extensions with a separate interface.
+Fleet 4.26.0 brings the deployment and management of extensions into fleetd — saving you the time and energy it would take to maintain extensions with a separate interface.
 
-Orbit checks the extension set at a configurable interval (once an hour by default). The osquery versions and extensions specified by your system define the extension set. If the extension differs from the current set (e.g., additions, upgrades, or removals), Orbit will install, upgrade, or delete the appropriate extensions.
+Fleetd checks the extension set at a configurable interval (once an hour by default). The osquery versions and extensions specified by your system define the extension set. If the extension differs from the current set (e.g., additions, upgrades, or removals), fleetd will install, upgrade, or delete the appropriate extensions.
 
-Orbit also checks which team a machine belongs to and applies that team’s extension set. If no team configuration exists, Orbit applies the global extension set. Team extension sets override global sets. Orbit doesn’t merge global and team options, which was the case before Fleet 4.26.0.
+Fleetd also checks which team a machine belongs to and applies that team’s extension set. If no team configuration exists, fleetd applies the global extension set. Team extension sets override global sets. Fleetd doesn’t merge global and team options, which was the case before Fleet 4.26.0.
 
-Here’s how to manage extensions with Orbit:
+Here’s how to manage extensions with fleetd:
 
 1. Upload new extensions and extension versions to your own TUF server. The TUF server is updated outside of the fleetctl or the Fleet UI.
 2. Update the list of extensions by applying a new YAML configuration to your Fleet instance. This can be done by applying a new configuration file from fleetctl or using the agent options pages in the Fleet UI.
 3. Make sure each `extensions` object has a `name` and a `channel` attribute in the YAML file.
-4. You can specify a specific version number for the extension that matches an identifier in your TUF server. If no version is specified, then Orbit will upgrade to the latest version of that extension available in your TUF server.
-5. Orbit supports all extension types, including Python. But Python extensions must be fully compiled into a binary. Orbit doesn’t manage Python dependencies.
+4. You can specify a specific version number for the extension that matches an identifier in your TUF server. If no version is specified, then fleetd will upgrade to the latest version of that extension available in your TUF server.
+5. Fleetd supports all extension types, including Python. But Python extensions must be fully compiled into a binary. Fleetd doesn’t manage Python dependencies.
 
-If an extension fails to apply, Orbit will apply the other extensions and then start osquery with the reduced extension set.
+If an extension fails to apply, fleetd will apply the other extensions and then start osquery with the reduced extension set.
 
 ## Log user activity for audits
 **Available in Fleet Premium**
@@ -84,5 +84,5 @@ Visit our [upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in
 <meta name="authorFullName" value="Noah Talerman">
 <meta name="authorGitHubUsername" value="noahtalerman">
 <meta name="publishedOn" value="2023-01-16">
-<meta name="articleTitle" value="Fleet 4.26.0 | Easier osquery extensions, automatic activity logs, and cleaner data lakes">
+<meta name="articleTitle" value="Fleet 4.26.0 | Easier osquery extensions, external audit log destinations, and cleaner data lakes">
 <meta name="articleImageUrl" value="../website/assets/images/articles/fleet-???.jpg">
