@@ -1,5 +1,25 @@
 # Customers
 
+
+## Contacting Fleet
+
+If you're using a free version of Fleet, you can access free community support by opening an issue in the [Fleet GitHub repository](https://github.com/fleetdm/fleet/).
+
+Customers on a paid tier of Fleet can get in touch directly for commercial support:
+
+
+| Level of impact | Response time - premium tier | Response time - ultimate tier |
+| :--- | :--- | :--- |
+| Low to medium impact </br> Email/chat support during business hours </br> Email: support @ fleetdm.com </br> Chat: Dedicated Slack channel (confidential) </br>|  **1 business day** | **1 business day**  |
+| High to emergency impact </br> Expedited phone/chat/email support </br> Call or text: **(415) 651-2575** </br> Email: emergency @ fleetdm.com </br> |  **4 business hours** | **≤1 hour during business hours** </br> **≤2 hours outside business hours** 
+
+| Level of impact | Type of support |
+| :--- | :--- |
+| Low to medium impact | Chat support during business hours Chat: Dedicated Slack channel (confidential) </br> Response time: **≤1 business day** |
+| High to emergency impact | Expedited phone/chat support during business hours </br> Call or text [the Fleet phone number](https://docs.google.com/document/d/1tE-NpNfw1icmU2MjYuBRib0VWBPVAdmq4NiCrpuI0F0/edit) that was provided in the invoice. </br> Response time: **≤4 hours** |
+
+=======
+
 ## New Customer Onboarding Workflow
 
 This workflow outlines the process that sales and customer success can follow when a new deal closes. 
@@ -239,9 +259,12 @@ To change a customer's credit card number, you identify the customer's account e
 Occasionally, we will need to track public issues for customers that wish to remain anonymous on our public issue tracker. To do this, we choose an appropriate minor planet name from this [Wikipedia page](https://en.wikipedia.org/wiki/List_of_named_minor_planets_(alphabetical)) and create a label which we attach to the issue and any future issues for this customer.
 
 ## Generating a trial license key
-Fleet's self-service license dispenser is the best way to generate trial license keys for small deployments of Fleet Premium.
+1. Fleet's self-service license key creator is the best way to generate a proof of concept (POC) or renewal/expansion Fleet Premium license key. 
+    - [Here is a tutorial on using the self-service method](https://www.loom.com/share/b519e6a42a7d479fa628e394ee1d1517) (internal video)
+    - Pre-sales license key DRI is the Director of Solutions Architecture
+    - Post-sales license key DRI is the VP of Customer Success
 
-To generate a trial license key for a larger deployment, [create an opportunity issue](https://github.com/fleetdm/confidential/issues/new/choose) for the customer and follow the instructions in the issue for generating a trial license key.
+2. Legacy method: [create an opportunity issue](https://github.com/fleetdm/confidential/issues/new/choose) for the customer and follow the instructions in the issue for generating a trial license key.
 
 ## Customer contracts
 Fleet's subscription agreement is available at [fleetdm.com/terms](https://fleetdm.com/terms). 

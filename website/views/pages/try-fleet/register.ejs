@@ -11,7 +11,23 @@
       <div class="pt-3">
         <ajax-form :handle-submitting="handleSubmittingRegisterForm" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="formRules" @submitted="submittedRegisterForm()">
           <div class="form-group mb-3">
-            <input id="emailAddress" type="text" class="form-control d-flex w-100" :class="[formErrors.emailAddress ? 'is-invalid' : '']" v-model.trim="formData.emailAddress" placeholder="Sign up with email">
+            <div class="d-flex flex-row">
+              <div class="d-flex flex-column mr-2">
+                <input id="firstName" type="text" class="form-control d-flex" :class="[formErrors.firstName ? 'is-invalid' : '']" v-model.trim="formData.firstName" placeholder="First name">
+                <div class="invalid-feedback mt-2" v-if="formErrors.firstName === 'required'">Please enter your first name.</div>
+              </div>
+              <div class="d-flex flex-column">
+                <input id="lastName" type="text" class="form-control d-flex" :class="[formErrors.lastName ? 'is-invalid' : '']" v-model.trim="formData.lastName" placeholder="Last name">
+                <div class="invalid-feedback mt-2" v-if="formErrors.lastName === 'required'">Please enter your last name.</div>
+              </div>
+            </div>
+          </div>
+          <div class="form-group mb-3">
+            <input id="organization" type="text" class="form-control d-flex w-100" :class="[formErrors.organization ? 'is-invalid' : '']" v-model.trim="formData.organization" placeholder="Company">
+            <div class="invalid-feedback mt-2" v-if="formErrors.organization === 'required'">Please enter the name of your organization.</div>
+          </div>
+          <div class="form-group mb-3">
+            <input id="emailAddress" type="text" class="form-control d-flex w-100" :class="[formErrors.emailAddress ? 'is-invalid' : '']" v-model.trim="formData.emailAddress" placeholder="Email address">
             <div class="invalid-feedback mt-2">This doesn’t appear to be a valid email address</div>
           </div>
           <div class="form-group mb-3">

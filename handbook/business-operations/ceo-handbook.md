@@ -56,11 +56,13 @@ In the notes document include:
   3. Context that helps the CEO to understand purpose of meeting at a glance
   4. Share document with meeting participants
 
-**Additional product design review sessions are welcomed and a top priority for the CEO to get on the calendar quickly.  Other internal meetings and blocked time can always be moved to make room.  External meetings, travel, and personal commitments cannot be moved.  To schedule, mention @CharlieChance in the #meetings channel.**
+**Additional product design review sessions are welcomed and a top priority for the CEO to get on the calendar quickly.  _Other internal meetings and blocked time can always be moved to make room.  External meetings, travel, and personal commitments cannot be moved._  To schedule, mention @Charlie in the #-meetings channel.**
 
-### 1:1 Mike:Sid document preparation
-Every two weeks, our CEO Mike has a 1:1 meeting with our Investor Sid. The Digital Experience Team completes four parts while constructing the associated document. 
- - After the 1:1 meeting has happened, Charlie makes a copy of the original document, labels it "yyyy-mm-dd Backup copy of Mike from Fleet & Sid," and moves it to a private folder. 
+**The CEO welcomes opportunities to support teams on customer calls. _External meetings, travel, and personal commitments cannot be moved._ To schedule, mention @Charlie in the #-meetings channel in Slack.**
+
+### 🧑‍🚀 Sid : Mike document preparation
+Every two weeks, our CEO Mike has a 1:1 meeting with our Investor Sid. The Charlie completes four parts while constructing the associated document. 
+ - After the 1:1 meeting has happened, Charlie makes a copy of the original document, labels it "yyyy-mm-dd Backup copy of 🧑‍🚀 Sid : Mike," and moves it to a private folder. 
  - Charlie will change the permissions on the new copy to share it with Mike and Zach and set Mike to be the file's owner. If there are any agenda items labeled "TODO," Charlie will comment in the backup copy to assign them to Mike.
  - Charlie prepares the original document by deleting the agenda items in the "Hallway" and "Feedback" sections, leaving only the "Vision" section.
  - Charlie will update the monthly "All Hands" link and grant Sid viewing access. 

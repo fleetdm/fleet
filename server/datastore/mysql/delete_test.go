@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -37,9 +38,9 @@ func testDeleteEntity(t *testing.T, ds *Datastore) {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         t.Name() + "1",
+		NodeKey:         ptr.String(t.Name() + "1"),
 		UUID:            t.Name() + "1",
-		OsqueryHostID:   t.Name(),
+		OsqueryHostID:   ptr.String(t.Name()),
 		Hostname:        t.Name() + "foo.local",
 		PrimaryIP:       "192.168.1.1",
 		PrimaryMac:      "30-65-EC-6F-C4-58",

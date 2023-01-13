@@ -1,4 +1,5 @@
 import React, { useState, useContext, useEffect, useCallback } from "react";
+import { IconNames } from "components/icons";
 import { useQuery } from "react-query";
 import { InjectedRouter, Params } from "react-router/lib/Router";
 import { RouteProps } from "react-router/lib/Route";
@@ -42,6 +43,8 @@ import {
 import { IPolicy, IStoredPolicyResponse } from "interfaces/policy";
 import { ISoftware } from "interfaces/software";
 import { ITeam } from "interfaces/team";
+import { IEmptyTableProps } from "interfaces/empty_table";
+
 import sortUtils from "utilities/sort";
 import {
   HOSTS_SEARCH_BOX_PLACEHOLDER,
@@ -59,6 +62,7 @@ import { IActionButtonProps } from "components/TableContainer/DataTable/ActionBu
 import TeamsDropdown from "components/TeamsDropdown";
 import Spinner from "components/Spinner";
 import MainContent from "components/MainContent";
+import EmptyTable from "components/EmptyTable";
 
 import { getValidatedTeamId } from "utilities/helpers";
 import {
@@ -78,8 +82,6 @@ import DeleteSecretModal from "../../../components/EnrollSecrets/DeleteSecretMod
 import SecretEditorModal from "../../../components/EnrollSecrets/SecretEditorModal";
 import AddHostsModal from "../../../components/AddHostsModal";
 import EnrollSecretModal from "../../../components/EnrollSecrets/EnrollSecretModal";
-import NoHosts from "./components/NoHosts";
-import EmptyHosts from "./components/EmptyHosts";
 import PoliciesFilter from "./components/PoliciesFilter";
 // @ts-ignore
 import EditColumnsModal from "./components/EditColumnsModal/EditColumnsModal";
@@ -349,13 +351,16 @@ const ManageHostsPage = ({
     }
   );
 
-  useQuery<IStoredPolicyResponse, Error>(
+  const { isLoading: isLoadingPolicy } = useQuery<IStoredPolicyResponse, Error>(
     ["policy"],
     () => globalPoliciesAPI.load(policyId),
     {
       enabled: !!policyId,
       onSuccess: ({ policy: policyAPIResponse }) => {
         setPolicy(policyAPIResponse);
+      },
+      onError: () => {
+        setHasHostErrors(true);
       },
     }
   );
@@ -1234,13 +1239,13 @@ const ManageHostsPage = ({
     let label: string;
     switch (mdmEnrollmentStatus) {
       case "automatic":
-        label = "MDM enrolled (automatic)";
+        label = "MDM status: On (automatic)";
         break;
       case "manual":
-        label = "MDM enrolled (manual)";
+        label = "MDM status: On (manual)";
         break;
       default:
-        label = "Unenrolled";
+        label = "MDM status: Off";
     }
 
     let TooltipDescription: JSX.Element;
@@ -1645,7 +1650,14 @@ const ManageHostsPage = ({
   };
 
   const renderTable = () => {
-    if (!config || !currentUser || !hosts || !teamSync) {
+    if (
+      !config ||
+      !currentUser ||
+      isHostCountLoading ||
+      isHostsLoading ||
+      isLoadingPolicy ||
+      !teamSync
+    ) {
       return <Spinner />;
     }
 
@@ -1679,12 +1691,41 @@ const ManageHostsPage = ({
         osVersion
       );
 
+      const emptyState = () => {
+        const emptyHosts: IEmptyTableProps = {
+          iconName: "empty-hosts",
+          header: "Devices will show up here once they’re added to Fleet.",
+          info:
+            "Expecting to see devices? Try again in a few seconds as the system catches up.",
+        };
+        if (includesNameCardFilter) {
+          delete emptyHosts.iconName;
+          emptyHosts.header = "No hosts match the current criteria";
+          emptyHosts.info =
+            "Expecting to see new hosts? Try again in a few seconds as the system catches up.";
+        }
+        if (canEnrollHosts) {
+          emptyHosts.header = "Add your devices to Fleet";
+          emptyHosts.info = "Generate an installer to add your own devices.";
+          emptyHosts.primaryButton = (
+            <Button variant="brand" onClick={toggleAddHostsModal} type="button">
+              Add hosts
+            </Button>
+          );
+        }
+        return emptyHosts;
+      };
+
       return (
-        <NoHosts
-          toggleAddHostsModal={toggleAddHostsModal}
-          canEnrollHosts={canEnrollHosts}
-          includesNameCardFilter={includesNameCardFilter}
-        />
+        <>
+          {EmptyTable({
+            iconName: emptyState().iconName,
+            header: emptyState().header,
+            info: emptyState().info,
+            additionalInfo: emptyState().additionalInfo,
+            primaryButton: emptyState().primaryButton,
+          })}
+        </>
       );
     }
 
@@ -1706,16 +1747,32 @@ const ManageHostsPage = ({
       currentTeam
     );
 
+    const emptyState = () => {
+      const emptyHosts: IEmptyTableProps = {
+        header: "No hosts match the current criteria",
+        info:
+          "Expecting to see new hosts? Try again in a few seconds as the system catches up.",
+      };
+      if (isLastPage) {
+        emptyHosts.header = "No more hosts to display";
+        emptyHosts.info =
+          "Expecting to see more hosts? Try again in a few seconds as the system catches up.";
+      }
+
+      return emptyHosts;
+    };
+
     return (
       <TableContainer
         columns={tableColumns}
-        data={hosts}
+        data={hosts || []}
         isLoading={isHostsLoading || isHostCountLoading}
         manualSortBy
         defaultSortHeader={(sortBy[0] && sortBy[0].key) || DEFAULT_SORT_HEADER}
         defaultSortDirection={
           (sortBy[0] && sortBy[0].direction) || DEFAULT_SORT_DIRECTION
         }
+        defaultSearchQuery={searchQuery}
         pageSize={100}
         actionButtonText={"Edit columns"}
         actionButtonIcon={EditColumnsIcon}
@@ -1732,7 +1789,12 @@ const ManageHostsPage = ({
         searchable
         renderCount={renderHostCount}
         searchToolTipText={HOSTS_SEARCH_BOX_TOOLTIP}
-        emptyComponent={EmptyHosts}
+        emptyComponent={() =>
+          EmptyTable({
+            header: emptyState().header,
+            info: emptyState().info,
+          })
+        }
         customControl={renderCustomControls}
         onActionButtonClick={toggleEditColumnsModal}
         onPrimarySelectActionClick={onDeleteHostsClick}

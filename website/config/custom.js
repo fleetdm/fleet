@@ -95,14 +95,14 @@ module.exports.custom = {
   *                                                                          *
   ***************************************************************************/
   githubRepoDRIByPath: {
-    'README.md': ['chris-mcgillicuddy', 'jarodreyes'],// (github brandfront)
+    'README.md': ['chris-mcgillicuddy', 'jarodreyes', 'mike-j-thomas', 'zwass'],// (github brandfront)
     'tools/fleetctl-npm/README.md': ['chris-mcgillicuddy', 'mike-j-thomas', 'jarodreyes', 'zwass'],//« brandfront for fleetctl package on npm
 
     'CODEOWNERS': ['zwass', 'mikermcneil'],
 
     'articles': ['chris-mcgillicuddy', 'mike-j-thomas', 'eashaw', 'zwass', 'mikermcneil'],
 
-    'handbook': ['chris-mcgillicuddy', 'mike-j-Thomas', 'eashaw', 'mikermcneil', 'zwass'],// (default for handbook)
+    'handbook': ['chris-mcgillicuddy', 'mike-j-thomas', 'eashaw', 'mikermcneil', 'zwass'],// (default for handbook)
     'handbook/company': 'mikermcneil',
     'handbook/business-operations': ['hollidayn', 'charlottechance'],
     'handbook/engineering': 'zwass',
@@ -116,8 +116,10 @@ module.exports.custom = {
     'website/assets': 'eashaw',
     'website/config/routes.js': ['eashaw', 'mike-j-thomas', 'jarodreyes'],// (for managing website URLs)
     'website/package.json': 'eashaw',
+    '.github/workflows/deploy-fleet-website.yml': ['eashaw','mikermcneil'],// (website deploy script)
+    '.github/workflows/test-website.yml': ['eashaw','mikermcneil'],// (website CI test script)
 
-    'docs': ['chris-mcgillicuddy', 'zwass', 'mikermcneil', 'jarodreyes', 'ksatter'],// (default for docs)
+    'docs': ['chris-mcgillicuddy', 'zwass', 'mikermcneil', 'zhumo', 'jarodreyes', 'ksatter'],// (default for docs)
     'docs/images': ['chris-mcgillicuddy', 'noahtalerman', 'eashaw', 'mike-j-thomas'],
     'docs/Using-Fleet/REST-API.md': ['ksatter','lukeheath'],
     'docs/Contributing/API-for-contributors.md': ['ksatter','lukeheath'],
@@ -125,8 +127,8 @@ module.exports.custom = {
     'docs/Contributing/FAQ.md': ['ksatter'],
     'docs/Using-Fleet/FAQ.md': ['ksatter'],
 
-    'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml': ['guillaumeross','zhumo','eashaw','zwass'],// (standard query library)
-    'schema': ['guillaumeross','zhumo','eashaw','zwass'],// (Osquery table schema)
+    'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml': ['guillaumeross','zhumo','eashaw'],// (standard query library)
+    'schema': ['guillaumeross','zhumo','eashaw','zwass','mikermcneil'],// (Osquery table schema)
   },
   confidentialGithubRepoDRIByPath: {
     'readme.md': ['mikermcneil', 'zwass', 'charlottechance', 'hollidayn'],
@@ -145,8 +147,8 @@ module.exports.custom = {
     '.github/ISSUE_TEMPLATE/equity-grants.md': ['charlottechance','hollidayn'],
 
     // Folders of configuration files
-    'mdm_profiles': 'guillaumeross',
-    'vpn': 'rfairburn',
+    'mdm_profiles': ['lukeheath', 'zwass'],
+    'vpn': ['rfairburn', 'zwass'],
   },
 
 

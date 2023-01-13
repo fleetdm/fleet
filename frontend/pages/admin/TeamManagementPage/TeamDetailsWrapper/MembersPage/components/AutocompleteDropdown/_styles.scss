@@ -1,5 +1,13 @@
 .autocomplete-dropdown {
   .Select {
+    border: solid 1px $ui-fleet-black-10;
+    border-radius: 4px;
+
+    &:hover,
+    &.is-focused {
+      border-color: $core-vibrant-blue;
+    }
+
     &.Select--multi {
       .Select-option {
         color: $core-fleet-black;
@@ -32,16 +40,6 @@
       .Select-value {
         border: 1px solid $core-vibrant-blue;
         background-color: $ui-vibrant-blue-10;
-
-        .Select-value-label {
-          font-weight: $bold;
-        }
-
-        .Select-value-icon {
-          &:after {
-            color: $core-fleet-black;
-          }
-        }
       }
       .Select-clear-zone {
         transition: color 150ms ease-in-out;

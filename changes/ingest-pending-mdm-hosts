@@ -1,0 +1,2 @@
+- Added functionality to ingest device information from Apple MDM endpoints so that an MDM device can
+  be surfaced in Fleet results while the initial enrollment of the device is pending.

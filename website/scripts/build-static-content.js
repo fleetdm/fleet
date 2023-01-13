@@ -10,10 +10,11 @@ module.exports = {
   inputs: {
     dry: { type: 'boolean', description: 'Whether to make this a dry run.  (.sailsrc file will not be overwritten.  HTML files will not be generated.)' },
     skipGithubRequests: { type: 'boolean', description: 'Whether to minimize requests to the GitHub API which usually can be skipped during local development, such as requests used for fetching GitHub avatar URLs'},
+    githubAccessToken: { type: 'string', description: 'If provided, A GitHub token will be used to authenticate requests to the GitHub API'},
   },
 
 
-  fn: async function ({ dry, skipGithubRequests }) {
+  fn: async function ({ dry, skipGithubRequests, githubAccessToken }) {
 
     let path = require('path');
     let YAML = require('yaml');
@@ -42,6 +43,7 @@ module.exports = {
           } else if (query.resolution === undefined) {
             query.resolution = 'N/A';// « We set this to a string here so that the data type is always string.  We use N/A so folks can see there's no remediation and contribute if desired.
           }
+          query.requiresMdm = false;
           if (query.tags) {
             if(!_.isString(query.tags)) {
               queriesWithProblematicTags.push(query);
@@ -51,8 +53,13 @@ module.exports = {
               let formattedTags = [];
               for (let tag of tagsToFormat) {
                 if(tag !== '') {// « Ignoring any blank tags caused by trailing commas in the YAML.
-                  // Removing any extra whitespace from tags and changing them to be in lower case.
-                  formattedTags.push(_.trim(tag.toLowerCase()));
+                  // If a query has a 'requires MDM' tag, we'll set requiresMDM to true for this query, and we'll ingore this tag.
+                  if(_.trim(tag.toLowerCase()) === 'mdm required'){
+                    query.requiresMdm = true;
+                  } else {
+                    // Removing any extra whitespace from tags and changing them to be in lower case.
+                    formattedTags.push(_.trim(tag.toLowerCase()));
+                  }
                 }
               }
               // Removing any duplicate tags.
@@ -113,10 +120,20 @@ module.exports = {
             query.contributors = contributorProfiles;
           }
         } else {// If the --skipGithubRequests flag was not provided, we'll query GitHub's API to get additional information about each contributor.
+
+          let baseHeadersForGithubRequests = {
+            'User-Agent': 'Fleet-Standard-Query-Library',
+            'Accept': 'application/vnd.github.v3+json',
+          };
+
+          if(githubAccessToken) {
+            // If a GitHub access token was provided, add it to the baseHeadersForGithubRequests object.
+            baseHeadersForGithubRequests['Authorization'] = `token ${githubAccessToken}`;
+          }
           await sails.helpers.flow.simultaneouslyForEach(githubUsernames, async(username)=>{
             githubDataByUsername[username] = await sails.helpers.http.get.with({
               url: 'https://api.github.com/users/' + encodeURIComponent(username),
-              headers: { 'User-Agent': 'Fleet-Standard-Query-Library', Accept: 'application/vnd.github.v3+json' }
+              headers: baseHeadersForGithubRequests,
             }).catch((err)=>{// If the above GET requests return a non 200 response we'll look for signs that the user has hit their GitHub API rate limit.
               if (err.raw.statusCode === 403 && err.raw.headers['x-ratelimit-remaining'] === '0') {// If the user has reached their GitHub API rate limit, we'll throw an error that suggest they run this script with the `--skipGithubRequests` flag.
                 throw new Error('GitHub API rate limit exceeded. If you\'re running this script in a development environment, use the `--skipGithubRequests` flag to skip querying the GitHub API. See full error for more details:\n'+err);
@@ -477,7 +494,7 @@ module.exports = {
                 // If the article is categorized as 'product' we'll replace the category with 'use-cases', or if it is categorized as 'success story' we'll replace it with 'device-management'
                 rootRelativeUrlPath = (
                   '/' +
-                  (encodeURIComponent(embeddedMetadata.category === 'success stories' ? 'device-management' : embeddedMetadata.category === 'security' ? 'securing' : embeddedMetadata.category)) + '/' +
+                  (encodeURIComponent(embeddedMetadata.category === 'success stories' ? 'success-stories' : embeddedMetadata.category === 'security' ? 'securing' : embeddedMetadata.category)) + '/' +
                   (pageUnextensionedLowercasedRelPath.split(/\//).map((fileOrFolderName) => encodeURIComponent(fileOrFolderName.replace(/^[0-9]+[\-]+/,''))).join('/'))
                 );
               }

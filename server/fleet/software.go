@@ -5,8 +5,10 @@ import (
 )
 
 // Must be kept in sync with the vendor column definition.
-const SoftwareVendorMaxLength = 114
-const SoftwareVendorMaxLengthFmt = "%.111s..."
+const (
+	SoftwareVendorMaxLength    = 114
+	SoftwareVendorMaxLengthFmt = "%.111s..."
+)
 
 type Vulnerabilities []CVE
 
@@ -72,6 +74,9 @@ func (s *AuthzSoftwareInventory) AuthzType() string {
 type HostSoftware struct {
 	// Software is the software information.
 	Software []Software `json:"software,omitempty" csv:"-"`
+
+	// SoftwareUpdatedAt is the time that the host software was last updated
+	SoftwareUpdatedAt time.Time `json:"software_updated_at" db:"software_updated_at" csv:"software_updated_at"`
 }
 
 type SoftwareIterator interface {

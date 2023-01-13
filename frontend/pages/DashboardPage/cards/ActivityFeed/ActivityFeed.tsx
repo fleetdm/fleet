@@ -19,12 +19,14 @@ import ActivityItem from "./ActivityItem";
 const baseClass = "activity-feed";
 interface IActvityCardProps {
   setShowActivityFeedTitle: (showActivityFeedTitle: boolean) => void;
+  isPremiumTier: boolean;
 }
 
 const DEFAULT_PAGE_SIZE = 8;
 
 const ActivityFeed = ({
   setShowActivityFeedTitle,
+  isPremiumTier,
 }: IActvityCardProps): JSX.Element => {
   const [pageIndex, setPageIndex] = useState(0);
   const [showMore, setShowMore] = useState(true);
@@ -117,6 +119,7 @@ const ActivityFeed = ({
             {activities?.map((activity) => (
               <ActivityItem
                 activity={activity}
+                isPremiumTier={isPremiumTier}
                 onDetailsClick={handleDetailsClick}
                 key={activity.id}
               />

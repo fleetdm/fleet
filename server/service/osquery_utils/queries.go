@@ -3,7 +3,6 @@ package osquery_utils
 import (
 	"context"
 	"fmt"
-	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -12,8 +11,10 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/publicip"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/service/async"
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
@@ -35,11 +36,11 @@ type DetailQuery struct {
 	// DirectIngestFunc gathers results from a query and directly works with the datastore to
 	// persist them. This is usually used for host data that is stored in a separate table.
 	// DirectTaskIngestFunc must not be set if this is set.
-	DirectIngestFunc func(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error
+	DirectIngestFunc func(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error
 	// DirectTaskIngestFunc is similar to DirectIngestFunc except that it uses a task to
 	// ingest the results. This is for ingestion that can be either sync or async.
 	// DirectIngestFunc must not be set if this is set.
-	DirectTaskIngestFunc func(ctx context.Context, logger log.Logger, host *fleet.Host, task *async.Task, rows []map[string]string, failed bool) error
+	DirectTaskIngestFunc func(ctx context.Context, logger log.Logger, host *fleet.Host, task *async.Task, rows []map[string]string) error
 }
 
 // RunsForPlatform determines whether this detail query should run on the given platform
@@ -150,54 +151,12 @@ limit 1
 	"os_version_windows": {
 		// Windows-specific registry query is required to populate `host.OSVersion` for Windows.
 		Query: `
-WITH dv AS (
 	SELECT
-		data
+		os.name,
+		os.codename as display_version
+	
 	FROM
-		registry
-	WHERE
-		path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\DisplayVersion'
-),
-rid AS (
-	SELECT
-		data
-	FROM
-		registry
-	WHERE
-		path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\ReleaseId'
-)
-SELECT
-	(
-		SELECT
-			name
-		FROM
-			os_version) AS name,
-	CASE WHEN EXISTS (
-		SELECT
-			1
-		FROM
-			dv) THEN
-		(
-			SELECT
-				data
-			FROM
-				dv)
-		ELSE
-			""
-	END AS display_version,
-	CASE WHEN EXISTS (
-		SELECT
-			1
-		FROM
-			rid) THEN
-		(
-			SELECT
-				data
-			FROM
-				rid)
-		ELSE
-			""
-	END AS release_id`,
+		os_version os`,
 		Platforms: []string{"windows"},
 		IngestFunc: func(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error {
 			if len(rows) != 1 {
@@ -206,17 +165,7 @@ SELECT
 				return nil
 			}
 
-			var version string
-			switch {
-			case rows[0]["display_version"] != "":
-				// prefer display version if available
-				version = rows[0]["display_version"]
-			case rows[0]["release_id"] != "":
-				// otherwise release_id if available
-				version = rows[0]["release_id"]
-			default:
-				// empty value
-			}
+			version := rows[0]["display_version"]
 			if version == "" {
 				level.Debug(logger).Log(
 					"msg", "unable to identify windows version",
@@ -396,11 +345,7 @@ func ingestNetworkInterface(ctx context.Context, logger log.Logger, host *fleet.
 	return nil
 }
 
-func directIngestDiskSpace(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error {
-	if failed {
-		level.Error(logger).Log("op", "directIngestDiskSpace", "err", "failed")
-		return nil
-	}
+func directIngestDiskSpace(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
 	if len(rows) != 1 {
 		logger.Log("component", "service", "method", "directIngestDiskSpace", "err",
 			fmt.Sprintf("detail_query_disk_space expected single result got %d", len(rows)))
@@ -439,7 +384,7 @@ func ingestKubequeryInfo(ctx context.Context, logger log.Logger, host *fleet.Hos
 // This map should not be modified at runtime.
 var extraDetailQueries = map[string]DetailQuery{
 	"mdm": {
-		Query:            `select enrolled, server_url, installed_from_dep from mdm;`,
+		Query:            `select enrolled, server_url, installed_from_dep, payload_identifier from mdm;`,
 		DirectIngestFunc: directIngestMDMMac,
 		Platforms:        []string{"darwin"},
 		Discovery:        discoveryTable("mdm"),
@@ -498,56 +443,16 @@ var extraDetailQueries = map[string]DetailQuery{
 		// tables. Separately, the `hosts` table is populated via the `os_version` and
 		// `os_version_windows` detail queries above.
 		Query: `
-WITH dv AS (
 	SELECT
-		data
+		os.name,
+		os.platform,
+		os.arch,
+		k.version as kernel_version,
+		os.codename as display_version
+	
 	FROM
-		registry
-	WHERE
-		path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\DisplayVersion'
-),
-rid AS (
-	SELECT
-		data
-	FROM
-		registry
-	WHERE
-		path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\ReleaseId'
-)
-SELECT
-	os.name,
-	os.platform,
-	os.arch,
-	k.version as kernel_version,
-	CASE WHEN EXISTS (
-		SELECT
-			1
-		FROM
-			dv) THEN
-		(
-			SELECT
-				data
-			FROM
-				dv)
-		ELSE
-			""
-	END AS display_version,
-	CASE WHEN EXISTS (
-		SELECT
-			1
-		FROM
-			rid) THEN
-		(
-			SELECT
-				data
-			FROM
-				rid)
-		ELSE
-			""
-	END AS release_id
-FROM
-    os_version os,
-    kernel_info k`,
+		os_version os,
+		kernel_info k`,
 		Platforms:        []string{"windows"},
 		DirectIngestFunc: directIngestOSWindows,
 	},
@@ -864,11 +769,7 @@ var usersQuery = DetailQuery{
 }
 
 // directIngestOrbitInfo ingests data from the orbit_info extension table.
-func directIngestOrbitInfo(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error {
-	if failed {
-		level.Error(logger).Log("op", "directIngestOrbitInfo", "err", "failed")
-		return nil
-	}
+func directIngestOrbitInfo(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
 	if len(rows) != 1 {
 		return ctxerr.Errorf(ctx, "directIngestOrbitInfo invalid number of rows: %d", len(rows))
 	}
@@ -881,11 +782,7 @@ func directIngestOrbitInfo(ctx context.Context, logger log.Logger, host *fleet.H
 }
 
 // directIngestOSWindows ingests selected operating system data from a host on a Windows platform
-func directIngestOSWindows(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error {
-	if failed {
-		level.Error(logger).Log("op", "directIngestOSWindows", "err", "failed")
-		return nil
-	}
+func directIngestOSWindows(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
 	if len(rows) != 1 {
 		return ctxerr.Errorf(ctx, "directIngestOSWindows invalid number of rows: %d", len(rows))
 	}
@@ -897,17 +794,7 @@ func directIngestOSWindows(ctx context.Context, logger log.Logger, host *fleet.H
 		Platform:      rows[0]["platform"],
 	}
 
-	var version string
-	switch {
-	case rows[0]["display_version"] != "":
-		// prefer display version if available
-		version = rows[0]["display_version"]
-	case rows[0]["release_id"] != "":
-		// otherwise release_id if available
-		version = rows[0]["release_id"]
-	default:
-		// empty value
-	}
+	version := rows[0]["display_version"]
 	if version == "" {
 		level.Debug(logger).Log(
 			"msg", "unable to identify windows version",
@@ -924,11 +811,7 @@ func directIngestOSWindows(ctx context.Context, logger log.Logger, host *fleet.H
 
 // directIngestOSUnixLike ingests selected operating system data from a host on a Unix-like platform
 // (e.g., darwin or linux operating systems)
-func directIngestOSUnixLike(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error {
-	if failed {
-		level.Error(logger).Log("op", "directIngestOSUnixLike", "err", "failed")
-		return nil
-	}
+func directIngestOSUnixLike(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
 	if len(rows) != 1 {
 		return ctxerr.Errorf(ctx, "directIngestOSUnixLike invalid number of rows: %d", len(rows))
 	}
@@ -970,12 +853,7 @@ func parseOSVersion(name string, version string, major string, minor string, pat
 	return osVersion
 }
 
-func directIngestChromeProfiles(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error {
-	if failed {
-		// assume the extension is not there
-		return nil
-	}
-
+func directIngestChromeProfiles(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
 	mapping := make([]*fleet.HostDeviceMapping, 0, len(rows))
 	for _, row := range rows {
 		mapping = append(mapping, &fleet.HostDeviceMapping{
@@ -987,12 +865,7 @@ func directIngestChromeProfiles(ctx context.Context, logger log.Logger, host *fl
 	return ds.ReplaceHostDeviceMapping(ctx, host.ID, mapping)
 }
 
-func directIngestBattery(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error {
-	if failed {
-		level.Error(logger).Log("op", "directIngestBattery", "err", "failed")
-		return nil
-	}
-
+func directIngestBattery(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
 	mapping := make([]*fleet.HostBattery, 0, len(rows))
 	for _, row := range rows {
 		cycleCount, err := strconv.ParseInt(EmptyToZero(row["cycle_count"]), 10, 64)
@@ -1018,13 +891,7 @@ func directIngestWindowsUpdateHistory(
 	host *fleet.Host,
 	ds fleet.Datastore,
 	rows []map[string]string,
-	failed bool,
 ) error {
-	if failed {
-		level.Error(logger).Log("op", "directIngestWindowsUpdateHistory", "err", "failed")
-		return nil
-	}
-
 	// The windows update history table will also contain entries for the Defender Antivirus. Unfortunately
 	// there's no reliable way to differentiate between those entries and Cumulative OS updates.
 	// Since each antivirus update will have the same KB ID, but different 'dates', to
@@ -1052,12 +919,7 @@ func directIngestWindowsUpdateHistory(
 	return ds.InsertWindowsUpdates(ctx, host.ID, updates)
 }
 
-func directIngestScheduledQueryStats(ctx context.Context, logger log.Logger, host *fleet.Host, task *async.Task, rows []map[string]string, failed bool) error {
-	if failed {
-		level.Error(logger).Log("op", "directIngestScheduledQueryStats", "err", "failed")
-		return nil
-	}
-
+func directIngestScheduledQueryStats(ctx context.Context, logger log.Logger, host *fleet.Host, task *async.Task, rows []map[string]string) error {
 	packs := map[string][]fleet.ScheduledQueryStats{}
 	for _, row := range rows {
 		providedName := row["name"]
@@ -1127,12 +989,7 @@ func directIngestScheduledQueryStats(ctx context.Context, logger log.Logger, hos
 	return nil
 }
 
-func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error {
-	if failed {
-		level.Error(logger).Log("op", "directIngestSoftware", "err", "failed")
-		return nil
-	}
-
+func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
 	var software []fleet.Software
 	for _, row := range rows {
 		name := row["name"]
@@ -1203,7 +1060,7 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 	return nil
 }
 
-func directIngestUsers(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error {
+func directIngestUsers(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
 	var users []fleet.HostUser
 	for _, row := range rows {
 		uid, err := strconv.Atoi(row["uid"])
@@ -1232,8 +1089,8 @@ func directIngestUsers(ctx context.Context, logger log.Logger, host *fleet.Host,
 	return nil
 }
 
-func directIngestMDMMac(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error {
-	if len(rows) == 0 || failed {
+func directIngestMDMMac(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
+	if len(rows) == 0 {
 		// assume the extension is not there
 		return nil
 	}
@@ -1258,14 +1115,33 @@ func directIngestMDMMac(ctx context.Context, logger log.Logger, host *fleet.Host
 		}
 	}
 
-	return ds.SetOrUpdateMDMData(ctx, host.ID, false, enrolled, rows[0]["server_url"], installedFromDep, "")
+	return ds.SetOrUpdateMDMData(ctx,
+		host.ID,
+		false,
+		enrolled,
+		rows[0]["server_url"],
+		installedFromDep,
+		deduceMDMNameMacOS(rows[0]),
+	)
 }
 
-func directIngestMDMWindows(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error {
-	if failed {
-		level.Error(logger).Log("op", "directIngestMDMWindows", "err", "failed")
-		return nil
+func deduceMDMNameMacOS(row map[string]string) string {
+	// If the PayloadIdentifier is Fleet's MDM then use Fleet as name of the MDM solution.
+	// (For Fleet MDM we cannot use the URL because Fleet can be deployed On-Prem.)
+	if payloadIdentifier := row["payload_identifier"]; payloadIdentifier == apple_mdm.FleetPayloadIdentifier {
+		return fleet.WellKnownMDMFleet
 	}
+	return fleet.MDMNameFromServerURL(row["server_url"])
+}
+
+func deduceMDMNameWindows(data map[string]string) string {
+	if name := data["provider_id"]; name != "" {
+		return name
+	}
+	return fleet.MDMNameFromServerURL(data["discovery_service_url"])
+}
+
+func directIngestMDMWindows(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
 	data := make(map[string]string, len(rows))
 	for _, r := range rows {
 		data[r["key"]] = r["value"]
@@ -1273,11 +1149,18 @@ func directIngestMDMWindows(ctx context.Context, logger log.Logger, host *fleet.
 	_, autoPilot := data["autopilot"]
 	isServer := strings.Contains(strings.ToLower(data["installation_type"]), "server")
 	_, enrolled := data["provider_id"]
-	return ds.SetOrUpdateMDMData(ctx, host.ID, isServer, enrolled, data["discovery_service_url"], autoPilot, data["provider_id"])
+	return ds.SetOrUpdateMDMData(ctx,
+		host.ID,
+		isServer,
+		enrolled,
+		data["discovery_service_url"],
+		autoPilot,
+		deduceMDMNameWindows(data),
+	)
 }
 
-func directIngestMunkiInfo(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error {
-	if len(rows) == 0 || failed {
+func directIngestMunkiInfo(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
+	if len(rows) == 0 {
 		// assume the extension is not there
 		return nil
 	}
@@ -1291,12 +1174,7 @@ func directIngestMunkiInfo(ctx context.Context, logger log.Logger, host *fleet.H
 	return ds.SetOrUpdateMunkiInfo(ctx, host.ID, rows[0]["version"], errList, warnList)
 }
 
-func directIngestDiskEncryptionLinux(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error {
-	if failed {
-		level.Error(logger).Log("op", "directIngestDiskEncryptionLinux", "err", "failed")
-		return nil
-	}
-
+func directIngestDiskEncryptionLinux(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
 	encrypted := false
 	for _, row := range rows {
 		if row["path"] == "/" && row["encrypted"] == "1" {
@@ -1308,21 +1186,12 @@ func directIngestDiskEncryptionLinux(ctx context.Context, logger log.Logger, hos
 	return ds.SetOrUpdateHostDisksEncryption(ctx, host.ID, encrypted)
 }
 
-func directIngestDiskEncryption(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error {
-	if failed {
-		level.Error(logger).Log("op", "directIngestDiskEncryption", "err", "failed")
-		return nil
-	}
-	if len(rows) > 1 {
-		logger.Log("component", "service", "method", "directIngestDiskEncryption", "warn",
-			fmt.Sprintf("disk_encryption expected at most a single result, got %d", len(rows)))
-	}
-
+func directIngestDiskEncryption(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
 	encrypted := len(rows) > 0
 	return ds.SetOrUpdateHostDisksEncryption(ctx, host.ID, encrypted)
 }
 
-func GetDetailQueries(fleetConfig config.FleetConfig, features *fleet.Features) map[string]DetailQuery {
+func GetDetailQueries(ctx context.Context, fleetConfig config.FleetConfig, features *fleet.Features) map[string]DetailQuery {
 	generatedMap := make(map[string]DetailQuery)
 	for key, query := range hostDetailQueries {
 		generatedMap[key] = query
@@ -1349,17 +1218,25 @@ func GetDetailQueries(fleetConfig config.FleetConfig, features *fleet.Features) 
 		generatedMap["scheduled_query_stats"] = scheduledQueryStats
 	}
 
-	for _, env := range os.Environ() {
-		prefix := "FLEET_DANGEROUS_REPLACE_"
-		if !strings.HasPrefix(env, prefix) {
-			continue
+	if features != nil {
+		var unknownQueries []string
+
+		for name, override := range features.DetailQueryOverrides {
+			query, ok := generatedMap[name]
+			if !ok {
+				unknownQueries = append(unknownQueries, name)
+				continue
+			}
+			if override == nil {
+				delete(generatedMap, name)
+			} else {
+				query.Query = *override
+				generatedMap[name] = query
+			}
 		}
-		if i := strings.Index(env, "="); i >= 0 {
-			queryName := strings.ToLower(strings.TrimPrefix(env[:i], prefix))
-			newQuery := env[i+1:]
-			query := generatedMap[queryName]
-			query.Query = newQuery
-			generatedMap[queryName] = query
+
+		if len(unknownQueries) > 0 {
+			logging.WithErr(ctx, ctxerr.New(ctx, fmt.Sprintf("detail_query_overrides: unknown queries: %s", strings.Join(unknownQueries, ","))))
 		}
 	}
 

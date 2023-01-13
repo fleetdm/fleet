@@ -52,7 +52,7 @@ func TestDatastoreReplica(t *testing.T) {
 			LabelUpdatedAt:  time.Now(),
 			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now(),
-			NodeKey:         "1",
+			NodeKey:         ptr.String("1"),
 			UUID:            "1",
 			Hostname:        "foo.local",
 			PrimaryIP:       "192.168.1.1",

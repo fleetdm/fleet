@@ -4,13 +4,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
 
 	"github.com/fleetdm/fleet/v4/pkg/download"
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
@@ -31,13 +31,13 @@ func loadCPETranslations(path string) (CPETranslations, error) {
 	return translations, nil
 }
 
-// DownloadCPETranslations downloads the CPE translations to the given vulnPath. If cpeTranslationsURL is empty, attempts to download it
+// DownloadCPETranslationsFromGithub downloads the CPE translations to the given vulnPath. If cpeTranslationsURL is empty, attempts to download it
 // from the latest release of github.com/fleetdm/nvd. Skips downloading if CPE translations is newer than the release.
-func DownloadCPETranslations(vulnPath string, client *http.Client, cpeTranslationsURL string) error {
+func DownloadCPETranslationsFromGithub(vulnPath string, cpeTranslationsURL string) error {
 	path := filepath.Join(vulnPath, cpeTranslationsFilename)
 
 	if cpeTranslationsURL == "" {
-		release, err := GetLatestNVDRelease(client)
+		release, err := GetLatestGithubNVDRelease()
 		if err != nil {
 			return err
 		}
@@ -69,6 +69,7 @@ func DownloadCPETranslations(vulnPath string, client *http.Client, cpeTranslatio
 	if err != nil {
 		return err
 	}
+	client := fleethttp.NewGithubClient()
 	if err := download.Download(client, u, path); err != nil {
 		return err
 	}

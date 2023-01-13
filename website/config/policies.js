@@ -44,5 +44,9 @@ module.exports.policies = {
   'create-or-update-one-newsletter-subscription': true,
   'unsubscribe-from-all-newsletters': true,
   'view-osquery-table-details': true,
-
+  'view-connect-vanta': true,
+  'view-vanta-authorization': true,
+  'create-vanta-authorization-request': true,
+  'view-fleet-mdm': true,
+  'deliver-mdm-beta-signup': true,
 };
