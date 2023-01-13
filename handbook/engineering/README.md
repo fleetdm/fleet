@@ -6,6 +6,7 @@
 
 - [Goals](#goals)
 - [Principles](#principles])
+- [Scrum](#scrum])
 - [Eng Together](#eng-together)
 - [Release Retro](#release-retro)
 - [Group Weeklies](#group-weeklies)
@@ -27,6 +28,25 @@
 - If an async conversation is not proving to be effective, never hesitate to hop on or schedule a call. Always document the decisions made in a ticket, document, or whatever makes sense for the conversation.
 
 The following is the subset of proposed engineering meetings. Each group is free to treat these as a subset of the expected meetings and add any other meetings as they see fit.
+
+### Scrum
+- Fleet engineering teams practice scrum as an agile methodology.
+- Sprints are 3 weeks long to match our release cadences.
+- There are 5 “Scrum Ceremonies” performed during each sprint:
+  - Sprint planning - At the first Monday of the sprint the team and stake holders meet and pick items from the backlog. The team commit to finish those items.
+  - Daily sync standup - The team meet daily for updates. Each team member present what they did since the last sync and what they intend to do until next sync. Any impediments are raised.
+  - weekly estimation sessions - once a week (3 time a sprint) the team will estimate items in the backlog. Goals:
+    - Have Stake holders know in advance the time it will take to acheive those items.
+    - Make it easier in the next planning meeting to know what the team can take for the next sprint.
+  - Sprint Demo - At the last Friday of the sprint all engineering teams and stake holders meet to present their work. Engineers will get 3-10 minutes to present what was done / not done.
+  - Sprint Retrospective - At the last Friday of the sprint each team will meet with stake holders and hold a discussion answering the 3 questions:
+     - what did we do good?
+     - what could we have done better?
+     - what did we learn?
+  - Scrum items:
+     - Objectives / Epics: TBD - Will probably not be used (further discussion needed)
+     - User Story - A description of missing functionality typically visible by our customers. The description answers three questions: Who is the user that wants it? What is the task? and What is the purpose of it (what problem it solves or what value it adds). Typically written in this format: As the <user> I would like to <have something done or changed> so that I can <benefit fro it in this specific way> . A Story will include all the tasks required in order to acheive it or will have technical-sub-task/s bound to it. 
+     - Technical Sub Task - Typically a task that is part of a bigger Story. e.g. design, code, create a test/document. Will typically be blocking the Story they are part of. 
 
 ### Eng Together
 
