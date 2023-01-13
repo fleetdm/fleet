@@ -113,6 +113,9 @@
     - name: Granular role-based access control
       tier: Ultimate
       comingSoon: false
+    - name: Vanta integration
+      tier: Premium
+      comingSoon: false
 - categoryName: Monitoring
   features:
     - name: Schedule and automate custom queries
