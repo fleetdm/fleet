@@ -2,12 +2,14 @@
 name: 🎟  Story
 about: Specify a Scrum user story.  (e.g. "As a user, I want to sign in with SSO.")
 title: ''
-labels: ''
+labels: 'story'
 assignees: ''
 
 ---
 
 ## User story 
+
+<!-- Always has an estimation. Always drives business value.  Always gets QA'd.  Always fits within 1 sprint. -->
 
 TODO
 
