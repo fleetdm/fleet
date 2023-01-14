@@ -183,6 +183,46 @@ module.exports = {
       // }//ﬁ
 
     } else if (
+      (ghNoun === 'closed' &&  ['closed'].includes(action))
+    ) {
+      //  ██╗███████╗███████╗██╗   ██╗███████╗     ██████╗██╗      ██████╗ ███████╗███████╗██████╗
+      //  ██║██╔════╝██╔════╝██║   ██║██╔════╝    ██╔════╝██║     ██╔═══██╗██╔════╝██╔════╝██╔══██╗
+      //  ██║███████╗███████╗██║   ██║█████╗      ██║     ██║     ██║   ██║███████╗█████╗  ██║  ██║
+      //  ██║╚════██║╚════██║██║   ██║██╔══╝      ██║     ██║     ██║   ██║╚════██║██╔══╝  ██║  ██║
+      //  ██║███████║███████║╚██████╔╝███████╗    ╚██████╗███████╗╚██████╔╝███████║███████╗██████╔╝
+      //  ╚═╝╚══════╝╚══════╝ ╚═════╝ ╚══════╝     ╚═════╝╚══════╝ ╚═════╝ ╚══════╝╚══════╝╚═════╝
+      //
+      // Handle closed issue by commenting on it.
+      let owner = repository.owner.login;
+      let repo = repository.name;
+      let issueNumber = issueOrPr.number;
+      let newBotComment;
+
+      if (!sails.config.custom.openAiSecret) {
+        throw new Error('sails.config.custom.openAiSecret not set.  Cannot respond with haiku.');
+      }//•
+
+      // Grab issue title and body, then truncate the length of the body so that it fits
+      // within the maximum length tolerated by OpenAI.  Then combine those into a prompt
+      // generate a haiku based on this issue.
+      let issueSummary = issueOrPr.title + '\n' + _.trunc(issueOrPr.body, 2000);
+
+      // Generate haiku
+      let openAiReport = await sails.helpers.http.post('https://api.openai.com/v1/completions', {
+        model: 'text-davinci-003',
+        prompt: `I want you to act as a product designer.  I will give you a Github issue with information about a particular improvement to Fleet, an open-source device management and security platform.  You will write a haiku about how this improvement could benefit users.  Be detailed and specific in the haiku.  Do not use hyperbole.  Be matter-of-fact.  Be positive.  Do not make Fleet (or anyone) sound bad.  But be honest.  If appropriate, mention imagery from nature, or from a glass city in the clouds.  Do not give orders.\n\nThe first GitHub issue is:\n${issueSummary}`,
+      }, {
+        Authorization: `Bearer ${sails.config.custom.openAiSecret}`
+      });
+      newBotComment = openAiReport.choices[0].text;
+
+      // Now that we know what to say, add our comment.
+      await sails.helpers.http.post('https://api.github.com/repos/'+encodeURIComponent(owner)+'/'+encodeURIComponent(repo)+'/issues/'+encodeURIComponent(issueNumber)+'/comments',
+        {'body': newBotComment},
+        {'Authorization': 'token '+sails.config.custom.githubAccessToken}
+      );
+
+    } else if (
       (ghNoun === 'pull_request' &&  ['opened','reopened','edited'].includes(action))
     ) {
       //  ██████╗ ██╗   ██╗██╗     ██╗         ██████╗ ███████╗ ██████╗ ██╗   ██╗███████╗███████╗████████╗
