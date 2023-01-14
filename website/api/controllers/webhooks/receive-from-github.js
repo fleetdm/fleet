@@ -197,6 +197,10 @@ module.exports = {
       let repo = repository.name;
       let issueNumber = issueOrPr.number;
       let newBotComment;
+      let baseHeadersForGithubApiRequests = {
+        'User-Agent': 'Fleetie pie',
+        'Authorization': `token ${sails.config.custom.githubAccessToken}`
+      };
 
       if (!sails.config.custom.openAiSecret) {
         throw new Error('sails.config.custom.openAiSecret not set.  Cannot respond with haiku.');
@@ -219,7 +223,7 @@ module.exports = {
       // Now that we know what to say, add our comment.
       await sails.helpers.http.post('https://api.github.com/repos/'+encodeURIComponent(owner)+'/'+encodeURIComponent(repo)+'/issues/'+encodeURIComponent(issueNumber)+'/comments',
         {'body': newBotComment},
-        {'Authorization': 'token '+sails.config.custom.githubAccessToken}
+        baseHeadersForGithubApiRequests
       );
 
     } else if (
