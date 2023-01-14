@@ -209,16 +209,17 @@ module.exports = {
       // Grab issue title and body, then truncate the length of the body so that it fits
       // within the maximum length tolerated by OpenAI.  Then combine those into a prompt
       // generate a haiku based on this issue.
-      let issueSummary = issueOrPr.title + '\n' + _.trunc(issueOrPr.body, 2000);
+      let issueSummary = '# ' + issueOrPr.title + '\n' + _.trunc(issueOrPr.body, 2000);
 
       // Generate haiku
       let openAiReport = await sails.helpers.http.post('https://api.openai.com/v1/completions', {
         model: 'text-davinci-003',
-        prompt: `I want you to act as a product designer.  I will give you a Github issue with information about a particular improvement to Fleet, an open-source device management and security platform.  You will write a haiku about how this improvement could benefit users.  Be detailed and specific in the haiku.  Do not use hyperbole.  Be matter-of-fact.  Be positive.  Do not make Fleet (or anyone) sound bad.  But be honest.  If appropriate, mention imagery from nature, or from a glass city in the clouds.  Do not give orders.\n\nThe first GitHub issue is:\n${issueSummary}`,
+        prompt: `You are an empathetic product designer.  I will give you a Github issue with information about a particular improvement to Fleet, an open-source device management and security platform.  You will write a haiku about how this improvement could benefit users or contributors.  Be detailed and specific in the haiku.  Do not use hyperbole.  Be matter-of-fact.  Be positive.  Do not make Fleet (or anyone) sound bad.  But be honest.  If appropriate, mention imagery from nature, or from a glass city in the clouds.  Do not give orders.\n\nThe first GitHub issue is:\n${issueSummary}`,
       }, {
         Authorization: `Bearer ${sails.config.custom.openAiSecret}`
       });
       newBotComment = openAiReport.choices[0].text;
+      newBotComment.replace(/^\s*\n*[^\n:]+Haiku:\s*/i,'');// « eliminate "*Haiku:" prefix, if one is generated
 
       // Now that we know what to say, add our comment.
       await sails.helpers.http.post('https://api.github.com/repos/'+encodeURIComponent(owner)+'/'+encodeURIComponent(repo)+'/issues/'+encodeURIComponent(issueNumber)+'/comments',
