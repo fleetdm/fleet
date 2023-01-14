@@ -5,8 +5,8 @@
 ### In this section
 
 - [Goals](#goals)
-- [Principles](#principles])
-- [Scrum](#scrum])
+- [Principles](#principles)
+- [Scrum](#scrum)
 - [Eng Together](#eng-together)
 - [Release Retro](#release-retro)
 - [Group Weeklies](#group-weeklies)
@@ -45,7 +45,7 @@ The following is the subset of proposed engineering meetings. Each group is free
      - What did we learn?
 - Scrum items:
   - Objectives / Epics: TBD - Will probably not be used (further discussion needed)
-  - User Story - A description of missing functionality typically visible by our customers. The description answers three questions: Who is the user that wants it? What is the task? What is the purpose of it (what problem it solves or what value it adds)? Typically written in this format: As the <user> I would like to <have something done or changed> so that I can <benefit from it in this specific way> . A Story will include all the tasks required in order to achieve it or will have technical-sub-task(s) bound to it. 
+  - User Story - A description of missing functionality typically visible by our customers. The description answers three questions: Who is the user that wants it? What is the task? What is the purpose of it (what problem it solves or what value it adds)? Typically written in this format: As the &lt;user&gt; I would like to &lt;have something done or changed&gt; so that I can &lt;benefit from it in this specific way&gt;. A Story will include all the tasks required in order to achieve it or will have technical-sub-task(s) bound to it. 
   - Technical Sub Task - Typically a task that is part of a bigger Story. e.g. design, code, create a test/document. Will typically be blocking the Story they are part of. 
 
 ### Eng Together
