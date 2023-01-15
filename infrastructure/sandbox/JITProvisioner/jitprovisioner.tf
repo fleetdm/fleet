@@ -151,6 +151,13 @@ resource "aws_lambda_function" "jitprovisioner" {
   }
 }
 
+module "jitprovisioner-lambda-warmer" {
+  source  = "Nuagic/lambda-warmer/aws"
+  version = "3.0.1"
+  function_name = aws_lambda_function.jitprovisioner.function_name
+  function_arn  = aws_lambda_function.jitprovisioner.arn
+}
+
 resource "random_password" "authorization" {
   length  = 16
   special = false
