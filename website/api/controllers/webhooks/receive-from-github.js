@@ -222,7 +222,7 @@ module.exports = {
         Authorization: `Bearer ${sails.config.custom.openAiSecret}`
       });
       newBotComment = openAiReport.choices[0].text;
-      newBotComment.replace(/^\s*\n*[^\n\:]*Haiku[^\n\:]*:\s*/i,'');// « eliminate "*Haiku:" prefix line, if one is generated
+      newBotComment = newBotComment.replace(/^\s*\n*[^\n:]*Haiku[^\n:]*:\s*/i,'');// « eliminate "*Haiku:" prefix line, if one is generated
 
       // Now that we know what to say, add our comment.
       await sails.helpers.http.post('https://api.github.com/repos/'+encodeURIComponent(owner)+'/'+encodeURIComponent(repo)+'/issues/'+encodeURIComponent(issueNumber)+'/comments',
