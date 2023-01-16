@@ -1,4 +1,4 @@
-.sandbox-expiry-message {
+.apple-bm-terms-message {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -8,28 +8,25 @@
   border: 1px solid #ece0bb;
   border-radius: $border-radius;
   font-size: $xx-small;
+  position: sticky; // Needed for settings page scroll
+  z-index: 4; // Needed for settings page scroll
 
   color: $core-fleet-black;
   font-weight: $regular;
-
-  &:hover {
-    cursor: pointer;
-  }
 
   p {
     margin: 0;
   }
 
-  span {
-    display: flex;
-    align-items: center;
+  .button,
+  a {
     color: $core-fleet-black;
-    font-weight: $bold;
-    text-align: right;
-  }
-
-  .button {
     font-size: $xx-small;
     font-weight: $bold;
+  }
+
+  &__new-tab {
+    text-align: right;
+    min-width: 90px;
   }
 }
