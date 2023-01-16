@@ -44,7 +44,7 @@ The goal of the Compliance group is to deliver out-of-the-box CIS compliance for
 | Quality assurance                 | Reed Haynes
 | Product manager                   | Sharon Katz
 | Engineering manager               | Sharon Katz
-| Software engineers (developers)   | Artemis Tosini, _Lucas Rodriguez_
+| Software engineers (developers)   | Artemis Tosini, _Lucas Rodriguez_, _Marcos Oviedo (joining in late Jan 2023)_
 
 
 ### Customer experience group
