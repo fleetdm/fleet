@@ -397,11 +397,17 @@ func (svc *Service) GetDeviceMDMAppleEnrollmentProfile(ctx context.Context) ([]b
 		return nil, ctxerr.Wrap(ctx, fleet.NewPermissionError("forbidden: only device-authenticated hosts can access this endpoint"))
 	}
 
+	// TODO(mna): for 8477, generate a secure random token and call
+	// svc.ds.NewMDMAppleEnrollmentProfile.
+
 	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 
+	// TODO(mna): for 8477, generate the profile with the SCEP challenge
+	// generated above. Also, we may need to add more dynamic values in the
+	// enrollmentProfileMobileconfigTemplate profile? I.e. the UUIDs and versions?
 	mobileConfig, err := generateEnrollmentProfileMobileconfig(
 		appConfig.OrgInfo.OrgName,
 		appConfig.ServerSettings.ServerURL,

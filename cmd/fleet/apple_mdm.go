@@ -75,6 +75,21 @@ func registerSCEP(
 		return errors.New("missing SCEP challenge")
 	}
 
+	// TODO(mna): for 8477, use challenge.Middleware (in micromdm/scep) to validate
+	// the challenge against a dynamic token. Implement challenge.Store (maybe as part
+	// of the SCEP storage apple_mdm.SCEPMySQLDepot? Hmm maybe not, as the table it will
+	// access is a Fleet table, not one of the micromdm packages, so instead our Datastore
+	// interface could implement the scep challenge store) for this.
+	//
+	// Note that challenge.Middleware verifies the challenge on each request, but as of
+	// now it only supports the PKCSReq, UpdateReq, RenewalReq message types, so that may
+	// be ok (we don't think Apple will ever emit RenewalReq, so that leaves UpdateReq
+	// as an unknown, it is not mentioned in the SCEP RFC). Worst case, we can update our
+	// fork of micromdm/scep to only validate the challenge on PKCSReq message types.
+	//
+	// The token stored in the DB is only valid for a specific duration (likely 1h), so
+	// the HasChallenge Store method should return false if the token is expired. If the
+	// token does exist and is not expired, it should be deleted from the DB (single-use).
 	signer = scepserver.ChallengeMiddleware(scepChallenge, signer)
 	scepService, err := scepserver.NewService(scepCACert, scepCAKey, signer,
 		scepserver.WithLogger(kitlog.With(logger, "component", "mdm-apple-scep")),

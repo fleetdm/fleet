@@ -387,10 +387,14 @@ type MDMAppleDEP struct {
 type MDMAppleSCEPConfig struct {
 	// Signer holds the SCEP signer configuration.
 	Signer SCEPSignerConfig `yaml:"signer"`
+	// TODO(mna): for 8477, remove this challenge config option since the
+	// challenge will be dynamically generated, limited in time and single-use.
 	// Challenge is the SCEP challenge for SCEP enrollment requests.
 	Challenge string `yaml:"challenge"`
 }
 
+// TODO(mna): as part of 8477, clarify if we still want to have those SCEP certificate
+// configuration options (or have them as static values instead).
 // SCEPSignerConfig holds the SCEP signer configuration.
 type SCEPSignerConfig struct {
 	// ValidityDays are the days signed client certificates will be valid.

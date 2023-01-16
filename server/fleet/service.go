@@ -546,6 +546,8 @@ type Service interface {
 
 	// GetDeviceMDMAppleEnrollmentProfile loads the raw (PList-format) enrollment
 	// profile for the currently authenticated device.
+	// TODO(mna): for 8477, this should become GenerateDeviceMDMAppleEnrollmentProfile,
+	// as a new SCEP challenge token is generated and included in the returned profile.
 	GetDeviceMDMAppleEnrollmentProfile(ctx context.Context) ([]byte, error)
 
 	// GetMDMAppleCommandResults returns the execution results of a command identified by a CommandUUID.

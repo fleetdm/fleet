@@ -454,6 +454,9 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	).GET("/api/_version_/fleet/device/{token}/transparency", transparencyURL, transparencyURLRequest{})
 
 	if config.MDMApple.Enable {
+		// TODO(mna): for 8477, this should be changed to a POST (as it generates a new SCEP challenge token
+		// on each request and returns a different profile on each request, with the challenge token in it).
+
 		// mdm-related endpoints available via device authentication
 		de.WithCustomMiddleware(
 			errorLimiter.Limit("get_device_mdm", desktopQuota),
