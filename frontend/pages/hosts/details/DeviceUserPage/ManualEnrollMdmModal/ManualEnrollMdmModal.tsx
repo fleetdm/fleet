@@ -4,8 +4,10 @@ import FileSaver from "file-saver";
 
 import { NotificationContext } from "context/notification";
 
+import DataError from "components/DataError";
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
+import Spinner from "components/Spinner";
 
 import mdmAPI from "services/entities/mdm";
 
@@ -22,8 +24,6 @@ const ManualEnrollMdmModal = ({
 }: IInfoModalProps): JSX.Element => {
   const { renderFlash } = useContext(NotificationContext);
 
-  const [showDownloading, setShowDownloading] = useState(false);
-
   const {
     data: enrollmentProfile,
     error: fetchMdmProfileError,
@@ -39,8 +39,6 @@ const ManualEnrollMdmModal = ({
   const onDownloadProfile = (evt: React.MouseEvent) => {
     evt.preventDefault();
 
-    setShowDownloading(true);
-
     if (enrollmentProfile) {
       const filename = "fleet-mdm-enrollment-profile.mobileconfig";
       const file = new global.window.File([enrollmentProfile], filename, {
@@ -55,20 +53,24 @@ const ManualEnrollMdmModal = ({
       );
     }
 
-    setShowDownloading(false);
     return false;
   };
+  const renderModalContent = () => {
+    if (isFetchingMdmProfile) {
+      return <Spinner />;
+    }
+    if (fetchMdmProfileError) {
+      return <DataError card />;
+    }
 
-  return (
-    <Modal title="Turn on MDM" onExit={onCancel} className={baseClass}>
+    return (
       <div>
         <p className={`${baseClass}__description`}>
           To turn on MDM, Apple Inc. requires that you download and install a
-          profile
+          profile.
         </p>
         <ol>
           <li>
-            {isFetchingMdmProfile && <span>Loading your profile.</span>}
             {!isFetchingMdmProfile && (
               <>
                 <span>Download your profile.</span>
@@ -112,6 +114,12 @@ const ManualEnrollMdmModal = ({
           </Button>
         </div>
       </div>
+    );
+  };
+
+  return (
+    <Modal title="Turn on MDM" onExit={onCancel} className={baseClass}>
+      {renderModalContent()}
     </Modal>
   );
 };
