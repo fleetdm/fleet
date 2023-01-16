@@ -732,6 +732,7 @@ Automated tests are important, but they can't catch everything. Many issues are 
 The goal of quality assurance is to identify corrections and improvements before release:
 - Bugs
 - Edge cases
+
 - Error message UX
 - Developer experience using the API/CLI
 - Operator experience looking at logs
@@ -784,7 +785,9 @@ If the inbox item is a bug, QA should apply the acknowledged state to the bug. Q
 Once reproduced, QA should document the reproduction steps and move it to the reproduced state.
 
 #### Reproduced
-When reproduced, the assigned engineering manager (EM) is responsible for investigating the root cause of the bug and proposing solutions to their product counterpart if it requires discussion. Otherwise, the EM includes it in this release (if there's space) or the next release.
+When reproduced, the bug is assigned to the appropriate [engineering manager (EM)](../company/development-groups#current-product-groups) and added to the product backlog. The EM is responsible for investigating the root cause of the bug and proposing solutions to their product counterpart if it requires discussion. Otherwise, the EM includes it in this release (if there's space) or the next release.
+
+For unreleased bugs, the associated story is moved back to the "In progress" column in the appropriate project board. Fixing the bug becomes part of the story.
 
 #### After reproduced
 After it's in a release formally, the bug should be treated like any other piece of work per the standard engineering process.
