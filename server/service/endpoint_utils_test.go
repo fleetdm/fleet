@@ -251,6 +251,10 @@ func TestUniversalDecoderQueryAndListPlayNice(t *testing.T) {
 	assert.Equal(t, uint(444), *casted.ID1)
 }
 
+type stringErrorer string
+
+func (s stringErrorer) error() error { return nil }
+
 func TestEndpointer(t *testing.T) {
 	r := mux.NewRouter()
 	ds := new(mock.Store)
@@ -292,13 +296,13 @@ func TestEndpointer(t *testing.T) {
 	}
 
 	e := newUserAuthenticatedEndpointer(svc, fleetAPIOptions, r, "v1", "2021-11")
-	nopHandler := func(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	nopHandler := func(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 		setAuthCheckedOnPreAuthErr(ctx)
-		return "nop", nil
+		return stringErrorer("nop"), nil
 	}
-	overrideHandler := func(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	overrideHandler := func(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 		setAuthCheckedOnPreAuthErr(ctx)
-		return "override", nil
+		return stringErrorer("override"), nil
 	}
 
 	// Regular path, no plan to deprecate
@@ -413,7 +417,7 @@ func TestEndpointerCustomMiddleware(t *testing.T) {
 
 	var buf bytes.Buffer
 	e := newNoAuthEndpointer(svc, fleetAPIOptions, r, "v1")
-	e.GET("/none/", func(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	e.GET("/none/", func(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 		buf.WriteString("H1")
 		return nil, nil
 	}, nil)
@@ -438,7 +442,7 @@ func TestEndpointerCustomMiddleware(t *testing.T) {
 			}
 		},
 	).
-		GET("/mw/", func(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+		GET("/mw/", func(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 			buf.WriteString("H2")
 			return nil, nil
 		}, nil)

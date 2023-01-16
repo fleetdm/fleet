@@ -25,7 +25,7 @@ func TestTeamAuth(t *testing.T) {
 	ds.NewTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
 		return &fleet.Team{}, nil
 	}
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error {
+	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
 		return nil
 	}
 	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
@@ -264,8 +264,9 @@ func TestApplyTeamSpecs(t *testing.T) {
 					return team, nil
 				}
 
-				ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error {
-					require.Len(t, (*details)["teams"], 1)
+				ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+					act := activity.(fleet.ActivityTypeAppliedSpecTeam)
+					require.Len(t, act.Teams, 1)
 					return nil
 				}
 
@@ -344,8 +345,9 @@ func TestApplyTeamSpecs(t *testing.T) {
 					return &fleet.Team{}, nil
 				}
 
-				ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error {
-					require.Len(t, (*details)["teams"], 1)
+				ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+					act := activity.(fleet.ActivityTypeAppliedSpecTeam)
+					require.Len(t, act.Teams, 1)
 					return nil
 				}
 

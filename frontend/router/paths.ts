@@ -11,6 +11,8 @@ export default {
   DASHBOARD_WINDOWS: `${URL_PREFIX}/dashboard/windows`,
   ADMIN_USERS: `${URL_PREFIX}/settings/users`,
   ADMIN_INTEGRATIONS: `${URL_PREFIX}/settings/integrations`,
+  ADMIN_INTEGRATIONS_TICKET_DESTINATIONS: `${URL_PREFIX}/settings/integrations/ticket-destinations`,
+  ADMIN_INTEGRATIONS_MDM: `${URL_PREFIX}/settings/integrations/mdm`,
   ADMIN_TEAMS: `${URL_PREFIX}/settings/teams`,
   ADMIN_SETTINGS: `${URL_PREFIX}/settings/organization`,
   ADMIN_SETTINGS_INFO: `${URL_PREFIX}/settings/organization/info`,

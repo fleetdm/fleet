@@ -24,6 +24,7 @@ const REQUEST_RESPONSE_MAPPINGS: IResponses = {
     "targets?query={*}": RESPONSES.hosts,
     "mdm/apple": RESPONSES.mdmApple,
     "mdm/apple_bm": RESPONSES.mdmAppleBm,
+    "mdm/profile": RESPONSES.mdmEnrollmentProfile,
   },
   POST: {
     // request body is ISelectedTargets

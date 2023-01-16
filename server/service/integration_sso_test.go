@@ -139,7 +139,7 @@ func (s *integrationSSOTestSuite) TestSSOLogin() {
 	require.NotEmpty(t, activitiesResp.Activities)
 	require.Condition(t, func() bool {
 		for _, a := range activitiesResp.Activities {
-			if a.Type == fleet.ActivityTypeUserLoggedIn && *a.ActorEmail == auth.UserID() {
+			if (a.Type == fleet.ActivityTypeUserLoggedIn{}.ActivityName()) && *a.ActorEmail == auth.UserID() {
 				return true
 			}
 		}

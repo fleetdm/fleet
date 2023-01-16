@@ -17,6 +17,7 @@ import {
   IConfig,
   CONFIG_DEFAULT_RECENT_VULNERABILITY_MAX_AGE_IN_DAYS,
 } from "interfaces/config";
+import { IEmptyTableProps } from "interfaces/empty_table";
 import {
   IJiraIntegration,
   IZendeskIntegration,
@@ -47,10 +48,10 @@ import TeamsDropdownHeader, {
 import LastUpdatedText from "components/LastUpdatedText";
 import MainContent from "components/MainContent";
 import CustomLink from "components/CustomLink";
+import EmptyTable from "components/EmptyTable";
 
 import generateSoftwareTableHeaders from "./SoftwareTableConfig";
 import ManageAutomationsModal from "./components/ManageAutomationsModal";
-import EmptySoftware from "../components/EmptySoftware";
 
 interface IManageSoftwarePageProps {
   router: InjectedRouter;
@@ -531,6 +532,52 @@ const ManageSoftwarePage = ({
     router.push(path);
   };
 
+  const emptyState = () => {
+    const emptySoftware: IEmptyTableProps = {
+      header: "No software match the current search criteria",
+      info: `Try again in about 
+          ${
+            noSandboxHosts
+              ? "15 minutes after host enrollment."
+              : "1 hour as the system catches up."
+          }`,
+    };
+    if (!isSoftwareEnabled) {
+      emptySoftware.iconName = "empty-software";
+      emptySoftware.header = "Software inventory disabled";
+      emptySoftware.info = (
+        <>
+          Users with the admin role can{" "}
+          <CustomLink
+            url="https://fleetdm.com/docs/using-fleet/vulnerability-processing#configuration"
+            text="turn on software inventory"
+            newTab
+          />
+          .
+        </>
+      );
+    }
+    if (isCollectingInventory) {
+      emptySoftware.iconName = "empty-software";
+      emptySoftware.header = noSandboxHosts
+        ? "Fleet begins collecting software inventory after a host is enrolled"
+        : "No software detected";
+      emptySoftware.info = `This report is updated every ${
+        noSandboxHosts ? "15 minutes " : "hour"
+      } to protect the performance of your devices.`;
+    }
+    if (currentTeam && filterVuln) {
+      emptySoftware.iconName = "empty-software";
+      emptySoftware.header = "No vulnerable software detected";
+      emptySoftware.info = `This report is updated every ${
+        noSandboxHosts ? "15 minutes " : "hour"
+      } to protect the performance of your devices.`;
+    }
+    return emptySoftware;
+  };
+
+  const searchable = !!software?.software || searchQuery !== "";
+
   return !availableTeams ||
     !globalConfig ||
     (!softwareConfig && !softwareConfigError) ? (
@@ -550,12 +597,10 @@ const ManageSoftwarePage = ({
               isLoading={isFetchingSoftware || isFetchingCount}
               resultsTitle={"software items"}
               emptyComponent={() =>
-                EmptySoftware({
-                  message:
-                    (!isSoftwareEnabled && "disabled") ||
-                    (isCollectingInventory && "collecting") ||
-                    "default",
-                  noSandboxHosts,
+                EmptyTable({
+                  iconName: emptyState().iconName,
+                  header: emptyState().header,
+                  info: emptyState().info,
                 })
               }
               defaultSortHeader={DEFAULT_SORT_HEADER}
@@ -565,13 +610,13 @@ const ManageSoftwarePage = ({
               showMarkAllPages={false}
               isAllPagesSelected={false}
               disableNextPage={isLastPage}
-              searchable
+              searchable={searchable}
               inputPlaceHolder="Search software by name or vulnerabilities (CVEs)"
               onQueryChange={onQueryChange}
               additionalQueries={filterVuln ? "vulnerable" : ""} // additionalQueries serves as a trigger
               // for the useDeepEffect hook to fire onQueryChange for events happeing outside of
               // the TableContainer
-              customControl={renderVulnFilterDropdown}
+              customControl={searchable ? renderVulnFilterDropdown : undefined}
               stackControls
               renderCount={renderSoftwareCount}
               renderFooter={renderTableFooter}

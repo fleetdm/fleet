@@ -1,16 +1,11 @@
 import React from "react";
+import { ICON_SIZES, IconSizes } from "styles/var/icon_sizes";
 import { COLORS, Colors } from "styles/var/colors";
 
 interface IExternalLinkProps {
-  size: "small" | "medium" | "large";
+  size: IconSizes;
   color: Colors;
 }
-
-const SIZE_MAP = {
-  small: "12",
-  medium: "16",
-  large: "24",
-};
 
 const ExternalLink = ({
   size = "small",
@@ -18,8 +13,8 @@ const ExternalLink = ({
 }: IExternalLinkProps) => {
   return (
     <svg
-      width={SIZE_MAP[size]}
-      height={SIZE_MAP[size]}
+      width={ICON_SIZES[size]}
+      height={ICON_SIZES[size]}
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       viewBox="0 0 16 16"

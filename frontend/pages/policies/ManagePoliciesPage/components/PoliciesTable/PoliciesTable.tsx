@@ -1,19 +1,20 @@
 import React, { useContext } from "react";
+import { IconNames } from "components/icons";
 import { AppContext } from "context/app";
 import { noop } from "lodash";
 import paths from "router/paths";
 
 import { IPolicyStats } from "interfaces/policy";
 import { ITeamSummary } from "interfaces/team";
+import { IEmptyTableProps } from "interfaces/empty_table";
 
 import Button from "components/buttons/Button";
 import Spinner from "components/Spinner";
 import TableContainer from "components/TableContainer";
+import EmptyTable from "components/EmptyTable";
 import { generateTableHeaders, generateDataSet } from "./PoliciesTableConfig";
-import policyImage from "../../../../../../assets/images/no-policy-323x138@2x.png";
 
 const baseClass = "policies-table";
-const noPoliciesClass = "no-policies";
 
 const TAGGED_TEMPLATES = {
   hostsByTeamRoute: (teamId: number | undefined | null) => {
@@ -46,62 +47,52 @@ const PoliciesTable = ({
 
   const { config } = useContext(AppContext);
 
-  const NoPolicies = () => {
-    return (
-      <div
-        className={`${noPoliciesClass} ${currentTeam?.id && "no-team-policy"}`}
-      >
-        <div className={`${noPoliciesClass}__inner`}>
-          <img src={policyImage} alt="No Policies" />
-          <div className={`${noPoliciesClass}__inner-text`}>
-            <p>
-              <b>
-                {currentTeam ? (
-                  <>
-                    Ask yes or no questions about hosts assigned to{" "}
-                    <a
-                      href={
-                        MANAGE_HOSTS +
-                        TAGGED_TEMPLATES.hostsByTeamRoute(currentTeam.id)
-                      }
-                    >
-                      {currentTeam.name}
-                    </a>
-                    .
-                  </>
-                ) : (
-                  <>
-                    Ask yes or no questions about{" "}
-                    <a href={MANAGE_HOSTS}>all your hosts</a>.
-                  </>
-                )}
-              </b>
-            </p>
-            <div className={`${noPoliciesClass}__bullet-text`}>
-              <p>
-                - Verify whether or not your hosts have security features turned
-                on.
-                <br />- Track your efforts to keep installed software up to date
-                on your hosts.
-                <br />- Provide owners with a list of hosts that still need
-                changes.
-              </p>
-            </div>
-            {canAddOrDeletePolicy && (
-              <div className={`${baseClass}__action-button-container`}>
-                <Button
-                  variant="brand"
-                  className={`${baseClass}__select-policy-button`}
-                  onClick={onAddPolicyClick}
-                >
-                  Add a policy
-                </Button>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-    );
+  const emptyState = () => {
+    const emptyPolicies: IEmptyTableProps = {
+      iconName: "empty-policies",
+      header: (
+        <>
+          Ask yes or no questions about{" "}
+          <a href={MANAGE_HOSTS}>all your hosts</a>
+        </>
+      ),
+      info: (
+        <>
+          - Verify whether or not your hosts have security features turned on.
+          <br />- Track your efforts to keep installed software up to date on
+          your hosts.
+          <br />- Provide owners with a list of hosts that still need changes.
+        </>
+      ),
+    };
+
+    if (currentTeam) {
+      emptyPolicies.header = (
+        <>
+          Ask yes or no questions about hosts assigned to{" "}
+          <a
+            href={
+              MANAGE_HOSTS + TAGGED_TEMPLATES.hostsByTeamRoute(currentTeam.id)
+            }
+          >
+            {currentTeam.name}
+          </a>
+        </>
+      );
+    }
+    if (canAddOrDeletePolicy) {
+      emptyPolicies.primaryButton = (
+        <Button
+          variant="brand"
+          className={`${baseClass}__select-policy-button`}
+          onClick={onAddPolicyClick}
+        >
+          Add a policy
+        </Button>
+      );
+    }
+
+    return emptyPolicies;
   };
 
   return (
@@ -135,7 +126,15 @@ const PoliciesTable = ({
           primarySelectActionButtonVariant="text-icon"
           primarySelectActionButtonIcon="delete"
           primarySelectActionButtonText={"Delete"}
-          emptyComponent={NoPolicies}
+          emptyComponent={() =>
+            EmptyTable({
+              iconName: emptyState().iconName,
+              header: emptyState().header,
+              info: emptyState().info,
+              additionalInfo: emptyState().additionalInfo,
+              primaryButton: emptyState().primaryButton,
+            })
+          }
           onQueryChange={noop}
           disableCount={tableType === "inheritedPolicies"}
           isClientSidePagination

@@ -254,6 +254,8 @@ spec:
       destination_url: ""
       enable_vulnerabilities_webhook: false
       host_batch_size: 0
+  mdm:
+    apple_bm_default_team: ""
 ```
 
 ### Settings
@@ -332,6 +334,25 @@ Whether or not Fleet sends the query needed to gather the list of software insta
   ```yaml
   host_settings:
   	enable_software_inventory: false
+  ```
+
+##### features.detail_query_overrides
+
+This feature can be used to override "detail queries" hardcoded in Fleet.
+
+> IMPORTANT: This feature should only be used when debugging issues with Fleet's hardcoded queries.
+Use with caution as this may break Fleet ingestion of hosts data.
+
+- Optional setting (dictionary of key-value strings)
+- Default value: none (empty)
+- Config file format:
+  ```yaml
+  features:
+    detail_query_overrides:
+      # null allows to disable the "users" query from running on hosts.
+      users: null
+      # this replaces the hardcoded "mdm" detail query.
+      mdm: "SELECT enrolled, server_url, installed_from_dep, payload_identifier FROM mdm;"
   ```
 
 #### Fleet Desktop
@@ -1156,6 +1177,23 @@ agent_options:
   command_line_flags:
     enable_file_events: true
 ```
+
+#### MDM settings
+
+Fleet currently supports Apple Business Manager for mobile device management (MDM).
+
+**Applies only to Fleet Premium**.
+
+##### mdm.apple_bm_default_team
+
+Set name of default team to use with Apple Business Manager.
+
+- Default value: ""
+- Config file format:
+  ```yaml
+  mdm:
+    team: "Workstations"
+  ```
 
 #### Advanced configuration
 

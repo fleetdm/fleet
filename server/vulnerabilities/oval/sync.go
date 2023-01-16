@@ -12,14 +12,16 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/download"
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 
 	"github.com/google/go-github/v37/github"
 )
 
-func ghNvdFileGetter(client *http.Client) func(string) (io.ReadCloser, error) {
+func ghNvdFileGetter() func(string) (io.ReadCloser, error) {
+	ghClient := fleethttp.NewGithubClient()
 	return func(file string) (io.ReadCloser, error) {
-		src, r, err := github.NewClient(client).Repositories.DownloadContents(
+		src, r, err := github.NewClient(ghClient).Repositories.DownloadContents(
 			context.Background(), "fleetdm", "nvd", file, nil)
 		if err != nil {
 			return nil, err
@@ -84,8 +86,8 @@ func removeOldDefs(date time.Time, path string) (map[string]bool, error) {
 
 // Sync syncs the oval definitions for one or more platforms.
 // If 'platforms' is nil, then all supported platforms will be synched.
-func Sync(client *http.Client, dstDir string, platforms []Platform) error {
-	sources, err := getOvalSources(ghNvdFileGetter(client))
+func Sync(dstDir string, platforms []Platform) error {
+	sources, err := getOvalSources(ghNvdFileGetter())
 	if err != nil {
 		return err
 	}
@@ -96,6 +98,7 @@ func Sync(client *http.Client, dstDir string, platforms []Platform) error {
 		}
 	}
 
+	client := fleethttp.NewClient()
 	dwn := downloadDecompressed(client)
 	for _, platform := range platforms {
 		defFile, err := downloadDefinitions(sources, platform, dwn)
@@ -123,7 +126,6 @@ func Sync(client *http.Client, dstDir string, platforms []Platform) error {
 // Returns a slice of Platforms of the newly downloaded OVAL files.
 func Refresh(
 	ctx context.Context,
-	client *http.Client,
 	versions *fleet.OSVersions,
 	vulnPath string,
 ) ([]Platform, error) {
@@ -136,7 +138,7 @@ func Refresh(
 
 	toDownload := whatToDownload(versions, existing, now)
 	if len(toDownload) > 0 {
-		err = Sync(client, vulnPath, toDownload)
+		err = Sync(vulnPath, toDownload)
 		if err != nil {
 			return nil, err
 		}

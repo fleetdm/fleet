@@ -179,7 +179,7 @@ Fleet team members can can also subscribe to the [shared calendar](https://calen
 
 The oncall engineer is a second-line responder to questions raised by customers and community members.
 
-The community contact (Kathy) is responsible for the first response to GitHub issues, pull requests, and Slack messages in the [#fleet channel](https://osquery.slack.com/archives/C01DXJL16D8) of osquery Slack, and other public Slacks. Kathy is also responsible for the first response to messages in private customer Slack channels.
+The community contact (Kathy) is responsible for the first response to GitHub issues, pull requests, and Slack messages in the [#fleet channel](https://osquery.slack.com/archives/C01DXJL16D8) of osquery Slack, and other public Slacks. Kathy and Zay are responsible for the first response to messages in private customer Slack channels.
 
 We respond within 1-hour (during business hours) for interactions and ask the oncall engineer to address any questions sent their way promptly. When Kathy is unavailable, the oncall engineer may sometimes be asked to take over the first response duties.
 
@@ -187,7 +187,7 @@ We respond within 1-hour (during business hours) for interactions and ask the on
 
 Pull requests may be routed through the oncall engineer for review.
 
-For PRs from the community, the community contact ([Kathy](https://github.com/ksatter)) will request review from the oncall. For all PRs to the Fleet documentation, the content editor ([Chris McGillicuddy](https://github.com/chris-mcgillicuddy)) will either merge (for typo fixes, when only documentation files are changed) or request a review from the current oncall (for changes to code samples, or to the meaning of the text).
+For PRs from the community, the community contact ([Kathy](https://github.com/ksatter)) will request review from the oncall. ([Kathy](https://github.com/ksatter))will review all PRs to the Fleet documentation, and she will either merge (for typo fixes, when only documentation files are changed) or request a review from the current oncall (for changes to code samples, or to the meaning of the text).
 
 In either case, if the oncall engineer has the knowledge and confidence to review, they should go ahead and do so. Otherwise, they should request a review from an engineer with the appropriate domain knowledge. It is the oncall engineer's responsibility to confirm that these PRs are moved forward (either by review with feedback or merge).
 
@@ -512,7 +512,7 @@ When someone asks a question in a public channel, it's pretty safe to assume tha
 
 Our goal is to answer every question with a link to the docs and/or result in a documentation update.
 
-> **Remember**, when submitting any pull request that changes Markdown files in the docs, request an editor review from Chris McGillicuddy, who will escalate to the [on-call engineer](https://fleetdm.com/handbook/engineering#oncall-rotation) as needed.
+> **Remember**, when submitting any pull request that changes Markdown files in the docs, request an editor review from Kathy Satterlee, who will escalate to the [on-call engineer](https://fleetdm.com/handbook/engineering#oncall-rotation) as needed.
 
 ### Tracking
 
@@ -536,7 +536,7 @@ When responding to a question or issue in the [#fleet](https://osquery.slack.com
 
 ### How to request a review for Markdown changes to the docs
 
-When creating a pull request for Markdown changes in the docs, request a review from Chris McGillicuddy, who will do an editor pass, and then hand over the review to the [oncall engineer](https://fleetdm.com/handbook/engineering#oncall-rotation) if necessary.
+When creating a pull request for Markdown changes in the docs, request a review from Kathy Satterlee, who will do an editor pass, and then hand over the review to the [oncall engineer](https://fleetdm.com/handbook/engineering#oncall-rotation) if necessary.
 
 ### Markdown
 
@@ -773,9 +773,9 @@ After it's in a release formally, the bug should be treated like any other piece
 Fleeties do not have to wait for QA to reproduce the bug. If you're confident it's reproducible, it's a bug, and the reproduction steps are well-documented, it can be moved directly to the reproduced state.
 
 #### Release testing
-When a release is in testing, QA should use the the Slack channel #help-release-bugs to keep everyone aware of issues found. All bugs found should be reported in the channel after creating the bug first.
+When a release is in testing, QA should use the the Slack channel #help-qa to keep everyone aware of issues found. All bugs found should be reported in the channel after creating the bug first.
 
-In the #help-release-bugs channel, product may decide whether the bug is a release blocker. When a release-blocking bug is found, product is responsible for communicating the delay to company stakeholders. 
+In the #help-qa channel, product may decide whether the bug is a release blocker. When a release-blocking bug is found, product is responsible for communicating the delay to company stakeholders. 
 
 Release blockers include:
 1. Critical bugs (defined below)
@@ -916,7 +916,6 @@ The following [Slack channels are maintained](https://fleetdm.com/handbook/compa
 | `#g-agent`           | Zach Wasserman                                                       |
 | `#_pov-environments` | Ben Edwards                                                          |
 | `#help-qa`           | Reed Haynes                                                          |
-| `#help-release-bugs` | Reed Haynes                                                          |
 
 <meta name="maintainedBy" value="zwass">
 <meta name="title" value="🚀 Engineering">

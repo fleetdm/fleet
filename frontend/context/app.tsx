@@ -163,8 +163,7 @@ const setPermissions = (
     isSandboxMode: permissions.isSandboxMode(config),
     isFreeTier: permissions.isFreeTier(config),
     isPremiumTier: permissions.isPremiumTier(config),
-    // isMdmEnabled: permissions.isMdmEnabled(config),
-    isMdmEnabled: true, // MDM TODO: Remove when backend is merged
+    isMdmEnabled: permissions.isMdmEnabled(config),
     isGlobalAdmin: permissions.isGlobalAdmin(user),
     isGlobalMaintainer: permissions.isGlobalMaintainer(user),
     isGlobalObserver: permissions.isGlobalObserver(user),

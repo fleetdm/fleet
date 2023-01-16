@@ -23,7 +23,7 @@ import (
 	"github.com/gorilla/mux"
 )
 
-type handlerFunc func(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error)
+type handlerFunc func(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error)
 
 // parseTag parses a `url` tag and whether it's optional or not, which is an optional part of the tag
 func parseTag(tag string) (string, bool, error) {

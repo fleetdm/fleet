@@ -48,8 +48,11 @@ func (svc *Service) NewUser(ctx context.Context, p fleet.UserPayload) (*fleet.Us
 	if err := svc.ds.NewActivity(
 		ctx,
 		adminUser,
-		fleet.ActivityTypeCreatedUser,
-		&map[string]interface{}{"user_name": user.Name, "user_id": user.ID, "user_email": user.Email},
+		fleet.ActivityTypeCreatedUser{
+			UserID:    user.ID,
+			UserName:  user.Name,
+			UserEmail: user.Email,
+		},
 	); err != nil {
 		return nil, err
 	}

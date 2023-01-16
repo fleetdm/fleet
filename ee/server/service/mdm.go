@@ -2,15 +2,11 @@ package service
 
 import (
 	"context"
-	"encoding/json"
-	"io"
-	"io/ioutil"
 
-	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
-	"github.com/micromdm/nanodep/client"
+	kitlog "github.com/go-kit/kit/log"
 	"github.com/micromdm/nanodep/storage"
 )
 
@@ -28,66 +24,43 @@ func (svc *Service) GetAppleBM(ctx context.Context) (*fleet.AppleBM, error) {
 	if err != nil {
 		return nil, err
 	}
+	mdmServerURL, err := apple_mdm.ResolveAppleMDMURL(appCfg.ServerSettings.ServerURL)
+	if err != nil {
+		return nil, err
+	}
 	tok, err := svc.config.MDM.AppleBM()
 	if err != nil {
 		return nil, err
 	}
 
-	appleBM, err := getAppleBMAccountDetail(ctx, svc.depStorage)
+	appleBM, err := getAppleBMAccountDetail(ctx, svc.depStorage, svc.ds, svc.logger)
 	if err != nil {
 		return nil, err
 	}
 
 	// fill the rest of the AppleBM fields
 	appleBM.RenewDate = tok.AccessTokenExpiry
-	// TODO: default team will have to be set when https://github.com/fleetdm/fleet/issues/8733
-	// is implemented.
-	appleBM.DefaultTeam = ""
-	appleBM.MDMServerURL = appCfg.ServerSettings.ServerURL + apple_mdm.MDMPath
+	appleBM.DefaultTeam = appCfg.MDM.AppleBMDefaultTeam
+	appleBM.MDMServerURL = mdmServerURL
 
 	return appleBM, nil
 }
 
-func getAppleBMAccountDetail(ctx context.Context, depStorage storage.AllStorage) (*fleet.AppleBM, error) {
-	httpClient := fleethttp.NewClient()
-	depTransport := client.NewTransport(httpClient.Transport, httpClient, depStorage, nil)
-	depClient := client.NewClient(fleethttp.NewClient(), depTransport)
-
-	req, err := client.NewRequestWithContext(ctx, apple_mdm.DEPName, depStorage, "GET", "/account", nil)
+func getAppleBMAccountDetail(ctx context.Context, depStorage storage.AllStorage, ds fleet.Datastore, logger kitlog.Logger) (*fleet.AppleBM, error) {
+	depClient := fleet.NewDEPClient(depStorage, ds, logger)
+	res, err := depClient.AccountDetail(ctx, apple_mdm.DEPName)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "create apple GET /account request")
-	}
-	res, err := depClient.Do(req)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "execute apple GET /account request")
-	}
-	defer res.Body.Close()
-
-	// TODO: if it fails in a way that indicates the token is invalid/expired
-	// (403 Forbidden), eventually we should surface that to the user.
-	if res.StatusCode >= 400 {
-		// read up to 512 bytes of the response body to get better error message if possible
-		body, _ := ioutil.ReadAll(io.LimitReader(res.Body, 512))
-		return nil, ctxerr.Wrapf(ctx, err, "apple GET /account request failed: status: %d; body: %s", res.StatusCode, string(body))
+		return nil, ctxerr.Wrap(ctx, err, "apple GET /account request failed")
 	}
 
-	var account struct {
-		AdminID       string `json:"admin_id"`
-		FacilitatorID string `json:"facilitator_id"`
-		OrgName       string `json:"org_name"`
-	}
-	if err := json.NewDecoder(res.Body).Decode(&account); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "decode apple GET /account response")
-	}
-
-	if account.AdminID == "" {
+	if res.AdminID == "" {
 		// fallback to facilitator ID, as this is the same information but for
 		// older versions of the Apple API.
 		// https://github.com/fleetdm/fleet/issues/7515#issuecomment-1346579398
-		account.AdminID = account.FacilitatorID
+		res.AdminID = res.FacilitatorID
 	}
 	return &fleet.AppleBM{
-		AppleID: account.AdminID,
-		OrgName: account.OrgName,
+		AppleID: res.AdminID,
+		OrgName: res.OrgName,
 	}, nil
 }

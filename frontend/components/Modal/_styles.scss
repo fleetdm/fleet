@@ -6,6 +6,7 @@
     overflow: scroll;
     display: flex;
     justify-content: center;
+    animation: fade-in 150ms ease-out;
   }
 
   &__content {
@@ -52,7 +53,7 @@
     font-weight: $regular;
     text-align: left;
     padding-bottom: $pad-xsmall;
-    border-bottom: 1px solid $ui-fleet-blue-15;
+    border-bottom: 1px solid $ui-fleet-black-10;
     display: flex;
     justify-content: space-between;
 
@@ -69,5 +70,6 @@
     width: 570px;
     padding: $pad-xxlarge;
     border-radius: 8px;
+    animation: scale-up 150ms ease-out;
   }
 }

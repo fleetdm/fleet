@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"os"
@@ -58,10 +59,13 @@ func (bc *baseClient) parseResponse(verb, path string, response *http.Response, 
 	bc.setServerCapabilities(response)
 
 	if responseDest != nil {
-		if err := json.NewDecoder(response.Body).Decode(&responseDest); err != nil {
-			return fmt.Errorf("decode %s %s response: %w", verb, path, err)
+		b, err := io.ReadAll(response.Body)
+		if err != nil {
+			return fmt.Errorf("reading response body: %w", err)
 		}
-
+		if err := json.Unmarshal(b, &responseDest); err != nil {
+			return fmt.Errorf("decode %s %s response: %w, body: %s", verb, path, err, b)
+		}
 		if e, ok := responseDest.(errorer); ok {
 			if e.error() != nil {
 				return fmt.Errorf("%s %s error: %w", verb, path, e.error())

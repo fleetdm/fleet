@@ -380,8 +380,8 @@ describe("Premium tier - Global Admin user", () => {
     });
     it("allows global admin to see and click all CTA buttons", () => {
       manageHostsPage.allowsAddHosts();
-      manageHostsPage.allowsManageAndAddSecrets();
       manageHostsPage.allowsAddLabelForm();
+      manageHostsPage.allowsManageAndAddSecrets();
     });
   });
   describe("Host details page", () => {
@@ -578,7 +578,7 @@ describe("Premium tier - Global Admin user", () => {
     });
     it("allows access to Fleet Desktop settings", () => {
       cy.visit("settings/organization");
-      cy.getAttached(".org-settings-form__form-nav-list").within(() => {
+      cy.findByRole("navigation", { name: "settings" }).within(() => {
         cy.findByText(/organization info/i).should("exist");
         cy.findByText(/fleet desktop/i)
           .should("exist")

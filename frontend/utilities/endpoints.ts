@@ -31,6 +31,7 @@ export default {
   LOGIN: `/${API_VERSION}/fleet/login`,
   LOGOUT: `/${API_VERSION}/fleet/logout`,
   MACADMINS: `/${API_VERSION}/fleet/macadmins`,
+  MDM_DOWNLOAD_ENROLLMENT_PROFILE: `/${API_VERSION}/fleet/mdm/profile`, // TODO: change if needed when API READY
   MDM_APPLE: `/${API_VERSION}/fleet/mdm/apple`,
   MDM_APPLE_BM: `/${API_VERSION}/fleet/mdm/apple_bm`,
   MDM_APPLE_BM_KEYS: `/${API_VERSION}/fleet/mdm/apple_bm/keys`,
