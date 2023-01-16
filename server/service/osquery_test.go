@@ -188,8 +188,8 @@ func TestAgentOptionsForHost(t *testing.T) {
 
 var allDetailQueries = osquery_utils.GetDetailQueries(context.Background(), config.FleetConfig{Vulnerabilities: config.VulnerabilitiesConfig{DisableWinOSVulnerabilities: true}}, &fleet.Features{EnableHostUsers: true})
 
-func expectedDetailQueriesForPlatform(platform string) map[string]osquery_utils.DetailQuery {
-	queries := make(map[string]osquery_utils.DetailQuery)
+func expectedDetailQueriesForPlatform(platform string) map[string]osquery_utils.FleetQuery {
+	queries := make(map[string]osquery_utils.FleetQuery)
 	for k, v := range allDetailQueries {
 		if v.RunsForPlatform(platform) {
 			queries[k] = v
@@ -2803,7 +2803,7 @@ func distQueriesMapKeys(m map[string]string) []string {
 	return keys
 }
 
-func osqueryMapKeys(m map[string]osquery_utils.DetailQuery) []string {
+func osqueryMapKeys(m map[string]osquery_utils.FleetQuery) []string {
 	keys := make([]string, 0, len(m))
 	for k := range m {
 		keys = append(keys, k)

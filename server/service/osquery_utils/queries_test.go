@@ -2,6 +2,7 @@ package osquery_utils
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"sort"
@@ -225,7 +226,7 @@ func TestDetailQueryScheduledQueryStats(t *testing.T) {
 	assert.Len(t, gotPackStats, 0)
 }
 
-func sortedKeysCompare(t *testing.T, m map[string]DetailQuery, expectedKeys []string) {
+func sortedKeysCompare(t *testing.T, m map[string]FleetQuery, expectedKeys []string) {
 	var keys []string
 	for key := range m {
 		keys = append(keys, key)
@@ -835,4 +836,64 @@ func TestDirectIngestDiskEncryptionLinux(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.True(t, ds.SetOrUpdateHostDisksEncryptionFuncInvoked)
+}
+
+func TestDirectIngestDiskEncryptionKey(t *testing.T) {
+	ctx := context.Background()
+	logger := log.NewNopLogger()
+	ds := new(mock.Store)
+	host := fleet.Host{
+		ID: 1,
+	}
+	result := []map[string]string{
+		{"line": "MIAGCSqGSIb3DQEHA6CAMIACAQAxggFtMIIBaQIBADBRMEgxHzAdBgNVBAMMFkZpbGVWYXVsdCBSZWNvdmVyeSBLZXkxJTAjBgNVBA0MHFJvYmVydG9zLU1hY0Jvb2stUHJvLTIubG9jYWwCBQCovxm3MA0GCSqGSIb3DQEBAQUABIIBAHiz8IGpXp+vqfTes7ejbvS11XpnaHCxDeaMYjmEJgZKtwdQhOJZy9clsypwqFv6h/Cva3/SuOEcwBoS2N/YY766jDP8nU4OcUaZWqEcMhRsSs1mil4T+rTnUfQEUKU9xW1j/iFq3xVWDTaBY+5cBgwUmdZb8XoWhXUVoF73OD0NpitnXxsxHokXv+UZzPoydlsCzhfAngl11hELAuFe6/mfq801E1hT+zvzDEDvfwSBMDC14OGDoFORVe/HCBS3NFGpVV+IrqpIpT1wbNx2dazmngduviErpXTgZG2vrCMQN1rN0OeLRtOMcjE6rer+ruuc5hfvTGMwWOgteqd2YQUwgAYJKoZIhvcNAQcBMBQGCCqGSIb3DQMHBAhwRO3eyigWMaCABBhy88Lm9qisQ9sOaf8u8GSzoWFdw2LkjRMECAKJG0H5K6iTAAAAAAAAAAAAAA=="},
+	}
+
+	ds.SetOrUpdateHostDiskEncryptionKeyFunc = func(ctx context.Context, id uint, recoveryKey []byte) error {
+		expected, err := base64.StdEncoding.DecodeString(result[0]["line"])
+		require.NoError(t, err)
+		assert.Equal(t, expected, recoveryKey)
+		return nil
+	}
+
+	err := directIngestDiskEncryptionKeyDarwin(ctx, logger, &host, ds, result, false)
+	require.NoError(t, err)
+}
+
+func TestDirectIngestDiskEncryptionKeyErrs(t *testing.T) {
+	ctx := context.Background()
+	logger := log.NewNopLogger()
+	ds := new(mock.Store)
+	host := fleet.Host{
+		ID: 1,
+	}
+
+	cases := []struct {
+		name   string
+		result []map[string]string
+		failed bool
+		errors bool
+	}{
+		{"failed query", []map[string]string{}, true, false},
+		{"no result", []map[string]string{}, false, false},
+		{
+			"invalid base64",
+			[]map[string]string{
+				{"line": "invalid"},
+			},
+			false,
+			true,
+		},
+	}
+
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			err := directIngestDiskEncryptionKeyDarwin(ctx, logger, &host, ds, tt.result, false)
+			if tt.errors {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
 }
