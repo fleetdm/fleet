@@ -52,23 +52,20 @@
   }
 
   &__table-select {
-
     // TODO: Remove these overrides when we do a style update for the core
     // dropdown component.
     &.Select {
-
       // fixes up some padding issues with the scroll bar for the dropdown.
       .Select-menu-outer {
         padding: 0;
 
         .Select-menu {
-          padding: $pad-xsmall
+          padding: $pad-xsmall;
         }
       }
 
       // use to truncate selected long table names in the dropdown
-      &.has-value.Select--single>.Select-control {
-
+      &.has-value.Select--single > .Select-control {
         .Select-value .Select-value-label {
           white-space: nowrap;
           overflow: hidden;
@@ -83,5 +80,18 @@
   &__description {
     font-size: $x-small;
     overflow-wrap: break-word;
+  }
+
+  &__mdm-required {
+    background-color: $core-vibrant-blue;
+    color: $core-white;
+    font-size: $x-small;
+    font-weight: 700;
+    padding: 2px 4px;
+    border-radius: 4px;
+    position: relative;
+    top: -2px;
+    min-width: 95px;
+    max-height: 19px;
   }
 }

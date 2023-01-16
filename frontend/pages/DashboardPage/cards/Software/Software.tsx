@@ -1,9 +1,10 @@
-import React from "react";
+import React, { useContext } from "react";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 import { Row } from "react-table";
 import { InjectedRouter } from "react-router";
 import PATHS from "router/paths";
 
+import { AppContext } from "context/app";
 import { buildQueryStringFromParams } from "utilities/url";
 
 import TabsWrapper from "components/TabsWrapper";
@@ -51,6 +52,8 @@ const Software = ({
   software,
   router,
 }: ISoftwareCardProps): JSX.Element => {
+  const { noSandboxHosts } = useContext(AppContext);
+
   const tableHeaders = generateTableHeaders();
 
   const handleRowSelect = (row: IRowProps) => {
@@ -66,13 +69,15 @@ const Software = ({
   const emptyState = (vuln = false) => {
     const emptySoftware: IEmptyTableProps = {
       header: "No software detected",
-      info:
-        "This report is updated every hour to protect the performance of your devices.",
+      info: `This report is updated every ${
+        noSandboxHosts ? "15 minutes " : "hour"
+      } to protect the performance of your devices.`,
     };
     if (vuln) {
       emptySoftware.header = "No vulnerable software detected";
-      emptySoftware.info =
-        "This report is updated every hour to protect the performance of your devices.";
+      emptySoftware.info = `This report is updated every ${
+        noSandboxHosts ? "15 minutes " : "hour"
+      } to protect the performance of your devices.`;
     }
     return emptySoftware;
   };
