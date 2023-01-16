@@ -2065,6 +2065,7 @@ Device-authenticated routes are routes used by the Fleet Desktop application. Un
 - [Get device's policies](#get-devices-policies)
 - [Get device's API features](#get-devices-api-features)
 - [Get device's transparency URL](#get-devices-transparency-url)
+- [Download device's MDM manual enrollment profile](#download-devices-mdm-manual-enrollment-profile)
 
 #### Get device's host
 
@@ -2397,6 +2398,34 @@ Returns the URL to open when clicking the "Transparency" menu item in Fleet Desk
 `Status: 307`
 
 Redirects to the transparency URL.
+
+#### Download device's MDM manual enrollment profile
+
+Downloads the Mobile Device Management (MDM) enrollment profile to install on the device for a manual enrollment into Fleet MDM.
+
+`GET /api/v1/fleet/device/{token}/mdm/apple/manual_enrollment_profile`
+
+##### Parameters
+
+| Name            | Type   | In    | Description                            |
+| --------------- | ------ | ----- | ---------------------------------------|
+| token           | string | path  | The device's authentication token.     |
+
+##### Example
+
+`GET /api/v1/fleet/device/abcdef012456789/mdm/apple/manual_enrollment_profile`
+
+##### Default response
+
+`Status: 200`
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<!-- ... -->
+</plist>
+```
 
 ---
 

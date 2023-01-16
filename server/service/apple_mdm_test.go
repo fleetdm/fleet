@@ -187,6 +187,14 @@ func TestAppleMDMAuthorization(t *testing.T) {
 	// information. The user must configure fleet with the new key pair and restart the server.
 	_, err = svc.NewMDMAppleDEPKeyPair(ctx)
 	require.NoError(t, err)
+
+	// Must be device-authenticated, should fail
+	_, err = svc.GetDeviceMDMAppleEnrollmentProfile(ctx)
+	checkAuthErr(t, err, true)
+	// works with device-authenticated context
+	ctx = test.HostContext(context.Background(), &fleet.Host{})
+	_, err = svc.GetDeviceMDMAppleEnrollmentProfile(ctx)
+	require.NoError(t, err)
 }
 
 func TestMDMAppleEnrollURL(t *testing.T) {
