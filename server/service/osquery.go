@@ -565,6 +565,17 @@ func (svc *Service) GetDistributedQueries(ctx context.Context) (queries map[stri
 		queries[hostPolicyQueryPrefix+name] = query
 	}
 
+	mdmQueries, mdmDiscovery, err := svc.mdmQueriesForHost(ctx, host)
+	if err != nil {
+		return nil, nil, 0, osqueryError{message: err.Error()}
+	}
+	for name, query := range mdmQueries {
+		queries[hostMDMQueryPrefix+name] = query
+	}
+	for name, query := range mdmDiscovery {
+		discovery[name] = query
+	}
+
 	accelerate = uint(0)
 	if host.Hostname == "" || host.Platform == "" {
 		// Assume this host is just enrolling, and accelerate checkins
@@ -675,6 +686,26 @@ func (svc *Service) policyQueriesForHost(ctx context.Context, host *fleet.Host) 
 		return nil, ctxerr.Wrap(ctx, err, "retrieve policy queries")
 	}
 	return policyQueries, nil
+}
+
+func (svc *Service) mdmQueriesForHost(ctx context.Context, host *fleet.Host) (map[string]string, map[string]string, error) {
+	queries := make(map[string]string)
+	discovery := make(map[string]string)
+	mdmQueries := osquery_utils.GetMDMQueries()
+
+	for name, query := range mdmQueries {
+		if query.RunsForPlatform(host.Platform) {
+			queryName := hostMDMQueryPrefix + name
+			queries[queryName] = query.Query
+			discoveryQuery := query.Discovery
+			if discoveryQuery == "" {
+				discoveryQuery = alwaysTrueQuery
+			}
+			discovery[queryName] = discoveryQuery
+		}
+	}
+
+	return queries, discovery, nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -791,6 +822,9 @@ const (
 	// hostDistributedQueryPrefix is appended before the query name when a query is
 	// run from a distributed query campaign
 	hostDistributedQueryPrefix = "fleet_distributed_query_"
+
+	// TODO
+	hostMDMQueryPrefix = "fleet_mdm_query_"
 )
 
 func (svc *Service) SubmitDistributedQueryResults(
@@ -828,7 +862,7 @@ func (svc *Service) SubmitDistributedQueryResults(
 			ll.Log("query", query, "message", messages[query], "hostID", host.ID)
 		}
 
-		ingestedDetailUpdated, ingestedAdditionalUpdated, err := svc.ingestQueryResults(
+		report, err := svc.ingestQueryResults(
 			ctx, query, host, rows, failed, messages, policyResults, labelResults, additionalResults,
 		)
 		if err != nil {
@@ -836,8 +870,8 @@ func (svc *Service) SubmitDistributedQueryResults(
 			logging.WithExtras(ctx, "ingestion-err", err)
 		}
 
-		detailUpdated = detailUpdated || ingestedDetailUpdated
-		additionalUpdated = additionalUpdated || ingestedAdditionalUpdated
+		detailUpdated = detailUpdated || report.DetailUpdated
+		additionalUpdated = additionalUpdated || report.AdditionalUpdated
 	}
 
 	ac, err := svc.ds.AppConfig(ctx)
@@ -934,6 +968,12 @@ func (svc *Service) SubmitDistributedQueryResults(
 	return nil
 }
 
+type updateReport struct {
+	DetailUpdated     bool
+	AdditionalUpdated bool
+	MDMUpdated        bool
+}
+
 func (svc *Service) ingestQueryResults(
 	ctx context.Context,
 	query string,
@@ -944,8 +984,8 @@ func (svc *Service) ingestQueryResults(
 	policyResults map[uint]*bool,
 	labelResults map[uint]*bool,
 	additionalResults fleet.OsqueryDistributedQueryResults,
-) (bool, bool, error) {
-	var detailUpdated, additionalUpdated bool
+) (updateReport, error) {
+	var report updateReport
 
 	// live queries we do want to ingest even if the query had issues, because we want to inform the user of these
 	// issues
@@ -964,7 +1004,7 @@ func (svc *Service) ingestQueryResults(
 
 	if failed {
 		// if a query failed, and it might be a detailed query or host additional, don't even try to ingest it
-		return false, false, err
+		return updateReport{}, err
 	}
 
 	switch {
@@ -974,17 +1014,25 @@ func (svc *Service) ingestQueryResults(
 		ingested, err = svc.directIngestDetailQuery(ctx, host, trimmedQuery, rows)
 		if !ingested && err == nil {
 			err = svc.ingestDetailQuery(ctx, host, trimmedQuery, rows)
-			// No err != nil check here because ingestDetailQuery could have updated
-			// successfully some values of host.
-			detailUpdated = true
+			// No err != nil check here because ingestDetailQuery could
+			// have updated successfully some values of host.
+			report.DetailUpdated = true
 		}
 	case strings.HasPrefix(query, hostAdditionalQueryPrefix):
 		name := strings.TrimPrefix(query, hostAdditionalQueryPrefix)
 		additionalResults[name] = rows
-		additionalUpdated = true
+		report.AdditionalUpdated = true
+	case strings.HasPrefix(query, hostMDMQueryPrefix):
+		trimmedQuery := strings.TrimPrefix(query, hostDetailQueryPrefix)
+		err = svc.ingestMDMQuery(ctx, host, trimmedQuery, rows)
+		report.MDMUpdated = true
 	}
 
-	return detailUpdated, additionalUpdated, err
+	return report, err
+}
+
+func (svc *Service) ingestMDMQuery(ctx context.Context, host *fleet.Host, query string, rows []map[string]string) error {
+	return nil
 }
 
 var noSuchTableRegexp = regexp.MustCompile(`^no such table: \S+$`)

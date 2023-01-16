@@ -2264,6 +2264,15 @@ func (ds *Datastore) getOrInsertMunkiIssues(ctx context.Context, errors, warning
 	return msgToID, nil
 }
 
+func (ds *Datastore) SetOrUpdateHostDiskEncryptionKey(ctx context.Context, hostID uint, key []byte) error {
+	return ds.updateOrInsert(
+		ctx,
+		`UPDATE host_disk_encryption_keys SET disk_encryption_key = ? WHERE host_id = ?`,
+		`INSERT INTO host_disk_encryption_keys (disk_encryption_key, host_id) VALUES (?, ?)`,
+		key, hostID,
+	)
+}
+
 func (ds *Datastore) SetOrUpdateMDMData(
 	ctx context.Context,
 	hostID uint,

@@ -2,6 +2,7 @@ package osquery_utils
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"regexp"
 	"strconv"
@@ -21,7 +22,7 @@ import (
 	"github.com/spf13/cast"
 )
 
-type DetailQuery struct {
+type FleetQuery struct {
 	// Query is the SQL query string.
 	Query string
 	// Discovery is the SQL query that defines whether the query will run on the host or not.
@@ -44,7 +45,7 @@ type DetailQuery struct {
 }
 
 // RunsForPlatform determines whether this detail query should run on the given platform
-func (q *DetailQuery) RunsForPlatform(platform string) bool {
+func (q *FleetQuery) RunsForPlatform(platform string) bool {
 	if len(q.Platforms) == 0 {
 		return true
 	}
@@ -61,7 +62,7 @@ func (q *DetailQuery) RunsForPlatform(platform string) bool {
 // fleet.Host data model (via IngestFunc).
 //
 // This map should not be modified at runtime.
-var hostDetailQueries = map[string]DetailQuery{
+var hostDetailQueries = map[string]FleetQuery{
 	"network_interface_unix": {
 		Query: `
 select
@@ -382,7 +383,7 @@ func ingestKubequeryInfo(ctx context.Context, logger log.Logger, host *fleet.Hos
 // (via DirectIngestFunc).
 //
 // This map should not be modified at runtime.
-var extraDetailQueries = map[string]DetailQuery{
+var extraDetailQueries = map[string]FleetQuery{
 	"mdm": {
 		Query:            `select enrolled, server_url, installed_from_dep, payload_identifier from mdm;`,
 		DirectIngestFunc: directIngestMDMMac,
@@ -507,6 +508,36 @@ var extraDetailQueries = map[string]DetailQuery{
 	},
 }
 
+// mdmQueries TODO: add description
+// This map should not be modified at runtime.
+var mdmQueries = map[string]FleetQuery{
+	"disk_encryption_key_darwin": {
+		// This query has two pre-requisites:
+		//
+		// 1. FileVault must be enabled with a personal recovery key.
+		// 2. The "FileVault Recovery Key Escrow" profile must be configured
+		//    in the host.
+		//
+		// This file is safe to access and well documented by Apple under the
+		// [Configuration Profile Reference][1], under "FDE Recovery Key Escrow
+		// Payload".
+		//
+		// > If FileVault is enabled after this payload is installed on the system,
+		// > the FileVault PRK will be encrypted with the specified certificate,
+		// > wrapped with a CMS envelope and stored at /var/db/FileVaultPRK.dat. The
+		// > encrypted data will be made available to the MDM server as part of the
+		// > SecurityInfo command. Alternatively, if a site uses its own
+		// > administration software, it can extract the PRK from the foregoing
+		// > location at any time.
+		//
+		// [1]: https://developer.apple.com/business/documentation/Configuration-Profile-Reference.pdf
+		Query:            `SELECT to_base64(line) FROM file_lines WHERE path='/var/db/FileVaultPRK.dat'`,
+		Platforms:        []string{"darwin"},
+		DirectIngestFunc: directIngestDiskEncryptionKeyDarwin,
+		Discovery:        discoveryTable("file_lines"),
+	},
+}
+
 // discoveryTable returns a query to determine whether a table exists or not.
 func discoveryTable(tableName string) string {
 	return fmt.Sprintf("SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = '%s';", tableName)
@@ -521,14 +552,14 @@ func withCachedUsers(query string) string {
 	return fmt.Sprintf(query, usersQueryStr)
 }
 
-var windowsUpdateHistory = DetailQuery{
+var windowsUpdateHistory = FleetQuery{
 	Query:            `SELECT date, title FROM windows_update_history WHERE result_code = 'Succeeded'`,
 	Platforms:        []string{"windows"},
 	Discovery:        discoveryTable("windows_update_history"),
 	DirectIngestFunc: directIngestWindowsUpdateHistory,
 }
 
-var softwareMacOS = DetailQuery{
+var softwareMacOS = FleetQuery{
 	// Note that we create the cached_users CTE (the WITH clause) in order to suggest to SQLite
 	// that it generates the users once instead of once for each UNIONed query. We use CROSS JOIN to
 	// ensure that the nested loops in the query generation are ordered correctly for the _extensions
@@ -602,7 +633,7 @@ FROM homebrew_packages;
 	DirectIngestFunc: directIngestSoftware,
 }
 
-var scheduledQueryStats = DetailQuery{
+var scheduledQueryStats = FleetQuery{
 	Query: `
 			SELECT *,
 				(SELECT value from osquery_flags where name = 'pack_delimiter') AS delimiter
@@ -610,7 +641,7 @@ var scheduledQueryStats = DetailQuery{
 	DirectTaskIngestFunc: directIngestScheduledQueryStats,
 }
 
-var softwareLinux = DetailQuery{
+var softwareLinux = FleetQuery{
 	Query: withCachedUsers(`WITH cached_users AS (%s)
 SELECT
   name AS name,
@@ -697,7 +728,7 @@ FROM python_packages;
 	DirectIngestFunc: directIngestSoftware,
 }
 
-var softwareWindows = DetailQuery{
+var softwareWindows = FleetQuery{
 	Query: withCachedUsers(`WITH cached_users AS (%s)
 SELECT
   name AS name,
@@ -759,7 +790,7 @@ FROM cached_users CROSS JOIN atom_packages USING (uid);
 	DirectIngestFunc: directIngestSoftware,
 }
 
-var usersQuery = DetailQuery{
+var usersQuery = FleetQuery{
 	// Note we use the cached_groups CTE (`WITH` clause) here to suggest to SQLite that it generate
 	// the `groups` table only once. Without doing this, on some Windows systems (Domain Controllers)
 	// with many user accounts and groups, this query could be very expensive as the `groups` table
@@ -1191,8 +1222,45 @@ func directIngestDiskEncryption(ctx context.Context, logger log.Logger, host *fl
 	return ds.SetOrUpdateHostDisksEncryption(ctx, host.ID, encrypted)
 }
 
-func GetDetailQueries(ctx context.Context, fleetConfig config.FleetConfig, features *fleet.Features) map[string]DetailQuery {
-	generatedMap := make(map[string]DetailQuery)
+func directIngestDiskEncryptionKeyDarwin(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
+	if len(rows) == 0 {
+		// assume the extension is not there
+		level.Debug(logger).Log(
+			"component", "service",
+			"method", "directIngestDiskEncryptionKeyDarwin",
+			"msg", "no rows or failed",
+			"host", host.Hostname,
+		)
+		return nil
+	}
+
+	if len(rows) > 1 {
+		level.Debug(logger).Log(
+			"component", "service",
+			"method", "directIngestDiskEncryptionKeyDarwin",
+			"msg", fmt.Sprintf("/var/db/FileVaultPRK.dat should have a single line, but got %d", len(rows)),
+			"host", host.Hostname,
+		)
+	}
+
+	data, err := base64.StdEncoding.DecodeString(rows[0]["line"])
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "decoding base64 FileVault key")
+	}
+
+	return ds.SetOrUpdateHostDiskEncryptionKey(ctx, host.ID, data)
+}
+
+func GetMDMQueries() map[string]FleetQuery {
+	queries := make(map[string]FleetQuery, len(mdmQueries))
+	for k, v := range mdmQueries {
+		queries[k] = v
+	}
+	return queries
+}
+
+func GetDetailQueries(ctx context.Context, fleetConfig config.FleetConfig, features *fleet.Features) map[string]FleetQuery {
+	generatedMap := make(map[string]FleetQuery)
 	for key, query := range hostDetailQueries {
 		generatedMap[key] = query
 	}
