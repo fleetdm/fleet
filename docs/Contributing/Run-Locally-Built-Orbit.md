@@ -1,5 +1,5 @@
 # Run Locally Built Orbit 
-(MacOS only at this time)
+(MacOS)
 
 
 ### Run fleet server (And the released Orbit).
