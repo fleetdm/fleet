@@ -52,6 +52,8 @@ spec:
           ## BEGIN FLEET SECTION
           - name: FLEET_SERVER_SANDBOX_ENABLED
             value: "1"
+          - name: FLEET_VULNERABILITIES_PERIODICITY
+            value: "5m"
           - name: FLEET_LICENSE_ENFORCE_HOST_LIMIT
             value: "true"
           - name: FLEET_VULNERABILITIES_DATABASES_PATH
