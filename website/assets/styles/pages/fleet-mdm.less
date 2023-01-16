@@ -223,6 +223,14 @@
       border-radius: 6px;
       height: 48px;
     }
+    // Disable default buttons on type="number" inputs
+    input::-webkit-outer-spin-button, input::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+    input[type='number'] {
+      -moz-appearance: textfield;
+    }
     label {
       font-weight: 700;
     }

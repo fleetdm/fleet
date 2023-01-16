@@ -241,9 +241,13 @@ module.exports = {
 
         if(!fleetOverrideToPush.description) {
           throw new Error(`Could not add a new table from the Fleet overrides to final merged schema, the "${fleetOverrideToPush.name}" table is missing a 'description' value. To resolve, add a description to this table to the Fleet overrides schema at ${path.resolve(topLvlRepoPath+'/schema/tables', fleetOverrideToPush.name+'.yml')}. Tip: If this table is meant to override a table in the osquery schema, you may want to check that the "name" value of the added table is the same as the table in the osquery schema located at https://github.com/osquery/osquery-site/source/src/data/osquery_schema_versions/${VERSION_OF_OSQUERY_SCHEMA_TO_USE}.json`);
+        } else if(typeof fleetOverrideToPush.description !== 'string'){
+          throw new Error(`Could not add a new table from the Fleet overrides to final merged schema, The "description" of the "${fleetOverridesForTable.name}" table is an invalid type (Eexpected a string, but instead got a ${typeof fleetOverrideToPush.description}). to resolve, change the tables's "description" to be a string.`);
         }
         if(!fleetOverrideToPush.platforms) {
           throw new Error(`Could not add a new table from the Fleet overrides to final merged schema, the "${fleetOverrideToPush.name}" table is missing a 'platforms' value. To resolve, add an array of platforms to this table to the Fleet overrides schema at ${path.resolve(topLvlRepoPath+'/schema/tables', fleetOverrideToPush.name+'.yml')}. Tip: If this table is meant to override a table in the osquery schema, you may want to check that the "name" value of the added table is the same as the table in the osquery schema located at https://github.com/osquery/osquery-site/source/src/data/osquery_schema_versions/${VERSION_OF_OSQUERY_SCHEMA_TO_USE}.json`);
+        } else if(!_.isArray(fleetOverrideToPush.platforms)) {
+          throw new Error(`Could not add a new table from the Fleet overrides to final merged schema, the "${fleetOverrideToPush.name}" table has an invalid 'platforms' value. (expected an array, but instead got a ${typeof fleetOverrideToPush.platforms}) To resolve, change the "platforms" value to be an array of values, then try runing this script again.`);
         }
         if(fleetOverrideToPush.evented === undefined) {
           throw new Error(`Could not add a new table from the Fleet overrides to final merged schema, the "${fleetOverrideToPush.name}" table is missing a 'evented' value. To resolve, add an evented value to this table to the Fleet overrides schema at ${path.resolve(topLvlRepoPath+'/schema/tables', fleetOverrideToPush.name+'.yml')} .\n Tip: If this table is meant to override a table in the osquery schema, you may want to check that the "name" value of the added table is the same as the table in the osquery schema https://github.com/osquery/osquery-site/source/src/data/osquery_schema_versions/${VERSION_OF_OSQUERY_SCHEMA_TO_USE}.json`);
@@ -252,6 +256,8 @@ module.exports = {
         }
         if(!fleetOverrideToPush.columns) {
           throw new Error(`Could not add a new table from the Fleet overrides to final merged schema. The "${fleetOverrideToPush.name}" table is missing a "columns" value. To resolve, add an array of columns to this table to the Fleet overrides schema at ${path.resolve(topLvlRepoPath+'/schema/tables', fleetOverrideToPush.name+'.yml')}. Tip: If this table is meant to override a table in the osquery schema, you may want to check that the "name" value of the added table is the same as the table in the osquery schema located at https://github.com/osquery/osquery-site/source/src/data/osquery_schema_versions/${VERSION_OF_OSQUERY_SCHEMA_TO_USE}.json`);
+        } else if(!_.isArray(fleetOverrideToPush.columns)){
+          throw new Error(`Could not add a new table from the Fleet overrides to final merged schema, the "${fleetOverrideToPush.name}" table has an invalid "columns" value. (Expected an array, but instead got a ${typeof fleetOverrideToPush.columns}) To resolve, change the "columns" value to be an array of values, then try runing this script again.`);
         } else {
 
           for(let columnToValidate of fleetOverrideToPush.columns) { // Check each column in the table to make sure it has the required values, and that all values are the correct type.

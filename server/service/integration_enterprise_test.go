@@ -1237,27 +1237,10 @@ func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
 	})
 	require.NoError(t, err)
 
-	host, err := s.ds.NewHost(context.Background(), &fleet.Host{
-		DetailUpdatedAt: time.Now(),
-		LabelUpdatedAt:  time.Now(),
-		PolicyUpdatedAt: time.Now(),
-		SeenTime:        time.Now().Add(-1 * time.Minute),
-		OsqueryHostID:   ptr.String(t.Name()),
-		NodeKey:         ptr.String(t.Name()),
-		UUID:            uuid.New().String(),
-		Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
-		Platform:        "darwin",
-	})
-	require.NoError(t, err)
+	token := "much_valid"
+	host := createHostAndDeviceToken(t, s.ds, token)
 	err = s.ds.AddHostsToTeam(context.Background(), &team.ID, []uint{host.ID})
 	require.NoError(t, err)
-
-	// create an auth token for host
-	token := "much_valid"
-	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
-		_, err := db.ExecContext(context.Background(), `INSERT INTO host_device_auth (host_id, token) VALUES (?, ?)`, host.ID, token)
-		return err
-	})
 
 	qr, err := s.ds.NewQuery(context.Background(), &fleet.Query{
 		Name:           "TestQueryEnterpriseGlobalPolicy",
@@ -1352,25 +1335,8 @@ func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
 func (s *integrationEnterpriseTestSuite) TestCustomTransparencyURL() {
 	t := s.T()
 
-	host, err := s.ds.NewHost(context.Background(), &fleet.Host{
-		DetailUpdatedAt: time.Now(),
-		LabelUpdatedAt:  time.Now(),
-		PolicyUpdatedAt: time.Now(),
-		SeenTime:        time.Now().Add(-1 * time.Minute),
-		OsqueryHostID:   ptr.String(t.Name()),
-		NodeKey:         ptr.String(t.Name()),
-		UUID:            uuid.New().String(),
-		Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
-		Platform:        "darwin",
-	})
-	require.NoError(t, err)
-
-	// create device token for host
 	token := "token_test_custom_transparency_url"
-	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
-		_, err := db.ExecContext(context.Background(), `INSERT INTO host_device_auth (host_id, token) VALUES (?, ?)`, host.ID, token)
-		return err
-	})
+	createHostAndDeviceToken(t, s.ds, token)
 
 	// confirm intitial default url
 	acResp := appConfigResponse{}
@@ -1413,6 +1379,44 @@ func (s *integrationEnterpriseTestSuite) TestCustomTransparencyURL() {
 	rawResp.Body.Close()                             //nolint:errcheck
 	require.NoError(t, deviceResp.Err)
 	require.Equal(t, fleet.DefaultTransparencyURL, rawResp.Header.Get("Location"))
+}
+
+func (s *integrationEnterpriseTestSuite) TestDefaultAppleBMTeam() {
+	t := s.T()
+
+	tm, err := s.ds.NewTeam(context.Background(), &fleet.Team{
+		Name:        t.Name(),
+		Description: "desc",
+	})
+	require.NoError(s.T(), err)
+
+	var acResp appConfigResponse
+
+	// try to set an invalid team name
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": {
+			"apple_bm_default_team": "xyz"
+		}
+	}`), http.StatusUnprocessableEntity, &acResp)
+
+	// get the appconfig, nothing changed
+	acResp = appConfigResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	require.Empty(t, acResp.MDM.AppleBMDefaultTeam)
+
+	// set to a valid team name
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
+		"mdm": {
+			"apple_bm_default_team": %q
+		}
+	}`, tm.Name)), http.StatusOK, &acResp)
+	require.Equal(t, tm.Name, acResp.MDM.AppleBMDefaultTeam)
+
+	// get the appconfig, set to that team name
+	acResp = appConfigResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	require.Equal(t, tm.Name, acResp.MDM.AppleBMDefaultTeam)
 }
 
 func (s *integrationEnterpriseTestSuite) TestSSOJITProvisioning() {
@@ -1948,4 +1952,25 @@ func allEqual(t *testing.T, expect, actual interface{}, fields ...string) {
 		}
 		require.Equal(t, e.Interface(), a.Interface(), "%s", f)
 	}
+}
+
+func createHostAndDeviceToken(t *testing.T, ds *mysql.Datastore, token string) *fleet.Host {
+	host, err := ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now().Add(-1 * time.Minute),
+		OsqueryHostID:   ptr.String(t.Name()),
+		NodeKey:         ptr.String(t.Name()),
+		UUID:            uuid.New().String(),
+		Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
+		Platform:        "darwin",
+	})
+	require.NoError(t, err)
+
+	mysql.ExecAdhocSQL(t, ds, func(db sqlx.ExtContext) error {
+		_, err := db.ExecContext(context.Background(), `INSERT INTO host_device_auth (host_id, token) VALUES (?, ?)`, host.ID, token)
+		return err
+	})
+	return host
 }

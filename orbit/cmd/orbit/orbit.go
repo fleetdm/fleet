@@ -710,6 +710,7 @@ func main() {
 				desktopChannel:  c.String("desktop-channel"),
 				trw:             trw,
 			}),
+			table.WithExtension(sntpRequest{}),
 		)
 
 		if c.Bool("fleet-desktop") {

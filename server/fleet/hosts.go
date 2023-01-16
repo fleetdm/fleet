@@ -344,7 +344,9 @@ func PlatformFromHost(hostPlatform string) string {
 	switch {
 	case IsLinux(hostPlatform):
 		return "linux"
-	case hostPlatform == "darwin", hostPlatform == "windows":
+	case hostPlatform == "darwin", hostPlatform == "windows",
+		// Some customers have custom agents that support ChromeOS
+		hostPlatform == "CrOS":
 		return hostPlatform
 	default:
 		return ""
