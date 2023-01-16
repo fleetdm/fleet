@@ -91,7 +91,6 @@ module.exports = {
 
     // Parse the JSON result from the mdm-gen-cert command
     let generateCertificateResult = JSON.parse(generateCertificateCommand.stdout);
-
     // Throw an error if the result from the mdm-gen-cert command is missing an email value.
     if(!generateCertificateResult.email) {
       throw new Error('When trying to generate a signed CSR for a user, the result from the mdm-gen-cert command did not contain a email.');
@@ -100,8 +99,8 @@ module.exports = {
     if(!generateCertificateResult.org) {
       throw new Error('When trying to generate a signed CSR for a user, the result from the mdm-gen-cert command did not contain an organization name');
     }
-    // Throw an error if the result from the mdm-gen-cert command is missing an result value.
-    if(!generateCertificateResult.result) {
+    // Throw an error if the result from the mdm-gen-cert command is missing an request value.
+    if(!generateCertificateResult.request) {
       throw new Error('When trying to generate a signed CSR for a user, the result from the mdm-gen-cert command did not contain a certificate');
     }
 
@@ -139,7 +138,7 @@ module.exports = {
       template: 'email-signed-csr-for-apns',
       templateData: {},
       attachments: [{
-        contentBytes: generateCertificateResult.result,
+        contentBytes: generateCertificateResult.request,
         name: 'apple-apns-request.txt',
         type: 'text/plain',
       }],
