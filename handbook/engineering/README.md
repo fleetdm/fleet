@@ -732,7 +732,6 @@ Automated tests are important, but they can't catch everything. Many issues are 
 The goal of quality assurance is to identify corrections and improvements before release:
 - Bugs
 - Edge cases
-
 - Error message UX
 - Developer experience using the API/CLI
 - Operator experience looking at logs
