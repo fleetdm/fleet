@@ -760,7 +760,7 @@ func registerMDM(
 	// 4. Pass a copy of the request to Fleet middleware that ingests new hosts from pending MDM
 	// enrollments and updates the Fleet hosts table accordingly with the UDID and serial number of
 	// the device.
-	// 4. Run actual MDM service operation (checkin handler or command and results handler).
+	// 5. Run actual MDM service operation (checkin handler or command and results handler).
 	coreMDMService := nanomdm.New(mdmStorage, nanomdm.WithLogger(mdmLogger))
 	var mdmService nanomdm_service.CheckinAndCommandService = multi.New(mdmLogger, coreMDMService, checkinAndCommandService)
 

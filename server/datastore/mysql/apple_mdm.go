@@ -485,11 +485,8 @@ func upsertMDMAppleHostMDMInfoDB(ctx context.Context, tx sqlx.ExtContext, server
 	if insertOnDuplicateDidInsert(result) {
 		mdmID, _ = result.LastInsertId()
 	} else {
-		err := tx.QueryRowxContext(ctx, `
-			SELECT id FROM mobile_device_management_solutions
-			WHERE name = ? AND server_url = ?`,
-			fleet.WellKnownMDMFleet, serverURL).Scan(&mdmID)
-		if err != nil {
+		stmt := `SELECT id FROM mobile_device_management_solutions WHERE name = ? AND server_url = ?`
+		if err := sqlx.GetContext(ctx, tx, &mdmID, stmt, fleet.WellKnownMDMFleet, serverURL); err != nil {
 			return ctxerr.Wrap(ctx, err, "query mdm solution id")
 		}
 	}

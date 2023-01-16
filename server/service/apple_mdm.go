@@ -972,7 +972,7 @@ func NewMDMAppleCheckinAndCommandService(ds fleet.Datastore) *MDMAppleCheckinAnd
 // that at this point you can't send any commands to the device yet because we
 // haven't received a token, nor a PushMagic.
 //
-// We use it to perform post-enrollment taks such as creating a host record,
+// We use it to perform post-enrollment tasks such as creating a host record,
 // adding activities to the log, etc.
 //
 // [1]: https://developer.apple.com/documentation/devicemanagement/authenticate
