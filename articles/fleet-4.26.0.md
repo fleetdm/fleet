@@ -85,4 +85,4 @@ Visit our [upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in
 <meta name="authorGitHubUsername" value="noahtalerman">
 <meta name="publishedOn" value="2023-01-16">
 <meta name="articleTitle" value="Fleet 4.26.0 | Easier osquery extensions, external audit log destinations, and cleaner data lakes">
-<meta name="articleImageUrl" value="../website/assets/images/articles/fleet-4.26.0-1600x900@2x">
+<meta name="articleImageUrl" value="../website/assets/images/articles/fleet-4.26.0-1600x900@2x.png">
