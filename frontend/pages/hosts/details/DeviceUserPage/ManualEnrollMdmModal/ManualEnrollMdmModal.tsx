@@ -1,4 +1,8 @@
-import React, { useState } from "react";
+import React, { useContext, useState } from "react";
+import { useQuery } from "react-query";
+import FileSaver from "file-saver";
+
+import { NotificationContext } from "context/notification";
 
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
@@ -7,24 +11,52 @@ import mdmAPI from "services/entities/mdm";
 
 export interface IInfoModalProps {
   onCancel: () => void;
+  token: string;
 }
 
 const baseClass = "manual-enroll-mdm-modal";
 
-const ManualEnrollMdmModal = ({ onCancel }: IInfoModalProps): JSX.Element => {
-  const [showDownloading, setshowDownloading] = useState(false);
+const ManualEnrollMdmModal = ({
+  onCancel,
+  token,
+}: IInfoModalProps): JSX.Element => {
+  const { renderFlash } = useContext(NotificationContext);
 
-  const handleDownload = async () => {
-    setshowDownloading(true);
-    setTimeout(() => {
-      setshowDownloading(false);
-    }, 1000);
+  const [showDownloading, setShowDownloading] = useState(false);
 
-    try {
-      await mdmAPI.downloadEnrollmentProfile();
-    } catch (e) {
-      console.error("error downloading profile:", e);
+  const {
+    data: enrollmentProfile,
+    error: fetchMdmProfileError,
+    isFetching: isFetchingMdmProfile,
+  } = useQuery<string, Error>(
+    ["enrollment profile"],
+    () => mdmAPI.downloadDeviceUserEnrollmentProfile(token),
+    {
+      refetchOnWindowFocus: false,
     }
+  );
+
+  const onDownloadProfile = (evt: React.MouseEvent) => {
+    evt.preventDefault();
+
+    setShowDownloading(true);
+
+    if (enrollmentProfile) {
+      const filename = "fleet-mdm-enrollment-profile.mobileconfig";
+      const file = new global.window.File([enrollmentProfile], filename, {
+        type: "application/x-apple-aspen-config",
+      });
+
+      FileSaver.saveAs(file);
+    } else {
+      renderFlash(
+        "error",
+        "Your enrollment profile could not be downloaded. Please try again."
+      );
+    }
+
+    setShowDownloading(false);
+    return false;
   };
 
   return (
@@ -36,16 +68,27 @@ const ManualEnrollMdmModal = ({ onCancel }: IInfoModalProps): JSX.Element => {
         </p>
         <ol>
           <li>
-            <span>Download your profile.</span>
-            <Button
-              type="button"
-              onClick={handleDownload}
-              variant="brand"
-              isLoading={showDownloading}
-              className={`${baseClass}__download-button`}
-            >
-              Download
-            </Button>
+            {isFetchingMdmProfile && <span>Loading your profile.</span>}
+            {!isFetchingMdmProfile && (
+              <>
+                <span>Download your profile.</span>
+              </>
+            )}
+            {fetchMdmProfileError ? (
+              <span className={`${baseClass}__error`}>
+                {fetchMdmProfileError}
+              </span>
+            ) : (
+              <Button
+                type="button"
+                onClick={onDownloadProfile}
+                variant="brand"
+                isLoading={isFetchingMdmProfile}
+                className={`${baseClass}__download-button`}
+              >
+                Download
+              </Button>
+            )}
           </li>
           <li>
             From the Apple menu in the top left corner of your screen, select{" "}

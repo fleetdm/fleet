@@ -34,7 +34,7 @@ import AboutCard from "../cards/About";
 import SoftwareCard from "../cards/Software";
 import PoliciesCard from "../cards/Policies";
 import InfoModal from "./InfoModal";
-import MdmModal from "./MdmModal";
+import ManualEnrollMdmModal from "./ManualEnrollMdmModal";
 
 import InfoIcon from "../../../../../assets/images/icon-info-purple-14x14@2x.png";
 import FleetIcon from "../../../../../assets/images/fleet-avatar-24x24@2x.png";
@@ -219,7 +219,6 @@ const DeviceUserPage = ({
     setShowMdmModal(!showMdmModal);
   }, [showMdmModal, setShowMdmModal]);
 
-  console.log("new");
   const togglePolicyDetailsModal = useCallback(
     (policy: IHostPolicy) => {
       setShowPolicyDetailsModal(!showPolicyDetailsModal);
@@ -341,7 +340,12 @@ const DeviceUserPage = ({
               </Tabs>
             </TabsWrapper>
             {showInfoModal && <InfoModal onCancel={toggleInfoModal} />}
-            {showMdmModal && <MdmModal onCancel={toggleTurnOnMdmModal} />}
+            {showMdmModal && (
+              <ManualEnrollMdmModal
+                onCancel={toggleTurnOnMdmModal}
+                token={deviceAuthToken}
+              />
+            )}
           </div>
         )}
         {!!host && showPolicyDetailsModal && (

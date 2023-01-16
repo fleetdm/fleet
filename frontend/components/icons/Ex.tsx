@@ -1,17 +1,17 @@
 import React from "react";
 import { COLORS, Colors } from "styles/var/colors";
-import { SIZES, Sizes } from "styles/var/sizes";
+import { ICON_SIZES, IconSizes } from "styles/var/icon_sizes";
 
 interface IExProps {
   color?: Colors;
-  size?: Sizes;
+  size?: IconSizes;
 }
 
 const Ex = ({ size = "small", color = "status-error" }: IExProps) => {
   return (
     <svg
-      width={SIZES[size]}
-      height={SIZES[size]}
+      width={ICON_SIZES[size]}
+      height={ICON_SIZES[size]}
       viewBox="0 0 16 16"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
