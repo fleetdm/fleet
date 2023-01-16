@@ -36,6 +36,7 @@ the account verification message.)`,
     },
 
     organization: {
+      required: true,
       type: 'string',
       maxLength: 120,
       example: 'The Sails company',
@@ -102,8 +103,9 @@ the account verification message.)`,
     // Provisioning a Fleet sandbox instance for the new user. Note: Because this is the only place where we provision Sandbox instances, We'll provision a Sandbox instance BEFORE
     // creating the new User record. This way, if this fails, we won't save the new record to the database, and the user will see an error on the signup form asking them to try again.
 
+    const FIVE_DAYS_IN_MS = (5*24*60*60*1000);
     // Creating an expiration JS timestamp for the Fleet sandbox instance. NOTE: We send this value to the cloud provisioner API as an ISO 8601 string.
-    let fleetSandboxExpiresAt = Date.now() + (24*60*60*1000);
+    let fleetSandboxExpiresAt = Date.now() + FIVE_DAYS_IN_MS;
 
     // Creating a fleetSandboxDemoKey, this will be used for the user's password when we log them into their Sandbox instance.
     let fleetSandboxDemoKey = await sails.helpers.strings.uuid();
@@ -140,7 +142,7 @@ the account verification message.)`,
       );
     }
 
-    // If "Try Fleet Sandbox" was provided as the signupReason, we'll send a request to Zapier to add this user to our CRM and make sure their Sandbox instance is live before we continue.
+    // If "Try Fleet Sandbox" was provided as the signupReason, we'll make sure their Sandbox instance is live before we continue.
     if(signupReason === 'Try Fleet Sandbox') {
       // Start polling the /healthz endpoint of the created Fleet Sandbox instance, once it returns a 200 response, we'll continue.
       await sails.helpers.flow.until( async()=>{
@@ -184,9 +186,9 @@ the account verification message.)`,
       'https://hooks.zapier.com/hooks/catch/3627242/bqsf4rj/',
       {
         'emailAddress': newEmailAddress,
-        'organization': organization ? organization : '?',// « organization input is optional
-        'firstName': firstName !== emailAddress.split('@')[0] ? firstName : '?',// « firstName input is always set, but it might have just been a guess based on email.  And if was a guess, let's just use "?" instead.
-        'lastName': lastName !== emailAddress.split('@')[1] ? lastName : '?',// « lastName input is always set, like firstName
+        'organization': organization,
+        'firstName': firstName,
+        'lastName': lastName,
         'signupReason': signupReason,
         'webhookSecret': sails.config.custom.zapierSandboxWebhookSecret
       }
