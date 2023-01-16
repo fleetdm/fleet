@@ -2,7 +2,7 @@
 name: 🎟  Technical sub-task
 about: Specify an optional technical sub-task for a Scrum user story. 
 title: ''
-labels: 'technical sub-task'
+labels: 'sub-task'
 assignees: ''
 
 ---
