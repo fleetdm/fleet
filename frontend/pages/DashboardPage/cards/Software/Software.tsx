@@ -69,15 +69,13 @@ const Software = ({
   const emptyState = (vuln = false) => {
     const emptySoftware: IEmptyTableProps = {
       header: "No software detected",
-      info:
-        `This report is updated every ${
+      info: `This report is updated every ${
         noSandboxHosts ? "15 minutes " : "hour"
       } to protect the performance of your devices.`,
     };
     if (vuln) {
       emptySoftware.header = "No vulnerable software detected";
-      emptySoftware.info =
-        `This report is updated every ${
+      emptySoftware.info = `This report is updated every ${
         noSandboxHosts ? "15 minutes " : "hour"
       } to protect the performance of your devices.`;
     }
@@ -143,18 +141,9 @@ const Software = ({
                   hideActionButton
                   resultsTitle={"software"}
                   emptyComponent={() =>
-<<<<<<< HEAD
                     EmptyTable({
                       header: emptyState().header,
                       info: emptyState().info,
-=======
-                    EmptySoftware({
-                      message:
-                        (!isSoftwareEnabled && "disabled") ||
-                        (isCollectingInventory && "collecting") ||
-                        "default",
-                      noSandboxHosts,
->>>>>>> sandcastle
                     })
                   }
                   showMarkAllPages={false}
