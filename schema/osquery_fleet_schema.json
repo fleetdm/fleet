@@ -8625,6 +8625,15 @@
         "hidden": true,
         "required": false,
         "index": false
+      },
+      {
+        "name": "codesigning_flags",
+        "description": "Codesigning flags matching one of these options, in a comma separated list: NOT_VALID, ADHOC, NOT_RUNTIME, INSTALLER. See kern/cs_blobs.h in XNU for descriptions.",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
       }
     ],
     "osqueryRepoUrl": "https://github.com/osquery/osquery/blob/master/specs/darwin/es_process_events.table",
@@ -20505,6 +20514,229 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/secureboot.yml"
   },
   {
+    "name": "security_profile_info",
+    "description": "Information on the security profile of a given system by listing the system Account and Audit Policies. This table mimics the exported securitypolicy output from the secedit tool.",
+    "url": "https://fleetdm.com/tables/security_profile_info",
+    "platforms": [
+      "windows"
+    ],
+    "evented": false,
+    "cacheable": false,
+    "notes": "",
+    "examples": [],
+    "columns": [
+      {
+        "name": "minimum_password_age",
+        "description": "Determines the minimum number of days that a password must be used before the user can change it",
+        "type": "integer",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "maximum_password_age",
+        "description": "Determines the maximum number of days that a password can be used before the client requires the user to change it",
+        "type": "integer",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "minimum_password_length",
+        "description": "Determines the least number of characters that can make up a password for a user account",
+        "type": "integer",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "password_complexity",
+        "description": "Determines whether passwords must meet a series of strong-password guidelines",
+        "type": "integer",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "password_history_size",
+        "description": "Number of unique new passwords that must be associated with a user account before an old password can be reused",
+        "type": "integer",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "lockout_bad_count",
+        "description": "Number of failed logon attempts after which a user account MUST be locked out",
+        "type": "integer",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "logon_to_change_password",
+        "description": "Determines if logon session is required to change the password",
+        "type": "integer",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "force_logoff_when_expire",
+        "description": "Determines whether SMB client sessions with the SMB server will be forcibly disconnected when the client's logon hours expire",
+        "type": "integer",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "new_administrator_name",
+        "description": "Determines the name of the Administrator account on the local computer",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "new_guest_name",
+        "description": "Determines the name of the Guest account on the local computer",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "clear_text_password",
+        "description": "Determines whether passwords MUST be stored by using reversible encryption",
+        "type": "integer",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "lsa_anonymous_name_lookup",
+        "description": "Determines if an anonymous user is allowed to query the local LSA policy",
+        "type": "integer",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "enable_admin_account",
+        "description": "Determines whether the Administrator account on the local computer is enabled",
+        "type": "integer",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "enable_guest_account",
+        "description": "Determines whether the Guest account on the local computer is enabled",
+        "type": "integer",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "audit_system_events",
+        "description": "Determines whether the operating system MUST audit System Change, System Startup, System Shutdown, Authentication Component Load, and Loss or Excess of Security events",
+        "type": "integer",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "audit_logon_events",
+        "description": "Determines whether the operating system MUST audit each instance of a user attempt to log on or log off this computer",
+        "type": "integer",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "audit_object_access",
+        "description": "Determines whether the operating system MUST audit each instance of user attempts to access a non-Active Directory object that has its own SACL specified",
+        "type": "integer",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "audit_privilege_use",
+        "description": "Determines whether the operating system MUST audit each instance of user attempts to exercise a user right",
+        "type": "integer",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "audit_policy_change",
+        "description": "Determines whether the operating system MUST audit each instance of user attempts to change user rights assignment policy, audit policy, account policy, or trust policy",
+        "type": "integer",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "audit_account_manage",
+        "description": "Determines whether the operating system MUST audit each event of account management on a computer",
+        "type": "integer",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "audit_process_tracking",
+        "description": "Determines whether the operating system MUST audit process-related events",
+        "type": "integer",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "audit_ds_access",
+        "description": "Determines whether the operating system MUST audit each instance of user attempts to access an Active Directory object that has its own system access control list (SACL) specified",
+        "type": "integer",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "audit_account_logon",
+        "description": "Determines whether the operating system MUST audit each time this computer validates the credentials of an account",
+        "type": "integer",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      }
+    ],
+    "osqueryRepoUrl": "https://github.com/osquery/osquery/blob/master/specs/windows/security_profile_info.table",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/new/main/schema/tables/?filename=%2Ftables%2Fsecurity_profile_info.yml&value=name%3A%20security_profile_info%0Adescription%3A%20%3E-%20%23%20(required)%20string%20-%20The%20description%20for%20this%20table.%20Note%3A%20this%20field%20supports%20markdown%0A%09%23%20Add%20description%20here%0Aexamples%3A%20%3E-%20%23%20(optional)%20string%20-%20An%20example%20query%20for%20this%20table.%20Note%3A%20This%20field%20supports%20markdown%0A%09%23%20Add%20examples%20here%0Anotes%3A%20%3E-%20%23%20(optional)%20string%20-%20Notes%20about%20this%20table.%20Note%3A%20This%20field%20supports%20markdown.%0A%09%23%20Add%20notes%20here%0Acolumns%3A%20%23%20(required)%0A%09-%20name%3A%20%23%20(required)%20string%20-%20The%20name%20of%20the%20column%0A%09%20%20description%3A%20%23%20(required)%20string%20-%20The%20column's%20description%0A%09%20%20type%3A%20%23%20(required)%20string%20-%20the%20column's%20data%20type%0A%09%20%20required%3A%20%23%20(required)%20boolean%20-%20whether%20or%20not%20this%20column%20is%20required%20to%20query%20this%20table."
+  },
+  {
     "name": "selinux_events",
     "description": "Track SELinux events.",
     "url": "https://fleetdm.com/tables/selinux_events",
@@ -26408,7 +26640,11 @@
     "name": "file_lines",
     "notes": "Requires [macadmins-extension](https://github.com/macadmins/osquery-extension/), which is included by default on osquery packages built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
     "description": "Allows reading an arbitrary file.",
-    "platforms": "darwin, windows, linux",
+    "platforms": [
+      "darwin",
+      "windows",
+      "linux"
+    ],
     "evented": false,
     "examples": "Output the content of `/etc/hosts` line by line. \n```\nSELECT * FROM file_lines WHERE path='/etc/hosts';\n```",
     "columns": [
@@ -26426,13 +26662,15 @@
       }
     ],
     "url": "https://fleetdm.com/tables/file_lines",
-    "fleetRepoUrl": "https://github.com/edit/fleetdm/fleet/schema/tables/file_lines.yml"
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/file_lines.yml"
   },
   {
     "name": "filevault_users",
     "notes": "Requires [macadmins-extension](https://github.com/macadmins/osquery-extension/), which is included by default on osquery packages built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
     "description": "Information on the users able to unlock the current boot volume if protected with FileVault.",
-    "platforms": "darwin",
+    "platforms": [
+      "darwin"
+    ],
     "evented": false,
     "examples": "List the usernames able to unlock and boot a computer protected by FileVault, joined to [users.username](http://fleetdm.com/tables/users) to obtain the description of the operating system account that owns it.\n```\nSELECT fu.username, u.description FROM filevault_users fu JOIN users u ON fu.uuid=u.uuid;\n```",
     "columns": [
@@ -26450,13 +26688,17 @@
       }
     ],
     "url": "https://fleetdm.com/tables/filevault_users",
-    "fleetRepoUrl": "https://github.com/edit/fleetdm/fleet/schema/tables/filevault_users.yml"
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/filevault_users.yml"
   },
   {
     "name": "google_chrome_profiles",
     "notes": "Requires [macadmins-extension](https://github.com/macadmins/osquery-extension/), which is included by default on osquery packages built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
     "description": "Profiles configured in Google Chrome.",
-    "platforms": "darwin, windows, linux",
+    "platforms": [
+      "darwin",
+      "windows",
+      "linux"
+    ],
     "evented": false,
     "examples": "List the Google Chrome accounts logged in to with `fleetdm.com` email addresses, joined to the [users](https://fleetdm.com/tables/users) table, to see the description of the operating system account that owns it.\n```\nSELECT gp.email, gp.username, u.description FROM google_chrome_profiles gp JOIN users u ON gp.username=u.username WHERE gp.email LIKE '%fleetdm.com';\n```",
     "columns": [
@@ -26486,7 +26728,7 @@
       }
     ],
     "url": "https://fleetdm.com/tables/google_chrome_profiles",
-    "fleetRepoUrl": "https://github.com/edit/fleetdm/fleet/schema/tables/google_chrome_profiles.yml"
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/google_chrome_profiles.yml"
   },
   {
     "name": "icloud_private_relay",
@@ -26505,13 +26747,15 @@
     "notes": "- This table is not a core osquery table. It is included as part of Fleetd, the osquery manager from Fleet. ",
     "evented": false,
     "url": "https://fleetdm.com/tables/icloud_private_relay",
-    "fleetRepoUrl": "https://github.com/edit/fleetdm/fleet/schema/tables/icloud_private_relay.yml"
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/icloud_private_relay.yml"
   },
   {
     "name": "macadmins_unified_log",
     "notes": "Requires [macadmins-extension](https://github.com/macadmins/osquery-extension/), which is included by default on osquery packages built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
     "description": "Allows querying macOS [unified logs](https://developer.apple.com/documentation/os/logging).",
-    "platforms": "darwin",
+    "platforms": [
+      "darwin"
+    ],
     "evented": false,
     "examples": "Select the log entries that happened during the last minute and are related to `LaunchServices`. Convert the UNIX time to a human readable format,  and the signature table to verify its cryptographic signature.\n```\nSELECT u.category, u.event_message, u.process_id, datetime(u.timestamp, 'unixepoch') AS human_time, p.path, s.signed, s.identifier, s.authority FROM macadmins_unified_log u JOIN processes p ON u.process_id = p.pid JOIN signature s ON p.path = s.path WHERE u.sender_image_path LIKE '%LaunchServices%' AND last = \"1m\";\n```",
     "columns": [
@@ -26619,13 +26863,15 @@
       }
     ],
     "url": "https://fleetdm.com/tables/macadmins_unified_log",
-    "fleetRepoUrl": "https://github.com/edit/fleetdm/fleet/schema/tables/macadmins_unified_log.yml"
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/macadmins_unified_log.yml"
   },
   {
     "name": "macos_profiles",
     "notes": "Requires [macadmins-extension](https://github.com/macadmins/osquery-extension/), which is included by default on osquery packages built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
     "description": "High level information on installed profiles enrollment.",
-    "platforms": "darwin",
+    "platforms": [
+      "darwin"
+    ],
     "evented": false,
     "examples": "Identify all profiles that are not *verified*.\n```\nSELECT display_name, install_date FROM macos_profiles WHERE verification_state!='verified';  \n```",
     "columns": [
@@ -26679,13 +26925,83 @@
       }
     ],
     "url": "https://fleetdm.com/tables/macos_profiles",
-    "fleetRepoUrl": "https://github.com/edit/fleetdm/fleet/schema/tables/macos_profiles.yml"
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/macos_profiles.yml"
+  },
+  {
+    "name": "munki_info",
+    "notes": "Requires [macadmins-extension](https://github.com/macadmins/osquery-extension/), which is included by default on osquery packages built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).<p> Code based on work by [Kolide](https://github.com/kolide/launcher).",
+    "description": "Information from the last [Munki](https://github.com/munki/munki) run.",
+    "platforms": [
+      "darwin"
+    ],
+    "evented": false,
+    "examples": "Output errors, warnings and problematic installations from Munki.\n```\nSELECT errors, warnings, problem_installs FROM munki_info ;\n```",
+    "columns": [
+      {
+        "name": "console_user",
+        "description": "The username of the user currently logged into the console of the Mac.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "end_time",
+        "description": "The date and time at which the latest Munki run ended.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "errors",
+        "description": "If Munki encountered any error during the last run, they will be returned in this column.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "manifest_name",
+        "description": "The internal manifest name",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "problem_installs",
+        "description": "A list of installs that did not succeed, if any.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "start_time",
+        "description": "The date and time at which the latest Munki run started.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "success",
+        "description": "Shows if the Munki run was a success (true), or not (false).",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "version",
+        "description": "The version of Munki used during the last run.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "warnings",
+        "description": "If Munki encountered any error during the last run, they will be returned in this column.",
+        "required": false,
+        "type": "text"
+      }
+    ],
+    "url": "https://fleetdm.com/tables/munki_info",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/munki_info.yml"
   },
   {
     "name": "mdm",
     "notes": "Requires [macadmins-extension](https://github.com/macadmins/osquery-extension/), which is included by default on osquery packages built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).<p> Code based on work by [Kolide](https://github.com/kolide/launcher). <p> Due to changes in macOS 12.3, the output of `profiles show -type enrollment` can only be generated once a day. If you are running this command with another tool, you should set the `PROFILES_SHOW_ENROLLMENT_CACHE_PATH` environment variable to the path you are caching this. The cache file should be `json` with the keys `dep_capable` and `rate_limited present`, both booleans representing whether the device is capable of DEP enrollment and whether the response from `profiles show -type enrollment` is being rate limited or not.",
     "description": "Information on the device's MDM enrollment.",
-    "platforms": "darwin",
+    "platforms": [
+      "darwin"
+    ],
     "evented": false,
     "examples": "Identify Macs that are DEP capable but have not been enrolled to MDM.\n```\nSELECT * FROM mdm WHERE dep_capable='true' AND enrolled='false';\n```",
     "columns": [
@@ -26769,79 +27085,15 @@
       }
     ],
     "url": "https://fleetdm.com/tables/mdm",
-    "fleetRepoUrl": "https://github.com/edit/fleetdm/fleet/schema/tables/mdm.yml"
-  },
-  {
-    "name": "munki_info",
-    "notes": "Requires [macadmins-extension](https://github.com/macadmins/osquery-extension/), which is included by default on osquery packages built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).<p> Code based on work by [Kolide](https://github.com/kolide/launcher).",
-    "description": "Information from the last [Munki](https://github.com/munki/munki) run.",
-    "platforms": "darwin",
-    "evented": false,
-    "examples": "Output errors, warnings and problematic installations from Munki.\n```\nSELECT errors, warnings, problem_installs FROM munki_info ;\n```",
-    "columns": [
-      {
-        "name": "console_user",
-        "description": "The username of the user currently logged into the console of the Mac.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "end_time",
-        "description": "The date and time at which the latest Munki run ended.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "errors",
-        "description": "If Munki encountered any error during the last run, they will be returned in this column.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "manifest_name",
-        "description": "The internal manifest name",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "problem_installs",
-        "description": "A list of installs that did not succeed, if any.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "start_time",
-        "description": "The date and time at which the latest Munki run started.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "success",
-        "description": "Shows if the Munki run was a success (true), or not (false).",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "version",
-        "description": "The version of Munki used during the last run.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "warnings",
-        "description": "If Munki encountered any error during the last run, they will be returned in this column.",
-        "required": false,
-        "type": "text"
-      }
-    ],
-    "url": "https://fleetdm.com/tables/munki_info",
-    "fleetRepoUrl": "https://github.com/edit/fleetdm/fleet/schema/tables/munki_info.yml"
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/mdm.yml"
   },
   {
     "name": "munki_installs",
     "notes": "Requires [macadmins-extension](https://github.com/macadmins/osquery-extension/), which is included by default on osquery packages built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).<p> Code based on work by [Kolide](https://github.com/kolide/launcher).",
     "description": "Software packages and other items [Munki](https://github.com/munki/munki) is managing.",
-    "platforms": "darwin",
+    "platforms": [
+      "darwin"
+    ],
     "evented": false,
     "examples": "See the version of software that has been deployed by Munki.\n```\nSELECT name, installed_version FROM munki_installs WHERE installed='true';\n```",
     "columns": [
@@ -26871,13 +27123,17 @@
       }
     ],
     "url": "https://fleetdm.com/tables/munki_installs",
-    "fleetRepoUrl": "https://github.com/edit/fleetdm/fleet/schema/tables/munki_installs.yml"
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/munki_installs.yml"
   },
   {
     "name": "puppet_facts",
     "notes": "Requires [macadmins-extension](https://github.com/macadmins/osquery-extension/), which is included by default on osquery packages built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
     "description": "Facts about [Puppet](https://puppet.com/). Puppet facts are *key:value* pairs.",
-    "platforms": "darwin, windows, linux",
+    "platforms": [
+      "darwin",
+      "windows",
+      "linux"
+    ],
     "evented": false,
     "examples": "List all Puppet facts.\n```\nSELECT * FROM puppet_facts;\n```",
     "columns": [
@@ -26901,13 +27157,17 @@
       }
     ],
     "url": "https://fleetdm.com/tables/puppet_facts",
-    "fleetRepoUrl": "https://github.com/edit/fleetdm/fleet/schema/tables/puppet_facts.yml"
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/puppet_facts.yml"
   },
   {
     "name": "puppet_info",
     "notes": "Requires [macadmins-extension](https://github.com/macadmins/osquery-extension/), which is included by default on osquery packages built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
     "description": "Information on the last [Puppet](https://puppet.com/) run. This table uses data from the `last_run_report` that Puppet creates.",
-    "platforms": "darwin, windows, linux",
+    "platforms": [
+      "darwin",
+      "windows",
+      "linux"
+    ],
     "evented": false,
     "examples": "List all the information available about the last Puppet run.\n```\nSELECT * FROM puppet_info;\n```",
     "columns": [
@@ -27015,61 +27275,17 @@
       }
     ],
     "url": "https://fleetdm.com/tables/puppet_info",
-    "fleetRepoUrl": "https://github.com/edit/fleetdm/fleet/schema/tables/puppet_info.yml"
-  },
-  {
-    "name": "puppet_logs",
-    "notes": "Requires [macadmins-extension](https://github.com/macadmins/osquery-extension/), which is included by default on osquery packages built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
-    "description": "Outputs [Puppet](https://puppet.com/) logs from the last run.",
-    "platforms": "darwin, windows, linux",
-    "evented": false,
-    "examples": "List Puppet logs that are of a level of anything but informational.\n```\nSELECT * FROM puppet_logs WHERE level!='info';\n```",
-    "columns": [
-      {
-        "name": "level",
-        "description": "The level of the log item (info, error, etc).",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "message",
-        "description": "The log message content.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "source",
-        "description": "The source of the log item.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "time",
-        "description": "The time at which this item was logged.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "file",
-        "description": "The file from which osquery read this log.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "line",
-        "description": "The line from which this log item was read.",
-        "required": false,
-        "type": "text"
-      }
-    ],
-    "url": "https://fleetdm.com/tables/puppet_logs",
-    "fleetRepoUrl": "https://github.com/edit/fleetdm/fleet/schema/tables/puppet_logs.yml"
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/puppet_info.yml"
   },
   {
     "name": "puppet_state",
     "notes": "Requires [macadmins-extension](https://github.com/macadmins/osquery-extension/), which is included by default on osquery packages built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
     "description": "State of every resource [Puppet](https://puppet.com/) is managing. This table uses data from the `last_run_report` that Puppet creates.",
-    "platforms": "darwin, windows, linux",
+    "platforms": [
+      "darwin",
+      "windows",
+      "linux"
+    ],
     "evented": false,
     "examples": "List resources that failed or took over a minute to evaluate.\n```\nSELECT * FROM puppet_state WHERE failed='true' OR evaluation_time>'60';\n```",
     "columns": [
@@ -27153,6 +27369,58 @@
       }
     ],
     "url": "https://fleetdm.com/tables/puppet_state",
-    "fleetRepoUrl": "https://github.com/edit/fleetdm/fleet/schema/tables/puppet_state.yml"
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/puppet_state.yml"
+  },
+  {
+    "name": "puppet_logs",
+    "notes": "Requires [macadmins-extension](https://github.com/macadmins/osquery-extension/), which is included by default on osquery packages built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
+    "description": "Outputs [Puppet](https://puppet.com/) logs from the last run.",
+    "platforms": [
+      "darwin",
+      "windows",
+      "linux"
+    ],
+    "evented": false,
+    "examples": "List Puppet logs that are of a level of anything but informational.\n```\nSELECT * FROM puppet_logs WHERE level!='info';\n```",
+    "columns": [
+      {
+        "name": "level",
+        "description": "The level of the log item (info, error, etc).",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "message",
+        "description": "The log message content.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "source",
+        "description": "The source of the log item.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "time",
+        "description": "The time at which this item was logged.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "file",
+        "description": "The file from which osquery read this log.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "line",
+        "description": "The line from which this log item was read.",
+        "required": false,
+        "type": "text"
+      }
+    ],
+    "url": "https://fleetdm.com/tables/puppet_logs",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/puppet_logs.yml"
   }
 ]

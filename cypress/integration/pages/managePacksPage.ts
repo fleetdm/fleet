@@ -8,6 +8,7 @@ const managePacksPage = {
   },
 
   allowsCreatePack: () => {
+    cy.getAttached(".empty-table__container");
     cy.findByRole("button", { name: /create new pack/i }).click();
     cy.findByLabelText(/name/i).click().type("Errors and crashes");
     cy.findByLabelText(/description/i)

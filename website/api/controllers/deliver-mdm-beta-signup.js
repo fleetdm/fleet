@@ -12,20 +12,26 @@ module.exports = {
     emailAddress: {
       required: true,
       type: 'string',
-      description: 'The email address provided when a user submitted the mdm beta signup form.',
+      description: 'The email address provided when a user submitted the MDM beta signup form.',
       example: 'hermione@hogwarts.edu'
     },
 
     fullName: {
       required: true,
       type: 'string',
-      description: 'The name provided when a user submitted the mdm beta signup form',
+      description: 'The name provided when a user submitted the MDM beta signup form',
     },
 
     jobTitle: {
       required: true,
       type: 'string',
-      description: 'The job title provided when a user submitted the mdm beta signup form',
+      description: 'The job title provided when a user submitted the MDM beta signup form',
+    },
+
+    numberOfHosts: {
+      required: true,
+      type: 'number',
+      description: 'The number of hosts provided when a user submitted the MDM beta signup form',
     },
   },
 
@@ -39,7 +45,7 @@ module.exports = {
   },
 
 
-  fn: async function({emailAddress, fullName, jobTitle}) {
+  fn: async function({emailAddress, fullName, jobTitle, numberOfHosts}) {
 
     if(!sails.config.custom.zapierSandboxWebhookSecret) {
       throw new Error('Message not delivered: zapierSandboxWebhookSecret needs to be configured in sails.config.custom.');
@@ -52,6 +58,7 @@ module.exports = {
         'emailAddress': emailAddress,
         'fullName': fullName,
         'jobTitle': jobTitle,
+        'numberOfHosts': numberOfHosts,
         'webhookSecret': sails.config.custom.zapierSandboxWebhookSecret
       }
     )

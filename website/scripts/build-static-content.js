@@ -43,6 +43,7 @@ module.exports = {
           } else if (query.resolution === undefined) {
             query.resolution = 'N/A';// « We set this to a string here so that the data type is always string.  We use N/A so folks can see there's no remediation and contribute if desired.
           }
+          query.requiresMdm = false;
           if (query.tags) {
             if(!_.isString(query.tags)) {
               queriesWithProblematicTags.push(query);
@@ -52,8 +53,13 @@ module.exports = {
               let formattedTags = [];
               for (let tag of tagsToFormat) {
                 if(tag !== '') {// « Ignoring any blank tags caused by trailing commas in the YAML.
-                  // Removing any extra whitespace from tags and changing them to be in lower case.
-                  formattedTags.push(_.trim(tag.toLowerCase()));
+                  // If a query has a 'requires MDM' tag, we'll set requiresMDM to true for this query, and we'll ingore this tag.
+                  if(_.trim(tag.toLowerCase()) === 'mdm required'){
+                    query.requiresMdm = true;
+                  } else {
+                    // Removing any extra whitespace from tags and changing them to be in lower case.
+                    formattedTags.push(_.trim(tag.toLowerCase()));
+                  }
                 }
               }
               // Removing any duplicate tags.

@@ -1836,7 +1836,9 @@ If `after` is being used with `created_at` or `updated_at`, the table must be sp
           "type": "point",
           "coordinates": [40.6799, -74.0028]
         }
-      }
+      },
+      "mdm_enrollment_status": null,
+      "mdm_server_url": null
     }
   ]
 }
@@ -2211,7 +2213,9 @@ Returns the information of the specified host.
         "type": "point",
         "coordinates": [40.6799, -74.0028]
       }
-    }
+    },
+    "mdm_enrollment_status": null,
+    "mdm_server_url": null
   }
 }
 ```
@@ -2385,7 +2389,9 @@ Returns the information of the host specified using the `uuid`, `osquery_host_id
     },
     "status": "online",
     "display_text": "dogfood-ubuntu-box",
-    "display_name": "dogfood-ubuntu-box"
+    "display_name": "dogfood-ubuntu-box",
+    "mdm_enrollment_status": null,
+    "mdm_server_url": null
   }
 }
 ```

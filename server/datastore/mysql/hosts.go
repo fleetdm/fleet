@@ -419,13 +419,15 @@ SELECT
       host_id = h.id
   ) AS additional,
   COALESCE(failing_policies.count, 0) AS failing_policies_count,
-  COALESCE(failing_policies.count, 0) AS total_issues_count
+  COALESCE(failing_policies.count, 0) AS total_issues_count 
+  ` + hostMDMSelect + `
 FROM
   hosts h
   LEFT JOIN teams t ON (h.team_id = t.id)
   LEFT JOIN host_seen_times hst ON (h.id = hst.host_id)
   LEFT JOIN host_updates hu ON (h.id = hu.host_id)
   LEFT JOIN host_disks hd ON hd.host_id = h.id
+  LEFT JOIN host_mdm hmdm on hmdm.host_id = h.id
   JOIN (
     SELECT
       count(*) as count
@@ -471,6 +473,21 @@ LIMIT
 
 	return &host, nil
 }
+
+const hostMDMSelect = `,
+	CASE
+		WHEN hmdm.is_server = 1 THEN NULL
+		WHEN hmdm.enrolled = 1 AND hmdm.installed_from_dep = 0 THEN 'On (manual)'
+		WHEN hmdm.enrolled = 1 AND hmdm.installed_from_dep = 1 THEN 'On (automatic)'
+		WHEN hmdm.enrolled = 0 AND hmdm.installed_from_dep = 1 THEN 'Pending'
+		WHEN hmdm.enrolled = 0 AND hmdm.installed_from_dep = 0 THEN 'Off'
+		ELSE NULL
+	END AS mdm_enrollment_status,
+	CASE 
+		WHEN hmdm.is_server = 1 THEN NULL
+		ELSE hmdm.server_url 
+	END as mdm_server_url
+	`
 
 func amountEnrolledHostsByOSDB(ctx context.Context, db sqlx.QueryerContext) (byOS map[string][]fleet.HostsCountByOSVersion, totalCount int, err error) {
 	var hostsByOS []struct {
@@ -548,6 +565,8 @@ func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt
     t.name AS team_name,
     COALESCE(hu.software_updated_at, h.created_at) AS software_updated_at
 	`
+
+	sql += hostMDMSelect
 
 	if opt.DeviceMapping {
 		sql += `,
@@ -632,11 +651,6 @@ func (ds *Datastore) applyHostFilters(opt fleet.HostListOptions, sql string, fil
 		failingPoliciesJoin = ""
 	}
 
-	mdmJoin := ` JOIN host_mdm hmdm ON h.id = hmdm.host_id `
-	if opt.MDMIDFilter == nil && opt.MDMEnrollmentStatusFilter == "" {
-		mdmJoin = ""
-	}
-
 	operatingSystemJoin := ""
 	if opt.OSIDFilter != nil || (opt.OSNameFilter != nil && opt.OSVersionFilter != nil) {
 		operatingSystemJoin = `JOIN host_operating_system hos ON h.id = hos.host_id`
@@ -666,7 +680,7 @@ func (ds *Datastore) applyHostFilters(opt fleet.HostListOptions, sql string, fil
     LEFT JOIN host_updates hu ON (h.id = hu.host_id)
     LEFT JOIN teams t ON (h.team_id = t.id)
     LEFT JOIN host_disks hd ON hd.host_id = h.id
-    %s
+	LEFT JOIN host_mdm hmdm ON hmdm.host_id = h.id
     %s
     %s
     %s
@@ -680,7 +694,6 @@ func (ds *Datastore) applyHostFilters(opt fleet.HostListOptions, sql string, fil
 		deviceMappingJoin,
 		policyMembershipJoin,
 		failingPoliciesJoin,
-		mdmJoin,
 		operatingSystemJoin,
 		munkiJoin,
 		displayNameJoin,
@@ -1380,10 +1393,12 @@ func (ds *Datastore) SearchHosts(ctx context.Context, filter fleet.TeamFilter, m
     COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,
     COALESCE(hst.seen_time, h.created_at) AS seen_time,
 	COALESCE(hu.software_updated_at, h.created_at) AS software_updated_at
+	` + hostMDMSelect + `
   FROM hosts h
   LEFT JOIN host_seen_times hst ON (h.id = hst.host_id)
   LEFT JOIN host_updates hu ON (h.id = hu.host_id)
   LEFT JOIN host_disks hd ON hd.host_id = h.id
+  LEFT JOIN host_mdm hmdm on hmdm.host_id = h.id
   WHERE TRUE`
 
 	var args []interface{}
@@ -1483,11 +1498,13 @@ func (ds *Datastore) HostByIdentifier(ctx context.Context, identifier string) (*
       COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,
       COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,
       COALESCE(hst.seen_time, h.created_at) AS seen_time,
-	  COALESCE(hu.software_updated_at, h.created_at) AS software_updated_at
+	  COALESCE(hu.software_updated_at, h.created_at) AS software_updated_at 
+	  ` + hostMDMSelect + `
     FROM hosts h
     LEFT JOIN host_seen_times hst ON (h.id = hst.host_id)
 	LEFT JOIN host_updates hu ON (h.id = hu.host_id)
     LEFT JOIN host_disks hd ON hd.host_id = h.id
+	LEFT JOIN host_mdm hmdm ON hmdm.host_id = h.id
     WHERE ? IN (h.hostname, h.osquery_host_id, h.node_key, h.uuid)
     LIMIT 1
 	`
@@ -2269,7 +2286,7 @@ func (ds *Datastore) GetHostMDM(ctx context.Context, hostID uint) (*fleet.HostMD
 	var hmdm fleet.HostMDM
 	err := sqlx.GetContext(ctx, ds.reader, &hmdm, `
 		SELECT
-			hm.host_id, hm.enrolled, hm.server_url, hm.installed_from_dep, hm.mdm_id, COALESCE(mdms.name, ?) AS name
+			hm.host_id, hm.enrolled, hm.server_url, hm.installed_from_dep, hm.mdm_id, hm.is_server, COALESCE(mdms.name, ?) AS name
 		FROM
 			host_mdm hm
 		LEFT OUTER JOIN

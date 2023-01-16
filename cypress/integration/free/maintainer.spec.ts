@@ -85,7 +85,6 @@ describe(
       it("allows maintainer to see and click 'Add label', 'Add hosts', and 'Manage enroll secrets' buttons", () => {
         manageHostsPage.allowsAddHosts();
         manageHostsPage.allowsManageAndAddSecrets();
-        manageHostsPage.allowsAddHosts();
       });
     });
     describe("Host details page", () => {

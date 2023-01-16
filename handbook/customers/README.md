@@ -449,7 +449,7 @@ The following [Slack channels are maintained](https://fleetdm.com/handbook/compa
 
 | Slack channel                       | [DRI](https://fleetdm.com/handbook/company#group-slack-channels)    |
 |:------------------------------------|:--------------------------------------------------------------------|
-| `#help-customers`           | Zay Hanlon                                                     |
+| `#g-customer-experience`           | Zay Hanlon                                                     |
 | `#fleet-at-*` _(customer channels)_ | Kathy Satterlee                                                     |
 | `#g-sales`                     | Alex Mitchell |
 | `#_from-prospective-customers` | Alex Mitchell |

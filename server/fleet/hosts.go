@@ -201,6 +201,12 @@ type Host struct {
 	// encoded from this column, it is processed before marshaling, hence why the
 	// struct tag here has csv:"-".
 	DeviceMapping *json.RawMessage `json:"device_mapping,omitempty" db:"device_mapping" csv:"-"`
+
+	// MDMEnrollmentStatus is a string representation of state derived from booleans stored in the host_mdm
+	// table, loaded by JOIN in datastore
+	MDMEnrollmentStatus *string `json:"mdm_enrollment_status" db:"mdm_enrollment_status" csv:"mdm_enrollment_status"`
+	// MDMServerURL is the server_url stored in the host_mdm table, loaded by JOIN in datastore
+	MDMServerURL *string `json:"mdm_server_url" db:"mdm_server_url" csv:"mdm_server_url"`
 }
 
 // DisplayName returns ComputerName if it isn't empty. Otherwise, it returns Hostname if it isn't
@@ -344,7 +350,9 @@ func PlatformFromHost(hostPlatform string) string {
 	switch {
 	case IsLinux(hostPlatform):
 		return "linux"
-	case hostPlatform == "darwin", hostPlatform == "windows":
+	case hostPlatform == "darwin", hostPlatform == "windows",
+		// Some customers have custom agents that support ChromeOS
+		hostPlatform == "CrOS":
 		return hostPlatform
 	default:
 		return ""
@@ -388,6 +396,7 @@ type HostMDM struct {
 	Enrolled         bool   `db:"enrolled" json:"-"`
 	ServerURL        string `db:"server_url" json:"-"`
 	InstalledFromDep bool   `db:"installed_from_dep" json:"-"`
+	IsServer         bool   `db:"is_server" json:"-"`
 	MDMID            *uint  `db:"mdm_id" json:"-"`
 	Name             string `db:"name" json:"-"`
 }
@@ -449,6 +458,9 @@ func (h *HostMDM) EnrollmentStatus() string {
 
 func (h *HostMDM) MarshalJSON() ([]byte, error) {
 	if h == nil {
+		return []byte("null"), nil
+	}
+	if h.IsServer {
 		return []byte("null"), nil
 	}
 	var jsonMDM struct {

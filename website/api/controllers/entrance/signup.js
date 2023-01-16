@@ -36,6 +36,7 @@ the account verification message.)`,
     },
 
     organization: {
+      required: true,
       type: 'string',
       maxLength: 120,
       example: 'The Sails company',
@@ -141,7 +142,7 @@ the account verification message.)`,
       );
     }
 
-    // If "Try Fleet Sandbox" was provided as the signupReason, we'll send a request to Zapier to add this user to our CRM and make sure their Sandbox instance is live before we continue.
+    // If "Try Fleet Sandbox" was provided as the signupReason, we'll make sure their Sandbox instance is live before we continue.
     if(signupReason === 'Try Fleet Sandbox') {
       // Start polling the /healthz endpoint of the created Fleet Sandbox instance, once it returns a 200 response, we'll continue.
       await sails.helpers.flow.until( async()=>{
@@ -185,9 +186,9 @@ the account verification message.)`,
       'https://hooks.zapier.com/hooks/catch/3627242/bqsf4rj/',
       {
         'emailAddress': newEmailAddress,
-        'organization': organization ? organization : '?',// « organization input is optional
-        'firstName': firstName !== emailAddress.split('@')[0] ? firstName : '?',// « firstName input is always set, but it might have just been a guess based on email.  And if was a guess, let's just use "?" instead.
-        'lastName': lastName !== emailAddress.split('@')[1] ? lastName : '?',// « lastName input is always set, like firstName
+        'organization': organization,
+        'firstName': firstName,
+        'lastName': lastName,
         'signupReason': signupReason,
         'webhookSecret': sails.config.custom.zapierSandboxWebhookSecret
       }
