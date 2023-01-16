@@ -209,6 +209,14 @@ type Host struct {
 	MDMServerURL *string `json:"mdm_server_url" db:"mdm_server_url" csv:"mdm_server_url"`
 }
 
+// TODO(mna): rebase off of main once #9320 lands, as Sarah added the MDM
+// enrolment status in the host struct.
+
+// IsOsqueryEnrolled returns true if the host is enrolled via osquery.
+func (h *Host) IsOsqueryEnrolled() bool {
+	return h.OsqueryHostID != nil && *h.OsqueryHostID != ""
+}
+
 // DisplayName returns ComputerName if it isn't empty. Otherwise, it returns Hostname if it isn't
 // empty. If Hostname is empty and both HardwareSerial and HardwareModel are not empty, it returns a
 // composite string with HardwareModel and HardwareSerial. If all else fails, it returns an empty

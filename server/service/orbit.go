@@ -143,6 +143,11 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (flags json.RawMessage, 
 		return nil, nil, notifs, orbitError{message: "internal error: missing host from request context"}
 	}
 
+	// set the host's orbit notifications
+	if host.IsOsqueryEnrolled() && host.IsPendingFleetMDMEnrolment() {
+		notifs.RenewEnrollmentProfile = true
+	}
+
 	// team ID is not nil, get team specific flags and options
 	if host.TeamID != nil {
 		teamAgentOptions, err := svc.ds.TeamAgentOptions(ctx, *host.TeamID)
