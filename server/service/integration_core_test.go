@@ -4785,6 +4785,11 @@ func (s *integrationTestSuite) TestAppConfig() {
   }`), http.StatusOK, &acResp)
 	assert.True(t, acResp.MDM.AppleBMTermsExpired)
 
+	// try to set the apple bm default team, which is premium only
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": { "apple_bm_default_team": "xyz" }
+  }`), http.StatusUnprocessableEntity, &acResp)
+
 	// verify that the Apple BM terms expired flag was never modified
 	acResp = appConfigResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)

@@ -43,6 +43,9 @@ export default PropTypes.shape({
   organization: PropTypes.string,
   device_count: PropTypes.number,
   expiration: PropTypes.string,
+  mdm: PropTypes.shape({
+    apple_bm_terms_expired: PropTypes.bool,
+  }),
   note: PropTypes.string,
   // vulnerability_settings: PropTypes.any, TODO
   enable_host_status_webhook: PropTypes.bool,
@@ -213,6 +216,9 @@ export interface IConfig {
     };
   };
   mdm_enabled?: boolean;
+  mdm: {
+    apple_bm_terms_expired: boolean;
+  };
 }
 
 export interface IWebhookSettings {

@@ -359,7 +359,6 @@ type getDeviceMDMManualEnrollProfileResponse struct {
 }
 
 func (r getDeviceMDMManualEnrollProfileResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
-	// TODO(mna): does this filename look ok?
 	// make the browser download the content to a file
 	w.Header().Add("Content-Disposition", `attachment; filename="fleet-mdm-enrollment-profile.mobileconfig"`)
 	// explicitly set the content length before the write, so the caller can
