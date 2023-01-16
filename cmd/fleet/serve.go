@@ -468,15 +468,16 @@ the way that the Fleet server works.
 			}
 
 			var (
-				scepStorage      *apple_mdm.SCEPMySQLDepot
-				appleSCEPCertPEM []byte
-				appleSCEPKeyPEM  []byte
-				appleAPNsCertPEM []byte
-				appleAPNsKeyPEM  []byte
-				depStorage       *mysql.NanoDEPStorage
-				mdmStorage       *mysql.NanoMDMStorage
-				mdmPushService   *nanomdm_pushsvc.PushService
-				mdmPushCertTopic string
+				scepStorage                 *apple_mdm.SCEPMySQLDepot
+				appleSCEPCertPEM            []byte
+				appleSCEPKeyPEM             []byte
+				appleAPNsCertPEM            []byte
+				appleAPNsKeyPEM             []byte
+				depStorage                  *mysql.NanoDEPStorage
+				mdmStorage                  *mysql.NanoMDMStorage
+				mdmPushService              *nanomdm_pushsvc.PushService
+				mdmCheckinAndCommandService *service.MDMAppleCheckinAndCommandService
+				mdmPushCertTopic            string
 			)
 
 			// validate Apple APNs/SCEP config
@@ -552,9 +553,10 @@ the way that the Fleet server works.
 				if err != nil {
 					initFatal(err, "initialize mdm apple MySQL storage")
 				}
-				nanoMDMLogger := NewNanoMDMLogger(kitlog.With(logger, "component", "apple-mdm-push"))
+				nanoMDMLogger := service.NewNanoMDMLogger(kitlog.With(logger, "component", "apple-mdm-push"))
 				pushProviderFactory := buford.NewPushProviderFactory()
 				mdmPushService = nanomdm_pushsvc.New(mdmStorage, mdmStorage, pushProviderFactory, nanoMDMLogger)
+				mdmCheckinAndCommandService = service.NewMDMAppleCheckinAndCommandService(ds)
 			}
 
 			cronSchedules := fleet.NewCronSchedules()
@@ -748,15 +750,13 @@ the way that the Fleet server works.
 			rootMux.Handle("/assets/", service.PrometheusMetricsHandler("static_assets", service.ServeStaticAssets("/assets/")))
 
 			if config.MDMApple.Enable {
-				if err := registerAppleMDMProtocolServices(
+				if err := service.RegisterAppleMDMProtocolServices(
 					rootMux,
 					config.MDMApple.SCEP,
-					appleSCEPCertPEM,
-					appleSCEPKeyPEM,
 					mdmStorage,
 					scepStorage,
 					logger,
-					ds,
+					mdmCheckinAndCommandService,
 				); err != nil {
 					initFatal(err, "setup mdm apple services")
 				}

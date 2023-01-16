@@ -55,6 +55,7 @@
   - [What can I do if Fleet is slow or unresponsive after enabling a feature?](#what-can-i-do-if-fleet-is-slow-or-unresponseive-after-enabling-a-feature)
   - [Why am I seeing an "unsupported key" error when updating agent options?](#why-am-i-seeing-an-unsupported-key-error-when-updating-agent-options)
   - [How can I renew my Apple Business Manager server token?](#how-can-i-renew-my-apple-business-manager-server-token)
+  - [Why am I getting errors when generating a .msi package on MacOS?](#why-am-i-getting-errors-when-generating-a-msi-package-on-macos)
 
 ## How can I switch to Fleet from Kolide Fleet?
 
@@ -419,3 +420,7 @@ If you are not using the latest version of osquery, you can create a config YAML
 If you have configured Fleet with an Apple Business Manager server token for mobile device management (a Fleet Premium feature), you will eventually need to renew that token. [As documented in the Apple Business Manager User Guide](https://support.apple.com/en-ca/guide/apple-business-manager/axme0f8659ec/web), the token expires after a year or whenever the account that downloaded the token has their password changed.
 
 When that happens, the token is rejected by Apple and must be renewed. The detailed steps are documented in the Apple documentation link above - in short, the Apple Business Manager Administrator or Content Manager must sign in to their account and download a new server token for the Fleet MDM server, and all Fleet instances must be restarted with that new token provided instead of the old one (see the [MDM configuration documentation](https://fleetdm.com/docs/deploying/configuration#mdm-mobile-device-management-in-progress) for details on how to do that).
+
+## Why am I getting errors when generating a .msi package on my M1 Mac?
+
+There are many challenges to generating .msi packages on any OS but Windows. Errors will frequently resolve after multiple attempts and we've added retries by default in recent versions of `fleetctl package`.  Package creation is much more reliable on Intel Macs, Linux and Windows. 

@@ -101,7 +101,7 @@ Fleet has a unique way of organizing work. For more information, check out this 
 
 ## Development groups
 
-Fleet organizes development groups by their goals. These include members from Design, Engineering, and Product. For more information, check out this page [Development groups](./development-groups.md).
+Fleet organizes cross-functional groups focused on particular business goals. These include members from Design, Engineering, Quality, and Product. For more information, check out this page [Development groups](./development-groups.md).
 
 ## Levels of confidentiality
 

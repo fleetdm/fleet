@@ -51,7 +51,7 @@ module "main" {
 
   name           = var.prefix
   engine         = "aurora-mysql"
-  engine_version = "5.7.mysql_aurora.2.10.0"
+  engine_version = "5.7.mysql_aurora.2.08.3"
   engine_mode    = "serverless"
 
   storage_encrypted            = true

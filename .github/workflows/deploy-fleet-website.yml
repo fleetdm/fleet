@@ -77,7 +77,7 @@ jobs:
     - run: cd website/ && npm test
 
     # Compile browser assets & markdown content into generated collateral
-    - run: cd website/ && npm run build-for-prod
+    - run: cd website/ && BUILD_SCRIPT_ARGS="--githubAccessToken=${{ secrets.GITHUB_TOKEN }}" npm run build-for-prod
 
     # Commit newly-generated collateral locally so we can push them to Heroku below.
     # (This commit will never be pushed to GitHub- only to Heroku.)

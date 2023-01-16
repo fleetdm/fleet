@@ -73,7 +73,7 @@ require (
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.13.0
-	github.com/quasilyte/go-ruleguard/dsl v0.3.21
+	github.com/quasilyte/go-ruleguard/dsl v0.3.22
 	github.com/rs/zerolog v1.20.0
 	github.com/russellhaering/goxmldsig v1.2.0
 	github.com/sethvargo/go-password v0.2.0
@@ -156,6 +156,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/sso v1.4.0 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sts v1.7.0 // indirect
 	github.com/aws/smithy-go v1.8.0 // indirect
+	github.com/beevik/ntp v0.3.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/blakesmith/ar v0.0.0-20190502131153-809d4375e1fb // indirect
 	github.com/c-bata/go-prompt v0.2.3 // indirect

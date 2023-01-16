@@ -503,16 +503,21 @@ func upsertMDMAppleHostMDMInfoDB(ctx context.Context, tx sqlx.ExtContext, server
 		ON DUPLICATE KEY UPDATE server_url = VALUES(server_url)`,
 		fleet.WellKnownMDMFleet, serverURL)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "last insert id mdm apple host")
+		return ctxerr.Wrap(ctx, err, "upsert mdm solution")
 	}
 
-	mdmID, err := result.LastInsertId()
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "last insert id mdm apple host")
+	var mdmID int64
+	if insertOnDuplicateDidInsert(result) {
+		mdmID, _ = result.LastInsertId()
+	} else {
+		stmt := `SELECT id FROM mobile_device_management_solutions WHERE name = ? AND server_url = ?`
+		if err := sqlx.GetContext(ctx, tx, &mdmID, stmt, fleet.WellKnownMDMFleet, serverURL); err != nil {
+			return ctxerr.Wrap(ctx, err, "query mdm solution id")
+		}
 	}
 
-	// if the device is coming from the DEP sync, we don't consider it enrolled
-	// yet.
+	// if the device is coming from the DEP sync, we don't consider it
+	// enrolled yet.
 	enrolled := !fromSync
 
 	args := []interface{}{}
@@ -568,8 +573,7 @@ func upsertMDMAppleHostLabelMembershipDB(ctx context.Context, tx sqlx.ExtContext
 func (ds *Datastore) UpdateHostTablesOnMDMUnenroll(ctx context.Context, uuid string) error {
 	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		_, err := tx.ExecContext(ctx, `
-			UPDATE host_mdm
-			SET enrolled = 0
+			DELETE FROM host_mdm
 			WHERE host_id = (SELECT id FROM hosts WHERE uuid = ?)`, uuid)
 		return err
 	})
