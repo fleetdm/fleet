@@ -1095,6 +1095,20 @@ func (ds *Datastore) ProcessList(ctx context.Context) ([]fleet.MySQLProcess, err
 	return processList, nil
 }
 
+func insertOnDuplicateDidInsert(res sql.Result) bool {
+	// Note that connection string sets CLIENT_FOUND_ROWS (see
+	// generateMysqlConnectionString in this package), so LastInsertId is 0
+	// and RowsAffected 1 when a row is set to its current values.
+	//
+	// See [the docs][1] or @mna's comment in `insertOnDuplicateDidUpdate`
+	// below for more details
+	//
+	// [1]: https://dev.mysql.com/doc/refman/5.7/en/insert-on-duplicate.html
+	lastID, _ := res.LastInsertId()
+	affected, _ := res.RowsAffected()
+	return lastID != 0 && affected == 1
+}
+
 func insertOnDuplicateDidUpdate(res sql.Result) bool {
 	// From mysql's documentation:
 	//
