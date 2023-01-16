@@ -1,0 +1,12 @@
+name: menu_bar
+platforms:
+  - macOS
+description: What is currently presented in the Menu Bar (e.g location services enabled).
+columns: 
+  - name: location_services_status
+    type: integer
+    required: false
+    description: whether the status of location services are displayed in the menu bar. 1 is displayed. 0 is not displayed.
+notes: >-
+  - This table is not a core osquery table. It is included as part of Fleetd, the osquery manager from Fleet. 
+evented: false
