@@ -87,7 +87,7 @@ jobs:
     - run: cd website/ && BUILD_SCRIPT_ARGS="--githubAccessToken=${{ secrets.GITHUB_TOKEN }}" npm run build-for-prod
 
     # Build the go binary we use to sign APNS certificates in the website/.tools/ folder.
-    - run: cd tools/mdm/ && GOOS=linux GOARCH=amd64 go build -o ../../../website/.tools/mdm-gen-cert .
+    - run: cd ee/tools/mdm/ && GOOS=linux GOARCH=amd64 go build -o ../../../website/.tools/mdm-gen-cert .
 
     # Commit newly-generated collateral locally so we can push them to Heroku below.
     # (This commit will never be pushed to GitHub- only to Heroku.)
