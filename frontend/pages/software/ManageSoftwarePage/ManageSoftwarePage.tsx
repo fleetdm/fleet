@@ -112,6 +112,7 @@ const ManageSoftwarePage = ({
     currentTeam,
     isOnGlobalTeam,
     isPremiumTier,
+    noSandboxHosts,
   } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
@@ -534,7 +535,12 @@ const ManageSoftwarePage = ({
   const emptyState = () => {
     const emptySoftware: IEmptyTableProps = {
       header: "No software match the current search criteria",
-      info: "Try again in about 1 hour as the system catches up.",
+      info: `Try again in about 
+          ${
+            noSandboxHosts
+              ? "15 minutes after host enrollment."
+              : "1 hour as the system catches up."
+          }`,
     };
     if (!isSoftwareEnabled) {
       emptySoftware.iconName = "empty-software";
@@ -553,15 +559,19 @@ const ManageSoftwarePage = ({
     }
     if (isCollectingInventory) {
       emptySoftware.iconName = "empty-software";
-      emptySoftware.header = "No software detected";
-      emptySoftware.info =
-        "This report is updated every hour to protect the performance of your devices.";
+      emptySoftware.header = noSandboxHosts
+        ? "Fleet begins collecting software inventory after a host is enrolled"
+        : "No software detected";
+      emptySoftware.info = `This report is updated every ${
+        noSandboxHosts ? "15 minutes " : "hour"
+      } to protect the performance of your devices.`;
     }
     if (currentTeam && filterVuln) {
       emptySoftware.iconName = "empty-software";
       emptySoftware.header = "No vulnerable software detected";
-      emptySoftware.info =
-        "This report is updated every hour to protect the performance of your devices.";
+      emptySoftware.info = `This report is updated every ${
+        noSandboxHosts ? "15 minutes " : "hour"
+      } to protect the performance of your devices.`;
     }
     return emptySoftware;
   };

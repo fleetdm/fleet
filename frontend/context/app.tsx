@@ -14,6 +14,7 @@ enum ACTIONS {
   SET_CONFIG = "SET_CONFIG",
   SET_ENROLL_SECRET = "SET_ENROLL_SECRET",
   SET_SANDBOX_EXPIRY = "SET_SANDBOX_EXPIRY",
+  SET_NO_SANDBOX_HOSTS = "SET_NO_SANDBOX_HOSTS",
   SET_FILTERED_HOSTS_PATH = "SET_FILTERED_HOSTS_PATH",
 }
 
@@ -45,6 +46,11 @@ interface ISetSandboxExpiryAction {
   sandboxExpiry: string;
 }
 
+interface ISetNoSandboxHostsAction {
+  type: ACTIONS.SET_NO_SANDBOX_HOSTS;
+  noSandboxHosts: boolean;
+}
+
 interface ISetFilteredHostsPathAction {
   type: ACTIONS.SET_FILTERED_HOSTS_PATH;
   filteredHostsPath: string;
@@ -57,6 +63,7 @@ type IAction =
   | ISetCurrentUserAction
   | ISetEnrollSecretAction
   | ISetSandboxExpiryAction
+  | ISetNoSandboxHostsAction
   | ISetFilteredHostsPathAction;
 
 type Props = {
@@ -88,6 +95,7 @@ type InitialStateType = {
   isOnlyObserver?: boolean;
   isNoAccess?: boolean;
   sandboxExpiry?: string;
+  noSandboxHosts?: boolean;
   filteredHostsPath?: string;
   setAvailableTeams: (availableTeams: ITeamSummary[]) => void;
   setCurrentUser: (user: IUser) => void;
@@ -95,6 +103,7 @@ type InitialStateType = {
   setConfig: (config: IConfig) => void;
   setEnrollSecret: (enrollSecret: IEnrollSecret[]) => void;
   setSandboxExpiry: (sandboxExpiry: string) => void;
+  setNoSandboxHosts: (noSandboxHosts: boolean) => void;
   setFilteredHostsPath: (filteredHostsPath: string) => void;
 };
 
@@ -131,6 +140,7 @@ export const initialState = {
   setConfig: () => null,
   setEnrollSecret: () => null,
   setSandboxExpiry: () => null,
+  setNoSandboxHosts: () => null,
   setFilteredHostsPath: () => null,
 };
 
@@ -229,6 +239,13 @@ const reducer = (state: InitialStateType, action: IAction) => {
         sandboxExpiry,
       };
     }
+    case ACTIONS.SET_NO_SANDBOX_HOSTS: {
+      const { noSandboxHosts } = action;
+      return {
+        ...state,
+        noSandboxHosts,
+      };
+    }
     case ACTIONS.SET_FILTERED_HOSTS_PATH: {
       const { filteredHostsPath } = action;
       return {
@@ -253,6 +270,7 @@ const AppProvider = ({ children }: Props): JSX.Element => {
     currentTeam: state.currentTeam,
     enrollSecret: state.enrollSecret,
     sandboxExpiry: state.sandboxExpiry,
+    noSandboxHosts: state.noSandboxHosts,
     filteredHostsPath: state.filteredHostsPath,
     isPreviewMode: detectPreview(),
     isSandboxMode: state.isSandboxMode,
@@ -289,6 +307,12 @@ const AppProvider = ({ children }: Props): JSX.Element => {
     },
     setSandboxExpiry: (sandboxExpiry: string) => {
       dispatch({ type: ACTIONS.SET_SANDBOX_EXPIRY, sandboxExpiry });
+    },
+    setNoSandboxHosts: (noSandboxHosts: boolean) => {
+      dispatch({
+        type: ACTIONS.SET_NO_SANDBOX_HOSTS,
+        noSandboxHosts,
+      });
     },
     setFilteredHostsPath: (filteredHostsPath: string) => {
       dispatch({ type: ACTIONS.SET_FILTERED_HOSTS_PATH, filteredHostsPath });
