@@ -21,7 +21,7 @@ SYSTEMS="macos" \
 PKG_FLEET_URL=https://localhost:8080 \
 PKG_TUF_URL=http://localhost:8081 \
 GENERATE_PKG=1 \
-ENROLL_SECRET=XXXXXXXXXXXXXXXX \
+ENROLL_SECRET=<REPLACE WITH REAL SECRET KEY> \
 FLEET_DESKTOP=1 \
 FLEET_CERTIFICATE=1 \
 ./tools/tuf/test/main.sh
@@ -32,7 +32,7 @@ Go to your local Fleet desktop:
 https://localhost:8080/hosts/manage/?order_key=display_name&order_direction=asc
 Get the secret key by clicking the __Manage Enroll Secret__
 
-Replace the Xs in ```ENROLL_SECRET=XXXXXXXXXXXXXXXX``` with the real key
+Put the real key here: ```ENROLL_SECRET=<REPLACE WITH REAL SECRET KEY>```
 
 ### Remove previous local TUF
 If you already have a local TUF running, remove it.
