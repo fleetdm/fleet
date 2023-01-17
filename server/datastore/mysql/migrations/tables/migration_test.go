@@ -89,3 +89,17 @@ func applyNext(t *testing.T, db *sqlx.DB) {
 	err := MigrationClient.UpByOne(db.DB, gooseNoDir)
 	require.NoError(t, err)
 }
+
+// idxExists returns true if the index exists in the database.
+func idxExists(db *sqlx.DB, table, idxName string) bool {
+	var count int
+	err := sqlx.Get(db, &count, `
+		SELECT COUNT(*) FROM information_schema.statistics 
+		WHERE table_schema = DATABASE()
+		AND table_name = ? AND index_name = ?`, table, idxName)
+
+	if err != nil {
+		return false
+	}
+	return count > 0
+}
