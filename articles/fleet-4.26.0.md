@@ -65,7 +65,6 @@ Are you interested in the Fleet MDM beta? [Schedule a call](https://calendly.com
 
 ## More new features, improvements, and bug fixes
 - Added locally-formatted datetime tooltips.
-- Added Pendo to Sandbox instances.
 - Added the ability to bookmark a url when it includes the query parameter on the Hosts page.
 - Added a way to override a detail query or disable it through app config.
 - Added a software_updated_at column denoting when software was updated for a host.
