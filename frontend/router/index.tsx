@@ -8,7 +8,7 @@ import {
   Router,
 } from "react-router";
 
-import AppSettingsPage from "pages/admin/AppSettingsPage";
+import OrgSettingsPage from "pages/admin/OrgSettingsPage";
 import AdminIntegrationsPage from "pages/admin/IntegrationsPage";
 import AdminUserManagementPage from "pages/admin/UserManagementPage";
 import AdminTeamManagementPage from "pages/admin/TeamManagementPage";
@@ -125,10 +125,10 @@ const routes = (
             <IndexRedirect to={"organization"} />
             <Route component={SettingsWrapper}>
               <Route component={AuthGlobalAdminRoutes}>
-                <Route path="organization" component={AppSettingsPage} />
+                <Route path="organization" component={OrgSettingsPage} />
                 <Route
                   path="organization/:section"
-                  component={AppSettingsPage}
+                  component={OrgSettingsPage}
                 />
                 <Route path="integrations" component={AdminIntegrationsPage} />
                 <Route
