@@ -1211,10 +1211,6 @@ func (ds *Datastore) LoadHostByNodeKey(ctx context.Context, nodeKey string) (*fl
 // LoadHostByOrbitNodeKey loads the whole host identified by the node key.
 // If the node key is invalid it returns a NotFoundError.
 func (ds *Datastore) LoadHostByOrbitNodeKey(ctx context.Context, nodeKey string) (*fleet.Host, error) {
-	var hostWithMDM struct {
-		fleet.Host
-		fleet.HostMDM
-	}
 	query := `
     SELECT
       h.id,
@@ -1276,12 +1272,30 @@ func (ds *Datastore) LoadHostByOrbitNodeKey(ctx context.Context, nodeKey string)
 		WHERE
       h.orbit_node_key = ?`
 
+	var hostWithMDM struct {
+		fleet.Host
+		HostID           *uint   `db:"host_id"`
+		Enrolled         *bool   `db:"enrolled"`
+		ServerURL        *string `db:"server_url"`
+		InstalledFromDep *bool   `db:"installed_from_dep"`
+		IsServer         *bool   `db:"is_server"`
+		MDMID            *uint   `db:"mdm_id"`
+		Name             *string `db:"name"`
+	}
 	switch err := ds.getContextTryStmt(ctx, &hostWithMDM, query, fleet.UnknownMDMName, nodeKey); {
 	case err == nil:
 		host := hostWithMDM.Host
 		// leave MDMInfo nil unless it has mdm information
-		if hostWithMDM.HostMDM.HostID == host.ID {
-			host.MDMInfo = &hostWithMDM.HostMDM
+		if hostWithMDM.HostID != nil {
+			host.MDMInfo = &fleet.HostMDM{
+				HostID:           *hostWithMDM.HostID,
+				Enrolled:         *hostWithMDM.Enrolled,
+				ServerURL:        *hostWithMDM.ServerURL,
+				InstalledFromDep: *hostWithMDM.InstalledFromDep,
+				IsServer:         *hostWithMDM.IsServer,
+				MDMID:            hostWithMDM.MDMID,
+				Name:             *hostWithMDM.Name,
+			}
 		}
 		return &host, nil
 	case errors.Is(err, sql.ErrNoRows):
