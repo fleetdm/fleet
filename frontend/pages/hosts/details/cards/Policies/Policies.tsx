@@ -4,6 +4,7 @@ import { IHostPolicy } from "interfaces/policy";
 import InfoBanner from "components/InfoBanner";
 import TableContainer from "components/TableContainer";
 import CustomLink from "components/CustomLink";
+import EmptyTable from "components/EmptyTable";
 
 import {
   generatePolicyTableHeaders,
@@ -29,17 +30,22 @@ const Policies = ({
     return (
       <div className="section section--policies">
         <p className="section__header">Policies</p>
-        <div className="results__data">
-          <b>
-            No policies are checked{" "}
-            {deviceUser ? `on your device` : `for this host`}.
-          </b>
-          <p>
-            Expecting to see policies? Try selecting “Refetch” to ask{" "}
-            {deviceUser ? `your device ` : `this host `}
-            to report new vitals.
-          </p>
-        </div>
+        <EmptyTable
+          header={
+            <>
+              {" "}
+              No policies are checked{" "}
+              {deviceUser ? `on your device` : `for this host`}
+            </>
+          }
+          info={
+            <>
+              Expecting to see policies? Try selecting “Refetch” to ask{" "}
+              {deviceUser ? `your device ` : `this host `}
+              to report new vitals.
+            </>
+          }
+        />
       </div>
     );
   }

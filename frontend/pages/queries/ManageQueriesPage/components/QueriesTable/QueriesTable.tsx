@@ -85,7 +85,6 @@ const QueriesTable = ({
 
   const searchable = !(queriesList?.length === 0 && searchString === "");
 
-  console.log("queriesList", queriesList);
   return tableHeaders && !isLoading ? (
     <div className={`${baseClass}`}>
       <TableContainer
