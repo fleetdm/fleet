@@ -6278,6 +6278,7 @@ func createOrbitEnrolledHost(t *testing.T, os, suffix string, ds fleet.Datastore
 	require.NoError(t, err)
 	orbitKey := uuid.New().String()
 	_, err = ds.EnrollOrbit(context.Background(), *h.OsqueryHostID, orbitKey, nil)
+	require.NoError(t, err)
 	h.OrbitNodeKey = &orbitKey
 	return h
 }
