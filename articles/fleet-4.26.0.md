@@ -1,6 +1,6 @@
 # Fleet 4.26.0 | Easier osquery extensions, external audit log destinations, and cleaner data lakes
 
-![Fleet 4.26.0](../website/assets/images/articles/fleet-4.26.0-1600x900@2x)
+![Fleet 4.26.0](../website/assets/images/articles/fleet-4.26.0-1600x900@2x.png)
 
 Fleet 4.26.0 is up and running. Check out the full [changelog](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.26.0) or continue reading to get the highlights.
 
