@@ -34,7 +34,7 @@ go.mod @fleetdm/go
 /schema @guillaumeross
 
 # Articles
-/articles @mikermcneil
+/articles @jarodreyes
 
 # Website
 /website/ @eashaw
