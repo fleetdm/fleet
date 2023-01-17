@@ -2,7 +2,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  width: 100%;
+  width: auto;
   padding: $pad-medium;
   border-radius: $border-radius;
   border: 1px solid $ui-vibrant-blue-50;
@@ -14,6 +14,11 @@
   &__yellow {
     background-color: $ui-yellow-banner;
     border-color: $ui-yellow-banner-outline;
+  }
+
+  &__grey {
+    background-color: $ui-off-white;
+    border-color: $ui-fleet-black-50;
   }
 
   &__page-banner {
@@ -36,7 +41,7 @@
 
   &__close {
     margin-left: $pad-small;
-    padding: $xx-small;
+    padding: 3px;
     padding-right: 0;
 
     &:hover {

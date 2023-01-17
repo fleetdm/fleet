@@ -63,6 +63,7 @@ import TeamsDropdown from "components/TeamsDropdown";
 import Spinner from "components/Spinner";
 import MainContent from "components/MainContent";
 import EmptyTable from "components/EmptyTable";
+import InfoBanner from "components/InfoBanner";
 
 import { getValidatedTeamId } from "utilities/helpers";
 import {
@@ -77,11 +78,7 @@ import {
   DEFAULT_PAGE_SIZE,
   HOST_SELECT_STATUSES,
 } from "./constants";
-import {
-  isAcceptableStatus,
-  getNextLocationPath,
-  isValidPolicyResponse,
-} from "./helpers";
+import { isAcceptableStatus, getNextLocationPath } from "./helpers";
 import DeleteSecretModal from "../../../components/EnrollSecrets/DeleteSecretModal";
 import SecretEditorModal from "../../../components/EnrollSecrets/SecretEditorModal";
 import AddHostsModal from "../../../components/AddHostsModal";
@@ -404,8 +401,6 @@ const ManageHostsPage = ({
     }
   );
 
-  console.log("isInvalidPolicyId", isInvalidPolicyId);
-
   const { data: osVersions } = useQuery<
     IOSVersionsResponse,
     Error,
@@ -567,7 +562,7 @@ const ManageHostsPage = ({
       sortBy,
       teamId: selectedTeam?.id,
       policyId,
-      policyResponse: policyId ? policyResponse : undefined,
+      policyResponse,
       softwareId,
       status,
       mdmId,
@@ -835,9 +830,9 @@ const ManageHostsPage = ({
       availableTeams,
       currentTeam,
       currentUser,
+      policy,
       policyId,
       policyResponse,
-      isValidPolicyResponse,
       queryParams,
       softwareId,
       status,
@@ -1843,24 +1838,10 @@ const ManageHostsPage = ({
       ((canEnrollHosts && noTeamEnrollSecrets) ||
         (canEnrollGlobalHosts && noGlobalEnrollSecrets)) &&
       showNoEnrollSecretBanner && (
-        <div className={`${baseClass}__no-enroll-secret-banner`}>
-          <div>
-            <span>
-              You have no enroll secrets. Manage enroll secrets to enroll hosts
-              to <b>{currentTeam?.id ? currentTeam.name : "Fleet"}</b>.
-            </span>
-          </div>
-          <div className={`dismiss-banner-button`}>
-            <Button
-              variant="unstyled"
-              onClick={() =>
-                setShowNoEnrollSecretBanner(!showNoEnrollSecretBanner)
-              }
-            >
-              <img alt="Dismiss no enroll secret banner" src={CloseIconBlack} />
-            </Button>
-          </div>
-        </div>
+        <InfoBanner color="grey" pageLevel closable>
+          You have no enroll secrets. Manage enroll secrets to enroll hosts to{" "}
+          <b>{currentTeam?.id ? currentTeam.name : "Fleet"}</b>.
+        </InfoBanner>
       )
     );
   };
@@ -1868,22 +1849,10 @@ const ManageHostsPage = ({
   const renderInvalidPolicyIdBanner = () => {
     return (
       isInvalidPolicyId && (
-        <div className={`${baseClass}__no-valid-policy-banner`}>
-          <div>
-            <span>
-              The policy does not exist. Head to the <b>Policies</b> page to see
-              a list of policies.
-            </span>
-          </div>
-          <div className={`dismiss-banner-button`}>
-            <Button
-              variant="unstyled"
-              onClick={() => setIsInvalidPolicyId(!isInvalidPolicyId)}
-            >
-              <img alt="Dismiss no enroll secret banner" src={CloseIconBlack} />
-            </Button>
-          </div>
-        </div>
+        <InfoBanner color="grey" pageLevel closable>
+          The policy does not exist. Head to the <b>Policies</b> page to see a
+          list of policies.
+        </InfoBanner>
       )
     );
   };
