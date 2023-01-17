@@ -296,7 +296,8 @@ const DashboardPage = ({
           hosts_count,
         } = mobile_device_management_enrollment_status;
 
-        if (hosts_count === 0 && mobile_device_management_solution === null) {
+        // TODO: Change back to ===
+        if (hosts_count === 0 && mobile_device_management_solution !== null) {
           setShowMdmCard(false);
           return;
         }
@@ -552,7 +553,7 @@ const DashboardPage = ({
     titleDetail: mdmTitleDetail,
     showTitle: !isMacAdminsFetching,
     description: (
-      <p>MDM can be used to manage configuration on your workstations.</p>
+      <p>MDM is used to change settings and install software on your hosts.</p>
     ),
     children: (
       <Mdm

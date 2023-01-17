@@ -13,7 +13,7 @@ export interface IMdmAppleBm {
   renew_date: string;
 }
 
-export interface IMdmEnrollmentCardData {
+export interface IMdmStatusCardData {
   status: "On (manual)" | "On (automatic)" | "Off";
   hosts: number;
 }
@@ -31,7 +31,7 @@ export interface IMdmSolution {
   hosts_count: number;
 }
 
-interface IMdmEnrollementStatus {
+interface IMdmStatusStatus {
   enrolled_manual_hosts_count: number;
   enrolled_automated_hosts_count: number;
   unenrolled_hosts_count: number;
@@ -40,6 +40,6 @@ interface IMdmEnrollementStatus {
 
 export interface IMdmSummaryResponse {
   counts_updated_at: string;
-  mobile_device_management_enrollment_status: IMdmEnrollementStatus;
+  mobile_device_management_enrollment_status: IMdmStatus;
   mobile_device_management_solution: IMdmSolution[] | null;
 }

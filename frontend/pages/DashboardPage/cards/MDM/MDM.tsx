@@ -1,37 +1,38 @@
 import React, { useState } from "react";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 
-import { IMdmEnrollmentCardData, IMdmSolution } from "interfaces/mdm";
+import { IMdmStatusCardData, IMdmSolution } from "interfaces/mdm";
 
 import TabsWrapper from "components/TabsWrapper";
 import TableContainer from "components/TableContainer";
 import Spinner from "components/Spinner";
 import TableDataError from "components/DataError";
+import EmptyTable from "components/EmptyTable";
 import {
   generateSolutionsTableHeaders,
   generateSolutionsDataSet,
 } from "./MDMSolutionsTableConfig";
 import {
-  generateEnrollmentTableHeaders,
-  generateEnrollmentDataSet,
-} from "./MDMEnrollmentTableConfig";
+  generateStatusTableHeaders,
+  generateStatusDataSet,
+} from "./MDMStatusTableConfig";
 
 interface IMdmCardProps {
   error: Error | null;
   isFetching: boolean;
-  mdmEnrollmentData: IMdmEnrollmentCardData[];
+  mdmStatusData: IMdmStatusCardData[];
   mdmSolutions: IMdmSolution[] | null;
   selectedPlatformLabelId?: number;
 }
 
 const DEFAULT_SORT_DIRECTION = "desc";
 const SOLUTIONS_DEFAULT_SORT_HEADER = "hosts_count";
-const ENROLLMENT_DEFAULT_SORT_DIRECTION = "asc";
-const ENROLLMENT_DEFAULT_SORT_HEADER = "status";
+const STATUS_DEFAULT_SORT_DIRECTION = "asc";
+const STATUS_DEFAULT_SORT_HEADER = "status";
 const PAGE_SIZE = 8;
 const baseClass = "home-mdm";
 
-const EmptyMdmEnrollment = (): JSX.Element => (
+const EmptyMdmStatus = (): JSX.Element => (
   <div className={`${baseClass}__empty-mdm`}>
     <h1>Unable to detect MDM enrollment</h1>
     <p>
@@ -49,19 +50,17 @@ const EmptyMdmEnrollment = (): JSX.Element => (
 );
 
 const EmptyMdmSolutions = (): JSX.Element => (
-  <div className={`${baseClass}__empty-mdm`}>
-    <h1>No MDM solutions detected</h1>
-    <p>
-      This report is updated every hour to protect the performance of your
-      devices.
-    </p>
-  </div>
+  <EmptyTable
+    header="No MDM solutions detected"
+    info="This report is updated every hour to protect the performance of your
+      devices."
+  />
 );
 
 const Mdm = ({
   isFetching,
   error,
-  mdmEnrollmentData,
+  mdmStatusData,
   mdmSolutions,
   selectedPlatformLabelId,
 }: IMdmCardProps): JSX.Element => {
@@ -72,13 +71,13 @@ const Mdm = ({
   };
 
   const solutionsTableHeaders = generateSolutionsTableHeaders();
-  const enrollmentTableHeaders = generateEnrollmentTableHeaders();
+  const statusTableHeaders = generateStatusTableHeaders();
   const solutionsDataSet = generateSolutionsDataSet(
     mdmSolutions,
     selectedPlatformLabelId
   );
-  const enrollmentDataSet = generateEnrollmentDataSet(
-    mdmEnrollmentData,
+  const statusDataSet = generateStatusDataSet(
+    mdmStatusData,
     selectedPlatformLabelId
   );
 
@@ -97,7 +96,7 @@ const Mdm = ({
           <Tabs selectedIndex={navTabIndex} onSelect={onTabChange}>
             <TabList>
               <Tab>Solutions</Tab>
-              <Tab>Enrollment</Tab>
+              <Tab>Status</Tab>
             </TabList>
             <TabPanel>
               {error ? (
@@ -126,14 +125,14 @@ const Mdm = ({
                 <TableDataError card />
               ) : (
                 <TableContainer
-                  columns={enrollmentTableHeaders}
-                  data={enrollmentDataSet}
+                  columns={statusTableHeaders}
+                  data={statusDataSet}
                   isLoading={isFetching}
-                  defaultSortHeader={ENROLLMENT_DEFAULT_SORT_HEADER}
-                  defaultSortDirection={ENROLLMENT_DEFAULT_SORT_DIRECTION}
+                  defaultSortHeader={STATUS_DEFAULT_SORT_HEADER}
+                  defaultSortDirection={STATUS_DEFAULT_SORT_DIRECTION}
                   hideActionButton
                   resultsTitle={"MDM"}
-                  emptyComponent={EmptyMdmEnrollment}
+                  emptyComponent={EmptyMdmStatus}
                   showMarkAllPages={false}
                   isAllPagesSelected={false}
                   disableCount

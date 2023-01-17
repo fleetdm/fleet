@@ -1,12 +1,12 @@
 import React from "react";
 
-import { IMdmEnrollmentCardData } from "interfaces/mdm";
+import { IMdmStatusCardData } from "interfaces/mdm";
 
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import TooltipWrapper from "components/TooltipWrapper";
 import ViewAllHostsLink from "components/ViewAllHostsLink";
 
-interface IMdmEnrollmentData extends IMdmEnrollmentCardData {
+interface IMdmStatusData extends IMdmStatusCardData {
   selectedPlatformLabelId?: number;
 }
 
@@ -17,7 +17,7 @@ interface ICellProps {
     value: string;
   };
   row: {
-    original: IMdmEnrollmentData;
+    original: IMdmStatusData;
   };
 }
 
@@ -43,7 +43,7 @@ interface IDataColumn {
   disableSortBy?: boolean;
 }
 
-const enrollmentTableHeaders = [
+const statusTableHeaders = [
   {
     title: "Status",
     Header: "Status",
@@ -118,15 +118,15 @@ const enrollmentTableHeaders = [
   },
 ];
 
-export const generateEnrollmentTableHeaders = (): IDataColumn[] => {
-  return enrollmentTableHeaders;
+export const generateStatusTableHeaders = (): IDataColumn[] => {
+  return statusTableHeaders;
 };
 
-const enhanceEnrollmentData = (
-  enrollmentData: IMdmEnrollmentCardData[],
+const enhanceStatusData = (
+  statusData: IMdmStatusCardData[],
   selectedPlatformLabelId?: number
-): IMdmEnrollmentData[] => {
-  return Object.values(enrollmentData).map((data) => {
+): IMdmStatusData[] => {
+  return Object.values(statusData).map((data) => {
     return {
       ...data,
       selectedPlatformLabelId,
@@ -134,12 +134,12 @@ const enhanceEnrollmentData = (
   });
 };
 
-export const generateEnrollmentDataSet = (
-  enrollmentData: IMdmEnrollmentCardData[] | null,
+export const generateStatusDataSet = (
+  statusData: IMdmStatusCardData[] | null,
   selectedPlatformLabelId?: number
-): IMdmEnrollmentData[] => {
-  if (!enrollmentData) {
+): IMdmStatusData[] => {
+  if (!statusData) {
     return [];
   }
-  return [...enhanceEnrollmentData(enrollmentData, selectedPlatformLabelId)];
+  return [...enhanceStatusData(statusData, selectedPlatformLabelId)];
 };
