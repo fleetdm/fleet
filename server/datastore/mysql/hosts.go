@@ -1265,11 +1265,11 @@ func (ds *Datastore) LoadHostByOrbitNodeKey(ctx context.Context, nodeKey string)
       host_mdm hm
     ON
       hm.host_id = h.id
-		LEFT OUTER JOIN
-			mobile_device_management_solutions mdms
-		ON
+    LEFT OUTER JOIN
+    	mobile_device_management_solutions mdms
+    ON
       hm.mdm_id = mdms.id
-		WHERE
+    WHERE
       h.orbit_node_key = ?`
 
 	var hostWithMDM struct {
