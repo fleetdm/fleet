@@ -629,10 +629,6 @@ const HostDetailsPage = ({
     <MainContent className={baseClass}>
       <div className={`${baseClass}__wrapper`}>
         <div className={`${baseClass}__header-links`}>
-          <BackLink
-            text="Back to all hosts"
-            path={filteredHostsPath || PATHS.MANAGE_HOSTS}
-          />
           {host?.platform === "darwin" &&
             host?.mdm?.enrollment_status === "Unenrolled" && (
               <InfoBanner color="yellow" pageLevel>
@@ -641,7 +637,10 @@ const HostDetailsPage = ({
                 <strong>My device</strong> page.
               </InfoBanner>
             )}
-          <BackLink text="Back to all hosts" path={filteredHostsPath} />
+          <BackLink
+            text="Back to all hosts"
+            path={filteredHostsPath || PATHS.MANAGE_HOSTS}
+          />
         </div>
         <HostSummaryCard
           statusClassName={statusClassName}
