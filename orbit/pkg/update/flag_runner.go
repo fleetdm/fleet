@@ -16,6 +16,15 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+// TODO(mna): for 9278, maybe use a middleware wrapper around OrbitConfigFetcher
+// to use the results and look at the notifications, taking care of those as needed.
+// This way, they can be addressed without adding a new call to GetConfig somewhere,
+// it piggybacks on the existing requests and runs frequently thanks to those
+// (e.g. FlagsRunner is each 30s, ExtensionsRunner each 60s, and the flags runner
+// always runs). Maybe ensure that it won't run again just seconds later, to take
+// into account that the fleet server won't know immediately that the device did
+// enroll.
+
 // OrbitConfigFetcher allows fetching Orbit configuration.
 type OrbitConfigFetcher interface {
 	// GetConfig returns the Orbit configuration.
