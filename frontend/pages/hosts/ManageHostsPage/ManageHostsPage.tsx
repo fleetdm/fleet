@@ -271,7 +271,6 @@ const ManageHostsPage = ({
   const missingHosts = queryParams?.status === "missing";
   const { active_label: activeLabel, label_id: labelID } = routeParams;
 
-  console.log("policy", policy);
   // ===== filter matching
   const selectedFilters: string[] = [];
   labelID && selectedFilters.push(`${LABEL_SLUG_PREFIX}${labelID}`);
@@ -367,6 +366,7 @@ const ManageHostsPage = ({
   const handleClearFilter = (omitParams: string[]) => {
     handleResetPageIndex();
 
+    // TODO: Fix race condition for loading all hosts redirected
     router.replace(
       getNextLocationPath({
         pathPrefix: PATHS.MANAGE_HOSTS,
@@ -1021,7 +1021,7 @@ const ManageHostsPage = ({
         sortBy,
         teamId: currentTeam?.id,
         policyId,
-        policyResponse: policy?.id ? policyResponse : undefined,
+        policyResponse,
         softwareId,
         status,
         mdmId,
@@ -1707,6 +1707,8 @@ const ManageHostsPage = ({
         osVersion
       );
 
+      console.log("policy_id", policy_id, "policyResponse", policyResponse);
+      console.log("includesNameCardFilter", includesNameCardFilter);
       const emptyState = () => {
         const emptyHosts: IEmptyTableProps = {
           iconName: "empty-hosts",
@@ -1719,8 +1721,7 @@ const ManageHostsPage = ({
           emptyHosts.header = "No hosts match the current criteria";
           emptyHosts.info =
             "Expecting to see new hosts? Try again in a few seconds as the system catches up.";
-        }
-        if (canEnrollHosts) {
+        } else if (canEnrollHosts) {
           emptyHosts.header = "Add your devices to Fleet";
           emptyHosts.info = "Generate an installer to add your own devices.";
           emptyHosts.primaryButton = (
