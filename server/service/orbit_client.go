@@ -97,6 +97,9 @@ type OrbitConfig struct {
 	Flags json.RawMessage
 	// Extensions holds the orbit managed extensions
 	Extensions json.RawMessage
+	// Notifications holds the notifications that the fleet server sends to
+	// the orbit instance (fleetd).
+	Notifications fleet.OrbitConfigNotifications
 }
 
 // GetConfig returns the Orbit config fetched from Fleet server for this instance of OrbitClient.
@@ -107,8 +110,9 @@ func (oc *OrbitClient) GetConfig() (*OrbitConfig, error) {
 		return nil, err
 	}
 	return &OrbitConfig{
-		Flags:      resp.Flags,
-		Extensions: resp.Extensions,
+		Flags:         resp.Flags,
+		Extensions:    resp.Extensions,
+		Notifications: resp.Notifications,
 	}, nil
 }
 

@@ -44,9 +44,10 @@ func (r *orbitGetConfigRequest) orbitHostNodeKey() string {
 }
 
 type orbitGetConfigResponse struct {
-	Flags      json.RawMessage `json:"command_line_startup_flags,omitempty"`
-	Extensions json.RawMessage `json:"extensions,omitempty"`
-	Err        error           `json:"error,omitempty"`
+	Flags         json.RawMessage                `json:"command_line_startup_flags,omitempty"`
+	Extensions    json.RawMessage                `json:"extensions,omitempty"`
+	Notifications fleet.OrbitConfigNotifications `json:"notifications,omitempty"`
+	Err           error                          `json:"error,omitempty"`
 }
 
 func (r orbitGetConfigResponse) error() error { return r.Err }
@@ -124,50 +125,57 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hardwareUUID string, enroll
 }
 
 func getOrbitConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
-	opts, extensions, err := svc.GetOrbitConfig(ctx)
+	flags, extensions, notifs, err := svc.GetOrbitConfig(ctx)
 	if err != nil {
 		return orbitGetConfigResponse{Err: err}, nil
 	}
-	return orbitGetConfigResponse{Flags: opts, Extensions: extensions}, nil
+	return orbitGetConfigResponse{Flags: flags, Extensions: extensions, Notifications: notifs}, nil
 }
 
-func (svc *Service) GetOrbitConfig(ctx context.Context) (json.RawMessage, json.RawMessage, error) {
+func (svc *Service) GetOrbitConfig(ctx context.Context) (flags json.RawMessage, extensions json.RawMessage, notifications fleet.OrbitConfigNotifications, err error) {
 	// this is not a user-authenticated endpoint
 	svc.authz.SkipAuthorization(ctx)
 
+	var notifs fleet.OrbitConfigNotifications
+
 	host, ok := hostctx.FromContext(ctx)
 	if !ok {
-		return nil, nil, orbitError{message: "internal error: missing host from request context"}
+		return nil, nil, notifs, orbitError{message: "internal error: missing host from request context"}
+	}
+
+	// set the host's orbit notifications
+	if host.IsOsqueryEnrolled() && host.MDMInfo.IsPendingDEPFleetEnrollment() {
+		notifs.RenewEnrollmentProfile = true
 	}
 
 	// team ID is not nil, get team specific flags and options
 	if host.TeamID != nil {
 		teamAgentOptions, err := svc.ds.TeamAgentOptions(ctx, *host.TeamID)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, notifs, err
 		}
 
 		if teamAgentOptions != nil && len(*teamAgentOptions) > 0 {
 			var opts fleet.AgentOptions
 			if err := json.Unmarshal(*teamAgentOptions, &opts); err != nil {
-				return nil, nil, err
+				return nil, nil, notifs, err
 			}
-			return opts.CommandLineStartUpFlags, opts.Extensions, nil
+			return opts.CommandLineStartUpFlags, opts.Extensions, notifs, nil
 		}
 	}
 
 	// team ID is nil, get global flags and options
 	config, err := svc.ds.AppConfig(ctx)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, notifs, err
 	}
 	var opts fleet.AgentOptions
 	if config.AgentOptions != nil {
 		if err := json.Unmarshal(*config.AgentOptions, &opts); err != nil {
-			return nil, nil, err
+			return nil, nil, notifs, err
 		}
 	}
-	return opts.CommandLineStartUpFlags, opts.Extensions, nil
+	return opts.CommandLineStartUpFlags, opts.Extensions, notifs, nil
 }
 
 /////////////////////////////////////////////////////////////////////////////////

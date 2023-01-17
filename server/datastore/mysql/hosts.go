@@ -419,7 +419,7 @@ SELECT
       host_id = h.id
   ) AS additional,
   COALESCE(failing_policies.count, 0) AS failing_policies_count,
-  COALESCE(failing_policies.count, 0) AS total_issues_count 
+  COALESCE(failing_policies.count, 0) AS total_issues_count
   ` + hostMDMSelect + `
 FROM
   hosts h
@@ -483,9 +483,9 @@ const hostMDMSelect = `,
 		WHEN hmdm.enrolled = 0 AND hmdm.installed_from_dep = 0 THEN 'Off'
 		ELSE NULL
 	END AS mdm_enrollment_status,
-	CASE 
+	CASE
 		WHEN hmdm.is_server = 1 THEN NULL
-		ELSE hmdm.server_url 
+		ELSE hmdm.server_url
 	END as mdm_server_url
 	`
 
@@ -1211,11 +1211,92 @@ func (ds *Datastore) LoadHostByNodeKey(ctx context.Context, nodeKey string) (*fl
 // LoadHostByOrbitNodeKey loads the whole host identified by the node key.
 // If the node key is invalid it returns a NotFoundError.
 func (ds *Datastore) LoadHostByOrbitNodeKey(ctx context.Context, nodeKey string) (*fleet.Host, error) {
-	query := `SELECT * FROM hosts WHERE orbit_node_key = ?`
+	query := `
+    SELECT
+      h.id,
+      h.osquery_host_id,
+      h.created_at,
+      h.updated_at,
+      h.detail_updated_at,
+      h.node_key,
+      h.hostname,
+      h.uuid,
+      h.platform,
+      h.osquery_version,
+      h.os_version,
+      h.build,
+      h.platform_like,
+      h.code_name,
+      h.uptime,
+      h.memory,
+      h.cpu_type,
+      h.cpu_subtype,
+      h.cpu_brand,
+      h.cpu_physical_cores,
+      h.cpu_logical_cores,
+      h.hardware_vendor,
+      h.hardware_model,
+      h.hardware_version,
+      h.hardware_serial,
+      h.computer_name,
+      h.primary_ip_id,
+      h.distributed_interval,
+      h.logger_tls_period,
+      h.config_tls_refresh,
+      h.primary_ip,
+      h.primary_mac,
+      h.label_updated_at,
+      h.last_enrolled_at,
+      h.refetch_requested,
+      h.team_id,
+      h.policy_updated_at,
+      h.public_ip,
+      h.orbit_node_key,
+      hm.host_id,
+      hm.enrolled,
+      hm.server_url,
+      hm.installed_from_dep,
+      hm.mdm_id,
+      hm.is_server,
+      COALESCE(mdms.name, ?) AS name
+    FROM
+      hosts h
+    LEFT OUTER JOIN
+      host_mdm hm
+    ON
+      hm.host_id = h.id
+    LEFT OUTER JOIN
+      mobile_device_management_solutions mdms
+    ON
+      hm.mdm_id = mdms.id
+    WHERE
+      h.orbit_node_key = ?`
 
-	var host fleet.Host
-	switch err := ds.getContextTryStmt(ctx, &host, query, nodeKey); {
+	var hostWithMDM struct {
+		fleet.Host
+		HostID           *uint   `db:"host_id"`
+		Enrolled         *bool   `db:"enrolled"`
+		ServerURL        *string `db:"server_url"`
+		InstalledFromDep *bool   `db:"installed_from_dep"`
+		IsServer         *bool   `db:"is_server"`
+		MDMID            *uint   `db:"mdm_id"`
+		Name             *string `db:"name"`
+	}
+	switch err := ds.getContextTryStmt(ctx, &hostWithMDM, query, fleet.UnknownMDMName, nodeKey); {
 	case err == nil:
+		host := hostWithMDM.Host
+		// leave MDMInfo nil unless it has mdm information
+		if hostWithMDM.HostID != nil {
+			host.MDMInfo = &fleet.HostMDM{
+				HostID:           *hostWithMDM.HostID,
+				Enrolled:         *hostWithMDM.Enrolled,
+				ServerURL:        *hostWithMDM.ServerURL,
+				InstalledFromDep: *hostWithMDM.InstalledFromDep,
+				IsServer:         *hostWithMDM.IsServer,
+				MDMID:            hostWithMDM.MDMID,
+				Name:             *hostWithMDM.Name,
+			}
+		}
 		return &host, nil
 	case errors.Is(err, sql.ErrNoRows):
 		return nil, ctxerr.Wrap(ctx, notFound("Host"))
@@ -1498,7 +1579,7 @@ func (ds *Datastore) HostByIdentifier(ctx context.Context, identifier string) (*
       COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,
       COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,
       COALESCE(hst.seen_time, h.created_at) AS seen_time,
-	  COALESCE(hu.software_updated_at, h.created_at) AS software_updated_at 
+	  COALESCE(hu.software_updated_at, h.created_at) AS software_updated_at
 	  ` + hostMDMSelect + `
     FROM hosts h
     LEFT JOIN host_seen_times hst ON (h.id = hst.host_id)
@@ -2306,7 +2387,7 @@ func (ds *Datastore) GetHostMDMCheckinInfo(ctx context.Context, hostUUID string)
 	var hmdm fleet.HostMDMCheckinInfo
 	err := sqlx.GetContext(ctx, ds.reader, &hmdm, `
 		SELECT
-			h.hardware_serial, hm.installed_from_dep 
+			h.hardware_serial, hm.installed_from_dep
 		FROM
 			hosts h
 		JOIN
