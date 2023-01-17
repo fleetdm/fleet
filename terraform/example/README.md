@@ -1,3 +1,10 @@
+# Fleet Terraform Module Example
+This code provides some example usage of the Fleet Terraform module, including how some addons can be used to extend functionality.
+
+Due to Terraform issues, this code requires 3 applies "from scratch":
+- terraform apply -target random\_pet.main
+- terraform apply -target module.main.module.vpc
+
 ## Requirements
 
 | Name | Version |
