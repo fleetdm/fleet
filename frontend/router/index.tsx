@@ -44,6 +44,7 @@ import Fleet403 from "pages/errors/Fleet403";
 import Fleet404 from "pages/errors/Fleet404";
 import UserSettingsPage from "pages/UserSettingsPage";
 import SettingsWrapper from "pages/admin/SettingsWrapper/SettingsWrapper";
+import ControlsWrapper from "pages/ControlsPage/ControlsWrapper";
 import MembersPage from "pages/admin/TeamManagementPage/TeamDetailsWrapper/MembersPage";
 import AgentOptionsPage from "pages/admin/TeamManagementPage/TeamDetailsWrapper/AgentOptionsPage";
 import PATHS from "router/paths";
@@ -73,6 +74,22 @@ const AppWrapper = ({ children, location }: IAppWrapperProps) => (
     </RoutingProvider>
   </AppProvider>
 );
+
+// TODO: Replace below elements with the real thing
+const MacUpdatesPage = () => {
+  return (
+    <div>
+      <h1>MacUpdates!</h1>
+    </div>
+  );
+};
+const MacSettingsPage = () => {
+  return (
+    <div>
+      <h1>MacSettings!</h1>
+    </div>
+  );
+};
 
 const routes = (
   <Router history={browserHistory}>
@@ -157,6 +174,15 @@ const routes = (
               </Route>
             </Route>
           </Route>
+
+          <Route path="controls" component={AuthAnyMaintainerAnyAdminRoutes}>
+            <IndexRedirect to={"mac-updates"} />
+            <Route component={ControlsWrapper}>
+              <Route path="mac-updates" component={MacUpdatesPage} />
+              <Route path="mac-settings" component={MacSettingsPage} />
+            </Route>
+          </Route>
+
           <Route path="software">
             <IndexRedirect to={"manage"} />
             <Route path="manage" component={ManageSoftwarePage} />

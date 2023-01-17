@@ -3,9 +3,9 @@ import URL_PREFIX from "router/url_prefix";
 import { IUser } from "interfaces/user";
 
 export interface INavItem {
-  icon: string;
+  icon?: string;
   name: string;
-  iconName: string;
+  iconName?: string;
   location: {
     regex: RegExp;
     pathname: string;
@@ -89,6 +89,13 @@ export default (
       location: {
         regex: new RegExp(`^${URL_PREFIX}/(schedule|packs)/`),
         pathname: PATHS.MANAGE_SCHEDULE,
+      },
+    },
+    {
+      name: "Controls",
+      location: {
+        regex: new RegExp(`^${URL_PREFIX}/controls/`),
+        pathname: PATHS.CONTROLS,
       },
     },
   ];
