@@ -315,7 +315,7 @@ func (d *device) request(reqType string, payload map[string]string) {
 	sig, err := signedData.Finish()
 	require.NoError(d.s.T(), err)
 
-	resp := d.s.DoRawWithHeaders(
+	d.s.DoRawWithHeaders(
 		"POST",
 		"/mdm/apple/mdm",
 		body,
@@ -325,12 +325,6 @@ func (d *device) request(reqType string, payload map[string]string) {
 			"Mdm-Signature": base64.StdEncoding.EncodeToString(sig),
 		},
 	)
-	defer resp.Body.Close()
-
-	// consume the body to ensure the response is fully received and the server
-	// has finished serving the request
-	_, err = io.ReadAll(resp.Body)
-	require.NoError(d.s.T(), err)
 }
 
 func (d *device) scepEnroll() {
