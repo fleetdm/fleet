@@ -65,12 +65,3 @@ module "firehose-logging" {
     name = "${random_pet.main.id}-status"
   }
 }
-
-module "migrations" {
-  source                   = "../addons/migrations"
-  ecs_cluster              = module.main.byo-vpc.byo-db.byo-ecs.service.cluster
-  task_definition          = module.main.byo-vpc.byo-db.byo-ecs.task_definition.family
-  task_definition_revision = module.main.byo-vpc.byo-db.byo-ecs.task_definition.revision
-  subnets                  = module.main.byo-vpc.byo-db.byo-ecs.service.network_configuration[0].subnets
-  security_groups          = module.main.byo-vpc.byo-db.byo-ecs.service.network_configuration[0].security_groups
-}
