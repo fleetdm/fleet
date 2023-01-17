@@ -52,6 +52,8 @@ const TruncatedTextCell = ({
         id={tooltipId}
         data-html
         className={"truncated-tooltip"} // responsive widths
+        clickable
+        delayHide={200} // need delay set to hover using clickable
       >
         {value}
       </ReactTooltip>
