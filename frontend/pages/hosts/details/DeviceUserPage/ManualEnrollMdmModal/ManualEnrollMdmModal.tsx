@@ -24,6 +24,8 @@ const ManualEnrollMdmModal = ({
 }: IInfoModalProps): JSX.Element => {
   const { renderFlash } = useContext(NotificationContext);
 
+  const [isDownloadingProfile, setIsDownloadingProfile] = useState(false);
+
   const {
     data: enrollmentProfile,
     error: fetchMdmProfileError,
@@ -38,6 +40,9 @@ const ManualEnrollMdmModal = ({
 
   const onDownloadProfile = (evt: React.MouseEvent) => {
     evt.preventDefault();
+    setIsDownloadingProfile(true);
+
+    setTimeout(() => setIsDownloadingProfile(false), 1000);
 
     if (enrollmentProfile) {
       const filename = "fleet-mdm-enrollment-profile.mobileconfig";
@@ -85,7 +90,7 @@ const ManualEnrollMdmModal = ({
                 type="button"
                 onClick={onDownloadProfile}
                 variant="brand"
-                isLoading={isFetchingMdmProfile}
+                isLoading={isDownloadingProfile}
                 className={`${baseClass}__download-button`}
               >
                 Download
