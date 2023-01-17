@@ -11,6 +11,7 @@ export interface INavItem {
     pathname: string;
   };
   withContext?: boolean;
+  exclude?: boolean;
 }
 
 export default (
@@ -25,6 +26,12 @@ export default (
     return [];
   }
 
+  const isMaintainerOrAdmin =
+    isGlobalMaintainer ||
+    isAnyTeamMaintainer ||
+    isGlobalAdmin ||
+    isAnyTeamAdmin;
+
   const logo = [
     {
       icon: "logo",
@@ -37,7 +44,7 @@ export default (
     },
   ];
 
-  const userNavItems = [
+  const navItems = [
     {
       icon: "hosts",
       name: "Hosts",
@@ -47,6 +54,14 @@ export default (
         pathname: PATHS.MANAGE_HOSTS,
       },
       withContext: true,
+    },
+    {
+      name: "Controls",
+      location: {
+        regex: new RegExp(`^${URL_PREFIX}/controls/`),
+        pathname: PATHS.CONTROLS,
+      },
+      exclude: !isMaintainerOrAdmin,
     },
     {
       icon: "software",
@@ -67,9 +82,16 @@ export default (
         pathname: PATHS.MANAGE_QUERIES,
       },
     },
-  ];
-
-  const policiesTab = [
+    {
+      icon: "packs",
+      name: "Schedule",
+      iconName: "packs",
+      location: {
+        regex: new RegExp(`^${URL_PREFIX}/(schedule|packs)/`),
+        pathname: PATHS.MANAGE_SCHEDULE,
+      },
+      exclude: !isMaintainerOrAdmin,
+    },
     {
       icon: "policies",
       name: "Policies",
@@ -81,41 +103,14 @@ export default (
     },
   ];
 
-  const maintainerOrAdminNavItems = [
-    {
-      icon: "packs",
-      name: "Schedule",
-      iconName: "packs",
-      location: {
-        regex: new RegExp(`^${URL_PREFIX}/(schedule|packs)/`),
-        pathname: PATHS.MANAGE_SCHEDULE,
-      },
-    },
-    {
-      name: "Controls",
-      location: {
-        regex: new RegExp(`^${URL_PREFIX}/controls/`),
-        pathname: PATHS.CONTROLS,
-      },
-    },
-  ];
-
-  if (
-    isGlobalMaintainer ||
-    isAnyTeamMaintainer ||
-    isGlobalAdmin ||
-    isAnyTeamAdmin
-  ) {
-    return [
-      ...logo,
-      ...userNavItems,
-      ...maintainerOrAdminNavItems,
-      ...policiesTab,
-    ];
-  }
-
   if (isNoAccess) {
     return [...logo];
   }
-  return [...logo, ...userNavItems, ...policiesTab];
+
+  return [
+    ...logo,
+    ...navItems.filter((item) => {
+      return !item.exclude;
+    }),
+  ];
 };
