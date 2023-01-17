@@ -13,7 +13,7 @@ export interface IInfoBannerProps {
   color?: "yellow";
   pageLevel?: boolean;
   /** cta and link are mutually exclusive */
-  cta?: JSX.Element | string;
+  cta?: JSX.Element;
   /** closable and link are mutually exclusive */
   closable?: boolean;
   link?: string;
