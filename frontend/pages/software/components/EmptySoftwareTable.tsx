@@ -26,7 +26,7 @@ const EmptySoftwareTable = ({
       isFilterVulnerable ? "vulnerable " : ""
     }software match the current search criteria`,
     info: `Try again in about ${
-      isSandboxMode ? "5 minutes" : "1 hour"
+      isSandboxMode ? "15 minutes" : "1 hour"
     } as the system catches up.`,
   };
   if (isCollectingSoftware) {
@@ -55,7 +55,7 @@ const EmptySoftwareTable = ({
   if (isFilterVulnerable && !isSearching) {
     emptySoftware.header = "No vulnerable software detected";
     emptySoftware.info = `This report is updated every ${
-      isSandboxMode ? "5 minutes" : "hour"
+      isSandboxMode ? "15 minutes" : "hour"
     } to protect the performance of your devices.`;
   }
 
