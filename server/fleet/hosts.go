@@ -411,9 +411,10 @@ type HostMDM struct {
 	Name             string `db:"name" json:"-" csv:"-"`
 }
 
-// IsPendingFleetEnrollment returns true if the host's MDM information
-// indicates that it is in pending state for Fleet MDM enrollment.
-func (h *HostMDM) IsPendingFleetEnrollment() bool {
+// IsPendingDEPFleetEnrollment returns true if the host's MDM information
+// indicates that it is in pending state for Fleet MDM DEP (automatic)
+// enrollment.
+func (h *HostMDM) IsPendingDEPFleetEnrollment() bool {
 	if h == nil {
 		return false
 	}

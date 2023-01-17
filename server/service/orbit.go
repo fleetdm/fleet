@@ -144,7 +144,7 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (flags json.RawMessage, 
 	}
 
 	// set the host's orbit notifications
-	if host.IsOsqueryEnrolled() && host.MDMInfo.IsPendingFleetEnrollment() {
+	if host.IsOsqueryEnrolled() && host.MDMInfo.IsPendingDEPFleetEnrollment() {
 		notifs.RenewEnrollmentProfile = true
 	}
 

@@ -5960,7 +5960,7 @@ func testHostsLoadHostByOrbitNodeKey(t *testing.T, ds *Datastore) {
 	require.NotNil(t, loadSimple.MDMInfo)
 	require.Equal(t, hSimple.ID, loadSimple.MDMInfo.HostID)
 	require.True(t, loadSimple.IsOsqueryEnrolled())
-	require.False(t, loadSimple.MDMInfo.IsPendingFleetEnrollment())
+	require.False(t, loadSimple.MDMInfo.IsPendingDEPFleetEnrollment())
 
 	// create a host that will be pending enrollment in Fleet MDM
 	hFleet := createOrbitHost("fleet")
@@ -5973,5 +5973,5 @@ func testHostsLoadHostByOrbitNodeKey(t *testing.T, ds *Datastore) {
 	require.NotNil(t, loadFleet.MDMInfo)
 	require.Equal(t, hFleet.ID, loadFleet.MDMInfo.HostID)
 	require.True(t, loadFleet.IsOsqueryEnrolled())
-	require.True(t, loadFleet.MDMInfo.IsPendingFleetEnrollment())
+	require.True(t, loadFleet.MDMInfo.IsPendingDEPFleetEnrollment())
 }
