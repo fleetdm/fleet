@@ -6,6 +6,11 @@ import { AppContext } from "context/app";
 
 import TabsWrapper from "components/TabsWrapper";
 import MainContent from "components/MainContent";
+import TeamsDropdown from "components/TeamsDropdown";
+
+import { getValidatedTeamId } from "utilities/helpers";
+
+import { omit } from "lodash";
 
 interface IControlsSubNavItem {
   name: string;
@@ -25,9 +30,7 @@ const controlsSubNav: IControlsSubNavItem[] = [
 
 interface IControlsWrapperProp {
   children: JSX.Element;
-  location: {
-    pathname: string;
-  };
+  location: any; // no type in react-router v3
   router: InjectedRouter; // v3
 }
 
@@ -43,46 +46,113 @@ const baseClass = "controls-wrapper";
 
 const ControlsWrapper = ({
   children,
-  location: { pathname },
+  location,
   router,
 }: IControlsWrapperProp): JSX.Element => {
-  const { isPremiumTier } = useContext(AppContext);
+  const queryParams = location.query;
+  const {
+    currentUser,
+    isOnGlobalTeam,
+    availableTeams,
+    currentTeam,
+    isPremiumTier,
+    setCurrentTeam,
+  } = useContext(AppContext);
 
   const navigateToNav = (i: number): void => {
     const navPath = controlsSubNav[i].pathname;
     router.push(navPath);
   };
 
-  if (isPremiumTier) {
-    return (
-      <MainContent className={baseClass}>
-        <div className={`${baseClass}_wrapper}`}>
-          <TabsWrapper>
-            {/* TODO: replace below heading with teams dropdown - defaults to No Teams */}
-            <h1>Controls</h1>
-            <Tabs
-              selectedIndex={getTabIndex(pathname)}
-              onSelect={(i) => navigateToNav(i)}
-            >
-              <TabList>
-                {controlsSubNav.map((navItem) => {
-                  return (
-                    <Tab key={navItem.name} data-text={navItem.name}>
-                      {navItem.name}
-                    </Tab>
-                  );
-                })}
-              </TabList>
-            </Tabs>
-          </TabsWrapper>
-          {children}
-        </div>
-      </MainContent>
+  const handleTeamSelect = (teamId: number) => {
+    const { CONTROLS } = PATHS;
+
+    const teamIdParam = getValidatedTeamId(
+      availableTeams || [],
+      teamId,
+      currentUser,
+      isOnGlobalTeam ?? false
     );
-  }
+
+    const slimmerParams = omit(queryParams, ["team_id"]);
+
+    const newQueryParams = !teamIdParam
+      ? slimmerParams
+      : Object.assign(slimmerParams, { team_id: teamIdParam });
+
+    const nextLocation = getNextLocationPath({
+      pathPrefix: MANAGE_HOSTS,
+      routeTemplate,
+      routeParams,
+      queryParams: newQueryParams,
+    });
+
+    handleResetPageIndex();
+    router.replace(nextLocation);
+    const selectedTeam = find(availableTeams, ["id", teamId]);
+    setCurrentTeam(selectedTeam);
+  };
+
+  const renderHeader = () => (
+    <div className={`${baseClass}__header`}>
+      <div className={`${baseClass}__text`}>
+        <div className={`${baseClass}__title`}>
+          {isPremiumTier ? (
+            <TeamsDropdown
+              currentUserTeams={availableTeams || []}
+              selectedTeamId={currentTeam?.id}
+              onChange={(newSelectedValue: number) =>
+                handleTeamSelect(newSelectedValue)
+              }
+            />
+          ) : (
+            <h1>Controls</h1>
+          )}
+          {/* {isPremiumTier &&
+            availableTeams &&
+            (availableTeams.length > 1 || isOnGlobalTeam) &&
+            renderTeamsFilterDropdown()}
+          {isPremiumTier &&
+            !isOnGlobalTeam &&
+            availableTeams &&
+            availableTeams.length === 1 && <h1>{availableTeams[0].name}</h1>} */}
+        </div>
+      </div>
+    </div>
+  );
+
   return (
-    // TODO - implement upsell empty state
-    <h1>Buy Premium</h1>
+    <MainContent className={baseClass}>
+      <div className={`${baseClass}__wrapper`}>
+        <div className={`${baseClass}__header-wrap`}>{renderHeader()}</div>
+        {isPremiumTier ? (
+          <div>
+            <TabsWrapper>
+              <Tabs
+                selectedIndex={getTabIndex(location.pathname)}
+                onSelect={(i) => navigateToNav(i)}
+              >
+                <TabList>
+                  {controlsSubNav.map((navItem) => {
+                    return (
+                      <Tab key={navItem.name} data-text={navItem.name}>
+                        {navItem.name}
+                      </Tab>
+                    );
+                  })}
+                </TabList>
+              </Tabs>
+            </TabsWrapper>
+            {children}
+          </div>
+        ) : (
+          <>
+            <hr />
+            <h1> Buy Premium</h1>
+          </>
+        )}
+      </div>
+    </MainContent>
   );
 };
 
