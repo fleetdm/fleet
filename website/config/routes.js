@@ -195,7 +195,7 @@ module.exports.routes = {
   },
 
   'GET /try-fleet/sandbox': {
-    action: 'try-fleet/view-sandbox-teleporter-or-redirect-because-expired',
+    action: 'try-fleet/view-sandbox-teleporter',
     locals: {
       layout: 'layouts/layout-sandbox',
     },

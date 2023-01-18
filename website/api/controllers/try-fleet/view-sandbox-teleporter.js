@@ -1,13 +1,12 @@
 module.exports = {
 
 
-  friendlyName: 'View sandbox teleporter or redirect because sandbox expired',
+  friendlyName: 'View sandbox teleporter',
 
   description:
     `Display "Sandbox teleporter" page (an auto-submitting interstitial HTML form used as a hack to grab a bit of HTML
     from the Fleet Sandbox instance, which sets browser localstorage to consider this user logged in and "teleports" them,
-    magically authenticated, into their Fleet Sandbox instance running on a different domain), or redirect the user to
-    a page about their sandbox instance being expired.`,
+    magically authenticated, into their Fleet Sandbox instance running on a different domain)`,
 
   moreInfoUrl: 'https://github.com/fleetdm/fleet/pull/6380',
 
