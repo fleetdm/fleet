@@ -24,7 +24,7 @@ Open source isn’t just a development model. It’s a movement. It’s an effec
 
 Since 2020, Fleet has given visibility into over 1.65 million servers and workstations. Fortune 1000 companies like Uber, Atlassian, and [Wayfair](https://fleetdm.com/device-management/fleet-user-stories-wayfair) now have the insights they need to easily maintain continuous compliance.
 
-Our community made this happen. That includes feedback from our customers. Your suggestions directly shape [the direction of our product](https://fleetdm.com/pricing). After all, we’re here to help you.
+The [community](https://chat.osquery.io) made this happen.  Fleet's contributors shape [the direction of the product](https://fleetdm.com/pricing).
 
 ## Why do we use a wireframe-first approach?
 
