@@ -10,10 +10,6 @@ We are dedicated to
 - 🪟 privacy, transparency, and trust through open source software.
 - 💻 a better way to manage computers.
 
-> 5 things is too many.  But we also care deeply about
-> - 💍 reducing the proliferation of agents and growing the adoption of osquery (one agent to rule them all).
-> - 👁️ remaining the freshest, simplest source of truth for every kind of computing device and OS.
-
 ### About the handbook
 
 The Fleet handbook is inspired by the [GitLab team handbook](https://about.gitlab.com/handbook/about/).  It shares the same [advantages](https://about.gitlab.com/handbook/about/#advantages) and will probably undergo a similar [evolution](https://about.gitlab.com/handbook/ceo/#evolution-of-the-handbook).
