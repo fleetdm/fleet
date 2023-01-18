@@ -46,7 +46,7 @@ const TruncatedTextCell = ({
         </span>
       </div>
       <ReactTooltip
-        place="bottom"
+        place="top"
         effect="solid"
         backgroundColor="#3e4771"
         id={tooltipId}
