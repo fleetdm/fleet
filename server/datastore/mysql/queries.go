@@ -192,7 +192,7 @@ func (ds *Datastore) ListQueries(ctx context.Context, opt fleet.ListQueryOptions
 	if opt.OnlyObserverCanRun {
 		sql += " AND q.observer_can_run=true"
 	}
-	sql = appendListOptionsToSQL(sql, opt.ListOptions)
+	sql = appendListOptionsToSQL(sql, &opt.ListOptions)
 
 	results := []*fleet.Query{}
 

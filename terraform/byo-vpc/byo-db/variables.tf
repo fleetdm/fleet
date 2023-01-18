@@ -54,6 +54,7 @@ variable "fleet_config" {
     cpu                         = optional(number, 256)
     image                       = optional(string, "fleetdm/fleet:v4.22.1")
     extra_environment_variables = optional(map(string), {})
+    extra_iam_policies          = optional(list(string), [])
     extra_secrets               = optional(map(string), {})
     security_groups             = optional(list(string), null)
     iam_role_arn                = optional(string, null)
@@ -103,6 +104,7 @@ variable "fleet_config" {
     cpu                         = 256
     image                       = "fleetdm/fleet:v4.22.1"
     extra_environment_variables = {}
+    extra_iam_policies          = []
     extra_secrets               = {}
     security_groups             = null
     iam_role_arn                = null

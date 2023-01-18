@@ -11,24 +11,24 @@ import Dropdown from "components/forms/fields/Dropdown";
 
 interface IEditTeamModal {
   onCancel: () => void;
-  currentDefaultTeamName: string | undefined;
+  defaultTeamName: string;
+  onUpdateSuccess: (newName: string) => void;
 }
 
 const baseClass = "edit-team-modal";
 
 const EditTeamModal = ({
   onCancel,
-  currentDefaultTeamName,
+  defaultTeamName,
+  onUpdateSuccess,
 }: IEditTeamModal): JSX.Element => {
   const { availableTeams } = useContext(AppContext);
+
+  const [selectedTeam, setSelectedTeam] = useState(defaultTeamName);
 
   const teamNameOptions = availableTeams?.map((teamSummary) => {
     return { value: teamSummary.name, label: teamSummary.name };
   });
-
-  const [defaultTeamName, setDefaultTeamName] = useState(
-    currentDefaultTeamName
-  );
 
   const [isLoading, setIsLoading] = useState(false);
 
@@ -36,10 +36,11 @@ const EditTeamModal = ({
     event.preventDefault();
     try {
       setIsLoading(true);
-      await configAPI.update({
-        mdm: { apple_bm_default_team: defaultTeamName },
+      const configData = await configAPI.update({
+        mdm: { apple_bm_default_team: selectedTeam },
       });
       setIsLoading(false);
+      onUpdateSuccess(configData.mdm.apple_bm_default_team);
     } finally {
       onCancel();
     }
@@ -50,10 +51,10 @@ const EditTeamModal = ({
       <form className={`${baseClass}__form`} onSubmit={onFormSubmit}>
         <div className="bottom-label">
           <Dropdown
-            placeholder={defaultTeamName ?? "No team"}
+            placeholder={selectedTeam}
             options={teamNameOptions}
-            onChange={setDefaultTeamName}
-            value={defaultTeamName ?? ""}
+            onChange={setSelectedTeam}
+            value={selectedTeam}
             label="Team"
           />
           <p>

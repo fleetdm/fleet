@@ -166,7 +166,7 @@ resource "aws_cloudwatch_log_group" "main" { #tfsec:ignore:aws-cloudwatch-log-gr
 resource "aws_security_group" "main" {
   count       = var.fleet_config.security_groups == null ? 1 : 0
   name        = "fleet"
-  description = "Fleet's ECS Service Security Group"
+  description = "Fleet ECS Service Security Group"
   vpc_id      = var.vpc_id
   egress {
     description      = "Egress to all"

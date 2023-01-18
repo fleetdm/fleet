@@ -47,6 +47,12 @@ resource "aws_iam_role_policy_attachment" "main" {
   role       = aws_iam_role.main[0].name
 }
 
+resource "aws_iam_role_policy_attachment" "extras" {
+  for_each   = toset(var.fleet_config.extra_iam_policies)
+  policy_arn = each.value
+  role       = aws_iam_role.main[0].name
+}
+
 resource "aws_iam_policy" "execution" {
   name        = "fleet-iam-policy-execution"
   description = "IAM policy that Fleet application uses to define access to AWS resources"
