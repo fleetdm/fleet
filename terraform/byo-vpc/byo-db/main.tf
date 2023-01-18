@@ -38,7 +38,7 @@ module "alb" {
 
   target_groups = [
     {
-      name_prefix      = var.alb_config.name
+      name             = var.alb_config.name
       backend_protocol = "HTTP"
       backend_port     = 80
       target_type      = "ip"
