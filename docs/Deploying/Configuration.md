@@ -2519,9 +2519,9 @@ packaging:
     region: us-east-1
 ```
 
-#### MDM (mobile device management) - IN PROGRESS
+#### Mobile device management (MDM)
 
-> This feature is currently in development and is not ready for use.
+> MDM features are not ready for production and are currently in development. These features are disabled by default.
 
 ##### apple_apns_cert
 
