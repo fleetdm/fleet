@@ -4,6 +4,12 @@ MDM features are not ready for production and are currently in development. Thes
 
 MDM features allow you to mange macOS updates and macOS settings on your hosts.
 
+To use MDM features you have to connect Fleet to Apple Push Certificates Portal:
+
+1. In the Fleet UI, head to the **Settings > Integrations > Mobile device management (MDM)** page. Users with the admin role can access the settings pages.
+
+2. Follow the instructions under **Apple Push Certificates Portal**.
+
 ## Controls
 
 ### macOS updates
@@ -21,13 +27,5 @@ If the end user has more than 1 day until the deadline, the window is shown ever
 If there is less than 1 day, the window is shown every 2 hours. The end user can defer and they'll see the window again in 2 hours.
 
 If the end user is past the deadline, Fleet opens the window. The end user can't close the window.
-
-## Settings
-
-To use MDM features you have to connect Fleet to Apple Push Certificates Portal:
-
-1. In the Fleet UI, head to the **Settings > Integrations > Mobile device management (MDM)** page. Users with the admin role can access the settings pages.
-
-2. Follow the instructions under **Apple Push Certificates Portal**.
 
 <meta name="pageOrderInSection" value="1500">
