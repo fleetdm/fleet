@@ -8,7 +8,7 @@ variable "vpc" {
     database_subnets    = optional(list(string), ["10.10.21.0/24", "10.10.22.0/24", "10.10.23.0/24"])
     elasticache_subnets = optional(list(string), ["10.10.31.0/24", "10.10.32.0/24", "10.10.33.0/24"])
 
-    create_database_subnet_group          = optional(bool, true)
+    create_database_subnet_group          = optional(bool, false)
     create_database_subnet_route_table    = optional(bool, true)
     create_elasticache_subnet_group       = optional(bool, true)
     create_elasticache_subnet_route_table = optional(bool, true)
@@ -26,7 +26,7 @@ variable "vpc" {
     database_subnets    = ["10.10.21.0/24", "10.10.22.0/24", "10.10.23.0/24"]
     elasticache_subnets = ["10.10.31.0/24", "10.10.32.0/24", "10.10.33.0/24"]
 
-    create_database_subnet_group          = true
+    create_database_subnet_group          = false
     create_database_subnet_route_table    = true
     create_elasticache_subnet_group       = true
     create_elasticache_subnet_route_table = true
