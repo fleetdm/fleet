@@ -947,7 +947,7 @@ func cronActivitiesStreaming(
 	page := uint(0)
 	for {
 		// (1) Get batch of activities that haven't been streamed.
-		activitiesToStream, err := ds.ListActivities(ctx, fleet.ListActivitiesOptions{
+		activitiesToStream, _, err := ds.ListActivities(ctx, fleet.ListActivitiesOptions{
 			ListOptions: fleet.ListOptions{
 				OrderKey:       "id",
 				OrderDirection: fleet.OrderAscending,

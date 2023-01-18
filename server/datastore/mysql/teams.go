@@ -253,7 +253,7 @@ func (ds *Datastore) ListTeams(ctx context.Context, filter fleet.TeamFilter, opt
 		ds.whereFilterTeams(filter, "t"),
 	)
 	query, params := searchLike(query, nil, opt.MatchQuery, teamSearchColumns...)
-	query = appendListOptionsToSQL(query, opt)
+	query = appendListOptionsToSQL(query, &opt)
 	teams := []*fleet.Team{}
 	if err := sqlx.SelectContext(ctx, ds.reader, &teams, query, params...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list teams")

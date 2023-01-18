@@ -712,7 +712,7 @@ func (ds *Datastore) applyHostFilters(opt fleet.HostListOptions, sql string, fil
 	sql, params = filterHostsByMDM(sql, opt, params)
 	sql, params = filterHostsByOS(sql, opt, params)
 	sql, params = hostSearchLike(sql, params, opt.MatchQuery, hostSearchColumns...)
-	sql, params = appendListOptionsWithCursorToSQL(sql, params, opt.ListOptions)
+	sql, params = appendListOptionsWithCursorToSQL(sql, params, &opt.ListOptions)
 
 	return sql, params
 }
