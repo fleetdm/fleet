@@ -3,7 +3,7 @@ import React from "react";
 import { IMunkiIssue } from "interfaces/host";
 import TableContainer from "components/TableContainer";
 
-import EmptyState from "../EmptyState";
+import EmptyTable from "components/EmptyTable";
 
 import { munkiIssuesTableHeaders } from "./MunkiIssuesTableConfig";
 
@@ -23,15 +23,6 @@ const MunkiIssuesTable = ({
   const tableMunkiIssues = munkiIssues;
   const tableHeaders = munkiIssuesTableHeaders;
 
-  const EmptyMunkiIssues = () => {
-    return (
-      <div className={`section section--${baseClass}`}>
-        <p className="section__header">Munki issues</p>
-        <EmptyState title="munki-issues" reason="none-detected" />
-      </div>
-    );
-  };
-
   return (
     <div className={`section section--${baseClass}`}>
       <p className="section__header">Munki issues</p>
@@ -45,14 +36,22 @@ const MunkiIssuesTable = ({
             defaultSortHeader={"name"}
             defaultSortDirection={"asc"}
             resultsTitle={"issue"}
-            emptyComponent={EmptyMunkiIssues}
+            emptyComponent={() => (
+              <EmptyTable
+                header="No Munki issues detected"
+                info="The last time Munki ran on this host, no issues were reported."
+              />
+            )}
             showMarkAllPages={false}
             isAllPagesSelected={false}
             isClientSidePagination
           />
         </div>
       ) : (
-        <EmptyState title="munki-issues" reason="none-detected" />
+        <EmptyTable
+          header="No Munki issues detected"
+          info="The last time Munki ran on this host, no issues were reported."
+        />
       )}
     </div>
   );

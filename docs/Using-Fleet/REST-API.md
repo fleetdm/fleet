@@ -422,7 +422,8 @@ This is the callback endpoint that the identity provider will use to send securi
 
 ### List activities
 
-Returns a list of the activities that have been performed in Fleet. The following types of activity are included:
+Returns a list of the activities that have been performed in Fleet as well as additional meta data
+for pagination. The following types of activity are included:
 
 - Created pack
 - Edited pack
@@ -587,7 +588,11 @@ Returns a list of the activities that have been performed in Fleet. The followin
         "target_counts": 14
       }
     }
-  ]
+  ],
+  "meta": {
+    "has_next_results": true,
+    "has_previous_results": false
+  }
 }
 
 ```
@@ -1836,7 +1841,9 @@ If `after` is being used with `created_at` or `updated_at`, the table must be sp
           "type": "point",
           "coordinates": [40.6799, -74.0028]
         }
-      }
+      },
+      "mdm_enrollment_status": null,
+      "mdm_server_url": null
     }
   ]
 }
@@ -2211,7 +2218,9 @@ Returns the information of the specified host.
         "type": "point",
         "coordinates": [40.6799, -74.0028]
       }
-    }
+    },
+    "mdm_enrollment_status": null,
+    "mdm_server_url": null
   }
 }
 ```
@@ -2385,7 +2394,9 @@ Returns the information of the host specified using the `uuid`, `osquery_host_id
     },
     "status": "online",
     "display_text": "dogfood-ubuntu-box",
-    "display_name": "dogfood-ubuntu-box"
+    "display_name": "dogfood-ubuntu-box",
+    "mdm_enrollment_status": null,
+    "mdm_server_url": null
   }
 }
 ```

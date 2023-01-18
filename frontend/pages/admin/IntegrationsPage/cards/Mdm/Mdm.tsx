@@ -40,6 +40,7 @@ const Mdm = (): JSX.Element => {
 
   const [showRequestCSRModal, setShowRequestCSRModal] = useState(false);
   const [showEditTeamModal, setShowEditTeamModal] = useState(false);
+  const [defaultTeamName, setDefaultTeamName] = useState("No team");
 
   const [showCSRFlag, setShowCSRFlag] = useState(true);
 
@@ -66,6 +67,9 @@ const Mdm = (): JSX.Element => {
     {
       enabled: isPremiumTier,
       staleTime: 5000,
+      onSuccess: (appleBmData) => {
+        setDefaultTeamName(appleBmData.default_team ?? "No team");
+      },
     }
   );
 
@@ -242,7 +246,7 @@ const Mdm = (): JSX.Element => {
             </TooltipWrapper>
           </h4>
           <p>
-            {mdmAppleBm.default_team || "No team"}{" "}
+            {defaultTeamName}{" "}
             <Button
               className={`${baseClass}__edit-team-btn`}
               onClick={toggleEditTeamModal}
@@ -285,7 +289,10 @@ const Mdm = (): JSX.Element => {
       {showEditTeamModal && (
         <EditTeamModal
           onCancel={toggleEditTeamModal}
-          onEdit={toggleEditTeamModal}
+          defaultTeamName={defaultTeamName}
+          onUpdateSuccess={(newDefaultTeamName) =>
+            setDefaultTeamName(newDefaultTeamName)
+          }
         />
       )}
     </div>

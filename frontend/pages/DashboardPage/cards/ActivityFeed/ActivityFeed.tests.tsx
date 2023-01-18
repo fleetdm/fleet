@@ -4,7 +4,10 @@ import { noop } from "lodash";
 
 import { createCustomRenderer } from "test/test-utils";
 import mockServer from "test/mock-server";
-import { activityHandler9Activities } from "test/handlers/activity-handlers";
+import {
+  activityHandlerHasMoreActivities,
+  activityHandlerHasPreviousActivities,
+} from "test/handlers/activity-handlers";
 
 import ActivityFeed from "./ActivityFeed";
 
@@ -38,7 +41,7 @@ describe("Activity Feed", () => {
   });
 
   it("enables next pagination when there are more activities", async () => {
-    mockServer.use(activityHandler9Activities);
+    mockServer.use(activityHandlerHasMoreActivities);
 
     const render = createCustomRenderer({
       withBackendMock: true,
@@ -52,7 +55,7 @@ describe("Activity Feed", () => {
     expect(screen.getByRole("button", { name: "Next" })).toBeEnabled();
   });
 
-  it("disables previous pagination on initial page", async () => {
+  it("disables previous pagination when there are not previous activities", async () => {
     const render = createCustomRenderer({
       withBackendMock: true,
     });
@@ -65,8 +68,8 @@ describe("Activity Feed", () => {
     expect(screen.getByRole("button", { name: "Previous" })).toBeDisabled();
   });
 
-  it("enables previous pagination when on subsequent pages", async () => {
-    mockServer.use(activityHandler9Activities);
+  it("enables previous pagination when there are more previous activities", async () => {
+    mockServer.use(activityHandlerHasPreviousActivities);
 
     const render = createCustomRenderer({
       withBackendMock: true,
