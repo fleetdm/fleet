@@ -30,16 +30,4 @@ To use MDM features you have to connect Fleet to Apple Push Certificates Portal:
 
 2. Follow the instructions under **Apple Push Certificates Portal**.
 
-### Renewing certificates
-
-TODO
-
-#### Apple Push Notification service (APNs)
-
-TODO
-
-#### Apple Business Manager (ABM)
-
-TODO
-
 <meta name="pageOrderInSection" value="1500">
