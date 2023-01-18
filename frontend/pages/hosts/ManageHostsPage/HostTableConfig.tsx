@@ -200,7 +200,6 @@ const allHostTableHeaders: IDataColumn[] = [
   {
     title: "Status",
     Header: (headerProps: IHeaderProps): JSX.Element => {
-      console.log("headerProps", headerProps);
       const titleWithToolTip = (
         <TooltipWrapper
           tipContent={`
