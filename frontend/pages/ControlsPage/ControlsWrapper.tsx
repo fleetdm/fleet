@@ -6,11 +6,11 @@ import { AppContext } from "context/app";
 
 import TabsWrapper from "components/TabsWrapper";
 import MainContent from "components/MainContent";
-import TeamsDropdown from "components/TeamsDropdown";
+import TeamsDropdownHeader, {
+  ITeamsDropdownState,
+} from "components/PageHeader/TeamsDropdownHeader";
 
-import { getValidatedTeamId } from "utilities/helpers";
-
-import { omit } from "lodash";
+import { find } from "lodash";
 
 interface IControlsSubNavItem {
   name: string;
@@ -34,7 +34,6 @@ interface IControlsWrapperProp {
   router: InjectedRouter; // v3
 }
 
-// Not sure what the below does, ask Rachel
 const getTabIndex = (path: string): number => {
   return controlsSubNav.findIndex((navItem) => {
     // tab stays highlighted for paths that start with same pathname
@@ -49,46 +48,19 @@ const ControlsWrapper = ({
   location,
   router,
 }: IControlsWrapperProp): JSX.Element => {
-  const queryParams = location.query;
-  const {
-    currentUser,
-    isOnGlobalTeam,
-    availableTeams,
-    currentTeam,
-    isPremiumTier,
-    setCurrentTeam,
-  } = useContext(AppContext);
+  const { availableTeams, isPremiumTier, setCurrentTeam } = useContext(
+    AppContext
+  );
 
   const navigateToNav = (i: number): void => {
     const navPath = controlsSubNav[i].pathname;
     router.push(navPath);
   };
 
-  const handleTeamSelect = (teamId: number) => {
-    const { CONTROLS } = PATHS;
-
-    const teamIdParam = getValidatedTeamId(
-      availableTeams || [],
-      teamId,
-      currentUser,
-      isOnGlobalTeam ?? false
-    );
-
-    const slimmerParams = omit(queryParams, ["team_id"]);
-
-    const newQueryParams = !teamIdParam
-      ? slimmerParams
-      : Object.assign(slimmerParams, { team_id: teamIdParam });
-
-    const nextLocation = getNextLocationPath({
-      pathPrefix: MANAGE_HOSTS,
-      routeTemplate,
-      routeParams,
-      queryParams: newQueryParams,
-    });
-
-    handleResetPageIndex();
-    router.replace(nextLocation);
+  const handleTeamSelect = (ctx: ITeamsDropdownState) => {
+    const teamId = ctx.teamId;
+    const queryString = teamId === undefined ? "" : `?team_id=${teamId}`;
+    router.replace(location.pathname + queryString);
     const selectedTeam = find(availableTeams, ["id", teamId]);
     setCurrentTeam(selectedTeam);
   };
@@ -97,25 +69,18 @@ const ControlsWrapper = ({
     <div className={`${baseClass}__header`}>
       <div className={`${baseClass}__text`}>
         <div className={`${baseClass}__title`}>
-          {isPremiumTier ? (
-            <TeamsDropdown
-              currentUserTeams={availableTeams || []}
-              selectedTeamId={currentTeam?.id}
-              onChange={(newSelectedValue: number) =>
-                handleTeamSelect(newSelectedValue)
-              }
-            />
-          ) : (
-            <h1>Controls</h1>
-          )}
-          {/* {isPremiumTier &&
-            availableTeams &&
-            (availableTeams.length > 1 || isOnGlobalTeam) &&
-            renderTeamsFilterDropdown()}
-          {isPremiumTier &&
-            !isOnGlobalTeam &&
-            availableTeams &&
-            availableTeams.length === 1 && <h1>{availableTeams[0].name}</h1>} */}
+          <TeamsDropdownHeader
+            router={router}
+            location={location}
+            baseClass={baseClass}
+            defaultTitle="Controls"
+            onChange={handleTeamSelect}
+            description={() => {
+              return null;
+            }}
+            includeNoTeams
+            includeAll={false}
+          />
         </div>
       </div>
     </div>
@@ -148,7 +113,7 @@ const ControlsWrapper = ({
         ) : (
           <>
             <hr />
-            <h1> Buy Premium</h1>
+            <h1>Buy Premium</h1>
           </>
         )}
       </div>
