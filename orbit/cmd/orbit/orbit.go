@@ -505,8 +505,17 @@ func main() {
 		if err != nil {
 			return fmt.Errorf("error new orbit client: %w", err)
 		}
+
+		// create the notifications middleware that wraps the orbit client
+		// (must be shared by all runners that use a ConfigFetcher).
+		const renewEnrollmentProfileCommandFrequency = 5 * time.Minute
+		configFetcher := &update.RenewEnrollmentProfileConfigFetcher{
+			Fetcher:   orbitClient,
+			Frequency: renewEnrollmentProfileCommandFrequency,
+		}
+
 		const orbitFlagsUpdateInterval = 30 * time.Second
-		flagRunner := update.NewFlagRunner(orbitClient, update.FlagUpdateOptions{
+		flagRunner := update.NewFlagRunner(configFetcher, update.FlagUpdateOptions{
 			CheckInterval: orbitFlagsUpdateInterval,
 			RootDir:       c.String("root-dir"),
 		})
@@ -523,7 +532,7 @@ func main() {
 		// and all relevant things for it (like certs, enroll secrets, tls proxy, etc) is configured
 		if !c.Bool("disable-updates") || c.Bool("dev-mode") {
 			const orbitExtensionUpdateInterval = 60 * time.Second
-			extRunner := update.NewExtensionConfigUpdateRunner(orbitClient, update.ExtensionUpdateOptions{
+			extRunner := update.NewExtensionConfigUpdateRunner(configFetcher, update.ExtensionUpdateOptions{
 				CheckInterval: orbitExtensionUpdateInterval,
 				RootDir:       c.String("root-dir"),
 			}, updateRunner)
