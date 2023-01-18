@@ -2,6 +2,11 @@
 
 package update
 
+import (
+	"fmt"
+	"os/exec"
+)
+
 func runRenewEnrollmentProfile() error {
 	cmd := exec.Command("/usr/bin/profiles", "renew", "--type", "enrollment")
 	out, err := cmd.CombinedOutput()

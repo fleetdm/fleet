@@ -8,6 +8,8 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+type runCmdFunc func() error
+
 // RenewEnrollmentProfileConfigFetcher is a kind of middleware that wraps an
 // OrbitConfigFetcher and detects if the fleet server sent a notification to
 // renew the enrollment profile. If so, it runs the command (as root) to
@@ -23,6 +25,10 @@ type RenewEnrollmentProfileConfigFetcher struct {
 	// Frequency is the minimum amount of time that must pass between two
 	// executions of the profile renewal command.
 	Frequency time.Duration
+
+	// for tests, to be able to mock command execution. If nil, will use
+	// runRenewEnrollmentProfile.
+	runCmdFn runCmdFunc
 
 	// ensures only one command runs at a time, protects access to lastRun
 	cmdMu   sync.Mutex
@@ -51,7 +57,11 @@ func (h *RenewEnrollmentProfileConfigFetcher) GetConfig() (*service.OrbitConfig,
 			// associated macOS notification popup). Is that ok? Is that command
 			// idempotent apart from the notification popup?
 			if time.Since(h.lastRun) > h.Frequency {
-				if err := runRenewEnrollmentProfile(); err != nil {
+				fn := h.runCmdFn
+				if fn == nil {
+					fn = runRenewEnrollmentProfile
+				}
+				if err := fn(); err != nil {
 					log.Info().Err(err).Msg("calling /usr/bin/profiles to renew enrollment profile failed")
 				} else {
 					h.lastRun = time.Now()
