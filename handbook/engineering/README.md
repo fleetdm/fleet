@@ -281,6 +281,10 @@ At Fleet, we consider an outage to be a situation where new features or previous
 - Fleet encourages embracing the inevitability of mistakes and discourages blame games.
 - Fleet stresses the critical importance of avoiding outages because they make customers' lives worse instead of better.
 
+## Do we estimate released bugs and outages?
+
+Estimating bugs and outages can be helpful in getting on the same page about how much time we want to spend on a given piece of unplanned work, and how much the ∑ of unplanned work is affecting a team's throughput.
+
 ## Project boards
 
 [🚀 Release](https://github.com/orgs/fleetdm/projects/40) - The current release (daily go-to board) for engineers.
