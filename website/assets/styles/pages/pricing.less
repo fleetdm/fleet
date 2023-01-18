@@ -46,18 +46,28 @@
     border: 1px solid #E2E4EA;
     border-radius: 28px;
     background: #F9FAFC;
+    position: relative;
+    [purpose='pricing-tier-switch'] {
+      position: absolute;
+      top: 0px;
+      left: -1px;
+      background: #fff;
+      border: 1px solid #E2E4EA;
+      border-radius: 28px;
+      height: 100%;
+      min-width: 140px;
+      z-index: 1;
+      transition: .25s all;
+    }
     [purpose='pricing-switch-option'] {
       padding: 16px;
       width: 140px;
       text-align: center;
       cursor: pointer;
-
+      z-index: 3;
     }
-    .selected {
-      background: #fff;
-      border: 1px solid #E2E4EA;
-      border-radius: 28px;
-      min-width: 140px;
+    .it-selected {
+      transform: translateX(140px);
     }
 
   }

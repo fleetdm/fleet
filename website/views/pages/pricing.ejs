@@ -12,6 +12,7 @@
       <div purpose="pricing-switch" class="d-flex flex-row justify-content-center mx-auto mb-4" @click="displaySecurityPricingMode = !displaySecurityPricingMode">
         <div purpose="pricing-switch-option" :class="[displaySecurityPricingMode ? 'selected' : '']">Security</div>
         <div purpose="pricing-switch-option" :class="[!displaySecurityPricingMode ? 'selected' : '']">IT</div>
+        <div purpose="pricing-tier-switch" :class="[!displaySecurityPricingMode ? 'it-selected' : '']"></div>
       </div>
       <h4 class="pb-4 mb-4 text-center">Always cross-platform, always secure. You will always have control over read/write privileges.</h4>
       <div class="d-flex justify-content-center">
