@@ -40,4 +40,5 @@ module "byo-vpc" {
     subnets         = module.vpc.public_subnets
     certificate_arn = var.certificate_arn
   })
+  ecs_cluster = var.ecs_cluster
 }
