@@ -91,12 +91,12 @@ The Fleet handbook provides team members with up-to-date information about how t
 This strategy was inspired by GitLab, which uses it with great effect. Check out this [short three-minute video](https://www.youtube.com/watch?v=aZrK8AQM8Ro) about their take on the handbook-first approach.
 
 ## Why direct responsibility?
-We use the concept of [directly responsible individuals](https://fleetdm.com/handbook/people#directly-responsible-individuals) (DRIs) to know who is responsible for what. Every group maintains its own dedicated [handbook page](https://fleetdm.com/handbook), which is kept up to date with accurate, current information, including the group's [kanban board](https://github.com/orgs/fleetdm/projects?type=beta), Slack channels, and recurring tasks ("rituals").
+We use the concept of [directly responsible individuals](https://fleetdm.com/handbook/people#directly-responsible-individuals) (DRIs) to know who is responsible for what. For example, every department maintains its own dedicated [handbook page](https://fleetdm.com/handbook), with a single DRI, and which is kept up to date with accurate, current information, including the group's [kanban board](https://github.com/orgs/fleetdm/projects?type=beta), Slack channels, and recurring tasks ("rituals").
 
 ## Why group Slack channels?
-Groups are organized around goals. Connecting people with the same goals helps them produce better results by fostering freer communication. While groups sometimes align with the organization chart, some groups consist of people who do not report to the same manager. For example, [product groups](https://fleetdm.com/handbook/product) like `#g-agent` include engineers, not just the product manager.
+Groups (`g-*`) are organized around goals. Connecting people with the same goals helps them produce better results by fostering freer communication. Some groups align with teams in the org chart.  Other groups, such as [product groups](https://fleetdm.com/handbook/company/development-groups), are cross-functional, with some group members who do not report to the same manager.
 
-Every group at Fleet maintains specific Slack channels, which all group members join and keep unmuted.  Everyone else at Fleet is encouraged to mute these channels, using them only as needed.  Each channel has a directly responsible individual responsible for keeping up with all new messages, even if they aren't explicitly mentioned (`@`).
+Every group at Fleet maintains their own Slack channel, which all group members join and keep unmuted.  Everyone else at Fleet is encouraged to mute these channels, using them only as needed.  Each channel has a directly responsible individual responsible for keeping up with all new messages, even if they aren't explicitly mentioned (`@`).
 
 ## Why does Fleet value Openness?
 A lot of thought went into making Openness one of our values.
