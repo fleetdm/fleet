@@ -74,7 +74,7 @@ module "alb" {
 resource "aws_security_group" "alb" {
   #checkov:skip=CKV2_AWS_5:False positive
   vpc_id      = var.vpc_id
-  description = "Fleet's ALB Security Group"
+  description = "Fleet ALB Security Group"
   ingress {
     description      = "Ingress from all, its a public load balancer"
     from_port        = 443
