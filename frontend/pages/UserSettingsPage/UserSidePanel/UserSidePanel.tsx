@@ -1,5 +1,4 @@
 import React, { useContext, useEffect, useState } from "react";
-import { intlFormat } from "date-fns";
 
 import { IUser } from "interfaces/user";
 import { IVersionData } from "interfaces/version";
