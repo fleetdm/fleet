@@ -8,7 +8,7 @@ variable "vpc" {
     database_subnets    = optional(list(string), ["10.10.21.0/24", "10.10.22.0/24", "10.10.23.0/24"])
     elasticache_subnets = optional(list(string), ["10.10.31.0/24", "10.10.32.0/24", "10.10.33.0/24"])
 
-    create_database_subnet_group          = optional(bool, true)
+    create_database_subnet_group          = optional(bool, false)
     create_database_subnet_route_table    = optional(bool, true)
     create_elasticache_subnet_group       = optional(bool, true)
     create_elasticache_subnet_route_table = optional(bool, true)
@@ -26,7 +26,7 @@ variable "vpc" {
     database_subnets    = ["10.10.21.0/24", "10.10.22.0/24", "10.10.23.0/24"]
     elasticache_subnets = ["10.10.31.0/24", "10.10.32.0/24", "10.10.33.0/24"]
 
-    create_database_subnet_group          = true
+    create_database_subnet_group          = false
     create_database_subnet_route_table    = true
     create_elasticache_subnet_group       = true
     create_elasticache_subnet_route_table = true
@@ -80,8 +80,8 @@ variable "redis_config" {
     replication_group_id          = optional(string)
     elasticache_subnet_group_name = optional(string)
     allowed_security_group_ids    = optional(list(string), [])
-    subnets                       = list(string)
-    availability_zones            = list(string)
+    subnets                       = optional(list(string))
+    availability_zones            = optional(list(string))
     cluster_size                  = optional(number, 3)
     instance_type                 = optional(string, "cache.m5.large")
     apply_immediately             = optional(bool, true)
@@ -116,14 +116,35 @@ variable "redis_config" {
 
 variable "ecs_cluster" {
   type = object({
-    autoscaling_capacity_providers        = any
-    cluster_configuration                 = any
-    cluster_name                          = string
-    cluster_settings                      = map(string)
-    create                                = bool
-    default_capacity_provider_use_fargate = bool
-    fargate_capacity_providers            = any
-    tags                                  = map(string)
+    autoscaling_capacity_providers = optional(any, {})
+    cluster_configuration = optional(any, {
+      execute_command_configuration = {
+        logging = "OVERRIDE"
+        log_configuration = {
+          cloud_watch_log_group_name = "/aws/ecs/aws-ec2"
+        }
+      }
+    })
+    cluster_name = optional(string, "fleet")
+    cluster_settings = optional(map(string), {
+      "name" : "containerInsights",
+      "value" : "enabled",
+    })
+    create                                = optional(bool, true)
+    default_capacity_provider_use_fargate = optional(bool, true)
+    fargate_capacity_providers = optional(any, {
+      FARGATE = {
+        default_capacity_provider_strategy = {
+          weight = 100
+        }
+      }
+      FARGATE_SPOT = {
+        default_capacity_provider_strategy = {
+          weight = 0
+        }
+      }
+    })
+    tags = optional(map(string))
   })
   default = {
     autoscaling_capacity_providers = {}
