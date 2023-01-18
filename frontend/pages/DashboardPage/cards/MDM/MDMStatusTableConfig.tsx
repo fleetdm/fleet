@@ -54,17 +54,22 @@ const statusTableHeaders = [
         if (status === "On (automatic)") {
           return `
                 <span>
-                  Hosts automatically enrolled to an MDM solution <br />
-                  using Apple Automated Device Enrollment (DEP) <br />
-                  or Windows Autopilot. Administrators can block <br />
-                  users from unenrolling these hosts from MDM.
+MDM was turned on automatically using Apple Automated Device Enrollment (DEP) or Windows Autopilot. Administrators can block end users from turning MDM off.
+                </span>
+              `;
+        }
+        if (status === "On (manual)") {
+          return `
+                <span>
+                  MDM was turned on manually. End users can turn MDM off.
                 </span>
               `;
         }
         return `
                 <span>
-                  Hosts manually enrolled to an MDM solution. Users <br />
-                  can unenroll these hosts from MDM.
+                  Hosts ordered via Apple Business Manager <br />
+                  (ABM). These will automatically enroll to Fleet <br />
+                  and turn on MDM when they’re unboxed.
                 </span>
               `;
       };
@@ -102,6 +107,8 @@ const statusTableHeaders = [
             return "automatic";
           case "On (manual)":
             return "manual";
+          case "Pending":
+            return "pending";
           default:
             return "unenrolled";
         }

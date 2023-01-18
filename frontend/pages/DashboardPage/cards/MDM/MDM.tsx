@@ -8,6 +8,8 @@ import TableContainer from "components/TableContainer";
 import Spinner from "components/Spinner";
 import TableDataError from "components/DataError";
 import EmptyTable from "components/EmptyTable";
+import CustomLink from "components/CustomLink";
+
 import {
   generateSolutionsTableHeaders,
   generateSolutionsDataSet,
@@ -33,20 +35,19 @@ const PAGE_SIZE = 8;
 const baseClass = "home-mdm";
 
 const EmptyMdmStatus = (): JSX.Element => (
-  <div className={`${baseClass}__empty-mdm`}>
-    <h1>Unable to detect MDM enrollment</h1>
-    <p>
-      To see MDM versions, deploy&nbsp;
-      <a
-        href="https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer"
-        target="_blank"
-        rel="noopener noreferrer"
-      >
-        Fleet&apos;s osquery installer
-      </a>
-      .
-    </p>
-  </div>
+  <EmptyTable
+    header="Unable to detect MDM enrollment"
+    info={
+      <>
+        To see MDM versions, deploy&nbsp;
+        <CustomLink
+          url="https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer"
+          newTab
+          text="Fleet's osquery installer"
+        />
+      </>
+    }
+  />
 );
 
 const EmptyMdmSolutions = (): JSX.Element => (

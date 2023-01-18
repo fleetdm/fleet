@@ -338,6 +338,45 @@ const allHostTableHeaders: IDataColumn[] = [
     Cell: (cellProps: ICellProps) => <TextCell value={cellProps.cell.value} />,
   },
   {
+    title: "MDM status",
+    Header: (
+      <TooltipWrapper
+        tipContent={`
+            The MDM server that updates settings on the host.<br/> 
+            To filter by MDM server URL, head to the Dashboard page.
+          `}
+      >
+        MDM status
+      </TooltipWrapper>
+    ),
+    accessor: "mdm_enrollment_status",
+    Cell: (cellProps: ICellProps) => {
+      if (cellProps.cell.value)
+        return <TextCell value={cellProps.cell.value} />;
+      return <span className="text-muted">---</span>;
+    },
+  },
+  {
+    title: "MDM server URL",
+    Header: (
+      <TooltipWrapper
+        tipContent={`
+            Settings can be updated remotely on hosts with MDM turned on.<br/>
+            To filter by MDM status, head to the Dashboard page.
+          `}
+      >
+        MDM server URL
+      </TooltipWrapper>
+    ),
+    accessor: "mdm_server_url",
+    Cell: (cellProps: ICellProps) => {
+      if (cellProps.cell.value) {
+        return <TextCell value={cellProps.cell.value} />;
+      }
+      return <span className="text-muted">---</span>;
+    },
+  },
+  {
     title: "Public IP address",
     Header: (cellProps: IHeaderProps) => (
       <HeaderCell
@@ -499,6 +538,8 @@ const defaultHiddenColumns = [
   "primary_mac",
   "public_ip",
   "cpu_type",
+  "mdm_server_url",
+  "mdm_enrollment_status",
   "memory",
   "uptime",
   "uuid",
@@ -531,7 +572,11 @@ const generateAvailableTableHeaders = (
         }
         // skip over column headers that are not shown in free admin/maintainer
       } else if (permissionUtils.isFreeTier(config)) {
-        if (currentColumn.accessor === "team_name") {
+        if (
+          currentColumn.accessor === "team_name" ||
+          currentColumn.accessor === "mdm_server_url" ||
+          currentColumn.accessor === "mdm_enrollment_status"
+        ) {
           return columns;
         }
       } else if (

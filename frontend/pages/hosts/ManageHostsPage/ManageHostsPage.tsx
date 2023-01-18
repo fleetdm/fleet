@@ -1245,6 +1245,9 @@ const ManageHostsPage = ({
       case "manual":
         label = "MDM status: On (manual)";
         break;
+      case "pending":
+        label = "MDM status: Pending";
+        break;
       default:
         label = "MDM status: Off";
     }
@@ -1254,22 +1257,34 @@ const ManageHostsPage = ({
       case "automatic":
         TooltipDescription = (
           <span className={`tooltip__tooltip-text`}>
-            Hosts automatically enrolled in <br />
-            an MDM solution using Apple <br />
-            Automated Device Enrollment <br />
-            (DEP) or Windows Autopilot. <br />
-            Administrators can block users <br />
-            from unenrolling these hosts <br />
-            from MDM.
+            MDM was turned on <br />
+            automatically using Apple <br />
+            Automated Device <br />
+            Enrollment (DEP) or <br />
+            Windows Autopilot. <br />
+            Administrators can block <br />
+            device users from turning
+            <br /> MDM off.
           </span>
         );
         break;
       case "manual":
         TooltipDescription = (
           <span className={`tooltip__tooltip-text`}>
-            Hosts manually enrolled to an <br />
-            MDM solution. Users can unenroll <br />
-            these hosts from MDM.
+            MDM was turned on <br />
+            manually. Device users can <br />
+            turn MDM off.
+          </span>
+        );
+        break;
+      case "pending":
+        TooltipDescription = (
+          <span className={`tooltip__tooltip-text`}>
+            Hosts ordered using Apple <br />
+            Business Manager (ABM). <br />
+            They will automatically enroll <br />
+            to Fleet and turn on MDM <br />
+            when they’re unboxed.
           </span>
         );
         break;
