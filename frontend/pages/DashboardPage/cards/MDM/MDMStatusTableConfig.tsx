@@ -79,7 +79,10 @@ MDM was turned on automatically using Apple Automated Device Enrollment (DEP) or
       }
       return (
         <span className="name-container">
-          <TooltipWrapper tipContent={tooltipText(cellProps.cell.value)}>
+          <TooltipWrapper
+            position="top"
+            tipContent={tooltipText(cellProps.cell.value)}
+          >
             {cellProps.cell.value}
           </TooltipWrapper>
         </span>

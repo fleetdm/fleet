@@ -152,7 +152,6 @@ const allHostTableHeaders: IDataColumn[] = [
     ),
     accessor: "display_name",
     Cell: (cellProps: ICellProps) => {
-      console.log("cellProps", cellProps.row.original.mdm_enrollment_status);
       if (cellProps.row.original.mdm_enrollment_status === "Pending") {
         return (
           <>
@@ -369,16 +368,20 @@ const allHostTableHeaders: IDataColumn[] = [
   },
   {
     title: "MDM status",
-    Header: (
-      <TooltipWrapper
-        tipContent={`
+    Header: (): JSX.Element => {
+      const titleWithToolTip = (
+        <TooltipWrapper
+          tipContent={`
             The MDM server that updates settings on the host.<br/> 
             To filter by MDM server URL, head to the Dashboard page.
           `}
-      >
-        MDM status
-      </TooltipWrapper>
-    ),
+        >
+          MDM Status
+        </TooltipWrapper>
+      );
+      return <HeaderCell value={titleWithToolTip} disableSortBy />;
+    },
+    disableSortBy: true,
     accessor: "mdm_enrollment_status",
     Cell: (cellProps: ICellProps) => {
       if (cellProps.cell.value)
@@ -388,16 +391,20 @@ const allHostTableHeaders: IDataColumn[] = [
   },
   {
     title: "MDM server URL",
-    Header: (
-      <TooltipWrapper
-        tipContent={`
+    Header: (): JSX.Element => {
+      const titleWithToolTip = (
+        <TooltipWrapper
+          tipContent={`
             Settings can be updated remotely on hosts with MDM turned on.<br/>
             To filter by MDM status, head to the Dashboard page.
           `}
-      >
-        MDM server URL
-      </TooltipWrapper>
-    ),
+        >
+          MDM server URL
+        </TooltipWrapper>
+      );
+      return <HeaderCell value={titleWithToolTip} disableSortBy />;
+    },
+    disableSortBy: true,
     accessor: "mdm_server_url",
     Cell: (cellProps: ICellProps) => {
       if (cellProps.cell.value) {
