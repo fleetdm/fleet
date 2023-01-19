@@ -1186,13 +1186,15 @@ agent_options:
     enable_file_events: true
 ```
 
-#### MDM settings
+#### Mobile device management (MDM) settings
 
-Fleet currently supports Apple Business Manager for mobile device management (MDM).
+> MDM features are not ready for production and are currently in development. These features are disabled by default.
 
-**Applies only to Fleet Premium**.
+The `mdm` section of the configuration YAML lets you control MDM settings in Fleet.
 
 ##### mdm.apple_bm_default_team
+
+**Applies only to Fleet Premium**.
 
 Set name of default team to use with Apple Business Manager.
 
