@@ -2,7 +2,7 @@
 name: 🎟  Story
 about: Specify a Scrum user story.  (e.g. "As a user, I want to sign in with SSO.")
 title: ''
-labels: 'story'
+labels: 'story, :product'
 assignees: ''
 
 ---
