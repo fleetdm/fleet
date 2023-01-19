@@ -193,8 +193,10 @@ variable "fleet_config" {
     security_groups             = optional(list(string), null)
     security_group_name         = optional(string, "fleet")
     iam_role_arn                = optional(string, null)
-    service = object({
+    service = optional(object({
       name = optional(string, "fleet")
+      }), {
+      name = "fleet"
     })
     database = optional(object({
       password_secret_arn = string
