@@ -171,7 +171,7 @@ func (svc *Service) Login(ctx context.Context, email, password string) (*fleet.U
 				PublicIP: publicip.FromContext(ctx),
 			}); err != nil {
 				logging.WithExtras(logging.WithNoUser(ctx),
-					"msg", "failed to generate activity",
+					"msg", "failed to generate failed login activity",
 				)
 			}
 			time.Sleep(time.Until(start.Add(1 * time.Second)))
@@ -369,6 +369,15 @@ func makeCallbackSSOEndpoint(urlPrefix string) handlerFunc {
 		session, err := getSSOSession(ctx, svc, authResponse)
 		var resp callbackSSOResponse
 		if err != nil {
+			if err := svc.NewActivity(ctx, nil, fleet.ActivityTypeUserFailedLogin{
+				Email:    authResponse.UserID(),
+				PublicIP: publicip.FromContext(ctx),
+			}); err != nil {
+				logging.WithLevel(logging.WithExtras(logging.WithNoUser(ctx),
+					"msg", "failed to generate failed login activity",
+				), level.Info)
+			}
+
 			var ssoErr ssoError
 
 			status := ssoOtherError

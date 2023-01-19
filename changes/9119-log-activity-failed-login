@@ -1,1 +1,1 @@
-* Log failed login attempts for user+pw logins (in the activity feed).
+* Log failed login attempts for user+pw and SSO logins (in the activity feed).
