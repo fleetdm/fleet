@@ -57,7 +57,7 @@ const About = ({
     return (
       <>
         <div className="info-grid__block">
-          <span className="info-grid__header">MDM enrollment</span>
+          <span className="info-grid__header">MDM status</span>
           <span className="info-grid__data">
             {mdm.enrollment_status || "---"}
           </span>

@@ -1,6 +1,6 @@
 import React from "react";
 import PATHS from "router/paths";
-import { Link, browserHistory } from "react-router";
+import { Link } from "react-router";
 import classnames from "classnames";
 
 import Icon from "components/Icon";
@@ -34,7 +34,7 @@ const ViewAllHostsLink = ({
     : endpoint;
 
   return (
-    <Link className={viewAllHostsLinkClass} to={path} title="host-link">
+    <Link className={viewAllHostsLinkClass} to={path}>
       {!condensed && <span>View all hosts</span>}
       <Icon
         name="chevron"

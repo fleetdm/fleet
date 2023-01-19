@@ -202,7 +202,8 @@ export interface IHost {
   users: IHostUser[];
   device_users?: IDeviceUser[];
   munki?: IMunkiData;
-  mdm?: IHostMdmData;
+  mdm_enrollment_status: "On (manual)" | "On (automatic)" | "Off" | "Pending";
+  mdm_server_url: string;
   policies: IHostPolicy[];
   query_results?: unknown[];
   geolocation?: IGeoLocation;

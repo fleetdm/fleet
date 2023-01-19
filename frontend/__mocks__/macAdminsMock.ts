@@ -15,6 +15,10 @@ const DEFAULT_MAC_ADMINS_MOCK: IMacadminsResponse = {
   },
 };
 
+// const DEFAULT_MDM_STATUS_MOCK: IMacadminsResponse = {
+//   // TODO
+// };
+
 const createMockMacAdmins = (
   overrides?: Partial<IMacadminsResponse>
 ): IMacadminsResponse => {

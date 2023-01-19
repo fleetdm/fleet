@@ -14,7 +14,7 @@ export interface IMdmAppleBm {
 }
 
 export interface IMdmStatusCardData {
-  status: "On (manual)" | "On (automatic)" | "Off";
+  status: "On (manual)" | "On (automatic)" | "Off" | "Pending";
   hosts: number;
 }
 
@@ -22,6 +22,7 @@ export interface IMdmAggregateStatus {
   enrolled_manual_hosts_count: number;
   enrolled_automated_hosts_count: number;
   unenrolled_hosts_count: number;
+  pending_hosts_count?: number;
 }
 
 export interface IMdmSolution {
@@ -31,10 +32,11 @@ export interface IMdmSolution {
   hosts_count: number;
 }
 
-interface IMdmStatusStatus {
+interface IMdmStatus {
   enrolled_manual_hosts_count: number;
   enrolled_automated_hosts_count: number;
   unenrolled_hosts_count: number;
+  pending_hosts_count?: number;
   hosts_count: number;
 }
 

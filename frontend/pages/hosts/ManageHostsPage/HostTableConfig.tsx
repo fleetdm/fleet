@@ -151,16 +151,46 @@ const allHostTableHeaders: IDataColumn[] = [
       />
     ),
     accessor: "display_name",
-    Cell: (cellProps: ICellProps) => (
-      <LinkCell
-        value={cellProps.cell.value}
-        path={PATHS.HOST_DETAILS(cellProps.row.original.id)}
-        title={lastSeenTime(
-          cellProps.row.original.status,
-          cellProps.row.original.seen_time
-        )}
-      />
-    ),
+    Cell: (cellProps: ICellProps) => {
+      console.log("cellProps", cellProps.row.original.mdm_enrollment_status);
+      if (cellProps.row.original.mdm_enrollment_status === "Pending") {
+        return (
+          <>
+            <span
+              className="text-cell"
+              data-tip
+              data-for={`host__${cellProps.row.original.id}`}
+            >
+              {cellProps.cell.value}
+            </span>
+            <ReactTooltip
+              effect="solid"
+              backgroundColor="#3e4771"
+              id={`host__${cellProps.row.original.id}`}
+              data-html
+            >
+              <span className={`tooltip__tooltip-text`}>
+                This host was ordered using <br />
+                Apple Business Manager <br />
+                (ABM). You can’t see host <br />
+                vitals until it’s unboxed and <br />
+                automatically enrolls to Fleet.
+              </span>
+            </ReactTooltip>
+          </>
+        );
+      }
+      return (
+        <LinkCell
+          value={cellProps.cell.value}
+          path={PATHS.HOST_DETAILS(cellProps.row.original.id)}
+          title={lastSeenTime(
+            cellProps.row.original.status,
+            cellProps.row.original.seen_time
+          )}
+        />
+      );
+    },
     disableHidden: true,
   },
   {
