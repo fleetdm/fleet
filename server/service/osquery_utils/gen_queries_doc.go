@@ -40,9 +40,12 @@ Following is a summary of the detail queries hardcoded in Fleet used to populate
 		name        string
 		detailQuery osquery_utils.DetailQuery
 	}
-	var detailQueries []queryInfo
+	detailQueries := make([]queryInfo, 0, len(detailQueriesMap))
 	for name, detailQuery := range detailQueriesMap {
-		detailQueries = append(detailQueries, queryInfo{name: name, detailQuery: detailQuery})
+		detailQueries = append(detailQueries, queryInfo{
+			name:        name,
+			detailQuery: detailQuery,
+		})
 	}
 	sort.Slice(detailQueries, func(i, j int) bool {
 		return detailQueries[i].name < detailQueries[j].name
