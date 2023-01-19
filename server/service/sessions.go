@@ -166,6 +166,14 @@ func (svc *Service) Login(ctx context.Context, email, password string) (*fleet.U
 	var err error
 	defer func(start time.Time) {
 		if err != nil {
+			if err := svc.ds.NewActivity(ctx, nil, fleet.ActivityTypeUserFailedLogin{
+				Email:    email,
+				PublicIP: publicip.FromContext(ctx),
+			}); err != nil {
+				logging.WithExtras(logging.WithNoUser(ctx),
+					"msg", "failed to generate activity",
+				)
+			}
 			time.Sleep(time.Until(start.Add(1 * time.Second)))
 		}
 	}(time.Now())

@@ -377,6 +377,23 @@ This activity contains the following fields:
 }
 ```
 
+### Type `user_failed_login`
+
+Generated when users try to log in to Fleet and fail.
+
+This activity contains the following fields:
+- "email": The email used in the login request.
+- "public_ip": Public IP of the login request.
+
+#### Example
+
+```json
+{
+	"email": "foo@example.com",
+	"public_ip": "168.226.215.82"
+}
+```
+
 ### Type `created_user`
 
 Generated when a user is created.
