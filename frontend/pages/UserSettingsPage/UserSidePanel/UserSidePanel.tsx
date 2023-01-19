@@ -11,7 +11,12 @@ import Avatar from "components/Avatar";
 import Button from "components/buttons/Button";
 import HumanTimeDiffWithDateTip from "components/HumanTimeDiffWithDateTip";
 
-import { generateRole, generateTeam, greyCell } from "utilities/helpers";
+import {
+  generateRole,
+  generateTeam,
+  greyCell,
+  readableDate,
+} from "utilities/helpers";
 
 interface IUserSidePanelProps {
   currentUser: IUser;
@@ -26,7 +31,7 @@ const UserSidePanel = ({
   onChangePassword,
   onGetApiToken,
 }: IUserSidePanelProps): JSX.Element => {
-  const { isPremiumTier } = useContext(AppContext);
+  const { isPremiumTier, config } = useContext(AppContext);
   const [versionData, setVersionData] = useState<IVersionData>();
 
   useEffect(() => {
@@ -91,6 +96,16 @@ const UserSidePanel = ({
           {roleText}
         </p>
       </div>
+      {isPremiumTier && config && (
+        <div className={`${baseClass}__more-info-detail`}>
+          <p className={`${baseClass}__header`}>License expiration date</p>
+          <p
+            className={`${baseClass}__description ${baseClass}__license-expiration`}
+          >
+            {readableDate(config.license.expiration)}
+          </p>
+        </div>
+      )}
       <div className={`${baseClass}__more-info-detail`}>
         <p className={`${baseClass}__header`}>Password</p>
       </div>

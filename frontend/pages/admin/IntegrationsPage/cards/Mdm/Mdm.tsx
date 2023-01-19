@@ -15,6 +15,7 @@ import Spinner from "components/Spinner";
 import DataError from "components/DataError";
 import Icon from "components/Icon";
 import TooltipWrapper from "components/TooltipWrapper";
+import { readableDate } from "utilities/helpers";
 
 import RequestCSRModal from "./components/RequestCSRModal";
 import EditTeamModal from "./components/EditTeamModal";
@@ -23,16 +24,6 @@ import EditTeamModal from "./components/EditTeamModal";
 // import { isValidKeys } from "../../..";
 
 const baseClass = "mdm-integrations";
-
-const readableDate = (date: string) => {
-  const dateString = new Date(date);
-
-  return new Intl.DateTimeFormat(navigator.language, {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  }).format(dateString);
-};
 
 const Mdm = (): JSX.Element => {
   const { isPremiumTier } = useContext(AppContext);
