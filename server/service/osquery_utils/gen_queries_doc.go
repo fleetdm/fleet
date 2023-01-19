@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -15,7 +16,7 @@ import (
 )
 
 func main() {
-	detailQueries := osquery_utils.GetDetailQueries(context.Background(), config.FleetConfig{
+	detailQueriesMap := osquery_utils.GetDetailQueries(context.Background(), config.FleetConfig{
 		Vulnerabilities: config.VulnerabilitiesConfig{
 			DisableWinOSVulnerabilities: false,
 		},
@@ -34,18 +35,35 @@ func main() {
 Following is a summary of the detail queries hardcoded in Fleet used to populate the device details:
 
 `)
-	for queryName, sqlQuery := range detailQueries {
-		fmt.Fprintf(&b, "## %s\n\n", queryName)
-		platforms := strings.Join(sqlQuery.Platforms, ", ")
-		if len(sqlQuery.Platforms) == 0 {
+
+	type queryInfo struct {
+		name        string
+		detailQuery osquery_utils.DetailQuery
+	}
+	var detailQueries []queryInfo
+	for name, detailQuery := range detailQueriesMap {
+		detailQueries = append(detailQueries, queryInfo{name: name, detailQuery: detailQuery})
+	}
+	sort.Slice(detailQueries, func(i, j int) bool {
+		return detailQueries[i].name < detailQueries[j].name
+	})
+
+	for _, q := range detailQueries {
+		fmt.Fprintf(&b, "## %s\n\n", q.name)
+		platforms := strings.Join(q.detailQuery.Platforms, ", ")
+		if len(q.detailQuery.Platforms) == 0 {
 			platforms = "all"
 		}
 		fmt.Fprintf(&b, "- Platforms: %s\n\n", platforms)
-		if sqlQuery.Discovery != "" {
-			fmt.Fprintf(&b, "- Discovery query:\n```sql\n%s\n```\n\n", sqlQuery.Discovery)
+		if q.detailQuery.Discovery != "" {
+			fmt.Fprintf(&b, "- Discovery query:\n```sql\n%s\n```\n\n", q.detailQuery.Discovery)
 		}
-		fmt.Fprintf(&b, "- Query:\n```sql\n%s\n```\n\n", sqlQuery.Query)
+		fmt.Fprintf(&b, "- Query:\n```sql\n%s\n```\n\n", q.detailQuery.Query)
 	}
+
+	b.WriteString(`
+
+<meta name="pageOrderInSection" value="1600">`)
 
 	if err := os.WriteFile(os.Args[1], []byte(b.String()), 0600); err != nil {
 		panic(err)
