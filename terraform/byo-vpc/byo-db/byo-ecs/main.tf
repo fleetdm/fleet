@@ -55,8 +55,8 @@ resource "aws_ecs_task_definition" "backend" {
         logConfiguration = {
           logDriver = "awslogs"
           options = {
-            awslogs-group         = var.fleet_config.awslogs.name == null ? aws_cloudwatch_log_group.main[0].name : var.fleet_config.awslogs.name
-            awslogs-region        = var.fleet_config.awslogs.name == null ? data.aws_region.current.name : var.fleet_config.awslogs.region
+            awslogs-group         = var.fleet_config.awslogs.create == null ? aws_cloudwatch_log_group.main[0].name : var.fleet_config.awslogs.name
+            awslogs-region        = var.fleet_config.awslogs.create == null ? data.aws_region.current.name : var.fleet_config.awslogs.region
             awslogs-stream-prefix = var.fleet_config.awslogs.prefix
           }
         },
@@ -93,7 +93,8 @@ resource "aws_ecs_task_definition" "backend" {
           {
             name  = "FLEET_MYSQL_READ_REPLICA_USERNAME"
             value = var.fleet_config.database.user
-            }, {
+          },
+          {
             name  = "FLEET_MYSQL_READ_REPLICA_DATABASE"
             value = var.fleet_config.database.database
           },
@@ -158,8 +159,8 @@ resource "aws_appautoscaling_policy" "ecs_policy_cpu" {
 }
 
 resource "aws_cloudwatch_log_group" "main" { #tfsec:ignore:aws-cloudwatch-log-group-customer-key:exp:2022-07-01
-  count             = var.fleet_config.awslogs.name == null ? 1 : 0
-  name              = "fleetdm"
+  count             = var.fleet_config.awslogs.create == true ? 1 : 0
+  name              = var.fleet_config.awslogs.name
   retention_in_days = var.fleet_config.awslogs.retention
 }
 

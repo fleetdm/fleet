@@ -215,6 +215,7 @@ variable "fleet_config" {
     awslogs = optional(object({
       name      = optional(string, null)
       region    = optional(string, null)
+      create    = optional(bool, true)
       prefix    = optional(string, "fleet")
       retention = optional(number, 5)
       }), {
@@ -271,6 +272,7 @@ variable "fleet_config" {
     awslogs = {
       name      = null
       region    = null
+      create    = true
       prefix    = "fleet"
       retention = 5
     }
