@@ -107,7 +107,7 @@ module.exports.custom = {
     'handbook/business-operations': ['hollidayn', 'charlottechance'],
     'handbook/engineering': 'zwass',
     'handbook/product': ['noahtalerman', 'zhumo'],
-    'handbook/security': 'guillaumeross',
+    'handbook/security': 'mikermcneil',
     'handbook/customers': ['alexmitchelliii','zayhanlon','dherder'],
     'handbook/marketing': ['jarodreyes', 'mike-j-thomas'],
 
@@ -127,8 +127,8 @@ module.exports.custom = {
     'docs/Contributing/FAQ.md': ['ksatter'],
     'docs/Using-Fleet/FAQ.md': ['ksatter'],
 
-    'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml': ['guillaumeross','zhumo','eashaw'],// (standard query library)
-    'schema': ['guillaumeross','zhumo','eashaw','zwass','mikermcneil'],// (Osquery table schema)
+    'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml': ['mikermcneil','zhumo','eashaw'],// (standard query library)
+    'schema': ['zhumo','eashaw','zwass','mikermcneil'],// (Osquery table schema)
   },
   confidentialGithubRepoDRIByPath: {
     'readme.md': ['mikermcneil', 'zwass', 'charlottechance', 'hollidayn'],
