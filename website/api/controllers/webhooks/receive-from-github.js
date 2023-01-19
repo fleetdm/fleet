@@ -64,7 +64,6 @@ module.exports = {
       'drewbakerfdm',
       'lucasmrod',
       'ksatter',
-      'guillaumeross',
       'charlottechance',
       'zwinnerman-fleetdm',
       'hollidayn',
