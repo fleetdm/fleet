@@ -247,6 +247,24 @@ variable "fleet_config" {
       memory_tracking_target_value = 80
       cpu_tracking_target_value    = 80
     })
+    iam = optional(object({
+      role = optional(object({
+        name        = optional(string, "fleet-role")
+        policy_name = optional(string, "fleet-iam-policy")
+        }), {
+        name        = "fleet-role"
+        policy_name = "fleet-iam-policy"
+      })
+      execution = optional(object({
+        name        = optional(string, "fleet-execution-role")
+        policy_name = optional(string, "fleet-execution-role")
+        }), {
+        name        = "fleet-execution-role"
+        policy_name = "fleet-iam-policy-execution"
+      })
+      }), {
+      name = "fleetdm-execution-role"
+    })
   })
   default = {
     mem                         = 512
@@ -288,6 +306,16 @@ variable "fleet_config" {
       min_capacity                 = 1
       memory_tracking_target_value = 80
       cpu_tracking_target_value    = 80
+    }
+    iam = {
+      role = {
+        name        = "fleet-role"
+        policy_name = "fleet-iam-policy"
+      }
+      execution = {
+        name        = "fleet-execution-role"
+        policy_name = "fleet-iam-policy-execution"
+      }
     }
   }
   description = "The configuration object for Fleet itself. Fields that default to null will have their respective resources created if not specified."
