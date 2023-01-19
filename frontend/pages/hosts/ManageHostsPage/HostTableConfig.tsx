@@ -13,6 +13,7 @@ import IssueCell from "components/TableContainer/DataTable/IssueCell/IssueCell";
 import LinkCell from "components/TableContainer/DataTable/LinkCell/LinkCell";
 import StatusIndicator from "components/StatusIndicator";
 import TextCell from "components/TableContainer/DataTable/TextCell/TextCell";
+import TruncatedTextCell from "components/TableContainer/DataTable/TruncatedTextCell";
 import TooltipWrapper from "components/TooltipWrapper";
 import HumanTimeDiffWithDateTip from "components/HumanTimeDiffWithDateTip";
 import {
@@ -410,7 +411,9 @@ const allHostTableHeaders: IDataColumn[] = [
       />
     ),
     accessor: "uuid",
-    Cell: (cellProps: ICellProps) => <TextCell value={cellProps.cell.value} />,
+    Cell: (cellProps: ICellProps) => (
+      <TruncatedTextCell value={cellProps.cell.value} />
+    ),
   },
   {
     title: "Last restarted",
