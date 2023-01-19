@@ -19,9 +19,9 @@ import Spinner from "components/Spinner";
 import TableDataError from "components/DataError";
 import LastUpdatedText from "components/LastUpdatedText";
 import CustomLink from "components/CustomLink";
+import EmptyTable from "components/EmptyTable";
 
 import generateTableHeaders from "./OperatingSystemsTableConfig";
-import EmptyTable from "components/EmptyTable";
 
 interface IOperatingSystemsCardProps {
   currentTeamId: number | undefined;
