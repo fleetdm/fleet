@@ -29,14 +29,14 @@ data "aws_iam_policy_document" "fleet-execution" {
 
 resource "aws_iam_role" "main" {
   count              = var.fleet_config.iam_role_arn == null ? 1 : 0
-  name               = "fleetdm-role"
+  name               = var.fleet_config.iam.role.name
   description        = "IAM role that Fleet application assumes when running in ECS"
   assume_role_policy = data.aws_iam_policy_document.assume_role.json
 }
 
 resource "aws_iam_policy" "main" {
   count       = var.fleet_config.iam_role_arn == null ? 1 : 0
-  name        = "fleet-iam-policy"
+  name        = var.fleet_config.iam.role.policy_name
   description = "IAM policy that Fleet application uses to define access to AWS resources"
   policy      = data.aws_iam_policy_document.fleet.json
 }
@@ -54,7 +54,7 @@ resource "aws_iam_role_policy_attachment" "extras" {
 }
 
 resource "aws_iam_policy" "execution" {
-  name        = "fleet-iam-policy-execution"
+  name        = var.fleet_config.iam.execution.policy_name
   description = "IAM policy that Fleet application uses to define access to AWS resources"
   policy      = data.aws_iam_policy_document.fleet-execution.json
 }
@@ -65,7 +65,7 @@ resource "aws_iam_role_policy_attachment" "execution" {
 }
 
 resource "aws_iam_role" "execution" {
-  name               = "fleetdm-execution-role"
+  name               = var.fleet_config.iam.execution.name
   description        = "The execution role for Fleet in ECS"
   assume_role_policy = data.aws_iam_policy_document.assume_role.json
 }

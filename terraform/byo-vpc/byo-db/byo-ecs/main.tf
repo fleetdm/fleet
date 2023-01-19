@@ -1,7 +1,7 @@
 data "aws_region" "current" {}
 
 resource "aws_ecs_service" "fleet" {
-  name                               = "fleet"
+  name                               = var.fleet_config.service.name
   launch_type                        = "FARGATE"
   cluster                            = var.ecs_cluster
   task_definition                    = aws_ecs_task_definition.backend.arn
@@ -27,7 +27,7 @@ resource "aws_ecs_service" "fleet" {
 }
 
 resource "aws_ecs_task_definition" "backend" {
-  family                   = "fleet"
+  family                   = var.fleet_config.family
   network_mode             = "awsvpc"
   requires_compatibilities = ["FARGATE"]
   task_role_arn            = var.fleet_config.iam_role_arn == null ? aws_iam_role.main[0].arn : var.fleet_config.iam_role_arn
@@ -55,8 +55,8 @@ resource "aws_ecs_task_definition" "backend" {
         logConfiguration = {
           logDriver = "awslogs"
           options = {
-            awslogs-group         = var.fleet_config.awslogs.name == null ? aws_cloudwatch_log_group.main[0].name : var.fleet_config.awslogs.name
-            awslogs-region        = var.fleet_config.awslogs.name == null ? data.aws_region.current.name : var.fleet_config.awslogs.region
+            awslogs-group         = var.fleet_config.awslogs.create == true ? aws_cloudwatch_log_group.main[0].name : var.fleet_config.awslogs.name
+            awslogs-region        = var.fleet_config.awslogs.create == true ? data.aws_region.current.name : var.fleet_config.awslogs.region
             awslogs-stream-prefix = var.fleet_config.awslogs.prefix
           }
         },
@@ -93,7 +93,8 @@ resource "aws_ecs_task_definition" "backend" {
           {
             name  = "FLEET_MYSQL_READ_REPLICA_USERNAME"
             value = var.fleet_config.database.user
-            }, {
+          },
+          {
             name  = "FLEET_MYSQL_READ_REPLICA_DATABASE"
             value = var.fleet_config.database.database
           },
@@ -127,7 +128,7 @@ resource "aws_appautoscaling_target" "ecs_target" {
 }
 
 resource "aws_appautoscaling_policy" "ecs_policy_memory" {
-  name               = "fleet-memory-autoscaling"
+  name               = "${var.fleet_config.family}-memory-autoscaling"
   policy_type        = "TargetTrackingScaling"
   resource_id        = aws_appautoscaling_target.ecs_target.resource_id
   scalable_dimension = aws_appautoscaling_target.ecs_target.scalable_dimension
@@ -142,7 +143,7 @@ resource "aws_appautoscaling_policy" "ecs_policy_memory" {
 }
 
 resource "aws_appautoscaling_policy" "ecs_policy_cpu" {
-  name               = "fleet-cpu-autoscaling"
+  name               = "${var.fleet_config.family}-cpu-autoscaling"
   policy_type        = "TargetTrackingScaling"
   resource_id        = aws_appautoscaling_target.ecs_target.resource_id
   scalable_dimension = aws_appautoscaling_target.ecs_target.scalable_dimension
@@ -158,14 +159,14 @@ resource "aws_appautoscaling_policy" "ecs_policy_cpu" {
 }
 
 resource "aws_cloudwatch_log_group" "main" { #tfsec:ignore:aws-cloudwatch-log-group-customer-key:exp:2022-07-01
-  count             = var.fleet_config.awslogs.name == null ? 1 : 0
-  name              = "fleetdm"
+  count             = var.fleet_config.awslogs.create == true ? 1 : 0
+  name              = var.fleet_config.awslogs.name
   retention_in_days = var.fleet_config.awslogs.retention
 }
 
 resource "aws_security_group" "main" {
   count       = var.fleet_config.security_groups == null ? 1 : 0
-  name        = "fleet"
+  name        = var.fleet_config.security_group_name
   description = "Fleet ECS Service Security Group"
   vpc_id      = var.vpc_id
   egress {

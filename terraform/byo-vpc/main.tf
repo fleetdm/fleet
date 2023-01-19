@@ -110,14 +110,14 @@ module "secrets-manager-1" {
 
 resource "aws_db_parameter_group" "main" {
   count       = var.rds_config.db_parameter_group_name == null ? 1 : 0
-  name        = "fleet"
+  name        = var.rds_config.name
   family      = "aurora-mysql8.0"
   description = "fleet"
 }
 
 resource "aws_rds_cluster_parameter_group" "main" {
   count       = var.rds_config.db_cluster_parameter_group_name == null ? 1 : 0
-  name        = "fleet"
+  name        = var.rds_config.name
   family      = "aurora-mysql8.0"
   description = "fleet"
 }
