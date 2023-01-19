@@ -9,7 +9,7 @@
   justify-content: center;
 
   &:hover {
-    background-color: $core-fleet-black;
+    background-color: $site-nav-on-hover;
   }
 
   &--multiple.site-nav-item--active {
@@ -67,11 +67,11 @@
 
   &--active {
     border-bottom: 3px solid $core-vibrant-blue;
-    background-color: $core-fleet-black;
+    background-color: $site-nav-on-hover;
     height: 47px;
 
     &:hover {
-      background-color: $core-fleet-black;
+      background-color: $site-nav-on-hover;
     }
 
     .site-nav-item__name {
