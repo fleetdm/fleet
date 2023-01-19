@@ -53,12 +53,16 @@ variable "fleet_config" {
     mem                         = optional(number, 512)
     cpu                         = optional(number, 256)
     image                       = optional(string, "fleetdm/fleet:v4.22.1")
+    family                      = optional(string, "fleet")
     extra_environment_variables = optional(map(string), {})
     extra_iam_policies          = optional(list(string), [])
     extra_secrets               = optional(map(string), {})
     security_groups             = optional(list(string), null)
     security_group_name         = optional(string, "fleet")
     iam_role_arn                = optional(string, null)
+    service = object({
+      name = optional(string, "fleet")
+    })
     database = object({
       password_secret_arn = string
       user                = string
@@ -123,12 +127,16 @@ variable "fleet_config" {
     mem                         = 512
     cpu                         = 256
     image                       = "fleetdm/fleet:v4.22.1"
+    family                      = "fleet"
     extra_environment_variables = {}
     extra_iam_policies          = []
     extra_secrets               = {}
     security_groups             = null
     security_group_name         = "fleet"
     iam_role_arn                = null
+    service = {
+      name = "fleet"
+    }
     database = {
       password_secret_arn = null
       user                = null

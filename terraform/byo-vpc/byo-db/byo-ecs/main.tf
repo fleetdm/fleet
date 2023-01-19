@@ -1,7 +1,7 @@
 data "aws_region" "current" {}
 
 resource "aws_ecs_service" "fleet" {
-  name                               = "fleet"
+  name                               = var.fleet_config.service.name
   launch_type                        = "FARGATE"
   cluster                            = var.ecs_cluster
   task_definition                    = aws_ecs_task_definition.backend.arn
@@ -27,7 +27,7 @@ resource "aws_ecs_service" "fleet" {
 }
 
 resource "aws_ecs_task_definition" "backend" {
-  family                   = "fleet"
+  family                   = var.fleet_config.family
   network_mode             = "awsvpc"
   requires_compatibilities = ["FARGATE"]
   task_role_arn            = var.fleet_config.iam_role_arn == null ? aws_iam_role.main[0].arn : var.fleet_config.iam_role_arn
