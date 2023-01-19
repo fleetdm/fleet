@@ -55,8 +55,8 @@ resource "aws_ecs_task_definition" "backend" {
         logConfiguration = {
           logDriver = "awslogs"
           options = {
-            awslogs-group         = var.fleet_config.awslogs.create == null ? aws_cloudwatch_log_group.main[0].name : var.fleet_config.awslogs.name
-            awslogs-region        = var.fleet_config.awslogs.create == null ? data.aws_region.current.name : var.fleet_config.awslogs.region
+            awslogs-group         = var.fleet_config.awslogs.create == true ? aws_cloudwatch_log_group.main[0].name : var.fleet_config.awslogs.name
+            awslogs-region        = var.fleet_config.awslogs.create == true ? data.aws_region.current.name : var.fleet_config.awslogs.region
             awslogs-stream-prefix = var.fleet_config.awslogs.prefix
           }
         },
