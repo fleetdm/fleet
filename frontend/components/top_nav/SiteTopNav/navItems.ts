@@ -3,8 +3,8 @@ import URL_PREFIX from "router/url_prefix";
 import { IUser } from "interfaces/user";
 
 export interface INavItem {
-  icon?: string;
   name: string;
+  icon?: string;
   iconName?: string;
   location: {
     regex: RegExp;
@@ -46,9 +46,7 @@ export default (
 
   const navItems = [
     {
-      icon: "hosts",
       name: "Hosts",
-      iconName: "hosts",
       location: {
         regex: new RegExp(`^${URL_PREFIX}/hosts/`),
         pathname: PATHS.MANAGE_HOSTS,
@@ -64,9 +62,7 @@ export default (
       exclude: !isMaintainerOrAdmin,
     },
     {
-      icon: "software",
       name: "Software",
-      iconName: "software",
       location: {
         regex: new RegExp(`^${URL_PREFIX}/software/`),
         pathname: PATHS.MANAGE_SOFTWARE,
@@ -74,18 +70,14 @@ export default (
       withContext: true,
     },
     {
-      icon: "query",
       name: "Queries",
-      iconName: "queries",
       location: {
         regex: new RegExp(`^${URL_PREFIX}/queries/`),
         pathname: PATHS.MANAGE_QUERIES,
       },
     },
     {
-      icon: "packs",
       name: "Schedule",
-      iconName: "packs",
       location: {
         regex: new RegExp(`^${URL_PREFIX}/(schedule|packs)/`),
         pathname: PATHS.MANAGE_SCHEDULE,
@@ -93,9 +85,7 @@ export default (
       exclude: !isMaintainerOrAdmin,
     },
     {
-      icon: "policies",
       name: "Policies",
-      iconName: "policies",
       location: {
         regex: new RegExp(`^${URL_PREFIX}/(policies)/`),
         pathname: PATHS.MANAGE_POLICIES,
