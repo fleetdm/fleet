@@ -873,17 +873,7 @@ func (svc *Service) EnqueueMDMAppleCommandRemoveEnrollmentProfile(ctx context.Co
 		return ctxerr.Wrap(ctx, err, "enqueuing mdm apple remove profile command")
 	}
 
-	success, err := svc.pollResultMDMAppleCommandRemoveEnrollmentProfile(ctx, cmdUUID, h.UUID)
-	switch {
-	case err != nil:
-		return ctxerr.Wrap(ctx, err, "polling result of mdm apple remove profile command")
-	case !success:
-		return fleet.MDMAppleCommandTimeoutError{}
-	default:
-		// ok
-	}
-
-	return nil
+	return svc.pollResultMDMAppleCommandRemoveEnrollmentProfile(ctx, cmdUUID, h.UUID)
 }
 
 func (svc *Service) enqueueMDMAppleCommandRemoveEnrollmentProfile(ctx context.Context, hostUUID string) (string, error) {
@@ -937,7 +927,7 @@ func generateMDMAppleCommandRemoveEnrollmentProfile(cmdUUID string, profileUUID 
 </plist>`, cmdUUID, profileUUID)
 }
 
-func (svc *Service) pollResultMDMAppleCommandRemoveEnrollmentProfile(ctx context.Context, cmdUUID string, deviceID string) (bool, error) {
+func (svc *Service) pollResultMDMAppleCommandRemoveEnrollmentProfile(ctx context.Context, cmdUUID string, deviceID string) error {
 	ctx, cancelFn := context.WithDeadline(ctx, time.Now().Add(5*time.Second))
 	ticker := time.NewTicker(300 * time.Millisecond) // TODO confirm interval
 	defer func() {
@@ -949,17 +939,17 @@ func (svc *Service) pollResultMDMAppleCommandRemoveEnrollmentProfile(ctx context
 		select {
 		case <-ctx.Done():
 			// time out after 5 seconds
-			return false, nil
+			return fleet.MDMAppleCommandTimeoutError{}
 		case <-ticker.C:
 			enabled, err := svc.ds.GetNanoMDMEnrollmentStatus(ctx, deviceID)
 			switch {
 			case err != nil:
 				level.Error(svc.logger).Log("err", "get nanomdm enrollment status", "details", err, "id", deviceID, "command_uuid", cmdUUID)
-				return false, err
+				return err
 			case !enabled:
 				// success, mdm enrollment is no longer enabled for the device
 				level.Info(svc.logger).Log("msg", "mdm disabled for device", "id", deviceID, "command_uuid", cmdUUID)
-				return true, nil
+				return nil
 			default:
 				// check again on next tick
 				continue
