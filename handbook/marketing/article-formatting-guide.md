@@ -118,10 +118,10 @@ In the following example we will modify `title`, `text`, `primary-button-text`, 
 
 ```
 <call-to-action 
-  title=”We're hiring remote engineers, worldwide.”
-  text=”Are you interested in working full time in Fleet's public GitHub repository?”
-  primary-button-text=”Apply now” 
-  primary-button-href=”https://fleetdm.com/jobs” 
+  title="We're hiring remote engineers, worldwide."
+  text="Are you interested in working full time in Fleet's public GitHub repository?"
+  primary-button-text="Apply now" 
+  primary-button-href="https://fleetdm.com/jobs"> 
 </call-to-action>
 ```
 
@@ -134,3 +134,4 @@ In the following example we will modify `title`, `text`, `primary-button-text`, 
 
 <meta name="maintainedBy" value="mike-j-thomas">
 <meta name="title" value="Article formatting guide">
+<meta name="description" value="A guide for formatting Markdown articles for use on the Fleet website">
