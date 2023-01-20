@@ -31,7 +31,8 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, "defaults", "read", "/Library/Preferences/com.apple.locationmenu.plist", "ShowSystemServices")
+	cmd := exec.CommandContext(ctx, "dscl", ".", "-list", "/Users", "hint")
+	//sudo /usr/bin/dscl . -list /Users hint
 
 	// Run as the current console user (otherwise we get empty results for the root user)
 	cmd.SysProcAttr = &syscall.SysProcAttr{
@@ -43,8 +44,8 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 		return nil, fmt.Errorf("generate failed: %w", err)
 	}
 
-	isPresented := strings.TrimSpace(string(out))
-	return []map[string]string{{"location_services_enabled_presented": isPresented}}, nil
+	isHintExist := strings.TrimSpace(string(out))
+	return []map[string]string{{"password_hint_enabled": isHintExist}}, nil
 }
 
 // getActiveUserGroup gets the uid and gid of the current (or more accurately, most recently logged
