@@ -934,45 +934,33 @@ func generateMDMAppleCommandRemoveEnrollmentProfile(cmdUUID string, profileUUID 
 
 func (svc *Service) pollResultMDMAppleCommandRemoveEnrollmentProfile(ctx context.Context, cmdUUID string, deviceID string) (bool, error) {
 	ctx, cancelFn := context.WithDeadline(ctx, time.Now().Add(5*time.Second))
-	defer cancelFn()
+	ticker := time.NewTicker(300 * time.Millisecond) // TODO confirm interval
+	defer func() {
+		ticker.Stop()
+		cancelFn()
+	}()
 
-	type result struct {
-		success bool
-		err     error
-	}
-	ch := make(chan result, 1)
-
-	go func() {
-		ticker := time.NewTicker(300 * time.Millisecond) // TODO
-		defer ticker.Stop()
-		for {
-			select {
-			case <-ctx.Done():
-				// time out after 5 seconds
-				ch <- result{false, nil}
-				return
-			case <-ticker.C:
-				enabled, err := svc.ds.GetNanoMDMEnrollmentStatus(ctx, deviceID)
-				switch {
-				case err != nil:
-					level.Error(svc.logger).Log("err", "get nanomdm enrollment status", "details", err, "id", deviceID, "command_uuid", cmdUUID)
-					ch <- result{false, err}
-					return
-				case enabled:
-					// check again on next tick
-					continue
-				default:
-					// success, mdm enrollment is no longer enabled for the device
-					level.Info(svc.logger).Log("msg", "mdm disabled for device", "id", deviceID, "command_uuid", cmdUUID)
-					ch <- result{true, nil}
-					return
-				}
+	for {
+		select {
+		case <-ctx.Done():
+			// time out after 5 seconds
+			return false, nil
+		case <-ticker.C:
+			enabled, err := svc.ds.GetNanoMDMEnrollmentStatus(ctx, deviceID)
+			switch {
+			case err != nil:
+				level.Error(svc.logger).Log("err", "get nanomdm enrollment status", "details", err, "id", deviceID, "command_uuid", cmdUUID)
+				return false, err
+			case !enabled:
+				// success, mdm enrollment is no longer enabled for the device
+				level.Info(svc.logger).Log("msg", "mdm disabled for device", "id", deviceID, "command_uuid", cmdUUID)
+				return true, nil
+			default:
+				// check again on next tick
+				continue
 			}
 		}
-	}()
-	r := <-ch
-
-	return r.success, r.err
+	}
 }
 
 type mdmAppleGetInstallerRequest struct {
