@@ -221,9 +221,12 @@ describe("Activity Feed", () => {
     render(<ActivityItem activity={activity} isPremiumTier />);
 
     expect(
-      screen.getByText(
-        "Somebody using foo@example.com failed to log in from public IP 192.168.0.1."
-      )
+      screen.getByText(" failed to log in from public IP 192.168.0.1.", {
+        exact: false,
+      })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("foo@example.com", { exact: false })
     ).toBeInTheDocument();
   });
 
