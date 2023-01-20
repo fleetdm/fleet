@@ -43,8 +43,11 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 		return nil, fmt.Errorf("generate failed: %w", err)
 	}
 
-	isHintExist := strings.TrimSpace(string(out))
-	return []map[string]string{{"password_hint_enabled": isHintExist}}, nil
+	res := "0"
+	if len(strings.TrimSpace(string(out))) > 0 {
+		res = "1"
+	}
+	return []map[string]string{{"password_hint_enabled": res}}, nil
 }
 
 // getActiveUserGroup gets the uid and gid of the current (or more accurately, most recently logged

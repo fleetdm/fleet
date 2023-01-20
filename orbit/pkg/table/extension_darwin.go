@@ -3,9 +3,9 @@
 package table
 
 import (
+	"github.com/fleetdm/fleet/v4/orbit/pkg/osquery"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/login_password"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/privaterelay"
-	"github.com/osquery/osquery-go"
 	"github.com/osquery/osquery-go/plugin/table"
 
 	"github.com/macadmins/osquery-extension/tables/filevaultusers"
@@ -19,9 +19,9 @@ func platformTables() []osquery.OsqueryPlugin {
 	return []osquery.OsqueryPlugin{
 		// Fleet tables
 		table.NewPlugin("icloud_private_relay", privaterelay.Columns(), privaterelay.Generate),
+		table.NewPlugin("login_password", login_password.Columns(), login_password.Generate),
 
 		// Macadmins extension tables
-		table.NewPlugin("login_password", login_password.Columns(), login_password.Generate),
 		table.NewPlugin("filevault_users", filevaultusers.FileVaultUsersColumns(), filevaultusers.FileVaultUsersGenerate),
 		table.NewPlugin("macos_profiles", macos_profiles.MacOSProfilesColumns(), macos_profiles.MacOSProfilesGenerate),
 		table.NewPlugin("mdm", mdm.MDMInfoColumns(), mdm.MDMInfoGenerate),
