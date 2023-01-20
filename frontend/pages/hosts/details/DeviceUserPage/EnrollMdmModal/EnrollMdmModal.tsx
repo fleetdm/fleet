@@ -11,17 +11,19 @@ import Spinner from "components/Spinner";
 
 import mdmAPI from "services/entities/mdm";
 
-export interface IInfoModalProps {
+interface IEnrollMdmModalProps {
+  mdmEnrollmentType: "Manual" | "Auto";
   onCancel: () => void;
-  token: string;
+  token?: string;
 }
 
-const baseClass = "manual-enroll-mdm-modal";
+const baseClass = "enroll-mdm-modal";
 
-const ManualEnrollMdmModal = ({
+const EnrollMdmModal = ({
+  mdmEnrollmentType,
   onCancel,
   token,
-}: IInfoModalProps): JSX.Element => {
+}: IEnrollMdmModalProps): JSX.Element => {
   const { renderFlash } = useContext(NotificationContext);
 
   const [isDownloadingProfile, setIsDownloadingProfile] = useState(false);
@@ -60,7 +62,7 @@ const ManualEnrollMdmModal = ({
 
     return false;
   };
-  const renderModalContent = () => {
+  const renderManualModalContent = () => {
     if (isFetchingMdmProfile) {
       return <Spinner />;
     }
@@ -122,11 +124,51 @@ const ManualEnrollMdmModal = ({
     );
   };
 
+  const renderAutoModalContent = () => {
+    return (
+      <div>
+        <p className={`${baseClass}__description`}>
+          To turn on MDM, Apple Inc. requires that you install a profile.
+        </p>
+        <ol>
+          <li>
+            <p>
+              From the Apple menu in the top left corner of your screen, select{" "}
+              <b>System Settings</b> or <b>System Preferences</b>.
+            </p>
+          </li>
+          <li>
+            <p>
+              In the search bar, type “Profiles.” Select <b>Profiles</b>, find
+              and select <b>Enrollment Profile</b>, and select <b>Install</b>.
+            </p>
+          </li>
+          <li>
+            <p>
+              Enter your password, and select <b>Enroll</b>.
+            </p>
+          </li>
+          <li>
+            Close this window and select <b>Refetch</b> on your My device page
+            to tell your organization that MDM is on.
+          </li>
+        </ol>
+        <div className="modal-cta-wrap">
+          <Button type="button" onClick={onCancel} variant="brand">
+            Done
+          </Button>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <Modal title="Turn on MDM" onExit={onCancel} className={baseClass}>
-      {renderModalContent()}
+      {mdmEnrollmentType === "Manual"
+        ? renderManualModalContent()
+        : renderAutoModalContent()}
     </Modal>
   );
 };
 
-export default ManualEnrollMdmModal;
+export default EnrollMdmModal;

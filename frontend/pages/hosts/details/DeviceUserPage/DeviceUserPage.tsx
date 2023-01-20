@@ -34,7 +34,7 @@ import AboutCard from "../cards/About";
 import SoftwareCard from "../cards/Software";
 import PoliciesCard from "../cards/Policies";
 import InfoModal from "./InfoModal";
-import ManualEnrollMdmModal from "./ManualEnrollMdmModal";
+import EnrollMdmModal from "./EnrollMdmModal";
 
 import InfoIcon from "../../../../../assets/images/icon-info-purple-14x14@2x.png";
 import FleetIcon from "../../../../../assets/images/fleet-avatar-24x24@2x.png";
@@ -59,7 +59,7 @@ const DeviceUserPage = ({
 
   const [isPremiumTier, setIsPremiumTier] = useState(false);
   const [showInfoModal, setShowInfoModal] = useState(false);
-  const [showMdmModal, setShowMdmModal] = useState(false);
+  const [showEnrollMdmModal, setShowEnrollMdmModal] = useState(false);
   const [refetchStartTime, setRefetchStartTime] = useState<number | null>(null);
   const [showRefetchSpinner, setShowRefetchSpinner] = useState(false);
   const [hostSoftware, setHostSoftware] = useState<ISoftware[]>([]);
@@ -215,9 +215,9 @@ const DeviceUserPage = ({
     setShowInfoModal(!showInfoModal);
   }, [showInfoModal, setShowInfoModal]);
 
-  const toggleTurnOnMdmModal = useCallback(() => {
-    setShowMdmModal(!showMdmModal);
-  }, [showMdmModal, setShowMdmModal]);
+  const toggleEnrollMdmModal = useCallback(() => {
+    setShowEnrollMdmModal(!showEnrollMdmModal);
+  }, [showEnrollMdmModal, setShowEnrollMdmModal]);
 
   const togglePolicyDetailsModal = useCallback(
     (policy: IHostPolicy) => {
@@ -263,11 +263,23 @@ const DeviceUserPage = ({
 
   const statusClassName = classnames("status", `status--${host?.status}`);
 
+  const mdmEnrollmentType = (): "manual" | "auto" | undefined => {
+    if (host?.mdm_enrollment_status === "Off") {
+      return "manual";
+    }
+    if (host?.mdm_enrollment_status === "Pending") {
+      return "auto";
+    }
+
+    return undefined;
+  };
+
   const turnOnMdmButton = (
-    <Button variant="unstyled" onClick={() => setShowMdmModal(true)}>
+    <Button variant="unstyled" onClick={toggleEnrollMdmModal}>
       <b>Turn on MDM</b>
     </Button>
   );
+
   const renderDeviceUserPage = () => {
     const failingPoliciesCount = host?.issues?.failing_policies_count || 0;
     return (
@@ -276,15 +288,14 @@ const DeviceUserPage = ({
           <Spinner />
         ) : (
           <div className={`${baseClass} body-wrap`}>
-            {host?.platform === "darwin" &&
-              host?.mdm_enrollment_status === "Off" && (
-                <InfoBanner color="yellow" cta={turnOnMdmButton} pageLevel>
-                  Mobile device management (MDM) is off. MDM allows your
-                  organization to change settings and install software. This
-                  lets your organization keep your device up to date so you
-                  don’t have to.
-                </InfoBanner>
-              )}
+            {host?.platform === "darwin" && mdmEnrollmentType && (
+              <InfoBanner color="yellow" cta={turnOnMdmButton} pageLevel>
+                Mobile device management (MDM) is off. MDM allows your
+                organization to change settings and install software. This lets
+                your organization keep your device up to date so you don’t have
+                to.
+              </InfoBanner>
+            )}
             <HostSummaryCard
               statusClassName={statusClassName}
               titleData={titleData}
@@ -339,9 +350,10 @@ const DeviceUserPage = ({
               </Tabs>
             </TabsWrapper>
             {showInfoModal && <InfoModal onCancel={toggleInfoModal} />}
-            {showMdmModal && (
-              <ManualEnrollMdmModal
-                onCancel={toggleTurnOnMdmModal}
+            {showEnrollMdmModal && (
+              <EnrollMdmModal
+                mdmEnrollmentType={mdmEnrollmentType}
+                onCancel={toggleEnrollMdmModal}
                 token={deviceAuthToken}
               />
             )}
