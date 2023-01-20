@@ -39,6 +39,9 @@ If you already have a local TUF running, remove it.
 
 ```rm -rf test_tuf```
 
+### Stop orbit shell
+Stop Orbit shell if you are running it.
+
 ### Run the local build
 chmod +x my_build.sh
 ./my_build.sh
