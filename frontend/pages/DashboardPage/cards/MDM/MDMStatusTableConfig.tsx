@@ -5,6 +5,7 @@ import { IMdmStatusCardData, MDM_STATUS } from "interfaces/mdm";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import TooltipWrapper from "components/TooltipWrapper";
 import ViewAllHostsLink from "components/ViewAllHostsLink";
+import { generateMdmStatusTooltipText } from "utilities/helpers";
 
 interface IMdmStatusData extends IMdmStatusCardData {
   selectedPlatformLabelId?: number;
@@ -49,45 +50,14 @@ const statusTableHeaders = [
     Header: "Status",
     disableSortBy: true,
     accessor: "status",
-    Cell: (cellProps: IStringCellProps) => {
-      const tooltipText = (status: string): string => {
-        if (status === "On (automatic)") {
-          return `
-                <span>
-MDM was turned on automatically using Apple Automated Device Enrollment (DEP) or Windows Autopilot. Administrators can block end users from turning MDM off.
-                </span>
-              `;
-        }
-        if (status === "On (manual)") {
-          return `
-                <span>
-                  MDM was turned on manually. End users can turn MDM off.
-                </span>
-              `;
-        }
-        return `
-                <span>
-                  Hosts ordered via Apple Business Manager <br />
-                  (ABM). These will automatically enroll to Fleet <br />
-                  and turn on MDM when they&apos;re unboxed.
-                </span>
-              `;
-      };
-
-      if (cellProps.cell.value === "Off") {
-        return <TextCell value={cellProps.cell.value} />;
-      }
-      return (
-        <span className="name-container">
-          <TooltipWrapper
-            position="top"
-            tipContent={tooltipText(cellProps.cell.value)}
-          >
-            {cellProps.cell.value}
-          </TooltipWrapper>
-        </span>
-      );
-    },
+    Cell: (cellProps: IStringCellProps) => (
+      <TooltipWrapper
+        position="top"
+        tipContent={generateMdmStatusTooltipText(cellProps.cell.value)}
+      >
+        {cellProps.cell.value}
+      </TooltipWrapper>
+    ),
     sortType: "caseInsensitive",
   },
   {

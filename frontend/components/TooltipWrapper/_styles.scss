@@ -58,6 +58,7 @@
     opacity: 0;
     transition: opacity 0.3s ease;
     line-height: 1.375;
+    white-space: initial;
 
     // invisible block to cover space so
     // hover state can continue from text to bubble

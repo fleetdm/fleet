@@ -23,7 +23,6 @@ const NoVulnsDetected = (): JSX.Element => {
       header="No vulnerabilities detected for this software item."
       info={
         <>
-          {" "}
           Expecting to see vulnerabilities?{" "}
           <CustomLink
             url={GITHUB_NEW_ISSUE_LINK}

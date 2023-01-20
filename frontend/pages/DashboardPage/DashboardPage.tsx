@@ -295,8 +295,7 @@ const DashboardPage = ({
           hosts_count,
         } = mobile_device_management_enrollment_status;
 
-        // TODO: Change back to ===
-        if (hosts_count === 0 && mobile_device_management_solution !== null) {
+        if (hosts_count === 0 && mobile_device_management_solution === null) {
           setShowMdmCard(false);
           return;
         }

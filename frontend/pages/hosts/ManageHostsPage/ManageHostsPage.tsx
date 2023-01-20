@@ -1259,8 +1259,8 @@ const ManageHostsPage = ({
         TooltipDescription = (
           <span className={`tooltip__tooltip-text`}>
             MDM was turned on <br />
-            manually. Device users can <br />
-            turn MDM off.
+            manually. Device users <br />
+            can turn MDM off.
           </span>
         );
         break;
@@ -1278,7 +1278,10 @@ const ManageHostsPage = ({
       default:
         TooltipDescription = (
           <span className={`tooltip__tooltip-text`}>
-            Hosts not enrolled to <br /> an MDM solution.
+            Hosts with MDM off <br />
+            don&apos;t receive macOS <br />
+            settings and macOS <br />
+            update encouragement.
           </span>
         );
     }
