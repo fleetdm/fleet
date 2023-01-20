@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
-	"io/ioutil"
 	"os"
 	"testing"
 	"time"
@@ -76,7 +75,7 @@ func TestApplyUserRoles(t *testing.T) {
 		return nil
 	}
 
-	tmpFile, err := ioutil.TempFile(os.TempDir(), "*.yml")
+	tmpFile, err := os.CreateTemp(os.TempDir(), "*.yml")
 	require.NoError(t, err)
 	defer os.Remove(tmpFile.Name())
 
@@ -168,13 +167,25 @@ spec:
     name: team1
     secrets:
       - secret: AAA
+    mdm:
+      macos_updates:
+        minimum_version: 12.3.1
+        deadline: 2011-03-01
 `)
 
 	newAgentOpts := json.RawMessage(`{"config":{"views":{"foo":"bar"}}}`)
+	newMDMSettings := fleet.TeamMDM{
+		MacOSUpdates: fleet.MacOSUpdates{
+			MinimumVersion: "12.3.1",
+			Deadline:       "2011-03-01",
+		},
+	}
 	require.Equal(t, "[+] applied 2 teams\n", runAppForTest(t, []string{"apply", "-f", filename}))
 	assert.JSONEq(t, string(agentOpts), string(*teamsByName["team2"].Config.AgentOptions))
 	assert.JSONEq(t, string(newAgentOpts), string(*teamsByName["team1"].Config.AgentOptions))
 	assert.Equal(t, []*fleet.EnrollSecret{{Secret: "AAA"}}, enrolledSecretsCalled[uint(42)])
+	assert.Equal(t, fleet.TeamMDM{}, teamsByName["team2"].Config.MDM)
+	assert.Equal(t, newMDMSettings, teamsByName["team1"].Config.MDM)
 	assert.True(t, ds.ApplyEnrollSecretsFuncInvoked)
 	ds.ApplyEnrollSecretsFuncInvoked = false
 
@@ -191,6 +202,7 @@ spec:
 	assert.False(t, ds.ApplyEnrollSecretsFuncInvoked)
 	// agent options not provided, so left unchanged
 	assert.JSONEq(t, string(newAgentOpts), string(*teamsByName["team1"].Config.AgentOptions))
+	assert.Equal(t, fleet.TeamMDM{}, teamsByName["team1"].Config.MDM)
 
 	filename = writeTmpYml(t, `
 apiVersion: v1
@@ -202,13 +214,24 @@ spec:
         views:
           foo: qux
     name: team1
+    mdm:
+      macos_updates:
+        minimum_version: 10.10.10
+        deadline: 1992-03-01
     secrets:
       - secret: BBB
 `)
 
+	newMDMSettings = fleet.TeamMDM{
+		MacOSUpdates: fleet.MacOSUpdates{
+			MinimumVersion: "10.10.10",
+			Deadline:       "1992-03-01",
+		},
+	}
 	newAgentOpts = json.RawMessage(`{"config":{"views":{"foo":"qux"}}}`)
 	require.Equal(t, "[+] applied 1 teams\n", runAppForTest(t, []string{"apply", "-f", filename}))
 	assert.JSONEq(t, string(newAgentOpts), string(*teamsByName["team1"].Config.AgentOptions))
+	assert.Equal(t, newMDMSettings, teamsByName["team1"].Config.MDM)
 	assert.Equal(t, []*fleet.EnrollSecret{{Secret: "BBB"}}, enrolledSecretsCalled[uint(42)])
 	assert.True(t, ds.ApplyEnrollSecretsFuncInvoked)
 
@@ -227,7 +250,7 @@ spec:
 }
 
 func writeTmpYml(t *testing.T, contents string) string {
-	tmpFile, err := ioutil.TempFile(t.TempDir(), "*.yml")
+	tmpFile, err := os.CreateTemp(t.TempDir(), "*.yml")
 	require.NoError(t, err)
 	_, err = tmpFile.WriteString(contents)
 	require.NoError(t, err)
@@ -235,7 +258,8 @@ func writeTmpYml(t *testing.T, contents string) string {
 }
 
 func TestApplyAppConfig(t *testing.T) {
-	_, ds := runServerWithMockedDS(t)
+	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
+	_, ds := runServerWithMockedDS(t, &service.TestServerOpts{License: license})
 
 	ds.ListUsersFunc = func(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error) {
 		return userRoleSpecList, nil
@@ -250,6 +274,9 @@ func TestApplyAppConfig(t *testing.T) {
 			return userRoleSpecList[0], nil
 		}
 		return userRoleSpecList[1], nil
+	}
+	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
+		return &fleet.Team{ID: 123}, nil
 	}
 
 	defaultAgentOpts := json.RawMessage(`{"config":{"foo":"bar"}}`)
@@ -274,12 +301,26 @@ spec:
   features:
     enable_host_users: false
     enable_software_inventory: false
+  mdm:
+    apple_bm_default_team: "team1"
+    macos_updates:
+      minimum_version: 12.1.1
+      deadline: 2011-02-01
 `)
 
+	newMDMSettings := fleet.MDM{
+		AppleBMDefaultTeam:  "team1",
+		AppleBMTermsExpired: false,
+		MacOSUpdates: fleet.MacOSUpdates{
+			MinimumVersion: "12.1.1",
+			Deadline:       "2011-02-01",
+		},
+	}
 	assert.Equal(t, "[+] applied fleet config\n", runAppForTest(t, []string{"apply", "-f", name}))
 	require.NotNil(t, savedAppConfig)
 	assert.False(t, savedAppConfig.Features.EnableHostUsers)
 	assert.False(t, savedAppConfig.Features.EnableSoftwareInventory)
+	assert.Equal(t, newMDMSettings, savedAppConfig.MDM)
 	// agent options were not modified, since they were not provided
 	assert.Equal(t, string(defaultAgentOpts), string(*savedAppConfig.AgentOptions))
 
@@ -291,6 +332,8 @@ spec:
     enable_host_users: true
     enable_software_inventory: true
   agent_options:
+  mdm:
+    macos_updates:
 `)
 
 	assert.Equal(t, "[+] applied fleet config\n", runAppForTest(t, []string{"apply", "-f", name}))
@@ -299,6 +342,7 @@ spec:
 	assert.True(t, savedAppConfig.Features.EnableSoftwareInventory)
 	// agent options were cleared, provided but empty
 	assert.Nil(t, savedAppConfig.AgentOptions)
+	assert.Equal(t, newMDMSettings, savedAppConfig.MDM)
 }
 
 func TestApplyAppConfigDryRunIssue(t *testing.T) {
@@ -1214,6 +1258,94 @@ spec:
 [+] would've applied 1 teams`,
 		},
 		{
+			desc: "macos_updates dealine set but minimum_version empty",
+			spec: `
+apiVersion: v1
+kind: team
+spec:
+  team:
+    name: team1
+    mdm:
+      macos_updates:
+        deadline: 2022-01-04
+`,
+			wantErr: `422 Validation Failed: minimum_version is required when deadline is provided`,
+		},
+		{
+			desc: "macos_updates minimum_version set but deadline empty",
+			spec: `
+apiVersion: v1
+kind: team
+spec:
+  team:
+    name: team1
+    mdm:
+      macos_updates:
+        minimum_version: "12.2"
+`,
+			wantErr: `422 Validation Failed: deadline is required when minimum_version is provided`,
+		},
+		{
+			desc: "macos_updates.minimum_version with build version",
+			spec: `
+apiVersion: v1
+kind: team
+spec:
+  team:
+    name: team1
+    mdm:
+      macos_updates:
+        minimum_version: "12.2 (ABCD)"
+        deadline: 1892-01-01
+`,
+			wantErr: `422 Validation Failed: minimum_version accepts version numbers only. (E.g., "13.0.1.") NOT "Ventura 13" or "13.0.1 (22A400)"`,
+		},
+		{
+			desc: "macos_updates.deadline with timestamp",
+			spec: `
+apiVersion: v1
+kind: team
+spec:
+  team:
+    name: team1
+    mdm:
+      macos_updates:
+        minimum_version: "12.2"
+        deadline: "1892-01-01T00:00:00Z"
+`,
+			wantErr: `422 Validation Failed: deadline accepts YYYY-MM-DD format only (E.g., "2023-06-01.")`,
+		},
+		{
+			desc: "macos_updates.deadline with invalid date",
+			spec: `
+apiVersion: v1
+kind: team
+spec:
+  team:
+    name: team1
+    mdm:
+      macos_updates:
+        minimum_version: "12.2"
+        deadline: "18-01-01"
+`,
+			wantErr: `422 Validation Failed: deadline accepts YYYY-MM-DD format only (E.g., "2023-06-01.")`,
+		},
+		{
+			desc: "macos_updates.deadline with incomplete date",
+			spec: `
+apiVersion: v1
+kind: team
+spec:
+  team:
+    name: team1
+    mdm:
+      macos_updates:
+        minimum_version: "12.2"
+        deadline: "2022-01"
+`,
+			wantErr: `422 Validation Failed: deadline accepts YYYY-MM-DD format only (E.g., "2023-06-01.")`,
+		},
+		{
 			desc: "missing required sso entity_id",
 			spec: `
 apiVersion: v1
@@ -1339,6 +1471,82 @@ spec:
           - /home/ubuntu/.ssh/authorized_keys
 `,
 			wantOutput: `[+] applied fleet config`,
+		},
+		{
+			desc: "app config macos_updates dealine set but minimum_version empty",
+			spec: `
+apiVersion: v1
+kind: config
+spec:
+  mdm:
+    macos_updates:
+      deadline: 2022-01-04
+`,
+			wantErr: `422 Validation Failed: minimum_version is required when deadline is provided`,
+		},
+		{
+			desc: "app config macos_updates minimum_version set but deadline empty",
+			spec: `
+apiVersion: v1
+kind: config
+spec:
+  mdm:
+    macos_updates:
+      minimum_version: "12.2"
+`,
+			wantErr: `422 Validation Failed: deadline is required when minimum_version is provided`,
+		},
+		{
+			desc: "app config macos_updates.minimum_version with build version",
+			spec: `
+apiVersion: v1
+kind: config
+spec:
+  mdm:
+    macos_updates:
+      minimum_version: "12.2 (ABCD)"
+      deadline: 1892-01-01
+`,
+			wantErr: `422 Validation Failed: minimum_version accepts version numbers only. (E.g., "13.0.1.") NOT "Ventura 13" or "13.0.1 (22A400)"`,
+		},
+		{
+			desc: "app config macos_updates.deadline with timestamp",
+			spec: `
+apiVersion: v1
+kind: config
+spec:
+  mdm:
+    macos_updates:
+      minimum_version: "12.2"
+      deadline: "1892-01-01T00:00:00Z"
+`,
+			wantErr: `422 Validation Failed: deadline accepts YYYY-MM-DD format only (E.g., "2023-06-01.")`,
+		},
+		{
+			desc: "app config macos_updates.deadline with invalid date",
+			spec: `
+apiVersion: v1
+kind: config
+spec:
+  mdm:
+    macos_updates:
+      minimum_version: "12.2"
+      deadline: "18-01-01"
+`,
+			wantErr: `422 Validation Failed: deadline accepts YYYY-MM-DD format only (E.g., "2023-06-01.")`,
+		},
+		{
+			desc: "app config macos_updates.deadline with incomplete date",
+			spec: `
+apiVersion: v1
+kind: config
+spec:
+  mdm:
+    macos_updates:
+      minimum_version: "12.2"
+      deadline: "2022-01"
+`,
+			wantErr: `422 Validation Failed: deadline accepts YYYY-MM-DD format only (E.g., "2023-06-01.")`,
 		},
 	}
 	// NOTE: Integrations required fields are not tested (Jira/Zendesk) because

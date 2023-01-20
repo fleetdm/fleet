@@ -80,12 +80,27 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 	// updates a team, no secret is provided so it will keep the one generated
 	// automatically when the team was created.
 	agentOpts := json.RawMessage(`{"config": {"views": {"foo": "bar"}}, "overrides": {"platforms": {"darwin": {"views": {"bar": "qux"}}}}}`)
+	mdm := fleet.TeamMDM{
+		MacOSUpdates: fleet.MacOSUpdates{
+			MinimumVersion: "10.15.0",
+			Deadline:       "2021-01-01",
+		},
+	}
 	features := json.RawMessage(`{
     "enable_host_users": false,
     "enable_software_inventory": false,
     "additional_queries": {"foo": "bar"}
   }`)
-	teamSpecs := applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{Name: teamName, AgentOptions: agentOpts, Features: &features}}}
+	teamSpecs := applyTeamSpecsRequest{
+		Specs: []*fleet.TeamSpec{
+			{
+				Name:         teamName,
+				AgentOptions: agentOpts,
+				Features:     &features,
+				MDM:          mdm,
+			},
+		},
+	}
 	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
 
 	team, err := s.ds.TeamByName(context.Background(), teamName)
@@ -97,6 +112,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 		EnableSoftwareInventory: false,
 		AdditionalQueries:       ptr.RawMessage(json.RawMessage(`{"foo": "bar"}`)),
 	}, team.Config.Features)
+	require.Equal(t, mdm, team.Config.MDM)
 
 	// an activity was created for team spec applied
 	var listActivities listActivitiesResponse
@@ -171,7 +187,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 		]
 	}`), http.StatusOK, "force", "true")
 
-	team, err = s.ds.TeamByName(context.Background(), "team_with_invalid_key")
+	_, err = s.ds.TeamByName(context.Background(), "team_with_invalid_key")
 	require.NoError(t, err)
 
 	// invalid agent options command-line flag
@@ -191,6 +207,8 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 	// creates a team with default agent options
 	user, err := s.ds.UserByEmail(context.Background(), "admin1@example.com")
 	require.NoError(t, err)
+
+	// invalid agent options command-line flag
 
 	teams, err := s.ds.ListTeams(context.Background(), fleet.TeamFilter{User: user}, fleet.ListOptions{})
 	require.NoError(t, err)
@@ -1221,6 +1239,95 @@ func (s *integrationEnterpriseTestSuite) TestExternalIntegrationsTeamConfig() {
 	}`), http.StatusOK)
 }
 
+func (s *integrationEnterpriseTestSuite) TestMacOSUpdatesConfig() {
+	t := s.T()
+
+	// Create a team
+	team := &fleet.Team{
+		Name:        t.Name(),
+		Description: "Team description",
+		Secrets:     []*fleet.EnrollSecret{{Secret: "XYZ"}},
+	}
+	var tmResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", team, http.StatusOK, &tmResp)
+	require.Equal(t, team.Name, tmResp.Team.Name)
+	team.ID = tmResp.Team.ID
+
+	// modify the team's config
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
+		MDM: &fleet.TeamMDM{
+			MacOSUpdates: fleet.MacOSUpdates{
+				MinimumVersion: "10.15.0",
+				Deadline:       "2021-01-01",
+			},
+		},
+	}, http.StatusOK, &tmResp)
+	require.Equal(t, "10.15.0", tmResp.Team.Config.MDM.MacOSUpdates.MinimumVersion)
+	require.Equal(t, "2021-01-01", tmResp.Team.Config.MDM.MacOSUpdates.Deadline)
+
+	// only update the deadline
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
+		MDM: &fleet.TeamMDM{
+			MacOSUpdates: fleet.MacOSUpdates{
+				MinimumVersion: "10.15.0",
+				Deadline:       "2025-10-01",
+			},
+		},
+	}, http.StatusOK, &tmResp)
+	require.Equal(t, "10.15.0", tmResp.Team.Config.MDM.MacOSUpdates.MinimumVersion)
+	require.Equal(t, "2025-10-01", tmResp.Team.Config.MDM.MacOSUpdates.Deadline)
+
+	// sending a nil MacOSUpdate config doesn't modify anything
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{MDM: nil}, http.StatusOK, &tmResp)
+	require.Equal(t, "10.15.0", tmResp.Team.Config.MDM.MacOSUpdates.MinimumVersion)
+	require.Equal(t, "2025-10-01", tmResp.Team.Config.MDM.MacOSUpdates.Deadline)
+
+	// sending an empty MacOSUpdate empties both fields
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{MDM: &fleet.TeamMDM{MacOSUpdates: fleet.MacOSUpdates{}}}, http.StatusOK, &tmResp)
+	require.Empty(t, tmResp.Team.Config.MDM.MacOSUpdates.MinimumVersion)
+	require.Empty(t, tmResp.Team.Config.MDM.MacOSUpdates.Deadline)
+
+	// error checks:
+
+	// try to set an invalid deadline
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
+		MDM: &fleet.TeamMDM{
+			MacOSUpdates: fleet.MacOSUpdates{
+				MinimumVersion: "10.15.0",
+				Deadline:       "2021-01-01T00:00:00Z",
+			},
+		},
+	}, http.StatusUnprocessableEntity, &tmResp)
+
+	// try to set an invalid minimum version
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
+		MDM: &fleet.TeamMDM{
+			MacOSUpdates: fleet.MacOSUpdates{
+				MinimumVersion: "10.15.0 (19A583)",
+				Deadline:       "2021-01-01T00:00:00Z",
+			},
+		},
+	}, http.StatusUnprocessableEntity, &tmResp)
+
+	// try to set a deadline but not a minimum version
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
+		MDM: &fleet.TeamMDM{
+			MacOSUpdates: fleet.MacOSUpdates{
+				Deadline: "2021-01-01T00:00:00Z",
+			},
+		},
+	}, http.StatusUnprocessableEntity, &tmResp)
+
+	// try to set a minimum version but not a deadline
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
+		MDM: &fleet.TeamMDM{
+			MacOSUpdates: fleet.MacOSUpdates{
+				MinimumVersion: "10.15.0 (19A583)",
+			},
+		},
+	}, http.StatusUnprocessableEntity, &tmResp)
+}
+
 func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
 	t := s.T()
 
@@ -1417,6 +1524,79 @@ func (s *integrationEnterpriseTestSuite) TestDefaultAppleBMTeam() {
 	acResp = appConfigResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
 	require.Equal(t, tm.Name, acResp.MDM.AppleBMDefaultTeam)
+}
+
+func (s *integrationEnterpriseTestSuite) TestMDMMacOSUpdates() {
+	t := s.T()
+
+	checkInvalidConfig := func(config string) {
+		// try to set an invalid config
+		acResp := appConfigResponse{}
+		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(config), http.StatusUnprocessableEntity, &acResp)
+		fmt.Println(acResp.Err)
+
+		// get the appconfig, nothing changed
+		acResp = appConfigResponse{}
+		s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+		require.Equal(t, fleet.MDM{}, acResp.MDM)
+	}
+
+	// missing minimum_version
+	checkInvalidConfig(`{"mdm": {
+		"macos_updates": {
+			"deadline": "2022-01-01"
+		}
+	}}`)
+
+	// missing deadline
+	checkInvalidConfig(`{"mdm": {
+		"macos_updates": {
+			"minimum_version": "12.1.1"
+		}
+	}}`)
+
+	// invalid deadline
+	checkInvalidConfig(`{"mdm": {
+		"macos_updates": {
+			"minimum_version": "12.1.1",
+			"deadline": "2022"
+		}
+	}}`)
+
+	// deadline includes timestamp
+	checkInvalidConfig(`{"mdm": {
+		"macos_updates": {
+			"minimum_version": "12.1.1",
+			"deadline": "2022-01-01T00:00:00Z"
+		}
+	}}`)
+
+	// minimum_version includes build info
+	checkInvalidConfig(`{"mdm": {
+		"macos_updates": {
+			"minimum_version": "12.1.1 (ABCD)",
+			"deadline": "2022-01-01"
+		}
+	}}`)
+
+	// valid config
+	acResp := appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+			"mdm": {
+				"macos_updates": {
+					"minimum_version": "12.3.1",
+					"deadline": "2022-01-01"
+				}
+			}
+		}`), http.StatusOK, &acResp)
+	require.Equal(t, "12.3.1", acResp.MDM.MacOSUpdates.MinimumVersion)
+	require.Equal(t, "2022-01-01", acResp.MDM.MacOSUpdates.Deadline)
+
+	// get the appconfig
+	acResp = appConfigResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	require.Equal(t, "12.3.1", acResp.MDM.MacOSUpdates.MinimumVersion)
+	require.Equal(t, "2022-01-01", acResp.MDM.MacOSUpdates.Deadline)
 }
 
 func (s *integrationEnterpriseTestSuite) TestSSOJITProvisioning() {
