@@ -32,7 +32,6 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, "dscl", ".", "-list", "/Users", "hint")
-	//sudo /usr/bin/dscl . -list /Users hint
 
 	// Run as the current console user (otherwise we get empty results for the root user)
 	cmd.SysProcAttr = &syscall.SysProcAttr{
