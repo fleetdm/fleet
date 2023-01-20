@@ -844,13 +844,18 @@ func mdmAppleCommandRemoveEnrollmentProfileEndpoint(ctx context.Context, request
 }
 
 func (svc *Service) EnqueueMDMAppleCommandRemoveEnrollmentProfile(ctx context.Context, hostID uint) error {
-	if err := svc.authz.Authorize(ctx, fleet.MDMAppleCommand{}, fleet.ActionWrite); err != nil {
-		return ctxerr.Wrap(ctx, err)
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return err
 	}
 
 	h, err := svc.ds.HostLite(ctx, hostID)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "getting host uuid for mdm apple remove profile command")
+		return ctxerr.Wrap(ctx, err, "getting host info for mdm apple remove profile command")
+	}
+
+	// check authorization again based on host info for team-based permissions
+	if err := svc.authz.Authorize(ctx, h, fleet.ActionCommand); err != nil {
+		return err
 	}
 
 	enabled, err := svc.ds.GetNanoMDMEnrollmentStatus(ctx, h.UUID)

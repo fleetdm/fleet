@@ -259,11 +259,16 @@ func TestAppleMDMEnrollmentProfile(t *testing.T) {
 	}
 }
 
-func TestEnqueueMDMAppleCommandRemoveEnrollmentProfile(t *testing.T) {
+func TestMDMCommandAuthz(t *testing.T) {
 	svc, ctx, ds := setupAppleMDMService(t)
 
 	ds.HostLiteFunc = func(ctx context.Context, hostID uint) (*fleet.Host, error) {
-		return &fleet.Host{UUID: "test-host-uuid"}, nil
+		switch hostID {
+		case 1:
+			return &fleet.Host{UUID: "test-host-team-1", TeamID: ptr.Uint(1)}, nil
+		default:
+			return &fleet.Host{UUID: "test-host-no-team"}, nil
+		}
 	}
 
 	var mdmEnabled atomic.Bool
@@ -271,45 +276,70 @@ func TestEnqueueMDMAppleCommandRemoveEnrollmentProfile(t *testing.T) {
 		return mdmEnabled.Swap(!mdmEnabled.Load()), nil
 	}
 
-	// only global admin can enqueue remove enrollment profile command
 	testCases := []struct {
-		name       string
-		user       *fleet.User
-		shouldFail bool
+		name             string
+		user             *fleet.User
+		shouldFailGlobal bool
+		shouldFailTeam   bool
 	}{
 		{
 			"global admin",
 			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
 			false,
+			false,
 		},
 		{
 			"global maintainer",
 			&fleet.User{GlobalRole: ptr.String(fleet.RoleMaintainer)},
-			true,
+			false,
+			false,
 		},
 		{
 			"global observer",
 			&fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)},
 			true,
+			true,
 		},
 		{
-			"team admin",
+			"team admin, belongs to team",
 			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}}},
 			true,
+			false,
 		},
 		{
-			"team maintainer",
-			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleMaintainer}}},
+			"team admin, DOES NOT belong to team",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleAdmin}}},
+			true,
 			true,
 		},
 		{
-			"team observer",
+			"team maintainer, belongs to team",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleMaintainer}}},
+			true,
+			false,
+		},
+		{
+			"team maintainer, DOES NOT belong to team",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleMaintainer}}},
+			true,
+			true,
+		},
+		{
+			"team observer, belongs to team",
 			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver}}},
+			true,
+			true,
+		},
+		{
+			"team observer, DOES NOT belong to team",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleObserver}}},
+			true,
 			true,
 		},
 		{
 			"user no roles",
 			&fleet.User{ID: 1337},
+			true,
 			true,
 		},
 	}
@@ -319,8 +349,17 @@ func TestEnqueueMDMAppleCommandRemoveEnrollmentProfile(t *testing.T) {
 			ctx := viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
 
 			mdmEnabled.Store(true)
-			err := svc.EnqueueMDMAppleCommandRemoveEnrollmentProfile(ctx, 42)
-			if !tt.shouldFail {
+			err := svc.EnqueueMDMAppleCommandRemoveEnrollmentProfile(ctx, 42) // global host
+			if !tt.shouldFailGlobal {
+				require.NoError(t, err)
+			} else {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), authz.ForbiddenErrorMessage)
+			}
+
+			mdmEnabled.Store(true)
+			err = svc.EnqueueMDMAppleCommandRemoveEnrollmentProfile(ctx, 1) // host belongs to team 1
+			if !tt.shouldFailTeam {
 				require.NoError(t, err)
 			} else {
 				require.Error(t, err)
