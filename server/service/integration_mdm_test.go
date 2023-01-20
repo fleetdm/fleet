@@ -359,7 +359,7 @@ func (d *device) scepEnroll() {
 	require.NoError(t, err)
 
 	notBefore := time.Now()
-	notAfter := notBefore.Add(time.Hour * 1)
+	notAfter := notBefore.Add(time.Hour)
 
 	certTemplate := x509.Certificate{
 		SerialNumber: big.NewInt(1),

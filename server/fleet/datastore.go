@@ -444,7 +444,7 @@ type Datastore interface {
 	// ActivitiesStore
 
 	NewActivity(ctx context.Context, user *User, activity ActivityDetails) error
-	ListActivities(ctx context.Context, opt ListActivitiesOptions) ([]*Activity, error)
+	ListActivities(ctx context.Context, opt ListActivitiesOptions) ([]*Activity, *PaginationMetadata, error)
 	MarkActivitiesAsStreamed(ctx context.Context, activityIDs []uint) error
 
 	///////////////////////////////////////////////////////////////////////////////

@@ -1,51 +1,101 @@
-import React, { useState } from "react";
+import React, { useContext, useState } from "react";
+import { useQuery } from "react-query";
+import FileSaver from "file-saver";
 
+import { NotificationContext } from "context/notification";
+
+import DataError from "components/DataError";
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
+import Spinner from "components/Spinner";
 
 import mdmAPI from "services/entities/mdm";
 
 export interface IInfoModalProps {
   onCancel: () => void;
+  token: string;
 }
 
 const baseClass = "manual-enroll-mdm-modal";
 
-const ManualEnrollMdmModal = ({ onCancel }: IInfoModalProps): JSX.Element => {
-  const [showDownloading, setshowDownloading] = useState(false);
+const ManualEnrollMdmModal = ({
+  onCancel,
+  token,
+}: IInfoModalProps): JSX.Element => {
+  const { renderFlash } = useContext(NotificationContext);
 
-  const handleDownload = async () => {
-    setshowDownloading(true);
-    setTimeout(() => {
-      setshowDownloading(false);
-    }, 1000);
+  const [isDownloadingProfile, setIsDownloadingProfile] = useState(false);
 
-    try {
-      await mdmAPI.downloadEnrollmentProfile();
-    } catch (e) {
-      console.error("error downloading profile:", e);
+  const {
+    data: enrollmentProfile,
+    error: fetchMdmProfileError,
+    isFetching: isFetchingMdmProfile,
+  } = useQuery<string, Error>(
+    ["enrollment profile"],
+    () => mdmAPI.downloadDeviceUserEnrollmentProfile(token),
+    {
+      refetchOnWindowFocus: false,
     }
-  };
+  );
 
-  return (
-    <Modal title="Turn on MDM" onExit={onCancel} className={baseClass}>
+  const onDownloadProfile = (evt: React.MouseEvent) => {
+    evt.preventDefault();
+    setIsDownloadingProfile(true);
+
+    setTimeout(() => setIsDownloadingProfile(false), 1000);
+
+    if (enrollmentProfile) {
+      const filename = "fleet-mdm-enrollment-profile.mobileconfig";
+      const file = new global.window.File([enrollmentProfile], filename, {
+        type: "application/x-apple-aspen-config",
+      });
+
+      FileSaver.saveAs(file);
+    } else {
+      renderFlash(
+        "error",
+        "Your enrollment profile could not be downloaded. Please try again."
+      );
+    }
+
+    return false;
+  };
+  const renderModalContent = () => {
+    if (isFetchingMdmProfile) {
+      return <Spinner />;
+    }
+    if (fetchMdmProfileError) {
+      return <DataError card />;
+    }
+
+    return (
       <div>
         <p className={`${baseClass}__description`}>
           To turn on MDM, Apple Inc. requires that you download and install a
-          profile
+          profile.
         </p>
         <ol>
           <li>
-            <span>Download your profile.</span>
-            <Button
-              type="button"
-              onClick={handleDownload}
-              variant="brand"
-              isLoading={showDownloading}
-              className={`${baseClass}__download-button`}
-            >
-              Download
-            </Button>
+            {!isFetchingMdmProfile && (
+              <>
+                <span>Download your profile.</span>
+              </>
+            )}
+            {fetchMdmProfileError ? (
+              <span className={`${baseClass}__error`}>
+                {fetchMdmProfileError}
+              </span>
+            ) : (
+              <Button
+                type="button"
+                onClick={onDownloadProfile}
+                variant="brand"
+                isLoading={isDownloadingProfile}
+                className={`${baseClass}__download-button`}
+              >
+                Download
+              </Button>
+            )}
           </li>
           <li>
             From the Apple menu in the top left corner of your screen, select{" "}
@@ -69,6 +119,12 @@ const ManualEnrollMdmModal = ({ onCancel }: IInfoModalProps): JSX.Element => {
           </Button>
         </div>
       </div>
+    );
+  };
+
+  return (
+    <Modal title="Turn on MDM" onExit={onCancel} className={baseClass}>
+      {renderModalContent()}
     </Modal>
   );
 };

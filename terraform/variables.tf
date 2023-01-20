@@ -1,21 +1,21 @@
 variable "vpc" {
   type = object({
-    name                = string
-    cidr                = string
-    azs                 = list(string)
-    private_subnets     = list(string)
-    public_subnets      = list(string)
-    database_subnets    = list(string)
-    elasticache_subnets = list(string)
+    name                = optional(string, "fleet")
+    cidr                = optional(string, "10.10.0.0/16")
+    azs                 = optional(list(string), ["us-east-2a", "us-east-2b", "us-east-2c"])
+    private_subnets     = optional(list(string), ["10.10.1.0/24", "10.10.2.0/24", "10.10.3.0/24"])
+    public_subnets      = optional(list(string), ["10.10.11.0/24", "10.10.12.0/24", "10.10.13.0/24"])
+    database_subnets    = optional(list(string), ["10.10.21.0/24", "10.10.22.0/24", "10.10.23.0/24"])
+    elasticache_subnets = optional(list(string), ["10.10.31.0/24", "10.10.32.0/24", "10.10.33.0/24"])
 
-    create_database_subnet_group          = bool
-    create_database_subnet_route_table    = bool
-    create_elasticache_subnet_group       = bool
-    create_elasticache_subnet_route_table = bool
-    enable_vpn_gateway                    = bool
-    one_nat_gateway_per_az                = bool
-    single_nat_gateway                    = bool
-    enable_nat_gateway                    = bool
+    create_database_subnet_group          = optional(bool, false)
+    create_database_subnet_route_table    = optional(bool, true)
+    create_elasticache_subnet_group       = optional(bool, true)
+    create_elasticache_subnet_route_table = optional(bool, true)
+    enable_vpn_gateway                    = optional(bool, false)
+    one_nat_gateway_per_az                = optional(bool, false)
+    single_nat_gateway                    = optional(bool, true)
+    enable_nat_gateway                    = optional(bool, true)
   })
   default = {
     name                = "fleet"
@@ -26,7 +26,7 @@ variable "vpc" {
     database_subnets    = ["10.10.21.0/24", "10.10.22.0/24", "10.10.23.0/24"]
     elasticache_subnets = ["10.10.31.0/24", "10.10.32.0/24", "10.10.33.0/24"]
 
-    create_database_subnet_group          = true
+    create_database_subnet_group          = false
     create_database_subnet_route_table    = true
     create_elasticache_subnet_group       = true
     create_elasticache_subnet_route_table = true
@@ -80,8 +80,8 @@ variable "redis_config" {
     replication_group_id          = optional(string)
     elasticache_subnet_group_name = optional(string)
     allowed_security_group_ids    = optional(list(string), [])
-    subnets                       = list(string)
-    availability_zones            = list(string)
+    subnets                       = optional(list(string))
+    availability_zones            = optional(list(string))
     cluster_size                  = optional(number, 3)
     instance_type                 = optional(string, "cache.m5.large")
     apply_immediately             = optional(bool, true)
@@ -116,14 +116,35 @@ variable "redis_config" {
 
 variable "ecs_cluster" {
   type = object({
-    autoscaling_capacity_providers        = any
-    cluster_configuration                 = any
-    cluster_name                          = string
-    cluster_settings                      = map(string)
-    create                                = bool
-    default_capacity_provider_use_fargate = bool
-    fargate_capacity_providers            = any
-    tags                                  = map(string)
+    autoscaling_capacity_providers = optional(any, {})
+    cluster_configuration = optional(any, {
+      execute_command_configuration = {
+        logging = "OVERRIDE"
+        log_configuration = {
+          cloud_watch_log_group_name = "/aws/ecs/aws-ec2"
+        }
+      }
+    })
+    cluster_name = optional(string, "fleet")
+    cluster_settings = optional(map(string), {
+      "name" : "containerInsights",
+      "value" : "enabled",
+    })
+    create                                = optional(bool, true)
+    default_capacity_provider_use_fargate = optional(bool, true)
+    fargate_capacity_providers = optional(any, {
+      FARGATE = {
+        default_capacity_provider_strategy = {
+          weight = 100
+        }
+      }
+      FARGATE_SPOT = {
+        default_capacity_provider_strategy = {
+          weight = 0
+        }
+      }
+    })
+    tags = optional(map(string))
   })
   default = {
     autoscaling_capacity_providers = {}
@@ -165,24 +186,42 @@ variable "fleet_config" {
     mem                         = optional(number, 512)
     cpu                         = optional(number, 256)
     image                       = optional(string, "fleetdm/fleet:v4.22.1")
+    family                      = optional(string, "fleet")
     extra_environment_variables = optional(map(string), {})
+    extra_iam_policies          = optional(list(string), [])
     extra_secrets               = optional(map(string), {})
     security_groups             = optional(list(string), null)
+    security_group_name         = optional(string, "fleet")
     iam_role_arn                = optional(string, null)
-    database = object({
+    service = optional(object({
+      name = optional(string, "fleet")
+      }), {
+      name = "fleet"
+    })
+    database = optional(object({
       password_secret_arn = string
       user                = string
       database            = string
       address             = string
       rr_address          = optional(string, null)
+      }), {
+      password_secret_arn = null
+      user                = null
+      database            = null
+      address             = null
+      rr_address          = null
     })
-    redis = object({
+    redis = optional(object({
       address = string
       use_tls = optional(bool, true)
+      }), {
+      address = null
+      use_tls = true
     })
     awslogs = optional(object({
       name      = optional(string, null)
       region    = optional(string, null)
+      create    = optional(bool, true)
       prefix    = optional(string, "fleet")
       retention = optional(number, 5)
       }), {
@@ -191,12 +230,17 @@ variable "fleet_config" {
       prefix    = "fleet"
       retention = 5
     })
-    loadbalancer = object({
+    loadbalancer = optional(object({
       arn = string
+      }), {
+      arn = null
     })
-    networking = object({
+    networking = optional(object({
       subnets         = list(string)
       security_groups = optional(list(string), null)
+      }), {
+      subnets         = null
+      security_groups = null
     })
     autoscaling = optional(object({
       max_capacity                 = optional(number, 5)
@@ -209,15 +253,39 @@ variable "fleet_config" {
       memory_tracking_target_value = 80
       cpu_tracking_target_value    = 80
     })
+    iam = optional(object({
+      role = optional(object({
+        name        = optional(string, "fleet-role")
+        policy_name = optional(string, "fleet-iam-policy")
+        }), {
+        name        = "fleet-role"
+        policy_name = "fleet-iam-policy"
+      })
+      execution = optional(object({
+        name        = optional(string, "fleet-execution-role")
+        policy_name = optional(string, "fleet-execution-role")
+        }), {
+        name        = "fleet-execution-role"
+        policy_name = "fleet-iam-policy-execution"
+      })
+      }), {
+      name = "fleetdm-execution-role"
+    })
   })
   default = {
     mem                         = 512
     cpu                         = 256
     image                       = "fleetdm/fleet:v4.22.1"
+    family                      = "fleet"
     extra_environment_variables = {}
+    extra_iam_policies          = []
     extra_secrets               = {}
     security_groups             = null
+    security_group_name         = "fleet"
     iam_role_arn                = null
+    service = {
+      name = "fleet"
+    }
     database = {
       password_secret_arn = null
       user                = null
@@ -232,6 +300,7 @@ variable "fleet_config" {
     awslogs = {
       name      = null
       region    = null
+      create    = true
       prefix    = "fleet"
       retention = 5
     }
@@ -247,6 +316,16 @@ variable "fleet_config" {
       min_capacity                 = 1
       memory_tracking_target_value = 80
       cpu_tracking_target_value    = 80
+    }
+    iam = {
+      role = {
+        name        = "fleet-role"
+        policy_name = "fleet-iam-policy"
+      }
+      execution = {
+        name        = "fleet-execution-role"
+        policy_name = "fleet-iam-policy-execution"
+      }
     }
   }
   description = "The configuration object for Fleet itself. Fields that default to null will have their respective resources created if not specified."

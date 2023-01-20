@@ -342,7 +342,7 @@ type UpdateHostTablesOnMDMUnenrollFunc func(ctx context.Context, uuid string) er
 
 type NewActivityFunc func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error
 
-type ListActivitiesFunc func(ctx context.Context, opt fleet.ListActivitiesOptions) ([]*fleet.Activity, error)
+type ListActivitiesFunc func(ctx context.Context, opt fleet.ListActivitiesOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error)
 
 type MarkActivitiesAsStreamedFunc func(ctx context.Context, activityIDs []uint) error
 
@@ -2116,7 +2116,7 @@ func (s *DataStore) NewActivity(ctx context.Context, user *fleet.User, activity 
 	return s.NewActivityFunc(ctx, user, activity)
 }
 
-func (s *DataStore) ListActivities(ctx context.Context, opt fleet.ListActivitiesOptions) ([]*fleet.Activity, error) {
+func (s *DataStore) ListActivities(ctx context.Context, opt fleet.ListActivitiesOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error) {
 	s.ListActivitiesFuncInvoked = true
 	return s.ListActivitiesFunc(ctx, opt)
 }

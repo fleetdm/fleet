@@ -54,8 +54,11 @@ type Service interface {
 	AuthenticateOrbitHost(ctx context.Context, nodeKey string) (host *Host, debug bool, err error)
 	// EnrollOrbit enrolls orbit to Fleet by using the enrollSecret and returns the orbitNodeKey if successful
 	EnrollOrbit(ctx context.Context, hardwareUUID string, enrollSecret string) (orbitNodeKey string, err error)
-	// GetOrbitConfig returns team specific flags and extensions in agent options if the team id is not nil for host, otherwise it returns flags from global agent options
-	GetOrbitConfig(ctx context.Context) (flags json.RawMessage, extensions json.RawMessage, err error)
+	// GetOrbitConfig returns team specific flags and extensions in agent options
+	// if the team id is not nil for host, otherwise it returns flags from global
+	// agent options. It also returns any notifications that fleet wants to surface
+	// to fleetd (formerly orbit).
+	GetOrbitConfig(ctx context.Context) (flags json.RawMessage, extensions json.RawMessage, notifications OrbitConfigNotifications, err error)
 
 	// SetOrUpdateDeviceAuthToken creates or updates a device auth token for the given host.
 	SetOrUpdateDeviceAuthToken(ctx context.Context, authToken string) error
@@ -457,7 +460,16 @@ type Service interface {
 	///////////////////////////////////////////////////////////////////////////////
 	// ActivitiesService
 
-	ListActivities(ctx context.Context, opt ListActivitiesOptions) ([]*Activity, error)
+	// NewActivity creates the given activity on the datastore.
+	//
+	// What we call "Activities" are administrative operations,
+	// logins, running a live query, etc.
+	NewActivity(ctx context.Context, user *User, activity ActivityDetails) error
+	// ListActivities lists the activities stored in the datastore.
+	//
+	// What we call "Activities" are administrative operations,
+	// logins, running a live query, etc.
+	ListActivities(ctx context.Context, opt ListActivitiesOptions) ([]*Activity, *PaginationMetadata, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// UserRolesService

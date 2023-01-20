@@ -178,6 +178,7 @@ generate-mock: .prefix
 
 generate-doc: .prefix
 	go generate github.com/fleetdm/fleet/v4/server/fleet
+	go generate github.com/fleetdm/fleet/v4/server/service/osquery_utils
 
 deps: deps-js deps-go
 

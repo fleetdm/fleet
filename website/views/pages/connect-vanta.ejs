@@ -51,6 +51,7 @@
       </cloud-error>
       <cloud-error purpose="cloud-error" v-else-if="cloudError"></cloud-error>
       <ajax-button style="height: 44px;" purpose="submit-button" spinner="true" type="submit" :syncing="syncing" class="btn btn-block btn-lg btn-info" v-if="!cloudError">Connect</ajax-button>
+      <ajax-button style="height: 44px;" purpose="submit-button" type="button" :syncing="syncing" class="btn btn-block btn-lg btn-info" v-if="cloudError" @click="clickClearErrors()">Try again</ajax-button>
     </ajax-form>
 
     </div>

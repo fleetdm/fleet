@@ -7,6 +7,13 @@ import (
 	"strings"
 )
 
+// OrbitConfigNotifications are notifications that the fleet server sends to
+// fleetd (orbit) so that it can run commands or more generally react to this
+// information.
+type OrbitConfigNotifications struct {
+	RenewEnrollmentProfile bool `json:"renew_enrollment_profile,omitempty"`
+}
+
 type AgentOptions struct {
 	// Config is the base config options.
 	Config json.RawMessage `json:"config"`

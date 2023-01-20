@@ -10,6 +10,10 @@ const ORDER_DIRECTION = "desc";
 
 export interface IActivitiesResponse {
   activities: IActivity[];
+  meta: {
+    has_next_results: boolean;
+    has_previous_results: boolean;
+  };
 }
 
 export default {
