@@ -19,8 +19,7 @@
   - [What happens if I have a query on a team policy and I also have it scheduled to run separately?](#what-happens-if-i-have-a-query-on-a-team-policy-and-i-also-have-it-scheduled-to-run-separately)
   - [Why aren’t my live queries being logged?](#why-arent-my-live-queries-being-logged)
   - [Why does my query work locally with osquery but not in Fleet?](#why-does-my-query-work-locally-with-osquery-but-not-in-fleet)
-  - [Can I use the Fleet API to fetch results from a scheduled query pack?](#can-i-use-the-fleet-api-to-fetch-results-from-a-scheduled-query-pack)
-  - [How do I automatically add hosts to packs when the hosts enroll to Fleet?](#how-do-i-automatically-add-hosts-to-packs-when-the-hosts-enroll-to-fleet)
+  - [Can I use the Fleet API to fetch results from a scheduled query?](#can-i-use-the-fleet-api-to-fetch-results-from-a-scheduled-query)
   - [How do I automatically assign a host to a team when it enrolls with Fleet?](#how-do-i-automatically-assign-a-host-to-a-team-when-it-enrolls-with-fleet)
   - [Why is my host not updating a policy's response?](#why-is-my-host-not-updating-a-policys-response)
   - [What should I do if my computer is showing up as an offline host?](#what-should-i-do-if-my-computer-is-showing-up-as-an-offline-host)
@@ -69,9 +68,11 @@ It’s standard deployment practice to have multiple Fleet servers behind a load
 
 ## Can I target my hosts using their enroll secrets?
 
-No, currently, there’s no way to retrieve the name of the enroll secret with a query. This means that there's no way to create a label using your hosts' enroll secrets and then use this label as a target for queries or query packs.
+No, currently, there’s no way to retrieve the name of the enroll secret with a query. This means
+that there's no way to create a label using your hosts' enroll secrets and then use this label as a
+target for live queries or scheduled queries.
 
-Typically folks will use some other unique identifier to create labels that distinguish each type of device. As a workaround, [Fleet's manual labels](https://fleetdm.com/docs/using-fleet/fleetctl-cli#host-labels) provide a way to create groups of hosts without a query. These manual labels can then be used as targets for queries or query packs.
+Typically folks will use some other unique identifier to create labels that distinguish each type of device. As a workaround, [Fleet's manual labels](https://fleetdm.com/docs/using-fleet/fleetctl-cli#host-labels) provide a way to create groups of hosts without a query. These manual labels can then be used as targets for queries.
 
 There is, however, a way to accomplish this even though the answer to the question remains "no": Teams. As of Fleet v4.0.0, you can group hosts in Teams either by enrolling them with a team specific secret, or by transferring hosts to a team. One the hosts you want to target are part of a team, you can create a query and target the team in question.
 
@@ -114,7 +115,7 @@ Live query results (executed in the web UI or `fleetctl query`) are pushed direc
 
 ### Scheduled queries
 
-Scheduled query results (queries that are scheduled to run individually or in Packs) from enrolled hosts can be logged by Fleet.
+Scheduled query results from enrolled hosts can be logged by Fleet.
 For results to go to Fleet, the osquery `--logger_plugin` flag must be set to `tls`.
 
 ### What are my options for storing the osquery logs?
@@ -156,7 +157,7 @@ Live query results are never logged to the filesystem of the Fleet server. See [
 
 If you're seeing query results using `osqueryi` but not through Fleet, the most likely culprit is a permissions issue. Check out the [osquery docs](https://osquery.readthedocs.io/en/stable/deployment/process-auditing/#full-disk-access) for more details and instructions for setting up Full Disk Access.
 
-## Can I use the Fleet API to fetch results from a scheduled query pack?
+## Can I use the Fleet API to fetch results from a scheduled query?
 
 You cannot. Scheduled query results are logged to whatever logging plugin you have configured and are not stored in the Fleet DB.
 
@@ -171,15 +172,6 @@ The ability to view each host’s installed software was released behind a featu
 Once the Software inventory feature is turned on, a list of a specific host’s installed software is available using the `api/v1/fleet/hosts/{id}` endpoint. [Check out the documentation for this endpoint](https://fleetdm.com/docs/using-fleet/rest-api#get-host).
 
 It’s possible in Fleet to retrieve each host’s kernel version, using the Fleet API, through `additional_queries`. The Fleet configuration options YAML file includes an `additional_queries` property that allows you to append custom query results to the host details returned by the `api/v1/fleet/hosts` endpoint. [Check out an example configuration file with the additional_queries field](https://fleetdm.com/docs/using-fleet/fleetctl-cli#fleet-configuration-options).
-
-## How do I automatically add hosts to packs when the hosts enroll to Fleet?
-
-You can accomplish this by adding specific labels as targets of your pack. First, identify an already existing label or create a new label that will include the hosts you intend to enroll to Fleet. Next, add this label as a target of the pack in the Fleet UI.
-
-When your hosts enroll to Fleet, they will become a member of the label and, because the label is a target of your pack, these hosts will automatically become targets of the pack.
-
-You can also do this by setting the `targets` field in the [YAML configuration file](https://fleetdm.com/docs/using-fleet/fleetctl-cli#query-packs) that manages the packs that are added to your Fleet instance.
-
 ## How do I automatically assign a host to a team when it enrolls with Fleet?
 
 [Team enroll secrets](https://fleetdm.com/docs/using-fleet/teams#enroll-hosts-to-a-team) allow you to automatically assign a host to a team.
@@ -272,7 +264,7 @@ In versions prior to Fleet 4.13, a password reset is needed before a new API-onl
 
 ## Can I audit actions taken in Fleet?
 
-The [REST API `activities` endpoint](https://fleetdm.com/docs/using-fleet/rest-api#activities) provides a full breakdown of actions taken on packs, queries, policies, and teams (Available in Fleet Premium) through the UI, the REST API, or `fleetctl`.
+The [REST API `activities` endpoint](https://fleetdm.com/docs/using-fleet/rest-api#activities) provides a full breakdown of actions taken on queries, policies, and teams (Available in Fleet Premium) through the UI, the REST API, or `fleetctl`.
 
 ## How often is the software inventory updated?
 
