@@ -106,21 +106,22 @@ const ScheduleTable = ({
       );
     }
 
-    // NOTE: Product decision to remove packs from UI
-    // if (isOnGlobalTeam) {
-    //   emptySchedule.info = (
-    //     <>Or go to your osquery packs via the ‘Advanced’ button. </>
-    //   );
-    //   emptySchedule.secondaryButton = (
-    //     <Button
-    //       variant="inverse"
-    //       onClick={handleAdvanced}
-    //       className={`${baseClass}__advanced-button`}
-    //     >
-    //       Advanced
-    //     </Button>
-    //   );
-    // }
+    /* NOTE: Product decision to remove packs from UI
+    if (isOnGlobalTeam) {
+      emptySchedule.info = (
+        <>Or go to your osquery packs via the ‘Advanced’ button. </>
+      );
+      emptySchedule.secondaryButton = (
+        <Button
+          variant="inverse"
+          onClick={handleAdvanced}
+          className={`${baseClass}__advanced-button`}
+        >
+          Advanced
+        </Button>
+      );
+    }
+    */
     return emptySchedule;
   };
 

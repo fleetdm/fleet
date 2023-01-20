@@ -471,8 +471,8 @@ const ManageSchedulePage = ({
           </div>
           {allScheduledQueriesList?.length !== 0 && !allScheduledQueriesError && (
             <div className={`${baseClass}__action-button-container`}>
-              {/* NOTE:  Product decision to remove packs from UI */}
-              {/* {isOnGlobalTeam && (
+              {/* NOTE:  Product decision to remove packs from UI
+              {isOnGlobalTeam && (
                 <Button
                   variant="inverse"
                   onClick={handleAdvanced}

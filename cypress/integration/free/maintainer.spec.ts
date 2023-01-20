@@ -149,20 +149,22 @@ describe(
         managePoliciesPage.allowsRunSavePolicy();
       });
     });
-    // describe("Manage packs page", () => {
-    //   beforeEach(() => {
-    //     cy.loginWithCySession("mary@organization.com", GOOD_PASSWORD);
-    //     managePacksPage.visitsManagePacksPage();
-    //   });
-    //   it("allows maintainer to create a pack", () => {
-    //     managePacksPage.allowsCreatePack();
-    //     managePacksPage.verifiesCreatedPack();
-    //   });
-    //   it("allows maintainer to delete a pack", () => {
-    //     managePacksPage.allowsDeletePack();
-    //     managePacksPage.verifiesDeletedPack();
-    //   });
-    // });
+    /* NOTE: Product decision to remove packs from UI
+    describe("Manage packs page", () => {
+      beforeEach(() => {
+        cy.loginWithCySession("mary@organization.com", GOOD_PASSWORD);
+        managePacksPage.visitsManagePacksPage();
+      });
+      it("allows maintainer to create a pack", () => {
+        managePacksPage.allowsCreatePack();
+        managePacksPage.verifiesCreatedPack();
+      });
+      it("allows maintainer to delete a pack", () => {
+        managePacksPage.allowsDeletePack();
+        managePacksPage.verifiesDeletedPack();
+      });
+    });
+    */
     describe("User profile page", () => {
       beforeEach(() => {
         cy.loginWithCySession("mary@organization.com", GOOD_PASSWORD);
