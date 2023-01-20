@@ -58,7 +58,7 @@ const statusTableHeaders = [
         {cellProps.cell.value}
       </TooltipWrapper>
     ),
-    sortType: "caseInsensitive",
+    sortType: "hasLength",
   },
   {
     title: "Hosts",
