@@ -171,6 +171,29 @@ const TAGGED_TEMPLATES = {
     );
   },
 
+  mdmTurnedOff: (activity: IActivity) => {
+    return (
+      <>
+        turned off mobile device management (MDM) for{" "}
+        <b>{activity.details?.host_display_name}</b>.
+      </>
+    );
+  },
+
+  udpateMinMacVersion: (activity: IActivity) => {
+    return (
+      <>
+        updated the minimum macOS version to{" "}
+        <b>{activity.details?.minimum_version}</b>
+        deadline: {activity.details?.deadline} on hosts assigned to{" "}
+        {activity.details?.team_name
+          ? `the ${(<b>{activity.details?.team_name}</b>)} team`
+          : "no team"}
+        .
+      </>
+    );
+  },
+
   defaultActivityTemplate: (activity: IActivity) => {
     const entityName = find(activity.details, (_, key) =>
       key.includes("_name")
@@ -247,6 +270,12 @@ const getDetail = (
     }
     case ActivityType.MdmUnenrolled: {
       return TAGGED_TEMPLATES.mdmUnenrolled(activity);
+    }
+    case ActivityType.MdmTurnedOff: {
+      return TAGGED_TEMPLATES.mdmUnenrolled(activity);
+    }
+    case ActivityType.UpdateMinMacVersion: {
+      return TAGGED_TEMPLATES.udpateMinMacVersion(activity);
     }
     default: {
       return TAGGED_TEMPLATES.defaultActivityTemplate(activity);

@@ -31,6 +31,8 @@ export enum ActivityType {
   UserDeletedTeamRole = "deleted_user_team_role",
   MdmEnrolled = "mdm_enrolled",
   MdmUnenrolled = "mdm_unenrolled",
+  MdmTurnedOff = "mdm_turned_off", // TODO: change when we get actual activity type
+  UpdateMinMacVersion = "update_min_mac_version", // TODO: change when we get actual activity type
 }
 export interface IActivity {
   created_at: string;
@@ -63,4 +65,7 @@ export interface IActivityDetails {
   host_serial?: string;
   host_display_name?: string;
   installed_from_dep?: boolean;
+  host_display_name?: string;
+  minimum_version?: string;
+  deadline?: string;
 }
