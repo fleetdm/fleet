@@ -587,4 +587,5 @@ type EnrollHostLimiter interface {
 type HostMDMCheckinInfo struct {
 	HardwareSerial   string `json:"hardware_serial" db:"hardware_serial"`
 	InstalledFromDEP bool   `json:"installed_from_dep" db:"installed_from_dep"`
+	DisplayName      string `json:"display_name" db:"display_name"`
 }

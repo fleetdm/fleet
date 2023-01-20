@@ -615,6 +615,7 @@ func (a ActivityTypeDeletedUserTeamRole) Documentation() (activity string, detai
 
 type ActivityTypeMDMEnrolled struct {
 	HostSerial       string `json:"host_serial"`
+	HostDisplayName  string `json:"host_display_name"`
 	InstalledFromDEP bool   `json:"installed_from_dep"`
 }
 
@@ -626,14 +627,17 @@ func (a ActivityTypeMDMEnrolled) Documentation() (activity string, details strin
 	return `Generated when a host is enrolled in Fleet's MDM.`,
 		`This activity contains the following fields:
 - "host_serial": Serial number of the host.
+- "host_display_name": Display name of the host.
 - "installed_from_dep": Whether the host was enrolled via DEP.`, `{
   "host_serial": "C08VQ2AXHT96",
+  "host_display_name": "MacBookPro16,1 (C08VQ2AXHT96)",
   "installed_from_dep": true
 }`
 }
 
 type ActivityTypeMDMUnenrolled struct {
 	HostSerial       string `json:"host_serial"`
+	HostDisplayName  string `json:"host_display_name"`
 	InstalledFromDEP bool   `json:"installed_from_dep"`
 }
 
@@ -645,8 +649,10 @@ func (a ActivityTypeMDMUnenrolled) Documentation() (activity string, details str
 	return `Generated when a host is unenrolled from Fleet's MDM.`,
 		`This activity contains the following fields:
 - "host_serial": Serial number of the host.
+- "host_display_name": Display name of the host.
 - "installed_from_dep": Whether the host was enrolled via DEP.`, `{
   "host_serial": "C08VQ2AXHT96",
+  "host_display_name": "MacBookPro16,1 (C08VQ2AXHT96)",
   "installed_from_dep": true
 }`
 }

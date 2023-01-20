@@ -2,6 +2,7 @@ package fleet
 
 import (
 	"encoding/json"
+	"net/http"
 
 	"github.com/micromdm/nanodep/godep"
 	"github.com/micromdm/nanomdm/mdm"
@@ -180,4 +181,20 @@ type MDMAppleHostDetails struct {
 	SerialNumber string
 	UDID         string
 	Model        string
+}
+
+type MDMAppleCommandTimeoutError struct {
+	Detail string
+}
+
+func (e MDMAppleCommandTimeoutError) Error() string {
+	return "Timeout waiting for MDM device to acknowledge command"
+}
+
+func (e MDMAppleCommandTimeoutError) StatusCode() int {
+	return http.StatusGatewayTimeout
+}
+
+func (e MDMAppleCommandTimeoutError) Internal() string {
+	return e.Detail
 }

@@ -734,6 +734,9 @@ type Datastore interface {
 	// not already enrolled in Fleet.
 	IngestMDMAppleDeviceFromCheckin(ctx context.Context, mdmHost MDMAppleHostDetails) error
 
+	// GetNanoMDMEnrollmentStatus returns whether the identified enrollment is enabled
+	GetNanoMDMEnrollmentStatus(ctx context.Context, id string) (bool, error)
+
 	// IncreasePolicyAutomationIteration marks the policy to fire automation again.
 	IncreasePolicyAutomationIteration(ctx context.Context, policyID uint) error
 
