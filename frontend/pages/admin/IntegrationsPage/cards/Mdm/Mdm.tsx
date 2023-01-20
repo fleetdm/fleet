@@ -188,7 +188,7 @@ const Mdm = (): JSX.Element => {
         <>
           <div className={`${baseClass}__section-description`}>
             Connect Fleet to your Apple Business Manager account to
-            automatically enroll macOS hosts to Fleet when they’re first
+            automatically enroll macOS hosts to Fleet when they&apos;re first
             unboxed.
           </div>
           <div className={`${baseClass}__section-instructions`}>
@@ -204,7 +204,7 @@ const Mdm = (): JSX.Element => {
                 newTab
               />
               <br />
-              If your organization doesn’t have an account, select{" "}
+              If your organization doesn&apos;t have an account, select{" "}
               <b>Enroll now</b>.
             </p>
             <p>

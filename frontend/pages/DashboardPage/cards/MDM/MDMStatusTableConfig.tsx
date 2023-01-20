@@ -1,6 +1,6 @@
 import React from "react";
 
-import { IMdmStatusCardData } from "interfaces/mdm";
+import { IMdmStatusCardData, MDM_STATUS } from "interfaces/mdm";
 
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import TooltipWrapper from "components/TooltipWrapper";
@@ -69,7 +69,7 @@ MDM was turned on automatically using Apple Automated Device Enrollment (DEP) or
                 <span>
                   Hosts ordered via Apple Business Manager <br />
                   (ABM). These will automatically enroll to Fleet <br />
-                  and turn on MDM when they’re unboxed.
+                  and turn on MDM when they&apos;re unboxed.
                 </span>
               `;
       };
@@ -104,21 +104,11 @@ MDM was turned on automatically using Apple Automated Device Enrollment (DEP) or
     disableGlobalFilter: true,
     accessor: "linkToFilteredHosts",
     Cell: (cellProps: IStringCellProps) => {
-      const statusParam = () => {
-        switch (cellProps.row.original.status) {
-          case "On (automatic)":
-            return "automatic";
-          case "On (manual)":
-            return "manual";
-          case "Pending":
-            return "pending";
-          default:
-            return "unenrolled";
-        }
-      };
       return (
         <ViewAllHostsLink
-          queryParams={{ mdm_enrollment_status: statusParam() }}
+          queryParams={{
+            mdm_enrollment_status: MDM_STATUS[cellProps.row.original.status],
+          }}
           className="mdm-solution-link"
           platformLabelId={cellProps.row.original.selectedPlatformLabelId}
         />

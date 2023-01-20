@@ -38,7 +38,7 @@ describe("MDM Card", () => {
       />
     );
 
-    await user.click(screen.getByRole("tab", { name: "Enrollment" }));
+    await user.click(screen.getByRole("tab", { name: "Status" }));
 
     expect(
       screen.getByRole("row", {

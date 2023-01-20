@@ -13,8 +13,17 @@ export interface IMdmAppleBm {
   renew_date: string;
 }
 
+export const MDM_STATUS = {
+  "On (manual)": "manual",
+  "On (automatic)": "automatic",
+  Off: "unenrolled",
+  Pending: "pending",
+};
+
+export type MdmStatus = keyof typeof MDM_STATUS;
+
 export interface IMdmStatusCardData {
-  status: "On (manual)" | "On (automatic)" | "Off" | "Pending";
+  status: MdmStatus;
   hosts: number;
 }
 

@@ -3,7 +3,7 @@ import { IconNames } from "components/icons";
 import { useQuery } from "react-query";
 import { InjectedRouter, Params } from "react-router/lib/Router";
 import { RouteProps } from "react-router/lib/Route";
-import { find, isEmpty, isEqual, omit } from "lodash";
+import { find, isEmpty, isEqual, omit, invert } from "lodash";
 import { format } from "date-fns";
 import FileSaver from "file-saver";
 
@@ -35,7 +35,7 @@ import {
 import { IHost } from "interfaces/host";
 import { ILabel } from "interfaces/label";
 import { IMunkiIssuesAggregate } from "interfaces/macadmins";
-import { IMdmSolution } from "interfaces/mdm";
+import { IMdmSolution, MDM_STATUS } from "interfaces/mdm";
 import {
   formatOperatingSystemDisplayName,
   IOperatingSystemVersion,
@@ -1237,20 +1237,7 @@ const ManageHostsPage = ({
   const renderMDMEnrollmentFilterBlock = () => {
     if (!mdmEnrollmentStatus) return null;
 
-    let label: string;
-    switch (mdmEnrollmentStatus) {
-      case "automatic":
-        label = "MDM status: On (automatic)";
-        break;
-      case "manual":
-        label = "MDM status: On (manual)";
-        break;
-      case "pending":
-        label = "MDM status: Pending";
-        break;
-      default:
-        label = "MDM status: Off";
-    }
+    const label = `MDM status: ${invert(MDM_STATUS)[mdmEnrollmentStatus]}`;
 
     let TooltipDescription: JSX.Element;
     switch (mdmEnrollmentStatus) {
@@ -1284,7 +1271,7 @@ const ManageHostsPage = ({
             Business Manager (ABM). <br />
             They will automatically enroll <br />
             to Fleet and turn on MDM <br />
-            when they’re unboxed.
+            when they&apos;re unboxed.
           </span>
         );
         break;

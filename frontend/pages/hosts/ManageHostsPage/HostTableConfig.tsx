@@ -171,8 +171,8 @@ const allHostTableHeaders: IDataColumn[] = [
               <span className={`tooltip__tooltip-text`}>
                 This host was ordered using <br />
                 Apple Business Manager <br />
-                (ABM). You can’t see host <br />
-                vitals until it’s unboxed and <br />
+                (ABM). You can&apos;t see host <br />
+                vitals until it&apos;s unboxed and <br />
                 automatically enrolls to Fleet.
               </span>
             </ReactTooltip>

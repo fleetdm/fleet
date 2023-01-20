@@ -318,12 +318,11 @@ const DashboardPage = ({
           },
           { status: "Off", hosts: unenrolled_hosts_count },
         ];
-        if (isPremiumTier) {
+        isPremiumTier &&
           statusData.push({
             status: "Pending",
             hosts: pending_hosts_count || 0,
           });
-        }
         setMdmStatusData(statusData);
         setMdmSolutions(mobile_device_management_solution);
         setShowMdmCard(true);
