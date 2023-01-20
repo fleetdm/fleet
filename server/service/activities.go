@@ -120,3 +120,7 @@ func logRoleChangeActivities(ctx context.Context, ds fleet.Datastore, adminUser 
 	}
 	return nil
 }
+
+func (svc *Service) NewActivity(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+	return svc.ds.NewActivity(ctx, user, activity)
+}
