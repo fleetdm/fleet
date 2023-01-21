@@ -1,0 +1,2 @@
+* Generalized the modal that appears when the user clicks "Turn On MDM" to handle both the
+situations in which the user needs to enroll manually and in which they can enroll automatically
