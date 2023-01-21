@@ -263,7 +263,7 @@ const DeviceUserPage = ({
 
   const statusClassName = classnames("status", `status--${host?.status}`);
 
-  const mdmEnrollmentType = (): "manual" | "auto" | undefined => {
+  const mdmEnrollmentType = (() => {
     if (host?.mdm_enrollment_status === "Off") {
       return "manual";
     }
@@ -272,7 +272,7 @@ const DeviceUserPage = ({
     }
 
     return undefined;
-  };
+  })();
 
   const turnOnMdmButton = (
     <Button variant="unstyled" onClick={toggleEnrollMdmModal}>
@@ -288,7 +288,7 @@ const DeviceUserPage = ({
           <Spinner />
         ) : (
           <div className={`${baseClass} body-wrap`}>
-            {host?.platform === "darwin" && mdmEnrollmentType && (
+            {host?.platform === "darwin" && !!mdmEnrollmentType && (
               <InfoBanner color="yellow" cta={turnOnMdmButton} pageLevel>
                 Mobile device management (MDM) is off. MDM allows your
                 organization to change settings and install software. This lets
@@ -352,7 +352,7 @@ const DeviceUserPage = ({
             {showInfoModal && <InfoModal onCancel={toggleInfoModal} />}
             {showEnrollMdmModal && (
               <EnrollMdmModal
-                mdmEnrollmentType={mdmEnrollmentType}
+                mdmEnrollmentType={mdmEnrollmentType as "manual" | "auto"}
                 onCancel={toggleEnrollMdmModal}
                 token={deviceAuthToken}
               />

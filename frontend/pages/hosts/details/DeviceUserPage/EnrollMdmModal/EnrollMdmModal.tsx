@@ -12,7 +12,7 @@ import Spinner from "components/Spinner";
 import mdmAPI from "services/entities/mdm";
 
 interface IEnrollMdmModalProps {
-  mdmEnrollmentType: "Manual" | "Auto";
+  mdmEnrollmentType: "manual" | "auto";
   onCancel: () => void;
   token?: string;
 }
@@ -22,7 +22,7 @@ const baseClass = "enroll-mdm-modal";
 const EnrollMdmModal = ({
   mdmEnrollmentType,
   onCancel,
-  token,
+  token = "",
 }: IEnrollMdmModalProps): JSX.Element => {
   const { renderFlash } = useContext(NotificationContext);
 
@@ -132,21 +132,15 @@ const EnrollMdmModal = ({
         </p>
         <ol>
           <li>
-            <p>
-              From the Apple menu in the top left corner of your screen, select{" "}
-              <b>System Settings</b> or <b>System Preferences</b>.
-            </p>
+            From the Apple menu in the top left corner of your screen, select{" "}
+            <b>System Settings</b> or <b>System Preferences</b>.
           </li>
           <li>
-            <p>
-              In the search bar, type “Profiles.” Select <b>Profiles</b>, find
-              and select <b>Enrollment Profile</b>, and select <b>Install</b>.
-            </p>
+            In the search bar, type “Profiles.” Select <b>Profiles</b>, find and
+            select <b>Enrollment Profile</b>, and select <b>Install</b>.
           </li>
           <li>
-            <p>
-              Enter your password, and select <b>Enroll</b>.
-            </p>
+            Enter your password, and select <b>Enroll</b>.
           </li>
           <li>
             Close this window and select <b>Refetch</b> on your My device page
@@ -164,7 +158,7 @@ const EnrollMdmModal = ({
 
   return (
     <Modal title="Turn on MDM" onExit={onCancel} className={baseClass}>
-      {mdmEnrollmentType === "Manual"
+      {mdmEnrollmentType === "manual"
         ? renderManualModalContent()
         : renderAutoModalContent()}
     </Modal>
