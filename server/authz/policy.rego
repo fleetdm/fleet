@@ -22,8 +22,8 @@ change_password := "change_password"
 run := "run"
 run_new := "run_new"
 
-# MDM-specific actions
-command := "command"
+# MDM specific actions
+mdm_command := "mdm_command"
 
 # Roles
 admin := "admin"
@@ -522,7 +522,7 @@ allow {
 allow {
   object.type == "host"
   subject.global_role == [admin, maintainer][_]
-  action == command
+  action == mdm_command
 }
 
 # Team admins and maintainers can issue MDM commands to hosts on their teams.
@@ -530,7 +530,7 @@ allow {
   not is_null(object.team_id)
   object.type == "host"
   team_role(subject, object.team_id) == [admin, maintainer][_]
-  action == command
+  action == mdm_command
 }
 
 # Global admins can read and write MDM apple information.

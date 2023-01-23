@@ -183,9 +183,7 @@ type MDMAppleHostDetails struct {
 	Model        string
 }
 
-type MDMAppleCommandTimeoutError struct {
-	Detail string
-}
+type MDMAppleCommandTimeoutError struct{}
 
 func (e MDMAppleCommandTimeoutError) Error() string {
 	return "Timeout waiting for MDM device to acknowledge command"
@@ -193,8 +191,4 @@ func (e MDMAppleCommandTimeoutError) Error() string {
 
 func (e MDMAppleCommandTimeoutError) StatusCode() int {
 	return http.StatusGatewayTimeout
-}
-
-func (e MDMAppleCommandTimeoutError) Internal() string {
-	return e.Detail
 }

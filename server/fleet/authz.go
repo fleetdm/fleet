@@ -36,6 +36,6 @@ const (
 	// MDM-specific actions
 	//
 
-	// ActionCommand is the action for executing an MDM command
-	ActionCommand = "command"
+	// ActionMDMCommand is the action for executing an MDM command
+	ActionMDMCommand = "mdm_command"
 )
