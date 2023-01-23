@@ -1,0 +1,58 @@
+Local device
+	UUID: 65978F15-D653-49DF-B0E5-DEADBEEFCAFE
+	Messaging Protocol Version: 3
+	Product Type: MacBookPro18,1
+	OS Build: 12.6 (21G115)
+	Properties: {
+		AppleInternal => false
+		CPUArchitecture => arm64e
+		ChipID => 24576
+		EffectiveProductionStatusSEP => true
+		HWModel => J316sAP
+		HasSEP => true 
+		IsUIBuild => true
+		RegionInfo => LL/A
+		RestoreLongVersion => 21.7.115.0.0,0
+		DeviceSupportsLockdown => false
+		EffectiveSecurityModeAp => true
+		SigningFuse => true
+		BuildVersion => 21G115
+		OSVersion => 12.6
+		BridgeVersion => 19.16.16067.0.0,0
+		SensitivePropertiesVisible => true
+		Image4CryptoHashMethod => sha2-384
+		MobileDeviceMinimumVersion => 1351
+		ProductName => macOS
+		ProductType => MacBookPro18,1
+		SerialNumber => JMV3**REDACTED**
+		BootSessionUUID => AADCDB34-9A1C-4646-9D50-DEADBEEFCAFE
+		BoardId => 10
+		DeviceColor => unknown
+		EffectiveProductionStatusAp => true
+		EffectiveSecurityModeSEP => true
+		UniqueChipID => 6773**REDACTED**
+		UniqueDeviceID => 00006000-**REDACTED**
+		RemoteXPCVersionFlags => 7205**REDACTED**
+		CertificateProductionStatus => true
+		CertificateSecurityMode => true
+		DeviceClass => Mac
+		DeviceEnclosureColor => 2
+		ModelNumber => Z14V0016E
+		RegionCode => LL
+		SecurityDomain => 1
+		OSInstallEnvironment => false
+		HardwarePlatform => t6000
+		Image4Supported => true
+	}
+	Services:
+		com.apple.mobile.storage_mounter_proxy.bridge.macOS
+		com.apple.osanalytics.logRelay
+		com.apple.mobile.storage_mounter_proxy.bridge
+		com.apple.sysdiagnose.remote
+		com.apple.remote.installcoordination_proxy
+		com.apple.mobile.notification_proxy.remote
+		com.apple.dt.remoteFetchSymbols
+		com.apple.dt.testmanagerd.remote.automation
+		com.apple.CSCSupportd
+		com.apple.corecaptured.remoteservice
+		ssh

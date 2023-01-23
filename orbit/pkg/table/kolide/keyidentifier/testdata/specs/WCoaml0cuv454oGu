@@ -1,0 +1,18 @@
+PuTTY-User-Key-File-2: ssh-rsa
+Encryption: aes256-cbc
+Comment: comment -- rsa/1024 by putty ObUP3hzndO2f6hjz
+Public-Lines: 4
+AAAAB3NzaC1yc2EAAAABJQAAAIEAnSnp1TcL8etdLN2cy1o537ojxWnL8/PGn0+9
+HjLsoI2IkXLQ2bni+R8AILxvBUhlMageZHj/n5cLxb/pYRsOFk0tX9wCdP54fXYn
+wdVCK4CttnhtXvmcNN5befzjJObrJNgbS3P5uaIi7RfSjeDynpNCUiH4VOx9MVVK
+HDwT0bM=
+Private-Lines: 8
+idDOiTzeUiElhXuaYldFHZWw8ZJi0sskL37EbuEzqmWU0jWzQyUHeoa8lu/lDRta
+MlYRTW0s9q9cJbFFqhQeBS0GVVttmpMSWipbY69t0iS69Wfm5YdTMHF88JzUeJzp
+Grlpa7q/8p++a6N48UDylFe8FVw3ZC1PhSo0clzh1kwJ6mLvJeKnB74/OI2tKiiA
+DnrkmbpEFUhugvGozvtACNiuzk69oPc/BzP+vAHv95BXa5j2u9/Z4hHJL86nOfcU
+2/v7yc1GWXntFTU7Zt+oHwIYju5dO+A78owkTpOyRifMj7PAauG7pgPUHEpl69cN
+ti/q5YxyFVhJa0An8mipCeGqXnVtxNHo36uLQVW/tpcL+gkHvjH+hvOpKpq0rVQt
+0IFdikKlbuN4ZYcnvdUK2EqjvD5Hqmq/l6nPHsWImEYOSZlr8JCmHd7uklkCFPTE
+HwaEnXfBAa6Mhz1cOsJ7sg==
+Private-MAC: 03f8772c660e6a9d774715b1199c1524ba8381f6

@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	kolide_table "github.com/fleetdm/fleet/v4/orbit/pkg/table/kolide/table"
 	"github.com/macadmins/osquery-extension/tables/chromeuserprofiles"
 	"github.com/macadmins/osquery-extension/tables/fileline"
 	"github.com/macadmins/osquery-extension/tables/puppet"
@@ -100,6 +101,10 @@ func (r *Runner) Execute() error {
 		table.NewPlugin("file_lines", fileline.FileLineColumns(), fileline.FileLineGenerate),
 	}
 	plugins = append(plugins, platformTables()...)
+	for _, t := range kolide_table.PlatformTables(nil, nil, "") {
+		fmt.Fprintf(os.Stderr, "Adding table %+v\n", t)
+		plugins = append(plugins, t)
+	}
 	for _, t := range r.tableExtensions {
 		plugins = append(plugins, table.NewPlugin(
 			t.Name(),

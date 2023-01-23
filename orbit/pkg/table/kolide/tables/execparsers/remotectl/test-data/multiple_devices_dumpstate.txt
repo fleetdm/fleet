@@ -1,0 +1,226 @@
+Local device
+	UUID: 384B6869-AAAA-BBBB-CCCC-DEADBEEFCAFE
+	Messaging Protocol Version: 3
+	Product Type: MacBookPro18,1
+	OS Build: 12.6 (21G115)
+	Properties: {
+		AppleInternal => false
+		CPUArchitecture => arm64e
+		ChipID => 24576
+		EffectiveProductionStatusSEP => true
+		HWModel => J316sAP
+		HasSEP => true
+		IsUIBuild => true
+		RegionInfo => LL/A
+		RestoreLongVersion => 21.7.115.0.0,0
+		DeviceSupportsLockdown => false
+		EffectiveSecurityModeAp => true
+		SigningFuse => true
+		BuildVersion => 21G115
+		OSVersion => 12.6
+		BridgeVersion => 19.16.16067.0.0,0
+		SensitivePropertiesVisible => true
+		Image4CryptoHashMethod => sha2-384
+		MobileDeviceMinimumVersion => 1351
+		ProductName => macOS
+		ProductType => MacBookPro18,1
+		SerialNumber => 1234567890
+		BootSessionUUID => 00AE31FA-AAAA-BBBB-CCCC-DEADBEEFCAFE
+		BoardId => 10
+		DeviceColor => unknown
+		EffectiveProductionStatusAp => true
+		EffectiveSecurityModeSEP => true
+		UniqueChipID => 6789012345678900
+		UniqueDeviceID => 11111111-012345789ABCDEF0
+		RemoteXPCVersionFlags => 72057594037927942
+		CertificateProductionStatus => true
+		CertificateSecurityMode => true
+		DeviceClass => Mac
+		DeviceEnclosureColor => 2
+		ModelNumber => Z14W00105
+		RegionCode => LL
+		SecurityDomain => 1
+		OSInstallEnvironment => false
+		HardwarePlatform => t6000
+		Image4Supported => true
+	}
+	Services:
+		com.apple.remote.installcoordination_proxy
+		com.apple.sysdiagnose.remote
+		com.apple.osanalytics.logRelay
+		com.apple.corecaptured.remoteservice
+		com.apple.mobile.storage_mounter_proxy.bridge
+		com.apple.dt.testmanagerd.remote.automation
+		com.apple.mobile.storage_mounter_proxy.bridge.macOS
+		com.apple.mobile.notification_proxy.remote
+		com.apple.dt.remoteFetchSymbols
+		com.apple.CSCSupportd
+		ssh
+
+Found ncm-0 (ncm-device)
+	State: connected (connectable)
+	UUID: 2C2D2409-AAAA-BBBB-CCCC-DEADBEEFCAFE
+	Product Type: iPhone12,3
+	OS Build: 15.3.1 (19D52)
+	Messaging Protocol Version: 3
+	Heartbeat:
+		0 heartbeats sent, 0 received
+	Properties: {
+		AppleInternal => false
+		CPUArchitecture => arm64e
+		ChipID => 32816
+		EffectiveProductionStatusSEP => true
+		EthernetMacAddress => cc:d2:81:11:22:33
+		HWModel => D421AP
+		HasSEP => true
+		LocationID => 33333333
+		IsUIBuild => true
+		RegionInfo => LL/A
+		DeviceSupportsLockdown => true
+		EffectiveSecurityModeAp => true
+		SigningFuse => true
+		BuildVersion => 19D52
+		OSVersion => 15.3.1
+		SensitivePropertiesVisible => true
+		Image4CryptoHashMethod => sha2-384
+		MobileDeviceMinimumVersion => 1351
+		ProductName => iPhone OS
+		ProductType => iPhone12,3
+		SerialNumber => 1234567890XX
+		BootSessionUUID => D4053160-AAAA-BBBB-CCCC-DEADBEEFCAFE
+		BoardId => 6
+		DeviceColor => 1
+		EffectiveProductionStatusAp => true
+		EffectiveSecurityModeSEP => true
+		StoreDemoMode => false
+		UniqueChipID => 7890123456789ABC
+		UniqueDeviceID => 11111111-0123456789ABCDF0
+		RemoteXPCVersionFlags => 72057594037927942
+		CertificateProductionStatus => true
+		CertificateSecurityMode => true
+		DeviceClass => iPhone
+		DeviceEnclosureColor => 1
+		ModelNumber => MWA12
+		RegionCode => LL
+		SecurityDomain => 1
+		OSInstallEnvironment => false
+		InterfaceIndex => 28
+		HardwarePlatform => t8030
+		Image4Supported => true
+	}
+	Services:
+		com.apple.mobile.insecure_notification_proxy.shim.remote
+		com.apple.mobile.insecure_notification_proxy.remote
+			Version: 1
+			Properties: {
+				ServiceVersion => 1
+				UsesRemoteXPC => true
+			}
+		com.apple.osanalytics.logTransfer
+			Properties: {
+				UsesRemoteXPC => true
+			}
+		com.apple.fusion.remote.service
+			Version: 1
+			Properties: {
+				ServiceVersion => 1
+				UsesRemoteXPC => true
+			}
+		com.apple.mobile.lockdown.remote.untrusted
+			Version: 1
+			Properties: {
+				ServiceVersion => 1
+				UsesRemoteXPC => true
+			}
+		com.apple.sysdiagnose.remote
+			Properties: {
+				UsesRemoteXPC => true
+			}
+	Local Services:
+		com.apple.osanalytics.logRelay
+
+Found ncm-1 (ncm-device)
+	State: connected (connectable)
+	UUID: AAF6DCC0-AAAA-BBBB-CCCC-DEADBEEFCAFE
+	Product Type: iPhone14,2
+	OS Build: 16.0.2 (20A380)
+	Messaging Protocol Version: 3
+	Heartbeat:
+		0 heartbeats sent, 0 received
+	Properties: {
+		AppleInternal => false
+		CPUArchitecture => arm64e
+		ChipID => 33040
+		EffectiveProductionStatusSEP => true
+		EthernetMacAddress => dc:53:92:11:22:33
+		HWModel => D63AP
+		HasSEP => true
+		ThinningProductType => iPhone14,2
+		LocationID => 17825792
+		IsUIBuild => true
+		RegionInfo => LL/A
+		RestoreLongVersion => 20.1.380.0.0,0
+		DeviceSupportsLockdown => true
+		EffectiveSecurityModeAp => true
+		SigningFuse => true
+		BuildVersion => 20A380
+		OSVersion => 16.0.2
+		SensitivePropertiesVisible => true
+		Image4CryptoHashMethod => sha2-384
+		MobileDeviceMinimumVersion => 1400
+		ProductName => iPhone OS
+		ProductType => iPhone14,2
+		SerialNumber => HRHX035W72
+		BootSessionUUID => B8B27D90-AAAA-BBBB-CCCC-DEADBEEFCAFE
+		BoardId => 12
+		DeviceColor => 1
+		EffectiveProductionStatusAp => true
+		EffectiveSecurityModeSEP => true
+		StoreDemoMode => false
+		UniqueChipID => 67890ABCDEF1234
+		UniqueDeviceID => 88888888-AABBCCDDEEFF0011
+		OSInstallEnvironment => false
+		RemoteXPCVersionFlags => 72057594037927942
+		CertificateProductionStatus => true
+		CertificateSecurityMode => true
+		DeviceClass => iPhone
+		DeviceEnclosureColor => 1
+		ModelNumber => MLTW3
+		RegionCode => LL
+		SecurityDomain => 1
+		InterfaceIndex => 30
+		HardwarePlatform => t8110
+		Image4Supported => true
+	}
+	Services:
+		com.apple.mobile.lockdown.remote.untrusted
+			Version: 1
+			Properties: {
+				ServiceVersion => 1
+				UsesRemoteXPC => true
+			}
+		com.apple.mobile.insecure_notification_proxy.shim.remote
+		com.apple.mobile.insecure_notification_proxy.remote
+			Version: 1
+			Properties: {
+				ServiceVersion => 1
+				UsesRemoteXPC => true
+			}
+		com.apple.osanalytics.logTransfer
+			Properties: {
+				UsesRemoteXPC => true
+			}
+		com.apple.internal.dt.coredevice.untrusted.tunnelservice
+			Version: 2
+			Properties: {
+				ServiceVersion => 2
+				UsesRemoteXPC => true
+			}
+		com.apple.fusion.remote.service
+			Version: 1
+			Properties: {
+				ServiceVersion => 1
+				UsesRemoteXPC => true
+			}
+	Local Services:
+		com.apple.osanalytics.logRelay

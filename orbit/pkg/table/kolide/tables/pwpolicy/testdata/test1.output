@@ -1,0 +1,357 @@
+Getting global account policies
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>policyCategoryAuthentication</key>
+	<array>
+		<dict>
+			<key>policyContent</key>
+			<string>(policyAttributeFailedAuthentications &lt; policyAttributeMaximumFailedAuthentications) OR (policyAttributeCurrentTime &gt; (policyAttributeLastFailedAuthenticationTime + autoEnableInSeconds))</string>
+			<key>policyIdentifier</key>
+			<string>ProfilePayload:AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA:minutesUntilFailedLoginReset</string>
+			<key>policyParameters</key>
+			<dict>
+				<key>autoEnableInSeconds</key>
+				<integer>900</integer>
+				<key>policyAttributeMaximumFailedAuthentications</key>
+				<integer>5</integer>
+			</dict>
+		</dict>
+		<dict>
+			<key>policyContent</key>
+			<string>(policyAttributeFailedAuthentications &lt; policyAttributeMaximumFailedAuthentications) OR (policyAttributeCurrentTime &gt; (policyAttributeLastFailedAuthenticationTime + autoEnableInSeconds))</string>
+			<key>policyIdentifier</key>
+			<string>Authentication Lockout</string>
+			<key>policyParameters</key>
+			<dict>
+				<key>autoEnableInSeconds</key>
+				<integer>60</integer>
+				<key>policyAttributeMaximumFailedAuthentications</key>
+				<integer>5</integer>
+			</dict>
+		</dict>
+	</array>
+	<key>policyCategoryPasswordContent</key>
+	<array>
+		<dict>
+			<key>policyContent</key>
+			<string>policyAttributePassword matches '(.*[A-Z].*){1,}+'</string>
+			<key>policyIdentifier</key>
+			<string>Has an upper case letter</string>
+			<key>policyParameters</key>
+			<dict>
+				<key>minimumAlphaCharacters</key>
+				<integer>1</integer>
+			</dict>
+		</dict>
+		<dict>
+			<key>policyContent</key>
+			<string>policyAttributePassword matches '(.*[a-z].*){1,}+'</string>
+			<key>policyIdentifier</key>
+			<string>Has a lower case letter</string>
+			<key>policyParameters</key>
+			<dict>
+				<key>minimumAlphaCharactersLowerCase</key>
+				<integer>1</integer>
+			</dict>
+		</dict>
+		<dict>
+			<key>policyContent</key>
+			<string>(policyAttributeSequentialCharacters &lt; policyAttributeMaximumSequentialCharacters) and (policyAttributeConsecutiveCharacters &lt; policyAttributeMaximumConsecutiveCharacters)</string>
+			<key>policyContentDescription</key>
+			<dict>
+				<key>ar</key>
+				<string>لا تحتوي على حرفين متتاليين، أو ثلاثة أحرف متسلسلة.</string>
+				<key>ca</key>
+				<string>No pot tenir dos caràcters consecutius o tres caràcters en ordre seqüencial.</string>
+				<key>cs</key>
+				<string>Nesmí obsahovat opakování znaku ani sekvenci tří po sobě jdoucích znaků.</string>
+				<key>da</key>
+				<string>Kan ikke have to gentagne eller tre fortløbende tegn.</string>
+				<key>de</key>
+				<string>Darf keine zwei identischen bzw. drei aufeinanderfolgenden Zeichen enthalten.</string>
+				<key>el</key>
+				<string>Να μην περιέχει δύο διαδοχικούς ή τρεις ακολουθιακούς χαρακτήρες.</string>
+				<key>en</key>
+				<string>Not have two consecutive, or three sequential characters.</string>
+				<key>en-AU</key>
+				<string>Not have two consecutive, or three sequential characters.</string>
+				<key>en-GB</key>
+				<string>Not have two consecutive or three sequential characters.</string>
+				<key>es</key>
+				<string>No debe contener dos caracteres consecutivos o tres secuenciales.</string>
+				<key>es-419</key>
+				<string>No incluir dos caracteres consecutivos o tres caracteres secuenciales.</string>
+				<key>fi</key>
+				<string>Ei sisällä kahta peräkkäistä samaa tai kolmea peräkkäistä kirjainta.</string>
+				<key>fr</key>
+				<string>Ne pas contenir deux caractères identiques consécutifs ni trois caractères séquentiels.</string>
+				<key>fr-CA</key>
+				<string>Ne pas contenir deux caractères identiques consécutifs ni trois caractères séquentiels.</string>
+				<key>he</key>
+				<string>לא להכיל שני תווים רצופים או שלושה תווים עוקבים.</string>
+				<key>hi</key>
+				<string>दो लगातार या तीन क्रमानुसार वर्ण नहीं हैं। have two consecutive, or three sequential characters.</string>
+				<key>hr</key>
+				<string>Ne smije imati dva uzastopna ili tri redoslijedna znaka.</string>
+				<key>hu</key>
+				<string>Nem követheti benne egymást két egymás utáni vagy három azonos karakter.</string>
+				<key>id</key>
+				<string>Tidak memiliki dua karakter berturut-turut, atau tiga karakter yang berurutan.</string>
+				<key>it</key>
+				<string>Non avere due caratteri consecutivi o tre caratteri sequenziali.</string>
+				<key>ja</key>
+				<string>同じ文字を2つ続けたり、連続文字を3つ続けたりしないでください。</string>
+				<key>ko</key>
+				<string>연속적인 2개의 문자 또는 순차적인 문자를 3개 이상 포함할 수 없습니다.</string>
+				<key>ms</key>
+				<string>Tidak mempunyai dua karakter berurutan, atau tiga karakter berjujukan.</string>
+				<key>nb</key>
+				<string>Ikke inneholde to identiske tegn etter hverandre eller tre tegn i rekkefølge.</string>
+				<key>nl</key>
+				<string>Mag niet twee identieke tekens na elkaar of drie opeenvolgende tekens bevatten.</string>
+				<key>pl</key>
+				<string>Nie zawiera następujących po sobie dwóch powtórzonych znaków ani trzech kolejnych znaków.</string>
+				<key>policyDefaultContentDescription</key>
+				<string>Not have two consecutive, or three sequential characters.</string>
+				<key>pt</key>
+				<string>Não deve conter dois caracteres consecutivos ou três caracteres sequenciais.</string>
+				<key>pt-PT</key>
+				<string>Não ter dois caracteres repetidos ou três sequenciais.</string>
+				<key>ro</key>
+				<string>Nu trebuie să aibă două caractere consecutive sau trei caractere secvențiale.</string>
+				<key>ru</key>
+				<string>Не содержит двух одинаковых или трех последовательных символов подряд.</string>
+				<key>sk</key>
+				<string>Nesmie obsahovať dva po sebe nasledujúce alebo tri sekvenčné znaky.</string>
+				<key>sv</key>
+				<string>Inte innehålla två tecken som är likadana eller tre tecken i ordningsföljd.</string>
+				<key>th</key>
+				<string>ไม่ใช้อักขระเรียงต่อกันสองตัวหรือเรียงตามลำดับสามตัว</string>
+				<key>tr</key>
+				<string>İki yinelenen veya üç sıralı karakter yok.</string>
+				<key>uk</key>
+				<string>не містити два однакових або три послідовних символи поспіль.</string>
+				<key>vi</key>
+				<string>Không có hai ký tự liên tiếp hoặc ba ký tự tuần tự.</string>
+				<key>zh-HK</key>
+				<string>不包括兩個連續或三個連續的字元。</string>
+				<key>zh-Hans</key>
+				<string>不能包含2个连贯或3个连续的字符。</string>
+				<key>zh-Hant</key>
+				<string>不包含兩個連續或三個連續的字元。</string>
+			</dict>
+			<key>policyIdentifier</key>
+			<string>ProfilePayload:AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA:allowSimple</string>
+			<key>policyParameters</key>
+			<dict>
+				<key>policyAttributeMaximumConsecutiveCharacters</key>
+				<integer>2</integer>
+				<key>policyAttributeMaximumSequentialCharacters</key>
+				<integer>3</integer>
+			</dict>
+		</dict>
+		<dict>
+			<key>policyContent</key>
+			<string>policyAttributePassword matches '(.*[0-9].*){1,}+'</string>
+			<key>policyIdentifier</key>
+			<string>Has a number</string>
+			<key>policyParameters</key>
+			<dict>
+				<key>minimumNumericCharacters</key>
+				<integer>1</integer>
+			</dict>
+		</dict>
+		<dict>
+			<key>policyContent</key>
+			<string>policyAttributePassword matches '.{8,}'</string>
+			<key>policyContentDescription</key>
+			<dict>
+				<key>ar</key>
+				<string>تحتوي على 8 من الأحرف على الأقل.</string>
+				<key>ca</key>
+				<string>Ha de tenir almenys 8 caràcters.</string>
+				<key>cs</key>
+				<string>obsahovat minimální počet znaků: 8.</string>
+				<key>da</key>
+				<string>Indeholder mindst 8 tegn.</string>
+				<key>de</key>
+				<string>Enthält mindestens 8 Zeichen.</string>
+				<key>el</key>
+				<string>Να περιέχει τουλάχιστον 8 χαρακτήρες.</string>
+				<key>en</key>
+				<string>Contain at least 8 characters.</string>
+				<key>en-AU</key>
+				<string>Contain at least 8 characters.</string>
+				<key>en-GB</key>
+				<string>Contain at least 8 characters.</string>
+				<key>es</key>
+				<string>Debe contener al menos 8 caracteres.</string>
+				<key>es-419</key>
+				<string>Contener al menos 8 caracteres.</string>
+				<key>fi</key>
+				<string>Sisältää vähintään 8 kirjainta.</string>
+				<key>fr</key>
+				<string>Contenir au moins 8 caractères.</string>
+				<key>fr-CA</key>
+				<string>Contenir au moins 8 caractères.</string>
+				<key>he</key>
+				<string>להכיל לפחות 8 תווים.</string>
+				<key>hi</key>
+				<string>कम से कम 8 वर्ण हैं।</string>
+				<key>hr</key>
+				<string>Sadrži najmanje 8 znakova.</string>
+				<key>hu</key>
+				<string>Legalább 8 karaktert kell tartalmaznia.</string>
+				<key>id</key>
+				<string>Berisi setidaknya 8 karakter.</string>
+				<key>it</key>
+				<string>Contenere almeno 8 caratteri.</string>
+				<key>ja</key>
+				<string>8文字以上含めてください。</string>
+				<key>ko</key>
+				<string>최소 8개의 문자를 포함해야 합니다.</string>
+				<key>ms</key>
+				<string>Mengandungi sekurang-kurangnya 8 aksara.</string>
+				<key>nb</key>
+				<string>Inneholde minst 8 tegn.</string>
+				<key>nl</key>
+				<string>Moet ten minste 8 tekens bevatten.</string>
+				<key>pl</key>
+				<string>Zawiera minimalną liczbę znaków (8).</string>
+				<key>policyDefaultContentDescription</key>
+				<string>Contain at least 8 characters.</string>
+				<key>pt</key>
+				<string>Conter pelo menos 8 caracteres.</string>
+				<key>pt-PT</key>
+				<string>Conter, pelo menos, 8 caracteres.</string>
+				<key>ro</key>
+				<string>Conține cel puțin 8 caractere.</string>
+				<key>ru</key>
+				<string>Содержит не менее 8 символов.</string>
+				<key>sk</key>
+				<string>Musí obsahovať minimálny počet znakov (8).</string>
+				<key>sv</key>
+				<string>Innehålla minst 8 tecken.</string>
+				<key>th</key>
+				<string>มีอักขระอย่างน้อย 8 ตัว</string>
+				<key>tr</key>
+				<string>En az 8 karakter içermelidir.</string>
+				<key>uk</key>
+				<string>містити щонайменше таку кількість символів: 8.</string>
+				<key>vi</key>
+				<string>Chứa ít nhất 8 ký tự.</string>
+				<key>zh-HK</key>
+				<string>包括至少8個字元。</string>
+				<key>zh-Hans</key>
+				<string>包含至少8个字符。</string>
+				<key>zh-Hant</key>
+				<string>包含至少8個字元。</string>
+			</dict>
+			<key>policyIdentifier</key>
+			<string>ProfilePayload:AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA:minLength</string>
+		</dict>
+		<dict>
+			<key>policyContent</key>
+			<string>policyAttributePassword matches '.{8,}+'</string>
+			<key>policyIdentifier</key>
+			<string>Has at least 8 characters</string>
+			<key>policyParameters</key>
+			<dict>
+				<key>minimumLength</key>
+				<integer>8</integer>
+			</dict>
+		</dict>
+		<dict>
+			<key>policyContent</key>
+			<string>policyAttributePassword matches '^(?=.*[0-9])(?=.*[a-zA-Z]).+'</string>
+			<key>policyContentDescription</key>
+			<dict>
+				<key>ar</key>
+				<string>تحتوي على رقم واحد وحرف أبجدي واحد على الأقل.</string>
+				<key>ca</key>
+				<string>Ha de tenir com a mínim un número i un caràcter alfabètic.</string>
+				<key>cs</key>
+				<string>obsahovat alespoň jednu číslici a jeden alfanumerický znak.</string>
+				<key>da</key>
+				<string>Indeholder mindst et tal og et alfabetisk tegn.</string>
+				<key>de</key>
+				<string>Enthält mindestens eine Ziffer und ein alphabetisches Zeichen.</string>
+				<key>el</key>
+				<string>Να περιέχει τουλάχιστον έναν αριθμό και έναν αλφαβητικό χαρακτήρα.</string>
+				<key>en</key>
+				<string>Contain at least one number and one alphabetic character.</string>
+				<key>en-AU</key>
+				<string>Contain at least one number and one alphabetic character.</string>
+				<key>en-GB</key>
+				<string>Contain at least one number and one alphabetic character.</string>
+				<key>es</key>
+				<string>Debe contener al menos un número y un carácter alfabético.</string>
+				<key>es-419</key>
+				<string>Contener al menos un número y un carácter alfabético.</string>
+				<key>fi</key>
+				<string>Sisältää ainakin yhden numeron ja ainakin yhden aakkosten kirjaimen.</string>
+				<key>fr</key>
+				<string>Contenir au moins un nombre et un caractère alphabétique.</string>
+				<key>fr-CA</key>
+				<string>Contenir au moins un nombre et un caractère alphabétique.</string>
+				<key>he</key>
+				<string>להכיל לפחות ספרה אחת ותו אלפביתי אחד.</string>
+				<key>hi</key>
+				<string>कम से कम एक संख्या और एक वर्णमाला वर्ण शामिल होना चाहिए।</string>
+				<key>hr</key>
+				<string>Sadrži najmanje jedan broj i jedan abecedni znak.</string>
+				<key>hu</key>
+				<string>Legalább egy számjegyet és egy betűt kell tartalmaznia.</string>
+				<key>id</key>
+				<string>Berisi setidaknya satu angka dan satu karakter alfabetis.</string>
+				<key>it</key>
+				<string>Contenere almeno un numero e un carattere alfabetico.</string>
+				<key>ja</key>
+				<string>数字と英字をそれぞれ1つ以上含めてください。</string>
+				<key>ko</key>
+				<string>최소 하나의 숫자와 하나의 알파벳 문자가 포함되어야 합니다.</string>
+				<key>ms</key>
+				<string>Mengandungi sekurang-kurangnya satu nombor dan satu aksara abjad.</string>
+				<key>nb</key>
+				<string>Inneholde minst ett tall og ett alfabetisk tegn.</string>
+				<key>nl</key>
+				<string>Moet ten minste één cijfer en één alfabetisch teken bevatten.</string>
+				<key>pl</key>
+				<string>Zawiera co najmniej jedną cyfrę i jedną literę alfabetu.</string>
+				<key>policyDefaultContentDescription</key>
+				<string>Contain at least one number and one alphabetic character.</string>
+				<key>pt</key>
+				<string>Conter pelo menos um número e um caractere do alfabeto.</string>
+				<key>pt-PT</key>
+				<string>Conter, pelo menos, um algarismo e um carácter alfabético.</string>
+				<key>ro</key>
+				<string>Conține cel puțin un număr și un caracter alfabetic.</string>
+				<key>ru</key>
+				<string>Содержит хотя бы одну цифру и одну букву.</string>
+				<key>sk</key>
+				<string>Musí obsahovať najmenej jedno číslo a jeden abecedný znak.</string>
+				<key>sv</key>
+				<string>Innehålla minst en siffra och en bokstav.</string>
+				<key>th</key>
+				<string>มีตัวเลขและอักขระพยัญชนะอย่างน้อยหนึ่งตัว</string>
+				<key>tr</key>
+				<string>En az bir rakam ve bir alfabetik karakter içermelidir.</string>
+				<key>uk</key>
+				<string>містити принаймні одну цифру та одну букву.</string>
+				<key>vi</key>
+				<string>Chứa ít nhất một số và một chữ cái.</string>
+				<key>zh-HK</key>
+				<string>包括至少一個數字和一個英文字元。</string>
+				<key>zh-Hans</key>
+				<string>包含至少1个数字和1个字母字符。</string>
+				<key>zh-Hant</key>
+				<string>包含至少一個數字和一個英文字元。</string>
+			</dict>
+			<key>policyIdentifier</key>
+			<string>ProfilePayload:AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA:requireAlphanumeric</string>
+		</dict>
+	</array>
+</dict>
+</plist>

@@ -1,0 +1,18 @@
+[
+    {
+        "option": "scan",
+        "fullkey": "0/SSID",
+        "parent": "0",
+        "key": "SSID",
+        "value": "i got spaces!",
+        "query": "/SSID"
+    },
+    {
+        "option": "scan",
+        "fullkey": "1/SSID",
+        "parent": "1",
+        "key": "SSID",
+        "value": "no-spaces",
+        "query": "/SSID"
+    }
+]

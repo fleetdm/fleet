@@ -1,0 +1,1157 @@
+org.gnome.rhythmbox.plugins.webremote listen-port uint16 0
+org.gnome.rhythmbox.plugins.webremote access-key ''
+org.gnucash.dialogs.business.vendor-search last-geometry (-1, -1, -1, -1)
+org.gnucash.dialogs.business.vendor-search search-for-active-only false
+org.gnome.gnumeric.cut-and-paste prefer-clipboard true
+org.gtk.Settings.EmojiChooser recent-emoji @a((auss)u) []
+org.gnome.desktop.peripherals.trackball scroll-wheel-emulation-button 0
+org.gnome.desktop.peripherals.trackball accel-profile 'default'
+org.gnome.gitg.preferences.commit.message show-subject-margin true
+org.gnome.gitg.preferences.commit.message show-markup true
+org.gnome.gitg.preferences.commit.message show-right-margin true
+org.gnome.gitg.preferences.commit.message spell-checking-language ''
+org.gnome.gitg.preferences.commit.message enable-spell-checking true
+org.gnome.gitg.preferences.commit.message subject-margin-position 50
+org.gnome.gitg.preferences.commit.message right-margin-position 72
+org.gnome.builder.workbench bottom-position 200
+org.gnome.builder.workbench right-visible false
+org.gnome.builder.workbench bottom-visible false
+org.gnome.builder.workbench left-position 250
+org.gnome.builder.workbench left-visible true
+org.gnome.builder.workbench right-position 250
+org.gnucash.dialogs.price-editor last-geometry (-1, -1, -1, -1)
+org.gnome.desktop.thumbnailers disable-all false
+org.gnome.desktop.thumbnailers disable @as []
+org.gnome.Evolution.DefaultSources default-task-list 'system'
+org.gnome.Evolution.DefaultSources default-calendar 'system'
+org.gnome.Evolution.DefaultSources default-address-book 'system'
+org.gnome.Evolution.DefaultSources default-mail-account 'system'
+org.gnome.Evolution.DefaultSources default-mail-identity ''
+org.gnome.Evolution.DefaultSources default-memo-list 'system'
+org.a11y.Accerciser.pluginviews top-panel-layout ['Interface Viewer', 'API Browser', 'Event Monitor', 'Script Recorder']
+org.a11y.Accerciser.pluginviews available-newviews @as []
+org.a11y.Accerciser.pluginviews layout-single false
+org.a11y.Accerciser.pluginviews bottom-panel-layout ['IPython Console']
+org.gnome.gnumeric.dialogs.rs unfocused false
+org.gnome.evolution.shell.network-config authentication-user ''
+org.gnome.evolution.shell.network-config secure-host ''
+org.gnome.evolution.shell.network-config secure-port 0
+org.gnome.evolution.shell.network-config use-authentication false
+org.gnome.evolution.shell.network-config autoconfig-url ''
+org.gnome.evolution.shell.network-config http-host ''
+org.gnome.evolution.shell.network-config http-port 0
+org.gnome.evolution.shell.network-config proxy-type 0
+org.gnome.evolution.shell.network-config authentication-password ''
+org.gnome.evolution.shell.network-config socks-host ''
+org.gnome.evolution.shell.network-config ignore-hosts @as []
+org.gnome.evolution.shell.network-config use-http-proxy false
+org.gnome.evolution.shell.network-config socks-port 0
+org.freedesktop.Tracker.Extract max-media-art-width 0
+org.freedesktop.Tracker.Extract verbosity 'errors'
+org.freedesktop.Tracker.Extract wait-for-miner-fs false
+org.freedesktop.Tracker.Extract max-bytes 1048576
+org.freedesktop.Tracker.Extract sched-idle 'first-index'
+org.gnome.rhythmbox.plugins.lyrics folder ''
+org.gnome.rhythmbox.plugins.lyrics sites ['lyrc.com.ar']
+org.gnome.yelp show-cursor false
+org.gnome.yelp font-adjustment 0
+org.gnucash.dialogs.find last-geometry (-1, -1, -1, -1)
+org.gnucash.dialogs.find search-for-active-only false
+org.gnome.gitg.preferences.commit.diff context-lines 3
+org.gnome.gitg.preferences.commit.diff tab-width 4
+org.gnome.system.proxy.http host ''
+org.gnome.system.proxy.http port 8080
+org.gnome.system.proxy.http use-authentication false
+org.gnome.system.proxy.http authentication-password ''
+org.gnome.system.proxy.http authentication-user ''
+org.gnome.system.proxy.http enabled false
+org.gnome.desktop.screensaver picture-opacity 100
+org.gnome.desktop.screensaver logout-enabled false
+org.gnome.desktop.screensaver lock-enabled true
+org.gnome.desktop.screensaver logout-delay uint32 7200
+org.gnome.desktop.screensaver embedded-keyboard-enabled false
+org.gnome.desktop.screensaver primary-color '#023c88'
+org.gnome.desktop.screensaver idle-activation-enabled true
+org.gnome.desktop.screensaver secondary-color '#5789ca'
+org.gnome.desktop.screensaver logout-command ''
+org.gnome.desktop.screensaver color-shading-type 'solid'
+org.gnome.desktop.screensaver embedded-keyboard-command ''
+org.gnome.desktop.screensaver show-notifications false
+org.gnome.desktop.screensaver picture-options 'zoom'
+org.gnome.desktop.screensaver lock-delay uint32 0
+org.gnome.desktop.screensaver show-full-name-in-top-bar true
+org.gnome.desktop.screensaver picture-uri 'file:///usr/share/backgrounds/gnome/adwaita-lock.jpg'
+org.gnome.desktop.screensaver status-message-enabled true
+org.gnome.desktop.screensaver ubuntu-lock-on-suspend true
+org.gnome.desktop.screensaver user-switch-enabled true
+org.gnome.gitg.preferences.interface orientation 'vertical'
+org.gnome.gitg.preferences.interface use-gravatar false
+org.gnome.gitg.preferences.interface default-activity 'history'
+org.gnome.gitg.preferences.interface enable-diff-highlighting true
+org.gnome.gitg.preferences.interface enable-monitoring true
+org.gnucash.window.pages.account-tree.summary end-choice-absolute false
+org.gnucash.window.pages.account-tree.summary start-choice-absolute false
+org.gnucash.window.pages.account-tree.summary start-date int64 0
+org.gnucash.window.pages.account-tree.summary end-date int64 0
+org.gnucash.window.pages.account-tree.summary end-period 5
+org.gnucash.window.pages.account-tree.summary non-currency true
+org.gnucash.window.pages.account-tree.summary grand-total true
+org.gnucash.window.pages.account-tree.summary start-period 5
+org.gnucash.window.pages.account-tree.summary start-choice-relative true
+org.gnucash.window.pages.account-tree.summary end-choice-relative true
+org.gnome.gnumeric.printsetup print-even-if-only-styles false
+org.gnome.gnumeric.printsetup scale-percentage true
+org.gnome.gnumeric.printsetup preferred-unit 'mm'
+org.gnome.gnumeric.printsetup hf-right @as []
+org.gnome.gnumeric.printsetup scale-height 0
+org.gnome.gnumeric.printsetup gtk-setting @as []
+org.gnome.gnumeric.printsetup margin-top 120.0
+org.gnome.gnumeric.printsetup margin-bottom 120.0
+org.gnome.gnumeric.printsetup print-black-n-white false
+org.gnome.gnumeric.printsetup margin-gtk-bottom 72.0
+org.gnome.gnumeric.printsetup margin-gtk-left 72.0
+org.gnome.gnumeric.printsetup paper ''
+org.gnome.gnumeric.printsetup margin-gtk-right 72.0
+org.gnome.gnumeric.printsetup hf-left @as []
+org.gnome.gnumeric.printsetup print-grid-lines false
+org.gnome.gnumeric.printsetup hf-font-size 10.0
+org.gnome.gnumeric.printsetup center-horizontally false
+org.gnome.gnumeric.printsetup repeat-left ''
+org.gnome.gnumeric.printsetup margin-gtk-top 72.0
+org.gnome.gnumeric.printsetup scale-percentage-value 100.0
+org.gnome.gnumeric.printsetup all-sheets false
+org.gnome.gnumeric.printsetup hf-font-italic false
+org.gnome.gnumeric.printsetup header ['', '&[TAB]', '']
+org.gnome.gnumeric.printsetup hf-font-bold false
+org.gnome.gnumeric.printsetup paper-orientation 0
+org.gnome.gnumeric.printsetup hf-middle @as []
+org.gnome.gnumeric.printsetup footer ['', 'Page &[PAGE]', '']
+org.gnome.gnumeric.printsetup hf-font-name 'Sans'
+org.gnome.gnumeric.printsetup repeat-top ''
+org.gnome.gnumeric.printsetup print-titles false
+org.gnome.gnumeric.printsetup across-then-down false
+org.gnome.gnumeric.printsetup scale-width 0
+org.gnome.gnumeric.printsetup center-vertically false
+org.gnome.rhythmbox.podcast download-interval 'hourly'
+org.gnome.rhythmbox.podcast download-location ''
+org.gnome.rhythmbox.podcast-source paned-position 180
+org.gnome.rhythmbox.podcast-source sorting ('Feed', true)
+org.gnome.rhythmbox.podcast-source show-browser true
+org.gnome.rhythmbox.podcast-source search-type 'search-match'
+org.gnucash.dialogs.report last-path ''
+org.gnucash.dialogs.new-user first-startup true
+org.gnucash.dialogs.new-hierarchy last-geometry (-1, -1, -1, -1)
+org.gnucash.dialogs.new-hierarchy show-on-new-file true
+org.gnucash.dialogs.reset-warnings last-geometry (-1, -1, -1, -1)
+org.freedesktop.ColorHelper display-gamma 2.3999999999999999
+org.freedesktop.ColorHelper profile-upload-uri 'http://www.hughski.com/profile-store.php'
+org.freedesktop.ColorHelper display-whitepoint 6500
+org.freedesktop.ColorHelper sample-delay 400
+org.gnome.gnumeric.core.sort.default retain-formats true
+org.gnome.gnumeric.core.sort.default ascending true
+org.gnome.gnumeric.core.sort.default by-case false
+org.gnome.desktop.background picture-opacity 100
+org.gnome.desktop.background secondary-color '#5789ca'
+org.gnome.desktop.background show-desktop-icons false
+org.gnome.desktop.background primary-color '#023c88'
+org.gnome.desktop.background color-shading-type 'solid'
+org.gnome.desktop.background picture-options 'zoom'
+org.gnome.desktop.background picture-uri 'file:///usr/share/backgrounds/gnome/adwaita-timed.xml'
+org.gnome.desktop.background draw-background true
+org.gnome.builder.build parallel -1
+org.gnome.builder.build allow-network-when-metered false
+org.gnucash.dialogs.lot-viewer hpane-position 200
+org.gnucash.dialogs.lot-viewer last-geometry (-1, -1, -1, -1)
+org.gnucash.dialogs.lot-viewer vpane-position 200
+org.freedesktop.Tracker.Miner.Files initial-sleep 15
+org.freedesktop.Tracker.Miner.Files index-optical-discs false
+org.freedesktop.Tracker.Miner.Files index-recursive-directories ['&DESKTOP', '&DOCUMENTS', '&DOWNLOAD', '&MUSIC', '&PICTURES', '&VIDEOS']
+org.freedesktop.Tracker.Miner.Files enable-monitors true
+org.freedesktop.Tracker.Miner.Files index-on-battery true
+org.freedesktop.Tracker.Miner.Files sched-idle 'first-index'
+org.freedesktop.Tracker.Miner.Files ignored-directories ['po', 'CVS', 'core-dumps', 'lost+found']
+org.freedesktop.Tracker.Miner.Files crawling-interval -1
+org.freedesktop.Tracker.Miner.Files ignored-files ['*~', '*.o', '*.la', '*.lo', '*.loT', '*.in', '*.csproj', '*.m4', '*.rej', '*.gmo', '*.orig', '*.pc', '*.omf', '*.aux', '*.tmp', '*.po', '*.vmdk', '*.vm*', '*.nvram', '*.part', '*.rcore', '*.lzo', 'autom4te', 'conftest', 'confstat', 'Makefile', 'SCCS', 'ltmain.sh', 'libtool', 'config.status', 'confdefs.h', 'configure', '#*#', '~$*.doc?', '~$*.dot?', '~$*.xls?', '~$*.xlt?', '~$*.xlam', '~$*.ppt?', '~$*.pot?', '~$*.ppam', '~$*.ppsm', '~$*.ppsx', '~$*.vsd?', '~$*.vss?', '~$*.vst?', '*.desktop', '*.directory']
+org.freedesktop.Tracker.Miner.Files ignored-directories-with-content ['.trackerignore', '.git']
+org.freedesktop.Tracker.Miner.Files index-removable-devices false
+org.freedesktop.Tracker.Miner.Files removable-days-threshold 3
+org.freedesktop.Tracker.Miner.Files index-single-directories ['$HOME']
+org.freedesktop.Tracker.Miner.Files low-disk-space-limit -1
+org.freedesktop.Tracker.Miner.Files throttle 0
+org.freedesktop.Tracker.Miner.Files verbosity 'errors'
+org.freedesktop.Tracker.Miner.Files enable-writeback true
+org.freedesktop.Tracker.Miner.Files index-on-battery-first-time true
+com.canonical.Unity.Lenses home-lens-priority ['files.scope', 'music.scope']
+com.canonical.Unity.Lenses disabled-scopes @as []
+com.canonical.Unity.Lenses remote-content-search 'none'
+com.canonical.Unity.Lenses home-lens-default-view ['applications.scope', 'files.scope']
+com.canonical.Unity.Lenses hidden-scopes @as []
+com.canonical.Unity.Lenses always-search ['applications.scope', 'music.scope', 'videos.scope', 'files.scope']
+com.canonical.Unity.Lenses locked-scopes @as []
+org.gnome.desktop.default-applications.office.tasks exec 'evolution -c tasks'
+org.gnome.desktop.default-applications.office.tasks needs-term false
+org.gnucash.dialogs.business.invoice-search last-geometry (-1, -1, -1, -1)
+org.gnucash.dialogs.business.invoice-search search-for-active-only false
+org.gnome.gnumeric.core.xml compression-level 9
+org.gnucash.dialogs.sxs.since-last-run last-geometry (-1, -1, -1, -1)
+org.gnucash.dialogs.sxs.since-last-run show-at-file-open true
+org.gnucash.dialogs.sxs.since-last-run show-notify-window-at-file-open true
+org.gnome.builder night-mode false
+org.gnome.builder window-maximized true
+org.gnome.builder window-position (-1, -1)
+org.gnome.builder restore-previous-files true
+org.gnome.builder show-open-files true
+org.gnome.builder projects-directory 'Projects'
+org.gnome.builder window-size (-1, -1)
+org.gnome.builder follow-night-light false
+org.gnome.desktop.a11y.applications screen-keyboard-enabled false
+org.gnome.desktop.a11y.applications screen-magnifier-enabled false
+org.gnome.desktop.a11y.applications screen-reader-enabled false
+org.gnome.gitg.state.window size (650, 500)
+org.gnome.gitg.state.window revision-tree-view-position 200
+org.gnome.gitg.state.window state 0
+org.gnome.gitg.state.window vpaned-commit-position 200
+org.gnome.gitg.state.window hpaned-commit1-position 200
+org.gnome.gitg.state.window hpaned-commit2-position 200
+org.gnome.builder.plugins.eslint enable-eslint false
+org.gnome.gnumeric.undo size 100
+org.gnome.gnumeric.undo show-sheet-name false
+org.gnome.gnumeric.undo max-descriptor-width 40
+org.gnome.gnumeric.undo maxnum 20
+org.gnome.system.proxy.https host ''
+org.gnome.system.proxy.https port 0
+org.gnome.desktop.wm.preferences disable-workarounds false
+org.gnome.desktop.wm.preferences focus-new-windows 'smart'
+org.gnome.desktop.wm.preferences action-right-click-titlebar 'menu'
+org.gnome.desktop.wm.preferences mouse-button-modifier '<Super>'
+org.gnome.desktop.wm.preferences action-middle-click-titlebar 'none'
+org.gnome.desktop.wm.preferences titlebar-uses-system-font true
+org.gnome.desktop.wm.preferences theme 'Adwaita'
+org.gnome.desktop.wm.preferences num-workspaces 4
+org.gnome.desktop.wm.preferences raise-on-click true
+org.gnome.desktop.wm.preferences auto-raise false
+org.gnome.desktop.wm.preferences visual-bell false
+org.gnome.desktop.wm.preferences focus-mode 'click'
+org.gnome.desktop.wm.preferences action-double-click-titlebar 'toggle-maximize'
+org.gnome.desktop.wm.preferences auto-raise-delay 500
+org.gnome.desktop.wm.preferences button-layout 'appmenu:close'
+org.gnome.desktop.wm.preferences workspace-names @as []
+org.gnome.desktop.wm.preferences audible-bell true
+org.gnome.desktop.wm.preferences resize-with-right-button false
+org.gnome.desktop.wm.preferences titlebar-font 'Cantarell Bold 11'
+org.gnome.desktop.wm.preferences visual-bell-type 'fullscreen-flash'
+org.gnome.desktop.a11y.magnifier focus-tracking 'proportional'
+org.gnome.desktop.a11y.magnifier contrast-green 0.0
+org.gnome.desktop.a11y.magnifier caret-tracking 'centered'
+org.gnome.desktop.a11y.magnifier brightness-red 0.0
+org.gnome.desktop.a11y.magnifier cross-hairs-color '#ff0000'
+org.gnome.desktop.a11y.magnifier cross-hairs-clip false
+org.gnome.desktop.a11y.magnifier contrast-blue 0.0
+org.gnome.desktop.a11y.magnifier scroll-at-edges false
+org.gnome.desktop.a11y.magnifier cross-hairs-length 4096
+org.gnome.desktop.a11y.magnifier show-cross-hairs false
+org.gnome.desktop.a11y.magnifier screen-position 'full-screen'
+org.gnome.desktop.a11y.magnifier color-saturation 1.0
+org.gnome.desktop.a11y.magnifier brightness-green 0.0
+org.gnome.desktop.a11y.magnifier cross-hairs-thickness 8
+org.gnome.desktop.a11y.magnifier lens-mode false
+org.gnome.desktop.a11y.magnifier contrast-red 0.0
+org.gnome.desktop.a11y.magnifier invert-lightness false
+org.gnome.desktop.a11y.magnifier brightness-blue 0.0
+org.gnome.desktop.a11y.magnifier mouse-tracking 'proportional'
+org.gnome.desktop.a11y.magnifier cross-hairs-opacity 0.66000000000000003
+org.gnome.desktop.a11y.magnifier mag-factor 2.0
+org.gnome.desktop.a11y.mouse dwell-time 1.2
+org.gnome.desktop.a11y.mouse secondary-click-time 1.2
+org.gnome.desktop.a11y.mouse click-type-window-visible true
+org.gnome.desktop.a11y.mouse secondary-click-enabled false
+org.gnome.desktop.a11y.mouse dwell-gesture-double 'up'
+org.gnome.desktop.a11y.mouse dwell-mode 'window'
+org.gnome.desktop.a11y.mouse dwell-gesture-single 'left'
+org.gnome.desktop.a11y.mouse dwell-click-enabled false
+org.gnome.desktop.a11y.mouse dwell-threshold 10
+org.gnome.desktop.a11y.mouse dwell-gesture-drag 'down'
+org.gnome.desktop.a11y.mouse dwell-gesture-secondary 'right'
+org.gnome.desktop.session session-name 'gnome'
+org.gnome.desktop.session idle-delay uint32 300
+net.sf.liferea social-bm-site ''
+net.sf.liferea do-not-track false
+net.sf.liferea browser-font ''
+net.sf.liferea last-window-maximized false
+net.sf.liferea browser 'x-www-browser %s'
+net.sf.liferea disable-javascript false
+net.sf.liferea last-hpane-pos 0
+net.sf.liferea proxy-authentication-user ''
+net.sf.liferea proxy-authentication-password ''
+net.sf.liferea toolbar-style ''
+net.sf.liferea default-view-mode 0
+net.sf.liferea last-window-width 0
+net.sf.liferea maxitemcount 100
+net.sf.liferea browser-id 'gnome'
+net.sf.liferea browse-inside-application false
+net.sf.liferea last-window-height 0
+net.sf.liferea download-tool 0
+net.sf.liferea proxy-host ''
+net.sf.liferea folder-display-mode 1
+net.sf.liferea folder-display-hide-read true
+net.sf.liferea reduced-feedlist false
+net.sf.liferea enable-plugins false
+net.sf.liferea last-vpane-pos 0
+net.sf.liferea last-wpane-pos 0
+net.sf.liferea browse-key-setting 1
+net.sf.liferea proxy-use-authentication false
+net.sf.liferea disable-toolbar false
+net.sf.liferea proxy-detect-mode 0
+net.sf.liferea last-window-x 0
+net.sf.liferea last-window-state 0
+net.sf.liferea default-update-interval 0
+net.sf.liferea last-window-y 0
+net.sf.liferea startup-feed-action 0
+net.sf.liferea last-node-selected ''
+net.sf.liferea last-zoomlevel 100
+net.sf.liferea proxy-port 8080
+org.gnome.system.locale region ''
+org.gnome.gnumeric.plugins activate-newplugins true
+org.gnome.gnumeric.plugins active @as []
+org.gnome.gnumeric.plugins extra-dirs @as []
+org.gnome.gnumeric.plugins file-states @as []
+org.gnome.gnumeric.plugins known @as []
+org.gnome.desktop.media-handling automount-open true
+org.gnome.desktop.media-handling automount true
+org.gnome.desktop.media-handling autorun-x-content-start-app ['x-content/unix-software']
+org.gnome.desktop.media-handling autorun-never false
+org.gnome.desktop.media-handling autorun-x-content-ignore @as []
+org.gnome.desktop.media-handling autorun-x-content-open-folder @as []
+org.gnucash.dialogs.import.generic.match-picker display-reconciled true
+org.gnucash.dialogs.import.generic.match-picker last-geometry (-1, -1, -1, -1)
+org.gnucash.general.register show-leaf-account-names false
+org.gnucash.general.register double-line-mode false
+org.gnucash.general.register draw-vertical-lines true
+org.gnucash.general.register key-length 2.0
+org.gnucash.general.register default-style-ledger true
+org.gnucash.general.register enter-moves-to-end false
+org.gnucash.general.register default-style-journal false
+org.gnucash.general.register selection-to-blank-on-expand false
+org.gnucash.general.register max-transactions 0.0
+org.gnucash.general.register draw-horizontal-lines true
+org.gnucash.general.register tab-to-transfer-on-memorised false
+org.gnucash.general.register default-style-autoledger false
+org.gnucash.general.register show-extra-dates false
+org.gnucash.general.register alternate-color-by-transaction false
+org.gnucash.general.register show-extra-dates-on-selection false
+org.gnucash.general.register use-theme-colors false
+org.gnucash.general.register auto-raise-lists true
+org.gnucash.general.register show-calendar-buttons false
+org.gnucash.general.register use-new-window false
+org.gnucash.dialogs.export-accounts last-path ''
+org.gnome.system.dns_sd extra-domains ''
+org.gnome.system.dns_sd display-local 'merged'
+org.gnome.desktop.app-folders folder-children @as []
+org.gnome.rhythmbox.library layout-filename '%tN - %tt'
+org.gnome.rhythmbox.library add-dir ''
+org.gnome.rhythmbox.library layout-path '%aa/%at'
+org.gnome.rhythmbox.library strip-chars false
+org.gnome.rhythmbox.encoding-settings transcode-lossless false
+org.gnome.rhythmbox.encoding-settings media-type 'audio/x-vorbis'
+org.gnome.rhythmbox.encoding-settings media-type-presets @a{ss} {}
+org.gnome.rhythmbox.source paned-position 180
+org.gnome.rhythmbox.source sorting ('Artist', true)
+org.gnome.rhythmbox.source show-browser true
+org.gnome.rhythmbox.source search-type 'search-match'
+org.gnucash.general reversed-accounts-none false
+org.gnucash.general retain-type-never false
+org.gnucash.general date-completion-thisyear true
+org.gnucash.general clock-24h false
+org.gnucash.general use-accounting-labels false
+org.gnucash.general summarybar-position-top false
+org.gnucash.general save-window-geometry true
+org.gnucash.general currency-other 'USD'
+org.gnucash.general retain-type-days true
+org.gnucash.general date-format 4
+org.gnucash.general show-account-color false
+org.gnucash.general auto-decimal-point false
+org.gnucash.general date-backmonths 6.0
+org.gnucash.general currency-choice-other false
+org.gnucash.general save-on-close-expires false
+org.gnucash.general tab-position-left false
+org.gnucash.general tab-width 30.0
+org.gnucash.general file-compression true
+org.gnucash.general auto-decimal-places 2
+org.gnucash.general autosave-interval-minutes 5.0
+org.gnucash.general reversed-accounts-incomeexpense false
+org.gnucash.general show-account-color-tabs false
+org.gnucash.general show-splash-screen true
+org.gnucash.general negative-in-red true
+org.gnucash.general tab-position-right false
+org.gnucash.general tab-close-buttons true
+org.gnucash.general currency-choice-locale true
+org.gnucash.general tab-position-top true
+org.gnucash.general migrate-prefs-done false
+org.gnucash.general date-completion-sliding false
+org.gnucash.general autosave-show-explanation true
+org.gnucash.general save-on-close-wait-time 20
+org.gnucash.general retain-days 30.0
+org.gnucash.general retain-type-forever false
+org.gnucash.general account-separator 'colon'
+org.gnucash.general num-source false
+org.gnucash.general summarybar-position-bottom true
+org.gnucash.general reversed-accounts-credit true
+org.gnucash.general tab-position-bottom false
+org.gnucash.general tab-next-recent false
+org.gnome.Evince.Default window-ratio (0.0, 0.0)
+org.gnome.Evince.Default continuous true
+org.gnome.Evince.Default fullscreen false
+org.gnome.Evince.Default show-toolbar true
+org.gnome.Evince.Default show-sidebar true
+org.gnome.Evince.Default dual-page-odd-left false
+org.gnome.Evince.Default inverted-colors false
+org.gnome.Evince.Default zoom 1.0
+org.gnome.Evince.Default sidebar-page 'links'
+org.gnome.Evince.Default sidebar-size 132
+org.gnome.Evince.Default dual-page false
+org.gnome.Evince.Default sizing-mode 'fit-width'
+org.a11y.Accerciser window-height 600
+org.a11y.Accerciser highlight-fill '#ff00006f'
+org.a11y.Accerciser window-width 800
+org.a11y.Accerciser hpaned 250
+org.a11y.Accerciser highlight-duration 0.5
+org.a11y.Accerciser disabled-plugins @as []
+org.a11y.Accerciser vpaned 350
+org.a11y.Accerciser highlight-border '#ff0000ff'
+org.a11y.Accerciser.newpluginviews width 480
+org.a11y.Accerciser.newpluginviews height 480
+org.a11y.Accerciser.newpluginviews layout @as []
+org.a11y.Accerciser.hotkeys hotkey-combo ''
+org.freedesktop.Tracker.FTS max-word-length 30
+org.freedesktop.Tracker.FTS enable-stemmer false
+org.freedesktop.Tracker.FTS enable-unaccent true
+org.freedesktop.Tracker.FTS ignore-numbers true
+org.freedesktop.Tracker.FTS ignore-stop-words true
+org.freedesktop.Tracker.FTS max-words-to-index 10000
+org.gnucash.dialogs.sxs.transaction-editor notify true
+org.gnucash.dialogs.sxs.transaction-editor remind-days 0.0
+org.gnucash.dialogs.sxs.transaction-editor last-geometry (-1, -1, -1, -1)
+org.gnucash.dialogs.sxs.transaction-editor create-auto false
+org.gnucash.dialogs.sxs.transaction-editor create-days 0.0
+org.gnome.evolution-data-server.calendar contacts-reminder-interval 15
+org.gnome.evolution-data-server.calendar contacts-reminder-units 'minutes'
+org.gnome.evolution-data-server.calendar contacts-reminder-enabled false
+org.gnucash.dialogs.ab-initial last-geometry (-1, -1, -1, -1)
+org.gnome.desktop.sound input-feedback-sounds false
+org.gnome.desktop.sound theme-name 'freedesktop'
+org.gnome.desktop.sound allow-volume-above-100-percent false
+org.gnome.desktop.sound event-sounds true
+org.gnome.gnumeric.autoformat usr-dir 'autoformat-templates'
+org.gnome.gnumeric.autoformat sys-dir 'autoformat-templates'
+org.gnome.gnumeric.autoformat extra-dirs @as []
+org.gnucash.dialogs.totd last-geometry (-1, -1, -1, -1)
+org.gnucash.dialogs.totd show-at-startup true
+org.gnucash.dialogs.totd current-tip 0
+org.gnucash.warnings.permanent inv-entry-mod 0
+org.gnucash.warnings.permanent reg-trans-mod 0
+org.gnucash.warnings.permanent reg-trans-del-recd 0
+org.gnucash.warnings.permanent price-comm-del-quotes 0
+org.gnucash.warnings.permanent reg-recd-split-unrec 0
+org.gnucash.warnings.permanent checkprinting-multi-acct 0
+org.gnucash.warnings.permanent price-comm-del 0
+org.gnucash.warnings.permanent reg-split-del 0
+org.gnucash.warnings.permanent reg-split-del-all 0
+org.gnucash.warnings.permanent reg-trans-del 0
+org.gnucash.warnings.permanent inv-entry-dup 0
+org.gnucash.warnings.permanent reg-recd-split-mod 0
+org.gnucash.warnings.permanent reg-trans-dup 0
+org.gnucash.warnings.permanent reg-split-del-recd 0
+org.gnucash.warnings.permanent reg-is-read-only 0
+org.gnucash.warnings.permanent price-quotes-del 0
+org.gnucash.warnings.permanent reg-is-acct-pay-rec 0
+org.gnucash.warnings.permanent reg-split-del-all-recd 0
+org.gnucash.warnings.temporary inv-entry-mod 0
+org.gnucash.warnings.temporary reg-trans-mod 0
+org.gnucash.warnings.temporary reg-trans-del-recd 0
+org.gnucash.warnings.temporary price-comm-del-quotes 0
+org.gnucash.warnings.temporary reg-recd-split-unrec 0
+org.gnucash.warnings.temporary checkprinting-multi-acct 0
+org.gnucash.warnings.temporary price-comm-del 0
+org.gnucash.warnings.temporary reg-split-del 0
+org.gnucash.warnings.temporary reg-split-del-all 0
+org.gnucash.warnings.temporary reg-trans-del 0
+org.gnucash.warnings.temporary inv-entry-dup 0
+org.gnucash.warnings.temporary reg-recd-split-mod 0
+org.gnucash.warnings.temporary reg-trans-dup 0
+org.gnucash.warnings.temporary reg-split-del-recd 0
+org.gnucash.warnings.temporary reg-is-read-only 0
+org.gnucash.warnings.temporary price-quotes-del 0
+org.gnucash.warnings.temporary reg-is-acct-pay-rec 0
+org.gnucash.warnings.temporary reg-split-del-all-recd 0
+org.gnucash.dialogs.account last-geometry (-1, -1, -1, -1)
+org.gnome.gnumeric.searchreplace ignore-case true
+org.gnome.gnumeric.searchreplace query false
+org.gnome.gnumeric.searchreplace preserve-case false
+org.gnome.gnumeric.searchreplace change-cell-strings true
+org.gnome.gnumeric.searchreplace change-cell-expressions true
+org.gnome.gnumeric.searchreplace error-behaviour 0
+org.gnome.gnumeric.searchreplace change-comments false
+org.gnome.gnumeric.searchreplace search-results true
+org.gnome.gnumeric.searchreplace columnmajor true
+org.gnome.gnumeric.searchreplace whole-words-only false
+org.gnome.gnumeric.searchreplace change-cell-other true
+org.gnome.gnumeric.searchreplace keep-strings true
+org.gnome.gnumeric.searchreplace regex 0
+org.gnome.gnumeric.searchreplace scope 0
+org.gnome.builder.gnome-code-assistance enable-pylint false
+org.gnome.desktop.input-sources show-all-sources false
+org.gnome.desktop.input-sources xkb-options @as []
+org.gnome.desktop.input-sources per-window false
+org.gnome.desktop.input-sources current uint32 0
+org.gnome.desktop.input-sources mru-sources @a(ss) []
+org.gnome.desktop.input-sources sources @a(ss) []
+org.gnucash.dialogs.import.hbci use-ns-transaction-text true
+org.gnucash.dialogs.import.hbci remember-pin false
+org.gnucash.dialogs.import.hbci close-on-finish true
+org.gnucash.dialogs.import.hbci format-csv 'default'
+org.gnucash.dialogs.import.hbci format-swift-mt940 'swift-mt940'
+org.gnucash.dialogs.import.hbci format-swift-mt942 'swift-mt942'
+org.gnucash.dialogs.import.hbci format-dtaus 'default'
+org.gnucash.dialogs.import.hbci last-path ''
+org.gnucash.dialogs.import.hbci verbose-debug false
+org.gnome.rhythmbox.encoding-settings transcode-lossless false
+org.gnome.rhythmbox.encoding-settings media-type 'audio/x-vorbis'
+org.gnome.rhythmbox.encoding-settings media-type-presets @a{ss} {}
+org.gnome.rhythmbox.source paned-position 180
+org.gnome.rhythmbox.source sorting ('Artist', true)
+org.gnome.rhythmbox.source show-browser true
+org.gnome.rhythmbox.source search-type 'search-match'
+org.gnucash.dialogs.log-replay last-path ''
+org.gnome.rhythmbox.encoding-settings transcode-lossless false
+org.gnome.rhythmbox.encoding-settings media-type 'audio/x-vorbis'
+org.gnome.rhythmbox.encoding-settings media-type-presets @a{ss} {}
+org.gnome.rhythmbox.source paned-position 180
+org.gnome.rhythmbox.source sorting ('Artist', true)
+org.gnome.rhythmbox.source show-browser true
+org.gnome.rhythmbox.source search-type 'search-match'
+org.gnome.evolution-data-server.addressbook self-contact-uid ''
+org.nemiver default-num-asm-instrs 25
+org.nemiver window-minimum-height 0
+org.nemiver highlight-source-code true
+org.nemiver two-pane-layout-hpane-location -1
+org.nemiver use-launch-terminal false
+org.nemiver source-file-encoding-list ['UTF-8', 'ISO-8859', 'ISO-8859-1', 'ISO-8859-15']
+org.nemiver two-pane-layout-vpane-location -1
+org.nemiver update-local-vars-at-each-stop true
+org.nemiver show-dbg-error-dialogs false
+org.nemiver window-height 600
+org.nemiver context-pane-location -1
+org.nemiver default-layout-pane-location -1
+org.nemiver confirm-before-reload-source true
+org.nemiver status-widget-minimum-height 0
+org.nemiver source-search-dirs '.'
+org.nemiver use-system-font true
+org.nemiver allow-auto-reload-source true
+org.nemiver window-maximized false
+org.nemiver wide-layout-pane-location -1
+org.nemiver disassembly-flavor 'att'
+org.nemiver window-position-x 10
+org.nemiver window-position-y 10
+org.nemiver dbg-perspective-layout 'default-layout'
+org.nemiver gdb-binary 'default-gdb-binary'
+org.nemiver debugger-engine-dynmod 'gdbengine'
+org.nemiver window-width 800
+org.nemiver editor-style-scheme 'classic'
+org.nemiver asm-style-pure false
+org.nemiver callstack-expansion-chunk 25
+org.nemiver pretty-printing true
+org.nemiver follow-fork-mode 'parent'
+org.nemiver custom-font-name 'monospace 12'
+org.nemiver window-minimum-width 0
+org.nemiver show-source-line-numbers true
+org.nemiver status-widget-minimum-width 0
+org.gnucash.dialogs.search new-search-limit 1.0
+org.freedesktop.Tracker.Writeback verbosity 'errors'
+org.gnucash.history file0 ''
+org.gnucash.history file1 ''
+org.gnucash.history file2 ''
+org.gnucash.history file3 ''
+org.gnucash.history file4 ''
+org.gnucash.history file5 ''
+org.gnucash.history file6 ''
+org.gnucash.history file7 ''
+org.gnucash.history file8 ''
+org.gnucash.history file9 ''
+org.gnucash.history maxfiles 4
+org.freedesktop.Tracker.Store verbosity 'errors'
+org.freedesktop.Tracker.Store graphupdated-delay 1000
+org.gnome.evolution.eds-shell start-offline false
+org.gnucash.dialogs.business.tax-tables last-geometry (-1, -1, -1, -1)
+org.gnome.dictionary strategy 'exact'
+org.gnome.dictionary source-name 'Default'
+org.gnome.dictionary database '!'
+org.gnome.dictionary print-font 'Serif 12'
+org.gnome.gnumeric.core.gui.screen horizontaldpi 96.0
+org.gnome.gnumeric.core.gui.screen verticaldpi 96.0
+org.gnome.builder.editor show-map false
+org.gnome.builder.editor highlight-current-line false
+org.gnome.builder.editor auto-hide-map false
+org.gnome.builder.editor highlight-matching-brackets false
+org.gnome.builder.editor show-line-diagnostics true
+org.gnome.builder.editor auto-save true
+org.gnome.builder.editor font-name 'Monospace 11'
+org.gnome.builder.editor restore-insert-mark true
+org.gnome.builder.editor minimum-word-size 2
+org.gnome.builder.editor show-line-numbers true
+org.gnome.builder.editor auto-save-timeout 60
+org.gnome.builder.editor show-grid-lines true
+org.gnome.builder.editor keybindings 'default'
+org.gnome.builder.editor style-scheme-name 'builder'
+org.gnome.builder.editor draw-spaces @as []
+org.gnome.builder.editor scroll-offset 0
+org.gnome.builder.editor overscroll 10
+org.gnome.builder.editor wrap-text false
+org.gnome.builder.editor smart-backspace true
+org.gnome.builder.editor smart-home-end true
+org.gnome.builder.editor show-line-changes true
+org.gnome.rhythmbox.player play-order 'linear'
+org.gnome.rhythmbox.player use-xfade-backend false
+org.gnome.rhythmbox.player volume 1.0
+org.gnome.rhythmbox.player transition-time 0.0
+org.gnucash.dialogs.reconcile last-geometry (-1, -1, -1, -1)
+org.gnucash.dialogs.reconcile auto-cc-payment true
+org.gnucash.dialogs.reconcile auto-interest-transfer false
+org.gnucash.dialogs.reconcile always-reconcile-to-today false
+org.gnucash.dialogs.reconcile check-cleared true
+org.gnome.desktop.peripherals.mouse natural-scroll false
+org.gnome.desktop.peripherals.mouse speed 0.0
+org.gnome.desktop.peripherals.mouse accel-profile 'default'
+org.gnome.desktop.peripherals.mouse left-handed false
+org.gnome.builder.plugins.color_picker_plugin.components rgb-visible true
+org.gnome.builder.plugins.color_picker_plugin.components lab-visible true
+org.gnome.builder.plugins.color_picker_plugin.components hsv-visible true
+org.gnome.builder.plugins.color_picker_plugin.components rgb-unit 'percent'
+org.gnome.devhelp.state.main.contents group-books-by-language false
+org.gnome.devhelp.state.main.contents books-disabled @as []
+org.gnome.devhelp.state.assistant.window width 350
+org.gnome.devhelp.state.assistant.window height 400
+org.gnome.rhythmbox.plugins active-plugins @as []
+org.gnome.rhythmbox.plugins seen-plugins @as []
+org.gnome.rhythmbox.plugins no-user-plugins false
+org.gnome.rhythmbox.plugins.alternative_toolbar dark-theme false
+org.gnome.rhythmbox.plugins.alternative_toolbar volume-control false
+org.gnome.rhythmbox.plugins.alternative_toolbar app-menu-display false
+org.gnome.rhythmbox.plugins.alternative_toolbar horiz-categories false
+org.gnome.rhythmbox.plugins.alternative_toolbar repeat-type 2
+org.gnome.rhythmbox.plugins.alternative_toolbar show-tooltips true
+org.gnome.rhythmbox.plugins.alternative_toolbar show-source-toolbar true
+org.gnome.rhythmbox.plugins.alternative_toolbar inline-label true
+org.gnome.rhythmbox.plugins.alternative_toolbar expanders '{1:True}'
+org.gnome.rhythmbox.plugins.alternative_toolbar enhanced-sidebar true
+org.gnome.rhythmbox.plugins.alternative_toolbar playing-label false
+org.gnome.rhythmbox.plugins.alternative_toolbar enhanced-plugins true
+org.gnome.rhythmbox.plugins.alternative_toolbar display-type 0
+org.gnome.rhythmbox.plugins.alternative_toolbar start-hidden false
+org.gnome.rhythmbox.plugins.alternative_toolbar compact-progressbar false
+org.gnome.rhythmbox.plugins.alternative_toolbar show-compact true
+org.gnome.online-accounts whitelisted-providers ['all']
+org.gnome.desktop.default-applications.terminal exec-arg '-e'
+org.gnome.desktop.default-applications.terminal exec 'x-terminal-emulator'
+org.gnome.devhelp.state.main.paned position 300
+org.gnome.gnumeric.plugin.lpsolve lpsolve-path ''
+org.gnome.builder.project-tree show-ignored-files false
+org.gnome.builder.project-tree show-icons true
+org.gnome.builder.project-tree sort-directories-first true
+org.gnome.gnumeric.core.gui.toolbars standard-visible true
+org.gnome.gnumeric.core.gui.toolbars format-position 2
+org.gnome.gnumeric.core.gui.toolbars format-visible true
+org.gnome.gnumeric.core.gui.toolbars object-position 2
+org.gnome.gnumeric.core.gui.toolbars object-visible true
+org.gnome.gnumeric.core.gui.toolbars standard-position 2
+org.gnome.desktop.default-applications.office.calendar exec 'evolution -c calendar'
+org.gnome.desktop.default-applications.office.calendar needs-term false
+org.gnome.gnumeric.core.gui.editing recalclag 200
+org.gnome.gnumeric.core.gui.editing enter-moves-dir 'down'
+org.gnome.gnumeric.core.gui.editing function-argument-tooltips true
+org.gnome.gnumeric.core.gui.editing autocomplete-min-chars 3
+org.gnome.gnumeric.core.gui.editing transitionkeys false
+org.gnome.gnumeric.core.gui.editing autocomplete true
+org.gnome.gnumeric.core.gui.editing function-name-tooltips true
+org.gnome.rhythmbox.encoding-settings transcode-lossless false
+org.gnome.rhythmbox.encoding-settings media-type 'audio/x-vorbis'
+org.gnome.rhythmbox.encoding-settings media-type-presets @a{ss} {}
+org.gnome.rhythmbox.source paned-position 180
+org.gnome.rhythmbox.source sorting ('Artist', true)
+org.gnome.rhythmbox.source show-browser true
+org.gnome.rhythmbox.source search-type 'search-match'
+org.gnome.gnumeric.autocorrect init-caps true
+org.gnome.gnumeric.autocorrect first-letter true
+org.gnome.gnumeric.autocorrect names-of-days true
+org.gnome.gnumeric.autocorrect init-caps-list @as []
+org.gnome.gnumeric.autocorrect first-letter-list @as []
+org.gnome.gnumeric.autocorrect replace true
+org.gnome.system.location max-accuracy-level 'exact'
+org.gnome.system.location enabled false
+org.gnucash.dialogs.business.employee-search last-geometry (-1, -1, -1, -1)
+org.gnucash.dialogs.business.employee-search search-for-active-only false
+org.gnome.boxes window-size [768, 600]
+org.gnome.boxes shared-folders ''
+org.gnome.boxes screenshot-interval 5
+org.gnome.boxes window-position @ai []
+org.gnome.boxes collections ['Work', 'Research', 'Gaming']
+org.gnome.boxes window-maximized true
+org.gnome.boxes view 'icon-view'
+org.gnome.desktop.peripherals.touchpad send-events 'enabled'
+org.gnome.desktop.peripherals.touchpad natural-scroll true
+org.gnome.desktop.peripherals.touchpad tap-to-click false
+org.gnome.desktop.peripherals.touchpad two-finger-scrolling-enabled true
+org.gnome.desktop.peripherals.touchpad left-handed 'mouse'
+org.gnome.desktop.peripherals.touchpad click-method 'fingers'
+org.gnome.desktop.peripherals.touchpad speed 0.0
+org.gnome.desktop.peripherals.touchpad scroll-method 'two-finger-scrolling'
+org.gnome.desktop.peripherals.touchpad tap-and-drag true
+org.gnome.desktop.peripherals.touchpad edge-scrolling-enabled false
+org.gnome.desktop.peripherals.touchpad disable-while-typing true
+org.gnome.desktop.a11y always-show-universal-access-status false
+org.gnome.desktop.a11y always-show-text-caret false
+org.gnome.rhythmbox.rhythmdb grace-period 45
+org.gnome.rhythmbox.rhythmdb locations @as []
+org.gnome.rhythmbox.rhythmdb monitor-library false
+org.gnome.rhythmbox.sources browser-views 'artists-albums'
+org.gnome.rhythmbox.sources visible-columns ['track-number', 'artist', 'album', 'genre', 'duration', 'post-time']
+org.gnucash.dialogs.business.invoice use-new-window false
+org.gnucash.dialogs.business.invoice accumulate-splits true
+org.gnucash.dialogs.business.invoice auto-pay false
+org.gnucash.dialogs.business.invoice enable-toolbuttons false
+org.gnucash.dialogs.business.invoice invoice-printreport 0
+org.gnucash.dialogs.business.invoice tax-included true
+org.gnome.gnumeric.core.gui.window zoom 1.0
+org.gnome.gnumeric.core.gui.window x 0.75
+org.gnome.gnumeric.core.gui.window y 0.75
+org.gnome.gnumeric.core.gui.cells extension-markers false
+org.gnome.gnumeric.core.gui.cells function-markers false
+org.gnome.desktop.peripherals.tablet area [0.0, 0.0, 0.0, 0.0]
+org.gnome.desktop.peripherals.tablet keep-aspect false
+org.gnome.desktop.peripherals.tablet left-handed false
+org.gnome.desktop.peripherals.tablet mapping 'absolute'
+org.gnome.desktop.peripherals.tablet display ['', '', '']
+org.gnome.desktop.peripherals.touchscreen display ['', '', '']
+org.gnucash.dialogs.import.generic enable-update true
+org.gnucash.dialogs.import.generic use-bayes true
+org.gnucash.dialogs.import.generic auto-add-threshold 3.0
+org.gnucash.dialogs.import.generic atm-fee-threshold 2.0
+org.gnucash.dialogs.import.generic auto-create-commodity false
+org.gnucash.dialogs.import.generic match-threshold 1.0
+org.gnucash.dialogs.import.generic enable-skip true
+org.gnucash.dialogs.import.generic auto-clear-threshold 6.0
+org.gnome.system.proxy.ftp host ''
+org.gnome.system.proxy.ftp port 0
+org.gnome.gitg.preferences.history show-stash true
+org.gnome.gitg.preferences.history topological-order false
+org.gnome.gitg.preferences.history reference-sort-order 'last-activity'
+org.gnome.gitg.preferences.history collapse-inactive-lanes-enabled true
+org.gnome.gitg.preferences.history default-selection 'current-branch'
+org.gnome.gitg.preferences.history collapse-inactive-lanes 2
+org.gnome.gitg.preferences.history mainline-head true
+org.gnome.gitg.preferences.history show-staged true
+org.gnome.gitg.preferences.history show-upstream-with-branch true
+org.gnome.gitg.preferences.history show-unstaged true
+org.gnome.desktop.thumbnail-cache maximum-age 180
+org.gnome.desktop.thumbnail-cache maximum-size 512
+org.gnome.system.proxy.socks host ''
+org.gnome.system.proxy.socks port 0
+org.gnucash.dialogs.business.job-search last-geometry (-1, -1, -1, -1)
+org.gnucash.dialogs.business.job-search search-for-active-only false
+org.gnucash.dialogs.import.csv last-geometry (-1, -1, -1, -1)
+org.gnucash.dialogs.import.csv last-path ''
+org.gnome.rhythmbox.plugins.magnatune account-type 'none'
+org.gnome.rhythmbox.plugins.magnatune format 'ogg'
+org.gnome.rhythmbox.source paned-position 180
+org.gnome.rhythmbox.source sorting ('Artist', true)
+org.gnome.rhythmbox.source show-browser true
+org.gnome.rhythmbox.source search-type 'search-match'
+org.gnome.gnumeric.functionselector recentfunctions @as []
+org.gnome.gnumeric.functionselector num-of-recent 12
+org.gnome.rhythmbox.source paned-position 180
+org.gnome.rhythmbox.source sorting ('Artist', true)
+org.gnome.rhythmbox.source show-browser true
+org.gnome.rhythmbox.source search-type 'search-match'
+org.gnucash.dialogs.open-save last-path ''
+org.gnome.rhythmbox.plugins.daap.dacp enable-remote false
+org.gnome.rhythmbox.plugins.daap.dacp known-remotes @as []
+org.gnome.rhythmbox.source paned-position 180
+org.gnome.rhythmbox.source sorting ('Artist', true)
+org.gnome.rhythmbox.source show-browser true
+org.gnome.rhythmbox.source search-type 'search-match'
+org.gnome.Evince document-directory @ms nothing
+org.gnome.Evince auto-reload true
+org.gnome.Evince override-restrictions true
+org.gnome.Evince page-cache-size uint32 50
+org.gnome.Evince allow-links-change-zoom true
+org.gnome.Evince pictures-directory @ms nothing
+org.gnome.Evince show-caret-navigation-message true
+org.gnome.gnumeric.core.defaultfont size 10.0
+org.gnome.gnumeric.core.defaultfont bold false
+org.gnome.gnumeric.core.defaultfont italic false
+org.gnome.gnumeric.core.defaultfont name 'Sans'
+org.gtk.Settings.Debug inspector-warning true
+org.gtk.Settings.Debug enable-inspector-keybinding false
+org.gnome.gitg.preferences.diff ignore-whitespace false
+org.gnome.gitg.preferences.diff wrap false
+org.gnome.gitg.preferences.diff changes-inline false
+org.gnome.gitg.preferences.diff context-lines 3
+org.gnome.gitg.preferences.diff tab-width 4
+org.gnucash.general.report use-new-window false
+org.gnucash.general.report default-zoom 1.0
+org.gnucash.general.report currency-choice-locale true
+org.gnucash.general.report currency-other 'USD'
+org.gnucash.general.report currency-choice-other false
+org.gnucash.dialogs.transfer last-geometry (-1, -1, -1, -1)
+org.gnome.desktop.notifications application-children @as []
+org.gnome.desktop.notifications show-in-lock-screen true
+org.gnome.desktop.notifications show-banners true
+org.gnome.crypto.pgp keyservers ['hkp://pool.sks-keyservers.net', 'ldap://keyserver.pgp.com']
+org.gnome.crypto.pgp last-signer ''
+org.gnome.crypto.pgp default-key ''
+org.gnome.crypto.pgp ascii-armor true
+org.gnome.crypto.pgp encrypt-to-self true
+org.gnome.crypto.pgp sort-recipients-by 'name'
+org.gnome.desktop.calendar show-weekdate false
+org.gnome.builder.terminal font-name 'Monospace 11'
+org.gnome.evolution-data-server autoconfig-variables ['']
+org.gnome.evolution-data-server camel-gpg-binary ''
+org.gnome.evolution-data-server network-monitor-gio-name ''
+org.gnome.evolution-data-server oauth2-services-hint ['']
+org.gnome.evolution-data-server camel-cipher-load-photos true
+org.gnome.evolution-data-server migrated false
+org.gnome.evolution-data-server autoconfig-directory ''
+org.gnucash.dialogs.preferences last-geometry (-1, -1, -1, -1)
+org.gnome.desktop.privacy remember-app-usage true
+org.gnome.desktop.privacy remove-old-temp-files false
+org.gnome.desktop.privacy old-files-age uint32 30
+org.gnome.desktop.privacy remove-old-trash-files false
+org.gnome.desktop.privacy remember-recent-files true
+org.gnome.desktop.privacy send-software-usage-stats false
+org.gnome.desktop.privacy report-technical-problems false
+org.gnome.desktop.privacy recent-files-max-age -1
+org.gnome.desktop.privacy hide-identity false
+org.gnome.desktop.privacy show-full-name-in-top-bar true
+org.gnome.system.smb workgroup ''
+org.gnome.desktop.interface menus-have-icons false
+org.gnome.desktop.interface cursor-blink-timeout 10
+org.gnome.desktop.interface gtk-color-palette 'black:white:gray50:red:purple:blue:light blue:green:yellow:orange:lavender:brown:goldenrod4:dodger blue:pink:light green:gray10:gray30:gray75:gray90'
+org.gnome.desktop.interface gtk-timeout-repeat 20
+org.gnome.desktop.interface automatic-mnemonics true
+org.gnome.desktop.interface toolkit-accessibility false
+org.gnome.desktop.interface cursor-theme 'Adwaita'
+org.gnome.desktop.interface gtk-im-module ''
+org.gnome.desktop.interface clock-show-seconds false
+org.gnome.desktop.interface can-change-accels false
+org.gnome.desktop.interface cursor-blink-time 1200
+org.gnome.desktop.interface toolbar-detachable false
+org.gnome.desktop.interface enable-animations true
+org.gnome.desktop.interface menubar-detachable false
+org.gnome.desktop.interface toolbar-style 'both-horiz'
+org.gnome.desktop.interface toolbar-icons-size 'large'
+org.gnome.desktop.interface show-input-method-menu true
+org.gnome.desktop.interface icon-theme 'Adwaita'
+org.gnome.desktop.interface gtk-timeout-initial 200
+org.gnome.desktop.interface scaling-factor uint32 0
+org.gnome.desktop.interface clock-format '24h'
+org.gnome.desktop.interface buttons-have-icons false
+org.gnome.desktop.interface monospace-font-name 'Monospace 11'
+org.gnome.desktop.interface text-scaling-factor 1.0
+org.gnome.desktop.interface clock-show-weekday true
+org.gnome.desktop.interface menus-have-tearoff false
+org.gnome.desktop.interface gtk-im-preedit-style 'callback'
+org.gnome.desktop.interface show-unicode-menu true
+org.gnome.desktop.interface cursor-blink true
+org.gnome.desktop.interface gtk-theme 'Adwaita'
+org.gnome.desktop.interface gtk-key-theme 'Default'
+org.gnome.desktop.interface gtk-im-status-style 'callback'
+org.gnome.desktop.interface gtk-enable-primary-paste true
+org.gnome.desktop.interface cursor-size 24
+org.gnome.desktop.interface show-battery-percentage false
+org.gnome.desktop.interface menubar-accel 'F10'
+org.gnome.desktop.interface gtk-color-scheme ''
+org.gnome.desktop.interface clock-show-date false
+org.gnome.desktop.interface document-font-name 'Sans 11'
+org.gnome.desktop.interface font-name 'Cantarell 11'
+org.gnome.gnumeric toolbar-style 'icons'
+org.gnome.gnumeric.core.file.save def-overwrite false
+org.gnome.gnumeric.core.file.save extension-check-disabled @as []
+org.gnome.gnumeric.core.file.save single-sheet true
+org.gnome.rhythmbox.sharing enable-browsing true
+org.gnome.rhythmbox.sharing require-password false
+org.gnome.rhythmbox.sharing share-name ''
+org.gnome.rhythmbox.sharing enable-sharing false
+org.gnome.rhythmbox.sharing share-password ''
+org.gnucash.dialogs.export.csv paned-position 0
+org.gnucash.dialogs.export.csv last-geometry (-1, -1, -1, -1)
+org.gnucash.dialogs.export.csv last-path ''
+org.gnome.gitg.state.history paned-sidebar-position 200
+org.gnome.gitg.state.history paned-panels-position 450
+org.gnucash.window.pages account-code-width 0
+org.gnucash.window.pages account-code-visible false
+org.gtk.Settings.ColorChooser selected-color (false, 1.0, 1.0, 1.0, 1.0)
+org.gtk.Settings.ColorChooser custom-colors @a(dddd) []
+org.gnucash.dialogs.tax-info paned-position 0
+org.gnucash.dialogs.tax-info last-geometry (-1, -1, -1, -1)
+org.gnucash.dialogs.pricedb-editor last-geometry (-1, -1, -1, -1)
+org.gnucash.general.report.pdf-export filename-date-format 'locale'
+org.gnucash.general.report.pdf-export filename-format '%1$s-%2$s-%3$s'
+org.gnucash.dialogs.fincalc last-geometry (-1, -1, -1, -1)
+org.gnome.devhelp.fonts use-system-fonts true
+org.gnome.devhelp.fonts variable-font 'Sans 12'
+org.gnome.devhelp.fonts fixed-font 'Monospace 12'
+org.gnome.devhelp.state.main.window width 1000
+org.gnome.devhelp.state.main.window maximized false
+org.gnome.devhelp.state.main.window height 500
+org.gnome.desktop.datetime automatic-timezone false
+org.gnucash.dialogs.business.order-search last-geometry (-1, -1, -1, -1)
+org.gnucash.dialogs.business.order-search search-for-active-only false
+org.gnucash.dialogs.import.hbci.connection-dialog last-geometry (-1, -1, -1, -1)
+org.gnome.rhythmbox.source paned-position 180
+org.gnome.rhythmbox.source sorting ('Artist', true)
+org.gnome.rhythmbox.source show-browser true
+org.gnome.rhythmbox.source search-type 'search-match'
+org.gnucash.dialogs.business.customer-search last-geometry (-1, -1, -1, -1)
+org.gnucash.dialogs.business.customer-search search-for-active-only false
+org.gnome.system.proxy use-same-proxy true
+org.gnome.system.proxy mode 'none'
+org.gnome.system.proxy autoconfig-url ''
+org.gnome.system.proxy ignore-hosts ['localhost', '127.0.0.0/8', '::1']
+org.gnome.gnumeric.core.sort.dialog max-initial-clauses 10
+org.gnome.rhythmbox queue-as-sidebar false
+org.gnome.rhythmbox show-song-position-slider true
+org.gnome.rhythmbox position (-1, -1)
+org.gnome.rhythmbox follow-playing true
+org.gnome.rhythmbox display-page-tree-height 300
+org.gnome.rhythmbox size (790, 560)
+org.gnome.rhythmbox display-page-tree-visible true
+org.gnome.rhythmbox paned-position 160
+org.gnome.rhythmbox maximized false
+org.gnome.rhythmbox right-paned-position 400
+org.gnome.rhythmbox time-display true
+org.gnome.rhythmbox show-album-art true
+org.gnome.rhythmbox statusbar-visible true
+org.gnucash.dev allow-file-incompatibility false
+org.gtk.Settings.FileChooser sort-column 'name'
+org.gtk.Settings.FileChooser clock-format '24h'
+org.gtk.Settings.FileChooser last-folder-uri ''
+org.gtk.Settings.FileChooser sidebar-width 148
+org.gtk.Settings.FileChooser window-position (-1, -1)
+org.gtk.Settings.FileChooser show-size-column true
+org.gtk.Settings.FileChooser startup-mode 'recent'
+org.gtk.Settings.FileChooser show-hidden false
+org.gtk.Settings.FileChooser window-size (-1, -1)
+org.gtk.Settings.FileChooser sort-directories-first false
+org.gtk.Settings.FileChooser expand-folders false
+org.gtk.Settings.FileChooser date-format 'regular'
+org.gtk.Settings.FileChooser sort-order 'ascending'
+org.gtk.Settings.FileChooser location-mode 'path-bar'
+org.gnucash.dialogs.checkprinting date-format 7
+org.gnucash.dialogs.checkprinting splits-account (0.0, 0.0)
+org.gnucash.dialogs.checkprinting custom-memo (0.0, 0.0)
+org.gnucash.dialogs.checkprinting default-font 'sans 10'
+org.gnucash.dialogs.checkprinting print-date-format false
+org.gnucash.dialogs.checkprinting splits-amount (0.0, 0.0)
+org.gnucash.dialogs.checkprinting splits-memo (0.0, 0.0)
+org.gnucash.dialogs.checkprinting custom-rotation 0.0
+org.gnucash.dialogs.checkprinting check-format-guid ''
+org.gnucash.dialogs.checkprinting custom-date (0.0, 0.0)
+org.gnucash.dialogs.checkprinting custom-amount-number (0.0, 0.0)
+org.gnucash.dialogs.checkprinting custom-translation (0.0, 0.0)
+org.gnucash.dialogs.checkprinting custom-payee (0.0, 0.0)
+org.gnucash.dialogs.checkprinting date-format-user '0'
+org.gnucash.dialogs.checkprinting last-geometry (-1, -1, -1, -1)
+org.gnucash.dialogs.checkprinting blocking-chars false
+org.gnucash.dialogs.checkprinting custom-amount-words (0.0, 0.0)
+org.gnucash.dialogs.checkprinting check-position 0
+org.gnucash.dialogs.checkprinting custom-units 0
+org.gnucash.dialogs.checkprinting custom-address (0.0, 0.0)
+org.gnucash.dialogs.checkprinting first-page-count 0
+org.gnucash.dialogs.checkprinting custom-notes (0.0, 0.0)
+net.sf.liferea.plugins active-plugins ['gnome-keyring', 'media-player', 'trayicon']
+org.gnucash.dialogs.import.generic.transaction-list last-geometry (-1, -1, -1, -1)
+org.gnome.desktop.lockdown disable-command-line false
+org.gnome.desktop.lockdown disable-application-handlers false
+org.gnome.desktop.lockdown disable-user-switching false
+org.gnome.desktop.lockdown user-administration-disabled false
+org.gnome.desktop.lockdown disable-printing false
+org.gnome.desktop.lockdown disable-log-out false
+org.gnome.desktop.lockdown disable-lock-screen false
+org.gnome.desktop.lockdown disable-print-setup false
+org.gnome.desktop.lockdown disable-save-to-disk false
+org.gnome.rhythmbox.encoding-settings transcode-lossless false
+org.gnome.rhythmbox.encoding-settings media-type 'audio/x-vorbis'
+org.gnome.rhythmbox.encoding-settings media-type-presets @a{ss} {}
+org.gnome.rhythmbox.source paned-position 180
+org.gnome.rhythmbox.source sorting ('Artist', true)
+org.gnome.rhythmbox.source show-browser true
+org.gnome.rhythmbox.source search-type 'search-match'
+org.gnome.rhythmbox.plugins.replaygain preamp 0.0
+org.gnome.rhythmbox.plugins.replaygain limiter true
+org.gnome.rhythmbox.plugins.replaygain mode 'radio'
+org.gnome.gnumeric.plugin.latex use-utf8 false
+org.gnome.desktop.wm.keybindings cycle-windows-backward ['<Shift><Alt>Escape']
+org.gnome.desktop.wm.keybindings minimize ['<Super>h']
+org.gnome.desktop.wm.keybindings move-to-workspace-7 @as []
+org.gnome.desktop.wm.keybindings move-to-workspace-8 @as []
+org.gnome.desktop.wm.keybindings move-to-workspace-9 @as []
+org.gnome.desktop.wm.keybindings move-to-monitor-left ['<Super><Shift>Left']
+org.gnome.desktop.wm.keybindings move-to-workspace-5 @as []
+org.gnome.desktop.wm.keybindings move-to-workspace-6 @as []
+org.gnome.desktop.wm.keybindings move-to-workspace-10 @as []
+org.gnome.desktop.wm.keybindings move-to-workspace-11 @as []
+org.gnome.desktop.wm.keybindings move-to-workspace-12 @as []
+org.gnome.desktop.wm.keybindings move-to-center @as []
+org.gnome.desktop.wm.keybindings unmaximize ['<Super>Down', '<Alt>F5']
+org.gnome.desktop.wm.keybindings panel-main-menu ['<Alt>F1']
+org.gnome.desktop.wm.keybindings cycle-windows ['<Alt>Escape']
+org.gnome.desktop.wm.keybindings cycle-panels-backward ['<Shift><Control><Alt>Escape']
+org.gnome.desktop.wm.keybindings panel-run-dialog ['<Alt>F2']
+org.gnome.desktop.wm.keybindings switch-to-workspace-down ['<Super>Page_Down', '<Control><Alt>Down']
+org.gnome.desktop.wm.keybindings move-to-corner-ne @as []
+org.gnome.desktop.wm.keybindings move-to-side-e @as []
+org.gnome.desktop.wm.keybindings move-to-workspace-right ['<Control><Shift><Alt>Right']
+org.gnome.desktop.wm.keybindings always-on-top @as []
+org.gnome.desktop.wm.keybindings move-to-workspace-up ['<Super><Shift>Page_Up', '<Control><Shift><Alt>Up']
+org.gnome.desktop.wm.keybindings raise @as []
+org.gnome.desktop.wm.keybindings maximize ['<Super>Up']
+org.gnome.desktop.wm.keybindings cycle-group-backward ['<Shift><Alt>F6']
+org.gnome.desktop.wm.keybindings move-to-side-n @as []
+org.gnome.desktop.wm.keybindings move-to-side-s @as []
+org.gnome.desktop.wm.keybindings maximize-horizontally @as []
+org.gnome.desktop.wm.keybindings move-to-side-w @as []
+org.gnome.desktop.wm.keybindings move-to-corner-nw @as []
+org.gnome.desktop.wm.keybindings switch-windows @as []
+org.gnome.desktop.wm.keybindings begin-move ['<Alt>F7']
+org.gnome.desktop.wm.keybindings move-to-monitor-down ['<Super><Shift>Down']
+org.gnome.desktop.wm.keybindings switch-windows-backward @as []
+org.gnome.desktop.wm.keybindings move-to-workspace-left ['<Control><Shift><Alt>Left']
+org.gnome.desktop.wm.keybindings move-to-corner-se @as []
+org.gnome.desktop.wm.keybindings activate-window-menu ['<Alt>space']
+org.gnome.desktop.wm.keybindings switch-input-source ['<Super>space']
+org.gnome.desktop.wm.keybindings toggle-above @as []
+org.gnome.desktop.wm.keybindings move-to-monitor-right ['<Super><Shift>Right']
+org.gnome.desktop.wm.keybindings switch-input-source-backward ['<Shift><Super>space']
+org.gnome.desktop.wm.keybindings move-to-workspace-last ['<Super><Shift>End']
+org.gnome.desktop.wm.keybindings lower @as []
+org.gnome.desktop.wm.keybindings cycle-panels ['<Control><Alt>Escape']
+org.gnome.desktop.wm.keybindings toggle-fullscreen @as []
+org.gnome.desktop.wm.keybindings toggle-on-all-workspaces @as []
+org.gnome.desktop.wm.keybindings move-to-monitor-up ['<Super><Shift>Up']
+org.gnome.desktop.wm.keybindings move-to-corner-sw @as []
+org.gnome.desktop.wm.keybindings toggle-shaded @as []
+org.gnome.desktop.wm.keybindings switch-to-workspace-1 ['<Super>Home']
+org.gnome.desktop.wm.keybindings switch-to-workspace-2 @as []
+org.gnome.desktop.wm.keybindings switch-to-workspace-3 @as []
+org.gnome.desktop.wm.keybindings switch-to-workspace-4 @as []
+org.gnome.desktop.wm.keybindings raise-or-lower @as []
+org.gnome.desktop.wm.keybindings switch-panels ['<Control><Alt>Tab']
+org.gnome.desktop.wm.keybindings switch-panels-backward ['<Shift><Control><Alt>Tab']
+org.gnome.desktop.wm.keybindings switch-applications-backward ['<Shift><Super>Tab', '<Shift><Alt>Tab']
+org.gnome.desktop.wm.keybindings maximize-vertically @as []
+org.gnome.desktop.wm.keybindings switch-to-workspace-7 @as []
+org.gnome.desktop.wm.keybindings switch-to-workspace-5 @as []
+org.gnome.desktop.wm.keybindings show-desktop @as []
+org.gnome.desktop.wm.keybindings switch-to-workspace-8 @as []
+org.gnome.desktop.wm.keybindings switch-to-workspace-9 @as []
+org.gnome.desktop.wm.keybindings switch-to-workspace-6 @as []
+org.gnome.desktop.wm.keybindings switch-applications ['<Super>Tab', '<Alt>Tab']
+org.gnome.desktop.wm.keybindings switch-to-workspace-10 @as []
+org.gnome.desktop.wm.keybindings switch-to-workspace-11 @as []
+org.gnome.desktop.wm.keybindings switch-to-workspace-12 @as []
+org.gnome.desktop.wm.keybindings switch-to-workspace-left ['<Control><Alt>Left']
+org.gnome.desktop.wm.keybindings toggle-maximized ['<Alt>F10']
+org.gnome.desktop.wm.keybindings set-spew-mark @as []
+org.gnome.desktop.wm.keybindings begin-resize ['<Alt>F8']
+org.gnome.desktop.wm.keybindings move-to-workspace-down ['<Super><Shift>Page_Down', '<Control><Shift><Alt>Down']
+org.gnome.desktop.wm.keybindings switch-to-workspace-last ['<Super>End']
+org.gnome.desktop.wm.keybindings switch-group-backward ['<Shift><Super>Above_Tab', '<Shift><Alt>Above_Tab']
+org.gnome.desktop.wm.keybindings switch-group ['<Super>Above_Tab', '<Alt>Above_Tab']
+org.gnome.desktop.wm.keybindings cycle-group ['<Alt>F6']
+org.gnome.desktop.wm.keybindings close ['<Alt>F4']
+org.gnome.desktop.wm.keybindings switch-to-workspace-up ['<Super>Page_Up', '<Control><Alt>Up']
+org.gnome.desktop.wm.keybindings move-to-workspace-1 ['<Super><Shift>Home']
+org.gnome.desktop.wm.keybindings move-to-workspace-2 @as []
+org.gnome.desktop.wm.keybindings move-to-workspace-3 @as []
+org.gnome.desktop.wm.keybindings move-to-workspace-4 @as []
+org.gnome.desktop.wm.keybindings switch-to-workspace-right ['<Control><Alt>Right']
+org.gnome.crypto.cache gpg-cache-method 'session'
+org.gnome.crypto.cache gpg-cache-ttl 300
+org.gnome.desktop.peripherals.keyboard repeat-interval uint32 30
+org.gnome.desktop.peripherals.keyboard delay uint32 500
+org.gnome.desktop.peripherals.keyboard repeat true
+org.gnucash.dialogs.report-saved-configs last-geometry (-1, -1, -1, -1)
+org.gnome.builder.code-insight ctags-path '/usr/bin/ctags-exuberant'
+org.gnome.builder.code-insight word-completion true
+org.gnome.builder.code-insight ctags-autocompletion true
+org.gnome.builder.code-insight snippet-completion true
+org.gnome.builder.code-insight semantic-highlighting true
+org.gnome.builder.code-insight clang-autocompletion false
+org.gnome.gnumeric.stf.export transliteration true
+org.gnome.gnumeric.stf.export encoding ''
+org.gnome.gnumeric.stf.export locale ''
+org.gnome.gnumeric.stf.export quoting 'auto'
+org.gnome.gnumeric.stf.export format 'automatic'
+org.gnome.gnumeric.stf.export separator ','
+org.gnome.gnumeric.stf.export terminator '\n'
+org.gnome.gnumeric.stf.export stringindicator '"'
+org.freedesktop.Tracker.DB journal-rotate-destination ''
+org.freedesktop.Tracker.DB journal-chunk-size 50
+org.gnome.gnumeric.core.workbook n-rows 65536
+org.gnome.gnumeric.core.workbook autosave-time 0
+org.gnome.gnumeric.core.workbook n-cols 256
+org.gnome.gnumeric.core.workbook n-sheet 3
+org.gnome.rhythmbox.plugins.iradio initial-stations-loaded false
+org.gnome.rhythmbox.plugins.iradio.source paned-position 200
+org.gnome.rhythmbox.plugins.iradio.source sorting ('Title', true)
+org.gnome.rhythmbox.plugins.iradio.source show-browser true
+org.gnome.rhythmbox.plugins.iradio.source search-type 'search-match'
+org.gnucash.dialogs.business.bill days-in-advance 7.0
+org.gnucash.dialogs.business.bill auto-pay false
+org.gnucash.dialogs.business.bill notify-when-due true
+org.gnucash.dialogs.business.bill tax-included true
+org.gnome.sysprof2 window-size (-1, -1)
+org.gnome.sysprof2 window-position (-1, -1)
+org.gnome.sysprof2 last-spawn-argv ''
+org.gnome.sysprof2 last-spawn-env @as []
+org.gnome.sysprof2 last-spawn-inherit-env true
+org.gnome.sysprof2 window-maximized true
+org.gnome.gnumeric.plugin.glpk glpsol-path ''
+org.gnucash.dialogs.import.ofx last-path ''
+org.gnucash.dialogs.commodities last-geometry (-1, -1, -1, -1)
+org.gnucash.dialogs.commodities include-iso false
+org.gnome.builder.plugins.color_picker_plugin filter 'none'
+org.gnome.builder.plugins.color_picker_plugin selected-palette-id ''
+org.gnome.builder.plugins.color_picker_plugin strings-visible ['hex3', 'hex6', 'rgb', 'rgba', 'hsl', 'hsla']
+org.gnome.gitg.state.commit sign-off false
+org.gnome.gitg.state.commit paned-sidebar-position 200
+org.gnome.gitg.preferences.main clone-directory ''
+org.gnucash.dialogs.import.qif default-status-notcleared true
+org.gnucash.dialogs.import.qif show-doc true
+org.gnucash.dialogs.import.qif default-status-cleared false
+org.gnucash.dialogs.import.qif default-status-reconciled false
+org.gnucash.dialogs.import.qif last-geometry (-1, -1, -1, -1)
+org.gnucash.dialogs.import.qif last-path ''
+org.gnome.desktop.a11y.keyboard slowkeys-beep-press false
+org.gnome.desktop.a11y.keyboard mousekeys-accel-time 300
+org.gnome.desktop.a11y.keyboard bouncekeys-beep-reject false
+org.gnome.desktop.a11y.keyboard slowkeys-beep-reject false
+org.gnome.desktop.a11y.keyboard togglekeys-enable false
+org.gnome.desktop.a11y.keyboard disable-timeout 200
+org.gnome.desktop.a11y.keyboard enable false
+org.gnome.desktop.a11y.keyboard bouncekeys-enable false
+org.gnome.desktop.a11y.keyboard stickykeys-enable false
+org.gnome.desktop.a11y.keyboard feature-state-change-beep false
+org.gnome.desktop.a11y.keyboard slowkeys-beep-accept false
+org.gnome.desktop.a11y.keyboard bouncekeys-delay 300
+org.gnome.desktop.a11y.keyboard mousekeys-max-speed 10
+org.gnome.desktop.a11y.keyboard mousekeys-enable false
+org.gnome.desktop.a11y.keyboard timeout-enable false
+org.gnome.desktop.a11y.keyboard slowkeys-delay 300
+org.gnome.desktop.a11y.keyboard stickykeys-modifier-beep false
+org.gnome.desktop.a11y.keyboard stickykeys-two-key-off false
+org.gnome.desktop.a11y.keyboard mousekeys-init-delay 300
+org.gnome.desktop.a11y.keyboard slowkeys-enable false
+org.gnome.desktop.search-providers sort-order ['org.gnome.Contacts.desktop', 'org.gnome.Documents.desktop', 'org.gnome.Nautilus.desktop']
+org.gnome.desktop.search-providers disabled @as []
+org.gnome.desktop.search-providers disable-external false
+org.gnome.desktop.search-providers enabled @as []

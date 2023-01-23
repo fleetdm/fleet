@@ -1,0 +1,11 @@
+{
+    "Comment": "comment -- rsa/2048 by openssh S3ihMPqU8vVCWemr",
+    "FingerprintSHA256": "ddfqHb1RCN/szlfzCusigLaYr6fbFccSN6/ORWbZ1wM",
+    "FingerprintMD5": "f8:ff:e2:96:42:54:f4:6a:a6:8c:28:d0:b5:2e:9c:9d",
+    "Type": "rsa",
+    "Bits": 2048,
+    "Encrypted": false,
+    "command": "ssh-keygen -t rsa -b 2048 -f specs/jkm4J7avALlDX3ZE -C comment -- rsa/2048 by openssh S3ihMPqU8vVCWemr -P ",
+    "Format": "openssh-new",
+    "Source": "ssh-keygen"
+}

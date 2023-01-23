@@ -1,0 +1,11 @@
+{
+    "Comment": "comment -- dsa/1024 by putty 58yj22GKexky3cj3",
+    "FingerprintSHA256": "wmySj3ZNYvaJ9TykmPjoXwsfW9Ylbkiw+2quczVDmLI",
+    "FingerprintMD5": "4e:b9:68:0e:09:fb:48:46:47:10:a3:8b:4c:76:1c:f7",
+    "Type": "dsa",
+    "Bits": 1024,
+    "Encrypted": true,
+    "command": "puttygen --random-device /dev/urandom -t dsa -b 1024 -o specs/RkhmCKiRdhQ21uGf -O private-sshcom --new-passphrase /dev/fd/63 -C comment -- dsa/1024 by putty 58yj22GKexky3cj3",
+    "Format": "sshcom",
+    "Source": "putty"
+}

@@ -1,0 +1,11 @@
+nmines
+window-width
+ysize
+use-question-marks
+use-autoflag
+use-animations
+mode
+xsize
+theme
+window-height
+window-is-maximized

@@ -1,0 +1,114 @@
+[
+    {
+        "option": "scan",
+        "fullkey": "0/SSID",
+        "parent": "0",
+        "key": "SSID",
+        "value": "i got spaces!",
+        "query": "*"
+    },
+    {
+        "option": "scan",
+        "parent": "0",
+        "fullkey": "0/BSSID",
+        "key": "BSSID",
+        "value": "a0:a0:a0:a0:a0:a0",
+        "query": "*"
+    },
+    {
+        "option": "scan",
+        "fullkey": "0/RSSI",
+        "parent": "0",
+        "key": "RSSI",
+        "value": "-92",
+        "query": "*"
+    },
+    {
+        "option": "scan",
+        "fullkey": "0/CHANNEL",
+        "parent": "0",
+        "key": "CHANNEL",
+        "value": "108",
+        "query": "*"
+    },
+    {
+        "option": "scan",
+        "fullkey": "0/HT",
+        "parent": "0",
+        "key": "HT",
+        "value": "Y",
+        "query": "*"
+    },
+    {
+        "option": "scan",
+        "fullkey": "0/CC",
+        "parent": "0",
+        "key": "CC",
+        "value": "US",
+        "query": "*"
+    },
+    {
+        "option": "scan",
+        "fullkey": "0/SECURITY (auth/unicast/group)",
+        "parent": "0",
+        "key": "SECURITY (auth/unicast/group)",
+        "value": "WPA(PSK/AES,TKIP/TKIP) RSN(PSK/AES,TKIP/TKIP)",
+        "query": "*"
+    },
+    {
+        "option": "scan",
+        "fullkey": "1/SSID",
+        "parent": "1",
+        "key": "SSID",
+        "value": "no-spaces",
+        "query": "*"
+    },
+    {
+        "option": "scan",
+        "fullkey": "1/BSSID",
+        "parent": "1",
+        "key": "BSSID",
+        "value": "b1:b1:b1:b1:b1:b1",
+        "query": "*"
+    },
+    {
+        "option": "scan",
+        "fullkey": "1/RSSI",
+        "parent": "1",
+        "key": "RSSI",
+        "value": "-91",
+        "query": "*"
+    },
+    {
+        "option": "scan",
+        "fullkey": "1/CHANNEL",
+        "parent": "1",
+        "key": "CHANNEL",
+        "value": "116",
+        "query": "*"
+    },
+    {
+        "option": "scan",
+        "fullkey": "1/HT",
+        "parent": "1",
+        "key": "HT",
+        "value": "N",
+        "query": "*"
+    },
+    {
+        "option": "scan",
+        "fullkey": "1/CC",
+        "parent": "1",
+        "key": "CC",
+        "value": "EU",
+        "query": "*"
+    },
+    {
+        "option": "scan",
+        "fullkey": "1/SECURITY (auth/unicast/group)",
+        "parent": "1",
+        "key": "SECURITY (auth/unicast/group)",
+        "value": "RSN(PSK/AES/AES)",
+        "query": "*"
+    }
+]

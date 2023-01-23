@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>AvailableDiskSpace</key>
+	<integer>26635756</integer>
+	<key>ConsoleUser</key>
+	<string>auser</string>
+	<key>EndTime</key>
+	<string>2020-06-08 18:12:01 +0000</string>
+	<key>Errors</key>
+	<array>
+		<string>Could not retrieve managed install primary manifest.</string>
+	</array>
+	<key>InstallResults</key>
+	<array/>
+	<key>ItemsToInstall</key>
+	<array/>
+	<key>ItemsToRemove</key>
+	<array/>
+	<key>MachineInfo</key>
+	<dict>
+		<key>arch</key>
+		<string>x86_64</string>
+		<key>hostname</key>
+		<string>acomputer.localdomain</string>
+		<key>ipv4_address</key>
+		<array>
+			<string>10.0.0.2</string>
+		</array>
+		<key>ipv6_address</key>
+		<array>
+			<string>::ffff:10.0.0.2</string>
+		</array>
+		<key>machine_model</key>
+		<string>MacBookPro14,3</string>
+		<key>munki_version</key>
+		<string>3.1.1.3447</string>
+		<key>os_vers</key>
+		<string>10.14.6</string>
+		<key>serial_number</key>
+		<string>C11111111111</string>
+		<key>x86_64_capable</key>
+		<true/>
+	</dict>
+	<key>ManagedInstallVersion</key>
+	<string>3.1.1.3447</string>
+	<key>RemovalResults</key>
+	<array/>
+	<key>RunType</key>
+	<string>auto</string>
+	<key>StartTime</key>
+	<string>2020-06-08 18:11:59 +0000</string>
+	<key>Warnings</key>
+	<array>
+	</array>
+</dict>
+</plist>

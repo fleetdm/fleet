@@ -1,0 +1,11 @@
+{
+    "Comment": "comment -- ecdsa/521 by putty qMAWxB2661lreHYi",
+    "FingerprintSHA256": "QvpOP69hr4vK8mcTKVQMihaJ+kncjW9jfl7S4j+XUzU",
+    "FingerprintMD5": "44:b9:94:eb:6b:9a:03:27:e9:94:bb:b7:77:3e:27:21",
+    "Type": "ecdsa",
+    "Bits": 521,
+    "Encrypted": false,
+    "command": "puttygen --random-device /dev/urandom -t ecdsa -b 521 -o specs/03YUjgGvQy5wnf9C -O private-openssh-new --new-passphrase /dev/fd/63 -C comment -- ecdsa/521 by putty qMAWxB2661lreHYi",
+    "Format": "openssh-new",
+    "Source": "putty"
+}

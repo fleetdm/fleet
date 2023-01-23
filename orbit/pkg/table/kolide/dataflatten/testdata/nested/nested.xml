@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>inbinary</key>
+	<data>YnBsaXN0MDDSAQIDBlNhcnJXYXN0cmluZ6IEBVNvbmVTdHdvVWhlbGxvCA0RGRwgJAAAAAAAAAEBAAAAAAAAAAcAAAAAAAAAAAAAAAAAAAAq</data>
+	<key>inxml</key>
+	<string>&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;?&gt;
+&lt;!DOCTYPE plist PUBLIC &quot;-//Apple//DTD PLIST 1.0//EN&quot; &quot;http://www.apple.com/DTDs/PropertyList-1.0.dtd&quot;&gt;
+&lt;plist version=&quot;1.0&quot;&gt;
+&lt;dict&gt;
+	&lt;key&gt;arr&lt;/key&gt;
+	&lt;array&gt;
+		&lt;string&gt;one&lt;/string&gt;
+		&lt;string&gt;two&lt;/string&gt;
+	&lt;/array&gt;
+	&lt;key&gt;astring&lt;/key&gt;
+	&lt;string&gt;hello&lt;/string&gt;
+&lt;/dict&gt;
+&lt;/plist&gt;</string>
+</dict>
+</plist>
+plutil -convert xml1 -o - nested.template.json

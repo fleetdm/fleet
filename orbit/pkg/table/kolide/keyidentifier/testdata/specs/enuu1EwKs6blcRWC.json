@@ -1,0 +1,11 @@
+{
+    "Comment": "comment -- ecdsa/256 by openssh 0zdTpzTwRZsx0X31",
+    "FingerprintSHA256": "0UnvxNcQzGhoyb9nX+N6rP+ysQPabShaeXk3PTsfZDQ",
+    "FingerprintMD5": "94:88:d9:4e:1a:4a:df:c8:b8:25:0e:a2:d0:6d:89:b9",
+    "Type": "ecdsa",
+    "Bits": 256,
+    "Encrypted": true,
+    "command": "ssh-keygen -t ecdsa -b 256 -f specs/enuu1EwKs6blcRWC -C comment -- ecdsa/256 by openssh 0zdTpzTwRZsx0X31 -P qXa6sCi7sbR6MZX3",
+    "Format": "openssh-new",
+    "Source": "ssh-keygen"
+}

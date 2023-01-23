@@ -1,0 +1,11 @@
+{
+    "Comment": "comment -- rsa/1024 by putty c36xTdyanK9rYL8J",
+    "FingerprintSHA256": "E7odgnJIOi8LT4N9onIcw2YAaJtuAyhTOd0FaAPYsqU",
+    "FingerprintMD5": "cd:54:b0:6e:ec:37:ee:a4:bf:5a:19:71:ce:ee:c9:51",
+    "Type": "rsa",
+    "Bits": 1024,
+    "Encrypted": true,
+    "command": "puttygen --random-device /dev/urandom -t rsa -b 1024 -o specs/ohFvWQTilqeYTfsZ -O private-sshcom --new-passphrase /dev/fd/63 -C comment -- rsa/1024 by putty c36xTdyanK9rYL8J",
+    "Format": "sshcom",
+    "Source": "putty"
+}

@@ -1,0 +1,52 @@
+Daemon response: {
+    ProfileList =     (
+                {
+            HasRemovalPasscode = 0;
+            IsEncrypted = 1;
+            PayloadDisplayName = "A Test Payload";
+            PayloadIdentifier = "com.example.mdm.1234567890abc";
+            PayloadRemovalDisallowed = 1;
+            PayloadUUID = "00000000-1111-1111-1111-222222222222";
+            PayloadVersion = 1;
+            SignerCertificates =             (
+                <30820576 3082045e 2b97>,
+                <30820418 30820300 9237bb40>
+            );
+        },
+                {
+            HasRemovalPasscode = 0;
+            IsEncrypted = 0;
+            PayloadContent =             (
+                                {
+                    PayloadDisplayName = "SCEP (CAIdentity)";
+                    PayloadIdentifier = fffffffffffffffffaaaaaaaaaaaaaaa;
+                    PayloadType = "com.apple.security.scep";
+                    PayloadUUID = "00000000-1111-1111-1111-222222222222";
+                    PayloadVersion = 1;
+                },
+                                {
+                    PayloadIdentifier = 000000000000000bbbbbbbbbbbbbbbbb;
+                    PayloadOrganization = Example;
+                    PayloadType = "com.apple.mdm";
+                    PayloadUUID = "00000000-1111-1111-1111-222222222222";
+                    PayloadVersion = 1;
+                }
+            );
+            PayloadDescription = "mdm test plist";
+            PayloadDisplayName = "A Test Payload";
+            PayloadIdentifier = "com.example.mdm.a123";
+            PayloadOrganization = "Example Org";
+            PayloadRemovalDisallowed = 0;
+            PayloadUUID = "00000000-1111-1111-1111-222222222222";
+            PayloadVersion = 1;
+            SignerCertificates =             (
+                <30820576 3082045e 2b97>,
+                <30820418 30820300 9237bb40>
+            );
+        }
+    );
+}
+Agent response: {
+    ProfileList =     (
+    );
+}

@@ -1,0 +1,11 @@
+{
+    "Comment": "comment -- rsa/1024 by putty CGbKBqoSwh2KOzdj",
+    "FingerprintSHA256": "5wj17O2GyEIyUakcJHj+WzZ/ID1iTz5f40j41avLufQ",
+    "FingerprintMD5": "0f:eb:d4:fb:93:0c:0c:86:69:d9:d3:fb:18:22:a0:31",
+    "Type": "rsa",
+    "Bits": 1024,
+    "Encrypted": true,
+    "command": "puttygen --random-device /dev/urandom -t rsa -b 1024 -o specs/Xl2XIojHPmxXevbi -O private-openssh --new-passphrase /dev/fd/63 -C comment -- rsa/1024 by putty CGbKBqoSwh2KOzdj",
+    "Format": "openssh",
+    "Source": "putty"
+}

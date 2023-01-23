@@ -1,0 +1,11 @@
+{
+    "Comment": "comment -- rsa1/2048 by putty MMKb6xmiSazX0S1H",
+    "FingerprintSHA256": "",
+    "FingerprintMD5": "comment",
+    "Type": "rsa1",
+    "Bits": 2048,
+    "Encrypted": false,
+    "command": "puttygen --random-device /dev/urandom -t rsa1 -b 2048 -o specs/203Bz5oACQP52QO0 -O private --new-passphrase /dev/fd/63 -C comment -- rsa1/2048 by putty MMKb6xmiSazX0S1H",
+    "Format": "ssh1",
+    "Source": "putty"
+}

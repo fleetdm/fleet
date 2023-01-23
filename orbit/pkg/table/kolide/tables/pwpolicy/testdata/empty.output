@@ -1,0 +1,98 @@
+Getting global account policies
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>policyCategoryPasswordContent</key>
+	<array>
+		<dict>
+			<key>policyContent</key>
+			<string>policyAttributePassword matches '.{4,}+'</string>
+			<key>policyContentDescription</key>
+			<dict>
+				<key>Dutch</key>
+				<string>Voer een wachtwoord van vier of meer tekens in.</string>
+				<key>English</key>
+				<string>Enter a password that is four characters or more.</string>
+				<key>French</key>
+				<string>Saisissez un mot de passe comportant au moins quatre caractères.</string>
+				<key>German</key>
+				<string>Gib ein Passwort ein, das aus mindestens vier Zeichen besteht.</string>
+				<key>Italian</key>
+				<string>Inserisci una password di quattro o più caratteri.</string>
+				<key>Japanese</key>
+				<string>4文字以上のパスワードを入力してください。</string>
+				<key>Spanish</key>
+				<string>Introduce una contraseña que tenga como mínimo cuatro caracteres.</string>
+				<key>ar</key>
+				<string>أدخل كلمة سر لا تقل عن أربعة أحرف أو رموز.</string>
+				<key>ca</key>
+				<string>Introdueix una contrasenya que tingui quatre caràcters o més.</string>
+				<key>cs</key>
+				<string>Zadejte heslo o minimální délce čtyři znaky.</string>
+				<key>da</key>
+				<string>Skriv en adgangskode på mindst fire tegn.</string>
+				<key>el</key>
+				<string>Εισαγάγετε ένα συνθηματικό που περιέχει τέσσερις ή περισσότερους χαρακτήρες.</string>
+				<key>en_AU</key>
+				<string>Enter a password that is four characters or more.</string>
+				<key>en_GB</key>
+				<string>Enter a password that is four characters or more.</string>
+				<key>es_419</key>
+				<string>Ingresa una contraseña de cuatro caracteres o más.</string>
+				<key>fi</key>
+				<string>Kirjoita salasana, jossa on vähintään neljä merkkiä.</string>
+				<key>fr_CA</key>
+				<string>Saisissez un mot de passe comportant au moins quatre caractères.</string>
+				<key>he</key>
+				<string>הקש/י סיסמה בת ארבעה תווים או יותר.</string>
+				<key>hi</key>
+				<string>चार वर्णों वाला या उससे बड़ा पासवर्ड दर्ज करें।</string>
+				<key>hr</key>
+				<string>Unesite lozinku od četiri ili više znakova.</string>
+				<key>hu</key>
+				<string>Adjon meg egy legalább négy karakterből álló jelszót.</string>
+				<key>id</key>
+				<string>Masukkan kata sandi yang terdiri dari empat karakter atau lebih.</string>
+				<key>ko</key>
+				<string>4자 이상의 암호를 입력하십시오.</string>
+				<key>ms</key>
+				<string>Masukkan kata laluan yang mengandungi empat atau lebih aksara.</string>
+				<key>no</key>
+				<string>Angi et passord på minst fire tegn.</string>
+				<key>pl</key>
+				<string>Podaj hasło składające się z co najmniej czterech znaków.</string>
+				<key>pt</key>
+				<string>Digite uma senha com quatro ou mais caracteres.</string>
+				<key>pt_PT</key>
+				<string>Digite uma palavra‑passe com pelo menos quatro caracteres.</string>
+				<key>ro</key>
+				<string>Introduceți o parolă de minimum patru caractere.</string>
+				<key>ru</key>
+				<string>Введите пароль, состоящий из четырех или более символов.</string>
+				<key>sk</key>
+				<string>Zadajte heslo obsahujúce najmenej štyri znaky.</string>
+				<key>sv</key>
+				<string>Ange ett lösenord som är minst fyra tecken långt.</string>
+				<key>th</key>
+				<string>ป้อนรหัสผ่านที่มีอักขระอย่างน้อยสี่ตัว</string>
+				<key>tr</key>
+				<string>En az dört karakter uzunluğunda bir parola girin.</string>
+				<key>uk</key>
+				<string>Введіть пароль зі щонайменше чотирьох символів.</string>
+				<key>vi</key>
+				<string>Nhập mật khẩu dài 4 ký tự trở lên.</string>
+				<key>zh_CN</key>
+				<string>输入不少于 4 个字符的密码。</string>
+				<key>zh_HK</key>
+				<string>輸入一個四位或更多字元的密碼。</string>
+				<key>zh_TW</key>
+				<string>輸入 4 個字元或更長的密碼。</string>
+			</dict>
+			<key>policyIdentifier</key>
+			<string>com.apple.defaultpasswordpolicy.fde</string>
+		</dict>
+	</array>
+</dict>
+</plist>
+

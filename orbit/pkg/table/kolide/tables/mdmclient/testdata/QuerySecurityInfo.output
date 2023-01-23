@@ -1,0 +1,439 @@
+Daemon response: {
+    SecurityInfo =     {
+        "FDE_Enabled" = 1;
+        "FDE_HasInstitutionalRecoveryKey" = 0;
+        "FDE_HasPersonalRecoveryKey" = 1;
+        FirewallSettings =         {
+            Applications =             (
+                                {
+                    Allowed = 1;
+                    BundleID = "com.getdropbox.dropbox";
+                    Name = Dropbox;
+                },
+                                {
+                    Allowed = 1;
+                    Name = kstore;
+                },
+                                {
+                    Allowed = 1;
+                    Name = "kube-state-metrics";
+                },
+                                {
+                    Allowed = 1;
+                    Name = ruby;
+                },
+                                {
+                    Allowed = 1;
+                    Name = elm;
+                },
+                                {
+                    Allowed = 1;
+                    Name = main;
+                },
+                                {
+                    Allowed = 1;
+                    Name = main;
+                },
+                                {
+                    Allowed = 1;
+                    Name = main;
+                },
+                                {
+                    Allowed = 1;
+                    Name = server;
+                },
+                                {
+                    Allowed = 1;
+                    Name = server;
+                },
+                                {
+                    Allowed = 1;
+                    Name = server;
+                },
+                                {
+                    Allowed = 1;
+                    Name = server;
+                },
+                                {
+                    Allowed = 1;
+                    Name = server;
+                },
+                                {
+                    Allowed = 1;
+                    Name = node;
+                },
+                                {
+                    Allowed = 1;
+                    Name = memcached;
+                },
+                                {
+                    Allowed = 1;
+                    Name = nc;
+                },
+                                {
+                    Allowed = 1;
+                    Name = ruby;
+                },
+                                {
+                    Allowed = 1;
+                    Name = main;
+                },
+                                {
+                    Allowed = 1;
+                    BundleID = "org.python.python";
+                    Name = Python;
+                },
+                                {
+                    Allowed = 1;
+                    Name = node;
+                },
+                                {
+                    Allowed = 1;
+                    Name = main;
+                },
+                                {
+                    Allowed = 1;
+                    Name = main;
+                },
+                                {
+                    Allowed = 1;
+                    Name = main;
+                },
+                                {
+                    Allowed = 1;
+                    Name = main;
+                },
+                                {
+                    Allowed = 1;
+                    Name = main;
+                },
+                                {
+                    Allowed = 1;
+                    Name = main;
+                },
+                                {
+                    Allowed = 1;
+                    Name = node;
+                },
+                                {
+                    Allowed = 1;
+                    Name = boltd;
+                },
+                                {
+                    Allowed = 1;
+                    Name = ruby;
+                },
+                                {
+                    Allowed = 1;
+                    Name = main;
+                },
+                                {
+                    Allowed = 1;
+                    Name = main;
+                },
+                                {
+                    Allowed = 1;
+                    Name = main;
+                },
+                                {
+                    Allowed = 1;
+                    Name = m;
+                },
+                                {
+                    Allowed = 1;
+                    Name = m;
+                },
+                                {
+                    Allowed = 1;
+                    Name = m;
+                },
+                                {
+                    Allowed = 1;
+                    Name = m;
+                },
+                                {
+                    Allowed = 1;
+                    Name = m;
+                },
+                                {
+                    Allowed = 0;
+                    Name = m;
+                },
+                                {
+                    Allowed = 1;
+                    Name = m;
+                },
+                                {
+                    Allowed = 1;
+                    Name = m;
+                },
+                                {
+                    Allowed = 1;
+                    Name = m;
+                },
+                                {
+                    Allowed = 1;
+                    Name = m;
+                },
+                                {
+                    Allowed = 1;
+                    Name = main;
+                },
+                                {
+                    Allowed = 1;
+                    Name = main;
+                },
+                                {
+                    Allowed = 1;
+                    Name = main;
+                },
+                                {
+                    Allowed = 1;
+                    Name = main;
+                },
+                                {
+                    Allowed = 1;
+                    Name = main;
+                },
+                                {
+                    Allowed = 1;
+                    Name = main;
+                },
+                                {
+                    Allowed = 1;
+                    Name = main;
+                },
+                                {
+                    Allowed = 1;
+                    Name = main;
+                },
+                                {
+                    Allowed = 1;
+                    Name = main;
+                },
+                                {
+                    Allowed = 1;
+                    Name = main;
+                },
+                                {
+                    Allowed = 1;
+                    Name = main;
+                },
+                                {
+                    Allowed = 1;
+                    Name = main;
+                },
+                                {
+                    Allowed = 1;
+                    Name = main;
+                },
+                                {
+                    Allowed = 1;
+                    Name = main;
+                },
+                                {
+                    Allowed = 1;
+                    Name = main;
+                },
+                                {
+                    Allowed = 1;
+                    Name = main;
+                },
+                                {
+                    Allowed = 1;
+                    Name = main;
+                },
+                                {
+                    Allowed = 1;
+                    Name = main;
+                },
+                                {
+                    Allowed = 1;
+                    Name = main;
+                },
+                                {
+                    Allowed = 1;
+                    Name = main;
+                },
+                                {
+                    Allowed = 1;
+                    Name = main;
+                },
+                                {
+                    Allowed = 1;
+                    Name = main;
+                },
+                                {
+                    Allowed = 1;
+                    Name = main;
+                },
+                                {
+                    Allowed = 1;
+                    Name = main;
+                },
+                                {
+                    Allowed = 1;
+                    Name = main;
+                },
+                                {
+                    Allowed = 1;
+                    Name = main;
+                },
+                                {
+                    Allowed = 1;
+                    Name = main;
+                },
+                                {
+                    Allowed = 1;
+                    Name = main;
+                },
+                                {
+                    Allowed = 1;
+                    Name = main;
+                },
+                                {
+                    Allowed = 1;
+                    Name = main;
+                },
+                                {
+                    Allowed = 1;
+                    Name = main;
+                },
+                                {
+                    Allowed = 1;
+                    Name = main;
+                },
+                                {
+                    Allowed = 1;
+                    Name = main;
+                },
+                                {
+                    Allowed = 1;
+                    Name = ruby;
+                },
+                                {
+                    Allowed = 1;
+                    Name = main;
+                },
+                                {
+                    Allowed = 1;
+                    Name = main;
+                },
+                                {
+                    Allowed = 1;
+                    Name = fileserver;
+                },
+                                {
+                    Allowed = 1;
+                    Name = fileserver;
+                },
+                                {
+                    Allowed = 1;
+                    Name = fileserver;
+                },
+                                {
+                    Allowed = 1;
+                    Name = fileserver;
+                },
+                                {
+                    Allowed = 1;
+                    Name = fileserver;
+                },
+                                {
+                    Allowed = 1;
+                    Name = fileserver;
+                },
+                                {
+                    Allowed = 1;
+                    Name = fileserver;
+                },
+                                {
+                    Allowed = 1;
+                    Name = fileserver;
+                },
+                                {
+                    Allowed = 1;
+                    Name = "scepserver-darwin-amd64";
+                },
+                                {
+                    Allowed = 1;
+                    Name = ruby;
+                },
+                                {
+                    Allowed = 1;
+                    Name = fileserver;
+                },
+                                {
+                    Allowed = 1;
+                    Name = fileserver;
+                },
+                                {
+                    Allowed = 1;
+                    Name = node;
+                },
+                                {
+                    Allowed = 1;
+                    Name = fileserver;
+                },
+                                {
+                    Allowed = 1;
+                    Name = fileserver;
+                },
+                                {
+                    Allowed = 1;
+                    Name = fileserver;
+                },
+                                {
+                    Allowed = 1;
+                    Name = fileserver;
+                },
+                                {
+                    Allowed = 1;
+                    Name = fileserver;
+                },
+                                {
+                    Allowed = 1;
+                    Name = fileserver;
+                },
+                                {
+                    Allowed = 1;
+                    Name = k2device;
+                },
+                                {
+                    Allowed = 1;
+                    Name = fileserver;
+                },
+                                {
+                    Allowed = 1;
+                    Name = fileserver;
+                },
+                                {
+                    Allowed = 1;
+                    Name = "scepserver-darwin-amd64";
+                }
+            );
+            BlockAllIncoming = 0;
+            FirewallEnabled = 1;
+            StealthMode = 0;
+        };
+        FirmwarePasswordStatus =         {
+            AllowOroms = 1;
+            ChangePending = 0;
+            PasswordExists = 0;
+        };
+        ManagementStatus =         {
+            EnrolledViaDEP = 1;
+            UserApprovedEnrollment = 1;
+        };
+        RemoteDesktopEnabled = 0;
+        SystemIntegrityProtectionEnabled = 1;
+    };
+}
+Agent response: {
+    SecurityInfo =     {
+        ManagementStatus =         {
+            EnrolledViaDEP = 1;
+            UserApprovedEnrollment = 1;
+        };
+    };
+}

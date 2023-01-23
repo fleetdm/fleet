@@ -1,0 +1,11 @@
+{
+    "Comment": "comment -- dsa/1024 by openssh kwJQa6oWCo5oSVOd",
+    "FingerprintSHA256": "N+2gUYXpoU8v69NrCEZuvn//nY9xxWR00MBb7xkp6zY",
+    "FingerprintMD5": "9f:cf:ac:70:37:2c:8b:dd:c3:5d:0c:ae:b5:6a:ab:0d",
+    "Type": "dsa",
+    "Bits": 1024,
+    "Encrypted": false,
+    "command": "ssh-keygen -t dsa -b 1024 -f specs/XwHKDIwDuxOwPaMF -C comment -- dsa/1024 by openssh kwJQa6oWCo5oSVOd -P ",
+    "Format": "openssh-new",
+    "Source": "ssh-keygen"
+}

@@ -1,0 +1,11 @@
+{
+    "Comment": "comment -- ed25519/256 by putty Kl5fvV8Q5IfyyKLA",
+    "FingerprintSHA256": "xhATuId+bgoHJbs+Kd6H8hweLKI+ioYpUiRNR4cOAZU",
+    "FingerprintMD5": "19:b8:d9:e9:33:80:9a:5e:90:4e:5e:e3:2a:01:3c:b1",
+    "Type": "ed25519",
+    "Bits": 256,
+    "Encrypted": true,
+    "command": "puttygen --random-device /dev/urandom -t ed25519 -b 256 -o specs/vC3TNuaTvvUAa2oA -O private-openssh-new --new-passphrase /dev/fd/63 -C comment -- ed25519/256 by putty Kl5fvV8Q5IfyyKLA",
+    "Format": "openssh-new",
+    "Source": "putty"
+}

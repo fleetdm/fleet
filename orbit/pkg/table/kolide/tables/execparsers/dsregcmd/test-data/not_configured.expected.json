@@ -1,0 +1,39 @@
+{
+  "Device State": {
+    "AzureAdJoined": "NO",
+    "Device Name": "lenovo-thinkpad",
+    "DomainJoined": "NO",
+    "EnterpriseJoined": "NO"
+  },
+  "IE Proxy Config for Current User": {
+    "Auto Detect Settings": "YES",
+    "Auto-Configuration URL": "",
+    "Proxy Bypass List": "",
+    "Proxy Server List": ""
+  },
+  "Ngc Prerequisite Check": {
+    "CertEnrollment": "none",
+    "DeviceEligible": "YES",
+    "For more information, please visit https": "//www.microsoft.com/aadjerrors",
+    "IsDeviceJoined": "NO",
+    "IsUserAzureAD": "NO",
+    "PolicyEnabled": "NO",
+    "PostLogonEnabled": "YES",
+    "PreReqResult": "WillNotProvision",
+    "SessionIsNotRemote": "YES"
+  },
+  "SSO State": {
+    "AzureAdPrt": "NO",
+    "AzureAdPrtAuthority": "NO",
+    "EnterprisePrt": "NO",
+    "EnterprisePrtAuthority": "NO"
+  },
+  "User State": {
+    "NgcSet": "NO",
+    "WamDefaultSet": "ERROR",
+    "WorkplaceJoined": "NO"
+  },
+  "WinHttp Default Proxy Config": {
+    "Access Type": "DIRECT"
+  }
+}

@@ -1,0 +1,17 @@
+PuTTY-User-Key-File-2: ssh-dss
+Encryption: none
+Comment: comment -- dsa/1024 by putty 1bgIhlPQQVHnAWsx
+Public-Lines: 10
+AAAAB3NzaC1kc3MAAACBAKzmBkFSPBWl+GspxLZOMTuUOMlRUibJYBttboPSjG1U
+8oM3mIqtpQnSkCCu7XHxlBk/cu43zmafaM1Puze9QtRWOnEFBAw7J4Djv3/yAbf7
+eC9+jDY8kwjNSPi4sFdiyfYIXocSLS6hwIoNQo4Qr56iSAmV8DvJerpPR6g5YVo5
+AAAAFQDguq66YpjyE6J13swZbd2lC8sxXwAAAIBarSgw72D+CLONQHpEJzqDbT83
+h7BEOmoh8/YxIk5jlZzaG7PoHcLr9bkAVVvyDnoWtQlayttZRatHSiOxjBsiuj0b
+INX2eyTrSQ9rgId/nrl3YRJbHJc0ptvVfpgqo1R1TmlgG2o3EyevrHar6u0rnJf0
+5OnsiU7AT6rcsCRvFAAAAIBZXnmE8d3juf2w88BnPoTscMa+PvByH6397EPmwjxY
+7cLI3HA6KDnyEnCsp/4RTXKssrq/KN8L3P/M1+x25Q8AWHE5u+jTt3+8X4/3q2lA
+SShigMJ5cAQd8NTECbSuJAC0UwnCFeY1tgHBZD2vJPlBN/eJjR83zzix1ucy+BtR
+CA==
+Private-Lines: 1
+AAAAFDnkhffymcCG2b4oznzmoDzl2t1i
+Private-MAC: c5527bec21a597cf74ef44aa7db152b0413b2753

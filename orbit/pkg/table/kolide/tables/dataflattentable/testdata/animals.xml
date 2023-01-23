@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>metadata</key>
+	<dict>
+		<key>testing</key>
+		<true/>
+		<key>version</key>
+		<string>1.0.1</string>
+	</dict>
+	<key>system</key>
+	<string>users demo</string>
+	<key>users</key>
+	<array>
+		<dict>
+			<key>favorites</key>
+			<array>
+				<string>ants</string>
+			</array>
+			<key>id</key>
+			<integer>1</integer>
+			<key>name</key>
+			<string>Alex Aardvark</string>
+			<key>uuid</key>
+			<string>abc123</string>
+		</dict>
+		<dict>
+			<key>favorites</key>
+			<array>
+				<string>mice</string>
+				<string>birds</string>
+			</array>
+			<key>id</key>
+			<integer>2</integer>
+			<key>name</key>
+			<string>Bailey Bobcat</string>
+			<key>uuid</key>
+			<string>def456</string>
+		</dict>
+		<dict>
+			<key>favorites</key>
+			<array>
+				<string>seeds</string>
+			</array>
+			<key>id</key>
+			<integer>3</integer>
+			<key>name</key>
+			<string>Cam Chipmunk</string>
+			<key>uuid</key>
+			<string>ghi789</string>
+		</dict>
+	</array>
+</dict>
+</plist>

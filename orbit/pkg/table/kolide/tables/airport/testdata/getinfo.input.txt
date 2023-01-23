@@ -1,0 +1,18 @@
+
+     agrCtlRSSI: -55
+     agrExtRSSI: 0
+    agrCtlNoise: -94
+    agrExtNoise: 0
+          state: running
+        op mode: station 
+     lastTxRate: 216
+        maxRate:
+lastAssocStatus: 0
+    802.11 auth: open
+      link auth: wpa2-psk
+          BSSID: a0:a0:a0:a0:a0:a0
+           SSID: some netwerk
+            MCS: 8
+  guardInterval: 800
+            NSS: 2
+        channel: 2
