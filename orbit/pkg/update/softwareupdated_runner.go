@@ -50,7 +50,7 @@ func (r *SoftwareUpdatedRunner) Execute() error {
 
 		case <-ticker.C:
 			log.Info().Msg("executing launchctl kickstart -k softwareupdated")
-			if err := r.exec(); err != nil {
+			if err := runKickstartSoftwareUpdated(); err != nil {
 				log.Info().Err(err).Msg("executing launchctl kickstart -k softwareupdated failed")
 			}
 			// run at the defined interval the next time around
@@ -64,8 +64,4 @@ func (r *SoftwareUpdatedRunner) Execute() error {
 func (r *SoftwareUpdatedRunner) Interrupt(err error) {
 	close(r.cancel)
 	log.Debug().Err(err).Msg("interrupt for softwareupdated runner")
-}
-
-func (r *SoftwareUpdatedRunner) exec() error {
-	panic("unimplemented")
 }

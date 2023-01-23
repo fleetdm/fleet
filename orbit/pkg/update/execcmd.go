@@ -1,5 +1,3 @@
-//go:build darwin
-
 package update
 
 import (
@@ -7,8 +5,8 @@ import (
 	"os/exec"
 )
 
-func runRenewEnrollmentProfile() error {
-	cmd := exec.Command("/usr/bin/profiles", "renew", "--type", "enrollment")
+func runCmdCollectErr(exe string, args ...string) error {
+	cmd := exec.Command(exe, args...)
 	out, err := cmd.CombinedOutput()
 	if err != nil && len(out) > 0 {
 		// just as a precaution, limit the length of the output
