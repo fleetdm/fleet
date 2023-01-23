@@ -683,6 +683,16 @@ export const licenseExpirationWarning = (expiration: string): boolean => {
   return isAfter(new Date(), new Date(expiration));
 };
 
+export const readableDate = (date: string) => {
+  const dateString = new Date(date);
+
+  return new Intl.DateTimeFormat(navigator.language, {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  }).format(dateString);
+};
+
 export const performanceIndicator = (
   scheduledQueryStats: IScheduledQueryStats
 ): string => {
@@ -850,6 +860,7 @@ export default {
   humanQueryLastRun,
   inMilliseconds,
   licenseExpirationWarning,
+  readableDate,
   secondsToHms,
   secondsToDhms,
   labelSlug,

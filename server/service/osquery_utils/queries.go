@@ -1191,6 +1191,8 @@ func directIngestDiskEncryption(ctx context.Context, logger log.Logger, host *fl
 	return ds.SetOrUpdateHostDisksEncryption(ctx, host.ID, encrypted)
 }
 
+//go:generate go run gen_queries_doc.go ../../../docs/Using-Fleet/Detail-Queries-Summary.md
+
 func GetDetailQueries(ctx context.Context, fleetConfig config.FleetConfig, features *fleet.Features) map[string]DetailQuery {
 	generatedMap := make(map[string]DetailQuery)
 	for key, query := range hostDetailQueries {

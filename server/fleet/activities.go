@@ -34,6 +34,7 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityTypeUserAddedBySSO{},
 
 	ActivityTypeUserLoggedIn{},
+	ActivityTypeUserFailedLogin{},
 
 	ActivityTypeCreatedUser{},
 	ActivityTypeDeletedUser{},
@@ -432,10 +433,10 @@ func (a ActivityTypeUserAddedBySSO) Documentation() (activity string, details st
 type Activity struct {
 	CreateTimestamp
 	ID            uint             `json:"id" db:"id"`
-	ActorFullName *string          `json:"actor_full_name" db:"name"`
-	ActorID       *uint            `json:"actor_id" db:"user_id"`
-	ActorGravatar *string          `json:"actor_gravatar" db:"gravatar_url"`
-	ActorEmail    *string          `json:"actor_email" db:"email"`
+	ActorFullName *string          `json:"actor_full_name,omitempty" db:"name"`
+	ActorID       *uint            `json:"actor_id,omitempty" db:"user_id"`
+	ActorGravatar *string          `json:"actor_gravatar,omitempty" db:"gravatar_url"`
+	ActorEmail    *string          `json:"actor_email,omitempty" db:"email"`
 	Type          string           `json:"type" db:"activity_type"`
 	Details       *json.RawMessage `json:"details" db:"details"`
 	Streamed      *bool            `json:"-" db:"streamed"`
@@ -453,6 +454,25 @@ func (a ActivityTypeUserLoggedIn) Documentation() (activity string, details stri
 	return `Generated when users successfully log in to Fleet.`,
 		`This activity contains the following fields:
 - "public_ip": Public IP of the login request.`, `{
+	"public_ip": "168.226.215.82"
+}`
+}
+
+type ActivityTypeUserFailedLogin struct {
+	Email    string `json:"email"`
+	PublicIP string `json:"public_ip"`
+}
+
+func (a ActivityTypeUserFailedLogin) ActivityName() string {
+	return "user_failed_login"
+}
+
+func (a ActivityTypeUserFailedLogin) Documentation() (activity string, details string, detailsExample string) {
+	return `Generated when users try to log in to Fleet and fail.`,
+		`This activity contains the following fields:
+- "email": The email used in the login request.
+- "public_ip": Public IP of the login request.`, `{
+	"email": "foo@example.com",
 	"public_ip": "168.226.215.82"
 }`
 }

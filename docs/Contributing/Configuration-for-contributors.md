@@ -1,49 +1,11 @@
 # Configuration for contributors
 
-- [Packs](#packs)
 - [Integrations](#integrations)
 - [SMTP-settings](#smtp-settings)
 
 This document includes configuration files and settings that are helpful when developing or contributing to Fleet.
 
 Unlike the [configuration files documentation](https://fleetdm.com/docs/using-fleet/configuration-files), the files and settings in this document are not recommended for production use. Each setting includes the best practice for being successful in production.
-
-## Packs
-
-Scheduling queries in Fleet is the best practice for collecting data from hosts. To learn how to schedule queries, [check out the docs here](https://fleetdm.com/docs/using-fleet/fleet-ui#schedule-a-query).
-
-The `packs` YAML file is supported for backwards compatibility.
-
-```yaml
-apiVersion: v1
-kind: pack
-spec:
-  name: osquery_monitoring
-  disabled: false
-  targets:
-    labels:
-      - All Hosts
-  queries:
-    - query: osquery_version
-      name: osquery_version_differential
-      interval: 7200
-    - query: osquery_version
-      name: osquery_version_snapshot
-      interval: 7200
-      snapshot: true
-    - query: osquery_schedule
-      interval: 7200
-      removed: false
-    - query: osquery_events
-      interval: 86400
-      removed: false
-    - query: osquery_info
-      interval: 600
-      removed: false
-```
-
----
-
 ## Integrations
 
 Integration settings in Fleet can be configured using the `integrations` section of the `config` YAML file. To see all settings in this file, check out the [configuration files documentation](https://fleetdm.com/docs/using-fleet/configuration-files#organization-settings).

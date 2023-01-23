@@ -149,6 +149,7 @@ describe(
         managePoliciesPage.allowsRunSavePolicy();
       });
     });
+    /* NOTE: Product decision to remove packs from UI
     describe("Manage packs page", () => {
       beforeEach(() => {
         cy.loginWithCySession("mary@organization.com", GOOD_PASSWORD);
@@ -162,33 +163,34 @@ describe(
         managePacksPage.allowsDeletePack();
         managePacksPage.verifiesDeletedPack();
       });
-      describe("User profile page", () => {
-        beforeEach(() => {
-          cy.loginWithCySession("mary@organization.com", GOOD_PASSWORD);
-          userProfilePage.visitUserProfilePage();
-        });
-        it("verifies maintainer role and teams is disabled", () => {
-          userProfilePage.showRole("Maintainer");
-        });
+    });
+    */
+    describe("User profile page", () => {
+      beforeEach(() => {
+        cy.loginWithCySession("mary@organization.com", GOOD_PASSWORD);
+        userProfilePage.visitUserProfilePage();
       });
+      it("verifies maintainer role and teams is disabled", () => {
+        userProfilePage.showRole("Maintainer");
+      });
+    });
 
-      // nav restrictions are at the end because we expect to see a
-      // 403 error overlay which will hide the nav and make the test fail
-      describe("Nav restrictions", () => {
-        // cypress tends to fail on uncaught exceptions. since we have
-        // our own error handling, it's suggested to use this block to
-        // suppress so the tests will keep running
-        Cypress.on("uncaught:exception", () => {
-          return false;
-        });
-        beforeEach(() => {
-          cy.loginWithCySession("mary@organization.com", GOOD_PASSWORD);
-        });
-        it("verifies maintainer does not have access to settings", () => {
-          cy.findByText(/settings/i).should("not.exist");
-          cy.visit("/settings/organization");
-          cy.findByText(/you do not have permissions/i).should("exist");
-        });
+    // nav restrictions are at the end because we expect to see a
+    // 403 error overlay which will hide the nav and make the test fail
+    describe("Nav restrictions", () => {
+      // cypress tends to fail on uncaught exceptions. since we have
+      // our own error handling, it's suggested to use this block to
+      // suppress so the tests will keep running
+      Cypress.on("uncaught:exception", () => {
+        return false;
+      });
+      beforeEach(() => {
+        cy.loginWithCySession("mary@organization.com", GOOD_PASSWORD);
+      });
+      it("verifies maintainer does not have access to settings", () => {
+        cy.findByText(/settings/i).should("not.exist");
+        cy.visit("/settings/organization");
+        cy.findByText(/you do not have permissions/i).should("exist");
       });
     });
   }
