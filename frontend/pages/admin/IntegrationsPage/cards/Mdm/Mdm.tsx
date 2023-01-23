@@ -15,6 +15,7 @@ import Spinner from "components/Spinner";
 import DataError from "components/DataError";
 import Icon from "components/Icon";
 import TooltipWrapper from "components/TooltipWrapper";
+import { readableDate } from "utilities/helpers";
 
 import RequestCSRModal from "./components/RequestCSRModal";
 import EditTeamModal from "./components/EditTeamModal";
@@ -24,22 +25,13 @@ import EditTeamModal from "./components/EditTeamModal";
 
 const baseClass = "mdm-integrations";
 
-const readableDate = (date: string) => {
-  const dateString = new Date(date);
-
-  return new Intl.DateTimeFormat(navigator.language, {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  }).format(dateString);
-};
-
 const Mdm = (): JSX.Element => {
   const { isPremiumTier } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
   const [showRequestCSRModal, setShowRequestCSRModal] = useState(false);
   const [showEditTeamModal, setShowEditTeamModal] = useState(false);
+  const [defaultTeamName, setDefaultTeamName] = useState("No team");
 
   const [showCSRFlag, setShowCSRFlag] = useState(true);
 
@@ -66,6 +58,9 @@ const Mdm = (): JSX.Element => {
     {
       enabled: isPremiumTier,
       staleTime: 5000,
+      onSuccess: (appleBmData) => {
+        setDefaultTeamName(appleBmData.default_team ?? "No team");
+      },
     }
   );
 
@@ -242,7 +237,7 @@ const Mdm = (): JSX.Element => {
             </TooltipWrapper>
           </h4>
           <p>
-            {mdmAppleBm.default_team || "No team"}{" "}
+            {defaultTeamName}{" "}
             <Button
               className={`${baseClass}__edit-team-btn`}
               onClick={toggleEditTeamModal}
@@ -285,7 +280,10 @@ const Mdm = (): JSX.Element => {
       {showEditTeamModal && (
         <EditTeamModal
           onCancel={toggleEditTeamModal}
-          currentDefaultTeamName={mdmAppleBm?.default_team}
+          defaultTeamName={defaultTeamName}
+          onUpdateSuccess={(newDefaultTeamName) =>
+            setDefaultTeamName(newDefaultTeamName)
+          }
         />
       )}
     </div>

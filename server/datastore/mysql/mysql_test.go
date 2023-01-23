@@ -347,7 +347,7 @@ func TestAppendListOptionsToSQL(t *testing.T) {
 		OrderKey: "***name***",
 	}
 
-	actual := appendListOptionsToSQL(sql, opts)
+	actual := appendListOptionsToSQL(sql, &opts)
 	expected := "SELECT * FROM my_table ORDER BY `name` ASC LIMIT 1000000"
 	if actual != expected {
 		t.Error("Expected", expected, "Actual", actual)
@@ -355,7 +355,7 @@ func TestAppendListOptionsToSQL(t *testing.T) {
 
 	sql = "SELECT * FROM my_table"
 	opts.OrderDirection = fleet.OrderDescending
-	actual = appendListOptionsToSQL(sql, opts)
+	actual = appendListOptionsToSQL(sql, &opts)
 	expected = "SELECT * FROM my_table ORDER BY `name` DESC LIMIT 1000000"
 	if actual != expected {
 		t.Error("Expected", expected, "Actual", actual)
@@ -366,7 +366,7 @@ func TestAppendListOptionsToSQL(t *testing.T) {
 	}
 
 	sql = "SELECT * FROM my_table"
-	actual = appendListOptionsToSQL(sql, opts)
+	actual = appendListOptionsToSQL(sql, &opts)
 	expected = "SELECT * FROM my_table LIMIT 10"
 	if actual != expected {
 		t.Error("Expected", expected, "Actual", actual)
@@ -374,7 +374,7 @@ func TestAppendListOptionsToSQL(t *testing.T) {
 
 	sql = "SELECT * FROM my_table"
 	opts.Page = 2
-	actual = appendListOptionsToSQL(sql, opts)
+	actual = appendListOptionsToSQL(sql, &opts)
 	expected = "SELECT * FROM my_table LIMIT 10 OFFSET 20"
 	if actual != expected {
 		t.Error("Expected", expected, "Actual", actual)
@@ -382,7 +382,7 @@ func TestAppendListOptionsToSQL(t *testing.T) {
 
 	opts = fleet.ListOptions{}
 	sql = "SELECT * FROM my_table"
-	actual = appendListOptionsToSQL(sql, opts)
+	actual = appendListOptionsToSQL(sql, &opts)
 	expected = "SELECT * FROM my_table LIMIT 1000000"
 
 	if actual != expected {

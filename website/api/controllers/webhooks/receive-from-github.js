@@ -64,7 +64,6 @@ module.exports = {
       'drewbakerfdm',
       'lucasmrod',
       'ksatter',
-      'guillaumeross',
       'charlottechance',
       'zwinnerman-fleetdm',
       'hollidayn',
@@ -409,8 +408,8 @@ module.exports = {
         });//∞ß
       }//ﬁ
     } else if (
-      (ghNoun === 'issue_comment' && ['deleted'].includes(action) && !GITHUB_USERNAMES_OF_BOTS_AND_MAINTAINERS.includes(comment.user.login))||
-      (ghNoun === 'commit_comment' && ['created'].includes(action) && !GITHUB_USERNAMES_OF_BOTS_AND_MAINTAINERS.includes(comment.user.login))||
+      (ghNoun === 'issue_comment' && ['deleted'].includes(action) && !GITHUB_USERNAMES_OF_BOTS_AND_MAINTAINERS.includes(comment.user.login.toLowerCase()))||
+      (ghNoun === 'commit_comment' && ['created'].includes(action) && !GITHUB_USERNAMES_OF_BOTS_AND_MAINTAINERS.includes(comment.user.login.toLowerCase()))||
       (ghNoun === 'label' && false /* label change notifications temporarily disabled until digital experience team has time to clean up labels.  FUTURE: turn this back on after doing that cleanup to facilitate gradual ongoing maintenance and education rather than herculean cleanup efforts and retraining */ && ['created','edited','deleted'].includes(action) && GITHUB_USERNAME_OF_DRI_FOR_LABELS !== sender.login.toLowerCase())||//« exempt label changes made by the directly responsible individual for labels, because otherwise when process changes/fiddlings happen, they can otherwise end up making too much noise in Slack
       (ghNoun === 'issue_comment' && ['created'].includes(action) && issueOrPr.state !== 'open' && (issueOrPr.closed_at) && ((new Date(issueOrPr.closed_at)).getTime() < Date.now() - 7*24*60*60*1000 ) && !GITHUB_USERNAMES_OF_BOTS_AND_MAINTAINERS.includes(sender.login.toLowerCase()) )
     ) {
@@ -433,7 +432,7 @@ module.exports = {
       // posting to the Fleet Slack.
       // > FUTURE: also post to Slack about deleted issues, new repos, and deleted repos
       await sails.helpers.http.post(
-        sails.config.custom.slackWebhookUrlForGithubBot,//« #g-operations channel (Fleet Slack workspace)
+        sails.config.custom.slackWebhookUrlForGithubBot,//« #g-marketing channel (Fleet Slack workspace)
         {
           text:
           (

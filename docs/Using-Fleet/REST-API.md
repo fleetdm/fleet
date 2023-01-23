@@ -422,7 +422,8 @@ This is the callback endpoint that the identity provider will use to send securi
 
 ### List activities
 
-Returns a list of the activities that have been performed in Fleet. The following types of activity are included:
+Returns a list of the activities that have been performed in Fleet as well as additional meta data
+for pagination. The following types of activity are included:
 
 - Created pack
 - Edited pack
@@ -587,7 +588,11 @@ Returns a list of the activities that have been performed in Fleet. The followin
         "target_counts": 14
       }
     }
-  ]
+  ],
+  "meta": {
+    "has_next_results": true,
+    "has_previous_results": false
+  }
 }
 
 ```

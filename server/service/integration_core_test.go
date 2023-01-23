@@ -2173,7 +2173,7 @@ func (s *integrationTestSuite) TestListActivities() {
 	ctx := context.Background()
 	u := s.users["admin1@example.com"]
 
-	prevActivities, err := s.ds.ListActivities(ctx, fleet.ListActivitiesOptions{})
+	prevActivities, _, err := s.ds.ListActivities(ctx, fleet.ListActivitiesOptions{})
 	require.NoError(t, err)
 
 	err = s.ds.NewActivity(ctx, &u, fleet.ActivityTypeAppliedSpecPack{})
@@ -2190,6 +2190,7 @@ func (s *integrationTestSuite) TestListActivities() {
 	var listResp listActivitiesResponse
 	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &listResp, "per_page", strconv.Itoa(lenPage), "order_key", "id")
 	require.Len(t, listResp.Activities, lenPage)
+	require.NotNil(t, listResp.Meta)
 	assert.Equal(t, fleet.ActivityTypeAppliedSpecPack{}.ActivityName(), listResp.Activities[lenPage-2].Type)
 	assert.Equal(t, fleet.ActivityTypeDeletedPack{}.ActivityName(), listResp.Activities[lenPage-1].Type)
 
@@ -2200,6 +2201,11 @@ func (s *integrationTestSuite) TestListActivities() {
 	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &listResp, "per_page", "1", "order_key", "id", "order_direction", "desc")
 	require.Len(t, listResp.Activities, 1)
 	assert.Equal(t, fleet.ActivityTypeEditedPack{}.ActivityName(), listResp.Activities[0].Type)
+
+	listResp = listActivitiesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &listResp, "per_page", "1", "order_key", "a.id", "after", "0")
+	require.Len(t, listResp.Activities, 1)
+	require.Nil(t, listResp.Meta)
 }
 
 func (s *integrationTestSuite) TestListGetCarves() {
@@ -5504,6 +5510,74 @@ func (s *integrationTestSuite) TestCarve() {
 		Data:      []byte("p4."),
 	}, http.StatusInternalServerError, &blockResp) // TODO: should be 400, see #4406
 	checkCarveError(1, "block_id exceeds expected max (2): 3")
+}
+
+func (s *integrationTestSuite) TestLogLoginAttempts() {
+	t := s.T()
+
+	// create a new user
+	var createResp createUserResponse
+	params := fleet.UserPayload{
+		Name:       ptr.String("foobar"),
+		Email:      ptr.String("foobar@example.com"),
+		Password:   ptr.String(test.GoodPassword),
+		GlobalRole: ptr.String(fleet.RoleObserver),
+	}
+	s.DoJSON("POST", "/api/latest/fleet/users/admin", params, http.StatusOK, &createResp)
+	require.NotZero(t, createResp.User.ID)
+	u := *createResp.User
+
+	// Register current number of activities.
+	activitiesResp := listActivitiesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &activitiesResp)
+	require.NoError(t, activitiesResp.Err)
+	oldActivitiesCount := len(activitiesResp.Activities)
+
+	// Login with invalid passwordm, should fail.
+	res := s.DoRawNoAuth("POST", "/api/latest/fleet/login",
+		jsonMustMarshal(t, loginRequest{Email: u.Email, Password: test.GoodPassword2}),
+		http.StatusUnauthorized,
+	)
+	res.Body.Close()
+
+	// A new activity item for the failed login attempt is created.
+	activitiesResp = listActivitiesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &activitiesResp)
+	require.NoError(t, activitiesResp.Err)
+	require.Len(t, activitiesResp.Activities, oldActivitiesCount+1)
+	sort.Slice(activitiesResp.Activities, func(i, j int) bool {
+		return activitiesResp.Activities[i].ID < activitiesResp.Activities[j].ID
+	})
+	activity := activitiesResp.Activities[len(activitiesResp.Activities)-1]
+	require.Equal(t, activity.Type, fleet.ActivityTypeUserFailedLogin{}.ActivityName())
+	require.NotNil(t, activity.Details)
+	actDetails := fleet.ActivityTypeUserFailedLogin{}
+	err := json.Unmarshal(*activity.Details, &actDetails)
+	require.NoError(t, err)
+	require.Equal(t, actDetails.Email, "foobar@example.com")
+
+	// login with good password, should succeed
+	res = s.DoRawNoAuth("POST", "/api/latest/fleet/login",
+		jsonMustMarshal(t, loginRequest{
+			Email:    u.Email,
+			Password: test.GoodPassword,
+		}), http.StatusOK,
+	)
+	res.Body.Close()
+
+	// A new activity item for the successful login is created.
+	activitiesResp = listActivitiesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &activitiesResp)
+	require.NoError(t, activitiesResp.Err)
+	require.Len(t, activitiesResp.Activities, oldActivitiesCount+2)
+	sort.Slice(activitiesResp.Activities, func(i, j int) bool {
+		return activitiesResp.Activities[i].ID < activitiesResp.Activities[j].ID
+	})
+	activity = activitiesResp.Activities[len(activitiesResp.Activities)-1]
+	require.Equal(t, activity.Type, fleet.ActivityTypeUserLoggedIn{}.ActivityName())
+	require.NotNil(t, activity.Details)
+	err = json.Unmarshal(*activity.Details, &fleet.ActivityTypeUserLoggedIn{})
+	require.NoError(t, err)
 }
 
 func (s *integrationTestSuite) TestPasswordReset() {

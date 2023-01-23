@@ -856,8 +856,8 @@ func TestCronActivitiesStreaming(t *testing.T) {
 	t.Run("basic", func(t *testing.T) {
 		as := []*fleet.Activity{a1, a2, a3}
 
-		ds.ListActivitiesFunc = func(ctx context.Context, opt fleet.ListActivitiesOptions) ([]*fleet.Activity, error) {
-			return as, nil
+		ds.ListActivitiesFunc = func(ctx context.Context, opt fleet.ListActivitiesOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error) {
+			return as, nil, nil
 		}
 
 		ds.MarkActivitiesAsStreamedFunc = func(ctx context.Context, activityIDs []uint) error {
@@ -880,8 +880,8 @@ func TestCronActivitiesStreaming(t *testing.T) {
 	t.Run("fail_to_stream_an_activity", func(t *testing.T) {
 		as := []*fleet.Activity{a1, a2, a3}
 
-		ds.ListActivitiesFunc = func(ctx context.Context, opt fleet.ListActivitiesOptions) ([]*fleet.Activity, error) {
-			return as, nil
+		ds.ListActivitiesFunc = func(ctx context.Context, opt fleet.ListActivitiesOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error) {
+			return as, nil, nil
 		}
 
 		ds.MarkActivitiesAsStreamedFunc = func(ctx context.Context, activityIDs []uint) error {
@@ -908,18 +908,18 @@ func TestCronActivitiesStreaming(t *testing.T) {
 			as[i] = newActivity(uint(i), "foo", uint(i), "foog", "fooe", "bar", `{"bar": "foo"}`)
 		}
 
-		ds.ListActivitiesFunc = func(ctx context.Context, opt fleet.ListActivitiesOptions) ([]*fleet.Activity, error) {
+		ds.ListActivitiesFunc = func(ctx context.Context, opt fleet.ListActivitiesOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error) {
 			require.Equal(t, opt.PerPage, ActivitiesToStreamBatchCount)
 			switch opt.Page {
 			case 0:
-				return as[:ActivitiesToStreamBatchCount], nil
+				return as[:ActivitiesToStreamBatchCount], nil, nil
 			case 1:
-				return as[ActivitiesToStreamBatchCount : ActivitiesToStreamBatchCount*2], nil
+				return as[ActivitiesToStreamBatchCount : ActivitiesToStreamBatchCount*2], nil, nil
 			case 2:
-				return as[ActivitiesToStreamBatchCount*2:], nil
+				return as[ActivitiesToStreamBatchCount*2:], nil, nil
 			default:
 				t.Fatalf("invalid page requested: %d", opt.Page)
-				return nil, nil
+				return nil, nil, nil
 			}
 		}
 

@@ -43,7 +43,7 @@ module "rds" {
   vpc_id  = var.vpc_config.vpc_id
   subnets = var.rds_config.subnets
 
-  allowed_security_groups = concat(module.byo-db.byo-ecs.security_groups, var.rds_config.allowed_security_groups)
+  allowed_security_groups = concat(tolist(module.byo-db.byo-ecs.non_circular.security_groups), var.rds_config.allowed_security_groups)
   allowed_cidr_blocks     = var.rds_config.allowed_cidr_blocks
 
   storage_encrypted   = true
@@ -74,7 +74,7 @@ module "redis" {
   elasticache_subnet_group_name = var.redis_config.elasticache_subnet_group_name == null ? var.redis_config.name : var.redis_config.elasticache_subnet_group_name
   availability_zones            = var.redis_config.availability_zones
   vpc_id                        = var.vpc_config.vpc_id
-  description                   = "lsjdfldjlfjds"
+  description                   = "Fleet Redis"
   #allowed_security_group_ids = concat(var.redis_config.allowed_security_group_ids, module.byo-db.ecs.security_group)
   subnets                    = var.redis_config.subnets
   cluster_size               = var.redis_config.cluster_size
@@ -110,14 +110,14 @@ module "secrets-manager-1" {
 
 resource "aws_db_parameter_group" "main" {
   count       = var.rds_config.db_parameter_group_name == null ? 1 : 0
-  name        = "fleet"
+  name        = var.rds_config.name
   family      = "aurora-mysql8.0"
   description = "fleet"
 }
 
 resource "aws_rds_cluster_parameter_group" "main" {
   count       = var.rds_config.db_cluster_parameter_group_name == null ? 1 : 0
-  name        = "fleet"
+  name        = var.rds_config.name
   family      = "aurora-mysql8.0"
   description = "fleet"
 }

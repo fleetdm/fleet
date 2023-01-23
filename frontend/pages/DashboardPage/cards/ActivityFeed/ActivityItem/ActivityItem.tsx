@@ -93,6 +93,14 @@ const TAGGED_TEMPLATES = {
   userLoggedIn: (activity: IActivity) => {
     return `successfully logged in from public IP ${activity.details?.public_ip}.`;
   },
+  userFailedLogin: (activity: IActivity) => {
+    return (
+      <>
+        Somebody using <b>{activity.details?.email}</b> failed to log in from
+        public IP {activity.details?.public_ip}.
+      </>
+    );
+  },
   userCreated: (activity: IActivity) => {
     return (
       <>
@@ -216,6 +224,9 @@ const getDetail = (
     }
     case ActivityType.UserLoggedIn: {
       return TAGGED_TEMPLATES.userLoggedIn(activity);
+    }
+    case ActivityType.UserFailedLogin: {
+      return TAGGED_TEMPLATES.userFailedLogin(activity);
     }
     case ActivityType.UserCreated: {
       return TAGGED_TEMPLATES.userCreated(activity);
