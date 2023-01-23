@@ -299,6 +299,14 @@ func TestMDMCommandAuthz(t *testing.T) {
 		}
 	}
 
+	ds.GetHostMDMCheckinInfoFunc = func(ctx context.Context, hostUUID string) (*fleet.HostMDMCheckinInfo, error) {
+		return &fleet.HostMDMCheckinInfo{}, nil
+	}
+
+	ds.NewActivityFunc = func(context.Context, *fleet.User, fleet.ActivityDetails) error {
+		return nil
+	}
+
 	var mdmEnabled atomic.Bool
 	ds.GetNanoMDMEnrollmentStatusFunc = func(ctx context.Context, hostUUID string) (bool, error) {
 		// This function is called twice during EnqueueMDMAppleCommandRemoveEnrollmentProfile.

@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/docker/go-units"
+	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -852,6 +853,11 @@ func (svc *Service) EnqueueMDMAppleCommandRemoveEnrollmentProfile(ctx context.Co
 		return ctxerr.Wrap(ctx, err, "getting host info for mdm apple remove profile command")
 	}
 
+	info, err := svc.ds.GetHostMDMCheckinInfo(ctx, h.UUID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting mdm checkin info for mdm apple remove profile command")
+	}
+
 	// check authorization again based on host info for team-based permissions
 	if err := svc.authz.Authorize(ctx, h, fleet.ActionMDMCommand); err != nil {
 		return err
@@ -868,6 +874,14 @@ func (svc *Service) EnqueueMDMAppleCommandRemoveEnrollmentProfile(ctx context.Co
 	cmdUUID, err := svc.enqueueMDMAppleCommandRemoveEnrollmentProfile(ctx, h.UUID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "enqueuing mdm apple remove profile command")
+	}
+
+	if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeMDMUnenrolled{
+		HostSerial:       h.HardwareSerial,
+		HostDisplayName:  h.DisplayName(),
+		InstalledFromDEP: info.InstalledFromDEP,
+	}); err != nil {
+		return ctxerr.Wrap(ctx, err, "logging activity for mdm apple remove profile command")
 	}
 
 	return svc.pollResultMDMAppleCommandRemoveEnrollmentProfile(ctx, cmdUUID, h.UUID)
