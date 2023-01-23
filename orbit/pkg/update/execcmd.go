@@ -5,6 +5,8 @@ import (
 	"os/exec"
 )
 
+var _ = runCmdCollectErr // just to avoid unused errors on non-darwin platforms
+
 func runCmdCollectErr(exe string, args ...string) error {
 	cmd := exec.Command(exe, args...)
 	out, err := cmd.CombinedOutput()
