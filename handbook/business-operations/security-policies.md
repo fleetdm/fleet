@@ -828,5 +828,5 @@ Subcontractors, and Contracted Developers.
 
 5. Additional vendor agreements are obtained as required by applicable regulatory compliance requirements.
 
-<meta name="maintainedBy" value="guillaumeross">
+<meta name="maintainedBy" value="hollidayn">
 <meta name="title" value="📜 Security policies">
