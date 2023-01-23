@@ -6,7 +6,7 @@ package user_login_settings
 import (
 	"context"
 	"fmt"
-	"github.com/fleetdm/fleet/v4/orbit/pkg/table/common"
+	tbl_common "github.com/fleetdm/fleet/v4/orbit/pkg/table/common"
 	"github.com/osquery/osquery-go/plugin/table"
 	"os/exec"
 	"strings"
@@ -24,7 +24,7 @@ func Columns() []table.ColumnDefinition {
 // Generate is called to return the results for the table at query time.
 // Constraints for generating can be retrieved from the queryContext.
 func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[string]string, error) {
-	uid, gid, err := common.GetConsoleUidGid()
+	uid, gid, err := tbl_common.GetConsoleUidGid()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get console user: %w", err)
 	}
