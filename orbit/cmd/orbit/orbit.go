@@ -508,7 +508,7 @@ func main() {
 
 		// create the notifications middleware that wraps the orbit client
 		// (must be shared by all runners that use a ConfigFetcher).
-		const renewEnrollmentProfileCommandFrequency = 5 * time.Minute
+		const renewEnrollmentProfileCommandFrequency = time.Hour
 		configFetcher := &update.RenewEnrollmentProfileConfigFetcher{
 			Fetcher:   orbitClient,
 			Frequency: renewEnrollmentProfileCommandFrequency,

@@ -44,18 +44,11 @@ func (h *RenewEnrollmentProfileConfigFetcher) GetConfig() (*service.OrbitConfig,
 		if h.cmdMu.TryLock() {
 			defer h.cmdMu.Unlock()
 
-			// TODO: what's a good delay after the last "renew enrollment profile"
-			// command has run where we can assume Fleet has been notified that this
-			// host is enrolled? AFAICS there's still a manual step that the user
-			// must execute after the renew command has been executed - they will
-			// receive a pop-up notification and then must follow some steps to
-			// accept the new enrollment profile, captured in this figma:
-			// https://www.figma.com/file/hdALBDsrti77QuDNSzLdkx/%F0%9F%9A%A7-Fleet-EE-(dev-ready%2C-scratchpad)?node-id=10566%3A315998&t=jSV3l5p3I5gxX4EW-0
-			//
-			// So the host could be actually enrolled only much later, resulting in
-			// this command being executed multiple times (presumably with the
-			// associated macOS notification popup). Is that ok? Is that command
-			// idempotent apart from the notification popup?
+			// Note that the macOS notification popup will be shown periodically
+			// until the Fleet server gets notified that the device is now properly
+			// enrolled (after the user's manual steps, and osquery reporting the
+			// updated mdm enrollment).
+			// See https://github.com/fleetdm/fleet/pull/9409#discussion_r1084382455
 			if time.Since(h.lastRun) > h.Frequency {
 				fn := h.runCmdFn
 				if fn == nil {
