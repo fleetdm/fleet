@@ -24,6 +24,10 @@ type SoftwareUpdatedOptions struct {
 	// Interval is the interval at which to run the the kickstart softwareupdated
 	// command.
 	Interval time.Duration
+
+	// runCmdFn can be set in tests to mock the command executed to kickstart
+	// softwareupdated. If nil, defaults to runKickstartSoftwareUpdated.
+	runCmdFn runCmdFunc
 }
 
 // NewSoftwareUpdatedRunner creates a new runner with the provided options. The
@@ -39,8 +43,12 @@ func NewSoftwareUpdatedRunner(opt SoftwareUpdatedOptions) *SoftwareUpdatedRunner
 func (r *SoftwareUpdatedRunner) Execute() error {
 	log.Debug().Msg("starting softwareupdated runner")
 
-	// run ~immediately the first time (e.g. on startup)
-	ticker := time.NewTicker(10 * time.Second)
+	// ensure it runs ~immediately the first time (e.g. on startup)
+	firstInterval := 10 * time.Second
+	if r.opt.Interval < firstInterval {
+		firstInterval = r.opt.Interval
+	}
+	ticker := time.NewTicker(firstInterval)
 	defer ticker.Stop()
 
 	for {
@@ -50,7 +58,11 @@ func (r *SoftwareUpdatedRunner) Execute() error {
 
 		case <-ticker.C:
 			log.Info().Msg("executing launchctl kickstart -k softwareupdated")
-			if err := runKickstartSoftwareUpdated(); err != nil {
+			fn := r.opt.runCmdFn
+			if fn == nil {
+				fn = runKickstartSoftwareUpdated
+			}
+			if err := fn(); err != nil {
 				log.Info().Err(err).Msg("executing launchctl kickstart -k softwareupdated failed")
 			}
 			// run at the defined interval the next time around
