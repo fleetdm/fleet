@@ -168,7 +168,7 @@ Generated your SCEP key at %s
 
 Go to your email to download a CSR from Fleet. Then, visit https://identity.apple.com/pushcert to upload the CSR. You should receive an APNs certificate in return from Apple.
 
-Next, use the generated certificates to deploy Fleet with `+"`mdm`"+` configuration: https://fleetdm.com/docs/deploying/configuration#mdm-mobile-device-management-in-progress
+Next, use the generated certificates to deploy Fleet with `+"`mdm`"+` configuration: https://fleetdm.com/docs/deploying/configuration#mobile-device-management-mdm
 `,
 				apnsKeyPath,
 				scepCACertPath,
@@ -224,7 +224,7 @@ Generated your private key at %s
 
 Visit https://business.apple.com/ and create a new MDM server with the public key. Then, download the new MDM server's token.
 
-Next, deploy Fleet with with `+"`mdm`"+` configuration: https://fleetdm.com/docs/deploying/configuration#mdm-mobile-device-management-in-progress
+Next, deploy Fleet with with `+"`mdm`"+` configuration: https://fleetdm.com/docs/deploying/configuration#mobile-device-management-mdm
 `,
 				publicKeyPath,
 				privateKeyPath,
