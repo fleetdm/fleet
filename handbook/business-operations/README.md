@@ -1178,6 +1178,9 @@ After getting CEO approval, create a position in Breezy.
 #### Creating a new position in Breezy
 > TODO: document how to post a job on fleetdm.com/apply using Breezy and manage the hiring process
 
+#### Checking legal restrictions on hiring
+Fleet maintains a list of companies with whom Fleet has do-not-solicit terms that prevents us from making offers to employees of these companies.  The list is in the Do Not Solicit tab of the [BizOps spreadhseet](https://docs.google.com/spreadsheets/d/1lp3OugxfPfMjAgQWRi_rbyL_3opILq-duHmlng_pwyo/edit#gid=0).
+
 #### Interviewing at Fleet
 We're glad you're interested in joining the team! 
 Here are some of the things you can anticipate throughout this process:
