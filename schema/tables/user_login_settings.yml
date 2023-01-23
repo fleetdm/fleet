@@ -1,4 +1,4 @@
-name: login_password
+name: user_login_settings
 platforms:
   - darwin
 description: Options of login and password (e.g password hints enabled) for all users.
