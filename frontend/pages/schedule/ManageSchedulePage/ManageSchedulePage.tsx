@@ -471,6 +471,7 @@ const ManageSchedulePage = ({
           </div>
           {allScheduledQueriesList?.length !== 0 && !allScheduledQueriesError && (
             <div className={`${baseClass}__action-button-container`}>
+              {/* NOTE:  Product decision to remove packs from UI
               {isOnGlobalTeam && (
                 <Button
                   variant="inverse"
@@ -479,7 +480,7 @@ const ManageSchedulePage = ({
                 >
                   Advanced
                 </Button>
-              )}
+              )} */}
               <Button
                 variant="brand"
                 className={`${baseClass}__schedule-button`}
@@ -496,12 +497,12 @@ const ManageSchedulePage = ({
               {selectedTeamId ? (
                 <p>
                   Schedule queries for{" "}
-                  <strong>all hosts assigned to this team.</strong>
+                  <strong>all hosts assigned to this team</strong>
                 </p>
               ) : (
                 <p>
                   Schedule queries to run at regular intervals across{" "}
-                  <strong>all of your hosts.</strong>
+                  <strong>all of your hosts</strong>
                 </p>
               )}
             </div>

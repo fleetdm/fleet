@@ -152,12 +152,12 @@ resource "helm_release" "main" {
 
   set {
     name  = "replicas"
-    value = "2"
+    value = "1"
   }
 
   set {
     name  = "imageTag"
-    value = "v4.22.1"
+    value = "v4.26.0-1"
   }
 
   set {

@@ -19,7 +19,7 @@
 
 ## Introduction
 
-Fleetctl (pronounced "Fleet control") is a CLI tool for managing Fleet from the command line. Fleetctl enables a GitOps workflow with Fleet and osquery. With fleetctl, you can manage configurations, queries, packs, generate osquery installers, etc.
+Fleetctl (pronounced "Fleet control") is a CLI tool for managing Fleet from the command line. Fleetctl enables a GitOps workflow with Fleet and osquery. With fleetctl, you can manage configurations, queries, generate osquery installers, etc.
 
 Fleetctl also provides a quick way to work with all the data exposed by Fleet without having to use the Fleet UI or work directly with the Fleet API.
 
@@ -45,7 +45,6 @@ Much of the functionality available in the Fleet UI is also available in `fleetc
    | query                      | Run a live query                                                   |
    | get                        | Get/list resources                                                 |
    | config                     | Modify Fleet server connection settings                            |
-   | convert                    | Convert osquery packs into decomposed Fleet configs                |
    | goquery                    | Start the goquery interface                                        |
    | user                       | Manage Fleet users                                                 |
    | debug                      | Tools for debugging Fleet                                          |
@@ -218,43 +217,13 @@ Fleet configuration can be retrieved and applied using the `fleetctl` tool.
 
 ### Fleetctl get
 
-The `fleetctl get <fleet-entity-here> > <configuration-file-name-here>.yml` command allows you retrieve the current configuration and create a new file for specified Fleet entity (queries, packs, etc.)
+The `fleetctl get <fleet-entity-here> > <configuration-file-name-here>.yml` command allows you retrieve the current configuration and create a new file for specified Fleet entity (queries, hosts, etc.)
 
 ### Fleetctl apply
 
 The `fleetctl apply -f <configuration-file-name-here>.yml` allows you to apply the current configuration in the specified file.
 
 Check out the [configuration files](https://fleetdm.com/docs/deploying/configuration) section of the documentation for example yaml files.
-
-### Fleetctl convert
-
-`fleetctl` includes easy tooling to convert osquery pack JSON into the
-`fleetctl` format. Use `fleetctl convert` with a path to the pack file:
-
-You can optionally supply `-o file_name` to output to a file destination.
-```
-fleetctl convert -f test.json
----
-apiVersion: v1
-kind: pack
-spec:
-  name: test
-  queries:
-  - description: "this is a test query"
-    interval: 10
-    name: processes
-    query: processes
-    removed: false
-  targets:
-    labels: null
----
-apiVersion: v1
-kind: query
-spec:
-  name: processes
-  query: SELECT * FROM processes
-```
-
 ## Using fleetctl with an API-only user
 
 When running automated workflows using the Fleet API, we recommend an API-only user's API key rather than the API key of a regular user. A regular user's API key expires frequently for security purposes, requiring routine updates. Meanwhile, an API-only user's key does not expire.
@@ -286,13 +255,13 @@ To use fleetctl with an API-only user, you will need to log in with `fleetctl lo
 ### Get the API token of an API-only user
 To get the API key of an API-only user, you need to call the Login API with the credentials supplied during user creation.
 
-For example, say the credentials provided were `api@fleetdm.com` for the email and `foobar12345` for the password. You may call the [Log in API](https://fleetdm.com/docs/using-fleet/rest-api#log-in) like so:
+For example, say the credentials provided were `api@example.com` for the email and `foobar12345` for the password. You may call the [Log in API](https://fleetdm.com/docs/using-fleet/rest-api#log-in) like so:
 
 ```sh
 curl --location --request POST 'https://myfleetdomain.com/api/v1/fleet/login' \
 --header 'Content-Type: application/json' \
 --data-raw '{
-    "email": "api@fleetdm.com",
+    "email": "api@example.com",
     "password": "foobar12345"
 }'
 ```
@@ -304,7 +273,7 @@ The [Log in API](https://fleetdm.com/docs/using-fleet/rest-api#log-in) will retu
     "user": {
         "id": 82,
         "name": "API User",
-        "email": "api@fleetdm.com",
+        "email": "api@example.com",
         "global_role": "observer",
         "api_only": true
     },

@@ -13,12 +13,13 @@ import IssueCell from "components/TableContainer/DataTable/IssueCell/IssueCell";
 import LinkCell from "components/TableContainer/DataTable/LinkCell/LinkCell";
 import StatusIndicator from "components/StatusIndicator";
 import TextCell from "components/TableContainer/DataTable/TextCell/TextCell";
+import TruncatedTextCell from "components/TableContainer/DataTable/TruncatedTextCell";
 import TooltipWrapper from "components/TooltipWrapper";
+import HumanTimeDiffWithDateTip from "components/HumanTimeDiffWithDateTip";
 import {
   humanHostMemory,
   humanHostLastRestart,
   humanHostLastSeen,
-  humanHostDetailUpdated,
   hostTeamName,
 } from "utilities/helpers";
 import { IConfig } from "interfaces/config";
@@ -36,6 +37,12 @@ interface IGetToggleAllRowsSelectedProps {
   onChange: () => void;
   style: { cursor: string };
 }
+
+interface IRow {
+  original: IHost;
+  getToggleRowSelectedProps: () => IGetToggleAllRowsSelectedProps;
+  toggleRowSelected: () => void;
+}
 interface IHeaderProps {
   column: {
     title: string;
@@ -43,17 +50,14 @@ interface IHeaderProps {
   };
   getToggleAllRowsSelectedProps: () => IGetToggleAllRowsSelectedProps;
   toggleAllRowsSelected: () => void;
+  rows: IRow[];
 }
 
 interface ICellProps {
   cell: {
     value: string;
   };
-  row: {
-    original: IHost;
-    getToggleRowSelectedProps: () => IGetToggleAllRowsSelectedProps;
-    toggleRowSelected: () => void;
-  };
+  row: IRow;
 }
 
 interface INumberCellProps {
@@ -208,7 +212,12 @@ const allHostTableHeaders: IDataColumn[] = [
           Status
         </TooltipWrapper>
       );
-      return <HeaderCell value={titleWithToolTip} disableSortBy />;
+      return (
+        <HeaderCell
+          value={headerProps.rows.length === 1 ? "Status" : titleWithToolTip}
+          disableSortBy
+        />
+      );
     },
     disableSortBy: true,
     accessor: "status",
@@ -361,8 +370,8 @@ const allHostTableHeaders: IDataColumn[] = [
     accessor: "detail_updated_at",
     Cell: (cellProps: ICellProps) => (
       <TextCell
-        value={cellProps.cell.value}
-        formatter={humanHostDetailUpdated}
+        value={{ timeString: cellProps.cell.value }}
+        formatter={HumanTimeDiffWithDateTip}
       />
     ),
   },
@@ -387,7 +396,10 @@ const allHostTableHeaders: IDataColumn[] = [
     },
     accessor: "seen_time",
     Cell: (cellProps: ICellProps) => (
-      <TextCell value={cellProps.cell.value} formatter={humanHostLastSeen} />
+      <TextCell
+        value={{ timeString: cellProps.cell.value }}
+        formatter={HumanTimeDiffWithDateTip}
+      />
     ),
   },
   {
@@ -399,7 +411,9 @@ const allHostTableHeaders: IDataColumn[] = [
       />
     ),
     accessor: "uuid",
-    Cell: (cellProps: ICellProps) => <TextCell value={cellProps.cell.value} />,
+    Cell: (cellProps: ICellProps) => (
+      <TruncatedTextCell value={cellProps.cell.value} />
+    ),
   },
   {
     title: "Last restarted",
@@ -414,7 +428,12 @@ const allHostTableHeaders: IDataColumn[] = [
       const { uptime, detail_updated_at } = cellProps.row.original;
 
       return (
-        <TextCell value={humanHostLastRestart(detail_updated_at, uptime)} />
+        <TextCell
+          value={{
+            timeString: humanHostLastRestart(detail_updated_at, uptime),
+          }}
+          formatter={HumanTimeDiffWithDateTip}
+        />
       );
     },
   },
@@ -495,7 +514,7 @@ const defaultHiddenColumns = [
 const generateAvailableTableHeaders = (
   config: IConfig,
   currentUser: IUser,
-  currentTeam: ITeamSummary | undefined
+  currentTeam?: ITeamSummary
 ): IDataColumn[] => {
   return allHostTableHeaders.reduce(
     (columns: Column[], currentColumn: Column) => {
@@ -545,7 +564,7 @@ const generateVisibleTableColumns = (
   hiddenColumns: string[],
   config: IConfig,
   currentUser: IUser,
-  currentTeam: ITeamSummary | undefined
+  currentTeam?: ITeamSummary
 ): IDataColumn[] => {
   // remove columns set as hidden by the user.
   return generateAvailableTableHeaders(config, currentUser, currentTeam).filter(

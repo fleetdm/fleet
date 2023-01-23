@@ -33,6 +33,7 @@ const AddPolicyModal = ({
     setLastEditedQueryDescription,
     setLastEditedQueryBody,
     setLastEditedQueryResolution,
+    setLastEditedQueryCritical,
     setLastEditedQueryPlatform,
     setPolicyTeamId,
   } = useContext(PolicyContext);
@@ -44,6 +45,7 @@ const AddPolicyModal = ({
     setLastEditedQueryDescription(selectedPolicy.description);
     setLastEditedQueryBody(selectedPolicy.query);
     setLastEditedQueryResolution(selectedPolicy.resolution);
+    setLastEditedQueryCritical(selectedPolicy.critical || false);
     setPolicyTeamId(teamId);
     setLastEditedQueryPlatform(selectedPolicy.platform || null);
     router.push(PATHS.NEW_POLICY);
@@ -74,11 +76,13 @@ const AddPolicyModal = ({
   return (
     <Modal title="Add a policy" onExit={onCancel} className={baseClass}>
       <>
-        Choose a policy template to get started or{" "}
-        <Button variant="text-link" onClick={onCreateYourOwnPolicyClick}>
-          create your own policy
-        </Button>
-        .
+        <div className={`${baseClass}__create-policy`}>
+          Choose a policy template to get started or{" "}
+          <Button variant="text-link" onClick={onCreateYourOwnPolicyClick}>
+            create your own policy
+          </Button>
+          .
+        </div>
         <div className={`${baseClass}__policy-selection`}>
           {policiesAvailable}
         </div>

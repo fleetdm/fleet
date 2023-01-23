@@ -66,7 +66,7 @@ type listHostsResponse struct {
 
 func (r listHostsResponse) error() error { return r.Err }
 
-func listHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func listHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*listHostsRequest)
 
 	var software *fleet.Software
@@ -173,7 +173,7 @@ type deleteHostsResponse struct {
 
 func (r deleteHostsResponse) error() error { return r.Err }
 
-func deleteHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func deleteHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*deleteHostsRequest)
 	listOpt := fleet.HostListOptions{
 		ListOptions: fleet.ListOptions{
@@ -238,7 +238,7 @@ type countHostsResponse struct {
 
 func (r countHostsResponse) error() error { return r.Err }
 
-func countHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func countHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*countHostsRequest)
 	count, err := svc.CountHosts(ctx, req.LabelID, req.Opts)
 	if err != nil {
@@ -301,7 +301,7 @@ type searchHostsResponse struct {
 
 func (r searchHostsResponse) error() error { return r.Err }
 
-func searchHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func searchHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*searchHostsRequest)
 
 	hosts, err := svc.SearchHosts(ctx, req.MatchQuery, req.QueryID, req.ExcludedHostIDs)
@@ -368,7 +368,7 @@ type getHostResponse struct {
 
 func (r getHostResponse) error() error { return r.Err }
 
-func getHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func getHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getHostRequest)
 	opts := fleet.HostDetailOptions{
 		IncludeCVEScores: false,
@@ -449,7 +449,7 @@ type getHostSummaryResponse struct {
 
 func (r getHostSummaryResponse) error() error { return r.Err }
 
-func getHostSummaryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func getHostSummaryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getHostSummaryRequest)
 	if req.LowDiskSpace != nil {
 		if *req.LowDiskSpace < 1 || *req.LowDiskSpace > 100 {
@@ -522,7 +522,7 @@ type hostByIdentifierRequest struct {
 	Identifier string `url:"identifier"`
 }
 
-func hostByIdentifierEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func hostByIdentifierEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*hostByIdentifierRequest)
 	opts := fleet.HostDetailOptions{
 		IncludeCVEScores: false,
@@ -580,7 +580,7 @@ type deleteHostResponse struct {
 
 func (r deleteHostResponse) error() error { return r.Err }
 
-func deleteHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func deleteHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*deleteHostRequest)
 	err := svc.DeleteHost(ctx, req.ID)
 	if err != nil {
@@ -622,7 +622,7 @@ type addHostsToTeamResponse struct {
 
 func (r addHostsToTeamResponse) error() error { return r.Err }
 
-func addHostsToTeamEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func addHostsToTeamEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*addHostsToTeamRequest)
 	err := svc.AddHostsToTeam(ctx, req.TeamID, req.HostIDs)
 	if err != nil {
@@ -663,7 +663,7 @@ type addHostsToTeamByFilterResponse struct {
 
 func (r addHostsToTeamByFilterResponse) error() error { return r.Err }
 
-func addHostsToTeamByFilterEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func addHostsToTeamByFilterEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*addHostsToTeamByFilterRequest)
 	listOpt := fleet.HostListOptions{
 		ListOptions: fleet.ListOptions{
@@ -713,7 +713,7 @@ type refetchHostResponse struct {
 
 func (r refetchHostResponse) error() error { return r.Err }
 
-func refetchHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func refetchHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*refetchHostRequest)
 	err := svc.RefetchHost(ctx, req.ID)
 	if err != nil {
@@ -861,7 +861,7 @@ type listHostDeviceMappingResponse struct {
 
 func (r listHostDeviceMappingResponse) error() error { return r.Err }
 
-func listHostDeviceMappingEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func listHostDeviceMappingEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*listHostDeviceMappingRequest)
 	dms, err := svc.ListHostDeviceMapping(ctx, req.ID)
 	if err != nil {
@@ -899,11 +899,13 @@ type getHostMDMRequest struct {
 }
 
 type getHostMDMResponse struct {
-	Err error `json:"error,omitempty"`
 	*fleet.HostMDM
+	Err error `json:"error,omitempty"`
 }
 
-func getHostMDM(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func (r getHostMDMResponse) error() error { return r.Err }
+
+func getHostMDM(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getHostMDMRequest)
 	mdm, err := svc.MDMData(ctx, req.ID)
 	if err != nil {
@@ -922,7 +924,9 @@ type getHostMDMSummaryRequest struct {
 	Platform string `query:"platform,optional"`
 }
 
-func getHostMDMSummary(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func (r getHostMDMSummaryResponse) error() error { return r.Err }
+
+func getHostMDMSummary(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getHostMDMSummaryRequest)
 	resp := getHostMDMSummaryResponse{}
 	var err error
@@ -949,7 +953,7 @@ type getMacadminsDataResponse struct {
 
 func (r getMacadminsDataResponse) error() error { return r.Err }
 
-func getMacadminsDataEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func getMacadminsDataEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getMacadminsDataRequest)
 	data, err := svc.MacadminsData(ctx, req.ID)
 	if err != nil {
@@ -1026,7 +1030,7 @@ type getAggregatedMacadminsDataResponse struct {
 
 func (r getAggregatedMacadminsDataResponse) error() error { return r.Err }
 
-func getAggregatedMacadminsDataEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func getAggregatedMacadminsDataEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getAggregatedMacadminsDataRequest)
 	data, err := svc.AggregatedMacadminsData(ctx, req.TeamID)
 	if err != nil {
@@ -1098,14 +1102,15 @@ func (svc *Service) MDMData(ctx context.Context, id uint) (*fleet.HostMDM, error
 		return nil, err
 	}
 
-	var mdm *fleet.HostMDM
-	switch hmdm, err := svc.ds.GetHostMDM(ctx, id); {
-	case err != nil && !fleet.IsNotFound(err):
-		return nil, err
+	hmdm, err := svc.ds.GetHostMDM(ctx, id)
+	switch {
 	case err == nil:
-		mdm = hmdm
+		return hmdm, nil
+	case fleet.IsNotFound(err):
+		return nil, nil
+	default:
+		return nil, ctxerr.Wrap(ctx, err, "get host mdm")
 	}
-	return mdm, nil
 }
 
 func (svc *Service) AggregatedMDMData(ctx context.Context, teamID *uint, platform string) (fleet.AggregatedMDMData, error) {
@@ -1113,17 +1118,25 @@ func (svc *Service) AggregatedMDMData(ctx context.Context, teamID *uint, platfor
 		return fleet.AggregatedMDMData{}, err
 	}
 
-	var err error
-	data := fleet.AggregatedMDMData{}
-	data.MDMStatus, _, err = svc.ds.AggregatedMDMStatus(ctx, teamID, platform)
+	mdmStatus, mdmStatusUpdatedAt, err := svc.ds.AggregatedMDMStatus(ctx, teamID, platform)
 	if err != nil {
 		return fleet.AggregatedMDMData{}, err
 	}
-	data.MDMSolutions, _, err = svc.ds.AggregatedMDMSolutions(ctx, teamID, platform)
+	mdmSolutions, mdmSolutionsUpdatedAt, err := svc.ds.AggregatedMDMSolutions(ctx, teamID, platform)
 	if err != nil {
 		return fleet.AggregatedMDMData{}, err
 	}
-	return data, nil
+
+	countsUpdatedAt := mdmStatusUpdatedAt
+	if mdmStatusUpdatedAt.Before(mdmSolutionsUpdatedAt) {
+		countsUpdatedAt = mdmSolutionsUpdatedAt
+	}
+
+	return fleet.AggregatedMDMData{
+		MDMStatus:       mdmStatus,
+		MDMSolutions:    mdmSolutions,
+		CountsUpdatedAt: countsUpdatedAt,
+	}, nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1231,7 +1244,7 @@ func (r hostsReportResponse) hijackRender(ctx context.Context, w http.ResponseWr
 	}
 }
 
-func hostsReportEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func hostsReportEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*hostsReportRequest)
 
 	// for now, only csv format is allowed
@@ -1307,7 +1320,7 @@ type osVersionsResponse struct {
 
 func (r osVersionsResponse) error() error { return r.Err }
 
-func osVersionsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func osVersionsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*osVersionsRequest)
 
 	osVersions, err := svc.OSVersions(ctx, req.TeamID, req.Platform, req.Name, req.Version)

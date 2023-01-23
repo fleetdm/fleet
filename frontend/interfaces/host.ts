@@ -85,7 +85,7 @@ export interface IMunkiData {
   version: string;
 }
 
-export interface IMDMData {
+export interface IHostMdmData {
   enrollment_status: string;
   server_url: string;
   id: number;
@@ -102,7 +102,7 @@ export interface IMunkiIssue {
 export interface IMacadminsResponse {
   macadmins: null | {
     munki: null | IMunkiData;
-    mobile_device_management: null | IMDMData;
+    mobile_device_management: null | IHostMdmData;
     munki_issues: IMunkiIssue[];
   };
 }
@@ -202,7 +202,7 @@ export interface IHost {
   users: IHostUser[];
   device_users?: IDeviceUser[];
   munki?: IMunkiData;
-  mdm?: IMDMData;
+  mdm?: IHostMdmData;
   policies: IHostPolicy[];
   query_results?: unknown[];
   geolocation?: IGeoLocation;

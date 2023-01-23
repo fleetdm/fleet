@@ -102,7 +102,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 	var listActivities listActivitiesResponse
 	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &listActivities, "order_key", "id", "order_direction", "desc")
 	require.True(t, len(listActivities.Activities) > 0)
-	assert.Equal(t, fleet.ActivityTypeAppliedSpecTeam, listActivities.Activities[0].Type)
+	assert.Equal(t, fleet.ActivityTypeAppliedSpecTeam{}.ActivityName(), listActivities.Activities[0].Type)
 	require.NotNil(t, listActivities.Activities[0].Details)
 	assert.JSONEq(t, fmt.Sprintf(`{"teams": [{"id": %d, "name": %q}]}`, team.ID, team.Name), string(*listActivities.Activities[0].Details))
 
@@ -217,7 +217,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 	// an activity was created for the newly created team via the applied spec
 	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &listActivities, "order_key", "id", "order_direction", "desc")
 	require.True(t, len(listActivities.Activities) > 0)
-	assert.Equal(t, fleet.ActivityTypeAppliedSpecTeam, listActivities.Activities[0].Type)
+	assert.Equal(t, fleet.ActivityTypeAppliedSpecTeam{}.ActivityName(), listActivities.Activities[0].Type)
 	require.NotNil(t, listActivities.Activities[0].Details)
 	assert.JSONEq(t, fmt.Sprintf(`{"teams": [{"id": %d, "name": %q}]}`, team.ID, team.Name), string(*listActivities.Activities[0].Details))
 
@@ -667,7 +667,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 	var listActivities listActivitiesResponse
 	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &listActivities, "order_key", "id", "order_direction", "desc")
 	require.True(t, len(listActivities.Activities) > 0)
-	assert.Equal(t, fleet.ActivityTypeEditedAgentOptions, listActivities.Activities[0].Type)
+	assert.Equal(t, fleet.ActivityTypeEditedAgentOptions{}.ActivityName(), listActivities.Activities[0].Type)
 	require.NotNil(t, listActivities.Activities[0].Details)
 	assert.JSONEq(t, fmt.Sprintf(`{"global": false, "team_id": %d, "team_name": %q}`, tm1ID, team.Name), string(*listActivities.Activities[0].Details))
 
@@ -1237,27 +1237,10 @@ func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
 	})
 	require.NoError(t, err)
 
-	host, err := s.ds.NewHost(context.Background(), &fleet.Host{
-		DetailUpdatedAt: time.Now(),
-		LabelUpdatedAt:  time.Now(),
-		PolicyUpdatedAt: time.Now(),
-		SeenTime:        time.Now().Add(-1 * time.Minute),
-		OsqueryHostID:   t.Name(),
-		NodeKey:         t.Name(),
-		UUID:            uuid.New().String(),
-		Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
-		Platform:        "darwin",
-	})
-	require.NoError(t, err)
+	token := "much_valid"
+	host := createHostAndDeviceToken(t, s.ds, token)
 	err = s.ds.AddHostsToTeam(context.Background(), &team.ID, []uint{host.ID})
 	require.NoError(t, err)
-
-	// create an auth token for host
-	token := "much_valid"
-	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
-		_, err := db.ExecContext(context.Background(), `INSERT INTO host_device_auth (host_id, token) VALUES (?, ?)`, host.ID, token)
-		return err
-	})
 
 	qr, err := s.ds.NewQuery(context.Background(), &fleet.Query{
 		Name:           "TestQueryEnterpriseGlobalPolicy",
@@ -1352,25 +1335,8 @@ func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
 func (s *integrationEnterpriseTestSuite) TestCustomTransparencyURL() {
 	t := s.T()
 
-	host, err := s.ds.NewHost(context.Background(), &fleet.Host{
-		DetailUpdatedAt: time.Now(),
-		LabelUpdatedAt:  time.Now(),
-		PolicyUpdatedAt: time.Now(),
-		SeenTime:        time.Now().Add(-1 * time.Minute),
-		OsqueryHostID:   t.Name(),
-		NodeKey:         t.Name(),
-		UUID:            uuid.New().String(),
-		Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
-		Platform:        "darwin",
-	})
-	require.NoError(t, err)
-
-	// create device token for host
 	token := "token_test_custom_transparency_url"
-	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
-		_, err := db.ExecContext(context.Background(), `INSERT INTO host_device_auth (host_id, token) VALUES (?, ?)`, host.ID, token)
-		return err
-	})
+	createHostAndDeviceToken(t, s.ds, token)
 
 	// confirm intitial default url
 	acResp := appConfigResponse{}
@@ -1413,6 +1379,44 @@ func (s *integrationEnterpriseTestSuite) TestCustomTransparencyURL() {
 	rawResp.Body.Close()                             //nolint:errcheck
 	require.NoError(t, deviceResp.Err)
 	require.Equal(t, fleet.DefaultTransparencyURL, rawResp.Header.Get("Location"))
+}
+
+func (s *integrationEnterpriseTestSuite) TestDefaultAppleBMTeam() {
+	t := s.T()
+
+	tm, err := s.ds.NewTeam(context.Background(), &fleet.Team{
+		Name:        t.Name(),
+		Description: "desc",
+	})
+	require.NoError(s.T(), err)
+
+	var acResp appConfigResponse
+
+	// try to set an invalid team name
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": {
+			"apple_bm_default_team": "xyz"
+		}
+	}`), http.StatusUnprocessableEntity, &acResp)
+
+	// get the appconfig, nothing changed
+	acResp = appConfigResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	require.Empty(t, acResp.MDM.AppleBMDefaultTeam)
+
+	// set to a valid team name
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
+		"mdm": {
+			"apple_bm_default_team": %q
+		}
+	}`, tm.Name)), http.StatusOK, &acResp)
+	require.Equal(t, tm.Name, acResp.MDM.AppleBMDefaultTeam)
+
+	// get the appconfig, set to that team name
+	acResp = appConfigResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	require.Equal(t, tm.Name, acResp.MDM.AppleBMDefaultTeam)
 }
 
 func (s *integrationEnterpriseTestSuite) TestSSOJITProvisioning() {
@@ -1475,7 +1479,7 @@ func (s *integrationEnterpriseTestSuite) TestSSOJITProvisioning() {
 	require.NotEmpty(t, activitiesResp.Activities)
 	require.Condition(t, func() bool {
 		for _, a := range activitiesResp.Activities {
-			if a.Type == fleet.ActivityTypeUserAddedBySSO && *a.ActorEmail == auth.UserID() {
+			if (a.Type == fleet.ActivityTypeUserAddedBySSO{}.ActivityName()) && *a.ActorEmail == auth.UserID() {
 				return true
 			}
 		}
@@ -1517,8 +1521,8 @@ func (s *integrationEnterpriseTestSuite) TestDistributedReadWithFeatures() {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now().Add(-1 * time.Minute),
-		OsqueryHostID:   t.Name(),
-		NodeKey:         t.Name(),
+		OsqueryHostID:   ptr.String(t.Name()),
+		NodeKey:         ptr.String(t.Name()),
 		UUID:            uuid.New().String(),
 		Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
 		Platform:        "darwin",
@@ -1532,7 +1536,7 @@ func (s *integrationEnterpriseTestSuite) TestDistributedReadWithFeatures() {
 	require.NoError(t, err)
 
 	// get distributed queries for the host
-	req := getDistributedQueriesRequest{NodeKey: host.NodeKey}
+	req := getDistributedQueriesRequest{NodeKey: *host.NodeKey}
 	var dqResp getDistributedQueriesResponse
 	s.DoJSON("POST", "/api/osquery/distributed/read", req, http.StatusOK, &dqResp)
 	require.Contains(t, dqResp.Queries, "fleet_detail_query_users")
@@ -1545,7 +1549,7 @@ func (s *integrationEnterpriseTestSuite) TestDistributedReadWithFeatures() {
 
 	err = s.ds.UpdateHostRefetchRequested(context.Background(), host.ID, true)
 	require.NoError(t, err)
-	req = getDistributedQueriesRequest{NodeKey: host.NodeKey}
+	req = getDistributedQueriesRequest{NodeKey: *host.NodeKey}
 	dqResp = getDistributedQueriesResponse{}
 	s.DoJSON("POST", "/api/osquery/distributed/read", req, http.StatusOK, &dqResp)
 	require.NotContains(t, dqResp.Queries, "fleet_detail_query_users")
@@ -1562,8 +1566,8 @@ func (s *integrationEnterpriseTestSuite) TestListHosts() {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now().Add(-1 * time.Minute),
-		OsqueryHostID:   t.Name(),
-		NodeKey:         t.Name(),
+		OsqueryHostID:   ptr.String(t.Name()),
+		NodeKey:         ptr.String(t.Name()),
 		UUID:            uuid.New().String(),
 		Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
 		Platform:        "darwin",
@@ -1574,8 +1578,8 @@ func (s *integrationEnterpriseTestSuite) TestListHosts() {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now().Add(-1 * time.Minute),
-		OsqueryHostID:   t.Name() + "2",
-		NodeKey:         t.Name() + "2",
+		OsqueryHostID:   ptr.String(t.Name() + "2"),
+		NodeKey:         ptr.String(t.Name() + "2"),
 		UUID:            uuid.New().String(),
 		Hostname:        fmt.Sprintf("%sbar.local", t.Name()),
 		Platform:        "linux",
@@ -1586,8 +1590,8 @@ func (s *integrationEnterpriseTestSuite) TestListHosts() {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now().Add(-1 * time.Minute),
-		OsqueryHostID:   t.Name() + "3",
-		NodeKey:         t.Name() + "3",
+		OsqueryHostID:   ptr.String(t.Name() + "3"),
+		NodeKey:         ptr.String(t.Name() + "3"),
 		UUID:            uuid.New().String(),
 		Hostname:        fmt.Sprintf("%sbaz.local", t.Name()),
 		Platform:        "windows",
@@ -1825,6 +1829,111 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicyCreateReadPatch() {
 	require.Equal(s.T(), listPol.Policies[1], getPol2.Policy)
 }
 
+func (s *integrationEnterpriseTestSuite) TestResetAutomation() {
+	ctx := context.Background()
+
+	team1, err := s.ds.NewTeam(context.Background(), &fleet.Team{
+		ID:          42,
+		Name:        "team1",
+		Description: "desc team1",
+	})
+	require.NoError(s.T(), err)
+
+	createPol1 := &teamPolicyResponse{}
+	createPol1Req := &teamPolicyRequest{
+		Query:       "query",
+		Name:        "name1",
+		Description: "description",
+		Resolution:  "resolution",
+		Platform:    "linux",
+		Critical:    true,
+	}
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team1.ID), createPol1Req, http.StatusOK, &createPol1)
+
+	createPol2 := &teamPolicyResponse{}
+	createPol2Req := &teamPolicyRequest{
+		Query:       "query",
+		Name:        "name2",
+		Description: "description",
+		Resolution:  "resolution",
+		Platform:    "linux",
+		Critical:    false,
+	}
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team1.ID), createPol2Req, http.StatusOK, &createPol2)
+
+	createPol3 := &teamPolicyResponse{}
+	createPol3Req := &teamPolicyRequest{
+		Query:       "query",
+		Name:        "name3",
+		Description: "description",
+		Resolution:  "resolution",
+		Platform:    "linux",
+		Critical:    false,
+	}
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team1.ID), createPol3Req, http.StatusOK, &createPol3)
+
+	var tmResp teamResponse
+	// modify the team's config - enable the webhook
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team1.ID), fleet.TeamPayload{WebhookSettings: &fleet.TeamWebhookSettings{
+		FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
+			Enable:         true,
+			DestinationURL: "http://127/",
+			PolicyIDs:      []uint{createPol1.Policy.ID, createPol2.Policy.ID},
+			HostBatchSize:  12345,
+		},
+	}}, http.StatusOK, &tmResp)
+
+	h1, err := s.ds.NewHost(ctx, &fleet.Host{})
+	require.NoError(s.T(), err)
+
+	err = s.ds.RecordPolicyQueryExecutions(ctx, h1, map[uint]*bool{
+		createPol1.Policy.ID: ptr.Bool(false),
+		createPol2.Policy.ID: ptr.Bool(false),
+		createPol3.Policy.ID: ptr.Bool(false), // This policy is not activated for automation in config.
+	}, time.Now(), false)
+	require.NoError(s.T(), err)
+
+	pfs, err := s.ds.OutdatedAutomationBatch(ctx)
+	require.NoError(s.T(), err)
+	require.Empty(s.T(), pfs)
+
+	s.DoJSON("POST", "/api/latest/fleet/automations/reset", resetAutomationRequest{
+		TeamIDs:   nil,
+		PolicyIDs: []uint{},
+	}, http.StatusOK, &tmResp)
+
+	pfs, err = s.ds.OutdatedAutomationBatch(ctx)
+	require.NoError(s.T(), err)
+	require.Empty(s.T(), pfs)
+
+	s.DoJSON("POST", "/api/latest/fleet/automations/reset", resetAutomationRequest{
+		TeamIDs:   nil,
+		PolicyIDs: []uint{createPol1.Policy.ID, createPol2.Policy.ID, createPol3.Policy.ID},
+	}, http.StatusOK, &tmResp)
+
+	pfs, err = s.ds.OutdatedAutomationBatch(ctx)
+	require.NoError(s.T(), err)
+	require.Len(s.T(), pfs, 2)
+
+	s.DoJSON("POST", "/api/latest/fleet/automations/reset", resetAutomationRequest{
+		TeamIDs:   []uint{team1.ID},
+		PolicyIDs: nil,
+	}, http.StatusOK, &tmResp)
+
+	pfs, err = s.ds.OutdatedAutomationBatch(ctx)
+	require.NoError(s.T(), err)
+	require.Len(s.T(), pfs, 2)
+
+	s.DoJSON("POST", "/api/latest/fleet/automations/reset", resetAutomationRequest{
+		TeamIDs:   nil,
+		PolicyIDs: []uint{createPol2.Policy.ID},
+	}, http.StatusOK, &tmResp)
+
+	pfs, err = s.ds.OutdatedAutomationBatch(ctx)
+	require.NoError(s.T(), err)
+	require.Len(s.T(), pfs, 1)
+}
+
 // allEqual compares all fields of a struct.
 // If a field is a pointer on one side but not on the other, then it follows that pointer. This is useful for optional
 // arguments.
@@ -1843,4 +1952,25 @@ func allEqual(t *testing.T, expect, actual interface{}, fields ...string) {
 		}
 		require.Equal(t, e.Interface(), a.Interface(), "%s", f)
 	}
+}
+
+func createHostAndDeviceToken(t *testing.T, ds *mysql.Datastore, token string) *fleet.Host {
+	host, err := ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now().Add(-1 * time.Minute),
+		OsqueryHostID:   ptr.String(t.Name()),
+		NodeKey:         ptr.String(t.Name()),
+		UUID:            uuid.New().String(),
+		Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
+		Platform:        "darwin",
+	})
+	require.NoError(t, err)
+
+	mysql.ExecAdhocSQL(t, ds, func(db sqlx.ExtContext) error {
+		_, err := db.ExecContext(context.Background(), `INSERT INTO host_device_auth (host_id, token) VALUES (?, ?)`, host.ID, token)
+		return err
+	})
+	return host
 }

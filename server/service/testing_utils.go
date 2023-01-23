@@ -18,6 +18,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/logging"
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/async"
 	"github.com/fleetdm/fleet/v4/server/sso"
@@ -45,10 +46,9 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		fleetConfig.Filesystem.EnableLogRotation,
 		fleetConfig.Filesystem.EnableLogCompression,
 	)
-
 	require.NoError(t, err)
 
-	osqlogger := &logging.OsqueryLogger{Status: writer, Result: writer}
+	osqlogger := &OsqueryLogger{Status: writer, Result: writer}
 	logger := kitlog.NewNopLogger()
 
 	var ssoStore sso.SessionStore
@@ -238,6 +238,7 @@ type TestServerOpts struct {
 	FleetConfig         *config.FleetConfig
 	MDMStorage          nanomdm_storage.AllStorage
 	DEPStorage          nanodep_storage.AllStorage
+	SCEPStorage         *apple_mdm.SCEPMySQLDepot
 	MDMPusher           nanomdm_push.Pusher
 	HTTPServerConfig    *http.Server
 	StartCronSchedules  []TestNewScheduleFunc
@@ -266,13 +267,33 @@ func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServ
 		logger = opts[0].Logger
 	}
 	limitStore, _ := memstore.New(0)
-	r := MakeHandler(svc, cfg, logger, limitStore, WithLoginRateLimit(throttled.PerMin(100)))
-	server := httptest.NewUnstartedServer(r)
-	server.Config = cfg.Server.DefaultHTTPServer(ctx, r)
+	rootMux := http.NewServeMux()
+
+	if len(opts) > 0 {
+		mdmStorage := opts[0].MDMStorage
+		scepStorage := opts[0].SCEPStorage
+		if mdmStorage != nil && scepStorage != nil {
+			err := RegisterAppleMDMProtocolServices(
+				rootMux,
+				cfg.MDMApple.SCEP,
+				mdmStorage,
+				scepStorage,
+				logger,
+				&MDMAppleCheckinAndCommandService{ds: ds},
+			)
+			require.NoError(t, err)
+		}
+	}
+
+	apiHandler := MakeHandler(svc, cfg, logger, limitStore, WithLoginRateLimit(throttled.PerMin(100)))
+	rootMux.Handle("/api/", apiHandler)
+
+	server := httptest.NewUnstartedServer(rootMux)
+	server.Config = cfg.Server.DefaultHTTPServer(ctx, rootMux)
 	if len(opts) > 0 && opts[0].HTTPServerConfig != nil {
 		server.Config = opts[0].HTTPServerConfig
 		// make sure we use the application handler we just created
-		server.Config.Handler = r
+		server.Config.Handler = rootMux
 	}
 	server.Start()
 	t.Cleanup(func() {
@@ -285,6 +306,7 @@ func testKinesisPluginConfig() config.FleetConfig {
 	c := config.TestConfig()
 	c.Osquery.ResultLogPlugin = "kinesis"
 	c.Osquery.StatusLogPlugin = "kinesis"
+	c.Activity.AuditLogPlugin = "kinesis"
 	c.Kinesis = config.KinesisConfig{
 		Region:           "us-east-1",
 		AccessKeyID:      "foo",
@@ -292,6 +314,7 @@ func testKinesisPluginConfig() config.FleetConfig {
 		StsAssumeRoleArn: "baz",
 		StatusStream:     "test-status-stream",
 		ResultStream:     "test-result-stream",
+		AuditStream:      "test-audit-stream",
 	}
 	return c
 }
@@ -300,6 +323,7 @@ func testFirehosePluginConfig() config.FleetConfig {
 	c := config.TestConfig()
 	c.Osquery.ResultLogPlugin = "firehose"
 	c.Osquery.StatusLogPlugin = "firehose"
+	c.Activity.AuditLogPlugin = "firehose"
 	c.Firehose = config.FirehoseConfig{
 		Region:           "us-east-1",
 		AccessKeyID:      "foo",
@@ -307,6 +331,7 @@ func testFirehosePluginConfig() config.FleetConfig {
 		StsAssumeRoleArn: "baz",
 		StatusStream:     "test-status-firehose",
 		ResultStream:     "test-result-firehose",
+		AuditStream:      "test-audit-firehose",
 	}
 	return c
 }
@@ -315,6 +340,7 @@ func testLambdaPluginConfig() config.FleetConfig {
 	c := config.TestConfig()
 	c.Osquery.ResultLogPlugin = "lambda"
 	c.Osquery.StatusLogPlugin = "lambda"
+	c.Activity.AuditLogPlugin = "lambda"
 	c.Lambda = config.LambdaConfig{
 		Region:           "us-east-1",
 		AccessKeyID:      "foo",
@@ -322,6 +348,7 @@ func testLambdaPluginConfig() config.FleetConfig {
 		StsAssumeRoleArn: "baz",
 		ResultFunction:   "result-func",
 		StatusFunction:   "status-func",
+		AuditFunction:    "audit-func",
 	}
 	return c
 }
@@ -330,10 +357,12 @@ func testPubSubPluginConfig() config.FleetConfig {
 	c := config.TestConfig()
 	c.Osquery.ResultLogPlugin = "pubsub"
 	c.Osquery.StatusLogPlugin = "pubsub"
+	c.Activity.AuditLogPlugin = "pubsub"
 	c.PubSub = config.PubSubConfig{
 		Project:       "test",
 		StatusTopic:   "status-topic",
 		ResultTopic:   "result-topic",
+		AuditTopic:    "audit-topic",
 		AddAttributes: false,
 	}
 	return c
@@ -343,12 +372,17 @@ func testStdoutPluginConfig() config.FleetConfig {
 	c := config.TestConfig()
 	c.Osquery.ResultLogPlugin = "stdout"
 	c.Osquery.StatusLogPlugin = "stdout"
+	c.Activity.AuditLogPlugin = "stdout"
 	return c
 }
 
 func testUnrecognizedPluginConfig() config.FleetConfig {
 	c := config.TestConfig()
-	c.Osquery = config.OsqueryConfig{ResultLogPlugin: "bar", StatusLogPlugin: "bar"}
+	c.Osquery = config.OsqueryConfig{
+		ResultLogPlugin: "bar",
+		StatusLogPlugin: "bar",
+	}
+	c.Activity.AuditLogPlugin = "bar"
 	return c
 }
 

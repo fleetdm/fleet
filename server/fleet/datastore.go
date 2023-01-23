@@ -9,6 +9,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/health"
+	"github.com/micromdm/nanodep/godep"
 )
 
 type CarveStore interface {
@@ -200,10 +201,12 @@ type Datastore interface {
 	EnrolledHostIDs(ctx context.Context) ([]uint, error)
 	CountEnrolledHosts(ctx context.Context) (int, error)
 
+	// TODO(sarah): Reconcile pending mdm hosts feature with original motivation to cleanup "dead incoming host"
+
 	// CleanupIncomingHosts deletes hosts that have enrolled but never updated their status details. This clears dead
 	// "incoming hosts" that never complete their registration.
-	// A host is considered incoming if both the hostname and osquery_version fields are empty. This means that multiple
-	// different osquery queries failed to populate details.
+	// A host is considered incoming if each of the hostname and osquery_version and hardware_serial
+	// fields are empty. This means that multiple different osquery queries failed to populate details.
 	CleanupIncomingHosts(ctx context.Context, now time.Time) ([]uint, error)
 	// GenerateHostStatusStatistics retrieves the count of online, offline, MIA and new hosts.
 	GenerateHostStatusStatistics(ctx context.Context, filter TeamFilter, now time.Time, platform *string, lowDiskSpace *int) (*HostSummary, error)
@@ -251,6 +254,7 @@ type Datastore interface {
 	GetHostMunkiVersion(ctx context.Context, hostID uint) (string, error)
 	GetHostMunkiIssues(ctx context.Context, hostID uint) ([]*HostMunkiIssue, error)
 	GetHostMDM(ctx context.Context, hostID uint) (*HostMDM, error)
+	GetHostMDMCheckinInfo(ctx context.Context, hostUUID string) (*HostMDMCheckinInfo, error)
 
 	AggregatedMunkiVersion(ctx context.Context, teamID *uint) ([]AggregatedMunkiVersion, time.Time, error)
 	AggregatedMunkiIssues(ctx context.Context, teamID *uint) ([]AggregatedMunkiIssue, time.Time, error)
@@ -434,11 +438,14 @@ type Datastore interface {
 	// upgraded from a prior version).
 	CleanupHostOperatingSystems(ctx context.Context) error
 
+	UpdateHostTablesOnMDMUnenroll(ctx context.Context, uuid string) error
+
 	///////////////////////////////////////////////////////////////////////////////
 	// ActivitiesStore
 
-	NewActivity(ctx context.Context, user *User, activityType string, details *map[string]interface{}) error
-	ListActivities(ctx context.Context, opt ListOptions) ([]*Activity, error)
+	NewActivity(ctx context.Context, user *User, activity ActivityDetails) error
+	ListActivities(ctx context.Context, opt ListActivitiesOptions) ([]*Activity, *PaginationMetadata, error)
+	MarkActivitiesAsStreamed(ctx context.Context, activityIDs []uint) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// StatisticsStore
@@ -523,9 +530,10 @@ type Datastore interface {
 	///////////////////////////////////////////////////////////////////////////////
 	// Cron Stats
 
-	// GetLatestCronStats returns the most recent cron stats for the named cron schedule. If no rows
-	// are found, it returns an empty CronStats struct.
-	GetLatestCronStats(ctx context.Context, name string) (CronStats, error)
+	// GetLatestCronStats returns a slice of no more than two cron stats records, where index 0 (if
+	// present) is the most recently created scheduled run, and index 1 (if present) represents a
+	// triggered run that is currently pending.
+	GetLatestCronStats(ctx context.Context, name string) ([]CronStats, error)
 	// InsertCronStats inserts cron stats for the named cron schedule.
 	InsertCronStats(ctx context.Context, statsType CronStatsType, name string, instance string, status CronStatsStatus) (int, error)
 	// UpdateCronStats updates the status of the identified cron stats record.
@@ -683,6 +691,9 @@ type Datastore interface {
 	NewMDMAppleEnrollmentProfile(ctx context.Context, enrollmentPayload MDMAppleEnrollmentProfilePayload) (*MDMAppleEnrollmentProfile, error)
 
 	// GetMDMAppleEnrollmentProfileByToken loads the enrollment profile from its secret token.
+	// TODO(mna): this may have to be removed if we don't end up supporting
+	// manual enrollment via a token (currently we only support it via Fleet
+	// Desktop, in the My Device page). See #8701.
 	GetMDMAppleEnrollmentProfileByToken(ctx context.Context, token string) (*MDMAppleEnrollmentProfile, error)
 
 	// ListMDMAppleEnrollmentProfiles returns the list of all the enrollment profiles.
@@ -714,6 +725,20 @@ type Datastore interface {
 
 	// MDMAppleListDevices lists all the MDM enrolled devices.
 	MDMAppleListDevices(ctx context.Context) ([]MDMAppleDevice, error)
+
+	// IngestMDMAppleDevicesFromDEPSync creates new Fleet host records for MDM-enrolled devices that are
+	// not already enrolled in Fleet.
+	IngestMDMAppleDevicesFromDEPSync(ctx context.Context, devices []godep.Device) (int64, error)
+
+	// IngestMDMAppleDeviceFromCheckin creates a new Fleet host record for an MDM-enrolled device that is
+	// not already enrolled in Fleet.
+	IngestMDMAppleDeviceFromCheckin(ctx context.Context, mdmHost MDMAppleHostDetails) error
+
+	// IncreasePolicyAutomationIteration marks the policy to fire automation again.
+	IncreasePolicyAutomationIteration(ctx context.Context, policyID uint) error
+
+	// OutdatedAutomationBatch returns a batch of hosts that had a failing policy.
+	OutdatedAutomationBatch(ctx context.Context) ([]PolicyFailure, error)
 }
 
 const (
@@ -722,6 +747,11 @@ const (
 	// Default batch size for loading IDs of or inserting new munki issues.
 	DefaultMunkiIssuesBatchSize = 100
 )
+
+type PolicyFailure struct {
+	PolicyID uint
+	Host     PolicySetHost
+}
 
 type MySQLProcess struct {
 	Id      int     `json:"id" db:"Id"`

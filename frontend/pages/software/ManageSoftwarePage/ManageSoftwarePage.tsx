@@ -47,10 +47,10 @@ import TeamsDropdownHeader, {
 import LastUpdatedText from "components/LastUpdatedText";
 import MainContent from "components/MainContent";
 import CustomLink from "components/CustomLink";
+import EmptySoftwareTable from "../components/EmptySoftwareTable";
 
 import generateSoftwareTableHeaders from "./SoftwareTableConfig";
 import ManageAutomationsModal from "./components/ManageAutomationsModal";
-import EmptySoftware from "../components/EmptySoftware";
 
 interface IManageSoftwarePageProps {
   router: InjectedRouter;
@@ -111,6 +111,7 @@ const ManageSoftwarePage = ({
     currentTeam,
     isOnGlobalTeam,
     isPremiumTier,
+    isSandboxMode,
   } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
@@ -530,6 +531,8 @@ const ManageSoftwarePage = ({
     router.push(path);
   };
 
+  const searchable = !!software?.software || searchQuery !== "";
+
   return !availableTeams ||
     !globalConfig ||
     (!softwareConfig && !softwareConfigError) ? (
@@ -548,13 +551,15 @@ const ManageSoftwarePage = ({
               data={(isSoftwareEnabled && software?.software) || []}
               isLoading={isFetchingSoftware || isFetchingCount}
               resultsTitle={"software items"}
-              emptyComponent={() =>
-                EmptySoftware(
-                  (!isSoftwareEnabled && "disabled") ||
-                    (isCollectingInventory && "collecting") ||
-                    "default"
-                )
-              }
+              emptyComponent={() => (
+                <EmptySoftwareTable
+                  isSoftwareDisabled={!isSoftwareEnabled}
+                  isFilterVulnerable={filterVuln}
+                  isSandboxMode={isSandboxMode}
+                  isCollectingSoftware={isCollectingInventory}
+                  isSearching={searchQuery !== ""}
+                />
+              )}
               defaultSortHeader={DEFAULT_SORT_HEADER}
               defaultSortDirection={DEFAULT_SORT_DIRECTION}
               manualSortBy
@@ -562,13 +567,13 @@ const ManageSoftwarePage = ({
               showMarkAllPages={false}
               isAllPagesSelected={false}
               disableNextPage={isLastPage}
-              searchable
+              searchable={searchable}
               inputPlaceHolder="Search software by name or vulnerabilities (CVEs)"
               onQueryChange={onQueryChange}
               additionalQueries={filterVuln ? "vulnerable" : ""} // additionalQueries serves as a trigger
               // for the useDeepEffect hook to fire onQueryChange for events happeing outside of
               // the TableContainer
-              customControl={renderVulnFilterDropdown}
+              customControl={searchable ? renderVulnFilterDropdown : undefined}
               stackControls
               renderCount={renderSoftwareCount}
               renderFooter={renderTableFooter}

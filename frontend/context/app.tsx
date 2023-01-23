@@ -73,6 +73,7 @@ type InitialStateType = {
   isSandboxMode?: boolean;
   isFreeTier?: boolean;
   isPremiumTier?: boolean;
+  isMdmEnabled?: boolean;
   isGlobalAdmin?: boolean;
   isGlobalMaintainer?: boolean;
   isGlobalObserver?: boolean;
@@ -109,6 +110,7 @@ export const initialState = {
   isSandboxMode: false,
   isFreeTier: undefined,
   isPremiumTier: undefined,
+  isMdmEnabled: undefined,
   isGlobalAdmin: undefined,
   isGlobalMaintainer: undefined,
   isGlobalObserver: undefined,
@@ -151,6 +153,7 @@ const setPermissions = (
     isSandboxMode: permissions.isSandboxMode(config),
     isFreeTier: permissions.isFreeTier(config),
     isPremiumTier: permissions.isPremiumTier(config),
+    isMdmEnabled: permissions.isMdmEnabled(config),
     isGlobalAdmin: permissions.isGlobalAdmin(user),
     isGlobalMaintainer: permissions.isGlobalMaintainer(user),
     isGlobalObserver: permissions.isGlobalObserver(user),
@@ -255,6 +258,7 @@ const AppProvider = ({ children }: Props): JSX.Element => {
     isSandboxMode: state.isSandboxMode,
     isFreeTier: state.isFreeTier,
     isPremiumTier: state.isPremiumTier,
+    isMdmEnabled: state.isMdmEnabled,
     isGlobalAdmin: state.isGlobalAdmin,
     isGlobalMaintainer: state.isGlobalMaintainer,
     isGlobalObserver: state.isGlobalObserver,

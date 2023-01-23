@@ -3,6 +3,8 @@ import { rest } from "msw";
 import createMockActivity from "__mocks__/activityMock";
 import { baseUrl } from "test/test-utils";
 
+import { ActivityType } from "interfaces/activity";
+
 export const defaultActivityHandler = rest.get(
   baseUrl("/activities"),
   (req, res, context) => {
@@ -10,15 +12,19 @@ export const defaultActivityHandler = rest.get(
       context.json({
         activities: [
           createMockActivity(),
-          createMockActivity({ id: 2, actor_full_name: "Gabe" }),
-          createMockActivity({ id: 3, actor_full_name: "Luke" }),
+          createMockActivity({ id: 2, actor_full_name: "Test User 2" }),
+          createMockActivity({ id: 3, actor_full_name: "Test User 3" }),
         ],
+        meta: {
+          has_next_results: false,
+          has_previous_results: false,
+        },
       })
     );
   }
 );
 
-export const activityHandler9Activities = rest.get(
+export const activityHandlerHasMoreActivities = rest.get(
   baseUrl("/activities"),
   (req, res, context) => {
     return res(
@@ -27,13 +33,30 @@ export const activityHandler9Activities = rest.get(
           createMockActivity(),
           createMockActivity({ id: 2 }),
           createMockActivity({ id: 3 }),
-          createMockActivity({ id: 4 }),
-          createMockActivity({ id: 5 }),
-          createMockActivity({ id: 6 }),
-          createMockActivity({ id: 7 }),
-          createMockActivity({ id: 8 }),
-          createMockActivity({ id: 9 }),
         ],
+        meta: {
+          has_next_results: true,
+          has_previous_results: false,
+        },
+      })
+    );
+  }
+);
+
+export const activityHandlerHasPreviousActivities = rest.get(
+  baseUrl("/activities"),
+  (req, res, context) => {
+    return res(
+      context.json({
+        activities: [
+          createMockActivity(),
+          createMockActivity({ id: 2 }),
+          createMockActivity({ id: 3 }),
+        ],
+        meta: {
+          has_next_results: false,
+          has_previous_results: true,
+        },
       })
     );
   }

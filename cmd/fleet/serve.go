@@ -353,9 +353,88 @@ the way that the Fleet server works.
 			liveQueryStore := live_query.NewRedisLiveQuery(redisPool)
 			ssoSessionStore := sso.NewSessionStore(redisPool)
 
-			osqueryLogger, err := logging.New(config, logger)
+			// Set common configuration for all logging.
+			loggingConfig := logging.Config{
+				Filesystem: logging.FilesystemConfig{
+					EnableLogRotation:    config.Filesystem.EnableLogRotation,
+					EnableLogCompression: config.Filesystem.EnableLogCompression,
+				},
+				Firehose: logging.FirehoseConfig{
+					Region:           config.Firehose.Region,
+					EndpointURL:      config.Firehose.EndpointURL,
+					AccessKeyID:      config.Firehose.AccessKeyID,
+					SecretAccessKey:  config.Firehose.SecretAccessKey,
+					StsAssumeRoleArn: config.Firehose.StsAssumeRoleArn,
+				},
+				Kinesis: logging.KinesisConfig{
+					Region:           config.Kinesis.Region,
+					EndpointURL:      config.Kinesis.EndpointURL,
+					AccessKeyID:      config.Kinesis.AccessKeyID,
+					SecretAccessKey:  config.Kinesis.SecretAccessKey,
+					StsAssumeRoleArn: config.Kinesis.StsAssumeRoleArn,
+				},
+				Lambda: logging.LambdaConfig{
+					Region:           config.Lambda.Region,
+					AccessKeyID:      config.Lambda.AccessKeyID,
+					SecretAccessKey:  config.Lambda.SecretAccessKey,
+					StsAssumeRoleArn: config.Lambda.StsAssumeRoleArn,
+				},
+				PubSub: logging.PubSubConfig{
+					Project: config.PubSub.Project,
+				},
+				KafkaREST: logging.KafkaRESTConfig{
+					ProxyHost:        config.KafkaREST.ProxyHost,
+					ContentTypeValue: config.KafkaREST.ContentTypeValue,
+					Timeout:          config.KafkaREST.Timeout,
+				},
+			}
+
+			// Set specific configuration to osqueryd status logs.
+			loggingConfig.Plugin = config.Osquery.StatusLogPlugin
+			loggingConfig.Filesystem.LogFile = config.Filesystem.StatusLogFile
+			loggingConfig.Firehose.StreamName = config.Firehose.StatusStream
+			loggingConfig.Kinesis.StreamName = config.Kinesis.StatusStream
+			loggingConfig.Lambda.Function = config.Lambda.StatusFunction
+			loggingConfig.PubSub.Topic = config.PubSub.StatusTopic
+			loggingConfig.PubSub.AddAttributes = false // only used by result logs
+			loggingConfig.KafkaREST.Topic = config.KafkaREST.StatusTopic
+
+			osquerydStatusLogger, err := logging.NewJSONLogger("status", loggingConfig, logger)
 			if err != nil {
-				initFatal(err, "initializing osquery logging")
+				initFatal(err, "initializing osqueryd status logging")
+			}
+
+			// Set specific configuration to osqueryd result logs.
+			loggingConfig.Plugin = config.Osquery.ResultLogPlugin
+			loggingConfig.Filesystem.LogFile = config.Filesystem.ResultLogFile
+			loggingConfig.Firehose.StreamName = config.Firehose.ResultStream
+			loggingConfig.Kinesis.StreamName = config.Kinesis.ResultStream
+			loggingConfig.Lambda.Function = config.Lambda.ResultFunction
+			loggingConfig.PubSub.Topic = config.PubSub.ResultTopic
+			loggingConfig.PubSub.AddAttributes = config.PubSub.AddAttributes
+			loggingConfig.KafkaREST.Topic = config.KafkaREST.ResultTopic
+
+			osquerydResultLogger, err := logging.NewJSONLogger("result", loggingConfig, logger)
+			if err != nil {
+				initFatal(err, "initializing osqueryd result logging")
+			}
+
+			var auditLogger fleet.JSONLogger
+			if license.IsPremium() && config.Activity.EnableAuditLog {
+				// Set specific configuration to audit logs.
+				loggingConfig.Plugin = config.Activity.AuditLogPlugin
+				loggingConfig.Filesystem.LogFile = config.Filesystem.AuditLogFile
+				loggingConfig.Firehose.StreamName = config.Firehose.AuditStream
+				loggingConfig.Kinesis.StreamName = config.Kinesis.AuditStream
+				loggingConfig.Lambda.Function = config.Lambda.AuditFunction
+				loggingConfig.PubSub.Topic = config.PubSub.AuditTopic
+				loggingConfig.PubSub.AddAttributes = false // only used by result logs
+				loggingConfig.KafkaREST.Topic = config.KafkaREST.AuditTopic
+
+				auditLogger, err = logging.NewJSONLogger("audit", loggingConfig, logger)
+				if err != nil {
+					initFatal(err, "initializing audit logging")
+				}
 			}
 
 			failingPolicySet := redis_policy_set.NewFailing(redisPool)
@@ -389,15 +468,16 @@ the way that the Fleet server works.
 			}
 
 			var (
-				scepStorage      *apple_mdm.SCEPMySQLDepot
-				appleSCEPCertPEM []byte
-				appleSCEPKeyPEM  []byte
-				appleAPNsCertPEM []byte
-				appleAPNsKeyPEM  []byte
-				depStorage       *mysql.NanoDEPStorage
-				mdmStorage       *mysql.NanoMDMStorage
-				mdmPushService   *nanomdm_pushsvc.PushService
-				mdmPushCertTopic string
+				scepStorage                 *apple_mdm.SCEPMySQLDepot
+				appleSCEPCertPEM            []byte
+				appleSCEPKeyPEM             []byte
+				appleAPNsCertPEM            []byte
+				appleAPNsKeyPEM             []byte
+				depStorage                  *mysql.NanoDEPStorage
+				mdmStorage                  *mysql.NanoMDMStorage
+				mdmPushService              *nanomdm_pushsvc.PushService
+				mdmCheckinAndCommandService *service.MDMAppleCheckinAndCommandService
+				mdmPushCertTopic            string
 			)
 
 			// validate Apple APNs/SCEP config
@@ -473,9 +553,10 @@ the way that the Fleet server works.
 				if err != nil {
 					initFatal(err, "initialize mdm apple MySQL storage")
 				}
-				nanoMDMLogger := NewNanoMDMLogger(kitlog.With(logger, "component", "apple-mdm-push"))
+				nanoMDMLogger := service.NewNanoMDMLogger(kitlog.With(logger, "component", "apple-mdm-push"))
 				pushProviderFactory := buford.NewPushProviderFactory()
 				mdmPushService = nanomdm_pushsvc.New(mdmStorage, mdmStorage, pushProviderFactory, nanoMDMLogger)
+				mdmCheckinAndCommandService = service.NewMDMAppleCheckinAndCommandService(ds)
 			}
 
 			cronSchedules := fleet.NewCronSchedules()
@@ -492,7 +573,10 @@ the way that the Fleet server works.
 				task,
 				resultStore,
 				logger,
-				osqueryLogger,
+				&service.OsqueryLogger{
+					Status: osquerydStatusLogger,
+					Result: osquerydResultLogger,
+				},
 				config,
 				mailService,
 				clock.C,
@@ -560,6 +644,14 @@ the way that the Fleet server works.
 					return newAppleMDMDEPProfileAssigner(ctx, instanceID, config.MDMApple.DEP.SyncPeriodicity, ds, depStorage, logger, config.Logging.Debug)
 				}); err != nil {
 					initFatal(err, "failed to register apple_mdm_dep_profile_assigner schedule")
+				}
+			}
+
+			if license.IsPremium() && config.Activity.EnableAuditLog {
+				if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
+					return newActivitiesStreamingSchedule(ctx, instanceID, ds, logger, auditLogger)
+				}); err != nil {
+					initFatal(err, "failed to register activities streaming schedule")
 				}
 			}
 
@@ -658,14 +750,13 @@ the way that the Fleet server works.
 			rootMux.Handle("/assets/", service.PrometheusMetricsHandler("static_assets", service.ServeStaticAssets("/assets/")))
 
 			if config.MDMApple.Enable {
-				if err := registerAppleMDMProtocolServices(
+				if err := service.RegisterAppleMDMProtocolServices(
 					rootMux,
 					config.MDMApple.SCEP,
-					appleSCEPCertPEM,
-					appleSCEPKeyPEM,
 					mdmStorage,
 					scepStorage,
 					logger,
+					mdmCheckinAndCommandService,
 				); err != nil {
 					initFatal(err, "setup mdm apple services")
 				}

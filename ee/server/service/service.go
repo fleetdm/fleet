@@ -11,6 +11,7 @@ import (
 	"github.com/micromdm/nanodep/storage"
 )
 
+// Service wraps a free Service and implements additional premium functionality on top of it.
 type Service struct {
 	fleet.Service
 
@@ -31,7 +32,6 @@ func NewService(
 	c clock.Clock,
 	depStorage storage.AllStorage,
 ) (*Service, error) {
-
 	authorizer, err := authz.NewAuthorizer()
 	if err != nil {
 		return nil, fmt.Errorf("new authorizer: %w", err)

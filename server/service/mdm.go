@@ -13,7 +13,7 @@ type getAppleMDMResponse struct {
 
 func (r getAppleMDMResponse) error() error { return r.Err }
 
-func getAppleMDMEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func getAppleMDMEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	appleMDM, err := svc.GetAppleMDM(ctx)
 	if err != nil {
 		return getAppleMDMResponse{Err: err}, nil
@@ -56,7 +56,7 @@ type getAppleBMResponse struct {
 
 func (r getAppleBMResponse) error() error { return r.Err }
 
-func getAppleBMEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func getAppleBMEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	appleBM, err := svc.GetAppleBM(ctx)
 	if err != nil {
 		return getAppleBMResponse{Err: err}, nil

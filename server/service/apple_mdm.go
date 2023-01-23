@@ -9,11 +9,12 @@ import (
 	"io"
 	"mime/multipart"
 	"net/http"
+	"net/url"
+	"path"
 	"strconv"
 	"text/template"
 
 	"github.com/docker/go-units"
-	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -23,7 +24,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/groob/plist"
 	"github.com/micromdm/micromdm/mdm/appmanifest"
-	"github.com/micromdm/nanodep/client"
 	"github.com/micromdm/nanodep/godep"
 	"github.com/micromdm/nanomdm/mdm"
 	"github.com/micromdm/nanomdm/push"
@@ -42,7 +42,7 @@ type createMDMAppleEnrollmentProfileResponse struct {
 
 func (r createMDMAppleEnrollmentProfileResponse) error() error { return r.Err }
 
-func createMDMAppleEnrollmentProfilesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func createMDMAppleEnrollmentProfilesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*createMDMAppleEnrollmentProfileRequest)
 
 	enrollmentProfile, err := svc.NewMDMAppleEnrollmentProfile(ctx, fleet.MDMAppleEnrollmentProfilePayload{
@@ -82,65 +82,51 @@ func (svc *Service) NewMDMAppleEnrollmentProfile(ctx context.Context, enrollment
 		}
 	}
 
-	profile.EnrollmentURL = svc.mdmAppleEnrollURL(profile.Token, appConfig)
+	enrollmentURL, err := svc.mdmAppleEnrollURL(profile.Token, appConfig)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+	profile.EnrollmentURL = enrollmentURL
 
 	return profile, nil
 }
 
-func (svc *Service) mdmAppleEnrollURL(token string, appConfig *fleet.AppConfig) string {
-	return fmt.Sprintf("%s%s?token=%s", appConfig.ServerSettings.ServerURL, apple_mdm.EnrollPath, token)
+func (svc *Service) mdmAppleEnrollURL(token string, appConfig *fleet.AppConfig) (string, error) {
+	enrollURL, err := url.Parse(appConfig.ServerSettings.ServerURL)
+	if err != nil {
+		return "", err
+	}
+	enrollURL.Path = path.Join(enrollURL.Path, apple_mdm.EnrollPath)
+	q := enrollURL.Query()
+	q.Set("token", token)
+	enrollURL.RawQuery = q.Encode()
+	return enrollURL.String(), nil
 }
 
 // setDEPProfile define a "DEP profile" on https://mdmenrollment.apple.com and
 // sets the returned Profile UUID as the current DEP profile to apply to newly sync DEP devices.
 func (svc *Service) setDEPProfile(ctx context.Context, enrollmentProfile *fleet.MDMAppleEnrollmentProfile, appConfig *fleet.AppConfig) error {
-	httpClient := fleethttp.NewClient()
-	depTransport := client.NewTransport(httpClient.Transport, httpClient, svc.depStorage, nil)
-	depClient := client.NewClient(fleethttp.NewClient(), depTransport)
-
-	var depProfileRequest map[string]interface{}
+	var depProfileRequest godep.Profile
 	if err := json.Unmarshal(*enrollmentProfile.DEPProfile, &depProfileRequest); err != nil {
-		return fmt.Errorf("invalid DEP profile: %w", err)
+		return ctxerr.Wrap(ctx, err, "invalid DEP profile")
 	}
 
+	enrollURL, err := svc.mdmAppleEnrollURL(enrollmentProfile.Token, appConfig)
+	if err != nil {
+		return fmt.Errorf("generating enrollment URL: %w", err)
+	}
 	// Override url and configuration_web_url with Fleet's enroll path (publicly accessible address).
-	enrollURL := svc.mdmAppleEnrollURL(enrollmentProfile.Token, appConfig)
-	depProfileRequest["url"] = enrollURL
-	depProfileRequest["configuration_web_url"] = enrollURL
-	depProfile, err := json.Marshal(depProfileRequest)
+	depProfileRequest.URL = enrollURL
+	depProfileRequest.ConfigurationWebURL = enrollURL
+
+	depClient := fleet.NewDEPClient(svc.depStorage, svc.ds, svc.logger)
+	res, err := depClient.DefineProfile(ctx, apple_mdm.DEPName, &depProfileRequest)
 	if err != nil {
-		return fmt.Errorf("reserializing DEP profile: %w", err)
+		return ctxerr.Wrap(ctx, err, "apple POST /profile request failed")
 	}
 
-	defineProfileRequest, err := client.NewRequestWithContext(
-		ctx, apple_mdm.DEPName, svc.depStorage, "POST", "/profile", bytes.NewReader(depProfile),
-	)
-	if err != nil {
-		return fmt.Errorf("create profile request: %w", err)
-	}
-	defineProfileHTTPResponse, err := depClient.Do(defineProfileRequest)
-	if err != nil {
-		return fmt.Errorf("exec profile request: %w", err)
-	}
-	defer defineProfileHTTPResponse.Body.Close()
-	if defineProfileHTTPResponse.StatusCode != http.StatusOK {
-		return fmt.Errorf("profile request: %s", defineProfileHTTPResponse.Status)
-	}
-	defineProfileResponseBody, err := io.ReadAll(defineProfileHTTPResponse.Body)
-	if err != nil {
-		return fmt.Errorf("read profile response: %w", err)
-	}
-	type depProfileResponseFields struct {
-		ProfileUUID string `json:"profile_uuid"`
-	}
-	defineProfileResponse := depProfileResponseFields{}
-	if err := json.Unmarshal(defineProfileResponseBody, &defineProfileResponse); err != nil {
-		return fmt.Errorf("parse profile response: %w", err)
-	}
-	if err := svc.depStorage.StoreAssignerProfile(
-		ctx, apple_mdm.DEPName, defineProfileResponse.ProfileUUID,
-	); err != nil {
-		return fmt.Errorf("set profile UUID: %w", err)
+	if err := svc.depStorage.StoreAssignerProfile(ctx, apple_mdm.DEPName, res.ProfileUUID); err != nil {
+		return ctxerr.Wrap(ctx, err, "set profile UUID")
 	}
 	return nil
 }
@@ -154,7 +140,7 @@ type listMDMAppleEnrollmentProfilesResponse struct {
 
 func (r listMDMAppleEnrollmentProfilesResponse) error() error { return r.Err }
 
-func listMDMAppleEnrollmentsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func listMDMAppleEnrollmentsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	enrollmentProfiles, err := svc.ListMDMAppleEnrollmentProfiles(ctx)
 	if err != nil {
 		return listMDMAppleEnrollmentProfilesResponse{
@@ -181,7 +167,11 @@ func (svc *Service) ListMDMAppleEnrollmentProfiles(ctx context.Context) ([]*flee
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 	for i := range enrollments {
-		enrollments[i].EnrollmentURL = svc.mdmAppleEnrollURL(enrollments[i].Token, appConfig)
+		enrollURL, err := svc.mdmAppleEnrollURL(enrollments[i].Token, appConfig)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err)
+		}
+		enrollments[i].EnrollmentURL = enrollURL
 	}
 	return enrollments, nil
 }
@@ -197,7 +187,7 @@ type getMDMAppleCommandResultsResponse struct {
 
 func (r getMDMAppleCommandResultsResponse) error() error { return r.Err }
 
-func getMDMAppleCommandResultsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func getMDMAppleCommandResultsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getMDMAppleCommandResultsRequest)
 	results, err := svc.GetMDMAppleCommandResults(ctx, req.CommandUUID)
 	if err != nil {
@@ -248,7 +238,7 @@ func (uploadAppleInstallerRequest) DecodeRequest(ctx context.Context, r *http.Re
 
 func (r uploadAppleInstallerResponse) error() error { return r.Err }
 
-func uploadAppleInstallerEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func uploadAppleInstallerEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*uploadAppleInstallerRequest)
 	ff, err := req.Installer.Open()
 	if err != nil {
@@ -336,7 +326,7 @@ type getAppleInstallerDetailsResponse struct {
 
 func (r getAppleInstallerDetailsResponse) error() error { return r.Err }
 
-func getAppleInstallerEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func getAppleInstallerEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getAppleInstallerDetailsRequest)
 	installer, err := svc.GetMDMAppleInstallerByID(ctx, req.ID)
 	if err != nil {
@@ -369,7 +359,7 @@ type deleteAppleInstallerDetailsResponse struct {
 
 func (r deleteAppleInstallerDetailsResponse) error() error { return r.Err }
 
-func deleteAppleInstallerEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func deleteAppleInstallerEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*deleteAppleInstallerDetailsRequest)
 	if err := svc.DeleteMDMAppleInstaller(ctx, req.ID); err != nil {
 		return deleteAppleInstallerDetailsResponse{Err: err}, nil
@@ -397,7 +387,7 @@ type listMDMAppleDevicesResponse struct {
 
 func (r listMDMAppleDevicesResponse) error() error { return r.Err }
 
-func listMDMAppleDevicesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func listMDMAppleDevicesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	devices, err := svc.ListMDMAppleDevices(ctx)
 	if err != nil {
 		return listMDMAppleDevicesResponse{Err: err}, nil
@@ -424,7 +414,7 @@ type listMDMAppleDEPDevicesResponse struct {
 
 func (r listMDMAppleDEPDevicesResponse) error() error { return r.Err }
 
-func listMDMAppleDEPDevicesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func listMDMAppleDEPDevicesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	devices, err := svc.ListMDMAppleDEPDevices(ctx)
 	if err != nil {
 		return listMDMAppleDEPDevicesResponse{Err: err}, nil
@@ -438,7 +428,7 @@ func (svc *Service) ListMDMAppleDEPDevices(ctx context.Context) ([]fleet.MDMAppl
 	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleDEPDevice{}, fleet.ActionWrite); err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
-	depClient := godep.NewClient(svc.depStorage, fleethttp.NewClient())
+	depClient := fleet.NewDEPClient(svc.depStorage, svc.ds, svc.logger)
 
 	// TODO(lucas): Use cursors and limit to fetch in multiple requests.
 	// This single-request version supports up to 1000 devices (max to return in one call).
@@ -452,6 +442,44 @@ func (svc *Service) ListMDMAppleDEPDevices(ctx context.Context) ([]fleet.MDMAppl
 		devices[i] = fleet.MDMAppleDEPDevice{Device: fetchDevicesResponse.Devices[i]}
 	}
 	return devices, nil
+}
+
+type newMDMAppleDEPKeyPairResponse struct {
+	PublicKey  []byte `json:"public_key,omitempty"`
+	PrivateKey []byte `json:"private_key,omitempty"`
+	Err        error  `json:"error,omitempty"`
+}
+
+func (r newMDMAppleDEPKeyPairResponse) error() error { return r.Err }
+
+func newMDMAppleDEPKeyPairEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	keyPair, err := svc.NewMDMAppleDEPKeyPair(ctx)
+	if err != nil {
+		return newMDMAppleDEPKeyPairResponse{
+			Err: err,
+		}, nil
+	}
+
+	return newMDMAppleDEPKeyPairResponse{
+		PublicKey:  keyPair.PublicKey,
+		PrivateKey: keyPair.PrivateKey,
+	}, nil
+}
+
+func (svc *Service) NewMDMAppleDEPKeyPair(ctx context.Context) (*fleet.MDMAppleDEPKeyPair, error) {
+	// skipauth: Generating a new key pair does not actually make any changes to fleet, or expose any
+	// information. The user must configure fleet with the new key pair and restart the server.
+	svc.authz.SkipAuthorization(ctx)
+
+	publicKeyPEM, privateKeyPEM, err := apple_mdm.NewDEPKeyPairPEM()
+	if err != nil {
+		return nil, fmt.Errorf("generate key pair: %w", err)
+	}
+
+	return &fleet.MDMAppleDEPKeyPair{
+		PublicKey:  publicKeyPEM,
+		PrivateKey: privateKeyPEM,
+	}, nil
 }
 
 type enqueueMDMAppleCommandRequest struct {
@@ -469,7 +497,7 @@ type enqueueMDMAppleCommandResponse struct {
 func (r enqueueMDMAppleCommandResponse) error() error { return r.Err }
 func (r enqueueMDMAppleCommandResponse) Status() int  { return r.status }
 
-func enqueueMDMAppleCommandEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func enqueueMDMAppleCommandEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*enqueueMDMAppleCommandRequest)
 	rawCommand, err := base64.RawStdEncoding.DecodeString(req.Command)
 	if err != nil {
@@ -639,7 +667,7 @@ func (r mdmAppleEnrollResponse) hijackRender(ctx context.Context, w http.Respons
 	}
 }
 
-func mdmAppleEnrollEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func mdmAppleEnrollEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*mdmAppleEnrollRequest)
 
 	profile, err := svc.GetMDMAppleEnrollmentProfileByToken(ctx, req.Token)
@@ -751,7 +779,7 @@ var enrollmentProfileMobileconfigTemplate = template.Must(template.New("").Parse
 	<key>PayloadDisplayName</key>
 	<string>{{ .Organization }} Enrollment</string>
 	<key>PayloadIdentifier</key>
-	<string>com.fleetdm.fleet.mdm.apple</string>
+	<string>` + apple_mdm.FleetPayloadIdentifier + `</string>
 	<key>PayloadOrganization</key>
 	<string>{{ .Organization }}</string>
 	<key>PayloadScope</key>
@@ -766,8 +794,14 @@ var enrollmentProfileMobileconfigTemplate = template.Must(template.New("").Parse
 </plist>`))
 
 func generateEnrollmentProfileMobileconfig(orgName, fleetURL, scepChallenge, topic string) ([]byte, error) {
-	scepURL := fleetURL + apple_mdm.SCEPPath
-	serverURL := fleetURL + apple_mdm.MDMPath
+	scepURL, err := apple_mdm.ResolveAppleSCEPURL(fleetURL)
+	if err != nil {
+		return nil, fmt.Errorf("resolve Apple SCEP url: %w", err)
+	}
+	serverURL, err := apple_mdm.ResolveAppleMDMURL(fleetURL)
+	if err != nil {
+		return nil, fmt.Errorf("resolve Apple MDM url: %w", err)
+	}
 
 	var buf bytes.Buffer
 	if err := enrollmentProfileMobileconfigTemplate.Execute(&buf, struct {
@@ -826,7 +860,7 @@ func (r mdmAppleGetInstallerResponse) hijackRender(ctx context.Context, w http.R
 	}
 }
 
-func mdmAppleGetInstallerEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func mdmAppleGetInstallerEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*mdmAppleGetInstallerRequest)
 	installer, err := svc.GetMDMAppleInstallerByToken(ctx, req.Token)
 	if err != nil {
@@ -855,7 +889,7 @@ type mdmAppleHeadInstallerRequest struct {
 	Token string `query:"token"`
 }
 
-func mdmAppleHeadInstallerEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func mdmAppleHeadInstallerEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*mdmAppleHeadInstallerRequest)
 	installer, err := svc.GetMDMAppleInstallerDetailsByToken(ctx, req.Token)
 	if err != nil {
@@ -888,7 +922,7 @@ type listMDMAppleInstallersResponse struct {
 
 func (r listMDMAppleInstallersResponse) error() error { return r.Err }
 
-func listMDMAppleInstallersEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func listMDMAppleInstallersEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	installers, err := svc.ListMDMAppleInstallers(ctx)
 	if err != nil {
 		return listMDMAppleInstallersResponse{
@@ -918,4 +952,120 @@ func (svc *Service) ListMDMAppleInstallers(ctx context.Context) ([]fleet.MDMAppl
 		installers[i].URL = svc.installerURL(installers[i].URLToken, appConfig)
 	}
 	return installers, nil
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Implementation of nanomdm's CheckinAndCommandService interface
+////////////////////////////////////////////////////////////////////////////////
+
+type MDMAppleCheckinAndCommandService struct {
+	ds fleet.Datastore
+}
+
+func NewMDMAppleCheckinAndCommandService(ds fleet.Datastore) *MDMAppleCheckinAndCommandService {
+	return &MDMAppleCheckinAndCommandService{ds: ds}
+}
+
+// Authenticate handles MDM [Authenticate][1] requests.
+//
+// This method is executed after the request has been handled by nanomdm, note
+// that at this point you can't send any commands to the device yet because we
+// haven't received a token, nor a PushMagic.
+//
+// We use it to perform post-enrollment tasks such as creating a host record,
+// adding activities to the log, etc.
+//
+// [1]: https://developer.apple.com/documentation/devicemanagement/authenticate
+func (svc *MDMAppleCheckinAndCommandService) Authenticate(r *mdm.Request, m *mdm.Authenticate) error {
+	host := fleet.MDMAppleHostDetails{}
+	host.SerialNumber = m.SerialNumber
+	host.UDID = m.UDID
+	host.Model = m.Model
+	if err := svc.ds.IngestMDMAppleDeviceFromCheckin(r.Context, host); err != nil {
+		return err
+	}
+	info, err := svc.ds.GetHostMDMCheckinInfo(r.Context, m.Enrollment.UDID)
+	if err != nil {
+		return err
+	}
+	return svc.ds.NewActivity(r.Context, nil, &fleet.ActivityTypeMDMEnrolled{
+		HostSerial:       info.HardwareSerial,
+		InstalledFromDEP: info.InstalledFromDEP,
+	})
+}
+
+// TokenUpdate handles MDM [TokenUpdate][1] requests.
+//
+// This method is executed after the request has been handled by nanomdm.
+//
+// [1]: https://developer.apple.com/documentation/devicemanagement/token_update
+func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.TokenUpdate) error {
+	return nil
+}
+
+// CheckOut handles MDM [CheckOut][1] requests.
+//
+// This method is executed after the request has been handled by nanomdm, note
+// that this message is sent on a best-effort basis, don't rely exclusively on
+// it.
+//
+// [1]: https://developer.apple.com/documentation/devicemanagement/check_out
+func (svc *MDMAppleCheckinAndCommandService) CheckOut(r *mdm.Request, m *mdm.CheckOut) error {
+	info, err := svc.ds.GetHostMDMCheckinInfo(r.Context, m.Enrollment.UDID)
+	if err != nil {
+		return err
+	}
+	if err := svc.ds.UpdateHostTablesOnMDMUnenroll(r.Context, m.UDID); err != nil {
+		return err
+	}
+	return svc.ds.NewActivity(r.Context, nil, &fleet.ActivityTypeMDMUnenrolled{
+		HostSerial:       info.HardwareSerial,
+		InstalledFromDEP: info.InstalledFromDEP,
+	})
+
+}
+
+// SetBootstrapToken handles MDM [SetBootstrapToken][1] requests.
+//
+// This method is executed after the request has been handled by nanomdm.
+//
+// [1]: https://developer.apple.com/documentation/devicemanagement/set_bootstrap_token
+func (svc *MDMAppleCheckinAndCommandService) SetBootstrapToken(*mdm.Request, *mdm.SetBootstrapToken) error {
+	return nil
+}
+
+// GetBootstrapToken handles MDM [GetBootstrapToken][1] requests.
+//
+// This method is executed after the request has been handled by nanomdm.
+//
+// [1]: https://developer.apple.com/documentation/devicemanagement/get_bootstrap_token
+func (svc *MDMAppleCheckinAndCommandService) GetBootstrapToken(*mdm.Request, *mdm.GetBootstrapToken) (*mdm.BootstrapToken, error) {
+	return nil, nil
+}
+
+// UserAuthenticate handles MDM [UserAuthenticate][1] requests.
+//
+// This method is executed after the request has been handled by nanomdm.
+//
+// [1]: https://developer.apple.com/documentation/devicemanagement/userauthenticate
+func (svc *MDMAppleCheckinAndCommandService) UserAuthenticate(*mdm.Request, *mdm.UserAuthenticate) ([]byte, error) {
+	return nil, nil
+}
+
+// DeclarativeManagement handles MDM [DeclarativeManagement][1] requests.
+//
+// This method is executed after the request has been handled by nanomdm.
+//
+// [1]: https://developer.apple.com/documentation/devicemanagement/declarative_management_checkin
+func (svc *MDMAppleCheckinAndCommandService) DeclarativeManagement(*mdm.Request, *mdm.DeclarativeManagement) ([]byte, error) {
+	return nil, nil
+}
+
+// CommandAndReportResults handles MDM [Commands and Queries][1].
+//
+// This method is executed after the request has been handled by nanomdm.
+//
+// [1]: https://developer.apple.com/documentation/devicemanagement/commands_and_queries
+func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(*mdm.Request, *mdm.CommandResults) (*mdm.Command, error) {
+	return nil, nil
 }

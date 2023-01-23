@@ -19,7 +19,7 @@ locals {
 
 module "notify_slack" {
   source  = "terraform-aws-modules/notify-slack/aws"
-  version = "~> 4.0"
+  version = "5.5.0"
 
   sns_topic_name = var.prefix
 
@@ -215,7 +215,7 @@ resource "aws_cloudwatch_metric_alarm" "unclaimed" {
   namespace           = "Fleet/sandbox"
   period              = "900"
   statistic           = "Average"
-  threshold           = "10"
+  threshold           = "5"
   alarm_actions       = [module.notify_slack.slack_topic_arn]
   ok_actions          = [module.notify_slack.slack_topic_arn]
   treat_missing_data  = "breaching"

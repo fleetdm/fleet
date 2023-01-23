@@ -8,7 +8,6 @@
     width: 16px;
     height: 16px;
     margin: 2px;
-    transform: translateY(3px);
 
     &:focus + .fleet-checkbox__tick {
       &::after {
@@ -93,5 +92,25 @@
     padding-left: $pad-small;
     display: inherit;
     vertical-align: top;
+  }
+}
+
+.inverse {
+  .fleet-checkbox {
+    &__input {
+      float: right;
+    }
+
+    &__tick {
+      left: initial;
+      right: -8px;
+    }
+
+    &__label {
+      float: left;
+      padding-left: 0;
+      font-weight: $bold;
+      font-size: $x-small;
+    }
   }
 }

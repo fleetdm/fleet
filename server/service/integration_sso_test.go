@@ -9,6 +9,7 @@ import (
 	"encoding/xml"
 	"net/http"
 	"net/url"
+	"sort"
 	"strings"
 	"testing"
 
@@ -94,9 +95,38 @@ func (s *integrationSSOTestSuite) TestSSOLogin() {
 	}`), http.StatusOK, &acResp)
 	require.NotNil(t, acResp)
 
+	// Register current number of activities.
+	activitiesResp := listActivitiesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &activitiesResp)
+	require.NoError(t, activitiesResp.Err)
+	oldActivitiesCount := len(activitiesResp.Activities)
+
 	// users can't login if they don't have an account on free plans
 	_, body := s.LoginSSOUser("sso_user", "user123#")
 	require.Contains(t, body, "/login?status=account_invalid")
+
+	newActivitiesCount := 1
+	checkNewFailedLoginActivity := func() {
+		activitiesResp = listActivitiesResponse{}
+		s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &activitiesResp)
+		require.NoError(t, activitiesResp.Err)
+		require.Len(t, activitiesResp.Activities, oldActivitiesCount+newActivitiesCount)
+		sort.Slice(activitiesResp.Activities, func(i, j int) bool {
+			return activitiesResp.Activities[i].ID < activitiesResp.Activities[j].ID
+		})
+		activity := activitiesResp.Activities[len(activitiesResp.Activities)-1]
+		require.Equal(t, activity.Type, fleet.ActivityTypeUserFailedLogin{}.ActivityName())
+		require.NotNil(t, activity.Details)
+		actDetails := fleet.ActivityTypeUserFailedLogin{}
+		err := json.Unmarshal(*activity.Details, &actDetails)
+		require.NoError(t, err)
+		require.Equal(t, "sso_user@example.com", actDetails.Email)
+
+		newActivitiesCount++
+	}
+
+	// A new activity item for the failed SSO login is created.
+	checkNewFailedLoginActivity()
 
 	// users can't login if they don't have an account on free plans
 	// even if JIT provisioning is enabled
@@ -108,6 +138,9 @@ func (s *integrationSSOTestSuite) TestSSOLogin() {
 	_, body = s.LoginSSOUser("sso_user", "user123#")
 	require.Contains(t, body, "/login?status=account_invalid")
 
+	// A new activity item for the failed SSO login is created.
+	checkNewFailedLoginActivity()
+
 	// an user created by an admin without SSOEnabled can't log-in
 	params := fleet.UserPayload{
 		Name:       ptr.String("SSO User 1"),
@@ -118,6 +151,9 @@ func (s *integrationSSOTestSuite) TestSSOLogin() {
 	s.Do("POST", "/api/latest/fleet/users/admin", &params, http.StatusUnprocessableEntity)
 	_, body = s.LoginSSOUser("sso_user", "user123#")
 	require.Contains(t, body, "/login?status=account_invalid")
+
+	// A new activity item for the failed SSO login is created.
+	checkNewFailedLoginActivity()
 
 	// an user created by an admin with SSOEnabled is able to log-in
 	params = fleet.UserPayload{
@@ -131,6 +167,20 @@ func (s *integrationSSOTestSuite) TestSSOLogin() {
 	assert.Equal(t, "sso_user2@example.com", auth.UserID())
 	assert.Equal(t, "SSO User 2", auth.UserDisplayName())
 	require.Contains(t, body, "Redirecting to Fleet at  ...")
+
+	// a new activity item is created
+	activitiesResp = listActivitiesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &activitiesResp)
+	require.NoError(t, activitiesResp.Err)
+	require.NotEmpty(t, activitiesResp.Activities)
+	require.Condition(t, func() bool {
+		for _, a := range activitiesResp.Activities {
+			if (a.Type == fleet.ActivityTypeUserLoggedIn{}.ActivityName()) && *a.ActorEmail == auth.UserID() {
+				return true
+			}
+		}
+		return false
+	})
 }
 
 func inflate(t *testing.T, s string) *sso.AuthnRequest {

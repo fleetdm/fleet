@@ -1,10 +1,22 @@
-import { isEmpty, flatMap, omit, pick, size, memoize, reduce } from "lodash";
+import React from "react";
+import ReactTooltip from "react-tooltip";
+import {
+  isEmpty,
+  flatMap,
+  omit,
+  pick,
+  size,
+  memoize,
+  reduce,
+  uniqueId,
+} from "lodash";
 import md5 from "js-md5";
 import {
   formatDistanceToNow,
   isAfter,
   intervalToDuration,
   formatDuration,
+  intlFormat,
 } from "date-fns";
 import yaml from "js-yaml";
 
@@ -579,7 +591,7 @@ export const humanHostLastRestart = (
       restartDate.getMilliseconds() - millisecondsLastRestart
     );
 
-    return formatDistanceToNow(new Date(restartDate), { addSuffix: true });
+    return restartDate.toString();
   } catch {
     return "Unavailable";
   }
@@ -588,6 +600,9 @@ export const humanHostLastRestart = (
 export const humanHostLastSeen = (lastSeen: string): string => {
   if (!lastSeen || lastSeen < "2016-07-28T00:00:00Z") {
     return "Never";
+  }
+  if (lastSeen === "Unavailable") {
+    return "Unavailable";
   }
   return formatDistanceToNow(new Date(lastSeen), { addSuffix: true });
 };
@@ -666,6 +681,16 @@ export const humanQueryLastRun = (lastRun: string): string => {
 
 export const licenseExpirationWarning = (expiration: string): boolean => {
   return isAfter(new Date(), new Date(expiration));
+};
+
+export const readableDate = (date: string) => {
+  const dateString = new Date(date);
+
+  return new Intl.DateTimeFormat(navigator.language, {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  }).format(dateString);
 };
 
 export const performanceIndicator = (
@@ -835,6 +860,7 @@ export default {
   humanQueryLastRun,
   inMilliseconds,
   licenseExpirationWarning,
+  readableDate,
   secondsToHms,
   secondsToDhms,
   labelSlug,

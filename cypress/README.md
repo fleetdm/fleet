@@ -1,4 +1,4 @@
-# Cypress Testing
+# Cypress testing
 
 Cypress tests are designed solely for end-to-end testing. If this is your first time developing or running end-to-end tests, [Fleet testing documentation](../docs/Contributing/Testing-and-local-development.md) includes git instructions for test preparation and running tests.
 

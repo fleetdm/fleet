@@ -1,27 +1,24 @@
 import React from "react";
 
 import ReactTooltip from "react-tooltip";
+import HumanTimeDiffWithDateTip from "components/HumanTimeDiffWithDateTip";
 
-import { IMDMData, IMunkiData, IDeviceUser } from "interfaces/host";
-import { humanHostLastRestart, humanHostEnrolled } from "utilities/helpers";
+import { IHostMdmData, IMunkiData, IDeviceUser } from "interfaces/host";
+import { humanHostLastRestart } from "utilities/helpers";
 
 interface IAboutProps {
   aboutData: { [key: string]: any };
   deviceMapping?: IDeviceUser[];
-  macadmins?: {
-    munki: IMunkiData | null;
-    mobile_device_management: IMDMData | null;
-  } | null;
+  munki?: IMunkiData | null;
+  mdm?: IHostMdmData | null;
   wrapFleetHelper: (helperFn: (value: any) => string, value: string) => string;
-  deviceUser?: boolean;
 }
 
 const About = ({
   aboutData,
   deviceMapping,
-  macadmins,
-  wrapFleetHelper,
-  deviceUser,
+  munki,
+  mdm,
 }: IAboutProps): JSX.Element => {
   const renderSerialAndIPs = () => {
     return (
@@ -43,10 +40,6 @@ const About = ({
   };
 
   const renderMunkiData = () => {
-    if (!macadmins) {
-      return null;
-    }
-    const { munki } = macadmins;
     return munki ? (
       <>
         <div className="info-grid__block">
@@ -58,11 +51,10 @@ const About = ({
   };
 
   const renderMdmData = () => {
-    if (!macadmins?.mobile_device_management) {
+    if (!mdm || mdm.enrollment_status === "Off") {
       return null;
     }
-    const mdm = macadmins.mobile_device_management;
-    return mdm.enrollment_status !== "Unenrolled" ? (
+    return (
       <>
         <div className="info-grid__block">
           <span className="info-grid__header">MDM enrollment</span>
@@ -75,7 +67,7 @@ const About = ({
           <span className="info-grid__data">{mdm.server_url || "---"}</span>
         </div>
       </>
-    ) : null;
+    );
   };
 
   const renderDeviceUser = () => {
@@ -151,7 +143,6 @@ const About = ({
       </div>
     );
   };
-
   return (
     <div className="section about">
       <p className="section__header">About</p>
@@ -159,16 +150,20 @@ const About = ({
         <div className="info-grid__block">
           <span className="info-grid__header">Added to Fleet</span>
           <span className="info-grid__data">
-            {wrapFleetHelper(humanHostEnrolled, aboutData.last_enrolled_at)}
+            <HumanTimeDiffWithDateTip
+              timeString={aboutData.last_enrolled_at ?? "Unavailable"}
+            />
           </span>
         </div>
         <div className="info-grid__block">
           <span className="info-grid__header">Last restarted</span>
           <span className="info-grid__data">
-            {humanHostLastRestart(
-              aboutData.detail_updated_at,
-              aboutData.uptime
-            )}
+            <HumanTimeDiffWithDateTip
+              timeString={humanHostLastRestart(
+                aboutData.detail_updated_at,
+                aboutData.uptime
+              )}
+            />
           </span>
         </div>
         <div className="info-grid__block">

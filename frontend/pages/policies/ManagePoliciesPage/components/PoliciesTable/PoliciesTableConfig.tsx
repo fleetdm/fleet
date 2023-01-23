@@ -91,9 +91,9 @@ const getTooltip = (osqueryPolicyMs: number): JSX.Element => {
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
 const generateTableHeaders = (options: {
-  selectedTeamId: number | undefined | null;
-  canAddOrDeletePolicy: boolean | undefined;
-  tableType: string | undefined;
+  selectedTeamId?: number | null;
+  canAddOrDeletePolicy?: boolean;
+  tableType?: string;
 }): IDataColumn[] => {
   const { selectedTeamId, tableType, canAddOrDeletePolicy } = options;
 

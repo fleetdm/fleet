@@ -49,6 +49,7 @@ locals {
     dogfood                  = "160035666661"
     loadtesting              = "917007347864"
     root                     = "831217569274"
+    fleet-cloud              = "611884880216"
   }
 }
 
@@ -107,6 +108,7 @@ data "aws_iam_policy_document" "main" {
     actions = [
       "s3:GetObject",
       "s3:PutObject",
+      "s3:DeleteObject",
     ]
     resources = ["${module.remote-state-s3-backend.state_bucket.arn}/${each.key}/*"]
   }

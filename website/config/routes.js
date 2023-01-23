@@ -68,7 +68,7 @@ module.exports.routes = {
     }
   },
 
-  'r|/((device-management|securing|releases|engineering|guides|announcements|podcasts|report|deploy)/(.+))$|': {
+  'r|/((success-stories|securing|releases|engineering|guides|announcements|podcasts|report|deploy)/(.+))$|': {
     skipAssets: false,
     action: 'articles/view-basic-article',
     locals: {
@@ -76,7 +76,7 @@ module.exports.routes = {
     }
   },// Handles /device-management/foo, /securing/foo, /releases/foo, /engineering/foo, /guides/foo, /announcements/foo, /deploy/foo, /podcasts/foo, /report/foo
 
-  'r|^/((device-management|securing|releases|engineering|guides|announcements|articles|podcasts|report|deploy))/*$|category': {
+  'r|^/((success-stories|securing|releases|engineering|guides|announcements|articles|podcasts|report|deploy))/*$|category': {
     skipAssets: false,
     action: 'articles/view-articles',
     locals: {
@@ -235,6 +235,30 @@ module.exports.routes = {
   },
 
 
+  'GET /connect-vanta': {
+    action: 'view-connect-vanta',
+    locals: {
+      layout: 'layouts/layout-sandbox',
+    }
+  },
+
+  'GET /vanta-authorization': {
+    action: 'view-vanta-authorization',
+    locals: {
+      layout: 'layouts/layout-sandbox',
+    }
+  },
+
+  'GET /device-management': {
+    action: 'view-fleet-mdm',
+    locals: {
+      pageTitleForMeta: 'Device Management | Fleet for osquery',
+      pageDescriptionForMeta: 'Learn about upcoming features and join the Fleet MDM beta today.'
+    }
+  },
+
+
+
   //  ╦  ╔═╗╔═╗╔═╗╔═╗╦ ╦  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗
   //  ║  ║╣ ║ ╦╠═╣║  ╚╦╝  ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗
   //  ╩═╝╚═╝╚═╝╩ ╩╚═╝ ╩   ╩╚═╚═╝═╩╝╩╩╚═╚═╝╚═╝ ╩ ╚═╝
@@ -287,6 +311,10 @@ module.exports.routes = {
   'GET /handbook/digital-experience/how-to-submit-and-publish-an-article': '/handbook/marketing/how-to-submit-and-publish-an-article',
   'GET /handbook/digital-experience/markdown-guide': '/handbook/marketing/markdown-guide',
   'GET /handbook/quality': '/handbook/engineering#quality',
+  'GET /device-management/fleet-user-stories-f100': '/success-stories/fleet-user-stories-wayfair',
+  'GET /device-management/fleet-user-stories-schrodinger': '/success-stories/fleet-user-stories-wayfair',
+  'GET /device-management/fleet-user-stories-wayfair': '/success-stories/fleet-user-stories-wayfair',
+  'GET /handbook/security': '/handbook/business-operations',
 
 
   //  ╔╦╗╦╔═╗╔═╗  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗   ┬   ╔╦╗╔═╗╦ ╦╔╗╔╦  ╔═╗╔═╗╔╦╗╔═╗
@@ -350,6 +378,7 @@ module.exports.routes = {
   //  ╚╩╝╚═╝╚═╝╩ ╩╚═╝╚═╝╩ ╩╚═╝
   'POST /api/v1/webhooks/receive-usage-analytics': { action: 'webhooks/receive-usage-analytics', csrf: false },
   '/api/v1/webhooks/github': { action: 'webhooks/receive-from-github', csrf: false },
+  'POST /api/v1/webhooks/receive-from-stripe': { action: 'webhooks/receive-from-stripe', csrf: false },
 
 
   //  ╔═╗╔═╗╦  ╔═╗╔╗╔╔╦╗╔═╗╔═╗╦╔╗╔╔╦╗╔═╗
@@ -372,4 +401,7 @@ module.exports.routes = {
   'POST /api/v1/create-or-update-one-newsletter-subscription': { action: 'create-or-update-one-newsletter-subscription' },
   '/api/v1/unsubscribe-from-all-newsletters': { action: 'unsubscribe-from-all-newsletters' },
   'POST /api/v1/admin/generate-license-key': { action: 'admin/generate-license-key' },
+  'POST /api/v1/create-vanta-authorization-request': { action: 'create-vanta-authorization-request' },
+  'POST /api/v1/deliver-mdm-beta-signup':                   { action: 'deliver-mdm-beta-signup' },
+  'POST /api/v1/deliver-apple-csr ': { action: 'deliver-apple-csr', csrf: false},
 };

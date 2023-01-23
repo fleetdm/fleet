@@ -1,19 +1,34 @@
 # Testing and local development
 
-- [License key](#license-key)
-- [Simulated hosts](#hosts)
-- [Test suite](#test-suite)
-- [End-to-end tests](#end-to-end-tests)
-- [Test hosts](#test-hosts)
-- [Email](#email)
-- [Database backup/restore](#database-backuprestore)
-- [Seeding Data](https://fleetdm.com/docs/contributing/seeding-data)
-- [MySQL shell](#mysql-shell)
-- [Redis REPL](#redis-repl)
-- [Testing SSO](#testing-sso)
-- [Testing Kinesis Logging](#testing-kinesis-logging)
-- [Testing pre-built installers](#testing-pre-built-installers)
-- [Telemetry](#telemetry)
+- [Testing and local development](#testing-and-local-development)
+  - [License key](#license-key)
+  - [Simulated hosts](#simulated-hosts)
+  - [Test suite](#test-suite)
+    - [Go unit tests](#go-unit-tests)
+    - [Go linters](#go-linters)
+    - [Javascript unit and integration tests](#javascript-unit-and-integration-tests)
+    - [Javascript linters](#javascript-linters)
+    - [MySQL tests](#mysql-tests)
+    - [Email tests](#email-tests)
+    - [Network tests](#network-tests)
+    - [Viewing test coverage](#viewing-test-coverage)
+  - [End-to-end tests](#end-to-end-tests)
+    - [Preparation](#preparation)
+    - [Run tests](#run-tests)
+    - [Interactive](#interactive)
+    - [Command line](#command-line)
+  - [Test hosts](#test-hosts)
+  - [Email](#email)
+    - [Manually testing email with MailHog](#manually-testing-email-with-mailhog)
+  - [Development database management](#development-database-management)
+  - [MySQL shell](#mysql-shell)
+  - [Redis REPL](#redis-repl)
+  - [Testing SSO](#testing-sso)
+    - [Configuration](#configuration)
+  - [Testing Kinesis Logging](#testing-kinesis-logging)
+  - [Testing pre-built installers](#testing-pre-built-installers)
+  - [Telemetry](#telemetry)
+  - [MDM setup and testing](#mdm-setup-and-testing)
 
 ## License key
 
@@ -63,7 +78,7 @@ To run all Go linters and static analyzers, run the following:
 make lint-go
 ```
 
-### Javascript unit tests
+### Javascript unit and integration tests
 
 To run all JS unit tests, run the following:
 
@@ -348,7 +363,7 @@ FLEET_KINESIS_ENDPOINT_URL=http://localhost:4566
 FLEET_KINESIS_ACCESS_KEY_ID=default
 FLEET_KINESIS_SECRET_ACCESS_KEY=default
 FLEET_KINESIS_STATUS_STREAM=sample_status
-FLEET_KINESIS_RESULT_STREAM=sample_result 
+FLEET_KINESIS_RESULT_STREAM=sample_result
 ```
 
 Here's a sample command for running `fleet serve`:
@@ -404,6 +419,12 @@ awslocal kinesis get-records --shard-iterator AAAAAAAAAAERtiUrWGI0sq99TtpKnmDu6h
 [...]
 ```
 
+The `Data` field is base64 encoded. You can use the following command to decode:
+```
+echo eyJob3N0SWRlbnRpZmllciI6Ijg3OGE2ZWRmLTcxMzEtNGUyOC05NWEyLWQzNDQ5MDVjYWNhYiIsImNhbGVuZGFyVGltZSI6IldlZCBNYXIgIDIgMjI6MDI6NTQgMjAyMiBVVEMiLCJ1bml4VGltZSI6IjE2NDYyNTg1NzQiLCJzZXZlcml0eSI6IjAiLCJmaWxlbmFtZSI6Imdsb2dfbG9nZ2VyLmNwcCIsImxpbmUiOiI0OSIsIm1lc3NhZ2UiOiJDb3VsZCBub3QgZ2V0IFJQTSBoZWFkZXIgZmxhZy4iLCJ2ZXJzaW9uIjoiNC45LjAiLCJkZWNvcmF0aW9ucyI6eyJob3N0X3V1aWQiOiJlYjM5NDZiMi0wMDAwLTAwMDAtYjg4OC0yNTkxYTFiNjY2ZTkiLCJob3N0bmFtZSI6ImUwMDg4ZDI4YTYzZiJ9fQo= | base64 -d
+{"hostIdentifier":"878a6edf-7131-4e28-95a2-d344905cacab","calendarTime":"Wed Mar  2 22:02:54 2022 UTC","unixTime":"1646258574","severity":"0","filename":"glog_logger.cpp","line":"49","message":"Could not get RPM header flag.","version":"4.9.0","decorations":{"host_uuid":"eb3946b2-0000-0000-b888-2591a1b666e9","hostname":"e0088d28a63f"}}
+```
+
 ## Testing pre-built installers
 
 Pre-built installers are kept in a blob storage like AWS S3. As part of your your local development there's a [MinIO](https://min.io/) instance running on http://localhost:9000. To test the pre-built installers functionality locally:
@@ -415,11 +436,11 @@ Pre-built installers are kept in a blob storage like AWS S3. As part of your you
 4. Set `FLEET_SERVER_SANDBOX_ENABLED=1`, as the endpoint to retrieve the installer is only available in the sandbox.
 
 ```
-FLEET_SERVER_SANDBOX_ENABLED=1 FLEET_PACKAGING_GLOBAL_ENROLL_SECRET=xyz  ./build/fleet serve --dev 
+FLEET_SERVER_SANDBOX_ENABLED=1 FLEET_PACKAGING_GLOBAL_ENROLL_SECRET=xyz  ./build/fleet serve --dev
 ```
 
 Be sure to replace the `FLEET_PACKAGING_GLOBAL_ENROLL_SECRET` value above with the global enroll
-secret from the `fleetctl package` command used to build the installers. 
+secret from the `fleetctl package` command used to build the installers.
 
 MinIO also offers a web interface at http://localhost:9001. Credentials are `minio` / `minio123!`.
 
@@ -428,3 +449,136 @@ MinIO also offers a web interface at http://localhost:9001. Credentials are `min
 You can configure the server to record and report trace data using OpenTelemetry or Elastic APM and use a tracing system like [Jaeger](https://www.jaegertracing.io/) to consume this data and inspect the traces locally.
 
 Please refer to [tools/telemetry](../../tools/telemetry/README.md) for instructions.
+
+## MDM setup and testing
+
+To run your local server with the MDM features enabled, you need to get certificates and keys.
+
+- [ABM setup](#abm-setup)
+- [APNs setup](#apns-setup)
+- [SCEP setup](#scep-setup)
+- [Running the server](#running-the-server)
+- [Testing MDM](#testing-mdm)
+
+### ABM setup
+
+To enable the [DEP](https://github.com/fleetdm/fleet/blob/main/tools/mdm/apple/glossary-and-protocols.md#dep-device-enrollment-program) enrollment flow, the Fleet server needs three things:
+
+1. A private key.
+1. A certificate.
+1. An encrypted token generated by Apple.
+
+#### Private key + certificate
+
+You can generate the private key and the certificate using `fleetctl`:
+
+```
+fleetctl generate mdm-apple-bm
+```
+
+This will output two files `fleet-apple-mdm-bm-public-key.crt` and `fleet-apple-mdm-bm-private.key`, save them in a safe place.
+
+#### Encrypted token
+
+Ask @zwass to create an account for you in [ABM](https://github.com/fleetdm/fleet/blob/main/tools/mdm/apple/glossary-and-protocols.md#abm-apple-business-manager)
+
+Once you have access:
+
+1. Go to https://business.apple.com/#/main/preferences/myprofile
+1. Click on "+ Add" to create a new MDM server.
+1. Use a name that allows you to identify the server.
+1. Under "Upload Public Key," upload the `fleet-apple-mdm-bm-public-key.crt` you generated before.
+1. Click "Save."
+1. Click on the "Download Token" button at the top and confirm the download in the modal.
+1. Save the token in a safe place.
+
+### APNs setup
+
+The server also needs a private key + certificate to identify with Apple's [APNs](https://github.com/fleetdm/fleet/blob/main/tools/mdm/apple/glossary-and-protocols.md#apns-apple-push-notification-service) servers.
+
+Users will be able to generate this using `fleetctl generate mdm-apple` in the near future, but for now, ask in [#g-mdm](https://fleetdm.slack.com/archives/C03C41L5YEL) how to get them.
+
+### SCEP setup
+
+Another key pair is used for [SCEP](https://github.com/fleetdm/fleet/blob/main/tools/mdm/apple/glossary-and-protocols.md#scep-simple-certificate-enrollment-protocol), in the near future, this will also be generated by `fleetctl generate mdm-apple`, but for now please use this:
+
+```
+openssl genrsa -out fleet-mdm-apple-scep.key 4096
+
+openssl req -x509 -new -nodes -key fleet-mdm-apple-scep.key -sha256 -days 1826 -out fleet-mdm-apple-scep.crt -subj '/CN=Fleet Root CA/C=US/O=Fleet DM.'
+```
+
+### Running the server
+
+Try to store all the certificates and tokens you generated in the earlier steps together in a safe place outside of the repo, then start the server with:
+
+```
+FLEET_MDM_APPLE_ENABLE=1 \
+FLEET_MDM_APPLE_SCEP_CHALLENGE=scepchallenge \
+FLEET_MDM_APPLE_SCEP_CERT=/path/to/fleet-mdm-apple-scep.crt \
+FLEET_MDM_APPLE_SCEP_KEY=/path/to/fleet-mdm-apple-scep.key \
+FLEET_MDM_APPLE_BM_SERVER_TOKEN=/path/to/dep_encrypted_token.p7m \
+FLEET_MDM_APPLE_BM_CERT=/path/to/fleet-apple-mdm-bm-public-key.crt \
+FLEET_MDM_APPLE_BM_KEY=/path/to/fleet-apple-mdm-bm-private.key \
+FLEET_MDM_APPLE_APNS_CERT=/path/to/mdmcert.download.push.pem \
+FLEET_MDM_APPLE_APNS_KEY=/path/to/mdmcert.download.push.key \
+ ./build/fleet serve --dev --dev_license --logging_debug
+```
+
+Note: if you need to enroll VMs using MDM, the server needs to run behind TLS with a valid certificate. In a separate terminal window/tab, create a local tunnel to your server using `ngrok` (`brew install ngrok/ngrok/ngrok` if you don't have it.)
+
+```
+ngrok http https://localhost:8080
+```
+
+> NOTE: If this is your first time using ngrok this command will fail and you will see a message
+> about signing up. Open the sign up link and complete the sign up flow. You can rerun the same command
+> and ngrok should work this time. After this open the forwarding link, you will be asked to confirm that you'd like
+> to be forwarded to your local server and should accept.
+
+Don't forget to edit your Fleet server settings (through the UI or `fleetctl`) to use the URL `ngrok` provides to you. You need to do this whenever you restart `ngrok`.
+
+### Testing MDM
+
+To test MDM, you'll need one or more virtual machines (VMs) that you can use to enroll to your server.
+
+Choose and download a VM software, some options:
+
+- VMware Fusion: https://www.vmware.com/products/fusion.html
+- UTM: https://mac.getutm.app/
+
+If you need a license please use your Brex card (and submit the receipt on Brex.)
+
+With the software in place, you need to create a VM and install macOS, the steps to do this vary depending on your software of choice.
+
+
+If you are using VMWare, we've used [this guide](https://travellingtechguy.blog/vmware-dep/) in the
+past, please reach out in [#g-mdm](https://fleetdm.slack.com/archives/C03C41L5YEL) before starting
+so you can get the right serial numbers.
+
+If you are using UTM, you can simply click "Create a New Virtual Machine" button with the default
+settings. This creates a VM running the latest macOS.
+
+#### Testing manual enrollment
+
+1. Create a manual profile with:
+
+```
+fleetctl apple-mdm enrollment-profiles create-manual
+```
+
+2. Open the URL that the command outputs in your VM, download and install the configuration profile.
+
+#### Testing DEP enrollment
+
+> NOTE: Currently this is not possible for M1 Mac machines.
+
+1. Create a DEP profile with:
+
+```
+fleetctl apple-mdm enrollment-profiles create-automatic --dep-profile ./tools/mdm/apple/dep_sample_profile.json
+```
+
+2. In ABM, look for the computer with the serial number that matches the one your VM has, click on it and click on "Edit MDM Server" to assign that computer to your MDM server.
+
+3. Boot the machine, it should automatically enroll into MDM.

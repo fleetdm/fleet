@@ -60,9 +60,10 @@ func (ds *Datastore) NewHost(ctx context.Context, host *fleet.Host) (*fleet.Host
 			distributed_interval,
 			logger_tls_period,
 			config_tls_refresh,
-			refetch_requested
+			refetch_requested,
+			hardware_serial
 		)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		`
 		result, err := tx.ExecContext(
 			ctx,
@@ -85,6 +86,7 @@ func (ds *Datastore) NewHost(ctx context.Context, host *fleet.Host) (*fleet.Host
 			host.LoggerTLSPeriod,
 			host.ConfigTLSRefresh,
 			host.RefetchRequested,
+			host.HardwareSerial,
 		)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "new host")
@@ -327,6 +329,7 @@ var hostRefs = []string{
 	"windows_updates",
 	"host_disks",
 	"operating_system_vulnerabilities",
+	"host_updates",
 }
 
 func (ds *Datastore) DeleteHost(ctx context.Context, hid uint) error {
@@ -406,6 +409,7 @@ SELECT
   hd.encrypted as disk_encryption_enabled,
   COALESCE(hst.seen_time, h.created_at) AS seen_time,
   t.name AS team_name,
+  COALESCE(hu.software_updated_at, h.created_at) AS software_updated_at,
   (
     SELECT
       additional
@@ -414,13 +418,16 @@ SELECT
     WHERE
       host_id = h.id
   ) AS additional,
-  coalesce(failing_policies.count, 0) as failing_policies_count,
-  coalesce(failing_policies.count, 0) as total_issues_count
+  COALESCE(failing_policies.count, 0) AS failing_policies_count,
+  COALESCE(failing_policies.count, 0) AS total_issues_count
+  ` + hostMDMSelect + `
 FROM
   hosts h
   LEFT JOIN teams t ON (h.team_id = t.id)
   LEFT JOIN host_seen_times hst ON (h.id = hst.host_id)
+  LEFT JOIN host_updates hu ON (h.id = hu.host_id)
   LEFT JOIN host_disks hd ON hd.host_id = h.id
+  LEFT JOIN host_mdm hmdm on hmdm.host_id = h.id
   JOIN (
     SELECT
       count(*) as count
@@ -466,6 +473,21 @@ LIMIT
 
 	return &host, nil
 }
+
+const hostMDMSelect = `,
+	CASE
+		WHEN hmdm.is_server = 1 THEN NULL
+		WHEN hmdm.enrolled = 1 AND hmdm.installed_from_dep = 0 THEN 'On (manual)'
+		WHEN hmdm.enrolled = 1 AND hmdm.installed_from_dep = 1 THEN 'On (automatic)'
+		WHEN hmdm.enrolled = 0 AND hmdm.installed_from_dep = 1 THEN 'Pending'
+		WHEN hmdm.enrolled = 0 AND hmdm.installed_from_dep = 0 THEN 'Off'
+		ELSE NULL
+	END AS mdm_enrollment_status,
+	CASE
+		WHEN hmdm.is_server = 1 THEN NULL
+		ELSE hmdm.server_url
+	END as mdm_server_url
+	`
 
 func amountEnrolledHostsByOSDB(ctx context.Context, db sqlx.QueryerContext) (byOS map[string][]fleet.HostsCountByOSVersion, totalCount int, err error) {
 	var hostsByOS []struct {
@@ -540,8 +562,11 @@ func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt
     COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,
     COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,
     COALESCE(hst.seen_time, h.created_at) AS seen_time,
-    t.name AS team_name
+    t.name AS team_name,
+    COALESCE(hu.software_updated_at, h.created_at) AS software_updated_at
 	`
+
+	sql += hostMDMSelect
 
 	if opt.DeviceMapping {
 		sql += `,
@@ -626,11 +651,6 @@ func (ds *Datastore) applyHostFilters(opt fleet.HostListOptions, sql string, fil
 		failingPoliciesJoin = ""
 	}
 
-	mdmJoin := ` JOIN host_mdm hmdm ON h.id = hmdm.host_id `
-	if opt.MDMIDFilter == nil && opt.MDMEnrollmentStatusFilter == "" {
-		mdmJoin = ""
-	}
-
 	operatingSystemJoin := ""
 	if opt.OSIDFilter != nil || (opt.OSNameFilter != nil && opt.OSVersionFilter != nil) {
 		operatingSystemJoin = `JOIN host_operating_system hos ON h.id = hos.host_id`
@@ -657,9 +677,10 @@ func (ds *Datastore) applyHostFilters(opt fleet.HostListOptions, sql string, fil
 
 	sql += fmt.Sprintf(`FROM hosts h
     LEFT JOIN host_seen_times hst ON (h.id = hst.host_id)
+    LEFT JOIN host_updates hu ON (h.id = hu.host_id)
     LEFT JOIN teams t ON (h.team_id = t.id)
     LEFT JOIN host_disks hd ON hd.host_id = h.id
-    %s
+	LEFT JOIN host_mdm hmdm ON hmdm.host_id = h.id
     %s
     %s
     %s
@@ -667,8 +688,21 @@ func (ds *Datastore) applyHostFilters(opt fleet.HostListOptions, sql string, fil
     %s
     %s
 		WHERE TRUE AND %s AND %s AND %s AND %s
-    `, deviceMappingJoin, policyMembershipJoin, failingPoliciesJoin, mdmJoin, operatingSystemJoin, munkiJoin, displayNameJoin, ds.whereFilterHostsByTeams(filter, "h"),
-		softwareFilter, munkiFilter, lowDiskSpaceFilter,
+    `,
+
+		// JOINs
+		deviceMappingJoin,
+		policyMembershipJoin,
+		failingPoliciesJoin,
+		operatingSystemJoin,
+		munkiJoin,
+		displayNameJoin,
+
+		// Conditions
+		ds.whereFilterHostsByTeams(filter, "h"),
+		softwareFilter,
+		munkiFilter,
+		lowDiskSpaceFilter,
 	)
 
 	now := ds.clock.Now()
@@ -678,7 +712,7 @@ func (ds *Datastore) applyHostFilters(opt fleet.HostListOptions, sql string, fil
 	sql, params = filterHostsByMDM(sql, opt, params)
 	sql, params = filterHostsByOS(sql, opt, params)
 	sql, params = hostSearchLike(sql, params, opt.MatchQuery, hostSearchColumns...)
-	sql, params = appendListOptionsWithCursorToSQL(sql, params, opt.ListOptions)
+	sql, params = appendListOptionsWithCursorToSQL(sql, params, &opt.ListOptions)
 
 	return sql, params
 }
@@ -702,8 +736,10 @@ func filterHostsByMDM(sql string, opt fleet.HostListOptions, params []interface{
 			sql += ` AND hmdm.enrolled = 1 AND hmdm.installed_from_dep = 1`
 		case fleet.MDMEnrollStatusManual:
 			sql += ` AND hmdm.enrolled = 1 AND hmdm.installed_from_dep = 0`
+		case fleet.MDMEnrollStatusPending:
+			sql += ` AND hmdm.enrolled = 0 AND hmdm.installed_from_dep = 1`
 		case fleet.MDMEnrollStatusUnenrolled:
-			sql += ` AND hmdm.enrolled = 0`
+			sql += ` AND hmdm.enrolled = 0 AND hmdm.installed_from_dep = 0`
 		}
 	}
 	if opt.MDMIDFilter != nil || opt.MDMEnrollmentStatusFilter != "" {
@@ -781,6 +817,7 @@ func (ds *Datastore) CleanupIncomingHosts(ctx context.Context, now time.Time) ([
 		WHERE
 		  hostname = '' AND
 		  osquery_version = '' AND
+		  hardware_serial = '' AND
 		  created_at < (? - INTERVAL 5 MINUTE)`
 		if err := sqlx.SelectContext(ctx, tx, &ids, selectIDs, now); err != nil {
 			return ctxerr.Wrap(ctx, err, "load incoming hosts to cleanup")
@@ -796,7 +833,7 @@ func (ds *Datastore) CleanupIncomingHosts(ctx context.Context, now time.Time) ([
 
 		cleanupHosts := `
 		DELETE FROM hosts
-		WHERE hostname = '' AND osquery_version = ''
+		WHERE hostname = '' AND osquery_version = '' AND hardware_serial = ''
 		AND created_at < (? - INTERVAL 5 MINUTE)
 		`
 		if _, err := tx.ExecContext(ctx, cleanupHosts, now); err != nil {
@@ -1174,11 +1211,92 @@ func (ds *Datastore) LoadHostByNodeKey(ctx context.Context, nodeKey string) (*fl
 // LoadHostByOrbitNodeKey loads the whole host identified by the node key.
 // If the node key is invalid it returns a NotFoundError.
 func (ds *Datastore) LoadHostByOrbitNodeKey(ctx context.Context, nodeKey string) (*fleet.Host, error) {
-	query := `SELECT * FROM hosts WHERE orbit_node_key = ?`
+	query := `
+    SELECT
+      h.id,
+      h.osquery_host_id,
+      h.created_at,
+      h.updated_at,
+      h.detail_updated_at,
+      h.node_key,
+      h.hostname,
+      h.uuid,
+      h.platform,
+      h.osquery_version,
+      h.os_version,
+      h.build,
+      h.platform_like,
+      h.code_name,
+      h.uptime,
+      h.memory,
+      h.cpu_type,
+      h.cpu_subtype,
+      h.cpu_brand,
+      h.cpu_physical_cores,
+      h.cpu_logical_cores,
+      h.hardware_vendor,
+      h.hardware_model,
+      h.hardware_version,
+      h.hardware_serial,
+      h.computer_name,
+      h.primary_ip_id,
+      h.distributed_interval,
+      h.logger_tls_period,
+      h.config_tls_refresh,
+      h.primary_ip,
+      h.primary_mac,
+      h.label_updated_at,
+      h.last_enrolled_at,
+      h.refetch_requested,
+      h.team_id,
+      h.policy_updated_at,
+      h.public_ip,
+      h.orbit_node_key,
+      hm.host_id,
+      hm.enrolled,
+      hm.server_url,
+      hm.installed_from_dep,
+      hm.mdm_id,
+      hm.is_server,
+      COALESCE(mdms.name, ?) AS name
+    FROM
+      hosts h
+    LEFT OUTER JOIN
+      host_mdm hm
+    ON
+      hm.host_id = h.id
+    LEFT OUTER JOIN
+      mobile_device_management_solutions mdms
+    ON
+      hm.mdm_id = mdms.id
+    WHERE
+      h.orbit_node_key = ?`
 
-	var host fleet.Host
-	switch err := ds.getContextTryStmt(ctx, &host, query, nodeKey); {
+	var hostWithMDM struct {
+		fleet.Host
+		HostID           *uint   `db:"host_id"`
+		Enrolled         *bool   `db:"enrolled"`
+		ServerURL        *string `db:"server_url"`
+		InstalledFromDep *bool   `db:"installed_from_dep"`
+		IsServer         *bool   `db:"is_server"`
+		MDMID            *uint   `db:"mdm_id"`
+		Name             *string `db:"name"`
+	}
+	switch err := ds.getContextTryStmt(ctx, &hostWithMDM, query, fleet.UnknownMDMName, nodeKey); {
 	case err == nil:
+		host := hostWithMDM.Host
+		// leave MDMInfo nil unless it has mdm information
+		if hostWithMDM.HostID != nil {
+			host.MDMInfo = &fleet.HostMDM{
+				HostID:           *hostWithMDM.HostID,
+				Enrolled:         *hostWithMDM.Enrolled,
+				ServerURL:        *hostWithMDM.ServerURL,
+				InstalledFromDep: *hostWithMDM.InstalledFromDep,
+				IsServer:         *hostWithMDM.IsServer,
+				MDMID:            hostWithMDM.MDMID,
+				Name:             *hostWithMDM.Name,
+			}
+		}
 		return &host, nil
 	case errors.Is(err, sql.ErrNoRows):
 		return nil, ctxerr.Wrap(ctx, notFound("Host"))
@@ -1354,10 +1472,14 @@ func (ds *Datastore) SearchHosts(ctx context.Context, filter fleet.TeamFilter, m
     h.orbit_node_key,
     COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,
     COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,
-    COALESCE(hst.seen_time, h.created_at) AS seen_time
+    COALESCE(hst.seen_time, h.created_at) AS seen_time,
+	COALESCE(hu.software_updated_at, h.created_at) AS software_updated_at
+	` + hostMDMSelect + `
   FROM hosts h
   LEFT JOIN host_seen_times hst ON (h.id = hst.host_id)
+  LEFT JOIN host_updates hu ON (h.id = hu.host_id)
   LEFT JOIN host_disks hd ON hd.host_id = h.id
+  LEFT JOIN host_mdm hmdm on hmdm.host_id = h.id
   WHERE TRUE`
 
 	var args []interface{}
@@ -1456,10 +1578,14 @@ func (ds *Datastore) HostByIdentifier(ctx context.Context, identifier string) (*
       h.orbit_node_key,
       COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,
       COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,
-      COALESCE(hst.seen_time, h.created_at) AS seen_time
+      COALESCE(hst.seen_time, h.created_at) AS seen_time,
+	  COALESCE(hu.software_updated_at, h.created_at) AS software_updated_at
+	  ` + hostMDMSelect + `
     FROM hosts h
     LEFT JOIN host_seen_times hst ON (h.id = hst.host_id)
+	LEFT JOIN host_updates hu ON (h.id = hu.host_id)
     LEFT JOIN host_disks hd ON hd.host_id = h.id
+	LEFT JOIN host_mdm hmdm ON hmdm.host_id = h.id
     WHERE ? IN (h.hostname, h.osquery_host_id, h.node_key, h.uuid)
     LIMIT 1
 	`
@@ -2138,7 +2264,36 @@ func (ds *Datastore) getOrInsertMunkiIssues(ctx context.Context, errors, warning
 	return msgToID, nil
 }
 
-func (ds *Datastore) SetOrUpdateMDMData(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string, installedFromDep bool, name string) error {
+func (ds *Datastore) SetOrUpdateMDMData(
+	ctx context.Context,
+	hostID uint,
+	isServer, enrolled bool,
+	serverURL string,
+	installedFromDep bool,
+	name string,
+) error {
+	// MDM queries return an empty server URL when the host is not enrolled to an MDM.
+	if serverURL == "" {
+		// We use the reader even if it might miss some not replicated rows,
+		// because it will eventually catch up on subsequent ingestions and
+		// the entry will be deleted.
+		var id uint
+		switch err := sqlx.GetContext(ctx, ds.reader, &id,
+			`SELECT host_id FROM host_mdm WHERE host_id = ?`, hostID,
+		); {
+		case err == nil:
+			if _, err := ds.writer.ExecContext(ctx, `DELETE FROM host_mdm WHERE host_id = ?`, hostID); err != nil {
+				return ctxerr.Wrapf(ctx, err, "delete host_mdm row: %d", hostID)
+			}
+			return nil
+		case errors.Is(err, sql.ErrNoRows):
+			return nil
+		default:
+			return ctxerr.Wrapf(ctx, err, "getting host_mdm row: %d", hostID)
+		}
+
+	}
+
 	mdmID, err := ds.getOrInsertMDMSolution(ctx, serverURL, name)
 	if err != nil {
 		return err
@@ -2184,9 +2339,6 @@ func (ds *Datastore) SetOrUpdateHostOrbitInfo(ctx context.Context, hostID uint, 
 }
 
 func (ds *Datastore) getOrInsertMDMSolution(ctx context.Context, serverURL string, mdmName string) (mdmID uint, err error) {
-	if mdmName == "" {
-		mdmName = fleet.MDMNameFromServerURL(serverURL)
-	}
 	readStmt := &parameterizedStmt{
 		Statement: `SELECT id FROM mobile_device_management_solutions WHERE name = ? AND server_url = ?`,
 		Args:      []interface{}{mdmName, serverURL},
@@ -2215,7 +2367,7 @@ func (ds *Datastore) GetHostMDM(ctx context.Context, hostID uint) (*fleet.HostMD
 	var hmdm fleet.HostMDM
 	err := sqlx.GetContext(ctx, ds.reader, &hmdm, `
 		SELECT
-			hm.host_id, hm.enrolled, hm.server_url, hm.installed_from_dep, hm.mdm_id, COALESCE(mdms.name, ?) AS name
+			hm.host_id, hm.enrolled, hm.server_url, hm.installed_from_dep, hm.mdm_id, hm.is_server, COALESCE(mdms.name, ?) AS name
 		FROM
 			host_mdm hm
 		LEFT OUTER JOIN
@@ -2224,9 +2376,29 @@ func (ds *Datastore) GetHostMDM(ctx context.Context, hostID uint) (*fleet.HostMD
 		WHERE hm.host_id = ?`, fleet.UnknownMDMName, hostID)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return nil, ctxerr.Wrap(ctx, notFound("MDM").WithID(hostID))
+			return nil, ctxerr.Wrap(ctx, notFound("HostMDMData").WithID(hostID))
 		}
 		return nil, ctxerr.Wrapf(ctx, err, "getting data from host_mdm for host_id %d", hostID)
+	}
+	return &hmdm, nil
+}
+
+func (ds *Datastore) GetHostMDMCheckinInfo(ctx context.Context, hostUUID string) (*fleet.HostMDMCheckinInfo, error) {
+	var hmdm fleet.HostMDMCheckinInfo
+	err := sqlx.GetContext(ctx, ds.reader, &hmdm, `
+		SELECT
+			h.hardware_serial, hm.installed_from_dep
+		FROM
+			hosts h
+		JOIN
+			host_mdm hm
+		ON h.id = hm.host_id
+		WHERE h.uuid = ?`, hostUUID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("MDM").WithMessage(hostUUID))
+		}
+		return nil, ctxerr.Wrapf(ctx, err, "getting data from host_mdm for host_uuid %s", hostUUID)
 	}
 	return &hmdm, nil
 }
@@ -2420,25 +2592,25 @@ func (ds *Datastore) AggregatedMDMSolutions(ctx context.Context, teamID *uint, p
 func (ds *Datastore) GenerateAggregatedMunkiAndMDM(ctx context.Context) error {
 	var (
 		platforms = []string{"", "darwin", "windows"}
-		ids       []uint
+		teamIDs   []uint
 	)
 
-	if err := sqlx.SelectContext(ctx, ds.reader, &ids, `SELECT id FROM teams`); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader, &teamIDs, `SELECT id FROM teams`); err != nil {
 		return ctxerr.Wrap(ctx, err, "list teams")
 	}
 
-	for _, id := range ids {
-		if err := ds.generateAggregatedMunkiVersion(ctx, &id); err != nil {
+	for _, teamID := range teamIDs {
+		if err := ds.generateAggregatedMunkiVersion(ctx, &teamID); err != nil {
 			return ctxerr.Wrap(ctx, err, "generating aggregated munki version")
 		}
-		if err := ds.generateAggregatedMunkiIssues(ctx, &id); err != nil {
+		if err := ds.generateAggregatedMunkiIssues(ctx, &teamID); err != nil {
 			return ctxerr.Wrap(ctx, err, "generating aggregated munki issues")
 		}
 		for _, platform := range platforms {
-			if err := ds.generateAggregatedMDMStatus(ctx, &id, platform); err != nil {
+			if err := ds.generateAggregatedMDMStatus(ctx, &teamID, platform); err != nil {
 				return ctxerr.Wrap(ctx, err, "generating aggregated mdm status")
 			}
-			if err := ds.generateAggregatedMDMSolutions(ctx, &id, platform); err != nil {
+			if err := ds.generateAggregatedMDMSolutions(ctx, &teamID, platform); err != nil {
 				return ctxerr.Wrap(ctx, err, "generating aggregated mdm solutions")
 			}
 		}
@@ -2556,7 +2728,8 @@ func (ds *Datastore) generateAggregatedMDMStatus(ctx context.Context, teamID *ui
 
 	query := `SELECT
 				COUNT(DISTINCT host_id) as hosts_count,
-				COALESCE(SUM(CASE WHEN NOT enrolled THEN 1 ELSE 0 END), 0) as unenrolled_hosts_count,
+				COALESCE(SUM(CASE WHEN NOT enrolled AND NOT installed_from_dep THEN 1 ELSE 0 END), 0) as unenrolled_hosts_count,
+				COALESCE(SUM(CASE WHEN NOT enrolled AND installed_from_dep THEN 1 ELSE 0 END), 0) as pending_hosts_count,
 				COALESCE(SUM(CASE WHEN enrolled AND installed_from_dep THEN 1 ELSE 0 END), 0) as enrolled_automated_hosts_count,
 				COALESCE(SUM(CASE WHEN enrolled AND NOT installed_from_dep THEN 1 ELSE 0 END), 0) as enrolled_manual_hosts_count
 			 FROM host_mdm hm

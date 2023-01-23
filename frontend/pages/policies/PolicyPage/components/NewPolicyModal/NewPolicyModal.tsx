@@ -1,6 +1,7 @@
 import React, { useState, useContext, useEffect } from "react";
 import { size } from "lodash";
 
+import { AppContext } from "context/app";
 import { PolicyContext } from "context/policy";
 import { IPlatformSelector } from "hooks/usePlaformSelector";
 import { IPolicyFormData } from "interfaces/policy";
@@ -9,6 +10,8 @@ import useDeepEffect from "hooks/useDeepEffect";
 
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
+import Checkbox from "components/forms/fields/Checkbox";
+import TooltipWrapper from "components/TooltipWrapper";
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
 import ReactTooltip from "react-tooltip";
@@ -43,16 +46,19 @@ const NewPolicyModal = ({
   platformSelector,
   isUpdatingPolicy,
 }: INewPolicyModalProps): JSX.Element => {
+  const { isPremiumTier } = useContext(AppContext);
   const {
     lastEditedQueryName,
     lastEditedQueryDescription,
     lastEditedQueryResolution,
+    lastEditedQueryCritical,
     setLastEditedQueryPlatform,
   } = useContext(PolicyContext);
 
   const [name, setName] = useState(lastEditedQueryName);
   const [description, setDescription] = useState(lastEditedQueryDescription);
   const [resolution, setResolution] = useState(lastEditedQueryResolution);
+  const [critical, setCritical] = useState(lastEditedQueryCritical);
   const [errors, setErrors] = useState<{ [key: string]: string }>(
     backendValidators
   );
@@ -90,6 +96,7 @@ const NewPolicyModal = ({
         query: queryValue,
         resolution,
         platform: newPlatformString,
+        critical,
       });
     }
   };
@@ -110,6 +117,7 @@ const NewPolicyModal = ({
             inputClassName={`${baseClass}__policy-save-modal-name`}
             label="Name"
             placeholder="What yes or no question does your policy ask about your devices?"
+            autofocus
           />
           <InputField
             name="description"
@@ -129,6 +137,23 @@ const NewPolicyModal = ({
             placeholder="What steps should a device owner take to resolve a host that fails this policy? (optional)"
           />
           {platformSelector.render()}
+          {isPremiumTier && (
+            <Checkbox
+              name="critical-policy"
+              onChange={(value: boolean) => setCritical(value)}
+              value={critical}
+              isLeftLabel
+            >
+              <TooltipWrapper
+                tipContent={
+                  "<p>If automations are turned on, this<br/> information is included.</p>"
+                }
+                isDelayed
+              >
+                Critical:
+              </TooltipWrapper>
+            </Checkbox>
+          )}
           <div className="modal-cta-wrap">
             <span
               className={`${baseClass}__button-wrap--modal-save`}

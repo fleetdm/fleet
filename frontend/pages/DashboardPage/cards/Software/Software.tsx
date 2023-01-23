@@ -10,9 +10,11 @@ import TabsWrapper from "components/TabsWrapper";
 import TableContainer from "components/TableContainer";
 import TableDataError from "components/DataError";
 import Spinner from "components/Spinner";
+import EmptySoftwareTable from "pages/software/components/EmptySoftwareTable";
+
+import { IEmptyTableProps } from "interfaces/empty_table";
 
 import generateTableHeaders from "./SoftwareTableConfig";
-import EmptySoftware from "../../../software/components/EmptySoftware";
 
 interface ISoftwareCardProps {
   errorSoftware: Error | null;
@@ -91,13 +93,11 @@ const Software = ({
                   defaultSortDirection={SOFTWARE_DEFAULT_SORT_DIRECTION}
                   hideActionButton
                   resultsTitle={"software"}
-                  emptyComponent={() =>
-                    EmptySoftware(
-                      (!isSoftwareEnabled && "disabled") ||
-                        (isCollectingInventory && "collecting") ||
-                        "default"
-                    )
-                  }
+                  emptyComponent={() => (
+                    <EmptySoftwareTable
+                      isCollectingSoftware={isCollectingInventory}
+                    />
+                  )}
                   showMarkAllPages={false}
                   isAllPagesSelected={false}
                   disableCount
@@ -121,13 +121,12 @@ const Software = ({
                   defaultSortDirection={SOFTWARE_DEFAULT_SORT_DIRECTION}
                   hideActionButton
                   resultsTitle={"software"}
-                  emptyComponent={() =>
-                    EmptySoftware(
-                      (!isSoftwareEnabled && "disabled") ||
-                        (isCollectingInventory && "collecting") ||
-                        "default"
-                    )
-                  }
+                  emptyComponent={() => (
+                    <EmptySoftwareTable
+                      isCollectingSoftware={isCollectingInventory}
+                      isFilterVulnerable
+                    />
+                  )}
                   showMarkAllPages={false}
                   isAllPagesSelected={false}
                   disableCount

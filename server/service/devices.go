@@ -3,10 +3,13 @@ package service
 import (
 	"context"
 	"net/http"
+	"strconv"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
+	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
@@ -18,6 +21,8 @@ type devicePingRequest struct{}
 
 type devicePingResponse struct{}
 
+func (r devicePingResponse) error() error { return nil }
+
 func (r devicePingResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
 	writeCapabilitiesHeader(w, fleet.ServerDeviceCapabilities)
 }
@@ -25,7 +30,7 @@ func (r devicePingResponse) hijackRender(ctx context.Context, w http.ResponseWri
 // NOTE: we're intentionally not reading the capabilities header in this
 // endpoint as is unauthenticated and we don't want to trust whatever comes in
 // there.
-func devicePingEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func devicePingEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	svc.DisableAuthForPing(ctx)
 	return devicePingResponse{}, nil
 }
@@ -58,7 +63,7 @@ func (r *getFleetDesktopRequest) deviceAuthToken() string {
 
 // getFleetDesktopEndpoint is meant to be the only API endpoint used by Fleet Desktop. This
 // endpoint should not include any kind of identifying information about the host.
-func getFleetDesktopEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func getFleetDesktopEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	host, ok := hostctx.FromContext(ctx)
 
 	if !ok {
@@ -95,7 +100,7 @@ type getDeviceHostResponse struct {
 
 func (r getDeviceHostResponse) error() error { return r.Err }
 
-func getDeviceHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func getDeviceHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	host, ok := hostctx.FromContext(ctx)
 	if !ok {
 		err := ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
@@ -174,7 +179,7 @@ func (r *refetchDeviceHostRequest) deviceAuthToken() string {
 	return r.Token
 }
 
-func refetchDeviceHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func refetchDeviceHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	host, ok := hostctx.FromContext(ctx)
 	if !ok {
 		err := ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
@@ -200,7 +205,7 @@ func (r *listDeviceHostDeviceMappingRequest) deviceAuthToken() string {
 	return r.Token
 }
 
-func listDeviceHostDeviceMappingEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func listDeviceHostDeviceMappingEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	host, ok := hostctx.FromContext(ctx)
 	if !ok {
 		err := ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
@@ -226,7 +231,7 @@ func (r *getDeviceMacadminsDataRequest) deviceAuthToken() string {
 	return r.Token
 }
 
-func getDeviceMacadminsDataEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func getDeviceMacadminsDataEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	host, ok := hostctx.FromContext(ctx)
 	if !ok {
 		err := ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
@@ -259,7 +264,7 @@ type listDevicePoliciesResponse struct {
 
 func (r listDevicePoliciesResponse) error() error { return r.Err }
 
-func listDevicePoliciesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func listDevicePoliciesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	host, ok := hostctx.FromContext(ctx)
 	if !ok {
 		err := ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
@@ -314,7 +319,7 @@ func (r transparencyURLResponse) hijackRender(ctx context.Context, w http.Respon
 
 func (r transparencyURLResponse) error() error { return r.Err }
 
-func transparencyURL(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func transparencyURL(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	config, err := svc.AppConfig(ctx)
 	if err != nil {
 		return transparencyURLResponse{Err: err}, nil
@@ -332,4 +337,79 @@ func transparencyURL(ctx context.Context, request interface{}, svc fleet.Service
 	}
 
 	return transparencyURLResponse{RedirectURL: transparencyURL}, nil
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Get Current Device's MDM Apple Enrollment Profile
+////////////////////////////////////////////////////////////////////////////////
+
+type getDeviceMDMManualEnrollProfileRequest struct {
+	Token string `url:"token"`
+}
+
+func (r *getDeviceMDMManualEnrollProfileRequest) deviceAuthToken() string {
+	return r.Token
+}
+
+type getDeviceMDMManualEnrollProfileResponse struct {
+	// Profile field is used in hijackRender for the response.
+	Profile []byte
+
+	Err error `json:"error,omitempty"`
+}
+
+func (r getDeviceMDMManualEnrollProfileResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
+	// make the browser download the content to a file
+	w.Header().Add("Content-Disposition", `attachment; filename="fleet-mdm-enrollment-profile.mobileconfig"`)
+	// explicitly set the content length before the write, so the caller can
+	// detect short writes (if it fails to send the full content properly)
+	w.Header().Set("Content-Length", strconv.FormatInt(int64(len(r.Profile)), 10))
+	// this content type will make macos open the profile with the proper application
+	w.Header().Set("Content-Type", "application/x-apple-aspen-config; charset=urf-8")
+	// prevent detection of content, obey the provided content-type
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+
+	if n, err := w.Write(r.Profile); err != nil {
+		logging.WithExtras(ctx, "err", err, "written", n)
+	}
+}
+
+func (r getDeviceMDMManualEnrollProfileResponse) error() error { return r.Err }
+
+func getDeviceMDMManualEnrollProfileEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	// this call ensures that the authentication was done, no need to actually
+	// use the host
+	if _, ok := hostctx.FromContext(ctx); !ok {
+		err := ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
+		return getDeviceMDMManualEnrollProfileResponse{Err: err}, nil
+	}
+
+	profile, err := svc.GetDeviceMDMAppleEnrollmentProfile(ctx)
+	if err != nil {
+		return getDeviceMDMManualEnrollProfileResponse{Err: err}, nil
+	}
+	return getDeviceMDMManualEnrollProfileResponse{Profile: profile}, nil
+}
+
+func (svc *Service) GetDeviceMDMAppleEnrollmentProfile(ctx context.Context) ([]byte, error) {
+	// must be device-authenticated, no additional authorization is required
+	if !svc.authz.IsAuthenticatedWith(ctx, authz.AuthnDeviceToken) {
+		return nil, ctxerr.Wrap(ctx, fleet.NewPermissionError("forbidden: only device-authenticated hosts can access this endpoint"))
+	}
+
+	appConfig, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+
+	mobileConfig, err := generateEnrollmentProfileMobileconfig(
+		appConfig.OrgInfo.OrgName,
+		appConfig.ServerSettings.ServerURL,
+		svc.config.MDMApple.SCEP.Challenge,
+		svc.mdmPushCertTopic,
+	)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+	return mobileConfig, nil
 }

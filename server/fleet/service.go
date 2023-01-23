@@ -54,8 +54,11 @@ type Service interface {
 	AuthenticateOrbitHost(ctx context.Context, nodeKey string) (host *Host, debug bool, err error)
 	// EnrollOrbit enrolls orbit to Fleet by using the enrollSecret and returns the orbitNodeKey if successful
 	EnrollOrbit(ctx context.Context, hardwareUUID string, enrollSecret string) (orbitNodeKey string, err error)
-	// GetOrbitFlags returns team specific flags in agent options if the team id is not nil for host, otherwise it returns flags from global agent options
-	GetOrbitFlags(ctx context.Context) (flags json.RawMessage, err error)
+	// GetOrbitConfig returns team specific flags and extensions in agent options
+	// if the team id is not nil for host, otherwise it returns flags from global
+	// agent options. It also returns any notifications that fleet wants to surface
+	// to fleetd (formerly orbit).
+	GetOrbitConfig(ctx context.Context) (flags json.RawMessage, extensions json.RawMessage, notifications OrbitConfigNotifications, err error)
 
 	// SetOrUpdateDeviceAuthToken creates or updates a device auth token for the given host.
 	SetOrUpdateDeviceAuthToken(ctx context.Context, authToken string) error
@@ -457,7 +460,16 @@ type Service interface {
 	///////////////////////////////////////////////////////////////////////////////
 	// ActivitiesService
 
-	ListActivities(ctx context.Context, opt ListOptions) ([]*Activity, error)
+	// NewActivity creates the given activity on the datastore.
+	//
+	// What we call "Activities" are administrative operations,
+	// logins, running a live query, etc.
+	NewActivity(ctx context.Context, user *User, activity ActivityDetails) error
+	// ListActivities lists the activities stored in the datastore.
+	//
+	// What we call "Activities" are administrative operations,
+	// logins, running a live query, etc.
+	ListActivities(ctx context.Context, opt ListActivitiesOptions) ([]*Activity, *PaginationMetadata, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// UserRolesService
@@ -539,7 +551,14 @@ type Service interface {
 	ListMDMAppleEnrollmentProfiles(ctx context.Context) ([]*MDMAppleEnrollmentProfile, error)
 
 	// GetMDMAppleEnrollmentProfileByToken returns the Apple enrollment from its secret token.
+	// TODO(mna): this may have to be removed if we don't end up supporting
+	// manual enrollment via a token (currently we only support it via Fleet
+	// Desktop, in the My Device page). See #8701.
 	GetMDMAppleEnrollmentProfileByToken(ctx context.Context, enrollmentToken string) (profile []byte, err error)
+
+	// GetDeviceMDMAppleEnrollmentProfile loads the raw (PList-format) enrollment
+	// profile for the currently authenticated device.
+	GetDeviceMDMAppleEnrollmentProfile(ctx context.Context) ([]byte, error)
 
 	// GetMDMAppleCommandResults returns the execution results of a command identified by a CommandUUID.
 	// The map returned has a result for each target device ID.
@@ -571,6 +590,9 @@ type Service interface {
 	// ListMDMAppleDEPDevices lists all the devices added to this MDM server in Apple Business Manager (ABM).
 	ListMDMAppleDEPDevices(ctx context.Context) ([]MDMAppleDEPDevice, error)
 
+	// NewMDMAppleDEPKeyPair creates a public private key pair for use with the Apple MDM DEP token.
+	NewMDMAppleDEPKeyPair(ctx context.Context) (*MDMAppleDEPKeyPair, error)
+
 	// EnqueueMDMAppleCommand enqueues a command for execution on the given devices.
 	EnqueueMDMAppleCommand(ctx context.Context, command *MDMAppleCommand, deviceIDs []string, noPush bool) (status int, result *CommandEnqueueResult, err error)
 
@@ -579,4 +601,8 @@ type Service interface {
 
 	// TriggerCronSchedule attempts to trigger an ad-hoc run of the named cron schedule.
 	TriggerCronSchedule(ctx context.Context, name string) error
+
+	// ResetAutomation sets the policies and all policies of the listed teams to fire again
+	// for all hosts that are already marked as failing.
+	ResetAutomation(ctx context.Context, teamIDs, policyIDs []uint) error
 }

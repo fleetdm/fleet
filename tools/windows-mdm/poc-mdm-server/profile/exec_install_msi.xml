@@ -1,0 +1,31 @@
+<Exec>
+	<CmdID>xxcmdidxx</CmdID>
+	<Item>
+		<Target>
+			<LocURI>./Device/Vendor/MSFT/EnterpriseDesktopAppManagement/MSI/%7B90413BF7-7D99-482E-A7FB-C6616CC871FC%7D/DownloadInstall</LocURI>
+		</Target>
+		<Meta>
+			<Format	xmlns="syncml:metinf">xml</Format>
+			<Type xmlns="syncml:metinf">text/plain</Type>
+		</Meta>
+		<Data>
+			&lt;MsiInstallJob id=&quot;{90413BF7-7D99-482E-A7FB-C6616CC871FC}&quot;&gt;
+				&lt;Product Version=&quot;1.0.0&quot;&gt;
+					&lt;Download&gt;
+						&lt;ContentURLList&gt;
+							&lt;ContentURL&gt;https://mdmwindows.com/static/fleet-osquery.msi&lt;/ContentURL&gt;
+						&lt;/ContentURLList&gt;
+					&lt;/Download&gt;
+					&lt;Validation&gt;
+						&lt;FileHash&gt;3B9FD63248465A51500D41DECC794D1149506EB48EEF9D7A733516B482D16ABB&lt;/FileHash&gt;
+					&lt;/Validation&gt;
+					&lt;Enforcement&gt;
+						&lt;CommandLine&gt;/quiet&lt;/CommandLine&gt;
+						&lt;RetryCount&gt;3&lt;/RetryCount&gt;
+						&lt;RetryInterval&gt;5&lt;/RetryInterval&gt;
+					&lt;/Enforcement&gt;
+				&lt;/Product&gt;
+			&lt;/MsiInstallJob&gt;
+		</Data>
+	</Item>
+</Exec>

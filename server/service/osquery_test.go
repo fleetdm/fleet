@@ -25,7 +25,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/live_query/live_query_mock"
-	"github.com/fleetdm/fleet/v4/server/logging"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	mockresult "github.com/fleetdm/fleet/v4/server/mock/mockresult"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -187,7 +186,7 @@ func TestAgentOptionsForHost(t *testing.T) {
 	assert.JSONEq(t, `{"foo":"override2"}`, string(opt))
 }
 
-var allDetailQueries = osquery_utils.GetDetailQueries(config.FleetConfig{Vulnerabilities: config.VulnerabilitiesConfig{DisableWinOSVulnerabilities: true}}, &fleet.Features{EnableHostUsers: true})
+var allDetailQueries = osquery_utils.GetDetailQueries(context.Background(), config.FleetConfig{Vulnerabilities: config.VulnerabilitiesConfig{DisableWinOSVulnerabilities: true}}, &fleet.Features{EnableHostUsers: true})
 
 func expectedDetailQueriesForPlatform(platform string) map[string]osquery_utils.DetailQuery {
 	queries := make(map[string]osquery_utils.DetailQuery)
@@ -212,7 +211,7 @@ func TestEnrollAgent(t *testing.T) {
 	ds.EnrollHostFunc = func(ctx context.Context, osqueryHostId, nodeKey string, teamID *uint, cooldown time.Duration) (*fleet.Host, error) {
 		assert.Equal(t, ptr.Uint(3), teamID)
 		return &fleet.Host{
-			OsqueryHostID: osqueryHostId, NodeKey: nodeKey,
+			OsqueryHostID: &osqueryHostId, NodeKey: &nodeKey,
 		}, nil
 	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
@@ -243,7 +242,7 @@ func TestEnrollAgentEnforceLimit(t *testing.T) {
 		ds.EnrollHostFunc = func(ctx context.Context, osqueryHostId, nodeKey string, teamID *uint, cooldown time.Duration) (*fleet.Host, error) {
 			hostIDSeq++
 			return &fleet.Host{
-				ID: hostIDSeq, OsqueryHostID: osqueryHostId, NodeKey: nodeKey,
+				ID: hostIDSeq, OsqueryHostID: &osqueryHostId, NodeKey: &nodeKey,
 			}, nil
 		}
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
@@ -326,7 +325,7 @@ func TestEnrollAgentDetails(t *testing.T) {
 	}
 	ds.EnrollHostFunc = func(ctx context.Context, osqueryHostId, nodeKey string, teamID *uint, cooldown time.Duration) (*fleet.Host, error) {
 		return &fleet.Host{
-			OsqueryHostID: osqueryHostId, NodeKey: nodeKey,
+			OsqueryHostID: &osqueryHostId, NodeKey: &nodeKey,
 		}, nil
 	}
 	var gotHost *fleet.Host
@@ -441,7 +440,7 @@ func TestSubmitStatusLogs(t *testing.T) {
 	serv := ((svc.(validationMiddleware)).Service).(*Service)
 
 	testLogger := &testJSONLogger{}
-	serv.osqueryLogWriter = &logging.OsqueryLogger{Status: testLogger}
+	serv.osqueryLogWriter = &OsqueryLogger{Status: testLogger}
 
 	logs := []string{
 		`{"severity":"0","filename":"tls.cpp","line":"216","message":"some message","version":"1.8.2","decorations":{"host_uuid":"uuid_foobar","username":"zwass"}}`,
@@ -469,7 +468,7 @@ func TestSubmitResultLogs(t *testing.T) {
 	serv := ((svc.(validationMiddleware)).Service).(*Service)
 
 	testLogger := &testJSONLogger{}
-	serv.osqueryLogWriter = &logging.OsqueryLogger{Result: testLogger}
+	serv.osqueryLogWriter = &OsqueryLogger{Result: testLogger}
 
 	logs := []string{
 		`{"name":"system_info","hostIdentifier":"some_uuid","calendarTime":"Fri Sep 30 17:55:15 2016 UTC","unixTime":"1475258115","decorations":{"host_uuid":"some_uuid","username":"zwass"},"columns":{"cpu_brand":"Intel(R) Core(TM) i7-4770HQ CPU @ 2.20GHz","hostname":"hostimus","physical_memory":"17179869184"},"action":"added"}`,
@@ -535,7 +534,7 @@ func TestHostDetailQueries(t *testing.T) {
 
 		Platform:        "darwin",
 		DetailUpdatedAt: mockClock.Now(),
-		NodeKey:         "test_key",
+		NodeKey:         ptr.String("test_key"),
 		Hostname:        "test_hostname",
 		UUID:            "test_uuid",
 	}
@@ -604,7 +603,7 @@ func TestQueriesAndHostFeatures(t *testing.T) {
 	host := fleet.Host{
 		ID:       1,
 		Platform: "darwin",
-		NodeKey:  "test_key",
+		NodeKey:  ptr.String("test_key"),
 		Hostname: "test_hostname",
 		UUID:     "test_uuid",
 		TeamID:   nil,
@@ -1429,7 +1428,7 @@ func TestNewDistributedQueryCampaign(t *testing.T) {
 		},
 	})
 	q := "select year, month, day, hour, minutes, seconds from time"
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error {
+	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
 		return nil
 	}
 	campaign, err := svc.NewDistributedQueryCampaign(viewerCtx, q, nil, fleet.HostTargets{HostIDs: []uint{2}, LabelIDs: []uint{1}})
@@ -1941,7 +1940,7 @@ func TestUpdateHostIntervals(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := hostctx.NewContext(ctx, &fleet.Host{
 				ID:                  1,
-				NodeKey:             "123456",
+				NodeKey:             ptr.String("123456"),
 				DistributedInterval: tt.initIntervals.DistributedInterval,
 				ConfigTLSRefresh:    tt.initIntervals.ConfigTLSRefresh,
 				LoggerTLSPeriod:     tt.initIntervals.LoggerTLSPeriod,
@@ -2196,7 +2195,7 @@ func TestObserversCanOnlyRunDistributedCampaigns(t *testing.T) {
 	})
 
 	q := "select year, month, day, hour, minutes, seconds from time"
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error {
+	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
 		return nil
 	}
 	_, err := svc.NewDistributedQueryCampaign(viewerCtx, q, nil, fleet.HostTargets{HostIDs: []uint{2}, LabelIDs: []uint{1}})
@@ -2230,7 +2229,7 @@ func TestObserversCanOnlyRunDistributedCampaigns(t *testing.T) {
 	ds.HostIDsInTargetsFunc = func(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets) ([]uint, error) {
 		return []uint{1, 3, 5}, nil
 	}
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error {
+	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
 		return nil
 	}
 	lq.On("RunQuery", "21", "select 1;", []uint{1, 3, 5}).Return(nil)
@@ -2270,7 +2269,7 @@ func TestTeamMaintainerCanRunNewDistributedCampaigns(t *testing.T) {
 	})
 
 	q := "select year, month, day, hour, minutes, seconds from time"
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error {
+	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
 		return nil
 	}
 	// var gotQuery *fleet.Query
@@ -2288,7 +2287,7 @@ func TestTeamMaintainerCanRunNewDistributedCampaigns(t *testing.T) {
 	ds.HostIDsInTargetsFunc = func(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets) ([]uint, error) {
 		return []uint{1, 3, 5}, nil
 	}
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error {
+	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
 		return nil
 	}
 	lq.On("RunQuery", "0", "select year, month, day, hour, minutes, seconds from time", []uint{1, 3, 5}).Return(nil)

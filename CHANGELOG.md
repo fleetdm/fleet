@@ -1,3 +1,123 @@
+## Fleet 4.26.0 (Jan 13, 2023)
+
+* Added functionality to ingest device information from Apple MDM endpoints so that an MDM device can
+  be surfaced in Fleet results while the initial enrollment of the device is pending.
+
+* Added new activities to the activities API when a host is enrolled/unenrolled from Fleet's MDM.
+
+* Added option to filter hosts by MDM enrollment status "pending" to surface devices ordered through
+  Apple Business Manager that are still pending enrollment in Fleet's MDM.
+
+* Added a flag to indicate if the Apple Business Manager terms and conditions have changed and must
+  be accepted to have automatic enrollment of hosts work again. A banner is added to the output of
+  `fleetctl` commands when this is the case.
+
+* Added side navigation layout to the integration page and conditionally show MDM section.
+
+* Added application configuration: mdm.apple_bm_default_team.
+
+* Added modal to allow user to download an enrollment profile required for Fleet MDM enrollment.
+
+* Added new configuration option to set default team for Apple Business Manager.
+
+* Added a software_updated_at column denoting when software was updated for a host.
+
+* Generate audit log for activities (supported log plugins are: `filesystem`, `firehose`, `kinesis`, `lambda`, `pubsub`, `kafkarest`, and `stdout`).
+
+* Added locally-formated datetime tooltips.
+
+* Updated software empty states.
+
+* Autofocus first entry of all forms for better UX.
+
+* Added pendo to sandbox instances.
+
+* Added bookmarkability of url when it includes the `query` query param on the manage hosts page.
+
+* Pack target details show on right side of dropdown.
+
+* Updated buttons to the the new style guide.
+
+* Added a way to override a detail query or disable it through app config.
+
+* Invalid query string will not result in neverending spinner.
+
+* Fixed an issue causing enrollment profiles to fail if the server URL had a trailing slash.
+
+* Fixed an issue that made the first SCEP enrollment during the MDM check-in flow fail in a new setup.
+
+* Fixed panic in `/api/{version}/fleet/hosts/{d}/mdm` when the host does not have MDM data.
+
+* Fixed ingestion of MDM data with empty server URLs (meaning the host is not enrolled to an MDM server).
+
+* Removed stale time from loading team policies/policy automation so users are provided accurate team data when toggling between teams.
+
+## Fleet 4.25.0 (Dec 22, 2022)
+
+* Added new activity that records create/edit/delete user roles.
+
+* Log all successful logins as activity and all attempts with ip in stderr.
+
+* Added API endpoint to generate DEP public and private keys.
+
+* Added ability to mark policy as critical with Fleet Premium.
+
+* Added ability to mark policies run automation for all already failing hosts.
+
+* Added `fleet serve` configuration flags for Apple Push Notification service (APNs) and Simple
+  Certificate Enrollment Protocol (SCEP) certificates and keys.
+
+* Added `fleet serve` configuration flags for Apple Business Manager (BM).
+
+* Added `fleetctl trigger` command to trigger an ad hoc run of all jobs in a specified cron
+  schedule.
+
+* Added the `fleetctl get mdm_apple` command to retrieve the Apple MDM configuration information. MDM features are not ready for production and are currently in development. These features are disabled by default.
+
+* Added the `fleetctl get mdm_apple_bm` command to retrieve the Apple Business Manager configuration information.
+
+* Added `fleetctl` command to generate APNs CSR and SCEP CA certificate and key pair.
+
+* Add `fleetctl` command to generate DEP public and private keys.
+
+* Windows installer now ensures that the installed osquery version gets removed before installing Orbit.
+
+* Build on Ubuntu 20 to resolve glibc changes that were causing issues for older Docker runtimes.
+
+* During deleting host flow, inform users how to prevent re-enrolling hosts.
+
+* Added functionality to report if a carve failed along with its error message.
+
+* Added the `redis.username` configuration option for setups that use Redis ACLs.
+
+* Windows installer now ensures that no files are left on the filesystem when orbit uninstallation
+  process is kicked off.
+
+* Improve how we are logging failed detail queries and windows os version queries.
+
+* Spiffier UI: Add scroll shadows to indicate horizontal scrolling to user.
+
+* Add counts_update_at attribute to GET /hosts/summary/mdm response. update GET /labels/:id/hosts to
+  filter by mdm_id and mdm_enrollment_status query params. add mobile_device_management_solution to
+  response from GET /labels/:id/hosts when including mdm_id query param. add mdm information to UI for
+  windows/all dashboard and host details.
+
+* Fixed `fleetctl query` to use custom HTTP headers if configured.
+
+* Fixed how we are querying and ingesting disk encryption in linux to workaround an osquery bug.
+
+* Fixed buggy input field alignments.
+
+* Fixed to multiselect styling.
+
+* Fixed bug where manually triggering a cron run that preempts a regularly scheduled run causes
+  an unexpected shift in the start time of the next interval.
+
+* Fixed an issue where the height of the label for some input fields changed when an error message is displayed.
+
+* Fixed the alignment of the "copy" and "show" button icons in the manage enroll secrets and get API
+  token modals.
+
 ## Fleet 4.24.1 (Dec 7, 2022)
 
 **This is a security release.**

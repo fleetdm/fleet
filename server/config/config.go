@@ -16,6 +16,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"testing"
 	"time"
 
 	nanodep_client "github.com/micromdm/nanodep/client"
@@ -130,16 +131,24 @@ type SessionConfig struct {
 
 // OsqueryConfig defines configs related to osquery
 type OsqueryConfig struct {
-	NodeKeySize                      int           `yaml:"node_key_size"`
-	HostIdentifier                   string        `yaml:"host_identifier"`
-	EnrollCooldown                   time.Duration `yaml:"enroll_cooldown"`
-	StatusLogPlugin                  string        `yaml:"status_log_plugin"`
-	ResultLogPlugin                  string        `yaml:"result_log_plugin"`
-	LabelUpdateInterval              time.Duration `yaml:"label_update_interval"`
-	PolicyUpdateInterval             time.Duration `yaml:"policy_update_interval"`
-	DetailUpdateInterval             time.Duration `yaml:"detail_update_interval"`
-	StatusLogFile                    string        `yaml:"status_log_file"`
-	ResultLogFile                    string        `yaml:"result_log_file"`
+	NodeKeySize          int           `yaml:"node_key_size"`
+	HostIdentifier       string        `yaml:"host_identifier"`
+	EnrollCooldown       time.Duration `yaml:"enroll_cooldown"`
+	StatusLogPlugin      string        `yaml:"status_log_plugin"`
+	ResultLogPlugin      string        `yaml:"result_log_plugin"`
+	LabelUpdateInterval  time.Duration `yaml:"label_update_interval"`
+	PolicyUpdateInterval time.Duration `yaml:"policy_update_interval"`
+	DetailUpdateInterval time.Duration `yaml:"detail_update_interval"`
+
+	// StatusLogFile is deprecated. It was replaced by FilesystemConfig.StatusLogFile.
+	//
+	// TODO(lucas): We should at least add a warning if this field is populated.
+	StatusLogFile string `yaml:"status_log_file"`
+	// ResultLogFile is deprecated. It was replaced by FilesystemConfig.ResultLogFile.
+	//
+	// TODO(lucas): We should at least add a warning if this field is populated.
+	ResultLogFile string `yaml:"result_log_file"`
+
 	EnableLogRotation                bool          `yaml:"enable_log_rotation"`
 	MaxJitterPercent                 int           `yaml:"max_jitter_percent"`
 	EnableAsyncHostProcessing        string        `yaml:"enable_async_host_processing"` // true/false or per-task
@@ -217,6 +226,14 @@ type LoggingConfig struct {
 	TracingType string `yaml:"tracing_type"`
 }
 
+// ActivityConfig defines configs related to activities.
+type ActivityConfig struct {
+	// EnableAuditLog enables logging for audit activities.
+	EnableAuditLog bool `yaml:"enable_audit_log"`
+	// AuditLogPlugin sets the plugin to use to log activities.
+	AuditLogPlugin string `yaml:"audit_log_plugin"`
+}
+
 // FirehoseConfig defines configs for the AWS Firehose logging plugin
 type FirehoseConfig struct {
 	Region           string
@@ -226,6 +243,7 @@ type FirehoseConfig struct {
 	StsAssumeRoleArn string `yaml:"sts_assume_role_arn"`
 	StatusStream     string `yaml:"status_stream"`
 	ResultStream     string `yaml:"result_stream"`
+	AuditStream      string `yaml:"audit_stream"`
 }
 
 // KinesisConfig defines configs for the AWS Kinesis logging plugin
@@ -237,6 +255,7 @@ type KinesisConfig struct {
 	StsAssumeRoleArn string `yaml:"sts_assume_role_arn"`
 	StatusStream     string `yaml:"status_stream"`
 	ResultStream     string `yaml:"result_stream"`
+	AuditStream      string `yaml:"audit_stream"`
 }
 
 // LambdaConfig defines configs for the AWS Lambda logging plugin
@@ -247,6 +266,7 @@ type LambdaConfig struct {
 	StsAssumeRoleArn string `yaml:"sts_assume_role_arn"`
 	StatusFunction   string `yaml:"status_function"`
 	ResultFunction   string `yaml:"result_function"`
+	AuditFunction    string `yaml:"audit_function"`
 }
 
 // S3Config defines config to enable file carving storage to an S3 bucket
@@ -267,6 +287,7 @@ type PubSubConfig struct {
 	Project       string `json:"project"`
 	StatusTopic   string `json:"status_topic" yaml:"status_topic"`
 	ResultTopic   string `json:"result_topic" yaml:"result_topic"`
+	AuditTopic    string `json:"audit_topic" yaml:"audit_topic"`
 	AddAttributes bool   `json:"add_attributes" yaml:"add_attributes"`
 }
 
@@ -274,6 +295,7 @@ type PubSubConfig struct {
 type FilesystemConfig struct {
 	StatusLogFile        string `json:"status_log_file" yaml:"status_log_file"`
 	ResultLogFile        string `json:"result_log_file" yaml:"result_log_file"`
+	AuditLogFile         string `json:"audit_log_file" yaml:"audit_log_file"`
 	EnableLogRotation    bool   `json:"enable_log_rotation" yaml:"enable_log_rotation"`
 	EnableLogCompression bool   `json:"enable_log_compression" yaml:"enable_log_compression"`
 }
@@ -282,6 +304,7 @@ type FilesystemConfig struct {
 type KafkaRESTConfig struct {
 	StatusTopic      string `json:"status_topic" yaml:"status_topic"`
 	ResultTopic      string `json:"result_topic" yaml:"result_topic"`
+	AuditTopic       string `json:"audit_topic" yaml:"audit_topic"`
 	ProxyHost        string `json:"proxyhost" yaml:"proxyhost"`
 	ContentTypeValue string `json:"content_type_value" yaml:"content_type_value"`
 	Timeout          int    `json:"timeout" yaml:"timeout"`
@@ -389,6 +412,7 @@ type FleetConfig struct {
 	App              AppConfig
 	Session          SessionConfig
 	Osquery          OsqueryConfig
+	Activity         ActivityConfig
 	Logging          LoggingConfig
 	Firehose         FirehoseConfig
 	Kinesis          KinesisConfig
@@ -826,6 +850,12 @@ func (man Manager) addConfigs() {
 	man.addConfigDuration("osquery.min_software_last_opened_at_diff", 1*time.Hour,
 		"Minimum time difference of the software's last opened timestamp (compared to the last one saved) to trigger an update to the database")
 
+	// Activities
+	man.addConfigBool("activity.enable_audit_log", false,
+		"Enable audit logs")
+	man.addConfigString("activity.audit_log_plugin", "filesystem",
+		"Log plugin to use for audit logs")
+
 	// Logging
 	man.addConfigBool("logging.debug", false,
 		"Enable debug logging")
@@ -852,6 +882,8 @@ func (man Manager) addConfigs() {
 		"Firehose stream name for status logs")
 	man.addConfigString("firehose.result_stream", "",
 		"Firehose stream name for result logs")
+	man.addConfigString("firehose.audit_stream", "",
+		"Firehose stream name for audit logs")
 
 	// Kinesis
 	man.addConfigString("kinesis.region", "", "AWS Region to use")
@@ -865,6 +897,8 @@ func (man Manager) addConfigs() {
 		"Kinesis stream name for status logs")
 	man.addConfigString("kinesis.result_stream", "",
 		"Kinesis stream name for result logs")
+	man.addConfigString("kinesis.audit_stream", "",
+		"Kinesis stream name for audit logs")
 
 	// Lambda
 	man.addConfigString("lambda.region", "", "AWS Region to use")
@@ -876,6 +910,8 @@ func (man Manager) addConfigs() {
 		"Lambda function name for status logs")
 	man.addConfigString("lambda.result_function", "",
 		"Lambda function name for result logs")
+	man.addConfigString("lambda.audit_function", "",
+		"Lambda function name for audit logs")
 
 	// S3 for file carving
 	man.addConfigString("s3.bucket", "", "Bucket where to store file carves")
@@ -892,6 +928,7 @@ func (man Manager) addConfigs() {
 	man.addConfigString("pubsub.project", "", "Google Cloud Project to use")
 	man.addConfigString("pubsub.status_topic", "", "PubSub topic for status logs")
 	man.addConfigString("pubsub.result_topic", "", "PubSub topic for result logs")
+	man.addConfigString("pubsub.audit_topic", "", "PubSub topic for audit logs")
 	man.addConfigBool("pubsub.add_attributes", false, "Add PubSub attributes in addition to the message body")
 
 	// Filesystem
@@ -899,6 +936,8 @@ func (man Manager) addConfigs() {
 		"Log file path to use for status logs")
 	man.addConfigString("filesystem.result_log_file", filepath.Join(os.TempDir(), "osquery_result"),
 		"Log file path to use for result logs")
+	man.addConfigString("filesystem.audit_log_file", filepath.Join(os.TempDir(), "audit"),
+		"Log file path to use for audit logs")
 	man.addConfigBool("filesystem.enable_log_rotation", false,
 		"Enable automatic rotation for osquery log files")
 	man.addConfigBool("filesystem.enable_log_compression", false,
@@ -907,6 +946,7 @@ func (man Manager) addConfigs() {
 	// KafkaREST
 	man.addConfigString("kafkarest.status_topic", "", "Kafka REST topic for status logs")
 	man.addConfigString("kafkarest.result_topic", "", "Kafka REST topic for result logs")
+	man.addConfigString("kafkarest.audit_topic", "", "Kafka REST topic for audit logs")
 	man.addConfigString("kafkarest.proxyhost", "", "Kafka REST proxy host url")
 	man.addConfigString("kafkarest.content_type_value", "application/vnd.kafka.json.v1+json",
 		"Kafka REST proxy content type header (defaults to \"application/vnd.kafka.json.v1+json\"")
@@ -1089,12 +1129,14 @@ func (man Manager) LoadConfig() FleetConfig {
 			Duration: man.getConfigDuration("session.duration"),
 		},
 		Osquery: OsqueryConfig{
-			NodeKeySize:                      man.getConfigInt("osquery.node_key_size"),
-			HostIdentifier:                   man.getConfigString("osquery.host_identifier"),
-			EnrollCooldown:                   man.getConfigDuration("osquery.enroll_cooldown"),
-			StatusLogPlugin:                  man.getConfigString("osquery.status_log_plugin"),
-			ResultLogPlugin:                  man.getConfigString("osquery.result_log_plugin"),
-			StatusLogFile:                    man.getConfigString("osquery.status_log_file"),
+			NodeKeySize:     man.getConfigInt("osquery.node_key_size"),
+			HostIdentifier:  man.getConfigString("osquery.host_identifier"),
+			EnrollCooldown:  man.getConfigDuration("osquery.enroll_cooldown"),
+			StatusLogPlugin: man.getConfigString("osquery.status_log_plugin"),
+			ResultLogPlugin: man.getConfigString("osquery.result_log_plugin"),
+			// StatusLogFile is deprecated. FilesystemConfig.StatusLogFile is used instead.
+			StatusLogFile: man.getConfigString("osquery.status_log_file"),
+			// ResultLogFile is deprecated. FilesystemConfig.ResultLogFile is used instead.
 			ResultLogFile:                    man.getConfigString("osquery.result_log_file"),
 			LabelUpdateInterval:              man.getConfigDuration("osquery.label_update_interval"),
 			PolicyUpdateInterval:             man.getConfigDuration("osquery.policy_update_interval"),
@@ -1113,6 +1155,10 @@ func (man Manager) LoadConfig() FleetConfig {
 			AsyncHostRedisScanKeysCount:      man.getConfigInt("osquery.async_host_redis_scan_keys_count"),
 			MinSoftwareLastOpenedAtDiff:      man.getConfigDuration("osquery.min_software_last_opened_at_diff"),
 		},
+		Activity: ActivityConfig{
+			EnableAuditLog: man.getConfigBool("activity.enable_audit_log"),
+			AuditLogPlugin: man.getConfigString("activity.audit_log_plugin"),
+		},
 		Logging: LoggingConfig{
 			Debug:                man.getConfigBool("logging.debug"),
 			JSON:                 man.getConfigBool("logging.json"),
@@ -1129,6 +1175,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			StsAssumeRoleArn: man.getConfigString("firehose.sts_assume_role_arn"),
 			StatusStream:     man.getConfigString("firehose.status_stream"),
 			ResultStream:     man.getConfigString("firehose.result_stream"),
+			AuditStream:      man.getConfigString("firehose.audit_stream"),
 		},
 		Kinesis: KinesisConfig{
 			Region:           man.getConfigString("kinesis.region"),
@@ -1137,6 +1184,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			SecretAccessKey:  man.getConfigString("kinesis.secret_access_key"),
 			StatusStream:     man.getConfigString("kinesis.status_stream"),
 			ResultStream:     man.getConfigString("kinesis.result_stream"),
+			AuditStream:      man.getConfigString("kinesis.audit_stream"),
 			StsAssumeRoleArn: man.getConfigString("kinesis.sts_assume_role_arn"),
 		},
 		Lambda: LambdaConfig{
@@ -1145,6 +1193,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			SecretAccessKey:  man.getConfigString("lambda.secret_access_key"),
 			StatusFunction:   man.getConfigString("lambda.status_function"),
 			ResultFunction:   man.getConfigString("lambda.result_function"),
+			AuditFunction:    man.getConfigString("lambda.audit_function"),
 			StsAssumeRoleArn: man.getConfigString("lambda.sts_assume_role_arn"),
 		},
 		S3: S3Config{
@@ -1162,17 +1211,20 @@ func (man Manager) LoadConfig() FleetConfig {
 			Project:       man.getConfigString("pubsub.project"),
 			StatusTopic:   man.getConfigString("pubsub.status_topic"),
 			ResultTopic:   man.getConfigString("pubsub.result_topic"),
+			AuditTopic:    man.getConfigString("pubsub.audit_topic"),
 			AddAttributes: man.getConfigBool("pubsub.add_attributes"),
 		},
 		Filesystem: FilesystemConfig{
 			StatusLogFile:        man.getConfigString("filesystem.status_log_file"),
 			ResultLogFile:        man.getConfigString("filesystem.result_log_file"),
+			AuditLogFile:         man.getConfigString("filesystem.audit_log_file"),
 			EnableLogRotation:    man.getConfigBool("filesystem.enable_log_rotation"),
 			EnableLogCompression: man.getConfigBool("filesystem.enable_log_compression"),
 		},
 		KafkaREST: KafkaRESTConfig{
 			StatusTopic:      man.getConfigString("kafkarest.status_topic"),
 			ResultTopic:      man.getConfigString("kafkarest.result_topic"),
+			AuditTopic:       man.getConfigString("kafkarest.audit_topic"),
 			ProxyHost:        man.getConfigString("kafkarest.proxyhost"),
 			ContentTypeValue: man.getConfigString("kafkarest.content_type_value"),
 			Timeout:          man.getConfigInt("kafkarest.timeout"),
@@ -1551,6 +1603,10 @@ func TestConfig() FleetConfig {
 			DetailUpdateInterval: 1 * time.Hour,
 			MaxJitterPercent:     0,
 		},
+		Activity: ActivityConfig{
+			EnableAuditLog: true,
+			AuditLogPlugin: "filesystem",
+		},
 		Logging: LoggingConfig{
 			Debug:         true,
 			DisableBanner: true,
@@ -1558,6 +1614,49 @@ func TestConfig() FleetConfig {
 		Filesystem: FilesystemConfig{
 			StatusLogFile: testLogFile,
 			ResultLogFile: testLogFile,
+			AuditLogFile:  testLogFile,
 		},
+	}
+}
+
+// SetTestMDMConfig modifies the provided cfg so that MDM is enabled and
+// configured properly. The provided certificate and private key are used for
+// all required pairs and the Apple BM token is used as-is, instead of
+// decrypting the encrypted value that is usually provided via the fleet
+// server's flags.
+func SetTestMDMConfig(t testing.TB, cfg *FleetConfig, cert, key []byte, appleBMToken *nanodep_client.OAuth1Tokens) {
+	tlsCert, err := tls.X509KeyPair(cert, key)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	parsed, err := x509.ParseCertificate(tlsCert.Certificate[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	tlsCert.Leaf = parsed
+
+	cfg.MDM.AppleAPNsCertBytes = string(cert)
+	cfg.MDM.AppleAPNsKeyBytes = string(key)
+	cfg.MDM.AppleSCEPCertBytes = string(cert)
+	cfg.MDM.AppleSCEPKeyBytes = string(key)
+	cfg.MDM.AppleBMCertBytes = string(cert)
+	cfg.MDM.AppleBMKeyBytes = string(key)
+	cfg.MDM.AppleBMServerTokenBytes = "whatever-will-not-be-accessed"
+
+	cfg.MDM.appleAPNs = &tlsCert
+	cfg.MDM.appleAPNsPEMCert = cert
+	cfg.MDM.appleAPNsPEMKey = key
+	cfg.MDM.appleSCEP = &tlsCert
+	cfg.MDM.appleSCEPPEMCert = cert
+	cfg.MDM.appleSCEPPEMKey = key
+	cfg.MDM.appleBMToken = appleBMToken
+	cfg.MDMApple.Enable = true
+
+	cfg.MDMApple.SCEP = MDMAppleSCEPConfig{
+		Signer: SCEPSignerConfig{
+			ValidityDays: 365,
+		},
+		Challenge: "testchallenge",
 	}
 }

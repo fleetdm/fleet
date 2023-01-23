@@ -33,6 +33,8 @@ spec:
   label_updated_at: "0001-01-01T00:00:00Z"
   last_enrolled_at: "0001-01-01T00:00:00Z"
   logger_tls_period: 0
+  mdm_enrollment_status: null
+  mdm_server_url: null
   memory: 0
   os_version: ""
   osquery_version: ""
@@ -46,6 +48,7 @@ spec:
   primary_mac: ""
   refetch_requested: false
   seen_time: "0001-01-01T00:00:00Z"
+  software_updated_at: "0001-01-01T00:00:00Z"
   status: offline
   team_id: null
   team_name: null
@@ -82,6 +85,8 @@ spec:
   label_updated_at: "0001-01-01T00:00:00Z"
   last_enrolled_at: "0001-01-01T00:00:00Z"
   logger_tls_period: 0
+  mdm_enrollment_status: null
+  mdm_server_url: null
   memory: 0
   os_version: ""
   osquery_version: ""
@@ -95,6 +100,7 @@ spec:
   primary_mac: ""
   refetch_requested: false
   seen_time: "0001-01-01T00:00:00Z"
+  software_updated_at: "0001-01-01T00:00:00Z"
   status: offline
   team_id: null
   team_name: null
