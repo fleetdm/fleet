@@ -1538,7 +1538,7 @@ func (s *integrationEnterpriseTestSuite) TestMDMMacOSUpdates() {
 		// get the appconfig, nothing changed
 		acResp = appConfigResponse{}
 		s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
-		require.Equal(t, fleet.MDM{}, acResp.MDM)
+		require.Equal(t, fleet.MacOSUpdates{}, acResp.MDM.MacOSUpdates)
 	}
 
 	// missing minimum_version
