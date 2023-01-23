@@ -1,7 +1,7 @@
 //go:build darwin
 // +build darwin
 
-package login_password
+package user_login_settings
 
 import (
 	"context"
