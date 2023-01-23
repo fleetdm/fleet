@@ -1,29 +1,27 @@
 //go:build darwin
 // +build darwin
 
-package privaterelay
+package user_login_settings
 
 import (
 	"context"
 	"fmt"
 	tbl_common "github.com/fleetdm/fleet/v4/orbit/pkg/table/common"
+	"github.com/osquery/osquery-go/plugin/table"
 	"os/exec"
 	"strings"
 	"syscall"
 	"time"
-
-	"github.com/osquery/osquery-go/plugin/table"
 )
 
 // Columns is the schema of the table.
 func Columns() []table.ColumnDefinition {
 	return []table.ColumnDefinition{
-		table.IntegerColumn("status"),
+		table.IntegerColumn("password_hint_enabled"),
 	}
 }
 
 // Generate is called to return the results for the table at query time.
-//
 // Constraints for generating can be retrieved from the queryContext.
 func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[string]string, error) {
 	uid, gid, err := tbl_common.GetConsoleUidGid()
@@ -33,14 +31,8 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
-	cmd := exec.CommandContext(
-		ctx,
-		"bash", "-c",
-		// This seems a bit brittle, but it works as of now. When it breaks we might want to look
-		// into finding a more resilient mechanism for getting the status. This method discovered by
-		// @sharvilshah.
-		`defaults export com.apple.networkserviceproxy - | plutil -extract NSPServiceStatusManagerInfo raw - -o - | base64 -D | plutil -convert xml1 - -o - | plutil -p - | grep '"PrivacyProxyServiceStatus" =>' | head -1`,
-	)
+	cmd := exec.CommandContext(ctx, "dscl", ".", "-list", "/Users", "hint")
+
 	// Run as the current console user (otherwise we get empty results for the root user)
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		Credential: &syscall.Credential{Uid: uid, Gid: gid},
@@ -51,14 +43,9 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 		return nil, fmt.Errorf("generate failed: %w", err)
 	}
 
-	switch s := strings.TrimSpace(string(out)); s {
-	case `"PrivacyProxyServiceStatus" => 0`:
-		return []map[string]string{{"status": "0"}}, nil
-
-	case `"PrivacyProxyServiceStatus" => 1`:
-		return []map[string]string{{"status": "1"}}, nil
-
-	default:
-		return nil, fmt.Errorf("failed to parse: '%s'", s)
+	res := "0"
+	if len(strings.TrimSpace(string(out))) > 0 {
+		res = "1"
 	}
+	return []map[string]string{{"password_hint_enabled": res}}, nil
 }
