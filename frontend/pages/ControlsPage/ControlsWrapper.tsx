@@ -90,32 +90,25 @@ const ControlsWrapper = ({
     <MainContent className={baseClass}>
       <div className={`${baseClass}__wrapper`}>
         <div className={`${baseClass}__header-wrap`}>{renderHeader()}</div>
-        {isPremiumTier ? (
-          <div>
-            <TabsWrapper>
-              <Tabs
-                selectedIndex={getTabIndex(location.pathname)}
-                onSelect={(i) => navigateToNav(i)}
-              >
-                <TabList>
-                  {controlsSubNav.map((navItem) => {
-                    return (
-                      <Tab key={navItem.name} data-text={navItem.name}>
-                        {navItem.name}
-                      </Tab>
-                    );
-                  })}
-                </TabList>
-              </Tabs>
-            </TabsWrapper>
-            {children}
-          </div>
-        ) : (
-          <>
-            <hr />
-            <h1>Buy Premium</h1>
-          </>
-        )}
+        <div>
+          <TabsWrapper>
+            <Tabs
+              selectedIndex={getTabIndex(location.pathname)}
+              onSelect={(i) => navigateToNav(i)}
+            >
+              <TabList>
+                {controlsSubNav.map((navItem) => {
+                  return (
+                    <Tab key={navItem.name} data-text={navItem.name}>
+                      {navItem.name}
+                    </Tab>
+                  );
+                })}
+              </TabList>
+            </Tabs>
+          </TabsWrapper>
+          {children}
+        </div>
       </div>
     </MainContent>
   );
