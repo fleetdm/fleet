@@ -2387,13 +2387,18 @@ func (ds *Datastore) GetHostMDMCheckinInfo(ctx context.Context, hostUUID string)
 	var hmdm fleet.HostMDMCheckinInfo
 	err := sqlx.GetContext(ctx, ds.reader, &hmdm, `
 		SELECT
-			h.hardware_serial, hm.installed_from_dep
+			h.hardware_serial, 
+			COALESCE(hm.installed_from_dep, false) as installed_from_dep,
+			hd.display_name 
 		FROM
 			hosts h
-		JOIN
+		LEFT JOIN
 			host_mdm hm
 		ON h.id = hm.host_id
-		WHERE h.uuid = ?`, hostUUID)
+		LEFT JOIN
+			host_display_names hd
+		ON h.id = hd.host_id
+		WHERE h.uuid = ? LIMIT 1`, hostUUID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ctxerr.Wrap(ctx, notFound("MDM").WithMessage(hostUUID))
@@ -2845,6 +2850,9 @@ func (ds *Datastore) HostLite(ctx context.Context, id uint) (*fleet.Host, error)
 		"node_key",
 		"hostname",
 		"uuid",
+		"hardware_serial",
+		"hardware_model",
+		"computer_name",
 		"platform",
 		"team_id",
 		"distributed_interval",

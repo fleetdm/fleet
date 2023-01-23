@@ -596,6 +596,10 @@ type Service interface {
 	// EnqueueMDMAppleCommand enqueues a command for execution on the given devices.
 	EnqueueMDMAppleCommand(ctx context.Context, command *MDMAppleCommand, deviceIDs []string, noPush bool) (status int, result *CommandEnqueueResult, err error)
 
+	// EnqueueMDMAppleCommandRemoveEnrollmentProfile enqueues a command to remove the
+	// profile used for Fleet MDM enrollment from the specified device.
+	EnqueueMDMAppleCommandRemoveEnrollmentProfile(ctx context.Context, hostID uint) error
+
 	///////////////////////////////////////////////////////////////////////////////
 	// CronSchedulesService
 

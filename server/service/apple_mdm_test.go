@@ -3,21 +3,27 @@ package service
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
+	"github.com/google/uuid"
 	nanodep_client "github.com/micromdm/nanodep/client"
 	nanodep_storage "github.com/micromdm/nanodep/storage"
 	"github.com/micromdm/nanomdm/mdm"
 	nanomdm_push "github.com/micromdm/nanomdm/push"
+	"github.com/micromdm/nanomdm/storage"
 	"github.com/stretchr/testify/require"
 )
 
@@ -50,7 +56,7 @@ func (d dummyMDMPusher) Push(context.Context, []string) (map[string]*nanomdm_pus
 	return nil, nil
 }
 
-func setupAppleMDMService(t *testing.T) (fleet.Service, context.Context, *mock.Store) {
+func setupAppleMDMService(t *testing.T, mdmStorage storage.AllStorage, depStorage nanodep_storage.AllStorage, mdmPusher nanomdm_push.Pusher) (fleet.Service, context.Context, *mock.Store) {
 	ds := new(mock.Store)
 	cfg := config.TestConfig()
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -65,12 +71,24 @@ func setupAppleMDMService(t *testing.T) (fleet.Service, context.Context, *mock.S
 			return
 		}
 	}))
-	svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, &TestServerOpts{
+
+	opts := &TestServerOpts{
 		FleetConfig: &cfg,
 		MDMStorage:  dummyMDMStorage{},
 		DEPStorage:  dummyDEPStorage{testAuthAddr: ts.URL},
 		MDMPusher:   dummyMDMPusher{},
-	})
+	}
+	if mdmStorage != nil {
+		opts.MDMStorage = mdmStorage
+	}
+	if depStorage != nil {
+		opts.DEPStorage = depStorage
+	}
+	if mdmPusher != nil {
+		opts.MDMPusher = mdmPusher
+	}
+	svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, opts)
+
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{
 			OrgInfo: fleet.OrgInfo{
@@ -122,11 +140,15 @@ func setupAppleMDMService(t *testing.T) (fleet.Service, context.Context, *mock.S
 	ds.MDMAppleListDevicesFunc = func(ctx context.Context) ([]fleet.MDMAppleDevice, error) {
 		return nil, nil
 	}
+	ds.GetNanoMDMEnrollmentStatusFunc = func(ctx context.Context, hostUUID string) (bool, error) {
+		return false, nil
+	}
+
 	return svc, ctx, ds
 }
 
 func TestAppleMDMAuthorization(t *testing.T) {
-	svc, ctx, _ := setupAppleMDMService(t)
+	svc, ctx, _ := setupAppleMDMService(t, nil, nil, nil)
 
 	checkAuthErr := func(t *testing.T, err error, shouldFailWithAuth bool) {
 		t.Helper()
@@ -230,7 +252,7 @@ func TestMDMAppleEnrollURL(t *testing.T) {
 }
 
 func TestAppleMDMEnrollmentProfile(t *testing.T) {
-	svc, ctx, _ := setupAppleMDMService(t)
+	svc, ctx, _ := setupAppleMDMService(t, nil, nil, nil)
 
 	// Only global admins can create enrollment profiles.
 	ctx = test.UserContext(ctx, test.UserAdmin)
@@ -251,6 +273,145 @@ func TestAppleMDMEnrollmentProfile(t *testing.T) {
 	}
 }
 
+type noErrorPusher struct{}
+
+// Push simulates successful push responses. The result maps each of the provided deviceIDs to a
+// internally generated UUID, which is intended here to mock the APNs API response.
+func (nep *noErrorPusher) Push(ctx context.Context, deviceIDs []string) (map[string]*nanomdm_push.Response, error) {
+	res := make(map[string]*nanomdm_push.Response)
+	for _, s := range deviceIDs {
+		res[s] = &nanomdm_push.Response{Id: uuid.New().String()}
+	}
+	return res, nil
+}
+
+func TestMDMCommandAuthz(t *testing.T) {
+	pusher := noErrorPusher{}
+
+	svc, ctx, ds := setupAppleMDMService(t, nil, nil, &pusher)
+
+	ds.HostLiteFunc = func(ctx context.Context, hostID uint) (*fleet.Host, error) {
+		switch hostID {
+		case 1:
+			return &fleet.Host{UUID: "test-host-team-1", TeamID: ptr.Uint(1)}, nil
+		default:
+			return &fleet.Host{UUID: "test-host-no-team"}, nil
+		}
+	}
+
+	ds.GetHostMDMCheckinInfoFunc = func(ctx context.Context, hostUUID string) (*fleet.HostMDMCheckinInfo, error) {
+		return &fleet.HostMDMCheckinInfo{}, nil
+	}
+
+	ds.NewActivityFunc = func(context.Context, *fleet.User, fleet.ActivityDetails) error {
+		return nil
+	}
+
+	var mdmEnabled atomic.Bool
+	ds.GetNanoMDMEnrollmentStatusFunc = func(ctx context.Context, hostUUID string) (bool, error) {
+		// This function is called twice during EnqueueMDMAppleCommandRemoveEnrollmentProfile.
+		// It first is called to check that the device is enrolled as a pre-condition to enqueueing the
+		// command. It is called second time after the command has been enqueued to check whether
+		// the device was successfully unenrolled.
+		//
+		// For each test run, the bool should be initialized to true to simulate an existing device
+		// that is initially enrolled to Fleet's MDM.
+		return mdmEnabled.Swap(!mdmEnabled.Load()), nil
+	}
+
+	testCases := []struct {
+		name             string
+		user             *fleet.User
+		shouldFailGlobal bool
+		shouldFailTeam   bool
+	}{
+		{
+			"global admin",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+			false,
+			false,
+		},
+		{
+			"global maintainer",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleMaintainer)},
+			false,
+			false,
+		},
+		{
+			"global observer",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)},
+			true,
+			true,
+		},
+		{
+			"team admin, belongs to team",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}}},
+			true,
+			false,
+		},
+		{
+			"team admin, DOES NOT belong to team",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleAdmin}}},
+			true,
+			true,
+		},
+		{
+			"team maintainer, belongs to team",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleMaintainer}}},
+			true,
+			false,
+		},
+		{
+			"team maintainer, DOES NOT belong to team",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleMaintainer}}},
+			true,
+			true,
+		},
+		{
+			"team observer, belongs to team",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver}}},
+			true,
+			true,
+		},
+		{
+			"team observer, DOES NOT belong to team",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleObserver}}},
+			true,
+			true,
+		},
+		{
+			"user no roles",
+			&fleet.User{ID: 1337},
+			true,
+			true,
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
+
+			mdmEnabled.Store(true)
+			err := svc.EnqueueMDMAppleCommandRemoveEnrollmentProfile(ctx, 42) // global host
+			if !tt.shouldFailGlobal {
+				require.NoError(t, err)
+			} else {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), authz.ForbiddenErrorMessage)
+			}
+
+			mdmEnabled.Store(true)
+			err = svc.EnqueueMDMAppleCommandRemoveEnrollmentProfile(ctx, 1) // host belongs to team 1
+			if !tt.shouldFailTeam {
+				require.NoError(t, err)
+			} else {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), authz.ForbiddenErrorMessage)
+			}
+		})
+	}
+}
+
 func TestMDMAuthenticate(t *testing.T) {
 	ds := new(mock.Store)
 	svc := MDMAppleCheckinAndCommandService{ds: ds}
@@ -266,7 +427,7 @@ func TestMDMAuthenticate(t *testing.T) {
 
 	ds.GetHostMDMCheckinInfoFunc = func(ct context.Context, hostUUID string) (*fleet.HostMDMCheckinInfo, error) {
 		require.Equal(t, uuid, hostUUID)
-		return &fleet.HostMDMCheckinInfo{HardwareSerial: serial, InstalledFromDEP: false}, nil
+		return &fleet.HostMDMCheckinInfo{HardwareSerial: serial, DisplayName: fmt.Sprintf("%s (%s)", model, serial), InstalledFromDEP: false}, nil
 	}
 
 	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
@@ -275,6 +436,7 @@ func TestMDMAuthenticate(t *testing.T) {
 		require.Nil(t, user)
 		require.Equal(t, "mdm_enrolled", activity.ActivityName())
 		require.Equal(t, serial, a.HostSerial)
+		require.Equal(t, a.HostDisplayName, fmt.Sprintf("%s (%s)", model, serial))
 		require.False(t, a.InstalledFromDEP)
 		return nil
 	}
@@ -299,7 +461,7 @@ func TestMDMCheckout(t *testing.T) {
 	ds := new(mock.Store)
 	svc := MDMAppleCheckinAndCommandService{ds: ds}
 	ctx := context.Background()
-	uuid, serial, installedFromDEP := "ABC-DEF-GHI", "XYZABC", true
+	uuid, serial, installedFromDEP, displayName := "ABC-DEF-GHI", "XYZABC", true, "Test's MacBook"
 
 	ds.UpdateHostTablesOnMDMUnenrollFunc = func(ctx context.Context, hostUUID string) error {
 		require.Equal(t, uuid, hostUUID)
@@ -310,6 +472,7 @@ func TestMDMCheckout(t *testing.T) {
 		require.Equal(t, uuid, hostUUID)
 		return &fleet.HostMDMCheckinInfo{
 			HardwareSerial:   serial,
+			DisplayName:      displayName,
 			InstalledFromDEP: installedFromDEP,
 		}, nil
 	}
@@ -320,6 +483,7 @@ func TestMDMCheckout(t *testing.T) {
 		require.Nil(t, user)
 		require.Equal(t, "mdm_unenrolled", activity.ActivityName())
 		require.Equal(t, serial, a.HostSerial)
+		require.Equal(t, displayName, a.HostDisplayName)
 		require.True(t, a.InstalledFromDEP)
 		return nil
 	}

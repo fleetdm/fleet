@@ -526,6 +526,8 @@ The MDM endpoints exist to support the related command-line interface sub-comman
 
 - [Get Apple MDM](#get-apple-mdm)
 - [Get Apple BM](#get-apple-bm)
+- [Unenroll host from Fleet MDM](#unenroll-host-from-fleet-mdm)
+
 
 ### Get Apple MDM
 
@@ -579,6 +581,24 @@ None.
   "default_team": ""
 }
 ```
+
+### Unenroll host from Fleet MDM
+
+`PATCH /api/v1/fleet/mdm/hosts/{id}/unenroll`
+
+#### Parameters
+
+| Name | Type    | In   | Description                             |
+| ---- | ------- | ---- | --------------------------------------- |
+| id   | integer | path | **Required.** The host's ID in Fleet.   |
+
+#### Example
+
+`PATCH /api/v1/fleet/mdm/hosts/42/unenroll`
+
+##### Default response
+
+`Status: 200`
 
 ### Generate Apple DEP Key Pair
 
