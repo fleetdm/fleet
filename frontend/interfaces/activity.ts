@@ -61,5 +61,6 @@ export interface IActivityDetails {
   email?: string;
   role?: string;
   host_serial?: string;
+  host_display_name?: string;
   installed_from_dep?: boolean;
 }

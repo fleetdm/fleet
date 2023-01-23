@@ -165,12 +165,10 @@ const TAGGED_TEMPLATES = {
   mdmUnenrolled: (activity: IActivity) => {
     return (
       <>
-        An end user turned off MDM features for a host with serial number
-        <b>
-          {activity.details?.host_serial} (
-          {activity.details?.installed_from_dep ? "automatic" : "manual"})
-        </b>
-        .
+        {activity.actor_full_name
+          ? " turned off mobile device management (MDM) for"
+          : "Mobile device management (MDM) was turned off for"}{" "}
+        <b>{activity.details?.host_display_name}</b>.
       </>
     );
   },
