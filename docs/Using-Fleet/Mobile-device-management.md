@@ -32,9 +32,13 @@ Via the `fleetctl` CLI:
 1. Run `fleetctl generate mdm-apple-bm`.
 2. Follow the on-screen instructions.
 
+### ABM Renewal
+
+The Apple Business Manager server token expired after a year or whenever the account that downloaded the token has their password changed. To renew the token, follow the [instructions documented in this FAQ](https://fleetdm.com/docs/using-fleet/faq#how-can-i-renew-my-apple-business-manager-server-token).
+
 ## Configuring Fleet instances
 
-All MDM features need some configuration to be provided to the Fleet instances. All Fleet instances should be configured with the same MDM settings. See https://fleetdm.com/docs/deploying/configuration#apple-apns-cert for all MDM-related configuration options.
+All MDM features need some configuration to be provided to the Fleet instances. All Fleet instances should be configured with the same MDM settings. See https://fleetdm.com/docs/deploying/configuration#mobile-device-management-mdm for all MDM-related configuration options.
 
 ## Controls
 
