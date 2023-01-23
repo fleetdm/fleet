@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/common"
+	"os"
 	"os/exec"
 	"strings"
 	"syscall"
