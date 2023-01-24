@@ -72,7 +72,7 @@ will be disabled and/or hidden in the UI.
 
       // After "sails-hook-organics" finishes initializing, configure Stripe
       // and Sendgrid packs with any available credentials.
-      sails.after('hook:organics:loaded', ()=>{
+      sails.after('hook:organics:loaded', async ()=>{
 
         sails.helpers.stripe.configure({
           secret: sails.config.custom.stripeSecret
@@ -84,6 +84,14 @@ will be disabled and/or hidden in the UI.
           fromName: sails.config.custom.fromName,
         });
 
+        if(sails.config.environment === 'production'){
+          await sails.helpers.http.post.with({
+            url: `https://crawler.algolia.com/api/1/crawlers/${sails.config.custom.algoliaCrawlerId}/reindex`,
+            headers: { 'Authorization': sails.config.custom.algoliaCrawlerApiToken}
+          }).tolerate((err)=>{
+            sails.log('When trying to send a request to Algolia to refresh the Fleet website search index, an error occurred: '+err);
+          });
+        }
       });//_∏_
 
       // ... Any other app-specific setup code that needs to run on lift,
