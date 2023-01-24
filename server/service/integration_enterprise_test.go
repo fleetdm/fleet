@@ -1531,7 +1531,6 @@ func (s *integrationEnterpriseTestSuite) TestMDMMacOSUpdates() {
 		// try to set an invalid config
 		acResp := appConfigResponse{}
 		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(config), http.StatusUnprocessableEntity, &acResp)
-		fmt.Println(acResp.Err)
 
 		// get the appconfig, nothing changed
 		acResp = appConfigResponse{}
