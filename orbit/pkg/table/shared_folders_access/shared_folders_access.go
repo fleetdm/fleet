@@ -43,6 +43,9 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 		return nil, fmt.Errorf("generate failed: %w", err)
 	}
 
-	guestUserAccessEnabled := !strings.Contains(string(out), "disabled")
+	guestUserAccessEnabled := "1"
+	if strings.Contains(string(out), "disabled") {
+		guestUserAccessEnabled = "0"
+	}
 	return []map[string]string{{"guest_user_access_enabled": guestUserAccessEnabled}}, nil
 }
