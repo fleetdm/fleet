@@ -4,10 +4,8 @@ import ReactTooltip from "react-tooltip";
 import HumanTimeDiffWithDateTip from "components/HumanTimeDiffWithDateTip";
 import TooltipWrapper from "components/TooltipWrapper";
 import { IHostMdmData, IMunkiData, IDeviceUser } from "interfaces/host";
-import {
-  humanHostLastRestart,
-  generateMdmStatusTooltipText,
-} from "utilities/helpers";
+import { humanHostLastRestart } from "utilities/helpers";
+import { MDM_STATUS_TOOLTIP } from "utilities/constants";
 
 interface IAboutProps {
   aboutData: { [key: string]: any };
@@ -64,7 +62,7 @@ const About = ({
           <span className="info-grid__data">
             <TooltipWrapper
               position="bottom"
-              tipContent={generateMdmStatusTooltipText(mdm.enrollment_status)}
+              tipContent={MDM_STATUS_TOOLTIP[mdm.enrollment_status]}
             >
               {mdm.enrollment_status}
             </TooltipWrapper>

@@ -1,5 +1,4 @@
 import React, { useState, useContext, useEffect, useCallback } from "react";
-import { IconNames } from "components/icons";
 import { useQuery } from "react-query";
 import { InjectedRouter, Params } from "react-router/lib/Router";
 import { RouteProps } from "react-router/lib/Route";
@@ -1157,8 +1156,8 @@ const ManageHostsPage = ({
         : `${name || ""}`
     );
     const TooltipDescription = (
-      <span className={`tooltip__tooltip-text`}>
-        {`Hosts with ${formatOperatingSystemDisplayName(name_only || name)}`},
+      <span className="tooltip__tooltip-text">
+        Hosts with {formatOperatingSystemDisplayName(name_only || name)},
         <br />
         {version && `${version} installed`}
       </span>
@@ -1218,7 +1217,7 @@ const ManageHostsPage = ({
     const label = name ? `${name} ${server_url}` : `${server_url}`;
 
     const TooltipDescription = (
-      <span className={`tooltip__tooltip-text`}>
+      <span className="tooltip__tooltip-text">
         Host enrolled
         {name !== "Unknown" && ` to ${name}`}
         <br /> at {server_url}
@@ -1239,57 +1238,50 @@ const ManageHostsPage = ({
 
     const label = `MDM status: ${invert(MDM_STATUS)[mdmEnrollmentStatus]}`;
 
-    let TooltipDescription: JSX.Element;
-    switch (mdmEnrollmentStatus) {
-      case "automatic":
-        TooltipDescription = (
-          <span className={`tooltip__tooltip-text`}>
-            MDM was turned on <br />
-            automatically using Apple <br />
-            Automated Device <br />
-            Enrollment (DEP) or <br />
-            Windows Autopilot. <br />
-            Administrators can block <br />
-            device users from turning
-            <br /> MDM off.
-          </span>
-        );
-        break;
-      case "manual":
-        TooltipDescription = (
-          <span className={`tooltip__tooltip-text`}>
-            MDM was turned on <br />
-            manually. Device users <br />
-            can turn MDM off.
-          </span>
-        );
-        break;
-      case "pending":
-        TooltipDescription = (
-          <span className={`tooltip__tooltip-text`}>
-            Hosts ordered using Apple <br />
-            Business Manager (ABM). <br />
-            They will automatically enroll <br />
-            to Fleet and turn on MDM <br />
-            when they&apos;re unboxed.
-          </span>
-        );
-        break;
-      default:
-        TooltipDescription = (
-          <span className={`tooltip__tooltip-text`}>
-            Hosts with MDM off <br />
-            don&apos;t receive macOS <br />
-            settings and macOS <br />
-            update encouragement.
-          </span>
-        );
-    }
+    // More narrow tooltip than other MDM tooltip
+    const MDM_STATUS_PILL_TOOLTIP: Record<string, JSX.Element> = {
+      automatic: (
+        <span className="tooltip__tooltip-text">
+          MDM was turned on <br />
+          automatically using Apple <br />
+          Automated Device <br />
+          Enrollment (DEP) or <br />
+          Windows Autopilot. <br />
+          Administrators can block <br />
+          device users from turning
+          <br /> MDM off.
+        </span>
+      ),
+      manual: (
+        <span className="tooltip__tooltip-text">
+          MDM was turned on <br />
+          manually. Device users <br />
+          can turn MDM off.
+        </span>
+      ),
+      unenrolled: (
+        <span className="tooltip__tooltip-text">
+          Hosts with MDM off <br />
+          don&apos;t receive macOS <br />
+          settings and macOS <br />
+          update encouragement.
+        </span>
+      ),
+      pending: (
+        <span className="tooltip__tooltip-text">
+          Hosts ordered using Apple <br />
+          Business Manager (ABM). <br />
+          They will automatically enroll <br />
+          to Fleet and turn on MDM <br />
+          when they&apos;re unboxed.
+        </span>
+      ),
+    };
 
     return (
       <FilterPill
         label={label}
-        tooltipDescription={TooltipDescription}
+        tooltipDescription={MDM_STATUS_PILL_TOOLTIP[mdmEnrollmentStatus]}
         onClear={handleClearMDMEnrollmentFilter}
       />
     );
@@ -1301,7 +1293,7 @@ const ManageHostsPage = ({
         <FilterPill
           label={munkiIssueDetails.name}
           tooltipDescription={
-            <span className={`tooltip__tooltip-text`}>
+            <span className="tooltip__tooltip-text">
               Hosts that reported this Munki issue <br />
               the last time Munki ran on each host.
             </span>
@@ -1315,7 +1307,7 @@ const ManageHostsPage = ({
 
   const renderLowDiskSpaceFilterBlock = () => {
     const TooltipDescription = (
-      <span className={`tooltip__tooltip-text`}>
+      <span className="tooltip__tooltip-text">
         Hosts that have {lowDiskSpaceHosts} GB or less <br />
         disk space available.
       </span>

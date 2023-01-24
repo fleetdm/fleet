@@ -528,23 +528,6 @@ export const generateTeam = (
   return `${teams.length + 1} teams`; // global role and one or more teams
 };
 
-export const generateMdmStatusTooltipText = (status: string): string => {
-  console.log("status", status);
-  if (status === "On (automatic)") {
-    return `<span>MDM was turned on automatically using Apple Automated Device Enrollment (DEP) or Windows Autopilot. Administrators can block end users from turning MDM off.</span>`;
-  }
-  if (status === "On (manual)") {
-    return `<span>MDM was turned on manually. End users can turn MDM off.</span>`;
-  }
-  if (status === "Off") {
-    return `<span>Hosts with MDM off don&apos;t receive macOS <br />
-            settings and macOS update encouragement.</span>`;
-  }
-  return `<span>Hosts ordered via Apple Business Manager <br />
-    (ABM). These will automatically enroll to Fleet <br />
-    and turn on MDM when they&apos;re unboxed.</span>`;
-};
-
 export const greyCell = (roleOrTeamText: string): boolean => {
   const GREYED_TEXT = ["Global", "Unassigned", "Various", "No Team", "Unknown"];
 
@@ -867,7 +850,6 @@ export default {
   formatPackTargetsForApi,
   generateRole,
   generateTeam,
-  generateMdmStatusTooltipText,
   greyCell,
   humanHostLastSeen,
   humanHostEnrolled,

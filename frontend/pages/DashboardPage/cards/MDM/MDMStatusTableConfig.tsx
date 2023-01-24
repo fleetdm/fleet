@@ -5,7 +5,7 @@ import { IMdmStatusCardData, MDM_STATUS } from "interfaces/mdm";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import TooltipWrapper from "components/TooltipWrapper";
 import ViewAllHostsLink from "components/ViewAllHostsLink";
-import { generateMdmStatusTooltipText } from "utilities/helpers";
+import { MDM_STATUS_TOOLTIP } from "utilities/constants";
 
 interface IMdmStatusData extends IMdmStatusCardData {
   selectedPlatformLabelId?: number;
@@ -53,7 +53,7 @@ const statusTableHeaders = [
     Cell: (cellProps: IStringCellProps) => (
       <TooltipWrapper
         position="top"
-        tipContent={generateMdmStatusTooltipText(cellProps.cell.value)}
+        tipContent={MDM_STATUS_TOOLTIP[cellProps.cell.value]}
       >
         {cellProps.cell.value}
       </TooltipWrapper>
