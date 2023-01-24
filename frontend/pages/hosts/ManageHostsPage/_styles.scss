@@ -191,7 +191,9 @@
                 }
               }
 
-              .device_mapping__cell {
+              .device_mapping__cell,
+              .mdm_enrollment_status__cell,
+              .mdm_server_url__cell {
                 .text-cell {
                   display: inline;
                 }

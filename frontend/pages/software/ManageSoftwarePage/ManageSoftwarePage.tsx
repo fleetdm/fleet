@@ -17,7 +17,6 @@ import {
   IConfig,
   CONFIG_DEFAULT_RECENT_VULNERABILITY_MAX_AGE_IN_DAYS,
 } from "interfaces/config";
-import { IEmptyTableProps } from "interfaces/empty_table";
 import {
   IJiraIntegration,
   IZendeskIntegration,
@@ -48,7 +47,7 @@ import TeamsDropdownHeader, {
 import LastUpdatedText from "components/LastUpdatedText";
 import MainContent from "components/MainContent";
 import CustomLink from "components/CustomLink";
-import EmptyTable from "components/EmptyTable";
+import EmptySoftwareTable from "../components/EmptySoftwareTable";
 
 import generateSoftwareTableHeaders from "./SoftwareTableConfig";
 import ManageAutomationsModal from "./components/ManageAutomationsModal";
@@ -112,6 +111,7 @@ const ManageSoftwarePage = ({
     currentTeam,
     isOnGlobalTeam,
     isPremiumTier,
+    isSandboxMode,
   } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
@@ -531,41 +531,6 @@ const ManageSoftwarePage = ({
     router.push(path);
   };
 
-  const emptyState = () => {
-    const emptySoftware: IEmptyTableProps = {
-      header: "No software match the current search criteria",
-      info: "Try again in about 1 hour as the system catches up.",
-    };
-    if (!isSoftwareEnabled) {
-      emptySoftware.iconName = "empty-software";
-      emptySoftware.header = "Software inventory disabled";
-      emptySoftware.info = (
-        <>
-          Users with the admin role can{" "}
-          <CustomLink
-            url="https://fleetdm.com/docs/using-fleet/vulnerability-processing#configuration"
-            text="turn on software inventory"
-            newTab
-          />
-          .
-        </>
-      );
-    }
-    if (isCollectingInventory) {
-      emptySoftware.iconName = "empty-software";
-      emptySoftware.header = "No software detected";
-      emptySoftware.info =
-        "This report is updated every hour to protect the performance of your devices.";
-    }
-    if (currentTeam && filterVuln) {
-      emptySoftware.iconName = "empty-software";
-      emptySoftware.header = "No vulnerable software detected";
-      emptySoftware.info =
-        "This report is updated every hour to protect the performance of your devices.";
-    }
-    return emptySoftware;
-  };
-
   const searchable = !!software?.software || searchQuery !== "";
 
   return !availableTeams ||
@@ -586,13 +551,15 @@ const ManageSoftwarePage = ({
               data={(isSoftwareEnabled && software?.software) || []}
               isLoading={isFetchingSoftware || isFetchingCount}
               resultsTitle={"software items"}
-              emptyComponent={() =>
-                EmptyTable({
-                  iconName: emptyState().iconName,
-                  header: emptyState().header,
-                  info: emptyState().info,
-                })
-              }
+              emptyComponent={() => (
+                <EmptySoftwareTable
+                  isSoftwareDisabled={!isSoftwareEnabled}
+                  isFilterVulnerable={filterVuln}
+                  isSandboxMode={isSandboxMode}
+                  isCollectingSoftware={isCollectingInventory}
+                  isSearching={searchQuery !== ""}
+                />
+              )}
               defaultSortHeader={DEFAULT_SORT_HEADER}
               defaultSortDirection={DEFAULT_SORT_DIRECTION}
               manualSortBy

@@ -93,6 +93,14 @@ const TAGGED_TEMPLATES = {
   userLoggedIn: (activity: IActivity) => {
     return `successfully logged in from public IP ${activity.details?.public_ip}.`;
   },
+  userFailedLogin: (activity: IActivity) => {
+    return (
+      <>
+        Somebody using <b>{activity.details?.email}</b> failed to log in from
+        public IP {activity.details?.public_ip}.
+      </>
+    );
+  },
   userCreated: (activity: IActivity) => {
     return (
       <>
@@ -157,12 +165,10 @@ const TAGGED_TEMPLATES = {
   mdmUnenrolled: (activity: IActivity) => {
     return (
       <>
-        An end user turned off MDM features for a host with serial number
-        <b>
-          {activity.details?.host_serial} (
-          {activity.details?.installed_from_dep ? "automatic" : "manual"})
-        </b>
-        .
+        {activity.actor_full_name
+          ? " turned off mobile device management (MDM) for"
+          : "Mobile device management (MDM) was turned off for"}{" "}
+        <b>{activity.details?.host_display_name}</b>.
       </>
     );
   },
@@ -216,6 +222,9 @@ const getDetail = (
     }
     case ActivityType.UserLoggedIn: {
       return TAGGED_TEMPLATES.userLoggedIn(activity);
+    }
+    case ActivityType.UserFailedLogin: {
+      return TAGGED_TEMPLATES.userFailedLogin(activity);
     }
     case ActivityType.UserCreated: {
       return TAGGED_TEMPLATES.userCreated(activity);

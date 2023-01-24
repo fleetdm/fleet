@@ -133,6 +133,10 @@ spec:
     secrets:
       - secret: RzTlxPvugG4o4O5IKS/HqEDJUmI1hwBoffff
       - secret: JZ/C/Z7ucq22dt/zjx2kEuDBN0iLjqfz
+    mdm:
+      macos_updates:
+        minimum_version: 12.3.1
+        deadline: 2022-01-04
 ```
 
 ### Team settings
@@ -167,6 +171,24 @@ The `secrets` section provides the list of enroll secrets that will be valid for
       - secret: RzTlxPvugG4o4O5IKS/HqEDJUmI1hwBoffff
       - secret: JZ/C/Z7ucq22dt/zjx2kEuDBN0iLjqfz
   ```
+
+#### Mobile device management (MDM) settings
+
+> MDM features are not ready for production and are currently in development. These features are disabled by default.
+
+The `mdm` section of the configuration YAML lets you control MDM settings for the team in Fleet.
+
+The documentation for this section is identical to the [MDM settings](#mobile-device-management-mdm-settings) documentation for the organization settings, except that the YAML section where it is set must be as follows. (Note the `kind: team` key and the location of the `mdm` key under `team` must have a `name` key to identify the team to configure.)
+
+```yaml
+apiVersion: v1
+kind: team
+spec:
+  team:
+    name: Client Platform Engineering
+    mdm:
+      # the team-specific mdm options go here
+```
 
 ## Organization settings
 
@@ -236,8 +258,16 @@ spec:
     issuer_uri: ""
     metadata: ""
     metadata_url: ""
-  vulnerability_settings:
-    databases_path: ""
+  vulnerabilities:
+    databases_path: "/tmp/vulndbs"
+    periodicity: 1h
+    cpe_database_url: ""
+    cpe_translations_url: ""
+    cve_feed_prefix_url: ""
+    current_instance_checks: "auto"
+    disable_data_sync: false
+    recent_vulnerability_max_age: 30d
+    disable_win_os_vulnerabilities: false
   webhook_settings:
     failing_policies_webhook:
       destination_url: ""
@@ -256,6 +286,9 @@ spec:
       host_batch_size: 0
   mdm:
     apple_bm_default_team: ""
+    macos_updates:
+      minimum_version: ""
+      deadline: ""
 ```
 
 ### Settings
@@ -642,15 +675,15 @@ A URL that references the identity provider metadata.
 
 #### Vulnerability settings
 
-##### vulnerability_settings.databases_path
+##### vulnerabilities.databases_path
 
 Path to a directory on the local filesystem (accessible to the Fleet server) where the various vulnerability databases will be stored.
 
 - Optional setting, must be set to enable vulnerability detection (string).
-- Default value: "".
+- Default value: "/tmp/vulndb".
 - Config file format:
   ```yaml
-  vulnerability_settings:
+  vulnerabilities:
     databases_path: "/path/to/dir"
   ```
 
@@ -1178,13 +1211,15 @@ agent_options:
     enable_file_events: true
 ```
 
-#### MDM settings
+#### Mobile device management (MDM) settings
 
-Fleet currently supports Apple Business Manager for mobile device management (MDM).
+> MDM features are not ready for production and are currently in development. These features are disabled by default.
 
-**Applies only to Fleet Premium**.
+The `mdm` section of the configuration YAML lets you control MDM settings in Fleet.
 
 ##### mdm.apple_bm_default_team
+
+**Applies only to Fleet Premium**.
 
 Set name of default team to use with Apple Business Manager.
 
@@ -1192,7 +1227,41 @@ Set name of default team to use with Apple Business Manager.
 - Config file format:
   ```yaml
   mdm:
-    team: "Workstations"
+    apple_bm_default_team: "Workstations"
+  ```
+
+##### mdm.macos_updates
+
+**Applies only to Fleet Premium**.
+
+The following options allow to configure the behavior of Nudge for macOS hosts that belong to no team and are enrolled into Fleet's MDM.
+
+##### mdm.macos_updates.minimum_version
+
+Hosts that belong to no team and are enrolled into Fleet's MDM will be nudged until their macOS is at or above this version.
+
+Requires `mdm.macos_updates.deadline` to be set.
+
+- Default value: ""
+- Config file format:
+  ```yaml
+  mdm:
+    macos_updates:
+      minimum_version: "12.1.1"
+  ```
+
+##### mdm.macos_updates.deadline
+
+A deadline in the form `YYYY-MM-DD`. Hosts that belong to no team and are enrolled into Fleet's MDM won't be able to dismiss the Nudge window once this deadline is past.
+
+Requires `mdm.macos_updates.minimum_version` to be set.
+
+- Default value: ""
+- Config file format:
+  ```yaml
+  mdm:
+    macos_updates:
+      deadline: "2022-01-01"
   ```
 
 #### Advanced configuration

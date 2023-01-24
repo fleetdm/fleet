@@ -1,6 +1,6 @@
 import React from "react";
 import PATHS from "router/paths";
-import { Link, browserHistory } from "react-router";
+import { Link } from "react-router";
 import classnames from "classnames";
 
 import Icon from "components/Icon";

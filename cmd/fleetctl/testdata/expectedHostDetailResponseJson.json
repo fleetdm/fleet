@@ -38,6 +38,8 @@
     "distributed_interval": 0,
     "config_tls_refresh": 0,
     "logger_tls_period": 0,
+    "mdm_enrollment_status": null,
+    "mdm_server_url": null,
     "team_id": null,
     "pack_stats": null,
     "team_name": null,

@@ -1,5 +1,6 @@
 module "vpc" {
-  source = "terraform-aws-modules/vpc/aws"
+  source  = "terraform-aws-modules/vpc/aws"
+  version = "3.18.1"
 
   name = var.vpc.name
   cidr = var.vpc.cidr
@@ -31,11 +32,14 @@ module "byo-vpc" {
     subnets = module.vpc.database_subnets
   })
   redis_config = merge(var.redis_config, {
-    subnets            = module.vpc.elasticache_subnets
-    availability_zones = var.vpc.azs
+    subnets                       = module.vpc.elasticache_subnets
+    elasticache_subnet_group_name = module.vpc.elasticache_subnet_group_name
+    availability_zones            = var.vpc.azs
   })
   alb_config = merge(var.alb_config, {
     subnets         = module.vpc.public_subnets
     certificate_arn = var.certificate_arn
   })
+  ecs_cluster  = var.ecs_cluster
+  fleet_config = var.fleet_config
 }

@@ -19,6 +19,7 @@ import Spinner from "components/Spinner";
 import TableDataError from "components/DataError";
 import LastUpdatedText from "components/LastUpdatedText";
 import CustomLink from "components/CustomLink";
+import EmptyTable from "components/EmptyTable";
 
 import generateTableHeaders from "./OperatingSystemsTableConfig";
 
@@ -37,15 +38,13 @@ const PAGE_SIZE = 8;
 const baseClass = "operating-systems";
 
 const EmptyOperatingSystems = (platform: ISelectedPlatform): JSX.Element => (
-  <div className={`${baseClass}__empty-os`}>
-    <h1>{`No${
+  <EmptyTable
+    header={`No${
       ` ${PLATFORM_DISPLAY_NAMES[platform]}` || ""
-    } operating systems detected.`}</h1>
-    <p>
-      {`Did you add ${`${PLATFORM_DISPLAY_NAMES[platform]} ` || ""}hosts to
+    } operating systems detected.`}
+    info={`Did you add ${`${PLATFORM_DISPLAY_NAMES[platform]} ` || ""}hosts to
       Fleet? Try again in about an hour as the system catches up.`}
-    </p>
-  </div>
+  />
 );
 
 const OperatingSystems = ({

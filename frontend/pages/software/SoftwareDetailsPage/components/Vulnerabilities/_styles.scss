@@ -57,24 +57,4 @@
       }
     }
   }
-
-  .vulnerabilities__empty-vulnerabilities {
-    .empty-vulnerabilities__inner {
-      display: flex;
-      flex-direction: column;
-
-      h1 {
-        font-size: $small;
-        font-weight: $bold;
-        margin-bottom: $pad-medium;
-      }
-
-      p {
-        color: $core-fleet-black;
-        font-weight: $regular;
-        font-size: $x-small;
-        margin: 0;
-      }
-    }
-  }
 }

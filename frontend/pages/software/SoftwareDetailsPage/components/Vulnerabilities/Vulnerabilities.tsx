@@ -5,6 +5,7 @@ import { GITHUB_NEW_ISSUE_LINK } from "utilities/constants";
 
 import TableContainer from "components/TableContainer";
 import CustomLink from "components/CustomLink";
+import EmptyTable from "components/EmptyTable";
 
 import generateVulnTableHeaders from "./VulnTableConfig";
 
@@ -18,19 +19,19 @@ interface IVulnerabilitiesProps {
 
 const NoVulnsDetected = (): JSX.Element => {
   return (
-    <div className={`${baseClass}__empty-vulnerabilities`}>
-      <div className="empty-vulnerabilities__inner">
-        <h1>No vulnerabilities detected for this software item.</h1>
-        <p>
+    <EmptyTable
+      header="No vulnerabilities detected for this software item."
+      info={
+        <>
           Expecting to see vulnerabilities?{" "}
           <CustomLink
             url={GITHUB_NEW_ISSUE_LINK}
             text="File an issue on GitHub"
             newTab
           />
-        </p>
-      </div>
-    </div>
+        </>
+      }
+    />
   );
 };
 

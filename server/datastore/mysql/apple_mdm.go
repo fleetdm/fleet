@@ -613,3 +613,16 @@ func unionSelectDevices(devices []godep.Device) (stmt string, args []interface{}
 
 	return stmt, args
 }
+
+func (ds *Datastore) GetNanoMDMEnrollmentStatus(ctx context.Context, id string) (bool, error) {
+	var enabled bool
+	err := sqlx.GetContext(ctx, ds.reader, &enabled, `SELECT enabled FROM nano_enrollments WHERE id = ?`, id)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return false, nil
+		}
+		return false, ctxerr.Wrapf(ctx, err, "getting data from nano_enrollments for id %s", id)
+	}
+
+	return enabled, nil
+}

@@ -10,7 +10,8 @@ import TabsWrapper from "components/TabsWrapper";
 import TableContainer from "components/TableContainer";
 import TableDataError from "components/DataError";
 import Spinner from "components/Spinner";
-import EmptyTable from "components/EmptyTable";
+import EmptySoftwareTable from "pages/software/components/EmptySoftwareTable";
+
 import { IEmptyTableProps } from "interfaces/empty_table";
 
 import generateTableHeaders from "./SoftwareTableConfig";
@@ -63,20 +64,6 @@ const Software = ({
     router.push(path);
   };
 
-  const emptyState = (vuln = false) => {
-    const emptySoftware: IEmptyTableProps = {
-      header: "No software detected",
-      info:
-        "This report is updated every hour to protect the performance of your devices.",
-    };
-    if (vuln) {
-      emptySoftware.header = "No vulnerable software detected";
-      emptySoftware.info =
-        "This report is updated every hour to protect the performance of your devices.";
-    }
-    return emptySoftware;
-  };
-
   // Renders opaque information as host information is loading
   const opacity = isSoftwareFetching ? { opacity: 0 } : { opacity: 1 };
 
@@ -106,12 +93,11 @@ const Software = ({
                   defaultSortDirection={SOFTWARE_DEFAULT_SORT_DIRECTION}
                   hideActionButton
                   resultsTitle={"software"}
-                  emptyComponent={() =>
-                    EmptyTable({
-                      header: emptyState().header,
-                      info: emptyState().info,
-                    })
-                  }
+                  emptyComponent={() => (
+                    <EmptySoftwareTable
+                      isCollectingSoftware={isCollectingInventory}
+                    />
+                  )}
                   showMarkAllPages={false}
                   isAllPagesSelected={false}
                   disableCount
@@ -135,12 +121,12 @@ const Software = ({
                   defaultSortDirection={SOFTWARE_DEFAULT_SORT_DIRECTION}
                   hideActionButton
                   resultsTitle={"software"}
-                  emptyComponent={() =>
-                    EmptyTable({
-                      header: emptyState().header,
-                      info: emptyState().info,
-                    })
-                  }
+                  emptyComponent={() => (
+                    <EmptySoftwareTable
+                      isCollectingSoftware={isCollectingInventory}
+                      isFilterVulnerable
+                    />
+                  )}
                   showMarkAllPages={false}
                   isAllPagesSelected={false}
                   disableCount
