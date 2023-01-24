@@ -1,0 +1,12 @@
+name: shared_folders_access
+platforms:
+  - darwin
+description: Information about access to shared folders.
+columns:
+  - name: guest_user_access_enabled
+    type: integer
+    required: false
+    description: whether Guest Access to Shared Folders Is enabled. 1 means access enabled, 0 means access disabled
+notes: >-
+  - This table is not a core osquery table. It is included as part of Fleetd, the osquery manager from Fleet.
+evented: false

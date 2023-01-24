@@ -4,8 +4,8 @@ package table
 
 import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/privaterelay"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/shared_folders_access"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/user_login_settings"
-	"github.com/osquery/osquery-go"
 	"github.com/osquery/osquery-go/plugin/table"
 
 	"github.com/macadmins/osquery-extension/tables/filevaultusers"
@@ -20,6 +20,7 @@ func platformTables() []osquery.OsqueryPlugin {
 		// Fleet tables
 		table.NewPlugin("icloud_private_relay", privaterelay.Columns(), privaterelay.Generate),
 		table.NewPlugin("user_login_settings", user_login_settings.Columns(), user_login_settings.Generate),
+		table.NewPlugin("shared_folders_access", shared_folders_access.Columns(), shared_folders_access.Generate),
 
 		// Macadmins extension tables
 		table.NewPlugin("filevault_users", filevaultusers.FileVaultUsersColumns(), filevaultusers.FileVaultUsersGenerate),

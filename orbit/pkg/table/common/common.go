@@ -24,3 +24,16 @@ func GetConsoleUidGid() (uid uint32, gid uint32, err error) {
 	}
 	return stat.Uid, stat.Gid, nil
 }
+
+// GetRootUidGid gets the uid and gid of the root user.
+func GetRootUidGid() (uid uint32, gid uint32, err error) {
+	info, err := os.Stat("/var/root")
+	if err != nil {
+		return 0, 0, err
+	}
+	stat, ok := info.Sys().(*syscall.Stat_t)
+	if !ok {
+		return 0, 0, fmt.Errorf("unexpected type %T", info.Sys())
+	}
+	return stat.Uid, stat.Gid, nil
+}
