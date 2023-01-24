@@ -24,14 +24,14 @@ func Columns() []table.ColumnDefinition {
 // Generate is called to return the results for the table at query time.
 // Constraints for generating can be retrieved from the queryContext.
 func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[string]string, error) {
-	uid, gid, err := tbl_common.GetConsoleUidGid()
+	uid, gid, err := tbl_common.GetRootUidGid()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get console user: %w", err)
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, "dscl", ".", "-list", "/Users", "hint")
+	cmd := exec.CommandContext(ctx, "sysadminctl", "-smbGuestAccess", "status")
 
 	// Run as the current console user (otherwise we get empty results for the root user)
 	cmd.SysProcAttr = &syscall.SysProcAttr{
@@ -43,9 +43,6 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 		return nil, fmt.Errorf("generate failed: %w", err)
 	}
 
-	res := "0"
-	if len(strings.TrimSpace(string(out))) > 0 {
-		res = "1"
-	}
-	return []map[string]string{{"password_hint_enabled": res}}, nil
+	guestUserAccessEnabled := !strings.Contains(string(out), "disabled")
+	return []map[string]string{{"guest_user_access_enabled": guestUserAccessEnabled}}, nil
 }
