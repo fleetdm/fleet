@@ -114,9 +114,7 @@ const ControlsWrapper = ({
     if (isLoadingMdmApple) {
       return <Spinner />;
     }
-    // dev flag to show empty state on Controls page
-    const disableMdmApple = true;
-    return mdmApple && !disableMdmApple ? (
+    return mdmApple ? (
       <div>
         <TabsWrapper>
           <Tabs
