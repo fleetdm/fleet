@@ -187,8 +187,8 @@ func (s *integrationMDMTestSuite) TestDeviceEnrollment() {
 		}
 	}
 	require.Len(t, details, 2)
-	require.JSONEq(t, fmt.Sprintf(`{"host_serial": "%s", "installed_from_dep": false}`, deviceA.serial), string(*details[0]))
-	require.JSONEq(t, fmt.Sprintf(`{"host_serial": "%s", "installed_from_dep": false}`, deviceB.serial), string(*details[1]))
+	require.JSONEq(t, fmt.Sprintf(`{"host_serial": "%s", "host_display_name": "%s (%s)", "installed_from_dep": false}`, deviceA.serial, deviceA.model, deviceA.serial), string(*details[0]))
+	require.JSONEq(t, fmt.Sprintf(`{"host_serial": "%s", "host_display_name": "%s (%s)", "installed_from_dep": false}`, deviceB.serial, deviceB.model, deviceB.serial), string(*details[1]))
 
 	// set an enroll secret
 	var applyResp applyEnrollSecretSpecResponse
@@ -235,7 +235,7 @@ func (s *integrationMDMTestSuite) TestDeviceEnrollment() {
 			require.Nil(t, activity.ActorID)
 			require.Nil(t, activity.ActorFullName)
 			details = append(details, activity.Details)
-			require.JSONEq(t, fmt.Sprintf(`{"host_serial": "%s", "installed_from_dep": false}`, deviceA.serial), string(*activity.Details))
+			require.JSONEq(t, fmt.Sprintf(`{"host_serial": "%s", "host_display_name": "%s (%s)", "installed_from_dep": false}`, deviceA.serial, deviceA.model, deviceA.serial), string(*activity.Details))
 		}
 	}
 	require.True(t, found)
@@ -418,12 +418,10 @@ func randSerial() string {
 	return string(b)
 }
 
-var (
-	testBMToken = &nanodep_client.OAuth1Tokens{
-		ConsumerKey:       "test_consumer",
-		ConsumerSecret:    "test_secret",
-		AccessToken:       "test_access_token",
-		AccessSecret:      "test_access_secret",
-		AccessTokenExpiry: time.Date(2999, 1, 1, 0, 0, 0, 0, time.UTC),
-	}
-)
+var testBMToken = &nanodep_client.OAuth1Tokens{
+	ConsumerKey:       "test_consumer",
+	ConsumerSecret:    "test_secret",
+	AccessToken:       "test_access_token",
+	AccessSecret:      "test_access_secret",
+	AccessTokenExpiry: time.Date(2999, 1, 1, 0, 0, 0, 0, time.UTC),
+}

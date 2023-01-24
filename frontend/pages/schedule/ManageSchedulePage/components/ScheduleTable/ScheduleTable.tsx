@@ -106,6 +106,7 @@ const ScheduleTable = ({
       );
     }
 
+    /* NOTE: Product decision to remove packs from UI
     if (isOnGlobalTeam) {
       emptySchedule.info = (
         <>Or go to your osquery packs via the ‘Advanced’ button. </>
@@ -120,6 +121,7 @@ const ScheduleTable = ({
         </Button>
       );
     }
+    */
     return emptySchedule;
   };
 
