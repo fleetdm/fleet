@@ -11,6 +11,7 @@ import TableContainer from "components/TableContainer";
 import Spinner from "components/Spinner";
 import TableDataError from "components/DataError";
 import EmptyTable from "components/EmptyTable";
+import CustomLink from "components/CustomLink";
 
 import munkiVersionsTableHeaders from "./MunkiVersionsTableConfig";
 import munkiIssuesTableHeaders from "./MunkiIssuesTableConfig";
@@ -103,13 +104,11 @@ const Munki = ({
                       info={
                         <>
                           To see Munki versions, deploy&nbsp;
-                          <a
-                            href="https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                          >
-                            Fleet&apos;s osquery installer
-                          </a>
+                          <CustomLink
+                            url="https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer"
+                            text="Fleet's osquery installer"
+                            newTab
+                          />
                           .
                         </>
                       }
