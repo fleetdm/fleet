@@ -12,7 +12,7 @@ describe("MDM Card", () => {
       <MDM
         error={null}
         isFetching={false}
-        mdmEnrollmentData={[]}
+        mdmStatusData={[]}
         mdmSolutions={[
           createMockMdmSolution(),
           createMockMdmSolution({ id: 2 }),
@@ -28,16 +28,17 @@ describe("MDM Card", () => {
       <MDM
         error={null}
         isFetching={false}
-        mdmEnrollmentData={[
+        mdmStatusData={[
           { status: "On (automatic)", hosts: 10 },
           { status: "On (manual)", hosts: 5 },
           { status: "Off", hosts: 1 },
+          { status: "Pending", hosts: 3 },
         ]}
         mdmSolutions={[]}
       />
     );
 
-    await user.click(screen.getByRole("tab", { name: "Enrollment" }));
+    await user.click(screen.getByRole("tab", { name: "Status" }));
 
     expect(
       screen.getByRole("row", {
@@ -52,6 +53,11 @@ describe("MDM Card", () => {
     expect(
       screen.getByRole("row", {
         name: /Off(.*?)1 host/i,
+      })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("row", {
+        name: /Pending(.*?)3 host/i,
       })
     ).toBeInTheDocument();
   });
