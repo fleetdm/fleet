@@ -139,6 +139,12 @@ func main() {
 			Usage:   "Launch Fleet Desktop application (flag currently only used on darwin)",
 			EnvVars: []string{"ORBIT_FLEET_DESKTOP"},
 		},
+		&cli.BoolFlag{
+			Name:    "disable-kickstart-softwareupdated",
+			Usage:   "Disable periodic execution of 'launchctl kickstart -k softwareupdated' on macOS",
+			EnvVars: []string{"ORBIT_FLEET_DISABLE_KICKSTART_SOFTWAREUPDATED"},
+			Hidden:  true,
+		},
 	}
 	app.Before = func(c *cli.Context) error {
 		// handle old installations, which had default root dir set to /var/lib/orbit
@@ -266,6 +272,15 @@ func main() {
 		systemChecker := newSystemChecker()
 		g.Add(systemChecker.Execute, systemChecker.Interrupt)
 		go osservice.SetupServiceManagement(constant.SystemServiceName, systemChecker.svcInterruptCh, appDoneCh)
+
+		// periodically run launchctl kickstart -k softwareupdated on macOS
+		if runtime.GOOS == "darwin" && !c.Bool("disable-kickstart-softwareupdated") {
+			const softwareUpdatedKickstartInterval = 12 * time.Hour
+			updatedRunner := update.NewSoftwareUpdatedRunner(update.SoftwareUpdatedOptions{
+				Interval: softwareUpdatedKickstartInterval,
+			})
+			g.Add(updatedRunner.Execute, updatedRunner.Interrupt)
+		}
 
 		// NOTE: When running in dev-mode, even if `disable-updates` is set,
 		// it fetches osqueryd once as part of initialization.
