@@ -58,7 +58,7 @@ const TruncatedTextCell = ({
         <>
           {value}
           <div className="safari-hack">&nbsp;</div>
-          {/* Safari hack work around */}
+          {/* Fixes triple click selecting next element in Safari */}
         </>
       </ReactTooltip>
     </div>
