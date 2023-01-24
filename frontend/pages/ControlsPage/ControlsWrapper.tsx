@@ -1,16 +1,25 @@
 import React, { useContext } from "react";
+
 import { Tab, Tabs, TabList } from "react-tabs";
 import { InjectedRouter } from "react-router";
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
+
+import mdmAppleAPI from "services/entities/mdm_apple";
 
 import TabsWrapper from "components/TabsWrapper";
 import MainContent from "components/MainContent";
 import TeamsDropdownHeader, {
   ITeamsDropdownState,
 } from "components/PageHeader/TeamsDropdownHeader";
+import EmptyTable from "components/EmptyTable";
+import Button from "components/buttons/Button";
+
+import { IMdmApple } from "interfaces/mdm";
 
 import { find } from "lodash";
+import { useQuery } from "react-query";
+import Spinner from "components/Spinner";
 
 interface IControlsSubNavItem {
   name: string;
@@ -52,6 +61,19 @@ const ControlsWrapper = ({
     AppContext
   );
 
+  const {
+    data: mdmApple,
+    isLoading: isLoadingMdmApple,
+    error: errorMdmApple,
+  } = useQuery<IMdmApple, Error, IMdmApple>(
+    ["mdmAppleAPI"],
+    () => mdmAppleAPI.getAppleAPNInfo(),
+    {
+      enabled: isPremiumTier,
+      staleTime: 5000,
+    }
+  );
+
   const navigateToNav = (i: number): void => {
     const navPath = controlsSubNav[i].pathname;
     router.push(navPath);
@@ -86,29 +108,56 @@ const ControlsWrapper = ({
     </div>
   );
 
+  const onConnectClick = () => router.push(PATHS.ADMIN_INTEGRATIONS_MDM);
+
+  const renderBody = () => {
+    if (isLoadingMdmApple) {
+      return <Spinner />;
+    }
+    // dev flag to show empty state on Controls page
+    const disableMdmApple = true;
+    return mdmApple && !disableMdmApple ? (
+      <div>
+        <TabsWrapper>
+          <Tabs
+            selectedIndex={getTabIndex(location.pathname)}
+            onSelect={(i) => navigateToNav(i)}
+          >
+            <TabList>
+              {controlsSubNav.map((navItem) => {
+                return (
+                  <Tab key={navItem.name} data-text={navItem.name}>
+                    {navItem.name}
+                  </Tab>
+                );
+              })}
+            </TabList>
+          </Tabs>
+        </TabsWrapper>
+        {children}
+      </div>
+    ) : (
+      <EmptyTable
+        header="Manage your macOS hosts"
+        info="Connect Fleet to the Apple Push Certificates Portal to get started."
+        primaryButton={
+          <Button
+            variant="brand"
+            onClick={onConnectClick}
+            className={`${baseClass}__connectAPC-button`}
+          >
+            Connect
+          </Button>
+        }
+      />
+    );
+  };
+
   return (
     <MainContent className={baseClass}>
       <div className={`${baseClass}__wrapper`}>
         <div className={`${baseClass}__header-wrap`}>{renderHeader()}</div>
-        <div>
-          <TabsWrapper>
-            <Tabs
-              selectedIndex={getTabIndex(location.pathname)}
-              onSelect={(i) => navigateToNav(i)}
-            >
-              <TabList>
-                {controlsSubNav.map((navItem) => {
-                  return (
-                    <Tab key={navItem.name} data-text={navItem.name}>
-                      {navItem.name}
-                    </Tab>
-                  );
-                })}
-              </TabList>
-            </Tabs>
-          </TabsWrapper>
-          {children}
-        </div>
+        {renderBody()}
       </div>
     </MainContent>
   );
