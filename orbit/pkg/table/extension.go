@@ -9,6 +9,7 @@ import (
 	"time"
 
 	kolide_table "github.com/fleetdm/fleet/v4/orbit/pkg/table/kolide/table"
+	kit_log "github.com/go-kit/log"
 	"github.com/macadmins/osquery-extension/tables/chromeuserprofiles"
 	"github.com/macadmins/osquery-extension/tables/fileline"
 	"github.com/macadmins/osquery-extension/tables/puppet"
@@ -21,6 +22,7 @@ import (
 type Runner struct {
 	socket          string
 	tableExtensions []Extension
+	osquerydPath    string
 
 	// mu protects access to srv and cancel in Execute and Interrupt.
 	mu     sync.Mutex
@@ -49,8 +51,8 @@ func WithExtension(t Extension) Opt {
 }
 
 // NewRunner creates an extension runner.
-func NewRunner(socket string, opts ...Opt) *Runner {
-	r := &Runner{socket: socket}
+func NewRunner(socket string, osquerydPath string, opts ...Opt) *Runner {
+	r := &Runner{socket: socket, osquerydPath: osquerydPath}
 	for _, fn := range opts {
 		fn(r)
 	}
@@ -101,8 +103,12 @@ func (r *Runner) Execute() error {
 		table.NewPlugin("file_lines", fileline.FileLineColumns(), fileline.FileLineGenerate),
 	}
 	plugins = append(plugins, platformTables()...)
-	for _, t := range kolide_table.PlatformTables(nil, nil, "") {
-		fmt.Fprintf(os.Stderr, "Adding table %+v\n", t)
+
+	client, err := osquery.NewClient(r.socket, 1*time.Second)
+	if err != nil {
+		return fmt.Errorf("Failed to create osquery client for kolide tables: %w", err)
+	}
+	for _, t := range kolide_table.PlatformTables(client, kit_log.NewLogfmtLogger(os.Stderr), r.osquerydPath) {
 		plugins = append(plugins, t)
 	}
 	for _, t := range r.tableExtensions {

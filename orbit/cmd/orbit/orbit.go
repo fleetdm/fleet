@@ -727,6 +727,7 @@ func main() {
 		registerExtensionRunner(
 			&g,
 			r.ExtensionSocketPath(),
+			osquerydPath,
 			table.WithExtension(orbitInfoExtension{
 				orbitClient:     orbitClient,
 				orbitChannel:    c.String("orbit-channel"),
@@ -762,8 +763,8 @@ func main() {
 	}
 }
 
-func registerExtensionRunner(g *run.Group, extSockPath string, opts ...table.Opt) {
-	ext := table.NewRunner(extSockPath, opts...)
+func registerExtensionRunner(g *run.Group, extSockPath string, osquerydPath string, opts ...table.Opt) {
+	ext := table.NewRunner(extSockPath, osquerydPath, opts...)
 	g.Add(ext.Execute, ext.Interrupt)
 }
 
