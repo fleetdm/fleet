@@ -6,15 +6,29 @@ MDM features allow you to manage macOS updates and macOS settings on your hosts.
 
 ## Apple Push Notification Service (APNs)
 
-To use MDM features you have to connect Fleet to Apple Push Certificates Portal. This can be done via the Fleet website or the `fleetctl` command-line interface. The result is the same regardless of the method used, you end up with 4 files: an APNs certificate and private key files along with the Simple Certificate Enrollment Protocol (SCEP) certificate and private key files. Make sure you store them securely as you will need them to configure your Fleet instances afterwards.
+To use MDM features you have to connect Fleet to Apple Push Certificates Portal. This can be done via the Fleet UI or the `fleetctl` command-line interface. The result is the same regardless of the method used, you end up with 4 files: an APNs certificate and private key files along with the Simple Certificate Enrollment Protocol (SCEP) certificate and private key files. Make sure you store them securely as you will need them to configure your Fleet instances afterwards (and take note of the email and organization used to generate them, as you will need to use the same ones during renewal). For _renewal_ of an existing but expired (or soon to expire) APNs certificate, see the [APNs Renewal section](#apns-renewal) below.
 
-Via the Fleet website:
-1. In the Fleet UI, head to the **Settings > Integrations > Mobile device management (MDM)** page. Users with the admin role can access the settings pages.
+Via the Fleet UI:
+1. Head to the **Settings > Integrations > Mobile device management (MDM)** page. Users with the admin role can access the settings pages.
 2. Follow the instructions under **Apple Push Certificates Portal**.
 
 Via the `fleetctl` CLI:
 1. Run `fleetctl generate mdm-apple --email <email> --org <org>`.
 2. Follow the on-screen instructions.
+
+### APNs Renewal
+
+The APNs certificate is typically valid for a year. You can see the certificate's renewal date and other important APNs information via the Fleet UI or the `fleetctl` command-line interface:
+
+Via the Fleet UI:
+1. Head to the **Settings > Integrations > Mobile device management (MDM)** page. Users with the admin role can access the settings pages.
+2. Look at the **Apple Push Certificates Portal** section.
+
+Via the `fleetctl` CLI:
+1. Run `fleetctl get mdm-apple`.
+2. Look at the on-screen information.
+
+If the certificate is expired or about to expire, you must renew it by using the same command that can be used to generate it the first time, `fleetctl generate mdm-apple --email <email> --org <org>`. The Fleet UI cannot be used for renewal at the moment. Note that you must make sure that you use the same email and organization as when the certificate was generated. One **important difference** when renewing a certificate is that in the [Apple portal to get the new certificate](https://identity.apple.com), you must click on the _Renew_ button so that the same APNs topic is reused.
 
 ## Apple Business Manager (ABM)
 
@@ -34,7 +48,7 @@ Via the `fleetctl` CLI:
 
 ### ABM Renewal
 
-The Apple Business Manager server token expired after a year or whenever the account that downloaded the token has their password changed. To renew the token, follow the [instructions documented in this FAQ](https://fleetdm.com/docs/using-fleet/faq#how-can-i-renew-my-apple-business-manager-server-token).
+The Apple Business Manager server token expires after a year or whenever the account that downloaded the token has their password changed. To renew the token, follow the [instructions documented in this FAQ](https://fleetdm.com/docs/using-fleet/faq#how-can-i-renew-my-apple-business-manager-server-token).
 
 ## Configuring Fleet instances
 
