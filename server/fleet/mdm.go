@@ -33,6 +33,16 @@ func (a AppleBM) AuthzType() string {
 	return "mdm_apple"
 }
 
+type AppleCSR struct {
+	APNsKey  string `json:"apns_key"`
+	SCEPCert string `json:"scep_cert"`
+	SCEPKey  string `json:"scep_key"`
+}
+
+func (a AppleCSR) AuthzType() string {
+	return "mdm_apple"
+}
+
 // AppConfigUpdated is the minimal interface required to get and update the
 // AppConfig, as required to handle the DEP API errors to flag that Apple's
 // terms have changed and must be accepted. The Fleet Datastore satisfies

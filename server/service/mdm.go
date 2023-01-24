@@ -6,6 +6,10 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
+////////////////////////////////////////////////////////////////////////////////
+// GET /mdm/apple
+////////////////////////////////////////////////////////////////////////////////
+
 type getAppleMDMResponse struct {
 	*fleet.AppleMDM
 	Err error `json:"error,omitempty"`
@@ -49,6 +53,10 @@ func (svc *Service) GetAppleMDM(ctx context.Context) (*fleet.AppleMDM, error) {
 	return appleMDM, nil
 }
 
+////////////////////////////////////////////////////////////////////////////////
+// GET /mdm/apple_bm
+////////////////////////////////////////////////////////////////////////////////
+
 type getAppleBMResponse struct {
 	*fleet.AppleBM
 	Err error `json:"error,omitempty"`
@@ -71,4 +79,39 @@ func (svc *Service) GetAppleBM(ctx context.Context) (*fleet.AppleBM, error) {
 	svc.authz.SkipAuthorization(ctx)
 
 	return nil, fleet.ErrMissingLicense
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// GET /mdm/apple/request_csr
+////////////////////////////////////////////////////////////////////////////////
+
+type requestMDMAppleCSRRequest struct {
+	EmailAddress string `json:"email_address"`
+	Organization string `json:"organization"`
+}
+
+type requestMDMAppleCSRResponse struct {
+	*fleet.AppleCSR
+	Err error `json:"error,omitempty"`
+}
+
+func (r requestMDMAppleCSRResponse) error() error { return r.Err }
+
+func requestMDMAppleCSREndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*requestMDMAppleCSRRequest)
+
+	csr, err := svc.RequestMDMAppleCSR(ctx, req.EmailAddress, req.Organization)
+	if err != nil {
+		return requestMDMAppleCSRResponse{Err: err}, nil
+	}
+	return requestMDMAppleCSRResponse{
+		AppleCSR: csr,
+	}, nil
+}
+
+func (svc *Service) RequestMDMAppleCSR(ctx context.Context, email, org string) (*fleet.AppleCSR, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.AppleCSR{}, fleet.ActionWrite); err != nil {
+		return nil, err
+	}
+	panic("unimplemented")
 }
