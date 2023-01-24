@@ -27,6 +27,7 @@ interface IOperatingSystemsCardProps {
   currentTeamId: number | undefined;
   selectedPlatform: ISelectedPlatform;
   showTitle: boolean;
+  includeName?: boolean;
   setShowTitle: (showTitle: boolean) => void;
   setTitleDetail?: (content: JSX.Element | string | null) => void;
   setTitleDescription?: (content: JSX.Element | string | null) => void;
@@ -42,8 +43,8 @@ const EmptyOperatingSystems = (platform: ISelectedPlatform): JSX.Element => (
     header={`No${
       ` ${PLATFORM_DISPLAY_NAMES[platform]}` || ""
     } operating systems detected.`}
-    info={`Did you add ${`${PLATFORM_DISPLAY_NAMES[platform]} ` || ""}hosts to
-      Fleet? Try again in about an hour as the system catches up.`}
+    info="This report is updated every hour to protect the performance of your
+      devices."
   />
 );
 
@@ -51,6 +52,7 @@ const OperatingSystems = ({
   currentTeamId,
   selectedPlatform,
   showTitle,
+  includeName = true,
   setShowTitle,
   setTitleDetail,
   setTitleDescription,
@@ -120,7 +122,7 @@ const OperatingSystems = ({
     setTitleDetail?.(null);
   }, [isFetching, osInfo, setTitleDescription, setTitleDetail]);
 
-  const tableHeaders = generateTableHeaders();
+  const tableHeaders = generateTableHeaders(includeName);
   const showPaginationControls = (osInfo?.os_versions?.length || 0) > 8;
 
   // Renders opaque information as host information is loading
