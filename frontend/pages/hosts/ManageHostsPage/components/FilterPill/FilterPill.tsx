@@ -28,7 +28,6 @@ const FilterPill = ({
     tooltip: tooltipDescription !== undefined && tooltipDescription !== "",
   });
 
-  console.log("tooltipDescription", tooltipDescription);
   return (
     <div
       className={baseClasses}
