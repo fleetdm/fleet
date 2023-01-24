@@ -208,8 +208,6 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 	user, err := s.ds.UserByEmail(context.Background(), "admin1@example.com")
 	require.NoError(t, err)
 
-	// invalid agent options command-line flag
-
 	teams, err := s.ds.ListTeams(context.Background(), fleet.TeamFilter{User: user}, fleet.ListOptions{})
 	require.NoError(t, err)
 	require.True(t, len(teams) >= 1)
