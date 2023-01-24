@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/url"
+	"regexp"
 	"sort"
 	"time"
 
@@ -111,10 +112,50 @@ type MDM struct {
 	// API.
 	AppleBMTermsExpired bool `json:"apple_bm_terms_expired"`
 
+	MacOSUpdates MacOSUpdates `json:"macos_updates"`
+
 	/////////////////////////////////////////////////////////////////
 	// WARNING: If you add to this struct make sure it's taken into
 	// account in the AppConfig Clone implementation!
 	/////////////////////////////////////////////////////////////////
+}
+
+// versionStringRegex is used to validate that a version string is in the x.y.z
+// format only (no prerelease or build metadata).
+var versionStringRegex = regexp.MustCompile(`^\d+(\.\d+)?(\.\d+)?$`)
+
+// MacOSUpdates is part of AppConfig and defines the macOS update settings.
+type MacOSUpdates struct {
+	// MinimumVerssion is the required minimum operating system version.
+	MinimumVersion string `json:"minimum_version"`
+	// Deadline the required installation date for Nudge to enforce the required
+	// operating system version.
+	Deadline string `json:"deadline"`
+}
+
+func (m MacOSUpdates) Validate() error {
+	// if no settings are provided it's okay to skip further validation
+	if m.MinimumVersion == "" && m.Deadline == "" {
+		return nil
+	}
+
+	if m.MinimumVersion != "" && m.Deadline == "" {
+		return errors.New("deadline is required when minimum_version is provided")
+	}
+
+	if m.Deadline != "" && m.MinimumVersion == "" {
+		return errors.New("minimum_version is required when deadline is provided")
+	}
+
+	if !versionStringRegex.MatchString(m.MinimumVersion) {
+		return errors.New(`minimum_version accepts version numbers only. (E.g., "13.0.1.") NOT "Ventura 13" or "13.0.1 (22A400)"`)
+	}
+
+	if _, err := time.Parse("2006-01-02", m.Deadline); err != nil {
+		return errors.New(`deadline accepts YYYY-MM-DD format only (E.g., "2023-06-01.")`)
+	}
+
+	return nil
 }
 
 // AppConfig holds server configuration that can be changed via the API.

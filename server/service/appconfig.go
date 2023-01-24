@@ -452,6 +452,22 @@ func (svc *Service) validateMDM(
 			invalid.Append("apple_bm_default_team", "team name not found")
 		}
 	}
+
+	// MacOSUpdates
+	updatingVersion := mdm.MacOSUpdates.MinimumVersion != "" &&
+		mdm.MacOSUpdates.MinimumVersion != oldMdm.MacOSUpdates.MinimumVersion
+	updatingDeadline := mdm.MacOSUpdates.Deadline != "" &&
+		mdm.MacOSUpdates.Deadline != oldMdm.MacOSUpdates.Deadline
+
+	if updatingVersion || updatingDeadline {
+		if !license.IsPremium() {
+			invalid.Append("macos_updates.minimum_version", ErrMissingLicense.Error())
+			return
+		}
+		if err := mdm.MacOSUpdates.Validate(); err != nil {
+			invalid.Append("macos_updates", err.Error())
+		}
+	}
 }
 
 func validateSSOSettings(p fleet.AppConfig, existing *fleet.AppConfig, invalid *fleet.InvalidArgumentError, license *fleet.LicenseInfo) {
