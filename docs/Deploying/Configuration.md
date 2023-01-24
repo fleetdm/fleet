@@ -935,7 +935,7 @@ The interval at which Fleet will ask osquery agents to update their results for 
 
 Setting this to a higher value can reduce baseline load on the Fleet server in larger deployments.
 
-> Setting this to a lower value can increase baseline load significantly and performance issues or even outages. Proceed with caution.
+> Setting this to a lower value can increase baseline load significantly and cause performance issues or even outages. Proceed with caution.
 
 Valid time units are `s`, `m`, `h`.
 
@@ -953,7 +953,7 @@ The interval at which Fleet will ask osquery agents to update their results for 
 
 Setting this to a higher value can reduce baseline load on the Fleet server in larger deployments.
 
-> Setting this to a lower value can increase baseline load significantly and performance issues or even outages. Proceed with caution.
+> Setting this to a lower value can increase baseline load significantly and cause performance issues or even outages. Proceed with caution.
 
 Valid time units are `s`, `m`, `h`.
 
@@ -971,7 +971,7 @@ The interval at which Fleet will ask osquery agents to update host details (such
 
 Setting this to a higher value can reduce baseline load on the Fleet server in larger deployments.
 
-> Setting this to a lower value can increase baseline load significantly and performance issues or even outages. Proceed with caution.
+> Setting this to a lower value can increase baseline load significantly and cause performance issues or even outages. Proceed with caution.
 
 Valid time units are `s`, `m`, `h`.
 
