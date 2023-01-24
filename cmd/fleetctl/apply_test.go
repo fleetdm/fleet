@@ -1258,7 +1258,7 @@ spec:
 [+] would've applied 1 teams`,
 		},
 		{
-			desc: "macos_updates dealine set but minimum_version empty",
+			desc: "macos_updates deadline set but minimum_version empty",
 			spec: `
 apiVersion: v1
 kind: team
@@ -1473,7 +1473,7 @@ spec:
 			wantOutput: `[+] applied fleet config`,
 		},
 		{
-			desc: "app config macos_updates dealine set but minimum_version empty",
+			desc: "app config macos_updates deadline set but minimum_version empty",
 			spec: `
 apiVersion: v1
 kind: config
