@@ -3,16 +3,16 @@
 package table
 
 import (
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/pmset"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/privaterelay"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/user_login_settings"
-	"github.com/osquery/osquery-go"
-	"github.com/osquery/osquery-go/plugin/table"
-
 	"github.com/macadmins/osquery-extension/tables/filevaultusers"
 	"github.com/macadmins/osquery-extension/tables/macos_profiles"
 	"github.com/macadmins/osquery-extension/tables/mdm"
 	"github.com/macadmins/osquery-extension/tables/munki"
 	"github.com/macadmins/osquery-extension/tables/unifiedlog"
+	"github.com/osquery/osquery-go"
+	"github.com/osquery/osquery-go/plugin/table"
 )
 
 func platformTables() []osquery.OsqueryPlugin {
@@ -20,6 +20,7 @@ func platformTables() []osquery.OsqueryPlugin {
 		// Fleet tables
 		table.NewPlugin("icloud_private_relay", privaterelay.Columns(), privaterelay.Generate),
 		table.NewPlugin("user_login_settings", user_login_settings.Columns(), user_login_settings.Generate),
+		table.NewPlugin("pmset", pmset.Columns(), pmset.Generate),
 
 		// Macadmins extension tables
 		table.NewPlugin("filevault_users", filevaultusers.FileVaultUsersColumns(), filevaultusers.FileVaultUsersGenerate),
