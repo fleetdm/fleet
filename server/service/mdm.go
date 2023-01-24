@@ -2,8 +2,14 @@ package service
 
 import (
 	"context"
+	"fmt"
+	"strings"
+	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 )
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -113,5 +119,43 @@ func (svc *Service) RequestMDMAppleCSR(ctx context.Context, email, org string) (
 	if err := svc.authz.Authorize(ctx, &fleet.AppleCSR{}, fleet.ActionWrite); err != nil {
 		return nil, err
 	}
-	panic("unimplemented")
+
+	if err := fleet.ValidateEmail(email); err != nil {
+		if strings.TrimSpace(email) == "" {
+			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("email_address", "missing email address"))
+		}
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("email_address", fmt.Sprintf("invalid email address: %v", err)))
+	}
+	if strings.TrimSpace(org) == "" {
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("organization", "missing organization"))
+	}
+
+	// create the APNs CSR
+	apnsCSR, apnsKey, err := apple_mdm.GenerateAPNSCSRKey(email, org)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "generate APNs CSR")
+	}
+	apnsKeyPEM := apple_mdm.EncodePrivateKeyPEM(apnsKey)
+
+	// request the signed APNs CSR from fleetdm.com
+	client := fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second))
+	if err := apple_mdm.GetSignedAPNSCSR(client, apnsCSR); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get signed APNs CSR")
+	}
+
+	// create the raw SCEP CA cert and key
+	scepCACert, scepCAKey, err := apple_mdm.NewSCEPCACertKey()
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "generate SCEP CA cert and key")
+	}
+
+	// PEM-encode the SCEP cert and key
+	scepCACertPEM := apple_mdm.EncodeCertPEM(scepCACert)
+	scepCAKeyPEM := apple_mdm.EncodePrivateKeyPEM(scepCAKey)
+
+	return &fleet.AppleCSR{
+		APNsKey:  apnsKeyPEM,
+		SCEPCert: scepCACertPEM,
+		SCEPKey:  scepCAKeyPEM,
+	}, nil
 }

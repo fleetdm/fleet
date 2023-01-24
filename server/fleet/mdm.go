@@ -34,9 +34,10 @@ func (a AppleBM) AuthzType() string {
 }
 
 type AppleCSR struct {
-	APNsKey  string `json:"apns_key"`
-	SCEPCert string `json:"scep_cert"`
-	SCEPKey  string `json:"scep_key"`
+	// NOTE: []byte automatically JSON-encodes as a base64-encoded string
+	APNsKey  []byte `json:"apns_key"`
+	SCEPCert []byte `json:"scep_cert"`
+	SCEPKey  []byte `json:"scep_key"`
 }
 
 func (a AppleCSR) AuthzType() string {

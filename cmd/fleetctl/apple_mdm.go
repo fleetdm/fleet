@@ -117,6 +117,8 @@ Generating APNs key, Simple Certificate Enrollment Protocol (SCEP) certificate, 
 				email,
 			)
 
+			// TODO(mna): replace all this by a request to POST /mdm/apple/request_csr
+
 			// create apns csr and send to fleetdm.com
 			apnsCSR, apnsKey, err := apple_mdm.GenerateAPNSCSRKey(email, org)
 			if err != nil {
@@ -155,7 +157,6 @@ Generating APNs key, Simple Certificate Enrollment Protocol (SCEP) certificate, 
 				return fmt.Errorf("write scep ca private key: %w", err)
 			}
 
-			// TODO: update text once https://github.com/fleetdm/fleet/issues/8595 is complete. Consider linking to specific configuration section.
 			fmt.Fprintf(
 				c.App.Writer,
 				`Success!
@@ -168,7 +169,7 @@ Generated your SCEP key at %s
 
 Go to your email to download a CSR from Fleet. Then, visit https://identity.apple.com/pushcert to upload the CSR. You should receive an APNs certificate in return from Apple.
 
-Next, use the generated certificates to deploy Fleet with `+"`mdm`"+` configuration: https://fleetdm.com/docs/deploying/configuration#mdm-mobile-device-management-in-progress
+Next, use the generated certificates to deploy Fleet with `+"`mdm`"+` configuration: https://fleetdm.com/docs/deploying/configuration#mobile-device-management-mdm
 `,
 				apnsKeyPath,
 				scepCACertPath,
