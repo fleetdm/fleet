@@ -430,6 +430,8 @@ type TeamAgentOptionsFunc func(ctx context.Context, teamID uint) (*json.RawMessa
 
 type TeamFeaturesFunc func(ctx context.Context, teamID uint) (*fleet.Features, error)
 
+type TeamMDMConfigFunc func(ctx context.Context, teamID uint) (*fleet.TeamMDM, error)
+
 type SaveHostPackStatsFunc func(ctx context.Context, hostID uint, stats []fleet.PackStats) error
 
 type AsyncBatchSaveHostsScheduledQueryStatsFunc func(ctx context.Context, stats map[uint][]fleet.ScheduledQueryStats, batchSize int) (int, error)
@@ -1150,6 +1152,9 @@ type DataStore struct {
 
 	TeamFeaturesFunc        TeamFeaturesFunc
 	TeamFeaturesFuncInvoked bool
+
+	TeamMDMConfigFunc        TeamMDMConfigFunc
+	TeamMDMConfigFuncInvoked bool
 
 	SaveHostPackStatsFunc        SaveHostPackStatsFunc
 	SaveHostPackStatsFuncInvoked bool
@@ -2334,6 +2339,11 @@ func (s *DataStore) TeamAgentOptions(ctx context.Context, teamID uint) (*json.Ra
 func (s *DataStore) TeamFeatures(ctx context.Context, teamID uint) (*fleet.Features, error) {
 	s.TeamFeaturesFuncInvoked = true
 	return s.TeamFeaturesFunc(ctx, teamID)
+}
+
+func (s *DataStore) TeamMDMConfig(ctx context.Context, teamID uint) (*fleet.TeamMDM, error) {
+	s.TeamMDMConfigFuncInvoked = true
+	return s.TeamMDMConfigFunc(ctx, teamID)
 }
 
 func (s *DataStore) SaveHostPackStats(ctx context.Context, hostID uint, stats []fleet.PackStats) error {
