@@ -875,7 +875,7 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure Password History Is Configured
+  name: CIS - Ensure Password History Is Configured (fleetd required)
   platforms: macOS
   platform: darwin
   description: |
@@ -888,7 +888,6 @@ spec:
       1. The Payload Type string is com.apple.mobiledevice.passwordpolicy 
       2. The key to include is pinHistory
       3. The key must be set to <integer><value≥15></integer>
-  query: |
-    NOT EXISTING - NEED TO ADD
+  query: SELECT 1 FROM  pwd_policy where historyDepth >= 15;
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS5.2.8
