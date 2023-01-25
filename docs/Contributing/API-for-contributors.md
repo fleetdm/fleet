@@ -527,6 +527,8 @@ The MDM endpoints exist to support the related command-line interface sub-comman
 - [Get Apple MDM](#get-apple-mdm)
 - [Get Apple BM](#get-apple-bm)
 - [Unenroll host from Fleet MDM](#unenroll-host-from-fleet-mdm)
+- [Generate Apple DEP Key Pair](#generate-apple-dep-key-pair)
+- [Request Certificate Signing Request (CSR)](#request-certificate-signing-request-csr)
 
 
 ### Get Apple MDM
@@ -620,6 +622,33 @@ None.
 ```
 
 Note that the `public_key` and `private_key` are base64 encoded and should be decoded before writing them to files.
+
+### Request Certificate Signing Request (CSR)
+
+`POST /api/v1/fleet/mdm/apple/request_csr`
+
+#### Parameters
+
+| Name          | Type    | In   | Description                                                                              |
+| ----          | ------- | ---- | ---------------------------------------                                                  |
+| email_address | string  | body | **Required.** The email that will be associated with the Apple APNs certificate.         |
+| organization  | string  | body | **Required.** The name of the organization associated with the Apple APNs certificate.   |
+
+#### Example
+
+`POST /api/v1/fleet/mdm/apple/request_csr`
+
+##### Default response
+
+```
+{
+  "apns_key": "aGV5LCBJJ20gc2VjcmV0Cg==",
+  "scep_cert": "bHR5LCBJJ20gc2VjcmV0Cg=",
+  "scep_key": "lKT5LCBJJ20gc2VjcmV0Cg="
+}
+```
+
+Note that the response fields are base64 encoded and should be decoded before writing them to files. Once base64-decoded, they are PEM-encoded certificate and keys.
 
 ## Get or apply configuration files
 
