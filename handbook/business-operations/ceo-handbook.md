@@ -79,10 +79,12 @@ At Fleet, document prep steps are determined by the type of meeting.
 | Meeting type | Description | Automation enabled? | Meeting note preference |
 | ------------ | -------------------------------------------------------------| ------------------ | ------------- |
 | "One-off"    | A non-recurring meeting that has a separate doc per meeting. | Most likely Zapier | Note template |
-| External call | A recurring meeting that is with a customer, coach, or advisor. | No, unless rescheduled using Calendly link | Journals template |
+| External call | A recurring meeting that is with a customer, coach, or advisor. | No, unless rescheduled using Calendly link | Journal template |
 | 1:1 | A recurring meeting that direct managers and direct reports use for performance management and is emptied after every call. | Most likely Reclaim | Agenda template |
 | Office hours | A recurring meeting that is emptied after call used for group meetings of Fleet team members. | Google calendar | Office hour agenda template |
 
+>Journals are good when the primary goal is understanding status, asking questions.  (e.g. a key review, a demo session, customer voice, prospect voice, community voice)  There might be action items that come out of it, but they aren't the goal of the meeting.  TODOs in journals are suspect and often overlooked.
+Whereas agendas are good when it's all about action items / decisions / discussing a topic.  Like the whole reason a bullet is there is to make someone aware, to get feedback, to make a decision, or because it's an important TODO for someone on that call.  TODOs in agendas are very easy to keep track of and can be trusted more.
 
 ## Tasks as assigned
 

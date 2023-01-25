@@ -84,6 +84,16 @@ will be disabled and/or hidden in the UI.
           fromName: sails.config.custom.fromName,
         });
 
+        if(sails.config.environment === 'production'){
+          sails.helpers.http.post.with({
+            url: `https://crawler.algolia.com/api/1/crawlers/${sails.config.custom.algoliaCrawlerId}/reindex`,
+            headers: { 'Authorization': sails.config.custom.algoliaCrawlerApiToken}
+          }).exec((err)=>{
+            if(err){
+              sails.log.warn('When trying to send a request to Algolia to refresh the Fleet website search index, an error occurred: '+err);
+            }
+          });//_∏_
+        }
       });//_∏_
 
       // ... Any other app-specific setup code that needs to run on lift,

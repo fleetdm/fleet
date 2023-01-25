@@ -1020,8 +1020,7 @@ DRIs help us collaborate efficiently by knowing exactly who is responsible and c
 ### Benefits
 
 #### Coworking
-Fleet will reimburse team members for coworking up to $100 USD per month. Please get prior approval from your manager, and then this reimbursement can be used for drop-in coworking or go towards a coworking membership.  Once approved, get started by reaching out to the Charlie Chance via direct message in Slack.
-Coworking expenses must be [reimbursed](#reimbursements). Brex cards should not be used for coworking due to possible legal complexities.
+Your Brex card may be used for up to $500 USD per month in coworking costs. Please get prior approval from your manager. Once approved, get started by reaching out to Charlie Chance via direct message in Slack.
 
 #### Paid time off
 What matters most is your results, which are driven by your focus, your availability to collaborate, and the time and consideration you put into your work. Fleet offers all team members unlimited time off. Whether you're sick, you want to take a trip, you are eager for some time to relax, or you need to get some chores done around the house, any reason is a good reason.

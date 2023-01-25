@@ -531,7 +531,8 @@ const ManageSoftwarePage = ({
     router.push(path);
   };
 
-  const searchable = !!software?.software || searchQuery !== "";
+  const searchable =
+    isSoftwareEnabled && (!!software?.software || searchQuery !== "");
 
   return !availableTeams ||
     !globalConfig ||

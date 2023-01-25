@@ -520,6 +520,8 @@ type IngestMDMAppleDevicesFromDEPSyncFunc func(ctx context.Context, devices []go
 
 type IngestMDMAppleDeviceFromCheckinFunc func(ctx context.Context, mdmHost fleet.MDMAppleHostDetails) error
 
+type GetNanoMDMEnrollmentStatusFunc func(ctx context.Context, id string) (bool, error)
+
 type IncreasePolicyAutomationIterationFunc func(ctx context.Context, policyID uint) error
 
 type OutdatedAutomationBatchFunc func(ctx context.Context) ([]fleet.PolicyFailure, error)
@@ -1283,6 +1285,9 @@ type DataStore struct {
 
 	IngestMDMAppleDeviceFromCheckinFunc        IngestMDMAppleDeviceFromCheckinFunc
 	IngestMDMAppleDeviceFromCheckinFuncInvoked bool
+
+	GetNanoMDMEnrollmentStatusFunc        GetNanoMDMEnrollmentStatusFunc
+	GetNanoMDMEnrollmentStatusFuncInvoked bool
 
 	IncreasePolicyAutomationIterationFunc        IncreasePolicyAutomationIterationFunc
 	IncreasePolicyAutomationIterationFuncInvoked bool
@@ -2554,6 +2559,11 @@ func (s *DataStore) IngestMDMAppleDevicesFromDEPSync(ctx context.Context, device
 func (s *DataStore) IngestMDMAppleDeviceFromCheckin(ctx context.Context, mdmHost fleet.MDMAppleHostDetails) error {
 	s.IngestMDMAppleDeviceFromCheckinFuncInvoked = true
 	return s.IngestMDMAppleDeviceFromCheckinFunc(ctx, mdmHost)
+}
+
+func (s *DataStore) GetNanoMDMEnrollmentStatus(ctx context.Context, id string) (bool, error) {
+	s.GetNanoMDMEnrollmentStatusFuncInvoked = true
+	return s.GetNanoMDMEnrollmentStatusFunc(ctx, id)
 }
 
 func (s *DataStore) IncreasePolicyAutomationIteration(ctx context.Context, policyID uint) error {

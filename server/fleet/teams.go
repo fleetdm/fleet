@@ -19,6 +19,7 @@ type TeamPayload struct {
 	Secrets         []*EnrollSecret      `json:"secrets"`
 	WebhookSettings *TeamWebhookSettings `json:"webhook_settings"`
 	Integrations    *TeamIntegrations    `json:"integrations"`
+	MDM             *TeamMDM             `json:"mdm"`
 	// Note AgentOptions must be set by a separate endpoint.
 }
 
@@ -123,10 +124,15 @@ type TeamConfig struct {
 	WebhookSettings TeamWebhookSettings `json:"webhook_settings"`
 	Integrations    TeamIntegrations    `json:"integrations"`
 	Features        Features            `json:"features"`
+	MDM             TeamMDM             `json:"mdm"`
 }
 
 type TeamWebhookSettings struct {
 	FailingPoliciesWebhook FailingPoliciesWebhookSettings `json:"failing_policies_webhook"`
+}
+
+type TeamMDM struct {
+	MacOSUpdates MacOSUpdates `json:"macos_updates"`
 }
 
 // Scan implements the sql.Scanner interface
@@ -264,4 +270,5 @@ type TeamSpec struct {
 
 	Secrets  []EnrollSecret   `json:"secrets"`
 	Features *json.RawMessage `json:"features"`
+	MDM      TeamMDM          `json:"mdm"`
 }

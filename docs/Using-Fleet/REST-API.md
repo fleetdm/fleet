@@ -838,7 +838,11 @@ None.
   },
   "mdm": {
     "apple_bm_default_team": "",
-    "apple_bm_terms_expired": false
+    "apple_bm_terms_expired": false,
+    "macos_updates": {
+      "minimum_version": "12.3.1",
+      "deadline": "2022-01-01"
+    }
   },
   "agent_options": {
     "spec": {
@@ -914,7 +918,11 @@ None.
     "jira": null
   },
   "mdm": {
-    "apple_bm_default_team": ""
+    "apple_bm_default_team": "",
+    "macos_updates": {
+      "minimum_version": "12.3.1",
+      "deadline": "2022-01-01"
+    }
   },
   "logging": {
     "debug": false,
@@ -1013,7 +1021,9 @@ Modifies the Fleet's configuration with the supplied information.
 | email                             | string  | body  | _integrations.zendesk[] settings_. The Zendesk user email to use for this Zendesk integration. |
 | api_token                         | string  | body  | _integrations.zendesk[] settings_. The Zendesk API token to use for this Zendesk integration. |
 | group_id                          | integer | body  | _integrations.zendesk[] settings_. The Zendesk group id to use for this integration. Zendesk tickets will be created in this group. |
-| apple_bm_default_team             | string  | body  | _mdm settings_. The default team to use with Apple Business Manager. |
+| apple_bm_default_team             | string  | body  | _mdm settings_. The default team to use with Apple Business Manager. **Requires Fleet Premium license** |
+| minimum_version                   | string  | body  | _mdm.macos_updates settings_. Hosts that belong to no team and are enrolled into Fleet's MDM will be nudged until their macOS is at or above this version. **Requires Fleet Premium license** |
+| deadline                          | string  | body  | _mdm.macos_updates settings_. Hosts that belong to no team and are enrolled into Fleet's MDM won't be able to dismiss the Nudge window once this deadline is past. **Requires Fleet Premium license** |
 | additional_queries                | boolean | body  | Whether or not additional queries are enabled on hosts.                                                                                                                                |
 | force                             | bool    | query | Force apply the agent options even if there are validation errors.                                                                                                 |
 | dry_run                           | bool    | query | Validate the configuration and return any validation errors, but do not apply the changes.                                                                         |
@@ -1089,7 +1099,11 @@ Modifies the Fleet's configuration with the supplied information.
   },
   "mdm": {
     "apple_bm_default_team": "",
-    "apple_bm_terms_expired": false
+    "apple_bm_terms_expired": false,
+    "macos_updates": {
+      "minimum_version": "12.3.1",
+      "deadline": "2022-01-01"
+    }
   },
   "agent_options": {
     "config": {
@@ -1146,7 +1160,11 @@ Modifies the Fleet's configuration with the supplied information.
     ]
   },
   "mdm": {
-    "apple_bm_default_team": ""
+    "apple_bm_default_team": "",
+    "macos_updates": {
+      "minimum_version": "12.3.1",
+      "deadline": "2022-01-01"
+    }
   },
   "logging": {
       "debug": false,
@@ -5420,27 +5438,32 @@ _Available in Fleet Premium_
 
 #### Parameters
 
-| Name                                                    | Type    | In   | Description                                                                                                                                                  |
-| ---                                                     | ---     | ---  | ---                                                                                                                                                          |
-| id                                                      | integer | path | **Required.** The desired team's ID.                                                                                                                         |
-| name                                                    | string  | body | The team's name.                                                                                                                                             |
-| host_ids                                                | list    | body | A list of hosts that belong to the team.                                                                                                                     |
-| user_ids                                                | list    | body | A list of users that are members of the team.                                                                                                                |
-| webhook_settings                                        | object  | body | Webhook settings contains for the team.                                                                                                                      |
-| &nbsp;&nbsp;failing_policies_webhook                    | object  | body | Failing policies webhook settings.                                                                                                                           |
-| &nbsp;&nbsp;&nbsp;&nbsp;enable_failing_policies_webhook | boolean | body | Whether or not the failing policies webhook is enabled.                                                                                                      |
-| &nbsp;&nbsp;&nbsp;&nbsp;destination_url                 | string  | body | The URL to deliver the webhook requests to.                                                                                                                  |
-| &nbsp;&nbsp;&nbsp;&nbsp;policy_ids                      | array   | body | List of policy IDs to enable failing policies webhook.                                                                                                       |
-| &nbsp;&nbsp;&nbsp;&nbsp;host_batch_size                 | integer | body | Maximum number of hosts to batch on failing policy webhook requests. The default, 0, means no batching (all hosts failing a policy are sent on one request). |
-| integrations                                            | object  | body | Integrations settings for the team. Note that integrations referenced here must already exist globally, created by a call to [Modify configuration](#modify-configuration).     |
-| &nbsp;&nbsp;jira                                        | array   | body | Jira integrations configuration. |
-| &nbsp;&nbsp;&nbsp;&nbsp;url                             | string  | body | The URL of the Jira server to use. |
-| &nbsp;&nbsp;&nbsp;&nbsp;project_key                     | string  | body | The project key of the Jira integration to use. Jira tickets will be created in this project. |
-| &nbsp;&nbsp;&nbsp;&nbsp;enable_failing_policies         | boolean | body | Whether or not that Jira integration is enabled for failing policies. Only one failing policy automation can be enabled at a given time (enable_failing_policies_webhook and enable_failing_policies). |
-| &nbsp;&nbsp;zendesk                                     | array   | body | Zendesk integrations configuration. |
-| &nbsp;&nbsp;&nbsp;&nbsp;url                             | string  | body | The URL of the Zendesk server to use. |
-| &nbsp;&nbsp;&nbsp;&nbsp;group_id                        | integer | body | The Zendesk group id to use. Zendesk tickets will be created in this group. |
+| Name                                                    | Type    | In   | Description                                                                                                                                                                                               |
+| ------------------------------------------------------- | ------- | ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| id                                                      | integer | path | **Required.** The desired team's ID.                                                                                                                                                                      |
+| name                                                    | string  | body | The team's name.                                                                                                                                                                                          |
+| host_ids                                                | list    | body | A list of hosts that belong to the team.                                                                                                                                                                  |
+| user_ids                                                | list    | body | A list of users that are members of the team.                                                                                                                                                             |
+| webhook_settings                                        | object  | body | Webhook settings contains for the team.                                                                                                                                                                   |
+| &nbsp;&nbsp;failing_policies_webhook                    | object  | body | Failing policies webhook settings.                                                                                                                                                                        |
+| &nbsp;&nbsp;&nbsp;&nbsp;enable_failing_policies_webhook | boolean | body | Whether or not the failing policies webhook is enabled.                                                                                                                                                   |
+| &nbsp;&nbsp;&nbsp;&nbsp;destination_url                 | string  | body | The URL to deliver the webhook requests to.                                                                                                                                                               |
+| &nbsp;&nbsp;&nbsp;&nbsp;policy_ids                      | array   | body | List of policy IDs to enable failing policies webhook.                                                                                                                                                    |
+| &nbsp;&nbsp;&nbsp;&nbsp;host_batch_size                 | integer | body | Maximum number of hosts to batch on failing policy webhook requests. The default, 0, means no batching (all hosts failing a policy are sent on one request).                                              |
+| integrations                                            | object  | body | Integrations settings for the team. Note that integrations referenced here must already exist globally, created by a call to [Modify configuration](#modify-configuration).                               |
+| &nbsp;&nbsp;jira                                        | array   | body | Jira integrations configuration.                                                                                                                                                                          |
+| &nbsp;&nbsp;&nbsp;&nbsp;url                             | string  | body | The URL of the Jira server to use.                                                                                                                                                                        |
+| &nbsp;&nbsp;&nbsp;&nbsp;project_key                     | string  | body | The project key of the Jira integration to use. Jira tickets will be created in this project.                                                                                                             |
+| &nbsp;&nbsp;&nbsp;&nbsp;enable_failing_policies         | boolean | body | Whether or not that Jira integration is enabled for failing policies. Only one failing policy automation can be enabled at a given time (enable_failing_policies_webhook and enable_failing_policies).    |
+| &nbsp;&nbsp;zendesk                                     | array   | body | Zendesk integrations configuration.                                                                                                                                                                       |
+| &nbsp;&nbsp;&nbsp;&nbsp;url                             | string  | body | The URL of the Zendesk server to use.                                                                                                                                                                     |
+| &nbsp;&nbsp;&nbsp;&nbsp;group_id                        | integer | body | The Zendesk group id to use. Zendesk tickets will be created in this group.                                                                                                                               |
 | &nbsp;&nbsp;&nbsp;&nbsp;enable_failing_policies         | boolean | body | Whether or not that Zendesk integration is enabled for failing policies. Only one failing policy automation can be enabled at a given time (enable_failing_policies_webhook and enable_failing_policies). |
+| mdm                                                     | object  | body | MDM settings for the team.                                                                                                                                                                                |
+| &nbsp;&nbsp;macos_updates                               | object  | body | MacOS updates settings.                                                                                                                                                                                   |
+| &nbsp;&nbsp;&nbsp;&nbsp;minimum_version                 | string  | body | Hosts that belong to this team and are enrolled into Fleet's MDM will be nudged until their macOS is at or above this version.                                                                            |
+| &nbsp;&nbsp;&nbsp;&nbsp;deadline                        | string  | body | Hosts that belong to this team and are enrolled into Fleet's MDM won't be able to dismiss the Nudge window once this deadline is past.                                                                    |
+
 
 #### Example (add users to a team)
 
@@ -5493,7 +5516,13 @@ _Available in Fleet Premium_
         "policy_ids": null,
         "host_batch_size": 0
       }
-    }
+    },
+    "mdm": {
+      "macos_updates": {
+        "minimum_version": "12.3.1",
+        "deadline": "2022-01-01"
+      }
+    },
   }
 }
 ```

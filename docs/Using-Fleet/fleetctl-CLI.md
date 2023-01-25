@@ -221,9 +221,12 @@ The `fleetctl get <fleet-entity-here> > <configuration-file-name-here>.yml` comm
 
 ### Fleetctl apply
 
-The `fleetctl apply -f <configuration-file-name-here>.yml` allows you to apply the current configuration in the specified file.
+The `fleetctl apply -f <configuration-file-name-here>.yml` allows you to apply the current configuration in the specified file. 
 
-Check out the [configuration files](https://fleetdm.com/docs/deploying/configuration) section of the documentation for example yaml files.
+When a new configuration is applied, agent options are validated. If any errors are found, you will receive an error message describing the issue and the new configuration will not be applied. You can also verify that your agent options are valid without applying using the `--dry-run` flag. Validation is based on the latest version of osquery. If you don't use the latest version of osquery, you can override validation using the `--force` flag. This will update agent options even if they are invalid.
+
+Check out the [configuration files](https://fleetdm.com/docs/using-fleet/configuration-files) section of the documentation for example yaml files.
+
 ## Using fleetctl with an API-only user
 
 When running automated workflows using the Fleet API, we recommend an API-only user's API key rather than the API key of a regular user. A regular user's API key expires frequently for security purposes, requiring routine updates. Meanwhile, an API-only user's key does not expire.
