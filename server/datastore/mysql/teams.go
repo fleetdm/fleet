@@ -358,6 +358,15 @@ func teamFeaturesDB(ctx context.Context, q sqlx.QueryerContext, tid uint) (*flee
 	return &features, nil
 }
 
+func (ds *Datastore) TeamMDMConfig(ctx context.Context, tid uint) (*fleet.TeamMDM, error) {
+	sql := `SELECT config->'$mdm' as mdm FROM teams WHERE id = ?`
+	var mdmConfig *fleet.TeamMDM
+	if err := sqlx.GetContext(ctx, ds.reader, &mdmConfig, sql, tid); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "select team")
+	}
+	return mdmConfig, nil
+}
+
 // DeleteIntegrationsFromTeams removes the deleted integrations from any team
 // that uses it.
 func (ds *Datastore) DeleteIntegrationsFromTeams(ctx context.Context, deletedIntgs fleet.Integrations) error {

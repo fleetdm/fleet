@@ -1,10 +1,12 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"text/template"
 
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -153,17 +155,33 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 			return fleet.OrbitConfig{Notifications: notifs}, err
 		}
 
+		var opts fleet.AgentOptions
 		if teamAgentOptions != nil && len(*teamAgentOptions) > 0 {
-			var opts fleet.AgentOptions
 			if err := json.Unmarshal(*teamAgentOptions, &opts); err != nil {
 				return fleet.OrbitConfig{Notifications: notifs}, err
 			}
-			return fleet.OrbitConfig{
-				Flags:         opts.CommandLineStartUpFlags,
-				Extensions:    opts.Extensions,
-				Notifications: notifs,
-			}, nil
 		}
+
+		mdmConfig, err := svc.ds.TeamMDMConfig(ctx, *host.TeamID)
+		if err != nil {
+			return fleet.OrbitConfig{Notifications: notifs}, err
+		}
+
+		var nudgeConfig bytes.Buffer
+		if mdmConfig != nil &&
+			mdmConfig.MacOSUpdates.Deadline != "" &&
+			mdmConfig.MacOSUpdates.MinimumVersion != "" {
+			if err := nudgeConfigTemplate.Execute(&nudgeConfig, mdmConfig.MacOSUpdates); err != nil {
+				return fleet.OrbitConfig{Notifications: notifs}, err
+			}
+		}
+
+		return fleet.OrbitConfig{
+			Flags:         opts.CommandLineStartUpFlags,
+			Extensions:    opts.Extensions,
+			Notifications: notifs,
+			NudgeConfig:   nudgeConfig.Bytes(),
+		}, nil
 	}
 
 	// team ID is nil, get global flags and options
@@ -177,12 +195,33 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 			return fleet.OrbitConfig{Notifications: notifs}, err
 		}
 	}
+
+	var nudgeConfig bytes.Buffer
+	if config.MDM.MacOSUpdates.Deadline != "" &&
+		config.MDM.MacOSUpdates.MinimumVersion != "" {
+		if err := nudgeConfigTemplate.Execute(&nudgeConfig, config.MDM.MacOSUpdates); err != nil {
+			return fleet.OrbitConfig{Notifications: notifs}, err
+		}
+	}
+
 	return fleet.OrbitConfig{
 		Flags:         opts.CommandLineStartUpFlags,
 		Extensions:    opts.Extensions,
 		Notifications: notifs,
+		NudgeConfig:   nudgeConfig.Bytes(),
 	}, nil
 }
+
+var nudgeConfigTemplate = template.Must(template.New("").Option("missingkey=error").Parse(`
+{
+  "osVersionRequirements": [
+    {
+      "requiredInstallationDate": "{{ .Deadline }}",
+      "requiredMinimumOSVersion": "{{ .MinimumVersion }}"
+    }
+  ]
+}
+`))
 
 /////////////////////////////////////////////////////////////////////////////////
 // Ping orbit endpoint

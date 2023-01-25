@@ -582,6 +582,9 @@ type Datastore interface {
 	// TeamFeatures loads the features enabled for a team.
 	TeamFeatures(ctx context.Context, teamID uint) (*Features, error)
 
+	// TeamMDMConfig loads the MDM config for a team.
+	TeamMDMConfig(ctx context.Context, teamID uint) (*TeamMDM, error)
+
 	// SaveHostPackStats stores (and updates) the pack's scheduled queries stats of a host.
 	SaveHostPackStats(ctx context.Context, hostID uint, stats []PackStats) error
 	// AsyncBatchSaveHostsScheduledQueryStats efficiently saves a batch of hosts'
