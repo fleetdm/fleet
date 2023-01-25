@@ -5,13 +5,10 @@ package pwd_policy
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"github.com/antchfx/xmlquery"
 	tbl_common "github.com/fleetdm/fleet/v4/orbit/pkg/table/common"
 	"github.com/osquery/osquery-go/plugin/table"
 	"os/exec"
-	"strings"
 	"syscall"
 	"time"
 )
@@ -49,10 +46,10 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 	}
 
 	pwpolicyXMLData := string(out)
-	maxFailedAttempts, err := GetIntFromXMLWithTags(pwpolicyXMLData, "dict", "key", "policyAttributeMaximumFailedAuthentications")
-	expiresEveryNDays, err := GetIntFromXMLWithTags(pwpolicyXMLData, "dict", "key", "policyAttributeExpiresEveryNDays")
-	daysToExpiration, err := GetIntFromXMLWithTags(pwpolicyXMLData, "dict", "key", "policyAttributeDaysUntilExpiration")
-	historyDepth, err := GetIntFromXMLWithTags(pwpolicyXMLData, "dict", "key", "policyAttributePasswordHistoryDepth")
+	maxFailedAttempts, err := tbl_common.GetIntFromXMLWithTags(pwpolicyXMLData, "dict", "key", "policyAttributeMaximumFailedAuthentications")
+	expiresEveryNDays, err := tbl_common.GetIntFromXMLWithTags(pwpolicyXMLData, "dict", "key", "policyAttributeExpiresEveryNDays")
+	daysToExpiration, err := tbl_common.GetIntFromXMLWithTags(pwpolicyXMLData, "dict", "key", "policyAttributeDaysUntilExpiration")
+	historyDepth, err := tbl_common.GetIntFromXMLWithTags(pwpolicyXMLData, "dict", "key", "policyAttributePasswordHistoryDepth")
 
 	return []map[string]string{
 		{"maxFailedAttempts": maxFailedAttempts,
@@ -60,29 +57,4 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 			"daysToExpiration":  daysToExpiration,
 			"historyDepth":      historyDepth},
 	}, nil
-}
-
-// GetIntFromXMLWithTags Looking for a sequence of tags and getting the following nested integer as string
-// The following example xml will return "5" if called with parentTag = "parentTag", tag = "tag", tagValue = "tagValue"
-//				<parentTag>
-//					<tag>tagValue</tag>
-//					<integer>5</integer>
-//				</parentTag>
-func GetIntFromXMLWithTags(xml string, parentTag string, tag string, tagValue string) (maxFailedAttempts string, err error) {
-	doc, err := xmlquery.Parse(strings.NewReader(xml))
-	if err != nil {
-		return "", errors.New("can't parse pwpolicy xml")
-	}
-
-	for _, channel := range xmlquery.Find(doc, "//"+parentTag) {
-		if n := channel.SelectElement(tag); n != nil {
-			if n.InnerText() != tagValue {
-				continue
-			}
-		}
-		if n := channel.SelectElement("integer"); n != nil {
-			return n.InnerText(), nil
-		}
-	}
-	return "", errors.New("can't find maxFailedAttempts")
 }
