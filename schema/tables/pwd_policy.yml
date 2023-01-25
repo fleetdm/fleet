@@ -1,0 +1,29 @@
+name: pwd_policy
+platforms:
+  - darwin
+description: Password Policiy (e.g max failed password attempts).
+columns:
+  - name: maxFailedAttempts
+    type: integer
+    required: <=5
+    description: The account lockout threshold specifies the amount of times a user can enter an incorrect password before a lockout will occur. Ensure that a lockout threshold is part of the password policy on the computer.
+  - name: minLength
+    type: integer
+    required: >=15
+    description: |
+      A minimum password length is the fewest number of characters a password can contain to meet a system's requirements.
+      Ensure that a minimum of a 15-character password is part of the password policy on the computer.
+      Where the confidentiality of encrypted information in FileVault is more of a concern, requiring a longer password or passphrase may be sufficient rather than imposing additional complexity requirements that may be self-defeating.
+  - name: maxPINAgeInDays
+    type: integer
+    required: <=365
+    description: |
+      Over time, passwords can be captured by third parties through mistakes, phishing attacks, third-party breaches, or merely brute-force attacks. To reduce the risk of exposure and to decrease the incentives of password reuse (passwords that are not forced to be changed periodically generally are not ever changed), users should reset passwords periodically. This control uses 365 days as the acceptable value. Some organizations may be more or less restrictive. This control mainly exists to mitigate against password reuse of the macOS account password in other realms that may be more prone to compromise. Attackers take advantage of exposed information to attack other accounts.
+  - name: pinHistory
+    type: integer
+    required: >=15
+    description: |
+          Over time, passwords can be captured by third parties through mistakes, phishing attacks, third-party breaches, or merely brute-force attacks. To reduce the risk of exposure and to decrease the incentives of password reuse (passwords that are not forced to be changed periodically generally are not ever changed), users must reset passwords periodically. This control ensures that previous passwords are not reused immediately by keeping a history of previous password hashes. Ensure that password history checks are part of the password policy on the computer. This control checks whether a new password is different than the previous 15. The latest NIST guidance based on exploit research referenced in this section details how one of the greatest risks is password exposure rather than password cracking. Passwords should be changed to a new unique value whenever a password might have been exposed to anyone other than the account holder. Attackers have maintained persistent control based on predictable password change patterns and substantially different patterns should be used in case of a leak.
+notes: >-
+  - This table is not a core osquery table. It is included as part of Fleetd, the osquery manager from Fleet.
+evented: false
