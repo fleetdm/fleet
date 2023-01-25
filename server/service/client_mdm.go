@@ -27,6 +27,6 @@ func (c *Client) RequestAppleCSR(email, org string) (*fleet.AppleCSR, error) {
 		Organization: org,
 	}
 	var responseBody requestMDMAppleCSRResponse
-	err := c.authenticatedRequest(request, verb, path)
+	err := c.authenticatedRequest(request, verb, path, &responseBody)
 	return responseBody.AppleCSR, err
 }
