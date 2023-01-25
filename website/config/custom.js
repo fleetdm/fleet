@@ -128,7 +128,7 @@ module.exports.custom = {
     'docs/Using-Fleet/FAQ.md': ['ksatter'],
 
     'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml': ['mikermcneil','zhumo','eashaw'],// (standard query library)
-    'schema': ['zhumo','eashaw','zwass','mikermcneil'],// (Osquery table schema)
+    'schema': ['zhumo','eashaw','zwass','mikermcneil','sharon-fdm','lucasmrod'],// (Osquery table schema)
   },
   confidentialGithubRepoDRIByPath: {
     'readme.md': ['mikermcneil', 'zwass', 'charlottechance', 'hollidayn'],
