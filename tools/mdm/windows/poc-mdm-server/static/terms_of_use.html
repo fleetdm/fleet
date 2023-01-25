@@ -1,0 +1,34 @@
+<html>
+  <head>
+    <title>FleetDM Terms and Conditions</title>
+  </head>
+  <body>
+    <center>
+      <img src="https://fleetdm.com/images/logo-blue-162x92@2x.png">
+      <br>
+      <h1>FleetDM Term Of Service</h1>
+      <br> Terms and Conditions text should go here <center>
+        <br>
+        <!--<button type="button" onClick="closeBtn()">Decline</button>-->
+        <button type="button" onClick="acceptBtn()">Accept</button>
+        <script>
+          function acceptBtn() {
+            var urlParams = new URLSearchParams(window.location.search);
+            if (!urlParams.has('redirect_uri')) {
+              alert('Redirect url not found. Did you open this in your broswer?');
+            } else {
+              window.location = urlParams.get('redirect_uri') + "?IsAccepted=true&OpaqueBlob=TODOCustomDataFromAzureAD";
+            }
+          }
+
+          function closeBtn() {
+            var urlParams = new URLSearchParams(window.location.search);
+            if (!urlParams.has('redirect_uri')) {
+              alert('Redirect url not found. Did you open this in your broswer?');
+            } else {
+              window.location = urlParams.get('redirect_uri') + "?IsAccepted=false&error=access_denied&error_description=Access%20is%20denied%2E";
+            }
+          }
+        </script>
+  </body>
+</html>
