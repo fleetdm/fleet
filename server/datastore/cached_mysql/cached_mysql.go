@@ -23,6 +23,8 @@ const (
 	defaultTeamAgentOptionsExpiration = 1 * time.Minute
 	teamFeaturesKey                   = "TeamFeatures:team:%d"
 	defaultTeamFeaturesExpiration     = 1 * time.Minute
+	teamMDMConfigKey                  = "TeamMDMConfig:team:%d"
+	defaultTeamMDMConfigExpiration    = 1 * time.Minute
 )
 
 // cloner represents any type that can clone itself. Used by types to provide a more efficient clone method.
@@ -106,6 +108,7 @@ type cachedMysql struct {
 	scheduledQueriesExp time.Duration
 	teamAgentOptionsExp time.Duration
 	teamFeaturesExp     time.Duration
+	teamMDMConfigExp    time.Duration
 }
 
 type Option func(*cachedMysql)
@@ -131,6 +134,12 @@ func WithTeamAgentOptionsExpiration(d time.Duration) Option {
 func WithTeamFeaturesExpiration(d time.Duration) Option {
 	return func(o *cachedMysql) {
 		o.teamFeaturesExp = d
+	}
+}
+
+func WithTeamMDMConfigExpiration(d time.Duration) Option {
+	return func(o *cachedMysql) {
+		o.teamMDMConfigExp = d
 	}
 }
 
@@ -263,6 +272,21 @@ func (ds *cachedMysql) TeamFeatures(ctx context.Context, teamID uint) (*fleet.Fe
 	return features, nil
 }
 
+func (ds *cachedMysql) TeamMDMConfig(ctx context.Context, teamID uint) (*fleet.TeamMDM, error) {
+	key := fmt.Sprintf(teamMDMConfigKey, teamID)
+	if x, found := ds.c.Get(key); found {
+		if cfg, ok := x.(*fleet.TeamMDM); ok {
+			return cfg, nil
+		}
+	}
+
+	cfg, err := ds.Datastore.TeamMDMConfig(ctx, teamID)
+	if err != nil {
+		return nil, err
+	}
+	return cfg, nil
+}
+
 func (ds *cachedMysql) SaveTeam(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
 	team, err := ds.Datastore.SaveTeam(ctx, team)
 	if err != nil {
@@ -271,9 +295,11 @@ func (ds *cachedMysql) SaveTeam(ctx context.Context, team *fleet.Team) (*fleet.T
 
 	agentOptionsKey := fmt.Sprintf(teamAgentOptionsKey, team.ID)
 	featuresKey := fmt.Sprintf(teamFeaturesKey, team.ID)
+	mdmConfigKey := fmt.Sprintf(teamMDMConfigKey, team.ID)
 
 	ds.c.Set(agentOptionsKey, team.Config.AgentOptions, ds.teamAgentOptionsExp)
 	ds.c.Set(featuresKey, &team.Config.Features, ds.teamFeaturesExp)
+	ds.c.Set(mdmConfigKey, &team.Config.MDM, ds.teamMDMConfigExp)
 
 	return team, nil
 }
@@ -286,9 +312,11 @@ func (ds *cachedMysql) DeleteTeam(ctx context.Context, teamID uint) error {
 
 	agentOptionsKey := fmt.Sprintf(teamAgentOptionsKey, teamID)
 	featuresKey := fmt.Sprintf(teamFeaturesKey, teamID)
+	mdmConfigKey := fmt.Sprintf(teamMDMConfigKey, teamID)
 
 	ds.c.Delete(agentOptionsKey)
 	ds.c.Delete(featuresKey)
+	ds.c.Delete(mdmConfigKey)
 
 	return nil
 }
