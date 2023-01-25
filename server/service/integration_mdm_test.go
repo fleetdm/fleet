@@ -92,11 +92,11 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 		if s.fleetDMFailCSR.Swap(false) {
 			// fail this call
 			w.WriteHeader(http.StatusBadRequest)
-			w.Write([]byte("bad request"))
+			_, _ = w.Write([]byte("bad request"))
 			return
 		}
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("ok"))
+		_, _ = w.Write([]byte("ok"))
 	}))
 	s.T().Setenv("TEST_FLEETDM_API_URL", srv.URL)
 	s.T().Cleanup(srv.Close)
