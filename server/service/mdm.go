@@ -131,12 +131,19 @@ func (svc *Service) RequestMDMAppleCSR(ctx context.Context, email, org string) (
 		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("organization", "missing organization"))
 	}
 
+	// create the raw SCEP CA cert and key (creating before the CSR signing
+	// request so that nothing can fail after the request is made, except for the
+	// network during the response of course)
+	scepCACert, scepCAKey, err := apple_mdm.NewSCEPCACertKey()
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "generate SCEP CA cert and key")
+	}
+
 	// create the APNs CSR
 	apnsCSR, apnsKey, err := apple_mdm.GenerateAPNSCSRKey(email, org)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "generate APNs CSR")
 	}
-	apnsKeyPEM := apple_mdm.EncodePrivateKeyPEM(apnsKey)
 
 	// request the signed APNs CSR from fleetdm.com
 	client := fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second))
@@ -145,15 +152,10 @@ func (svc *Service) RequestMDMAppleCSR(ctx context.Context, email, org string) (
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 
-	// create the raw SCEP CA cert and key
-	scepCACert, scepCAKey, err := apple_mdm.NewSCEPCACertKey()
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "generate SCEP CA cert and key")
-	}
-
-	// PEM-encode the SCEP cert and key
+	// PEM-encode the cert and keys
 	scepCACertPEM := apple_mdm.EncodeCertPEM(scepCACert)
 	scepCAKeyPEM := apple_mdm.EncodePrivateKeyPEM(scepCAKey)
+	apnsKeyPEM := apple_mdm.EncodePrivateKeyPEM(apnsKey)
 
 	return &fleet.AppleCSR{
 		APNsKey:  apnsKeyPEM,

@@ -17,3 +17,16 @@ func (c *Client) GetAppleBM() (*fleet.AppleBM, error) {
 	err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, "")
 	return responseBody.AppleBM, err
 }
+
+// RequestAppleCSR requests a signed CSR from the Fleet server and returns the
+// SCEP certificate and key along with the APNs key used for the CSR.
+func (c *Client) RequestAppleCSR(email, org string) (*fleet.AppleCSR, error) {
+	verb, path := "POST", "/api/latest/fleet/mdm/apple/request_csr"
+	request := requestMDMAppleCSRRequest{
+		EmailAddress: email,
+		Organization: org,
+	}
+	var responseBody requestMDMAppleCSRResponse
+	err := c.authenticatedRequest(request, verb, path)
+	return responseBody.AppleCSR, err
+}

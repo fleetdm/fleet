@@ -9,9 +9,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"time"
 
-	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/service"
@@ -117,44 +115,23 @@ Generating APNs key, Simple Certificate Enrollment Protocol (SCEP) certificate, 
 				email,
 			)
 
-			// TODO(mna): replace all this by a request to POST /mdm/apple/request_csr
-
-			// create apns csr and send to fleetdm.com
-			apnsCSR, apnsKey, err := apple_mdm.GenerateAPNSCSRKey(email, org)
+			client, err := clientFromCLI(c)
 			if err != nil {
-				return fmt.Errorf("generate apns csr: %w", err)
+				return err
+			}
+			csr, err := client.RequestAppleCSR(email, org)
+			if err != nil {
+				return err
 			}
 
-			apnsKeyPEM := apple_mdm.EncodePrivateKeyPEM(apnsKey)
-
-			err = os.WriteFile(apnsKeyPath, apnsKeyPEM, 0600)
-			if err != nil {
-				return fmt.Errorf("write private key: %w", err)
+			if err := os.WriteFile(apnsKeyPath, csr.APNsKey, 0600); err != nil {
+				return fmt.Errorf("failed to write APNs private key: %w", err)
 			}
-
-			client := fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second))
-
-			err = apple_mdm.GetSignedAPNSCSR(client, apnsCSR)
-			if err != nil {
-				return fmt.Errorf("get signed apns csr: %w", err)
+			if err := os.WriteFile(scepCACertPath, csr.SCEPCert, 0600); err != nil {
+				return fmt.Errorf("failed to write SCEP CA certificate: %w", err)
 			}
-
-			// init scep ca
-			scepCACert, scepCAKey, err := apple_mdm.NewSCEPCACertKey()
-			if err != nil {
-				return fmt.Errorf("init scep CA: %w", err)
-			}
-
-			scepCACertPEM := apple_mdm.EncodeCertPEM(scepCACert)
-			err = os.WriteFile(scepCACertPath, scepCACertPEM, 0600)
-			if err != nil {
-				return fmt.Errorf("write scep ca certificate: %w", err)
-			}
-
-			scepCAKeyPEM := apple_mdm.EncodePrivateKeyPEM(scepCAKey)
-			err = os.WriteFile(scepCAKeyPath, scepCAKeyPEM, 0600)
-			if err != nil {
-				return fmt.Errorf("write scep ca private key: %w", err)
+			if err := os.WriteFile(scepCAKeyPath, csr.SCEPKey, 0600); err != nil {
+				return fmt.Errorf("failed to write SCEP CA private key: %w", err)
 			}
 
 			fmt.Fprintf(
