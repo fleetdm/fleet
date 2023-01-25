@@ -398,7 +398,7 @@ const Integrations = (): JSX.Element => {
 
   return (
     <div className={`${baseClass}`}>
-      <h2 className={`${baseClass}__title`}>Ticket Destinations</h2>
+      <h2 className={`${baseClass}__title`}>Ticket destinations</h2>
       <p className={`${baseClass}__page-description`}>
         Add or edit integrations to create tickets when Fleet detects new
         vulnerabilities.
