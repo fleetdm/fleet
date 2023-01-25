@@ -58,7 +58,7 @@ type Service interface {
 	// if the team id is not nil for host, otherwise it returns flags from global
 	// agent options. It also returns any notifications that fleet wants to surface
 	// to fleetd (formerly orbit).
-	GetOrbitConfig(ctx context.Context) (flags json.RawMessage, extensions json.RawMessage, notifications OrbitConfigNotifications, err error)
+	GetOrbitConfig(ctx context.Context) (OrbitConfig, error)
 
 	// SetOrUpdateDeviceAuthToken creates or updates a device auth token for the given host.
 	SetOrUpdateDeviceAuthToken(ctx context.Context, authToken string) error
