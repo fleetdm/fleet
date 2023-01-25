@@ -40,6 +40,7 @@ const baseClass = "operating-systems";
 
 const EmptyOperatingSystems = (platform: ISelectedPlatform): JSX.Element => (
   <EmptyTable
+    className={`${baseClass}__os-empty-table`}
     header={`No${
       ` ${PLATFORM_DISPLAY_NAMES[platform]}` || ""
     } operating systems detected.`}
