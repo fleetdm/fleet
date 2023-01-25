@@ -255,7 +255,7 @@ const ManageHostsPage = ({
     queryParams?.mdm_id !== undefined
       ? parseInt(queryParams.mdm_id, 10)
       : undefined;
-  const mdmEnrollmentStatus = queryParams?.mdm_enrollment_status;
+  const mdmEnrollmentStatus = queryParams?.mdm_enrollment_status; // NOTE: this is the filter query param, it is confusing but this one is still called "mdm_enrollment_status"
   const { os_id: osId, os_name: osName, os_version: osVersion } = queryParams;
   const munkiIssueId =
     queryParams?.munki_issue_id !== undefined
