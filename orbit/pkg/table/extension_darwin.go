@@ -6,6 +6,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/privaterelay"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/pwd_policy"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/user_login_settings"
+	"github.com/osquery/osquery-go"
 	"github.com/osquery/osquery-go/plugin/table"
 
 	"github.com/macadmins/osquery-extension/tables/filevaultusers"
