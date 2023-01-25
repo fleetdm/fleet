@@ -1148,6 +1148,7 @@ The `overrides` key allows you to segment hosts, by their platform, and supply t
 
 In the example file below, all Darwin and Ubuntu hosts will **only** receive the options specified in their respective overrides sections.
 
+> IMPORTANT: If a given option is not specified in a platform override section, its default value will be enforced.
 
 ```yaml
 agent_options:
