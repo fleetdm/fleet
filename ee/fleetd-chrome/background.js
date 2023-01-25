@@ -15,39 +15,43 @@ let sqlite3;
     capi.sqlite3_sourceid()
   );
   const db = new oo.DB();
-  const resultRows = [];
-  db.exec({
-    sql: "select 1 as foo",
-    rowMode: "object",
-    resultRows,
-  });
-  console.log("Result rows:", resultRows);
 
   const VT = sqlite3.vtab;
-  const tmplCols = Object.assign(Object.create(null), {
-    A: 0,
-    B: 1,
-  });
+  const columns = {
+    name: 0,
+    version: 1,
+    platform: 2,
+    platform_like: 3,
+    arch: 4,
+  };
 
   const vtabTrace = (methodName, ...args) =>
     console.debug(`sqlite3_module::${methodName}():`, ...args);
   const modConfig = {
     /* catchExceptions changes how the methods are wrapped */
     catchExceptions: true,
-    name: "vtab2test",
+    name: "os_version",
     methods: {
-      xCreate(pDb, pAux, argc, argv, ppVtab, pzErr) {
+      xConnect(pDb, pAux, argc, argv, ppVtab, pzErr) {
         vtabTrace("xCreate", ...arguments);
         const args = wasm.cArgvToJs(argc, argv);
         vtabTrace("xCreate", "argv:", args);
-        const rc = capi.sqlite3_declare_vtab(pDb, "CREATE TABLE ignored(a,b)");
+        const colNames = Object.keys(columns).join(", ");
+        vtabTrace("xCreate", "colNames:", colNames);
+        const rc = capi.sqlite3_declare_vtab(
+          pDb,
+          `CREATE TABLE os_version(${colNames})`
+        );
         if (rc === 0) {
           const t = VT.xVtab.create(ppVtab);
           vtabTrace("xCreate", ...arguments, " ppVtab =", t.pointer);
         }
         return rc;
       },
-      xConnect: true,
+      // Make this "eponymous-only" meaning it comes attached and can't be attached through a CREATE
+      // TABLE statement.
+      // https://sqlite.org/vtab.html#eponymous_only_virtual_tables
+      xCreate: null,
       xDestroy(pVtab) {
         vtabTrace("xDestroy/xDisconnect", pVtab);
         VT.xVtab.dispose(pVtab);
@@ -67,17 +71,27 @@ let sqlite3;
       xNext(pCursor) {
         vtabTrace("xNext", ...arguments);
         const c = VT.xCursor.get(pCursor);
-        ++c._rowId;
+        console.log("rows", c.rows);
+        c._rowId += 1;
       },
       xColumn(pCursor, pCtx, iCol) {
         vtabTrace("xColumn", ...arguments);
         const c = VT.xCursor.get(pCursor);
         switch (iCol) {
-          case tmplCols.A:
-            capi.sqlite3_result_int(pCtx, 1000 + c._rowId);
+          case columns.name:
+            capi.sqlite3_result_js(pCtx, "name");
             break;
-          case tmplCols.B:
-            capi.sqlite3_result_int(pCtx, 2000 + c._rowId);
+          case columns.version:
+            capi.sqlite3_result_js(pCtx, "version");
+            break;
+          case columns.platform:
+            capi.sqlite3_result_js(pCtx, "platform");
+            break;
+          case columns.platform_like:
+            capi.sqlite3_result_js(pCtx, "platform_like");
+            break;
+          case columns.arch:
+            capi.sqlite3_result_js(pCtx, "arch");
             break;
           default:
             sqlite3.SQLite3Error.toss("Invalid column id", iCol);
@@ -90,12 +104,13 @@ let sqlite3;
       },
       xEof(pCursor) {
         vtabTrace("xEof", ...arguments);
-        return VT.xCursor.get(pCursor)._rowId >= 10;
+        return VT.xCursor.get(pCursor)._rowId > 0;
       },
       xFilter(pCursor, idxNum, idxCStr, argc, argv /* [sqlite3_value* ...] */) {
         vtabTrace("xFilter", ...arguments);
         const c = VT.xCursor.get(pCursor);
         c._rowId = 0;
+        c.rows = [{ foo: "bar" }, { baz: "bing" }];
         const list = capi.sqlite3_values_to_js(argc, argv);
       },
       xBestIndex(pVtab, pIdxInfo) {
@@ -113,29 +128,10 @@ let sqlite3;
   db.checkRc(
     capi.sqlite3_create_module(db.pointer, modConfig.name, tmplMod.pointer, 0)
   );
-  db.exec([
-    "create virtual table testvtab2 using ",
-    modConfig.name,
-    "(arg1 blah, arg2 bloop)",
-  ]);
-  if (0) {
-    /* If we DROP TABLE then xDestroy() is called. If the
-             vtab is instead destroyed when the db is closed,
-             xDisconnect() is called. */
-    db.onclose.disposeBefore.push(function (db) {
-      console.debug(
-        "Explicitly dropping testvtab2 via disposeBefore handler..."
-      );
-      db.exec(
-        /** DROP TABLE is the only way to get xDestroy() to be called. */
-        "DROP TABLE testvtab2"
-      );
-    });
-  }
-  const list = db.selectArrays(
-    "SELECT a,b FROM testvtab2 where a<9999 and b>1 order by a, b"
+  const rows = db.selectObjects(
+    "SELECT * FROM os_version"
     /* Query is shaped so that it will ensure that some
              constraints end up in xBestIndex(). */
   );
-  console.log(list);
+  console.log(rows);
 })();
