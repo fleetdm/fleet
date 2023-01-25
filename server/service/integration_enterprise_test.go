@@ -2114,6 +2114,14 @@ func (s *integrationEnterpriseTestSuite) TestResetAutomation() {
 func (s *integrationEnterpriseTestSuite) TestOrbitConfigNudgeSettings() {
 	t := s.T()
 
+	// ensure the config is empty before starting
+	s.applyConfig([]byte(`
+  mdm:
+    macos_updates:
+      deadline: ""
+      minimum_version: ""
+ `))
+
 	var resp orbitGetConfigResponse
 	// missing orbit key
 	s.DoJSON("POST", "/api/fleet/orbit/config", nil, http.StatusUnauthorized, &resp)
