@@ -49,25 +49,31 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 	}
 
 	pwpolicyXMLData := string(out)
-	maxFailedAttempts, err := FindMaxFailedAttempts(pwpolicyXMLData)
+	maxFailedAttempts, err := GetIntFromXMLWithTags(pwpolicyXMLData, "dict", "key", "maxFailedAttempts")
 
 	return []map[string]string{
-		{"maxFailedAttempts": maxFailedAttempts},
-		{"minLength": "100"},
-		{"maxPINAgeInDays": "100"},
-		{"pinHistory": "100"},
+		{"maxFailedAttempts": maxFailedAttempts,
+			"minLength":       "100",
+			"maxPINAgeInDays": "100",
+			"pinHistory":      "100"},
 	}, nil
 }
 
-func FindMaxFailedAttempts(xml string) (maxFailedAttempts string, err error) {
+// GetIntFromXMLWithTags Looking for a sequence of tags and getting the following nested integer as string
+// The following example xml will return "5" if called with parentTag = "parentTag", tag = "tag", tagValue = "tagValue"
+//				<parentTag>
+//					<tag>tagValue</tag>
+//					<integer>5</integer>
+//				</parentTag>
+func GetIntFromXMLWithTags(xml string, parentTag string, tag string, tagValue string) (maxFailedAttempts string, err error) {
 	doc, err := xmlquery.Parse(strings.NewReader(xml))
 	if err != nil {
 		return "", errors.New("can't parse pwpolicy xml")
 	}
 
-	for _, channel := range xmlquery.Find(doc, "//dict") {
-		if n := channel.SelectElement("key"); n != nil {
-			if n.InnerText() != "policyAttributeMaximumFailedAuthentications" {
+	for _, channel := range xmlquery.Find(doc, "//"+parentTag) {
+		if n := channel.SelectElement(tag); n != nil {
+			if n.InnerText() != tagValue {
 				continue
 			}
 		}
