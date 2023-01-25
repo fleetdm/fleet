@@ -22,7 +22,7 @@ columns:
     type: integer
     required: >=15
     description: |
-          This parameter indicates the depth of password hisotory which a new password can't be identical to.
+          This parameter indicates the depth of password history which a new password can't be identical to.
 notes: >-
   - This table is not a core osquery table. It is included as part of Fleetd, the osquery manager from Fleet.
 evented: false
