@@ -374,7 +374,6 @@ github.com/docker/distribution v2.8.0+incompatible h1:l9EaZDICImO1ngI+uTifW+ZYvv
 github.com/docker/distribution v2.8.0+incompatible/go.mod h1:J2gT2udsDAN96Uj4KfcMRqY0/ypR+oyYUYmja8H+y+w=
 github.com/docker/docker v20.10.17+incompatible h1:JYCuMrWaVNophQTOrMMoSwudOVEfcegoZZrleKc1xwE=
 github.com/docker/docker v20.10.17+incompatible/go.mod h1:eEKB0N0r5NX/I1kEveEz05bcu8tLC/8azJZsviup8Sk=
-github.com/docker/go v1.5.1-1 h1:hr4w35acWBPhGBXlzPoHpmZ/ygPjnmFVxGxxGnMyP7k=
 github.com/docker/go v1.5.1-1/go.mod h1:CADgU4DSXK5QUlFslkQu2yW2TKzFZcXq/leZfM0UH5Q=
 github.com/docker/go-connections v0.4.0 h1:El9xVISelRB7BuFusrZozjnkIM5YnzCViNKohAFqRJQ=
 github.com/docker/go-connections v0.4.0/go.mod h1:Gbd7IOopHjR8Iph03tsViu4nIes5XhDvyHbTtUxmeec=
@@ -883,7 +882,6 @@ github.com/knightsc/system_policy v1.1.1-0.20211029142728-5f4c0d5419cc h1:g2S0GQ
 github.com/knightsc/system_policy v1.1.1-0.20211029142728-5f4c0d5419cc/go.mod h1:5e34JEkxWsOeAd9jvcxkz01tAY/JAGFuabGnNBJ6TT4=
 github.com/kolide/launcher v0.11.25-0.20220321235155-c3e9480037d2 h1:PozvR7w1/Gd5X5xVn71il8vU68Pqwl3beQVF6k9fCm4=
 github.com/kolide/launcher v0.11.25-0.20220321235155-c3e9480037d2/go.mod h1:4dUso03feHUqlHfUJ+6dHXRuyPFFTB7+dcxgTNr1qUY=
-github.com/kolide/updater v0.0.0-20190315001611-15bbc19b5b80 h1:XFzdAHvTlbQoHZdEgOEiFt93eyfXP6VZCwH5p+lPpBg=
 github.com/kolide/updater v0.0.0-20190315001611-15bbc19b5b80/go.mod h1:x3dEGYbZovhD1t8OwEgdyu/4ZCvrn9QvkbPtOZnul8k=
 github.com/konsorten/go-windows-terminal-sequences v1.0.1/go.mod h1:T0+1ngSBFLxvqU3pZ+m/2kptfBszLMUkC4ZK/EgS/cQ=
 github.com/konsorten/go-windows-terminal-sequences v1.0.2/go.mod h1:T0+1ngSBFLxvqU3pZ+m/2kptfBszLMUkC4ZK/EgS/cQ=
@@ -1064,6 +1062,7 @@ github.com/pelletier/go-toml v1.6.0/go.mod h1:5N711Q9dKgbdkxHL+MEfF31hpT7l0S0s/t
 github.com/pelletier/go-toml v1.8.1/go.mod h1:T2/BmBdy8dvIRq1a/8aqjN41wvWlN4lrapLU/GW4pbc=
 github.com/pelletier/go-toml v1.9.3 h1:zeC5b1GviRUyKYd6OJPvBU/mcVDVoL1OhT17FCt5dSQ=
 github.com/pelletier/go-toml v1.9.3/go.mod h1:u1nR/EPcESfeI/szUZKdtJ0xRNbUoANCkoOuaOx1Y+c=
+github.com/peterbourgon/ff/v3 v3.0.0 h1:eQzEmNahuOjQXfuegsKQTSTDbf4dNvr/eNLrmJhiH7M=
 github.com/peterbourgon/ff/v3 v3.0.0/go.mod h1:UILIFjRH5a/ar8TjXYLTkIvSvekZqPm5Eb/qbGk6CT0=
 github.com/pingcap/errors v0.11.4 h1:lFuQV/oaUMGcD2tqt+01ROSmJs75VG1ToEOkZIZ4nE4=
 github.com/pingcap/errors v0.11.4/go.mod h1:Oi8TUi2kEtXXLMJk9l1cGmz20kV3TaQ0usTwv5KuLY8=

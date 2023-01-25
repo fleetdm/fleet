@@ -13,7 +13,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/kolide/dataflatten"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/kolide/tables/dataflattentable"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/kolide/tables/tablehelpers"
-	"github.com/fleetdm/fleet/v4/orbit/pkg/table/kolide/windows/windowsupdate"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/kolide/windowsupdate"
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"github.com/osquery/osquery-go"

@@ -36,7 +36,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/fleetdm/fleet/v4/orbit/pkg/table/kolide/contexts/ctxlog"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/kolide/ctxlog"
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"github.com/go-ole/go-ole"

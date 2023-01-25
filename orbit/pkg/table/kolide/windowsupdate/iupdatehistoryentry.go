@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/orbit/pkg/table/kolide/windows/oleconv"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/kolide/oleconv"
 	"github.com/go-ole/go-ole"
 	"github.com/go-ole/go-ole/oleutil"
 )
