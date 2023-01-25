@@ -471,6 +471,7 @@ LIMIT
 	}
 	host.Users = users
 
+	postFillHost(&host)
 	return &host, nil
 }
 
@@ -488,6 +489,17 @@ const hostMDMSelect = `,
 		ELSE hmdm.server_url
 	END as mdm_server_url
 	`
+
+func postFillHost(host *fleet.Host) {
+	host.MDM.EnrollmentStatus = host.DBOnlyMDMEnrollmentStatus
+	host.MDM.ServerURL = host.DBOnlyMDMServerURL
+}
+
+func postFillHosts(hosts []*fleet.Host) {
+	for _, h := range hosts {
+		postFillHost(h)
+	}
+}
 
 func amountEnrolledHostsByOSDB(ctx context.Context, db sqlx.QueryerContext) (byOS map[string][]fleet.HostsCountByOSVersion, totalCount int, err error) {
 	var hostsByOS []struct {
@@ -612,6 +624,7 @@ func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt
 		return nil, ctxerr.Wrap(ctx, err, "list hosts")
 	}
 
+	postFillHosts(hosts)
 	return hosts, nil
 }
 
@@ -1507,6 +1520,8 @@ func (ds *Datastore) SearchHosts(ctx context.Context, filter fleet.TeamFilter, m
 	if err := sqlx.SelectContext(ctx, ds.reader, &hosts, query, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "searching hosts")
 	}
+
+	postFillHosts(hosts)
 	return hosts, nil
 }
 
@@ -1604,6 +1619,7 @@ func (ds *Datastore) HostByIdentifier(ctx context.Context, identifier string) (*
 	}
 	host.PackStats = packStats
 
+	postFillHost(host)
 	return host, nil
 }
 
@@ -2387,9 +2403,9 @@ func (ds *Datastore) GetHostMDMCheckinInfo(ctx context.Context, hostUUID string)
 	var hmdm fleet.HostMDMCheckinInfo
 	err := sqlx.GetContext(ctx, ds.reader, &hmdm, `
 		SELECT
-			h.hardware_serial, 
+			h.hardware_serial,
 			COALESCE(hm.installed_from_dep, false) as installed_from_dep,
-			hd.display_name 
+			hd.display_name
 		FROM
 			hosts h
 		LEFT JOIN
