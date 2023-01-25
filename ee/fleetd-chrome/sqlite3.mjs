@@ -15156,7 +15156,7 @@ self.sqlite3ApiBootstrap.initializers.push(function(sqlite3){
   const installMethod = function callee(
     tgt, name, func, applyArgcCheck = callee.installMethodArgcCheck
   ){
-    if(!(tgt instanceof sqlite3.StructBinder.StructType)){
+    if(false){
       toss("Usage error: target object is-not-a StructType.");
     }else if(!(func instanceof Function) && !wasm.isPtr(func)){
       toss("Usage errror: expecting a Function or WASM pointer to one.");

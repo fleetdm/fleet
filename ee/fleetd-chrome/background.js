@@ -1,45 +1,36 @@
-let sqlite3global;
-importScripts("sqlite3.js");
-self.sqlite3InitModule().then((sqlite3) => {
-  console.log("Loaded sqlite3", sqlite3.version);
+import { default as sqlite3InitModule } from "./sqlite3.mjs";
+
+let sqlite3;
+
+(async () => {
+  sqlite3 = await sqlite3InitModule();
 
   const capi = sqlite3.capi; /* C-style API */
   const oo = sqlite3.oo1; /* high-level OO API */
   const wasm = sqlite3.wasm;
+
   console.log(
     "sqlite3 version",
     capi.sqlite3_libversion(),
     capi.sqlite3_sourceid()
   );
   const db = new oo.DB();
-  console.log("transient db =", db.filename);
   const resultRows = [];
   db.exec({
     sql: "select 1 as foo",
     rowMode: "object",
     resultRows,
   });
-  console.log("Result rows:", JSON.stringify(resultRows, undefined, 2));
-
-  sqlite3global = sqlite3;
+  console.log("Result rows:", resultRows);
 
   const VT = sqlite3.vtab;
   const tmplCols = Object.assign(Object.create(null), {
     A: 0,
     B: 1,
   });
-  /**
-           The vtab demonstrated here is a JS-ification of
-           ext/misc/templatevtab.c.
-        */
-  const throwOnCreate = 1 ? 0 : capi.SQLITE_CANTOPEN;
-  /* ^^^ just for testing exception wrapping. Note that sqlite
-           always translates errors from a vtable to a generic
-           SQLITE_ERROR unless it's from xConnect()/xCreate() and that
-           callback sets an error string. */ const vtabTrace = 1
-    ? () => {}
-    : (methodName, ...args) =>
-        console.debug(`sqlite3_module::${methodName}():`, ...args);
+
+  const vtabTrace = (methodName, ...args) =>
+    console.debug(`sqlite3_module::${methodName}():`, ...args);
   const modConfig = {
     /* catchExceptions changes how the methods are wrapped */
     catchExceptions: true,
@@ -47,12 +38,6 @@ self.sqlite3InitModule().then((sqlite3) => {
     methods: {
       xCreate(pDb, pAux, argc, argv, ppVtab, pzErr) {
         vtabTrace("xCreate", ...arguments);
-        if (throwOnCreate) {
-          sqlite3.SQLite3Error.toss(
-            throwOnCreate,
-            "Throwing a test exception."
-          );
-        }
         const args = wasm.cArgvToJs(argc, argv);
         vtabTrace("xCreate", "argv:", args);
         const rc = capi.sqlite3_declare_vtab(pDb, "CREATE TABLE ignored(a,b)");
@@ -153,33 +138,4 @@ self.sqlite3InitModule().then((sqlite3) => {
              constraints end up in xBestIndex(). */
   );
   console.log(list);
-});
-
-const alarmName = "10s";
-createAlarm();
-
-chrome.runtime.onStartup.addListener(function () {
-  console.log("onStartup");
-  chrome.alarms.create(alarmName, { when: Date.now() + 10 * 1000 });
-});
-
-chrome.runtime.onInstalled.addListener(function () {
-  console.log("onInstalled");
-  chrome.alarms.create(alarmName, {
-    when: Date.now() + 10 * 1000,
-    periodInMinutes: 1,
-  });
-});
-
-chrome.alarms.onAlarm.addListener(function (alarm) {
-  if (alarm.name === alarmName) {
-    console.log("alarm fired");
-  }
-});
-
-function createAlarm() {
-  chrome.alarms.create(alarmName, {
-    when: Date.now() + 10 * 1000,
-    periodInMinutes: 1,
-  });
-}
+})();
