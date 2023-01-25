@@ -29,7 +29,7 @@ func GetConsoleUidGid() (uid uint32, gid uint32, err error) {
 }
 
 // GetValFromXMLWithTags Looking for a sequence of tags and getting the following nested integer as string
-// In the following xml example the function will return "5" if called with parentTag = "parentTag", tag = "tag", tagValue = "tagValue"
+// In the following xml example the function will return "5" if called with parentTag = "parentTag", tag = "tag", tagValue = "tagValue", valType = "integer"
 // <parentTag>
 //   <tag>tagValue</tag>
 //   <integer>5</integer>
