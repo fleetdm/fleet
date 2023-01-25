@@ -289,14 +289,15 @@ const DeviceUserPage = ({
           <Spinner />
         ) : (
           <div className={`${baseClass} body-wrap`}>
-            {host?.platform === "darwin" && host?.mdm_enrollment_status && (
-              <InfoBanner color="yellow" cta={turnOnMdmButton} pageLevel>
-                Mobile device management (MDM) is off. MDM allows your
-                organization to change settings and install software. This lets
-                your organization keep your device up to date so you don’t have
-                to.
-              </InfoBanner>
-            )}
+            {host?.platform === "darwin" &&
+              host?.mdm_enrollment_status === "Off" && (
+                <InfoBanner color="yellow" cta={turnOnMdmButton} pageLevel>
+                  Mobile device management (MDM) is off. MDM allows your
+                  organization to change settings and install software. This
+                  lets your organization keep your device up to date so you
+                  don’t have to.
+                </InfoBanner>
+              )}
             <HostSummaryCard
               statusClassName={statusClassName}
               titleData={titleData}
