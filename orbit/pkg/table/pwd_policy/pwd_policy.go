@@ -47,9 +47,21 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 
 	pwpolicyXMLData := string(out)
 	maxFailedAttempts, err := tbl_common.GetValFromXMLWithTags(pwpolicyXMLData, "dict", "key", "policyAttributeMaximumFailedAuthentications", "integer")
+	if err != nil {
+		maxFailedAttempts = ""
+	}
 	expiresEveryNDays, err := tbl_common.GetValFromXMLWithTags(pwpolicyXMLData, "dict", "key", "policyAttributeExpiresEveryNDays", "integer")
+	if err != nil {
+		expiresEveryNDays = ""
+	}
 	daysToExpiration, err := tbl_common.GetValFromXMLWithTags(pwpolicyXMLData, "dict", "key", "policyAttributeDaysUntilExpiration", "integer")
+	if err != nil {
+		daysToExpiration = ""
+	}
 	historyDepth, err := tbl_common.GetValFromXMLWithTags(pwpolicyXMLData, "dict", "key", "policyAttributePasswordHistoryDepth", "integer")
+	if err != nil {
+		historyDepth = ""
+	}
 
 	return []map[string]string{
 		{"maxFailedAttempts": maxFailedAttempts,
