@@ -14,7 +14,7 @@ func TestGetConsoleUidGid(t *testing.T) {
 	}
 }
 
-func TestGetIntFromXMLWithTags(t *testing.T) {
+func TestGetValFromXMLWithTags(t *testing.T) {
 	testXML := `<?xml version="1.0" encoding="UTF-8" ?>
 <rss version="2.0">
 <channel>
@@ -38,7 +38,7 @@ func TestGetIntFromXMLWithTags(t *testing.T) {
 </channel>
 </rss>`
 
-	val, err := GetIntFromXMLWithTags(testXML, "parentTag", "tag", "tagValue")
+	val, err := GetValFromXMLWithTags(testXML, "parentTag", "tag", "tagValue", "integer")
 	if err != nil {
 		t.Fatalf(`Err expected to be nil. got %s`, err)
 	}
@@ -48,7 +48,7 @@ func TestGetIntFromXMLWithTags(t *testing.T) {
 
 }
 
-func TestGetIntFromXMLWithTagsBadXML(t *testing.T) {
+func TestGetValFromXMLWithTagsBadXML(t *testing.T) {
 	testXML := `<?xml veools.com</link>
   <description>Free web build
     <integer>11</integer>
@@ -57,13 +57,13 @@ func TestGetIntFromXMLWithTagsBadXML(t *testing.T) {
     <description>New RSS tutorial on W3Schools</description>
   </itess>`
 
-	_, err := GetIntFromXMLWithTags(testXML, "parentTag", "tag", "tagValue")
+	_, err := GetValFromXMLWithTags(testXML, "parentTag", "tag", "tagValue", "integer")
 	if err == nil {
 		t.Fatalf("Err expected. Got nil")
 	}
 }
 
-func TestGetIntFromXMLWithTagsNoTag(t *testing.T) {
+func TestGetValFromXMLWithTagsNoTag(t *testing.T) {
 	testXML := `<?xml version="1.0" encoding="UTF-8" ?>
 <rss version="2.0">
 <channel>
@@ -87,7 +87,7 @@ func TestGetIntFromXMLWithTagsNoTag(t *testing.T) {
 </channel>
 </rss>`
 
-	_, err := GetIntFromXMLWithTags(testXML, "badTag", "BadTag", "BadValue")
+	_, err := GetValFromXMLWithTags(testXML, "badTag", "BadTag", "BadValue", "integer")
 	if err == nil {
 		t.Fatalf("Err expected. Got nil")
 	}

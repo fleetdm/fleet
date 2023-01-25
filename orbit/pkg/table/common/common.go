@@ -12,7 +12,7 @@ import (
 	"syscall"
 )
 
-// GetActiveUserGroup gets the uid and gid of the current (or more accurately, most recently logged
+// GetConsoleUidGid gets the uid and gid of the current (or more accurately, most recently logged
 // in) *console* user. In most scenarios this should be the currently logged in user on the system.
 // Note that getting the current user of the Orbit process is typically going to return root and we
 // need the underlying user.
@@ -28,13 +28,13 @@ func GetConsoleUidGid() (uid uint32, gid uint32, err error) {
 	return stat.Uid, stat.Gid, nil
 }
 
-// GetIntFromXMLWithTags Looking for a sequence of tags and getting the following nested integer as string
+// GetValFromXMLWithTags Looking for a sequence of tags and getting the following nested integer as string
 // In the following xml example the function will return "5" if called with parentTag = "parentTag", tag = "tag", tagValue = "tagValue"
 // <parentTag>
 //   <tag>tagValue</tag>
 //   <integer>5</integer>
 // </parentTag>
-func GetIntFromXMLWithTags(xml string, parentTag string, tag string, tagValue string) (maxFailedAttempts string, err error) {
+func GetValFromXMLWithTags(xml string, parentTag string, tag string, tagValue string, valType string) (maxFailedAttempts string, err error) {
 	doc, err := xmlquery.Parse(strings.NewReader(xml))
 	if err != nil {
 		return "", errors.New("can't parse xml")
@@ -46,7 +46,7 @@ func GetIntFromXMLWithTags(xml string, parentTag string, tag string, tagValue st
 				continue
 			}
 		}
-		if n := channel.SelectElement("integer"); n != nil {
+		if n := channel.SelectElement(valType); n != nil {
 			return n.InnerText(), nil
 		}
 	}
