@@ -61,8 +61,7 @@ func GenerateAPNSCSRKey(email, org string) (*x509.CertificateRequest, *rsa.Priva
 }
 
 type getSignedAPNSCSRRequest struct {
-	// CSR is the pem encoded certificate request.
-	CSR []byte `json:"csr"`
+	UnsignedCSRData []byte `json:"unsignedCsrData"`
 }
 
 // GetSignedAPNSCSR makes a request to the fleetdm.com API to get a signed APNs
@@ -71,7 +70,7 @@ func GetSignedAPNSCSR(client *http.Client, csr *x509.CertificateRequest) error {
 	csrPEM := EncodeCertRequestPEM(csr)
 
 	payload := getSignedAPNSCSRRequest{
-		CSR: csrPEM,
+		UnsignedCSRData: csrPEM,
 	}
 
 	b, err := json.Marshal(payload)
