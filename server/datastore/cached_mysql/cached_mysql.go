@@ -108,7 +108,7 @@ type cachedMysql struct {
 	scheduledQueriesExp time.Duration
 	teamAgentOptionsExp time.Duration
 	teamFeaturesExp     time.Duration
-	teamMDMFeaturesExp  time.Duration
+	teamMDMConfigExp    time.Duration
 }
 
 type Option func(*cachedMysql)
@@ -134,6 +134,12 @@ func WithTeamAgentOptionsExpiration(d time.Duration) Option {
 func WithTeamFeaturesExpiration(d time.Duration) Option {
 	return func(o *cachedMysql) {
 		o.teamFeaturesExp = d
+	}
+}
+
+func WithTeamMDMConfigExpiration(d time.Duration) Option {
+	return func(o *cachedMysql) {
+		o.teamMDMConfigExp = d
 	}
 }
 
@@ -293,7 +299,7 @@ func (ds *cachedMysql) SaveTeam(ctx context.Context, team *fleet.Team) (*fleet.T
 
 	ds.c.Set(agentOptionsKey, team.Config.AgentOptions, ds.teamAgentOptionsExp)
 	ds.c.Set(featuresKey, &team.Config.Features, ds.teamFeaturesExp)
-	ds.c.Set(mdmConfigKey, &team.Config.MDM, ds.teamMDMFeaturesExp)
+	ds.c.Set(mdmConfigKey, &team.Config.MDM, ds.teamMDMConfigExp)
 
 	return team, nil
 }
