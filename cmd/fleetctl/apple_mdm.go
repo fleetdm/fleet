@@ -9,9 +9,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"time"
 
-	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/service"
@@ -108,6 +106,13 @@ func generateMDMAppleCommand() *cli.Command {
 			scepCACertPath := c.String("scep-cert")
 			scepCAKeyPath := c.String("scep-key")
 
+			// get the fleet API client first, so that any login requirement are met
+			// before printing the CSR output message.
+			client, err := clientFromCLI(c)
+			if err != nil {
+				return err
+			}
+
 			fmt.Fprintf(
 				c.App.Writer,
 				`Sending certificate signing request (CSR) for Apple Push Notification service (APNs) to %s...
@@ -117,45 +122,21 @@ Generating APNs key, Simple Certificate Enrollment Protocol (SCEP) certificate, 
 				email,
 			)
 
-			// create apns csr and send to fleetdm.com
-			apnsCSR, apnsKey, err := apple_mdm.GenerateAPNSCSRKey(email, org)
+			csr, err := client.RequestAppleCSR(email, org)
 			if err != nil {
-				return fmt.Errorf("generate apns csr: %w", err)
+				return err
 			}
 
-			apnsKeyPEM := apple_mdm.EncodePrivateKeyPEM(apnsKey)
-
-			err = os.WriteFile(apnsKeyPath, apnsKeyPEM, 0600)
-			if err != nil {
-				return fmt.Errorf("write private key: %w", err)
+			if err := os.WriteFile(apnsKeyPath, csr.APNsKey, 0600); err != nil {
+				return fmt.Errorf("failed to write APNs private key: %w", err)
+			}
+			if err := os.WriteFile(scepCACertPath, csr.SCEPCert, 0600); err != nil {
+				return fmt.Errorf("failed to write SCEP CA certificate: %w", err)
+			}
+			if err := os.WriteFile(scepCAKeyPath, csr.SCEPKey, 0600); err != nil {
+				return fmt.Errorf("failed to write SCEP CA private key: %w", err)
 			}
 
-			client := fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second))
-
-			err = apple_mdm.GetSignedAPNSCSR(client, apnsCSR)
-			if err != nil {
-				return fmt.Errorf("get signed apns csr: %w", err)
-			}
-
-			// init scep ca
-			scepCACert, scepCAKey, err := apple_mdm.NewSCEPCACertKey()
-			if err != nil {
-				return fmt.Errorf("init scep CA: %w", err)
-			}
-
-			scepCACertPEM := apple_mdm.EncodeCertPEM(scepCACert)
-			err = os.WriteFile(scepCACertPath, scepCACertPEM, 0600)
-			if err != nil {
-				return fmt.Errorf("write scep ca certificate: %w", err)
-			}
-
-			scepCAKeyPEM := apple_mdm.EncodePrivateKeyPEM(scepCAKey)
-			err = os.WriteFile(scepCAKeyPath, scepCAKeyPEM, 0600)
-			if err != nil {
-				return fmt.Errorf("write scep ca private key: %w", err)
-			}
-
-			// TODO: update text once https://github.com/fleetdm/fleet/issues/8595 is complete. Consider linking to specific configuration section.
 			fmt.Fprintf(
 				c.App.Writer,
 				`Success!
