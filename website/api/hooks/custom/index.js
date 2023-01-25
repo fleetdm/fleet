@@ -92,7 +92,7 @@ will be disabled and/or hidden in the UI.
             if(err){
               sails.log.warn('When trying to send a request to Algolia to refresh the Fleet website search index, an error occurred: '+err);
             }
-          });
+          });//_∏_
         }
       });//_∏_
 
