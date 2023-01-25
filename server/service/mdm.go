@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"strings"
 	"time"
 
@@ -140,7 +141,8 @@ func (svc *Service) RequestMDMAppleCSR(ctx context.Context, email, org string) (
 	// request the signed APNs CSR from fleetdm.com
 	client := fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second))
 	if err := apple_mdm.GetSignedAPNSCSR(client, apnsCSR); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get signed APNs CSR")
+		err = fleet.NewUserMessageError(fmt.Errorf("FleetDM CSR request failed: %w", err), http.StatusBadGateway)
+		return nil, ctxerr.Wrap(ctx, err)
 	}
 
 	// create the raw SCEP CA cert and key

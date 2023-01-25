@@ -5871,13 +5871,7 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(ctx, hosts[1].ID, 3.0, 4.0))
 
 	res := s.DoRaw("GET", "/api/latest/fleet/hosts/report", nil, http.StatusUnsupportedMediaType, "format", "gzip")
-	var errs struct {
-		Message string `json:"message"`
-		Errors  []struct {
-			Name   string `json:"name"`
-			Reason string `json:"reason"`
-		} `json:"errors"`
-	}
+	var errs validationErrResp
 	require.NoError(t, json.NewDecoder(res.Body).Decode(&errs))
 	res.Body.Close()
 	require.Len(t, errs.Errors, 1)
@@ -6260,8 +6254,10 @@ func (s *integrationTestSuite) TestPingEndpoints() {
 }
 
 func (s *integrationTestSuite) TestAppleMDMNotConfigured() {
-	var resp getAppleMDMResponse
-	s.DoJSON("GET", "/api/latest/fleet/mdm/apple", nil, http.StatusNotFound, &resp)
+	var rawResp json.RawMessage
+	s.DoJSON("GET", "/api/latest/fleet/mdm/apple", nil, http.StatusNotFound, &rawResp)
+	s.DoJSON("GET", "/api/latest/fleet/mdm/apple_bm", nil, http.StatusPaymentRequired, &rawResp) //premium only
+	s.DoJSON("POST", "/api/latest/fleet/mdm/apple/request_csr", requestMDMAppleCSRRequest{}, http.StatusNotFound, &rawResp)
 }
 
 func (s *integrationTestSuite) TestOrbitConfigNotifications() {
@@ -6334,6 +6330,14 @@ func (s *integrationTestSuite) TestAPIVersion_v1_2022_04() {
 	// properly delete with old endpoint and old version
 	var delResp deleteGlobalScheduleResponse
 	s.DoJSON("DELETE", fmt.Sprintf("/api/v1/fleet/global/schedule/%d", createResp.Scheduled.ID), nil, http.StatusOK, &delResp)
+}
+
+type validationErrResp struct {
+	Message string `json:"message"`
+	Errors  []struct {
+		Name   string `json:"name"`
+		Reason string `json:"reason"`
+	} `json:"errors"`
 }
 
 func createOrbitEnrolledHost(t *testing.T, os, suffix string, ds fleet.Datastore) *fleet.Host {
