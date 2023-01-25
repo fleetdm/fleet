@@ -46,10 +46,10 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 	}
 
 	pwpolicyXMLData := string(out)
-	maxFailedAttempts, err := tbl_common.GetIntFromXMLWithTags(pwpolicyXMLData, "dict", "key", "policyAttributeMaximumFailedAuthentications")
-	expiresEveryNDays, err := tbl_common.GetIntFromXMLWithTags(pwpolicyXMLData, "dict", "key", "policyAttributeExpiresEveryNDays")
-	daysToExpiration, err := tbl_common.GetIntFromXMLWithTags(pwpolicyXMLData, "dict", "key", "policyAttributeDaysUntilExpiration")
-	historyDepth, err := tbl_common.GetIntFromXMLWithTags(pwpolicyXMLData, "dict", "key", "policyAttributePasswordHistoryDepth")
+	maxFailedAttempts, err := tbl_common.GetValFromXMLWithTags(pwpolicyXMLData, "dict", "key", "policyAttributeMaximumFailedAuthentications", "integer")
+	expiresEveryNDays, err := tbl_common.GetValFromXMLWithTags(pwpolicyXMLData, "dict", "key", "policyAttributeExpiresEveryNDays", "integer")
+	daysToExpiration, err := tbl_common.GetValFromXMLWithTags(pwpolicyXMLData, "dict", "key", "policyAttributeDaysUntilExpiration", "integer")
+	historyDepth, err := tbl_common.GetValFromXMLWithTags(pwpolicyXMLData, "dict", "key", "policyAttributePasswordHistoryDepth", "integer")
 
 	return []map[string]string{
 		{"maxFailedAttempts": maxFailedAttempts,
