@@ -28,12 +28,12 @@ func GetConsoleUidGid() (uid uint32, gid uint32, err error) {
 	return stat.Uid, stat.Gid, nil
 }
 
-// GetValFromXMLWithTags Looking for a sequence of tags and getting the following nested integer as string
-// In the following xml example the function will return "5" if called with parentTag = "parentTag", tag = "tag", tagValue = "tagValue", valType = "integer"
-// <parentTag>
-//   <tag>tagValue</tag>
+// GetValFromXMLWithTags Will look for a sequence of tags and will get the following nested value as string
+// In the following xml example the function will return "5" if called with parentTag = "someParentTag", tag = "someTag", tagValue = "someValue", valType = "integer"
+// <someParentTag>
+//   <someTag>someValue</someTag>
 //   <integer>5</integer>
-// </parentTag>
+// </someParentTag>
 func GetValFromXMLWithTags(xml string, parentTag string, tag string, tagValue string, valType string) (maxFailedAttempts string, err error) {
 	doc, err := xmlquery.Parse(strings.NewReader(xml))
 	if err != nil {
