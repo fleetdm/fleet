@@ -34,11 +34,12 @@ import AboutCard from "../cards/About";
 import SoftwareCard from "../cards/Software";
 import PoliciesCard from "../cards/Policies";
 import InfoModal from "./InfoModal";
-import EnrollMdmModal from "./EnrollMdmModal";
 
 import InfoIcon from "../../../../../assets/images/icon-info-purple-14x14@2x.png";
 import FleetIcon from "../../../../../assets/images/fleet-avatar-24x24@2x.png";
 import PolicyDetailsModal from "../cards/Policies/HostPoliciesTable/PolicyDetailsModal";
+import AutoEnrollMdmModal from "./AutoEnrollMdmModal";
+import ManualEnrollMdmModal from "./ManualEnrollMdmModal";
 
 const baseClass = "device-user";
 
@@ -263,22 +264,22 @@ const DeviceUserPage = ({
 
   const statusClassName = classnames("status", `status--${host?.status}`);
 
-  const mdmEnrollmentType = (() => {
-    if (host?.mdm_enrollment_status === "Off") {
-      return "manual";
-    }
-    if (host?.mdm_enrollment_status === "Pending") {
-      return "auto";
-    }
-
-    return undefined;
-  })();
-
   const turnOnMdmButton = (
     <Button variant="unstyled" onClick={toggleEnrollMdmModal}>
       <b>Turn on MDM</b>
     </Button>
   );
+
+  const renderEnrollMdmModal = () => {
+    return host?.mdm_enrollment_status === "Pending" ? (
+      <AutoEnrollMdmModal onCancel={toggleEnrollMdmModal} />
+    ) : (
+      <ManualEnrollMdmModal
+        onCancel={toggleEnrollMdmModal}
+        token={deviceAuthToken}
+      />
+    );
+  };
 
   const renderDeviceUserPage = () => {
     const failingPoliciesCount = host?.issues?.failing_policies_count || 0;
@@ -288,7 +289,7 @@ const DeviceUserPage = ({
           <Spinner />
         ) : (
           <div className={`${baseClass} body-wrap`}>
-            {host?.platform === "darwin" && !!mdmEnrollmentType && (
+            {host?.platform === "darwin" && host?.mdm_enrollment_status && (
               <InfoBanner color="yellow" cta={turnOnMdmButton} pageLevel>
                 Mobile device management (MDM) is off. MDM allows your
                 organization to change settings and install software. This lets
@@ -350,13 +351,7 @@ const DeviceUserPage = ({
               </Tabs>
             </TabsWrapper>
             {showInfoModal && <InfoModal onCancel={toggleInfoModal} />}
-            {showEnrollMdmModal && (
-              <EnrollMdmModal
-                mdmEnrollmentType={mdmEnrollmentType as "manual" | "auto"}
-                onCancel={toggleEnrollMdmModal}
-                token={deviceAuthToken}
-              />
-            )}
+            {showEnrollMdmModal && renderEnrollMdmModal()}
           </div>
         )}
         {!!host && showPolicyDetailsModal && (
