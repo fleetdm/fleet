@@ -16,7 +16,7 @@ interface IManualEnrollMdmModalProps {
   token?: string;
 }
 
-const baseClass = "enroll-mdm-modal";
+const baseClass = "manual-enroll-mdm-modal enroll-mdm-modal";
 
 const EnrollMdmModal = ({
   onCancel,

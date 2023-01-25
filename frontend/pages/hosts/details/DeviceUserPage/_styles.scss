@@ -2,6 +2,23 @@
   // TODO: talk to rachel about removing this
   background-color: $ui-off-white;
 }
+.enroll-mdm-modal {
+  width: 800px;
+
+  &__description {
+    margin: $pad-large 0;
+  }
+
+  ol {
+    padding-left: 0;
+  }
+
+  li {
+    margin-bottom: $pad-large;
+    list-style: number inside;
+  }
+}
+
 .device-user {
   display: flex;
   flex-wrap: wrap;
