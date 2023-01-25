@@ -66,6 +66,7 @@ import parseOsVersion from "./modals/OSPolicyModal/helpers";
 import DeleteIcon from "../../../../../assets/images/icon-action-delete-14x14@2x.png";
 import QueryIcon from "../../../../../assets/images/icon-action-query-16x16@2x.png";
 import TransferIcon from "../../../../../assets/images/icon-action-transfer-16x16@2x.png";
+import CloseIcon from "../../../../../assets/images/icon-action-close-16x15@2x.png";
 
 const baseClass = "host-details";
 
@@ -130,16 +131,24 @@ const HostDetailsPage = ({
   const canTransferTeam =
     isPremiumTier && (isGlobalAdmin || isGlobalMaintainer);
 
+  const getCanEditMdm = (user: IUser, host: IHost) => {
+    const userHasPermission =
+      isGlobalAdmin ||
+      isGlobalMaintainer ||
+      permissionUtils.isTeamMaintainerOrTeamAdmin(user, host.team_id);
+    return (
+      userHasPermission &&
+      ["automatic", "manual"].includes(host.mdm?.enrollment_status ?? "")
+    );
+  };
+
   const canDeleteHost = (user: IUser, host: IHost) => {
-    if (
+    return (
       isGlobalAdmin ||
       isGlobalMaintainer ||
       permissionUtils.isTeamAdmin(user, host.team_id) ||
       permissionUtils.isTeamMaintainer(user, host.team_id)
-    ) {
-      return true;
-    }
-    return false;
+    );
   };
 
   const [showDeleteHostModal, setShowDeleteHostModal] = useState(false);
@@ -562,6 +571,21 @@ const HostDetailsPage = ({
             You can’t query <br /> an offline host.
           </span>
         </ReactTooltip>
+        {currentUser && host && getCanEditMdm(currentUser, host) && (
+          <Button
+            onClick={() => {
+              return undefined;
+            }}
+            variant="text-icon"
+            className={`${baseClass}__unenroll-host-from-mdm-button`}
+            disabled={!isOnline}
+          >
+            <>
+              Turn off MDM{" "}
+              <img src={CloseIcon} alt="Unenroll host from mdm icon" />
+            </>
+          </Button>
+        )}
         {currentUser && host && canDeleteHost(currentUser, host) && (
           <Button
             onClick={() => setShowDeleteHostModal(true)}
