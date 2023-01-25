@@ -20,9 +20,9 @@ import (
 func Columns() []table.ColumnDefinition {
 	return []table.ColumnDefinition{
 		table.IntegerColumn("maxFailedAttempts"),
-		table.IntegerColumn("minLength"),
-		table.IntegerColumn("maxPINAgeInDays"),
-		table.IntegerColumn("pinHistory"),
+		table.IntegerColumn("expiresEveryNDays"),
+		table.IntegerColumn("daysToExpiration"),
+		table.IntegerColumn("historyDepth"),
 	}
 }
 
@@ -49,13 +49,16 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 	}
 
 	pwpolicyXMLData := string(out)
-	maxFailedAttempts, err := GetIntFromXMLWithTags(pwpolicyXMLData, "dict", "key", "maxFailedAttempts")
+	maxFailedAttempts, err := GetIntFromXMLWithTags(pwpolicyXMLData, "dict", "key", "policyAttributeMaximumFailedAuthentications")
+	expiresEveryNDays, err := GetIntFromXMLWithTags(pwpolicyXMLData, "dict", "key", "policyAttributeExpiresEveryNDays")
+	daysToExpiration, err := GetIntFromXMLWithTags(pwpolicyXMLData, "dict", "key", "policyAttributeDaysUntilExpiration")
+	historyDepth, err := GetIntFromXMLWithTags(pwpolicyXMLData, "dict", "key", "policyAttributePasswordHistoryDepth")
 
 	return []map[string]string{
 		{"maxFailedAttempts": maxFailedAttempts,
-			"minLength":       "100",
-			"maxPINAgeInDays": "100",
-			"pinHistory":      "100"},
+			"expiresEveryNDays": expiresEveryNDays,
+			"daysToExpiration":  daysToExpiration,
+			"historyDepth":      historyDepth},
 	}, nil
 }
 
