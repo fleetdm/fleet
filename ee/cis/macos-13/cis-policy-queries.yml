@@ -854,7 +854,7 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure Password Age Is Configured
+  name: CIS - Ensure Password Age Is Configured (fleetd required)
   platforms: macOS
   platform: darwin
   description: |
@@ -868,7 +868,10 @@ spec:
       2. The key to include is maxPINAgeInDays
       3. The key must be set to <integer><value≥365></integer>
   query: |
-    NOT EXISTING - NEED TO ADD
+    SELECT 1 WHERE
+    EXISTS(SELECT 1 FROM pwd_policy WHERE expiresEveryNDays <= 365)
+    OR
+    EXISTS(SELECT 1 FROM pwd_policy WHERE daysToExpiration <= 365);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS5.2.7
 ---
