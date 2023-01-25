@@ -10,7 +10,7 @@ columns:
       The account lockout threshold specifies the amount of times a user can enter an incorrect password before a lockout will occur. Ensure that a lockout threshold is part of the password policy on the computer.
   - name: expiresEveryNDays
     type: integer
-    required: >=15
+    required: <=365
     description: |
       How many days for a new password to expire.
   - name: daysToExpiration
