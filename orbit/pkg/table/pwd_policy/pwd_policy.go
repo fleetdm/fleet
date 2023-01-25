@@ -5,6 +5,7 @@ package pwd_policy
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/antchfx/xmlquery"
 	tbl_common "github.com/fleetdm/fleet/v4/orbit/pkg/table/common"
@@ -47,7 +48,7 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 		return nil, fmt.Errorf("generate failed: %w", err)
 	}
 
-	pwpolicyXMLData = string(out)
+	pwpolicyXMLData := string(out)
 	maxFailedAttempts, err := FindMaxFailedAttempts(pwpolicyXMLData)
 
 	return []map[string]string{
@@ -61,7 +62,7 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 func FindMaxFailedAttempts(xml string) (maxFailedAttempts string, err error) {
 	doc, err := xmlquery.Parse(strings.NewReader(xml))
 	if err != nil {
-		return 0, errors.New("can't parse pwpolicy xml")
+		return "", errors.New("can't parse pwpolicy xml")
 	}
 
 	for _, channel := range xmlquery.Find(doc, "//dict") {
@@ -74,5 +75,5 @@ func FindMaxFailedAttempts(xml string) (maxFailedAttempts string, err error) {
 			return n.InnerText(), nil
 		}
 	}
-	return 0, errors.New("can't find maxFailedAttempts")
+	return "", errors.New("can't find maxFailedAttempts")
 }
