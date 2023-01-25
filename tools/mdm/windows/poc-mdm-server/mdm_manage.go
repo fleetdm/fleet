@@ -64,17 +64,29 @@ func getConfigurationProfiles(cmdIDstart int) string {
 	}
 
 	var syncmlCommands string
-	for _, file := range files {
-		cmdIDstart++
+	var tokenCmdID string = "xxcmdidxx"
 
-		fmt.Printf("\n--------- Command Request %d ---------\n", cmdIDstart)
-		fmt.Printf("Command payload retrieved from file %s\n", file.Name())
+	for _, file := range files {
 		fileContent, err := os.ReadFile(profileDir + "/" + file.Name())
 		if err != nil {
 			panic(err)
 		}
 
-		syncmlCommands += strings.Replace(string(fileContent), "xxcmdidxx", strconv.Itoa(cmdIDstart), -1) + "\n"
+		fileContentStr := string(fileContent)
+		nrTokenOcurrences := strings.Count(fileContentStr, tokenCmdID)
+		for i := 0; i < nrTokenOcurrences; i++ {
+			cmdIDstart++
+
+			fmt.Printf("\n--------- Command Request %d ---------\n", cmdIDstart)
+			fmt.Printf("Command payload retrieved from file %s\n", file.Name())
+
+			fileContentStr = strings.Replace(fileContentStr, tokenCmdID, strconv.Itoa(cmdIDstart), 1)
+		}
+
+		if len(fileContentStr) > 0 {
+			syncmlCommands += fileContentStr
+			syncmlCommands += "\n"
+		}
 	}
 
 	//input sanitization
