@@ -26,7 +26,7 @@ module.exports = {
 
     invalidEmailDomain: {
       description: 'This email address is on a denylist of domains and was not delivered.',
-      statusCode: 400
+      responseType: 'badRequest'
     },
 
     badRequest: {
