@@ -43,6 +43,7 @@ Users with the Admin role receive all permissions.
 | Retrieve contents from file carving                                                |          |            | ✅    |
 | View Apple mobile device management (MDM) certificate information                  |          |            | ✅    |
 | View Apple business manager (BM) information                                       |          |            | ✅    |
+| Generate Apple mobile device management (MDM) certificate signing request (CSR)    |          |            | ✅    |
 
 
 
