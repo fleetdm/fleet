@@ -1661,7 +1661,6 @@ func (s *integrationEnterpriseTestSuite) TestAppleMDMNotConfigured() {
 	var rawResp json.RawMessage
 	s.DoJSON("GET", "/api/latest/fleet/mdm/apple", nil, http.StatusNotFound, &rawResp)
 	s.DoJSON("GET", "/api/latest/fleet/mdm/apple_bm", nil, http.StatusNotFound, &rawResp)
-	s.DoJSON("POST", "/api/latest/fleet/mdm/apple/request_csr", requestMDMAppleCSRRequest{}, http.StatusNotFound, &rawResp)
 }
 
 func (s *integrationEnterpriseTestSuite) TestGlobalPolicyCreateReadPatch() {

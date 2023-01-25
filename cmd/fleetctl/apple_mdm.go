@@ -106,6 +106,13 @@ func generateMDMAppleCommand() *cli.Command {
 			scepCACertPath := c.String("scep-cert")
 			scepCAKeyPath := c.String("scep-key")
 
+			// get the fleet API client first, so that any login requirement are met
+			// before printing the CSR output message.
+			client, err := clientFromCLI(c)
+			if err != nil {
+				return err
+			}
+
 			fmt.Fprintf(
 				c.App.Writer,
 				`Sending certificate signing request (CSR) for Apple Push Notification service (APNs) to %s...
@@ -115,10 +122,6 @@ Generating APNs key, Simple Certificate Enrollment Protocol (SCEP) certificate, 
 				email,
 			)
 
-			client, err := clientFromCLI(c)
-			if err != nil {
-				return err
-			}
 			csr, err := client.RequestAppleCSR(email, org)
 			if err != nil {
 				return err
