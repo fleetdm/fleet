@@ -2,9 +2,20 @@ package service
 
 import (
 	"context"
+	"fmt"
+	"net/http"
+	"strings"
+	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 )
+
+////////////////////////////////////////////////////////////////////////////////
+// GET /mdm/apple
+////////////////////////////////////////////////////////////////////////////////
 
 type getAppleMDMResponse struct {
 	*fleet.AppleMDM
@@ -49,6 +60,10 @@ func (svc *Service) GetAppleMDM(ctx context.Context) (*fleet.AppleMDM, error) {
 	return appleMDM, nil
 }
 
+////////////////////////////////////////////////////////////////////////////////
+// GET /mdm/apple_bm
+////////////////////////////////////////////////////////////////////////////////
+
 type getAppleBMResponse struct {
 	*fleet.AppleBM
 	Err error `json:"error,omitempty"`
@@ -71,4 +86,80 @@ func (svc *Service) GetAppleBM(ctx context.Context) (*fleet.AppleBM, error) {
 	svc.authz.SkipAuthorization(ctx)
 
 	return nil, fleet.ErrMissingLicense
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// GET /mdm/apple/request_csr
+////////////////////////////////////////////////////////////////////////////////
+
+type requestMDMAppleCSRRequest struct {
+	EmailAddress string `json:"email_address"`
+	Organization string `json:"organization"`
+}
+
+type requestMDMAppleCSRResponse struct {
+	*fleet.AppleCSR
+	Err error `json:"error,omitempty"`
+}
+
+func (r requestMDMAppleCSRResponse) error() error { return r.Err }
+
+func requestMDMAppleCSREndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*requestMDMAppleCSRRequest)
+
+	csr, err := svc.RequestMDMAppleCSR(ctx, req.EmailAddress, req.Organization)
+	if err != nil {
+		return requestMDMAppleCSRResponse{Err: err}, nil
+	}
+	return requestMDMAppleCSRResponse{
+		AppleCSR: csr,
+	}, nil
+}
+
+func (svc *Service) RequestMDMAppleCSR(ctx context.Context, email, org string) (*fleet.AppleCSR, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.AppleCSR{}, fleet.ActionWrite); err != nil {
+		return nil, err
+	}
+
+	if err := fleet.ValidateEmail(email); err != nil {
+		if strings.TrimSpace(email) == "" {
+			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("email_address", "missing email address"))
+		}
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("email_address", fmt.Sprintf("invalid email address: %v", err)))
+	}
+	if strings.TrimSpace(org) == "" {
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("organization", "missing organization"))
+	}
+
+	// create the raw SCEP CA cert and key (creating before the CSR signing
+	// request so that nothing can fail after the request is made, except for the
+	// network during the response of course)
+	scepCACert, scepCAKey, err := apple_mdm.NewSCEPCACertKey()
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "generate SCEP CA cert and key")
+	}
+
+	// create the APNs CSR
+	apnsCSR, apnsKey, err := apple_mdm.GenerateAPNSCSRKey(email, org)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "generate APNs CSR")
+	}
+
+	// request the signed APNs CSR from fleetdm.com
+	client := fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second))
+	if err := apple_mdm.GetSignedAPNSCSR(client, apnsCSR); err != nil {
+		err = fleet.NewUserMessageError(fmt.Errorf("FleetDM CSR request failed: %w", err), http.StatusBadGateway)
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+
+	// PEM-encode the cert and keys
+	scepCACertPEM := apple_mdm.EncodeCertPEM(scepCACert)
+	scepCAKeyPEM := apple_mdm.EncodePrivateKeyPEM(scepCAKey)
+	apnsKeyPEM := apple_mdm.EncodePrivateKeyPEM(apnsKey)
+
+	return &fleet.AppleCSR{
+		APNsKey:  apnsKeyPEM,
+		SCEPCert: scepCACertPEM,
+		SCEPKey:  scepCAKeyPEM,
+	}, nil
 }

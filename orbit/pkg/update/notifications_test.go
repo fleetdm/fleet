@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/rs/zerolog/log"
 	"github.com/stretchr/testify/require"
 )
@@ -36,7 +35,7 @@ func TestRenewEnrollmentProfile(t *testing.T) {
 			logBuf.Reset()
 
 			fetcher := &dummyConfigFetcher{
-				cfg: &service.OrbitConfig{Notifications: fleet.OrbitConfigNotifications{RenewEnrollmentProfile: c.renewFlag}},
+				cfg: &fleet.OrbitConfig{Notifications: fleet.OrbitConfigNotifications{RenewEnrollmentProfile: c.renewFlag}},
 			}
 
 			var cmdGotCalled bool
@@ -67,7 +66,7 @@ func TestRenewEnrollmentProfilePrevented(t *testing.T) {
 	t.Cleanup(func() { log.Logger = oldLog })
 
 	fetcher := &dummyConfigFetcher{
-		cfg: &service.OrbitConfig{Notifications: fleet.OrbitConfigNotifications{RenewEnrollmentProfile: true}},
+		cfg: &fleet.OrbitConfig{Notifications: fleet.OrbitConfigNotifications{RenewEnrollmentProfile: true}},
 	}
 
 	var cmdCallCount int
@@ -82,7 +81,7 @@ func TestRenewEnrollmentProfilePrevented(t *testing.T) {
 		},
 	}
 
-	assertResult := func(cfg *service.OrbitConfig, err error) {
+	assertResult := func(cfg *fleet.OrbitConfig, err error) {
 		require.NoError(t, err)
 		require.Equal(t, fetcher.cfg, cfg)
 	}

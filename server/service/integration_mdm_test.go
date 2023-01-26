@@ -13,6 +13,7 @@ import (
 	"math/big"
 	mathrand "math/rand"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"strconv"
 	"strings"
@@ -36,6 +37,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"go.mozilla.org/pkcs7"
+	"go.uber.org/atomic"
 )
 
 func TestIntegrationsMDM(t *testing.T) {
@@ -47,7 +49,8 @@ func TestIntegrationsMDM(t *testing.T) {
 type integrationMDMTestSuite struct {
 	withServer
 	suite.Suite
-	fleetCfg config.FleetConfig
+	fleetCfg       config.FleetConfig
+	fleetDMFailCSR atomic.Bool
 }
 
 func (s *integrationMDMTestSuite) SetupSuite() {
@@ -84,6 +87,27 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	s.token = s.getTestAdminToken()
 	s.cachedAdminToken = s.token
 	s.fleetCfg = fleetCfg
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if s.fleetDMFailCSR.Swap(false) {
+			// fail this call
+			w.WriteHeader(http.StatusBadRequest)
+			_, _ = w.Write([]byte("bad request"))
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("ok"))
+	}))
+	s.T().Setenv("TEST_FLEETDM_API_URL", srv.URL)
+	s.T().Cleanup(srv.Close)
+}
+
+func (s *integrationMDMTestSuite) FailNextCSRRequest() {
+	s.fleetDMFailCSR.Store(true)
+}
+
+func (s *integrationMDMTestSuite) SucceedNextCSRRequest() {
+	s.fleetDMFailCSR.Store(false)
 }
 
 func (s *integrationMDMTestSuite) TearDownTest() {
@@ -253,6 +277,43 @@ func (s *integrationMDMTestSuite) TestDeviceMultipleAuthMessages() {
 	listHostsRes = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listHostsRes)
 	require.Len(s.T(), listHostsRes.Hosts, 1)
+}
+
+func (s *integrationMDMTestSuite) TestAppleMDMCSRRequest() {
+	t := s.T()
+
+	var errResp validationErrResp
+	// missing arguments
+	s.DoJSON("POST", "/api/latest/fleet/mdm/apple/request_csr", requestMDMAppleCSRRequest{}, http.StatusUnprocessableEntity, &errResp)
+	require.Len(t, errResp.Errors, 1)
+	require.Equal(t, errResp.Errors[0].Name, "email_address")
+
+	// invalid email address
+	errResp = validationErrResp{}
+	s.DoJSON("POST", "/api/latest/fleet/mdm/apple/request_csr", requestMDMAppleCSRRequest{EmailAddress: "abc", Organization: "def"}, http.StatusUnprocessableEntity, &errResp)
+	require.Len(t, errResp.Errors, 1)
+	require.Equal(t, errResp.Errors[0].Name, "email_address")
+
+	// missing organization
+	errResp = validationErrResp{}
+	s.DoJSON("POST", "/api/latest/fleet/mdm/apple/request_csr", requestMDMAppleCSRRequest{EmailAddress: "a@b.c", Organization: ""}, http.StatusUnprocessableEntity, &errResp)
+	require.Len(t, errResp.Errors, 1)
+	require.Equal(t, errResp.Errors[0].Name, "organization")
+
+	// fleetdm CSR request failed
+	s.FailNextCSRRequest()
+	errResp = validationErrResp{}
+	s.DoJSON("POST", "/api/latest/fleet/mdm/apple/request_csr", requestMDMAppleCSRRequest{EmailAddress: "a@b.c", Organization: "test"}, http.StatusBadGateway, &errResp)
+	require.Len(t, errResp.Errors, 1)
+	require.Contains(t, errResp.Errors[0].Reason, "FleetDM CSR request failed")
+
+	var reqCSRResp requestMDMAppleCSRResponse
+	// fleetdm CSR request succeeds
+	s.SucceedNextCSRRequest()
+	s.DoJSON("POST", "/api/latest/fleet/mdm/apple/request_csr", requestMDMAppleCSRRequest{EmailAddress: "a@b.c", Organization: "test"}, http.StatusOK, &reqCSRResp)
+	require.Contains(t, string(reqCSRResp.APNsKey), "-----BEGIN RSA PRIVATE KEY-----\n")
+	require.Contains(t, string(reqCSRResp.SCEPCert), "-----BEGIN CERTIFICATE-----\n")
+	require.Contains(t, string(reqCSRResp.SCEPKey), "-----BEGIN RSA PRIVATE KEY-----\n")
 }
 
 type device struct {
