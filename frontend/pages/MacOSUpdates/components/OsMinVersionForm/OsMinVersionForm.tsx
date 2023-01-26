@@ -1,7 +1,11 @@
 import React, { useContext, useState } from "react";
+import { useQuery } from "react-query";
 import { isEmpty } from "lodash";
 
 import { NotificationContext } from "context/notification";
+import { AppContext } from "context/app";
+import configAPI from "services/entities/config";
+import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
@@ -46,33 +50,74 @@ const validateForm = (formData: IMinOsVersionFormData) => {
   return errors;
 };
 
-const OsMinVersionForm = () => {
-  const [minOsVersion, setMinOsVersion] = useState(""); // TODO: get default val
-  const [deadline, setDeadling] = useState(""); // TODO: get default val
-  const [minOsVersionErr, setMinOsVersionErr] = useState<string | undefined>();
-  const [deadlineErr, setDeadlineErr] = useState<string | undefined>();
+const createMdmConfigData = (minOsVersion: string, deadline: string) => {
+  return {
+    mdm: {
+      macos_updates: {
+        minimum_version: minOsVersion,
+        deadline,
+      },
+    },
+  };
+};
 
+interface IOsMinVersionForm {
+  currentTeam?: number;
+}
+
+const OsMinVersionForm = ({ currentTeam }: IOsMinVersionForm) => {
   const { renderFlash } = useContext(NotificationContext);
+  const { config } = useContext(AppContext);
 
   const [isSaving, setIsSaving] = useState(false);
+  const [minOsVersion, setMinOsVersion] = useState(
+    currentTeam ? "" : config?.mdm.macos_updates.minimum_version ?? ""
+  );
+  const [deadline, setDeadline] = useState(
+    currentTeam ? "" : config?.mdm.macos_updates.deadline ?? ""
+  );
+  const [minOsVersionError, setMinOsVersionError] = useState<
+    string | undefined
+  >();
+  const [deadlineError, setDeadlineError] = useState<string | undefined>();
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  useQuery<ILoadTeamResponse, Error>(
+    ["apple mdm config", currentTeam],
+    () => teamsAPI.load(currentTeam || 0),
+    {
+      refetchOnWindowFocus: false,
+      staleTime: Infinity,
+      enabled: currentTeam !== undefined,
+      onSuccess: (data) => {
+        setMinOsVersion(data.team?.mdm?.macos_updates?.minimum_version ?? "");
+        setDeadline(data.team?.mdm?.macos_updates?.deadline ?? "");
+      },
+    }
+  );
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const errors = validateForm({
       minOsVersion,
       deadline,
     });
 
-    setMinOsVersionErr(errors.minOsVersion);
-    setDeadlineErr(errors.deadline);
+    setMinOsVersionError(errors.minOsVersion);
+    setDeadlineError(errors.deadline);
 
     if (isEmpty(errors)) {
-      // TODO: request to API
       setIsSaving(true);
-      setTimeout(() => {
+      const updateData = createMdmConfigData(minOsVersion, deadline);
+      try {
+        (await !currentTeam)
+          ? configAPI.update(updateData)
+          : teamsAPI.update(updateData, currentTeam);
         renderFlash("success", "Successfully updated minimum version!");
+      } catch {
+        renderFlash("error", "Couldn’t update. Please try again.");
+      } finally {
         setIsSaving(false);
-      }, 1000);
+      }
     }
   };
 
@@ -81,7 +126,7 @@ const OsMinVersionForm = () => {
   };
 
   const handleDeadlineChange = (val: string) => {
-    setDeadling(val);
+    setDeadline(val);
   };
 
   return (
@@ -91,7 +136,7 @@ const OsMinVersionForm = () => {
         tooltip="The end user sees the window until their macOS is at or above this version."
         hint="Version number only (e.g., “13.0.1.”) NOT “Ventura 13” or “13.0.1 (22A400)."
         value={minOsVersion}
-        error={minOsVersionErr}
+        error={minOsVersionError}
         onChange={handleMinVersionChange}
       />
       <InputField
@@ -99,7 +144,7 @@ const OsMinVersionForm = () => {
         tooltip="The end user can’t dismiss the window once they reach this deadline. Deadline is at 12:00 (Noon) Pacific Standard Time (GMT-8)."
         hint="YYYY-MM-DD format only (e.g., “2023-06-01”)."
         value={deadline}
-        error={deadlineErr}
+        error={deadlineError}
         onChange={handleDeadlineChange}
       />
       <Button type="submit" isLoading={isSaving}>
