@@ -45,6 +45,8 @@ module.exports = {
       }
     }
 
+    let articleCategorySlug = pageUrlSuffix.split('/')[0];
+
     // Setting the pages meta title and description from the articles meta tags, as well as an article image, if provided.
     // Note: Every article page should have a 'articleTitle' and a 'authorFullName' meta tag.
     // Note: Leaving title and description as `undefined` in our view means we'll default to the generic title and description set in layout.ejs.
@@ -68,6 +70,7 @@ module.exports = {
       pageTitleForMeta,
       pageDescriptionForMeta,
       pageImageForMeta: thisPage.meta.articleImageUrl || undefined,
+      articleCategorySlug
     };
 
   }
