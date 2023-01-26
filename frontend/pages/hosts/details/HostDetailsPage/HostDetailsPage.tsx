@@ -58,7 +58,7 @@ import PacksCard from "../cards/Packs";
 import SelectQueryModal from "./modals/SelectQueryModal";
 import PolicyDetailsModal from "../cards/Policies/HostPoliciesTable/PolicyDetailsModal";
 import OSPolicyModal from "./modals/OSPolicyModal";
-import UnenrollMDMModal from "./modals/UnenrollMDMModal";
+import UnenrollMdmModal from "./modals/UnenrollMdmModal";
 import TransferHostModal from "../../components/TransferHostModal";
 import DeleteHostModal from "../../components/DeleteHostModal";
 
@@ -162,6 +162,7 @@ const HostDetailsPage = ({
   const [showQueryHostModal, setShowQueryHostModal] = useState(false);
   const [showPolicyDetailsModal, setPolicyDetailsModal] = useState(false);
   const [showOSPolicyModal, setShowOSPolicyModal] = useState(false);
+  const [showUnenrollMdmModal, setShowUnenrollMdmModal] = useState(false);
   const [selectedPolicy, setSelectedPolicy] = useState<IHostPolicy | null>(
     null
   );
@@ -424,6 +425,10 @@ const HostDetailsPage = ({
     setPolicyDetailsModal(!showPolicyDetailsModal);
     setSelectedPolicy(null);
   }, [showPolicyDetailsModal, setPolicyDetailsModal, setSelectedPolicy]);
+
+  const toggleUnenrollMdmModal = useCallback(() => {
+    setShowUnenrollMdmModal(!showUnenrollMdmModal);
+  }, [showUnenrollMdmModal, setShowUnenrollMdmModal]);
 
   const onCreateNewPolicy = () => {
     const { NEW_POLICY } = PATHS;
@@ -799,6 +804,9 @@ const HostDetailsPage = ({
             osPolicy={osPolicyQuery}
             osPolicyLabel={osPolicyLabel}
           />
+        )}
+        {showUnenrollMdmModal && (
+          <UnenrollMdmModal onClose={() => setShowUnenrollMdmModal(false)} />
         )}
       </div>
     </MainContent>
