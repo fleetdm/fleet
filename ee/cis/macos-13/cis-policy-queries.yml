@@ -488,7 +488,7 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: Ensure Power Nap Is Disabled for Intel Macs (Fleetd Required)
+  name: CIS - Ensure Power Nap Is Disabled for Intel Macs (Fleetd Required)
   platforms: macOS
   platform: darwin
   description: |
@@ -520,7 +520,7 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: Ensure Wake for Network Access Is Disabled (Fleetd Required)
+  name: CIS - Ensure Wake for Network Access Is Disabled (Fleetd Required)
   platforms: macOS
   platform: darwin
   description: |
@@ -551,7 +551,7 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: Ensure the OS is not Activate When Resuming from Sleep
+  name: CIS - Ensure the OS is not Activate When Resuming from Sleep
   platforms: macOS
   platform: darwin
   description: |
