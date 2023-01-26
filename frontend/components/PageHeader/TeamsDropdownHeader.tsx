@@ -21,6 +21,8 @@ interface ITeamsDropdownHeaderProps {
   buttons?: (ctx: ITeamsDropdownState) => JSX.Element | null;
   onChange: (ctx: ITeamsDropdownState) => void;
   description: (ctx: ITeamsDropdownState) => JSX.Element | string | null;
+  includeNoTeams?: boolean;
+  includeAll?: boolean;
 }
 
 const TeamsDropdownHeader = ({
@@ -31,6 +33,8 @@ const TeamsDropdownHeader = ({
   buttons,
   description,
   onChange,
+  includeNoTeams = false,
+  includeAll = true,
 }: ITeamsDropdownHeaderProps): JSX.Element | null => {
   const teamId = parseInt(location?.query?.team_id || "", 10) || 0;
 
@@ -50,9 +54,7 @@ const TeamsDropdownHeader = ({
     isAnyTeamAdmin,
     isTeamAdmin,
     isOnlyObserver,
-    setAvailableTeams,
     setCurrentTeam,
-    setCurrentUser,
   } = useContext(AppContext);
 
   // The dropdownState is the context and local state made available to callback functions.
@@ -121,6 +123,7 @@ const TeamsDropdownHeader = ({
         onChange({ ...dropdownState, teamId: availableTeam?.id });
       }
     },
+    // TODO: add missing deps to this array if doens't cause bugs
     [location, router]
   );
 
@@ -188,6 +191,8 @@ const TeamsDropdownHeader = ({
                       onChange={(newSelectedValue: number) =>
                         handleTeamSelect(newSelectedValue)
                       }
+                      includeNoTeams={includeNoTeams}
+                      includeAll={includeAll}
                     />
                   )}
                 {isPremiumTier &&
