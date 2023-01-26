@@ -55,41 +55,13 @@ The `fleet` binary contains several "commands." Similarly to how `git` has many 
 
 You can specify options in the order of precedence via
 
-- a configuration file (in YAML format).
-- environment variables.
-- command-line flags.
+1. a configuration file (in YAML format)
+2. environment variables
+3. command-line flags
 
 For example, all of the following ways of launching Fleet are equivalent:
 
-##### Using only CLI flags
-
-```
-/usr/bin/fleet serve \
---mysql_address=127.0.0.1:3306 \
---mysql_database=fleet \
---mysql_username=root \
---mysql_password=toor \
---redis_address=127.0.0.1:6379 \
---server_cert=/tmp/server.cert \
---server_key=/tmp/server.key \
---logging_json
-```
-
-##### Using only environment variables
-
-```
-FLEET_MYSQL_ADDRESS=127.0.0.1:3306 \
-FLEET_MYSQL_DATABASE=fleet \
-FLEET_MYSQL_USERNAME=root \
-FLEET_MYSQL_PASSWORD=toor \
-FLEET_REDIS_ADDRESS=127.0.0.1:6379 \
-FLEET_SERVER_CERT=/tmp/server.cert \
-FLEET_SERVER_KEY=/tmp/server.key \
-FLEET_LOGGING_JSON=true \
-/usr/bin/fleet serve
-```
-
-##### Using a YAML config file
+##### 1. Using a YAML config file
 
 ```
 echo '
@@ -111,6 +83,35 @@ fleet serve --config /tmp/fleet.yml
 ```
 
 For more information on using YAML configuration files with fleet, please see the [configuration files](https://fleetdm.com/docs/using-fleet/configuration-files) documentation.
+
+##### 2. Using only environment variables
+
+```
+FLEET_MYSQL_ADDRESS=127.0.0.1:3306 \
+FLEET_MYSQL_DATABASE=fleet \
+FLEET_MYSQL_USERNAME=root \
+FLEET_MYSQL_PASSWORD=toor \
+FLEET_REDIS_ADDRESS=127.0.0.1:6379 \
+FLEET_SERVER_CERT=/tmp/server.cert \
+FLEET_SERVER_KEY=/tmp/server.key \
+FLEET_LOGGING_JSON=true \
+/usr/bin/fleet serve
+```
+
+##### 3. Using only CLI flags
+
+```
+/usr/bin/fleet serve \
+--mysql_address=127.0.0.1:3306 \
+--mysql_database=fleet \
+--mysql_username=root \
+--mysql_password=toor \
+--redis_address=127.0.0.1:6379 \
+--server_cert=/tmp/server.cert \
+--server_key=/tmp/server.key \
+--logging_json
+```
+
 
 ### What are the options?
 

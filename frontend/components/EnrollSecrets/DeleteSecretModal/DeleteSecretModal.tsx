@@ -2,6 +2,7 @@ import React from "react";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import { ITeam } from "interfaces/team";
+import CustomLink from "components/CustomLink";
 
 interface IDeleteSecretModal {
   selectedTeam: number;
@@ -47,6 +48,18 @@ const DeleteSecretModal = ({
           <p>
             Any hosts that attempt to enroll to Fleet using this secret will be
             unable to enroll.
+          </p>
+          <p>
+            Any hosts that enrolled using this secret cannot update their
+            configuration through Orbit.
+          </p>
+          <p>
+            For further documentation on how to rotate enroll secrets, please
+            see{" "}
+            <CustomLink
+              url="https://fleetdm.com/docs/deploying/faq#how-can-enroll-secrets-be-rotated"
+              text="this guide"
+            />
           </p>
           <p>You cannot undo this action.</p>
         </div>
