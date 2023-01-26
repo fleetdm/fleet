@@ -749,17 +749,16 @@ spec:
     Ask your system administrator to deploy the following script which will enable security auditing:
     /usr/bin/sudo /bin/launchctl load -w
     /System/Library/LaunchDaemons/com.apple.auditd.plist
-  query: |
-    SELECT 1 where exists (
+  query: | 
+  SELECT 1 where exists (
         SELECT 
             l.program, l.label, l.program_arguments,  
             p.path, p.name , p.cmdline  
         FROM
             launchd AS l
             INNER JOIN processes AS p
+        ON (l.program = p.path) 
         where 
-            (l.program = p.path) 
-            AND
             (l.label = "com.apple.auditd") 
             AND 
             (l.program_arguments = p.cmdline)
