@@ -739,6 +739,44 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
+  name: CIS - Ensure Security Auditing Flags For User-Attributable Events Are Configured Per Local Organizational Requirements
+  platforms: macOS
+  platform: darwin
+  description: |
+    Auditing is the capture and maintenance of information about security-related events. Auditable events often depend on differing organizational requirements.
+  resolution: |
+    Automated method:
+    Ask your system administrator to deploy an MDM profile that disables Bonjour advertising service.
+  Terminal Method: |
+    Perform the following to set the required Security Auditing Flags:
+    Edit the /etc/security/audit_control file and add -fm, ad, -ex, aa, -fr, lo, and -fw to flags. You can also substitute -all for -fm, -ex, -fr, and -fw.
+  query: |
+    SELECT 1 WHERE EXISTS (    
+      SELECT line
+      FROM file_lines WHERE path = '/etc/security/audit_control' 
+      AND 
+      line LIKE 'flags:%' 
+      AND 
+      line LIKE "%-fm%"
+      AND 
+      line LIKE "%ad%"
+      AND 
+      line LIKE "%-ex%"
+      AND 
+      line LIKE "%aa%"
+      AND 
+      line LIKE "%-fr%"
+      AND 
+      line LIKE "%lo%"
+      AND 
+      line LIKE "%-fw%" );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS3.2
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
   name: CIS - Ensure Bonjour Advertising Services Is Disabled (MDM Required)
   platforms: macOS
   platform: darwin
