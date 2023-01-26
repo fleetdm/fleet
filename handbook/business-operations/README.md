@@ -115,6 +115,13 @@ We consider Salesforce to be our Rolodex for customer information. During the on
 - [Security policies](#security-policies)
 
 
+### Security
+Details about Security processes are located on [the Security page](./security.md).
+
+### Security policies
+Review the [security policies](./security-policies.md) page for more information about Fleet's security policies. 
+ 
+ 
 ## PeopleOps
 
 #### In this section
