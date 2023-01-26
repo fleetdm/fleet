@@ -15,11 +15,10 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/platform"
 	"github.com/fleetdm/fleet/v4/pkg/retry"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/hectane/go-acl"
 	"github.com/rs/zerolog/log"
-	"golang.org/x/sys/windows"
 )
 
 // OrbitClient exposes the Orbit API to communicate with the Fleet server.
@@ -222,14 +221,8 @@ func (oc *OrbitClient) enrollAndWriteNodeKeyFile() (string, error) {
 			return "", fmt.Errorf("create orbit node key file: %w", err)
 		}
 
-		if err := acl.Apply(
-			oc.nodeKeyFilePath,
-			true,
-			false,
-			acl.GrantSid(windows.GENERIC_ALL, constant.SystemSID),
-			acl.GrantSid(windows.GENERIC_ALL, constant.AdminSID),
-			acl.GrantSid(0, constant.UserSID), // no access permissions for regular users
-		); err != nil {
+		// restricting file access
+		if err := platform.ChmodRestrictFile(oc.nodeKeyFilePath); err != nil {
 			return "", fmt.Errorf("apply ACLs: %w", err)
 		}
 
