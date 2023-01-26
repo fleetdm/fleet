@@ -217,7 +217,37 @@ var nudgeConfigTemplate = template.Must(template.New("").Option("missingkey=erro
   "osVersionRequirements": [
     {
       "requiredInstallationDate": "{{ .Deadline }}",
-      "requiredMinimumOSVersion": "{{ .MinimumVersion }}"
+      "requiredMinimumOSVersion": "{{ .MinimumVersion }}",
+      "aboutUpdateURLs": [
+        {
+	  "_language": "en",
+	  "aboutUpdateURL": "https://fleetdm.com/docs/using-fleet/mobile-device-management#macos-updates"
+	}
+      ]
+    }
+  ],
+  "userInterface": {
+    "simpleMode": true,
+    "showDeferralCount": false
+  },
+  "userExperience": {
+    {{- /* Initially, we show Nudge once every 24 hours  */ -}}
+    "initialRefreshCycle": 86400,
+    {{- /* Related to approachingWindowTime (72 hours before deadline by default)
+           we still want to show the window once every 24 hours */ -}}
+    "approachingRefreshCycle": 86400,
+    {{- /* Related to imminentWindowTime (24 hours before deadline by default)
+           we want to show the window once every 2 hours */ -}}
+    "imminentRefreshCycle": 7200,
+    {{- /* Related to elapsedWindowTime (once the deadline is past)
+           we want to show the window once every hour */ -}}
+    "elapsedRefreshCycle": 3600
+  },
+  "updateElements": [
+    {
+      "_language": "en",
+      "actionButtonText": "Update",
+      "mainHeader": "Your device requires an update"
     }
   ]
 }

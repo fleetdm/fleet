@@ -2147,7 +2147,30 @@ func (s *integrationEnterpriseTestSuite) TestOrbitConfigNudgeSettings() {
 		  "osVersionRequirements": [
 		    {
 		      "requiredInstallationDate": "2022-01-04",
-		      "requiredMinimumOSVersion": "12.1.3"
+		      "requiredMinimumOSVersion": "12.1.3",
+		      "aboutUpdateURLs": [
+			{
+			  "_language": "en",
+			  "aboutUpdateURL": "https://fleetdm.com/docs/using-fleet/mobile-device-management#macos-updates"
+			}
+		      ]
+		    }
+		  ],
+		  "userInterface": {
+		    "simpleMode": true,
+		    "showDeferralCount": false
+		  },
+		  "userExperience": {
+		    "initialRefreshCycle": 86400,
+		    "approachingRefreshCycle": 86400,
+		    "imminentRefreshCycle": 7200,
+		    "elapsedRefreshCycle": 3600
+		  },
+		  "updateElements": [
+		    {
+		      "_language": "en",
+		      "actionButtonText": "Update",
+		      "mainHeader": "Your device requires an update"
 		    }
 		  ]
 		}`,
@@ -2190,7 +2213,30 @@ func (s *integrationEnterpriseTestSuite) TestOrbitConfigNudgeSettings() {
 		  "osVersionRequirements": [
 		    {
 		      "requiredInstallationDate": "1992-01-01",
-		      "requiredMinimumOSVersion": "13.1.1"
+		      "requiredMinimumOSVersion": "13.1.1",
+		      "aboutUpdateURLs": [
+			{
+			  "_language": "en",
+			  "aboutUpdateURL": "https://fleetdm.com/docs/using-fleet/mobile-device-management#macos-updates"
+			}
+		      ]
+		    }
+		  ],
+		  "userInterface": {
+		    "simpleMode": true,
+		    "showDeferralCount": false
+		  },
+		  "userExperience": {
+		    "initialRefreshCycle": 86400,
+		    "approachingRefreshCycle": 86400,
+		    "imminentRefreshCycle": 7200,
+		    "elapsedRefreshCycle": 3600
+		  },
+		  "updateElements": [
+		    {
+		      "_language": "en",
+		      "actionButtonText": "Update",
+		      "mainHeader": "Your device requires an update"
 		    }
 		  ]
 		}`,
@@ -2207,7 +2253,30 @@ func (s *integrationEnterpriseTestSuite) TestOrbitConfigNudgeSettings() {
 		  "osVersionRequirements": [
 		    {
 		      "requiredInstallationDate": "2022-01-04",
-		      "requiredMinimumOSVersion": "12.1.3"
+		      "requiredMinimumOSVersion": "12.1.3",
+		      "aboutUpdateURLs": [
+			{
+			  "_language": "en",
+			  "aboutUpdateURL": "https://fleetdm.com/docs/using-fleet/mobile-device-management#macos-updates"
+			}
+		      ]
+		    }
+		  ],
+		  "userInterface": {
+		    "simpleMode": true,
+		    "showDeferralCount": false
+		  },
+		  "userExperience": {
+		    "initialRefreshCycle": 86400,
+		    "approachingRefreshCycle": 86400,
+		    "imminentRefreshCycle": 7200,
+		    "elapsedRefreshCycle": 3600
+		  },
+		  "updateElements": [
+		    {
+		      "_language": "en",
+		      "actionButtonText": "Update",
+		      "mainHeader": "Your device requires an update"
 		    }
 		  ]
 		}`,
