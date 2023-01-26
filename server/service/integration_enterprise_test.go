@@ -2141,41 +2141,9 @@ func (s *integrationEnterpriseTestSuite) TestOrbitConfigNudgeSettings() {
 
 	resp = orbitGetConfigResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *h.OrbitNodeKey)), http.StatusOK, &resp)
-	require.JSONEq(
-		t,
-		`{
-		  "osVersionRequirements": [
-		    {
-		      "requiredInstallationDate": "2022-01-04",
-		      "requiredMinimumOSVersion": "12.1.3",
-		      "aboutUpdateURLs": [
-			{
-			  "_language": "en",
-			  "aboutUpdateURL": "https://fleetdm.com/docs/using-fleet/mobile-device-management#macos-updates"
-			}
-		      ]
-		    }
-		  ],
-		  "userInterface": {
-		    "simpleMode": true,
-		    "showDeferralCount": false
-		  },
-		  "userExperience": {
-		    "initialRefreshCycle": 86400,
-		    "approachingRefreshCycle": 86400,
-		    "imminentRefreshCycle": 7200,
-		    "elapsedRefreshCycle": 3600
-		  },
-		  "updateElements": [
-		    {
-		      "_language": "en",
-		      "actionButtonText": "Update",
-		      "mainHeader": "Your device requires an update"
-		    }
-		  ]
-		}`,
-		string(resp.NudgeConfig),
-	)
+	wantCfg, err := fleet.NewNudgeConfig(fleet.MacOSUpdates{Deadline: "2022-01-04", MinimumVersion: "12.1.3"})
+	require.NoError(t, err)
+	require.Equal(t, wantCfg, resp.NudgeConfig)
 
 	// create a team with an empty macos_updates config
 	team, err := s.ds.NewTeam(context.Background(), &fleet.Team{
@@ -2207,81 +2175,17 @@ func (s *integrationEnterpriseTestSuite) TestOrbitConfigNudgeSettings() {
 
 	resp = orbitGetConfigResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *h.OrbitNodeKey)), http.StatusOK, &resp)
-	require.JSONEq(
-		t,
-		`{
-		  "osVersionRequirements": [
-		    {
-		      "requiredInstallationDate": "1992-01-01",
-		      "requiredMinimumOSVersion": "13.1.1",
-		      "aboutUpdateURLs": [
-			{
-			  "_language": "en",
-			  "aboutUpdateURL": "https://fleetdm.com/docs/using-fleet/mobile-device-management#macos-updates"
-			}
-		      ]
-		    }
-		  ],
-		  "userInterface": {
-		    "simpleMode": true,
-		    "showDeferralCount": false
-		  },
-		  "userExperience": {
-		    "initialRefreshCycle": 86400,
-		    "approachingRefreshCycle": 86400,
-		    "imminentRefreshCycle": 7200,
-		    "elapsedRefreshCycle": 3600
-		  },
-		  "updateElements": [
-		    {
-		      "_language": "en",
-		      "actionButtonText": "Update",
-		      "mainHeader": "Your device requires an update"
-		    }
-		  ]
-		}`,
-		string(resp.NudgeConfig),
-	)
+	wantCfg, err = fleet.NewNudgeConfig(fleet.MacOSUpdates{Deadline: "1992-01-01", MinimumVersion: "13.1.1"})
+	require.NoError(t, err)
+	require.Equal(t, wantCfg, resp.NudgeConfig)
 
 	// create a new host, still receives the global config
 	h2 := createOrbitEnrolledHost(t, "darwin", "h2", s.ds)
 	resp = orbitGetConfigResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *h2.OrbitNodeKey)), http.StatusOK, &resp)
-	require.JSONEq(
-		t,
-		`{
-		  "osVersionRequirements": [
-		    {
-		      "requiredInstallationDate": "2022-01-04",
-		      "requiredMinimumOSVersion": "12.1.3",
-		      "aboutUpdateURLs": [
-			{
-			  "_language": "en",
-			  "aboutUpdateURL": "https://fleetdm.com/docs/using-fleet/mobile-device-management#macos-updates"
-			}
-		      ]
-		    }
-		  ],
-		  "userInterface": {
-		    "simpleMode": true,
-		    "showDeferralCount": false
-		  },
-		  "userExperience": {
-		    "initialRefreshCycle": 86400,
-		    "approachingRefreshCycle": 86400,
-		    "imminentRefreshCycle": 7200,
-		    "elapsedRefreshCycle": 3600
-		  },
-		  "updateElements": [
-		    {
-		      "_language": "en",
-		      "actionButtonText": "Update",
-		      "mainHeader": "Your device requires an update"
-		    }
-		  ]
-		}`,
-		string(resp.NudgeConfig),
-	)
+	wantCfg, err = fleet.NewNudgeConfig(fleet.MacOSUpdates{Deadline: "2022-01-04", MinimumVersion: "12.1.3"})
+	require.NoError(t, err)
+	require.Equal(t, wantCfg, resp.NudgeConfig)
 }
 
 // allEqual compares all fields of a struct.
