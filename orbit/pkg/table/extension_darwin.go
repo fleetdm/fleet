@@ -3,6 +3,7 @@
 package table
 
 import (
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/logging_and_auditing"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/privaterelay"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/pwd_policy"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/user_login_settings"
@@ -22,6 +23,7 @@ func platformTables() []osquery.OsqueryPlugin {
 		table.NewPlugin("icloud_private_relay", privaterelay.Columns(), privaterelay.Generate),
 		table.NewPlugin("user_login_settings", user_login_settings.Columns(), user_login_settings.Generate),
 		table.NewPlugin("pwd_policy", pwd_policy.Columns(), pwd_policy.Generate),
+		table.NewPlugin("logging_and_auditing", logging_and_auditing.Columns(), logging_and_auditing.Generate),
 
 		// Macadmins extension tables
 		table.NewPlugin("filevault_users", filevaultusers.FileVaultUsersColumns(), filevaultusers.FileVaultUsersGenerate),

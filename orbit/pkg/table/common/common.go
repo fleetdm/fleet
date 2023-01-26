@@ -4,6 +4,7 @@
 package common
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
 	"github.com/antchfx/xmlquery"
@@ -51,4 +52,27 @@ func GetValFromXMLWithTags(xml string, parentTag string, tag string, tagValue st
 		}
 	}
 	return "", errors.New("can't find requested value")
+}
+
+// FindLineInFileContainingString will search a file and return the first line containing the desired string.
+// The params and return values are self explenatory.
+func FindLineInFileContainingString(filename string, stringToSearch string) (line string, err error) {
+	line = ""
+	file, err := os.Open(filename)
+	if err != nil {
+		return
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line = scanner.Text()
+		if strings.Contains(line, stringToSearch) {
+			return
+		}
+	}
+	if err = scanner.Err(); err != nil {
+		return
+	}
+	return "", errors.New("could not find line")
 }
