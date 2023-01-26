@@ -1,5 +1,4 @@
 import React, { useState, useCallback, useContext } from "react";
-import { IconNames } from "components/icons";
 import { useQuery } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
 
@@ -84,15 +83,13 @@ const TeamManagementPage = (): JSX.Element => {
 
   const onQueryChange = useCallback(
     (queryData) => {
-      if (teams) {
-        setSearchString(queryData.searchQuery);
-        const { pageIndex, pageSize, searchQuery } = queryData;
-        teamsAPI.loadAll({
-          page: pageIndex,
-          perPage: pageSize,
-          globalFilter: searchQuery,
-        });
-      }
+      setSearchString(queryData.searchQuery);
+      const { pageIndex, pageSize, searchQuery } = queryData;
+      teamsAPI.loadAll({
+        page: pageIndex,
+        perPage: pageSize,
+        globalFilter: searchQuery,
+      });
     },
     [setSearchString]
   );

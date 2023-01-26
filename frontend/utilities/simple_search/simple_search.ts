@@ -4,10 +4,7 @@ interface IDictionary {
   [key: string]: any;
 }
 
-const simpleSearch = (
-  searchQuery = "",
-  dictionary: IDictionary | undefined
-) => {
+const simpleSearch = (searchQuery = "", dictionary?: IDictionary) => {
   const lowerSearchQuery = searchQuery.toLowerCase();
 
   const filterResults = filter(dictionary, (item) => {

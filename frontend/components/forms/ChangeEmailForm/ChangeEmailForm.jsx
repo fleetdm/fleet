@@ -21,7 +21,7 @@ class ChangeEmailForm extends Component {
     const { fields, handleSubmit, onCancel } = this.props;
 
     return (
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={handleSubmit} className={baseClass}>
         <InputField
           {...fields.password}
           autofocus

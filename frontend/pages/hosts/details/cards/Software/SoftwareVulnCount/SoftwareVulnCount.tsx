@@ -7,12 +7,10 @@ const baseClass = "software-vuln-count";
 
 interface ISoftwareVulnCountProps {
   softwareList: ISoftware[];
-  deviceUser?: boolean;
 }
 
 const SoftwareVulnCount = ({
   softwareList,
-  deviceUser,
 }: ISoftwareVulnCountProps): JSX.Element => {
   const vulnCount = softwareList.reduce((sum, software) => {
     return software.vulnerabilities?.length ? sum + 1 : sum;

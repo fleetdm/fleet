@@ -12,8 +12,6 @@ import TableDataError from "components/DataError";
 import Spinner from "components/Spinner";
 import EmptySoftwareTable from "pages/software/components/EmptySoftwareTable";
 
-import { IEmptyTableProps } from "interfaces/empty_table";
-
 import generateTableHeaders from "./SoftwareTableConfig";
 
 interface ISoftwareCardProps {

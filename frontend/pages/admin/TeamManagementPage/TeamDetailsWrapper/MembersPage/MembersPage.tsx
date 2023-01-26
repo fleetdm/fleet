@@ -1,6 +1,5 @@
 import React, { useCallback, useContext, useState } from "react";
 import { useQuery } from "react-query";
-import { IconNames } from "components/icons";
 
 import { NotificationContext } from "context/notification";
 import PATHS from "router/paths";

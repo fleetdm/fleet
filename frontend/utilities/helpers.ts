@@ -1,22 +1,10 @@
-import React from "react";
-import ReactTooltip from "react-tooltip";
-import {
-  isEmpty,
-  flatMap,
-  omit,
-  pick,
-  size,
-  memoize,
-  reduce,
-  uniqueId,
-} from "lodash";
+import { isEmpty, flatMap, omit, pick, size, memoize, reduce } from "lodash";
 import md5 from "js-md5";
 import {
   formatDistanceToNow,
   isAfter,
   intervalToDuration,
   formatDuration,
-  intlFormat,
 } from "date-fns";
 import yaml from "js-yaml";
 
@@ -68,40 +56,6 @@ const labelSlug = (label: ILabel): string => {
 
   return `labels/${id}`;
 };
-
-const statusKey = [
-  {
-    id: "new",
-    count: 0,
-    description: "Hosts that have been enrolled to Fleet in the last 24 hours.",
-    display_text: "New",
-    title_description: "(added in last 24hrs)",
-    type: "status",
-  },
-  {
-    id: "online",
-    count: 0,
-    description: "Hosts that have recently checked-in to Fleet.",
-    display_text: "Online",
-    type: "status",
-  },
-  {
-    id: "missing",
-    count: 0,
-    description: "Hosts that have not been online in 30 days or more.",
-    display_text: "Missing",
-    slug: "missing",
-    statusLabelKey: "missing_count",
-    type: "status",
-  },
-  {
-    id: "offline",
-    count: 0,
-    description: "Hosts that have not checked-in to Fleet recently.",
-    display_text: "Offline",
-    type: "status",
-  },
-];
 
 const isLabel = (target: ISelectTargetsEntity) => {
   return "label_type" in target;

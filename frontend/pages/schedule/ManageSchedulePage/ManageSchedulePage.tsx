@@ -61,7 +61,6 @@ const renderTable = (
       onShowQueryClick={onShowQueryClick}
       allScheduledQueriesList={allScheduledQueriesList}
       toggleScheduleEditorModal={toggleScheduleEditorModal}
-      isOnGlobalTeam={isOnGlobalTeam}
       selectedTeamData={selectedTeamData}
       loadingInheritedQueriesTableData={isLoadingGlobalScheduledQueries}
       loadingTeamQueriesTableData={isLoadingTeamScheduledQueries}
@@ -73,7 +72,6 @@ const renderAllTeamsTable = (
   router: InjectedRouter,
   allTeamsScheduledQueriesList: IScheduledQuery[],
   allTeamsScheduledQueriesError: Error | null,
-  isOnGlobalTeam: boolean,
   selectedTeamData: ITeam | undefined,
   isLoadingGlobalScheduledQueries: boolean,
   isLoadingTeamScheduledQueries: boolean
@@ -86,7 +84,6 @@ const renderAllTeamsTable = (
         router={router}
         inheritedQueries
         allScheduledQueriesList={allTeamsScheduledQueriesList}
-        isOnGlobalTeam={isOnGlobalTeam}
         selectedTeamData={selectedTeamData}
         loadingInheritedQueriesTableData={isLoadingGlobalScheduledQueries}
         loadingTeamQueriesTableData={isLoadingTeamScheduledQueries}
@@ -119,8 +116,13 @@ const ManageSchedulePage = ({
   router,
 }: ITeamSchedulesPageProps): JSX.Element => {
   const { renderFlash } = useContext(NotificationContext);
-  const { MANAGE_PACKS, MANAGE_SCHEDULE, MANAGE_TEAM_SCHEDULE } = paths;
-  const handleAdvanced = () => router.push(MANAGE_PACKS);
+  const {
+    // MANAGE_PACKS, // Packs UI removed
+    MANAGE_SCHEDULE,
+    MANAGE_TEAM_SCHEDULE,
+  } = paths;
+
+  // const handleAdvanced = () => router.push(MANAGE_PACKS);  // Packs UI removed
 
   const {
     availableTeams,
@@ -553,7 +555,6 @@ const ManageSchedulePage = ({
             router,
             inheritedScheduledQueriesList,
             inheritedScheduledQueriesError,
-            isOnGlobalTeam || false,
             selectedTeamData,
             isLoadingGlobalScheduledQueries,
             isLoadingTeamScheduledQueries

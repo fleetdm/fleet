@@ -10,7 +10,6 @@ import Button from "components/buttons/Button";
 import TableContainer from "components/TableContainer";
 import CustomLink from "components/CustomLink";
 import EmptyTable from "components/EmptyTable";
-import Icon from "components/Icon";
 import generateTableHeaders from "./QueriesTableConfig";
 
 const baseClass = "queries-table";

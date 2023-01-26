@@ -114,12 +114,7 @@ const SoftwareTable = ({
 
       {software?.length ? (
         <>
-          {software && (
-            <SoftwareVulnCount
-              softwareList={software}
-              deviceUser={deviceUser}
-            />
-          )}
+          {software && <SoftwareVulnCount softwareList={software} />}
           {software && (
             <div className={deviceType || ""}>
               <TableContainer

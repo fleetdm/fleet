@@ -1,3 +1,5 @@
+import { IError } from "interfaces/errors";
+
 export default (error: any) => {
   if (!error.response || !error.response.errors) {
     return undefined;
@@ -6,7 +8,7 @@ export default (error: any) => {
   const { errors: errorsArray } = error.response;
   const result: { [key: string]: any } = {};
 
-  errorsArray.forEach((errorObject: any) => {
+  errorsArray.forEach((errorObject: IError) => {
     result[errorObject.name] = errorObject.reason;
   });
 

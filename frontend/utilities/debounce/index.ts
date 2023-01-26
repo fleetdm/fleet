@@ -9,7 +9,7 @@ interface IOptions {
 const DEFAULT_TIMEOUT = 1000; // 1 function execution per second by default
 
 export default (
-  func: (...args: any[]) => any,
+  func: (...args: any[]) => any, // eslint-disable-line @typescript-eslint/no-explicit-any
   options: IOptions = {
     leading: true,
     trailing: false,

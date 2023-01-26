@@ -1,5 +1,4 @@
 import React, { useContext } from "react";
-import { IconNames } from "components/icons";
 import { AppContext } from "context/app";
 import { noop } from "lodash";
 import paths from "router/paths";

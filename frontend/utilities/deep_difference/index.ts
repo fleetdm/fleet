@@ -1,7 +1,10 @@
 import { differenceWith, isArray, isEqual, isObject, map } from "lodash";
 
-const deepDifference = (obj1: any, obj2: any) => {
-  const result: any = {};
+const deepDifference = (
+  obj1: any, // eslint-disable-line @typescript-eslint/no-explicit-any
+  obj2: any // eslint-disable-line @typescript-eslint/no-explicit-any
+) => {
+  const result: any = {}; // eslint-disable-line @typescript-eslint/no-explicit-any
 
   map(obj1, (value, key) => {
     const obj2Value = obj2[key];

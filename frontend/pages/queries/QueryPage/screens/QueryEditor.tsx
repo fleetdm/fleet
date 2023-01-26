@@ -14,6 +14,7 @@ import deepDifference from "utilities/deep_difference";
 
 import BackLink from "components/BackLink";
 import QueryForm from "pages/queries/QueryPage/components/QueryForm";
+import { IError } from "interfaces/errors";
 
 interface IQueryEditorProps {
   router: InjectedRouter;

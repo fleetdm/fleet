@@ -37,7 +37,6 @@ interface IScheduleTableProps {
   allScheduledQueriesList: IScheduledQuery[];
   toggleScheduleEditorModal?: () => void;
   inheritedQueries?: boolean;
-  isOnGlobalTeam: boolean;
   selectedTeamData: ITeam | undefined;
   loadingInheritedQueriesTableData: boolean;
   loadingTeamQueriesTableData: boolean;
@@ -51,14 +50,16 @@ const ScheduleTable = ({
   allScheduledQueriesList,
   toggleScheduleEditorModal,
   inheritedQueries,
-  isOnGlobalTeam,
   selectedTeamData,
   loadingInheritedQueriesTableData,
   loadingTeamQueriesTableData,
 }: IScheduleTableProps): JSX.Element => {
-  const { MANAGE_PACKS, MANAGE_HOSTS } = paths;
+  const {
+    // MANAGE_PACKS,  // Packs UI removed
+    MANAGE_HOSTS,
+  } = paths;
 
-  const handleAdvanced = () => router.push(MANAGE_PACKS);
+  // const handleAdvanced = () => router.push(MANAGE_PACKS);  // Packs UI removed
 
   const emptyState = () => {
     const emptySchedule: IEmptyTableProps = {

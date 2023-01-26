@@ -45,7 +45,7 @@ const Vulnerabilities = ({
   ]);
 
   return (
-    <div className="section section--vulnerabilities">
+    <div className={`section section--${baseClass}`}>
       <p className="section__header">Vulnerabilities</p>
 
       {software?.vulnerabilities?.length ? (

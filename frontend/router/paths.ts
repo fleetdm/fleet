@@ -1,4 +1,3 @@
-import { IHost } from "../interfaces/host";
 import { IQuery } from "../interfaces/query";
 import { IPolicy } from "../interfaces/policy";
 import URL_PREFIX from "./url_prefix";
@@ -62,7 +61,7 @@ export default {
   HOST_POLICIES: (id: number): string => {
     return `${URL_PREFIX}/hosts/${id}/policies`;
   },
-  DEVICE_USER_DETAILS: (deviceAuthToken: any): string => {
+  DEVICE_USER_DETAILS: (deviceAuthToken: string): string => {
     return `${URL_PREFIX}/device/${deviceAuthToken}`;
   },
   MANAGE_SOFTWARE: `${URL_PREFIX}/software/manage`,

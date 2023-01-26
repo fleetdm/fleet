@@ -103,7 +103,9 @@ const DeviceUserPage = ({
 
   const refetchExtensions = () => {
     deviceMapping !== null && refetchDeviceMapping();
+    macadmins !== null && refetchMacadmins();
   };
+
   const {
     isLoading: isLoadingHost,
     error: loadingDeviceUserError,

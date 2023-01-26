@@ -3,7 +3,7 @@ import { keys } from "lodash";
 const defaultFieldSortFunc = (fields: string[]) => fields;
 
 const convertToCSV = (
-  objArray: any[],
+  objArray: any[], // eslint-disable-line @typescript-eslint/no-explicit-any
   fieldSortFunc = defaultFieldSortFunc
 ) => {
   const fields = fieldSortFunc(keys(objArray[0]));

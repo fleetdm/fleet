@@ -1764,7 +1764,7 @@ const ManageHostsPage = ({
       <TableContainer
         columns={tableColumns}
         data={hosts || []}
-        isLoading={isHostsLoading || isHostCountLoading}
+        isLoading={isHostsLoading || isHostCountLoading || isLoadingLabels}
         manualSortBy
         defaultSortHeader={(sortBy[0] && sortBy[0].key) || DEFAULT_SORT_HEADER}
         defaultSortDirection={

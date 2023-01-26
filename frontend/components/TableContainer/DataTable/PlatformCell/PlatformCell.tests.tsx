@@ -1,5 +1,5 @@
 import React from "react";
-import { getByTestId, render, screen, within } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 
 import PlatformCell from "./PlatformCell";
 
