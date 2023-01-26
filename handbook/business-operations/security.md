@@ -866,3 +866,6 @@ We make sure the fixes to vulnerable dependencies are also performed according t
 
 We publish a trust report that includes automated checking of controls, answers to frequently asked
 questions and more on [https://fleetdm.com/trust](https://fleetdm.com/trust)
+
+<meta name="maintainedBy" value="hollidayn">
+<meta name="title" value="Security">
