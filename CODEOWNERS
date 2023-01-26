@@ -31,7 +31,7 @@ go.mod @fleetdm/go
 /docs/01-Using-Fleet/standard-query-library/standard-query-library.yml @mikermcneil
 
 # Exapnded table documentation
-/schema @mikermcneil @sharon-fdm @eashaw @lucasmrod 
+/schema @sharon-fdm 
 
 # Articles
 /articles @jarodreyes
