@@ -354,13 +354,9 @@ module.exports.routes = {
   // XML file, which helps search engines know which pages are available on the website.
   'GET /sitemap.xml':            { action: 'download-sitemap' },
 
-  // RSS feeds
+  // RSS Feeds
   // =============================================================================================================
-  // TODO: description/does this need to be seperate?
-  'r|^/((success-stories|securing|releases|engineering|guides|announcements|articles|podcasts|report|deploy))/rss$|category': {
-    skipAssets: true,
-    action: 'download-one-rss-feed'
-  },// Handles RSS feeds for articles (/articles/rss), and the article cateogry pages (e.g. /device-management/rss, /securing/rss, /releases/rss, etc)
+  'GET /rss/:categoryName': {action: 'get-one-rss-feed'},
 
   // Potential future pages
   // =============================================================================================================

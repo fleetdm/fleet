@@ -50,5 +50,5 @@ module.exports.policies = {
   'view-fleet-mdm': true,
   'deliver-mdm-beta-signup': true,
   'deliver-apple-csr': true,
-  'download-one-rss-feed': true,
+  'get-one-rss-feed': true,
 };
