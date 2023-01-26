@@ -713,6 +713,26 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
+  name: Ensure Guest Access to Shared Folders Is Disabled
+  platforms: macOS
+  platform: darwin
+  description: Allowing guests to connect to shared folders enables users to access selected shared folders and their contents from different computers on a network
+  resolution: |
+    Automated method:
+    Ask your system administrator to deploy an MDM profile that disables Guest Account.
+    Graphical Method:
+      Perform the following steps to no longer allow guest user access to shared folders:
+        1. Open System Settings
+        2. Select Users & Groups
+        3. Select the i next to the Guest User
+        4. Set Allow guests to connect to shared folders to disabled
+  query: SELECT 1 WHERE NOT EXISTS( SELECT 1 FROM managed_policies WHERE domain='com.apple.smb.server' AND name='AllowGuestAccess' AND value=1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS2.12.2
+---
+apiVersion: v1
+kind: policy
+spec:
   name: CIS - Ensure Automatic Login Is Disabled (MDM Required)
   platforms: macOS
   platform: darwin
