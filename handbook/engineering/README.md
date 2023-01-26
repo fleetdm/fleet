@@ -96,16 +96,7 @@ In some groups, this may be split into smaller discussions related to the differ
 
 This would include members of each group.
 
-#### Sample agenda (Platform)
-
-- Announcements
-- Anything at risk for the release?
-- Bug assignment
-- Retries in the datastore
-- Platform scale GOTCHAS doc
-- MarshalJSON to hide passwords and API tokens. Thoughts?
-
-#### Sample Agenda (Interface)
+#### Sample Agenda (MDM)
 
 - What’s good?
 - Anything at risk for the release?
@@ -141,7 +132,7 @@ This would include the CTO + Engineering managers.
 
 This section outlines the release process at Fleet.
 
-The current release cadence is once every three weeks and is concentrated around Wednesdays.
+The current release cadence is nightly.
 
 ### Release freeze period
 
