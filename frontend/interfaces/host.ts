@@ -203,10 +203,10 @@ export interface IHost {
   users: IHostUser[];
   device_users?: IDeviceUser[];
   munki?: IMunkiData;
-  mdm: {
-    enrollment_status: MdmStatus;
-    server_url: string;
-  };
+  // TODO: Below fields are intentionally redundant
+  // API currently not nested, but will be reverted to nested structure
+  mdm?: IHostMdmData;
+  mdm_enrollment_status: "On (automatic)" | "On (manual)" | "Pending" | "Off";
   policies: IHostPolicy[];
   query_results?: unknown[];
   geolocation?: IGeoLocation;

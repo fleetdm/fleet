@@ -5,13 +5,16 @@ import Button from "components/buttons/Button";
 import Modal from "components/Modal";
 import { NotificationContext } from "context/notification";
 
+import mdmAPI from "services/entities/mdm";
+
 interface IUnenrollMdmModalProps {
+  hostId: number;
   onClose: () => void;
 }
 
 const baseClass = "unenroll-mdm-modal";
 
-const UnenrollMdmModal = ({ onClose }: IUnenrollMdmModalProps) => {
+const UnenrollMdmModal = ({ hostId, onClose }: IUnenrollMdmModalProps) => {
   const [requestState, setRequestState] = useState<
     undefined | "unenrolling" | "error"
   >(undefined);
@@ -20,17 +23,25 @@ const UnenrollMdmModal = ({ onClose }: IUnenrollMdmModalProps) => {
 
   const submitUnenrollMdm = async () => {
     setRequestState("unenrolling");
+    let timeout;
     try {
-      const timeout = setTimeout(() => {
+      timeout = setTimeout(() => {
         throw new Error("Unenroll request timed out");
       }, 5000);
-      const response = await (timeout) => {
-        clearInterval(timeout);
-      }; 
+      console.log(`inital timeout: ${timeout}`);
+
+      // await mdmAPI.unenrollHostFromMdm(hostId);
+      // simulate slow network response
+      const response = await new Promise((resolve) =>
+        setTimeout(resolve, 6000)
+      );
+
+      clearTimeout(timeout);
       renderFlash("success", "Successfully turned off MDM.");
       onClose();
     } catch (unenrollMdmError: unknown) {
-        console.log(unenrollMdmError);
+      clearTimeout(timeout);
+      console.log(unenrollMdmError);
       setRequestState("error");
     }
   };
@@ -53,7 +64,7 @@ const UnenrollMdmModal = ({ onClose }: IUnenrollMdmModalProps) => {
             type="submit"
             variant="brand"
             onClick={submitUnenrollMdm}
-            isLoading={requestState === "loading"}
+            isLoading={requestState === "unenrolling"}
           >
             Turn off
           </Button>

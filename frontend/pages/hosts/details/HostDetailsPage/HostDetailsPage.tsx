@@ -586,9 +586,7 @@ const HostDetailsPage = ({
         {/* {currentUser && host && getCanEditMdm(currentUser, host) && ( */}
         {currentUser && host && canEditMdm && (
           <Button
-            onClick={() => {
-              return undefined;
-            }}
+            onClick={toggleUnenrollMdmModal}
             variant="text-icon"
             className={`${baseClass}__unenroll-host-from-mdm-button`}
             disabled={!isOnline}
@@ -805,8 +803,8 @@ const HostDetailsPage = ({
             osPolicyLabel={osPolicyLabel}
           />
         )}
-        {showUnenrollMdmModal && (
-          <UnenrollMdmModal onClose={() => setShowUnenrollMdmModal(false)} />
+        {showUnenrollMdmModal && !!host && (
+          <UnenrollMdmModal hostId={host.id} onClose={toggleUnenrollMdmModal} />
         )}
       </div>
     </MainContent>
