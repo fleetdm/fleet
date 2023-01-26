@@ -59,14 +59,6 @@
     align-items: flex-start;
   }
 
-  .button {
-    font-size: $x-small;
-
-    img {
-      transform: scale(0.5);
-    }
-  }
-
   .form-field--dropdown {
     margin: 0;
   }
@@ -138,6 +130,14 @@
         tbody {
           .name__cell {
             max-width: $col-lg;
+          }
+
+          @media (max-width: $break-990) {
+            .name__cell {
+              .w400 {
+                max-width: calc(400px - 81px);
+              }
+            }
           }
           .platforms__cell {
             max-width: $col-md;

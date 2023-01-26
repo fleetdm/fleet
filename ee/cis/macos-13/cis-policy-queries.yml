@@ -1,0 +1,802 @@
+---
+# The latest version of CIS Benchmarks for macOS as of January 2023 was used which was benchmark 1.0 for macOS 13.0 https://workbench.cisecurity.org/benchmarks/10541
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure All Apple-provided Software Is Current
+  platforms: macOS
+  platform: darwin
+  description: Checks that the current version of macOS is up to date. This query requires maintenance over time.
+  resolution: "Go to System Settings/Software Update and install the latest updates manually"
+  query: SELECT 1 FROM os_version WHERE version >= '13.1';
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS1.1
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Auto Update Is Enabled (MDM Required)
+  platforms: macOS
+  platform: darwin
+  description: Checks that the system is configured via MDM to automatically install updates.
+  resolution: "Ask your system administrator to deploy an MDM profile that enables automatic updates."
+  query: SELECT 1 FROM managed_policies WHERE domain='com.apple.SoftwareUpdate' AND name='AutomaticCheckEnabled' AND value=1 LIMIT 1;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS1.2
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Download New Updates When Available Is Enabled (MDM Required)
+  platforms: macOS
+  platform: darwin
+  description: Checks that the system is configured via MDM to automatically download updates.
+  resolution: "Ask your system administrator to deploy an MDM profile that enables automatic update downloads."
+  query: SELECT 1 FROM managed_policies WHERE domain='com.apple.SoftwareUpdate' AND name='AutomaticDownload' AND value=1 LIMIT 1;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS1.3
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Install of macOS Updates Is Enabled (MDM Required)
+  platforms: macOS
+  platform: darwin
+  description: Ensure that macOS updates are installed after they are available from Apple.
+  resolution: "Ask your system administrator to deploy an MDM profile that enables automatic install of macOS updates."
+  query: SELECT 1 FROM managed_policies WHERE domain='com.apple.SoftwareUpdate' AND name='AutomaticallyInstallMacOSUpdates' AND value=1 LIMIT 1;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS1.4
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Install Application Updates from the App Store Is Enabled (MDM Required)
+  platforms: macOS
+  platform: darwin
+  description: Ensure that application updates are installed after they are available from Apple.
+  resolution: Ask your system administrator to deploy an MDM profile that enables automatic updates of Apple apps.
+  query: SELECT 1 FROM managed_policies WHERE domain='com.apple.SoftwareUpdate' AND name='AutomaticallyInstallAppUpdates' AND value=1;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS1.5
+  contributors: lucasmrod
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Install Security Responses and System Files Is Enabled (MDM Required)
+  platforms: macOS
+  platform: darwin
+  description: |
+    Ensure that system and security updates are installed after they are available from
+    Apple. This setting enables definition updates for XProtect and Gatekeeper. With this
+    setting in place, new malware and adware that Apple has added to the list of malware or
+    untrusted software will not execute.
+  resolution: "Ask your system administrator to deploy an MDM profile that enables automatic critical system and security updates."
+  query: SELECT 1 FROM managed_policies WHERE domain='com.apple.SoftwareUpdate' AND name='CriticalUpdateInstall' AND value=1 LIMIT 1;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS1.6
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Software Update Deferment Is Less Than or Equal to 30 Days (MDM Required)
+  platforms: macOS
+  platform: darwin
+  description: |
+    Apple provides the capability to manage software updates on Apple devices through
+    mobile device management. Part of those capabilities permit organizations to defer
+    software updates and allow for testing. Many organizations have specialized software
+    and configurations that may be negatively impacted by Apple updates. If software
+    updates are deferred, they should not be deferred for more than 30 days.
+    This control only verifies that deferred software updates are not deferred for more than 30 days.
+  resolution: "Ask your system administrator to deploy an MDM profile configures update deferment to a value of 30 days or less."
+  query: SELECT 1 FROM managed_policies WHERE domain='com.apple.applicationaccess' AND name='enforcedSoftwareUpdateDelay' AND value <= 30;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS1.7
+  contributors: lucasmrod
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure iCloud Drive Document and Desktop Sync Is Disabled (MDM Required)
+  platforms: macOS
+  platform: darwin
+  description: Automated Document synchronization should be planned and controlled to approved storage.
+  resolution: |
+    The administrator should configure this via MDM profile.
+    Create or edit a configuration profile with the following information:
+      1. The PayloadType string is com.apple.applicationaccess.
+      2. The key to include is allowCloudDesktopAndDocuments.
+      3. The key must be set to <false/>.
+  query: SELECT 1 FROM managed_policies WHERE domain='com.apple.applicationaccess' AND name='allowCloudDesktopAndDocuments' AND (value = 0 OR value = 'false') LIMIT 1;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS2.1.1.3
+  contributors: zwass
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Firewall Is Enabled
+  platforms: macOS
+  platform: darwin
+  description: A firewall minimizes the threat of unauthorized users gaining access to your system while connected to a network or the Internet.
+  resolution: "Go to the Network pane in System Settings and ensure Firewall is active."
+  query: SELECT 1 FROM alf WHERE global_state >= 1;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS2.2.1
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Firewall Stealth Mode Is Enabled
+  platforms: macOS
+  platform: darwin
+  description: |
+    While in Stealth mode, the computer will not respond to unsolicited probes, dropping that traffic.
+    Stealth mode on the firewall minimizes the threat of system discovery tools while connected to a network or the Internet.
+  resolution: |
+    Perform the following steps to enable firewall stealth mode:
+      1. Open System Settings
+      2. Select Network
+      3. Select Firewall
+      4. Select Options...
+      5. Set Enabled stealth mode to enabled
+  query: SELECT 1 FROM alf WHERE global_state >= 1 AND stealth_enabled = 1;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS2.2.2
+  contributors: lucasmrod
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure AirDrop Is Disabled (MDM Required)
+  platforms: macOS
+  platform: darwin
+  description: |
+    AirDrop can allow malicious files to be downloaded from unknown sources.
+    Contacts Only limits may expose personal information to devices in the same area.
+  resolution: |
+    Ask your system administrator to deploy an MDM profile that disables AirDrop.
+    Create or edit a configuration profile with the following information:
+      1. The PayloadType string is com.apple.applicationaccess
+      2. The key to include is allowAirDrop
+      3. The key must be set to <false/>
+  query: SELECT 1 FROM managed_policies WHERE domain='com.apple.applicationaccess' AND name='allowAirDrop' AND (value = 0 OR value = 'false') LIMIT 1;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS2.3.1.1
+  contributors: lucasmrod
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure AirPlay Receiver Is Disabled (MDM Required)
+  platforms: macOS
+  platform: darwin
+  description: |
+    In macOS Monterey (12.0), Apple has added the capability to share content from
+    another Apple device to the screen of a host Mac. While there are many valuable uses
+    of this capability, such sharing on a standard Mac user workstation should be enabled
+    ad hoc as required rather than allowing a continuous sharing service. The feature can
+    be restricted by Apple ID or network and is configured to use by accepting the
+    connection on the Mac. Part of the concern is frequent connection requests may
+    function as a denial-of-service and access control limits may provide too much
+    information to an attacker.
+  resolution: |
+    The administrator should configure this via MDM profile.
+    Create or edit a configuration profile with the following information:
+      1. The PayloadType string is com.apple.applicationaccess
+      2. The key to include is allowAirPlayIncomingRequests
+      3. The key must be set to <false/>
+  query: SELECT 1 FROM managed_policies WHERE domain='com.apple.applicationaccess' AND name='allowAirPlayIncomingRequests' AND (value = 0 OR value = 'false') LIMIT 1;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS2.3.1.2
+  contributors: lucasmrod
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Set Time and Date Automatically Is Enabled (MDM required)
+  platforms: macOS
+  platform: darwin
+  description: 
+  resolution: |
+      The administrator should configure this via MDM profile.
+      Create or edit a configuration profile with the following information:
+        1. The PayloadType string is com.apple.applicationaccess.
+        2. The key to include is forceAutomaticDateAndTime.
+        3. The key must be set to <true/>.
+  query: SELECT 1 FROM managed_policies WHERE domain='com.apple.applicationaccess' AND name='forceAutomaticDateAndTime' AND value=1 LIMIT 1;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS2.3.2.1
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Time Is Set Within Appropriate Limits (fleetd required)
+  platforms: macOS
+  platform: darwin
+  description: |
+    Correct date and time settings are required for authentication protocols, file creation, modification dates and log entries.
+    The time offset compared to time.apple.com must be between -270.x and 270.x seconds.
+  resolution: Make sure the device can connect to time.apple.com to synchronize time.
+  query: SELECT * FROM sntp_request WHERE server = 'time.apple.com' AND clock_offset_ms <= 270000 AND clock_offset_ms >= -270000;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS2.3.2.2
+  contributors: 
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure DVD or CD Sharing Is Disabled
+  platforms: macOS
+  platform: darwin
+  description: 
+  resolution: ""
+  # Will likely require MDM/managed_policies. Most of the sharing checks that follow will be essentially the same query but looking at different types of sharing.
+  query: SELECT * from time;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS2.3.3.1
+  contributors: 
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Screen Sharing Is Disabled 
+  platforms: macOS
+  platform: darwin
+  description: 
+  resolution: ""
+  query: SELECT * from time;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS2.3.3.2
+  contributors: 
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS -  Ensure File Sharing Is Disabled
+  platforms: macOS
+  platform: darwin
+  description: 
+  resolution: ""
+  query: SELECT * from time;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS2.3.3.3
+  contributors: 
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Backup Automatically is Enabled If Time Machine Is Enabled (FDA Required)
+  platforms: macOS
+  platform: darwin
+  description: |
+    Backup solutions are only effective if the backups run on a regular basis.
+    The time to check for backups is before the hard drive fails or the computer goes missing.
+    In order to simplify the user experience so that backups are more likely to occur,
+    Time Machine should be on and set to Back Up Automatically whenever the target volume is available.
+
+    FDA (Full Disk Access) is required to read the /Library/Preferences/com.apple.TimeMachine.plist
+    file that contains the Time Machine configuration and backup destinations.
+  resolution: |
+    Ask your system administrator to deploy an MDM profile that enables automatic backup if Time Machine is enabled.
+    The system administrator can do one of:
+    A. Disable Time Machine on the device.
+    B. Run the following command to enable automatic backup on Time Machine destinations:
+      /usr/bin/sudo /usr/bin/defaults write /Library/Preferences/com.apple.TimeMachine.plist AutoBackup -bool true
+  query: |
+    SELECT 'no time machine backups' as output
+    FROM (SELECT COUNT(*) as c FROM time_machine_backups) t1 WHERE t1.c = 0
+    UNION
+    SELECT 'time machine automatic backup set to true' as output
+    FROM plist WHERE path='/Library/Preferences/com.apple.TimeMachine.plist'
+    AND key='AutoBackup' AND (value = 1 OR value = 'true');
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS2.3.4.1
+  contributors: lucasmrod
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Time Machine Volumes Are Encrypted If Time Machine Is Enabled (FDA Required)
+  platforms: macOS
+  platform: darwin
+  description: |
+    Backup solutions are only effective if the backups run on a regular basis.
+    The time to check for backups is before the hard drive fails or the computer goes missing.
+    In order to simplify the user experience so that backups are more likely to occur,
+    Time Machine should be on and set to Back Up Automatically whenever the target volume is available.
+
+    FDA (Full Disk Access) is required to read the /Library/Preferences/com.apple.TimeMachine.plist
+    file that contains the Time Machine configuration and backup destinations.
+  resolution: |
+    Graphical Method:
+    Perform the following steps to enable encryption on the Time Machine drive:
+      1. Open `System Settings`.
+      2. Select `General`.
+      3. Select `Time Machine`.
+      4. Select the unencrypted drive.
+      5. Select `-` to forget that drive as a destination.
+      6. Select `+` to add a different drive as the destination.
+      7. Select `Set Up Disk...`.
+      8. Set Encrypt Backup to enabled.
+      9. Enter a password in the `New Password` and the same password in the `Re-enter Password` fields.
+      10. A password hint is required, but it is recommended that you do not use any identifying information for the password
+  query: |
+    SELECT 'no time machine destinations configured' as output
+    FROM (SELECT COUNT(*) as c FROM time_machine_destinations) t1 WHERE t1.c = 0
+    UNION
+    SELECT 'time machines destinations with encryption with automatic backup' as output
+    FROM (SELECT COUNT(*) as c FROM time_machine_destinations WHERE encryption <> 'Encrypted') t2 WHERE t2.c = 0;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS2.3.4.2
+  contributors: lucasmrod
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Show Wi-Fi status in Menu Bar Is Enabled (MDM Required)
+  platforms: macOS
+  platform: darwin
+  description: |
+    The Wi-Fi status in the menu bar indicates if the system's wireless internet capabilities are enabled.
+    If so, the system will scan for available wireless networks in order to connect.
+    Enabling "Show Wi-Fi status in menu bar" is a security awareness method that helps mitigate public area
+    wireless exploits by making the user aware of their wireless connectivity status.
+  resolution: |
+    Automated method:
+    Ask your system administrator to deploy an MDM profile that enables the Wi-Fi status in the menu bar.
+    Create or edit a configuration profile with the following information:
+    1. The `PayloadType` string is `com.apple.controlcenter`.
+    2. The key to include is `WiFi`.
+    3. The key must be set to `<integer>18</integer>`.
+  query: SELECT 1 FROM managed_policies WHERE domain = 'com.apple.controlcenter' AND name = 'WiFi' AND value = 18;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS2.4.1
+  contributors: lucasmrod
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Show Bluetooth Status in Menu Bar Is Enabled (MDM Required)
+  platforms: macOS
+  platform: darwin
+  description: |
+    Enabling "Show Bluetooth status in menu bar" is a security awareness method that
+    helps understand the current state of Bluetooth, including whether it is enabled,
+    discoverable, what paired devices exist, and what paired devices are currently active.
+  resolution: |
+    Automated method:
+    Ask your system administrator to deploy an MDM profile that enables the Bluetooth status in the menu bar.
+    Create or edit a configuration profile with the following information:
+    1. The `PayloadType` string is `com.apple.controlcenter`.
+    2. The key to include is `Bluetooth`.
+    3. The key must be set to `<integer>18</integer>`.
+  query: SELECT 1 FROM managed_policies WHERE domain = 'com.apple.controlcenter' AND name = 'Bluetooth' AND value = 18;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS2.4.2
+  contributors: lucasmrod
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Location Services Is Enabled
+  platforms: macOS
+  platform: darwin
+  description: Checks that Location Services option is enabled.
+  resolution: |
+    Automated method:
+    Ask your system administrator to deploy an MDM profile that enables automatic updates of Apple apps.
+    Graphical method:
+      Perform the following steps to enable Location Services:
+        1. Open System Settings
+        2. Select Privacy & Security
+        3. Select Location Services
+        4. Verify Location Services is enabled
+  query: SELECT 1 FROM location_services where enabled=1;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS2.6.1.1
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Location Services Is in the Menu Bar
+  platforms: macOS
+  platform: darwin
+  description: Checks that Location Services option is presented in the Menu Bar.
+  resolution: |
+    Automated method:
+    Ask your system administrator to deploy an MDM profile that enables the "location services" icon in menu bar when System Services request your location.
+    Graphical method:
+      Perform the following steps to enable Location Services:
+        1. Open System Settings
+        2. Select Privacy & Security
+        3. Select Location Services
+        4. Select Details...
+        5. Verify Show location icon in menu bar when System Services request your
+        location is set to your organization's parameters
+  query:  SELECT 1 FROM plist WHERE path='/Library/Preferences/com.apple.locationmenu.plist' AND key='ShowSystemServices' AND value=1;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS2.6.1.2
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Limit Ad Tracking Is Enabled (MDM Required)
+  platforms: macOS
+  platform: darwin
+  description: Checks that Ensure Limit Ad Tracking Is Enabled.
+  resolution: |
+    Automated method:
+    Ask your system administrator to deploy an MDM profile that disables apple personalized advertising.
+    Graphical method:
+      Perform the following steps to enable Location Services:
+        1. Open Privacy & Security
+        2. Select Apple Advertising
+        3. Verify that Personalized Ads is not enabled
+  query: SELECT 1 FROM managed_policies WHERE domain='com.apple.applicationaccess' AND name='allowApplePersonalizedAdvertising' AND value=0;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS2.6.3
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Screen Saver Corners Are Secure (FDA Required)
+  platforms: macOS
+  platform: darwin
+  description: |
+    Setting a hot corner to disable the screen saver poses a potential security risk since an
+    unauthorized person could use this to bypass the login screen and gain access to the system.
+
+    FDA (Full Disk Access) is required to read the configuration of all the users in the device
+    ('/Users/*/Library/Preferences/com.apple.dock.plist')
+  resolution: |
+    Ask your system administrator to deploy a script that will configure
+    `wvous-tl-corner`, `wvous-bl-corner`, `wvous-tr-corner`, and `wvous-br-corner` in
+    domain `com.apple.dock` to a value that is not 6 (for all users of the device).
+
+    Graphical Method:
+      Perform the following steps to ensure that a Hot Corner is not set to Disable Screen Saver:
+        1. Open System Settings
+        2. Select Desktop & Dock
+        3. Select`Hot Corners...`
+        4. Verify that `Disable Screen Saver` is not set to any of the corners.
+  query: |
+    SELECT 1 WHERE NOT EXISTS(
+      SELECT 1 FROM plist
+      WHERE path LIKE '/Users/%/Library/Preferences/com.apple.dock.plist' AND (
+        key = 'wvous-br-corner' OR
+        key = 'wvous-bl-corner' OR
+        key = 'wvous-tr-corner' OR
+        key = 'wvous-tl-corner'
+    ) AND value = 6);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS2.7.1
+  contributors: lucasmrod
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure a Password is Required to Wake the Computer From Sleep or Screen Saver Is Enabled (MDM Required)
+  platforms: macOS
+  platform: darwin
+  description: Checks that Password is Required to Wake the Computer From Sleep or Screen Saver Is Enabled.
+  resolution: |
+    Automated method:
+    Ask your system administrator to deploy an MDM profile that Ensure a Password is Required to Wake the Computer From Sleep or Screen Saver Is Enabled.
+    Graphical method:
+      Perform the following steps to enable Location Services:
+        1. Open System Settings
+        2. Select Lock Screen
+        3. Verify that Require password after screensaver begins or display is turned
+        off is set with After 0 seconds or After 5 seconds
+  query: |
+    SELECT 1 WHERE EXISTS(select 1 FROM managed_policies WHERE domain='com.apple.screensaver' AND name='askForPassword' AND value=1)  AND EXISTS(select 1 FROM managed_policies WHERE domain='com.apple.screensaver' AND name='askForPasswordDelay' AND value <= 5)
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS2.10.2
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Gatekeeper Is Enabled
+  platforms: macOS
+  platform: darwin
+  description: |
+    Checks that Gatekeeper Is Enabled. Gatekeeper is Apple’s application that utilizes allowlisting to restrict downloaded applications from launching. It functions as a control to limit applications from unverified sources from running without authorization. In an update to Gatekeeper in macOS 13 Ventura, Gatekeeper checks every application on every launch, not just quarantined apps.
+  resolution: |
+    Automated method:
+    Ask your system administrator to deploy an MDM profile that Ensure Gatekeeper Is Enabled
+    Graphical method:
+      Perform the following steps to enable Location Services:
+        1. Open System Settings
+        2. Select Privacy & Security
+        3. Verify that 'Allow apps downloaded from' is set to' App Store and identified developers'
+  query: SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1 AND dev_id_enabled = 1;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS2.6.4
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Sending Diagnostic and Usage Data to Apple Is Disabled (MDM Required)
+  platforms: macOS
+  platform: darwin
+  description: Checks that Sending Diagnostic and Usage Data to Apple Is Disabled.
+  resolution: |
+    Automated method:
+    Ask your system administrator to deploy an MDM profile that disables Sending Diagnostic and Usage Data to Apple.
+    Graphical method:
+      Perform the following steps to enable Location Services:
+        1. Open System Settings
+        2. Select Privacy & Security
+        3. Select Analytics & Improvements
+        4. Verify that Share Mac Analytics is not enabled
+        5. Verify that Share with App Developers is not enabled
+        6. Verify that Improve Siri & Dictation is not enabled
+  query: |
+    SELECT 1 WHERE 
+    EXISTS(select 1 FROM managed_policies WHERE domain='com.apple.SubmitDiagInfo' AND name='AutoSubmit' AND value = 0)  
+    AND 
+    EXISTS(select 1 FROM managed_policies WHERE domain='com.apple.applicationaccess' AND name='allowDiagnosticSubmission' AND value = 0)
+    AND 
+    EXISTS(select 1 FROM managed_policies WHERE domain='com.apple.applicationaccess' AND name='Siri Data Sharing Opt-In Status' AND value = 2);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS2.6.2
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure an Inactivity Interval of 20 Minutes Or Less for the Screen Saver Is Enabled (MDM Required)
+  platforms: macOS
+  platform: darwin
+  description: A locking screen saver is one of the standard security controls to limit access to a computer and the current user's session when the computer is temporarily unused or unattended. In macOS, the screen saver starts after a value is selected in the drop- down menu. 20 minutes or less is an acceptable value. Any value can be selected through the command line or script, but a number that is not reflected in the GUI can be problematic. 20 minutes is the default for new accounts.
+  resolution: |
+    Automated method:
+    Ask your system administrator to deploy an MDM profile that ensure an Inactivity Interval of 20 Minutes Or Less for the Screen Saver to be Enabled.
+    Graphical method:
+      Perform the following steps to enable Location Services:
+        1. Open System Settings
+        2. Select Lock Screen
+        3. Verify that Start Screen Saver when inactive is set for 20 minutes or less (≤1200 seconds)
+  query: SELECT 1 FROM managed_policies WHERE domain='com.apple.screensaver' AND name='idleTime' AND value <= 1200;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS2.10.1
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure a Custom Message for the Login Screen Is Enabled
+  platforms: macOS
+  platform: darwin
+  description: An access warning informs the user that the system is reserved for authorized use only, and that the use of the system may be monitored
+  resolution: |
+    Graphical method:
+      Perform the following steps to enable Location Services:
+        1. Open System Settings
+        2. Select Lock Screen
+        3. Verify Show message when locked is enabled
+        4. Select Set
+        5. Verify that the message displayed is configured to your organization's required text
+  query: SELECT 1 FROM plist WHERE path='/Library/Preferences/com.apple.loginwindow.plist' AND key='LoginwindowText' AND value != "";
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS2.10.3
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure FileVault Is Enabled (MDM required)
+  platforms: macOS
+  platform: darwin
+  description: Checks that FileVault Is Enabled. FileVault secures a system's data by automatically encrypting its boot volume and requiring a password or recovery key to access it. This policy checks that filevault is enabled on the device and that the user is not allowed to disable it.
+  resolution: |
+    Automated method:
+    Ask your system administrator to deploy an MDM profile that enables FileVault and disables turning it off.
+    Graphical method:
+      Perform the following steps to enable Location Services:
+        1. Open System Settings
+        2. Select Privacy & Privacy
+        3. Verify that FileVault states FileVault is turned on for the disk "<disk name>"
+        4. Select Privacy & Security
+        5. Select Profile
+        6. Verify that an installed profile has FileVault Can't Disable set to True
+  query: |
+    SELECT 1 WHERE 
+    EXISTS(SELECT 1 FROM managed_policies WHERE domain='com.apple.MCX' AND name='dontAllowFDEDisable' AND value=1)  
+    AND 
+    EXISTS(SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT "" AND filevault_status = 'on' LIMIT 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS2.6.5
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Login Window Displays as Name and Password Is Enabled (MDM required)
+  platforms: macOS
+  platform: darwin
+  description: Checks Login Window Displays as Name and Password Is Enabled.
+  resolution: |
+    Automated method:
+    Ask your system administrator to deploy an MDM profile that Ensure Login Window Displays as Name and Password Is Enabled.
+    Graphical method:
+      Perform the following steps to enable Location Services:
+        1. Open System Settings
+        2. Select Lock Screen
+        3. Verify that Login window shows is set to Name and Password
+  query: SELECT 1 FROM managed_policies where domain='com.apple.loginwindow' AND name='SHOWFULLNAME' AND value=1;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS2.10.4
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Show Password Hints Is Disabled (MDM Required)
+  platforms: macOS
+  platform: darwin
+  description: Checks Show Password Hints Is Disabled.
+  resolution: |
+    Automated method:
+    Ask your system administrator to deploy an MDM profile that Ensures Show Password Hints Is Disabled.
+    Graphical method:
+      Perform the following steps to enable Location Services:
+        1. OpenSystemSettings
+        2. Select Lock Screen
+        3. Verify that Show password hints is disabled
+  query: SELECT 1 FROM managed_policies WHERE domain = 'com.apple.loginwindow' AND name = 'RetriesUntilHint' AND value = 0;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS2.10.5
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Users' Accounts Do Not Have a Password Hint (fleetd required)
+  platforms: macOS
+  platform: darwin
+  description: |
+    Password hints help the user recall their passwords for various systems and/or accounts. In most cases, password hints are simple and closely related to the user's password.
+  resolution: |
+    Automated method:
+    Ask your system administrator to deploy an MDM profile that disables apple personalized advertising.
+    Graphical method:
+      Perform the following steps to enable Location Services:
+        1. Open System Settings
+        2. Select Touch ID & Passwords (or Login Password on non-Touch ID Macs)
+        3. Select Change...
+        4. Change the password and ensure that no text is entered in the Password hint box
+  query: SELECT 1 FROM user_login_settings WHERE password_hint_enabled = 0;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS2.11.1
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Guest Account Is Disabled
+  platforms: macOS
+  platform: darwin
+  description: Checks that Guest Account Is Disabled.
+  resolution: |
+    Automated method:
+    Ask your system administrator to deploy an MDM profile that disables Guest Account.
+    Graphical method:
+      Perform the following steps to enable Location Services:
+        1. Open System Settings
+        2. Select Users & Groups
+        3. Select the i next to the Guest User
+        4. Verify that Allow guests to log in to this computer is disable
+  query: |
+    SELECT 1 WHERE
+    EXISTS(SELECT 1 FROM plist WHERE path='/Library/Preferences/com.apple.loginwindow.plist' AND key='GuestEnabled' AND value = 0)
+    OR
+    EXISTS(select 1 FROM plist WHERE path='/Library/Preferences/com.apple.MCX.plist' AND key='DisableGuestAccount' AND value = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS2.12.1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Automatic Login Is Disabled (MDM Required)
+  platforms: macOS
+  platform: darwin
+  description: |
+    The automatic login feature saves a user's system access credentials and bypasses the login screen. Instead, the system automatically loads to the user's desktop screen
+  resolution: |
+    Automated method:
+    Ask your system administrator to deploy an MDM profile that Ensure Automatic Login Is Disabled
+    Graphical method:
+      Perform the following steps to enable Location Services:
+        1. Open System Settings
+        2. Select Users & Groups
+        3. Set Automatic login in as... to Off
+    Profile Method:
+        Create or edit a configuration profile with the following information:
+        1. The Payload Type string is com.apple.loginwindow
+        2. The key to include is com.apple.login.mcx.DisableAutoLoginClient 
+        3. The key must be set to <true/>
+  query: SELECT 1 FROM managed_policies WHERE domain='com.apple.loginwindow' AND name='com.apple.login.mcx.DisableAutoLoginClient' AND value = 1;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS2.12.3
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Bonjour Advertising Services Is Disabled (MDM Required)
+  platforms: macOS
+  platform: darwin
+  description: |
+    Bonjour is an auto-discovery mechanism for TCP/IP devices which enumerate devices and services within a local subnet.
+    DNS on macOS is integrated with Bonjour and should not be turned off, but the Bonjour advertising service can be disabled.
+  resolution: |
+    Automated method:
+    Ask your system administrator to deploy an MDM profile that disables Bonjour advertising service.
+    Profile Method:
+        Create or edit a configuration profile with the following information:
+        1. The Payload Type string is `com.apple.mDNSResponder`.
+        2. The key to include is `NoMulticastAdvertisements`.
+        3. The key must be set to `<true/>`.
+  query: SELECT 1 FROM managed_policies WHERE domain='com.apple.mDNSResponder' AND name='NoMulticastAdvertisements' AND value = 1;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS4.1
+  contributors: lucasmrod
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure HTTP Server Is Disabled
+  platforms: macOS
+  platform: darwin
+  description: |
+    Personal web sharing could be enabled to allow someone on another computer to download files or information from the user's computer.
+    Apache is still part of the Operating System and can be easily turned on to share files and provide remote connectivity
+    to an end-user computer. Web serving should not be done from a user desktop. Open ports make it easier to exploit the computer.
+  resolution: |
+    Automated method:
+    Ask your system administrator to deploy the following script which will disable the Apache service:
+    /usr/bin/sudo /bin/launchctl unload -w /System/Library/LaunchDaemons/org.apache.httpd.plist
+  query: SELECT 1 WHERE NOT EXISTS(SELECT * FROM processes WHERE path = '/usr/sbin/httpd');
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS4.2
+  contributors: lucasmrod
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure NFS Server Is Disabled
+  platforms: macOS
+  platform: darwin
+  description: |
+    MacOS can act as an NFS fileserver. NFS sharing could be enabled to allow someone on another computer to mount
+    shares and gain access to information from the user's computer.
+  resolution: |
+    Automated method:
+    Ask your system administrator to deploy the following script which will disable the NFS service
+    and its directory listing:
+    /usr/bin/sudo /bin/launchctl disable system/com.apple.nfsd
+    /usr/bin/sudo /bin/rm /etc/exports
+  query: |
+    SELECT 1 WHERE
+    NOT EXISTS(SELECT 1 FROM processes WHERE path = '/sbin/nfsd')
+    AND
+    NOT EXISTS(SELECT 1 FROM file WHERE path = '/etc/exports');
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS4.3
+  contributors: lucasmrod

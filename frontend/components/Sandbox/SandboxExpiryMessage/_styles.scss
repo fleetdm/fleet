@@ -4,7 +4,7 @@
   align-items: center;
   padding: 12px $pad-large;
   margin-bottom: $pad-large;
-  background-color: $ui-expiry-message;
+  background-color: $ui-yellow-banner;
   border: 1px solid #ece0bb;
   border-radius: $border-radius;
   font-size: $xx-small;
@@ -26,5 +26,10 @@
     color: $core-fleet-black;
     font-weight: $bold;
     text-align: right;
+  }
+
+  .button {
+    font-size: $xx-small;
+    font-weight: $bold;
   }
 }

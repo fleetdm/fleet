@@ -36,7 +36,9 @@ import Spinner from "components/Spinner";
 import Button from "components/buttons/Button";
 import TabsWrapper from "components/TabsWrapper";
 import MainContent from "components/MainContent";
+import InfoBanner from "components/InfoBanner";
 import BackLink from "components/BackLink";
+import Icon from "components/Icon";
 
 import {
   normalizeEmptyValues,
@@ -627,7 +629,18 @@ const HostDetailsPage = ({
     <MainContent className={baseClass}>
       <div className={`${baseClass}__wrapper`}>
         <div className={`${baseClass}__header-links`}>
-          <BackLink text="Back to all hosts" path={filteredHostsPath} />
+          {host?.platform === "darwin" &&
+            host?.mdm_enrollment_status === "Off" && (
+              <InfoBanner color="yellow" pageLevel>
+                To change settings and install software, ask the end user to
+                follow the <strong>Turn on MDM</strong> instructions on their{" "}
+                <strong>My device</strong> page.
+              </InfoBanner>
+            )}
+          <BackLink
+            text="Back to all hosts"
+            path={filteredHostsPath || PATHS.MANAGE_HOSTS}
+          />
         </div>
         <HostSummaryCard
           statusClassName={statusClassName}

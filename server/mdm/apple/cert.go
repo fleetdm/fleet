@@ -11,23 +11,24 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/micromdm/nanodep/tokenpki"
 	"github.com/micromdm/scep/v2/depot"
 )
 
-const defaultFleetDMAPIURL = "https://fleetdm.com"
-
-const getSignedAPNSCSRPath = "/api/v1/get_signed_apns_csr"
-
-const depCertificateCommonName = "FleetDM"
-
-const depCertificateExpiryDays = 30
+const (
+	defaultFleetDMAPIURL     = "https://fleetdm.com"
+	getSignedAPNSCSRPath     = "/api/v1/deliver-apple-csr"
+	depCertificateCommonName = "FleetDM"
+	depCertificateExpiryDays = 30
+)
 
 // emailAddressOID defined by https://oidref.com/1.2.840.113549.1.9.1
 var emailAddressOID = []int{1, 2, 840, 113549, 1, 9, 1}
 
-// GenerateAPNSCSRKey generates a APNS csr to be sent to fleetdm.com and returns a csr and key.
+// GenerateAPNSCSRKey generates a APNS CSR (certificate signing request) and
+// returns the CSR and private key.
 func GenerateAPNSCSRKey(email, org string) (*x509.CertificateRequest, *rsa.PrivateKey, error) {
 	key, err := newPrivateKey()
 	if err != nil {
@@ -60,16 +61,16 @@ func GenerateAPNSCSRKey(email, org string) (*x509.CertificateRequest, *rsa.Priva
 }
 
 type getSignedAPNSCSRRequest struct {
-	// CSR is the pem encoded certificate request.
-	CSR []byte `json:"csr"`
+	UnsignedCSRData []byte `json:"unsignedCsrData"`
 }
 
-// GetSignedAPNSCSR makes a request to the fleetdm.com API to get a signed apns csr that is sent to the email provided in the certificate subject.
+// GetSignedAPNSCSR makes a request to the fleetdm.com API to get a signed APNs
+// CSR that is sent to the email provided in the certificate subject.
 func GetSignedAPNSCSR(client *http.Client, csr *x509.CertificateRequest) error {
 	csrPEM := EncodeCertRequestPEM(csr)
 
 	payload := getSignedAPNSCSRRequest{
-		CSR: csrPEM,
+		UnsignedCSRData: csrPEM,
 	}
 
 	b, err := json.Marshal(payload)
@@ -80,9 +81,8 @@ func GetSignedAPNSCSR(client *http.Client, csr *x509.CertificateRequest) error {
 	// for testing
 	baseURL := defaultFleetDMAPIURL
 	if x := os.Getenv("TEST_FLEETDM_API_URL"); x != "" {
-		baseURL = x
+		baseURL = strings.TrimRight(x, "/")
 	}
-
 	u := baseURL + getSignedAPNSCSRPath
 
 	req, err := http.NewRequest(http.MethodPost, u, bytes.NewReader(b))
@@ -100,11 +100,11 @@ func GetSignedAPNSCSR(client *http.Client, csr *x509.CertificateRequest) error {
 		b, _ := ioutil.ReadAll(resp.Body)
 		return fmt.Errorf("api responded with %d: %s", resp.StatusCode, string(b))
 	}
-
 	return nil
 }
 
-// NewSCEPCACertKey creates a self-signed CA certificate for use with SCEP and returns the certificate and its private key.
+// NewSCEPCACertKey creates a self-signed CA certificate for use with SCEP and
+// returns the certificate and its private key.
 func NewSCEPCACertKey() (*x509.Certificate, *rsa.PrivateKey, error) {
 	key, err := newPrivateKey()
 	if err != nil {
@@ -113,6 +113,7 @@ func NewSCEPCACertKey() (*x509.Certificate, *rsa.PrivateKey, error) {
 
 	caCert := depot.NewCACert(
 		depot.WithYears(10),
+		depot.WithCommonName("FleetDM"),
 	)
 
 	crtBytes, err := caCert.SelfSign(rand.Reader, key.Public(), key)

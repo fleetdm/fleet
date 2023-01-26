@@ -178,6 +178,7 @@ generate-mock: .prefix
 
 generate-doc: .prefix
 	go generate github.com/fleetdm/fleet/v4/server/fleet
+	go generate github.com/fleetdm/fleet/v4/server/service/osquery_utils
 
 deps: deps-js deps-go
 
@@ -186,7 +187,6 @@ deps-js:
 
 deps-go:
 	go mod download
-	go get github.com/quasilyte/go-ruleguard/dsl
 
 migration:
 	go run github.com/fleetdm/goose/cmd/goose -dir server/datastore/mysql/migrations/tables create $(name)

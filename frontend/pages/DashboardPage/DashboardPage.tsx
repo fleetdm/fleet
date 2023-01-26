@@ -17,7 +17,7 @@ import {
   IMunkiVersionsAggregate,
 } from "interfaces/macadmins";
 import {
-  IMdmEnrollmentCardData,
+  IMdmStatusCardData,
   IMdmSolution,
   IMdmSummaryResponse,
 } from "interfaces/mdm";
@@ -113,9 +113,7 @@ const DashboardPage = ({
   const [showAddHostsModal, setShowAddHostsModal] = useState(false);
   const [showOperatingSystemsUI, setShowOperatingSystemsUI] = useState(false);
   const [showHostsUI, setShowHostsUI] = useState(false); // Hides UI on first load only
-  const [mdmEnrollmentData, setMdmEnrollmentData] = useState<
-    IMdmEnrollmentCardData[]
-  >([]);
+  const [mdmStatusData, setMdmStatusData] = useState<IMdmStatusCardData[]>([]);
   const [mdmSolutions, setMdmSolutions] = useState<IMdmSolution[] | null>([]);
 
   const [munkiIssuesData, setMunkiIssuesData] = useState<
@@ -293,6 +291,7 @@ const DashboardPage = ({
           enrolled_manual_hosts_count,
           enrolled_automated_hosts_count,
           unenrolled_hosts_count,
+          pending_hosts_count,
           hosts_count,
         } = mobile_device_management_enrollment_status;
 
@@ -307,7 +306,7 @@ const DashboardPage = ({
             whatToRetrieve={"MDM information"}
           />
         );
-        setMdmEnrollmentData([
+        const statusData: IMdmStatusCardData[] = [
           {
             status: "On (manual)",
             hosts: enrolled_manual_hosts_count,
@@ -317,7 +316,13 @@ const DashboardPage = ({
             hosts: enrolled_automated_hosts_count,
           },
           { status: "Off", hosts: unenrolled_hosts_count },
-        ]);
+        ];
+        isPremiumTier &&
+          statusData.push({
+            status: "Pending",
+            hosts: pending_hosts_count || 0,
+          });
+        setMdmStatusData(statusData);
         setMdmSolutions(mobile_device_management_solution);
         setShowMdmCard(true);
       },
@@ -552,13 +557,13 @@ const DashboardPage = ({
     titleDetail: mdmTitleDetail,
     showTitle: !isMacAdminsFetching,
     description: (
-      <p>MDM can be used to manage configuration on your workstations.</p>
+      <p>MDM is used to change settings and install software on your hosts.</p>
     ),
     children: (
       <Mdm
         isFetching={isMdmFetching}
         error={errorMdm}
-        mdmEnrollmentData={mdmEnrollmentData}
+        mdmStatusData={mdmStatusData}
         mdmSolutions={mdmSolutions}
         selectedPlatformLabelId={selectedPlatformLabelId}
       />

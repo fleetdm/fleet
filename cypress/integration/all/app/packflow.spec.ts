@@ -1,3 +1,5 @@
+/* NOTE: Product decision to remove packs from UI
+
 import managePacksPage from "../../pages/managePacksPage";
 
 describe("Pack flow (empty)", () => {
@@ -87,3 +89,4 @@ describe("Pack flow (seeded)", () => {
     });
   });
 });
+*/

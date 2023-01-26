@@ -1,7 +1,45 @@
 .info-banner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   padding: $pad-medium;
   border-radius: $border-radius;
-  border: 1px solid #d9d9fe;
+  border: 1px solid $ui-vibrant-blue-50;
   background-color: $ui-vibrant-blue-10;
-  font-size: 14px;
+  font-size: $x-small;
+  font-weight: $regular;
+  color: $core-fleet-black;
+
+  &__yellow {
+    background-color: $ui-yellow-banner;
+    border-color: $ui-yellow-banner-outline;
+  }
+
+  &__page-banner {
+    padding: $pad-large $pad-xlarge;
+    margin-bottom: $pad-large;
+    width: auto;
+  }
+
+  &__cta {
+    display: flex;
+    align-items: center;
+    color: $core-fleet-black;
+    text-align: right;
+    gap: $pad-small;
+
+    button {
+      margin-left: $pad-small;
+    }
+  }
+
+  &__close {
+    margin-left: $pad-small;
+    padding: $xx-small;
+    padding-right: 0;
+
+    &:hover {
+      cursor: pointer;
+    }
+  }
 }

@@ -39,7 +39,7 @@ At the end of the quarter and key points throughout the quarter (every three wee
 Every month Charlie will do the prep work for the monthly "✌️ All hands 🖐👋🤲👏🙌🤘" call.
   1. In the ["👋 All hands" folder](https://drive.google.com/drive/folders/1cw_lL3_Xu9ZOXKGPghh8F4tc0ND9kQeY?usp=sharing), create a new folder using "yyyy-mm - All Hands - yyyy month name".
   2. Download a copy of the previous month's keynote file and rename the copy with the same name used to create the new folder.
-  3. Update "🧑‍🚀 Welcome!" slide to reflect new hires since last month's All Hands meeting (pull this from the [🧑‍🚀 Fleeties spreasheet](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit?pli=1#gid=0) using "**name** <em>(pronoun)</em>, position".
+  3. Update "🧑‍🚀 Welcome!" slide to reflect new hires since last month's All Hands meeting (pull this from the [🧑‍🚀 Fleeties spreadsheet](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit?pli=1#gid=0) using "**name** <em>(pronoun)</em>, position".
   4. **If applicable** Update "🦉 Welcome!" slide to reflect new investors or advisors using "**name** <em>(pronoun)</em>, position, company".
   5. **If applicable** Update "🤝 Welcome!" slide to reflect new customers.
   6. Update slides that contain dates to reflect current All Hands date.
@@ -56,11 +56,13 @@ In the notes document include:
   3. Context that helps the CEO to understand purpose of meeting at a glance
   4. Share document with meeting participants
 
-**Additional product design review sessions are welcomed and a top priority for the CEO to get on the calendar quickly.  Other internal meetings and blocked time can always be moved to make room.  External meetings, travel, and personal commitments cannot be moved.  To schedule, mention @CharlieChance in the #meetings channel.**
+**Additional product design review sessions are welcomed and a top priority for the CEO to get on the calendar quickly.  _Other internal meetings and blocked time can always be moved to make room.  External meetings, travel, and personal commitments cannot be moved._  To schedule, mention @Charlie in the #-meetings channel.**
 
-### 1:1 Mike:Sid document preparation
-Every two weeks, our CEO Mike has a 1:1 meeting with our Investor Sid. The Digital Experience Team completes four parts while constructing the associated document. 
- - After the 1:1 meeting has happened, Charlie makes a copy of the original document, labels it "yyyy-mm-dd Backup copy of Mike from Fleet & Sid," and moves it to a private folder. 
+**The CEO welcomes opportunities to support teams on customer calls. _External meetings, travel, and personal commitments cannot be moved._ To schedule, mention @Charlie in the #-meetings channel in Slack.**
+
+### 🧑‍🚀 Sid : Mike document preparation
+Every two weeks, our CEO Mike has a 1:1 meeting with our Investor Sid. The Charlie completes four parts while constructing the associated document. 
+ - After the 1:1 meeting has happened, Charlie makes a copy of the original document, labels it "yyyy-mm-dd Backup copy of 🧑‍🚀 Sid : Mike," and moves it to a private folder. 
  - Charlie will change the permissions on the new copy to share it with Mike and Zach and set Mike to be the file's owner. If there are any agenda items labeled "TODO," Charlie will comment in the backup copy to assign them to Mike.
  - Charlie prepares the original document by deleting the agenda items in the "Hallway" and "Feedback" sections, leaving only the "Vision" section.
  - Charlie will update the monthly "All Hands" link and grant Sid viewing access. 
@@ -77,10 +79,12 @@ At Fleet, document prep steps are determined by the type of meeting.
 | Meeting type | Description | Automation enabled? | Meeting note preference |
 | ------------ | -------------------------------------------------------------| ------------------ | ------------- |
 | "One-off"    | A non-recurring meeting that has a separate doc per meeting. | Most likely Zapier | Note template |
-| External call | A recurring meeting that is with a customer, coach, or advisor. | No, unless rescheduled using Calendly link | Journals template |
+| External call | A recurring meeting that is with a customer, coach, or advisor. | No, unless rescheduled using Calendly link | Journal template |
 | 1:1 | A recurring meeting that direct managers and direct reports use for performance management and is emptied after every call. | Most likely Reclaim | Agenda template |
 | Office hours | A recurring meeting that is emptied after call used for group meetings of Fleet team members. | Google calendar | Office hour agenda template |
 
+>Journals are good when the primary goal is understanding status, asking questions.  (e.g. a key review, a demo session, customer voice, prospect voice, community voice)  There might be action items that come out of it, but they aren't the goal of the meeting.  TODOs in journals are suspect and often overlooked.
+Whereas agendas are good when it's all about action items / decisions / discussing a topic.  Like the whole reason a bullet is there is to make someone aware, to get feedback, to make a decision, or because it's an important TODO for someone on that call.  TODOs in agendas are very easy to keep track of and can be trusted more.
 
 ## Tasks as assigned
 

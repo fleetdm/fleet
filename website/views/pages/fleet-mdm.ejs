@@ -134,9 +134,19 @@
             <div class="invalid-feedback" v-if="formErrors.emailAddress" focus-first>This doesn’t appear to be a valid email address</div>
           </div>
           <div class="form-group">
-            <label for="jobTitle">Job Title</label>
-            <input class="form-control" id="jobTitle" :class="[formErrors.jobTitle ? 'is-invalid' : '']" v-model.trim="formData.jobTitle" @input="typeClearOneFormError('jobTitle')">
-            <div class="invalid-feedback" v-if="formErrors.jobTitle">Please enter your job title.</div>
+            <div class="d-flex flex-sm-row flex-column">
+              <div class="pr-0 pr-sm-3 pb-4 pb-sm-0">
+                <label for="jobTitle">Job Title</label>
+                <input class="form-control" id="jobTitle" :class="[formErrors.jobTitle ? 'is-invalid' : '']" v-model.trim="formData.jobTitle" @input="typeClearOneFormError('jobTitle')">
+                <div class="invalid-feedback" v-if="formErrors.jobTitle">Please enter your job title.
+                </div>
+              </div>
+              <div>
+                <label for="numberOfHosts">Number of devices</label>
+                <input class="form-control" id="numberOfHosts" type="number" :class="[formErrors.numberOfHosts ? 'is-invalid' : '']" v-model.trim="formData.numberOfHosts" @input="typeClearOneFormError('numberOfHosts')">
+                <div class="invalid-feedback" v-if="formErrors.numberOfHosts">Please enter a number of devices.</div>
+              </div>
+            </div>
           </div>
           <cloud-error v-if="cloudError"></cloud-error>
         <div class="border-0 justify-content-center">

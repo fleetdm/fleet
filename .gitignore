@@ -75,3 +75,8 @@ test_tuf
 # Residual files when running the msrc generate command
 msrc_in/
 msrc_out/
+
+# Keys and certificates that may be generated in the root of the repo
+# (e.g. with ./build/fleetctl generate ...).
+/*.key
+/*.crt

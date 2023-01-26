@@ -773,12 +773,22 @@ func appendLimitOffsetToSelect(ds *goqu.SelectDataset, opts fleet.ListOptions) *
 	return ds
 }
 
-func appendListOptionsToSQL(sql string, opts fleet.ListOptions) string {
+// Appends the list options SQL to the passed in SQL string. This appended
+// SQL is determined by the passed in options.
+//
+// NOTE: this method will mutate the options argument if no explicit PerPage
+// option is set (a default value will be provided) or if the cursor approach is used.
+func appendListOptionsToSQL(sql string, opts *fleet.ListOptions) string {
 	sql, _ = appendListOptionsWithCursorToSQL(sql, nil, opts)
 	return sql
 }
 
-func appendListOptionsWithCursorToSQL(sql string, params []interface{}, opts fleet.ListOptions) (string, []interface{}) {
+// Appends the list options SQL to the passed in SQL string. This appended
+// SQL is determined by the passed in options. This supports cursor options
+//
+// NOTE: this method will mutate the options argument if no explicit PerPage option
+// is set (a default value will be provided) or if the cursor approach is used.
+func appendListOptionsWithCursorToSQL(sql string, params []interface{}, opts *fleet.ListOptions) (string, []interface{}) {
 	orderKey := sanitizeColumn(opts.OrderKey)
 
 	if opts.After != "" && orderKey != "" {
@@ -810,14 +820,18 @@ func appendListOptionsWithCursorToSQL(sql string, params []interface{}, opts fle
 
 		sql = fmt.Sprintf("%s ORDER BY %s %s", sql, orderKey, direction)
 	}
-	// REVIEW: If caller doesn't supply a limit apply a default limit of 1000
-	// to insure that an unbounded query with many results doesn't consume too
-	// much memory or hang
+	// REVIEW: If caller doesn't supply a limit apply a default limit to insure
+	// that an unbounded query with many results doesn't consume too much memory
+	// or hang
 	if opts.PerPage == 0 {
 		opts.PerPage = defaultSelectLimit
 	}
 
-	sql = fmt.Sprintf("%s LIMIT %d", sql, opts.PerPage)
+	perPage := opts.PerPage
+	if opts.IncludeMetadata {
+		perPage++
+	}
+	sql = fmt.Sprintf("%s LIMIT %d", sql, perPage)
 
 	offset := opts.PerPage * opts.Page
 
@@ -1093,6 +1107,20 @@ func (ds *Datastore) ProcessList(ctx context.Context) ([]fleet.MySQLProcess, err
 		return nil, ctxerr.Wrap(ctx, err, "Getting process list")
 	}
 	return processList, nil
+}
+
+func insertOnDuplicateDidInsert(res sql.Result) bool {
+	// Note that connection string sets CLIENT_FOUND_ROWS (see
+	// generateMysqlConnectionString in this package), so LastInsertId is 0
+	// and RowsAffected 1 when a row is set to its current values.
+	//
+	// See [the docs][1] or @mna's comment in `insertOnDuplicateDidUpdate`
+	// below for more details
+	//
+	// [1]: https://dev.mysql.com/doc/refman/5.7/en/insert-on-duplicate.html
+	lastID, _ := res.LastInsertId()
+	affected, _ := res.RowsAffected()
+	return lastID != 0 && affected == 1
 }
 
 func insertOnDuplicateDidUpdate(res sql.Result) bool {

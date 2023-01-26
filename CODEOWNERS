@@ -11,8 +11,8 @@ go.mod @fleetdm/go
 /infrastructure/ @zwinnerman-fleetdm @edwardsb @rfairburn
 /charts/ @zwinnerman-fleetdm @edwardsb @rfairburn
 
-# GitHub settings + actions
-/.github/ @fleetdm/g-platform
+# GitHub settings + actions + issue templates
+/.github/ @zwass @mikermcneil
 
 # Codeowners file
 /CODEOWNERS @zwass @mikermcneil
@@ -20,25 +20,21 @@ go.mod @fleetdm/go
 # Changelog
 /CHANGELOG.md @noahtalerman
 
-# Fleet documentation
-# TODO: will anyone be auto-requested as reviewer for docs?
-# previously this was:
-# /docs/ @chris-mcgillicuddy
-# then mikermcneil added more folks, but it was a bad idea that resulted in a lot of extra notifications to ≥3 people.
-# So instead, who will be DRI for reviewing docs?
+# Fleet documentation (who is auto-requested as reviewer for changes to docs?)
+/docs/ @ksatter
 
 # REST API reference documentation
 /docs/Using-Fleet/REST-API.md @ksatter @lukeheath
 /docs/Contributing/API-for-contributors.md @ksatter @lukeheath
 
 # Standard query library YAML
-/docs/01-Using-Fleet/standard-query-library/standard-query-library.yml @guillaumeross
+/docs/01-Using-Fleet/standard-query-library/standard-query-library.yml @mikermcneil
 
 # Exapnded table documentation
-/schema @guillaumeross
+/schema @sharon-fdm 
 
 # Articles
-/articles @chris-mcgillicuddy
+/articles @jarodreyes
 
 # Website
 /website/ @eashaw
@@ -68,9 +64,11 @@ go.mod @fleetdm/go
 
 # Handbook
 /handbook/company @mikermcneil
+/handbook/company/* @mikermcneil
 /handbook/business-operations @hollidayn
 /handbook/business-operations/ceo-handbook.md @charlottechance
-/handbook/security @guillaumeross
+/handbook/business-operations/* @hollidayn
+/handbook/security @mikermcneil
 /handbook/engineering @zwass
 /handbook/product @zhumo
 /handbook/customers @alexmitchelliii

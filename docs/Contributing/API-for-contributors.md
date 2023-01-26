@@ -522,10 +522,16 @@ Delete pack by name.
 
 > This feature is currently in development and is not ready for use.
 
+> Only Fleet MDM specific endpoints are located within the root /mdm/ path.
+
 The MDM endpoints exist to support the related command-line interface sub-commands of `fleetctl`, such as `fleetctl generate mdm-apple` and `fleetctl get mdm-apple`, as well as the Fleet UI.
 
 - [Get Apple MDM](#get-apple-mdm)
 - [Get Apple BM](#get-apple-bm)
+- [Unenroll host from Fleet MDM](#unenroll-host-from-fleet-mdm)
+- [Generate Apple DEP Key Pair](#generate-apple-dep-key-pair)
+- [Request Certificate Signing Request (CSR)](#request-certificate-signing-request-csr)
+
 
 ### Get Apple MDM
 
@@ -580,6 +586,24 @@ None.
 }
 ```
 
+### Unenroll host from Fleet MDM
+
+`PATCH /api/v1/fleet/mdm/hosts/{id}/unenroll`
+
+#### Parameters
+
+| Name | Type    | In   | Description                             |
+| ---- | ------- | ---- | --------------------------------------- |
+| id   | integer | path | **Required.** The host's ID in Fleet.   |
+
+#### Example
+
+`PATCH /api/v1/fleet/mdm/hosts/42/unenroll`
+
+##### Default response
+
+`Status: 200`
+
 ### Generate Apple DEP Key Pair
 
 #### Parameters
@@ -600,6 +624,33 @@ None.
 ```
 
 Note that the `public_key` and `private_key` are base64 encoded and should be decoded before writing them to files.
+
+### Request Certificate Signing Request (CSR)
+
+`POST /api/v1/fleet/mdm/apple/request_csr`
+
+#### Parameters
+
+| Name          | Type    | In   | Description                                                                              |
+| ----          | ------- | ---- | ---------------------------------------                                                  |
+| email_address | string  | body | **Required.** The email that will be associated with the Apple APNs certificate.         |
+| organization  | string  | body | **Required.** The name of the organization associated with the Apple APNs certificate.   |
+
+#### Example
+
+`POST /api/v1/fleet/mdm/apple/request_csr`
+
+##### Default response
+
+```
+{
+  "apns_key": "aGV5LCBJJ20gc2VjcmV0Cg==",
+  "scep_cert": "bHR5LCBJJ20gc2VjcmV0Cg=",
+  "scep_key": "lKT5LCBJJ20gc2VjcmV0Cg="
+}
+```
+
+Note that the response fields are base64 encoded and should be decoded before writing them to files. Once base64-decoded, they are PEM-encoded certificate and keys.
 
 ## Get or apply configuration files
 
@@ -2065,6 +2116,7 @@ Device-authenticated routes are routes used by the Fleet Desktop application. Un
 - [Get device's policies](#get-devices-policies)
 - [Get device's API features](#get-devices-api-features)
 - [Get device's transparency URL](#get-devices-transparency-url)
+- [Download device's MDM manual enrollment profile](#download-devices-mdm-manual-enrollment-profile)
 
 #### Get device's host
 
@@ -2397,6 +2449,34 @@ Returns the URL to open when clicking the "Transparency" menu item in Fleet Desk
 `Status: 307`
 
 Redirects to the transparency URL.
+
+#### Download device's MDM manual enrollment profile
+
+Downloads the Mobile Device Management (MDM) enrollment profile to install on the device for a manual enrollment into Fleet MDM.
+
+`GET /api/v1/fleet/device/{token}/mdm/apple/manual_enrollment_profile`
+
+##### Parameters
+
+| Name            | Type   | In    | Description                            |
+| --------------- | ------ | ----- | ---------------------------------------|
+| token           | string | path  | The device's authentication token.     |
+
+##### Example
+
+`GET /api/v1/fleet/device/abcdef012456789/mdm/apple/manual_enrollment_profile`
+
+##### Default response
+
+`Status: 200`
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<!-- ... -->
+</plist>
+```
 
 ---
 

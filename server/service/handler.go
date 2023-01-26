@@ -2,7 +2,10 @@ package service
 
 import (
 	"context"
+	"crypto/rsa"
+	"crypto/x509"
 	"errors"
+	"fmt"
 	"net/http"
 	"regexp"
 
@@ -18,6 +21,16 @@ import (
 	"github.com/go-kit/kit/log/level"
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/gorilla/mux"
+	"github.com/micromdm/nanomdm/certverify"
+	httpmdm "github.com/micromdm/nanomdm/http/mdm"
+	nanomdm_log "github.com/micromdm/nanomdm/log"
+	nanomdm_service "github.com/micromdm/nanomdm/service"
+	"github.com/micromdm/nanomdm/service/certauth"
+	"github.com/micromdm/nanomdm/service/multi"
+	"github.com/micromdm/nanomdm/service/nanomdm"
+	nanomdm_storage "github.com/micromdm/nanomdm/storage"
+	scep_depot "github.com/micromdm/scep/v2/depot"
+	scepserver "github.com/micromdm/scep/v2/server"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/throttled/throttled/v2"
@@ -408,6 +421,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.GET("/api/_version_/fleet/status/result_store", statusResultStoreEndpoint, nil)
 	ue.GET("/api/_version_/fleet/status/live_query", statusLiveQueryEndpoint, nil)
 
+	// Only Fleet MDM specific endpoints should be within the root /mdm/ path.
 	if config.MDMApple.Enable {
 		ue.POST("/api/_version_/fleet/mdm/apple/enrollmentprofiles", createMDMAppleEnrollmentProfilesEndpoint, createMDMAppleEnrollmentProfileRequest{})
 		ue.GET("/api/_version_/fleet/mdm/apple/enrollmentprofiles", listMDMAppleEnrollmentsEndpoint, listMDMAppleEnrollmentProfilesRequest{})
@@ -420,9 +434,15 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 		ue.GET("/api/_version_/fleet/mdm/apple/devices", listMDMAppleDevicesEndpoint, listMDMAppleDevicesRequest{})
 		ue.GET("/api/_version_/fleet/mdm/apple/dep/devices", listMDMAppleDEPDevicesEndpoint, listMDMAppleDEPDevicesRequest{})
 		ue.POST("/api/_version_/fleet/mdm/apple/dep/key_pair", newMDMAppleDEPKeyPairEndpoint, nil)
+
+		// host-specific mdm commands
+		ue.PATCH("/api/_version_/fleet/mdm/hosts/{id:[0-9]+}/unenroll", mdmAppleCommandRemoveEnrollmentProfileEndpoint, mdmAppleCommandRemoveEnrollmentProfileRequest{})
 	}
 	ue.GET("/api/_version_/fleet/mdm/apple", getAppleMDMEndpoint, nil)
 	ue.GET("/api/_version_/fleet/mdm/apple_bm", getAppleBMEndpoint, nil)
+	// this endpoint must always be accessible (even if MDM is not configured) as
+	// it bootstraps the setup of MDM (generates CSR request for APNs and SCEP).
+	ue.POST("/api/_version_/fleet/mdm/apple/request_csr", requestMDMAppleCSREndpoint, requestMDMAppleCSRRequest{})
 
 	errorLimiter := ratelimit.NewErrorMiddleware(limitStore)
 
@@ -452,6 +472,13 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	de.WithCustomMiddleware(
 		errorLimiter.Limit("get_device_transparency", desktopQuota),
 	).GET("/api/_version_/fleet/device/{token}/transparency", transparencyURL, transparencyURLRequest{})
+
+	if config.MDMApple.Enable {
+		// mdm-related endpoints available via device authentication
+		de.WithCustomMiddleware(
+			errorLimiter.Limit("get_device_mdm", desktopQuota),
+		).GET("/api/_version_/fleet/device/{token}/mdm/apple/manual_enrollment_profile", getDeviceMDMManualEnrollProfileEndpoint, getDeviceMDMManualEnrollProfileRequest{})
+	}
 
 	// host-authenticated endpoints
 	he := newHostAuthenticatedEndpointer(svc, logger, opts, r, apiVersions...)
@@ -629,4 +656,125 @@ func RedirectSetupToLogin(svc fleet.Service, logger kitlog.Logger, next http.Han
 		}
 		next.ServeHTTP(w, r)
 	}
+}
+
+// RegisterAppleMDMProtocolServices registers the HTTP handlers that serve
+// the MDM services to Apple devices.
+func RegisterAppleMDMProtocolServices(
+	mux *http.ServeMux,
+	scepConfig config.MDMAppleSCEPConfig,
+	mdmStorage nanomdm_storage.AllStorage,
+	scepStorage *apple_mdm.SCEPMySQLDepot,
+	logger kitlog.Logger,
+	checkinAndCommandService nanomdm_service.CheckinAndCommandService,
+) error {
+	scepCACerts, scepCAKey, err := scepStorage.CA([]byte{})
+	if err != nil {
+		return fmt.Errorf("load SCEP CA certificates and key: %w", err)
+	}
+	if err := registerSCEP(mux, scepConfig, scepCACerts[0], scepCAKey, scepStorage, logger); err != nil {
+		return fmt.Errorf("scep: %w", err)
+	}
+	if err := registerMDM(mux, scepCACerts[0], mdmStorage, checkinAndCommandService, logger); err != nil {
+		return fmt.Errorf("mdm: %w", err)
+	}
+	return nil
+}
+
+// registerSCEP registers the HTTP handler for SCEP service needed for enrollment to MDM.
+// Returns the SCEP CA certificate that can be used by verifiers.
+func registerSCEP(
+	mux *http.ServeMux,
+	scepConfig config.MDMAppleSCEPConfig,
+	scepCert *x509.Certificate,
+	scepKey *rsa.PrivateKey,
+	scepStorage *apple_mdm.SCEPMySQLDepot,
+	logger kitlog.Logger,
+) error {
+	var signer scepserver.CSRSigner = scep_depot.NewSigner(
+		scepStorage,
+		scep_depot.WithValidityDays(scepConfig.Signer.ValidityDays),
+		scep_depot.WithAllowRenewalDays(scepConfig.Signer.AllowRenewalDays),
+	)
+	scepChallenge := scepConfig.Challenge
+	if scepChallenge == "" {
+		return errors.New("missing SCEP challenge")
+	}
+
+	signer = scepserver.ChallengeMiddleware(scepChallenge, signer)
+	scepService, err := scepserver.NewService(scepCert, scepKey, signer,
+		scepserver.WithLogger(kitlog.With(logger, "component", "mdm-apple-scep")),
+	)
+	if err != nil {
+		return fmt.Errorf("initialize SCEP service: %w", err)
+	}
+	scepLogger := kitlog.With(logger, "component", "http-mdm-apple-scep")
+	e := scepserver.MakeServerEndpoints(scepService)
+	e.GetEndpoint = scepserver.EndpointLoggingMiddleware(scepLogger)(e.GetEndpoint)
+	e.PostEndpoint = scepserver.EndpointLoggingMiddleware(scepLogger)(e.PostEndpoint)
+	scepHandler := scepserver.MakeHTTPHandler(e, scepService, scepLogger)
+	mux.Handle(apple_mdm.SCEPPath, scepHandler)
+	return nil
+}
+
+// NanoMDMLogger is a logger adapter for nanomdm.
+type NanoMDMLogger struct {
+	logger kitlog.Logger
+}
+
+func NewNanoMDMLogger(logger kitlog.Logger) *NanoMDMLogger {
+	return &NanoMDMLogger{
+		logger: logger,
+	}
+}
+
+func (l *NanoMDMLogger) Info(keyvals ...interface{}) {
+	level.Info(l.logger).Log(keyvals...)
+}
+
+func (l *NanoMDMLogger) Debug(keyvals ...interface{}) {
+	level.Debug(l.logger).Log(keyvals...)
+}
+
+func (l *NanoMDMLogger) With(keyvals ...interface{}) nanomdm_log.Logger {
+	newLogger := kitlog.With(l.logger, keyvals...)
+	return &NanoMDMLogger{
+		logger: newLogger,
+	}
+}
+
+// registerMDM registers the HTTP handlers that serve core MDM services (like checking in for MDM commands).
+func registerMDM(
+	mux *http.ServeMux,
+	scepCACert *x509.Certificate,
+	mdmStorage nanomdm_storage.AllStorage,
+	checkinAndCommandService nanomdm_service.CheckinAndCommandService,
+	logger kitlog.Logger,
+) error {
+	certVerifier, err := certverify.NewPoolVerifier(
+		apple_mdm.EncodeCertPEM(scepCACert),
+		x509.ExtKeyUsageClientAuth,
+	)
+	if err != nil {
+		return fmt.Errorf("certificate pool verifier: %w", err)
+	}
+	mdmLogger := NewNanoMDMLogger(kitlog.With(logger, "component", "http-mdm-apple-mdm"))
+
+	// As usual, handlers are applied from bottom to top:
+	// 1. Extract and verify MDM signature.
+	// 2. Verify signer certificate with CA.
+	// 3. Verify new or enrolled certificate (certauth.CertAuth which wraps the MDM service).
+	// 4. Pass a copy of the request to Fleet middleware that ingests new hosts from pending MDM
+	// enrollments and updates the Fleet hosts table accordingly with the UDID and serial number of
+	// the device.
+	// 5. Run actual MDM service operation (checkin handler or command and results handler).
+	coreMDMService := nanomdm.New(mdmStorage, nanomdm.WithLogger(mdmLogger))
+	var mdmService nanomdm_service.CheckinAndCommandService = multi.New(mdmLogger, coreMDMService, checkinAndCommandService)
+
+	mdmService = certauth.New(mdmService, mdmStorage)
+	var mdmHandler http.Handler = httpmdm.CheckinAndCommandHandler(mdmService, mdmLogger.With("handler", "checkin-command"))
+	mdmHandler = httpmdm.CertVerifyMiddleware(mdmHandler, certVerifier, mdmLogger.With("handler", "cert-verify"))
+	mdmHandler = httpmdm.CertExtractMdmSignatureMiddleware(mdmHandler, mdmLogger.With("handler", "cert-extract"))
+	mux.Handle(apple_mdm.MDMPath, mdmHandler)
+	return nil
 }

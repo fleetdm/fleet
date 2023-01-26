@@ -17,7 +17,7 @@ const LinkCell = ({
   value,
   path,
   title,
-  classes = "w250",
+  classes,
 }: ILinkCellProps): JSX.Element => {
   const onClick = (): void => {
     browserHistory.push(path);
