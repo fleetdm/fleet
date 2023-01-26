@@ -68,7 +68,7 @@ module.exports.routes = {
     }
   },
 
-  'r|/((success-stories|securing|releases|engineering|guides|announcements|podcasts|report|deploy)/(.+))$|': {
+  'r|/((success-stories|securing|releases|engineering|guides|announcements|podcasts|report|deploy)/([^(rss)].+))$|': {
     skipAssets: false,
     action: 'articles/view-basic-article',
     locals: {
@@ -353,6 +353,14 @@ module.exports.routes = {
   // This is for search engines, not humans.  Search engines know to visit fleetdm.com/sitemap.xml to download this
   // XML file, which helps search engines know which pages are available on the website.
   'GET /sitemap.xml':            { action: 'download-sitemap' },
+
+  // RSS feeds
+  // =============================================================================================================
+  // TODO: description/does this need to be seperate?
+  'r|^/((success-stories|securing|releases|engineering|guides|announcements|articles|podcasts|report|deploy))/rss$|category': {
+    skipAssets: true,
+    action: 'download-one-rss-feed'
+  },// Handles RSS feeds for articles (/articles/rss), and the article cateogry pages (e.g. /device-management/rss, /securing/rss, /releases/rss, etc)
 
   // Potential future pages
   // =============================================================================================================
