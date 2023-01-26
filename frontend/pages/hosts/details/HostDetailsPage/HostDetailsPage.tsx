@@ -38,7 +38,6 @@ import TabsWrapper from "components/TabsWrapper";
 import MainContent from "components/MainContent";
 import InfoBanner from "components/InfoBanner";
 import BackLink from "components/BackLink";
-import Icon from "components/Icon";
 
 import {
   normalizeEmptyValues,
@@ -59,6 +58,7 @@ import PacksCard from "../cards/Packs";
 import SelectQueryModal from "./modals/SelectQueryModal";
 import PolicyDetailsModal from "../cards/Policies/HostPoliciesTable/PolicyDetailsModal";
 import OSPolicyModal from "./modals/OSPolicyModal";
+import UnenrollMDMModal from "./modals/UnenrollMDMModal";
 import TransferHostModal from "../../components/TransferHostModal";
 import DeleteHostModal from "../../components/DeleteHostModal";
 
@@ -131,15 +131,21 @@ const HostDetailsPage = ({
   const canTransferTeam =
     isPremiumTier && (isGlobalAdmin || isGlobalMaintainer);
 
-  const getCanEditMdm = (user: IUser, host: IHost) => {
+  const getCanEditMdm = (user: IUser | null, host?: IHost) => {
     const userHasPermission =
-      isGlobalAdmin ||
-      isGlobalMaintainer ||
-      permissionUtils.isTeamMaintainerOrTeamAdmin(user, host.team_id);
-    return (
-      userHasPermission &&
-      ["automatic", "manual"].includes(host.mdm?.enrollment_status ?? "")
+      user &&
+      host &&
+      (isGlobalAdmin ||
+        isGlobalMaintainer ||
+        permissionUtils.isTeamMaintainerOrTeamAdmin(user, host.team_id));
+    console.log(`User has permission: ${userHasPermission}`);
+    const hostEnrolled = ["On (automatic)", "On (manual)"].includes(
+      host?.mdm_enrollment_status ?? ""
+      // TODO: API will be reverted to nested mdm {enrollment_status: ...}, change to below when it is:
+      // host.mdm?.enrollment_status ?? ""
     );
+    console.log(`Host enrolled: ${hostEnrolled}`);
+    return userHasPermission && hostEnrolled;
   };
 
   const canDeleteHost = (user: IUser, host: IHost) => {
@@ -530,7 +536,8 @@ const HostDetailsPage = ({
 
   const renderActionButtons = () => {
     const isOnline = host?.status === "online";
-
+    const canEditMdm = getCanEditMdm(currentUser, host);
+    // const canEditMdm = true;
     return (
       <div className={`${baseClass}__action-button-container`}>
         {canTransferTeam && (
@@ -571,7 +578,8 @@ const HostDetailsPage = ({
             You can’t query <br /> an offline host.
           </span>
         </ReactTooltip>
-        {currentUser && host && getCanEditMdm(currentUser, host) && (
+        {/* {currentUser && host && getCanEditMdm(currentUser, host) && ( */}
+        {currentUser && host && canEditMdm && (
           <Button
             onClick={() => {
               return undefined;
@@ -654,7 +662,9 @@ const HostDetailsPage = ({
       <div className={`${baseClass}__wrapper`}>
         <div className={`${baseClass}__header-links`}>
           {host?.platform === "darwin" &&
-            host?.mdm?.enrollment_status === "Off" && (
+            host?.mdm_enrollment_status === "Off" && (
+              // TODO: above API will be reverted to below nested structure:
+              // host?.mdm?.enrollment_status === "Unenrolled" && (
               <InfoBanner color="yellow" pageLevel>
                 To change settings and install software, ask the end user to
                 follow the <strong>Turn on MDM</strong> instructions on their{" "}
