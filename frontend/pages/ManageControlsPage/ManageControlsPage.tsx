@@ -37,7 +37,7 @@ const controlsSubNav: IControlsSubNavItem[] = [
   },
 ];
 
-interface IControlsWrapperProp {
+interface IManageControlsPageProps {
   children: JSX.Element;
   location: any; // no type in react-router v3
   router: InjectedRouter; // v3
@@ -50,13 +50,13 @@ const getTabIndex = (path: string): number => {
   });
 };
 
-const baseClass = "controls-wrapper";
+const baseClass = "manage-controls-page";
 
-const ControlsWrapper = ({
+const ManageControlsPage = ({
   children,
   location,
   router,
-}: IControlsWrapperProp): JSX.Element => {
+}: IManageControlsPageProps): JSX.Element => {
   const { availableTeams, isPremiumTier, setCurrentTeam } = useContext(
     AppContext
   );
@@ -152,7 +152,7 @@ const ControlsWrapper = ({
   };
 
   return (
-    <MainContent className={baseClass}>
+    <MainContent>
       <div className={`${baseClass}__wrapper`}>
         <div className={`${baseClass}__header-wrap`}>{renderHeader()}</div>
         {renderBody()}
@@ -161,4 +161,4 @@ const ControlsWrapper = ({
   );
 };
 
-export default ControlsWrapper;
+export default ManageControlsPage;
