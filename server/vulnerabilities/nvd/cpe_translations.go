@@ -136,6 +136,13 @@ type CPETranslationItem struct {
 	Filter   CPETranslation         `json:"filter"`
 }
 
+// IsEmpty returns true if the translation rule is empty - an empty rule is used when we know
+// there's not a valid CPE in the NVD dataset for the software in question, thus we want to skip the
+// 'Software to CPE' translation step to avoid any false positives.
+func (c CPETranslation) IsEmpty() bool {
+	return len(c.Product) == 0 && len(c.Vendor) == 0 && len(c.TargetSW) == 0
+}
+
 // CPETranslationSoftware represents software match criteria for cpe translations.
 type CPETranslationSoftware struct {
 	Name             []string `json:"name"`
