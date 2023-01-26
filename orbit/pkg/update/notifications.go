@@ -4,7 +4,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/server/service"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/rs/zerolog/log"
 )
 
@@ -38,7 +38,7 @@ type RenewEnrollmentProfileConfigFetcher struct {
 // GetConfig calls the wrapped Fetcher's GetConfig method, and if the fleet
 // server set the renew enrollment profile flag to true, executes the command
 // to renew the enrollment profile.
-func (h *RenewEnrollmentProfileConfigFetcher) GetConfig() (*service.OrbitConfig, error) {
+func (h *RenewEnrollmentProfileConfigFetcher) GetConfig() (*fleet.OrbitConfig, error) {
 	cfg, err := h.Fetcher.GetConfig()
 	if err == nil && cfg.Notifications.RenewEnrollmentProfile {
 		if h.cmdMu.TryLock() {

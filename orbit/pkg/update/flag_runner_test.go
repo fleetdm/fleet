@@ -7,7 +7,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/fleetdm/fleet/v4/server/service"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/require"
 )
 
@@ -78,10 +78,10 @@ func touchFile(t *testing.T, name string) {
 }
 
 type dummyConfigFetcher struct {
-	cfg *service.OrbitConfig
+	cfg *fleet.OrbitConfig
 }
 
-func (d *dummyConfigFetcher) GetConfig() (*service.OrbitConfig, error) {
+func (d *dummyConfigFetcher) GetConfig() (*fleet.OrbitConfig, error) {
 	return d.cfg, nil
 }
 
@@ -93,7 +93,7 @@ func TestDoFlagsUpdateWithEmptyFlags(t *testing.T) {
 	osqueryFlagsFile := filepath.Join(rootDir, "osquery.flags")
 	touchFile(t, osqueryFlagsFile)
 
-	dcf := dummyConfigFetcher{cfg: &service.OrbitConfig{
+	dcf := dummyConfigFetcher{cfg: &fleet.OrbitConfig{
 		Flags: json.RawMessage("{}"),
 	}}
 	fr := NewFlagRunner(&dcf, FlagUpdateOptions{
@@ -105,7 +105,7 @@ func TestDoFlagsUpdateWithEmptyFlags(t *testing.T) {
 	require.False(t, needsUpdate)
 
 	// Non-empty fleet flags and osquery.flags has empty flags.
-	dcf.cfg = &service.OrbitConfig{
+	dcf.cfg = &fleet.OrbitConfig{
 		Flags: json.RawMessage(`{"--verbose": true}`),
 	}
 	needsUpdate, err = fr.DoFlagsUpdate()
@@ -113,7 +113,7 @@ func TestDoFlagsUpdateWithEmptyFlags(t *testing.T) {
 	require.True(t, needsUpdate)
 
 	// Empty Fleet flags and osquery.flags has non-empty flags.
-	dcf.cfg = &service.OrbitConfig{
+	dcf.cfg = &fleet.OrbitConfig{
 		Flags: json.RawMessage("{}"),
 	}
 	err = os.WriteFile(osqueryFlagsFile, []byte("--verbose=true\n"), 0o644)

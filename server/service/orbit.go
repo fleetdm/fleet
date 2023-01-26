@@ -1,10 +1,12 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"text/template"
 
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -44,10 +46,8 @@ func (r *orbitGetConfigRequest) orbitHostNodeKey() string {
 }
 
 type orbitGetConfigResponse struct {
-	Flags         json.RawMessage                `json:"command_line_startup_flags,omitempty"`
-	Extensions    json.RawMessage                `json:"extensions,omitempty"`
-	Notifications fleet.OrbitConfigNotifications `json:"notifications,omitempty"`
-	Err           error                          `json:"error,omitempty"`
+	fleet.OrbitConfig
+	Err error `json:"error,omitempty"`
 }
 
 func (r orbitGetConfigResponse) error() error { return r.Err }
@@ -125,14 +125,14 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hardwareUUID string, enroll
 }
 
 func getOrbitConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
-	flags, extensions, notifs, err := svc.GetOrbitConfig(ctx)
+	cfg, err := svc.GetOrbitConfig(ctx)
 	if err != nil {
 		return orbitGetConfigResponse{Err: err}, nil
 	}
-	return orbitGetConfigResponse{Flags: flags, Extensions: extensions, Notifications: notifs}, nil
+	return orbitGetConfigResponse{OrbitConfig: cfg}, nil
 }
 
-func (svc *Service) GetOrbitConfig(ctx context.Context) (flags json.RawMessage, extensions json.RawMessage, notifications fleet.OrbitConfigNotifications, err error) {
+func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, error) {
 	// this is not a user-authenticated endpoint
 	svc.authz.SkipAuthorization(ctx)
 
@@ -140,7 +140,7 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (flags json.RawMessage, 
 
 	host, ok := hostctx.FromContext(ctx)
 	if !ok {
-		return nil, nil, notifs, orbitError{message: "internal error: missing host from request context"}
+		return fleet.OrbitConfig{Notifications: notifs}, orbitError{message: "internal error: missing host from request context"}
 	}
 
 	// set the host's orbit notifications
@@ -152,31 +152,76 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (flags json.RawMessage, 
 	if host.TeamID != nil {
 		teamAgentOptions, err := svc.ds.TeamAgentOptions(ctx, *host.TeamID)
 		if err != nil {
-			return nil, nil, notifs, err
+			return fleet.OrbitConfig{Notifications: notifs}, err
 		}
 
+		var opts fleet.AgentOptions
 		if teamAgentOptions != nil && len(*teamAgentOptions) > 0 {
-			var opts fleet.AgentOptions
 			if err := json.Unmarshal(*teamAgentOptions, &opts); err != nil {
-				return nil, nil, notifs, err
+				return fleet.OrbitConfig{Notifications: notifs}, err
 			}
-			return opts.CommandLineStartUpFlags, opts.Extensions, notifs, nil
 		}
+
+		mdmConfig, err := svc.ds.TeamMDMConfig(ctx, *host.TeamID)
+		if err != nil {
+			return fleet.OrbitConfig{Notifications: notifs}, err
+		}
+
+		var nudgeConfig bytes.Buffer
+		if mdmConfig != nil &&
+			mdmConfig.MacOSUpdates.Deadline != "" &&
+			mdmConfig.MacOSUpdates.MinimumVersion != "" {
+			if err := nudgeConfigTemplate.Execute(&nudgeConfig, mdmConfig.MacOSUpdates); err != nil {
+				return fleet.OrbitConfig{Notifications: notifs}, err
+			}
+		}
+
+		return fleet.OrbitConfig{
+			Flags:         opts.CommandLineStartUpFlags,
+			Extensions:    opts.Extensions,
+			Notifications: notifs,
+			NudgeConfig:   nudgeConfig.Bytes(),
+		}, nil
 	}
 
 	// team ID is nil, get global flags and options
 	config, err := svc.ds.AppConfig(ctx)
 	if err != nil {
-		return nil, nil, notifs, err
+		return fleet.OrbitConfig{Notifications: notifs}, err
 	}
 	var opts fleet.AgentOptions
 	if config.AgentOptions != nil {
 		if err := json.Unmarshal(*config.AgentOptions, &opts); err != nil {
-			return nil, nil, notifs, err
+			return fleet.OrbitConfig{Notifications: notifs}, err
 		}
 	}
-	return opts.CommandLineStartUpFlags, opts.Extensions, notifs, nil
+
+	var nudgeConfig bytes.Buffer
+	if config.MDM.MacOSUpdates.Deadline != "" &&
+		config.MDM.MacOSUpdates.MinimumVersion != "" {
+		if err := nudgeConfigTemplate.Execute(&nudgeConfig, config.MDM.MacOSUpdates); err != nil {
+			return fleet.OrbitConfig{Notifications: notifs}, err
+		}
+	}
+
+	return fleet.OrbitConfig{
+		Flags:         opts.CommandLineStartUpFlags,
+		Extensions:    opts.Extensions,
+		Notifications: notifs,
+		NudgeConfig:   nudgeConfig.Bytes(),
+	}, nil
 }
+
+var nudgeConfigTemplate = template.Must(template.New("").Option("missingkey=error").Parse(`
+{
+  "osVersionRequirements": [
+    {
+      "requiredInstallationDate": "{{ .Deadline }}",
+      "requiredMinimumOSVersion": "{{ .MinimumVersion }}"
+    }
+  ]
+}
+`))
 
 /////////////////////////////////////////////////////////////////////////////////
 // Ping orbit endpoint
