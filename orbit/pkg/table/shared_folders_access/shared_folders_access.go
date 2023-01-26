@@ -5,7 +5,6 @@ package shared_folders_access
 
 import (
 	"context"
-	"fmt"
 	tbl_common "github.com/fleetdm/fleet/v4/orbit/pkg/table/common"
 	"github.com/osquery/osquery-go/plugin/table"
 	"os/exec"
@@ -26,7 +25,7 @@ func Columns() []table.ColumnDefinition {
 func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[string]string, error) {
 	uid, gid, err := tbl_common.GetConsoleUidGid()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get console user: %w", err)
+		return nil, err
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
@@ -40,7 +39,7 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 
 	out, err := cmd.Output()
 	if err != nil {
-		return nil, fmt.Errorf("generate failed: %w", err)
+		return nil, err
 	}
 
 	guestUserAccessEnabled := "1"
