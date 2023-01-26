@@ -225,15 +225,11 @@ func (oc *OrbitClient) enrollAndWriteNodeKeyFile() (string, error) {
 		if err := platform.ChmodRestrictFile(oc.nodeKeyFilePath); err != nil {
 			return "", fmt.Errorf("apply ACLs: %w", err)
 		}
+	}
 
-		// writing raw key material to the acl-ready secret file
-		if err := os.WriteFile(oc.nodeKeyFilePath, []byte(orbitNodeKey), constant.DefaultFileMode); err != nil {
-			return "", fmt.Errorf("write orbit node key file: %w", err)
-		}
-	} else {
-		if err := os.WriteFile(oc.nodeKeyFilePath, []byte(orbitNodeKey), constant.DefaultFileMode); err != nil {
-			return "", fmt.Errorf("write orbit node key file: %w", err)
-		}
+	// writing raw key material to the acl-ready secret file
+	if err := os.WriteFile(oc.nodeKeyFilePath, []byte(orbitNodeKey), constant.DefaultFileMode); err != nil {
+		return "", fmt.Errorf("write orbit node key file: %w", err)
 	}
 
 	return orbitNodeKey, nil

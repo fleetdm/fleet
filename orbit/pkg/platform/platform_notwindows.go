@@ -16,7 +16,7 @@ import (
 // ChmodRestrictFile sets the appropriate permissions on a file so it can not be read by everyone
 // On POSIX this is a normal chmod call.
 func ChmodRestrictFile(path string) error {
-	if err := os.Chmod(path, constant.DefaultRestrictedReadFileMode); err != nil {
+	if err := os.Chmod(path, constant.DefaultFileMode); err != nil {
 		return fmt.Errorf("chmod restrict file: %w", err)
 	}
 	return nil
