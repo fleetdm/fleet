@@ -893,7 +893,7 @@ The following rituals are engaged in by the directly responsible individual (DRI
 | Oncall handoff               | Weekly              | Hand off the oncall engineering responsibilities to the next oncall engineer.                                                        | Zach Wasserman |
 | Vulnerability alerts (fleetdm.com)   | Weekly              | Review and remediate or dismiss [vulnerability alerts](https://github.com/fleetdm/fleet/security) for the fleetdm.com codebase on GitHub. | Eric Shaw |
 | Vulnerability alerts (frontend)   | Weekly              | Review and remediate or dismiss [vulnerability alerts](https://github.com/fleetdm/fleet/security) for the Fleet frontend codebase (and related JS) on GitHub. | Luke Heath |
-| Vulnerability alerts (backend)   | Weekly              | Review and remediate or dismiss [vulnerability alerts](https://github.com/fleetdm/fleet/security) for the Fleet backend codebase (and all Go code) on GitHub. | Tomás Touceda |
+| Vulnerability alerts (backend)   | Weekly              | Review and remediate or dismiss [vulnerability alerts](https://github.com/fleetdm/fleet/security) for the Fleet backend codebase (and all Go code) on GitHub. | Zach Wasserman |
 | Release ritual                | Every three weeks   | Go through the process of releasing the next iteration of Fleet.                                                                       | Zach Wasserman |
 | Create patch release branch   | Every patch release | Go through the process of creating a patch release branch, cherry picking commits, and pushing the branch to github.com/fleetdm/fleet. | Luke Heath     |
 | Bug review   | Weekly | Review bugs that are in QA's inbox. | Reed Haynes     |
@@ -911,7 +911,6 @@ First responders:
 
 Escalations (in order):
 
-- Tomas Touceda
 - Zach Wasserman
 
 The first responder oncall will take ownership of the @sandbox-oncall alias in Slack for ease first thing Monday morning.
@@ -937,9 +936,8 @@ The following [Slack channels are maintained](https://fleetdm.com/handbook/compa
 | Slack channel        | [DRI](https://fleetdm.com/handbook/company#why-group-slack-channels) |
 | :------------------- | :------------------------------------------------------------------- |
 | `#help-engineering`  | Zach Wasserman                                                       |
-| `#g-platform`        | Tomás Touceda                                                        |
-| `#g-interface`       | Luke Heath                                                           |
-| `#g-agent`           | Zach Wasserman                                                       |
+| `#g-mdm`             | Luke Heath                                                           |
+| `#g-compliance`      | Sharon Katz                                                          |
 | `#_pov-environments` | Ben Edwards                                                          |
 | `#help-qa`           | Reed Haynes                                                          |
 
