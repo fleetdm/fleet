@@ -2144,6 +2144,7 @@ func (s *integrationEnterpriseTestSuite) TestOrbitConfigNudgeSettings() {
 	wantCfg, err := fleet.NewNudgeConfig(fleet.MacOSUpdates{Deadline: "2022-01-04", MinimumVersion: "12.1.3"})
 	require.NoError(t, err)
 	require.Equal(t, wantCfg, resp.NudgeConfig)
+	require.Equal(t, wantCfg.OSVersionRequirements[0].RequiredInstallationDate.String(), "2022-01-04 04:00:00 +0000 UTC")
 
 	// create a team with an empty macos_updates config
 	team, err := s.ds.NewTeam(context.Background(), &fleet.Team{
@@ -2161,6 +2162,7 @@ func (s *integrationEnterpriseTestSuite) TestOrbitConfigNudgeSettings() {
 	resp = orbitGetConfigResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *h.OrbitNodeKey)), http.StatusOK, &resp)
 	require.Empty(t, resp.NudgeConfig)
+	require.Equal(t, wantCfg.OSVersionRequirements[0].RequiredInstallationDate.String(), "2022-01-04 04:00:00 +0000 UTC")
 
 	// modify the team config, add macos_updates config
 	var tmResp teamResponse
@@ -2178,6 +2180,7 @@ func (s *integrationEnterpriseTestSuite) TestOrbitConfigNudgeSettings() {
 	wantCfg, err = fleet.NewNudgeConfig(fleet.MacOSUpdates{Deadline: "1992-01-01", MinimumVersion: "13.1.1"})
 	require.NoError(t, err)
 	require.Equal(t, wantCfg, resp.NudgeConfig)
+	require.Equal(t, wantCfg.OSVersionRequirements[0].RequiredInstallationDate.String(), "1992-01-01 04:00:00 +0000 UTC")
 
 	// create a new host, still receives the global config
 	h2 := createOrbitEnrolledHost(t, "darwin", "h2", s.ds)
@@ -2186,6 +2189,7 @@ func (s *integrationEnterpriseTestSuite) TestOrbitConfigNudgeSettings() {
 	wantCfg, err = fleet.NewNudgeConfig(fleet.MacOSUpdates{Deadline: "2022-01-04", MinimumVersion: "12.1.3"})
 	require.NoError(t, err)
 	require.Equal(t, wantCfg, resp.NudgeConfig)
+	require.Equal(t, wantCfg.OSVersionRequirements[0].RequiredInstallationDate.String(), "2022-01-04 04:00:00 +0000 UTC")
 }
 
 // allEqual compares all fields of a struct.

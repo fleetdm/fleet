@@ -50,8 +50,11 @@ func NewNudgeConfig(macOSUpdates MacOSUpdates) (*NudgeConfig, error) {
 		return nil, err
 	}
 
-	// Per the spec, the exact deadline time is at 12:00 (Noon) Pacific Standard Time
-	// see https://github.com/fleetdm/fleet/issues/9013 for more details.
+	// Per the spec, the exact deadline time is arbitrarily chosen to be
+	// 12:00 (Noon) Pacific Standard Time until we allow users to customize
+	// it.
+	//
+	// See https://github.com/fleetdm/fleet/issues/9013 for more details.
 	localizedDeadline := time.Date(deadline.Year(), deadline.Month(), deadline.Day(), 4, 0, 0, 0, time.UTC)
 
 	return &NudgeConfig{

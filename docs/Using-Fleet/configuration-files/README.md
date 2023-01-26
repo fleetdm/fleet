@@ -1262,7 +1262,9 @@ Requires `mdm.macos_updates.deadline` to be set.
 
 ##### mdm.macos_updates.deadline
 
-A deadline in the form `YYYY-MM-DD`. Hosts that belong to no team and are enrolled into Fleet's MDM won't be able to dismiss the Nudge window once this deadline is past.
+A deadline in the form `YYYY-MM-DD`. The exact deadline time is at 12:00 (Noon) Pacific Standard Time (GMT-8).
+
+Hosts that belong to no team and are enrolled into Fleet's MDM won't be able to dismiss the Nudge window once this deadline is past.
 
 Requires `mdm.macos_updates.minimum_version` to be set.
 
