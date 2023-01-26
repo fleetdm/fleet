@@ -866,7 +866,7 @@ spec:
     Create or edit a configuration profile with the following information:
       1. The Payload Type string is com.apple.mobiledevice.passwordpolicy 
       2. The key to include is maxPINAgeInDays
-      3. The key must be set to <integer><value≥365></integer>
+      3. The key must be set to <integer><value<=365></integer>
   query: |
     SELECT 1 WHERE
     EXISTS(SELECT 1 FROM pwd_policy WHERE expiresEveryNDays <= 365)
