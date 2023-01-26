@@ -166,4 +166,12 @@
   .fleet-checkbox__tick {
     top: 1px;
   }
+
+  // Truncates clickable button cells
+  .children-wrapper {
+    overflow: hidden;
+    white-space: nowrap;
+    display: block;
+    text-overflow: ellipsis;
+  }
 }

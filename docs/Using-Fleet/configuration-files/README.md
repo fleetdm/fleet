@@ -998,11 +998,20 @@ spec:
           3600: "SELECT total_seconds AS uptime FROM uptime"
     overrides:
       # Note configs in overrides take precedence over the default config defined
-      # under the config key above. Hosts receive overrides based on the platform
-      # returned by `SELECT platform FROM os_version`. In this example, the base
-      # config would be used for Windows and CentOS hosts, while Mac and Ubuntu
-      # hosts would receive their respective overrides. Note, these overrides are
-      # NOT merged with the top level configuration.
+      # under the config key above. Be aware that these overrides are NOT merged 
+      # with the top-level configuration!! This means that settings values defined 
+      # on the top-level config.options section will not be propagated to the platform
+      # override sections. So for example, the config.options.distributed_interval value 
+      # will be discared on a platform override section, and only the section value 
+      # for distributed_interval will be used. If the given setting is not specified 
+      # in the override section, its default value will be enforced. 
+      # Going back to the example, if the override section is windows, 
+      # overrides.platforms.windows.distributed_interval will have to be set again to 5 
+      # for this setting to be enforced as expected, otherwise the setting will get 
+      # its default value (60 in the case of distributed_interval). 
+      # Hosts receive overrides based on the platform returned by `SELECT platform FROM os_version`. 
+      # In this example, the base config would be used for Windows and CentOS hosts, 
+      # while Mac and Ubuntu hosts would receive their respective overrides.
       platforms:
         darwin:
           options:
@@ -1139,6 +1148,7 @@ The `overrides` key allows you to segment hosts, by their platform, and supply t
 
 In the example file below, all Darwin and Ubuntu hosts will **only** receive the options specified in their respective overrides sections.
 
+> IMPORTANT: If a given option is not specified in a platform override section, its default value will be enforced.
 
 ```yaml
 agent_options:
@@ -1252,7 +1262,9 @@ Requires `mdm.macos_updates.deadline` to be set.
 
 ##### mdm.macos_updates.deadline
 
-A deadline in the form `YYYY-MM-DD`. Hosts that belong to no team and are enrolled into Fleet's MDM won't be able to dismiss the Nudge window once this deadline is past.
+A deadline in the form `YYYY-MM-DD`. The exact deadline time is at 04:00:00 (UTC-8).
+
+Hosts that belong to no team and are enrolled into Fleet's MDM won't be able to dismiss the Nudge window once this deadline is past.
 
 Requires `mdm.macos_updates.minimum_version` to be set.
 

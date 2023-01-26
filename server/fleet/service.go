@@ -58,7 +58,7 @@ type Service interface {
 	// if the team id is not nil for host, otherwise it returns flags from global
 	// agent options. It also returns any notifications that fleet wants to surface
 	// to fleetd (formerly orbit).
-	GetOrbitConfig(ctx context.Context) (flags json.RawMessage, extensions json.RawMessage, notifications OrbitConfigNotifications, err error)
+	GetOrbitConfig(ctx context.Context) (OrbitConfig, error)
 
 	// SetOrUpdateDeviceAuthToken creates or updates a device auth token for the given host.
 	SetOrUpdateDeviceAuthToken(ctx context.Context, authToken string) error
@@ -542,6 +542,7 @@ type Service interface {
 
 	GetAppleMDM(ctx context.Context) (*AppleMDM, error)
 	GetAppleBM(ctx context.Context) (*AppleBM, error)
+	RequestMDMAppleCSR(ctx context.Context, email, org string) (*AppleCSR, error)
 
 	// NewMDMAppleEnrollmentProfile creates and returns new enrollment profile.
 	// Such enrollment profiles allow devices to enroll to Fleet MDM.

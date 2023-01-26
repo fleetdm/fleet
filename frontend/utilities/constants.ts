@@ -209,6 +209,14 @@ export const VULNERABLE_DROPDOWN_OPTIONS = [
   },
 ];
 
+// Keys from API
+export const MDM_STATUS_TOOLTIP: Record<string, string> = {
+  "On (automatic)": `<span>MDM was turned on automatically using Apple Automated Device Enrollment (DEP) or Windows Autopilot. Administrators can block end users from turning MDM off.</span>`,
+  "On (manual)": `<span>MDM was turned on manually. End users can turn MDM off.</span>`,
+  Off: `<span>Hosts with MDM off don&apos;t receive macOS <br /> settings and macOS update encouragement.</span>`,
+  Pending: `<span>Hosts ordered via Apple Business Manager <br /> (ABM). These will automatically enroll to Fleet <br /> and turn on MDM when they&apos;re unboxed.</span>`,
+};
+
 export const DEFAULT_CREATE_USER_ERRORS = {
   email: "",
   name: "",

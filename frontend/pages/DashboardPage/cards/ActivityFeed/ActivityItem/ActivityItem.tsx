@@ -4,15 +4,13 @@ import { intlFormat, formatDistanceToNowStrict } from "date-fns";
 
 import { ActivityType, IActivity, IActivityDetails } from "interfaces/activity";
 import { addGravatarUrlToResource } from "utilities/helpers";
+import { DEFAULT_GRAVATAR_LINK } from "utilities/constants";
 import Avatar from "components/Avatar";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 import ReactTooltip from "react-tooltip";
 
 const baseClass = "activity-item";
-
-const DEFAULT_GRAVATAR_URL =
-  "https://www.gravatar.com/avatar/00000000000000000000000000000000?d=blank&size=200";
 
 const TAGGED_TEMPLATES = {
   liveQueryActivityTemplate: (
@@ -153,7 +151,7 @@ const TAGGED_TEMPLATES = {
   mdmEnrolled: (activity: IActivity) => {
     return (
       <>
-        An end user turned on MDM features for a host with serial number
+        An end user turned on MDM features for a host with serial number{" "}
         <b>
           {activity.details?.host_serial} (
           {activity.details?.installed_from_dep ? "automatic" : "manual"})
@@ -165,12 +163,10 @@ const TAGGED_TEMPLATES = {
   mdmUnenrolled: (activity: IActivity) => {
     return (
       <>
-        An end user turned off MDM features for a host with serial number
-        <b>
-          {activity.details?.host_serial} (
-          {activity.details?.installed_from_dep ? "automatic" : "manual"})
-        </b>
-        .
+        {activity.actor_full_name
+          ? " turned off mobile device management (MDM) for"
+          : "Mobile device management (MDM) was turned off for"}{" "}
+        <b>{activity.details?.host_display_name}</b>.
       </>
     );
   },
@@ -277,7 +273,7 @@ const ActivityItem = ({
   const { actor_email } = activity;
   const { gravatarURL } = actor_email
     ? addGravatarUrlToResource({ email: actor_email })
-    : { gravatarURL: DEFAULT_GRAVATAR_URL };
+    : { gravatarURL: DEFAULT_GRAVATAR_LINK };
 
   const activityCreatedAt = new Date(activity.created_at);
 

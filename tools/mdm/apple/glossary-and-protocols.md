@@ -38,7 +38,7 @@ enrollment](#dep-enrollment).
 
 Can be accessed at https://business.apple.com/ .
 
-### APNs: Apple Push Notification Service 
+### APNs: Apple Push Notification Service
 
 MDM uses the Apple Push Notification Service (APNs) to deliver a "wake up"
 message to managed devices. The device then connects to the MDM server to
@@ -51,6 +51,7 @@ Resources:
 
 - [MDM Protocol summary](#mdm-protocol-summary)
 - [MDM protocol specification](https://developer.apple.com/business/documentation/MDM-Protocol-Reference.pdf)
+- [MicroMDM documentation](https://github.com/micromdm/micromdm/blob/main/docs/user-guide/quickstart.md#configure-an-apns-certificate)
 
 ### Profile
 
@@ -92,7 +93,7 @@ notification](#apons-apple-push-notification-service), then the device polls
 the server for the command, processes the command, and reports the command
 results to the server.
 
-### CSR: Certificate Signing Request 
+### CSR: Certificate Signing Request
 
 Issued by the server that needs validation from a signing authority, the
 request has the public key in the pair and information about the server
