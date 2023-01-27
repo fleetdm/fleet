@@ -494,6 +494,8 @@ Once you have access:
 
 ### APNs and SCEP setup
 
+The server also needs keys and certificates to communicate with Apple's [APNs](https://github.com/fleetdm/fleet/blob/main/tools/mdm/apple/glossary-and-protocols.md#apns-apple-push-notification-service) servers and to implement [SCEP](https://github.com/fleetdm/fleet/blob/main/tools/mdm/apple/glossary-and-protocols.md#scep-simple-certificate-enrollment-protocol).
+
 Use `fleetctl` to generate the required files:
 
 ```
