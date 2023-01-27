@@ -50,13 +50,13 @@ const UnenrollMdmModal = ({ hostId, onClose }: IUnenrollMdmModalProps) => {
         <div className="modal-cta-wrap">
           <Button
             type="submit"
-            variant="brand"
+            variant="alert"
             onClick={submitUnenrollMdm}
             isLoading={requestState === "unenrolling"}
           >
             Turn off
           </Button>
-          <Button onClick={onClose} variant="inverse">
+          <Button onClick={onClose} variant="inverse-alert">
             Cancel
           </Button>
         </div>
