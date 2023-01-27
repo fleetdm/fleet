@@ -7,8 +7,8 @@ export default {
     const { DEVICE_USER_MDM_ENROLLMENT_PROFILE } = endpoints;
     return sendRequest("GET", DEVICE_USER_MDM_ENROLLMENT_PROFILE(token));
   },
-  unenrollHostFromMdm: (hostId: number) => {
+  unenrollHostFromMdm: (hostId: number, timeout?: number) => {
     const { HOST_MDM_UNENROLL } = endpoints;
-    return sendRequest("PATCH", HOST_MDM_UNENROLL(hostId));
+    return sendRequest("PATCH", HOST_MDM_UNENROLL(hostId), timeout);
   },
 };

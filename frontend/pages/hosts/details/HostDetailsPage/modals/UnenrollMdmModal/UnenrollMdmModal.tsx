@@ -23,23 +23,12 @@ const UnenrollMdmModal = ({ hostId, onClose }: IUnenrollMdmModalProps) => {
 
   const submitUnenrollMdm = async () => {
     setRequestState("unenrolling");
+
     try {
-      // const timeout = setTimeout(() => {
-      //   throw new Error("Unenroll request timed out");
-      // }, 5000);
-
-      await mdmAPI.unenrollHostFromMdm(hostId);
-
-      // simulate network response
-      // const response = await new Promise((resolve) =>
-      //   setTimeout(resolve, 1000)
-      // );
-
-      // clearTimeout(timeout);
+      await mdmAPI.unenrollHostFromMdm(hostId, 5000);
       renderFlash("success", "Successfully turned off MDM.");
       onClose();
     } catch (unenrollMdmError: unknown) {
-      // clearTimeout(timeout);
       console.log(unenrollMdmError);
       setRequestState("error");
     }
