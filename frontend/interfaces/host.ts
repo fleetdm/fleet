@@ -206,7 +206,7 @@ export interface IHost {
   // TODO: Below fields are intentionally redundant
   // API currently not nested, but will be reverted to nested structure
   mdm?: IHostMdmData;
-  mdm_enrollment_status: "On (automatic)" | "On (manual)" | "Pending" | "Off";
+  mdm_enrollment_status?: "On (automatic)" | "On (manual)" | "Pending" | "Off";
   policies: IHostPolicy[];
   query_results?: unknown[];
   geolocation?: IGeoLocation;

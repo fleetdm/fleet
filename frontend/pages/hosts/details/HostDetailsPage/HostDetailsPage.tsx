@@ -138,13 +138,11 @@ const HostDetailsPage = ({
       (isGlobalAdmin ||
         isGlobalMaintainer ||
         permissionUtils.isTeamMaintainerOrTeamAdmin(user, host.team_id));
-    console.log(`User has permission: ${userHasPermission}`);
     const hostEnrolled = ["On (automatic)", "On (manual)"].includes(
       host?.mdm_enrollment_status ?? ""
       // TODO: API will be reverted to nested mdm {enrollment_status: ...}, change to below when it is:
       // host.mdm?.enrollment_status ?? ""
     );
-    console.log(`Host enrolled: ${hostEnrolled}`);
     return userHasPermission && hostEnrolled;
   };
 
