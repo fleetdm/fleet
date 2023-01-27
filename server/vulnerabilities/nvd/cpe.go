@@ -159,7 +159,7 @@ func CPEFromSoftware(db *sqlx.DB, software *fleet.Software, translations CPETran
 	}
 
 	if match {
-		if translation.IsEmpty() {
+		if translation.Skip {
 			return "", nil
 		}
 

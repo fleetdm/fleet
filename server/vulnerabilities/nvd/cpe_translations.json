@@ -66,8 +66,7 @@
       "source": ["chrome_extensions"]
     },
     "filter": {
-      "product": [],
-      "vendor": []
+      "skip": true
     }
   }
 ]
