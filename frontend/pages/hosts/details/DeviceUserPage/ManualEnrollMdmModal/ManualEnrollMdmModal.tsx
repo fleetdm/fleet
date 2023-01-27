@@ -18,7 +18,7 @@ interface IManualEnrollMdmModalProps {
 
 const baseClass = "manual-enroll-mdm-modal enroll-mdm-modal";
 
-const EnrollMdmModal = ({
+const ManualEnrollMdmModal = ({
   onCancel,
   token = "",
 }: IManualEnrollMdmModalProps): JSX.Element => {
@@ -123,4 +123,4 @@ const EnrollMdmModal = ({
   );
 };
 
-export default EnrollMdmModal;
+export default ManualEnrollMdmModal;

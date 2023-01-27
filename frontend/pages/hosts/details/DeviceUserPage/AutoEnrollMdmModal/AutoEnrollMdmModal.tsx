@@ -9,7 +9,7 @@ interface IAutoEnrollMdmModalProps {
 
 const baseClass = "auto-enroll-mdm-modal enroll-mdm-modal";
 
-const EnrollMdmModal = ({
+const AutoEnrollMdmModal = ({
   onCancel,
 }: IAutoEnrollMdmModalProps): JSX.Element => {
   return (
@@ -45,4 +45,4 @@ const EnrollMdmModal = ({
   );
 };
 
-export default EnrollMdmModal;
+export default AutoEnrollMdmModal;
