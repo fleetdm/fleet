@@ -16,13 +16,13 @@ import Spinner from "components/Spinner";
 import SideNav from "../components/SideNav";
 import ORG_SETTINGS_NAV_ITEMS from "./OrgSettingsNavItems";
 
-interface IAppSettingsPageProps {
+interface IOrgSettingsPageProps {
   params: Params;
 }
 
-export const baseClass = "app-settings";
+export const baseClass = "org-settings";
 
-const AppSettingsPage = ({ params }: IAppSettingsPageProps) => {
+const OrgSettingsPage = ({ params }: IOrgSettingsPageProps) => {
   const { section } = params;
   const DEFAULT_SETTINGS_SECTION = ORG_SETTINGS_NAV_ITEMS[0];
 
@@ -152,4 +152,4 @@ const AppSettingsPage = ({ params }: IAppSettingsPageProps) => {
   );
 };
 
-export default AppSettingsPage;
+export default OrgSettingsPage;

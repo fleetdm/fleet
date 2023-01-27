@@ -25,6 +25,23 @@ const (
 	readAndExecute = uint32(131241)
 )
 
+// ChmodRestrictFile sets the appropriate permissions on a file so it can not be read by everyone
+// On POSIX this is a normal chmod call.
+func ChmodRestrictFile(path string) error {
+	if err := acl.Apply(
+		path,
+		true,
+		false,
+		acl.GrantSid(windows.GENERIC_ALL, constant.SystemSID),
+		acl.GrantSid(windows.GENERIC_ALL, constant.AdminSID),
+		acl.GrantSid(0, constant.UserSID), // no access permissions for regular users
+	); err != nil {
+		return fmt.Errorf("restricting file access: %w", err)
+	}
+
+	return nil
+}
+
 // ChmodExecutableDirectory sets the appropriate permissions on the parent
 // directory of an executable file. On Windows this involves setting the
 // appropriate ACLs.

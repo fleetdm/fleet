@@ -1,11 +1,15 @@
 .site-nav-item {
+  flex-grow: 1;
   position: relative;
   transition: color 200ms ease-in-out;
   cursor: pointer;
   max-height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 
   &:hover {
-    background-color: $core-fleet-black;
+    background-color: $site-nav-on-hover;
   }
 
   &--multiple.site-nav-item--active {
@@ -50,9 +54,6 @@
 
   &__link {
     color: $core-white;
-    text-align: center;
-    display: flex;
-    align-items: center;
     padding: 14px 20px 17px;
     text-decoration: none;
   }
@@ -66,11 +67,11 @@
 
   &--active {
     border-bottom: 3px solid $core-vibrant-blue;
-    background-color: $core-fleet-black;
+    background-color: $site-nav-on-hover;
     height: 47px;
 
     &:hover {
-      background-color: $core-fleet-black;
+      background-color: $site-nav-on-hover;
     }
 
     .site-nav-item__name {
@@ -86,7 +87,7 @@
   top: 1px;
 }
 
-.site-nav-container {
+.site-nav-content {
   flex-grow: 1;
   display: flex;
   justify-content: space-between;
@@ -95,7 +96,10 @@
 
 .site-nav-list {
   list-style: none;
+  width: 671px;
   margin: 0;
   padding: 0;
   display: flex;
+  flex-direction: row;
+  justify-content: space-between;
 }
