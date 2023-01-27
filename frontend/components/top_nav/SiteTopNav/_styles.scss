@@ -1,9 +1,8 @@
 .site-nav-item {
-  flex-grow: 1;
   position: relative;
   transition: color 200ms ease-in-out;
   cursor: pointer;
-  max-height: 50px;
+  max-height: 47px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -54,7 +53,7 @@
 
   &__link {
     color: $core-white;
-    padding: 14px 20px 17px;
+    padding: 15px 24px;
     text-decoration: none;
   }
 
@@ -81,13 +80,13 @@
 }
 
 .logo {
-  height: 48px;
   transform: scale(0.5);
   position: relative;
-  top: 1px;
+  top: 3px;
 }
 
 .site-nav-content {
+  height: 50px;
   flex-grow: 1;
   display: flex;
   justify-content: space-between;
@@ -101,5 +100,4 @@
   padding: 0;
   display: flex;
   flex-direction: row;
-  justify-content: space-between;
 }
