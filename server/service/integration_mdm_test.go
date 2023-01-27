@@ -20,6 +20,8 @@ import (
 	"testing"
 	"time"
 
+	"sync/atomic"
+
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -37,7 +39,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"go.mozilla.org/pkcs7"
-	"go.uber.org/atomic"
 )
 
 func TestIntegrationsMDM(t *testing.T) {

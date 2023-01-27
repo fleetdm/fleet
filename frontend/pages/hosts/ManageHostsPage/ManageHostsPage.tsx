@@ -1648,14 +1648,7 @@ const ManageHostsPage = ({
   };
 
   const renderTable = () => {
-    if (
-      !config ||
-      !currentUser ||
-      isHostCountLoading ||
-      isHostsLoading ||
-      isLoadingPolicy ||
-      !teamSync
-    ) {
+    if (!config || !currentUser || !teamSync) {
       return <Spinner />;
     }
 
@@ -1764,7 +1757,7 @@ const ManageHostsPage = ({
       <TableContainer
         columns={tableColumns}
         data={hosts || []}
-        isLoading={isHostsLoading || isHostCountLoading || isLoadingLabels}
+        isLoading={isHostsLoading || isHostCountLoading || isLoadingLabels || isLoadingPolicy}
         manualSortBy
         defaultSortHeader={(sortBy[0] && sortBy[0].key) || DEFAULT_SORT_HEADER}
         defaultSortDirection={
