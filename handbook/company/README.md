@@ -17,7 +17,7 @@ The Fleet handbook is inspired by the [GitLab team handbook](https://about.gitla
 While [GitLab's handbook](https://about.gitlab.com/handbook/) inspires this handbook, it is nowhere near as complete (yet!)  We will continue adding and updating this handbook and gradually migrating information from [Fleet's shared Google Drive folder](https://drive.google.com/drive/folders/1lA38aTxsl4_qDtHCrYHcAaadES5ws0yJ) as time allows.
 
 ### Contributing to the handbook
-You can review more information about contributing to Fleet's handbook on this page [Contributing to the handbook](./handbook)
+You can review more information about contributing to Fleet's handbook on this page [Contributing to the handbook](handbook/company/handbook.md)
 
 
 ## Culture
