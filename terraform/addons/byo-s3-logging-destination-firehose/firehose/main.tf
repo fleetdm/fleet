@@ -49,7 +49,7 @@ data "aws_iam_policy_document" "firehose_policy" {
 }
 
 resource "aws_iam_role" "firehose" {
-  name = "${var.customer_prefix}-firehose"
+  name = "${var.customer_prefix}-firehose-cross-account-role"
   assume_role_policy = data.aws_iam_policy_document.osquery_firehose_assume_role.json
 }
 
