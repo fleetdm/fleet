@@ -11,7 +11,6 @@ variable "osquery_status_bucket" {
 variable "fleet_iam_role_arn" {
   type        = string
   description = "the arn of the fleet role that firehose will assume to write data to your bucket"
-  default     = "arn:aws:iam::123456789123:role/fix-me"
 }
 
 data "aws_caller_identity" "current" {}
@@ -142,7 +141,6 @@ data "aws_iam_policy_document" "key_policy" {
   statement {
     principals {
       identifiers = [
-        data.aws_caller_identity.current.arn,
         "arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"
       ]
       type = "AWS"
@@ -166,8 +164,9 @@ data "aws_iam_policy_document" "key_policy" {
 
 // customer managed key to allow other aws account access
 resource "aws_kms_key" "key" {
-  policy      = data.aws_iam_policy_document.key_policy.json
-  description = "key used for osquery results and status bucket encryption"
+  enable_key_rotation = true
+  policy              = data.aws_iam_policy_document.key_policy.json
+  description         = "key used for osquery results and status bucket encryption"
 }
 
 // enable server side encryption with KMS key

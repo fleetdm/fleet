@@ -49,25 +49,18 @@ data "aws_iam_policy_document" "firehose_policy" {
 }
 
 resource "aws_iam_role" "firehose" {
+  name = "${var.customer_prefix}-firehose"
   assume_role_policy = data.aws_iam_policy_document.osquery_firehose_assume_role.json
-  tags = {
-    customer = var.customer_prefix
-  }
 }
 
 resource "aws_iam_policy" "firehose" {
   policy = data.aws_iam_policy_document.firehose_policy.json
-  tags = {
-    customer = var.customer_prefix
-  }
 }
 
 resource "aws_iam_role_policy_attachment" "firehose" {
   policy_arn = aws_iam_policy.firehose.arn
   role       = aws_iam_role.firehose.name
 }
-
-
 
 resource "aws_kinesis_firehose_delivery_stream" "osquery_results" {
   name        = var.firehose_results_name
@@ -78,10 +71,6 @@ resource "aws_kinesis_firehose_delivery_stream" "osquery_results" {
     role_arn    = aws_iam_role.firehose.arn
     bucket_arn  = "arn:aws:s3:::${var.results_destination_s3_bucket}"
     kms_key_arn = var.kms_key_arn
-  }
-
-  tags = {
-    customer = var.customer_prefix
   }
 }
 
@@ -94,10 +83,6 @@ resource "aws_kinesis_firehose_delivery_stream" "osquery_status" {
     role_arn    = aws_iam_role.firehose
     bucket_arn  = "arn:aws:s3:::${var.status_destination_s3_bucket}"
     kms_key_arn = var.kms_key_arn
-  }
-
-  tags = {
-    customer = var.customer_prefix
   }
 }
 
