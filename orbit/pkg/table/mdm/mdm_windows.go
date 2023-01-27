@@ -25,11 +25,11 @@ import (
 
 var (
 	// Windows DLL and functions for runtime binding
-	modmdmregistration *windows.LazyDLL = windows.NewLazySystemDLL("mdmregistration.dll")
-	modmdmlocalmgmt    *windows.LazyDLL = windows.NewLazySystemDLL("mdmlocalmanagement.dll")
+	modmdmregistration = windows.NewLazySystemDLL("mdmregistration.dll")
+	modmdmlocalmgmt    = windows.NewLazySystemDLL("mdmlocalmanagement.dll")
 
-	procIsDeviceRegisteredWithManagement *windows.LazyProc = modmdmregistration.NewProc("IsDeviceRegisteredWithManagement")
-	procSendSyncMLcommand                *windows.LazyProc = modmdmlocalmgmt.NewProc("ApplyLocalManagementSyncML")
+	procIsDeviceRegisteredWithManagement = modmdmregistration.NewProc("IsDeviceRegisteredWithManagement")
+	procSendSyncMLcommand                = modmdmlocalmgmt.NewProc("ApplyLocalManagementSyncML")
 
 	// Synchronization mutex
 	mu sync.Mutex
@@ -80,19 +80,13 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 		return nil, fmt.Errorf("there was a problem getting enrollment info: %s ", err)
 	}
 
-	// table returns immediately if host is not MDM enrolled
+	// updating device enrollment status
+	deviceEnrollmentStatus := "device_enrolled"
 	if isHostMDMenrolled == 0 {
-		return []map[string]string{
-			{
-				"enrollment_status":  "device_not_enrolled",
-				"enrolled_user":      "",
-				"mdm_command_input":  inputCmd,
-				"mdm_command_output": "",
-			},
-		}, nil
+		deviceEnrollmentStatus = "device_not_enrolled"
 	}
 
-	// Executing the input MDM command if it was present, otherwise just return with MDM enrolled info
+	// Executing the input MDM command if it was present
 	if len(inputCmd) > 0 {
 
 		// performs the actual MDM cmd execution against the OS MDM stack
@@ -111,16 +105,17 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 				"mdm_command_output": outputCmd,
 			},
 		}, nil
-	} else {
-		return []map[string]string{
-			{
-				"enrollment_status": "enrolled_device",
-				"enrolled_user":     enrollmentURI,
-				"mdm_command_input": inputCmd,
-				"mdm_command_ouput": "",
-			},
-		}, nil
 	}
+
+	// returning table enrollment status + cmd output status if present
+	return []map[string]string{
+		{
+			"enrollment_status": deviceEnrollmentStatus,
+			"enrolled_user":     enrollmentURI,
+			"mdm_command_input": "",
+			"mdm_command_ouput": "",
+		},
+	}, nil
 }
 
 // builtin utf16tostring string expects a uint16 array but we have a pointer to a uint16
@@ -130,10 +125,10 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 func localUTF16toString(ptr unsafe.Pointer) (string, error) {
 	if ptr == nil {
 		return "", errors.New("failed UTF16 conversion due to null pointer")
-	} else {
-		uint16ptrarr := (*[maxBufSize]uint16)(ptr)[:]
-		return windows.UTF16ToString(uint16ptrarr), nil
 	}
+
+	uint16ptrarr := (*[maxBufSize]uint16)(ptr)[:]
+	return windows.UTF16ToString(uint16ptrarr), nil
 }
 
 // getEnrollmentInfo returns the MDM enrollment status by calling into OS API IsDeviceRegisteredWithManagement()
@@ -151,15 +146,22 @@ func getEnrollmentInfo() (uint32, string, error) {
 	// https://learn.microsoft.com/en-us/windows/win32/api/mdmregistration/nf-mdmregistration-isdeviceregisteredwithmanagement
 	if returnCode, _, err := procIsDeviceRegisteredWithManagement.Call(uintptr(unsafe.Pointer(&isDeviceRegisteredWithMDM)), maxBufSize, uintptr(unsafe.Pointer(&buffUriData))); returnCode != uintptr(windows.ERROR_SUCCESS) {
 		return 0, "", fmt.Errorf("there was an error calling IsDeviceRegisteredWithManagement(): %s (0x%X)", err, returnCode)
-	} else {
+	}
 
-		uriData, err := localUTF16toString(unsafe.Pointer(&buffUriData))
+	// Sanity check to ensure that we are returning a valid string
+	uriData := ""
+	if isDeviceRegisteredWithMDM > 0 {
+		workUriData, err := localUTF16toString(unsafe.Pointer(&buffUriData))
 		if err != nil {
 			return 0, "", err
 		}
 
-		return isDeviceRegisteredWithMDM, uriData, nil
+		if len(workUriData) > 0 {
+			uriData = workUriData
+		}
 	}
+
+	return isDeviceRegisteredWithMDM, uriData, nil
 }
 
 // executeMDMcommand executes syncML MDM commands against the OS MDM stack and returns the status of the command execution
@@ -213,11 +215,11 @@ func executeMDMcommand(inputCMD string) (string, error) {
 		return "", err
 	}
 
-	if len(outputCmd) > 0 {
-		return outputCmd, nil
-	} else {
+	if len(outputCmd) == 0 {
 		return "", fmt.Errorf("the OS MDM stack returned an empty string")
 	}
+
+	return outputCmd, nil
 }
 
 // closeManagementMutex walks the system handles to find and close the MDM management mutexes on
@@ -292,11 +294,11 @@ func closeManagementMutex() error {
 		}
 	}
 
-	if handleOccurences > 0 {
-		return nil
-	} else {
+	if handleOccurences == 0 {
 		return fmt.Errorf("target named mutex %s was not found", mdmMutexName)
 	}
+
+	return nil
 }
 
 // getUUIDhash returns the SHA256 hash of the host SMBIOS UUID
