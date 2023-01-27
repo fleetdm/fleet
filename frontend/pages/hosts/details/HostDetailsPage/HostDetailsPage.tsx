@@ -581,7 +581,6 @@ const HostDetailsPage = ({
             You can’t query <br /> an offline host.
           </span>
         </ReactTooltip>
-        {/* {currentUser && host && getCanEditMdm(currentUser, host) && ( */}
         {currentUser && host && canEditMdm && (
           <Button
             onClick={toggleUnenrollMdmModal}
