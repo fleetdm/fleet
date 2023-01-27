@@ -53,10 +53,6 @@ var windowsWixTemplate = template.Must(template.New("").Option("missingkey=error
               <PermissionEx Sddl="O:SYG:SYD:P(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)(A;OICI;0x1200a9;;;BU)" />
             </CreateFolder>
           </Component>
-          <Component Id="C_ORBITROOT_REMOVAL" Guid="B7DFD19E-3D2B-4536-A04F-5D4DE90F3863">
-            <RegistryValue Root="HKLM" Key="SOFTWARE\FleetDM\Orbit" Name="Path" Type="string" Value="[ORBITROOT]" KeyPath="yes" />
-            <util:RemoveFolderEx On="uninstall" Property="APPLICATIONFOLDER" />
-          </Component>
           <Directory Id="ORBITBIN" Name="bin">
             <Directory Id="ORBITBINORBIT" Name="orbit">
               <Component Id="C_ORBITBIN" Guid="AF347B4E-B84B-4DD4-9C4D-133BE17B613D">
@@ -115,12 +111,12 @@ var windowsWixTemplate = template.Must(template.New("").Option("missingkey=error
                   Return="check"
                   Impersonate="no" />
 
-   <SetProperty Id="CA_StopOrbit"
-                 Before ="CA_StopOrbit"
+   <SetProperty Id="CA_RemoveOrbit"
+                 Before ="CA_RemoveOrbit"
                  Sequence="execute"
-                 Value='&quot;[POWERSHELLEXE]&quot; -NoLogo -NonInteractive -NoProfile -ExecutionPolicy Bypass -File "[ORBITROOT]installer_utils.ps1" -stopOrbit' />
+                 Value='&quot;[POWERSHELLEXE]&quot; -NoLogo -NonInteractive -NoProfile -ExecutionPolicy Bypass -File "[ORBITROOT]installer_utils.ps1" -uninstallOrbit' />
 
-    <CustomAction Id="CA_StopOrbit"
+    <CustomAction Id="CA_RemoveOrbit"
                   BinaryKey="WixCA"
                   DllEntry="WixQuietExec64"
                   Execute="deferred"
@@ -128,13 +124,12 @@ var windowsWixTemplate = template.Must(template.New("").Option("missingkey=error
                   Impersonate="no" />  
 
     <InstallExecuteSequence>
-      <Custom Action='CA_StopOrbit' Before='RemoveFiles'>(NOT UPGRADINGPRODUCTCODE) AND (REMOVE="ALL")</Custom> <!-- Only happens during uninstall -->
+      <Custom Action='CA_RemoveOrbit' Before='RemoveFiles'>(NOT UPGRADINGPRODUCTCODE) AND (REMOVE="ALL")</Custom> <!-- Only happens during uninstall -->
       <Custom Action='CA_UninstallOsquery' After='InstallFiles'>NOT Installed AND NOT WIX_UPGRADE_DETECTED</Custom> <!-- Only happens during first install -->
     </InstallExecuteSequence>
 
     <Feature Id="Orbit" Title="Fleet osquery" Level="1" Display="hidden">
       <ComponentGroupRef Id="OrbitFiles" />
-      <ComponentRef Id="C_ORBITROOT_REMOVAL" />
       <ComponentRef Id="C_ORBITBIN" />
       <ComponentRef Id="C_ORBITROOT" />
     </Feature>
