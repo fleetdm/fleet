@@ -713,7 +713,7 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: Ensure Guest Access to Shared Folders Is Disabled
+  name: CIS - Ensure Guest Access to Shared Folders Is Disabled (MDM Required)
   platforms: macOS
   platform: darwin
   description: Allowing guests to connect to shared folders enables users to access selected shared folders and their contents from different computers on a network
