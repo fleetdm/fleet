@@ -109,7 +109,7 @@ module.exports = {
     let rssFeedXml = '<rss version="2.0"><channel>';
 
 
-    let rssFeedTitle = `<title>Fleet blog | ${_.escape(articleCategoryTitle)}</title>`;
+    let rssFeedTitle = `<title>${_.escape(articleCategoryTitle)}</title>`;
     let rssFeedDescription = `<description>${_.escape(categoryDescription)}</description>`;
     let rsslastBuildDate = `<lastBuildDate>${_.escape(new Date(Date.now()))}</lastBuildDate>`;
     let rssFeedImage = `<image><link>${_.escape('https://fleetdm.com'+categoryName)}</link><title>${_.escape(articleCategoryTitle)}</title><url>${_.escape('https://fleetdm.com/images/fleet-logo-square@2x.png')}</url></image>`;
@@ -121,9 +121,9 @@ module.exports = {
       let rssItemTitle = `<title>${_.escape(pageInfo.meta.articleTitle)}</title>`;
       let rssItemDescription = `<description>${_.escape(pageInfo.meta.description)}</description>`;
       let rssItemLink = `<link>${_.escape('https://fleetdm.com'+pageInfo.url)}</link>`;
-      let rssItemPublishDate = `<pubDate>${_.escape(new Date(pageInfo.meta.publishedOn).toJSON())}</pubDate>`
+      let rssItemPublishDate = `<pubDate>${_.escape(new Date(pageInfo.meta.publishedOn).toJSON())}</pubDate>`;
       // Add the article to the feed.
-      rssFeedXml += `<item>${rssItemTitle}${rssItemDescription}${rssItemLink}${rssItemPublishDate}</item>`
+      rssFeedXml += `<item>${rssItemTitle}${rssItemDescription}${rssItemLink}${rssItemPublishDate}</item>`;
     }
 
     rssFeedXml += `</channel></rss>`;
