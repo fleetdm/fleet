@@ -132,7 +132,7 @@ This would include the CTO + Engineering managers.
 
 This section outlines the release process at Fleet.
 
-The current release cadence is nightly.
+The current release cadence is once every three weeks and is concentrated around Wednesdays.
 
 ### Release freeze period
 
