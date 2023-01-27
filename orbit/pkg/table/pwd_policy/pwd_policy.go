@@ -16,10 +16,10 @@ import (
 // Columns is the schema of the table.
 func Columns() []table.ColumnDefinition {
 	return []table.ColumnDefinition{
-		table.IntegerColumn("maxFailedAttempts"),
-		table.IntegerColumn("expiresEveryNDays"),
-		table.IntegerColumn("daysToExpiration"),
-		table.IntegerColumn("historyDepth"),
+		table.IntegerColumn("max_failed_attempts"),
+		table.IntegerColumn("expires_every_n_days"),
+		table.IntegerColumn("days_to_expiration"),
+		table.IntegerColumn("history_depth"),
 	}
 }
 
@@ -64,9 +64,9 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 	}
 
 	return []map[string]string{
-		{"maxFailedAttempts": maxFailedAttempts,
-			"expiresEveryNDays": expiresEveryNDays,
-			"daysToExpiration":  daysToExpiration,
-			"historyDepth":      historyDepth},
+		{"max_failed_attempts": maxFailedAttempts,
+			"expires_every_n_days": expiresEveryNDays,
+			"days_to_expiration":   daysToExpiration,
+			"history_depth":        historyDepth},
 	}, nil
 }
