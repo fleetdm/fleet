@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
@@ -12,6 +13,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update/filestore"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
+	"github.com/google/uuid"
 	"github.com/oklog/run"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -76,9 +78,14 @@ var shellCommand = &cli.Command{
 
 		var g run.Group
 
+		extensionPathPostfix := ""
+		if runtime.GOOS == "windows" {
+			extensionPathPostfix = "-" + uuid.New().String()
+		}
+
 		opts := []osquery.Option{
 			osquery.WithShell(),
-			osquery.WithDataPath(filepath.Join(c.String("root-dir"), "shell")),
+			osquery.WithDataPathAndExtensionPathPostfix(filepath.Join(c.String("root-dir"), "shell"), extensionPathPostfix),
 		}
 
 		// Detect if the additional arguments have a positional argument.
@@ -109,7 +116,7 @@ var shellCommand = &cli.Command{
 			// leaving the extension runner waiting for the socket.
 			// NOTE(lucas): `--extensions_require` doesn't seem to work with
 			// thrift extensions?
-			registerExtensionRunner(&g, r.ExtensionSocketPath())
+			registerExtensionRunner(&g, r.ExtensionSocketPath()+extensionPathPostfix)
 		}
 
 		ctx, cancel := context.WithCancel(context.Background())
