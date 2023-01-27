@@ -11,6 +11,6 @@ examples: >-
   ```
 columns:
   - name: browser_type
-    description: The type of browser. (Valid values: `chrome`, `chromium`, `opera`, `yandex`, `brave`, `edge`, `edge_beta`)
+    description: "The type of browser. (Valid values: `chrome`, `chromium`, `opera`, `yandex`, `brave`, `edge`, `edge_beta`)"
   - name: uid
     requires_user_context: true
