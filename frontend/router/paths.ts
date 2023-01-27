@@ -6,7 +6,7 @@ import URL_PREFIX from "./url_prefix";
 export default {
   ROOT: `${URL_PREFIX}/`,
   CONTROLS: `${URL_PREFIX}/controls`,
-  CONTROLS_MAC_UPDATES: `${URL_PREFIX}/controls/mac-updates`,
+  CONTROLS_MAC_OS_UPDATES: `${URL_PREFIX}/controls/mac-os-updates`,
   CONTROLS_MAC_SETTINGS: `${URL_PREFIX}/controls/mac-settings`,
   DASHBOARD: `${URL_PREFIX}/dashboard`,
   DASHBOARD_LINUX: `${URL_PREFIX}/dashboard/linux`,

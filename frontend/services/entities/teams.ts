@@ -39,6 +39,12 @@ export interface IUpdateTeamFormData {
   name: string;
   webhook_settings: Partial<ITeamWebhookSettings>;
   integrations: IIntegrations;
+  mdm: {
+    macos_updates: {
+      minimum_version: string;
+      deadline: string;
+    };
+  };
 }
 
 export default {
@@ -73,7 +79,7 @@ export default {
     return sendRequest("GET", path);
   },
   update: (
-    { name, webhook_settings, integrations }: Partial<IUpdateTeamFormData>,
+    { name, webhook_settings, integrations, mdm }: Partial<IUpdateTeamFormData>,
     teamId?: number
   ): Promise<ITeamConfig> => {
     if (typeof teamId === "undefined") {
@@ -101,6 +107,9 @@ export default {
         jira: jira?.map((j) => pick(j, teamIntegrationProps)),
         zendesk: zendesk?.map((z) => pick(z, teamIntegrationProps)),
       };
+    }
+    if (mdm) {
+      requestBody.mdm = mdm;
     }
 
     return sendRequest("PATCH", path, requestBody);
