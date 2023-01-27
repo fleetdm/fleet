@@ -139,7 +139,7 @@ module.exports = {
       template: 'email-signed-csr-for-apns',
       templateData: {},
       attachments: [{
-        contentBytes: generateCertificateResult.request,
+        contentBytes: Buffer.from(generateCertificateResult.request).toString('base64'),
         name: 'apple-apns-request.txt',
         type: 'text/plain',
       }],
