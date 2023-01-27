@@ -117,7 +117,7 @@ const Mdm = (): JSX.Element => {
       return <DataError />;
     }
 
-    if (!mdmApple) {
+    if (!mdmApple || showCSRFlag) {
       return (
         <>
           <div className={`${baseClass}__section-description`}>
