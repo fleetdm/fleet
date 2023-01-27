@@ -5,7 +5,7 @@ import classnames from "classnames";
 
 import ClickOutside from "components/ClickOutside";
 import Button from "components/buttons/Button";
-import Icon from "components/icon/Icon";
+import Icon from "components/Icon";
 
 const baseClass = "dropdown-button";
 
