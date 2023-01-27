@@ -11,6 +11,8 @@
   }
 
   &__content {
+    max-width: $break-1600;
+    margin: 0 auto;
     display: flex;
     justify-content: space-between;
     gap: $pad-xxlarge;

@@ -47,6 +47,8 @@ import SettingsWrapper from "pages/admin/SettingsWrapper/SettingsWrapper";
 import ControlsWrapper from "pages/ControlsPage/ControlsWrapper";
 import MembersPage from "pages/admin/TeamManagementPage/TeamDetailsWrapper/MembersPage";
 import AgentOptionsPage from "pages/admin/TeamManagementPage/TeamDetailsWrapper/AgentOptionsPage";
+import MacOSUpdates from "pages/MacOSUpdates";
+
 import PATHS from "router/paths";
 import AppProvider from "context/app";
 import RoutingProvider from "context/routing";
@@ -75,14 +77,6 @@ const AppWrapper = ({ children, location }: IAppWrapperProps) => (
   </AppProvider>
 );
 
-// TODO: Replace below elements with the real thing
-const MacUpdatesPage = () => {
-  return (
-    <div>
-      <h1>MacUpdates!</h1>
-    </div>
-  );
-};
 const MacSettingsPage = () => {
   return (
     <div>
@@ -176,9 +170,9 @@ const routes = (
           </Route>
 
           <Route path="controls" component={AuthAnyMaintainerAnyAdminRoutes}>
-            <IndexRedirect to={"mac-updates"} />
+            <IndexRedirect to={"mac-os-updates"} />
             <Route component={ControlsWrapper}>
-              <Route path="mac-updates" component={MacUpdatesPage} />
+              <Route path="mac-os-updates" component={MacOSUpdates} />
               <Route path="mac-settings" component={MacSettingsPage} />
             </Route>
           </Route>

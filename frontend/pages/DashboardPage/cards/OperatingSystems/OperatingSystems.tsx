@@ -27,7 +27,10 @@ interface IOperatingSystemsCardProps {
   currentTeamId: number | undefined;
   selectedPlatform: ISelectedPlatform;
   showTitle: boolean;
-  includeName?: boolean;
+  /** controls the displaying of description text under the title. Defaults to `true` */
+  showDescription?: boolean;
+  /** controls the displaying of the **Name** column in the table. Defaults to `true` */
+  includeNameColumn?: boolean;
   setShowTitle: (showTitle: boolean) => void;
   setTitleDetail?: (content: JSX.Element | string | null) => void;
   setTitleDescription?: (content: JSX.Element | string | null) => void;
@@ -53,7 +56,8 @@ const OperatingSystems = ({
   currentTeamId,
   selectedPlatform,
   showTitle,
-  includeName = true,
+  showDescription = true,
+  includeNameColumn = true,
   setShowTitle,
   setTitleDetail,
   setTitleDescription,
@@ -85,6 +89,7 @@ const OperatingSystems = ({
   );
 
   const description =
+    showDescription &&
     OS_VENDOR_BY_PLATFORM[selectedPlatform] &&
     OS_END_OF_LIFE_LINK_BY_PLATFORM[selectedPlatform] ? (
       <p>
@@ -123,7 +128,7 @@ const OperatingSystems = ({
     setTitleDetail?.(null);
   }, [isFetching, osInfo, setTitleDescription, setTitleDetail]);
 
-  const tableHeaders = generateTableHeaders(includeName);
+  const tableHeaders = generateTableHeaders(includeNameColumn);
   const showPaginationControls = (osInfo?.os_versions?.length || 0) > 8;
 
   // Renders opaque information as host information is loading

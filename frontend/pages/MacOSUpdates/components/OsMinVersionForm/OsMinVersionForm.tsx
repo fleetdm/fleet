@@ -62,19 +62,19 @@ const createMdmConfigData = (minOsVersion: string, deadline: string) => {
 };
 
 interface IOsMinVersionForm {
-  currentTeam?: number;
+  currentTeamId?: number;
 }
 
-const OsMinVersionForm = ({ currentTeam }: IOsMinVersionForm) => {
+const OsMinVersionForm = ({ currentTeamId }: IOsMinVersionForm) => {
   const { renderFlash } = useContext(NotificationContext);
   const { config } = useContext(AppContext);
 
   const [isSaving, setIsSaving] = useState(false);
   const [minOsVersion, setMinOsVersion] = useState(
-    currentTeam ? "" : config?.mdm.macos_updates.minimum_version ?? ""
+    currentTeamId ? "" : config?.mdm.macos_updates.minimum_version ?? ""
   );
   const [deadline, setDeadline] = useState(
-    currentTeam ? "" : config?.mdm.macos_updates.deadline ?? ""
+    currentTeamId ? "" : config?.mdm.macos_updates.deadline ?? ""
   );
   const [minOsVersionError, setMinOsVersionError] = useState<
     string | undefined
@@ -82,12 +82,16 @@ const OsMinVersionForm = ({ currentTeam }: IOsMinVersionForm) => {
   const [deadlineError, setDeadlineError] = useState<string | undefined>();
 
   useQuery<ILoadTeamResponse, Error>(
-    ["apple mdm config", currentTeam],
-    () => teamsAPI.load(currentTeam || 0),
+    ["apple mdm config", currentTeamId],
+
+    // NOTE: this method should never be called with 0 as we sure to have
+    // a value for current team from the "enabled" option. We add it here
+    // to fulfill correct typing.
+    () => teamsAPI.load(currentTeamId || 0),
     {
       refetchOnWindowFocus: false,
       staleTime: Infinity,
-      enabled: currentTeam !== undefined,
+      enabled: currentTeamId !== undefined,
       onSuccess: (data) => {
         setMinOsVersion(data.team?.mdm?.macos_updates?.minimum_version ?? "");
         setDeadline(data.team?.mdm?.macos_updates?.deadline ?? "");
@@ -109,9 +113,9 @@ const OsMinVersionForm = ({ currentTeam }: IOsMinVersionForm) => {
       setIsSaving(true);
       const updateData = createMdmConfigData(minOsVersion, deadline);
       try {
-        (await !currentTeam)
+        (await !currentTeamId)
           ? configAPI.update(updateData)
-          : teamsAPI.update(updateData, currentTeam);
+          : teamsAPI.update(updateData, currentTeamId);
         renderFlash("success", "Successfully updated minimum version!");
       } catch {
         renderFlash("error", "Couldn’t update. Please try again.");
@@ -135,6 +139,7 @@ const OsMinVersionForm = ({ currentTeam }: IOsMinVersionForm) => {
         label="Minimum version"
         tooltip="The end user sees the window until their macOS is at or above this version."
         hint="Version number only (e.g., “13.0.1.”) NOT “Ventura 13” or “13.0.1 (22A400)."
+        placeholder="13.0.1"
         value={minOsVersion}
         error={minOsVersionError}
         onChange={handleMinVersionChange}
@@ -143,6 +148,7 @@ const OsMinVersionForm = ({ currentTeam }: IOsMinVersionForm) => {
         label="Deadline"
         tooltip="The end user can’t dismiss the window once they reach this deadline. Deadline is at 12:00 (Noon) Pacific Standard Time (GMT-8)."
         hint="YYYY-MM-DD format only (e.g., “2023-06-01”)."
+        placeholder="2023-06-01"
         value={deadline}
         error={deadlineError}
         onChange={handleDeadlineChange}

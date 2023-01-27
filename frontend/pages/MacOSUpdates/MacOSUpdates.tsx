@@ -7,20 +7,24 @@ import NudgePreview from "./components/NudgePreview";
 const baseClass = "mac-os-updates";
 
 interface IMacOSUpdatesProps {
-  teamId: number;
+  location: {
+    query: { team_id?: string };
+  };
 }
 
-const MacOSUpdates = ({ teamId }: IMacOSUpdatesProps) => {
+const MacOSUpdates = ({ location }: IMacOSUpdatesProps) => {
+  const { team_id } = location.query;
+  const teamId = team_id === undefined ? team_id : Number(team_id);
+
   const OperatingSystemCard = useInfoCard({
     title: "macOS versions",
     children: (
       <OperatingSystems
-        currentTeamId={1}
-        // TODO: uncomment when we integrate with page component
-        // currentTeamId={teamId}
+        currentTeamId={teamId}
         selectedPlatform="darwin"
         showTitle
-        includeName={false}
+        showDescription={false}
+        includeNameColumn={false}
         setShowTitle={() => {
           return null;
         }}
@@ -40,7 +44,7 @@ const MacOSUpdates = ({ teamId }: IMacOSUpdatesProps) => {
             {OperatingSystemCard}
           </div>
           <div className={`${baseClass}__os-version-form`}>
-            <OsMinVersionForm />
+            <OsMinVersionForm currentTeamId={teamId} key={teamId} />
           </div>
         </div>
         <div className={`${baseClass}__nudge-preview`}>
