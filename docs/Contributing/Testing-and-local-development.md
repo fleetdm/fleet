@@ -492,15 +492,11 @@ Once you have access:
 1. Click on the "Download Token" button at the top and confirm the download in the modal.
 1. Save the token in a safe place.
 
-### APNs setup
+### APNs and SCEP setup
 
-The server also needs a private key + certificate to identify with Apple's [APNs](https://github.com/fleetdm/fleet/blob/main/tools/mdm/apple/glossary-and-protocols.md#apns-apple-push-notification-service) servers.
+The server also needs a private key + certificate to identify with Apple's [APNs](https://github.com/fleetdm/fleet/blob/main/tools/mdm/apple/glossary-and-protocols.md#apns-apple-push-notification-service) servers, and another for [SCEP](https://github.com/fleetdm/fleet/blob/main/tools/mdm/apple/glossary-and-protocols.md#scep-simple-certificate-enrollment-protocol).
 
-Users will be able to generate this using `fleetctl generate mdm-apple` in the near future, but for now, ask in [#g-mdm](https://fleetdm.slack.com/archives/C03C41L5YEL) how to get them.
-
-### SCEP setup
-
-Another key pair is used for [SCEP](https://github.com/fleetdm/fleet/blob/main/tools/mdm/apple/glossary-and-protocols.md#scep-simple-certificate-enrollment-protocol). It can be generated using this command (note that the email must be a company email address, it cannot be an email from commercial email providers like `gmail.com`):
+Both can be generated using this command (note that the email must be a company email address, it cannot be an email from commercial email providers like `gmail.com`, so you can use your `@fleetdm.com` email):
 
 ```
 $ fleetctl generate mdm-apple --email <email> --org <organization>
@@ -520,11 +516,14 @@ Go to your email to download a CSR from Fleet. Then, visit https://identity.appl
 Next, use the generated certificates to deploy Fleet with `mdm` configuration: https://fleetdm.com/docs/deploying/configuration#mobile-device-management-mdm
 ```
 
-Note that Fleet must be running for the command to succeed, and you must be logged in to `fleetctl` using a global admin account. See [Building Fleet](./Building-Fleet.md) for details on getting Fleet setup locally.
+Note that:
 
-For now, **ignore the APNs key it generated and the subsequent steps** to download your signed CSR from the email you received and to visit the Apple portal to upload the CSR. Only use the SCEP certificate and private key that were generated. See the [APNs setup](#apns-setup) section above for how to get the APNs certificate and key.
+1. Fleet must be running for the command to succeed.
+2. You must be logged in to `fleetctl` using a global admin account. See [Building Fleet](./Building-Fleet.md) for details on getting Fleet setup locally.
+3. To login into https://identity.apple.com/pushcert you can use your ABM account generated in the previous step.
+4. Save all the certificates and keys in a safe place.
 
-Another option, if for some reason the `fleetctl generate` command fails or you don't have a supported email address handy is to use `openssl`:
+Another option, if for some reason the `fleetctl generate` command fails or you don't have a supported email address handy is to use `openssl` to generate your SCEP key pair:
 
 ```
 $ openssl genrsa -out fleet-mdm-apple-scep.key 4096
