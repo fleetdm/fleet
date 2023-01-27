@@ -354,9 +354,9 @@ module.exports.routes = {
   // XML file, which helps search engines know which pages are available on the website.
   'GET /sitemap.xml':            { action: 'download-sitemap' },
 
-  // RSS Feeds
+  // RSS feeds
   // =============================================================================================================
-  'GET /rss/:categoryName': {action: 'get-one-rss-feed'},
+  'GET /rss/:categoryName': {action: 'download-rss-feed'},
 
   // Potential future pages
   // =============================================================================================================

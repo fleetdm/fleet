@@ -1,10 +1,10 @@
 module.exports = {
 
 
-  friendlyName: 'Get one rss feed',
+  friendlyName: 'Download rss feed',
 
 
-  description: 'Generates and returns an RSS feed for a category of Fleet\'s articles',
+  description: 'Generate and return an RSS feed for a category of Fleet\'s articles',
 
 
   inputs: {
@@ -30,7 +30,7 @@ module.exports = {
 
 
   exits: {
-    success: { outputFriendlyName: 'RSS feed', outputType: 'string' },
+    success: { outputFriendlyName: 'RSS feed XML', outputType: 'string' },
     badConfig: { responseType: 'badConfig' },
   },
 
@@ -43,26 +43,12 @@ module.exports = {
       throw {badConfig: 'builtStaticContent.markdownPages'};
     }
 
-    let articlesToAddToFeed = [];
-    if (categoryName === 'articles') {
-      // If the category is `articles` we'll build a rss feed that contains all articles
-      articlesToAddToFeed = sails.config.builtStaticContent.markdownPages.filter((page)=>{
-        if(_.startsWith(page.htmlId, 'articles')) {
-          return page;
-        }
-      });
-    } else {
-      // If the user requested a specific category, we'll only build a feed with articles in that category
-      articlesToAddToFeed = sails.config.builtStaticContent.markdownPages.filter((page)=>{
-        if(_.startsWith(page.url, '/'+categoryName)) {
-          return page;
-        }
-      });
-    }
+    // Start building the rss feed
+    let rssFeedXml = '<rss version="2.0"><channel>';
 
+    // Build the description and title for this RSS feed.
     let articleCategoryTitle = '';
     let categoryDescription = '';
-    // Set a description and title for this RSS feed.
     switch(categoryName) {
       case 'success-stories':
         articleCategoryTitle = 'Success stories | Fleet blog';
@@ -105,16 +91,31 @@ module.exports = {
         categoryDescription = 'Read all articles from Fleet\'s blog.';
     }
 
-    // Start building the rss feed
-    let rssFeedXml = '<rss version="2.0"><channel>';
-
-
     let rssFeedTitle = `<title>${_.escape(articleCategoryTitle)}</title>`;
     let rssFeedDescription = `<description>${_.escape(categoryDescription)}</description>`;
     let rsslastBuildDate = `<lastBuildDate>${_.escape(new Date(Date.now()))}</lastBuildDate>`;
     let rssFeedImage = `<image><link>${_.escape('https://fleetdm.com'+categoryName)}</link><title>${_.escape(articleCategoryTitle)}</title><url>${_.escape('https://fleetdm.com/images/fleet-logo-square@2x.png')}</url></image>`;
 
     rssFeedXml += `${rssFeedTitle}${rssFeedDescription}${rsslastBuildDate}${rssFeedImage}`;
+
+
+    // Determine the subset of articles that will be used to squirt out an XML string.
+    let articlesToAddToFeed = [];
+    if (categoryName === 'articles') {
+      // If the category is `articles` we'll build a rss feed that contains all articles
+      articlesToAddToFeed = sails.config.builtStaticContent.markdownPages.filter((page)=>{
+        if(_.startsWith(page.htmlId, 'articles')) {
+          return page;
+        }
+      });//∞
+    } else {
+      // If the user requested a specific category, we'll only build a feed with articles in that category
+      articlesToAddToFeed = sails.config.builtStaticContent.markdownPages.filter((page)=>{
+        if(_.startsWith(page.url, '/'+categoryName)) {
+          return page;
+        }
+      });//∞
+    }
 
     // Iterate through the filtered array of articles, adding <item> elements for each article.
     for (let pageInfo of articlesToAddToFeed) {
