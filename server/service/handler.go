@@ -668,7 +668,7 @@ func RegisterAppleMDMProtocolServices(
 	mux *http.ServeMux,
 	scepConfig config.MDMAppleSCEPConfig,
 	mdmStorage nanomdm_storage.AllStorage,
-	scepStorage *apple_mdm.SCEPMySQLDepot,
+	scepStorage scep_depot.Depot,
 	logger kitlog.Logger,
 	checkinAndCommandService nanomdm_service.CheckinAndCommandService,
 ) error {
@@ -692,7 +692,7 @@ func registerSCEP(
 	scepConfig config.MDMAppleSCEPConfig,
 	scepCert *x509.Certificate,
 	scepKey *rsa.PrivateKey,
-	scepStorage *apple_mdm.SCEPMySQLDepot,
+	scepStorage scep_depot.Depot,
 	logger kitlog.Logger,
 ) error {
 	var signer scepserver.CSRSigner = scep_depot.NewSigner(

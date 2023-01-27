@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -18,15 +19,19 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/logging"
-	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/async"
+	"github.com/fleetdm/fleet/v4/server/service/mock"
 	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/fleetdm/fleet/v4/server/test"
 	kitlog "github.com/go-kit/kit/log"
+	"github.com/google/uuid"
 	nanodep_storage "github.com/micromdm/nanodep/storage"
+	"github.com/micromdm/nanomdm/mdm"
+	"github.com/micromdm/nanomdm/push"
 	nanomdm_push "github.com/micromdm/nanomdm/push"
 	nanomdm_storage "github.com/micromdm/nanomdm/storage"
+	scep_depot "github.com/micromdm/scep/v2/depot"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/throttled/throttled/v2"
@@ -238,7 +243,7 @@ type TestServerOpts struct {
 	FleetConfig         *config.FleetConfig
 	MDMStorage          nanomdm_storage.AllStorage
 	DEPStorage          nanodep_storage.AllStorage
-	SCEPStorage         *apple_mdm.SCEPMySQLDepot
+	SCEPStorage         scep_depot.Depot
 	MDMPusher           nanomdm_push.Pusher
 	HTTPServerConfig    *http.Server
 	StartCronSchedules  []TestNewScheduleFunc
@@ -490,4 +495,26 @@ func (nopEnrollHostLimiter) CanEnrollNewHost(ctx context.Context) (bool, error) 
 
 func (nopEnrollHostLimiter) SyncEnrolledHostIDs(ctx context.Context) error {
 	return nil
+}
+
+func newMockAPNSPushProviderFactory() (*mock.APNSPushProviderFactory, *mock.APNSPushProvider) {
+	provider := &mock.APNSPushProvider{}
+	provider.PushFunc = mockSuccessfulPush
+	factory := &mock.APNSPushProviderFactory{}
+	factory.NewPushProviderFunc = func(*tls.Certificate) (push.PushProvider, error) {
+		return provider, nil
+	}
+
+	return factory, provider
+}
+
+func mockSuccessfulPush(pushes []*mdm.Push) (map[string]*push.Response, error) {
+	res := make(map[string]*push.Response, len(pushes))
+	for _, p := range pushes {
+		res[p.Token.String()] = &push.Response{
+			Id:  uuid.New().String(),
+			Err: nil,
+		}
+	}
+	return res, nil
 }

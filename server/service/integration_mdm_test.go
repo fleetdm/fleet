@@ -17,8 +17,13 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
+
+	"github.com/micromdm/nanomdm/mdm"
+	"github.com/micromdm/nanomdm/push"
+	nanomdm_pushsvc "github.com/micromdm/nanomdm/push/service"
 
 	"sync/atomic"
 
@@ -26,12 +31,16 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	"github.com/fleetdm/fleet/v4/server/service/mock"
+	"github.com/fleetdm/fleet/v4/server/service/schedule"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"github.com/google/uuid"
 	"github.com/groob/plist"
 	"github.com/jmoiron/sqlx"
 	nanodep_client "github.com/micromdm/nanodep/client"
+	"github.com/micromdm/nanodep/godep"
+	nanodep_storage "github.com/micromdm/nanodep/storage"
 	"github.com/micromdm/nanodep/tokenpki"
 	scepclient "github.com/micromdm/scep/v2/client"
 	"github.com/micromdm/scep/v2/cryptoutil/x509util"
@@ -48,10 +57,13 @@ func TestIntegrationsMDM(t *testing.T) {
 }
 
 type integrationMDMTestSuite struct {
-	withServer
 	suite.Suite
+	withServer
 	fleetCfg       config.FleetConfig
 	fleetDMFailCSR atomic.Bool
+	pushProvider   *mock.APNSPushProvider
+	depStorage     nanodep_storage.AllStorage
+	depSchedule    *schedule.Schedule
 }
 
 func (s *integrationMDMTestSuite) SetupSuite() {
@@ -69,9 +81,18 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	require.NoError(s.T(), err)
 	depStorage, err := s.ds.NewMDMAppleDEPStorage(*testBMToken)
 	require.NoError(s.T(), err)
-	scepStorage, err := s.ds.NewMDMAppleSCEPDepot(testCertPEM, testKeyPEM)
+	scepStorage, err := s.ds.NewSCEPDepot(testCertPEM, testKeyPEM)
 	require.NoError(s.T(), err)
 
+	pushFactory, pushProvider := newMockAPNSPushProviderFactory()
+	mdmPushService := nanomdm_pushsvc.New(
+		mdmStorage,
+		mdmStorage,
+		pushFactory,
+		NewNanoMDMLogger(kitlog.NewJSONLogger(os.Stdout)),
+	)
+
+	var depSchedule *schedule.Schedule
 	config := TestServerOpts{
 		License: &fleet.LicenseInfo{
 			Tier: fleet.TierPremium,
@@ -80,7 +101,24 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 		MDMStorage:  mdmStorage,
 		DEPStorage:  depStorage,
 		SCEPStorage: scepStorage,
-		MDMPusher:   dummyMDMPusher{},
+		MDMPusher:   mdmPushService,
+		StartCronSchedules: []TestNewScheduleFunc{
+			func(ctx context.Context, ds fleet.Datastore) fleet.NewCronScheduleFunc {
+				return func() (fleet.CronSchedule, error) {
+					const name = string(fleet.CronAppleMDMDEPProfileAssigner)
+					logger := kitlog.NewJSONLogger(os.Stdout)
+					fleetSyncer := apple_mdm.NewDEPSyncer(ds, depStorage, logger, true)
+					depSchedule = schedule.New(
+						ctx, name, s.T().Name(), 1*time.Hour, ds, ds,
+						schedule.WithLogger(logger),
+						schedule.WithJob("dep_syncer", func(ctx context.Context) error {
+							return fleetSyncer.Run(ctx)
+						}),
+					)
+					return depSchedule, nil
+				}
+			},
+		},
 	}
 	users, server := RunServerForTestsWithDS(s.T(), s.ds, &config)
 	s.server = server
@@ -88,8 +126,11 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	s.token = s.getTestAdminToken()
 	s.cachedAdminToken = s.token
 	s.fleetCfg = fleetCfg
+	s.pushProvider = pushProvider
+	s.depStorage = depStorage
+	s.depSchedule = depSchedule
 
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	fleetdmSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if s.fleetDMFailCSR.Swap(false) {
 			// fail this call
 			w.WriteHeader(http.StatusBadRequest)
@@ -99,8 +140,8 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("ok"))
 	}))
-	s.T().Setenv("TEST_FLEETDM_API_URL", srv.URL)
-	s.T().Cleanup(srv.Close)
+	s.T().Setenv("TEST_FLEETDM_API_URL", fleetdmSrv.URL)
+	s.T().Cleanup(fleetdmSrv.Close)
 }
 
 func (s *integrationMDMTestSuite) FailNextCSRRequest() {
@@ -115,6 +156,18 @@ func (s *integrationMDMTestSuite) TearDownTest() {
 	s.withServer.commonTearDownTest(s.T())
 }
 
+func (s *integrationMDMTestSuite) mockDEPResponse(handler http.Handler) {
+	t := s.T()
+	srv := httptest.NewServer(handler)
+	err := s.depStorage.StoreConfig(context.Background(), apple_mdm.DEPName, &nanodep_client.Config{BaseURL: srv.URL})
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		srv.Close()
+		err := s.depStorage.StoreConfig(context.Background(), apple_mdm.DEPName, &nanodep_client.Config{BaseURL: nanodep_client.DefaultBaseURL})
+		require.NoError(t, err)
+	})
+}
+
 func (s *integrationMDMTestSuite) TestAppleGetAppleMDM() {
 	t := s.T()
 
@@ -126,11 +179,170 @@ func (s *integrationMDMTestSuite) TestAppleGetAppleMDM() {
 	require.Equal(t, "FleetDM", mdmResp.CommonName)
 	require.NotZero(t, mdmResp.RenewDate)
 
-	// GET /api/latest/fleet/mdm/apple_bm is not tested because it makes a call
-	// to an Apple API that would a) fail because we use dummy token/certs and b)
-	// could get us in trouble with many invalid requests.
-	// TODO: eventually add a way to mock the apple API, maybe with a test http
-	// server running and a way to use its URL instead of Apple's. (#8948)
+	s.mockDEPResponse(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		switch r.URL.Path {
+		case "/session":
+			_, _ = w.Write([]byte(`{"auth_session_token": "xyz"}`))
+		case "/account":
+			_, _ = w.Write([]byte(`{"admin_id": "abc", "org_name": "test_org"}`))
+		}
+	}))
+	var getAppleBMResp getAppleBMResponse
+	s.DoJSON("GET", "/api/latest/fleet/mdm/apple_bm", nil, http.StatusOK, &getAppleBMResp)
+	require.NoError(t, getAppleBMResp.Err)
+	require.Equal(t, "abc", getAppleBMResp.AppleID)
+	require.Equal(t, "test_org", getAppleBMResp.OrgName)
+	require.Equal(t, "https://example.org/mdm/apple/mdm", getAppleBMResp.MDMServerURL)
+	require.Empty(t, getAppleBMResp.DefaultTeam)
+
+	// create a new team
+	tm, err := s.ds.NewTeam(context.Background(), &fleet.Team{
+		Name:        t.Name(),
+		Description: "desc",
+	})
+	require.NoError(t, err)
+	// set the default bm assignment to that team
+	acResp := appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
+		"mdm": {
+			"apple_bm_default_team": %q
+		}
+	}`, tm.Name)), http.StatusOK, &acResp)
+
+	// try again, this time we get a default team in the response
+	getAppleBMResp = getAppleBMResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/mdm/apple_bm", nil, http.StatusOK, &getAppleBMResp)
+	require.NoError(t, getAppleBMResp.Err)
+	require.Equal(t, "abc", getAppleBMResp.AppleID)
+	require.Equal(t, "test_org", getAppleBMResp.OrgName)
+	require.Equal(t, "https://example.org/mdm/apple/mdm", getAppleBMResp.MDMServerURL)
+	require.Equal(t, tm.Name, getAppleBMResp.DefaultTeam)
+}
+
+func (s *integrationMDMTestSuite) TestABMExpiredToken() {
+	t := s.T()
+	s.mockDEPResponse(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusForbidden)
+		_, _ = w.Write([]byte(`{"code": "T_C_NOT_SIGNED"}`))
+	}))
+
+	config := s.getConfig()
+	require.False(t, config.MDM.AppleBMTermsExpired)
+
+	var getAppleBMResp getAppleBMResponse
+	s.DoJSON("GET", "/api/latest/fleet/mdm/apple_bm", nil, http.StatusInternalServerError, &getAppleBMResp)
+
+	config = s.getConfig()
+	require.True(t, config.MDM.AppleBMTermsExpired)
+}
+
+func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
+	t := s.T()
+	devices := []godep.Device{
+		{SerialNumber: "TESTSERIAL1", Model: "MacBook Pro", OS: "osx", OpType: "added"},
+		{SerialNumber: "TESTSERIAL2", Model: "MacBook Mini", OS: "osx", OpType: "added"},
+	}
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+	s.mockDEPResponse(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		encoder := json.NewEncoder(w)
+		switch r.URL.Path {
+		case "/session":
+			err := encoder.Encode(map[string]string{"auth_session_token": "xyz"})
+			require.NoError(t, err)
+		case "/profile":
+			err := encoder.Encode(godep.ProfileResponse{ProfileUUID: "abc"})
+			require.NoError(t, err)
+		case "/server/devices":
+			// This endpoint  is used to get an initial list of
+			// devices, return a single device
+			err := encoder.Encode(godep.DeviceResponse{Devices: devices[:1]})
+			require.NoError(t, err)
+		case "/devices/sync":
+			// This endpoint is polled over time to sync devices from
+			// ABM, send a repeated serial and a new one
+			err := encoder.Encode(godep.DeviceResponse{Devices: devices})
+			require.NoError(t, err)
+		case "/profile/devices":
+			wg.Done()
+			_, _ = w.Write([]byte(`{}`))
+		default:
+			_, _ = w.Write([]byte(`{}`))
+		}
+	}))
+
+	// create a DEP enrollment profile
+	profile := json.RawMessage("{}")
+	var createProfileResp createMDMAppleEnrollmentProfileResponse
+	createProfileReq := createMDMAppleEnrollmentProfileRequest{
+		Type:       "automatic",
+		DEPProfile: &profile,
+	}
+	s.DoJSON("POST", "/api/latest/fleet/mdm/apple/enrollmentprofiles", createProfileReq, http.StatusOK, &createProfileResp)
+
+	// query all hosts
+	listHostsRes := listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listHostsRes)
+	require.Empty(t, listHostsRes.Hosts)
+
+	// trigger a profile sync
+	_, err := s.depSchedule.Trigger()
+	require.NoError(t, err)
+	wg.Wait()
+
+	// both hosts should be returned from the hosts endpoint
+	listHostsRes = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listHostsRes)
+	require.Len(t, listHostsRes.Hosts, 2)
+	require.Equal(t, listHostsRes.Hosts[0].HardwareSerial, devices[0].SerialNumber)
+	require.Equal(t, listHostsRes.Hosts[1].HardwareSerial, devices[1].SerialNumber)
+	require.EqualValues(
+		t,
+		[]string{devices[0].SerialNumber, devices[1].SerialNumber},
+		[]string{listHostsRes.Hosts[0].HardwareSerial, listHostsRes.Hosts[1].HardwareSerial},
+	)
+
+	// create a new host
+	createHostAndDeviceToken(t, s.ds, "not-dep")
+	listHostsRes = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listHostsRes)
+	require.Len(t, listHostsRes.Hosts, 3)
+
+	// filtering by MDM status works
+	listHostsRes = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts?mdm_enrollment_status=pending", nil, http.StatusOK, &listHostsRes)
+	require.Len(t, listHostsRes.Hosts, 2)
+
+	// enroll one of the hosts
+	d := newDevice(s)
+	d.serial = devices[0].SerialNumber
+	d.mdmEnroll(s)
+
+	// only one shows up as pending
+	listHostsRes = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts?mdm_enrollment_status=pending", nil, http.StatusOK, &listHostsRes)
+	require.Len(t, listHostsRes.Hosts, 1)
+
+	activities := listActivitiesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &activities, "order_key", "created_at")
+	require.GreaterOrEqual(t, len(activities.Activities), 2)
+	for _, activity := range activities.Activities {
+		if activity.Type == "mdm_enrolled" {
+			require.Nil(t, activity.ActorID)
+			require.Nil(t, activity.ActorFullName)
+			require.JSONEq(
+				t,
+				fmt.Sprintf(
+					`{"host_serial": "%s", "host_display_name": "%s (%s)", "installed_from_dep": true}`,
+					devices[0].SerialNumber, devices[0].Model, devices[0].SerialNumber,
+				),
+				string(*activity.Details),
+			)
+		}
+	}
 }
 
 func (s *integrationMDMTestSuite) TestDeviceMDMManualEnroll() {
@@ -212,8 +424,8 @@ func (s *integrationMDMTestSuite) TestDeviceEnrollment() {
 		}
 	}
 	require.Len(t, details, 2)
-	require.JSONEq(t, fmt.Sprintf(`{"host_serial": "%s", "host_display_name": "%s (%s)", "installed_from_dep": false}`, deviceA.serial, deviceA.model, deviceA.serial), string(*details[0]))
-	require.JSONEq(t, fmt.Sprintf(`{"host_serial": "%s", "host_display_name": "%s (%s)", "installed_from_dep": false}`, deviceB.serial, deviceB.model, deviceB.serial), string(*details[1]))
+	require.JSONEq(t, fmt.Sprintf(`{"host_serial": "%s", "host_display_name": "%s (%s)", "installed_from_dep": false}`, deviceA.serial, deviceA.model, deviceA.serial), string(*details[len(details)-2]))
+	require.JSONEq(t, fmt.Sprintf(`{"host_serial": "%s", "host_display_name": "%s (%s)", "installed_from_dep": false}`, deviceB.serial, deviceB.model, deviceB.serial), string(*details[len(details)-1]))
 
 	// set an enroll secret
 	var applyResp applyEnrollSecretSpecResponse
@@ -317,6 +529,60 @@ func (s *integrationMDMTestSuite) TestAppleMDMCSRRequest() {
 	require.Contains(t, string(reqCSRResp.SCEPKey), "-----BEGIN RSA PRIVATE KEY-----\n")
 }
 
+func (s *integrationMDMTestSuite) TestMDMAppleUnenroll() {
+	t := s.T()
+	// enroll into mdm
+	d := newMDMEnrolledDevice(s)
+
+	// set an enroll secret
+	var applyResp applyEnrollSecretSpecResponse
+	s.DoJSON("POST", "/api/latest/fleet/spec/enroll_secret", applyEnrollSecretSpecRequest{
+		Spec: &fleet.EnrollSecretSpec{
+			Secrets: []*fleet.EnrollSecret{{Secret: t.Name()}},
+		},
+	}, http.StatusOK, &applyResp)
+
+	// simulate a matching host enrolling via osquery
+	j, err := json.Marshal(&enrollAgentRequest{
+		EnrollSecret:   t.Name(),
+		HostIdentifier: d.uuid,
+	})
+	require.NoError(t, err)
+	var enrollResp enrollAgentResponse
+	hres := s.DoRawNoAuth("POST", "/api/osquery/enroll", j, http.StatusOK)
+	defer hres.Body.Close()
+	require.NoError(t, json.NewDecoder(hres.Body).Decode(&enrollResp))
+	require.NotEmpty(t, enrollResp.NodeKey)
+
+	listHostsRes := listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listHostsRes)
+	require.Len(t, listHostsRes.Hosts, 1)
+	h := listHostsRes.Hosts[0]
+
+	// try to unenroll the host, fails since the host doesn't respond
+	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/mdm/hosts/%d/unenroll", h.ID), nil, http.StatusGatewayTimeout)
+
+	// we're going to modify this mock, make sure we restore its default
+	originalPushMock := s.pushProvider.PushFunc
+	defer func() { s.pushProvider.PushFunc = originalPushMock }()
+
+	// TODO: this is not working as expected, we're still waiting on the
+	// device to unenroll even if we weren't able to send a push
+	// notification, we should return an error instead.
+	//
+	// the APNs service returns an error
+	// s.pushProvider.PushFunc = mockFailedPush
+	// s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/mdm/hosts/%d/unenroll", h.ID), nil, http.StatusOK)
+
+	// try again, but this time the host is online and answers
+	s.pushProvider.PushFunc = func(pushes []*mdm.Push) (map[string]*push.Response, error) {
+		res, err := mockSuccessfulPush(pushes)
+		d.checkout()
+		return res, err
+	}
+	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/mdm/hosts/%d/unenroll", h.ID), nil, http.StatusOK)
+}
+
 type device struct {
 	uuid   string
 	serial string
@@ -338,13 +604,18 @@ func newDevice(s *integrationMDMTestSuite) *device {
 
 func newMDMEnrolledDevice(s *integrationMDMTestSuite) *device {
 	d := newDevice(s)
-	d.scepEnroll()
-	d.authenticate()
+	d.mdmEnroll(s)
 	return d
 }
 
+func (d *device) mdmEnroll(s *integrationMDMTestSuite) {
+	d.scepEnroll()
+	d.authenticate()
+	d.tokenUpdate()
+}
+
 func (d *device) authenticate() {
-	payload := map[string]string{
+	payload := map[string]any{
 		"MessageType":  "Authenticate",
 		"UDID":         d.uuid,
 		"Model":        d.model,
@@ -356,8 +627,21 @@ func (d *device) authenticate() {
 	d.request("application/x-apple-aspen-mdm-checkin", payload)
 }
 
+func (d *device) tokenUpdate() {
+	payload := map[string]any{
+		"MessageType":  "TokenUpdate",
+		"UDID":         d.uuid,
+		"Topic":        "com.apple.mgmt.External." + d.uuid,
+		"EnrollmentID": "testenrollmentid-" + d.uuid,
+		"NotOnConsole": "false",
+		"PushMagic":    "pushmagic" + d.serial,
+		"Token":        []byte("token" + d.serial),
+	}
+	d.request("application/x-apple-aspen-mdm-checkin", payload)
+}
+
 func (d *device) checkout() {
-	payload := map[string]string{
+	payload := map[string]any{
 		"MessageType":  "CheckOut",
 		"Topic":        "com.apple.mgmt.External." + d.uuid,
 		"UDID":         d.uuid,
@@ -366,7 +650,7 @@ func (d *device) checkout() {
 	d.request("application/x-apple-aspen-mdm-checkin", payload)
 }
 
-func (d *device) request(reqType string, payload map[string]string) {
+func (d *device) request(reqType string, payload map[string]any) {
 	body, err := plist.Marshal(payload)
 	require.NoError(d.s.T(), err)
 
