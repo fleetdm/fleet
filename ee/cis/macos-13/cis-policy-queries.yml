@@ -726,7 +726,7 @@ spec:
         2. Select Users & Groups
         3. Select the i next to the Guest User
         4. Set Allow guests to connect to shared folders to disabled
-  query: SELECT 1 WHERE NOT EXISTS( SELECT 1 FROM managed_policies WHERE domain='com.apple.smb.server' AND name='AllowGuestAccess' AND value=1);
+  query: SELECT 1 WHERE NOT EXISTS( SELECT 1 FROM managed_policies WHERE domain='com.apple.smb.server' AND name='AllowGuestAccess' AND value=0);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS2.12.2
 ---
