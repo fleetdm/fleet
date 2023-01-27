@@ -1,7 +1,9 @@
 {
   "name": "fleetd-for-chrome",
   "version": "0.0.1",
-  "dependencies": {},
+  "dependencies": {
+    "wa-sqlite": "rhashimoto/wa-sqlite#buildless"
+  },
   "devDependencies": {
     "@types/chrome": "0.0.210",
     "typescript": "^4.6.2"
