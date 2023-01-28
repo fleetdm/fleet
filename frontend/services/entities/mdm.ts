@@ -9,6 +9,12 @@ export default {
   },
   unenrollHostFromMdm: (hostId: number, timeout?: number) => {
     const { HOST_MDM_UNENROLL } = endpoints;
-    return sendRequest("PATCH", HOST_MDM_UNENROLL(hostId), timeout);
+    return sendRequest(
+      "PATCH",
+      HOST_MDM_UNENROLL(hostId),
+      undefined,
+      undefined,
+      timeout
+    );
   },
 };
