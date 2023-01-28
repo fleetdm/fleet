@@ -131,21 +131,6 @@ const HostDetailsPage = ({
   const canTransferTeam =
     isPremiumTier && (isGlobalAdmin || isGlobalMaintainer);
 
-  const getCanEditMdm = (user: IUser | null, host?: IHost) => {
-    const userHasPermission =
-      user &&
-      host &&
-      (isGlobalAdmin ||
-        isGlobalMaintainer ||
-        permissionUtils.isTeamMaintainerOrTeamAdmin(user, host.team_id));
-    const hostEnrolled = ["On (automatic)", "On (manual)"].includes(
-      host?.mdm_enrollment_status ?? ""
-      // TODO: API will be reverted to nested mdm {enrollment_status: ...}, change to below when it is:
-      // host.mdm?.enrollment_status ?? ""
-    );
-    return userHasPermission && hostEnrolled;
-  };
-
   const canDeleteHost = (user: IUser, host: IHost) => {
     return (
       isGlobalAdmin ||
@@ -177,6 +162,7 @@ const HostDetailsPage = ({
   ] = useState<IHostDiskEncryptionProps>({});
   const [usersState, setUsersState] = useState<{ username: string }[]>([]);
   const [usersSearchString, setUsersSearchString] = useState("");
+  const [hideEditMdm, setHideEditMdm] = useState<boolean>(false);
 
   const { data: fleetQueries, error: fleetQueriesError } = useQuery<
     IFleetQueriesResponse,
@@ -346,6 +332,21 @@ const HostDetailsPage = ({
       onError: (error) => handlePageError(error),
     }
   );
+
+  const canEditMdm = (() => {
+    const userHasPermission =
+      !!currentUser &&
+      !!host &&
+      (isGlobalAdmin ||
+        isGlobalMaintainer ||
+        permissionUtils.isTeamMaintainerOrTeamAdmin(currentUser, host.team_id));
+    const hostEnrolled = ["On (automatic)", "On (manual)"].includes(
+      host?.mdm_enrollment_status ?? ""
+      // TODO: API will be reverted to nested mdm {enrollment_status: ...}, change to below when it is:
+      // host.mdm?.enrollment_status ?? ""
+    );
+    return userHasPermission && hostEnrolled;
+  })();
 
   const featuresConfig = host?.team_id
     ? teams?.find((t) => t.id === host.team_id)?.features
@@ -539,8 +540,6 @@ const HostDetailsPage = ({
 
   const renderActionButtons = () => {
     const isOnline = host?.status === "online";
-    const canEditMdm = getCanEditMdm(currentUser, host);
-    // const canEditMdm = true;
     return (
       <div className={`${baseClass}__action-button-container`}>
         {canTransferTeam && (
@@ -581,7 +580,7 @@ const HostDetailsPage = ({
             You can’t query <br /> an offline host.
           </span>
         </ReactTooltip>
-        {currentUser && host && canEditMdm && (
+        {canEditMdm && !hideEditMdm && (
           <Button
             onClick={toggleUnenrollMdmModal}
             variant="text-icon"
@@ -801,7 +800,13 @@ const HostDetailsPage = ({
           />
         )}
         {showUnenrollMdmModal && !!host && (
-          <UnenrollMdmModal hostId={host.id} onClose={toggleUnenrollMdmModal} />
+          <UnenrollMdmModal
+            hostId={host.id}
+            onClose={toggleUnenrollMdmModal}
+            onSuccess={() => {
+              setHideEditMdm(true);
+            }}
+          />
         )}
       </div>
     </MainContent>

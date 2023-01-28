@@ -10,11 +10,16 @@ import mdmAPI from "services/entities/mdm";
 interface IUnenrollMdmModalProps {
   hostId: number;
   onClose: () => void;
+  onSuccess: () => void;
 }
 
 const baseClass = "unenroll-mdm-modal";
 
-const UnenrollMdmModal = ({ hostId, onClose }: IUnenrollMdmModalProps) => {
+const UnenrollMdmModal = ({
+  hostId,
+  onClose,
+  onSuccess,
+}: IUnenrollMdmModalProps) => {
   const [requestState, setRequestState] = useState<
     undefined | "unenrolling" | "error"
   >(undefined);
@@ -26,6 +31,7 @@ const UnenrollMdmModal = ({ hostId, onClose }: IUnenrollMdmModalProps) => {
     try {
       await mdmAPI.unenrollHostFromMdm(hostId, 5000);
       renderFlash("success", "Successfully turned off MDM.");
+      onSuccess();
       onClose();
     } catch (unenrollMdmError: unknown) {
       console.log(unenrollMdmError);
