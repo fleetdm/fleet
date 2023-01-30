@@ -805,26 +805,20 @@ spec:
     Ask your system administrator to deploy the following script which will ensure proper Security Auditing Retention:
     cp /etc/security/audit_control ./tmp.txt; origExpire=$(cat ./tmp.txt  | grep expire-after);  sed "s/${origExpire}/expire-after:60d OR 1G/" ./tmp.txt > /etc/security/audit_control; rm ./tmp.txt;
   query: |
-        SELECT 1 WHERE
-        (
-          (
-            EXISTS (  SELECT  line,  CAST(  SUBSTRING(  SPLIT(line, "OR", 0), 14)  AS INTEGER)  AS val  FROM file_lines WHERE path = '/Users/sharonkatz/repos/fleet/tmp-sec' AND line LIKE "expire-after%" and val >=60 )
-            AND
-            EXISTS (  SELECT  line, SUBSTRING(  SPLIT(line, "OR", 0) ,14 )    AS firstHalf FROM file_lines WHERE path = '/Users/sharonkatz/repos/fleet/tmp-sec' AND line LIKE "expire-after%" AND firstHalf  LIKE "%d" AND firstHalf = LOWER(firstHalf) )
-          )
-          OR
-          (
-            EXISTS (  SELECT  line,  CAST(  SUBSTRING(  SPLIT(line, "OR", 0), 14)  AS INTEGER)  AS val  FROM file_lines WHERE path = '/Users/sharonkatz/repos/fleet/tmp-sec' AND line LIKE "expire-after%" and val >=6 )
-            AND
-            EXISTS (  SELECT  line, SUBSTRING(  SPLIT(line, "OR", 0) ,14 )    AS firstHalf FROM file_lines WHERE path = '/Users/sharonkatz/repos/fleet/tmp-sec' AND line LIKE "expire-after%" AND firstHalf  LIKE "%G" AND firstHalf = UPPER(firstHalf) )
-          )
-          OR
-          (
-            EXISTS (  SELECT  line,  CAST(SPLIT(line, "OR", 1) AS INTEGER)  AS val  FROM file_lines WHERE path = '/Users/sharonkatz/repos/fleet/tmp-sec' AND line LIKE "expire-after%" and val >=6 )
-            AND
-            EXISTS ( SELECT  line,  SPLIT(line, "OR", 1) AS secondHalf FROM file_lines WHERE path = '/Users/sharonkatz/repos/fleet/tmp-sec' AND line LIKE "expire-after%" AND secondHalf  LIKE "%G" AND secondHalf = UPPER(secondHalf) )
-          )
-        )
+    SELECT 1 WHERE
+    (
+      (
+        EXISTS (  SELECT  line,  CAST(  SUBSTRING(  SPLIT(line, "OR", 0), 14)  AS INTEGER)  AS val  FROM file_lines WHERE path = '/Users/sharonkatz/repos/fleet/tmp-sec' AND line LIKE "expire-after%" and val >=60 )
+        AND
+        EXISTS (  SELECT  line, SUBSTRING(  SPLIT(line, "OR", 0) ,14 )    AS firstHalf FROM file_lines WHERE path = '/Users/sharonkatz/repos/fleet/tmp-sec' AND line LIKE "expire-after%" AND firstHalf  LIKE "%d" AND firstHalf = LOWER(firstHalf) )
+      )
+      AND
+      (
+        EXISTS (  SELECT  line,  CAST(SPLIT(line, "OR", 1) AS INTEGER)  AS val  FROM file_lines WHERE path = '/Users/sharonkatz/repos/fleet/tmp-sec' AND line LIKE "expire-after%" and val >=5 )
+        AND
+        EXISTS ( SELECT  line,  SPLIT(line, "OR", 1) AS secondHalf FROM file_lines WHERE path = '/Users/sharonkatz/repos/fleet/tmp-sec' AND line LIKE "expire-after%" AND secondHalf  LIKE "%G" AND secondHalf = UPPER(secondHalf) )
+      )
+    )
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS3.4
   contributors: sharon-fdm
