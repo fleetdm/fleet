@@ -48,6 +48,10 @@ type TargetMetrics struct {
 //	When both types of labels are provided, builtin labels and custom
 //	labels are AND'ed on the selection.
 //
+//	There's a special case with the "All hosts" builtin label. If such
+//	label is selected, then all other labels and team selections are ignored
+//	(and all hosts will be selected).
+//
 // TeamIDs
 //
 //	When provided, team IDs are OR'ed on the selection.
