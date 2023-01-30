@@ -455,8 +455,7 @@ Please refer to [tools/telemetry](../../tools/telemetry/README.md) for instructi
 To run your local server with the MDM features enabled, you need to get certificates and keys.
 
 - [ABM setup](#abm-setup)
-- [APNs setup](#apns-setup)
-- [SCEP setup](#scep-setup)
+- [APNs and SCEP setup](#apns-and-scep-setup)
 - [Running the server](#running-the-server)
 - [Testing MDM](#testing-mdm)
 
@@ -496,7 +495,7 @@ Once you have access:
 
 The server also needs a private key + certificate to identify with Apple's [APNs](https://github.com/fleetdm/fleet/blob/main/tools/mdm/apple/glossary-and-protocols.md#apns-apple-push-notification-service) servers, and another for [SCEP](https://github.com/fleetdm/fleet/blob/main/tools/mdm/apple/glossary-and-protocols.md#scep-simple-certificate-enrollment-protocol).
 
-Both can be generated using this command (note that the email must be a company email address, it cannot be an email from commercial email providers like `gmail.com`, so you can use your `@fleetdm.com` email):
+Both can be generated using the command below. The email must be a company email address. It cannot be an email address from commercial email providers like gmail.com.
 
 ```
 $ fleetctl generate mdm-apple --email <email> --org <organization>
