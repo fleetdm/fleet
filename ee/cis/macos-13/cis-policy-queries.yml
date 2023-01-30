@@ -808,15 +808,41 @@ spec:
     SELECT 1 WHERE
     (
       (
-        EXISTS (  SELECT  line,  CAST(  SUBSTRING(  SPLIT(line, "OR", 0), 14)  AS INTEGER)  AS val  FROM file_lines WHERE path = '/etc/security/audit_control' AND line LIKE "expire-after%" and val >=60 )
+        EXISTS (  
+                  SELECT  line,  
+                  CAST(  SUBSTRING(  SPLIT(line, "OR", 0), 14)  AS INTEGER)  AS val  
+                  FROM file_lines WHERE path = '/etc/security/audit_control' 
+                  AND line LIKE "expire-after%" 
+                  AND val >=60 
+               )
         AND
-        EXISTS (  SELECT  line, SUBSTRING(  SPLIT(line, "OR", 0) ,14 )    AS firstHalf FROM file_lines WHERE path = '/etc/security/audit_control' AND line LIKE "expire-after%" AND firstHalf  LIKE "%d" AND firstHalf = LOWER(firstHalf) )
+        EXISTS (  
+                  SELECT  line, 
+                  SUBSTRING(  SPLIT(line, "OR", 0) ,14 ) AS firstHalf 
+                  FROM file_lines WHERE path = '/etc/security/audit_control' 
+                  AND line LIKE "expire-after%" 
+                  AND firstHalf  LIKE "%d" 
+                  AND firstHalf = LOWER(firstHalf) 
+               )
       )
       AND
       (
-        EXISTS (  SELECT  line,  CAST(SPLIT(line, "OR", 1) AS INTEGER)  AS val  FROM file_lines WHERE path = '/etc/security/audit_control' AND line LIKE "expire-after%" and val >=5 )
+        EXISTS (  
+                  SELECT  line,  
+                  CAST(SPLIT(line, "OR", 1) AS INTEGER) AS val  
+                  FROM file_lines WHERE path = '/etc/security/audit_control' 
+                  AND line LIKE "expire-after%" 
+                  AND val >=5 
+               )
         AND
-        EXISTS ( SELECT  line,  SPLIT(line, "OR", 1) AS secondHalf FROM file_lines WHERE path = '/etc/security/audit_control' AND line LIKE "expire-after%" AND secondHalf  LIKE "%G" AND secondHalf = UPPER(secondHalf) )
+        EXISTS ( 
+                  SELECT  line,  
+                  SPLIT(line, "OR", 1) AS secondHalf 
+                  FROM file_lines WHERE path = '/etc/security/audit_control' 
+                  AND line LIKE "expire-after%" 
+                  AND secondHalf  LIKE "%G" 
+                  AND secondHalf = UPPER(secondHalf) 
+               )
       )
     )
   purpose: Informational
