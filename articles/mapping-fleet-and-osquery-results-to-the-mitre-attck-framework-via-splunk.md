@@ -1,5 +1,7 @@
 # Mapping Fleet and osquery results to the MITRE ATT&CK® framework via Splunk
 
+![Mapping Fleet and osquery results to the MITRE ATT&CK® framework via Splunk](../website/assets/images/articles/mapping-fleet-and-osquery-results-to-the-mitre-attck-framework-via-splunk-1600x900@2x.png)
+
 ## What is the MITRE ATT&CK® Framework and what role does Fleet and osquery play?
 From the [MITRE ATT&CK® site](https://attack.mitre.org):"MITRE ATT&CK® is a globally-accessible 
 knowledge base of adversary tactics and techniques based on real-world observations." Essentially, Fleet and osquery bring the "real-world observations" to the table when you are looking to adopt the MITRE ATT&CK® framework. 
@@ -88,3 +90,10 @@ This is just the beginning. There are many more Tactics and Techniques that can 
 In order to get a sense for coverage, please check out the [MITRE ATT&CK® Heatmap by
 alatif113](https://github.com/alatif113/mitre_attck_heatmap).
 If you want to chat more about this blog post or just collaborate on another integration feel free to message me on twitter as ‘@fleetctl’.
+
+<meta name="category" value="security">
+<meta name="authorFullName" value="Dave Herder">
+<meta name="authorGitHubUsername" value="dherder">
+<meta name="publishedOn" value="2023-01-30">
+<meta name="articleTitle" value="Mapping Fleet and osquery results to the MITRE ATT&CK® framework via Splunk">
+<meta name="articleImageUrl" value="../website/assets/images/articles/mapping-fleet-and-osquery-results-to-the-mitre-attck-framework-via-splunk-1600x900@2x.png">
