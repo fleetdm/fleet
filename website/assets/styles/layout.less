@@ -45,6 +45,7 @@ html, body {
 }
 
 [purpose='page-header'] {
+
     // rules for sticky nav transitions
     transition-property: background-color, transform, bottom;
     transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
@@ -182,6 +183,11 @@ html, body {
   }
 } // Non-homepage header styles
 &.header {
+    background: rgba(255, 255, 255, 0.8);
+    /* Core/White */
+
+    border-bottom: 2px solid #FFFFFF;
+    backdrop-filter: blur(15px);
     left: 0;
     right: 0;
     // border-bottom: 1px solid #e2e4ea;

@@ -1,0 +1,108 @@
+#upgrade-to-fleet-premium {
+  background: linear-gradient(180deg, rgba(232, 241, 246, 0.5) 4.75%, rgba(255, 255, 255, 0) 37.29%);
+  [purpose='page-container'] {
+    padding-top: 100px;
+    padding-bottom: 120px;
+    max-width: 1200px;
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: 40px;
+    padding-right: 40px;
+  }
+  h1 {
+    font-weight: 800;
+    font-size: 40px;
+    line-height: 48px;
+    text-align: left;
+    margin-bottom: 80px;
+  }
+  h2 {
+    font-weight: 800;
+    font-size: 28px;
+    line-height: 38px;
+  }
+  h3 {
+    font-weight: 700;
+    font-size: 20px;
+    line-height: 24px;
+    margin-bottom: 16px;
+  }
+  [purpose='feature'] {
+    img {
+      width: 160px;
+      margin-right: 40px;
+    }
+    [purpose='feature-image'] {
+      // min-width: 256px;
+    }
+    [purpose='feature-text'] {
+
+    }
+    margin-bottom: 80px;
+  }
+  [purpose='upgrade-form'] {
+    margin-left: 80px;
+    padding: 40px;
+    background: #F9FAFC;
+    box-shadow: 0px 0px 0px 1px #E2E4EA;
+    border-radius: 8px;
+    width: 480px;
+    input {
+      border: 1px solid #C5C7D1;
+      border-radius: 6px;
+    }
+  }
+  @media (max-width: 1200px) {
+    [purpose='page-container'] {
+      padding-left: 80px;
+      padding-right: 80px;
+    }
+    [purpose='upgrade-form'] {
+      margin-left: 40px;
+    }
+    [purpose='feature'] {
+      img {
+        margin-right: 20px;
+      }
+    }
+  }
+  @media (max-width: 990px) {
+    [purpose='feature'] {
+      text-align: center;
+      width: 50%;
+      img {
+        margin-right: auto;
+        margin-left: auto;
+        height: 160px;
+        width: auto;
+        margin-bottom: 40px;
+      }
+    }
+    [purpose='feature-row'] {
+      [purpose='feature']:first-child {
+        margin-right: 80px;
+      }
+    }
+    [purpose='upgrade-form'] {
+      width: 100%;
+      margin-left: auto;
+    }
+
+  }
+  @media (max-width: 768px) {
+    [purpose='page-container'] {
+      padding-left: 20px;
+      padding-right: 20px;
+    }
+    [purpose='feature-row'] {
+      [purpose='feature']:first-child {
+        margin-right: unset;
+      }
+    }
+    [purpose='feature'] {
+      width: 100%;
+    }
+  }
+
+
+}

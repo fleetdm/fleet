@@ -1,0 +1,103 @@
+<div id="upgrade-to-fleet-premium" v-cloak>
+  <div purpose="page-container" class="container-lg">
+  <h1>Get even more control with Fleet Premium</h1>
+  <div class="d-flex flex-lg-row flex-column justify-content-between">
+    <div class="d-flex flex-column justify-content-center">
+
+      <div purpose="feature-row" class="d-flex flex-column flex-md-row flex-lg-column justify-content-center align-items-center align-items-md-start">
+        <div purpose="feature" class="d-flex flex-lg-row flex-column align-items-center">
+          <div purpose="feature-image">
+            <img src="/images/premium-landing-feature-1.svg">
+          </div>
+          <div purpose="feature-text">
+            <h3>Expertise on-demand</h3>
+            <p>Get your own private Slack channel with Fleet experts. Meet regularly with osquery co-creator Zach Wasserman to learn best practices for your business.</p>
+          </div>
+        </div>
+        <div purpose="feature" class="d-flex flex-lg-row flex-column align-items-center">
+          <div purpose="feature-image">
+            <img src="/images/premium-landing-feature-2.svg">
+          </div>
+          <div purpose="feature-text">
+            <h3>Custom solutions</h3>
+            <p>Our team will help you implement new use cases. Write custom queries for your organization. Facilitate end user self-service. Build a zero trust solution.</p>
+          </div>
+        </div>
+      </div>
+      <div purpose="feature-row" class="d-flex flex-column flex-md-row flex-lg-column justify-content-center align-items-center align-items-md-start">
+        <div purpose="feature" class="d-flex flex-lg-row flex-column align-items-center">
+          <div purpose="feature-image">
+            <img src="/images/premium-landing-feature-3.svg">
+          </div>
+          <div purpose="feature-text">
+            <h3>Target and configure specific device groups</h3>
+            <p>Improve your security posture with unique configurations for specific groups of endpoints. Give appropriate access to every employee with RBAC.</p>
+          </div>
+        </div>
+        <div purpose="feature" class="d-flex flex-lg-row flex-column align-items-center">
+          <div purpose="feature-image">
+            <img src="/images/premium-landing-feature-4.svg">
+          </div>
+          <div purpose="feature-text">
+            <h3>Open source CIS compliance policies</h3>
+            <p>Out of the box CIS compliance.</p>
+          </div>
+        </div>
+      </div>
+      <div class="d-flex flex-column flex-md-row flex-lg-column justify-content-center align-items-center">
+        <div purpose="feature" class="d-flex flex-lg-row flex-column align-items-center">
+          <div purpose="feature-image">
+            <img src="/images/premium-landing-feature-5.svg">
+          </div>
+          <div purpose="feature-text">
+            <h3>See vulnerability scores and probability of exploit</h3>
+            <p>Fleet Premium provides richer software vulnerability data, including real-time EPSS and CVSS scores, as well as CISA-known exploited vulnerabilities.</p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+      <div class="d-flex flex-column justify-content-start">
+        <div purpose="upgrade-form">
+          <h2>Upgrade to Fleet Premium</h2>
+          <p>Complete the form below and a member of our team will be in touch within one business day.</p>
+          <ajax-form action="deliverMdmBetaSignup" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-data="formData" :form-rules="formRules" :form-errors.sync="formErrors" @submitted="submittedForm()">
+            <div class="form-group">
+              <label for="company">Company</label>
+              <input class="form-control" id="company" :class="[formErrors.company ? 'is-invalid' : '']" v-model.trim="formData.company" @input="typeClearOneFormError('company')">
+              <div class="invalid-feedback" v-if="formErrors.company">Please enter the name of your company.</div>
+            </div>
+
+            <div class="form-group">
+              <label for="monthsUsingFleetFree">Months using Fleet Free</label>
+              <select class="form-control" id="monthsUsingFleetFree" v-model.trim="formData.monthsUsingFleetFree">
+                <option value="Please select one" selected>Please select one</option>
+                <option>TODO</option>
+                <option>TODO</option>
+                <option>TODO</option>
+                <option>TODO</option>
+                <option>TODO</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="emailAddress">Email</label>
+              <input class="form-control" id="emailAddress" :class="[formErrors.emailAddress ? 'is-invalid' : '']" v-model.trim="formData.emailAddress" @input="typeClearOneFormError('emailAddress')">
+              <div class="invalid-feedback" v-if="formErrors.emailAddress" focus-first>This doesn’t appear to be a valid email address</div>
+            </div>
+            <div class="form-group">
+              <label for="numberOfHosts">Number of devices</label>
+              <input class="form-control" id="numberOfHosts" type="number" :class="[formErrors.numberOfHosts ? 'is-invalid' : '']" v-model.trim="formData.numberOfHosts" @input="typeClearOneFormError('numberOfHosts')">
+              <div class="invalid-feedback" v-if="formErrors.numberOfHosts">Please enter a number of devices.</div>
+            </div>
+              <cloud-error v-if="cloudError"></cloud-error>
+            <div class="border-0 justify-content-center">
+              <ajax-button purpose="submit-button" spinner="true" type="submit" :syncing="syncing" class="btn btn-sm btn-block btn-primary">Submit</ajax-button>
+            </div>
+          </ajax-form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>
