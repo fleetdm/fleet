@@ -819,7 +819,7 @@ spec:
       (l.program_arguments = p.cmdline)
     );
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS3.4
+  tags: compliance, CIS, CIS_Level1, CIS3.3
   contributors: sharon-fdm
 ---
 apiVersion: v1
