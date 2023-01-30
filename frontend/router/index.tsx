@@ -60,6 +60,7 @@ import UnauthenticatedRoutes from "./components/UnauthenticatedRoutes";
 import AuthGlobalAdminMaintainerRoutes from "./components/AuthGlobalAdminMaintainerRoutes";
 import AuthAnyMaintainerAnyAdminRoutes from "./components/AuthAnyMaintainerAnyAdminRoutes";
 import PremiumRoutes from "./components/PremiumRoutes";
+import MdmEnabledRoutes from "./components/MdmEnabledRoutes/MdmEnabledRoutes";
 
 interface IAppWrapperProps {
   children: JSX.Element;
@@ -170,10 +171,12 @@ const routes = (
           </Route>
 
           <Route path="controls" component={AuthAnyMaintainerAnyAdminRoutes}>
-            <IndexRedirect to={"mac-os-updates"} />
-            <Route component={ManageControlsPage}>
-              <Route path="mac-os-updates" component={MacOSUpdates} />
-              <Route path="mac-settings" component={MacSettingsPage} />
+            <Route component={MdmEnabledRoutes}>
+              <IndexRedirect to={"mac-os-updates"} />
+              <Route component={ManageControlsPage}>
+                <Route path="mac-os-updates" component={MacOSUpdates} />
+                <Route path="mac-settings" component={MacSettingsPage} />
+              </Route>
             </Route>
           </Route>
 
