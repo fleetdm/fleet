@@ -76,7 +76,7 @@ func (oc *OrbitClient) request(verb string, path string, params interface{}, res
 // rootDir is the Orbit's root directory, where the Orbit node key is loaded-from/stored.
 // addr is the address of the Fleet server.
 // uuid is the UUID of the OrbitClient instance.
-func NewOrbitClient(rootDir string, addr string, rootCA string, insecureSkipVerify bool, enrollSecret, uuid string) (*OrbitClient, error) {
+func NewOrbitClient(rootDir string, addr string, rootCA string, insecureSkipVerify bool, enrollSecret, uuid, serialNum string) (*OrbitClient, error) {
 	orbitCapabilities := fleet.CapabilityMap{}
 	bc, err := newBaseClient(addr, insecureSkipVerify, rootCA, "", orbitCapabilities)
 	if err != nil {
