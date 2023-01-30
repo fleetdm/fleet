@@ -755,21 +755,38 @@ spec:
       SELECT line
       FROM file_lines WHERE path = '/etc/security/audit_control' 
       AND 
-      line LIKE 'flags:%' 
-      AND 
-      line LIKE "%-fm%"
-      AND 
-      line LIKE "%ad%"
-      AND 
-      line LIKE "%-ex%"
-      AND 
-      line LIKE "%aa%"
-      AND 
-      line LIKE "%-fr%"
-      AND 
-      line LIKE "%lo%"
-      AND 
-      line LIKE "%-fw%" );
+      (
+            (
+              line LIKE 'flags:%' 
+              AND 
+              line LIKE "%-fm%"
+              AND 
+              line LIKE "%ad%"
+              AND 
+              line LIKE "%-ex%"
+              AND 
+              line LIKE "%aa%"
+              AND 
+              line LIKE "%-fr%"
+              AND 
+              line LIKE "%lo%"
+              AND 
+              line LIKE "%-fw%" 
+            ) 
+            OR 
+            (
+              line LIKE 'flags:%' 
+              AND 
+              line LIKE "%-all%" 
+              AND 
+              line LIKE "%ad%"
+              AND 
+              line LIKE "%aa%"
+              AND 
+              line LIKE "%lo%"
+            )
+      )
+    );
   purpose: Informational
   tags: compliance, CIS, CIS_Level2, CIS3.2
   contributors: sharon-fdm
