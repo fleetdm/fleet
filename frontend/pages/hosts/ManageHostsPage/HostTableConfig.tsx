@@ -152,7 +152,7 @@ const allHostTableHeaders: IDataColumn[] = [
     ),
     accessor: "display_name",
     Cell: (cellProps: ICellProps) => {
-      if (cellProps.row.original.mdm.enrollment_status === "Pending") {
+      if (cellProps.row.original.mdm?.enrollment_status === "Pending") {
         return (
           <>
             <span
@@ -382,7 +382,8 @@ const allHostTableHeaders: IDataColumn[] = [
       return <HeaderCell value={titleWithToolTip} disableSortBy />;
     },
     disableSortBy: true,
-    accessor: "mdm_enrollment_status", // TODO: should that be "mdm.enrollment_status"? I don't see other nested accessor as examples...
+    accessor: "mdm.enrollment_status",
+    id: "mdm_enrollment_status",
     Cell: (cellProps: ICellProps) => {
       if (cellProps.cell.value)
         return <TextCell value={cellProps.cell.value} />;
@@ -405,7 +406,8 @@ const allHostTableHeaders: IDataColumn[] = [
       return <HeaderCell value={titleWithToolTip} disableSortBy />;
     },
     disableSortBy: true,
-    accessor: "mdm_server_url", // TODO: should that be "mdm.server_url"?
+    accessor: "mdm.server_url",
+    id: "mdm_server_url",
     Cell: (cellProps: ICellProps) => {
       if (cellProps.cell.value) {
         return <TextCell value={cellProps.cell.value} />;

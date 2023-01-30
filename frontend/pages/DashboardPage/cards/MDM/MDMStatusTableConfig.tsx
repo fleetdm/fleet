@@ -77,7 +77,7 @@ const statusTableHeaders = [
       return (
         <ViewAllHostsLink
           queryParams={{
-            mdm_enrollment_status: MDM_STATUS[cellProps.row.original.status], // TODO: I believe this refers to the query param filter, which is still called "mdm_enrollment_status"
+            mdm_enrollment_status: MDM_STATUS[cellProps.row.original.status],
           }}
           className="mdm-solution-link"
           platformLabelId={cellProps.row.original.selectedPlatformLabelId}

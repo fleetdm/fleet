@@ -74,7 +74,7 @@ export const reconcileMutuallyExclusiveHostParams = ({
       return { mdm_id: mdmId };
     }
     if (mdmEnrollmentStatus) {
-      return { mdm_enrollment_status: mdmEnrollmentStatus }; // TODO: this refers to the query param filter, which is still called "mdm_enrollment_status".
+      return { mdm_enrollment_status: mdmEnrollmentStatus };
     }
     if (lowDiskSpaceHosts) {
       return { low_disk_space: lowDiskSpaceHosts };

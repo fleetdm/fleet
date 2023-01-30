@@ -630,7 +630,7 @@ const HostDetailsPage = ({
       <div className={`${baseClass}__wrapper`}>
         <div className={`${baseClass}__header-links`}>
           {host?.platform === "darwin" &&
-            host?.mdm.enrollment_status === "Off" && (
+            host?.mdm?.enrollment_status === "Off" && (
               <InfoBanner color="yellow" pageLevel>
                 To change settings and install software, ask the end user to
                 follow the <strong>Turn on MDM</strong> instructions on their{" "}
