@@ -216,10 +216,10 @@ type MDMHostData struct {
 
 	// EnrollmentStatus is a string representation of state derived from
 	// booleans stored in the host_mdm table, loaded by JOIN in datastore
-	EnrollmentStatus *string `json:"enrollment_status" db:"-" csv:"mdm_enrollment_status"`
+	EnrollmentStatus *string `json:"enrollment_status" db:"-" csv:"mdm.enrollment_status"`
 	// ServerURL is the server_url stored in the host_mdm table, loaded by
 	// JOIN in datastore
-	ServerURL *string `json:"server_url" db:"-" csv:"mdm_server_url"`
+	ServerURL *string `json:"server_url" db:"-" csv:"mdm.server_url"`
 }
 
 // Scan implements the Scanner interface for sqlx, to support unmarshaling a
