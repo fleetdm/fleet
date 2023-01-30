@@ -916,6 +916,8 @@ The `command_line_flags` key inside of `agent_options` allows you to remotely ma
 
 To see the full list of these osquery command line flags, please run `osquery` with the `--help` switch.
 
+> Note: Setting `command_line_flags` using YAML are not additive and will replace any command line flags in the CLI.
+
 Just like the other `agent_options` above, remove the dashed lines (`--`) for Fleet to successfully update them.
 
 Here is an example of using the `command_line_flags` key:

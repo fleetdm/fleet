@@ -87,7 +87,9 @@ How to update agent options:
 
 2. On the Organization settings page, select **Agent options** on the left side of the page.
 
-3. To see all agent options, head to the [agent options documentation](https://fleetdm.com/docs/deploying/configuration#agent-options).
+3. Use Fleet's YAML editor to configure your osquery options, decorators, or set command line flags.
+
+To see all agent options, head to the [agent options documentation](https://fleetdm.com/docs/using-fleet/configuration-files#agent-options).
 
 4. Place your new setting one level below the `options` key. The new setting's key should be below and one tab to the right of `options`.
 
