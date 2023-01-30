@@ -1,6 +1,7 @@
 .dropdown-button {
+  padding: 8px 24px 8px 0;
   &__wrapper {
-    display: inline-block;
+    display: flex;
     position: relative;
   }
 

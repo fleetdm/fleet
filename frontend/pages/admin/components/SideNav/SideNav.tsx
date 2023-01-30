@@ -1,7 +1,7 @@
 import React from "react";
 import classnames from "classnames";
 
-import { IAppConfigFormProps } from "pages/admin/AppSettingsPage/cards/constants";
+import { IAppConfigFormProps } from "pages/admin/OrgSettingsPage/cards/constants";
 
 import SideNavItem from "../SideNavItem";
 

@@ -45,6 +45,10 @@ export default PropTypes.shape({
   expiration: PropTypes.string,
   mdm: PropTypes.shape({
     apple_bm_terms_expired: PropTypes.bool,
+    macos_updates: PropTypes.shape({
+      minimum_version: PropTypes.string,
+      deadline: PropTypes.string,
+    }),
   }),
   note: PropTypes.string,
   // vulnerability_settings: PropTypes.any, TODO
@@ -218,6 +222,10 @@ export interface IConfig {
   mdm_enabled?: boolean;
   mdm: {
     apple_bm_terms_expired: boolean;
+    macos_updates: {
+      minimum_version: string;
+      deadline: string;
+    };
   };
 }
 

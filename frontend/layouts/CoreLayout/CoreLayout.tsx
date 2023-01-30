@@ -111,7 +111,7 @@ const CoreLayout = ({ children, router }: ICoreLayoutProps) => {
           <p>Please enlarge your browser or try again on a computer.</p>
         </div>
       </div>
-      <nav className="site-nav">
+      <nav className="site-nav-container">
         <SiteTopNav
           config={config}
           onLogoutUser={onLogoutUser}

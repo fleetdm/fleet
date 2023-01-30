@@ -709,6 +709,29 @@ spec:
     EXISTS(select 1 FROM plist WHERE path='/Library/Preferences/com.apple.MCX.plist' AND key='DisableGuestAccount' AND value = 1);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS2.12.1
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Guest Access to Shared Folders Is Disabled
+  platforms: macOS
+  platform: darwin
+  description: Allowing guests to connect to shared folders enables users to access selected shared folders and their contents from different computers on a network
+  resolution: |
+    Automated method:
+      Ask your system administrator to deploy the following script which will disable guest users from access to shared folders:
+      /usr/bin/sudo /usr/sbin/sysadminctl -smbGuestAccess off
+    Graphical Method:
+      Perform the following steps to no longer allow guest user access to shared folders:
+        1. Open System Settings
+        2. Select Users & Groups
+        3. Select the i next to the Guest User
+        4. Set Allow guests to connect to shared folders to disabled
+  query: SELECT 1 from plist where path = '/Library/Preferences/SystemConfiguration/com.apple.smb.server.plist' AND key = 'AllowGuestAccess' AND value = 0;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS2.12.2
+  contributors: sharon-fdm
 ---
 apiVersion: v1
 kind: policy
@@ -734,6 +757,36 @@ spec:
   query: SELECT 1 FROM managed_policies WHERE domain='com.apple.loginwindow' AND name='com.apple.login.mcx.DisableAutoLoginClient' AND value = 1;
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS2.12.3
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Security Auditing Is Enabled
+  platforms: macOS
+  platform: darwin
+  description: |
+    macOS's audit facility, auditd, receives notifications from the kernel when certain system calls, such as open, fork, and exit, are made. These notifications are captured and written to an audit log.
+  resolution: |
+    Automated method:
+    Ask your system administrator to deploy the following script which will enable security auditing:
+    /usr/bin/sudo /bin/launchctl load -w /System/Library/LaunchDaemons/com.apple.auditd.plist
+  query: | 
+    SELECT 1 WHERE EXISTS (
+      SELECT
+        l.program, l.label, l.program_arguments,
+        p.path, p.name , p.cmdline
+      FROM
+        launchd AS l
+        INNER JOIN processes AS p
+      ON (l.program = p.path)
+      WHERE
+      (l.label = "com.apple.auditd")
+      AND
+      (l.program_arguments = p.cmdline)
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS3.1
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -800,3 +853,97 @@ spec:
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS4.3
   contributors: lucasmrod
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Password Account Lockout Threshold Is Configured (Fleetd required)
+  platforms: macOS
+  platform: darwin
+  description: |
+    The account lockout threshold specifies the amount of times a user can enter an incorrect password before a lockout will occur.
+  resolution: |
+    Automated method:
+    Ask your system administrator to deploy an MDM profile that Ensure Password Account Lockout Threshold.
+    Profile Method:
+    Create or edit a configuration profile with the following information:
+      1. The PayloadType string is com.apple.mobiledevice.passwordpolicy 
+      2. The key to include is maxFailedAttempts
+      3. The key must be set to <integer><value≤5></integer>
+  query: SELECT 1 FROM  pwd_policy where max_failed_attempts <= 5;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS5.2.1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Password Minimum Length Is Configured
+  platforms: macOS
+  platform: darwin
+  description: |
+    A minimum password length is the fewest number of characters a password can contain to meet a system's requirements. Ensure that a minimum of a 15-character password is part of the password policy on the computer. Where the confidentiality of encrypted information in FileVault is more of a concern, requiring a longer password or passphrase may be sufficient rather than imposing additional complexity requirements that may be self-defeating.
+  resolution: |
+    Automated method:
+    Ask your system administrator to deploy an MDM profile that disables Guest Account.
+    Profile Method:
+    Create or edit a configuration profile with the following information:
+      1. The PayloadType string is com.apple.mobiledevice.passwordpolicy 
+      2. The key to include is minLength
+      3. The key must be set to <integer><value≥15></integer>
+  query: |
+    SELECT 1 
+    FROM (
+    SELECT cast(lengthtxt as integer(2)) minlength 
+    FROM (
+    SELECT SUBSTRING(length, 1, 2) AS lengthtxt 
+    FROM (
+    SELECT policy_description, policy_identifier, split(policy_content, '{', 1) AS length 
+    FROM password_policy 
+    WHERE policy_identifier LIKE '%minLength')) 
+    WHERE minlength >= 15);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS5.2.2
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Password Age Is Configured (fleetd required)
+  platforms: macOS
+  platform: darwin
+  description: |
+    Over time, passwords can be captured by third parties through mistakes, phishing attacks, third-party breaches, or merely brute-force attacks. To reduce the risk of exposure and to decrease the incentives of password reuse (passwords that are not forced to be changed periodically generally are not ever changed), users should reset passwords periodically. This control uses 365 days as the acceptable value. Some organizations may be more or less restrictive. This control mainly exists to mitigate against password reuse of the macOS account password in other realms that may be more prone to compromise. Attackers take advantage of exposed information to attack other accounts.
+  resolution: |
+    Automated method:
+    Ask your system administrator to deploy an MDM profile that disables Guest Account.
+    Profile Method:
+    Create or edit a configuration profile with the following information:
+      1. The Payload Type string is com.apple.mobiledevice.passwordpolicy 
+      2. The key to include is maxPINAgeInDays
+      3. The key must be set to <integer><value<=365></integer>
+  query: |
+    SELECT 1 WHERE
+    EXISTS(SELECT 1 FROM pwd_policy WHERE expires_every_n_days <= 365)
+    OR
+    EXISTS(SELECT 1 FROM pwd_policy WHERE days_to_expiration <= 365);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS5.2.7
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Password History Is Configured (fleetd required)
+  platforms: macOS
+  platform: darwin
+  description: |
+    Over time, passwords can be captured by third parties through mistakes, phishing attacks, third-party breaches, or merely brute-force attacks. To reduce the risk of exposure and to decrease the incentives of password reuse (passwords that are not forced to be changed periodically generally are not ever changed), users must reset passwords periodically. This control ensures that previous passwords are not reused immediately by keeping a history of previous password hashes. Ensure that password history checks are part of the password policy on the computer. This control checks whether a new password is different than the previous 15. The latest NIST guidance based on exploit research referenced in this section details how one of the greatest risks is password exposure rather than password cracking. Passwords should be changed to a new unique value whenever a password might have been exposed to anyone other than the account holder. Attackers have maintained persistent control based on predictable password change patterns and substantially different patterns should be used in case of a leak.
+  resolution: |
+    Automated method:
+    Ask your system administrator to deploy an MDM profile that disables Guest Account.
+    Profile Method:
+    Create or edit a configuration profile with the following information:
+      1. The Payload Type string is com.apple.mobiledevice.passwordpolicy 
+      2. The key to include is pinHistory
+      3. The key must be set to <integer><value≥15></integer>
+  query: SELECT 1 FROM  pwd_policy where history_depth >= 15;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS5.2.8
