@@ -577,6 +577,7 @@ const defaultHiddenColumns = [
   "primary_mac",
   "public_ip",
   "cpu_type",
+  // TODO: should those be mdm.<blah>?
   "mdm_server_url",
   "mdm_enrollment_status",
   "memory",
