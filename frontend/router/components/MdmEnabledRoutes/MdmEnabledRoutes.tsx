@@ -11,7 +11,7 @@ const MdmEnabledRoutes = ({ children }: IMdmEnabledRoutesProps) => {
   const { isMdmEnabled } = useContext(AppContext);
 
   if (!isMdmEnabled) {
-    handlePageError(404);
+    handlePageError({ status: 404 });
     return null;
   }
   return <>{children}</>;
