@@ -61,18 +61,13 @@ const ManageControlsPage = ({
     AppContext
   );
 
-  const {
-    data: mdmApple,
-    isLoading: isLoadingMdmApple,
-    error: errorMdmApple,
-  } = useQuery<IMdmApple, Error, IMdmApple>(
-    ["mdmAppleAPI"],
-    () => mdmAppleAPI.getAppleAPNInfo(),
-    {
-      enabled: isPremiumTier,
-      staleTime: 5000,
-    }
-  );
+  const { data: mdmApple, isLoading: isLoadingMdmApple } = useQuery<
+    IMdmApple,
+    Error
+  >(["mdmAppleAPI"], () => mdmAppleAPI.getAppleAPNInfo(), {
+    enabled: isPremiumTier,
+    staleTime: 5000,
+  });
 
   const navigateToNav = (i: number): void => {
     const navPath = controlsSubNav[i].pathname;
