@@ -7,11 +7,11 @@ From the [MITRE ATT&CK® site](https://attack.mitre.org):"MITRE ATT&CK® is a gl
 knowledge base of adversary tactics and techniques based on real-world observations." Essentially, Fleet and osquery bring the "real-world observations" to the table when you are looking to adopt the MITRE ATT&CK® framework. 
 
 ## Overview
-While osquery is capable of gathering an extremely diverse set of data from macOS, Windows, and Linux hosts, it can be difficult understanding how to use that data..In this article we will translate the techniques and tactics defined by ATT&CK® into queries that we can execute using Fleet. Then we  will provide an example aggregating our logs from Fleet into Splunk Cloud to construct a dashboard of our real-world observations.The intent of this article is to provide a starting point in correlating osquery related observations from host endpoints, using query packs already out in the wild. 
+While osquery is capable of gathering an extremely diverse set of data from macOS, Windows, and Linux hosts, it can be difficult understanding how to use that data. In this article we will translate the techniques and tactics defined by ATT&CK® into queries that we can execute using Fleet. Then we  will provide an example aggregating our logs from Fleet into Splunk Cloud to construct a dashboard of our real-world observations. The intent of this article is to provide a starting point in correlating osquery related observations from host endpoints, using query packs already out in the wild. 
 
 
 ## Setting up Fleet and osquery
-First, we’re going to map osquery observations  to ATT&CK®. Initially, I began combing through the current 273 tables that I have access to in my fleet instance. I quickly realized that this effort would be quite daunting. Surely, I wasn't the first one that was looking to do this, right? This is when I came across @teoseller's repo
+First, we’re going to map osquery observations to ATT&CK®. Initially, I began combing through the current 273 tables that I have access to in my fleet instance. I quickly realized that this effort would be quite daunting. Surely, I wasn't the first one that was looking to do this, right? This is when I came across @teoseller's repo
 [osquery-attck](https://github.com/teoseller/osquery-attck). In addition to the awesome library of
 queries, there is a [mapping of each query](https://github.com/teoseller/osquery-attck#attck-mapping) to the
 [techniques](https://attack.mitre.org/techniques/enterprise/) within the ATT&CK® Framework. 
@@ -39,20 +39,18 @@ For brevity, we are going to focus on the "Process Network Connection" query tha
 ATT&CK® Techniques.
 ![process-network-conn](../website/assets/images/articles/mapping-fleet-and-osquery-results-to-the-mitre-attck-framework-via-splunk-process-network-conn-1769x922@2x.png)
 
-Next, we will add it as a scheduled query, on a daily interval. In order to get data quickly into
+Next, we will add it as a scheduled query with a daily interval. In order to get data quickly into
 your osquery results log, you may want to temporarily set the schedule duration to 15 minutes. Don't
 forget to set it back to "Daily" ;).
 ![fleet-scheduled-queries](../website/assets/images/articles/mapping-fleet-and-osquery-results-to-the-mitre-attck-framework-via-splunk-fleet-scheduled-queries-1788x728@2x.png)
 
 ### Logging pipeline
-My existing deployment is done via AWS Terraform. Please check out the [existing deployment guide](https://fleetdm.com/deploy/deploying-fleet-on-aws-with-terraform) for
-instructions on how to set this up. With this configuration, the logging pipeline is set to send
-logs to [Amazon Kinesis Data Firehose](https://fleetdm.com/docs/using-fleet/log-destinations#amazon-kinesis-data-firehose), terminating in an AWS S3 bucket. See additional documentation
-around configuration of [log destinations](https://fleetdm.com/docs/using-fleet/log-destinations).
+My existing deployment is done via AWS Terraform. Please check out the [existing deployment guide](https://fleetdm.com/deploy/deploying-fleet-on-aws-with-terraform) for instructions on how to set this up. With this configuration, the logging pipeline is set to send
+logs to [Amazon Kinesis Data Firehose](https://fleetdm.com/docs/using-fleet/log-destinations#amazon-kinesis-data-firehose), terminating in an AWS S3 bucket. See additional documentation around configuration of [log destinations](https://fleetdm.com/docs/using-fleet/log-destinations).
 Since the final destination of the osquery results data is a Splunk Cloud search head, we will need
 some way to tell Splunk to index this data. At first I thought setting up a Splunk Forwarder might
-be a good idea and quickly abandoned that idea since my deployment of Fleet is all managed through
-AWS ECS rather than an EC2 instance where installing a forwarder would actually be an option.
+be a good idea and quickly abandoned that idea, since my deployment of Fleet is all managed through
+AWS ECS rather than an EC2 instance, where installing a forwarder would actually be an option.
 Luckily, Splunk has the [Splunk Add-on for AWS](https://splunkbase.splunk.com/app/1876). For
 instructions on configuring this Add-on, please see the [Splunk Add-on for AWS
 Documentation](https://docs.splunk.com/Documentation/AddOns/released/AWS/Description)
@@ -66,7 +64,7 @@ Next, create a new input:
 If everything with the account config works, you should be able to immediately see the results of a
 global index search:
 ![splunk-index](../website/assets/images/articles/mapping-fleet-and-osquery-results-to-the-mitre-attck-framework-via-splunk-global-index-results-1775x915@2x.png)
-Now comes the tough part, or at least it was a bit challenging for me, since I'm no Splunk expert. We’re going tobuild some SPL (Search Processing Language) to translate the observations we've uncovered via osquery into search results in Splunk. After that, we can drop the search results into a dashboard or even build an alert. That being said, though, if this was an alerting use case, I would recommend using the built-in Policies from Fleet to trigger alerts via webhooks. Here's what the first query looks like to get the Process Connections from our Fleet scheduled query and push it to a table in Splunk:
+Now comes the tough part, or at least it was a bit challenging for me, since I'm no Splunk expert. We’re going tobuild some SPL (Search Processing Language) to translate the observations we've uncovered via osquery into search results in Splunk. After that, we can drop the search results into a dashboard or even build an alert. That being said though, if this was an alerting use case, I would recommend using the built-in Policies from Fleet to trigger alerts via webhooks. Here's what the first query looks like to get the Process Connections from our Fleet scheduled query and push it to a table in Splunk:
 ```
 index="osquery_results" name="pack/Global/ATT&CK® - Process_Network_Conn" | 
 dedup _time, hostname | 
@@ -86,10 +84,10 @@ Tactic / Technique you are examining.
 
 
 ## Lessons learned
-This is just the beginning. There are many more Tactics and Techniques that can be mapped to queries andhere are plenty of queries already pre-built for MITRE ATT&CK®. The next step is to continue to build out these mappings and publish the queries that map from Fleet to MITRE ATT&CK®. 
+This is just the beginning. There are many more Tactics and Techniques that can be mapped to queries and there are plenty of queries already pre-built for MITRE ATT&CK®. The next step is to continue to build out these mappings and publish the queries that map from Fleet to MITRE ATT&CK®. 
 In order to get a sense for coverage, please check out the [MITRE ATT&CK® Heatmap by
 alatif113](https://github.com/alatif113/mitre_attck_heatmap).
-If you want to chat more about this blog post or just collaborate on another integration feel free to message me on twitter as ‘@fleetctl’.
+If you want to chat more about this blog post, or just collaborate on another integration, feel free to message me on twitter at ‘@fleetctl’.
 
 <meta name="category" value="security">
 <meta name="authorFullName" value="Dave Herder">
