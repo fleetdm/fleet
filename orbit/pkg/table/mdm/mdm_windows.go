@@ -99,7 +99,7 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 
 		return []map[string]string{
 			{
-				"enrollment_status":  "enrolled_device",
+				"enrollment_status":  deviceEnrollmentStatus,
 				"enrolled_user":      enrollmentURI,
 				"mdm_command_input":  inputCmd,
 				"mdm_command_output": outputCmd,
