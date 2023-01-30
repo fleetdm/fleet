@@ -152,7 +152,7 @@ const allHostTableHeaders: IDataColumn[] = [
     ),
     accessor: "display_name",
     Cell: (cellProps: ICellProps) => {
-      if (cellProps.row.original.mdm?.enrollment_status === "Pending") {
+      if (cellProps.row.original.mdm.enrollment_status === "Pending") {
         return (
           <>
             <span

@@ -1,6 +1,6 @@
 import React from "react";
 
-import { IMdmStatusCardData, MDM_STATUS } from "interfaces/mdm";
+import { IMdmStatusCardData, MDM_ENROLLMENT_STATUS } from "interfaces/mdm";
 
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import TooltipWrapper from "components/TooltipWrapper";
@@ -77,7 +77,8 @@ const statusTableHeaders = [
       return (
         <ViewAllHostsLink
           queryParams={{
-            mdm_enrollment_status: MDM_STATUS[cellProps.row.original.status],
+            mdm_enrollment_status:
+              MDM_ENROLLMENT_STATUS[cellProps.row.original.status],
           }}
           className="mdm-solution-link"
           platformLabelId={cellProps.row.original.selectedPlatformLabelId}

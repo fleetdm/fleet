@@ -235,7 +235,7 @@ const HostDetailsPage = ({
   const refetchExtensions = () => {
     deviceMapping !== null && refetchDeviceMapping();
     macadmins !== null && refetchMacadmins();
-    mdm !== null && refetchMdm();
+    mdm?.enrollment_status !== null && refetchMdm();
   };
 
   const {
@@ -341,9 +341,7 @@ const HostDetailsPage = ({
         isGlobalMaintainer ||
         permissionUtils.isTeamMaintainerOrTeamAdmin(currentUser, host.team_id));
     const hostEnrolled = ["On (automatic)", "On (manual)"].includes(
-      host?.mdm_enrollment_status ?? ""
-      // TODO: API will be reverted to nested mdm {enrollment_status: ...}, change to below when it is:
-      // host.mdm?.enrollment_status ?? ""
+      host?.mdm.enrollment_status ?? ""
     );
     return userHasPermission && hostEnrolled;
   })();
@@ -661,9 +659,7 @@ const HostDetailsPage = ({
       <div className={`${baseClass}__wrapper`}>
         <div className={`${baseClass}__header-links`}>
           {host?.platform === "darwin" &&
-            host?.mdm_enrollment_status === "Off" && (
-              // TODO: above API will be reverted to below nested structure:
-              // host?.mdm?.enrollment_status === "Unenrolled" && (
+            host?.mdm.enrollment_status === "Off" && (
               <InfoBanner color="yellow" pageLevel>
                 To change settings and install software, ask the end user to
                 follow the <strong>Turn on MDM</strong> instructions on their{" "}
