@@ -211,7 +211,7 @@ type Host struct {
 }
 
 type MDMHostData struct {
-	// For CSV columns, since the CSV is flattened, we keep the "mdm_" prefix
+	// For CSV columns, since the CSV is flattened, we keep the "mdm." prefix
 	// along with the column name.
 
 	// EnrollmentStatus is a string representation of state derived from
