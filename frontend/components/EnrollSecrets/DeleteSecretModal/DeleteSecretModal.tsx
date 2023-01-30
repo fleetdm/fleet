@@ -50,16 +50,18 @@ const DeleteSecretModal = ({
             unable to enroll.
           </p>
           <p>
-            Any hosts that enrolled using this secret cannot update their
-            configuration through Orbit.
+            Any enrolled hosts using this secret will not receive updates
+            through Orbit including updates to agent options and command line
+            flags.
           </p>
           <p>
-            For further documentation on how to rotate enroll secrets, please
-            see{" "}
+            Follow this guide to{" "}
             <CustomLink
               url="https://fleetdm.com/docs/deploying/faq#how-can-enroll-secrets-be-rotated"
-              text="this guide"
+              text="rotate enroll secrets"
+              newTab
             />
+            .
           </p>
           <p>You cannot undo this action.</p>
         </div>
