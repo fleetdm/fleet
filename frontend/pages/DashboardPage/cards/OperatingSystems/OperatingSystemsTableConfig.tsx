@@ -86,7 +86,10 @@ const defaultTableHeaders = [
   },
 ];
 
-const generateTableHeaders = (): IDataColumn[] => {
+const generateTableHeaders = (includeName: boolean): IDataColumn[] => {
+  if (!includeName) {
+    return defaultTableHeaders.filter((column) => column.title !== "Name");
+  }
   return defaultTableHeaders;
 };
 

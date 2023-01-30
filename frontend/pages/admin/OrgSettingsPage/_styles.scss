@@ -1,5 +1,4 @@
-.app-settings {
-
+.org-settings {
   &__page-description {
     font-size: $x-small;
     color: $core-fleet-black;
@@ -11,7 +10,6 @@
   }
 
   &__side-nav {
-
     .org-settings-form {
       .form-field__label {
         .buttons {
@@ -38,11 +36,6 @@
 
         &__label {
           width: 100%;
-        }
-
-        &__hint {
-          font-size: $x-small;
-          font-style: italic;
         }
       }
 
