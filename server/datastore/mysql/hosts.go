@@ -471,35 +471,27 @@ LIMIT
 	}
 	host.Users = users
 
-	postFillHost(&host)
 	return &host, nil
 }
 
 const hostMDMSelect = `,
-	CASE
-		WHEN hmdm.is_server = 1 THEN NULL
-		WHEN hmdm.enrolled = 1 AND hmdm.installed_from_dep = 0 THEN 'On (manual)'
-		WHEN hmdm.enrolled = 1 AND hmdm.installed_from_dep = 1 THEN 'On (automatic)'
-		WHEN hmdm.enrolled = 0 AND hmdm.installed_from_dep = 1 THEN 'Pending'
-		WHEN hmdm.enrolled = 0 AND hmdm.installed_from_dep = 0 THEN 'Off'
-		ELSE NULL
-	END AS mdm_enrollment_status,
-	CASE
-		WHEN hmdm.is_server = 1 THEN NULL
-		ELSE hmdm.server_url
-	END as mdm_server_url
+	JSON_OBJECT(
+		'enrollment_status',
+		CASE
+			WHEN hmdm.is_server = 1 THEN NULL
+			WHEN hmdm.enrolled = 1 AND hmdm.installed_from_dep = 0 THEN 'On (manual)'
+			WHEN hmdm.enrolled = 1 AND hmdm.installed_from_dep = 1 THEN 'On (automatic)'
+			WHEN hmdm.enrolled = 0 AND hmdm.installed_from_dep = 1 THEN 'Pending'
+			WHEN hmdm.enrolled = 0 AND hmdm.installed_from_dep = 0 THEN 'Off'
+			ELSE NULL
+		END,
+		'server_url',
+		CASE
+			WHEN hmdm.is_server = 1 THEN NULL
+			ELSE hmdm.server_url
+		END
+	) mdm_host_data
 	`
-
-func postFillHost(host *fleet.Host) {
-	host.MDM.EnrollmentStatus = host.DBOnlyMDMEnrollmentStatus
-	host.MDM.ServerURL = host.DBOnlyMDMServerURL
-}
-
-func postFillHosts(hosts []*fleet.Host) {
-	for _, h := range hosts {
-		postFillHost(h)
-	}
-}
 
 func amountEnrolledHostsByOSDB(ctx context.Context, db sqlx.QueryerContext) (byOS map[string][]fleet.HostsCountByOSVersion, totalCount int, err error) {
 	var hostsByOS []struct {
@@ -624,7 +616,6 @@ func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt
 		return nil, ctxerr.Wrap(ctx, err, "list hosts")
 	}
 
-	postFillHosts(hosts)
 	return hosts, nil
 }
 
@@ -1521,7 +1512,6 @@ func (ds *Datastore) SearchHosts(ctx context.Context, filter fleet.TeamFilter, m
 		return nil, ctxerr.Wrap(ctx, err, "searching hosts")
 	}
 
-	postFillHosts(hosts)
 	return hosts, nil
 }
 
@@ -1619,7 +1609,6 @@ func (ds *Datastore) HostByIdentifier(ctx context.Context, identifier string) (*
 	}
 	host.PackStats = packStats
 
-	postFillHost(host)
 	return host, nil
 }
 
