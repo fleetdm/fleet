@@ -6,10 +6,11 @@ package common
 import (
 	"errors"
 	"fmt"
-	"github.com/antchfx/xmlquery"
 	"os"
 	"strings"
 	"syscall"
+
+	"github.com/antchfx/xmlquery"
 )
 
 // GetConsoleUidGid gets the uid and gid of the current (or more accurately, most recently logged
@@ -31,8 +32,10 @@ func GetConsoleUidGid() (uid uint32, gid uint32, err error) {
 // GetValFromXMLWithTags Will look for a sequence of tags and will get the following nested value as string
 // In the following xml example the function will return "5" if called with parentTag = "someParentTag", tag = "someTag", tagValue = "someValue", valType = "integer"
 // <someParentTag>
-//   <someTag>someValue</someTag>
-//   <integer>5</integer>
+//
+//	<someTag>someValue</someTag>
+//	<integer>5</integer>
+//
 // </someParentTag>
 func GetValFromXMLWithTags(xml string, parentTag string, tag string, tagValue string, valType string) (maxFailedAttempts string, err error) {
 	doc, err := xmlquery.Parse(strings.NewReader(xml))
