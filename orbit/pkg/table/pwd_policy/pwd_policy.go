@@ -44,8 +44,8 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 
 	out, err := cmd.Output()
 	if err != nil {
-		log.Debug().Err(err).Msg("Running pwpolicy falied")
-		return nil, fmt.Errorf("Running pwpolicy falied: %w", err)
+		log.Debug().Err(err).Msg("Running pwpolicy failed")
+		return nil, fmt.Errorf("running pwpolicy falied: %w", err)
 	}
 
 	pwpolicyXMLData := string(out)
