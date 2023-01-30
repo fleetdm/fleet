@@ -29,11 +29,12 @@
   }
   [purpose='feature'] {
     img {
-      width: 160px;
-      margin-right: 40px;
+      margin-left: auto;
+      margin-right: auto;
     }
     [purpose='feature-image'] {
-      // min-width: 256px;
+      min-width: 160px;
+      margin-right: 40px;
     }
     [purpose='feature-text'] {
 
@@ -58,49 +59,78 @@
       padding-right: 80px;
     }
     [purpose='upgrade-form'] {
-      margin-left: 40px;
+      margin-left: 60px;
+      padding: 40px 20px;
+      width: auto;
+      min-width: 380px;
+      max-width: 480px;
     }
     [purpose='feature'] {
-      img {
-        margin-right: 20px;
+      [purpose='feature-image'] {
+        margin-right: 30px;
       }
     }
   }
-  @media (max-width: 990px) {
+  @media (max-width: 991px) {
     [purpose='feature'] {
       text-align: center;
       width: 50%;
-      img {
+      [purpose='feature-image'] {
         margin-right: auto;
         margin-left: auto;
-        height: 160px;
         width: auto;
         margin-bottom: 40px;
+        img {
+          height: 160px;
+        }
       }
     }
     [purpose='feature-row'] {
       [purpose='feature']:first-child {
         margin-right: 80px;
       }
+      [purpose='feature']:only-child {
+        margin-right: 0px;
+        width: 415px;
+        img {
+          margin-left: 16px;
+        }
+      }
     }
     [purpose='upgrade-form'] {
       width: 100%;
       margin-left: auto;
+      min-width: unset;
+      max-width: unset;
     }
 
   }
   @media (max-width: 768px) {
+    h1 {
+      text-align: center;
+      font-size: 32px;
+      line-height: 38px;
+    }
     [purpose='page-container'] {
+      padding-top: 60px;
       padding-left: 20px;
       padding-right: 20px;
+      padding-bottom: 80px;
     }
     [purpose='feature-row'] {
       [purpose='feature']:first-child {
         margin-right: unset;
       }
+      [purpose='feature']:only-child {
+        margin-right: unset;
+        width: auto;
+      }
     }
     [purpose='feature'] {
       width: 100%;
+    }
+    [purpose='upgrade-form'] {
+      padding: 20px;
     }
   }
 
