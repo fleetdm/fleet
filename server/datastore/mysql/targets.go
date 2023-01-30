@@ -56,36 +56,36 @@ func (ds *Datastore) CountHostsInTargets(ctx context.Context, filter fleet.TeamF
 func targetSQLCondAndArgs(targets fleet.HostTargets) (sql string, args []interface{}) {
 	const queryTargetLogicCondition = `(
 	/* The host was selected explicitly. */
-	id IN (?)
+	id IN (? /* queryHostIDs */)
 	OR
 	(
 		/* 'All hosts' builtin label was selected. */
-		id IN (SELECT DISTINCT host_id FROM label_membership WHERE label_id = 6 AND label_id IN (?))
+		id IN (SELECT DISTINCT host_id FROM label_membership WHERE label_id = 6 AND label_id IN (? /* queryLabelIDs */))
 	)
 	OR
 	(
 		/* A team filter OR a label filter was specified. */
-		(? OR ?)
+		(? /* labelsSpecified */ OR ? /* teamsSpecified */ )
 		AND
 		/* A non-builtin label (aka platform) filter was not specified OR if it was specified then the host must be
 		 * a member of one of the specified non-builtin labels. */
 		(
-			SELECT NOT EXISTS (SELECT id FROM labels WHERE label_type <> 1 AND id IN (?))
+			SELECT NOT EXISTS (SELECT id FROM labels WHERE label_type <> 1 AND id IN (? /* queryLabelIDs */))
 			OR
-			(id IN (SELECT DISTINCT host_id FROM label_membership lm JOIN labels l ON lm.label_id = l.id WHERE l.label_type <> 1 AND lm.label_id IN (?)))
+			(id IN (SELECT DISTINCT host_id FROM label_membership lm JOIN labels l ON lm.label_id = l.id WHERE l.label_type <> 1 AND lm.label_id IN (? /* queryLabelIDs */)))
 		)
 		AND
 		/* A builtin label filter was not specified OR if it was specified then the host must be
 		 * a member of one of the specified builtin labels. */
 		(
-			SELECT NOT EXISTS (SELECT id FROM labels WHERE label_type = 1 AND id IN (?))
+			SELECT NOT EXISTS (SELECT id FROM labels WHERE label_type = 1 AND id IN (? /* queryLabelIDs */))
 			OR
-			(id IN (SELECT DISTINCT host_id FROM label_membership lm JOIN labels l ON lm.label_id = l.id WHERE l.label_type = 1 AND lm.label_id IN (?)))
+			(id IN (SELECT DISTINCT host_id FROM label_membership lm JOIN labels l ON lm.label_id = l.id WHERE l.label_type = 1 AND lm.label_id IN (? /* queryLabelIDs */)))
 		)
 		AND
 		/* A team filter was not specified OR if it was specified then the host must be a
 		 * member of one of the teams. */
-		(? OR team_id IN (?))
+		(? /* !teamsSpecified */ OR team_id IN (? /* queryTeamIDs */))
 	)
 )`
 
