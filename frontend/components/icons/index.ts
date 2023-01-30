@@ -2,6 +2,7 @@ import Alert from "./Alert";
 import CalendarCheck from "./CalendarCheck";
 import Check from "./Check";
 import Chevron from "./Chevron";
+import DownCaret from "./DownCaret";
 import Ex from "./Ex";
 import EmptyHosts from "./EmptyHosts";
 import EmptyIntegrations from "./EmptyIntegrations";
@@ -45,6 +46,7 @@ export const ICON_MAP = {
   "calendar-check": CalendarCheck,
   chevron: Chevron,
   check: Check,
+  "down-caret": DownCaret,
   ex: Ex,
   "empty-hosts": EmptyHosts,
   "empty-integrations": EmptyIntegrations,
