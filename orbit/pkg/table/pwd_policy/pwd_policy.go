@@ -8,6 +8,7 @@ import (
 	"fmt"
 	tbl_common "github.com/fleetdm/fleet/v4/orbit/pkg/table/common"
 	"github.com/osquery/osquery-go/plugin/table"
+	"github.com/rs/zerolog/log"
 	"os/exec"
 	"syscall"
 	"time"
@@ -28,6 +29,7 @@ func Columns() []table.ColumnDefinition {
 func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[string]string, error) {
 	uid, gid, err := tbl_common.GetConsoleUidGid()
 	if err != nil {
+		log.Debug().Err(err).Msg("failed to get console user")
 		return nil, fmt.Errorf("failed to get console user: %w", err)
 	}
 
@@ -42,25 +44,30 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 
 	out, err := cmd.Output()
 	if err != nil {
-		return nil, fmt.Errorf("generate failed: %w", err)
+		log.Debug().Err(err).Msg("Running pwpolicy falied")
+		return nil, fmt.Errorf("Running pwpolicy falied: %w", err)
 	}
 
 	pwpolicyXMLData := string(out)
 	maxFailedAttempts, err := tbl_common.GetValFromXMLWithTags(pwpolicyXMLData, "dict", "key", "policyAttributeMaximumFailedAuthentications", "integer")
 	if err != nil {
 		maxFailedAttempts = ""
+		log.Debug().Err(err).Msg("get policyAttributeMaximumFailedAuthentications failed")
 	}
 	expiresEveryNDays, err := tbl_common.GetValFromXMLWithTags(pwpolicyXMLData, "dict", "key", "policyAttributeExpiresEveryNDays", "integer")
 	if err != nil {
 		expiresEveryNDays = ""
+		log.Debug().Err(err).Msg("get policyAttributeExpiresEveryNDays failed")
 	}
 	daysToExpiration, err := tbl_common.GetValFromXMLWithTags(pwpolicyXMLData, "dict", "key", "policyAttributeDaysUntilExpiration", "integer")
 	if err != nil {
 		daysToExpiration = ""
+		log.Debug().Err(err).Msg("get policyAttributeDaysUntilExpiration failed")
 	}
 	historyDepth, err := tbl_common.GetValFromXMLWithTags(pwpolicyXMLData, "dict", "key", "policyAttributePasswordHistoryDepth", "integer")
 	if err != nil {
 		historyDepth = ""
+		log.Debug().Err(err).Msg("get policyAttributePasswordHistoryDepth failed")
 	}
 
 	return []map[string]string{
