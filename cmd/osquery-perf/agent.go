@@ -330,6 +330,7 @@ func (a *agent) runOrbitLoop() {
 		true,
 		a.EnrollSecret,
 		a.UUID,
+		"",
 	)
 	if err != nil {
 		log.Println("creating orbit client: ", err)

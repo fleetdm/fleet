@@ -379,12 +379,12 @@ func main() {
 			return fmt.Errorf("cleanup old files: %w", err)
 		}
 
-		log.Debug().Msg("running single query (SELECT uuid FROM system_info)")
-		uuidStr, err := getUUID(osquerydPath)
+		log.Debug().Msg("running single query (SELECT uuid, hardware_serial FROM system_info)")
+		uuidStr, serial, err := getUUIDAndSerial(osquerydPath)
 		if err != nil {
 			return fmt.Errorf("get UUID: %w", err)
 		}
-		log.Debug().Msg("UUID is " + uuidStr)
+		log.Debug().Msgf("UUID is %s, serial is %s", uuidStr, serial)
 
 		var options []osquery.Option
 		options = append(options, osquery.WithDataPath(c.String("root-dir")))
@@ -515,6 +515,7 @@ func main() {
 			c.Bool("insecure"),
 			enrollSecret,
 			uuidStr,
+			serial,
 		)
 		if err != nil {
 			return fmt.Errorf("error new orbit client: %w", err)
@@ -719,6 +720,7 @@ func main() {
 			c.Bool("insecure"),
 			enrollSecret,
 			uuidStr,
+			serial,
 		)
 		if err != nil {
 			return fmt.Errorf("new client for capabilities checker: %w", err)
@@ -905,37 +907,42 @@ func (d *desktopRunner) interrupt(err error) {
 	}
 }
 
-// shell out to osquery (on Linux and macOS) or to wmic (on Windows), and get the system uuid
-func getUUID(osqueryPath string) (string, error) {
+// shell out to osquery (on Linux and macOS) or to wmic (on Windows), and get
+// the system uuid and serial number
+func getUUIDAndSerial(osqueryPath string) (uuid, serial string, err error) {
 	if runtime.GOOS == "windows" {
 		uuidData, uuidSource, err := platform.GetSMBiosUUID()
 		if err != nil {
-			return "", err
+			return "", "", err
 		}
 
 		log.Debug().Msgf("UUID source was %s.", uuidSource)
 
-		return uuidData, nil
+		// TODO(mna): is there an alternative way to get the serial number on
+		// Windows? Would osquery not work there? SMBios seems very complex/error
+		// prone.
+		return uuidData, "", nil
 	}
-	type UuidOutput struct {
-		UuidString string `json:"uuid"`
+	type Output struct {
+		UuidString     string `json:"uuid"`
+		HardwareSerial string `json:"hardware_serial"`
 	}
 
 	args := []string{"-S", "--json", "select uuid from system_info"}
 	out, err := exec.Command(osqueryPath, args...).Output()
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
-	var uuids []UuidOutput
-	err = json.Unmarshal(out, &uuids)
+	var sysinfo []Output
+	err = json.Unmarshal(out, &sysinfo)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 
-	if len(uuids) != 1 {
-		return "", fmt.Errorf("invalid number of rows from system_info query: %d", len(uuids))
+	if len(sysinfo) != 1 {
+		return "", "", fmt.Errorf("invalid number of rows from system_info query: %d", len(sysinfo))
 	}
-	return uuids[0].UuidString, nil
+	return sysinfo[0].UuidString, sysinfo[0].HardwareSerial, nil
 }
 
 var versionCommand = &cli.Command{
