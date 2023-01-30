@@ -355,6 +355,10 @@ module.exports.routes = {
   // XML file, which helps search engines know which pages are available on the website.
   'GET /sitemap.xml':            { action: 'download-sitemap' },
 
+  // RSS feeds
+  // =============================================================================================================
+  'GET /rss/:categoryName': {action: 'download-rss-feed'},
+
   // Potential future pages
   // =============================================================================================================
   // Things that are not webpages here (in the Sails app) yet, but could be in the future.  For now they are just

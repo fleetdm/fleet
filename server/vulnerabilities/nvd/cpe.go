@@ -157,7 +157,12 @@ func CPEFromSoftware(db *sqlx.DB, software *fleet.Software, translations CPETran
 	if err != nil {
 		return "", fmt.Errorf("translate software: %w", err)
 	}
+
 	if match {
+		if translation.Skip {
+			return "", nil
+		}
+
 		ds := goqu.Dialect("sqlite").From(goqu.I("cpe_2").As("c")).
 			Select(
 				"c.rowid",

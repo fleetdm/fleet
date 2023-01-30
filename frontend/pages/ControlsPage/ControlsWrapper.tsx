@@ -29,7 +29,7 @@ interface IControlsSubNavItem {
 const controlsSubNav: IControlsSubNavItem[] = [
   {
     name: "macOS updates",
-    pathname: PATHS.CONTROLS_MAC_UPDATES,
+    pathname: PATHS.CONTROLS_MAC_OS_UPDATES,
   },
   {
     name: "macOS settings",
