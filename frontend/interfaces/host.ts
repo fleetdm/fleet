@@ -203,8 +203,10 @@ export interface IHost {
   users: IHostUser[];
   device_users?: IDeviceUser[];
   munki?: IMunkiData;
-  mdm_enrollment_status: MdmStatus;
-  mdm_server_url: string;
+  mdm: {
+    enrollment_status: MdmStatus;
+    server_url: string;
+  };
   policies: IHostPolicy[];
   query_results?: unknown[];
   geolocation?: IGeoLocation;
