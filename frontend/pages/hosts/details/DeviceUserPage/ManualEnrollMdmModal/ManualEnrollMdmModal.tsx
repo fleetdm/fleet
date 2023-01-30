@@ -11,17 +11,17 @@ import Spinner from "components/Spinner";
 
 import mdmAPI from "services/entities/mdm";
 
-export interface IInfoModalProps {
+interface IManualEnrollMdmModalProps {
   onCancel: () => void;
-  token: string;
+  token?: string;
 }
 
-const baseClass = "manual-enroll-mdm-modal";
+const baseClass = "manual-enroll-mdm-modal enroll-mdm-modal";
 
 const ManualEnrollMdmModal = ({
   onCancel,
-  token,
-}: IInfoModalProps): JSX.Element => {
+  token = "",
+}: IManualEnrollMdmModalProps): JSX.Element => {
   const { renderFlash } = useContext(NotificationContext);
 
   const [isDownloadingProfile, setIsDownloadingProfile] = useState(false);
@@ -60,15 +60,15 @@ const ManualEnrollMdmModal = ({
 
     return false;
   };
-  const renderModalContent = () => {
-    if (isFetchingMdmProfile) {
-      return <Spinner />;
-    }
-    if (fetchMdmProfileError) {
-      return <DataError card />;
-    }
+  if (isFetchingMdmProfile) {
+    return <Spinner />;
+  }
+  if (fetchMdmProfileError) {
+    return <DataError card />;
+  }
 
-    return (
+  return (
+    <Modal title="Turn on MDM" onExit={onCancel} className={baseClass}>
       <div>
         <p className={`${baseClass}__description`}>
           To turn on MDM, Apple Inc. requires that you download and install a
@@ -119,12 +119,6 @@ const ManualEnrollMdmModal = ({
           </Button>
         </div>
       </div>
-    );
-  };
-
-  return (
-    <Modal title="Turn on MDM" onExit={onCancel} className={baseClass}>
-      {renderModalContent()}
     </Modal>
   );
 };
