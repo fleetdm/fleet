@@ -15,7 +15,7 @@ First, we’re going to map osquery observations  to ATT&CK®. Initially, I bega
 [osquery-attck](https://github.com/teoseller/osquery-attck). In addition to the awesome library of
 queries, there is a [mapping of each query](https://github.com/teoseller/osquery-attck#attck-mapping) to the
 [techniques](https://attack.mitre.org/techniques/enterprise/) within the ATT&CK® Framework. 
-![osquery-attck](../website/assets/images/articles/osquery-attck.jpeg)
+![osquery-attck](../website/assets/images/articles/mapping-fleet-and-osquery-results-to-the-mitre-attck-framework-via-splunk-osquery-attck-255x75@2x.jpeg)
 The first thing that we need to do is clone the repo so we can begin to convert the .conf files to
 .yaml via `fleetctl`.
 ```
@@ -33,16 +33,16 @@ There are a bunch to convert and apply:
 ![code-convert](../website/assets/images/articles/fleetctl-convert-apply.png)
 
 In the Queries list within fleet, you will now have:
-![fleet-attck-queries](../website/assets/images/articles/attck-queries.png)
+![fleet-attck-queries](../website/assets/images/articles/mapping-fleet-and-osquery-results-to-the-mitre-attck-framework-via-splunk-attck-queries-1780x923@2x.png)
 
 For brevity, we are going to focus on the "Process Network Connection" query that maps to several
 ATT&CK® Techniques.
-![process-network-conn](../website/assets/images/articles/process-network-conn.png)
+![process-network-conn](../website/assets/images/articles/mapping-fleet-and-osquery-results-to-the-mitre-attck-framework-via-splunk-process-network-conn-1769x922@2x.png)
 
 Next, we will add it as a scheduled query, on a daily interval. In order to get data quickly into
 your osquery results log, you may want to temporarily set the schedule duration to 15 minutes. Don't
 forget to set it back to "Daily" ;).
-![fleet-scheduled-queries](../website/assets/images/articles/fleet-scheduled-queries.png)
+![fleet-scheduled-queries](../website/assets/images/articles/mapping-fleet-and-osquery-results-to-the-mitre-attck-framework-via-splunk-fleet-scheduled-queries-1788x728@2x.png)
 
 ### Logging pipeline
 My existing deployment is done via AWS Terraform. Please check out the [existing deployment guide](https://fleetdm.com/deploy/deploying-fleet-on-aws-with-terraform) for
@@ -60,12 +60,12 @@ Once you have configured your AWS account in the Add-on (need to add the Account
 access your S3 bucket), you will need to configure an input to populate your Splunk index. First, in
 the Splunk Cloud> Settings> indexes, create a new index called "osquery_results". For my purposes,
 I'm setting retention to 90 days at max size of 500MB.
-![splunk-index](../website/assets/images/articles/splunk_index.png)
+![splunk-index](../website/assets/images/articles/mapping-fleet-and-osquery-results-to-the-mitre-attck-framework-via-splunk-splunk-index-802x314@2x.png)
 Next, create a new input:
-![splunk-input](../website/assets/images/articles/S3-input.png)
+![splunk-input](../website/assets/images/articles/mapping-fleet-and-osquery-results-to-the-mitre-attck-framework-via-splunk-S3-input-1716x889@2x.png)
 If everything with the account config works, you should be able to immediately see the results of a
 global index search:
-![splunk-index](../website/assets/images/articles/global-index-results.png)
+![splunk-index](../website/assets/images/articles/mapping-fleet-and-osquery-results-to-the-mitre-attck-framework-via-splunk-global-index-results-1775x915@2x.png)
 Now comes the tough part, or at least it was a bit challenging for me, since I'm no Splunk expert. We’re going tobuild some SPL (Search Processing Language) to translate the observations we've uncovered via osquery into search results in Splunk. After that, we can drop the search results into a dashboard or even build an alert. That being said, though, if this was an alerting use case, I would recommend using the built-in Policies from Fleet to trigger alerts via webhooks. Here's what the first query looks like to get the Process Connections from our Fleet scheduled query and push it to a table in Splunk:
 ```
 index="osquery_results" name="pack/Global/ATT&CK® - Process_Network_Conn" | 
@@ -77,11 +77,11 @@ extract pairdelim="," kvdelim=":" |
 eval pname=mvindex(name,1) | 
 table _time, hostname, pname, path, pid, protocol, local_address, local_port, remote_address, remote_port, cmdline
 ```
-![splunk-process-results](../website/assets/images/articles/splunk-process-results.png)
+![splunk-process-results](../website/assets/images/articles/mapping-fleet-and-osquery-results-to-the-mitre-attck-framework-via-splunk-splunk-process-results-1776x916@2x.png)
 Next, you may want to add more panels and dynamic filters in order to create a dashboard that allows
 you to slice and dice the data to solve for data interrogation, getting at the root of the ATT&CK®
 Tactic / Technique you are examining.
-![splunk-dash](../website/assets/images/articles/splunk-base-dashboard.png)
+![splunk-dash](../website/assets/images/articles/mapping-fleet-and-osquery-results-to-the-mitre-attck-framework-via-splunk-splunk-base-dashboard-1771x830@2x.png)
 
 
 
