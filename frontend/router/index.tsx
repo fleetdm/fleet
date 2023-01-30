@@ -44,7 +44,7 @@ import Fleet403 from "pages/errors/Fleet403";
 import Fleet404 from "pages/errors/Fleet404";
 import UserSettingsPage from "pages/UserSettingsPage";
 import SettingsWrapper from "pages/admin/SettingsWrapper/SettingsWrapper";
-import ControlsWrapper from "pages/ControlsPage/ControlsWrapper";
+import ManageControlsPage from "pages/ManageControlsPage/ManageControlsPage";
 import MembersPage from "pages/admin/TeamManagementPage/TeamDetailsWrapper/MembersPage";
 import AgentOptionsPage from "pages/admin/TeamManagementPage/TeamDetailsWrapper/AgentOptionsPage";
 import MacOSUpdates from "pages/MacOSUpdates";
@@ -171,7 +171,7 @@ const routes = (
 
           <Route path="controls" component={AuthAnyMaintainerAnyAdminRoutes}>
             <IndexRedirect to={"mac-os-updates"} />
-            <Route component={ControlsWrapper}>
+            <Route component={ManageControlsPage}>
               <Route path="mac-os-updates" component={MacOSUpdates} />
               <Route path="mac-settings" component={MacSettingsPage} />
             </Route>
