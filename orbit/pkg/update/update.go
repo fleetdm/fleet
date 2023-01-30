@@ -73,13 +73,14 @@ func (ts Targets) SetTargetChannel(target, channel string) {
 }
 
 // SetExtensionsTargetInfo sets/updates the TargetInfo for extension targets
-func (u *Updater) SetExtensionsTargetInfo(name, platform, channel, file string) {
+func (u *Updater) SetExtensionsTargetInfo(name, platform, channel, file string, extractedExecSubPath []string) {
 	u.mu.Lock()
 	defer u.mu.Unlock()
 	u.opt.Targets[name] = TargetInfo{
-		Platform:   platform,
-		Channel:    channel,
-		TargetFile: file,
+		Platform:             platform,
+		Channel:              channel,
+		TargetFile:           file,
+		ExtractedExecSubPath: extractedExecSubPath,
 	}
 }
 

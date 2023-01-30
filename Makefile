@@ -335,6 +335,25 @@ endif
 	tar czf $(out-path)/osqueryd.app.tar.gz -C $(TMP_DIR)/osquery_pkg_payload_expanded/opt/osquery/lib osquery.app
 	rm -r $(TMP_DIR)
 
+# Generate nudge.app.tar.gz bundle from nudge repo.
+#
+# Usage:
+# make nudge-app-tar-gz version=1.1.10.81462 out-path=.
+nudge-app-tar-gz:
+ifneq ($(shell uname), Darwin)
+	@echo "Makefile target nudge-app-tar-gz is only supported on macOS"
+	@exit 1
+endif
+	$(eval TMP_DIR := $(shell mktemp -d))
+	curl -L https://github.com/macadmins/nudge/releases/download/v$(version)/Nudge-$(version).pkg --output $(TMP_DIR)/nudge-$(version).pkg
+	pkgutil --expand $(TMP_DIR)/nudge-$(version).pkg $(TMP_DIR)/nudge_pkg_expanded
+	rm -rf $(TMP_DIR)/nudge_pkg_payload_expanded
+	mkdir -p $(TMP_DIR)/nudge_pkg_payload_expanded
+	tar xvf $(TMP_DIR)/nudge_pkg_expanded/nudge-$(version).pkg/Payload --directory $(TMP_DIR)/nudge_pkg_payload_expanded
+	$(TMP_DIR)/nudge_pkg_payload_expanded/Nudge.app/Contents/MacOS/Nudge --version
+	tar czf $(out-path)/nudge.app.tar.gz -C $(TMP_DIR)/nudge_pkg_payload_expanded/ Nudge.app
+	rm -r $(TMP_DIR)
+
 # Build and generate desktop.app.tar.gz bundle.
 #
 # Usage:

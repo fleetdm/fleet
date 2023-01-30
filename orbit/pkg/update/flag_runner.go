@@ -12,20 +12,14 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
-	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/rs/zerolog/log"
 )
-
-// OrbitConfigFetcher allows fetching Orbit configuration.
-type OrbitConfigFetcher interface {
-	// GetConfig returns the Orbit configuration.
-	GetConfig() (*fleet.OrbitConfig, error)
-}
 
 // FlagRunner is a specialized runner to periodically check and update flags from Fleet
 // It is designed with Execute and Interrupt functions to be compatible with oklog/run
 //
-// It uses an OrbitClient, along with FlagUpdateOptions to connect to Fleet
+// It uses an OrbitConfigFetcher (which may be the OrbitClient with additional middleware), along
+// with FlagUpdateOptions to connect to Fleet
 type FlagRunner struct {
 	configFetcher OrbitConfigFetcher
 	opt           FlagUpdateOptions
@@ -129,7 +123,8 @@ func (r *FlagRunner) DoFlagsUpdate() (bool, error) {
 // ExtensionRunner is a specialized runner to periodically check and update flags from Fleet
 // It is designed with Execute and Interrupt functions to be compatible with oklog/run
 //
-// It uses an OrbitClient, along with ExtensionUpdateOptions and updateRunner to connect to Fleet
+// It uses an an OrbitConfigFetcher (which may be the OrbitClient with additional middleware), along
+// with ExtensionUpdateOptions and updateRunner to connect to Fleet.
 type ExtensionRunner struct {
 	configFetcher OrbitConfigFetcher
 	opt           ExtensionUpdateOptions
@@ -269,7 +264,7 @@ func (r *ExtensionRunner) DoExtensionConfigUpdate() (bool, error) {
 
 		// update our view of targets
 		r.updateRunner.UpdateRunnerOptTargets(targetName)
-		r.updateRunner.updater.SetExtensionsTargetInfo(targetName, platform, channel, filename)
+		r.updateRunner.updater.SetExtensionsTargetInfo(targetName, platform, channel, filename, nil)
 
 		// the full path to where the extension would be on disk, for e.g. for extension name "hello_world"
 		// the path is: <root-dir>/bin/extensions/hello_world/<platform>/<channel>/hello_world.ext

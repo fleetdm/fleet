@@ -159,6 +159,10 @@ func (r *Runner) UpdateAction() (bool, error) {
 			}
 			log.Info().Str("target", target).Msg("update completed")
 			didUpdate = true
+			if target == "nudge" {
+				// TODO handle this appropriately
+				didUpdate = false
+			}
 		} else {
 			log.Debug().Str("target", target).Msg("no update")
 		}

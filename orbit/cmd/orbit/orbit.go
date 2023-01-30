@@ -524,10 +524,10 @@ func main() {
 		// create the notifications middleware that wraps the orbit client
 		// (must be shared by all runners that use a ConfigFetcher).
 		const renewEnrollmentProfileCommandFrequency = time.Hour
-		configFetcher := &update.RenewEnrollmentProfileConfigFetcher{
-			Fetcher:   orbitClient,
-			Frequency: renewEnrollmentProfileCommandFrequency,
-		}
+		configFetcher := update.ApplyRenewEnrollmentProfileConfigFetcherMiddleware(orbitClient, renewEnrollmentProfileCommandFrequency)
+
+		// add middleware to handle nudge installation and updates
+		configFetcher = update.ApplyNudgeConfigFetcherMiddleware(orbitClient, updateRunner)
 
 		const orbitFlagsUpdateInterval = 30 * time.Second
 		flagRunner := update.NewFlagRunner(configFetcher, update.FlagUpdateOptions{
