@@ -117,7 +117,7 @@ const Mdm = (): JSX.Element => {
       return <DataError />;
     }
 
-    if (!mdmApple || showCSRFlag) {
+    if (!mdmApple) {
       return (
         <>
           <div className={`${baseClass}__section-description`}>
@@ -271,12 +271,8 @@ const Mdm = (): JSX.Element => {
           {isLoadingMdmAppleBm ? <Spinner /> : renderMdmAppleBm()}
         </div>
       )}
-      {showRequestCSRModal && (
-        <RequestCSRModal
-          onCancel={toggleRequestCSRModal}
-          setShowCSRFlag={setShowCSRFlag}
-        />
-      )}
+      {/* {showRequestCSRModal && ( */}
+      {true && <RequestCSRModal onCancel={toggleRequestCSRModal} />}
       {showEditTeamModal && (
         <EditTeamModal
           onCancel={toggleEditTeamModal}
