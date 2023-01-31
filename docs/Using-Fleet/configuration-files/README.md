@@ -171,7 +171,20 @@ The `secrets` section provides the list of enroll secrets that will be valid for
       - secret: RzTlxPvugG4o4O5IKS/HqEDJUmI1hwBoffff
       - secret: JZ/C/Z7ucq22dt/zjx2kEuDBN0iLjqfz
   ```
+### Modify an existing team
 
+You can modify an existing team by applying a new team configuration file with the same `name` as an existing team. The new team configuration will completely replace the previous configuration. In order to avoid overiding existing settings, we reccomend retreiving the existing configuration and modifying it. 
+
+Retrieve the team configuration and output to a YAML file:
+
+```console
+% fleetctl get teams --name Workstations --yaml > workstation_config.yml
+```
+After updating the generated YAML, apply the changes:
+
+```console
+% fleetctl apply -f workstation_config.yml
+```
 #### Mobile device management (MDM) settings
 
 > MDM features are not ready for production and are currently in development. These features are disabled by default.
