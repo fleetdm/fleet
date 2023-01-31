@@ -818,14 +818,23 @@ spec:
                         -- Same explanation for queries below.
                         SELECT dir FROM ( 
                         select line, CONCAT(regex_match(line, '^dir:(.+)',1 ), '/%') AS dir FROM file_lines WHERE path = '/etc/security/audit_control' AND line LIKE "dir:%")) 
-                    AND uid !=0 ) 
+                        AND uid !=0 ) 
       AND 
-      NOT EXISTS ( select 1 from file where path LIKE ( SELECT dir FROM ( select line, CONCAT(regex_match(line, '^dir:(.+)',1 ), '/%') AS dir FROM file_lines WHERE path = '/etc/security/audit_control' AND line LIKE "dir:%" ) ) AND gid !=0 ) 
+      NOT EXISTS ( select 1 from file where path LIKE ( 
+                        SELECT dir FROM ( 
+                        select line, CONCAT(regex_match(line, '^dir:(.+)',1 ), '/%') AS dir FROM file_lines WHERE path = '/etc/security/audit_control' AND line LIKE "dir:%" ) ) 
+                        AND gid !=0 ) 
       AND 
-      NOT EXISTS ( select 1 from file where path LIKE ( SELECT dir FROM ( select line, CONCAT(regex_match(line, '^dir:(.+)',1 ), '/%') AS dir FROM file_lines WHERE path = '/etc/security/audit_control' AND line LIKE "dir:%" ) ) AND mode != "0440" ) 
+      NOT EXISTS ( select 1 from file where path LIKE ( 
+                        SELECT dir FROM ( 
+                        select line, CONCAT(regex_match(line, '^dir:(.+)',1 ), '/%') AS dir FROM file_lines WHERE path = '/etc/security/audit_control' AND line LIKE "dir:%" ) ) 
+                        AND mode != "0440" ) 
       AND 
+      -- For /etc/security/audit_control the MODE should be 0400 ("-r--------")
       NOT EXISTS ( select 1 from file where path = "/etc/security/audit_control" AND mode != "0400" );
-
+      AND 
+      -- For /var/audit the MODE should be 0700 ("drwx------")
+      NOT EXISTS ( select 1 from file where path = "/var/audit" AND mode != "0700" );
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS3.5
   contributors: sharon-fdm
