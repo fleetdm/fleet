@@ -807,7 +807,7 @@ spec:
       AND
       NOT EXISTS ( SELECT 1 FROM file WHERE path LIKE '/var/audit/%' AND gid !=0 )
       AND
-      NOT EXISTS ( SELECT 1 FROM file WHERE path LIKE '/var/audit/%' AND mode != "0440" );
+      NOT EXISTS ( SELECT 1 FROM file WHERE path LIKE '/var/audit/%' AND mode != "0440" )
       AND 
       NOT EXISTS ( select 1 from file where path LIKE ( SELECT dir FROM ( select line, CONCAT(regex_match(line, '^dir:(.+)',1 ), '/%') AS dir FROM file_lines WHERE path = '/etc/security/audit_control' AND line LIKE "dir:%" ) ) AND uid !=0 ) 
       AND 
