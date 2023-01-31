@@ -939,15 +939,46 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, hardwareUUID, hardwareSeri
 	if hardwareUUID == "" {
 		return nil, ctxerr.New(ctx, "hardware uuid is empty")
 	}
-	// TODO(mna): allow empty serial? For now, it would be empty for Windows.
+	// TODO(mna): allow empty serial until we figure out Windows - for now, it
+	// would be empty on that OS.
 
-	var host fleet.Host
+	var host *fleet.Host
+
+	selectArgs := []interface{}{hardwareUUID}
+	// osquery_host_id has a unique index, guarantees a single row
+	selectQuery := `SELECT id FROM hosts WHERE osquery_host_id = ?`
+	if hardwareSerial != "" {
+		// make sure the standard behaviour of using the osquery_host_id match as a
+		// priority is maintained, only use the hardware_serial match as a
+		// fallback. There's no DB constraint that ensures that both fields select
+		// the same host, and the serial index is not unique, so we limit the
+		// results of this sub-query. To ensure that if the serial match is used,
+		// we always return the same host (remember, the index is not unique), we
+		// sort it by host id. This is merely a precaution against database
+		// corruption, this should never be a problem.
+		selectQuery = `SELECT id, osquery_host_id, '' as hardware_serial FROM hosts WHERE osquery_host_id = ?
+UNION SELECT id, '' as osquery_host_id, hardware_serial FROM hosts WHERE hardware_serial = ? ORDER BY id LIMIT 1`
+		selectArgs = append(selectArgs, hardwareSerial)
+	}
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		err := sqlx.GetContext(ctx, tx, &host, `SELECT id FROM hosts WHERE osquery_host_id = ?`, hardwareUUID)
+		var selectHosts []*fleet.Host
+		err := sqlx.SelectContext(ctx, tx, &selectHosts, selectQuery, selectArgs...)
+		if len(selectHosts) == 0 && err == nil {
+			err = sql.ErrNoRows
+		} else if len(selectHosts) > 0 {
+			host = selectHosts[0]
+			// Not sure this is absolutely required as if it returns 2 rows, the
+			// osquery one would always be first thanks to the order of the UNION (I
+			// think), but just to be extra safe.
+			if len(selectHosts) > 1 && selectHosts[1].OsqueryHostID != nil && *selectHosts[1].OsqueryHostID != "" {
+				// use the osquery_host_id match in priority
+				host = selectHosts[1]
+			}
+		}
 		switch {
 		case err == nil:
-			sqlUpdate := `UPDATE hosts SET orbit_node_key = ? WHERE osquery_host_id = ? `
-			_, err := tx.ExecContext(ctx, sqlUpdate, orbitNodeKey, hardwareUUID)
+			sqlUpdate := `UPDATE hosts SET orbit_node_key = ? WHERE id = ? `
+			_, err := tx.ExecContext(ctx, sqlUpdate, orbitNodeKey, host.ID)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "orbit enroll error updating host details")
 			}
@@ -968,10 +999,11 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, hardwareUUID, hardwareSeri
 					node_key,
 					team_id,
 					refetch_requested,
-					orbit_node_key
-				) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?)
+					orbit_node_key,
+					hardware_serial
+				) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
 			`
-			result, err := tx.ExecContext(ctx, sqlInsert, zeroTime, zeroTime, zeroTime, zeroTime, hardwareUUID, orbitNodeKey, teamID, orbitNodeKey)
+			result, err := tx.ExecContext(ctx, sqlInsert, zeroTime, zeroTime, zeroTime, zeroTime, hardwareUUID, orbitNodeKey, teamID, orbitNodeKey, hardwareSerial)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "orbit enroll error inserting host details")
 			}
@@ -992,7 +1024,7 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, hardwareUUID, hardwareSeri
 	if err != nil {
 		return nil, err
 	}
-	return &host, nil
+	return host, nil
 }
 
 // EnrollHost enrolls a host
