@@ -87,7 +87,7 @@ export interface IMunkiData {
 }
 
 export interface IHostMdmData {
-  enrollment_status: MdmEnrollmentStatus;
+  enrollment_status: MdmEnrollmentStatus | null;
   server_url: string;
   id?: number;
   name?: string;
