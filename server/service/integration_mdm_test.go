@@ -240,8 +240,8 @@ func (s *integrationMDMTestSuite) TestABMExpiredToken() {
 func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	t := s.T()
 	devices := []godep.Device{
-		{SerialNumber: "TESTSERIAL1", Model: "MacBook Pro", OS: "osx", OpType: "added"},
-		{SerialNumber: "TESTSERIAL2", Model: "MacBook Mini", OS: "osx", OpType: "added"},
+		{SerialNumber: uuid.New().String(), Model: "MacBook Pro", OS: "osx", OpType: "added"},
+		{SerialNumber: uuid.New().String(), Model: "MacBook Mini", OS: "osx", OpType: "added"},
 	}
 
 	var wg sync.WaitGroup
@@ -328,9 +328,11 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 
 	activities := listActivitiesResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &activities, "order_key", "created_at")
-	require.GreaterOrEqual(t, len(activities.Activities), 2)
+	found := false
 	for _, activity := range activities.Activities {
-		if activity.Type == "mdm_enrolled" {
+		if activity.Type == "mdm_enrolled" &&
+			strings.Contains(string(*activity.Details), devices[0].SerialNumber) {
+			found = true
 			require.Nil(t, activity.ActorID)
 			require.Nil(t, activity.ActorFullName)
 			require.JSONEq(
@@ -343,6 +345,7 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 			)
 		}
 	}
+	require.True(t, found)
 }
 
 func (s *integrationMDMTestSuite) TestDeviceMDMManualEnroll() {
@@ -376,7 +379,7 @@ func (s *integrationMDMTestSuite) TestDeviceMDMManualEnroll() {
 	require.Equal(t, apple_mdm.FleetPayloadIdentifier, profile.PayloadIdentifier)
 }
 
-func (s *integrationMDMTestSuite) TestDeviceEnrollment() {
+func (s *integrationMDMTestSuite) TestAppleMDMDeviceEnrollment() {
 	t := s.T()
 
 	// Enroll two devices into MDM
