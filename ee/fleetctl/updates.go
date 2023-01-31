@@ -595,11 +595,11 @@ func copyTarget(srcPath, dstPath string) error {
 	}
 	defer src.Close()
 
-	if err := secure.MkdirAll(filepath.Dir(dstPath), 0o755); err != nil {
+	if err := secure.MkdirAll(filepath.Dir(dstPath), 0o700); err != nil {
 		return fmt.Errorf("create dst dir for copy: %w", err)
 	}
 
-	dst, err := secure.OpenFile(dstPath, os.O_RDWR|os.O_CREATE, 0o644)
+	dst, err := secure.OpenFile(dstPath, os.O_RDWR|os.O_CREATE, 0o600)
 	if err != nil {
 		return fmt.Errorf("open dst for copy: %w", err)
 	}

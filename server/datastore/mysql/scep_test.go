@@ -1,6 +1,4 @@
-// use a different package name to avoid
-// import cycle
-package apple_mdm_test
+package mysql
 
 import (
 	"crypto/x509"
@@ -8,19 +6,19 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/micromdm/nanodep/tokenpki"
+	scep_depot "github.com/micromdm/scep/v2/depot"
 	"github.com/stretchr/testify/require"
 )
 
-func setup(t *testing.T) *apple_mdm.SCEPMySQLDepot {
-	ds := mysql.CreateNamedMySQLDS(t, t.Name())
+func setup(t *testing.T) scep_depot.Depot {
+	ds := CreateNamedMySQLDS(t, t.Name())
 	cert, key, err := apple_mdm.NewSCEPCACertKey()
 	require.NoError(t, err)
 	publicKeyPEM := tokenpki.PEMCertificate(cert.Raw)
 	privateKeyPEM := tokenpki.PEMRSAPrivateKey(key)
-	depot, err := ds.NewMDMAppleSCEPDepot(publicKeyPEM, privateKeyPEM)
+	depot, err := ds.NewSCEPDepot(publicKeyPEM, privateKeyPEM)
 	require.NoError(t, err)
 	return depot
 }
