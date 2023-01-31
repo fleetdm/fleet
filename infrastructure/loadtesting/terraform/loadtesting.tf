@@ -1,3 +1,5 @@
+data "aws_region" "current" {}
+
 resource "aws_ecs_service" "loadtest" {
   name                               = "loadtest"
   launch_type                        = "FARGATE"
