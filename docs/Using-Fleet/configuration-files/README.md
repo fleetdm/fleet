@@ -185,6 +185,26 @@ After updating the generated YAML, apply the changes:
 ```console
 % fleetctl apply -f workstation_config.yml
 ```
+
+Depending on your Fleet version, you may see `unsupported key` errors for the following keys when applying the new team configuration:
+
+```
+id 
+user_count 
+host_count 
+integrations 
+webhook_settings 
+description 
+agent_options 
+created_at 
+user_count 
+host_count 
+integrations 
+webhook_settings
+```
+
+You can bypass these errors by removing the key from your YAML or adding the `--force` flag. This flag will force application of the changes without validation. Proceed with caution.
+
 #### Mobile device management (MDM) settings
 
 > MDM features are not ready for production and are currently in development. These features are disabled by default.
