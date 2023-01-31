@@ -14,8 +14,8 @@ export default {
 } as Meta;
 
 export const Default: Story = () => (
-  <Avatar user={{ gravatarURL: DEFAULT_GRAVATAR_LINK }} />
+  <Avatar user={{ gravatar_url: DEFAULT_GRAVATAR_LINK }} />
 );
 export const Small: Story = () => (
-  <Avatar user={{ gravatarURL: DEFAULT_GRAVATAR_LINK }} size="small" />
+  <Avatar user={{ gravatar_url: DEFAULT_GRAVATAR_LINK }} size="small" />
 );

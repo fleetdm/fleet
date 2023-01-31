@@ -11,12 +11,10 @@ export enum PolicyResponse {
 }
 
 export const DEFAULT_GRAVATAR_LINK =
-  "https://fleetdm.com/images/permanent/icon-avatar-default-128x128-2x.png";
-// "https://github.com/fleetdm/fleet/blob/main/assets/images/icon-avatar-default-transparent-64x64%402x.png";
+  "https://fleetdm.com/images/permanent/icon-avatar-default-transparent-64x64%402x.png";
 
 export const DEFAULT_GRAVATAR_LINK_DARK =
-  "https://fleetdm.com/images/permanent/icon-avatar-default-128x128-2x.png?dark=true";
-// "https://github.com/fleetdm/fleet/blob/main/assets/images/icon-avatar-default-dark-24x24%402x.png";
+  "https://fleetdm.com/images/permanent/icon-avatar-default-dark-24x24%402x.png";
 
 export const FREQUENCY_DROPDOWN_OPTIONS = [
   { value: 900, label: "Every 15 minutes" },

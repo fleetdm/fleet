@@ -4,7 +4,7 @@ import classnames from "classnames";
 import { DEFAULT_GRAVATAR_LINK_DARK } from "utilities/constants";
 
 interface IAvatarUserInterface {
-  gravatarURL?: string;
+  gravatar_url_dark?: string;
 }
 
 export interface IAvatarInterface {
@@ -29,22 +29,14 @@ const Avatar = ({ className, size, user }: IAvatarInterface): JSX.Element => {
   const avatarClasses = classnames(baseClass, className, {
     [`${baseClass}--${size?.toLowerCase()}`]: !!size,
   });
-  const { gravatarURL } = user;
-
-  const isDefaultAvatar = false;
-  // TODO: Need to figure out how to check if the gravatarURL is the default
-  // if (gravatarURL.indexOf("www.gravatar.com/avatar/") > -1) {
-  //   isDefaultAvatar = false;
-  // }
-
-  console.log("DEFAULT_GRAVATAR_LINK_DARK: ", DEFAULT_GRAVATAR_LINK_DARK);
+  const { gravatar_url_dark } = user;
 
   return (
-    <div className="avatar-wrapper">
+    <div className={"avatar-wrapper-top-nav"}>
       <img
         alt={"User avatar"}
         className={`${avatarClasses} ${isLoading || isError ? "default" : ""}`}
-        src={DEFAULT_GRAVATAR_LINK_DARK}
+        src={gravatar_url_dark || DEFAULT_GRAVATAR_LINK_DARK}
         onError={onError}
         onLoad={onLoad}
       />
