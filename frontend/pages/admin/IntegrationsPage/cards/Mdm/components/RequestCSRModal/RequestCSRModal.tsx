@@ -10,6 +10,7 @@ import InputField from "components/forms/fields/InputField";
 import DataError from "components/DataError";
 import Icon from "components/Icon";
 import Modal from "components/Modal";
+import validEmail from "components/forms/validators/valid_email";
 
 export interface IRequestCSRFormData {
   email: string;
@@ -80,8 +81,13 @@ const RequestCSRModal = ({ onCancel }: IRequestCSRModalProps): JSX.Element => {
   };
 
   const onFormSubmit = async (evt: FormEvent) => {
-    setRequestState("loading");
     evt.preventDefault();
+    if (!validEmail(formData.email)) {
+      setError("Email");
+      return;
+    }
+    setError("");
+    setRequestState("loading");
     try {
       const data = await MdmAPI.requestCSR(email, orgName);
       downloadCSRFiles(data);
@@ -92,7 +98,7 @@ const RequestCSRModal = ({ onCancel }: IRequestCSRModalProps): JSX.Element => {
       if (err.status === 502) {
         setRequestState("error");
       } else {
-        setError("This email is not valid.");
+        setError("Email");
         setRequestState(undefined);
       }
     }
