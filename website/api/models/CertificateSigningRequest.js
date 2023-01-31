@@ -22,6 +22,7 @@ module.exports = {
     emailAddress: {
       type: 'string',
       required: true,
+      isEmail: true,
       description: 'The email address used when the user requested a signed certificate',
     }
 

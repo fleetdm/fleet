@@ -374,7 +374,11 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.GET("/api/_version_/fleet/spec/labels", getLabelSpecsEndpoint, nil)
 	ue.GET("/api/_version_/fleet/spec/labels/{name}", getLabelSpecEndpoint, getGenericSpecRequest{})
 
+	// This GET endpoint runs live queries synchronously (with a configured timeout).
 	ue.GET("/api/_version_/fleet/queries/run", runLiveQueryEndpoint, runLiveQueryRequest{})
+	// The following two POST APIs are the asynchronous way to run live queries.
+	// The live queries are created with these two endpoints and their results can be queried via
+	// websockets via the `GET /api/_version_/fleet/results/` endpoint.
 	ue.POST("/api/_version_/fleet/queries/run", createDistributedQueryCampaignEndpoint, createDistributedQueryCampaignRequest{})
 	ue.POST("/api/_version_/fleet/queries/run_by_names", createDistributedQueryCampaignByNamesEndpoint, createDistributedQueryCampaignByNamesRequest{})
 
@@ -664,7 +668,7 @@ func RegisterAppleMDMProtocolServices(
 	mux *http.ServeMux,
 	scepConfig config.MDMAppleSCEPConfig,
 	mdmStorage nanomdm_storage.AllStorage,
-	scepStorage *apple_mdm.SCEPMySQLDepot,
+	scepStorage scep_depot.Depot,
 	logger kitlog.Logger,
 	checkinAndCommandService nanomdm_service.CheckinAndCommandService,
 ) error {
@@ -688,7 +692,7 @@ func registerSCEP(
 	scepConfig config.MDMAppleSCEPConfig,
 	scepCert *x509.Certificate,
 	scepKey *rsa.PrivateKey,
-	scepStorage *apple_mdm.SCEPMySQLDepot,
+	scepStorage scep_depot.Depot,
 	logger kitlog.Logger,
 ) error {
 	var signer scepserver.CSRSigner = scep_depot.NewSigner(

@@ -152,7 +152,7 @@ const allHostTableHeaders: IDataColumn[] = [
     ),
     accessor: "display_name",
     Cell: (cellProps: ICellProps) => {
-      if (cellProps.row.original.mdm_enrollment_status === "Pending") {
+      if (cellProps.row.original.mdm.enrollment_status === "Pending") {
         return (
           <>
             <span
@@ -372,7 +372,7 @@ const allHostTableHeaders: IDataColumn[] = [
       const titleWithToolTip = (
         <TooltipWrapper
           tipContent={`
-            The MDM server that updates settings on the host.<br/> 
+            The MDM server that updates settings on the host.<br/>
             To filter by MDM server URL, head to the Dashboard page.
           `}
         >
@@ -382,7 +382,8 @@ const allHostTableHeaders: IDataColumn[] = [
       return <HeaderCell value={titleWithToolTip} disableSortBy />;
     },
     disableSortBy: true,
-    accessor: "mdm_enrollment_status",
+    accessor: "mdm.enrollment_status",
+    id: "mdm_enrollment_status",
     Cell: (cellProps: ICellProps) => {
       if (cellProps.cell.value)
         return <TextCell value={cellProps.cell.value} />;
@@ -405,7 +406,8 @@ const allHostTableHeaders: IDataColumn[] = [
       return <HeaderCell value={titleWithToolTip} disableSortBy />;
     },
     disableSortBy: true,
-    accessor: "mdm_server_url",
+    accessor: "mdm.server_url",
+    id: "mdm_server_url",
     Cell: (cellProps: ICellProps) => {
       if (cellProps.cell.value) {
         return <TextCell value={cellProps.cell.value} />;
@@ -575,6 +577,7 @@ const defaultHiddenColumns = [
   "primary_mac",
   "public_ip",
   "cpu_type",
+  // TODO: should those be mdm.<blah>?
   "mdm_server_url",
   "mdm_enrollment_status",
   "memory",

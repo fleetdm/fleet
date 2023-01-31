@@ -32,8 +32,10 @@ const DEFAULT_HOST_MOCK: IHost = {
   hardware_version: "",
   hardware_serial: "",
   computer_name: "9b20fc72a247",
-  mdm_enrollment_status: "Off",
-  mdm_server_url: "https://www.example.com/1",
+  mdm: {
+    enrollment_status: "Off",
+    server_url: "https://www.example.com/1",
+  },
   public_ip: "",
   primary_ip: "172.23.0.3",
   primary_mac: "02:42:ac:17:00:03",

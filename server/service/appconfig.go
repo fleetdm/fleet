@@ -429,7 +429,22 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 				Global: true,
 			},
 		); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "create activity for app config modification")
+			return nil, ctxerr.Wrap(ctx, err, "create activity for app config agent options modification")
+		}
+	}
+
+	// if the macOS minimum version requirement changed, create the corresponding
+	// activity
+	if oldAppConfig.MDM.MacOSUpdates != appConfig.MDM.MacOSUpdates {
+		if err := svc.ds.NewActivity(
+			ctx,
+			authz.UserFromContext(ctx),
+			fleet.ActivityTypeEditedMacOSMinVersion{
+				MinimumVersion: appConfig.MDM.MacOSUpdates.MinimumVersion,
+				Deadline:       appConfig.MDM.MacOSUpdates.Deadline,
+			},
+		); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "create activity for app config macos min version modification")
 		}
 	}
 

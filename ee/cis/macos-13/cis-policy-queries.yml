@@ -870,7 +870,7 @@ spec:
       1. The PayloadType string is com.apple.mobiledevice.passwordpolicy 
       2. The key to include is maxFailedAttempts
       3. The key must be set to <integer><value≤5></integer>
-  query: SELECT 1 FROM  pwd_policy where maxFailedAttempts <= 5;
+  query: SELECT 1 FROM  pwd_policy where max_failed_attempts <= 5;
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS5.2.1
 ---
@@ -922,9 +922,9 @@ spec:
       3. The key must be set to <integer><value<=365></integer>
   query: |
     SELECT 1 WHERE
-    EXISTS(SELECT 1 FROM pwd_policy WHERE expiresEveryNDays <= 365)
+    EXISTS(SELECT 1 FROM pwd_policy WHERE expires_every_n_days <= 365)
     OR
-    EXISTS(SELECT 1 FROM pwd_policy WHERE daysToExpiration <= 365);
+    EXISTS(SELECT 1 FROM pwd_policy WHERE days_to_expiration <= 365);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS5.2.7
 ---
@@ -944,6 +944,6 @@ spec:
       1. The Payload Type string is com.apple.mobiledevice.passwordpolicy 
       2. The key to include is pinHistory
       3. The key must be set to <integer><value≥15></integer>
-  query: SELECT 1 FROM  pwd_policy where historyDepth >= 15;
+  query: SELECT 1 FROM  pwd_policy where history_depth >= 15;
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS5.2.8
