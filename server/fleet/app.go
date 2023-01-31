@@ -116,7 +116,7 @@ type MDM struct {
 	// configured with all the required certificates. It cant' be set
 	// manually via the PATCH /config API, it's only set automatically when
 	// the server starts.
-	EnabledAndConfigured bool `json:"enabled"`
+	EnabledAndConfigured bool `json:"enabled_and_configured"`
 
 	MacOSUpdates MacOSUpdates `json:"macos_updates"`
 
