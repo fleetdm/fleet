@@ -809,7 +809,7 @@ spec:
       AND
       NOT EXISTS ( SELECT 1 FROM file WHERE path LIKE '/var/audit/%' AND mode != "0440" );
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS3.6
+  tags: compliance, CIS, CIS_Level1, CIS3.5
   contributors: sharon-fdm
 ---
 apiVersion: v1
