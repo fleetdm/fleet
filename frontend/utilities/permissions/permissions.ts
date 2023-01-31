@@ -13,8 +13,8 @@ export const isPremiumTier = (config: IConfig): boolean => {
   return config.license.tier === "premium";
 };
 
-export const isMdmEnabled = (config: IConfig): boolean => {
-  return config.mdm.enabled === true;
+export const isMdmFeatureFlagEnabled = (config: IConfig): boolean => {
+  return config.mdm_feature_flag_enabled === true;
 };
 
 export const isGlobalAdmin = (user: IUser): boolean => {
@@ -110,7 +110,7 @@ export default {
   isSandboxMode,
   isFreeTier,
   isPremiumTier,
-  isMdmEnabled,
+  isMdmFeatureFlagEnabled,
   isGlobalAdmin,
   isGlobalMaintainer,
   isGlobalObserver,

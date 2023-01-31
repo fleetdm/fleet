@@ -89,7 +89,7 @@ export interface ILicense {
   organization: string;
 }
 
-export interface IMDMConfig {
+export interface IMdmConfig {
   enabled: boolean;
   apple_bm_terms_expired: boolean;
   macos_updates: {
@@ -99,7 +99,7 @@ export interface IMDMConfig {
 }
 
 export interface IDeviceGlobalConfig {
-  mdm: Pick<IMDMConfig, "enabled">;
+  mdm: Pick<IMdmConfig, "enabled">;
 }
 
 export interface IFleetDesktopSettings {
@@ -233,7 +233,8 @@ export interface IConfig {
       };
     };
   };
-  mdm: IMDMConfig;
+  mdm: IMdmConfig;
+  mdm_feature_flag_enabled: boolean;
 }
 
 export interface IWebhookSettings {
