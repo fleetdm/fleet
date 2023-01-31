@@ -4805,7 +4805,7 @@ func (s *integrationTestSuite) TestAppConfig() {
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 	  "mdm": { "enabled_and_configured": true }
   }`), http.StatusOK, &acResp)
-	assert.False(t, acResp.MDM.AppleBMTermsExpired)
+	assert.True(t, acResp.MDM.EnabledAndConfigured)
 
 	// try to set the apple bm default team, which is premium only
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
@@ -4821,6 +4821,7 @@ func (s *integrationTestSuite) TestAppConfig() {
 	appCfg, err = s.ds.AppConfig(ctx)
 	require.NoError(t, err)
 	appCfg.MDM.AppleBMTermsExpired = false
+	appCfg.MDM.EnabledAndConfigured = false
 	err = s.ds.SaveAppConfig(ctx, appCfg)
 	require.NoError(t, err)
 
