@@ -803,19 +803,29 @@ spec:
     /usr/bin/sudo /bin/launchctl load -w /System/Library/LaunchDaemons/com.apple.auditd.plist
   query: |
     SELECT 1 WHERE 
+      -- For all files in /var/audit UID should be owned by root
       NOT EXISTS ( SELECT 1 FROM file WHERE path LIKE '/var/audit/%' AND uid !=0 )
       AND
+      -- For all files in /var/audit GID should be owned by root
       NOT EXISTS ( SELECT 1 FROM file WHERE path LIKE '/var/audit/%' AND gid !=0 )
       AND
+      -- For all files in /var/audit MODE should be 0440 ("-r--r-----")
       NOT EXISTS ( SELECT 1 FROM file WHERE path LIKE '/var/audit/%' AND mode != "0440" )
       AND 
-      NOT EXISTS ( select 1 from file where path LIKE ( SELECT dir FROM ( select line, CONCAT(regex_match(line, '^dir:(.+)',1 ), '/%') AS dir FROM file_lines WHERE path = '/etc/security/audit_control' AND line LIKE "dir:%" ) ) AND uid !=0 ) 
+      NOT EXISTS ( select 1 from file where path LIKE ( 
+                        -- This will extract the directory from /etc/security/audit_control
+                        -- Looking immediately at the line that starts with "dir:" and concatenating "/%"
+                        -- Same explanation for queries below.
+                        SELECT dir FROM ( 
+                        select line, CONCAT(regex_match(line, '^dir:(.+)',1 ), '/%') AS dir FROM file_lines WHERE path = '/etc/security/audit_control' AND line LIKE "dir:%")) 
+                    AND uid !=0 ) 
       AND 
       NOT EXISTS ( select 1 from file where path LIKE ( SELECT dir FROM ( select line, CONCAT(regex_match(line, '^dir:(.+)',1 ), '/%') AS dir FROM file_lines WHERE path = '/etc/security/audit_control' AND line LIKE "dir:%" ) ) AND gid !=0 ) 
       AND 
       NOT EXISTS ( select 1 from file where path LIKE ( SELECT dir FROM ( select line, CONCAT(regex_match(line, '^dir:(.+)',1 ), '/%') AS dir FROM file_lines WHERE path = '/etc/security/audit_control' AND line LIKE "dir:%" ) ) AND mode != "0440" ) 
       AND 
       NOT EXISTS ( select 1 from file where path = "/etc/security/audit_control" AND mode != "0400" );
+
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS3.5
   contributors: sharon-fdm
