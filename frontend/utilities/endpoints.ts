@@ -9,7 +9,7 @@ export default {
   },
   DEVICE_USER_DETAILS: `/${API_VERSION}/fleet/device`,
   DEVICE_USER_MDM_ENROLLMENT_PROFILE: (token: string): string => {
-    return `${API_VERSION}/fleet/device/${token}/mdm/apple/manual_enrollment_profile`;
+    return `/${API_VERSION}/fleet/device/${token}/mdm/apple/manual_enrollment_profile`;
   },
   DOWNLOAD_INSTALLER: `/${API_VERSION}/fleet/download_installer`,
   ENABLE_USER: (id: number): string => {

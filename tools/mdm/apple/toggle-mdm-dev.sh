@@ -5,9 +5,6 @@
 
 # if [[ $USE_MDM == "1" ]]; then
 
-# # for UI dev:
-# export FLEET_DEV_MDM_ENABLED=1
-
 # # for MDM server
 # export FLEET_MDM_APPLE_ENABLE=1
 # export FLEET_MDM_APPLE_SCEP_CHALLENGE=scepchallenge
@@ -21,7 +18,6 @@
 # export FLEET_MDM_APPLE_APNS_CERT=$MDM_PATH"mdmcert.download.push.pem"
 # export FLEET_MDM_APPLE_APNS_KEY=$MDM_PATH"mdmcert.download.push.key"
 # else
-# unset FLEET_DEV_MDM_ENABLED
 # unset FLEET_MDM_APPLE_ENABLE
 # unset FLEET_MDM_APPLE_SCEP_CHALLENGE
 # unset FLEET_MDM_APPLE_SCEP_CERT

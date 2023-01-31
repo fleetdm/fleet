@@ -112,6 +112,11 @@ type MDM struct {
 	// API.
 	AppleBMTermsExpired bool `json:"apple_bm_terms_expired"`
 
+	// Enabled is set to true if Fleet has been configured with all the
+	// required certificates. It cant' be set manually via the
+	// PATCH /config API, it's only set automatically when the server starts.
+	Enabled bool `json:"enabled"`
+
 	MacOSUpdates MacOSUpdates `json:"macos_updates"`
 
 	/////////////////////////////////////////////////////////////////
@@ -716,4 +721,16 @@ type KafkaRESTConfig struct {
 	ResultTopic string `json:"result_topic"`
 	AuditTopic  string `json:"audit_topic"`
 	ProxyHost   string `json:"proxyhost"`
+}
+
+// DeviceGlobalConfig is a subset of AppConfig with information used by the
+// device endpoints
+type DeviceGlobalConfig struct {
+	MDM DeviceGlobalMDMConfig `json:"mdm"`
+}
+
+// DeviceGlobalMDMConfig is a subset of AppConfig.MDM with information used by
+// the device endpoints
+type DeviceGlobalMDMConfig struct {
+	Enabled bool `json:"enabled"`
 }

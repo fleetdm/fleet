@@ -6,7 +6,7 @@ import packInterface, { IPack } from "./pack";
 import softwareInterface, { ISoftware } from "./software";
 import hostQueryResult from "./campaign";
 import queryStatsInterface, { IQueryStats } from "./query_stats";
-import { ILicense } from "./config";
+import { ILicense, IDeviceGlobalConfig } from "./config";
 import { MdmEnrollmentStatus } from "./mdm";
 
 export default PropTypes.shape({
@@ -139,12 +139,14 @@ interface IBattery {
 export interface IHostResponse {
   host: IHost;
 }
+
 export interface IDeviceUserResponse {
   host: IHost;
   license: ILicense;
   org_logo_url: string;
   disk_encryption_enabled?: boolean;
   platform?: string;
+  global_config: IDeviceGlobalConfig;
 }
 
 export interface IHost {
