@@ -43,6 +43,7 @@ export default PropTypes.shape({
   organization: PropTypes.string,
   device_count: PropTypes.number,
   expiration: PropTypes.string,
+  mdm_feature_flag_enabled: PropTypes.bool,
   mdm: PropTypes.shape({
     enabled: PropTypes.bool,
     apple_bm_terms_expired: PropTypes.bool,
