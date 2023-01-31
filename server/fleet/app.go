@@ -112,10 +112,11 @@ type MDM struct {
 	// API.
 	AppleBMTermsExpired bool `json:"apple_bm_terms_expired"`
 
-	// Enabled is set to true if Fleet has been configured with all the
-	// required certificates. It cant' be set manually via the
-	// PATCH /config API, it's only set automatically when the server starts.
-	Enabled bool `json:"enabled"`
+	// EnabledAndConfigured is set to true if Fleet has been
+	// configured with all the required certificates. It cant' be set
+	// manually via the PATCH /config API, it's only set automatically when
+	// the server starts.
+	EnabledAndConfigured bool `json:"enabled"`
 
 	MacOSUpdates MacOSUpdates `json:"macos_updates"`
 
@@ -732,5 +733,5 @@ type DeviceGlobalConfig struct {
 // DeviceGlobalMDMConfig is a subset of AppConfig.MDM with information used by
 // the device endpoints
 type DeviceGlobalMDMConfig struct {
-	Enabled bool `json:"enabled"`
+	EnabledAndConfigured bool `json:"enabled_and_configured"`
 }

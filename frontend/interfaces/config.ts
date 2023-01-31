@@ -45,7 +45,7 @@ export default PropTypes.shape({
   expiration: PropTypes.string,
   mdm_feature_flag_enabled: PropTypes.bool,
   mdm: PropTypes.shape({
-    enabled: PropTypes.bool,
+    enabled_and_configured: PropTypes.bool,
     apple_bm_terms_expired: PropTypes.bool,
     macos_updates: PropTypes.shape({
       minimum_version: PropTypes.string,
@@ -91,7 +91,7 @@ export interface ILicense {
 }
 
 export interface IMdmConfig {
-  enabled: boolean;
+  enabled_and_configured: boolean;
   apple_bm_terms_expired: boolean;
   macos_updates: {
     minimum_version: string;
@@ -100,7 +100,7 @@ export interface IMdmConfig {
 }
 
 export interface IDeviceGlobalConfig {
-  mdm: Pick<IMdmConfig, "enabled">;
+  mdm: Pick<IMdmConfig, "enabled_and_configured">;
 }
 
 export interface IFleetDesktopSettings {

@@ -44,7 +44,7 @@ type appConfigResponseFields struct {
 	Logging *fleet.Logging `json:"logging,omitempty"`
 	// SandboxEnabled is true if fleet serve was ran with server.sandbox_enabled=true
 	SandboxEnabled bool `json:"sandbox_enabled,omitempty"`
-	// MDMEnabled is true if fleet serve was ran with FLEET_DEV_MDM_ENABLED=1
+	// MDMFeatureFlagEnabled is true if fleet serve was ran with FLEET_DEV_MDM_ENABLED=1
 	//
 	// This is used only for UI development, for more details check
 	// https://github.com/fleetdm/fleet/issues/8751
@@ -249,7 +249,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 
 	// keep this original values, as they cannot be modified via this request.
 	origAppleBMTerms := oldAppConfig.MDM.AppleBMTermsExpired
-	origMDMEnabled := oldAppConfig.MDM.Enabled
+	origMDMEnabled := oldAppConfig.MDM.EnabledAndConfigured
 
 	license, err := svc.License(ctx)
 	if err != nil {
@@ -349,7 +349,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	// prevent using the output of fleetctl get config as input to fleetctl
 	// apply or this endpoint.
 	appConfig.MDM.AppleBMTermsExpired = origAppleBMTerms
-	appConfig.MDM.Enabled = origMDMEnabled
+	appConfig.MDM.EnabledAndConfigured = origMDMEnabled
 
 	// do not send a test email in dry-run mode, so this is a good place to stop
 	// (we also delete the removed integrations after that, which we don't want

@@ -138,7 +138,7 @@ func getDeviceHostEndpoint(ctx context.Context, request interface{}, svc fleet.S
 
 	deviceGlobalConfig := fleet.DeviceGlobalConfig{
 		MDM: fleet.DeviceGlobalMDMConfig{
-			Enabled: ac.MDM.Enabled,
+			EnabledAndConfigured: ac.MDM.EnabledAndConfigured,
 		},
 	}
 

@@ -298,7 +298,7 @@ const DeviceUserPage = ({
           <div className={`${baseClass} body-wrap`}>
             {host?.platform === "darwin" &&
               isMdmUnenrolled &&
-              globalConfig?.mdm.enabled && (
+              globalConfig?.mdm.enabled_and_configured && (
                 <InfoBanner color="yellow" cta={turnOnMdmButton} pageLevel>
                   Mobile device management (MDM) is off. MDM allows your
                   organization to change settings and install software. This
