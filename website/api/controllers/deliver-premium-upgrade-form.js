@@ -4,7 +4,7 @@ module.exports = {
   friendlyName: 'Deliver premium upgrade form',
 
 
-  description: 'Delivers a message to an internal slack channel to notify us when someone fills out the Fleet Premium upgrade form',
+  description: 'Delivers a Fleet Premium upgrade form submission to a Zapier webhook',
 
 
   inputs: {
