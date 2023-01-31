@@ -271,8 +271,9 @@ const Mdm = (): JSX.Element => {
           {isLoadingMdmAppleBm ? <Spinner /> : renderMdmAppleBm()}
         </div>
       )}
-      {/* {showRequestCSRModal && ( */}
-      {true && <RequestCSRModal onCancel={toggleRequestCSRModal} />}
+      {showRequestCSRModal && (
+        <RequestCSRModal onCancel={toggleRequestCSRModal} />
+      )}
       {showEditTeamModal && (
         <EditTeamModal
           onCancel={toggleEditTeamModal}
