@@ -808,6 +808,14 @@ spec:
       NOT EXISTS ( SELECT 1 FROM file WHERE path LIKE '/var/audit/%' AND gid !=0 )
       AND
       NOT EXISTS ( SELECT 1 FROM file WHERE path LIKE '/var/audit/%' AND mode != "0440" );
+      AND 
+      NOT EXISTS ( select 1 from file where path LIKE ( SELECT dir FROM ( select line, CONCAT(regex_match(line, '^dir:(.+)',1 ), '/%') AS dir FROM file_lines WHERE path = '/etc/security/audit_control' AND line LIKE "dir:%" ) ) AND uid !=0 ) 
+      AND 
+      NOT EXISTS ( select 1 from file where path LIKE ( SELECT dir FROM ( select line, CONCAT(regex_match(line, '^dir:(.+)',1 ), '/%') AS dir FROM file_lines WHERE path = '/etc/security/audit_control' AND line LIKE "dir:%" ) ) AND gid !=0 ) 
+      AND 
+      NOT EXISTS ( select 1 from file where path LIKE ( SELECT dir FROM ( select line, CONCAT(regex_match(line, '^dir:(.+)',1 ), '/%') AS dir FROM file_lines WHERE path = '/etc/security/audit_control' AND line LIKE "dir:%" ) ) AND mode != "0440" ) 
+      AND 
+      NOT EXISTS ( select 1 from file where path = "/etc/security/audit_control" AND mode != "0400" );
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS3.5
   contributors: sharon-fdm
