@@ -1,4 +1,4 @@
-package apple_mdm
+package mysql
 
 import (
 	"crypto/rsa"
@@ -11,12 +11,13 @@ import (
 	"fmt"
 	"math/big"
 
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/micromdm/nanomdm/cryptoutil"
 	"github.com/micromdm/scep/v2/depot"
 )
 
-// SCEPMySQLDepot is a MySQL-backed SCEP certificate depot.
-type SCEPMySQLDepot struct {
+// SCEPDepot is a MySQL-backed SCEP certificate depot.
+type SCEPDepot struct {
 	db *sql.DB
 
 	// caCrt holds the CA's certificate.
@@ -25,10 +26,10 @@ type SCEPMySQLDepot struct {
 	caKey *rsa.PrivateKey
 }
 
-var _ depot.Depot = (*SCEPMySQLDepot)(nil)
+var _ depot.Depot = (*SCEPDepot)(nil)
 
-// NewSCEPMySQLDepot creates and returns a *SCEPMySQLDepot.
-func NewSCEPMySQLDepot(db *sql.DB, caCertPEM []byte, caKeyPEM []byte) (*SCEPMySQLDepot, error) {
+// newSCEPDepot creates and returns a *SCEPDepot.
+func newSCEPDepot(db *sql.DB, caCertPEM []byte, caKeyPEM []byte) (*SCEPDepot, error) {
 	if err := db.Ping(); err != nil {
 		return nil, err
 	}
@@ -40,7 +41,7 @@ func NewSCEPMySQLDepot(db *sql.DB, caCertPEM []byte, caKeyPEM []byte) (*SCEPMySQ
 	if err != nil {
 		return nil, err
 	}
-	return &SCEPMySQLDepot{
+	return &SCEPDepot{
 		db:    db,
 		caCrt: caCrt,
 		caKey: caKey,
@@ -56,12 +57,12 @@ func decodeRSAKeyFromPEM(key []byte) (*rsa.PrivateKey, error) {
 }
 
 // CA returns the CA's certificate and private key.
-func (d *SCEPMySQLDepot) CA(_ []byte) ([]*x509.Certificate, *rsa.PrivateKey, error) {
+func (d *SCEPDepot) CA(_ []byte) ([]*x509.Certificate, *rsa.PrivateKey, error) {
 	return []*x509.Certificate{d.caCrt}, d.caKey, nil
 }
 
 // Serial allocates and returns a new (increasing) serial number.
-func (d *SCEPMySQLDepot) Serial() (*big.Int, error) {
+func (d *SCEPDepot) Serial() (*big.Int, error) {
 	result, err := d.db.Exec(`INSERT INTO scep_serials () VALUES ();`)
 	if err != nil {
 		return nil, err
@@ -78,7 +79,7 @@ func (d *SCEPMySQLDepot) Serial() (*big.Int, error) {
 // TODO(lucas): Implement and use allowTime and revokeOldCertificate.
 // - allowTime are the maximum days before expiration to allow clients to do certificate renewal.
 // - revokeOldCertificate specifies whether to revoke the old certificate once renewed.
-func (d *SCEPMySQLDepot) HasCN(cn string, allowTime int, cert *x509.Certificate, revokeOldCertificate bool) (bool, error) {
+func (d *SCEPDepot) HasCN(cn string, allowTime int, cert *x509.Certificate, revokeOldCertificate bool) (bool, error) {
 	var ct int
 	row := d.db.QueryRow(`SELECT COUNT(*) FROM scep_certificates WHERE name = ?`, cn)
 	if err := row.Scan(&ct); err != nil {
@@ -91,14 +92,14 @@ func (d *SCEPMySQLDepot) HasCN(cn string, allowTime int, cert *x509.Certificate,
 //
 // If the provided certificate has empty crt.Subject.CommonName,
 // then the hex sha256 of the crt.Raw is used as name.
-func (d *SCEPMySQLDepot) Put(name string, crt *x509.Certificate) error {
+func (d *SCEPDepot) Put(name string, crt *x509.Certificate) error {
 	if crt.Subject.CommonName == "" {
 		name = fmt.Sprintf("%x", sha256.Sum256(crt.Raw))
 	}
 	if !crt.SerialNumber.IsInt64() {
 		return errors.New("cannot represent serial number as int64")
 	}
-	certPEM := EncodeCertPEM(crt)
+	certPEM := apple_mdm.EncodeCertPEM(crt)
 	_, err := d.db.Exec(`
 INSERT INTO scep_certificates
     (serial, name, not_valid_before, not_valid_after, certificate_pem)
