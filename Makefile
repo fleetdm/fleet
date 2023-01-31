@@ -173,8 +173,8 @@ generate-dev: .prefix
 	NODE_ENV=development webpack --progress --colors --watch
 
 generate-mock: .prefix
-	go install github.com/groob/mockimpl@latest
-	go generate github.com/fleetdm/fleet/v4/server/mock github.com/fleetdm/fleet/v4/server/mock/mockresult
+	go install github.com/fleetdm/mockimpl@8d7943aa39d8f5f464d3d3618d9571d385f7bcc5
+	go generate github.com/fleetdm/fleet/v4/server/mock github.com/fleetdm/fleet/v4/server/mock/mockresult github.com/fleetdm/fleet/v4/server/service/mock
 
 generate-doc: .prefix
 	go generate github.com/fleetdm/fleet/v4/server/fleet

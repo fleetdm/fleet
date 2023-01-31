@@ -3,9 +3,11 @@ package service
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -13,50 +15,20 @@ import (
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
+	nanomdm_mock "github.com/fleetdm/fleet/v4/server/mock/nanomdm"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
-	"github.com/google/uuid"
+	kitlog "github.com/go-kit/kit/log"
 	nanodep_client "github.com/micromdm/nanodep/client"
-	nanodep_storage "github.com/micromdm/nanodep/storage"
 	"github.com/micromdm/nanomdm/mdm"
-	nanomdm_push "github.com/micromdm/nanomdm/push"
-	"github.com/micromdm/nanomdm/storage"
+	nanomdm_pushsvc "github.com/micromdm/nanomdm/push/service"
 	"github.com/stretchr/testify/require"
 )
 
-type dummyDEPStorage struct {
-	nanodep_storage.AllStorage
-	testAuthAddr string
-}
-
-func (d dummyDEPStorage) RetrieveAuthTokens(ctx context.Context, name string) (*nanodep_client.OAuth1Tokens, error) {
-	return &nanodep_client.OAuth1Tokens{}, nil
-}
-
-func (d dummyDEPStorage) RetrieveConfig(context.Context, string) (*nanodep_client.Config, error) {
-	return &nanodep_client.Config{
-		BaseURL: d.testAuthAddr,
-	}, nil
-}
-
-type dummyMDMStorage struct {
-	*mysql.NanoMDMStorage
-}
-
-func (d dummyMDMStorage) EnqueueCommand(ctx context.Context, id []string, cmd *mdm.Command) (map[string]error, error) {
-	return nil, nil
-}
-
-type dummyMDMPusher struct{}
-
-func (d dummyMDMPusher) Push(context.Context, []string) (map[string]*nanomdm_push.Response, error) {
-	return nil, nil
-}
-
-func setupAppleMDMService(t *testing.T, mdmStorage storage.AllStorage, depStorage nanodep_storage.AllStorage, mdmPusher nanomdm_push.Pusher) (fleet.Service, context.Context, *mock.Store) {
+func setupAppleMDMService(t *testing.T) (fleet.Service, context.Context, *mock.Store) {
 	ds := new(mock.Store)
 	cfg := config.TestConfig()
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -72,22 +44,54 @@ func setupAppleMDMService(t *testing.T, mdmStorage storage.AllStorage, depStorag
 		}
 	}))
 
+	mdmStorage := &nanomdm_mock.Storage{}
+	depStorage := &nanodep_mock.Storage{}
+	pushFactory, _ := newMockAPNSPushProviderFactory()
+	pusher := nanomdm_pushsvc.New(
+		mdmStorage,
+		mdmStorage,
+		pushFactory,
+		NewNanoMDMLogger(kitlog.NewJSONLogger(os.Stdout)),
+	)
+
 	opts := &TestServerOpts{
 		FleetConfig: &cfg,
-		MDMStorage:  dummyMDMStorage{},
-		DEPStorage:  dummyDEPStorage{testAuthAddr: ts.URL},
-		MDMPusher:   dummyMDMPusher{},
-	}
-	if mdmStorage != nil {
-		opts.MDMStorage = mdmStorage
-	}
-	if depStorage != nil {
-		opts.DEPStorage = depStorage
-	}
-	if mdmPusher != nil {
-		opts.MDMPusher = mdmPusher
+		MDMStorage:  mdmStorage,
+		DEPStorage:  depStorage,
+		MDMPusher:   pusher,
 	}
 	svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, opts)
+
+	mdmStorage.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.Command) (map[string]error, error) {
+		return nil, nil
+	}
+	mdmStorage.RetrievePushInfoFunc = func(ctx context.Context, tokens []string) (map[string]*mdm.Push, error) {
+		res := make(map[string]*mdm.Push, len(tokens))
+		for _, t := range tokens {
+			res[t] = &mdm.Push{
+				PushMagic: "",
+				Token:     []byte(t),
+				Topic:     "",
+			}
+		}
+		return res, nil
+	}
+	mdmStorage.RetrievePushCertFunc = func(ctx context.Context, topic string) (*tls.Certificate, string, error) {
+		cert, err := tls.LoadX509KeyPair("testdata/server.pem", "testdata/server.key")
+		return &cert, "", err
+	}
+	mdmStorage.IsPushCertStaleFunc = func(ctx context.Context, topic string, staleToken string) (bool, error) {
+		return false, nil
+	}
+
+	depStorage.RetrieveAuthTokensFunc = func(ctx context.Context, name string) (*nanodep_client.OAuth1Tokens, error) {
+		return &nanodep_client.OAuth1Tokens{}, nil
+	}
+	depStorage.RetrieveConfigFunc = func(context.Context, string) (*nanodep_client.Config, error) {
+		return &nanodep_client.Config{
+			BaseURL: ts.URL,
+		}, nil
+	}
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{
@@ -148,7 +152,7 @@ func setupAppleMDMService(t *testing.T, mdmStorage storage.AllStorage, depStorag
 }
 
 func TestAppleMDMAuthorization(t *testing.T) {
-	svc, ctx, _ := setupAppleMDMService(t, nil, nil, nil)
+	svc, ctx, _ := setupAppleMDMService(t)
 
 	checkAuthErr := func(t *testing.T, err error, shouldFailWithAuth bool) {
 		t.Helper()
@@ -252,7 +256,7 @@ func TestMDMAppleEnrollURL(t *testing.T) {
 }
 
 func TestAppleMDMEnrollmentProfile(t *testing.T) {
-	svc, ctx, _ := setupAppleMDMService(t, nil, nil, nil)
+	svc, ctx, _ := setupAppleMDMService(t)
 
 	// Only global admins can create enrollment profiles.
 	ctx = test.UserContext(ctx, test.UserAdmin)
@@ -273,22 +277,8 @@ func TestAppleMDMEnrollmentProfile(t *testing.T) {
 	}
 }
 
-type noErrorPusher struct{}
-
-// Push simulates successful push responses. The result maps each of the provided deviceIDs to a
-// internally generated UUID, which is intended here to mock the APNs API response.
-func (nep *noErrorPusher) Push(ctx context.Context, deviceIDs []string) (map[string]*nanomdm_push.Response, error) {
-	res := make(map[string]*nanomdm_push.Response)
-	for _, s := range deviceIDs {
-		res[s] = &nanomdm_push.Response{Id: uuid.New().String()}
-	}
-	return res, nil
-}
-
 func TestMDMCommandAuthz(t *testing.T) {
-	pusher := noErrorPusher{}
-
-	svc, ctx, ds := setupAppleMDMService(t, nil, nil, &pusher)
+	svc, ctx, ds := setupAppleMDMService(t)
 
 	ds.HostLiteFunc = func(ctx context.Context, hostID uint) (*fleet.Host, error) {
 		switch hostID {
