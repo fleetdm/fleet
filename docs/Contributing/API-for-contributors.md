@@ -2278,7 +2278,9 @@ Returns the host information about the device that makes the request.
     "expiration": "2031-01-01T00:00:00Z"
   },
   "global_config": {
-    "mdm_enabled_and_configured": false
+    "mdm: {
+      enabled_and_configured": false
+    }
   }
 }
 ```
