@@ -52,4 +52,5 @@ module.exports.policies = {
   'deliver-apple-csr': true,
   'download-rss-feed': true,
   'view-upgrade-to-fleet-premium': true,
+  'deliver-premium-upgrade-form': true,
 };
