@@ -28,7 +28,7 @@ type SCEPDepot struct {
 
 var _ depot.Depot = (*SCEPDepot)(nil)
 
-// newSCEPDepot creates and returns a *SCEPMySQLDepot.
+// newSCEPDepot creates and returns a *SCEPDepot.
 func newSCEPDepot(db *sql.DB, caCertPEM []byte, caKeyPEM []byte) (*SCEPDepot, error) {
 	if err := db.Ping(); err != nil {
 		return nil, err
