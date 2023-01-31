@@ -27,6 +27,7 @@ type OrbitClient struct {
 	nodeKeyFilePath string
 	enrollSecret    string
 	uuid            string
+	serial          string
 
 	enrolledMu sync.Mutex
 	enrolled   bool
@@ -89,6 +90,7 @@ func NewOrbitClient(rootDir string, addr string, rootCA string, insecureSkipVeri
 		baseClient:      bc,
 		enrollSecret:    enrollSecret,
 		uuid:            uuid,
+		serial:          serialNum,
 		enrolled:        false,
 	}, nil
 }
@@ -134,7 +136,7 @@ func (oc *OrbitClient) Ping() error {
 
 func (oc *OrbitClient) enroll() (string, error) {
 	verb, path := "POST", "/api/fleet/orbit/enroll"
-	params := EnrollOrbitRequest{EnrollSecret: oc.enrollSecret, HardwareUUID: oc.uuid}
+	params := EnrollOrbitRequest{EnrollSecret: oc.enrollSecret, HardwareUUID: oc.uuid, HardwareSerial: oc.serial}
 	var resp EnrollOrbitResponse
 	err := oc.request(verb, path, params, &resp)
 	if err != nil {
