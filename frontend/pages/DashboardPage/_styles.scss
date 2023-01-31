@@ -1,6 +1,12 @@
 .dashboard-page {
   background-color: $ui-off-white;
 
+  .data-error {
+    &__inner {
+      margin: $pad-xxxlarge 0;
+    }
+  }
+
   &__wrapper {
     background-color: $ui-off-white;
   }

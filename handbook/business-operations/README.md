@@ -308,7 +308,7 @@ Every new position being created goes through this process before interviewing, 
 After getting CEO approval, create a position in Breezy.
 
 #### Creating a new position in Breezy
-> TODO: document how to post a job on fleetdm.com/apply using Breezy and manage the hiring process
+Review [Breezy positions video](https://www.loom.com/home) on how to post a job on fleetdm.com/apply using Breezy. Collect candidate feedback from the team and manage the hiring process.
 
 #### Interviewing at Fleet
 We're glad you're interested in joining the team! 

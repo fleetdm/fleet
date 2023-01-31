@@ -1053,6 +1053,13 @@ func (s *integrationTestSuite) TestHostsCount() {
 	require.Equal(t, 1, resp.Count)
 	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &resp, "mdm_enrollment_status", "pending")
 	require.Equal(t, 1, resp.Count)
+
+	// get the host's MDM info
+	var hostResp getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", pendingMDMHost.ID), nil, http.StatusOK, &hostResp)
+	require.Equal(t, pendingMDMHost.ID, hostResp.Host.ID)
+	require.Equal(t, "Pending", *hostResp.Host.MDM.EnrollmentStatus)
+	require.Equal(t, "https://fleetdm.com", *hostResp.Host.MDM.ServerURL)
 }
 
 func (s *integrationTestSuite) TestPacks() {
