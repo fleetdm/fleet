@@ -21,12 +21,14 @@ module.exports = {
 
     emailAddress: {
       type: 'string',
+      isEmail: true,
       required: true,
     },
 
     numberOfHosts: {
       type: 'number',
       required: true,
+      isInteger: true,
     }
   },
 
