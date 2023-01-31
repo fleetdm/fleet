@@ -918,6 +918,7 @@ None.
     "jira": null
   },
   "mdm": {
+    "mdm_enabled_and_configured": false,
     "apple_bm_default_team": "",
     "macos_updates": {
       "minimum_version": "12.3.1",
