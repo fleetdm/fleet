@@ -944,7 +944,7 @@ func (ds *Datastore) GenerateHostStatusStatistics(ctx context.Context, filter fl
 	return &summary, nil
 }
 
-func (ds *Datastore) EnrollOrbit(ctx context.Context, hardwareUUID string, orbitNodeKey string, teamID *uint) (*fleet.Host, error) {
+func (ds *Datastore) EnrollOrbit(ctx context.Context, hardwareUUID, hardwareSerial, orbitNodeKey string, teamID *uint) (*fleet.Host, error) {
 	if orbitNodeKey == "" {
 		return nil, ctxerr.New(ctx, "orbit node key is empty")
 	}
@@ -952,6 +952,7 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, hardwareUUID string, orbit
 	if hardwareUUID == "" {
 		return nil, ctxerr.New(ctx, "hardware uuid is empty")
 	}
+	// TODO(mna): allow empty serial? For now, it would be empty for Windows.
 
 	var host fleet.Host
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {

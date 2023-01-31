@@ -458,7 +458,8 @@ func (a *agent) waitingDo(req *fasthttp.Request, res *fasthttp.Response) {
 // now, we assume that the agent is not already enrolled, if you kill the agent
 // process then those Orbit node keys are gone.
 func (a *agent) orbitEnroll() error {
-	params := service.EnrollOrbitRequest{EnrollSecret: a.EnrollSecret, HardwareUUID: a.UUID}
+	// TODO(mna): would it be important for osquery-perf to provide a serial? Probably not for now...
+	params := service.EnrollOrbitRequest{EnrollSecret: a.EnrollSecret, HardwareUUID: a.UUID, HardwareSerial: ""}
 
 	req := fasthttp.AcquireRequest()
 

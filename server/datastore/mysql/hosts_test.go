@@ -5919,7 +5919,7 @@ func testHostsLoadHostByOrbitNodeKey(t *testing.T, ds *Datastore) {
 		orbitKey := uuid.New().String()
 		// on orbit enrollment, the "hardware UUID" is matched with the osquery
 		// host ID to identify the host being enrolled
-		_, err = ds.EnrollOrbit(ctx, *h.OsqueryHostID, orbitKey, nil)
+		_, err = ds.EnrollOrbit(ctx, *h.OsqueryHostID, h.HardwareSerial, orbitKey, nil)
 		require.NoError(t, err)
 
 		// the returned host by LoadHostByOrbitNodeKey will have the orbit key stored
@@ -5949,7 +5949,7 @@ func testHostsLoadHostByOrbitNodeKey(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 
 		orbitKey := uuid.New().String()
-		_, err = ds.EnrollOrbit(ctx, *h.OsqueryHostID, orbitKey, nil)
+		_, err = ds.EnrollOrbit(ctx, *h.OsqueryHostID, h.HardwareSerial, orbitKey, nil)
 		require.NoError(t, err)
 		h.OrbitNodeKey = &orbitKey
 		return h

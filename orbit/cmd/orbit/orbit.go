@@ -920,7 +920,8 @@ func getUUIDAndSerial(osqueryPath string) (uuid, serial string, err error) {
 
 		// TODO(mna): is there an alternative way to get the serial number on
 		// Windows? Would osquery not work there? SMBios seems very complex/error
-		// prone.
+		// prone. Should we get the UUID via SMBios and then continue with the
+		// osquery query to get the serial on Windows?
 		return uuidData, "", nil
 	}
 	type Output struct {

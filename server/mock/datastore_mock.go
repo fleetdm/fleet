@@ -480,7 +480,7 @@ type VerifyEnrollSecretFunc func(ctx context.Context, secret string) (*fleet.Enr
 
 type EnrollHostFunc func(ctx context.Context, osqueryHostId string, nodeKey string, teamID *uint, cooldown time.Duration) (*fleet.Host, error)
 
-type EnrollOrbitFunc func(ctx context.Context, hardwareUUID string, orbitNodeKey string, teamID *uint) (*fleet.Host, error)
+type EnrollOrbitFunc func(ctx context.Context, hardwareUUID string, hardwareSerial string, orbitNodeKey string, teamID *uint) (*fleet.Host, error)
 
 type SerialUpdateHostFunc func(ctx context.Context, host *fleet.Host) error
 
@@ -2506,9 +2506,9 @@ func (s *DataStore) EnrollHost(ctx context.Context, osqueryHostId string, nodeKe
 	return s.EnrollHostFunc(ctx, osqueryHostId, nodeKey, teamID, cooldown)
 }
 
-func (s *DataStore) EnrollOrbit(ctx context.Context, hardwareUUID string, orbitNodeKey string, teamID *uint) (*fleet.Host, error) {
+func (s *DataStore) EnrollOrbit(ctx context.Context, hardwareUUID string, hardwareSerial string, orbitNodeKey string, teamID *uint) (*fleet.Host, error) {
 	s.EnrollOrbitFuncInvoked = true
-	return s.EnrollOrbitFunc(ctx, hardwareUUID, orbitNodeKey, teamID)
+	return s.EnrollOrbitFunc(ctx, hardwareUUID, hardwareSerial, orbitNodeKey, teamID)
 }
 
 func (s *DataStore) SerialUpdateHost(ctx context.Context, host *fleet.Host) error {
