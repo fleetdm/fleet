@@ -799,7 +799,7 @@ spec:
     macOS writes information pertaining to system-related events to the file /var/log/install.log and has a configurable retention policy for this file. The default logging setting limits the file size of the logs and the maximum size for all logs. The default allows for an errant application to fill the log files and does not enforce sufficient log retention. The Benchmark recommends a value based on standard use cases. The value should align with local requirements within the organization.
   resolution: |
     Automated method:
-    Ask your system administrator to deploy a script which will ensure proper proper retention for install.log.
+    Ask your system administrator to deploy a script which will ensure proper retention for install.log.
   query: |
     SELECT 1 WHERE
     EXISTS ( SELECT line, 
