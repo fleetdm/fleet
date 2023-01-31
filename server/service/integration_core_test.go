@@ -1053,6 +1053,13 @@ func (s *integrationTestSuite) TestHostsCount() {
 	require.Equal(t, 1, resp.Count)
 	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &resp, "mdm_enrollment_status", "pending")
 	require.Equal(t, 1, resp.Count)
+
+	// get the host's MDM info
+	var hostResp getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", pendingMDMHost.ID), nil, http.StatusOK, &hostResp)
+	require.Equal(t, pendingMDMHost.ID, hostResp.Host.ID)
+	require.Equal(t, "Pending", *hostResp.Host.MDM.EnrollmentStatus)
+	require.Equal(t, "https://fleetdm.com", *hostResp.Host.MDM.ServerURL)
 }
 
 func (s *integrationTestSuite) TestPacks() {
@@ -2173,7 +2180,7 @@ func (s *integrationTestSuite) TestListActivities() {
 	ctx := context.Background()
 	u := s.users["admin1@example.com"]
 
-	prevActivities, err := s.ds.ListActivities(ctx, fleet.ListActivitiesOptions{})
+	prevActivities, _, err := s.ds.ListActivities(ctx, fleet.ListActivitiesOptions{})
 	require.NoError(t, err)
 
 	err = s.ds.NewActivity(ctx, &u, fleet.ActivityTypeAppliedSpecPack{})
@@ -2190,6 +2197,7 @@ func (s *integrationTestSuite) TestListActivities() {
 	var listResp listActivitiesResponse
 	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &listResp, "per_page", strconv.Itoa(lenPage), "order_key", "id")
 	require.Len(t, listResp.Activities, lenPage)
+	require.NotNil(t, listResp.Meta)
 	assert.Equal(t, fleet.ActivityTypeAppliedSpecPack{}.ActivityName(), listResp.Activities[lenPage-2].Type)
 	assert.Equal(t, fleet.ActivityTypeDeletedPack{}.ActivityName(), listResp.Activities[lenPage-1].Type)
 
@@ -2200,6 +2208,11 @@ func (s *integrationTestSuite) TestListActivities() {
 	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &listResp, "per_page", "1", "order_key", "id", "order_direction", "desc")
 	require.Len(t, listResp.Activities, 1)
 	assert.Equal(t, fleet.ActivityTypeEditedPack{}.ActivityName(), listResp.Activities[0].Type)
+
+	listResp = listActivitiesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &listResp, "per_page", "1", "order_key", "a.id", "after", "0")
+	require.Len(t, listResp.Activities, 1)
+	require.Nil(t, listResp.Meta)
 }
 
 func (s *integrationTestSuite) TestListGetCarves() {
@@ -2747,8 +2760,8 @@ func (s *integrationTestSuite) TestGetMacadminsData() {
 	// insert a host_mdm row for hostMDMNoID without any mdm_id
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx,
-			`INSERT INTO host_mdm (host_id, enrolled, server_url, installed_from_dep) VALUES (?, ?, ?, ?)`,
-			hostMDMNoID.ID, true, "https://simplemdm.com", true)
+			`INSERT INTO host_mdm (host_id, enrolled, server_url, installed_from_dep, is_server) VALUES (?, ?, ?, ?, ?)`,
+			hostMDMNoID.ID, true, "https://simplemdm.com", true, false)
 		return err
 	})
 
@@ -4785,6 +4798,11 @@ func (s *integrationTestSuite) TestAppConfig() {
   }`), http.StatusOK, &acResp)
 	assert.True(t, acResp.MDM.AppleBMTermsExpired)
 
+	// try to set the apple bm default team, which is premium only
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": { "apple_bm_default_team": "xyz" }
+  }`), http.StatusUnprocessableEntity, &acResp)
+
 	// verify that the Apple BM terms expired flag was never modified
 	acResp = appConfigResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
@@ -5501,6 +5519,74 @@ func (s *integrationTestSuite) TestCarve() {
 	checkCarveError(1, "block_id exceeds expected max (2): 3")
 }
 
+func (s *integrationTestSuite) TestLogLoginAttempts() {
+	t := s.T()
+
+	// create a new user
+	var createResp createUserResponse
+	params := fleet.UserPayload{
+		Name:       ptr.String("foobar"),
+		Email:      ptr.String("foobar@example.com"),
+		Password:   ptr.String(test.GoodPassword),
+		GlobalRole: ptr.String(fleet.RoleObserver),
+	}
+	s.DoJSON("POST", "/api/latest/fleet/users/admin", params, http.StatusOK, &createResp)
+	require.NotZero(t, createResp.User.ID)
+	u := *createResp.User
+
+	// Register current number of activities.
+	activitiesResp := listActivitiesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &activitiesResp)
+	require.NoError(t, activitiesResp.Err)
+	oldActivitiesCount := len(activitiesResp.Activities)
+
+	// Login with invalid passwordm, should fail.
+	res := s.DoRawNoAuth("POST", "/api/latest/fleet/login",
+		jsonMustMarshal(t, loginRequest{Email: u.Email, Password: test.GoodPassword2}),
+		http.StatusUnauthorized,
+	)
+	res.Body.Close()
+
+	// A new activity item for the failed login attempt is created.
+	activitiesResp = listActivitiesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &activitiesResp)
+	require.NoError(t, activitiesResp.Err)
+	require.Len(t, activitiesResp.Activities, oldActivitiesCount+1)
+	sort.Slice(activitiesResp.Activities, func(i, j int) bool {
+		return activitiesResp.Activities[i].ID < activitiesResp.Activities[j].ID
+	})
+	activity := activitiesResp.Activities[len(activitiesResp.Activities)-1]
+	require.Equal(t, activity.Type, fleet.ActivityTypeUserFailedLogin{}.ActivityName())
+	require.NotNil(t, activity.Details)
+	actDetails := fleet.ActivityTypeUserFailedLogin{}
+	err := json.Unmarshal(*activity.Details, &actDetails)
+	require.NoError(t, err)
+	require.Equal(t, actDetails.Email, "foobar@example.com")
+
+	// login with good password, should succeed
+	res = s.DoRawNoAuth("POST", "/api/latest/fleet/login",
+		jsonMustMarshal(t, loginRequest{
+			Email:    u.Email,
+			Password: test.GoodPassword,
+		}), http.StatusOK,
+	)
+	res.Body.Close()
+
+	// A new activity item for the successful login is created.
+	activitiesResp = listActivitiesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &activitiesResp)
+	require.NoError(t, activitiesResp.Err)
+	require.Len(t, activitiesResp.Activities, oldActivitiesCount+2)
+	sort.Slice(activitiesResp.Activities, func(i, j int) bool {
+		return activitiesResp.Activities[i].ID < activitiesResp.Activities[j].ID
+	})
+	activity = activitiesResp.Activities[len(activitiesResp.Activities)-1]
+	require.Equal(t, activity.Type, fleet.ActivityTypeUserLoggedIn{}.ActivityName())
+	require.NotNil(t, activity.Details)
+	err = json.Unmarshal(*activity.Details, &fleet.ActivityTypeUserLoggedIn{})
+	require.NoError(t, err)
+}
+
 func (s *integrationTestSuite) TestPasswordReset() {
 	t := s.T()
 
@@ -5792,13 +5878,7 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(ctx, hosts[1].ID, 3.0, 4.0))
 
 	res := s.DoRaw("GET", "/api/latest/fleet/hosts/report", nil, http.StatusUnsupportedMediaType, "format", "gzip")
-	var errs struct {
-		Message string `json:"message"`
-		Errors  []struct {
-			Name   string `json:"name"`
-			Reason string `json:"reason"`
-		} `json:"errors"`
-	}
+	var errs validationErrResp
 	require.NoError(t, json.NewDecoder(res.Body).Decode(&errs))
 	res.Body.Close()
 	require.Len(t, errs.Errors, 1)
@@ -5810,7 +5890,7 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 	res.Body.Close()
 	require.NoError(t, err)
 	require.Len(t, rows, len(hosts)+1) // all hosts + header row
-	require.Len(t, rows[0], 46)        // total number of cols
+	require.Len(t, rows[0], 48)        // total number of cols
 	t.Log(rows[0])
 
 	const (
@@ -6181,8 +6261,43 @@ func (s *integrationTestSuite) TestPingEndpoints() {
 }
 
 func (s *integrationTestSuite) TestAppleMDMNotConfigured() {
-	var resp getAppleMDMResponse
-	s.DoJSON("GET", "/api/latest/fleet/mdm/apple", nil, http.StatusNotFound, &resp)
+	var rawResp json.RawMessage
+	s.DoJSON("GET", "/api/latest/fleet/mdm/apple", nil, http.StatusNotFound, &rawResp)
+	s.DoJSON("GET", "/api/latest/fleet/mdm/apple_bm", nil, http.StatusPaymentRequired, &rawResp) //premium only
+}
+
+func (s *integrationTestSuite) TestOrbitConfigNotifications() {
+	t := s.T()
+
+	var resp orbitGetConfigResponse
+	// missing orbit key
+	s.DoJSON("POST", "/api/fleet/orbit/config", nil, http.StatusUnauthorized, &resp)
+
+	hNoMDM := createOrbitEnrolledHost(t, "darwin", "nomdm", s.ds)
+	resp = orbitGetConfigResponse{}
+	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *hNoMDM.OrbitNodeKey)), http.StatusOK, &resp)
+	require.False(t, resp.Notifications.RenewEnrollmentProfile)
+
+	hSimpleMDM := createOrbitEnrolledHost(t, "darwin", "simplemdm", s.ds)
+	err := s.ds.SetOrUpdateMDMData(context.Background(), hSimpleMDM.ID, false, true, "https://simplemdm.com", false, fleet.WellKnownMDMSimpleMDM)
+	require.NoError(t, err)
+	resp = orbitGetConfigResponse{}
+	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *hSimpleMDM.OrbitNodeKey)), http.StatusOK, &resp)
+	require.False(t, resp.Notifications.RenewEnrollmentProfile)
+
+	hFleetMDM := createOrbitEnrolledHost(t, "darwin", "fleetmdm", s.ds)
+	err = s.ds.SetOrUpdateMDMData(context.Background(), hFleetMDM.ID, false, false, "https://fleetdm.com", true, fleet.WellKnownMDMFleet)
+	require.NoError(t, err)
+	resp = orbitGetConfigResponse{}
+	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *hFleetMDM.OrbitNodeKey)), http.StatusOK, &resp)
+	require.True(t, resp.Notifications.RenewEnrollmentProfile)
+
+	// if the fleet mdm host is fully enrolled (not pending anymore), then the notification is false
+	err = s.ds.SetOrUpdateMDMData(context.Background(), hFleetMDM.ID, false, true, "https://fleetdm.com", true, fleet.WellKnownMDMFleet)
+	require.NoError(t, err)
+	resp = orbitGetConfigResponse{}
+	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *hFleetMDM.OrbitNodeKey)), http.StatusOK, &resp)
+	require.False(t, resp.Notifications.RenewEnrollmentProfile)
 }
 
 // this test can be deleted once the "v1" version is removed.
@@ -6221,6 +6336,35 @@ func (s *integrationTestSuite) TestAPIVersion_v1_2022_04() {
 	// properly delete with old endpoint and old version
 	var delResp deleteGlobalScheduleResponse
 	s.DoJSON("DELETE", fmt.Sprintf("/api/v1/fleet/global/schedule/%d", createResp.Scheduled.ID), nil, http.StatusOK, &delResp)
+}
+
+type validationErrResp struct {
+	Message string `json:"message"`
+	Errors  []struct {
+		Name   string `json:"name"`
+		Reason string `json:"reason"`
+	} `json:"errors"`
+}
+
+func createOrbitEnrolledHost(t *testing.T, os, suffix string, ds fleet.Datastore) *fleet.Host {
+	name := t.Name() + suffix
+	h, err := ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now().Add(-time.Minute),
+		OsqueryHostID:   ptr.String(name),
+		NodeKey:         ptr.String(name),
+		UUID:            uuid.New().String(),
+		Hostname:        fmt.Sprintf("%s.local", name),
+		Platform:        os,
+	})
+	require.NoError(t, err)
+	orbitKey := uuid.New().String()
+	_, err = ds.EnrollOrbit(context.Background(), *h.OsqueryHostID, orbitKey, nil)
+	require.NoError(t, err)
+	h.OrbitNodeKey = &orbitKey
+	return h
 }
 
 // creates a session and returns it, its key is to be passed as authorization header.

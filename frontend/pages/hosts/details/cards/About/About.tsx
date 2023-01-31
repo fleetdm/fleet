@@ -2,15 +2,16 @@ import React from "react";
 
 import ReactTooltip from "react-tooltip";
 import HumanTimeDiffWithDateTip from "components/HumanTimeDiffWithDateTip";
-
+import TooltipWrapper from "components/TooltipWrapper";
 import { IHostMdmData, IMunkiData, IDeviceUser } from "interfaces/host";
 import { humanHostLastRestart } from "utilities/helpers";
+import { MDM_STATUS_TOOLTIP } from "utilities/constants";
 
 interface IAboutProps {
   aboutData: { [key: string]: any };
   deviceMapping?: IDeviceUser[];
   munki?: IMunkiData | null;
-  mdm?: IHostMdmData | null;
+  mdm?: IHostMdmData;
   wrapFleetHelper: (helperFn: (value: any) => string, value: string) => string;
 }
 
@@ -51,15 +52,20 @@ const About = ({
   };
 
   const renderMdmData = () => {
-    if (!mdm || mdm.enrollment_status === "Off") {
+    if (!mdm?.enrollment_status) {
       return null;
     }
     return (
       <>
         <div className="info-grid__block">
-          <span className="info-grid__header">MDM enrollment</span>
+          <span className="info-grid__header">MDM status</span>
           <span className="info-grid__data">
-            {mdm.enrollment_status || "---"}
+            <TooltipWrapper
+              position="bottom"
+              tipContent={MDM_STATUS_TOOLTIP[mdm.enrollment_status]}
+            >
+              {mdm.enrollment_status}
+            </TooltipWrapper>
           </span>
         </div>
         <div className="info-grid__block">

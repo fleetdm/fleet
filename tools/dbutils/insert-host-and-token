@@ -1,0 +1,7 @@
+#!/bin/bash
+
+# experimental – doesn't always work right
+
+NEW_ID=$1
+NEW_TOKEN=$2
+docker compose exec mysql mysql -uroot -ptoor -Dfleet -e "INSERT INTO host_device_auth VALUES ($NEW_ID, $NEW_TOKEN, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);"

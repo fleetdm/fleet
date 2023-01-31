@@ -12,11 +12,6 @@ import UserMenu from "components/top_nav/UserMenu";
 import OrgLogoIcon from "components/icons/OrgLogoIcon";
 
 import navItems, { INavItem } from "./navItems";
-import HostsIcon from "../../../../assets/images/icon-main-hosts@2x-16x16@2x.png";
-import SoftwareIcon from "../../../../assets/images/icon-software-16x16@2x.png";
-import QueriesIcon from "../../../../assets/images/icon-main-queries@2x-16x16@2x.png";
-import PacksIcon from "../../../../assets/images/icon-main-packs@2x-16x16@2x.png";
-import PoliciesIcon from "../../../../assets/images/icon-main-policies-16x16@2x.png";
 
 interface ISiteTopNavProps {
   onLogoutUser: () => void;
@@ -39,6 +34,7 @@ const SiteTopNav = ({
     isGlobalMaintainer,
     isAnyTeamMaintainer,
     isNoAccess,
+    isMdmEnabled,
   } = useContext(AppContext);
 
   const renderNavItem = (navItem: INavItem) => {
@@ -52,9 +48,7 @@ const SiteTopNav = ({
       [`${navItemBaseClass}--active`]: active,
     });
 
-    const iconClasses = classnames([`${navItemBaseClass}__icon`]);
-
-    if (iconName === "logo") {
+    if (iconName && iconName === "logo") {
       return (
         <li className={navItemClasses} key={`nav-item-${name}`}>
           <Link
@@ -67,25 +61,6 @@ const SiteTopNav = ({
       );
     }
 
-    const iconImage = () => {
-      switch (iconName) {
-        case "hosts":
-          return HostsIcon;
-        case "software":
-          return SoftwareIcon;
-        case "queries":
-          return QueriesIcon;
-        case "packs":
-          return PacksIcon;
-        default:
-          return PoliciesIcon;
-      }
-    };
-
-    const icon = (
-      <img src={iconImage()} alt={`${iconName} icon`} className={iconClasses} />
-    );
-
     return (
       <li className={navItemClasses} key={`nav-item-${name}`}>
         {withContext ? (
@@ -93,7 +68,6 @@ const SiteTopNav = ({
             className={`${navItemBaseClass}__link`}
             to={navItem.location.pathname}
           >
-            {icon}
             <span
               className={`${navItemBaseClass}__name`}
               data-text={navItem.name}
@@ -106,7 +80,6 @@ const SiteTopNav = ({
             className={`${navItemBaseClass}__link`}
             to={navItem.location.pathname}
           >
-            {icon}
             <span
               className={`${navItemBaseClass}__name`}
               data-text={navItem.name}
@@ -125,12 +98,13 @@ const SiteTopNav = ({
     isAnyTeamAdmin,
     isAnyTeamMaintainer,
     isGlobalMaintainer,
-    isNoAccess
+    isNoAccess,
+    isMdmEnabled
   );
 
   const renderNavItems = () => {
     return (
-      <div className="site-nav-container">
+      <div className="site-nav-content">
         <ul className="site-nav-list">
           {userNavItems.map((navItem) => {
             return renderNavItem(navItem);

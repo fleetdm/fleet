@@ -4,6 +4,7 @@
 
 - [Finance](#finance)
 - [BizOps](#bizops)
+- [Security](#security)
 
 
 ## Finance
@@ -106,6 +107,21 @@ We consider Salesforce to be our Rolodex for customer information. During the on
 5. The order will be processed in ~30m.
 
 
+## Security
+
+#### In this section
+
+- [Security](#security) 
+- [Security policies](#security-policies)
+
+
+### Security
+Details about Security processes are located on [the Security page](./security.md).
+
+### Security policies
+Review the [security policies](./security-policies.md) page for more information about Fleet's security policies. 
+ 
+ 
 ## PeopleOps
 
 #### In this section
@@ -137,8 +153,7 @@ DRIs help us collaborate efficiently by knowing exactly who is responsible and c
 ### Benefits
 
 #### Coworking
-Fleet will reimburse team members for coworking up to $100 USD per month. Please get prior approval from your manager, and then this reimbursement can be used for drop-in coworking or go towards a coworking membership.  Once approved, get started by reaching out to the Charlie Chance via direct message in Slack.
-Coworking expenses must be [reimbursed](#reimbursements). Brex cards should not be used for coworking due to possible legal complexities.
+Your Brex card may be used for up to $500 USD per month in coworking costs. Please get prior approval from your manager. Once approved, get started by reaching out to Charlie Chance via direct message in Slack.
 
 #### Paid time off
 What matters most is your results, which are driven by your focus, your availability to collaborate, and the time and consideration you put into your work. Fleet offers all team members unlimited time off. Whether you're sick, you want to take a trip, you are eager for some time to relax, or you need to get some chores done around the house, any reason is a good reason.
@@ -293,7 +308,7 @@ Every new position being created goes through this process before interviewing, 
 After getting CEO approval, create a position in Breezy.
 
 #### Creating a new position in Breezy
-> TODO: document how to post a job on fleetdm.com/apply using Breezy and manage the hiring process
+Review [Breezy positions video](https://www.loom.com/home) on how to post a job on fleetdm.com/apply using Breezy. Collect candidate feedback from the team and manage the hiring process.
 
 #### Interviewing at Fleet
 We're glad you're interested in joining the team! 
@@ -493,6 +508,11 @@ The following table lists the People group's rituals, frequency, and Directly Re
 | Capital credit reporting | Annually | Within 60 days of the new year, provide financial statements to SVB | Nathanael Holliday |
 | QBO check | Quarterly | The first month after the previous quarter has closed, make sure that QBO is accurate compared to Fleet's records | Nathanael Holliday | 
 | BizOps key review | every three weeks | Every release cycle a key review deck is prepared and presented | Nathanael Holliday |
+| YubiKey adoption | Monthly | Track YubiKey adoption in Google workspace and follow up with those that aren't using it. | Charlie Chance |
+| MDM device enrollment | Quarterly | Provide export of MDM enrolled devices to the ops team. | Luke Heath |
+| Access revalidation | Quarterly | Review critical access groups to make sure they contain only relevant people. | Charlie Chance |
+| Security policy update | Annually | Update security policies and have them approved by the CEO. | Nathanael Holliday |
+| Security notifications check | Daily | Check Slack, Google, Vanta, and Fleet dogfood for security-related notifications. | Nathanael Holliday |
 
 
 ## Slack channels
@@ -505,7 +525,7 @@ These groups maintain the following [Slack channels](https://fleetdm.com/handboo
 | `#g-business-operations`    | Nathan Holliday
 | `#help-brex`                | Nathan Holliday
 | `#help-ceo`                 | Charlie Chance
-| `#help-key-review-prep`     | Charlie Chance
+| `#help-login`               | Nathan Holliday
 
 
 

@@ -22,6 +22,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
+	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/micromdm/nanodep/godep"
 	"github.com/stretchr/testify/assert"
@@ -79,6 +80,7 @@ func TestHosts(t *testing.T) {
 		{"ListStatus", testHostsListStatus},
 		{"ListQuery", testHostsListQuery},
 		{"ListMDM", testHostsListMDM},
+		{"SelectHostMDM", testHostMDMSelect},
 		{"ListMunkiIssueID", testHostsListMunkiIssueID},
 		{"Enroll", testHostsEnroll},
 		{"LoadHostByNodeKey", testHostsLoadHostByNodeKey},
@@ -135,6 +137,7 @@ func TestHosts(t *testing.T) {
 		{"HostOrder", testHostOrder},
 		{"GetHostMDMCheckinInfo", testHostsGetHostMDMCheckinInfo},
 		{"UnenrollFromMDM", testHostsUnenrollFromMDM},
+		{"LoadHostByOrbitNodeKey", testHostsLoadHostByOrbitNodeKey},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -1038,6 +1041,130 @@ func testHostsListMDM(t *testing.T, ds *Datastore) {
 
 	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{MDMEnrollmentStatusFilter: fleet.MDMEnrollStatusPending}, 1)
 	assert.Equal(t, 1, len(hosts))
+}
+
+func testHostMDMSelect(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	mdmServerURL := "https://mdm.example.com"
+
+	cases := []struct {
+		host                 fleet.HostMDM
+		expectedMDMStatus    *string
+		expectedMDMServerURL *string
+	}{
+		{
+			host: fleet.HostMDM{
+				IsServer:         false,
+				InstalledFromDep: false,
+				Enrolled:         false,
+			},
+			expectedMDMStatus:    ptr.String("Off"),
+			expectedMDMServerURL: ptr.String(mdmServerURL),
+		},
+		{
+			host: fleet.HostMDM{
+				IsServer:         false,
+				InstalledFromDep: true,
+				Enrolled:         false,
+			},
+			expectedMDMStatus:    ptr.String("Pending"),
+			expectedMDMServerURL: ptr.String(mdmServerURL),
+		},
+		{
+			host: fleet.HostMDM{
+				IsServer:         false,
+				InstalledFromDep: true,
+				Enrolled:         true,
+			},
+			expectedMDMStatus:    ptr.String("On (automatic)"),
+			expectedMDMServerURL: ptr.String(mdmServerURL),
+		},
+		{
+			host: fleet.HostMDM{
+				IsServer:         false,
+				InstalledFromDep: false,
+				Enrolled:         true,
+			},
+			expectedMDMStatus:    ptr.String("On (manual)"),
+			expectedMDMServerURL: ptr.String(mdmServerURL),
+		},
+		{
+			host: fleet.HostMDM{
+				IsServer:         true,
+				InstalledFromDep: false,
+				Enrolled:         false,
+			},
+			expectedMDMStatus:    nil,
+			expectedMDMServerURL: nil,
+		},
+		{
+			host: fleet.HostMDM{
+				IsServer:         true,
+				InstalledFromDep: true,
+				Enrolled:         false,
+			},
+			expectedMDMStatus:    nil,
+			expectedMDMServerURL: nil,
+		},
+		{
+			host: fleet.HostMDM{
+				IsServer:         true,
+				InstalledFromDep: true,
+				Enrolled:         true,
+			},
+			expectedMDMStatus:    nil,
+			expectedMDMServerURL: nil,
+		},
+		{
+			host: fleet.HostMDM{
+				IsServer:         true,
+				InstalledFromDep: false,
+				Enrolled:         true,
+			},
+			expectedMDMStatus:    nil,
+			expectedMDMServerURL: nil,
+		},
+	}
+
+	h, err := ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   ptr.String("osquery-host-id"),
+		NodeKey:         ptr.String("node-key"),
+		UUID:            "uuid",
+		Hostname:        "hostname",
+	})
+	require.NoError(t, err)
+
+	for _, c := range cases {
+		require.NoError(t, ds.SetOrUpdateMDMData(ctx, h.ID, c.host.IsServer, c.host.Enrolled, mdmServerURL, c.host.InstalledFromDep, "test"))
+
+		hosts, err := ds.ListHosts(ctx, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{})
+		require.NoError(t, err)
+		require.Len(t, hosts, 1)
+		require.Equal(t, h.ID, hosts[0].ID)
+		require.Equal(t, c.expectedMDMStatus, hosts[0].MDM.EnrollmentStatus)
+		require.Equal(t, c.expectedMDMServerURL, hosts[0].MDM.ServerURL)
+
+		hosts, err = ds.SearchHosts(ctx, fleet.TeamFilter{User: test.UserAdmin}, "")
+		require.NoError(t, err)
+		require.Len(t, hosts, 1)
+		require.Equal(t, h.ID, hosts[0].ID)
+		require.Equal(t, c.expectedMDMStatus, hosts[0].MDM.EnrollmentStatus)
+		require.Equal(t, c.expectedMDMServerURL, hosts[0].MDM.ServerURL)
+
+		host, err := ds.Host(ctx, h.ID)
+		require.NoError(t, err)
+		require.Equal(t, c.expectedMDMStatus, host.MDM.EnrollmentStatus)
+		require.Equal(t, c.expectedMDMServerURL, host.MDM.ServerURL)
+
+		host, err = ds.HostByIdentifier(ctx, h.UUID)
+		require.NoError(t, err)
+		require.Equal(t, c.expectedMDMStatus, host.MDM.EnrollmentStatus)
+		require.Equal(t, c.expectedMDMServerURL, host.MDM.ServerURL)
+	}
 }
 
 func testHostsListMunkiIssueID(t *testing.T, ds *Datastore) {
@@ -5774,4 +5901,77 @@ func testHostsGetHostMDMCheckinInfo(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, host.HardwareSerial, info.HardwareSerial)
 	require.Equal(t, true, info.InstalledFromDEP)
+}
+
+func testHostsLoadHostByOrbitNodeKey(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	for _, tt := range enrollTests {
+		h, err := ds.EnrollHost(ctx, tt.uuid, tt.nodeKey, nil, 0)
+		require.NoError(t, err)
+
+		orbitKey := uuid.New().String()
+		// on orbit enrollment, the "hardware UUID" is matched with the osquery
+		// host ID to identify the host being enrolled
+		_, err = ds.EnrollOrbit(ctx, *h.OsqueryHostID, orbitKey, nil)
+		require.NoError(t, err)
+
+		// the returned host by LoadHostByOrbitNodeKey will have the orbit key stored
+		h.OrbitNodeKey = &orbitKey
+		returned, err := ds.LoadHostByOrbitNodeKey(ctx, orbitKey)
+		require.NoError(t, err)
+		assert.Equal(t, h, returned)
+	}
+
+	// test loading an unknown orbit key
+	_, err := ds.LoadHostByOrbitNodeKey(ctx, uuid.New().String())
+	require.Error(t, err)
+	require.True(t, fleet.IsNotFound(err))
+
+	createOrbitHost := func(tag string) *fleet.Host {
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			Platform:        tag,
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+			OsqueryHostID:   ptr.String(tag),
+			NodeKey:         ptr.String(tag),
+			UUID:            fmt.Sprintf(tag),
+			Hostname:        tag + ".local",
+		})
+		require.NoError(t, err)
+
+		orbitKey := uuid.New().String()
+		_, err = ds.EnrollOrbit(ctx, *h.OsqueryHostID, orbitKey, nil)
+		require.NoError(t, err)
+		h.OrbitNodeKey = &orbitKey
+		return h
+	}
+
+	// create a host enrolled in Simple MDM
+	hSimple := createOrbitHost("simple")
+	err = ds.SetOrUpdateMDMData(ctx, hSimple.ID, false, true, "https://simplemdm.com", true, fleet.WellKnownMDMSimpleMDM)
+	require.NoError(t, err)
+
+	loadSimple, err := ds.LoadHostByOrbitNodeKey(ctx, *hSimple.OrbitNodeKey)
+	require.NoError(t, err)
+	require.Equal(t, hSimple.ID, loadSimple.ID)
+	require.NotNil(t, loadSimple.MDMInfo)
+	require.Equal(t, hSimple.ID, loadSimple.MDMInfo.HostID)
+	require.True(t, loadSimple.IsOsqueryEnrolled())
+	require.False(t, loadSimple.MDMInfo.IsPendingDEPFleetEnrollment())
+
+	// create a host that will be pending enrollment in Fleet MDM
+	hFleet := createOrbitHost("fleet")
+	err = ds.SetOrUpdateMDMData(ctx, hFleet.ID, false, false, "https://fleetdm.com", true, fleet.WellKnownMDMFleet)
+	require.NoError(t, err)
+
+	loadFleet, err := ds.LoadHostByOrbitNodeKey(ctx, *hFleet.OrbitNodeKey)
+	require.NoError(t, err)
+	require.Equal(t, hFleet.ID, loadFleet.ID)
+	require.NotNil(t, loadFleet.MDMInfo)
+	require.Equal(t, hFleet.ID, loadFleet.MDMInfo.HostID)
+	require.True(t, loadFleet.IsOsqueryEnrolled())
+	require.True(t, loadFleet.MDMInfo.IsPendingDEPFleetEnrollment())
 }

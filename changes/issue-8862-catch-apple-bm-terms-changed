@@ -1,1 +1,0 @@
-* Added a flag to indicate if the Apple Business Manager terms and conditions have changed and must be accepted to have automatic enrollment of hosts work again. A banner is added to the output of `fleetctl` commands when this is the case.

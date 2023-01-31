@@ -9,11 +9,11 @@
     - name: Remotely enforce macOS settings
       tier: Free
       comingSoon: true
-    - name: Zero-touch setup for macOS computers
-      tier: Free
-      comingSoon: true
     - name: Low-level macOS MDM commands (e.g. remote restart)
       tier: Free
+      comingSoon: true
+    - name: Zero-touch setup for macOS computers
+      tier: Premium
       comingSoon: true
     - name: Remotely update macOS
       tier: Free

@@ -54,8 +54,11 @@ type Service interface {
 	AuthenticateOrbitHost(ctx context.Context, nodeKey string) (host *Host, debug bool, err error)
 	// EnrollOrbit enrolls orbit to Fleet by using the enrollSecret and returns the orbitNodeKey if successful
 	EnrollOrbit(ctx context.Context, hardwareUUID string, enrollSecret string) (orbitNodeKey string, err error)
-	// GetOrbitConfig returns team specific flags and extensions in agent options if the team id is not nil for host, otherwise it returns flags from global agent options
-	GetOrbitConfig(ctx context.Context) (flags json.RawMessage, extensions json.RawMessage, err error)
+	// GetOrbitConfig returns team specific flags and extensions in agent options
+	// if the team id is not nil for host, otherwise it returns flags from global
+	// agent options. It also returns any notifications that fleet wants to surface
+	// to fleetd (formerly orbit).
+	GetOrbitConfig(ctx context.Context) (OrbitConfig, error)
 
 	// SetOrUpdateDeviceAuthToken creates or updates a device auth token for the given host.
 	SetOrUpdateDeviceAuthToken(ctx context.Context, authToken string) error
@@ -457,7 +460,16 @@ type Service interface {
 	///////////////////////////////////////////////////////////////////////////////
 	// ActivitiesService
 
-	ListActivities(ctx context.Context, opt ListActivitiesOptions) ([]*Activity, error)
+	// NewActivity creates the given activity on the datastore.
+	//
+	// What we call "Activities" are administrative operations,
+	// logins, running a live query, etc.
+	NewActivity(ctx context.Context, user *User, activity ActivityDetails) error
+	// ListActivities lists the activities stored in the datastore.
+	//
+	// What we call "Activities" are administrative operations,
+	// logins, running a live query, etc.
+	ListActivities(ctx context.Context, opt ListActivitiesOptions) ([]*Activity, *PaginationMetadata, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// UserRolesService
@@ -530,6 +542,7 @@ type Service interface {
 
 	GetAppleMDM(ctx context.Context) (*AppleMDM, error)
 	GetAppleBM(ctx context.Context) (*AppleBM, error)
+	RequestMDMAppleCSR(ctx context.Context, email, org string) (*AppleCSR, error)
 
 	// NewMDMAppleEnrollmentProfile creates and returns new enrollment profile.
 	// Such enrollment profiles allow devices to enroll to Fleet MDM.
@@ -539,7 +552,14 @@ type Service interface {
 	ListMDMAppleEnrollmentProfiles(ctx context.Context) ([]*MDMAppleEnrollmentProfile, error)
 
 	// GetMDMAppleEnrollmentProfileByToken returns the Apple enrollment from its secret token.
+	// TODO(mna): this may have to be removed if we don't end up supporting
+	// manual enrollment via a token (currently we only support it via Fleet
+	// Desktop, in the My Device page). See #8701.
 	GetMDMAppleEnrollmentProfileByToken(ctx context.Context, enrollmentToken string) (profile []byte, err error)
+
+	// GetDeviceMDMAppleEnrollmentProfile loads the raw (PList-format) enrollment
+	// profile for the currently authenticated device.
+	GetDeviceMDMAppleEnrollmentProfile(ctx context.Context) ([]byte, error)
 
 	// GetMDMAppleCommandResults returns the execution results of a command identified by a CommandUUID.
 	// The map returned has a result for each target device ID.
@@ -576,6 +596,10 @@ type Service interface {
 
 	// EnqueueMDMAppleCommand enqueues a command for execution on the given devices.
 	EnqueueMDMAppleCommand(ctx context.Context, command *MDMAppleCommand, deviceIDs []string, noPush bool) (status int, result *CommandEnqueueResult, err error)
+
+	// EnqueueMDMAppleCommandRemoveEnrollmentProfile enqueues a command to remove the
+	// profile used for Fleet MDM enrollment from the specified device.
+	EnqueueMDMAppleCommandRemoveEnrollmentProfile(ctx context.Context, hostID uint) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// CronSchedulesService

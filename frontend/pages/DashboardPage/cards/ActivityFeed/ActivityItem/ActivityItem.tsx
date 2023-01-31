@@ -4,15 +4,13 @@ import { intlFormat, formatDistanceToNowStrict } from "date-fns";
 
 import { ActivityType, IActivity, IActivityDetails } from "interfaces/activity";
 import { addGravatarUrlToResource } from "utilities/helpers";
+import { DEFAULT_GRAVATAR_LINK } from "utilities/constants";
 import Avatar from "components/Avatar";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 import ReactTooltip from "react-tooltip";
 
 const baseClass = "activity-item";
-
-const DEFAULT_GRAVATAR_URL =
-  "https://www.gravatar.com/avatar/00000000000000000000000000000000?d=blank&size=200";
 
 const TAGGED_TEMPLATES = {
   liveQueryActivityTemplate: (
@@ -93,6 +91,14 @@ const TAGGED_TEMPLATES = {
   userLoggedIn: (activity: IActivity) => {
     return `successfully logged in from public IP ${activity.details?.public_ip}.`;
   },
+  userFailedLogin: (activity: IActivity) => {
+    return (
+      <>
+        Somebody using <b>{activity.details?.email}</b> failed to log in from
+        public IP {activity.details?.public_ip}.
+      </>
+    );
+  },
   userCreated: (activity: IActivity) => {
     return (
       <>
@@ -139,6 +145,28 @@ const TAGGED_TEMPLATES = {
       <>
         removed <b>{activity.details?.user_email}</b> from the{" "}
         <b>{activity.details?.team_name}</b> team.
+      </>
+    );
+  },
+  mdmEnrolled: (activity: IActivity) => {
+    return (
+      <>
+        An end user turned on MDM features for a host with serial number{" "}
+        <b>
+          {activity.details?.host_serial} (
+          {activity.details?.installed_from_dep ? "automatic" : "manual"})
+        </b>
+        .
+      </>
+    );
+  },
+  mdmUnenrolled: (activity: IActivity) => {
+    return (
+      <>
+        {activity.actor_full_name
+          ? " turned off mobile device management (MDM) for"
+          : "Mobile device management (MDM) was turned off for"}{" "}
+        <b>{activity.details?.host_display_name}</b>.
       </>
     );
   },
@@ -193,6 +221,9 @@ const getDetail = (
     case ActivityType.UserLoggedIn: {
       return TAGGED_TEMPLATES.userLoggedIn(activity);
     }
+    case ActivityType.UserFailedLogin: {
+      return TAGGED_TEMPLATES.userFailedLogin(activity);
+    }
     case ActivityType.UserCreated: {
       return TAGGED_TEMPLATES.userCreated(activity);
     }
@@ -210,6 +241,12 @@ const getDetail = (
     }
     case ActivityType.UserDeletedTeamRole: {
       return TAGGED_TEMPLATES.userDeletedTeamRole(activity);
+    }
+    case ActivityType.MdmEnrolled: {
+      return TAGGED_TEMPLATES.mdmEnrolled(activity);
+    }
+    case ActivityType.MdmUnenrolled: {
+      return TAGGED_TEMPLATES.mdmUnenrolled(activity);
     }
     default: {
       return TAGGED_TEMPLATES.defaultActivityTemplate(activity);
@@ -236,7 +273,7 @@ const ActivityItem = ({
   const { actor_email } = activity;
   const { gravatarURL } = actor_email
     ? addGravatarUrlToResource({ email: actor_email })
-    : { gravatarURL: DEFAULT_GRAVATAR_URL };
+    : { gravatarURL: DEFAULT_GRAVATAR_LINK };
 
   const activityCreatedAt = new Date(activity.created_at);
 

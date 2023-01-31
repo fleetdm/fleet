@@ -26,7 +26,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/migrations/data"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/migrations/tables"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/goose"
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
@@ -36,6 +35,7 @@ import (
 	nanodep_client "github.com/micromdm/nanodep/client"
 	nanodep_mysql "github.com/micromdm/nanodep/storage/mysql"
 	nanomdm_mysql "github.com/micromdm/nanomdm/storage/mysql"
+	scep_depot "github.com/micromdm/scep/v2/depot"
 	"github.com/ngrok/sqlmw"
 	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
 )
@@ -107,14 +107,10 @@ func (ds *Datastore) loadOrPrepareStmt(ctx context.Context, query string) *sqlx.
 	return stmt
 }
 
-// NewMDMAppleSCEPDepot returns a *apple_mdm.MySQLDepot that uses the Datastore
+// NewMDMAppleSCEPDepot returns a scep_depot.Depot that uses the Datastore
 // underlying MySQL writer *sql.DB.
-func (ds *Datastore) NewMDMAppleSCEPDepot(caCertPEM []byte, caKeyPEM []byte) (*apple_mdm.SCEPMySQLDepot, error) {
-	depot, err := apple_mdm.NewSCEPMySQLDepot(ds.writer.DB, caCertPEM, caKeyPEM)
-	if err != nil {
-		return nil, err
-	}
-	return depot, nil
+func (ds *Datastore) NewSCEPDepot(caCertPEM []byte, caKeyPEM []byte) (scep_depot.Depot, error) {
+	return newSCEPDepot(ds.writer.DB, caCertPEM, caKeyPEM)
 }
 
 // NewMDMAppleMDMStorage returns a MySQL nanomdm storage that uses the Datastore
@@ -773,12 +769,22 @@ func appendLimitOffsetToSelect(ds *goqu.SelectDataset, opts fleet.ListOptions) *
 	return ds
 }
 
-func appendListOptionsToSQL(sql string, opts fleet.ListOptions) string {
+// Appends the list options SQL to the passed in SQL string. This appended
+// SQL is determined by the passed in options.
+//
+// NOTE: this method will mutate the options argument if no explicit PerPage
+// option is set (a default value will be provided) or if the cursor approach is used.
+func appendListOptionsToSQL(sql string, opts *fleet.ListOptions) string {
 	sql, _ = appendListOptionsWithCursorToSQL(sql, nil, opts)
 	return sql
 }
 
-func appendListOptionsWithCursorToSQL(sql string, params []interface{}, opts fleet.ListOptions) (string, []interface{}) {
+// Appends the list options SQL to the passed in SQL string. This appended
+// SQL is determined by the passed in options. This supports cursor options
+//
+// NOTE: this method will mutate the options argument if no explicit PerPage option
+// is set (a default value will be provided) or if the cursor approach is used.
+func appendListOptionsWithCursorToSQL(sql string, params []interface{}, opts *fleet.ListOptions) (string, []interface{}) {
 	orderKey := sanitizeColumn(opts.OrderKey)
 
 	if opts.After != "" && orderKey != "" {
@@ -810,14 +816,18 @@ func appendListOptionsWithCursorToSQL(sql string, params []interface{}, opts fle
 
 		sql = fmt.Sprintf("%s ORDER BY %s %s", sql, orderKey, direction)
 	}
-	// REVIEW: If caller doesn't supply a limit apply a default limit of 1000
-	// to insure that an unbounded query with many results doesn't consume too
-	// much memory or hang
+	// REVIEW: If caller doesn't supply a limit apply a default limit to insure
+	// that an unbounded query with many results doesn't consume too much memory
+	// or hang
 	if opts.PerPage == 0 {
 		opts.PerPage = defaultSelectLimit
 	}
 
-	sql = fmt.Sprintf("%s LIMIT %d", sql, opts.PerPage)
+	perPage := opts.PerPage
+	if opts.IncludeMetadata {
+		perPage++
+	}
+	sql = fmt.Sprintf("%s LIMIT %d", sql, perPage)
 
 	offset := opts.PerPage * opts.Page
 
@@ -1093,6 +1103,20 @@ func (ds *Datastore) ProcessList(ctx context.Context) ([]fleet.MySQLProcess, err
 		return nil, ctxerr.Wrap(ctx, err, "Getting process list")
 	}
 	return processList, nil
+}
+
+func insertOnDuplicateDidInsert(res sql.Result) bool {
+	// Note that connection string sets CLIENT_FOUND_ROWS (see
+	// generateMysqlConnectionString in this package), so LastInsertId is 0
+	// and RowsAffected 1 when a row is set to its current values.
+	//
+	// See [the docs][1] or @mna's comment in `insertOnDuplicateDidUpdate`
+	// below for more details
+	//
+	// [1]: https://dev.mysql.com/doc/refman/5.7/en/insert-on-duplicate.html
+	lastID, _ := res.LastInsertId()
+	affected, _ := res.RowsAffected()
+	return lastID != 0 && affected == 1
 }
 
 func insertOnDuplicateDidUpdate(res sql.Result) bool {

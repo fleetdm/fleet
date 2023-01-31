@@ -103,6 +103,13 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		team.Config.WebhookSettings = *payload.WebhookSettings
 	}
 
+	if payload.MDM != nil {
+		if err := payload.MDM.MacOSUpdates.Validate(); err != nil {
+			return nil, fleet.NewInvalidArgumentError("macos_updates", err.Error())
+		}
+		team.Config.MDM = *payload.MDM
+	}
+
 	if payload.Integrations != nil {
 		// the team integrations must reference an existing global config integration.
 		appCfg, err := svc.ds.AppConfig(ctx)
@@ -458,6 +465,9 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 		if len(spec.Secrets) > fleet.MaxEnrollSecretsCount {
 			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("secrets", "too many secrets"), "validate secrets")
 		}
+		if err := spec.MDM.MacOSUpdates.Validate(); err != nil {
+			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("macos_updates", err.Error()))
+		}
 
 		if applyOpts.DryRun {
 			continue
@@ -521,6 +531,7 @@ func (svc Service) createTeamFromSpec(ctx context.Context, spec *fleet.TeamSpec,
 		Config: fleet.TeamConfig{
 			AgentOptions: agentOptions,
 			Features:     features,
+			MDM:          spec.MDM,
 		},
 		Secrets: secrets,
 	})
@@ -546,6 +557,7 @@ func (svc Service) editTeamFromSpec(ctx context.Context, team *fleet.Team, spec 
 		return err
 	}
 	team.Config.Features = features
+	team.Config.MDM = spec.MDM
 
 	if len(secrets) > 0 {
 		team.Secrets = secrets

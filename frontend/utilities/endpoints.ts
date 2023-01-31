@@ -8,6 +8,9 @@ export default {
     return `/${API_VERSION}/fleet/email/change/${token}`;
   },
   DEVICE_USER_DETAILS: `/${API_VERSION}/fleet/device`,
+  DEVICE_USER_MDM_ENROLLMENT_PROFILE: (token: string): string => {
+    return `${API_VERSION}/fleet/device/${token}/mdm/apple/manual_enrollment_profile`;
+  },
   DOWNLOAD_INSTALLER: `/${API_VERSION}/fleet/download_installer`,
   ENABLE_USER: (id: number): string => {
     return `/${API_VERSION}/fleet/users/${id}/enable`;
@@ -31,12 +34,15 @@ export default {
   LOGIN: `/${API_VERSION}/fleet/login`,
   LOGOUT: `/${API_VERSION}/fleet/logout`,
   MACADMINS: `/${API_VERSION}/fleet/macadmins`,
-  MDM_DOWNLOAD_ENROLLMENT_PROFILE: `/${API_VERSION}/fleet/mdm/profile`, // TODO: change if needed when API READY
+  // TODO: Clean up MDM endpoints to be consistent and up to date
   MDM_APPLE: `/${API_VERSION}/fleet/mdm/apple`,
   MDM_APPLE_BM: `/${API_VERSION}/fleet/mdm/apple_bm`,
   MDM_APPLE_BM_KEYS: `/${API_VERSION}/fleet/mdm/apple_bm/keys`,
   MDM_SUMMARY: `/${API_VERSION}/fleet/hosts/summary/mdm`,
+  // Should below 2 endpoints be consistent?
   HOST_MDM: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/mdm`,
+  HOST_MDM_UNENROLL: (id: number) =>
+    `/${API_VERSION}/fleet/mdm/hosts/${id}/unenroll`,
   ME: `/${API_VERSION}/fleet/me`,
   OS_VERSIONS: `/${API_VERSION}/fleet/os_versions`,
   OSQUERY_OPTIONS: `/${API_VERSION}/fleet/spec/osquery_options`,

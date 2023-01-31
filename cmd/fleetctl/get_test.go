@@ -148,6 +148,12 @@ func TestGetTeams(t *testing.T) {
 							Features: fleet.Features{
 								AdditionalQueries: &additionalQueries,
 							},
+							MDM: fleet.TeamMDM{
+								MacOSUpdates: fleet.MacOSUpdates{
+									MinimumVersion: "12.3.1",
+									Deadline:       "2021-12-14",
+								},
+							},
 						},
 					},
 				}, nil
@@ -176,6 +182,10 @@ spec:
     integrations:
       jira: null
       zendesk: null
+    mdm:
+      macos_updates:
+        minimum_version: ""
+        deadline: ""
     name: team1
     user_count: 99
     webhook_settings:
@@ -208,6 +218,10 @@ spec:
     integrations:
       jira: null
       zendesk: null
+    mdm:
+      macos_updates:
+        minimum_version: "12.3.1"
+        deadline: "2021-12-14"
     name: team2
     user_count: 87
     webhook_settings:
@@ -217,8 +231,8 @@ spec:
         host_batch_size: 0
         policy_ids: null
 `
-			expectedJson := `{"kind":"team","apiVersion":"v1","spec":{"team":{"id":42,"created_at":"1999-03-10T02:45:06.371Z","name":"team1","description":"team1 description","webhook_settings":{"failing_policies_webhook":{"enable_failing_policies_webhook":false,"destination_url":"","policy_ids":null,"host_batch_size":0}},"integrations":{"jira":null,"zendesk":null},"features":{"enable_host_users":true,"enable_software_inventory":true},"user_count":99,"host_count":0}}}
-{"kind":"team","apiVersion":"v1","spec":{"team":{"id":43,"created_at":"1999-03-10T02:45:06.371Z","name":"team2","description":"team2 description","agent_options":{"config":{"foo":"bar"},"overrides":{"platforms":{"darwin":{"foo":"override"}}}},"webhook_settings":{"failing_policies_webhook":{"enable_failing_policies_webhook":false,"destination_url":"","policy_ids":null,"host_batch_size":0}},"integrations":{"jira":null,"zendesk":null},"features":{"enable_host_users":false,"enable_software_inventory":false,"additional_queries":{"foo":"bar"}},"user_count":87,"host_count":0}}}
+			expectedJson := `{"kind":"team","apiVersion":"v1","spec":{"team":{"id":42,"created_at":"1999-03-10T02:45:06.371Z","name":"team1","description":"team1 description","webhook_settings":{"failing_policies_webhook":{"enable_failing_policies_webhook":false,"destination_url":"","policy_ids":null,"host_batch_size":0}},"integrations":{"jira":null,"zendesk":null},"features":{"enable_host_users":true,"enable_software_inventory":true},"mdm":{"macos_updates":{"minimum_version":"","deadline":""}},"user_count":99,"host_count":0}}}
+{"kind":"team","apiVersion":"v1","spec":{"team":{"id":43,"created_at":"1999-03-10T02:45:06.371Z","name":"team2","description":"team2 description","agent_options":{"config":{"foo":"bar"},"overrides":{"platforms":{"darwin":{"foo":"override"}}}},"webhook_settings":{"failing_policies_webhook":{"enable_failing_policies_webhook":false,"destination_url":"","policy_ids":null,"host_batch_size":0}},"integrations":{"jira":null,"zendesk":null},"features":{"enable_host_users":false,"enable_software_inventory":false,"additional_queries":{"foo":"bar"}},"mdm":{"macos_updates":{"minimum_version":"12.3.1","deadline":"2021-12-14"}},"user_count":87,"host_count":0}}}
 `
 			if tt.shouldHaveExpiredBanner {
 				expectedJson = expiredBanner.String() + expectedJson
@@ -226,8 +240,8 @@ spec:
 				expectedText = expiredBanner.String() + expectedText
 			}
 
-			assert.Equal(t, expectedText, runAppForTest(t, []string{"get", "teams"}))
-			assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "teams", "--yaml"}))
+			assert.YAMLEq(t, expectedText, runAppForTest(t, []string{"get", "teams"}))
+			assert.YAMLEq(t, expectedYaml, runAppForTest(t, []string{"get", "teams", "--yaml"}))
 			assert.Equal(t, expectedJson, runAppForTest(t, []string{"get", "teams", "--json"}))
 		})
 	}
@@ -476,6 +490,9 @@ spec:
   mdm:
     apple_bm_terms_expired: false
     apple_bm_default_team: ""
+    macos_updates:
+      minimum_version: ""
+      deadline: ""
   org_info:
     org_logo_url: ""
     org_name: ""
@@ -562,6 +579,12 @@ spec:
       "enable_host_users": true,
       "enable_software_inventory": false
     },
+    "mdm": {
+      "macos_updates": {
+	"minimum_version": "",
+	"deadline": ""
+      }
+    },
     "sso_settings": {
       "entity_id": "",
       "issuer_uri": "",
@@ -596,7 +619,14 @@ spec:
       "interval": "0s"
     },
     "integrations": { "jira": null, "zendesk": null },
-    "mdm": { "apple_bm_terms_expired": false, "apple_bm_default_team": "" }
+    "mdm": {
+      "apple_bm_terms_expired": false,
+      "apple_bm_default_team": "",
+      "macos_updates": {
+	"minimum_version": "",
+	"deadline": ""
+      }
+    }
   }
 }
 `
@@ -625,6 +655,9 @@ spec:
   mdm:
     apple_bm_default_team: ""
     apple_bm_terms_expired: false
+    macos_updates:
+      minimum_version: ""
+      deadline: ""
   license:
     expiration: "0001-01-01T00:00:00Z"
     tier: free
@@ -757,6 +790,12 @@ spec:
       "enable_host_users": true,
       "enable_software_inventory": false
     },
+    "mdm": {
+      "macos_updates": {
+	"minimum_version": "",
+	"deadline": ""
+      }
+    },
     "sso_settings": {
       "enable_jit_provisioning": false,
       "entity_id": "",
@@ -798,10 +837,14 @@ spec:
       "jira": null,
       "zendesk": null
     },
-		"mdm": {
+    "mdm": {
       "apple_bm_default_team": "",
-			"apple_bm_terms_expired": false
-		},
+      "apple_bm_terms_expired": false,
+      "macos_updates": {
+	"minimum_version": "",
+	"deadline": ""
+      }
+    },
     "update_interval": {
       "osquery_detail": "1h0m0s",
       "osquery_policy": "1h0m0s"

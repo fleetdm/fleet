@@ -36,6 +36,7 @@ import Spinner from "components/Spinner";
 import Button from "components/buttons/Button";
 import TabsWrapper from "components/TabsWrapper";
 import MainContent from "components/MainContent";
+import InfoBanner from "components/InfoBanner";
 import BackLink from "components/BackLink";
 
 import {
@@ -57,6 +58,7 @@ import PacksCard from "../cards/Packs";
 import SelectQueryModal from "./modals/SelectQueryModal";
 import PolicyDetailsModal from "../cards/Policies/HostPoliciesTable/PolicyDetailsModal";
 import OSPolicyModal from "./modals/OSPolicyModal";
+import UnenrollMdmModal from "./modals/UnenrollMdmModal";
 import TransferHostModal from "../../components/TransferHostModal";
 import DeleteHostModal from "../../components/DeleteHostModal";
 
@@ -64,6 +66,7 @@ import parseOsVersion from "./modals/OSPolicyModal/helpers";
 import DeleteIcon from "../../../../../assets/images/icon-action-delete-14x14@2x.png";
 import QueryIcon from "../../../../../assets/images/icon-action-query-16x16@2x.png";
 import TransferIcon from "../../../../../assets/images/icon-action-transfer-16x16@2x.png";
+import CloseIcon from "../../../../../assets/images/icon-action-close-16x15@2x.png";
 
 const baseClass = "host-details";
 
@@ -129,15 +132,12 @@ const HostDetailsPage = ({
     isPremiumTier && (isGlobalAdmin || isGlobalMaintainer);
 
   const canDeleteHost = (user: IUser, host: IHost) => {
-    if (
+    return (
       isGlobalAdmin ||
       isGlobalMaintainer ||
       permissionUtils.isTeamAdmin(user, host.team_id) ||
       permissionUtils.isTeamMaintainer(user, host.team_id)
-    ) {
-      return true;
-    }
-    return false;
+    );
   };
 
   const [showDeleteHostModal, setShowDeleteHostModal] = useState(false);
@@ -145,6 +145,7 @@ const HostDetailsPage = ({
   const [showQueryHostModal, setShowQueryHostModal] = useState(false);
   const [showPolicyDetailsModal, setPolicyDetailsModal] = useState(false);
   const [showOSPolicyModal, setShowOSPolicyModal] = useState(false);
+  const [showUnenrollMdmModal, setShowUnenrollMdmModal] = useState(false);
   const [selectedPolicy, setSelectedPolicy] = useState<IHostPolicy | null>(
     null
   );
@@ -161,6 +162,7 @@ const HostDetailsPage = ({
   ] = useState<IHostDiskEncryptionProps>({});
   const [usersState, setUsersState] = useState<{ username: string }[]>([]);
   const [usersSearchString, setUsersSearchString] = useState("");
+  const [hideEditMdm, setHideEditMdm] = useState<boolean>(false);
 
   const { data: fleetQueries, error: fleetQueriesError } = useQuery<
     IFleetQueriesResponse,
@@ -233,7 +235,7 @@ const HostDetailsPage = ({
   const refetchExtensions = () => {
     deviceMapping !== null && refetchDeviceMapping();
     macadmins !== null && refetchMacadmins();
-    mdm !== null && refetchMdm();
+    mdm?.enrollment_status !== null && refetchMdm();
   };
 
   const {
@@ -331,6 +333,19 @@ const HostDetailsPage = ({
     }
   );
 
+  const canEditMdm = (() => {
+    const userHasPermission =
+      !!currentUser &&
+      !!host &&
+      (isGlobalAdmin ||
+        isGlobalMaintainer ||
+        permissionUtils.isTeamMaintainerOrTeamAdmin(currentUser, host.team_id));
+    const hostEnrolled = ["On (automatic)", "On (manual)"].includes(
+      host?.mdm.enrollment_status ?? ""
+    );
+    return userHasPermission && hostEnrolled;
+  })();
+
   const featuresConfig = host?.team_id
     ? teams?.find((t) => t.id === host.team_id)?.features
     : config?.features;
@@ -407,6 +422,10 @@ const HostDetailsPage = ({
     setPolicyDetailsModal(!showPolicyDetailsModal);
     setSelectedPolicy(null);
   }, [showPolicyDetailsModal, setPolicyDetailsModal, setSelectedPolicy]);
+
+  const toggleUnenrollMdmModal = useCallback(() => {
+    setShowUnenrollMdmModal(!showUnenrollMdmModal);
+  }, [showUnenrollMdmModal, setShowUnenrollMdmModal]);
 
   const onCreateNewPolicy = () => {
     const { NEW_POLICY } = PATHS;
@@ -519,7 +538,6 @@ const HostDetailsPage = ({
 
   const renderActionButtons = () => {
     const isOnline = host?.status === "online";
-
     return (
       <div className={`${baseClass}__action-button-container`}>
         {canTransferTeam && (
@@ -560,6 +578,19 @@ const HostDetailsPage = ({
             You can’t query <br /> an offline host.
           </span>
         </ReactTooltip>
+        {canEditMdm && !hideEditMdm && (
+          <Button
+            onClick={toggleUnenrollMdmModal}
+            variant="text-icon"
+            className={`${baseClass}__unenroll-host-from-mdm-button`}
+            disabled={!isOnline}
+          >
+            <>
+              Turn off MDM{" "}
+              <img src={CloseIcon} alt="Unenroll host from mdm icon" />
+            </>
+          </Button>
+        )}
         {currentUser && host && canDeleteHost(currentUser, host) && (
           <Button
             onClick={() => setShowDeleteHostModal(true)}
@@ -627,7 +658,18 @@ const HostDetailsPage = ({
     <MainContent className={baseClass}>
       <div className={`${baseClass}__wrapper`}>
         <div className={`${baseClass}__header-links`}>
-          <BackLink text="Back to all hosts" path={filteredHostsPath} />
+          {host?.platform === "darwin" &&
+            host?.mdm.enrollment_status === "Off" && (
+              <InfoBanner color="yellow" pageLevel>
+                To change settings and install software, ask the end user to
+                follow the <strong>Turn on MDM</strong> instructions on their{" "}
+                <strong>My device</strong> page.
+              </InfoBanner>
+            )}
+          <BackLink
+            text="Back to all hosts"
+            path={filteredHostsPath || PATHS.MANAGE_HOSTS}
+          />
         </div>
         <HostSummaryCard
           statusClassName={statusClassName}
@@ -751,6 +793,15 @@ const HostDetailsPage = ({
             detailsUpdatedAt={host?.detail_updated_at}
             osPolicy={osPolicyQuery}
             osPolicyLabel={osPolicyLabel}
+          />
+        )}
+        {showUnenrollMdmModal && !!host && (
+          <UnenrollMdmModal
+            hostId={host.id}
+            onClose={toggleUnenrollMdmModal}
+            onSuccess={() => {
+              setHideEditMdm(true);
+            }}
           />
         )}
       </div>

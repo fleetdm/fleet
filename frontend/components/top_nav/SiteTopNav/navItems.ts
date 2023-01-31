@@ -3,14 +3,15 @@ import URL_PREFIX from "router/url_prefix";
 import { IUser } from "interfaces/user";
 
 export interface INavItem {
-  icon: string;
   name: string;
-  iconName: string;
+  icon?: string;
+  iconName?: string;
   location: {
     regex: RegExp;
     pathname: string;
   };
   withContext?: boolean;
+  exclude?: boolean;
 }
 
 export default (
@@ -19,11 +20,18 @@ export default (
   isAnyTeamAdmin = false,
   isAnyTeamMaintainer = false,
   isGlobalMaintainer = false,
-  isNoAccess = false
+  isNoAccess = false,
+  isMdmEnabled = false
 ): INavItem[] => {
   if (!user) {
     return [];
   }
+
+  const isMaintainerOrAdmin =
+    isGlobalMaintainer ||
+    isAnyTeamMaintainer ||
+    isGlobalAdmin ||
+    isAnyTeamAdmin;
 
   const logo = [
     {
@@ -37,11 +45,9 @@ export default (
     },
   ];
 
-  const userNavItems = [
+  const navItems = [
     {
-      icon: "hosts",
       name: "Hosts",
-      iconName: "hosts",
       location: {
         regex: new RegExp(`^${URL_PREFIX}/hosts/`),
         pathname: PATHS.MANAGE_HOSTS,
@@ -49,9 +55,15 @@ export default (
       withContext: true,
     },
     {
-      icon: "software",
+      name: "Controls",
+      location: {
+        regex: new RegExp(`^${URL_PREFIX}/controls/`),
+        pathname: PATHS.CONTROLS,
+      },
+      exclude: !isMaintainerOrAdmin || !isMdmEnabled,
+    },
+    {
       name: "Software",
-      iconName: "software",
       location: {
         regex: new RegExp(`^${URL_PREFIX}/software/`),
         pathname: PATHS.MANAGE_SOFTWARE,
@@ -59,21 +71,22 @@ export default (
       withContext: true,
     },
     {
-      icon: "query",
       name: "Queries",
-      iconName: "queries",
       location: {
         regex: new RegExp(`^${URL_PREFIX}/queries/`),
         pathname: PATHS.MANAGE_QUERIES,
       },
     },
-  ];
-
-  const policiesTab = [
     {
-      icon: "policies",
+      name: "Schedule",
+      location: {
+        regex: new RegExp(`^${URL_PREFIX}/(schedule|packs)/`),
+        pathname: PATHS.MANAGE_SCHEDULE,
+      },
+      exclude: !isMaintainerOrAdmin,
+    },
+    {
       name: "Policies",
-      iconName: "policies",
       location: {
         regex: new RegExp(`^${URL_PREFIX}/(policies)/`),
         pathname: PATHS.MANAGE_POLICIES,
@@ -81,34 +94,14 @@ export default (
     },
   ];
 
-  const maintainerOrAdminNavItems = [
-    {
-      icon: "packs",
-      name: "Schedule",
-      iconName: "packs",
-      location: {
-        regex: new RegExp(`^${URL_PREFIX}/(schedule|packs)/`),
-        pathname: PATHS.MANAGE_SCHEDULE,
-      },
-    },
-  ];
-
-  if (
-    isGlobalMaintainer ||
-    isAnyTeamMaintainer ||
-    isGlobalAdmin ||
-    isAnyTeamAdmin
-  ) {
-    return [
-      ...logo,
-      ...userNavItems,
-      ...maintainerOrAdminNavItems,
-      ...policiesTab,
-    ];
-  }
-
   if (isNoAccess) {
     return [...logo];
   }
-  return [...logo, ...userNavItems, ...policiesTab];
+
+  return [
+    ...logo,
+    ...navItems.filter((item) => {
+      return !item.exclude;
+    }),
+  ];
 };

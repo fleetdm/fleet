@@ -11,24 +11,12 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
 	"github.com/go-kit/log"
 	nanodep_client "github.com/micromdm/nanodep/client"
 	"github.com/micromdm/nanodep/godep"
 	"github.com/stretchr/testify/require"
 )
-
-type mockStorage struct {
-	token string
-	url   string
-}
-
-func (s mockStorage) RetrieveAuthTokens(ctx context.Context, name string) (*nanodep_client.OAuth1Tokens, error) {
-	return &nanodep_client.OAuth1Tokens{AccessToken: s.token}, nil
-}
-
-func (s mockStorage) RetrieveConfig(context.Context, string) (*nanodep_client.Config, error) {
-	return &nanodep_client.Config{BaseURL: s.url}, nil
-}
 
 func TestDEPClient(t *testing.T) {
 	ctx := context.Background()
@@ -141,8 +129,15 @@ func TestDEPClient(t *testing.T) {
 	for i, c := range cases {
 		t.Logf("case %d", i)
 
-		store := mockStorage{token: c.token, url: srv.URL}
-		dep := fleet.NewDEPClient(store, ds, logger)
+		store := &nanodep_mock.Storage{}
+		store.RetrieveAuthTokensFunc = func(ctx context.Context, name string) (*nanodep_client.OAuth1Tokens, error) {
+			return &nanodep_client.OAuth1Tokens{AccessToken: c.token}, nil
+		}
+		store.RetrieveConfigFunc = func(context.Context, string) (*nanodep_client.Config, error) {
+			return &nanodep_client.Config{BaseURL: srv.URL}, nil
+		}
+
+		dep := apple_mdm.NewDEPClient(store, ds, logger)
 		res, err := dep.AccountDetail(ctx, apple_mdm.DEPName)
 
 		if c.wantErr {
@@ -163,6 +158,8 @@ func TestDEPClient(t *testing.T) {
 		} else {
 			require.NoError(t, err)
 			require.Equal(t, "test", res.AdminID)
+			require.True(t, store.RetrieveAuthTokensFuncInvoked)
+			require.True(t, store.RetrieveConfigFuncInvoked)
 		}
 		checkDSCalled(c.readInvoked, c.writeInvoked)
 		require.Equal(t, c.termsFlag, appCfg.MDM.AppleBMTermsExpired)

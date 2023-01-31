@@ -39,7 +39,7 @@ At the end of the quarter and key points throughout the quarter (every three wee
 Every month Charlie will do the prep work for the monthly "✌️ All hands 🖐👋🤲👏🙌🤘" call.
   1. In the ["👋 All hands" folder](https://drive.google.com/drive/folders/1cw_lL3_Xu9ZOXKGPghh8F4tc0ND9kQeY?usp=sharing), create a new folder using "yyyy-mm - All Hands - yyyy month name".
   2. Download a copy of the previous month's keynote file and rename the copy with the same name used to create the new folder.
-  3. Update "🧑‍🚀 Welcome!" slide to reflect new hires since last month's All Hands meeting (pull this from the [🧑‍🚀 Fleeties spreasheet](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit?pli=1#gid=0) using "**name** <em>(pronoun)</em>, position".
+  3. Update "🧑‍🚀 Welcome!" slide to reflect new hires since last month's All Hands meeting (pull this from the [🧑‍🚀 Fleeties spreadsheet](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit?pli=1#gid=0) using "**name** <em>(pronoun)</em>, position".
   4. **If applicable** Update "🦉 Welcome!" slide to reflect new investors or advisors using "**name** <em>(pronoun)</em>, position, company".
   5. **If applicable** Update "🤝 Welcome!" slide to reflect new customers.
   6. Update slides that contain dates to reflect current All Hands date.
@@ -79,10 +79,12 @@ At Fleet, document prep steps are determined by the type of meeting.
 | Meeting type | Description | Automation enabled? | Meeting note preference |
 | ------------ | -------------------------------------------------------------| ------------------ | ------------- |
 | "One-off"    | A non-recurring meeting that has a separate doc per meeting. | Most likely Zapier | Note template |
-| External call | A recurring meeting that is with a customer, coach, or advisor. | No, unless rescheduled using Calendly link | Journals template |
+| External call | A recurring meeting that is with a customer, coach, or advisor. | No, unless rescheduled using Calendly link | Journal template |
 | 1:1 | A recurring meeting that direct managers and direct reports use for performance management and is emptied after every call. | Most likely Reclaim | Agenda template |
 | Office hours | A recurring meeting that is emptied after call used for group meetings of Fleet team members. | Google calendar | Office hour agenda template |
 
+>Journals are good when the primary goal is understanding status, asking questions.  (e.g. a key review, a demo session, customer voice, prospect voice, community voice)  There might be action items that come out of it, but they aren't the goal of the meeting.  TODOs in journals are suspect and often overlooked.
+Whereas agendas are good when it's all about action items / decisions / discussing a topic.  Like the whole reason a bullet is there is to make someone aware, to get feedback, to make a decision, or because it's an important TODO for someone on that call.  TODOs in agendas are very easy to keep track of and can be trusted more.
 
 ## Tasks as assigned
 

@@ -12,14 +12,14 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
-	"github.com/fleetdm/fleet/v4/server/service"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/rs/zerolog/log"
 )
 
 // OrbitConfigFetcher allows fetching Orbit configuration.
 type OrbitConfigFetcher interface {
 	// GetConfig returns the Orbit configuration.
-	GetConfig() (*service.OrbitConfig, error)
+	GetConfig() (*fleet.OrbitConfig, error)
 }
 
 // FlagRunner is a specialized runner to periodically check and update flags from Fleet
