@@ -806,9 +806,17 @@ spec:
     cp /etc/security/audit_control ./tmp.txt; origExpire=$(cat ./tmp.txt  | grep expire-after);  sed "s/${origExpire}/expire-after:60d OR 5G/" ./tmp.txt > /etc/security/audit_control; rm ./tmp.txt;
   query: |
     SELECT 1 WHERE
-    EXISTS ( SELECT line, regex_match(line, 'expire-after:(\d+)d', 1) AS val FROM file_lines WHERE path = '/etc/security/audit_control' AND val >=60 )
+    EXISTS ( SELECT line, 
+             regex_match(line, 'expire-after:(\d+)d', 1) AS val 
+             FROM file_lines 
+             WHERE path = '/etc/security/audit_control' 
+             AND val >=60 )
     AND
-    EXISTS ( SELECT line, regex_match(line, 'OR (\d+)G', 1) AS val FROM file_lines WHERE path = '/etc/security/audit_control' AND val >=5 )
+    EXISTS ( SELECT line, 
+             regex_match(line, 'OR (\d+)G', 1) AS val 
+             FROM file_lines 
+             WHERE path = '/etc/security/audit_control' 
+             AND val >=5 )
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS3.4
   contributors: sharon-fdm
