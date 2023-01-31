@@ -257,8 +257,8 @@ module.exports.routes = {
     }
   },
 
-  'GET /upgrade-to-fleet-premium': {
-    action: 'view-upgrade-to-fleet-premium',
+  'GET /upgrade': {
+    action: 'view-upgrade',
     locals: {
       pageTitleForMeta: 'Upgrade to Fleet Premium | Fleet for osquery',
       pageDescriptionForMeta: 'Learn about the benefits of upgrading to Fleet Premium',

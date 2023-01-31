@@ -51,6 +51,6 @@ module.exports.policies = {
   'deliver-mdm-beta-signup': true,
   'deliver-apple-csr': true,
   'download-rss-feed': true,
-  'view-upgrade-to-fleet-premium': true,
+  'view-upgrade': true,
   'deliver-premium-upgrade-form': true,
 };
