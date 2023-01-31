@@ -107,14 +107,10 @@ func (ds *Datastore) loadOrPrepareStmt(ctx context.Context, query string) *sqlx.
 	return stmt
 }
 
-// NewMDMAppleSCEPDepot returns a *mysql.SCEPDepot that uses the Datastore
+// NewMDMAppleSCEPDepot returns a scep_depot.Depot that uses the Datastore
 // underlying MySQL writer *sql.DB.
 func (ds *Datastore) NewSCEPDepot(caCertPEM []byte, caKeyPEM []byte) (scep_depot.Depot, error) {
-	depot, err := newSCEPDepot(ds.writer.DB, caCertPEM, caKeyPEM)
-	if err != nil {
-		return nil, err
-	}
-	return depot, nil
+	return newSCEPDepot(ds.writer.DB, caCertPEM, caKeyPEM)
 }
 
 // NewMDMAppleMDMStorage returns a MySQL nanomdm storage that uses the Datastore

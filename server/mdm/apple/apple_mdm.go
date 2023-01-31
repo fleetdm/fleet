@@ -124,8 +124,6 @@ func NewDEPSyncer(
 				sentry.CaptureException(err)
 			case n > 0:
 				level.Info(kitlog.With(logger)).Log("msg", fmt.Sprintf("added %d new mdm device(s) to pending hosts", n))
-			default:
-				// ok
 			}
 
 			return assigner.ProcessDeviceResponse(ctx, resp)
