@@ -36,9 +36,6 @@
       min-width: 160px;
       margin-right: 40px;
     }
-    [purpose='feature-text'] {
-
-    }
     margin-bottom: 80px;
   }
   [purpose='upgrade-form'] {
@@ -51,24 +48,62 @@
     input {
       border: 1px solid #C5C7D1;
       border-radius: 6px;
+      height: 48px;
+      font-size: 16px;
+      color: @core-fleet-black;
+    }
+    select {
+      font-size: 16px;
+      border: 1px solid #C5C7D1;
+      background-color: #FFF;
+      height: 48px;
+      width: 100%;
+      margin-right: 0;
+      margin-left: 0;
+      border-radius: 8px;
+      padding: 12px;
+      background: url('/images/chevron-down-fleet-black-8x8@2x.png') no-repeat 96% 50%, #FFF;
+      background-size: 16px 16px;
+      -webkit-appearance: none;
+    }
+    [purpose='submit-button'] {
+      position: relative;
+    }
+    [purpose='submit-button']::before {
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0) 100%);
+      opacity: 1;
+      content: ' ';
+      position: absolute;
+      top: 0;
+      left: -5px;
+      width: 233px;
+      max-width: 60%;
+      height: 100%;
+      transform: skew(-10deg);
+      transition: left 0.5s ease-in, opacity 0.50s ease-in, width 0.5s ease-in;
     }
   }
-  @media (max-width: 1200px) {
-    [purpose='page-container'] {
-      padding-left: 80px;
-      padding-right: 80px;
-    }
+  @media (max-width: 1201px) {
     [purpose='upgrade-form'] {
-      margin-left: 60px;
-      padding: 40px 20px;
-      width: auto;
-      min-width: 380px;
-      max-width: 480px;
+      padding: 24px;
+      width: 400px;
     }
     [purpose='feature'] {
       [purpose='feature-image'] {
         margin-right: 30px;
       }
+    }
+  }
+  @media (max-width: 1024px) {
+    [purpose='page-container'] {
+      padding-top: 60px;
+      padding-bottom: 80px;
+    }
+    [purpose='upgrade-form'] {
+      margin-left: 40px;
+    }
+    h1 {
+      text-align: center;
     }
   }
   @media (max-width: 991px) {
@@ -99,12 +134,11 @@
     }
     [purpose='upgrade-form'] {
       width: 100%;
+      padding: 40px;
       margin-left: auto;
-      min-width: unset;
-      max-width: unset;
     }
-
   }
+
   @media (max-width: 768px) {
     h1 {
       text-align: center;
@@ -128,11 +162,17 @@
     }
     [purpose='feature'] {
       width: 100%;
+      max-width: 440px;
     }
+  }
+
+  @media (max-width: 481px) {
     [purpose='upgrade-form'] {
       padding: 20px;
     }
   }
+
+
 
 
 }

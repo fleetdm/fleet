@@ -3,7 +3,9 @@ parasails.registerPage('upgrade-to-fleet-premium', {
   //  ║║║║║ ║ ║╠═╣║    ╚═╗ ║ ╠═╣ ║ ║╣
   //  ╩╝╚╝╩ ╩ ╩╩ ╩╩═╝  ╚═╝ ╩ ╩ ╩ ╩ ╚═╝
   data: {
-    formData: { /* … */ },
+    formData: {
+      monthsUsingFleetFree: 'Please select one',
+    },
 
     // For tracking client-side validation errors in our form.
     // > Has property set to `true` for each invalid property in `formData`.
@@ -11,15 +13,23 @@ parasails.registerPage('upgrade-to-fleet-premium', {
 
     // Form rules
     formRules: {
-      company: {required: true },
-      monthsUsingFleetFree: {required: true },
+      organization: {required: true },
+      monthsUsingFleetFree: {
+        required: true,
+        isIn:[
+          '1 - 3 months',
+          '3 - 6 months',
+          '6 - 12 months',
+          '12+ months',
+        ]
+      },
       emailAddress: {required: true, isEmail: true},
       numberOfHosts: {required: true },
     },
     cloudError: '',
     // Syncing / loading state
     syncing: false,
-    showSignupFormSuccess: false,
+    cloudSuccess: false,
   },
 
   //  ╦  ╦╔═╗╔═╗╔═╗╦ ╦╔═╗╦  ╔═╗
@@ -42,7 +52,7 @@ parasails.registerPage('upgrade-to-fleet-premium', {
       }
     },
     submittedForm: function() {
-      this.showSignupFormSuccess = true;
+      this.cloudSuccess = true;
     },
     _resetForms: async function() {
       this.cloudError = '';
