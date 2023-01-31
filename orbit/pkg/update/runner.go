@@ -128,6 +128,9 @@ func (r *Runner) UpdateAction() (bool, error) {
 		return false, fmt.Errorf("update metadata: %w", err)
 	}
 
+	// TODO(sarah): Should we reconsider usage of `didUpdate`? It seems that in most cases it is
+	// used to signal that orbit should restart. Does that make sense when we are dealing with more
+	// loosely coupled components such as Nudge?
 	var didUpdate bool
 	for _, target := range r.opt.Targets {
 		meta, err := r.updater.Lookup(target)
@@ -160,8 +163,10 @@ func (r *Runner) UpdateAction() (bool, error) {
 			log.Info().Str("target", target).Msg("update completed")
 			didUpdate = true
 			if target == "nudge" {
-				// TODO handle this appropriately
-				didUpdate = false
+				r.mu.Lock()
+				r.localHashes["nudge"] = metaHash
+				r.mu.Unlock()
+				log.Info().Msgf("updating local hash(%s)=%x", "nudge", r.localHashes["nudge"])
 			}
 		} else {
 			log.Debug().Str("target", target).Msg("no update")
