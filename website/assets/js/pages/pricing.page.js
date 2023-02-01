@@ -47,7 +47,6 @@ parasails.registerPage('pricing', {
       (1 * (this.formData.other ? this.formData.other : 0));
       this.estimatedCost = Number(total);
       this.estimatedUltimateCostPerHost = Math.floor(this.estimatedCost / totalNumberOfDevices);
-      console.log(this.estimatedUltimateCostPerHost);
     },
   }
 });
