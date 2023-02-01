@@ -156,7 +156,17 @@ func (svc *Service) RequestMDMAppleCSR(ctx context.Context, email, org string) (
 				// stablish a response schema from which we can get
 				// the invalid field and use
 				// fleet.NewInvalidArgumentError instead
-				status = http.StatusUnprocessableEntity
+				//
+				// For now, since we have already validated
+				// everything else, we assume that a 4xx
+				// response is an email with an invalid domain
+				return nil, ctxerr.Wrap(
+					ctx,
+					fleet.NewInvalidArgumentError(
+						"email_address",
+						fmt.Sprintf("this email address is not valid: %v", err),
+					),
+				)
 			}
 			return nil, ctxerr.Wrap(
 				ctx,

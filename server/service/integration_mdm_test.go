@@ -516,7 +516,7 @@ func (s *integrationMDMTestSuite) TestAppleMDMCSRRequest() {
 	errResp = validationErrResp{}
 	s.DoJSON("POST", "/api/latest/fleet/mdm/apple/request_csr", requestMDMAppleCSRRequest{EmailAddress: "a@b.c", Organization: "test"}, http.StatusUnprocessableEntity, &errResp)
 	require.Len(t, errResp.Errors, 1)
-	require.Contains(t, errResp.Errors[0].Reason, "FleetDM CSR request failed")
+	require.Contains(t, errResp.Errors[0].Reason, "this email address is not valid")
 
 	s.FailNextCSRRequestWith(http.StatusInternalServerError)
 	errResp = validationErrResp{}
