@@ -489,6 +489,7 @@ spec:
     zendesk: null
   mdm:
     apple_bm_terms_expired: false
+    enabled_and_configured: false
     apple_bm_default_team: ""
     macos_updates:
       minimum_version: ""
@@ -621,6 +622,7 @@ spec:
     "integrations": { "jira": null, "zendesk": null },
     "mdm": {
       "apple_bm_terms_expired": false,
+      "enabled_and_configured": false,
       "apple_bm_default_team": "",
       "macos_updates": {
 	"minimum_version": "",
@@ -655,6 +657,7 @@ spec:
   mdm:
     apple_bm_default_team: ""
     apple_bm_terms_expired: false
+    enabled_and_configured: false
     macos_updates:
       minimum_version: ""
       deadline: ""
@@ -840,6 +843,7 @@ spec:
     "mdm": {
       "apple_bm_default_team": "",
       "apple_bm_terms_expired": false,
+      "enabled_and_configured": false,
       "macos_updates": {
 	"minimum_version": "",
 	"deadline": ""
