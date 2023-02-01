@@ -59,11 +59,11 @@ func TestIntegrationsMDM(t *testing.T) {
 type integrationMDMTestSuite struct {
 	suite.Suite
 	withServer
-	fleetCfg       config.FleetConfig
-	fleetDMFailCSR atomic.Bool
-	pushProvider   *mock.APNSPushProvider
-	depStorage     nanodep_storage.AllStorage
-	depSchedule    *schedule.Schedule
+	fleetCfg             config.FleetConfig
+	fleetDMNextCSRStatus atomic.Value
+	pushProvider         *mock.APNSPushProvider
+	depStorage           nanodep_storage.AllStorage
+	depSchedule          *schedule.Schedule
 }
 
 func (s *integrationMDMTestSuite) SetupSuite() {
@@ -131,25 +131,20 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	s.depSchedule = depSchedule
 
 	fleetdmSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if s.fleetDMFailCSR.Swap(false) {
-			// fail this call
-			w.WriteHeader(http.StatusBadRequest)
-			_, _ = w.Write([]byte("bad request"))
-			return
-		}
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte("ok"))
+		status := s.fleetDMNextCSRStatus.Swap(http.StatusOK)
+		w.WriteHeader(status.(int))
+		_, _ = w.Write([]byte(fmt.Sprintf("status: %d", status)))
 	}))
 	s.T().Setenv("TEST_FLEETDM_API_URL", fleetdmSrv.URL)
 	s.T().Cleanup(fleetdmSrv.Close)
 }
 
-func (s *integrationMDMTestSuite) FailNextCSRRequest() {
-	s.fleetDMFailCSR.Store(true)
+func (s *integrationMDMTestSuite) FailNextCSRRequestWith(status int) {
+	s.fleetDMNextCSRStatus.Store(status)
 }
 
 func (s *integrationMDMTestSuite) SucceedNextCSRRequest() {
-	s.fleetDMFailCSR.Store(false)
+	s.fleetDMNextCSRStatus.Store(http.StatusOK)
 }
 
 func (s *integrationMDMTestSuite) TearDownTest() {
@@ -517,7 +512,13 @@ func (s *integrationMDMTestSuite) TestAppleMDMCSRRequest() {
 	require.Equal(t, errResp.Errors[0].Name, "organization")
 
 	// fleetdm CSR request failed
-	s.FailNextCSRRequest()
+	s.FailNextCSRRequestWith(http.StatusBadRequest)
+	errResp = validationErrResp{}
+	s.DoJSON("POST", "/api/latest/fleet/mdm/apple/request_csr", requestMDMAppleCSRRequest{EmailAddress: "a@b.c", Organization: "test"}, http.StatusUnprocessableEntity, &errResp)
+	require.Len(t, errResp.Errors, 1)
+	require.Contains(t, errResp.Errors[0].Reason, "FleetDM CSR request failed")
+
+	s.FailNextCSRRequestWith(http.StatusInternalServerError)
 	errResp = validationErrResp{}
 	s.DoJSON("POST", "/api/latest/fleet/mdm/apple/request_csr", requestMDMAppleCSRRequest{EmailAddress: "a@b.c", Organization: "test"}, http.StatusBadGateway, &errResp)
 	require.Len(t, errResp.Errors, 1)
