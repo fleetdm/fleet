@@ -230,7 +230,7 @@ spec:
   query: SELECT * FROM sntp_request WHERE server = 'time.apple.com' AND clock_offset_ms <= 270000 AND clock_offset_ms >= -270000;
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS2.3.2.2
-  contributors: lucasmrod
+  contributors:
 ---
 apiVersion: v1
 kind: policy
@@ -852,7 +852,7 @@ spec:
     NOT EXISTS(SELECT 1 FROM file WHERE path = '/etc/exports');
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS4.3
-  contributors:
+  contributors: lucasmrod
 ---
 apiVersion: v1
 kind: policy
