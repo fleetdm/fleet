@@ -3,20 +3,7 @@ parasails.registerPage('pricing', {
   //  ║║║║║ ║ ║╠═╣║    ╚═╗ ║ ╠═╣ ║ ║╣
   //  ╩╝╚╝╩ ╩ ╩╩ ╩╩═╝  ╚═╝ ╩ ╩ ╩ ╩ ╚═╝
   data: {
-    formData: {
-    },
-
-    // For tracking client-side validation errors in our form.
-    // > Has property set to `true` for each invalid property in `formData`.
-    formErrors: { /* … */ },
-
-    pricingCalculatorFormRules: {},
-
-    // Syncing / loading state
-    syncing: false,
-
-    // Server error state
-    cloudError: '',
+    formData: {},
     estimatedCost: '', // For pricing calculator
     estimatedUltimateCostPerHost: 7,
     displaySecurityPricingMode: true, // For pricing mode switch
