@@ -141,6 +141,7 @@ func TestHosts(t *testing.T) {
 		{"SetOrUpdateHostDiskEncryptionKeys", testHostsSetOrUpdateHostDisksEncryptionKey},
 		{"SetHostsDiskEncryptionKeyStatus", testHostsSetDiskEncryptionKeyStatus},
 		{"GetUnverifiedDiskEncryptionKeys", testHostsGetUnverifiedDiskEncryptionKeys},
+		{"EnrollOrbit", testHostsEnrollOrbit},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -6195,4 +6196,76 @@ func testHostsGetUnverifiedDiskEncryptionKeys(t *testing.T, ds *Datastore) {
 	keys, err = ds.GetUnverifiedDiskEncryptionKeys(ctx)
 	require.NoError(t, err)
 	require.Empty(t, keys)
+}
+
+func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	createHost := func(osqueryID, serial string) *fleet.Host {
+		dbZeroTime := time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
+		var osqueryIDPtr *string
+		if osqueryID != "" {
+			osqueryIDPtr = &osqueryID
+		}
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			HardwareSerial:   serial,
+			Platform:         "darwin",
+			LastEnrolledAt:   dbZeroTime,
+			DetailUpdatedAt:  dbZeroTime,
+			OsqueryHostID:    osqueryIDPtr,
+			RefetchRequested: true,
+		})
+		require.NoError(t, err)
+		return h
+	}
+
+	// create and enroll a host with just an osquery ID, no serial
+	hOsqueryNoSerial := createHost(uuid.New().String(), "")
+	h, err := ds.EnrollOrbit(ctx, *hOsqueryNoSerial.OsqueryHostID, hOsqueryNoSerial.HardwareSerial, uuid.New().String(), nil)
+	require.NoError(t, err)
+	require.Equal(t, hOsqueryNoSerial.ID, h.ID)
+	require.Empty(t, h.HardwareSerial)
+
+	// create and enroll a host with just a serial, no osquery ID (that is, it
+	// got created this way, but when enrolling in orbit it does have an osquery
+	// ID)
+	hSerialNoOsquery := createHost("", uuid.New().String())
+	h, err = ds.EnrollOrbit(ctx, uuid.New().String(), hSerialNoOsquery.HardwareSerial, uuid.New().String(), nil)
+	require.NoError(t, err)
+	require.Equal(t, hSerialNoOsquery.ID, h.ID)
+	require.Empty(t, h.OsqueryHostID)
+
+	// create and enroll a host with both
+	hBoth := createHost(uuid.New().String(), uuid.New().String())
+	h, err = ds.EnrollOrbit(ctx, *hBoth.OsqueryHostID, hBoth.HardwareSerial, uuid.New().String(), nil)
+	require.NoError(t, err)
+	require.Equal(t, hBoth.ID, h.ID)
+	require.Empty(t, h.HardwareSerial) // this is just to prove that it was loaded based on osquery_node_id, the serial was not set in the lookup
+
+	// enroll with osquery id from hBoth and serial from hSerialNoOsquery (should
+	// use the osquery match)
+	h, err = ds.EnrollOrbit(ctx, *hBoth.OsqueryHostID, hSerialNoOsquery.HardwareSerial, uuid.New().String(), nil)
+	require.NoError(t, err)
+	require.Equal(t, hBoth.ID, h.ID)
+	require.Empty(t, h.HardwareSerial)
+
+	// enroll with no match, will create a new one
+	h, err = ds.EnrollOrbit(ctx, uuid.New().String(), uuid.New().String(), uuid.New().String(), nil)
+	require.NoError(t, err)
+	require.Nil(t, h) // it was not found in the lookup, proves that it created a new one
+
+	// simulate a "corrupt database" where two hosts have the same serial and
+	// enroll by serial should always use the same (the smaller ID)
+	hDupSerial1 := createHost("", uuid.New().String())
+	hDupSerial2 := createHost("", hDupSerial1.HardwareSerial)
+	require.Greater(t, hDupSerial2.ID, hDupSerial1.ID)
+	h, err = ds.EnrollOrbit(ctx, uuid.New().String(), hDupSerial1.HardwareSerial, uuid.New().String(), nil)
+	require.NoError(t, err)
+	require.Equal(t, hDupSerial1.ID, h.ID)
+
+	// enroll with osquery ID from hOsqueryNoSerial and the duplicate serial,
+	// will always match osquery ID
+	h, err = ds.EnrollOrbit(ctx, *hOsqueryNoSerial.OsqueryHostID, hDupSerial1.HardwareSerial, uuid.New().String(), nil)
+	require.NoError(t, err)
+	require.Equal(t, hOsqueryNoSerial.ID, h.ID)
 }
