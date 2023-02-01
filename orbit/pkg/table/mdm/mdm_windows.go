@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"encoding/xml"
 	"errors"
 	"fmt"
 	"os"
@@ -164,11 +165,43 @@ func getEnrollmentInfo() (uint32, string, error) {
 	return isDeviceRegisteredWithMDM, uriData, nil
 }
 
+// Borrowed from https://stackoverflow.com/questions/53476012/how-to-validate-a-xml
+func IsValidXML(s string) bool {
+	return xml.Unmarshal([]byte(s), new(interface{})) == nil
+}
+
+// isValidMDMcommand checks if input SyncML command is valid
+func isValidMDMcommand(inputCMD string) (bool, error) {
+	// checking if input MDM command is empty
+	if len(inputCMD) == 0 {
+		return false, errors.New("input MDM command is empty")
+	}
+
+	// checking if input MDM command is a valid SyncML command
+	isSyncBodyPrefixPresent := strings.HasPrefix(strings.ToLower(inputCMD), "<syncbody>")
+	isSyncBodySuffixPresent := strings.HasSuffix(strings.ToLower(inputCMD), "</syncbody>")
+	if !isSyncBodyPrefixPresent || !isSyncBodySuffixPresent {
+		return false, errors.New("input MDM command is not a valid")
+	}
+
+	// checking if input MDM command is a valid XML
+	if !IsValidXML(inputCMD) {
+		return false, errors.New("input MDM command is not a valid XML")
+	}
+
+	return true, nil
+}
+
 // executeMDMcommand executes syncML MDM commands against the OS MDM stack and returns the status of the command execution
 func executeMDMcommand(inputCMD string) (string, error) {
 	// Synchronizing MDM command execution
 	mu.Lock()
 	defer mu.Unlock()
+
+	// checking if input MDM command is valid
+	if validCommand, err := isValidMDMcommand(inputCMD); !validCommand {
+		return "", err
+	}
 
 	// Enabling MDM command executions
 	if err := enableCmdExecution(); err != nil {
