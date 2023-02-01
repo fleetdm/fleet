@@ -21,11 +21,11 @@ const IntegrationsPage = ({ params }: IIntegrationSettingsPageProps) => {
   const { section } = params;
   const DEFAULT_SETTINGS_SECTION = INTEGRATION_SETTINGS_NAV_ITEMS[0];
 
-  const { isMdmEnabled } = useContext(AppContext);
+  const { isMdmFeatureFlagEnabled } = useContext(AppContext);
 
   // filter out mdm if not enabled.
   let navItems = INTEGRATION_SETTINGS_NAV_ITEMS;
-  if (!isMdmEnabled) {
+  if (!isMdmFeatureFlagEnabled) {
     navItems = INTEGRATION_SETTINGS_NAV_ITEMS.filter(
       (item) => item.urlSection !== "mdm"
     );
@@ -40,7 +40,9 @@ const IntegrationsPage = ({ params }: IIntegrationSettingsPageProps) => {
   return (
     <div className={`${baseClass}`}>
       <p className={`${baseClass}__page-description`}>
-        {isMdmEnabled ? MDM_ENABLED_DESCRIPTION : MDM_DISABLED_DESCRIPTION}
+        {isMdmFeatureFlagEnabled
+          ? MDM_ENABLED_DESCRIPTION
+          : MDM_DISABLED_DESCRIPTION}
       </p>
       <SideNav
         className={`${baseClass}__side-nav`}

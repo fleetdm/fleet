@@ -24,8 +24,8 @@ export interface IUser {
   email: string;
   role: string;
   force_password_reset: boolean;
-  gravatar_url: string;
-  gravatarURL?: string; // Remove when CoreLayout.jsx is refactored to Typescript (it's adding this property to User)
+  gravatar_url?: string;
+  gravatar_url_dark?: string;
   sso_enabled: boolean;
   global_role: string | null;
   api_only: boolean;
