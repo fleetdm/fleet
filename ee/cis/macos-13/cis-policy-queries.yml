@@ -230,7 +230,7 @@ spec:
   query: SELECT * FROM sntp_request WHERE server = 'time.apple.com' AND clock_offset_ms <= 270000 AND clock_offset_ms >= -270000;
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS2.3.2.2
-  contributors: 
+  contributors: lucasmrod
 ---
 apiVersion: v1
 kind: policy
@@ -857,6 +857,40 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
+  name: CIS - Ensure Home Folders Are Secure
+  platforms: macOS
+  platform: darwin
+  description: |
+    By default, macOS allows all valid users into the top level of every other user's home folder and restricts access to the Apple default folders within. Another user on the same system can see you have a "Documents" folder but cannot see inside it. This configuration does work for personal file sharing but can expose user files to standard accounts on the system.
+    The best parallel for Enterprise environments is that everyone who has a Dropbox account can see everything that is at the top level but can't see your pictures. Similarly with macOS, users can see into every new Directory that is created because of the default permissions.
+    Home folders should be restricted to access only by the user. Sharing should be used on dedicated servers or cloud instances that are managing access controls. Some environments may encounter problems if execute rights are removed as well as read and write. Either no access or execute only for group or others is acceptable.
+  resolution: |
+    Automated method:
+    Ask your system administrator to deploy a script that will go over all users and set the mode for all of them either like this:
+    /usr/bin/sudo /bin/chmod -R og-rwx /Users/<username>
+    Or like this if there is a need for excutable access:
+    /usr/bin/sudo /bin/chmod -R og-rw /Users/<username>
+  query: SELECT 1 FROM file WHERE 
+            path LIKE '/Users/%' 
+            AND 
+            path != '/Users/Shared/' 
+            AND 
+            (
+              mode = "0700" 
+              OR 
+              mode ="0701" 
+              OR 
+              mode ="0710" 
+              OR 
+              mode ="0711"
+            );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS5.1.1
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
   name: CIS - Ensure Password Account Lockout Threshold Is Configured (Fleetd required)
   platforms: macOS
   platform: darwin
@@ -873,6 +907,7 @@ spec:
   query: SELECT 1 FROM  pwd_policy where max_failed_attempts <= 5;
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS5.2.1
+  contributors: sharon-fdm
 ---
 apiVersion: v1
 kind: policy
@@ -903,6 +938,7 @@ spec:
     WHERE minlength >= 15);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS5.2.2
+  contributors: sharon-fdm
 ---
 apiVersion: v1
 kind: policy
@@ -927,6 +963,7 @@ spec:
     EXISTS(SELECT 1 FROM pwd_policy WHERE days_to_expiration <= 365);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS5.2.7
+  contributors: sharon-fdm
 ---
 apiVersion: v1
 kind: policy
@@ -947,3 +984,4 @@ spec:
   query: SELECT 1 FROM  pwd_policy where history_depth >= 15;
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS5.2.8
+  contributors: sharon-fdm
