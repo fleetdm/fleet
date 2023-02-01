@@ -69,7 +69,7 @@ const RequestCSRModal = ({ onCancel }: IRequestCSRModalProps): JSX.Element => {
     email: currentUser?.email ?? "",
     orgName: config?.org_info?.org_name ?? "",
   });
-  const [error, setError] = useState("");
+  const [emailError, setEmailError] = useState("");
   const [requestState, setRequestState] = useState<
     "loading" | "error" | "success" | undefined
   >(undefined);
@@ -83,10 +83,10 @@ const RequestCSRModal = ({ onCancel }: IRequestCSRModalProps): JSX.Element => {
   const onFormSubmit = async (evt: FormEvent) => {
     evt.preventDefault();
     if (!validEmail(formData.email)) {
-      setError("Email");
+      setEmailError("Email is not a valid format.");
       return;
     }
-    setError("");
+    setEmailError("");
     setRequestState("loading");
     try {
       const data = await MdmAPI.requestCSR(email, orgName);
@@ -94,12 +94,13 @@ const RequestCSRModal = ({ onCancel }: IRequestCSRModalProps): JSX.Element => {
       setRequestState("success");
     } catch (e) {
       const err = e as any;
-      console.log(e);
-      if (err.status === 502) {
-        setRequestState("error");
-      } else {
-        setError("Email");
+      console.log(err);
+      if (err.status >= 400 && err.status <= 499) {
+        setEmailError("Email does not have the correct domain.");
         setRequestState(undefined);
+      }
+      if (err.status >= 500 && err.status <= 599) {
+        setRequestState("error");
       }
     }
   };
@@ -158,7 +159,7 @@ const RequestCSRModal = ({ onCancel }: IRequestCSRModalProps): JSX.Element => {
               label="Email"
               parseTarget
               value={email}
-              error={error}
+              error={emailError}
             />
             <p>
               Apple Inc. requires a work email (ex. name@your-organization.com).
