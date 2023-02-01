@@ -9,14 +9,14 @@
           Select the plan based on your needs
         </h2>
       </div>
-      <div purpose="pricing-switch" class="d-flex flex-row justify-content-center mx-auto mb-4" @click="displaySecurityPricingMode = !displaySecurityPricingMode">
+      <div purpose="pricing-switch" class="d-flex flex-row justify-content-center mx-auto mb-5" @click="displaySecurityPricingMode = !displaySecurityPricingMode">
         <div purpose="pricing-switch-option" :class="[displaySecurityPricingMode ? 'selected' : '']">Security</div>
         <div purpose="pricing-switch-option" :class="[!displaySecurityPricingMode ? 'selected' : '']">IT</div>
         <div purpose="pricing-tier-switch" :class="[!displaySecurityPricingMode ? 'it-selected' : '']"></div>
       </div>
       <h4 class="pb-4 mb-4 text-center" v-if="displaySecurityPricingMode">Always cross-platform, always secure. You will always have control over read/write privileges.</h4>
       <h4 class="pb-4 mb-4 text-center" v-else>You will always have control over what is monitored and who is ...</h4>
-      <div class="d-flex flex-column justify-content-center">
+      <div purpose="pricing-tiers" class="d-flex flex-column justify-content-center">
         <div class="d-flex flex-md-row flex-column card-deck justify-content-center align-items-center align-items-md-stretch p-0 w-100 mx-auto">
           <%// Fleet Premium %>
           <div purpose="pricing-tier-card" class="card ml-md-0 mb-4 w-100 w-md-auto">
@@ -28,7 +28,6 @@
                 <h2>$3500/month</h2>
               </div>
               <div>
-                <hr>
                 <p><strong>Includes</strong></p>
                 <%// Premium security features%>
                 <div purpose="features-list" v-if="displaySecurityPricingMode">
@@ -70,7 +69,6 @@
               <h2>${{estimatedUltimateCostPerHost}}/host</h2>
             </div>
             <div>
-              <hr>
               <p><strong>All of Premium plus</strong></p>
               <%// Ultimate security features %>
               <div purpose="features-list" v-if="displaySecurityPricingMode">
@@ -131,13 +129,12 @@
                   <h2>Free forever</h2>
                 </div>
                 <div>
-                  <hr>
                   <div class="mx-md-auto d-flex flex-row justify-content-md-center justify-content-start">
                     <div purpose="bottom-card-features" class="d-flex flex-column justify-content-center align-items-start">
                       <p class="text-left align-self-start"><strong>Includes</strong></p>
                       <%// Community edition security features %>
                       <div purpose="features-list" class="d-flex flex-md-row flex-column justify-content-between" v-if="displaySecurityPricingMode">
-                        <div class="pr-0 pr-md-4">
+                        <div class="pr-0 pr-md-5">
                           <p>Manage osquery</p>
                           <p>Detect vulnerabilities</p>
                           <p>Software inventory</p>
@@ -186,21 +183,21 @@
               <tr>
                 <td><h4>{{category.categoryName}}</h4></td>
                 <td v-if="index === 0">
-                  <strong>Fleet Free</strong>
+                  <strong>Community</strong>
                   <a purpose="table-button" class="btn btn-info d-none d-sm-inline-block" href="/try-fleet/register">
                     Get started
                   </a>
                 </td>
                 <td v-else></td>
                 <td v-if="index === 0">
-                  <strong>Fleet Premium</strong>
+                  <strong>Premium</strong>
                   <a purpose="table-button" class="btn btn-info d-none d-sm-inline-block" href="https://calendly.com/fleetdm/demo?utm_source=pricing+demo+table+premium">
                     Talk to sales
                   </a>
                 </td>
                 <td v-else></td>
                 <td v-if="index === 0">
-                  <strong>Fleet Ultimate</strong>
+                  <strong>Ultimate</strong>
                   <a purpose="table-button" class="btn btn-info d-none d-sm-inline-block" href="https://calendly.com/fleetdm/demo?utm_source=pricing+demo+table+ultimate">
                     Talk to sales
                   </a>
@@ -227,15 +224,15 @@
               <strong>{{feature.name}}{{feature.comingSoon ? '*' : ''}}</strong>
             </div>
             <div class="d-flex flex-row justify-content-between align-items-center">
-              Fleet Free
+              Community Edition
               <img class="d-block" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png" v-if="feature.tier === 'Free'">
             </div>
             <div purpose="striped-row" class="d-flex flex-row justify-content-between align-items-center">
-              Fleet Premium
+              Premium
               <img class="d-block" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png" v-if="feature.tier !== 'Ultimate'">
             </div>
             <div class="d-flex flex-row justify-content-between align-items-center">
-              Fleet Ultimate
+              Ultimate
               <img class="d-block" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
             </div>
           </div>
@@ -287,7 +284,7 @@
             <span style="color: #6A67FE; right: 0; top: 24px;" class="position-absolute fa fa-angle-down"></span>
           </p>
           <p id="faq__answer4" class="collapse" aria-labelledby="faq__question4">
-            If you opt not to renew Fleet Premium, you can continue using Fleet Free (same code base, just unconfigure the license key.)
+            If you opt not to renew Fleet Premium, you can continue using Fleet Community Edition (same code base, just unconfigure the license key.)
           </p>
         </div>
         <div style="border-bottom: 1px solid #E2E4EA; padding-right: 20px;" class="position-relative">
