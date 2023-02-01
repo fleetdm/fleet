@@ -303,9 +303,9 @@ const ActivityItem = ({
   onDetailsClick = noop,
 }: IActivityItemProps) => {
   const { actor_email } = activity;
-  const { gravatarURL } = actor_email
+  const { gravatar_url } = actor_email
     ? addGravatarUrlToResource({ email: actor_email })
-    : { gravatarURL: DEFAULT_GRAVATAR_LINK };
+    : { gravatar_url: DEFAULT_GRAVATAR_LINK };
 
   const activityCreatedAt = new Date(activity.created_at);
 
@@ -313,8 +313,9 @@ const ActivityItem = ({
     <div className={baseClass}>
       <Avatar
         className={`${baseClass}__avatar-image`}
-        user={{ gravatarURL }}
+        user={{ gravatar_url }}
         size="small"
+        hasWhiteBackground
       />
       <div className={`${baseClass}__details`}>
         <p>
