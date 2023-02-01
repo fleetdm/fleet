@@ -848,6 +848,29 @@ spec:
     EXISTS(select 1 FROM plist WHERE path='/Library/Preferences/com.apple.MCX.plist' AND key='DisableGuestAccount' AND value = 1);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS2.12.1
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Guest Access to Shared Folders Is Disabled
+  platforms: macOS
+  platform: darwin
+  description: Allowing guests to connect to shared folders enables users to access selected shared folders and their contents from different computers on a network
+  resolution: |
+    Automated method:
+      Ask your system administrator to deploy the following script which will disable guest users from access to shared folders:
+      /usr/bin/sudo /usr/sbin/sysadminctl -smbGuestAccess off
+    Graphical Method:
+      Perform the following steps to no longer allow guest user access to shared folders:
+        1. Open System Settings
+        2. Select Users & Groups
+        3. Select the i next to the Guest User
+        4. Set Allow guests to connect to shared folders to disabled
+  query: SELECT 1 from plist where path = '/Library/Preferences/SystemConfiguration/com.apple.smb.server.plist' AND key = 'AllowGuestAccess' AND value = 0;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS2.12.2
+  contributors: sharon-fdm
 ---
 apiVersion: v1
 kind: policy
@@ -886,25 +909,24 @@ spec:
   resolution: |
     Automated method:
     Ask your system administrator to deploy the following script which will enable security auditing:
-    /usr/bin/sudo /bin/launchctl load -w
-    /System/Library/LaunchDaemons/com.apple.auditd.plist
+    /usr/bin/sudo /bin/launchctl load -w /System/Library/LaunchDaemons/com.apple.auditd.plist
   query: | 
-  SELECT 1 where exists (
-        SELECT 
-            l.program, l.label, l.program_arguments,  
-            p.path, p.name , p.cmdline  
-        FROM
-            launchd AS l
-            INNER JOIN processes AS p
-        ON (l.program = p.path) 
-        where 
-            (l.label = "com.apple.auditd") 
-            AND 
-            (l.program_arguments = p.cmdline)
+    SELECT 1 WHERE EXISTS (
+      SELECT
+        l.program, l.label, l.program_arguments,
+        p.path, p.name , p.cmdline
+      FROM
+        launchd AS l
+        INNER JOIN processes AS p
+      ON (l.program = p.path)
+      WHERE
+      (l.label = "com.apple.auditd")
+      AND
+      (l.program_arguments = p.cmdline)
     );
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS3.1
-  contributors: lucasmrod
+  contributors: sharon-fdm
 ---
 apiVersion: v1
 kind: policy
@@ -987,7 +1009,7 @@ spec:
       1. The PayloadType string is com.apple.mobiledevice.passwordpolicy 
       2. The key to include is maxFailedAttempts
       3. The key must be set to <integer><value≤5></integer>
-  query: SELECT 1 FROM  pwd_policy where maxFailedAttempts <= 5;
+  query: SELECT 1 FROM  pwd_policy where max_failed_attempts <= 5;
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS5.2.1
 ---
@@ -1039,9 +1061,9 @@ spec:
       3. The key must be set to <integer><value<=365></integer>
   query: |
     SELECT 1 WHERE
-    EXISTS(SELECT 1 FROM pwd_policy WHERE expiresEveryNDays <= 365)
+    EXISTS(SELECT 1 FROM pwd_policy WHERE expires_every_n_days <= 365)
     OR
-    EXISTS(SELECT 1 FROM pwd_policy WHERE daysToExpiration <= 365);
+    EXISTS(SELECT 1 FROM pwd_policy WHERE days_to_expiration <= 365);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS5.2.7
 ---
@@ -1061,6 +1083,6 @@ spec:
       1. The Payload Type string is com.apple.mobiledevice.passwordpolicy 
       2. The key to include is pinHistory
       3. The key must be set to <integer><value≥15></integer>
-  query: SELECT 1 FROM  pwd_policy where historyDepth >= 15;
+  query: SELECT 1 FROM  pwd_policy where history_depth >= 15;
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS5.2.8

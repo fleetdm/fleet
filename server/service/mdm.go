@@ -148,8 +148,36 @@ func (svc *Service) RequestMDMAppleCSR(ctx context.Context, email, org string) (
 	// request the signed APNs CSR from fleetdm.com
 	client := fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second))
 	if err := apple_mdm.GetSignedAPNSCSR(client, apnsCSR); err != nil {
-		err = fleet.NewUserMessageError(fmt.Errorf("FleetDM CSR request failed: %w", err), http.StatusBadGateway)
-		return nil, ctxerr.Wrap(ctx, err)
+		if ferr, ok := err.(apple_mdm.FleetWebsiteError); ok {
+			status := http.StatusBadGateway
+			if ferr.Status >= 400 && ferr.Status <= 499 {
+				// TODO: fleetdm.com returns a genereric "Bad
+				// Request" message, we should coordinate and
+				// stablish a response schema from which we can get
+				// the invalid field and use
+				// fleet.NewInvalidArgumentError instead
+				//
+				// For now, since we have already validated
+				// everything else, we assume that a 4xx
+				// response is an email with an invalid domain
+				return nil, ctxerr.Wrap(
+					ctx,
+					fleet.NewInvalidArgumentError(
+						"email_address",
+						fmt.Sprintf("this email address is not valid: %v", err),
+					),
+				)
+			}
+			return nil, ctxerr.Wrap(
+				ctx,
+				fleet.NewUserMessageError(
+					fmt.Errorf("FleetDM CSR request failed: %w", err),
+					status,
+				),
+			)
+		}
+
+		return nil, ctxerr.Wrap(ctx, err, "get signed CSR")
 	}
 
 	// PEM-encode the cert and keys

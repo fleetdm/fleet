@@ -918,6 +918,8 @@ None.
     "jira": null
   },
   "mdm": {
+    "apple_bm_terms_expired": false,
+    "enabled_and_configured": false,
     "apple_bm_default_team": "",
     "macos_updates": {
       "minimum_version": "12.3.1",
@@ -1100,6 +1102,7 @@ Modifies the Fleet's configuration with the supplied information.
   "mdm": {
     "apple_bm_default_team": "",
     "apple_bm_terms_expired": false,
+    "enabled_and_configured": false,
     "macos_updates": {
       "minimum_version": "12.3.1",
       "deadline": "2022-01-01"
@@ -1723,16 +1726,16 @@ None.
 
 ### On the different timestamps in the host data structure
 
-Hosts have a set of timestamps usually named with an "_at" suffix, such as created_at, enrolled_at, etc. Before we go 
-through each of them and what they mean, we need to understand a bit more about how the host data structure is 
+Hosts have a set of timestamps usually named with an "_at" suffix, such as created_at, enrolled_at, etc. Before we go
+through each of them and what they mean, we need to understand a bit more about how the host data structure is
 represented in the database.
 
-The table `hosts` is the main one. It holds the core data for a host. A host doesn't exist if there is no row for it in 
+The table `hosts` is the main one. It holds the core data for a host. A host doesn't exist if there is no row for it in
 this table. This table also holds most of the timestamps, but it doesn't hold all of the host data. This is an important
 detail as we'll see below.
 
-There's adjacent tables to this one that usually follow the name convention `host_<extra data descriptor>`. Examples of 
-this are: `host_additional` that holds additional query results, `host_software` that links a host with many rows from 
+There's adjacent tables to this one that usually follow the name convention `host_<extra data descriptor>`. Examples of
+this are: `host_additional` that holds additional query results, `host_software` that links a host with many rows from
 the `software` table.
 
 - `created_at`: the time the row in the database was created, which usually corresponds to the first enrollment of the host.
@@ -1860,8 +1863,10 @@ If `after` is being used with `created_at` or `updated_at`, the table must be sp
           "coordinates": [40.6799, -74.0028]
         }
       },
-      "mdm_enrollment_status": null,
-      "mdm_server_url": null
+      "mdm": {
+        "enrollment_status": null,
+        "server_url": null
+      }
     }
   ]
 }
@@ -2237,8 +2242,10 @@ Returns the information of the specified host.
         "coordinates": [40.6799, -74.0028]
       }
     },
-    "mdm_enrollment_status": null,
-    "mdm_server_url": null
+    "mdm": {
+      "enrollment_status": null,
+      "server_url": null
+    }
   }
 }
 ```
@@ -2413,8 +2420,10 @@ Returns the information of the host specified using the `uuid`, `osquery_host_id
     "status": "online",
     "display_text": "dogfood-ubuntu-box",
     "display_name": "dogfood-ubuntu-box",
-    "mdm_enrollment_status": null,
-    "mdm_server_url": null
+    "mdm": {
+      "enrollment_status": null,
+      "server_url": null
+    }
   }
 }
 ```

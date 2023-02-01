@@ -19,7 +19,7 @@ describe("Sessions", () => {
     cy.url().should("include", "/dashboard");
     cy.contains("Host");
     // Log out
-    cy.getAttached(".avatar").first().click();
+    cy.getAttached(".user-menu button").first().click();
     cy.contains("button", "Sign out").click();
     cy.url().should("match", /\/login$/);
   });

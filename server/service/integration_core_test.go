@@ -1053,6 +1053,13 @@ func (s *integrationTestSuite) TestHostsCount() {
 	require.Equal(t, 1, resp.Count)
 	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &resp, "mdm_enrollment_status", "pending")
 	require.Equal(t, 1, resp.Count)
+
+	// get the host's MDM info
+	var hostResp getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", pendingMDMHost.ID), nil, http.StatusOK, &hostResp)
+	require.Equal(t, pendingMDMHost.ID, hostResp.Host.ID)
+	require.Equal(t, "Pending", *hostResp.Host.MDM.EnrollmentStatus)
+	require.Equal(t, "https://fleetdm.com", *hostResp.Host.MDM.ServerURL)
 }
 
 func (s *integrationTestSuite) TestPacks() {
@@ -4604,18 +4611,20 @@ func (s *integrationTestSuite) TestAppConfig() {
 	assert.Equal(t, "FleetTest", acResp.OrgInfo.OrgName) // set in SetupSuite
 	assert.False(t, acResp.MDM.AppleBMTermsExpired)
 
-	// set the apple BM terms expired flag, and we'll check again at the end of
-	// this test to make sure it wasn't modified by any PATCH request (it cannot
-	// be set via this endpoint).
+	// set the apple BM terms expired flag, and the mdm configured flag,
+	// we'll check again at the end of this test to make sure they weren't
+	// modified by any PATCH request (it cannot be set via this endpoint).
 	appCfg, err := s.ds.AppConfig(ctx)
 	require.NoError(t, err)
 	appCfg.MDM.AppleBMTermsExpired = true
+	appCfg.MDM.EnabledAndConfigured = true
 	err = s.ds.SaveAppConfig(ctx, appCfg)
 	require.NoError(t, err)
 
 	acResp = appConfigResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
 	assert.True(t, acResp.MDM.AppleBMTermsExpired)
+	assert.True(t, acResp.MDM.EnabledAndConfigured)
 
 	// no server settings set for the URL, so not possible to test the
 	// certificate endpoint
@@ -4791,6 +4800,13 @@ func (s *integrationTestSuite) TestAppConfig() {
   }`), http.StatusOK, &acResp)
 	assert.True(t, acResp.MDM.AppleBMTermsExpired)
 
+	// try to update the mdm configured flag via PATCH /config
+	// request is ok but modified value is ignored
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+	  "mdm": { "enabled_and_configured": true }
+  }`), http.StatusOK, &acResp)
+	assert.True(t, acResp.MDM.EnabledAndConfigured)
+
 	// try to set the apple bm default team, which is premium only
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"mdm": { "apple_bm_default_team": "xyz" }
@@ -4805,6 +4821,7 @@ func (s *integrationTestSuite) TestAppConfig() {
 	appCfg, err = s.ds.AppConfig(ctx)
 	require.NoError(t, err)
 	appCfg.MDM.AppleBMTermsExpired = false
+	appCfg.MDM.EnabledAndConfigured = false
 	err = s.ds.SaveAppConfig(ctx, appCfg)
 	require.NoError(t, err)
 

@@ -45,6 +45,8 @@ var ActivityDetailsList = []ActivityDetails{
 
 	ActivityTypeMDMEnrolled{},
 	ActivityTypeMDMUnenrolled{},
+
+	ActivityTypeEditedMacOSMinVersion{},
 }
 
 type ActivityDetails interface {
@@ -68,7 +70,7 @@ func (a ActivityTypeCreatedPack) Documentation() (activity string, details strin
 		`This activity contains the following fields:
 - "pack_id": the id of the created pack.
 - "pack_name": the name of the created pack.`, `{
-	"pack_id": 123, 
+	"pack_id": 123,
 	"pack_name": "foo"
 }`
 }
@@ -87,7 +89,7 @@ func (a ActivityTypeEditedPack) Documentation() (activity string, details string
 		`This activity contains the following fields:
 - "pack_id": the id of the edited pack.
 - "pack_name": the name of the edited pack.`, `{
-	"pack_id": 123, 
+	"pack_id": 123,
 	"pack_name": "foo"
 }`
 }
@@ -133,7 +135,7 @@ func (a ActivityTypeCreatedPolicy) Documentation() (activity string, details str
 		`This activity contains the following fields:
 - "policy_id": the ID of the created policy.
 - "policy_name": the name of the created policy.`, `{
-	"policy_id": 123, 
+	"policy_id": 123,
 	"policy_name": "foo"
 }`
 }
@@ -152,7 +154,7 @@ func (a ActivityTypeEditedPolicy) Documentation() (activity string, details stri
 		`This activity contains the following fields:
 - "policy_id": the ID of the edited policy.
 - "policy_name": the name of the edited policy.`, `{
-	"policy_id": 123, 
+	"policy_id": 123,
 	"policy_name": "foo"
 }`
 }
@@ -171,7 +173,7 @@ func (a ActivityTypeDeletedPolicy) Documentation() (activity string, details str
 		`This activity contains the following fields:
 - "policy_id": the ID of the deleted policy.
 - "policy_name": the name of the deleted policy.`, `{
-	"policy_id": 123, 
+	"policy_id": 123,
 	"policy_name": "foo"
 }`
 }
@@ -230,7 +232,7 @@ func (a ActivityTypeCreatedSavedQuery) Documentation() (activity string, details
 		`This activity contains the following fields:
 - "query_id": the ID of the created query.
 - "query_name": the name of the created query.`, `{
-	"query_id": 123, 
+	"query_id": 123,
 	"query_name": "foo"
 }`
 }
@@ -249,7 +251,7 @@ func (a ActivityTypeEditedSavedQuery) Documentation() (activity string, details 
 		`This activity contains the following fields:
 - "query_id": the ID of the query being edited.
 - "query_name": the name of the query being edited.`, `{
-	"query_id": 123, 
+	"query_id": 123,
 	"query_name": "foo"
 }`
 }
@@ -324,7 +326,7 @@ func (a ActivityTypeCreatedTeam) Documentation() (activity string, details strin
 		`This activity contains the following fields:
 - "team_id": unique ID of the created team.
 - "team_name": the name of the created team.`, `{
-	"team_id": 123, 
+	"team_id": 123,
 	"team_name": "foo"
 }`
 }
@@ -343,7 +345,7 @@ func (a ActivityTypeDeletedTeam) Documentation() (activity string, details strin
 		`This activity contains the following fields:
 - "team_id": unique ID of the deleted team.
 - "team_name": the name of the deleted team.`, `{
-	"team_id": 123, 
+	"team_id": 123,
 	"team_name": "foo"
 }`
 }
@@ -368,7 +370,7 @@ func (a ActivityTypeAppliedSpecTeam) Documentation() (activity string, details s
 - "name": Name of the team.`, `{
 	"teams": [
 		{
-			"id": 123, 
+			"id": 123,
 			"name": "foo"
 		}
 	]
@@ -391,7 +393,7 @@ func (a ActivityTypeEditedAgentOptions) Documentation() (activity string, detail
 - "global": "true" if the user updated the global agent options, "false" if the agent options of a team were updated.
 - "team_id": unique ID of the team for which the agent options were updated (null if global is true).
 - "team_name": the name of the team for which the agent options were updated (null if global is true).`, `{
-	"team_id": 123, 
+	"team_id": 123,
 	"team_name": "foo",
 	"global": false
 }`
@@ -413,7 +415,7 @@ func (a ActivityTypeLiveQuery) Documentation() (activity string, details string,
 - "targets_count": Number of hosts where the live query was targeted to run.
 - "query_sql": The SQL query to run on hosts.
 - "query_name": Name of the query (this field is not set if this was not a saved query).`, `{
-	"targets_count": 5000, 
+	"targets_count": 5000,
 	"query_sql": "SELECT * from osquery_info;",
 	"query_name": "foo"
 }`
@@ -440,6 +442,11 @@ type Activity struct {
 	Type          string           `json:"type" db:"activity_type"`
 	Details       *json.RawMessage `json:"details" db:"details"`
 	Streamed      *bool            `json:"-" db:"streamed"`
+}
+
+// AuthzType implement AuthzTyper to be able to verify access to activities
+func (*Activity) AuthzType() string {
+	return "activity"
 }
 
 type ActivityTypeUserLoggedIn struct {
@@ -677,7 +684,27 @@ func (a ActivityTypeMDMUnenrolled) Documentation() (activity string, details str
 }`
 }
 
-// AuthzType implement AuthzTyper to be able to verify access to activities
-func (*Activity) AuthzType() string {
-	return "activity"
+type ActivityTypeEditedMacOSMinVersion struct {
+	TeamID         *uint   `json:"team_id"`
+	TeamName       *string `json:"team_name"`
+	MinimumVersion string  `json:"minimum_version"`
+	Deadline       string  `json:"deadline"`
+}
+
+func (a ActivityTypeEditedMacOSMinVersion) ActivityName() string {
+	return "edited_macos_min_version"
+}
+
+func (a ActivityTypeEditedMacOSMinVersion) Documentation() (activity string, details string, detailsExample string) {
+	return `Generated when the minimum required macOS version or deadline is modified.`,
+		`This activity contains the following fields:
+- "team_id": The ID of the team that the minimum macOS version applies to, null if it applies to devices that are not in a team.
+- "team_name": The name of the team that the minimum macOS version applies to, null if it applies to devices that are not in a team.
+- "minimum_version": The minimum macOS version required, empty if the requirement was removed.
+- "deadline": The deadline by which the minimum version requirement must be applied, empty if the requirement was removed.`, `{
+  "team_id": 3,
+  "team_name": "Workstations",
+  "minimum_version": "13.0.1",
+  "deadline": "2023-06-01"
+}`
 }

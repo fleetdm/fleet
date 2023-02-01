@@ -475,18 +475,22 @@ LIMIT
 }
 
 const hostMDMSelect = `,
-	CASE
-		WHEN hmdm.is_server = 1 THEN NULL
-		WHEN hmdm.enrolled = 1 AND hmdm.installed_from_dep = 0 THEN 'On (manual)'
-		WHEN hmdm.enrolled = 1 AND hmdm.installed_from_dep = 1 THEN 'On (automatic)'
-		WHEN hmdm.enrolled = 0 AND hmdm.installed_from_dep = 1 THEN 'Pending'
-		WHEN hmdm.enrolled = 0 AND hmdm.installed_from_dep = 0 THEN 'Off'
-		ELSE NULL
-	END AS mdm_enrollment_status,
-	CASE
-		WHEN hmdm.is_server = 1 THEN NULL
-		ELSE hmdm.server_url
-	END as mdm_server_url
+	JSON_OBJECT(
+		'enrollment_status',
+		CASE
+			WHEN hmdm.is_server = 1 THEN NULL
+			WHEN hmdm.enrolled = 1 AND hmdm.installed_from_dep = 0 THEN 'On (manual)'
+			WHEN hmdm.enrolled = 1 AND hmdm.installed_from_dep = 1 THEN 'On (automatic)'
+			WHEN hmdm.enrolled = 0 AND hmdm.installed_from_dep = 1 THEN 'Pending'
+			WHEN hmdm.enrolled = 0 AND hmdm.installed_from_dep = 0 THEN 'Off'
+			ELSE NULL
+		END,
+		'server_url',
+		CASE
+			WHEN hmdm.is_server = 1 THEN NULL
+			ELSE hmdm.server_url
+		END
+	) mdm_host_data
 	`
 
 func amountEnrolledHostsByOSDB(ctx context.Context, db sqlx.QueryerContext) (byOS map[string][]fleet.HostsCountByOSVersion, totalCount int, err error) {
@@ -1507,6 +1511,7 @@ func (ds *Datastore) SearchHosts(ctx context.Context, filter fleet.TeamFilter, m
 	if err := sqlx.SelectContext(ctx, ds.reader, &hosts, query, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "searching hosts")
 	}
+
 	return hosts, nil
 }
 
@@ -2387,9 +2392,9 @@ func (ds *Datastore) GetHostMDMCheckinInfo(ctx context.Context, hostUUID string)
 	var hmdm fleet.HostMDMCheckinInfo
 	err := sqlx.GetContext(ctx, ds.reader, &hmdm, `
 		SELECT
-			h.hardware_serial, 
+			h.hardware_serial,
 			COALESCE(hm.installed_from_dep, false) as installed_from_dep,
-			hd.display_name 
+			hd.display_name
 		FROM
 			hosts h
 		LEFT JOIN

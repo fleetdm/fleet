@@ -117,7 +117,7 @@ const Mdm = (): JSX.Element => {
       return <DataError />;
     }
 
-    if (!mdmApple || showCSRFlag) {
+    if (!mdmApple) {
       return (
         <>
           <div className={`${baseClass}__section-description`}>
@@ -272,10 +272,7 @@ const Mdm = (): JSX.Element => {
         </div>
       )}
       {showRequestCSRModal && (
-        <RequestCSRModal
-          onCancel={toggleRequestCSRModal}
-          setShowCSRFlag={setShowCSRFlag}
-        />
+        <RequestCSRModal onCancel={toggleRequestCSRModal} />
       )}
       {showEditTeamModal && (
         <EditTeamModal

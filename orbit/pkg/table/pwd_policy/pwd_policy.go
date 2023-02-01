@@ -8,6 +8,7 @@ import (
 	"fmt"
 	tbl_common "github.com/fleetdm/fleet/v4/orbit/pkg/table/common"
 	"github.com/osquery/osquery-go/plugin/table"
+	"github.com/rs/zerolog/log"
 	"os/exec"
 	"syscall"
 	"time"
@@ -16,10 +17,10 @@ import (
 // Columns is the schema of the table.
 func Columns() []table.ColumnDefinition {
 	return []table.ColumnDefinition{
-		table.IntegerColumn("maxFailedAttempts"),
-		table.IntegerColumn("expiresEveryNDays"),
-		table.IntegerColumn("daysToExpiration"),
-		table.IntegerColumn("historyDepth"),
+		table.IntegerColumn("max_failed_attempts"),
+		table.IntegerColumn("expires_every_n_days"),
+		table.IntegerColumn("days_to_expiration"),
+		table.IntegerColumn("history_depth"),
 	}
 }
 
@@ -28,6 +29,7 @@ func Columns() []table.ColumnDefinition {
 func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[string]string, error) {
 	uid, gid, err := tbl_common.GetConsoleUidGid()
 	if err != nil {
+		log.Debug().Err(err).Msg("failed to get console user")
 		return nil, fmt.Errorf("failed to get console user: %w", err)
 	}
 
@@ -42,31 +44,36 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 
 	out, err := cmd.Output()
 	if err != nil {
-		return nil, fmt.Errorf("generate failed: %w", err)
+		log.Debug().Err(err).Msg("Running pwpolicy failed")
+		return nil, fmt.Errorf("running pwpolicy failed: %w", err)
 	}
 
 	pwpolicyXMLData := string(out)
 	maxFailedAttempts, err := tbl_common.GetValFromXMLWithTags(pwpolicyXMLData, "dict", "key", "policyAttributeMaximumFailedAuthentications", "integer")
 	if err != nil {
 		maxFailedAttempts = ""
+		log.Debug().Err(err).Msg("get policyAttributeMaximumFailedAuthentications failed")
 	}
 	expiresEveryNDays, err := tbl_common.GetValFromXMLWithTags(pwpolicyXMLData, "dict", "key", "policyAttributeExpiresEveryNDays", "integer")
 	if err != nil {
 		expiresEveryNDays = ""
+		log.Debug().Err(err).Msg("get policyAttributeExpiresEveryNDays failed")
 	}
 	daysToExpiration, err := tbl_common.GetValFromXMLWithTags(pwpolicyXMLData, "dict", "key", "policyAttributeDaysUntilExpiration", "integer")
 	if err != nil {
 		daysToExpiration = ""
+		log.Debug().Err(err).Msg("get policyAttributeDaysUntilExpiration failed")
 	}
 	historyDepth, err := tbl_common.GetValFromXMLWithTags(pwpolicyXMLData, "dict", "key", "policyAttributePasswordHistoryDepth", "integer")
 	if err != nil {
 		historyDepth = ""
+		log.Debug().Err(err).Msg("get policyAttributePasswordHistoryDepth failed")
 	}
 
 	return []map[string]string{
-		{"maxFailedAttempts": maxFailedAttempts,
-			"expiresEveryNDays": expiresEveryNDays,
-			"daysToExpiration":  daysToExpiration,
-			"historyDepth":      historyDepth},
+		{"max_failed_attempts": maxFailedAttempts,
+			"expires_every_n_days": expiresEveryNDays,
+			"days_to_expiration":   daysToExpiration,
+			"history_depth":        historyDepth},
 	}, nil
 }

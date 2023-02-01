@@ -34,6 +34,7 @@ const SiteTopNav = ({
     isGlobalMaintainer,
     isAnyTeamMaintainer,
     isNoAccess,
+    isMdmFeatureFlagEnabled,
   } = useContext(AppContext);
 
   const renderNavItem = (navItem: INavItem) => {
@@ -97,7 +98,8 @@ const SiteTopNav = ({
     isAnyTeamAdmin,
     isAnyTeamMaintainer,
     isGlobalMaintainer,
-    isNoAccess
+    isNoAccess,
+    isMdmFeatureFlagEnabled
   );
 
   const renderNavItems = () => {

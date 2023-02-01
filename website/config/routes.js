@@ -257,6 +257,14 @@ module.exports.routes = {
     }
   },
 
+  'GET /upgrade': {
+    action: 'view-upgrade',
+    locals: {
+      pageTitleForMeta: 'Upgrade to Fleet Premium | Fleet for osquery',
+      pageDescriptionForMeta: 'Learn about the benefits of upgrading to Fleet Premium',
+    }
+  },
+
 
 
   //  ╦  ╔═╗╔═╗╔═╗╔═╗╦ ╦  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗
@@ -315,6 +323,7 @@ module.exports.routes = {
   'GET /device-management/fleet-user-stories-schrodinger': '/success-stories/fleet-user-stories-wayfair',
   'GET /device-management/fleet-user-stories-wayfair': '/success-stories/fleet-user-stories-wayfair',
   'GET /handbook/security': '/handbook/business-operations/security',
+  'GET /handbook/handbook': '/handbook/company/handbook',
 
 
   //  ╔╦╗╦╔═╗╔═╗  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗   ┬   ╔╦╗╔═╗╦ ╦╔╗╔╦  ╔═╗╔═╗╔╦╗╔═╗
@@ -353,6 +362,10 @@ module.exports.routes = {
   // This is for search engines, not humans.  Search engines know to visit fleetdm.com/sitemap.xml to download this
   // XML file, which helps search engines know which pages are available on the website.
   'GET /sitemap.xml':            { action: 'download-sitemap' },
+
+  // RSS feeds
+  // =============================================================================================================
+  'GET /rss/:categoryName': {action: 'download-rss-feed'},
 
   // Potential future pages
   // =============================================================================================================
@@ -404,4 +417,5 @@ module.exports.routes = {
   'POST /api/v1/create-vanta-authorization-request': { action: 'create-vanta-authorization-request' },
   'POST /api/v1/deliver-mdm-beta-signup':                   { action: 'deliver-mdm-beta-signup' },
   'POST /api/v1/deliver-apple-csr ': { action: 'deliver-apple-csr', csrf: false},
+  'POST /api/v1/deliver-premium-upgrade-form': { action: 'deliver-premium-upgrade-form' },
 };
