@@ -1142,6 +1142,26 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				BundleIdentifier: "",
 			}, cpe: "",
 		},
+		// On MacOS, docker engine updates are handled by 'Docker Desktop' so the reported version
+		// for the engine matches the one from the Desktop wrongfully.
+		{
+			software: fleet.Software{
+				Name:             "Docker.app",
+				Source:           "apps",
+				Version:          "4.7.0",
+				BundleIdentifier: "com.docker.docker",
+			}, cpe: "cpe:2.3:a:docker:engine:20.10.14:*:*:*:*:macos:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:             "Docker Desktop.app",
+				Source:           "apps",
+				Version:          "4.12.0",
+				BundleIdentifier: "com.electron.dockerdesktop",
+			}, cpe: "cpe:2.3:a:docker:docker_desktop:4.12.0:*:*:*:*:macos:*:*",
+		},
+
+		// Add test cases for linux and windows
 	}
 
 	tempDir := t.TempDir()
