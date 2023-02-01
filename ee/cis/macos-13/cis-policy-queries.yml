@@ -813,8 +813,8 @@ spec:
       NOT EXISTS ( SELECT 1 FROM file WHERE path LIKE '/var/audit/%' AND mode != "0440" )
       AND 
       NOT EXISTS ( select 1 from file where path LIKE ( 
-                        -- This will extract the directory from /etc/security/audit_control
-                        -- Looking immediately at the line that starts with "dir:" and concatenating "/%"
+                        -- The path we are looking for is written inside /etc/security/audit_control in a line that starts with "dir:"
+                        -- Looking immediately at this and REGEX-ing the path after it (and concatenating "/%")
                         -- Same explanation for queries below.
                         SELECT dir FROM ( 
                         select line, CONCAT(regex_match(line, '^dir:(.+)',1 ), '/%') AS dir FROM file_lines WHERE path = '/etc/security/audit_control' AND line LIKE "dir:%")) 
