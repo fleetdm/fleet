@@ -11,6 +11,7 @@ import DataError from "components/DataError";
 import Icon from "components/Icon";
 import Modal from "components/Modal";
 import validEmail from "components/forms/validators/valid_email";
+import validate_presence from "components/forms/validators/validate_presence";
 
 export interface IRequestCSRFormData {
   email: string;
@@ -70,6 +71,7 @@ const RequestCSRModal = ({ onCancel }: IRequestCSRModalProps): JSX.Element => {
     orgName: config?.org_info?.org_name ?? "",
   });
   const [emailError, setEmailError] = useState("");
+  const [orgError, setOrgError] = useState("");
   const [requestState, setRequestState] = useState<
     "loading" | "error" | "success" | undefined
   >(undefined);
@@ -82,11 +84,19 @@ const RequestCSRModal = ({ onCancel }: IRequestCSRModalProps): JSX.Element => {
 
   const onFormSubmit = async (evt: FormEvent) => {
     evt.preventDefault();
+
+    // TODO: improve error handling. considering pulling out form err handling
+    // into reusable hook.
     if (!validEmail(formData.email)) {
       setEmailError("Email is not a valid format.");
       return;
     }
+    if (!validate_presence(formData.orgName)) {
+      setOrgError("Organization name is required.");
+      return;
+    }
     setEmailError("");
+    setOrgError("");
     setRequestState("loading");
     try {
       const data = await MdmAPI.requestCSR(email, orgName);
@@ -94,8 +104,11 @@ const RequestCSRModal = ({ onCancel }: IRequestCSRModalProps): JSX.Element => {
       setRequestState("success");
     } catch (e) {
       const err = e as any;
-      console.log(err);
-      if (err.status >= 400 && err.status <= 499) {
+      if (
+        err.status >= 400 &&
+        err.status <= 499 &&
+        err.data?.errors[0]?.name === "email_address"
+      ) {
         setEmailError("Email does not have the correct domain.");
         setRequestState(undefined);
       }
@@ -171,6 +184,7 @@ const RequestCSRModal = ({ onCancel }: IRequestCSRModalProps): JSX.Element => {
             label="Organization name"
             parseTarget
             value={orgName}
+            error={orgError}
           />
           <div className="modal-cta-wrap">
             <Button
