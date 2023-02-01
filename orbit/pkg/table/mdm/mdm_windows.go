@@ -10,6 +10,7 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 	"sync"
@@ -49,6 +50,50 @@ const (
 	mdmMutexName          = "__MDM_LOCAL_MANAGEMENT_NAMED_MUTEX__"
 )
 
+// SyncML XML Parsing Types
+type SyncMLHeader struct {
+	DTD        string `xml:"VerDTD"`
+	Version    string `xml:"VerProto"`
+	SessionID  int    `xml:"SessionID"`
+	MsgID      int    `xml:"MsgID"`
+	Target     string `xml:"Target>LocURI"`
+	Source     string `xml:"Source>LocURI"`
+	MaxMsgSize int    `xml:"Meta>A:MaxMsgSize"`
+}
+
+type SyncMLCommandMeta struct {
+	XMLinfo string `xml:"xmlns,attr"`
+	Type    string `xml:"Type"`
+}
+
+type SyncMLCommandItem struct {
+	Meta   SyncMLCommandMeta `xml:"Meta"`
+	Source string            `xml:"Source>LocURI"`
+	Data   string            `xml:"Data"`
+}
+
+type SyncMLCommand struct {
+	XMLName xml.Name
+	CmdID   int                 `xml:",omitempty"`
+	MsgRef  string              `xml:",omitempty"`
+	CmdRef  string              `xml:",omitempty"`
+	Cmd     string              `xml:",omitempty"`
+	Target  string              `xml:"Target>LocURI"`
+	Source  string              `xml:"Source>LocURI"`
+	Data    string              `xml:",omitempty"`
+	Item    []SyncMLCommandItem `xml:",any"`
+}
+
+type SyncMLBody struct {
+	Item []SyncMLCommand `xml:",any"`
+}
+
+type SyncMLMessage struct {
+	XMLinfo string       `xml:"xmlns,attr"`
+	Header  SyncMLHeader `xml:"SyncHdr"`
+	Body    SyncMLBody   `xml:"SyncBody"`
+}
+
 // Columns is the schema of the table.
 func Columns() []table.ColumnDefinition {
 	return []table.ColumnDefinition{
@@ -56,6 +101,7 @@ func Columns() []table.ColumnDefinition {
 		table.TextColumn("enrolled_user"),
 		table.TextColumn("mdm_command_input"),
 		table.TextColumn("mdm_command_output"),
+		table.TextColumn("raw_mdm_command_output"),
 	}
 }
 
@@ -98,12 +144,19 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 
 		log.Debug().Msgf("mdm_bridge output command response:\n%s", outputCmd)
 
+		// grabbing the command parsed command output
+		minimalOutputCmd, err := getCmdResponseData(strings.TrimSpace(outputCmd))
+		if err != nil {
+			return nil, fmt.Errorf("mdm command response parsing: %s ", err)
+		}
+
 		return []map[string]string{
 			{
-				"enrollment_status":  deviceEnrollmentStatus,
-				"enrolled_user":      enrollmentURI,
-				"mdm_command_input":  inputCmd,
-				"mdm_command_output": outputCmd,
+				"enrollment_status":      deviceEnrollmentStatus,
+				"enrolled_user":          enrollmentURI,
+				"mdm_command_input":      inputCmd,
+				"mdm_command_output":     minimalOutputCmd,
+				"raw_mdm_command_output": outputCmd,
 			},
 		}, nil
 	}
@@ -111,12 +164,58 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 	// returning table enrollment status + cmd output status if present
 	return []map[string]string{
 		{
-			"enrollment_status": deviceEnrollmentStatus,
-			"enrolled_user":     enrollmentURI,
-			"mdm_command_input": "",
-			"mdm_command_ouput": "",
+			"enrollment_status":      deviceEnrollmentStatus,
+			"enrolled_user":          enrollmentURI,
+			"mdm_command_input":      "",
+			"mdm_command_ouput":      "",
+			"raw_mdm_command_output": "",
 		},
 	}, nil
+}
+
+// dummy charset reader just to satisfy the xml decoder requirements
+func identReader(encoding string, input io.Reader) (io.Reader, error) {
+	return input, nil
+}
+
+// getCommandResponseData returns the response data for a given command
+func getCmdResponseData(outputCmd string) (string, error) {
+	var responseData string
+
+	// creating a new SyncML message object
+	messageObject := new(SyncMLMessage)
+
+	// parsing output SyncML message
+	d := xml.NewDecoder(bytes.NewReader([]byte(outputCmd)))
+	d.CharsetReader = identReader
+
+	// decoding the XML message
+	if err := d.Decode(messageObject); err != nil {
+		return "", err
+	}
+
+	// getting response data from output message
+	if len(messageObject.Body.Item) > 0 {
+		for _, element := range messageObject.Body.Item {
+
+			// getting the results tag for the input commands
+			if element.XMLName.Local != "Results" {
+				continue
+			}
+
+			// results will be appended in a comma separated list
+			if len(element.Item) > 0 {
+
+				if len(responseData) > 0 {
+					responseData += ","
+				}
+
+				responseData += element.Item[0].Data
+			}
+		}
+	}
+
+	return responseData, nil
 }
 
 // builtin utf16tostring string expects a uint16 array but we have a pointer to a uint16
