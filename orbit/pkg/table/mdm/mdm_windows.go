@@ -69,7 +69,7 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 	if constraintList, present := queryContext.Constraints["mdm_command_input"]; present {
 		for _, constraint := range constraintList.Constraints {
 			if constraint.Operator == table.OperatorEquals {
-				inputCmd = constraint.Expression
+				inputCmd = constraint.Expression // this input as to be kept as-is and returned on the same input column due to a sqlite requirement
 				log.Debug().Msgf("mdm_bridge input command request:\n%s", inputCmd)
 			}
 		}
@@ -91,7 +91,7 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 	if len(inputCmd) > 0 {
 
 		// performs the actual MDM cmd execution against the OS MDM stack
-		outputCmd, err := executeMDMcommand(inputCmd)
+		outputCmd, err := executeMDMcommand(strings.TrimSpace(inputCmd))
 		if err != nil {
 			return nil, fmt.Errorf("mdm command execution: %s ", err)
 		}
