@@ -17,4 +17,12 @@ export default {
       timeout
     );
   },
+  requestCSR: (email: string, organization: string) => {
+    const { MDM_REQUEST_CSR } = endpoints;
+
+    return sendRequest("POST", MDM_REQUEST_CSR, {
+      email_address: email,
+      organization,
+    });
+  },
 };
