@@ -283,6 +283,7 @@ const ActivityItem = ({
         className={`${baseClass}__avatar-image`}
         user={{ gravatar_url }}
         size="small"
+        hasWhiteBackground
       />
       <div className={`${baseClass}__details`}>
         <p>
