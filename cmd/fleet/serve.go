@@ -518,6 +518,14 @@ the way that the Fleet server works.
 				cancel()
 			}
 
+			appCfg, err := ds.AppConfig(context.Background())
+			if err != nil {
+				initFatal(err, "loading app config")
+			}
+			// assume MDM is disabled until we verify that
+			// everything is properly configured below
+			appCfg.MDM.EnabledAndConfigured = false
+
 			// validate Apple BM config
 			if config.MDM.IsAppleBMSet() {
 				if !license.IsPremium() {
@@ -558,6 +566,12 @@ the way that the Fleet server works.
 				pushProviderFactory := buford.NewPushProviderFactory()
 				mdmPushService = nanomdm_pushsvc.New(mdmStorage, mdmStorage, pushProviderFactory, nanoMDMLogger)
 				mdmCheckinAndCommandService = service.NewMDMAppleCheckinAndCommandService(ds)
+				appCfg.MDM.EnabledAndConfigured = true
+			}
+
+			// save the app config with the updated MDM.Enabled value
+			if err := ds.SaveAppConfig(context.Background(), appCfg); err != nil {
+				initFatal(err, "saving app config")
 			}
 
 			cronSchedules := fleet.NewCronSchedules()

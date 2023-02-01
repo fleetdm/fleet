@@ -16,6 +16,7 @@ import {
 } from "interfaces/host";
 import { ISoftware } from "interfaces/software";
 import { IHostPolicy } from "interfaces/policy";
+import { IDeviceGlobalConfig } from "interfaces/config";
 import DeviceUserError from "components/DeviceUserError";
 // @ts-ignore
 import OrgLogoIcon from "components/icons/OrgLogoIcon";
@@ -74,6 +75,9 @@ const DeviceUserPage = ({
     null
   );
   const [showPolicyDetailsModal, setShowPolicyDetailsModal] = useState(false);
+  const [globalConfig, setGlobalConfig] = useState<IDeviceGlobalConfig | null>(
+    null
+  );
 
   const { data: deviceMapping, refetch: refetchDeviceMapping } = useQuery(
     ["deviceMapping", deviceAuthToken],
@@ -132,6 +136,7 @@ const DeviceUserPage = ({
           ),
         });
         setOrgLogoURL(returnedHost.org_logo_url);
+        setGlobalConfig(returnedHost.global_config);
         if (returnedHost?.host.refetch_requested) {
           // If the API reports that a Fleet refetch request is pending, we want to check back for fresh
           // host details. Here we set a one second timeout and poll the API again using
@@ -283,6 +288,8 @@ const DeviceUserPage = ({
 
   const renderDeviceUserPage = () => {
     const failingPoliciesCount = host?.issues?.failing_policies_count || 0;
+    const isMdmUnenrolled =
+      host?.mdm.enrollment_status === "Off" || !host?.mdm.enrollment_status;
     return (
       <div className="fleet-desktop-wrapper">
         {isLoadingHost ? (
@@ -290,7 +297,8 @@ const DeviceUserPage = ({
         ) : (
           <div className={`${baseClass} body-wrap`}>
             {host?.platform === "darwin" &&
-              host?.mdm.enrollment_status === "Off" && (
+              isMdmUnenrolled &&
+              globalConfig?.mdm.enabled_and_configured && (
                 <InfoBanner color="yellow" cta={turnOnMdmButton} pageLevel>
                   Mobile device management (MDM) is off. MDM allows your
                   organization to change settings and install software. This
