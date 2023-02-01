@@ -103,10 +103,12 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		team.Config.WebhookSettings = *payload.WebhookSettings
 	}
 
+	var macOSMinVersionUpdated bool
 	if payload.MDM != nil {
 		if err := payload.MDM.MacOSUpdates.Validate(); err != nil {
 			return nil, fleet.NewInvalidArgumentError("macos_updates", err.Error())
 		}
+		macOSMinVersionUpdated = team.Config.MDM.MacOSUpdates != payload.MDM.MacOSUpdates
 		team.Config.MDM = *payload.MDM
 	}
 
@@ -144,7 +146,25 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		}
 	}
 
-	return svc.ds.SaveTeam(ctx, team)
+	team, err = svc.ds.SaveTeam(ctx, team)
+	if err != nil {
+		return nil, err
+	}
+	if macOSMinVersionUpdated {
+		if err := svc.ds.NewActivity(
+			ctx,
+			authz.UserFromContext(ctx),
+			fleet.ActivityTypeEditedMacOSMinVersion{
+				TeamID:         &team.ID,
+				TeamName:       &team.Name,
+				MinimumVersion: team.Config.MDM.MacOSUpdates.MinimumVersion,
+				Deadline:       team.Config.MDM.MacOSUpdates.Deadline,
+			},
+		); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "create activity for team macos min version edited")
+		}
+	}
+	return team, err
 }
 
 func (svc *Service) ModifyTeamAgentOptions(ctx context.Context, teamID uint, teamOptions json.RawMessage, applyOptions fleet.ApplySpecOptions) (*fleet.Team, error) {
@@ -496,6 +516,9 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 	}
 
 	if len(details) > 0 {
+		// TODO(mna): we don't create separate activities for e.g. edited agent
+		// options when applying team specs, so I didn't create explicit activities
+		// for min macos version either. Not sure if that's what we want.
 		if err := svc.ds.NewActivity(
 			ctx,
 			authz.UserFromContext(ctx),
