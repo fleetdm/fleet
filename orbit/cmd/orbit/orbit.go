@@ -908,20 +908,20 @@ func (d *desktopRunner) interrupt(err error) {
 // shell out to osquery (on Linux and macOS) or to wmic (on Windows), and get
 // the system uuid and serial number
 func getUUIDAndSerial(osqueryPath string) (uuid, serial string, err error) {
-	if runtime.GOOS == "windows" {
-		uuidData, uuidSource, err := platform.GetSMBiosUUID()
-		if err != nil {
-			return "", "", err
-		}
+	//if runtime.GOOS == "windows" {
+	//	uuidData, uuidSource, err := platform.GetSMBiosUUID()
+	//	if err != nil {
+	//		return "", "", err
+	//	}
 
-		log.Debug().Msgf("UUID source was %s.", uuidSource)
+	//	log.Debug().Msgf("UUID source was %s.", uuidSource)
 
-		// TODO(mna): is there an alternative way to get the serial number on
-		// Windows? Would osquery not work there? SMBios seems very complex/error
-		// prone. Should we get the UUID via SMBios and then continue with the
-		// osquery query to get the serial on Windows?
-		return uuidData, "", nil
-	}
+	//	// TODO(mna): is there an alternative way to get the serial number on
+	//	// Windows? Would osquery not work there? SMBios seems very complex/error
+	//	// prone. Should we get the UUID via SMBios and then continue with the
+	//	// osquery query to get the serial on Windows?
+	//	return uuidData, "", nil
+	//}
 	type Output struct {
 		UuidString     string `json:"uuid"`
 		HardwareSerial string `json:"hardware_serial"`
