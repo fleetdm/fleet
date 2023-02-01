@@ -57,7 +57,7 @@ const DeleteSecretModal = ({
           <p>
             Follow this guide to{" "}
             <CustomLink
-              url="https://fleetdm.com/docs/deploying/faq#how-can-enroll-secrets-be-rotated"
+              url="https://fleetdm.com/docs/using-fleet/configuration-files#rotate-enroll-secrets"
               text="rotate enroll secrets"
               newTab
             />

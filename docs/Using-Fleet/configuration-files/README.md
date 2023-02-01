@@ -1033,7 +1033,7 @@ You can verify that these flags have taken effect on the hosts by running a quer
 
 > If you revoked an old enroll secret, this feature won't update for hosts that were added to Fleet using this old enroll secret. This is because Orbit uses the enroll secret to receive new flags from Fleet. For these hosts, all existing features will work as expected.
 
-For further documentation on how to rotate enroll secrets, please see [this guide](https://fleetdm.com/docs/deploying/faq#how-can-enroll-secrets-be-rotated).
+For further documentation on how to rotate enroll secrets, please see [this guide](#rotating-enroll-secrets).
 
 If you prefer to deploy a new package with the updated enroll secret:
 

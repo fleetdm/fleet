@@ -47,7 +47,7 @@ The query may take several seconds to complete, because Fleet has to wait for th
 
 > Fleet's query response time is inherently variable because of osquery's heartbeat response time. This helps prevent performance issues on hosts.
 
-When the query has finished, see several columns in the "Results" table:
+When the query has finished, you should see several columns in the "Results" table:
 
 - The "name" column answers: "What operating system is installed on my device?" 
 
