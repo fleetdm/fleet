@@ -115,12 +115,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 	require.Equal(t, mdm, team.Config.MDM)
 
 	// an activity was created for team spec applied
-	var listActivities listActivitiesResponse
-	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &listActivities, "order_key", "id", "order_direction", "desc")
-	require.True(t, len(listActivities.Activities) > 0)
-	assert.Equal(t, fleet.ActivityTypeAppliedSpecTeam{}.ActivityName(), listActivities.Activities[0].Type)
-	require.NotNil(t, listActivities.Activities[0].Details)
-	assert.JSONEq(t, fmt.Sprintf(`{"teams": [{"id": %d, "name": %q}]}`, team.ID, team.Name), string(*listActivities.Activities[0].Details))
+	s.lastActivityMatches(fleet.ActivityTypeAppliedSpecTeam{}.ActivityName(), fmt.Sprintf(`{"teams": [{"id": %d, "name": %q}]}`, team.ID, team.Name), 0)
 
 	// dry-run with invalid agent options
 	agentOpts = json.RawMessage(`{"config": {"nope": 1}}`)
@@ -231,11 +226,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 	require.Equal(t, appConfig.Features, team.Config.Features)
 
 	// an activity was created for the newly created team via the applied spec
-	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &listActivities, "order_key", "id", "order_direction", "desc")
-	require.True(t, len(listActivities.Activities) > 0)
-	assert.Equal(t, fleet.ActivityTypeAppliedSpecTeam{}.ActivityName(), listActivities.Activities[0].Type)
-	require.NotNil(t, listActivities.Activities[0].Details)
-	assert.JSONEq(t, fmt.Sprintf(`{"teams": [{"id": %d, "name": %q}]}`, team.ID, team.Name), string(*listActivities.Activities[0].Details))
+	s.lastActivityMatches(fleet.ActivityTypeAppliedSpecTeam{}.ActivityName(), fmt.Sprintf(`{"teams": [{"id": %d, "name": %q}]}`, team.ID, team.Name), 0)
 
 	// updates
 	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
@@ -680,12 +671,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 	require.Contains(t, string(*tmResp.Team.Config.AgentOptions), `"aws_debug": true`) // left unchanged
 
 	// list activities, it should have created one for edited_agent_options
-	var listActivities listActivitiesResponse
-	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &listActivities, "order_key", "id", "order_direction", "desc")
-	require.True(t, len(listActivities.Activities) > 0)
-	assert.Equal(t, fleet.ActivityTypeEditedAgentOptions{}.ActivityName(), listActivities.Activities[0].Type)
-	require.NotNil(t, listActivities.Activities[0].Details)
-	assert.JSONEq(t, fmt.Sprintf(`{"global": false, "team_id": %d, "team_name": %q}`, tm1ID, team.Name), string(*listActivities.Activities[0].Details))
+	s.lastActivityMatches(fleet.ActivityTypeEditedAgentOptions{}.ActivityName(), fmt.Sprintf(`{"global": false, "team_id": %d, "team_name": %q}`, tm1ID, team.Name), 0)
 
 	// modify team agent options - unknown team
 	tmResp.Team = nil
@@ -1262,6 +1248,7 @@ func (s *integrationEnterpriseTestSuite) TestMacOSUpdatesConfig() {
 	}, http.StatusOK, &tmResp)
 	require.Equal(t, "10.15.0", tmResp.Team.Config.MDM.MacOSUpdates.MinimumVersion)
 	require.Equal(t, "2021-01-01", tmResp.Team.Config.MDM.MacOSUpdates.Deadline)
+	s.lastActivityMatches(fleet.ActivityTypeEditedMacOSMinVersion{}.ActivityName(), fmt.Sprintf(`{"team_id": %d, "team_name": %q, "minimum_version": "10.15.0", "deadline": "2021-01-01"}`, team.ID, team.Name), 0)
 
 	// only update the deadline
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
@@ -1274,16 +1261,20 @@ func (s *integrationEnterpriseTestSuite) TestMacOSUpdatesConfig() {
 	}, http.StatusOK, &tmResp)
 	require.Equal(t, "10.15.0", tmResp.Team.Config.MDM.MacOSUpdates.MinimumVersion)
 	require.Equal(t, "2025-10-01", tmResp.Team.Config.MDM.MacOSUpdates.Deadline)
+	lastActivity := s.lastActivityMatches(fleet.ActivityTypeEditedMacOSMinVersion{}.ActivityName(), fmt.Sprintf(`{"team_id": %d, "team_name": %q, "minimum_version": "10.15.0", "deadline": "2025-10-01"}`, team.ID, team.Name), 0)
 
 	// sending a nil MacOSUpdate config doesn't modify anything
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{MDM: nil}, http.StatusOK, &tmResp)
 	require.Equal(t, "10.15.0", tmResp.Team.Config.MDM.MacOSUpdates.MinimumVersion)
 	require.Equal(t, "2025-10-01", tmResp.Team.Config.MDM.MacOSUpdates.Deadline)
+	// no new activity is created
+	s.lastActivityMatches("", "", lastActivity)
 
 	// sending an empty MacOSUpdate empties both fields
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{MDM: &fleet.TeamMDM{MacOSUpdates: fleet.MacOSUpdates{}}}, http.StatusOK, &tmResp)
 	require.Empty(t, tmResp.Team.Config.MDM.MacOSUpdates.MinimumVersion)
 	require.Empty(t, tmResp.Team.Config.MDM.MacOSUpdates.Deadline)
+	s.lastActivityMatches(fleet.ActivityTypeEditedMacOSMinVersion{}.ActivityName(), fmt.Sprintf(`{"team_id": %d, "team_name": %q, "minimum_version": "", "deadline": ""}`, team.ID, team.Name), 0)
 
 	// error checks:
 
@@ -1527,6 +1518,14 @@ func (s *integrationEnterpriseTestSuite) TestDefaultAppleBMTeam() {
 func (s *integrationEnterpriseTestSuite) TestMDMMacOSUpdates() {
 	t := s.T()
 
+	// keep the last activity, to detect newly created ones
+	var activitiesResp listActivitiesResponse
+	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &activitiesResp, "order_key", "a.id", "order_direction", "desc")
+	var lastActivity uint
+	if len(activitiesResp.Activities) > 0 {
+		lastActivity = activitiesResp.Activities[0].ID
+	}
+
 	checkInvalidConfig := func(config string) {
 		// try to set an invalid config
 		acResp := appConfigResponse{}
@@ -1536,6 +1535,14 @@ func (s *integrationEnterpriseTestSuite) TestMDMMacOSUpdates() {
 		acResp = appConfigResponse{}
 		s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
 		require.Equal(t, fleet.MacOSUpdates{}, acResp.MDM.MacOSUpdates)
+
+		// no activity got created
+		activitiesResp = listActivitiesResponse{}
+		s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &activitiesResp, "order_key", "a.id", "order_direction", "desc")
+		require.Condition(t, func() bool {
+			return (lastActivity == 0 && len(activitiesResp.Activities) == 0) ||
+				(len(activitiesResp.Activities) > 0 && activitiesResp.Activities[0].ID == lastActivity)
+		})
 	}
 
 	// missing minimum_version
@@ -1589,11 +1596,69 @@ func (s *integrationEnterpriseTestSuite) TestMDMMacOSUpdates() {
 	require.Equal(t, "12.3.1", acResp.MDM.MacOSUpdates.MinimumVersion)
 	require.Equal(t, "2022-01-01", acResp.MDM.MacOSUpdates.Deadline)
 
+	// edited macos min version activity got created
+	s.lastActivityMatches(fleet.ActivityTypeEditedMacOSMinVersion{}.ActivityName(), `{"deadline":"2022-01-01", "minimum_version":"12.3.1", "team_id": null, "team_name": null}`, 0)
+
 	// get the appconfig
 	acResp = appConfigResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
 	require.Equal(t, "12.3.1", acResp.MDM.MacOSUpdates.MinimumVersion)
 	require.Equal(t, "2022-01-01", acResp.MDM.MacOSUpdates.Deadline)
+
+	// update the deadline
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+			"mdm": {
+				"macos_updates": {
+					"minimum_version": "12.3.1",
+					"deadline": "2024-01-01"
+				}
+			}
+		}`), http.StatusOK, &acResp)
+	require.Equal(t, "12.3.1", acResp.MDM.MacOSUpdates.MinimumVersion)
+	require.Equal(t, "2024-01-01", acResp.MDM.MacOSUpdates.Deadline)
+
+	// another edited macos min version activity got created
+	lastActivity = s.lastActivityMatches(fleet.ActivityTypeEditedMacOSMinVersion{}.ActivityName(), `{"deadline":"2024-01-01", "minimum_version":"12.3.1", "team_id": null, "team_name": null}`, 0)
+
+	// update something unrelated - the transparency url
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{"fleet_desktop":{"transparency_url": "customURL"}}`), http.StatusOK, &acResp)
+
+	// no activity got created
+	s.lastActivityMatches("", ``, lastActivity)
+
+	// clear the macos requirement
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+			"mdm": {
+				"macos_updates": {
+					"minimum_version": "",
+					"deadline": ""
+				}
+			}
+		}`), http.StatusOK, &acResp)
+	require.Empty(t, acResp.MDM.MacOSUpdates.MinimumVersion)
+	require.Empty(t, acResp.MDM.MacOSUpdates.Deadline)
+
+	// edited macos min version activity got created with empty requirement
+	lastActivity = s.lastActivityMatches(fleet.ActivityTypeEditedMacOSMinVersion{}.ActivityName(), `{"deadline":"", "minimum_version":"", "team_id": null, "team_name": null}`, 0)
+
+	// update again with empty macos requirement
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+			"mdm": {
+				"macos_updates": {
+					"minimum_version": "",
+					"deadline": ""
+				}
+			}
+		}`), http.StatusOK, &acResp)
+	require.Empty(t, acResp.MDM.MacOSUpdates.MinimumVersion)
+	require.Empty(t, acResp.MDM.MacOSUpdates.Deadline)
+
+	// no activity got created
+	s.lastActivityMatches("", ``, lastActivity)
 }
 
 func (s *integrationEnterpriseTestSuite) TestSSOJITProvisioning() {
@@ -2190,6 +2255,28 @@ func (s *integrationEnterpriseTestSuite) TestOrbitConfigNudgeSettings() {
 	require.NoError(t, err)
 	require.Equal(t, wantCfg, resp.NudgeConfig)
 	require.Equal(t, wantCfg.OSVersionRequirements[0].RequiredInstallationDate.String(), "2022-01-04 04:00:00 +0000 UTC")
+}
+
+// gets the latest activity and checks that it matches any provided properties.
+// empty string or 0 id means do not check that property. It returns the ID of that
+// latest activity.
+func (s *integrationEnterpriseTestSuite) lastActivityMatches(name, details string, id uint) uint {
+	var listActivities listActivitiesResponse
+	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &listActivities, "order_key", "a.id", "order_direction", "desc", "per_page", "1")
+	require.True(s.T(), len(listActivities.Activities) > 0)
+
+	act := listActivities.Activities[0]
+	if name != "" {
+		assert.Equal(s.T(), name, act.Type)
+	}
+	if details != "" {
+		require.NotNil(s.T(), act.Details)
+		assert.JSONEq(s.T(), details, string(*act.Details))
+	}
+	if id > 0 {
+		assert.Equal(s.T(), id, act.ID)
+	}
+	return act.ID
 }
 
 // allEqual compares all fields of a struct.
