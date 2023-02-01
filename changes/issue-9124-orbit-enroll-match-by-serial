@@ -1,0 +1,1 @@
+* Added support for fleetd to enroll a device using its serial number (in addition to its system UUID) to help avoid host-matching issues when a host is first created in Fleet via the MDM automatic enrollment (Apple Business Manager).
