@@ -696,7 +696,7 @@ func (a ActivityTypeEditedMacOSMinVersion) ActivityName() string {
 }
 
 func (a ActivityTypeEditedMacOSMinVersion) Documentation() (activity string, details string, detailsExample string) {
-	return `Generated when the minimum required macOS version is modified.`,
+	return `Generated when the minimum required macOS version or deadline is modified.`,
 		`This activity contains the following fields:
 - "team_id": The ID of the team that the minimum macOS version applies to, null if it applies to devices that are not in a team.
 - "team_name": The name of the team that the minimum macOS version applies to, null if it applies to devices that are not in a team.
