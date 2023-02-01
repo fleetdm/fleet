@@ -95,7 +95,21 @@ To see all agent options, head to the [agent options documentation](https://flee
 
 5. Select **Save**.
 
-The agents may take several seconds to update because Fleet has to wait for the hosts to check in.
+The agents may take several seconds to update because Fleet has to wait for the hosts to check in. Additionally, hosts enrolled with removed enroll secrets must properly rotate their secret to have the new changes take effect.
+
+When updating agent options, you may see an error similar to this:
+
+```
+[...] unsupported key provided: "logger_plugin"
+If you’re not using the latest osquery, use the fleetctl apply --force command to override validation.
+```
+
+This error indicates that you're providing a config option that isn't valid in the current version of osquery, typically because you're setting a command line flag through the configuration key. This has always been unsupported through the config plugin, but osquery has recently become more opinionated and Fleet now validates the configuration to make sure there aren't errors in the osquery agent.
+
+If you are not using the latest version of osquery, you can create a config YAML file and apply it with `fleetctl` using the `--force` flag to override the validation:
+
+```fleetctl apply --force -f config.yaml```
+
 
 <meta name="title" value="Fleet UI">
 

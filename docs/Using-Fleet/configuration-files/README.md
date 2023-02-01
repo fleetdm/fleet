@@ -81,7 +81,7 @@ spec:
 
 ## Enroll secrets
 
-The following file shows how to configure enroll secrets.
+The following file shows how to configure enroll secrets. Enroll secrets are valid until you delete them.
 
 ```yaml
 apiVersion: v1
@@ -91,6 +91,88 @@ spec:
     - secret: RzTlxPvugG4o4O5IKS/HqEDJUmI1hwBoffff
     - secret: YBh0n4pvRplKyWiowv9bf3zp6BBOJ13O
 ```
+
+Osquery provides the enroll secret only during the enrollment process. Once a host is enrolled, the node key it receives remains valid for authentication independent from the enroll secret.
+
+Currently enrolled hosts do not necessarily need enroll secrets updated, as the existing enrollment will continue to be valid as long as the host is not deleted from Fleet and the osquery store on the host remains valid. Any newly enrolling hosts must have the new secret.
+
+Deploying a new enroll secret cannot be done centrally from Fleet.
+
+Osquery provides the enroll secret only during the enrollment process. Once a host is enrolled, the node key it receives remains valid for authentication independent from the enroll secret.
+
+Currently enrolled hosts do not necessarily need enroll secrets updated, as the existing enrollment will continue to be valid as long as the host is not deleted from Fleet and the osquery store on the host remains valid. Any newly enrolling hosts must have the new secret.
+
+Deploying a new enroll secret cannot be done centrally from Fleet.
+
+### Multiple enroll secrets 
+
+Fleet allows the abiility to maintain multiple enroll secrets. Some organizations have internal goals  around rotating secrets. Having multiple secrets allows some of them to work at the same time the rotation is happening.
+Another reason you might want to use multiple enroll secrets is to use a certain enroll secret to auto-enroll hosts into a specific team (Fleet Premium).
+
+### Team enroll secrets
+
+On Fleet Premium, [team enroll secrets](https://fleetdm.com/docs/using-fleet/teams#enroll-hosts-to-a-team) allow you to automatically assign a host to a team.
+
+### Rotating enroll secrets
+
+Rotating enroll secrets follows this process:
+
+1. Add a new secret.
+2. Transition existing clients to the new secret. Note that existing clients may not need to be
+   updated, as the enroll secret is not used by already enrolled clients.
+3. Remove the old secret.
+
+To do this with `fleetctl` (assuming the existing secret is `oldsecret` and the new secret is `newsecret`):
+
+Begin by retrieving the existing secret configuration:
+
+```
+$ fleetctl get enroll_secret
+---
+apiVersion: v1
+kind: enroll_secret
+spec:
+  secrets:
+  - created_at: "2021-11-17T00:39:50Z"
+    secret: oldsecret
+```
+
+Apply the new configuration with both secrets:
+
+```
+$ echo '
+---
+apiVersion: v1
+kind: enroll_secret
+spec:
+  secrets:
+  - created_at: "2021-11-17T00:39:50Z"
+    secret: oldsecret
+  - secret: newsecret
+' > secrets.yml
+$ fleetctl apply -f secrets.yml
+```
+
+Now transition clients to using only the new secret. When the transition is completed, remove the
+old secret:
+
+```
+$ echo '
+---
+apiVersion: v1
+kind: enroll_secret
+spec:
+  secrets:
+  - secret: newsecret
+' > secrets.yml
+$ fleetctl apply -f secrets.yml
+```
+
+At this point, the old secret will no longer be accepted for new enrollments and the rotation is
+complete.
+
+A similar process may be followed for rotating team-specific enroll secrets. For teams, the secrets
+are managed in the team yaml.
 
 ## Teams
 
@@ -903,6 +985,19 @@ The `agent_options` key controls the settings applied to the agent on all your h
 See the [osquery documentation](https://osquery.readthedocs.io/en/stable/installation/cli-flags/#configuration-control-flags) for the available options. This document shows all examples in command line flag format. Remove the dashed lines (`--`) for Fleet to successfully update the setting. For example, use `distributed_interval` instead of `--distributed_interval`.
 
 Agent options are validated using the latest version of osquery. 
+
+When updating agent options, you may see an error similar to this:
+
+```
+[...] unsupported key provided: "logger_plugin"
+If you’re not using the latest osquery, use the fleetctl apply --force command to override validation.
+```
+
+This error indicates that you're providing a config option that isn't valid in the current version of osquery, typically because you're setting a command line flag through the configuration key. This has always been unsupported through the config plugin, but osquery has recently become more opinionated and Fleet now validates the configuration to make sure there aren't errors in the osquery agent.
+
+If you are not using the latest version of osquery, you can create a config YAML file and apply it with `fleetctl` using the `--force` flag to override the validation:
+
+```fleetctl apply --force -f config.yaml```
 
 You can verify that your agent options are valid by using [the fleetctl apply command](https://fleetdm.com/docs/using-fleet/fleetctl-cli#fleetctl-apply) with the `--dry-run` flag. This will report any error and do nothing if the configuration was valid. If you don't use the latest version of osquery, you can override validation using the `--force` flag. This will update agent options even if they are invalid.
 
