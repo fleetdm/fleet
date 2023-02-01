@@ -181,7 +181,7 @@ func isValidMDMcommand(inputCMD string) (bool, error) {
 	isSyncBodyPrefixPresent := strings.HasPrefix(strings.ToLower(inputCMD), "<syncbody>")
 	isSyncBodySuffixPresent := strings.HasSuffix(strings.ToLower(inputCMD), "</syncbody>")
 	if !isSyncBodyPrefixPresent || !isSyncBodySuffixPresent {
-		return false, errors.New("input MDM command is not a valid")
+		return false, errors.New("input MDM command is not a valid command")
 	}
 
 	// checking if input MDM command is a valid XML
