@@ -110,11 +110,11 @@
     - name: Just-in-time provisioning
       tier: Premium
       comingSoon: false
-    - name: Granular role-based access control
-      tier: Ultimate
-      comingSoon: false
     - name: Vanta integration
       tier: Premium
+      comingSoon: false
+    - name: Granular role-based access control
+      tier: Ultimate
       comingSoon: false
 - categoryName: Monitoring
   features:

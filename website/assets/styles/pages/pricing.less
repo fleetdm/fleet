@@ -65,6 +65,7 @@
       text-align: center;
       cursor: pointer;
       z-index: 3;
+      user-select: none;
     }
     .it-selected {
       transform: translateX(140px);
@@ -78,7 +79,9 @@
   [purpose='pricing-tier-card'] {
     padding: 60px 30px;
     border-radius: 15px;
-    height: 100%;
+    margin-right: 12px;
+    margin-left: 12px;
+
     [purpose='pricing-tier-title'] {
       text-align: center;
       margin-bottom: 40px;
@@ -110,11 +113,36 @@
       font-size: 16px;
       line-height: 20px;
     }
+
+  }
+  [purpose='fleet-community-card'] {
+    max-width: 570px;
+    margin-left: auto;
+    margin-right: auto;
   }
   [purpose='card-button'] {
+    position: relative;
     font-size: 16px;
     padding: 15px;
     margin-top: 8px;
+    max-width: 540px;
+  }
+  [purpose='card-button']::before {
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0) 100%);
+    opacity: 1;
+    content: ' ';
+    position: absolute;
+    top: 0;
+    left: -5px;
+    width: 50%;
+    height: 100%;
+    transform: skew(-10deg);
+    transition: left 0.5s ease-in, opacity 0.50s ease-in, width 0.5s ease-in;
+  }
+  [purpose='card-button']:hover:before {
+    opacity: 0;
+    left: 160px;
+    width: 110%;
   }
   input[type='number'] {
     -moz-appearance: none;
@@ -169,6 +197,8 @@
     }
   }
 
+
+
   [purpose='mobile-feature-table-section'] {
     margin-bottom: 16px;
     h4 {
@@ -211,7 +241,26 @@
     border: none;
     margin-bottom: 8px;
     margin-top: 4px;
+    position: relative;
   }
+  [purpose='table-button']::before {
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0) 100%);
+    opacity: 1;
+    content: ' ';
+    position: absolute;
+    top: 0;
+    left: -5px;
+    width: 50%;
+    height: 100%;
+    transform: skew(-10deg);
+    transition: left 0.5s ease-in, opacity 0.50s ease-in, width 0.5s ease-in;
+  }
+  [purpose='table-button']:hover:before {
+    opacity: 0;
+    left: 160px;
+    width: 110%;
+  }
+
   [purpose='checkmark'] {
     height: 16px;
     width: 16px;
@@ -265,9 +314,10 @@
       line-height: 32px;
       color: #192147;
     }
-
   }
+
   [purpose='features-list'] {
+    min-height: ;
     p {
       margin-bottom: 16px;
       text-indent: -24px;
@@ -303,9 +353,21 @@
     }
   }
 
+  @media (max-width: 991px) {
+    [purpose='fleet-community-card'] {
+      max-width: 100%;
+      margin-left: unset;
+      margin-right: unset;
+    }
+  }
   @media (max-width: 767px) {
     [purpose='table-button'] {
       padding: 4px 8px;
+    }
+    [purpose='pricing-tier-card'] {
+      padding: 32px;
+      margin-left: 0;
+      margin-right: 0;
     }
 
   }
@@ -331,6 +393,9 @@
     }
     [purpose='pricing-tier-card'] {
       padding: 32px;
+    }
+    [purpose='enterprise-calculator-input'] {
+      width: 60px;
     }
     [purpose='pricing-categories-table'] {
       margin-bottom: 40px;

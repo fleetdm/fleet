@@ -18,6 +18,7 @@ parasails.registerPage('pricing', {
     // Server error state
     cloudError: '',
     estimatedCost: '', // For pricing calculator
+    estimatedUltimateCostPerHost: 7,
     displaySecurityPricingMode: true, // For pricing mode switch
   },
 
@@ -50,11 +51,16 @@ parasails.registerPage('pricing', {
       let total =
       (7 * (this.formData.macos ? this.formData.macos : 0)) +
       (7 * (this.formData.windows ? this.formData.windows : 0)) +
-      (1.50 * (this.formData.servers ? this.formData.servers : 0)) +
-      (1.50 * (this.formData.iot ? this.formData.iot : 0)) +
-      (1.50 * (this.formData.containers ? this.formData.containers : 0))
-
+      (7 * (this.formData.linux ? this.formData.linux : 0)) +
+      (1.50 * (this.formData.other ? this.formData.other : 0));
+      let totalNumberOfDevices =
+      (1 * (this.formData.macos ? this.formData.macos : 0)) +
+      (1 * (this.formData.windows ? this.formData.windows : 0)) +
+      (1 * (this.formData.linux ? this.formData.linux : 0)) +
+      (1 * (this.formData.other ? this.formData.other : 0));
       this.estimatedCost = Number(total);
+      this.estimatedUltimateCostPerHost = Math.floor(this.estimatedCost / totalNumberOfDevices);
+      console.log(this.estimatedUltimateCostPerHost);
     },
   }
 });
