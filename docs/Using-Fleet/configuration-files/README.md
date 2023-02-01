@@ -3,7 +3,12 @@
 - [Queries](#queries)
 - [Labels](#labels)
 - [Enroll secrets](#enroll-secrets)
-- [Teams](#teams)
+  - [Multiple enroll secrets](#multiple-enroll-secrets)
+  - [Rotating enroll secrets](#rotating-enroll-secrets)
+- [Team settings](#team-settings)
+  - [Team agent options](#team-agent-options)
+  - [Team enroll secrets](#team-enroll-secrets)
+- [Mobile device management settings](#mobile-device-management-mdm-settings)
 - [Organization settings](#organization-settings)
 
 Fleet can be managed with configuration files (YAML syntax) and the fleetctl command line tool. This page tells you how to write these configuration files.
@@ -46,7 +51,7 @@ Continued edits and applications to this file will update the queries.
 
 If you want to change the name of a query, you must first create a new query with the new name and then delete the query with the old name.
 
-### Labels
+## Labels
 
 The following file describes the labels which hosts should be automatically grouped into. The label resource should include the actual SQL query so that the label is self-contained:
 
@@ -107,11 +112,7 @@ Deploying a new enroll secret cannot be done centrally from Fleet.
 ### Multiple enroll secrets 
 
 Fleet allows the abiility to maintain multiple enroll secrets. Some organizations have internal goals  around rotating secrets. Having multiple secrets allows some of them to work at the same time the rotation is happening.
-Another reason you might want to use multiple enroll secrets is to use a certain enroll secret to auto-enroll hosts into a specific team (Fleet Premium).
-
-### Team enroll secrets
-
-On Fleet Premium, [team enroll secrets](https://fleetdm.com/docs/using-fleet/teams#enroll-hosts-to-a-team) allow you to automatically assign a host to a team.
+Another reason you might want to use multiple enroll secrets is to use a certain [team enroll secret](#team-enroll-secrets) to auto-enroll hosts into a specific [team](https://fleetdm.com/docs/using-fleet/teams) (Fleet Premium).
 
 ### Rotating enroll secrets
 
@@ -174,7 +175,7 @@ complete.
 A similar process may be followed for rotating team-specific enroll secrets. For teams, the secrets
 are managed in the team yaml.
 
-## Teams
+## Team settings
 
 **Applies only to Fleet Premium**.
 
@@ -221,9 +222,7 @@ spec:
         deadline: 2022-01-04
 ```
 
-### Team settings
-
-#### Team agent options
+### Team agent options
 
 The team agent options specify options that only apply to this team. When team-specific agent options have been specified, the agent options specified at the organization level are ignored for this team.
 
@@ -239,7 +238,7 @@ spec:
       # the team-specific options go here
 ```
 
-#### Secrets
+### Team secrets
 
 The `secrets` section provides the list of enroll secrets that will be valid for this team. If the section is missing, the existing secrets are left unmodified. Otherwise, they are replaced with this list of secrets for this team.
 
@@ -287,7 +286,7 @@ webhook_settings
 
 You can bypass these errors by removing the key from your YAML or adding the `--force` flag. This flag will force application of the changes without validation. Proceed with caution.
 
-#### Mobile device management (MDM) settings
+## Mobile device management (MDM) settings
 
 > MDM features are not ready for production and are currently in development. These features are disabled by default.
 
