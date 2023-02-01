@@ -852,7 +852,7 @@ spec:
     NOT EXISTS(SELECT 1 FROM file WHERE path = '/etc/exports');
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS4.3
-  contributors: lucasmrod
+  contributors:
 ---
 apiVersion: v1
 kind: policy
