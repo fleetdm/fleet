@@ -939,8 +939,7 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, hardwareUUID, hardwareSeri
 	if hardwareUUID == "" {
 		return nil, ctxerr.New(ctx, "hardware uuid is empty")
 	}
-	// TODO(mna): allow empty serial until we figure out Windows - for now, it
-	// would be empty on that OS.
+	// NOTE: allow an empty serial, it will be for Windows.
 
 	var host *fleet.Host
 
@@ -956,14 +955,16 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, hardwareUUID, hardwareSeri
 		// we always return the same host (remember, the index is not unique), we
 		// sort it by host id. This is merely a precaution against database
 		// corruption, this should never be a problem.
-		selectQuery = `SELECT id, osquery_host_id, '' as hardware_serial FROM hosts WHERE osquery_host_id = ?
-UNION SELECT id, '' as osquery_host_id, hardware_serial FROM hosts WHERE hardware_serial = ? ORDER BY id LIMIT 1`
+		selectQuery = `(SELECT id, osquery_host_id, '' as hardware_serial FROM hosts WHERE osquery_host_id = ?)
+UNION (SELECT id, '' as osquery_host_id, hardware_serial FROM hosts WHERE hardware_serial = ? ORDER BY id LIMIT 1)`
 		selectArgs = append(selectArgs, hardwareSerial)
 	}
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		var selectHosts []*fleet.Host
 		err := sqlx.SelectContext(ctx, tx, &selectHosts, selectQuery, selectArgs...)
 		if len(selectHosts) == 0 && err == nil {
+			// SelectContext does not return ErrNoRows if it returns nothing, so set
+			// it explicitly.
 			err = sql.ErrNoRows
 		} else if len(selectHosts) > 0 {
 			host = selectHosts[0]
