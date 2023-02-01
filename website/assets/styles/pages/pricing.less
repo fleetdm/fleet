@@ -119,13 +119,15 @@
     margin-right: auto;
   }
   [purpose='card-button'] {
-    position: relative;
     font-size: 16px;
     padding: 15px;
     margin-top: 8px;
     max-width: 540px;
   }
-  [purpose='card-button']::before {
+  [purpose='chat-button'], [purpose='card-button'], [purpose='table-button'] {
+    position: relative;
+  }
+  [purpose='card-button']::before, [purpose='chat-button']::before, [purpose='table-button']::before {
     background: linear-gradient(180deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0) 100%);
     opacity: 1;
     content: ' ';
@@ -137,7 +139,7 @@
     transform: skew(-10deg);
     transition: left 0.5s ease-in, opacity 0.50s ease-in, width 0.5s ease-in;
   }
-  [purpose='card-button']:hover:before {
+  [purpose='card-button']:hover:before, [purpose='chat-button']:hover:before, [purpose='table-button']:hover:before {
     opacity: 0;
     left: 160px;
     width: 110%;
@@ -239,24 +241,6 @@
     border: none;
     margin-bottom: 8px;
     margin-top: 4px;
-    position: relative;
-  }
-  [purpose='table-button']::before {
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0) 100%);
-    opacity: 1;
-    content: ' ';
-    position: absolute;
-    top: 0;
-    left: -5px;
-    width: 50%;
-    height: 100%;
-    transform: skew(-10deg);
-    transition: left 0.5s ease-in, opacity 0.50s ease-in, width 0.5s ease-in;
-  }
-  [purpose='table-button']:hover:before {
-    opacity: 0;
-    left: 160px;
-    width: 110%;
   }
 
   [purpose='checkmark'] {

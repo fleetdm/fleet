@@ -20,48 +20,44 @@
         <div class="d-flex flex-md-row flex-column card-deck justify-content-center align-items-center align-items-md-stretch p-0 w-100 mx-auto">
           <%// Fleet Premium %>
           <div purpose="pricing-tier-card" class="card ml-md-0 mb-4 w-100 w-md-auto">
+            <div purpose="pricing-tier-title">
+              <h2>Fleet Premium</h2>
+              <h3>For orgs with multiple compliance standards</h3>
+              <p>Up to 500 hosts*</p>
+              <h2>$3500/month</h2>
+            </div>
             <div>
-              <div purpose="pricing-tier-title">
-                <h2>Fleet Premium</h2>
-                <h3>For orgs with multiple compliance standards</h3>
-                <p>Up to 500 hosts*</p>
-                <h2>$3500/month</h2>
+              <p><strong>Includes</strong></p>
+              <%// Premium security features%>
+              <div purpose="features-list" v-if="displaySecurityPricingMode">
+                <p>Single-Sign On (SSO)</p>
+                <p>24 hour support for PO</p>
+                <p>Unlimited device groups (teams)</p>
+                <p>Employee/device mapping</p>
+                <p>Organizational GitOps</p>
+                <p>Versionable queries and config</p>
+                <p>JIT provisioning</p>
+                <p>Vulnerability scores (CISA)</p>
+                <p>Query performance monitoring</p>
+                <p>Vulnerability automation destination</p>
               </div>
-              <div>
-                <p><strong>Includes</strong></p>
-                <%// Premium security features%>
-                <div purpose="features-list" v-if="displaySecurityPricingMode">
-                  <p>Single-Sign On (SSO)</p>
-                  <p>24 hour support for PO</p>
-                  <p>Unlimited device groups (teams)</p>
-                  <p>Employee/device mapping</p>
-                  <p>Organizational GitOps</p>
-                  <p>Versionable queries and config</p>
-                  <p>NIST, ISO, CIS and PCI queries</p>
-                  <p>JIT provisioning</p>
-                  <p>Vulnerability scores (CISA)</p>
-                  <p>Query performance monitoring</p>
-                  <p>Vulnerability automation destination</p>
-                </div>
-                <%// Premium IT features%>
-                <div purpose="features-list" v-else>
-                  <p>macOS MDM</p>
-                  <p>Windows MDM*</p>
-                  <p>Automatic enrollment (zero touch)</p>
-                  <p>Safely execute remote scripts</p>
-                  <p>Programmable remediations*</p>
-                  <p>Disk encryption key escrow</p>
-                  <p>MacOS update via Nudge</p>
-                </div>
+              <%// Premium IT features%>
+              <div purpose="features-list" v-else>
+                <p>macOS MDM</p>
+                <p>Windows MDM*</p>
+                <p>Automatic enrollment (zero touch)</p>
+                <p>Safely execute remote scripts</p>
+                <p>Programmable remediations*</p>
+                <p>Disk encryption key escrow</p>
+                <p>macOS update via Nudge</p>
               </div>
             </div>
             <div class="justify-self-end mt-auto">
               <a purpose="card-button" class="btn btn-block btn-lg btn-primary mx-auto" href="https://calendly.com/fleetdm/demo?utm_source=pricing+demo+top+premium">Talk to sales</a>
             </div>
           </div>
-        <%// Fleet Ultimate %>
-        <div purpose="pricing-tier-card" class="card mr-md-0 mb-4 w-100 w-md-auto">
-          <div>
+          <%// Fleet Ultimate %>
+          <div purpose="pricing-tier-card" class="card mr-md-0 mb-4 w-100 w-md-auto">
             <div purpose="pricing-tier-title">
               <h2>Fleet Ultimate</h2>
               <h3>For orgs with large deployments</h3>
@@ -107,60 +103,57 @@
                 </div>
                 <div purpose="exterprise-calculator-result" class="d-flex flex-end flex-md-row flex-column align-items-md-center align-items-end justify-content-between">
                   <p class="mb-2">Estimated cost:</p>
-                  <h3>${{estimatedCost ? estimatedCost.toFixed(2) : '---'}}/month</h3>
+                  <h3>${{estimatedCost ? estimatedCost.toFixed(2) : ' --- '}}/month</h3>
                 </div>
               </div>
             </div>
-            <div class="align-self-end">
+            <div class="justify-self-end">
               <a purpose="card-button" class="btn btn-block btn-lg btn-primary mx-auto" href="https://calendly.com/fleetdm/demo?utm_source=pricing+demo+top+ultimate">Talk to sales</a>
             </div>
           </div>
         </div>
-      </div>
         <div>
           <%// Fleet Community edition %>
           <div purpose="pricing-tier-card" class="card mx-md-auto">
             <div purpose="fleet-community-card" class="d-flex flex-column justify-content-between">
+              <div purpose="pricing-tier-title">
+                <h2>Fleet Community Edition</h2>
+                <h3>For small teams</h3>
+                <p>Unlimited devices</p>
+                <h2>Free forever</h2>
+              </div>
               <div>
-                <div purpose="pricing-tier-title">
-                  <h2>Fleet Community Edition</h2>
-                  <h3>For small teams</h3>
-                  <p>Unlimited devices</p>
-                  <h2>Free forever</h2>
-                </div>
-                <div>
-                  <div class="mx-md-auto d-flex flex-row justify-content-md-center justify-content-start">
-                    <div purpose="bottom-card-features" class="d-flex flex-column justify-content-center align-items-start">
-                      <p class="text-left align-self-start"><strong>Includes</strong></p>
-                      <%// Community edition security features %>
-                      <div purpose="features-list" class="d-flex flex-md-row flex-column justify-content-between" v-if="displaySecurityPricingMode">
-                        <div class="pr-0 pr-md-5">
-                          <p>Manage osquery</p>
-                          <p>Detect vulnerabilities</p>
-                          <p>Software inventory</p>
-                          <p>Device health report</p>
-                          <p>Scheduled queries</p>
-                        </div>
-                        <div>
-                          <p>Community support (Slack)</p>
-                          <p>Standard query library (SQL)</p>
-                          <p>YAML config and GitOps included</p>
-                          <p>Additional log destinations</p>
-                        </div>
+                <div class="mx-md-auto d-flex flex-row justify-content-md-center justify-content-start">
+                  <div purpose="bottom-card-features" class="d-flex flex-column justify-content-center align-items-start">
+                    <p class="text-left align-self-start"><strong>Includes</strong></p>
+                    <%// Community edition security features %>
+                    <div purpose="features-list" class="d-flex flex-md-row flex-column justify-content-between" v-if="displaySecurityPricingMode">
+                      <div class="pr-0 pr-md-5">
+                        <p>Manage osquery</p>
+                        <p>Detect vulnerabilities</p>
+                        <p>Software inventory</p>
+                        <p>Device health report</p>
+                        <p>Scheduled queries</p>
                       </div>
-                      <%// Community edition IT features %>
-                      <div purpose="features-list" class="d-flex flex-md-row flex-column justify-content-between" v-else>
-                        <div class="pr-0 pr-md-4">
-                          <p>Manual enrollment</p>
-                          <p>Support for BYOD</p>
-                          <p>Enforce device configurations</p>
-                          <p>Native OS updates</p>
-                        </div>
-                        <div>
-                          <p>Remote lock and wipe</p>
-                          <p>macOS commands via CLI</p>
-                          <p>Audit transparency</p>
-                        </div>
+                      <div>
+                        <p>Community support (Slack)</p>
+                        <p>Standard query library (SQL)</p>
+                        <p>YAML config and GitOps included</p>
+                        <p>Additional log destinations</p>
+                      </div>
+                    </div>
+                    <%// Community edition IT features %>
+                    <div purpose="features-list" class="d-flex flex-md-row flex-column justify-content-between" v-else>
+                      <div class="pr-0 pr-md-4">
+                        <p>Manual enrollment</p>
+                        <p>Support for BYOD</p>
+                        <p>Enforce device configurations</p>
+                        <p>Native OS updates</p>
+                      </div>
+                      <div>
+                        <p>Remote lock and wipe</p>
+                        <p>macOS commands via CLI</p>
+                        <p>Audit transparency</p>
                       </div>
                     </div>
                   </div>
@@ -346,7 +339,7 @@
     <div purpose="bottom-cta" class=" mx-auto">
       <h2 class="text-center">Still have questions?</h2>
       <div class="btn-toolbar justify-content-center" style="text-align: center" >
-        <a style="max-width: 250px" class="btn btn-block btn-md btn-primary my-3 mx-2" @click="clickChatButton()">
+        <a purpose="chat-button" style="max-width: 250px" class="btn btn-block btn-md btn-primary my-3 mx-2" @click="clickChatButton()">
           Ask us anything
         </a>
         <a style="max-width: 350px" class="btn btn-block btn-lg btn-white my-3 mx-2" purpose="animated-arrow-button" target="_blank" href="https://calendly.com/fleetdm/demo?utm_source=pricing+demo+bottom">
