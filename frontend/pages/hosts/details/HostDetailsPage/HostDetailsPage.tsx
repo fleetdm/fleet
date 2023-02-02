@@ -70,6 +70,7 @@ import QueryIcon from "../../../../../assets/images/icon-action-query-16x16@2x.p
 import TransferIcon from "../../../../../assets/images/icon-action-transfer-16x16@2x.png";
 import CloseIcon from "../../../../../assets/images/icon-action-close-16x15@2x.png";
 import { generateHostActionOptions } from "./helpers";
+import DiskEncryptionKeyModal from "./modals/DiskEncryptionKeyModal";
 
 const baseClass = "host-details";
 
@@ -540,9 +541,7 @@ const HostDetailsPage = ({
   );
 
   const renderActionButtons = () => {
-    const isOnline = host?.status === "online";
-
-    // TODO: replace with actual values
+    // TODO: replace with actual values.
     const doesStoreEncryptionKey = true;
 
     // Case where user is only observer AND (we do not store disk encryption OR is not premium).
@@ -557,7 +556,7 @@ const HostDetailsPage = ({
       isGlobalMaintainer: true,
       isTeamAdmin: true,
       isTeamMaintainer: true,
-      isHostOnline: true,
+      isHostOnline: host?.status === "online",
       doesStoreEncryptionKey,
     });
 
@@ -571,71 +570,71 @@ const HostDetailsPage = ({
       />
     );
 
-    return (
-      <div className={`${baseClass}__action-button-container`}>
-        {canTransferTeam && (
-          <Button
-            onClick={() => setShowTransferHostModal(true)}
-            variant="text-icon"
-            className={`${baseClass}__transfer-button`}
-          >
-            <>
-              Transfer <img src={TransferIcon} alt="Transfer host icon" />
-            </>
-          </Button>
-        )}
-        <div
-          data-tip
-          data-for="query"
-          data-tip-disable={isOnline}
-          className={`${!isOnline && "tooltip"}`}
-        >
-          <Button
-            onClick={() => setShowQueryHostModal(true)}
-            variant="text-icon"
-            disabled={!isOnline}
-            className={`${baseClass}__query-button`}
-          >
-            <>
-              Query <img src={QueryIcon} alt="Query host icon" />
-            </>
-          </Button>
-        </div>
-        <ReactTooltip
-          place="bottom"
-          effect="solid"
-          id="query"
-          backgroundColor="#3e4771"
-        >
-          <span className={`${baseClass}__tooltip-text`}>
-            You can’t query <br /> an offline host.
-          </span>
-        </ReactTooltip>
-        {canEditMdm && !hideEditMdm && (
-          <Button
-            onClick={toggleUnenrollMdmModal}
-            variant="text-icon"
-            className={`${baseClass}__unenroll-host-from-mdm-button`}
-            disabled={!isOnline}
-          >
-            <>
-              Turn off MDM{" "}
-              <img src={CloseIcon} alt="Unenroll host from mdm icon" />
-            </>
-          </Button>
-        )}
-        {currentUser && host && canDeleteHost(currentUser, host) && (
-          <Button
-            onClick={() => setShowDeleteHostModal(true)}
-            variant="text-icon"
-          >
-            <>
-              Delete <img src={DeleteIcon} alt="Delete host icon" />
-            </>
-          </Button>
-        )}
-      </div>
-    );
+    // return (
+    //   <div className={`${baseClass}__action-button-container`}>
+    //     {canTransferTeam && (
+    //       <Button
+    //         onClick={() => setShowTransferHostModal(true)}
+    //         variant="text-icon"
+    //         className={`${baseClass}__transfer-button`}
+    //       >
+    //         <>
+    //           Transfer <img src={TransferIcon} alt="Transfer host icon" />
+    //         </>
+    //       </Button>
+    //     )}
+    //     <div
+    //       data-tip
+    //       data-for="query"
+    //       data-tip-disable={isOnline}
+    //       className={`${!isOnline && "tooltip"}`}
+    //     >
+    //       <Button
+    //         onClick={() => setShowQueryHostModal(true)}
+    //         variant="text-icon"
+    //         disabled={!isOnline}
+    //         className={`${baseClass}__query-button`}
+    //       >
+    //         <>
+    //           Query <img src={QueryIcon} alt="Query host icon" />
+    //         </>
+    //       </Button>
+    //     </div>
+    //     <ReactTooltip
+    //       place="bottom"
+    //       effect="solid"
+    //       id="query"
+    //       backgroundColor="#3e4771"
+    //     >
+    //       <span className={`${baseClass}__tooltip-text`}>
+    //         You can’t query <br /> an offline host.
+    //       </span>
+    //     </ReactTooltip>
+    //     {canEditMdm && !hideEditMdm && (
+    //       <Button
+    //         onClick={toggleUnenrollMdmModal}
+    //         variant="text-icon"
+    //         className={`${baseClass}__unenroll-host-from-mdm-button`}
+    //         disabled={!isOnline}
+    //       >
+    //         <>
+    //           Turn off MDM{" "}
+    //           <img src={CloseIcon} alt="Unenroll host from mdm icon" />
+    //         </>
+    //       </Button>
+    //     )}
+    //     {currentUser && host && canDeleteHost(currentUser, host) && (
+    //       <Button
+    //         onClick={() => setShowDeleteHostModal(true)}
+    //         variant="text-icon"
+    //       >
+    //         <>
+    //           Delete <img src={DeleteIcon} alt="Delete host icon" />
+    //         </>
+    //       </Button>
+    //     )}
+    //   </div>
+    // );
   };
 
   if (isLoadingHost) {
@@ -841,6 +840,7 @@ const HostDetailsPage = ({
             }}
           />
         )}
+        {true && <DiskEncryptionKeyModal onCancel={noop} />}
       </div>
     </MainContent>
   );
