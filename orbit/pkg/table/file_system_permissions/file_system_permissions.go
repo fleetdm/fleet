@@ -47,9 +47,9 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 	}
 
 	outstr := string(out)
-	res := 0
+	res := "0"
 	if !strings.Contains(outstr, "amfi_get_out_of_my_way=1") {
-		res = 1
+		res = "1"
 	}
 
 	return []map[string]string{
