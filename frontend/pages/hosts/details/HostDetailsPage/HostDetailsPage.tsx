@@ -5,7 +5,7 @@ import { useErrorHandler } from "react-error-boundary";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 
 import classnames from "classnames";
-import { pick } from "lodash";
+import { noop, pick } from "lodash";
 
 import PATHS from "router/paths";
 import hostAPI from "services/entities/hosts";
@@ -38,6 +38,8 @@ import TabsWrapper from "components/TabsWrapper";
 import MainContent from "components/MainContent";
 import InfoBanner from "components/InfoBanner";
 import BackLink from "components/BackLink";
+// @ts-ignore
+import Dropdown from "components/forms/fields/Dropdown";
 
 import {
   normalizeEmptyValues,
@@ -67,6 +69,7 @@ import DeleteIcon from "../../../../../assets/images/icon-action-delete-14x14@2x
 import QueryIcon from "../../../../../assets/images/icon-action-query-16x16@2x.png";
 import TransferIcon from "../../../../../assets/images/icon-action-transfer-16x16@2x.png";
 import CloseIcon from "../../../../../assets/images/icon-action-close-16x15@2x.png";
+import { generateHostActionOptions } from "./helpers";
 
 const baseClass = "host-details";
 
@@ -360,7 +363,7 @@ const HostDetailsPage = ({
         }) || []
       );
     });
-  }, [usersSearchString]);
+  }, [usersSearchString, host?.users]);
 
   const titleData = normalizeEmptyValues(
     pick(host, [
@@ -538,6 +541,36 @@ const HostDetailsPage = ({
 
   const renderActionButtons = () => {
     const isOnline = host?.status === "online";
+
+    // TODO: replace with actual values
+    const doesStoreEncryptionKey = true;
+
+    // Case where user is only observer AND (we do not store disk encryption OR is not premium).
+    // No possiblity of any of the options showing so we exit early.
+    if (isOnlyObserver && (!isPremiumTier || doesStoreEncryptionKey)) {
+      return null;
+    }
+
+    const options = generateHostActionOptions({
+      isPremiumTier: true,
+      isGlobalAdmin: true,
+      isGlobalMaintainer: true,
+      isTeamAdmin: true,
+      isTeamMaintainer: true,
+      isHostOnline: true,
+      doesStoreEncryptionKey,
+    });
+
+    return (
+      <Dropdown
+        className={`${baseClass}__host-actions-dropdown`}
+        onChange={noop}
+        placeholder={"Actions"}
+        searchable={false}
+        options={options}
+      />
+    );
+
     return (
       <div className={`${baseClass}__action-button-container`}>
         {canTransferTeam && (

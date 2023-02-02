@@ -348,10 +348,8 @@
     margin: $pad-xxlarge 0 0;
   }
 
-  &__action-button-container {
-    display: flex;
-    align-items: center;
-    gap: $pad-large;
+  &__host-actions-dropdown {
+    width: 204px
   }
 
   &__device_mapping {
