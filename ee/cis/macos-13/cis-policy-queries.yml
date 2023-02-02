@@ -828,11 +828,8 @@ spec:
                         AND ( uid !=0 OR gid !=0 OR mode != "0440" )
                   ) 
       AND 
-      -- For /etc/security/audit_control the MODE should be 0400 ("-r--------")
-      NOT EXISTS ( select 1 from file where path = "/etc/security/audit_control" AND mode != "0400" )
-      AND 
-      -- For /var/audit the MODE should be 0700 ("drwx------")
-      NOT EXISTS ( select 1 from file where path = "/var/audit" AND mode != "0700" );
+      -- For /etc/security/audit_control the MODE should be 0600 ("-rw-------")
+      NOT EXISTS ( select 1 from file where path = "/etc/security/audit_control" AND mode != "0600" );
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS3.5
   contributors: sharon-fdm
