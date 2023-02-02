@@ -19,6 +19,7 @@ import (
 func Columns() []table.ColumnDefinition {
 	return []table.ColumnDefinition{
 		table.IntegerColumn("amfi_enabled"),
+		table.IntegerColumn("ssv_enabled"),
 	}
 }
 
@@ -47,12 +48,32 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 	}
 
 	outstr := string(out)
-	res := "0"
+	amfiEnabled := "0"
 	if !strings.Contains(outstr, "amfi_get_out_of_my_way=1") {
-		res = "1"
+		amfiEnabled = "1"
+	}
+
+	cmd = exec.CommandContext(ctx, "/usr/bin/csrutil", "authenticated-root", "status")
+
+	// Run as the current console user (otherwise we get empty results for the root user)
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		Credential: &syscall.Credential{Uid: uid, Gid: gid},
+	}
+
+	out, err = cmd.Output()
+	if err != nil {
+		log.Debug().Err(err).Msg("Running csrutil failed")
+		return nil, fmt.Errorf("running csrutil failed: %w", err)
+	}
+
+	outstr = string(out)
+	SSVEnabled := "0"
+	if strings.Contains(outstr, "Authenticated Root status: enabled") {
+		SSVEnabled = "1"
 	}
 
 	return []map[string]string{
-		{"amfi_enabled": res},
+		{"amfi_enabled": amfiEnabled,
+			"ssv_enabled": SSVEnabled},
 	}, nil
 }

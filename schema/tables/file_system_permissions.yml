@@ -9,6 +9,14 @@ columns:
     description: |
       Apple Mobile File Integrity (AMFI) was first released in macOS 10.12. The daemon and service block attempts to run unsigned code. AMFI uses lanchd, code signatures, certificates, entitlements, and provisioning profiles to create a filtered entitlement dictionary for an app. AMFI is the macOS kernel module that enforces code-signing and library validation.
       Note: AMFI cannot be disabled with SIP enabled, but a change attempt can be made that will appear successful, and report incorrectly as successful. If the AMFI audit fails, and the SIP audit passes, this is still an issue the admin should research.
+  - name: ssv_enabled
+    type: integer
+    required: false
+    description: |
+      Sealed System Volume is a security feature introduced in macOS 11.0 Big Sur.
+      During system installation, a SHA-256 cryptographic hash is calculated for all immutable system files and stored in a Merkle tree which itself is hashed as the Seal. Both are stored in the metadata of the snapshot created of the System volume.
+      The seal is verified by the boot loader at startup. macOS will not boot if system files have been tampered with. If validation fails, the user will be instructed to reinstall the operating system.
+      During read operations for files located in the Sealed System Volume, a hash is calculated and compared to the value stored in the Merkle tree.
 notes: >-
   - This table is not a core osquery table. It is included as part of Fleetd, the osquery manager from Fleet.
 evented: false
