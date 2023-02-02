@@ -906,20 +906,15 @@ spec:
     /usr/bin/sudo /bin/chmod -R og-rwx /Users/<username>
     Or like this if there is a need for excutable access:
     /usr/bin/sudo /bin/chmod -R og-rw /Users/<username>
-  query: SELECT 1 FROM file WHERE 
-            path LIKE '/Users/%' 
-            AND 
-            path != '/Users/Shared/' 
-            AND 
-            (
-              mode = "0700" 
-              OR 
-              mode ="0701" 
-              OR 
-              mode ="0710" 
-              OR 
-              mode ="0711"
-            );
+  query: SELECT 1 WHERE NOT EXISTS ( 
+            SELECT 1 FROM file WHERE (
+                path LIKE '/Users/%' 
+                AND path != '/Users/Shared/'
+                AND mode != "0700" 
+                AND mode !="0701" 
+                AND mode !="0710" 
+                AND mode !="0711"
+            ));
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS5.1.1
   contributors: sharon-fdm
