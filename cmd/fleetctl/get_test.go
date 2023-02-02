@@ -1648,9 +1648,9 @@ func TestGetCarveWithError(t *testing.T) {
 	runAppCheckErr(t, []string{"get", "carve", "1"}, "test error")
 }
 
-// TestGetTeamsAndApply checks that the output of `get teams` can be applied
+// TestGetTeamsYAMLAndApply checks that the output of `get teams --yaml` can be applied
 // via the `apply` command.
-func TestGetTeamsAndApply(t *testing.T) {
+func TestGetTeamsYAMLAndApply(t *testing.T) {
 	_, ds := runServerWithMockedDS(t, &service.TestServerOpts{
 		License: &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)},
 	})
