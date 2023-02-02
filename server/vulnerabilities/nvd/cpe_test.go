@@ -346,6 +346,8 @@ func TestLegacyCPEDB(t *testing.T) {
 }
 
 func TestCPEFromSoftwareIntegration(t *testing.T) {
+	nettest.Run(t)
+
 	testCases := []struct {
 		software fleet.Software
 		cpe      string
@@ -1132,8 +1134,15 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				BundleIdentifier: "com.utmapp.UTM",
 			}, cpe: "",
 		},
+		{
+			software: fleet.Software{
+				Name:             "Docs",
+				Source:           "chrome_extensions",
+				Version:          "0.10",
+				BundleIdentifier: "",
+			}, cpe: "",
+		},
 	}
-	nettest.Run(t)
 
 	tempDir := t.TempDir()
 
@@ -1156,6 +1165,6 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 	for _, tt := range testCases {
 		cpe, err := CPEFromSoftware(db, &tt.software, cpeTranslations, reCache)
 		require.NoError(t, err)
-		assert.Equal(t, tt.cpe, cpe)
+		assert.Equal(t, tt.cpe, cpe, tt.software.Name)
 	}
 }

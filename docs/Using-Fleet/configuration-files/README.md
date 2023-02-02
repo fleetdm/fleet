@@ -171,6 +171,39 @@ The `secrets` section provides the list of enroll secrets that will be valid for
       - secret: RzTlxPvugG4o4O5IKS/HqEDJUmI1hwBoffff
       - secret: JZ/C/Z7ucq22dt/zjx2kEuDBN0iLjqfz
   ```
+### Modify an existing team
+
+You can modify an existing team by applying a new team configuration file with the same `name` as an existing team. The new team configuration will completely replace the previous configuration. In order to avoid overiding existing settings, we reccomend retreiving the existing configuration and modifying it. 
+
+Retrieve the team configuration and output to a YAML file:
+
+```console
+% fleetctl get teams --name Workstations --yaml > workstation_config.yml
+```
+After updating the generated YAML, apply the changes:
+
+```console
+% fleetctl apply -f workstation_config.yml
+```
+
+Depending on your Fleet version, you may see `unsupported key` errors for the following keys when applying the new team configuration:
+
+```
+id 
+user_count 
+host_count 
+integrations 
+webhook_settings 
+description 
+agent_options 
+created_at 
+user_count 
+host_count 
+integrations 
+webhook_settings
+```
+
+You can bypass these errors by removing the key from your YAML or adding the `--force` flag. This flag will force application of the changes without validation. Proceed with caution.
 
 #### Mobile device management (MDM) settings
 
@@ -1262,7 +1295,9 @@ Requires `mdm.macos_updates.deadline` to be set.
 
 ##### mdm.macos_updates.deadline
 
-A deadline in the form `YYYY-MM-DD`. Hosts that belong to no team and are enrolled into Fleet's MDM won't be able to dismiss the Nudge window once this deadline is past.
+A deadline in the form `YYYY-MM-DD`. The exact deadline time is at 04:00:00 (UTC-8).
+
+Hosts that belong to no team and are enrolled into Fleet's MDM won't be able to dismiss the Nudge window once this deadline is past.
 
 Requires `mdm.macos_updates.minimum_version` to be set.
 

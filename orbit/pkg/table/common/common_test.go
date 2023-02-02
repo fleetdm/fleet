@@ -45,7 +45,6 @@ func TestGetValFromXMLWithTags(t *testing.T) {
 	if val != "11" {
 		t.Fatalf(`Val expected "11", got %s`, val)
 	}
-
 }
 
 func TestGetValFromXMLWithTagsBadXML(t *testing.T) {

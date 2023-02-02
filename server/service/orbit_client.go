@@ -10,10 +10,12 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sync"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/platform"
 	"github.com/fleetdm/fleet/v4/pkg/retry"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/rs/zerolog/log"
@@ -200,9 +202,25 @@ func (oc *OrbitClient) enrollAndWriteNodeKeyFile() (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("enroll request: %w", err)
 	}
+
+	if runtime.GOOS == "windows" {
+
+		// creating the secret file with empty content
+		if err := os.WriteFile(oc.nodeKeyFilePath, nil, constant.DefaultFileMode); err != nil {
+			return "", fmt.Errorf("create orbit node key file: %w", err)
+		}
+
+		// restricting file access
+		if err := platform.ChmodRestrictFile(oc.nodeKeyFilePath); err != nil {
+			return "", fmt.Errorf("apply ACLs: %w", err)
+		}
+	}
+
+	// writing raw key material to the acl-ready secret file
 	if err := os.WriteFile(oc.nodeKeyFilePath, []byte(orbitNodeKey), constant.DefaultFileMode); err != nil {
 		return "", fmt.Errorf("write orbit node key file: %w", err)
 	}
+
 	return orbitNodeKey, nil
 }
 

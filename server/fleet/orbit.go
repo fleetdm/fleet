@@ -12,6 +12,6 @@ type OrbitConfigNotifications struct {
 type OrbitConfig struct {
 	Flags         json.RawMessage          `json:"command_line_startup_flags,omitempty"`
 	Extensions    json.RawMessage          `json:"extensions,omitempty"`
-	NudgeConfig   json.RawMessage          `json:"nudge_config,omitempty"`
+	NudgeConfig   *NudgeConfig             `json:"nudge_config,omitempty"`
 	Notifications OrbitConfigNotifications `json:"notifications,omitempty"`
 }

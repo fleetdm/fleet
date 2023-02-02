@@ -34,7 +34,7 @@ import {
 import { IHost } from "interfaces/host";
 import { ILabel } from "interfaces/label";
 import { IMunkiIssuesAggregate } from "interfaces/macadmins";
-import { IMdmSolution, MDM_STATUS } from "interfaces/mdm";
+import { IMdmSolution, MDM_ENROLLMENT_STATUS } from "interfaces/mdm";
 import {
   formatOperatingSystemDisplayName,
   IOperatingSystemVersion,
@@ -1236,7 +1236,9 @@ const ManageHostsPage = ({
   const renderMDMEnrollmentFilterBlock = () => {
     if (!mdmEnrollmentStatus) return null;
 
-    const label = `MDM status: ${invert(MDM_STATUS)[mdmEnrollmentStatus]}`;
+    const label = `MDM status: ${
+      invert(MDM_ENROLLMENT_STATUS)[mdmEnrollmentStatus]
+    }`;
 
     // More narrow tooltip than other MDM tooltip
     const MDM_STATUS_PILL_TOOLTIP: Record<string, JSX.Element> = {
@@ -1648,14 +1650,7 @@ const ManageHostsPage = ({
   };
 
   const renderTable = () => {
-    if (
-      !config ||
-      !currentUser ||
-      isHostCountLoading ||
-      isHostsLoading ||
-      isLoadingPolicy ||
-      !teamSync
-    ) {
+    if (!config || !currentUser || !teamSync) {
       return <Spinner />;
     }
 
@@ -1764,7 +1759,7 @@ const ManageHostsPage = ({
       <TableContainer
         columns={tableColumns}
         data={hosts || []}
-        isLoading={isHostsLoading || isHostCountLoading}
+        isLoading={isHostsLoading || isHostCountLoading || isLoadingPolicy}
         manualSortBy
         defaultSortHeader={(sortBy[0] && sortBy[0].key) || DEFAULT_SORT_HEADER}
         defaultSortDirection={

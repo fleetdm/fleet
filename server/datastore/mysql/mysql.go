@@ -26,7 +26,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/migrations/data"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/migrations/tables"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/goose"
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
@@ -36,6 +35,7 @@ import (
 	nanodep_client "github.com/micromdm/nanodep/client"
 	nanodep_mysql "github.com/micromdm/nanodep/storage/mysql"
 	nanomdm_mysql "github.com/micromdm/nanomdm/storage/mysql"
+	scep_depot "github.com/micromdm/scep/v2/depot"
 	"github.com/ngrok/sqlmw"
 	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
 )
@@ -107,14 +107,10 @@ func (ds *Datastore) loadOrPrepareStmt(ctx context.Context, query string) *sqlx.
 	return stmt
 }
 
-// NewMDMAppleSCEPDepot returns a *apple_mdm.MySQLDepot that uses the Datastore
+// NewMDMAppleSCEPDepot returns a scep_depot.Depot that uses the Datastore
 // underlying MySQL writer *sql.DB.
-func (ds *Datastore) NewMDMAppleSCEPDepot(caCertPEM []byte, caKeyPEM []byte) (*apple_mdm.SCEPMySQLDepot, error) {
-	depot, err := apple_mdm.NewSCEPMySQLDepot(ds.writer.DB, caCertPEM, caKeyPEM)
-	if err != nil {
-		return nil, err
-	}
-	return depot, nil
+func (ds *Datastore) NewSCEPDepot(caCertPEM []byte, caKeyPEM []byte) (scep_depot.Depot, error) {
+	return newSCEPDepot(ds.writer.DB, caCertPEM, caKeyPEM)
 }
 
 // NewMDMAppleMDMStorage returns a MySQL nanomdm storage that uses the Datastore

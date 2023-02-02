@@ -60,6 +60,19 @@ func GenerateAPNSCSRKey(email, org string) (*x509.CertificateRequest, *rsa.Priva
 	return certReq, key, nil
 }
 
+type FleetWebsiteError struct {
+	Status  int
+	message string
+}
+
+func (e FleetWebsiteError) Error() string {
+	if e.message != "" {
+		return e.message
+	}
+
+	return "Unknown Error"
+}
+
 type getSignedAPNSCSRRequest struct {
 	UnsignedCSRData []byte `json:"unsignedCsrData"`
 }
@@ -98,7 +111,7 @@ func GetSignedAPNSCSR(client *http.Client, csr *x509.CertificateRequest) error {
 
 	if resp.StatusCode != http.StatusOK {
 		b, _ := ioutil.ReadAll(resp.Body)
-		return fmt.Errorf("api responded with %d: %s", resp.StatusCode, string(b))
+		return FleetWebsiteError{Status: resp.StatusCode, message: string(b)}
 	}
 	return nil
 }

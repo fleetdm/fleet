@@ -45,7 +45,7 @@ assume On-Demand pricing (savings are available through Reserved Instances). Cal
 | Dependencies | Version                 | Instance type |
 |--------------|-------------------------|---------------|
 | Redis        | 6                       | t4g.small     |
-| MySQL        | 5.7.mysql_aurora.2.10.0 | db.t3.small   |        
+| MySQL        | 8.0.mysql_aurora.3.02.0 | db.t3.small   |        
 
 #### [Up to 25000 hosts](https://calculator.aws/#/estimate?id=4a3e3168275967d1e79a3d1fcfedc5b17d67a271)
 
@@ -56,7 +56,7 @@ assume On-Demand pricing (savings are available through Reserved Instances). Cal
 | Dependencies | Version                 | Instance type |
 |--------------|-------------------------|---------------|
 | Redis        | 6                       | m6g.large     |
-| MySQL        | 5.7.mysql_aurora.2.10.0 | db.r6g.large  |
+| MySQL        | 8.0.mysql_aurora.3.02.0 | db.r6g.large  |
 
 
 #### [Up to 150000 hosts](https://calculator.aws/#/estimate?id=1d8fdd63f01e71027e9d898ed05f4a07299a7000)
@@ -68,7 +68,7 @@ assume On-Demand pricing (savings are available through Reserved Instances). Cal
 | Dependencies | Version                 | Instance type  | Nodes |
 |--------------|-------------------------|----------------|-------|
 | Redis        | 6                       | m6g.large      | 3     |
-| MySQL        | 5.7.mysql_aurora.2.10.0 | db.r6g.4xlarge | 1     |
+| MySQL        | 8.0.mysql_aurora.3.02.0 | db.r6g.4xlarge | 1     |
 
 #### [Up to 300000 hosts](https://calculator.aws/#/estimate?id=f3da0597a172c6a0a3683023e2700a6df6d42c0b)
 
@@ -79,7 +79,7 @@ assume On-Demand pricing (savings are available through Reserved Instances). Cal
 | Dependencies | Version                 | Instance type   | Nodes |
 |--------------|-------------------------|-----------------|-------|
 | Redis        | 6                       | m6g.large       | 3     |
-| MySQL        | 5.7.mysql_aurora.2.10.0 | db.r6g.16xlarge | 2     |
+| MySQL        | 8.0.mysql_aurora.3.02.0 | db.r6g.16xlarge | 2     |
 
 AWS reference architecture can be found [here](https://github.com/fleetdm/fleet/tree/main/infrastructure/dogfood/terraform/aws). This configuration includes:
 
@@ -91,7 +91,7 @@ AWS reference architecture can be found [here](https://github.com/fleetdm/fleet/
 - ECS as the container orchestrator
   - Fargate for underlying compute
   - Task roles via IAM
-- RDS Aurora MySQL 5.7
+- RDS Aurora MySQL 8
 - Elasticache Redis Engine
 - Firehose osquery log destination
   - S3 bucket sync to allow further ingestion/processing
@@ -159,10 +159,10 @@ GCP reference architecture can be found in [the Fleet repository](https://github
 |-----------------|-----|-----|
 | 2 Cloud Run     | 1   | 2GB |
 
-| Dependencies | Version                 | Instance type |
-|--------------|-------------------------|---------------|
-| Redis        | MemoryStore Redis 6     | M1 Basic      |
-| MySQL        | Cloud SQL for MySQL 5.7 | db-standard-1 |        
+| Dependencies | Version               | Instance type |
+|--------------|-----------------------|---------------|
+| Redis        | MemoryStore Redis 6   | M1 Basic      |
+| MySQL        | Cloud SQL for MySQL 8 | db-standard-1 |        
 
 #### [Up to 25000 hosts](https://cloud.google.com/products/calculator/#id=fadbb96c-967c-4397-9921-743d75b98d42)
 
@@ -170,10 +170,10 @@ GCP reference architecture can be found in [the Fleet repository](https://github
 |-----------------|-----|-----|
 | 10 Cloud Run    | 1   | 2GB |
 
-| Dependencies | Version                 | Instance type |
-|--------------|-------------------------|---------------|
-| Redis        | MemoryStore Redis 6     | M1 2GB        |
-| MySQL        | Cloud SQL for MySQL 5.7 | db-standard-4 |
+| Dependencies | Version               | Instance type |
+|--------------|-----------------------|---------------|
+| Redis        | MemoryStore Redis 6   | M1 2GB        |
+| MySQL        | Cloud SQL for MySQL 8 | db-standard-4 |
 
 
 #### [Up to 150000 hosts](https://cloud.google.com/products/calculator/#id=baff774c-d294-491f-a9da-dd97bbfa8ef2)
@@ -182,10 +182,10 @@ GCP reference architecture can be found in [the Fleet repository](https://github
 |-----------------|-------|-----|
 | 30 Cloud Run    | 1 CPU | 2GB |
 
-| Dependencies | Version                 | Instance type | Nodes |
-|--------------|-------------------------|---------------|-------|
-| Redis        | MemoryStore Redis 6     | M1 4GB        | 1     |
-| MySQL        | Cloud SQL for MySQL 5.7 | db-highmem-16 | 1     |
+| Dependencies | Version               | Instance type | Nodes |
+|--------------|-----------------------|---------------|-------|
+| Redis        | MemoryStore Redis 6   | M1 4GB        | 1     |
+| MySQL        | Cloud SQL for MySQL 8 | db-highmem-16 | 1     |
 
 ### Azure
 

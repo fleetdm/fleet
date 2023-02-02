@@ -29,4 +29,9 @@
   .count-error {
     color: $ui-error;
   }
+
+  &__os-empty-table.empty-table__container {
+    // overriding base component styles so this look correct for this card
+    margin-top: $pad-large
+  }
 }

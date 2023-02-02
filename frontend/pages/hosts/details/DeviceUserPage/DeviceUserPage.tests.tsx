@@ -1,7 +1,11 @@
 import React from "react";
 import { screen } from "@testing-library/react";
 
+import { IDeviceUserResponse } from "interfaces/host";
+import createMockHost from "__mocks__/hostMock";
+import mockServer from "test/mock-server";
 import { createCustomRenderer } from "test/test-utils";
+import { customDeviceHandler } from "test/handlers/device-handler";
 import DeviceUserPage from "./DeviceUserPage";
 
 describe("Device User Page", () => {
@@ -22,5 +26,86 @@ describe("Device User Page", () => {
 
     // TODO: Fix this to the new copy
     // expect(screen.getByText("No software detected")).toBeInTheDocument();
+  });
+
+  describe("MDM enrollment", () => {
+    const setupTest = async (overrides: Partial<IDeviceUserResponse>) => {
+      mockServer.use(customDeviceHandler(overrides));
+
+      const render = createCustomRenderer({
+        withBackendMock: true,
+      });
+
+      const { user } = await render(
+        <DeviceUserPage params={{ device_auth_token: "testToken" }} />
+      );
+
+      // waiting for the device data to render
+      await screen.findByText("About");
+
+      return user;
+    };
+
+    it("shows a banner when MDM is configured and the device is unenrolled", async () => {
+      const host = createMockHost();
+      host.mdm.enrollment_status = "Off";
+      host.platform = "darwin";
+
+      const user = await setupTest({
+        host,
+        global_config: {
+          mdm: { enabled_and_configured: true },
+        },
+      });
+
+      await user.click(screen.getByRole("button", { name: "Turn on MDM" }));
+    });
+
+    it("shows a banner when MDM is configured and the device doesn't have MDM info", async () => {
+      const host = createMockHost();
+      host.mdm.enrollment_status = null;
+      host.platform = "darwin";
+
+      const user = await setupTest({
+        host,
+        global_config: {
+          mdm: { enabled_and_configured: true },
+        },
+      });
+
+      await user.click(screen.getByRole("button", { name: "Turn on MDM" }));
+    });
+
+    it("doesn't  show a banner when MDM is not configured", async () => {
+      const host = createMockHost();
+      host.mdm.enrollment_status = null;
+      host.platform = "darwin";
+
+      await setupTest({
+        host,
+        global_config: {
+          mdm: { enabled_and_configured: false },
+        },
+      });
+
+      const btn = screen.queryByRole("button", { name: "Turn on MDM" });
+      expect(btn).toBeNull();
+    });
+
+    it("doesn't  show a banner when the host already has MDM enabled", async () => {
+      const host = createMockHost();
+      host.mdm.enrollment_status = "On (manual)";
+      host.platform = "darwin";
+
+      await setupTest({
+        host,
+        global_config: {
+          mdm: { enabled_and_configured: true },
+        },
+      });
+
+      const btn = screen.queryByRole("button", { name: "Turn on MDM" });
+      expect(btn).toBeNull();
+    });
   });
 });

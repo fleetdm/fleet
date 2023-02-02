@@ -202,16 +202,35 @@ type Host struct {
 	// struct tag here has csv:"-".
 	DeviceMapping *json.RawMessage `json:"device_mapping,omitempty" db:"device_mapping" csv:"-"`
 
-	// MDMEnrollmentStatus is a string representation of state derived from booleans stored in the host_mdm
-	// table, loaded by JOIN in datastore
-	MDMEnrollmentStatus *string `json:"mdm_enrollment_status" db:"mdm_enrollment_status" csv:"mdm_enrollment_status"`
-	// MDMServerURL is the server_url stored in the host_mdm table, loaded by JOIN in datastore
-	MDMServerURL *string `json:"mdm_server_url" db:"mdm_server_url" csv:"mdm_server_url"`
+	MDM MDMHostData `json:"mdm" db:"mdm_host_data" csv:"-"`
 
 	// MDMInfo stores the MDM information about the host. Note that as for many
 	// other host fields, it is not filled in by all host-returning datastore
 	// methods.
 	MDMInfo *HostMDM `json:"-" csv:"-"`
+}
+
+type MDMHostData struct {
+	// For CSV columns, since the CSV is flattened, we keep the "mdm." prefix
+	// along with the column name.
+
+	// EnrollmentStatus is a string representation of state derived from
+	// booleans stored in the host_mdm table, loaded by JOIN in datastore
+	EnrollmentStatus *string `json:"enrollment_status" db:"-" csv:"mdm.enrollment_status"`
+	// ServerURL is the server_url stored in the host_mdm table, loaded by
+	// JOIN in datastore
+	ServerURL *string `json:"server_url" db:"-" csv:"mdm.server_url"`
+}
+
+// Scan implements the Scanner interface for sqlx, to support unmarshaling a
+// JSON object from the database into a MDMHostData struct.
+func (d *MDMHostData) Scan(v interface{}) error {
+	switch v := v.(type) {
+	case []byte:
+		return json.Unmarshal(v, d)
+	default:
+		return fmt.Errorf("unsupported type: %T", v)
+	}
 }
 
 // IsOsqueryEnrolled returns true if the host is enrolled via osquery.
