@@ -893,6 +893,27 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
+  name: CIS - Ensure System Integrity Protection Status (SIP) Is Enabled
+  platforms: macOS
+  platform: darwin
+  description: |
+    System Integrity Protection is a security feature introduced in OS X 10.11 El Capitan. System Integrity Protection restricts access to System domain locations and restricts runtime attachment to system processes. Any attempt to inspect or attach to a system process will fail. Kernel Extensions are now restricted to /Library/Extensions and are required to be signed with a Developer ID.
+  resolution: |
+    Terminal Method:
+    Perform the following steps to enable System Integrity Protection:
+      1. Reboot into the Recovery Partition (reboot and hold down Command (⌘) + R)
+      2. Select Utilities
+      3. Select Terminal
+      4. Run the following command:
+          /usr/bin/sudo /usr/bin/csrutil enable
+  query: SELECT 1 FROM sip_config WHERE config_flag="sip" and enabled=1;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS5.1.2
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
   name: CIS - Ensure Password Account Lockout Threshold Is Configured (Fleetd required)
   platforms: macOS
   platform: darwin
