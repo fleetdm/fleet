@@ -807,28 +807,26 @@ spec:
   query: |
     SELECT 1 WHERE 
       -- For all files in /var/audit:
-      -- UID should be owned by root.
-      -- GID should be owned by root
+      -- UID, GID should be owned by root.
       -- MODE should be 0440 ("-r--r-----")
       NOT EXISTS ( SELECT 1 FROM file WHERE path LIKE '/var/audit/%' AND (uid !=0 OR gid !=0 OR mode != "0440") )
       AND 
-      NOT EXISTS ( select 1 from file where path LIKE ( 
-                        -- The path we are looking for is written inside /etc/security/audit_control in a line that starts with "dir:"
-                        -- Looking immediately at this and REGEX-ing the path after it (and concatenating "/%")
-                        -- Same explanation for queries below.
-                        SELECT dir FROM ( 
-                        select line, CONCAT(regex_match(line, '^dir:(.+)',1 ), '/%') AS dir FROM file_lines WHERE path = '/etc/security/audit_control' AND line LIKE "dir:%")) 
-                        AND uid !=0 ) 
-      AND 
-      NOT EXISTS ( select 1 from file where path LIKE ( 
-                        SELECT dir FROM ( 
-                        select line, CONCAT(regex_match(line, '^dir:(.+)',1 ), '/%') AS dir FROM file_lines WHERE path = '/etc/security/audit_control' AND line LIKE "dir:%" ) ) 
-                        AND gid !=0 ) 
-      AND 
-      NOT EXISTS ( select 1 from file where path LIKE ( 
-                        SELECT dir FROM ( 
-                        select line, CONCAT(regex_match(line, '^dir:(.+)',1 ), '/%') AS dir FROM file_lines WHERE path = '/etc/security/audit_control' AND line LIKE "dir:%" ) ) 
-                        AND mode != "0440" ) 
+      NOT EXISTS ( select 1 from file 
+                        where path LIKE 
+                        ( 
+                            SELECT dir FROM 
+                            ( 
+                              -- The path we are looking for is written inside /etc/security/audit_control in a line that starts with "dir:"
+                              -- Looking immediately at this and REGEX-ing the path after it (and concatenating "/%")
+                              -- Same explanation for queries below.
+                              select line, CONCAT(regex_match(line, '^dir:(.+)',1 ), '/%') AS dir 
+                              FROM file_lines 
+                              WHERE path = '/etc/security/audit_control' 
+                              AND line LIKE "dir:%"
+                            )
+                        ) 
+                        AND ( uid !=0 OR gid !=0 OR mode != "0440" )
+                  ) 
       AND 
       -- For /etc/security/audit_control the MODE should be 0400 ("-r--------")
       NOT EXISTS ( select 1 from file where path = "/etc/security/audit_control" AND mode != "0400" )
