@@ -287,6 +287,39 @@ func getEnrollmentInfo() (uint32, string, error) {
 	return isDeviceRegisteredWithMDM, uriData, nil
 }
 
+// isReadOnlyCommandRequest returns true if the verbs used on input SyncML commads are only Get
+func isReadOnlyCommandRequest(inputCmd string) (bool, error) {
+	if len(inputCmd) == 0 {
+		return false, errors.New("empty input command")
+	}
+
+	// creating a new SyncMLBody message object
+	messageObject := new(SyncMLBody)
+
+	// parsing output SyncML message
+	d := xml.NewDecoder(bytes.NewReader([]byte(inputCmd)))
+	d.CharsetReader = identReader
+
+	// decoding the XML message
+	if err := d.Decode(messageObject); err != nil {
+		return false, err
+	}
+
+	// getting response data from output message
+	if len(messageObject.Item) > 0 {
+		for _, element := range messageObject.Item {
+
+			// checking if input SyncML verb is different that Get
+			commandVerb := strings.ToLower(element.XMLName.Local)
+			if commandVerb != "get" {
+				return false, fmt.Errorf("%s is a not supported SyncML command verb", commandVerb)
+			}
+		}
+	}
+
+	return true, nil
+}
+
 // Borrowed from https://stackoverflow.com/questions/53476012/how-to-validate-a-xml
 func IsValidXML(s string) bool {
 	return xml.Unmarshal([]byte(s), new(interface{})) == nil
@@ -309,6 +342,11 @@ func isValidMDMcommand(inputCMD string) (bool, error) {
 	// checking if input MDM command is a valid XML
 	if !IsValidXML(inputCMD) {
 		return false, errors.New("input MDM command is not a valid XML")
+	}
+
+	// checking if input MDM command is a read-only command
+	if validCmd, err := isReadOnlyCommandRequest(inputCMD); !validCmd {
+		return false, err
 	}
 
 	return true, nil
