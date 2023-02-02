@@ -324,7 +324,7 @@ module.exports.routes = {
   'GET /device-management/fleet-user-stories-wayfair': '/success-stories/fleet-user-stories-wayfair',
   'GET /handbook/security': '/handbook/business-operations/security',
   'GET /handbook/handbook': '/handbook/company/handbook',
-  'GET https://fleetdm.com/handbook/security/security-policies#information-security-policy-and-acceptable-use-policy':'https://fleetdm.com/handbook/business-operations/security-policies#information-security-policy-and-acceptable-use-policy',
+  'GET /handbook/security/security-policies#information-security-policy-and-acceptable-use-policy':'/handbook/business-operations/security-policies#information-security-policy-and-acceptable-use-policy',
 
 
   //  ╔╦╗╦╔═╗╔═╗  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗   ┬   ╔╦╗╔═╗╦ ╦╔╗╔╦  ╔═╗╔═╗╔╦╗╔═╗
