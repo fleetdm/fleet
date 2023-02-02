@@ -29,9 +29,12 @@ var (
 	// Windows DLL and functions for runtime binding
 	modmdmregistration = windows.NewLazySystemDLL("mdmregistration.dll")
 	modmdmlocalmgmt    = windows.NewLazySystemDLL("mdmlocalmanagement.dll")
+	modkernel32        = windows.NewLazySystemDLL("kernel32.dll")
 
 	procIsDeviceRegisteredWithManagement = modmdmregistration.NewProc("IsDeviceRegisteredWithManagement")
 	procSendSyncMLcommand                = modmdmlocalmgmt.NewProc("ApplyLocalManagementSyncML")
+	proclstrlenW                         = modkernel32.NewProc("lstrlenW")
+	procRtlMoveMemory                    = modkernel32.NewProc("RtlMoveMemory")
 
 	// Synchronization mutex
 	mu sync.Mutex
@@ -218,17 +221,36 @@ func getCmdResponseData(outputCmd string) (string, error) {
 	return responseData, nil
 }
 
-// builtin utf16tostring string expects a uint16 array but we have a pointer to a uint16
-// so we need to cast it after converting it to an unsafe pointer
-// this is a common pattern though the buffer size varies
-// see https://golang.org/pkg/unsafe/#Pointer for more details
+// builtin windows.UTF16ToString string expects a uint16 array but we have a uint16 pointer
+// so we are allocating dynamic memory and moving data around before calling windows.UTF16ToString
 func localUTF16toString(ptr unsafe.Pointer) (string, error) {
 	if ptr == nil {
 		return "", errors.New("failed UTF16 conversion due to null pointer")
 	}
 
-	uint16ptrarr := (*[maxBufSize]uint16)(ptr)[:]
-	return windows.UTF16ToString(uint16ptrarr), nil
+	// grabbing input string length
+	lenPtr, _, err := proclstrlenW.Call(uintptr(unsafe.Pointer(ptr)))
+	if err != windows.ERROR_SUCCESS {
+		return "", err
+	}
+
+	// returning empty string if length is 0
+	strBytesLen := int32(lenPtr) * 2 // Windows UNICODE uses 2 bytes per character
+	if strBytesLen == 0 {
+		return "", nil
+	}
+
+	// allocating an uint16 array buffer
+	buf := make([]uint16, strBytesLen)
+
+	// moving the data around
+	_, _, err = procRtlMoveMemory.Call((uintptr)(unsafe.Pointer(&buf[0])), (uintptr)(unsafe.Pointer(ptr)), uintptr(strBytesLen))
+	if err != windows.ERROR_SUCCESS {
+		return "", err
+	}
+
+	// and finally converting the uint16 array to a string
+	return windows.UTF16ToString(buf), nil
 }
 
 // getEnrollmentInfo returns the MDM enrollment status by calling into OS API IsDeviceRegisteredWithManagement()
