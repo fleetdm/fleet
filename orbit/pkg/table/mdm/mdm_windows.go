@@ -209,11 +209,12 @@ func getCmdResponseData(outputCmd string) (string, error) {
 			// results will be appended in a comma separated list
 			if len(element.Item) > 0 {
 
-				if len(responseData) > 0 {
-					responseData += ","
+				// extracting the data from the result
+				workStr := element.Item[0].Data
+				if len(workStr) == 0 {
+					workStr = "data_not_set" // default value for empty data
 				}
-
-				responseData += element.Item[0].Data
+				responseData += workStr
 			}
 		}
 	}
