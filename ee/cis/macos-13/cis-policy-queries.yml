@@ -806,14 +806,11 @@ spec:
       /usr/bin/sudo /bin/chmod -R o-rw /var/audit/
   query: |
     SELECT 1 WHERE 
-      -- For all files in /var/audit UID should be owned by root
-      NOT EXISTS ( SELECT 1 FROM file WHERE path LIKE '/var/audit/%' AND uid !=0 )
-      AND
-      -- For all files in /var/audit GID should be owned by root
-      NOT EXISTS ( SELECT 1 FROM file WHERE path LIKE '/var/audit/%' AND gid !=0 )
-      AND
-      -- For all files in /var/audit MODE should be 0440 ("-r--r-----")
-      NOT EXISTS ( SELECT 1 FROM file WHERE path LIKE '/var/audit/%' AND mode != "0440" )
+      -- For all files in /var/audit:
+      -- UID should be owned by root.
+      -- GID should be owned by root
+      -- MODE should be 0440 ("-r--r-----")
+      NOT EXISTS ( SELECT 1 FROM file WHERE path LIKE '/var/audit/%' AND (uid !=0 OR gid !=0 OR mode != "0440") )
       AND 
       NOT EXISTS ( select 1 from file where path LIKE ( 
                         -- The path we are looking for is written inside /etc/security/audit_control in a line that starts with "dir:"
