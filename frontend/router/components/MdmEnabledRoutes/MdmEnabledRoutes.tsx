@@ -8,9 +8,9 @@ interface IMdmEnabledRoutesProps {
 
 const MdmEnabledRoutes = ({ children }: IMdmEnabledRoutesProps) => {
   const handlePageError = useErrorHandler();
-  const { isMdmEnabled } = useContext(AppContext);
+  const { isMdmFeatureFlagEnabled } = useContext(AppContext);
 
-  if (!isMdmEnabled) {
+  if (!isMdmFeatureFlagEnabled) {
     handlePageError({ status: 404 });
     return null;
   }

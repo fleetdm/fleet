@@ -1,0 +1,1 @@
+* Added keys to the `GET /config` and `GET /device/:token` endpoints to inform if Fleet's MDM is properly configured.

@@ -60,7 +60,7 @@ func TestGenerateMDMApple(t *testing.T) {
 				"--email", "user@example.com",
 				"--org", "Acme",
 			},
-			`POST /api/latest/fleet/mdm/apple/request_csr received status 502 Bad Gateway: FleetDM CSR request failed: api responded with 400: bad request`,
+			`POST /api/latest/fleet/mdm/apple/request_csr received status 422 Validation Failed: this email address is not valid: bad request`,
 		)
 	})
 
