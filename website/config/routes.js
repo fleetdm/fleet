@@ -73,6 +73,7 @@ module.exports.routes = {
     action: 'articles/view-basic-article',
     locals: {
       currentPage: 'articles',
+      isArticlePage: true,
     }
   },// Handles /device-management/foo, /securing/foo, /releases/foo, /engineering/foo, /guides/foo, /announcements/foo, /deploy/foo, /podcasts/foo, /report/foo
 
