@@ -1,4 +1,4 @@
-.avatar-wrapper {
+.avatar-wrapper-top-nav {
   margin-right: 8px;
   svg {
     display: block;
@@ -10,7 +10,7 @@
     border-radius: 50%;
 
     &--small {
-      @include size(32px);
+      @include size(24px);
     }
 
     &--xsmall {
