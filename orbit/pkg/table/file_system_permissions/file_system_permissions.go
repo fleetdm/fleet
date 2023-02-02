@@ -5,7 +5,6 @@ package file_system_permissions
 
 import (
 	"context"
-	"fmt"
 	tbl_common "github.com/fleetdm/fleet/v4/orbit/pkg/table/common"
 	"github.com/osquery/osquery-go/plugin/table"
 	"github.com/rs/zerolog/log"
@@ -26,15 +25,41 @@ func Columns() []table.ColumnDefinition {
 // Generate is called to return the results for the table at query time.
 // Constraints for generating can be retrieved from the queryContext.
 func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[string]string, error) {
+
+	res, err := runCommand(ctx, "/usr/sbin/nvram", "-p")
+	amfiEnabled := ""
+	if err == nil {
+		amfiEnabled = "0"
+		if !strings.Contains(res, "amfi_get_out_of_my_way=1") {
+			amfiEnabled = "1"
+		}
+	}
+
+	res, err = runCommand(ctx, "/usr/bin/csrutil", "authenticated-root", "status")
+	SSVEnabled := ""
+	if err == nil {
+		SSVEnabled = "0"
+		if strings.Contains(res, "Authenticated Root status: enabled") {
+			SSVEnabled = "1"
+		}
+	}
+
+	return []map[string]string{
+		{"amfi_enabled": amfiEnabled,
+			"ssv_enabled": SSVEnabled},
+	}, nil
+}
+
+func runCommand(ctx context.Context, name string, arg ...string) (res string, err error) {
 	uid, gid, err := tbl_common.GetConsoleUidGid()
 	if err != nil {
 		log.Debug().Err(err).Msg("failed to get console user")
-		return nil, fmt.Errorf("failed to get console user: %w", err)
+		return "", err
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, "/usr/sbin/nvram", "-p")
+	cmd := exec.CommandContext(ctx, name, arg...)
 
 	// Run as the current console user (otherwise we get empty results for the root user)
 	cmd.SysProcAttr = &syscall.SysProcAttr{
@@ -43,37 +68,8 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 
 	out, err := cmd.Output()
 	if err != nil {
-		log.Debug().Err(err).Msg("Running nvram failed")
-		return nil, fmt.Errorf("running nvram failed: %w", err)
+		log.Debug().Err(err).Msg("failed while generating file_system_permissions table")
+		return "", err
 	}
-
-	outstr := string(out)
-	amfiEnabled := "0"
-	if !strings.Contains(outstr, "amfi_get_out_of_my_way=1") {
-		amfiEnabled = "1"
-	}
-
-	cmd = exec.CommandContext(ctx, "/usr/bin/csrutil", "authenticated-root", "status")
-
-	// Run as the current console user (otherwise we get empty results for the root user)
-	cmd.SysProcAttr = &syscall.SysProcAttr{
-		Credential: &syscall.Credential{Uid: uid, Gid: gid},
-	}
-
-	out, err = cmd.Output()
-	if err != nil {
-		log.Debug().Err(err).Msg("Running csrutil failed")
-		return nil, fmt.Errorf("running csrutil failed: %w", err)
-	}
-
-	outstr = string(out)
-	SSVEnabled := "0"
-	if strings.Contains(outstr, "Authenticated Root status: enabled") {
-		SSVEnabled = "1"
-	}
-
-	return []map[string]string{
-		{"amfi_enabled": amfiEnabled,
-			"ssv_enabled": SSVEnabled},
-	}, nil
+	return string(out), nil
 }
