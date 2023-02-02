@@ -536,7 +536,7 @@ const ManageHostsPage = ({
       osName,
       osVersion,
       page: tableQueryData ? tableQueryData.pageIndex : 0,
-      perPage: tableQueryData ? tableQueryData.pageSize : 100,
+      perPage: tableQueryData ? tableQueryData.pageSize : 50,
       device_mapping: true,
     };
 
@@ -1766,7 +1766,7 @@ const ManageHostsPage = ({
           (sortBy[0] && sortBy[0].direction) || DEFAULT_SORT_DIRECTION
         }
         defaultSearchQuery={searchQuery}
-        pageSize={100}
+        pageSize={50}
         actionButtonText={"Edit columns"}
         actionButtonIcon={EditColumnsIcon}
         actionButtonVariant={"text-icon"}
