@@ -792,15 +792,18 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure Security Auditing Is Enabled
+  name: CIS - Ensure Access to Audit Records Is Controlled
   platforms: macOS
   platform: darwin
   description: |
-    macOS's audit facility, auditd, receives notifications from the kernel when certain system calls, such as open, fork, and exit, are made. These notifications are captured and written to an audit log.
+    The audit system on macOS writes important operational and security information that can be both useful for an attacker and a place for an attacker to attempt to obfuscate unwanted changes that were recorded. As part of defense-in-depth the /etc/security/audit_control configuration and the files in /var/audit should be owned only by root with group wheel with read-only rights and no other access allowed. macOS ACLs should not be used for these files.
   resolution: |
     Automated method:
-    Ask your system administrator to deploy the following script which will enable security auditing:
-    /usr/bin/sudo /bin/launchctl load -w /System/Library/LaunchDaemons/com.apple.auditd.plist
+    Ask your system administrator to deploy the following script which will Ensure Access to Audit Records Is Controlled:
+      /usr/bin/sudo /usr/sbin/chown -R root:wheel /etc/security/audit_control
+      /usr/bin/sudo /bin/chmod -R o-rw /etc/security/audit_control
+      /usr/bin/sudo /usr/sbin/chown -R root:wheel /var/audit/
+      /usr/bin/sudo /bin/chmod -R o-rw /var/audit/
   query: |
     SELECT 1 WHERE 
       -- For all files in /var/audit UID should be owned by root
