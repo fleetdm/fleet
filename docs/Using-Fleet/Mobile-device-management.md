@@ -2,11 +2,13 @@
 
 - [Controls](#controls)
   - [macOS updates](#macos-updates)
-  - [Disk encryption key](#disk-encryption-key)
 - [Apple Push Notification Service](#apple-push-notification-service-apns)
   - [APNs renewal](#apns-renewal)
 - [Apple Business Manager](#apple-business-manager-abm)
   - [ABM renewal](#abm-renewal)
+- [Disk encryption key](#disk-encryption-key)
+  - [Viewing a disk encryption key](#viewing-a-disk-encryption-key)
+  - [Recovering a device using the disk encryption key](#recover-a-device-using-the-disk-encryption-key)
 
 
 MDM features are not ready for production and are currently in development. These features are disabled by default.
@@ -32,54 +34,6 @@ If the end user has more than 1 day until the deadline, the window is shown ever
 If there is less than 1 day, the window is shown every 2 hours. The end user can defer and they'll see the window again in 2 hours.
 
 If the end user is past the deadline, Fleet opens the window. The end user can't close the window.
-
-### Disk encryption key
-
-Currently, the disk encryption key refers to the FileVault recovery key only for macOS 10.15+ devices. FileVault allows you to access and recover data on a device without the login credentials. This key is stored by Fleet and can be accessed by Fleet admin, maintainers, and observers to log into a host without its password. An event is tracked in the activity feed when a user looks at the key.
-
-#### Viewing a disk encryption key
-
-To view the disk encryption key, select the host on Fleet's manage host page to view host details. In the host's action menu, select Show disk encryption key to view the key.
-
-#### Recover a device using the disk encryption key
-
-1. Restart the device while holding Command + R
-
-2. Open Terminal
-
-3. Unlock the disk encryption key by executing a command similar to:
-```
-security unlock-keychain <path to the secure copy of the 
-FileVaultMaster.keychain file>
-```
-
-4. Locate the Logical Volume UUID of the encrypted disk by executing:
-```
-diskutil cs list
-```
-
-5. Unlock the encrypted drive with the Logical Volume UUID and disk encryption key by executing a command similar to:
-```
-diskutil cs unlockVolume <UUID> -recoveryKeychain <path to the secure copy of the FileVaultMaster.keychain file>
-```
-6. Turn off disk encryption by executing a command similar to: 
-```
-diskutil cs revert <UUID> -recoveryKeychain <path to the secure copy of the FileVaultMaster.keychain file>
-```
-
-Once successful, you can reset the account password using the Reset Password utility and recover data by either logging in to the user’s account or using the command line.
-
-1. Restart the device while pressing Command + R.
-
-2. Open Terminal and launch the Reset Password utility by executing:
-```
-resetpassword
-```
-
-3. Use the Reset Password utility to reset the account’s password.
-
-4. Restart the computer and log in using the new password.
-
 
 ## Apple Push Notification Service (APNs)
 
@@ -137,5 +91,51 @@ Fleet UI:
 
 The Apple Business Manager server token expires after a year or whenever the account that downloaded the token has their password changed. To renew the token, follow the [instructions documented in this FAQ](https://fleetdm.com/docs/using-fleet/faq#how-can-i-renew-my-apple-business-manager-server-token).
 
+## Disk encryption key
+
+Currently, the disk encryption key refers to the FileVault recovery key only for macOS 10.15+ devices. FileVault allows you to access and recover data on a device without the login credentials. This key is stored by Fleet and can be accessed by Fleet admin, maintainers, and observers to log into a host without its password. An event is tracked in the activity feed when a user looks at the key.
+
+### Viewing a disk encryption key
+
+To view the disk encryption key, select the host on Fleet's manage host page to view host details. In the host's action menu, select Show disk encryption key to view the key.
+
+### Recover a device using the disk encryption key
+
+1. Restart the device while holding Command + R
+
+2. Open Terminal
+
+3. Unlock the disk encryption key by executing a command similar to:
+```
+security unlock-keychain <path to the secure copy of the 
+FileVaultMaster.keychain file>
+```
+
+4. Locate the Logical Volume UUID of the encrypted disk by executing:
+```
+diskutil cs list
+```
+
+5. Unlock the encrypted drive with the Logical Volume UUID and disk encryption key by executing a command similar to:
+```
+diskutil cs unlockVolume <UUID> -recoveryKeychain <path to the secure copy of the FileVaultMaster.keychain file>
+```
+6. Turn off disk encryption by executing a command similar to: 
+```
+diskutil cs revert <UUID> -recoveryKeychain <path to the secure copy of the FileVaultMaster.keychain file>
+```
+
+Once successful, you can reset the account password using the Reset Password utility and recover data by either logging in to the user’s account or using the command line.
+
+1. Restart the device while pressing Command + R.
+
+2. Open Terminal and launch the Reset Password utility by executing:
+```
+resetpassword
+```
+
+3. Use the Reset Password utility to reset the account’s password.
+
+4. Restart the computer and log in using the new password.
 
 <meta name="pageOrderInSection" value="1500">
