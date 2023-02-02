@@ -792,6 +792,61 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
+  name: CIS - Ensure Security Auditing Flags For User-Attributable Events Are Configured Per Local Organizational Requirements
+  platforms: macOS
+  platform: darwin
+  description: |
+    Auditing is the capture and maintenance of information about security-related events. Auditable events often depend on differing organizational requirements.
+  resolution: |
+    Automated method:
+    Ask your system administrator to deploy an MDM profile that disables Bonjour advertising service.
+    Terminal Method: 
+      Perform the following to set the required Security Auditing Flags:
+      Edit the /etc/security/audit_control file and add -fm, ad, -ex, aa, -fr, lo, and -fw to flags. You can also substitute -all for -fm, -ex, -fr, and -fw.
+  query: |
+    SELECT 1 WHERE EXISTS (    
+      SELECT line
+      FROM file_lines WHERE path = '/etc/security/audit_control' 
+      AND 
+      (
+            (
+              line LIKE 'flags:%' 
+              AND 
+              line LIKE "%-fm%"
+              AND 
+              line LIKE "%ad%"
+              AND 
+              line LIKE "%-ex%"
+              AND 
+              line LIKE "%aa%"
+              AND 
+              line LIKE "%-fr%"
+              AND 
+              line LIKE "%lo%"
+              AND 
+              line LIKE "%-fw%" 
+            ) 
+            OR 
+            (
+              line LIKE 'flags:%' 
+              AND 
+              line LIKE "%-all%" 
+              AND 
+              line LIKE "%ad%"
+              AND 
+              line LIKE "%aa%"
+              AND 
+              line LIKE "%lo%"
+            )
+      )
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS3.2
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
   name: CIS - Ensure install.log Is Retained for 365 or More Days and No Maximum Size
   platforms: macOS
   platform: darwin
@@ -817,6 +872,51 @@ spec:
              AND  line  LIKE "%all_max=%" );
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS3.3
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Access to Audit Records Is Controlled
+  platforms: macOS
+  platform: darwin
+  description: |
+    The audit system on macOS writes important operational and security information that can be both useful for an attacker and a place for an attacker to attempt to obfuscate unwanted changes that were recorded. As part of defense-in-depth the /etc/security/audit_control configuration and the files in /var/audit should be owned only by root with group wheel with read-only rights and no other access allowed. macOS ACLs should not be used for these files.
+  resolution: |
+    Automated method:
+    Ask your system administrator to deploy the following script which will Ensure Access to Audit Records Is Controlled:
+      /usr/bin/sudo /usr/sbin/chown -R root:wheel /etc/security/audit_control
+      /usr/bin/sudo /bin/chmod -R o-rw /etc/security/audit_control
+      /usr/bin/sudo /usr/sbin/chown -R root:wheel /var/audit/
+      /usr/bin/sudo /bin/chmod -R o-rw /var/audit/
+  query: |
+    SELECT 1 WHERE 
+      -- For all files in /var/audit:
+      -- UID, GID should be owned by root.
+      -- MODE should be 0440 ("-r--r-----")
+      NOT EXISTS ( SELECT 1 FROM file WHERE path LIKE '/var/audit/%' AND (uid !=0 OR gid !=0 OR mode != "0440") )
+      AND 
+      NOT EXISTS ( select 1 from file 
+                        where path LIKE 
+                        ( 
+                            SELECT dir FROM 
+                            ( 
+                              -- The path we are looking for is written inside /etc/security/audit_control in a line that starts with "dir:"
+                              -- Looking immediately at this and REGEX-ing the path after it (and concatenating "/%")
+                              -- Same explanation for queries below.
+                              select line, CONCAT(regex_match(line, '^dir:(.+)',1 ), '/%') AS dir 
+                              FROM file_lines 
+                              WHERE path = '/etc/security/audit_control' 
+                              AND line LIKE "dir:%"
+                            )
+                        ) 
+                        AND ( uid !=0 OR gid !=0 OR mode != "0440" )
+                  ) 
+      AND 
+      -- For /etc/security/audit_control the MODE should be 0400 ("-r--------")
+      NOT EXISTS ( select 1 from file where path = "/etc/security/audit_control" AND mode != "0400" );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS3.5
   contributors: sharon-fdm
 ---
 apiVersion: v1
