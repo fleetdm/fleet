@@ -9,7 +9,7 @@ spec:
   description: |
     This policy check determines the number of renewed, unique passwords that have to be associated with a user account before you can reuse an old password.
   resolution: |
-    Manual method:
+    Automatic method:
     Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 24 or more passwords:
     'Computer Configuration\Policies\Windows Settings\Security Settings\Account Policies\Password Policy\Enforce password history'
   query: |
@@ -27,7 +27,7 @@ spec:
   description: |
     This policy setting defines how long a user can use their password before it expires.
   resolution: |
-    Manual method:
+    Automatic method:
     Ask your system administrator to establish the recommended configuration via GP, set the
     following UI path to 365 or fewer days, but not 0:
     'Computer Configuration\Policies\Windows Settings\Security Settings\Account Policies\Password Policy\Maximum password age'
@@ -47,7 +47,7 @@ spec:
     This policy setting determines the number of days that you must use a password before you can
     change it. The range of values for this policy setting is between 1 and 999 days.
   resolution: |
-    Manual method:
+    Automatic method:
     Ask your system administrator to establish the recommended configuration via GP, set the
     following UI path to 1 or more days:
     'Computer Configuration\Policies\Windows Settings\Security Settings\Account Policies\Password Policy\Minimum password age'
@@ -66,7 +66,7 @@ spec:
   description: |
     This policy setting determines the least number of characters that make up a password for a user account.
   resolution: |
-    Manual method:
+    Automatic method:
     Ask your system administrator to establish the recommended configuration via GP, set the
     following UI path to 14 or more characters
     'Computer Configuration\Policies\Windows Settings\Security Settings\Account Policies\Password Policy\Minimum password length'
@@ -87,7 +87,7 @@ spec:
     strong passwords. Passwords that contain only alphanumeric characters are extremely easy to
     discover with several publicly available tools.
   resolution: |
-    Manual method:
+    Automatic method:
     Ask your system administrator to establish the recommended configuration via GP, set the
     following UI path to 'Enabled':
     'Computer Configuration\Policies\Windows Settings\Security Settings\Account Policies\Password Policy\Password must meet complexity requirements'
@@ -100,13 +100,13 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure 'Password must meet complexity requirements' is set to 'Enabled' 
+  name: CIS - Ensure 'Relax minimum password length limits' is set to 'Enabled'
   platforms: win10
   platform: windows
   description: |
     This policy setting determines whether the minimum password length setting can be increased beyond the legacy limit of 14 characters.
   resolution: |
-    Manual method:
+    Automatic method:
     Ask your system administrator to establish the recommended configuration via GP, set the
     following UI path to 'Enabled':
     'Computer Configuration\Policies\Windows Settings\Security Settings\Account Policies\Password Policy\Relax minimum password length limits'
@@ -128,15 +128,11 @@ spec:
     of the user's password for authentication purposes. Passwords that are stored with reversible
     encryption are essentially the same as plaintext versions of the passwords.
   resolution: |
-    Manual method:
-    Ask your system administrator to establish the recommended configuration via GP, set the
-    following UI path to 'Disabled':
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'Disabled':
     'Computer Configuration\Policies\Windows Settings\Security Settings\Account Policies\Password Policy\Store passwords using reversible encryption'
   query: |
-    SELECT 1 FROM security_profile_info WHERE clear_text_password = 1;
+    SELECT 1 FROM security_profile_info WHERE clear_text_password = 0;
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS1.1.7
   contributors: marcosd4h
-
-
-
