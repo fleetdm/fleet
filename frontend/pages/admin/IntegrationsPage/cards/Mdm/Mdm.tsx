@@ -36,11 +36,11 @@ const Mdm = (): JSX.Element => {
   const [showCSRFlag, setShowCSRFlag] = useState(true);
 
   const {
-    data: mdmApple,
+    data: appleAPNInfo,
     isLoading: isLoadingMdmApple,
     error: errorMdmApple,
   } = useQuery<IMdmApple, Error, IMdmApple>(
-    ["mdmAppleAPI"],
+    ["appleAPNInfo"],
     () => mdmAppleAPI.getAppleAPNInfo(),
     {
       enabled: isPremiumTier,
@@ -117,7 +117,7 @@ const Mdm = (): JSX.Element => {
       return <DataError />;
     }
 
-    if (!mdmApple) {
+    if (!appleAPNInfo) {
       return (
         <>
           <div className={`${baseClass}__section-description`}>
@@ -166,13 +166,13 @@ const Mdm = (): JSX.Element => {
         </div>
         <div className={`${baseClass}__section-information`}>
           <h4>Common name (CN)</h4>
-          <p>{mdmApple.common_name}</p>
+          <p>{appleAPNInfo.common_name}</p>
           <h4>Serial number</h4>
-          <p>{mdmApple.serial_number}</p>
+          <p>{appleAPNInfo.serial_number}</p>
           <h4>Issuer</h4>
-          <p>{mdmApple.issuer}</p>
+          <p>{appleAPNInfo.issuer}</p>
           <h4>Renew date</h4>
-          <p>{readableDate(mdmApple.renew_date)}</p>
+          <p>{readableDate(appleAPNInfo.renew_date)}</p>
         </div>
       </>
     );
