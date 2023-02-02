@@ -52,6 +52,18 @@ func (s *integrationTestSuite) TestDeviceAuthenticatedEndpoints() {
 	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/no_such_token", nil, http.StatusUnauthorized)
 	res.Body.Close()
 
+	// set the  mdm configured flag
+	ctx := context.Background()
+	appCfg, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	appCfg.MDM.EnabledAndConfigured = true
+	err = s.ds.SaveAppConfig(ctx, appCfg)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		appCfg.MDM.EnabledAndConfigured = false
+		err = s.ds.SaveAppConfig(ctx, appCfg)
+	})
+
 	// get host with valid token
 	var getHostResp getDeviceHostResponse
 	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token, nil, http.StatusOK)
@@ -63,6 +75,7 @@ func (s *integrationTestSuite) TestDeviceAuthenticatedEndpoints() {
 	require.Nil(t, getHostResp.Host.Policies)
 	require.NotNil(t, getHostResp.Host.Batteries)
 	require.Equal(t, &fleet.HostBattery{CycleCount: 1, Health: "Normal"}, (*getHostResp.Host.Batteries)[0])
+	require.True(t, getHostResp.GlobalConfig.MDM.EnabledAndConfigured)
 	hostDevResp := getHostResp.Host
 
 	// make request for same host on the host details API endpoint, responses should match, except for policies

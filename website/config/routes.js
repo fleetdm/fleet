@@ -257,6 +257,14 @@ module.exports.routes = {
     }
   },
 
+  'GET /upgrade': {
+    action: 'view-upgrade',
+    locals: {
+      pageTitleForMeta: 'Upgrade to Fleet Premium | Fleet for osquery',
+      pageDescriptionForMeta: 'Learn about the benefits of upgrading to Fleet Premium',
+    }
+  },
+
 
 
   //  ╦  ╔═╗╔═╗╔═╗╔═╗╦ ╦  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗
@@ -409,4 +417,5 @@ module.exports.routes = {
   'POST /api/v1/create-vanta-authorization-request': { action: 'create-vanta-authorization-request' },
   'POST /api/v1/deliver-mdm-beta-signup':                   { action: 'deliver-mdm-beta-signup' },
   'POST /api/v1/deliver-apple-csr ': { action: 'deliver-apple-csr', csrf: false},
+  'POST /api/v1/deliver-premium-upgrade-form': { action: 'deliver-premium-upgrade-form' },
 };

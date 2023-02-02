@@ -74,7 +74,7 @@ const UserMenu = ({
       <DropdownButton options={dropdownItems}>
         <AvatarTopNav
           className={`${baseClass}__avatar-image`}
-          user={{ gravatarURL: currentUser.gravatarURL }}
+          user={{ gravatar_url_dark: currentUser.gravatar_url_dark }}
           size="small"
         />
       </DropdownButton>

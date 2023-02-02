@@ -39,6 +39,7 @@ import stringUtils from "utilities/strings";
 import sortUtils from "utilities/sort";
 import {
   DEFAULT_GRAVATAR_LINK,
+  DEFAULT_GRAVATAR_LINK_DARK,
   PLATFORM_LABEL_DISPLAY_TYPES,
 } from "utilities/constants";
 import { IScheduledQueryStats } from "interfaces/scheduled_query_stats";
@@ -50,12 +51,16 @@ export const addGravatarUrlToResource = (resource: any): any => {
   const { email } = resource;
 
   const emailHash = md5(email.toLowerCase());
-  const gravatarURL = `https://www.gravatar.com/avatar/${emailHash}?d=${encodeURIComponent(
+  const gravatar_url = `https://www.gravatar.com/avatar/${emailHash}?d=${encodeURIComponent(
     DEFAULT_GRAVATAR_LINK
+  )}&size=200`;
+  const gravatar_url_dark = `https://www.gravatar.com/avatar/${emailHash}?d=${encodeURIComponent(
+    DEFAULT_GRAVATAR_LINK_DARK
   )}&size=200`;
   return {
     ...resource,
-    gravatarURL,
+    gravatar_url,
+    gravatar_url_dark,
   };
 };
 

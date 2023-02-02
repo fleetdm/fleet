@@ -9,7 +9,7 @@ describe("Integrations Page", () => {
     const render = createCustomRenderer({
       withBackendMock: true,
       context: {
-        app: { isMdmEnabled: true },
+        app: { isMdmFeatureFlagEnabled: true },
       },
     });
 
