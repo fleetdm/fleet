@@ -53,6 +53,7 @@ import PATHS from "router/paths";
 import AppProvider from "context/app";
 import RoutingProvider from "context/routing";
 
+import EmptyTable from "components/EmptyTable";
 import AuthGlobalAdminRoutes from "./components/AuthGlobalAdminRoutes";
 import AuthAnyAdminRoutes from "./components/AuthAnyAdminRoutes";
 import AuthenticatedRoutes from "./components/AuthenticatedRoutes";
@@ -81,7 +82,10 @@ const AppWrapper = ({ children, location }: IAppWrapperProps) => (
 const MacSettingsPage = () => {
   return (
     <div>
-      <h1>MacSettings!</h1>
+      <EmptyTable
+        header="Coming soon"
+        info="The ability to store disk encryption keys and customize macOS settings are currently in development."
+      />
     </div>
   );
 };
