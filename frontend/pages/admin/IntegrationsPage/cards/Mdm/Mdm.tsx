@@ -250,7 +250,7 @@ const Mdm = (): JSX.Element => {
           <p>{mdmAppleBm.apple_id}</p>
           <h4>Organization name</h4>
           <p>{mdmAppleBm.org_name}</p>
-          <h4>MDM Server URL</h4>
+          <h4>MDM server URL</h4>
           <p>{mdmAppleBm.mdm_server_url}</p>
           <h4>Renew date</h4>
           <p>{readableDate(mdmAppleBm.renew_date)}</p>
