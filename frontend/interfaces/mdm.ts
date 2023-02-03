@@ -8,7 +8,7 @@ export interface IMdmApple {
 export interface IMdmAppleBm {
   default_team?: string;
   apple_id: string;
-  organization_name: string;
+  org_name: string;
   mdm_server_url: string;
   renew_date: string;
 }
