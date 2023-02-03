@@ -305,15 +305,18 @@ func isReadOnlyCommandRequest(inputCmd string) (bool, error) {
 		return false, err
 	}
 
-	// getting response data from output message
-	if len(messageObject.Item) > 0 {
-		for _, element := range messageObject.Item {
+	// sanity check on the input command structure
+	if len(messageObject.Item) == 0 {
+		return false, nil
+	}
 
-			// checking if input SyncML verb is different that Get
-			commandVerb := strings.ToLower(element.XMLName.Local)
-			if commandVerb != "get" {
-				return false, fmt.Errorf("%s is a not supported SyncML command verb", commandVerb)
-			}
+	// checking if input SyncML commands are only Get
+	for _, element := range messageObject.Item {
+
+		// checking if input SyncML verb is different that Get
+		commandVerb := strings.ToLower(element.XMLName.Local)
+		if commandVerb != "get" {
+			return false, fmt.Errorf("%s is a not supported SyncML command verb", commandVerb)
 		}
 	}
 
