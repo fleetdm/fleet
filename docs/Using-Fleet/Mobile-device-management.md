@@ -80,7 +80,7 @@ Fleet UI:
 
 The Apple Business Manager server token expires after a year or whenever the account that downloaded the token has their password changed. To renew the token, follow the [instructions documented in this FAQ](https://fleetdm.com/docs/using-fleet/faq#how-can-i-renew-my-apple-business-manager-server-token).
 
-## Disk encryption key
+## Disk encryption
 
 Currently, the disk encryption key refers to the FileVault recovery key only for macOS 10.15+ devices. FileVault allows you to access and recover data on a device without the login credentials. This key is stored by Fleet and can be accessed by Fleet admin, maintainers, and observers to log into a device without its password. An event is tracked in the activity feed when a user views the key using Fleet.
 
