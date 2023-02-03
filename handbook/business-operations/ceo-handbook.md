@@ -14,7 +14,6 @@ This page details processes specific to Mike McNeil, CEO of Fleet. Below are a l
 
 
 ## The CEO support team
-
 ### EA to the CEO
 
 | Task | Description | Frequency | 
@@ -30,13 +29,11 @@ This page details processes specific to Mike McNeil, CEO of Fleet. Below are a l
 | Coordinate the weekly E-Group calendar events for the Executive team | Triage requests, agenda prep, flag actions, follow up   | Weekly, PRN           |
 
 ## CEO preferences
-
 ### Scheduling with the CEO
 >Reach out to the EA to the CEO in `#-meetings` with the required details to book a meeting with the CEO. 
 >All meetings on Mike's calendar should be scheduled and vetted by the EA to the CEO. 
 >- Please do not directly schedule a meeting onto Mike's calendar without confirming with the EA to the CEO in advance or unless requested directly from Mike.
 >- The CEO requires meetings to originate from his calendar and on his Zoom account.
-
 
 Meetings before 9 am and after 6 pm Central require Mike's approval before scheduling. Please reach out to the EA to the CEO with your rationale for an exception. 
  - If Mike agrees to a meeting at 9 am or earlier, please schedule a block on his calendar on the previous day reminding him that he has a meeting before 9 am Central the following day.
@@ -61,38 +58,35 @@ Last minute changes or cancellations should be communicated to Mike via DM rathe
 
 
 ### CEO email management
-- Labels: /DOTO Mike, /FYI Mike, /EA is monitoring, /Signature needed
-- Emails that need the CEO's attention should be "starred" 
-- EA should prepare draft responses, move drafts to the Inbox, and label
+ - Labels: /DOTO Mike, /FYI Mike, /EA is monitoring, /Signature needed
+ - Emails that need the CEO's attention should be "starred" 
+ - EA should prepare draft responses, move drafts to the Inbox, and label
 
 ### Travel preferences
 Current preferences for flights are:
-- Aisle seat
-- Direct flight whenever possible
-- Check a bag for all trips longer than one night
-- Add Brex card information for pre-flight snacks and drinks forms
-- Frequent Flyer details of all (previously flown) airlines are in 1Password as well as important travel documents
+ - Aisle seat
+ - Direct flight whenever possible
+ - Check a bag for all trips longer than one night
+ - Add Brex card information for pre-flight snacks and drinks forms
+ - Frequent Flyer details of all (previously flown) airlines are in 1Password as well as important travel documents
 
 ### `#Help Mission Control` slack channel
 This channel is for the CEO to drop ideas and tasks for his executive leadership team. The name of this channel was carefully chosen to reflect how we'll work together to help visualize and execute the plans for Fleet.
-- Labels: TODO, DOTO, FYI
-- Mark requests with 👀 to indicate that you are working on the task
-- Mark requests with ✅ to indicate that you completed the task
+ - Labels: TODO, DOTO, FYI
+ - Mark requests with 👀 to indicate that you are working on the task
+ - Mark requests with ✅ to indicate that you completed the task
 
 
 ## Contacting the CEO
 Keeping up with Slack is tough enough, even more so if you’re the CEO. That’s why Fleeties have different ways to contact Mike depending on the urgency of the request.
 
-#### Non-urgent
- "Non-urgent" means your request can wait until the next time you and Mike are scheduled to meet in Zoom. In which case, please comment in the Hallway section of your agenda doc from the meeting you share.
-
-If you don’t share a meeting with Mike, please post in the #help-ceo channel without mentioning `@mikemcneil`. Charlie Chance monitors this channel and will prioritize your request or add it to the 🔭🗣[CEO office hours agenda](https://docs.google.com/document/d/1g7iYQ_4vwLHnlVYb9J4MdlBkFNcFfweBB4pVWRwMWpI/edit?usp=sharing).
-
-#### Urgent
-“Urgent” requests can’t wait until another scheduled meeting. If you have an urgent request, please mention `@mikermcneil` in the relevant Slack thread or channel. Please don't use group DMs.
-
-#### Emergency
-“Emergency” requests must be addressed the same day. If you need to contact the CEO ASAP, please post in `#help-p1` Slack channel. This will send a text message to Mike’s cell phone, even if it’s in "do not disturb" mode.
+- Non-urgent
+  - "Non-urgent" means your request can wait until the next time you and Mike are scheduled to meet in Zoom. In which case, please comment in the Hallway section of your agenda doc from the meeting you share.
+  - If you don’t share a meeting with Mike, please post in the #help-ceo channel without mentioning `@mikemcneil`. Charlie Chance monitors this channel and will prioritize your request or add it to the 🔭🗣[CEO office hours agenda](https://docs.google.com/document/d/1g7iYQ_4vwLHnlVYb9J4MdlBkFNcFfweBB4pVWRwMWpI/edit?usp=sharing).
+- Urgent
+  - “Urgent” requests can’t wait until another scheduled meeting. If you have an urgent request, please mention `@mikermcneil` in the relevant Slack thread or channel. Please don't use group DMs.
+- Emergency
+  - “Emergency” requests must be addressed the same day. If you need to contact the CEO ASAP, please post in `#help-p1` Slack channel. This will send a text message to Mike’s cell phone, even if it’s in "do not disturb" mode.
 
 
 ## OKR planning
