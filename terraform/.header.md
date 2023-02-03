@@ -8,6 +8,28 @@ The following is the module layout so you can navigate to the module that you wa
         * BYO-database (use this if you want to use an existing database and cache node)
             * BYO-ECS (use this if you want to bring your own everything but Fleet ECS services)
 
+# Migrating from existing Dogfood code
+The below code describes how to migrate from existing Dogfood code
+
+```hcl
+moved {
+  from = module.vpc
+  to   = module.main.module.vpc
+}
+
+moved {
+  from = module.aurora_mysql
+  to = module.main.module.byo-vpc.module.rds
+}
+
+moved {
+  from = aws_elasticache_replication_group.default
+  to = module.main.module.byo-vpc.module.redis.aws_elasticache_replication_group.default
+}
+```
+
+This focuses on the resources that are "heavy" or store data. Note that the ALB cannot be moved like this because Dogfood uses the `aws_alb` resource and the module uses the `aws_lb` resource. The resources are aliases of eachother, but Terraform can't recognize that.
+
 # How to improve this module
 If this module somehow doesn't fit your needs, feel free to contact us by
 opening a ticket, or contacting your contact at Fleet. Our goal is to make this module

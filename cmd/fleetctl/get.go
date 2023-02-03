@@ -237,11 +237,19 @@ func printUserRoles(c *cli.Context, users []fleet.User) error {
 
 func printTeams(c *cli.Context, teams []fleet.Team) error {
 	for _, team := range teams {
+		var teamItem interface{} = team
+		if c.Bool(yamlFlagName) {
+			teamSpec, err := fleet.TeamSpecFromTeam(&team)
+			if err != nil {
+				return err
+			}
+			teamItem = teamSpec
+		}
 		spec := specGeneric{
 			Kind:    fleet.TeamKind,
 			Version: fleet.ApiVersion,
 			Spec: map[string]interface{}{
-				"team": team,
+				"team": teamItem,
 			},
 		}
 
@@ -907,14 +915,28 @@ func printKeyValueTable(c *cli.Context, rows [][]string) {
 	table.Render()
 }
 
+func getTeamsJSONFlag() cli.Flag {
+	return &cli.BoolFlag{
+		Name:  jsonFlagName,
+		Usage: "Output all team information in JSON format",
+	}
+}
+
+func getTeamsYAMLFlag() cli.Flag {
+	return &cli.BoolFlag{
+		Name:  yamlFlagName,
+		Usage: "Output team configuration in yaml format. Intended for use with \"fleetctl apply -f\"",
+	}
+}
+
 func getTeamsCommand() *cli.Command {
 	return &cli.Command{
 		Name:    "teams",
 		Aliases: []string{"t"},
 		Usage:   "List teams",
 		Flags: []cli.Flag{
-			jsonFlag(),
-			yamlFlag(),
+			getTeamsJSONFlag(),
+			getTeamsYAMLFlag(),
 			configFlag(),
 			contextFlag(),
 			debugFlag(),
@@ -959,11 +981,11 @@ func getTeamsCommand() *cli.Command {
 			for _, team := range teams {
 				data = append(data, []string{
 					team.Name,
-					team.Description,
+					fmt.Sprintf("%d", team.HostCount),
 					fmt.Sprintf("%d", team.UserCount),
 				})
 			}
-			columns := []string{"Team Name", "Description", "User count"}
+			columns := []string{"Team name", "Host count", "User count"}
 			printTable(c, columns, data)
 
 			return nil
