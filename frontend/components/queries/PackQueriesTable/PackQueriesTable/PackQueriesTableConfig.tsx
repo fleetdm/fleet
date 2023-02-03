@@ -263,7 +263,7 @@ const enhancePackQueriesData = (
     };
     return {
       id: query.id,
-      name: query.name,
+      name: query.query_name,
       interval: query.interval,
       pack_id: query.pack_id,
       platform: query.platform || undefined,
