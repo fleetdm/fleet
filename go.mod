@@ -11,6 +11,7 @@ require (
 	github.com/WatchBeam/clock v0.0.0-20170901150240-b08e6b4da7ea
 	github.com/XSAM/otelsql v0.10.0
 	github.com/andygrunwald/go-jira v1.16.0
+	github.com/antchfx/xmlquery v1.3.14
 	github.com/aws/aws-sdk-go v1.43.16
 	github.com/beevik/etree v1.1.0
 	github.com/beevik/ntp v0.3.0
@@ -144,7 +145,6 @@ require (
 	github.com/agnivade/levenshtein v1.1.1 // indirect
 	github.com/alecthomas/jsonschema v0.0.0-20211022214203-8b29eab41725 // indirect
 	github.com/andybalholm/brotli v1.0.4 // indirect
-	github.com/antchfx/xmlquery v1.3.14 // indirect
 	github.com/antchfx/xpath v1.2.2 // indirect
 	github.com/apache/thrift v0.16.0 // indirect
 	github.com/apex/log v1.9.0 // indirect
@@ -225,6 +225,7 @@ require (
 	github.com/hashicorp/go-version v1.2.1 // indirect
 	github.com/hashicorp/golang-lru v0.5.4 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
+	github.com/hillu/go-ntdll v0.0.0-20220801201350-0d23f057ef1f // indirect
 	github.com/huandu/xstrings v1.3.2 // indirect
 	github.com/iancoleman/orderedmap v0.2.0 // indirect
 	github.com/imdario/mergo v0.3.12 // indirect

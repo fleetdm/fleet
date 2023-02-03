@@ -29,7 +29,7 @@ interface IControlsSubNavItem {
 const controlsSubNav: IControlsSubNavItem[] = [
   {
     name: "macOS updates",
-    pathname: PATHS.CONTROLS_MAC_UPDATES,
+    pathname: PATHS.CONTROLS_MAC_OS_UPDATES,
   },
   {
     name: "macOS settings",
@@ -37,7 +37,7 @@ const controlsSubNav: IControlsSubNavItem[] = [
   },
 ];
 
-interface IControlsWrapperProp {
+interface IManageControlsPageProps {
   children: JSX.Element;
   location: any; // no type in react-router v3
   router: InjectedRouter; // v3
@@ -50,29 +50,24 @@ const getTabIndex = (path: string): number => {
   });
 };
 
-const baseClass = "controls-wrapper";
+const baseClass = "manage-controls-page";
 
-const ControlsWrapper = ({
+const ManageControlsPage = ({
   children,
   location,
   router,
-}: IControlsWrapperProp): JSX.Element => {
+}: IManageControlsPageProps): JSX.Element => {
   const { availableTeams, isPremiumTier, setCurrentTeam } = useContext(
     AppContext
   );
 
-  const {
-    data: mdmApple,
-    isLoading: isLoadingMdmApple,
-    error: errorMdmApple,
-  } = useQuery<IMdmApple, Error, IMdmApple>(
-    ["mdmAppleAPI"],
-    () => mdmAppleAPI.getAppleAPNInfo(),
-    {
-      enabled: isPremiumTier,
-      staleTime: 5000,
-    }
-  );
+  const { data: mdmApple, isLoading: isLoadingMdmApple } = useQuery<
+    IMdmApple,
+    Error
+  >(["mdmAppleAPI"], () => mdmAppleAPI.getAppleAPNInfo(), {
+    enabled: isPremiumTier,
+    staleTime: 5000,
+  });
 
   const navigateToNav = (i: number): void => {
     const navPath = controlsSubNav[i].pathname;
@@ -152,7 +147,7 @@ const ControlsWrapper = ({
   };
 
   return (
-    <MainContent className={baseClass}>
+    <MainContent>
       <div className={`${baseClass}__wrapper`}>
         <div className={`${baseClass}__header-wrap`}>{renderHeader()}</div>
         {renderBody()}
@@ -161,4 +156,4 @@ const ControlsWrapper = ({
   );
 };
 
-export default ControlsWrapper;
+export default ManageControlsPage;

@@ -29,6 +29,10 @@ class InputField extends Component {
     ]).isRequired,
     parseTarget: PropTypes.bool,
     tooltip: PropTypes.string,
+    hint: PropTypes.oneOfType([
+      PropTypes.string,
+      PropTypes.arrayOf(PropTypes.string),
+    ]),
   };
 
   static defaultProps = {
@@ -44,6 +48,7 @@ class InputField extends Component {
     value: "",
     parseTarget: false,
     tooltip: "",
+    hint: "",
   };
 
   componentDidMount() {

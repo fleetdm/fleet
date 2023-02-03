@@ -13,17 +13,17 @@ export interface IMdmAppleBm {
   renew_date: string;
 }
 
-export const MDM_STATUS = {
+export const MDM_ENROLLMENT_STATUS = {
   "On (manual)": "manual",
   "On (automatic)": "automatic",
   Off: "unenrolled",
   Pending: "pending",
 };
 
-export type MdmStatus = keyof typeof MDM_STATUS;
+export type MdmEnrollmentStatus = keyof typeof MDM_ENROLLMENT_STATUS;
 
 export interface IMdmStatusCardData {
-  status: MdmStatus;
+  status: MdmEnrollmentStatus;
   hosts: number;
 }
 

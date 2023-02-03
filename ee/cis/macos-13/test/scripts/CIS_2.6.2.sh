@@ -1,3 +1,5 @@
+#!/bin/bash
+
 sudo /usr/bin/defaults write /Library/Application\
 Support/CrashReporter/DiagnosticMessagesHistory.plist AutoSubmit -bool false
 

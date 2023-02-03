@@ -11,7 +11,7 @@ interface IAboutProps {
   aboutData: { [key: string]: any };
   deviceMapping?: IDeviceUser[];
   munki?: IMunkiData | null;
-  mdm?: IHostMdmData | null;
+  mdm?: IHostMdmData;
   wrapFleetHelper: (helperFn: (value: any) => string, value: string) => string;
 }
 
@@ -52,7 +52,7 @@ const About = ({
   };
 
   const renderMdmData = () => {
-    if (!mdm) {
+    if (!mdm?.enrollment_status) {
       return null;
     }
     return (

@@ -44,9 +44,11 @@ import Fleet403 from "pages/errors/Fleet403";
 import Fleet404 from "pages/errors/Fleet404";
 import UserSettingsPage from "pages/UserSettingsPage";
 import SettingsWrapper from "pages/admin/SettingsWrapper/SettingsWrapper";
-import ControlsWrapper from "pages/ControlsPage/ControlsWrapper";
+import ManageControlsPage from "pages/ManageControlsPage/ManageControlsPage";
 import MembersPage from "pages/admin/TeamManagementPage/TeamDetailsWrapper/MembersPage";
 import AgentOptionsPage from "pages/admin/TeamManagementPage/TeamDetailsWrapper/AgentOptionsPage";
+import MacOSUpdates from "pages/MacOSUpdates";
+
 import PATHS from "router/paths";
 import AppProvider from "context/app";
 import RoutingProvider from "context/routing";
@@ -58,6 +60,7 @@ import UnauthenticatedRoutes from "./components/UnauthenticatedRoutes";
 import AuthGlobalAdminMaintainerRoutes from "./components/AuthGlobalAdminMaintainerRoutes";
 import AuthAnyMaintainerAnyAdminRoutes from "./components/AuthAnyMaintainerAnyAdminRoutes";
 import PremiumRoutes from "./components/PremiumRoutes";
+import MdmEnabledRoutes from "./components/MdmEnabledRoutes/MdmEnabledRoutes";
 
 interface IAppWrapperProps {
   children: JSX.Element;
@@ -75,14 +78,6 @@ const AppWrapper = ({ children, location }: IAppWrapperProps) => (
   </AppProvider>
 );
 
-// TODO: Replace below elements with the real thing
-const MacUpdatesPage = () => {
-  return (
-    <div>
-      <h1>MacUpdates!</h1>
-    </div>
-  );
-};
 const MacSettingsPage = () => {
   return (
     <div>
@@ -176,10 +171,12 @@ const routes = (
           </Route>
 
           <Route path="controls" component={AuthAnyMaintainerAnyAdminRoutes}>
-            <IndexRedirect to={"mac-updates"} />
-            <Route component={ControlsWrapper}>
-              <Route path="mac-updates" component={MacUpdatesPage} />
-              <Route path="mac-settings" component={MacSettingsPage} />
+            <Route component={MdmEnabledRoutes}>
+              <IndexRedirect to={"mac-os-updates"} />
+              <Route component={ManageControlsPage}>
+                <Route path="mac-os-updates" component={MacOSUpdates} />
+                <Route path="mac-settings" component={MacSettingsPage} />
+              </Route>
             </Route>
           </Route>
 

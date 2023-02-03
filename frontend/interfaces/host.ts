@@ -7,7 +7,7 @@ import softwareInterface, { ISoftware } from "./software";
 import hostQueryResult from "./campaign";
 import queryStatsInterface, { IQueryStats } from "./query_stats";
 import { ILicense } from "./config";
-import { MdmStatus } from "./mdm";
+import { MdmEnrollmentStatus } from "./mdm";
 
 export default PropTypes.shape({
   created_at: PropTypes.string,
@@ -87,10 +87,10 @@ export interface IMunkiData {
 }
 
 export interface IHostMdmData {
-  enrollment_status: string;
+  enrollment_status: MdmEnrollmentStatus;
   server_url: string;
-  id: number;
-  name: string;
+  id?: number;
+  name?: string;
 }
 
 export interface IMunkiIssue {
@@ -203,8 +203,7 @@ export interface IHost {
   users: IHostUser[];
   device_users?: IDeviceUser[];
   munki?: IMunkiData;
-  mdm_enrollment_status: MdmStatus;
-  mdm_server_url: string;
+  mdm: IHostMdmData;
   policies: IHostPolicy[];
   query_results?: unknown[];
   geolocation?: IGeoLocation;

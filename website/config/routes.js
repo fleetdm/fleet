@@ -315,6 +315,7 @@ module.exports.routes = {
   'GET /device-management/fleet-user-stories-schrodinger': '/success-stories/fleet-user-stories-wayfair',
   'GET /device-management/fleet-user-stories-wayfair': '/success-stories/fleet-user-stories-wayfair',
   'GET /handbook/security': '/handbook/business-operations/security',
+  'GET /handbook/handbook': '/handbook/company/handbook',
 
 
   //  ╔╦╗╦╔═╗╔═╗  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗   ┬   ╔╦╗╔═╗╦ ╦╔╗╔╦  ╔═╗╔═╗╔╦╗╔═╗
@@ -353,6 +354,10 @@ module.exports.routes = {
   // This is for search engines, not humans.  Search engines know to visit fleetdm.com/sitemap.xml to download this
   // XML file, which helps search engines know which pages are available on the website.
   'GET /sitemap.xml':            { action: 'download-sitemap' },
+
+  // RSS feeds
+  // =============================================================================================================
+  'GET /rss/:categoryName': {action: 'download-rss-feed'},
 
   // Potential future pages
   // =============================================================================================================

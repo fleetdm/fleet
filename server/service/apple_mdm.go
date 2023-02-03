@@ -121,7 +121,7 @@ func (svc *Service) setDEPProfile(ctx context.Context, enrollmentProfile *fleet.
 	depProfileRequest.URL = enrollURL
 	depProfileRequest.ConfigurationWebURL = enrollURL
 
-	depClient := fleet.NewDEPClient(svc.depStorage, svc.ds, svc.logger)
+	depClient := apple_mdm.NewDEPClient(svc.depStorage, svc.ds, svc.logger)
 	res, err := depClient.DefineProfile(ctx, apple_mdm.DEPName, &depProfileRequest)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "apple POST /profile request failed")
@@ -430,7 +430,7 @@ func (svc *Service) ListMDMAppleDEPDevices(ctx context.Context) ([]fleet.MDMAppl
 	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleDEPDevice{}, fleet.ActionWrite); err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
-	depClient := fleet.NewDEPClient(svc.depStorage, svc.ds, svc.logger)
+	depClient := apple_mdm.NewDEPClient(svc.depStorage, svc.ds, svc.logger)
 
 	// TODO(lucas): Use cursors and limit to fetch in multiple requests.
 	// This single-request version supports up to 1000 devices (max to return in one call).
