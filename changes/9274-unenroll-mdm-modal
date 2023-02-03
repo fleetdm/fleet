@@ -1,1 +1,0 @@
-- Implemented the ability for an authorized user to unenroll a host from MDM on its host details page. The host must be enrolled in MDM and online.
