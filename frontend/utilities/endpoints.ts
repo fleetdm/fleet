@@ -37,7 +37,7 @@ export default {
   // TODO: Clean up MDM endpoints to be consistent and up to date
   MDM_APPLE: `/${API_VERSION}/fleet/mdm/apple`,
   MDM_APPLE_BM: `/${API_VERSION}/fleet/mdm/apple_bm`,
-  MDM_APPLE_BM_KEYS: `/${API_VERSION}/fleet/mdm/apple_bm/keys`,
+  MDM_APPLE_BM_KEYS: `/${API_VERSION}/fleet/mdm/apple/dep/key_pair`,
   MDM_SUMMARY: `/${API_VERSION}/fleet/hosts/summary/mdm`,
   MDM_REQUEST_CSR: `/${API_VERSION}/fleet/mdm/apple/request_csr`,
   // Should below 2 endpoints be consistent?

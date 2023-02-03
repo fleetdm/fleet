@@ -1,6 +1,17 @@
 .app-wrap {
-  // TODO: talk to rachel about removing this
   background-color: $ui-off-white;
+  .site-nav {
+    height: 50px;
+  }
+  .site-nav-item--logo {
+    text-align: center;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-width: 64px;
+    max-width: 140px;
+    transform: scale(0.5);
+  }
 }
 .enroll-mdm-modal {
   width: 800px;

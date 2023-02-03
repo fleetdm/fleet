@@ -20,20 +20,20 @@ import { readableDate } from "utilities/helpers";
 import RequestCSRModal from "./components/RequestCSRModal";
 import EditTeamModal from "./components/EditTeamModal";
 
-// MDM TODO: key validation?
-// import { isValidKeys } from "../../..";
+interface IABMKeys {
+  decodedPublic: string;
+  decodedPrivate: string;
+}
 
 const baseClass = "mdm-integrations";
 
 const Mdm = (): JSX.Element => {
-  const { isPremiumTier } = useContext(AppContext);
+  const { isPremiumTier, config } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
   const [showRequestCSRModal, setShowRequestCSRModal] = useState(false);
   const [showEditTeamModal, setShowEditTeamModal] = useState(false);
   const [defaultTeamName, setDefaultTeamName] = useState("No team");
-
-  const [showCSRFlag, setShowCSRFlag] = useState(true);
 
   const {
     data: appleAPNInfo,
@@ -43,7 +43,7 @@ const Mdm = (): JSX.Element => {
     ["appleAPNInfo"],
     () => mdmAppleAPI.getAppleAPNInfo(),
     {
-      enabled: isPremiumTier,
+      enabled: isPremiumTier && config?.mdm.enabled_and_configured,
       staleTime: 5000,
     }
   );
@@ -56,7 +56,7 @@ const Mdm = (): JSX.Element => {
     ["mdmAppleBmAPI"],
     () => mdmAppleBmAPI.getAppleBMInfo(),
     {
-      enabled: isPremiumTier,
+      enabled: isPremiumTier && config?.mdm.enabled_and_configured,
       staleTime: 5000,
       onSuccess: (appleBmData) => {
         setDefaultTeamName(appleBmData.default_team ?? "No team");
@@ -64,12 +64,11 @@ const Mdm = (): JSX.Element => {
     }
   );
 
-  // MDM TODO: Test manually after backend is merged
   const {
     data: keys,
     error: fetchKeysError,
     isFetching: isFetchingKeys,
-  } = useQuery<string, Error>(["keys"], () => mdmAppleBmAPI.loadKeys(), {
+  } = useQuery<IABMKeys, Error>(["keys"], () => mdmAppleBmAPI.loadKeys(), {
     enabled: isPremiumTier,
     refetchOnWindowFocus: false,
   });
@@ -95,14 +94,26 @@ const Mdm = (): JSX.Element => {
     }
 
     if (keys) {
-      // MDM TODO: Validate keys like we validate certificates?
-      // if (keys && isValidKeys(keys)) {
-      const filename = "fleet.pem";
-      const file = new global.window.File([keys], filename, {
-        type: "application/x-pem-file",
-      });
+      const publicFilename = "fleet-apple-mdm-bm-public-key.crt";
+      const publicFile = new global.window.File(
+        [keys.decodedPublic],
+        publicFilename,
+        {
+          type: "application/x-pem-file",
+        }
+      );
 
-      FileSaver.saveAs(file);
+      const privateFilename = "fleet-apple-mdm-bm-private.key";
+      const privateFile = new global.window.File(
+        [keys.decodedPublic],
+        privateFilename,
+        {
+          type: "application/x-pem-file",
+        }
+      );
+
+      FileSaver.saveAs(publicFile);
+      FileSaver.saveAs(privateFile);
     } else {
       renderFlash(
         "error",
@@ -249,8 +260,8 @@ const Mdm = (): JSX.Element => {
           <h4>Apple ID</h4>
           <p>{mdmAppleBm.apple_id}</p>
           <h4>Organization name</h4>
-          <p>{mdmAppleBm.organization_name}</p>
-          <h4>MDM Server URL</h4>
+          <p>{mdmAppleBm.org_name}</p>
+          <h4>MDM server URL</h4>
           <p>{mdmAppleBm.mdm_server_url}</p>
           <h4>Renew date</h4>
           <p>{readableDate(mdmAppleBm.renew_date)}</p>
