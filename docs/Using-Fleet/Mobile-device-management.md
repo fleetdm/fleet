@@ -1,16 +1,5 @@
 # Mobile device management (MDM)
 
-- [Controls](#controls)
-  - [macOS updates](#macos-updates)
-- [Apple Push Notification Service](#apple-push-notification-service-apns)
-  - [APNs renewal](#apns-renewal)
-- [Apple Business Manager](#apple-business-manager-abm)
-  - [ABM renewal](#abm-renewal)
-- [Disk encryption key](#disk-encryption-key)
-  - [Viewing a disk encryption key](#viewing-a-disk-encryption-key)
-  - [Recovering a device using the disk encryption key](#recover-a-device-using-the-disk-encryption-key)
-
-
 MDM features are not ready for production and are currently in development. These features are disabled by default.
 
 MDM features allow you to manage macOS updates and macOS settings on your hosts.
