@@ -99,7 +99,7 @@ Currently, the disk encryption key refers to the FileVault recovery key only for
 
 To view the disk encryption key, select a host on the **Hosts** page. On the **Host details** page, select **Actions > Show disk encryption key**.
 
-### Recover a device using the disk encryption key
+### Unlock a device using the disk encryption key
 
 1. Restart the device while holding Command + R
 
