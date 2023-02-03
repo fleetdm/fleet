@@ -82,7 +82,9 @@ The Apple Business Manager server token expires after a year or whenever the acc
 
 ## Disk encryption
 
-Currently, the disk encryption key refers to the FileVault recovery key only for macOS 10.15+ devices. FileVault allows you to access and recover data on a device without the login credentials. This key is stored by Fleet and can be accessed by Fleet admin, maintainers, and observers to log into a device without its password. An event is tracked in the activity feed when a user views the key using Fleet.
+In Fleet, you can turn on disk encryption on your macOS hosts. Apple calls this [FileVault](https://support.apple.com/en-us/HT204837). If turned on, hosts’ disk encryption keys will be stored in Fleet.
+
+The disk encryption key allows you to unlock a Mac if you forgot login credentials. This key can be accessed by Fleet admin, maintainers, and observers. An event is tracked in the activity feed when a user views the key in Fleet.
 
 ### Viewing a disk encryption key
 
