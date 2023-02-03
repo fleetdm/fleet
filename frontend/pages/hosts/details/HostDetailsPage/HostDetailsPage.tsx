@@ -65,10 +65,7 @@ import TransferHostModal from "../../components/TransferHostModal";
 import DeleteHostModal from "../../components/DeleteHostModal";
 
 import parseOsVersion from "./modals/OSPolicyModal/helpers";
-import DeleteIcon from "../../../../../assets/images/icon-action-delete-14x14@2x.png";
-import QueryIcon from "../../../../../assets/images/icon-action-query-16x16@2x.png";
-import TransferIcon from "../../../../../assets/images/icon-action-transfer-16x16@2x.png";
-import CloseIcon from "../../../../../assets/images/icon-action-close-16x15@2x.png";
+
 import { generateHostActionOptions } from "./helpers";
 import DiskEncryptionKeyModal from "./modals/DiskEncryptionKeyModal";
 
@@ -150,6 +147,7 @@ const HostDetailsPage = ({
   const [showPolicyDetailsModal, setPolicyDetailsModal] = useState(false);
   const [showOSPolicyModal, setShowOSPolicyModal] = useState(false);
   const [showUnenrollMdmModal, setShowUnenrollMdmModal] = useState(false);
+  const [showDiskEncryptionModal, setShowDiskEncryptionModal] = useState(false);
   const [selectedPolicy, setSelectedPolicy] = useState<IHostPolicy | null>(
     null
   );
@@ -774,7 +772,7 @@ const HostDetailsPage = ({
             }}
           />
         )}
-        {true && (
+        {showDiskEncryptionModal && (
           <DiskEncryptionKeyModal secret={{ secret: "test" }} onCancel={noop} />
         )}
       </div>

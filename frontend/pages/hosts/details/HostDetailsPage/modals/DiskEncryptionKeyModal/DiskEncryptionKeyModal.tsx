@@ -21,7 +21,7 @@ const DiskEncryptionKeyModal = ({
   return (
     <Modal title="Disk encryption key" onExit={onCancel} className={baseClass}>
       <>
-        <InputFieldHiddenContent value={"test"} />
+        <InputFieldHiddenContent value={"test-secret-key"} />
         <p>
           The disk encryption key refers to the FileVault recovery key for
           macOS.
