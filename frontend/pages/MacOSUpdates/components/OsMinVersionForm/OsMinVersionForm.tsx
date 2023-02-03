@@ -138,7 +138,7 @@ const OsMinVersionForm = ({ currentTeamId }: IOsMinVersionForm) => {
       <InputField
         label="Minimum version"
         tooltip="The end user sees the window until their macOS is at or above this version."
-        hint="Version number only (e.g. “13.0.1” not “Ventura 13” or “13.0.1 (22A400)”)"
+        hint="Version number only (e.g., “13.0.1” not “Ventura 13” or “13.0.1 (22A400)”)"
         placeholder="13.0.1"
         value={minOsVersion}
         error={minOsVersionError}
