@@ -4,11 +4,51 @@ This page details processes specific to Mike McNeil, CEO of Fleet. Below are a l
 
 #### In this section
 
+- [The CEO support team](#the-ceo-support-team)
+- [CEO preferences](#ceo-preferences)
 - [Contacting the CEO](#contacting-the-ceo)
+- [Scheduling with the CEO](#scheduling-with-the-ceo)
 - [OKR planning](#okr-planning)
 - [Prep work](#prep-work)
 - [Tasks as assigned](#tasks-as-assigned)
 
+
+## The CEO support team
+
+### EA to the CEO
+
+| Task | Description | Frequency | 
+| ----------------------------------------------------------- | -----------------------------------------------------------------| --------------------- |
+| CEO e-mail management                                       | Triage inbound communications, draft responses, flag actions     | Daily, multiple times |
+| General communications in #help-ceo slack channel           | Triage inbound communications, draft responses, flag actions     | Daily, multiple times |
+| Schedule internal and external meetings for the CEO         | Triage inbound communications, draft responses, flag actions     | Daily, multiple times |
+| Meeting requests in #-meetings and #help-ceo slack channels | Triage inbound communications, draft responses, flag actions     | Daily, multiple times |
+| Preparing agendas and content for CEO's meetings            | Create and edit agenda, provide context, and contact information | PRN                   |
+| Expenses for the CEO                                        | Intake expense receipts                                          | PRN                   |
+| Ad-hoc requests from the CEO                                | Triage requests, prioritize actions, flag actions for further review | PRN               |
+| Total travel coordination for the CEO    | Triage travel request, plan and coordinate flight, stay, and conceirge arrangements | PRN                   |
+| Coordinate the weekly E-Group calendar events for the Executive team | Triage requests, agenda prep, flag actions, follow up   | Weekly, PRN           |
+
+## CEO preferences
+
+### CEO email management
+- Labels: /DOTO Mike, /FYI Mike, /EA is monitoring, /Signature needed
+- Emails that need the CEO's attention should be "starred" 
+- EA should prepare draft responses, move drafts to the Inbox, and label
+
+### Travel preferences
+Current preferences for flights are:
+- Aisle seat
+- Direct flight whenever possible
+- Check a bag for all trips longer than one night
+- Add Brex card information for pre-flight snacks and drinks forms
+- Frequent Flyer details of all (previously flown) airlines are in 1Password as well as important travel documents
+
+### Help Mission Control slack channel
+This channel is for the CEO to drop ideas and tasks for his executive leadership team. The name of this channel was carefully chosen to reflect how we'll work together to help visualize and execute the plans for Fleet.
+- Labels: TODO, DOTO, FYI
+- Mark requests with 👀 to indicate that you are working on the task
+- Mark requests with ✅ to indicate that you completed the task
 
 ## Contacting the CEO
 Keeping up with Slack is tough enough, even more so if you’re the CEO. That’s why Fleeties have different ways to contact Mike depending on the urgency of the request.
@@ -23,6 +63,11 @@ If you don’t share a meeting with Mike, please post in the #help-ceo channel w
 
 ### Emergency
 “Emergency” requests must be addressed the same day. If you need to contact the CEO ASAP, please post in #help-p1 Slack channel. This will send a text message to Mike’s cell phone, even if it’s in "do not disturb" mode.
+
+
+## Scheduling with the CEO
+
+
 
 ## OKR planning
 OKRs (Objective Key Results) help to inform what to prioritize and communicate company goals while encouraging cross-team collaboration.
@@ -53,8 +98,8 @@ As Fleet grows, time management for the CEO is more essential. Charlie will audi
 In the notes document include:
   1. LinkedIn profile link of all outside participants
   2. Company profile link 
-  3. Context that helps the CEO to understand purpose of meeting at a glance
-  4. Share document with meeting participants
+  3. Context that helps the CEO to understand the purpose of meeting at a glance
+  4. Share the document with meeting participants
 
 **Additional product design review sessions are welcomed and a top priority for the CEO to get on the calendar quickly.  _Other internal meetings and blocked time can always be moved to make room.  External meetings, travel, and personal commitments cannot be moved._  To schedule, mention @Charlie in the #-meetings channel.**
 
