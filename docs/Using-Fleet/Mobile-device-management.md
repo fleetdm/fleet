@@ -97,7 +97,7 @@ Currently, the disk encryption key refers to the FileVault recovery key only for
 
 ### Viewing a disk encryption key
 
-To view the disk encryption key, select the host on Fleet's manage host page to view host details. In the host's action menu, select Show disk encryption key to view the key.
+To view the disk encryption key, select a host on the **Hosts** page. On the **Host details** page, select **Actions > Show disk encryption key**.
 
 ### Recover a device using the disk encryption key
 
