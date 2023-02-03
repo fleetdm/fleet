@@ -32,8 +32,8 @@ type Runner struct {
 	mu          sync.Mutex
 }
 
-// UpdateRunnerOptTargets updates the RunnerOptions.Targets with the given target
-func (r *Runner) UpdateRunnerOptTargets(target string) {
+// AddRunnerOptTarget adds the given target to the RunnerOptions.Targets.
+func (r *Runner) AddRunnerOptTarget(target string) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	// check if target already exists
@@ -43,6 +43,20 @@ func (r *Runner) UpdateRunnerOptTargets(target string) {
 		}
 	}
 	r.opt.Targets = append(r.opt.Targets, target)
+}
+
+// RemoveRunnerOptTarget removes the given target to the RunnerOptions.Targets.
+func (r *Runner) RemoveRunnerOptTarget(target string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	var targets []string
+	// remove all occurences of the given target
+	for _, t := range r.opt.Targets {
+		if t != target {
+			targets = append(targets, t)
+		}
+	}
+	r.opt.Targets = targets
 }
 
 // NewRunner creates a new runner with the provided options. The runner must be

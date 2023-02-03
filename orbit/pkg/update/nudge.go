@@ -1,6 +1,9 @@
 package update
 
 import (
+	"os"
+	"path/filepath"
+
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/rs/zerolog/log"
 )
@@ -32,26 +35,54 @@ func (n *NudgeConfigFetcher) GetConfig() (*fleet.OrbitConfig, error) {
 		return nil, err
 	}
 
-	if cfg != nil && cfg.NudgeConfig != nil {
-		var found bool
-		for _, t := range n.UpdateRunner.opt.Targets {
-			if t == "nudge" {
-				found = true
-			}
-		}
+	if cfg == nil {
+		log.Debug().Msg("NudgeConfigFetcher received nil config")
+		return nil, nil
+	}
 
-		if !found {
-			log.Info().Msg("adding nudge as target")
-			n.UpdateRunner.UpdateRunnerOptTargets("nudge")
-			n.UpdateRunner.updater.SetExtensionsTargetInfo(
-				"nudge",
-				"macos",
-				"stable",
-				"nudge.app.tar.gz",
-				[]string{"Nudge.app", "Contents", "MacOS", "Nudge"},
-			)
+	var foundTarget bool
+	for _, t := range n.UpdateRunner.opt.Targets {
+		if t == "nudge" {
+			foundTarget = true
 		}
 	}
 
-	return cfg, err
+	switch {
+	case !foundTarget && cfg.NudgeConfig != nil:
+		addNudgeTarget(n.UpdateRunner)
+	case foundTarget && cfg.NudgeConfig == nil:
+		removeNudgeTarget(n.UpdateRunner)
+	default:
+		// ok
+	}
+
+	return cfg, nil
+}
+
+func addNudgeTarget(r *Runner) {
+	log.Info().Msg("adding nudge as target")
+	r.AddRunnerOptTarget("nudge")
+	r.updater.SetTargetInfo(
+		"nudge",
+		"macos",
+		"stable",
+		"nudge.app.tar.gz",
+		[]string{"Nudge.app", "Contents", "MacOS", "Nudge"},
+	)
+}
+
+func removeNudgeTarget(r *Runner) {
+	log.Info().Msg("removing nudge as target")
+	r.RemoveRunnerOptTarget("nudge")
+	r.updater.RemoveTargetInfo("nudge")
+
+	log.Info().Msg("removing nudge from filesystem")
+	path := filepath.Join(r.updater.opt.RootDirectory, "bin", "nudge")
+	err := os.RemoveAll(path)
+	if err != nil {
+		log.Info().Err(err).Msg("removing nudge from filesystem")
+	}
+	// TODO(sarah): Consider adding a separate channel to signal that orbit should when targets are
+	// removed. For now, we're using the interrupt channel.
+	r.Interrupt(err)
 }
