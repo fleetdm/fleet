@@ -18,27 +18,27 @@ A test is deemed successful when the Fleet server is able to receive and make re
 
 With the following infrastructure, 2,500 hosts successfully communicate with Fleet. The Fleet server is able to run live queries against all hosts.
 
-|Fleet instances| CPU Units       |RAM             |
-|-------|-------------------------|----------------|
-| 1 Fargate task | 512 CPU Units  | 4GB of memory |
+| Fleet instances | CPU Units     | RAM           |
+|-----------------|---------------|---------------|
+| 1 Fargate task  | 512 CPU Units | 4GB of memory |
 
-|&#8203;| Version                 |Instance type |
-|-------|-------------------------|--------------|
-| Redis | 5.0.6                   | cache.t4g.medium |
-| MySQL | 5.7.mysql_aurora.2.10.0 | db.t4g.small |
+| &#8203; | Version                 | Instance type    |
+|---------|-------------------------|------------------|
+| Redis   | 6.x                     | cache.t4g.medium |
+| MySQL   | 8.0.mysql_aurora.3.02.0 | db.t4g.small     |
 
 ### 150,000 hosts
 
 With the infrastructure listed below, 150,000 hosts successfully communicate with Fleet. The Fleet server is able to run live queries against all hosts.
 
-|Fleet instance | CPU Units       |RAM             |
-|-------|-------------------------|----------------|
-| 20 Fargate tasks | 1024 CPU units  | 4GB of memory |
+| Fleet instance   | CPU Units      | RAM           |
+|------------------|----------------|---------------|
+| 20 Fargate tasks | 1024 CPU units | 4GB of memory |
 
-|&#8203;| Version                 |Instance type   |
-|-------|-------------------------|----------------|
-| Redis | 5.0.6                   | cache.m6g.large |
-| MySQL | 5.7.mysql_aurora.2.10.0 | db.r6g.4xlarge |
+| &#8203; | Version                 | Instance type   |
+|---------|-------------------------|-----------------|
+| Redis   | 6.x                     | cache.m6g.large |
+| MySQL   | 8.0.mysql_aurora.3.02.0 | db.r6g.4xlarge  |
 
 In the above setup, the read replica was the same size as the writer node.
 
