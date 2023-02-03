@@ -14,7 +14,7 @@
     <% /* Viewport tag for sensible mobile support */ %>
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
     <%// Twitter meta tags%>
-    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:card" content="<%= typeof pageImageForMeta !== 'undefined' ? 'summary_large_image' : 'summary' %>" />
     <meta name="twitter:site" content="https://fleetdm.com" />
     <meta name="twitter:description" content="<%= typeof pageDescriptionForMeta !== 'undefined' ? pageDescriptionForMeta : 'Fleet is the lightweight, programmable telemetry platform for servers and workstations. Get comprehensive, customizable data from all your devices and operating systems — without the performance hit'  %>" />
     <meta name="twitter:title" content="<%= typeof pageTitleForMeta !== 'undefined' ? pageTitleForMeta : 'Fleet for osquery | Lightweight, programmable telemetry for servers and workstations' %>" />
@@ -275,7 +275,7 @@ Fleet Managed Cloud. <a href="https://kqphpqst851.typeform.com/to/yoo5smT9">Join
               </div>
               <div class="flex-column">
                 <a href="/pricing" class="d-block px-md-5 px-sm-3 pb-2">Pricing</a>
-                <a href="/customers/dashboard" class="d-block px-md-5 px-sm-3 pb-2">Customers</a>
+                <a href="/customers/dashboard" class="d-block px-md-5 px-sm-3 pb-2">Get your license</a>
                 <a href="/handbook" class="d-block px-md-5 px-sm-3 pb-2">Handbook</a>
                 <a href="/logos" class="d-block px-md-5 px-sm-3 pb-2 pb-xl-0">Logos/artwork</a>
               </div>
@@ -450,6 +450,7 @@ Fleet Managed Cloud. <a href="https://kqphpqst851.typeform.com/to/yoo5smT9">Join
     <script src="/js/pages/try-fleet/sandbox-expired.page.js"></script>
     <script src="/js/pages/try-fleet/sandbox-login.page.js"></script>
     <script src="/js/pages/try-fleet/sandbox-teleporter.page.js"></script>
+    <script src="/js/pages/upgrade.page.js"></script>
     <script src="/js/pages/vanta-authorization.page.js"></script>
     <!--SCRIPTS END-->
 

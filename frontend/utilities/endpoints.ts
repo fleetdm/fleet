@@ -9,7 +9,7 @@ export default {
   },
   DEVICE_USER_DETAILS: `/${API_VERSION}/fleet/device`,
   DEVICE_USER_MDM_ENROLLMENT_PROFILE: (token: string): string => {
-    return `${API_VERSION}/fleet/device/${token}/mdm/apple/manual_enrollment_profile`;
+    return `/${API_VERSION}/fleet/device/${token}/mdm/apple/manual_enrollment_profile`;
   },
   DOWNLOAD_INSTALLER: `/${API_VERSION}/fleet/download_installer`,
   ENABLE_USER: (id: number): string => {
@@ -37,8 +37,9 @@ export default {
   // TODO: Clean up MDM endpoints to be consistent and up to date
   MDM_APPLE: `/${API_VERSION}/fleet/mdm/apple`,
   MDM_APPLE_BM: `/${API_VERSION}/fleet/mdm/apple_bm`,
-  MDM_APPLE_BM_KEYS: `/${API_VERSION}/fleet/mdm/apple_bm/keys`,
+  MDM_APPLE_BM_KEYS: `/${API_VERSION}/fleet/mdm/apple/dep/key_pair`,
   MDM_SUMMARY: `/${API_VERSION}/fleet/hosts/summary/mdm`,
+  MDM_REQUEST_CSR: `/${API_VERSION}/fleet/mdm/apple/request_csr`,
   // Should below 2 endpoints be consistent?
   HOST_MDM: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/mdm`,
   HOST_MDM_UNENROLL: (id: number) =>

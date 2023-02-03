@@ -67,6 +67,7 @@ const ManageControlsPage = ({
   >(["mdmAppleAPI"], () => mdmAppleAPI.getAppleAPNInfo(), {
     enabled: isPremiumTier,
     staleTime: 5000,
+    retry: false,
   });
 
   const navigateToNav = (i: number): void => {

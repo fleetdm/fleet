@@ -80,5 +80,53 @@ Fleet UI:
 
 The Apple Business Manager server token expires after a year or whenever the account that downloaded the token has their password changed. To renew the token, follow the [instructions documented in this FAQ](https://fleetdm.com/docs/using-fleet/faq#how-can-i-renew-my-apple-business-manager-server-token).
 
+## Disk encryption
+
+In Fleet, you can turn on disk encryption on your macOS hosts. Apple calls this [FileVault](https://support.apple.com/en-us/HT204837). If turned on, hosts’ disk encryption keys will be stored in Fleet.
+
+The disk encryption key allows you to unlock a Mac if you forgot login credentials. This key can be accessed by Fleet admin, maintainers, and observers. An event is tracked in the activity feed when a user views the key in Fleet.
+
+### Viewing a disk encryption key
+
+To view the disk encryption key, select a host on the **Hosts** page. On the **Host details** page, select **Actions > Show disk encryption key**.
+
+### Unlock a device using the disk encryption key
+
+1. Restart the device while holding Command + R
+
+2. Open Terminal
+
+3. Unlock the disk encryption key by executing a command similar to:
+```
+security unlock-keychain <path to the secure copy of the 
+FileVaultMaster.keychain file>
+```
+
+4. Locate the Logical Volume UUID of the encrypted disk by executing:
+```
+diskutil cs list
+```
+
+5. Unlock the encrypted drive with the Logical Volume UUID and disk encryption key by executing a command similar to:
+```
+diskutil cs unlockVolume <UUID> -recoveryKeychain <path to the secure copy of the FileVaultMaster.keychain file>
+```
+6. Turn off disk encryption by executing a command similar to: 
+```
+diskutil cs revert <UUID> -recoveryKeychain <path to the secure copy of the FileVaultMaster.keychain file>
+```
+
+Once successful, you can reset the account password using the Reset Password utility and recover data by either logging in to the user’s account or using the command line.
+
+1. Restart the device while pressing Command + R.
+
+2. Open Terminal and launch the Reset Password utility by executing:
+```
+resetpassword
+```
+
+3. Use the Reset Password utility to reset the account’s password.
+
+4. Restart the computer and log in using the new password.
 
 <meta name="pageOrderInSection" value="1500">
