@@ -4,7 +4,6 @@
 
 - [Finance](#finance)
 - [BizOps](#bizops)
-- [Security](#security)
 
 
 ## Finance
