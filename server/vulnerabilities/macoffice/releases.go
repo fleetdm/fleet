@@ -1,5 +1,7 @@
 package macoffice
 
+import "time"
+
 type ProductType int
 
 const (
@@ -18,7 +20,7 @@ type SecurityUpdate struct {
 
 // OfficeRelease contains information about an Office release including security patches.
 type OfficeRelease struct {
-	Date            string
+	Date            time.Time
 	Version         string // Ths includes the Build ex: 16.69 (Build 23010700)
 	SecurityUpdates []SecurityUpdate
 }
