@@ -5,6 +5,8 @@ package file_system_permissions
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	tbl_common "github.com/fleetdm/fleet/v4/orbit/pkg/table/common"
 	"github.com/osquery/osquery-go/plugin/table"
 	"github.com/rs/zerolog/log"
@@ -26,28 +28,40 @@ func Columns() []table.ColumnDefinition {
 // Constraints for generating can be retrieved from the queryContext.
 func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[string]string, error) {
 
-	res, err := runCommand(ctx, "/usr/sbin/nvram", "-p")
+	var err1, err2, retErr error
+	res, err1 := runCommand(ctx, "/usr/sbin/nvram", "-p")
 	amfiEnabled := ""
-	if err == nil {
+	if err1 == nil {
 		amfiEnabled = "0"
 		if !strings.Contains(res, "amfi_get_out_of_my_way=1") {
 			amfiEnabled = "1"
 		}
 	}
 
-	res, err = runCommand(ctx, "/usr/bin/csrutil", "authenticated-root", "status")
+	res, err2 = runCommand(ctx, "/usr/bin/csrutil", "authenticated-root", "status")
 	SSVEnabled := ""
-	if err == nil {
+	if err2 == nil {
 		SSVEnabled = "0"
 		if strings.Contains(res, "Authenticated Root status: enabled") {
 			SSVEnabled = "1"
 		}
 	}
 
+	retErr = nil
+	if err1 != nil || err2 != nil {
+		retErr = errors.New("")
+		if err1 != nil {
+			retErr = fmt.Errorf("%w; error getting AMFI status", err1)
+		}
+		if err2 != nil {
+			retErr = fmt.Errorf("%w; error getting SSV status", err2)
+		}
+	}
+
 	return []map[string]string{
 		{"amfi_enabled": amfiEnabled,
 			"ssv_enabled": SSVEnabled},
-	}, nil
+	}, retErr
 }
 
 func runCommand(ctx context.Context, name string, arg ...string) (res string, err error) {
