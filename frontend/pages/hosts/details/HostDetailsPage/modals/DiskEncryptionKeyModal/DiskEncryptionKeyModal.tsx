@@ -1,38 +1,38 @@
 import React from "react";
 
-// @ts-ignore
-import InputField from "components/forms/fields/InputField";
+import { IEnrollSecret } from "interfaces/enroll_secret";
+
 import Modal from "components/Modal";
 import CustomLink from "components/CustomLink";
 import Button from "components/buttons/Button";
-import { noop } from "lodash";
+import InputFieldHiddenContent from "components/forms/fields/InputFieldHiddenContent";
 
 const baseClass = "disk-encryption-key-modal";
 
 interface IDiskEncryptionKeyModal {
+  secret: IEnrollSecret;
   onCancel: () => void;
 }
 
-const DiskEncryptionKeyModal = ({ onCancel }: IDiskEncryptionKeyModal) => {
+const DiskEncryptionKeyModal = ({
+  secret,
+  onCancel,
+}: IDiskEncryptionKeyModal) => {
   return (
     <Modal title="Disk encryption key" onExit={onCancel} className={baseClass}>
       <>
-        <InputField
-          inputWrapperClass={`${baseClass}__secret-input`}
-          name="osqueryd-secret"
-          label={"Secret"}
-          type={"text"}
-          value={"test"}
-          onChange={noop}
-          hint={"Must contain at least 32 characters."}
-        />
+        <InputFieldHiddenContent value={"test"} />
         <p>
           The disk encryption key refers to the FileVault recovery key for
           macOS.
         </p>
         <p>
           Use this key to log in to the host if you forgot the password.{" "}
-          <CustomLink text="View recovery instructions" url="test" newTab />
+          <CustomLink
+            text="View recovery instructions"
+            url="https://fleetdm.com/docs/using-fleet/mobile-device-management#unlock-a-device-using-the-disk-encryption-key"
+            newTab
+          />
         </p>
         <div className="modal-cta-wrap">
           <Button onClick={onCancel}>Done</Button>
