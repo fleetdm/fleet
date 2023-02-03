@@ -20,9 +20,6 @@ import { readableDate } from "utilities/helpers";
 import RequestCSRModal from "./components/RequestCSRModal";
 import EditTeamModal from "./components/EditTeamModal";
 
-// MDM TODO: key validation?
-// import { isValidKeys } from "../../..";
-
 interface IABMKeys {
   decodedPublic: string;
   decodedPrivate: string;
@@ -97,9 +94,7 @@ const Mdm = (): JSX.Element => {
     }
 
     if (keys) {
-      // MDM TODO: Validate keys like we validate certificates?
-      // if (keys && isValidKeys(keys)) {
-      const publicFilename = "decodedABMPublicKey.pem";
+      const publicFilename = "fleet-apple-mdm-bm-public-key.crt";
       const publicFile = new global.window.File(
         [keys.decodedPublic],
         publicFilename,
@@ -108,7 +103,7 @@ const Mdm = (): JSX.Element => {
         }
       );
 
-      const privateFilename = "decodedABMPrivateKey.pem";
+      const privateFilename = "fleet-apple-mdm-bm-private.key";
       const privateFile = new global.window.File(
         [keys.decodedPublic],
         privateFilename,
