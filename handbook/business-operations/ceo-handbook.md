@@ -14,7 +14,6 @@ This page details processes specific to Mike McNeil, CEO of Fleet. Below are a l
 
 
 ## The CEO support team
-
 ### EA to the CEO
 
 | Task | Description | Frequency | 
@@ -30,7 +29,6 @@ This page details processes specific to Mike McNeil, CEO of Fleet. Below are a l
 | Coordinate the weekly E-Group calendar events for the Executive team | Triage requests, agenda prep, flag actions, follow up   | Weekly, PRN           |
 
 ## CEO preferences
-
 ### Scheduling with the CEO
 >Reach out to the EA to the CEO in `#-meetings` with the required details to book a meeting with the CEO. 
 >All meetings on Mike's calendar should be scheduled and vetted by the EA to the CEO. 
