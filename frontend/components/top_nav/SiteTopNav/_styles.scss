@@ -7,6 +7,7 @@
 
 .site-nav-list {
   list-style: none;
+  height: 50px;
   width: 671px;
   margin: 0;
   padding: 0;
@@ -82,7 +83,7 @@
   }
 
   &--active {
-    border-bottom: 3px solid $core-vibrant-blue;
+    border-bottom: 4px solid $core-vibrant-blue;
     background-color: $site-nav-on-hover;
 
     &:hover {
