@@ -7,7 +7,8 @@
 
 .site-nav-list {
   list-style: none;
-  height: 50px;
+  max-height: 50px;
+  height: 100%;
   width: 671px;
   margin: 0;
   padding: 0;
