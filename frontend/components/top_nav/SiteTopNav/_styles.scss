@@ -7,8 +7,7 @@
 
 .site-nav-list {
   list-style: none;
-  max-height: 50px;
-  height: 100%;
+  height: 50px;
   width: 671px;
   margin: 0;
   padding: 0;
@@ -83,13 +82,6 @@
     transform: scale(0.5);
   }
 
-  .site-nav-item__logo {
-    position: relative;
-    img {
-      position: absolute;
-    }
-  }
-
   &--active {
     border-bottom: 3px solid $core-vibrant-blue;
     background-color: $site-nav-on-hover;
@@ -106,8 +98,9 @@
       font-weight: $bold;
     }
 
-    .site-nav-item__logo img {
-      margin-top: 3px;
+    .site-nav-item__logo {
+      position: relative;
+      top: 1px;
     }
   }
 }
