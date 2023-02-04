@@ -83,6 +83,13 @@
     transform: scale(0.5);
   }
 
+  .site-nav-item__logo {
+    position: relative;
+    img {
+      position: absolute;
+    }
+  }
+
   &--active {
     border-bottom: 3px solid $core-vibrant-blue;
     background-color: $site-nav-on-hover;
@@ -100,8 +107,7 @@
     }
 
     .site-nav-item__logo img {
-      position: relative;
-      top: 2px;
+      margin-top: 3px;
     }
   }
 }
