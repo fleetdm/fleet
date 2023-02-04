@@ -83,7 +83,7 @@
   }
 
   &--active {
-    border-bottom: 3px solid $core-vibrant-blue;
+    border-bottom: 4px solid $core-vibrant-blue;
     background-color: $site-nav-on-hover;
 
     &:hover {
@@ -98,9 +98,9 @@
       font-weight: $bold;
     }
 
-    .site-nav-item__logo {
+    .site-nav-item__logo img {
       position: relative;
-      top: 1px;
+      top: 4px;
     }
   }
 }
