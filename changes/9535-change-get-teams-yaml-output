@@ -1,1 +1,0 @@
-* Make `fleetctl get teams --yaml` output compatible with `fleetctl apply -f`.

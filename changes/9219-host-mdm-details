@@ -1,2 +1,0 @@
-- Added mdm enrollment status and mdm server url to `GET /hosts` and `GET /hosts/:id` endpoint
-  responses.
