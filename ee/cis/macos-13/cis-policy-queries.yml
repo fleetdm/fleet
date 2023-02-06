@@ -389,6 +389,33 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
+  name: CIS - Ensure Bluetooth Sharing Is Disabled
+  platforms: macOS
+  platform: darwin
+  description: |
+    Bluetooth Sharing allows files to be exchanged with Bluetooth-enabled devices.
+    Disabling Bluetooth Sharing minimizes the risk of an attacker using Bluetooth
+    to remotely attack the system.
+  resolution: |
+    Graphical Method:
+    1. Open System Settings
+    2. Select General
+    3. Select Sharing
+    4. Set Bluetooth Sharing to disabled
+  query: |
+    SELECT 1 WHERE NOT EXISTS (
+      SELECT * FROM plist WHERE
+        path LIKE '/Users/%/Library/Preferences/ByHost/com.apple.Bluetooth.%.plist' AND
+        key = 'PrefKeyServicesEnabled' AND
+        value = '1'
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS2.3.3.11
+  contributors: artemist-work
+---
+apiVersion: v1
+kind: policy
+spec:
   name: CIS - Ensure Backup Automatically is Enabled If Time Machine Is Enabled (FDA Required)
   platforms: macOS
   platform: darwin
