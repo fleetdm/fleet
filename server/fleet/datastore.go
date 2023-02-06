@@ -444,7 +444,7 @@ type Datastore interface {
 	// ActivitiesStore
 
 	NewActivity(ctx context.Context, user *User, activity ActivityDetails) error
-	ListActivities(ctx context.Context, opt ListActivitiesOptions) ([]*Activity, error)
+	ListActivities(ctx context.Context, opt ListActivitiesOptions) ([]*Activity, *PaginationMetadata, error)
 	MarkActivitiesAsStreamed(ctx context.Context, activityIDs []uint) error
 
 	///////////////////////////////////////////////////////////////////////////////
@@ -582,6 +582,9 @@ type Datastore interface {
 	// TeamFeatures loads the features enabled for a team.
 	TeamFeatures(ctx context.Context, teamID uint) (*Features, error)
 
+	// TeamMDMConfig loads the MDM config for a team.
+	TeamMDMConfig(ctx context.Context, teamID uint) (*TeamMDM, error)
+
 	// SaveHostPackStats stores (and updates) the pack's scheduled queries stats of a host.
 	SaveHostPackStats(ctx context.Context, hostID uint, stats []PackStats) error
 	// AsyncBatchSaveHostsScheduledQueryStats efficiently saves a batch of hosts'
@@ -691,6 +694,9 @@ type Datastore interface {
 	NewMDMAppleEnrollmentProfile(ctx context.Context, enrollmentPayload MDMAppleEnrollmentProfilePayload) (*MDMAppleEnrollmentProfile, error)
 
 	// GetMDMAppleEnrollmentProfileByToken loads the enrollment profile from its secret token.
+	// TODO(mna): this may have to be removed if we don't end up supporting
+	// manual enrollment via a token (currently we only support it via Fleet
+	// Desktop, in the My Device page). See #8701.
 	GetMDMAppleEnrollmentProfileByToken(ctx context.Context, token string) (*MDMAppleEnrollmentProfile, error)
 
 	// ListMDMAppleEnrollmentProfiles returns the list of all the enrollment profiles.
@@ -730,6 +736,9 @@ type Datastore interface {
 	// IngestMDMAppleDeviceFromCheckin creates a new Fleet host record for an MDM-enrolled device that is
 	// not already enrolled in Fleet.
 	IngestMDMAppleDeviceFromCheckin(ctx context.Context, mdmHost MDMAppleHostDetails) error
+
+	// GetNanoMDMEnrollmentStatus returns whether the identified enrollment is enabled
+	GetNanoMDMEnrollmentStatus(ctx context.Context, id string) (bool, error)
 
 	// IncreasePolicyAutomationIteration marks the policy to fire automation again.
 	IncreasePolicyAutomationIteration(ctx context.Context, policyID uint) error

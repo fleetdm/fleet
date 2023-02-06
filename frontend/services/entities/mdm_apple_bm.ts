@@ -1,6 +1,5 @@
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
-import { sendRequest } from "services/mock_service/service/service"; // MDM TODO: Replace when backend is merged
-// import sendRequest from "services";
+import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 
 export default {
@@ -13,19 +12,20 @@ export default {
     const { MDM_APPLE_BM_KEYS } = endpoints;
     const path = MDM_APPLE_BM_KEYS;
 
-    // MDM TODO: Originally written for certificate_chain for certificate, refactor for keys when backend is merged
-    return sendRequest("GET", path).then(({ certificate_chain }) => {
-      let decodedKeys;
+    return sendRequest("POST", path).then(({ private_key, public_key }) => {
+      let decodedPublic;
+      let decodedPrivate;
       try {
-        decodedKeys = global.window.atob(certificate_chain);
+        decodedPublic = global.window.atob(public_key);
+        decodedPrivate = global.window.atob(private_key);
       } catch (err) {
         return Promise.reject(`Unable to decode keys: ${err}`);
       }
-      if (!decodedKeys) {
+      if (!decodedPrivate || !decodedPublic) {
         return Promise.reject("Missing or undefined keys.");
       }
 
-      return Promise.resolve(decodedKeys);
+      return Promise.resolve({ decodedPublic, decodedPrivate });
     });
   },
 };

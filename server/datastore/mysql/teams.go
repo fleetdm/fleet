@@ -253,7 +253,7 @@ func (ds *Datastore) ListTeams(ctx context.Context, filter fleet.TeamFilter, opt
 		ds.whereFilterTeams(filter, "t"),
 	)
 	query, params := searchLike(query, nil, opt.MatchQuery, teamSearchColumns...)
-	query = appendListOptionsToSQL(query, opt)
+	query = appendListOptionsToSQL(query, &opt)
 	teams := []*fleet.Team{}
 	if err := sqlx.SelectContext(ctx, ds.reader, &teams, query, params...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list teams")
@@ -356,6 +356,21 @@ func teamFeaturesDB(ctx context.Context, q sqlx.QueryerContext, tid uint) (*flee
 		}
 	}
 	return &features, nil
+}
+
+func (ds *Datastore) TeamMDMConfig(ctx context.Context, tid uint) (*fleet.TeamMDM, error) {
+	sql := `SELECT config->'$.mdm' AS mdm FROM teams WHERE id = ?`
+	var raw *json.RawMessage
+	if err := sqlx.GetContext(ctx, ds.reader, &raw, sql, tid); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "select team MDM config")
+	}
+	var mdmConfig *fleet.TeamMDM
+	if raw != nil {
+		if err := json.Unmarshal(*raw, &mdmConfig); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "unmarshal team MDM config")
+		}
+	}
+	return mdmConfig, nil
 }
 
 // DeleteIntegrationsFromTeams removes the deleted integrations from any team

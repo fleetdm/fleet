@@ -13,8 +13,10 @@ import (
 	"path"
 	"strconv"
 	"text/template"
+	"time"
 
 	"github.com/docker/go-units"
+	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -119,7 +121,7 @@ func (svc *Service) setDEPProfile(ctx context.Context, enrollmentProfile *fleet.
 	depProfileRequest.URL = enrollURL
 	depProfileRequest.ConfigurationWebURL = enrollURL
 
-	depClient := fleet.NewDEPClient(svc.depStorage, svc.ds, svc.logger)
+	depClient := apple_mdm.NewDEPClient(svc.depStorage, svc.ds, svc.logger)
 	res, err := depClient.DefineProfile(ctx, apple_mdm.DEPName, &depProfileRequest)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "apple POST /profile request failed")
@@ -428,7 +430,7 @@ func (svc *Service) ListMDMAppleDEPDevices(ctx context.Context) ([]fleet.MDMAppl
 	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleDEPDevice{}, fleet.ActionWrite); err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
-	depClient := fleet.NewDEPClient(svc.depStorage, svc.ds, svc.logger)
+	depClient := apple_mdm.NewDEPClient(svc.depStorage, svc.ds, svc.logger)
 
 	// TODO(lucas): Use cursors and limit to fetch in multiple requests.
 	// This single-request version supports up to 1000 devices (max to return in one call).
@@ -822,6 +824,152 @@ func generateEnrollmentProfileMobileconfig(orgName, fleetURL, scepChallenge, top
 	return buf.Bytes(), nil
 }
 
+type mdmAppleCommandRemoveEnrollmentProfileRequest struct {
+	HostID uint `url:"id"`
+}
+
+type mdmAppleCommandRemoveEnrollmentProfileResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r mdmAppleCommandRemoveEnrollmentProfileResponse) error() error { return r.Err }
+
+func mdmAppleCommandRemoveEnrollmentProfileEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*mdmAppleCommandRemoveEnrollmentProfileRequest)
+	err := svc.EnqueueMDMAppleCommandRemoveEnrollmentProfile(ctx, req.HostID)
+	if err != nil {
+		return mdmAppleCommandRemoveEnrollmentProfileResponse{Err: err}, nil
+	}
+	return mdmAppleCommandRemoveEnrollmentProfileResponse{}, nil
+}
+
+func (svc *Service) EnqueueMDMAppleCommandRemoveEnrollmentProfile(ctx context.Context, hostID uint) error {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return err
+	}
+
+	h, err := svc.ds.HostLite(ctx, hostID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting host info for mdm apple remove profile command")
+	}
+
+	info, err := svc.ds.GetHostMDMCheckinInfo(ctx, h.UUID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting mdm checkin info for mdm apple remove profile command")
+	}
+
+	// check authorization again based on host info for team-based permissions
+	if err := svc.authz.Authorize(ctx, h, fleet.ActionMDMCommand); err != nil {
+		return err
+	}
+
+	enabled, err := svc.ds.GetNanoMDMEnrollmentStatus(ctx, h.UUID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting mdm enrollment status for mdm apple remove profile command")
+	}
+	if !enabled {
+		return fleet.NewUserMessageError(ctxerr.New(ctx, fmt.Sprintf("mdm is not enabled for host %d", hostID)), http.StatusConflict)
+	}
+
+	cmdUUID, err := svc.enqueueMDMAppleCommandRemoveEnrollmentProfile(ctx, h.UUID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "enqueuing mdm apple remove profile command")
+	}
+
+	if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeMDMUnenrolled{
+		HostSerial:       h.HardwareSerial,
+		HostDisplayName:  h.DisplayName(),
+		InstalledFromDEP: info.InstalledFromDEP,
+	}); err != nil {
+		return ctxerr.Wrap(ctx, err, "logging activity for mdm apple remove profile command")
+	}
+
+	return svc.pollResultMDMAppleCommandRemoveEnrollmentProfile(ctx, cmdUUID, h.UUID)
+}
+
+func (svc *Service) enqueueMDMAppleCommandRemoveEnrollmentProfile(ctx context.Context, hostUUID string) (string, error) {
+	cmd := new(mdm.Command)
+	cmdUUID := uuid.New().String()
+	cmd.CommandUUID = cmdUUID
+	cmd.Command.RequestType = "RemoveProfile"
+	cmd.Raw = []byte(generateMDMAppleCommandRemoveEnrollmentProfile(cmdUUID, apple_mdm.FleetPayloadIdentifier))
+
+	status, _, err := rawCommandEnqueue(ctx, svc.mdmStorage, svc.mdmPushService, cmd, []string{hostUUID}, false, svc.logger)
+	if err != nil {
+		// NOTE(sarah): rawCommandEnqueue does not currently return actionable errors so we rely on
+		// status code instead.
+		return cmdUUID, ctxerr.Wrap(ctx, err)
+	}
+
+	if status != http.StatusOK {
+		level.Debug(svc.logger).Log(
+			"msg", fmt.Sprintf("enqueuing mdm apple remove profile command resulted in unexpected status %d", status),
+			"host_uuid", hostUUID,
+			"command_uuid", cmdUUID,
+		)
+		if status != http.StatusMultiStatus {
+			// Status 207 is also possible with rawCommandEnqueue but should never happen in
+			// this case because we are only enqueueing this command to one device. If it does
+			// unexpectedly, we can proceed to the polling stage and will time out after 5 seconds
+			// in the worst case.
+			//
+			// Check the logs generated by rawCommandEnqueue if debugging unexpected results.
+			return cmdUUID, ctxerr.New(ctx, fmt.Sprintf("enqueuing mdm apple remove profile command resulted in unexpected status %d", status))
+		}
+	}
+
+	return cmdUUID, nil
+}
+
+func generateMDMAppleCommandRemoveEnrollmentProfile(cmdUUID string, profileUUID string) string {
+	return fmt.Sprintf(`
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"&gt;
+<plist version="1.0">
+<dict>
+	<key>CommandUUID</key>
+	<string>%s</string>
+	<key>Command</key>
+	<dict>
+		<key>RequestType</key>
+		<string>RemoveProfile</string>
+		<key>Identifier</key>
+		<string>%s</string>
+	</dict>
+</dict>
+</plist>`, cmdUUID, profileUUID)
+}
+
+func (svc *Service) pollResultMDMAppleCommandRemoveEnrollmentProfile(ctx context.Context, cmdUUID string, deviceID string) error {
+	ctx, cancelFn := context.WithDeadline(ctx, time.Now().Add(5*time.Second))
+	ticker := time.NewTicker(300 * time.Millisecond)
+	defer func() {
+		ticker.Stop()
+		cancelFn()
+	}()
+
+	for {
+		select {
+		case <-ctx.Done():
+			// time out after 5 seconds
+			return fleet.MDMAppleCommandTimeoutError{}
+		case <-ticker.C:
+			enabled, err := svc.ds.GetNanoMDMEnrollmentStatus(ctx, deviceID)
+			if err != nil {
+				level.Error(svc.logger).Log("err", "get nanomdm enrollment status", "details", err, "id", deviceID, "command_uuid", cmdUUID)
+				return err
+			}
+			if enabled {
+				// check again on the next tick
+				continue
+			}
+			// success, mdm enrollment is no longer enabled for the device
+			level.Info(svc.logger).Log("msg", "mdm disabled for device", "id", deviceID, "command_uuid", cmdUUID)
+			return nil
+		}
+	}
+}
+
 type mdmAppleGetInstallerRequest struct {
 	Token string `query:"token"`
 }
@@ -952,4 +1100,121 @@ func (svc *Service) ListMDMAppleInstallers(ctx context.Context) ([]fleet.MDMAppl
 		installers[i].URL = svc.installerURL(installers[i].URLToken, appConfig)
 	}
 	return installers, nil
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Implementation of nanomdm's CheckinAndCommandService interface
+////////////////////////////////////////////////////////////////////////////////
+
+type MDMAppleCheckinAndCommandService struct {
+	ds fleet.Datastore
+}
+
+func NewMDMAppleCheckinAndCommandService(ds fleet.Datastore) *MDMAppleCheckinAndCommandService {
+	return &MDMAppleCheckinAndCommandService{ds: ds}
+}
+
+// Authenticate handles MDM [Authenticate][1] requests.
+//
+// This method is executed after the request has been handled by nanomdm, note
+// that at this point you can't send any commands to the device yet because we
+// haven't received a token, nor a PushMagic.
+//
+// We use it to perform post-enrollment tasks such as creating a host record,
+// adding activities to the log, etc.
+//
+// [1]: https://developer.apple.com/documentation/devicemanagement/authenticate
+func (svc *MDMAppleCheckinAndCommandService) Authenticate(r *mdm.Request, m *mdm.Authenticate) error {
+	host := fleet.MDMAppleHostDetails{}
+	host.SerialNumber = m.SerialNumber
+	host.UDID = m.UDID
+	host.Model = m.Model
+	if err := svc.ds.IngestMDMAppleDeviceFromCheckin(r.Context, host); err != nil {
+		return err
+	}
+	info, err := svc.ds.GetHostMDMCheckinInfo(r.Context, m.Enrollment.UDID)
+	if err != nil {
+		return err
+	}
+	return svc.ds.NewActivity(r.Context, nil, &fleet.ActivityTypeMDMEnrolled{
+		HostSerial:       info.HardwareSerial,
+		HostDisplayName:  info.DisplayName,
+		InstalledFromDEP: info.InstalledFromDEP,
+	})
+}
+
+// TokenUpdate handles MDM [TokenUpdate][1] requests.
+//
+// This method is executed after the request has been handled by nanomdm.
+//
+// [1]: https://developer.apple.com/documentation/devicemanagement/token_update
+func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.TokenUpdate) error {
+	return nil
+}
+
+// CheckOut handles MDM [CheckOut][1] requests.
+//
+// This method is executed after the request has been handled by nanomdm, note
+// that this message is sent on a best-effort basis, don't rely exclusively on
+// it.
+//
+// [1]: https://developer.apple.com/documentation/devicemanagement/check_out
+func (svc *MDMAppleCheckinAndCommandService) CheckOut(r *mdm.Request, m *mdm.CheckOut) error {
+	info, err := svc.ds.GetHostMDMCheckinInfo(r.Context, m.Enrollment.UDID)
+	if err != nil {
+		return err
+	}
+	if err := svc.ds.UpdateHostTablesOnMDMUnenroll(r.Context, m.UDID); err != nil {
+		return err
+	}
+	return svc.ds.NewActivity(r.Context, nil, &fleet.ActivityTypeMDMUnenrolled{
+		HostSerial:       info.HardwareSerial,
+		HostDisplayName:  info.DisplayName,
+		InstalledFromDEP: info.InstalledFromDEP,
+	})
+}
+
+// SetBootstrapToken handles MDM [SetBootstrapToken][1] requests.
+//
+// This method is executed after the request has been handled by nanomdm.
+//
+// [1]: https://developer.apple.com/documentation/devicemanagement/set_bootstrap_token
+func (svc *MDMAppleCheckinAndCommandService) SetBootstrapToken(*mdm.Request, *mdm.SetBootstrapToken) error {
+	return nil
+}
+
+// GetBootstrapToken handles MDM [GetBootstrapToken][1] requests.
+//
+// This method is executed after the request has been handled by nanomdm.
+//
+// [1]: https://developer.apple.com/documentation/devicemanagement/get_bootstrap_token
+func (svc *MDMAppleCheckinAndCommandService) GetBootstrapToken(*mdm.Request, *mdm.GetBootstrapToken) (*mdm.BootstrapToken, error) {
+	return nil, nil
+}
+
+// UserAuthenticate handles MDM [UserAuthenticate][1] requests.
+//
+// This method is executed after the request has been handled by nanomdm.
+//
+// [1]: https://developer.apple.com/documentation/devicemanagement/userauthenticate
+func (svc *MDMAppleCheckinAndCommandService) UserAuthenticate(*mdm.Request, *mdm.UserAuthenticate) ([]byte, error) {
+	return nil, nil
+}
+
+// DeclarativeManagement handles MDM [DeclarativeManagement][1] requests.
+//
+// This method is executed after the request has been handled by nanomdm.
+//
+// [1]: https://developer.apple.com/documentation/devicemanagement/declarative_management_checkin
+func (svc *MDMAppleCheckinAndCommandService) DeclarativeManagement(*mdm.Request, *mdm.DeclarativeManagement) ([]byte, error) {
+	return nil, nil
+}
+
+// CommandAndReportResults handles MDM [Commands and Queries][1].
+//
+// This method is executed after the request has been handled by nanomdm.
+//
+// [1]: https://developer.apple.com/documentation/devicemanagement/commands_and_queries
+func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(*mdm.Request, *mdm.CommandResults) (*mdm.Command, error) {
+	return nil, nil
 }

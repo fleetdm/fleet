@@ -18,6 +18,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/live_query/live_query_mock"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/fleetdm/fleet/v4/server/test"
@@ -57,13 +58,17 @@ type withServer struct {
 	users            map[string]fleet.User
 	token            string
 	cachedAdminToken string
+	lq               *live_query_mock.MockLiveQuery
 }
 
 func (ts *withServer) SetupSuite(dbName string) {
 	ts.withDS.SetupSuite(dbName)
 
 	rs := pubsub.NewInmemQueryResults()
-	users, server := RunServerForTestsWithDS(ts.s.T(), ts.ds, &TestServerOpts{Rs: rs})
+	users, server := RunServerForTestsWithDS(ts.s.T(), ts.ds, &TestServerOpts{
+		Rs: rs,
+		Lq: ts.lq,
+	})
 	ts.server = server
 	ts.users = users
 	ts.token = ts.getTestAdminToken()

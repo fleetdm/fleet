@@ -47,5 +47,10 @@ module.exports.policies = {
   'view-connect-vanta': true,
   'view-vanta-authorization': true,
   'create-vanta-authorization-request': true,
-
+  'view-fleet-mdm': true,
+  'deliver-mdm-beta-signup': true,
+  'deliver-apple-csr': true,
+  'download-rss-feed': true,
+  'view-upgrade': true,
+  'deliver-premium-upgrade-form': true,
 };

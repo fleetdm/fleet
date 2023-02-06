@@ -342,7 +342,7 @@ type UpdateHostTablesOnMDMUnenrollFunc func(ctx context.Context, uuid string) er
 
 type NewActivityFunc func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error
 
-type ListActivitiesFunc func(ctx context.Context, opt fleet.ListActivitiesOptions) ([]*fleet.Activity, error)
+type ListActivitiesFunc func(ctx context.Context, opt fleet.ListActivitiesOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error)
 
 type MarkActivitiesAsStreamedFunc func(ctx context.Context, activityIDs []uint) error
 
@@ -429,6 +429,8 @@ type UpdateHostOsqueryIntervalsFunc func(ctx context.Context, hostID uint, inter
 type TeamAgentOptionsFunc func(ctx context.Context, teamID uint) (*json.RawMessage, error)
 
 type TeamFeaturesFunc func(ctx context.Context, teamID uint) (*fleet.Features, error)
+
+type TeamMDMConfigFunc func(ctx context.Context, teamID uint) (*fleet.TeamMDM, error)
 
 type SaveHostPackStatsFunc func(ctx context.Context, hostID uint, stats []fleet.PackStats) error
 
@@ -519,6 +521,8 @@ type MDMAppleListDevicesFunc func(ctx context.Context) ([]fleet.MDMAppleDevice, 
 type IngestMDMAppleDevicesFromDEPSyncFunc func(ctx context.Context, devices []godep.Device) (int64, error)
 
 type IngestMDMAppleDeviceFromCheckinFunc func(ctx context.Context, mdmHost fleet.MDMAppleHostDetails) error
+
+type GetNanoMDMEnrollmentStatusFunc func(ctx context.Context, id string) (bool, error)
 
 type IncreasePolicyAutomationIterationFunc func(ctx context.Context, policyID uint) error
 
@@ -1149,6 +1153,9 @@ type DataStore struct {
 	TeamFeaturesFunc        TeamFeaturesFunc
 	TeamFeaturesFuncInvoked bool
 
+	TeamMDMConfigFunc        TeamMDMConfigFunc
+	TeamMDMConfigFuncInvoked bool
+
 	SaveHostPackStatsFunc        SaveHostPackStatsFunc
 	SaveHostPackStatsFuncInvoked bool
 
@@ -1283,6 +1290,9 @@ type DataStore struct {
 
 	IngestMDMAppleDeviceFromCheckinFunc        IngestMDMAppleDeviceFromCheckinFunc
 	IngestMDMAppleDeviceFromCheckinFuncInvoked bool
+
+	GetNanoMDMEnrollmentStatusFunc        GetNanoMDMEnrollmentStatusFunc
+	GetNanoMDMEnrollmentStatusFuncInvoked bool
 
 	IncreasePolicyAutomationIterationFunc        IncreasePolicyAutomationIterationFunc
 	IncreasePolicyAutomationIterationFuncInvoked bool
@@ -2111,7 +2121,7 @@ func (s *DataStore) NewActivity(ctx context.Context, user *fleet.User, activity 
 	return s.NewActivityFunc(ctx, user, activity)
 }
 
-func (s *DataStore) ListActivities(ctx context.Context, opt fleet.ListActivitiesOptions) ([]*fleet.Activity, error) {
+func (s *DataStore) ListActivities(ctx context.Context, opt fleet.ListActivitiesOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error) {
 	s.ListActivitiesFuncInvoked = true
 	return s.ListActivitiesFunc(ctx, opt)
 }
@@ -2329,6 +2339,11 @@ func (s *DataStore) TeamAgentOptions(ctx context.Context, teamID uint) (*json.Ra
 func (s *DataStore) TeamFeatures(ctx context.Context, teamID uint) (*fleet.Features, error) {
 	s.TeamFeaturesFuncInvoked = true
 	return s.TeamFeaturesFunc(ctx, teamID)
+}
+
+func (s *DataStore) TeamMDMConfig(ctx context.Context, teamID uint) (*fleet.TeamMDM, error) {
+	s.TeamMDMConfigFuncInvoked = true
+	return s.TeamMDMConfigFunc(ctx, teamID)
 }
 
 func (s *DataStore) SaveHostPackStats(ctx context.Context, hostID uint, stats []fleet.PackStats) error {
@@ -2554,6 +2569,11 @@ func (s *DataStore) IngestMDMAppleDevicesFromDEPSync(ctx context.Context, device
 func (s *DataStore) IngestMDMAppleDeviceFromCheckin(ctx context.Context, mdmHost fleet.MDMAppleHostDetails) error {
 	s.IngestMDMAppleDeviceFromCheckinFuncInvoked = true
 	return s.IngestMDMAppleDeviceFromCheckinFunc(ctx, mdmHost)
+}
+
+func (s *DataStore) GetNanoMDMEnrollmentStatus(ctx context.Context, id string) (bool, error) {
+	s.GetNanoMDMEnrollmentStatusFuncInvoked = true
+	return s.GetNanoMDMEnrollmentStatusFunc(ctx, id)
 }
 
 func (s *DataStore) IncreasePolicyAutomationIteration(ctx context.Context, policyID uint) error {

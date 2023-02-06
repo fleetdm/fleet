@@ -10,6 +10,7 @@ interface ICustomLinkProps {
   newTab?: boolean;
   /** Icon wraps on new line with last word */
   multiline?: boolean;
+  black?: boolean;
 }
 
 const baseClass = "custom-link";
@@ -20,6 +21,7 @@ const CustomLink = ({
   className,
   newTab = false,
   multiline = false,
+  black = false,
 }: ICustomLinkProps): JSX.Element => {
   const customLinkClass = classnames(baseClass, className);
 
@@ -37,6 +39,7 @@ const CustomLink = ({
           <Icon
             name="external-link"
             className={`${baseClass}__external-icon`}
+            color={black ? "core-fleet-black" : "core-fleet-blue"}
           />
         )}
       </span>
@@ -45,7 +48,11 @@ const CustomLink = ({
     <>
       {text}
       {newTab && (
-        <Icon name="external-link" className={`${baseClass}__external-icon`} />
+        <Icon
+          name="external-link"
+          className={`${baseClass}__external-icon`}
+          color={black ? "core-fleet-black" : "core-fleet-blue"}
+        />
       )}
     </>
   );

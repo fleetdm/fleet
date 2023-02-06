@@ -42,5 +42,11 @@ parasails.registerPage('connect-vanta', {
       window.location = this.vantaAuthorizationRequestURL;
     },
 
+    clickClearErrors: async function() {
+      this.cloudError = '';
+      this.formErrors = {};
+      await this.forceRender();
+    },
+
   }
 });

@@ -16,12 +16,14 @@ import {
 } from "interfaces/host";
 import { ISoftware } from "interfaces/software";
 import { IHostPolicy } from "interfaces/policy";
+import { IDeviceGlobalConfig } from "interfaces/config";
 import DeviceUserError from "components/DeviceUserError";
 // @ts-ignore
 import OrgLogoIcon from "components/icons/OrgLogoIcon";
 import Spinner from "components/Spinner";
 import Button from "components/buttons/Button";
 import TabsWrapper from "components/TabsWrapper";
+import InfoBanner from "components/InfoBanner";
 import {
   normalizeEmptyValues,
   wrapFleetHelper,
@@ -37,6 +39,8 @@ import InfoModal from "./InfoModal";
 import InfoIcon from "../../../../../assets/images/icon-info-purple-14x14@2x.png";
 import FleetIcon from "../../../../../assets/images/fleet-avatar-24x24@2x.png";
 import PolicyDetailsModal from "../cards/Policies/HostPoliciesTable/PolicyDetailsModal";
+import AutoEnrollMdmModal from "./AutoEnrollMdmModal";
+import ManualEnrollMdmModal from "./ManualEnrollMdmModal";
 
 const baseClass = "device-user";
 
@@ -57,6 +61,7 @@ const DeviceUserPage = ({
 
   const [isPremiumTier, setIsPremiumTier] = useState(false);
   const [showInfoModal, setShowInfoModal] = useState(false);
+  const [showEnrollMdmModal, setShowEnrollMdmModal] = useState(false);
   const [refetchStartTime, setRefetchStartTime] = useState<number | null>(null);
   const [showRefetchSpinner, setShowRefetchSpinner] = useState(false);
   const [hostSoftware, setHostSoftware] = useState<ISoftware[]>([]);
@@ -70,6 +75,9 @@ const DeviceUserPage = ({
     null
   );
   const [showPolicyDetailsModal, setShowPolicyDetailsModal] = useState(false);
+  const [globalConfig, setGlobalConfig] = useState<IDeviceGlobalConfig | null>(
+    null
+  );
 
   const { data: deviceMapping, refetch: refetchDeviceMapping } = useQuery(
     ["deviceMapping", deviceAuthToken],
@@ -128,6 +136,7 @@ const DeviceUserPage = ({
           ),
         });
         setOrgLogoURL(returnedHost.org_logo_url);
+        setGlobalConfig(returnedHost.global_config);
         if (returnedHost?.host.refetch_requested) {
           // If the API reports that a Fleet refetch request is pending, we want to check back for fresh
           // host details. Here we set a one second timeout and poll the API again using
@@ -212,6 +221,10 @@ const DeviceUserPage = ({
     setShowInfoModal(!showInfoModal);
   }, [showInfoModal, setShowInfoModal]);
 
+  const toggleEnrollMdmModal = useCallback(() => {
+    setShowEnrollMdmModal(!showEnrollMdmModal);
+  }, [showEnrollMdmModal, setShowEnrollMdmModal]);
+
   const togglePolicyDetailsModal = useCallback(
     (policy: IHostPolicy) => {
       setShowPolicyDetailsModal(!showPolicyDetailsModal);
@@ -256,14 +269,43 @@ const DeviceUserPage = ({
 
   const statusClassName = classnames("status", `status--${host?.status}`);
 
+  const turnOnMdmButton = (
+    <Button variant="unstyled" onClick={toggleEnrollMdmModal}>
+      <b>Turn on MDM</b>
+    </Button>
+  );
+
+  const renderEnrollMdmModal = () => {
+    return host?.mdm.enrollment_status === "Pending" ? (
+      <AutoEnrollMdmModal onCancel={toggleEnrollMdmModal} />
+    ) : (
+      <ManualEnrollMdmModal
+        onCancel={toggleEnrollMdmModal}
+        token={deviceAuthToken}
+      />
+    );
+  };
+
   const renderDeviceUserPage = () => {
     const failingPoliciesCount = host?.issues?.failing_policies_count || 0;
+    const isMdmUnenrolled =
+      host?.mdm.enrollment_status === "Off" || !host?.mdm.enrollment_status;
     return (
       <div className="fleet-desktop-wrapper">
         {isLoadingHost ? (
           <Spinner />
         ) : (
           <div className={`${baseClass} body-wrap`}>
+            {host?.platform === "darwin" &&
+              isMdmUnenrolled &&
+              globalConfig?.mdm.enabled_and_configured && (
+                <InfoBanner color="yellow" cta={turnOnMdmButton} pageLevel>
+                  Mobile device management (MDM) is off. MDM allows your
+                  organization to change settings and install software. This
+                  lets your organization keep your device up to date so you
+                  don’t have to.
+                </InfoBanner>
+              )}
             <HostSummaryCard
               statusClassName={statusClassName}
               titleData={titleData}
@@ -318,6 +360,7 @@ const DeviceUserPage = ({
               </Tabs>
             </TabsWrapper>
             {showInfoModal && <InfoModal onCancel={toggleInfoModal} />}
+            {showEnrollMdmModal && renderEnrollMdmModal()}
           </div>
         )}
         {!!host && showPolicyDetailsModal && (

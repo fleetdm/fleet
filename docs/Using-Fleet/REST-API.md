@@ -422,7 +422,8 @@ This is the callback endpoint that the identity provider will use to send securi
 
 ### List activities
 
-Returns a list of the activities that have been performed in Fleet. The following types of activity are included:
+Returns a list of the activities that have been performed in Fleet as well as additional meta data
+for pagination. The following types of activity are included:
 
 - Created pack
 - Edited pack
@@ -587,7 +588,11 @@ Returns a list of the activities that have been performed in Fleet. The followin
         "target_counts": 14
       }
     }
-  ]
+  ],
+  "meta": {
+    "has_next_results": true,
+    "has_previous_results": false
+  }
 }
 
 ```
@@ -833,7 +838,11 @@ None.
   },
   "mdm": {
     "apple_bm_default_team": "",
-    "apple_bm_terms_expired": false
+    "apple_bm_terms_expired": false,
+    "macos_updates": {
+      "minimum_version": "12.3.1",
+      "deadline": "2022-01-01"
+    }
   },
   "agent_options": {
     "spec": {
@@ -909,7 +918,13 @@ None.
     "jira": null
   },
   "mdm": {
-    "apple_bm_default_team": ""
+    "apple_bm_terms_expired": false,
+    "enabled_and_configured": false,
+    "apple_bm_default_team": "",
+    "macos_updates": {
+      "minimum_version": "12.3.1",
+      "deadline": "2022-01-01"
+    }
   },
   "logging": {
     "debug": false,
@@ -1008,7 +1023,9 @@ Modifies the Fleet's configuration with the supplied information.
 | email                             | string  | body  | _integrations.zendesk[] settings_. The Zendesk user email to use for this Zendesk integration. |
 | api_token                         | string  | body  | _integrations.zendesk[] settings_. The Zendesk API token to use for this Zendesk integration. |
 | group_id                          | integer | body  | _integrations.zendesk[] settings_. The Zendesk group id to use for this integration. Zendesk tickets will be created in this group. |
-| apple_bm_default_team             | string  | body  | _mdm settings_. The default team to use with Apple Business Manager. |
+| apple_bm_default_team             | string  | body  | _mdm settings_. The default team to use with Apple Business Manager. **Requires Fleet Premium license** |
+| minimum_version                   | string  | body  | _mdm.macos_updates settings_. Hosts that belong to no team and are enrolled into Fleet's MDM will be nudged until their macOS is at or above this version. **Requires Fleet Premium license** |
+| deadline                          | string  | body  | _mdm.macos_updates settings_. Hosts that belong to no team and are enrolled into Fleet's MDM won't be able to dismiss the Nudge window once this deadline is past. **Requires Fleet Premium license** |
 | additional_queries                | boolean | body  | Whether or not additional queries are enabled on hosts.                                                                                                                                |
 | force                             | bool    | query | Force apply the agent options even if there are validation errors.                                                                                                 |
 | dry_run                           | bool    | query | Validate the configuration and return any validation errors, but do not apply the changes.                                                                         |
@@ -1084,7 +1101,12 @@ Modifies the Fleet's configuration with the supplied information.
   },
   "mdm": {
     "apple_bm_default_team": "",
-    "apple_bm_terms_expired": false
+    "apple_bm_terms_expired": false,
+    "enabled_and_configured": false,
+    "macos_updates": {
+      "minimum_version": "12.3.1",
+      "deadline": "2022-01-01"
+    }
   },
   "agent_options": {
     "config": {
@@ -1141,7 +1163,11 @@ Modifies the Fleet's configuration with the supplied information.
     ]
   },
   "mdm": {
-    "apple_bm_default_team": ""
+    "apple_bm_default_team": "",
+    "macos_updates": {
+      "minimum_version": "12.3.1",
+      "deadline": "2022-01-01"
+    }
   },
   "logging": {
       "debug": false,
@@ -1679,6 +1705,7 @@ None.
 
 ## Hosts
 
+- [On the different timestamps in the host data structure](#on-the-different-timestamps-in-the-host-data-structure)
 - [List hosts](#list-hosts)
 - [Count hosts](#count-hosts)
 - [Get hosts summary](#get-hosts-summary)
@@ -1696,6 +1723,29 @@ None.
 - [Get aggregated host's mobile device management (MDM) and Munki information](#get-aggregated-hosts-macadmin-mobile-device-management-mdm-and-munki-information)
 - [Get host OS versions](#get-host-os-versions)
 - [Get hosts report in CSV](#get-hosts-report-in-csv)
+
+### On the different timestamps in the host data structure
+
+Hosts have a set of timestamps usually named with an "_at" suffix, such as created_at, enrolled_at, etc. Before we go
+through each of them and what they mean, we need to understand a bit more about how the host data structure is
+represented in the database.
+
+The table `hosts` is the main one. It holds the core data for a host. A host doesn't exist if there is no row for it in
+this table. This table also holds most of the timestamps, but it doesn't hold all of the host data. This is an important
+detail as we'll see below.
+
+There's adjacent tables to this one that usually follow the name convention `host_<extra data descriptor>`. Examples of
+this are: `host_additional` that holds additional query results, `host_software` that links a host with many rows from
+the `software` table.
+
+- `created_at`: the time the row in the database was created, which usually corresponds to the first enrollment of the host.
+- `updated_at`: the last time the row in the database for the `hosts` table was updated.
+- `detail_updated_at`: the last time Fleet updated host data, based on the results from the detail queries (this includes updates to host associated tables, e.g. `host_users`).
+- `label_updated_at`: the last time Fleet updated the label membership for the host based on the results from the queries ran.
+- `last_enrolled_at`: the last time the host enrolled to Fleet.
+- `policy_updated_at`: the last time we updated the policy results for the host based on the queries ran.
+- `seen_time`: the last time the host contacted the fleet server, regardless of what operation it was for.
+- `software_updated_at`: the last time software changed for the host in any way.
 
 ### List hosts
 
@@ -1765,6 +1815,7 @@ If `after` is being used with `created_at` or `updated_at`, the table must be sp
       "updated_at": "2020-11-05T06:03:39Z",
       "id": 1,
       "detail_updated_at": "2020-11-05T05:09:45Z",
+      "software_updated_at": "2020-11-05T05:09:44Z",
       "label_updated_at": "2020-11-05T05:14:51Z",
       "seen_time": "2020-11-05T06:03:39Z",
       "hostname": "2ceca32fe484",
@@ -1811,6 +1862,10 @@ If `after` is being used with `created_at` or `updated_at`, the table must be sp
           "type": "point",
           "coordinates": [40.6799, -74.0028]
         }
+      },
+      "mdm": {
+        "enrollment_status": null,
+        "server_url": null
       }
     }
   ]
@@ -2044,6 +2099,7 @@ Returns the information of the specified host.
     ],
     "id": 1,
     "detail_updated_at": "2021-08-19T21:07:53Z",
+    "software_updated_at": "2020-11-05T05:09:44Z",
     "label_updated_at": "2021-08-19T21:07:53Z",
     "last_enrolled_at": "2021-08-19T02:02:22Z",
     "seen_time": "2021-08-19T21:14:58Z",
@@ -2185,6 +2241,10 @@ Returns the information of the specified host.
         "type": "point",
         "coordinates": [40.6799, -74.0028]
       }
+    },
+    "mdm": {
+      "enrollment_status": null,
+      "server_url": null
     }
   }
 }
@@ -2233,6 +2293,7 @@ Returns the information of the host specified using the `uuid`, `osquery_host_id
     "label_updated_at": "2022-10-14T17:07:12Z",
     "policy_updated_at": "2022-10-14T17:07:12Z",
     "last_enrolled_at": "2022-02-10T02:29:13Z",
+    "software_updated_at": "2020-11-05T05:09:44Z",
     "seen_time": "2022-10-14T17:45:41Z",
     "refetch_requested": false,
     "hostname": "23cfc9caacf0",
@@ -2358,7 +2419,11 @@ Returns the information of the host specified using the `uuid`, `osquery_host_id
     },
     "status": "online",
     "display_text": "dogfood-ubuntu-box",
-    "display_name": "dogfood-ubuntu-box"
+    "display_name": "dogfood-ubuntu-box",
+    "mdm": {
+      "enrollment_status": null,
+      "server_url": null
+    }
   }
 }
 ```
@@ -3270,6 +3335,7 @@ Returns a list of the hosts that belong to the specified label.
       "detail_updated_at": "2021-02-03T21:58:10Z",
       "label_updated_at": "2021-02-03T21:58:10Z",
       "last_enrolled_at": "2021-02-03T16:11:43Z",
+      "software_updated_at": "2020-11-05T05:09:44Z",
       "seen_time": "2021-02-03T21:58:20Z",
       "refetch_requested": false,
       "hostname": "floobar42",
@@ -5019,6 +5085,7 @@ The returned lists are filtered based on the hosts the requesting user has acces
         "detail_updated_at": "2021-02-03T21:58:10Z",
         "label_updated_at": "2021-02-03T21:58:10Z",
         "last_enrolled_at": "2021-02-03T16:11:43Z",
+        "software_updated_at": "2020-11-05T05:09:44Z",
         "seen_time": "2021-02-03T21:58:20Z",
         "hostname": "7a2f41482833",
         "uuid": "a2064cef-0000-0000-afb9-283e3c1d487e",
@@ -5057,6 +5124,7 @@ The returned lists are filtered based on the hosts the requesting user has acces
         "detail_updated_at": "2021-02-03T21:58:10Z",
         "label_updated_at": "2021-02-03T21:58:10Z",
         "last_enrolled_at": "2021-02-03T16:11:43Z",
+        "software_updated_at": "2020-11-05T05:09:44Z",
         "seen_time": "2021-02-03T21:58:20Z",
         "hostname": "78c96e72746c",
         "uuid": "a2064cef-0000-0000-afb9-283e3c1d487e",
@@ -5379,27 +5447,32 @@ _Available in Fleet Premium_
 
 #### Parameters
 
-| Name                                                    | Type    | In   | Description                                                                                                                                                  |
-| ---                                                     | ---     | ---  | ---                                                                                                                                                          |
-| id                                                      | integer | path | **Required.** The desired team's ID.                                                                                                                         |
-| name                                                    | string  | body | The team's name.                                                                                                                                             |
-| host_ids                                                | list    | body | A list of hosts that belong to the team.                                                                                                                     |
-| user_ids                                                | list    | body | A list of users that are members of the team.                                                                                                                |
-| webhook_settings                                        | object  | body | Webhook settings contains for the team.                                                                                                                      |
-| &nbsp;&nbsp;failing_policies_webhook                    | object  | body | Failing policies webhook settings.                                                                                                                           |
-| &nbsp;&nbsp;&nbsp;&nbsp;enable_failing_policies_webhook | boolean | body | Whether or not the failing policies webhook is enabled.                                                                                                      |
-| &nbsp;&nbsp;&nbsp;&nbsp;destination_url                 | string  | body | The URL to deliver the webhook requests to.                                                                                                                  |
-| &nbsp;&nbsp;&nbsp;&nbsp;policy_ids                      | array   | body | List of policy IDs to enable failing policies webhook.                                                                                                       |
-| &nbsp;&nbsp;&nbsp;&nbsp;host_batch_size                 | integer | body | Maximum number of hosts to batch on failing policy webhook requests. The default, 0, means no batching (all hosts failing a policy are sent on one request). |
-| integrations                                            | object  | body | Integrations settings for the team. Note that integrations referenced here must already exist globally, created by a call to [Modify configuration](#modify-configuration).     |
-| &nbsp;&nbsp;jira                                        | array   | body | Jira integrations configuration. |
-| &nbsp;&nbsp;&nbsp;&nbsp;url                             | string  | body | The URL of the Jira server to use. |
-| &nbsp;&nbsp;&nbsp;&nbsp;project_key                     | string  | body | The project key of the Jira integration to use. Jira tickets will be created in this project. |
-| &nbsp;&nbsp;&nbsp;&nbsp;enable_failing_policies         | boolean | body | Whether or not that Jira integration is enabled for failing policies. Only one failing policy automation can be enabled at a given time (enable_failing_policies_webhook and enable_failing_policies). |
-| &nbsp;&nbsp;zendesk                                     | array   | body | Zendesk integrations configuration. |
-| &nbsp;&nbsp;&nbsp;&nbsp;url                             | string  | body | The URL of the Zendesk server to use. |
-| &nbsp;&nbsp;&nbsp;&nbsp;group_id                        | integer | body | The Zendesk group id to use. Zendesk tickets will be created in this group. |
+| Name                                                    | Type    | In   | Description                                                                                                                                                                                               |
+| ------------------------------------------------------- | ------- | ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| id                                                      | integer | path | **Required.** The desired team's ID.                                                                                                                                                                      |
+| name                                                    | string  | body | The team's name.                                                                                                                                                                                          |
+| host_ids                                                | list    | body | A list of hosts that belong to the team.                                                                                                                                                                  |
+| user_ids                                                | list    | body | A list of users that are members of the team.                                                                                                                                                             |
+| webhook_settings                                        | object  | body | Webhook settings contains for the team.                                                                                                                                                                   |
+| &nbsp;&nbsp;failing_policies_webhook                    | object  | body | Failing policies webhook settings.                                                                                                                                                                        |
+| &nbsp;&nbsp;&nbsp;&nbsp;enable_failing_policies_webhook | boolean | body | Whether or not the failing policies webhook is enabled.                                                                                                                                                   |
+| &nbsp;&nbsp;&nbsp;&nbsp;destination_url                 | string  | body | The URL to deliver the webhook requests to.                                                                                                                                                               |
+| &nbsp;&nbsp;&nbsp;&nbsp;policy_ids                      | array   | body | List of policy IDs to enable failing policies webhook.                                                                                                                                                    |
+| &nbsp;&nbsp;&nbsp;&nbsp;host_batch_size                 | integer | body | Maximum number of hosts to batch on failing policy webhook requests. The default, 0, means no batching (all hosts failing a policy are sent on one request).                                              |
+| integrations                                            | object  | body | Integrations settings for the team. Note that integrations referenced here must already exist globally, created by a call to [Modify configuration](#modify-configuration).                               |
+| &nbsp;&nbsp;jira                                        | array   | body | Jira integrations configuration.                                                                                                                                                                          |
+| &nbsp;&nbsp;&nbsp;&nbsp;url                             | string  | body | The URL of the Jira server to use.                                                                                                                                                                        |
+| &nbsp;&nbsp;&nbsp;&nbsp;project_key                     | string  | body | The project key of the Jira integration to use. Jira tickets will be created in this project.                                                                                                             |
+| &nbsp;&nbsp;&nbsp;&nbsp;enable_failing_policies         | boolean | body | Whether or not that Jira integration is enabled for failing policies. Only one failing policy automation can be enabled at a given time (enable_failing_policies_webhook and enable_failing_policies).    |
+| &nbsp;&nbsp;zendesk                                     | array   | body | Zendesk integrations configuration.                                                                                                                                                                       |
+| &nbsp;&nbsp;&nbsp;&nbsp;url                             | string  | body | The URL of the Zendesk server to use.                                                                                                                                                                     |
+| &nbsp;&nbsp;&nbsp;&nbsp;group_id                        | integer | body | The Zendesk group id to use. Zendesk tickets will be created in this group.                                                                                                                               |
 | &nbsp;&nbsp;&nbsp;&nbsp;enable_failing_policies         | boolean | body | Whether or not that Zendesk integration is enabled for failing policies. Only one failing policy automation can be enabled at a given time (enable_failing_policies_webhook and enable_failing_policies). |
+| mdm                                                     | object  | body | MDM settings for the team.                                                                                                                                                                                |
+| &nbsp;&nbsp;macos_updates                               | object  | body | MacOS updates settings.                                                                                                                                                                                   |
+| &nbsp;&nbsp;&nbsp;&nbsp;minimum_version                 | string  | body | Hosts that belong to this team and are enrolled into Fleet's MDM will be nudged until their macOS is at or above this version.                                                                            |
+| &nbsp;&nbsp;&nbsp;&nbsp;deadline                        | string  | body | Hosts that belong to this team and are enrolled into Fleet's MDM won't be able to dismiss the Nudge window once this deadline is past.                                                                    |
+
 
 #### Example (add users to a team)
 
@@ -5452,7 +5525,13 @@ _Available in Fleet Premium_
         "policy_ids": null,
         "host_batch_size": 0
       }
-    }
+    },
+    "mdm": {
+      "macos_updates": {
+        "minimum_version": "12.3.1",
+        "deadline": "2022-01-01"
+      }
+    },
   }
 }
 ```

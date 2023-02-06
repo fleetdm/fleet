@@ -95,38 +95,40 @@ module.exports.custom = {
   *                                                                          *
   ***************************************************************************/
   githubRepoDRIByPath: {
-    'README.md': ['chris-mcgillicuddy', 'jarodreyes'],// (github brandfront)
-    'tools/fleetctl-npm/README.md': ['chris-mcgillicuddy', 'mike-j-thomas', 'jarodreyes', 'zwass'],//« brandfront for fleetctl package on npm
+    'README.md': ['mikermcneil', 'jarodreyes', 'mike-j-thomas', 'zwass'],// (github brandfront)
+    'tools/fleetctl-npm/README.md': ['mikermcneil', 'mike-j-thomas', 'jarodreyes', 'zwass'],//« brandfront for fleetctl package on npm
 
     'CODEOWNERS': ['zwass', 'mikermcneil'],
 
-    'articles': ['chris-mcgillicuddy', 'mike-j-thomas', 'eashaw', 'zwass', 'mikermcneil'],
+    'articles': ['jarodreyes', 'mike-j-thomas', 'eashaw', 'zwass', 'mikermcneil'],
 
-    'handbook': ['chris-mcgillicuddy', 'mike-j-Thomas', 'eashaw', 'mikermcneil', 'zwass'],// (default for handbook)
+    'handbook': ['mike-j-thomas', 'eashaw', 'mikermcneil', 'zwass', 'charlottechance'],// (default for handbook)
     'handbook/company': 'mikermcneil',
     'handbook/business-operations': ['hollidayn', 'charlottechance'],
     'handbook/engineering': 'zwass',
     'handbook/product': ['noahtalerman', 'zhumo'],
-    'handbook/security': 'guillaumeross',
-    'handbook/customers': ['alexmitchelliii','zayhanlon'],
-    'handbook/marketing': ['jarodreyes', 'mike-j-thomas','chris-mcgillicuddy'],
+    'handbook/security': 'mikermcneil',
+    'handbook/customers': ['alexmitchelliii','zayhanlon','dherder'],
+    'handbook/marketing': ['jarodreyes', 'mike-j-thomas'],
 
     'website': 'mikermcneil',// (default for website)
     'website/views': 'eashaw',
     'website/assets': 'eashaw',
     'website/config/routes.js': ['eashaw', 'mike-j-thomas', 'jarodreyes'],// (for managing website URLs)
     'website/package.json': 'eashaw',
+    '.github/workflows/deploy-fleet-website.yml': ['eashaw','mikermcneil'],// (website deploy script)
+    '.github/workflows/test-website.yml': ['eashaw','mikermcneil'],// (website CI test script)
 
-    'docs': ['chris-mcgillicuddy', 'zwass', 'mikermcneil', 'jarodreyes', 'ksatter'],// (default for docs)
-    'docs/images': ['chris-mcgillicuddy', 'noahtalerman', 'eashaw', 'mike-j-thomas'],
+    'docs': ['zwass', 'mikermcneil', 'zhumo', 'jarodreyes', 'ksatter'],// (default for docs)
+    'docs/images': ['noahtalerman', 'eashaw', 'mike-j-thomas'],
     'docs/Using-Fleet/REST-API.md': ['ksatter','lukeheath'],
     'docs/Contributing/API-for-contributors.md': ['ksatter','lukeheath'],
     'docs/Deploying/FAQ.md': ['ksatter'],
     'docs/Contributing/FAQ.md': ['ksatter'],
     'docs/Using-Fleet/FAQ.md': ['ksatter'],
 
-    'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml': ['guillaumeross','zhumo','eashaw','zwass'],// (standard query library)
-    'schema': ['guillaumeross','zhumo','eashaw','zwass'],// (Osquery table schema)
+    'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml': ['mikermcneil','zhumo','eashaw'],// (standard query library)
+    'schema': ['zhumo','eashaw','zwass','mikermcneil','sharon-fdm','lucasmrod'],// (Osquery table schema)
   },
   confidentialGithubRepoDRIByPath: {
     'readme.md': ['mikermcneil', 'zwass', 'charlottechance', 'hollidayn'],
@@ -145,8 +147,8 @@ module.exports.custom = {
     '.github/ISSUE_TEMPLATE/equity-grants.md': ['charlottechance','hollidayn'],
 
     // Folders of configuration files
-    'mdm_profiles': 'guillaumeross',
-    'vpn': 'rfairburn',
+    'mdm_profiles': ['lukeheath', 'zwass'],
+    'vpn': ['rfairburn', 'zwass'],
   },
 
 

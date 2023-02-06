@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/url"
+	"regexp"
 	"sort"
 	"time"
 
@@ -111,10 +112,56 @@ type MDM struct {
 	// API.
 	AppleBMTermsExpired bool `json:"apple_bm_terms_expired"`
 
+	// EnabledAndConfigured is set to true if Fleet has been
+	// configured with all the required certificates. It cant' be set
+	// manually via the PATCH /config API, it's only set automatically when
+	// the server starts.
+	EnabledAndConfigured bool `json:"enabled_and_configured"`
+
+	MacOSUpdates MacOSUpdates `json:"macos_updates"`
+
 	/////////////////////////////////////////////////////////////////
 	// WARNING: If you add to this struct make sure it's taken into
 	// account in the AppConfig Clone implementation!
 	/////////////////////////////////////////////////////////////////
+}
+
+// versionStringRegex is used to validate that a version string is in the x.y.z
+// format only (no prerelease or build metadata).
+var versionStringRegex = regexp.MustCompile(`^\d+(\.\d+)?(\.\d+)?$`)
+
+// MacOSUpdates is part of AppConfig and defines the macOS update settings.
+type MacOSUpdates struct {
+	// MinimumVerssion is the required minimum operating system version.
+	MinimumVersion string `json:"minimum_version"`
+	// Deadline the required installation date for Nudge to enforce the required
+	// operating system version.
+	Deadline string `json:"deadline"`
+}
+
+func (m MacOSUpdates) Validate() error {
+	// if no settings are provided it's okay to skip further validation
+	if m.MinimumVersion == "" && m.Deadline == "" {
+		return nil
+	}
+
+	if m.MinimumVersion != "" && m.Deadline == "" {
+		return errors.New("deadline is required when minimum_version is provided")
+	}
+
+	if m.Deadline != "" && m.MinimumVersion == "" {
+		return errors.New("minimum_version is required when deadline is provided")
+	}
+
+	if !versionStringRegex.MatchString(m.MinimumVersion) {
+		return errors.New(`minimum_version accepts version numbers only. (E.g., "13.0.1.") NOT "Ventura 13" or "13.0.1 (22A400)"`)
+	}
+
+	if _, err := time.Parse("2006-01-02", m.Deadline); err != nil {
+		return errors.New(`deadline accepts YYYY-MM-DD format only (E.g., "2023-06-01.")`)
+	}
+
+	return nil
 }
 
 // AppConfig holds server configuration that can be changed via the API.
@@ -425,9 +472,10 @@ type HostExpirySettings struct {
 }
 
 type Features struct {
-	EnableHostUsers         bool             `json:"enable_host_users"`
-	EnableSoftwareInventory bool             `json:"enable_software_inventory"`
-	AdditionalQueries       *json.RawMessage `json:"additional_queries,omitempty"`
+	EnableHostUsers         bool               `json:"enable_host_users"`
+	EnableSoftwareInventory bool               `json:"enable_software_inventory"`
+	AdditionalQueries       *json.RawMessage   `json:"additional_queries,omitempty"`
+	DetailQueryOverrides    map[string]*string `json:"detail_query_overrides,omitempty"`
 }
 
 func (f *Features) ApplyDefaultsForNewInstalls() {
@@ -479,14 +527,19 @@ type ListOptions struct {
 	// (varies depending on entity, eg. hostname, IP address for hosts).
 	// Handling for this parameter must be implemented separately for each type.
 	MatchQuery string `query:"query,optional"`
-
 	// After denotes the row to start from. This is meant to be used in conjunction with OrderKey
 	// If OrderKey is "id", it'll assume After is a number and will try to convert it.
 	After string `query:"after,optional"`
+	// Used to request the metadata of a query
+	IncludeMetadata bool
 }
 
 func (l ListOptions) Empty() bool {
 	return l == ListOptions{}
+}
+
+func (l ListOptions) UsesCursorPagination() bool {
+	return l.After != "" && l.OrderKey != ""
 }
 
 type ListQueryOptions struct {
@@ -669,4 +722,16 @@ type KafkaRESTConfig struct {
 	ResultTopic string `json:"result_topic"`
 	AuditTopic  string `json:"audit_topic"`
 	ProxyHost   string `json:"proxyhost"`
+}
+
+// DeviceGlobalConfig is a subset of AppConfig with information used by the
+// device endpoints
+type DeviceGlobalConfig struct {
+	MDM DeviceGlobalMDMConfig `json:"mdm"`
+}
+
+// DeviceGlobalMDMConfig is a subset of AppConfig.MDM with information used by
+// the device endpoints
+type DeviceGlobalMDMConfig struct {
+	EnabledAndConfigured bool `json:"enabled_and_configured"`
 }

@@ -8,7 +8,7 @@ import {
   Router,
 } from "react-router";
 
-import AppSettingsPage from "pages/admin/AppSettingsPage";
+import OrgSettingsPage from "pages/admin/OrgSettingsPage";
 import AdminIntegrationsPage from "pages/admin/IntegrationsPage";
 import AdminUserManagementPage from "pages/admin/UserManagementPage";
 import AdminTeamManagementPage from "pages/admin/TeamManagementPage";
@@ -44,12 +44,16 @@ import Fleet403 from "pages/errors/Fleet403";
 import Fleet404 from "pages/errors/Fleet404";
 import UserSettingsPage from "pages/UserSettingsPage";
 import SettingsWrapper from "pages/admin/SettingsWrapper/SettingsWrapper";
+import ManageControlsPage from "pages/ManageControlsPage/ManageControlsPage";
 import MembersPage from "pages/admin/TeamManagementPage/TeamDetailsWrapper/MembersPage";
 import AgentOptionsPage from "pages/admin/TeamManagementPage/TeamDetailsWrapper/AgentOptionsPage";
+import MacOSUpdates from "pages/MacOSUpdates";
+
 import PATHS from "router/paths";
 import AppProvider from "context/app";
 import RoutingProvider from "context/routing";
 
+import EmptyTable from "components/EmptyTable";
 import AuthGlobalAdminRoutes from "./components/AuthGlobalAdminRoutes";
 import AuthAnyAdminRoutes from "./components/AuthAnyAdminRoutes";
 import AuthenticatedRoutes from "./components/AuthenticatedRoutes";
@@ -57,6 +61,7 @@ import UnauthenticatedRoutes from "./components/UnauthenticatedRoutes";
 import AuthGlobalAdminMaintainerRoutes from "./components/AuthGlobalAdminMaintainerRoutes";
 import AuthAnyMaintainerAnyAdminRoutes from "./components/AuthAnyMaintainerAnyAdminRoutes";
 import PremiumRoutes from "./components/PremiumRoutes";
+import MdmEnabledRoutes from "./components/MdmEnabledRoutes/MdmEnabledRoutes";
 
 interface IAppWrapperProps {
   children: JSX.Element;
@@ -73,6 +78,17 @@ const AppWrapper = ({ children, location }: IAppWrapperProps) => (
     </RoutingProvider>
   </AppProvider>
 );
+
+const MacSettingsPage = () => {
+  return (
+    <div>
+      <EmptyTable
+        header="Coming soon"
+        info="The ability to store disk encryption keys and customize macOS settings are currently in development."
+      />
+    </div>
+  );
+};
 
 const routes = (
   <Router history={browserHistory}>
@@ -108,10 +124,10 @@ const routes = (
             <IndexRedirect to={"organization"} />
             <Route component={SettingsWrapper}>
               <Route component={AuthGlobalAdminRoutes}>
-                <Route path="organization" component={AppSettingsPage} />
+                <Route path="organization" component={OrgSettingsPage} />
                 <Route
                   path="organization/:section"
-                  component={AppSettingsPage}
+                  component={OrgSettingsPage}
                 />
                 <Route path="integrations" component={AdminIntegrationsPage} />
                 <Route
@@ -157,6 +173,17 @@ const routes = (
               </Route>
             </Route>
           </Route>
+
+          <Route path="controls" component={AuthAnyMaintainerAnyAdminRoutes}>
+            <Route component={MdmEnabledRoutes}>
+              <IndexRedirect to={"mac-os-updates"} />
+              <Route component={ManageControlsPage}>
+                <Route path="mac-os-updates" component={MacOSUpdates} />
+                <Route path="mac-settings" component={MacSettingsPage} />
+              </Route>
+            </Route>
+          </Route>
+
           <Route path="software">
             <IndexRedirect to={"manage"} />
             <Route path="manage" component={ManageSoftwarePage} />

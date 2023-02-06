@@ -68,7 +68,7 @@ module.exports.routes = {
     }
   },
 
-  'r|/((device-management|securing|releases|engineering|guides|announcements|podcasts|report|deploy)/(.+))$|': {
+  'r|/((success-stories|securing|releases|engineering|guides|announcements|podcasts|report|deploy)/(.+))$|': {
     skipAssets: false,
     action: 'articles/view-basic-article',
     locals: {
@@ -76,7 +76,7 @@ module.exports.routes = {
     }
   },// Handles /device-management/foo, /securing/foo, /releases/foo, /engineering/foo, /guides/foo, /announcements/foo, /deploy/foo, /podcasts/foo, /report/foo
 
-  'r|^/((device-management|securing|releases|engineering|guides|announcements|articles|podcasts|report|deploy))/*$|category': {
+  'r|^/((success-stories|securing|releases|engineering|guides|announcements|articles|podcasts|report|deploy))/*$|category': {
     skipAssets: false,
     action: 'articles/view-articles',
     locals: {
@@ -249,6 +249,22 @@ module.exports.routes = {
     }
   },
 
+  'GET /device-management': {
+    action: 'view-fleet-mdm',
+    locals: {
+      pageTitleForMeta: 'Device Management | Fleet for osquery',
+      pageDescriptionForMeta: 'Learn about upcoming features and join the Fleet MDM beta today.'
+    }
+  },
+
+  'GET /upgrade': {
+    action: 'view-upgrade',
+    locals: {
+      pageTitleForMeta: 'Upgrade to Fleet Premium | Fleet for osquery',
+      pageDescriptionForMeta: 'Learn about the benefits of upgrading to Fleet Premium',
+    }
+  },
+
 
 
   //  ╦  ╔═╗╔═╗╔═╗╔═╗╦ ╦  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗
@@ -303,6 +319,12 @@ module.exports.routes = {
   'GET /handbook/digital-experience/how-to-submit-and-publish-an-article': '/handbook/marketing/how-to-submit-and-publish-an-article',
   'GET /handbook/digital-experience/markdown-guide': '/handbook/marketing/markdown-guide',
   'GET /handbook/quality': '/handbook/engineering#quality',
+  'GET /device-management/fleet-user-stories-f100': '/success-stories/fleet-user-stories-wayfair',
+  'GET /device-management/fleet-user-stories-schrodinger': '/success-stories/fleet-user-stories-wayfair',
+  'GET /device-management/fleet-user-stories-wayfair': '/success-stories/fleet-user-stories-wayfair',
+  'GET /handbook/security': '/handbook/business-operations/security',
+  'GET /handbook/security/security-policies':'/handbook/business-operations/security-policies#information-security-policy-and-acceptable-use-policy',// « reasoning: https://github.com/fleetdm/fleet/pull/9624
+  'GET /handbook/handbook': '/handbook/company/handbook',
 
 
   //  ╔╦╗╦╔═╗╔═╗  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗   ┬   ╔╦╗╔═╗╦ ╦╔╗╔╦  ╔═╗╔═╗╔╦╗╔═╗
@@ -341,6 +363,10 @@ module.exports.routes = {
   // This is for search engines, not humans.  Search engines know to visit fleetdm.com/sitemap.xml to download this
   // XML file, which helps search engines know which pages are available on the website.
   'GET /sitemap.xml':            { action: 'download-sitemap' },
+
+  // RSS feeds
+  // =============================================================================================================
+  'GET /rss/:categoryName': {action: 'download-rss-feed'},
 
   // Potential future pages
   // =============================================================================================================
@@ -390,4 +416,7 @@ module.exports.routes = {
   '/api/v1/unsubscribe-from-all-newsletters': { action: 'unsubscribe-from-all-newsletters' },
   'POST /api/v1/admin/generate-license-key': { action: 'admin/generate-license-key' },
   'POST /api/v1/create-vanta-authorization-request': { action: 'create-vanta-authorization-request' },
+  'POST /api/v1/deliver-mdm-beta-signup':                   { action: 'deliver-mdm-beta-signup' },
+  'POST /api/v1/deliver-apple-csr ': { action: 'deliver-apple-csr', csrf: false},
+  'POST /api/v1/deliver-premium-upgrade-form': { action: 'deliver-premium-upgrade-form' },
 };

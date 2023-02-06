@@ -1,0 +1,26 @@
+.avatar-wrapper-top-nav {
+  margin-right: 8px;
+  svg {
+    display: block;
+  }
+  .avatar {
+    @include size(120px);
+    display: block;
+    background-size: cover;
+    border-radius: 50%;
+
+    &--small {
+      @include size(24px);
+    }
+
+    &--xsmall {
+      @include size(16px);
+    }
+
+    img {
+      &.default {
+        display: none;
+      }
+    }
+  }
+}

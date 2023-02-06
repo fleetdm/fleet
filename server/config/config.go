@@ -16,6 +16,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"testing"
 	"time"
 
 	nanodep_client "github.com/micromdm/nanodep/client"
@@ -1623,5 +1624,47 @@ func TestConfig() FleetConfig {
 			ResultLogFile: testLogFile,
 			AuditLogFile:  testLogFile,
 		},
+	}
+}
+
+// SetTestMDMConfig modifies the provided cfg so that MDM is enabled and
+// configured properly. The provided certificate and private key are used for
+// all required pairs and the Apple BM token is used as-is, instead of
+// decrypting the encrypted value that is usually provided via the fleet
+// server's flags.
+func SetTestMDMConfig(t testing.TB, cfg *FleetConfig, cert, key []byte, appleBMToken *nanodep_client.OAuth1Tokens) {
+	tlsCert, err := tls.X509KeyPair(cert, key)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	parsed, err := x509.ParseCertificate(tlsCert.Certificate[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	tlsCert.Leaf = parsed
+
+	cfg.MDM.AppleAPNsCertBytes = string(cert)
+	cfg.MDM.AppleAPNsKeyBytes = string(key)
+	cfg.MDM.AppleSCEPCertBytes = string(cert)
+	cfg.MDM.AppleSCEPKeyBytes = string(key)
+	cfg.MDM.AppleBMCertBytes = string(cert)
+	cfg.MDM.AppleBMKeyBytes = string(key)
+	cfg.MDM.AppleBMServerTokenBytes = "whatever-will-not-be-accessed"
+
+	cfg.MDM.appleAPNs = &tlsCert
+	cfg.MDM.appleAPNsPEMCert = cert
+	cfg.MDM.appleAPNsPEMKey = key
+	cfg.MDM.appleSCEP = &tlsCert
+	cfg.MDM.appleSCEPPEMCert = cert
+	cfg.MDM.appleSCEPPEMKey = key
+	cfg.MDM.appleBMToken = appleBMToken
+	cfg.MDMApple.Enable = true
+
+	cfg.MDMApple.SCEP = MDMAppleSCEPConfig{
+		Signer: SCEPSignerConfig{
+			ValidityDays: 365,
+		},
+		Challenge: "testchallenge",
 	}
 }

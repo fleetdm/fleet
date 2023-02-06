@@ -133,6 +133,10 @@ spec:
     secrets:
       - secret: RzTlxPvugG4o4O5IKS/HqEDJUmI1hwBoffff
       - secret: JZ/C/Z7ucq22dt/zjx2kEuDBN0iLjqfz
+    mdm:
+      macos_updates:
+        minimum_version: 12.3.1
+        deadline: 2022-01-04
 ```
 
 ### Team settings
@@ -167,6 +171,57 @@ The `secrets` section provides the list of enroll secrets that will be valid for
       - secret: RzTlxPvugG4o4O5IKS/HqEDJUmI1hwBoffff
       - secret: JZ/C/Z7ucq22dt/zjx2kEuDBN0iLjqfz
   ```
+### Modify an existing team
+
+You can modify an existing team by applying a new team configuration file with the same `name` as an existing team. The new team configuration will completely replace the previous configuration. In order to avoid overiding existing settings, we reccomend retreiving the existing configuration and modifying it. 
+
+Retrieve the team configuration and output to a YAML file:
+
+```console
+% fleetctl get teams --name Workstations --yaml > workstation_config.yml
+```
+After updating the generated YAML, apply the changes:
+
+```console
+% fleetctl apply -f workstation_config.yml
+```
+
+Depending on your Fleet version, you may see `unsupported key` errors for the following keys when applying the new team configuration:
+
+```
+id 
+user_count 
+host_count 
+integrations 
+webhook_settings 
+description 
+agent_options 
+created_at 
+user_count 
+host_count 
+integrations 
+webhook_settings
+```
+
+You can bypass these errors by removing the key from your YAML or adding the `--force` flag. This flag will force application of the changes without validation. Proceed with caution.
+
+#### Mobile device management (MDM) settings
+
+> MDM features are not ready for production and are currently in development. These features are disabled by default.
+
+The `mdm` section of the configuration YAML lets you control MDM settings for the team in Fleet.
+
+The documentation for this section is identical to the [MDM settings](#mobile-device-management-mdm-settings) documentation for the organization settings, except that the YAML section where it is set must be as follows. (Note the `kind: team` key and the location of the `mdm` key under `team` must have a `name` key to identify the team to configure.)
+
+```yaml
+apiVersion: v1
+kind: team
+spec:
+  team:
+    name: Client Platform Engineering
+    mdm:
+      # the team-specific mdm options go here
+```
 
 ## Organization settings
 
@@ -236,8 +291,16 @@ spec:
     issuer_uri: ""
     metadata: ""
     metadata_url: ""
-  vulnerability_settings:
-    databases_path: ""
+  vulnerabilities:
+    databases_path: "/tmp/vulndbs"
+    periodicity: 1h
+    cpe_database_url: ""
+    cpe_translations_url: ""
+    cve_feed_prefix_url: ""
+    current_instance_checks: "auto"
+    disable_data_sync: false
+    recent_vulnerability_max_age: 30d
+    disable_win_os_vulnerabilities: false
   webhook_settings:
     failing_policies_webhook:
       destination_url: ""
@@ -256,6 +319,9 @@ spec:
       host_batch_size: 0
   mdm:
     apple_bm_default_team: ""
+    macos_updates:
+      minimum_version: ""
+      deadline: ""
 ```
 
 ### Settings
@@ -334,6 +400,25 @@ Whether or not Fleet sends the query needed to gather the list of software insta
   ```yaml
   host_settings:
   	enable_software_inventory: false
+  ```
+
+##### features.detail_query_overrides
+
+This feature can be used to override "detail queries" hardcoded in Fleet.
+
+> IMPORTANT: This feature should only be used when debugging issues with Fleet's hardcoded queries.
+Use with caution as this may break Fleet ingestion of hosts data.
+
+- Optional setting (dictionary of key-value strings)
+- Default value: none (empty)
+- Config file format:
+  ```yaml
+  features:
+    detail_query_overrides:
+      # null allows to disable the "users" query from running on hosts.
+      users: null
+      # this replaces the hardcoded "mdm" detail query.
+      mdm: "SELECT enrolled, server_url, installed_from_dep, payload_identifier FROM mdm;"
   ```
 
 #### Fleet Desktop
@@ -623,15 +708,15 @@ A URL that references the identity provider metadata.
 
 #### Vulnerability settings
 
-##### vulnerability_settings.databases_path
+##### vulnerabilities.databases_path
 
 Path to a directory on the local filesystem (accessible to the Fleet server) where the various vulnerability databases will be stored.
 
 - Optional setting, must be set to enable vulnerability detection (string).
-- Default value: "".
+- Default value: "/tmp/vulndb".
 - Config file format:
   ```yaml
-  vulnerability_settings:
+  vulnerabilities:
     databases_path: "/path/to/dir"
   ```
 
@@ -946,11 +1031,20 @@ spec:
           3600: "SELECT total_seconds AS uptime FROM uptime"
     overrides:
       # Note configs in overrides take precedence over the default config defined
-      # under the config key above. Hosts receive overrides based on the platform
-      # returned by `SELECT platform FROM os_version`. In this example, the base
-      # config would be used for Windows and CentOS hosts, while Mac and Ubuntu
-      # hosts would receive their respective overrides. Note, these overrides are
-      # NOT merged with the top level configuration.
+      # under the config key above. Be aware that these overrides are NOT merged 
+      # with the top-level configuration!! This means that settings values defined 
+      # on the top-level config.options section will not be propagated to the platform
+      # override sections. So for example, the config.options.distributed_interval value 
+      # will be discared on a platform override section, and only the section value 
+      # for distributed_interval will be used. If the given setting is not specified 
+      # in the override section, its default value will be enforced. 
+      # Going back to the example, if the override section is windows, 
+      # overrides.platforms.windows.distributed_interval will have to be set again to 5 
+      # for this setting to be enforced as expected, otherwise the setting will get 
+      # its default value (60 in the case of distributed_interval). 
+      # Hosts receive overrides based on the platform returned by `SELECT platform FROM os_version`. 
+      # In this example, the base config would be used for Windows and CentOS hosts, 
+      # while Mac and Ubuntu hosts would receive their respective overrides.
       platforms:
         darwin:
           options:
@@ -1087,6 +1181,7 @@ The `overrides` key allows you to segment hosts, by their platform, and supply t
 
 In the example file below, all Darwin and Ubuntu hosts will **only** receive the options specified in their respective overrides sections.
 
+> IMPORTANT: If a given option is not specified in a platform override section, its default value will be enforced.
 
 ```yaml
 agent_options:
@@ -1159,13 +1254,15 @@ agent_options:
     enable_file_events: true
 ```
 
-#### MDM settings
+#### Mobile device management (MDM) settings
 
-Fleet currently supports Apple Business Manager for mobile device management (MDM).
+> MDM features are not ready for production and are currently in development. These features are disabled by default.
 
-**Applies only to Fleet Premium**.
+The `mdm` section of the configuration YAML lets you control MDM settings in Fleet.
 
 ##### mdm.apple_bm_default_team
+
+**Applies only to Fleet Premium**.
 
 Set name of default team to use with Apple Business Manager.
 
@@ -1173,7 +1270,43 @@ Set name of default team to use with Apple Business Manager.
 - Config file format:
   ```yaml
   mdm:
-    team: "Workstations"
+    apple_bm_default_team: "Workstations"
+  ```
+
+##### mdm.macos_updates
+
+**Applies only to Fleet Premium**.
+
+The following options allow to configure the behavior of Nudge for macOS hosts that belong to no team and are enrolled into Fleet's MDM.
+
+##### mdm.macos_updates.minimum_version
+
+Hosts that belong to no team and are enrolled into Fleet's MDM will be nudged until their macOS is at or above this version.
+
+Requires `mdm.macos_updates.deadline` to be set.
+
+- Default value: ""
+- Config file format:
+  ```yaml
+  mdm:
+    macos_updates:
+      minimum_version: "12.1.1"
+  ```
+
+##### mdm.macos_updates.deadline
+
+A deadline in the form `YYYY-MM-DD`. The exact deadline time is at 04:00:00 (UTC-8).
+
+Hosts that belong to no team and are enrolled into Fleet's MDM won't be able to dismiss the Nudge window once this deadline is past.
+
+Requires `mdm.macos_updates.minimum_version` to be set.
+
+- Default value: ""
+- Config file format:
+  ```yaml
+  mdm:
+    macos_updates:
+      deadline: "2022-01-01"
   ```
 
 #### Advanced configuration

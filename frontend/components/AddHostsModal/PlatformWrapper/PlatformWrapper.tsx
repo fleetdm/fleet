@@ -121,7 +121,7 @@ const PlatformWrapper = ({
 --disable_carver=false
 --carver_start_endpoint=/api/v1/osquery/carve/begin
 --carver_continue_endpoint=/api/v1/osquery/carve/block
---carver_block_size=2000000`;
+--carver_block_size=8000000`;
 
   const onDownloadEnrollSecret = (evt: React.MouseEvent) => {
     evt.preventDefault();
@@ -219,33 +219,33 @@ const PlatformWrapper = ({
     );
   };
 
-  const renderInstallerString = (platform: string) => {
-    return platform === "advanced"
+  const renderInstallerString = (packageType: string) => {
+    return packageType === "advanced"
       ? `fleetctl package --type=YOUR_TYPE --fleet-url=${config?.server_settings.server_url}
 --enroll-secret=${enrollSecret}
 --fleet-certificate=PATH_TO_YOUR_CERTIFICATE/fleet.pem`
-      : `fleetctl package --type=${platform} ${
+      : `fleetctl package --type=${packageType} ${
           includeFleetDesktop ? "--fleet-desktop " : ""
         }--fleet-url=${
           config?.server_settings.server_url
         } --enroll-secret=${enrollSecret}`;
   };
 
-  const renderLabel = (platform: string, installerString: string) => {
+  const renderLabel = (packageType: string, installerString: string) => {
     const onCopyInstaller = (evt: React.MouseEvent) => {
       evt.preventDefault();
 
       stringToClipboard(installerString)
         .then(() =>
-          setCopyMessage((prev) => ({ ...prev, [platform]: "Copied!" }))
+          setCopyMessage((prev) => ({ ...prev, [packageType]: "Copied!" }))
         )
         .catch(() =>
-          setCopyMessage((prev) => ({ ...prev, [platform]: "Copy failed" }))
+          setCopyMessage((prev) => ({ ...prev, [packageType]: "Copy failed" }))
         );
 
       // Clear message after 1 second
       setTimeout(
-        () => setCopyMessage((prev) => ({ ...prev, [platform]: "" })),
+        () => setCopyMessage((prev) => ({ ...prev, [packageType]: "" })),
         1000
       );
 
@@ -254,7 +254,7 @@ const PlatformWrapper = ({
 
     return (
       <>
-        {platform === "plain-osquery" ? (
+        {packageType === "plain-osquery" ? (
           <>
             <p className={`${baseClass}__advanced--heading`}>
               With{" "}
@@ -274,7 +274,7 @@ const PlatformWrapper = ({
           </>
         ) : (
           <span className={`${baseClass}__cta`}>
-            With the{" "}
+            Run this command with the{" "}
             <a
               className={`${baseClass}__command-line-tool`}
               href="https://fleetdm.com/docs/using-fleet/fleetctl-cli"
@@ -288,10 +288,10 @@ const PlatformWrapper = ({
         )}{" "}
         <span className={`${baseClass}__name`}>
           <span className="buttons">
-            {copyMessage[platform] && (
+            {copyMessage[packageType] && (
               <span
                 className={`${baseClass}__copy-message`}
-              >{`${copyMessage[platform]} `}</span>
+              >{`${copyMessage[packageType]} `}</span>
             )}
             <Button
               variant="unstyled"
@@ -306,8 +306,8 @@ const PlatformWrapper = ({
     );
   };
 
-  const renderTab = (platform: string) => {
-    if (platform === "advanced") {
+  const renderTab = (packageType: string) => {
+    if (packageType === "advanced") {
       return (
         <div className={baseClass}>
           <div className={`${baseClass}__advanced`}>
@@ -315,16 +315,16 @@ const PlatformWrapper = ({
             <div className={`${baseClass}__advanced--installer`}>
               <InputField
                 disabled
-                inputWrapperClass={`${baseClass}__installer-input ${baseClass}__installer-input-${platform}`}
+                inputWrapperClass={`${baseClass}__installer-input ${baseClass}__installer-input-${packageType}`}
                 name="installer"
-                label={renderLabel(platform, renderInstallerString(platform))}
+                label={renderLabel(
+                  packageType,
+                  renderInstallerString(packageType)
+                )}
                 type={"textarea"}
-                value={renderInstallerString(platform)}
+                value={renderInstallerString(packageType)}
               />
-              <p>
-                Generates an installer that your devices will use to connect to
-                Fleet.
-              </p>
+              <p>Distribute your package to add hosts to Fleet.</p>
             </div>
             <RevealButton
               className={baseClass}
@@ -394,35 +394,36 @@ const PlatformWrapper = ({
         </div>
       );
     }
+
     return (
       <>
-        <Checkbox
-          name="include-fleet-desktop"
-          onChange={(value: boolean) => setIncludeFleetDesktop(value)}
-          value={includeFleetDesktop}
-        >
-          <>
-            Include&nbsp;
-            <TooltipWrapper
-              tipContent={
-                "<p>Lightweight application that allows end users to see information about their device.</p>"
-              }
-            >
-              Fleet Desktop
-            </TooltipWrapper>
-          </>
-        </Checkbox>
+        {packageType !== "pkg" && (
+          <Checkbox
+            name="include-fleet-desktop"
+            onChange={(value: boolean) => setIncludeFleetDesktop(value)}
+            value={includeFleetDesktop}
+          >
+            <>
+              Include&nbsp;
+              <TooltipWrapper
+                tipContent={
+                  "Include Fleet Desktop if your’re adding workstations."
+                }
+              >
+                Fleet Desktop
+              </TooltipWrapper>
+            </>
+          </Checkbox>
+        )}
         <InputField
           disabled
-          inputWrapperClass={`${baseClass}__installer-input ${baseClass}__installer-input-${platform}`}
+          inputWrapperClass={`${baseClass}__installer-input ${baseClass}__installer-input-${packageType}`}
           name="installer"
-          label={renderLabel(platform, renderInstallerString(platform))}
+          label={renderLabel(packageType, renderInstallerString(packageType))}
           type={"textarea"}
-          value={renderInstallerString(platform)}
+          value={renderInstallerString(packageType)}
         />
-        <span>
-          Generates an installer that your devices will use to connect to Fleet.
-        </span>
+        <span>Distribute your package to add hosts to Fleet.</span>
       </>
     );
   };

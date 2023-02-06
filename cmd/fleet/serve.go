@@ -19,6 +19,8 @@ import (
 	"syscall"
 	"time"
 
+	scep_depot "github.com/micromdm/scep/v2/depot"
+
 	"github.com/WatchBeam/clock"
 	"github.com/e-dard/netbug"
 	"github.com/fleetdm/fleet/v4/ee/server/licensing"
@@ -40,7 +42,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/live_query"
 	"github.com/fleetdm/fleet/v4/server/logging"
 	"github.com/fleetdm/fleet/v4/server/mail"
-	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/async"
@@ -468,15 +469,16 @@ the way that the Fleet server works.
 			}
 
 			var (
-				scepStorage      *apple_mdm.SCEPMySQLDepot
-				appleSCEPCertPEM []byte
-				appleSCEPKeyPEM  []byte
-				appleAPNsCertPEM []byte
-				appleAPNsKeyPEM  []byte
-				depStorage       *mysql.NanoDEPStorage
-				mdmStorage       *mysql.NanoMDMStorage
-				mdmPushService   *nanomdm_pushsvc.PushService
-				mdmPushCertTopic string
+				scepStorage                 scep_depot.Depot
+				appleSCEPCertPEM            []byte
+				appleSCEPKeyPEM             []byte
+				appleAPNsCertPEM            []byte
+				appleAPNsKeyPEM             []byte
+				depStorage                  *mysql.NanoDEPStorage
+				mdmStorage                  *mysql.NanoMDMStorage
+				mdmPushService              *nanomdm_pushsvc.PushService
+				mdmCheckinAndCommandService *service.MDMAppleCheckinAndCommandService
+				mdmPushCertTopic            string
 			)
 
 			// validate Apple APNs/SCEP config
@@ -516,6 +518,14 @@ the way that the Fleet server works.
 				cancel()
 			}
 
+			appCfg, err := ds.AppConfig(context.Background())
+			if err != nil {
+				initFatal(err, "loading app config")
+			}
+			// assume MDM is disabled until we verify that
+			// everything is properly configured below
+			appCfg.MDM.EnabledAndConfigured = false
+
 			// validate Apple BM config
 			if config.MDM.IsAppleBMSet() {
 				if !license.IsPremium() {
@@ -544,7 +554,7 @@ the way that the Fleet server works.
 					initFatal(errors.New("Apple BM configuration must be provided to enable MDM"), "validate Apple MDM")
 				}
 
-				scepStorage, err = mds.NewMDMAppleSCEPDepot(appleSCEPCertPEM, appleSCEPKeyPEM)
+				scepStorage, err = mds.NewSCEPDepot(appleSCEPCertPEM, appleSCEPKeyPEM)
 				if err != nil {
 					initFatal(err, "initialize mdm apple scep storage")
 				}
@@ -552,9 +562,16 @@ the way that the Fleet server works.
 				if err != nil {
 					initFatal(err, "initialize mdm apple MySQL storage")
 				}
-				nanoMDMLogger := NewNanoMDMLogger(kitlog.With(logger, "component", "apple-mdm-push"))
+				nanoMDMLogger := service.NewNanoMDMLogger(kitlog.With(logger, "component", "apple-mdm-push"))
 				pushProviderFactory := buford.NewPushProviderFactory()
 				mdmPushService = nanomdm_pushsvc.New(mdmStorage, mdmStorage, pushProviderFactory, nanoMDMLogger)
+				mdmCheckinAndCommandService = service.NewMDMAppleCheckinAndCommandService(ds)
+				appCfg.MDM.EnabledAndConfigured = true
+			}
+
+			// save the app config with the updated MDM.Enabled value
+			if err := ds.SaveAppConfig(context.Background(), appCfg); err != nil {
+				initFatal(err, "saving app config")
 			}
 
 			cronSchedules := fleet.NewCronSchedules()
@@ -748,15 +765,13 @@ the way that the Fleet server works.
 			rootMux.Handle("/assets/", service.PrometheusMetricsHandler("static_assets", service.ServeStaticAssets("/assets/")))
 
 			if config.MDMApple.Enable {
-				if err := registerAppleMDMProtocolServices(
+				if err := service.RegisterAppleMDMProtocolServices(
 					rootMux,
 					config.MDMApple.SCEP,
-					appleSCEPCertPEM,
-					appleSCEPKeyPEM,
 					mdmStorage,
 					scepStorage,
 					logger,
-					ds,
+					mdmCheckinAndCommandService,
 				); err != nil {
 					initFatal(err, "setup mdm apple services")
 				}

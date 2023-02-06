@@ -19,6 +19,7 @@ type TeamPayload struct {
 	Secrets         []*EnrollSecret      `json:"secrets"`
 	WebhookSettings *TeamWebhookSettings `json:"webhook_settings"`
 	Integrations    *TeamIntegrations    `json:"integrations"`
+	MDM             *TeamMDM             `json:"mdm"`
 	// Note AgentOptions must be set by a separate endpoint.
 }
 
@@ -123,10 +124,15 @@ type TeamConfig struct {
 	WebhookSettings TeamWebhookSettings `json:"webhook_settings"`
 	Integrations    TeamIntegrations    `json:"integrations"`
 	Features        Features            `json:"features"`
+	MDM             TeamMDM             `json:"mdm"`
 }
 
 type TeamWebhookSettings struct {
 	FailingPoliciesWebhook FailingPoliciesWebhookSettings `json:"failing_policies_webhook"`
+}
+
+type TeamMDM struct {
+	MacOSUpdates MacOSUpdates `json:"macos_updates"`
 }
 
 // Scan implements the sql.Scanner interface
@@ -262,6 +268,34 @@ type TeamSpec struct {
 	// set to the agent options JSON object.
 	AgentOptions json.RawMessage `json:"agent_options,omitempty"` // marshals as "null" if omitempty is not set
 
-	Secrets  []EnrollSecret   `json:"secrets"`
+	Secrets  []EnrollSecret   `json:"secrets,omitempty"`
 	Features *json.RawMessage `json:"features"`
+	MDM      TeamMDM          `json:"mdm"`
+}
+
+// TeamSpecFromTeam returns a TeamSpec constructed from the given Team.
+func TeamSpecFromTeam(t *Team) (*TeamSpec, error) {
+	features, err := json.Marshal(t.Config.Features)
+	if err != nil {
+		return nil, err
+	}
+	featuresJSON := json.RawMessage(features)
+	var secrets []EnrollSecret
+	if len(t.Secrets) > 0 {
+		secrets = make([]EnrollSecret, 0, len(t.Secrets))
+		for _, secret := range t.Secrets {
+			secrets = append(secrets, *secret)
+		}
+	}
+	var agentOptions json.RawMessage
+	if t.Config.AgentOptions != nil {
+		agentOptions = *t.Config.AgentOptions
+	}
+	return &TeamSpec{
+		Name:         t.Name,
+		AgentOptions: agentOptions,
+		Features:     &featuresJSON,
+		Secrets:      secrets,
+		MDM:          t.Config.MDM,
+	}, nil
 }

@@ -60,7 +60,8 @@
     "Quote": false,
     "Subscription": false,
     "NewsletterSubscription": false,
-    "VantaConnection": true,
+    "VantaConnection": false,
+    "CertificateSigningRequest": false,
     // ...and any other backend globals (e.g. `"Organization": false`)
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   }

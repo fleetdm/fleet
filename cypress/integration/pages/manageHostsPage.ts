@@ -7,10 +7,11 @@ const manageHostsPage = {
     cy.getAttached(".button-wrap")
       .contains("button", /manage enroll secret/i)
       .click();
+    cy.wait(500); // eslint-disable-line cypress/no-unnecessary-waiting
     cy.contains("button", /add secret/i).click();
+    cy.wait(500); // eslint-disable-line cypress/no-unnecessary-waiting
     cy.contains("button", /save/i).click();
     cy.findByText(/successfully added/i);
-    cy.getAttached(".modal__ex").click();
   },
 
   allowsAddHosts: () => {

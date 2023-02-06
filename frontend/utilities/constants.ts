@@ -11,7 +11,10 @@ export enum PolicyResponse {
 }
 
 export const DEFAULT_GRAVATAR_LINK =
-  "https://fleetdm.com/images/permanent/icon-avatar-default-128x128-2x.png";
+  "https://fleetdm.com/images/permanent/icon-avatar-default-transparent-64x64%402x.png";
+
+export const DEFAULT_GRAVATAR_LINK_DARK =
+  "https://fleetdm.com/images/permanent/icon-avatar-default-dark-24x24%402x.png";
 
 export const FREQUENCY_DROPDOWN_OPTIONS = [
   { value: 900, label: "Every 15 minutes" },
@@ -208,6 +211,14 @@ export const VULNERABLE_DROPDOWN_OPTIONS = [
       "All software installed on your hosts with detected vulnerabilities.",
   },
 ];
+
+// Keys from API
+export const MDM_STATUS_TOOLTIP: Record<string, string> = {
+  "On (automatic)": `<span>MDM was turned on automatically using Apple Automated Device Enrollment (DEP) or Windows Autopilot. Administrators can block end users from turning MDM off.</span>`,
+  "On (manual)": `<span>MDM was turned on manually. End users can turn MDM off.</span>`,
+  Off: `<span>Hosts with MDM off don&apos;t receive macOS <br /> settings and macOS update encouragement.</span>`,
+  Pending: `<span>Hosts ordered via Apple Business Manager <br /> (ABM). These will automatically enroll to Fleet <br /> and turn on MDM when they&apos;re unboxed.</span>`,
+};
 
 export const DEFAULT_CREATE_USER_ERRORS = {
   email: "",

@@ -1,11 +1,28 @@
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
-import { sendRequest } from "services/mock_service/service/service"; // MDM TODO: Replace when backend is merged
-// import sendRequest from "services";
+import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 
 export default {
-  downloadEnrollmentProfile: () => {
-    const { MDM_DOWNLOAD_ENROLLMENT_PROFILE } = endpoints;
-    return sendRequest("GET", MDM_DOWNLOAD_ENROLLMENT_PROFILE);
+  downloadDeviceUserEnrollmentProfile: (token: string) => {
+    const { DEVICE_USER_MDM_ENROLLMENT_PROFILE } = endpoints;
+    return sendRequest("GET", DEVICE_USER_MDM_ENROLLMENT_PROFILE(token));
+  },
+  unenrollHostFromMdm: (hostId: number, timeout?: number) => {
+    const { HOST_MDM_UNENROLL } = endpoints;
+    return sendRequest(
+      "PATCH",
+      HOST_MDM_UNENROLL(hostId),
+      undefined,
+      undefined,
+      timeout
+    );
+  },
+  requestCSR: (email: string, organization: string) => {
+    const { MDM_REQUEST_CSR } = endpoints;
+
+    return sendRequest("POST", MDM_REQUEST_CSR, {
+      email_address: email,
+      organization,
+    });
   },
 };

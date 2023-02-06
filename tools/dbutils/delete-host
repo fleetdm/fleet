@@ -1,0 +1,5 @@
+#!/bin/bash
+
+# experimental – doesn't always work right
+
+docker compose exec mysql mysql -uroot -ptoor -Dfleet -e "DELETE FROM host_device_auth WHERE host_id=$1;"

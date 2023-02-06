@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -20,12 +21,17 @@ import (
 	"github.com/fleetdm/fleet/v4/server/logging"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/async"
+	"github.com/fleetdm/fleet/v4/server/service/mock"
 	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/fleetdm/fleet/v4/server/test"
 	kitlog "github.com/go-kit/kit/log"
+	"github.com/google/uuid"
 	nanodep_storage "github.com/micromdm/nanodep/storage"
+	"github.com/micromdm/nanomdm/mdm"
+	"github.com/micromdm/nanomdm/push"
 	nanomdm_push "github.com/micromdm/nanomdm/push"
 	nanomdm_storage "github.com/micromdm/nanomdm/storage"
+	scep_depot "github.com/micromdm/scep/v2/depot"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/throttled/throttled/v2"
@@ -237,6 +243,7 @@ type TestServerOpts struct {
 	FleetConfig         *config.FleetConfig
 	MDMStorage          nanomdm_storage.AllStorage
 	DEPStorage          nanodep_storage.AllStorage
+	SCEPStorage         scep_depot.Depot
 	MDMPusher           nanomdm_push.Pusher
 	HTTPServerConfig    *http.Server
 	StartCronSchedules  []TestNewScheduleFunc
@@ -265,13 +272,33 @@ func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServ
 		logger = opts[0].Logger
 	}
 	limitStore, _ := memstore.New(0)
-	r := MakeHandler(svc, cfg, logger, limitStore, WithLoginRateLimit(throttled.PerMin(100)))
-	server := httptest.NewUnstartedServer(r)
-	server.Config = cfg.Server.DefaultHTTPServer(ctx, r)
+	rootMux := http.NewServeMux()
+
+	if len(opts) > 0 {
+		mdmStorage := opts[0].MDMStorage
+		scepStorage := opts[0].SCEPStorage
+		if mdmStorage != nil && scepStorage != nil {
+			err := RegisterAppleMDMProtocolServices(
+				rootMux,
+				cfg.MDMApple.SCEP,
+				mdmStorage,
+				scepStorage,
+				logger,
+				&MDMAppleCheckinAndCommandService{ds: ds},
+			)
+			require.NoError(t, err)
+		}
+	}
+
+	apiHandler := MakeHandler(svc, cfg, logger, limitStore, WithLoginRateLimit(throttled.PerMin(100)))
+	rootMux.Handle("/api/", apiHandler)
+
+	server := httptest.NewUnstartedServer(rootMux)
+	server.Config = cfg.Server.DefaultHTTPServer(ctx, rootMux)
 	if len(opts) > 0 && opts[0].HTTPServerConfig != nil {
 		server.Config = opts[0].HTTPServerConfig
 		// make sure we use the application handler we just created
-		server.Config.Handler = r
+		server.Config.Handler = rootMux
 	}
 	server.Start()
 	t.Cleanup(func() {
@@ -468,4 +495,26 @@ func (nopEnrollHostLimiter) CanEnrollNewHost(ctx context.Context) (bool, error) 
 
 func (nopEnrollHostLimiter) SyncEnrolledHostIDs(ctx context.Context) error {
 	return nil
+}
+
+func newMockAPNSPushProviderFactory() (*mock.APNSPushProviderFactory, *mock.APNSPushProvider) {
+	provider := &mock.APNSPushProvider{}
+	provider.PushFunc = mockSuccessfulPush
+	factory := &mock.APNSPushProviderFactory{}
+	factory.NewPushProviderFunc = func(*tls.Certificate) (push.PushProvider, error) {
+		return provider, nil
+	}
+
+	return factory, provider
+}
+
+func mockSuccessfulPush(pushes []*mdm.Push) (map[string]*push.Response, error) {
+	res := make(map[string]*push.Response, len(pushes))
+	for _, p := range pushes {
+		res[p.Token.String()] = &push.Response{
+			Id:  uuid.New().String(),
+			Err: nil,
+		}
+	}
+	return res, nil
 }
