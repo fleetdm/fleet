@@ -7,12 +7,13 @@ If you require changes beyond whats described here, contact @zwinnerman-fleetdm.
 
 1. Push your branch to https://github.com/fleetdm/fleet and wait for the build to complete (https://github.com/fleetdm/fleet/actions).
 1. arm64 (M1/M2/etc) Mac Only: run `helpers/setup-darwin_arm64.sh` to build terraform plugins that lack arm64 builds in the registry.  Alternatively, you can use the amd64 terraform binary, which works with Rosetta 2.
+1. Log into AWS SSO on `loadtesting` via `aws sso login`. (If you have multiple profiles, export the `AWS_PROFILE` variable.)
 1. Initialize your terraform environment with `terraform init`.
-1. Select a workspace for your test: `terraform workspace new WORKSPACE-NAME; terraform workspace select WORKSPACE-NAME`. Ensure your `WORKSPACE-NAME` contains only alphanumeric characters and hyphens, as it is used to generate names for AWS resources.
-1. Apply terraform with your branch name with `terraform apply -var tag=BRANCH_NAME` and type `yes` to approve execution of the plan. This takes a while to complete (many minutes).
-1. Run database migrations (see [Running migrations](#running-migrations)).  You will get 500 errors and your containers will not run if you do not do this.
-1. Perform your tests (see [Running a loadtest](#running-a-loadtest)). Your deployment will be available at `https://WORKSPACE-NAME.loadtest.fleetdm.com`.
-1. When you're done, clean up the environment with `terraform destroy`.  If A destroy fails, see [ECR Cleanup Troubleshooting](#ecr-cleanup-troubleshooting) for the most common reason.
+1. Select a workspace for your test: `terraform workspace new WORKSPACE-NAME; terraform workspace select WORKSPACE-NAME`. Ensure your `WORKSPACE-NAME` is less than or equal to 17 characters and contains only alphanumeric characters and hyphens, as it is used to generate names for AWS resources.
+1. Apply terraform with your branch name with `terraform apply -var tag=BRANCH_NAME` and type `yes` to approve execution of the plan. This takes a while to complete (many minutes, > ~30m). You should always use a branch other than `main` (Branch `main` changes often and it might trigger rebuilts of the images.)
+1. Run database migrations (see [Running migrations](#running-migrations)). You will get 500 errors and your containers will not run if you do not do this. After running this step, you might need to wait a few minutes until the environment is up and running.
+2. Perform your tests (see [Running a loadtest](#running-a-loadtest)). Your deployment will be available at `https://WORKSPACE-NAME.loadtest.fleetdm.com`. Reach out to the infrastructure team to get the credentials to log in.
+3. When you're done, clean up the environment with `terraform destroy` (it will prompt for the branch name). If A destroy fails, see [ECR Cleanup Troubleshooting](#ecr-cleanup-troubleshooting) for the most common reason.
 
 ### Running migrations
 
@@ -21,11 +22,11 @@ After applying terraform with the commands above and before performing your test
 
 ### Running a loadtest
 
-We run simulated hosts in containers of 5,000 at a time. Once the infrastructure is running, you can run the following command:
+We run simulated hosts in containers of 500 at a time. Once the infrastructure is running, you can run the following command:
 
 `terraform apply -var tag=BRANCH_NAME -var loadtest_containers=8`
 
-With the variable `loadtest_containers` you can specify how many containers of 5,000 hosts you want to start. In the example above, it will run 40,000. If the `fleet` instances need special configuration, you can pass them as environment variables to the `fleet_config` terraform variable, which is a map, using the following syntax (note the use of single quotes around the whole `fleet_config` variable assignment, and the use of double quotes inside its map value):
+With the variable `loadtest_containers` you can specify how many containers of 500 hosts you want to start. In the example above, it will run 4000. If the `fleet` instances need special configuration, you can pass them as environment variables to the `fleet_config` terraform variable, which is a map, using the following syntax (note the use of single quotes around the whole `fleet_config` variable assignment, and the use of double quotes inside its map value):
 
 `terraform apply -var tag=BRANCH_NAME -var loadtest_containers=8 -var='fleet_config={"FLEET_OSQUERY_ENABLE_ASYNC_HOST_PROCESSING":"host_last_seen=true","FLEET_OSQUERY_ASYNC_HOST_COLLECT_INTERVAL":"host_last_seen=10s"}'`
 
