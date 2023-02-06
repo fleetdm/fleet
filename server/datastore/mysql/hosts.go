@@ -2347,8 +2347,8 @@ func (ds *Datastore) SetOrUpdateHostDiskEncryptionKey(ctx context.Context, hostI
 
 }
 
-func (ds *Datastore) GetUnverifiedDiskEncryptionKeys(ctx context.Context) ([]fleet.DiskEncryptionKey, error) {
-	var keys []fleet.DiskEncryptionKey
+func (ds *Datastore) GetUnverifiedDiskEncryptionKeys(ctx context.Context) ([]fleet.HostDiskEncryptionKey, error) {
+	var keys []fleet.HostDiskEncryptionKey
 	err := sqlx.SelectContext(ctx, ds.reader, &keys, `
           SELECT
             base64_encrypted,
@@ -2375,6 +2375,25 @@ func (ds *Datastore) SetHostDiskEncryptionKeyStatus(ctx context.Context, hostIDs
 	}
 	_, err = ds.writer.ExecContext(ctx, query, args...)
 	return err
+}
+
+func (ds *Datastore) GetHostDiskEncryptionKey(ctx context.Context, hostID uint) (*fleet.HostDiskEncryptionKey, error) {
+	var key fleet.HostDiskEncryptionKey
+	err := sqlx.GetContext(ctx, ds.reader, &key, `
+          SELECT
+            host_id, base64_encrypted, decryptable, updated_at
+          FROM
+            host_disk_encryption_keys
+          WHERE host_id = ?`, hostID)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			msg := fmt.Sprintf("for host %d", hostID)
+			return nil, ctxerr.Wrap(ctx, notFound("HostDiskEncryptionKey").WithMessage(msg))
+		}
+		return nil, ctxerr.Wrapf(ctx, err, "getting data from host_mdm for host_id %d", hostID)
+	}
+	return &key, nil
 }
 
 func (ds *Datastore) SetOrUpdateHostOrbitInfo(ctx context.Context, hostID uint, version string) error {

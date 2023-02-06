@@ -233,6 +233,21 @@ allow {
 	action == write
 }
 
+# Global users can get the encryption key for any host
+allow {
+  object.type == "host_disk_encryption_key"
+  subject.global_role == [admin, maintainer, observer][_]
+  action == read
+}
+
+# Team admins and maintainers can read the encryption key of hosts in their own
+# team
+allow {
+	object.type == "host_disk_encryption_key"
+	team_role(subject, object.team_id) == [admin, maintainer, observer][_]
+	action == read
+}
+
 ##
 # Labels
 ##

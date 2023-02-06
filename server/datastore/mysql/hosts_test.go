@@ -6031,20 +6031,9 @@ func testHostsSetOrUpdateHostDisksEncryptionKey(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	checkEncryptionKey := func(hostID uint, expected string) {
-		ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
-			var actual string
-
-			row := tx.QueryRowxContext(
-				context.Background(),
-				"SELECT base64_encrypted FROM host_disk_encryption_keys WHERE host_id = ?",
-				hostID,
-			)
-
-			err := row.Scan(&actual)
-			require.NoError(t, err)
-			require.Equal(t, expected, actual)
-			return nil
-		})
+		actual, err := ds.GetHostDiskEncryptionKey(context.Background(), hostID)
+		require.NoError(t, err)
+		require.Equal(t, expected, actual.Base64Encrypted)
 	}
 
 	h, err := ds.Host(context.Background(), host.ID)

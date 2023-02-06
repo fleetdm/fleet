@@ -1005,8 +1005,8 @@ func TestVerifyDiskEncryptionKeysJob(t *testing.T) {
 	config.SetTestMDMConfig(t, &fleetCfg, testCertPEM, testKeyPEM, testBMToken)
 
 	t.Run("able to decrypt", func(t *testing.T) {
-		ds.GetUnverifiedDiskEncryptionKeysFunc = func(ctx context.Context) ([]fleet.DiskEncryptionKey, error) {
-			return []fleet.DiskEncryptionKey{{HostID: 1, Base64Encrypted: base64EncryptedKey}}, nil
+		ds.GetUnverifiedDiskEncryptionKeysFunc = func(ctx context.Context) ([]fleet.HostDiskEncryptionKey, error) {
+			return []fleet.HostDiskEncryptionKey{{HostID: 1, Base64Encrypted: base64EncryptedKey}}, nil
 		}
 
 		calls := 0
@@ -1028,8 +1028,8 @@ func TestVerifyDiskEncryptionKeysJob(t *testing.T) {
 	})
 
 	t.Run("unable to decrypt", func(t *testing.T) {
-		ds.GetUnverifiedDiskEncryptionKeysFunc = func(ctx context.Context) ([]fleet.DiskEncryptionKey, error) {
-			return []fleet.DiskEncryptionKey{{HostID: 1, Base64Encrypted: "RANDOM"}}, nil
+		ds.GetUnverifiedDiskEncryptionKeysFunc = func(ctx context.Context) ([]fleet.HostDiskEncryptionKey, error) {
+			return []fleet.HostDiskEncryptionKey{{HostID: 1, Base64Encrypted: "RANDOM"}}, nil
 		}
 
 		calls := 0

@@ -640,8 +640,14 @@ type HostMDMCheckinInfo struct {
 	DisplayName      string `json:"display_name" db:"display_name"`
 }
 
-type DiskEncryptionKey struct {
-	HostID          uint   `db:"host_id"`
-	Base64Encrypted string `db:"base64_encrypted"`
-	Decryptable     *bool  `db:"decryptable"`
+type HostDiskEncryptionKey struct {
+	HostID          uint      `json:"-" db:"host_id"`
+	Base64Encrypted string    `json:"-" db:"base64_encrypted"`
+	Decryptable     *bool     `json:"-" db:"decryptable"`
+	UpdatedAt       time.Time `json:"updated_at" db:"updated_at"`
+	DecryptedValue  string    `json:"key" db:"-"`
+}
+
+func (d HostDiskEncryptionKey) AuthzType() string {
+	return "host_disk_encryption_key"
 }

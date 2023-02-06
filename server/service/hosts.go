@@ -3,6 +3,7 @@ package service
 import (
 	"bytes"
 	"context"
+	"crypto/x509"
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
@@ -11,12 +12,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/server/contexts/authz"
+	"github.com/fleetdm/fleet/v4/server/authz"
+	authzctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/gocarina/gocsv"
 )
 
@@ -388,7 +391,7 @@ func getHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service
 }
 
 func (svc *Service) GetHost(ctx context.Context, id uint, opts fleet.HostDetailOptions) (*fleet.HostDetail, error) {
-	alreadyAuthd := svc.authz.IsAuthenticatedWith(ctx, authz.AuthnDeviceToken)
+	alreadyAuthd := svc.authz.IsAuthenticatedWith(ctx, authzctx.AuthnDeviceToken)
 	if !alreadyAuthd {
 		// First ensure the user has access to list hosts, then check the specific
 		// host once team_id is loaded.
@@ -723,7 +726,7 @@ func refetchHostEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 }
 
 func (svc *Service) RefetchHost(ctx context.Context, id uint) error {
-	if !svc.authz.IsAuthenticatedWith(ctx, authz.AuthnDeviceToken) {
+	if !svc.authz.IsAuthenticatedWith(ctx, authzctx.AuthnDeviceToken) {
 		if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 			return err
 		}
@@ -871,7 +874,7 @@ func listHostDeviceMappingEndpoint(ctx context.Context, request interface{}, svc
 }
 
 func (svc *Service) ListHostDeviceMapping(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
-	if !svc.authz.IsAuthenticatedWith(ctx, authz.AuthnDeviceToken) {
+	if !svc.authz.IsAuthenticatedWith(ctx, authzctx.AuthnDeviceToken) {
 		if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 			return nil, err
 		}
@@ -963,7 +966,7 @@ func getMacadminsDataEndpoint(ctx context.Context, request interface{}, svc flee
 }
 
 func (svc *Service) MacadminsData(ctx context.Context, id uint) (*fleet.MacadminsData, error) {
-	if !svc.authz.IsAuthenticatedWith(ctx, authz.AuthnDeviceToken) {
+	if !svc.authz.IsAuthenticatedWith(ctx, authzctx.AuthnDeviceToken) {
 		if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 			return nil, err
 		}
@@ -1250,7 +1253,7 @@ func hostsReportEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 	// for now, only csv format is allowed
 	if req.Format != "csv" {
 		// prevent returning an "unauthorized" error, we want that specific error
-		if az, ok := authz.FromContext(ctx); ok {
+		if az, ok := authzctx.FromContext(ctx); ok {
 			az.SetChecked()
 		}
 		err := ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("format", "unsupported or unspecified report format").
@@ -1364,4 +1367,75 @@ func (svc *Service) OSVersions(ctx context.Context, teamID *uint, platform *stri
 	}
 
 	return osVersions, nil
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Encryption Key
+////////////////////////////////////////////////////////////////////////////////
+
+type getHostEncryptionKeyRequest struct {
+	ID uint `url:"id"`
+}
+
+type getHostEncryptionKeyResponse struct {
+	Err           error                        `json:"error,omitempty"`
+	EncryptionKey *fleet.HostDiskEncryptionKey `json:"encryption_key,omitempty"`
+	HostID        uint                         `json:"host_id,omitempty"`
+}
+
+func (r getHostEncryptionKeyResponse) error() error { return r.Err }
+
+func getHostEncryptionKey(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*getHostEncryptionKeyRequest)
+	key, err := svc.HostEncryptionKey(ctx, req.ID)
+	if err != nil {
+		return getHostEncryptionKeyResponse{Err: err}, nil
+	}
+	return getHostEncryptionKeyResponse{EncryptionKey: key, HostID: req.ID}, nil
+}
+
+func (svc *Service) HostEncryptionKey(ctx context.Context, id uint) (*fleet.HostDiskEncryptionKey, error) {
+	if err := svc.authz.Authorize(ctx, fleet.HostDiskEncryptionKey{}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
+	host, err := svc.ds.Host(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	key, err := svc.ds.GetHostDiskEncryptionKey(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	cert, _, _, err := svc.config.MDM.AppleSCEP()
+	if err != nil {
+		return nil, err
+	}
+
+	parsed, err := x509.ParseCertificate(cert.Certificate[0])
+	if err != nil {
+		return nil, err
+	}
+
+	decryptedKey, err := apple_mdm.DecryptBase64CMS(key.Base64Encrypted, parsed, cert.PrivateKey)
+	if err != nil {
+		return nil, err
+	}
+
+	key.DecryptedValue = string(decryptedKey)
+
+	err = svc.ds.NewActivity(
+		ctx,
+		authz.UserFromContext(ctx),
+		fleet.ActivityTypeReadHostDiskEncryptionKey{
+			HostDisplayName: host.DisplayName(),
+		},
+	)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "create read host disk encryption key activity")
+	}
+
+	return key, nil
 }
