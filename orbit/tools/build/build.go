@@ -87,9 +87,6 @@ func main() {
 		if err := packaging.Notarize(notarizationZip, bundleIdentifier); err != nil {
 			panic(err)
 		}
-		if err := packaging.Staple(binaryPath); err != nil {
-			panic(err)
-		}
 	}
 }
 
