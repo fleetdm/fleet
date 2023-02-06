@@ -64,9 +64,9 @@ Last minute changes or cancellations should be communicated to Mike via DM rathe
 
 ### Travel preferences
 Current preferences for flights are:
- - Aisle seat
+ - Non-middle seat, anywhere
  - Direct flight whenever possible
- - Check a bag for all trips longer than one night
+ - Check a bag for all trips longer than five nights
  - Add Brex card information for pre-flight snacks and drinks forms
  - Frequent Flyer details of all (previously flown) airlines are in 1Password as well as important travel documents
 
