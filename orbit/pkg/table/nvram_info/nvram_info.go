@@ -1,7 +1,7 @@
 //go:build darwin
 // +build darwin
 
-package file_system_permissions
+package nvram_info
 
 import (
 	"context"
