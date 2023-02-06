@@ -17,17 +17,16 @@ import (
 // Columns is the schema of the table.
 func Columns() []table.ColumnDefinition {
 	return []table.ColumnDefinition{
-		table.IntegerColumn("amfi_enabled"),
+		table.IntegerColumn("ssv_enabled"),
 	}
 }
 
 // Generate is called to return the results for the table at query time.
 // Constraints for generating can be retrieved from the queryContext.
 func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[string]string, error) {
-	amfiEnabled, err := getAMFIEnabled(ctx)
-
+	SSVEnabled, err := getSSVEnabled(ctx)
 	return []map[string]string{
-		{"amfi_enabled": amfiEnabled},
+		{"ssv_enabled": SSVEnabled},
 	}, err
 }
 
