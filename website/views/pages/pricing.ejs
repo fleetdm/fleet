@@ -59,7 +59,7 @@
               <h2>Fleet Ultimate</h2>
               <h3>For orgs with large deployments</h3>
               <p>Over 500 hosts*</p>
-              <h2>${{estimatedUltimateCostPerHost}}/host</h2>
+              <h2>$<span :class="[estimatedUltimateCostPerHostHasBeenUpdated ? 'show-estimated-price' : '']">{{ estimatedUltimateCostPerHost.toFixed(2) }}</span>/host</h2>
             </div>
             <div>
               <p><strong>All of Premium plus</strong></p>
