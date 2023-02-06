@@ -1281,7 +1281,7 @@ spec:
     Automated method:
       Ask your system administrator to deploy the following script which will Ensure Apple Mobile File Integrity (AMFI) Is Enabled:
       /usr/bin/sudo /usr/sbin/nvram boot-args=""
-  query: SELECT 1 FROM nvran_info WHERE amfi_enabled="1";
+  query: SELECT 1 FROM nvram_info WHERE amfi_enabled="1";
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS5.1.3
   contributors: sharon-fdm
