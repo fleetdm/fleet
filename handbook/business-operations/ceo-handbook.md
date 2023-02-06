@@ -64,9 +64,9 @@ Last minute changes or cancellations should be communicated to Mike via DM rathe
 
 ### Travel preferences
 Current preferences for flights are:
- - Aisle seat
+ - Non-middle seat, anywhere
  - Direct flight whenever possible
- - Check a bag for all trips longer than one night
+ - Check a bag for all trips longer than five nights
  - Add Brex card information for pre-flight snacks and drinks forms
  - Frequent Flyer details of all (previously flown) airlines are in 1Password as well as important travel documents
 
@@ -178,10 +178,10 @@ How to file videos from Gong recordings (**marking as "private" in gong is not a
     - Include in the doc "link to transcript:"
 
 
-# Participation in the CEO shadow program
+## Participation in the CEO shadow program
 This section explains more about the CEO shadow program.
 
-## In this section
+#### In this section
 - [Eligibility](#eligibility)
 - [How to apply](#how-to-apply)
 - [Parental participation](#parental-participation)
@@ -213,18 +213,18 @@ To allow flexibility for parents to participate, there will be some rotations id
  2. Teach one, you train the incoming person.
  The shadow should be available for the full two weeks.
 
-## Preparing for the program
-### Important things to note
+### Preparing for the program
+#### Important things to note
  1. This is not a performance evaluation.
  2. Plan to observe and ask questions.
  3. Don't plan to do any of your usual work.
  4. Be ready to add a number of [handbook](https://fleetdm.com/handbook) updates during your shadow period.
  5. Participating in the shadow program is a privilege that will expose you to confidential information.
 
-### What to wear
+#### What to wear
  Casual. You do not need to dress formally; business casual clothes are also appropriate.
 
-### Pre-program tasks
+#### Pre-program tasks
  1. Create an [onboarding issue](https://github.com/fleetdm/confidential/blob/main/ceo-shadow-onboarding.md). Outgoing shadows are responsible for training incoming shadows. We currently track onboarding and offboarding in the [ceo-shadow project](https://github.com/orgs/fleetdm/projects/49/views/1).
  2. Consider creating goals. For inspiration, here is [an example](https://gitlab.com/nmccorrison/ceo-shadow/-/issues/1#my-goals) of a CEO Shadow who added goals to their onboarding issue.
  3. Practice your introduction. See [CEO Shadow Introductions](https://about.gitlab.com/handbook/ceo/shadow/#ceo-shadow-introductions) for specifics.
@@ -259,18 +259,18 @@ Here are some examples for meetings:
 2. Share thanks in the #thanks channel in Slack when it comes from a customer or wider community member in a meeting.
 
 
-## Preparing for meetings and events
-### CEO's calendar
+### Preparing for meetings and events
+#### CEO's calendar
  1. Review the [CEO's calendar](https://calendar.google.com/calendar/u/0/r/week).
  2. As a reminder, you should have your title updated within your last name on zoom. During the Shadow rotation update your title to "CEO Shadow".
  3. Add the CEO's calendar to your Google Calendar by clicking the + next to "Other Calendars". Then click Subscribe to Calendar, search for the CEO's name, and click enter.
  4. Some meetings you will not be required to shadow, those are indicated with "[no shadows]" in the event title.
  5. Meetings with those outside of Fleet may not be on Zoom. Prior to the call, check the CEO's calendar and load any other conferencing programs that may be needed. It may be necessary to dial in via phone for audio conferences.
 
-### Zoom information
+#### Zoom information
 You'll have an opportunity to join many calls and meet new people along the way. Fleet asks that you change your Zoom name to reflect "[CEO shadow - your name]" so that everyone on the call knows who you are and why you are participating. 
 
-### Responsibilities
+#### Responsibilities
 Meetings come in many different formats. Your responsibilities may change slightly based on the kind of meeting.
 Here are the responsibilities shadows have during meetings:
 | Meeting type | Notes? | Timekeeping? |
@@ -280,15 +280,15 @@ Here are the responsibilities shadows have during meetings:
 | Customer Meeting | Yes, please use the externally-shared collaboration doc | Timekeeping |
 | Anything else (unless specified)	| Yes, take notes | Timekeeping |
 
-## After the CEO shadow program
-### Alumni 
+### After the CEO shadow program
+#### Alumni 
 CEO Shadow program alumni are welcome to join the #ceo-shadow-alumni Slack channel to stay in touch after the program.
 | Start date | End date | Name | Title | Takeaways |
 | ---------- | -------- | ---- | ----- | --------- |
 |  date      |  date    | name | title | takeaways |
 
 
-## Considerations for other companies starting CEO shadow programs
+### Considerations for other companies starting CEO shadow programs
 GitLab co-founder and CEO Sid Sijbrandij [answered questions in a YouTube livestream](https://youtu.be/ExG8_bnIAMI) from Sam Altman, as the two discussed considerations for implementing a CEO Shadow program in other organizations. Key takeaways are documented below.
  1. CEOs should not optimize meetings for Shadows. They  learn by being in the room, either in-person or virtual, and it's OK if the Shadow doesn't fully understand everything.
  2. A well-designed CEO Shadow program shouldn't burden a CEO; in fact, Shadows should actively make a CEO's day easier by assisting with notes and changing relevant portions of the company handbook upon request.
