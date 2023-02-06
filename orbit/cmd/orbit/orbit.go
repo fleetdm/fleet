@@ -930,7 +930,7 @@ func getUUIDAndSerial(osqueryPath string) (uuid, serial string, err error) {
 		HardwareSerial string `json:"hardware_serial"`
 	}
 
-	args := []string{"-S", "--json", "select uuid from system_info"}
+	args := []string{"-S", "--json", "select uuid, hardware_serial from system_info"}
 	out, err := exec.Command(osqueryPath, args...).Output()
 	if err != nil {
 		return "", "", err
