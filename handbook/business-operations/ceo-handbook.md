@@ -181,7 +181,7 @@ How to file videos from Gong recordings (**marking as "private" in gong is not a
 ## Participation in the CEO shadow program
 This section explains more about the CEO shadow program.
 
-### In this section
+#### In this section
 - [Eligibility](#eligibility)
 - [How to apply](#how-to-apply)
 - [Parental participation](#parental-participation)
@@ -197,18 +197,18 @@ This section explains more about the CEO shadow program.
 - [Considerations for other companies starting CEO shadow programs](#considerations-for-other-companies-starting-ceo-shadow-programs)
 - [Alumni](#alumni)
 
-#### Eligibility
+### Eligibility
 All Fleet team members are eligibile to apply for the CEO Shadow Program. Eligibility starts after you've been at Fleet for at least 6 months. 
 
-#### How to apply
+### How to apply
  1. Create a pull request to add yourself to the [rotation schedule](https://github.com/fleetdm/fleet/edit/main/handbook/people/ceo-handbook.md#rotation-schedule).
  2. Assign your manager and ask them to approve (but not merge) the pull request.
  3. Once your manager approves the pull request, assign the pull request to `CharlotteChance`, link to the pull request in the #help-ceo-shadow channel, and tag `@Charlie`.
 
-#### Parental participation 
+### Parental participation 
 To allow flexibility for parents to participate, there will be some rotations identified as "parent-friendly" weeks. These are weeks when Mike doesn't need a shadow for the full 5 workdays or where the program is split so the weeks are not consecutive.
 
-#### Rotation rhythm
+### Rotation rhythm
  1. See one, you are trained by the outgoing person.
  2. Teach one, you train the incoming person.
  The shadow should be available for the full two weeks.
@@ -242,7 +242,7 @@ To allow flexibility for parents to participate, there will be some rotations id
 
 ```This list is not meant to be exhaustive and should not become a glossary. While we strive to be handbook first, you may find that we are using acronyms without a clear handbook definition. If you can't find it in the handbook or find a standard definition on Google, ask someone what the acronym means. Not being able to find it could be a sign that we need to do a better job with documentation.```
 
-#### What to expect during the program 
+### What to expect during the program 
 The value of the CEO Shadow Program comes from the broader context you'll gain and the interesting conversations you'll witness.
 Since your rotation is over a short period of time, there are no long-term tasks you can take on. However, there are many short-term administrative tasks you'll be asked to perform as a shadow. 
 
