@@ -191,17 +191,18 @@ module.exports = {
       //  ██║███████║███████║╚██████╔╝███████╗    ╚██████╗███████╗╚██████╔╝███████║███████╗██████╔╝
       //  ╚═╝╚══════╝╚══════╝ ╚═════╝ ╚══════╝     ╚═════╝╚══════╝ ╚═════╝ ╚══════╝╚══════╝╚═════╝
       //
-      // Handle closed issue by commenting on it.
-      let owner = repository.owner.login;
-      let repo = repository.name;
-      let issueNumber = issueOrPr.number;
-      let newBotComment;
-      let baseHeadersForGithubApiRequests = {
-        'User-Agent': 'Fleetie pie',
-        'Authorization': `token ${sails.config.custom.githubAccessToken}`
-      };
-
       // Disabled on 02-06-2023 until we find out the cause of the 429 responses from OpenAI.
+      //
+      // Handle closed issue by commenting on it.
+      // let owner = repository.owner.login;
+      // let repo = repository.name;
+      // let issueNumber = issueOrPr.number;
+      // let newBotComment;
+      // let baseHeadersForGithubApiRequests = {
+      //   'User-Agent': 'Fleetie pie',
+      //   'Authorization': `token ${sails.config.custom.githubAccessToken}`
+      // };
+
       // if (!sails.config.custom.openAiSecret) {
       //   throw new Error('sails.config.custom.openAiSecret not set.  Cannot respond with haiku.');
       // }//•
