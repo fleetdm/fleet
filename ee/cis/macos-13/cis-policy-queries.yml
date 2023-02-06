@@ -275,6 +275,34 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
+  name: CIS - Ensure Remote Management is Disabled
+  platforms: macOS
+  platform: darwin
+  description: |
+    Remote Management is the client portion of Apple Remote Desktop (ARD).
+    Remote Management can be used by remote administrators to view the current screen,
+    install software, report on, and generally manage client Macs.
+    Remote Management should only be enabled on trusted networks with strong
+    user controls present in a Directory system.
+    Mobile devices without strict controls are vulnerable to exploit and monitoring.
+  resolution: |
+    Graphical Method:
+    1. Open System Settings
+    2. Select General
+    3. Select Sharing
+    4. Set Remote Management to disabled
+  query: |
+    SELECT 1 WHERE NOT EXISTS (
+      SELECT * FROM processes WHERE
+        path = '/System/Library/CoreServices/RemoteManagement/ARDAgent.app/Contents/MacOS/ARDAgent'
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS2.3.3.6
+  contributors: artemist-work
+---
+apiVersion: v1
+kind: policy
+spec:
   name: CIS - Ensure Backup Automatically is Enabled If Time Machine Is Enabled (FDA Required)
   platforms: macOS
   platform: darwin
@@ -787,6 +815,165 @@ spec:
     );
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS3.1
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Security Auditing Flags For User-Attributable Events Are Configured Per Local Organizational Requirements
+  platforms: macOS
+  platform: darwin
+  description: |
+    Auditing is the capture and maintenance of information about security-related events. Auditable events often depend on differing organizational requirements.
+  resolution: |
+    Automated method:
+    Ask your system administrator to deploy an MDM profile that disables Bonjour advertising service.
+    Terminal Method: 
+      Perform the following to set the required Security Auditing Flags:
+      Edit the /etc/security/audit_control file and add -fm, ad, -ex, aa, -fr, lo, and -fw to flags. You can also substitute -all for -fm, -ex, -fr, and -fw.
+  query: |
+    SELECT 1 WHERE EXISTS (    
+      SELECT line
+      FROM file_lines WHERE path = '/etc/security/audit_control' 
+      AND 
+      (
+            (
+              line LIKE 'flags:%' 
+              AND 
+              line LIKE "%-fm%"
+              AND 
+              line LIKE "%ad%"
+              AND 
+              line LIKE "%-ex%"
+              AND 
+              line LIKE "%aa%"
+              AND 
+              line LIKE "%-fr%"
+              AND 
+              line LIKE "%lo%"
+              AND 
+              line LIKE "%-fw%" 
+            ) 
+            OR 
+            (
+              line LIKE 'flags:%' 
+              AND 
+              line LIKE "%-all%" 
+              AND 
+              line LIKE "%ad%"
+              AND 
+              line LIKE "%aa%"
+              AND 
+              line LIKE "%lo%"
+            )
+      )
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS3.2
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure install.log Is Retained for 365 or More Days and No Maximum Size
+  platforms: macOS
+  platform: darwin
+  description: |
+    macOS writes information pertaining to system-related events to the file /var/log/install.log and has a configurable retention policy for this file. The default logging setting limits the file size of the logs and the maximum size for all logs. The default allows for an errant application to fill the log files and does not enforce sufficient log retention. The Benchmark recommends a value based on standard use cases. The value should align with local requirements within the organization.
+  resolution: |
+    Automated method:
+      Ask your system administrator to deploy a script which will ensure proper retention for install.log.
+    Terminal Method:
+      Perform the following to ensure that install logs are retained for at least 365 days:
+      Edit the /etc/asl/com.apple.install file and add or modify the ttl value to 365 or greater on the file line. Also, remove the all_max= setting and value from the file line.
+  query: |
+    SELECT 1 WHERE
+    EXISTS ( SELECT line, 
+             CAST ( regex_match(line, 'ttl=(\d+)', 1) AS INTEGER ) AS val 
+             FROM file_lines 
+             WHERE path = '/etc/asl/com.apple.install' 
+             AND val >=365 )
+    AND
+    NOT EXISTS ( SELECT line  
+             FROM file_lines 
+             WHERE path = '/etc/asl/com.apple.install'  
+             AND  line  LIKE "%all_max=%" );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS3.3
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Security Auditing Retention Is Enabled
+  platforms: macOS
+  platform: darwin
+  description: |
+    The macOS audit capability contains important information to investigate security or operational issues. This resource is only completely useful if it is retained long enough to allow technical staff to find the root cause of anomalies in the records.
+    Retention can be set to respect both size and longevity. To retain as much as possible under a certain size, the recommendation is to use the following:
+    expire-after:60d OR 5G
+    This recomendation is based on minimum storage for review and investigation. When a third party tool is in use to allow remote logging or the store and forwarding of logs, this local storage requirement is not required.
+  resolution: |
+    Automated method:
+    Ask your system administrator to deploy the following script which will ensure proper Security Auditing Retention:
+    cp /etc/security/audit_control ./tmp.txt; origExpire=$(cat ./tmp.txt  | grep expire-after);  sed "s/${origExpire}/expire-after:60d OR 5G/" ./tmp.txt > /etc/security/audit_control; rm ./tmp.txt;
+  query: |
+    SELECT 1 WHERE EXISTS (
+      SELECT line,
+      CAST(regex_match(line, 'expire-after:(\d+)d OR (\d+)G', 1) AS INTEGER) AS days,
+      CAST(regex_match(line, 'expire-after:(\d+)d OR (\d+)G', 2) AS INTEGER) AS size
+      FROM file_lines
+      WHERE path = '/etc/security/audit_control'
+      AND days >=60
+      AND size >=5
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS3.4
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Access to Audit Records Is Controlled
+  platforms: macOS
+  platform: darwin
+  description: |
+    The audit system on macOS writes important operational and security information that can be both useful for an attacker and a place for an attacker to attempt to obfuscate unwanted changes that were recorded. As part of defense-in-depth the /etc/security/audit_control configuration and the files in /var/audit should be owned only by root with group wheel with read-only rights and no other access allowed. macOS ACLs should not be used for these files.
+  resolution: |
+    Automated method:
+    Ask your system administrator to deploy the following script which will Ensure Access to Audit Records Is Controlled:
+      /usr/bin/sudo /usr/sbin/chown -R root:wheel /etc/security/audit_control
+      /usr/bin/sudo /bin/chmod -R o-rw /etc/security/audit_control
+      /usr/bin/sudo /usr/sbin/chown -R root:wheel /var/audit/
+      /usr/bin/sudo /bin/chmod -R o-rw /var/audit/
+  query: |
+    SELECT 1 WHERE 
+      -- For all files in /var/audit:
+      -- UID, GID should be owned by root.
+      -- MODE should be 0440 ("-r--r-----")
+      NOT EXISTS ( SELECT 1 FROM file WHERE path LIKE '/var/audit/%' AND (uid !=0 OR gid !=0 OR mode != "0440") )
+      AND 
+      NOT EXISTS ( select 1 from file 
+                        where path LIKE 
+                        ( 
+                            SELECT dir FROM 
+                            ( 
+                              -- The path we are looking for is written inside /etc/security/audit_control in a line that starts with "dir:"
+                              -- Looking immediately at this and REGEX-ing the path after it (and concatenating "/%")
+                              -- Same explanation for queries below.
+                              select line, CONCAT(regex_match(line, '^dir:(.+)',1 ), '/%') AS dir 
+                              FROM file_lines 
+                              WHERE path = '/etc/security/audit_control' 
+                              AND line LIKE "dir:%"
+                            )
+                        ) 
+                        AND ( uid !=0 OR gid !=0 OR mode != "0440" )
+                  ) 
+      AND 
+      -- For /etc/security/audit_control the MODE should be 0400 ("-r--------")
+      NOT EXISTS ( select 1 from file where path = "/etc/security/audit_control" AND mode != "0400" );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS3.5
   contributors: sharon-fdm
 ---
 apiVersion: v1

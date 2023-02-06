@@ -1,1 +1,0 @@
-* Added the `POST /api/v1/fleet/mdm/apple/request_csr` endpoint to trigger a Certificate Signing Request to fleetdm.com and return the associated APNs private key and SCEP certificate and key.
