@@ -75,7 +75,7 @@ var expected = []macoffice.OfficeRelease{
 	},
 	{
 		Date:    time.Date(2022, 7, 15, 0, 0, 0, 0, time.UTC),
-		Version: "Version 16.63.1 (Build 22071401)",
+		Version: "Version 16.63.1 (Build 22071301)",
 	},
 	{
 		Date:    time.Date(2022, 7, 12, 0, 0, 0, 0, time.UTC),
@@ -522,7 +522,7 @@ var expected = []macoffice.OfficeRelease{
 	},
 	{
 		Date:    time.Date(2018, 5, 23, 0, 0, 0, 0, time.UTC),
-		Version: "Version 16.13.1 (Build 18052203) *",
+		Version: "Version 16.13.1 (Build 18052203)",
 	},
 	{
 		Date:    time.Date(2018, 5, 15, 0, 0, 0, 0, time.UTC),
@@ -630,7 +630,7 @@ var expected = []macoffice.OfficeRelease{
 	},
 	{
 		Date:    time.Date(2017, 5, 16, 0, 0, 0, 0, time.UTC),
-		Version: "Version 15.35.0 (Build 17061000)",
+		Version: "Version 15.34.0 (Build 17051500)",
 		SecurityUpdates: []macoffice.SecurityUpdate{
 			{Product: macoffice.OfficeSuite, Vulnerability: "CVE-2017-0254"},
 		},
@@ -683,16 +683,30 @@ func TestParseReleaseHTML(t *testing.T) {
 	require.NotEmpty(t, actual)
 
 	t.Run("Should parse Dates", func(t *testing.T) {
-		expectedDates := make([]string, 0, len(expected))
+		expectedDates := make([]time.Time, 0, len(expected))
 		for _, e := range expected {
-			expectedDates = append(expectedDates, e.Date.Format(time.Layout))
+			expectedDates = append(expectedDates, e.Date)
 		}
 
-		actualDates := make([]string, 0, len(actual))
+		actualDates := make([]time.Time, 0, len(actual))
 		for _, a := range actual {
-			actualDates = append(actualDates, a.Date.Format(time.Layout))
+			actualDates = append(actualDates, a.Date)
 		}
 
 		require.Equal(t, expectedDates, actualDates)
+	})
+
+	t.Run("Should parse release versions", func(t *testing.T) {
+		expectedVersions := make([]string, 0, len(expected))
+		for _, e := range expected {
+			expectedVersions = append(expectedVersions, e.Version)
+		}
+
+		actualVersions := make([]string, 0, len(actual))
+		for _, a := range actual {
+			actualVersions = append(actualVersions, a.Version)
+		}
+
+		require.Equal(t, expectedVersions, actualVersions)
 	})
 }
