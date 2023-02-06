@@ -26,8 +26,11 @@ func ApplyNudgeConfigFetcherMiddleware(f OrbitConfigFetcher, u *Runner) OrbitCon
 }
 
 // GetConfig calls the wrapped Fetcher's GetConfig method, and detects if the
-// Fleet server has supplied a Nudge config. If so, it ensures that Nudge is
-// installed and updated via the designated TUF server.
+// Fleet server has supplied a Nudge config. It also handles cases where the Nudge application
+// should be added or removed. If a Nudge config is supplied, it ensures that Nudge is
+// installed and updated via the designated TUF server. If Nudge is already installed but a Nudge
+// config is not supplied, Nudge is removed. If Nudge is removed, the current Orbit process
+// is interrupted.
 func (n *NudgeConfigFetcher) GetConfig() (*fleet.OrbitConfig, error) {
 	cfg, err := n.Fetcher.GetConfig()
 	if err != nil {
@@ -81,8 +84,11 @@ func removeNudgeTarget(r *Runner) {
 	err := os.RemoveAll(path)
 	if err != nil {
 		log.Info().Err(err).Msg("removing nudge from filesystem")
+		r.Interrupt(err)
+		return
 	}
-	// TODO(sarah): Consider adding a separate channel to signal that orbit should when targets are
-	// removed. For now, we're using the interrupt channel.
-	r.Interrupt(err)
+
+	// TODO(sarah): Consider adding a separate channel to signal that orbit should restart when
+	// targets are removed. For now, we're using the interrupt channel to signal this.
+	r.Interrupt(nil)
 }
