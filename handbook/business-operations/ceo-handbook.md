@@ -178,7 +178,7 @@ How to file videos from Gong recordings (**marking as "private" in gong is not a
     - Include in the doc "link to transcript:"
 
 
-## Participation in the CEO shadow program
+# Participation in the CEO shadow program
 This section explains more about the CEO shadow program.
 
 #### In this section
