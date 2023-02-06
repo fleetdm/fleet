@@ -639,3 +639,9 @@ type HostMDMCheckinInfo struct {
 	InstalledFromDEP bool   `json:"installed_from_dep" db:"installed_from_dep"`
 	DisplayName      string `json:"display_name" db:"display_name"`
 }
+
+type DiskEncryptionKey struct {
+	HostID          uint   `db:"host_id"`
+	Base64Encrypted string `db:"base64_encrypted"`
+	Decryptable     *bool  `db:"decryptable"`
+}

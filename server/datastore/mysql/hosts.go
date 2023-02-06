@@ -2334,6 +2334,49 @@ func (ds *Datastore) SetOrUpdateHostDisksEncryption(ctx context.Context, hostID 
 	)
 }
 
+func (ds *Datastore) SetOrUpdateHostDiskEncryptionKey(ctx context.Context, hostID uint, encryptedBase64Key string) error {
+	_, err := ds.writer.ExecContext(ctx, `
+           INSERT INTO host_disk_encryption_keys (host_id, base64_encrypted) 
+	   VALUES (?, ?)
+	   ON DUPLICATE KEY UPDATE
+   	     /* if the key has changed, NULLify this value so it can be calculated again */
+             decryptable = IF(base64_encrypted = VALUES(base64_encrypted), decryptable, NULL),
+   	     base64_encrypted = VALUES(base64_encrypted)
+      `, hostID, encryptedBase64Key)
+	return err
+
+}
+
+func (ds *Datastore) GetUnverifiedDiskEncryptionKeys(ctx context.Context) ([]fleet.DiskEncryptionKey, error) {
+	var keys []fleet.DiskEncryptionKey
+	err := sqlx.SelectContext(ctx, ds.reader, &keys, `
+          SELECT
+            base64_encrypted,
+            host_id
+          FROM
+            host_disk_encryption_keys
+          WHERE
+            decryptable IS NULL
+	`)
+	return keys, err
+}
+
+func (ds *Datastore) SetHostDiskEncryptionKeyStatus(ctx context.Context, hostIDs []uint, decryptable bool) error {
+	if len(hostIDs) == 0 {
+		return nil
+	}
+
+	query, args, err := sqlx.In(
+		"UPDATE host_disk_encryption_keys SET decryptable = ? WHERE host_id IN (?)",
+		decryptable, hostIDs,
+	)
+	if err != nil {
+		return err
+	}
+	_, err = ds.writer.ExecContext(ctx, query, args...)
+	return err
+}
+
 func (ds *Datastore) SetOrUpdateHostOrbitInfo(ctx context.Context, hostID uint, version string) error {
 	return ds.updateOrInsert(
 		ctx,

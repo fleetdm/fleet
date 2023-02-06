@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/x509"
 	"encoding/json"
 	"fmt"
 	"net/url"
@@ -645,7 +646,12 @@ func newFailerClient(forcedFailures string) *worker.TestAutomationFailer {
 }
 
 func newCleanupsAndAggregationSchedule(
-	ctx context.Context, instanceID string, ds fleet.Datastore, logger kitlog.Logger, enrollHostLimiter fleet.EnrollHostLimiter,
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	logger kitlog.Logger,
+	enrollHostLimiter fleet.EnrollHostLimiter,
+	config *config.FleetConfig,
 ) (*schedule.Schedule, error) {
 	const (
 		name            = string(fleet.CronCleanupsThenAggregation)
@@ -745,9 +751,66 @@ func newCleanupsAndAggregationSchedule(
 				return ds.UpdateOSVersions(ctx)
 			},
 		),
+		schedule.WithJob(
+			"verify_disk_encryption_keys",
+			func(ctx context.Context) error {
+				return verifyDiskEncryptionKeys(ctx, logger, ds, config)
+			},
+		),
 	)
 
 	return s, nil
+}
+
+func verifyDiskEncryptionKeys(
+	ctx context.Context,
+	logger kitlog.Logger,
+	ds fleet.Datastore,
+	config *config.FleetConfig,
+) error {
+	if !config.MDM.IsAppleSCEPSet() {
+		logger.Log("inf", "skipping verification of encryption keys as MDM is not fully configured")
+		return nil
+	}
+
+	keys, err := ds.GetUnverifiedDiskEncryptionKeys(ctx)
+	if err != nil {
+		logger.Log("err", "unable to get unverified disk encryption keys from the database", "details", err)
+		return err
+	}
+
+	cert, _, _, err := config.MDM.AppleSCEP()
+	if err != nil {
+		logger.Log("err", "unable to get SCEP keypair to decrypt keys", "details", err)
+		return err
+	}
+
+	parsed, err := x509.ParseCertificate(cert.Certificate[0])
+	if err != nil {
+		logger.Log("err", "unable to get SCEP keypair to decrypt keys", "details", err)
+		return err
+	}
+
+	decryptable := []uint{}
+	undecryptable := []uint{}
+	for _, key := range keys {
+		if _, err := apple_mdm.DecryptBase64CMS(key.Base64Encrypted, parsed, cert.PrivateKey); err != nil {
+			undecryptable = append(undecryptable, key.HostID)
+			continue
+		}
+		decryptable = append(decryptable, key.HostID)
+	}
+
+	if err := ds.SetHostDiskEncryptionKeyStatus(ctx, decryptable, true); err != nil {
+		logger.Log("err", "unable to update decryptable status", "details", err)
+		return err
+	}
+	if err := ds.SetHostDiskEncryptionKeyStatus(ctx, undecryptable, false); err != nil {
+		logger.Log("err", "unable to update decryptable status", "details", err)
+		return err
+	}
+
+	return nil
 }
 
 func newUsageStatisticsSchedule(ctx context.Context, instanceID string, ds fleet.Datastore, config config.FleetConfig, license *fleet.LicenseInfo, logger kitlog.Logger) (*schedule.Schedule, error) {
