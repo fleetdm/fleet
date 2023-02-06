@@ -877,6 +877,35 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
+  name: CIS - Ensure Security Auditing Retention Is Enabled
+  platforms: macOS
+  platform: darwin
+  description: |
+    The macOS audit capability contains important information to investigate security or operational issues. This resource is only completely useful if it is retained long enough to allow technical staff to find the root cause of anomalies in the records.
+    Retention can be set to respect both size and longevity. To retain as much as possible under a certain size, the recommendation is to use the following:
+    expire-after:60d OR 5G
+    This recomendation is based on minimum storage for review and investigation. When a third party tool is in use to allow remote logging or the store and forwarding of logs, this local storage requirement is not required.
+  resolution: |
+    Automated method:
+    Ask your system administrator to deploy the following script which will ensure proper Security Auditing Retention:
+    cp /etc/security/audit_control ./tmp.txt; origExpire=$(cat ./tmp.txt  | grep expire-after);  sed "s/${origExpire}/expire-after:60d OR 5G/" ./tmp.txt > /etc/security/audit_control; rm ./tmp.txt;
+  query: |
+    SELECT 1 WHERE EXISTS (
+      SELECT line,
+      CAST(regex_match(line, 'expire-after:(\d+)d OR (\d+)G', 1) AS INTEGER) AS days,
+      CAST(regex_match(line, 'expire-after:(\d+)d OR (\d+)G', 2) AS INTEGER) AS size
+      FROM file_lines
+      WHERE path = '/etc/security/audit_control'
+      AND days >=60
+      AND size >=5
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS3.4
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
   name: CIS - Ensure Access to Audit Records Is Controlled
   platforms: macOS
   platform: darwin
