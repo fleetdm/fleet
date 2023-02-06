@@ -5,7 +5,7 @@ import { useErrorHandler } from "react-error-boundary";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 
 import classnames from "classnames";
-import { noop, pick } from "lodash";
+import { pick } from "lodash";
 
 import PATHS from "router/paths";
 import hostAPI from "services/entities/hosts";
@@ -33,7 +33,6 @@ import permissionUtils from "utilities/permissions";
 
 import ReactTooltip from "react-tooltip";
 import Spinner from "components/Spinner";
-import Button from "components/buttons/Button";
 import TabsWrapper from "components/TabsWrapper";
 import MainContent from "components/MainContent";
 import InfoBanner from "components/InfoBanner";
@@ -113,10 +112,10 @@ const HostDetailsPage = ({
   const {
     config,
     currentUser,
-    isGlobalAdmin,
-    isPremiumTier,
+    isGlobalAdmin = false,
+    isPremiumTier = false,
     isOnlyObserver,
-    isGlobalMaintainer,
+    isGlobalMaintainer = false,
     filteredHostsPath,
   } = useContext(AppContext);
   const {
@@ -129,17 +128,6 @@ const HostDetailsPage = ({
   } = useContext(PolicyContext);
   const { renderFlash } = useContext(NotificationContext);
   const handlePageError = useErrorHandler();
-  const canTransferTeam =
-    isPremiumTier && (isGlobalAdmin || isGlobalMaintainer);
-
-  const canDeleteHost = (user: IUser, host: IHost) => {
-    return (
-      isGlobalAdmin ||
-      isGlobalMaintainer ||
-      permissionUtils.isTeamAdmin(user, host.team_id) ||
-      permissionUtils.isTeamMaintainer(user, host.team_id)
-    );
-  };
 
   const [showDeleteHostModal, setShowDeleteHostModal] = useState(false);
   const [showTransferHostModal, setShowTransferHostModal] = useState(false);
@@ -335,19 +323,6 @@ const HostDetailsPage = ({
     }
   );
 
-  const canEditMdm = (() => {
-    const userHasPermission =
-      !!currentUser &&
-      !!host &&
-      (isGlobalAdmin ||
-        isGlobalMaintainer ||
-        permissionUtils.isTeamMaintainerOrTeamAdmin(currentUser, host.team_id));
-    const hostEnrolled = ["On (automatic)", "On (manual)"].includes(
-      host?.mdm.enrollment_status ?? ""
-    );
-    return userHasPermission && hostEnrolled;
-  })();
-
   const featuresConfig = host?.team_id
     ? teams?.find((t) => t.id === host.team_id)?.features
     : config?.features;
@@ -538,30 +513,57 @@ const HostDetailsPage = ({
     []
   );
 
+  const onChangeActionSelection = (action: string) => {
+    switch (action) {
+      case "transfer":
+        setShowTransferHostModal(true);
+        break;
+      case "query":
+        setShowQueryHostModal(true);
+        break;
+      case "diskEncryption":
+        setShowDiskEncryptionModal(true);
+        break;
+      case "mdmOff":
+        toggleUnenrollMdmModal();
+        break;
+      case "delete":
+        setShowDeleteHostModal(true);
+        break;
+      default:
+    }
+  };
+
   const renderActionButtons = () => {
     // TODO: replace with actual values.
     const doesStoreEncryptionKey = true;
 
-    // Case where user is only observer AND (we do not store disk encryption OR is not premium).
-    // No possiblity of any of the options showing so we exit early.
-    if (isOnlyObserver && (!isPremiumTier || doesStoreEncryptionKey)) {
-      return null;
-    }
-
     const options = generateHostActionOptions({
-      isPremiumTier: true,
-      isGlobalAdmin: true,
-      isGlobalMaintainer: true,
-      isTeamAdmin: true,
-      isTeamMaintainer: true,
+      isPremiumTier,
+      isGlobalAdmin,
+      isGlobalMaintainer,
+      isTeamAdmin: permissionUtils.isTeamAdmin(
+        currentUser,
+        host?.team_id ?? null
+      ),
+      isTeamMaintainer: permissionUtils.isTeamMaintainer(
+        currentUser,
+        host?.team_id ?? null
+      ),
       isHostOnline: host?.status === "online",
+      isEnrolledInMdm: ["On (automatic)", "On (manual)"].includes(
+        host?.mdm.enrollment_status ?? ""
+      ),
       doesStoreEncryptionKey,
     });
+
+    // No options to render. Exit early
+    if (options.length === 0) return null;
 
     return (
       <Dropdown
         className={`${baseClass}__host-actions-dropdown`}
-        onChange={noop}
+        onChange={onChangeActionSelection}
         placeholder={"Actions"}
         searchable={false}
         options={options}
@@ -773,7 +775,10 @@ const HostDetailsPage = ({
           />
         )}
         {showDiskEncryptionModal && (
-          <DiskEncryptionKeyModal secret={{ secret: "test" }} onCancel={noop} />
+          <DiskEncryptionKeyModal
+            secret={{ secret: "test" }}
+            onCancel={() => setShowDiskEncryptionModal(false)}
+          />
         )}
       </div>
     </MainContent>

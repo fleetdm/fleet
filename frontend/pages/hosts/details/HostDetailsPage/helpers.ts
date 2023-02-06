@@ -37,48 +37,76 @@ interface IHostActionConfigOptions {
   isTeamAdmin: boolean;
   isTeamMaintainer: boolean;
   isHostOnline: boolean;
+  isEnrolledInMdm: boolean;
   doesStoreEncryptionKey: boolean;
 }
+
+const canTransferTeam = (config: IHostActionConfigOptions) => {
+  const { isPremiumTier, isGlobalAdmin, isGlobalMaintainer } = config;
+  return isPremiumTier && (isGlobalAdmin || isGlobalMaintainer);
+};
+
+const canEditMdm = (config: IHostActionConfigOptions) => {
+  const {
+    isGlobalAdmin,
+    isGlobalMaintainer,
+    isTeamAdmin,
+    isTeamMaintainer,
+    isEnrolledInMdm,
+  } = config;
+  return (
+    isEnrolledInMdm &&
+    (isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer)
+  );
+};
+
+const canQueryHost = (config: IHostActionConfigOptions) => {
+  const {
+    isGlobalAdmin,
+    isGlobalMaintainer,
+    isTeamAdmin,
+    isTeamMaintainer,
+  } = config;
+  return isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
+};
+
+const canDeleteHost = (config: IHostActionConfigOptions) => {
+  const {
+    isGlobalAdmin,
+    isGlobalMaintainer,
+    isTeamAdmin,
+    isTeamMaintainer,
+  } = config;
+  return isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
+};
+
+const canShowDiskEncryption = (config: IHostActionConfigOptions) => {
+  const { isPremiumTier, doesStoreEncryptionKey } = config;
+  return isPremiumTier && doesStoreEncryptionKey;
+};
 
 const filterOutOptions = (
   options: IDropdownOption[],
   config: IHostActionConfigOptions
 ) => {
-  const {
-    isPremiumTier,
-    isGlobalAdmin,
-    isGlobalMaintainer,
-    isTeamAdmin,
-    isTeamMaintainer,
-    doesStoreEncryptionKey,
-  } = config;
-
-  // disk encryption and transfer filtered out if not premium
-  if (!isPremiumTier) {
-    options = options.filter(
-      (option) =>
-        option.value !== "diskEncryption" && option.value !== "transfer"
-    );
+  if (!canTransferTeam(config)) {
+    options = options.filter((option) => option.value !== "transfer");
   }
 
-  // disk encryption filtered out if we do not store it
-  if (!doesStoreEncryptionKey) {
+  if (!canQueryHost(config)) {
+    options = options.filter((option) => option.value !== "query");
+  }
+
+  if (!canShowDiskEncryption(config)) {
     options = options.filter((option) => option.value !== "diskEncryption");
   }
 
-  // transfer filtered out if not global admin/maintainer
-  if (!isGlobalAdmin && !isGlobalMaintainer) {
-    options = options.filter((option) => option.value !== "transfer");
+  if (!canEditMdm(config)) {
+    options = options.filter((option) => option.value !== "mdmOff");
+  }
 
-    // query, delete, mdmOff filtered out if not global admin/maintainer or team admin/maintainer
-    if (!isTeamAdmin && !isTeamMaintainer) {
-      options = options.filter(
-        (option) =>
-          option.value !== "query" &&
-          option.value !== "delete" &&
-          option.value !== "mdmOff"
-      );
-    }
+  if (!canDeleteHost(config)) {
+    options = options.filter((option) => option.value !== "delete");
   }
 
   return options;
@@ -111,6 +139,10 @@ export const generateHostActionOptions = (config: IHostActionConfigOptions) => {
   // deep clone to always start with a fresh copy of the default options.
   let options = cloneDeep(DEFAULT_OPTIONS);
   options = filterOutOptions(options, config);
+
+  // no options so exit early.
+  if (options.length === 0) return options;
+
   options = setOptionsAsDisabled(options, config.isHostOnline);
   return options;
 };
