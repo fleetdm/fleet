@@ -328,6 +328,34 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
+  name: CIS - Ensure Printer Sharing is Disabled
+  platforms: macOS
+  platform: darwin
+  description: |
+    By enabling Printer Sharing, the computer is set up as a
+    print server to accept print jobs from other computers.
+    Dedicated print servers or direct IP printing should be used instead.
+    Disabling Printer Sharing mitigates the risk of attackers
+    attempting to exploit the print server to gain access to the system.
+  resolution: |
+    Graphical Method:
+    1. Open System Settings
+    2. Select General
+    3. Select Sharing
+    4. Set Printer Sharing to disabled
+  query: |
+    SELECT 1 WHERE NOT EXISTS (
+      SELECT * FROM file_lines WHERE
+        path = '/etc/cups/cupsd.conf' AND
+        line LIKE '%Allow @LOCAL%'
+      );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS2.3.3.4
+  contributors: artemist-work
+---
+apiVersion: v1
+kind: policy
+spec:
   name: CIS - Ensure Remote Login Is Disabled
   platforms: macOS
   platform: darwin
