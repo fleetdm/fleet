@@ -4,6 +4,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/packaging"
 	"github.com/fleetdm/fleet/v4/pkg/buildpkg"
+	"github.com/mitchellh/gon/package/zip"
 	zlog "github.com/rs/zerolog/log"
 )
 
@@ -74,7 +76,15 @@ func main() {
 	}
 
 	if notarize {
-		if err := packaging.Notarize(binaryPath, bundleIdentifier); err != nil {
+		const notarizationZip = "orbit.zip"
+		// NOTE: the app needs to be zipped in order to upload to Apple for Notarization, but
+		// the Stapling has to happen on just the app (not zipped). Apple is a bit inconsistent here.
+		if err := zip.Zip(context.Background(), &zip.Options{Files: []string{binaryPath}, OutputPath: notarizationZip}); err != nil {
+			panic(err)
+		}
+		defer os.Remove(notarizationZip)
+
+		if err := packaging.Notarize(notarizationZip, bundleIdentifier); err != nil {
 			panic(err)
 		}
 		if err := packaging.Staple(binaryPath); err != nil {
