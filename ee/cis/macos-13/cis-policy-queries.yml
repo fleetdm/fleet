@@ -275,6 +275,34 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
+  name: CIS - Ensure Remote Management is Disabled
+  platforms: macOS
+  platform: darwin
+  description: |
+    Remote Management is the client portion of Apple Remote Desktop (ARD).
+    Remote Management can be used by remote administrators to view the current screen,
+    install software, report on, and generally manage client Macs.
+    Remote Management should only be enabled on trusted networks with strong
+    user controls present in a Directory system.
+    Mobile devices without strict controls are vulnerable to exploit and monitoring.
+  resolution: |
+    Graphical Method:
+    1. Open System Settings
+    2. Select General
+    3. Select Sharing
+    4. Set Remote Management to disabled
+  query: |
+    SELECT 1 WHERE NOT EXISTS (
+      SELECT * FROM processes WHERE
+        path = '/System/Library/CoreServices/RemoteManagement/ARDAgent.app/Contents/MacOS/ARDAgent'
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS2.3.3.6
+  contributors: artemist-work
+---
+apiVersion: v1
+kind: policy
+spec:
   name: CIS - Ensure Backup Automatically is Enabled If Time Machine Is Enabled (FDA Required)
   platforms: macOS
   platform: darwin
@@ -872,6 +900,35 @@ spec:
              AND  line  LIKE "%all_max=%" );
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS3.3
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Security Auditing Retention Is Enabled
+  platforms: macOS
+  platform: darwin
+  description: |
+    The macOS audit capability contains important information to investigate security or operational issues. This resource is only completely useful if it is retained long enough to allow technical staff to find the root cause of anomalies in the records.
+    Retention can be set to respect both size and longevity. To retain as much as possible under a certain size, the recommendation is to use the following:
+    expire-after:60d OR 5G
+    This recomendation is based on minimum storage for review and investigation. When a third party tool is in use to allow remote logging or the store and forwarding of logs, this local storage requirement is not required.
+  resolution: |
+    Automated method:
+    Ask your system administrator to deploy the following script which will ensure proper Security Auditing Retention:
+    cp /etc/security/audit_control ./tmp.txt; origExpire=$(cat ./tmp.txt  | grep expire-after);  sed "s/${origExpire}/expire-after:60d OR 5G/" ./tmp.txt > /etc/security/audit_control; rm ./tmp.txt;
+  query: |
+    SELECT 1 WHERE EXISTS (
+      SELECT line,
+      CAST(regex_match(line, 'expire-after:(\d+)d OR (\d+)G', 1) AS INTEGER) AS days,
+      CAST(regex_match(line, 'expire-after:(\d+)d OR (\d+)G', 2) AS INTEGER) AS size
+      FROM file_lines
+      WHERE path = '/etc/security/audit_control'
+      AND days >=60
+      AND size >=5
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS3.4
   contributors: sharon-fdm
 ---
 apiVersion: v1
