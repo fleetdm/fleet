@@ -6,7 +6,7 @@ sed "s/${origExpire}/expire-after:60d OR 5G/" ./tmp.txt > /etc/security/audit_co
 rm ./tmp.txt;
 
 
-# Explenation:
+# Explanation:
 # In your /etc/security/audit_control , look for a line starting at: expire-after
 # Cases to test:
 # SHOULD PASS:   expire-after:60d OR 5G
