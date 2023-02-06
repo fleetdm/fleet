@@ -275,6 +275,34 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
+  name: CIS - Ensure Remote Management is Disabled
+  platforms: macOS
+  platform: darwin
+  description: |
+    Remote Management is the client portion of Apple Remote Desktop (ARD).
+    Remote Management can be used by remote administrators to view the current screen,
+    install software, report on, and generally manage client Macs.
+    Remote Management should only be enabled on trusted networks with strong
+    user controls present in a Directory system.
+    Mobile devices without strict controls are vulnerable to exploit and monitoring.
+  resolution: |
+    Graphical Method:
+    1. Open System Settings
+    2. Select General
+    3. Select Sharing
+    4. Set Remote Management to disabled
+  query: |
+    SELECT 1 WHERE NOT EXISTS (
+      SELECT * FROM processes WHERE
+        path = '/System/Library/CoreServices/RemoteManagement/ARDAgent.app/Contents/MacOS/ARDAgent'
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS2.3.3.6
+  contributors: artemist-work
+---
+apiVersion: v1
+kind: policy
+spec:
   name: CIS - Ensure Backup Automatically is Enabled If Time Machine Is Enabled (FDA Required)
   platforms: macOS
   platform: darwin
