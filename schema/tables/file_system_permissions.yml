@@ -1,4 +1,4 @@
-name: file_system_permissions
+name: csrutil_info
 platforms:
   - darwin
 description: File System Permissions and Access Controls.
