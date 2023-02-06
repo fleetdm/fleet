@@ -30,7 +30,7 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 	}, err
 }
 
-func getAMFIEnabled(ctx context.Context) (SSVEnabled string, err error) {
+func getSSVEnabled(ctx context.Context) (SSVEnabled string, err error) {
 	res, err := runCommand(ctx, "/usr/bin/csrutil", "authenticated-root", "status")
 	SSVEnabled = ""
 	if err == nil {

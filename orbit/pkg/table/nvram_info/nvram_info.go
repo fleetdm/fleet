@@ -31,7 +31,7 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 	}, err
 }
 
-func getSSVEnabled(ctx context.Context) (amfiEnabled string, err error) {
+func getAMFIEnabled(ctx context.Context) (amfiEnabled string, err error) {
 	res, err := runCommand(ctx, "/usr/sbin/nvram", "-p")
 	amfiEnabled = ""
 	if err == nil {
