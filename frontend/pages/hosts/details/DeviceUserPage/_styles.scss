@@ -40,6 +40,12 @@
   background-color: $ui-off-white;
   gap: $pad-medium;
 
+  .info-banner {
+    &__cta {
+      white-space: nowrap;
+    }
+  }
+
   .header {
     flex: 100%;
     display: flex;
