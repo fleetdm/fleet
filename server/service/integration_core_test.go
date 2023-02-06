@@ -6337,9 +6337,10 @@ func (s *integrationTestSuite) TestEnrollOrbitAfterDEPSync() {
 
 	// enroll the host from orbit, it should match the host above via the serial
 	var resp EnrollOrbitResponse
+	hostUUID := uuid.New().String()
 	s.DoJSON("POST", "/api/fleet/orbit/enroll", EnrollOrbitRequest{
 		EnrollSecret:   secret,
-		HardwareUUID:   uuid.New().String(), // will not match any existing host
+		HardwareUUID:   hostUUID, // will not match any existing host
 		HardwareSerial: h.HardwareSerial,
 	}, http.StatusOK, &resp)
 	require.NotEmpty(t, resp.OrbitNodeKey)
@@ -6351,6 +6352,26 @@ func (s *integrationTestSuite) TestEnrollOrbitAfterDEPSync() {
 	require.Equal(t, h.ID, hostResp.Host.ID)
 
 	got, err := s.ds.LoadHostByOrbitNodeKey(ctx, resp.OrbitNodeKey)
+	require.NoError(t, err)
+	require.Equal(t, h.ID, got.ID)
+
+	// enroll the host from osquery, it should match the same host
+	var osqueryResp enrollAgentResponse
+	osqueryID := uuid.New().String()
+	s.DoJSON("POST", "/api/osquery/enroll", enrollAgentRequest{
+		EnrollSecret:   secret,
+		HostIdentifier: osqueryID, // osquery host_identifier may not be the same as the host UUID, simulate that here
+		HostDetails: map[string]map[string]string{
+			"system_info": {
+				"uuid":            hostUUID,
+				"hardware_serial": h.HardwareSerial,
+			},
+		},
+	}, http.StatusOK, &osqueryResp)
+	require.NotEmpty(t, osqueryResp.NodeKey)
+
+	// load the host by osquery node key, should match the initial host
+	got, err = s.ds.LoadHostByNodeKey(ctx, osqueryResp.NodeKey)
 	require.NoError(t, err)
 	require.Equal(t, h.ID, got.ID)
 }
