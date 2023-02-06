@@ -139,7 +139,15 @@ func (svc *Service) EnrollAgent(ctx context.Context, enrollSecret, hostIdentifie
 		return "", osqueryError{message: fmt.Sprintf("enroll host failed: maximum number of hosts reached: %s", deviceCount), nodeInvalid: true}
 	}
 
-	host, err := svc.ds.EnrollHost(ctx, hostIdentifier, nodeKey, secret.TeamID, svc.config.Osquery.EnrollCooldown)
+	// the the device's uuid and serial from the system_info table provided with
+	// the osquery enrollment
+	var hardwareUUID, hardwareSerial string
+	if r, ok := hostDetails["system_info"]; ok {
+		hardwareUUID = r["uuid"]
+		hardwareSerial = r["hardware_serial"]
+	}
+
+	host, err := svc.ds.EnrollHost(ctx, hostIdentifier, hardwareUUID, hardwareSerial, nodeKey, secret.TeamID, svc.config.Osquery.EnrollCooldown)
 	if err != nil {
 		return "", osqueryError{message: "save enroll failed: " + err.Error(), nodeInvalid: true}
 	}

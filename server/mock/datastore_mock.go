@@ -478,7 +478,7 @@ type ReplaceHostBatteriesFunc func(ctx context.Context, id uint, mappings []*fle
 
 type VerifyEnrollSecretFunc func(ctx context.Context, secret string) (*fleet.EnrollSecret, error)
 
-type EnrollHostFunc func(ctx context.Context, osqueryHostId string, nodeKey string, teamID *uint, cooldown time.Duration) (*fleet.Host, error)
+type EnrollHostFunc func(ctx context.Context, osqueryHostId string, hardwareUUID string, hardwareSerial string, nodeKey string, teamID *uint, cooldown time.Duration) (*fleet.Host, error)
 
 type EnrollOrbitFunc func(ctx context.Context, hardwareUUID string, hardwareSerial string, orbitNodeKey string, teamID *uint) (*fleet.Host, error)
 
@@ -2501,9 +2501,9 @@ func (s *DataStore) VerifyEnrollSecret(ctx context.Context, secret string) (*fle
 	return s.VerifyEnrollSecretFunc(ctx, secret)
 }
 
-func (s *DataStore) EnrollHost(ctx context.Context, osqueryHostId string, nodeKey string, teamID *uint, cooldown time.Duration) (*fleet.Host, error) {
+func (s *DataStore) EnrollHost(ctx context.Context, osqueryHostId string, hardwareUUID string, hardwareSerial string, nodeKey string, teamID *uint, cooldown time.Duration) (*fleet.Host, error) {
 	s.EnrollHostFuncInvoked = true
-	return s.EnrollHostFunc(ctx, osqueryHostId, nodeKey, teamID, cooldown)
+	return s.EnrollHostFunc(ctx, osqueryHostId, hardwareUUID, hardwareSerial, nodeKey, teamID, cooldown)
 }
 
 func (s *DataStore) EnrollOrbit(ctx context.Context, hardwareUUID string, hardwareSerial string, orbitNodeKey string, teamID *uint) (*fleet.Host, error) {

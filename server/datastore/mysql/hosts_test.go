@@ -1257,7 +1257,7 @@ func testHostsEnroll(t *testing.T, ds *Datastore) {
 	}
 
 	for _, tt := range enrollTests {
-		h, err := ds.EnrollHost(context.Background(), tt.uuid, tt.nodeKey, &team.ID, 0)
+		h, err := ds.EnrollHost(context.Background(), tt.uuid, "", "", tt.nodeKey, &team.ID, 0)
 		require.NoError(t, err)
 		assert.NotZero(t, h.LastEnrolledAt)
 
@@ -1265,12 +1265,12 @@ func testHostsEnroll(t *testing.T, ds *Datastore) {
 		assert.Equal(t, tt.nodeKey, *h.NodeKey)
 
 		// This host should be allowed to re-enroll immediately if cooldown is disabled
-		_, err = ds.EnrollHost(context.Background(), tt.uuid, tt.nodeKey+"new", nil, 0)
+		_, err = ds.EnrollHost(context.Background(), tt.uuid, "", "", tt.nodeKey+"new", nil, 0)
 		require.NoError(t, err)
 		assert.NotZero(t, h.LastEnrolledAt)
 
 		// This host should not be allowed to re-enroll immediately if cooldown is enabled
-		_, err = ds.EnrollHost(context.Background(), tt.uuid, tt.nodeKey+"new", nil, 10*time.Second)
+		_, err = ds.EnrollHost(context.Background(), tt.uuid, "", "", tt.nodeKey+"new", nil, 10*time.Second)
 		require.Error(t, err)
 		assert.NotZero(t, h.LastEnrolledAt)
 	}
@@ -1286,7 +1286,7 @@ func testHostsEnroll(t *testing.T, ds *Datastore) {
 func testHostsLoadHostByNodeKey(t *testing.T, ds *Datastore) {
 	test.AddAllHostsLabel(t, ds)
 	for _, tt := range enrollTests {
-		h, err := ds.EnrollHost(context.Background(), tt.uuid, tt.nodeKey, nil, 0)
+		h, err := ds.EnrollHost(context.Background(), tt.uuid, "", "", tt.nodeKey, nil, 0)
 		require.NoError(t, err)
 
 		returned, err := ds.LoadHostByNodeKey(context.Background(), *h.NodeKey)
@@ -1304,7 +1304,7 @@ func testHostsLoadHostByNodeKey(t *testing.T, ds *Datastore) {
 func testHostsLoadHostByNodeKeyCaseSensitive(t *testing.T, ds *Datastore) {
 	test.AddAllHostsLabel(t, ds)
 	for _, tt := range enrollTests {
-		h, err := ds.EnrollHost(context.Background(), tt.uuid, tt.nodeKey, nil, 0)
+		h, err := ds.EnrollHost(context.Background(), tt.uuid, "", "", tt.nodeKey, nil, 0)
 		require.NoError(t, err)
 
 		_, err = ds.LoadHostByNodeKey(context.Background(), strings.ToUpper(*h.NodeKey))
@@ -3856,7 +3856,7 @@ func testHostsNoSeenTime(t *testing.T, ds *Datastore) {
 	require.Zero(t, count[0])
 
 	// Enroll existing host.
-	_, err = ds.EnrollHost(context.Background(), "1", "1", nil, 0)
+	_, err = ds.EnrollHost(context.Background(), "1", "", "", "1", nil, 0)
 	require.NoError(t, err)
 
 	var seenTime1 []time.Time
@@ -3868,7 +3868,7 @@ func testHostsNoSeenTime(t *testing.T, ds *Datastore) {
 	time.Sleep(1 * time.Second)
 
 	// Enroll again to trigger an update of host_seen_times.
-	_, err = ds.EnrollHost(context.Background(), "1", "1", nil, 0)
+	_, err = ds.EnrollHost(context.Background(), "1", "", "", "1", nil, 0)
 	require.NoError(t, err)
 
 	var seenTime2 []time.Time
@@ -5914,7 +5914,7 @@ func testHostsLoadHostByOrbitNodeKey(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
 	for _, tt := range enrollTests {
-		h, err := ds.EnrollHost(ctx, tt.uuid, tt.nodeKey, nil, 0)
+		h, err := ds.EnrollHost(ctx, tt.uuid, "", "", tt.nodeKey, nil, 0)
 		require.NoError(t, err)
 
 		orbitKey := uuid.New().String()
