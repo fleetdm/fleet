@@ -32,9 +32,8 @@
 
 .device-user {
   display: flex;
-  flex-wrap: wrap;
-  flex-grow: 1;
-  align-content: flex-start;
+  flex-direction: column;
+  justify-content: flex-start;
   padding-bottom: 50px;
   min-width: 0;
   background-color: $ui-off-white;
