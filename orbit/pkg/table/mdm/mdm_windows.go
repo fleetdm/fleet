@@ -10,6 +10,7 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 	"sync"
@@ -28,9 +29,12 @@ var (
 	// Windows DLL and functions for runtime binding
 	modmdmregistration = windows.NewLazySystemDLL("mdmregistration.dll")
 	modmdmlocalmgmt    = windows.NewLazySystemDLL("mdmlocalmanagement.dll")
+	modkernel32        = windows.NewLazySystemDLL("kernel32.dll")
 
 	procIsDeviceRegisteredWithManagement = modmdmregistration.NewProc("IsDeviceRegisteredWithManagement")
 	procSendSyncMLcommand                = modmdmlocalmgmt.NewProc("ApplyLocalManagementSyncML")
+	proclstrlenW                         = modkernel32.NewProc("lstrlenW")
+	procRtlMoveMemory                    = modkernel32.NewProc("RtlMoveMemory")
 
 	// Synchronization mutex
 	mu sync.Mutex
@@ -49,6 +53,50 @@ const (
 	mdmMutexName          = "__MDM_LOCAL_MANAGEMENT_NAMED_MUTEX__"
 )
 
+// SyncML XML Parsing Types
+type SyncMLHeader struct {
+	DTD        string `xml:"VerDTD"`
+	Version    string `xml:"VerProto"`
+	SessionID  int    `xml:"SessionID"`
+	MsgID      int    `xml:"MsgID"`
+	Target     string `xml:"Target>LocURI"`
+	Source     string `xml:"Source>LocURI"`
+	MaxMsgSize int    `xml:"Meta>A:MaxMsgSize"`
+}
+
+type SyncMLCommandMeta struct {
+	XMLinfo string `xml:"xmlns,attr"`
+	Type    string `xml:"Type"`
+}
+
+type SyncMLCommandItem struct {
+	Meta   SyncMLCommandMeta `xml:"Meta"`
+	Source string            `xml:"Source>LocURI"`
+	Data   string            `xml:"Data"`
+}
+
+type SyncMLCommand struct {
+	XMLName xml.Name
+	CmdID   int                 `xml:",omitempty"`
+	MsgRef  string              `xml:",omitempty"`
+	CmdRef  string              `xml:",omitempty"`
+	Cmd     string              `xml:",omitempty"`
+	Target  string              `xml:"Target>LocURI"`
+	Source  string              `xml:"Source>LocURI"`
+	Data    string              `xml:",omitempty"`
+	Item    []SyncMLCommandItem `xml:",any"`
+}
+
+type SyncMLBody struct {
+	Item []SyncMLCommand `xml:",any"`
+}
+
+type SyncMLMessage struct {
+	XMLinfo string       `xml:"xmlns,attr"`
+	Header  SyncMLHeader `xml:"SyncHdr"`
+	Body    SyncMLBody   `xml:"SyncBody"`
+}
+
 // Columns is the schema of the table.
 func Columns() []table.ColumnDefinition {
 	return []table.ColumnDefinition{
@@ -56,6 +104,7 @@ func Columns() []table.ColumnDefinition {
 		table.TextColumn("enrolled_user"),
 		table.TextColumn("mdm_command_input"),
 		table.TextColumn("mdm_command_output"),
+		table.TextColumn("raw_mdm_command_output"),
 	}
 }
 
@@ -98,12 +147,19 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 
 		log.Debug().Msgf("mdm_bridge output command response:\n%s", outputCmd)
 
+		// grabbing the command parsed command output
+		minimalOutputCmd, err := getCmdResponseData(strings.TrimSpace(outputCmd))
+		if err != nil {
+			return nil, fmt.Errorf("mdm command response parsing: %s ", err)
+		}
+
 		return []map[string]string{
 			{
-				"enrollment_status":  deviceEnrollmentStatus,
-				"enrolled_user":      enrollmentURI,
-				"mdm_command_input":  inputCmd,
-				"mdm_command_output": outputCmd,
+				"enrollment_status":      deviceEnrollmentStatus,
+				"enrolled_user":          enrollmentURI,
+				"mdm_command_input":      inputCmd,
+				"mdm_command_output":     minimalOutputCmd,
+				"raw_mdm_command_output": outputCmd,
 			},
 		}, nil
 	}
@@ -111,25 +167,91 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 	// returning table enrollment status + cmd output status if present
 	return []map[string]string{
 		{
-			"enrollment_status": deviceEnrollmentStatus,
-			"enrolled_user":     enrollmentURI,
-			"mdm_command_input": "",
-			"mdm_command_ouput": "",
+			"enrollment_status":      deviceEnrollmentStatus,
+			"enrolled_user":          enrollmentURI,
+			"mdm_command_input":      "",
+			"mdm_command_ouput":      "",
+			"raw_mdm_command_output": "",
 		},
 	}, nil
 }
 
-// builtin utf16tostring string expects a uint16 array but we have a pointer to a uint16
-// so we need to cast it after converting it to an unsafe pointer
-// this is a common pattern though the buffer size varies
-// see https://golang.org/pkg/unsafe/#Pointer for more details
+// dummy charset reader just to satisfy the xml decoder requirements
+func identReader(encoding string, input io.Reader) (io.Reader, error) {
+	return input, nil
+}
+
+// getCommandResponseData returns the response data for a given command
+func getCmdResponseData(outputCmd string) (string, error) {
+	var responseData string
+
+	// creating a new SyncML message object
+	messageObject := new(SyncMLMessage)
+
+	// parsing output SyncML message
+	d := xml.NewDecoder(bytes.NewReader([]byte(outputCmd)))
+	d.CharsetReader = identReader
+
+	// decoding the XML message
+	if err := d.Decode(messageObject); err != nil {
+		return "", err
+	}
+
+	// getting response data from output message
+	if len(messageObject.Body.Item) > 0 {
+		for _, element := range messageObject.Body.Item {
+
+			// getting the results tag for the input commands
+			if element.XMLName.Local != "Results" {
+				continue
+			}
+
+			// results will be appended in a comma separated list
+			if len(element.Item) > 0 {
+
+				// extracting the data from the result
+				workStr := element.Item[0].Data
+				if len(workStr) == 0 {
+					workStr = "data_not_set" // default value for empty data
+				}
+				responseData += workStr
+			}
+		}
+	}
+
+	return responseData, nil
+}
+
+// builtin windows.UTF16ToString string expects a uint16 array but we have a uint16 pointer
+// so we are allocating dynamic memory and moving data around before calling windows.UTF16ToString
 func localUTF16toString(ptr unsafe.Pointer) (string, error) {
 	if ptr == nil {
 		return "", errors.New("failed UTF16 conversion due to null pointer")
 	}
 
-	uint16ptrarr := (*[maxBufSize]uint16)(ptr)[:]
-	return windows.UTF16ToString(uint16ptrarr), nil
+	// grabbing input string length
+	lenPtr, _, err := proclstrlenW.Call(uintptr(unsafe.Pointer(ptr)))
+	if err != windows.ERROR_SUCCESS {
+		return "", err
+	}
+
+	// returning empty string if length is 0
+	strBytesLen := int32(lenPtr) * 2 // Windows UNICODE uses 2 bytes per character
+	if strBytesLen == 0 {
+		return "", nil
+	}
+
+	// allocating an uint16 array buffer
+	buf := make([]uint16, strBytesLen)
+
+	// moving the data around
+	_, _, err = procRtlMoveMemory.Call((uintptr)(unsafe.Pointer(&buf[0])), (uintptr)(unsafe.Pointer(ptr)), uintptr(strBytesLen))
+	if err != windows.ERROR_SUCCESS {
+		return "", err
+	}
+
+	// and finally converting the uint16 array to a string
+	return windows.UTF16ToString(buf), nil
 }
 
 // getEnrollmentInfo returns the MDM enrollment status by calling into OS API IsDeviceRegisteredWithManagement()
@@ -165,6 +287,42 @@ func getEnrollmentInfo() (uint32, string, error) {
 	return isDeviceRegisteredWithMDM, uriData, nil
 }
 
+// isReadOnlyCommandRequest returns true if the verbs used on input SyncML commads are only Get
+func isReadOnlyCommandRequest(inputCmd string) (bool, error) {
+	if len(inputCmd) == 0 {
+		return false, errors.New("empty input command")
+	}
+
+	// creating a new SyncMLBody message object
+	messageObject := new(SyncMLBody)
+
+	// parsing output SyncML message
+	d := xml.NewDecoder(bytes.NewReader([]byte(inputCmd)))
+	d.CharsetReader = identReader
+
+	// decoding the XML message
+	if err := d.Decode(messageObject); err != nil {
+		return false, err
+	}
+
+	// sanity check on the input command structure
+	if len(messageObject.Item) == 0 {
+		return false, nil
+	}
+
+	// checking if input SyncML commands are only Get
+	for _, element := range messageObject.Item {
+
+		// checking if input SyncML verb is different that Get
+		commandVerb := strings.ToLower(element.XMLName.Local)
+		if commandVerb != "get" {
+			return false, fmt.Errorf("%s is a not supported SyncML command verb", commandVerb)
+		}
+	}
+
+	return true, nil
+}
+
 // Borrowed from https://stackoverflow.com/questions/53476012/how-to-validate-a-xml
 func IsValidXML(s string) bool {
 	return xml.Unmarshal([]byte(s), new(interface{})) == nil
@@ -187,6 +345,11 @@ func isValidMDMcommand(inputCMD string) (bool, error) {
 	// checking if input MDM command is a valid XML
 	if !IsValidXML(inputCMD) {
 		return false, errors.New("input MDM command is not a valid XML")
+	}
+
+	// checking if input MDM command is a read-only command
+	if validCmd, err := isReadOnlyCommandRequest(inputCMD); !validCmd {
+		return false, err
 	}
 
 	return true, nil
