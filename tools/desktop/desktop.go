@@ -15,7 +15,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/packaging"
-	"github.com/fleetdm/fleet/v4/pkg/build"
+	"github.com/fleetdm/fleet/v4/pkg/buildpkg"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
 	"github.com/kolide/kit/version"
 	"github.com/mitchellh/gon/package/zip"
@@ -182,7 +182,7 @@ func createMacOSApp(version, authority string, notarize bool) error {
 	}
 
 	// Make the fat exe and remove the separate binaries
-	if err := build.MakeMacOSFatExecutable(binaryPath, amdBinaryPath, armBinaryPath); err != nil {
+	if err := buildpkg.MakeMacOSFatExecutable(binaryPath, amdBinaryPath, armBinaryPath); err != nil {
 		return fmt.Errorf("make fat executable: %w", err)
 	}
 	if err := os.Remove(amdBinaryPath); err != nil {
