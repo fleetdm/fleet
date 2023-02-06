@@ -682,7 +682,7 @@ func TestParseReleaseHTML(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, actual)
 
-	t.Run("Should parse Dates", func(t *testing.T) {
+	t.Run("should parse Dates", func(t *testing.T) {
 		expectedDates := make([]time.Time, 0, len(expected))
 		for _, e := range expected {
 			expectedDates = append(expectedDates, e.Date)
@@ -696,7 +696,7 @@ func TestParseReleaseHTML(t *testing.T) {
 		require.Equal(t, expectedDates, actualDates)
 	})
 
-	t.Run("Should parse release versions", func(t *testing.T) {
+	t.Run("should parse release versions", func(t *testing.T) {
 		expectedVersions := make([]string, 0, len(expected))
 		for _, e := range expected {
 			expectedVersions = append(expectedVersions, e.Version)
@@ -708,5 +708,19 @@ func TestParseReleaseHTML(t *testing.T) {
 		}
 
 		require.Equal(t, expectedVersions, actualVersions)
+	})
+
+	t.Run("should parse security updates", func(t *testing.T) {
+		expectedUpdates := make([]macoffice.SecurityUpdate, 0, len(expected))
+		for _, e := range expected {
+			expectedUpdates = append(expectedUpdates, e.SecurityUpdates...)
+		}
+
+		actualUpdates := make([]macoffice.SecurityUpdate, 0, len(actual))
+		for _, a := range actual {
+			actualUpdates = append(actualUpdates, a.SecurityUpdates...)
+		}
+
+		require.Equal(t, expectedUpdates, actualUpdates)
 	})
 }
