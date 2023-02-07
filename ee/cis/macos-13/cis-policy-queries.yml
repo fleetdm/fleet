@@ -1271,6 +1271,42 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
+  name: CIS - Ensure Apple Mobile File Integrity (AMFI) Is Enabled (fleetd required)
+  platforms: macOS
+  platform: darwin
+  description: |
+    Apple Mobile File Integrity (AMFI) was first released in macOS 10.12. The daemon and service block attempts to run unsigned code. AMFI uses launchd, code signatures, certificates, entitlements, and provisioning profiles to create a filtered entitlement dictionary for an app. AMFI is the macOS kernel module that enforces code-signing and library validation.
+    Note: AMFI cannot be disabled with SIP enabled, but a change attempt can be made that will appear successful, and report incorrectly as successful. If the AMFI audit fails, and the SIP audit passes, this is still an issue the admin should research.
+  resolution: |
+    Automated method:
+      Ask your system administrator to deploy the following script which will Ensure Apple Mobile File Integrity (AMFI) Is Enabled:
+      /usr/bin/sudo /usr/sbin/nvram boot-args=""
+  query: SELECT 1 FROM nvram_info WHERE amfi_enabled="1";
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS5.1.3
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Sealed System Volume (SSV) Is Enabled (fleetd required)
+  platforms: macOS
+  platform: darwin
+  description: |
+    Sealed System Volume is a security feature introduced in macOS 11.0 Big Sur.
+    During system installation, a SHA-256 cryptographic hash is calculated for all immutable system files and stored in a Merkle tree which itself is hashed as the Seal. Both are stored in the metadata of the snapshot created of the System volume.
+    The seal is verified by the boot loader at startup. macOS will not boot if system files have been tampered with. If validation fails, the user will be instructed to reinstall the operating system.
+    During read operations for files located in the Sealed System Volume, a hash is calculated and compared to the value stored in the Merkle tree.
+  resolution: |
+    If SSV has been disabled, assume that the operating system has been compromised. Back up any files, and do a clean install to a known good Operating System.
+  query: SELECT 1 FROM csrutil_info WHERE ssv_enabled="1";
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS5.1.4
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
   name: CIS - Ensure Password Account Lockout Threshold Is Configured (Fleetd required)
   platforms: macOS
   platform: darwin

@@ -3,6 +3,8 @@
 package table
 
 import (
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/csrutil_info"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/nvram_info"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/privaterelay"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/pwd_policy"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/user_login_settings"
@@ -22,6 +24,8 @@ func platformTables() []osquery.OsqueryPlugin {
 		table.NewPlugin("icloud_private_relay", privaterelay.Columns(), privaterelay.Generate),
 		table.NewPlugin("user_login_settings", user_login_settings.Columns(), user_login_settings.Generate),
 		table.NewPlugin("pwd_policy", pwd_policy.Columns(), pwd_policy.Generate),
+		table.NewPlugin("csrutil_info", csrutil_info.Columns(), csrutil_info.Generate),
+		table.NewPlugin("nvram_info", nvram_info.Columns(), nvram_info.Generate),
 
 		// Macadmins extension tables
 		table.NewPlugin("filevault_users", filevaultusers.FileVaultUsersColumns(), filevaultusers.FileVaultUsersGenerate),
