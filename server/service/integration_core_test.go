@@ -6355,9 +6355,6 @@ func (s *integrationTestSuite) TestEnrollOrbitAfterDEPSync() {
 	require.NoError(t, err)
 	require.Equal(t, h.ID, got.ID)
 
-	// wait a second for the enroll cooldown period
-	time.Sleep(time.Second)
-
 	// enroll the host from osquery, it should match the same host
 	var osqueryResp enrollAgentResponse
 	osqueryID := uuid.New().String()

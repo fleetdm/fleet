@@ -67,7 +67,7 @@ func (ts *withServer) SetupSuite(dbName string) {
 
 	rs := pubsub.NewInmemQueryResults()
 	cfg := config.TestConfig()
-	cfg.Osquery.EnrollCooldown = time.Second
+	cfg.Osquery.EnrollCooldown = 0
 	users, server := RunServerForTestsWithDS(ts.s.T(), ts.ds, &TestServerOpts{
 		Rs:          rs,
 		Lq:          ts.lq,
