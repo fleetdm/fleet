@@ -1,6 +1,7 @@
 //go:build darwin
 // +build darwin
 
+// Package sudo_info allows querying the output of `sudo -V` on a host.
 package sudo_info
 
 import (

@@ -6,12 +6,13 @@ package pwd_policy
 import (
 	"context"
 	"fmt"
-	tbl_common "github.com/fleetdm/fleet/v4/orbit/pkg/table/common"
-	"github.com/osquery/osquery-go/plugin/table"
-	"github.com/rs/zerolog/log"
 	"os/exec"
 	"syscall"
 	"time"
+
+	tbl_common "github.com/fleetdm/fleet/v4/orbit/pkg/table/common"
+	"github.com/osquery/osquery-go/plugin/table"
+	"github.com/rs/zerolog/log"
 )
 
 // Columns is the schema of the table.
@@ -70,10 +71,10 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 		log.Debug().Err(err).Msg("get policyAttributePasswordHistoryDepth failed")
 	}
 
-	return []map[string]string{
-		{"max_failed_attempts": maxFailedAttempts,
-			"expires_every_n_days": expiresEveryNDays,
-			"days_to_expiration":   daysToExpiration,
-			"history_depth":        historyDepth},
-	}, nil
+	return []map[string]string{{
+		"max_failed_attempts":  maxFailedAttempts,
+		"expires_every_n_days": expiresEveryNDays,
+		"days_to_expiration":   daysToExpiration,
+		"history_depth":        historyDepth,
+	}}, nil
 }

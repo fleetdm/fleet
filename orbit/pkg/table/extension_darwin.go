@@ -3,6 +3,7 @@
 package table
 
 import (
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/dscl"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/privaterelay"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/pwd_policy"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/sudo_info"
@@ -23,6 +24,7 @@ func platformTables() []osquery.OsqueryPlugin {
 		table.NewPlugin("user_login_settings", user_login_settings.Columns(), user_login_settings.Generate),
 		table.NewPlugin("pwd_policy", pwd_policy.Columns(), pwd_policy.Generate),
 		table.NewPlugin("sudo_info", sudo_info.Columns(), sudo_info.Generate),
+		table.NewPlugin("dscl", dscl.Columns(), dscl.Generate),
 
 		// Macadmins extension tables
 		table.NewPlugin("filevault_users", filevaultusers.FileVaultUsersColumns(), filevaultusers.FileVaultUsersGenerate),

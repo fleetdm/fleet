@@ -6,12 +6,13 @@ package user_login_settings
 import (
 	"context"
 	"fmt"
-	tbl_common "github.com/fleetdm/fleet/v4/orbit/pkg/table/common"
-	"github.com/osquery/osquery-go/plugin/table"
 	"os/exec"
 	"strings"
 	"syscall"
 	"time"
+
+	tbl_common "github.com/fleetdm/fleet/v4/orbit/pkg/table/common"
+	"github.com/osquery/osquery-go/plugin/table"
 )
 
 // Columns is the schema of the table.
