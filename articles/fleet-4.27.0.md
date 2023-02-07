@@ -62,11 +62,12 @@ List of other features
 - Changed default hosts per page from 100 to 50.
 - Support CrOS as a valid platform string for customers with ChromeOS hosts.
 - Clean tables at smaller screen widths.
-- Added `meta` attribute to `GET /activitie`s endpoint that includes pagination metadata. Fixed edge case
+- Added `meta` attribute to [`GET /api/v1/activities` API endpoint](https://fleetdm.com/docs/using-fleet/rest-api#activities) that includes pagination metadata. Fixed edge case
 on UI for pagination buttons on activities card.
 - Use stricter file permissions in `fleetctl updates add` command.
 - When table only has 1 host, remove bulky tooltip overflow.
 - Fixed pagination on manage host page.
+
 ## Ready to upgrade?
 Visit our [upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in the Fleet docs for instructions on updating to Fleet 4.27.0.
 
