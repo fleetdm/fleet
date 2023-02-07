@@ -26,15 +26,15 @@ var expected = []macoffice.OfficeRelease{
 		Version: "Version 16.69 (Build 23010700)",
 		SecurityUpdates: []macoffice.SecurityUpdate{
 			{Product: macoffice.OfficeSuite, Vulnerability: "CVE-2023-21734"},
-			{Product: macoffice.OfficeSuite, Vulnerability: "CVE-2023-21734"},
+			{Product: macoffice.OfficeSuite, Vulnerability: "CVE-2023-21735"},
 		},
 	},
 	{
 		Date:    time.Date(2022, 12, 13, 0, 0, 0, 0, time.UTC),
 		Version: "Version 16.68 (Build 22121100)",
 		SecurityUpdates: []macoffice.SecurityUpdate{
-			{Product: macoffice.OfficeSuite, Vulnerability: "CVE-2022-44692"},
 			{Product: macoffice.Outlook, Vulnerability: "CVE-2022-44713"},
+			{Product: macoffice.OfficeSuite, Vulnerability: "CVE-2022-44692"},
 		},
 	},
 	{
@@ -133,8 +133,7 @@ var expected = []macoffice.OfficeRelease{
 		Date:    time.Date(2021, 12, 14, 0, 0, 0, 0, time.UTC),
 		Version: "Version 16.56 (Build 21121100)",
 		SecurityUpdates: []macoffice.SecurityUpdate{
-			{Product: macoffice.OfficeSuite, Vulnerability: "CVE-2022-21841"},
-			{Product: macoffice.OfficeSuite, Vulnerability: "CVE-2022-21840"},
+			{Product: macoffice.OfficeSuite, Vulnerability: "CVE-2021-43875"},
 		},
 	},
 	{
