@@ -28,8 +28,6 @@ import { IQuery, IFleetQueriesResponse } from "interfaces/query";
 import { IQueryStats } from "interfaces/query_stats";
 import { ISoftware } from "interfaces/software";
 import { ITeam } from "interfaces/team";
-import { IUser } from "interfaces/user";
-import permissionUtils from "utilities/permissions";
 
 import ReactTooltip from "react-tooltip";
 import Spinner from "components/Spinner";
@@ -37,8 +35,6 @@ import TabsWrapper from "components/TabsWrapper";
 import MainContent from "components/MainContent";
 import InfoBanner from "components/InfoBanner";
 import BackLink from "components/BackLink";
-// @ts-ignore
-import Dropdown from "components/forms/fields/Dropdown";
 
 import {
   normalizeEmptyValues,
@@ -65,8 +61,8 @@ import DeleteHostModal from "../../components/DeleteHostModal";
 
 import parseOsVersion from "./modals/OSPolicyModal/helpers";
 
-import { generateHostActionOptions } from "./helpers";
 import DiskEncryptionKeyModal from "./modals/DiskEncryptionKeyModal";
+import HostActionDropdown from "./HostActionsDropdown/HostActionsDropdown";
 
 const baseClass = "host-details";
 
@@ -111,11 +107,9 @@ const HostDetailsPage = ({
   const hostIdFromURL = parseInt(host_id, 10);
   const {
     config,
-    currentUser,
     isGlobalAdmin = false,
     isPremiumTier = false,
     isOnlyObserver,
-    isGlobalMaintainer = false,
     filteredHostsPath,
   } = useContext(AppContext);
   const {
@@ -513,7 +507,7 @@ const HostDetailsPage = ({
     []
   );
 
-  const onChangeActionSelection = (action: string) => {
+  const onSelectHostAction = (action: string) => {
     switch (action) {
       case "transfer":
         setShowTransferHostModal(true);
@@ -535,38 +529,18 @@ const HostDetailsPage = ({
   };
 
   const renderActionButtons = () => {
-    // TODO: replace with actual values.
-    const doesStoreEncryptionKey = true;
-
-    const options = generateHostActionOptions({
-      isPremiumTier,
-      isGlobalAdmin,
-      isGlobalMaintainer,
-      isTeamAdmin: permissionUtils.isTeamAdmin(
-        currentUser,
-        host?.team_id ?? null
-      ),
-      isTeamMaintainer: permissionUtils.isTeamMaintainer(
-        currentUser,
-        host?.team_id ?? null
-      ),
-      isHostOnline: host?.status === "online",
-      isEnrolledInMdm: ["On (automatic)", "On (manual)"].includes(
-        host?.mdm.enrollment_status ?? ""
-      ),
-      doesStoreEncryptionKey,
-    });
-
-    // No options to render. Exit early
-    if (options.length === 0) return null;
+    if (!host) {
+      return null;
+    }
 
     return (
-      <Dropdown
-        className={`${baseClass}__host-actions-dropdown`}
-        onChange={onChangeActionSelection}
-        placeholder={"Actions"}
-        searchable={false}
-        options={options}
+      <HostActionDropdown
+        onSelect={onSelectHostAction}
+        teamId={host.team_id}
+        hostStatus={host.status}
+        hostMdmEnrollemntStatus={host.mdm.enrollment_status}
+        // TODO: update with API call
+        doesStoreEncryptionKey
       />
     );
   };

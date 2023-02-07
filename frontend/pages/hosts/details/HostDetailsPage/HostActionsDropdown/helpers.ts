@@ -116,7 +116,6 @@ const setOptionsAsDisabled = (
   options: IDropdownOption[],
   isHostOnline: boolean
 ) => {
-  // disabled query and mdmOff if host if offline
   if (!isHostOnline) {
     const disableOptions = options.filter(
       (option) => option.value === "query" || option.value === "mdmOff"
@@ -140,7 +139,6 @@ export const generateHostActionOptions = (config: IHostActionConfigOptions) => {
   let options = cloneDeep(DEFAULT_OPTIONS);
   options = filterOutOptions(options, config);
 
-  // no options so exit early.
   if (options.length === 0) return options;
 
   options = setOptionsAsDisabled(options, config.isHostOnline);
