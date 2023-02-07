@@ -26,9 +26,27 @@ If the end user is past the deadline, Fleet opens the window. The end user can't
 
 In Fleet, you can enforce disk encryption on your macOS hosts. Apple calls this [FileVault](https://support.apple.com/en-us/HT204837). If turned on, hosts’ disk encryption keys will be stored in Fleet.
 
-The disk encryption key allows you to unlock a Mac if you forgot login credentials. This key can be accessed by Fleet admin, maintainers, and observers. An event is tracked in the activity feed when a user views the key in Fleet.
+To enforce disk encryption, choose the "Fleet UI" or "fleetctl" method and follow the steps below.
+
+Fleet UI:
+
+1. In the Fleet UI, head to the **Controls > macOS settings > Disk encryption** page. Users with the maintainer and admin roles can access the settings pages.
+
+2. Check the box next to **Turn on** and select **Save**.
+
+`fleetctl` CLI:
+
+1. Create a `config` YAML document if you don't have one already. Learn how [here](./configuration-files/README.md#organization-settings). This document is used to change settings in Fleet.
+
+> If you want to enforce disk encryption on a team in Fleet, use the `team` YAML document. Learn how to create one [here](./configuration-files/README.md#teams).
+
+2. Set the `mdm.disk_encryption` configuration option to `true`.
+
+3. Run the `fleetctl apply -f <your-YAML-file-here>` command.
 
 ### Viewing a disk encryption key
+
+The disk encryption key allows you to unlock a Mac if you forgot login credentials. This key can be accessed by Fleet admin, maintainers, and observers. An event is tracked in the activity feed when a user views the key in Fleet.
 
 How to view the disk encryption key:
 
@@ -169,7 +187,7 @@ How to migrate manually enrolled hosts:
 
 1. In your old MDM solution, unenroll these hosts. MacOS does not allow multiple MDMs to be installed at once. This step is required to present end users with instructions to turn on MDM in Fleet.
 
-2. The My Device page in Fleet Desktop will present end users with instructions to turn on MDM. Share [these guided instructions](#instructions-for-end-users) with your end users.
+2. The **My Device** page in Fleet Desktop will present end users with instructions to turn on MDM. Share [these guided instructions](#instructions-for-end-users) with your end users.
 
 ### Automatically enrolled (DEP) hosts
 
@@ -187,7 +205,15 @@ How to migrate these hosts:
 
 3. In your old MDM solution, unenroll these hosts. MacOS does not allow multiple MDMs to be installed at once. This step is required to present end users with instructions to turn on MDM in Fleet.
 
-4. The My Device page in Fleet Desktop will present end users with instructions to turn on MDM. Share [these guided instructions](#instructions-for-end-users) with your end users.
+4. The **My Device** page in Fleet Desktop will present end users with instructions to turn on MDM. Share [these guided instructions](#instructions-for-end-users) with your end users.
+
+### FileVault recovery keys
+
+In Fleet, you can enforce FileVault (disk encryption) to be on. If turned on, hosts’ disk encryption keys will be stored in Fleet. Learn how [here](#disk-encryption).
+
+During migration from your old MDM solution, disk encryption will be turned off for your macOS hosts until they are enrolled to Fleet and MDM is turned on for these hosts.
+
+If your old MDM solution enforced disk encryption, your end users will need to reset their disk encryption key for Fleet to be able to store the key. The **My device** page in Fleet Desktop will present users with instructions to reset their key. Share [these guided instructions](#how-to-turn-on-disk-encryption) with your end users.
 
 ### Activation Lock Bypass codes
 
@@ -203,18 +229,28 @@ Activation Lock bypass codes can only be retrieved from the Mac up to 30 days af
 
 Your organization uses Fleet to check if all devices meet its security policies. 
 
-Fleet includes device management features (called “MDM”) that allow your IT team to change settings remotely on your Mac. This lets your organization keep your Mac up to date so you don’t have to. Your organization may also require MDM to be turned on in order to access resources such as organization email.
+Fleet includes device management features (called “MDM”) that allow your IT team to change settings remotely on your Mac. This lets your organization keep your Mac up to date so you don’t have to.
 
-How to turn on MDM:
+Want to know what your organization can see? Read about [transparency](https://fleetdm.com/transparency).
+
+#### How to turn on MDM:
 
 1. Select the Fleet icon in your menu bar and select **My device**.
 
 ![Fleet icon in menu bar](../../website/assets/images/articles/fleet-desktop-says-hello-world-cover-1600x900@2x.jpg)
 
-2. On your **My device** page, select **Turn on MDM** the button and follow the instructions (second screenshot below). If you don’t see the **Turn on MDM** button, please contact your IT administrator. If the **My device page** presents you with an error, please contact your IT administrator.
+2. On your **My device** page, select **Turn on MDM** the button and follow the instructions. If you don’t see the **Turn on MDM** button, please contact your IT administrator. If the **My device page** presents you with an error, please contact your IT administrator.
 
-![Fleet icon in menu bar](../images/turn-on-mdm.png)
+![My device page - turn on MDM](../images/my-device-page-turn-on-mdm.png)
 
-Want to know what your organization can see? Read about [transparency](https://fleetdm.com/transparency).
+#### How to turn on disk encryption
+
+1. Select the Fleet icon in your menu bar and select **My device**.
+
+![Fleet icon in menu bar](../../website/assets/images/articles/fleet-desktop-says-hello-world-cover-1600x900@2x.jpg)
+
+2. On your **My device** page, follow the disk encryption instructions in the yellow banner. If you don’t see the disk encryption instructions, please contact your IT administrator. If the **My device page** presents you with an error, please contact your IT administrator.
+
+![My device page - turn on MDM](../images/my-device-page-turn-on-disk-encryption.png)
 
 <meta name="pageOrderInSection" value="1500">
