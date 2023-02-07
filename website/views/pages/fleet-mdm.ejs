@@ -3,9 +3,9 @@
     <div purpose="hero-container" class="d-flex flex-column align-items-center">
       <div purpose="hero-text">
         <h1>A better MDM</h1>
-        <p>Legacy MDMs have left you in the dark for way too long. Fleet’s cross-platform MDM gives IT teams more visibility out of the box.</p>
+        <p>Legacy MDMs have left you in the dark for way too long. Fleet’s cross-platform MDM gives IT teams more visibility out of the box. Find out more in our limited beta.</p>
         <div purpose="button-row" class="d-flex flex-sm-row flex-column justify-content-center align-items-center">
-          <a purpose="mdm-beta-button" @click="clickOpenSignupModal()">Join the beta</a>
+          <a purpose="mdm-beta-button" @click="clickOpenSignupModal()">Request access</a>
           <a href="https://calendly.com/fleetdm/demo?utm_source=mdm+demo" target="_blank" purpose="animated-arrow-button-red">Talk to an expert</a>
         </div>
       </div>
@@ -119,7 +119,7 @@
     <div class="container d-flex flex-column justify-content-center align-items-center" purpose="modal-container">
       <div class="modal-header">
         <h4>See the future of device management</h4>
-        <h2 class="text-center">Join the Fleet MDM beta today</h2>
+        <h2 class="text-center">Better MDM starts here</h2>
       </div>
       <div purpose="modal-form" v-if="!showSignupFormSuccess">
       <ajax-form action="deliverMdmBetaSignup" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-data="formData" :form-rules="formRules" :form-errors.sync="formErrors" @submitted="submittedForm()">
@@ -150,13 +150,13 @@
           </div>
           <cloud-error v-if="cloudError"></cloud-error>
         <div class="border-0 justify-content-center">
-          <ajax-button purpose="submit-button" spinner="true" type="submit" :syncing="syncing" class="btn btn-sm btn-block btn-primary">Save your spot</ajax-button>
+          <ajax-button purpose="submit-button" spinner="true" type="submit" :syncing="syncing" class="btn btn-sm btn-block btn-primary">Request access</ajax-button>
         </div>
       </ajax-form>
       </div>
       <div purpose="modal-form" class="text-center" v-else>
         <h3>You're all set!</h3>
-        <p>A Fleet team member will reach out via email with more information.</p>
+        <p>A Fleet team member will reach out via email with more information if selected.</p>
       </div>
     </div>
   </modal>
