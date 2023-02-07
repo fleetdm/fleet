@@ -1401,7 +1401,7 @@ func (svc *Service) HostEncryptionKey(ctx context.Context, id uint) (*fleet.Host
 
 	host, err := svc.ds.Host(ctx, id)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err)
+		return nil, ctxerr.Wrap(ctx, err, "getting host encryption key")
 	}
 
 	// Permissions to read encryption keys are exactly the same
@@ -1415,26 +1415,26 @@ func (svc *Service) HostEncryptionKey(ctx context.Context, id uint) (*fleet.Host
 
 	key, err := svc.ds.GetHostDiskEncryptionKey(ctx, id)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err)
+		return nil, ctxerr.Wrap(ctx, err, "getting host encryption key")
 	}
 
 	if key.Decryptable == nil || !*key.Decryptable {
-		return nil, ctxerr.Wrap(ctx, notFoundError{})
+		return nil, ctxerr.Wrap(ctx, notFoundError{}, "getting host encryption key")
 	}
 
 	cert, _, _, err := svc.config.MDM.AppleSCEP()
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err)
+		return nil, ctxerr.Wrap(ctx, err, "getting host encryption key")
 	}
 
 	parsed, err := x509.ParseCertificate(cert.Certificate[0])
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err)
+		return nil, ctxerr.Wrap(ctx, err, "getting host encryption key")
 	}
 
 	decryptedKey, err := apple_mdm.DecryptBase64CMS(key.Base64Encrypted, parsed, cert.PrivateKey)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err)
+		return nil, ctxerr.Wrap(ctx, err, "getting host encryption key")
 	}
 
 	key.DecryptedValue = string(decryptedKey)

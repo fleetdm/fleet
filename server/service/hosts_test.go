@@ -559,11 +559,14 @@ func TestHostEncryptionKey(t *testing.T) {
 				test.UserAdmin,
 				test.UserMaintainer,
 				test.UserObserver,
-			},
-			disallowedUsers: []*fleet.User{
 				test.UserTeamAdminTeam1,
 				test.UserTeamMaintainerTeam1,
 				test.UserTeamObserverTeam1,
+			},
+			disallowedUsers: []*fleet.User{
+				test.UserTeamAdminTeam2,
+				test.UserTeamMaintainerTeam2,
+				test.UserTeamObserverTeam2,
 				test.UserNoRoles,
 			},
 		},
@@ -600,7 +603,10 @@ func TestHostEncryptionKey(t *testing.T) {
 			}
 
 			ds.GetHostDiskEncryptionKeyFunc = func(ctx context.Context, id uint) (*fleet.HostDiskEncryptionKey, error) {
-				return &fleet.HostDiskEncryptionKey{Base64Encrypted: base64EncryptedKey}, nil
+				return &fleet.HostDiskEncryptionKey{
+					Base64Encrypted: base64EncryptedKey,
+					Decryptable:     ptr.Bool(true),
+				}, nil
 			}
 
 			ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
@@ -620,14 +626,14 @@ func TestHostEncryptionKey(t *testing.T) {
 				for _, u := range tt.disallowedUsers {
 					_, err := svc.HostEncryptionKey(test.UserContext(ctx, u), tt.host.ID)
 					require.Error(t, err)
-					require.Contains(t, err.Error(), authz.ForbiddenErrorMessage)
+					require.Contains(t, authz.ForbiddenErrorMessage, err.Error())
 				}
 			})
 
 			t.Run("no user in context", func(t *testing.T) {
 				_, err := svc.HostEncryptionKey(ctx, tt.host.ID)
 				require.Error(t, err)
-				require.Contains(t, err.Error(), authz.ForbiddenErrorMessage)
+				require.Contains(t, authz.ForbiddenErrorMessage, err.Error())
 			})
 		})
 	}
@@ -642,7 +648,7 @@ func TestHostEncryptionKey(t *testing.T) {
 			return nil, hostErr
 		}
 		_, err := svc.HostEncryptionKey(ctx, 1)
-		require.ErrorIs(t, hostErr, err)
+		require.ErrorIs(t, err, hostErr)
 		ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
 			return &fleet.Host{}, nil
 		}
@@ -652,7 +658,7 @@ func TestHostEncryptionKey(t *testing.T) {
 			return nil, keyErr
 		}
 		_, err = svc.HostEncryptionKey(ctx, 1)
-		require.ErrorIs(t, keyErr, err)
+		require.ErrorIs(t, err, keyErr)
 		ds.GetHostDiskEncryptionKeyFunc = func(ctx context.Context, id uint) (*fleet.HostDiskEncryptionKey, error) {
 			return &fleet.HostDiskEncryptionKey{Base64Encrypted: "key"}, nil
 		}
