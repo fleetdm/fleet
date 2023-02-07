@@ -151,6 +151,8 @@ _Available in Fleet Premium_
 
 Connect Fleet to your ABM account to automatically enroll macOS hosts to Fleet when they’re first unboxed.
 
+If a new macOS host that appears in ABM hasn't been unboxed, it will appear in Fleet with **MDM status** set to "Pending." These hosts will automatically enroll to the default team in Fleet. Learn how to update the default team [here](#default-team).
+
 To connect Fleet to ABM, get these four files using the Fleet UI or the `fleetctl` command-line interface: An ABM certificate, private key and server token.
 
 To do this, choose the "Fleet UI" or "fleetctl" method and follow the steps below.
@@ -166,6 +168,30 @@ Fleet UI:
 1. Run `fleetctl generate mdm-apple-bm`.
 
 2. Follow the on-screen instructions.
+
+#### Default team
+
+MacOS hosts purchases through Apple or authorized resellers will automatically enroll to the default team in Fleet when they're first unboxed. This means that Fleet will enforce the default team's settings on these hosts.
+
+> After a host enrolls it can be transferred to a different team. Learn how [here](./Teams.md#transfer-hosts-to-a-team). Transferring a host automatically enforces the new team's settings and removes the old team's settings.
+
+To change the default team, choose the "Fleet UI" or "fleetctl" method and follow the steps below.
+
+Fleet UI:
+
+1. In the Fleet UI, head to the **Settings > Integrations > Mobile device management (MDM)** page. Users with the admin role can access the settings pages.
+
+2. In the Apple Business Manager section, select the **Edit team** button next to **Default team**.
+
+3. Choose a team and select **Save**.
+
+`fleetctl` CLI:
+
+1. Create a `config` YAML document if you don't have one already. Learn how [here](./configuration-files/README.md#organization-settings). This document is used to change settings in Fleet.
+
+2. Set the `mdm.apple_bm_default_team` configuration option to the desired team's name.
+
+3. Run the `fleetctl apply -f <your-YAML-file-here>` command.
 
 #### ABM Renewal
 
@@ -237,20 +263,20 @@ Want to know what your organization can see? Read about [transparency](https://f
 
 1. Select the Fleet icon in your menu bar and select **My device**.
 
-![Fleet icon in menu bar](../../website/assets/images/articles/fleet-desktop-says-hello-world-cover-1600x900@2x.jpg)
+![Fleet icon in menu bar](https://raw.githubusercontent.com/fleetdm/fleet/main/website/assets/images/articles/fleet-desktop-says-hello-world-cover-1600x900@2x.jpg)
 
 2. On your **My device** page, select **Turn on MDM** the button and follow the instructions. If you don’t see the **Turn on MDM** button, please contact your IT administrator. If the **My device page** presents you with an error, please contact your IT administrator.
 
-![My device page - turn on MDM](../images/my-device-page-turn-on-mdm.png)
+![My device page - turn on MDM](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/my-device-page-turn-on-mdm.png)
 
 #### How to turn on disk encryption
 
 1. Select the Fleet icon in your menu bar and select **My device**.
 
-![Fleet icon in menu bar](../../website/assets/images/articles/fleet-desktop-says-hello-world-cover-1600x900@2x.jpg)
+![Fleet icon in menu bar](https://raw.githubusercontent.com/fleetdm/fleet/main/website/assets/images/articles/fleet-desktop-says-hello-world-cover-1600x900@2x.jpg)
 
 2. On your **My device** page, follow the disk encryption instructions in the yellow banner. If you don’t see the disk encryption instructions, please contact your IT administrator. If the **My device page** presents you with an error, please contact your IT administrator.
 
-![My device page - turn on MDM](../images/my-device-page-turn-on-disk-encryption.png)
+![My device page - turn on disk encryption](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/my-device-page-turn-on-disk-encryption.png)
 
 <meta name="pageOrderInSection" value="1500">
