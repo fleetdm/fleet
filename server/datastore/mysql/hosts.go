@@ -975,13 +975,21 @@ func matchHostDuringEnrollment(ctx context.Context, q sqlx.QueryerContext, osque
 		}
 		args = append(args, osqueryID)
 	}
-	if uuid != "" {
-		if query.Len() > 0 {
-			_, _ = query.WriteString(" UNION ")
-		}
-		_, _ = query.WriteString(`(SELECT id, last_enrolled_at, 2 priority FROM hosts WHERE uuid = ? ORDER BY id LIMIT 1)`)
-		args = append(args, uuid)
-	}
+
+	// TODO(mna): for now do not match by UUID on the `uuid` field as it is not indexed.
+	// See https://github.com/fleetdm/fleet/issues/9372 and
+	// https://github.com/fleetdm/fleet/issues/9033#issuecomment-1411150758
+	// (the latter shows that it might not be top priority to index this field, if we're
+	// going to recommend using the host uuid as osquery identifier, as osquery_host_id
+	// _is_ indexed and unique).
+	//if uuid != "" {
+	//	if query.Len() > 0 {
+	//		_, _ = query.WriteString(" UNION ")
+	//	}
+	//	_, _ = query.WriteString(`(SELECT id, last_enrolled_at, 2 priority FROM hosts WHERE uuid = ? ORDER BY id LIMIT 1)`)
+	//	args = append(args, uuid)
+	//}
+
 	if serial != "" {
 		if query.Len() > 0 {
 			_, _ = query.WriteString(" UNION ")
@@ -1027,7 +1035,7 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, hardwareUUID, hardwareSeri
         hardware_serial = COALESCE(NULLIF(hardware_serial, ''), ?),
 				team_id = ?
       WHERE id = ?`
-			_, err := tx.ExecContext(ctx, sqlUpdate, orbitNodeKey, hardwareUUID, hardwareUUID, hardwareSerial, hostID, teamID)
+			_, err := tx.ExecContext(ctx, sqlUpdate, orbitNodeKey, hardwareUUID, hardwareUUID, hardwareSerial, teamID, hostID)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "orbit enroll error updating host details")
 			}
@@ -1092,7 +1100,7 @@ func (ds *Datastore) EnrollHost(ctx context.Context, osqueryHostID, hardwareUUID
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		zeroTime := time.Unix(0, 0).Add(24 * time.Hour)
 
-		hostID, lastEnrolledAt, err := matchHostDuringEnrollment(ctx, tx, osqueryHostID, hardwareUUID, hardwareSerial)
+		matchedID, lastEnrolledAt, err := matchHostDuringEnrollment(ctx, tx, osqueryHostID, hardwareUUID, hardwareSerial)
 		switch {
 		case err != nil && !errors.Is(err, sql.ErrNoRows):
 			return ctxerr.Wrap(ctx, err, "check existing")
@@ -1128,6 +1136,7 @@ func (ds *Datastore) EnrollHost(ctx context.Context, osqueryHostID, hardwareUUID
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "insert host_display_names")
 			}
+			matchedID = uint(hostID)
 
 		default:
 			// Prevent hosts from enrolling too often with the same identifier.
@@ -1137,7 +1146,7 @@ func (ds *Datastore) EnrollHost(ctx context.Context, osqueryHostID, hardwareUUID
 				return backoff.Permanent(ctxerr.Errorf(ctx, "host identified by %s enrolling too often", osqueryHostID))
 			}
 
-			if err := deleteAllPolicyMemberships(ctx, tx, []uint{hostID}); err != nil {
+			if err := deleteAllPolicyMemberships(ctx, tx, []uint{matchedID}); err != nil {
 				return ctxerr.Wrap(ctx, err, "cleanup policy membership on re-enroll")
 			}
 
@@ -1152,7 +1161,7 @@ func (ds *Datastore) EnrollHost(ctx context.Context, osqueryHostID, hardwareUUID
 				hardware_serial = COALESCE(NULLIF(hardware_serial, ''), ?)
 				WHERE id = ?
 			`
-			_, err := tx.ExecContext(ctx, sqlUpdate, nodeKey, teamID, osqueryHostID, hardwareUUID, hardwareSerial, hostID)
+			_, err := tx.ExecContext(ctx, sqlUpdate, nodeKey, teamID, osqueryHostID, hardwareUUID, hardwareSerial, matchedID)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "update host")
 			}
@@ -1161,7 +1170,7 @@ func (ds *Datastore) EnrollHost(ctx context.Context, osqueryHostID, hardwareUUID
 		_, err = tx.ExecContext(ctx, `
 			INSERT INTO host_seen_times (host_id, seen_time) VALUES (?, ?)
 			ON DUPLICATE KEY UPDATE seen_time = VALUES(seen_time)`,
-			hostID, time.Now().UTC())
+			matchedID, time.Now().UTC())
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "new host seen time")
 		}
@@ -1216,11 +1225,11 @@ func (ds *Datastore) EnrollHost(ctx context.Context, osqueryHostID, hardwareUUID
       WHERE h.id = ?
       LIMIT 1
 		`
-		err = sqlx.GetContext(ctx, tx, &host, sqlSelect, hostID)
+		err = sqlx.GetContext(ctx, tx, &host, sqlSelect, matchedID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "getting the host to return")
 		}
-		_, err = tx.ExecContext(ctx, `INSERT IGNORE INTO label_membership (host_id, label_id) VALUES (?, (SELECT id FROM labels WHERE name = 'All Hosts' AND label_type = 1))`, hostID)
+		_, err = tx.ExecContext(ctx, `INSERT IGNORE INTO label_membership (host_id, label_id) VALUES (?, (SELECT id FROM labels WHERE name = 'All Hosts' AND label_type = 1))`, matchedID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "insert new host into all hosts label")
 		}

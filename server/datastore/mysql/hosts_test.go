@@ -5914,7 +5914,7 @@ func testHostsLoadHostByOrbitNodeKey(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
 	for _, tt := range enrollTests {
-		h, err := ds.EnrollHost(ctx, tt.uuid, "", "", tt.nodeKey, nil, 0)
+		h, err := ds.EnrollHost(ctx, tt.uuid, tt.uuid, "", tt.nodeKey, nil, 0)
 		require.NoError(t, err)
 
 		orbitKey := uuid.New().String()
@@ -6252,7 +6252,7 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 	// enroll with no match, will create a new one
 	h, err = ds.EnrollOrbit(ctx, uuid.New().String(), uuid.New().String(), uuid.New().String(), nil)
 	require.NoError(t, err)
-	require.Nil(t, h) // it was not found in the lookup, proves that it created a new one
+	require.Greater(t, h.ID, hBoth.ID)
 
 	// simulate a "corrupt database" where two hosts have the same serial and
 	// enroll by serial should always use the same (the smaller ID)
