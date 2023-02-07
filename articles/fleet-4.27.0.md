@@ -18,7 +18,7 @@ Fleet 4.27.0 makes it easy to see who tried to log in to Fleet and failed. Our c
 
 In the UI an account administrator will see the following information:
 
-![Login failed example](../website/assets/images/articles/fleet-4.27.0-login-failed-example-238x40@2x.png)
+![Login failed example](../website/assets/images/articles/fleet-4-27-0-add-failed-login-activity-type-800x450@2x.jpg)
 
 If you pair this new login activity with the audit improvements from [release 4.26](https://fleetdm.com/releases/fleet-4.26.0) you can now set up an alert if multiple failed login attempts occur. 
 
@@ -30,7 +30,7 @@ Fleet is used by many companies and service providers who use it across multiple
 
 With this change, we made it possible to search and filter by device type, team, and label. Here is an example of the feature at work:
 
-![Better search example](../website/assets/images/articles/fleet-4.27.0-better-search-filters-example-800x430@2x.png)
+![Better search example](../website/assets/images/articles/fleet-4-27-0-update-select-targets-filters-800x450@2x.gif)
 
 Previously, the higher-level categories of Platform, Team, and Labels operated as “OR” operators instead of the logical “AND” operator. 
 
