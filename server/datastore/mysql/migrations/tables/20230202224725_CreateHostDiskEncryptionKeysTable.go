@@ -17,7 +17,7 @@ func Up_20230202224725(tx *sql.Tx) error {
 	_, err := tx.Exec(`
 	  CREATE TABLE IF NOT EXISTS host_disk_encryption_keys (
             host_id             int(10) UNSIGNED NOT NULL,
-	    base64_encrypted    blob NOT NULL,
+	    base64_encrypted    text NOT NULL,
 	    decryptable         tinyint(1) DEFAULT NULL,
 	    created_at          timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
 	    updated_at          timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
