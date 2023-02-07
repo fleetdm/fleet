@@ -30,7 +30,7 @@ Fleet is used by many companies and service providers who use it across multiple
 
 With this change, we made it possible to search and filter by device type, team, and label. Here is an example of the feature at work:
 
-![Better search example](../website/assets/images/articles/fleet-4.27.0-better-search-filters-example-800x430@2x.png)
+![Better search example](../website/assets/images/articles/fleet-4-27-0-update-select-targets-filters-800x450@2x.gif)
 
 Previously, the higher-level categories of Platform, Team, and Labels operated as “OR” operators instead of the logical “AND” operator. 
 
