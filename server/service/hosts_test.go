@@ -2,6 +2,8 @@ package service
 
 import (
 	"context"
+	"crypto/x509"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"testing"
@@ -9,14 +11,19 @@ import (
 
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/server/authz"
+	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
+	nanodep_client "github.com/micromdm/nanodep/client"
+	"github.com/micromdm/nanodep/tokenpki"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.mozilla.org/pkcs7"
 )
 
 func TestHostDetails(t *testing.T) {
@@ -562,10 +569,30 @@ func TestHostEncryptionKey(t *testing.T) {
 		},
 	}
 
+	testBMToken := &nanodep_client.OAuth1Tokens{
+		ConsumerKey:       "test_consumer",
+		ConsumerSecret:    "test_secret",
+		AccessToken:       "test_access_token",
+		AccessSecret:      "test_access_secret",
+		AccessTokenExpiry: time.Date(2999, 1, 1, 0, 0, 0, 0, time.UTC),
+	}
+	testCert, testKey, err := apple_mdm.NewSCEPCACertKey()
+	require.NoError(t, err)
+	testCertPEM := tokenpki.PEMCertificate(testCert.Raw)
+	testKeyPEM := tokenpki.PEMRSAPrivateKey(testKey)
+
+	fleetCfg := config.TestConfig()
+	config.SetTestMDMConfig(t, &fleetCfg, testCertPEM, testKeyPEM, testBMToken)
+
+	recoveryKey := "AAA-BBB-CCC"
+	encryptedKey, err := pkcs7.Encrypt([]byte(recoveryKey), []*x509.Certificate{testCert})
+	require.NoError(t, err)
+	base64EncryptedKey := base64.StdEncoding.EncodeToString(encryptedKey)
+
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
 			ds := new(mock.Store)
-			svc, ctx := newTestService(t, ds, nil, nil)
+			svc, ctx := newTestServiceWithConfig(t, ds, fleetCfg, nil, nil)
 
 			ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
 				require.Equal(t, tt.host.ID, id)
@@ -573,7 +600,7 @@ func TestHostEncryptionKey(t *testing.T) {
 			}
 
 			ds.GetHostDiskEncryptionKeyFunc = func(ctx context.Context, id uint) (*fleet.HostDiskEncryptionKey, error) {
-				return &fleet.HostDiskEncryptionKey{Base64Encrypted: "key"}, nil
+				return &fleet.HostDiskEncryptionKey{Base64Encrypted: base64EncryptedKey}, nil
 			}
 
 			ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
