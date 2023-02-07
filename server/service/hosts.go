@@ -1395,33 +1395,46 @@ func getHostEncryptionKey(ctx context.Context, request interface{}, svc fleet.Se
 }
 
 func (svc *Service) HostEncryptionKey(ctx context.Context, id uint) (*fleet.HostDiskEncryptionKey, error) {
-	if err := svc.authz.Authorize(ctx, fleet.HostDiskEncryptionKey{}, fleet.ActionRead); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 		return nil, err
 	}
 
 	host, err := svc.ds.Host(ctx, id)
 	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+
+	// Permissions to read encryption keys are exactly the same
+	// as the ones required to read hosts.
+	// TODO (code review): Adding a specific check for keys
+	// would require adding a `TeamID` property to
+	// `fleet.HostDiskEncryptionKey`, should we?
+	if err := svc.authz.Authorize(ctx, host, fleet.ActionRead); err != nil {
 		return nil, err
 	}
 
 	key, err := svc.ds.GetHostDiskEncryptionKey(ctx, id)
 	if err != nil {
-		return nil, err
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+
+	if key.Decryptable == nil || !*key.Decryptable {
+		return nil, ctxerr.Wrap(ctx, notFoundError{})
 	}
 
 	cert, _, _, err := svc.config.MDM.AppleSCEP()
 	if err != nil {
-		return nil, err
+		return nil, ctxerr.Wrap(ctx, err)
 	}
 
 	parsed, err := x509.ParseCertificate(cert.Certificate[0])
 	if err != nil {
-		return nil, err
+		return nil, ctxerr.Wrap(ctx, err)
 	}
 
 	decryptedKey, err := apple_mdm.DecryptBase64CMS(key.Base64Encrypted, parsed, cert.PrivateKey)
 	if err != nil {
-		return nil, err
+		return nil, ctxerr.Wrap(ctx, err)
 	}
 
 	key.DecryptedValue = string(decryptedKey)

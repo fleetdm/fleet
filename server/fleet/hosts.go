@@ -650,7 +650,3 @@ type HostDiskEncryptionKey struct {
 	UpdatedAt       time.Time `json:"updated_at" db:"updated_at"`
 	DecryptedValue  string    `json:"key" db:"-"`
 }
-
-func (d HostDiskEncryptionKey) AuthzType() string {
-	return "host_disk_encryption_key"
-}
