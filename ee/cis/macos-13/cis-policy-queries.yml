@@ -238,13 +238,29 @@ spec:
   name: CIS - Ensure DVD or CD Sharing Is Disabled
   platforms: macOS
   platform: darwin
-  description: 
-  resolution: ""
-  # Will likely require MDM/managed_policies. Most of the sharing checks that follow will be essentially the same query but looking at different types of sharing.
-  query: SELECT * from time;
+  description: |
+    DVD or CD Sharing allows users to remotely access the system's optical drive.
+    Disabling DVD or CD Sharing minimizes the risk of an attacker using the optical drive as
+    a vector for attack and exposure of sensitive data.
+  resolution: |
+    Graphical Method:
+    1. Open System Settings
+    2. Select General
+    3. Select Sharing
+    4. Set CD/DVD Sharing to disabled
+  query: |
+    SELECT 1 WHERE NOT EXISTS (
+      SELECT * FROM plist WHERE
+        path = '/var/db/com.apple.xpc.launchd/disabled.plist' AND
+        key = 'com.apple.ODSAgent' AND
+        value = '0'
+    );
+  # We are not using the launchd table because it does not check if services
+  # are disabled via disabled.plist, which the preference pane uses whenever
+  # a service is disabled after it has been enabled in the past.
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS2.3.3.1
-  contributors: 
+  contributors: artemist-work
 ---
 apiVersion: v1
 kind: policy
@@ -252,25 +268,123 @@ spec:
   name: CIS - Ensure Screen Sharing Is Disabled 
   platforms: macOS
   platform: darwin
-  description: 
-  resolution: ""
-  query: SELECT * from time;
+  description: |
+    Screen Sharing allows a computer to connect to another computer on a network and
+    display the computer’s screen. While sharing the computer’s screen, the user can
+    control what happens on that computer, such as opening documents or applications,
+    opening, moving, or closing windows, and even shutting down the computer.
+    Disabling Screen Sharing mitigates the risk of remote connections being made without
+    the user of the console knowing that they are sharing the computer.
+  resolution: |
+    Graphical Method:
+    1. Open System Settings
+    2. Select General
+    3. Select Sharing
+    4. Set Screen Sharing to disabled
+  query: |
+    SELECT 1 WHERE NOT EXISTS (
+      SELECT * FROM plist WHERE
+        path = '/var/db/com.apple.xpc.launchd/disabled.plist' AND
+        key = 'com.apple.screensharing' AND
+        value = '0'
+    );
+  # We are not using the launchd table because it does not check if services
+  # are disabled via disabled.plist, which the preference pane uses whenever
+  # a service is disabled after it has been enabled in the past.
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS2.3.3.2
-  contributors: 
+  contributors: artemist-work
 ---
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS -  Ensure File Sharing Is Disabled
+  name: CIS - Ensure File Sharing Is Disabled
   platforms: macOS
   platform: darwin
-  description: 
-  resolution: ""
-  query: SELECT * from time;
+  description: |
+    File sharing from a user workstation creates additional risks by
+    increasing complexity and making security more difficult. Hardened
+    file servers should be used instead of workstations
+  resolution: |
+    Graphical Method:
+    1. Open System Settings
+    2. Select General
+    3. Select Sharing
+    4. Set File Sharing to disabled
+  query: |
+    SELECT 1 WHERE NOT EXISTS (
+      SELECT * FROM plist WHERE
+        path = '/var/db/com.apple.xpc.launchd/disabled.plist' AND
+        key = 'com.apple.smbd' AND
+        value = '0'
+    );
+  # We are not using the launchd table because it does not check if services
+  # are disabled via disabled.plist, which the preference pane uses whenever
+  # a service is disabled after it has been enabled in the past.
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS2.3.3.3
-  contributors: 
+  contributors: artemist-work
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Printer Sharing is Disabled
+  platforms: macOS
+  platform: darwin
+  description: |
+    By enabling Printer Sharing, the computer is set up as a
+    print server to accept print jobs from other computers.
+    Dedicated print servers or direct IP printing should be used instead.
+    Disabling Printer Sharing mitigates the risk of attackers
+    attempting to exploit the print server to gain access to the system.
+  resolution: |
+    Graphical Method:
+    1. Open System Settings
+    2. Select General
+    3. Select Sharing
+    4. Set Printer Sharing to disabled
+  query: |
+    SELECT 1 WHERE NOT EXISTS (
+      SELECT * FROM file_lines WHERE
+        path = '/etc/cups/cupsd.conf' AND
+        line LIKE '%Allow @LOCAL%'
+      );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS2.3.3.4
+  contributors: artemist-work
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Remote Login Is Disabled
+  platforms: macOS
+  platform: darwin
+  description: |
+    Remote Login allows an interactive terminal session to a computer.
+    The SSH server built into macOS should not be enabled on a standard user computer,
+    particularly one that changes locations and IP addresses.
+    A standard user that runs local applications, including email, web browser,
+    and productivity tools, should not use the same device as a server
+
+  resolution: |
+    Graphical Method:
+    1. Open System Settings
+    2. Select General
+    3. Select Sharing
+    4. Set Remote Login to disabled
+  query: |
+    SELECT 1 WHERE NOT EXISTS (
+      SELECT * FROM plist WHERE
+        path = '/var/db/com.apple.xpc.launchd/disabled.plist' AND
+        key = 'com.openssh.sshd' AND
+        value = '0'
+    );
+  # We are not using the launchd table because it does not check if services
+  # are disabled via disabled.plist, which the preference pane uses whenever
+  # a service is disabled after it has been enabled in the past.
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS2.3.3.5
+  contributors: artemist-work
 ---
 apiVersion: v1
 kind: policy
@@ -298,6 +412,33 @@ spec:
     );
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS2.3.3.6
+  contributors: artemist-work
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Bluetooth Sharing Is Disabled
+  platforms: macOS
+  platform: darwin
+  description: |
+    Bluetooth Sharing allows files to be exchanged with Bluetooth-enabled devices.
+    Disabling Bluetooth Sharing minimizes the risk of an attacker using Bluetooth
+    to remotely attack the system.
+  resolution: |
+    Graphical Method:
+    1. Open System Settings
+    2. Select General
+    3. Select Sharing
+    4. Set Bluetooth Sharing to disabled
+  query: |
+    SELECT 1 WHERE NOT EXISTS (
+      SELECT * FROM plist WHERE
+        path LIKE '/Users/%/Library/Preferences/ByHost/com.apple.Bluetooth.%.plist' AND
+        key = 'PrefKeyServicesEnabled' AND
+        value = '1'
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS2.3.3.11
   contributors: artemist-work
 ---
 apiVersion: v1
