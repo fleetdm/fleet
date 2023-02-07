@@ -428,6 +428,7 @@ FROM
   LEFT JOIN host_updates hu ON (h.id = hu.host_id)
   LEFT JOIN host_disks hd ON hd.host_id = h.id
   LEFT JOIN host_mdm hmdm on hmdm.host_id = h.id
+  LEFT JOIN host_disk_encryption_keys hdek ON hdek.host_id = h.id
   JOIN (
     SELECT
       count(*) as count
@@ -489,6 +490,11 @@ const hostMDMSelect = `,
 		CASE
 			WHEN hmdm.is_server = 1 THEN NULL
 			ELSE hmdm.server_url
+		END,
+		'encryption_key_available',
+		CASE
+			WHEN hdek.decryptable IS NULL OR hdek.decryptable = 0 THEN CAST(FALSE AS JSON)
+			ELSE CAST(TRUE AS JSON)
 		END
 	) mdm_host_data
 	`
@@ -684,7 +690,8 @@ func (ds *Datastore) applyHostFilters(opt fleet.HostListOptions, sql string, fil
     LEFT JOIN host_updates hu ON (h.id = hu.host_id)
     LEFT JOIN teams t ON (h.team_id = t.id)
     LEFT JOIN host_disks hd ON hd.host_id = h.id
-	LEFT JOIN host_mdm hmdm ON hmdm.host_id = h.id
+    LEFT JOIN host_mdm hmdm ON hmdm.host_id = h.id
+    LEFT JOIN host_disk_encryption_keys hdek ON hdek.host_id = h.id
     %s
     %s
     %s
@@ -1484,6 +1491,7 @@ func (ds *Datastore) SearchHosts(ctx context.Context, filter fleet.TeamFilter, m
   LEFT JOIN host_updates hu ON (h.id = hu.host_id)
   LEFT JOIN host_disks hd ON hd.host_id = h.id
   LEFT JOIN host_mdm hmdm on hmdm.host_id = h.id
+  LEFT JOIN host_disk_encryption_keys hdek ON hdek.host_id = h.id
   WHERE TRUE`
 
 	var args []interface{}
@@ -1591,6 +1599,7 @@ func (ds *Datastore) HostByIdentifier(ctx context.Context, identifier string) (*
 	LEFT JOIN host_updates hu ON (h.id = hu.host_id)
     LEFT JOIN host_disks hd ON hd.host_id = h.id
 	LEFT JOIN host_mdm hmdm ON hmdm.host_id = h.id
+    LEFT JOIN host_disk_encryption_keys hdek ON hdek.host_id = h.id
     WHERE ? IN (h.hostname, h.osquery_host_id, h.node_key, h.uuid)
     LIMIT 1
 	`
