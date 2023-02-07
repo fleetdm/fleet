@@ -1307,6 +1307,33 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
+  name: CIS - Ensure Appropriate Permissions Are Enabled for System Wide Applications
+  platforms: macOS
+  platform: darwin
+  description: |
+    Applications in the System Applications Directory (/Applications) should be world- executable since that is their reason to be on the system. They should not be world- writable and allow any process or user to alter them for other processes or users to then execute modified versions.
+  resolution: |
+    Ask your system administrator to deploy a script that will configure all *.app under /Applications folders to have no write permissions for 'others'. 
+    $ /usr/bin/sudo IFS=$'\n'
+      for apps in $( /usr/bin/find /Applications -iname "*\.app" -type d -perm -2 ); 
+      do
+        /bin/chmod -R o-w "$apps"
+      done
+  query: |
+    SELECT 1 WHERE NOT EXISTS (
+    SELECT 1 FROM file WHERE 
+      path LIKE '/Applications/%%'  
+      AND type = 'directory' 
+      AND directory LIKE '%.app' 
+      AND   SUBSTRING( mode ,-1) & 0x2 !=0 -- mode last char is others' permissions. bitwise with 0x2 will give write permissions. (which we do not want here) 
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS5.1.5
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
   name: CIS - Ensure Password Account Lockout Threshold Is Configured (Fleetd required)
   platforms: macOS
   platform: darwin
