@@ -142,6 +142,7 @@ func TestHosts(t *testing.T) {
 		{"SetHostsDiskEncryptionKeyStatus", testHostsSetDiskEncryptionKeyStatus},
 		{"GetUnverifiedDiskEncryptionKeys", testHostsGetUnverifiedDiskEncryptionKeys},
 		{"EnrollOrbit", testHostsEnrollOrbit},
+		{"EnrollUpdatesMissingInfo", testHostsEnrollUpdatesMissingInfo},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -6268,4 +6269,52 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 	h, err = ds.EnrollOrbit(ctx, *hOsqueryNoSerial.OsqueryHostID, hDupSerial1.HardwareSerial, uuid.New().String(), nil)
 	require.NoError(t, err)
 	require.Equal(t, hOsqueryNoSerial.ID, h.ID)
+}
+
+func testHostsEnrollUpdatesMissingInfo(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// create a bare minimal host (as if created via DEP enrollment)
+	// no team, osquery id, uuid.
+	dbZeroTime := time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
+	h, err := ds.NewHost(ctx, &fleet.Host{
+		HardwareSerial:   "serial",
+		Platform:         "darwin",
+		LastEnrolledAt:   dbZeroTime,
+		DetailUpdatedAt:  dbZeroTime,
+		RefetchRequested: true,
+	})
+	require.NoError(t, err)
+
+	tm, err := ds.NewTeam(ctx, &fleet.Team{
+		Name: "team1",
+	})
+
+	// enroll with orbit and a uuid (will match on serial)
+	_, err = ds.EnrollOrbit(ctx, "uuid", "serial", "orbit", nil)
+	require.NoError(t, err)
+	got, err := ds.LoadHostByOrbitNodeKey(ctx, "orbit")
+	require.NoError(t, err)
+	require.Equal(t, h.ID, got.ID)
+	require.Equal(t, "serial", got.HardwareSerial)
+	require.Equal(t, "uuid", got.UUID)
+	require.NotNil(t, got.OsqueryHostID)
+	require.Equal(t, "uuid", *got.OsqueryHostID)
+	require.Nil(t, got.TeamID)
+	require.Nil(t, got.NodeKey)
+
+	// enroll with osquery using uuid identifier, team
+	_, err = ds.EnrollHost(ctx, "uuid", "uuid", "different-serial", "osquery", &tm.ID, 0)
+	require.NoError(t, err)
+	got, err = ds.LoadHostByOrbitNodeKey(ctx, "orbit")
+	require.NoError(t, err)
+	require.Equal(t, h.ID, got.ID)
+	require.Equal(t, "serial", got.HardwareSerial) // unchanged as it was already filled
+	require.Equal(t, "uuid", got.UUID)
+	require.NotNil(t, got.OsqueryHostID)
+	require.Equal(t, "uuid", *got.OsqueryHostID)
+	require.NotNil(t, got.NodeKey)
+	require.Equal(t, "osquery", *got.NodeKey)
+	require.NotNil(t, got.TeamID)
+	require.Equal(t, tm.ID, *got.TeamID)
 }
