@@ -3,6 +3,9 @@
 
 package main
 
+// This tool builds Orbit as macOS Universal Binary, codesigns it and notarizes it.
+// It currently doesn't support stapling of the binary.
+
 import (
 	"context"
 	"fmt"
@@ -77,8 +80,7 @@ func main() {
 
 	if notarize {
 		const notarizationZip = "orbit.zip"
-		// NOTE: the app needs to be zipped in order to upload to Apple for Notarization, but
-		// the Stapling has to happen on just the app (not zipped). Apple is a bit inconsistent here.
+		// NOTE(lucas): The binary needs to be zipped in order to upload to Apple for Notarization.
 		if err := zip.Zip(context.Background(), &zip.Options{Files: []string{binaryPath}, OutputPath: notarizationZip}); err != nil {
 			panic(err)
 		}
@@ -87,6 +89,7 @@ func main() {
 		if err := packaging.Notarize(notarizationZip, bundleIdentifier); err != nil {
 			panic(err)
 		}
+		// TODO(lucas): packaging.Staple doesn't work on plain binaries.
 	}
 }
 
