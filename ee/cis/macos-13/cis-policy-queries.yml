@@ -1401,3 +1401,40 @@ spec:
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS5.2.8
   contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Show All Filename Extensions Setting is Enabled
+  platforms: macOS
+  platform: darwin
+  description: |
+    A filename extension is a suffix added to a base filename that indicates the base filename's
+    file format. Visible filename extensions allow the user to identify the file type and the
+    application it is associated with which leads to quick identification of misrepresented malicious files.
+  resolution: |
+    Graphical Method:
+    1. Open Finder
+    2. Select Finder in the menu bar
+    3. Select Settings
+    4. Select Advanced
+    5. Set Show all filename extensions to enabled
+    Automated method:
+    For each user run:
+    /usr/bin/sudo -u <username> /usr/bin/defaults write \
+      /Users/<username>/Library/Preferences/.GlobalPreferences.plist AppleShowAllExtensions -bool true
+  query: |
+    SELECT 1 WHERE NOT EXISTS (
+      SELECT 1 FROM users AS u
+      LEFT JOIN (
+        SELECT * FROM plist WHERE
+          path LIKE '/Users/%/Library/Preferences/.GlobalPreferences.plist' AND
+          key = 'AppleShowAllExtensions' AND
+          value = '1') AS p
+      ON p.path = CONCAT(u.directory, '/Library/Preferences/.GlobalPreferences.plist')
+        WHERE u.directory LIKE '/Users/%' AND
+        p.value IS NULL
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS6.1.1
+  contributors: artemist-work
