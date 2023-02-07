@@ -302,6 +302,14 @@ In consideration of our team, Fleet avoids using global tags in channels (i.e. @
 
 ### Hiring
 
+#### Open positions
+
+- 🚀 [Engineering Manager, MDM](https://fleet-device-management.breezy.hr/p/41ad774fe34a-engineering-manager-mdm)
+- ⚗️ [Product Designer](https://fleet-device-management.breezy.hr/p/68ef1b6ace54-product-designer)
+- 🫧 [Revenue Operations Manager](https://fleet-device-management.breezy.hr/p/c28cce9abf5e-revenue-ops)
+- 🫧 [Field Marketer](https://fleet-device-management.breezy.hr/p/3bd97ce5f54a-field-marketing-manager-enterprise)
+
+
 #### Creating a new position
 Every new position being created goes through this process before interviewing, accepting applicants, or extending offers.
 1. Add the proposed position to ["Fleeties"](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) as a new row, with a blank start date.  Be sure to include job title, manager, and department.
