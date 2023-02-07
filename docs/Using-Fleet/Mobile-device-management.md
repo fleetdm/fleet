@@ -181,7 +181,7 @@ How to change the default team:
 
 3. Choose a team and select **Save**.
 
-> After a host enrolls it can be transferred to a different team. Learn how [here](./Teams.md#transfer-hosts-to-a-team). Transferring a host automatically enforces of the new team's settings and removes the old team's settings.
+> After a host enrolls it can be transferred to a different team. Learn how [here](./Teams.md#transfer-hosts-to-a-team). Transferring a host automatically enforces the new team's settings and removes the old team's settings.
 
 #### ABM Renewal
 
