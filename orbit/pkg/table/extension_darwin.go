@@ -5,15 +5,15 @@ package table
 import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/privaterelay"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/pwd_policy"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/sudo_info"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/user_login_settings"
-	"github.com/osquery/osquery-go"
-	"github.com/osquery/osquery-go/plugin/table"
-
 	"github.com/macadmins/osquery-extension/tables/filevaultusers"
 	"github.com/macadmins/osquery-extension/tables/macos_profiles"
 	"github.com/macadmins/osquery-extension/tables/mdm"
 	"github.com/macadmins/osquery-extension/tables/munki"
 	"github.com/macadmins/osquery-extension/tables/unifiedlog"
+	"github.com/osquery/osquery-go"
+	"github.com/osquery/osquery-go/plugin/table"
 )
 
 func platformTables() []osquery.OsqueryPlugin {
@@ -22,6 +22,7 @@ func platformTables() []osquery.OsqueryPlugin {
 		table.NewPlugin("icloud_private_relay", privaterelay.Columns(), privaterelay.Generate),
 		table.NewPlugin("user_login_settings", user_login_settings.Columns(), user_login_settings.Generate),
 		table.NewPlugin("pwd_policy", pwd_policy.Columns(), pwd_policy.Generate),
+		table.NewPlugin("sudo_info", sudo_info.Columns(), sudo_info.Generate),
 
 		// Macadmins extension tables
 		table.NewPlugin("filevault_users", filevaultusers.FileVaultUsersColumns(), filevaultusers.FileVaultUsersGenerate),
