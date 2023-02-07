@@ -6289,6 +6289,7 @@ func testHostsEnrollUpdatesMissingInfo(t *testing.T, ds *Datastore) {
 	tm, err := ds.NewTeam(ctx, &fleet.Team{
 		Name: "team1",
 	})
+	require.NoError(t, err)
 
 	// enroll with orbit and a uuid (will match on serial)
 	_, err = ds.EnrollOrbit(ctx, "uuid", "serial", "orbit", nil)
