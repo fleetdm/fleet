@@ -1362,6 +1362,35 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
+  name: CIS - Ensure No World Writable Files Exist in the Library Folder
+  platforms: macOS
+  platform: darwin
+  description: |
+    Software sometimes insists on being installed in the /System/Volumes/Data/Library Directory and has inappropriate world-writable permissions.  
+    Folders in /System/Volumes/Data/Library should not be world-writable. The audit check excludes the /System/Volumes/Data/Library/Caches and /System/Volumes/Data/Library/Preferences/Audio/Data folders where the sticky bit is set.
+  resolution: |
+    Ask your system administrator to deploy a script that will ensure folders are not world-writable in the /System folder. 
+    /usr/bin/sudo IFS=$'\n'
+    for libPermissions in $( /usr/bin/find /System/Volumes/Data/Library -type d -perm -2 | /usr/bin/grep -v Caches | /usr/bin/grep -v /Preferences/Audio/Data); 
+    do
+      /bin/chmod -R o-w "$libPermissions"
+    done
+  query: |
+    SELECT 1 WHERE NOT EXISTS (
+    SELECT 1 FROM file WHERE 
+      path LIKE '/System/Volumes/Data/System/%%'  
+      AND type = 'directory' 
+      AND directory NOT LIKE '%Caches%' 
+      AND directory NOT LIKE '%/Preferences/Audio/Data%' 
+      AND   SUBSTRING( mode ,-1) & 0x2 !=0 -- mode last char is others' permissions. bitwise with 0x2 means write permissions. (which we do not want here) 
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS5.1.7
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
   name: CIS - Ensure Password Account Lockout Threshold Is Configured (Fleetd required)
   platforms: macOS
   platform: darwin
