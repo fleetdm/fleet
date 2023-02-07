@@ -1,3 +1,6 @@
+//go:build darwin
+// +build darwin
+
 package sudo_info
 
 import (
