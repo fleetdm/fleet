@@ -139,7 +139,7 @@ func TestHosts(t *testing.T) {
 		{"UnenrollFromMDM", testHostsUnenrollFromMDM},
 		{"LoadHostByOrbitNodeKey", testHostsLoadHostByOrbitNodeKey},
 		{"SetOrUpdateHostDiskEncryptionKeys", testHostsSetOrUpdateHostDisksEncryptionKey},
-		{"SetHostDiskEncryptionKeyStatus", testHostsSetDiskEncryptionKeyStatus},
+		{"SetHostsDiskEncryptionKeyStatus", testHostsSetDiskEncryptionKeyStatus},
 		{"GetUnverifiedDiskEncryptionKeys", testHostsGetUnverifiedDiskEncryptionKeys},
 	}
 	for _, c := range cases {
@@ -6064,7 +6064,7 @@ func testHostsSetOrUpdateHostDisksEncryptionKey(t *testing.T, ds *Datastore) {
 
 	// setting the encryption key to an existing value doesn't change its
 	// encryption status
-	err = ds.SetHostDiskEncryptionKeyStatus(context.Background(), []uint{host.ID}, true)
+	err = ds.SetHostsDiskEncryptionKeyStatus(context.Background(), []uint{host.ID}, true)
 	require.NoError(t, err)
 	checkEncryptionKeyStatus(t, ds, host.ID, ptr.Bool(true))
 
@@ -6115,24 +6115,24 @@ func testHostsSetDiskEncryptionKeyStatus(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// empty set
-	err = ds.SetHostDiskEncryptionKeyStatus(ctx, []uint{}, false)
+	err = ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{}, false)
 	require.NoError(t, err)
 	checkEncryptionKeyStatus(t, ds, host.ID, nil)
 	checkEncryptionKeyStatus(t, ds, host2.ID, nil)
 
 	// single host
-	err = ds.SetHostDiskEncryptionKeyStatus(ctx, []uint{host.ID}, true)
+	err = ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{host.ID}, true)
 	require.NoError(t, err)
 	checkEncryptionKeyStatus(t, ds, host.ID, ptr.Bool(true))
 	checkEncryptionKeyStatus(t, ds, host2.ID, nil)
 
 	// multiple hosts
-	err = ds.SetHostDiskEncryptionKeyStatus(ctx, []uint{host.ID, host2.ID}, true)
+	err = ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{host.ID, host2.ID}, true)
 	require.NoError(t, err)
 	checkEncryptionKeyStatus(t, ds, host.ID, ptr.Bool(true))
 	checkEncryptionKeyStatus(t, ds, host2.ID, ptr.Bool(true))
 
-	err = ds.SetHostDiskEncryptionKeyStatus(ctx, []uint{host.ID, host2.ID}, false)
+	err = ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{host.ID, host2.ID}, false)
 	require.NoError(t, err)
 	checkEncryptionKeyStatus(t, ds, host.ID, ptr.Bool(false))
 	checkEncryptionKeyStatus(t, ds, host2.ID, ptr.Bool(false))
@@ -6176,14 +6176,14 @@ func testHostsGetUnverifiedDiskEncryptionKeys(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, keys, 2)
 
-	err = ds.SetHostDiskEncryptionKeyStatus(ctx, []uint{host.ID}, false)
+	err = ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{host.ID}, false)
 	require.NoError(t, err)
 
 	keys, err = ds.GetUnverifiedDiskEncryptionKeys(ctx)
 	require.NoError(t, err)
 	require.Len(t, keys, 1)
 
-	err = ds.SetHostDiskEncryptionKeyStatus(ctx, []uint{host.ID, host2.ID}, false)
+	err = ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{host.ID, host2.ID}, false)
 	require.NoError(t, err)
 
 	keys, err = ds.GetUnverifiedDiskEncryptionKeys(ctx)

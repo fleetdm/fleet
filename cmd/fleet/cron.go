@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"crypto/x509"
 	"encoding/json"
 	"fmt"
 	"net/url"
@@ -785,27 +784,21 @@ func verifyDiskEncryptionKeys(
 		return err
 	}
 
-	parsed, err := x509.ParseCertificate(cert.Certificate[0])
-	if err != nil {
-		logger.Log("err", "unable to get SCEP keypair to decrypt keys", "details", err)
-		return err
-	}
-
 	decryptable := []uint{}
 	undecryptable := []uint{}
 	for _, key := range keys {
-		if _, err := apple_mdm.DecryptBase64CMS(key.Base64Encrypted, parsed, cert.PrivateKey); err != nil {
+		if _, err := apple_mdm.DecryptBase64CMS(key.Base64Encrypted, cert.Leaf, cert.PrivateKey); err != nil {
 			undecryptable = append(undecryptable, key.HostID)
 			continue
 		}
 		decryptable = append(decryptable, key.HostID)
 	}
 
-	if err := ds.SetHostDiskEncryptionKeyStatus(ctx, decryptable, true); err != nil {
+	if err := ds.SetHostsDiskEncryptionKeyStatus(ctx, decryptable, true); err != nil {
 		logger.Log("err", "unable to update decryptable status", "details", err)
 		return err
 	}
-	if err := ds.SetHostDiskEncryptionKeyStatus(ctx, undecryptable, false); err != nil {
+	if err := ds.SetHostsDiskEncryptionKeyStatus(ctx, undecryptable, false); err != nil {
 		logger.Log("err", "unable to update decryptable status", "details", err)
 		return err
 	}

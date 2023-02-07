@@ -1010,7 +1010,7 @@ func TestVerifyDiskEncryptionKeysJob(t *testing.T) {
 		}
 
 		calls := 0
-		ds.SetHostDiskEncryptionKeyStatusFunc = func(ctx context.Context, hostIDs []uint, encryptable bool) error {
+		ds.SetHostsDiskEncryptionKeyStatusFunc = func(ctx context.Context, hostIDs []uint, encryptable bool) error {
 			calls++
 			if encryptable {
 				require.EqualValues(t, []uint{1}, hostIDs)
@@ -1023,7 +1023,7 @@ func TestVerifyDiskEncryptionKeysJob(t *testing.T) {
 		err = verifyDiskEncryptionKeys(ctx, logger, ds, &fleetCfg)
 		require.NoError(t, err)
 		require.True(t, ds.GetUnverifiedDiskEncryptionKeysFuncInvoked)
-		require.True(t, ds.SetHostDiskEncryptionKeyStatusFuncInvoked)
+		require.True(t, ds.SetHostsDiskEncryptionKeyStatusFuncInvoked)
 		require.Equal(t, 2, calls)
 	})
 
@@ -1033,7 +1033,7 @@ func TestVerifyDiskEncryptionKeysJob(t *testing.T) {
 		}
 
 		calls := 0
-		ds.SetHostDiskEncryptionKeyStatusFunc = func(ctx context.Context, hostIDs []uint, encryptable bool) error {
+		ds.SetHostsDiskEncryptionKeyStatusFunc = func(ctx context.Context, hostIDs []uint, encryptable bool) error {
 			calls++
 			if !encryptable {
 				require.EqualValues(t, []uint{1}, hostIDs)
@@ -1046,7 +1046,7 @@ func TestVerifyDiskEncryptionKeysJob(t *testing.T) {
 		err = verifyDiskEncryptionKeys(ctx, logger, ds, &fleetCfg)
 		require.NoError(t, err)
 		require.True(t, ds.GetUnverifiedDiskEncryptionKeysFuncInvoked)
-		require.True(t, ds.SetHostDiskEncryptionKeyStatusFuncInvoked)
+		require.True(t, ds.SetHostsDiskEncryptionKeyStatusFuncInvoked)
 		require.Equal(t, 2, calls)
 	})
 }

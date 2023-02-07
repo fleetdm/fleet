@@ -643,9 +643,9 @@ type Datastore interface {
 	// are collected but their decryptable status is not known yet (ie:
 	// we're able to decrypt the key using a private key in the server)
 	GetUnverifiedDiskEncryptionKeys(ctx context.Context) ([]DiskEncryptionKey, error)
-	// SetHostDiskEncryptionKeyStatus sets the encryptable status for the set
+	// SetHostsDiskEncryptionKeyStatus sets the encryptable status for the set
 	// of encription keys provided
-	SetHostDiskEncryptionKeyStatus(ctx context.Context, hostIDs []uint, encryptable bool) error
+	SetHostsDiskEncryptionKeyStatus(ctx context.Context, hostIDs []uint, encryptable bool) error
 	// SetOrUpdateHostOrbitInfo inserts of updates the orbit info for a host
 	SetOrUpdateHostOrbitInfo(ctx context.Context, hostID uint, version string) error
 

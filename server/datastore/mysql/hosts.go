@@ -330,6 +330,7 @@ var hostRefs = []string{
 	"host_disks",
 	"operating_system_vulnerabilities",
 	"host_updates",
+	"host_disk_encryption_keys",
 }
 
 func (ds *Datastore) DeleteHost(ctx context.Context, hid uint) error {
@@ -2361,7 +2362,7 @@ func (ds *Datastore) GetUnverifiedDiskEncryptionKeys(ctx context.Context) ([]fle
 	return keys, err
 }
 
-func (ds *Datastore) SetHostDiskEncryptionKeyStatus(ctx context.Context, hostIDs []uint, decryptable bool) error {
+func (ds *Datastore) SetHostsDiskEncryptionKeyStatus(ctx context.Context, hostIDs []uint, decryptable bool) error {
 	if len(hostIDs) == 0 {
 		return nil
 	}
