@@ -224,7 +224,7 @@ module.exports = {
       .tolerate((err)=>{
         sails.log('Failed to generate haiku using OpenAI.  Error details from OpenAI:',err);
       });
-      
+
       if (!openAiReport) {// If OpenAI could not be reached…
         newBotComment = 'I couldn\'t think of a haiku this time.  (See fleetdm.com logs for more information.)';
       } else {// Otherwise, haiku was successfully generated…
