@@ -173,7 +173,11 @@ Fleet UI:
 
 MacOS hosts purchases through Apple or authorized resellers will automatically enroll to the default team in Fleet when they're first unboxed. This means that Fleet will enforce the default team's settings on these hosts.
 
-How to change the default team:
+> After a host enrolls it can be transferred to a different team. Learn how [here](./Teams.md#transfer-hosts-to-a-team). Transferring a host automatically enforces the new team's settings and removes the old team's settings.
+
+To change the default team, choose the "Fleet UI" or "fleetctl" method and follow the steps below.
+
+Fleet UI:
 
 1. In the Fleet UI, head to the **Settings > Integrations > Mobile device management (MDM)** page. Users with the admin role can access the settings pages.
 
@@ -181,7 +185,13 @@ How to change the default team:
 
 3. Choose a team and select **Save**.
 
-> After a host enrolls it can be transferred to a different team. Learn how [here](./Teams.md#transfer-hosts-to-a-team). Transferring a host automatically enforces the new team's settings and removes the old team's settings.
+`fleetctl` CLI:
+
+1. Create a `config` YAML document if you don't have one already. Learn how [here](./configuration-files/README.md#organization-settings). This document is used to change settings in Fleet.
+
+2. Set the `mdm.apple_bm_default_team` configuration option to the desired team's name.
+
+3. Run the `fleetctl apply -f <your-YAML-file-here>` command.
 
 #### ABM Renewal
 
