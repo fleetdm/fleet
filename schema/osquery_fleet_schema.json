@@ -3632,7 +3632,7 @@
   },
   {
     "name": "chrome_extensions",
-    "description": "Chrome-based browser extensions.",
+    "description": "Installed extensions (plugins) for [Chromium-based](https://en.wikipedia.org/wiki/Chromium_(web_browser)) browsers, including [Google Chrome](https://en.wikipedia.org/wiki/Google_Chrome), [Edge](https://en.wikipedia.org/wiki/Microsoft_Edge), [Brave](https://en.wikipedia.org/wiki/Brave_(web_browser)), [Opera](https://en.wikipedia.org/wiki/Opera_(web_browser)), and [Yandex](https://en.wikipedia.org/wiki/Yandex_Browser).",
     "url": "https://fleetdm.com/tables/chrome_extensions",
     "platforms": [
       "darwin",
@@ -3646,7 +3646,7 @@
     "columns": [
       {
         "name": "browser_type",
-        "description": "The browser type (Valid values: chrome, chromium, opera, yandex, brave, edge, edge_beta)",
+        "description": "The type of browser. (Valid values: `chrome`, `chromium`, `opera`, `yandex`, `brave`, `edge`, `edge_beta`)",
         "type": "text",
         "notes": "",
         "hidden": false,
@@ -9568,7 +9568,7 @@
   },
   {
     "name": "firefox_addons",
-    "description": "Firefox browser extensions, webapps, and addons.",
+    "description": "Firefox browser [add-ons](https://addons.mozilla.org/en-US/firefox/) (plugins).",
     "url": "https://fleetdm.com/tables/firefox_addons",
     "platforms": [
       "darwin",
@@ -10282,7 +10282,7 @@
   },
   {
     "name": "ie_extensions",
-    "description": "Internet Explorer browser extensions.",
+    "description": "Installed Internet Explorer (IE) browser extensions (plugins).",
     "url": "https://fleetdm.com/tables/ie_extensions",
     "platforms": [
       "windows"
@@ -10329,8 +10329,7 @@
         "index": false
       }
     ],
-    "osqueryRepoUrl": "https://github.com/osquery/osquery/blob/master/specs/windows/ie_extensions.table",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/new/main/schema/tables/?filename=%2Ftables%2Fie_extensions.yml&value=name%3A%20ie_extensions%0Adescription%3A%20%3E-%20%23%20(required)%20string%20-%20The%20description%20for%20this%20table.%20Note%3A%20this%20field%20supports%20markdown%0A%09%23%20Add%20description%20here%0Aexamples%3A%20%3E-%20%23%20(optional)%20string%20-%20An%20example%20query%20for%20this%20table.%20Note%3A%20This%20field%20supports%20markdown%0A%09%23%20Add%20examples%20here%0Anotes%3A%20%3E-%20%23%20(optional)%20string%20-%20Notes%20about%20this%20table.%20Note%3A%20This%20field%20supports%20markdown.%0A%09%23%20Add%20notes%20here%0Acolumns%3A%20%23%20(required)%0A%09-%20name%3A%20%23%20(required)%20string%20-%20The%20name%20of%20the%20column%0A%09%20%20description%3A%20%23%20(required)%20string%20-%20The%20column's%20description%0A%09%20%20type%3A%20%23%20(required)%20string%20-%20the%20column's%20data%20type%0A%09%20%20required%3A%20%23%20(required)%20boolean%20-%20whether%20or%20not%20this%20column%20is%20required%20to%20query%20this%20table."
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/ie_extensions.yml"
   },
   {
     "name": "intel_me_info",
@@ -20012,14 +20011,14 @@
   },
   {
     "name": "safari_extensions",
-    "description": "Safari browser extension details for all users.",
+    "description": "Installed Safari browser extensions (plugins).",
     "url": "https://fleetdm.com/tables/safari_extensions",
     "platforms": [
       "darwin"
     ],
     "evented": false,
     "cacheable": false,
-    "notes": "",
+    "notes": "- Includes installed extensions for all system users.",
     "examples": [
       "select count(*) from users JOIN safari_extensions using (uid)"
     ],
@@ -26159,7 +26158,7 @@
   },
   {
     "name": "xprotect_meta",
-    "description": "Database of the machine's XProtect browser-related signatures.",
+    "description": "This Mac's browser-related [XProtect](https://support.apple.com/en-ca/guide/security/sec469d47bd8/web) signatures.",
     "url": "https://fleetdm.com/tables/xprotect_meta",
     "platforms": [
       "darwin"
@@ -26171,7 +26170,7 @@
     "columns": [
       {
         "name": "identifier",
-        "description": "Browser plugin or extension identifier",
+        "description": "Browser extension or plugin [identifier](https://fleetdm.com/tables/safari_extensions)",
         "type": "text",
         "notes": "",
         "hidden": false,
@@ -26637,6 +26636,25 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/yum_sources.yml"
   },
   {
+    "name": "csrutil_info",
+    "platforms": [
+      "darwin"
+    ],
+    "description": "Information from csrutil system call.",
+    "columns": [
+      {
+        "name": "ssv_enabled",
+        "type": "integer",
+        "required": false,
+        "description": "Sealed System Volume is a security feature introduced in macOS 11.0 Big Sur.\nDuring system installation, a SHA-256 cryptographic hash is calculated for all immutable system files and stored in a Merkle tree which itself is hashed as the Seal. Both are stored in the metadata of the snapshot created of the System volume.\nThe seal is verified by the boot loader at startup. macOS will not boot if system files have been tampered with. If validation fails, the user will be instructed to reinstall the operating system.\nDuring read operations for files located in the Sealed System Volume, a hash is calculated and compared to the value stored in the Merkle tree.\n"
+      }
+    ],
+    "notes": "- This table is not a core osquery table. It is included as part of Fleetd, the osquery manager from Fleet.",
+    "evented": false,
+    "url": "https://fleetdm.com/tables/csrutil_info",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/csrutil_info.yml"
+  },
+  {
     "name": "file_lines",
     "notes": "Requires [macadmins-extension](https://github.com/macadmins/osquery-extension/), which is included by default on osquery packages built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
     "description": "Allows reading an arbitrary file.",
@@ -26928,74 +26946,6 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/macos_profiles.yml"
   },
   {
-    "name": "munki_info",
-    "notes": "Requires [macadmins-extension](https://github.com/macadmins/osquery-extension/), which is included by default on osquery packages built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).<p> Code based on work by [Kolide](https://github.com/kolide/launcher).",
-    "description": "Information from the last [Munki](https://github.com/munki/munki) run.",
-    "platforms": [
-      "darwin"
-    ],
-    "evented": false,
-    "examples": "Output errors, warnings and problematic installations from Munki.\n```\nSELECT errors, warnings, problem_installs FROM munki_info ;\n```",
-    "columns": [
-      {
-        "name": "console_user",
-        "description": "The username of the user currently logged into the console of the Mac.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "end_time",
-        "description": "The date and time at which the latest Munki run ended.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "errors",
-        "description": "If Munki encountered any error during the last run, they will be returned in this column.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "manifest_name",
-        "description": "The internal manifest name",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "problem_installs",
-        "description": "A list of installs that did not succeed, if any.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "start_time",
-        "description": "The date and time at which the latest Munki run started.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "success",
-        "description": "Shows if the Munki run was a success (true), or not (false).",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "version",
-        "description": "The version of Munki used during the last run.",
-        "required": false,
-        "type": "text"
-      },
-      {
-        "name": "warnings",
-        "description": "If Munki encountered any error during the last run, they will be returned in this column.",
-        "required": false,
-        "type": "text"
-      }
-    ],
-    "url": "https://fleetdm.com/tables/munki_info",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/munki_info.yml"
-  },
-  {
     "name": "mdm",
     "notes": "Requires [macadmins-extension](https://github.com/macadmins/osquery-extension/), which is included by default on osquery packages built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).<p> Code based on work by [Kolide](https://github.com/kolide/launcher). <p> Due to changes in macOS 12.3, the output of `profiles show -type enrollment` can only be generated once a day. If you are running this command with another tool, you should set the `PROFILES_SHOW_ENROLLMENT_CACHE_PATH` environment variable to the path you are caching this. The cache file should be `json` with the keys `dep_capable` and `rate_limited present`, both booleans representing whether the device is capable of DEP enrollment and whether the response from `profiles show -type enrollment` is being rate limited or not.",
     "description": "Information on the device's MDM enrollment.",
@@ -27088,6 +27038,74 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/mdm.yml"
   },
   {
+    "name": "munki_info",
+    "notes": "Requires [macadmins-extension](https://github.com/macadmins/osquery-extension/), which is included by default on osquery packages built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).<p> Code based on work by [Kolide](https://github.com/kolide/launcher).",
+    "description": "Information from the last [Munki](https://github.com/munki/munki) run.",
+    "platforms": [
+      "darwin"
+    ],
+    "evented": false,
+    "examples": "Output errors, warnings and problematic installations from Munki.\n```\nSELECT errors, warnings, problem_installs FROM munki_info ;\n```",
+    "columns": [
+      {
+        "name": "console_user",
+        "description": "The username of the user currently logged into the console of the Mac.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "end_time",
+        "description": "The date and time at which the latest Munki run ended.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "errors",
+        "description": "If Munki encountered any error during the last run, they will be returned in this column.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "manifest_name",
+        "description": "The internal manifest name",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "problem_installs",
+        "description": "A list of installs that did not succeed, if any.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "start_time",
+        "description": "The date and time at which the latest Munki run started.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "success",
+        "description": "Shows if the Munki run was a success (true), or not (false).",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "version",
+        "description": "The version of Munki used during the last run.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "warnings",
+        "description": "If Munki encountered any error during the last run, they will be returned in this column.",
+        "required": false,
+        "type": "text"
+      }
+    ],
+    "url": "https://fleetdm.com/tables/munki_info",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/munki_info.yml"
+  },
+  {
     "name": "munki_installs",
     "notes": "Requires [macadmins-extension](https://github.com/macadmins/osquery-extension/), which is included by default on osquery packages built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).<p> Code based on work by [Kolide](https://github.com/kolide/launcher).",
     "description": "Software packages and other items [Munki](https://github.com/munki/munki) is managing.",
@@ -27124,6 +27142,25 @@
     ],
     "url": "https://fleetdm.com/tables/munki_installs",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/munki_installs.yml"
+  },
+  {
+    "name": "nvram_info",
+    "platforms": [
+      "darwin"
+    ],
+    "description": "Information from nvram system call.",
+    "columns": [
+      {
+        "name": "amfi_enabled",
+        "type": "integer",
+        "required": false,
+        "description": "Apple Mobile File Integrity (AMFI) was first released in macOS 10.12. The daemon and service block attempts to run unsigned code. AMFI uses lanchd, code signatures, certificates, entitlements, and provisioning profiles to create a filtered entitlement dictionary for an app. AMFI is the macOS kernel module that enforces code-signing and library validation.\nNote: AMFI cannot be disabled with SIP enabled, but a change attempt can be made that will appear successful, and report incorrectly as successful. If the AMFI audit fails, and the SIP audit passes, this is still an issue the admin should research.\n"
+      }
+    ],
+    "notes": "- This table is not a core osquery table. It is included as part of Fleetd, the osquery manager from Fleet.",
+    "evented": false,
+    "url": "https://fleetdm.com/tables/nvram_info",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/nvram_info.yml"
   },
   {
     "name": "puppet_facts",
@@ -27422,5 +27459,61 @@
     ],
     "url": "https://fleetdm.com/tables/puppet_logs",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/puppet_logs.yml"
+  },
+  {
+    "name": "pwd_policy",
+    "platforms": [
+      "darwin"
+    ],
+    "description": "Password Policiy (e.g max failed password attempts).",
+    "columns": [
+      {
+        "name": "max_failed_attempts",
+        "type": "integer",
+        "required": false,
+        "description": "The account lockout threshold specifies the amount of times a user can enter an incorrect password before a lockout will occur. Ensure that a lockout threshold is part of the password policy on the computer.\n"
+      },
+      {
+        "name": "expires_every_n_days",
+        "type": "integer",
+        "required": false,
+        "description": "How many days for a new password to expire.\n"
+      },
+      {
+        "name": "days_to_expiration",
+        "type": "integer",
+        "required": false,
+        "description": "How many days are left for the expiration of the current password.\n"
+      },
+      {
+        "name": "history_depth",
+        "type": "integer",
+        "required": false,
+        "description": "This parameter indicates the depth of password history which a new password can't be identical to.\n"
+      }
+    ],
+    "notes": "- This table is not a core osquery table. It is included as part of Fleetd, the osquery manager from Fleet.",
+    "evented": false,
+    "url": "https://fleetdm.com/tables/pwd_policy",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/pwd_policy.yml"
+  },
+  {
+    "name": "user_login_settings",
+    "platforms": [
+      "darwin"
+    ],
+    "description": "Options of login and password (e.g password hints enabled) for all users.",
+    "columns": [
+      {
+        "name": "password_hint_enabled",
+        "type": "integer",
+        "required": false,
+        "description": "whether password hint is enabled for any user. 1 means one or more users has a password hint set, 0 means no user has a password hint set"
+      }
+    ],
+    "notes": "- This table is not a core osquery table. It is included as part of Fleetd, the osquery manager from Fleet.",
+    "evented": false,
+    "url": "https://fleetdm.com/tables/user_login_settings",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/user_login_settings.yml"
   }
 ]
