@@ -1184,13 +1184,34 @@ osquery:
   status_log_plugin: firehose
   result_log_plugin: firehose
 ```
+#### External Activity Audit Logging
 
-#### activity_enable_audit_log
+> Applies only to Fleet Premium. Acitivity information is available for all Fleet instances using the [Activities API](https://fleetdm.com/docs/using-fleet/rest-api#activities).
+
+Stream Fleet user activities to logs using Fleet's logging plugins.
+
+The following types of activity are included:
+
+Created pack
+Edited pack
+Deleted pack
+Applied pack with fleetctl
+Created policy
+Edited policy
+Deleted policy
+Applied policy with fleetctl
+Created saved query
+Edited saved query
+Deleted saved query
+Applied query with fleetctl
+Ran live query
+Created team
+Deleted team
+
+##### activity_enable_audit_log
 
 This enables/disables the log output for audit events.
 See the `activity_audit_log_plugin` option below that specifies the logging destination.
-
-The audit events are logged in an asynchronous fashion. It can take up to 5 minutes for an event to be logged.
 
 - Default value: `false`
 - Environment variable: `FLEET_ACTIVITY_ENABLE_AUDIT_LOG`
@@ -1200,12 +1221,14 @@ The audit events are logged in an asynchronous fashion. It can take up to 5 minu
     enable_audit_log: true
   ```
 
-#### activity_audit_log_plugin
+##### activity_audit_log_plugin
 
 This is the log output plugin that should be used for audit logs.
-This flag only has effect if `activity_enable_audit_log` is set to `true`.
+This flag only has effect if `activity_enable_audit_log` is set to `true`. 
 
-Options are `filesystem`, `firehose`, `kinesis`, `lambda`, `pubsub`, `kafkarest`, and `stdout`.
+Each plugin has additional configuration options. Please see the configuration section linked below for your logging plugin.
+
+Options are [`filesystem`](#filesystem), [`firehose`](#firehose), [`kinesis`](#kinesis), [`lambda`](#lambda), [`pubsub`](#pubsub), [`kafkarest`](#kafka-rest-proxy-logging), and `stdout` (no additional configuration needed).
 
 - Default value: `filesystem`
 - Environment variable: `FLEET_ACTIVITY_AUDIT_LOG_PLUGIN`
