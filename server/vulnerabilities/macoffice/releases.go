@@ -5,7 +5,7 @@ import "time"
 type ProductType int
 
 const (
-	OfficeSuite ProductType = iota
+	WholeSuite ProductType = iota
 	Outlook
 	Excel
 	PowerPoint
@@ -23,4 +23,11 @@ type OfficeRelease struct {
 	Date            time.Time
 	Version         string // Ths includes the Build ex: 16.69 (Build 23010700)
 	SecurityUpdates []SecurityUpdate
+}
+
+func (or *OfficeRelease) AddSecurityUpdate(pt ProductType, vuln string) {
+	or.SecurityUpdates = append(or.SecurityUpdates, SecurityUpdate{
+		Product:       pt,
+		Vulnerability: vuln,
+	})
 }

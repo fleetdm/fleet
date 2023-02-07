@@ -17,8 +17,8 @@ var (
 	cveLinkPattern, _ = regexp.Compile(`CVE(-\d+)+$`)
 )
 
-var productIdMap = map[string]ProductType{
-	"office-suite": OfficeSuite,
+var IdToType = map[string]ProductType{
+	"office-suite": WholeSuite,
 	"outlook":      Outlook,
 	"word":         Word,
 	"powerpoint":   PowerPoint,
@@ -26,32 +26,55 @@ var productIdMap = map[string]ProductType{
 	"onenote":      OneNote,
 }
 
-var productNameToTypeMap = map[string]ProductType{
-	"office suite":         OfficeSuite,
+var nameToType = map[string]ProductType{
+	"office suite":         WholeSuite,
 	"outlook":              Outlook,
 	"word":                 Word,
 	"powerpoint":           PowerPoint,
 	"excel":                Excel,
 	"onenote":              OneNote,
-	"microsoft autoupdate": OfficeSuite,
+	"microsoft autoupdate": WholeSuite,
 }
 
-func tryParsingReleaseDate(raw string) *time.Time {
+func parseRelDate(raw string) (time.Time, bool) {
 	layouts := []string{"January-2-2006", "January-2-2006-release", "January 2, 2006"}
 	for _, l := range layouts {
 		relDate, err := time.Parse(l, raw)
 		if err == nil {
-			return &relDate
+			return relDate, true
 		}
 	}
-	return nil
+	return time.Time{}, false
+}
+
+func parseVulnLink(token html.Token) (string, bool) {
+	for _, a := range token.Attr {
+		// Check if the link points to a CVE
+		if a.Key == "href" && cveLinkPattern.MatchString(a.Val) {
+			parts := strings.Split(a.Val, "/")
+			return parts[len(parts)-1], true
+		}
+	}
+
+	return "", false
+}
+
+// returns the id attr value of an html token, an empty string otherwise
+func getId(token html.Token) string {
+	for _, attr := range token.Attr {
+		if attr.Key == "id" {
+			return attr.Val
+		}
+	}
+
+	return ""
 }
 
 // ParseReleaseHTML parses the release page using the provided reader. It is assumed that elements
 // in the page appear in order: first the release date then the version and finally any related
 // security updates.
 func ParseReleaseHTML(reader io.Reader) ([]OfficeRelease, error) {
-	var releases []OfficeRelease
+	var result []OfficeRelease
 
 	// We use these pieces of state to keep track of whether we are inside a 'Security Updates'
 	// section of a release and also what product the security updates applies to.
@@ -64,51 +87,52 @@ func ParseReleaseHTML(reader io.Reader) ([]OfficeRelease, error) {
 		case html.ErrorToken:
 			// If EOF we are done...
 			if z.Err() == io.EOF {
-				return releases, nil
+				return result, nil
 			}
 			return nil, z.Err()
 		case html.StartTagToken:
 			token := z.Token()
-
+			//
+			//--------------
+			// Release date
+			// --------------
+			//
 			// The release date could be in a <h2> element like
 			// <h2 id="january-19-2023" class="heading-anchor">January 19, 2023</h2>
 			// or
 			// <h2 id="november-12-2019-release" class="heading-anchor">November 12, 2019
 			// release</h2>
-			// In which case we try to parse the id attribute for the release date.
+			// Either way, we try to parse the id attribute for the release date.
 			if token.Data == "h2" {
-				for _, attr := range token.Attr {
-					if attr.Key == "id" {
-						relDate := tryParsingReleaseDate(attr.Val)
-						if relDate != nil {
-							releases = append(releases, OfficeRelease{Date: *relDate})
-							// Reset the state since we are inside a new release
-							insideSecUpts = false
-							break
-						}
-					}
+				if relDate, ok := parseRelDate(getId(token)); ok {
+					result = append(result, OfficeRelease{Date: relDate})
+					// Reset the state since we are inside a new release
+					insideSecUpts = false
+					break
 				}
 			}
 			// The release date could also be in the form of
-			// <p><strong>Release Date:</strong> January 11, 2017</p>
+			// <strong>Release Date:</strong> January 11, 2017
 			if token.Data == "strong" {
 				// Check that the <strong> tag contains a 'Release Date:' text node
-				if z.Next() == html.TextToken && z.Token().Data == "Release Date:" {
+				if z.Next() == html.TextToken && z.Token().Data == "Release Date:" &&
 					// The next token should be the closing tag
-					if z.Next() == html.EndTagToken && z.Token().Data == "strong" {
-						// And the next one should be the release date
-						if z.Next() == html.TextToken {
-							relDate := tryParsingReleaseDate(strings.TrimSpace(z.Token().Data))
-							if relDate != nil {
-								releases = append(releases, OfficeRelease{Date: *relDate})
-								// Reset state since we are inside a new release section
-								insideSecUpts = false
-							}
-						}
+					z.Next() == html.EndTagToken && z.Token().Data == "strong" &&
+					// And the next one should be the release date
+					z.Next() == html.TextToken {
+					if relDate, ok := parseRelDate(strings.TrimSpace(z.Token().Data)); ok {
+						result = append(result, OfficeRelease{Date: relDate})
+						// Reset state since we are inside a new release section
+						insideSecUpts = false
 					}
 				}
 			}
 
+			//
+			//--------------
+			// Version
+			// --------------
+			//
 			// Versions are always inside a <em> element like
 			// <em>Version 16.69.1 (Build 23011802)</em>
 			if token.Data == "em" {
@@ -116,11 +140,16 @@ func ParseReleaseHTML(reader io.Reader) ([]OfficeRelease, error) {
 				if z.Next() == html.TextToken {
 					t := z.Token()
 					if verPattern.MatchString(t.Data) {
-						releases[len(releases)-1].Version = t.Data
+						result[len(result)-1].Version = t.Data
 					}
 				}
 			}
 
+			//
+			//-----------------
+			// Security updates
+			// ----------------
+			//
 			// Security updates can be contained in a block that starts with a 'Security Updates' <h3> element:
 			// <h3 id="security-updates-<some_id>" class="heading-anchor">Security updates</h3>
 			//
@@ -135,21 +164,26 @@ func ParseReleaseHTML(reader io.Reader) ([]OfficeRelease, error) {
 			// <li><a href="https://portal.msrc.microsoft.com/en-us/security-guidance/advisory/CVE-2023-21734" data-linktype="external">CVE-2023-21734</a></li>
 			// <li><a href="https://portal.msrc.microsoft.com/en-us/security-guidance/advisory/CVE-2023-21735" data-linktype="external">CVE-2023-21735</a></li>
 			// </ul>
-
 			if token.Data == "h3" {
-				for _, a := range token.Attr {
-					if a.Key == "id" {
-						if strings.Contains(a.Val, "security-updates") {
-							insideSecUpts = true
-						}
-						for k, v := range productIdMap {
-							if strings.HasPrefix(a.Val, k) && insideSecUpts {
-								currentProduct = v
-								break
-							}
-						}
+				id := getId(token)
+
+				if strings.Contains(id, "security-updates") {
+					insideSecUpts = true
+				}
+
+				for k, v := range IdToType {
+					if strings.HasPrefix(id, k) && insideSecUpts {
+						currentProduct = v
 						break
 					}
+				}
+			}
+
+			// CVEs are defined as links like:
+			// <a href="https://portal.msrc.microsoft.com/en-us/security-guidance/advisory/CVE-2019-1148" data-linktype="external">CVE-2019-1148</a>
+			if insideSecUpts && token.Data == "a" {
+				if cve, ok := parseVulnLink(token); ok {
+					result[len(result)-1].AddSecurityUpdate(currentProduct, cve)
 				}
 			}
 
@@ -180,68 +214,33 @@ func ParseReleaseHTML(reader io.Reader) ([]OfficeRelease, error) {
 				// looking at the th siblings and children
 				switch z.Next() {
 				case html.StartTagToken:
-					if z.Token().Data == "strong" && z.Next() == html.TextToken && z.Token().Data == "Application" {
-						insideSecUpts = true
-					}
+					insideSecUpts = z.Token().Data == "strong" &&
+						z.Next() == html.TextToken &&
+						z.Token().Data == "Application"
 
 				case html.TextToken:
-					if z.Token().Data == "Application" {
-						insideSecUpts = true
-					}
+					insideSecUpts = z.Token().Data == "Application"
 				}
 			}
 
 			if token.Data == "td" && insideSecUpts {
 				z.Next()
-
 				t := z.Token()
+
+				// A table cell could contain either the "product" name ...
 				if t.Type == html.TextToken {
 					pName := strings.ToLower(strings.Trim(t.Data, " "))
-
-					for k, v := range productNameToTypeMap {
+					for k, v := range nameToType {
 						if strings.HasPrefix(pName, k) {
 							currentProduct = v
 						}
 					}
 				}
 
+				// Or a link to a CVE
 				if t.Data == "a" {
-					for _, a := range t.Attr {
-						// Check if the link points to a CVE
-						if a.Key == "href" && cveLinkPattern.MatchString(a.Val) {
-							parts := strings.Split(a.Val, "/")
-							cve := parts[len(parts)-1]
-
-							secUpt := SecurityUpdate{
-								Product:       currentProduct,
-								Vulnerability: cve,
-							}
-
-							releases[len(releases)-1].SecurityUpdates = append(
-								releases[len(releases)-1].SecurityUpdates, secUpt,
-							)
-						}
-					}
-				}
-			}
-
-			// Security vulnerabilities are contained in links
-			// <a href="https://portal.msrc.microsoft.com/en-us/security-guidance/advisory/CVE-2019-1148" data-linktype="external">CVE-2019-1148</a>
-			if insideSecUpts && token.Data == "a" {
-				for _, a := range token.Attr {
-					// Check if the link points to a CVE
-					if a.Key == "href" && cveLinkPattern.MatchString(a.Val) {
-						parts := strings.Split(a.Val, "/")
-						cve := parts[len(parts)-1]
-
-						secUpt := SecurityUpdate{
-							Product:       currentProduct,
-							Vulnerability: cve,
-						}
-
-						releases[len(releases)-1].SecurityUpdates = append(
-							releases[len(releases)-1].SecurityUpdates, secUpt,
-						)
+					if cve, ok := parseVulnLink(t); ok {
+						result[len(result)-1].AddSecurityUpdate(currentProduct, cve)
 					}
 				}
 			}
