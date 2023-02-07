@@ -151,6 +151,8 @@ _Available in Fleet Premium_
 
 Connect Fleet to your ABM account to automatically enroll macOS hosts to Fleet when they’re first unboxed.
 
+If a new macOS host that appears in ABM hasn't been unboxed, it will appear in Fleet with **MDM status** set to "Pending." These hosts will automatically enroll to the default team in Fleet. Learn how to update the default team [here](#default-team).
+
 To connect Fleet to ABM, get these four files using the Fleet UI or the `fleetctl` command-line interface: An ABM certificate, private key and server token.
 
 To do this, choose the "Fleet UI" or "fleetctl" method and follow the steps below.
@@ -166,6 +168,20 @@ Fleet UI:
 1. Run `fleetctl generate mdm-apple-bm`.
 
 2. Follow the on-screen instructions.
+
+#### Default team
+
+MacOS hosts purchases through Apple or authorized resellers will automatically enroll to the default team in Fleet when they're first unboxed. This means that Fleet will enforce the default team's settings on these hosts.
+
+How to change the default team:
+
+1. In the Fleet UI, head to the **Settings > Integrations > Mobile device management (MDM)** page. Users with the admin role can access the settings pages.
+
+2. In the Apple Business Manager section, select the **Edit team** button next to **Default team**.
+
+3. Choose a team and select **Save**.
+
+> After a host enrolls it can be transferred to a different team. Learn how [here](./Teams.md#transfer-hosts-to-a-team). Transferring a host automatically enforces of the new team's settings and removes the old team's settings.
 
 #### ABM Renewal
 
