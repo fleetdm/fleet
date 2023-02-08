@@ -417,6 +417,48 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
+  name: CIS - Ensure Content Caching Is Disabled
+  platforms: macOS
+  platform: darwin
+  description: |
+    Remote Management is the client portion of Apple Remote Desktop (ARD).
+    Remote Management can be used by remote administrators to view the current screen,
+    install software, report on, and generally manage client Macs.
+    Remote Management should only be enabled on trusted networks with strong
+    user controls present in a Directory system.
+    Mobile devices without strict controls are vulnerable to exploit and monitoring.
+  resolution: |
+    Graphical Method:
+      Perform the following steps to disable Content Caching:
+        1. Open System Settings
+        2. SelectGeneral
+        3. SelectSharing
+        4. Set Content Caching to disabled
+    Automated methods:
+    Terminal Method:
+      Ask your system administrator to deploy a script that will ensure Content Caching Is Disabled
+      /usr/bin/sudo /usr/bin/AssetCacheManagerUtil deactivate
+      The output will include Content caching deactivated
+    Profile Method:
+    Create or edit a configuration profile with the following information:
+      1. The PayloadType string is com.apple.applicationaccess 
+      2. The key to include is allowContentCaching
+      3. The key must be set to <false/>
+  query: |
+    SELECT 1 WHERE 
+      NOT EXISTS ( 
+        SELECT 1 FROM plist WHERE path='/Library/Preferences/com.apple.AssetCache.plist' AND key = 'Activated' AND value != 0 
+      ) 
+      AND NOT EXISTS (
+        SELECT 1 FROM managed_policies WHERE domain = 'com.apple.applicationaccess' AND name = 'allowContentCaching' AND value !=0 
+      ) ;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS2.3.3.9
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
   name: CIS - Ensure Bluetooth Sharing Is Disabled
   platforms: macOS
   platform: darwin
