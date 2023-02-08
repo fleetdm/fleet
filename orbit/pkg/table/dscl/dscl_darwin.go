@@ -11,11 +11,8 @@ import (
 	"os/exec"
 	"regexp"
 	"strings"
-	"syscall"
 
-	"github.com/fleetdm/fleet/v4/orbit/pkg/table/common"
 	"github.com/osquery/osquery-go/plugin/table"
-	"github.com/rs/zerolog/log"
 )
 
 // Columns is the schema of the table.
@@ -72,23 +69,13 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 		return nil, errors.New("missing key argument")
 	}
 
-	uid, gid, err := common.GetConsoleUidGid()
-	if err != nil {
-		log.Debug().Err(err).Msg("failed to get console user")
-		return nil, fmt.Errorf("failed to get console user: %w", err)
-	}
-
 	cmd := exec.Command("dscl", ".", "-"+command, path, key)
-
-	// Run as the current console user (otherwise we get empty results for the root user)
-	cmd.SysProcAttr = &syscall.SysProcAttr{
-		Credential: &syscall.Credential{Uid: uid, Gid: gid},
-	}
-
 	out, err := cmd.Output()
 	if err != nil {
 		return nil, fmt.Errorf("command failed: %w", err)
 	}
+
+	fmt.Printf("DSCL OUTPUT: %s\n", out)
 
 	value, err := parseDSCLOutput(out)
 	if err != nil {
