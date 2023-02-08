@@ -1523,8 +1523,7 @@ spec:
   resolution: |
     Automated method:
     For each user run:
-    /usr/bin/sudo -u <username> /usr/bin/defaults write \
-      /Users/<username>/Library/Preferences/.GlobalPreferences.plist AppleShowAllExtensions -bool true
+    /usr/bin/sudo -u <username> /usr/bin/defaults write /Users/<username>/Library/Preferences/.GlobalPreferences.plist AppleShowAllExtensions -bool true
   query: |
     SELECT 1 WHERE NOT EXISTS (
       SELECT 1 FROM users AS u
