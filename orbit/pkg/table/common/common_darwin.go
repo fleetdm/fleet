@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"github.com/antchfx/xmlquery"
 	"github.com/rs/zerolog/log"
-	"golang.org/x/net/context"
 	"os"
 	"os/exec"
 	"strings"
