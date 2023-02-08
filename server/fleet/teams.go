@@ -125,6 +125,7 @@ type TeamConfig struct {
 	Integrations    TeamIntegrations    `json:"integrations"`
 	Features        Features            `json:"features"`
 	MDM             TeamMDM             `json:"mdm"`
+	MacOSSettings   MacOSSettings       `json:"macos_settings"`
 }
 
 type TeamWebhookSettings struct {
@@ -268,9 +269,10 @@ type TeamSpec struct {
 	// set to the agent options JSON object.
 	AgentOptions json.RawMessage `json:"agent_options,omitempty"` // marshals as "null" if omitempty is not set
 
-	Secrets  []EnrollSecret   `json:"secrets,omitempty"`
-	Features *json.RawMessage `json:"features"`
-	MDM      TeamMDM          `json:"mdm"`
+	Secrets       []EnrollSecret   `json:"secrets,omitempty"`
+	Features      *json.RawMessage `json:"features"`
+	MDM           TeamMDM          `json:"mdm"`
+	MacOSSettings MacOSSettings    `json:"macos_settings"`
 }
 
 // TeamSpecFromTeam returns a TeamSpec constructed from the given Team.

@@ -272,6 +272,16 @@ func (c *Client) ApplyGroup(ctx context.Context, specs *spec.Group, logf func(fo
 	}
 
 	if specs.AppConfig != nil {
+		// TODO(mna): extract the macos_settings.custom_settings from it, as it
+		// will be applied separately. Note that the endpoint that will be used
+		// needs to support the dry-run option too.
+		if macosCustomSettings := extractAppCfgMacOSCustomSettings(specs.AppConfig); macosCustomSettings != nil {
+			// TODO(mna): probably needs to make a call for each file (body will be
+			// the content of the file)?
+			//if err := c.ApplyMacOSCustomSettings(macosCustomSettings, opts); err != nil {
+			//	return fmt.Errorf("applying fleet config macOS custom settings: %w", err)
+			//}
+		}
 		if err := c.ApplyAppConfig(specs.AppConfig, opts); err != nil {
 			return fmt.Errorf("applying fleet config: %w", err)
 		}
@@ -294,6 +304,9 @@ func (c *Client) ApplyGroup(ctx context.Context, specs *spec.Group, logf func(fo
 	}
 
 	if len(specs.Teams) > 0 {
+		// TODO(mna): extract the macos_settings.custom_settings from it, as it
+		// will be applied separately. Note that the endpoint that will be used
+		// needs to support the dry-run option too.
 		if err := c.ApplyTeams(specs.Teams, opts); err != nil {
 			return fmt.Errorf("applying teams: %w", err)
 		}
@@ -315,4 +328,34 @@ func (c *Client) ApplyGroup(ctx context.Context, specs *spec.Group, logf func(fo
 		}
 	}
 	return nil
+}
+
+// extracts the macos_settings.custom_settings file paths from the appCfg, and
+// clears this key from the appCfg so that it is not present anymore in the
+// remaining YAML/JSON structure represented by appCfg. As a special case, if
+// custom_settings was the only key present in the macos_settings object, that
+// object is also removed from appCfg.
+func extractAppCfgMacOSCustomSettings(appCfg interface{}) []string {
+	asMap, ok := appCfg.(map[string]interface{})
+	if !ok {
+		return nil
+	}
+	mos, ok := asMap["macos_settings"].(map[string]interface{})
+	if !ok || mos == nil {
+		return nil
+	}
+	cs, ok := mos["custom_settings"].([]string)
+	if !ok {
+		return nil
+	}
+	delete(mos, "custom_settings")
+	if len(mos) == 0 {
+		delete(asMap, "macos_settings")
+	}
+	if cs == nil {
+		// return a non-nil, empty slice instead, so the caller knows that the
+		// custom_settings key was actually provided.
+		cs = []string{}
+	}
+	return cs
 }
