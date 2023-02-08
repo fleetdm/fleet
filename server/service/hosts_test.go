@@ -611,6 +611,7 @@ func TestHostEncryptionKey(t *testing.T) {
 
 			ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
 				act := activity.(fleet.ActivityTypeReadHostDiskEncryptionKey)
+				require.Equal(t, tt.host.ID, act.HostID)
 				require.EqualValues(t, act.HostDisplayName, tt.host.DisplayName())
 				return nil
 			}

@@ -494,6 +494,11 @@ const hostMDMSelect = `,
 		END,
 		'encryption_key_available',
 		CASE
+                       /* roberto: this is the only way I have found for MySQL to
+                        * return true and false instead of 0 and 1 in the JSON, the
+                        * unmarshaller was having problems converting int values to
+                        * booleans.
+                        */
 			WHEN hdek.decryptable IS NULL OR hdek.decryptable = 0 THEN CAST(FALSE AS JSON)
 			ELSE CAST(TRUE AS JSON)
 		END

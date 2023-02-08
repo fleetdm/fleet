@@ -3,7 +3,6 @@ package service
 import (
 	"bytes"
 	"context"
-	"crypto/x509"
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
@@ -1399,16 +1398,13 @@ func (svc *Service) HostEncryptionKey(ctx context.Context, id uint) (*fleet.Host
 		return nil, err
 	}
 
-	host, err := svc.ds.Host(ctx, id)
+	host, err := svc.ds.HostLite(ctx, id)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting host encryption key")
 	}
 
 	// Permissions to read encryption keys are exactly the same
 	// as the ones required to read hosts.
-	// TODO (code review): Adding a specific check for keys
-	// would require adding a `TeamID` property to
-	// `fleet.HostDiskEncryptionKey`, should we?
 	if err := svc.authz.Authorize(ctx, host, fleet.ActionRead); err != nil {
 		return nil, err
 	}
@@ -1427,12 +1423,7 @@ func (svc *Service) HostEncryptionKey(ctx context.Context, id uint) (*fleet.Host
 		return nil, ctxerr.Wrap(ctx, err, "getting host encryption key")
 	}
 
-	parsed, err := x509.ParseCertificate(cert.Certificate[0])
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "getting host encryption key")
-	}
-
-	decryptedKey, err := apple_mdm.DecryptBase64CMS(key.Base64Encrypted, parsed, cert.PrivateKey)
+	decryptedKey, err := apple_mdm.DecryptBase64CMS(key.Base64Encrypted, cert.Leaf, cert.PrivateKey)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting host encryption key")
 	}
@@ -1443,6 +1434,7 @@ func (svc *Service) HostEncryptionKey(ctx context.Context, id uint) (*fleet.Host
 		ctx,
 		authz.UserFromContext(ctx),
 		fleet.ActivityTypeReadHostDiskEncryptionKey{
+			HostID:          host.ID,
 			HostDisplayName: host.DisplayName(),
 		},
 	)

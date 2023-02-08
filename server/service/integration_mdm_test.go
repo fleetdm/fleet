@@ -657,16 +657,11 @@ func (s *integrationMDMTestSuite) TestMDMAppleGetEncryptionKey() {
 		currToken := s.token
 		defer func() { s.token = currToken }()
 		s.token = s.getTestAdminToken()
-		activities = listActivitiesResponse{}
-		s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &activities, "order_key", "created_at")
-		found = false
-		for _, activity := range activities.Activities {
-			if activity.Type == "read_host_disk_encryption_key" && u.ID == *activity.ActorID {
-				found = true
-				require.JSONEq(t, fmt.Sprintf(`{"host_display_name": "%s"}`, host.DisplayName()), string(*activity.Details))
-			}
-		}
-		require.True(t, found)
+		s.lastActivityMatches(
+			"read_host_disk_encryption_key",
+			fmt.Sprintf(`{"host_display_name": "%s", "host_id": %d}`, host.DisplayName(), host.ID),
+			0,
+		)
 	}
 
 	// we're about to mess up with the token, make sure to set it to the
@@ -674,7 +669,7 @@ func (s *integrationMDMTestSuite) TestMDMAppleGetEncryptionKey() {
 	currToken := s.token
 	t.Cleanup(func() { s.token = currToken })
 
-	// admins are able to see the token
+	// admins are able to see the host encryption key
 	s.token = s.getTestAdminToken()
 	checkDecryptableKey(s.users["admin1@example.com"])
 

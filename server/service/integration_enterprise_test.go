@@ -2257,28 +2257,6 @@ func (s *integrationEnterpriseTestSuite) TestOrbitConfigNudgeSettings() {
 	require.Equal(t, wantCfg.OSVersionRequirements[0].RequiredInstallationDate.String(), "2022-01-04 04:00:00 +0000 UTC")
 }
 
-// gets the latest activity and checks that it matches any provided properties.
-// empty string or 0 id means do not check that property. It returns the ID of that
-// latest activity.
-func (s *integrationEnterpriseTestSuite) lastActivityMatches(name, details string, id uint) uint {
-	var listActivities listActivitiesResponse
-	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &listActivities, "order_key", "a.id", "order_direction", "desc", "per_page", "1")
-	require.True(s.T(), len(listActivities.Activities) > 0)
-
-	act := listActivities.Activities[0]
-	if name != "" {
-		assert.Equal(s.T(), name, act.Type)
-	}
-	if details != "" {
-		require.NotNil(s.T(), act.Details)
-		assert.JSONEq(s.T(), details, string(*act.Details))
-	}
-	if id > 0 {
-		assert.Equal(s.T(), id, act.ID)
-	}
-	return act.ID
-}
-
 // allEqual compares all fields of a struct.
 // If a field is a pointer on one side but not on the other, then it follows that pointer. This is useful for optional
 // arguments.
