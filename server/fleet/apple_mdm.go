@@ -1,6 +1,7 @@
 package fleet
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -209,9 +210,11 @@ type Mobileconfig []byte
 //
 // The byte slice must be XML or PKCS7 parseable. Fleet also requires that it contains both
 // a PayloadIdentifier and a PayloadDisplayName and that it has PayloadType set to "Configuration".
+//
+// Adapted from https://github.com/micromdm/micromdm/blob/main/platform/profile/profile.go
 func (mc *Mobileconfig) ParseConfigProfile() (*MDMAppleConfigProfile, error) {
 	mcBytes := *mc
-	if len(mcBytes) > 5 && string(mcBytes[0:5]) != "<?xml" {
+	if !bytes.HasPrefix(mcBytes, []byte("<?xml")) {
 		p7, err := pkcs7.Parse(mcBytes)
 		if err != nil {
 			return nil, errors.Wrapf(err, "Mobileconfig is not XML nor PKCS7 parseable")

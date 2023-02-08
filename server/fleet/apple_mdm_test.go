@@ -80,12 +80,11 @@ func TestMDMAppleConfigProfile(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.testName, func(t *testing.T) {
-			p := new(MDMAppleConfigProfile)
 			mc := c.mobileconfig
+			cp := new(MDMAppleConfigProfile)
+			cp.Mobileconfig = &mc
 
-			p.Mobileconfig = &mc
-
-			parsed, err := p.Mobileconfig.ParseConfigProfile()
+			parsed, err := cp.Mobileconfig.ParseConfigProfile()
 			if c.shouldFail {
 				require.Error(t, err)
 			} else {
