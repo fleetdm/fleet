@@ -5,11 +5,9 @@ package nvram_info
 
 import (
 	"context"
+	tbl_common "github.com/fleetdm/fleet/v4/orbit/pkg/table/common"
 	"github.com/osquery/osquery-go/plugin/table"
-	"github.com/rs/zerolog/log"
-	"os/exec"
 	"strings"
-	"time"
 )
 
 // Columns is the schema of the table.
@@ -30,7 +28,7 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 }
 
 func getAMFIEnabled(ctx context.Context) (amfiEnabled string, err error) {
-	res, err := runCommand(ctx, "/usr/sbin/nvram", "-p")
+	res, err := tbl_common.RunCommand(ctx, "/usr/sbin/nvram", "-p")
 	amfiEnabled = ""
 	if err == nil {
 		amfiEnabled = "0"
@@ -39,17 +37,4 @@ func getAMFIEnabled(ctx context.Context) (amfiEnabled string, err error) {
 		}
 	}
 	return amfiEnabled, err
-}
-
-func runCommand(ctx context.Context, name string, arg ...string) (res string, err error) {
-	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
-	cmd := exec.CommandContext(ctx, name, arg...)
-
-	out, err := cmd.Output()
-	if err != nil {
-		log.Debug().Err(err).Msg("failed while generating nvram table")
-		return "", err
-	}
-	return string(out), nil
 }

@@ -7,8 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os/exec"
-
+	tbl_common "github.com/fleetdm/fleet/v4/orbit/pkg/table/common"
 	"github.com/osquery/osquery-go/plugin/table"
 )
 
@@ -24,26 +23,29 @@ func Columns() []table.ColumnDefinition {
 // Constraints for generating can be retrieved from the queryContext.
 func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[string]string, error) {
 	userName := ""
-	if constraints, ok := queryContext.Constraints["userName"]; ok {
+	if userName = getUserNameFromConstraints(queryContext); userName == "" {
+		return nil, errors.New("missing user_name")
+	}
+
+	res, err := tbl_common.RunCommand(ctx, "/usr/bin/defaults", "/Users/"+userName+"/Library/Containers/com.apple.Safari/Data/Library/Preferences/com.apple.Safari", "ShowFullURLInSmartSearchField")
+	if err != nil {
+		return nil, fmt.Errorf("generate failed: %w", err)
+	}
+
+	return []map[string]string{{
+		"userName":                            userName,
+		"Show_full_url_in_smart_search_field": res,
+	}}, nil
+}
+
+func getUserNameFromConstraints(queryContext table.QueryContext) (userName string) {
+	userName = ""
+	if constraints, ok := queryContext.Constraints["user_name"]; ok {
 		for _, constraint := range constraints.Constraints {
 			if constraint.Operator == table.OperatorEquals {
 				userName = constraint.Expression
 			}
 		}
 	}
-	if userName == "" {
-		return nil, errors.New("missing userName")
-	}
-
-	//cmd := exec.CommandContext(ctx, "/usr/bin/defaults", "read", "/Users/sharonkatz/Library/Containers/com.apple.Safari/Data/Library/Preferences/com.apple.Safari", "ShowFullURLInSmartSearchField")
-	cmd := exec.CommandContext(ctx, "/usr/bin/defaults", "/Users/"+userName+"/Library/Containers/com.apple.Safari/Data/Library/Preferences/com.apple.Safari", "ShowFullURLInSmartSearchField")
-	out, err := cmd.Output()
-	if err != nil {
-		return nil, fmt.Errorf("generate failed: %w", err)
-	}
-
-	return []map[string]string{{
-		"userName":                            rightName,
-		"Show_full_url_in_smart_search_field": string(out),
-	}}, nil
+	return
 }

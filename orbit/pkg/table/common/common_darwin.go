@@ -4,13 +4,17 @@
 package common
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"github.com/antchfx/xmlquery"
+	"github.com/rs/zerolog/log"
+	"golang.org/x/net/context"
 	"os"
+	"os/exec"
 	"strings"
 	"syscall"
-
-	"github.com/antchfx/xmlquery"
+	"time"
 )
 
 // GetConsoleUidGid gets the uid and gid of the current (or more accurately, most recently logged
@@ -54,4 +58,18 @@ func GetValFromXMLWithTags(xml string, parentTag string, tag string, tagValue st
 		}
 	}
 	return "", errors.New("can't find requested value")
+}
+
+// RunCommand Will run a command with 5 sec timeout (as context. It will return the output as string.
+func RunCommand(ctx context.Context, name string, arg ...string) (res string, err error) {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, name, arg...)
+
+	out, err := cmd.Output()
+	if err != nil {
+		log.Debug().Err(err).Msg("failed while generating " + name + " table")
+		return "", err
+	}
+	return string(out), nil
 }

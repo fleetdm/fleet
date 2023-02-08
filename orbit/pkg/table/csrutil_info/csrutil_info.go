@@ -5,11 +5,9 @@ package csrutil_info
 
 import (
 	"context"
+	tbl_common "github.com/fleetdm/fleet/v4/orbit/pkg/table/common"
 	"github.com/osquery/osquery-go/plugin/table"
-	"github.com/rs/zerolog/log"
-	"os/exec"
 	"strings"
-	"time"
 )
 
 // Columns is the schema of the table.
@@ -29,7 +27,7 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 }
 
 func getSSVEnabled(ctx context.Context) (SSVEnabled string, err error) {
-	res, err := runCommand(ctx, "/usr/bin/csrutil", "authenticated-root", "status")
+	res, err := tbl_common.RunCommand(ctx, "/usr/bin/csrutil", "authenticated-root", "status")
 	SSVEnabled = ""
 	if err == nil {
 		SSVEnabled = "0"
@@ -38,17 +36,4 @@ func getSSVEnabled(ctx context.Context) (SSVEnabled string, err error) {
 		}
 	}
 	return SSVEnabled, err
-}
-
-func runCommand(ctx context.Context, name string, arg ...string) (res string, err error) {
-	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
-	cmd := exec.CommandContext(ctx, name, arg...)
-
-	out, err := cmd.Output()
-	if err != nil {
-		log.Debug().Err(err).Msg("failed while generating csrutil_info table")
-		return "", err
-	}
-	return string(out), nil
 }
