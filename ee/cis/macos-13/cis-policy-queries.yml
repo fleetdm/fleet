@@ -448,6 +448,33 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
+  name: CIS - Ensure Content Caching Is Disabled (MDM Required)
+  platforms: macOS
+  platform: darwin
+  description: |
+    Starting with 10.13 (macOS High Sierra), Apple introduced a service to make it easier to deploy data from Apple, including software updates, where there are bandwidth constraints to the Internet and fewer constraints or greater bandwidth exist on the local subnet. This capability can be very valuable for organizations that have throttled and possibly metered Internet connections. In heterogeneous enterprise networks with multiple subnets, the effectiveness of this capability would be determined by how many Macs were on each subnet at the time new, large updates were made available upstream. This capability requires the use of mac OS clients as P2P nodes for updated Apple content. Unless there is a business requirement to manage operational Internet connectivity and bandwidth user endpoints should not store content and act as a cluster to provision data.
+  resolution: |
+    Graphical Method:
+      Perform the following steps to disable Content Caching:
+        1. Open System Settings
+        2. SelectGeneral
+        3. SelectSharing
+        4. Set Content Caching to disabled
+    Profile Method:
+    Create or edit a configuration profile with the following information:
+      1. The PayloadType string is com.apple.applicationaccess 
+      2. The key to include is allowContentCaching
+      3. The key must be set to <false/>
+  query: |
+    SELECT 1 WHERE EXISTS (SELECT * FROM managed_policies mp WHERE domain = 'com.apple.applicationaccess' AND name = 'allowContentCaching' AND value = 0)
+    AND NOT EXISTS (SELECT * FROM managed_policies mp WHERE domain = 'com.apple.applicationaccess' AND name = 'allowContentCaching' AND value != 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS2.3.3.9
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
   name: CIS - Ensure Bluetooth Sharing Is Disabled
   platforms: macOS
   platform: darwin
