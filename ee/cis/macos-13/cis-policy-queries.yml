@@ -417,7 +417,7 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure Content Caching Is Disabled
+  name: CIS - Ensure Content Caching Is Disabled (MDM Required)
   platforms: macOS
   platform: darwin
   description: |
