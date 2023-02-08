@@ -5,6 +5,7 @@ package table
 import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/authdb"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/csrutil_info"
+	firmware_eficheck_integity_check "github.com/fleetdm/fleet/v4/orbit/pkg/table/firmware_eficheck_integrity_check"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/nvram_info"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/pmset"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/privaterelay"
@@ -29,6 +30,7 @@ func platformTables() []osquery.OsqueryPlugin {
 		table.NewPlugin("nvram_info", nvram_info.Columns(), nvram_info.Generate),
 		table.NewPlugin("authdb", authdb.Columns(), authdb.Generate),
 		table.NewPlugin("pmset", pmset.Columns(), pmset.Generate),
+		table.NewPlugin("firmware_eficheck_integity_check", firmware_eficheck_integity_check.Columns(), firmware_eficheck_integity_check.Generate),
 
 		// Macadmins extension tables
 		table.NewPlugin("filevault_users", filevaultusers.FileVaultUsersColumns(), filevaultusers.FileVaultUsersGenerate),
