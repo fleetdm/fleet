@@ -6,12 +6,12 @@ package privaterelay
 import (
 	"context"
 	"fmt"
-	tbl_common "github.com/fleetdm/fleet/v4/orbit/pkg/table/common"
 	"os/exec"
 	"strings"
 	"syscall"
 	"time"
 
+	tbl_common "github.com/fleetdm/fleet/v4/orbit/pkg/table/common"
 	"github.com/osquery/osquery-go/plugin/table"
 )
 

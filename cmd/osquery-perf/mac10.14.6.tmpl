@@ -164,6 +164,16 @@
 ]
 {{- end }}
 
+{{ define "fleet_detail_query_disk_encryption_key_darwin" -}}
+{{- if .DiskEncryptionEnabled }}
+[
+  {"line": "MIAGCSqGSIb3DQEHA6CAMIACAQAxggFtMIIBaQIBADBRMEgxHzAdBgNVBAMMFkZpbGVWYXVsdCBSZWNvdmVyeSBLZXkxJTAjBgNVBA0MHFJvYmVydG9zLU1hY0Jvb2stUHJvLTIubG9jYWwCBQCovxm3MA0GCSqGSIb3DQEBAQUABIIBAHiz8IGpXp+vqfTes7ejbvS11XpnaHCxDeaMYjmEJgZKtwdQhOJZy9clsypwqFv6h/Cva3/SuOEcwBoS2N/YY766jDP8nU4OcUaZWqEcMhRsSs1mil4T+rTnUfQEUKU9xW1j/iFq3xVWDTaBY+5cBgwUmdZb8XoWhXUVoF73OD0NpitnXxsxHokXv+UZzPoydlsCzhfAngl11hELAuFe6/mfq801E1hT+zvzDEDvfwSBMDC14OGDoFORVe/HCBS3NFGpVV+IrqpIpT1wbNx2dazmngduviErpXTgZG2vrCMQN1rN0OeLRtOMcjE6rer+ruuc5hfvTGMwWOgteqd2YQUwgAYJKoZIhvcNAQcBMBQGCCqGSIb3DQMHBAhwRO3eyigWMaCABBhy88Lm9qisQ9sOaf8u8GSzoWFdw2LkjRMECAKJG0H5K6iTAAAAAAAAAAAAAA=="},
+]
+{{- else }}
+[]
+{{- end }}
+{{- end }}
+
 {{/* all hosts */}}
 {{ define "fleet_label_query_6" -}}
 [
