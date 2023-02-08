@@ -27,7 +27,7 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 		return nil, errors.New("missing user_name")
 	}
 
-	res, err := tbl_common.RunCommand(ctx, "/usr/bin/defaults", "/Users/"+userName+"/Library/Containers/com.apple.Safari/Data/Library/Preferences/com.apple.Safari", "ShowFullURLInSmartSearchField")
+	res, err := tbl_common.RunCommand(ctx, "/usr/bin/defaults", "read", "/Users/"+userName+"/Library/Containers/com.apple.Safari/Data/Library/Preferences/com.apple.Safari", "ShowFullURLInSmartSearchField")
 	if err != nil {
 		return nil, fmt.Errorf("generate failed: %w", err)
 	}
