@@ -4,7 +4,10 @@
 package common
 
 import (
+	"github.com/stretchr/testify/require"
+	"golang.org/x/net/context"
 	"testing"
+	"time"
 )
 
 func TestGetConsoleUidGid(t *testing.T) {
@@ -90,4 +93,14 @@ func TestGetValFromXMLWithTagsNoTag(t *testing.T) {
 	if err == nil {
 		t.Fatalf("Err expected. Got nil")
 	}
+}
+
+func TestRunCommand(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+
+	res, err := RunCommand(ctx, "echo", "test123")
+	require.NoError(t, err)
+	require.NotNil(t, res)
+	require.Equal(t, "test123", res)
 }
