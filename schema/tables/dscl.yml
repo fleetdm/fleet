@@ -18,7 +18,7 @@ columns:
   - name: value
     type: text
     required: false
-    description: The value of the read path and key. 
+    description: The value of the read path and key.
 notes: >-
   - This table is not a core osquery table. It is included as part of Fleetd, the osquery manager from Fleet.
 evented: false
