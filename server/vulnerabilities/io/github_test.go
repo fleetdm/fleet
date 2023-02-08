@@ -39,25 +39,25 @@ func (m mockGHReleaseLister) ListReleases(
 			{
 				ID:                 ptr.Int64(76142089),
 				URL:                ptr.String("https://api.github.com/repos/fleetdm/nvd/releases/assets/76142089"),
-				Name:               ptr.String(fmt.Sprintf("%sWindows_10-2022_09_10.json", mSRCFilePrefix)),
+				Name:               ptr.String(fmt.Sprintf("%sWindows_10-2022_09_10.json", MSRCFilePrefix)),
 				Label:              ptr.String(""),
 				State:              ptr.String("uploaded"),
 				ContentType:        ptr.String("application/json"),
 				Size:               ptr.Int(52107588),
 				DownloadCount:      ptr.Int(683),
-				BrowserDownloadURL: ptr.String(fmt.Sprintf("https://github.com/fleetdm/nvd/releases/download/202208290017/%sWindows_10-2022_09_10.json", mSRCFilePrefix)),
+				BrowserDownloadURL: ptr.String(fmt.Sprintf("https://github.com/fleetdm/nvd/releases/download/202208290017/%sWindows_10-2022_09_10.json", MSRCFilePrefix)),
 				NodeID:             ptr.String("RA_kwDOF19pRs4EidYA"),
 			},
 			{
 				ID:                 ptr.Int64(76142090),
 				URL:                ptr.String("https://api.github.com/repos/fleetdm/nvd/releases/assets/76142089"),
-				Name:               ptr.String(fmt.Sprintf("%sWindows_11-2022_09_10.json", mSRCFilePrefix)),
+				Name:               ptr.String(fmt.Sprintf("%sWindows_11-2022_09_10.json", MSRCFilePrefix)),
 				Label:              ptr.String(""),
 				State:              ptr.String("uploaded"),
 				ContentType:        ptr.String("application/json"),
 				Size:               ptr.Int(52107588),
 				DownloadCount:      ptr.Int(683),
-				BrowserDownloadURL: ptr.String(fmt.Sprintf("https://github.com/fleetdm/nvd/releases/download/202208290017/%sWindows_11-2022_09_10.json", mSRCFilePrefix)),
+				BrowserDownloadURL: ptr.String(fmt.Sprintf("https://github.com/fleetdm/nvd/releases/download/202208290017/%sWindows_11-2022_09_10.json", MSRCFilePrefix)),
 				NodeID:             ptr.String("RA_kwDOF19pRs4EidYA"),
 			},
 		},
@@ -75,7 +75,7 @@ func TestGithubClient(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("#Download", func(t *testing.T) {
-		fileName := fmt.Sprintf("%sWindows_11-2022_09_10.json", mSRCFilePrefix)
+		fileName := fmt.Sprintf("%sWindows_11-2022_09_10.json", MSRCFilePrefix)
 		urlPath := fmt.Sprintf("/fleetdm/nvd/releases/download/202208290017/%s", fileName)
 
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -107,8 +107,8 @@ func TestGithubClient(t *testing.T) {
 		require.Len(t, bulletins, 2)
 
 		expectedBulletins := []MetadataFileName{
-			NewSecurityBulletinName(fmt.Sprintf("%sWindows_10-2022_09_10.json", mSRCFilePrefix)),
-			NewSecurityBulletinName(fmt.Sprintf("%sWindows_11-2022_09_10.json", mSRCFilePrefix)),
+			NewMSRCMetadataFileName(fmt.Sprintf("%sWindows_10-2022_09_10.json", MSRCFilePrefix)),
+			NewMSRCMetadataFileName(fmt.Sprintf("%sWindows_11-2022_09_10.json", MSRCFilePrefix)),
 		}
 
 		for _, e := range expectedBulletins {

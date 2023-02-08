@@ -85,8 +85,8 @@ func (gh GitHubClient) Bulletins(ctx context.Context) (map[MetadataFileName]stri
 
 	for _, e := range releases[0].Assets {
 		name := e.GetName()
-		if strings.HasPrefix(name, mSRCFilePrefix) {
-			results[NewSecurityBulletinName(name)] = e.GetBrowserDownloadURL()
+		if strings.HasPrefix(name, MSRCFilePrefix) {
+			results[NewMSRCMetadataFileName(name)] = e.GetBrowserDownloadURL()
 		}
 	}
 	return results, nil

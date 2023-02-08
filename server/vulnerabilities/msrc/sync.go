@@ -6,7 +6,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/vulnerabilities/msrc/io"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/io"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/msrc/parsed"
 	"github.com/google/go-github/v37/github"
 )
@@ -91,7 +91,7 @@ func sync(
 		remote = append(remote, r)
 	}
 
-	local, err := fsClient.Bulletins()
+	local, err := fsClient.MSRCBulletins()
 	if err != nil {
 		return err
 	}

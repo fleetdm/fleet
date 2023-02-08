@@ -13,7 +13,7 @@ func TestFSClient(t *testing.T) {
 	t.Run("#Bulletins", func(t *testing.T) {
 		t.Run("directory does not exists", func(t *testing.T) {
 			sut := NewFSClient("asdf")
-			_, err := sut.Bulletins()
+			_, err := sut.MSRCBulletins()
 			require.Error(t, err)
 		})
 
@@ -22,8 +22,8 @@ func TestFSClient(t *testing.T) {
 			sut := NewFSClient(path)
 
 			file1 := filepath.Join(path, "my_lyrics.json")
-			bulletin1 := filepath.Join(path, fmt.Sprintf("%sWindows_10-2022_10_10.json", mSRCFilePrefix))
-			bulletin2 := filepath.Join(path, fmt.Sprintf("%sWindows_11-2022_10_10.json", mSRCFilePrefix))
+			bulletin1 := filepath.Join(path, fmt.Sprintf("%sWindows_10-2022_10_10.json", MSRCFilePrefix))
+			bulletin2 := filepath.Join(path, fmt.Sprintf("%sWindows_11-2022_10_10.json", MSRCFilePrefix))
 
 			f1, err := os.Create(bulletin1)
 			require.NoError(t, err)
@@ -37,11 +37,11 @@ func TestFSClient(t *testing.T) {
 			require.NoError(t, err)
 			f3.Close()
 
-			r, err := sut.Bulletins()
+			r, err := sut.MSRCBulletins()
 			require.NoError(t, err)
-			require.NotContains(t, r, NewSecurityBulletinName(filepath.Base(file1)))
-			require.Contains(t, r, NewSecurityBulletinName(filepath.Base(bulletin1)))
-			require.Contains(t, r, NewSecurityBulletinName(filepath.Base(bulletin2)))
+			require.NotContains(t, r, NewMSRCMetadataFileName(filepath.Base(file1)))
+			require.Contains(t, r, NewMSRCMetadataFileName(filepath.Base(bulletin1)))
+			require.Contains(t, r, NewMSRCMetadataFileName(filepath.Base(bulletin2)))
 		})
 	})
 }

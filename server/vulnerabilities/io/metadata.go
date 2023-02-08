@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	mSRCFilePrefix = "fleet_msrc_"
+	MSRCFilePrefix = "fleet_msrc_"
 	fileExt        = "json"
 	dateLayout     = "2006_01_02"
 )
@@ -21,8 +21,8 @@ type MetadataFileName struct {
 	filename string
 }
 
-func NewSecurityBulletinName(str string) MetadataFileName {
-	return MetadataFileName{prefix: mSRCFilePrefix, filename: str}
+func NewMSRCMetadataFileName(filename string) MetadataFileName {
+	return MetadataFileName{prefix: MSRCFilePrefix, filename: filename}
 }
 
 func (sbn MetadataFileName) date() (time.Time, error) {
@@ -35,10 +35,10 @@ func (sbn MetadataFileName) date() (time.Time, error) {
 	return time.Parse(dateLayout, timeRaw)
 }
 
-// TODO: Refactor this
-func FileName(productName string, date time.Time) string {
+// TODO: Move this outhere?
+func ToFileName(prefix string, productName string, date time.Time) string {
 	pName := strings.Replace(productName, " ", "_", -1)
-	return fmt.Sprintf("%s%s-%d_%02d_%02d.%s", mSRCFilePrefix, pName, date.Year(), date.Month(), date.Day(), fileExt)
+	return fmt.Sprintf("%s%s-%d_%02d_%02d.%s", prefix, pName, date.Year(), date.Month(), date.Day(), fileExt)
 }
 
 func (sbn MetadataFileName) Before(other MetadataFileName) bool {

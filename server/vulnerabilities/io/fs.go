@@ -7,7 +7,7 @@ import (
 )
 
 type FSAPI interface {
-	Bulletins() ([]MetadataFileName, error)
+	MSRCBulletins() ([]MetadataFileName, error)
 	Delete(MetadataFileName) error
 }
 
@@ -27,8 +27,8 @@ func (fs FSClient) Delete(b MetadataFileName) error {
 	return os.Remove(path)
 }
 
-// Bulletins walks 'dir' returning all security bulletin names.
-func (fs FSClient) Bulletins() ([]MetadataFileName, error) {
+// MSRC walks 'dir' returning all security bulletin names.
+func (fs FSClient) MSRCBulletins() ([]MetadataFileName, error) {
 	var result []MetadataFileName
 
 	err := filepath.WalkDir(fs.dir, func(path string, d os.DirEntry, err error) error {
@@ -37,8 +37,8 @@ func (fs FSClient) Bulletins() ([]MetadataFileName, error) {
 		}
 
 		filePath := filepath.Base(path)
-		if strings.HasPrefix(filePath, mSRCFilePrefix) {
-			result = append(result, NewSecurityBulletinName(filePath))
+		if strings.HasPrefix(filePath, MSRCFilePrefix) {
+			result = append(result, NewMSRCMetadataFileName(filePath))
 		}
 
 		return nil

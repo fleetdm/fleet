@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/vulnerabilities/msrc/io"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/io"
 	"github.com/stretchr/testify/require"
 )
 
@@ -33,7 +33,7 @@ func (gh ghMock) Download(url string) (string, error) {
 
 type fsMock struct{ testData *testData }
 
-func (fs fsMock) Bulletins() ([]io.MetadataFileName, error) {
+func (fs fsMock) MSRCBulletins() ([]io.MetadataFileName, error) {
 	return fs.testData.localList, fs.testData.localListError
 }
 
@@ -62,15 +62,15 @@ func TestSync(t *testing.T) {
 
 		testData := testData{
 			remoteList: map[io.MetadataFileName]string{
-				io.NewSecurityBulletinName("Windows_10-2022_10_10.json"): "http://somebulletin.com",
+				io.NewMSRCMetadataFileName("Windows_10-2022_10_10.json"): "http://somebulletin.com",
 			},
-			localList: []io.MetadataFileName{io.NewSecurityBulletinName("Windows_10-2022_09_10.json")},
+			localList: []io.MetadataFileName{io.NewMSRCMetadataFileName("Windows_10-2022_09_10.json")},
 		}
 
 		err := sync(ctx, os, fsMock{testData: &testData}, ghMock{testData: &testData})
 		require.NoError(t, err)
 		require.ElementsMatch(t, testData.remoteDownloaded, []string{"http://somebulletin.com"})
-		require.ElementsMatch(t, testData.localDeleted, []io.MetadataFileName{io.NewSecurityBulletinName("Windows_10-2022_09_10.json")})
+		require.ElementsMatch(t, testData.localDeleted, []io.MetadataFileName{io.NewMSRCMetadataFileName("Windows_10-2022_09_10.json")})
 	})
 
 	t.Run("#bulletinsDelta", func(t *testing.T) {
@@ -92,7 +92,7 @@ func TestSync(t *testing.T) {
 			t.Run("without remote bulletins", func(t *testing.T) {
 				var remote []io.MetadataFileName
 				local := []io.MetadataFileName{
-					io.NewSecurityBulletinName("Windows_10-2022_10_10.json"),
+					io.NewMSRCMetadataFileName("Windows_10-2022_10_10.json"),
 				}
 				toDownload, toDelete := bulletinsDelta(os, local, remote)
 				require.Empty(t, toDownload)
@@ -101,54 +101,54 @@ func TestSync(t *testing.T) {
 
 			t.Run("with remote bulletins", func(t *testing.T) {
 				remote := []io.MetadataFileName{
-					io.NewSecurityBulletinName("Windows_10-2022_10_10.json"),
-					io.NewSecurityBulletinName("Windows_11-2022_10_10.json"),
-					io.NewSecurityBulletinName("Windows_Server_2016-2022_10_10.json"),
-					io.NewSecurityBulletinName("Windows_8.1-2022_10_10.json"),
+					io.NewMSRCMetadataFileName("Windows_10-2022_10_10.json"),
+					io.NewMSRCMetadataFileName("Windows_11-2022_10_10.json"),
+					io.NewMSRCMetadataFileName("Windows_Server_2016-2022_10_10.json"),
+					io.NewMSRCMetadataFileName("Windows_8.1-2022_10_10.json"),
 				}
 				t.Run("no local bulletins", func(t *testing.T) {
 					var local []io.MetadataFileName
 					toDownload, toDelete := bulletinsDelta(os, local, remote)
 
 					require.ElementsMatch(t, toDownload, []io.MetadataFileName{
-						io.NewSecurityBulletinName("Windows_10-2022_10_10.json"),
-						io.NewSecurityBulletinName("Windows_11-2022_10_10.json"),
+						io.NewMSRCMetadataFileName("Windows_10-2022_10_10.json"),
+						io.NewMSRCMetadataFileName("Windows_11-2022_10_10.json"),
 					})
 					require.Empty(t, toDelete)
 				})
 
 				t.Run("missing some local bulletin", func(t *testing.T) {
 					local := []io.MetadataFileName{
-						io.NewSecurityBulletinName("Windows_10-2022_10_10.json"),
+						io.NewMSRCMetadataFileName("Windows_10-2022_10_10.json"),
 					}
 					toDownload, toDelete := bulletinsDelta(os, local, remote)
 
 					require.ElementsMatch(t, toDownload, []io.MetadataFileName{
-						io.NewSecurityBulletinName("Windows_11-2022_10_10.json"),
+						io.NewMSRCMetadataFileName("Windows_11-2022_10_10.json"),
 					})
 					require.Empty(t, toDelete)
 				})
 
 				t.Run("out of date local bulletin", func(t *testing.T) {
 					local := []io.MetadataFileName{
-						io.NewSecurityBulletinName("Windows_10-2022_09_10.json"),
-						io.NewSecurityBulletinName("Windows_11-2022_10_10.json"),
+						io.NewMSRCMetadataFileName("Windows_10-2022_09_10.json"),
+						io.NewMSRCMetadataFileName("Windows_11-2022_10_10.json"),
 					}
 
 					toDownload, toDelete := bulletinsDelta(os, local, remote)
 
 					require.ElementsMatch(t, toDownload, []io.MetadataFileName{
-						io.NewSecurityBulletinName("Windows_10-2022_10_10.json"),
+						io.NewMSRCMetadataFileName("Windows_10-2022_10_10.json"),
 					})
 					require.ElementsMatch(t, toDelete, []io.MetadataFileName{
-						io.NewSecurityBulletinName("Windows_10-2022_09_10.json"),
+						io.NewMSRCMetadataFileName("Windows_10-2022_09_10.json"),
 					})
 				})
 
 				t.Run("up to date local bulletins", func(t *testing.T) {
 					local := []io.MetadataFileName{
-						io.NewSecurityBulletinName("Windows_10-2022_10_10.json"),
-						io.NewSecurityBulletinName("Windows_11-2022_10_10.json"),
+						io.NewMSRCMetadataFileName("Windows_10-2022_10_10.json"),
+						io.NewMSRCMetadataFileName("Windows_11-2022_10_10.json"),
 					}
 
 					toDownload, toDelete := bulletinsDelta(os, local, remote)
@@ -168,8 +168,8 @@ func TestSync(t *testing.T) {
 					KernelVersion: "5.10.76-linuxkit",
 				},
 			}
-			local := []io.MetadataFileName{io.NewSecurityBulletinName("Windows_11-2022_10_10.json")}
-			remote := []io.MetadataFileName{io.NewSecurityBulletinName("Windows_10-2022_10_10.json")}
+			local := []io.MetadataFileName{io.NewMSRCMetadataFileName("Windows_11-2022_10_10.json")}
+			remote := []io.MetadataFileName{io.NewMSRCMetadataFileName("Windows_10-2022_10_10.json")}
 
 			t.Run("nothing to download, nothing to delete", func(t *testing.T) {
 				toDownload, toDelete := bulletinsDelta(os, local, remote)
@@ -185,8 +185,8 @@ func TestSync(t *testing.T) {
 
 				t.Run("returns all remote", func(t *testing.T) {
 					remote := []io.MetadataFileName{
-						io.NewSecurityBulletinName("Windows_10-2022_10_10.json"),
-						io.NewSecurityBulletinName("Windows_11-2022_10_10.json"),
+						io.NewMSRCMetadataFileName("Windows_10-2022_10_10.json"),
+						io.NewMSRCMetadataFileName("Windows_11-2022_10_10.json"),
 					}
 
 					toDownload, toDelete := bulletinsDelta(os, local, remote)
