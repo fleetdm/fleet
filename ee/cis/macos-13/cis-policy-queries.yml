@@ -1307,6 +1307,90 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
+  name: CIS - Ensure Appropriate Permissions Are Enabled for System Wide Applications
+  platforms: macOS
+  platform: darwin
+  description: |
+    Applications in the System Applications Directory (/Applications) should be world- executable since that is their reason to be on the system. They should not be world- writable and allow any process or user to alter them for other processes or users to then execute modified versions.
+  resolution: |
+    Ask your system administrator to deploy a script that will configure all *.app under /Applications folders to have no write permissions for 'others'. 
+    $ /usr/bin/sudo IFS=$'\n'
+      for apps in $( /usr/bin/find /Applications -iname "*\.app" -type d -perm -2 ); 
+      do
+        /bin/chmod -R o-w "$apps"
+      done
+  query: |
+    SELECT 1 WHERE NOT EXISTS (
+    SELECT 1 FROM file WHERE 
+      path LIKE '/Applications/%%'  
+      AND type = 'directory' 
+      AND directory LIKE '%.app' 
+      AND  CAST( SUBSTRING( mode ,-1) AS INTEGER)  & 0x2 !=0 -- mode last char is others' permissions. bitwise with 0x2 means write permissions. (which we do not want here) 
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS5.1.5
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure No World Writable Files Exist in the System Folder
+  platforms: macOS
+  platform: darwin
+  description: |
+    Software sometimes insists on being installed in the /System/Volumes/Data/System Directory and has inappropriate world-writable permissions.
+    Macs with writable files in System should be investigated forensically. A file with open writable permissions is a sign of at best a rogue application. It could also be a sign of a computer compromise and a persistent presence on the system.
+  resolution: |
+    Ask your system administrator to deploy a script that will ensure folders are not world-writable in the /System folder. 
+    /usr/bin/sudo IFS=$'\n'
+    for sysPermissions in $( /usr/bin/find /System/Volumes/Data/System -type d -perm -2 | /usr/bin/grep -v "Drop Box" ); 
+    do
+      /bin/chmod -R o-w "$sysPermissions"
+    done
+  query: |
+    SELECT 1 WHERE NOT EXISTS (
+    SELECT 1 FROM file WHERE 
+      path LIKE '/System/Volumes/Data/System/%%'  
+      AND type = 'directory' 
+      AND directory NOT LIKE '%Drop Box%' 
+      AND   CAST( SUBSTRING( mode ,-1) AS INTEGER) & 0x2 !=0 -- mode last char is others' permissions. bitwise with 0x2 means write permissions. (which we do not want here) 
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS5.1.6
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure No World Writable Files Exist in the Library Folder
+  platforms: macOS
+  platform: darwin
+  description: |
+    Software sometimes insists on being installed in the /System/Volumes/Data/Library Directory and has inappropriate world-writable permissions.  
+    Folders in /System/Volumes/Data/Library should not be world-writable. The audit check excludes the /System/Volumes/Data/Library/Caches and /System/Volumes/Data/Library/Preferences/Audio/Data folders where the sticky bit is set.
+  resolution: |
+    Ask your system administrator to deploy a script that will ensure folders are not world-writable in the /System folder. 
+    /usr/bin/sudo IFS=$'\n'
+    for libPermissions in $( /usr/bin/find /System/Volumes/Data/Library -type d -perm -2 | /usr/bin/grep -v Caches | /usr/bin/grep -v /Preferences/Audio/Data); 
+    do
+      /bin/chmod -R o-w "$libPermissions"
+    done
+  query: |
+    SELECT 1 WHERE NOT EXISTS (
+    SELECT 1 FROM file WHERE 
+      path LIKE '/System/Volumes/Data/Library/%%'
+      AND type = 'directory' 
+      AND directory NOT LIKE '%Caches%' 
+      AND directory NOT LIKE '%/Preferences/Audio/Data%' 
+      AND   CAST( SUBSTRING( mode ,-1) AS INTEGER) & 0x2 !=0 -- mode last char is others' permissions. bitwise with 0x2 means write permissions. (which we do not want here) 
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS5.1.7
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
   name: CIS - Ensure Password Account Lockout Threshold Is Configured (Fleetd required)
   platforms: macOS
   platform: darwin
@@ -1401,6 +1485,30 @@ spec:
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS5.2.8
   contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure an Administrator Account Cannot Login to Another User's Active and Locked Session (Fleetd Required)
+  platforms: macOS
+  platform: darwin
+  description: |
+    Disabling the administrator's and/or user's ability to log into another user's active and locked session prevents
+    unauthorized persons from viewing potentially sensitive and/or personal information.
+  resolution: |
+    Automated method:
+    Ask your system administrator to deploy a script that runs the following:
+      /usr/bin/sudo /usr/bin/security authorizationdb write system.login.screensaver use-login-window-ui
+  query: |
+    SELECT 1 WHERE EXISTS (
+      SELECT JSON_EXTRACT(json_result, '$.rule') AS rule
+      FROM authdb
+      WHERE right_name = 'system.login.screensaver' AND 
+      rule LIKE '%use-login-window-ui%'
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS5.7
+  contributors: lucasmrod
 ---
 apiVersion: v1
 kind: policy

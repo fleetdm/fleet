@@ -186,7 +186,12 @@ func TestAgentOptionsForHost(t *testing.T) {
 	assert.JSONEq(t, `{"foo":"override2"}`, string(opt))
 }
 
-var allDetailQueries = osquery_utils.GetDetailQueries(context.Background(), config.FleetConfig{Vulnerabilities: config.VulnerabilitiesConfig{DisableWinOSVulnerabilities: true}}, &fleet.Features{EnableHostUsers: true})
+var allDetailQueries = osquery_utils.GetDetailQueries(
+	context.Background(),
+	config.FleetConfig{Vulnerabilities: config.VulnerabilitiesConfig{DisableWinOSVulnerabilities: true}},
+	nil,
+	&fleet.Features{EnableHostUsers: true},
+)
 
 func expectedDetailQueriesForPlatform(platform string) map[string]osquery_utils.DetailQuery {
 	queries := make(map[string]osquery_utils.DetailQuery)
