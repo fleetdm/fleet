@@ -142,7 +142,6 @@ parasails.registerComponent('scrollableTweets', {
   methods: {
 
     updateNumberOfTweetPages: async function() {
-      let tweetsDiv = document.querySelector('div[purpose="tweets"]');
       // Get the width of the first tweet card.
       let firstTweetCardDiv = document.querySelector('div[purpose="tweet-card"]');
       this.tweetCardWidth = firstTweetCardDiv.clientWidth + 16;
