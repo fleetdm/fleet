@@ -657,6 +657,145 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
+  name: CIS - Ensure Power Nap Is Disabled for Intel Macs (Fleetd Required)
+  platforms: macOS
+  platform: darwin
+  description: |
+    Power Nap allows the system to stay in low power mode, especially while on battery power, and periodically
+    connect to previously known networks with stored credentials for user applications to phone home and get updates.
+    This capability requires FileVault to remain unlocked and the use of previously joined networks to be risk accepted
+    based on the SSID without user input.
+    Disabling this feature mitigates the risk of an attacker remotely waking the system and gaining access.
+  resolution: |
+    Automated method:
+    Ask your system administrator to deploy a script that runs the following command to turn off
+    Power Nap on the device:
+    /usr/bin/sudo /usr/bin/pmset -a powernap 0
+  query: |
+    SELECT 1 FROM (SELECT
+      COALESCE(JSON_EXTRACT(
+          JSON_EXTRACT(json_result, '$.AC Power:'),
+          '$.powernap'
+      ), '') AS powernap_ac,
+      COALESCE(JSON_EXTRACT(
+          JSON_EXTRACT(json_result, '$.Battery Power:'),
+          '$.powernap'
+      ), '') AS powernap_battery
+    FROM pmset WHERE getting = 'custom' AND powernap_battery != '1' AND powernap_ac != '1');
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS2.9.1
+  contributors: lucasmrod
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Wake for Network Access Is Disabled (Fleetd Required)
+  platforms: macOS
+  platform: darwin
+  description: |
+    Wake for Network Access allows the computer to take action when the user is not present and the computer
+    is in energy saving mode. These tools require FileVault to remain unlocked and fully rejoin known networks.
+
+    Disabling this feature mitigates the risk of an attacker remotely waking the system and gaining access.
+  resolution: |
+    Automated method:
+    Ask your system administrator to deploy a script that runs the following command to turn off
+    Wake on  on the device:
+    /usr/bin/sudo /usr/bin/pmset -a womp 0
+  query: |
+    SELECT 1 FROM (SELECT
+      COALESCE(JSON_EXTRACT(
+          JSON_EXTRACT(json_result, '$.AC Power:'),
+          '$.womp'
+      ), '') AS womp_ac,
+      COALESCE(JSON_EXTRACT(
+          JSON_EXTRACT(json_result, '$.Battery Power:'),
+          '$.womp'
+      ), '') AS womp_battery
+    FROM pmset WHERE getting = 'custom' AND womp_battery != '1' AND womp_ac != '1');
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS2.9.2
+  contributors: lucasmrod
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure the OS is not Activate When Resuming from Sleep
+  platforms: macOS
+  platform: darwin
+  description: |
+    In order to use a computer with Full Disk Encryption (FDE), macOS must keep encryption keys in memory to allow
+    the use of the disk that has been FileVault protected. When the system is not in use, the volume is protected
+    through encryption. When the system is sleeping and available to quickly resume, the encryption keys remain in memory.
+    If an unauthorized party has possession of the computer and the computer is only slept, there are known attack vectors
+    that can be attempted against the RAM that has the encryption keys or the running operating system protected
+    by a login screen.
+
+    Mac systems should be set to hibernate after sleeping for a risk-acceptable time period.
+    MacBooks should be set so that the `standbydelay` is 15 minutes (900 seconds) or less.
+  resolution: |
+    Ask your system administrator to deploy the following script to Macbook devices:
+    if [[ $(uname -m) == 'arm64' ]]; then
+            # Apple silicon
+            /usr/bin/sudo /usr/bin/pmset -a standby 900
+            /usr/bin/sudo /usr/bin/pmset -a destroyfvkeyonstandby 1
+            /usr/bin/sudo /usr/bin/pmset -a hibernatemode 25
+    else
+            # Intel
+            /usr/bin/sudo /usr/bin/pmset -a standbydelaylow 900
+            /usr/bin/sudo /usr/bin/pmset -a standbydelayhigh 900
+            /usr/bin/sudo /usr/bin/pmset -a highstandbythreshold 90
+            /usr/bin/sudo /usr/bin/pmset -a destroyfvkeyonstandby 1
+            /usr/bin/sudo /usr/bin/pmset -a hibernatemode 25
+    fi
+  query: |
+    SELECT 1 WHERE EXISTS(
+      SELECT 1 FROM system_info WHERE
+      regex_match(hardware_model, '^Mac[0-9,]+$', 0) != '' OR regex_match(hardware_model, '^MacBook', 0) != 0
+    )
+    AND EXISTS(
+      SELECT JSON_EXTRACT(system_wide_power_settings, '$.DestroyFVKeyOnStandby') AS destroy_fv_key_on_standby
+      FROM (
+        SELECT JSON_EXTRACT(json_result, '$.System-wide power settings:') AS system_wide_power_settings FROM pmset
+      )
+      WHERE destroy_fv_key_on_standby = '1'
+    )
+    AND EXISTS(
+        SELECT 1 WHERE EXISTS(
+          SELECT 1 WHERE EXISTS(
+            SELECT 1 FROM system_info WHERE cpu_type = 'x86_64h' OR cpu_type = 'x86_64'
+          ) AND EXISTS(
+            SELECT
+                CAST(JSON_EXTRACT(battery, '$.standbydelaylow') AS INTEGER) AS standbydelaylow,
+                CAST(JSON_EXTRACT(battery, '$.standbydelayhigh') AS INTEGER) AS standbydelayhigh,
+                CAST(JSON_EXTRACT(battery, '$.highstandbythreshold') AS INTEGER) AS highstandbythreshold,
+                CAST(JSON_EXTRACT(battery, '$.hibernatemode') AS INTEGER) AS hibernatemode
+            FROM (
+                SELECT JSON_EXTRACT(json_result, '$.Battery Power:') as battery FROM pmset WHERE getting = 'custom'
+            )
+            WHERE standbydelaylow <= 900 AND standbydelayhigh <= 900 AND highstandbythreshold >= 90 AND hibernatemode = 25
+          )
+        ) OR EXISTS(
+          SELECT 1 WHERE EXISTS(
+            SELECT 1 FROM system_info WHERE cpu_type = 'arm64e'
+          ) AND EXISTS (
+            SELECT
+                CAST(JSON_EXTRACT(battery, '$.standby') AS INTEGER) AS standby,
+                CAST(JSON_EXTRACT(battery, '$.hibernatemode') AS INTEGER) AS hibernatemode
+            FROM (
+                SELECT JSON_EXTRACT(json_result, '$.Battery Power:') AS battery FROM pmset WHERE getting = 'custom'
+            )
+            WHERE standby <= 900 AND hibernatemode = 25
+          )
+        )
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS2.9.3
+  contributors: lucasmrod
+---
+apiVersion: v1
+kind: policy
+spec:
   name: CIS - Ensure a Password is Required to Wake the Computer From Sleep or Screen Saver Is Enabled (MDM Required)
   platforms: macOS
   platform: darwin
@@ -1307,6 +1446,90 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
+  name: CIS - Ensure Appropriate Permissions Are Enabled for System Wide Applications
+  platforms: macOS
+  platform: darwin
+  description: |
+    Applications in the System Applications Directory (/Applications) should be world- executable since that is their reason to be on the system. They should not be world- writable and allow any process or user to alter them for other processes or users to then execute modified versions.
+  resolution: |
+    Ask your system administrator to deploy a script that will configure all *.app under /Applications folders to have no write permissions for 'others'. 
+    $ /usr/bin/sudo IFS=$'\n'
+      for apps in $( /usr/bin/find /Applications -iname "*\.app" -type d -perm -2 ); 
+      do
+        /bin/chmod -R o-w "$apps"
+      done
+  query: |
+    SELECT 1 WHERE NOT EXISTS (
+    SELECT 1 FROM file WHERE 
+      path LIKE '/Applications/%%'  
+      AND type = 'directory' 
+      AND directory LIKE '%.app' 
+      AND  CAST( SUBSTRING( mode ,-1) AS INTEGER)  & 0x2 !=0 -- mode last char is others' permissions. bitwise with 0x2 means write permissions. (which we do not want here) 
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS5.1.5
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure No World Writable Files Exist in the System Folder
+  platforms: macOS
+  platform: darwin
+  description: |
+    Software sometimes insists on being installed in the /System/Volumes/Data/System Directory and has inappropriate world-writable permissions.
+    Macs with writable files in System should be investigated forensically. A file with open writable permissions is a sign of at best a rogue application. It could also be a sign of a computer compromise and a persistent presence on the system.
+  resolution: |
+    Ask your system administrator to deploy a script that will ensure folders are not world-writable in the /System folder. 
+    /usr/bin/sudo IFS=$'\n'
+    for sysPermissions in $( /usr/bin/find /System/Volumes/Data/System -type d -perm -2 | /usr/bin/grep -v "Drop Box" ); 
+    do
+      /bin/chmod -R o-w "$sysPermissions"
+    done
+  query: |
+    SELECT 1 WHERE NOT EXISTS (
+    SELECT 1 FROM file WHERE 
+      path LIKE '/System/Volumes/Data/System/%%'  
+      AND type = 'directory' 
+      AND directory NOT LIKE '%Drop Box%' 
+      AND   CAST( SUBSTRING( mode ,-1) AS INTEGER) & 0x2 !=0 -- mode last char is others' permissions. bitwise with 0x2 means write permissions. (which we do not want here) 
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS5.1.6
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure No World Writable Files Exist in the Library Folder
+  platforms: macOS
+  platform: darwin
+  description: |
+    Software sometimes insists on being installed in the /System/Volumes/Data/Library Directory and has inappropriate world-writable permissions.  
+    Folders in /System/Volumes/Data/Library should not be world-writable. The audit check excludes the /System/Volumes/Data/Library/Caches and /System/Volumes/Data/Library/Preferences/Audio/Data folders where the sticky bit is set.
+  resolution: |
+    Ask your system administrator to deploy a script that will ensure folders are not world-writable in the /System folder. 
+    /usr/bin/sudo IFS=$'\n'
+    for libPermissions in $( /usr/bin/find /System/Volumes/Data/Library -type d -perm -2 | /usr/bin/grep -v Caches | /usr/bin/grep -v /Preferences/Audio/Data); 
+    do
+      /bin/chmod -R o-w "$libPermissions"
+    done
+  query: |
+    SELECT 1 WHERE NOT EXISTS (
+    SELECT 1 FROM file WHERE 
+      path LIKE '/System/Volumes/Data/Library/%%'
+      AND type = 'directory' 
+      AND directory NOT LIKE '%Caches%' 
+      AND directory NOT LIKE '%/Preferences/Audio/Data%' 
+      AND   CAST( SUBSTRING( mode ,-1) AS INTEGER) & 0x2 !=0 -- mode last char is others' permissions. bitwise with 0x2 means write permissions. (which we do not want here) 
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS5.1.7
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
   name: CIS - Ensure Password Account Lockout Threshold Is Configured (Fleetd required)
   platforms: macOS
   platform: darwin
@@ -1391,9 +1614,7 @@ spec:
     Over time, passwords can be captured by third parties through mistakes, phishing attacks, third-party breaches, or merely brute-force attacks. To reduce the risk of exposure and to decrease the incentives of password reuse (passwords that are not forced to be changed periodically generally are not ever changed), users must reset passwords periodically. This control ensures that previous passwords are not reused immediately by keeping a history of previous password hashes. Ensure that password history checks are part of the password policy on the computer. This control checks whether a new password is different than the previous 15. The latest NIST guidance based on exploit research referenced in this section details how one of the greatest risks is password exposure rather than password cracking. Passwords should be changed to a new unique value whenever a password might have been exposed to anyone other than the account holder. Attackers have maintained persistent control based on predictable password change patterns and substantially different patterns should be used in case of a leak.
   resolution: |
     Automated method:
-    Ask your system administrator to deploy an MDM profile that disables Guest Account.
-    Profile Method:
-    Create or edit a configuration profile with the following information:
+    Ask your system administrator to deploy an MDM profile with the following information:
       1. The Payload Type string is com.apple.mobiledevice.passwordpolicy 
       2. The key to include is pinHistory
       3. The key must be set to <integer><value≥15></integer>
@@ -1424,3 +1645,83 @@ spec:
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS5.6
   contributors: lucasmrod
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure an Administrator Account Cannot Login to Another User's Active and Locked Session (Fleetd Required)
+  platforms: macOS
+  platform: darwin
+  description: |
+    Disabling the administrator's and/or user's ability to log into another user's active and locked session prevents
+    unauthorized persons from viewing potentially sensitive and/or personal information.
+  resolution: |
+    Automated method:
+    Ask your system administrator to deploy a script that runs the following:
+      /usr/bin/sudo /usr/bin/security authorizationdb write system.login.screensaver use-login-window-ui
+  query: |
+    SELECT 1 WHERE EXISTS (
+      SELECT JSON_EXTRACT(json_result, '$.rule') AS rule
+      FROM authdb
+      WHERE right_name = 'system.login.screensaver' AND 
+      rule LIKE '%use-login-window-ui%'
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS5.7
+  contributors: lucasmrod
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure a Login Window Banner Exists
+  platforms: macOS
+  platform: darwin
+  description: |
+    An access warning may reduce a casual attacker's tendency to target the system. Access warnings may also aid
+    in the prosecution of an attacker by evincing the attacker's knowledge of the system's private status,
+    acceptable use policy, and authorization requirements.
+  resolution: |
+    Automated method:
+    Ask your system administrator to deploy the following script:
+      echo "Content of the banner" | sudo tee /Library/Security/PolicyBanner.txt
+      /usr/bin/sudo /usr/sbin/chown root:wheel /Library/Security/PolicyBanner.txt
+      /usr/bin/sudo /bin/chmod o+r /Library/Security/PolicyBanner.txt
+  query: |
+    SELECT 1 FROM file
+    WHERE (path = '/Library/Security/PolicyBanner.txt' OR
+    path = '/Library/Security/PolicyBanner.rtf') AND mode = '0644'
+    AND uid = 0 AND gid = 0;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS5.8
+  contributors: lucasmrod
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Show All Filename Extensions Setting is Enabled
+  platforms: macOS
+  platform: darwin
+  description: |
+    A filename extension is a suffix added to a base filename that indicates the base filename's
+    file format. Visible filename extensions allow the user to identify the file type and the
+    application it is associated with which leads to quick identification of misrepresented malicious files.
+  resolution: |
+    Automated method:
+    Ask your system administrator to deploy a script that will ensure Show All Filename Extensions Setting is Enabled
+        For each user run:
+        /usr/bin/sudo -u <username> /usr/bin/defaults write /Users/<username>/Library/Preferences/.GlobalPreferences.plist AppleShowAllExtensions -bool true
+  query: |
+    SELECT 1 WHERE NOT EXISTS (
+      SELECT 1 FROM users AS u
+      LEFT JOIN (
+        SELECT * FROM plist WHERE
+          path LIKE '/Users/%/Library/Preferences/.GlobalPreferences.plist' AND
+          key = 'AppleShowAllExtensions' AND
+          value = '1') AS p
+      ON p.path = CONCAT(u.directory, '/Library/Preferences/.GlobalPreferences.plist')
+        WHERE u.directory LIKE '/Users/%' AND
+        p.value IS NULL
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS6.1.1
+  contributors: artemist-work
