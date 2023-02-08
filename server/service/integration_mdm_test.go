@@ -624,7 +624,7 @@ func (s *integrationMDMTestSuite) TestMDMAppleGetEncryptionKey() {
 	res := s.DoRawNoAuth("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/encryption_key", host.ID), nil, http.StatusUnauthorized)
 	res.Body.Close()
 
-	// encryption key not procesed yet
+	// encryption key not processed yet
 	resp := getHostEncryptionKeyResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/encryption_key", host.ID), nil, http.StatusNotFound, &resp)
 
