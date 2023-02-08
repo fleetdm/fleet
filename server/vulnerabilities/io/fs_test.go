@@ -39,9 +39,9 @@ func TestFSClient(t *testing.T) {
 
 			r, err := sut.MSRCBulletins()
 			require.NoError(t, err)
-			require.NotContains(t, r, NewMSRCMetadataFileName(filepath.Base(file1)))
-			require.Contains(t, r, NewMSRCMetadataFileName(filepath.Base(bulletin1)))
-			require.Contains(t, r, NewMSRCMetadataFileName(filepath.Base(bulletin2)))
+			require.NotContains(t, r, NewMSRCMetadata(filepath.Base(file1)))
+			require.Contains(t, r, NewMSRCMetadata(filepath.Base(bulletin1)))
+			require.Contains(t, r, NewMSRCMetadata(filepath.Base(bulletin2)))
 		})
 	})
 }

@@ -73,8 +73,8 @@ func getId(token html.Token) string {
 // ParseReleaseHTML parses the release page using the provided reader. It is assumed that elements
 // in the page appear in order: first the release date then the version and finally any related
 // security updates.
-func ParseReleaseHTML(reader io.Reader) ([]OfficeRelease, error) {
-	var result []OfficeRelease
+func ParseReleaseHTML(reader io.Reader) ([]OfficeReleaseNote, error) {
+	var result []OfficeReleaseNote
 
 	// We use these pieces of state to keep track of whether we are inside a 'Security Updates'
 	// section of a release and also what product the security updates applies to.
@@ -105,7 +105,7 @@ func ParseReleaseHTML(reader io.Reader) ([]OfficeRelease, error) {
 			// Either way, we try to parse the id attribute for the release date.
 			if token.Data == "h2" {
 				if relDate, ok := parseRelDate(getId(token)); ok {
-					result = append(result, OfficeRelease{Date: relDate})
+					result = append(result, OfficeReleaseNote{Date: relDate})
 					// Reset the state since we are inside a new release
 					insideSecUpts = false
 					break
@@ -121,7 +121,7 @@ func ParseReleaseHTML(reader io.Reader) ([]OfficeRelease, error) {
 					// And the next one should be the release date
 					z.Next() == html.TextToken {
 					if relDate, ok := parseRelDate(strings.TrimSpace(z.Token().Data)); ok {
-						result = append(result, OfficeRelease{Date: relDate})
+						result = append(result, OfficeReleaseNote{Date: relDate})
 						// Reset state since we are inside a new release section
 						insideSecUpts = false
 					}

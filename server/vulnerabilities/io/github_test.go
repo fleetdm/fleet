@@ -107,8 +107,8 @@ func TestGithubClient(t *testing.T) {
 		require.Len(t, bulletins, 2)
 
 		expectedBulletins := []MetadataFileName{
-			NewMSRCMetadataFileName(fmt.Sprintf("%sWindows_10-2022_09_10.json", MSRCFilePrefix)),
-			NewMSRCMetadataFileName(fmt.Sprintf("%sWindows_11-2022_09_10.json", MSRCFilePrefix)),
+			NewMSRCMetadata(fmt.Sprintf("%sWindows_10-2022_09_10.json", MSRCFilePrefix)),
+			NewMSRCMetadata(fmt.Sprintf("%sWindows_11-2022_09_10.json", MSRCFilePrefix)),
 		}
 
 		for _, e := range expectedBulletins {

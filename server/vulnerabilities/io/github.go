@@ -2,6 +2,7 @@ package io
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -28,6 +29,7 @@ type ReleaseLister interface {
 type GitHubAPI interface {
 	Download(string) (string, error)
 	MSRCBulletins(context.Context) (map[MetadataFileName]string, error)
+	MacOfficeReleaseNotes(context.Context) (MetadataFileName, string, error)
 }
 
 type GitHubClient struct {
@@ -64,7 +66,26 @@ func (gh GitHubClient) Download(URL string) (string, error) {
 
 // Bulletins returns a map of 'bulletin name' => 'download URL' of the bulletins stored as assets on Github.
 func (gh GitHubClient) MSRCBulletins(ctx context.Context) (map[MetadataFileName]string, error) {
-	return gh.list(ctx, MSRCFilePrefix, NewMSRCMetadataFileName)
+	return gh.list(ctx, MSRCFilePrefix, NewMSRCMetadata)
+}
+
+func (gh GitHubClient) MacOfficeReleaseNotes(ctx context.Context) (MetadataFileName, string, error) {
+	resultMap, err := gh.list(ctx, MacOfficeReleaseNotesPrefix, NewMacOfficeReleasesMetadata)
+	if err != nil {
+		return MetadataFileName{}, "", err
+	}
+
+	// We should only have a single release notes metadata file on GH ....
+	if len(resultMap) > 1 {
+		return MetadataFileName{}, "", errors.New("found more than one MacOffice release notes")
+	}
+
+	for k, v := range resultMap {
+		return k, v, nil
+	}
+
+	// Nothing found ...
+	return MetadataFileName{}, "", nil
 }
 
 func (gh GitHubClient) list(ctx context.Context, prefix string, ctor func(fileName string) MetadataFileName) (map[MetadataFileName]string, error) {

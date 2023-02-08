@@ -8,9 +8,10 @@ import (
 )
 
 const (
-	MSRCFilePrefix = "fleet_msrc_"
-	fileExt        = "json"
-	dateLayout     = "2006_01_02"
+	MSRCFilePrefix              = "fleet_msrc_"
+	MacOfficeReleaseNotesPrefix = "fleet_macoffice_release_notes_"
+	fileExt                     = "json"
+	dateLayout                  = "2006_01_02"
 )
 
 // MSRC Bulletins and other metadata files are published as assets to GH and copies are downloaded to the local FS. The file name
@@ -21,8 +22,12 @@ type MetadataFileName struct {
 	filename string
 }
 
-func NewMSRCMetadataFileName(filename string) MetadataFileName {
+func NewMSRCMetadata(filename string) MetadataFileName {
 	return MetadataFileName{prefix: MSRCFilePrefix, filename: filename}
+}
+
+func NewMacOfficeReleasesMetadata(filename string) MetadataFileName {
+	return MetadataFileName{prefix: MacOfficeReleaseNotesPrefix, filename: filename}
 }
 
 func (sbn MetadataFileName) date() (time.Time, error) {

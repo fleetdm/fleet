@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var expected = []macoffice.OfficeRelease{
+var expected = []macoffice.OfficeReleaseNote{
 	{
 		Date:    time.Date(2023, 1, 19, 0, 0, 0, 0, time.UTC),
 		Version: "Version 16.69.1 (Build 23011802)",
