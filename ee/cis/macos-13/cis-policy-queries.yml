@@ -220,7 +220,7 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure Time Is Set Within Appropriate Limits (fleetd required)
+  name: CIS - Ensure Time Is Set Within Appropriate Limits (Fleetd Required)
   platforms: macOS
   platform: darwin
   description: |
@@ -836,7 +836,7 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure Users' Accounts Do Not Have a Password Hint (fleetd required)
+  name: CIS - Ensure Users' Accounts Do Not Have a Password Hint (Fleetd Required)
   platforms: macOS
   platform: darwin
   description: |
@@ -1359,7 +1359,7 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure Password Age Is Configured (fleetd required)
+  name: CIS - Ensure Password Age Is Configured (Fleetd Required)
   platforms: macOS
   platform: darwin
   description: |
@@ -1384,7 +1384,7 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure Password History Is Configured (fleetd required)
+  name: CIS - Ensure Password History Is Configured (Fleetd Required)
   platforms: macOS
   platform: darwin
   description: |
@@ -1401,3 +1401,58 @@ spec:
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS5.2.8
   contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure the Sudo Timeout Period Is Set to Zero (Fleetd Required)
+  platforms: macOS
+  platform: darwin
+  description: |
+    The sudo command stays logged in as the root user for five minutes before timing out and re-requesting a password.
+    This five-minute window should be eliminated since it leaves the system extremely vulnerable.
+  resolution: |
+    Automated method:
+    Ask your system administrator to deploy the following script:
+    echo 'Defaults timestamp_timeout=0' | sudo tee -a /etc/sudoers.d/CIS_54_sudoconfiguration
+    /usr/bin/sudo /usr/sbin/chown -R root:wheel /etc/sudoers.d/
+  query: |
+    SELECT 1 WHERE EXISTS(
+      SELECT * FROM file WHERE path = '/etc/sudoers.d' AND uid = 0 AND gid = 0
+    ) AND EXISTS(
+      SELECT
+        COALESCE(JSON_EXTRACT(
+          json_result, '$.Authentication timestamp timeout'
+        ), '') AS authentication_timestamp_timeout
+      FROM sudo_info WHERE authentication_timestamp_timeout = '0.0 minutes'
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS5.4
+  contributors: lucasmrod
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure a Separate Timestamp Is Enabled for Each User/tty (Fleetd Required)
+  platforms: macOS
+  platform: darwin
+  description: |
+    Using tty tickets ensures that a user must enter the sudo password in each Terminal session.
+    With sudo versions 1.8 and higher, introduced in 10.12, the default value is to have tty tickets
+    for each interface so that root access is limited to a specific terminal.
+    The default configuration can be overwritten or not configured correctly on earlier versions of macOS.
+  resolution: |
+    Automated method:
+    Ask your system administrator to deploy the following script:
+    echo 'Defaults timestamp_type=tty' | sudo tee /etc/sudoers.d/CIS_55_sudoconfiguration
+  query: |
+    SELECT 1 WHERE EXISTS(
+      SELECT
+        COALESCE(JSON_EXTRACT(
+          json_result, '$.Type of authentication timestamp record'
+        ), '') AS type_of_auth_timestamp_record
+      FROM sudo_info WHERE type_of_auth_timestamp_record = 'tty'
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS5.5
+  contributors: lucasmrod
