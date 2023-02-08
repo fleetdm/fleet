@@ -466,13 +466,12 @@ spec:
       2. The key to include is allowContentCaching
       3. The key must be set to <false/>
   query: |
-    SELECT 1 WHERE 
-      NOT EXISTS (
-        SELECT 1 FROM managed_policies WHERE domain = 'com.apple.applicationaccess' AND name = 'allowContentCaching' AND value !=0 
-      ) ;
-    purpose: Informational
-    tags: compliance, CIS, CIS_Level2, CIS2.3.3.9
-    contributors: sharon-fdm
+    SELECT 1 WHERE EXISTS (SELECT * FROM managed_policies mp WHERE domain = 'com.apple.applicationaccess' AND name = 'allowContentCaching' AND value = 0)
+    AND 
+    WHERE NOT EXISTS (SELECT * FROM managed_policies mp WHERE domain = 'com.apple.applicationaccess' AND name = 'allowContentCaching' AND value != 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS2.3.3.9
+  contributors: sharon-fdm
 ---
 apiVersion: v1
 kind: policy
