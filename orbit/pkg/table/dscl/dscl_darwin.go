@@ -18,7 +18,7 @@ import (
 // Columns is the schema of the table.
 func Columns() []table.ColumnDefinition {
 	return []table.ColumnDefinition{
-		table.TextColumn("command"), // required
+		table.TextColumn("command"), // required (currently only read is supported)
 		table.TextColumn("path"),    // required
 		table.TextColumn("key"),     // required (could be relaxed in the future)
 		table.TextColumn("value"),
@@ -29,7 +29,7 @@ func Columns() []table.ColumnDefinition {
 //
 // Constraints for generating can be retrieved from the queryContext.
 func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[string]string, error) {
-	supportedCommands := []string{"list", "read"}
+	supportedCommands := []string{"read"}
 
 	getArgumentOpEqual := func(argName string) string {
 		argValue := ""
@@ -75,9 +75,7 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 		return nil, fmt.Errorf("command failed: %w", err)
 	}
 
-	fmt.Printf("DSCL OUTPUT: %s\n", out)
-
-	value, err := parseDSCLOutput(out)
+	value, err := parseDSCLReadOutput(out)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse dscl value: %w", err)
 	}
@@ -86,6 +84,7 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 		"command": command,
 		"path":    path,
 		"key":     key,
+		"value":   "",
 	}}
 
 	if value != nil {
@@ -95,15 +94,16 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 	return m, nil
 }
 
-func parseDSCLOutput(out []byte) (*string, error) {
+func parseDSCLReadOutput(out []byte) (*string, error) {
 	regex := regexp.MustCompile(`(\S):[ \n]([\S\t\f\r\n ]+)`)
 
-	if strings.HasPrefix(string(out), "No such key: ") {
+	outs := string(out)
+	if strings.TrimSpace(outs) == "" || strings.HasPrefix(outs, "No such key: ") {
 		return nil, nil
 	}
 	matches := regex.FindSubmatch(out)
 	if matches == nil {
-		return nil, fmt.Errorf("unexpected entry: %q", string(out))
+		return nil, fmt.Errorf("unexpected entry: %q", outs)
 	}
 	value := string(matches[2])
 	if value[0] == ' ' {

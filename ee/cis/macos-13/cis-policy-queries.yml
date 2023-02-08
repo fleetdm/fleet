@@ -1669,10 +1669,9 @@ spec:
   resolution: |
     Automated method:
     Ask your system administrator to deploy the following script:
-    /usr/bin/sudo /usr/sbin/dsenableroot -d
-  # NOTE(lucas): WIP
+      /usr/bin/sudo /usr/sbin/dsenableroot -d
   query: |
-    SELECT * from time;
+    SELECT 1 from dscl WHERE command = 'read' AND path = '/Users/root' AND key = 'AuthenticationAuthority' AND value = '';
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS5.6
   contributors: lucasmrod
