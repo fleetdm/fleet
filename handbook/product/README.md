@@ -154,7 +154,7 @@ What happens during priority drafting?
 
 ## Planning
 
-- The intake process for a given group (how new issues are received from a given requestor and estimated within the group's timeframe) is up to each group's PM. For example, the Interface group's intake process consists of attending Interface PM's office hours and making a case, at which time a decision about whether to draft an estimate will be made on the spot.
+- The intake process for a given group (how new issues are received from a given requestor and estimated within the group's timeframe) is up to each group's PM. For example, the Interface group's intake process consists of attending the 🗣️ Product Feature Requests meeting and making a case, at which time a decision about whether to draft an estimate will be made on the spot.
 
 - New unestimated issues are created in the Planning board, which is shared by each group.
 
@@ -319,9 +319,9 @@ We track competitors' capabilities and adjacent (or commonly integrated) product
 
 ## Intake process
 
-Intake for new product ideas (requests) happens at the 🗣 Product office hours meeting.
+Intake for new product ideas (requests) happens at the 🗣 Product Feature Requests meeting.
 
-At the 🗣 Product office hours meeting, the product team weighs all requests. When the team weighs a request, it is prioritized or put to the side.
+At the 🗣 Product Feature Requests meeting, the product team weighs all requests. When the team weighs a request, it is prioritized or put to the side.
 
 The team prioritizes a request when the business perceives it as an immediate priority. When this happens, the team sets the request to be estimated or deferred within five business days.
 
@@ -341,24 +341,24 @@ greater Fleet community.
 At Fleet, we tell the requestor whether their
 request is prioritized or put to the side within one business day from when the team weighs the request.
 
-The 🗣 Product office hours meeting is a recurring ritual to make sure that the team weighs all requests.
+The 🗣 Product Feature Requests meeting is a recurring ritual to make sure that the team weighs all requests.
 
 ### Making a request
 
-To make a request or advocate for a request from a customer or community member,  Fleet asks all members of the organization to add their name and a description of the request to the list in the [🗣 Product office hours Google
+To make a request or advocate for a request from a customer or community member,  Fleet asks all members of the organization to add their name and a description of the request to the list in the [🗣 Product Feature Requests Google
 doc](https://docs.google.com/document/d/1mwu5WfdWBWwJ2C3zFDOMSUC9QCyYuKP4LssO_sIHDd0/edit#heading=h.zahrflvvks7q).
-Then attend the next scheduled 🗣 Product office hours meeting.
+Then attend the next scheduled 🗣 Product Feature Requests meeting.
 
-All members of the Fleet organization are welcome to attend the 🗣 Product office hours meeting. Requests will be
+All members of the Fleet organization are welcome to attend the 🗣 Product Feature Requests meeting. Requests will be
 weighed from top to bottom while prioritizing attendee requests. 
 
 This means that if the individual that added a feature request is not in attendance, the feature request will be discussed towards the end of the call if there's time.
 
-All 🗣 Product office hours meetings are recorded and uploaded to the [🗣 Product office hours
+All 🗣 Product Feature Requests meetings are recorded and uploaded to the [🗣 Product Feature Requests
 folder](https://drive.google.com/drive/folders/1nsjqDyX5WDQ0HJhg_2yOaqBu4J-hqRIW) in the shared
 Google drive.
 
-Each week Noah Talerman follows the [directions in this document](https://docs.google.com/document/d/1MkM57cLNzkN51Hqq5CyBG4HaauAaf446ZhwWJlVho0M/edit?usp=sharing) (internal doc) and a backup copy of the Product office hours document is created and dropped in the [Product office hours backup folder](https://drive.google.com/drive/folders/1WTSSLxA-P3OlspkMKjlRXKjzZsDRoe-4?usp=sharing) in the shared drive.
+Each week Noah Talerman follows the [directions in this document](https://docs.google.com/document/d/1MkM57cLNzkN51Hqq5CyBG4HaauAaf446ZhwWJlVho0M/edit?usp=sharing) (internal doc) and a backup copy of the 🗣️ Product Feature Requests document is created and dropped in the [🗣️ Product Feature Requests backup folder](https://drive.google.com/drive/folders/1WTSSLxA-P3OlspkMKjlRXKjzZsDRoe-4?usp=sharing) in the shared drive.
 
 ## Usage statistics
 
@@ -374,9 +374,10 @@ Directly Responsible Individuals (DRI) engage in the ritual(s) below at the freq
 
 | Ritual                       | Frequency                | Description                                         | DRI               |
 |:-----------------------------|:-----------------------------|:----------------------------------------------------|-------------------|
-| 🗣 Product office hours  | Weekly (Tuesdays) | We make a decision regarding which customer and community feature requests can be committed to in the next six weeks. We create issues for any requests that don't already have one. | Mo Zhu |
+| 🗣 Product Feature Requests  | Weekly (Tuesdays) | We make a decision regarding which customer and community feature requests can be committed to in the next six weeks. We create issues for any requests that don't already have one. | Mo Zhu |
+| 🗣️ Product Feature Requests prep and cleanup | Weekly (Tuesdays) | Every week a backup doc is created to accompany the 🗣️ Product Feature Requests event | Mo Zhu |
+| 🗣 Product Office Hours  | Weekly (Thursdays) | Ask questions to the product team | Mo Zhu |
 | ✨ Product design review  | Weekly (Thursdays) | The Product team discusses "ready for review" items and makes the decision on whether the UI changes are ready for engineering specification and later implementation. | Noah Talerman |
-| Product office hours doc prep | Weekly | Every week a backup doc is created to accompany the Product office hours event | Mo Zhu |
 
 ## Slack channels
 
