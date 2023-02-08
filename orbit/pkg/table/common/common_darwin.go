@@ -64,7 +64,7 @@ func RunCommand(ctx context.Context, name string, arg ...string) (res string, er
 	cmd := exec.CommandContext(ctx, name, arg...)
 	out, err := cmd.Output()
 	if err != nil {
-		log.Debug().Err(err).Msg("failed while generating " + name + " table")
+		log.Debug().Err(err).Msg("failed while running " + name + " command")
 		return "", err
 	}
 	return string(out), nil
