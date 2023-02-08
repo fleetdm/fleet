@@ -1675,6 +1675,24 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
+  name: CIS - Ensure the Guest Home Folder Does Not Exist
+  platforms: macOS
+  platform: darwin
+  description: |
+    The Guest home folders are unneeded after the Guest account is disabled and could be used inappropriately.
+  resolution: |
+    Automated method:
+    Ask your system administrator to deploy the following script:
+      /usr/bin/sudo /bin/rm -R /Users/Guest
+  query: |
+    SELECT 1 WHERE NOT EXISTS (SELECT * FROM file WHERE path = '/Users/Guest');
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS5.10
+  contributors: lucasmrod
+---
+apiVersion: v1
+kind: policy
+spec:
   name: CIS - Ensure Show All Filename Extensions Setting is Enabled
   platforms: macOS
   platform: darwin
