@@ -1325,7 +1325,7 @@ spec:
       path LIKE '/Applications/%%'  
       AND type = 'directory' 
       AND directory LIKE '%.app' 
-      AND   SUBSTRING( mode ,-1) & 0x2 !=0 -- mode's last char is others' permissions. bitwise with 0x2 means write permissions. (which we do not want here) 
+      AND  CAST( SUBSTRING( mode ,-1) AS INTEGER)  & 0x2 !=0 -- mode last char is others' permissions. bitwise with 0x2 means write permissions. (which we do not want here) 
     );
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS5.1.5
@@ -1353,7 +1353,7 @@ spec:
       path LIKE '/System/Volumes/Data/System/%%'  
       AND type = 'directory' 
       AND directory NOT LIKE '%Drop Box%' 
-      AND   SUBSTRING( mode ,-1) & 0x2 !=0 -- mode's last char is others' permissions. bitwise with 0x2 means write permissions. (which we do not want here) 
+      AND   CAST( SUBSTRING( mode ,-1) AS INTEGER) & 0x2 !=0 -- mode last char is others' permissions. bitwise with 0x2 means write permissions. (which we do not want here) 
     );
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS5.1.6
@@ -1382,7 +1382,7 @@ spec:
       AND type = 'directory' 
       AND directory NOT LIKE '%Caches%' 
       AND directory NOT LIKE '%/Preferences/Audio/Data%' 
-      AND   SUBSTRING( mode ,-1) & 0x2 !=0 -- mode's last char is others' permissions. bitwise with 0x2 means write permissions. (which we do not want here) 
+      AND   CAST( SUBSTRING( mode ,-1) AS INTEGER) & 0x2 !=0 -- mode last char is others' permissions. bitwise with 0x2 means write permissions. (which we do not want here) 
     );
   purpose: Informational
   tags: compliance, CIS, CIS_Level2, CIS5.1.7
