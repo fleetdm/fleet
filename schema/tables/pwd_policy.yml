@@ -3,22 +3,22 @@ platforms:
   - darwin
 description: Password Policiy (e.g max failed password attempts).
 columns:
-  - name: maxFailedAttempts
+  - name: max_failed_attempts
     type: integer
     required: false
     description: |
       The account lockout threshold specifies the amount of times a user can enter an incorrect password before a lockout will occur. Ensure that a lockout threshold is part of the password policy on the computer.
-  - name: expiresEveryNDays
+  - name: expires_every_n_days
     type: integer
     required: false
     description: |
       How many days for a new password to expire.
-  - name: daysToExpiration
+  - name: days_to_expiration
     type: integer
     required: false
     description: |
       How many days are left for the expiration of the current password.
-  - name: historyDepth
+  - name: history_depth
     type: integer
     required: false
     description: |

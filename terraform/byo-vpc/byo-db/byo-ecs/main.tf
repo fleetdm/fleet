@@ -1,3 +1,10 @@
+locals {
+  environment = [ for k, v in var.fleet_config.extra_environment_variables : {
+    name  = k
+    value = v
+  }]
+}
+
 data "aws_region" "current" {}
 
 resource "aws_ecs_service" "fleet" {
@@ -77,7 +84,7 @@ resource "aws_ecs_task_definition" "backend" {
             valueFrom = var.fleet_config.database.password_secret_arn
           }
         ]
-        environment = [
+        environment = concat([
           {
             name  = "FLEET_MYSQL_USERNAME"
             value = var.fleet_config.database.user
@@ -114,7 +121,7 @@ resource "aws_ecs_task_definition" "backend" {
             name  = "FLEET_SERVER_TLS"
             value = "false"
           },
-        ]
+        ], local.environment)
       }
   ])
 }

@@ -583,7 +583,7 @@ func (m *MDMConfig) AppleSCEP() (cert *tls.Certificate, pemCert, pemKey []byte, 
 			m.AppleSCEPKey,
 			[]byte(m.AppleSCEPKeyBytes),
 		}
-		cert, err := pair.Parse(false)
+		cert, err := pair.Parse(true)
 		if err != nil {
 			return nil, nil, nil, fmt.Errorf("Apple MDM SCEP configuration: %w", err)
 		}

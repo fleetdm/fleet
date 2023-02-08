@@ -323,6 +323,7 @@ module.exports.routes = {
   'GET /device-management/fleet-user-stories-schrodinger': '/success-stories/fleet-user-stories-wayfair',
   'GET /device-management/fleet-user-stories-wayfair': '/success-stories/fleet-user-stories-wayfair',
   'GET /handbook/security': '/handbook/business-operations/security',
+  'GET /handbook/security/security-policies':'/handbook/business-operations/security-policies#information-security-policy-and-acceptable-use-policy',// « reasoning: https://github.com/fleetdm/fleet/pull/9624
   'GET /handbook/handbook': '/handbook/company/handbook',
 
 

@@ -507,6 +507,38 @@ var extraDetailQueries = map[string]DetailQuery{
 	},
 }
 
+// mdmQueries are used by the Fleet server to compliment certain MDM
+// features.
+// They are only sent to the device when Fleet's MDM is on and properly
+// configured
+var mdmQueries = map[string]DetailQuery{
+	"mdm_disk_encryption_key_darwin": {
+		// This query has two pre-requisites:
+		//
+		// 1. FileVault must be enabled with a personal recovery key.
+		// 2. The "FileVault Recovery Key Escrow" profile must be configured
+		//    in the host.
+		//
+		// This file is safe to access and well [documented by Apple][1]:
+		//
+		// > If FileVault is enabled after this payload is installed on the system,
+		// > the FileVault PRK will be encrypted with the specified certificate,
+		// > wrapped with a CMS envelope and stored at /var/db/FileVaultPRK.dat. The
+		// > encrypted data will be made available to the MDM server as part of the
+		// > SecurityInfo command.
+		// >
+		// > Alternatively, if a site uses its own administration
+		// > software, it can extract the PRK from the foregoing
+		// > location at any time.
+		//
+		// [1]: https://developer.apple.com/documentation/devicemanagement/fderecoverykeyescrow
+		Query:            `SELECT to_base64(group_concat(line)) as filevault_key FROM file_lines WHERE path='/var/db/FileVaultPRK.dat'`,
+		Platforms:        []string{"darwin"},
+		DirectIngestFunc: directIngestDiskEncryptionKeyDarwin,
+		Discovery:        discoveryTable("file_lines"),
+	},
+}
+
 // discoveryTable returns a query to determine whether a table exists or not.
 func discoveryTable(tableName string) string {
 	return fmt.Sprintf("SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = '%s';", tableName)
@@ -1191,9 +1223,44 @@ func directIngestDiskEncryption(ctx context.Context, logger log.Logger, host *fl
 	return ds.SetOrUpdateHostDisksEncryption(ctx, host.ID, encrypted)
 }
 
+func directIngestDiskEncryptionKeyDarwin(
+	ctx context.Context,
+	logger log.Logger,
+	host *fleet.Host,
+	ds fleet.Datastore,
+	rows []map[string]string,
+) error {
+	if len(rows) == 0 {
+		// assume the extension is not there
+		level.Debug(logger).Log(
+			"component", "service",
+			"method", "directIngestDiskEncryptionKeyDarwin",
+			"msg", "no rows or failed",
+			"host", host.Hostname,
+		)
+		return nil
+	}
+
+	if len(rows) > 1 {
+		level.Debug(logger).Log(
+			"component", "service",
+			"method", "directIngestDiskEncryptionKeyDarwin",
+			"msg", fmt.Sprintf("/var/db/FileVaultPRK.dat should have a single line, but got %d", len(rows)),
+			"host", host.Hostname,
+		)
+	}
+
+	return ds.SetOrUpdateHostDiskEncryptionKey(ctx, host.ID, rows[0]["filevault_key"])
+}
+
 //go:generate go run gen_queries_doc.go ../../../docs/Using-Fleet/Detail-Queries-Summary.md
 
-func GetDetailQueries(ctx context.Context, fleetConfig config.FleetConfig, features *fleet.Features) map[string]DetailQuery {
+func GetDetailQueries(
+	ctx context.Context,
+	fleetConfig config.FleetConfig,
+	appConfig *fleet.AppConfig,
+	features *fleet.Features,
+) map[string]DetailQuery {
 	generatedMap := make(map[string]DetailQuery)
 	for key, query := range hostDetailQueries {
 		generatedMap[key] = query
@@ -1218,6 +1285,12 @@ func GetDetailQueries(ctx context.Context, fleetConfig config.FleetConfig, featu
 
 	if fleetConfig.App.EnableScheduledQueryStats {
 		generatedMap["scheduled_query_stats"] = scheduledQueryStats
+	}
+
+	if appConfig != nil && appConfig.MDM.EnabledAndConfigured {
+		for key, query := range mdmQueries {
+			generatedMap[key] = query
+		}
 	}
 
 	if features != nil {

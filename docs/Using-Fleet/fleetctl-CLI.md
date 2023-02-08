@@ -322,7 +322,7 @@ Given a working flagfile for connecting osquery agents to Fleet, add the followi
 --carver_disable_function=false
 --carver_start_endpoint=/api/v1/osquery/carve/begin
 --carver_continue_endpoint=/api/v1/osquery/carve/block
---carver_block_size=2097152
+--carver_block_size=8000000
 ```
 
 The default flagfile provided in the "Add New Host" dialog also includes this configuration.
@@ -332,16 +332,12 @@ The default flagfile provided in the "Add New Host" dialog also includes this co
 The `carver_block_size` flag should be configured in osquery.
 
 For the (default) MySQL Backend, the configured value must be less than the value of
-`max_allowed_packet` in the MySQL connection, allowing for some overhead. The default for MySQL 5.7
-is 4MB and for MySQL 8 it is 64MB. 2MiB (`2097152`) is a good starting value.
+`max_allowed_packet` in the MySQL connection, allowing for some overhead. The default for [MySQL 5.7](https://dev.mysql.com/doc/refman/5.7/en/server-system-variables.html#sysvar_max_allowed_packet)
+is 4MB and for [MySQL 8](https://dev.mysql.com/doc/refman/8.0/en/server-system-variables.html#sysvar_max_allowed_packet) it is 64MB.
 
 For the S3/Minio backend, this value must be set to at least 5MiB (`5242880`) due to the
 [constraints of S3's multipart
 uploads](https://docs.aws.amazon.com/AmazonS3/latest/dev/qfacts.html).
-
-Using a smaller value for `carver_block_size` will lead to more HTTP requests during the carving
-process, resulting in longer carve times and higher load on the Fleet server. If the value is too
-high, HTTP requests may run long enough to cause server timeouts.
 
 #### Compression
 
@@ -424,7 +420,7 @@ When using the MySQL backend (default), this value must be less than the `max_al
 setting in MySQL. If it is too large, MySQL will reject the writes.
 
 When using S3, the value must be at least 5MiB (5242880 bytes), as smaller multipart upload
-sizes are rejected. Additionally [S3
+sizes are rejected. Additionally, [S3
 limits](https://docs.aws.amazon.com/AmazonS3/latest/userguide/qfacts.html) the maximum number of
 parts to 10,000.
 

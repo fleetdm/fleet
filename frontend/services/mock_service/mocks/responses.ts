@@ -11,27 +11,6 @@ const count = {
   targets_missing_in_action: 0,
 };
 
-// MDM TODO: Remove mock when backend is merged
-const mdmApple = {
-  common_name: "Mock backend response APSP:04b46ce0-xxxx-xxxx-xxxx-xxxxxxxx",
-  serial_number: "Mock backend response 123938388712",
-  issuer:
-    "Mock backend response Apple Application Integration 2 Certification Authority",
-  renew_date: "2023-09-30T00:00:00Z",
-};
-
-// MDM TODO: Remove mock when backend is merged
-const mdmAppleBm = {
-  default_team: "Mock backend response Apples",
-  apple_id: "Mock backend response test@example.com",
-  organization_name: "Mock backend response Fleet Device Management",
-  mdm_server_url: "Mock backend response https://fleet.organization.com/mdm",
-  renew_date: "2023-09-30T00:00:00Z",
-};
-
-// MDM TODO: Remove mock when backend is merged
-const mdmEnrollmentProfile = {};
-
 const hosts = {
   hosts: [
     {
@@ -389,7 +368,4 @@ export default {
   count,
   hosts,
   labels,
-  mdmApple,
-  mdmAppleBm,
-  mdmEnrollmentProfile,
 };

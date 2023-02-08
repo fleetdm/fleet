@@ -22,9 +22,6 @@ const REQUEST_RESPONSE_MAPPINGS: IResponses = {
     // request query string is hostname, uuid, or mac address; response is host detail excluding any
     // expensive data operations
     "targets?query={*}": RESPONSES.hosts,
-    "mdm/apple": RESPONSES.mdmApple,
-    "mdm/apple_bm": RESPONSES.mdmAppleBm,
-    "mdm/profile": RESPONSES.mdmEnrollmentProfile,
   },
   POST: {
     // request body is ISelectedTargets

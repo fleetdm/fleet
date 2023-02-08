@@ -1,5 +1,4 @@
 .site-nav-content {
-  height: 50px;
   flex-grow: 1;
   display: flex;
   justify-content: space-between;
@@ -8,11 +7,11 @@
 
 .site-nav-list {
   list-style: none;
+  height: 50px;
   width: 671px;
   margin: 0;
   padding: 0;
   display: flex;
-  flex-direction: row;
 }
 
 .site-nav-item {
@@ -84,14 +83,13 @@
   }
 
   &--active {
-    border-bottom: 3px solid $core-vibrant-blue;
+    border-bottom: 4px solid $core-vibrant-blue;
     background-color: $site-nav-on-hover;
-    max-height: 47px;
 
     &:hover {
       background-color: $site-nav-on-hover;
     }
-    
+
     .site-nav-item__link {
       padding-bottom: 12px;
     }
