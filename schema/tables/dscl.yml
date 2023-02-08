@@ -1,0 +1,24 @@
+name: dscl
+platforms:
+  - darwin
+description: Returns the output of dscl read commands on the local domain
+columns:
+  - name: command
+    type: text
+    required: true
+    description: The dscl command to execute, possible values are "read" and "list"
+  - name: path
+    type: text
+    required: true
+    description: The path to use in the read command.
+  - name: key
+    type: text
+    required: true
+    description: The key to query on the read command and path.
+  - name: value
+    type: text
+    required: false
+    description: The value of the read path and key. 
+notes: >-
+  - This table is not a core osquery table. It is included as part of Fleetd, the osquery manager from Fleet.
+evented: false
