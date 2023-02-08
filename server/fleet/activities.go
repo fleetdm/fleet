@@ -47,6 +47,8 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityTypeMDMUnenrolled{},
 
 	ActivityTypeEditedMacOSMinVersion{},
+
+	ActivityTypeReadHostDiskEncryptionKey{},
 }
 
 type ActivityDetails interface {
@@ -706,5 +708,24 @@ func (a ActivityTypeEditedMacOSMinVersion) Documentation() (activity string, det
   "team_name": "Workstations",
   "minimum_version": "13.0.1",
   "deadline": "2023-06-01"
+}`
+}
+
+type ActivityTypeReadHostDiskEncryptionKey struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+}
+
+func (a ActivityTypeReadHostDiskEncryptionKey) ActivityName() string {
+	return "read_host_disk_encryption_key"
+}
+
+func (a ActivityTypeReadHostDiskEncryptionKey) Documentation() (activity string, details string, detailsExample string) {
+	return `Generated when a user reads the disk encryption key for a host.`,
+		`This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.`, `{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro",
 }`
 }

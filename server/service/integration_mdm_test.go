@@ -31,8 +31,10 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/mock"
 	"github.com/fleetdm/fleet/v4/server/service/schedule"
+	"github.com/fleetdm/fleet/v4/server/test"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"github.com/google/uuid"
@@ -585,6 +587,174 @@ func (s *integrationMDMTestSuite) TestMDMAppleUnenroll() {
 		return res, err
 	}
 	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/mdm/hosts/%d/unenroll", h.ID), nil, http.StatusOK)
+}
+
+func (s *integrationMDMTestSuite) TestMDMAppleGetEncryptionKey() {
+	t := s.T()
+	ctx := context.Background()
+
+	// create a host
+	host, err := s.ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now().Add(-1 * time.Minute),
+		OsqueryHostID:   ptr.String(t.Name()),
+		NodeKey:         ptr.String(t.Name()),
+		UUID:            uuid.New().String(),
+		Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
+		Platform:        "darwin",
+	})
+	require.NoError(t, err)
+
+	// add an encryption key for the host
+	cert, _, _, err := s.fleetCfg.MDM.AppleSCEP()
+	require.NoError(t, err)
+	parsed, err := x509.ParseCertificate(cert.Certificate[0])
+	require.NoError(t, err)
+	recoveryKey := "AAA-BBB-CCC"
+	encryptedKey, err := pkcs7.Encrypt([]byte(recoveryKey), []*x509.Certificate{parsed})
+	require.NoError(t, err)
+	base64EncryptedKey := base64.StdEncoding.EncodeToString(encryptedKey)
+
+	err = s.ds.SetOrUpdateHostDiskEncryptionKey(ctx, host.ID, base64EncryptedKey)
+	require.NoError(t, err)
+
+	// request with no token
+	res := s.DoRawNoAuth("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/encryption_key", host.ID), nil, http.StatusUnauthorized)
+	res.Body.Close()
+
+	// encryption key not processed yet
+	resp := getHostEncryptionKeyResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/encryption_key", host.ID), nil, http.StatusNotFound, &resp)
+
+	// unable to decrypt encryption key
+	err = s.ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{host.ID}, false, time.Now())
+	require.NoError(t, err)
+	resp = getHostEncryptionKeyResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/encryption_key", host.ID), nil, http.StatusNotFound, &resp)
+
+	// no activities created so far
+	activities := listActivitiesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &activities)
+	found := false
+	for _, activity := range activities.Activities {
+		if activity.Type == "read_host_disk_encryption_key" {
+			found = true
+		}
+	}
+	require.False(t, found)
+
+	// decryptable key
+	checkDecryptableKey := func(u fleet.User) {
+		err = s.ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{host.ID}, true, time.Now())
+		require.NoError(t, err)
+		resp = getHostEncryptionKeyResponse{}
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/encryption_key", host.ID), nil, http.StatusOK, &resp)
+		require.Equal(t, recoveryKey, resp.EncryptionKey.DecryptedValue)
+
+		// use the admin token to get the activities
+		currToken := s.token
+		defer func() { s.token = currToken }()
+		s.token = s.getTestAdminToken()
+		s.lastActivityMatches(
+			"read_host_disk_encryption_key",
+			fmt.Sprintf(`{"host_display_name": "%s", "host_id": %d}`, host.DisplayName(), host.ID),
+			0,
+		)
+	}
+
+	// we're about to mess up with the token, make sure to set it to the
+	// default value when the test ends
+	currToken := s.token
+	t.Cleanup(func() { s.token = currToken })
+
+	// admins are able to see the host encryption key
+	s.token = s.getTestAdminToken()
+	checkDecryptableKey(s.users["admin1@example.com"])
+
+	// maintainers are able to see the token
+	u := s.users["user1@example.com"]
+	s.token = s.getTestToken(u.Email, test.GoodPassword)
+	checkDecryptableKey(u)
+
+	// observers are able to see the token
+	u = s.users["user2@example.com"]
+	s.token = s.getTestToken(u.Email, test.GoodPassword)
+	checkDecryptableKey(u)
+
+	// add the host to a team
+	team, err := s.ds.NewTeam(context.Background(), &fleet.Team{
+		ID:          4827,
+		Name:        "team1_" + t.Name(),
+		Description: "desc team1_" + t.Name(),
+	})
+	require.NoError(t, err)
+	err = s.ds.AddHostsToTeam(ctx, &team.ID, []uint{host.ID})
+	require.NoError(t, err)
+
+	// admins are still able to see the token
+	s.token = s.getTestAdminToken()
+	checkDecryptableKey(s.users["admin1@example.com"])
+
+	// maintainers are still able to see the token
+	u = s.users["user1@example.com"]
+	s.token = s.getTestToken(u.Email, test.GoodPassword)
+	checkDecryptableKey(u)
+
+	// observers are still able to see the token
+	u = s.users["user2@example.com"]
+	s.token = s.getTestToken(u.Email, test.GoodPassword)
+	checkDecryptableKey(u)
+
+	// add a team member
+	u = fleet.User{
+		Name:       "test team user",
+		Email:      "user1+team@example.com",
+		GlobalRole: nil,
+		Teams: []fleet.UserTeam{
+			{
+				Team: *team,
+				Role: fleet.RoleMaintainer,
+			},
+		},
+	}
+	require.NoError(t, u.SetPassword(test.GoodPassword, 10, 10))
+	_, err = s.ds.NewUser(ctx, &u)
+	require.NoError(t, err)
+
+	// members are able to see the token
+	s.token = s.getTestToken(u.Email, test.GoodPassword)
+	checkDecryptableKey(u)
+
+	// create a separate team
+	team2, err := s.ds.NewTeam(context.Background(), &fleet.Team{
+		ID:          4828,
+		Name:        "team2_" + t.Name(),
+		Description: "desc team2_" + t.Name(),
+	})
+	require.NoError(t, err)
+	// add a team member
+	u = fleet.User{
+		Name:       "test team user",
+		Email:      "user1+team2@example.com",
+		GlobalRole: nil,
+		Teams: []fleet.UserTeam{
+			{
+				Team: *team2,
+				Role: fleet.RoleMaintainer,
+			},
+		},
+	}
+	require.NoError(t, u.SetPassword(test.GoodPassword, 10, 10))
+	_, err = s.ds.NewUser(ctx, &u)
+	require.NoError(t, err)
+
+	// non-members aren't able to see the token
+	s.token = s.getTestToken(u.Email, test.GoodPassword)
+	resp = getHostEncryptionKeyResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/encryption_key", host.ID), nil, http.StatusForbidden, &resp)
+
 }
 
 type device struct {
