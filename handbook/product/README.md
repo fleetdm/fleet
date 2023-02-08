@@ -386,7 +386,8 @@ This group maintains the following [Slack channels](https://fleetdm.com/handbook
 | Slack channel                       | [DRI](https://fleetdm.com/handbook/company#why-group-slack-channels)|
 |:------------------------------------|:--------------------------------------------------------------------|
 | `#help-product`                     | Mo Zhu                                                              |
-| `#g-mdm`                            | Mo Zhu                                                              |
+| `#g-mdm`                            | Noah Talerman                                                       |
+| `#g-customer-experience`            | Zay Hanlon                                                          |
 
 <meta name="maintainedBy" value="zhumo">
 <meta name="title" value="⚗️ Product">
