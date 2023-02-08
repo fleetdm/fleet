@@ -1,0 +1,15 @@
+{
+  "type": "object",
+  "properties": {
+    "fleet_url": {
+      "title": "Fleet server URL",
+      "description": "URL for the Fleet server to connect to.",
+      "type": "string"
+    },
+    "enroll_secret": {
+      "title": "Enroll secret",
+      "description": "Shared secret for enrolling the device.",
+      "type": "string"
+    }
+  }
+}

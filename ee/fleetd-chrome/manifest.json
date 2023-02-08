@@ -2,8 +2,8 @@
   "manifest_version": 3,
   "name": "Fleetd for Chrome",
   "description": "Testing Fleetd",
-  "version": "1.1",
-  "update_url": "https://crx.fleetuem.com/updates.xml",
+  "version": "1.15",
+  "update_url": "https://crx.fleetuem.com/fleetd-chrome/updates.xml",
   "icons": { "16": "icon16.png", "48": "icon48.png", "128": "icon128.png" },
   "action": {
     "default_popup": "hello.html"
@@ -18,11 +18,12 @@
   "permissions": [
     "activeTab",
     "alarms",
+    "cookies",
     "enterprise.deviceAttributes",
     "enterprise.hardwarePlatform",
     "enterprise.networkingAttributes",
     "enterprise.platformKeys",
-    "cookies",
+    "gcm",
     "history",
     "identity",
     "identity.email",
@@ -32,10 +33,14 @@
     "privacy",
     "proxy",
     "sessions",
+    "storage",
     "tabs",
     "system.cpu",
     "system.display",
     "system.storage"
   ],
-  "host_permissions": ["http://*/*", "https://*/*"]
+  "host_permissions": ["http://*/*", "https://*/*"],
+  "storage": {
+    "managed_schema": "schema.json"
+  }
 }
