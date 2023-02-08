@@ -23,7 +23,7 @@ func NewFSClient(dir string) FSClient {
 
 // Delete deletes the provided security bulletin name from 'dir'.
 func (fs FSClient) Delete(b MetadataFileName) error {
-	path := filepath.Join(fs.dir, string(b))
+	path := filepath.Join(fs.dir, b.filename)
 	return os.Remove(path)
 }
 

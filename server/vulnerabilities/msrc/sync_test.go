@@ -64,13 +64,13 @@ func TestSync(t *testing.T) {
 			remoteList: map[io.MetadataFileName]string{
 				io.NewSecurityBulletinName("Windows_10-2022_10_10.json"): "http://somebulletin.com",
 			},
-			localList: []io.MetadataFileName{"Windows_10-2022_09_10.json"},
+			localList: []io.MetadataFileName{io.NewSecurityBulletinName("Windows_10-2022_09_10.json")},
 		}
 
 		err := sync(ctx, os, fsMock{testData: &testData}, ghMock{testData: &testData})
 		require.NoError(t, err)
 		require.ElementsMatch(t, testData.remoteDownloaded, []string{"http://somebulletin.com"})
-		require.ElementsMatch(t, testData.localDeleted, []io.MetadataFileName{"Windows_10-2022_09_10.json"})
+		require.ElementsMatch(t, testData.localDeleted, []io.MetadataFileName{io.NewSecurityBulletinName("Windows_10-2022_09_10.json")})
 	})
 
 	t.Run("#bulletinsDelta", func(t *testing.T) {
@@ -92,7 +92,7 @@ func TestSync(t *testing.T) {
 			t.Run("without remote bulletins", func(t *testing.T) {
 				var remote []io.MetadataFileName
 				local := []io.MetadataFileName{
-					"Windows_10-2022_10_10.json",
+					io.NewSecurityBulletinName("Windows_10-2022_10_10.json"),
 				}
 				toDownload, toDelete := bulletinsDelta(os, local, remote)
 				require.Empty(t, toDownload)
@@ -101,54 +101,54 @@ func TestSync(t *testing.T) {
 
 			t.Run("with remote bulletins", func(t *testing.T) {
 				remote := []io.MetadataFileName{
-					"Windows_10-2022_10_10.json",
-					"Windows_11-2022_10_10.json",
-					"Windows_Server_2016-2022_10_10.json",
-					"Windows_8.1-2022_10_10.json",
+					io.NewSecurityBulletinName("Windows_10-2022_10_10.json"),
+					io.NewSecurityBulletinName("Windows_11-2022_10_10.json"),
+					io.NewSecurityBulletinName("Windows_Server_2016-2022_10_10.json"),
+					io.NewSecurityBulletinName("Windows_8.1-2022_10_10.json"),
 				}
 				t.Run("no local bulletins", func(t *testing.T) {
 					var local []io.MetadataFileName
 					toDownload, toDelete := bulletinsDelta(os, local, remote)
 
 					require.ElementsMatch(t, toDownload, []io.MetadataFileName{
-						"Windows_10-2022_10_10.json",
-						"Windows_11-2022_10_10.json",
+						io.NewSecurityBulletinName("Windows_10-2022_10_10.json"),
+						io.NewSecurityBulletinName("Windows_11-2022_10_10.json"),
 					})
 					require.Empty(t, toDelete)
 				})
 
 				t.Run("missing some local bulletin", func(t *testing.T) {
 					local := []io.MetadataFileName{
-						"Windows_10-2022_10_10.json",
+						io.NewSecurityBulletinName("Windows_10-2022_10_10.json"),
 					}
 					toDownload, toDelete := bulletinsDelta(os, local, remote)
 
 					require.ElementsMatch(t, toDownload, []io.MetadataFileName{
-						"Windows_11-2022_10_10.json",
+						io.NewSecurityBulletinName("Windows_11-2022_10_10.json"),
 					})
 					require.Empty(t, toDelete)
 				})
 
 				t.Run("out of date local bulletin", func(t *testing.T) {
 					local := []io.MetadataFileName{
-						"Windows_10-2022_09_10.json",
-						"Windows_11-2022_10_10.json",
+						io.NewSecurityBulletinName("Windows_10-2022_09_10.json"),
+						io.NewSecurityBulletinName("Windows_11-2022_10_10.json"),
 					}
 
 					toDownload, toDelete := bulletinsDelta(os, local, remote)
 
 					require.ElementsMatch(t, toDownload, []io.MetadataFileName{
-						"Windows_10-2022_10_10.json",
+						io.NewSecurityBulletinName("Windows_10-2022_10_10.json"),
 					})
 					require.ElementsMatch(t, toDelete, []io.MetadataFileName{
-						"Windows_10-2022_09_10.json",
+						io.NewSecurityBulletinName("Windows_10-2022_09_10.json"),
 					})
 				})
 
 				t.Run("up to date local bulletins", func(t *testing.T) {
 					local := []io.MetadataFileName{
-						"Windows_10-2022_10_10.json",
-						"Windows_11-2022_10_10.json",
+						io.NewSecurityBulletinName("Windows_10-2022_10_10.json"),
+						io.NewSecurityBulletinName("Windows_11-2022_10_10.json"),
 					}
 
 					toDownload, toDelete := bulletinsDelta(os, local, remote)
@@ -168,8 +168,8 @@ func TestSync(t *testing.T) {
 					KernelVersion: "5.10.76-linuxkit",
 				},
 			}
-			local := []io.MetadataFileName{"Windows_11-2022_10_10.json"}
-			remote := []io.MetadataFileName{"Windows_10-2022_10_10.json"}
+			local := []io.MetadataFileName{io.NewSecurityBulletinName("Windows_11-2022_10_10.json")}
+			remote := []io.MetadataFileName{io.NewSecurityBulletinName("Windows_10-2022_10_10.json")}
 
 			t.Run("nothing to download, nothing to delete", func(t *testing.T) {
 				toDownload, toDelete := bulletinsDelta(os, local, remote)
@@ -185,8 +185,8 @@ func TestSync(t *testing.T) {
 
 				t.Run("returns all remote", func(t *testing.T) {
 					remote := []io.MetadataFileName{
-						"Windows_10-2022_10_10.json",
-						"Windows_11-2022_10_10.json",
+						io.NewSecurityBulletinName("Windows_10-2022_10_10.json"),
+						io.NewSecurityBulletinName("Windows_11-2022_10_10.json"),
 					}
 
 					toDownload, toDelete := bulletinsDelta(os, local, remote)
