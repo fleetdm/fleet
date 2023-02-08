@@ -106,7 +106,7 @@ func TestGithubClient(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, bulletins, 2)
 
-		expectedBulletins := []SecurityBulletinName{
+		expectedBulletins := []MetadataFileName{
 			NewSecurityBulletinName(fmt.Sprintf("%sWindows_10-2022_09_10.json", mSRCFilePrefix)),
 			NewSecurityBulletinName(fmt.Sprintf("%sWindows_11-2022_09_10.json", mSRCFilePrefix)),
 		}

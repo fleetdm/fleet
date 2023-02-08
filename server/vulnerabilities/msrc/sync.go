@@ -16,17 +16,17 @@ import (
 // remote bulletins exist.
 func bulletinsDelta(
 	os []fleet.OperatingSystem,
-	local []io.SecurityBulletinName,
-	remote []io.SecurityBulletinName,
+	local []io.MetadataFileName,
+	remote []io.MetadataFileName,
 ) (
-	[]io.SecurityBulletinName,
-	[]io.SecurityBulletinName,
+	[]io.MetadataFileName,
+	[]io.MetadataFileName,
 ) {
 	if len(os) == 0 {
 		return remote, nil
 	}
 
-	var matching []io.SecurityBulletinName
+	var matching []io.MetadataFileName
 	for _, r := range remote {
 		for _, o := range os {
 			product := parsed.NewProductFromOS(o)
@@ -36,8 +36,8 @@ func bulletinsDelta(
 		}
 	}
 
-	var toDownload []io.SecurityBulletinName
-	var toDelete []io.SecurityBulletinName
+	var toDownload []io.MetadataFileName
+	var toDelete []io.MetadataFileName
 	for _, m := range matching {
 		var found bool
 		for _, l := range local {
@@ -86,7 +86,7 @@ func sync(
 		return err
 	}
 
-	var remote []io.SecurityBulletinName
+	var remote []io.MetadataFileName
 	for r := range remoteURLs {
 		remote = append(remote, r)
 	}

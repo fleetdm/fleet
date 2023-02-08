@@ -67,7 +67,7 @@ func main() {
 func update(
 	m time.Month,
 	y int,
-	eBulletins map[io.SecurityBulletinName]string,
+	eBulletins map[io.MetadataFileName]string,
 	msrcClient io.MSRCAPI,
 	ghClient io.GitHubAPI,
 ) ([]*parsed.SecurityBulletin, error) {

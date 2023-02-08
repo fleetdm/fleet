@@ -7,8 +7,8 @@ import (
 )
 
 type FSAPI interface {
-	Bulletins() ([]SecurityBulletinName, error)
-	Delete(SecurityBulletinName) error
+	Bulletins() ([]MetadataFileName, error)
+	Delete(MetadataFileName) error
 }
 
 type FSClient struct {
@@ -22,14 +22,14 @@ func NewFSClient(dir string) FSClient {
 }
 
 // Delete deletes the provided security bulletin name from 'dir'.
-func (fs FSClient) Delete(b SecurityBulletinName) error {
+func (fs FSClient) Delete(b MetadataFileName) error {
 	path := filepath.Join(fs.dir, string(b))
 	return os.Remove(path)
 }
 
 // Bulletins walks 'dir' returning all security bulletin names.
-func (fs FSClient) Bulletins() ([]SecurityBulletinName, error) {
-	var result []SecurityBulletinName
+func (fs FSClient) Bulletins() ([]MetadataFileName, error) {
+	var result []MetadataFileName
 
 	err := filepath.WalkDir(fs.dir, func(path string, d os.DirEntry, err error) error {
 		if err != nil {

@@ -27,7 +27,7 @@ type ReleaseLister interface {
 // GitHubAPI allows users to interact with the MSRC artifacts published on Github.
 type GitHubAPI interface {
 	Download(string) (string, error)
-	Bulletins(context.Context) (map[SecurityBulletinName]string, error)
+	Bulletins(context.Context) (map[MetadataFileName]string, error)
 }
 
 type GitHubClient struct {
@@ -63,7 +63,7 @@ func (gh GitHubClient) Download(URL string) (string, error) {
 }
 
 // Bulletins returns a map of 'bulletin name' => 'download URL' of the bulletins stored as assets on Github.
-func (gh GitHubClient) Bulletins(ctx context.Context) (map[SecurityBulletinName]string, error) {
+func (gh GitHubClient) Bulletins(ctx context.Context) (map[MetadataFileName]string, error) {
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 
@@ -81,7 +81,7 @@ func (gh GitHubClient) Bulletins(ctx context.Context) (map[SecurityBulletinName]
 		return nil, fmt.Errorf("github http status error: %d", r.StatusCode)
 	}
 
-	results := make(map[SecurityBulletinName]string)
+	results := make(map[MetadataFileName]string)
 
 	for _, e := range releases[0].Assets {
 		name := e.GetName()
