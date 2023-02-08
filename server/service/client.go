@@ -307,8 +307,15 @@ func (c *Client) ApplyGroup(ctx context.Context, specs *spec.Group, logf func(fo
 		// TODO(mna): extract the macos_settings.custom_settings from it, as it
 		// will be applied separately. Note that the endpoint that will be used
 		// needs to support the dry-run option too.
+		//
+		// Apply the teams specs _first_ so that any non-existing team gets created
+		// first.
 		if err := c.ApplyTeams(specs.Teams, opts); err != nil {
 			return fmt.Errorf("applying teams: %w", err)
+		}
+		if tmMacSettings := extractTmSpecsMacOSCustomSettings(specs.Teams); tmMacSettings != nil {
+			// TODO(mna): the batch-set endpoint should support team names, to avoid an
+			// unnecessary call. Also, the team might not exist if dry-run is used.
 		}
 		if opts.DryRun {
 			logfn("[+] would've applied %d teams\n", len(specs.Teams))
@@ -330,11 +337,6 @@ func (c *Client) ApplyGroup(ctx context.Context, specs *spec.Group, logf func(fo
 	return nil
 }
 
-// extracts the macos_settings.custom_settings file paths from the appCfg, and
-// clears this key from the appCfg so that it is not present anymore in the
-// remaining YAML/JSON structure represented by appCfg. As a special case, if
-// custom_settings was the only key present in the macos_settings object, that
-// object is also removed from appCfg.
 func extractAppCfgMacOSCustomSettings(appCfg interface{}) []string {
 	asMap, ok := appCfg.(map[string]interface{})
 	if !ok {
@@ -348,14 +350,29 @@ func extractAppCfgMacOSCustomSettings(appCfg interface{}) []string {
 	if !ok {
 		return nil
 	}
-	delete(mos, "custom_settings")
-	if len(mos) == 0 {
-		delete(asMap, "macos_settings")
-	}
 	if cs == nil {
 		// return a non-nil, empty slice instead, so the caller knows that the
 		// custom_settings key was actually provided.
 		cs = []string{}
 	}
 	return cs
+}
+
+// returns the custom settings keyed by team name.
+func extractTmSpecsMacOSCustomSettings(tmSpecs []json.RawMessage) map[string][]string {
+	var m map[string][]string
+	for _, tm := range tmSpecs {
+		var spec fleet.TeamSpec
+		if err := json.Unmarshal(tm, &spec); err != nil {
+			// ignore, this will fail in the call to apply team specs
+			continue
+		}
+		if spec.Name != "" && spec.MacOSSettings.CustomSettings != nil {
+			if m == nil {
+				m = make(map[string][]string)
+			}
+			m[spec.Name] = spec.MacOSSettings.CustomSettings
+		}
+	}
+	return m
 }
