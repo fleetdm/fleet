@@ -33,7 +33,7 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 	}
 
 	return []map[string]string{{
-		"userName":                            userName,
+		"user_name":                           userName,
 		"Show_full_url_in_smart_search_field": res,
 	}}, nil
 }
