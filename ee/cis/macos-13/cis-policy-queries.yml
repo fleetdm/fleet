@@ -421,12 +421,7 @@ spec:
   platforms: macOS
   platform: darwin
   description: |
-    Remote Management is the client portion of Apple Remote Desktop (ARD).
-    Remote Management can be used by remote administrators to view the current screen,
-    install software, report on, and generally manage client Macs.
-    Remote Management should only be enabled on trusted networks with strong
-    user controls present in a Directory system.
-    Mobile devices without strict controls are vulnerable to exploit and monitoring.
+    Starting with 10.13 (macOS High Sierra), Apple introduced a service to make it easier to deploy data from Apple, including software updates, where there are bandwidth constraints to the Internet and fewer constraints or greater bandwidth exist on the local subnet. This capability can be very valuable for organizations that have throttled and possibly metered Internet connections. In heterogeneous enterprise networks with multiple subnets, the effectiveness of this capability would be determined by how many Macs were on each subnet at the time new, large updates were made available upstream. This capability requires the use of mac OS clients as P2P nodes for updated Apple content. Unless there is a business requirement to manage operational Internet connectivity and bandwidth user endpoints should not store content and act as a cluster to provision data.
   resolution: |
     Graphical Method:
       Perform the following steps to disable Content Caching:
