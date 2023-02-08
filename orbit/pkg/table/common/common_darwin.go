@@ -60,7 +60,8 @@ func GetValFromXMLWithTags(xml string, parentTag string, tag string, tagValue st
 	return "", errors.New("can't find requested value")
 }
 
-// RunCommand Will run a command with 5 sec timeout (as context. It will return the output as string.
+// RunCommand Will run a command with 5 sec timeout (as context).
+// It will return the output as string.
 func RunCommand(ctx context.Context, name string, arg ...string) (res string, err error) {
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
