@@ -1521,12 +1521,6 @@ spec:
     file format. Visible filename extensions allow the user to identify the file type and the
     application it is associated with which leads to quick identification of misrepresented malicious files.
   resolution: |
-    Graphical Method:
-    1. Open Finder
-    2. Select Finder in the menu bar
-    3. Select Settings
-    4. Select Advanced
-    5. Set Show all filename extensions to enabled
     Automated method:
     For each user run:
     /usr/bin/sudo -u <username> /usr/bin/defaults write \
