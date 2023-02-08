@@ -182,6 +182,8 @@ spec:
       macos_updates:
         minimum_version: ""
         deadline: ""
+    macos_settings:
+      custom_settings:
     name: team1
 ---
 apiVersion: v1
@@ -204,10 +206,12 @@ spec:
       macos_updates:
         minimum_version: "12.3.1"
         deadline: "2021-12-14"
+    macos_settings:
+      custom_settings:
     name: team2
 `
-			expectedJson := `{"kind":"team","apiVersion":"v1","spec":{"team":{"id":42,"created_at":"1999-03-10T02:45:06.371Z","name":"team1","description":"team1 description","webhook_settings":{"failing_policies_webhook":{"enable_failing_policies_webhook":false,"destination_url":"","policy_ids":null,"host_batch_size":0}},"integrations":{"jira":null,"zendesk":null},"features":{"enable_host_users":true,"enable_software_inventory":true},"mdm":{"macos_updates":{"minimum_version":"","deadline":""}},"user_count":99,"host_count":42}}}
-{"kind":"team","apiVersion":"v1","spec":{"team":{"id":43,"created_at":"1999-03-10T02:45:06.371Z","name":"team2","description":"team2 description","agent_options":{"config":{"foo":"bar"},"overrides":{"platforms":{"darwin":{"foo":"override"}}}},"webhook_settings":{"failing_policies_webhook":{"enable_failing_policies_webhook":false,"destination_url":"","policy_ids":null,"host_batch_size":0}},"integrations":{"jira":null,"zendesk":null},"features":{"enable_host_users":false,"enable_software_inventory":false,"additional_queries":{"foo":"bar"}},"mdm":{"macos_updates":{"minimum_version":"12.3.1","deadline":"2021-12-14"}},"user_count":87,"host_count":43}}}
+			expectedJson := `{"kind":"team","apiVersion":"v1","spec":{"team":{"id":42,"created_at":"1999-03-10T02:45:06.371Z","name":"team1","description":"team1 description","webhook_settings":{"failing_policies_webhook":{"enable_failing_policies_webhook":false,"destination_url":"","policy_ids":null,"host_batch_size":0}},"integrations":{"jira":null,"zendesk":null},"features":{"enable_host_users":true,"enable_software_inventory":true},"mdm":{"macos_updates":{"minimum_version":"","deadline":""}},"macos_settings":{"custom_settings":null},"user_count":99,"host_count":42}}}
+{"kind":"team","apiVersion":"v1","spec":{"team":{"id":43,"created_at":"1999-03-10T02:45:06.371Z","name":"team2","description":"team2 description","agent_options":{"config":{"foo":"bar"},"overrides":{"platforms":{"darwin":{"foo":"override"}}}},"webhook_settings":{"failing_policies_webhook":{"enable_failing_policies_webhook":false,"destination_url":"","policy_ids":null,"host_batch_size":0}},"integrations":{"jira":null,"zendesk":null},"features":{"enable_host_users":false,"enable_software_inventory":false,"additional_queries":{"foo":"bar"}},"mdm":{"macos_updates":{"minimum_version":"12.3.1","deadline":"2021-12-14"}},"macos_settings":{"custom_settings":null},"user_count":87,"host_count":43}}}
 `
 
 			if tt.shouldHaveExpiredBanner {
@@ -476,6 +480,8 @@ spec:
     macos_updates:
       minimum_version: ""
       deadline: ""
+  macos_settings:
+    custom_settings:
   org_info:
     org_logo_url: ""
     org_name: ""
@@ -562,6 +568,9 @@ spec:
       "enable_host_users": true,
       "enable_software_inventory": false
     },
+    "macos_settings": {
+      "custom_settings": null
+    },
     "mdm": {
       "macos_updates": {
 	"minimum_version": "",
@@ -636,6 +645,8 @@ spec:
   integrations:
     jira: null
     zendesk: null
+  macos_settings:
+    custom_settings:
   mdm:
     apple_bm_default_team: ""
     apple_bm_terms_expired: false
@@ -774,6 +785,9 @@ spec:
     "features": {
       "enable_host_users": true,
       "enable_software_inventory": false
+    },
+    "macos_settings": {
+      "custom_settings": null
     },
     "mdm": {
       "macos_updates": {
