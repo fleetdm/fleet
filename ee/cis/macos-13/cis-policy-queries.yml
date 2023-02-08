@@ -417,6 +417,37 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
+  name: CIS - Ensure Remote Apple Events is Disabled
+  platforms: macOS
+  platform: darwin
+  description: |
+    Apple Events is a technology that allows one program to communicate with other programs.
+    Remote Apple Events allows a program on one computer to communicate with a program on a
+    different computer. Disabling Remote Apple Events mitigates the risk of an unauthorized
+    program gaining access to the system.
+  resolution: |
+    Graphical Method:
+    1. Open System Settings
+    2. Select General
+    3. Select Sharing
+    4. Set Remote Apple Events to disabled
+  query: |
+    SELECT 1 WHERE NOT EXISTS (
+      SELECT * FROM plist WHERE
+        path = '/var/db/com.apple.xpc.launchd/disabled.plist' AND
+        key = 'com.apple.AEServer' AND
+        value = '0'
+    );
+  # We are not using the launchd table because it does not check if services
+  # are disabled via disabled.plist, which the preference pane uses whenever
+  # a service is disabled after it has been enabled in the past.
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS2.3.3.7
+  contributors: artemist-work
+---
+apiVersion: v1
+kind: policy
+spec:
   name: CIS - Ensure Bluetooth Sharing Is Disabled
   platforms: macOS
   platform: darwin
