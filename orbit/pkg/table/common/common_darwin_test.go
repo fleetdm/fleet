@@ -102,5 +102,5 @@ func TestRunCommand(t *testing.T) {
 	res, err := RunCommand(ctx, "echo", "test123")
 	require.NoError(t, err)
 	require.NotNil(t, res)
-	require.Equal(t, "test123", res)
+	require.Equal(t, "test123\n", res)
 }
