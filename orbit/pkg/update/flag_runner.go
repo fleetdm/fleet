@@ -264,7 +264,7 @@ func (r *ExtensionRunner) DoExtensionConfigUpdate() (bool, error) {
 
 		// update our view of targets
 		r.updateRunner.AddRunnerOptTarget(targetName)
-		r.updateRunner.updater.SetTargetInfo(targetName, platform, channel, filename, nil)
+		r.updateRunner.updater.SetTargetInfo(targetName, TargetInfo{Platform: platform, Channel: channel, TargetFile: filename})
 
 		// the full path to where the extension would be on disk, for e.g. for extension name "hello_world"
 		// the path is: <root-dir>/bin/extensions/hello_world/<platform>/<channel>/hello_world.ext

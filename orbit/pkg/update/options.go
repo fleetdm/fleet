@@ -26,12 +26,6 @@ var (
 			TargetFile:           "osqueryd.app.tar.gz",
 			ExtractedExecSubPath: []string{"osquery.app", "Contents", "MacOS", "osqueryd"},
 		},
-		"nudge": TargetInfo{
-			Platform:             "macos",
-			Channel:              "stable",
-			TargetFile:           "nudge.app.tar.gz",
-			ExtractedExecSubPath: []string{"Nudge.app", "Contents", "MacOS", "Nudge"},
-		},
 	}
 
 	LinuxTargets = Targets{
@@ -86,5 +80,12 @@ var (
 			}
 			return nil
 		},
+	}
+
+	NudgeMacOSTarget = TargetInfo{
+		Platform:             "macos",
+		Channel:              "stable",
+		TargetFile:           "nudge.app.tar.gz",
+		ExtractedExecSubPath: []string{"Nudge.app", "Contents", "MacOS", "Nudge"},
 	}
 )

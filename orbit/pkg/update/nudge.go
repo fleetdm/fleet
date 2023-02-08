@@ -73,13 +73,19 @@ func (n *NudgeConfigFetcher) GetConfig() (*fleet.OrbitConfig, error) {
 
 	if cfg.NudgeConfig == nil {
 		log.Info().Msg("empty nudge config, removing nudge as target")
+		// TODO(roberto): by early returning and removing the target from the
+		// runner/updater we ensure Nudge won't be opened/updated again
+		// but we don't actually remove the file from disk. We
+		// knowingly decided to do this as a post MVP optimization.
 		n.UpdateRunner.RemoveRunnerOptTarget("nudge")
+		n.UpdateRunner.updater.RemoveTargetInfo("nudge")
 		return cfg, nil
 	}
 
 	if !n.UpdateRunner.HasRunnerOptTarget("nudge") {
 		log.Info().Msg("adding nudge as target")
 		n.UpdateRunner.AddRunnerOptTarget("nudge")
+		n.UpdateRunner.updater.SetTargetInfo("nudge", NudgeMacOSTarget)
 		return cfg, n.UpdateRunner.StoreLocalHash("nudge")
 	}
 
@@ -141,12 +147,35 @@ func (n *NudgeConfigFetcher) manageNudgeLaunch() error {
 		defer n.cmdMu.Unlock()
 
 		if time.Since(n.lastRun) > n.frequency {
-			nudgePath, err := n.UpdateRunner.updater.ExecutableLocalPath("nudge")
+			nudge, err := n.UpdateRunner.updater.localTarget("nudge")
 			if err != nil {
 				return err
 			}
 
-			cmd := exec.Command(nudgePath, "-json-url", fmt.Sprintf("file://%s", cfgFile))
+			// before moving forward, check that the file at the
+			// path is the file we're about to open hasn't been
+			// tampered with.
+			meta, err := n.UpdateRunner.updater.Lookup("nudge")
+			if err != nil {
+				return err
+			}
+			if err := checkFileHash(meta, nudge.Path); err != nil {
+				return err
+			}
+
+			// TODO(roberto): when an user selects "Later" from the
+			// Nudge defer menu, the Nudge UI will be shown the
+			// next time Nudge is launched. If for some reason orbit
+			// restarts (eg: an update) and the user has a pending
+			// OS update, we might show Nudge more than one time
+			// every n.frequency.
+			//
+			// Note that this only happens for the "Later" option,
+			// all other options behave as expected and Nudge will
+			// respect the time chosen (eg: next day) and it won't
+			// show up even if it's opened multiple times in that
+			// interval.
+			cmd := exec.Command(nudge.ExecPath, "-json-url", fmt.Sprintf("file://%s", cfgFile))
 			cmd.Stderr = os.Stderr
 			cmd.Stdout = os.Stdout
 			log.Info().Str("cmd", cmd.String()).Msg("start Nudge")

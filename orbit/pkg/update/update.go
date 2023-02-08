@@ -73,15 +73,10 @@ func (ts Targets) SetTargetChannel(target, channel string) {
 }
 
 // SetTargetInfo sets/updates the TargetInfo for the given target.
-func (u *Updater) SetTargetInfo(name, platform, channel, file string, extractedExecSubPath []string) {
+func (u *Updater) SetTargetInfo(name string, info TargetInfo) {
 	u.mu.Lock()
 	defer u.mu.Unlock()
-	u.opt.Targets[name] = TargetInfo{
-		Platform:             platform,
-		Channel:              channel,
-		TargetFile:           file,
-		ExtractedExecSubPath: extractedExecSubPath,
-	}
+	u.opt.Targets[name] = info
 }
 
 // RemoveTargetInfo removes the TargetInfo for the given target.
