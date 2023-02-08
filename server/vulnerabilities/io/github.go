@@ -24,10 +24,10 @@ type ReleaseLister interface {
 	) ([]*github.RepositoryRelease, *github.Response, error)
 }
 
-// GitHubAPI allows users to interact with the MSRC artifacts published on Github.
+// GitHubAPI allows users to interact with the metadata artifacts published on Github.
 type GitHubAPI interface {
 	Download(string) (string, error)
-	Bulletins(context.Context) (map[MetadataFileName]string, error)
+	MSRCBulletins(context.Context) (map[MetadataFileName]string, error)
 }
 
 type GitHubClient struct {
@@ -46,8 +46,8 @@ func NewGitHubClient(client *http.Client, releases ReleaseLister, workDir string
 	}
 }
 
-// Download downloads the security bulletin located at 'URL' in 'workDir', returns the path of
-// the downloaded bulletin.
+// Download downloads the metadata file located at 'URL' in 'workDir', returns the path of
+// the downloaded metadata file.
 func (gh GitHubClient) Download(URL string) (string, error) {
 	u, err := url.Parse(URL)
 	if err != nil {
@@ -63,7 +63,11 @@ func (gh GitHubClient) Download(URL string) (string, error) {
 }
 
 // Bulletins returns a map of 'bulletin name' => 'download URL' of the bulletins stored as assets on Github.
-func (gh GitHubClient) Bulletins(ctx context.Context) (map[MetadataFileName]string, error) {
+func (gh GitHubClient) MSRCBulletins(ctx context.Context) (map[MetadataFileName]string, error) {
+	return gh.list(ctx, MSRCFilePrefix, NewMSRCMetadataFileName)
+}
+
+func (gh GitHubClient) list(ctx context.Context, prefix string, ctor func(fileName string) MetadataFileName) (map[MetadataFileName]string, error) {
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 
@@ -85,8 +89,8 @@ func (gh GitHubClient) Bulletins(ctx context.Context) (map[MetadataFileName]stri
 
 	for _, e := range releases[0].Assets {
 		name := e.GetName()
-		if strings.HasPrefix(name, MSRCFilePrefix) {
-			results[NewMSRCMetadataFileName(name)] = e.GetBrowserDownloadURL()
+		if strings.HasPrefix(name, prefix) {
+			results[ctor(name)] = e.GetBrowserDownloadURL()
 		}
 	}
 	return results, nil

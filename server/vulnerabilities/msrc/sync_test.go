@@ -22,7 +22,7 @@ type testData struct {
 
 type ghMock struct{ testData *testData }
 
-func (gh ghMock) Bulletins(ctx context.Context) (map[io.MetadataFileName]string, error) {
+func (gh ghMock) MSRCBulletins(ctx context.Context) (map[io.MetadataFileName]string, error) {
 	return gh.testData.remoteList, gh.testData.remoteListError
 }
 

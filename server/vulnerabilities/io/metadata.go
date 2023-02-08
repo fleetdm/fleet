@@ -35,7 +35,6 @@ func (sbn MetadataFileName) date() (time.Time, error) {
 	return time.Parse(dateLayout, timeRaw)
 }
 
-// TODO: Move this outhere?
 func ToFileName(prefix string, productName string, date time.Time) string {
 	pName := strings.Replace(productName, " ", "_", -1)
 	return fmt.Sprintf("%s%s-%d_%02d_%02d.%s", prefix, pName, date.Year(), date.Month(), date.Day(), fileExt)
@@ -64,4 +63,8 @@ func (sbn MetadataFileName) ProductName() string {
 	}
 
 	return strings.Replace(parts[0], "_", " ", -1)
+}
+
+func (sbn MetadataFileName) String() string {
+	return sbn.filename
 }

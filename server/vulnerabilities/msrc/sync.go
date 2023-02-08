@@ -81,7 +81,7 @@ func sync(
 	fsClient io.FSAPI,
 	ghClient io.GitHubAPI,
 ) error {
-	remoteURLs, err := ghClient.Bulletins(ctx)
+	remoteURLs, err := ghClient.MSRCBulletins(ctx)
 	if err != nil {
 		return err
 	}

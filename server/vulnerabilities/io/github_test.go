@@ -102,7 +102,7 @@ func TestGithubClient(t *testing.T) {
 	t.Run("#Bulletins", func(t *testing.T) {
 		sut := NewGitHubClient(nil, mockGHReleaseLister{}, t.TempDir())
 
-		bulletins, err := sut.Bulletins(ctx)
+		bulletins, err := sut.MSRCBulletins(ctx)
 		require.NoError(t, err)
 		require.Len(t, bulletins, 2)
 

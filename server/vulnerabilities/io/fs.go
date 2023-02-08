@@ -21,26 +21,30 @@ func NewFSClient(dir string) FSClient {
 	}
 }
 
-// Delete deletes the provided security bulletin name from 'dir'.
+// Delete deletes the provided metadata file from 'dir'.
 func (fs FSClient) Delete(b MetadataFileName) error {
 	path := filepath.Join(fs.dir, b.filename)
 	return os.Remove(path)
 }
 
-// MSRC walks 'dir' returning all security bulletin names.
+// MSRCBulletins walks 'dir' returning all security bulletin files.
 func (fs FSClient) MSRCBulletins() ([]MetadataFileName, error) {
-	var result []MetadataFileName
+	return fs.list(MSRCFilePrefix, NewMSRCMetadataFileName)
+}
 
+func (fs FSClient) list(
+	prefix string,
+	ctor func(filePath string) MetadataFileName,
+) ([]MetadataFileName, error) {
+	var result []MetadataFileName
 	err := filepath.WalkDir(fs.dir, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
-
 		filePath := filepath.Base(path)
-		if strings.HasPrefix(filePath, MSRCFilePrefix) {
-			result = append(result, NewMSRCMetadataFileName(filePath))
+		if strings.HasPrefix(filePath, prefix) {
+			result = append(result, ctor(filePath))
 		}
-
 		return nil
 	})
 	return result, err
