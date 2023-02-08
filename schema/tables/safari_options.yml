@@ -1,0 +1,18 @@
+name: safari_options
+platforms:
+  - darwin
+description: Configuration options for Safari Web Browser
+columns:
+  - name: user_name
+    type: string
+    required: true
+    description: |
+      The User Name the options are presented for.
+  - name: Show_full_url_in_smart_search_field
+    type: integer
+    required: false
+    description: |
+      Is the full website address displayed in Safari .
+notes: >-
+  - This table is not a core osquery table. It is included as part of Fleetd, the osquery manager from Fleet.
+evented: false

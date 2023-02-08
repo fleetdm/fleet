@@ -14,7 +14,6 @@ import (
 	"os/exec"
 	"strings"
 	"syscall"
-	"time"
 )
 
 // GetConsoleUidGid gets the uid and gid of the current (or more accurately, most recently logged
@@ -63,10 +62,7 @@ func GetValFromXMLWithTags(xml string, parentTag string, tag string, tagValue st
 // RunCommand Will run a command with 5 sec timeout (as context).
 // It will return the output as string.
 func RunCommand(ctx context.Context, name string, arg ...string) (res string, err error) {
-	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
 	cmd := exec.CommandContext(ctx, name, arg...)
-
 	out, err := cmd.Output()
 	if err != nil {
 		log.Debug().Err(err).Msg("failed while generating " + name + " table")
