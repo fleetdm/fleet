@@ -786,7 +786,11 @@ func verifyDiskEncryptionKeys(
 
 	decryptable := []uint{}
 	undecryptable := []uint{}
+	var latest time.Time
 	for _, key := range keys {
+		if key.UpdatedAt.After(latest) {
+			latest = key.UpdatedAt
+		}
 		if _, err := apple_mdm.DecryptBase64CMS(key.Base64Encrypted, cert.Leaf, cert.PrivateKey); err != nil {
 			undecryptable = append(undecryptable, key.HostID)
 			continue
@@ -794,11 +798,11 @@ func verifyDiskEncryptionKeys(
 		decryptable = append(decryptable, key.HostID)
 	}
 
-	if err := ds.SetHostsDiskEncryptionKeyStatus(ctx, decryptable, true); err != nil {
+	if err := ds.SetHostsDiskEncryptionKeyStatus(ctx, decryptable, true, latest); err != nil {
 		logger.Log("err", "unable to update decryptable status", "details", err)
 		return err
 	}
-	if err := ds.SetHostsDiskEncryptionKeyStatus(ctx, undecryptable, false); err != nil {
+	if err := ds.SetHostsDiskEncryptionKeyStatus(ctx, undecryptable, false, latest); err != nil {
 		logger.Log("err", "unable to update decryptable status", "details", err)
 		return err
 	}

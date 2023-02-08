@@ -466,7 +466,7 @@ type SetOrUpdateHostDiskEncryptionKeyFunc func(ctx context.Context, hostID uint,
 
 type GetUnverifiedDiskEncryptionKeysFunc func(ctx context.Context) ([]fleet.DiskEncryptionKey, error)
 
-type SetHostsDiskEncryptionKeyStatusFunc func(ctx context.Context, hostIDs []uint, encryptable bool) error
+type SetHostsDiskEncryptionKeyStatusFunc func(ctx context.Context, hostIDs []uint, encryptable bool, threshold time.Time) error
 
 type SetOrUpdateHostOrbitInfoFunc func(ctx context.Context, hostID uint, version string) error
 
@@ -2446,9 +2446,9 @@ func (s *DataStore) GetUnverifiedDiskEncryptionKeys(ctx context.Context) ([]flee
 	return s.GetUnverifiedDiskEncryptionKeysFunc(ctx)
 }
 
-func (s *DataStore) SetHostsDiskEncryptionKeyStatus(ctx context.Context, hostIDs []uint, encryptable bool) error {
+func (s *DataStore) SetHostsDiskEncryptionKeyStatus(ctx context.Context, hostIDs []uint, encryptable bool, threshold time.Time) error {
 	s.SetHostsDiskEncryptionKeyStatusFuncInvoked = true
-	return s.SetHostsDiskEncryptionKeyStatusFunc(ctx, hostIDs, encryptable)
+	return s.SetHostsDiskEncryptionKeyStatusFunc(ctx, hostIDs, encryptable, threshold)
 }
 
 func (s *DataStore) SetOrUpdateHostOrbitInfo(ctx context.Context, hostID uint, version string) error {

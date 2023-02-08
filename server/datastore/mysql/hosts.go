@@ -2353,7 +2353,8 @@ func (ds *Datastore) GetUnverifiedDiskEncryptionKeys(ctx context.Context) ([]fle
 	err := sqlx.SelectContext(ctx, ds.reader, &keys, `
           SELECT
             base64_encrypted,
-            host_id
+            host_id,
+            updated_at
           FROM
             host_disk_encryption_keys
           WHERE
@@ -2362,14 +2363,19 @@ func (ds *Datastore) GetUnverifiedDiskEncryptionKeys(ctx context.Context) ([]fle
 	return keys, err
 }
 
-func (ds *Datastore) SetHostsDiskEncryptionKeyStatus(ctx context.Context, hostIDs []uint, decryptable bool) error {
+func (ds *Datastore) SetHostsDiskEncryptionKeyStatus(
+	ctx context.Context,
+	hostIDs []uint,
+	decryptable bool,
+	threshold time.Time,
+) error {
 	if len(hostIDs) == 0 {
 		return nil
 	}
 
 	query, args, err := sqlx.In(
-		"UPDATE host_disk_encryption_keys SET decryptable = ? WHERE host_id IN (?)",
-		decryptable, hostIDs,
+		"UPDATE host_disk_encryption_keys SET decryptable = ? WHERE host_id IN (?) AND updated_at <= ?",
+		decryptable, hostIDs, threshold,
 	)
 	if err != nil {
 		return err

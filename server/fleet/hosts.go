@@ -641,7 +641,8 @@ type HostMDMCheckinInfo struct {
 }
 
 type DiskEncryptionKey struct {
-	HostID          uint   `db:"host_id"`
-	Base64Encrypted string `db:"base64_encrypted"`
-	Decryptable     *bool  `db:"decryptable"`
+	HostID          uint      `db:"host_id"`
+	Base64Encrypted string    `db:"base64_encrypted"`
+	Decryptable     *bool     `db:"decryptable"`
+	UpdatedAt       time.Time `db:"updated_at"`
 }

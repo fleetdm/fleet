@@ -1004,19 +1004,30 @@ func TestVerifyDiskEncryptionKeysJob(t *testing.T) {
 	fleetCfg := config.TestConfig()
 	config.SetTestMDMConfig(t, &fleetCfg, testCertPEM, testKeyPEM, testBMToken)
 
+	now := time.Now()
+
 	t.Run("able to decrypt", func(t *testing.T) {
 		ds.GetUnverifiedDiskEncryptionKeysFunc = func(ctx context.Context) ([]fleet.DiskEncryptionKey, error) {
-			return []fleet.DiskEncryptionKey{{HostID: 1, Base64Encrypted: base64EncryptedKey}}, nil
+			return []fleet.DiskEncryptionKey{
+				{HostID: 1, Base64Encrypted: base64EncryptedKey, UpdatedAt: now},
+				{HostID: 2, Base64Encrypted: base64EncryptedKey, UpdatedAt: now.Add(time.Hour)},
+				{HostID: 3, Base64Encrypted: "BAD-KEY", UpdatedAt: now.Add(-time.Hour)},
+			}, nil
 		}
 
 		calls := 0
-		ds.SetHostsDiskEncryptionKeyStatusFunc = func(ctx context.Context, hostIDs []uint, encryptable bool) error {
+		ds.SetHostsDiskEncryptionKeyStatusFunc = func(ctx context.Context, hostIDs []uint, decryptable bool, threshold time.Time) error {
 			calls++
-			if encryptable {
-				require.EqualValues(t, []uint{1}, hostIDs)
+			require.Equal(t, now.Add(time.Hour), threshold)
+
+			// first call, decryptable values
+			if decryptable {
+				require.EqualValues(t, []uint{1, 2}, hostIDs)
 				return nil
 			}
-			require.Empty(t, hostIDs)
+
+			// second call, non-decryptable values
+			require.EqualValues(t, []uint{3}, hostIDs)
 			return nil
 		}
 
@@ -1033,7 +1044,7 @@ func TestVerifyDiskEncryptionKeysJob(t *testing.T) {
 		}
 
 		calls := 0
-		ds.SetHostsDiskEncryptionKeyStatusFunc = func(ctx context.Context, hostIDs []uint, encryptable bool) error {
+		ds.SetHostsDiskEncryptionKeyStatusFunc = func(ctx context.Context, hostIDs []uint, encryptable bool, threshold time.Time) error {
 			calls++
 			if !encryptable {
 				require.EqualValues(t, []uint{1}, hostIDs)
