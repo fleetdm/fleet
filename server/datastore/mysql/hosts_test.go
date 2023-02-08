@@ -139,7 +139,7 @@ func TestHosts(t *testing.T) {
 		{"UnenrollFromMDM", testHostsUnenrollFromMDM},
 		{"LoadHostByOrbitNodeKey", testHostsLoadHostByOrbitNodeKey},
 		{"SetOrUpdateHostDiskEncryptionKeys", testHostsSetOrUpdateHostDisksEncryptionKey},
-		{"SetHostDiskEncryptionKeyStatus", testHostsSetDiskEncryptionKeyStatus},
+		{"SetHostsDiskEncryptionKeyStatus", testHostsSetDiskEncryptionKeyStatus},
 		{"GetUnverifiedDiskEncryptionKeys", testHostsGetUnverifiedDiskEncryptionKeys},
 	}
 	for _, c := range cases {
@@ -5269,6 +5269,9 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	// set host orbit info
 	err = ds.SetOrUpdateHostOrbitInfo(context.Background(), host.ID, "1.1.0")
 	require.NoError(t, err)
+	// set an encryption key
+	err = ds.SetOrUpdateHostDiskEncryptionKey(context.Background(), host.ID, "TESTKEY")
+	require.NoError(t, err)
 
 	// Operating system vulnerabilities
 	_, err = ds.writer.Exec(
@@ -6053,7 +6056,7 @@ func testHostsSetOrUpdateHostDisksEncryptionKey(t *testing.T, ds *Datastore) {
 
 	// setting the encryption key to an existing value doesn't change its
 	// encryption status
-	err = ds.SetHostDiskEncryptionKeyStatus(context.Background(), []uint{host.ID}, true)
+	err = ds.SetHostsDiskEncryptionKeyStatus(context.Background(), []uint{host.ID}, true, time.Now().Add(time.Hour))
 	require.NoError(t, err)
 	checkEncryptionKeyStatus(t, ds, host.ID, ptr.Bool(true))
 
@@ -6103,25 +6106,33 @@ func testHostsSetDiskEncryptionKeyStatus(t *testing.T, ds *Datastore) {
 	err = ds.SetOrUpdateHostDiskEncryptionKey(ctx, host2.ID, "TESTKEY")
 	require.NoError(t, err)
 
+	threshold := time.Now().Add(time.Hour)
+
 	// empty set
-	err = ds.SetHostDiskEncryptionKeyStatus(ctx, []uint{}, false)
+	err = ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{}, false, threshold)
+	require.NoError(t, err)
+	checkEncryptionKeyStatus(t, ds, host.ID, nil)
+	checkEncryptionKeyStatus(t, ds, host2.ID, nil)
+
+	// keys that changed after the provided threshold are not updated
+	err = ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{host.ID, host2.ID}, true, threshold.Add(-24*time.Hour))
 	require.NoError(t, err)
 	checkEncryptionKeyStatus(t, ds, host.ID, nil)
 	checkEncryptionKeyStatus(t, ds, host2.ID, nil)
 
 	// single host
-	err = ds.SetHostDiskEncryptionKeyStatus(ctx, []uint{host.ID}, true)
+	err = ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{host.ID}, true, threshold)
 	require.NoError(t, err)
 	checkEncryptionKeyStatus(t, ds, host.ID, ptr.Bool(true))
 	checkEncryptionKeyStatus(t, ds, host2.ID, nil)
 
 	// multiple hosts
-	err = ds.SetHostDiskEncryptionKeyStatus(ctx, []uint{host.ID, host2.ID}, true)
+	err = ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{host.ID, host2.ID}, true, threshold)
 	require.NoError(t, err)
 	checkEncryptionKeyStatus(t, ds, host.ID, ptr.Bool(true))
 	checkEncryptionKeyStatus(t, ds, host2.ID, ptr.Bool(true))
 
-	err = ds.SetHostDiskEncryptionKeyStatus(ctx, []uint{host.ID, host2.ID}, false)
+	err = ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{host.ID, host2.ID}, false, threshold)
 	require.NoError(t, err)
 	checkEncryptionKeyStatus(t, ds, host.ID, ptr.Bool(false))
 	checkEncryptionKeyStatus(t, ds, host2.ID, ptr.Bool(false))
@@ -6164,15 +6175,21 @@ func testHostsGetUnverifiedDiskEncryptionKeys(t *testing.T, ds *Datastore) {
 	keys, err := ds.GetUnverifiedDiskEncryptionKeys(ctx)
 	require.NoError(t, err)
 	require.Len(t, keys, 2)
+	// ensure the updated_at value is grabbed from the database
+	for _, k := range keys {
+		require.NotZero(t, k.UpdatedAt)
+	}
 
-	err = ds.SetHostDiskEncryptionKeyStatus(ctx, []uint{host.ID}, false)
+	threshold := time.Now().Add(time.Hour)
+
+	err = ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{host.ID}, false, threshold)
 	require.NoError(t, err)
 
 	keys, err = ds.GetUnverifiedDiskEncryptionKeys(ctx)
 	require.NoError(t, err)
 	require.Len(t, keys, 1)
 
-	err = ds.SetHostDiskEncryptionKeyStatus(ctx, []uint{host.ID, host2.ID}, false)
+	err = ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{host.ID, host2.ID}, false, threshold)
 	require.NoError(t, err)
 
 	keys, err = ds.GetUnverifiedDiskEncryptionKeys(ctx)

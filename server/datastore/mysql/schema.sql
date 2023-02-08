@@ -180,7 +180,7 @@ CREATE TABLE `host_device_auth` (
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `host_disk_encryption_keys` (
   `host_id` int(10) unsigned NOT NULL,
-  `base64_encrypted` blob NOT NULL,
+  `base64_encrypted` text NOT NULL,
   `decryptable` tinyint(1) DEFAULT NULL,
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,

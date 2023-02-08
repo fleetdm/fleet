@@ -645,7 +645,7 @@ type Datastore interface {
 	GetUnverifiedDiskEncryptionKeys(ctx context.Context) ([]HostDiskEncryptionKey, error)
 	// SetHostDiskEncryptionKeyStatus sets the encryptable status for the set
 	// of encription keys provided
-	SetHostDiskEncryptionKeyStatus(ctx context.Context, hostIDs []uint, encryptable bool) error
+	SetHostsDiskEncryptionKeyStatus(ctx context.Context, hostIDs []uint, encryptable bool, threshold time.Time) error
 	// GetHostDiskEncryptionKey returns the encryption key information for a given host
 	GetHostDiskEncryptionKey(ctx context.Context, hostID uint) (*HostDiskEncryptionKey, error)
 	// SetOrUpdateHostOrbitInfo inserts of updates the orbit info for a host

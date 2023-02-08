@@ -191,6 +191,7 @@ module.exports = {
       //  ██║███████║███████║╚██████╔╝███████╗    ╚██████╗███████╗╚██████╔╝███████║███████╗██████╔╝
       //  ╚═╝╚══════╝╚══════╝ ╚═════╝ ╚══════╝     ╚═════╝╚══════╝ ╚═════╝ ╚══════╝╚══════╝╚═════╝
       //
+      //
       // Handle closed issue by commenting on it.
       let owner = repository.owner.login;
       let repo = repository.name;
@@ -219,9 +220,17 @@ module.exports = {
         max_tokens: 256//eslint-disable-line camelcase
       }, {
         Authorization: `Bearer ${sails.config.custom.openAiSecret}`
+      })
+      .tolerate((err)=>{
+        sails.log('Failed to generate haiku using OpenAI.  Error details from OpenAI:',err);
       });
-      newBotComment = openAiReport.choices[0].text;
-      newBotComment = newBotComment.replace(/^\s*\n*[^\n:]*Haiku[^\n:]*:\s*/i,'');// « eliminate "*Haiku:" prefix line, if one is generated
+
+      if (!openAiReport) {// If OpenAI could not be reached…
+        newBotComment = 'I couldn\'t think of a haiku this time.  (See fleetdm.com logs for more information.)';
+      } else {// Otherwise, haiku was successfully generated…
+        newBotComment = openAiReport.choices[0].text;
+        newBotComment = newBotComment.replace(/^\s*\n*[^\n:]*Haiku[^\n:]*:\s*/i,'');// « eliminate "*Haiku:" prefix line, if one is generated
+      }
 
       // Now that we know what to say, add our comment.
       await sails.helpers.http.post('https://api.github.com/repos/'+encodeURIComponent(owner)+'/'+encodeURIComponent(repo)+'/issues/'+encodeURIComponent(issueNumber)+'/comments',

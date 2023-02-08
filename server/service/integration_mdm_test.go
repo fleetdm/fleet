@@ -629,7 +629,7 @@ func (s *integrationMDMTestSuite) TestMDMAppleGetEncryptionKey() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/encryption_key", host.ID), nil, http.StatusNotFound, &resp)
 
 	// unable to decrypt encryption key
-	err = s.ds.SetHostDiskEncryptionKeyStatus(ctx, []uint{host.ID}, false)
+	err = s.ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{host.ID}, false, time.Now())
 	require.NoError(t, err)
 	resp = getHostEncryptionKeyResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/encryption_key", host.ID), nil, http.StatusNotFound, &resp)
@@ -647,7 +647,7 @@ func (s *integrationMDMTestSuite) TestMDMAppleGetEncryptionKey() {
 
 	// decryptable key
 	checkDecryptableKey := func(u fleet.User) {
-		err = s.ds.SetHostDiskEncryptionKeyStatus(ctx, []uint{host.ID}, true)
+		err = s.ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{host.ID}, true, time.Now())
 		require.NoError(t, err)
 		resp = getHostEncryptionKeyResponse{}
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/encryption_key", host.ID), nil, http.StatusOK, &resp)
