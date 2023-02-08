@@ -211,9 +211,7 @@ You can bypass these errors by removing the key from your YAML or adding the `--
 
 The `mdm` section of this configuration YAML lets you control MDM settings for each team in Fleet.
 
-To specify Team MDM configuration, as opposed to [Organization-wide MDM configuration
-](#mobile-device-management-mdm-settings2), follow the below YAML format. Note the `kind: team`
-field, as well as the  `name` and `mdm` fields within `team`.
+To specify Team MDM configuration, as opposed to [Organization-wide MDM configuration](#mobile-device-management-mdm-settings2), follow the below YAML format. Note the `kind: team` field, as well as the  `name` and `mdm` fields under `team`.
 
 ```yaml
 apiVersion: v1
