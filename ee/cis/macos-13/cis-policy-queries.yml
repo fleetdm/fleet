@@ -429,11 +429,6 @@ spec:
         2. SelectGeneral
         3. SelectSharing
         4. Set Content Caching to disabled
-    Automated methods:
-    Terminal Method:
-      Ask your system administrator to deploy a script that will ensure Content Caching Is Disabled
-      /usr/bin/sudo /usr/bin/AssetCacheManagerUtil deactivate
-      The output will include Content caching deactivated
     Profile Method:
     Create or edit a configuration profile with the following information:
       1. The PayloadType string is com.apple.applicationaccess 
@@ -441,10 +436,7 @@ spec:
       3. The key must be set to <false/>
   query: |
     SELECT 1 WHERE 
-      NOT EXISTS ( 
-        SELECT 1 FROM plist WHERE path='/Library/Preferences/com.apple.AssetCache.plist' AND key = 'Activated' AND value != 0 
-      ) 
-      AND NOT EXISTS (
+      NOT EXISTS (
         SELECT 1 FROM managed_policies WHERE domain = 'com.apple.applicationaccess' AND name = 'allowContentCaching' AND value !=0 
       ) ;
   purpose: Informational
