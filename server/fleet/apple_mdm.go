@@ -3,13 +3,13 @@ package fleet
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
 
 	"github.com/micromdm/nanodep/godep"
 	"github.com/micromdm/nanomdm/mdm"
-	"github.com/pkg/errors"
 	"go.mozilla.org/pkcs7"
 	"howett.net/plist"
 )
@@ -217,7 +217,7 @@ func (mc *Mobileconfig) ParseConfigProfile() (*MDMAppleConfigProfile, error) {
 	if !bytes.HasPrefix(mcBytes, []byte("<?xml")) {
 		p7, err := pkcs7.Parse(mcBytes)
 		if err != nil {
-			return nil, errors.Wrapf(err, "Mobileconfig is not XML nor PKCS7 parseable")
+			return nil, fmt.Errorf("mobileconfig is not XML nor PKCS7 parseable: %w", err)
 		}
 		err = p7.Verify()
 		if err != nil {
