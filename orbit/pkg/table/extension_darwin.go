@@ -9,6 +9,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/pmset"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/privaterelay"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/pwd_policy"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/safari_options"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/user_login_settings"
 	"github.com/macadmins/osquery-extension/tables/filevaultusers"
 	"github.com/macadmins/osquery-extension/tables/macos_profiles"
@@ -29,6 +30,7 @@ func platformTables() []osquery.OsqueryPlugin {
 		table.NewPlugin("nvram_info", nvram_info.Columns(), nvram_info.Generate),
 		table.NewPlugin("authdb", authdb.Columns(), authdb.Generate),
 		table.NewPlugin("pmset", pmset.Columns(), pmset.Generate),
+		table.NewPlugin("safari_options", safari_options.Columns(), safari_options.Generate),
 
 		// Macadmins extension tables
 		table.NewPlugin("filevault_users", filevaultusers.FileVaultUsersColumns(), filevaultusers.FileVaultUsersGenerate),
