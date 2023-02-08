@@ -597,7 +597,7 @@ func TestHostEncryptionKey(t *testing.T) {
 			ds := new(mock.Store)
 			svc, ctx := newTestServiceWithConfig(t, ds, fleetCfg, nil, nil)
 
-			ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+			ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
 				require.Equal(t, tt.host.ID, id)
 				return tt.host, nil
 			}
@@ -645,12 +645,12 @@ func TestHostEncryptionKey(t *testing.T) {
 		ctx = test.UserContext(ctx, test.UserAdmin)
 
 		hostErr := errors.New("host error")
-		ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+		ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
 			return nil, hostErr
 		}
 		_, err := svc.HostEncryptionKey(ctx, 1)
 		require.ErrorIs(t, err, hostErr)
-		ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+		ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
 			return &fleet.Host{}, nil
 		}
 
