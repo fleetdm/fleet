@@ -1614,9 +1614,7 @@ spec:
     Over time, passwords can be captured by third parties through mistakes, phishing attacks, third-party breaches, or merely brute-force attacks. To reduce the risk of exposure and to decrease the incentives of password reuse (passwords that are not forced to be changed periodically generally are not ever changed), users must reset passwords periodically. This control ensures that previous passwords are not reused immediately by keeping a history of previous password hashes. Ensure that password history checks are part of the password policy on the computer. This control checks whether a new password is different than the previous 15. The latest NIST guidance based on exploit research referenced in this section details how one of the greatest risks is password exposure rather than password cracking. Passwords should be changed to a new unique value whenever a password might have been exposed to anyone other than the account holder. Attackers have maintained persistent control based on predictable password change patterns and substantially different patterns should be used in case of a leak.
   resolution: |
     Automated method:
-    Ask your system administrator to deploy an MDM profile that disables Guest Account.
-    Profile Method:
-    Create or edit a configuration profile with the following information:
+    Ask your system administrator to deploy an MDM profile with the following information:
       1. The Payload Type string is com.apple.mobiledevice.passwordpolicy 
       2. The key to include is pinHistory
       3. The key must be set to <integer><value≥15></integer>
@@ -1647,6 +1645,31 @@ spec:
     );
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS5.7
+  contributors: lucasmrod
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure a Login Window Banner Exists
+  platforms: macOS
+  platform: darwin
+  description: |
+    An access warning may reduce a casual attacker's tendency to target the system. Access warnings may also aid
+    in the prosecution of an attacker by evincing the attacker's knowledge of the system's private status,
+    acceptable use policy, and authorization requirements.
+  resolution: |
+    Automated method:
+    Ask your system administrator to deploy the following script:
+      echo "Content of the banner" | sudo tee /Library/Security/PolicyBanner.txt
+      /usr/bin/sudo /usr/sbin/chown root:wheel /Library/Security/PolicyBanner.txt
+      /usr/bin/sudo /bin/chmod o+r /Library/Security/PolicyBanner.txt
+  query: |
+    SELECT 1 FROM file
+    WHERE (path = '/Library/Security/PolicyBanner.txt' OR
+    path = '/Library/Security/PolicyBanner.rtf') AND mode = '0644'
+    AND uid = 0 AND gid = 0;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS5.8
   contributors: lucasmrod
 ---
 apiVersion: v1
