@@ -1378,7 +1378,7 @@ spec:
   query: |
     SELECT 1 WHERE NOT EXISTS (
     SELECT 1 FROM file WHERE 
-      path LIKE '/System/Volumes/Data/System/%%'  
+      path LIKE '/System/Volumes/Data/Library/%%'
       AND type = 'directory' 
       AND directory NOT LIKE '%Caches%' 
       AND directory NOT LIKE '%/Preferences/Audio/Data%' 
