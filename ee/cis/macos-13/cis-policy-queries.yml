@@ -1768,7 +1768,7 @@ spec:
   platforms: macOS
   platform: darwin
   description: |
-    Attackers use websites with malicious or unwanted content to exploit the user or the computer. Part of the attack chain is to lure someone to load their content rather than the desired content. In order to reduce the risk in interacting with unwanted content the full website address should always be displayed in Safari..
+    Attackers use websites with malicious or unwanted content to exploit the user or the computer. Part of the attack chain is to lure someone to load their content rather than the desired content. In order to reduce the risk in interacting with unwanted content the full website address should always be displayed in Safari.
   resolution: |
     Graphical Method:
     Perform the following steps to set Safari to show full website addresses:
