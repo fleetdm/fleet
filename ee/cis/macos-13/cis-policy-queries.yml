@@ -448,6 +448,34 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
+  name: CIS - Ensure Internet Sharing Is Disabled
+  platforms: macOS
+  platform: darwin
+  description: |
+    Internet Sharing uses the open source natd process to share an internet connection with other
+    computers and devices on a local network. This allows the Mac to function as a router and share
+    the connection to other, possibly unauthorized, devices.
+  resolution: |
+    Graphical Method:
+    1. Open System Settings
+    2. Select General
+    3. Select Sharing
+    4. Set Internet Sharing to disabled
+  query: |
+    SELECT 1 WHERE NOT EXISTS (
+      SELECT 1 FROM plist WHERE
+        path = '/Library/Preferences/SystemConfiguration/com.apple.nat.plist' AND
+        key = 'NAT' AND
+        subkey = 'Enabled' AND
+        value = '1'
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS2.3.3.8
+  contributors: artemist-work
+---
+apiVersion: v1
+kind: policy
+spec:
   name: CIS - Ensure Content Caching Is Disabled (MDM Required)
   platforms: macOS
   platform: darwin
