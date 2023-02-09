@@ -647,6 +647,10 @@ The following table lists the Marketing, Brand, and Community group's rituals, f
 | StackOverflow                 | Weekly    | Search StackOverflow for “osquery,” answer questions with Grammarly, and find a way to feature Fleet in your StackOverflow profile prominently | Rotation: Community team |
 
 
+## Roadmap
+
+https://github.com/orgs/fleetdm/projects/37
+
 ## Slack channels
 
 These groups maintain the following [Slack channels](https://fleetdm.com/handbook/company#group-slack-channels):
