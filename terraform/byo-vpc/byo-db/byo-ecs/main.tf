@@ -1,7 +1,11 @@
 locals {
-  environment = [ for k, v in var.fleet_config.extra_environment_variables : {
+  environment = [for k, v in var.fleet_config.extra_environment_variables : {
     name  = k
     value = v
+  }]
+  secrets = [for k, v in var.fleet_config.extra_secrets : {
+    name      = k
+    valueFrom = v
   }]
 }
 
@@ -74,7 +78,7 @@ resource "aws_ecs_task_definition" "backend" {
             hardLimit = 999999
           }
         ],
-        secrets = [
+        secrets = concat([
           {
             name      = "FLEET_MYSQL_PASSWORD"
             valueFrom = var.fleet_config.database.password_secret_arn
@@ -83,7 +87,7 @@ resource "aws_ecs_task_definition" "backend" {
             name      = "FLEET_MYSQL_READ_REPLICA_PASSWORD"
             valueFrom = var.fleet_config.database.password_secret_arn
           }
-        ]
+        ], local.secrets)
         environment = concat([
           {
             name  = "FLEET_MYSQL_USERNAME"

@@ -58,6 +58,7 @@ module "rds" {
   master_password                 = random_password.rds.result
   database_name                   = "fleet"
   skip_final_snapshot             = true
+  snapshot_identifier             = var.rds_config.snapshot_identifier
 }
 
 data "aws_subnet" "redis" {

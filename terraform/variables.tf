@@ -55,6 +55,7 @@ variable "rds_config" {
     db_cluster_parameter_group_name = optional(string)
     enabled_cloudwatch_logs_exports = optional(list(string), [])
     master_username                 = optional(string, "fleet")
+    snapshot_identifier             = optional(string)
   })
   default = {
     name                            = "fleet"
@@ -69,6 +70,7 @@ variable "rds_config" {
     db_cluster_parameter_group_name = null
     enabled_cloudwatch_logs_exports = []
     master_username                 = "fleet"
+    snapshot_identifier             = null
   }
   description = "The config for the terraform-aws-modules/rds-aurora/aws module"
   nullable    = false
