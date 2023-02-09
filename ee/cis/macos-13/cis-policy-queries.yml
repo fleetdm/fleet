@@ -530,6 +530,44 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
+  name: CIS - Ensure Media Sharing Is Disabled (MDM Required)
+  platforms: macOS
+  platform: darwin
+  description: |
+    Starting with macOS 10.15, Apple has provided a control which permits a user to share
+    Apple downloaded content on all Apple devices that are signed in with the same Apple ID.
+    This allows users to share downloaded Movies, Music, or TV shows with other
+    controlled macOS, iOS and iPadOS devices, as well as photos with Apple TVs.
+    Disabling Media Sharing reduces the remote attack surface of the system
+  resolution: |
+    Profile Method:
+    Ask your administrator to deploy a profile that sets
+    homeSharingUIStatus, legacySharingUIStatus, and mediaSharingUIStatus to 0
+    for com.apple.preferences.sharing.SharingPrefsExtension
+  query: |
+    SELECT 1 WHERE EXISTS(
+      SELECT 1 FROM managed_policies WHERE
+        domain = 'com.apple.preferences.sharing.SharingPrefsExtension' AND
+        name = 'homeSharingUIStatus' AND
+        value = '0'
+    ) AND EXISTS (
+      SELECT 1 FROM managed_policies WHERE
+        domain = 'com.apple.preferences.sharing.SharingPrefsExtension' AND
+        name = 'legacySharingUIStatus' AND
+        value = '0'
+    ) AND EXISTS (
+      SELECT 1 FROM managed_policies WHERE
+        domain = 'com.apple.preferences.sharing.SharingPrefsExtension' AND
+        name = 'mediaSharingUIStatus' AND
+        value = '0'
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS2.3.3.10
+  contributors: artemist-work
+---
+apiVersion: v1
+kind: policy
+spec:
   name: CIS - Ensure Backup Automatically is Enabled If Time Machine Is Enabled (FDA Required)
   platforms: macOS
   platform: darwin
