@@ -30,12 +30,12 @@ func (fs FSClient) Delete(b MetadataFileName) error {
 
 // MSRCBulletins walks 'dir' returning all security bulletin files.
 func (fs FSClient) MSRCBulletins() ([]MetadataFileName, error) {
-	return fs.list(MSRCFilePrefix, NewMSRCMetadata)
+	return fs.list(mSRCFilePrefix, NewMSRCMetadata)
 }
 
 // MacOfficeReleaseNotes walks 'dir' returning all mac office release notes
 func (fs FSClient) MacOfficeReleaseNotes() ([]MetadataFileName, error) {
-	return fs.list(MacOfficeReleaseNotesPrefix, NewMacOfficeReleasesMetadata)
+	return fs.list(macOfficeReleaseNotesPrefix, NewMacOfficeRelNotesMetadata)
 }
 
 func (fs FSClient) list(

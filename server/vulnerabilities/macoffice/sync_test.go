@@ -11,12 +11,12 @@ import (
 func TestSync(t *testing.T) {
 	ctx := context.Background()
 	t.Run("#sync", func(t *testing.T) {
-		remote := io.NewMacOfficeReleasesMetadata("macoffice-2023_10_10.json")
+		remote := io.NewMacOfficeRelNotesMetadata("macoffice-2023_10_10.json")
 
 		t.Run("removes multiple out of date copies", func(t *testing.T) {
 			local := []io.MetadataFileName{
-				io.NewMacOfficeReleasesMetadata("macoffice-2022_09_10.json"),
-				io.NewMacOfficeReleasesMetadata("macoffice-2022_08_10.json"),
+				io.NewMacOfficeRelNotesMetadata("macoffice-2022_09_10.json"),
+				io.NewMacOfficeRelNotesMetadata("macoffice-2022_08_10.json"),
 			}
 
 			testData := io.TestData{
@@ -31,7 +31,7 @@ func TestSync(t *testing.T) {
 		})
 
 		t.Run("when local copy is out of date", func(t *testing.T) {
-			local := io.NewMacOfficeReleasesMetadata("macoffice-2022_09_10.json")
+			local := io.NewMacOfficeRelNotesMetadata("macoffice-2022_09_10.json")
 
 			testData := io.TestData{
 				RemoteList: map[io.MetadataFileName]string{remote: "http://someurl.com"},
@@ -46,7 +46,7 @@ func TestSync(t *testing.T) {
 		})
 
 		t.Run("when local copy is not out of date", func(t *testing.T) {
-			local := io.NewMacOfficeReleasesMetadata("macoffice-2023_10_10.json")
+			local := io.NewMacOfficeRelNotesMetadata("macoffice-2023_10_10.json")
 
 			testData := io.TestData{
 				RemoteList: map[io.MetadataFileName]string{remote: "http://someurl.com"},

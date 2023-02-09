@@ -45,7 +45,8 @@ func serialize(relNotes []macoffice.ReleaseNote, d time.Time, dir string) error 
 	if err != nil {
 		return err
 	}
-	fileName := io.ToFileName(io.MacOfficeReleaseNotesPrefix, "macoffice", d)
+
+	fileName := io.MacOfficeRelNotesFileName(d)
 	filePath := filepath.Join(dir, fileName)
 
 	return os.WriteFile(filePath, payload, 0o644)

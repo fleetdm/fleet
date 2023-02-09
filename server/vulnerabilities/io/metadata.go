@@ -8,8 +8,8 @@ import (
 )
 
 const (
-	MSRCFilePrefix              = "fleet_msrc_"
-	MacOfficeReleaseNotesPrefix = "fleet_macoffice_release_notes_"
+	mSRCFilePrefix              = "fleet_msrc_"
+	macOfficeReleaseNotesPrefix = "fleet_macoffice_release_notes_"
 	fileExt                     = "json"
 	dateLayout                  = "2006_01_02"
 )
@@ -23,11 +23,11 @@ type MetadataFileName struct {
 }
 
 func NewMSRCMetadata(filename string) MetadataFileName {
-	return MetadataFileName{prefix: MSRCFilePrefix, filename: filename}
+	return MetadataFileName{prefix: mSRCFilePrefix, filename: filename}
 }
 
-func NewMacOfficeReleasesMetadata(filename string) MetadataFileName {
-	return MetadataFileName{prefix: MacOfficeReleaseNotesPrefix, filename: filename}
+func NewMacOfficeRelNotesMetadata(filename string) MetadataFileName {
+	return MetadataFileName{prefix: macOfficeReleaseNotesPrefix, filename: filename}
 }
 
 func (sbn MetadataFileName) date() (time.Time, error) {
@@ -38,11 +38,6 @@ func (sbn MetadataFileName) date() (time.Time, error) {
 	}
 	timeRaw := strings.TrimSuffix(parts[1], "."+fileExt)
 	return time.Parse(dateLayout, timeRaw)
-}
-
-func ToFileName(prefix string, productName string, date time.Time) string {
-	pName := strings.Replace(productName, " ", "_", -1)
-	return fmt.Sprintf("%s%s-%d_%02d_%02d.%s", prefix, pName, date.Year(), date.Month(), date.Day(), fileExt)
 }
 
 func (sbn MetadataFileName) Before(other MetadataFileName) bool {
@@ -72,4 +67,13 @@ func (sbn MetadataFileName) ProductName() string {
 
 func (sbn MetadataFileName) String() string {
 	return sbn.filename
+}
+
+func MSRCFileName(productName string, date time.Time) string {
+	pName := strings.Replace(productName, " ", "_", -1)
+	return fmt.Sprintf("%s%s-%d_%02d_%02d.%s", mSRCFilePrefix, pName, date.Year(), date.Month(), date.Day(), fileExt)
+}
+
+func MacOfficeRelNotesFileName(date time.Time) string {
+	return fmt.Sprintf("%s%s-%d_%02d_%02d.%s", macOfficeReleaseNotesPrefix, "macoffice", date.Year(), date.Month(), date.Day(), fileExt)
 }

@@ -66,11 +66,11 @@ func (gh GitHubClient) Download(URL string) (string, error) {
 
 // Bulletins returns a map of 'bulletin name' => 'download URL' of the bulletins stored as assets on Github.
 func (gh GitHubClient) MSRCBulletins(ctx context.Context) (map[MetadataFileName]string, error) {
-	return gh.list(ctx, MSRCFilePrefix, NewMSRCMetadata)
+	return gh.list(ctx, mSRCFilePrefix, NewMSRCMetadata)
 }
 
 func (gh GitHubClient) MacOfficeReleaseNotes(ctx context.Context) (MetadataFileName, string, error) {
-	resultMap, err := gh.list(ctx, MacOfficeReleaseNotesPrefix, NewMacOfficeReleasesMetadata)
+	resultMap, err := gh.list(ctx, macOfficeReleaseNotesPrefix, NewMacOfficeRelNotesMetadata)
 	if err != nil {
 		return MetadataFileName{}, "", err
 	}

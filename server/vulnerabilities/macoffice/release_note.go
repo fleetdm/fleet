@@ -1,6 +1,9 @@
 package macoffice
 
-import "time"
+import (
+	"strings"
+	"time"
+)
 
 const RelNotesURL = "https://learn.microsoft.com/en-us/officeupdates/release-notes-office-for-mac"
 
@@ -32,4 +35,21 @@ func (or *ReleaseNote) AddSecurityUpdate(pt ProductType, vuln string) {
 		Product:       pt,
 		Vulnerability: vuln,
 	})
+}
+
+func GetProductTypeFromBundleId(bundle string) (ProductType, bool) {
+	b := strings.ToLower(bundle)
+	switch {
+	case strings.HasPrefix(b, "com.microsoft.powerpoint"):
+		return PowerPoint, true
+	case strings.HasPrefix(b, "com.microsoft.word"):
+		return Word, true
+	case strings.HasPrefix(b, "com.microsoft.excel"):
+		return Excel, true
+	case strings.HasPrefix(b, "com.microsoft.onenote"):
+		return OneNote, true
+	case strings.HasPrefix(b, "com.microsoft.outlook"):
+		return Outlook, true
+	}
+	return WholeSuite, false
 }

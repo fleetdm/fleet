@@ -176,7 +176,7 @@ func patched(
 // loadBulletin loads the most recent bulletin for the given os
 func loadBulletin(os fleet.OperatingSystem, dir string) (*msrc.SecurityBulletin, error) {
 	product := msrc.NewProductFromOS(os)
-	fileName := io.ToFileName(io.MSRCFilePrefix, product.Name(), time.Now())
+	fileName := io.MSRCFileName(product.Name(), time.Now())
 
 	latest, err := utils.LatestFile(fileName, dir)
 	if err != nil {

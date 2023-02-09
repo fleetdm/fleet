@@ -113,7 +113,7 @@ func TestAnalyzer(t *testing.T) {
 			b := parsed.NewSecurityBulletin(prod.Name())
 			b.Products["1235"] = prod
 
-			fileName := io.ToFileName(io.MSRCFilePrefix, b.ProductName, d)
+			fileName := io.MSRCFileName(b.ProductName, d)
 			filePath := filepath.Join(dir, fileName)
 
 			payload, err := json.Marshal(b)
