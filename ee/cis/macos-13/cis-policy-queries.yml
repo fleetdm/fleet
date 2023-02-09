@@ -220,7 +220,7 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure Time Is Set Within Appropriate Limits (fleetd required)
+  name: CIS - Ensure Time Is Set Within Appropriate Limits (Fleetd Required)
   platforms: macOS
   platform: darwin
   description: |
@@ -443,6 +443,34 @@ spec:
   # a service is disabled after it has been enabled in the past.
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS2.3.3.7
+  contributors: artemist-work
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Internet Sharing Is Disabled
+  platforms: macOS
+  platform: darwin
+  description: |
+    Internet Sharing uses the open source natd process to share an internet connection with other
+    computers and devices on a local network. This allows the Mac to function as a router and share
+    the connection to other, possibly unauthorized, devices.
+  resolution: |
+    Graphical Method:
+    1. Open System Settings
+    2. Select General
+    3. Select Sharing
+    4. Set Internet Sharing to disabled
+  query: |
+    SELECT 1 WHERE NOT EXISTS (
+      SELECT 1 FROM plist WHERE
+        path = '/Library/Preferences/SystemConfiguration/com.apple.nat.plist' AND
+        key = 'NAT' AND
+        subkey = 'Enabled' AND
+        value = '1'
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS2.3.3.8
   contributors: artemist-work
 ---
 apiVersion: v1
@@ -778,7 +806,7 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure the OS is not Activate When Resuming from Sleep
+  name: CIS - Ensure the OS is not Activate When Resuming from Sleep (Fleetd, FDA Required)
   platforms: macOS
   platform: darwin
   description: |
@@ -1033,7 +1061,7 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure Users' Accounts Do Not Have a Password Hint (fleetd required)
+  name: CIS - Ensure Users' Accounts Do Not Have a Password Hint (Fleetd Required)
   platforms: macOS
   platform: darwin
   description: |
@@ -1640,7 +1668,7 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure Password Age Is Configured (fleetd required)
+  name: CIS - Ensure Password Age Is Configured (Fleetd Required)
   platforms: macOS
   platform: darwin
   description: |
@@ -1665,7 +1693,7 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure Password History Is Configured (fleetd required)
+  name: CIS - Ensure Password History Is Configured (Fleetd Required)
   platforms: macOS
   platform: darwin
   description: |
@@ -1680,6 +1708,60 @@ spec:
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS5.2.8
   contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure the Sudo Timeout Period Is Set to Zero (Fleetd Required)
+  platforms: macOS
+  platform: darwin
+  description: |
+    The sudo command stays logged in as the root user for five minutes before timing out and re-requesting a password.
+    This five-minute window should be eliminated since it leaves the system extremely vulnerable.
+  resolution: |
+    Automated method:
+    Ask your system administrator to deploy the following script:
+    echo 'Defaults timestamp_timeout=0' | sudo tee -a /etc/sudoers.d/CIS_54_sudoconfiguration
+    /usr/bin/sudo /usr/sbin/chown -R root:wheel /etc/sudoers.d/
+  query: |
+    SELECT 1 WHERE EXISTS(
+      SELECT * FROM file WHERE path = '/etc/sudoers.d' AND uid = 0 AND gid = 0
+    ) AND EXISTS(
+      SELECT
+        COALESCE(JSON_EXTRACT(
+          json_result, '$.Authentication timestamp timeout'
+        ), '') AS authentication_timestamp_timeout
+      FROM sudo_info WHERE authentication_timestamp_timeout = '0.0 minutes'
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS5.4
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure a Separate Timestamp Is Enabled for Each User/tty (Fleetd Required)
+  platforms: macOS
+  platform: darwin
+  description: |
+    Using tty tickets ensures that a user must enter the sudo password in each Terminal session.
+    With sudo versions 1.8 and higher, introduced in 10.12, the default value is to have tty tickets
+    for each interface so that root access is limited to a specific terminal.
+    The default configuration can be overwritten or not configured correctly on earlier versions of macOS.
+  resolution: |
+    Automated method:
+    Ask your system administrator to deploy the following script:
+    echo 'Defaults timestamp_type=tty' | sudo tee /etc/sudoers.d/CIS_55_sudoconfiguration
+  query: |
+    SELECT 1 WHERE EXISTS(
+      SELECT
+        COALESCE(JSON_EXTRACT(
+          json_result, '$.Type of authentication timestamp record'
+        ), '') AS type_of_auth_timestamp_record
+      FROM sudo_info WHERE type_of_auth_timestamp_record = 'tty'
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS5.5
+  contributors: lucasmrod
 ---
 apiVersion: v1
 kind: policy
@@ -1733,6 +1815,36 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
+  name: CIS - Ensure Legacy EFI Is Valid and Updating (Fleetd Required)
+  platforms: macOS
+  platform: darwin
+  description: |
+    In order to mitigate firmware attacks, Apple has created an automated Firmware check to ensure that the EFI version
+    running is a known good version from Apple. There is also an automated process to check it every seven days.
+    This check is only valid on T1 chips and prior. Neither T2 chips nor Apple silicon require this control check
+    If the Firmware of a computer has been compromised, the Operating System that the Firmware loads cannot be trusted, either.
+  resolution: |
+    If EFI does not pass the integrity check, you may send a report to Apple. Backing up files and clean installing a
+    known good Operating System and Firmware is recommended.
+  query: |
+    SELECT 1 FROM firmware_eficheck_integity_check
+    WHERE chip != 'intel-t1' OR (
+      chip = 'intel-t1' AND
+      output LIKE '%Primary allowlist version match found. No changes detected in primary hashes%' AND
+      NOT EXISTS (
+          SELECT * FROM plist WHERE
+          path = '/var/db/com.apple.xpc.launchd/disabled.plist' AND
+          key = 'com.apple.driver.eficheck' AND
+          value = '0'
+      )
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS5.9
+  contributors: lucasmrod
+---
+apiVersion: v1
+kind: policy
+spec:
   name: CIS - Ensure Show All Filename Extensions Setting is Enabled
   platforms: macOS
   platform: darwin
@@ -1764,6 +1876,35 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
+  name: CIS - Ensure Automatic Opening of Safe Files in Safari Is Disabled (MDM Required)
+  platforms: macOS
+  platform: darwin
+  description: |
+    Safari will automatically run or execute what it considers safe files. This can include
+    installers and other files that execute on the operating system. Safari evaluates file safety by
+    using a list of filetypes maintained by Apple. The list of files include text, image, video and
+    archive formats that would be run in the context of the OS rather than the browser.
+    Hackers have taken advantage of this setting via drive-by attacks. These attacks occur when a
+    user visits a legitimate website that has been corrupted. The user unknowingly downloads a
+    malicious file either by closing an infected pop-up or hovering over a malicious banner. An
+    attacker can create a malicious file that will fall within Safari's safe file list that will
+    download and execute without user input.
+  resolution: |
+    Payload Method:
+    Ask your administrator to deploy a profile which disables AutoOpenSafeDownloads in Safari
+  query: |
+    SELECT 1 FROM managed_policies WHERE
+      domain = 'com.apple.Safari' AND
+      name = 'AutoOpenSafeDownloads' AND
+      value = '0'
+      LIMIT 1;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS6.3.1
+  contributors: artemist-work
+---
+apiVersion: v1
+kind: policy
+spec:
   name: CIS - Ensure Prevent Cross-site Tracking in Safari Is Enabled (MDM Required)
   platforms: macOS
   platform: darwin
@@ -1790,4 +1931,38 @@ spec:
     );
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS6.3.4
+  contributors: lucasmrod
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Advertising Privacy Protection in Safari Is Enabled (FDA Required)
+  platforms: macOS
+  platform: darwin
+  description: |
+    Apple provides a framework that allows advertisers to target Apple users and end-users with advertisements.
+    While many people prefer that when they see advertising it is relevant to them and their interests, the detailed
+    information that is data mining collected, correlated, and available to advertisers in repositories is often disconcerting.
+    This information is valuable to both advertisers and attackers and has been used with other metadata to reveal users' identities.
+  resolution: |
+    Automated method:
+    Ask your system administrator to deploy the following script:
+      # For each user run:
+      /usr/bin/sudo -u <username> /usr/bin/defaults write \
+        /Users/<username>/Library/Containers/com.apple.Safari/Data/Library/Preferences/com.apple.Safari \
+        WebKitPreferences.privateClickMeasurementEnabled -bool true
+  query: |
+    SELECT 1 WHERE NOT EXISTS (
+      SELECT 1 FROM users AS u
+      LEFT JOIN (
+        SELECT * FROM plist WHERE
+          path LIKE '/Users/%/Library/Containers/com.apple.Safari/Data/Library/Preferences/com.apple.Safari.plist' AND
+          key = 'WebKitPreferences.privateClickMeasurementEnabled' AND
+          value = '1') AS p
+      ON p.path = CONCAT(u.directory, '/Library/Containers/com.apple.Safari/Data/Library/Preferences/com.apple.Safari.plist')
+      WHERE u.directory LIKE '/Users/%' AND
+      p.value IS NULL
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS6.3.6
   contributors: artemist-work
