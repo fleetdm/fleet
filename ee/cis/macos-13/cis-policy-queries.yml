@@ -1954,10 +1954,15 @@ spec:
       <true/>
   query: |
     SELECT 1 WHERE NOT EXISTS (
-      SELECT * FROM plist      
-      WHERE path LIKE '/Library/Managed Preferences/%/com.apple.Terminal.plist'     
-      AND key = 'SecureKeyboardEntry' 
-      AND value != 1
+        SELECT * FROM plist      
+        WHERE path LIKE '/Library/Managed Preferences/%/com.apple.Terminal.plist'     
+        AND key = 'SecureKeyboardEntry' 
+        AND value != 1
+    ) AND EXISTS (
+        SELECT * FROM plist      
+        WHERE path LIKE '/Library/Managed Preferences/%/com.apple.Terminal.plist'     
+        AND key = 'SecureKeyboardEntry' 
+        AND value == 1
     );
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS6.4.1
