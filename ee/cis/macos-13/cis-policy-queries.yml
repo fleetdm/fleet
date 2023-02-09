@@ -1928,6 +1928,37 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
+  name: CIS - Ensure Prevent Cross-site Tracking in Safari Is Enabled (MDM Required)
+  platforms: macOS
+  platform: darwin
+  description: |
+    Cross-tracking allows data-brokers to follow you across the Internet to enable their business model of
+    selling personal data. Users should protect their data and not volunteer it to marketing companies.
+  resolution: |
+    Automated method:
+    Ask your system administrator to deploy a profile via MDM with the following information:
+      1. The PayloadType string is com.apple.Safari.
+      2. The key to include is BlockStoragePolicy.
+      3. The key must be set to: 2
+      4. The key to also include is WebKitPreferences.storageBlockingPolicy
+      5. The key must be set to: 1
+      6. The key to also include is WebKitStorageBlockingPolicy
+      7. The key must be set to: 1
+  query: |
+    SELECT 1 WHERE EXISTS (
+      SELECT 1 FROM managed_policies WHERE domain = 'com.apple.Safari' AND name = 'BlockStoragePolicy' AND value = '2'
+    ) AND EXISTS (
+      SELECT 1 FROM managed_policies WHERE domain = 'com.apple.Safari' AND name = 'WebKitPreferences.storageBlockingPolicy' AND value = '1'
+    ) AND EXISTS (
+      SELECT 1 FROM managed_policies WHERE domain = 'com.apple.Safari' AND name = 'WebKitStorageBlockingPolicy' AND value = '1'
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS6.3.4
+  contributors: lucasmrod
+---
+apiVersion: v1
+kind: policy
+spec:
   name: CIS - Ensure Advertising Privacy Protection in Safari Is Enabled (FDA Required)
   platforms: macOS
   platform: darwin
