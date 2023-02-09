@@ -2025,17 +2025,9 @@ spec:
       3. The key must be set to
       <true/>
   query: |
-    SELECT 1 WHERE  EXISTS (
-        SELECT * FROM plist      
-        WHERE path LIKE '/Library/Managed Preferences/%/com.apple.Terminal.plist'     
-        AND key = 'SecureKeyboardEntry' 
-        AND value == 1
-    ) AND NOT EXISTS (
-        SELECT * FROM plist      
-        WHERE path LIKE '/Library/Managed Preferences/%/com.apple.Terminal.plist'     
-        AND key = 'SecureKeyboardEntry' 
-        AND value != 1
-    );
+    SELECT 1 from managed_policies WHERE domain = 'com.apple.Terminal'
+      AND name = 'SecureKeyboardEntry' 
+      AND value == 1;
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS6.4.1
   contributors: sharon-fdm
