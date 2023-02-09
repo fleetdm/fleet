@@ -23,3 +23,9 @@ output "extra_secrets" {
     FLEET_MDM_APPLE_BM_KEY_BYTES          = "$aws_secretsmanager_secret.dep.arn}:key::"
   }
 }
+
+output "extra_iam_policies" {
+  value = [
+    aws_iam_policy.main.arn
+  ]
+}

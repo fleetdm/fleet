@@ -11,3 +11,18 @@ resource "aws_secretsmanager_secret" "scep" {
 resource "aws_secretsmanager_secret" "dep" {
   name = var.dep_secret_name
 }
+
+data "aws_iam_policy_document" "main" {
+  statement {
+    actions = ["secretsmanager:GetSecretValue"]
+    resources = [
+      aws_secretsmanager_secret.apn.arn,
+      aws_secretsmanager_secret.scep.arn,
+      aws_secretsmanager_secret.dep.arn,
+    ]
+  }
+}
+
+resource "aws_iam_policy" "main" {
+  policy = data.aws_iam_policy_document.main.json
+}
