@@ -15,6 +15,9 @@ import (
 	"github.com/theupdateframework/go-tuf/client"
 )
 
+// Note(roberto): most of the code below has been taken from the go-tuf repo
+// test suite with minor adaptations to suit our needs.
+
 func newFakeRemoteStore() *fakeRemoteStore {
 	return &fakeRemoteStore{
 		meta:    make(map[string]*fakeFile),
@@ -60,8 +63,8 @@ func (f *fakeFile) Read(p []byte) (int, error) {
 }
 
 func (f *fakeFile) Close() error {
-	f.buf.Seek(0, io.SeekStart)
-	return nil
+	_, err := f.buf.Seek(0, io.SeekStart)
+	return err
 }
 
 type withTUF struct {
