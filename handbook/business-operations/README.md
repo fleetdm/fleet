@@ -516,6 +516,11 @@ The following table lists the People group's rituals, frequency, and Directly Re
 | GitHub contributor experience checkup | End of release cycle | Audit Kanban repositories with CTO and track in KPI spreadsheet. | RevOps |
 
 
+## Roadmap
+
+https://github.com/orgs/fleetdm/projects/51/views/1
+
+
 ## Slack channels
 These groups maintain the following [Slack channels](https://fleetdm.com/handbook/company#group-slack-channels):
 
