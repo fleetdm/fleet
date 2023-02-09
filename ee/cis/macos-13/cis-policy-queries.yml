@@ -1733,7 +1733,7 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure Legacy EFI Is Valid and Updating
+  name: CIS - Ensure Legacy EFI Is Valid and Updating (Fleetd Required)
   platforms: macOS
   platform: darwin
   description: |
