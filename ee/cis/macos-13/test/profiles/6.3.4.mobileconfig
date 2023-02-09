@@ -8,21 +8,25 @@
 			<key>PayloadDisplayName</key>
 			<string>test</string>
 			<key>PayloadType</key>
-			<string>com.apple.SoftwareUpdate</string>
+			<string>com.apple.Safari</string>
 			<key>PayloadIdentifier</key>
-			<string>com.fleetdm.cis-1.2.check</string>
+			<string>com.fleetdm.cis-6.3.4.check</string>
 			<key>PayloadUUID</key>
-			<string>4DC539B5-837E-4DC3-B60B-43A8C556A8F0</string>
-			<key>AutomaticCheckEnabled</key>
-			<true/>
+			<string>E0560069-04EF-4985-815E-987A304F8EB7</string>
+			<key>BlockStoragePolicy</key>
+			<integer>2</integer>
+			<key>WebKitPreferences.storageBlockingPolicy</key>
+			<integer>1</integer>
+			<key>WebKitStorageBlockingPolicy</key>
+			<integer>1</integer>
 		</dict>
 	</array>
 	<key>PayloadDescription</key>
 	<string>test</string>
 	<key>PayloadDisplayName</key>
-	<string>Ensure Auto Update Is Enabled</string>
+	<string>Ensure Prevent Cross-site Tracking in Safari Is Enabled</string>
 	<key>PayloadIdentifier</key>
-	<string>com.fleetdm.cis-1.2</string>
+	<string>com.fleetdm.cis-6.3.4</string>
 	<key>PayloadRemovalDisallowed</key>
 	<false/>
 	<key>PayloadScope</key>
@@ -30,7 +34,7 @@
 	<key>PayloadType</key>
 	<string>Configuration</string>
 	<key>PayloadUUID</key>
-	<string>03E69A02-02CE-4CA0-8F17-3BAAD5D3852F</string>
+	<string>E1D04566-15CE-458C-A0D1-5F6C7B9A6472</string>
 	<key>PayloadVersion</key>
 	<integer>1</integer>
 </dict>
