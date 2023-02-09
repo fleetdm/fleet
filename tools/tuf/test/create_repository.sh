@@ -24,7 +24,7 @@ if [[ -d "$TUF_PATH" ]]; then
     exit 0
 fi
 
-OSQUERY_MACOS_APP_BUNDLE_VERSION=5.6.0
+OSQUERY_MACOS_APP_BUNDLE_VERSION=5.7.0
 SYSTEMS=${SYSTEMS:-macos linux windows}
 
 mkdir -p $TUF_PATH/tmp
