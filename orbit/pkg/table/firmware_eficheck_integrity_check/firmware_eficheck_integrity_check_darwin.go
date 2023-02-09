@@ -3,7 +3,7 @@
 
 // Package firmware_integrity_check implements a table
 // to perform an integrity check for Legacy EFI.
-package firmware_eficheck_integity_check
+package firmware_eficheck_integrity_check
 
 import (
 	"context"
