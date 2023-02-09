@@ -24,7 +24,7 @@ output "extra_secrets" {
   }
 }
 
-output "extra_iam_policies" {
+output "extra_execution_iam_policies" {
   value = [
     aws_iam_policy.main.arn
   ]
