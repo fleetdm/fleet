@@ -1939,7 +1939,7 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure Show Full Website Address in Safari Is Enabled (FDA Required)
+  name: CIS - Ensure Show Full Website Address in Safari Is Enabled (MDM, FDA Required)
   platforms: macOS
   platform: darwin
   description: |
@@ -1960,12 +1960,9 @@ spec:
       3. The key must be set to:
       <true/>
   query: |
-    SELECT 1 WHERE NOT EXISTS (
-      SELECT * FROM plist
-      WHERE path LIKE '/Users/%/Library/Containers/com.apple.Safari/Data/Library/Preferences/com.apple.Safari.plist' 
-      AND key = 'ShowFullURLInSmartSearchField' 
-      AND value != 1
-    );
+      SELECT 1 from managed_policies WHERE domain = 'com.apple.Safari'
+      AND name = 'ShowFullURLInSmartSearchField' 
+      AND value == 1;
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS6.3.7
   contributors: sharon-fdm
