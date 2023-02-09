@@ -117,6 +117,18 @@ We consider Salesforce to be our Rolodex for customer information. During the on
 5. The order will be processed in ~30m.
 
 
+## Backlog contributor experience checkup
+
+Things to check:
+  - Ensure "TBD" column exists.
+  - Ensure "README" column exists, and that its sole info card is accurate, and that the links work.
+  - For any cards that are just a note and not an issue, convert into a confidential issue.
+  - Categorize all cards that are in "TBD" column into their appropriate category column. 
+    - If no category is an obvious fit to you, then leave the card where it is, but add a comment at-mentioning CEO, asking which category to use.
+    - For any cards that seem weird or out of date, add a comment at-mentioning the board DRI asking if this might be a duplicate, or if it's still relevant.
+    - If you find yourself commenting on the same card for the second time, then escalate to CEO within 24 hours (send a list of all relevant issue URLs to CEO).
+
+
 ## Security
 
 At Fleet, we care about security. Here are a few resources about Fleet's security policies and best practices.
