@@ -528,7 +528,9 @@ func main() {
 
 		// add middleware to handle nudge installation and updates
 		const launchNudgeFrequency = 30 * time.Minute
-		configFetcher = update.ApplyNudgeConfigFetcherMiddleware(configFetcher, updateRunner, c.String("root-dir"), launchNudgeFrequency)
+		configFetcher = update.ApplyNudgeConfigFetcherMiddleware(configFetcher, update.NudgeConfigFetcherOptions{
+			UpdateRunner: updateRunner, RootDir: c.String("root-dir"), Interval: launchNudgeFrequency,
+		})
 
 		const orbitFlagsUpdateInterval = 30 * time.Second
 		flagRunner := update.NewFlagRunner(configFetcher, update.FlagUpdateOptions{

@@ -1,108 +1,137 @@
 package update
 
 import (
+	"encoding/json"
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
-	"github.com/fleetdm/fleet/v4/pkg/secure"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
 )
 
-func TestNudgeConfigFetcherAddNudge(t *testing.T) {
-	u := &Updater{opt: Options{Targets: make(map[string]TargetInfo)}}
-	r := &Runner{updater: u}
+func TestNudge(t *testing.T) {
+	testingSuite := new(nudgeTestSuite)
+	testingSuite.s = &testingSuite.Suite
+	suite.Run(t, testingSuite)
+}
 
+type nudgeTestSuite struct {
+	suite.Suite
+	withTUF
+}
+
+func (s *nudgeTestSuite) TestNudgeConfigFetcherAddNudge() {
+	t := s.T()
+	tmpDir := t.TempDir()
+	updater := &Updater{
+		client: s.client,
+		opt:    Options{Targets: make(map[string]TargetInfo), RootDirectory: tmpDir},
+	}
+	runner := &Runner{updater: updater, localHashes: make(map[string][]byte)}
+	interval := time.Minute
 	cfg := &fleet.OrbitConfig{}
-	var f OrbitConfigFetcher
-	f = &dummyConfigFetcher{cfg: cfg}
-	f = ApplyNudgeConfigFetcherMiddleware(f, r)
+	nudgePath := "nudge/macos/stable/nudge.app.tar.gz"
+	runNudgeFn := func(execPath, configPath string) error {
+		return nil
+	}
+
+	var f OrbitConfigFetcher = &dummyConfigFetcher{cfg: cfg}
+	f = ApplyNudgeConfigFetcherMiddleware(f, NudgeConfigFetcherOptions{
+		UpdateRunner: runner,
+		RootDir:      tmpDir,
+		Interval:     interval,
+		runNudgeFn:   runNudgeFn,
+	})
 
 	// nudge is not added to targets if nudge config is not present
 	cfg.NudgeConfig = nil
 	gotCfg, err := f.GetConfig()
 	require.NoError(t, err)
 	require.Equal(t, cfg, gotCfg)
-	targets := r.updater.opt.Targets
+	targets := runner.updater.opt.Targets
 	require.Len(t, targets, 0)
 
+	// set the config
+	cfg.NudgeConfig, err = fleet.NewNudgeConfig(fleet.MacOSUpdates{MinimumVersion: "11", Deadline: "2022-01-04"})
+	require.NoError(t, err)
+
+	// there's an error when the remote repo doesn't have the target yet
+	gotCfg, err = f.GetConfig()
+	require.ErrorContains(t, err, "tuf: file not found")
+	require.Equal(t, cfg, gotCfg)
+
+	// add nuge to the remote
+	s.addRemoteTarget(nudgePath)
+
 	// nudge is added to targets when nudge config is present
-	cfg.NudgeConfig = &fleet.NudgeConfig{}
 	gotCfg, err = f.GetConfig()
 	require.NoError(t, err)
 	require.Equal(t, cfg, gotCfg)
-	targets = r.updater.opt.Targets
+	targets = runner.updater.opt.Targets
 	require.Len(t, targets, 1)
-	expected := TargetInfo{
-		Platform:             "macos",
-		Channel:              "stable",
-		TargetFile:           "nudge.app.tar.gz",
-		ExtractedExecSubPath: []string{"Nudge.app", "Contents", "MacOS", "Nudge"},
-	}
 	ti, ok := targets["nudge"]
 	require.True(t, ok)
-	require.EqualValues(t, expected, ti)
-}
+	require.EqualValues(t, NudgeMacOSTarget, ti)
 
-func TestNudgeConfigFetcherRemoveNudge(t *testing.T) {
-	// setup mock updater with test directory to mock nudge install
-	rootDir := t.TempDir()
-	nudgePath := filepath.Join(rootDir, binDir, "nudge")
-	require.NoError(t, secure.MkdirAll(nudgePath, constant.DefaultDirMode))
-	require.DirExists(t, nudgePath)
-	nudgeInfo := TargetInfo{
-		Platform:             "macos",
-		Channel:              "stable",
-		TargetFile:           "nudge.app.tar.gz",
-		ExtractedExecSubPath: []string{"Nudge.app", "Contents", "MacOS", "Nudge"},
+	// override the custom check since we don't really have an executable
+	ti.CustomCheckExec = func(path string) error {
+		require.Contains(t, path, "/Nudge.app/Contents/MacOS/Nudge")
+		return nil
 	}
-	u := &Updater{opt: Options{RootDirectory: rootDir, Targets: map[string]TargetInfo{"nudge": nudgeInfo}}}
+	runner.updater.opt.Targets["nudge"] = ti
 
-	// setup mock runner with test channels to mock runner interrupt
-	cancel := make(chan struct{})
-	done := make(chan struct{})
-	var canceled bool
-	go func() {
-		select {
-		case <-cancel:
-			canceled = true
-		case <-time.After(1 * time.Second):
-			canceled = false
-		}
-		close(done)
-	}()
-	r := &Runner{cancel: cancel, opt: RunnerOptions{Targets: []string{"nudge"}}, updater: u}
+	// trigger an update check
+	updated, err := runner.UpdateAction()
+	require.NoError(t, err)
+	require.True(t, updated)
 
-	// settup config fetcher
-	cfg := &fleet.OrbitConfig{}
-	var f OrbitConfigFetcher
-	f = &dummyConfigFetcher{cfg: cfg}
-	f = ApplyNudgeConfigFetcherMiddleware(f, r)
-
-	// if nudge config is present
-	cfg.NudgeConfig = &fleet.NudgeConfig{}
-	gotCfg, err := f.GetConfig()
+	// doesn't re-update after an update
+	gotCfg, err = f.GetConfig()
 	require.NoError(t, err)
 	require.Equal(t, cfg, gotCfg)
-	targets := r.updater.opt.Targets
-	require.Len(t, targets, 1)
-	gotInfo, ok := targets["nudge"]
-	require.True(t, ok)
-	require.EqualValues(t, nudgeInfo, gotInfo)
-	require.DirExists(t, nudgePath)
-	require.False(t, canceled)
+	updated, err = runner.UpdateAction()
+	require.NoError(t, err)
+	require.False(t, updated)
 
-	// if nudge config is not present, nudge is removed from targets and filesystem
+	// runner hashes are updated
+	b, ok := runner.localHashes["nudge"]
+	require.True(t, ok)
+	require.NotEmpty(t, b)
+
+	// a config is created on the next run after install
+	gotCfg, err = f.GetConfig()
+	require.NoError(t, err)
+	require.Equal(t, cfg, gotCfg)
+	configBytes, err := os.ReadFile(filepath.Join(tmpDir, nudgeConfigFile))
+	require.NoError(t, err)
+	var savedConfig fleet.NudgeConfig
+	err = json.Unmarshal(configBytes, &savedConfig)
+	require.NoError(t, err)
+	require.Equal(t, cfg.NudgeConfig, &savedConfig)
+
+	// config on disk changes if the config from the server changes
+	cfg.NudgeConfig.OSVersionRequirements[0].RequiredMinimumOSVersion = "13.1.1"
+	gotCfg, err = f.GetConfig()
+	require.NoError(t, err)
+	require.Equal(t, cfg, gotCfg)
+	configBytes, err = os.ReadFile(filepath.Join(tmpDir, nudgeConfigFile))
+	require.NoError(t, err)
+	savedConfig = fleet.NudgeConfig{}
+	err = json.Unmarshal(configBytes, &savedConfig)
+	require.NoError(t, err)
+	require.Equal(t, cfg.NudgeConfig, &savedConfig)
+
+	// nudge is removed from targets when the config config is present
 	cfg.NudgeConfig = nil
 	gotCfg, err = f.GetConfig()
 	require.NoError(t, err)
 	require.Equal(t, cfg, gotCfg)
-	targets = r.updater.opt.Targets
-	require.Len(t, targets, 0)
-
-	<-done
-	require.NoDirExists(t, nudgePath)
-	require.True(t, canceled)
+	targets = runner.updater.opt.Targets
+	require.Empty(t, targets)
+	ti, ok = targets["nudge"]
+	require.False(t, ok)
+	require.Empty(t, ti)
 }

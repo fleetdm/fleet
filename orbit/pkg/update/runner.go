@@ -131,6 +131,13 @@ func (r *Runner) StoreLocalHash(target string) error {
 	return nil
 }
 
+func (r *Runner) HasLocalHash(target string) bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	_, ok := r.localHashes[target]
+	return ok
+}
+
 // Execute begins a loop checking for updates.
 func (r *Runner) Execute() error {
 	log.Debug().Msg("start updater")

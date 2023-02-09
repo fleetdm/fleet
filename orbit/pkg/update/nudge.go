@@ -25,30 +25,28 @@ type NudgeConfigFetcher struct {
 	// Fetcher is the OrbitConfigFetcher that will be wrapped. It is responsible
 	// for actually returning the orbit configuration or an error.
 	Fetcher OrbitConfigFetcher
-
-	// UpdateRunner is the wrapped Runner where Nudge will be set as a target. It is responsible for
-	// actually ensuring that Nudge is installed and updated via the designated TUF server.
-	UpdateRunner *Runner
-
-	// rootDir is where the Nudge configuration will be stored
-	rootDir string
-
-	// frequency is the minimum amount of time that must pass to launch
-	// Nudge
-	frequency time.Duration
-
+	opt     NudgeConfigFetcherOptions
 	// ensures only one command runs at a time, protects access to lastRun
 	cmdMu   sync.Mutex
 	lastRun time.Time
 }
 
-func ApplyNudgeConfigFetcherMiddleware(
-	f OrbitConfigFetcher,
-	u *Runner,
-	rootDir string,
-	frequency time.Duration,
-) OrbitConfigFetcher {
-	return &NudgeConfigFetcher{Fetcher: f, UpdateRunner: u, rootDir: rootDir, frequency: frequency}
+type NudgeConfigFetcherOptions struct {
+	// UpdateRunner is the wrapped Runner where Nudge will be set as a target. It is responsible for
+	// actually ensuring that Nudge is installed and updated via the designated TUF server.
+	UpdateRunner *Runner
+	// rootDir is where the Nudge configuration will be stored
+	RootDir string
+	// frequency is the minimum amount of time that must pass to launch
+	// Nudge
+	Interval time.Duration
+	// runNudgeFn can be set in tests to mock the command executed to
+	// run Nudge.
+	runNudgeFn func(execPath, configPath string) error
+}
+
+func ApplyNudgeConfigFetcherMiddleware(f OrbitConfigFetcher, opt NudgeConfigFetcherOptions) OrbitConfigFetcher {
+	return &NudgeConfigFetcher{Fetcher: f, opt: opt}
 }
 
 // GetConfig calls the wrapped Fetcher's GetConfig method, and detects if the
@@ -77,24 +75,27 @@ func (n *NudgeConfigFetcher) GetConfig() (*fleet.OrbitConfig, error) {
 		// runner/updater we ensure Nudge won't be opened/updated again
 		// but we don't actually remove the file from disk. We
 		// knowingly decided to do this as a post MVP optimization.
-		n.UpdateRunner.RemoveRunnerOptTarget("nudge")
-		n.UpdateRunner.updater.RemoveTargetInfo("nudge")
+		n.opt.UpdateRunner.RemoveRunnerOptTarget("nudge")
+		n.opt.UpdateRunner.updater.RemoveTargetInfo("nudge")
 		return cfg, nil
 	}
 
-	if !n.UpdateRunner.HasRunnerOptTarget("nudge") {
-		log.Info().Msg("adding nudge as target")
-		n.UpdateRunner.AddRunnerOptTarget("nudge")
-		n.UpdateRunner.updater.SetTargetInfo("nudge", NudgeMacOSTarget)
-		return cfg, n.UpdateRunner.StoreLocalHash("nudge")
+	updaterHasTarget := n.opt.UpdateRunner.HasRunnerOptTarget("nudge")
+	runnerHasLocalHash := n.opt.UpdateRunner.HasLocalHash("nudge")
+	if !updaterHasTarget || !runnerHasLocalHash {
+		log.Info().Msg("refreshing the update runner config with Nudge targets and hashes")
+		return cfg, n.setTargetsAndHashes()
+	}
+	if err := n.opt.UpdateRunner.StoreLocalHash("nudge"); err != nil {
+		return cfg, err
 	}
 
-	if err := n.manageNudgeConfig(*cfg.NudgeConfig); err != nil {
+	if err := n.configure(*cfg.NudgeConfig); err != nil {
 		log.Info().Err(err).Msg("nudge configuration")
 		return cfg, err
 	}
 
-	if err := n.manageNudgeLaunch(); err != nil {
+	if err := n.launch(); err != nil {
 		log.Info().Err(err).Msg("nudge launch")
 		return cfg, err
 	}
@@ -102,13 +103,26 @@ func (n *NudgeConfigFetcher) GetConfig() (*fleet.OrbitConfig, error) {
 	return cfg, nil
 }
 
-func (n *NudgeConfigFetcher) manageNudgeConfig(nudgeCfg fleet.NudgeConfig) error {
+func (n *NudgeConfigFetcher) setTargetsAndHashes() error {
+	n.opt.UpdateRunner.AddRunnerOptTarget("nudge")
+	n.opt.UpdateRunner.updater.SetTargetInfo("nudge", NudgeMacOSTarget)
+	// we don't want to keep nudge as a target if we failed to update the
+	// cached hashes in the runner.
+	if err := n.opt.UpdateRunner.StoreLocalHash("nudge"); err != nil {
+		n.opt.UpdateRunner.RemoveRunnerOptTarget("nudge")
+		n.opt.UpdateRunner.updater.RemoveTargetInfo("nudge")
+		return err
+	}
+	return nil
+}
+
+func (n *NudgeConfigFetcher) configure(nudgeCfg fleet.NudgeConfig) error {
 	jsonCfg, err := json.Marshal(nudgeCfg)
 	if err != nil {
 		return err
 	}
 
-	cfgFile := filepath.Join(n.rootDir, nudgeConfigFile)
+	cfgFile := filepath.Join(n.opt.RootDir, nudgeConfigFile)
 	writeConfig := func() error {
 		return os.WriteFile(cfgFile, jsonCfg, constant.DefaultWorldReadableFileMode)
 	}
@@ -140,14 +154,14 @@ func (n *NudgeConfigFetcher) manageNudgeConfig(nudgeCfg fleet.NudgeConfig) error
 	return nil
 }
 
-func (n *NudgeConfigFetcher) manageNudgeLaunch() error {
-	cfgFile := filepath.Join(n.rootDir, nudgeConfigFile)
+func (n *NudgeConfigFetcher) launch() error {
+	cfgFile := filepath.Join(n.opt.RootDir, nudgeConfigFile)
 
 	if n.cmdMu.TryLock() {
 		defer n.cmdMu.Unlock()
 
-		if time.Since(n.lastRun) > n.frequency {
-			nudge, err := n.UpdateRunner.updater.localTarget("nudge")
+		if time.Since(n.lastRun) > n.opt.Interval {
+			nudge, err := n.opt.UpdateRunner.updater.localTarget("nudge")
 			if err != nil {
 				return err
 			}
@@ -155,32 +169,42 @@ func (n *NudgeConfigFetcher) manageNudgeLaunch() error {
 			// before moving forward, check that the file at the
 			// path is the file we're about to open hasn't been
 			// tampered with.
-			meta, err := n.UpdateRunner.updater.Lookup("nudge")
+			meta, err := n.opt.UpdateRunner.updater.Lookup("nudge")
 			if err != nil {
 				return err
 			}
+			// if we can't find the file, or the hash doesn't match
+			// make sure nudge is added as a target and the hashes
+			// are refreshed>
 			if err := checkFileHash(meta, nudge.Path); err != nil {
-				return err
+				return n.setTargetsAndHashes()
 			}
 
-			// TODO(roberto): when an user selects "Later" from the
-			// Nudge defer menu, the Nudge UI will be shown the
-			// next time Nudge is launched. If for some reason orbit
-			// restarts (eg: an update) and the user has a pending
-			// OS update, we might show Nudge more than one time
-			// every n.frequency.
-			//
-			// Note that this only happens for the "Later" option,
-			// all other options behave as expected and Nudge will
-			// respect the time chosen (eg: next day) and it won't
-			// show up even if it's opened multiple times in that
-			// interval.
-			cmd := exec.Command(nudge.ExecPath, "-json-url", fmt.Sprintf("file://%s", cfgFile))
-			cmd.Stderr = os.Stderr
-			cmd.Stdout = os.Stdout
-			log.Info().Str("cmd", cmd.String()).Msg("start Nudge")
-			if err := cmd.Run(); err != nil {
-				return fmt.Errorf("open path %q: %w", cfgFile, err)
+			fn := n.opt.runNudgeFn
+			if fn == nil {
+				fn = func(execPath, configPath string) error {
+					// TODO(roberto): when an user selects "Later" from the
+					// Nudge defer menu, the Nudge UI will be shown the
+					// next time Nudge is launched. If for some reason orbit
+					// restarts (eg: an update) and the user has a pending
+					// OS update, we might show Nudge more than one time
+					// every n.frequency.
+					//
+					// Note that this only happens for the "Later" option,
+					// all other options behave as expected and Nudge will
+					// respect the time chosen (eg: next day) and it won't
+					// show up even if it's opened multiple times in that
+					// interval.
+					cmd := exec.Command(execPath, "-json-url", configPath)
+					cmd.Stderr = os.Stderr
+					cmd.Stdout = os.Stdout
+					log.Info().Str("cmd", cmd.String()).Msg("start Nudge")
+					return cmd.Run()
+				}
+			}
+
+			if err := fn(nudge.ExecPath, fmt.Sprintf("file://%s", cfgFile)); err != nil {
+				return fmt.Errorf("opening Nudge with config %q: %w", cfgFile, err)
 			}
 
 			n.lastRun = time.Now()
