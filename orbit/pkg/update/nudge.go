@@ -35,9 +35,9 @@ type NudgeConfigFetcherOptions struct {
 	// UpdateRunner is the wrapped Runner where Nudge will be set as a target. It is responsible for
 	// actually ensuring that Nudge is installed and updated via the designated TUF server.
 	UpdateRunner *Runner
-	// rootDir is where the Nudge configuration will be stored
+	// RootDir is where the Nudge configuration will be stored
 	RootDir string
-	// frequency is the minimum amount of time that must pass to launch
+	// Interval is the minimum amount of time that must pass to launch
 	// Nudge
 	Interval time.Duration
 	// runNudgeFn can be set in tests to mock the command executed to
