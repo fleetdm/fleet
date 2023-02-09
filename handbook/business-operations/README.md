@@ -108,6 +108,7 @@ When the final signature is added to an envelope in DocuSign, it is marked as co
       link: drive.google.com/[destinationFolderID]
    ```
 
+
 ## Salesforce 
 We consider Salesforce to be our Rolodex for customer information. During the onboarding process, you may need to add a license for the new hire. Here are the steps we take: 
 1. Go to “Your account.”
@@ -209,6 +210,7 @@ The steps for doing this are highlighted in this loom, TODO.
 5. Sync hours
 6. Run contractor payroll
 
+
 ## Reimbursements
 We provide all of our team members with Brex cards for making purchases for the company. Fleet will reimburse team members who pay for work-related expenses with their personal funds.
 Team members can request reimbursement through [Gusto]([https://app.gusto.com/expenses](https://support.gusto.com/article/209831449100000/Get-reimbursed-for-expenses-as-an-employee)) if they're in the US or [Pilot]([https://pilot.co/](https://help.pilot.co/en/articles/4658204-how-to-request-a-reimbursement#:~:text=If%20you%20made%20a%20purchase,and%20click%20'Add%20new%20expense.)) if they are an international team member. When submitting an expense report, team members need to provide the receipt and a description of the expense.
@@ -219,9 +221,6 @@ Operations will review the expense and reach out to the team member if they have
 ## Performance feedback
 At Fleet, performance feedback is a continuous process. We give feedback (particularly negative) as soon as possible. Most feedback will happen during 1:1 meetings, if not sooner.
 Founders evaluate and update compensation decisions yearly, shortly after the anniversary of a team member's start date.
-
-
-
 
 
 ## Key reviews
@@ -274,7 +273,6 @@ We use these prefixes to organize the Fleet Slack:
 In consideration of our team, Fleet avoids using global tags in channels (i.e. @here, @channel, etc). 
       1. What about polls? Good question, Fleeties are asked to post their poll in the channel and @mention the teammates they would like to hear from. 
       2. Why does this matter? Great question! The Fleet [culture](https://fleetdm.com/handbook/company#culture) is pretty simple: think of others, and remember the company [Values](https://fleetdm.com/handbook/company#values).
-
 
 
 ## Open positions
@@ -491,30 +489,31 @@ The following table lists the People group's rituals, frequency, and Directly Re
 | Weekly update | Weekly | Updates from managers on what their departments accomplished for the week are logged in the cloud and disseminated in Slack. Update the ops KPIs in the ["🌈 Weekly updates" spreadsheet](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0).| Charlie Chance | 
 | Hours update | Weekly | Screenshots of contractor hours as shown in Gusto are sent via Slack to each contractor's manager with no further action necessary if everything appears normal. | Charlie Chance |
 | Prepare Mike and Sid's 1:1 doc | Bi-weekly | Run through the document preparation GitHub issue for Mike's call with Sid. | Nathanael Holliday |
-| OKR review | Every three weeks | Review the status of each OKR. | Mike Thomas |
 | Brex reconciliation | Monthly | Make sure all company-issued credit card transactions include memos. | Nathanael Holliday |
 | Monthly accounting | Monthly | Use the monthly accounting template in GitHub to go through the process of validating Fleet's books. | Nathanael Holliday |
 | Commission payroll | Monthly | Use the [commission calculator](https://docs.google.com/spreadsheets/d/1vw6Q7kCC7-FdG5Fgx3ghgUdQiF2qwxk6njgK6z8_O9U/edit#gid=0) to determine the commission payroll to be run in Gusto. | Nathanael Holliday |
 | US contractor payroll | Monthly | Sync contractor hours to payments in Gusto and run payroll for the month. | Charlie Chance |
-| OKR planning | Quarterly | Plan for the next quarter's OKRs. | Mike Thomas |
 | 550C update | Annually | File California 550C. | Charlie Chance |
-| Workiversaries | Weekly/PRN | People Operations posts in #g-people and tags @mikermcneil about any upcoming workiversaries | Charlie Chance |
-| Investor and Advisor updates | PRN | People Operations tracks the last contact with investors and coordinates outreach with CEO | Charlie Chance |
-| CEO inbox sweep | Daily unless OOO | Charlie does a morning sweep of the CEO's inbox to remove spam and grab action items | Charlie Chance |
-| Recruiting progress checkup | Weekly | Charlie looks in the [Fleeties spreadsheet](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) and reports on each open position | Charlie Chance |
-| Payroll | Monthly before payroll runs | Every month, Charlie audits the payroll platforms for accuracy | Charlie Chance |
-| Calendar audit | Daily | Daily Charlie audits CEOs calendar and set notes for meetings | Charlie Chance |
-| TPA verifications | Quarterly | Every quarter before tax filing due dates, Charlie audits state accounts to ensure TPA is set up or renewed | Charlie Chance |
-| OKR table update | Quarterly | Every quarter after OKRs are finalized, Charlie adds the OKR doc file to the table on Product's page | Charlie Chance |
-| Revenue report | Weekly | At the start of every week, check the Salesforce reports for past due invoices, non-invoiced opportunities, and past due renewals.  Report any findings to Mike Mcneil and Alex Mitchell in the #help-sales channel and follow up with customers as necessary to resolve. | Nathanael Holliday |
-| Capital credit reporting | Annually | Within 60 days of the new year, provide financial statements to SVB | Nathanael Holliday |
-| QBO check | Quarterly | The first month after the previous quarter has closed, make sure that QBO is accurate compared to Fleet's records | Nathanael Holliday | 
-| BizOps key review | every three weeks | Every release cycle a key review deck is prepared and presented | Nathanael Holliday |
+| Workiversaries | Weekly/PRN | People Operations posts in `#g-people` and tags @mikermcneil about any upcoming workiversaries. | Charlie Chance |
+| Investor and Advisor updates | PRN | People Operations tracks the last contact with investors and coordinates outreach with CEO. | Charlie Chance |
+| CEO inbox sweep | Daily unless OOO | Charlie does a morning sweep of the CEO's inbox to remove spam and grab action items. | Charlie Chance |
+| Recruiting progress checkup | Weekly | Charlie looks in the [Fleeties spreadsheet](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) and reports on each open position. | Charlie Chance |
+| Payroll | Monthly before payroll runs | Every month, Charlie audits the payroll platforms for accuracy. | Charlie Chance |
+| Calendar audit | Daily | Daily Charlie audits CEOs calendar and set notes for meetings. | Charlie Chance |
+| TPA verifications | Quarterly | Every quarter before tax filing due dates, Charlie audits state accounts to ensure TPA is set up or renewed. | Charlie Chance |
+| Revenue report | Weekly | At the start of every week, check the Salesforce reports for past due invoices, non-invoiced opportunities, and past due renewals.  Report any findings to Mike Mcneil and Alex Mitchell in the `#g-sales` channel and follow up with customers as necessary to resolve. | Nathanael Holliday |
+| Capital credit reporting | Annually | Within 60 days of the new year, provide financial statements to SVB. | Nathanael Holliday |
+| QBO check | Quarterly | The first month after the previous quarter has closed, make sure that QBO is accurate compared to Fleet's records. | Nathanael Holliday | 
+| Business Ops key review | every three weeks | Every release cycle a key review deck is prepared and presented. | Nathanael Holliday |
 | YubiKey adoption | Monthly | Track YubiKey adoption in Google workspace and follow up with those that aren't using it. | Charlie Chance |
 | MDM device enrollment | Quarterly | Provide export of MDM enrolled devices to the ops team. | Luke Heath |
 | Access revalidation | Quarterly | Review critical access groups to make sure they contain only relevant people. | Charlie Chance |
 | Security policy update | Annually | Update security policies and have them approved by the CEO. | Nathanael Holliday |
 | Security notifications check | Daily | Check Slack, Google, Vanta, and Fleet dogfood for security-related notifications. | Nathanael Holliday |
+| Changeset for onboarding issue template | Quarterly | pull up the changeset in the onboarding issue template and send out a link to the diff to all team members by posting in Slack's `#general` channel. | Charlie Chance |
+| Kanban contributor experience checkup | End of release cycle | Audit Kanban board for issues that are pending completion. | Nathanael Holliday
+| Backlog contributor experience checkup | End of release cycle | Audit Kanban board for issues that need prioritization in the Kanban backlog. | Nathanael Holliday |
+| GitHub contributor experience checkup | End of release cycle | Audit Kanban repositories with CTO and track in KPI spreadsheet. | RevOps |
 
 
 ## Slack channels
