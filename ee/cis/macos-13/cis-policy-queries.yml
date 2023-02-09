@@ -2011,7 +2011,7 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure Secure Keyboard Entry Terminal.app Is Enabled
+  name: CIS - Ensure Secure Keyboard Entry Terminal.app Is Enabled (DMD Required)
   platforms: macOS
   platform: darwin
   description: |
