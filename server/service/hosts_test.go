@@ -2,6 +2,8 @@ package service
 
 import (
 	"context"
+	"crypto/x509"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"testing"
@@ -9,14 +11,19 @@ import (
 
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/server/authz"
+	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
+	nanodep_client "github.com/micromdm/nanodep/client"
+	"github.com/micromdm/nanodep/tokenpki"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.mozilla.org/pkcs7"
 )
 
 func TestHostDetails(t *testing.T) {
@@ -507,4 +514,161 @@ func TestEmptyTeamOSVersions(t *testing.T) {
 	_, err = svc.OSVersions(test.UserContext(ctx, test.UserAdmin), ptr.Uint(4), ptr.String("darwin"), nil, nil)
 	require.Error(t, err)
 	require.Equal(t, "some unknown error", fmt.Sprint(err))
+}
+
+func TestHostEncryptionKey(t *testing.T) {
+	cases := []struct {
+		name            string
+		host            *fleet.Host
+		allowedUsers    []*fleet.User
+		disallowedUsers []*fleet.User
+	}{
+		{
+			name: "global host",
+			host: &fleet.Host{
+				ID:       1,
+				Platform: "darwin",
+				NodeKey:  ptr.String("test_key"),
+				Hostname: "test_hostname",
+				UUID:     "test_uuid",
+				TeamID:   nil,
+			},
+			allowedUsers: []*fleet.User{
+				test.UserAdmin,
+				test.UserMaintainer,
+				test.UserObserver,
+			},
+			disallowedUsers: []*fleet.User{
+				test.UserTeamAdminTeam1,
+				test.UserTeamMaintainerTeam1,
+				test.UserTeamObserverTeam1,
+				test.UserNoRoles,
+			},
+		},
+		{
+			name: "team host",
+			host: &fleet.Host{
+				ID:       2,
+				Platform: "darwin",
+				NodeKey:  ptr.String("test_key_2"),
+				Hostname: "test_hostname_2",
+				UUID:     "test_uuid_2",
+				TeamID:   ptr.Uint(1),
+			},
+			allowedUsers: []*fleet.User{
+				test.UserAdmin,
+				test.UserMaintainer,
+				test.UserObserver,
+				test.UserTeamAdminTeam1,
+				test.UserTeamMaintainerTeam1,
+				test.UserTeamObserverTeam1,
+			},
+			disallowedUsers: []*fleet.User{
+				test.UserTeamAdminTeam2,
+				test.UserTeamMaintainerTeam2,
+				test.UserTeamObserverTeam2,
+				test.UserNoRoles,
+			},
+		},
+	}
+
+	testBMToken := &nanodep_client.OAuth1Tokens{
+		ConsumerKey:       "test_consumer",
+		ConsumerSecret:    "test_secret",
+		AccessToken:       "test_access_token",
+		AccessSecret:      "test_access_secret",
+		AccessTokenExpiry: time.Date(2999, 1, 1, 0, 0, 0, 0, time.UTC),
+	}
+	testCert, testKey, err := apple_mdm.NewSCEPCACertKey()
+	require.NoError(t, err)
+	testCertPEM := tokenpki.PEMCertificate(testCert.Raw)
+	testKeyPEM := tokenpki.PEMRSAPrivateKey(testKey)
+
+	fleetCfg := config.TestConfig()
+	config.SetTestMDMConfig(t, &fleetCfg, testCertPEM, testKeyPEM, testBMToken)
+
+	recoveryKey := "AAA-BBB-CCC"
+	encryptedKey, err := pkcs7.Encrypt([]byte(recoveryKey), []*x509.Certificate{testCert})
+	require.NoError(t, err)
+	base64EncryptedKey := base64.StdEncoding.EncodeToString(encryptedKey)
+
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			ds := new(mock.Store)
+			svc, ctx := newTestServiceWithConfig(t, ds, fleetCfg, nil, nil)
+
+			ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+				require.Equal(t, tt.host.ID, id)
+				return tt.host, nil
+			}
+
+			ds.GetHostDiskEncryptionKeyFunc = func(ctx context.Context, id uint) (*fleet.HostDiskEncryptionKey, error) {
+				return &fleet.HostDiskEncryptionKey{
+					Base64Encrypted: base64EncryptedKey,
+					Decryptable:     ptr.Bool(true),
+				}, nil
+			}
+
+			ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+				act := activity.(fleet.ActivityTypeReadHostDiskEncryptionKey)
+				require.Equal(t, tt.host.ID, act.HostID)
+				require.EqualValues(t, act.HostDisplayName, tt.host.DisplayName())
+				return nil
+			}
+
+			t.Run("allowed users", func(t *testing.T) {
+				for _, u := range tt.allowedUsers {
+					_, err := svc.HostEncryptionKey(test.UserContext(ctx, u), tt.host.ID)
+					require.NoError(t, err)
+				}
+			})
+
+			t.Run("disallowed users", func(t *testing.T) {
+				for _, u := range tt.disallowedUsers {
+					_, err := svc.HostEncryptionKey(test.UserContext(ctx, u), tt.host.ID)
+					require.Error(t, err)
+					require.Contains(t, authz.ForbiddenErrorMessage, err.Error())
+				}
+			})
+
+			t.Run("no user in context", func(t *testing.T) {
+				_, err := svc.HostEncryptionKey(ctx, tt.host.ID)
+				require.Error(t, err)
+				require.Contains(t, authz.ForbiddenErrorMessage, err.Error())
+			})
+		})
+	}
+
+	t.Run("test error cases", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil)
+		ctx = test.UserContext(ctx, test.UserAdmin)
+
+		hostErr := errors.New("host error")
+		ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+			return nil, hostErr
+		}
+		_, err := svc.HostEncryptionKey(ctx, 1)
+		require.ErrorIs(t, err, hostErr)
+		ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+			return &fleet.Host{}, nil
+		}
+
+		keyErr := errors.New("key error")
+		ds.GetHostDiskEncryptionKeyFunc = func(ctx context.Context, id uint) (*fleet.HostDiskEncryptionKey, error) {
+			return nil, keyErr
+		}
+		_, err = svc.HostEncryptionKey(ctx, 1)
+		require.ErrorIs(t, err, keyErr)
+		ds.GetHostDiskEncryptionKeyFunc = func(ctx context.Context, id uint) (*fleet.HostDiskEncryptionKey, error) {
+			return &fleet.HostDiskEncryptionKey{Base64Encrypted: "key"}, nil
+		}
+
+		ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+			return errors.New("activity error")
+		}
+
+		_, err = svc.HostEncryptionKey(ctx, 1)
+		require.Error(t, err)
+	})
 }

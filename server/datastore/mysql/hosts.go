@@ -429,6 +429,7 @@ FROM
   LEFT JOIN host_updates hu ON (h.id = hu.host_id)
   LEFT JOIN host_disks hd ON hd.host_id = h.id
   LEFT JOIN host_mdm hmdm on hmdm.host_id = h.id
+  LEFT JOIN host_disk_encryption_keys hdek ON hdek.host_id = h.id
   JOIN (
     SELECT
       count(*) as count
@@ -490,6 +491,16 @@ const hostMDMSelect = `,
 		CASE
 			WHEN hmdm.is_server = 1 THEN NULL
 			ELSE hmdm.server_url
+		END,
+		'encryption_key_available',
+		CASE
+                       /* roberto: this is the only way I have found for MySQL to
+                        * return true and false instead of 0 and 1 in the JSON, the
+                        * unmarshaller was having problems converting int values to
+                        * booleans.
+                        */
+			WHEN hdek.decryptable IS NULL OR hdek.decryptable = 0 THEN CAST(FALSE AS JSON)
+			ELSE CAST(TRUE AS JSON)
 		END
 	) mdm_host_data
 	`
@@ -685,7 +696,8 @@ func (ds *Datastore) applyHostFilters(opt fleet.HostListOptions, sql string, fil
     LEFT JOIN host_updates hu ON (h.id = hu.host_id)
     LEFT JOIN teams t ON (h.team_id = t.id)
     LEFT JOIN host_disks hd ON hd.host_id = h.id
-	LEFT JOIN host_mdm hmdm ON hmdm.host_id = h.id
+    LEFT JOIN host_mdm hmdm ON hmdm.host_id = h.id
+    LEFT JOIN host_disk_encryption_keys hdek ON hdek.host_id = h.id
     %s
     %s
     %s
@@ -1485,6 +1497,7 @@ func (ds *Datastore) SearchHosts(ctx context.Context, filter fleet.TeamFilter, m
   LEFT JOIN host_updates hu ON (h.id = hu.host_id)
   LEFT JOIN host_disks hd ON hd.host_id = h.id
   LEFT JOIN host_mdm hmdm on hmdm.host_id = h.id
+  LEFT JOIN host_disk_encryption_keys hdek ON hdek.host_id = h.id
   WHERE TRUE`
 
 	var args []interface{}
@@ -1592,6 +1605,7 @@ func (ds *Datastore) HostByIdentifier(ctx context.Context, identifier string) (*
 	LEFT JOIN host_updates hu ON (h.id = hu.host_id)
     LEFT JOIN host_disks hd ON hd.host_id = h.id
 	LEFT JOIN host_mdm hmdm ON hmdm.host_id = h.id
+    LEFT JOIN host_disk_encryption_keys hdek ON hdek.host_id = h.id
     WHERE ? IN (h.hostname, h.osquery_host_id, h.node_key, h.uuid)
     LIMIT 1
 	`
@@ -2348,8 +2362,8 @@ func (ds *Datastore) SetOrUpdateHostDiskEncryptionKey(ctx context.Context, hostI
 
 }
 
-func (ds *Datastore) GetUnverifiedDiskEncryptionKeys(ctx context.Context) ([]fleet.DiskEncryptionKey, error) {
-	var keys []fleet.DiskEncryptionKey
+func (ds *Datastore) GetUnverifiedDiskEncryptionKeys(ctx context.Context) ([]fleet.HostDiskEncryptionKey, error) {
+	var keys []fleet.HostDiskEncryptionKey
 	err := sqlx.SelectContext(ctx, ds.reader, &keys, `
           SELECT
             base64_encrypted,
@@ -2382,6 +2396,25 @@ func (ds *Datastore) SetHostsDiskEncryptionKeyStatus(
 	}
 	_, err = ds.writer.ExecContext(ctx, query, args...)
 	return err
+}
+
+func (ds *Datastore) GetHostDiskEncryptionKey(ctx context.Context, hostID uint) (*fleet.HostDiskEncryptionKey, error) {
+	var key fleet.HostDiskEncryptionKey
+	err := sqlx.GetContext(ctx, ds.reader, &key, `
+          SELECT
+            host_id, base64_encrypted, decryptable, updated_at
+          FROM
+            host_disk_encryption_keys
+          WHERE host_id = ?`, hostID)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			msg := fmt.Sprintf("for host %d", hostID)
+			return nil, ctxerr.Wrap(ctx, notFound("HostDiskEncryptionKey").WithMessage(msg))
+		}
+		return nil, ctxerr.Wrapf(ctx, err, "getting data from host_mdm for host_id %d", hostID)
+	}
+	return &key, nil
 }
 
 func (ds *Datastore) SetOrUpdateHostOrbitInfo(ctx context.Context, hostID uint, version string) error {
