@@ -49,6 +49,15 @@ module.exports = {
         }
       });
     }
+    // Set a currentSection variable for the website header
+    let currentSection;
+    if(category === 'success-stories'){
+      currentSection = 'platform';
+    } else if(_.contains(['deploy','guides','releases'], category)) {
+      currentSection = 'documentation';
+    } else {
+      currentSection = 'community';
+    }
 
     return {
       path: require('path'),
@@ -56,6 +65,7 @@ module.exports = {
       category,
       markdownPages: sails.config.builtStaticContent.markdownPages,
       compiledPagePartialsAppPath: sails.config.builtStaticContent.compiledPagePartialsAppPath,
+      currentSection,
     };
 
   }

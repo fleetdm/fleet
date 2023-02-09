@@ -61,6 +61,17 @@ module.exports = {
       pageDescriptionForMeta = _.trimRight(thisPage.meta.articleTitle, '.') + ' by ' + thisPage.meta.authorFullName;
     }//ﬁ
 
+    // Set a currentSection variable for the website header
+    let currentSection;
+    if(articleCategorySlug === 'success-stories'){
+      currentSection = 'platform';
+    } else if(_.contains(['deploy','guides','releases'], articleCategorySlug)) {
+      currentSection = 'documentation';
+    } else {
+      currentSection = 'community';
+    }
+
+
     // Respond with view.
     return {
       path: require('path'),
@@ -70,7 +81,8 @@ module.exports = {
       pageTitleForMeta,
       pageDescriptionForMeta,
       pageImageForMeta: thisPage.meta.articleImageUrl || undefined,
-      articleCategorySlug
+      articleCategorySlug,
+      currentSection,
     };
 
   }
