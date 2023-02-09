@@ -8,21 +8,21 @@
 			<key>PayloadDisplayName</key>
 			<string>test</string>
 			<key>PayloadType</key>
-			<string>com.apple.mobiledevice.passwordpolicy</string>
+			<string>com.apple.Safari</string>
 			<key>PayloadIdentifier</key>
-			<string>com.fleetdm.cis-5.2.2.check</string>
+			<string>com.fleetdm.cis-6.3.7.check</string>
 			<key>PayloadUUID</key>
-			<string>A7C54C32-6519-4335-A673-B20D3015B432</string>
-			<key>minLength</key>
-			<integer>15</integer>
+			<string>A78B534C-0E6D-46C0-97F1-D50178AC5AD0</string>
+			<key>ShowFullURLInSmartSearchField</key>
+			<true/>
 		</dict>
 	</array>
 	<key>PayloadDescription</key>
 	<string>test</string>
 	<key>PayloadDisplayName</key>
-	<string>Ensure Password Minimum Length Is Configured</string>
+	<string>Ensure Show Full Website Address in Safari Is Enabled</string>
 	<key>PayloadIdentifier</key>
-	<string>com.fleetdm.cis-5.2.2</string>
+	<string>com.fleetdm.cis-6.3.7</string>
 	<key>PayloadRemovalDisallowed</key>
 	<false/>
 	<key>PayloadScope</key>
@@ -30,7 +30,7 @@
 	<key>PayloadType</key>
 	<string>Configuration</string>
 	<key>PayloadUUID</key>
-	<string>415F567D-83F4-4AB5-BCFA-7AC8B707DCFD</string>
+	<string>5A412D8E-5951-42A3-95ED-BD82AD6D3038</string>
 	<key>PayloadVersion</key>
 	<integer>1</integer>
 </dict>
