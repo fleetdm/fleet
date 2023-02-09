@@ -207,17 +207,25 @@ html, body {
       background-color: @core-vibrant-red;
       text-decoration: none;
     }
-    [purpose='header-nav-btn'][aria-expanded='true'] {
+    [purpose='header-nav-btn'][aria-expanded='true'], [purpose='header-nav-btn']:hover {
       font-weight: 700;
       outline: none;
+    }
+    [purpose='header-nav-btn']:before {
+      display: block;
+      content: attr(button-text);
+      font-weight: bold;
+      height: 0;
+      overflow: hidden;
+      visibility: hidden;
     }
     [purpose='header-nav-btn'] {
       color: #192147;
       font-weight: 400;
       cursor: pointer;
+      display: inline-block;
     }
     &:hover {
-      font-weight: 700;
       text-decoration: none;
     }
     &:focus {
@@ -227,7 +235,8 @@ html, body {
       color: @core-fleet-black;
       text-decoration: none;
       line-height: 23px;
-    }&:hover {
+    }
+    &:hover {
       font-weight: 700;
     }
     [purpose='header-dropdown'] {
