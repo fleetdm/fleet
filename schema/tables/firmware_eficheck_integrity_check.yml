@@ -9,7 +9,6 @@ columns:
     description: |
       Contains the chip type, values are "apple", "intel-t1" and "intel-t2".
       If chip type is "apple" or "intel-t2" then no eficheck integrity check is executed.
-columns:
   - name: output
     type: text
     required: false
