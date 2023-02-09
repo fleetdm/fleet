@@ -15,3 +15,8 @@ variable "dep_secret_name" {
   nullable = false
   type     = string
 }
+
+variable "public_domain_name" {
+  nullable = false
+  type     = string
+}
