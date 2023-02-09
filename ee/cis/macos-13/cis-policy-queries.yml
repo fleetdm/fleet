@@ -1772,10 +1772,10 @@ spec:
   resolution: |
     Graphical Method:
     Perform the following steps to set Safari to show full website addresses:
-      1. OpenSafari
+      1. Open Safari
       2. Select Safari from the menu bar
-      3. SelectSettings
-      4. SelectSecurity
+      3. Select Settings
+      4. Select Security
       5. Set Show full website address to enabled
     Automated method:
     Ask your system administrator to deploy a script that will ensure Show All Filename Extensions Setting is Enabled
