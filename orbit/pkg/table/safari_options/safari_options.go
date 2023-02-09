@@ -9,6 +9,7 @@ import (
 	"fmt"
 	tbl_common "github.com/fleetdm/fleet/v4/orbit/pkg/table/common"
 	"github.com/osquery/osquery-go/plugin/table"
+	"strings"
 )
 
 // Columns is the schema of the table.
@@ -32,6 +33,7 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 		return nil, fmt.Errorf("generate failed: %w", err)
 	}
 
+	res = strings.TrimSuffix(res, "\n")
 	return []map[string]string{{
 		"user_name":                           userName,
 		"show_full_url_in_smart_search_field": res,

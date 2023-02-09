@@ -1783,15 +1783,22 @@ spec:
         /Users/<username>/Library/Containers/com.apple.Safari/Data/Library/Preferences/com.apple.Safari ShowFullURLInSmartSearchField -bool true
   query: |
     SELECT 1 WHERE NOT EXISTS (
-      SELECT
-        u.username, s.user_name
-      FROM
+      SELECT 1 FROM 
         users AS u
-        INNER JOIN safari_opitons s
-      ON (u.username = s.user_name)
-      WHERE
-      show_full_url_in_smart_search_field = 0
+        LEFT JOIN 
+        safari_options AS s
+      ON s.user_name = u.username
+      WHERE u.directory LIKE '/Users/%' 
+      AND s.show_full_url_in_smart_search_field != 1
     );
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS6.3.7
   contributors: sharon-fdm
+    
+    
+   
+
+
+
+
+
