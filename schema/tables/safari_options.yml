@@ -8,7 +8,7 @@ columns:
     required: true
     description: |
       The User Name the options are presented for.
-  - name: Show_full_url_in_smart_search_field
+  - name: show_full_url_in_smart_search_field
     type: integer
     required: false
     description: |
