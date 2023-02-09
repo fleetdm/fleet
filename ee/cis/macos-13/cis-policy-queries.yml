@@ -230,7 +230,7 @@ spec:
   query: SELECT * FROM sntp_request WHERE server = 'time.apple.com' AND clock_offset_ms <= 270000 AND clock_offset_ms >= -270000;
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS2.3.2.2
-  contributors: 
+  contributors: lucasmrod 
 ---
 apiVersion: v1
 kind: policy
@@ -2077,26 +2077,26 @@ spec:
   tags: compliance, CIS, CIS_Level1, CIS6.3.7
   contributors: sharon-fdm
 ---
-  apiVersion: v1
-  kind: policy
-  spec:
-    name: CIS - Ensure Secure Keyboard Entry Terminal.app Is Enabled (MDM Required)
-    platforms: macOS
-    platform: darwin
-    description: |
-      Secure Keyboard Entry prevents other applications on the system and/or network from detecting and recording what is typed into Terminal. Unauthorized applications and malicious code could intercept keystrokes entered in the Terminal.
-      Enabling Secure Keyboard Entry minimizes the risk of a key logger from detecting what is entered in Terminal.
-    resolution: |
-      Profile Method:
-      Create or edit a configuration profile with the following information:
-        1. The PayloadType string is com.apple.Terminal 
-        2. The key to include is SecureKeyboardEntry
-        3. The key must be set to
-        <true/>
-    query: |
-      SELECT 1 from managed_policies WHERE domain = 'com.apple.Terminal'
-        AND name = 'SecureKeyboardEntry' 
-        AND value == 1;
-    purpose: Informational
-    tags: compliance, CIS, CIS_Level1, CIS6.4.1
-    contributors: sharon-fdm
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Secure Keyboard Entry Terminal.app Is Enabled (MDM Required)
+  platforms: macOS
+  platform: darwin
+  description: |
+    Secure Keyboard Entry prevents other applications on the system and/or network from detecting and recording what is typed into Terminal. Unauthorized applications and malicious code could intercept keystrokes entered in the Terminal.
+    Enabling Secure Keyboard Entry minimizes the risk of a key logger from detecting what is entered in Terminal.
+  resolution: |
+    Profile Method:
+    Create or edit a configuration profile with the following information:
+      1. The PayloadType string is com.apple.Terminal 
+      2. The key to include is SecureKeyboardEntry
+      3. The key must be set to
+      <true/>
+  query: |
+    SELECT 1 from managed_policies WHERE domain = 'com.apple.Terminal'
+      AND name = 'SecureKeyboardEntry' 
+      AND value == 1;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS6.4.1
+  contributors: sharon-fdm
