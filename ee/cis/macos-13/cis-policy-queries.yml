@@ -1814,3 +1814,37 @@ spec:
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS6.1.1
   contributors: artemist-work
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Advertising Privacy Protection in Safari Is Enabled (FDA Required)
+  platforms: macOS
+  platform: darwin
+  description: |
+    Apple provides a framework that allows advertisers to target Apple users and end-users with advertisements.
+    While many people prefer that when they see advertising it is relevant to them and their interests, the detailed
+    information that is data mining collected, correlated, and available to advertisers in repositories is often disconcerting.
+    This information is valuable to both advertisers and attackers and has been used with other metadata to reveal users' identities.
+  resolution: |
+    Automated method:
+    Ask your system administrator to deploy the following script:
+      # For each user run:
+      /usr/bin/sudo -u <username> /usr/bin/defaults write \
+        /Users/<username>/Library/Containers/com.apple.Safari/Data/Library/Preferences/com.apple.Safari \
+        WebKitPreferences.privateClickMeasurementEnabled -bool true
+  query: |
+    SELECT 1 WHERE NOT EXISTS (
+      SELECT 1 FROM users AS u
+      LEFT JOIN (
+        SELECT * FROM plist WHERE
+          path LIKE '/Users/%/Library/Containers/com.apple.Safari/Data/Library/Preferences/com.apple.Safari.plist' AND
+          key = 'WebKitPreferences.privateClickMeasurementEnabled' AND
+          value = '1') AS p
+      ON p.path = CONCAT(u.directory, '/Library/Containers/com.apple.Safari/Data/Library/Preferences/com.apple.Safari.plist')
+      WHERE u.directory LIKE '/Users/%' AND
+      p.value IS NULL
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS6.3.6
+  contributors: artemist-work
