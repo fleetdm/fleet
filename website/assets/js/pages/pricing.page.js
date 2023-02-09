@@ -8,16 +8,37 @@ parasails.registerPage('pricing', {
     estimatedUltimateCostPerHost: 7,
     displaySecurityPricingMode: true, // For pricing mode switch
     estimatedUltimateCostPerHostHasBeenUpdated: false,
+    securityFocusedPricingTable: [],
+    itFocusedPricingTable: [],
+    pricingTableToDisplay: [],
   },
 
   //  ╦  ╦╔═╗╔═╗╔═╗╦ ╦╔═╗╦  ╔═╗
   //  ║  ║╠╣ ║╣ ║  ╚╦╝║  ║  ║╣
   //  ╩═╝╩╚  ╚═╝╚═╝ ╩ ╚═╝╩═╝╚═╝
   beforeMount: function() {
-    //…
+    this.securityFocusedPricingTable = _.clone(this.pricingTable);
+    this.itFocusedPricingTable = _.clone(this.pricingTable);
+    this.securityFocusedPricingTable.sort((a,b)=>{
+      if(a.categoryName === 'Security and compliance') {
+        return -1;
+      } else if (b.categoryName === 'Device management'){
+        return -1;
+      }
+    });
+    this.pricingTableToDisplay = this.securityFocusedPricingTable;
   },
   mounted: async function(){
     //…
+  },
+  watch: {
+    displaySecurityPricingMode: function() {
+      if(!this.displaySecurityPricingMode) {
+        this.pricingTableToDisplay = this.itFocusedPricingTable;
+      } else {
+        this.pricingTableToDisplay = this.securityFocusedPricingTable;
+      }
+    }
   },
 
   //  ╦╔╗╔╔╦╗╔═╗╦═╗╔═╗╔═╗╔╦╗╦╔═╗╔╗╔╔═╗
