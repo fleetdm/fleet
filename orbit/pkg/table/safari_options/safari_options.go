@@ -15,7 +15,7 @@ import (
 func Columns() []table.ColumnDefinition {
 	return []table.ColumnDefinition{
 		table.TextColumn("user_name"), // required
-		table.TextColumn("Show_full_url_in_smart_search_field"),
+		table.TextColumn("show_full_url_in_smart_search_field"),
 	}
 }
 
@@ -34,7 +34,7 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 
 	return []map[string]string{{
 		"user_name":                           userName,
-		"Show_full_url_in_smart_search_field": res,
+		"show_full_url_in_smart_search_field": res,
 	}}, nil
 }
 
