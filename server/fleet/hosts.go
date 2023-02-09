@@ -220,6 +220,9 @@ type MDMHostData struct {
 	// ServerURL is the server_url stored in the host_mdm table, loaded by
 	// JOIN in datastore
 	ServerURL *string `json:"server_url" db:"-" csv:"mdm.server_url"`
+	// EncryptionKeyAvailable indicates if Fleet was able to retrieve and
+	// decode an encryption key for the host.
+	EncryptionKeyAvailable bool `json:"encryption_key_available" db:"-" csv:"-"`
 }
 
 // Scan implements the Scanner interface for sqlx, to support unmarshaling a
@@ -640,9 +643,10 @@ type HostMDMCheckinInfo struct {
 	DisplayName      string `json:"display_name" db:"display_name"`
 }
 
-type DiskEncryptionKey struct {
-	HostID          uint      `db:"host_id"`
-	Base64Encrypted string    `db:"base64_encrypted"`
-	Decryptable     *bool     `db:"decryptable"`
-	UpdatedAt       time.Time `db:"updated_at"`
+type HostDiskEncryptionKey struct {
+	HostID          uint      `json:"-" db:"host_id"`
+	Base64Encrypted string    `json:"-" db:"base64_encrypted"`
+	Decryptable     *bool     `json:"-" db:"decryptable"`
+	UpdatedAt       time.Time `json:"updated_at" db:"updated_at"`
+	DecryptedValue  string    `json:"key" db:"-"`
 }

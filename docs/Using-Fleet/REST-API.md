@@ -1723,6 +1723,7 @@ None.
 - [Get aggregated host's mobile device management (MDM) and Munki information](#get-aggregated-hosts-macadmin-mobile-device-management-mdm-and-munki-information)
 - [Get host OS versions](#get-host-os-versions)
 - [Get hosts report in CSV](#get-hosts-report-in-csv)
+- [Get host's disk encryption key](#get-hosts-disk-encryption-key)
 
 ### On the different timestamps in the host data structure
 
@@ -1864,6 +1865,7 @@ If `after` is being used with `created_at` or `updated_at`, the table must be sp
         }
       },
       "mdm": {
+        "encryption_key_available": false,
         "enrollment_status": null,
         "server_url": null
       }
@@ -2243,6 +2245,7 @@ Returns the information of the specified host.
       }
     },
     "mdm": {
+      "encryption_key_available": false,
       "enrollment_status": null,
       "server_url": null
     }
@@ -2421,6 +2424,7 @@ Returns the information of the host specified using the `uuid`, `osquery_host_id
     "display_text": "dogfood-ubuntu-box",
     "display_name": "dogfood-ubuntu-box",
     "mdm": {
+      "encryption_key_available": false,
       "enrollment_status": null,
       "server_url": null
     }
@@ -2987,6 +2991,42 @@ created_at,updated_at,id,detail_updated_at,label_updated_at,policy_updated_at,la
 2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,1,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,false,foo.local0,a4fc55a1-b5de-409c-a2f4-441f564680d3,debian,,,,,,0s,0,,,,0,0,,,,,,,,,0,0,0,,,0,0,0,,,,
 2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:22:56Z,false,foo.local1,689539e5-72f0-4bf7-9cc5-1530d3814660,rhel,,,,,,0s,0,,,,0,0,,,,,,,,,0,0,0,,,0,0,0,,,,
 2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,3,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:21:56Z,false,foo.local2,48ebe4b0-39c3-4a74-a67f-308f7b5dd171,linux,,,,,,0s,0,,,,0,0,,,,,,,,,0,0,0,,,0,0,0,,,,
+```
+
+### Get host's disk encryption key
+
+Requires the [macadmins osquery extension](https://github.com/macadmins/osquery-extension) which comes bundled
+in [Fleet's osquery installers](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
+
+Requires Fleet's MDM properly [enabled and configured](./Mobile-device-management.md).
+
+Retrieves the disk encryption key for a host.
+
+`GET /api/v1/fleet/hosts/:id/encryption_key`
+
+#### Parameters
+
+| Name | Type    | In   | Description                                                        |
+| ---- | ------- | ---- | ------------------------------------------------------------------ |
+| id   | integer | path | **Required** The id of the host to get the disk encryption key for |
+
+
+#### Example
+
+`GET /api/v1/fleet/hosts/8/encryption_key`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "host_id": 8,
+  "encryption_key": {
+    "key": "5ADZ-HTZ8-LJJ4-B2F8-JWH3-YPBT",
+    "updated_at": "2022-12-01T05:31:43Z"
+  }
+}
 ```
 
 ---
