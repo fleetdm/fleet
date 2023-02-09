@@ -11,9 +11,119 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
+	"github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
 	"github.com/micromdm/nanodep/godep"
 )
+
+func (ds *Datastore) NewMDMAppleConfigProfile(ctx context.Context, cp fleet.MDMAppleConfigProfile) (*fleet.MDMAppleConfigProfile, error) {
+	stmt := `
+INSERT INTO
+    mdm_apple_configuration_profiles (team_id, identifier, name, mobileconfig)
+VALUES (?, ?, ?, ?)`
+
+	res, err := ds.writer.ExecContext(ctx, stmt, cp.TeamID, cp.Identifier, cp.Name, *cp.Mobileconfig)
+	if err != nil {
+		var mysqlErr *mysql.MySQLError
+		switch {
+		case errors.As(err, &mysqlErr) && mysqlErr.Number == 1062:
+			return nil, ctxerr.Wrap(ctx, formatErrorDuplicateConfigProfile(err, &cp))
+		default:
+			return nil, ctxerr.Wrap(ctx, err, "creating new mdm config profile")
+		}
+	}
+
+	id, err := res.LastInsertId()
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting last insert id for new mdm config profile")
+	}
+
+	return &fleet.MDMAppleConfigProfile{
+		ProfileID:    uint(id),
+		Identifier:   cp.Identifier,
+		Name:         cp.Name,
+		Mobileconfig: cp.Mobileconfig,
+		TeamID:       cp.TeamID,
+	}, nil
+}
+
+func formatErrorDuplicateConfigProfile(err error, cp *fleet.MDMAppleConfigProfile) error {
+	switch {
+	case strings.Contains(err.Error(), "idx_mdm_apple_config_prof_team_identifier"):
+		return alreadyExists("PayloadIdentifier", cp.Identifier)
+	case strings.Contains(err.Error(), "idx_mdm_apple_config_prof_team_name"):
+		return alreadyExists("PayloadDisplayName", cp.Name)
+	default:
+		return err
+	}
+}
+
+func (ds *Datastore) ListMDMAppleConfigProfiles(ctx context.Context, teamID uint) ([]*fleet.MDMAppleConfigProfile, error) {
+	stmt := `
+SELECT 
+	profile_id, 
+	team_id, 
+	name, 
+	identifier, 
+	mobileconfig, 
+	created_at, 
+	updated_at 
+FROM 
+	mdm_apple_configuration_profiles 
+WHERE 
+	team_id=?`
+
+	var res []*fleet.MDMAppleConfigProfile
+	err := sqlx.SelectContext(ctx, ds.reader, &res, stmt, teamID)
+	if err != nil {
+		return nil, err
+	}
+	return res, nil
+}
+
+func (ds *Datastore) GetMDMAppleConfigProfile(ctx context.Context, profileID uint) (*fleet.MDMAppleConfigProfile, error) {
+	stmt := `
+SELECT 
+	profile_id, 
+	team_id, 
+	name, 
+	identifier, 
+	mobileconfig, 
+	created_at, 
+	updated_at 
+FROM 
+	mdm_apple_configuration_profiles 
+WHERE 
+	profile_id=?`
+
+	var res fleet.MDMAppleConfigProfile
+	err := sqlx.GetContext(ctx, ds.reader, &res, stmt, profileID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("MDMAppleConfigProfile").WithID(profileID))
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get mdm apple config profile")
+	}
+
+	return &res, nil
+}
+
+func (ds *Datastore) DeleteMDMAppleConfigProfile(ctx context.Context, profileID uint) error {
+	res, err := ds.writer.ExecContext(ctx, `DELETE FROM mdm_apple_configuration_profiles WHERE profile_id=?`, profileID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err)
+	}
+
+	deleted, err := res.RowsAffected()
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "fetching delete mdm config profile query rows affected %s")
+	}
+	if deleted != 1 {
+		return ctxerr.Wrap(ctx, notFound("MDMAppleConfigProfile").WithID(profileID))
+	}
+
+	return nil
+}
 
 func (ds *Datastore) NewMDMAppleEnrollmentProfile(
 	ctx context.Context,

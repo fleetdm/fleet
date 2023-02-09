@@ -701,6 +701,21 @@ type Datastore interface {
 	///////////////////////////////////////////////////////////////////////////////
 	// Apple MDM
 
+	// NewMDMAppleConfigProfile creates and returns a new configuration profile.
+	NewMDMAppleConfigProfile(ctx context.Context, p MDMAppleConfigProfile) (*MDMAppleConfigProfile, error)
+
+	// GetMDMAppleConfigProfile returns the mdm config profile corresponding to the specified
+	// profile id.
+	GetMDMAppleConfigProfile(ctx context.Context, profileID uint) (*MDMAppleConfigProfile, error)
+
+	// ListMDMAppleConfigProfiles lists mdm config profiles associated with the specified team id.
+	// For global config profiles, specify zero as the team id.
+	ListMDMAppleConfigProfiles(ctx context.Context, teamID uint) ([]*MDMAppleConfigProfile, error)
+
+	// DeleteMDMAppleConfigProfile deleted the mdm config profile corresponding to the specified
+	// profile id.
+	DeleteMDMAppleConfigProfile(ctx context.Context, profileID uint) error
+
 	// NewMDMAppleEnrollmentProfile creates and returns new enrollment profile.
 	// Such enrollment profiles allow devices to enroll to Fleet MDM.
 	NewMDMAppleEnrollmentProfile(ctx context.Context, enrollmentPayload MDMAppleEnrollmentProfilePayload) (*MDMAppleEnrollmentProfile, error)
