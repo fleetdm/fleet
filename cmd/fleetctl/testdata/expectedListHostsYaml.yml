@@ -34,6 +34,7 @@ spec:
   last_enrolled_at: "0001-01-01T00:00:00Z"
   logger_tls_period: 0
   mdm:
+    encryption_key_available: false
     enrollment_status: null
     server_url: null
   memory: 0
@@ -87,6 +88,7 @@ spec:
   last_enrolled_at: "0001-01-01T00:00:00Z"
   logger_tls_period: 0
   mdm:
+    encryption_key_available: false
     enrollment_status: null
     server_url: null
   memory: 0

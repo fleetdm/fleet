@@ -209,9 +209,9 @@ You can bypass these errors by removing the key from your YAML or adding the `--
 
 > MDM features are not ready for production and are currently in development. These features are disabled by default.
 
-The `mdm` section of the configuration YAML lets you control MDM settings for the team in Fleet.
+The `mdm` section of this configuration YAML lets you control MDM settings for each team in Fleet.
 
-The documentation for this section is identical to the [MDM settings](#mobile-device-management-mdm-settings) documentation for the organization settings, except that the YAML section where it is set must be as follows. (Note the `kind: team` key and the location of the `mdm` key under `team` must have a `name` key to identify the team to configure.)
+To specify Team MDM configuration, as opposed to [Organization-wide MDM configuration](#mobile-device-management-mdm-settings2), follow the below YAML format. Note the `kind: team` field, as well as the  `name` and `mdm` fields under `team`.
 
 ```yaml
 apiVersion: v1

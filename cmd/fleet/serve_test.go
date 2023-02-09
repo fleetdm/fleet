@@ -1007,8 +1007,8 @@ func TestVerifyDiskEncryptionKeysJob(t *testing.T) {
 	now := time.Now()
 
 	t.Run("able to decrypt", func(t *testing.T) {
-		ds.GetUnverifiedDiskEncryptionKeysFunc = func(ctx context.Context) ([]fleet.DiskEncryptionKey, error) {
-			return []fleet.DiskEncryptionKey{
+		ds.GetUnverifiedDiskEncryptionKeysFunc = func(ctx context.Context) ([]fleet.HostDiskEncryptionKey, error) {
+			return []fleet.HostDiskEncryptionKey{
 				{HostID: 1, Base64Encrypted: base64EncryptedKey, UpdatedAt: now},
 				{HostID: 2, Base64Encrypted: base64EncryptedKey, UpdatedAt: now.Add(time.Hour)},
 				{HostID: 3, Base64Encrypted: "BAD-KEY", UpdatedAt: now.Add(-time.Hour)},
@@ -1039,8 +1039,8 @@ func TestVerifyDiskEncryptionKeysJob(t *testing.T) {
 	})
 
 	t.Run("unable to decrypt", func(t *testing.T) {
-		ds.GetUnverifiedDiskEncryptionKeysFunc = func(ctx context.Context) ([]fleet.DiskEncryptionKey, error) {
-			return []fleet.DiskEncryptionKey{{HostID: 1, Base64Encrypted: "RANDOM"}}, nil
+		ds.GetUnverifiedDiskEncryptionKeysFunc = func(ctx context.Context) ([]fleet.HostDiskEncryptionKey, error) {
+			return []fleet.HostDiskEncryptionKey{{HostID: 1, Base64Encrypted: "RANDOM"}}, nil
 		}
 
 		calls := 0

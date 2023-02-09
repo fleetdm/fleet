@@ -117,7 +117,7 @@
       tier: Premium
       comingSoon: false
     - name: Granular role-based access control
-      tier: Ultimate
+      tier: Premium
       comingSoon: false
 - categoryName: Monitoring
   features:

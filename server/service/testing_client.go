@@ -304,3 +304,26 @@ func (ts *withServer) LoginSSOUser(username, password string) (fleet.Auth, strin
 	require.NoError(t, err)
 	return auth, string(body)
 }
+
+// gets the latest activity and checks that it matches any provided properties.
+// empty string or 0 id means do not check that property. It returns the ID of that
+// latest activity.
+func (ts *withServer) lastActivityMatches(name, details string, id uint) uint {
+	t := ts.s.T()
+	var listActivities listActivitiesResponse
+	ts.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &listActivities, "order_key", "a.id", "order_direction", "desc", "per_page", "1")
+	require.True(t, len(listActivities.Activities) > 0)
+
+	act := listActivities.Activities[0]
+	if name != "" {
+		assert.Equal(t, name, act.Type)
+	}
+	if details != "" {
+		require.NotNil(t, act.Details)
+		assert.JSONEq(t, details, string(*act.Details))
+	}
+	if id > 0 {
+		assert.Equal(t, id, act.ID)
+	}
+	return act.ID
+}
