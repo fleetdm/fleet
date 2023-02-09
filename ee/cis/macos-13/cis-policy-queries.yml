@@ -1735,6 +1735,7 @@ spec:
     );
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS5.4
+  contributors: lucasmrod
 ---
 apiVersion: v1
 kind: policy
@@ -1761,6 +1762,28 @@ spec:
     );
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS5.5
+  contributors: lucasmrod
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure the "root" Account Is Disabled (Fleetd Required)
+  platforms: macOS
+  platform: darwin
+  description: |
+    Enabling and using the root account puts the system at risk since any successful exploit or mistake
+    while the root account is in use could have unlimited access privileges within the system.
+    Using the sudo command allows users to perform functions as a root user while limiting and password
+    protecting the access privileges. By default the root account is not enabled on a macOS computer.
+    An administrator can escalate privileges using the sudo command (use -s or -i to get a root shell).
+  resolution: |
+    Automated method:
+    Ask your system administrator to deploy the following script:
+      /usr/bin/sudo /usr/sbin/dsenableroot -d
+  query: |
+    SELECT 1 from dscl WHERE command = 'read' AND path = '/Users/root' AND key = 'AuthenticationAuthority' AND value = '';
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS5.6
   contributors: lucasmrod
 ---
 apiVersion: v1
@@ -1827,7 +1850,7 @@ spec:
     If EFI does not pass the integrity check, you may send a report to Apple. Backing up files and clean installing a
     known good Operating System and Firmware is recommended.
   query: |
-    SELECT 1 FROM firmware_eficheck_integity_check
+    SELECT 1 FROM firmware_eficheck_integrity_check
     WHERE chip != 'intel-t1' OR (
       chip = 'intel-t1' AND
       output LIKE '%Primary allowlist version match found. No changes detected in primary hashes%' AND
