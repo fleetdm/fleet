@@ -9,9 +9,6 @@ import (
 	"golang.org/x/net/html"
 )
 
-// TODO: Move this
-const url = "https://learn.microsoft.com/en-us/officeupdates/release-notes-office-for-mac"
-
 var (
 	verPattern, _     = regexp.Compile(`(?i)version \d+\.\d+(\.\d+)? \(?build \d+\)?`)
 	cveLinkPattern, _ = regexp.Compile(`CVE(-\d+)+$`)
@@ -73,8 +70,8 @@ func getId(token html.Token) string {
 // ParseReleaseHTML parses the release page using the provided reader. It is assumed that elements
 // in the page appear in order: first the release date then the version and finally any related
 // security updates.
-func ParseReleaseHTML(reader io.Reader) ([]OfficeReleaseNote, error) {
-	var result []OfficeReleaseNote
+func ParseReleaseHTML(reader io.Reader) ([]ReleaseNote, error) {
+	var result []ReleaseNote
 
 	// We use these pieces of state to keep track of whether we are inside a 'Security Updates'
 	// section of a release and also what product the security updates applies to.
@@ -105,7 +102,7 @@ func ParseReleaseHTML(reader io.Reader) ([]OfficeReleaseNote, error) {
 			// Either way, we try to parse the id attribute for the release date.
 			if token.Data == "h2" {
 				if relDate, ok := parseRelDate(getId(token)); ok {
-					result = append(result, OfficeReleaseNote{Date: relDate})
+					result = append(result, ReleaseNote{Date: relDate})
 					// Reset the state since we are inside a new release
 					insideSecUpts = false
 					break
@@ -121,7 +118,7 @@ func ParseReleaseHTML(reader io.Reader) ([]OfficeReleaseNote, error) {
 					// And the next one should be the release date
 					z.Next() == html.TextToken {
 					if relDate, ok := parseRelDate(strings.TrimSpace(z.Token().Data)); ok {
-						result = append(result, OfficeReleaseNote{Date: relDate})
+						result = append(result, ReleaseNote{Date: relDate})
 						// Reset state since we are inside a new release section
 						insideSecUpts = false
 					}
