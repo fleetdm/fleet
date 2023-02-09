@@ -9,6 +9,8 @@ import HumanTimeDiffWithDateTip from "components/HumanTimeDiffWithDateTip";
 import { humanHostMemory, wrapFleetHelper } from "utilities/helpers";
 import getHostStatusTooltipText from "pages/hosts/helpers";
 import StatusIndicator from "components/StatusIndicator";
+import Icon from "components/Icon";
+import { IconNames } from "components/icons";
 import IssueIcon from "../../../../../../assets/images/icon-issue-fleet-black-50-16x16@2x.png";
 
 const baseClass = "host-summary";
@@ -107,7 +109,7 @@ const HostSummary = ({
             Failing policies ({titleData.issues.failing_policies_count})
           </span>
         </ReactTooltip>
-        <span className={`total-issues-count`}>
+        <span className={"total-issues-count text"}>
           {titleData.issues.total_issues_count}
         </span>
       </span>
@@ -127,6 +129,28 @@ const HostSummary = ({
     </div>
   );
 
+  const renderMacSettingsIndicator = () => {
+    // TODO: actually determine this status
+    const macSettingsStatus = "Failing";
+
+    // TODO: improve below typing
+    const iconName: IconNames = {
+      Latest: "success",
+      Pending: "pending",
+      Failing: "error",
+    }[macSettingsStatus] as IconNames;
+
+    return (
+      <div className="info-flex__item info-flex__item--title">
+        <span className="info-flex__header">macOS settings</span>
+        <span className="info-flex__data">
+          <Icon name={iconName} />
+          <span>{macSettingsStatus}</span>
+        </span>
+      </div>
+    );
+  };
+
   const renderSummary = () => {
     const { status, id } = titleData;
     return (
@@ -145,6 +169,12 @@ const HostSummary = ({
           isPremiumTier &&
           renderIssues()}
         {isPremiumTier && renderHostTeam()}
+        {/* TODO: confirm how to determine if 'macOS settings are enforced on the host' */}
+        {titleData.platform === "darwin" &&
+          isPremiumTier &&
+          // TODO: change below to use actual API return values when implemented for issue #9599
+          // titleData.mdm.macsettingsenrolledstatus &&
+          renderMacSettingsIndicator()}
         <div className="info-flex__item info-flex__item--title">
           <span className="info-flex__header">Disk space</span>
           <DiskSpaceGraph

@@ -199,6 +199,8 @@ const DeviceUserPage = ({
       "percent_disk_space_available",
       "gigs_disk_space_available",
       "team_name",
+      "platform",
+      "mdm",
     ])
   );
 
@@ -310,10 +312,10 @@ const DeviceUserPage = ({
               statusClassName={statusClassName}
               titleData={titleData}
               diskEncryption={hostDiskEncryption}
+              isPremiumTier={isPremiumTier}
               showRefetchSpinner={showRefetchSpinner}
               onRefetchHost={onRefetchHost}
               renderActionButtons={renderActionButtons}
-              isPremiumTier={isPremiumTier}
               deviceUser
             />
             <TabsWrapper>

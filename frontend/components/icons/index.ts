@@ -16,6 +16,7 @@ import EmptyTeams from "./EmptyTeams";
 import ExternalLink from "./ExternalLink";
 import Issue from "./Issue";
 import Plus from "./Plus";
+import Pending from "./Pending";
 
 import LowDiskSpaceHosts from "./LowDiskSpaceHosts";
 import MissingHosts from "./MissingHosts";
@@ -65,6 +66,7 @@ export const ICON_MAP = {
   clipboard: Clipboard,
   eye: Eye,
   pencil: Pencil,
+  pending: Pending,
   trash: TrashCan,
   success: Success,
   error: Error,
