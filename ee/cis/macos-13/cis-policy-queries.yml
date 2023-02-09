@@ -1850,7 +1850,7 @@ spec:
     If EFI does not pass the integrity check, you may send a report to Apple. Backing up files and clean installing a
     known good Operating System and Firmware is recommended.
   query: |
-    SELECT 1 FROM firmware_eficheck_integity_check
+    SELECT 1 FROM firmware_eficheck_integrity_check
     WHERE chip != 'intel-t1' OR (
       chip = 'intel-t1' AND
       output LIKE '%Primary allowlist version match found. No changes detected in primary hashes%' AND

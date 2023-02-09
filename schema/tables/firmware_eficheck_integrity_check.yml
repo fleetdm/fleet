@@ -1,4 +1,4 @@
-name: firmware_eficheck_integity_check
+name: firmware_eficheck_integrity_check
 platforms:
   - darwin
 description: Performs eficheck's integrity check on macOS Intel T1 chips (CIS 5.9).
