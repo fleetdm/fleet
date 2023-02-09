@@ -4,8 +4,8 @@ locals {
     value = v
   }]
   secrets = [for k, v in var.fleet_config.extra_secrets : {
-    name  = k
-    value = v
+    name      = k
+    valueFrom = v
   }]
 }
 
