@@ -124,7 +124,7 @@ func (n *NudgeConfigFetcher) configure(nudgeCfg fleet.NudgeConfig) error {
 
 	cfgFile := filepath.Join(n.opt.RootDir, nudgeConfigFile)
 	writeConfig := func() error {
-		return os.WriteFile(cfgFile, jsonCfg, constant.DefaultWorldReadableFileMode)
+		return os.WriteFile(cfgFile, jsonCfg, constant.DefaultFileMode)
 	}
 
 	fileInfo, err := os.Stat(cfgFile)
