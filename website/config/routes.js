@@ -64,7 +64,7 @@ module.exports.routes = {
   'GET /queries/:slug': {
     action: 'view-query-detail',
     locals: {
-      currentPage: 'queries',
+      currentPage: 'documentation',
     }
   },
 
@@ -88,7 +88,7 @@ module.exports.routes = {
     skipAssets: false,
     action: 'docs/view-basic-documentation',
     locals: {
-      currentPage: 'docs',
+      currentPage: 'documentation',
     }
   },// handles /docs and /docs/foo/bar
 
