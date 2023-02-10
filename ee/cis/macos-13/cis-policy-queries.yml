@@ -230,7 +230,7 @@ spec:
   query: SELECT * FROM sntp_request WHERE server = 'time.apple.com' AND clock_offset_ms <= 270000 AND clock_offset_ms >= -270000;
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS2.3.2.2
-  contributors: 
+  contributors: lucasmrod 
 ---
 apiVersion: v1
 kind: policy
@@ -448,6 +448,34 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
+  name: CIS - Ensure Internet Sharing Is Disabled
+  platforms: macOS
+  platform: darwin
+  description: |
+    Internet Sharing uses the open source natd process to share an internet connection with other
+    computers and devices on a local network. This allows the Mac to function as a router and share
+    the connection to other, possibly unauthorized, devices.
+  resolution: |
+    Graphical Method:
+    1. Open System Settings
+    2. Select General
+    3. Select Sharing
+    4. Set Internet Sharing to disabled
+  query: |
+    SELECT 1 WHERE NOT EXISTS (
+      SELECT 1 FROM plist WHERE
+        path = '/Library/Preferences/SystemConfiguration/com.apple.nat.plist' AND
+        key = 'NAT' AND
+        subkey = 'Enabled' AND
+        value = '1'
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS2.3.3.8
+  contributors: artemist-work
+---
+apiVersion: v1
+kind: policy
+spec:
   name: CIS - Ensure Content Caching Is Disabled (MDM Required)
   platforms: macOS
   platform: darwin
@@ -497,6 +525,44 @@ spec:
     );
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS2.3.3.11
+  contributors: artemist-work
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Media Sharing Is Disabled (MDM Required)
+  platforms: macOS
+  platform: darwin
+  description: |
+    Starting with macOS 10.15, Apple has provided a control which permits a user to share
+    Apple downloaded content on all Apple devices that are signed in with the same Apple ID.
+    This allows users to share downloaded Movies, Music, or TV shows with other
+    controlled macOS, iOS and iPadOS devices, as well as photos with Apple TVs.
+    Disabling Media Sharing reduces the remote attack surface of the system
+  resolution: |
+    Profile Method:
+    Ask your administrator to deploy a profile that sets
+    homeSharingUIStatus, legacySharingUIStatus, and mediaSharingUIStatus to 0
+    for com.apple.preferences.sharing.SharingPrefsExtension
+  query: |
+    SELECT 1 WHERE EXISTS(
+      SELECT 1 FROM managed_policies WHERE
+        domain = 'com.apple.preferences.sharing.SharingPrefsExtension' AND
+        name = 'homeSharingUIStatus' AND
+        value = '0'
+    ) AND EXISTS (
+      SELECT 1 FROM managed_policies WHERE
+        domain = 'com.apple.preferences.sharing.SharingPrefsExtension' AND
+        name = 'legacySharingUIStatus' AND
+        value = '0'
+    ) AND EXISTS (
+      SELECT 1 FROM managed_policies WHERE
+        domain = 'com.apple.preferences.sharing.SharingPrefsExtension' AND
+        name = 'mediaSharingUIStatus' AND
+        value = '0'
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS2.3.3.10
   contributors: artemist-work
 ---
 apiVersion: v1
@@ -667,7 +733,7 @@ spec:
     Automated method:
     Ask your system administrator to deploy an MDM profile that disables apple personalized advertising.
     Graphical method:
-      Perform the following steps to enable Location Services:
+      Perform the following steps to ensure Limit Ad Tracking Is Enabled:
         1. Open Privacy & Security
         2. Select Apple Advertising
         3. Verify that Personalized Ads is not enabled
@@ -778,7 +844,7 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure the OS is not Activate When Resuming from Sleep
+  name: CIS - Ensure the OS is not Activate When Resuming from Sleep (Fleetd, FDA Required)
   platforms: macOS
   platform: darwin
   description: |
@@ -862,7 +928,7 @@ spec:
     Automated method:
     Ask your system administrator to deploy an MDM profile that Ensure a Password is Required to Wake the Computer From Sleep or Screen Saver Is Enabled.
     Graphical method:
-      Perform the following steps to enable Location Services:
+      Perform the following steps to ensure a Password is Required to Wake the Computer From Sleep or Screen Saver Is Enabled:
         1. Open System Settings
         2. Select Lock Screen
         3. Verify that Require password after screensaver begins or display is turned
@@ -885,7 +951,7 @@ spec:
     Automated method:
     Ask your system administrator to deploy an MDM profile that Ensure Gatekeeper Is Enabled
     Graphical method:
-      Perform the following steps to enable Location Services:
+      Perform the following steps to ensure Gatekeeper Is Enabled:
         1. Open System Settings
         2. Select Privacy & Security
         3. Verify that 'Allow apps downloaded from' is set to' App Store and identified developers'
@@ -905,7 +971,7 @@ spec:
     Automated method:
     Ask your system administrator to deploy an MDM profile that disables Sending Diagnostic and Usage Data to Apple.
     Graphical method:
-      Perform the following steps to enable Location Services:
+      Perform the following steps to ensure Sending Diagnostic and Usage Data to Apple Is Disabled:
         1. Open System Settings
         2. Select Privacy & Security
         3. Select Analytics & Improvements
@@ -934,7 +1000,7 @@ spec:
     Automated method:
     Ask your system administrator to deploy an MDM profile that ensure an Inactivity Interval of 20 Minutes Or Less for the Screen Saver to be Enabled.
     Graphical method:
-      Perform the following steps to enable Location Services:
+      Perform the following steps to ensure an Inactivity Interval of 20 Minutes Or Less for the Screen Saver Is Enabled:
         1. Open System Settings
         2. Select Lock Screen
         3. Verify that Start Screen Saver when inactive is set for 20 minutes or less (≤1200 seconds)
@@ -952,7 +1018,7 @@ spec:
   description: An access warning informs the user that the system is reserved for authorized use only, and that the use of the system may be monitored
   resolution: |
     Graphical method:
-      Perform the following steps to enable Location Services:
+      Perform the following steps to ensure a Custom Message for the Login Screen Is Enabled:
         1. Open System Settings
         2. Select Lock Screen
         3. Verify Show message when locked is enabled
@@ -974,7 +1040,7 @@ spec:
     Automated method:
     Ask your system administrator to deploy an MDM profile that enables FileVault and disables turning it off.
     Graphical method:
-      Perform the following steps to enable Location Services:
+      Perform the following steps to ensure FileVault Is Enabled:
         1. Open System Settings
         2. Select Privacy & Privacy
         3. Verify that FileVault states FileVault is turned on for the disk "<disk name>"
@@ -1001,7 +1067,7 @@ spec:
     Automated method:
     Ask your system administrator to deploy an MDM profile that Ensure Login Window Displays as Name and Password Is Enabled.
     Graphical method:
-      Perform the following steps to enable Location Services:
+      Perform the following steps to ensure Login Window Displays as Name and Password Is Enabled:
         1. Open System Settings
         2. Select Lock Screen
         3. Verify that Login window shows is set to Name and Password
@@ -1021,7 +1087,7 @@ spec:
     Automated method:
     Ask your system administrator to deploy an MDM profile that Ensures Show Password Hints Is Disabled.
     Graphical method:
-      Perform the following steps to enable Location Services:
+      Perform the following steps to ensure Show Password Hints Is Disabled:
         1. OpenSystemSettings
         2. Select Lock Screen
         3. Verify that Show password hints is disabled
@@ -1042,7 +1108,7 @@ spec:
     Automated method:
     Ask your system administrator to deploy an MDM profile that disables apple personalized advertising.
     Graphical method:
-      Perform the following steps to enable Location Services:
+      Perform the following steps to ensure Users' Accounts Do Not Have a Password Hint:
         1. Open System Settings
         2. Select Touch ID & Passwords (or Login Password on non-Touch ID Macs)
         3. Select Change...
@@ -1063,7 +1129,7 @@ spec:
     Automated method:
     Ask your system administrator to deploy an MDM profile that disables Guest Account.
     Graphical method:
-      Perform the following steps to enable Location Services:
+      Perform the following steps to ensure Guest Account Is Disabled:
         1. Open System Settings
         2. Select Users & Groups
         3. Select the i next to the Guest User
@@ -1111,7 +1177,7 @@ spec:
     Automated method:
     Ask your system administrator to deploy an MDM profile that Ensure Automatic Login Is Disabled
     Graphical method:
-      Perform the following steps to enable Location Services:
+      Perform the following steps to ensure Automatic Login Is Disabled:
         1. Open System Settings
         2. Select Users & Groups
         3. Set Automatic login in as... to Off
@@ -1707,6 +1773,7 @@ spec:
     );
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS5.4
+  contributors: lucasmrod
 ---
 apiVersion: v1
 kind: policy
@@ -1733,6 +1800,28 @@ spec:
     );
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS5.5
+  contributors: lucasmrod
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure the "root" Account Is Disabled (Fleetd Required)
+  platforms: macOS
+  platform: darwin
+  description: |
+    Enabling and using the root account puts the system at risk since any successful exploit or mistake
+    while the root account is in use could have unlimited access privileges within the system.
+    Using the sudo command allows users to perform functions as a root user while limiting and password
+    protecting the access privileges. By default the root account is not enabled on a macOS computer.
+    An administrator can escalate privileges using the sudo command (use -s or -i to get a root shell).
+  resolution: |
+    Automated method:
+    Ask your system administrator to deploy the following script:
+      /usr/bin/sudo /usr/sbin/dsenableroot -d
+  query: |
+    SELECT 1 from dscl WHERE command = 'read' AND path = '/Users/root' AND key = 'AuthenticationAuthority' AND value = '';
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS5.6
   contributors: lucasmrod
 ---
 apiVersion: v1
@@ -1787,6 +1876,54 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
+  name: CIS - Ensure Legacy EFI Is Valid and Updating (Fleetd Required)
+  platforms: macOS
+  platform: darwin
+  description: |
+    In order to mitigate firmware attacks, Apple has created an automated Firmware check to ensure that the EFI version
+    running is a known good version from Apple. There is also an automated process to check it every seven days.
+    This check is only valid on T1 chips and prior. Neither T2 chips nor Apple silicon require this control check
+    If the Firmware of a computer has been compromised, the Operating System that the Firmware loads cannot be trusted, either.
+  resolution: |
+    If EFI does not pass the integrity check, you may send a report to Apple. Backing up files and clean installing a
+    known good Operating System and Firmware is recommended.
+  query: |
+    SELECT 1 FROM firmware_eficheck_integrity_check
+    WHERE chip != 'intel-t1' OR (
+      chip = 'intel-t1' AND
+      output LIKE '%Primary allowlist version match found. No changes detected in primary hashes%' AND
+      NOT EXISTS (
+          SELECT * FROM plist WHERE
+          path = '/var/db/com.apple.xpc.launchd/disabled.plist' AND
+          key = 'com.apple.driver.eficheck' AND
+          value = '0'
+      )
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS5.9
+  contributors: lucasmrod
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure the Guest Home Folder Does Not Exist
+  platforms: macOS
+  platform: darwin
+  description: |
+    The Guest home folders are unneeded after the Guest account is disabled and could be used inappropriately.
+  resolution: |
+    Automated method:
+    Ask your system administrator to deploy the following script:
+      /usr/bin/sudo /bin/rm -R /Users/Guest
+  query: |
+    SELECT 1 WHERE NOT EXISTS (SELECT * FROM file WHERE path = '/Users/Guest');
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS5.10
+  contributors: lucasmrod
+---
+apiVersion: v1
+kind: policy
+spec:
   name: CIS - Ensure Show All Filename Extensions Setting is Enabled
   platforms: macOS
   platform: darwin
@@ -1814,6 +1951,89 @@ spec:
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS6.1.1
   contributors: artemist-work
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Automatic Opening of Safe Files in Safari Is Disabled (MDM Required)
+  platforms: macOS
+  platform: darwin
+  description: |
+    Safari will automatically run or execute what it considers safe files. This can include
+    installers and other files that execute on the operating system. Safari evaluates file safety by
+    using a list of filetypes maintained by Apple. The list of files include text, image, video and
+    archive formats that would be run in the context of the OS rather than the browser.
+    Hackers have taken advantage of this setting via drive-by attacks. These attacks occur when a
+    user visits a legitimate website that has been corrupted. The user unknowingly downloads a
+    malicious file either by closing an infected pop-up or hovering over a malicious banner. An
+    attacker can create a malicious file that will fall within Safari's safe file list that will
+    download and execute without user input.
+  resolution: |
+    Payload Method:
+    Ask your administrator to deploy a profile which disables AutoOpenSafeDownloads in Safari
+  query: |
+    SELECT 1 FROM managed_policies WHERE
+      domain = 'com.apple.Safari' AND
+      name = 'AutoOpenSafeDownloads' AND
+      value = '0'
+      LIMIT 1;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS6.3.1
+  contributors: artemist-work
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Warn When Visiting A Fraudulent Website in Safari Is Enabled (MDM Required)
+  platforms: macOS
+  platform: darwin
+  description: |
+    Apple uses the Google Safe Browsing API to check for fraudulent websites and report them to the
+    user attempting visit one. Attackers use crafted web pages to social engineer users to load
+    unwanted content. Warning users prior to loading the content enables better security.
+  resolution: |
+    Payload Method:
+    Ask your administrator to deploy a profile which enableds WarnAboutFraudulentWebsites in Safari
+  query: |
+    SELECT 1 FROM managed_policies WHERE
+      domain = 'com.apple.Safari' AND
+      name = 'WarnAboutFraudulentWebsites' AND
+      value = '1'
+      LIMIT 1;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS6.3.3
+  contributors: artemist-work
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Prevent Cross-site Tracking in Safari Is Enabled (MDM Required)
+  platforms: macOS
+  platform: darwin
+  description: |
+    Cross-tracking allows data-brokers to follow you across the Internet to enable their business model of
+    selling personal data. Users should protect their data and not volunteer it to marketing companies.
+  resolution: |
+    Automated method:
+    Ask your system administrator to deploy a profile via MDM with the following information:
+      1. The PayloadType string is com.apple.Safari.
+      2. The key to include is BlockStoragePolicy.
+      3. The key must be set to: 2
+      4. The key to also include is WebKitPreferences.storageBlockingPolicy
+      5. The key must be set to: 1
+      6. The key to also include is WebKitStorageBlockingPolicy
+      7. The key must be set to: 1
+  query: |
+    SELECT 1 WHERE EXISTS (
+      SELECT 1 FROM managed_policies WHERE domain = 'com.apple.Safari' AND name = 'BlockStoragePolicy' AND value = '2'
+    ) AND EXISTS (
+      SELECT 1 FROM managed_policies WHERE domain = 'com.apple.Safari' AND name = 'WebKitPreferences.storageBlockingPolicy' AND value = '1'
+    ) AND EXISTS (
+      SELECT 1 FROM managed_policies WHERE domain = 'com.apple.Safari' AND name = 'WebKitStorageBlockingPolicy' AND value = '1'
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS6.3.4
+  contributors: lucasmrod
 ---
 apiVersion: v1
 kind: policy
@@ -1848,3 +2068,58 @@ spec:
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS6.3.6
   contributors: artemist-work
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Show Full Website Address in Safari Is Enabled (MDM Required)
+  platforms: macOS
+  platform: darwin
+  description: |
+    Attackers use websites with malicious or unwanted content to exploit the user or the computer. Part of the attack chain is to lure someone to load their content rather than the desired content. In order to reduce the risk in interacting with unwanted content the full website address should always be displayed in Safari.
+  resolution: |
+    Graphical Method:
+    Perform the following steps to set Safari to show full website addresses:
+      1. Open Safari
+      2. Select Safari from the menu bar
+      3. Select Settings
+      4. Select Security
+      5. Set Show full website address to enabled
+    Automated method:
+    Profile Method:
+    Create or edit a configuration profile with the following information:
+      1. The PayloadType string is com.apple.Safari
+      2. The key to include is ShowFullURLInSmartSearchField 
+      3. The key must be set to:
+      <true/>
+  query: |
+      SELECT 1 from managed_policies WHERE domain = 'com.apple.Safari'
+      AND name = 'ShowFullURLInSmartSearchField' 
+      AND value = 1;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS6.3.7
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Secure Keyboard Entry Terminal.app Is Enabled (MDM Required)
+  platforms: macOS
+  platform: darwin
+  description: |
+    Secure Keyboard Entry prevents other applications on the system and/or network from detecting and recording what is typed into Terminal. Unauthorized applications and malicious code could intercept keystrokes entered in the Terminal.
+    Enabling Secure Keyboard Entry minimizes the risk of a key logger from detecting what is entered in Terminal.
+  resolution: |
+    Profile Method:
+    Create or edit a configuration profile with the following information:
+      1. The PayloadType string is com.apple.Terminal 
+      2. The key to include is SecureKeyboardEntry
+      3. The key must be set to
+      <true/>
+  query: |
+    SELECT 1 from managed_policies WHERE domain = 'com.apple.Terminal'
+      AND name = 'SecureKeyboardEntry' 
+      AND value == 1;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS6.4.1
+  contributors: sharon-fdm

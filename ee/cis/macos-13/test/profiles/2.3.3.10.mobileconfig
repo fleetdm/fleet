@@ -8,21 +8,25 @@
 			<key>PayloadDisplayName</key>
 			<string>test</string>
 			<key>PayloadType</key>
-			<string>com.apple.SoftwareUpdate</string>
+			<string>com.apple.preferences.sharing.SharingPrefsExtension</string>
 			<key>PayloadIdentifier</key>
-			<string>com.fleetdm.cis-1.2.check</string>
+			<string>com.fleetdm.cis-2.3.3.10-check</string>
 			<key>PayloadUUID</key>
-			<string>4DC539B5-837E-4DC3-B60B-43A8C556A8F0</string>
-			<key>AutomaticCheckEnabled</key>
-			<true/>
+			<string>DC34D1FA-3D14-4AEA-844B-FDEC49CD73BB</string>
+			<key>homeSharingUIStatus</key>
+			<integer>0</integer>
+			<key>legacySharingUIStatus</key>
+			<integer>0</integer>
+			<key>mediaSharingUIStatus</key>
+			<integer>0</integer>
 		</dict>
 	</array>
 	<key>PayloadDescription</key>
 	<string>test</string>
 	<key>PayloadDisplayName</key>
-	<string>Ensure Auto Update Is Enabled</string>
+	<string>Ensure Media Sharing is Disabled</string>
 	<key>PayloadIdentifier</key>
-	<string>com.fleetdm.cis-1.2</string>
+	<string>com.fleetdm.cis-2.3.3.10</string>
 	<key>PayloadRemovalDisallowed</key>
 	<false/>
 	<key>PayloadScope</key>
@@ -30,7 +34,7 @@
 	<key>PayloadType</key>
 	<string>Configuration</string>
 	<key>PayloadUUID</key>
-	<string>03E69A02-02CE-4CA0-8F17-3BAAD5D3852F</string>
+	<string>9FD8A0FB-2F7C-41C4-A3FB-90E953BCD433</string>
 	<key>PayloadVersion</key>
 	<integer>1</integer>
 </dict>
