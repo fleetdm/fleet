@@ -19,6 +19,9 @@ interface IHostDiskEncryptionProps {
   enabled?: boolean;
   tooltip?: string;
 }
+
+type MacSettingsStatus = "Failing" | "Latest" | "Pending";
+
 interface IHostSummaryProps {
   statusClassName: string;
   titleData: any; // TODO: create interfaces for this and use consistently across host pages and related helpers
@@ -109,7 +112,7 @@ const HostSummary = ({
             Failing policies ({titleData.issues.failing_policies_count})
           </span>
         </ReactTooltip>
-        <span className={"total-issues-count text"}>
+        <span className={"info-flex__data__text"}>
           {titleData.issues.total_issues_count}
         </span>
       </span>
@@ -129,23 +132,57 @@ const HostSummary = ({
     </div>
   );
 
+  // const getIconNameAndTooltipText = (
+  //   macSettingsStatus: MacSettingsStatus
+  // ): [IconNames, string] => {
+  //   const options: { [key: "Latest" | "Pending" | "Failing"] } = {
+  //     Latest: ["success", "Host applied the latest settings"],
+  //     Pending: [
+  //       "pending",
+  //       "Host will apply the latest settings when it comes online",
+  //     ],
+  //     Failing: [
+  //       "error",
+  //       "Host failed to apply the latest settings. Click to view error(s).",
+  //     ],
+  //   };
+  //   return options[macSettingsStatus];
+  // };
+
   const renderMacSettingsIndicator = () => {
     // TODO: actually determine this status
-    const macSettingsStatus = "Failing";
+    const macSettingsStatus: MacSettingsStatus = "Latest";
 
-    // TODO: improve below typing
-    const iconName: IconNames = {
-      Latest: "success",
-      Pending: "pending",
-      Failing: "error",
-    }[macSettingsStatus] as IconNames;
+    // TODO: get this function to work
+    // const [iconName, tooltipText] = getIconNameAndTooltipText(
+    //   macSettingsStatus
+    // );
+    const iconName = "success";
+    const tooltipText = "test tip text";
 
     return (
       <div className="info-flex__item info-flex__item--title">
         <span className="info-flex__header">macOS settings</span>
         <span className="info-flex__data">
-          <Icon name={iconName} />
-          <span>{macSettingsStatus}</span>
+          <span
+            className="tooltip tooltip__tooltip-icon"
+            data-tip
+            data-for="host-mac-settings-status"
+            data-tip-disable={false}
+          >
+            {/* TODO: fix alginment of this icon */}
+            <Icon name={iconName} />
+            <span className="info-flex__data__text">{macSettingsStatus}</span>
+          </span>
+          <ReactTooltip
+            place="bottom"
+            effect="solid"
+            backgroundColor="#3e4771"
+            id="host-mac-settings-status"
+            data-html
+          >
+            <span className="tooltip__tooltip-text">{tooltipText}</span>
+          </ReactTooltip>
         </span>
       </div>
     );
@@ -162,19 +199,24 @@ const HostSummary = ({
             tooltip={{
               id,
               tooltipText: getHostStatusTooltipText(status),
+              position: "bottom",
             }}
           />
         </div>
+
         {titleData.issues?.total_issues_count > 0 &&
           isPremiumTier &&
           renderIssues()}
+
         {isPremiumTier && renderHostTeam()}
+
         {/* TODO: confirm how to determine if 'macOS settings are enforced on the host' */}
         {titleData.platform === "darwin" &&
           isPremiumTier &&
           // TODO: change below to use actual API return values when implemented for issue #9599
           // titleData.mdm.macsettingsenrolledstatus &&
           renderMacSettingsIndicator()}
+
         <div className="info-flex__item info-flex__item--title">
           <span className="info-flex__header">Disk space</span>
           <DiskSpaceGraph
@@ -183,13 +225,18 @@ const HostSummary = ({
             percentDiskSpaceAvailable={titleData.percent_disk_space_available}
             id={`disk-space-tooltip-${titleData.id}`}
             platform={titleData.platform}
+            tooltipPosition="bottom"
           />
         </div>
+
         {typeof diskEncryption?.enabled === "boolean" &&
         diskEncryption?.tooltip ? (
           <div className="info-flex__item info-flex__item--title">
             <span className="info-flex__header">Disk encryption</span>
-            <TooltipWrapper tipContent={diskEncryption.tooltip}>
+            <TooltipWrapper
+              tipContent={diskEncryption.tooltip}
+              position="bottom"
+            >
               {diskEncryption.enabled ? "On" : "Off"}
             </TooltipWrapper>
           </div>
