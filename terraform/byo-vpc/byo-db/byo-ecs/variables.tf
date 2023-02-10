@@ -12,7 +12,7 @@ variable "vpc_id" {
 variable "fleet_config" {
   type = object({
     mem                          = optional(number, 4096)
-    cpu                          = optional(number, 256)
+    cpu                          = optional(number, 512)
     image                        = optional(string, "fleetdm/fleet:v4.22.1")
     family                       = optional(string, "fleet")
     extra_environment_variables  = optional(map(string), {})
