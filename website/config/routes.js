@@ -63,7 +63,7 @@ module.exports.routes = {
   'GET /queries/:slug': {
     action: 'view-query-detail',
     locals: {
-      currentSection: 'queries',
+      currentSection: 'documentation',
     }
   },
 
