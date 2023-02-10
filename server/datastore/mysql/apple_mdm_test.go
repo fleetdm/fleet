@@ -49,7 +49,8 @@ func testNewMDMAppleConfigProfileDuplicateName(t *testing.T, ds *Datastore) {
 		Mobileconfig: initialCP.Mobileconfig,
 	}
 	_, err := ds.NewMDMAppleConfigProfile(ctx, duplicateCP)
-	require.ErrorContains(t, err, alreadyExists("PayloadDisplayName", initialCP.Name).Error())
+	expectedErr := &existsError{ResourceType: "MDMAppleConfigProfile.PayloadDisplayName", Identifier: initialCP.Name, TeamID: &initialCP.TeamID}
+	require.ErrorContains(t, err, expectedErr.Error())
 
 	// can create another profile with the same name if it is on a different team
 	duplicateCP.TeamID += 1
@@ -73,7 +74,8 @@ func testNewMDMAppleConfigProfileDuplicateIdentifier(t *testing.T, ds *Datastore
 		Mobileconfig: initialCP.Mobileconfig,
 	}
 	_, err := ds.NewMDMAppleConfigProfile(ctx, duplicateCP)
-	require.ErrorContains(t, err, alreadyExists("PayloadIdentifier", initialCP.Identifier).Error())
+	expectedErr := &existsError{ResourceType: "MDMAppleConfigProfile.PayloadIdentifier", Identifier: initialCP.Identifier, TeamID: &initialCP.TeamID}
+	require.ErrorContains(t, err, expectedErr.Error())
 
 	// can create another profile with the same name if it is on a different team
 	duplicateCP.TeamID += 1

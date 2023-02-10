@@ -68,6 +68,7 @@ func (e *notFoundError) Is(other error) bool {
 type existsError struct {
 	Identifier   interface{}
 	ResourceType string
+	TeamID       *uint
 }
 
 func alreadyExists(kind string, identifier interface{}) error {
@@ -80,8 +81,17 @@ func alreadyExists(kind string, identifier interface{}) error {
 	}
 }
 
+func (e *existsError) WithTeamID(teamID uint) error {
+	e.TeamID = &teamID
+	return e
+}
+
 func (e *existsError) Error() string {
-	return fmt.Sprintf("%s %v already exists", e.ResourceType, e.Identifier)
+	msg := fmt.Sprintf("%s %v already exists", e.ResourceType, e.Identifier)
+	if e.TeamID != nil {
+		msg += fmt.Sprintf(" with TeamID %d", *e.TeamID)
+	}
+	return msg
 }
 
 func (e *existsError) IsExists() bool {

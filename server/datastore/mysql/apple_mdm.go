@@ -11,7 +11,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
-	"github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
 	"github.com/micromdm/nanodep/godep"
 )
@@ -24,19 +23,15 @@ VALUES (?, ?, ?, ?)`
 
 	res, err := ds.writer.ExecContext(ctx, stmt, cp.TeamID, cp.Identifier, cp.Name, *cp.Mobileconfig)
 	if err != nil {
-		var mysqlErr *mysql.MySQLError
 		switch {
-		case errors.As(err, &mysqlErr) && mysqlErr.Number == 1062:
+		case isDuplicate(err):
 			return nil, ctxerr.Wrap(ctx, formatErrorDuplicateConfigProfile(err, &cp))
 		default:
 			return nil, ctxerr.Wrap(ctx, err, "creating new mdm config profile")
 		}
 	}
 
-	id, err := res.LastInsertId()
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "getting last insert id for new mdm config profile")
-	}
+	id, _ := res.LastInsertId()
 
 	return &fleet.MDMAppleConfigProfile{
 		ProfileID:    uint(id),
@@ -50,9 +45,17 @@ VALUES (?, ?, ?, ?)`
 func formatErrorDuplicateConfigProfile(err error, cp *fleet.MDMAppleConfigProfile) error {
 	switch {
 	case strings.Contains(err.Error(), "idx_mdm_apple_config_prof_team_identifier"):
-		return alreadyExists("PayloadIdentifier", cp.Identifier)
+		return &existsError{
+			ResourceType: "MDMAppleConfigProfile.PayloadIdentifier",
+			Identifier:   cp.Identifier,
+			TeamID:       &cp.TeamID,
+		}
 	case strings.Contains(err.Error(), "idx_mdm_apple_config_prof_team_name"):
-		return alreadyExists("PayloadDisplayName", cp.Name)
+		return &existsError{
+			ResourceType: "MDMAppleConfigProfile.PayloadDisplayName",
+			Identifier:   cp.Name,
+			TeamID:       &cp.TeamID,
+		}
 	default:
 		return err
 	}
