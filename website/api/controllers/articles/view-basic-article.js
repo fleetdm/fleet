@@ -61,13 +61,16 @@ module.exports = {
       pageDescriptionForMeta = _.trimRight(thisPage.meta.articleTitle, '.') + ' by ' + thisPage.meta.authorFullName;
     }//ﬁ
 
-    // Set a currentSection variable for the website header
+    // Set a currentSection variable for the website header based on how the articles category page is linked to in the header navigation dropdown menus.
     let currentSection;
     if(articleCategorySlug === 'success-stories'){
+      // If the article is in the 'device-management' category, highlight the "Platform" dropdown.
       currentSection = 'platform';
     } else if(_.contains(['deploy','guides','releases'], articleCategorySlug)) {
+      // If the articleCategorySlug is deploy, guides, or release, highlight the "Documentation" dropdown.
       currentSection = 'documentation';
     } else {
+      // If the article is in any other category, highlight the "Community" dropdown.
       currentSection = 'community';
     }
 
