@@ -12,7 +12,7 @@ updates in any of the three
 components mentioned above. Each component (also known as "target") can be updated independently. This document aims to
 describe all the steps needed to release a new version of each target.
 
-## Methodolody
+## Methodology
 
 Our TUF server provides two channels, `edge` and `stable`.
 - `stable` is what all users in production use.
