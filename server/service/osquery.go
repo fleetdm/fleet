@@ -155,7 +155,7 @@ func (svc *Service) EnrollAgent(ctx context.Context, enrollSecret, hostIdentifie
 	}
 
 	// Save enrollment details if provided
-	detailQueries := osquery_utils.GetDetailQueries(ctx, svc.config, features)
+	detailQueries := osquery_utils.GetDetailQueries(ctx, svc.config, appConfig, features)
 	save := false
 	if r, ok := hostDetails["os_version"]; ok {
 		err := detailQueries["os_version"].IngestFunc(ctx, svc.logger, host, []map[string]string{r})
@@ -599,6 +599,11 @@ func (svc *Service) detailQueriesForHost(ctx context.Context, host *fleet.Host) 
 		return nil, nil, nil
 	}
 
+	appConfig, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "read app config")
+	}
+
 	features, err := svc.HostFeatures(ctx, host)
 	if err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "read host features")
@@ -607,7 +612,7 @@ func (svc *Service) detailQueriesForHost(ctx context.Context, host *fleet.Host) 
 	queries = make(map[string]string)
 	discovery = make(map[string]string)
 
-	detailQueries := osquery_utils.GetDetailQueries(ctx, svc.config, features)
+	detailQueries := osquery_utils.GetDetailQueries(ctx, svc.config, appConfig, features)
 	for name, query := range detailQueries {
 		if query.RunsForPlatform(host.Platform) {
 			queryName := hostDetailQueryPrefix + name
@@ -995,7 +1000,12 @@ func (svc *Service) directIngestDetailQuery(ctx context.Context, host *fleet.Hos
 		return false, osqueryError{message: "ingest detail query: " + err.Error()}
 	}
 
-	detailQueries := osquery_utils.GetDetailQueries(ctx, svc.config, features)
+	appConfig, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return false, osqueryError{message: "ingest detail query: " + err.Error()}
+	}
+
+	detailQueries := osquery_utils.GetDetailQueries(ctx, svc.config, appConfig, features)
 	query, ok := detailQueries[name]
 	if !ok {
 		return false, osqueryError{message: "unknown detail query " + name}
@@ -1120,7 +1130,12 @@ func (svc *Service) ingestDetailQuery(ctx context.Context, host *fleet.Host, nam
 		return osqueryError{message: "ingest detail query: " + err.Error()}
 	}
 
-	detailQueries := osquery_utils.GetDetailQueries(ctx, svc.config, features)
+	appConfig, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return osqueryError{message: "ingest detail query: " + err.Error()}
+	}
+
+	detailQueries := osquery_utils.GetDetailQueries(ctx, svc.config, appConfig, features)
 	query, ok := detailQueries[name]
 	if !ok {
 		return osqueryError{message: "unknown detail query " + name}

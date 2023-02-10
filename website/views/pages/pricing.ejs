@@ -12,7 +12,7 @@
         <div purpose="pricing-tier-switch" :class="[!displaySecurityPricingMode ? 'it-selected' : '']"></div>
       </div>
       <h4 class="pb-4 mb-4 text-center" v-if="displaySecurityPricingMode">Always cross-platform, always secure. You will always have control over read/write privileges.</h4>
-      <h4 class="pb-4 mb-4 text-center" v-else>You will always have control over what is monitored and who is ...</h4>
+      <h4 class="pb-4 mb-4 text-center" v-else>You will always have control over your machines regardless of platform.</h4>
       <div purpose="pricing-tiers" class="d-flex flex-column justify-content-center">
         <div class="d-flex flex-md-row flex-column card-deck justify-content-center align-items-center align-items-md-stretch p-0 w-100 mx-auto">
           <%// Fleet Premium %>
@@ -20,7 +20,7 @@
             <div purpose="pricing-tier-title">
               <h2>Fleet Premium</h2>
               <h3>For orgs with multiple compliance standards</h3>
-              <p>Up to 500 hosts*</p>
+              <p>Up to 500 hosts<a href="#additional-hosts">✝</a></p>
               <h2>$3500/month</h2>
             </div>
             <div>
@@ -28,6 +28,7 @@
               <%// Premium security features%>
               <div purpose="features-list" v-if="displaySecurityPricingMode">
                 <p>Single-Sign On (SSO)</p>
+                <p>Audit log</p>
                 <p>24 hour support for PO</p>
                 <p>Unlimited device groups (teams)</p>
                 <p>Employee/device mapping</p>
@@ -58,7 +59,7 @@
             <div purpose="pricing-tier-title">
               <h2>Fleet Ultimate</h2>
               <h3>For orgs with large deployments</h3>
-              <p>Over 500 hosts*</p>
+              <p>Over 500 hosts<a href="#additional-hosts">✝</a></p>
               <h2>$<span :class="[estimatedUltimateCostPerHostHasBeenUpdated ? 'show-estimated-price' : '']">{{ estimatedUltimateCostPerHost.toFixed(2) }}</span>/host</h2>
             </div>
             <div>
@@ -157,11 +158,12 @@
                 </div>
               </div>
               <div>
-                <a purpose="card-button" class="btn btn-block btn-lg btn-primary mx-auto" href="/try-fleet/register">Get started</a>
+                <a purpose="card-button" class="btn btn-block btn-lg btn-primary mx-auto" href="/try-fleet/register">Try it out</a>
               </div>
             </div>
           </div>
         </div>
+        <p style="color: #515774; font-size: 14px; scroll-margin-top: 200px;" class="mt-4" id="additional-hosts"><span style="vertical-align: super;">✝</span> Additional hosts beyond the contracted quantity will be invoiced at the agreed upon per-host rate as specified in a contract or order form.</p>
       </div>
     </div>
     <div purpose="features" class="d-flex flex-column justify-content-center mx-auto px-0">
@@ -175,7 +177,7 @@
                 <td v-if="index === 0">
                   <strong>Community</strong>
                   <a purpose="table-button" class="btn btn-info d-none d-sm-inline-block" href="/try-fleet/register">
-                    Get started
+                    Try it out
                   </a>
                 </td>
                 <td v-else></td>
@@ -344,7 +346,6 @@
         </a>
       </div>
     </div>
-    <p style="color: #515774;" class="mt-4">* Additional hosts beyond the contracted quantity will be invoiced at the agreed upon per-host rate as specified in a contract or order form.</p>
   </div>
 </div>
 <%- /* Expose locals as `window.SAILS_LOCALS` :: */ exposeLocalsToBrowser() %>

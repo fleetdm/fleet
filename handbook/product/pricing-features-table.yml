@@ -107,6 +107,9 @@
     - name: Role-based access control
       tier: Free
       comingSoon: false
+    - name: Audit log
+      tier: Premium
+      comingSoon: false
     - name: Just-in-time provisioning
       tier: Premium
       comingSoon: false
@@ -114,7 +117,7 @@
       tier: Premium
       comingSoon: false
     - name: Granular role-based access control
-      tier: Ultimate
+      tier: Premium
       comingSoon: false
 - categoryName: Monitoring
   features:

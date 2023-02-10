@@ -636,6 +636,18 @@ type Datastore interface {
 	SetOrUpdateMDMData(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string, installedFromDep bool, name string) error
 	SetOrUpdateHostDisksSpace(ctx context.Context, hostID uint, gigsAvailable, percentAvailable float64) error
 	SetOrUpdateHostDisksEncryption(ctx context.Context, hostID uint, encrypted bool) error
+	// SetOrUpdateHostDiskEncryptionKey sets the base64, encrypted key for
+	// a host
+	SetOrUpdateHostDiskEncryptionKey(ctx context.Context, hostID uint, encryptedBase64Key string) error
+	// GetUnverifiedDiskEncryptionKeys returns all the encryption keys that
+	// are collected but their decryptable status is not known yet (ie:
+	// we're able to decrypt the key using a private key in the server)
+	GetUnverifiedDiskEncryptionKeys(ctx context.Context) ([]HostDiskEncryptionKey, error)
+	// SetHostDiskEncryptionKeyStatus sets the encryptable status for the set
+	// of encription keys provided
+	SetHostsDiskEncryptionKeyStatus(ctx context.Context, hostIDs []uint, encryptable bool, threshold time.Time) error
+	// GetHostDiskEncryptionKey returns the encryption key information for a given host
+	GetHostDiskEncryptionKey(ctx context.Context, hostID uint) (*HostDiskEncryptionKey, error)
 	// SetOrUpdateHostOrbitInfo inserts of updates the orbit info for a host
 	SetOrUpdateHostOrbitInfo(ctx context.Context, hostID uint, version string) error
 

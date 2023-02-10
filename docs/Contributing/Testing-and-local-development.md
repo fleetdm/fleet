@@ -499,6 +499,15 @@ Both can be generated using the command below. The email must be a company email
 
 ```
 $ fleetctl generate mdm-apple --email <email> --org <organization>
+```
+
+Using the above syntax, a command would look like this:
+```
+$ fleetctl generate mdm-apple --email it@example.com --org "Acme Co."
+```
+
+Successful output would look like this:
+```
 Sending certificate signing request (CSR) for Apple Push Notification service (APNs) to <email>...
 Generating APNs key, Simple Certificate Enrollment Protocol (SCEP) certificate, and SCEP key...
 
