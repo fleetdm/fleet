@@ -86,9 +86,6 @@ func (n *NudgeConfigFetcher) GetConfig() (*fleet.OrbitConfig, error) {
 		log.Info().Msg("refreshing the update runner config with Nudge targets and hashes")
 		return cfg, n.setTargetsAndHashes()
 	}
-	if err := n.opt.UpdateRunner.StoreLocalHash("nudge"); err != nil {
-		return cfg, err
-	}
 
 	if err := n.configure(*cfg.NudgeConfig); err != nil {
 		log.Info().Err(err).Msg("nudge configuration")
