@@ -136,7 +136,7 @@
           <div class="form-group">
             <div class="d-flex flex-sm-row flex-column">
               <div class="pr-0 pr-sm-3 pb-4 pb-sm-0">
-                <label for="jobTitle">Job Title</label>
+                <label for="jobTitle">Job title</label>
                 <input class="form-control" id="jobTitle" :class="[formErrors.jobTitle ? 'is-invalid' : '']" v-model.trim="formData.jobTitle" @input="typeClearOneFormError('jobTitle')">
                 <div class="invalid-feedback" v-if="formErrors.jobTitle">Please enter your job title.
                 </div>
