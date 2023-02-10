@@ -269,7 +269,7 @@ module.exports.routes = {
     action: 'view-compliance',
     locals: {
       pageTitleForMeta: 'Security compliance | Fleet for osquery',
-      pageDescriptionForMeta: 'Automate security workflows by creating or installing policies to maintain your organizaion\'s compliance goals. Simplify security compliance with Fleet.',
+      pageDescriptionForMeta: 'Automate security workflows by creating or installing policies to maintain your organization\'s compliance goals. Simplify security compliance with Fleet.',
     }
   },
 
