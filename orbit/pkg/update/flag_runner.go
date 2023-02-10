@@ -264,7 +264,7 @@ func (r *ExtensionRunner) DoExtensionConfigUpdate() (bool, error) {
 
 		// update our view of targets
 		r.updateRunner.AddRunnerOptTarget(targetName)
-		r.updateRunner.updater.SetTargetInfo(targetName, platform, channel, filename, nil)
+		r.updateRunner.updater.SetTargetInfo(targetName, TargetInfo{Platform: platform, Channel: channel, TargetFile: filename})
 
 		// the full path to where the extension would be on disk, for e.g. for extension name "hello_world"
 		// the path is: <root-dir>/bin/extensions/hello_world/<platform>/<channel>/hello_world.ext
@@ -276,24 +276,10 @@ func (r *ExtensionRunner) DoExtensionConfigUpdate() (bool, error) {
 			return false, fmt.Errorf("update metadata: %w", err)
 		}
 
-		meta, err := r.updateRunner.updater.Lookup(targetName)
-		if err != nil {
+		if err := r.updateRunner.StoreLocalHash(targetName); err != nil {
 			// we do not want orbit to restart
 			return false, fmt.Errorf("unable to lookup metadata for target: %s, %w", targetName, err)
 		}
-
-		_, localHash, err := fileHashes(meta, path)
-		if err != nil {
-			// OK, not an error, expected on initial run that path doesn't exist
-			// we do not want orbit to restart
-			return false, nil
-		}
-
-		// update local hashes
-		log.Info().Msgf("updating local hash(%s)=%x", targetName, localHash)
-		r.updateRunner.mu.Lock()
-		r.updateRunner.localHashes[targetName] = localHash
-		r.updateRunner.mu.Unlock()
 
 		sb.WriteString(path + "\n")
 	}

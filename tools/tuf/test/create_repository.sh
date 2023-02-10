@@ -25,6 +25,7 @@ if [[ -d "$TUF_PATH" ]]; then
 fi
 
 OSQUERY_MACOS_APP_BUNDLE_VERSION=5.6.0
+NUDGE_MACOS_APP_BUNDLE_VERSION=1.1.10.81462
 SYSTEMS=${SYSTEMS:-macos linux windows}
 
 mkdir -p $TUF_PATH/tmp
@@ -102,6 +103,19 @@ for system in $SYSTEMS; do
         --name desktop \
         --version 42.0.0 -t 42.0 -t 42 -t stable
         rm desktop.app.tar.gz
+    fi
+
+    # Add Nudge application on macos (if enabled).
+    if [[ $system == "macos" && -n "$NUDGE" ]]; then
+        # For now we always make nudge (until it's uploaded to our TUF repo)
+        make nudge-app-tar-gz version=$NUDGE_MACOS_APP_BUNDLE_VERSION out-path=.
+        ./build/fleetctl updates add \
+            --path $TUF_PATH \
+            --target nudge.app.tar.gz \
+            --platform macos \
+            --name nudge \
+            --version 42.0.0 -t 42.0 -t 42 -t stable
+        rm nudge.app.tar.gz
     fi
 
     # Add Fleet Desktop application on windows (if enabled).
