@@ -130,7 +130,7 @@ variable "ecs_cluster" {
 
 variable "fleet_config" {
   type = object({
-    mem                          = optional(number, 512)
+    mem                          = optional(number, 4096)
     cpu                          = optional(number, 256)
     image                        = optional(string, "fleetdm/fleet:v4.22.1")
     family                       = optional(string, "fleet")
