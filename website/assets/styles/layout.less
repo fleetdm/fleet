@@ -207,7 +207,7 @@ html, body {
       background-color: @core-vibrant-red;
       text-decoration: none;
     }
-    [purpose='header-nav-btn'][aria-expanded='true'], [purpose='header-nav-btn']:hover {
+    [purpose='header-nav-btn'][aria-expanded='true']{
       font-weight: 700;
       outline: none;
     }
@@ -230,6 +230,14 @@ html, body {
     }
     &:focus {
       outline-color: none;
+    }
+    .current-section {
+      font-weight: 700;
+      svg {
+        path {
+          fill: #6a67fe;
+        }
+      }
     }
     [purpose='logout-btn'] {
       color: @core-fleet-black;
@@ -263,14 +271,6 @@ html, body {
         line-height: 20px;
         margin-left: 8px;
         vertical-align: middle;
-      }
-    }
-    .current-section {
-      font-weight: 700;
-      svg {
-        path {
-          fill: #6a67fe;
-        }
       }
     }
   }
