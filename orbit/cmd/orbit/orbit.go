@@ -527,9 +527,9 @@ func main() {
 		configFetcher := update.ApplyRenewEnrollmentProfileConfigFetcherMiddleware(orbitClient, renewEnrollmentProfileCommandFrequency)
 
 		// add middleware to handle nudge installation and updates
-		const launchNudgeFrequency = 30 * time.Minute
+		const nudgeLaunchInterval = 30 * time.Minute
 		configFetcher = update.ApplyNudgeConfigFetcherMiddleware(configFetcher, update.NudgeConfigFetcherOptions{
-			UpdateRunner: updateRunner, RootDir: c.String("root-dir"), Interval: launchNudgeFrequency,
+			UpdateRunner: updateRunner, RootDir: c.String("root-dir"), Interval: nudgeLaunchInterval,
 		})
 
 		const orbitFlagsUpdateInterval = 30 * time.Second
