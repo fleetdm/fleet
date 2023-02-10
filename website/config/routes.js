@@ -268,8 +268,8 @@ module.exports.routes = {
   'GET /compliance': {
     action: 'view-compliance',
     locals: {
-      pageTitleForMeta: 'Upgrade to Fleet Premium | Fleet for osquery',
-      pageDescriptionForMeta: 'Learn about the benefits of upgrading to Fleet Premium',
+      pageTitleForMeta: 'Security compliance | Fleet for osquery',
+      pageDescriptionForMeta: 'Automate security workflows by creating or installing policies to maintain your organizaion\'s compliance goals. Simplify security compliance with Fleet.',
     }
   },
 
