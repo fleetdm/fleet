@@ -136,7 +136,7 @@ func (n *NudgeConfigFetcher) configure(nudgeCfg fleet.NudgeConfig) error {
 	}
 
 	// this not only an optimization, but mostly a safeguard: if the file
-	// has been tampered and and contains very large contents, we don't
+	// has been tampered and contains very large contents, we don't
 	// want to load them into memory.
 	if fileInfo.Size() != int64(len(jsonCfg)) {
 		return writeConfig()
@@ -175,7 +175,7 @@ func (n *NudgeConfigFetcher) launch() error {
 			}
 			// if we can't find the file, or the hash doesn't match
 			// make sure nudge is added as a target and the hashes
-			// are refreshed>
+			// are refreshed
 			if err := checkFileHash(meta, nudge.Path); err != nil {
 				return n.setTargetsAndHashes()
 			}
