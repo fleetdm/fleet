@@ -1,8 +1,4 @@
 # Using `toggle-mdm-dev` to enable and disable MDM (Mobile Device Management) / ABM (Apple Business Manager) for development
-As of Feb. 6, 2022, these instructions work. As this is a quickly growing and evolving system, it
-will likely stop working, possibly as soon as tomorrow. Regardless, the spirit of this setup can be
-applied anywhere that you see it could make your dev work a little easier.
-
 
 1. Set up all of the necessary credentials for using MDM and ABM as outlined in the [MDM setup and
    testing
