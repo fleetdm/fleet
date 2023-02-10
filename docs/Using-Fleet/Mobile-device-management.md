@@ -12,7 +12,7 @@ Fleet uses [Nudge](https://github.com/macadmins/nudge) to encourage the installa
 
 When a minimum version and deadline is saved in Fleet, the end user sees the below window until their macOS version is at or above the minimum version. 
 
-To set the macOS updates settings in the UI, visit the "Controls" section and then select the "MacOS updates" tab. To set the macOS updates settings programmatically, use the configurations listed [here](https://fleetdm.com/docs/using-fleet/configuration-files#mdm-macos-updates).
+To set the macOS updates settings in the UI, visit the **Controls** section and then select the **macOS updates** tab. To set the macOS updates settings programmatically, use the configurations listed [here](https://fleetdm.com/docs/using-fleet/configuration-files#mdm-macos-updates).
 
 ![Fleet's architecture diagram](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/nudge-window.png)
 
