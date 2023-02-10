@@ -347,7 +347,6 @@ endif
 	$(eval TMP_DIR := $(shell mktemp -d))
 	curl -L https://github.com/macadmins/nudge/releases/download/v$(version)/Nudge-$(version).pkg --output $(TMP_DIR)/nudge-$(version).pkg
 	pkgutil --expand $(TMP_DIR)/nudge-$(version).pkg $(TMP_DIR)/nudge_pkg_expanded
-	rm -rf $(TMP_DIR)/nudge_pkg_payload_expanded
 	mkdir -p $(TMP_DIR)/nudge_pkg_payload_expanded
 	tar xvf $(TMP_DIR)/nudge_pkg_expanded/nudge-$(version).pkg/Payload --directory $(TMP_DIR)/nudge_pkg_payload_expanded
 	$(TMP_DIR)/nudge_pkg_payload_expanded/Nudge.app/Contents/MacOS/Nudge --version
