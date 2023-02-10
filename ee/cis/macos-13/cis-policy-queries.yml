@@ -733,7 +733,7 @@ spec:
     Automated method:
     Ask your system administrator to deploy an MDM profile that disables apple personalized advertising.
     Graphical method:
-      Perform the following steps to enable Location Services:
+      Perform the following steps to Ensure Limit Ad Tracking Is Enabled:
         1. Open Privacy & Security
         2. Select Apple Advertising
         3. Verify that Personalized Ads is not enabled
@@ -928,7 +928,7 @@ spec:
     Automated method:
     Ask your system administrator to deploy an MDM profile that Ensure a Password is Required to Wake the Computer From Sleep or Screen Saver Is Enabled.
     Graphical method:
-      Perform the following steps to enable Location Services:
+      Perform the following steps to Ensure a Password is Required to Wake the Computer From Sleep or Screen Saver Is Enabled:
         1. Open System Settings
         2. Select Lock Screen
         3. Verify that Require password after screensaver begins or display is turned
@@ -951,7 +951,7 @@ spec:
     Automated method:
     Ask your system administrator to deploy an MDM profile that Ensure Gatekeeper Is Enabled
     Graphical method:
-      Perform the following steps to enable Location Services:
+      Perform the following steps to Ensure Gatekeeper Is Enabled:
         1. Open System Settings
         2. Select Privacy & Security
         3. Verify that 'Allow apps downloaded from' is set to' App Store and identified developers'
@@ -971,7 +971,7 @@ spec:
     Automated method:
     Ask your system administrator to deploy an MDM profile that disables Sending Diagnostic and Usage Data to Apple.
     Graphical method:
-      Perform the following steps to enable Location Services:
+      Perform the following steps to Ensure Sending Diagnostic and Usage Data to Apple Is Disabled:
         1. Open System Settings
         2. Select Privacy & Security
         3. Select Analytics & Improvements
@@ -1000,7 +1000,7 @@ spec:
     Automated method:
     Ask your system administrator to deploy an MDM profile that ensure an Inactivity Interval of 20 Minutes Or Less for the Screen Saver to be Enabled.
     Graphical method:
-      Perform the following steps to enable Location Services:
+      Perform the following steps to Ensure an Inactivity Interval of 20 Minutes Or Less for the Screen Saver Is Enabled:
         1. Open System Settings
         2. Select Lock Screen
         3. Verify that Start Screen Saver when inactive is set for 20 minutes or less (≤1200 seconds)
@@ -1018,7 +1018,7 @@ spec:
   description: An access warning informs the user that the system is reserved for authorized use only, and that the use of the system may be monitored
   resolution: |
     Graphical method:
-      Perform the following steps to enable Location Services:
+      Perform the following steps to Ensure a Custom Message for the Login Screen Is Enabled:
         1. Open System Settings
         2. Select Lock Screen
         3. Verify Show message when locked is enabled
@@ -1040,7 +1040,7 @@ spec:
     Automated method:
     Ask your system administrator to deploy an MDM profile that enables FileVault and disables turning it off.
     Graphical method:
-      Perform the following steps to enable Location Services:
+      Perform the following steps to Ensure FileVault Is Enabled:
         1. Open System Settings
         2. Select Privacy & Privacy
         3. Verify that FileVault states FileVault is turned on for the disk "<disk name>"
@@ -1067,7 +1067,7 @@ spec:
     Automated method:
     Ask your system administrator to deploy an MDM profile that Ensure Login Window Displays as Name and Password Is Enabled.
     Graphical method:
-      Perform the following steps to enable Location Services:
+      Perform the following steps to Ensure Login Window Displays as Name and Password Is Enabled:
         1. Open System Settings
         2. Select Lock Screen
         3. Verify that Login window shows is set to Name and Password
@@ -1087,7 +1087,7 @@ spec:
     Automated method:
     Ask your system administrator to deploy an MDM profile that Ensures Show Password Hints Is Disabled.
     Graphical method:
-      Perform the following steps to enable Location Services:
+      Perform the following steps to Ensure Show Password Hints Is Disabled:
         1. OpenSystemSettings
         2. Select Lock Screen
         3. Verify that Show password hints is disabled
@@ -1108,7 +1108,7 @@ spec:
     Automated method:
     Ask your system administrator to deploy an MDM profile that disables apple personalized advertising.
     Graphical method:
-      Perform the following steps to enable Location Services:
+      Perform the following steps to Ensure Users' Accounts Do Not Have a Password Hint:
         1. Open System Settings
         2. Select Touch ID & Passwords (or Login Password on non-Touch ID Macs)
         3. Select Change...
@@ -1129,7 +1129,7 @@ spec:
     Automated method:
     Ask your system administrator to deploy an MDM profile that disables Guest Account.
     Graphical method:
-      Perform the following steps to enable Location Services:
+      Perform the following steps to Ensure Guest Account Is Disabled:
         1. Open System Settings
         2. Select Users & Groups
         3. Select the i next to the Guest User
@@ -1177,7 +1177,7 @@ spec:
     Automated method:
     Ask your system administrator to deploy an MDM profile that Ensure Automatic Login Is Disabled
     Graphical method:
-      Perform the following steps to enable Location Services:
+      Perform the following steps to Ensure Automatic Login Is Disabled:
         1. Open System Settings
         2. Select Users & Groups
         3. Set Automatic login in as... to Off
