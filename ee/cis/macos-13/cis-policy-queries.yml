@@ -230,7 +230,7 @@ spec:
   query: SELECT * FROM sntp_request WHERE server = 'time.apple.com' AND clock_offset_ms <= 270000 AND clock_offset_ms >= -270000;
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS2.3.2.2
-  contributors: 
+  contributors: lucasmrod 
 ---
 apiVersion: v1
 kind: policy
@@ -1984,6 +1984,29 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
+  name: CIS - Ensure Warn When Visiting A Fraudulent Website in Safari Is Enabled (MDM Required)
+  platforms: macOS
+  platform: darwin
+  description: |
+    Apple uses the Google Safe Browsing API to check for fraudulent websites and report them to the
+    user attempting visit one. Attackers use crafted web pages to social engineer users to load
+    unwanted content. Warning users prior to loading the content enables better security.
+  resolution: |
+    Payload Method:
+    Ask your administrator to deploy a profile which enableds WarnAboutFraudulentWebsites in Safari
+  query: |
+    SELECT 1 FROM managed_policies WHERE
+      domain = 'com.apple.Safari' AND
+      name = 'WarnAboutFraudulentWebsites' AND
+      value = '1'
+      LIMIT 1;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS6.3.3
+  contributors: artemist-work
+---
+apiVersion: v1
+kind: policy
+spec:
   name: CIS - Ensure Prevent Cross-site Tracking in Safari Is Enabled (MDM Required)
   platforms: macOS
   platform: darwin
@@ -2045,3 +2068,58 @@ spec:
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS6.3.6
   contributors: artemist-work
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Show Full Website Address in Safari Is Enabled (MDM Required)
+  platforms: macOS
+  platform: darwin
+  description: |
+    Attackers use websites with malicious or unwanted content to exploit the user or the computer. Part of the attack chain is to lure someone to load their content rather than the desired content. In order to reduce the risk in interacting with unwanted content the full website address should always be displayed in Safari.
+  resolution: |
+    Graphical Method:
+    Perform the following steps to set Safari to show full website addresses:
+      1. Open Safari
+      2. Select Safari from the menu bar
+      3. Select Settings
+      4. Select Security
+      5. Set Show full website address to enabled
+    Automated method:
+    Profile Method:
+    Create or edit a configuration profile with the following information:
+      1. The PayloadType string is com.apple.Safari
+      2. The key to include is ShowFullURLInSmartSearchField 
+      3. The key must be set to:
+      <true/>
+  query: |
+      SELECT 1 from managed_policies WHERE domain = 'com.apple.Safari'
+      AND name = 'ShowFullURLInSmartSearchField' 
+      AND value = 1;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS6.3.7
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Secure Keyboard Entry Terminal.app Is Enabled (MDM Required)
+  platforms: macOS
+  platform: darwin
+  description: |
+    Secure Keyboard Entry prevents other applications on the system and/or network from detecting and recording what is typed into Terminal. Unauthorized applications and malicious code could intercept keystrokes entered in the Terminal.
+    Enabling Secure Keyboard Entry minimizes the risk of a key logger from detecting what is entered in Terminal.
+  resolution: |
+    Profile Method:
+    Create or edit a configuration profile with the following information:
+      1. The PayloadType string is com.apple.Terminal 
+      2. The key to include is SecureKeyboardEntry
+      3. The key must be set to
+      <true/>
+  query: |
+    SELECT 1 from managed_policies WHERE domain = 'com.apple.Terminal'
+      AND name = 'SecureKeyboardEntry' 
+      AND value == 1;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS6.4.1
+  contributors: sharon-fdm

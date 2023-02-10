@@ -150,7 +150,7 @@ fleet prepare db \
 
 ## Is Fleet available as a SaaS product?
 
-No. Currently, Fleet is only available for self-hosting on premises or in the cloud.
+Yes! Please sign up for the [Fleet Cloud Beta](https://kqphpqst851.typeform.com/to/yoo5smT9).
 
 ## What MySQL versions are supported?
 
@@ -273,6 +273,7 @@ If you would like to use the fleetctl CLI from outside of your network, the foll
 - /api/osquery/*
 - /api/latest/fleet/*
 - /api/v1/fleet/*
+
 ## What is the minimum version of MySQL required by Fleet?
 
 Fleet requires at least MySQL version 5.7.

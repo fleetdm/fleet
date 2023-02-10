@@ -105,7 +105,7 @@ const Mdm = (): JSX.Element => {
 
       const privateFilename = "fleet-apple-mdm-bm-private.key";
       const privateFile = new global.window.File(
-        [keys.decodedPublic],
+        [keys.decodedPrivate],
         privateFilename,
         {
           type: "application/x-pem-file",
@@ -113,11 +113,13 @@ const Mdm = (): JSX.Element => {
       );
 
       FileSaver.saveAs(publicFile);
-      FileSaver.saveAs(privateFile);
+      setTimeout(() => {
+        FileSaver.saveAs(privateFile);
+      }, 100);
     } else {
       renderFlash(
         "error",
-        "Your MDM business manager keys could not be downloaded. Please TODO ACTION."
+        "Your MDM business manager keys could not be downloaded. Please try again."
       );
     }
     return false;
@@ -162,7 +164,11 @@ const Mdm = (): JSX.Element => {
             </p>
             <p>
               5. Deploy Fleet with <b>mdm</b> configuration.{" "}
-              <CustomLink url="https://www.youtube.com" text="See how" newTab />
+              <CustomLink
+                url="https://fleetdm.com/docs/deploying/configuration#mobile-device-management-mdm"
+                text="See how"
+                newTab
+              />
             </p>
           </div>
         </>
@@ -225,7 +231,7 @@ const Mdm = (): JSX.Element => {
             <p>
               4. Deploy Fleet with <b>mdm</b> configuration.{" "}
               <CustomLink
-                url="https://business.apple.com/"
+                url="https://fleetdm.com/docs/deploying/configuration#mobile-device-management-mdm"
                 text="See how"
                 newTab
               />
