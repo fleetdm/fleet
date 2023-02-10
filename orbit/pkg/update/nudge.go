@@ -85,6 +85,7 @@ func (n *NudgeConfigFetcher) GetConfig() (*fleet.OrbitConfig, error) {
 	runnerHasLocalHash := n.opt.UpdateRunner.HasLocalHash("nudge")
 	if !updaterHasTarget || !runnerHasLocalHash {
 		log.Info().Msg("refreshing the update runner config with Nudge targets and hashes")
+		log.Debug().Msgf("updater has target: %t, runner has local hash: %t", updaterHasTarget, runnerHasLocalHash)
 		return cfg, n.setTargetsAndHashes()
 	}
 
@@ -107,6 +108,7 @@ func (n *NudgeConfigFetcher) setTargetsAndHashes() error {
 	// we don't want to keep nudge as a target if we failed to update the
 	// cached hashes in the runner.
 	if err := n.opt.UpdateRunner.StoreLocalHash("nudge"); err != nil {
+		log.Debug().Msgf("removing nudge from target options, error updating local hashes: %e", err)
 		n.opt.UpdateRunner.RemoveRunnerOptTarget("nudge")
 		n.opt.UpdateRunner.updater.RemoveTargetInfo("nudge")
 		return err
@@ -137,6 +139,7 @@ func (n *NudgeConfigFetcher) configure(nudgeCfg fleet.NudgeConfig) error {
 	// has been tampered and contains very large contents, we don't
 	// want to load them into memory.
 	if fileInfo.Size() != int64(len(jsonCfg)) {
+		log.Debug().Msg("configuring nudge: local file has different size than remote, writing remote config")
 		return writeConfig()
 	}
 
@@ -146,6 +149,7 @@ func (n *NudgeConfigFetcher) configure(nudgeCfg fleet.NudgeConfig) error {
 	}
 
 	if !bytes.Equal(fileBytes, jsonCfg) {
+		log.Debug().Msg("configuring nudge: local file is different than remote, writing remote config")
 		return writeConfig()
 	}
 
