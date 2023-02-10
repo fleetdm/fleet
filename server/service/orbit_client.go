@@ -104,6 +104,7 @@ func (oc *OrbitClient) GetConfig() (*fleet.OrbitConfig, error) {
 		Flags:         resp.Flags,
 		Extensions:    resp.Extensions,
 		Notifications: resp.Notifications,
+		NudgeConfig:   resp.NudgeConfig,
 	}, nil
 }
 
