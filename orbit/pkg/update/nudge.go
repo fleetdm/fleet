@@ -58,6 +58,7 @@ func ApplyNudgeConfigFetcherMiddleware(f OrbitConfigFetcher, opt NudgeConfigFetc
 // - ensures that Nudge is opened at an interval given by n.frequency with the
 // provided config.
 func (n *NudgeConfigFetcher) GetConfig() (*fleet.OrbitConfig, error) {
+	log.Debug().Msg("running nudge config fetcher middleware")
 	cfg, err := n.Fetcher.GetConfig()
 	if err != nil {
 		log.Info().Err(err).Msg("calling GetConfig from NudgeConfigFetcher")
