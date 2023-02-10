@@ -53,4 +53,5 @@ module.exports.policies = {
   'download-rss-feed': true,
   'view-upgrade': true,
   'deliver-premium-upgrade-form': true,
+  'view-compliance': true,
 };

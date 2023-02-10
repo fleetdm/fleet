@@ -262,7 +262,15 @@ module.exports.routes = {
     locals: {
       pageTitleForMeta: 'Upgrade to Fleet Premium | Fleet for osquery',
       pageDescriptionForMeta: 'Learn about the benefits of upgrading to Fleet Premium',
-    }
+    }  
+  },
+
+  'GET /compliance': {
+    action: 'view-compliance',
+    locals: {
+      pageTitleForMeta: 'Upgrade to Fleet Premium | Fleet for osquery',
+      pageDescriptionForMeta: 'Learn about the benefits of upgrading to Fleet Premium',
+    }  
   },
 
 
