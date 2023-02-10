@@ -32,17 +32,46 @@ type Runner struct {
 	mu          sync.Mutex
 }
 
-// UpdateRunnerOptTargets updates the RunnerOptions.Targets with the given target
-func (r *Runner) UpdateRunnerOptTargets(target string) {
+// AddRunnerOptTarget adds the given target to the RunnerOptions.Targets.
+func (r *Runner) AddRunnerOptTarget(target string) {
+	// check if target already exists
+	if r.HasRunnerOptTarget(target) {
+		return
+	}
+
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	// check if target already exists
+	r.opt.Targets = append(r.opt.Targets, target)
+}
+
+// RemoveRunnerOptTarget removes the given target to the RunnerOptions.Targets.
+func (r *Runner) RemoveRunnerOptTarget(target string) {
+	// check if target is there in the first place
+	if !r.HasRunnerOptTarget(target) {
+		return
+	}
+
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	var targets []string
+	// remove all occurences of the given target
 	for _, t := range r.opt.Targets {
-		if t == target {
-			return
+		if t != target {
+			targets = append(targets, t)
 		}
 	}
-	r.opt.Targets = append(r.opt.Targets, target)
+	r.opt.Targets = targets
+}
+
+func (r *Runner) HasRunnerOptTarget(target string) bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for _, t := range r.opt.Targets {
+		if t == target {
+			return true
+		}
+	}
+	return false
 }
 
 // NewRunner creates a new runner with the provided options. The runner must be
@@ -55,40 +84,58 @@ func NewRunner(updater *Updater, opt RunnerOptions) (*Runner, error) {
 		return nil, errors.New("runner must have nonempty subscriptions")
 	}
 
-	// Initialize the hashes of the local files for all tracked targets.
-	//
-	// This is an optimization to not compute the hash of the local files every opt.CheckInterval
-	// (knowing that they are not expected to change during the execution of the runner).
-	localHashes := make(map[string][]byte)
-	for _, target := range opt.Targets {
-		meta, err := updater.Lookup(target)
-		if err != nil {
-			return nil, fmt.Errorf("target %s lookup: %w", target, err)
-		}
-		localTarget, err := updater.localTarget(target)
-		if err != nil {
-			return nil, fmt.Errorf("get local path for %s: %w", target, err)
-		}
-		switch _, localHash, err := fileHashes(meta, localTarget.Path); {
-		case err == nil:
-			localHashes[target] = localHash
-			log.Info().Msgf("hash(%s)=%x", target, localHash)
-		case errors.Is(err, os.ErrNotExist):
-			// This is expected to happen if the target is not yet downloaded,
-			// or if the user manually changed the target channel.
-		default:
-			return nil, fmt.Errorf("%s file hash: %w", target, err)
-		}
-	}
-
-	return &Runner{
+	runner := &Runner{
 		updater: updater,
 		opt:     opt,
 		// chan gets capacity of 1 so we don't end up hung if Interrupt is
 		// called after Execute has already returned.
 		cancel:      make(chan struct{}, 1),
-		localHashes: localHashes,
-	}, nil
+		localHashes: make(map[string][]byte),
+	}
+
+	// Initialize the hashes of the local files for all tracked targets.
+	//
+	// This is an optimization to not compute the hash of the local files every opt.CheckInterval
+	// (knowing that they are not expected to change during the execution of the runner).
+	for _, target := range opt.Targets {
+		if err := runner.StoreLocalHash(target); err != nil {
+			return nil, err
+		}
+	}
+
+	return runner, nil
+}
+
+func (r *Runner) StoreLocalHash(target string) error {
+	meta, err := r.updater.Lookup(target)
+	if err != nil {
+		return fmt.Errorf("target %s lookup: %w", target, err)
+	}
+	localTarget, err := r.updater.localTarget(target)
+	if err != nil {
+		return fmt.Errorf("get local path for %s: %w", target, err)
+	}
+	switch _, localHash, err := fileHashes(meta, localTarget.Path); {
+	case err == nil:
+		r.mu.Lock()
+		r.localHashes[target] = localHash
+		r.mu.Unlock()
+		log.Info().Msgf("hash(%s)=%x", target, localHash)
+	case errors.Is(err, os.ErrNotExist):
+		// This is expected to happen if the target is not yet downloaded,
+		// or if the user manually changed the target channel.
+	default:
+		return fmt.Errorf("%s file hash: %w", target, err)
+	}
+
+	return nil
+}
+
+func (r *Runner) HasLocalHash(target string) bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	_, ok := r.localHashes[target]
+	return ok
 }
 
 // Execute begins a loop checking for updates.
@@ -128,6 +175,9 @@ func (r *Runner) UpdateAction() (bool, error) {
 		return false, fmt.Errorf("update metadata: %w", err)
 	}
 
+	// TODO(sarah): Should we reconsider usage of `didUpdate`? It seems that in most cases it is
+	// used to signal that orbit should restart. Does that make sense when we are dealing with more
+	// loosely coupled components such as Nudge?
 	var didUpdate bool
 	for _, target := range r.opt.Targets {
 		meta, err := r.updater.Lookup(target)
