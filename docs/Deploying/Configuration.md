@@ -2153,7 +2153,7 @@ The path specified needs to exist and Fleet needs to be able to read and write t
 
 When `current_instance_checks` is set to `auto` (the default), Fleet instances will try to create the `databases_path` if it doesn't exist.
 
-- Default value: none
+- Default value: `/tmp/vulndbs`
 - Environment variable: `FLEET_VULNERABILITIES_DATABASES_PATH`
 - Config file format:
   ```
