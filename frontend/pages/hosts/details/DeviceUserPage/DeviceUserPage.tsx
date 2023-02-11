@@ -41,6 +41,7 @@ import FleetIcon from "../../../../../assets/images/fleet-avatar-24x24@2x.png";
 import PolicyDetailsModal from "../cards/Policies/HostPoliciesTable/PolicyDetailsModal";
 import AutoEnrollMdmModal from "./AutoEnrollMdmModal";
 import ManualEnrollMdmModal from "./ManualEnrollMdmModal";
+import MacSettingsModal from "../MacSettingsModal";
 
 const baseClass = "device-user";
 
@@ -75,6 +76,7 @@ const DeviceUserPage = ({
     null
   );
   const [showPolicyDetailsModal, setShowPolicyDetailsModal] = useState(false);
+  const [showMacSettingsModal, setShowMacSettingsModal] = useState(false);
   const [globalConfig, setGlobalConfig] = useState<IDeviceGlobalConfig | null>(
     null
   );
@@ -234,6 +236,11 @@ const DeviceUserPage = ({
     },
     [showPolicyDetailsModal, setShowPolicyDetailsModal, setSelectedPolicy]
   );
+
+  const toggleMacSettingsModal = useCallback(() => {
+    setShowMacSettingsModal(!showMacSettingsModal);
+  }, [showMacSettingsModal, setShowMacSettingsModal]);
+
   const onCancelPolicyDetailsModal = useCallback(() => {
     setShowPolicyDetailsModal(!showPolicyDetailsModal);
     setSelectedPolicy(null);
@@ -313,6 +320,7 @@ const DeviceUserPage = ({
               titleData={titleData}
               diskEncryption={hostDiskEncryption}
               isPremiumTier={isPremiumTier}
+              toggleMacSettingsModal={toggleMacSettingsModal}
               showRefetchSpinner={showRefetchSpinner}
               onRefetchHost={onRefetchHost}
               renderActionButtons={renderActionButtons}
@@ -369,6 +377,13 @@ const DeviceUserPage = ({
           <PolicyDetailsModal
             onCancel={onCancelPolicyDetailsModal}
             policy={selectedPolicy}
+          />
+        )}
+        {showMacSettingsModal && (
+          <MacSettingsModal
+            // TODO: pass real host mac settings data
+            hostMacSettings={undefined}
+            onClose={toggleMacSettingsModal}
           />
         )}
       </div>

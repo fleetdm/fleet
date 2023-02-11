@@ -62,6 +62,7 @@ import parseOsVersion from "./modals/OSPolicyModal/helpers";
 
 import DiskEncryptionKeyModal from "./modals/DiskEncryptionKeyModal";
 import HostActionDropdown from "./HostActionsDropdown/HostActionsDropdown";
+import MacSettingsModal from "../MacSettingsModal";
 
 const baseClass = "host-details";
 
@@ -127,6 +128,7 @@ const HostDetailsPage = ({
   const [showQueryHostModal, setShowQueryHostModal] = useState(false);
   const [showPolicyDetailsModal, setPolicyDetailsModal] = useState(false);
   const [showOSPolicyModal, setShowOSPolicyModal] = useState(false);
+  const [showMacSettingsModal, setShowMacSettingsModal] = useState(false);
   const [showUnenrollMdmModal, setShowUnenrollMdmModal] = useState(false);
   const [showDiskEncryptionModal, setShowDiskEncryptionModal] = useState(false);
   const [selectedPolicy, setSelectedPolicy] = useState<IHostPolicy | null>(
@@ -388,6 +390,10 @@ const HostDetailsPage = ({
     setShowOSPolicyModal(!showOSPolicyModal);
   }, [showOSPolicyModal, setShowOSPolicyModal]);
 
+  const toggleMacSettingsModal = useCallback(() => {
+    setShowMacSettingsModal(!showMacSettingsModal);
+  }, [showMacSettingsModal, setShowMacSettingsModal]);
+
   const onCancelPolicyDetailsModal = useCallback(() => {
     setPolicyDetailsModal(!showPolicyDetailsModal);
     setSelectedPolicy(null);
@@ -620,6 +626,7 @@ const HostDetailsPage = ({
           isPremiumTier={isPremiumTier}
           isOnlyObserver={isOnlyObserver}
           toggleOSPolicyModal={toggleOSPolicyModal}
+          toggleMacSettingsModal={toggleMacSettingsModal}
           showRefetchSpinner={showRefetchSpinner}
           onRefetchHost={onRefetchHost}
           renderActionButtons={renderActionButtons}
@@ -735,6 +742,13 @@ const HostDetailsPage = ({
             detailsUpdatedAt={host?.detail_updated_at}
             osPolicy={osPolicyQuery}
             osPolicyLabel={osPolicyLabel}
+          />
+        )}
+        {showMacSettingsModal && (
+          <MacSettingsModal
+            // TODO: pass real host mac settings data
+            hostMacSettings={undefined}
+            onClose={toggleMacSettingsModal}
           />
         )}
         {showUnenrollMdmModal && !!host && (

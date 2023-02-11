@@ -11,6 +11,7 @@ import getHostStatusTooltipText from "pages/hosts/helpers";
 import StatusIndicator from "components/StatusIndicator";
 import Icon from "components/Icon";
 import { IconNames } from "components/icons";
+import { MacSettingsStatus } from "interfaces/mdm";
 import IssueIcon from "../../../../../../assets/images/icon-issue-fleet-black-50-16x16@2x.png";
 
 const baseClass = "host-summary";
@@ -20,8 +21,6 @@ interface IHostDiskEncryptionProps {
   tooltip?: string;
 }
 
-type MacSettingsStatus = "Failing" | "Latest" | "Pending";
-
 interface IHostSummaryProps {
   statusClassName: string;
   titleData: any; // TODO: create interfaces for this and use consistently across host pages and related helpers
@@ -29,6 +28,7 @@ interface IHostSummaryProps {
   isPremiumTier?: boolean;
   isOnlyObserver?: boolean;
   toggleOSPolicyModal?: () => void;
+  toggleMacSettingsModal?: () => void;
   showRefetchSpinner: boolean;
   onRefetchHost: (
     evt: React.MouseEvent<HTMLButtonElement, React.MouseEvent>
@@ -44,6 +44,7 @@ const HostSummary = ({
   isPremiumTier,
   isOnlyObserver,
   toggleOSPolicyModal,
+  toggleMacSettingsModal,
   showRefetchSpinner,
   onRefetchHost,
   renderActionButtons,
@@ -135,7 +136,8 @@ const HostSummary = ({
   // const getIconNameAndTooltipText = (
   //   macSettingsStatus: MacSettingsStatus
   // ): [IconNames, string] => {
-  //   const options: { [key: "Latest" | "Pending" | "Failing"] } = {
+  //   const options: { [key: "Latest" | "Pending" | "Failing"]  } = {
+  //     // const options = {
   //     Latest: ["success", "Host applied the latest settings"],
   //     Pending: [
   //       "pending",
@@ -151,13 +153,27 @@ const HostSummary = ({
 
   const renderMacSettingsIndicator = () => {
     // TODO: actually determine this status
-    const macSettingsStatus: MacSettingsStatus = "Latest";
+    const macSettingsStatus: MacSettingsStatus = "Pending";
 
-    // TODO: get this function to work
-    // const [iconName, tooltipText] = getIconNameAndTooltipText(
-    //   macSettingsStatus
-    // );
-    const iconName = "success";
+    // TODO: get below to work
+    // const statusDisplayOptions = {
+    //   const statusDisplayOptions: { status: MacSettingsStatus: { iconName: IconNames, tooltipText: string }
+    // } = {
+    //     Latest: {
+    //       iconName: "success",
+    //       tooltipText: "Host applied the latest settings",
+    //     },
+    //     Pending: {
+    //       iconName: "pending",
+    //       tooltipText: "Host will apply the latest settings when it comes online",
+    //     },
+    //     Failing: {
+    //       iconName: "error",
+    //       tooltipText:
+    //         "Host failed to apply the latest settings. Click to view error(s).",
+    //     },
+    //   };
+    const iconName = "pending";
     const tooltipText = "test tip text";
 
     return (
@@ -171,8 +187,16 @@ const HostSummary = ({
             data-tip-disable={false}
           >
             {/* TODO: fix alginment of this icon */}
+            {/* <Icon name={statusDisplayOptions[macSettingsStatus].iconName} /> */}
             <Icon name={iconName} />
-            <span className="info-flex__data__text">{macSettingsStatus}</span>
+            <Button
+              onClick={toggleMacSettingsModal}
+              variant="text-link"
+              className={`${baseClass}__mac-settings-button`}
+            >
+              {macSettingsStatus}
+            </Button>
+            {/* <span className="info-flex__data__text">{macSettingsStatus}</span> */}
           </span>
           <ReactTooltip
             place="bottom"
@@ -260,7 +284,7 @@ const HostSummary = ({
               `${titleData.os_version}`
             ) : (
               <Button
-                onClick={() => toggleOSPolicyModal && toggleOSPolicyModal()}
+                onClick={toggleOSPolicyModal}
                 variant="text-link"
                 className={`${baseClass}__os-policy-button`}
               >

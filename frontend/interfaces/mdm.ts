@@ -54,3 +54,9 @@ export interface IMdmSummaryResponse {
   mobile_device_management_enrollment_status: IMdmStatus;
   mobile_device_management_solution: IMdmSolution[] | null;
 }
+
+// TODO: define below according to the API structure in issue #9599
+export type IMacSettings = unknown;
+export type IMacSetting = unknown;
+
+export type MacSettingsStatus = "Failing" | "Latest" | "Pending";
