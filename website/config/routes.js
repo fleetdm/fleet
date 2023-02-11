@@ -251,7 +251,7 @@ module.exports.routes = {
   'GET /device-management': {
     action: 'view-fleet-mdm',
     locals: {
-      pageTitleForMeta: 'Device Management | Fleet for osquery',
+      pageTitleForMeta: 'Device management | Fleet for osquery',
       pageDescriptionForMeta: 'Learn about upcoming features and join the Fleet MDM beta today.',
       currentSection: 'platform',
     }

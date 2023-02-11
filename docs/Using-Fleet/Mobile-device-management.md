@@ -10,17 +10,19 @@ To use MDM features you have to connect Fleet to Apple Push Certificates Portal.
 
 Fleet uses [Nudge](https://github.com/macadmins/nudge) to encourage the installation of macOS updates.
 
-When a minimum version and deadline is saved in Fleet, the end user sees the below window until their macOS version is at or above the minimum version.
+When a minimum version and deadline is saved in Fleet, the end user sees the below window until their macOS version is at or above the minimum version. 
+
+To set the macOS updates settings in the UI, visit the **Controls** section and then select the **macOS updates** tab. To set the macOS updates settings programmatically, use the configurations listed [here](https://fleetdm.com/docs/using-fleet/configuration-files#mdm-macos-updates).
 
 ![Fleet's architecture diagram](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/nudge-window.png)
 
 As the deadline gets closer, Fleet provides stronger encouragement.
 
-If the end user has more than 1 day until the deadline, the window is shown everyday. The end user can defer the update and close the window. They’ll see the window again the next day.
+If the end user has more than 1 day until the deadline, the Nudge window is shown everyday. The end user can defer the update and close the window.
 
-If there is less than 1 day, the window is shown every 2 hours. The end user can defer and they'll see the window again in 2 hours.
+If there is less than 1 day, the window is shown every 2 hours. The end user can defer and close the window.
 
-If the end user is past the deadline, Fleet opens the window. The end user can't close the window.
+If the end user is past the deadline, Fleet shows the window and end user can't close the window until they upgrade.
 
 ## Disk encryption
 
