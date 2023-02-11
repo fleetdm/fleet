@@ -29,7 +29,6 @@ module.exports.routes = {
   'GET /fleetctl-preview': {
     action: 'view-get-started',
     locals: {
-      currentPage: 'get started',
       pageTitleForMeta: 'fleetctl preview | Fleet for osquery',
       pageDescriptionForMeta: 'Learn about getting started with Fleet using fleetctl.'
     }
@@ -38,7 +37,7 @@ module.exports.routes = {
   'GET /pricing': {
     action: 'view-pricing',
     locals: {
-      currentPage: 'pricing',
+      currentSection: 'pricing',
       pageTitleForMeta: 'Pricing | Fleet for osquery',
       pageDescriptionForMeta: 'View Fleet plans and pricing details.'
     }
@@ -55,7 +54,7 @@ module.exports.routes = {
   'GET /queries': {
     action: 'view-query-library',
     locals: {
-      currentPage: 'queries',
+      currentSection: 'documentation',
       pageTitleForMeta: 'Queries | Fleet for osquery',
       pageDescriptionForMeta: 'A growing collection of useful queries for organizations deploying Fleet and osquery.'
     }
@@ -64,37 +63,34 @@ module.exports.routes = {
   'GET /queries/:slug': {
     action: 'view-query-detail',
     locals: {
-      currentPage: 'queries',
+      currentSection: 'documentation',
     }
   },
 
   'r|/((success-stories|securing|releases|engineering|guides|announcements|podcasts|report|deploy)/(.+))$|': {
     skipAssets: false,
     action: 'articles/view-basic-article',
-    locals: {
-      currentPage: 'articles',
-    }
   },// Handles /device-management/foo, /securing/foo, /releases/foo, /engineering/foo, /guides/foo, /announcements/foo, /deploy/foo, /podcasts/foo, /report/foo
 
   'r|^/((success-stories|securing|releases|engineering|guides|announcements|articles|podcasts|report|deploy))/*$|category': {
     skipAssets: false,
     action: 'articles/view-articles',
-    locals: {
-      currentPage: 'articles',
-    }
   },// Handles the article landing page /articles, and the article cateogry pages (e.g. /device-management, /securing, /releases, etc)
 
   'GET /docs/?*': {
     skipAssets: false,
     action: 'docs/view-basic-documentation',
     locals: {
-      currentPage: 'docs',
+      currentSection: 'documentation',
     }
   },// handles /docs and /docs/foo/bar
 
   'GET /handbook/?*':  {
     skipAssets: false,
     action: 'handbook/view-basic-handbook',
+    locals: {
+      currentSection: 'community',
+    }
   },// handles /handbook and /handbook/foo/bar
 
   'GET /transparency': {
@@ -156,7 +152,7 @@ module.exports.routes = {
   'GET /platform': {
     action: 'view-platform',
     locals: {
-      currentPage: 'platform',
+      currentSection: 'platform',
       pageTitleForMeta: 'Platform | Fleet for osquery',
       pageDescriptionForMeta: 'Learn about the Fleet\'s features.',
     }
@@ -225,6 +221,9 @@ module.exports.routes = {
 
   'GET /tables/:tableName': {
     action: 'view-osquery-table-details',
+    locals: {
+      currentSection: 'documentation',
+    }
   },
 
   'GET /admin/generate-license': {
@@ -253,7 +252,8 @@ module.exports.routes = {
     action: 'view-fleet-mdm',
     locals: {
       pageTitleForMeta: 'Device management | Fleet for osquery',
-      pageDescriptionForMeta: 'Learn about upcoming features and join the Fleet MDM beta today.'
+      pageDescriptionForMeta: 'Learn about upcoming features and join the Fleet MDM beta today.',
+      currentSection: 'platform',
     }
   },
 
