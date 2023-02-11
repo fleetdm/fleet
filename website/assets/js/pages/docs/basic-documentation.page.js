@@ -10,7 +10,7 @@ parasails.registerPage('basic-documentation', {
     inputTimers: {},
     searchString: '',
     showDocsNav: false,
-
+    currentDocsSection: '',
     breadcrumbs: [],
     pages: [],
     pagesBySectionSlug: {},
@@ -81,6 +81,12 @@ parasails.registerPage('basic-documentation', {
   },
 
   mounted: async function() {
+
+    // Set a currentDocsSection value to display different Fleet premium CTAs based on what section is being viewed.
+    if(!this.isDocsLandingPage){
+      this.currentDocsSection = this.thisPage.url.split(/\//).slice(-2)[0];
+    }
+
     // Algolia DocSearch
     if(this.algoliaPublicKey) { // Note: Docsearch will only be enabled if sails.config.custom.algoliaPublicKey is set. If the value is undefined, the documentation search will be disabled.
       docsearch({
