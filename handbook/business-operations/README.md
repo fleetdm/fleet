@@ -480,6 +480,14 @@ Although it's sad to see you go, Fleet understands that not everything is meant 
 3. Announcement: Charlie will make an announcement during the "🌈 Weekly Update" post on Friday in the `#general` channel on Slack. 
 
 
+## Relocations
+
+When Fleeties relocate there are vendors that need to be notified of the change. 
+
+Employee directions:
+  - Please follow the directions listed in the ["Moving" template](https://github.com/fleetdm/confidential/blob/main/.github/ISSUE_TEMPLATE/x-moving.md) to create a confidential issue and assign to the [🔦#g-business-operations kanban (project) board](https://github.com/orgs/fleetdm/projects/51/views/1).
+
+
 ## Rituals
 The following table lists the People group's rituals, frequency, and Directly Responsible Individual (DRI).
 
