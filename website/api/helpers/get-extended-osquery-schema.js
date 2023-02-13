@@ -39,7 +39,7 @@ module.exports = {
       try {
         parsedYamlTable = YAML.parse(tableYaml, {prettyErrors: true});
       } catch(err) {
-        throw new Error(`Could not parse the Fleet overrides YAMl at ${yamlSchema} on line ${err.linePos.start.line}. To resolve, make sure the YAML is valid, then try running this script again`+err.stack);
+        throw new Error(`Could not parse the Fleet overrides YAMl at ${yamlSchema} on line ${err.linePos.start.line}. To resolve, make sure the YAML is valid, then try running this script again: `+err.stack);
       }
       if(parsedYamlTable.name) {
         if(typeof parsedYamlTable.name !== 'string') {

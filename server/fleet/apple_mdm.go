@@ -1,10 +1,17 @@
 package fleet
 
 import (
+	"bytes"
 	"encoding/json"
+	"errors"
+	"fmt"
+	"net/http"
+	"time"
 
 	"github.com/micromdm/nanodep/godep"
 	"github.com/micromdm/nanomdm/mdm"
+	"go.mozilla.org/pkcs7"
+	"howett.net/plist"
 )
 
 // MDMAppleEnrollmentType is the type for Apple MDM enrollments.
@@ -180,4 +187,95 @@ type MDMAppleHostDetails struct {
 	SerialNumber string
 	UDID         string
 	Model        string
+}
+
+type MDMAppleCommandTimeoutError struct{}
+
+func (e MDMAppleCommandTimeoutError) Error() string {
+	return "Timeout waiting for MDM device to acknowledge command"
+}
+
+func (e MDMAppleCommandTimeoutError) StatusCode() int {
+	return http.StatusGatewayTimeout
+}
+
+// Mobileconfig is the byte slice corresponding to an XML property list (i.e. plist) representation
+// of an Apple MDM configuration profile in Fleet.
+//
+// Configuration profiles are used to configure Apple devices. See also
+// https://developer.apple.com/documentation/devicemanagement/configuring_multiple_devices_using_profiles.
+type Mobileconfig []byte
+
+// ParseConfigProfile attempts to parse the Mobileconfig byte slice as a Fleet MDMAppleConfigProfile.
+//
+// The byte slice must be XML or PKCS7 parseable. Fleet also requires that it contains both
+// a PayloadIdentifier and a PayloadDisplayName and that it has PayloadType set to "Configuration".
+//
+// Adapted from https://github.com/micromdm/micromdm/blob/main/platform/profile/profile.go
+func (mc *Mobileconfig) ParseConfigProfile() (*MDMAppleConfigProfile, error) {
+	mcBytes := *mc
+	if !bytes.HasPrefix(mcBytes, []byte("<?xml")) {
+		p7, err := pkcs7.Parse(mcBytes)
+		if err != nil {
+			return nil, fmt.Errorf("mobileconfig is not XML nor PKCS7 parseable: %w", err)
+		}
+		err = p7.Verify()
+		if err != nil {
+			return nil, err
+		}
+		mcBytes = Mobileconfig(p7.Content)
+	}
+	var parsed struct {
+		PayloadIdentifier  string
+		PayloadDisplayName string
+		PayloadType        string
+	}
+	_, err := plist.Unmarshal(mcBytes, &parsed)
+	if err != nil {
+		return nil, err
+	}
+	if parsed.PayloadType != "Configuration" {
+		return nil, fmt.Errorf("invalid PayloadType: %s", parsed.PayloadType)
+	}
+	if parsed.PayloadIdentifier == "" {
+		return nil, errors.New("empty PayloadIdentifier in profile")
+	}
+	if parsed.PayloadDisplayName == "" {
+		return nil, errors.New("empty PayloadDisplayName in profile")
+	}
+
+	return &MDMAppleConfigProfile{
+		Identifier:   parsed.PayloadIdentifier,
+		Name:         parsed.PayloadDisplayName,
+		Mobileconfig: mc,
+	}, nil
+}
+
+// MDMAppleConfigProfile represents an Apple MDM configuration profile in Fleet.
+// Configuration profiles are used to configure Apple devices .
+// See also https://developer.apple.com/documentation/devicemanagement/configuring_multiple_devices_using_profiles.
+type MDMAppleConfigProfile struct {
+	// ProfileID is the unique id of the configuration profile in Fleet
+	ProfileID uint `db:"profile_id"`
+	// TeamID is the id of the team with which the configuration is associated. A team id of zero
+	// represents a configuration profile that is not associated with any team.
+	TeamID uint `db:"team_id"`
+	// Identifier corresponds to the payload identifier of the associated mobileconfig payload.
+	// Fleet requires that Identifier must be unique in combination with the Name and TeamID.
+	Identifier string `db:"identifier"`
+	// Name corresponds to the payload display name of the associated mobileconfig payload.
+	// Fleet requires that Name must be unique in combination with the Identifier and TeamID.
+	Name string `db:"name"`
+	// Mobileconfig is the byte slice corresponding to the XML property list (i.e. plist)
+	// representation of the configuration profile. It must be XML or PKCS7 parseable.
+	Mobileconfig *Mobileconfig `db:"mobileconfig"`
+	CreatedAt    time.Time     `db:"created_at"`
+	UpdatedAt    time.Time     `db:"updated_at"`
+}
+
+func (cp *MDMAppleConfigProfile) Validate() error {
+	// TODO(sarah): Additional validations for PayloadContent (e.g., screening out FileVault payloads)
+	// should be handled here
+
+	return nil
 }

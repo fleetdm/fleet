@@ -31,6 +31,7 @@ export enum ActivityType {
   UserDeletedTeamRole = "deleted_user_team_role",
   MdmEnrolled = "mdm_enrolled",
   MdmUnenrolled = "mdm_unenrolled",
+  EditedMacosMinVersion = "edited_macos_min_version",
 }
 export interface IActivity {
   created_at: string;
@@ -50,8 +51,8 @@ export interface IActivityDetails {
   query_id?: number;
   query_name?: string;
   query_sql?: string;
-  team_id?: number;
-  team_name?: string;
+  team_id?: number | null;
+  team_name?: string | null;
   teams?: ITeamSummary[];
   targets_count?: number;
   specs?: IQuery[] | IPolicy[];
@@ -61,5 +62,8 @@ export interface IActivityDetails {
   email?: string;
   role?: string;
   host_serial?: string;
+  host_display_name?: string;
   installed_from_dep?: boolean;
+  minimum_version?: string;
+  deadline?: string;
 }

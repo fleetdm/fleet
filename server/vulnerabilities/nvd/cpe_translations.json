@@ -59,5 +59,14 @@
       "product": ["7-zip"],
       "vendor": ["7-zip"]
     }
+  },
+  {
+    "software": {
+      "name": ["Docs"],
+      "source": ["chrome_extensions"]
+    },
+    "filter": {
+      "skip": true
+    }
   }
 ]

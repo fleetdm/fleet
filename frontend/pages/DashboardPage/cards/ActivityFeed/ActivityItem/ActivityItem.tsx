@@ -4,15 +4,13 @@ import { intlFormat, formatDistanceToNowStrict } from "date-fns";
 
 import { ActivityType, IActivity, IActivityDetails } from "interfaces/activity";
 import { addGravatarUrlToResource } from "utilities/helpers";
+import { DEFAULT_GRAVATAR_LINK } from "utilities/constants";
 import Avatar from "components/Avatar";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 import ReactTooltip from "react-tooltip";
 
 const baseClass = "activity-item";
-
-const DEFAULT_GRAVATAR_URL =
-  "https://www.gravatar.com/avatar/00000000000000000000000000000000?d=blank&size=200";
 
 const TAGGED_TEMPLATES = {
   liveQueryActivityTemplate: (
@@ -153,7 +151,7 @@ const TAGGED_TEMPLATES = {
   mdmEnrolled: (activity: IActivity) => {
     return (
       <>
-        An end user turned on MDM features for a host with serial number
+        An end user turned on MDM features for a host with serial number{" "}
         <b>
           {activity.details?.host_serial} (
           {activity.details?.installed_from_dep ? "automatic" : "manual"})
@@ -165,12 +163,39 @@ const TAGGED_TEMPLATES = {
   mdmUnenrolled: (activity: IActivity) => {
     return (
       <>
-        An end user turned off MDM features for a host with serial number
-        <b>
-          {activity.details?.host_serial} (
-          {activity.details?.installed_from_dep ? "automatic" : "manual"})
-        </b>
-        .
+        {activity.actor_full_name
+          ? " turned off mobile device management (MDM) for"
+          : "Mobile device management (MDM) was turned off for"}{" "}
+        <b>{activity.details?.host_display_name}</b>.
+      </>
+    );
+  },
+  editedMacosMinVersion: (activity: IActivity) => {
+    const editedActivity =
+      activity.details?.minimum_version === "" ? "removed" : "updated";
+
+    const versionSection = activity.details?.minimum_version ? (
+      <>
+        to <b>{activity.details.minimum_version}</b>
+      </>
+    ) : null;
+
+    const deadlineSection = activity.details?.deadline ? (
+      <>(deadline: {activity.details.deadline})</>
+    ) : null;
+
+    const teamSection = activity.details?.team_id ? (
+      <>
+        the <b>{activity.details.team_name}</b> team
+      </>
+    ) : (
+      <>no team</>
+    );
+
+    return (
+      <>
+        {editedActivity} the minimum macOS version {versionSection}{" "}
+        {deadlineSection} on hosts assigned to {teamSection}.
       </>
     );
   },
@@ -252,6 +277,9 @@ const getDetail = (
     case ActivityType.MdmUnenrolled: {
       return TAGGED_TEMPLATES.mdmUnenrolled(activity);
     }
+    case ActivityType.EditedMacosMinVersion: {
+      return TAGGED_TEMPLATES.editedMacosMinVersion(activity);
+    }
     default: {
       return TAGGED_TEMPLATES.defaultActivityTemplate(activity);
     }
@@ -275,9 +303,9 @@ const ActivityItem = ({
   onDetailsClick = noop,
 }: IActivityItemProps) => {
   const { actor_email } = activity;
-  const { gravatarURL } = actor_email
+  const { gravatar_url } = actor_email
     ? addGravatarUrlToResource({ email: actor_email })
-    : { gravatarURL: DEFAULT_GRAVATAR_URL };
+    : { gravatar_url: DEFAULT_GRAVATAR_LINK };
 
   const activityCreatedAt = new Date(activity.created_at);
 
@@ -285,8 +313,9 @@ const ActivityItem = ({
     <div className={baseClass}>
       <Avatar
         className={`${baseClass}__avatar-image`}
-        user={{ gravatarURL }}
+        user={{ gravatar_url }}
         size="small"
+        hasWhiteBackground
       />
       <div className={`${baseClass}__details`}>
         <p>

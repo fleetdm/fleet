@@ -8,13 +8,22 @@ export interface IMdmApple {
 export interface IMdmAppleBm {
   default_team?: string;
   apple_id: string;
-  organization_name: string;
+  org_name: string;
   mdm_server_url: string;
   renew_date: string;
 }
 
-export interface IMdmEnrollmentCardData {
-  status: "On (manual)" | "On (automatic)" | "Off";
+export const MDM_ENROLLMENT_STATUS = {
+  "On (manual)": "manual",
+  "On (automatic)": "automatic",
+  Off: "unenrolled",
+  Pending: "pending",
+};
+
+export type MdmEnrollmentStatus = keyof typeof MDM_ENROLLMENT_STATUS;
+
+export interface IMdmStatusCardData {
+  status: MdmEnrollmentStatus;
   hosts: number;
 }
 
@@ -22,6 +31,7 @@ export interface IMdmAggregateStatus {
   enrolled_manual_hosts_count: number;
   enrolled_automated_hosts_count: number;
   unenrolled_hosts_count: number;
+  pending_hosts_count?: number;
 }
 
 export interface IMdmSolution {
@@ -31,15 +41,16 @@ export interface IMdmSolution {
   hosts_count: number;
 }
 
-interface IMdmEnrollementStatus {
+interface IMdmStatus {
   enrolled_manual_hosts_count: number;
   enrolled_automated_hosts_count: number;
   unenrolled_hosts_count: number;
+  pending_hosts_count?: number;
   hosts_count: number;
 }
 
 export interface IMdmSummaryResponse {
   counts_updated_at: string;
-  mobile_device_management_enrollment_status: IMdmEnrollementStatus;
+  mobile_device_management_enrollment_status: IMdmStatus;
   mobile_device_management_solution: IMdmSolution[] | null;
 }

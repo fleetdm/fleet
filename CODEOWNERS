@@ -6,6 +6,9 @@ go.mod @fleetdm/go
 /server/ @fleetdm/go
 /cmd/ @fleetdm/go
 
+# React engineers are automatically added as reviewers when changes are made to react files
+/frontend/ @fleetdm/frontend
+
 # Infra/terraform
 *.tf @edwardsb @zwinnerman-fleetdm @rfairburn
 /infrastructure/ @zwinnerman-fleetdm @edwardsb @rfairburn
@@ -31,7 +34,7 @@ go.mod @fleetdm/go
 /docs/01-Using-Fleet/standard-query-library/standard-query-library.yml @mikermcneil
 
 # Exapnded table documentation
-/schema @mikermcneil
+/schema @sharon-fdm 
 
 # Articles
 /articles @jarodreyes

@@ -92,6 +92,7 @@
         tbody {
           .query_name__cell {
             width: $col-lg;
+            max-width: 175px; // Truncates at smaller widths
           }
           .interval__cell {
             width: auto;

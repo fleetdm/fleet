@@ -44,16 +44,15 @@ type appConfigResponseFields struct {
 	Logging *fleet.Logging `json:"logging,omitempty"`
 	// SandboxEnabled is true if fleet serve was ran with server.sandbox_enabled=true
 	SandboxEnabled bool `json:"sandbox_enabled,omitempty"`
-	// MDMEnabled is true if fleet serve was ran with FLEET_DEV_MDM_ENABLED=1
+	// MDMFeatureFlagEnabled is true if fleet serve was ran with FLEET_DEV_MDM_ENABLED=1
 	//
 	// This is used only for UI development, for more details check
 	// https://github.com/fleetdm/fleet/issues/8751
 	//
 	// TODO: remove this flag once the MDM feature is ready for
 	// release.
-	MDMEnabled bool `json:"mdm_enabled,omitempty"`
-
-	Err error `json:"error,omitempty"`
+	MDMFeatureFlagEnabled bool  `json:"mdm_feature_flag_enabled,omitempty"`
+	Err                   error `json:"error,omitempty"`
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface to make sure we serialize
@@ -145,12 +144,13 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 			License:         license,
 			Logging:         loggingConfig,
 			SandboxEnabled:  svc.SandboxEnabled(),
-			// Undocumented feature flag for MDM, used only for UI development, for
-			// more details check https://github.com/fleetdm/fleet/issues/8751
+			// Undocumented feature flag for MDM, used only for UI
+			// development, for more details check
+			// https://github.com/fleetdm/fleet/issues/8751
 			//
-			// TODO: remove this flag once the MDM feature is ready for
-			// release.
-			MDMEnabled: os.Getenv("FLEET_DEV_MDM_ENABLED") == "1",
+			// TODO: remove this flag once the MDM feature is ready
+			// for release.
+			MDMFeatureFlagEnabled: os.Getenv("FLEET_DEV_MDM_ENABLED") == "1",
 		},
 	}
 	return response, nil
@@ -247,8 +247,9 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	}
 	oldAppConfig := appConfig.Copy()
 
-	// keep this original value, as it cannot be modified via this request.
+	// keep this original values, as they cannot be modified via this request.
 	origAppleBMTerms := oldAppConfig.MDM.AppleBMTermsExpired
+	origMDMEnabled := oldAppConfig.MDM.EnabledAndConfigured
 
 	license, err := svc.License(ctx)
 	if err != nil {
@@ -343,11 +344,12 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		return nil, ctxerr.Wrap(ctx, invalid)
 	}
 
-	// ignore AppleBMTermsExpired if provided in the modify payload
-	// we don't return an error in this case because it would prevent
-	// using the output of fleetctl get config as input to fleetctl apply
-	// or this endpoint.
+	// ignore AppleBMTermsExpired and Enabled if provided in the modify
+	// payload we don't return an error in this case because it would
+	// prevent using the output of fleetctl get config as input to fleetctl
+	// apply or this endpoint.
 	appConfig.MDM.AppleBMTermsExpired = origAppleBMTerms
+	appConfig.MDM.EnabledAndConfigured = origMDMEnabled
 
 	// do not send a test email in dry-run mode, so this is a good place to stop
 	// (we also delete the removed integrations after that, which we don't want
@@ -429,7 +431,22 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 				Global: true,
 			},
 		); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "create activity for app config modification")
+			return nil, ctxerr.Wrap(ctx, err, "create activity for app config agent options modification")
+		}
+	}
+
+	// if the macOS minimum version requirement changed, create the corresponding
+	// activity
+	if oldAppConfig.MDM.MacOSUpdates != appConfig.MDM.MacOSUpdates {
+		if err := svc.ds.NewActivity(
+			ctx,
+			authz.UserFromContext(ctx),
+			fleet.ActivityTypeEditedMacOSMinVersion{
+				MinimumVersion: appConfig.MDM.MacOSUpdates.MinimumVersion,
+				Deadline:       appConfig.MDM.MacOSUpdates.Deadline,
+			},
+		); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "create activity for app config macos min version modification")
 		}
 	}
 
@@ -450,6 +467,22 @@ func (svc *Service) validateMDM(
 		}
 		if _, err := svc.ds.TeamByName(ctx, name); err != nil {
 			invalid.Append("apple_bm_default_team", "team name not found")
+		}
+	}
+
+	// MacOSUpdates
+	updatingVersion := mdm.MacOSUpdates.MinimumVersion != "" &&
+		mdm.MacOSUpdates.MinimumVersion != oldMdm.MacOSUpdates.MinimumVersion
+	updatingDeadline := mdm.MacOSUpdates.Deadline != "" &&
+		mdm.MacOSUpdates.Deadline != oldMdm.MacOSUpdates.Deadline
+
+	if updatingVersion || updatingDeadline {
+		if !license.IsPremium() {
+			invalid.Append("macos_updates.minimum_version", ErrMissingLicense.Error())
+			return
+		}
+		if err := mdm.MacOSUpdates.Validate(); err != nil {
+			invalid.Append("macos_updates", err.Error())
 		}
 	}
 }

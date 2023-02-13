@@ -1,0 +1,12 @@
+name: sudo_info
+platforms:
+  - darwin
+description: Returns the output of `sudo -V` in JSON format.
+columns:
+  - name: json_result
+    type: text
+    required: false
+    description: A JSON document with the key value pairs parsed from `sudo -V` output.
+notes: >-
+  - This table is not a core osquery table. It is included as part of Fleetd, the osquery manager from Fleet.
+evented: false

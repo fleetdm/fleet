@@ -5,6 +5,7 @@
   var me;
   var isHomepage;
   var headerCTAHidden;
+  var currentSection;
 %><!DOCTYPE html>
 <html>
   <head>
@@ -14,7 +15,7 @@
     <% /* Viewport tag for sensible mobile support */ %>
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
     <%// Twitter meta tags%>
-    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:card" content="<%= typeof pageImageForMeta !== 'undefined' ? 'summary_large_image' : 'summary' %>" />
     <meta name="twitter:site" content="https://fleetdm.com" />
     <meta name="twitter:description" content="<%= typeof pageDescriptionForMeta !== 'undefined' ? pageDescriptionForMeta : 'Fleet is the lightweight, programmable telemetry platform for servers and workstations. Get comprehensive, customizable data from all your devices and operating systems — without the performance hit'  %>" />
     <meta name="twitter:title" content="<%= typeof pageTitleForMeta !== 'undefined' ? pageTitleForMeta : 'Fleet for osquery | Lightweight, programmable telemetry for servers and workstations' %>" />
@@ -116,32 +117,34 @@
     <!--STYLES END-->
   </head>
   <body>
-    <div purpose="page-wrap" dat>
-      <div class="header" purpose="page-header">
-      <div purpose="header-ribbon-cta" class="<%= headerCTAHidden  ?  'd-none' : 'd-flex' %> flex-row justify-content-center align-items-md-center">
+    <div purpose="page-wrap">
+      <div class="header" purpose="header-container">
+        <%// Call to action ribbon above page header %>
+        <div purpose="header-ribbon-cta" class="<%= headerCTAHidden  ?  'd-none' : 'd-flex' %> flex-row justify-content-center align-items-md-center">
           <div class="mb-0 d-flex flex-lg-row flex-column justify-content-center py-3 px-2">
-            <p class="text-center pr-1 mb-0">Instant deployment with
-Fleet Managed Cloud. <a href="https://kqphpqst851.typeform.com/to/yoo5smT9">Join the beta</a></p>
+            <p class="text-center pr-1 mb-0">Instant deployment with Fleet Managed Cloud. <a href="https://kqphpqst851.typeform.com/to/yoo5smT9">Join the beta</a></p>
           </div>
         </div>
-        <div style="max-width: 1248px; height: 94px;" class="container-fluid d-flex justify-content-between align-items-center pt-3 pb-3 px-3 px-md-4">
-          <a href="/" style="max-width: 118px;">
-            <img alt="Fleet logo" src="/images/logo-blue-162x92@2x.png" style="height: 92px; width: 162px;"/>
+
+        <%// Page header%>
+        <div purpose="page-header" class="container-fluid d-flex justify-content-between align-items-center pt-3 pb-3 px-3 px-md-4">
+          <a purpose="header-logo" href="/">
+            <img alt="Fleet logo" src="/images/logo-blue-118x41@2x.png"/>
           </a>
+          <%/* Mobile Navigation menu */%>
           <div class="d-flex d-lg-none">
-            <button purpose="header-btn" style="font-size: 16px; text-decoration: none;" class="btn btn-link d-flex align-items-center" data-toggle="collapse" data-target="#navbarToggleExternalContent">
+            <button purpose="mobile-nav-toggle-btn" class="btn btn-link d-flex align-items-center" data-toggle="collapse" data-target="#navbarToggleExternalContent">
               <span class="mr-2">Menu</span>
-              <img alt="An icon indicating that interacting with this button will open the navigation menu." src="/images/icon-hamburger-blue-16x14@2x.png" style="width: 16px;" />
+              <img alt="An icon indicating that interacting with this button will open the navigation menu." src="/images/icon-hamburger-blue-16x14@2x.png"/>
             </button>
           </div>
-          <%/* Mobile Navigation menu */%>
           <div purpose="mobile-nav" class="collapse px-4 px-sm-5" id="navbarToggleExternalContent">
             <div class="d-flex justify-content-between">
-              <a href="/">
-                <img alt="Fleet logo" src="/images/logo-blue-162x92@2x.png" style="height: 92px; width: 162px;" class="mt-3"/>
+              <a purpose="mobile-header-logo" href="/">
+                <img alt="Fleet logo" src="/images/logo-blue-162x92@2x.png" style="" class="mt-3"/>
               </a>
-              <button style="font-size: 16px; text-decoration: none;" class="btn btn-link d-flex align-items-center" data-toggle="collapse" data-target="#navbarToggleExternalContent">
-                <img alt="An 'X' icon indicating that this can be interacted with to close the navigation menu." src="/images/icon-close-16x16@2x.png" style="width: 16px;" />
+              <button purpose="mobile-nav-close-btn" class="btn btn-link d-flex align-items-center" data-toggle="collapse" data-target="#navbarToggleExternalContent">
+                <img alt="An 'X' icon indicating that this can be interacted with to close the navigation menu." src="/images/icon-close-16x16@2x.png"/>
               </button>
             </div>
             <div id="mobileDropdowns" class="py-2">
@@ -187,18 +190,18 @@ Fleet Managed Cloud. <a href="https://kqphpqst851.typeform.com/to/yoo5smT9">Join
                 </div>
               </div>
               <hr>
-              <a href="/pricing" class="d-flex align-items-center" style="text-decoration: none; font-weight: 700;">Pricing</a>
+              <a purpose="mobile-nav-btn" href="/pricing" class="d-flex align-items-center">Pricing</a>
               <% if(_.has(me, 'id')) {%>
                 <hr>
-                <a href="/logout" class="d-flex mt-2 text-decoration-none" style="text-decoration: none; line-height: 23px;">Log out</a>
+                <a purpose="mobile-nav-btn"  href="/logout" class="d-flex mt-2 text-decoration-none">Log out</a>
               <% }%>
-                <a style="padding: 4px 16px; line-height: 24px; width: 100px" class="btn btn-sm btn-primary align-items-center d-flex mt-4" href="/try-fleet/register?tryitnow">Try Fleet</a>
+                <a purpose="glass-header-btn" style="padding: 4px 16px; line-height: 24px; width: 100px" class="btn btn-sm btn-primary align-items-center d-flex mt-4" href="/try-fleet/register?tryitnow">Try it out</a>
             </div>
           </div>
           <%/* Desktop Navigation bar */%>
-          <div purpose="header-nav" class="d-none d-lg-flex align-items-center">
+          <div purpose="header-nav" class="d-none d-lg-flex align-items-center justify-content-around">
             <div purpose="dropdown-button" class="btn-group">
-              <a class="dropdown-toggle d-flex align-items-center py-2 px-3" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Platform</a>
+              <a purpose="header-nav-btn" style="" class="dropdown-toggle d-inline-block align-items-center py-2 px-3 <%= typeof currentSection !== 'undefined' && currentSection === 'platform' ? 'current-section' : '' %>" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Platform</a>
               <div purpose="header-dropdown" class="dropdown-menu">
                 <a class="dropdown-item mb-1" href="/platform">How it works</a>
                 <a class="dropdown-item mb-1" href="/device-management"><div>Device management <span purpose="beta-label">Beta</span></div></a>
@@ -210,7 +213,7 @@ Fleet Managed Cloud. <a href="https://kqphpqst851.typeform.com/to/yoo5smT9">Join
               </div>
             </div>
             <div purpose="dropdown-button" class="btn-group">
-              <a class="dropdown-toggle d-flex align-items-center py-2 px-3" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Documentation</a>
+              <a purpose="header-nav-btn" button-text="Documentation" class="dropdown-toggle d-inline-block align-items-center py-2 px-3 <%= typeof currentSection !== 'undefined' && currentSection === 'documentation' ? 'current-section' : '' %>" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Documentation</a>
               <div purpose="header-dropdown" class="dropdown-menu">
                 <a class="dropdown-item mb-1" href="/docs">Docs</a>
                 <a class="dropdown-item mb-1" href="/releases">Releases</a>
@@ -223,7 +226,7 @@ Fleet Managed Cloud. <a href="https://kqphpqst851.typeform.com/to/yoo5smT9">Join
               </div>
             </div>
             <div purpose="dropdown-button" class="btn-group">
-              <a class="dropdown-toggle d-flex align-items-center py-2 px-3" data-toggle="dropdown">Community</a>
+              <a purpose="header-nav-btn" button-text="Community" class="dropdown-toggle d-inline-block align-items-center py-2 px-3 <%= typeof currentSection !== 'undefined' && currentSection === 'community' ? 'current-section' : '' %>" data-toggle="dropdown">Community</a>
               <div purpose="header-dropdown" class="dropdown-menu">
                 <a class="dropdown-item mb-1" href="/announcements">Announcements</a>
                 <a class="dropdown-item mb-1" href="/securing">Security</a>
@@ -240,28 +243,29 @@ Fleet Managed Cloud. <a href="https://kqphpqst851.typeform.com/to/yoo5smT9">Join
                 <a class="dropdown-item" href="/logos">Logos & artwork</a>
               </div>
             </div>
-            <a href="/pricing" class="d-flex align-items-center py-2 px-3" style="text-decoration: none; line-height: 23px;">Pricing</a>
+            <a purpose="header-nav-btn" button-text="Pricing" href="/pricing" class="d-inline-block align-items-center py-2 px-3 <%= typeof currentSection !== 'undefined' && currentSection === 'pricing' ? 'current-section' : '' %>" style="text-decoration: none; line-height: 23px;">Pricing</a>
             <span class="d-flex align-items-center px-3">
               <iframe src="//ghbtns.com/github-btn.html?user=fleetdm&amp;repo=fleet&amp;type=watch&amp;count=true"
               allowtransparency="true" frameborder="0" scrolling="0" width="100" height="20"></iframe>
             </span>
-            <a style="padding: 4px 16px; line-height: 24px; color: #FFFFFF" class="btn btn-sm btn-primary align-items-center d-flex" href="/try-fleet/register?tryitnow" >Try Fleet</a>
+            <a purpose="glass-header-btn" class="align-items-center d-flex" href="/try-fleet/register?tryitnow" >Try it out</a>
             <% if(_.has(me, 'id')) {%>
-            <a href="/logout" class="justify-content-end pl-4 py-2 text-decoration-none" style="text-decoration: none; line-height: 23px;">Log out</a>
+            <a purpose="header-nav-btn" href="/logout" class="justify-content-end pl-4 py-2 text-decoration-none">Log out</a>
             <% }%>
           </div>
         </div>
+
       </div>
 
       <%- body %>
 
       <%/* Note: footer is hidden until the page is loaded. See «script» tag at the bottom of this file. */%>
-      <div style="background-color: #182147;" class="invisible" purpose="page-footer" data-hide-until-rendered>
-        <div style="max-width: 1248px;" purpose="footer-container" class="container-fluid d-flex flex-column flex-sm-row align-items-sm-end justify-content-center justify-content-sm-between">
+      <div class="invisible" purpose="page-footer" data-hide-until-rendered>
+        <div purpose="footer-container" class="container-fluid d-flex flex-column flex-sm-row align-items-sm-end justify-content-center justify-content-sm-between">
           <div class="d-flex flex-column order-first justify-content-start">
             <div class="d-flex pb-4 pr-4">
               <a class="pb-3" href="/">
-                <img alt="Fleet logo" src="/images/logo-white-118x48@2x.png" style="width: 118px; height: 48px;" />
+                <img purpose="footer-logo" alt="Fleet logo" src="/images/logo-white-118x48@2x.png" style="" />
               </a>
             </div>
           </div>
@@ -275,7 +279,7 @@ Fleet Managed Cloud. <a href="https://kqphpqst851.typeform.com/to/yoo5smT9">Join
               </div>
               <div class="flex-column">
                 <a href="/pricing" class="d-block px-md-5 px-sm-3 pb-2">Pricing</a>
-                <a href="/customers/dashboard" class="d-block px-md-5 px-sm-3 pb-2">Customers</a>
+                <a href="/customers/dashboard" class="d-block px-md-5 px-sm-3 pb-2">Get your license</a>
                 <a href="/handbook" class="d-block px-md-5 px-sm-3 pb-2">Handbook</a>
                 <a href="/logos" class="d-block px-md-5 px-sm-3 pb-2 pb-xl-0">Logos/artwork</a>
               </div>
@@ -289,32 +293,32 @@ Fleet Managed Cloud. <a href="https://kqphpqst851.typeform.com/to/yoo5smT9">Join
           </div>
         </div>
 
-        <div purpose="footer-bottom" style="background-color: #101639;">
-          <div style="max-width: 1248px;" class="container-fluid d-flex px-0 flex-md-row flex-column align-items-md-center justify-content-md-between pb-4 pr-3 pb-md-0">
+        <div purpose="footer-bottom">
+          <div purpose="legal-and-social-nav" class="container-fluid d-flex px-0 flex-md-row flex-column align-items-md-center justify-content-md-between pb-4 pr-3 pb-md-0">
 
-            <div style="font-size: 11px; line-height: 18px;" class="d-flex flex-column justify-content-start flex-sm-row pr-sm-0">
-              <img alt="Creative Commons Licence CC BY-SA 4.0" src="/images/logo-creative-commons-160x30@2x.png" style="width: 80px; height: 15px;" />
+            <div purpose="legal-section" class="d-flex flex-column justify-content-start flex-sm-row pr-sm-0">
+              <img alt="Creative Commons Licence CC BY-SA 4.0" src="/images/logo-creative-commons-160x30@2x.png" />
               <div class="pl-sm-3 pt-sm-0 pt-1 pl-0 text-sm-nowrap d-block d-sm-inline">
                 © 2023 Fleet Device Management Inc.
-                <span purpose="legal-nav">
-                  <a style="text-decoration: underline;" href="/legal/privacy">Privacy</a>
-                  <a style="text-decoration: underline;" class="pl-3" target="_blank" href="https://osquery.io">What is osquery?</a>
+                <span purpose="legal-links">
+                  <a href="/legal/privacy">Privacy</a>
+                  <a class="pl-3" target="_blank" href="https://osquery.io">What is osquery?</a>
                 </span>
               </div>
             </div>
 
-            <div style="font-size: 14px;" class="flex-row d-inline-flex font-weight-bold order-first order-md-last justify-content-start justify-content-md-end pl-md-3 py-3">
+            <div purpose="footer-socials" style="" class="flex-row d-inline-flex font-weight-bold order-first order-md-last justify-content-start justify-content-md-end pl-md-3 py-3">
               <a href="https://twitter.com/fleetctl">
-                <img alt="Twitter logo" src="/images/logo-twitter-50x44@2x.png" style="height: 20px; width: auto; margin-top:2px" class="pr-4" />
+                <img alt="Twitter logo" src="/images/logo-twitter-50x44@2x.png" class="pr-4"/>
               </a>
               <a href="https://www.youtube.com/channel/UCZyoqZ4exJvoibmTKJrQ-dQ">
-                <img alt="Youtube logo" src="/images/logo-youtube-57x40@2x.png" style="height: 20px; width: auto; margin-top:2px" class="pr-4" />
+                <img alt="Youtube logo" src="/images/logo-youtube-57x40@2x.png"  class="pr-4"/>
               </a>
               <a href="/slack">
-                <img alt="Slack logo" src="/images/logo-slack-24x24@2x.png" style="height: 20px; width: auto; margin-top:2px" class="pr-4" />
+                <img alt="Slack logo" src="/images/logo-slack-24x24@2x.png" class="pr-4"/>
               </a>
               <a href="https://github.com/fleetdm/fleet">
-                <img alt="GitHub logo" src="/images/github-mark-white-24x24@2x.png" style="height: 20px; width: auto; margin-top:2px" />
+                <img alt="GitHub logo" src="/images/github-mark-white-24x24@2x.png" />
               </a>
             </div>
 
@@ -450,6 +454,7 @@ Fleet Managed Cloud. <a href="https://kqphpqst851.typeform.com/to/yoo5smT9">Join
     <script src="/js/pages/try-fleet/sandbox-expired.page.js"></script>
     <script src="/js/pages/try-fleet/sandbox-login.page.js"></script>
     <script src="/js/pages/try-fleet/sandbox-teleporter.page.js"></script>
+    <script src="/js/pages/upgrade.page.js"></script>
     <script src="/js/pages/vanta-authorization.page.js"></script>
     <!--SCRIPTS END-->
 

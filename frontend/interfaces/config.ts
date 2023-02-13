@@ -43,8 +43,14 @@ export default PropTypes.shape({
   organization: PropTypes.string,
   device_count: PropTypes.number,
   expiration: PropTypes.string,
+  mdm_feature_flag_enabled: PropTypes.bool,
   mdm: PropTypes.shape({
+    enabled_and_configured: PropTypes.bool,
     apple_bm_terms_expired: PropTypes.bool,
+    macos_updates: PropTypes.shape({
+      minimum_version: PropTypes.string,
+      deadline: PropTypes.string,
+    }),
   }),
   note: PropTypes.string,
   // vulnerability_settings: PropTypes.any, TODO
@@ -82,6 +88,19 @@ export interface ILicense {
   expiration: string;
   note: string;
   organization: string;
+}
+
+export interface IMdmConfig {
+  enabled_and_configured: boolean;
+  apple_bm_terms_expired: boolean;
+  macos_updates: {
+    minimum_version: string;
+    deadline: string;
+  };
+}
+
+export interface IDeviceGlobalConfig {
+  mdm: Pick<IMdmConfig, "enabled_and_configured">;
 }
 
 export interface IFleetDesktopSettings {
@@ -215,10 +234,8 @@ export interface IConfig {
       };
     };
   };
-  mdm_enabled?: boolean;
-  mdm: {
-    apple_bm_terms_expired: boolean;
-  };
+  mdm: IMdmConfig;
+  mdm_feature_flag_enabled: boolean;
 }
 
 export interface IWebhookSettings {

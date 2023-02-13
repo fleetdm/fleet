@@ -6,7 +6,7 @@ module "byo-db" {
       address             = module.rds.cluster_endpoint
       database            = "fleet"
       user                = "fleet"
-      password_secret_arn = module.secrets-manager-1.secret_arns["database-password"]
+      password_secret_arn = module.secrets-manager-1.secret_arns["${var.rds_config.name}-database-password"]
     }
     redis = {
       address = "${module.redis.endpoint}:${module.redis.port}"
@@ -58,6 +58,7 @@ module "rds" {
   master_password                 = random_password.rds.result
   database_name                   = "fleet"
   skip_final_snapshot             = true
+  snapshot_identifier             = var.rds_config.snapshot_identifier
 }
 
 data "aws_subnet" "redis" {
@@ -100,7 +101,7 @@ module "secrets-manager-1" {
   version = "0.6.1"
 
   secrets = {
-    database-password = {
+    "${var.rds_config.name}-database-password" = {
       description             = "fleet-database-password"
       recovery_window_in_days = 0
       secret_string           = module.rds.cluster_master_password

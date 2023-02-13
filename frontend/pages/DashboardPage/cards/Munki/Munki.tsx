@@ -10,6 +10,9 @@ import TabsWrapper from "components/TabsWrapper";
 import TableContainer from "components/TableContainer";
 import Spinner from "components/Spinner";
 import TableDataError from "components/DataError";
+import EmptyTable from "components/EmptyTable";
+import CustomLink from "components/CustomLink";
+
 import munkiVersionsTableHeaders from "./MunkiVersionsTableConfig";
 import munkiIssuesTableHeaders from "./MunkiIssuesTableConfig";
 
@@ -24,33 +27,6 @@ const DEFAULT_SORT_DIRECTION = "desc";
 const DEFAULT_SORT_HEADER = "hosts_count";
 const PAGE_SIZE = 8;
 const baseClass = "home-munki";
-
-const EmptyMunkiIssues = (): JSX.Element => (
-  <div className={`${baseClass}__empty-munki`}>
-    <h2>No Munki issues detected</h2>
-    <p>
-      This report is updated every hour to protect the performance of your
-      devices.
-    </p>
-  </div>
-);
-
-const EmptyMunkiVersions = (): JSX.Element => (
-  <div className={`${baseClass}__empty-munki`}>
-    <h2>Unable to detect Munki versions</h2>
-    <p>
-      To see Munki versions, deploy&nbsp;
-      <a
-        href="https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer"
-        target="_blank"
-        rel="noopener noreferrer"
-      >
-        Fleet&apos;s osquery installer
-      </a>
-      .
-    </p>
-  </div>
-);
 
 const Munki = ({
   errorMacAdmins,
@@ -93,7 +69,13 @@ const Munki = ({
                   defaultSortDirection={DEFAULT_SORT_DIRECTION}
                   hideActionButton
                   resultsTitle={"Munki"}
-                  emptyComponent={EmptyMunkiIssues}
+                  emptyComponent={() => (
+                    <EmptyTable
+                      header="No Munki issues detected"
+                      info="This report is updated every hour to protect the performance of your
+      devices."
+                    />
+                  )}
                   showMarkAllPages={false}
                   isAllPagesSelected={false}
                   isClientSidePagination
@@ -116,7 +98,22 @@ const Munki = ({
                   defaultSortDirection={DEFAULT_SORT_DIRECTION}
                   hideActionButton
                   resultsTitle={"Munki"}
-                  emptyComponent={EmptyMunkiVersions}
+                  emptyComponent={() => (
+                    <EmptyTable
+                      header="Unable to detect Munki versions"
+                      info={
+                        <>
+                          To see Munki versions, deploy&nbsp;
+                          <CustomLink
+                            url="https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer"
+                            text="Fleet's osquery installer"
+                            newTab
+                          />
+                          .
+                        </>
+                      }
+                    />
+                  )}
                   showMarkAllPages={false}
                   isAllPagesSelected={false}
                   isClientSidePagination

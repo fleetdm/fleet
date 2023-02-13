@@ -100,27 +100,21 @@
   </head>
   <body>
     <div style="padding-bottom: 60px; background-color: #FFFFFF;" purpose="page-wrap">
-      <div style="background-color: #FFFFFF;" class="header" purpose="page-header">
-        <div purpose="header-report-cta" class="d-flex flex-row justify-content-center align-items-md-center">
-          <div class="mb-0 d-flex flex-lg-row flex-column justify-content-center py-3 px-2">
-            <p class="text-center pr-1 mb-0">We surveyed 200+ security practitioners to discover the state of device management in 2022. </p>
-            <a class="mb-0 d-block text-center d-lg-inline text-lg-left" href="/reports/state-of-device-management">Click here to learn about their struggles and best practices.</a>
-          </div>
-        </div>
-        <div style="max-width: 1248px; height: 94px;" class="container-fluid d-flex align-items-center justify-content-between pt-3 pb-3 px-3 px-md-4">
-          <a class="" href="/" style="max-width: 118px;">
-            <img alt="Fleet logo" src="/images/logo-blue-162x92@2x.png" style="height: 92px; width: 162px;"/>
+      <div purpose="header-container" class="header">
+        <div purpose="page-header" class="container-fluid d-flex align-items-center justify-content-between pt-3 pb-3 px-3 px-md-4">
+          <a purpose="header-logo" href="/">
+            <img alt="Fleet logo" src="/images/logo-blue-118x41@2x.png"/>
           </a>
-          <div class="d-sm-flex d-none flex-row align-items-center">
+          <div purpose="header-nav" class="d-sm-flex d-none flex-row align-items-center">
             <a style="padding: 4px 16px; line-height: 24px; color: #000; font-weight: 700; text-decoration: none;" target="_blank" href="https://calendly.com/fleetdm/demo?utm_source=landing+demo+topnav">Talk to an expert</a>
-            <a style="padding: 4px 16px; line-height: 24px; color: #FFFFFF" class="btn btn-sm btn-primary d-flex" href="/try-fleet/register?tryitnow" >Try it out</a>
+            <a purpose="glass-header-btn" style="padding: 4px 16px; line-height: 24px; color: #FFFFFF" class="btn btn-sm btn-primary d-flex" href="/try-fleet/register?tryitnow" >Try it out</a>
           </div>
         </div>
       </div>
 
       <%- body %>
 
-      <div purpose="landing-footer" class="d-flex" style="position: absolute; bottom: 0px; width: 100%; color: #FFFF; background-color: #182147;;">
+      <div purpose="landing-footer" class="d-flex">
         <div style="max-width: 1200px;" class="container-fluid align-items-center d-sm-flex d-block flex-sm-row ">
           <div style="font-size: 11px; line-height: 18px;" class="justify-content-start mr-4 pt-3 pt-sm-0 mr-md-auto">
             <div class="d-sm-flex d-block">
@@ -243,6 +237,7 @@
     <script src="/js/pages/try-fleet/sandbox-expired.page.js"></script>
     <script src="/js/pages/try-fleet/sandbox-login.page.js"></script>
     <script src="/js/pages/try-fleet/sandbox-teleporter.page.js"></script>
+    <script src="/js/pages/upgrade.page.js"></script>
     <script src="/js/pages/vanta-authorization.page.js"></script>
     <!--SCRIPTS END-->
 

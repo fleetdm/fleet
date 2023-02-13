@@ -43,7 +43,7 @@ This activity contains the following fields:
 
 ```json
 {
-	"pack_id": 123, 
+	"pack_id": 123,
 	"pack_name": "foo"
 }
 ```
@@ -60,7 +60,7 @@ This activity contains the following fields:
 
 ```json
 {
-	"pack_id": 123, 
+	"pack_id": 123,
 	"pack_name": "foo"
 }
 ```
@@ -98,7 +98,7 @@ This activity contains the following fields:
 
 ```json
 {
-	"policy_id": 123, 
+	"policy_id": 123,
 	"policy_name": "foo"
 }
 ```
@@ -115,7 +115,7 @@ This activity contains the following fields:
 
 ```json
 {
-	"policy_id": 123, 
+	"policy_id": 123,
 	"policy_name": "foo"
 }
 ```
@@ -132,7 +132,7 @@ This activity contains the following fields:
 
 ```json
 {
-	"policy_id": 123, 
+	"policy_id": 123,
 	"policy_name": "foo"
 }
 ```
@@ -188,7 +188,7 @@ This activity contains the following fields:
 
 ```json
 {
-	"query_id": 123, 
+	"query_id": 123,
 	"query_name": "foo"
 }
 ```
@@ -205,7 +205,7 @@ This activity contains the following fields:
 
 ```json
 {
-	"query_id": 123, 
+	"query_id": 123,
 	"query_name": "foo"
 }
 ```
@@ -275,7 +275,7 @@ This activity contains the following fields:
 
 ```json
 {
-	"team_id": 123, 
+	"team_id": 123,
 	"team_name": "foo"
 }
 ```
@@ -292,7 +292,7 @@ This activity contains the following fields:
 
 ```json
 {
-	"team_id": 123, 
+	"team_id": 123,
 	"team_name": "foo"
 }
 ```
@@ -311,7 +311,7 @@ This activity contains a field "teams" where each item contains the team details
 {
 	"teams": [
 		{
-			"id": 123, 
+			"id": 123,
 			"name": "foo"
 		}
 	]
@@ -331,7 +331,7 @@ This activity contains the following fields:
 
 ```json
 {
-	"team_id": 123, 
+	"team_id": 123,
 	"team_name": "foo",
 	"global": false
 }
@@ -350,7 +350,7 @@ This activity contains the following fields:
 
 ```json
 {
-	"targets_count": 5000, 
+	"targets_count": 5000,
 	"query_sql": "SELECT * from osquery_info;",
 	"query_name": "foo"
 }
@@ -530,6 +530,7 @@ Generated when a host is enrolled in Fleet's MDM.
 
 This activity contains the following fields:
 - "host_serial": Serial number of the host.
+- "host_display_name": Display name of the host.
 - "installed_from_dep": Whether the host was enrolled via DEP.
 
 #### Example
@@ -537,6 +538,7 @@ This activity contains the following fields:
 ```json
 {
   "host_serial": "C08VQ2AXHT96",
+  "host_display_name": "MacBookPro16,1 (C08VQ2AXHT96)",
   "installed_from_dep": true
 }
 ```
@@ -547,6 +549,7 @@ Generated when a host is unenrolled from Fleet's MDM.
 
 This activity contains the following fields:
 - "host_serial": Serial number of the host.
+- "host_display_name": Display name of the host.
 - "installed_from_dep": Whether the host was enrolled via DEP.
 
 #### Example
@@ -554,7 +557,46 @@ This activity contains the following fields:
 ```json
 {
   "host_serial": "C08VQ2AXHT96",
+  "host_display_name": "MacBookPro16,1 (C08VQ2AXHT96)",
   "installed_from_dep": true
+}
+```
+
+### Type `edited_macos_min_version`
+
+Generated when the minimum required macOS version or deadline is modified.
+
+This activity contains the following fields:
+- "team_id": The ID of the team that the minimum macOS version applies to, null if it applies to devices that are not in a team.
+- "team_name": The name of the team that the minimum macOS version applies to, null if it applies to devices that are not in a team.
+- "minimum_version": The minimum macOS version required, empty if the requirement was removed.
+- "deadline": The deadline by which the minimum version requirement must be applied, empty if the requirement was removed.
+
+#### Example
+
+```json
+{
+  "team_id": 3,
+  "team_name": "Workstations",
+  "minimum_version": "13.0.1",
+  "deadline": "2023-06-01"
+}
+```
+
+### Type `read_host_disk_encryption_key`
+
+Generated when a user reads the disk encryption key for a host.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro",
 }
 ```
 

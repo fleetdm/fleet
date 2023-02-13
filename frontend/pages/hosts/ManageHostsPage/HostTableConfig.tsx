@@ -151,16 +151,45 @@ const allHostTableHeaders: IDataColumn[] = [
       />
     ),
     accessor: "display_name",
-    Cell: (cellProps: ICellProps) => (
-      <LinkCell
-        value={cellProps.cell.value}
-        path={PATHS.HOST_DETAILS(cellProps.row.original.id)}
-        title={lastSeenTime(
-          cellProps.row.original.status,
-          cellProps.row.original.seen_time
-        )}
-      />
-    ),
+    Cell: (cellProps: ICellProps) => {
+      if (cellProps.row.original.mdm.enrollment_status === "Pending") {
+        return (
+          <>
+            <span
+              className="text-cell"
+              data-tip
+              data-for={`host__${cellProps.row.original.id}`}
+            >
+              {cellProps.cell.value}
+            </span>
+            <ReactTooltip
+              effect="solid"
+              backgroundColor="#3e4771"
+              id={`host__${cellProps.row.original.id}`}
+              data-html
+            >
+              <span className={`tooltip__tooltip-text`}>
+                This host was ordered using <br />
+                Apple Business Manager <br />
+                (ABM). You can&apos;t see host <br />
+                vitals until it&apos;s unboxed and <br />
+                automatically enrolls to Fleet.
+              </span>
+            </ReactTooltip>
+          </>
+        );
+      }
+      return (
+        <LinkCell
+          value={cellProps.cell.value}
+          path={PATHS.HOST_DETAILS(cellProps.row.original.id)}
+          title={lastSeenTime(
+            cellProps.row.original.status,
+            cellProps.row.original.seen_time
+          )}
+        />
+      );
+    },
     disableHidden: true,
   },
   {
@@ -338,6 +367,55 @@ const allHostTableHeaders: IDataColumn[] = [
     Cell: (cellProps: ICellProps) => <TextCell value={cellProps.cell.value} />,
   },
   {
+    title: "MDM status",
+    Header: (): JSX.Element => {
+      const titleWithToolTip = (
+        <TooltipWrapper
+          tipContent={`
+            The MDM server that updates settings on the host.<br/>
+            To filter by MDM server URL, head to the Dashboard page.
+          `}
+        >
+          MDM Status
+        </TooltipWrapper>
+      );
+      return <HeaderCell value={titleWithToolTip} disableSortBy />;
+    },
+    disableSortBy: true,
+    accessor: "mdm.enrollment_status",
+    id: "mdm_enrollment_status",
+    Cell: (cellProps: ICellProps) => {
+      if (cellProps.cell.value)
+        return <TextCell value={cellProps.cell.value} />;
+      return <span className="text-muted">---</span>;
+    },
+  },
+  {
+    title: "MDM server URL",
+    Header: (): JSX.Element => {
+      const titleWithToolTip = (
+        <TooltipWrapper
+          tipContent={`
+            Settings can be updated remotely on hosts with MDM turned on.<br/>
+            To filter by MDM status, head to the Dashboard page.
+          `}
+        >
+          MDM server URL
+        </TooltipWrapper>
+      );
+      return <HeaderCell value={titleWithToolTip} disableSortBy />;
+    },
+    disableSortBy: true,
+    accessor: "mdm.server_url",
+    id: "mdm_server_url",
+    Cell: (cellProps: ICellProps) => {
+      if (cellProps.cell.value) {
+        return <TextCell value={cellProps.cell.value} />;
+      }
+      return <span className="text-muted">---</span>;
+    },
+  },
+  {
     title: "Public IP address",
     Header: (cellProps: IHeaderProps) => (
       <HeaderCell
@@ -499,6 +577,9 @@ const defaultHiddenColumns = [
   "primary_mac",
   "public_ip",
   "cpu_type",
+  // TODO: should those be mdm.<blah>?
+  "mdm_server_url",
+  "mdm_enrollment_status",
   "memory",
   "uptime",
   "uuid",
@@ -531,7 +612,11 @@ const generateAvailableTableHeaders = (
         }
         // skip over column headers that are not shown in free admin/maintainer
       } else if (permissionUtils.isFreeTier(config)) {
-        if (currentColumn.accessor === "team_name") {
+        if (
+          currentColumn.accessor === "team_name" ||
+          currentColumn.accessor === "mdm_server_url" ||
+          currentColumn.accessor === "mdm_enrollment_status"
+        ) {
           return columns;
         }
       } else if (

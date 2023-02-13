@@ -25,7 +25,8 @@ module.exports = {
     },
 
     invalidEmailDomain: {
-      description: 'This email address is on a denylist of domains and was not delivered.'
+      description: 'This email address is on a denylist of domains and was not delivered.',
+      responseType: 'badRequest'
     },
 
     badRequest: {
@@ -138,7 +139,11 @@ module.exports = {
       template: 'email-signed-csr-for-apns',
       templateData: {},
       attachments: [{
-        contentBytes: generateCertificateResult.request,
+        // When the file is provided as an attachment to the Sails helper, it
+        // gets decoded, since we need for the signed CSR to be delivered in
+        // base64 format, we doubly encode the contents before sending the
+        // email.
+        contentBytes: Buffer.from(generateCertificateResult.request).toString('base64'),
         name: 'apple-apns-request.txt',
         type: 'text/plain',
       }],
