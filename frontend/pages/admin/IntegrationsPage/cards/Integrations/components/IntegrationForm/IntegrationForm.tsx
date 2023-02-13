@@ -12,6 +12,8 @@ import {
 import Button from "components/buttons/Button";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
+import validUrl from "components/forms/validators/valid_url";
+
 import Spinner from "components/Spinner";
 
 const baseClass = "integration-form";
@@ -88,6 +90,8 @@ const IntegrationForm = ({
 
     if (url.slice(0, 8) !== "https://") {
       error = "URL must begin with https://";
+    } else if (!validUrl({ url, isHttp: true })) {
+      error = `${url} is not a valid URL`;
     }
 
     setUrlError(error);

@@ -1,4 +1,9 @@
-export default (url: string, isHttp = "false"): boolean => {
+interface IValidUrl {
+  url: string;
+  isHttp?: boolean;
+}
+
+export default ({ url, isHttp = false }: IValidUrl): boolean => {
   try {
     const newUrl = new URL(url);
     if (isHttp) {

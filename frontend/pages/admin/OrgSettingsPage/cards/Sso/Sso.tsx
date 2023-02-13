@@ -68,7 +68,7 @@ const Sso = ({
     const errors: IAppConfigFormErrors = {};
 
     if (enableSSO) {
-      if (idpImageURL && !validUrl(idpImageURL)) {
+      if (idpImageURL && !validUrl({ url: idpImageURL, isHttp: true })) {
         errors.idp_image_url = `${idpImageURL} is not a valid URL`;
       }
 

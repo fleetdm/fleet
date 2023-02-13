@@ -41,9 +41,10 @@ const FleetDesktop = ({
     const { transparency_url } = formData;
 
     const errors: IAppConfigFormErrors = {};
-    if (!transparency_url) {
-      errors.transparency_url = "Transparency URL name must be present";
-    } else if (!validUrl(transparency_url)) {
+    if (
+      transparency_url &&
+      !validUrl({ url: transparency_url, isHttp: true })
+    ) {
       errors.transparency_url = `${transparency_url} is not a valid URL`;
     }
 
@@ -79,6 +80,7 @@ const FleetDesktop = ({
             parseTarget
             onBlur={validateForm}
             error={formErrors.transparency_url}
+            placeholder="https://fleetdm.com/transparency"
           />
           <p className={`${baseClass}__component-details`}>
             When an end user clicks “Transparency” in the Fleet Desktop menu, by

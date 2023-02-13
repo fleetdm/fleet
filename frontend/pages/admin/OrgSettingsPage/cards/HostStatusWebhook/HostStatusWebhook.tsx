@@ -7,6 +7,8 @@ import Checkbox from "components/forms/fields/Checkbox";
 import Dropdown from "components/forms/fields/Dropdown";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
+import validUrl from "components/forms/validators/valid_url";
+
 import Modal from "components/Modal";
 import {
   IAppConfigFormProps,
@@ -61,6 +63,8 @@ const HostStatusWebhook = ({
     if (enableHostStatusWebhook) {
       if (!hostStatusWebhookDestinationURL) {
         errors.destination_url = "Destination URL must be present";
+      } else if (!validUrl({ url: hostStatusWebhookDestinationURL })) {
+        errors.server_url = `${hostStatusWebhookDestinationURL} is not a valid URL`;
       }
 
       if (!hostStatusWebhookDaysCount) {
