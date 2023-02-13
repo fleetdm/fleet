@@ -382,7 +382,15 @@ const DeviceUserPage = ({
         {showMacSettingsModal && (
           <MacSettingsModal
             // TODO: pass real host mac settings data
-            hostMacSettings={undefined}
+            // TODO: pass loading state from request for above data
+            hostMacSettings={[
+              {
+                name: "test setting",
+                statusText: "Applied",
+                errorText: "test error text",
+              },
+            ]}
+            isLoading={false}
             onClose={toggleMacSettingsModal}
           />
         )}

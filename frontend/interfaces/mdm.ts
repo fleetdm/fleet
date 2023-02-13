@@ -56,7 +56,16 @@ export interface IMdmSummaryResponse {
 }
 
 // TODO: define below according to the API structure in issue #9599
-export type IMacSettings = unknown;
-export type IMacSetting = unknown;
-
+export type MacSettingStatusOptions =
+  | "Action required (pending)"
+  | "Applied"
+  | "Enforcing (pending)"
+  | "Removing enforcement (pending)"
+  | "Failed";
+export type IMacSetting = {
+  name: string;
+  statusText: MacSettingStatusOptions;
+  errorText?: string;
+};
+export type IMacSettings = IMacSetting[];
 export type MacSettingsStatus = "Failing" | "Latest" | "Pending";

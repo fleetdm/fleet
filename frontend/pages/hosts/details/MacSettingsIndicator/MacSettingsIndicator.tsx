@@ -11,7 +11,7 @@ interface IMacSettingsIndicator {
   iconName: IconNames;
   onClick?: () => void;
   tooltip?: {
-    tooltipText: string;
+    tooltipText: string | null;
     position?: "top" | "bottom";
   };
 }

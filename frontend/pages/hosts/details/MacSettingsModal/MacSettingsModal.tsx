@@ -5,7 +5,8 @@ import { IMacSettings } from "interfaces/mdm";
 import MacSettingsTable from "./MacSettingsTable";
 
 interface IMacSettingsModalProps {
-  hostMacSettings?: IMacSettings; // TODO: define this type when API shape is determined
+  hostMacSettings: IMacSettings; // TODO: define this type when API shape is determined
+  isLoading: boolean;
   onClose: () => void;
 }
 
@@ -13,12 +14,16 @@ const baseClass = "mac-settings-modal";
 
 const MacSettingsModal = ({
   hostMacSettings,
+  isLoading,
   onClose,
 }: IMacSettingsModalProps) => {
   return (
     <Modal title="macOS settings" onExit={onClose} className={baseClass}>
       <>
-        <MacSettingsTable isLoading={false} hostMacSettings={hostMacSettings} />
+        <MacSettingsTable
+          isLoading={isLoading}
+          hostMacSettings={hostMacSettings}
+        />
         <div className="modal-cta-wrap">
           <Button type="submit" variant="brand" onClick={onClose}>
             Done

@@ -747,7 +747,27 @@ const HostDetailsPage = ({
         {showMacSettingsModal && (
           <MacSettingsModal
             // TODO: pass real host mac settings data
-            hostMacSettings={undefined}
+            hostMacSettings={[
+              {
+                name: "test setting",
+                statusText: "Applied",
+                // statusText: "Action required (pending)",
+                // statusText:  "Enforcing (pending)",
+                // statusText: "Removing enforcement (pending)",
+                // statusText: "Failed",
+                errorText: "test error text",
+              },
+              {
+                name: "test setting 2",
+                //   statusText: "Applied",
+                statusText: "Action required (pending)",
+                //   // statusText:  "Enforcing (pending)",
+                //   // statusText: "Removing enforcement (pending)",
+                //   // statusText: "Failed",
+                errorText: "test error text",
+              },
+            ]}
+            isLoading={false}
             onClose={toggleMacSettingsModal}
           />
         )}
