@@ -3,7 +3,6 @@ package macoffice
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"os"
 	"sort"
 
@@ -12,7 +11,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/io"
 )
 
-func getLatestReleaseNotes(vulnPath string) ([]ReleaseNote, error) {
+func latestReleaseNotes(vulnPath string) ([]ReleaseNote, error) {
 	fs := io.NewFSClient(vulnPath)
 
 	files, err := fs.MacOfficeReleaseNotes()
@@ -20,23 +19,23 @@ func getLatestReleaseNotes(vulnPath string) ([]ReleaseNote, error) {
 		return nil, err
 	}
 
-	sort.Slice(files, func(i, j int) bool { return files[i].Before(files[j]) })
-
-	if len(files) != 0 {
-		payload, err := os.ReadFile(files[0].String())
-		if err != nil {
-			return nil, err
-		}
-
-		relNotes := []ReleaseNote{}
-		err = json.Unmarshal(payload, &relNotes)
-		if err != nil {
-			return nil, err
-		}
-		return relNotes, nil
+	if len(files) == 0 {
+		return nil, nil
 	}
 
-	return nil, nil
+	sort.Slice(files, func(i, j int) bool { return files[j].Before(files[i]) })
+
+	payload, err := os.ReadFile(files[0].String())
+	if err != nil {
+		return nil, err
+	}
+
+	relNotes := []ReleaseNote{}
+	err = json.Unmarshal(payload, &relNotes)
+	if err != nil {
+		return nil, err
+	}
+	return relNotes, nil
 }
 
 func Analyze(
@@ -45,7 +44,7 @@ func Analyze(
 	vulnPath string,
 	collectVulns bool,
 ) ([]fleet.SoftwareVulnerability, error) {
-	relNotes, err := getLatestReleaseNotes(vulnPath)
+	relNotes, err := latestReleaseNotes(vulnPath)
 	if err != nil {
 		return nil, err
 	}
@@ -54,7 +53,9 @@ func Analyze(
 		return nil, nil
 	}
 
-	// TODO Make sure relNotes are sorted
+	// Ensure the release notes are sorted by release date, this is because the vuln. processing
+	// algo. will stop when a release note older than the current software version is found.
+	sort.Slice(relNotes, func(i, j int) bool { return relNotes[j].Date.Before(relNotes[i].Date) })
 
 	iter, err := ds.ListSoftwareBySourceIter(ctx, []string{"apps"})
 	if err != nil {
@@ -62,17 +63,37 @@ func Analyze(
 	}
 	defer iter.Close()
 
+	var vulnerabilities []fleet.SoftwareVulnerability
 	for iter.Next() {
 		software, err := iter.Value()
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "getting software from iterator")
 		}
 
-		if pType, ok := GetProductTypeFromBundleId(software.BundleIdentifier); ok {
-			fmt.Println(pType)
-			fmt.Println(ok)
+		// If we have an Office Product ...
+		if product, ok := OfficeProductFromBundleId(software.BundleIdentifier); ok {
+			for _, relNote := range relNotes {
+				// We only care about release notes with set versions and with security updates
+				if !relNote.Valid() {
+					continue
+				}
+
+				cmp := relNote.CmpVersion(software.Version)
+				if cmp == -1 || cmp == 0 {
+					break
+				}
+
+				for _, cve := range relNote.CollectVulnerabilities(product) {
+					vulnerabilities = append(vulnerabilities, fleet.SoftwareVulnerability{
+						SoftwareID: software.ID,
+						CVE:        cve,
+					})
+				}
+			}
 		}
 	}
+
+	// Determine what to delete and what to insert
 
 	return nil, nil
 }

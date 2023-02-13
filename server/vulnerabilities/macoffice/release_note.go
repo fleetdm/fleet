@@ -3,6 +3,8 @@ package macoffice
 import (
 	"strings"
 	"time"
+
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/utils"
 )
 
 const RelNotesURL = "https://learn.microsoft.com/en-us/officeupdates/release-notes-office-for-mac"
@@ -37,8 +39,49 @@ func (or *ReleaseNote) AddSecurityUpdate(pt ProductType, vuln string) {
 	})
 }
 
-func GetProductTypeFromBundleId(bundle string) (ProductType, bool) {
-	b := strings.ToLower(bundle)
+// Valid returns true if this release note can be used for vulnerability processing. Some release
+// notes don't have a release version nor security updates
+func (or *ReleaseNote) Valid() bool {
+	return len(or.Version) != 0 && len(or.SecurityUpdates) != 0
+}
+
+// CmpVersion compares the release note version againts 'otherVer' returning:
+// -1 if rel. note version < other version
+// 0 if rel. note version == other version
+// 1 if rel. note version > other version
+func (or *ReleaseNote) CmpVersion(otherVer string) int {
+	relVersion := or.Version
+
+	matches := VersionPattern.FindStringSubmatch(or.Version)
+	if len(matches) >= 2 {
+		relVersion = matches[1]
+	}
+
+	return utils.Rpmvercmp(relVersion, otherVer)
+}
+
+// CollectVulnerabilities collect all unique vulnerabilities that were patched in this release by matching
+// their product type.
+func (or *ReleaseNote) CollectVulnerabilities(product ProductType) []string {
+	var vulns []string
+	collected := make(map[string]struct{})
+
+	for _, su := range or.SecurityUpdates {
+		if su.Product == WholeSuite || su.Product == product {
+			collected[su.Vulnerability] = struct{}{}
+		}
+	}
+
+	for k := range collected {
+		vulns = append(vulns, k)
+	}
+	return vulns
+}
+
+// OfficeProductFromBundleId looks at the provided 'bundleId' and tries to match the Office Product.
+// If no match is found, false is returned as the second return value.
+func OfficeProductFromBundleId(bundleId string) (ProductType, bool) {
+	b := strings.ToLower(bundleId)
 	switch {
 	case strings.HasPrefix(b, "com.microsoft.powerpoint"):
 		return PowerPoint, true

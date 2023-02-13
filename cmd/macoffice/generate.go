@@ -31,8 +31,18 @@ func main() {
 	res, err := http.Get(macoffice.RelNotesURL)
 	panicif(err)
 
-	relNotes, err := macoffice.ParseReleaseHTML(res.Body)
+	parsed, err := macoffice.ParseReleaseHTML(res.Body)
 	panicif(err)
+
+	var relNotes []macoffice.ReleaseNote
+	for _, rn := range parsed {
+		// We only care about release notes that have a version set (because we need that for
+		// matching software entries) and also that contain some
+		// security updates (because we only intented to use the release notes for vulnerability processing).
+		if rn.Valid() {
+			relNotes = append(relNotes, rn)
+		}
+	}
 
 	err = serialize(relNotes, time.Now(), outPath)
 	panicif(err)

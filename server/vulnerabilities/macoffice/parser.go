@@ -10,8 +10,8 @@ import (
 )
 
 var (
-	verPattern, _     = regexp.Compile(`(?i)version \d+\.\d+(\.\d+)? \(?build \d+\)?`)
-	cveLinkPattern, _ = regexp.Compile(`CVE(-\d+)+$`)
+	VersionPattern = regexp.MustCompile(`(?i)version (\d+\.\d+(\.\d+)?) \(?build \d+\)?`)
+	cveLinkPattern = regexp.MustCompile(`CVE(-\d+)+$`)
 )
 
 var IdToType = map[string]ProductType{
@@ -136,7 +136,7 @@ func ParseReleaseHTML(reader io.Reader) ([]ReleaseNote, error) {
 				// Check if the text node that follows contains a proper version string
 				if z.Next() == html.TextToken {
 					t := z.Token()
-					if verPattern.MatchString(t.Data) {
+					if VersionPattern.MatchString(t.Data) {
 						result[len(result)-1].Version = t.Data
 					}
 				}

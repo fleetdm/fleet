@@ -3,6 +3,9 @@ package macoffice_test
 import "testing"
 
 func TestAnalyze(t *testing.T) {
+	t.Run("latestReleaseNotes", func(t *testing.T) {
+	})
+
 	// ctx := context.Background()
 
 	// ds := mysql.CreateMySQLDS(t)
@@ -11,7 +14,5 @@ func TestAnalyze(t *testing.T) {
 	// vulnPath := t.TempDir()
 
 	t.Run("returns no vulnerabilities if not macOS", func(t *testing.T) {
-
-
 	})
 }
