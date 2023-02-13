@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/spec"
@@ -221,7 +222,7 @@ func (c *Client) authenticatedRequest(params interface{}, verb string, path stri
 }
 
 // ApplyGroup applies the given spec group to Fleet.
-func (c *Client) ApplyGroup(ctx context.Context, specs *spec.Group, logf func(format string, args ...interface{}), opts fleet.ApplySpecOptions) error {
+func (c *Client) ApplyGroup(ctx context.Context, specs *spec.Group, baseDir string, logf func(format string, args ...interface{}), opts fleet.ApplySpecOptions) error {
 	logfn := func(format string, args ...interface{}) {
 		if logf != nil {
 			logf(format, args...)
@@ -272,15 +273,18 @@ func (c *Client) ApplyGroup(ctx context.Context, specs *spec.Group, logf func(fo
 	}
 
 	if specs.AppConfig != nil {
-		// TODO(mna): extract the macos_settings.custom_settings from it, as it
-		// will be applied separately. Note that the endpoint that will be used
-		// needs to support the dry-run option too.
 		if macosCustomSettings := extractAppCfgMacOSCustomSettings(specs.AppConfig); macosCustomSettings != nil {
-			// TODO(mna): probably needs to make a call for each file (body will be
-			// the content of the file)?
-			//if err := c.ApplyMacOSCustomSettings(macosCustomSettings, opts); err != nil {
-			//	return fmt.Errorf("applying fleet config macOS custom settings: %w", err)
-			//}
+			files := resolveMacOSCustomSettingsPaths(baseDir, macosCustomSettings)
+
+			fileContents := make([][]byte, len(files))
+			for i, f := range files {
+				b, err := os.ReadFile(f)
+				if err != nil {
+					return fmt.Errorf("applying fleet config: %w", err)
+				}
+				fileContents[i] = b
+			}
+			// TODO(mna): call the batch-upload of profiles, with the dry-run option
 		}
 		if err := c.ApplyAppConfig(specs.AppConfig, opts); err != nil {
 			return fmt.Errorf("applying fleet config: %w", err)
@@ -304,16 +308,30 @@ func (c *Client) ApplyGroup(ctx context.Context, specs *spec.Group, logf func(fo
 	}
 
 	if len(specs.Teams) > 0 {
-		// TODO(mna): extract the macos_settings.custom_settings from it, as it
-		// will be applied separately. Note that the endpoint that will be used
-		// needs to support the dry-run option too.
-		//
-		// Apply the teams specs _first_ so that any non-existing team gets created
-		// first.
+		// extract the teams' custom settings and resolve the files immediately, so
+		// that any non-existing file error is found before applying the specs.
+		tmMacSettings := extractTmSpecsMacOSCustomSettings(specs.Teams)
+
+		tmFileContents := make(map[string][][]byte, len(tmMacSettings))
+		for k, paths := range tmMacSettings {
+			files := resolveMacOSCustomSettingsPaths(baseDir, paths)
+			fileContents := make([][]byte, len(files))
+			for i, f := range files {
+				b, err := os.ReadFile(f)
+				if err != nil {
+					return fmt.Errorf("applying teams: %w", err)
+				}
+				fileContents[i] = b
+			}
+			tmFileContents[k] = fileContents
+		}
+
+		// Apply the teams specs _first_ so that any non-existing team gets created.
 		if err := c.ApplyTeams(specs.Teams, opts); err != nil {
 			return fmt.Errorf("applying teams: %w", err)
 		}
-		if tmMacSettings := extractTmSpecsMacOSCustomSettings(specs.Teams); tmMacSettings != nil {
+
+		if len(tmFileContents) > 0 {
 			// TODO(mna): the batch-set endpoint should support team names, to avoid an
 			// unnecessary call. Also, the team might not exist if dry-run is used.
 		}
@@ -335,6 +353,21 @@ func (c *Client) ApplyGroup(ctx context.Context, specs *spec.Group, logf func(fo
 		}
 	}
 	return nil
+}
+
+func resolveMacOSCustomSettingsPaths(baseDir string, paths []string) []string {
+	if baseDir == "" {
+		return paths
+	}
+
+	resolved := make([]string, 0, len(paths))
+	for _, p := range paths {
+		if !filepath.IsAbs(p) {
+			p = filepath.Join(baseDir, p)
+		}
+		resolved = append(resolved, p)
+	}
+	return resolved
 }
 
 func extractAppCfgMacOSCustomSettings(appCfg interface{}) []string {

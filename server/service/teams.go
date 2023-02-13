@@ -193,6 +193,10 @@ func (req *applyTeamSpecsRequest) DecodeBody(ctx context.Context, r io.Reader) e
 	// the MacOSSettings field must be validated separately, since it
 	// JSON-decodes into a free-form map.
 	for _, spec := range req.Specs {
+		if spec == nil || spec.MacOSSettings == nil {
+			continue
+		}
+
 		var macOSSettings fleet.MacOSSettings
 		validMap := macOSSettings.ToMap()
 
