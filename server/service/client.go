@@ -346,32 +346,59 @@ func extractAppCfgMacOSCustomSettings(appCfg interface{}) []string {
 	if !ok || mos == nil {
 		return nil
 	}
-	cs, ok := mos["custom_settings"].([]string)
+
+	cs, ok := mos["custom_settings"]
 	if !ok {
+		// custom settings is not present
 		return nil
 	}
-	if cs == nil {
+
+	csAny, ok := cs.([]interface{})
+	if !ok || csAny == nil {
 		// return a non-nil, empty slice instead, so the caller knows that the
 		// custom_settings key was actually provided.
-		cs = []string{}
+		return []string{}
 	}
-	return cs
+
+	csStrings := make([]string, 0, len(csAny))
+	for _, v := range csAny {
+		s, _ := v.(string)
+		if s != "" {
+			csStrings = append(csStrings, s)
+		}
+	}
+	return csStrings
 }
 
 // returns the custom settings keyed by team name.
 func extractTmSpecsMacOSCustomSettings(tmSpecs []json.RawMessage) map[string][]string {
 	var m map[string][]string
 	for _, tm := range tmSpecs {
-		var spec fleet.TeamSpec
+		var spec struct {
+			Name          string `json:"name"`
+			MacOSSettings struct {
+				CustomSettings json.RawMessage `json:"custom_settings"`
+			} `json:"macos_settings"`
+		}
 		if err := json.Unmarshal(tm, &spec); err != nil {
 			// ignore, this will fail in the call to apply team specs
 			continue
 		}
-		if spec.Name != "" && spec.MacOSSettings.CustomSettings != nil {
+		if spec.Name != "" && len(spec.MacOSSettings.CustomSettings) > 0 {
 			if m == nil {
 				m = make(map[string][]string)
 			}
-			m[spec.Name] = spec.MacOSSettings.CustomSettings
+			var cs []string
+			if err := json.Unmarshal(spec.MacOSSettings.CustomSettings, &cs); err != nil {
+				// ignore, will fail in apply team specs call
+				continue
+			}
+			if cs == nil {
+				// to be consistent with the AppConfig custom settings, set it to an
+				// empty slice if the provided custom settings are present but empty.
+				cs = []string{}
+			}
+			m[spec.Name] = cs
 		}
 	}
 	return m
