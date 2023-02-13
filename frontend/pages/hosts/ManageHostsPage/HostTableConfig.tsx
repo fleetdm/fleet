@@ -376,7 +376,7 @@ const allHostTableHeaders: IDataColumn[] = [
             To filter by MDM server URL, head to the Dashboard page.
           `}
         >
-          MDM Status
+          MDM status
         </TooltipWrapper>
       );
       return <HeaderCell value={titleWithToolTip} disableSortBy />;
