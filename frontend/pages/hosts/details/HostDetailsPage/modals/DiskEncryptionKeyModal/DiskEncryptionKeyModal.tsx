@@ -8,6 +8,7 @@ import Modal from "components/Modal";
 import CustomLink from "components/CustomLink";
 import Button from "components/buttons/Button";
 import InputFieldHiddenContent from "components/forms/fields/InputFieldHiddenContent";
+import DataError from "components/DataError";
 
 const baseClass = "disk-encryption-key-modal";
 
@@ -20,7 +21,7 @@ const DiskEncryptionKeyModal = ({
   hostId,
   onCancel,
 }: IDiskEncryptionKeyModal) => {
-  const { data: encrpytionKey } = useQuery<
+  const { data: encrpytionKey, error: encryptionKeyError } = useQuery<
     IHostEncrpytionKeyResponse,
     unknown,
     string
@@ -34,24 +35,28 @@ const DiskEncryptionKeyModal = ({
 
   return (
     <Modal title="Disk encryption key" onExit={onCancel} className={baseClass}>
-      <>
-        <InputFieldHiddenContent value={encrpytionKey ?? ""} />
-        <p>
-          The disk encryption key refers to the FileVault recovery key for
-          macOS.
-        </p>
-        <p>
-          Use this key to log in to the host if you forgot the password.{" "}
-          <CustomLink
-            text="View recovery instructions"
-            url="https://fleetdm.com/docs/using-fleet/mobile-device-management#unlock-a-device-using-the-disk-encryption-key"
-            newTab
-          />
-        </p>
-        <div className="modal-cta-wrap">
-          <Button onClick={onCancel}>Done</Button>
-        </div>
-      </>
+      {encryptionKeyError ? (
+        <DataError />
+      ) : (
+        <>
+          <InputFieldHiddenContent value={encrpytionKey ?? ""} />
+          <p>
+            The disk encryption key refers to the FileVault recovery key for
+            macOS.
+          </p>
+          <p>
+            Use this key to log in to the host if you forgot the password.{" "}
+            <CustomLink
+              text="View recovery instructions"
+              url="https://fleetdm.com/docs/using-fleet/mobile-device-management#unlock-a-device-using-the-disk-encryption-key"
+              newTab
+            />
+          </p>
+          <div className="modal-cta-wrap">
+            <Button onClick={onCancel}>Done</Button>
+          </div>
+        </>
+      )}
     </Modal>
   );
 };
