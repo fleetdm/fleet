@@ -15,7 +15,7 @@ spec:
   query: |
     SELECT 1 FROM security_profile_info WHERE password_history_size >= 24;
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS1.1.1
+  tags: compliance, CIS, CIS_Level1, CIS-WIN10-1.1.1
   contributors: marcosd4h
 ---
 apiVersion: v1
@@ -34,7 +34,7 @@ spec:
   query: |
     SELECT 1 FROM security_profile_info WHERE (maximum_password_age <= 365 AND maximum_password_age != 0);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS1.1.2
+  tags: compliance, CIS, CIS_Level1, CIS-WIN10-1.1.2
   contributors: marcosd4h
 ---
 apiVersion: v1
@@ -54,7 +54,7 @@ spec:
   query: |
     SELECT 1 FROM security_profile_info WHERE minimum_password_age >= 1;
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS1.1.3
+  tags: compliance, CIS, CIS_Level1, CIS-WIN10-1.1.3
   contributors: marcosd4h
 ---
 apiVersion: v1
@@ -73,7 +73,7 @@ spec:
   query: |
     SELECT 1 FROM security_profile_info WHERE minimum_password_length >= 14;
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS1.1.4
+  tags: compliance, CIS, CIS_Level1, CIS-WIN10-1.1.4
   contributors: marcosd4h
 ---
 apiVersion: v1
@@ -94,7 +94,7 @@ spec:
   query: |
     SELECT 1 FROM security_profile_info WHERE password_complexity = 1;
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS1.1.5
+  tags: compliance, CIS, CIS_Level1, CIS-WIN10-1.1.5
   contributors: marcosd4h
 ---
 apiVersion: v1
@@ -113,7 +113,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\SAM\\RelaxMinimumPasswordLengthLimits' AND data != 0);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS1.1.6
+  tags: compliance, CIS, CIS_Level1, CIS-WIN10-1.1.6
   contributors: marcosd4h
 ---
 apiVersion: v1
@@ -134,5 +134,25 @@ spec:
   query: |
     SELECT 1 FROM security_profile_info WHERE clear_text_password = 0;
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS1.1.7
+  tags: compliance, CIS, CIS_Level1, CIS-WIN10-1.1.7
   contributors: marcosd4h
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Access Credential Manager as a trusted caller' is set to 'No One'
+  platforms: win10
+  platform: windows
+  description: |
+    This security setting is used by Credential Manager during Backup and Restore. No accounts should have this user right, as it is only assigned to Winlogon. Users' saved credentials might be compromised if this user right is assigned to other entities.
+    The recommended state for this setting is: No One.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the
+    following UI path to "No One":
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Access Credential Manager as a trusted caller'
+  query: |
+    SELECT 1 FROM time;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS-WIN10-2.2.1
+  contributors: sharon-fdm
