@@ -603,6 +603,10 @@ type Service interface {
 	// profile used for Fleet MDM enrollment from the specified device.
 	EnqueueMDMAppleCommandRemoveEnrollmentProfile(ctx context.Context, hostID uint) error
 
+	// BatchSetMDMAppleProfiles replaces the custom macOS profiles for a specified
+	// team or for hosts with no team.
+	BatchSetMDMAppleProfiles(ctx context.Context, teamID *uint, teamName *string, profiles [][]byte) error
+
 	///////////////////////////////////////////////////////////////////////////////
 	// CronSchedulesService
 

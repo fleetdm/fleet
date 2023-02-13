@@ -1103,6 +1103,71 @@ func (svc *Service) ListMDMAppleInstallers(ctx context.Context) ([]fleet.MDMAppl
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+// Batch Replace MDM Apple Profiles
+////////////////////////////////////////////////////////////////////////////////
+
+type batchSetMDMAppleProfilesRequest struct {
+	TeamID   *uint    `json:"-" query:"team_id,optional"`
+	TeamName *string  `json:"-" query:"team_name,optional"`
+	Profiles [][]byte `json:"profiles"`
+}
+
+type batchSetMDMAppleProfilesResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r batchSetMDMAppleProfilesResponse) error() error { return r.Err }
+
+func batchSetMDMAppleProfilesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*batchSetMDMAppleProfilesRequest)
+	if err := svc.BatchSetMDMAppleProfiles(ctx, req.TeamID, req.TeamName, req.Profiles); err != nil {
+		return batchSetMDMAppleProfilesResponse{Err: err}, nil
+	}
+	return batchSetMDMAppleProfilesResponse{}, nil
+}
+
+func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tmName *string, profiles [][]byte) error {
+	if tmID != nil && tmName != nil {
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("team_name", "cannot specify both team_id and team_name"))
+	}
+	if tmID != nil || tmName != nil {
+		license, err := svc.License(ctx)
+		if err != nil {
+			return err
+		}
+		if !license.IsPremium() {
+			field := "team_id"
+			if tmName != nil {
+				field = "team_name"
+			}
+			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError(field, ErrMissingLicense.Error()))
+		}
+	}
+
+	// if the team name is provided, load the corresponding team to get its id.
+	if tmName != nil {
+		if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionRead); err != nil {
+			return err
+		}
+		tm, err := svc.ds.TeamByName(ctx, *tmName)
+		if err != nil {
+			return err
+		}
+		tmID = &tm.ID
+	}
+
+	var profilesTeamID uint
+	if tmID != nil {
+		profilesTeamID = *tmID
+	}
+	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleConfigProfile{TeamID: profilesTeamID}, fleet.ActionWrite); err != nil {
+		return ctxerr.Wrap(ctx, err)
+	}
+
+	return nil
+}
+
+////////////////////////////////////////////////////////////////////////////////
 // Implementation of nanomdm's CheckinAndCommandService interface
 ////////////////////////////////////////////////////////////////////////////////
 
