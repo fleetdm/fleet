@@ -15,7 +15,7 @@ interface IHostActionsDropdownProps {
   teamId: number | null;
   hostStatus: string;
   hostMdmEnrollemntStatus: MdmEnrollmentStatus | null;
-  doesStoreEncryptionKey: boolean;
+  doesStoreEncryptionKey?: boolean;
 }
 
 const HostActionsDropdown = ({
@@ -45,7 +45,7 @@ const HostActionsDropdown = ({
     isEnrolledInMdm: ["On (automatic)", "On (manual)"].includes(
       hostMdmEnrollemntStatus ?? ""
     ),
-    doesStoreEncryptionKey,
+    doesStoreEncryptionKey: doesStoreEncryptionKey ?? false,
   });
 
   // No options to render. Exit early

@@ -1,6 +1,8 @@
 import React from "react";
+import { useQuery } from "react-query";
 
-import { IEnrollSecret } from "interfaces/enroll_secret";
+import { IHostEncrpytionKeyResponse } from "interfaces/host";
+import hostAPI from "services/entities/hosts";
 
 import Modal from "components/Modal";
 import CustomLink from "components/CustomLink";
@@ -10,18 +12,30 @@ import InputFieldHiddenContent from "components/forms/fields/InputFieldHiddenCon
 const baseClass = "disk-encryption-key-modal";
 
 interface IDiskEncryptionKeyModal {
-  secret: IEnrollSecret;
+  hostId: number;
   onCancel: () => void;
 }
 
 const DiskEncryptionKeyModal = ({
-  secret,
+  hostId,
   onCancel,
 }: IDiskEncryptionKeyModal) => {
+  const { data: encrpytionKey } = useQuery<
+    IHostEncrpytionKeyResponse,
+    unknown,
+    string
+  >("hostEncrpytionKey", () => hostAPI.getEncryptionKey(hostId), {
+    refetchOnMount: false,
+    refetchOnReconnect: false,
+    refetchOnWindowFocus: false,
+    retry: false,
+    select: (data) => data.encryption_key.key,
+  });
+
   return (
     <Modal title="Disk encryption key" onExit={onCancel} className={baseClass}>
       <>
-        <InputFieldHiddenContent value={"test-secret-key"} />
+        <InputFieldHiddenContent value={encrpytionKey ?? ""} />
         <p>
           The disk encryption key refers to the FileVault recovery key for
           macOS.

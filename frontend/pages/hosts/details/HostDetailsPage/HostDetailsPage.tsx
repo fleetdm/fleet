@@ -539,8 +539,7 @@ const HostDetailsPage = ({
         teamId={host.team_id}
         hostStatus={host.status}
         hostMdmEnrollemntStatus={host.mdm.enrollment_status}
-        // TODO: update with API call
-        doesStoreEncryptionKey
+        doesStoreEncryptionKey={hostDiskEncryption.enabled}
       />
     );
   };
@@ -748,9 +747,9 @@ const HostDetailsPage = ({
             }}
           />
         )}
-        {showDiskEncryptionModal && (
+        {showDiskEncryptionModal && host && (
           <DiskEncryptionKeyModal
-            secret={{ secret: "test" }}
+            hostId={host.id}
             onCancel={() => setShowDiskEncryptionModal(false)}
           />
         )}

@@ -149,6 +149,14 @@ export interface IDeviceUserResponse {
   global_config: IDeviceGlobalConfig;
 }
 
+export interface IHostEncrpytionKeyResponse {
+  host_id: number;
+  encryption_key: {
+    updated_at: string;
+    key: string;
+  };
+}
+
 export interface IHost {
   created_at: string;
   updated_at: string;
