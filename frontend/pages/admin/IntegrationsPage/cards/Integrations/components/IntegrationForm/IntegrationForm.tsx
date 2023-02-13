@@ -230,7 +230,7 @@ const IntegrationForm = ({
               tooltip={
                 "\
               To find the Jira project key, head to your project in <br /> \
-              Jira. Your project key is in URL. For example, in <br /> \
+              Jira. Your project key is located in the URL. For example, in <br /> \
               “jira.example.com/projects/JRAEXAMPLE,” <br /> \
               “JRAEXAMPLE” is your project key. \
             "

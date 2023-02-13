@@ -16,15 +16,15 @@ import {
 const baseClass = "app-config-form";
 
 interface ISsoFormData {
-  enableSSO?: boolean;
+  enableSso?: boolean;
   idpName?: string;
-  entityID?: string;
-  issuerURI?: string;
-  idpImageURL?: string;
+  entityId?: string;
+  issuerUri?: string;
+  idpImageUrl?: string;
   metadata?: string;
-  metadataURL?: string;
-  enableSSOIDPLogin?: boolean;
-  enableJITProvisioning?: boolean;
+  metadataUrl?: string;
+  enableSsoIdpLogin?: boolean;
+  enableJitProvisioning?: boolean;
 }
 
 const Sso = ({
@@ -34,28 +34,28 @@ const Sso = ({
   isUpdatingSettings,
 }: IAppConfigFormProps): JSX.Element => {
   const [formData, setFormData] = useState<ISsoFormData>({
-    enableSSO: appConfig.sso_settings.enable_sso ?? false,
+    enableSso: appConfig.sso_settings.enable_sso ?? false,
     idpName: appConfig.sso_settings.idp_name ?? "",
-    entityID: appConfig.sso_settings.entity_id ?? "",
-    issuerURI: appConfig.sso_settings.issuer_uri ?? "",
-    idpImageURL: appConfig.sso_settings.idp_image_url ?? "",
+    entityId: appConfig.sso_settings.entity_id ?? "",
+    issuerUri: appConfig.sso_settings.issuer_uri ?? "",
+    idpImageUrl: appConfig.sso_settings.idp_image_url ?? "",
     metadata: appConfig.sso_settings.metadata ?? "",
-    metadataURL: appConfig.sso_settings.metadata_url ?? "",
-    enableSSOIDPLogin: appConfig.sso_settings.enable_sso_idp_login ?? false,
-    enableJITProvisioning:
+    metadataUrl: appConfig.sso_settings.metadata_url ?? "",
+    enableSsoIdpLogin: appConfig.sso_settings.enable_sso_idp_login ?? false,
+    enableJitProvisioning:
       appConfig.sso_settings.enable_jit_provisioning ?? false,
   });
 
   const {
-    enableSSO,
+    enableSso: enableSso,
     idpName,
-    entityID,
-    issuerURI,
-    idpImageURL,
+    entityId: entityId,
+    issuerUri: issuerUri,
+    idpImageUrl: idpImageUrl,
     metadata,
-    metadataURL,
-    enableSSOIDPLogin,
-    enableJITProvisioning,
+    metadataUrl: metadataUrl,
+    enableSsoIdpLogin: enableSssoIdpLogin,
+    enableJitProvisioning: enableJitProvisioning,
   } = formData;
 
   const [formErrors, setFormErrors] = useState<IAppConfigFormErrors>({});
@@ -67,20 +67,24 @@ const Sso = ({
   const validateForm = () => {
     const errors: IAppConfigFormErrors = {};
 
-    if (enableSSO) {
-      if (idpImageURL && !validUrl({ url: idpImageURL, isHttp: true })) {
-        errors.idp_image_url = `${idpImageURL} is not a valid URL`;
+    if (enableSso) {
+      if (idpImageUrl && !validUrl({ url: idpImageUrl, isHttp: true })) {
+        errors.idp_image_url = `${idpImageUrl} is not a valid URL`;
       }
 
-      if (metadata === "" && metadataURL === "") {
-        errors.metadata_url = "Metadata URL must be present";
+      if (!metadata) {
+        if (!metadataUrl) {
+          errors.metadata_url = "Metadata URL must be present";
+        } else if (!validUrl({ url: metadataUrl, isHttp: true })) {
+          errors.metadata_url = `${metadataUrl} is not a valid URL`;
+        }
       }
 
-      if (!entityID) {
+      if (!entityId) {
         errors.entity_id = "Entity ID must be present";
       }
 
-      if (typeof entityID === "string" && entityID.length < 5) {
+      if (typeof entityId === "string" && entityId.length < 5) {
         errors.entity_id = "Entity ID must be 5 or more characters";
       }
 
@@ -94,7 +98,7 @@ const Sso = ({
 
   useEffect(() => {
     validateForm();
-  }, [enableSSO]);
+  }, [enableSso]);
 
   const onFormSubmit = (evt: React.MouseEvent<HTMLFormElement>) => {
     evt.preventDefault();
@@ -102,15 +106,15 @@ const Sso = ({
     // Formatting of API not UI
     const formDataToSubmit = {
       sso_settings: {
-        entity_id: entityID?.trim(),
-        issuer_uri: issuerURI?.trim(),
-        idp_image_url: idpImageURL?.trim(),
+        entity_id: entityId?.trim(),
+        issuer_uri: issuerUri?.trim(),
+        idp_image_url: idpImageUrl?.trim(),
         metadata: metadata?.trim(),
-        metadata_url: metadataURL?.trim(),
+        metadata_url: metadataUrl?.trim(),
         idp_name: idpName?.trim(),
-        enable_sso: enableSSO,
-        enable_sso_idp_login: enableSSOIDPLogin,
-        enable_jit_provisioning: enableJITProvisioning,
+        enable_sso: enableSso,
+        enable_sso_idp_login: enableSssoIdpLogin,
+        enable_jit_provisioning: enableJitProvisioning,
       },
     };
 
@@ -125,7 +129,7 @@ const Sso = ({
           <Checkbox
             onChange={handleInputChange}
             name="enableSSO"
-            value={enableSSO}
+            value={enableSso}
             parseTarget
           >
             Enable single sign-on
@@ -153,8 +157,8 @@ const Sso = ({
               </span>
             }
             onChange={handleInputChange}
-            name="entityID"
-            value={entityID}
+            name="entityId"
+            value={entityId}
             parseTarget
             onBlur={validateForm}
             error={formErrors.entity_id}
@@ -165,8 +169,8 @@ const Sso = ({
           <InputField
             label="Issuer URI"
             onChange={handleInputChange}
-            name="issuerURI"
-            value={issuerURI}
+            name="issuerUri"
+            value={issuerUri}
             parseTarget
             tooltip="The issuer URI supplied by the identity provider."
           />
@@ -175,8 +179,8 @@ const Sso = ({
           <InputField
             label="IDP image URL"
             onChange={handleInputChange}
-            name="idpImageURL"
-            value={idpImageURL}
+            name="idpImageUrl"
+            value={idpImageUrl}
             parseTarget
             onBlur={validateForm}
             error={formErrors.idp_image_url}
@@ -205,8 +209,8 @@ const Sso = ({
               </span>
             }
             onChange={handleInputChange}
-            name="metadataURL"
-            value={metadataURL}
+            name="metadataUrl"
+            value={metadataUrl}
             parseTarget
             onBlur={validateForm}
             error={formErrors.metadata_url}
@@ -217,7 +221,7 @@ const Sso = ({
           <Checkbox
             onChange={handleInputChange}
             name="enableSSOIDPLogin"
-            value={enableSSOIDPLogin}
+            value={enableSssoIdpLogin}
             parseTarget
           >
             Allow SSO login initiated by identity provider
@@ -228,7 +232,7 @@ const Sso = ({
             <Checkbox
               onChange={handleInputChange}
               name="enableJITProvisioning"
-              value={enableJITProvisioning}
+              value={enableJitProvisioning}
               parseTarget
             >
               <>
