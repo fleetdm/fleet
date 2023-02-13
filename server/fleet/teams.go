@@ -269,10 +269,16 @@ type TeamSpec struct {
 	// set to the agent options JSON object.
 	AgentOptions json.RawMessage `json:"agent_options,omitempty"` // marshals as "null" if omitempty is not set
 
-	Secrets       []EnrollSecret   `json:"secrets,omitempty"`
-	Features      *json.RawMessage `json:"features"`
-	MDM           TeamMDM          `json:"mdm"`
-	MacOSSettings MacOSSettings    `json:"macos_settings"`
+	Secrets  []EnrollSecret   `json:"secrets,omitempty"`
+	Features *json.RawMessage `json:"features"`
+	MDM      TeamMDM          `json:"mdm"`
+
+	// A map is used for the macos settings so that we can easily detect if its
+	// sub-keys were provided or not in an "apply" call. E.g. if the
+	// custom_settings key is specified but empty, then we need to clear the
+	// value, but if it isn't provided, we need to leave the existing value
+	// unmodified.
+	MacOSSettings map[string]interface{} `json:"macos_settings"`
 }
 
 // TeamSpecFromTeam returns a TeamSpec constructed from the given Team.
@@ -293,11 +299,13 @@ func TeamSpecFromTeam(t *Team) (*TeamSpec, error) {
 	if t.Config.AgentOptions != nil {
 		agentOptions = *t.Config.AgentOptions
 	}
+
 	return &TeamSpec{
-		Name:         t.Name,
-		AgentOptions: agentOptions,
-		Features:     &featuresJSON,
-		Secrets:      secrets,
-		MDM:          t.Config.MDM,
+		Name:          t.Name,
+		AgentOptions:  agentOptions,
+		Features:      &featuresJSON,
+		Secrets:       secrets,
+		MDM:           t.Config.MDM,
+		MacOSSettings: t.Config.MacOSSettings.ToMap(),
 	}, nil
 }

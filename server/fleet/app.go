@@ -169,6 +169,34 @@ type MacOSSettings struct {
 	CustomSettings []string `json:"custom_settings"`
 }
 
+func (s MacOSSettings) ToMap() map[string]interface{} {
+	return map[string]interface{}{
+		"custom_settings": s.CustomSettings,
+	}
+}
+
+// CustomSettingsFromMap sets the custom settings field from the provided map,
+// which is the map type from the ApplyTeams spec struct. It returns true if
+// the custom settings were set from the map, false if they were left
+// unchanged.
+func (s *MacOSSettings) CustomSettingsFromMap(m map[string]interface{}) bool {
+	if v, ok := m["custom_settings"]; ok {
+		vals, ok := v.([]interface{})
+		if v == nil || ok {
+			strs := make([]string, 0, len(vals))
+			for _, v := range vals {
+				s, ok := v.(string)
+				if ok && s != "" {
+					strs = append(strs, s)
+				}
+			}
+			s.CustomSettings = strs
+			return true
+		}
+	}
+	return false
+}
+
 // AppConfig holds server configuration that can be changed via the API.
 //
 // Note: management of deprecated fields is done on JSON-marshalling and uses

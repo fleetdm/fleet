@@ -549,12 +549,16 @@ func (svc Service) createTeamFromSpec(ctx context.Context, spec *fleet.TeamSpec,
 		}
 	}
 
+	var macOSSettings fleet.MacOSSettings
+	macOSSettings.CustomSettingsFromMap(spec.MacOSSettings)
+
 	return svc.ds.NewTeam(ctx, &fleet.Team{
 		Name: spec.Name,
 		Config: fleet.TeamConfig{
-			AgentOptions: agentOptions,
-			Features:     features,
-			MDM:          spec.MDM,
+			AgentOptions:  agentOptions,
+			Features:      features,
+			MDM:           spec.MDM,
+			MacOSSettings: macOSSettings,
 		},
 		Secrets: secrets,
 	})
@@ -581,6 +585,7 @@ func (svc Service) editTeamFromSpec(ctx context.Context, team *fleet.Team, spec 
 	}
 	team.Config.Features = features
 	team.Config.MDM = spec.MDM
+	team.Config.MacOSSettings.CustomSettingsFromMap(spec.MacOSSettings)
 
 	if len(secrets) > 0 {
 		team.Secrets = secrets

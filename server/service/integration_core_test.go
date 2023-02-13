@@ -4807,6 +4807,32 @@ func (s *integrationTestSuite) TestAppConfig() {
   }`), http.StatusOK, &acResp)
 	assert.True(t, acResp.MDM.EnabledAndConfigured)
 
+	// set the macos custom settings fields
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+	  "macos_settings": { "custom_settings": ["foo", "bar"] }
+  }`), http.StatusOK, &acResp)
+	assert.Equal(t, []string{"foo", "bar"}, acResp.MacOSSettings.CustomSettings)
+
+	// check that they are returned by a GET /config
+	acResp = appConfigResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	assert.Equal(t, []string{"foo", "bar"}, acResp.MacOSSettings.CustomSettings)
+
+	// patch without specifying the macos custom settings fields, should not remove them
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+	  "macos_settings": {}
+  }`), http.StatusOK, &acResp)
+	assert.Equal(t, []string{"foo", "bar"}, acResp.MacOSSettings.CustomSettings)
+
+	// patch with explicitly empty macos custom settings fields, should remove them
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"macos_settings": {"custom_settings": null}
+  }`), http.StatusOK, &acResp)
+	assert.Empty(t, acResp.MacOSSettings.CustomSettings)
+
 	// try to set the apple bm default team, which is premium only
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"mdm": { "apple_bm_default_team": "xyz" }
