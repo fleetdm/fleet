@@ -135,7 +135,7 @@ const HostSummary = ({
 
   const renderMacSettingsIndicator = () => {
     // TODO: actually determine this status
-    const macSettingsStatus: MacSettingsStatus = "Latest";
+    const macSettingsStatus: MacSettingsStatus = "Pending";
 
     const statusDisplayOptions = {
       Latest: {
@@ -160,15 +160,13 @@ const HostSummary = ({
       <div className="info-flex__item info-flex__item--title">
         <span className="info-flex__header">macOS settings</span>
         <span className="info-flex__data">
+          <Icon name={iconName} />
           <span
             className="tooltip tooltip__tooltip-icon"
             data-tip
             data-for="host-mac-settings-status"
             data-tip-disable={false}
           >
-            {/* TODO: fix alginment of this icon */}
-            {/* <Icon name={statusDisplayOptions[macSettingsStatus].iconName} /> */}
-            <Icon name={iconName} />
             <Button
               onClick={toggleMacSettingsModal}
               variant="text-link"
