@@ -3,7 +3,12 @@
 - [Queries](#queries)
 - [Labels](#labels)
 - [Enroll secrets](#enroll-secrets)
-- [Teams](#teams)
+  - [Multiple enroll secrets](#multiple-enroll-secrets)
+  - [Rotating enroll secrets](#rotating-enroll-secrets)
+- [Team settings](#team-settings)
+  - [Team agent options](#team-agent-options)
+  - [Team enroll secrets](#team-enroll-secrets)
+- [Mobile device management settings](#mobile-device-management-mdm-settings)
 - [Organization settings](#organization-settings)
 
 Fleet can be managed with configuration files (YAML syntax) and the fleetctl command line tool. This page tells you how to write these configuration files.
@@ -14,7 +19,7 @@ Changes are applied to Fleet when the configuration file is applied using fleetc
 
 The `query` YAML file controls queries in Fleet.
 
-You can define one or more queries in the same file with with `---`.
+You can define one or more queries in the same file with `---`.
 
 The following example file includes several queries:
 
@@ -46,7 +51,7 @@ Continued edits and applications to this file will update the queries.
 
 If you want to change the name of a query, you must first create a new query with the new name and then delete the query with the old name.
 
-### Labels
+## Labels
 
 The following file describes the labels which hosts should be automatically grouped into. The label resource should include the actual SQL query so that the label is self-contained:
 
@@ -81,7 +86,7 @@ spec:
 
 ## Enroll secrets
 
-The following file shows how to configure enroll secrets.
+The following file shows how to configure enroll secrets. Enroll secrets are valid until you delete them.
 
 ```yaml
 apiVersion: v1
@@ -92,13 +97,91 @@ spec:
     - secret: YBh0n4pvRplKyWiowv9bf3zp6BBOJ13O
 ```
 
-## Teams
+Osquery provides the enroll secret only during the enrollment process. Once a host is enrolled, the node key it receives remains valid for authentication independent from the enroll secret.
+
+Currently enrolled hosts do not necessarily need enroll secrets updated, as the existing enrollment will continue to be valid as long as the host is not deleted from Fleet and the osquery store on the host remains valid. Any newly enrolling hosts must have the new secret.
+
+Deploying a new enroll secret cannot be done centrally from Fleet.
+
+Osquery provides the enroll secret only during the enrollment process. Once a host is enrolled, the node key it receives remains valid for authentication independent from the enroll secret.
+
+Currently enrolled hosts do not necessarily need enroll secrets updated, as the existing enrollment will continue to be valid as long as the host is not deleted from Fleet and the osquery store on the host remains valid. Any newly enrolling hosts must have the new secret.
+
+Deploying a new enroll secret cannot be done centrally from Fleet.
+
+### Multiple enroll secrets 
+
+Fleet allows the abiility to maintain multiple enroll secrets. Some organizations have internal goals  around rotating secrets. Having multiple secrets allows some of them to work at the same time the rotation is happening.
+Another reason you might want to use multiple enroll secrets is to use a certain [team enroll secret](#team-enroll-secrets) to auto-enroll hosts into a specific [team](https://fleetdm.com/docs/using-fleet/teams) (Fleet Premium).
+
+### Rotating enroll secrets
+
+Rotating enroll secrets follows this process:
+
+1. Add a new secret.
+2. Transition existing clients to the new secret. Note that existing clients may not need to be
+   updated, as the enroll secret is not used by already enrolled clients.
+3. Remove the old secret.
+
+To do this with `fleetctl` (assuming the existing secret is `oldsecret` and the new secret is `newsecret`):
+
+Begin by retrieving the existing secret configuration:
+
+```
+$ fleetctl get enroll_secret
+---
+apiVersion: v1
+kind: enroll_secret
+spec:
+  secrets:
+  - created_at: "2021-11-17T00:39:50Z"
+    secret: oldsecret
+```
+
+Apply the new configuration with both secrets:
+
+```
+$ echo '
+---
+apiVersion: v1
+kind: enroll_secret
+spec:
+  secrets:
+  - created_at: "2021-11-17T00:39:50Z"
+    secret: oldsecret
+  - secret: newsecret
+' > secrets.yml
+$ fleetctl apply -f secrets.yml
+```
+
+Now transition clients to using only the new secret. When the transition is completed, remove the
+old secret:
+
+```
+$ echo '
+---
+apiVersion: v1
+kind: enroll_secret
+spec:
+  secrets:
+  - secret: newsecret
+' > secrets.yml
+$ fleetctl apply -f secrets.yml
+```
+
+At this point, the old secret will no longer be accepted for new enrollments and the rotation is
+complete.
+
+A similar process may be followed for rotating team-specific enroll secrets. For teams, the secrets
+are managed in the team yaml.
+
+## Team settings
 
 **Applies only to Fleet Premium**.
 
 The `team` YAML file controls a team in Fleet.
 
-You can define one or more teams in the same file with with `---`.
+You can define one or more teams in the same file with `---`.
 
 The following example file includes one team:
 
@@ -139,9 +222,7 @@ spec:
         deadline: 2022-01-04
 ```
 
-### Team settings
-
-#### Team agent options
+### Team agent options
 
 The team agent options specify options that only apply to this team. When team-specific agent options have been specified, the agent options specified at the organization level are ignored for this team.
 
@@ -157,7 +238,7 @@ spec:
       # the team-specific options go here
 ```
 
-#### Secrets
+### Team secrets
 
 The `secrets` section provides the list of enroll secrets that will be valid for this team. If the section is missing, the existing secrets are left unmodified. Otherwise, they are replaced with this list of secrets for this team.
 
@@ -205,7 +286,7 @@ webhook_settings
 
 You can bypass these errors by removing the key from your YAML or adding the `--force` flag. This flag will force application of the changes without validation. Proceed with caution.
 
-#### Mobile device management (MDM) settings
+## Mobile device management (MDM) settings
 
 > MDM features are not ready for production and are currently in development. These features are disabled by default.
 
@@ -328,7 +409,7 @@ spec:
 
 All possible settings are organized below by section.
 
-Each section's key must be one level below the `spec` key, indented with spaces (not `<tab>` charaters) as required by the YAML format.
+Each section's key must be one level below the `spec` key, indented with spaces (not `<tab>` characters) as required by the YAML format.
 
 For example, when adding the `host_expiry_settings.host_expiry_enabled` setting, you'd specify the `host_expiry_settings` section one level below the `spec` key:
 
@@ -801,7 +882,7 @@ The following options allow the configuration of a webhook that will be triggere
 
 ###### webhook_settings.host_status_webhook.days_count
 
-Number of days that hosts need to be offline for to count as part of the percentage.
+Number of days that hosts need to be offline to count as part of the percentage.
 
 - Optional setting, required if webhook is enabled (integer).
 - Default value: `0`.
@@ -904,6 +985,19 @@ See the [osquery documentation](https://osquery.readthedocs.io/en/stable/install
 
 Agent options are validated using the latest version of osquery. 
 
+When updating agent options, you may see an error similar to this:
+
+```
+[...] unsupported key provided: "logger_plugin"
+If you’re not using the latest osquery, use the fleetctl apply --force command to override validation.
+```
+
+This error indicates that you're providing a config option that isn't valid in the current version of osquery, typically because you're setting a command line flag through the configuration key. This has always been unsupported through the config plugin, but osquery has recently become more opinionated and Fleet now validates the configuration to make sure there aren't errors in the osquery agent.
+
+If you are not using the latest version of osquery, you can create a config YAML file and apply it with `fleetctl` using the `--force` flag to override the validation:
+
+```fleetctl apply --force -f config.yaml```
+
 You can verify that your agent options are valid by using [the fleetctl apply command](https://fleetdm.com/docs/using-fleet/fleetctl-cli#fleetctl-apply) with the `--dry-run` flag. This will report any error and do nothing if the configuration was valid. If you don't use the latest version of osquery, you can override validation using the `--force` flag. This will update agent options even if they are invalid.
 
 Existing options will be overwritten by the application of this file.
@@ -915,6 +1009,8 @@ Existing options will be overwritten by the application of this file.
 The `command_line_flags` key inside of `agent_options` allows you to remotely manage the osquery command line flags. These command line flags are options that typically require osquery to restart for them to take effect. But with Orbit, you can use the `command_line_flags` key to take care of that. Orbit will write these to the flagfile on the host and pass it to osquery. 
 
 To see the full list of these osquery command line flags, please run `osquery` with the `--help` switch.
+
+> YAML `command_line_flags` are not additive and will replace any osquery command line flags in the CLI.
 
 Just like the other `agent_options` above, remove the dashed lines (`--`) for Fleet to successfully update them.
 
@@ -933,11 +1029,11 @@ spec:
 
 Note that the `command_line_flags` key does not support the `overrides` key, which is documented below.
 
-You can verfiy that these flags have taken effect on the hosts by running a query against the `osquery_flags` table.
+You can verify that these flags have taken effect on the hosts by running a query against the `osquery_flags` table.
 
-If you revoked an old enroll secret, this feature won't work for hosts that were added to Fleet using this old enroll secret. This is because Orbit uses the enroll secret to receive new flags from Fleet. For these hosts, all existing features will work as expected.
+> If you revoked an old enroll secret, this feature won't update for hosts that were added to Fleet using this old enroll secret. This is because Orbit uses the enroll secret to receive new flags from Fleet. For these hosts, all existing features will work as expected.
 
-For further documentation on how to rotate enroll secrets, please see [this guide](https://fleetdm.com/docs/deploying/faq#how-can-enroll-secrets-be-rotated).
+For further documentation on how to rotate enroll secrets, please see [this guide](#rotating-enroll-secrets).
 
 If you prefer to deploy a new package with the updated enroll secret:
 
@@ -987,11 +1083,11 @@ spec:
         platform: 'macos'
 ```
  
-In the above example, we are configuring our `hello_world` extension. We do this by creating a `hello_world` sub-key under `extensions`, and then specifying the `channel` and `platform` keys for that extension. 
+In the above example, we are configuring our `hello_world` extension. We do this by creating a `hello_world` subkey under `extensions`, and then specifying the `channel` and `platform` keys for that extension. 
 
 Next, you will need to make sure to push the binary file of our `hello_world` extension as a target on your TUF server. This step needs to follow these conventions:
 
-* The binary file of the extension, must have the same name as the extension, followed by the `.ext`. In the above case, the filename should be `hello_world.ext`
+* The binary file of the extension must have the same name as the extension, followed by the `.ext`. In the above case, the filename should be `hello_world.ext`
 * The target name for the TUF server must be named as `extensions/<extension_name>`. For the above example, this would be `extensions/hello_world`
 * `platform` is one of `macos`, `linux`, or `windows`
 
@@ -1005,7 +1101,7 @@ After successfully configuring the agent options, and pushing the extension as a
 
 If you are using a self-hosted TUF server, you must also manage all of Orbit's versions, including osquery, Fleet Desktop and osquery extensions.
 
-Fleet recommends deploying extensions created with osquery-go or natively with C++, instead of Python. Extensions written in Python requires the user to compile it into a single packaged binary along with all the dependencies.
+Fleet recommends deploying extensions created with osquery-go or natively with C++, instead of Python. Extensions written in Python require the user to compile it into a single packaged binary along with all the dependencies.
 
 
 ##### Example Agent options YAML
@@ -1035,7 +1131,7 @@ spec:
       # with the top-level configuration!! This means that settings values defined 
       # on the top-level config.options section will not be propagated to the platform
       # override sections. So for example, the config.options.distributed_interval value 
-      # will be discared on a platform override section, and only the section value 
+      # will be discarded on a platform override section, and only the section value 
       # for distributed_interval will be used. If the given setting is not specified 
       # in the override section, its default value will be enforced. 
       # Going back to the example, if the override section is windows, 
@@ -1277,7 +1373,7 @@ Set name of default team to use with Apple Business Manager.
 
 **Applies only to Fleet Premium**.
 
-The following options allow to configure the behavior of Nudge for macOS hosts that belong to no team and are enrolled into Fleet's MDM.
+The following options allow configuring the behavior of Nudge for macOS hosts that belong to no team and are enrolled into Fleet's MDM.
 
 ##### mdm.macos_updates.minimum_version
 
@@ -1295,7 +1391,7 @@ Requires `mdm.macos_updates.deadline` to be set.
 
 ##### mdm.macos_updates.deadline
 
-A deadline in the form `YYYY-MM-DD`. The exact deadline time is at 04:00:00 (UTC-8).
+A deadline in the form of `YYYY-MM-DD`. The exact deadline time is at 04:00:00 (UTC-8).
 
 Hosts that belong to no team and are enrolled into Fleet's MDM won't be able to dismiss the Nudge window once this deadline is past.
 
