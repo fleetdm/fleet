@@ -200,6 +200,16 @@ const TAGGED_TEMPLATES = {
     );
   },
 
+  readHostDiskEncryptionKey: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        viewed the disk encryption key for {activity.details?.host_display_name}
+        .
+      </>
+    );
+  },
+
   defaultActivityTemplate: (activity: IActivity) => {
     const entityName = find(activity.details, (_, key) =>
       key.includes("_name")
@@ -279,6 +289,9 @@ const getDetail = (
     }
     case ActivityType.EditedMacosMinVersion: {
       return TAGGED_TEMPLATES.editedMacosMinVersion(activity);
+    }
+    case ActivityType.ReadHostDiskEncryptionKey: {
+      return TAGGED_TEMPLATES.readHostDiskEncryptionKey(activity);
     }
     default: {
       return TAGGED_TEMPLATES.defaultActivityTemplate(activity);

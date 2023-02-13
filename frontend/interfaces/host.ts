@@ -87,6 +87,7 @@ export interface IMunkiData {
 }
 
 export interface IHostMdmData {
+  encryption_key_available: boolean;
   enrollment_status: MdmEnrollmentStatus | null;
   server_url: string;
   id?: number;

@@ -539,7 +539,7 @@ const HostDetailsPage = ({
         teamId={host.team_id}
         hostStatus={host.status}
         hostMdmEnrollemntStatus={host.mdm.enrollment_status}
-        doesStoreEncryptionKey={hostDiskEncryption.enabled}
+        doesStoreEncryptionKey={host.mdm.encryption_key_available}
       />
     );
   };
