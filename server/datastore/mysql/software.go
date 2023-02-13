@@ -671,17 +671,19 @@ func (ds *Datastore) ListSoftwareBySourceIter(
 	var args []interface{}
 
 	stmt := `SELECT 
-		id, 
-		name, 
-		version, 
-		bundle_identifier,
-		release,
-		vendor,
-		arch
-	FROM software 
+		s.id, 
+		s.name,
+		s.version,
+		s.bundle_identifier,
+		s.release,
+		s.vendor,
+		s.arch,
+		s.source 
+	FROM software s
 	WHERE source IN (?)`
 
 	stmt, args, err = sqlx.In(stmt, sources)
+
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "error while trying to bind sources")
 	}
