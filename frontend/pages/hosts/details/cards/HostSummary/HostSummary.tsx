@@ -133,48 +133,28 @@ const HostSummary = ({
     </div>
   );
 
-  // const getIconNameAndTooltipText = (
-  //   macSettingsStatus: MacSettingsStatus
-  // ): [IconNames, string] => {
-  //   const options: { [key: "Latest" | "Pending" | "Failing"]  } = {
-  //     // const options = {
-  //     Latest: ["success", "Host applied the latest settings"],
-  //     Pending: [
-  //       "pending",
-  //       "Host will apply the latest settings when it comes online",
-  //     ],
-  //     Failing: [
-  //       "error",
-  //       "Host failed to apply the latest settings. Click to view error(s).",
-  //     ],
-  //   };
-  //   return options[macSettingsStatus];
-  // };
-
   const renderMacSettingsIndicator = () => {
     // TODO: actually determine this status
-    const macSettingsStatus: MacSettingsStatus = "Pending";
+    const macSettingsStatus: MacSettingsStatus = "Latest";
 
-    // TODO: get below to work
-    // const statusDisplayOptions = {
-    //   const statusDisplayOptions: { status: MacSettingsStatus: { iconName: IconNames, tooltipText: string }
-    // } = {
-    //     Latest: {
-    //       iconName: "success",
-    //       tooltipText: "Host applied the latest settings",
-    //     },
-    //     Pending: {
-    //       iconName: "pending",
-    //       tooltipText: "Host will apply the latest settings when it comes online",
-    //     },
-    //     Failing: {
-    //       iconName: "error",
-    //       tooltipText:
-    //         "Host failed to apply the latest settings. Click to view error(s).",
-    //     },
-    //   };
-    const iconName = "pending";
-    const tooltipText = "test tip text";
+    const statusDisplayOptions = {
+      Latest: {
+        iconName: "success",
+        tooltipText: "Host applied the latest settings",
+      },
+      Pending: {
+        iconName: "pending",
+        tooltipText: "Host will apply the latest settings when it comes online",
+      },
+      Failing: {
+        iconName: "error",
+        tooltipText:
+          "Host failed to apply the latest settings. Click to view error(s).",
+      },
+    } as const;
+
+    const iconName = statusDisplayOptions[macSettingsStatus].iconName;
+    const tooltipText = statusDisplayOptions[macSettingsStatus].tooltipText;
 
     return (
       <div className="info-flex__item info-flex__item--title">
