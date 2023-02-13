@@ -1164,6 +1164,33 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 		return ctxerr.Wrap(ctx, err)
 	}
 
+	// stores the config profiles to apply keyed by identifier, so that only the
+	// last instance of a profile with a given identifier is applied.
+	applyProfiles := make(map[string]*fleet.MDMAppleConfigProfile, len(profiles))
+	for i, prof := range profiles {
+		mobConf := fleet.Mobileconfig(prof)
+		mdmProf, err := mobConf.ParseConfigProfile()
+		if err != nil {
+			return ctxerr.Wrap(ctx,
+				fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%d]", i), err.Error()),
+				"invalid mobileconfig profile")
+		}
+		applyProfiles[mdmProf.Identifier] = mdmProf
+	}
+
+	// if there's any duplicate name in the profiles to apply, raise an error
+	profileNames := make(map[string]bool, len(applyProfiles))
+	for _, prof := range applyProfiles {
+		if profileNames[prof.Name] {
+			return ctxerr.Wrap(ctx,
+				fleet.NewInvalidArgumentError("profiles", fmt.Sprintf("duplicate profiles with name %q", prof.Name)),
+				"duplicate mobileconfig profile")
+		}
+		profileNames[prof.Name] = true
+	}
+
+	// TODO(mna): apply the profiles to this team/no team
+
 	return nil
 }
 
