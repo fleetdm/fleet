@@ -256,21 +256,26 @@ func (mc *Mobileconfig) ParseConfigProfile() (*MDMAppleConfigProfile, error) {
 // See also https://developer.apple.com/documentation/devicemanagement/configuring_multiple_devices_using_profiles.
 type MDMAppleConfigProfile struct {
 	// ProfileID is the unique id of the configuration profile in Fleet
-	ProfileID uint `db:"profile_id"`
+	ProfileID uint `db:"profile_id" json:"profile_id"`
 	// TeamID is the id of the team with which the configuration is associated. A team id of zero
 	// represents a configuration profile that is not associated with any team.
-	TeamID uint `db:"team_id"`
+	TeamID uint `db:"team_id" json:"team_id"`
 	// Identifier corresponds to the payload identifier of the associated mobileconfig payload.
 	// Fleet requires that Identifier must be unique in combination with the Name and TeamID.
-	Identifier string `db:"identifier"`
+	Identifier string `db:"identifier" json:"identifier"`
 	// Name corresponds to the payload display name of the associated mobileconfig payload.
 	// Fleet requires that Name must be unique in combination with the Identifier and TeamID.
-	Name string `db:"name"`
+	Name string `db:"name" json:"name"`
 	// Mobileconfig is the byte slice corresponding to the XML property list (i.e. plist)
 	// representation of the configuration profile. It must be XML or PKCS7 parseable.
-	Mobileconfig *Mobileconfig `db:"mobileconfig"`
-	CreatedAt    time.Time     `db:"created_at"`
-	UpdatedAt    time.Time     `db:"updated_at"`
+	Mobileconfig *Mobileconfig `db:"mobileconfig" json:"-"`
+	CreatedAt    time.Time     `db:"created_at" json:"created_at"`
+	UpdatedAt    time.Time     `db:"updated_at" json:"updated_at"`
+}
+
+// AuthzType implements authz.AuthzTyper.
+func (m MDMAppleConfigProfile) AuthzType() string {
+	return "mdm_apple_config_profile"
 }
 
 func (cp *MDMAppleConfigProfile) Validate() error {
