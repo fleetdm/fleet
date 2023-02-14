@@ -229,11 +229,13 @@ How to migrate these hosts:
 
 1. Connect Fleet to Apple Business Manager (ABM). Learn how [here](#apple-business-manager-abm).
 
-2. In ABM, switch these hosts' MDM server from the old MDM solution to Fleet: In ABM, select **Devices** and then select **All Devices**. Last, select **Edit** next to **Edit MDM Server** and choose your Fleet server. 
+2. In ABM, unassign these hosts' MDM server from the old MDM solution: In ABM, select **Devices** and then select **All Devices**. Then, select **Edit** next to **Edit MDM Server**, select **Unassign from the current MDM**, and select **Continue**. 
 
-3. In your old MDM solution, unenroll these hosts. MacOS does not allow multiple MDMs to be installed at once. This step is required to present end users with instructions to turn on MDM in Fleet.
+3. In ABM, assign these hosts' MDM server to Fleet: In ABM, select **Devices** and then select **All Devices**. Then, select **Edit** next to **Edit MDM Server**, select **Assign to the following MDM:**, select your Fleet server in the dropdown, and select **Continue**. 
 
-4. The **My Device** page in Fleet Desktop will present end users with instructions to turn on MDM. Share [these guided instructions](#instructions-for-end-users) with your end users.
+4. In your old MDM solution, unenroll these hosts. MacOS does not allow multiple MDMs to be installed at once. This step is required to present end users with instructions to turn on MDM in Fleet.
+
+5. The **My Device** page in Fleet Desktop will present end users with instructions to turn on MDM. Share [these guided instructions](#instructions-for-end-users) with your end users.
 
 ### FileVault recovery keys
 

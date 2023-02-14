@@ -44,6 +44,8 @@ export default {
   HOST_MDM: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/mdm`,
   HOST_MDM_UNENROLL: (id: number) =>
     `/${API_VERSION}/fleet/mdm/hosts/${id}/unenroll`,
+  HOST_ENCRYPTION_KEY: (id: number) =>
+    `/${API_VERSION}/fleet/hosts/${id}/encryption_key`,
   ME: `/${API_VERSION}/fleet/me`,
   OS_VERSIONS: `/${API_VERSION}/fleet/os_versions`,
   OSQUERY_OPTIONS: `/${API_VERSION}/fleet/spec/osquery_options`,

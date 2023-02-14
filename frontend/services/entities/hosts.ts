@@ -302,4 +302,9 @@ export default {
     const fullPath = params !== "" ? `${MDM_SUMMARY}?${params}` : MDM_SUMMARY;
     return sendRequest("GET", fullPath);
   },
+
+  getEncryptionKey: (id: number) => {
+    const { HOST_ENCRYPTION_KEY } = endpoints;
+    return sendRequest("GET", HOST_ENCRYPTION_KEY(id));
+  },
 };
