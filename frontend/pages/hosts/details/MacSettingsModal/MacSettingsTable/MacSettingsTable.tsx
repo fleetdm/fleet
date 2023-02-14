@@ -4,10 +4,7 @@ import TableContainer from "components/TableContainer";
 import EmptyTable from "components/EmptyTable";
 import { IMacSettings } from "interfaces/mdm";
 
-import {
-  generateTableHeaders,
-  generateDataSet,
-} from "./MacSettingsTableConfig";
+import { tableHeaders, generateDataSet } from "./MacSettingsTableConfig";
 
 const baseClass = "macsettings-table";
 
@@ -28,7 +25,7 @@ const MacSettingsTable = ({
         <TableContainer
           resultsTitle="settings"
           defaultSortHeader="name"
-          columns={generateTableHeaders()}
+          columns={tableHeaders}
           data={generateDataSet(hostMacSettings)} // TODO
           isLoading={isLoading}
           emptyComponent={"symbol"}

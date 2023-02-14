@@ -25,7 +25,7 @@ const MacSettingsModal = ({
           hostMacSettings={hostMacSettings}
         />
         <div className="modal-cta-wrap">
-          <Button type="submit" variant="brand" onClick={onClose}>
+          <Button variant="brand" onClick={onClose}>
             Done
           </Button>
         </div>

@@ -29,7 +29,7 @@ const MacSettingsIndicator = ({
           <span
             className="tooltip tooltip__tooltip-icon"
             data-tip
-            data-for="settings-indicator"
+            data-for={`${indicatorText}-tooltip`}
             data-tip-disable={false}
           >
             <Button
@@ -44,7 +44,7 @@ const MacSettingsIndicator = ({
             place={tooltip.position ?? "bottom"}
             effect="solid"
             backgroundColor="#3e4771"
-            id="settings-indicator"
+            id={`${indicatorText}-tooltip`}
             data-html
           >
             <span className="tooltip__tooltip-text">{tooltip.tooltipText}</span>
@@ -96,7 +96,7 @@ const MacSettingsIndicator = ({
   };
 
   return (
-    <span className="info-flex__data">
+    <span className={`${baseClass} info-flex__data`}>
       <Icon name={iconName} />
       {getIndicatorTextWrapped()}
     </span>

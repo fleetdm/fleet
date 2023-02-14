@@ -46,8 +46,6 @@
           margin-right: $pad-xxlarge;
 
           .info-flex__data {
-            display: flex;
-            gap: 4px;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
@@ -56,12 +54,6 @@
               width: 16px;
               height: 16px;
               vertical-align: sub;
-            }
-
-            .icon {
-              width: 16px;
-              height: 16px;
-              align-self: center;
             }
 
             &__text {

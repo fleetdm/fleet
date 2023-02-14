@@ -31,7 +31,7 @@ interface IDataColumn {
   sortType?: string;
 }
 
-const settingStatusOptions = {
+const SETTING_STATUS_OPTIONS = {
   "Action required (pending)": {
     iconName: "pending",
     tooltipText: "Follow Disk encryption instructions on your My device page.",
@@ -51,59 +51,55 @@ const settingStatusOptions = {
   Failed: { iconName: "error", tooltipText: null },
 } as const;
 
-const generateTableHeaders = (): IDataColumn[] => {
-  const tableHeaders: IDataColumn[] = [
-    {
-      title: "Name",
-      Header: "Name",
-      disableSortBy: true,
-      accessor: "name",
-      Cell: (cellProps: ICellProps): JSX.Element => (
-        <TextCell value={cellProps.cell.value} />
-      ),
+const tableHeaders: IDataColumn[] = [
+  {
+    title: "Name",
+    Header: "Name",
+    disableSortBy: true,
+    accessor: "name",
+    Cell: (cellProps: ICellProps): JSX.Element => (
+      <TextCell value={cellProps.cell.value} />
+    ),
+  },
+  {
+    title: "Status",
+    Header: "Status",
+    disableSortBy: true,
+    accessor: "statusText",
+    Cell: (cellProps: ICellProps) => {
+      // TODO: refine this logic according to API structure
+      const statusData = cellProps.row.original;
+      const statusText = statusData.statusText;
+      // const statusText = "Applied";
+      const iconName = SETTING_STATUS_OPTIONS[statusText].iconName;
+      const tooltip = {
+        tooltipText: SETTING_STATUS_OPTIONS[statusText].tooltipText,
+        position: "bottom" as const,
+      };
+      return (
+        <MacSettingsIndicator
+          indicatorText={statusText}
+          iconName={iconName}
+          tooltip={tooltip}
+        />
+      );
     },
-    {
-      title: "Status",
-      Header: "Status",
-      disableSortBy: true,
-      accessor: "statusText",
-      Cell: (cellProps: ICellProps) => {
-        // TODO: refine this logic according to API structure
-        const statusData = cellProps.row.original;
-        const statusText = statusData.statusText;
-        // const statusText = "Applied";
-        const iconName = settingStatusOptions[statusText].iconName;
-        const tooltip = {
-          tooltipText: settingStatusOptions[statusText].tooltipText,
-          position: "bottom" as const,
-        };
-        return (
-          <MacSettingsIndicator
-            indicatorText={statusText}
-            iconName={iconName}
-            tooltip={tooltip}
-          />
-        );
-      },
+  },
+  {
+    title: "Error",
+    Header: "Error",
+    disableSortBy: true,
+    accessor: "error",
+    Cell: (cellProps: ICellProps): JSX.Element => {
+      // TODO: logically generate settings error from API structure
+      return <div>Error</div>;
     },
-    {
-      title: "Error",
-      Header: "Error",
-      disableSortBy: true,
-      accessor: "error",
-      Cell: (cellProps: ICellProps): JSX.Element => {
-        // TODO: logically generate settings error from API structure
-        return <div>Error</div>;
-      },
-    },
-  ];
-
-  return tableHeaders;
-};
+  },
+];
 
 const generateDataSet = (hostMacSettings: IMacSettings): IMacSettings => {
   // TODO - make this real
   return hostMacSettings;
 };
 
-export { generateTableHeaders, generateDataSet };
+export { tableHeaders, generateDataSet };

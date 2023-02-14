@@ -13,6 +13,7 @@ import Icon from "components/Icon";
 import { IconNames } from "components/icons";
 import { MacSettingsStatus } from "interfaces/mdm";
 import IssueIcon from "../../../../../../assets/images/icon-issue-fleet-black-50-16x16@2x.png";
+import MacSettingsIndicator from "../../MacSettingsIndicator";
 
 const baseClass = "host-summary";
 
@@ -135,9 +136,9 @@ const HostSummary = ({
 
   const renderMacSettingsIndicator = () => {
     // TODO: actually determine this status
-    const macSettingsStatus: MacSettingsStatus = "Pending";
+    const macSettingsStatus: MacSettingsStatus = "Latest";
 
-    const statusDisplayOptions = {
+    const STATUS_DISPLAY_OPTIONS = {
       Latest: {
         iconName: "success",
         tooltipText: "Host applied the latest settings",
@@ -153,13 +154,19 @@ const HostSummary = ({
       },
     } as const;
 
-    const iconName = statusDisplayOptions[macSettingsStatus].iconName;
-    const tooltipText = statusDisplayOptions[macSettingsStatus].tooltipText;
+    const iconName = STATUS_DISPLAY_OPTIONS[macSettingsStatus].iconName;
+    const tooltipText = STATUS_DISPLAY_OPTIONS[macSettingsStatus].tooltipText;
 
     return (
       <div className="info-flex__item info-flex__item--title">
         <span className="info-flex__header">macOS settings</span>
-        <span className="info-flex__data">
+        <MacSettingsIndicator
+          indicatorText={macSettingsStatus}
+          iconName={iconName}
+          onClick={toggleMacSettingsModal}
+          tooltip={{ tooltipText }}
+        />
+        {/* <span className="info-flex__data">
           <Icon name={iconName} />
           <span
             className="tooltip tooltip__tooltip-icon"
@@ -174,7 +181,6 @@ const HostSummary = ({
             >
               {macSettingsStatus}
             </Button>
-            {/* <span className="info-flex__data__text">{macSettingsStatus}</span> */}
           </span>
           <ReactTooltip
             place="bottom"
@@ -185,7 +191,7 @@ const HostSummary = ({
           >
             <span className="tooltip__tooltip-text">{tooltipText}</span>
           </ReactTooltip>
-        </span>
+        </span> */}
       </div>
     );
   };
@@ -262,7 +268,7 @@ const HostSummary = ({
               `${titleData.os_version}`
             ) : (
               <Button
-                onClick={toggleOSPolicyModal}
+                onClick={() => toggleOSPolicyModal?.()}
                 variant="text-link"
                 className={`${baseClass}__os-policy-button`}
               >
