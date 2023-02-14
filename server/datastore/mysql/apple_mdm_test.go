@@ -45,17 +45,17 @@ func TestIngestMDMAppleDevicesFromDEPSync(t *testing.T) {
 		{SerialNumber: "abc", Model: "MacBook Pro", OS: "OSX", OpType: "added"},                   // ingested; new serial, macOS, "added" op type
 		{SerialNumber: "abc", Model: "MacBook Pro", OS: "OSX", OpType: "added"},                   // not ingested; duplicate serial
 		{SerialNumber: hosts[0].HardwareSerial, Model: "MacBook Pro", OS: "OSX", OpType: "added"}, // not ingested; existing serial
-		{SerialNumber: "ijk", Model: "IPad Pro", OS: "iOS", OpType: "added"},                      // not ingested; iOS
-		{SerialNumber: "tuv", Model: "Apple TV", OS: "tvOS", OpType: "added"},                     // not ingested; tvOS
+		{SerialNumber: "ijk", Model: "MacBook Pro", OS: "", OpType: "added"},                      // ingested; empty OS
+		{SerialNumber: "tuv", Model: "MacBook Pro", OS: "OSX", OpType: "modified"},                // not ingested; op type "modified"
 		{SerialNumber: "xyz", Model: "MacBook Pro", OS: "OSX", OpType: "updated"},                 // not ingested; op type "updated"
 		{SerialNumber: "xyz", Model: "MacBook Pro", OS: "OSX", OpType: "deleted"},                 // not ingested; op type "deleted"
 		{SerialNumber: "xyz", Model: "MacBook Pro", OS: "OSX", OpType: "added"},                   // ingested; new serial, macOS, "added" op type
 	}
-	wantSerials = append(wantSerials, "abc", "xyz")
+	wantSerials = append(wantSerials, "abc", "xyz", "ijk")
 
 	n, err := ds.IngestMDMAppleDevicesFromDEPSync(ctx, depDevices)
 	require.NoError(t, err)
-	require.Equal(t, int64(2), n) // 2 new hosts ("abc", "xyz")
+	require.Equal(t, int64(3), n) // 3 new hosts ("abc", "xyz", "ijk")
 
 	hosts = listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{}, len(wantSerials))
 	gotSerials := []string{}
