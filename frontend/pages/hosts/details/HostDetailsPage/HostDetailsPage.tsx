@@ -29,7 +29,6 @@ import { IQueryStats } from "interfaces/query_stats";
 import { ISoftware } from "interfaces/software";
 import { ITeam } from "interfaces/team";
 
-import ReactTooltip from "react-tooltip";
 import Spinner from "components/Spinner";
 import TabsWrapper from "components/TabsWrapper";
 import MainContent from "components/MainContent";

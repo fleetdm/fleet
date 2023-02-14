@@ -60,16 +60,6 @@ const canEditMdm = (config: IHostActionConfigOptions) => {
   );
 };
 
-const canQueryHost = (config: IHostActionConfigOptions) => {
-  const {
-    isGlobalAdmin,
-    isGlobalMaintainer,
-    isTeamAdmin,
-    isTeamMaintainer,
-  } = config;
-  return isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
-};
-
 const canDeleteHost = (config: IHostActionConfigOptions) => {
   const {
     isGlobalAdmin,
@@ -91,10 +81,6 @@ const filterOutOptions = (
 ) => {
   if (!canTransferTeam(config)) {
     options = options.filter((option) => option.value !== "transfer");
-  }
-
-  if (!canQueryHost(config)) {
-    options = options.filter((option) => option.value !== "query");
   }
 
   if (!canShowDiskEncryption(config)) {
