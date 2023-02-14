@@ -78,6 +78,9 @@ func cronVulnerabilities(
 	logger kitlog.Logger,
 	config *config.VulnerabilitiesConfig,
 ) error {
+	if config == nil {
+		return fmt.Errorf("nil configuration")
+	}
 	if config.CurrentInstanceChecks == "no" || config.CurrentInstanceChecks == "0" {
 		level.Info(logger).Log("msg", "host not configured to check for vulnerabilities")
 		return nil
@@ -95,21 +98,7 @@ func cronVulnerabilities(
 		return nil
 	}
 
-	var vulnPath string
-	switch {
-	case config.DatabasesPath != "" && appConfig.VulnerabilitySettings.DatabasesPath != "":
-		vulnPath = config.DatabasesPath
-		level.Info(logger).Log(
-			"msg", "fleet config takes precedence over app config when both are configured",
-			"databases_path", vulnPath,
-		)
-	case config.DatabasesPath != "":
-		vulnPath = config.DatabasesPath
-	case appConfig.VulnerabilitySettings.DatabasesPath != "":
-		vulnPath = appConfig.VulnerabilitySettings.DatabasesPath
-	default:
-		level.Info(logger).Log("msg", "vulnerability scanning not configured, vulnerabilities databases path is empty")
-	}
+	vulnPath := configureVulnPath(*config, appConfig, logger)
 	if vulnPath != "" {
 		level.Info(logger).Log("msg", "scanning vulnerabilities")
 		if err := scanVulnerabilities(ctx, ds, logger, config, appConfig, vulnPath); err != nil {
