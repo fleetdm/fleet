@@ -23,6 +23,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/externalsvc"
 	"github.com/fleetdm/fleet/v4/server/service/schedule"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/macoffice"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/msrc"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/oval"
@@ -170,6 +171,8 @@ func scanVulnerabilities(
 
 	nvdVulns := checkNVDVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
 	ovalVulns := checkOvalVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
+	macOfficeVuns := checkMacOfficeVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
+
 	checkWinVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
 
 	// If no automations enabled, then there is nothing else to do...
@@ -177,9 +180,10 @@ func scanVulnerabilities(
 		return nil
 	}
 
-	vulns := make([]fleet.SoftwareVulnerability, 0, len(nvdVulns)+len(ovalVulns))
+	vulns := make([]fleet.SoftwareVulnerability, 0, len(nvdVulns)+len(ovalVulns)+len(macOfficeVuns))
 	vulns = append(vulns, nvdVulns...)
 	vulns = append(vulns, ovalVulns...)
+	vulns = append(vulns, macOfficeVuns...)
 
 	meta, err := ds.ListCVEs(ctx, config.RecentVulnerabilityMaxAge)
 	if err != nil {
@@ -382,6 +386,43 @@ func checkNVDVulnerabilities(
 	}
 
 	return vulns
+}
+
+func checkMacOfficeVulnerabilities(
+	ctx context.Context,
+	ds fleet.Datastore,
+	logger kitlog.Logger,
+	vulnPath string,
+	config *config.VulnerabilitiesConfig,
+	collectVulns bool,
+) []fleet.SoftwareVulnerability {
+	if config.DisableDataSync {
+		return nil
+	}
+	var results []fleet.SoftwareVulnerability
+
+	err := macoffice.SyncFromGithub(ctx, vulnPath)
+	if err != nil {
+		errHandler(ctx, logger, "updating oval definitions", err)
+	}
+
+	level.Debug(logger).Log("finished sync mac office releases")
+
+	start := time.Now()
+	r, err := macoffice.Analyze(ctx, ds, vulnPath, collectVulns)
+	elapsed := time.Since(start)
+
+	level.Debug(logger).Log(
+		"msg", "mac-office-analysis-done",
+		"elapsed", elapsed,
+		"found new", len(r))
+
+	results = append(results, r...)
+	if err != nil {
+		errHandler(ctx, logger, "analyzing mac office products for vulnerabilities", err)
+	}
+
+	return results
 }
 
 func newAutomationsSchedule(
