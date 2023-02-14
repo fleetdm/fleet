@@ -284,7 +284,9 @@ func (c *Client) ApplyGroup(ctx context.Context, specs *spec.Group, baseDir stri
 				}
 				fileContents[i] = b
 			}
-			// TODO(mna): call the batch-upload of profiles, with the dry-run option
+			if err := c.ApplyNoTeamProfiles(fileContents, opts); err != nil {
+				return fmt.Errorf("applying custom settings: %w", err)
+			}
 		}
 		if err := c.ApplyAppConfig(specs.AppConfig, opts); err != nil {
 			return fmt.Errorf("applying fleet config: %w", err)
@@ -326,14 +328,18 @@ func (c *Client) ApplyGroup(ctx context.Context, specs *spec.Group, baseDir stri
 			tmFileContents[k] = fileContents
 		}
 
-		// Apply the teams specs _first_ so that any non-existing team gets created.
+		// Next, apply the teams specs before saving the profiles, so that any
+		// non-existing team gets created.
 		if err := c.ApplyTeams(specs.Teams, opts); err != nil {
 			return fmt.Errorf("applying teams: %w", err)
 		}
 
 		if len(tmFileContents) > 0 {
-			// TODO(mna): the batch-set endpoint should support team names, to avoid an
-			// unnecessary call. Also, the team might not exist if dry-run is used.
+			for tmName, profs := range tmFileContents {
+				if err := c.ApplyTeamProfiles(tmName, profs, opts); err != nil {
+					return fmt.Errorf("applying custom settings for team %q: %w", tmName, err)
+				}
+			}
 		}
 		if opts.DryRun {
 			logfn("[+] would've applied %d teams\n", len(specs.Teams))

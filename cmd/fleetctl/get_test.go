@@ -13,6 +13,7 @@ import (
 	"github.com/ghodss/yaml"
 
 	"github.com/fleetdm/fleet/v4/pkg/spec"
+	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
@@ -1665,8 +1666,11 @@ func TestGetCarveWithError(t *testing.T) {
 // TestGetTeamsYAMLAndApply checks that the output of `get teams --yaml` can be applied
 // via the `apply` command.
 func TestGetTeamsYAMLAndApply(t *testing.T) {
+	cfg := config.TestConfig()
+	cfg.MDMApple.Enable = true
 	_, ds := runServerWithMockedDS(t, &service.TestServerOpts{
-		License: &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)},
+		License:     &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)},
+		FleetConfig: &cfg,
 	})
 
 	created_at, err := time.Parse(time.RFC3339, "1999-03-10T02:45:06.371Z")
@@ -1743,6 +1747,9 @@ func TestGetTeamsYAMLAndApply(t *testing.T) {
 			return team2, nil
 		}
 		return nil, fmt.Errorf("team not found: %s", name)
+	}
+	ds.BatchSetMDMAppleProfilesFunc = func(ctx context.Context, teamID *uint, profiles []*fleet.MDMAppleConfigProfile) error {
+		return nil
 	}
 
 	actualYaml := runAppForTest(t, []string{"get", "teams", "--yaml"})

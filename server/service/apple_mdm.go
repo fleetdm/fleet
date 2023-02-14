@@ -1111,6 +1111,7 @@ func (svc *Service) ListMDMAppleInstallers(ctx context.Context) ([]fleet.MDMAppl
 type batchSetMDMAppleProfilesRequest struct {
 	TeamID   *uint    `json:"-" query:"team_id,optional"`
 	TeamName *string  `json:"-" query:"team_name,optional"`
+	DryRun   bool     `json:"-" query:"dry_run,optional"` // if true, apply validation but do not save changes
 	Profiles [][]byte `json:"profiles"`
 }
 
@@ -1122,13 +1123,19 @@ func (r batchSetMDMAppleProfilesResponse) error() error { return r.Err }
 
 func batchSetMDMAppleProfilesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*batchSetMDMAppleProfilesRequest)
-	if err := svc.BatchSetMDMAppleProfiles(ctx, req.TeamID, req.TeamName, req.Profiles); err != nil {
+	if err := svc.BatchSetMDMAppleProfiles(ctx, req.TeamID, req.TeamName, req.Profiles, req.DryRun); err != nil {
 		return batchSetMDMAppleProfilesResponse{Err: err}, nil
 	}
 	return batchSetMDMAppleProfilesResponse{}, nil
 }
 
-func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tmName *string, profiles [][]byte) error {
+func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tmName *string, profiles [][]byte, dryRun bool) error {
+	if !svc.config.MDMApple.Enable {
+		// TODO(mna): eventually we should detect the minimum config required for
+		// this to be allowed, probably just SCEP/APNs?
+		svc.authz.SkipAuthorization(ctx) // so that the error message is not replaced by "forbidden"
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("mdm", "cannot set custom settings: Fleet MDM is not enabled"))
+	}
 	if tmID != nil && tmName != nil {
 		svc.authz.SkipAuthorization(ctx) // so that the error message is not replaced by "forbidden"
 		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("team_name", "cannot specify both team_id and team_name"))
@@ -1202,6 +1209,9 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 		profs = append(profs, mdmProf)
 	}
 
+	if dryRun {
+		return nil
+	}
 	return svc.ds.BatchSetMDMAppleProfiles(ctx, tmID, profs)
 }
 

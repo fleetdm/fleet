@@ -605,7 +605,7 @@ type Service interface {
 
 	// BatchSetMDMAppleProfiles replaces the custom macOS profiles for a specified
 	// team or for hosts with no team.
-	BatchSetMDMAppleProfiles(ctx context.Context, teamID *uint, teamName *string, profiles [][]byte) error
+	BatchSetMDMAppleProfiles(ctx context.Context, teamID *uint, teamName *string, profiles [][]byte, dryRun bool) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// CronSchedulesService
