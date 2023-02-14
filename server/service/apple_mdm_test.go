@@ -690,7 +690,7 @@ func TestMDMBatchSetAppleProfiles(t *testing.T) {
 				mobileconfigForTest("N2", "I2"),
 				mobileconfigForTest("N3", "I1"),
 			},
-			`More than one configuration profile have the same identifier (PayloadIdentifier) "I1"`,
+			`More than one configuration profile have the same identifier (PayloadIdentifier): "I1"`,
 		},
 		{
 			"no duplicates",
