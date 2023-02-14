@@ -1164,9 +1164,9 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 		return ctxerr.Wrap(ctx, err)
 	}
 
-	// stores the config profiles to apply keyed by identifier, so that only the
-	// last instance of a profile with a given identifier is applied.
-	applyProfiles := make(map[string]*fleet.MDMAppleConfigProfile, len(profiles))
+	// any duplicate identifier or name in the provided set results in an error
+	profs := make([]*fleet.MDMAppleConfigProfile, 0, len(profiles))
+	byName, byIdent := make(map[string]bool, len(profiles)), make(map[string]bool, len(profiles))
 	for i, prof := range profiles {
 		mobConf := fleet.Mobileconfig(prof)
 		mdmProf, err := mobConf.ParseConfigProfile()
@@ -1175,23 +1175,25 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 				fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%d]", i), err.Error()),
 				"invalid mobileconfig profile")
 		}
-		applyProfiles[mdmProf.Identifier] = mdmProf
-	}
 
-	// if there's any duplicate name in the profiles to apply, raise an error
-	profileNames := make(map[string]bool, len(applyProfiles))
-	for _, prof := range applyProfiles {
-		if profileNames[prof.Name] {
+		if byName[mdmProf.Name] {
 			return ctxerr.Wrap(ctx,
-				fleet.NewInvalidArgumentError("profiles", fmt.Sprintf("duplicate profiles with name %q", prof.Name)),
-				"duplicate mobileconfig profile")
+				fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%d]", i), fmt.Sprintf("duplicate profiles with name %q", mdmProf.Name)),
+				"duplicate mobileconfig profile by name")
 		}
-		profileNames[prof.Name] = true
+		byName[mdmProf.Name] = true
+
+		if byIdent[mdmProf.Identifier] {
+			return ctxerr.Wrap(ctx,
+				fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%d]", i), fmt.Sprintf("duplicate profiles with identifier %q", mdmProf.Identifier)),
+				"duplicate mobileconfig profile by identifier")
+		}
+		byIdent[mdmProf.Identifier] = true
+
+		profs = append(profs, mdmProf)
 	}
 
-	// TODO(mna): apply the profiles to this team/no team
-
-	return nil
+	return svc.ds.BatchSetMDMAppleProfiles(ctx, tmID, profs)
 }
 
 ////////////////////////////////////////////////////////////////////////////////

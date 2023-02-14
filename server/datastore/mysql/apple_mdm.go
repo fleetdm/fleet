@@ -453,11 +453,11 @@ func insertMDMAppleHostDB(
 	insertStmt := `
 		INSERT INTO hosts (
 			hardware_serial,
-			uuid, 
-			hardware_model, 
-			platform, 
-			last_enrolled_at, 
-			detail_updated_at, 
+			uuid,
+			hardware_model,
+			platform,
+			last_enrolled_at,
+			detail_updated_at,
 			osquery_host_id,
 			refetch_requested
 		) VALUES (?,?,?,?,?,?,?,?)`
@@ -703,7 +703,7 @@ func upsertMDMAppleHostLabelMembershipDB(ctx context.Context, tx sqlx.ExtContext
 		args = append(args, h.ID, labelIDs[0], h.ID, labelIDs[1])
 	}
 	_, err = tx.ExecContext(ctx, fmt.Sprintf(`
-			INSERT INTO label_membership (host_id, label_id) VALUES %s 
+			INSERT INTO label_membership (host_id, label_id) VALUES %s
 			ON DUPLICATE KEY UPDATE host_id = host_id`, strings.Join(parts, ",")), args...)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "upsert label membership")
@@ -765,4 +765,8 @@ func (ds *Datastore) GetNanoMDMEnrollmentStatus(ctx context.Context, id string) 
 	}
 
 	return enabled, nil
+}
+
+func (ds *Datastore) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, profiles []*fleet.MDMAppleConfigProfile) error {
+	panic("unimplemented")
 }
