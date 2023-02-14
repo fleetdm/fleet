@@ -1156,11 +1156,7 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 		tmID = &tm.ID
 	}
 
-	var profilesTeamID uint
-	if tmID != nil {
-		profilesTeamID = *tmID
-	}
-	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleConfigProfile{TeamID: profilesTeamID}, fleet.ActionWrite); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleConfigProfile{TeamID: tmID}, fleet.ActionWrite); err != nil {
 		return ctxerr.Wrap(ctx, err)
 	}
 
