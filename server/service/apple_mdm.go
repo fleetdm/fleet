@@ -216,6 +216,268 @@ func (svc *Service) GetMDMAppleCommandResults(ctx context.Context, commandUUID s
 	return results, nil
 }
 
+type newMDMAppleConfigProfileRequest struct {
+	TeamID  uint
+	Profile *multipart.FileHeader
+}
+
+type newMDMAppleConfigProfileResponse struct {
+	ProfileID uint  `json:"profile_id"`
+	Err       error `json:"error,omitempty"`
+}
+
+// TODO(lucas): We parse the whole body before running svc.authz.Authorize.
+// An authenticated but unauthorized user could abuse this.
+func (newMDMAppleConfigProfileRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	decoded := newMDMAppleConfigProfileRequest{}
+
+	err := r.ParseMultipartForm(512 * units.MiB)
+	if err != nil {
+		return nil, &fleet.BadRequestError{Message: err.Error()}
+	}
+
+	val, ok := r.MultipartForm.Value["team_id"]
+	if !ok || len(val) < 1 {
+		// default is no team
+		decoded.TeamID = 0
+	}
+	teamID, err := strconv.Atoi(val[0])
+	if err != nil {
+		return nil, &fleet.BadRequestError{Message: err.Error()}
+	} else {
+		decoded.TeamID = uint(teamID)
+	}
+
+	fhs, ok := r.MultipartForm.File["profile"]
+	if !ok || len(fhs) < 1 {
+		return nil, &fleet.BadRequestError{Message: "no file headers for profile"}
+	}
+	decoded.Profile = fhs[0]
+
+	return &decoded, nil
+}
+
+func (r newMDMAppleConfigProfileResponse) error() error { return r.Err }
+
+func newMDMAppleConfigProfileEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*newMDMAppleConfigProfileRequest)
+
+	ff, err := req.Profile.Open()
+	if err != nil {
+		return &newMDMAppleConfigProfileResponse{Err: err}, nil
+	}
+	defer ff.Close()
+	cp, err := svc.NewMDMAppleConfigProfile(ctx, req.TeamID, ff, req.Profile.Size)
+	if err != nil {
+		return &newMDMAppleConfigProfileResponse{Err: err}, nil
+	}
+	return &newMDMAppleConfigProfileResponse{
+		ProfileID: cp.ProfileID,
+	}, nil
+}
+
+func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r io.Reader, size int64) (*fleet.MDMAppleConfigProfile, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleConfigProfile{TeamID: &teamID}, fleet.ActionWrite); err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+
+	if teamID >= 1 {
+		// TODO: license check for team id?
+		// appConfig, err := svc.ds.AppConfig(ctx)
+		// if err != nil {
+		// 	return nil, ctxerr.Wrap(ctx, err)
+		// }
+
+		// confirm that team exists
+		if _, err := svc.ds.Team(ctx, teamID); err != nil {
+			return nil, ctxerr.Wrap(ctx, err)
+		}
+	}
+
+	b := make([]byte, size)
+	_, err := r.Read(b)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "reading mobileconfig bytes")
+	}
+
+	mc := fleet.Mobileconfig(b)
+	cp, err := mc.ParseConfigProfile()
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "parsing config profile")
+	}
+	cp.TeamID = &teamID
+
+	newCP, err := svc.ds.NewMDMAppleConfigProfile(ctx, *cp)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+
+	// TODO: record activitiy
+	return newCP, nil
+}
+
+type listMDMAppleConfigProfilesRequest struct {
+	TeamID uint `query:"team_id"`
+}
+
+type listMDMAppleConfigProfilesResponse struct {
+	ConfigProfiles []*fleet.MDMAppleConfigProfile `json:"config_profiles"`
+	Err            error                          `json:"error,omitempty"`
+}
+
+func (r listMDMAppleConfigProfilesResponse) error() error { return r.Err }
+
+func listMDMAppleConfigProfilesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*listMDMAppleConfigProfilesRequest)
+	res := listMDMAppleConfigProfilesResponse{}
+
+	cps, err := svc.ListMDMAppleConfigProfiles(ctx, req.TeamID)
+	if err != nil {
+		res.Err = err
+		return &res, err
+	}
+	res.ConfigProfiles = cps
+
+	return &res, nil
+}
+
+func (svc *Service) ListMDMAppleConfigProfiles(ctx context.Context, teamID uint) ([]*fleet.MDMAppleConfigProfile, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleConfigProfile{TeamID: &teamID}, fleet.ActionRead); err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+
+	if teamID >= 1 {
+		// // TODO: license check for team id?
+		// appConfig, err := svc.ds.AppConfig(ctx)
+		// if err != nil {
+		// 	return nil, ctxerr.Wrap(ctx, err)
+		// }
+
+		// confirm that team exists
+		if _, err := svc.ds.Team(ctx, teamID); err != nil {
+			return nil, ctxerr.Wrap(ctx, err)
+		}
+	}
+
+	cps, err := svc.ds.ListMDMAppleConfigProfiles(ctx, &teamID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+
+	// TODO: record activitiy
+	return cps, nil
+}
+
+type getMDMAppleConfigProfileRequest struct {
+	ProfileID uint `url:"profile_id"`
+}
+
+type getMDMAppleConfigProfileResponse struct {
+	Err error `json:"error,omitempty"`
+
+	// file fields below are used in hijackRender for the response
+	fileReader io.ReadCloser
+	fileLength int64
+	fileExt    string
+	fileName   string
+}
+
+func (r getMDMAppleConfigProfileResponse) error() error { return r.Err }
+
+func (r getMDMAppleConfigProfileResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
+	w.Header().Set("Content-Length", strconv.FormatInt(r.fileLength, 10))
+	w.Header().Set("Content-Type", "application/octet-stream")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment;filename="%s.%s"`, r.fileName, r.fileExt))
+
+	// OK to just log the error here as writing anything on
+	// `http.ResponseWriter` sets the status code to 200 (and it can't be
+	// changed.) Clients should rely on matching content-length with the
+	// header provided
+	wl, err := io.Copy(w, r.fileReader)
+	if err != nil {
+		logging.WithExtras(ctx, "mobileconfig_copy_error", err, "bytes_copied", wl)
+	}
+	r.fileReader.Close()
+}
+
+func getMDMAppleConfigProfileEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*getMDMAppleConfigProfileRequest)
+
+	cp, err := svc.GetMDMAppleConfigProfile(ctx, req.ProfileID)
+	if err != nil {
+		return getMDMAppleConfigProfileResponse{Err: err}, nil
+	}
+	reader := bytes.NewReader(cp.Mobileconfig)
+	fileName := fmt.Sprintf("%s %s", time.Now().Format("2006-01-02"), cp.Name) // TODO: escape string?
+
+	return getMDMAppleConfigProfileResponse{fileReader: io.NopCloser(reader), fileLength: reader.Size(), fileName: fileName, fileExt: "mobileconfig"}, nil
+}
+
+func (svc *Service) GetMDMAppleConfigProfile(ctx context.Context, profileID uint) (*fleet.MDMAppleConfigProfile, error) {
+	// first we perform a perform basic authz check
+	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
+	cp, err := svc.ds.GetMDMAppleConfigProfile(ctx, profileID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+
+	// now we can do a specific authz check based on team id of profile before we return the profile
+	if err := svc.authz.Authorize(ctx, cp, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
+	// TODO: record activitiy
+	return cp, nil
+}
+
+type deleteMDMAppleConfigProfileRequest struct {
+	ProfileID uint `url:"profile_id"`
+}
+
+type deleteMDMAppleConfigProfileResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r deleteMDMAppleConfigProfileResponse) error() error { return r.Err }
+
+func deleteMDMAppleConfigProfileEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*deleteMDMAppleConfigProfileRequest)
+
+	if err := svc.DeleteMDMAppleConfigProfile(ctx, req.ProfileID); err != nil {
+		return &deleteMDMAppleConfigProfileResponse{Err: err}, nil
+	}
+
+	return &deleteMDMAppleConfigProfileResponse{}, nil
+}
+
+func (svc *Service) DeleteMDMAppleConfigProfile(ctx context.Context, profileID uint) error {
+	// first we perform a perform basic authz check
+	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionRead); err != nil {
+		return ctxerr.Wrap(ctx, err)
+	}
+
+	cp, err := svc.ds.GetMDMAppleConfigProfile(ctx, profileID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err)
+	}
+
+	// now we can do a specific authz check based on team id of profile before we delete the profile
+	if err := svc.authz.Authorize(ctx, cp, fleet.ActionWrite); err != nil {
+		return ctxerr.Wrap(ctx, err)
+	}
+
+	if err := svc.ds.DeleteMDMAppleConfigProfile(ctx, profileID); err != nil {
+		return ctxerr.Wrap(ctx, err)
+	}
+
+	// TODO: record activity
+	return nil
+}
+
 type uploadAppleInstallerRequest struct {
 	Installer *multipart.FileHeader
 }

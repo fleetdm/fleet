@@ -546,6 +546,16 @@ type Service interface {
 	GetAppleBM(ctx context.Context) (*AppleBM, error)
 	RequestMDMAppleCSR(ctx context.Context, email, org string) (*AppleCSR, error)
 
+	// NewMDMAppleConfigProfile creates a new configuration profile for the specified team.
+	NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r io.Reader, size int64) (*MDMAppleConfigProfile, error)
+	// GetMDMAppleConfigProfile retrieves the specified configuration profile.
+	GetMDMAppleConfigProfile(ctx context.Context, profileID uint) (*MDMAppleConfigProfile, error)
+	// DeleteMDMAppleConfigProfile deletes the specified configuration profile.
+	DeleteMDMAppleConfigProfile(ctx context.Context, profileID uint) error
+	// ListMDMAppleConfigProfiles returns the list of all the configuration profiles for the
+	// specified team.
+	ListMDMAppleConfigProfiles(ctx context.Context, teamID uint) ([]*MDMAppleConfigProfile, error)
+
 	// NewMDMAppleEnrollmentProfile creates and returns new enrollment profile.
 	// Such enrollment profiles allow devices to enroll to Fleet MDM.
 	NewMDMAppleEnrollmentProfile(ctx context.Context, enrollmentPayload MDMAppleEnrollmentProfilePayload) (enrollmentProfile *MDMAppleEnrollmentProfile, err error)

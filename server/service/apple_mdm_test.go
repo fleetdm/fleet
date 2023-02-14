@@ -255,6 +255,185 @@ func TestMDMAppleEnrollURL(t *testing.T) {
 	}
 }
 
+func TestMDMAppleConfigProfileAuthz(t *testing.T) {
+	svc, ctx, ds := setupAppleMDMService(t)
+
+	testCases := []struct {
+		name             string
+		user             *fleet.User
+		shouldFailGlobal bool
+		shouldFailTeam   bool
+	}{
+		{
+			"global admin",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+			false,
+			false,
+		},
+		{
+			"global maintainer",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleMaintainer)},
+			false,
+			false,
+		},
+		{
+			"global observer",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)},
+			true,
+			true,
+		},
+		{
+			"team admin, belongs to team",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}}},
+			true,
+			false,
+		},
+		{
+			"team admin, DOES NOT belong to team",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleAdmin}}},
+			true,
+			true,
+		},
+		{
+			"team maintainer, belongs to team",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleMaintainer}}},
+			true,
+			false,
+		},
+		{
+			"team maintainer, DOES NOT belong to team",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleMaintainer}}},
+			true,
+			true,
+		},
+		{
+			"team observer, belongs to team",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver}}},
+			true,
+			true,
+		},
+		{
+			"team observer, DOES NOT belong to team",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleObserver}}},
+			true,
+			true,
+		},
+		{
+			"user no roles",
+			&fleet.User{ID: 1337},
+			true,
+			true,
+		},
+	}
+
+	ds.NewMDMAppleConfigProfileFunc = func(ctx context.Context, cp fleet.MDMAppleConfigProfile) (*fleet.MDMAppleConfigProfile, error) {
+		return &cp, nil
+	}
+	ds.ListMDMAppleConfigProfilesFunc = func(ctx context.Context, teamID *uint) ([]*fleet.MDMAppleConfigProfile, error) {
+		return nil, nil
+	}
+	mockGetFuncWithTeamID := func(teamID uint) mock.GetMDMAppleConfigProfileFunc {
+		return func(ctx context.Context, profileID uint) (*fleet.MDMAppleConfigProfile, error) {
+			require.Equal(t, uint(42), profileID)
+			return &fleet.MDMAppleConfigProfile{TeamID: &teamID}, nil
+		}
+	}
+	mockDeleteFuncWithTeamID := func(teamID uint) mock.DeleteMDMAppleConfigProfileFunc {
+		return func(ctx context.Context, profileID uint) error {
+			require.Equal(t, uint(42), profileID)
+			return nil
+		}
+	}
+	mockTeamFuncWithUser := func(u *fleet.User) mock.TeamFunc {
+		return func(ctx context.Context, teamID uint) (*fleet.Team, error) {
+			if len(u.Teams) > 0 {
+				for _, t := range u.Teams {
+					if t.ID == teamID {
+						return &fleet.Team{ID: teamID, Users: []fleet.TeamUser{{User: *u, Role: t.Role}}}, nil
+					}
+				}
+			}
+			return &fleet.Team{}, nil
+		}
+	}
+
+	checkShouldFail := func(err error, shouldFail bool) {
+		if !shouldFail {
+			require.NoError(t, err)
+		} else {
+			require.Error(t, err)
+			require.Contains(t, err.Error(), authz.ForbiddenErrorMessage)
+		}
+	}
+
+	mcBytes := mcBytesForTest("Foo", "Bar", "UUID")
+
+	for _, tt := range testCases {
+		ctx := viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
+		ds.TeamFunc = mockTeamFuncWithUser(tt.user)
+
+		t.Run(tt.name, func(t *testing.T) {
+			// test authz create new profile (no team)
+			_, err := svc.NewMDMAppleConfigProfile(ctx, 0, bytes.NewReader(mcBytes), int64(len(mcBytes)))
+			checkShouldFail(err, tt.shouldFailGlobal)
+
+			// test authz create new profile (team 1)
+			_, err = svc.NewMDMAppleConfigProfile(ctx, 1, bytes.NewReader(mcBytes), int64(len(mcBytes)))
+			checkShouldFail(err, tt.shouldFailTeam)
+
+			// test authz list profiles (no team)
+			_, err = svc.ListMDMAppleConfigProfiles(ctx, 0)
+			checkShouldFail(err, tt.shouldFailGlobal)
+
+			// test authz list profiles (team 1)
+			_, err = svc.ListMDMAppleConfigProfiles(ctx, 1)
+			checkShouldFail(err, tt.shouldFailTeam)
+
+			// test authz get config profile (no team)
+			ds.GetMDMAppleConfigProfileFunc = mockGetFuncWithTeamID(0)
+			_, err = svc.GetMDMAppleConfigProfile(ctx, 42)
+			checkShouldFail(err, tt.shouldFailGlobal)
+
+			// test authz delete config profile (no team)
+			ds.DeleteMDMAppleConfigProfileFunc = mockDeleteFuncWithTeamID(0)
+			err = svc.DeleteMDMAppleConfigProfile(ctx, 42)
+			checkShouldFail(err, tt.shouldFailGlobal)
+
+			// test authz get config profile (team 1)
+			ds.GetMDMAppleConfigProfileFunc = mockGetFuncWithTeamID(1)
+			_, err = svc.GetMDMAppleConfigProfile(ctx, 42)
+			checkShouldFail(err, tt.shouldFailTeam)
+
+			// test authz delete config profile (team 1)
+			ds.DeleteMDMAppleConfigProfileFunc = mockDeleteFuncWithTeamID(1)
+			err = svc.DeleteMDMAppleConfigProfile(ctx, 42)
+			checkShouldFail(err, tt.shouldFailTeam)
+		})
+	}
+}
+
+func mcBytesForTest(name, identifier, uuid string) []byte {
+	return []byte(fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array/>
+	<key>PayloadDisplayName</key>
+	<string>%s</string>
+	<key>PayloadIdentifier</key>
+	<string>%s</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>%s</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+</dict>
+</plist>
+`, name, identifier, uuid))
+}
+
 func TestAppleMDMEnrollmentProfile(t *testing.T) {
 	svc, ctx, _ := setupAppleMDMService(t)
 
