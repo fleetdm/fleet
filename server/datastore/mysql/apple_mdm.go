@@ -771,8 +771,8 @@ func (ds *Datastore) GetNanoMDMEnrollmentStatus(ctx context.Context, id string) 
 func (ds *Datastore) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, profiles []*fleet.MDMAppleConfigProfile) error {
 	const loadExistingProfiles = `
 SELECT
-	identifier,
-	mobileconfig
+  identifier,
+  mobileconfig
 FROM
   mdm_apple_configuration_profiles
 WHERE
