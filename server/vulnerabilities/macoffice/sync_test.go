@@ -13,6 +13,23 @@ func TestSync(t *testing.T) {
 	t.Run("#sync", func(t *testing.T) {
 		remote := io.NewMacOfficeRelNotesMetadata("macoffice-2023_10_10.json")
 
+		t.Run("when there are no remote rel notes", func(t *testing.T) {
+			local := []io.MetadataFileName{
+				io.NewMacOfficeRelNotesMetadata("macoffice-2022_09_10.json"),
+			}
+
+			testData := io.TestData{
+				RemoteList: map[io.MetadataFileName]string{{}: "http://someurl.com"},
+				LocalList:  local,
+			}
+
+			err := sync(ctx, io.FsMock{TestData: &testData}, io.GhMock{TestData: &testData})
+			require.NoError(t, err)
+
+			require.Empty(t, testData.LocalDeleted)
+			require.Empty(t, testData.RemoteDownloaded)
+		})
+
 		t.Run("removes multiple out of date copies", func(t *testing.T) {
 			local := []io.MetadataFileName{
 				io.NewMacOfficeRelNotesMetadata("macoffice-2022_09_10.json"),
@@ -28,6 +45,7 @@ func TestSync(t *testing.T) {
 			require.NoError(t, err)
 
 			require.ElementsMatch(t, testData.LocalDeleted, local)
+			require.Contains(t, testData.RemoteDownloaded, "http://someurl.com")
 		})
 
 		t.Run("when local copy is out of date", func(t *testing.T) {
@@ -46,18 +64,21 @@ func TestSync(t *testing.T) {
 		})
 
 		t.Run("when local copy is not out of date", func(t *testing.T) {
-			local := io.NewMacOfficeRelNotesMetadata("macoffice-2023_10_10.json")
+			local := []io.MetadataFileName{
+				io.NewMacOfficeRelNotesMetadata("macoffice-2023_11_10.json"),
+				io.NewMacOfficeRelNotesMetadata("macoffice-2023_01_10.json"),
+			}
 
 			testData := io.TestData{
 				RemoteList: map[io.MetadataFileName]string{remote: "http://someurl.com"},
-				LocalList:  []io.MetadataFileName{local},
+				LocalList:  local,
 			}
 
 			err := sync(ctx, io.FsMock{TestData: &testData}, io.GhMock{TestData: &testData})
 			require.NoError(t, err)
 
 			require.Empty(t, testData.RemoteDownloaded)
-			require.Empty(t, testData.LocalDeleted)
+			require.ElementsMatch(t, testData.LocalDeleted, []io.MetadataFileName{local[1]})
 		})
 	})
 }

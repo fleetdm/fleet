@@ -107,7 +107,6 @@ func (gh GitHubClient) list(ctx context.Context, prefix string, ctor func(fileNa
 	}
 
 	results := make(map[MetadataFileName]string)
-
 	for _, e := range releases[0].Assets {
 		name := e.GetName()
 		if strings.HasPrefix(name, prefix) {

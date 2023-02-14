@@ -41,7 +41,7 @@ func sync(
 	}
 
 	sort.Slice(local, func(i, j int) bool {
-		return local[i].Before(local[j])
+		return local[j].Before(local[i])
 	})
 
 	if local[0].Before(remote) {
