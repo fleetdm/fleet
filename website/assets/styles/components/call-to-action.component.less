@@ -4,6 +4,7 @@
  *
  * App-wide styles for our <call-to-action> component.
  */
+  // Note: This component has been given an ID to override page specific styles
 [parasails-component='call-to-action'], #cta-component{
   margin-top: 40px;
   margin-bottom: 40px;
@@ -107,8 +108,8 @@
       color: @core-fleet-black;
       padding-left: 100px;
       padding-right: 100px;
-      padding-top: 24px;
-      padding-bottom: 24px;
+      padding-top: 40px;
+      padding-bottom: 40px;
 
       [purpose='mdm-cta-subtitle'] {
         font-size: 16px;
@@ -232,8 +233,21 @@
       padding: 40px;
     }
   }
+  @media(max-width: 680px) {
+    [purpose='fleet-premium-cta'] {
+      padding: 20px;
+      justify-content: center;
+      [purpose='premium-cta-text'] {
+        padding-right: 0px;
+        padding-left: 20px;
+        h2 {
+          font-size: 28px;
+        }
+      }
+    }
+  }
 
-  @media(max-width: 576px) {
+  @media(max-width: 575px) {
     [purpose='custom-cta'] {
       padding: 60px 24px;
       margin-left: -16px;

@@ -63,7 +63,7 @@ parasails.registerComponent('callToAction', {
       </div>
     </div>
     <div v-else>
-      <div v-if="callToActionVarient === 'premium-upgrade'" purpose="fleet-premium-cta" class="d-flex flex-column flex-sm-row align-items-center">
+      <div v-if="callToActionVarient === 'premium-upgrade'" purpose="fleet-premium-cta" class="d-flex flex-column flex-sm-row align-items-center justify-content-center">
         <div class="order-2 order-sm-1 justify-content-center" purpose="premium-cta-text">
           <h2>Get even more control <br>with <span>Fleet Premium</span></h2>
           <a style="color: #fff; text-decoration: none;" purpose="premium-cta-btn" href="/upgrade">Learn more</a>
@@ -135,6 +135,7 @@ parasails.registerComponent('callToAction', {
   },
   watch: {
     title: function(unused) { throw new Error('Changes to `title` are not currently supported in <call-to-action>!'); },
+    type: function(unused) { throw new Error('Changes to `type` are not currently supported in <call-to-action>!'); },
     text: function(unused) { throw new Error('Changes to `text` are not currently supported in <call-to-action>!'); },
     primaryButtonText: function(unused) { throw new Error('Changes to `primaryButtonText` are not currently supported in <call-to-action>!'); },
     primaryButtonHref: function(unused) { throw new Error('Changes to `primaryButtonHref` are not currently supported in <call-to-action>!'); },
