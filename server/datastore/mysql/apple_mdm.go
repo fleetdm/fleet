@@ -593,11 +593,6 @@ func (ds *Datastore) UpdateHostTablesOnMDMUnenroll(ctx context.Context, uuid str
 func filterMDMAppleDevices(devices []godep.Device) []godep.Device {
 	var filtered []godep.Device
 	for _, device := range devices {
-		// We currently only support macOS devices so we screen out iOS
-		// and tvOS.
-		if strings.ToLower(device.OS) != "osx" {
-			continue
-		}
 		// We currently only listen for an op_type of "added", the
 		// other op_types are ambiguous and it would be needless to
 		// ingest the device every single time we get an update.
