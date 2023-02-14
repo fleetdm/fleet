@@ -757,6 +757,38 @@ func (s *integrationMDMTestSuite) TestMDMAppleGetEncryptionKey() {
 
 }
 
+func (s *integrationMDMTestSuite) TestBatchSetMDMAppleProfiles() {
+	t := s.T()
+	ctx := context.Background()
+
+	// create a new team
+	tm, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "batch_set_mdm_profiles"})
+	require.NoError(t, err)
+
+	// apply an empty set to no-team
+	resp := batchSetMDMAppleProfilesResponse{}
+	s.DoJSON("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: nil}, http.StatusOK, &resp)
+
+	// apply to both team id and name
+	s.DoJSON("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: nil},
+		http.StatusUnprocessableEntity, &resp, "team_id", strconv.Itoa(int(tm.ID)), "team_name", tm.Name)
+
+	// invalid team name
+	s.DoJSON("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: nil},
+		http.StatusNotFound, &resp, "team_name", uuid.New().String())
+
+	// duplicate profile names
+	s.DoJSON("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: [][]byte{
+		mobileconfigForTest("N1", "I1"),
+		mobileconfigForTest("N1", "I2"),
+	}}, http.StatusUnprocessableEntity, &resp, "team_id", strconv.Itoa(int(tm.ID)))
+
+	// successfully apply a profile for the team
+	s.DoJSON("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: [][]byte{
+		mobileconfigForTest("N1", "I1"),
+	}}, http.StatusOK, &resp, "team_id", strconv.Itoa(int(tm.ID)))
+}
+
 type device struct {
 	uuid   string
 	serial string

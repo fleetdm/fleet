@@ -3,8 +3,10 @@ package service
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"mime/multipart"
@@ -1128,11 +1130,13 @@ func batchSetMDMAppleProfilesEndpoint(ctx context.Context, request interface{}, 
 
 func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tmName *string, profiles [][]byte) error {
 	if tmID != nil && tmName != nil {
+		svc.authz.SkipAuthorization(ctx) // so that the error message is not replaced by "forbidden"
 		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("team_name", "cannot specify both team_id and team_name"))
 	}
 	if tmID != nil || tmName != nil {
 		license, err := svc.License(ctx)
 		if err != nil {
+			svc.authz.SkipAuthorization(ctx) // so that the error message is not replaced by "forbidden"
 			return err
 		}
 		if !license.IsPremium() {
@@ -1140,6 +1144,7 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 			if tmName != nil {
 				field = "team_name"
 			}
+			svc.authz.SkipAuthorization(ctx) // so that the error message is not replaced by "forbidden"
 			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError(field, ErrMissingLicense.Error()))
 		}
 	}
@@ -1151,6 +1156,14 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 		}
 		tm, err := svc.ds.TeamByName(ctx, *tmName)
 		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				// this should really be handled in TeamByName so that it returns a
+				// notFound error as is usually the case for this scenario, but
+				// changing it causes a number of test failures that indicates this
+				// might be tricky and even maybe a breaking change in some places. For
+				// now, handling it here.
+				return notFoundError{}
+			}
 			return err
 		}
 		tmID = &tm.ID
