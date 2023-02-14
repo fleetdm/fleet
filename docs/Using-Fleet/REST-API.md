@@ -3002,7 +3002,7 @@ Requires Fleet's MDM properly [enabled and configured](./Mobile-device-managemen
 
 Retrieves the disk encryption key for a host.
 
-`GET /api/v1/fleet/hosts/:id/encryption_key`
+`GET /api/v1/fleet/mdm/hosts/:id/encryption_key`
 
 #### Parameters
 
@@ -3013,7 +3013,7 @@ Retrieves the disk encryption key for a host.
 
 #### Example
 
-`GET /api/v1/fleet/hosts/8/encryption_key`
+`GET /api/v1/fleet/mdm/hosts/8/encryption_key`
 
 ##### Default response
 
