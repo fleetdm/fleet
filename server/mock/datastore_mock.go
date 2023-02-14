@@ -506,6 +506,14 @@ type InsertOSVulnerabilitiesFunc func(ctx context.Context, vulnerabilities []fle
 
 type DeleteOSVulnerabilitiesFunc func(ctx context.Context, vulnerabilities []fleet.OSVulnerability) error
 
+type NewMDMAppleConfigProfileFunc func(ctx context.Context, p fleet.MDMAppleConfigProfile) (*fleet.MDMAppleConfigProfile, error)
+
+type GetMDMAppleConfigProfileFunc func(ctx context.Context, profileID uint) (*fleet.MDMAppleConfigProfile, error)
+
+type ListMDMAppleConfigProfilesFunc func(ctx context.Context, teamID *uint) ([]*fleet.MDMAppleConfigProfile, error)
+
+type DeleteMDMAppleConfigProfileFunc func(ctx context.Context, profileID uint) error
+
 type NewMDMAppleEnrollmentProfileFunc func(ctx context.Context, enrollmentPayload fleet.MDMAppleEnrollmentProfilePayload) (*fleet.MDMAppleEnrollmentProfile, error)
 
 type GetMDMAppleEnrollmentProfileByTokenFunc func(ctx context.Context, token string) (*fleet.MDMAppleEnrollmentProfile, error)
@@ -1276,6 +1284,18 @@ type DataStore struct {
 
 	DeleteOSVulnerabilitiesFunc        DeleteOSVulnerabilitiesFunc
 	DeleteOSVulnerabilitiesFuncInvoked bool
+
+	NewMDMAppleConfigProfileFunc        NewMDMAppleConfigProfileFunc
+	NewMDMAppleConfigProfileFuncInvoked bool
+
+	GetMDMAppleConfigProfileFunc        GetMDMAppleConfigProfileFunc
+	GetMDMAppleConfigProfileFuncInvoked bool
+
+	ListMDMAppleConfigProfilesFunc        ListMDMAppleConfigProfilesFunc
+	ListMDMAppleConfigProfilesFuncInvoked bool
+
+	DeleteMDMAppleConfigProfileFunc        DeleteMDMAppleConfigProfileFunc
+	DeleteMDMAppleConfigProfileFuncInvoked bool
 
 	NewMDMAppleEnrollmentProfileFunc        NewMDMAppleEnrollmentProfileFunc
 	NewMDMAppleEnrollmentProfileFuncInvoked bool
@@ -2554,6 +2574,26 @@ func (s *DataStore) InsertOSVulnerabilities(ctx context.Context, vulnerabilities
 func (s *DataStore) DeleteOSVulnerabilities(ctx context.Context, vulnerabilities []fleet.OSVulnerability) error {
 	s.DeleteOSVulnerabilitiesFuncInvoked = true
 	return s.DeleteOSVulnerabilitiesFunc(ctx, vulnerabilities)
+}
+
+func (s *DataStore) NewMDMAppleConfigProfile(ctx context.Context, p fleet.MDMAppleConfigProfile) (*fleet.MDMAppleConfigProfile, error) {
+	s.NewMDMAppleConfigProfileFuncInvoked = true
+	return s.NewMDMAppleConfigProfileFunc(ctx, p)
+}
+
+func (s *DataStore) GetMDMAppleConfigProfile(ctx context.Context, profileID uint) (*fleet.MDMAppleConfigProfile, error) {
+	s.GetMDMAppleConfigProfileFuncInvoked = true
+	return s.GetMDMAppleConfigProfileFunc(ctx, profileID)
+}
+
+func (s *DataStore) ListMDMAppleConfigProfiles(ctx context.Context, teamID *uint) ([]*fleet.MDMAppleConfigProfile, error) {
+	s.ListMDMAppleConfigProfilesFuncInvoked = true
+	return s.ListMDMAppleConfigProfilesFunc(ctx, teamID)
+}
+
+func (s *DataStore) DeleteMDMAppleConfigProfile(ctx context.Context, profileID uint) error {
+	s.DeleteMDMAppleConfigProfileFuncInvoked = true
+	return s.DeleteMDMAppleConfigProfileFunc(ctx, profileID)
 }
 
 func (s *DataStore) NewMDMAppleEnrollmentProfile(ctx context.Context, enrollmentPayload fleet.MDMAppleEnrollmentProfilePayload) (*fleet.MDMAppleEnrollmentProfile, error) {

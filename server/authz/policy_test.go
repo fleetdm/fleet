@@ -811,6 +811,66 @@ func TestAuthorizePolicies(t *testing.T) {
 	})
 }
 
+func TestAuthorizeMDMAppleConfigProfile(t *testing.T) {
+	t.Parallel()
+
+	globalProfile := &fleet.MDMAppleConfigProfile{}
+	teamProfile := &fleet.MDMAppleConfigProfile{
+		TeamID: ptr.Uint(1),
+	}
+	runTestCases(t, []authTestCase{
+		{user: test.UserNoRoles, object: globalProfile, action: write, allow: false},
+		{user: test.UserNoRoles, object: globalProfile, action: read, allow: false},
+		{user: test.UserNoRoles, object: teamProfile, action: write, allow: false},
+		{user: test.UserNoRoles, object: teamProfile, action: read, allow: false},
+
+		{user: test.UserAdmin, object: globalProfile, action: write, allow: true},
+		{user: test.UserAdmin, object: globalProfile, action: read, allow: true},
+		{user: test.UserAdmin, object: teamProfile, action: write, allow: true},
+		{user: test.UserAdmin, object: teamProfile, action: read, allow: true},
+
+		{user: test.UserMaintainer, object: globalProfile, action: write, allow: true},
+		{user: test.UserMaintainer, object: globalProfile, action: read, allow: true},
+		{user: test.UserMaintainer, object: teamProfile, action: write, allow: true},
+		{user: test.UserMaintainer, object: teamProfile, action: read, allow: true},
+
+		{user: test.UserObserver, object: globalProfile, action: write, allow: false},
+		{user: test.UserObserver, object: globalProfile, action: read, allow: false},
+		{user: test.UserObserver, object: teamProfile, action: write, allow: false},
+		{user: test.UserObserver, object: teamProfile, action: read, allow: false},
+
+		{user: test.UserTeamAdminTeam1, object: globalProfile, action: write, allow: false},
+		{user: test.UserTeamAdminTeam1, object: globalProfile, action: read, allow: false},
+		{user: test.UserTeamAdminTeam1, object: teamProfile, action: write, allow: true},
+		{user: test.UserTeamAdminTeam1, object: teamProfile, action: read, allow: true},
+
+		{user: test.UserTeamAdminTeam2, object: globalProfile, action: write, allow: false},
+		{user: test.UserTeamAdminTeam2, object: globalProfile, action: read, allow: false},
+		{user: test.UserTeamAdminTeam2, object: teamProfile, action: write, allow: false},
+		{user: test.UserTeamAdminTeam2, object: teamProfile, action: read, allow: false},
+
+		{user: test.UserTeamMaintainerTeam1, object: globalProfile, action: write, allow: false},
+		{user: test.UserTeamMaintainerTeam1, object: globalProfile, action: read, allow: false},
+		{user: test.UserTeamMaintainerTeam1, object: teamProfile, action: write, allow: true},
+		{user: test.UserTeamMaintainerTeam1, object: teamProfile, action: read, allow: true},
+
+		{user: test.UserTeamMaintainerTeam2, object: globalProfile, action: write, allow: false},
+		{user: test.UserTeamMaintainerTeam2, object: globalProfile, action: read, allow: false},
+		{user: test.UserTeamMaintainerTeam2, object: teamProfile, action: write, allow: false},
+		{user: test.UserTeamMaintainerTeam2, object: teamProfile, action: read, allow: false},
+
+		{user: test.UserTeamObserverTeam1, object: globalProfile, action: write, allow: false},
+		{user: test.UserTeamObserverTeam1, object: globalProfile, action: read, allow: false},
+		{user: test.UserTeamObserverTeam1, object: teamProfile, action: write, allow: false},
+		{user: test.UserTeamObserverTeam1, object: teamProfile, action: read, allow: false},
+
+		{user: test.UserTeamObserverTeam2, object: globalProfile, action: write, allow: false},
+		{user: test.UserTeamObserverTeam2, object: globalProfile, action: read, allow: false},
+		{user: test.UserTeamObserverTeam2, object: teamProfile, action: write, allow: false},
+		{user: test.UserTeamObserverTeam2, object: teamProfile, action: read, allow: false},
+	})
+}
+
 func assertAuthorized(t *testing.T, user *fleet.User, object, action interface{}) {
 	t.Helper()
 
