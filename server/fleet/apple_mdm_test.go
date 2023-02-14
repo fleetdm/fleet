@@ -82,7 +82,7 @@ func TestMDMAppleConfigProfile(t *testing.T) {
 		t.Run(c.testName, func(t *testing.T) {
 			mc := c.mobileconfig
 			cp := new(MDMAppleConfigProfile)
-			cp.Mobileconfig = &mc
+			cp.Mobileconfig = mc
 
 			parsed, err := cp.Mobileconfig.ParseConfigProfile()
 			if c.shouldFail {
