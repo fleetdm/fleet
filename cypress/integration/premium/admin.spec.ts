@@ -386,18 +386,8 @@ describe("Premium tier - Global Admin user", () => {
   });
   describe("Host details page", () => {
     beforeEach(() => hostDetailsPage.visitsHostDetailsPage(1));
-    it("allows global admin to transfer host to an existing team", () => {
-      hostDetailsPage.allowsTransferHost("andCreate");
-      hostDetailsPage.verifiesTransferredHost();
-    });
     it("allows global admin to create an operating system policy", () => {
       hostDetailsPage.allowsCreateOsPolicy();
-    });
-    it("allows global admin to custom query a host", () => {
-      hostDetailsPage.allowsCustomQueryHost();
-    });
-    it("allows global admin to delete a host", () => {
-      hostDetailsPage.allowsDeleteHost();
     });
   });
   describe("Manage software page", () => {

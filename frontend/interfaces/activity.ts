@@ -32,6 +32,7 @@ export enum ActivityType {
   MdmEnrolled = "mdm_enrolled",
   MdmUnenrolled = "mdm_unenrolled",
   EditedMacosMinVersion = "edited_macos_min_version",
+  ReadHostDiskEncryptionKey = "read_host_disk_encryption_key",
 }
 export interface IActivity {
   created_at: string;

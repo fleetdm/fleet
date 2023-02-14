@@ -348,12 +348,6 @@
     margin: $pad-xxlarge 0 0;
   }
 
-  &__action-button-container {
-    display: flex;
-    align-items: center;
-    gap: $pad-large;
-  }
-
   &__device_mapping {
     .device_mapping--tooltip {
       flex-direction: column;

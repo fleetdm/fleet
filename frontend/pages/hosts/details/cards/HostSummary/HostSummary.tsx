@@ -28,7 +28,7 @@ interface IHostSummaryProps {
   onRefetchHost: (
     evt: React.MouseEvent<HTMLButtonElement, React.MouseEvent>
   ) => void;
-  renderActionButtons: () => JSX.Element;
+  renderActionButtons: () => JSX.Element | null;
   deviceUser?: boolean;
 }
 
@@ -58,7 +58,7 @@ const HostSummary = ({
           <Button
             className={`
               button
-              ${!isOnline ? "refetch-offline tooltip" : ""} 
+              ${!isOnline ? "refetch-offline tooltip" : ""}
               ${showRefetchSpinner ? "refetch-spinner" : "refetch-btn"}
             `}
             disabled={!isOnline}
