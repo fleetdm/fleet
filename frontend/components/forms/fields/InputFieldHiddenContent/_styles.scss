@@ -1,4 +1,4 @@
-.enroll-secrets {
+.input-field-hidden-content {
   &__secret {
     display: flex;
     align-items: center;
@@ -7,7 +7,6 @@
 
   .form-field {
     margin-bottom: 0;
-    width: 500px; // TODO: configurable from classname in reusable component
   }
 
   &__secret-input {
@@ -16,6 +15,7 @@
       font-size: $x-small;
       font-weight: $bold;
       margin-bottom: 0;
+      // TODO: figure out width when pulling out to common component
       height: 0;
       min-height: 0;
     }
@@ -50,12 +50,6 @@
 
     span {
       font-weight: $regular;
-    }
-  }
-
-  &--multiple-secrets {
-    .form-field__label {
-      margin-top: 0;
     }
   }
 
