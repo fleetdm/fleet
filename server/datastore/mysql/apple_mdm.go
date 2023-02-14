@@ -380,10 +380,12 @@ func insertMDMAppleHostDB(
 
 func (ds *Datastore) IngestMDMAppleDevicesFromDEPSync(ctx context.Context, devices []godep.Device) (int64, error) {
 	if len(devices) < 1 {
+		level.Debug(ds.logger).Log("msg", "ingesting devices from DEP received < 1 device, skipping", "len(devices)", len(devices))
 		return 0, nil
 	}
-	filteredDevices := filterMDMAppleDevices(devices)
+	filteredDevices := filterMDMAppleDevices(devices, ds.logger)
 	if len(filteredDevices) < 1 {
+		level.Debug(ds.logger).Log("msg", "ingesting devices from DEP filtered all devices, skipping", "len(devices)", len(devices))
 		return 0, nil
 	}
 
@@ -397,6 +399,12 @@ func (ds *Datastore) IngestMDMAppleDevicesFromDEPSync(ctx context.Context, devic
 		team, err := ds.TeamByName(ctx, name)
 		switch {
 		case errors.Is(err, sql.ErrNoRows):
+			level.Debug(ds.logger).Log(
+				"msg",
+				"ingesting devices from DEP: unable to find default team assigned in config, the devices won't be assigned to a team",
+				"team_name",
+				name,
+			)
 			// If the team doesn't exist, we still ingest the device, but it won't
 			// belong to any team.
 		case err != nil:
@@ -590,14 +598,9 @@ func (ds *Datastore) UpdateHostTablesOnMDMUnenroll(ctx context.Context, uuid str
 	})
 }
 
-func filterMDMAppleDevices(devices []godep.Device) []godep.Device {
+func filterMDMAppleDevices(devices []godep.Device, logger log.Logger) []godep.Device {
 	var filtered []godep.Device
 	for _, device := range devices {
-		// We currently only support macOS devices so we screen out iOS
-		// and tvOS.
-		if strings.ToLower(device.OS) != "osx" {
-			continue
-		}
 		// We currently only listen for an op_type of "added", the
 		// other op_types are ambiguous and it would be needless to
 		// ingest the device every single time we get an update.
@@ -606,8 +609,11 @@ func filterMDMAppleDevices(devices []godep.Device) []godep.Device {
 			// API call, Empty op_type come from the first call to
 			// FetchDevices without a cursor.
 			strings.ToLower(device.OpType) == "" {
+			level.Debug(logger).Log("msg", "filterMDMAppleDevices: adding device", "serial", device.SerialNumber, "op_type", device.OpType, "os", device.OS)
 			filtered = append(filtered, device)
+			continue
 		}
+		level.Debug(logger).Log("msg", "filterMDMAppleDevices: skipping device", "serial", device.SerialNumber, "op_type", device.OpType, "os", device.OS)
 	}
 	return filtered
 }

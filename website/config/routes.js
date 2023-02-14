@@ -265,6 +265,15 @@ module.exports.routes = {
     }
   },
 
+  'GET /compliance': {
+    action: 'view-compliance',
+    locals: {
+      currentSection: 'platform',
+      pageTitleForMeta: 'Security compliance | Fleet for osquery',
+      pageDescriptionForMeta: 'Automate security workflows by creating or installing policies to maintain your organization\'s compliance goals. Simplify security compliance with Fleet.',
+    }
+  },
+
 
 
   //  ╦  ╔═╗╔═╗╔═╗╔═╗╦ ╦  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗
