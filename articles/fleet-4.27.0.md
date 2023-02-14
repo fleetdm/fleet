@@ -38,6 +38,12 @@ _Selecting explicit host IDs will always run the query on those hosts (no matter
 
 For more information on how to run queries, check out the [documentation here.](https://fleetdm.com/docs/using-fleet/fleet-ui#run-a-query)
 
+## A note about osquery packs
+
+Packs are a function of osquery that provide a portable format to import /export queries in and out of platforms like Fleet. These osquery packs still exist, but have been removed from the Fleet UI. Access via API is still available for backwards compatibility.
+
+Within Fleet we've introduced the concept of teams in Fleet premium to target specific groups of hosts, but you can also still use scheduled queries in Fleet free (works like packs) to target all your hosts.
+
 ## More new features, improvements, and bug fixes
 
 List of MDM features
