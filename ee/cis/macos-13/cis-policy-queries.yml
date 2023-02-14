@@ -10,7 +10,7 @@ spec:
   resolution: "Go to System Settings/Software Update and install the latest updates manually"
   query: SELECT 1 FROM os_version WHERE version >= '13.1';
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS1.1
+  tags: compliance, CIS, CIS_Level1, CIS-macos-13-1.1
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -23,7 +23,7 @@ spec:
   resolution: "Ask your system administrator to deploy an MDM profile that enables automatic updates."
   query: SELECT 1 FROM managed_policies WHERE domain='com.apple.SoftwareUpdate' AND name='AutomaticCheckEnabled' AND value=1 LIMIT 1;
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS1.2
+  tags: compliance, CIS, CIS_Level1, CIS-macos-13-1.2
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -36,7 +36,7 @@ spec:
   resolution: "Ask your system administrator to deploy an MDM profile that enables automatic update downloads."
   query: SELECT 1 FROM managed_policies WHERE domain='com.apple.SoftwareUpdate' AND name='AutomaticDownload' AND value=1 LIMIT 1;
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS1.3
+  tags: compliance, CIS, CIS_Level1, CIS-macos-13-1.3
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -49,7 +49,7 @@ spec:
   resolution: "Ask your system administrator to deploy an MDM profile that enables automatic install of macOS updates."
   query: SELECT 1 FROM managed_policies WHERE domain='com.apple.SoftwareUpdate' AND name='AutomaticallyInstallMacOSUpdates' AND value=1 LIMIT 1;
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS1.4
+  tags: compliance, CIS, CIS_Level1, CIS-macos-13-1.4
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -62,7 +62,7 @@ spec:
   resolution: Ask your system administrator to deploy an MDM profile that enables automatic updates of Apple apps.
   query: SELECT 1 FROM managed_policies WHERE domain='com.apple.SoftwareUpdate' AND name='AutomaticallyInstallAppUpdates' AND value=1;
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS1.5
+  tags: compliance, CIS, CIS_Level1, CIS-macos-13-1.5
   contributors: lucasmrod
 ---
 apiVersion: v1
@@ -79,7 +79,7 @@ spec:
   resolution: "Ask your system administrator to deploy an MDM profile that enables automatic critical system and security updates."
   query: SELECT 1 FROM managed_policies WHERE domain='com.apple.SoftwareUpdate' AND name='CriticalUpdateInstall' AND value=1 LIMIT 1;
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS1.6
+  tags: compliance, CIS, CIS_Level1, CIS-macos-13-1.6
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -98,7 +98,7 @@ spec:
   resolution: "Ask your system administrator to deploy an MDM profile configures update deferment to a value of 30 days or less."
   query: SELECT 1 FROM managed_policies WHERE domain='com.apple.applicationaccess' AND name='enforcedSoftwareUpdateDelay' AND value <= 30;
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS1.7
+  tags: compliance, CIS, CIS_Level1, CIS-macos-13-1.7
   contributors: lucasmrod
 ---
 apiVersion: v1
@@ -116,7 +116,7 @@ spec:
       3. The key must be set to <false/>.
   query: SELECT 1 FROM managed_policies WHERE domain='com.apple.applicationaccess' AND name='allowCloudDesktopAndDocuments' AND (value = 0 OR value = 'false') LIMIT 1;
   purpose: Informational
-  tags: compliance, CIS, CIS_Level2, CIS2.1.1.3
+  tags: compliance, CIS, CIS_Level2, CIS-macos-13-2.1.1.3
   contributors: zwass
 ---
 apiVersion: v1
@@ -129,7 +129,7 @@ spec:
   resolution: "Go to the Network pane in System Settings and ensure Firewall is active."
   query: SELECT 1 FROM alf WHERE global_state >= 1;
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS2.2.1
+  tags: compliance, CIS, CIS_Level1, CIS-macos-13-2.2.1
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -150,7 +150,7 @@ spec:
       5. Set Enabled stealth mode to enabled
   query: SELECT 1 FROM alf WHERE global_state >= 1 AND stealth_enabled = 1;
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS2.2.2
+  tags: compliance, CIS, CIS_Level1, CIS-macos-13-2.2.2
   contributors: lucasmrod
 ---
 apiVersion: v1
@@ -170,7 +170,7 @@ spec:
       3. The key must be set to <false/>
   query: SELECT 1 FROM managed_policies WHERE domain='com.apple.applicationaccess' AND name='allowAirDrop' AND (value = 0 OR value = 'false') LIMIT 1;
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS2.3.1.1
+  tags: compliance, CIS, CIS_Level1, CIS-macos-13-2.3.1.1
   contributors: lucasmrod
 ---
 apiVersion: v1
@@ -196,7 +196,7 @@ spec:
       3. The key must be set to <false/>
   query: SELECT 1 FROM managed_policies WHERE domain='com.apple.applicationaccess' AND name='allowAirPlayIncomingRequests' AND (value = 0 OR value = 'false') LIMIT 1;
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS2.3.1.2
+  tags: compliance, CIS, CIS_Level1, CIS-macos-13-2.3.1.2
   contributors: lucasmrod
 ---
 apiVersion: v1
@@ -214,7 +214,7 @@ spec:
         3. The key must be set to <true/>.
   query: SELECT 1 FROM managed_policies WHERE domain='com.apple.applicationaccess' AND name='forceAutomaticDateAndTime' AND value=1 LIMIT 1;
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS2.3.2.1
+  tags: compliance, CIS, CIS_Level1, CIS-macos-13-2.3.2.1
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -229,7 +229,7 @@ spec:
   resolution: Make sure the device can connect to time.apple.com to synchronize time.
   query: SELECT * FROM sntp_request WHERE server = 'time.apple.com' AND clock_offset_ms <= 270000 AND clock_offset_ms >= -270000;
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS2.3.2.2
+  tags: compliance, CIS, CIS_Level1, CIS-macos-13-2.3.2.2
   contributors: lucasmrod 
 ---
 apiVersion: v1
@@ -259,7 +259,7 @@ spec:
   # are disabled via disabled.plist, which the preference pane uses whenever
   # a service is disabled after it has been enabled in the past.
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS2.3.3.1
+  tags: compliance, CIS, CIS_Level1, CIS-macos-13-2.3.3.1
   contributors: artemist-work
 ---
 apiVersion: v1
@@ -292,7 +292,7 @@ spec:
   # are disabled via disabled.plist, which the preference pane uses whenever
   # a service is disabled after it has been enabled in the past.
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS2.3.3.2
+  tags: compliance, CIS, CIS_Level1, CIS-macos-13-2.3.3.2
   contributors: artemist-work
 ---
 apiVersion: v1
@@ -322,7 +322,7 @@ spec:
   # are disabled via disabled.plist, which the preference pane uses whenever
   # a service is disabled after it has been enabled in the past.
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS2.3.3.3
+  tags: compliance, CIS, CIS_Level1, CIS-macos-13-2.3.3.3
   contributors: artemist-work
 ---
 apiVersion: v1
@@ -350,7 +350,7 @@ spec:
         line LIKE '%Allow @LOCAL%'
       );
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS2.3.3.4
+  tags: compliance, CIS, CIS_Level1, CIS-macos-13-2.3.3.4
   contributors: artemist-work
 ---
 apiVersion: v1
@@ -383,7 +383,7 @@ spec:
   # are disabled via disabled.plist, which the preference pane uses whenever
   # a service is disabled after it has been enabled in the past.
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS2.3.3.5
+  tags: compliance, CIS, CIS_Level1, CIS-macos-13-2.3.3.5
   contributors: artemist-work
 ---
 apiVersion: v1
@@ -411,7 +411,7 @@ spec:
         path = '/System/Library/CoreServices/RemoteManagement/ARDAgent.app/Contents/MacOS/ARDAgent'
     );
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS2.3.3.6
+  tags: compliance, CIS, CIS_Level1, CIS-macos-13-2.3.3.6
   contributors: artemist-work
 ---
 apiVersion: v1
@@ -442,7 +442,7 @@ spec:
   # are disabled via disabled.plist, which the preference pane uses whenever
   # a service is disabled after it has been enabled in the past.
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS2.3.3.7
+  tags: compliance, CIS, CIS_Level1, CIS-macos-13-2.3.3.7
   contributors: artemist-work
 ---
 apiVersion: v1
@@ -470,7 +470,7 @@ spec:
         value = '1'
     );
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS2.3.3.8
+  tags: compliance, CIS, CIS_Level1, CIS-macos-13-2.3.3.8
   contributors: artemist-work
 ---
 apiVersion: v1
@@ -497,7 +497,7 @@ spec:
     SELECT 1 WHERE EXISTS (SELECT * FROM managed_policies mp WHERE domain = 'com.apple.applicationaccess' AND name = 'allowContentCaching' AND value = 0)
     AND NOT EXISTS (SELECT * FROM managed_policies mp WHERE domain = 'com.apple.applicationaccess' AND name = 'allowContentCaching' AND value != 0);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level2, CIS2.3.3.9
+  tags: compliance, CIS, CIS_Level2, CIS-macos-13-2.3.3.9
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -524,7 +524,7 @@ spec:
         value = '1'
     );
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS2.3.3.11
+  tags: compliance, CIS, CIS_Level1, CIS-macos-13-2.3.3.11
   contributors: artemist-work
 ---
 apiVersion: v1
@@ -562,7 +562,7 @@ spec:
         value = '0'
     );
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS2.3.3.10
+  tags: compliance, CIS, CIS_Level1, CIS-macos-13-2.3.3.10
   contributors: artemist-work
 ---
 apiVersion: v1
@@ -593,7 +593,7 @@ spec:
     FROM plist WHERE path='/Library/Preferences/com.apple.TimeMachine.plist'
     AND key='AutoBackup' AND (value = 1 OR value = 'true');
   purpose: Informational
-  tags: compliance, CIS, CIS_Level2, CIS2.3.4.1
+  tags: compliance, CIS, CIS_Level2, CIS-macos-13-2.3.4.1
   contributors: lucasmrod
 ---
 apiVersion: v1
@@ -630,7 +630,7 @@ spec:
     SELECT 'time machines destinations with encryption with automatic backup' as output
     FROM (SELECT COUNT(*) as c FROM time_machine_destinations WHERE encryption <> 'Encrypted') t2 WHERE t2.c = 0;
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS2.3.4.2
+  tags: compliance, CIS, CIS_Level1, CIS-macos-13-2.3.4.2
   contributors: lucasmrod
 ---
 apiVersion: v1
@@ -653,7 +653,7 @@ spec:
     3. The key must be set to `<integer>18</integer>`.
   query: SELECT 1 FROM managed_policies WHERE domain = 'com.apple.controlcenter' AND name = 'WiFi' AND value = 18;
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS2.4.1
+  tags: compliance, CIS, CIS_Level1, CIS-macos-13-2.4.1
   contributors: lucasmrod
 ---
 apiVersion: v1
@@ -675,7 +675,7 @@ spec:
     3. The key must be set to `<integer>18</integer>`.
   query: SELECT 1 FROM managed_policies WHERE domain = 'com.apple.controlcenter' AND name = 'Bluetooth' AND value = 18;
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS2.4.2
+  tags: compliance, CIS, CIS_Level1, CIS-macos-13-2.4.2
   contributors: lucasmrod
 ---
 apiVersion: v1
@@ -696,7 +696,7 @@ spec:
         4. Verify Location Services is enabled
   query: SELECT 1 FROM location_services where enabled=1;
   purpose: Informational
-  tags: compliance, CIS, CIS_Level2, CIS2.6.1.1
+  tags: compliance, CIS, CIS_Level2, CIS-macos-13-2.6.1.1
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -719,7 +719,7 @@ spec:
         location is set to your organization's parameters
   query:  SELECT 1 FROM plist WHERE path='/Library/Preferences/com.apple.locationmenu.plist' AND key='ShowSystemServices' AND value=1;
   purpose: Informational
-  tags: compliance, CIS, CIS_Level2, CIS2.6.1.2
+  tags: compliance, CIS, CIS_Level2, CIS-macos-13-2.6.1.2
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -739,7 +739,7 @@ spec:
         3. Verify that Personalized Ads is not enabled
   query: SELECT 1 FROM managed_policies WHERE domain='com.apple.applicationaccess' AND name='allowApplePersonalizedAdvertising' AND value=0;
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS2.6.3
+  tags: compliance, CIS, CIS_Level1, CIS-macos-13-2.6.3
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -775,7 +775,7 @@ spec:
         key = 'wvous-tl-corner'
     ) AND value = 6);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level2, CIS2.7.1
+  tags: compliance, CIS, CIS_Level2, CIS-macos-13-2.7.1
   contributors: lucasmrod
 ---
 apiVersion: v1
@@ -807,7 +807,7 @@ spec:
       ), '') AS powernap_battery
     FROM pmset WHERE getting = 'custom' AND powernap_battery != '1' AND powernap_ac != '1');
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS2.9.1
+  tags: compliance, CIS, CIS_Level1, CIS-macos-13-2.9.1
   contributors: lucasmrod
 ---
 apiVersion: v1
@@ -838,7 +838,7 @@ spec:
       ), '') AS womp_battery
     FROM pmset WHERE getting = 'custom' AND womp_battery != '1' AND womp_ac != '1');
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS2.9.2
+  tags: compliance, CIS, CIS_Level1, CIS-macos-13-2.9.2
   contributors: lucasmrod
 ---
 apiVersion: v1
@@ -914,7 +914,7 @@ spec:
         )
     );
   purpose: Informational
-  tags: compliance, CIS, CIS_Level2, CIS2.9.3
+  tags: compliance, CIS, CIS_Level2, CIS-macos-13-2.9.3
   contributors: lucasmrod
 ---
 apiVersion: v1
@@ -936,7 +936,7 @@ spec:
   query: |
     SELECT 1 WHERE EXISTS(select 1 FROM managed_policies WHERE domain='com.apple.screensaver' AND name='askForPassword' AND value=1)  AND EXISTS(select 1 FROM managed_policies WHERE domain='com.apple.screensaver' AND name='askForPasswordDelay' AND value <= 5)
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS2.10.2
+  tags: compliance, CIS, CIS_Level1, CIS-macos-13-2.10.2
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -957,7 +957,7 @@ spec:
         3. Verify that 'Allow apps downloaded from' is set to' App Store and identified developers'
   query: SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1 AND dev_id_enabled = 1;
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS2.6.4
+  tags: compliance, CIS, CIS_Level1, CIS-macos-13-2.6.4
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -986,7 +986,7 @@ spec:
     AND 
     EXISTS(select 1 FROM managed_policies WHERE domain='com.apple.applicationaccess' AND name='Siri Data Sharing Opt-In Status' AND value = 2);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level2, CIS2.6.2
+  tags: compliance, CIS, CIS_Level2, CIS-macos-13-2.6.2
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -1006,7 +1006,7 @@ spec:
         3. Verify that Start Screen Saver when inactive is set for 20 minutes or less (≤1200 seconds)
   query: SELECT 1 FROM managed_policies WHERE domain='com.apple.screensaver' AND name='idleTime' AND value <= 1200;
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS2.10.1
+  tags: compliance, CIS, CIS_Level1, CIS-macos-13-2.10.1
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -1026,7 +1026,7 @@ spec:
         5. Verify that the message displayed is configured to your organization's required text
   query: SELECT 1 FROM plist WHERE path='/Library/Preferences/com.apple.loginwindow.plist' AND key='LoginwindowText' AND value != "";
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS2.10.3
+  tags: compliance, CIS, CIS_Level1, CIS-macos-13-2.10.3
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -1053,7 +1053,7 @@ spec:
     AND 
     EXISTS(SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT "" AND filevault_status = 'on' LIMIT 1);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS2.6.5
+  tags: compliance, CIS, CIS_Level1, CIS-macos-13-2.6.5
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -1073,7 +1073,7 @@ spec:
         3. Verify that Login window shows is set to Name and Password
   query: SELECT 1 FROM managed_policies where domain='com.apple.loginwindow' AND name='SHOWFULLNAME' AND value=1;
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS2.10.4
+  tags: compliance, CIS, CIS_Level1, CIS-macos-13-2.10.4
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -1093,7 +1093,7 @@ spec:
         3. Verify that Show password hints is disabled
   query: SELECT 1 FROM managed_policies WHERE domain = 'com.apple.loginwindow' AND name = 'RetriesUntilHint' AND value = 0;
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS2.10.5
+  tags: compliance, CIS, CIS_Level1, CIS-macos-13-2.10.5
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -1115,7 +1115,7 @@ spec:
         4. Change the password and ensure that no text is entered in the Password hint box
   query: SELECT 1 FROM user_login_settings WHERE password_hint_enabled = 0;
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS2.11.1
+  tags: compliance, CIS, CIS_Level1, CIS-macos-13-2.11.1
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -1140,7 +1140,7 @@ spec:
     OR
     EXISTS(select 1 FROM plist WHERE path='/Library/Preferences/com.apple.MCX.plist' AND key='DisableGuestAccount' AND value = 1);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS2.12.1
+  tags: compliance, CIS, CIS_Level1, CIS-macos-13-2.12.1
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -1162,7 +1162,7 @@ spec:
         4. Set Allow guests to connect to shared folders to disabled
   query: SELECT 1 from plist where path = '/Library/Preferences/SystemConfiguration/com.apple.smb.server.plist' AND key = 'AllowGuestAccess' AND value = 0;
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS2.12.2
+  tags: compliance, CIS, CIS_Level1, CIS-macos-13-2.12.2
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -1188,7 +1188,7 @@ spec:
         3. The key must be set to <true/>
   query: SELECT 1 FROM managed_policies WHERE domain='com.apple.loginwindow' AND name='com.apple.login.mcx.DisableAutoLoginClient' AND value = 1;
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS2.12.3
+  tags: compliance, CIS, CIS_Level1, CIS-macos-13-2.12.3
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -1218,7 +1218,7 @@ spec:
       (l.program_arguments = p.cmdline)
     );
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS3.1
+  tags: compliance, CIS, CIS_Level1, CIS-macos-13-3.1
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -1273,7 +1273,7 @@ spec:
       )
     );
   purpose: Informational
-  tags: compliance, CIS, CIS_Level2, CIS3.2
+  tags: compliance, CIS, CIS_Level2, CIS-macos-13-3.2
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -1303,7 +1303,7 @@ spec:
              WHERE path = '/etc/asl/com.apple.install'  
              AND  line  LIKE "%all_max=%" );
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS3.3
+  tags: compliance, CIS, CIS_Level1, CIS-macos-13-3.3
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -1332,7 +1332,7 @@ spec:
       AND size >=5
     );
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS3.4
+  tags: compliance, CIS, CIS_Level1, CIS-macos-13-3.4
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -1377,7 +1377,7 @@ spec:
       -- For /etc/security/audit_control the MODE should be 0400 ("-r--------")
       NOT EXISTS ( select 1 from file where path = "/etc/security/audit_control" AND mode != "0400" );
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS3.5
+  tags: compliance, CIS, CIS_Level1, CIS-macos-13-3.5
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -1413,7 +1413,7 @@ spec:
     );
 
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS3.6
+  tags: compliance, CIS, CIS_Level1, CIS-macos-13-3.6
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -1435,7 +1435,7 @@ spec:
         3. The key must be set to `<true/>`.
   query: SELECT 1 FROM managed_policies WHERE domain='com.apple.mDNSResponder' AND name='NoMulticastAdvertisements' AND value = 1;
   purpose: Informational
-  tags: compliance, CIS, CIS_Level2, CIS4.1
+  tags: compliance, CIS, CIS_Level2, CIS-macos-13-4.1
   contributors: lucasmrod
 ---
 apiVersion: v1
@@ -1454,7 +1454,7 @@ spec:
     /usr/bin/sudo /bin/launchctl unload -w /System/Library/LaunchDaemons/org.apache.httpd.plist
   query: SELECT 1 WHERE NOT EXISTS(SELECT * FROM processes WHERE path = '/usr/sbin/httpd');
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS4.2
+  tags: compliance, CIS, CIS_Level1, CIS-macos-13-4.2
   contributors: lucasmrod
 ---
 apiVersion: v1
@@ -1478,7 +1478,7 @@ spec:
     AND
     NOT EXISTS(SELECT 1 FROM file WHERE path = '/etc/exports');
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS4.3
+  tags: compliance, CIS, CIS_Level1, CIS-macos-13-4.3
   contributors: lucasmrod
 ---
 apiVersion: v1
@@ -1507,7 +1507,7 @@ spec:
     AND mode !="0711"
     ));
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS5.1.1
+  tags: compliance, CIS, CIS_Level1, CIS-macos-13-5.1.1
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -1528,7 +1528,7 @@ spec:
           /usr/bin/sudo /usr/bin/csrutil enable
   query: SELECT 1 FROM sip_config WHERE config_flag="sip" and enabled=1;
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS5.1.2
+  tags: compliance, CIS, CIS_Level1, CIS-macos-13-5.1.2
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -1546,7 +1546,7 @@ spec:
       /usr/bin/sudo /usr/sbin/nvram boot-args=""
   query: SELECT 1 FROM nvram_info WHERE amfi_enabled="1";
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS5.1.3
+  tags: compliance, CIS, CIS_Level1, CIS-macos-13-5.1.3
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -1564,7 +1564,7 @@ spec:
     If SSV has been disabled, assume that the operating system has been compromised. Back up any files, and do a clean install to a known good Operating System.
   query: SELECT 1 FROM csrutil_info WHERE ssv_enabled="1";
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS5.1.4
+  tags: compliance, CIS, CIS_Level1, CIS-macos-13-5.1.4
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -1591,7 +1591,7 @@ spec:
       AND  CAST( SUBSTRING( mode ,-1) AS INTEGER)  & 0x2 !=0 -- mode last char is others' permissions. bitwise with 0x2 means write permissions. (which we do not want here) 
     );
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS5.1.5
+  tags: compliance, CIS, CIS_Level1, CIS-macos-13-5.1.5
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -1619,7 +1619,7 @@ spec:
       AND   CAST( SUBSTRING( mode ,-1) AS INTEGER) & 0x2 !=0 -- mode last char is others' permissions. bitwise with 0x2 means write permissions. (which we do not want here) 
     );
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS5.1.6
+  tags: compliance, CIS, CIS_Level1, CIS-macos-13-5.1.6
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -1648,7 +1648,7 @@ spec:
       AND   CAST( SUBSTRING( mode ,-1) AS INTEGER) & 0x2 !=0 -- mode last char is others' permissions. bitwise with 0x2 means write permissions. (which we do not want here) 
     );
   purpose: Informational
-  tags: compliance, CIS, CIS_Level2, CIS5.1.7
+  tags: compliance, CIS, CIS_Level2, CIS-macos-13-5.1.7
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -1669,7 +1669,7 @@ spec:
       3. The key must be set to <integer><value≤5></integer>
   query: SELECT 1 FROM  pwd_policy where max_failed_attempts <= 5;
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS5.2.1
+  tags: compliance, CIS, CIS_Level1, CIS-macos-13-5.2.1
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -1700,7 +1700,7 @@ spec:
     WHERE policy_identifier LIKE '%minLength')) 
     WHERE minlength >= 15);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS5.2.2
+  tags: compliance, CIS, CIS_Level1, CIS-macos-13-5.2.2
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -1725,7 +1725,7 @@ spec:
     OR
     EXISTS(SELECT 1 FROM pwd_policy WHERE days_to_expiration <= 365);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS5.2.7
+  tags: compliance, CIS, CIS_Level1, CIS-macos-13-5.2.7
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -1744,7 +1744,7 @@ spec:
       3. The key must be set to <integer><value≥15></integer>
   query: SELECT 1 FROM  pwd_policy where history_depth >= 15;
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS5.2.8
+  tags: compliance, CIS, CIS_Level1, CIS-macos-13-5.2.8
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -1772,7 +1772,7 @@ spec:
       FROM sudo_info WHERE authentication_timestamp_timeout = '0.0 minutes'
     );
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS5.4
+  tags: compliance, CIS, CIS_Level1, CIS-macos-13-5.4
   contributors: lucasmrod
 ---
 apiVersion: v1
@@ -1799,7 +1799,7 @@ spec:
       FROM sudo_info WHERE type_of_auth_timestamp_record = 'tty'
     );
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS5.5
+  tags: compliance, CIS, CIS_Level1, CIS-macos-13-5.5
   contributors: lucasmrod
 ---
 apiVersion: v1
@@ -1821,7 +1821,7 @@ spec:
   query: |
     SELECT 1 from dscl WHERE command = 'read' AND path = '/Users/root' AND key = 'AuthenticationAuthority' AND value = '';
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS5.6
+  tags: compliance, CIS, CIS_Level1, CIS-macos-13-5.6
   contributors: lucasmrod
 ---
 apiVersion: v1
@@ -1845,7 +1845,7 @@ spec:
       rule LIKE '%use-login-window-ui%'
     );
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS5.7
+  tags: compliance, CIS, CIS_Level1, CIS-macos-13-5.7
   contributors: lucasmrod
 ---
 apiVersion: v1
@@ -1870,7 +1870,7 @@ spec:
     path = '/Library/Security/PolicyBanner.rtf') AND mode = '0644'
     AND uid = 0 AND gid = 0;
   purpose: Informational
-  tags: compliance, CIS, CIS_Level2, CIS5.8
+  tags: compliance, CIS, CIS_Level2, CIS-macos-13-5.8
   contributors: lucasmrod
 ---
 apiVersion: v1
@@ -1900,7 +1900,7 @@ spec:
       )
     );
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS5.9
+  tags: compliance, CIS, CIS_Level1, CIS-macos-13-5.9
   contributors: lucasmrod
 ---
 apiVersion: v1
@@ -1918,7 +1918,7 @@ spec:
   query: |
     SELECT 1 WHERE NOT EXISTS (SELECT * FROM file WHERE path = '/Users/Guest');
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS5.10
+  tags: compliance, CIS, CIS_Level1, CIS-macos-13-5.10
   contributors: lucasmrod
 ---
 apiVersion: v1
@@ -1949,7 +1949,7 @@ spec:
         p.value IS NULL
     );
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS6.1.1
+  tags: compliance, CIS, CIS_Level1, CIS-macos-13-6.1.1
   contributors: artemist-work
 ---
 apiVersion: v1
@@ -1978,7 +1978,7 @@ spec:
       value = '0'
       LIMIT 1;
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS6.3.1
+  tags: compliance, CIS, CIS_Level1, CIS-macos-13-6.3.1
   contributors: artemist-work
 ---
 apiVersion: v1
@@ -2001,7 +2001,7 @@ spec:
       value = '1'
       LIMIT 1;
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS6.3.3
+  tags: compliance, CIS, CIS_Level1, CIS-macos-13-6.3.3
   contributors: artemist-work
 ---
 apiVersion: v1
@@ -2032,7 +2032,7 @@ spec:
       SELECT 1 FROM managed_policies WHERE domain = 'com.apple.Safari' AND name = 'WebKitStorageBlockingPolicy' AND value = '1'
     );
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS6.3.4
+  tags: compliance, CIS, CIS_Level1, CIS-macos-13-6.3.4
   contributors: lucasmrod
 ---
 apiVersion: v1
@@ -2066,7 +2066,7 @@ spec:
       p.value IS NULL
     );
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS6.3.6
+  tags: compliance, CIS, CIS_Level1, CIS-macos-13-6.3.6
   contributors: artemist-work
 ---
 apiVersion: v1
@@ -2097,7 +2097,7 @@ spec:
       AND name = 'ShowFullURLInSmartSearchField' 
       AND value = 1;
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS6.3.7
+  tags: compliance, CIS, CIS_Level1, CIS-macos-13-6.3.7
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -2121,5 +2121,5 @@ spec:
       AND name = 'SecureKeyboardEntry' 
       AND value == 1;
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS6.4.1
+  tags: compliance, CIS, CIS_Level1, CIS-macos-13-6.4.1
   contributors: sharon-fdm
