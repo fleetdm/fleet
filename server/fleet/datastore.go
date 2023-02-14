@@ -710,7 +710,7 @@ type Datastore interface {
 
 	// ListMDMAppleConfigProfiles lists mdm config profiles associated with the specified team id.
 	// For global config profiles, specify zero as the team id.
-	ListMDMAppleConfigProfiles(ctx context.Context, teamID uint) ([]*MDMAppleConfigProfile, error)
+	ListMDMAppleConfigProfiles(ctx context.Context, teamID *uint) ([]*MDMAppleConfigProfile, error)
 
 	// DeleteMDMAppleConfigProfile deleted the mdm config profile corresponding to the specified
 	// profile id.

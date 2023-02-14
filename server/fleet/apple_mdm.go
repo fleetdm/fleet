@@ -212,8 +212,8 @@ type Mobileconfig []byte
 // a PayloadIdentifier and a PayloadDisplayName and that it has PayloadType set to "Configuration".
 //
 // Adapted from https://github.com/micromdm/micromdm/blob/main/platform/profile/profile.go
-func (mc *Mobileconfig) ParseConfigProfile() (*MDMAppleConfigProfile, error) {
-	mcBytes := *mc
+func (mc Mobileconfig) ParseConfigProfile() (*MDMAppleConfigProfile, error) {
+	mcBytes := mc
 	if !bytes.HasPrefix(mcBytes, []byte("<?xml")) {
 		p7, err := pkcs7.Parse(mcBytes)
 		if err != nil {
@@ -259,7 +259,7 @@ type MDMAppleConfigProfile struct {
 	ProfileID uint `db:"profile_id" json:"profile_id"`
 	// TeamID is the id of the team with which the configuration is associated. A team id of zero
 	// represents a configuration profile that is not associated with any team.
-	TeamID uint `db:"team_id" json:"team_id"`
+	TeamID *uint `db:"team_id" json:"team_id"`
 	// Identifier corresponds to the payload identifier of the associated mobileconfig payload.
 	// Fleet requires that Identifier must be unique in combination with the Name and TeamID.
 	Identifier string `db:"identifier" json:"identifier"`
@@ -268,9 +268,9 @@ type MDMAppleConfigProfile struct {
 	Name string `db:"name" json:"name"`
 	// Mobileconfig is the byte slice corresponding to the XML property list (i.e. plist)
 	// representation of the configuration profile. It must be XML or PKCS7 parseable.
-	Mobileconfig *Mobileconfig `db:"mobileconfig" json:"-"`
-	CreatedAt    time.Time     `db:"created_at" json:"created_at"`
-	UpdatedAt    time.Time     `db:"updated_at" json:"updated_at"`
+	Mobileconfig Mobileconfig `db:"mobileconfig" json:"-"`
+	CreatedAt    time.Time    `db:"created_at" json:"created_at"`
+	UpdatedAt    time.Time    `db:"updated_at" json:"updated_at"`
 }
 
 // AuthzType implements authz.AuthzTyper.

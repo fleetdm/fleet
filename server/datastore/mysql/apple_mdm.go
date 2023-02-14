@@ -9,6 +9,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"github.com/jmoiron/sqlx"
@@ -21,7 +22,12 @@ INSERT INTO
     mdm_apple_configuration_profiles (team_id, identifier, name, mobileconfig)
 VALUES (?, ?, ?, ?)`
 
-	res, err := ds.writer.ExecContext(ctx, stmt, cp.TeamID, cp.Identifier, cp.Name, *cp.Mobileconfig)
+	var teamID uint
+	if cp.TeamID != nil {
+		teamID = *cp.TeamID
+	}
+
+	res, err := ds.writer.ExecContext(ctx, stmt, teamID, cp.Identifier, cp.Name, cp.Mobileconfig)
 	if err != nil {
 		switch {
 		case isDuplicate(err):
@@ -48,20 +54,20 @@ func formatErrorDuplicateConfigProfile(err error, cp *fleet.MDMAppleConfigProfil
 		return &existsError{
 			ResourceType: "MDMAppleConfigProfile.PayloadIdentifier",
 			Identifier:   cp.Identifier,
-			TeamID:       &cp.TeamID,
+			TeamID:       cp.TeamID,
 		}
 	case strings.Contains(err.Error(), "idx_mdm_apple_config_prof_team_name"):
 		return &existsError{
 			ResourceType: "MDMAppleConfigProfile.PayloadDisplayName",
 			Identifier:   cp.Name,
-			TeamID:       &cp.TeamID,
+			TeamID:       cp.TeamID,
 		}
 	default:
 		return err
 	}
 }
 
-func (ds *Datastore) ListMDMAppleConfigProfiles(ctx context.Context, teamID uint) ([]*fleet.MDMAppleConfigProfile, error) {
+func (ds *Datastore) ListMDMAppleConfigProfiles(ctx context.Context, teamID *uint) ([]*fleet.MDMAppleConfigProfile, error) {
 	stmt := `
 SELECT 
 	profile_id, 
@@ -75,6 +81,10 @@ FROM
 	mdm_apple_configuration_profiles 
 WHERE 
 	team_id=?`
+
+	if teamID == nil {
+		teamID = ptr.Uint(0)
+	}
 
 	var res []*fleet.MDMAppleConfigProfile
 	err := sqlx.SelectContext(ctx, ds.reader, &res, stmt, teamID)
@@ -119,7 +129,7 @@ func (ds *Datastore) DeleteMDMAppleConfigProfile(ctx context.Context, profileID 
 
 	deleted, err := res.RowsAffected()
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "fetching delete mdm config profile query rows affected %s")
+		return ctxerr.Wrap(ctx, err, "fetching delete mdm config profile query rows affected")
 	}
 	if deleted != 1 {
 		return ctxerr.Wrap(ctx, notFound("MDMAppleConfigProfile").WithID(profileID))

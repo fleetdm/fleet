@@ -816,7 +816,7 @@ func TestAuthorizeMDMAppleConfigProfile(t *testing.T) {
 
 	globalProfile := &fleet.MDMAppleConfigProfile{}
 	teamProfile := &fleet.MDMAppleConfigProfile{
-		TeamID: uint(1),
+		TeamID: ptr.Uint(1),
 	}
 	runTestCases(t, []authTestCase{
 		{user: test.UserNoRoles, object: globalProfile, action: write, allow: false},

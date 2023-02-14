@@ -508,7 +508,7 @@ type NewMDMAppleConfigProfileFunc func(ctx context.Context, p fleet.MDMAppleConf
 
 type GetMDMAppleConfigProfileFunc func(ctx context.Context, profileID uint) (*fleet.MDMAppleConfigProfile, error)
 
-type ListMDMAppleConfigProfilesFunc func(ctx context.Context, teamID uint) ([]*fleet.MDMAppleConfigProfile, error)
+type ListMDMAppleConfigProfilesFunc func(ctx context.Context, teamID *uint) ([]*fleet.MDMAppleConfigProfile, error)
 
 type DeleteMDMAppleConfigProfileFunc func(ctx context.Context, profileID uint) error
 
@@ -2576,7 +2576,7 @@ func (s *DataStore) GetMDMAppleConfigProfile(ctx context.Context, profileID uint
 	return s.GetMDMAppleConfigProfileFunc(ctx, profileID)
 }
 
-func (s *DataStore) ListMDMAppleConfigProfiles(ctx context.Context, teamID uint) ([]*fleet.MDMAppleConfigProfile, error) {
+func (s *DataStore) ListMDMAppleConfigProfiles(ctx context.Context, teamID *uint) ([]*fleet.MDMAppleConfigProfile, error) {
 	s.ListMDMAppleConfigProfilesFuncInvoked = true
 	return s.ListMDMAppleConfigProfilesFunc(ctx, teamID)
 }

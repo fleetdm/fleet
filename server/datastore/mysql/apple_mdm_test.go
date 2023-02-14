@@ -15,7 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestNewMDMAppleConfigProfile(t *testing.T) {
+func TestMDMAppleConfigProfile(t *testing.T) {
 	ds := CreateMySQLDS(t)
 
 	cases := []struct {
@@ -49,17 +49,17 @@ func testNewMDMAppleConfigProfileDuplicateName(t *testing.T, ds *Datastore) {
 		Mobileconfig: initialCP.Mobileconfig,
 	}
 	_, err := ds.NewMDMAppleConfigProfile(ctx, duplicateCP)
-	expectedErr := &existsError{ResourceType: "MDMAppleConfigProfile.PayloadDisplayName", Identifier: initialCP.Name, TeamID: &initialCP.TeamID}
+	expectedErr := &existsError{ResourceType: "MDMAppleConfigProfile.PayloadDisplayName", Identifier: initialCP.Name, TeamID: initialCP.TeamID}
 	require.ErrorContains(t, err, expectedErr.Error())
 
 	// can create another profile with the same name if it is on a different team
-	duplicateCP.TeamID += 1
+	duplicateCP.TeamID = ptr.Uint(*duplicateCP.TeamID + 1)
 	newCP, err := ds.NewMDMAppleConfigProfile(ctx, duplicateCP)
 	require.NoError(t, err)
-	checkConfigProfile(t, &duplicateCP, newCP)
+	checkConfigProfile(t, duplicateCP, *newCP)
 	storedCP, err := ds.GetMDMAppleConfigProfile(ctx, newCP.ProfileID)
 	require.NoError(t, err)
-	checkConfigProfile(t, newCP, storedCP)
+	checkConfigProfile(t, *newCP, *storedCP)
 }
 
 func testNewMDMAppleConfigProfileDuplicateIdentifier(t *testing.T, ds *Datastore) {
@@ -74,17 +74,17 @@ func testNewMDMAppleConfigProfileDuplicateIdentifier(t *testing.T, ds *Datastore
 		Mobileconfig: initialCP.Mobileconfig,
 	}
 	_, err := ds.NewMDMAppleConfigProfile(ctx, duplicateCP)
-	expectedErr := &existsError{ResourceType: "MDMAppleConfigProfile.PayloadIdentifier", Identifier: initialCP.Identifier, TeamID: &initialCP.TeamID}
+	expectedErr := &existsError{ResourceType: "MDMAppleConfigProfile.PayloadIdentifier", Identifier: initialCP.Identifier, TeamID: initialCP.TeamID}
 	require.ErrorContains(t, err, expectedErr.Error())
 
 	// can create another profile with the same name if it is on a different team
-	duplicateCP.TeamID += 1
+	duplicateCP.TeamID = ptr.Uint(*duplicateCP.TeamID + 1)
 	newCP, err := ds.NewMDMAppleConfigProfile(ctx, duplicateCP)
 	require.NoError(t, err)
-	checkConfigProfile(t, &duplicateCP, newCP)
+	checkConfigProfile(t, duplicateCP, *newCP)
 	storedCP, err := ds.GetMDMAppleConfigProfile(ctx, newCP.ProfileID)
 	require.NoError(t, err)
-	checkConfigProfile(t, newCP, storedCP)
+	checkConfigProfile(t, *newCP, *storedCP)
 }
 
 func testListMDMAppleConfigProfiles(t *testing.T, ds *Datastore) {
@@ -95,8 +95,8 @@ func testListMDMAppleConfigProfiles(t *testing.T, ds *Datastore) {
 		return &fleet.MDMAppleConfigProfile{
 			Name:         name,
 			Identifier:   identifier,
-			TeamID:       teamID,
-			Mobileconfig: &mc,
+			TeamID:       &teamID,
+			Mobileconfig: mc,
 		}
 	}
 
@@ -107,42 +107,42 @@ func testListMDMAppleConfigProfiles(t *testing.T, ds *Datastore) {
 	cp, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP("name0", "identifier0", 0))
 	require.NoError(t, err)
 	expectedTeam0 = append(expectedTeam0, cp)
-	cps, err := ds.ListMDMAppleConfigProfiles(ctx, uint(0))
+	cps, err := ds.ListMDMAppleConfigProfiles(ctx, nil)
 	require.NoError(t, err)
 	require.Len(t, cps, 1)
-	checkConfigProfile(t, expectedTeam0[0], cps[0])
+	checkConfigProfile(t, *expectedTeam0[0], *cps[0])
 
 	// add profile with team id 1
 	cp, err = ds.NewMDMAppleConfigProfile(ctx, *generateCP("name1", "identifier1", 1))
 	require.NoError(t, err)
 	expectedTeam1 = append(expectedTeam1, cp)
 	// list profiles for team id 1
-	cps, err = ds.ListMDMAppleConfigProfiles(ctx, uint(1))
+	cps, err = ds.ListMDMAppleConfigProfiles(ctx, ptr.Uint(1))
 	require.NoError(t, err)
 	require.Len(t, cps, 1)
-	checkConfigProfile(t, expectedTeam1[0], cps[0])
+	checkConfigProfile(t, *expectedTeam1[0], *cps[0])
 
 	// add another profile with team id 1
 	cp, err = ds.NewMDMAppleConfigProfile(ctx, *generateCP("another_name1", "another_identifier1", 1))
 	require.NoError(t, err)
 	expectedTeam1 = append(expectedTeam1, cp)
 	// list profiles for team id 1
-	cps, err = ds.ListMDMAppleConfigProfiles(ctx, uint(1))
+	cps, err = ds.ListMDMAppleConfigProfiles(ctx, ptr.Uint(1))
 	require.NoError(t, err)
 	require.Len(t, cps, 2)
 	for _, cp := range cps {
 		switch cp.Name {
 		case "name1":
-			checkConfigProfile(t, expectedTeam1[0], cp)
+			checkConfigProfile(t, *expectedTeam1[0], *cp)
 		case "another_name1":
-			checkConfigProfile(t, expectedTeam1[1], cp)
+			checkConfigProfile(t, *expectedTeam1[1], *cp)
 		default:
 			t.FailNow()
 		}
 	}
 
 	// try to list profiles for non-existent team id
-	cps, err = ds.ListMDMAppleConfigProfiles(ctx, uint(42))
+	cps, err = ds.ListMDMAppleConfigProfiles(ctx, ptr.Uint(42))
 	require.NoError(t, err)
 	require.Len(t, cps, 0)
 }
@@ -166,26 +166,26 @@ func storeDummyConfigProfileForTest(t *testing.T, ds *Datastore) *fleet.MDMApple
 	dummyCP := fleet.MDMAppleConfigProfile{
 		Name:         "DummyTestName",
 		Identifier:   "DummyTestIdentifier",
-		Mobileconfig: &dummyMC,
-		TeamID:       uint(0),
+		Mobileconfig: dummyMC,
+		TeamID:       nil,
 	}
 
 	ctx := context.Background()
 
 	newCP, err := ds.NewMDMAppleConfigProfile(ctx, dummyCP)
 	require.NoError(t, err)
-	checkConfigProfile(t, &dummyCP, newCP)
+	checkConfigProfile(t, dummyCP, *newCP)
 	storedCP, err := ds.GetMDMAppleConfigProfile(ctx, newCP.ProfileID)
 	require.NoError(t, err)
-	checkConfigProfile(t, newCP, storedCP)
+	checkConfigProfile(t, *newCP, *storedCP)
 
 	return storedCP
 }
 
-func checkConfigProfile(t *testing.T, expected *fleet.MDMAppleConfigProfile, actual *fleet.MDMAppleConfigProfile) {
+func checkConfigProfile(t *testing.T, expected fleet.MDMAppleConfigProfile, actual fleet.MDMAppleConfigProfile) {
 	require.Equal(t, expected.Name, actual.Name)
 	require.Equal(t, expected.Identifier, actual.Identifier)
-	require.Equal(t, *expected.Mobileconfig, *actual.Mobileconfig)
+	require.Equal(t, expected.Mobileconfig, actual.Mobileconfig)
 }
 
 func TestIngestMDMAppleDevicesFromDEPSync(t *testing.T) {
