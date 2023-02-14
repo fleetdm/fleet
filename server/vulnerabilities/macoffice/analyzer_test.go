@@ -156,12 +156,8 @@ func TestAnalyze(t *testing.T) {
 			require.NoError(t, ds.UpdateHostSoftware(context.Background(), host.ID, software))
 			require.NoError(t, ds.LoadHostSoftware(context.Background(), host, false))
 
-			vulns, err := Analyze(ctx, ds, vulnPath, true)
-			require.NoError(t, err)
-
 			var powerpoint fleet.Software
 			var word fleet.Software
-
 			for _, s := range host.HostSoftware.Software {
 				if s.Name == "Microsoft PowerPoint.app" {
 					powerpoint = s
@@ -171,6 +167,16 @@ func TestAnalyze(t *testing.T) {
 					word = s
 				}
 			}
+
+			// These 'old' vulnerabilities should be cleared out...
+			_, err := ds.InsertSoftwareVulnerabilities(ctx, []fleet.SoftwareVulnerability{
+				{SoftwareID: word.ID, CVE: "3000-3000"},
+				{SoftwareID: powerpoint.ID, CVE: "4000-3000"},
+			}, fleet.MacOfficeReleaseNotesSource)
+			require.NoError(t, err)
+
+			vulns, err := Analyze(ctx, ds, vulnPath, true)
+			require.NoError(t, err)
 
 			expected := []fleet.SoftwareVulnerability{
 				{SoftwareID: word.ID, CVE: "CVE-2023-21734"},

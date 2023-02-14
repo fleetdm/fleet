@@ -10,6 +10,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/io"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/utils"
 )
 
 func latestReleaseNotes(vulnPath string) (ReleaseNotes, error) {
@@ -47,17 +48,10 @@ func latestReleaseNotes(vulnPath string) (ReleaseNotes, error) {
 
 func collectVulnerabilities(
 	software *fleet.Software,
+	product ProductType,
 	relNotes ReleaseNotes,
 ) []fleet.SoftwareVulnerability {
 	var vulns []fleet.SoftwareVulnerability
-
-	product, ok := OfficeProductFromBundleId(software.BundleIdentifier)
-
-	// If we don't have an Office Product
-	if !ok {
-		return vulns
-	}
-
 	for _, relNote := range relNotes {
 		// We only care about release notes with set versions and with security updates,
 		// 'relNotes' should only contain valid release notes, but this check not expensive.
@@ -76,8 +70,66 @@ func collectVulnerabilities(
 			})
 		}
 	}
-
 	return vulns
+}
+
+func storedVulnerabilities(
+	ctx context.Context,
+	ds fleet.Datastore,
+	softwareID uint,
+) ([]fleet.SoftwareVulnerability, error) {
+	storedSoftware, err := ds.SoftwareByID(ctx, softwareID, false)
+	if err != nil {
+		return nil, err
+	}
+
+	var result []fleet.SoftwareVulnerability
+	for _, v := range storedSoftware.Vulnerabilities {
+		result = append(result, fleet.SoftwareVulnerability{
+			SoftwareID: storedSoftware.ID,
+			CVE:        v.CVE,
+		})
+	}
+	return result, nil
+}
+
+func syncDB(
+	ctx context.Context,
+	ds fleet.Datastore,
+	detected []fleet.SoftwareVulnerability,
+	existing []fleet.SoftwareVulnerability,
+) ([]fleet.SoftwareVulnerability, error) {
+	toInsert, toDelete := utils.VulnsDelta(detected, existing)
+
+	// Remove any possible dups...
+	toInsertSet := make(map[string]fleet.SoftwareVulnerability)
+	for _, i := range toInsert {
+		toInsertSet[i.Key()] = i
+	}
+
+	err := ds.DeleteSoftwareVulnerabilities(ctx, toDelete)
+	if err != nil {
+		return nil, err
+	}
+
+	inserted := make([]fleet.SoftwareVulnerability, 0, len(toInsertSet))
+	err = utils.BatchProcess(toInsertSet, func(v []fleet.SoftwareVulnerability) error {
+		n, err := ds.InsertSoftwareVulnerabilities(ctx, v, fleet.MacOfficeReleaseNotesSource)
+		if err != nil {
+			return err
+		}
+
+		if n > 0 {
+			inserted = append(inserted, v...)
+		}
+
+		return nil
+	}, len(toInsertSet))
+	if err != nil {
+		return nil, err
+	}
+
+	return inserted, nil
 }
 
 func Analyze(
@@ -101,27 +153,35 @@ func Analyze(
 	}
 	defer iter.Close()
 
-	var collectedVulns []fleet.SoftwareVulnerability
+	var vulnerabilities []fleet.SoftwareVulnerability
 	for iter.Next() {
 		software, err := iter.Value()
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "getting software from iterator")
 		}
 
-		detected := collectVulnerabilities(software, relNotes)
+		product, ok := OfficeProductFromBundleId(software.BundleIdentifier)
+		// If we don't have an Office Product ...
+		if !ok {
+			continue
+		}
 
-		if len(detected) != 0 {
-			// Figure out what to delete and what to insert
-			inserted, err := ds.InsertSoftwareVulnerabilities(ctx, detected, fleet.MacOfficeReleaseNotesSource)
-			if err != nil {
-				return nil, err
-			}
+		detected := collectVulnerabilities(software, product, relNotes)
+		// The 'software' instance we get back from the iterator does not include vulnerabilities...
+		existing, err := storedVulnerabilities(ctx, ds, software.ID)
+		if err != nil {
+			return nil, err
+		}
 
-			if collectVulns && inserted > 0 {
-				collectedVulns = append(collectedVulns, detected...)
-			}
+		inserted, err := syncDB(ctx, ds, detected, existing)
+		if err != nil {
+			return nil, err
+		}
+
+		if collectVulns {
+			vulnerabilities = append(vulnerabilities, inserted...)
 		}
 	}
 
-	return collectedVulns, nil
+	return vulnerabilities, nil
 }
