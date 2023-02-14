@@ -33,6 +33,7 @@ const DEFAULT_HOST_MOCK: IHost = {
   hardware_serial: "",
   computer_name: "9b20fc72a247",
   mdm: {
+    encryption_key_available: false,
     enrollment_status: "Off",
     server_url: "https://www.example.com/1",
   },
