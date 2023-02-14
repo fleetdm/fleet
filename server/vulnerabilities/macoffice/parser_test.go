@@ -669,6 +669,7 @@ func extractFixture(t *testing.T, src, dst string) {
 }
 
 func TestParseReleaseHTML(t *testing.T) {
+	// TODO Juan: Update this test to use the real thing also make it a nettest
 	srcPath := filepath.Join("..", "testdata", "macoffice", "releases.html.bz2")
 	dstPath := filepath.Join(t.TempDir(), "releases.html")
 	extractFixture(t, srcPath, dstPath)

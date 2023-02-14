@@ -1,9 +1,13 @@
 package macoffice
 
 import (
+	"encoding/json"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/io"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/utils"
 )
 
@@ -95,4 +99,18 @@ func OfficeProductFromBundleId(bundleId string) (ProductType, bool) {
 		return Outlook, true
 	}
 	return WholeSuite, false
+}
+
+type ReleaseNotes []ReleaseNote
+
+func (rn ReleaseNotes) Serialize(d time.Time, dir string) error {
+	payload, err := json.Marshal(rn)
+	if err != nil {
+		return err
+	}
+
+	fileName := io.MacOfficeRelNotesFileName(d)
+	filePath := filepath.Join(dir, fileName)
+
+	return os.WriteFile(filePath, payload, 0o644)
 }
