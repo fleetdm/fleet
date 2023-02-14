@@ -274,11 +274,11 @@ type MDMAppleConfigProfile struct {
 }
 
 // AuthzType implements authz.AuthzTyper.
-func (m MDMAppleConfigProfile) AuthzType() string {
+func (cp MDMAppleConfigProfile) AuthzType() string {
 	return "mdm_apple_config_profile"
 }
 
-func (cp *MDMAppleConfigProfile) Validate() error {
+func (cp MDMAppleConfigProfile) Validate() error {
 	// TODO(sarah): Additional validations for PayloadContent (e.g., screening out FileVault payloads)
 	// should be handled here
 
