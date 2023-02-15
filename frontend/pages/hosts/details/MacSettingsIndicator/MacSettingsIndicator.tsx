@@ -23,7 +23,7 @@ const MacSettingsIndicator = ({
   tooltip,
 }: IMacSettingsIndicator): JSX.Element => {
   const getIndicatorTextWrapped = () => {
-    if (onClick && tooltip) {
+    if (onClick && tooltip?.tooltipText) {
       return (
         <>
           <span
@@ -67,13 +67,13 @@ const MacSettingsIndicator = ({
     }
 
     // tooltip without onclick
-    if (tooltip) {
+    if (tooltip?.tooltipText) {
       return (
         <>
           <span
             className="tooltip tooltip__tooltip-icon"
             data-tip
-            data-for="settings-indicator"
+            data-for={`${indicatorText}-tooltip`}
             data-tip-disable={false}
           >
             {indicatorText}
@@ -82,7 +82,7 @@ const MacSettingsIndicator = ({
             place={tooltip.position ?? "bottom"}
             effect="solid"
             backgroundColor="#3e4771"
-            id="settings-indicator"
+            id={`${indicatorText}-tooltip`}
             data-html
           >
             <span className="tooltip__tooltip-text">{tooltip.tooltipText}</span>
