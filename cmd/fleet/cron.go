@@ -403,10 +403,10 @@ func checkMacOfficeVulnerabilities(
 
 	err := macoffice.SyncFromGithub(ctx, vulnPath)
 	if err != nil {
-		errHandler(ctx, logger, "updating oval definitions", err)
+		errHandler(ctx, logger, "updating mac office release notes", err)
 	}
 
-	level.Debug(logger).Log("finished sync mac office releases")
+	level.Debug(logger).Log("finished sync mac office release notes")
 
 	start := time.Now()
 	r, err := macoffice.Analyze(ctx, ds, vulnPath, collectVulns)
