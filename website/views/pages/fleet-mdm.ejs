@@ -2,8 +2,9 @@
   <div purpose="hero-background" class="container-lg d-flex justify-content-center">
     <div purpose="hero-container" class="d-flex flex-column align-items-center">
       <div purpose="hero-text">
+        <h4>Limited beta</h4>
         <h1>A better MDM</h1>
-        <p>Legacy MDMs have left you in the dark for way too long. Fleet’s cross-platform MDM gives IT teams more visibility out of the box. Find out more in our limited beta.</p>
+        <p>Legacy MDMs have left you in the dark for way too long. Fleet’s cross-platform MDM gives IT teams more visibility out of the box.</p>
         <div purpose="button-row" class="d-flex flex-sm-row flex-column justify-content-center align-items-center">
           <a purpose="mdm-beta-button" @click="clickOpenSignupModal()">Request access</a>
           <a href="https://calendly.com/fleetdm/demo?utm_source=mdm+demo" target="_blank" purpose="animated-arrow-button-red">Talk to an expert</a>
@@ -12,7 +13,7 @@
       <img alt="The MDM page hero image" purpose="hero-image" class="d-none d-sm-block" src="/images/fleet-mdm-hero-1006x595@2x.png">
     </div>
   </div>
-  <div purpose="page-container" class="container-lg">
+  <!-- <div purpose="page-container" class="container-lg">
 
     <div purpose="section" class="mx-auto mb-0">
       <div class="d-flex flex-column text-left text-md-center">
@@ -113,7 +114,7 @@
       <img alt="The Atlassian logo" purpose="atlassian-logo" src="/images/logo-atlassian-muted-172x22@2x.png">
       <img alt="The Twilio Segment logo" purpose="segment-logo" src="/images/logo-segment-muted-150x34@2x.png">
     </div>
-  </div>
+  </div> -->
 
   <modal v-if="modal === 'beta-signup'" @close="closeModal()" data-backdrop="false" v-cloak purpose="modal">
     <div class="container d-flex flex-column justify-content-center align-items-center" purpose="modal-container">

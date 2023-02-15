@@ -28,12 +28,8 @@ import { IQuery, IFleetQueriesResponse } from "interfaces/query";
 import { IQueryStats } from "interfaces/query_stats";
 import { ISoftware } from "interfaces/software";
 import { ITeam } from "interfaces/team";
-import { IUser } from "interfaces/user";
-import permissionUtils from "utilities/permissions";
 
-import ReactTooltip from "react-tooltip";
 import Spinner from "components/Spinner";
-import Button from "components/buttons/Button";
 import TabsWrapper from "components/TabsWrapper";
 import MainContent from "components/MainContent";
 import InfoBanner from "components/InfoBanner";
@@ -63,10 +59,9 @@ import TransferHostModal from "../../components/TransferHostModal";
 import DeleteHostModal from "../../components/DeleteHostModal";
 
 import parseOsVersion from "./modals/OSPolicyModal/helpers";
-import DeleteIcon from "../../../../../assets/images/icon-action-delete-14x14@2x.png";
-import QueryIcon from "../../../../../assets/images/icon-action-query-16x16@2x.png";
-import TransferIcon from "../../../../../assets/images/icon-action-transfer-16x16@2x.png";
-import CloseIcon from "../../../../../assets/images/icon-action-close-16x15@2x.png";
+
+import DiskEncryptionKeyModal from "./modals/DiskEncryptionKeyModal";
+import HostActionDropdown from "./HostActionsDropdown/HostActionsDropdown";
 
 const baseClass = "host-details";
 
@@ -111,11 +106,9 @@ const HostDetailsPage = ({
   const hostIdFromURL = parseInt(host_id, 10);
   const {
     config,
-    currentUser,
-    isGlobalAdmin,
-    isPremiumTier,
+    isGlobalAdmin = false,
+    isPremiumTier = false,
     isOnlyObserver,
-    isGlobalMaintainer,
     filteredHostsPath,
   } = useContext(AppContext);
   const {
@@ -128,17 +121,6 @@ const HostDetailsPage = ({
   } = useContext(PolicyContext);
   const { renderFlash } = useContext(NotificationContext);
   const handlePageError = useErrorHandler();
-  const canTransferTeam =
-    isPremiumTier && (isGlobalAdmin || isGlobalMaintainer);
-
-  const canDeleteHost = (user: IUser, host: IHost) => {
-    return (
-      isGlobalAdmin ||
-      isGlobalMaintainer ||
-      permissionUtils.isTeamAdmin(user, host.team_id) ||
-      permissionUtils.isTeamMaintainer(user, host.team_id)
-    );
-  };
 
   const [showDeleteHostModal, setShowDeleteHostModal] = useState(false);
   const [showTransferHostModal, setShowTransferHostModal] = useState(false);
@@ -146,6 +128,7 @@ const HostDetailsPage = ({
   const [showPolicyDetailsModal, setPolicyDetailsModal] = useState(false);
   const [showOSPolicyModal, setShowOSPolicyModal] = useState(false);
   const [showUnenrollMdmModal, setShowUnenrollMdmModal] = useState(false);
+  const [showDiskEncryptionModal, setShowDiskEncryptionModal] = useState(false);
   const [selectedPolicy, setSelectedPolicy] = useState<IHostPolicy | null>(
     null
   );
@@ -333,19 +316,6 @@ const HostDetailsPage = ({
     }
   );
 
-  const canEditMdm = (() => {
-    const userHasPermission =
-      !!currentUser &&
-      !!host &&
-      (isGlobalAdmin ||
-        isGlobalMaintainer ||
-        permissionUtils.isTeamMaintainerOrTeamAdmin(currentUser, host.team_id));
-    const hostEnrolled = ["On (automatic)", "On (manual)"].includes(
-      host?.mdm.enrollment_status ?? ""
-    );
-    return userHasPermission && hostEnrolled;
-  })();
-
   const featuresConfig = host?.team_id
     ? teams?.find((t) => t.id === host.team_id)?.features
     : config?.features;
@@ -360,7 +330,7 @@ const HostDetailsPage = ({
         }) || []
       );
     });
-  }, [usersSearchString]);
+  }, [usersSearchString, host?.users]);
 
   const titleData = normalizeEmptyValues(
     pick(host, [
@@ -536,72 +506,40 @@ const HostDetailsPage = ({
     []
   );
 
+  const onSelectHostAction = (action: string) => {
+    switch (action) {
+      case "transfer":
+        setShowTransferHostModal(true);
+        break;
+      case "query":
+        setShowQueryHostModal(true);
+        break;
+      case "diskEncryption":
+        setShowDiskEncryptionModal(true);
+        break;
+      case "mdmOff":
+        toggleUnenrollMdmModal();
+        break;
+      case "delete":
+        setShowDeleteHostModal(true);
+        break;
+      default:
+    }
+  };
+
   const renderActionButtons = () => {
-    const isOnline = host?.status === "online";
+    if (!host) {
+      return null;
+    }
+
     return (
-      <div className={`${baseClass}__action-button-container`}>
-        {canTransferTeam && (
-          <Button
-            onClick={() => setShowTransferHostModal(true)}
-            variant="text-icon"
-            className={`${baseClass}__transfer-button`}
-          >
-            <>
-              Transfer <img src={TransferIcon} alt="Transfer host icon" />
-            </>
-          </Button>
-        )}
-        <div
-          data-tip
-          data-for="query"
-          data-tip-disable={isOnline}
-          className={`${!isOnline && "tooltip"}`}
-        >
-          <Button
-            onClick={() => setShowQueryHostModal(true)}
-            variant="text-icon"
-            disabled={!isOnline}
-            className={`${baseClass}__query-button`}
-          >
-            <>
-              Query <img src={QueryIcon} alt="Query host icon" />
-            </>
-          </Button>
-        </div>
-        <ReactTooltip
-          place="bottom"
-          effect="solid"
-          id="query"
-          backgroundColor="#3e4771"
-        >
-          <span className={`${baseClass}__tooltip-text`}>
-            You can’t query <br /> an offline host.
-          </span>
-        </ReactTooltip>
-        {canEditMdm && !hideEditMdm && (
-          <Button
-            onClick={toggleUnenrollMdmModal}
-            variant="text-icon"
-            className={`${baseClass}__unenroll-host-from-mdm-button`}
-            disabled={!isOnline}
-          >
-            <>
-              Turn off MDM{" "}
-              <img src={CloseIcon} alt="Unenroll host from mdm icon" />
-            </>
-          </Button>
-        )}
-        {currentUser && host && canDeleteHost(currentUser, host) && (
-          <Button
-            onClick={() => setShowDeleteHostModal(true)}
-            variant="text-icon"
-          >
-            <>
-              Delete <img src={DeleteIcon} alt="Delete host icon" />
-            </>
-          </Button>
-        )}
-      </div>
+      <HostActionDropdown
+        onSelect={onSelectHostAction}
+        teamId={host.team_id}
+        hostStatus={host.status}
+        hostMdmEnrollemntStatus={host.mdm.enrollment_status}
+        doesStoreEncryptionKey={host.mdm.encryption_key_available}
+      />
     );
   };
 
@@ -806,6 +744,12 @@ const HostDetailsPage = ({
             onSuccess={() => {
               setHideEditMdm(true);
             }}
+          />
+        )}
+        {showDiskEncryptionModal && host && (
+          <DiskEncryptionKeyModal
+            hostId={host.id}
+            onCancel={() => setShowDiskEncryptionModal(false)}
           />
         )}
       </div>

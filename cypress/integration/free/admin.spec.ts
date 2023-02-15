@@ -104,24 +104,12 @@ describe(
         hostDetailsPage.verifiesTeamsisDisabled();
         hostDetailsPage.hidesButton("Transfer");
       });
-      it("allows admin to delete the host", () => {
-        hostDetailsPage.allowsDeleteHost();
-      });
-      it("allows admin to custom query the host", () => {
-        hostDetailsPage.allowsCustomQueryHost();
-      });
     });
     describe("Manage software page", () => {
       beforeEach(() => {
         cy.loginWithCySession("anna@organization.com", GOOD_PASSWORD);
         manageSoftwarePage.visitManageSoftwarePage();
       });
-      // it(`displays "Vulnerabilities" column`, () => {
-      //   cy.getAttached("thead").within(() => {
-      //     cy.findByText(/vulnerabilities/i).should("exist");
-      //     cy.findByText(/probability of exploit/i).should("not.exist");
-      //   });
-      // });
       it("allows admin to click 'Manage automations' button", () => {
         manageSoftwarePage.allowsManageAutomations();
       });

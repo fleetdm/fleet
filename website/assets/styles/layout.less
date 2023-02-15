@@ -22,6 +22,8 @@ html, body {
   border-bottom: 1px solid #FFFFFF;
   box-shadow: 0px 1px 8px rgba(0, 0, 0, 0.08);
   backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+
   // rules for sticky nav transitions
   transition-property: background-color, transform, bottom;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
@@ -152,10 +154,9 @@ html, body {
     }
     [purpose='mobile-dropdown'] {
       [purpose='beta-label'] {
-        background: #8B8FA2;
+        background: linear-gradient(90deg, #FF5C83 0%, #6A67FE 100%);
         display: inline-block;
-        padding: 1px 3px;
-        border-radius: 4px;
+        padding: 1px 6px;
         text-transform: uppercase;
         color: #FFF;
         font-weight: 700;
@@ -260,10 +261,9 @@ html, body {
         text-decoration: none;
       }
       [purpose='beta-label'] {
-        background: #8B8FA2;
+        background: linear-gradient(90deg, #FF5C83 0%, #6A67FE 100%);
         display: inline-block;
-        padding: 1px 3px;
-        border-radius: 4px;
+        padding: 1px 6px;
         text-transform: uppercase;
         color: #FFF;
         font-weight: 700;

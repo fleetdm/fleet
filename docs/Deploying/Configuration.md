@@ -55,41 +55,13 @@ The `fleet` binary contains several "commands." Similarly to how `git` has many 
 
 You can specify options in the order of precedence via
 
-- a configuration file (in YAML format).
-- environment variables.
-- command-line flags.
+1. a configuration file (in YAML format)
+2. environment variables
+3. command-line flags
 
 For example, all of the following ways of launching Fleet are equivalent:
 
-##### Using only CLI flags
-
-```
-/usr/bin/fleet serve \
---mysql_address=127.0.0.1:3306 \
---mysql_database=fleet \
---mysql_username=root \
---mysql_password=toor \
---redis_address=127.0.0.1:6379 \
---server_cert=/tmp/server.cert \
---server_key=/tmp/server.key \
---logging_json
-```
-
-##### Using only environment variables
-
-```
-FLEET_MYSQL_ADDRESS=127.0.0.1:3306 \
-FLEET_MYSQL_DATABASE=fleet \
-FLEET_MYSQL_USERNAME=root \
-FLEET_MYSQL_PASSWORD=toor \
-FLEET_REDIS_ADDRESS=127.0.0.1:6379 \
-FLEET_SERVER_CERT=/tmp/server.cert \
-FLEET_SERVER_KEY=/tmp/server.key \
-FLEET_LOGGING_JSON=true \
-/usr/bin/fleet serve
-```
-
-##### Using a YAML config file
+##### 1. Using a YAML config file
 
 ```
 echo '
@@ -111,6 +83,35 @@ fleet serve --config /tmp/fleet.yml
 ```
 
 For more information on using YAML configuration files with fleet, please see the [configuration files](https://fleetdm.com/docs/using-fleet/configuration-files) documentation.
+
+##### 2. Using only environment variables
+
+```
+FLEET_MYSQL_ADDRESS=127.0.0.1:3306 \
+FLEET_MYSQL_DATABASE=fleet \
+FLEET_MYSQL_USERNAME=root \
+FLEET_MYSQL_PASSWORD=toor \
+FLEET_REDIS_ADDRESS=127.0.0.1:6379 \
+FLEET_SERVER_CERT=/tmp/server.cert \
+FLEET_SERVER_KEY=/tmp/server.key \
+FLEET_LOGGING_JSON=true \
+/usr/bin/fleet serve
+```
+
+##### 3. Using only CLI flags
+
+```
+/usr/bin/fleet serve \
+--mysql_address=127.0.0.1:3306 \
+--mysql_database=fleet \
+--mysql_username=root \
+--mysql_password=toor \
+--redis_address=127.0.0.1:6379 \
+--server_cert=/tmp/server.cert \
+--server_key=/tmp/server.key \
+--logging_json
+```
+
 
 ### What are the options?
 
@@ -224,7 +225,7 @@ The path to a PEM encoded certificate is used for TLS authentication.
 
 ##### mysql_tls_key
 
-The path to a PEM encoded private key uses for TLS authentication.
+The path to a PEM encoded private key used for TLS authentication.
 
 - Default value: none
 - Environment variable: `FLEET_MYSQL_TLS_KEY`
@@ -394,7 +395,7 @@ Use a TLS connection to the Redis server.
 
 ##### redis_duplicate_results
 
-Whether or not to duplicate Live Query results to another Redis channel named `LQDuplicate`. This is useful in a scenario involving shipping the Live Query results outside of Fleet, near-realtime.
+Whether or not to duplicate Live Query results to another Redis channel named `LQDuplicate`. This is useful in a scenario involving shipping the Live Query results outside of Fleet, near real-time.
 
 - Default value: `false`
 - Environment variable: `FLEET_REDIS_DUPLICATE_RESULTS`
@@ -903,7 +904,7 @@ The identifier to use when determining uniqueness of hosts.
 
 Options are `provided` (default), `uuid`, `hostname`, or `instance`.
 
-This setting works in combination with the `--host_identifier` flag in osquery. In most deployments, using `uuid` will be the best option. The flag defaults to `provided` -- preserving the existing behavior of Fleet's handling of host identifiers -- using the identifier provided by osquery. `instance`, `uuid`, and `hostname` correspond to the same meanings as for osquery's `--host_identifier` flag.
+This setting works in combination with the `--host_identifier` flag in osquery. In most deployments, using `uuid` will be the best option. The flag defaults to `provided` -- preserving the existing behavior of Fleet's handling of host identifiers -- using the identifier provided by osquery. `instance`, `uuid`, and `hostname` correspond to the same meanings as osquery's `--host_identifier` flag.
 
 Users that have duplicate UUIDs in their environment can benefit from setting this flag to `instance`.
 
@@ -1031,7 +1032,7 @@ to the amount of time it takes for Fleet to give the host the label queries.
 
 ##### osquery_enable_async_host_processing
 
-**Experimental feature**. Enable asynchronous processing of hosts' query results. Currently, only supported for label query execution, policy membership results, hosts' last seen timestamp and hosts' scheduled query statistics. This may improve the performance and CPU usage of the Fleet instances and MySQL database servers for setups with a large number of hosts while requiring more resources from Redis server(s).
+**Experimental feature**. Enable asynchronous processing of hosts' query results. Currently, asyncronous processing is only supported for label query execution, policy membership results, hosts' last seen timestamp, and hosts' scheduled query statistics. This may improve the performance and CPU usage of the Fleet instances and MySQL database servers for setups with a large number of hosts while requiring more resources from Redis server(s).
 
 Note that currently, if both the failing policies webhook *and* this `osquery.enable_async_host_processing` option are set, some failing policies webhooks could be missing (some transitions from succeeding to failing or vice-versa could happen without triggering a webhook request).
 
@@ -2808,7 +2809,7 @@ After modifying the configuration you will need to reload and restart the Fleet 
 
 Fleet supports SAML single sign-on capability.
 
-Fleet supports both SP-initiated SAML login and IDP-initiated login however, IDP-initiated login must be enabled in the web interface's SAML single sign-on options.
+Fleet supports both SP-initiated SAML login and IDP-initiated login. However, IDP-initiated login must be enabled in the web interface's SAML single sign-on options.
 
 Fleet supports the SAML Web Browser SSO Profile using the HTTP Redirect Binding.
 
@@ -2843,7 +2844,7 @@ Otherwise, the following values are required:
 - _Identity provider name_ - A human-readable name of the IDP. This is rendered on the login page.
 
 - _Entity ID_ - A URI that identifies your Fleet instance as the issuer of authorization
-  requests (e.g., `fleet.example.com`). This much match the _Entity ID_ configured with the IDP.
+  requests (e.g., `fleet.example.com`). This must match the _Entity ID_ configured with the IDP.
 
 - _Issuer URI_ - Obtain this value from the IDP.
 

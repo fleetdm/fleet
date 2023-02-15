@@ -87,6 +87,7 @@ export interface IMunkiData {
 }
 
 export interface IHostMdmData {
+  encryption_key_available: boolean;
   enrollment_status: MdmEnrollmentStatus | null;
   server_url: string;
   id?: number;
@@ -147,6 +148,14 @@ export interface IDeviceUserResponse {
   disk_encryption_enabled?: boolean;
   platform?: string;
   global_config: IDeviceGlobalConfig;
+}
+
+export interface IHostEncrpytionKeyResponse {
+  host_id: number;
+  encryption_key: {
+    updated_at: string;
+    key: string;
+  };
 }
 
 export interface IHost {

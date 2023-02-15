@@ -9,11 +9,134 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"github.com/jmoiron/sqlx"
 	"github.com/micromdm/nanodep/godep"
 )
+
+func (ds *Datastore) NewMDMAppleConfigProfile(ctx context.Context, cp fleet.MDMAppleConfigProfile) (*fleet.MDMAppleConfigProfile, error) {
+	stmt := `
+INSERT INTO
+    mdm_apple_configuration_profiles (team_id, identifier, name, mobileconfig)
+VALUES (?, ?, ?, ?)`
+
+	var teamID uint
+	if cp.TeamID != nil {
+		teamID = *cp.TeamID
+	}
+
+	res, err := ds.writer.ExecContext(ctx, stmt, teamID, cp.Identifier, cp.Name, cp.Mobileconfig)
+	if err != nil {
+		switch {
+		case isDuplicate(err):
+			return nil, ctxerr.Wrap(ctx, formatErrorDuplicateConfigProfile(err, &cp))
+		default:
+			return nil, ctxerr.Wrap(ctx, err, "creating new mdm config profile")
+		}
+	}
+
+	id, _ := res.LastInsertId()
+
+	return &fleet.MDMAppleConfigProfile{
+		ProfileID:    uint(id),
+		Identifier:   cp.Identifier,
+		Name:         cp.Name,
+		Mobileconfig: cp.Mobileconfig,
+		TeamID:       cp.TeamID,
+	}, nil
+}
+
+func formatErrorDuplicateConfigProfile(err error, cp *fleet.MDMAppleConfigProfile) error {
+	switch {
+	case strings.Contains(err.Error(), "idx_mdm_apple_config_prof_team_identifier"):
+		return &existsError{
+			ResourceType: "MDMAppleConfigProfile.PayloadIdentifier",
+			Identifier:   cp.Identifier,
+			TeamID:       cp.TeamID,
+		}
+	case strings.Contains(err.Error(), "idx_mdm_apple_config_prof_team_name"):
+		return &existsError{
+			ResourceType: "MDMAppleConfigProfile.PayloadDisplayName",
+			Identifier:   cp.Name,
+			TeamID:       cp.TeamID,
+		}
+	default:
+		return err
+	}
+}
+
+func (ds *Datastore) ListMDMAppleConfigProfiles(ctx context.Context, teamID *uint) ([]*fleet.MDMAppleConfigProfile, error) {
+	stmt := `
+SELECT 
+	profile_id, 
+	team_id, 
+	name, 
+	identifier, 
+	mobileconfig, 
+	created_at, 
+	updated_at 
+FROM 
+	mdm_apple_configuration_profiles 
+WHERE 
+	team_id=?`
+
+	if teamID == nil {
+		teamID = ptr.Uint(0)
+	}
+
+	var res []*fleet.MDMAppleConfigProfile
+	err := sqlx.SelectContext(ctx, ds.reader, &res, stmt, teamID)
+	if err != nil {
+		return nil, err
+	}
+	return res, nil
+}
+
+func (ds *Datastore) GetMDMAppleConfigProfile(ctx context.Context, profileID uint) (*fleet.MDMAppleConfigProfile, error) {
+	stmt := `
+SELECT 
+	profile_id, 
+	team_id, 
+	name, 
+	identifier, 
+	mobileconfig, 
+	created_at, 
+	updated_at 
+FROM 
+	mdm_apple_configuration_profiles 
+WHERE 
+	profile_id=?`
+
+	var res fleet.MDMAppleConfigProfile
+	err := sqlx.GetContext(ctx, ds.reader, &res, stmt, profileID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("MDMAppleConfigProfile").WithID(profileID))
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get mdm apple config profile")
+	}
+
+	return &res, nil
+}
+
+func (ds *Datastore) DeleteMDMAppleConfigProfile(ctx context.Context, profileID uint) error {
+	res, err := ds.writer.ExecContext(ctx, `DELETE FROM mdm_apple_configuration_profiles WHERE profile_id=?`, profileID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err)
+	}
+
+	deleted, err := res.RowsAffected()
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "fetching delete mdm config profile query rows affected")
+	}
+	if deleted != 1 {
+		return ctxerr.Wrap(ctx, notFound("MDMAppleConfigProfile").WithID(profileID))
+	}
+
+	return nil
+}
 
 func (ds *Datastore) NewMDMAppleEnrollmentProfile(
 	ctx context.Context,
@@ -380,10 +503,12 @@ func insertMDMAppleHostDB(
 
 func (ds *Datastore) IngestMDMAppleDevicesFromDEPSync(ctx context.Context, devices []godep.Device) (int64, error) {
 	if len(devices) < 1 {
+		level.Debug(ds.logger).Log("msg", "ingesting devices from DEP received < 1 device, skipping", "len(devices)", len(devices))
 		return 0, nil
 	}
-	filteredDevices := filterMDMAppleDevices(devices)
+	filteredDevices := filterMDMAppleDevices(devices, ds.logger)
 	if len(filteredDevices) < 1 {
+		level.Debug(ds.logger).Log("msg", "ingesting devices from DEP filtered all devices, skipping", "len(devices)", len(devices))
 		return 0, nil
 	}
 
@@ -397,6 +522,12 @@ func (ds *Datastore) IngestMDMAppleDevicesFromDEPSync(ctx context.Context, devic
 		team, err := ds.TeamByName(ctx, name)
 		switch {
 		case errors.Is(err, sql.ErrNoRows):
+			level.Debug(ds.logger).Log(
+				"msg",
+				"ingesting devices from DEP: unable to find default team assigned in config, the devices won't be assigned to a team",
+				"team_name",
+				name,
+			)
 			// If the team doesn't exist, we still ingest the device, but it won't
 			// belong to any team.
 		case err != nil:
@@ -590,14 +721,9 @@ func (ds *Datastore) UpdateHostTablesOnMDMUnenroll(ctx context.Context, uuid str
 	})
 }
 
-func filterMDMAppleDevices(devices []godep.Device) []godep.Device {
+func filterMDMAppleDevices(devices []godep.Device, logger log.Logger) []godep.Device {
 	var filtered []godep.Device
 	for _, device := range devices {
-		// We currently only support macOS devices so we screen out iOS
-		// and tvOS.
-		if strings.ToLower(device.OS) != "osx" {
-			continue
-		}
 		// We currently only listen for an op_type of "added", the
 		// other op_types are ambiguous and it would be needless to
 		// ingest the device every single time we get an update.
@@ -606,8 +732,11 @@ func filterMDMAppleDevices(devices []godep.Device) []godep.Device {
 			// API call, Empty op_type come from the first call to
 			// FetchDevices without a cursor.
 			strings.ToLower(device.OpType) == "" {
+			level.Debug(logger).Log("msg", "filterMDMAppleDevices: adding device", "serial", device.SerialNumber, "op_type", device.OpType, "os", device.OS)
 			filtered = append(filtered, device)
+			continue
 		}
+		level.Debug(logger).Log("msg", "filterMDMAppleDevices: skipping device", "serial", device.SerialNumber, "op_type", device.OpType, "os", device.OS)
 	}
 	return filtered
 }
