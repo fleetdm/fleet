@@ -927,29 +927,31 @@ spec:
     AND
     value = 'Administrators';
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-2.2.28
+  tags: compliance, CIS, CIS_Level2, CIS-win10-stand-alone-2.2.28
   contributors: sharon-fdm
 ---
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - AAAAAAAA
+  name: CIS - Configure 'Log on as a service'
   platforms: win10
   platform: windows
   description: |
-    BBBBBBBBB
+    This policy setting allows accounts to launch network services or to register a process as a service running on the system. This user right should be restricted on any computer in a high security environment, but because many applications may require this privilege, it should be carefully evaluated and tested before configuring it in an enterprise environment. On Windows Vista-based (and newer) computers, no users or groups have this privilege by default.
+    The recommended state for this setting is: No One or (when the Hyper-V feature is installed) NT VIRTUAL MACHINE\Virtual Machines.
+    Note: The Hyper-V feature was first introduced on Windows workstations with the 64-bit version of Windows 8.0, so the NT VIRTUAL MACHINE\Virtual Machines option does not apply to Windows 7 (or older) versions of Windows. Older OSes should only be configured for No One.
   resolution: |
     Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'CCCCCCCCC':
-    'DDDDDDDD'
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'No One':
+    'Computer Configuration\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Log on as a service'
   query: |
     SELECT 1 FROM group_policy
     WHERE
-    path = 'DDDDDDDD'
+    path = 'Computer Configuration\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Log on as a service'
     AND
-    value = 'CCCCCCCCC';
+    value = 'No One';
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-YYYYY
+  tags: compliance, CIS, CIS_Level2, CIS-win10-stand-alone-2.2.29
   contributors: sharon-fdm
 ---
 apiVersion: v1
