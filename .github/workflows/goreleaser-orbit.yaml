@@ -54,7 +54,7 @@ jobs:
           go-version: ${{ vars.GO_VERSION }}
 
       - name: Run GoReleaser
-        run: go run github.com/goreleaser/goreleaser@v1.9.2 release --rm-dist --skip-publish -f orbit/goreleaser-macos.yml
+        run: go run github.com/goreleaser/goreleaser@v1.9.2 release --debug --rm-dist --skip-publish -f orbit/goreleaser-macos.yml
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           AC_USERNAME: ${{ secrets.APPLE_USERNAME }}
@@ -88,7 +88,7 @@ jobs:
           go-version: ${{ vars.GO_VERSION }}
 
       - name: Run GoReleaser
-        run: go run github.com/goreleaser/goreleaser@v1.9.2 release --rm-dist --skip-publish -f orbit/goreleaser-linux.yml
+        run: go run github.com/goreleaser/goreleaser@v1.9.2 release --debug --rm-dist --skip-publish -f orbit/goreleaser-linux.yml
 
       - name: Upload
         uses: actions/upload-artifact@3cea5372237819ed00197afe530f5a7ea3e805c8 # v2
@@ -116,7 +116,7 @@ jobs:
           go-version: ${{ vars.GO_VERSION }}
 
       - name: Run GoReleaser
-        run: go run github.com/goreleaser/goreleaser@v1.9.2 release --rm-dist --skip-publish -f orbit/goreleaser-windows.yml
+        run: go run github.com/goreleaser/goreleaser@v1.9.2 release --debug --rm-dist --skip-publish -f orbit/goreleaser-windows.yml
 
       - name: Upload
         uses: actions/upload-artifact@3cea5372237819ed00197afe530f5a7ea3e805c8 # v2
