@@ -1,13 +1,11 @@
 package macoffice_test
 
 import (
-	"compress/bzip2"
-	"io"
-	"os"
-	"path/filepath"
+	"net/http"
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/nettest"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/macoffice"
 	"github.com/stretchr/testify/require"
 )
@@ -655,29 +653,14 @@ var expected = []macoffice.ReleaseNote{
 	},
 }
 
-func extractFixture(t *testing.T, src, dst string) {
-	srcF, err := os.Open(src)
-	require.NoError(t, err)
-	defer srcF.Close()
-	dstF, err := os.Create(dst)
-	require.NoError(t, err)
-	defer dstF.Close()
-	r := bzip2.NewReader(srcF)
-	// ignoring "G110: Potential DoS vulnerability via decompression bomb", as this is test code.
-	_, err = io.Copy(dstF, r) //nolint:gosec
-	require.NoError(t, err)
-}
-
 func TestParseReleaseHTML(t *testing.T) {
-	srcPath := filepath.Join("..", "testdata", "macoffice", "releases.html.bz2")
-	dstPath := filepath.Join(t.TempDir(), "releases.html")
-	extractFixture(t, srcPath, dstPath)
+	nettest.Run(t)
 
-	reader, err := os.Open(dstPath)
+	res, err := http.Get(macoffice.RelNotesURL)
 	require.NoError(t, err)
-	defer reader.Close()
+	defer res.Body.Close()
 
-	actual, err := macoffice.ParseReleaseHTML(reader)
+	actual, err := macoffice.ParseReleaseHTML(res.Body)
 	require.NoError(t, err)
 	require.NotEmpty(t, actual)
 
@@ -692,7 +675,7 @@ func TestParseReleaseHTML(t *testing.T) {
 			actualDates = append(actualDates, a.Date)
 		}
 
-		require.Equal(t, expectedDates, actualDates)
+		require.Subset(t, actualDates, expectedDates)
 	})
 
 	t.Run("should parse release versions", func(t *testing.T) {
@@ -706,7 +689,7 @@ func TestParseReleaseHTML(t *testing.T) {
 			actualVersions = append(actualVersions, a.Version)
 		}
 
-		require.Equal(t, expectedVersions, actualVersions)
+		require.Subset(t, actualVersions, expectedVersions)
 	})
 
 	t.Run("should parse security updates", func(t *testing.T) {
@@ -720,6 +703,6 @@ func TestParseReleaseHTML(t *testing.T) {
 			actualUpdates = append(actualUpdates, a.SecurityUpdates...)
 		}
 
-		require.Equal(t, expectedUpdates, actualUpdates)
+		require.Subset(t, actualUpdates, expectedUpdates)
 	})
 }

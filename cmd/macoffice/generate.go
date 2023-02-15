@@ -28,6 +28,7 @@ func main() {
 	fmt.Println("Downloading and parsing Mac Office rel notes...")
 	res, err := http.Get(macoffice.RelNotesURL)
 	panicif(err)
+	defer res.Body.Close()
 
 	parsed, err := macoffice.ParseReleaseHTML(res.Body)
 	panicif(err)
