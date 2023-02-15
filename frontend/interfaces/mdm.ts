@@ -58,7 +58,7 @@ export interface IMdmSummaryResponse {
 export type IMacMdmProfile = {
   name: string;
   status: "failed" | "pending" | "applied";
-  detail: "" | "Removing enforcement" | "Enforcing" | "Action required";
+  detail: "" | "Removing enforcement" | "Enforcing";
   error: string;
 };
 export type IMacSettings = IMacMdmProfile[];

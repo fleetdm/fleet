@@ -1,6 +1,10 @@
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import React from "react";
 import { IMacMdmProfile } from "interfaces/mdm";
+import { uniqueId } from "lodash";
+import ReactTooltip from "react-tooltip";
+import { COLORS } from "styles/var/colors";
+import TruncatedTextCell from "components/TableContainer/DataTable/TruncatedTextCell";
 import MacSettingsIndicator from "../../MacSettingsIndicator";
 
 interface IHeaderProps {
@@ -39,8 +43,6 @@ const getStatusDisplayOptions = (
 } => {
   const SETTING_STATUS_OPTIONS = {
     pending: {
-      "Action required":
-        "Follow Disk encryption instructions on your My device page.",
       Enforcing: "Setting will be enforced when the host comes online.",
       "Removing enforcement":
         "Enforcement will be removed when the host comes online.",
@@ -48,8 +50,7 @@ const getStatusDisplayOptions = (
     },
     applied: {
       iconName: "success",
-      tooltipText:
-        "Disk encryption on and disk encryption key stored in Fleet.",
+      tooltipText: "Host applied the setting.",
     },
     failed: { iconName: "error", tooltipText: null },
   } as const;
@@ -104,7 +105,7 @@ const tableHeaders: IDataColumn[] = [
     accessor: "error",
     Cell: (cellProps: ICellProps): JSX.Element => {
       const error = cellProps.row.original.error;
-      return <TextCell value={error || "---"} />;
+      return <TruncatedTextCell value={error || "---"} />;
     },
   },
 ];
