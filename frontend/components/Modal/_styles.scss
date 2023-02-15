@@ -67,7 +67,8 @@
   &__modal_container {
     @include position(absolute, 22px null null null);
     background-color: $core-white;
-    width: 570px;
+    // TODO: confirm modal width behavior
+    min-width: 570px;
     padding: $pad-xxlarge;
     border-radius: 8px;
     animation: scale-up 150ms ease-out;

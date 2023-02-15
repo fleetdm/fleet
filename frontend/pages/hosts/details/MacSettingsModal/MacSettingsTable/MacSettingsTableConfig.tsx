@@ -92,7 +92,7 @@ const tableHeaders: IDataColumn[] = [
         <MacSettingsIndicator
           indicatorText={statusText}
           iconName={iconName}
-          tooltip={{ tooltipText }}
+          tooltip={{ tooltipText, position: "top" }}
         />
       );
     },
