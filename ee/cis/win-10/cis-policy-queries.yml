@@ -752,111 +752,134 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - AAAAAAAA
+  name: CIS - Ensure 'Force shutdown from a remote system' is set to 'Administrators'
   platforms: win10
   platform: windows
   description: |
-    BBBBBBBBB
+    This policy setting allows users to shut down Windows Vista-based and newer computers from remote locations on the network. Anyone who has been assigned this user right can cause a denial of service (DoS) condition, which would make the computer unavailable to service user requests. Therefore, it is recommended that only highly trusted administrators be assigned this user right.
+    The recommended state for this setting is: Administrators.
+    Rationale:
+    Any user who can shut down a computer could cause a DoS condition to occur. Therefore, this user right should be tightly restricted.
   resolution: |
     Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'CCCCCCCCC':
-    'DDDDDDDD'
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'Administrators':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Force shutdown from a remote system'
   query: |
     SELECT 1 FROM group_policy
     WHERE
-    path = 'DDDDDDDD'
+    path = 'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Force shutdown from a remote system'
     AND
-    value = 'CCCCCCCCC';
+    value = 'Administrators';
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-YYYYY
+  tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-2.2.22
   contributors: sharon-fdm
 ---
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - AAAAAAAA
+  name: CIS - Ensure 'Generate security audits' is set to 'LOCAL SERVICE, NETWORK SERVICE'
   platforms: win10
   platform: windows
   description: |
-    BBBBBBBBB
+    This policy setting determines which users or processes can generate audit records in the Security log.
+    The recommended state for this setting is: LOCAL SERVICE, NETWORK SERVICE.
+    Note: This user right is considered a "sensitive privilege" for the purposes of auditing. Rationale:
+    An attacker could use this capability to create a large number of audited events, which would make it more difficult for a system administrator to locate any illicit activity. Also, if the event log is configured to overwrite events as needed, any evidence of unauthorized activities could be overwritten by a large number of unrelated events.
   resolution: |
     Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'CCCCCCCCC':
-    'DDDDDDDD'
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'LOCAL SERVICE, NETWORK SERVICE':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Generate security audits'
   query: |
     SELECT 1 FROM group_policy
     WHERE
-    path = 'DDDDDDDD'
+    path = 'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Generate security audits'
     AND
-    value = 'CCCCCCCCC';
+    value = 'LOCAL SERVICE, NETWORK SERVICE';
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-YYYYY
+  tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-2.2.23
   contributors: sharon-fdm
 ---
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - AAAAAAAA
+  name: CIS - Ensure 'Impersonate a client after authentication' is set to 'Administrators, LOCAL SERVICE, NETWORK SERVICE, SERVICE'
   platforms: win10
   platform: windows
   description: |
-    BBBBBBBBB
+    The policy setting allows programs that run on behalf of a user to impersonate that user (or another specified account) so that they can act on behalf of the user. If this user right is required for this kind of impersonation, an unauthorized user will not be able to convince a client to connect—for example, by remote procedure call (RPC) or named pipes—to a service that they have created to impersonate that client, which could elevate the unauthorized user's permissions to administrative or system levels.
+    Services that are started by the Service Control Manager have the built-in Service group added by default to their access tokens. COM servers that are started by the COM infrastructure and configured to run under a specific account also have the Service group added to their access tokens. As a result, these processes are assigned this user right when they are started.
+    Also, a user can impersonate an access token if any of the following conditions exist:
+    -The access token that is being impersonated is for this user.
+    -The user, in this logon session, logged on to the network with explicit credentials
+    to create the access token.
+    -The requested level is less than Impersonate, such as Anonymous or Identify.
+    An attacker with the Impersonate a client after authentication user right could create a service, trick a client to make them connect to the service, and then impersonate that client to elevate the attacker's level of access to that of the client.
+    The recommended state for this setting is: Administrators, LOCAL SERVICE, NETWORK SERVICE, SERVICE.
+    Note: This user right is considered a "sensitive privilege" for the purposes of auditing.
+    Rationale:
+    An attacker with the Impersonate a client after authentication user right could create a service, trick a client to make them connect to the service, and then impersonate that client to elevate the attacker's level of access to that of the client.
   resolution: |
     Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'CCCCCCCCC':
-    'DDDDDDDD'
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'Administrators, LOCAL SERVICE, NETWORK SERVICE, SERVICE':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Impersonate a client after authentication'
   query: |
     SELECT 1 FROM group_policy
     WHERE
-    path = 'DDDDDDDD'
+    path = 'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Impersonate a client after authentication'
     AND
-    value = 'CCCCCCCCC';
+    value = 'Administrators, LOCAL SERVICE, NETWORK SERVICE, SERVICE';
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-YYYYY
+  tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-2.2.24
   contributors: sharon-fdm
 ---
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - AAAAAAAA
+  name: CIS - Ensure 'Increase scheduling priority' is set to 'Administrators, Window Manager\Window Manager Group'
   platforms: win10
   platform: windows
   description: |
-    BBBBBBBBB
+    This policy setting determines whether users can increase the base priority class of a process. (It is not a privileged operation to increase relative priority within a priority class.) This user right is not required by administrative tools that are supplied with the operating system but might be required by software development tools.
+    The recommended state for this setting is: Administrators, Window Manager\Window Manager Group.
+    Rationale:
+    A user who is assigned this user right could increase the scheduling priority of a process to Real-Time, which would leave little processing time for all other processes and could lead to a DoS condition.
   resolution: |
     Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'CCCCCCCCC':
-    'DDDDDDDD'
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'Administrators, Window Manager\Window Manager Group':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Increase scheduling priority'
   query: |
     SELECT 1 FROM group_policy
     WHERE
-    path = 'DDDDDDDD'
+    path = 'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Increase scheduling priority'
     AND
-    value = 'CCCCCCCCC';
+    value = 'Administrators, Window Manager\Window Manager Group';
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-YYYYY
+  tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-2.2.25
   contributors: sharon-fdm
 ---
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - AAAAAAAA
+  name: CIS - Ensure 'Load and unload device drivers' is set to 'Administrators'
   platforms: win10
   platform: windows
   description: |
-    BBBBBBBBB
+    This policy setting allows users to dynamically load a new device driver on a system. An attacker could potentially use this capability to install malicious code that appears to be a device driver. This user right is required for users to add local printers or printer drivers in Windows Vista.
+    The recommended state for this setting is: Administrators.
+    Note: This user right is considered a "sensitive privilege" for the purposes of auditing. Rationale:
+    Device drivers run as highly privileged code. A user who has the Load and unload device drivers user right could unintentionally install malicious code that masquerades as a device driver. Administrators should exercise greater care and install only drivers with verified digital signatures.
   resolution: |
     Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'CCCCCCCCC':
-    'DDDDDDDD'
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'Administrators':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Load and unload device drivers'
   query: |
     SELECT 1 FROM group_policy
     WHERE
-    path = 'DDDDDDDD'
+    path = 'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Load and unload device drivers'
     AND
-    value = 'CCCCCCCCC';
+    value = 'Administrators';
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-YYYYY
+  tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-2.2.26
   contributors: sharon-fdm
 ---
 apiVersion: v1
