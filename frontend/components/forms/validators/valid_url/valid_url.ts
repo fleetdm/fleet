@@ -1,13 +1,16 @@
 interface IValidUrl {
   url: string;
-  isHttp?: boolean;
+  protocol?: string;
 }
 
-export default ({ url, isHttp = false }: IValidUrl): boolean => {
+export default ({ url, protocol }: IValidUrl): boolean => {
   try {
     const newUrl = new URL(url);
-    if (isHttp) {
+    if (protocol === "http") {
       return newUrl.protocol === "http:" || newUrl.protocol === "https:";
+    }
+    if (protocol === "https") {
+      return newUrl.protocol === "https:";
     }
     return true;
   } catch (e) {

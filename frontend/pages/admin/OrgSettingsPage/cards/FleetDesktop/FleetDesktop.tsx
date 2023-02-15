@@ -41,7 +41,7 @@ const FleetDesktop = ({
     const { transparencyUrl } = formData;
 
     const errors: IAppConfigFormErrors = {};
-    if (transparencyUrl && !validUrl({ url: transparencyUrl, isHttp: true })) {
+    if (transparencyUrl && !validUrl({ url: transparencyUrl })) {
       errors.transparency_url = `${transparencyUrl} is not a valid URL`;
     }
 

@@ -41,7 +41,7 @@ const Info = ({
       errors.org_name = "Organization name must be present";
     }
 
-    if (orgLogoURL && !validUrl({ url: orgLogoURL, isHttp: true })) {
+    if (orgLogoURL && !validUrl({ url: orgLogoURL })) {
       errors.org_logo_url = `${orgLogoURL} is not a valid URL`;
     }
 

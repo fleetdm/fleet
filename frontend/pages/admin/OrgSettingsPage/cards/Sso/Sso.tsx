@@ -47,15 +47,15 @@ const Sso = ({
   });
 
   const {
-    enableSso: enableSso,
+    enableSso,
     idpName,
-    entityId: entityId,
-    issuerUri: issuerUri,
-    idpImageUrl: idpImageUrl,
+    entityId,
+    issuerUri,
+    idpImageUrl,
     metadata,
-    metadataUrl: metadataUrl,
-    enableSsoIdpLogin: enableSssoIdpLogin,
-    enableJitProvisioning: enableJitProvisioning,
+    metadataUrl,
+    enableSsoIdpLogin,
+    enableJitProvisioning,
   } = formData;
 
   const [formErrors, setFormErrors] = useState<IAppConfigFormErrors>({});
@@ -68,14 +68,15 @@ const Sso = ({
     const errors: IAppConfigFormErrors = {};
 
     if (enableSso) {
-      if (idpImageUrl && !validUrl({ url: idpImageUrl, isHttp: true })) {
+      if (idpImageUrl && !validUrl({ url: idpImageUrl })) {
         errors.idp_image_url = `${idpImageUrl} is not a valid URL`;
       }
 
       if (!metadata) {
         if (!metadataUrl) {
-          errors.metadata_url = "Metadata URL must be present";
-        } else if (!validUrl({ url: metadataUrl, isHttp: true })) {
+          errors.metadata_url = "Metadata or Metadata URL must be present";
+          errors.metadata = "Metadata or Metadata URL must be present";
+        } else if (!validUrl({ url: metadataUrl })) {
           errors.metadata_url = `${metadataUrl} is not a valid URL`;
         }
       }
@@ -98,7 +99,7 @@ const Sso = ({
 
   useEffect(() => {
     validateForm();
-  }, [enableSso]);
+  }, [idpImageUrl, metadata, metadataUrl, entityId, idpName]);
 
   const onFormSubmit = (evt: React.MouseEvent<HTMLFormElement>) => {
     evt.preventDefault();
@@ -113,7 +114,7 @@ const Sso = ({
         metadata_url: metadataUrl?.trim(),
         idp_name: idpName?.trim(),
         enable_sso: enableSso,
-        enable_sso_idp_login: enableSssoIdpLogin,
+        enable_sso_idp_login: enableSsoIdpLogin,
         enable_jit_provisioning: enableJitProvisioning,
       },
     };
@@ -128,7 +129,7 @@ const Sso = ({
         <div className={`${baseClass}__inputs`}>
           <Checkbox
             onChange={handleInputChange}
-            name="enableSSO"
+            name="enableSso"
             value={enableSso}
             parseTarget
           >
@@ -196,6 +197,7 @@ const Sso = ({
             value={metadata}
             parseTarget
             onBlur={validateForm}
+            error={formErrors.metadata}
             tooltip="Metadata provided by the identity provider. Either<br/> metadata or a metadata url must be provided."
           />
         </div>
@@ -220,8 +222,8 @@ const Sso = ({
         <div className={`${baseClass}__inputs`}>
           <Checkbox
             onChange={handleInputChange}
-            name="enableSSOIDPLogin"
-            value={enableSssoIdpLogin}
+            name="enableSsoIdpLogin"
+            value={enableSsoIdpLogin}
             parseTarget
           >
             Allow SSO login initiated by identity provider
@@ -231,7 +233,7 @@ const Sso = ({
           <div className={`${baseClass}__inputs`}>
             <Checkbox
               onChange={handleInputChange}
-              name="enableJITProvisioning"
+              name="enableJitProvisioning"
               value={enableJitProvisioning}
               parseTarget
             >

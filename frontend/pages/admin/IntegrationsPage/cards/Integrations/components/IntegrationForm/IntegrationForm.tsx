@@ -88,12 +88,8 @@ const IntegrationForm = ({
   const validateForm = () => {
     let error = null;
 
-    if (url) {
-      if (url.slice(0, 8) !== "https://") {
-        error = "URL must begin with https://";
-      } else if (!validUrl({ url, isHttp: true })) {
-        error = `${url} is not a valid URL`;
-      }
+    if (url && !validUrl({ url, protocol: "https" })) {
+      error = `${url} is not a valid HTTPS URL`;
     }
 
     setUrlError(error);

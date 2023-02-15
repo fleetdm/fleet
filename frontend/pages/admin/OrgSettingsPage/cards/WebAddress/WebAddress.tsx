@@ -35,7 +35,7 @@ const WebAddress = ({
     const errors: IAppConfigFormErrors = {};
     if (!serverURL) {
       errors.server_url = "Fleet server URL must be present";
-    } else if (!validUrl({ url: serverURL, isHttp: true })) {
+    } else if (!validUrl({ url: serverURL })) {
       errors.server_url = `${serverURL} is not a valid URL`;
     }
 
