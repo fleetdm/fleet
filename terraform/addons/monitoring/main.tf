@@ -113,23 +113,6 @@ resource "aws_cloudwatch_metric_alarm" "lb" {
   }
 }
 
-# resource "aws_cloudwatch_metric_alarm" "httpcode_elb_5xx_count" {
-#   alarm_name          = "backend-load-balancer-5XX-${var.customer_prefix}"
-#   comparison_operator = "GreaterThanThreshold"
-#   evaluation_periods  = "2"
-#   metric_name         = "HTTPCode_ELB_5XX_Count"
-#   namespace           = "AWS/ApplicationELB"
-#   period              = "60"
-#   statistic           = "Sum"
-#   threshold           = "25"
-#   alarm_description   = "This alarm indicates there are an abnormal amount of load balancer 5XX responses i.e it cannot talk with the Fleet backend target"
-#   treat_missing_data  = "notBreaching"
-#   alarm_actions       = [var.sns_topic_arn]
-#   ok_actions          = [var.sns_topic_arn]
-#   dimensions = {
-#     LoadBalancer = var.alb_arn_suffix
-#   }
-# }
 
 // Elasticache (redis) alerts https://docs.aws.amazon.com/AmazonElastiCache/latest/red-ug/CacheMetrics.WhichShouldIMonitor.html
 resource "aws_cloudwatch_metric_alarm" "redis_cpu" {
