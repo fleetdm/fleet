@@ -597,23 +597,26 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - AAAAAAAA
+  name: CIS - Ensure 'Deny access to this computer from the network' to include 'Guests'
   platforms: win10
   platform: windows
   description: |
-    BBBBBBBBB
+    This policy setting prohibits users from connecting to a computer from across the network, which would allow users to access and potentially modify data remotely. In high security environments, there should be no need for remote users to access data on a computer. Instead, file sharing should be accomplished through the use of network servers. This user right supersedes the Access this computer from the network user right if an account is subject to both policies.
+    The recommended state for this setting is to include: Guests.
+    Rationale:
+    Users who can log on to the computer over the network can enumerate lists of account names, group names, and shared resources. Users with permission to access shared folders and files can connect over the network and possibly view or modify data.
   resolution: |
     Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'CCCCCCCCC':
-    'DDDDDDDD'
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'Guests':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Deny access to this computer from the network'
   query: |
     SELECT 1 FROM group_policy
     WHERE
-    path = 'DDDDDDDD'
+    path = 'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Deny access to this computer from the network'
     AND
-    value = 'CCCCCCCCC';
+    value = 'Guests';
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-YYYYY
+  tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-2.2.16
   contributors: sharon-fdm
 ---
 apiVersion: v1
