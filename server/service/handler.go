@@ -446,6 +446,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.POST("/api/_version_/fleet/mdm/apple/dep/key_pair", newMDMAppleDEPKeyPairEndpoint, nil)
 	ue.GET("/api/_version_/fleet/mdm/apple", getAppleMDMEndpoint, nil)
 	ue.GET("/api/_version_/fleet/mdm/apple_bm", getAppleBMEndpoint, nil)
+	ue.POST("/api/_version_/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesEndpoint, batchSetMDMAppleProfilesRequest{})
 	// this endpoint must always be accessible (even if MDM is not configured) as
 	// it bootstraps the setup of MDM (generates CSR request for APNs and SCEP).
 	ue.POST("/api/_version_/fleet/mdm/apple/request_csr", requestMDMAppleCSREndpoint, requestMDMAppleCSRRequest{})

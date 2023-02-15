@@ -139,7 +139,14 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 	require.NoError(t, err)
 	require.Contains(t, string(*team.Config.AgentOptions), `"foo": "bar"`) // unchanged
 
-	// dry-run with valid agent options
+	// dry-run with valid agent options and custom macos settings
+	agentOpts = json.RawMessage(`{"config": {"views": {"foo": "qux"}}}`)
+	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{Name: teamName, AgentOptions: agentOpts, MacOSSettings: map[string]interface{}{"custom_settings": []string{"foo", "bar"}}}}}
+	res = s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusUnprocessableEntity, "dry_run", "true")
+	errMsg := extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Fleet MDM is not enabled")
+
+	// dry-run with valid agent options only
 	agentOpts = json.RawMessage(`{"config": {"views": {"foo": "qux"}}}`)
 	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{Name: teamName, AgentOptions: agentOpts}}}
 	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK, "dry_run", "true")
@@ -147,6 +154,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 	team, err = s.ds.TeamByName(context.Background(), teamName)
 	require.NoError(t, err)
 	require.Contains(t, string(*team.Config.AgentOptions), `"foo": "bar"`) // unchanged
+	require.Empty(t, team.Config.MacOSSettings.CustomSettings)             // unchanged
 
 	// apply without agent options specified
 	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{Name: teamName}}}

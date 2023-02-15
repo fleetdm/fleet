@@ -534,6 +534,8 @@ type MDMAppleInstallerDetailsByTokenFunc func(ctx context.Context, token string)
 
 type ListMDMAppleInstallersFunc func(ctx context.Context) ([]fleet.MDMAppleInstaller, error)
 
+type BatchSetMDMAppleProfilesFunc func(ctx context.Context, tmID *uint, profiles []*fleet.MDMAppleConfigProfile) error
+
 type MDMAppleListDevicesFunc func(ctx context.Context) ([]fleet.MDMAppleDevice, error)
 
 type IngestMDMAppleDevicesFromDEPSyncFunc func(ctx context.Context, devices []godep.Device) (int64, error)
@@ -1326,6 +1328,9 @@ type DataStore struct {
 
 	ListMDMAppleInstallersFunc        ListMDMAppleInstallersFunc
 	ListMDMAppleInstallersFuncInvoked bool
+
+	BatchSetMDMAppleProfilesFunc        BatchSetMDMAppleProfilesFunc
+	BatchSetMDMAppleProfilesFuncInvoked bool
 
 	MDMAppleListDevicesFunc        MDMAppleListDevicesFunc
 	MDMAppleListDevicesFuncInvoked bool
@@ -2644,6 +2649,11 @@ func (s *DataStore) MDMAppleInstallerDetailsByToken(ctx context.Context, token s
 func (s *DataStore) ListMDMAppleInstallers(ctx context.Context) ([]fleet.MDMAppleInstaller, error) {
 	s.ListMDMAppleInstallersFuncInvoked = true
 	return s.ListMDMAppleInstallersFunc(ctx)
+}
+
+func (s *DataStore) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, profiles []*fleet.MDMAppleConfigProfile) error {
+	s.BatchSetMDMAppleProfilesFuncInvoked = true
+	return s.BatchSetMDMAppleProfilesFunc(ctx, tmID, profiles)
 }
 
 func (s *DataStore) MDMAppleListDevices(ctx context.Context) ([]fleet.MDMAppleDevice, error) {

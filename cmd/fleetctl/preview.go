@@ -308,7 +308,9 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 			logf := func(format string, a ...interface{}) {
 				fmt.Fprintf(c.App.Writer, format, a...)
 			}
-			err = client.ApplyGroup(c.Context, specs, logf, fleet.ApplySpecOptions{})
+			// this only applies standard queries, the base directory is not used,
+			// so pass in the current working directory.
+			err = client.ApplyGroup(c.Context, specs, ".", logf, fleet.ApplySpecOptions{})
 			if err != nil {
 				return err
 			}
