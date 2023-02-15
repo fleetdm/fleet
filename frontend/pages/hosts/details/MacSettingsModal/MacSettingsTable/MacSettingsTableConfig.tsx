@@ -102,9 +102,10 @@ const tableHeaders: IDataColumn[] = [
     Header: "Error",
     disableSortBy: true,
     accessor: "error",
-    Cell: (cellProps: ICellProps): JSX.Element => (
-      <TextCell value={cellProps.row.original.error} />
-    ),
+    Cell: (cellProps: ICellProps): JSX.Element => {
+      const error = cellProps.row.original.error;
+      return <TextCell value={error || "---"} />;
+    },
   },
 ];
 
