@@ -16,6 +16,7 @@ import (
 // TODO: find if there's a better way to accomplish this and standardize.
 type EnterpriseOverrides struct {
 	HostFeatures func(context context.Context, host *Host) (*Features, error)
+	TeamByName   func(ctx context.Context, name string) (*Team, error)
 }
 
 type OsqueryService interface {
@@ -612,6 +613,10 @@ type Service interface {
 	// EnqueueMDMAppleCommandRemoveEnrollmentProfile enqueues a command to remove the
 	// profile used for Fleet MDM enrollment from the specified device.
 	EnqueueMDMAppleCommandRemoveEnrollmentProfile(ctx context.Context, hostID uint) error
+
+	// BatchSetMDMAppleProfiles replaces the custom macOS profiles for a specified
+	// team or for hosts with no team.
+	BatchSetMDMAppleProfiles(ctx context.Context, teamID *uint, teamName *string, profiles [][]byte, dryRun bool) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// CronSchedulesService

@@ -10,7 +10,6 @@ For upgrade instructions, see our [upgrade guide](https://fleetdm.com/docs/deplo
 
 - See a better activity log when someone tries to log in and fails.
 - More granular filtering when querying.
-
 ## Better alerts when Fleet users have failed login attempts
 **Available in Fleet Free and Fleet Premium**
 
@@ -21,6 +20,8 @@ In the UI an account administrator will see the following information:
 ![Login failed example](../website/assets/images/articles/fleet-4.27.0-add-failed-login-activity-type-800x450%402x.jpg)
 
 If you pair this new login activity with the audit improvements from [release 4.26](https://fleetdm.com/releases/fleet-4.26.0) you can now set up an alert if multiple failed login attempts occur. 
+
+<call-to-action type="premium-upgrade"></call-to-action>
 
 ## Better search filters on the ‘Select Targets’ screen in Fleet
 
