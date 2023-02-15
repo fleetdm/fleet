@@ -11,6 +11,7 @@
       comingSoon: true
     - name: Low-level macOS MDM commands (e.g. remote restart)
       tier: Free
+      comingSoon: true
     - name: Native macOS update reminders
       tier: Free
       comingSoon: true
