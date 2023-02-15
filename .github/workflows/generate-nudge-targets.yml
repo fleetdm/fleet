@@ -5,12 +5,12 @@ on:
     branches:
       - main
     paths:
-      # The workflow can be triggered by modifying OSQUERY_VERSION env.
+      # The workflow can be triggered by modifying NUDGE_VERSION env.
       - '.github/workflows/generate-nudge-targets.yml'
   pull_request:
     paths:
-      # The workflow can be triggered by modifying OSQUERY_VERSION env.
-      - '.github/workflows/generate-osqueryd-targets.yml'
+      # The workflow can be triggered by modifying NUDGE_VERSION env.
+      - '.github/workflows/generate-nudge-targets.yml'
   workflow_dispatch:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
@@ -37,7 +37,7 @@ jobs:
         uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b # v2
 
       - name: Generate nudge.app.tar.gz
-        run: make nudge-app-tar-gz version=1.1.10.81462 out-path=.
+        run: make nudge-app-tar-gz version=$NUDGE_VERSION out-path=.
 
       - name: Upload nudge.app.tar.gz
         uses: actions/upload-artifact@3cea5372237819ed00197afe530f5a7ea3e805c8 # v2
