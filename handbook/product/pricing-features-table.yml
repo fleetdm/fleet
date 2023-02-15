@@ -11,15 +11,15 @@
       comingSoon: true
     - name: Low-level macOS MDM commands (e.g. remote restart)
       tier: Free
+    - name: Native macOS update reminders
+      tier: Free
       comingSoon: true
     - name: Zero-touch setup for macOS computers
       tier: Premium
       comingSoon: true
-    - name: Remotely update macOS
+    - name: End-user macOS update reminders (via Nudge)
       tier: Premium
       comingSoon: true
-    - name: Keep macOS up to date through reminders
-      tier: Premium
       comingSoon: true
     - name: Encrypt macOS hard disks with FileVault
       tier: Premium
