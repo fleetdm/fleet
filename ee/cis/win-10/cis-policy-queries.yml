@@ -470,89 +470,103 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - AAAAAAAA
+  name: CIS - Ensure 'Create a token object' is set to 'No One'
   platforms: win10
   platform: windows
   description: |
-    BBBBBBBBB
+    This policy setting allows a process to create an access token, which may provide elevated rights to access sensitive data.
+    The recommended state for this setting is: No One.
+    Note: This user right is considered a "sensitive privilege" for the purposes of auditing. Rationale:
+    A user account that is given this user right has complete control over the system and can lead to the system being compromised. It is highly recommended that you do not assign any user accounts this right.
+    The operating system examines a user's access token to determine the level of the user's privileges. Access tokens are built when users log on to the local computer or connect to a remote computer over a network. When you revoke a privilege, the change is immediately recorded, but the change is not reflected in the user's access token until the next time the user logs on or connects. Users with the ability to create or modify tokens can change the level of access for any currently logged on account. They could escalate their own privileges or create a DoS condition.
   resolution: |
     Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'CCCCCCCCC':
-    'DDDDDDDD'
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'No One':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Create a token object'
   query: |
     SELECT 1 FROM group_policy
     WHERE
-    path = 'DDDDDDDD'
+    path = 'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Create a token object'
     AND
-    value = 'CCCCCCCCC';
+    value = 'No One';
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-YYYYY
+  tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-2.2.11
   contributors: sharon-fdm
 ---
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - AAAAAAAA
+  name: CIS - Ensure 'Create global objects' is set to 'Administrators, LOCAL SERVICE, NETWORK SERVICE, SERVICE'
   platforms: win10
   platform: windows
   description: |
-    BBBBBBBBB
+    This policy setting determines whether users can create global objects that are available to all sessions. Users can still create objects that are specific to their own session if they do not have this user right.
+    Users who can create global objects could affect processes that run under other users' sessions. This capability could lead to a variety of problems, such as application failure or data corruption.
+    The recommended state for this setting is: Administrators, LOCAL SERVICE, NETWORK SERVICE, SERVICE.
+    Rationale:
+    Users who can create global objects could affect Windows services and processes that run under other user or system accounts. This capability could lead to a variety of problems, such as application failure, data corruption and elevation of privilege.
   resolution: |
     Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'CCCCCCCCC':
-    'DDDDDDDD'
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'Administrators, LOCAL SERVICE, NETWORK SERVICE, SERVICE':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Create global objects'
   query: |
     SELECT 1 FROM group_policy
     WHERE
-    path = 'DDDDDDDD'
+    path = 'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Create global objects'
     AND
-    value = 'CCCCCCCCC';
+    value = 'Administrators, LOCAL SERVICE, NETWORK SERVICE, SERVICE';
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-YYYYY
+  tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-2.2.12
   contributors: sharon-fdm
 ---
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - AAAAAAAA
+  name: CIS - Ensure 'Create permanent shared objects' is set to 'No One'
   platforms: win10
   platform: windows
   description: |
-    BBBBBBBBB
+    This user right is useful to kernel-mode components that extend the object namespace. However, components that run in kernel mode have this user right inherently. Therefore, it is typically not necessary to specifically assign this user right.
+    The recommended state for this setting is: No One. Rationale:
+    Users who have the Create permanent shared objects user right could create new shared objects and expose sensitive data to the network.
   resolution: |
     Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'CCCCCCCCC':
-    'DDDDDDDD'
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'No One':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Create permanent shared objects'
   query: |
     SELECT 1 FROM group_policy
     WHERE
-    path = 'DDDDDDDD'
+    path = 'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Create permanent shared objects'
     AND
-    value = 'CCCCCCCCC';
+    value = 'No One';
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-YYYYY
+  tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-2.2.13
   contributors: sharon-fdm
 ---
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - AAAAAAAA
+  name: CIS - Configure 'Create symbolic links'
   platforms: win10
   platform: windows
   description: |
-    BBBBBBBBB
+    This policy setting determines which users can create symbolic links. In Windows Vista, existing NTFS file system objects, such as files and folders, can be accessed by referring to a new kind of file system object called a symbolic link. A symbolic link is a pointer (much like a shortcut or .lnk file) to another file system object, which can be a file, folder, shortcut or another symbolic link. The difference between a shortcut and a symbolic link is that a shortcut only works from within the Windows shell. To other programs and applications, shortcuts are just another file, whereas with symbolic links, the concept of a shortcut is implemented as a feature of the NTFS file system.
+    Symbolic links can potentially expose security vulnerabilities in applications that are not designed to use them. For this reason, the privilege for creating symbolic links should only be assigned to trusted users. By default, only Administrators can create symbolic links.
+    The recommended state for this setting is: Administrators and (when the Hyper-V feature is installed) NT VIRTUAL MACHINE\Virtual Machines.
+    Rationale:
+    Users who have the Create symbolic links user right could inadvertently or maliciously expose your system to symbolic link attacks. Symbolic link attacks can be used to change the permissions on a file, to corrupt data, to destroy data, or as a Denial of Service attack.
   resolution: |
     Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'CCCCCCCCC':
-    'DDDDDDDD'
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'Administrators':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Create symbolic links'
   query: |
     SELECT 1 FROM group_policy
     WHERE
-    path = 'DDDDDDDD'
+    path = 'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Create symbolic links'
     AND
-    value = 'CCCCCCCCC';
+    value = 'Administrators';
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-YYYYY
+  tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-2.2.14
   contributors: sharon-fdm
 ---
 apiVersion: v1
