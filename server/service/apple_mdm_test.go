@@ -14,6 +14,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
@@ -22,6 +23,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	kitlog "github.com/go-kit/kit/log"
+	"github.com/google/uuid"
 	nanodep_client "github.com/micromdm/nanodep/client"
 	"github.com/micromdm/nanomdm/mdm"
 	nanomdm_pushsvc "github.com/micromdm/nanomdm/push/service"
@@ -31,6 +33,7 @@ import (
 func setupAppleMDMService(t *testing.T) (fleet.Service, context.Context, *mock.Store) {
 	ds := new(mock.Store)
 	cfg := config.TestConfig()
+	cfg.MDMApple.Enable = true
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case strings.Contains(r.URL.Path, "/server/devices"):
@@ -59,6 +62,7 @@ func setupAppleMDMService(t *testing.T) (fleet.Service, context.Context, *mock.S
 		MDMStorage:  mdmStorage,
 		DEPStorage:  depStorage,
 		MDMPusher:   pusher,
+		License:     &fleet.LicenseInfo{Tier: fleet.TierPremium},
 	}
 	svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, opts)
 
@@ -490,4 +494,263 @@ func TestMDMCheckout(t *testing.T) {
 	require.True(t, ds.UpdateHostTablesOnMDMUnenrollFuncInvoked)
 	require.True(t, ds.GetHostMDMCheckinInfoFuncInvoked)
 	require.True(t, ds.NewActivityFuncInvoked)
+}
+
+func TestMDMBatchSetAppleProfiles(t *testing.T) {
+	svc, ctx, ds := setupAppleMDMService(t)
+
+	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
+		return &fleet.Team{ID: 1, Name: name}, nil
+	}
+	ds.BatchSetMDMAppleProfilesFunc = func(ctx context.Context, teamID *uint, profiles []*fleet.MDMAppleConfigProfile) error {
+		return nil
+	}
+
+	testCases := []struct {
+		name     string
+		user     *fleet.User
+		premium  bool
+		teamID   *uint
+		teamName *string
+		profiles [][]byte
+		wantErr  string
+	}{
+		{
+			"global admin",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+			false,
+			nil,
+			nil,
+			nil,
+			"",
+		},
+		{
+			"global admin, team",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+			true,
+			ptr.Uint(1),
+			nil,
+			nil,
+			"",
+		},
+		{
+			"global maintainer",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleMaintainer)},
+			false,
+			nil,
+			nil,
+			nil,
+			"",
+		},
+		{
+			"global maintainer, team",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleMaintainer)},
+			true,
+			ptr.Uint(1),
+			nil,
+			nil,
+			"",
+		},
+		{
+			"global observer",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)},
+			false,
+			nil,
+			nil,
+			nil,
+			authz.ForbiddenErrorMessage,
+		},
+		{
+			"team admin, DOES belong to team",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}}},
+			true,
+			ptr.Uint(1),
+			nil,
+			nil,
+			"",
+		},
+		{
+			"team admin, DOES belong to team by name",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}}},
+			true,
+			nil,
+			ptr.String("team"),
+			nil,
+			"",
+		},
+		{
+			"team admin, DOES NOT belong to team",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleAdmin}}},
+			true,
+			ptr.Uint(1),
+			nil,
+			nil,
+			authz.ForbiddenErrorMessage,
+		},
+		{
+			"team admin, DOES NOT belong to team by name",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleAdmin}}},
+			true,
+			nil,
+			ptr.String("team"),
+			nil,
+			authz.ForbiddenErrorMessage,
+		},
+		{
+			"team maintainer, DOES belong to team",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleMaintainer}}},
+			true,
+			ptr.Uint(1),
+			nil,
+			nil,
+			"",
+		},
+		{
+			"team maintainer, DOES NOT belong to team",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleMaintainer}}},
+			true,
+			ptr.Uint(1),
+			nil,
+			nil,
+			authz.ForbiddenErrorMessage,
+		},
+		{
+			"team observer, DOES belong to team",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver}}},
+			true,
+			ptr.Uint(1),
+			nil,
+			nil,
+			authz.ForbiddenErrorMessage,
+		},
+		{
+			"team observer, DOES NOT belong to team",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleObserver}}},
+			true,
+			ptr.Uint(1),
+			nil,
+			nil,
+			authz.ForbiddenErrorMessage,
+		},
+		{
+			"user no roles",
+			&fleet.User{ID: 1337},
+			false,
+			nil,
+			nil,
+			nil,
+			authz.ForbiddenErrorMessage,
+		},
+		{
+			"team id with free license",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+			false,
+			ptr.Uint(1),
+			nil,
+			nil,
+			ErrMissingLicense.Error(),
+		},
+		{
+			"team name with free license",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+			false,
+			nil,
+			ptr.String("team"),
+			nil,
+			ErrMissingLicense.Error(),
+		},
+		{
+			"team id and name specified",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+			true,
+			ptr.Uint(1),
+			ptr.String("team"),
+			nil,
+			"cannot specify both team_id and team_name",
+		},
+		{
+			"duplicate profile name",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+			true,
+			ptr.Uint(1),
+			nil,
+			[][]byte{
+				mobileconfigForTest("N1", "I1"),
+				mobileconfigForTest("N1", "I2"),
+			},
+			`More than one configuration profile have the same name (PayloadDisplayName): "N1"`,
+		},
+		{
+			"duplicate profile identifier",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+			true,
+			ptr.Uint(1),
+			nil,
+			[][]byte{
+				mobileconfigForTest("N1", "I1"),
+				mobileconfigForTest("N2", "I2"),
+				mobileconfigForTest("N3", "I1"),
+			},
+			`More than one configuration profile have the same identifier (PayloadIdentifier): "I1"`,
+		},
+		{
+			"no duplicates",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+			false,
+			nil,
+			nil,
+			[][]byte{
+				mobileconfigForTest("N1", "I1"),
+				mobileconfigForTest("N2", "I2"),
+				mobileconfigForTest("N3", "I3"),
+			},
+			``,
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			defer func() { ds.BatchSetMDMAppleProfilesFuncInvoked = false }()
+
+			// prepare the context with the user and license
+			ctx := viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
+			tier := fleet.TierFree
+			if tt.premium {
+				tier = fleet.TierPremium
+			}
+			ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: tier})
+
+			err := svc.BatchSetMDMAppleProfiles(ctx, tt.teamID, tt.teamName, tt.profiles, false)
+			if tt.wantErr == "" {
+				require.NoError(t, err)
+				require.True(t, ds.BatchSetMDMAppleProfilesFuncInvoked)
+				return
+			}
+			require.Error(t, err)
+			require.ErrorContains(t, err, tt.wantErr)
+			require.False(t, ds.BatchSetMDMAppleProfilesFuncInvoked)
+		})
+	}
+}
+
+func mobileconfigForTest(name, identifier string) []byte {
+	return []byte(fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array/>
+	<key>PayloadDisplayName</key>
+	<string>%s</string>
+	<key>PayloadIdentifier</key>
+	<string>%s</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>%s</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+</dict>
+</plist>
+`, name, identifier, uuid.New().String()))
 }

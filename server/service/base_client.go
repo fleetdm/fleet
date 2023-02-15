@@ -39,8 +39,6 @@ type baseClient struct {
 
 func (bc *baseClient) parseResponse(verb, path string, response *http.Response, responseDest interface{}) error {
 	switch response.StatusCode {
-	case http.StatusOK:
-		// ok
 	case http.StatusNotFound:
 		return notFoundErr{}
 	case http.StatusUnauthorized:
@@ -48,6 +46,10 @@ func (bc *baseClient) parseResponse(verb, path string, response *http.Response, 
 	case http.StatusPaymentRequired:
 		return ErrMissingLicense
 	default:
+		if response.StatusCode >= 200 && response.StatusCode < 300 {
+			break
+		}
+
 		return fmt.Errorf(
 			"%s %s received status %d %s",
 			verb, path,

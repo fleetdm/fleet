@@ -1103,6 +1103,108 @@ func (svc *Service) ListMDMAppleInstallers(ctx context.Context) ([]fleet.MDMAppl
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+// Batch Replace MDM Apple Profiles
+////////////////////////////////////////////////////////////////////////////////
+
+type batchSetMDMAppleProfilesRequest struct {
+	TeamID   *uint    `json:"-" query:"team_id,optional"`
+	TeamName *string  `json:"-" query:"team_name,optional"`
+	DryRun   bool     `json:"-" query:"dry_run,optional"` // if true, apply validation but do not save changes
+	Profiles [][]byte `json:"profiles"`
+}
+
+type batchSetMDMAppleProfilesResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r batchSetMDMAppleProfilesResponse) error() error { return r.Err }
+
+func (r batchSetMDMAppleProfilesResponse) Status() int { return http.StatusNoContent }
+
+func batchSetMDMAppleProfilesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*batchSetMDMAppleProfilesRequest)
+	if err := svc.BatchSetMDMAppleProfiles(ctx, req.TeamID, req.TeamName, req.Profiles, req.DryRun); err != nil {
+		return batchSetMDMAppleProfilesResponse{Err: err}, nil
+	}
+	return batchSetMDMAppleProfilesResponse{}, nil
+}
+
+func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tmName *string, profiles [][]byte, dryRun bool) error {
+	if !svc.config.MDMApple.Enable {
+		// TODO(mna): eventually we should detect the minimum config required for
+		// this to be allowed, probably just SCEP/APNs?
+		svc.authz.SkipAuthorization(ctx) // so that the error message is not replaced by "forbidden"
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("mdm", "cannot set custom settings: Fleet MDM is not enabled"))
+	}
+	if tmID != nil && tmName != nil {
+		svc.authz.SkipAuthorization(ctx) // so that the error message is not replaced by "forbidden"
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("team_name", "cannot specify both team_id and team_name"))
+	}
+	if tmID != nil || tmName != nil {
+		license, err := svc.License(ctx)
+		if err != nil {
+			svc.authz.SkipAuthorization(ctx) // so that the error message is not replaced by "forbidden"
+			return err
+		}
+		if !license.IsPremium() {
+			field := "team_id"
+			if tmName != nil {
+				field = "team_name"
+			}
+			svc.authz.SkipAuthorization(ctx) // so that the error message is not replaced by "forbidden"
+			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError(field, ErrMissingLicense.Error()))
+		}
+	}
+
+	// if the team name is provided, load the corresponding team to get its id.
+	if tmName != nil {
+		tm, err := svc.EnterpriseOverrides.TeamByName(ctx, *tmName)
+		if err != nil {
+			return err
+		}
+		tmID = &tm.ID
+	}
+
+	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleConfigProfile{TeamID: tmID}, fleet.ActionWrite); err != nil {
+		return ctxerr.Wrap(ctx, err)
+	}
+
+	// any duplicate identifier or name in the provided set results in an error
+	profs := make([]*fleet.MDMAppleConfigProfile, 0, len(profiles))
+	byName, byIdent := make(map[string]bool, len(profiles)), make(map[string]bool, len(profiles))
+	for i, prof := range profiles {
+		mobConf := fleet.Mobileconfig(prof)
+		mdmProf, err := mobConf.ParseConfigProfile()
+		if err != nil {
+			return ctxerr.Wrap(ctx,
+				fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%d]", i), err.Error()),
+				"invalid mobileconfig profile")
+		}
+
+		if byName[mdmProf.Name] {
+			return ctxerr.Wrap(ctx,
+				fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%d]", i), fmt.Sprintf("Couldn’t edit custom_settings. More than one configuration profile have the same name (PayloadDisplayName): %q", mdmProf.Name)),
+				"duplicate mobileconfig profile by name")
+		}
+		byName[mdmProf.Name] = true
+
+		if byIdent[mdmProf.Identifier] {
+			return ctxerr.Wrap(ctx,
+				fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%d]", i), fmt.Sprintf("Couldn’t edit custom_settings. More than one configuration profile have the same identifier (PayloadIdentifier): %q", mdmProf.Identifier)),
+				"duplicate mobileconfig profile by identifier")
+		}
+		byIdent[mdmProf.Identifier] = true
+
+		profs = append(profs, mdmProf)
+	}
+
+	if dryRun {
+		return nil
+	}
+	return svc.ds.BatchSetMDMAppleProfiles(ctx, tmID, profs)
+}
+
+////////////////////////////////////////////////////////////////////////////////
 // Implementation of nanomdm's CheckinAndCommandService interface
 ////////////////////////////////////////////////////////////////////////////////
 

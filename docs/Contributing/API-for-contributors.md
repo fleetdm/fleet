@@ -531,6 +531,7 @@ The MDM endpoints exist to support the related command-line interface sub-comman
 - [Unenroll host from Fleet MDM](#unenroll-host-from-fleet-mdm)
 - [Generate Apple DEP Key Pair](#generate-apple-dep-key-pair)
 - [Request Certificate Signing Request (CSR)](#request-certificate-signing-request-csr)
+- [Batch-apply Apple MDM custom settings](#batch-apply-apple-mdm-custom-settings)
 
 
 ### Get Apple MDM
@@ -651,6 +652,29 @@ Note that the `public_key` and `private_key` are base64 encoded and should be de
 ```
 
 Note that the response fields are base64 encoded and should be decoded before writing them to files. Once base64-decoded, they are PEM-encoded certificate and keys.
+
+### Batch-apply Apple MDM custom settings
+
+`POST /api/v1/fleet/mdm/apple/profiles/batch`
+
+#### Parameters
+
+| Name          | Type   | In    | Description                                                                                                                       |
+| ------------- | ------ | ----  | --------------------------------------------------------------------------------------                                            |
+| team_id       | number | query | _Available in Fleet Premium_ The team ID to apply the custom settings to. Only one of team_name/team_id can be provided.          |
+| team_name     | string | query | _Available in Fleet Premium_ The name of the team to apply the custom settings to. Only one of team_name/team_id can be provided. |
+| dry_run       | bool   | query | Validate the provided profiles and return any validation errors, but do not apply the changes.                                    |
+| profiles      | json   | body  | An array of strings, the base64-encoded .mobileconfig files to apply.                                                             |
+
+If no team (id or name) is provided, the profiles are applied for all hosts (for _Fleet Free_) or for hosts that are not part of a team (for _Fleet Premium_). After the call, the provided list of `profiles` will be the active profiles for that team (or no team) - that is, any existing profile that is not part of that list will be removed, and an existing profile with the same payload identifier as a new profile will be edited. If the list of provided `profiles` is empty, all profiles are removed for that team (or no team).
+
+#### Example
+
+`POST /api/v1/fleet/mdm/apple/profiles/batch`
+
+##### Default response
+
+`204`
 
 ## Get or apply configuration files
 

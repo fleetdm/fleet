@@ -4510,6 +4510,11 @@ func (s *integrationTestSuite) TestPremiumEndpointsWithoutLicense() {
 	var appleBMResp getAppleBMResponse
 	s.DoJSON("GET", "/api/latest/fleet/mdm/apple_bm", nil, http.StatusPaymentRequired, &appleBMResp)
 	assert.Nil(t, appleBMResp.AppleBM)
+
+	// batch-apply a set of MDM profiles
+	res := s.Do("POST", "/api/latest/fleet/mdm/apple/profiles/batch", nil, http.StatusUnprocessableEntity)
+	errMsg := extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Fleet MDM is not enabled")
 }
 
 // TestGlobalPoliciesBrowsing tests that team users can browse (read) global policies (see #3722).
@@ -4806,6 +4811,13 @@ func (s *integrationTestSuite) TestAppConfig() {
 	  "mdm": { "enabled_and_configured": true }
   }`), http.StatusOK, &acResp)
 	assert.True(t, acResp.MDM.EnabledAndConfigured)
+
+	// set the macos custom settings fields, fails due to MDM not configured
+	res := s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+	  "macos_settings": { "custom_settings": ["foo", "bar"] }
+  }`), http.StatusUnprocessableEntity)
+	errMsg := extractServerErrorText(res.Body)
+	assert.Contains(t, errMsg, "Fleet MDM is not enabled")
 
 	// try to set the apple bm default team, which is premium only
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
