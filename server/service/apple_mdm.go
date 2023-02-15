@@ -1121,6 +1121,8 @@ type batchSetMDMAppleProfilesResponse struct {
 
 func (r batchSetMDMAppleProfilesResponse) error() error { return r.Err }
 
+func (r batchSetMDMAppleProfilesResponse) Status() int { return http.StatusNoContent }
+
 func batchSetMDMAppleProfilesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*batchSetMDMAppleProfilesRequest)
 	if err := svc.BatchSetMDMAppleProfiles(ctx, req.TeamID, req.TeamName, req.Profiles, req.DryRun); err != nil {

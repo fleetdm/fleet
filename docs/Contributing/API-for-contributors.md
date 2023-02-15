@@ -674,7 +674,7 @@ If no team (id or name) is provided, the profiles are applied for all hosts (for
 
 ##### Default response
 
-`200` // TODO: should that be 204 no content?
+`204`
 
 ## Get or apply configuration files
 
