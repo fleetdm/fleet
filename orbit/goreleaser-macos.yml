@@ -1,9 +1,5 @@
 project_name: orbit
 
-before:
-  hooks:
-    - go mod download
-
 builds:
   - id: orbit-macos
     dir: ./orbit/cmd/orbit/
