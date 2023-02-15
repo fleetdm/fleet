@@ -31,7 +31,7 @@ jobs:
       # paid version. We pay for goreleaser, but using the closed source build would weaken our
       # supply-chain integrity goals, so we hack around it by replacing the tag.
       - name: Replace tag
-        run: git tag $(echo ${{ github.ref_name }} | sed -e 's/orbit-//g')
+        run: git tag $(echo ${{ github.ref_name }} | sed -e 's/orbit-//g') && git tag -d ${{ github.ref_name }}
 
       - name: Import signing keys
         env:
@@ -51,7 +51,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@268d8c0ca0432bb2cf416faae41297df9d262d7f # v2
         with:
-          go-version: 1.19.6
+          go-version: ${{ vars.GO_VERSION }}
 
       - name: Run GoReleaser
         run: go run github.com/goreleaser/goreleaser@v1.9.2 release --rm-dist --skip-publish -f orbit/goreleaser-macos.yml
@@ -80,12 +80,12 @@ jobs:
       # paid version. We pay for goreleaser, but using the closed source build would weaken our
       # supply-chain integrity goals, so we hack around it by replacing the tag.
       - name: Replace tag
-        run: git tag $(echo ${{ github.ref_name }} | sed -e 's/orbit-//g')
+        run: git tag $(echo ${{ github.ref_name }} | sed -e 's/orbit-//g') && git tag -d ${{ github.ref_name }}
 
       - name: Set up Go
         uses: actions/setup-go@268d8c0ca0432bb2cf416faae41297df9d262d7f # v2
         with:
-          go-version: 1.19.6
+          go-version: ${{ vars.GO_VERSION }}
 
       - name: Run GoReleaser
         run: go run github.com/goreleaser/goreleaser@v1.9.2 release --rm-dist --skip-publish -f orbit/goreleaser-linux.yml
@@ -108,12 +108,12 @@ jobs:
       # paid version. We pay for goreleaser, but using the closed source build would weaken our
       # supply-chain integrity goals, so we hack around it by replacing the tag.
       - name: Replace tag
-        run: git tag $(echo ${{ github.ref_name }} | sed -e 's/orbit-//g')
+        run: git tag $(echo ${{ github.ref_name }} | sed -e 's/orbit-//g') && git tag -d ${{ github.ref_name }}
 
       - name: Set up Go
         uses: actions/setup-go@268d8c0ca0432bb2cf416faae41297df9d262d7f # v2
         with:
-          go-version: 1.19.6
+          go-version: ${{ vars.GO_VERSION }}
 
       - name: Run GoReleaser
         run: go run github.com/goreleaser/goreleaser@v1.9.2 release --rm-dist --skip-publish -f orbit/goreleaser-windows.yml
