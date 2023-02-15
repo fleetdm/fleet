@@ -489,12 +489,8 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("macos_updates", err.Error()))
 		}
 
-		if applyOpts.DryRun {
-			continue
-		}
-
 		if create {
-			team, err := svc.createTeamFromSpec(ctx, spec, appConfig, secrets)
+			team, err := svc.createTeamFromSpec(ctx, spec, appConfig, secrets, applyOpts.DryRun)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "creating team from spec")
 			}
@@ -505,7 +501,7 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 			continue
 		}
 
-		if err := svc.editTeamFromSpec(ctx, team, spec, secrets); err != nil {
+		if err := svc.editTeamFromSpec(ctx, team, spec, secrets, applyOpts.DryRun); err != nil {
 			return ctxerr.Wrap(ctx, err, "editing team from spec")
 		}
 
@@ -513,6 +509,10 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 			ID:   team.ID,
 			Name: team.Name,
 		})
+	}
+
+	if applyOpts.DryRun {
+		return nil
 	}
 
 	if len(details) > 0 {
@@ -532,7 +532,7 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 	return nil
 }
 
-func (svc Service) createTeamFromSpec(ctx context.Context, spec *fleet.TeamSpec, defaults *fleet.AppConfig, secrets []*fleet.EnrollSecret) (*fleet.Team, error) {
+func (svc Service) createTeamFromSpec(ctx context.Context, spec *fleet.TeamSpec, defaults *fleet.AppConfig, secrets []*fleet.EnrollSecret, dryRun bool) (*fleet.Team, error) {
 	agentOptions := &spec.AgentOptions
 	if len(spec.AgentOptions) == 0 {
 		agentOptions = defaults.AgentOptions
@@ -550,7 +550,17 @@ func (svc Service) createTeamFromSpec(ctx context.Context, spec *fleet.TeamSpec,
 	}
 
 	var macOSSettings fleet.MacOSSettings
-	macOSSettings.CustomSettingsFromMap(spec.MacOSSettings)
+	if macOSSettings.CustomSettingsFromMap(spec.MacOSSettings) && len(macOSSettings.CustomSettings) > 0 {
+		if !svc.config.MDMApple.Enable {
+			// TODO(mna): eventually we should detect the minimum config required for
+			// this to be allowed, probably just SCEP/APNs?
+			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("macos_settings.custom_settings", "cannot set custom settings: Fleet MDM is not enabled"))
+		}
+	}
+
+	if dryRun {
+		return &fleet.Team{Name: spec.Name}, nil
+	}
 
 	return svc.ds.NewTeam(ctx, &fleet.Team{
 		Name: spec.Name,
@@ -564,7 +574,7 @@ func (svc Service) createTeamFromSpec(ctx context.Context, spec *fleet.TeamSpec,
 	})
 }
 
-func (svc Service) editTeamFromSpec(ctx context.Context, team *fleet.Team, spec *fleet.TeamSpec, secrets []*fleet.EnrollSecret) error {
+func (svc Service) editTeamFromSpec(ctx context.Context, team *fleet.Team, spec *fleet.TeamSpec, secrets []*fleet.EnrollSecret, dryRun bool) error {
 	team.Name = spec.Name
 
 	// if agent options are not provided, do not change them
@@ -585,10 +595,21 @@ func (svc Service) editTeamFromSpec(ctx context.Context, team *fleet.Team, spec 
 	}
 	team.Config.Features = features
 	team.Config.MDM = spec.MDM
-	team.Config.MacOSSettings.CustomSettingsFromMap(spec.MacOSSettings)
+	if team.Config.MacOSSettings.CustomSettingsFromMap(spec.MacOSSettings) &&
+		len(team.Config.MacOSSettings.CustomSettings) > 0 {
+		if !svc.config.MDMApple.Enable {
+			// TODO(mna): eventually we should detect the minimum config required for
+			// this to be allowed, probably just SCEP/APNs?
+			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("macos_settings.custom_settings", "cannot set custom settings: Fleet MDM is not enabled"))
+		}
+	}
 
 	if len(secrets) > 0 {
 		team.Secrets = secrets
+	}
+
+	if dryRun {
+		return nil
 	}
 
 	if _, err := svc.ds.SaveTeam(ctx, team); err != nil {

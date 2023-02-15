@@ -282,6 +282,15 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: err.Error()})
 	}
 
+	if len(newAppConfig.MacOSSettings.CustomSettings) != 0 {
+		if !svc.config.MDMApple.Enable {
+			// TODO(mna): eventually we should detect the minimum config required for
+			// this to be allowed, probably just SCEP/APNs?
+			invalid.Append("macos_settings.custom_settings", "cannot set custom settings: Fleet MDM is not enabled")
+			return nil, ctxerr.Wrap(ctx, invalid)
+		}
+	}
+
 	if newAppConfig.FleetDesktop.TransparencyURL != "" {
 		if license.Tier != "premium" {
 			invalid.Append("transparency_url", ErrMissingLicense.Error())
