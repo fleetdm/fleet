@@ -21,6 +21,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"github.com/google/uuid"
@@ -217,7 +218,7 @@ func (svc *Service) GetMDMAppleCommandResults(ctx context.Context, commandUUID s
 }
 
 type newMDMAppleConfigProfileRequest struct {
-	TeamID  uint
+	TeamID  *uint
 	Profile *multipart.FileHeader
 }
 
@@ -239,13 +240,13 @@ func (newMDMAppleConfigProfileRequest) DecodeRequest(ctx context.Context, r *htt
 	val, ok := r.MultipartForm.Value["team_id"]
 	if !ok || len(val) < 1 {
 		// default is no team
-		decoded.TeamID = 0
-	}
-	teamID, err := strconv.Atoi(val[0])
-	if err != nil {
-		return nil, &fleet.BadRequestError{Message: err.Error()}
+		decoded.TeamID = ptr.Uint(0)
 	} else {
-		decoded.TeamID = uint(teamID)
+		teamID, err := strconv.Atoi(val[0])
+		if err != nil {
+			return nil, &fleet.BadRequestError{Message: err.Error()}
+		}
+		decoded.TeamID = ptr.Uint(uint(teamID))
 	}
 
 	fhs, ok := r.MultipartForm.File["profile"]
@@ -267,7 +268,7 @@ func newMDMAppleConfigProfileEndpoint(ctx context.Context, request interface{}, 
 		return &newMDMAppleConfigProfileResponse{Err: err}, nil
 	}
 	defer ff.Close()
-	cp, err := svc.NewMDMAppleConfigProfile(ctx, req.TeamID, ff, req.Profile.Size)
+	cp, err := svc.NewMDMAppleConfigProfile(ctx, *req.TeamID, ff, req.Profile.Size)
 	if err != nil {
 		return &newMDMAppleConfigProfileResponse{Err: err}, nil
 	}
@@ -282,12 +283,6 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r
 	}
 
 	if teamID >= 1 {
-		// TODO: license check for team id?
-		// appConfig, err := svc.ds.AppConfig(ctx)
-		// if err != nil {
-		// 	return nil, ctxerr.Wrap(ctx, err)
-		// }
-
 		// confirm that team exists
 		if _, err := svc.ds.Team(ctx, teamID); err != nil {
 			return nil, ctxerr.Wrap(ctx, err)
@@ -317,11 +312,11 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r
 }
 
 type listMDMAppleConfigProfilesRequest struct {
-	TeamID uint `query:"team_id"`
+	TeamID uint `query:"team_id,optional"`
 }
 
 type listMDMAppleConfigProfilesResponse struct {
-	ConfigProfiles []*fleet.MDMAppleConfigProfile `json:"config_profiles"`
+	ConfigProfiles []*fleet.MDMAppleConfigProfile `json:"profiles"`
 	Err            error                          `json:"error,omitempty"`
 }
 
@@ -347,12 +342,6 @@ func (svc *Service) ListMDMAppleConfigProfiles(ctx context.Context, teamID uint)
 	}
 
 	if teamID >= 1 {
-		// // TODO: license check for team id?
-		// appConfig, err := svc.ds.AppConfig(ctx)
-		// if err != nil {
-		// 	return nil, ctxerr.Wrap(ctx, err)
-		// }
-
 		// confirm that team exists
 		if _, err := svc.ds.Team(ctx, teamID); err != nil {
 			return nil, ctxerr.Wrap(ctx, err)

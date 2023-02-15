@@ -412,6 +412,28 @@ func TestMDMAppleConfigProfileAuthz(t *testing.T) {
 	}
 }
 
+func TestNewMDMAppleConfigProfile(t *testing.T) {
+	svc, ctx, ds := setupAppleMDMService(t)
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+
+	mcBytes := mcBytesForTest("Foo", "Bar", "UUID")
+	r := bytes.NewReader(mcBytes)
+
+	ds.NewMDMAppleConfigProfileFunc = func(ctx context.Context, cp fleet.MDMAppleConfigProfile) (*fleet.MDMAppleConfigProfile, error) {
+		require.Equal(t, "Foo", cp.Name)
+		require.Equal(t, "Bar", cp.Identifier)
+		require.Equal(t, mcBytes, []byte(cp.Mobileconfig))
+		cp.ProfileID = 1
+		return &cp, nil
+	}
+
+	cp, err := svc.NewMDMAppleConfigProfile(ctx, 0, r, r.Size())
+	require.NoError(t, err)
+	require.Equal(t, "Foo", cp.Name)
+	require.Equal(t, "Bar", cp.Identifier)
+	require.Equal(t, mcBytes, []byte(cp.Mobileconfig))
+}
+
 func mcBytesForTest(name, identifier, uuid string) []byte {
 	return []byte(fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">

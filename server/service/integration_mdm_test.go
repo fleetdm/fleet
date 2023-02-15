@@ -1,6 +1,7 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"crypto/rsa"
@@ -12,6 +13,7 @@ import (
 	"io"
 	"math/big"
 	mathrand "math/rand"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -753,6 +755,144 @@ func (s *integrationMDMTestSuite) TestMDMAppleGetEncryptionKey() {
 	s.token = s.getTestToken(u.Email, test.GoodPassword)
 	resp = getHostEncryptionKeyResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/mdm/hosts/%d/encryption_key", host.ID), nil, http.StatusForbidden, &resp)
+}
+
+func (s *integrationMDMTestSuite) TestMDMAppleConfigProfile() {
+	t := s.T()
+	ctx := context.Background()
+
+	testTeam, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "TestTeam"})
+	require.NoError(t, err)
+
+	testProfiles := make(map[string]fleet.MDMAppleConfigProfile)
+	generateTestProfile := func(name string) {
+		cp := fleet.MDMAppleConfigProfile{
+			Name:       name,
+			Identifier: fmt.Sprintf("%s.SomeIdentifier", name),
+		}
+		cp.Mobileconfig = mcBytesForTest(cp.Name, cp.Identifier, fmt.Sprintf("%s.UUID", name))
+		testProfiles[name] = cp
+	}
+	setTestProfileID := func(name string, id uint) {
+		tp := testProfiles[name]
+		tp.ProfileID = id
+		testProfiles[name] = tp
+	}
+
+	generateNewReq := func(name string, teamID *uint) (*bytes.Buffer, map[string]string) {
+		body := &bytes.Buffer{}
+		writer := multipart.NewWriter(body)
+		if teamID != nil {
+			err = writer.WriteField("team_id", fmt.Sprintf("%d", testTeam.ID))
+			require.NoError(t, err)
+		}
+		ff, err := writer.CreateFormFile("profile", "some_filename")
+		require.NoError(t, err)
+		_, err = io.Copy(ff, bytes.NewReader(testProfiles[name].Mobileconfig))
+		require.NoError(t, err)
+		writer.Close()
+
+		headers := map[string]string{
+			"Content-Type":  writer.FormDataContentType(),
+			"Accept":        "application/json",
+			"Authorization": fmt.Sprintf("Bearer %s", s.token),
+		}
+
+		return body, headers
+	}
+
+	checkGetResponse := func(resp *http.Response, expected fleet.MDMAppleConfigProfile) {
+		// check expected headers
+		require.Contains(t, resp.Header["Content-Type"], "application/octet-stream")
+		require.Contains(t, resp.Header["Content-Disposition"], fmt.Sprintf(`attachment;filename="%s %s.%s"`, time.Now().Format("2006-01-02"), expected.Name, "mobileconfig"))
+		// check expected body
+		var bb bytes.Buffer
+		_, err = io.Copy(&bb, resp.Body)
+		require.NoError(t, err)
+		require.Equal(t, []byte(expected.Mobileconfig), bb.Bytes())
+	}
+
+	checkConfigProfile := func(expected fleet.MDMAppleConfigProfile, actual fleet.MDMAppleConfigProfile) {
+		require.Equal(t, expected.Name, actual.Name)
+		require.Equal(t, expected.Identifier, actual.Identifier)
+	}
+
+	// create new profile (no team)
+	generateTestProfile("TestNoTeam")
+	body, headers := generateNewReq("TestNoTeam", nil)
+	newResp := s.DoRawWithHeaders("POST", "/api/latest/fleet/mdm/apple/profiles", body.Bytes(), http.StatusOK, headers)
+	var newCP fleet.MDMAppleConfigProfile
+	err = json.NewDecoder(newResp.Body).Decode(&newCP)
+	require.NoError(t, err)
+	require.NotEmpty(t, newCP.ProfileID)
+	setTestProfileID("TestNoTeam", newCP.ProfileID)
+
+	// create new profile (with team id)
+	generateTestProfile("TestWithTeamID")
+	body, headers = generateNewReq("TestWithTeamID", ptr.Uint(1))
+	newResp = s.DoRawWithHeaders("POST", "/api/latest/fleet/mdm/apple/profiles", body.Bytes(), http.StatusOK, headers)
+	err = json.NewDecoder(newResp.Body).Decode(&newCP)
+	require.NoError(t, err)
+	require.NotEmpty(t, newCP.ProfileID)
+	setTestProfileID("TestWithTeamID", newCP.ProfileID)
+
+	// list profiles (no team)
+	expectedCP := testProfiles["TestNoTeam"]
+	var listResp listMDMAppleConfigProfilesResponse
+	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/profiles", nil, http.StatusOK, &listResp)
+	require.Len(t, listResp.ConfigProfiles, 1)
+	respCP := listResp.ConfigProfiles[0]
+	require.Equal(t, expectedCP.Name, respCP.Name)
+	checkConfigProfile(expectedCP, *respCP)
+	require.Empty(t, respCP.Mobileconfig) // list profiles endpoint shouldn't include mobileconfig bytes
+	require.Empty(t, respCP.TeamID)       // zero means no team
+
+	// list profiles (team 1)
+	expectedCP = testProfiles["TestWithTeamID"]
+	listResp = listMDMAppleConfigProfilesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/profiles", listMDMAppleConfigProfilesRequest{TeamID: testTeam.ID}, http.StatusOK, &listResp)
+	require.Len(t, listResp.ConfigProfiles, 1)
+	respCP = listResp.ConfigProfiles[0]
+	require.Equal(t, expectedCP.Name, respCP.Name)
+	checkConfigProfile(expectedCP, *respCP)
+	require.Empty(t, respCP.Mobileconfig)         // list profiles endpoint shouldn't include mobileconfig bytes
+	require.Equal(t, testTeam.ID, *respCP.TeamID) // team 1
+
+	// get profile (no team)
+	expectedCP = testProfiles["TestNoTeam"]
+	getPath := fmt.Sprintf("/api/latest/fleet/mdm/apple/profiles/%d", expectedCP.ProfileID)
+	getResp := s.DoRawWithHeaders("GET", getPath, nil, http.StatusOK, map[string]string{"Authorization": fmt.Sprintf("Bearer %s", s.token)})
+	checkGetResponse(getResp, expectedCP)
+
+	// get profile (team 1)
+	expectedCP = testProfiles["TestWithTeamID"]
+	getPath = fmt.Sprintf("/api/latest/fleet/mdm/apple/profiles/%d", expectedCP.ProfileID)
+	getResp = s.DoRawWithHeaders("GET", getPath, nil, http.StatusOK, map[string]string{"Authorization": fmt.Sprintf("Bearer %s", s.token)})
+	checkGetResponse(getResp, expectedCP)
+
+	// delete profile (no team)
+	deletedCP := testProfiles["TestNoTeam"]
+	deletePath := fmt.Sprintf("/api/latest/fleet/mdm/apple/profiles/%d", deletedCP.ProfileID)
+	var deleteResp deleteMDMAppleConfigProfileResponse
+	s.DoJSON("DELETE", deletePath, nil, http.StatusOK, &deleteResp)
+	// confirm deleted
+	listResp = listMDMAppleConfigProfilesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/profiles", listMDMAppleConfigProfilesRequest{}, http.StatusOK, &listResp)
+	require.Len(t, listResp.ConfigProfiles, 0)
+	getPath = fmt.Sprintf("/api/latest/fleet/mdm/apple/profiles/%d", deletedCP.ProfileID)
+	getResp = s.DoRawWithHeaders("GET", getPath, nil, http.StatusNotFound, map[string]string{"Authorization": fmt.Sprintf("Bearer %s", s.token)})
+
+	// delete profile (team 1)
+	deletedCP = testProfiles["TestWithTeamID"]
+	deletePath = fmt.Sprintf("/api/latest/fleet/mdm/apple/profiles/%d", deletedCP.ProfileID)
+	deleteResp = deleteMDMAppleConfigProfileResponse{}
+	s.DoJSON("DELETE", deletePath, nil, http.StatusOK, &deleteResp)
+	// confirm deleted
+	listResp = listMDMAppleConfigProfilesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/profiles", listMDMAppleConfigProfilesRequest{TeamID: testTeam.ID}, http.StatusOK, &listResp)
+	require.Len(t, listResp.ConfigProfiles, 0)
+	getPath = fmt.Sprintf("/api/latest/fleet/mdm/apple/profiles/%d", deletedCP.ProfileID)
+	getResp = s.DoRawWithHeaders("GET", getPath, nil, http.StatusNotFound, map[string]string{"Authorization": fmt.Sprintf("Bearer %s", s.token)})
 }
 
 type device struct {
