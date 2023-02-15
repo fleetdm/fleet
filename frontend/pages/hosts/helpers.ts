@@ -10,6 +10,12 @@ export const getHostStatusTooltipText = (status: string): string => {
 export const getMacSettingsStatus = (
   hostMacSettings: IMacSettings | undefined
 ): MacSettingsStatus => {
-  // TODO
-  return "Pending";
+  const statuses = hostMacSettings?.map((setting) => setting.status);
+  if (statuses?.includes("failed")) {
+    return "Failing";
+  }
+  if (statuses?.includes("pending")) {
+    return "Pending";
+  }
+  return "Latest";
 };
