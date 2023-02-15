@@ -397,16 +397,13 @@ func checkMacOfficeVulnerabilities(
 	collectVulns bool,
 ) []fleet.SoftwareVulnerability {
 	if config.DisableDataSync {
-		return nil
-	}
-	var results []fleet.SoftwareVulnerability
+		err := macoffice.SyncFromGithub(ctx, vulnPath)
+		if err != nil {
+			errHandler(ctx, logger, "updating mac office release notes", err)
+		}
 
-	err := macoffice.SyncFromGithub(ctx, vulnPath)
-	if err != nil {
-		errHandler(ctx, logger, "updating mac office release notes", err)
+		level.Debug(logger).Log("finished sync mac office release notes")
 	}
-
-	level.Debug(logger).Log("finished sync mac office release notes")
 
 	start := time.Now()
 	r, err := macoffice.Analyze(ctx, ds, vulnPath, collectVulns)
@@ -417,12 +414,11 @@ func checkMacOfficeVulnerabilities(
 		"elapsed", elapsed,
 		"found new", len(r))
 
-	results = append(results, r...)
 	if err != nil {
 		errHandler(ctx, logger, "analyzing mac office products for vulnerabilities", err)
 	}
 
-	return results
+	return r
 }
 
 func newAutomationsSchedule(
