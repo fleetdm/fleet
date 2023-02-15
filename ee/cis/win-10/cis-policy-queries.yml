@@ -727,23 +727,26 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - AAAAAAAA
+  name: CIS - Ensure 'Enable computer and user accounts to be trusted for delegation' is set to 'No One'
   platforms: win10
   platform: windows
   description: |
-    BBBBBBBBB
+    This policy setting allows users to change the Trusted for Delegation setting on a computer object in Active Directory. Abuse of this privilege could allow unauthorized users to impersonate other users on the network.
+    The recommended state for this setting is: No One.
+    Note: This user right is considered a "sensitive privilege" for the purposes of auditing. Rationale:
+    Misuse of the Enable computer and user accounts to be trusted for delegation user right could allow unauthorized users to impersonate other users on the network. An attacker could exploit this privilege to gain access to network resources and make it difficult to determine what has happened after a security incident.
   resolution: |
     Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'CCCCCCCCC':
-    'DDDDDDDD'
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'No One':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Enable computer and user accounts to be trusted for delegation'
   query: |
     SELECT 1 FROM group_policy
     WHERE
-    path = 'DDDDDDDD'
+    path = 'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Enable computer and user accounts to be trusted for delegation'
     AND
-    value = 'CCCCCCCCC';
+    value = 'No One';
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-YYYYY
+  tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-2.2.21
   contributors: sharon-fdm
 ---
 apiVersion: v1
