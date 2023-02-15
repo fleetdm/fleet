@@ -316,3 +316,769 @@ spec:
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-2.2.4
   contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Allow log on locally' is set to 'Administrators, Users'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting determines which users can interactively log on to computers in your environment. Logons that are initiated by pressing the CTRL+ALT+DEL key sequence on the client computer keyboard require this user right. Users who attempt to log on through Terminal Services / Remote Desktop Services or IIS also require this user right.
+    The recommended state for this setting is: Administrators, Users.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'Administrators, Users':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Allow log on locally'
+  query: |
+    SELECT 1 FROM group_policy
+    WHERE
+    path = 'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Allow log on locally'
+    AND
+    value = 'Administrators, Users';
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-2.2.5
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Allow log on through Remote Desktop Services' is set to 'Administrators, Remote Desktop Users'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting determines which users or groups have the right to log on as a Remote Desktop Services client. If your organization uses Remote Assistance as part of its help desk strategy, create a group and assign it this user right through Group Policy. If the help desk in your organization does not use Remote Assistance, assign this user right only to the Administrators group or use the Restricted Groups feature to ensure that no user accounts are part of the Remote Desktop Users group.
+    Restrict this user right to the Administrators group, and possibly the Remote Desktop Users group, to prevent unwanted users from gaining access to computers on your network by means of the Remote Assistance feature.
+    The recommended state for this setting is: Administrators, Remote Desktop Users. Note: The above list is to be treated as a whitelist, which implies that the above
+    principals need not be present for assessment of this recommendation to pass.
+    Note #2: In all versions of Windows prior to Windows 7, Remote Desktop Services was known as Terminal Services, so you should substitute the older term if comparing against an older OS.
+    Rationale:
+    Any account with the Allow log on through Remote Desktop Services user right can log on to the remote console of the computer. If you do not restrict this user right to legitimate users who need to log on to the console of the computer, unauthorized users could download and run malicious software to elevate their privileges.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'Administrators, Remote Desktop Users':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Allow log on through Remote Desktop Services'
+  query: |
+    SELECT 1 FROM group_policy
+    WHERE
+    path = 'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Allow log on through Remote Desktop Services'
+    AND
+    value = 'Administrators, Remote Desktop Users';
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-2.2.6
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Back up files and directories' is set to 'Administrators
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting allows users to circumvent file and directory permissions to back up the system. This user right is enabled only when an application (such as NTBACKUP) attempts to access a file or directory through the NTFS file system backup application programming interface (API). Otherwise, the assigned file and directory permissions apply.
+    The recommended state for this setting is: Administrators.
+    Note: This user right is considered a "sensitive privilege" for the purposes of auditing. Rationale:
+    Users who are able to back up data from a computer could take the backup media to a non-domain computer on which they have administrative privileges and restore the data. They could take ownership of the files and view any unencrypted data that is contained within the backup set.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'Administrators':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Back up files and directories'
+  query: |
+    SELECT 1 FROM group_policy
+    WHERE
+    path = 'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Back up files and directories'
+    AND
+    value = 'Administrators';
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-2.2.7
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Change the system time' is set to 'Administrators, LOCAL SERVICE'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting determines which users and groups can change the time and date on the internal clock of the computers in your environment. Users who are assigned this user right can affect the appearance of event logs. When a computer's time setting is changed, logged events reflect the new time, not the actual time that the events occurred.
+    The recommended state for this setting is: Administrators, LOCAL SERVICE.
+    Note: Discrepancies between the time on the local computer and on the Domain Controllers in your environment may cause problems for the Kerberos authentication protocol, which could make it impossible for users to log on to the domain or obtain authorization to access domain resources after they are logged on. Also, problems will occur when Group Policy is applied to client computers if the system time is not synchronized with the Domain Controllers.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'Administrators, LOCAL SERVICE':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Change the system time'
+  query: |
+    SELECT 1 FROM group_policy
+    WHERE
+    path = 'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Change the system time'
+    AND
+    value = 'Administrators, LOCAL SERVICE';
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-2.2.8
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Change the time zone' is set to 'Administrators, LOCAL SERVICE, Users'
+  platforms: win10
+  platform: windows
+  description: |
+    This setting determines which users can change the time zone of the computer. This ability holds no great danger for the computer and may be useful for mobile workers.
+    The recommended state for this setting is: Administrators, LOCAL SERVICE, Users.
+    Rationale:
+    Changing the time zone represents little vulnerability because the system time is not affected. This setting merely enables users to display their preferred time zone while being synchronized with Domain Controllers in different time zones.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'Administrators, LOCAL SERVICE, Users':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Change the time zone'
+  query: |
+    SELECT 1 FROM group_policy
+    WHERE
+    path = 'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Change the time zone'
+    AND
+    value = 'Administrators, LOCAL SERVICE, Users';
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-2.2.9
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Create a pagefile' is set to 'Administrators'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting allows users to change the size of the pagefile. By making the pagefile extremely large or extremely small, an attacker could easily affect the performance of a compromised computer.
+    The recommended state for this setting is: Administrators.
+    Rationale:
+    Users who can change the page file size could make it extremely small or move the file to a highly fragmented storage volume, which could cause reduced computer performance.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'Administrators':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Create a pagefile'
+  query: |
+    SELECT 1 FROM group_policy
+    WHERE
+    path = 'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Create a pagefile'
+    AND
+    value = 'Administrators';
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-2.2.10
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - AAAAAAAA
+  platforms: win10
+  platform: windows
+  description: |
+    BBBBBBBBB
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'CCCCCCCCC':
+    'DDDDDDDD'
+  query: |
+    SELECT 1 FROM group_policy
+    WHERE
+    path = 'DDDDDDDD'
+    AND
+    value = 'CCCCCCCCC';
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-YYYYY
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - AAAAAAAA
+  platforms: win10
+  platform: windows
+  description: |
+    BBBBBBBBB
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'CCCCCCCCC':
+    'DDDDDDDD'
+  query: |
+    SELECT 1 FROM group_policy
+    WHERE
+    path = 'DDDDDDDD'
+    AND
+    value = 'CCCCCCCCC';
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-YYYYY
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - AAAAAAAA
+  platforms: win10
+  platform: windows
+  description: |
+    BBBBBBBBB
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'CCCCCCCCC':
+    'DDDDDDDD'
+  query: |
+    SELECT 1 FROM group_policy
+    WHERE
+    path = 'DDDDDDDD'
+    AND
+    value = 'CCCCCCCCC';
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-YYYYY
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - AAAAAAAA
+  platforms: win10
+  platform: windows
+  description: |
+    BBBBBBBBB
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'CCCCCCCCC':
+    'DDDDDDDD'
+  query: |
+    SELECT 1 FROM group_policy
+    WHERE
+    path = 'DDDDDDDD'
+    AND
+    value = 'CCCCCCCCC';
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-YYYYY
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - AAAAAAAA
+  platforms: win10
+  platform: windows
+  description: |
+    BBBBBBBBB
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'CCCCCCCCC':
+    'DDDDDDDD'
+  query: |
+    SELECT 1 FROM group_policy
+    WHERE
+    path = 'DDDDDDDD'
+    AND
+    value = 'CCCCCCCCC';
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-YYYYY
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - AAAAAAAA
+  platforms: win10
+  platform: windows
+  description: |
+    BBBBBBBBB
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'CCCCCCCCC':
+    'DDDDDDDD'
+  query: |
+    SELECT 1 FROM group_policy
+    WHERE
+    path = 'DDDDDDDD'
+    AND
+    value = 'CCCCCCCCC';
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-YYYYY
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - AAAAAAAA
+  platforms: win10
+  platform: windows
+  description: |
+    BBBBBBBBB
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'CCCCCCCCC':
+    'DDDDDDDD'
+  query: |
+    SELECT 1 FROM group_policy
+    WHERE
+    path = 'DDDDDDDD'
+    AND
+    value = 'CCCCCCCCC';
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-YYYYY
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - AAAAAAAA
+  platforms: win10
+  platform: windows
+  description: |
+    BBBBBBBBB
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'CCCCCCCCC':
+    'DDDDDDDD'
+  query: |
+    SELECT 1 FROM group_policy
+    WHERE
+    path = 'DDDDDDDD'
+    AND
+    value = 'CCCCCCCCC';
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-YYYYY
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - AAAAAAAA
+  platforms: win10
+  platform: windows
+  description: |
+    BBBBBBBBB
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'CCCCCCCCC':
+    'DDDDDDDD'
+  query: |
+    SELECT 1 FROM group_policy
+    WHERE
+    path = 'DDDDDDDD'
+    AND
+    value = 'CCCCCCCCC';
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-YYYYY
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - AAAAAAAA
+  platforms: win10
+  platform: windows
+  description: |
+    BBBBBBBBB
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'CCCCCCCCC':
+    'DDDDDDDD'
+  query: |
+    SELECT 1 FROM group_policy
+    WHERE
+    path = 'DDDDDDDD'
+    AND
+    value = 'CCCCCCCCC';
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-YYYYY
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - AAAAAAAA
+  platforms: win10
+  platform: windows
+  description: |
+    BBBBBBBBB
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'CCCCCCCCC':
+    'DDDDDDDD'
+  query: |
+    SELECT 1 FROM group_policy
+    WHERE
+    path = 'DDDDDDDD'
+    AND
+    value = 'CCCCCCCCC';
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-YYYYY
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - AAAAAAAA
+  platforms: win10
+  platform: windows
+  description: |
+    BBBBBBBBB
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'CCCCCCCCC':
+    'DDDDDDDD'
+  query: |
+    SELECT 1 FROM group_policy
+    WHERE
+    path = 'DDDDDDDD'
+    AND
+    value = 'CCCCCCCCC';
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-YYYYY
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - AAAAAAAA
+  platforms: win10
+  platform: windows
+  description: |
+    BBBBBBBBB
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'CCCCCCCCC':
+    'DDDDDDDD'
+  query: |
+    SELECT 1 FROM group_policy
+    WHERE
+    path = 'DDDDDDDD'
+    AND
+    value = 'CCCCCCCCC';
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-YYYYY
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - AAAAAAAA
+  platforms: win10
+  platform: windows
+  description: |
+    BBBBBBBBB
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'CCCCCCCCC':
+    'DDDDDDDD'
+  query: |
+    SELECT 1 FROM group_policy
+    WHERE
+    path = 'DDDDDDDD'
+    AND
+    value = 'CCCCCCCCC';
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-YYYYY
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - AAAAAAAA
+  platforms: win10
+  platform: windows
+  description: |
+    BBBBBBBBB
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'CCCCCCCCC':
+    'DDDDDDDD'
+  query: |
+    SELECT 1 FROM group_policy
+    WHERE
+    path = 'DDDDDDDD'
+    AND
+    value = 'CCCCCCCCC';
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-YYYYY
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - AAAAAAAA
+  platforms: win10
+  platform: windows
+  description: |
+    BBBBBBBBB
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'CCCCCCCCC':
+    'DDDDDDDD'
+  query: |
+    SELECT 1 FROM group_policy
+    WHERE
+    path = 'DDDDDDDD'
+    AND
+    value = 'CCCCCCCCC';
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-YYYYY
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - AAAAAAAA
+  platforms: win10
+  platform: windows
+  description: |
+    BBBBBBBBB
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'CCCCCCCCC':
+    'DDDDDDDD'
+  query: |
+    SELECT 1 FROM group_policy
+    WHERE
+    path = 'DDDDDDDD'
+    AND
+    value = 'CCCCCCCCC';
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-YYYYY
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - AAAAAAAA
+  platforms: win10
+  platform: windows
+  description: |
+    BBBBBBBBB
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'CCCCCCCCC':
+    'DDDDDDDD'
+  query: |
+    SELECT 1 FROM group_policy
+    WHERE
+    path = 'DDDDDDDD'
+    AND
+    value = 'CCCCCCCCC';
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-YYYYY
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - AAAAAAAA
+  platforms: win10
+  platform: windows
+  description: |
+    BBBBBBBBB
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'CCCCCCCCC':
+    'DDDDDDDD'
+  query: |
+    SELECT 1 FROM group_policy
+    WHERE
+    path = 'DDDDDDDD'
+    AND
+    value = 'CCCCCCCCC';
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-YYYYY
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - AAAAAAAA
+  platforms: win10
+  platform: windows
+  description: |
+    BBBBBBBBB
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'CCCCCCCCC':
+    'DDDDDDDD'
+  query: |
+    SELECT 1 FROM group_policy
+    WHERE
+    path = 'DDDDDDDD'
+    AND
+    value = 'CCCCCCCCC';
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-YYYYY
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - AAAAAAAA
+  platforms: win10
+  platform: windows
+  description: |
+    BBBBBBBBB
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'CCCCCCCCC':
+    'DDDDDDDD'
+  query: |
+    SELECT 1 FROM group_policy
+    WHERE
+    path = 'DDDDDDDD'
+    AND
+    value = 'CCCCCCCCC';
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-YYYYY
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - AAAAAAAA
+  platforms: win10
+  platform: windows
+  description: |
+    BBBBBBBBB
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'CCCCCCCCC':
+    'DDDDDDDD'
+  query: |
+    SELECT 1 FROM group_policy
+    WHERE
+    path = 'DDDDDDDD'
+    AND
+    value = 'CCCCCCCCC';
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-YYYYY
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - AAAAAAAA
+  platforms: win10
+  platform: windows
+  description: |
+    BBBBBBBBB
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'CCCCCCCCC':
+    'DDDDDDDD'
+  query: |
+    SELECT 1 FROM group_policy
+    WHERE
+    path = 'DDDDDDDD'
+    AND
+    value = 'CCCCCCCCC';
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-YYYYY
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - AAAAAAAA
+  platforms: win10
+  platform: windows
+  description: |
+    BBBBBBBBB
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'CCCCCCCCC':
+    'DDDDDDDD'
+  query: |
+    SELECT 1 FROM group_policy
+    WHERE
+    path = 'DDDDDDDD'
+    AND
+    value = 'CCCCCCCCC';
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-YYYYY
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - AAAAAAAA
+  platforms: win10
+  platform: windows
+  description: |
+    BBBBBBBBB
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'CCCCCCCCC':
+    'DDDDDDDD'
+  query: |
+    SELECT 1 FROM group_policy
+    WHERE
+    path = 'DDDDDDDD'
+    AND
+    value = 'CCCCCCCCC';
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-YYYYY
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - AAAAAAAA
+  platforms: win10
+  platform: windows
+  description: |
+    BBBBBBBBB
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'CCCCCCCCC':
+    'DDDDDDDD'
+  query: |
+    SELECT 1 FROM group_policy
+    WHERE
+    path = 'DDDDDDDD'
+    AND
+    value = 'CCCCCCCCC';
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-YYYYY
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - AAAAAAAA
+  platforms: win10
+  platform: windows
+  description: |
+    BBBBBBBBB
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'CCCCCCCCC':
+    'DDDDDDDD'
+  query: |
+    SELECT 1 FROM group_policy
+    WHERE
+    path = 'DDDDDDDD'
+    AND
+    value = 'CCCCCCCCC';
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-YYYYY
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - AAAAAAAA
+  platforms: win10
+  platform: windows
+  description: |
+    BBBBBBBBB
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'CCCCCCCCC':
+    'DDDDDDDD'
+  query: |
+    SELECT 1 FROM group_policy
+    WHERE
+    path = 'DDDDDDDD'
+    AND
+    value = 'CCCCCCCCC';
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-YYYYY
+  contributors: sharon-fdm
