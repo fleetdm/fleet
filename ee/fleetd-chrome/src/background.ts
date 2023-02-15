@@ -1,7 +1,7 @@
 // @ts-ignore
-import SQLiteAsyncESMFactory from "./node_modules/wa-sqlite/dist/wa-sqlite-async.mjs";
+import SQLiteAsyncESMFactory from "wa-sqlite/dist/wa-sqlite-async.mjs";
 
-import * as SQLite from "./node_modules/wa-sqlite/src/sqlite-api.js";
+import * as SQLite from "wa-sqlite";
 
 import VirtualDatabase from "./db.js";
 

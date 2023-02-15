@@ -1,4 +1,4 @@
-import * as SQLite from "./node_modules/wa-sqlite/src/sqlite-api.js";
+import * as SQLite from "wa-sqlite";
 
 export default class Table {
   name = "table_name";

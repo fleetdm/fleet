@@ -1,0 +1,17 @@
+{
+    "compilerOptions": {
+        "allowSyntheticDefaultImports": true,
+        "esModuleInterop": true,
+        "jsx": "react",
+        "lib": [
+            "es2015",
+            "dom"
+        ],
+        "module": "es2015",
+        "moduleResolution": "nodenext",
+        "outDir": "dist/js",
+        "rootDir": "src",
+        "sourceMap": true,
+        "target": "es2015"
+    }
+}
