@@ -5,7 +5,7 @@ import { IMacSettings } from "interfaces/mdm";
 import MacSettingsTable from "./MacSettingsTable";
 
 interface IMacSettingsModalProps {
-  hostMacSettings: IMacSettings; // TODO: define this type when API shape is determined
+  hostMacSettings?: IMacSettings;
   isLoading: boolean;
   onClose: () => void;
 }

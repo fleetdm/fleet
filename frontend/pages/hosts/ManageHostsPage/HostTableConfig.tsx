@@ -28,7 +28,7 @@ import { ITeamSummary } from "interfaces/team";
 import { IUser } from "interfaces/user";
 import PATHS from "router/paths";
 import permissionUtils from "utilities/permissions";
-import getHostStatusTooltipText from "../helpers";
+import { getHostStatusTooltipText } from "../helpers";
 
 interface IGetToggleAllRowsSelectedProps {
   checked: boolean;

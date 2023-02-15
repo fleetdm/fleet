@@ -4,13 +4,13 @@ import TableContainer from "components/TableContainer";
 import EmptyTable from "components/EmptyTable";
 import { IMacSettings } from "interfaces/mdm";
 
-import { tableHeaders, generateDataSet } from "./MacSettingsTableConfig";
+import tableHeaders from "./MacSettingsTableConfig";
 
 const baseClass = "macsettings-table";
 
 interface IMacSettingsTableProps {
   isLoading: boolean;
-  hostMacSettings: IMacSettings;
+  hostMacSettings?: IMacSettings;
 }
 
 const MacSettingsTable = ({
@@ -26,7 +26,7 @@ const MacSettingsTable = ({
           resultsTitle="settings"
           defaultSortHeader="name"
           columns={tableHeaders}
-          data={generateDataSet(hostMacSettings)} // TODO
+          data={hostMacSettings}
           isLoading={isLoading}
           emptyComponent={"symbol"}
           // TODO:
@@ -41,6 +41,7 @@ const MacSettingsTable = ({
           // }
           showMarkAllPages={false}
           isAllPagesSelected={false}
+          disablePagination
         />
       )}
     </div>

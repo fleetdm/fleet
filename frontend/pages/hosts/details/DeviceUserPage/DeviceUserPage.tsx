@@ -29,6 +29,7 @@ import {
   wrapFleetHelper,
   humanHostDiskEncryptionEnabled,
 } from "utilities/helpers";
+import { getMacSettingsStatus } from "pages/hosts/helpers";
 
 import HostSummaryCard from "../cards/HostSummary";
 import AboutCard from "../cards/About";
@@ -187,6 +188,36 @@ const DeviceUserPage = ({
     }
   );
 
+  // TODO: remove this mock data once API is returning real data
+  if (host) {
+    host.mdm.profiles = [
+      {
+        name: "Restrictions",
+        status: "failed",
+        detail: "",
+        error: "The “Restrictions” payload couldn’t be installed.",
+      },
+      {
+        name: "Password",
+        status: "pending",
+        detail: "Removing enforcement",
+        error: "",
+      },
+      {
+        name: "Wifi",
+        status: "pending",
+        detail: "Enforcing",
+        error: "",
+      },
+      {
+        name: "Users",
+        status: "applied",
+        detail: "",
+        error: "",
+      },
+    ];
+  }
+
   const titleData = normalizeEmptyValues(
     pick(host, [
       "id",
@@ -321,6 +352,7 @@ const DeviceUserPage = ({
               diskEncryption={hostDiskEncryption}
               isPremiumTier={isPremiumTier}
               toggleMacSettingsModal={toggleMacSettingsModal}
+              macSettingsStatus={getMacSettingsStatus(host?.mdm.profiles)}
               showRefetchSpinner={showRefetchSpinner}
               onRefetchHost={onRefetchHost}
               renderActionButtons={renderActionButtons}
@@ -381,15 +413,8 @@ const DeviceUserPage = ({
         )}
         {showMacSettingsModal && (
           <MacSettingsModal
-            // TODO: pass real host mac settings data
             // TODO: pass loading state from request for above data
-            hostMacSettings={[
-              {
-                name: "test setting",
-                statusText: "Applied",
-                errorText: "test error text",
-              },
-            ]}
+            hostMacSettings={host?.mdm.profiles}
             isLoading={false}
             onClose={toggleMacSettingsModal}
           />

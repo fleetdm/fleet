@@ -55,17 +55,11 @@ export interface IMdmSummaryResponse {
   mobile_device_management_solution: IMdmSolution[] | null;
 }
 
-// TODO: define below according to the API structure in issue #9599
-export type MacSettingStatusOptions =
-  | "Action required (pending)"
-  | "Applied"
-  | "Enforcing (pending)"
-  | "Removing enforcement (pending)"
-  | "Failed";
-export type IMacSetting = {
+export type IMacMdmProfile = {
   name: string;
-  statusText: MacSettingStatusOptions;
-  errorText?: string;
+  status: "failed" | "pending" | "applied";
+  detail: "" | "Removing enforcement" | "Enforcing" | "Action required";
+  error: string;
 };
-export type IMacSettings = IMacSetting[];
+export type IMacSettings = IMacMdmProfile[];
 export type MacSettingsStatus = "Failing" | "Latest" | "Pending";

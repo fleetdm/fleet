@@ -7,10 +7,8 @@ import Button from "components/buttons/Button";
 import DiskSpaceGraph from "components/DiskSpaceGraph";
 import HumanTimeDiffWithDateTip from "components/HumanTimeDiffWithDateTip";
 import { humanHostMemory, wrapFleetHelper } from "utilities/helpers";
-import getHostStatusTooltipText from "pages/hosts/helpers";
+import { getHostStatusTooltipText } from "pages/hosts/helpers";
 import StatusIndicator from "components/StatusIndicator";
-import Icon from "components/Icon";
-import { IconNames } from "components/icons";
 import { MacSettingsStatus } from "interfaces/mdm";
 import IssueIcon from "../../../../../../assets/images/icon-issue-fleet-black-50-16x16@2x.png";
 import MacSettingsIndicator from "../../MacSettingsIndicator";
@@ -30,6 +28,7 @@ interface IHostSummaryProps {
   isOnlyObserver?: boolean;
   toggleOSPolicyModal?: () => void;
   toggleMacSettingsModal?: () => void;
+  macSettingsStatus: MacSettingsStatus;
   showRefetchSpinner: boolean;
   onRefetchHost: (
     evt: React.MouseEvent<HTMLButtonElement, React.MouseEvent>
@@ -46,6 +45,7 @@ const HostSummary = ({
   isOnlyObserver,
   toggleOSPolicyModal,
   toggleMacSettingsModal,
+  macSettingsStatus,
   showRefetchSpinner,
   onRefetchHost,
   renderActionButtons,
@@ -135,9 +135,7 @@ const HostSummary = ({
   );
 
   const renderMacSettingsIndicator = () => {
-    // TODO: actually determine this status
-    const macSettingsStatus: MacSettingsStatus = "Latest";
-
+    // const macSettingsStatus: MacSettingsStatus = "Latest";
     const STATUS_DISPLAY_OPTIONS = {
       Latest: {
         iconName: "success",
@@ -166,32 +164,6 @@ const HostSummary = ({
           onClick={toggleMacSettingsModal}
           tooltip={{ tooltipText }}
         />
-        {/* <span className="info-flex__data">
-          <Icon name={iconName} />
-          <span
-            className="tooltip tooltip__tooltip-icon"
-            data-tip
-            data-for="host-mac-settings-status"
-            data-tip-disable={false}
-          >
-            <Button
-              onClick={toggleMacSettingsModal}
-              variant="text-link"
-              className={`${baseClass}__mac-settings-button`}
-            >
-              {macSettingsStatus}
-            </Button>
-          </span>
-          <ReactTooltip
-            place="bottom"
-            effect="solid"
-            backgroundColor="#3e4771"
-            id="host-mac-settings-status"
-            data-html
-          >
-            <span className="tooltip__tooltip-text">{tooltipText}</span>
-          </ReactTooltip>
-        </span> */}
       </div>
     );
   };

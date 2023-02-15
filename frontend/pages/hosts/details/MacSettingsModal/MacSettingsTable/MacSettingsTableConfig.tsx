@@ -1,7 +1,6 @@
-import LinkCell from "components/TableContainer/DataTable/LinkCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import React from "react";
-import { IMacSetting, IMacSettings } from "interfaces/mdm";
+import { IMacMdmProfile } from "interfaces/mdm";
 import MacSettingsIndicator from "../../MacSettingsIndicator";
 
 interface IHeaderProps {
@@ -16,7 +15,7 @@ interface ICellProps {
     value: string;
   };
   row: {
-    original: IMacSetting;
+    original: IMacMdmProfile;
   };
 }
 
@@ -31,25 +30,44 @@ interface IDataColumn {
   sortType?: string;
 }
 
-const SETTING_STATUS_OPTIONS = {
-  "Action required (pending)": {
-    iconName: "pending",
-    tooltipText: "Follow Disk encryption instructions on your My device page.",
-  },
-  Applied: {
-    iconName: "success",
-    tooltipText: "Disk encryption on and disk encryption key stored in Fleet.",
-  },
-  "Enforcing (pending)": {
-    iconName: "pending",
-    tooltipText: "Setting will be enforced when the host comes online.",
-  },
-  "Removing enforcement (pending)": {
-    iconName: "pending",
-    tooltipText: "Enforcement will be removed when the host comes online.",
-  },
-  Failed: { iconName: "error", tooltipText: null },
-} as const;
+const getStatusDisplayOptions = (
+  profile: IMacMdmProfile
+): {
+  statusText: string;
+  iconName: "pending" | "success" | "error";
+  tooltipText: string | null;
+} => {
+  const SETTING_STATUS_OPTIONS = {
+    pending: {
+      "Action required":
+        "Follow Disk encryption instructions on your My device page.",
+      Enforcing: "Setting will be enforced when the host comes online.",
+      "Removing enforcement":
+        "Enforcement will be removed when the host comes online.",
+      "": "",
+    },
+    applied: {
+      iconName: "success",
+      tooltipText:
+        "Disk encryption on and disk encryption key stored in Fleet.",
+    },
+    failed: { iconName: "error", tooltipText: null },
+  } as const;
+
+  if (profile.status === "pending") {
+    return {
+      statusText: `${profile.detail} (pending)`,
+      iconName: "pending",
+      tooltipText: SETTING_STATUS_OPTIONS.pending[profile.detail],
+    };
+  }
+  return {
+    statusText:
+      profile.status.charAt(0).toUpperCase() + profile.status.slice(1),
+    iconName: SETTING_STATUS_OPTIONS[profile.status].iconName,
+    tooltipText: SETTING_STATUS_OPTIONS[profile.status].tooltipText,
+  };
+};
 
 const tableHeaders: IDataColumn[] = [
   {
@@ -67,20 +85,14 @@ const tableHeaders: IDataColumn[] = [
     disableSortBy: true,
     accessor: "statusText",
     Cell: (cellProps: ICellProps) => {
-      // TODO: refine this logic according to API structure
-      const statusData = cellProps.row.original;
-      const statusText = statusData.statusText;
-      // const statusText = "Applied";
-      const iconName = SETTING_STATUS_OPTIONS[statusText].iconName;
-      const tooltip = {
-        tooltipText: SETTING_STATUS_OPTIONS[statusText].tooltipText,
-        position: "bottom" as const,
-      };
+      const { statusText, iconName, tooltipText } = getStatusDisplayOptions(
+        cellProps.row.original
+      );
       return (
         <MacSettingsIndicator
           indicatorText={statusText}
           iconName={iconName}
-          tooltip={tooltip}
+          tooltip={{ tooltipText }}
         />
       );
     },
@@ -90,16 +102,10 @@ const tableHeaders: IDataColumn[] = [
     Header: "Error",
     disableSortBy: true,
     accessor: "error",
-    Cell: (cellProps: ICellProps): JSX.Element => {
-      // TODO: logically generate settings error from API structure
-      return <div>Error</div>;
-    },
+    Cell: (cellProps: ICellProps): JSX.Element => (
+      <TextCell value={cellProps.row.original.error} />
+    ),
   },
 ];
 
-const generateDataSet = (hostMacSettings: IMacSettings): IMacSettings => {
-  // TODO - make this real
-  return hostMacSettings;
-};
-
-export { tableHeaders, generateDataSet };
+export default tableHeaders;
