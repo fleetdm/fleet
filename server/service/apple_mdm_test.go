@@ -62,6 +62,7 @@ func setupAppleMDMService(t *testing.T) (fleet.Service, context.Context, *mock.S
 		MDMStorage:  mdmStorage,
 		DEPStorage:  depStorage,
 		MDMPusher:   pusher,
+		License:     &fleet.LicenseInfo{Tier: fleet.TierPremium},
 	}
 	svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, opts)
 

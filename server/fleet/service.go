@@ -16,6 +16,7 @@ import (
 // TODO: find if there's a better way to accomplish this and standardize.
 type EnterpriseOverrides struct {
 	HostFeatures func(context context.Context, host *Host) (*Features, error)
+	TeamByName   func(ctx context.Context, name string) (*Team, error)
 }
 
 type OsqueryService interface {

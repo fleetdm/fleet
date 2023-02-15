@@ -3,10 +3,8 @@ package service
 import (
 	"bytes"
 	"context"
-	"database/sql"
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"mime/multipart"
@@ -1160,19 +1158,8 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 
 	// if the team name is provided, load the corresponding team to get its id.
 	if tmName != nil {
-		if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionRead); err != nil {
-			return err
-		}
-		tm, err := svc.ds.TeamByName(ctx, *tmName)
+		tm, err := svc.EnterpriseOverrides.TeamByName(ctx, *tmName)
 		if err != nil {
-			if errors.Is(err, sql.ErrNoRows) {
-				// this should really be handled in TeamByName so that it returns a
-				// notFound error as is usually the case for this scenario, but
-				// changing it causes a number of test failures that indicates this
-				// might be tricky and even maybe a breaking change in some places. For
-				// now, handling it here.
-				return notFoundError{}
-			}
 			return err
 		}
 		tmID = &tm.ID
