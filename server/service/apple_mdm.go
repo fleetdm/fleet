@@ -1157,12 +1157,18 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 	}
 
 	// if the team name is provided, load the corresponding team to get its id.
-	if tmName != nil {
-		tm, err := svc.EnterpriseOverrides.TeamByName(ctx, *tmName)
+	// vice-versa, if the id is provided, load it to get the name (required for
+	// the activity).
+	if tmName != nil || tmID != nil {
+		tm, err := svc.EnterpriseOverrides.TeamByIDOrName(ctx, tmID, tmName)
 		if err != nil {
 			return err
 		}
-		tmID = &tm.ID
+		if tmID == nil {
+			tmID = &tm.ID
+		} else {
+			tmName = &tm.Name
+		}
 	}
 
 	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleConfigProfile{TeamID: tmID}, fleet.ActionWrite); err != nil {
@@ -1201,7 +1207,17 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 	if dryRun {
 		return nil
 	}
-	return svc.ds.BatchSetMDMAppleProfiles(ctx, tmID, profs)
+	if err := svc.ds.BatchSetMDMAppleProfiles(ctx, tmID, profs); err != nil {
+		return err
+	}
+
+	if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeEditedMacosProfile{
+		TeamID:   tmID,
+		TeamName: tmName,
+	}); err != nil {
+		return ctxerr.Wrap(ctx, err, "logging activity for edited macos profile")
+	}
+	return nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
