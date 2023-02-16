@@ -179,6 +179,9 @@ func DownloadCISAKnownExploitsFeed(vulnPath string) error {
 // LoadCVEMeta loads the cvss scores, epss scores, and known exploits from the previously downloaded feeds and saves
 // them to the database.
 func LoadCVEMeta(ctx context.Context, logger log.Logger, vulnPath string, ds fleet.Datastore) error {
+	if !license.IsPremium(ctx) {
+		level.Info(logger).Log("msg", "skipping cve_meta parsing due to license check")
+	}
 	// load cvss scores
 	files, err := getNVDCVEFeedFiles(vulnPath)
 	if err != nil {
@@ -278,13 +281,10 @@ func LoadCVEMeta(ctx context.Context, logger log.Logger, vulnPath string, ds fle
 		meta = append(meta, score)
 	}
 
-	// CVE Meta is only used for premium access patterns
-	if license.IsPremium(ctx) {
-		ctx, cancel := context.WithTimeout(ctx, 1*time.Minute)
-		defer cancel()
-		if err := ds.InsertCVEMeta(ctx, meta); err != nil {
-			return fmt.Errorf("insert cve meta: %w", err)
-		}
+	insertCtx, cancel := context.WithTimeout(ctx, 1*time.Minute)
+	defer cancel()
+	if err := ds.InsertCVEMeta(insertCtx, meta); err != nil {
+		return fmt.Errorf("insert cve meta: %w", err)
 	}
 
 	return nil
