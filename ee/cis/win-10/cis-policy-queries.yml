@@ -957,23 +957,26 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - AAAAAAAA
+  name: CIS - Ensure 'Manage auditing and security log' is set to 'Administrators'
   platforms: win10
   platform: windows
   description: |
-    BBBBBBBBB
+    This policy setting determines which users can change the auditing options for files and directories and clear the Security log.
+    The recommended state for this setting is: Administrators.
+    Note: This user right is considered a "sensitive privilege" for the purposes of auditing. Rationale:
+    The ability to manage the Security event log is a powerful user right and it should be closely guarded. Anyone with this user right can clear the Security log to erase important evidence of unauthorized activity.
   resolution: |
     Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'CCCCCCCCC':
-    'DDDDDDDD'
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'Administrators':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Manage auditing and security log'
   query: |
     SELECT 1 FROM group_policy
     WHERE
-    path = 'DDDDDDDD'
+    path = 'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Manage auditing and security log'
     AND
-    value = 'CCCCCCCCC';
+    value = 'Administrators';
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-YYYYY
+  tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-2.2.30
   contributors: sharon-fdm
 ---
 apiVersion: v1
