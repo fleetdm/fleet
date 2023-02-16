@@ -9,7 +9,7 @@ Fleet is currently hiring for the following positions:
 - 🫧 [Revenue Operations Manager](https://fleet-device-management.breezy.hr/p/c28cce9abf5e-revenue-ops)
 - 🫧 [Field Marketer](https://fleet-device-management.breezy.hr/p/3bd97ce5f54a-field-marketing-manager-enterprise)
 
-> Interested in joining the team at Fleet, or know someone who might be?  The [company handbook page](https://fleetdm.com/handbook/company) is public, and a short read with more information about the company, including our vision, values, and history.
+> Interested in joining the team at Fleet, or know someone who might be?  The [company handbook page](https://fleetdm.com/handbook/company) is a short read with more information about the company, including our vision, values, and history.
 
 ## Meetings
 * At Fleet, meetings start whether you're there or not. Nevertheless, being even a few minutes late can make a big difference and slow your meeting counterparts down. When in doubt, show up a couple of minutes early.
@@ -165,30 +165,48 @@ During their first week at Fleet, new team members are asked to schedule a contr
 
 
 ### Directly responsible individuals
-At Fleet, we use the concept of Directly Responsible Individuals (**DRI**s). This person is singularly responsible for a given aspect of the open source project, the product, or the company.
-This person is accountable for accomplishing goals and making decisions about a particular element of Fleet.
-DRIs help us collaborate efficiently by knowing exactly who is responsible and can make decisions about the work they're doing and are available to view in the [codeowners file](https://github.com/fleetdm/fleet/blob/main/CODEOWNERS).
->You can read more about directly responsible individuals in [GitLab's handbook](https://about.gitlab.com/handbook/people-group/directly-responsible-individuals/)
-
-> TODO: How's about we move this "Directly responsible individuals paragraph" to the ["Why this way?"](https://fleetdm.com/handbook/company/why-this-way) page instead, to deduplicate? (mikermcneil, 2023-02-16)
+Please read ["Why direct responsibility?"](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) to learn more about DRIs.
 
 
+### Levels of confidentiality
+
+- *Public*   _(share with anyone, anywhere in the world)_
+- *Confidential*  _(share only with team members who've signed an NDA, consulting agreement, or employment agreement)_
+- *Classified*  _(share only with founders of Fleet, peepops, and/or the people involved.  e.g., US social security numbers during hiring)_
 
 
-## Zoom
-We use [Zoom](https://zoom.us) for virtual meetings at Fleet, and it is important that every team member feels comfortable hosting, joining, and scheduling Zoom meetings.
-By default, Zoom settings are the same for all Fleet team members, but you can change your personal settings on your [profile settings](https://zoom.us/profile/setting) page. 
-Settings that have a lock icon next to them have been locked by an administrator and cannot be changed. Zoom administrators can change settings for all team members on the [account settings page](https://zoom.us/account/setting) or for individual accounts on the [user management page](https://zoom.us/account/user#/).
+### Email relays
+
+There are several special email addresses that automatically relay messages to the appropriate people at Fleet. Each email address meets a minimum response time ("Min RT"), expressed in business hours/days, and has a dedicated, directly responsible individual (DRI) who is responsible for reading and replying to emails sent to that address.  You can see a list of those email addresses in ["Contacting Fleet" (private Google doc)](https://docs.google.com/document/d/1tE-NpNfw1icmU2MjYuBRib0VWBPVAdmq4NiCrpuI0F0/edit#).
+
+### GitHub labels
+
+We use special characters to define different types of GitHub labels. By combining labels, we
+organize and categorize GitHub issues. This reduces the total number of labels required while
+maintaining an expressive labeling system. For example, instead of a label called
+`platform-dev-backend`, we use `#platform :dev ~backend`.
+
+| Special character | Label type  | Examples                            |
+|:------------------|:------------|:------------------------------------|
+| `#`               | Noun        | `#platform`, `#interface`, `#agent`
+| `:`               | Verb        | `:dev`, `:research`, `:design`
+| `~`               | Adjective   | `~blocked`, `~frontend`, `~backend`
+| `!`               | OKR         | `!vuln`, `!desktop`, `!upgrade`
 
 
 
+## Tools we use
 
-## Slack
+There are a number of tools that are used throughout Fleet. Some of these tools are used company-wide, while others are department-specific. You can see a list of those tools in ["Tools we use" (private Google doc)](https://docs.google.com/spreadsheets/d/170qjzvyGjmbFhwS4Mucotxnw_JvyAjYv4qpwBrS6Gl8/edit?usp=sharing).
+
+Here is an overview of a few of the most important and generally-applicable tools we use at Fleet:
+
+### Slack
 At Fleet, we do not send internal emails to each other. Instead, we prefer to use Slack to communicate with other folks who work at Fleet.
 We use threads in Slack as much as possible. Threads help limit noise for other people following the channel and reduce notification overload.
 We configure our [working hours in Slack](https://slack.com/help/articles/360025054173-Set-up-Slack-for-work-hours-) to make sure everyone knows when they can get in touch with others.
 
-### Slack channel prefixes
+#### Slack channel prefixes
 We have specific channels for various topics, but we also have more general channels for the teams at Fleet.
 We use these prefixes to organize the Fleet Slack:
  * ***g-***: for team/group channels *(Note: "g-" is short for "grupo")*.
@@ -196,13 +214,19 @@ We use these prefixes to organize the Fleet Slack:
  * ***help-***: for asking for help on specific topics.
  * ***at*** or ***fleet-at***: for customer channels.
 
-### Slack communications and best practices
+#### Slack communications and best practices
 In consideration of our team, Fleet avoids using global tags in channels (i.e. @here, @channel, etc). 
       1. What about polls? Good question, Fleeties are asked to post their poll in the channel and @mention the teammates they would like to hear from. 
       2. Why does this matter? Great question! The Fleet [culture](https://fleetdm.com/handbook/company#culture) is pretty simple: think of others, and remember the company [Values](https://fleetdm.com/handbook/company#values).
 
 
-## Salesforce 
+### Zoom
+We use [Zoom](https://zoom.us) for virtual meetings at Fleet, and it is important that every team member feels comfortable hosting, joining, and scheduling Zoom meetings.
+By default, Zoom settings are the same for all Fleet team members, but you can change your personal settings on your [profile settings](https://zoom.us/profile/setting) page. 
+Settings that have a lock icon next to them have been locked by an administrator and cannot be changed. Zoom administrators can change settings for all team members on the [account settings page](https://zoom.us/account/setting) or for individual accounts on the [user management page](https://zoom.us/account/user#/).
+
+
+### Salesforce 
 We consider Salesforce to be our Rolodex for customer information. During the onboarding process, you may need to add a license for the new hire. Here are the steps we take: 
 1. Go to “Your account.”
 2. View contracts -> pick current contract.
@@ -210,7 +234,7 @@ We consider Salesforce to be our Rolodex for customer information. During the on
 4. Sign DocuSign sent to the email.
 5. The order will be processed in ~30m.
 
-## Gong
+### Gong
 Capturing video from meetings with customers, prospects, and community members outside the company is an important part of building world-class sales and customer success teams and is a widespread practice across the industry. At Fleet, we use Gong to capture Zoom meetings and share them company-wide. If a team member with a Gong license attends certain meetings, generally those with at least one person from outside of Fleet in attendance.  
   - While some Fleeties may have a Gong seat that is necessary in their work, the typical use case at Fleet is for employees on the company's sales, customer success, or customer support teams. 
   - You should be notified anytime you join a recorded call with an audio message announcing "this meeting is being recorded" or "recording in progress."  To stop a recording, the host of the call can press "Stop." 
@@ -509,10 +533,11 @@ For more information, check out [Fleet - who does what](https://docs.google.com/
 ## Rituals
 The following table lists the People group's rituals, frequency, and Directly Responsible Individual (DRI).
 
-| Ritual                       | Frequency                | Description                                         | DRI               |
+| Ritual                       | Frequency                | Description                                         | [DRI](https://fleetdm.com/handbook/company/why-this-way#why-group-slack-channels)               |
 |:-----------------------------|:-----------------------------|:----------------------------------------------------|-------------------|
-| AP invoice monitoring | Daily | Look for new accounts payable invoices and make sure that Fleet's suppliers are paid. | Nathanael Holliday |
-| Weekly update | Weekly | Updates from managers on what their departments accomplished for the week are logged in the cloud and disseminated in Slack. Update the ops KPIs in the ["🌈 Weekly updates" spreadsheet](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0).| Charlie Chance | 
+| Weekly update reminder | Weekly | On Thursday, Charlie starts a thread in the `#help-manage` channel and asks managers to reply to the thread with a summary of what their team did in the past week. | Charlie Chance |
+| Weekly update | Weekly | On Friday, Charlie updates the KPIs in the ["🌈 Weekly updates" spreadsheet](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0) and posts a single message recognizing each of the week's on-duty people for each of the on-call rotations, along with any hiring and departure announcements. Charlie posts the company update in the `#general` channel. | Charlie Chance |
+| AP invoice monitoring | Daily | Look for new accounts payable invoices and make sure that Fleet's suppliers are paid. | Nathanael Holliday | 
 | Hours update | Weekly | Screenshots of contractor hours as shown in Gusto are sent via Slack to each contractor's manager with no further action necessary if everything appears normal. | Charlie Chance |
 | Prepare Mike and Sid's 1:1 doc | Bi-weekly | Run through the document preparation GitHub issue for Mike's call with Sid. | Nathanael Holliday |
 | Brex reconciliation | Monthly | Make sure all company-issued credit card transactions include memos. | Nathanael Holliday |
@@ -539,24 +564,27 @@ The following table lists the People group's rituals, frequency, and Directly Re
 | Changeset for onboarding issue template | Quarterly | pull up the changeset in the onboarding issue template and send out a link to the diff to all team members by posting in Slack's `#general` channel. | Charlie Chance |
 
 
+
+
 ## Roadmap
 
 https://github.com/orgs/fleetdm/projects/51/views/1
 
 
 ## Slack channels
-These groups maintain the following [Slack channels](https://fleetdm.com/handbook/company#group-slack-channels):
+These groups maintain the following [Slack channels](https://fleetdm.com/handbook/company/why-this-way#why-group-slack-channels):
 
-| Slack channel                           | [DRI](https://fleetdm.com/handbook/company#group-slack-channels)    |
+| Slack channel                           | [DRI](https://fleetdm.com/handbook/company/why-this-way#why-group-slack-channels)    |
 |:----------------------------------------|:--------------------------------------------------------------------|
 | `#g-business-operations`                | Nathan Holliday
 | `#help-onboarding`                      | Charlie Chance
-| `#help-brex`                            | Nathan Holliday
-| `#g-people` _(¶¶)_              | Charlie Chance
-| `#help-mission-control` _(¶¶)_  | Charlie Chance
-| `#help-ceo`                             | Charlie Chance
 | `#help-login`                           | Nathan Holliday
-
+| `#help-manage`                          | Charlie Chance
+| `#help-brex`                            | Nathan Holliday
+| `#help-ceo`                             | Charlie Chance
+| `#help-mission-control` _(¶¶)_          | Charlie Chance
+| `#g-people` _(¶¶)_                      | Charlie Chance
+| `#help-open-core-ventures` _(¶¶)_       | Mike McNeil
 
 
 <meta name="maintainedBy" value="hollidayn">
