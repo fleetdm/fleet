@@ -165,12 +165,33 @@ During their first week at Fleet, new team members are asked to schedule a contr
 
 
 ### Directly responsible individuals
-At Fleet, we use the concept of Directly Responsible Individuals (**DRI**s). This person is singularly responsible for a given aspect of the open source project, the product, or the company.
-This person is accountable for accomplishing goals and making decisions about a particular element of Fleet.
-DRIs help us collaborate efficiently by knowing exactly who is responsible and can make decisions about the work they're doing and are available to view in the [codeowners file](https://github.com/fleetdm/fleet/blob/main/CODEOWNERS).
->You can read more about directly responsible individuals in [GitLab's handbook](https://about.gitlab.com/handbook/people-group/directly-responsible-individuals/)
+Please read ["Why direct responsibility?"](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) to learn more about DRIs.
 
-> TODO: How's about we move this "Directly responsible individuals paragraph" to the ["Why this way?"](https://fleetdm.com/handbook/company/why-this-way) page instead, to deduplicate? (mikermcneil, 2023-02-16)
+
+### Levels of confidentiality
+
+- *Public*   _(share with anyone, anywhere in the world)_
+- *Confidential*  _(share only with team members who've signed an NDA, consulting agreement, or employment agreement)_
+- *Classified*  _(share only with founders of Fleet, peepops, and/or the people involved.  e.g., US social security numbers during hiring)_
+
+
+### Email relays
+
+There are several special email addresses that automatically relay messages to the appropriate people at Fleet. Each email address meets a minimum response time ("Min RT"), expressed in business hours/days, and has a dedicated, directly responsible individual (DRI) who is responsible for reading and replying to emails sent to that address.  You can see a list of those email addresses in ["Contacting Fleet" (private Google doc)](https://docs.google.com/document/d/1tE-NpNfw1icmU2MjYuBRib0VWBPVAdmq4NiCrpuI0F0/edit#).
+
+### GitHub labels
+
+We use special characters to define different types of GitHub labels. By combining labels, we
+organize and categorize GitHub issues. This reduces the total number of labels required while
+maintaining an expressive labeling system. For example, instead of a label called
+`platform-dev-backend`, we use `#platform :dev ~backend`.
+
+| Special character | Label type  | Examples                            |
+|:------------------|:------------|:------------------------------------|
+| `#`               | Noun        | `#platform`, `#interface`, `#agent`
+| `:`               | Verb        | `:dev`, `:research`, `:design`
+| `~`               | Adjective   | `~blocked`, `~frontend`, `~backend`
+| `!`               | OKR         | `!vuln`, `!desktop`, `!upgrade`
 
 
 
@@ -512,10 +533,11 @@ For more information, check out [Fleet - who does what](https://docs.google.com/
 ## Rituals
 The following table lists the People group's rituals, frequency, and Directly Responsible Individual (DRI).
 
-| Ritual                       | Frequency                | Description                                         | DRI               |
+| Ritual                       | Frequency                | Description                                         | [DRI](https://fleetdm.com/handbook/company/why-this-way#why-group-slack-channels)               |
 |:-----------------------------|:-----------------------------|:----------------------------------------------------|-------------------|
-| AP invoice monitoring | Daily | Look for new accounts payable invoices and make sure that Fleet's suppliers are paid. | Nathanael Holliday |
-| Weekly update | Weekly | Updates from managers on what their departments accomplished for the week are logged in the cloud and disseminated in Slack. Update the ops KPIs in the ["🌈 Weekly updates" spreadsheet](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0).| Charlie Chance | 
+| Weekly update reminder | Weekly | On Thursday, Charlie starts a thread in the `#help-manage` channel and asks managers to reply to the thread with a summary of what their team did in the past week. | Charlie Chance |
+| Weekly update | Weekly | On Friday, Charlie updates the KPIs in the ["🌈 Weekly updates" spreadsheet](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0) and posts a single message recognizing each of the week's on-duty people for each of the on-call rotations, along with any hiring and departure announcements. Charlie posts the company update in the `#general` channel. | Charlie Chance |
+| AP invoice monitoring | Daily | Look for new accounts payable invoices and make sure that Fleet's suppliers are paid. | Nathanael Holliday | 
 | Hours update | Weekly | Screenshots of contractor hours as shown in Gusto are sent via Slack to each contractor's manager with no further action necessary if everything appears normal. | Charlie Chance |
 | Prepare Mike and Sid's 1:1 doc | Bi-weekly | Run through the document preparation GitHub issue for Mike's call with Sid. | Nathanael Holliday |
 | Brex reconciliation | Monthly | Make sure all company-issued credit card transactions include memos. | Nathanael Holliday |
@@ -542,24 +564,27 @@ The following table lists the People group's rituals, frequency, and Directly Re
 | Changeset for onboarding issue template | Quarterly | pull up the changeset in the onboarding issue template and send out a link to the diff to all team members by posting in Slack's `#general` channel. | Charlie Chance |
 
 
+
+
 ## Roadmap
 
 https://github.com/orgs/fleetdm/projects/51/views/1
 
 
 ## Slack channels
-These groups maintain the following [Slack channels](https://fleetdm.com/handbook/company#group-slack-channels):
+These groups maintain the following [Slack channels](https://fleetdm.com/handbook/company/why-this-way#why-group-slack-channels):
 
-| Slack channel                           | [DRI](https://fleetdm.com/handbook/company#group-slack-channels)    |
+| Slack channel                           | [DRI](https://fleetdm.com/handbook/company/why-this-way#why-group-slack-channels)    |
 |:----------------------------------------|:--------------------------------------------------------------------|
 | `#g-business-operations`                | Nathan Holliday
 | `#help-onboarding`                      | Charlie Chance
-| `#help-brex`                            | Nathan Holliday
-| `#g-people` _(¶¶)_              | Charlie Chance
-| `#help-mission-control` _(¶¶)_  | Charlie Chance
-| `#help-ceo`                             | Charlie Chance
 | `#help-login`                           | Nathan Holliday
-
+| `#help-manage`                          | Charlie Chance
+| `#help-brex`                            | Nathan Holliday
+| `#help-ceo`                             | Charlie Chance
+| `#help-mission-control` _(¶¶)_          | Charlie Chance
+| `#g-people` _(¶¶)_                      | Charlie Chance
+| `#help-open-core-ventures` _(¶¶)_       | Mike McNeil
 
 
 <meta name="maintainedBy" value="hollidayn">
