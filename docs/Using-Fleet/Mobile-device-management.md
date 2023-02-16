@@ -283,4 +283,8 @@ Want to know what your organization can see? Read about [transparency](https://f
 
 ![My device page - turn on disk encryption](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/my-device-page-turn-on-disk-encryption.png)
 
+## Support
+
+In Fleet, MDM features are supported for Macs running macOS 12 (Monterey) and higher.
+
 <meta name="pageOrderInSection" value="1500">

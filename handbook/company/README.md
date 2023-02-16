@@ -1,8 +1,8 @@
 # Company
 
-## About Fleet
+## Purpose
 
-Fleet Device Management Inc is an [open core company](https://www.heavybit.com/library/video/commercial-open-source-business-strategies/) that sells subscriptions that offer [more features and support](https://fleetdm.com/pricing) for Fleet and [osquery](https://osquery.io), the leading open source endpoint agent.
+Fleet Device Management Inc is an [open-core company](https://www.heavybit.com/library/video/commercial-open-source-business-strategies/) that sells subscriptions that offer [more features and support](https://fleetdm.com/pricing) for Fleet and [osquery](https://osquery.io), the leading open source endpoint agent.
 
 We are dedicated to:
 
@@ -14,30 +14,38 @@ We are dedicated to:
 ## Culture
 
 ### All remote
-Fleet Device Management Inc. is an all-remote company with team members spread across four continents and eight time zones.  The broader team of contributors [worldwide](https://github.com/fleetdm/fleet/graphs/contributors) submits patches, bug reports, troubleshooting tips, improvements, and real-world insights to Fleet's open source code base, documentation, website, and [company handbook](#about-the-handbook).
+Fleet Device Management Inc. is an all-remote company with team members spread across four continents and eight time zones.  The broader team of contributors [worldwide](https://github.com/fleetdm/fleet/graphs/contributors) submits patches, bug reports, troubleshooting tips, improvements, and real-world insights to Fleet's open-source code base, documentation, website, and [company handbook](https://fleetdm.com/handbook/company/why-this-way#why-handbook-first-strategy).
 
 ### Open source
-The majority of the code, documentation, and content we [create](https://twitter.com/mikermcneil/status/1476799587423772674) at Fleet is public and source-available. We strive to be open and transparent in the way we run the business, as much as confidentiality agreements (and time) allow. We perform better with an audience, and our audience performs better with us. Learn more about [why we use open source](https://fleetdm.com/handbook/company/why-this-way#why-open-source).
+The majority of the code, documentation, and content we create at Fleet is public and source-available.  The Fleet handbook is the central guide for how we run the company, and even it is open to the world.  We [strive to be open](https://fleetdm.com/handbook/company/why-this-way#why-open-source) and transparent in the way we run the business, as much as confidentiality agreements (and time) allow. We perform better with an audience, and our audience performs better with us.
+
+### Why this way?
+At Fleet, we rarely label ideas as drafts or theories.  Everything is [always in draft](https://about.gitlab.com/handbook/values/#everything-is-in-draft) and subject to change in future iterations.  But to get [results](https://fleetdm.com/handbook/company#results), we need to balance being smart with moving quickly.  That means embracing decisiveness in the face of uncertainty.
+
+To increase clarity and encourage teams to make decisions quickly, leaders and [DRIs (directly responsible individuals)](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) should explicitly mention when they are voicing an opinion or a decision.  When an [opinion](https://blog.codinghorror.com/strong-opinions-weakly-held/) is voiced, there's space for near-term debate.  When a [decision](https://about.gitlab.com/handbook/values/#disagree-commit-and-disagree) is voiced, team commitment is required.
+
+The ["Why this way?"](https://fleetdm.com/handbook/company/why-this-way) page discusses some of Fleet's decisions about the best way to work.  For example: ["Why open source?"](https://fleetdm.com/handbook/company/why-this-way#why-open-source) and ["Why do we use a wireframe-first approach?"](https://fleetdm.com/handbook/company/why-this-way#why-do-we-use-a-wireframe-first-approach) and ["Why handbook-first strategy?"](https://fleetdm.com/handbook/company/why-this-way#why-handbook-first-strategy).
 
 
 ## Open positions
 
-Please see [handbook/business-operations#open-positions](https://fleetdm.com/handbook/business-operations#open-positions) for a list of open job postings at Fleet.
+Fleet is currently hiring for the following positions:
+
+- 🚀 [Engineering Manager, MDM](https://fleet-device-management.breezy.hr/p/41ad774fe34a-engineering-manager-mdm)
+- ⚗️ [Product Designer](https://fleet-device-management.breezy.hr/p/68ef1b6ace54-product-designer)
+- 🫧 [Revenue Operations Manager](https://fleet-device-management.breezy.hr/p/c28cce9abf5e-revenue-ops)
+- 🫧 [Field Marketer](https://fleet-device-management.breezy.hr/p/3bd97ce5f54a-field-marketing-manager-enterprise)
+
+> Interested in joining the team at Fleet, or know someone who might be?  Click one of the positions to read the job description and apply, or you can share a [direct link to this page](https://fleetdm.com/handbook/company) for a short read about the company, including our vision, values, history, and all currently open positions.  Thank you for the help!
 
 
 ## Org chart
 
 Fleet's organizational chart is accessible as a sub-tab in ["🧑‍🚀 Fleeties" (private google doc)](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0).  On the other sub-tabs, you can also check out a world map of where everyone is located, hiring stats, and fun facts about each team member.
 
-### Product groups
+
+## Product groups
 Fleet organizes cross-functional groups focused on particular business goals. These include members from Design, Engineering, Quality, and Product. For more information, check out this page [Product groups](./development-groups.md).
-
-
-## Why this way?
-
-At Fleet, we err on the side of being opinionated about conventions and processes we believe in, but we always keep in mind the possibility that we could be wrong.  In other words: strong opinions, loosely held.  And everything is in draft.
-
-You can read more about the background behind why Fleet does things the way we do in ["Why this way?"](./why-this-way.md)
 
 
 ## 🌈 Values
@@ -93,24 +101,6 @@ Openness leads to better products and stronger partnerships. Being open about yo
 - **Be transparent.** We build in the open. Everything we do is public by default. Declassify confidential information with care. 
 
 
-## About the handbook
-
-The Fleet handbook is inspired by the [GitLab team handbook](https://about.gitlab.com/handbook/about/).  It shares the same [advantages](https://about.gitlab.com/handbook/about/#advantages) and will probably undergo a similar [evolution](https://about.gitlab.com/handbook/ceo/#evolution-of-the-handbook).
-
-While [GitLab's handbook](https://about.gitlab.com/handbook/) inspires this handbook, it is nowhere near as complete (yet!)  We will continue adding and updating this handbook and gradually migrating information from [Fleet's shared Google Drive folder](https://drive.google.com/drive/folders/1lA38aTxsl4_qDtHCrYHcAaadES5ws0yJ) as time allows.
-
-### Contributing to the handbook
-You can review more information about contributing to Fleet's handbook on this page [Contributing to the handbook](handbook/company/handbook.md)
-
-### Handbook first
-At Fleet, we make changes to the [handbook](#about-the-handbook) first.  That means before a change to how we run the business is "live" or "live" or "official", it is first updated (with changes merged) in the relevant handbook pages and issue templates.
-
-This keeps everyone in sync across the all-remote team in different timezones, avoids miscommunications, and ensures the right people have reviewed every change.
-
-> See also ["Why handbook-first strategy?"](https://fleetdm.com/handbook/company/why-this-way#why-handbook-first-strategy).
-
-<!-- todo consolidate handbook first section here into "why this way" and link from here -->
-
 ## History
 
 ### 2014: Origins of osquery
@@ -124,8 +114,6 @@ When Kolide's attention shifted away from Fleet, and towards their separate, use
 
 ### 2020: Fleet was incorporated
 Zach partnered with our CEO, Mike McNeil, to found a new, independent company: Fleet Device Management Inc.  In November 2020, we [announced](https://medium.com/fleetdm/a-new-fleet-d4096c7de978) the transition and kicked off the logistics of moving the GitHub repository.
-
-
 
 
 ## Slack channels

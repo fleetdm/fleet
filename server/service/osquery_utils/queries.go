@@ -56,6 +56,46 @@ func (q *DetailQuery) RunsForPlatform(platform string) bool {
 	return false
 }
 
+// networkInterfaceQuery is the query to use to ingest a host's "Primary IP" and "Primary MAC".
+//
+// "Primary IP"/"Primary MAC" is the IP/MAC of the interface the system uses when it originates traffic to the default route.
+//
+// The following was used to determine private IPs:
+// https://cs.opensource.google/go/go/+/refs/tags/go1.20.1:src/net/ip.go;l=131-148;drc=c53390b078b4d3b18e3aca8970d4b31d4d82cce1
+//
+// NOTE: We cannot use `in_cidr_block` because it's available since osquery 5.3.0, so we use
+// rudimentary split and string matching for IPv4 and and regex_match for IPv6.
+const networkInterfaceQuery = `SELECT
+    ia.address,
+    id.mac
+FROM
+    interface_addresses ia
+    JOIN interface_details id ON id.interface = ia.interface
+	-- On Unix ia.interface is the name of the interface,
+	-- whereas on Windows ia.interface is the IP of the interface.
+    JOIN routes r ON %s
+WHERE
+	-- Destination 0.0.0.0/0 is the default route on route tables.
+    r.destination = '0.0.0.0' AND r.netmask = 0
+	-- Type of route is "gateway" for Unix, "remote" for Windows.
+    AND r.type = '%s'
+	-- We are only interested on private IPs (some devices have their Public IP as Primary IP too).
+    AND (
+		-- Private IPv4 addresses.
+		inet_aton(ia.address) IS NOT NULL AND (
+			split(ia.address, '.', 0) = '10'
+			OR (split(ia.address, '.', 0) = '172' AND (CAST(split(ia.address, '.', 1) AS INTEGER) & 0xf0) = 16)
+			OR (split(ia.address, '.', 0) = '192' AND split(ia.address, '.', 1) = '168')
+		)
+		-- Private IPv6 addresses start with 'fc' or 'fd'.
+		OR (inet_aton(ia.address) IS NULL AND regex_match(lower(ia.address), '^f[cd][0-9a-f][0-9a-f]:[0-9a-f:]+', 0) IS NOT NULL)
+	)
+ORDER BY
+    r.metric ASC,
+	-- Prefer IPv4 addresses over IPv6 addresses if their route have the same metric.
+	inet_aton(ia.address) IS NOT NULL DESC
+LIMIT 1;`
+
 // hostDetailQueries defines the detail queries that should be run on the host, as
 // well as how the results of those queries should be ingested into the
 // fleet.Host data model (via IngestFunc).
@@ -63,44 +103,12 @@ func (q *DetailQuery) RunsForPlatform(platform string) bool {
 // This map should not be modified at runtime.
 var hostDetailQueries = map[string]DetailQuery{
 	"network_interface_unix": {
-		Query: `
-select
-    ia.address,
-    id.mac
-from
-    interface_addresses ia
-    join interface_details id on id.interface = ia.interface
-    join routes r on r.interface = ia.interface
-where
-    r.destination = '0.0.0.0'
-    and r.netmask = 0
-    and r.type = 'gateway'
-    and instr(ia.address, '.') > 0
-order by
-    r.metric asc
-limit 1
-`,
+		Query:      fmt.Sprintf(networkInterfaceQuery, "r.interface = ia.interface", "gateway"),
 		Platforms:  append(fleet.HostLinuxOSs, "darwin"),
 		IngestFunc: ingestNetworkInterface,
 	},
 	"network_interface_windows": {
-		Query: `
-select
-    ia.address,
-    id.mac
-from
-    interface_addresses ia
-    join interface_details id on id.interface = ia.interface
-    join routes r on r.interface = ia.address
-where
-    r.destination = '0.0.0.0'
-    and r.netmask = 0
-    and r.type = 'remote'
-    and instr(ia.address, '.') > 0
-order by
-    r.metric asc
-limit 1
-`,
+		Query:      fmt.Sprintf(networkInterfaceQuery, "r.interface = ia.address", "remote"),
 		Platforms:  []string{"windows"},
 		IngestFunc: ingestNetworkInterface,
 	},
@@ -334,8 +342,13 @@ FROM logical_drives WHERE file_system = 'NTFS' LIMIT 1;`,
 
 func ingestNetworkInterface(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error {
 	if len(rows) != 1 {
-		logger.Log("component", "service", "method", "IngestFunc", "err",
-			fmt.Sprintf("detail_query_network_interface expected single result, got %d", len(rows)))
+		logger.Log(
+			"component", "service",
+			"method", "IngestFunc",
+			"host", host.Hostname,
+			"platform", host.Platform,
+			"err", fmt.Sprintf("detail_query_network_interface expected single result, got %d", len(rows)),
+		)
 		return nil
 	}
 
