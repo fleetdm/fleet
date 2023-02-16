@@ -260,7 +260,7 @@ Troubleshooting Gong:
 
 >If you need help using Gong, please check out Gong Academy at [https://academy.gong.io/](https://academy.gong.io/).
 
-## Zapier and DocuSign
+### Zapier and DocuSign
 We use Zapier to automate how completed DocuSign envelopes are formatted and stored. This process ensures we store signed documents in the correct folder and that filenames are formatted consistently. 
 When the final signature is added to an envelope in DocuSign, it is marked as completed and sent to Zapier, where it goes through these steps:
 1. Zapier sends the following information about the DocuSign envelope to our Hydroplane webhook:
