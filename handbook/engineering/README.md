@@ -33,7 +33,7 @@ The following is the subset of proposed engineering meetings. Each group is free
 - Sprints are 3 weeks long to match our release cadence.
 - There are 5 “Scrum Ceremonies” performed during each sprint:
   - Sprint planning - At the first Monday of the sprint the team and stakeholders meet and pick items from the backlog. The team commit to finish those items.
-  - Daily sync standup - The team meet daily for updates. Each team member present what they did since the last sync and what they intend to do until next sync. Any impediments are raised.
+  - Daily sync standup - The team meets daily for updates. Each team member presents what they did since the last sync and what they intend to do until next sync. Any road blocks are raised.
   - Weekly estimation sessions - once a week (3 times a sprint) the team will estimate items in the backlog. Goals:
     - Have Stakeholders know in advance the time it will take to achieve those items.
     - Make it easier in the next planning meeting to know what the team can take for the next sprint.
