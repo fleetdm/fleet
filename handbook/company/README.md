@@ -107,6 +107,9 @@ At Fleet, we make changes to the [handbook](#about-the-handbook) first.  That me
 
 This keeps everyone in sync across the all-remote team in different timezones, avoids miscommunications, and ensures the right people have reviewed every change.
 
+> See also ["Why handbook-first strategy?"](https://fleetdm.com/handbook/company/why-this-way#why-handbook-first-strategy).
+
+<!-- todo consolidate handbook first section here into "why this way" and link from here -->
 
 ## History
 
