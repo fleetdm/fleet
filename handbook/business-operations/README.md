@@ -1,15 +1,5 @@
 # Business Operations
 
-## Open positions
-
-Fleet is currently hiring for the following positions:
-
-- 🚀 [Engineering Manager, MDM](https://fleet-device-management.breezy.hr/p/41ad774fe34a-engineering-manager-mdm)
-- ⚗️ [Product Designer](https://fleet-device-management.breezy.hr/p/68ef1b6ace54-product-designer)
-- 🫧 [Revenue Operations Manager](https://fleet-device-management.breezy.hr/p/c28cce9abf5e-revenue-ops)
-- 🫧 [Field Marketer](https://fleet-device-management.breezy.hr/p/3bd97ce5f54a-field-marketing-manager-enterprise)
-
-> Interested in joining the team at Fleet, or know someone who might be?  The [company handbook page](https://fleetdm.com/handbook/company) is a short read with more information about the company, including our vision, values, and history.
 
 ## Meetings
 * At Fleet, meetings start whether you're there or not. Nevertheless, being even a few minutes late can make a big difference and slow your meeting counterparts down. When in doubt, show up a couple of minutes early.
@@ -130,6 +120,13 @@ Fleet's founders [evaluate and update compensation decisions yearly](#workiversa
 
 ## CEO handbook
 The [CEO handbook](./ceo-handbook.md) details processes specific to Mike McNeil, CEO of Fleet. 
+
+
+## Open positions
+
+Please see [handbook/business-operations#open-positions](https://fleetdm.com/handbook/business-operations#open-positions) for a list of open job postings at Fleet.
+
+> Interested in joining the team at Fleet, or know someone who might be?  The [company handbook page](https://fleetdm.com/handbook/company) is a short read with more information about the company, including our vision, values, and history.
 
 
 ## Team member onboarding
@@ -277,19 +274,6 @@ When the final signature is added to an envelope in DocuSign, it is marked as co
       [email subject]
       link: drive.google.com/[destinationFolderID]
    ```
-
-
-
-
-## Security
-
-At Fleet, we care about security. Here are a few resources about Fleet's security policies and best practices.
-1. [Security policies](https://fleetdm.com/handbook/security/security-policies#security-policies)
-2. [Human resources security policy](https://fleetdm.com/handbook/security/security-policies#human-resources-security-policy)
-3. [Account recovery process](https://fleetdm.com/handbook/security#account-recovery-process)
-4. [Personal mobile devices](https://fleetdm.com/handbook/security#personal-mobile-devices)
-5. [Hardware security keys](https://fleetdm.com/handbook/security#hardware-security-keys)
-6. More details about internal security processes at Fleet are located on [the Security page](./security.md).
 
 
 
@@ -450,6 +434,18 @@ are offered.
 Once you send the agreement, add a new row to the [advisory board spreadsheet](https://docs.google.com/spreadsheets/d/15knBE2-PrQ1Ad-QcIk0mxCN-xFsATKK9hcifqrm0qFQ/edit#gid=1803674483) and enter the new advisor's information. Use this spreadsheet to track the advisor's progress through the onboarding process.
    >**_Note:_** *Be sure to mark any columns that haven't been completed yet as "TODO"*
 When you complete the agreement, make sure it is in the correct Google Drive folder, update the [advisory board spreadsheet](https://docs.google.com/spreadsheets/d/15knBE2-PrQ1Ad-QcIk0mxCN-xFsATKK9hcifqrm0qFQ/edit#gid=1803674483) to show that the agreement has been signed, and ask the new advisor to add us on [Linkedin](https://www.linkedin.com/company/71111416), [Crunchbase](https://www.crunchbase.com/organization/fleet-device-management), and [Angellist](https://angel.co/company/fleetdm).
+
+
+
+## Security
+
+At Fleet, we care about security. Here are a few resources about Fleet's security policies and best practices.
+1. [Security policies](https://fleetdm.com/handbook/security/security-policies#security-policies)
+2. [Human resources security policy](https://fleetdm.com/handbook/security/security-policies#human-resources-security-policy)
+3. [Account recovery process](https://fleetdm.com/handbook/security#account-recovery-process)
+4. [Personal mobile devices](https://fleetdm.com/handbook/security#personal-mobile-devices)
+5. [Hardware security keys](https://fleetdm.com/handbook/security#hardware-security-keys)
+6. More details about internal security processes at Fleet are located on [the Security page](./security.md).
 
 
 ## Finance
