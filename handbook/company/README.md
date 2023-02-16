@@ -19,11 +19,27 @@ Fleet Device Management Inc. is an all-remote company with team members spread a
 ### Open source
 The majority of the code, documentation, and content we [create](https://twitter.com/mikermcneil/status/1476799587423772674) at Fleet is public and source-available. We strive to be open and transparent in the way we run the business, as much as confidentiality agreements (and time) allow. We perform better with an audience, and our audience performs better with us. Learn more about [why we use open source](https://fleetdm.com/handbook/company/why-this-way#why-open-source).
 
+### Why this way?
+At Fleet, we rarely label ideas as drafts or theories.  Everything is always in draft and subject to change, and  "done" can be a will-o'-the-wisp.  We embrace certainty and optimize for making decisions quickly.
+
+Here are some of Fleet's decisions about the best way to work:
+- [Why open source?](https://fleetdm.com/handbook/company/why-this-way#why-open-source)
+- [Why do we use a wireframe-first approach?](https://fleetdm.com/handbook/company/why-this-way#why-do-we-use-a-wireframe-first-approach)
+- [Why direct responsibility?](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility)
+
+> Read more answers at ["Why this way?"](https://fleetdm.com/handbook/company/why-this-way).
+
 
 ## Open positions
 
-Please see [handbook/business-operations#open-positions](https://fleetdm.com/handbook/business-operations#open-positions) for a list of open job postings at Fleet.
+Fleet is currently hiring for the following positions:
 
+- 🚀 [Engineering Manager, MDM](https://fleet-device-management.breezy.hr/p/41ad774fe34a-engineering-manager-mdm)
+- ⚗️ [Product Designer](https://fleet-device-management.breezy.hr/p/68ef1b6ace54-product-designer)
+- 🫧 [Revenue Operations Manager](https://fleet-device-management.breezy.hr/p/c28cce9abf5e-revenue-ops)
+- 🫧 [Field Marketer](https://fleet-device-management.breezy.hr/p/3bd97ce5f54a-field-marketing-manager-enterprise)
+
+> Interested in joining the team at Fleet, or know someone who might be?  Click one of the positions to read the job description and apply, or you can share a [direct link to this page](https://fleetdm.com/handbook/company) for a short read about the company, including our vision, values, history, and all currently open positions.  Thank you for the help!
 
 ## Org chart
 
@@ -31,13 +47,6 @@ Fleet's organizational chart is accessible as a sub-tab in ["🧑‍🚀 Fleetie
 
 ### Product groups
 Fleet organizes cross-functional groups focused on particular business goals. These include members from Design, Engineering, Quality, and Product. For more information, check out this page [Product groups](./development-groups.md).
-
-
-## Why this way?
-
-At Fleet, we err on the side of being opinionated about conventions and processes we believe in, but we always keep in mind the possibility that we could be wrong.  In other words: strong opinions, loosely held.  And everything is in draft.
-
-You can read more about the background behind why Fleet does things the way we do in ["Why this way?"](./why-this-way.md)
 
 
 ## 🌈 Values
@@ -110,6 +119,7 @@ This keeps everyone in sync across the all-remote team in different timezones, a
 > See also ["Why handbook-first strategy?"](https://fleetdm.com/handbook/company/why-this-way#why-handbook-first-strategy).
 
 <!-- todo consolidate handbook first section here into "why this way" and link from here -->
+
 
 ## History
 
