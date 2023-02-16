@@ -134,7 +134,7 @@ module.exports.custom = {
   confidentialGithubRepoDRIByPath: {
     './': ['mikermcneil', 'zwass', 'charlottechance', 'hollidayn'],
     'readme.md': ['mikermcneil', 'zwass', 'charlottechance', 'hollidayn'],
-    
+
     // GitHub issue templates
     '.github/ISSUE_TEMPLATE': ['mikermcneil', 'zwass', 'zayhanlon', 'hollidayn', 'alexmitchelliii', 'dherder'],
     '.github/ISSUE_TEMPLATE/2-website-changes.md': 'mike-j-thomas',
