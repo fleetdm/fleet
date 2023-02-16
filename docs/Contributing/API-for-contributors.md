@@ -792,7 +792,8 @@ List all configuration profiles for macOS hosts enrolled to Fleet's MDM that are
 `Status: 200` 
 
 **Note** To confirm success, it is important for clients to match content length with the response
-header rather than relying solely on the response status code returned by this endpoint.
+header (this is done automatically by most clients, including the browser) rather than relying
+solely on the response status code returned by this endpoint.
 
 ##### Example response headers
 

@@ -12,6 +12,7 @@ import (
 	"net/url"
 	"path"
 	"strconv"
+	"strings"
 	"text/template"
 	"time"
 
@@ -21,7 +22,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"github.com/google/uuid"
@@ -218,7 +218,7 @@ func (svc *Service) GetMDMAppleCommandResults(ctx context.Context, commandUUID s
 }
 
 type newMDMAppleConfigProfileRequest struct {
-	TeamID  *uint
+	TeamID  uint
 	Profile *multipart.FileHeader
 }
 
@@ -240,13 +240,13 @@ func (newMDMAppleConfigProfileRequest) DecodeRequest(ctx context.Context, r *htt
 	val, ok := r.MultipartForm.Value["team_id"]
 	if !ok || len(val) < 1 {
 		// default is no team
-		decoded.TeamID = ptr.Uint(0)
+		decoded.TeamID = 0
 	} else {
 		teamID, err := strconv.Atoi(val[0])
 		if err != nil {
 			return nil, &fleet.BadRequestError{Message: err.Error()}
 		}
-		decoded.TeamID = ptr.Uint(uint(teamID))
+		decoded.TeamID = uint(teamID)
 	}
 
 	fhs, ok := r.MultipartForm.File["profile"]
@@ -268,7 +268,7 @@ func newMDMAppleConfigProfileEndpoint(ctx context.Context, request interface{}, 
 		return &newMDMAppleConfigProfileResponse{Err: err}, nil
 	}
 	defer ff.Close()
-	cp, err := svc.NewMDMAppleConfigProfile(ctx, *req.TeamID, ff, req.Profile.Size)
+	cp, err := svc.NewMDMAppleConfigProfile(ctx, req.TeamID, ff, req.Profile.Size)
 	if err != nil {
 		return &newMDMAppleConfigProfileResponse{Err: err}, nil
 	}
@@ -292,18 +292,18 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r
 	b := make([]byte, size)
 	_, err := r.Read(b)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "reading mobileconfig bytes")
+		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: err.Error()})
 	}
 
 	mc := fleet.Mobileconfig(b)
 	cp, err := mc.ParseConfigProfile()
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "parsing config profile")
+		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: err.Error()})
 	}
 	cp.TeamID = &teamID
 
 	if err := cp.ScreenPayloadTypes(); err != nil {
-		return nil, ctxerr.Wrap(ctx, err)
+		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: err.Error()})
 	}
 
 	newCP, err := svc.ds.NewMDMAppleConfigProfile(ctx, *cp)
@@ -371,7 +371,6 @@ type getMDMAppleConfigProfileResponse struct {
 	// file fields below are used in hijackRender for the response
 	fileReader io.ReadCloser
 	fileLength int64
-	fileExt    string
 	fileName   string
 }
 
@@ -379,9 +378,9 @@ func (r getMDMAppleConfigProfileResponse) error() error { return r.Err }
 
 func (r getMDMAppleConfigProfileResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
 	w.Header().Set("Content-Length", strconv.FormatInt(r.fileLength, 10))
-	w.Header().Set("Content-Type", "application/octet-stream")
+	w.Header().Set("Content-Type", "application/x-apple-aspen-config")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
-	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment;filename="%s.%s"`, r.fileName, r.fileExt))
+	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment;filename="%s.mobileconfig"`, r.fileName))
 
 	// OK to just log the error here as writing anything on
 	// `http.ResponseWriter` sets the status code to 200 (and it can't be
@@ -402,9 +401,9 @@ func getMDMAppleConfigProfileEndpoint(ctx context.Context, request interface{}, 
 		return getMDMAppleConfigProfileResponse{Err: err}, nil
 	}
 	reader := bytes.NewReader(cp.Mobileconfig)
-	fileName := fmt.Sprintf("%s %s", time.Now().Format("2006-01-02"), cp.Name) // TODO: escape string?
+	fileName := fmt.Sprintf("%s_%s", time.Now().Format("2006-01-02"), strings.ReplaceAll(cp.Name, " ", "_"))
 
-	return getMDMAppleConfigProfileResponse{fileReader: io.NopCloser(reader), fileLength: reader.Size(), fileName: fileName, fileExt: "mobileconfig"}, nil
+	return getMDMAppleConfigProfileResponse{fileReader: io.NopCloser(reader), fileLength: reader.Size(), fileName: fileName}, nil
 }
 
 func (svc *Service) GetMDMAppleConfigProfile(ctx context.Context, profileID uint) (*fleet.MDMAppleConfigProfile, error) {

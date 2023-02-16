@@ -253,7 +253,7 @@ func (mc Mobileconfig) ParseConfigProfile() (*MDMAppleConfigProfile, error) {
 }
 
 // GetPayloadTypes attempts to parse the PayloadContent list of the Mobileconfig's TopLevel object.
-// It returns the PayloadType for each element of the PayloadContent list.
+// It returns the PayloadType for each PayloadContentItem.
 //
 // See also https://developer.apple.com/documentation/devicemanagement/toplevel
 func (mc Mobileconfig) GetPayloadTypes() ([]string, error) {
@@ -270,38 +270,56 @@ func (mc Mobileconfig) GetPayloadTypes() ([]string, error) {
 		mcBytes = Mobileconfig(p7.Content)
 	}
 
-	var parsed struct {
+	// unmarshal the values we need from the top-level object
+	var tlo struct {
 		IsEncrypted    bool
 		PayloadContent []map[string]interface{}
 		PayloadType    string
 	}
-	_, err := plist.Unmarshal(mcBytes, &parsed)
+	_, err := plist.Unmarshal(mcBytes, &tlo)
 	if err != nil {
 		return nil, err
 	}
-	if parsed.PayloadType != "Configuration" {
-		return nil, fmt.Errorf("invalid PayloadType: %s", parsed.PayloadType)
-	}
-	if len(parsed.PayloadContent) < 1 {
-		if parsed.IsEncrypted {
-			return nil, errors.New("encrypted PayloadContent")
-		}
-		return nil, errors.New("empty PayloadContent")
+	// confirm that the top-level payload type matches the expected value
+	if tlo.PayloadType != "Configuration" {
+		return nil, &ErrInvalidPayloadType{tlo.PayloadType}
 	}
 
+	if len(tlo.PayloadContent) < 1 {
+		if tlo.IsEncrypted {
+			return nil, ErrEncryptedPayloadContent
+		}
+		return nil, ErrEmptyPayloadContent
+	}
+
+	// extract the payload types of each payload content item from the array of
+	// payload dictionaries
 	var result []string
-	for _, pc := range parsed.PayloadContent {
-		pct, ok := pc["PayloadType"]
+	for _, payloadDict := range tlo.PayloadContent {
+		pt, ok := payloadDict["PayloadType"]
 		if !ok {
 			continue
 		}
-		if s, ok := pct.(string); ok {
+		if s, ok := pt.(string); ok {
 			result = append(result, s)
 		}
 	}
 
 	return result, nil
 }
+
+type ErrInvalidPayloadType struct {
+	payloadType string
+}
+
+func (e ErrInvalidPayloadType) Error() string {
+	return fmt.Sprintf("invalid PayloadType: %s", e.payloadType)
+}
+
+var (
+	ErrEmptyPayloadContent     = errors.New("empty PayloadContent")
+	ErrEncryptedPayloadContent = errors.New("encrypted PayloadContent")
+)
 
 // MDMAppleConfigProfile represents an Apple MDM configuration profile in Fleet.
 // Configuration profiles are used to configure Apple devices .
@@ -330,13 +348,13 @@ func (cp MDMAppleConfigProfile) AuthzType() string {
 	return "mdm_apple_config_profile"
 }
 
-// ScreenPayloadTypes screens the profile's PayloadContent and returns an error if it
+// ScreenPayloadTypes screens the profile's Mobileconfig and returns an error if it
 // detects certain PayloadTypes related to FileVault settings.
 func (cp MDMAppleConfigProfile) ScreenPayloadTypes() error {
 	pct, err := cp.Mobileconfig.GetPayloadTypes()
 	if err != nil {
 		switch {
-		case strings.Contains(err.Error(), "empty PayloadContent") || strings.Contains(err.Error(), "encrypted PayloadContent"):
+		case errors.Is(err, ErrEmptyPayloadContent), errors.Is(err, ErrEncryptedPayloadContent):
 			// ok, there's nothing for us to screen
 		default:
 			return err

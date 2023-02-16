@@ -104,22 +104,22 @@ func TestMDMAppleConfigProfileScreenPayloadContent(t *testing.T) {
 		shouldFail   []string
 	}{
 		{
-			testName:     "All",
+			testName:     "AllFileVaultScreened",
 			payloadTypes: []string{"com.apple.security.FDERecoveryKeyEscrow", "com.apple.MCX.FileVault2", "com.apple.security.FDERecoveryRedirect"},
 			shouldFail:   []string{"com.apple.security.FDERecoveryKeyEscrow", "com.apple.MCX.FileVault2", "com.apple.security.FDERecoveryRedirect"},
 		},
 		{
-			testName:     "FileVault2",
+			testName:     "FileVault2Screened",
 			payloadTypes: []string{"com.apple.MCX.FileVault2"},
 			shouldFail:   []string{"com.apple.MCX.FileVault2"},
 		},
 		{
-			testName:     "FDERecoveryKeyEscrow",
+			testName:     "FDERecoveryKeyEscrowScreened",
 			payloadTypes: []string{"com.apple.security.FDERecoveryKeyEscrow"},
 			shouldFail:   []string{"com.apple.security.FDERecoveryKeyEscrow"},
 		},
 		{
-			testName:     "FDERecoveryRedirect",
+			testName:     "FDERecoveryRedirectScreened",
 			payloadTypes: []string{"com.apple.security.FDERecoveryRedirect"},
 			shouldFail:   []string{"com.apple.security.FDERecoveryRedirect"},
 		},
@@ -134,7 +134,7 @@ func TestMDMAppleConfigProfileScreenPayloadContent(t *testing.T) {
 			shouldFail:   []string{"com.apple.MCX.FileVault2", "com.apple.security.FDERecoveryKeyEscrow"},
 		},
 		{
-			testName:     "None",
+			testName:     "NoPayloadContent",
 			payloadTypes: nil,
 			shouldFail:   nil,
 		},
