@@ -9,8 +9,23 @@ import Avatar from "components/Avatar";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 import ReactTooltip from "react-tooltip";
+import { actions } from "react-table";
 
 const baseClass = "activity-item";
+
+const getProfileMessageSuffix = (
+  isPremiumTier: boolean,
+  teamName?: string | null
+) => {
+  let messageSuffix = "all macOS hosts";
+  if (isPremiumTier) {
+    // TODO - confirm 'no team' values for  team_name
+    messageSuffix = teamName
+      ? `macOS hosts assigned to the ${teamName} team`
+      : "macOS hosts with no team";
+  }
+  return messageSuffix;
+};
 
 const TAGGED_TEMPLATES = {
   liveQueryActivityTemplate: (
@@ -210,6 +225,41 @@ const TAGGED_TEMPLATES = {
     );
   },
 
+  createMacOSProfile: (activity: IActivity, isPremiumTier: boolean) => {
+    return (
+      <>
+        {" "}
+        added configuration profile {activity.details?.profile_name} to{" "}
+        {getProfileMessageSuffix(isPremiumTier, activity.details?.team_name)}.
+      </>
+    );
+  },
+
+  deleteMacOSProfile: (activity: IActivity, isPremiumTier: boolean) => {
+    return (
+      <>
+        {" "}
+        deleted configuration profile {
+          activity.details?.host_display_name
+        } from{" "}
+        {getProfileMessageSuffix(isPremiumTier, activity.details?.team_name)}.
+      </>
+    );
+  },
+
+  editMacOSProfile: (activity: IActivity, isPremiumTier: boolean) => {
+    return (
+      <>
+        {" "}
+        edited configuration profiles for{" "}
+        {getProfileMessageSuffix(
+          isPremiumTier,
+          activity.details?.team_name
+        )}{" "}
+        via fleetctl.
+      </>
+    );
+  },
   defaultActivityTemplate: (activity: IActivity) => {
     const entityName = find(activity.details, (_, key) =>
       key.includes("_name")
@@ -292,6 +342,15 @@ const getDetail = (
     }
     case ActivityType.ReadHostDiskEncryptionKey: {
       return TAGGED_TEMPLATES.readHostDiskEncryptionKey(activity);
+    }
+    case ActivityType.CreatedMacOSProfile: {
+      return TAGGED_TEMPLATES.createMacOSProfile(activity, isPremiumTier);
+    }
+    case ActivityType.DeletedMacOSProfile: {
+      return TAGGED_TEMPLATES.createMacOSProfile(activity, isPremiumTier);
+    }
+    case ActivityType.EditedMacOSProfile: {
+      return TAGGED_TEMPLATES.createMacOSProfile(activity, isPremiumTier);
     }
     default: {
       return TAGGED_TEMPLATES.defaultActivityTemplate(activity);
