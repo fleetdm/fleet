@@ -281,12 +281,13 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r
 	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleConfigProfile{TeamID: &teamID}, fleet.ActionWrite); err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
-
+	var teamName string
 	if teamID >= 1 {
-		// confirm that team exists
-		if _, err := svc.ds.Team(ctx, teamID); err != nil {
+		tm, err := svc.EnterpriseOverrides.TeamByIDOrName(ctx, &teamID, nil)
+		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err)
 		}
+		teamName = tm.Name
 	}
 
 	b := make([]byte, size)
@@ -311,7 +312,13 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 
-	// TODO: record activitiy
+	if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeCreatedMacosProfile{
+		TeamID:   &teamID,
+		TeamName: &teamName,
+	}); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "logging activity for create mdm apple config profile")
+	}
+
 	return newCP, nil
 }
 
@@ -457,6 +464,16 @@ func (svc *Service) DeleteMDMAppleConfigProfile(ctx context.Context, profileID u
 		return ctxerr.Wrap(ctx, err)
 	}
 
+	var teamName string
+	teamID := *cp.TeamID
+	if teamID >= 1 {
+		tm, err := svc.EnterpriseOverrides.TeamByIDOrName(ctx, &teamID, nil)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err)
+		}
+		teamName = tm.Name
+	}
+
 	// now we can do a specific authz check based on team id of profile before we delete the profile
 	if err := svc.authz.Authorize(ctx, cp, fleet.ActionWrite); err != nil {
 		return ctxerr.Wrap(ctx, err)
@@ -466,7 +483,13 @@ func (svc *Service) DeleteMDMAppleConfigProfile(ctx context.Context, profileID u
 		return ctxerr.Wrap(ctx, err)
 	}
 
-	// TODO: record activity
+	if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeDeletedMacosProfile{
+		TeamID:   &teamID,
+		TeamName: &teamName,
+	}); err != nil {
+		return ctxerr.Wrap(ctx, err, "logging activity for delete mdm apple config profile")
+	}
+
 	return nil
 }
 
