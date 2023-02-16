@@ -343,7 +343,12 @@ const HostDetailsPage = ({
     const hostEnrolled = ["On (automatic)", "On (manual)"].includes(
       host?.mdm.enrollment_status ?? ""
     );
-    return userHasPermission && hostEnrolled;
+    return (
+      userHasPermission &&
+      hostEnrolled &&
+      config?.mdm.enabled_and_configured &&
+      mdm?.name === "Fleet"
+    );
   })();
 
   const featuresConfig = host?.team_id
