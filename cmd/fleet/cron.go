@@ -352,7 +352,7 @@ func checkNVDVulnerabilities(
 		}
 	}
 
-	if err := nvd.LoadCVEMeta(logger, vulnPath, ds); err != nil {
+	if err := nvd.LoadCVEMeta(ctx, logger, vulnPath, ds); err != nil {
 		errHandler(ctx, logger, "load cve meta", err)
 		// don't return, continue on ...
 	}
