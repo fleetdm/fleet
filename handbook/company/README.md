@@ -4,29 +4,40 @@
 
 Fleet Device Management Inc is an [open core company](https://www.heavybit.com/library/video/commercial-open-source-business-strategies/) that sells subscriptions that offer [more features and support](https://fleetdm.com/pricing) for Fleet and [osquery](https://osquery.io), the leading open source endpoint agent.
 
-We are dedicated to
+We are dedicated to:
 
-- 🧑‍🚀 automating IT and security.
+- 🧑‍🚀 automating IT and security with a living, breathing API.
 - 🪟 privacy, transparency, and trust through open source software.
 - 💻 a better way to manage computers.
-
-## About the handbook
-
-The Fleet handbook is inspired by the [GitLab team handbook](https://about.gitlab.com/handbook/about/).  It shares the same [advantages](https://about.gitlab.com/handbook/about/#advantages) and will probably undergo a similar [evolution](https://about.gitlab.com/handbook/ceo/#evolution-of-the-handbook).
-
-While [GitLab's handbook](https://about.gitlab.com/handbook/) inspires this handbook, it is nowhere near as complete (yet!)  We will continue adding and updating this handbook and gradually migrating information from [Fleet's shared Google Drive folder](https://drive.google.com/drive/folders/1lA38aTxsl4_qDtHCrYHcAaadES5ws0yJ) as time allows.
-
-### Contributing to the handbook
-You can review more information about contributing to Fleet's handbook on this page [Contributing to the handbook](handbook/company/handbook.md)
 
 
 ## Culture
 
 ### All remote
-Fleet Device Management Inc. is an all-remote company with team members spread across four continents and eight time zones.  The broader team of contributors [worldwide](https://github.com/fleetdm/fleet/graphs/contributors) submits patches, bug reports, troubleshooting tips, improvements, and real-world insights to Fleet's open source code base, documentation, website, and company handbook.
+Fleet Device Management Inc. is an all-remote company with team members spread across four continents and eight time zones.  The broader team of contributors [worldwide](https://github.com/fleetdm/fleet/graphs/contributors) submits patches, bug reports, troubleshooting tips, improvements, and real-world insights to Fleet's open source code base, documentation, website, and [company handbook](#about-the-handbook).
 
 ### Open source
 The majority of the code, documentation, and content we [create](https://twitter.com/mikermcneil/status/1476799587423772674) at Fleet is public and source-available. We strive to be open and transparent in the way we run the business, as much as confidentiality agreements (and time) allow. We perform better with an audience, and our audience performs better with us. Learn more about [why we use open source](https://fleetdm.com/handbook/company/why-this-way#why-open-source).
+
+
+## Open positions
+
+Please see [handbook/business-operations#open-positions](https://fleetdm.com/handbook/business-operations#open-positions) for a list of open job postings at Fleet.
+
+
+## Org chart
+
+Fleet's organizational chart is accessible as a sub-tab in ["🧑‍🚀 Fleeties" (private google doc)](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0).  On the other sub-tabs, you can also check out a world map of where everyone is located, hiring stats, and fun facts about each team member.
+
+### Product groups
+Fleet organizes cross-functional groups focused on particular business goals. These include members from Design, Engineering, Quality, and Product. For more information, check out this page [Product groups](./development-groups.md).
+
+
+## Why this way?
+
+At Fleet, we err on the side of being opinionated about conventions and processes we believe in, but we always keep in mind the possibility that we could be wrong.  In other words: strong opinions, loosely held.  And everything is in draft.
+
+You can read more about the background behind why Fleet does things the way we do in ["Why this way?"](./why-this-way.md)
 
 
 ## 🌈 Values
@@ -81,6 +92,25 @@ Openness leads to better products and stronger partnerships. Being open about yo
 - **Write everything down.** Let people learn about your work. Use simple language. Avoid acronyms and idioms that might not translate.
 - **Be transparent.** We build in the open. Everything we do is public by default. Declassify confidential information with care. 
 
+
+## About the handbook
+
+The Fleet handbook is inspired by the [GitLab team handbook](https://about.gitlab.com/handbook/about/).  It shares the same [advantages](https://about.gitlab.com/handbook/about/#advantages) and will probably undergo a similar [evolution](https://about.gitlab.com/handbook/ceo/#evolution-of-the-handbook).
+
+While [GitLab's handbook](https://about.gitlab.com/handbook/) inspires this handbook, it is nowhere near as complete (yet!)  We will continue adding and updating this handbook and gradually migrating information from [Fleet's shared Google Drive folder](https://drive.google.com/drive/folders/1lA38aTxsl4_qDtHCrYHcAaadES5ws0yJ) as time allows.
+
+### Contributing to the handbook
+You can review more information about contributing to Fleet's handbook on this page [Contributing to the handbook](handbook/company/handbook.md)
+
+### Handbook first
+At Fleet, we make changes to the [handbook](#about-the-handbook) first.  That means before a change to how we run the business is "live" or "live" or "official", it is first updated (with changes merged) in the relevant handbook pages and issue templates.
+
+This keeps everyone in sync across the all-remote team in different timezones, avoids miscommunications, and ensures the right people have reviewed every change.
+
+> See also ["Why handbook-first strategy?"](https://fleetdm.com/handbook/company/why-this-way#why-handbook-first-strategy).
+
+<!-- todo consolidate handbook first section here into "why this way" and link from here -->
+
 ## History
 
 ### 2014: Origins of osquery
@@ -95,63 +125,40 @@ When Kolide's attention shifted away from Fleet, and towards their separate, use
 ### 2020: Fleet was incorporated
 Zach partnered with our CEO, Mike McNeil, to found a new, independent company: Fleet Device Management Inc.  In November 2020, we [announced](https://medium.com/fleetdm/a-new-fleet-d4096c7de978) the transition and kicked off the logistics of moving the GitHub repository.
 
-## Why this way?
 
-Fleet has a unique way of organizing work. For more information, check out this page [Why this way](./why-this-way.md).
 
-## Development groups
-
-Fleet organizes cross-functional groups focused on particular business goals. These include members from Design, Engineering, Quality, and Product. For more information, check out this page [Development groups](./development-groups.md).
-
-## Levels of confidentiality
-
-- *Public*   _(share with anyone, anywhere in the world)_
-- *Confidential*  _(share only with team members who've signed an NDA, consulting agreement, or employment agreement)_
-- *Classified*  _(share only with founders of Fleet, peepops, and/or the people involved.  e.g., US social security numbers during hiring)_
-
-## Email relays
-
-There are several special email addresses that automatically relay messages to the appropriate people at Fleet. Each email address meets a minimum response time ("Min RT"), expressed in business hours/days, and has a dedicated, directly responsible individual (DRI) who is responsible for reading and replying to emails sent to that address.  You can see a list of those email addresses in ["Contacting Fleet" (private Google doc)](https://docs.google.com/document/d/1tE-NpNfw1icmU2MjYuBRib0VWBPVAdmq4NiCrpuI0F0/edit#).
-
-## Tools we use
-
-There are a number of tools that are used throughout Fleet. Some of these tools are used company-wide, while others are department-specific. You can see a list of those tools in ["Tools we use" (private Google doc)](https://docs.google.com/spreadsheets/d/170qjzvyGjmbFhwS4Mucotxnw_JvyAjYv4qpwBrS6Gl8/edit?usp=sharing).
-
-## GitHub labels
-
-We use special characters to define different types of GitHub labels. By combining labels, we
-organize and categorize GitHub issues. This reduces the total number of labels required while
-maintaining an expressive labeling system. For example, instead of a label called
-`platform-dev-backend`, we use `#platform :dev ~backend`.
-
-| Special character | Label type  | Examples                            |
-|:------------------|:------------|:------------------------------------|
-| `#`               | Noun        | `#platform`, `#interface`, `#agent`
-| `:`               | Verb        | `:dev`, `:research`, `:design`
-| `~`               | Adjective   | `~blocked`, `~frontend`, `~backend`
-| `!`               | OKR         | `!vuln`, `!desktop`, `!upgrade`
-
-## Rituals
-
-|Ritual |Frequency | Description | DRI|
-|-------|:---------|:------------|:---|
-| Weekly update reminder | Weekly | On Thursday, Charlie starts a thread in the `#help-manage` channel and asks managers to reply to the thread with a summary of what their team did in the past week. | Charlie Chance |
-| Weekly update | Weekly | On Friday, Charlie updates the KPIs in the ["🌈 Weekly updates" spreadsheet](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0), combines the updates from managers into a single message and adds any hiring announcements. Charlie posts the company update in the `#general` channel. | Charlie Chance |
 
 ## Slack channels
 
-The following Slack channels are maintained by Fleet's founders and executive collaborators:
+The following Slack channels are maintained by Fleet's founders:
 
-| Slack channel               | [DRI](https://fleetdm.com/handbook/company#why-group-slack-channels)|
+| Slack channel               | [DRI](https://fleetdm.com/handbook/company/why-this-way#why-group-slack-channels)|
 |:----------------------------|:--------------------------------------------------------------------|
-| `#help-mission-control`     | Charlie Chance
-| `#help-okrs`                | Charlie Chance
-| `#help-manage`              | Charlie Chance
-| `#news-fundraising`         | Mike McNeil
-| `#help-open-core-ventures`  | Mike McNeil
 | `#general`                  | N/A _(announce something company-wide)_
 | `#thanks`                   | N/A _(say thank you)_
 | `#random`                   | N/A _(be random)_
+
+
+
+
+
+
+#### Stubs
+The following stubs are included only to make links backward compatible.
+
+##### Levels of confidentiality
+
+Please see [handbook/business-operations#levels-of-confidentiality](https://fleetdm.com/handbook/business-operations#levels-of-confidentiality).
+
+##### Email relays
+
+Please see [handbook/business-operations#email-relays](https://fleetdm.com/handbook/business-operations#email-relays).
+
+
+##### Tools we use
+
+Please see [handbook/business-operations#tools-we-use](https://fleetdm.com/handbook/business-operations#tools-we-use).
+
 
 
 <meta name="maintainedBy" value="mikermcneil">

@@ -46,6 +46,10 @@ For Fleet the product, we say either “Fleet” or “Fleet for osquery.”
 
 Employees are “Fleeties.”
 
+#### Capitalizing "fleets"
+
+When talking about a group of devices or virtual servers, use "fleet" or "fleets" (lowercase).  When talking about the product or company, use "Fleet" (capitalized).
+
 #### Capitalizing osquery
 Osquery should always be written in lowercase unless used to start a sentence or heading:
 
@@ -283,5 +287,5 @@ You don’t need to wait until a change has been made to write a new doc. Starti
 Writing about how to use a new feature puts you in the shoes of the user. If something seems complicated, you have the opportunity to improve it — before committing a line of code.
 
 
-<meta name="maintainedBy" value="chris-mcgillicuddy">
+<meta name="maintainedBy" value="jarodreyes">
 <meta name="title" value="Content style guide">

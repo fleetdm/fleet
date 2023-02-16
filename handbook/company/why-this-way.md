@@ -2,29 +2,23 @@
 
 ## Why open source?
 
-### Benefits
+Fleet's source code, website, documentation, company handbook, and internal tools are [public](https://github.com/fleetdm/fleet) and accessible to everyone, including engineers, executives, and end users. (Even [paid features](https://fleetdm.com/pricing) are source-available.)
 
-Open-source software development is easier than proprietary models. Instead of limiting input to a select group, we welcome contributions from a diverse community of passionate professionals. These unique perspectives help us test assumptions, overcome biases, and discover innovations faster than we would on our own.
+Meanwhile, the [company behind Fleet](https://twitter.com/fleetctl) is built on the [open-core](https://www.heavybit.com/library/video/commercial-open-source-business-strategies) business model.  Openness is one of our core [values](https://fleetdm.com/handbook/company#values), and everything we do is public by [default](https://about.gitlab.com/handbook/values/#public-by-default).  Even the [company handbook](https://fleetdm.com/handbook) is open to the world.
 
-Here are the key benefits of open-source software development:
+Is open-source collaboration _really_ worth all that?  Is it any good?
 
-- **Transparency.** Everyone has access to the source code, including executives, employees, and even end users. Anyone can confirm claims with first-hand evidence.   
-- **Modifiability.** Anybody can make improvements at any time. You can build on existing ideas or start something brand new. Every contribution benefits the project as a whole.
-- **Community.** Open-source contributors really care. They love solving problems and sharing solutions. As their careers grow, so does the community, which helps drive adoption.
+Here are some of the reasons we build in the open:
 
-### Security
+- **Transparency.** You are not dealing with a black box.  Anyone can read the code and [confirm](https://github.com/signalapp/Signal-Android/issues/11101#issuecomment-814476405) it does what it's supposed to.  When it comes to security and device management, great power should come with great openness.
+- **Modifiability.** You are not stuck.  Anybody can make changes to the code at any time. You can build on existing ideas or start something brand new.  Every contribution benefits the project as a whole.  Plugins and configuration settings you need may already exist.  If not, you can add them.
+- **Community.** You are not alone.  Open source contributors are real people who love solving real problems and sharing solutions. As we gain experience and our careers grow, so does [the community](https://chat.osquery.io).  As we learn, we get better at helping each other, which makes it easier to get started with the project, which drives even more adoption, and so on.
+- **Less waste.** You are not redundant.  Contributing back to open source [benefits everybody](https://fleetdm.com/handbook/company): Instead of other organizations and individuals wasting time rediscovering bug fixes and reinventing the same new features in a vacuum, everybody can just upgrade to the latest version of Fleet and take advantage of all those improvements automatically.
+- **Perspective.**  You are not siloed.  [Anyone can contribute](https://about.gitlab.com/company/mission).  That means startups, enterprises, and humans all over the world push fixes, add features, and influence the roadmap.  Diversity of thought accelerates the cycle time for stability and innovation.  Instead of [waiting months](http://selmiak.bplaced.net/games/pc/index.php?lang=eng&game=Loom&page=Audio-Drama--Game-Script#:~:text=I%20need%20to%20see%20at%20least%20eight%20hours%20ahead.%20EIGHT%20hours.) to discover rare edge cases, or last-minute gaps in "enterprise-readiness", or how that cool new unsupported networking protocol your CISO wants to use isn't supported yet, you get to take advantage of the investment from the last contributor who had the same problem.  It's like [seeing around corners](https://thefutureorganization.com/how-leaders-can-see-around-corners/).
+- **Sustainability.** You are not the only contributor.  Open-source software is public and highly visible.  Mistakes are more obvious, which activates the community to discover (and fix) vulnerabilities and bugs more quickly.  Open-source projects like osquery and Fleet have an incentive to be proactive and thoughtful about responsible disclosure, code reviews, strict semantic versioning, release notes, documentation, and other [secure development best practices](https://github.com/osquery/osquery/blob/master/ASSURANCE.md#security-implemented-in-development-lifecycle-processes).  For example, anybody in the community can suggest and review changes, but only maintainers with appropriate subject matter expertise can merge them.
+- **Accessibility.** You are smart and cool enough.  Open source isn't just [the Free Software movement](https://www.youtube.com/watch?v=UIDb6VBO9os) anymore.  Today, there are many other reasons to contribute and opportunities to contribute, even if you don't [yet know how](https://www.youtube.com/playlist?list=PL4nf6riqo7srdUHdhRSoABvES81Oygyp3) to write code.  (For example, try clicking "Edit this page" to make an improvement to this page of Fleet's handbook.)  Since 2020, Fleet has given visibility into over 1.65 million servers and workstations at Fortune 1000 companies like [Comcast](https://www.youtube.com/watch?v=J9V83Qsf3lg), [Twilio](https://fleetdm.com/podcasts/the-future-of-device-management-ep2), [Uber](https://fleetdm.com/podcasts/the-future-of-device-management-ep3), [Atlassian](https://www.youtube.com/watch?v=qflUfLQCnwY), and [Wayfair](https://fleetdm.com/device-management/fleet-user-stories-wayfair).  But did you know that during that time, Fleet inspired one 9-year-old kid to learn coding, when almost no one else believed she could do it?
+- **More timeless.** You are not doomed to disappear forever when you change jobs.  Why should your code?  In most jobs, most of the work you do becomes inaccessible when you quit.  But [open source is forever](https://twitter.com/mikermcneil/status/1476799587423772674).
 
-So much visibility might make people nervous. But open-source projects have practices in place that encourage collaboration and promote security. Osquery uses configuration management, issue tracking, and code reviews as part of their development process. [Learn more about osquery’s security measures](https://github.com/osquery/osquery/blob/master/ASSURANCE.md#security-implemented-in-development-lifecycle-processes).
-
-We’ve adopted similar policies at Fleet. Anybody in our community can suggest changes, but only Fleeties with appropriate access can merge them.
-
-### Results 
-
-Open source isn’t just a development model. It’s a movement. It’s an effective, authentic way for individuals to achieve a common goal.
-
-Since 2020, Fleet has given visibility into over 1.65 million servers and workstations. Fortune 1000 companies like Uber, Atlassian, and [Wayfair](https://fleetdm.com/device-management/fleet-user-stories-wayfair) now have the insights they need to easily maintain continuous compliance.
-
-The [community](https://chat.osquery.io) made this happen.  Fleet's contributors shape [the direction of the product](https://fleetdm.com/pricing).
 
 ## Why do we use a wireframe-first approach?
 
@@ -91,27 +85,28 @@ The Fleet handbook provides team members with up-to-date information about how t
 This strategy was inspired by GitLab, which uses it with great effect. Check out this [short three-minute video](https://www.youtube.com/watch?v=aZrK8AQM8Ro) about their take on the handbook-first approach.
 
 ## Why direct responsibility?
-We use the concept of [directly responsible individuals](https://fleetdm.com/handbook/people#directly-responsible-individuals) (DRIs) to know who is responsible for what. For example, every department maintains its own dedicated [handbook page](https://fleetdm.com/handbook), with a single DRI, and which is kept up to date with accurate, current information, including the group's [kanban board](https://github.com/orgs/fleetdm/projects?type=beta), Slack channels, and recurring tasks ("rituals").
+Like Apple and GitLab, Fleet uses the concept of [directly responsible individuals (DRIs)](https://about.gitlab.com/handbook/people-group/directly-responsible-individuals/) to know who is responsible for what. 
+
+A DRI is a person who is singularly responsble for a given aspect of the open-source project, the product, or the company.  A DRI is responsible for making decisions, accomplishing goals, and getting any resources necessary to make a given area of Fleet successful.
+
+For example, every department maintains its own dedicated [handbook page](https://fleetdm.com/handbook), with a single DRI, and which is kept up to date with accurate, current information, including the group's [kanban board](https://github.com/orgs/fleetdm/projects?type=beta), Slack channels, and recurring tasks ("rituals").
+
+DRIs help us collaborate efficiently by knowing exactly who is responsible and can make decisions about the work they're doing.  This saves time by eliminating a requirement for consensus decisions or political presenteeism, enables faster decision-making, and ensures a single individual is aware of what to do next.
+
+You can view DRIs in:
+1. The [CODEOWNERS files](https://github.com/fleetdm/fleet/blob/main/CODEOWNERS) of the fleetdm/fleet and fleetdm/confidential repositories.
+2. The  `name="maintainedBy"` tags at the very bottom of the raw markdown source for [every handbook page](https://github.com/fleetdm/fleet/tree/main/handbook) and [individual article](https://github.com/fleetdm/fleet/tree/main/articles).
+3. The job titles and reporting structure indicated by the [company's organizational chart](https://fleetdm.com/handbook/company#org-chart) and the roles in our [cross-functional product groups](https://fleetdm.com/handbook/company#product-groups).
+
+> In some cases, multiple subject-matter experts can merge changes to files even though there is a dedicated DRI configured as the "CODEOWNER".  For examples of this, see the auto-approval flows configured as `sails.config.custom.githubRepoDRIByPath` and `sails.config.custom.confidentialGithubRepoDRIByPath` in [`website/config/custom.js`](https://github.com/fleetdm/fleet/blob/main/website/config/custom.js).
+
 
 ## Why group Slack channels?
 Groups (`g-*`) are organized around goals. Connecting people with the same goals helps them produce better results by fostering freer communication. Some groups align with teams in the org chart.  Other groups, such as [product groups](https://fleetdm.com/handbook/company/development-groups), are cross-functional, with some group members who do not report to the same manager.
 
 Every group at Fleet maintains their own Slack channel, which all group members join and keep unmuted.  Everyone else at Fleet is encouraged to mute these channels, using them only as needed.  Each channel has a directly responsible individual responsible for keeping up with all new messages, even if they aren't explicitly mentioned (`@`).
 
-## Why does Fleet value Openness?
-A lot of thought went into making Openness one of our values.
 
-It might be easier to keep company information confidential. You don’t have to think so hard about what should or shouldn’t be public. Declassifying information later carries risk. Anything you release affects how people see your company.
-
-But we prefer to focus on the benefits.
-
-Sharing information helps other organizations, which means helping more end users.
-
-Everything we release is free marketing. Publicizing information is marketing itself. We’re an open-source company after all.
-
-Sure, people might point out our mistakes. But that just helps us grow. And that’s what open source is all about: creating and improving tools together as a community.
-
-For more thoughts on Fleet's values, visit the [Values section of the Company page in our handbook](https://fleetdm.com/handbook/company#openness).
 
 <meta name="maintainedBy" value="mikermcneil">
 <meta name="title" value="Why this way?">
