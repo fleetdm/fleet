@@ -13,6 +13,20 @@ func TestSync(t *testing.T) {
 	t.Run("#sync", func(t *testing.T) {
 		remote := io.NewMacOfficeRelNotesMetadata("macoffice-2023_10_10.json")
 
+		t.Run("when there are no local files", func(t *testing.T) {
+			var local []io.MetadataFileName
+
+			testData := io.TestData{
+				RemoteList: map[io.MetadataFileName]string{{}: "http://someurl.com"},
+				LocalList:  local,
+			}
+
+			err := sync(ctx, io.FsMock{TestData: &testData}, io.GhMock{TestData: &testData})
+			require.NoError(t, err)
+			require.Empty(t, testData.LocalDeleted)
+			require.Empty(t, testData.RemoteDownloaded)
+		})
+
 		t.Run("when there are no remote rel notes", func(t *testing.T) {
 			local := []io.MetadataFileName{
 				io.NewMacOfficeRelNotesMetadata("macoffice-2022_09_10.json"),

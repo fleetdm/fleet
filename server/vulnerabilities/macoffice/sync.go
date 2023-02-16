@@ -40,6 +40,10 @@ func sync(
 		return err
 	}
 
+	if len(local) == 0 {
+		return nil
+	}
+
 	sort.Slice(local, func(i, j int) bool {
 		return local[j].Before(local[i])
 	})
