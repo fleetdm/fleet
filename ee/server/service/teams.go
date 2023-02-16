@@ -415,21 +415,33 @@ func (svc *Service) ModifyTeamEnrollSecrets(ctx context.Context, teamID uint, se
 	return newSecrets, nil
 }
 
-func (svc *Service) teamByName(ctx context.Context, name string) (*fleet.Team, error) {
+func (svc *Service) teamByIDOrName(ctx context.Context, id *uint, name *string) (*fleet.Team, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
-	tm, err := svc.ds.TeamByName(ctx, name)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			// this should really be handled in TeamByName so that it returns a
-			// notFound error as is usually the case for this scenario, but
-			// changing it causes a number of test failures that indicates this
-			// might be tricky and even maybe a breaking change in some places. For
-			// now, handling it here.
-			return nil, notFoundError{}
+
+	var (
+		tm  *fleet.Team
+		err error
+	)
+	if id != nil {
+		tm, err = svc.ds.Team(ctx, *id)
+		if err != nil {
+			return nil, err
 		}
-		return nil, err
+	} else if name != nil {
+		tm, err = svc.ds.TeamByName(ctx, *name)
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				// this should really be handled in TeamByName so that it returns a
+				// notFound error as is usually the case for this scenario, but
+				// changing it causes a number of test failures that indicates this
+				// might be tricky and even maybe a breaking change in some places. For
+				// now, handling it here.
+				return nil, notFoundError{}
+			}
+			return nil, err
+		}
 	}
 	return tm, nil
 }
