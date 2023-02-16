@@ -124,7 +124,7 @@ The [CEO handbook](./ceo-handbook.md) details processes specific to Mike McNeil,
 
 ## Open positions
 
-Please see [handbook/business-operations#open-positions](https://fleetdm.com/handbook/business-operations#open-positions) for a list of open job postings at Fleet.
+Please see [handbook/company#open-positions](https://fleetdm.com/handbook/company#open-positions) for a list of open job postings at Fleet.
 
 > Interested in joining the team at Fleet, or know someone who might be?  The [company handbook page](https://fleetdm.com/handbook/company) is a short read with more information about the company, including our vision, values, and history.
 
