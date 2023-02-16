@@ -95,7 +95,7 @@ DRIs help us collaborate efficiently by knowing exactly who is responsible and c
 
 You can view DRIs in:
 1. The [CODEOWNERS files](https://github.com/fleetdm/fleet/blob/main/CODEOWNERS) of the fleetdm/fleet and fleetdm/confidential repositories.
-2. The  `<meta name="maintainedBy">` tags at the bottom of the raw markdown source for [handbook pages](https://github.com/fleetdm/fleet/tree/main/handbook) and [individual articles](https://github.com/fleetdm/fleet/tree/main/articles).
+2. The  `name="maintainedBy"` tags at the very bottom of the raw markdown source for [every handbook page](https://github.com/fleetdm/fleet/tree/main/handbook) and [individual article](https://github.com/fleetdm/fleet/tree/main/articles).
 3. The job titles and reporting structure indicated by the [company's organizational chart](https://fleetdm.com/handbook/company#org-chart) and the roles in our [cross-functional product groups](https://fleetdm.com/handbook/company#product-groups).
 
 > In some cases, multiple subject-matter experts can merge changes to files even though there is a dedicated DRI configured as the "CODEOWNER".  For examples of this, see the auto-approval flows configured as `sails.config.custom.githubRepoDRIByPath` and `sails.config.custom.confidentialGithubRepoDRIByPath` in [`website/config/custom.js`](https://github.com/fleetdm/fleet/blob/main/website/config/custom.js).
