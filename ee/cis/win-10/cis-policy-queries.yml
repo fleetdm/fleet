@@ -157,8 +157,6 @@ spec:
   query: |
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/LocalPoliciesSecurityOptions/Accounts_RenameAdministratorAccount</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output != "Administrator";
 
-	// OLD STUFF TO BE REMOVED path:   = 'Computer Configuration\Policies\Windows Settings\Security Settings\Account Policies\Account Lockout Policy\Account lockout duration'
-	// OLD STUFF 2:    value = '15 or more minute(s)';
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-1.2.1
   contributors: sharon-fdm
@@ -182,8 +180,6 @@ spec:
   query: |
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/LocalPoliciesSecurityOptions/Accounts_RenameAdministratorAccount</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output != "Administrator";
 
-	// OLD STUFF TO BE REMOVED path:   = 'Computer Configuration\Policies\Windows Settings\Security Settings\Account Policies\Account Lockout Policy\Account lockout threshold'
-	// OLD STUFF 2:    value = '5 or fewer invalid login attempt(s), but not 0';
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-1.2.2
   contributors: sharon-fdm
@@ -208,8 +204,6 @@ spec:
   query: |
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/LocalPoliciesSecurityOptions/Accounts_RenameAdministratorAccount</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output != "Administrator";
 
-	// OLD STUFF TO BE REMOVED path:   = 'Computer Configuration\Policies\Windows Settings\Security Settings\Account Policies\Account Lockout Policy\Reset account lockout counter after'
-	// OLD STUFF 2:    value = '15 or more minute(s)';
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-1.2.3
   contributors: sharon-fdm
@@ -232,8 +226,6 @@ spec:
   query: |
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/LocalPoliciesSecurityOptions/Accounts_RenameAdministratorAccount</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output != "Administrator";
 
-	// OLD STUFF TO BE REMOVED path:   = 'Computer Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Access Credential Manager as a trusted caller'
-	// OLD STUFF 2:    value = 'No One';
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-2.2.1
   contributors: sharon-fdm
@@ -256,8 +248,6 @@ spec:
   query: |
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/LocalPoliciesSecurityOptions/Accounts_RenameAdministratorAccount</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output != "Administrator";
 
-	// OLD STUFF TO BE REMOVED path:   = 'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Access this computer from the network'
-	// OLD STUFF 2:    value = 'Administrators, Remote Desktop Users';
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-2.2.2
   contributors: sharon-fdm
@@ -280,8 +270,6 @@ spec:
   query: |
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/LocalPoliciesSecurityOptions/Accounts_RenameAdministratorAccount</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output != "Administrator";
 
-	// OLD STUFF TO BE REMOVED path:   = 'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Act as part of the operating system'
-	// OLD STUFF 2:    value = 'No One';
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-2.2.3
   contributors: sharon-fdm
@@ -304,8 +292,6 @@ spec:
   query: |
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/LocalPoliciesSecurityOptions/Accounts_RenameAdministratorAccount</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output != "Administrator";
 
-	// OLD STUFF TO BE REMOVED path:   = 'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Adjust memory quotas for a process'
-	// OLD STUFF 2:    value = 'Administrators, LOCAL SERVICE, NETWORK SERVICE';
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-2.2.4
   contributors: sharon-fdm
@@ -326,8 +312,6 @@ spec:
   query: |
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/LocalPoliciesSecurityOptions/Accounts_RenameAdministratorAccount</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output != "Administrator";
 
-	// OLD STUFF TO BE REMOVED path:   = 'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Allow log on locally'
-	// OLD STUFF 2:    value = 'Administrators, Users';
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-2.2.5
   contributors: sharon-fdm
@@ -353,8 +337,6 @@ spec:
   query: |
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/LocalPoliciesSecurityOptions/Accounts_RenameAdministratorAccount</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output != "Administrator";
 
-	// OLD STUFF TO BE REMOVED path:   = 'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Allow log on through Remote Desktop Services'
-	// OLD STUFF 2:    value = 'Administrators, Remote Desktop Users';
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-2.2.6
   contributors: sharon-fdm
@@ -377,8 +359,6 @@ spec:
   query: |
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/LocalPoliciesSecurityOptions/Accounts_RenameAdministratorAccount</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output != "Administrator";
 
-	// OLD STUFF TO BE REMOVED path:   = 'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Back up files and directories'
-	// OLD STUFF 2:    value = 'Administrators';
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-2.2.7
   contributors: sharon-fdm
@@ -400,8 +380,6 @@ spec:
   query: |
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/LocalPoliciesSecurityOptions/Accounts_RenameAdministratorAccount</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output != "Administrator";
 
-	// OLD STUFF TO BE REMOVED path:   = 'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Change the system time'
-	// OLD STUFF 2:    value = 'Administrators, LOCAL SERVICE';
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-2.2.8
   contributors: sharon-fdm
@@ -424,8 +402,6 @@ spec:
   query: |
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/LocalPoliciesSecurityOptions/Accounts_RenameAdministratorAccount</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output != "Administrator";
 
-	// OLD STUFF TO BE REMOVED path:   = 'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Change the time zone'
-	// OLD STUFF 2:    value = 'Administrators, LOCAL SERVICE, Users';
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-2.2.9
   contributors: sharon-fdm
@@ -448,8 +424,6 @@ spec:
   query: |
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/LocalPoliciesSecurityOptions/Accounts_RenameAdministratorAccount</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output != "Administrator";
 
-	// OLD STUFF TO BE REMOVED path:   = 'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Create a pagefile'
-	// OLD STUFF 2:    value = 'Administrators';
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-2.2.10
   contributors: sharon-fdm
@@ -473,8 +447,6 @@ spec:
   query: |
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/LocalPoliciesSecurityOptions/Accounts_RenameAdministratorAccount</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output != "Administrator";
 
-	// OLD STUFF TO BE REMOVED path:   = 'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Create a token object'
-	// OLD STUFF 2:    value = 'No One';
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-2.2.11
   contributors: sharon-fdm
@@ -498,8 +470,6 @@ spec:
   query: |
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/LocalPoliciesSecurityOptions/Accounts_RenameAdministratorAccount</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output != "Administrator";
 
-	// OLD STUFF TO BE REMOVED path:   = 'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Create global objects'
-	// OLD STUFF 2:    value = 'Administrators, LOCAL SERVICE, NETWORK SERVICE, SERVICE';
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-2.2.12
   contributors: sharon-fdm
@@ -521,8 +491,6 @@ spec:
   query: |
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/LocalPoliciesSecurityOptions/Accounts_RenameAdministratorAccount</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output != "Administrator";
 
-	// OLD STUFF TO BE REMOVED path:   = 'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Create permanent shared objects'
-	// OLD STUFF 2:    value = 'No One';
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-2.2.13
   contributors: sharon-fdm
@@ -546,8 +514,6 @@ spec:
   query: |
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/LocalPoliciesSecurityOptions/Accounts_RenameAdministratorAccount</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output != "Administrator";
 
-	// OLD STUFF TO BE REMOVED path:   = 'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Create symbolic links'
-	// OLD STUFF 2:    value = 'Administrators';
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-2.2.14
   contributors: sharon-fdm
@@ -570,8 +536,6 @@ spec:
   query: |
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/LocalPoliciesSecurityOptions/Accounts_RenameAdministratorAccount</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output != "Administrator";
 
-	// OLD STUFF TO BE REMOVED path:   = 'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Debug programs'
-	// OLD STUFF 2:    value = 'Administrators';
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-2.2.15
   contributors: sharon-fdm
@@ -594,8 +558,6 @@ spec:
   query: |
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/LocalPoliciesSecurityOptions/Accounts_RenameAdministratorAccount</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output != "Administrator";
 
-	// OLD STUFF TO BE REMOVED path:   = 'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Deny access to this computer from the network'
-	// OLD STUFF 2:    value = 'Guests';
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-2.2.16
   contributors: sharon-fdm
@@ -619,8 +581,6 @@ spec:
   query: |
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/LocalPoliciesSecurityOptions/Accounts_RenameAdministratorAccount</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output != "Administrator";
 
-	// OLD STUFF TO BE REMOVED path:   = 'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Deny log on as a batch job'
-	// OLD STUFF 2:    value = 'Guests';
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-2.2.17
   contributors: sharon-fdm
@@ -645,8 +605,6 @@ spec:
   query: |
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/LocalPoliciesSecurityOptions/Accounts_RenameAdministratorAccount</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output != "Administrator";
 
-	// OLD STUFF TO BE REMOVED path:   = 'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Deny log on as a service'
-	// OLD STUFF 2:    value = 'Guests';
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-2.2.18
   contributors: sharon-fdm
@@ -670,8 +628,6 @@ spec:
   query: |
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/LocalPoliciesSecurityOptions/Accounts_RenameAdministratorAccount</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output != "Administrator";
 
-	// OLD STUFF TO BE REMOVED path:   = 'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Deny log on locally'
-	// OLD STUFF 2:    value = 'Guests';
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-2.2.19
   contributors: sharon-fdm
@@ -695,8 +651,6 @@ spec:
   query: |
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/LocalPoliciesSecurityOptions/Accounts_RenameAdministratorAccount</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output != "Administrator";
 
-	// OLD STUFF TO BE REMOVED path:   = 'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Deny log on through Remote Desktop Services'
-	// OLD STUFF 2:    value = 'Guests';
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-2.2.20
   contributors: sharon-fdm
@@ -719,8 +673,6 @@ spec:
   query: |
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/LocalPoliciesSecurityOptions/Accounts_RenameAdministratorAccount</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output != "Administrator";
 
-	// OLD STUFF TO BE REMOVED path:   = 'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Enable computer and user accounts to be trusted for delegation'
-	// OLD STUFF 2:    value = 'No One';
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-2.2.21
   contributors: sharon-fdm
@@ -743,8 +695,6 @@ spec:
   query: |
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/LocalPoliciesSecurityOptions/Accounts_RenameAdministratorAccount</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output != "Administrator";
 
-	// OLD STUFF TO BE REMOVED path:   = 'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Force shutdown from a remote system'
-	// OLD STUFF 2:    value = 'Administrators';
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-2.2.22
   contributors: sharon-fdm
@@ -767,8 +717,6 @@ spec:
   query: |
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/LocalPoliciesSecurityOptions/Accounts_RenameAdministratorAccount</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output != "Administrator";
 
-	// OLD STUFF TO BE REMOVED path:   = 'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Generate security audits'
-	// OLD STUFF 2:    value = 'LOCAL SERVICE, NETWORK SERVICE';
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-2.2.23
   contributors: sharon-fdm
@@ -799,8 +747,6 @@ spec:
   query: |
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/LocalPoliciesSecurityOptions/Accounts_RenameAdministratorAccount</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output != "Administrator";
 
-	// OLD STUFF TO BE REMOVED path:   = 'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Impersonate a client after authentication'
-	// OLD STUFF 2:    value = 'Administrators, LOCAL SERVICE, NETWORK SERVICE, SERVICE';
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-2.2.24
   contributors: sharon-fdm
@@ -823,8 +769,6 @@ spec:
   query: |
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/LocalPoliciesSecurityOptions/Accounts_RenameAdministratorAccount</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output != "Administrator";
 
-	// OLD STUFF TO BE REMOVED path:   = 'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Increase scheduling priority'
-	// OLD STUFF 2:    value = 'Administrators, Window Manager\Window Manager Group';
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-2.2.25
   contributors: sharon-fdm
@@ -847,8 +791,6 @@ spec:
   query: |
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/LocalPoliciesSecurityOptions/Accounts_RenameAdministratorAccount</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output != "Administrator";
 
-	// OLD STUFF TO BE REMOVED path:   = 'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Load and unload device drivers'
-	// OLD STUFF 2:    value = 'Administrators';
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-2.2.26
   contributors: sharon-fdm
@@ -870,8 +812,6 @@ spec:
   query: |
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/LocalPoliciesSecurityOptions/Accounts_RenameAdministratorAccount</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output != "Administrator";
 
-	// OLD STUFF TO BE REMOVED path:   = 'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Lock pages in memory'
-	// OLD STUFF 2:    value = 'No One';
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-2.2.27
   contributors: sharon-fdm
@@ -893,8 +833,6 @@ spec:
   query: |
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/LocalPoliciesSecurityOptions/Accounts_RenameAdministratorAccount</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output != "Administrator";
 
-	// OLD STUFF TO BE REMOVED path:   = 'Computer Configuration\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Log on as a batch job'
-	// OLD STUFF 2:    value = 'Administrators';
   purpose: Informational
   tags: compliance, CIS, CIS_Level2, CIS-win10-stand-alone-2.2.28
   contributors: sharon-fdm
@@ -916,8 +854,6 @@ spec:
   query: |
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/LocalPoliciesSecurityOptions/Accounts_RenameAdministratorAccount</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output != "Administrator";
 
-	// OLD STUFF TO BE REMOVED path:   = 'Computer Configuration\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Log on as a service'
-	// OLD STUFF 2:    value = 'No One';
   purpose: Informational
   tags: compliance, CIS, CIS_Level2, CIS-win10-stand-alone-2.2.29
   contributors: sharon-fdm
@@ -940,8 +876,6 @@ spec:
   query: |
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/LocalPoliciesSecurityOptions/Accounts_RenameAdministratorAccount</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output != "Administrator";
 
-	// OLD STUFF TO BE REMOVED path:   = 'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Manage auditing and security log'
-	// OLD STUFF 2:    value = 'Administrators';
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-2.2.30
   contributors: sharon-fdm
@@ -949,6 +883,50 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
+  name: CIS - Ensure 'Modify an object label' is set to 'No One'
+  platforms: win10
+  platform: windows
+  description: |
+    This privilege determines which user accounts can modify the integrity label of objects, such as files, registry keys, or processes owned by other users. Processes running under a user account can modify the label of an object owned by that user to a lower level without this privilege.
+The recommended state for this setting is: No One.
+Rationale:
+By modifying the integrity label of an object owned by another user a malicious user may cause them to execute code at a higher level of privilege than intended.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'No One':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Modify an object label'
+  query: |
+    SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/LocalPoliciesSecurityOptions/Accounts_RenameAdministratorAccount</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output != "Administrator";
+
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-2.2.31
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Modify firmware environment values' is set to 'Administrators'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting allows users to configure the system-wide environment variables that affect hardware configuration. This information is typically stored in the Last Known Good Configuration. Modification of these values and could lead to a hardware failure that would result in a denial of service condition.
+    The recommended state for this setting is: Administrators.
+    Note: This user right is considered a "sensitive privilege" for the purposes of auditing. Rationale:
+    Anyone who is assigned the Modify firmware environment values user right could configure the settings of a hardware component to cause it to fail, which could lead to data corruption or a DoS condition.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'Administrators':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Modify firmware environment values'
+  query: |
+    SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/LocalPoliciesSecurityOptions/Accounts_RenameAdministratorAccount</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output != "Administrator";
+
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-2.2.32
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
   name: CIS - AAAAAAAA
   platforms: win10
   platform: windows
@@ -961,8 +939,6 @@ spec:
   query: |
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/LocalPoliciesSecurityOptions/Accounts_RenameAdministratorAccount</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output != "Administrator";
 
-	// OLD STUFF TO BE REMOVED path:   = 'DDDDDDDD'
-	// OLD STUFF 2:    value = 'CCCCCCCCC';
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-YYYYY
   contributors: sharon-fdm
@@ -982,8 +958,6 @@ spec:
   query: |
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/LocalPoliciesSecurityOptions/Accounts_RenameAdministratorAccount</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output != "Administrator";
 
-	// OLD STUFF TO BE REMOVED path:   = 'DDDDDDDD'
-	// OLD STUFF 2:    value = 'CCCCCCCCC';
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-YYYYY
   contributors: sharon-fdm
@@ -1003,8 +977,6 @@ spec:
   query: |
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/LocalPoliciesSecurityOptions/Accounts_RenameAdministratorAccount</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output != "Administrator";
 
-	// OLD STUFF TO BE REMOVED path:   = 'DDDDDDDD'
-	// OLD STUFF 2:    value = 'CCCCCCCCC';
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-YYYYY
   contributors: sharon-fdm
@@ -1024,50 +996,6 @@ spec:
   query: |
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/LocalPoliciesSecurityOptions/Accounts_RenameAdministratorAccount</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output != "Administrator";
 
-	// OLD STUFF TO BE REMOVED path:   = 'DDDDDDDD'
-	// OLD STUFF 2:    value = 'CCCCCCCCC';
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-YYYYY
-  contributors: sharon-fdm
----
-apiVersion: v1
-kind: policy
-spec:
-  name: CIS - AAAAAAAA
-  platforms: win10
-  platform: windows
-  description: |
-    BBBBBBBBB
-  resolution: |
-    Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'CCCCCCCCC':
-    'DDDDDDDD'
-  query: |
-    SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/LocalPoliciesSecurityOptions/Accounts_RenameAdministratorAccount</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output != "Administrator";
-
-	// OLD STUFF TO BE REMOVED path:   = 'DDDDDDDD'
-	// OLD STUFF 2:    value = 'CCCCCCCCC';
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-YYYYY
-  contributors: sharon-fdm
----
-apiVersion: v1
-kind: policy
-spec:
-  name: CIS - AAAAAAAA
-  platforms: win10
-  platform: windows
-  description: |
-    BBBBBBBBB
-  resolution: |
-    Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'CCCCCCCCC':
-    'DDDDDDDD'
-  query: |
-    SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/LocalPoliciesSecurityOptions/Accounts_RenameAdministratorAccount</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output != "Administrator";
-
-	// OLD STUFF TO BE REMOVED path:   = 'DDDDDDDD'
-	// OLD STUFF 2:    value = 'CCCCCCCCC';
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-YYYYY
   contributors: sharon-fdm
