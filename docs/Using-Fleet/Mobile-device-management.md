@@ -4,8 +4,6 @@ MDM features are not ready for production and are currently in development. Thes
 
 MDM features allow you to manage macOS updates and macOS settings on your hosts.
 
-In Fleet, MDM features are supported on macOS 12 and higher.
-
 To use MDM features you have to connect Fleet to Apple Push Certificates Portal. See how [here](#set-up).
 
 ## macOS updates
@@ -284,5 +282,9 @@ Want to know what your organization can see? Read about [transparency](https://f
 2. On your **My device** page, follow the disk encryption instructions in the yellow banner. If you don’t see the disk encryption instructions, please contact your IT administrator. If the **My device page** presents you with an error, please contact your IT administrator.
 
 ![My device page - turn on disk encryption](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/my-device-page-turn-on-disk-encryption.png)
+
+## Support
+
+In Fleet, MDM features are supported for Macs running macOS 12 (Monterey) and higher.
 
 <meta name="pageOrderInSection" value="1500">
