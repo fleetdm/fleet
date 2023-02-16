@@ -804,8 +804,8 @@ func (s *integrationMDMTestSuite) TestMDMAppleConfigProfileCRUD() {
 
 	checkGetResponse := func(resp *http.Response, expected fleet.MDMAppleConfigProfile) {
 		// check expected headers
-		require.Contains(t, resp.Header["Content-Type"], "application/octet-stream")
-		require.Contains(t, resp.Header["Content-Disposition"], fmt.Sprintf(`attachment;filename="%s %s.%s"`, time.Now().Format("2006-01-02"), expected.Name, "mobileconfig"))
+		require.Contains(t, resp.Header["Content-Type"], "application/x-apple-aspen-config")
+		require.Contains(t, resp.Header["Content-Disposition"], fmt.Sprintf(`attachment;filename="%s_%s.%s"`, time.Now().Format("2006-01-02"), strings.ReplaceAll(expected.Name, " ", "_"), "mobileconfig"))
 		// check expected body
 		var bb bytes.Buffer
 		_, err = io.Copy(&bb, resp.Body)
