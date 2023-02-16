@@ -1,3 +1,9 @@
+## Fleet 4.27.1 (Feb 16, 2023)
+
+* Fixed "Turn off MDM" button appearing on host details without Fleet MDM enabled. 
+
+* Upgrade Go to 1.19.6 to remediate some low severity [denial of service vulnerabilities](https://groups.google.com/g/golang-announce/c/V0aBFqaFs_E/m/CnYKgKwBBQAJ) in the standard library.
+
 ## Fleet 4.27.0 (Feb 3, 2023)
 
 * Added API endpoint to unenroll a host from Fleet's MDM.
