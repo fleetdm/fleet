@@ -1,5 +1,11 @@
 # Why this way?
 
+Here are some of Fleet's decisions about the best way to work, and the reasoning for them.
+
+Any past decision is open to questioning in a future iteration, as long as you act in accordance with it until it is changed. When you want to reopen a conversation about a past decision, communicate with the [DRI (directly responsible individual)](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) who can change the decision instead of someone who can't.  Show your argument is informed by previous conversations, and assume the original decision was made [with the best intent](https://about.gitlab.com/handbook/values/#assume-positive-intent).
+
+Fleet's CEO is the directly-responsible individual for the decisions on this handbook page.
+
 ## Why open source?
 
 Fleet's source code, website, documentation, company handbook, and internal tools are [public](https://github.com/fleetdm/fleet) and accessible to everyone, including engineers, executives, and end users. (Even [paid features](https://fleetdm.com/pricing) are source-available.)
