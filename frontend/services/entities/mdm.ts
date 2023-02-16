@@ -56,4 +56,9 @@ export default {
     const { MDM_PROFILE } = endpoints;
     return sendRequest("GET", MDM_PROFILE(profileId));
   },
+
+  deleteProfile: (profileId: number) => {
+    const { MDM_PROFILE } = endpoints;
+    return sendRequest("DELETE", MDM_PROFILE(profileId));
+  },
 };

@@ -1,4 +1,4 @@
-import React, { useContext } from "react";
+import React, { useContext, useRef, useState } from "react";
 import { useQuery } from "react-query";
 import { AxiosResponse } from "axios";
 import { format } from "date-fns";
@@ -13,7 +13,8 @@ import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 import { IMdmProfile, IMdmProfilesResponse } from "interfaces/mdm";
 import { NotificationContext } from "context/notification";
-import { ERROR_MESSAGES, getErrorMessage } from "./helpers";
+import { UPLOAD_ERROR_MESSAGES, getErrorMessage } from "./helpers";
+import DeleteProfileModal from "./components/DeleteProfileModal/DeleteProfileModal";
 
 const baseClass = "custom-settings";
 
@@ -23,6 +24,9 @@ interface ICustomSettingsProps {
 
 const CustomSettings = ({ currentTeamId }: ICustomSettingsProps) => {
   const { renderFlash } = useContext(NotificationContext);
+
+  const [showDeleteProfileModal, setShowDeleteProfileModal] = useState(false);
+  const selectedProfile = useRef<IMdmProfile | null>(null);
 
   const {
     data: profiles,
@@ -45,7 +49,10 @@ const CustomSettings = ({ currentTeamId }: ICustomSettingsProps) => {
     FileSaver.saveAs(file);
   };
 
-  const onClickDelete = (profile: IMdmProfile) => {};
+  const onClickDelete = (profile: IMdmProfile) => {
+    selectedProfile.current = profile;
+    setShowDeleteProfileModal(true);
+  };
 
   const renderProfiles = () => {
     if (!profiles || profiles.length === 0) return null;
@@ -98,7 +105,7 @@ const CustomSettings = ({ currentTeamId }: ICustomSettingsProps) => {
   };
 
   const onFileUpload = async (files: FileList | null) => {
-    if (!files) return;
+    if (!files || files.length === 0) return;
 
     const file = files[0];
 
@@ -106,7 +113,7 @@ const CustomSettings = ({ currentTeamId }: ICustomSettingsProps) => {
       file.type !== "application/x-apple-aspen-config" ||
       !file.name.includes(".mobileconfig")
     ) {
-      renderFlash("error", ERROR_MESSAGES.wrongType.message);
+      renderFlash("error", UPLOAD_ERROR_MESSAGES.wrongType.message);
       return;
     }
 
@@ -118,6 +125,24 @@ const CustomSettings = ({ currentTeamId }: ICustomSettingsProps) => {
       const error = e as AxiosResponse<IApiError>;
       const errMessage = getErrorMessage(error);
       renderFlash("error", errMessage);
+    }
+  };
+
+  const onCancelDelete = () => {
+    selectedProfile.current = null;
+    setShowDeleteProfileModal(false);
+  };
+
+  const onDeleteProfile = async (profileId: number) => {
+    try {
+      await mdmAPI.deleteProfile(profileId);
+      refectchProfiles();
+      renderFlash("success", "Successfully deleted!");
+    } catch (e) {
+      renderFlash("error", "Couldn’t delete. Please try again.");
+    } finally {
+      selectedProfile.current = null;
+      setShowDeleteProfileModal(false);
     }
   };
 
@@ -146,6 +171,14 @@ const CustomSettings = ({ currentTeamId }: ICustomSettingsProps) => {
           onChange={(e) => onFileUpload(e.target.files)}
         />
       </div>
+      {showDeleteProfileModal && selectedProfile.current && (
+        <DeleteProfileModal
+          profileName={selectedProfile.current?.name}
+          profileId={selectedProfile.current?.profile_id}
+          onCancel={onCancelDelete}
+          onDelete={onDeleteProfile}
+        />
+      )}
     </div>
   );
 };
