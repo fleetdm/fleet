@@ -1,7 +1,9 @@
 import React, { useContext } from "react";
 import { useQuery } from "react-query";
 import { AxiosResponse } from "axios";
+import { format } from "date-fns";
 import formatDistanceToNow from "date-fns/formatDistanceToNow";
+import FileSaver from "file-saver";
 
 import { IApiError } from "interfaces/errors";
 import mdmAPI from "services/entities/mdm";
@@ -35,6 +37,16 @@ const CustomSettings = ({ currentTeamId }: ICustomSettingsProps) => {
     }
   );
 
+  const onClickDownload = async (profile: IMdmProfile) => {
+    const fileContent = await mdmAPI.downloadProfile(profile.profile_id);
+    const formatDate = format(new Date(), "yyyy-MM-dd");
+    const filename = `${formatDate}_${profile.name}.mobileconfig`;
+    const file = new File([fileContent], filename);
+    FileSaver.saveAs(file);
+  };
+
+  const onClickDelete = (profile: IMdmProfile) => {};
+
   const renderProfiles = () => {
     if (!profiles || profiles.length === 0) return null;
 
@@ -58,18 +70,14 @@ const CustomSettings = ({ currentTeamId }: ICustomSettingsProps) => {
             <Button
               className={`${baseClass}__download-button`}
               variant="text-icon"
-              onClick={() => {
-                return null;
-              }}
+              onClick={() => onClickDownload(profile)}
             >
               <Icon name="download" />
             </Button>
             <Button
               className={`${baseClass}__delete-button`}
               variant="text-icon"
-              onClick={() => {
-                return null;
-              }}
+              onClick={() => onClickDelete(profile)}
             >
               <Icon name="trash" color="ui-fleet-black-75" />
             </Button>

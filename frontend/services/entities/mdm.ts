@@ -51,4 +51,9 @@ export default {
 
     return sendRequest("POST", MDM_PROFILES, formData);
   },
+
+  downloadProfile: (profileId: number) => {
+    const { MDM_PROFILE } = endpoints;
+    return sendRequest("GET", MDM_PROFILE(profileId));
+  },
 };
