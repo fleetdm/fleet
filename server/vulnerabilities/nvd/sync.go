@@ -5,6 +5,7 @@ import (
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"io"
 	"net/url"
 	"os"
@@ -280,6 +281,7 @@ func LoadCVEMeta(logger log.Logger, vulnPath string, ds fleet.Datastore) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
 	defer cancel()
 
+	license.IsPremium(ctx)
 	if err := ds.InsertCVEMeta(ctx, meta); err != nil {
 		return fmt.Errorf("insert cve meta: %w", err)
 	}
