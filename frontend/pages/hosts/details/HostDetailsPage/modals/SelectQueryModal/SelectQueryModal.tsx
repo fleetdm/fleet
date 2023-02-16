@@ -88,9 +88,10 @@ const SelectQueryModal = ({
     if (!queriesFilter && queriesCount === 0) {
       return (
         <div className={`${baseClass}__no-queries`}>
-          <span className="info__header">
-            You have no saved queries. Expecting to see queries? Try again in a
-            few seconds as the system catches up.
+          <span className="info__header">You have no saved queries.</span>
+          <span className="info__data">
+            Expecting to see queries? Try again in a few seconds as the system
+            catches up.
           </span>
           <div className="modal-cta-wrap">
             {!isOnlyObserver && customQueryButton()}
@@ -161,8 +162,11 @@ const SelectQueryModal = ({
           </div>
           <div className={`${baseClass}__no-query-results`}>
             <span className="info__header">
-              No queries match the current search criteria. Expecting to see
-              queries? Try again in a few seconds as the system catches up.
+              No queries match the current search criteria.
+            </span>
+            <span className="info__data">
+              Expecting to see queries? Try again in a few seconds as the system
+              catches up.
             </span>
           </div>
         </div>
