@@ -344,7 +344,10 @@ const HostDetailsPage = ({
       host?.mdm.enrollment_status ?? ""
     );
     return (
-      userHasPermission && hostEnrolled && config?.mdm.enabled_and_configured
+      userHasPermission &&
+      hostEnrolled &&
+      config?.mdm.enabled_and_configured &&
+      mdm?.name === "Fleet"
     );
   })();
 
