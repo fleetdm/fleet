@@ -4,6 +4,8 @@ MDM features are not ready for production and are currently in development. Thes
 
 MDM features allow you to manage macOS updates and macOS settings on your hosts.
 
+In Fleet, MDM features are supported on macOS 12 and higher.
+
 To use MDM features you have to connect Fleet to Apple Push Certificates Portal. See how [here](#set-up).
 
 ## macOS updates
