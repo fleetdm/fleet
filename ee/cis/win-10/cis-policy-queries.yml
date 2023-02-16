@@ -225,6 +225,9 @@ spec:
     'Computer Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Access Credential Manager as a trusted caller'
   query: |
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/LocalPoliciesSecurityOptions/Accounts_RenameAdministratorAccount</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output != "Administrator";
+OMA-URI: ./Device/Vendor/MSFT/Policy/Config/UserRights/AccessCredentialManagerAsTrustedCaller
+Data type: String
+Value: No one
 
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-2.2.1
@@ -247,6 +250,9 @@ spec:
     'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Access this computer from the network'
   query: |
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/LocalPoliciesSecurityOptions/Accounts_RenameAdministratorAccount</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output != "Administrator";
+OMA-URI: ./Device/Vendor/MSFT/Policy/Config/UserRights/AccessFromNetwork
+Data type: String
+Value: Administrators, Remote Desktop Users
 
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-2.2.2
@@ -269,6 +275,9 @@ spec:
     'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Act as part of the operating system'
   query: |
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/LocalPoliciesSecurityOptions/Accounts_RenameAdministratorAccount</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output != "Administrator";
+OMA-URI: ./Device/Vendor/MSFT/Policy/Config/UserRights/ActAsPartOfTheOperatingSystem
+Data type: String
+Value: No one
 
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-2.2.3
@@ -290,8 +299,7 @@ spec:
     Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'Administrators, LOCAL SERVICE, NETWORK SERVICE':
     'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Adjust memory quotas for a process'
   query: |
-    SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/LocalPoliciesSecurityOptions/Accounts_RenameAdministratorAccount</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output != "Administrator";
-
+    SELECT 1 FROM todo_add_query;
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-2.2.4
   contributors: sharon-fdm
@@ -311,6 +319,9 @@ spec:
     'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Allow log on locally'
   query: |
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/LocalPoliciesSecurityOptions/Accounts_RenameAdministratorAccount</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output != "Administrator";
+OMA-URI: ./Device/Vendor/MSFT/Policy/Config/UserRights/AllowLocalLogOn
+Data type: String
+Value: Administrators, Users
 
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-2.2.5
@@ -335,7 +346,7 @@ spec:
     Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'Administrators, Remote Desktop Users':
     'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Allow log on through Remote Desktop Services'
   query: |
-    SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/LocalPoliciesSecurityOptions/Accounts_RenameAdministratorAccount</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output != "Administrator";
+    SELECT 1 FROM todo_add_query;
 
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-2.2.6
@@ -358,6 +369,9 @@ spec:
     'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Back up files and directories'
   query: |
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/LocalPoliciesSecurityOptions/Accounts_RenameAdministratorAccount</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output != "Administrator";
+OMA-URI: ./Device/Vendor/MSFT/Policy/Config/UserRights/BackupFilesAndDirectories
+Data type: String
+Value: Administrators
 
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-2.2.7
@@ -379,6 +393,9 @@ spec:
     'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Change the system time'
   query: |
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/LocalPoliciesSecurityOptions/Accounts_RenameAdministratorAccount</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output != "Administrator";
+OMA-URI: ./Device/Vendor/MSFT/Policy/Config/UserRights/ChangeSystemTime
+Data type: String
+Value: Administrators, LOCAL SERVICE
 
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-2.2.8
@@ -401,6 +418,9 @@ spec:
     'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Change the time zone'
   query: |
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/LocalPoliciesSecurityOptions/Accounts_RenameAdministratorAccount</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output != "Administrator";
+OMA-URI: ./Device/Vendor/MSFT/Policy/Config/UserRights/ChangeTimeZone
+Data type: String
+Value: Administrators, LOCAL SERVICE
 
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-2.2.9
@@ -423,6 +443,9 @@ spec:
     'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Create a pagefile'
   query: |
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/LocalPoliciesSecurityOptions/Accounts_RenameAdministratorAccount</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output != "Administrator";
+OMA-URI: ./Device/Vendor/MSFT/Policy/Config/UserRights/CreatePageFile
+Data type: String
+Value: Administrators
 
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-2.2.10
@@ -446,6 +469,9 @@ spec:
     'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Create a token object'
   query: |
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/LocalPoliciesSecurityOptions/Accounts_RenameAdministratorAccount</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output != "Administrator";
+OMA-URI: ./Device/Vendor/MSFT/Policy/Config/UserRights/CreateToken
+Data type: String
+Value: No one
 
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-2.2.11
