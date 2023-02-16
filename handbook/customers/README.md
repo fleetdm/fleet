@@ -307,7 +307,7 @@ Our one-pager offers a summary of what Fleet does. It can help stakeholders beco
 
 ### Intro deck
 
-Fleet's intro deck adds additional detail to our pitch. Find it in [pdf](https://drive.google.com/file/d/1Z7WsGt9AteSMvHfjcFZcgYBH02Ki1AMs/view?usp=sharing).
+Fleet's intro deck adds additional detail to our pitch. Find it in [pdf](https://drive.google.com/file/d/1onSXxQgYPwt1plAfBY4dG34uXabtd25T/view?usp=share_link).
 
 ### Intro video
 

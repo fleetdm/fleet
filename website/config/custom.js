@@ -94,7 +94,7 @@ module.exports.custom = {
   * See api/controllers/webhooks/receive-from-github.js for context.         *
   *                                                                          *
   ***************************************************************************/
-  githubRepoDRIByPath: {
+  githubRepoDRIByPath: {// fleetdm/fleet
     'README.md': ['mikermcneil', 'jarodreyes', 'mike-j-thomas', 'zwass'],// (github brandfront)
     'tools/fleetctl-npm/README.md': ['mikermcneil', 'mike-j-thomas', 'jarodreyes', 'zwass'],//« brandfront for fleetctl package on npm
 
@@ -131,25 +131,41 @@ module.exports.custom = {
     'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml': ['mikermcneil','zhumo','eashaw'],// (standard query library)
     'schema': ['zhumo','eashaw','zwass','mikermcneil','sharon-fdm','lucasmrod'],// (Osquery table schema)
   },
-  confidentialGithubRepoDRIByPath: {
-    'readme.md': ['mikermcneil', 'zwass', 'charlottechance', 'hollidayn'],
+
+  confidentialGithubRepoDRIByPath: {// fleetdm/confidential
+
+    // Folders of configuration files
+    'mdm_profiles': ['lukeheath', 'zwass'],
+    'vpn': ['rfairburn', 'zwass'],
+
+    // Folder that any fleetie (team member contracted with company) can push to, willy-nilly
+    'free-for-all': '*',
+
+    // Boilerplate
+    'README.md': ['mikermcneil', 'zwass', 'charlottechance', 'hollidayn'],
+    'CODEOWNERS': ['mikermcneil', 'zwass', 'charlottechance', 'hollidayn', 'dherder', 'zayhanlon'],
+    '.gitignore': ['mikermcneil', 'zwass', 'charlottechance', 'hollidayn', 'dherder', 'zayhanlon'],
+
+    // CI/CD workflows
+    '.github': ['mikermcneil', 'zwass', 'charlottechance', 'hollidayn'],
+
     // GitHub issue templates
-    '.github/ISSUE_TEMPLATE': ['mikermcneil', 'zwass'],
+    '.github/ISSUE_TEMPLATE': ['mikermcneil', 'zwass', 'zayhanlon', 'hollidayn', 'alexmitchelliii', 'dherder'],
     '.github/ISSUE_TEMPLATE/2-website-changes.md': 'mike-j-thomas',
     '.github/ISSUE_TEMPLATE/3-opportunity Fleet Premium PoV.md': 'alexmitchelliii',
     '.github/ISSUE_TEMPLATE/3-sale.md': 'alexmitchelliii',
     '.github/ISSUE_TEMPLATE/4-release.md': ['noahtalerman', 'zwass', 'zhumo'],
     '.github/ISSUE_TEMPLATE/5-monthly-accounting.md': 'hollidayn',
-    '.github/ISSUE_TEMPLATE/6-speaking-event.md': 'mike-j-thomas',
-    '.github/ISSUE_TEMPLATE/9-renewal-process.md': ['zayhanlon', 'hollidayn', 'alexmitchelliii'],
+    '.github/ISSUE_TEMPLATE/6-speaking-event.md': ['mike-j-thomas', 'jarodreyes'],
+    '.github/ISSUE_TEMPLATE/9-renewal.md': ['zayhanlon', 'hollidayn', 'alexmitchelliii'],
     '.github/ISSUE_TEMPLATE/hiring.md': 'charlottechance',
     '.github/ISSUE_TEMPLATE/onboarding.md': 'charlottechance',
     '.github/ISSUE_TEMPLATE/y-offboarding.md': 'charlottechance',
+    '.github/ISSUE_TEMPLATE/x-moving.md': ['charlottechance'],
     '.github/ISSUE_TEMPLATE/equity-grants.md': ['charlottechance','hollidayn'],
+    '.github/ISSUE_TEMPLATE/signature-or-legal-review.md': ['hollidayn'],
+    '.github/ISSUE_TEMPLATE/new-fleet-instance.md': ['charlottechance','hollidayn', 'zayhanlon'],
 
-    // Folders of configuration files
-    'mdm_profiles': ['lukeheath', 'zwass'],
-    'vpn': ['rfairburn', 'zwass'],
   },
 
 
