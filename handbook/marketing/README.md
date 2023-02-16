@@ -117,7 +117,7 @@ Once a relevant sponsorship opportunity and its prospectus are reviewed:
 
 Fleet's users and broader audience are spread across many online platforms. Here are the most active communities where Fleet's developer relations and social media team members participate at least once every weekday:
 
-- [Osquery Slack](https://join.slack.com/t/osquery/shared_invite/zt-h29zm0gk-s2DBtGUTW4CFel0f0IjTEw) (`#fleet` channel)
+- [osquery Slack](https://join.slack.com/t/osquery/shared_invite/zt-h29zm0gk-s2DBtGUTW4CFel0f0IjTEw) (`#fleet` channel)
 - [MacAdmins Slack](https://www.macadmins.org/) (`#fleet` channel)
 - [osquery discussions on LinkedIn](https://www.linkedin.com/search/results/all/?keywords=osquery)
 - [osquery discussions on Twitter](https://twitter.com/search?q=osquery&src=typed_query)
