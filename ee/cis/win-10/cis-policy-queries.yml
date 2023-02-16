@@ -1037,35 +1037,41 @@ Note: Even if the following countermeasure is configured, an attacker could stil
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - AAAAAAAA
+  name: CIS - Ensure 'Shut down the system' is set to 'Administrators, Users' 
   platforms: win10
   platform: windows
   description: |
-    BBBBBBBBB
+    This policy setting determines which users who are logged on locally to the computers in your environment can shut down the operating system with the Shut Down command. Misuse of this user right can result in a denial of service condition.
+The recommended state for this setting is: Administrators, Users.
+Rationale:
+The ability to shut down a workstation should be available generally to Administrators and authorized users of that workstation, but not permitted for guests or unauthorized users - in order to prevent a Denial of Service attack.
   resolution: |
     Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'CCCCCCCCC':
-    'DDDDDDDD'
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'Administrators, Users':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Shut down the system'
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/LocalPoliciesSecurityOptions/Accounts_RenameAdministratorAccount</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output != "Administrator";
 
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-YYYYY
+  tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-2.2.38
   contributors: sharon-fdm
 ---
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - AAAAAAAA
+  name: CIS - Ensure 'Take ownership of files or other objects' is set to 'Administrators'
   platforms: win10
   platform: windows
   description: |
-    BBBBBBBBB
+    This policy setting allows users to take ownership of files, folders, registry keys, processes, or threads. This user right bypasses any permissions that are in place to protect objects to give ownership to the specified user.
+The recommended state for this setting is: Administrators.
+Note: This user right is considered a "sensitive privilege" for the purposes of auditing. Rationale:
+Any users with the Take ownership of files or other objects user right can take control of any object, regardless of the permissions on that object, and then make any changes they wish to that object. Such changes could result in exposure of data, corruption of data, or a DoS condition.
   resolution: |
     Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'CCCCCCCCC':
-    'DDDDDDDD'
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'Administrators':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Take ownership of files or other objects'
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/LocalPoliciesSecurityOptions/Accounts_RenameAdministratorAccount</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output != "Administrator";
 
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-YYYYY
+  tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-2.2.39
   contributors: sharon-fdm
