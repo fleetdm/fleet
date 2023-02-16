@@ -28,7 +28,6 @@ import { IQuery, IFleetQueriesResponse } from "interfaces/query";
 import { IQueryStats } from "interfaces/query_stats";
 import { ISoftware } from "interfaces/software";
 import { ITeam } from "interfaces/team";
-import { IMacSettings, MacSettingsStatus } from "interfaces/mdm";
 
 import Spinner from "components/Spinner";
 import TabsWrapper from "components/TabsWrapper";
@@ -41,7 +40,6 @@ import {
   humanHostDiskEncryptionEnabled,
   wrapFleetHelper,
 } from "utilities/helpers";
-import { getMacSettingsStatus } from "pages/hosts/helpers";
 
 import HostSummaryCard from "../cards/HostSummary";
 import AboutCard from "../cards/About";
@@ -149,7 +147,6 @@ const HostDetailsPage = ({
   ] = useState<IHostDiskEncryptionProps>({});
   const [usersState, setUsersState] = useState<{ username: string }[]>([]);
   const [usersSearchString, setUsersSearchString] = useState("");
-  const [hideEditMdm, setHideEditMdm] = useState<boolean>(false);
 
   const { data: fleetQueries, error: fleetQueriesError } = useQuery<
     IFleetQueriesResponse,
@@ -659,7 +656,8 @@ const HostDetailsPage = ({
           isOnlyObserver={isOnlyObserver}
           toggleOSPolicyModal={toggleOSPolicyModal}
           toggleMacSettingsModal={toggleMacSettingsModal}
-          macSettingsStatus={getMacSettingsStatus(host?.mdm.profiles)}
+          hostMacSettings={host?.mdm.profiles}
+          mdmName={mdm?.name}
           showRefetchSpinner={showRefetchSpinner}
           onRefetchHost={onRefetchHost}
           renderActionButtons={renderActionButtons}
@@ -785,13 +783,7 @@ const HostDetailsPage = ({
           />
         )}
         {showUnenrollMdmModal && !!host && (
-          <UnenrollMdmModal
-            hostId={host.id}
-            onClose={toggleUnenrollMdmModal}
-            onSuccess={() => {
-              setHideEditMdm(true);
-            }}
-          />
+          <UnenrollMdmModal hostId={host.id} onClose={toggleUnenrollMdmModal} />
         )}
         {showDiskEncryptionModal && host && (
           <DiskEncryptionKeyModal

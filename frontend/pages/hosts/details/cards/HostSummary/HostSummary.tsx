@@ -7,9 +7,12 @@ import Button from "components/buttons/Button";
 import DiskSpaceGraph from "components/DiskSpaceGraph";
 import HumanTimeDiffWithDateTip from "components/HumanTimeDiffWithDateTip";
 import { humanHostMemory, wrapFleetHelper } from "utilities/helpers";
-import { getHostStatusTooltipText } from "pages/hosts/helpers";
+import {
+  getHostStatusTooltipText,
+  getMacSettingsStatus,
+} from "pages/hosts/helpers";
 import StatusIndicator from "components/StatusIndicator";
-import { MacSettingsStatus } from "interfaces/mdm";
+import { IMacSettings, MacSettingsStatus } from "interfaces/mdm";
 import IssueIcon from "../../../../../../assets/images/icon-issue-fleet-black-50-16x16@2x.png";
 import MacSettingsIndicator from "../../MacSettingsIndicator";
 
@@ -28,7 +31,8 @@ interface IHostSummaryProps {
   isOnlyObserver?: boolean;
   toggleOSPolicyModal?: () => void;
   toggleMacSettingsModal?: () => void;
-  macSettingsStatus: MacSettingsStatus;
+  hostMacSettings?: IMacSettings;
+  mdmName?: string;
   showRefetchSpinner: boolean;
   onRefetchHost: (
     evt: React.MouseEvent<HTMLButtonElement, React.MouseEvent>
@@ -45,7 +49,8 @@ const HostSummary = ({
   isOnlyObserver,
   toggleOSPolicyModal,
   toggleMacSettingsModal,
-  macSettingsStatus,
+  hostMacSettings,
+  mdmName,
   showRefetchSpinner,
   onRefetchHost,
   renderActionButtons,
@@ -135,7 +140,6 @@ const HostSummary = ({
   );
 
   const renderMacSettingsIndicator = () => {
-    // const macSettingsStatus: MacSettingsStatus = "Latest";
     const STATUS_DISPLAY_OPTIONS = {
       Latest: {
         iconName: "success",
@@ -151,6 +155,8 @@ const HostSummary = ({
           "Host failed to apply the latest settings. Click to view error(s).",
       },
     } as const;
+
+    const macSettingsStatus = getMacSettingsStatus(hostMacSettings);
 
     const iconName = STATUS_DISPLAY_OPTIONS[macSettingsStatus].iconName;
     const tooltipText = STATUS_DISPLAY_OPTIONS[macSettingsStatus].tooltipText;
@@ -190,11 +196,10 @@ const HostSummary = ({
 
         {isPremiumTier && renderHostTeam()}
 
-        {/* TODO: confirm how to determine if 'macOS settings are enforced on the host' */}
         {titleData.platform === "darwin" &&
           isPremiumTier &&
-          // TODO: change below to use actual API return values when implemented for issue #9599
-          // titleData.mdm.macsettingsenrolledstatus &&
+          mdmName === "Fleet" && // show if 1 - host is enrolled in Fleet MDM, and
+          hostMacSettings && //  2 - host has at least one setting (profile) enforced
           renderMacSettingsIndicator()}
 
         <div className="info-flex__item info-flex__item--title">

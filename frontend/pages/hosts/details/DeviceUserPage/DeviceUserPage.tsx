@@ -29,7 +29,6 @@ import {
   wrapFleetHelper,
   humanHostDiskEncryptionEnabled,
 } from "utilities/helpers";
-import { getMacSettingsStatus } from "pages/hosts/helpers";
 
 import HostSummaryCard from "../cards/HostSummary";
 import AboutCard from "../cards/About";
@@ -96,7 +95,7 @@ const DeviceUserPage = ({
     }
   );
 
-  const { data: macadmins, refetch: refetchMacadmins } = useQuery(
+  const { data: deviceMacAdminsData, refetch: refetchMacadmins } = useQuery(
     ["macadmins", deviceAuthToken],
     () => deviceUserAPI.loadHostDetailsExtension(deviceAuthToken, "macadmins"),
     {
@@ -352,7 +351,8 @@ const DeviceUserPage = ({
               diskEncryption={hostDiskEncryption}
               isPremiumTier={isPremiumTier}
               toggleMacSettingsModal={toggleMacSettingsModal}
-              macSettingsStatus={getMacSettingsStatus(host?.mdm.profiles)}
+              hostMacSettings={host?.mdm.profiles}
+              mdmName={deviceMacAdminsData?.mobile_device_management?.name}
               showRefetchSpinner={showRefetchSpinner}
               onRefetchHost={onRefetchHost}
               renderActionButtons={renderActionButtons}
@@ -378,7 +378,7 @@ const DeviceUserPage = ({
                   <AboutCard
                     aboutData={aboutData}
                     deviceMapping={deviceMapping}
-                    munki={macadmins?.munki}
+                    munki={deviceMacAdminsData?.munki}
                     wrapFleetHelper={wrapFleetHelper}
                   />
                 </TabPanel>
