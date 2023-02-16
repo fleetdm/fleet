@@ -6,6 +6,7 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/google/uuid"
@@ -23,22 +24,22 @@ func TestMDMAppleConfigProfile(t *testing.T) {
 	}{
 		{
 			testName:     "TestParseConfigProfileOK",
-			mobileconfig: mobileconfigForTest("ValidName", "ValidIdentifier", uuid.NewString()),
+			mobileconfig: mobileconfigForTest("ValidName", "ValidIdentifier", uuid.NewString(), ""),
 			shouldFail:   false,
 		},
 		{
 			testName:     "TestParseConfigProfileNoIdentifier",
-			mobileconfig: mobileconfigForTest("ValidName", "", uuid.NewString()),
+			mobileconfig: mobileconfigForTest("ValidName", "", uuid.NewString(), ""),
 			shouldFail:   true,
 		},
 		{
 			testName:     "TestParseConfigProfileNoName",
-			mobileconfig: mobileconfigForTest("", "ValidIdentifier", uuid.NewString()),
+			mobileconfig: mobileconfigForTest("", "ValidIdentifier", uuid.NewString(), ""),
 			shouldFail:   true,
 		},
 		{
 			testName:     "TestParseConfigProfileNoNameNoIdentifier",
-			mobileconfig: mobileconfigForTest("", "", uuid.NewString()),
+			mobileconfig: mobileconfigForTest("", "", uuid.NewString(), ""),
 			shouldFail:   true,
 		},
 		{
@@ -62,7 +63,7 @@ func TestMDMAppleConfigProfile(t *testing.T) {
 				require.NoError(t, err)
 
 				// encode mobileconfig as PKCS7 signed data
-				signedData, err := pkcs7.NewSignedData(mobileconfigForTest("ValidName", "ValidIdentifier", uuid.NewString()))
+				signedData, err := pkcs7.NewSignedData(mobileconfigForTest("ValidName", "ValidIdentifier", uuid.NewString(), ""))
 				require.NoError(t, err)
 				err = signedData.AddSigner(crt, key, pkcs7.SignerInfoConfig{})
 				require.NoError(t, err)
@@ -96,13 +97,80 @@ func TestMDMAppleConfigProfile(t *testing.T) {
 	}
 }
 
-func mobileconfigForTest(name string, identifier string, uuid string) Mobileconfig {
+func TestMDMAppleConfigProfileScreenPayloadContent(t *testing.T) {
+	cases := []struct {
+		testName     string
+		payloadTypes []string
+		shouldFail   []string
+	}{
+		{
+			testName:     "All",
+			payloadTypes: []string{"com.apple.security.FDERecoveryKeyEscrow", "com.apple.MCX.FileVault2", "com.apple.security.FDERecoveryRedirect"},
+			shouldFail:   []string{"com.apple.security.FDERecoveryKeyEscrow", "com.apple.MCX.FileVault2", "com.apple.security.FDERecoveryRedirect"},
+		},
+		{
+			testName:     "FileVault2",
+			payloadTypes: []string{"com.apple.MCX.FileVault2"},
+			shouldFail:   []string{"com.apple.MCX.FileVault2"},
+		},
+		{
+			testName:     "FDERecoveryKeyEscrow",
+			payloadTypes: []string{"com.apple.security.FDERecoveryKeyEscrow"},
+			shouldFail:   []string{"com.apple.security.FDERecoveryKeyEscrow"},
+		},
+		{
+			testName:     "FDERecoveryRedirect",
+			payloadTypes: []string{"com.apple.security.FDERecoveryRedirect"},
+			shouldFail:   []string{"com.apple.security.FDERecoveryRedirect"},
+		},
+		{
+			testName:     "OtherPayloadTypesOK",
+			payloadTypes: []string{"com.apple.security.firewall", "com.apple.MCX"},
+			shouldFail:   nil,
+		},
+		{
+			testName:     "FileVaultMixedWithOtherPayloadTypes",
+			payloadTypes: []string{"com.apple.MCX.FileVault2", "com.apple.security.firewall", "com.apple.security.FDERecoveryKeyEscrow", "com.apple.MCX"},
+			shouldFail:   []string{"com.apple.MCX.FileVault2", "com.apple.security.FDERecoveryKeyEscrow"},
+		},
+		{
+			testName:     "None",
+			payloadTypes: nil,
+			shouldFail:   nil,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.testName, func(t *testing.T) {
+			mc := mobileconfigForTest("ValidName", "ValidIdentifier", uuid.NewString(), mcPayloadContentForTest(c.payloadTypes))
+			cp := new(MDMAppleConfigProfile)
+			cp.Mobileconfig = mc
+			parsed, err := cp.Mobileconfig.ParseConfigProfile()
+			require.NoError(t, err)
+			require.Equal(t, "ValidName", parsed.Name)
+			require.Equal(t, "ValidIdentifier", parsed.Identifier)
+
+			err = cp.ScreenPayloadTypes()
+			for _, pt := range c.shouldFail {
+				require.Error(t, err)
+				require.ErrorContains(t, err, pt)
+			}
+		})
+	}
+}
+
+func mobileconfigForTest(name string, identifier string, uuid string, payloadContent string) Mobileconfig {
+	pc := "<array/>"
+	if payloadContent != "" {
+		pc = fmt.Sprintf(`<array>%s
+	</array>`, payloadContent)
+	}
 	return []byte(fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
 	<key>PayloadContent</key>
-	<array/>
+	%s
 	<key>PayloadDisplayName</key>
 	<string>%s</string>
 	<key>PayloadIdentifier</key>
@@ -115,5 +183,31 @@ func mobileconfigForTest(name string, identifier string, uuid string) Mobileconf
 	<integer>1</integer>
 </dict>
 </plist>
-`, name, identifier, uuid))
+`, pc, name, identifier, uuid))
+}
+
+func mcPayloadContentForTest(payloadTypes []string) string {
+	formatted := ""
+	for _, pt := range payloadTypes {
+		if pt == "" {
+			continue
+		}
+		ss := strings.Split(pt, ".")
+		uuid := uuid.New()
+		formatted += fmt.Sprintf(`
+		<dict>
+			<key>PayloadDisplayName</key>
+			<string>%s</string>
+			<key>PayloadIdentifier</key>
+			<string>%s.%s</string>
+			<key>PayloadType</key>
+			<string>%s</string>
+			<key>PayloadUUID</key>
+			<string>%s</string>
+			<key>PayloadVersion</key>
+			<integer>1</integer>
+		</dict>`, ss[len(ss)-1], pt, uuid, pt, uuid)
+	}
+
+	return formatted
 }

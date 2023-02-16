@@ -302,6 +302,10 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r
 	}
 	cp.TeamID = &teamID
 
+	if err := cp.ScreenPayloadTypes(); err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+
 	newCP, err := svc.ds.NewMDMAppleConfigProfile(ctx, *cp)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
