@@ -396,6 +396,12 @@ module.exports.routes = {
   'GET /community':              'https://osquery.slack.com/join/shared_invite/zt-h29zm0gk-s2DBtGUTW4CFel0f0IjTEw#/',
 
 
+//  ╦╔╦╗╔═╗╔═╗╦╔╗╔╔═╗  ┌─┬  ┌─┐┌┐┌┌┬┐┬┌┐┌┌─┐  ┌─┐┌─┐┌─┐┌─┐┌─┐─┐
+//  ║║║║╠═╣║ ╦║║║║║╣   │ │  ├─┤│││ │││││││ ┬  ├─┘├─┤│ ┬├┤ └─┐ │
+//  ╩╩ ╩╩ ╩╚═╝╩╝╚╝╚═╝  └─┴─┘┴ ┴┘└┘─┴┘┴┘└┘└─┘  ┴  ┴ ┴└─┘└─┘└─┘─┘
+  'GET /imagine/unused-software': { action: 'imagine/view-unused-software' },
+
+
   //  ╦ ╦╔═╗╔╗ ╦ ╦╔═╗╔═╗╦╔═╔═╗
   //  ║║║║╣ ╠╩╗╠═╣║ ║║ ║╠╩╗╚═╗
   //  ╚╩╝╚═╝╚═╝╩ ╩╚═╝╚═╝╩ ╩╚═╝
