@@ -313,10 +313,11 @@ describe("Policies flow (empty)", () => {
         });
       });
       cy.findByRole("button", { name: /save/i }).click();
-
-      cy.getAttached(".platform-selector").within(() => {
-        cy.getAttached(".fleet-checkbox__input").each((el, i) => {
-          testSelections(el, i, [true, false, false]);
+      cy.getAttached(".modal__content").within(() => {
+        cy.getAttached(".platform-selector").within(() => {
+          cy.getAttached(".fleet-checkbox__input").each((el, i) => {
+            testSelections(el, i, [true, false, false]);
+          });
         });
       });
     });
@@ -330,17 +331,22 @@ describe("Policies flow (empty)", () => {
       });
       cy.findByRole("button", { name: /save/i }).click();
 
-      cy.getAttached(".platform-selector").within(() => {
-        cy.getAttached(".fleet-checkbox__input").each((el, i) => {
-          testSelections(el, i, [true, false, false]);
+      cy.getAttached(".modal__content").within(() => {
+        cy.getAttached(".platform-selector").within(() => {
+          cy.getAttached(".fleet-checkbox__input").each((el, i) => {
+            testSelections(el, i, [true, false, false]);
+          });
+          cy.getAttached(".fleet-checkbox__label").first().click(); // deselect macOS
+          cy.getAttached(".fleet-checkbox__input").each((el, i) => {
+            testSelections(el, i, [false, false, false]);
+          });
         });
-        cy.getAttached(".fleet-checkbox__label").first().click(); // deselect macOS
-        cy.getAttached(".fleet-checkbox__input").each((el, i) => {
-          testSelections(el, i, [false, false, false]);
+
+        cy.getAttached(".modal-cta-wrap").within(() => {
+          cy.findByRole("button", { name: /save policy/i }).should(
+            "be.disabled"
+          );
         });
-      });
-      cy.getAttached(".modal-cta-wrap").within(() => {
-        cy.findByRole("button", { name: /save policy/i }).should("be.disabled");
       });
     });
 
@@ -358,15 +364,16 @@ describe("Policies flow (empty)", () => {
         });
       });
       cy.findByRole("button", { name: /save/i }).click();
-
-      cy.getAttached(".platform-selector").within(() => {
-        cy.getAttached(".fleet-checkbox__input").each((el, i) => {
-          testSelections(el, i, [true, false, false]);
-        });
-        cy.getAttached(".fleet-checkbox__label").first().click(); // deselect macOS
-        cy.getAttached(".fleet-checkbox__label").last().click(); // select Linux
-        cy.getAttached(".fleet-checkbox__input").each((el, i) => {
-          testSelections(el, i, [false, false, true]);
+      cy.getAttached(".modal__content").within(() => {
+        cy.getAttached(".platform-selector").within(() => {
+          cy.getAttached(".fleet-checkbox__input").each((el, i) => {
+            testSelections(el, i, [true, false, false]);
+          });
+          cy.getAttached(".fleet-checkbox__label").first().click(); // deselect macOS
+          cy.getAttached(".fleet-checkbox__label").last().click(); // select Linux
+          cy.getAttached(".fleet-checkbox__input").each((el, i) => {
+            testSelections(el, i, [false, false, true]);
+          });
         });
       });
       cy.findByRole("button", { name: /save policy/i }).click();

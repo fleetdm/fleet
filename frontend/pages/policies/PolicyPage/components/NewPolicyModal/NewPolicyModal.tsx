@@ -82,12 +82,9 @@ const NewPolicyModal = ({
   const handleSavePolicy = (evt: React.MouseEvent<HTMLFormElement>) => {
     evt.preventDefault();
 
-    const newPlatformString =
-      defaultPolicy && lastEditedQueryPlatform
-        ? lastEditedQueryPlatform
-        : (platformSelector
-            .getSelectedPlatforms()
-            .join(",") as IPlatformString);
+    const newPlatformString = platformSelector
+      .getSelectedPlatforms()
+      .join(",") as IPlatformString;
     setLastEditedQueryPlatform(newPlatformString);
 
     const { valid: validName, errors: newErrors } = validatePolicyName(name);
