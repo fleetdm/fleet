@@ -138,7 +138,7 @@ The following Slack channels are maintained by Fleet's founders:
 
 
 
-<!--
+
 
 #### Stubs
 The following stubs are included only to make links backward compatible.
@@ -156,7 +156,7 @@ Please see [handbook/business-operations#email-relays](https://fleetdm.com/handb
 
 Please see [handbook/business-operations#tools-we-use](https://fleetdm.com/handbook/business-operations#tools-we-use).
 
--->
+
 
 <meta name="maintainedBy" value="mikermcneil">
 <meta name="title" value="🔭 Company">
