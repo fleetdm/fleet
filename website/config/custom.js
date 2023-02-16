@@ -132,20 +132,26 @@ module.exports.custom = {
     'schema': ['zhumo','eashaw','zwass','mikermcneil','sharon-fdm','lucasmrod'],// (Osquery table schema)
   },
   confidentialGithubRepoDRIByPath: {
+    './': ['mikermcneil', 'zwass', 'charlottechance', 'hollidayn'],
     'readme.md': ['mikermcneil', 'zwass', 'charlottechance', 'hollidayn'],
+
     // GitHub issue templates
-    '.github/ISSUE_TEMPLATE': ['mikermcneil', 'zwass'],
+    '.github/ISSUE_TEMPLATE': ['mikermcneil', 'zwass', 'zayhanlon', 'hollidayn', 'alexmitchelliii', 'dherder'],
     '.github/ISSUE_TEMPLATE/2-website-changes.md': 'mike-j-thomas',
     '.github/ISSUE_TEMPLATE/3-opportunity Fleet Premium PoV.md': 'alexmitchelliii',
     '.github/ISSUE_TEMPLATE/3-sale.md': 'alexmitchelliii',
     '.github/ISSUE_TEMPLATE/4-release.md': ['noahtalerman', 'zwass', 'zhumo'],
     '.github/ISSUE_TEMPLATE/5-monthly-accounting.md': 'hollidayn',
-    '.github/ISSUE_TEMPLATE/6-speaking-event.md': 'mike-j-thomas',
-    '.github/ISSUE_TEMPLATE/9-renewal-process.md': ['zayhanlon', 'hollidayn', 'alexmitchelliii'],
+    '.github/ISSUE_TEMPLATE/6-speaking-event.md': ['mike-j-thomas', 'jarodreyes'],
+    '.github/ISSUE_TEMPLATE/9-renewal.md': ['zayhanlon', 'hollidayn', 'alexmitchelliii'],
     '.github/ISSUE_TEMPLATE/hiring.md': 'charlottechance',
     '.github/ISSUE_TEMPLATE/onboarding.md': 'charlottechance',
     '.github/ISSUE_TEMPLATE/y-offboarding.md': 'charlottechance',
+    '.github/ISSUE_TEMPLATE/x-moving.md': ['charlottechance'],
     '.github/ISSUE_TEMPLATE/equity-grants.md': ['charlottechance','hollidayn'],
+    '.github/ISSUE_TEMPLATE/signature-or-legal-review.md': ['hollidayn'],
+    '.github/ISSUE_TEMPLATE/new-fleet-instance.md': ['charlottechance','hollidayn', 'zayhanlon'],
+
 
     // Folders of configuration files
     'mdm_profiles': ['lukeheath', 'zwass'],
