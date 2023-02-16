@@ -433,6 +433,9 @@ func TestNewMDMAppleConfigProfile(t *testing.T) {
 		cp.ProfileID = 1
 		return &cp, nil
 	}
+	ds.NewActivityFunc = func(context.Context, *fleet.User, fleet.ActivityDetails) error {
+		return nil
+	}
 
 	cp, err := svc.NewMDMAppleConfigProfile(ctx, 0, r, r.Size())
 	require.NoError(t, err)
