@@ -533,6 +533,10 @@ The MDM endpoints exist to support the related command-line interface sub-comman
 - [Request Certificate Signing Request (CSR)](#request-certificate-signing-request-csr)
 - [Batch-apply Apple MDM custom settings](#batch-apply-apple-mdm-custom-settings)
 
+- [New configuration profile](#new-mdm-apple-configuration-profile)
+- [List configuration profiles](#list-mdm-apple-configuration-profiles)
+- [Download configuration profile](#download-mdm-apple-configuration-profile)
+- [Delete configuration profile](#delete-mdm-apple-confugruation-profile)
 
 ### Get Apple MDM
 
@@ -651,7 +655,193 @@ Note that the `public_key` and `private_key` are base64 encoded and should be de
 }
 ```
 
-Note that the response fields are base64 encoded and should be decoded before writing them to files. Once base64-decoded, they are PEM-encoded certificate and keys.
+Note that the response fields are base64 encoded and should be decoded before writing them to files.
+Once base64-decoded, they are PEM-encoded certificate and keys.
+
+### New MDM Apple configuration profile
+
+Add a new configuration profile to be applied to macOS hosts enrolled to Fleet's MDM.
+
+`POST /api/v1/fleet/mdm/apple/profiles`
+
+#### Parameters
+
+| Name                      | Type     | In   | Description                                                               |
+| ------------------------- | -------- | ---- | ------------------------------------------------------------------------- |
+| profile                   | file     | form | **Required**. The mobileconfig file containing the profile.               |
+| team_id                   | string   | form | _Available in Fleet Premium_ The team id for the profile. If specified, the profile is applied to only hosts that are assigned to the specified team. If not specified, the profile is applied to only to hosts that are not assigned to any team. |
+
+#### Example
+
+Add a new configuration profile to be applied to macOS hosts enrolled to Fleet's MDM that are
+assigned to a team. Note that in this example the form data specifies`team_id` in addition to
+`profile`. 
+
+`POST /api/v1/fleet/mdm/apple/profiles`
+
+##### Request headers
+
+```
+Content-Length: 850
+Content-Type: multipart/form-data; boundary=------------------------f02md47480und42y
+```
+
+##### Request body
+
+```
+--------------------------f02md47480und42y
+Content-Disposition: form-data; name="team_id"
+
+1
+--------------------------f02md47480und42y
+Content-Disposition: form-data; name="profile"; filename="Foo.mobileconfig"
+Content-Type: application/octet-stream
+
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array/>
+	<key>PayloadDisplayName</key>
+	<string>Example profile</string>
+	<key>PayloadIdentifier</key>
+	<string>com.example.profile</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>0BBF3E23-7F56-48FC-A2B6-5ACC598A4A69</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+</dict>
+</plist>
+--------------------------f02md47480und42y--
+
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "profile_id": 42
+}
+```
+
+###### Additional notes
+If the response is `Status: 409 Conflict`, the body may include additional error details in the case
+of duplicate payload display name or duplicate payload identifier.
+
+
+### List MDM Apple configuration profiles
+
+Get a list of the configuration profiles stored in Fleet MDM. For Fleet Premium uses, the list can
+optionally be filtered by team id. If no team id is specified, team profiles are excluded from the
+results (i.e., only profiles that are not associated with a team are listed).
+
+`GET /api/v1/fleet/mdm/apple/profiles`
+
+#### Parameters
+
+| Name                      | Type   | In    | Description                                                               |
+| ------------------------- | ------ | ----- | ------------------------------------------------------------------------- |
+| team_id                   | string | query | _Available in Fleet Premium_ The team id to filter profiles.              |
+
+#### Example
+
+List all configuration profiles for macOS hosts enrolled to Fleet's MDM that are not assigned to any team.
+
+`GET /api/v1/fleet/mdm/apple/profiles`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "profiles": [
+    {
+        "profile_id": 1337,
+        "team_id": 0,
+        "name": "Example profile",
+        "identifier": "com.example.profile",
+        "created_at": "2023-03-31T00:00:00Z",
+        "updated_at": "2023-03-31T00:00:00Z"
+    }
+  ]
+}
+```
+
+### Download MDM Apple configuration profile
+
+`GET /api/v1/fleet/mdm/apple/profiles/{profile_id}`
+
+#### Parameters
+
+| Name                      | Type    | In    | Description                                                               | 
+| ------------------------- | ------- | ----- | ------------------------------------------------------------------------- |
+| profile_id                | integer | url   | **Required** The id of the profile to download.                           |
+
+#### Example
+
+`GET /api/v1/fleet/mdm/apple/profiles/42`
+
+##### Default response
+
+`Status: 200` 
+
+**Note** To confirm success, it is important for clients to match content length with the response
+header (this is done automatically by most clients, including the browser) rather than relying
+solely on the response status code returned by this endpoint.
+
+##### Example response headers
+
+```
+	Content-Length: 542
+	Content-Type: application/octet-stream
+	Content-Disposition: attachment;filename="2023-03-31 Example profile.mobileconfig"
+```
+
+###### Example response body
+```
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array/>
+	<key>PayloadDisplayName</key>
+	<string>Example profile</string>
+	<key>PayloadIdentifier</key>
+	<string>com.example.profile</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>0BBF3E23-7F56-48FC-A2B6-5ACC598A4A69</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+</dict>
+</plist>
+```
+
+### Delete MDM Apple configuration profile
+
+`DELETE /api/v1/fleet/mdm/apple/profiles/{profile_id}`
+
+#### Parameters
+
+| Name                      | Type    | In    | Description                                                               | 
+| ------------------------- | ------- | ----- | ------------------------------------------------------------------------- |
+| profile_id                | integer | url   | **Required** The id of the profile to delete.                             |
+
+#### Example
+
+`DELETE /api/v1/fleet/mdm/apple/profiles/42`
+
+##### Default response
+
+`Status: 200`
 
 ### Batch-apply Apple MDM custom settings
 
