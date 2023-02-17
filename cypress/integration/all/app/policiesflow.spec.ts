@@ -60,7 +60,7 @@ const enableJiraPoliciesIntegration = {
       host_batch_size: 0,
     },
     vulnerabilities_webhook: {
-      destination_url: "www.foo.com/bar",
+      destination_url: "http://www.foo.com/bar",
       enable_vulnerabilities_webhook: false,
     },
   },
@@ -120,7 +120,7 @@ const enableZendeskPoliciesIntegration = {
       host_batch_size: 0,
     },
     vulnerabilities_webhook: {
-      destination_url: "www.foo.com/bar",
+      destination_url: "http://www.foo.com/bar",
       enable_vulnerabilities_webhook: false,
     },
   },
@@ -511,7 +511,7 @@ describe("Policies flow (seeded)", () => {
         cy.getAttached(".fleet-slider").click();
         cy.getAttached(".fleet-checkbox__input").check({ force: true });
       });
-      cy.getAttached("#webhook-url").click().type("www.foo.com/bar");
+      cy.getAttached("#webhook-url").click().type("http://www.foo.com/bar");
       cy.findByRole("button", { name: /^Save$/ }).click();
       // Confirm failing policies webhook was added successfully
       cy.findByText(/updated policy automations/i).should("exist");

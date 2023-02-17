@@ -229,7 +229,7 @@ const CONFIG_INTEGRATIONS_AUTOMATIONS_DISABLED = {
       host_batch_size: 0,
     },
     vulnerabilities_webhook: {
-      destination_url: "www.foo.com/bar",
+      destination_url: "http://www.foo.com/bar",
       enable_vulnerabilities_webhook: false,
     },
   },

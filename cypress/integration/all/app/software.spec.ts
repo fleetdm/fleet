@@ -60,7 +60,7 @@ const enableWebhook = {
       host_batch_size: 0,
     },
     vulnerabilities_webhook: {
-      destination_url: "www.foo.com/bar",
+      destination_url: "http://www.foo.com/bar",
       enable_vulnerabilities_webhook: true,
     },
   },
@@ -120,7 +120,7 @@ const enableJiraSoftwareIntegration = {
       host_batch_size: 0,
     },
     vulnerabilities_webhook: {
-      destination_url: "www.foo.com/bar",
+      destination_url: "http://www.foo.com/bar",
       enable_vulnerabilities_webhook: false,
     },
   },
@@ -180,7 +180,7 @@ const enableZendeskSoftwareIntegration = {
       host_batch_size: 0,
     },
     vulnerabilities_webhook: {
-      destination_url: "www.foo.com/bar",
+      destination_url: "http://www.foo.com/bar",
       enable_vulnerabilities_webhook: false,
     },
   },
@@ -259,7 +259,7 @@ describe("Software", () => {
         cy.getAttached(".fleet-slider").click();
         cy.getAttached("#webhook-radio-btn").next().click();
       });
-      cy.getAttached("#webhook-url").click().type("www.foo.com/bar");
+      cy.getAttached("#webhook-url").click().type("http://www.foo.com/bar");
       cy.intercept("PATCH", "/api/latest/fleet/config", enableWebhook).as(
         "createWebhook"
       );
