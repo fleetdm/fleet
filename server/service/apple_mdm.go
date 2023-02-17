@@ -1294,8 +1294,7 @@ func NewMDMAppleCommander(mdmStorage nanomdm_storage.AllStorage, mdmPushService 
 func (svc *MDMAppleCommander) InstallProfile(ctx context.Context, hostUUIDs []string, profile fleet.Mobileconfig) (string, error) {
 	base64Profile := base64.StdEncoding.EncodeToString(profile)
 	uuid := uuid.New().String()
-	raw := fmt.Sprintf(`
-<?xml version="1.0" encoding="UTF-8"?>
+	raw := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
@@ -1317,8 +1316,7 @@ func (svc *MDMAppleCommander) InstallProfile(ctx context.Context, hostUUIDs []st
 // InstallProfile sends the homonymous MDM command to the given hosts.
 func (svc *MDMAppleCommander) RemoveProfile(ctx context.Context, hostUUIDs []string, profileIdentifier string) (string, error) {
 	uuid := uuid.New().String()
-	raw := fmt.Sprintf(`
-<?xml version="1.0" encoding="UTF-8"?>
+	raw := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
