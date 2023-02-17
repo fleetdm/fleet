@@ -2952,7 +2952,7 @@ Follow these steps to configure Fleet SSO with Google Workspace. This will requi
 ## Public IPs of devices
 
 > IMPORTANT: In order for this feature to work properly, devices must connect to Fleet via the public internet.
-> If Fleet and the agents are deployed on a private network then the "Public IP address" for such device will not be set. 
+> If the agent connects to Fleet via a private network then the "Public IP address" for such device will not be set.
 
 Fleet attempts to deduce the public IP of devices from well-known HTTP headers received on requests made by the osquery agent.
 
