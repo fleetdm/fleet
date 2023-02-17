@@ -52,10 +52,11 @@ type Service struct {
 
 	*fleet.EnterpriseOverrides
 
-	depStorage       nanodep_storage.AllStorage
-	mdmStorage       nanomdm_storage.AllStorage
-	mdmPushService   nanomdm_push.Pusher
-	mdmPushCertTopic string
+	depStorage        nanodep_storage.AllStorage
+	mdmStorage        nanomdm_storage.AllStorage
+	mdmPushService    nanomdm_push.Pusher
+	mdmPushCertTopic  string
+	mdmAppleCommander *MDMAppleCommander
 
 	cronSchedulesService fleet.CronSchedulesService
 }
@@ -110,28 +111,32 @@ func NewService(
 	}
 
 	svc := &Service{
-		ds:                   ds,
-		task:                 task,
-		carveStore:           carveStore,
-		installerStore:       installerStore,
-		resultStore:          resultStore,
-		liveQueryStore:       lq,
-		logger:               logger,
-		config:               config,
-		clock:                c,
-		osqueryLogWriter:     osqueryLogger,
-		mailService:          mailService,
-		ssoSessionStore:      sso,
-		failingPolicySet:     failingPolicySet,
-		authz:                authorizer,
-		jitterH:              make(map[time.Duration]*jitterHashTable),
-		jitterMu:             new(sync.Mutex),
-		geoIP:                geoIP,
-		enrollHostLimiter:    enrollHostLimiter,
-		depStorage:           depStorage,
+		ds:                ds,
+		task:              task,
+		carveStore:        carveStore,
+		installerStore:    installerStore,
+		resultStore:       resultStore,
+		liveQueryStore:    lq,
+		logger:            logger,
+		config:            config,
+		clock:             c,
+		osqueryLogWriter:  osqueryLogger,
+		mailService:       mailService,
+		ssoSessionStore:   sso,
+		failingPolicySet:  failingPolicySet,
+		authz:             authorizer,
+		jitterH:           make(map[time.Duration]*jitterHashTable),
+		jitterMu:          new(sync.Mutex),
+		geoIP:             geoIP,
+		enrollHostLimiter: enrollHostLimiter,
+		depStorage:        depStorage,
+		// TODO: remove mdmStorage and mdmPushService when
+		// we remove deprecated top-level service methods
+		// from the prototype.
 		mdmStorage:           mdmStorage,
 		mdmPushService:       mdmPushService,
 		mdmPushCertTopic:     mdmPushCertTopic,
+		mdmAppleCommander:    NewMDMAppleCommander(mdmStorage, mdmPushService),
 		cronSchedulesService: cronSchedulesService,
 	}
 	return validationMiddleware{svc, ds, sso}, nil
