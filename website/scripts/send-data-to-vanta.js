@@ -284,7 +284,7 @@ module.exports = {
       } else {
         // If an error was logged for a VantaConnection, log the error, and increment the numberOfLoggedErrors
         numberOfLoggedErrors++;
-        sails.log('An error occurred while syncing the vanta connection for VantaCustomer with id '+connectionIdAsString+'. Logged error:\n'+errorReportById[connectionIdAsString]);
+        sails.log.warn('An error occurred while syncing the vanta connection for VantaCustomer with id '+connectionIdAsString+'. Logged error:\n'+errorReportById[connectionIdAsString]);
       }
     }//∞
 
