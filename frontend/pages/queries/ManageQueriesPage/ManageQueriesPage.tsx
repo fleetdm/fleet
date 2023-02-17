@@ -17,6 +17,7 @@ import { IOsqueryPlatform } from "interfaces/platform";
 import { IQuery, IFleetQueriesResponse } from "interfaces/query";
 import fleetQueriesAPI from "services/entities/queries";
 import PATHS from "router/paths";
+import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import checkPlatformCompatibility from "utilities/sql_tools";
 import Button from "components/buttons/Button";
 // @ts-ignore
@@ -26,7 +27,6 @@ import TableDataError from "components/DataError";
 import MainContent from "components/MainContent";
 import QueriesTable from "./components/QueriesTable";
 import DeleteQueryModal from "./components/DeleteQueryModal";
-import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 
 const baseClass = "manage-queries-page";
 interface IManageQueriesPageProps {
