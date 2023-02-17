@@ -71,12 +71,16 @@ module.exports = {
       for(let user of responseFromUserEndpoint.users) {
 
         let authMethod;
+        let mfaEnabled = false;
+        let mfaMethods = [];
         if(user.sso_enabled && !user.api_only) { // If the user has sso_enabled: true, set the authMethod to SSO.
           authMethod = 'SSO';
         } else if(user.api_only) { // If the user is an api-only user, set the authMethod to 'TOKEN'
           authMethod = 'TOKEN';
+          mfaMethods = ['UNSUPPORTED'];
         } else {// Otherwise, set the authMethod to 'PASSWORD'
           authMethod = 'PASSWORD';
+          mfaMethods = ['DISABLED'];
         }
 
         // Set the permissionLevel using the user's global_role value.
@@ -96,8 +100,8 @@ module.exports = {
           email: user.email,
           createdTimestamp: user.created_at,
           status: 'ACTIVE',// Always set to 'ACTIVE', if a user is removed from the Fleet instance, it will not be included in the response from the Fleet instance's /users endpoint.
-          mfaEnabled: false,
-          mfaMethods: ['DISABLED'],
+          mfaEnabled,
+          mfaMethods,
           externalUrl: vantaConnection.fleetInstanceUrl,// Setting externalUrl (Required by Vanta) for all users to be the Fleet instance url.
           authMethod,
           permissionLevel,
