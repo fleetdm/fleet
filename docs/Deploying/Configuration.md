@@ -1,17 +1,5 @@
 # Configuration
 
-- [Configuring the Fleet binary](#configuring-the-fleet-binary)
-  - [High-level configuration overview](#high-level-configuration-overview)
-  - [Commands](#commands)
-  - [Options](#options)
-- [Managing osquery configurations](#managing-osquery-configurations)
-- [Running with systemd](#running-with-systemd)
-- [Configuring single sign on](#configuring-single-sign-on)
-  - [Identity provider (IDP) configuration](#identity-provider-IDP-configuration)
-  - [Fleet SSO configuration](#fleet-sso-configuration)
-  - [Creating SSO users in Fleet](#creating-sso-users-in-fleet)
-- [Feature flags](#feature-flags)
-
 ## Configuring the Fleet binary
 
 For information on how to run the `fleet` binary, find detailed usage information by running `fleet --help`. This document is a more detailed version of the data presented in the help output text. If you prefer to use a CLI instead of a web browser, we hope  you like the binary interface of the Fleet application!
@@ -2894,7 +2882,6 @@ For this to work correctly make sure that:
   - `urn:oid:2.5.4.3`
   - `http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name`
 
-
 #### Okta IDP configuration
 
 ![Example Okta IDP Configuration](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/okta-idp-setup.png)
@@ -2962,8 +2949,17 @@ Follow these steps to configure Fleet SSO with Google Workspace. This will requi
 
 9. Enable SSO for a test user and try logging in. Note that Google sometimes takes a long time to propagate the SSO configuration, and it can help to try logging in to Fleet with an Incognito/Private window in the browser.
 
-## Feature flags
+## Public IPs of devices
 
-Fleet features are sometimes gated behind feature flags. This will usually be due to not-yet-stable APIs or not-fully-tested performance characteristics.
+> IMPORTANT: In order for this feature to work properly, devices must connect to Fleet via the public internet.
+> If Fleet and the agents are deployed on a private network then the "Public IP address" for such device will not be set. 
 
-Feature flags on the server are controlled by environment variables prefixed with `FLEET_BETA_`.
+Fleet attempts to deduce the public IP of devices from well-known HTTP headers received on requests made by the osquery agent.
+
+The HTTP request headers are checked in the following order:
+1. If `True-Client-IP` header is set, then Fleet will extract its value.
+2. If `X-Real-IP` header is set, then Fleet will extract its value.
+3. If `X-Forwarded-For` header is set, then Fleet will extract the first comma-separated value.
+4. If none of the above headers are present in the HTTP request then Fleet will attempt to use the remote address of the TCP connection (note that on deployments with ingress proxies the remote address seen by Fleet is the IP of the ingress proxy).
+
+If the IP retrieved using the above heuristic belongs to a private range, then Fleet will ignore it and will not set the "Public IP address" field for the device.
