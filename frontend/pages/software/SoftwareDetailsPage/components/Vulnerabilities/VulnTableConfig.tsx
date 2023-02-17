@@ -2,6 +2,7 @@ import React from "react";
 
 import { IVulnerability } from "interfaces/vulnerability";
 import { formatFloatAsPercentage } from "utilities/helpers";
+import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
@@ -42,7 +43,7 @@ interface IDataColumn {
 
 const formatSeverity = (float: number | null) => {
   if (float === null) {
-    return "---";
+    return DEFAULT_EMPTY_CELL_VALUE;
   }
 
   let severity = "";
