@@ -170,13 +170,6 @@ module.exports = {
           autoUpdatesEnabled: false, // Always sending this value as false
         };
 
-        // Skip further details for pending enrollment MDM hosts as we don't yet have much
-        // information about them and Vanta requires disk encryption and other information we can't
-        // provide.
-        if (host.mdm && host.mdm.enrollment_status === 'Pending') {
-          return;
-        }
-
         // Send a request to this host's API endpoint to get the required information about this host.
         let detailedInformationAboutThisHost = await sails.helpers.http.get(
           updatedRecord.fleetInstanceUrl + '/api/v1/fleet/hosts/'+host.id,
@@ -188,13 +181,15 @@ module.exports = {
           return new Error(`When sending a request to the Fleet instance's /hosts/${host.id} endpoint for a Vanta connection (id: ${connectionIdAsString}), an error occurred: ${err}`);
         });
 
-        // Build a drive object for this host, using the host's disk_encryption_enabled value to set the boolean values for `encrytped` and `filevaultEnabled`
-        let driveInformationForThisHost = {
-          name: 'Hard drive',
-          encrypted: detailedInformationAboutThisHost.host.disk_encryption_enabled,
-          filevaultEnabled: detailedInformationAboutThisHost.host.disk_encryption_enabled,
-        };
-        macOsHostToSyncWithVanta.drives.push(driveInformationForThisHost);
+        if (detailedInformationAboutThisHost.host.disk_encryption_enabled !== undefined && detailedInformationAboutThisHost.host.disk_encryption_enabled !== null) {
+          // Build a drive object for this host, using the host's disk_encryption_enabled value to set the boolean values for `encrytped` and `filevaultEnabled`
+          let driveInformationForThisHost = {
+            name: 'Hard drive',
+            encrypted: detailedInformationAboutThisHost.host.disk_encryption_enabled,
+            filevaultEnabled: detailedInformationAboutThisHost.host.disk_encryption_enabled,
+          };
+          macOsHostToSyncWithVanta.drives.push(driveInformationForThisHost);
+        }
 
         // Iterate through the array of software on a host to populate this hosts applications and
         // browserExtensions arrays.
