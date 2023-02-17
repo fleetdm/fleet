@@ -563,7 +563,7 @@ func enableCmdExecution() error {
 		// making sure that COM is initialized
 		err = windows.CoInitializeEx(0, windows.COINIT_MULTITHREADED)
 		if err != nil {
-			log.Debug().Msgf("there was an error calling CoInitializeEx(): (%s)", err)
+			log.Error().Msgf("there was an error calling CoInitializeEx(): (%s)", err)
 			return
 		}
 
@@ -572,7 +572,7 @@ func enableCmdExecution() error {
 		// variable returns status above call dispatching so it not needed and actually introduce
 		// confusion about the status of the call.
 		if returnCode, _, _ := procRegisterDeviceWithLocalManagement.Call(uintptr(unsafe.Pointer(nil))); returnCode != uintptr(windows.ERROR_SUCCESS) {
-			log.Debug().Msgf("there was an error calling RegisterDeviceWithLocalManagement(): (0x%X)", returnCode)
+			log.Error().Msgf("there was an error calling RegisterDeviceWithLocalManagement(): (0x%X)", returnCode)
 			return
 		}
 	})
