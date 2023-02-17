@@ -45,6 +45,7 @@ Users with the Admin role receive all permissions.
 | View Apple business manager (BM) information                                                                                               |          |            | ✅    |
 | Generate Apple mobile device management (MDM) certificate signing request (CSR)                                                            |          |            | ✅    |
 | View disk encryption key for macOS hosts enrolled in Fleet's MDM                                                                           | ✅       | ✅         | ✅    |
+| Create edit and delete configuration profiles for macOS hosts enrolled in Fleet's MDM                                                      |         | ✅         | ✅    |
 
 \*Applies only to Fleet Premium
 
@@ -89,5 +90,6 @@ Users that are members of multiple teams can be assigned different roles for eac
 | Edit [agent options](https://fleetdm.com/docs/using-fleet/configuration-files#agent-options)                                     |               |                 | ✅         |
 | Initiate [file carving](https://fleetdm.com/docs/using-fleet/rest-api#file-carving)                                              |               | ✅              | ✅         |
 | View disk encryption key for macOS hosts enrolled in Fleet's MDM                                                                 | ✅            | ✅              | ✅         |
+| Create edit and delete configuration profiles for macOS hosts enrolled in Fleet's MDM                                            |               | ✅              | ✅         |
 
 <meta name="pageOrderInSection" value="900">
