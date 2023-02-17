@@ -6,6 +6,7 @@ import ReactTooltip from "react-tooltip";
 import { COLORS } from "styles/var/colors";
 import TruncatedTextCell from "components/TableContainer/DataTable/TruncatedTextCell";
 import MacSettingsIndicator from "../../MacSettingsIndicator";
+import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 
 interface IHeaderProps {
   column: {
@@ -105,7 +106,7 @@ const tableHeaders: IDataColumn[] = [
     accessor: "error",
     Cell: (cellProps: ICellProps): JSX.Element => {
       const error = cellProps.row.original.error;
-      return <TruncatedTextCell value={error || "---"} />;
+      return <TruncatedTextCell value={error || DEFAULT_EMPTY_CELL_VALUE} />;
     },
   },
 ];
