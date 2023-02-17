@@ -5,6 +5,17 @@ import (
 	"time"
 )
 
+type MDMAppleProfileStatus string
+
+// List of profile statuses. Those correspond to names stored in the
+// mdm_apple_profile_status table.
+const (
+	MDMAppleProfileFailed     MDMAppleProfileStatus = "FAILED"
+	MDMAppleProfileInstalled  MDMAppleProfileStatus = "INSTALLED"
+	MDMAppleProfileInstalling MDMAppleProfileStatus = "INSTALLING"
+	MDMAppleProfileRemoving   MDMAppleProfileStatus = "REMOVING"
+)
+
 type AppleMDM struct {
 	CommonName   string    `json:"common_name"`
 	SerialNumber string    `json:"serial_number"`
