@@ -31,7 +31,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func setupAppleMDMService(t *testing.T) (*Service, context.Context, *mock.Store) {
+func setupAppleMDMService(t *testing.T) (fleet.Service, context.Context, *mock.Store) {
 	ds := new(mock.Store)
 	cfg := config.TestConfig()
 	cfg.MDMApple.Enable = true
@@ -65,7 +65,7 @@ func setupAppleMDMService(t *testing.T) (*Service, context.Context, *mock.Store)
 		MDMPusher:   pusher,
 		License:     &fleet.LicenseInfo{Tier: fleet.TierPremium},
 	}
-	fsvc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, opts)
+	svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, opts)
 
 	mdmStorage.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.Command) (map[string]error, error) {
 		return nil, nil
@@ -153,8 +153,6 @@ func setupAppleMDMService(t *testing.T) (*Service, context.Context, *mock.Store)
 		return false, nil
 	}
 
-	svc, ok := fsvc.(*Service)
-	require.True(t, ok)
 	return svc, ctx, ds
 }
 
