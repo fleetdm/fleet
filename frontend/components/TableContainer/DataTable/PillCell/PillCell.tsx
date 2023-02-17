@@ -96,7 +96,7 @@ const PillCell = ({
         <span className={pillClassName}>{indicator}</span>
       </span>
       <ReactTooltip
-        place="bottom"
+        place="top"
         effect="solid"
         backgroundColor="#3e4771"
         id={`${customIdPrefix || "pill"}__${id?.toString() || tooltipId}`}

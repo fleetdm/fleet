@@ -30,6 +30,7 @@ import { IUser } from "interfaces/user";
 import PATHS from "router/paths";
 import permissionUtils from "utilities/permissions";
 import getHostStatusTooltipText from "../helpers";
+import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 
 interface IGetToggleAllRowsSelectedProps {
   checked: boolean;
@@ -434,15 +435,15 @@ const allHostTableHeaders: IDataColumn[] = [
           <span
             className="text-cell text-muted tooltip"
             data-tip
-            data-for={"public-ip-tooltip"}
+            data-for={`public-ip-tooltip__${cellProps.row.original.id}`}
           >
-            ---
+            {DEFAULT_EMPTY_CELL_VALUE}
           </span>
           <ReactTooltip
-            place="bottom"
+            place="top"
             effect="solid"
             backgroundColor="#3e4771"
-            id={"public-ip-tooltip"}
+            id={`public-ip__${cellProps.row.original.id}`}
             data-html
             clickable
             delayHide={200} // need delay set to hover using clickable
