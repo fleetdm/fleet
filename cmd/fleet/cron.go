@@ -171,7 +171,7 @@ func scanVulnerabilities(
 
 	nvdVulns := checkNVDVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
 	ovalVulns := checkOvalVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
-	macOfficeVuns := checkMacOfficeVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
+	macOfficeVulns := checkMacOfficeVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
 
 	checkWinVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
 
@@ -180,10 +180,10 @@ func scanVulnerabilities(
 		return nil
 	}
 
-	vulns := make([]fleet.SoftwareVulnerability, 0, len(nvdVulns)+len(ovalVulns)+len(macOfficeVuns))
+	vulns := make([]fleet.SoftwareVulnerability, 0, len(nvdVulns)+len(ovalVulns)+len(macOfficeVulns))
 	vulns = append(vulns, nvdVulns...)
 	vulns = append(vulns, ovalVulns...)
-	vulns = append(vulns, macOfficeVuns...)
+	vulns = append(vulns, macOfficeVulns...)
 
 	meta, err := ds.ListCVEs(ctx, config.RecentVulnerabilityMaxAge)
 	if err != nil {
