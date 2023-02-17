@@ -6,24 +6,23 @@ import formatDistanceToNow from "date-fns/formatDistanceToNow";
 import FileSaver from "file-saver";
 
 import { IApiError } from "interfaces/errors";
+import { IMdmProfile, IMdmProfilesResponse } from "interfaces/mdm";
 import mdmAPI from "services/entities/mdm";
+import { AppContext } from "context/app";
+import { NotificationContext } from "context/notification";
 
 import CustomLink from "components/CustomLink";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
-import { IMdmProfile, IMdmProfilesResponse } from "interfaces/mdm";
-import { NotificationContext } from "context/notification";
+
 import { UPLOAD_ERROR_MESSAGES, getErrorMessage } from "./helpers";
 import DeleteProfileModal from "./components/DeleteProfileModal/DeleteProfileModal";
 
 const baseClass = "custom-settings";
 
-interface ICustomSettingsProps {
-  currentTeamId?: number;
-}
-
-const CustomSettings = ({ currentTeamId }: ICustomSettingsProps) => {
+const CustomSettings = () => {
   const { renderFlash } = useContext(NotificationContext);
+  const { currentTeam } = useContext(AppContext);
 
   const [showDeleteProfileModal, setShowDeleteProfileModal] = useState(false);
   const selectedProfile = useRef<IMdmProfile | null>(null);
@@ -33,8 +32,8 @@ const CustomSettings = ({ currentTeamId }: ICustomSettingsProps) => {
     error: errorProfiles,
     refetch: refectchProfiles,
   } = useQuery<IMdmProfilesResponse, unknown, IMdmProfile[] | null>(
-    "profiles",
-    () => mdmAPI.getProfiles(currentTeamId),
+    ["profiles", currentTeam?.id],
+    () => mdmAPI.getProfiles(currentTeam?.id),
     {
       select: (data) => data.profiles,
       refetchOnWindowFocus: false,
@@ -118,7 +117,7 @@ const CustomSettings = ({ currentTeamId }: ICustomSettingsProps) => {
     }
 
     try {
-      await mdmAPI.uploadProfile(file, currentTeamId);
+      await mdmAPI.uploadProfile(file, currentTeam?.id);
       refectchProfiles();
       renderFlash("success", "Successfully uploaded!");
     } catch (e) {

@@ -1,4 +1,6 @@
-import React from "react";
+import React, { useContext } from "react";
+
+import { AppContext } from "context/app";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
@@ -12,12 +14,23 @@ interface DeleteProfileModalProps {
 
 const baseClass = "delete-profile-modal";
 
+const generateMessageSuffix = (isPremiumTier?: boolean, teamId?: number) => {
+  if (!isPremiumTier) {
+    return "";
+  }
+  return teamId ? " assigned to this team" : " with no team";
+};
+
 const DeleteProfileModal = ({
   profileName,
   profileId,
   onCancel,
   onDelete,
 }: DeleteProfileModalProps) => {
+  const { isPremiumTier, currentTeam } = useContext(AppContext);
+
+  const messageSuffix = generateMessageSuffix(isPremiumTier, currentTeam?.id);
+
   return (
     <Modal
       className={baseClass}
@@ -28,7 +41,8 @@ const DeleteProfileModal = ({
       <>
         <p>
           This action will delete configuration profile{" "}
-          <span>{profileName}</span> from all macOS hosts assigned to this team.
+          <span className={`${baseClass}__profile-name`}>{profileName}</span>{" "}
+          from all macOS hosts{messageSuffix}.
         </p>
         <div className="modal-cta-wrap">
           <Button
