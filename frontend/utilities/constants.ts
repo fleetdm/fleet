@@ -231,3 +231,5 @@ export const DEFAULT_CREATE_USER_ERRORS = {
 export const EMPTY_AGENT_OPTIONS = {
   config: {},
 };
+
+export const DEFAULT_EMPTY_CELL_VALUE = "---";

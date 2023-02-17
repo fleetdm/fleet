@@ -523,7 +523,7 @@ const DataTable = ({
             ))}
           </thead>
           <tbody>
-            {pageOrRows.map((row: any) => {
+            {pageOrRows.map((row: Row) => {
               prepareRow(row);
 
               const rowStyles = classnames({
