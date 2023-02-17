@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/tls"
+	"encoding/base64"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -944,6 +945,79 @@ func TestMDMBatchSetAppleProfiles(t *testing.T) {
 			require.False(t, ds.BatchSetMDMAppleProfilesFuncInvoked)
 		})
 	}
+}
+
+func TestMDMAppleCommander(t *testing.T) {
+	ctx := context.Background()
+	mdmStorage := &nanomdm_mock.Storage{}
+	pushFactory, _ := newMockAPNSPushProviderFactory()
+	pusher := nanomdm_pushsvc.New(
+		mdmStorage,
+		mdmStorage,
+		pushFactory,
+		NewNanoMDMLogger(kitlog.NewJSONLogger(os.Stdout)),
+	)
+	cmdr := NewMDMAppleCommander(mdmStorage, pusher)
+
+	// TODO(roberto): there's a data race in the mock when more
+	// than one host ID is provided because the pusher uses one
+	// goroutine per uuid to send the commands
+	hostUUIDs := []string{"A"}
+	payloadName := "com.foo.bar"
+	payloadIdentifier := "com-foo-bar"
+	mc := mobileconfigForTest(payloadName, payloadIdentifier)
+
+	mdmStorage.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.Command) (map[string]error, error) {
+		require.NotNil(t, cmd)
+		require.Equal(t, cmd.Command.RequestType, "InstallProfile")
+		require.Contains(t, string(cmd.Raw), base64.StdEncoding.EncodeToString(mc))
+		return nil, nil
+	}
+
+	mdmStorage.RetrievePushInfoFunc = func(p0 context.Context, targetUUIDs []string) (map[string]*mdm.Push, error) {
+		require.ElementsMatch(t, hostUUIDs, targetUUIDs)
+		pushes := make(map[string]*mdm.Push, len(targetUUIDs))
+		for _, uuid := range targetUUIDs {
+			pushes[uuid] = &mdm.Push{
+
+				PushMagic: "magic" + uuid,
+				Token:     []byte("token" + uuid),
+				Topic:     "topic" + uuid,
+			}
+		}
+
+		return pushes, nil
+	}
+
+	mdmStorage.RetrievePushCertFunc = func(ctx context.Context, topic string) (*tls.Certificate, string, error) {
+		cert, err := tls.LoadX509KeyPair("testdata/server.pem", "testdata/server.key")
+		return &cert, "", err
+	}
+	mdmStorage.IsPushCertStaleFunc = func(ctx context.Context, topic string, staleToken string) (bool, error) {
+		return false, nil
+	}
+
+	uuid, err := cmdr.InstallProfile(ctx, hostUUIDs, mc)
+	require.NotEmpty(t, uuid)
+	require.NoError(t, err)
+	require.True(t, mdmStorage.EnqueueCommandFuncInvoked)
+	mdmStorage.EnqueueCommandFuncInvoked = false
+	require.True(t, mdmStorage.RetrievePushInfoFuncInvoked)
+	mdmStorage.RetrievePushInfoFuncInvoked = false
+
+	mdmStorage.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.Command) (map[string]error, error) {
+		require.NotNil(t, cmd)
+		require.Equal(t, "RemoveProfile", cmd.Command.RequestType)
+		require.Contains(t, string(cmd.Raw), payloadIdentifier)
+		return nil, nil
+	}
+	uuid, err = cmdr.RemoveProfile(ctx, hostUUIDs, payloadIdentifier)
+	require.True(t, mdmStorage.EnqueueCommandFuncInvoked)
+	mdmStorage.EnqueueCommandFuncInvoked = false
+	require.True(t, mdmStorage.RetrievePushInfoFuncInvoked)
+	mdmStorage.RetrievePushInfoFuncInvoked = false
+	require.NotEmpty(t, uuid)
+	require.NoError(t, err)
 }
 
 func mobileconfigForTest(name, identifier string) []byte {
