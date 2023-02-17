@@ -2162,7 +2162,7 @@ The path specified needs to exist and Fleet needs to be able to read and write t
 
 When `current_instance_checks` is set to `auto` (the default), Fleet instances will try to create the `databases_path` if it doesn't exist.
 
-- Default value: none
+- Default value: `/tmp/vulndbs`
 - Environment variable: `FLEET_VULNERABILITIES_DATABASES_PATH`
 - Config file format:
   ```
@@ -2238,6 +2238,19 @@ When running multiple instances of the Fleet server, by default, one of them dyn
   ```
   vulnerabilities:
   	current_instance_checks: yes
+  ```
+
+##### disable_schedule
+
+To externally manage running vulnerability processing set the value to `true` and then run `fleet vuln_processing` using external
+tools like crontab.
+
+- Default value: `false`
+- Environment variable: `FLEET_VULNERABILITIES_DISABLE_SCHEDULE`
+- Config file format:
+  ```
+  vulnerabilities:
+  	disable_schedule: false
   ```
 
 ##### disable_data_sync
