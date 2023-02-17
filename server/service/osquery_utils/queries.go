@@ -3,6 +3,7 @@ package osquery_utils
 import (
 	"context"
 	"fmt"
+	"net"
 	"regexp"
 	"strconv"
 	"strings"
@@ -340,21 +341,40 @@ FROM logical_drives WHERE file_system = 'NTFS' LIMIT 1;`,
 	},
 }
 
+func isPublicIP(ip net.IP) bool {
+	return !ip.IsLoopback() && !ip.IsLinkLocalUnicast() && !ip.IsLinkLocalMulticast() && !ip.IsPrivate()
+}
+
 func ingestNetworkInterface(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error {
+	logger = log.With(logger,
+		"component", "service",
+		"method", "IngestFunc",
+		"host", host.Hostname,
+		"platform", host.Platform,
+	)
+
 	if len(rows) != 1 {
-		logger.Log(
-			"component", "service",
-			"method", "IngestFunc",
-			"host", host.Hostname,
-			"platform", host.Platform,
-			"err", fmt.Sprintf("detail_query_network_interface expected single result, got %d", len(rows)),
-		)
+		logger.Log("err", fmt.Sprintf("detail_query_network_interface expected single result, got %d", len(rows)))
 		return nil
 	}
 
 	host.PrimaryIP = rows[0]["address"]
 	host.PrimaryMac = rows[0]["mac"]
-	host.PublicIP = publicip.FromContext(ctx)
+
+	// Attempt to extract public IP from the HTTP request.
+	ipStr := publicip.FromContext(ctx)
+	ip := net.ParseIP(ipStr)
+	if ip != nil {
+		if isPublicIP(ip) {
+			host.PublicIP = ipStr
+		} else {
+			level.Debug(logger).Log("err", "IP is not public, ignoring", "ip", ipStr)
+			host.PublicIP = ""
+		}
+	} else {
+		logger.Log("err", fmt.Sprintf("expected an IP address, got %s", ipStr))
+	}
+
 	return nil
 }
 

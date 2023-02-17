@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/url"
 	"os"
@@ -78,6 +79,9 @@ func cronVulnerabilities(
 	logger kitlog.Logger,
 	config *config.VulnerabilitiesConfig,
 ) error {
+	if config == nil {
+		return errors.New("nil configuration")
+	}
 	if config.CurrentInstanceChecks == "no" || config.CurrentInstanceChecks == "0" {
 		level.Info(logger).Log("msg", "host not configured to check for vulnerabilities")
 		return nil
@@ -95,21 +99,7 @@ func cronVulnerabilities(
 		return nil
 	}
 
-	var vulnPath string
-	switch {
-	case config.DatabasesPath != "" && appConfig.VulnerabilitySettings.DatabasesPath != "":
-		vulnPath = config.DatabasesPath
-		level.Info(logger).Log(
-			"msg", "fleet config takes precedence over app config when both are configured",
-			"databases_path", vulnPath,
-		)
-	case config.DatabasesPath != "":
-		vulnPath = config.DatabasesPath
-	case appConfig.VulnerabilitySettings.DatabasesPath != "":
-		vulnPath = appConfig.VulnerabilitySettings.DatabasesPath
-	default:
-		level.Info(logger).Log("msg", "vulnerability scanning not configured, vulnerabilities databases path is empty")
-	}
+	vulnPath := configureVulnPath(*config, appConfig, logger)
 	if vulnPath != "" {
 		level.Info(logger).Log("msg", "scanning vulnerabilities")
 		if err := scanVulnerabilities(ctx, ds, logger, config, appConfig, vulnPath); err != nil {
@@ -301,10 +291,6 @@ func checkOvalVulnerabilities(
 	config *config.VulnerabilitiesConfig,
 	collectVulns bool,
 ) []fleet.SoftwareVulnerability {
-	if config.DisableDataSync {
-		return nil
-	}
-
 	var results []fleet.SoftwareVulnerability
 
 	// Get Platforms
@@ -314,13 +300,15 @@ func checkOvalVulnerabilities(
 		return nil
 	}
 
-	// Sync on disk OVAL definitions with current OS Versions.
-	downloaded, err := oval.Refresh(ctx, versions, vulnPath)
-	if err != nil {
-		errHandler(ctx, logger, "updating oval definitions", err)
-	}
-	for _, d := range downloaded {
-		level.Debug(logger).Log("oval-sync-downloaded", d)
+	if !config.DisableDataSync {
+		// Sync on disk OVAL definitions with current OS Versions.
+		downloaded, err := oval.Refresh(ctx, versions, vulnPath)
+		if err != nil {
+			errHandler(ctx, logger, "updating oval definitions", err)
+		}
+		for _, d := range downloaded {
+			level.Debug(logger).Log("oval-sync-downloaded", d)
+		}
 	}
 
 	// Analyze all supported os versions using the synched OVAL definitions.
@@ -364,7 +352,7 @@ func checkNVDVulnerabilities(
 		}
 	}
 
-	if err := nvd.LoadCVEMeta(logger, vulnPath, ds); err != nil {
+	if err := nvd.LoadCVEMeta(ctx, logger, vulnPath, ds); err != nil {
 		errHandler(ctx, logger, "load cve meta", err)
 		// don't return, continue on ...
 	}
