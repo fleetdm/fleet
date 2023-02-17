@@ -45,7 +45,7 @@ Fleet's organizational chart is accessible as a sub-tab in ["🧑‍🚀 Fleetie
 
 
 ## Product groups
-Fleet organizes cross-functional groups focused on particular business goals. These include members from Design, Engineering, Quality, and Product. For more information, check out this page [Product groups](./development-groups.md).
+Fleet organizes cross-functional groups focused on particular business goals. These include the product quality lead, a designer, developers, a product manager, and an engineering manager.  For more information, check out this page [Product groups](./development-groups.md).
 
 
 ## 🌈 Values
