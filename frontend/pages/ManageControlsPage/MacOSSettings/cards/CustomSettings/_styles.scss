@@ -74,35 +74,6 @@
     font-size: $x-small;
     margin-top: $pad-xxlarge;
 
-    // styling the label to look like a button.
-    label {
-      box-sizing: border-box;
-      @include button-variant($core-vibrant-blue);
-      transition: color 150ms ease-in-out, background 150ms ease-in-out,
-        top 50ms ease-in-out, box-shadow 50ms ease-in-out, border 50ms ease-in-out;
-      position: relative;
-      color: $core-white;
-      text-decoration: none;
-      flex-direction: row;
-      justify-content: center;
-      align-items: center;
-      padding: $pad-small $pad-medium;
-      border-radius: 6px;
-      font-size: $x-small;
-      font-family: "Nunito Sans", sans-serif;
-      font-weight: $bold;
-      display: inline-flex;
-      height: 38px;
-      top: 0;
-      border: 0;
-      position: relative;
-      cursor: pointer;
-
-      &:focus {
-        outline: none;
-      }
-    }
-
     input {
       display: none;
     }

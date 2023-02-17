@@ -25,6 +25,8 @@ const CustomSettings = () => {
   const { currentTeam } = useContext(AppContext);
 
   const [showDeleteProfileModal, setShowDeleteProfileModal] = useState(false);
+  const [showLoading, setShowLoading] = useState(false);
+
   const selectedProfile = useRef<IMdmProfile | null>(null);
 
   const {
@@ -104,6 +106,8 @@ const CustomSettings = () => {
   };
 
   const onFileUpload = async (files: FileList | null) => {
+    setShowLoading(true);
+
     if (!files || files.length === 0) return;
 
     const file = files[0];
@@ -124,6 +128,8 @@ const CustomSettings = () => {
       const error = e as AxiosResponse<IApiError>;
       const errMessage = getErrorMessage(error);
       renderFlash("error", errMessage);
+    } finally {
+      setShowLoading(false);
     }
   };
 
@@ -162,7 +168,9 @@ const CustomSettings = () => {
       <div className={`${baseClass}__profile-uploader`}>
         <Icon name="profile" />
         <p>Configuration profile (.mobileconfig)</p>
-        <label htmlFor="upload-profile">Upload</label>
+        <Button isLoading={showLoading}>
+          <label htmlFor="upload-profile">Upload</label>
+        </Button>
         <input
           accept=".mobileconfig,application/x-apple-aspen-config"
           id="upload-profile"
