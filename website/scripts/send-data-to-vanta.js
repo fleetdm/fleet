@@ -149,7 +149,7 @@ module.exports = {
       let macHostsToSyncWithVanta = [];
 
 
-      await sails.helpers.flow.simultaneouslyForEach(macOsHosts, async (host)=>{
+      await sails.helpers.flow.simultaneouslyForEach(macOsHosts, async (host) => {
         let hostIdAsString = String(host.id);
         // Start building the host resource to send to Vanta, using information we get from the Fleet instance's get Hosts endpoint
         let macOsHostToSyncWithVanta = {
@@ -169,6 +169,13 @@ module.exports = {
           isManaged: false, // Defaulting to false
           autoUpdatesEnabled: false, // Always sending this value as false
         };
+
+        // Skip further details for pending enrollment MDM hosts as we don't yet have much
+        // information about them and Vanta requires disk encryption and other information we can't
+        // provide.
+        if (host.mdm && host.mdm.enrollment_status === 'Pending') {
+          return;
+        }
 
         // Send a request to this host's API endpoint to get the required information about this host.
         let detailedInformationAboutThisHost = await sails.helpers.http.get(
