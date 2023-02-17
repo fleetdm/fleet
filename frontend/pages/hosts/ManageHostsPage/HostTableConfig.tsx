@@ -16,6 +16,7 @@ import TextCell from "components/TableContainer/DataTable/TextCell/TextCell";
 import TruncatedTextCell from "components/TableContainer/DataTable/TruncatedTextCell";
 import TooltipWrapper from "components/TooltipWrapper";
 import HumanTimeDiffWithDateTip from "components/HumanTimeDiffWithDateTip";
+import CustomLink from "components/CustomLink";
 import {
   humanHostMemory,
   humanHostLastRestart,
@@ -424,7 +425,40 @@ const allHostTableHeaders: IDataColumn[] = [
       />
     ),
     accessor: "public_ip",
-    Cell: (cellProps: ICellProps) => <TextCell value={cellProps.cell.value} />,
+    Cell: (cellProps: ICellProps) => {
+      if (cellProps.cell.value) {
+        return <TextCell value={cellProps.cell.value} />;
+      }
+      return (
+        <>
+          <span
+            className="text-cell text-muted tooltip"
+            data-tip
+            data-for={"public-ip-tooltip"}
+          >
+            ---
+          </span>
+          <ReactTooltip
+            place="bottom"
+            effect="solid"
+            backgroundColor="#3e4771"
+            id={"public-ip-tooltip"}
+            data-html
+            clickable
+            delayHide={200} // need delay set to hover using clickable
+          >
+            Public IP address could not be
+            <br /> determined.{" "}
+            <CustomLink
+              url="https://fleetdm.com/docs/deploying/configuration#public-i-ps-of-devices"
+              text="Learn more"
+              newTab
+              iconColor="core-fleet-white"
+            />
+          </ReactTooltip>
+        </>
+      );
+    },
   },
   {
     title: "Last fetched",
