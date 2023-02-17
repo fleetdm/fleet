@@ -189,23 +189,27 @@ module.exports = {
         };
         macOsHostToSyncWithVanta.drives.push(driveInformationForThisHost);
 
-        // Iterate through the array of software on a host to populate this hosts applications and browserExtensions arrays.
-        for(let software of detailedInformationAboutThisHost.host.software) {
-          let softwareToAdd = {};
-          if(software.source === 'firefox_addons') {
-            softwareToAdd.name = software.name;
-            softwareToAdd.browser = 'FIREFOX';
-            softwareToAdd.extensionId = software.name +' '+ software.version;// Set the extensionId to be the software's name and the software version.
-            macOsHostToSyncWithVanta.browserExtensions.push(softwareToAdd);
-          } else if(software.source === 'chrome_extensions') {
-            softwareToAdd.name = software.name;
-            softwareToAdd.extensionId = software.name +' '+ software.version;
-            softwareToAdd.browser = 'CHROME';
-            macOsHostToSyncWithVanta.browserExtensions.push(softwareToAdd);
-          } else if(software.source === 'apps') {
-            softwareToAdd.name = software.name +' '+ software.version;
-            softwareToAdd.bundleId = software.bundle_identifier ? software.bundle_identifier : ' '; // If the software is missing a bundle identifier, we'll set it to a blank string.
-            macOsHostToSyncWithVanta.applications.push(softwareToAdd);
+        // Iterate through the array of software on a host to populate this hosts applications and
+        // browserExtensions arrays.
+        const softwareList = detailedInformationAboutThisHost.host.software;
+        if (softwareList) {
+          for (let software of softwareList) {
+            let softwareToAdd = {};
+            if (software.source === 'firefox_addons') {
+              softwareToAdd.name = software.name;
+              softwareToAdd.browser = 'FIREFOX';
+              softwareToAdd.extensionId = software.name + ' ' + software.version;// Set the extensionId to be the software's name and the software version.
+              macOsHostToSyncWithVanta.browserExtensions.push(softwareToAdd);
+            } else if (software.source === 'chrome_extensions') {
+              softwareToAdd.name = software.name;
+              softwareToAdd.extensionId = software.name + ' ' + software.version;
+              softwareToAdd.browser = 'CHROME';
+              macOsHostToSyncWithVanta.browserExtensions.push(softwareToAdd);
+            } else if (software.source === 'apps') {
+              softwareToAdd.name = software.name + ' ' + software.version;
+              softwareToAdd.bundleId = software.bundle_identifier ? software.bundle_identifier : ' '; // If the software is missing a bundle identifier, we'll set it to a blank string.
+              macOsHostToSyncWithVanta.applications.push(softwareToAdd);
+            }
           }
         }
 
