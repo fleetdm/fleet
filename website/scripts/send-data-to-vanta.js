@@ -142,14 +142,23 @@ module.exports = {
         return;
       }
 
+      // Filter out non-MacOS hosts and hosts without a hostname.
       let macOsHosts = allHostsOnThisFleetInstance.filter((host)=>{
-        return host.platform === 'darwin';
+        return host.platform === 'darwin' && host.hostname;
       });
 
       let macHostsToSyncWithVanta = [];
 
 
       await sails.helpers.flow.simultaneouslyForEach(macOsHosts, async (host) => {
+
+        // Skip pending enrollment MDM hosts as we don't yet have much
+        // information about them and Vanta requires disk encryption and other information we can't
+        // provide.
+        if (host.mdm && host.mdm.enrollment_status === 'Pending') {
+          return;
+        }
+
         let hostIdAsString = String(host.id);
         // Start building the host resource to send to Vanta, using information we get from the Fleet instance's get Hosts endpoint
         let macOsHostToSyncWithVanta = {
@@ -170,12 +179,6 @@ module.exports = {
           autoUpdatesEnabled: false, // Always sending this value as false
         };
 
-        // Skip further details for pending enrollment MDM hosts as we don't yet have much
-        // information about them and Vanta requires disk encryption and other information we can't
-        // provide.
-        if (host.mdm && host.mdm.enrollment_status === 'Pending') {
-          return;
-        }
 
         // Send a request to this host's API endpoint to get the required information about this host.
         let detailedInformationAboutThisHost = await sails.helpers.http.get(
