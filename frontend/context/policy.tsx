@@ -20,6 +20,7 @@ interface ISetLastEditedQueryInfo {
   lastEditedQueryResolution?: string;
   lastEditedQueryCritical?: boolean;
   lastEditedQueryPlatform?: IPlatformString | null;
+  defaultPolicy?: boolean;
 }
 
 interface ISetPolicyTeamID {
@@ -49,6 +50,7 @@ type InitialStateType = {
   lastEditedQueryResolution: string;
   lastEditedQueryCritical: boolean;
   lastEditedQueryPlatform: IPlatformString | null;
+  defaultPolicy: boolean;
   setLastEditedQueryId: (value: number) => void;
   setLastEditedQueryName: (value: string) => void;
   setLastEditedQueryDescription: (value: string) => void;
@@ -56,6 +58,7 @@ type InitialStateType = {
   setLastEditedQueryResolution: (value: string) => void;
   setLastEditedQueryCritical: (value: boolean) => void;
   setLastEditedQueryPlatform: (value: IPlatformString | null) => void;
+  setDefaultPolicy: (value: boolean) => void;
   policyTeamId: number;
   setPolicyTeamId: (id: number) => void;
   selectedOsqueryTable: IOsQueryTable;
@@ -74,6 +77,7 @@ const initialState = {
   lastEditedQueryResolution: "",
   lastEditedQueryCritical: false,
   lastEditedQueryPlatform: null,
+  defaultPolicy: false,
   setLastEditedQueryId: () => null,
   setLastEditedQueryName: () => null,
   setLastEditedQueryDescription: () => null,
@@ -81,6 +85,7 @@ const initialState = {
   setLastEditedQueryResolution: () => null,
   setLastEditedQueryCritical: () => null,
   setLastEditedQueryPlatform: () => null,
+  setDefaultPolicy: () => null,
   policyTeamId: 0,
   setPolicyTeamId: () => null,
   selectedOsqueryTable: initTable,
@@ -132,6 +137,10 @@ const reducer = (state: InitialStateType, action: IAction) => {
           typeof action.lastEditedQueryPlatform === "undefined"
             ? state.lastEditedQueryPlatform
             : action.lastEditedQueryPlatform,
+        defaultPolicy:
+          typeof action.defaultPolicy === "undefined"
+            ? state.defaultPolicy
+            : action.defaultPolicy,
       };
     default:
       return state;
@@ -151,6 +160,7 @@ const PolicyProvider = ({ children }: Props): JSX.Element => {
     lastEditedQueryResolution: state.lastEditedQueryResolution,
     lastEditedQueryCritical: state.lastEditedQueryCritical,
     lastEditedQueryPlatform: state.lastEditedQueryPlatform,
+    defaultPolicy: state.defaultPolicy,
     setLastEditedQueryId: (lastEditedQueryId: number) => {
       dispatch({
         type: ACTIONS.SET_LAST_EDITED_QUERY_INFO,
@@ -193,6 +203,12 @@ const PolicyProvider = ({ children }: Props): JSX.Element => {
       dispatch({
         type: ACTIONS.SET_LAST_EDITED_QUERY_INFO,
         lastEditedQueryPlatform,
+      });
+    },
+    setDefaultPolicy: (defaultPolicy: boolean) => {
+      dispatch({
+        type: ACTIONS.SET_LAST_EDITED_QUERY_INFO,
+        defaultPolicy,
       });
     },
     policyTeamId: state.policyTeamId,
