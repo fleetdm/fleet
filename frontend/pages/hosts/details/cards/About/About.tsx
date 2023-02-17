@@ -7,7 +7,10 @@ import CustomLink from "components/CustomLink";
 
 import { IHostMdmData, IMunkiData, IDeviceUser } from "interfaces/host";
 import { humanHostLastRestart } from "utilities/helpers";
-import { MDM_STATUS_TOOLTIP } from "utilities/constants";
+import {
+  DEFAULT_EMPTY_CELL_VALUE,
+  MDM_STATUS_TOOLTIP,
+} from "utilities/constants";
 
 interface IAboutProps {
   aboutData: { [key: string]: any };
@@ -24,7 +27,7 @@ const About = ({
   mdm,
 }: IAboutProps): JSX.Element => {
   const renderPublicIp = () => {
-    if (aboutData.public_ip !== "---") {
+    if (aboutData.public_ip !== DEFAULT_EMPTY_CELL_VALUE) {
       return aboutData.public_ip;
     }
     return (
@@ -82,7 +85,9 @@ const About = ({
       <>
         <div className="info-grid__block">
           <span className="info-grid__header">Munki version</span>
-          <span className="info-grid__data">{munki.version || "---"}</span>
+          <span className="info-grid__data">
+            {munki.version || DEFAULT_EMPTY_CELL_VALUE}
+          </span>
         </div>
       </>
     ) : null;
@@ -107,7 +112,9 @@ const About = ({
         </div>
         <div className="info-grid__block">
           <span className="info-grid__header">MDM server URL</span>
-          <span className="info-grid__data">{mdm.server_url || "---"}</span>
+          <span className="info-grid__data">
+            {mdm.server_url || DEFAULT_EMPTY_CELL_VALUE}
+          </span>
         </div>
       </>
     );
@@ -145,7 +152,7 @@ const About = ({
               </ReactTooltip>
             </>
           ) : (
-            deviceMapping[0].email || "---"
+            deviceMapping[0].email || DEFAULT_EMPTY_CELL_VALUE
           )}
         </span>
       </div>

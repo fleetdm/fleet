@@ -26,6 +26,7 @@ import TableDataError from "components/DataError";
 import MainContent from "components/MainContent";
 import QueriesTable from "./components/QueriesTable";
 import DeleteQueryModal from "./components/DeleteQueryModal";
+import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 
 const baseClass = "manage-queries-page";
 interface IManageQueriesPageProps {
@@ -67,7 +68,7 @@ const PLATFORM_FILTER_OPTIONS = [
 const getPlatforms = (queryString: string): Array<IOsqueryPlatform | "---"> => {
   const { platforms } = checkPlatformCompatibility(queryString);
 
-  return platforms || ["---"];
+  return platforms || [DEFAULT_EMPTY_CELL_VALUE];
 };
 
 const enhanceQuery = (q: IQuery) => {
