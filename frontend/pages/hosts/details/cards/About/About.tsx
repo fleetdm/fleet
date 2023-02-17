@@ -3,6 +3,8 @@ import React from "react";
 import ReactTooltip from "react-tooltip";
 import HumanTimeDiffWithDateTip from "components/HumanTimeDiffWithDateTip";
 import TooltipWrapper from "components/TooltipWrapper";
+import CustomLink from "components/CustomLink";
+
 import { IHostMdmData, IMunkiData, IDeviceUser } from "interfaces/host";
 import { humanHostLastRestart } from "utilities/helpers";
 import { MDM_STATUS_TOOLTIP } from "utilities/constants";
@@ -21,6 +23,41 @@ const About = ({
   munki,
   mdm,
 }: IAboutProps): JSX.Element => {
+  const renderPublicIp = () => {
+    if (aboutData.public_ip !== "---") {
+      return aboutData.public_ip;
+    }
+    return (
+      <>
+        <span
+          className="text-cell text-muted tooltip"
+          data-tip
+          data-for={"public-ip-tooltip"}
+        >
+          {aboutData.public_ip}
+        </span>
+        <ReactTooltip
+          place="bottom"
+          effect="solid"
+          backgroundColor="#3e4771"
+          id={"public-ip-tooltip"}
+          data-html
+          clickable
+          delayHide={200} // need delay set to hover using clickable
+        >
+          Public IP address could not be
+          <br /> determined.{" "}
+          <CustomLink
+            url="https://fleetdm.com/docs/deploying/configuration#public-i-ps-of-devices"
+            text="Learn more"
+            newTab
+            iconColor="core-fleet-white"
+          />
+        </ReactTooltip>
+      </>
+    );
+  };
+
   const renderSerialAndIPs = () => {
     return (
       <>
@@ -34,7 +71,7 @@ const About = ({
         </div>
         <div className="info-grid__block">
           <span className="info-grid__header">Public IP address</span>
-          <span className="info-grid__data">{aboutData.public_ip}</span>
+          <span className="info-grid__data">{renderPublicIp()}</span>
         </div>
       </>
     );

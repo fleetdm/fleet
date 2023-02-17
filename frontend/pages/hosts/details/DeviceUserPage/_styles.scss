@@ -410,4 +410,10 @@
     .response__header {
     width: $col-md;
   }
+
+  #public-ip-tooltip {
+    a {
+      color: $core-white;
+    }
+  }
 }
