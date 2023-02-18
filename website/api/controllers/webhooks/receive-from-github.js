@@ -306,7 +306,7 @@ module.exports = {
         // Check whether the "main" branch is currently frozen (i.e. a feature freeze)
         // [?] https://docs.mergefreeze.com/web-api#get-freeze-status
         let mergeFreezeMainBranchStatusReport = await sails.helpers.http.get('https://www.mergefreeze.com/api/branches/fleetdm/fleet/main', { access_token: sails.config.custom.mergeFreezeAccessToken }) //eslint-disable-line camelcase
-        .tolerate(['non200Response'], (err)=>{
+        .tolerate(['non200Response', 'requestFailed', {name: 'TimeoutError'}], (err)=>{
           // If the MergeFreeze API returns a non 200 response, log a warning and continue under the assumption that the main branch is not frozen.
           sails.log.warn('When sending a request to the MergeFreeze API to get the status of the main branch, the API returned a non-200 Response. If the main branch is frozen, it will need to be manually unfrozen before PR #'+prNumber+' can be merged. Raw error: '+err.raw);
           return { frozen: false };
