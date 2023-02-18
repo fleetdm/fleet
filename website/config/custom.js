@@ -115,10 +115,13 @@ module.exports.custom = {
     'website': 'mikermcneil',// (default for website)
     'website/views': 'eashaw',
     'website/assets': 'eashaw',
-    'website/config/routes.js': ['eashaw', 'mike-j-thomas', 'jarodreyes'],// (for managing website URLs)
     'website/package.json': 'eashaw',
     '.github/workflows/deploy-fleet-website.yml': ['eashaw','mikermcneil'],// (website deploy script)
     '.github/workflows/test-website.yml': ['eashaw','mikermcneil'],// (website CI test script)
+
+    'website/config/routes.js': ['eashaw', 'mike-j-thomas', 'jarodreyes'],// (for managing website URLs)
+
+    'website/api/controllers/imagine': ['eashaw', 'jarodreyes'],// landing pages
 
     'docs': ['zwass', 'mikermcneil', 'zhumo', 'jarodreyes', 'ksatter'],// (default for docs)
     'docs/images': ['noahtalerman', 'eashaw', 'mike-j-thomas'],
@@ -128,8 +131,8 @@ module.exports.custom = {
     'docs/Contributing/FAQ.md': ['ksatter'],
     'docs/Using-Fleet/FAQ.md': ['ksatter'],
 
-    'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml': ['mikermcneil','zhumo','eashaw'],// (standard query library)
-    'schema': ['zhumo','eashaw','zwass','mikermcneil','sharon-fdm','lucasmrod'],// (Osquery table schema)
+    'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml': ['mikermcneil','zhumo','eashaw','lucasmrod','sharon-fdm','artemist-work','marcosd4h'],// (standard query library)
+    'schema': ['zhumo','eashaw','zwass','mikermcneil','lucasmrod','sharon-fdm','artemist-work','marcosd4h'],// (Osquery table schema)
   },
 
   confidentialGithubRepoDRIByPath: {// fleetdm/confidential
