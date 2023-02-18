@@ -6,6 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 	flags "github.com/jessevdk/go-flags"
 	//"github.com/juju/errors"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -14,10 +15,13 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
-	"github.com/aws/aws-sdk-go/service/sfn"
 	"github.com/aws/aws-sdk-go/service/secretsmanager"
+	"github.com/aws/aws-sdk-go/service/sfn"
 	"github.com/fleetdm/fleet/v4/pkg/spec"
+	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
+	_ "github.com/go-sql-driver/mysql"
 	"github.com/loopfz/gadgeto/tonic"
 	"github.com/wI2L/fizz"
 	"github.com/wI2L/fizz/openapi"
@@ -28,8 +32,6 @@ import (
 	"os"
 	"strings"
 	"time"
-	"database/sql"
-	_ "github.com/go-sql-driver/mysql"
 )
 
 type OptionsStruct struct {
@@ -38,7 +40,7 @@ type OptionsStruct struct {
 	LifecycleSFN       string `long:"lifecycle-sfn" env:"LIFECYCLE_SFN" required:"true"`
 	FleetBaseURL       string `long:"fleet-base-url" env:"FLEET_BASE_URL" required:"true"`
 	AuthorizationPSK   string `long:"authorization-psk" env:"AUTHORIZATION_PSK" required:"true"`
-    MysqlSecret string `long:"mysql-secret" env:"MYSQL_SECRET" required:"true"`
+	MysqlSecret        string `long:"mysql-secret" env:"MYSQL_SECRET" required:"true"`
 }
 
 var options = OptionsStruct{}
@@ -71,47 +73,48 @@ func applyConfig(c *gin.Context, url, token string) (err error) {
 }
 
 type MysqlSecretEntry struct {
-    Endpoint string `json:"endpoint"`
-    Username string `json:"username"`
-    Password string `json:"password"`
+	Endpoint string `json:"endpoint"`
+	Username string `json:"username"`
+	Password string `json:"password"`
 }
 
 func clearActivitiesTable(c *gin.Context, id string) (err error) {
-    // Get connection string
-    svc := secretsmanager.New(session.New())
-    sec, err := svc.GetSecretValue(&secretsmanager.GetSecretValueInput{
-        SecretId: aws.String(options.MysqlSecret),
-    })
-    if err != nil {
-        log.Print(err)
-        return
-    }
-    var secretEntry MysqlSecretEntry
-    if err = json.Unmarshal([]byte(*sec.SecretString), &secretEntry); err != nil {
-        log.Print(err)
-        return
-    }
-    connectionString := fmt.Sprintf("%s:%s@tcp(%s)/%s", secretEntry.Username, secretEntry.Password, secretEntry.Endpoint, id)
-    // Connect to db
-    db, err := sql.Open("mysql", connectionString)
-    if err != nil {
-        log.Print(err)
-        return
-    }
-    defer db.Close()
-    // truncate activities table
-    _, err = db.ExecContext(c, "truncate activities;")
-    if err != nil {
-        log.Print(err)
-        return
-    }
-    return
+	// Get connection string
+	svc := secretsmanager.New(session.New())
+	sec, err := svc.GetSecretValue(&secretsmanager.GetSecretValueInput{
+		SecretId: aws.String(options.MysqlSecret),
+	})
+	if err != nil {
+		log.Print(err)
+		return
+	}
+	var secretEntry MysqlSecretEntry
+	if err = json.Unmarshal([]byte(*sec.SecretString), &secretEntry); err != nil {
+		log.Print(err)
+		return
+	}
+	connectionString := fmt.Sprintf("%s:%s@tcp(%s)/%s", secretEntry.Username, secretEntry.Password, secretEntry.Endpoint, id)
+	// Connect to db
+	db, err := sql.Open("mysql", connectionString)
+	if err != nil {
+		log.Print(err)
+		return
+	}
+	defer db.Close()
+	// truncate activities table
+	_, err = db.ExecContext(c, "truncate activities;")
+	if err != nil {
+		log.Print(err)
+		return
+	}
+	return
 }
 
 type LifecycleRecord struct {
 	ID      string
 	State   string
 	RedisDB int `dynamodbav:"redis_db"`
+	Token   string
 }
 
 func getExpiry(id string) (ret time.Time, err error) {
@@ -170,6 +173,26 @@ func claimFleet(fleet LifecycleRecord, svc *dynamodb.DynamoDB) (err error) {
 	if _, err = svc.UpdateItem(input); err != nil {
 		return
 	}
+	return
+}
+
+func getToken(id string, svc *dynamodb.DynamoDB) (token string, err error) {
+	input := &dynamodb.GetItemInput{
+		TableName: aws.String(options.LifecycleTable),
+		Key: map[string]*dynamodb.AttributeValue{"ID": &dynamodb.AttributeValue{
+			S: aws.String(id),
+		}},
+	}
+
+	var result *dynamodb.GetItemOutput
+	if result, err = svc.GetItem(input); err != nil {
+		return
+	}
+	var rec LifecycleRecord
+	if err = dynamodbattribute.UnmarshalMap(result.Item, &rec); err != nil {
+		return
+	}
+	token = rec.Token
 	return
 }
 
@@ -295,9 +318,49 @@ func NewFleet(c *gin.Context, in *NewFleetInput) (ret *NewFleetOutput, err error
 	}
 	log.Print("Clearing activities table")
 	if err = clearActivitiesTable(c, fleet.ID); err != nil {
-	    log.Print(err)
-	    return
-    }
+		log.Print(err)
+		return
+	}
+	return
+}
+
+type AddUserInput struct {
+	SandboxID     string `path:"SandboxID" validate:"required"`
+	Authorization string `header:"Authorization" validate:"required"`
+	Email         string `json:"email" validate:"required"`
+	Password      string `json:"password" validate:"required"`
+	Name          string `json:"name" validate:"required"`
+}
+
+type AddUserOutput struct{}
+
+func AddUser(c *gin.Context, in *AddUserInput) (ret *AddUserOutput, err error) {
+	if in.Authorization != options.AuthorizationPSK {
+		err = errors.New("Unauthorized")
+		return
+	}
+	client, err := service.NewClient(fmt.Sprintf("https://%s.%s", in.SandboxID, options.FleetBaseURL), true, "", "")
+	if err != nil {
+		log.Print(err)
+		return
+	}
+	svc := dynamodb.New(session.New())
+	token, err := getToken(in.SandboxID, svc)
+	if err != nil {
+		log.Print(err)
+		return
+	}
+	client.SetToken(token)
+	err = client.CreateUser(fleet.UserPayload{
+		Password:                 ptr.String(in.Password),
+		Email:                    ptr.String(in.Email),
+		Name:                     ptr.String(in.Name),
+		SSOEnabled:               &[]bool{false}[0],
+		AdminForcedPasswordReset: &[]bool{false}[0],
+		APIOnly:                  &[]bool{false}[0],
+		GlobalRole:               ptr.String(fleet.RoleObserver),
+		Teams:                    &[]fleet.UserTeam{},
+	})
 	return
 }
 
@@ -343,5 +406,6 @@ func main() {
 	f.GET("/health", nil, tonic.Handler(Health, 200))
 	f.POST("/new", nil, tonic.Handler(NewFleet, 200))
 	f.GET("/expires", nil, tonic.Handler(GetExpiry, 200))
+	f.POST("/addUser/:SandboxID", nil, tonic.Handler(AddUser, 200))
 	algnhsa.ListenAndServe(r, nil)
 }
