@@ -115,10 +115,13 @@ module.exports.custom = {
     'website': 'mikermcneil',// (default for website)
     'website/views': 'eashaw',
     'website/assets': 'eashaw',
-    'website/config/routes.js': ['eashaw', 'mike-j-thomas', 'jarodreyes'],// (for managing website URLs)
     'website/package.json': 'eashaw',
     '.github/workflows/deploy-fleet-website.yml': ['eashaw','mikermcneil'],// (website deploy script)
     '.github/workflows/test-website.yml': ['eashaw','mikermcneil'],// (website CI test script)
+
+    'website/config/routes.js': ['eashaw', 'mike-j-thomas', 'jarodreyes'],// (for managing website URLs)
+
+    'website/api/controllers/imagine': ['eashaw', 'jarodreyes'],// landing pages
 
     'docs': ['zwass', 'mikermcneil', 'zhumo', 'jarodreyes', 'ksatter'],// (default for docs)
     'docs/images': ['noahtalerman', 'eashaw', 'mike-j-thomas'],
