@@ -1034,3 +1034,14 @@ spec:
   purpose: inventory
   tags: inventory
   contributors: zwass
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get Crowdstrike Falcon network content filter status
+  platform: darwin
+  description: Get the status of the Crowdstrike Falcon network content filter (as in "System Settings" > "Network > "Filters").
+  query: /* Load up the plist */ WITH extensions_plist AS (SELECT *, rowid FROM plist WHERE path = '/Library/Preferences/com.apple.networkextension.plist') /* Find the first "Enabled" key after the key indicating the crowdstrike app */ SELECT value AS enabled FROM extensions_plist WHERE subkey = 'Enabled' AND rowid > (SELECT rowid FROM extensions_plist WHERE value = 'com.crowdstrike.falcon.App') LIMIT 1;
+  purpose: Informational
+  tags: crowdstrike, plist, network, content filter
+  contributors: zwass
