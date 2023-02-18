@@ -31,7 +31,7 @@ go.mod @fleetdm/go
 /docs/Contributing/API-for-contributors.md @ksatter @lukeheath
 
 # Standard query library YAML
-/docs/01-Using-Fleet/standard-query-library/standard-query-library.yml @mikermcneil
+/docs/01-Using-Fleet/standard-query-library/standard-query-library.yml @zwass
 
 # Exapnded table documentation
 /schema @sharon-fdm 
