@@ -546,6 +546,16 @@ type IncreasePolicyAutomationIterationFunc func(ctx context.Context, policyID ui
 
 type OutdatedAutomationBatchFunc func(ctx context.Context) ([]fleet.PolicyFailure, error)
 
+type ListMDMAppleProfilesToInstallFunc func(ctx context.Context) ([]*fleet.MDMAppleProfilePayload, error)
+
+type ListMDMAppleProfilesToRemoveFunc func(ctx context.Context) ([]*fleet.MDMAppleProfilePayload, error)
+
+type UpsertMDMAppleHostProfileStatusFunc func(ctx context.Context, payload []fleet.MDMAppleBulkUpsertHostProfilePayload) error
+
+type GetMDMAppleProfilesContentsFunc func(ctx context.Context, profileIDs []uint) (map[uint]fleet.Mobileconfig, error)
+
+type UpdateMDMAppleHostProfileFunc func(ctx context.Context, profile *fleet.HostMDMAppleProfile) error
+
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
 	HealthCheckFuncInvoked bool
@@ -1344,6 +1354,21 @@ type DataStore struct {
 
 	OutdatedAutomationBatchFunc        OutdatedAutomationBatchFunc
 	OutdatedAutomationBatchFuncInvoked bool
+
+	ListMDMAppleProfilesToInstallFunc        ListMDMAppleProfilesToInstallFunc
+	ListMDMAppleProfilesToInstallFuncInvoked bool
+
+	ListMDMAppleProfilesToRemoveFunc        ListMDMAppleProfilesToRemoveFunc
+	ListMDMAppleProfilesToRemoveFuncInvoked bool
+
+	UpsertMDMAppleHostProfileStatusFunc        UpsertMDMAppleHostProfileStatusFunc
+	UpsertMDMAppleHostProfileStatusFuncInvoked bool
+
+	GetMDMAppleProfilesContentsFunc        GetMDMAppleProfilesContentsFunc
+	GetMDMAppleProfilesContentsFuncInvoked bool
+
+	UpdateMDMAppleHostProfileFunc        UpdateMDMAppleHostProfileFunc
+	UpdateMDMAppleHostProfileFuncInvoked bool
 }
 
 func (s *DataStore) HealthCheck() error {
@@ -2674,4 +2699,29 @@ func (s *DataStore) IncreasePolicyAutomationIteration(ctx context.Context, polic
 func (s *DataStore) OutdatedAutomationBatch(ctx context.Context) ([]fleet.PolicyFailure, error) {
 	s.OutdatedAutomationBatchFuncInvoked = true
 	return s.OutdatedAutomationBatchFunc(ctx)
+}
+
+func (s *DataStore) ListMDMAppleProfilesToInstall(ctx context.Context) ([]*fleet.MDMAppleProfilePayload, error) {
+	s.ListMDMAppleProfilesToInstallFuncInvoked = true
+	return s.ListMDMAppleProfilesToInstallFunc(ctx)
+}
+
+func (s *DataStore) ListMDMAppleProfilesToRemove(ctx context.Context) ([]*fleet.MDMAppleProfilePayload, error) {
+	s.ListMDMAppleProfilesToRemoveFuncInvoked = true
+	return s.ListMDMAppleProfilesToRemoveFunc(ctx)
+}
+
+func (s *DataStore) UpsertMDMAppleHostProfileStatus(ctx context.Context, payload []fleet.MDMAppleBulkUpsertHostProfilePayload) error {
+	s.UpsertMDMAppleHostProfileStatusFuncInvoked = true
+	return s.UpsertMDMAppleHostProfileStatusFunc(ctx, payload)
+}
+
+func (s *DataStore) GetMDMAppleProfilesContents(ctx context.Context, profileIDs []uint) (map[uint]fleet.Mobileconfig, error) {
+	s.GetMDMAppleProfilesContentsFuncInvoked = true
+	return s.GetMDMAppleProfilesContentsFunc(ctx, profileIDs)
+}
+
+func (s *DataStore) UpdateMDMAppleHostProfile(ctx context.Context, profile *fleet.HostMDMAppleProfile) error {
+	s.UpdateMDMAppleHostProfileFuncInvoked = true
+	return s.UpdateMDMAppleHostProfileFunc(ctx, profile)
 }

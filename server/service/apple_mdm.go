@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"mime/multipart"
@@ -1559,8 +1560,34 @@ func (svc *MDMAppleCheckinAndCommandService) DeclarativeManagement(*mdm.Request,
 // This method is executed after the request has been handled by nanomdm.
 //
 // [1]: https://developer.apple.com/documentation/devicemanagement/commands_and_queries
-func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(*mdm.Request, *mdm.CommandResults) (*mdm.Command, error) {
+func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Request, res *mdm.CommandResults) (*mdm.Command, error) {
+	switch res.RequestType {
+	case "InstallProfile":
+		return nil, svc.ds.UpdateMDMAppleHostProfile(r.Context, &fleet.HostMDMAppleProfile{
+			CommandUUID:   res.CommandUUID,
+			HostUUID:      res.UDID,
+			Status:        fleet.MDMAppleDeliveryStatusFromCommandStatus(res.Status),
+			Error:         svc.fmtErrorChain(res.ErrorChain),
+			OperationType: fleet.MDMAppleOperationTypeInstall,
+		})
+	case "RemoveProfile":
+		return nil, svc.ds.UpdateMDMAppleHostProfile(r.Context, &fleet.HostMDMAppleProfile{
+			CommandUUID:   res.CommandUUID,
+			HostUUID:      res.UDID,
+			Status:        fleet.MDMAppleDeliveryStatusFromCommandStatus(res.Status),
+			Error:         svc.fmtErrorChain(res.ErrorChain),
+			OperationType: fleet.MDMAppleOperationTypeRemove,
+		})
+	}
 	return nil, nil
+}
+
+func (svc *MDMAppleCheckinAndCommandService) fmtErrorChain(chain []mdm.ErrorChain) string {
+	var sb strings.Builder
+	for _, mdmErr := range chain {
+		sb.WriteString(fmt.Sprintf("%s (%d): %s\n", mdmErr.ErrorDomain, mdmErr.ErrorCode, mdmErr.USEnglishDescription))
+	}
+	return sb.String()
 }
 
 // MDMAppleCommander contains methods to enqueue commands managed by Fleet and
@@ -1680,3 +1707,92 @@ func (e *APNSDeliveryError) Error() string {
 func (e *APNSDeliveryError) Unwrap() error { return e.Err }
 
 func (e *APNSDeliveryError) StatusCode() int { return http.StatusBadGateway }
+
+func ReconcileProfiles(
+	ctx context.Context,
+	ds fleet.Datastore,
+	commander *MDMAppleCommander,
+	logger kitlog.Logger,
+) error {
+	// retrieve the profiles to install/remove.
+	toInstall, err := ds.ListMDMAppleProfilesToInstall(ctx)
+	if err != nil {
+		return err
+	}
+
+	toRemove, err := ds.ListMDMAppleProfilesToRemove(ctx)
+	if err != nil {
+		return err
+	}
+
+	// Aggregate all the hosts that need to install/remove
+	// profiles by operation type and profile.
+	//
+	// I considered doing this aggregation at the SQL layer
+	// instead (build a list of host uuids for each
+	// profile) but we're limited to use MySQL's CONCAT.
+	toGetContents := []uint{}
+	installMap := map[*fleet.MDMAppleProfilePayload][]string{}
+	for _, profile := range toInstall {
+		toGetContents = append(toGetContents, profile.ProfileID)
+		installMap[profile] = append(installMap[profile], profile.HostUUID)
+	}
+	removeMap := map[*fleet.MDMAppleProfilePayload][]string{}
+	for _, profile := range toRemove {
+		removeMap[profile] = append(removeMap[profile], profile.HostUUID)
+	}
+
+	// grab the contents of all the profiles we need to install
+	profileContents, err := ds.GetMDMAppleProfilesContents(ctx, toGetContents)
+	if err != nil {
+		return err
+	}
+
+	sentProfiles := []fleet.MDMAppleBulkUpsertHostProfilePayload{}
+	for p, hosts := range installMap {
+		commandUUID, err := commander.InstallProfile(ctx, hosts, profileContents[p.ProfileID])
+		if err != nil {
+			var e *APNSDeliveryError
+			if !errors.As(err, &e) {
+				level.Error(logger).Log("err", "installing profiles on devices", "details", err)
+				continue
+			}
+			level.Debug(logger).Log("err", "sending push notifications, profiles still enqueued to be installed", "details", err)
+
+		}
+		sentProfiles = append(
+			sentProfiles,
+			fleet.MDMAppleBulkUpsertHostProfilePayload{
+				ProfileID:     p.ProfileID,
+				HostUUIDs:     hosts,
+				OperationType: fleet.MDMAppleOperationTypeInstall,
+				Status:        fleet.MDMAppleDeliveryPending,
+				CommandUUID:   commandUUID,
+			},
+		)
+	}
+
+	for p, hosts := range removeMap {
+		commandUUID, err := commander.RemoveProfile(ctx, hosts, p.ProfileIdentifier)
+		if err != nil {
+			var e *APNSDeliveryError
+			if !errors.As(err, &e) {
+				level.Error(logger).Log("err", "removing profiles from devices", "details", err)
+				continue
+			}
+			level.Debug(logger).Log("err", "sending push notifications, profiles still enqueued to be removed", "details", err)
+		}
+		sentProfiles = append(
+			sentProfiles,
+			fleet.MDMAppleBulkUpsertHostProfilePayload{
+				ProfileID:     p.ProfileID,
+				HostUUIDs:     hosts,
+				OperationType: fleet.MDMAppleOperationTypeRemove,
+				Status:        fleet.MDMAppleDeliveryPending,
+				CommandUUID:   commandUUID,
+			},
+		)
+	}
+
+	return ds.UpsertMDMAppleHostProfileStatus(ctx, sentProfiles)
+}

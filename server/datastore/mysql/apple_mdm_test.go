@@ -27,6 +27,7 @@ func TestMDMAppleConfigProfile(t *testing.T) {
 		{"TestDeleteMDMAppleConfigProfile", testDeleteMDMAppleConfigProfile},
 		{"TestListMDMAppleConfigProfiles", testListMDMAppleConfigProfiles},
 		{"TestBatchSetMDMAppleProfiles", testBatchSetMDMAppleProfiles},
+		{"TestMDMAppleProfileManagement", testMDMAppleProfileManagement},
 	}
 
 	for _, c := range cases {
@@ -604,6 +605,148 @@ func configProfileForTest(t *testing.T, name, identifier, uuid string) *fleet.MD
 	cp, err := prof.ParseConfigProfile()
 	require.NoError(t, err)
 	return cp
+}
+
+func testMDMAppleProfileManagement(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	globalProfiles := []*fleet.MDMAppleConfigProfile{
+		configProfileForTest(t, "N1", "I1", "z"),
+		configProfileForTest(t, "N2", "I2", "b"),
+		configProfileForTest(t, "N3", "I3", "c"),
+	}
+	err := ds.BatchSetMDMAppleProfiles(ctx, nil, globalProfiles)
+	require.NoError(t, err)
+
+	// if there are no hosts, then no profiles need to be applied
+	profiles, err := ds.ListMDMAppleProfilesToInstall(ctx)
+	require.NoError(t, err)
+	require.Empty(t, profiles)
+
+	host1, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:      "test-host1-name",
+		OsqueryHostID: ptr.String("1337"),
+		NodeKey:       ptr.String("1337"),
+		UUID:          "test-uuid-1",
+		TeamID:        nil,
+	})
+	require.NoError(t, err)
+
+	// global profiles to install on the newly added host
+	profiles, err = ds.ListMDMAppleProfilesToInstall(ctx)
+	require.NoError(t, err)
+	require.ElementsMatch(t, []*fleet.MDMAppleProfilePayload{
+		{ProfileID: 1, HostUUID: "test-uuid-1"},
+		{ProfileID: 2, HostUUID: "test-uuid-1"},
+		{ProfileID: 3, HostUUID: "test-uuid-1"},
+	}, profiles)
+
+	// add another host, it belongs to a team
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "test team"})
+	require.NoError(t, err)
+	_, err = ds.NewHost(ctx, &fleet.Host{
+		Hostname:      "test-host2-name",
+		OsqueryHostID: ptr.String("1338"),
+		NodeKey:       ptr.String("1338"),
+		UUID:          "test-uuid-2",
+		TeamID:        &team.ID,
+	})
+	require.NoError(t, err)
+
+	// still the same profiles to assign as there are no profiles for team 1
+	profiles, err = ds.ListMDMAppleProfilesToInstall(ctx)
+	require.NoError(t, err)
+	require.ElementsMatch(t, []*fleet.MDMAppleProfilePayload{
+		{ProfileID: 1, HostUUID: "test-uuid-1"},
+		{ProfileID: 2, HostUUID: "test-uuid-1"},
+		{ProfileID: 3, HostUUID: "test-uuid-1"},
+	}, profiles)
+
+	// assign profiles to team 1
+	err = ds.BatchSetMDMAppleProfiles(ctx, &team.ID, []*fleet.MDMAppleConfigProfile{
+		configProfileForTest(t, "N4", "I4", "x"),
+		configProfileForTest(t, "N5", "I5", "y"),
+	})
+	require.NoError(t, err)
+
+	// new profiles, this time for the new host belonging to team 1
+	profiles, err = ds.ListMDMAppleProfilesToInstall(ctx)
+	require.NoError(t, err)
+	require.ElementsMatch(t, []*fleet.MDMAppleProfilePayload{
+		{ProfileID: 1, HostUUID: "test-uuid-1"},
+		{ProfileID: 2, HostUUID: "test-uuid-1"},
+		{ProfileID: 3, HostUUID: "test-uuid-1"},
+		{ProfileID: 4, HostUUID: "test-uuid-2"},
+		{ProfileID: 5, HostUUID: "test-uuid-2"},
+	}, profiles)
+
+	// add another global host
+	_, err = ds.NewHost(ctx, &fleet.Host{
+		Hostname:      "test-host3-name",
+		OsqueryHostID: ptr.String("1339"),
+		NodeKey:       ptr.String("1339"),
+		UUID:          "test-uuid-3",
+		TeamID:        nil,
+	})
+	require.NoError(t, err)
+
+	// more profiles, this time for both global hosts and the team
+	profiles, err = ds.ListMDMAppleProfilesToInstall(ctx)
+	require.NoError(t, err)
+	require.ElementsMatch(t, []*fleet.MDMAppleProfilePayload{
+		{ProfileID: 1, HostUUID: "test-uuid-1"},
+		{ProfileID: 2, HostUUID: "test-uuid-1"},
+		{ProfileID: 3, HostUUID: "test-uuid-1"},
+		{ProfileID: 4, HostUUID: "test-uuid-2"},
+		{ProfileID: 5, HostUUID: "test-uuid-2"},
+		{ProfileID: 1, HostUUID: "test-uuid-3"},
+		{ProfileID: 2, HostUUID: "test-uuid-3"},
+		{ProfileID: 3, HostUUID: "test-uuid-3"},
+	}, profiles)
+
+	// cron runs and updates the status
+	err = ds.UpsertMDMAppleHostProfileStatus(
+		ctx,
+		[]fleet.MDMAppleBulkUpsertHostProfilePayload{
+			{ProfileID: 1, HostUUIDs: []string{"test-uuid-1", "test-uuid-3"}, Status: fleet.MDMAppleDeliveryApplied, OperationType: fleet.MDMAppleOperationTypeInstall},
+			{ProfileID: 2, HostUUIDs: []string{"test-uuid-1", "test-uuid-3"}, Status: fleet.MDMAppleDeliveryApplied, OperationType: fleet.MDMAppleOperationTypeInstall},
+			{ProfileID: 3, HostUUIDs: []string{"test-uuid-1", "test-uuid-3"}, Status: fleet.MDMAppleDeliveryApplied, OperationType: fleet.MDMAppleOperationTypeInstall},
+			{ProfileID: 4, HostUUIDs: []string{"test-uuid-2"}, Status: fleet.MDMAppleDeliveryApplied, OperationType: fleet.MDMAppleOperationTypeInstall},
+			{ProfileID: 5, HostUUIDs: []string{"test-uuid-2"}, Status: fleet.MDMAppleDeliveryApplied, OperationType: fleet.MDMAppleOperationTypeInstall},
+		},
+	)
+	require.NoError(t, err)
+
+	// no profiles left to install
+	profiles, err = ds.ListMDMAppleProfilesToInstall(ctx)
+	require.NoError(t, err)
+	require.Empty(t, profiles)
+
+	// no profiles to remove yet
+	toRemove, err := ds.ListMDMAppleProfilesToRemove(ctx)
+	require.NoError(t, err)
+	require.Empty(t, toRemove)
+
+	// add host1 to team
+	err = ds.AddHostsToTeam(ctx, &team.ID, []uint{host1.ID})
+	require.NoError(t, err)
+
+	// profiles to be added for host1 are now related to the team
+	profiles, err = ds.ListMDMAppleProfilesToInstall(ctx)
+	require.NoError(t, err)
+	require.ElementsMatch(t, []*fleet.MDMAppleProfilePayload{
+		{ProfileID: 4, HostUUID: "test-uuid-1"},
+		{ProfileID: 5, HostUUID: "test-uuid-1"},
+	}, profiles)
+
+	// profiles to be removed includes host1's old profiles
+	toRemove, err = ds.ListMDMAppleProfilesToRemove(ctx)
+	require.NoError(t, err)
+	require.ElementsMatch(t, []*fleet.MDMAppleProfilePayload{
+		{ProfileID: 1, HostUUID: "test-uuid-1"},
+		{ProfileID: 2, HostUUID: "test-uuid-1"},
+		{ProfileID: 3, HostUUID: "test-uuid-1"},
+	}, toRemove)
+
 }
 
 // checkMDMHostRelatedTables checks that rows are inserted for new MDM hosts in

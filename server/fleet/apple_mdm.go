@@ -25,6 +25,34 @@ const (
 	MDMAppleEnrollmentTypeManual MDMAppleEnrollmentType = "manual"
 )
 
+type MDMAppleDeliveryStatus string
+
+const (
+	MDMAppleDeliveryFailed  MDMAppleDeliveryStatus = "failed"
+	MDMAppleDeliveryApplied MDMAppleDeliveryStatus = "applied"
+	MDMAppleDeliveryPending MDMAppleDeliveryStatus = "pending"
+)
+
+func MDMAppleDeliveryStatusFromCommandStatus(cmdStatus string) MDMAppleDeliveryStatus {
+	switch cmdStatus {
+	case "Acknowledged":
+		return MDMAppleDeliveryApplied
+	case "Error", "CommandFormatError":
+		return MDMAppleDeliveryFailed
+	case "Idle", "NotNow":
+		return MDMAppleDeliveryPending
+	default:
+		return ""
+	}
+}
+
+type MDMAppleOperationType string
+
+const (
+	MDMAppleOperationTypeInstall MDMAppleOperationType = "install"
+	MDMAppleOperationTypeRemove  MDMAppleOperationType = "remove"
+)
+
 // MDMAppleEnrollmentProfilePayload contains the data necessary to create
 // an enrollment profile in Fleet.
 type MDMAppleEnrollmentProfilePayload struct {
@@ -373,4 +401,28 @@ func (cp MDMAppleConfigProfile) ScreenPayloadTypes() error {
 	}
 
 	return nil
+}
+
+// HostMDMAppleProfile represents the status of an Apple MDM profile in a host.
+type HostMDMAppleProfile struct {
+	HostUUID      string
+	CommandUUID   string
+	ProfileID     uint
+	Status        MDMAppleDeliveryStatus
+	OperationType MDMAppleOperationType
+	Error         string
+}
+
+type MDMAppleProfilePayload struct {
+	ProfileID         uint   `db:"profile_id"`
+	ProfileIdentifier string `db:"profile_identifier"`
+	HostUUID          string `db:"host_uuid"`
+}
+
+type MDMAppleBulkUpsertHostProfilePayload struct {
+	ProfileID     uint
+	HostUUIDs     []string
+	CommandUUID   string
+	OperationType MDMAppleOperationType
+	Status        MDMAppleDeliveryStatus
 }

@@ -704,6 +704,99 @@ func TestMDMCheckout(t *testing.T) {
 	require.True(t, ds.NewActivityFuncInvoked)
 }
 
+func TestMDMCommandAndReportResultsProfileHandling(t *testing.T) {
+	ds := new(mock.Store)
+	svc := MDMAppleCheckinAndCommandService{ds: ds}
+	ctx := context.Background()
+	hostUUID := "ABC-DEF-GHI"
+	commandUUID := "COMMAND-UUID"
+
+	cases := []struct {
+		status      string
+		requestType string
+		errors      []mdm.ErrorChain
+		want        *fleet.HostMDMAppleProfile
+	}{
+		{
+			status:      "Acknowledged",
+			requestType: "InstallProfile",
+			errors:      nil,
+			want: &fleet.HostMDMAppleProfile{
+				Status:        fleet.MDMAppleDeliveryApplied,
+				Error:         "",
+				OperationType: fleet.MDMAppleOperationTypeInstall,
+			},
+		},
+		{
+			status:      "Acknowledged",
+			requestType: "RemoveProfile",
+			errors:      nil,
+			want: &fleet.HostMDMAppleProfile{
+				Status:        fleet.MDMAppleDeliveryApplied,
+				Error:         "",
+				OperationType: fleet.MDMAppleOperationTypeRemove,
+			},
+		},
+		{
+			status:      "Error",
+			requestType: "InstallProfile",
+			errors: []mdm.ErrorChain{
+				{ErrorCode: 123, ErrorDomain: "testDomain", USEnglishDescription: "testMessage"},
+			},
+			want: &fleet.HostMDMAppleProfile{
+				Status:        fleet.MDMAppleDeliveryFailed,
+				Error:         "testDomain (123): testMessage\n",
+				OperationType: fleet.MDMAppleOperationTypeInstall,
+			},
+		},
+		{
+			status:      "Error",
+			requestType: "RemoveProfile",
+			errors: []mdm.ErrorChain{
+				{ErrorCode: 123, ErrorDomain: "testDomain", USEnglishDescription: "testMessage"},
+				{ErrorCode: 321, ErrorDomain: "domainTest", USEnglishDescription: "messageTest"},
+			},
+			want: &fleet.HostMDMAppleProfile{
+				Status:        fleet.MDMAppleDeliveryFailed,
+				Error:         "testDomain (123): testMessage\ndomainTest (321): messageTest\n",
+				OperationType: fleet.MDMAppleOperationTypeRemove,
+			},
+		},
+		{
+			status:      "Error",
+			requestType: "RemoveProfile",
+			errors:      nil,
+			want: &fleet.HostMDMAppleProfile{
+				Status:        fleet.MDMAppleDeliveryFailed,
+				Error:         "",
+				OperationType: fleet.MDMAppleOperationTypeRemove,
+			},
+		},
+	}
+
+	for _, c := range cases {
+		ds.UpdateMDMAppleHostProfileFunc = func(ctx context.Context, profile *fleet.HostMDMAppleProfile) error {
+			c.want.CommandUUID = commandUUID
+			c.want.HostUUID = hostUUID
+			require.Equal(t, c.want, profile)
+			return nil
+		}
+
+		_, err := svc.CommandAndReportResults(
+			&mdm.Request{Context: ctx},
+			&mdm.CommandResults{
+				Enrollment:  mdm.Enrollment{UDID: hostUUID},
+				CommandUUID: commandUUID,
+				Status:      c.status,
+				RequestType: c.requestType,
+				ErrorChain:  c.errors,
+			},
+		)
+		require.NoError(t, err)
+	}
+
+}
+
 func TestMDMBatchSetAppleProfiles(t *testing.T) {
 	svc, ctx, ds := setupAppleMDMService(t)
 
@@ -1018,6 +1111,126 @@ func TestMDMAppleCommander(t *testing.T) {
 	mdmStorage.RetrievePushInfoFuncInvoked = false
 	require.NotEmpty(t, uuid)
 	require.NoError(t, err)
+}
+
+func TestMDMAppleReconcileProfiles(t *testing.T) {
+	ctx := context.Background()
+	mdmStorage := &nanomdm_mock.Storage{}
+	ds := new(mock.Store)
+	pushFactory, _ := newMockAPNSPushProviderFactory()
+	pusher := nanomdm_pushsvc.New(
+		mdmStorage,
+		mdmStorage,
+		pushFactory,
+		NewNanoMDMLogger(kitlog.NewNopLogger()),
+	)
+	cmdr := NewMDMAppleCommander(mdmStorage, pusher)
+	hostUUID := "ABC-DEF"
+	contents1 := []byte("test-content-1")
+	contents1Base64 := base64.StdEncoding.EncodeToString(contents1)
+	contents2 := []byte("test-content-2")
+	contents2Base64 := base64.StdEncoding.EncodeToString(contents2)
+
+	ds.ListMDMAppleProfilesToInstallFunc = func(ctx context.Context) ([]*fleet.MDMAppleProfilePayload, error) {
+		return []*fleet.MDMAppleProfilePayload{
+			{ProfileID: 1, ProfileIdentifier: "com.add.profile", HostUUID: hostUUID},
+			{ProfileID: 2, ProfileIdentifier: "com.add.profile.two", HostUUID: hostUUID},
+		}, nil
+	}
+
+	ds.ListMDMAppleProfilesToRemoveFunc = func(ctx context.Context) ([]*fleet.MDMAppleProfilePayload, error) {
+		return []*fleet.MDMAppleProfilePayload{
+			{ProfileID: 3, ProfileIdentifier: "com.remove.profile", HostUUID: hostUUID},
+		}, nil
+	}
+
+	ds.GetMDMAppleProfilesContentsFunc = func(ctx context.Context, profileIDs []uint) (map[uint]fleet.Mobileconfig, error) {
+		require.ElementsMatch(t, []uint{1, 2}, profileIDs)
+		return map[uint]fleet.Mobileconfig{
+			1: contents1,
+			2: contents2,
+		}, nil
+	}
+
+	removeProfileCalls := 0
+	installProfileCalls := 0
+	commandUUIDs := []string{}
+	mdmStorage.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.Command) (map[string]error, error) {
+		require.NotNil(t, cmd)
+		require.ElementsMatch(t, []string{hostUUID}, id)
+		commandUUIDs = append(commandUUIDs, cmd.CommandUUID)
+
+		switch cmd.Command.RequestType {
+		case "InstallProfile":
+			installProfileCalls++
+			if !strings.Contains(string(cmd.Raw), contents1Base64) && !strings.Contains(string(cmd.Raw), contents2Base64) {
+				require.Failf(t, "profile contents don't match", "expected to contain %s or %s but got %s", contents1Base64, contents2Base64, string(cmd.Raw))
+			}
+		case "RemoveProfile":
+			removeProfileCalls++
+			require.Contains(t, string(cmd.Raw), "com.remove.profile")
+		}
+		return nil, nil
+	}
+
+	mdmStorage.RetrievePushInfoFunc = func(ctx context.Context, tokens []string) (map[string]*mdm.Push, error) {
+		res := make(map[string]*mdm.Push, len(tokens))
+		for _, t := range tokens {
+			res[t] = &mdm.Push{
+				PushMagic: "",
+				Token:     []byte(t),
+				Topic:     "",
+			}
+		}
+		return res, nil
+	}
+	mdmStorage.RetrievePushCertFunc = func(ctx context.Context, topic string) (*tls.Certificate, string, error) {
+		cert, err := tls.LoadX509KeyPair("testdata/server.pem", "testdata/server.key")
+		return &cert, "", err
+	}
+	mdmStorage.IsPushCertStaleFunc = func(ctx context.Context, topic string, staleToken string) (bool, error) {
+		return false, nil
+	}
+
+	ds.UpsertMDMAppleHostProfileStatusFunc = func(ctx context.Context, payload []fleet.MDMAppleBulkUpsertHostProfilePayload) error {
+		require.ElementsMatch(t, []fleet.MDMAppleBulkUpsertHostProfilePayload{
+			{
+				ProfileID:     1,
+				HostUUIDs:     []string{hostUUID},
+				OperationType: fleet.MDMAppleOperationTypeInstall,
+				Status:        fleet.MDMAppleDeliveryPending,
+				CommandUUID:   commandUUIDs[0],
+			},
+			{
+				ProfileID:     2,
+				HostUUIDs:     []string{hostUUID},
+				OperationType: fleet.MDMAppleOperationTypeInstall,
+				Status:        fleet.MDMAppleDeliveryPending,
+				CommandUUID:   commandUUIDs[1],
+			},
+			{
+				ProfileID:     3,
+				HostUUIDs:     []string{hostUUID},
+				OperationType: fleet.MDMAppleOperationTypeRemove,
+				Status:        fleet.MDMAppleDeliveryPending,
+				CommandUUID:   commandUUIDs[2],
+			},
+		}, payload)
+		return nil
+	}
+
+	// TODO(roberto): there's a data race in the mock when more
+	// than one host ID is provided because the pusher uses one
+	// goroutine per uuid to send the commands
+	err := ReconcileProfiles(ctx, ds, cmdr, kitlog.NewNopLogger())
+	require.NoError(t, err)
+	require.True(t, ds.ListMDMAppleProfilesToInstallFuncInvoked)
+	require.True(t, ds.ListMDMAppleProfilesToRemoveFuncInvoked)
+	require.True(t, ds.GetMDMAppleProfilesContentsFuncInvoked)
+	require.Equal(t, 1, removeProfileCalls)
+	require.Equal(t, 2, installProfileCalls)
+	require.True(t, ds.UpsertMDMAppleHostProfileStatusFuncInvoked)
+
 }
 
 func mobileconfigForTest(name, identifier string) []byte {

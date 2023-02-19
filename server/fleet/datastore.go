@@ -776,6 +776,28 @@ type Datastore interface {
 
 	// OutdatedAutomationBatch returns a batch of hosts that had a failing policy.
 	OutdatedAutomationBatch(ctx context.Context) ([]PolicyFailure, error)
+
+	// ListMDMAppleProfilesToInstall returns all the profiles that should
+	// be installed based on diffing the ideal state vs the state we have
+	// registered in `host_mdm_apple_profiles`
+	ListMDMAppleProfilesToInstall(ctx context.Context) ([]*MDMAppleProfilePayload, error)
+
+	// ListMDMAppleProfilesToRemove returns all the profiles that should
+	// be removed based on diffing the ideal state vs the state we have
+	// registered in `host_mdm_apple_profiles`
+	ListMDMAppleProfilesToRemove(ctx context.Context) ([]*MDMAppleProfilePayload, error)
+
+	// UpsertMDMAppleHostProfileStatus bulk-adds/updates records to track the
+	// status of a profile in a host.
+	UpsertMDMAppleHostProfileStatus(ctx context.Context, payload []MDMAppleBulkUpsertHostProfilePayload) error
+
+	// GetMDMAppleProfilesContents retrieves the XML contents of the
+	// profiles requested.
+	GetMDMAppleProfilesContents(ctx context.Context, profileIDs []uint) (map[uint]Mobileconfig, error)
+
+	// UpdateMDMAppleHostProfile updates information about a single profile
+	// status.
+	UpdateMDMAppleHostProfile(ctx context.Context, profile *HostMDMAppleProfile) error
 }
 
 const (

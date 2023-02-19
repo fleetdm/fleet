@@ -875,3 +875,102 @@ VALUES
 		return nil
 	})
 }
+
+func (ds *Datastore) ListMDMAppleProfilesToInstall(ctx context.Context) ([]*fleet.MDMAppleProfilePayload, error) {
+	query := `
+          SELECT macp.profile_id, h.uuid as host_uuid
+          FROM mdm_apple_configuration_profiles macp
+          LEFT JOIN hosts h
+              ON h.team_id = macp.team_id OR (h.team_id IS NULL AND macp.team_id = 0)
+          LEFT JOIN host_mdm_apple_profiles hmap
+              ON hmap.profile_id = macp.profile_id AND hmap.host_uuid = h.uuid
+          WHERE
+	    hmap.profile_id IS NULL
+	    AND hmap.host_uuid IS NULL
+	    AND hmap.status != 'pending' OR hmap.status IS NULL
+	    AND hmap.operation_type != 'install' OR hmap.operation_type IS NULL
+	    -- accounts for the edge case of having profiles but not having hosts 
+	    AND h.uuid IS NOT NULL
+	`
+
+	var profiles []*fleet.MDMAppleProfilePayload
+	err := sqlx.SelectContext(ctx, ds.reader, &profiles, query)
+	return profiles, err
+}
+
+func (ds *Datastore) ListMDMAppleProfilesToRemove(ctx context.Context) ([]*fleet.MDMAppleProfilePayload, error) {
+	query := `
+          SELECT hmap.profile_id, hmap.host_uuid, macp.identifier as profile_identifier
+          FROM mdm_apple_configuration_profiles macp
+          LEFT JOIN hosts h
+              ON h.team_id = macp.team_id OR (h.team_id IS NULL AND macp.team_id = 0)
+          RIGHT JOIN host_mdm_apple_profiles hmap
+              ON hmap.profile_id = macp.profile_id AND hmap.host_uuid = h.uuid
+          WHERE
+	      macp.profile_id IS NULL
+	      AND h.uuid IS NULL
+	      AND hmap.status != 'pending' OR hmap.status IS NULL
+	      AND hmap.operation_type != 'remove'
+	`
+
+	var profiles []*fleet.MDMAppleProfilePayload
+	err := sqlx.SelectContext(ctx, ds.reader, &profiles, query)
+	return profiles, err
+}
+
+func (ds *Datastore) GetMDMAppleProfilesContents(ctx context.Context, ids []uint) (map[uint]fleet.Mobileconfig, error) {
+	stmt := `
+          SELECT profile_id, mobileconfig as mobileconfig
+          FROM mdm_apple_configuration_profiles WHERE profile_id IN (?)
+	`
+	query, args, err := sqlx.In(stmt, ids)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := ds.reader.QueryxContext(ctx, query, args)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	results := make(map[uint]fleet.Mobileconfig)
+	for rows.Next() {
+		var id uint
+		var mobileconfig fleet.Mobileconfig
+		if err := rows.Scan(&id, &mobileconfig); err != nil {
+			return nil, err
+		}
+		results[id] = mobileconfig
+	}
+	return results, nil
+}
+
+func (ds *Datastore) UpsertMDMAppleHostProfileStatus(ctx context.Context, payload []fleet.MDMAppleBulkUpsertHostProfilePayload) error {
+	var args []any
+	var sb strings.Builder
+
+	for _, p := range payload {
+		for _, uuid := range p.HostUUIDs {
+			args = append(args, p.ProfileID, uuid, p.Status, p.OperationType)
+			sb.WriteString("(?, ?, ?, ?),")
+		}
+	}
+
+	stmt := fmt.Sprintf(`
+	    INSERT INTO host_mdm_apple_profiles (profile_id, host_uuid, status, operation_type)
+            VALUES %s
+	    ON DUPLICATE KEY UPDATE status = VALUES(status), operation_type = VALUES(operation_type)`,
+		strings.TrimSuffix(sb.String(), ","),
+	)
+
+	_, err := ds.writer.ExecContext(ctx, stmt, args...)
+	return err
+}
+
+func (ds *Datastore) UpdateMDMAppleHostProfile(ctx context.Context, profile *fleet.HostMDMAppleProfile) error {
+	_, err := ds.writer.ExecContext(ctx, `
+          UPDATE host_mdm_apple_profiles
+          SET status = ?, operation_type = ?, error = ?
+          WHERE host_uuid = ? AND command_uuid = ?
+        `, profile.Status, profile.OperationType, profile.Error, profile.HostUUID, profile.CommandUUID)
+	return err
+}
