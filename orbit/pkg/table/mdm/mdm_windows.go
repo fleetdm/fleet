@@ -548,23 +548,11 @@ func enableCmdExecution() error {
 	// initialize MDM stack management by generating SHA256 hash of SMBIOS UUID and calling RegisterDeviceWithLocalManagement()
 	// this is wrapped by sync.Once so it only executes once
 	mdmManagementStackInit.Do(func() {
-		// generate SHA256 hash of UUID bytes
-		workHash, err := getUUIDhash()
-		if err != nil {
-			log.Debug().Err(err).Msg("there was an issue generating the UUID hash")
-			return
-		}
-
-		// making the UUID hash to be globally accessible
-		if len(workHash) > 0 {
-			uuidHash = workHash
-		}
-
 		// making sure that COM is initialized
-		err = windows.CoInitializeEx(0, windows.COINIT_MULTITHREADED)
+		// this is a best effort call as COM stack could have been initialized already by other components
+		err := windows.CoInitializeEx(0, windows.COINIT_MULTITHREADED)
 		if err != nil {
 			log.Error().Msgf("there was an error calling CoInitializeEx(): (%s)", err)
-			return
 		}
 
 		// calling RegisterDeviceWithLocalManagement() to initialize the MDM stack
@@ -574,6 +562,18 @@ func enableCmdExecution() error {
 		if returnCode, _, _ := procRegisterDeviceWithLocalManagement.Call(uintptr(unsafe.Pointer(nil))); returnCode != uintptr(windows.ERROR_SUCCESS) {
 			log.Error().Msgf("there was an error calling RegisterDeviceWithLocalManagement(): (0x%X)", returnCode)
 			return
+		}
+
+		// generate SHA256 hash of UUID bytes
+		workHash, err := getUUIDhash()
+		if err != nil {
+			log.Error().Err(err).Msg("there was an issue generating the UUID hash")
+			return
+		}
+
+		// making the UUID hash to be globally accessible
+		if len(workHash) > 0 {
+			uuidHash = workHash
 		}
 	})
 
