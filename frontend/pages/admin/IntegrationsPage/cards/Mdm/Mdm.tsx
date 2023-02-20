@@ -15,43 +15,35 @@ import Spinner from "components/Spinner";
 import DataError from "components/DataError";
 import Icon from "components/Icon";
 import TooltipWrapper from "components/TooltipWrapper";
+import { readableDate } from "utilities/helpers";
 
 import RequestCSRModal from "./components/RequestCSRModal";
 import EditTeamModal from "./components/EditTeamModal";
 
-// MDM TODO: key validation?
-// import { isValidKeys } from "../../..";
+interface IABMKeys {
+  decodedPublic: string;
+  decodedPrivate: string;
+}
 
 const baseClass = "mdm-integrations";
 
-const readableDate = (date: string) => {
-  const dateString = new Date(date);
-
-  return new Intl.DateTimeFormat(navigator.language, {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  }).format(dateString);
-};
-
 const Mdm = (): JSX.Element => {
-  const { isPremiumTier } = useContext(AppContext);
+  const { isPremiumTier, config } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
   const [showRequestCSRModal, setShowRequestCSRModal] = useState(false);
   const [showEditTeamModal, setShowEditTeamModal] = useState(false);
-
-  const [showCSRFlag, setShowCSRFlag] = useState(true);
+  const [defaultTeamName, setDefaultTeamName] = useState("No team");
 
   const {
-    data: mdmApple,
+    data: appleAPNInfo,
     isLoading: isLoadingMdmApple,
     error: errorMdmApple,
   } = useQuery<IMdmApple, Error, IMdmApple>(
-    ["mdmAppleAPI"],
+    ["appleAPNInfo"],
     () => mdmAppleAPI.getAppleAPNInfo(),
     {
-      enabled: isPremiumTier,
+      enabled: isPremiumTier && config?.mdm.enabled_and_configured,
       staleTime: 5000,
     }
   );
@@ -64,17 +56,19 @@ const Mdm = (): JSX.Element => {
     ["mdmAppleBmAPI"],
     () => mdmAppleBmAPI.getAppleBMInfo(),
     {
-      enabled: isPremiumTier,
+      enabled: isPremiumTier && config?.mdm.enabled_and_configured,
       staleTime: 5000,
+      onSuccess: (appleBmData) => {
+        setDefaultTeamName(appleBmData.default_team ?? "No team");
+      },
     }
   );
 
-  // MDM TODO: Test manually after backend is merged
   const {
     data: keys,
     error: fetchKeysError,
     isFetching: isFetchingKeys,
-  } = useQuery<string, Error>(["keys"], () => mdmAppleBmAPI.loadKeys(), {
+  } = useQuery<IABMKeys, Error>(["keys"], () => mdmAppleBmAPI.loadKeys(), {
     enabled: isPremiumTier,
     refetchOnWindowFocus: false,
   });
@@ -100,18 +94,32 @@ const Mdm = (): JSX.Element => {
     }
 
     if (keys) {
-      // MDM TODO: Validate keys like we validate certificates?
-      // if (keys && isValidKeys(keys)) {
-      const filename = "fleet.pem";
-      const file = new global.window.File([keys], filename, {
-        type: "application/x-pem-file",
-      });
+      const publicFilename = "fleet-apple-mdm-bm-public-key.crt";
+      const publicFile = new global.window.File(
+        [keys.decodedPublic],
+        publicFilename,
+        {
+          type: "application/x-pem-file",
+        }
+      );
 
-      FileSaver.saveAs(file);
+      const privateFilename = "fleet-apple-mdm-bm-private.key";
+      const privateFile = new global.window.File(
+        [keys.decodedPrivate],
+        privateFilename,
+        {
+          type: "application/x-pem-file",
+        }
+      );
+
+      FileSaver.saveAs(publicFile);
+      setTimeout(() => {
+        FileSaver.saveAs(privateFile);
+      }, 100);
     } else {
       renderFlash(
         "error",
-        "Your MDM business manager keys could not be downloaded. Please TODO ACTION."
+        "Your MDM business manager keys could not be downloaded. Please try again."
       );
     }
     return false;
@@ -122,7 +130,7 @@ const Mdm = (): JSX.Element => {
       return <DataError />;
     }
 
-    if (!mdmApple || showCSRFlag) {
+    if (!appleAPNInfo) {
       return (
         <>
           <div className={`${baseClass}__section-description`}>
@@ -156,7 +164,11 @@ const Mdm = (): JSX.Element => {
             </p>
             <p>
               5. Deploy Fleet with <b>mdm</b> configuration.{" "}
-              <CustomLink url="https://www.youtube.com" text="See how" newTab />
+              <CustomLink
+                url="https://fleetdm.com/docs/deploying/configuration#mobile-device-management-mdm"
+                text="See how"
+                newTab
+              />
             </p>
           </div>
         </>
@@ -171,13 +183,13 @@ const Mdm = (): JSX.Element => {
         </div>
         <div className={`${baseClass}__section-information`}>
           <h4>Common name (CN)</h4>
-          <p>{mdmApple.common_name}</p>
+          <p>{appleAPNInfo.common_name}</p>
           <h4>Serial number</h4>
-          <p>{mdmApple.serial_number}</p>
+          <p>{appleAPNInfo.serial_number}</p>
           <h4>Issuer</h4>
-          <p>{mdmApple.issuer}</p>
+          <p>{appleAPNInfo.issuer}</p>
           <h4>Renew date</h4>
-          <p>{readableDate(mdmApple.renew_date)}</p>
+          <p>{readableDate(appleAPNInfo.renew_date)}</p>
         </div>
       </>
     );
@@ -193,7 +205,7 @@ const Mdm = (): JSX.Element => {
         <>
           <div className={`${baseClass}__section-description`}>
             Connect Fleet to your Apple Business Manager account to
-            automatically enroll macOS hosts to Fleet when they’re first
+            automatically enroll macOS hosts to Fleet when they&apos;re first
             unboxed.
           </div>
           <div className={`${baseClass}__section-instructions`}>
@@ -209,7 +221,7 @@ const Mdm = (): JSX.Element => {
                 newTab
               />
               <br />
-              If your organization doesn’t have an account, select{" "}
+              If your organization doesn&apos;t have an account, select{" "}
               <b>Enroll now</b>.
             </p>
             <p>
@@ -219,7 +231,7 @@ const Mdm = (): JSX.Element => {
             <p>
               4. Deploy Fleet with <b>mdm</b> configuration.{" "}
               <CustomLink
-                url="https://business.apple.com/"
+                url="https://fleetdm.com/docs/deploying/configuration#mobile-device-management-mdm"
                 text="See how"
                 newTab
               />
@@ -242,7 +254,7 @@ const Mdm = (): JSX.Element => {
             </TooltipWrapper>
           </h4>
           <p>
-            {mdmAppleBm.default_team || "No team"}{" "}
+            {defaultTeamName}{" "}
             <Button
               className={`${baseClass}__edit-team-btn`}
               onClick={toggleEditTeamModal}
@@ -254,8 +266,8 @@ const Mdm = (): JSX.Element => {
           <h4>Apple ID</h4>
           <p>{mdmAppleBm.apple_id}</p>
           <h4>Organization name</h4>
-          <p>{mdmAppleBm.organization_name}</p>
-          <h4>MDM Server URL</h4>
+          <p>{mdmAppleBm.org_name}</p>
+          <h4>MDM server URL</h4>
           <p>{mdmAppleBm.mdm_server_url}</p>
           <h4>Renew date</h4>
           <p>{readableDate(mdmAppleBm.renew_date)}</p>
@@ -277,15 +289,15 @@ const Mdm = (): JSX.Element => {
         </div>
       )}
       {showRequestCSRModal && (
-        <RequestCSRModal
-          onCancel={toggleRequestCSRModal}
-          setShowCSRFlag={setShowCSRFlag}
-        />
+        <RequestCSRModal onCancel={toggleRequestCSRModal} />
       )}
       {showEditTeamModal && (
         <EditTeamModal
           onCancel={toggleEditTeamModal}
-          onEdit={toggleEditTeamModal}
+          defaultTeamName={defaultTeamName}
+          onUpdateSuccess={(newDefaultTeamName) =>
+            setDefaultTeamName(newDefaultTeamName)
+          }
         />
       )}
     </div>

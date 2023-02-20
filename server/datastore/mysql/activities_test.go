@@ -3,6 +3,7 @@ package mysql
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"sort"
 	"testing"
 
@@ -23,6 +24,7 @@ func TestActivity(t *testing.T) {
 		{"New", testActivityNew},
 		{"ListActivitiesStreamed", testListActivitiesStreamed},
 		{"EmptyUser", testActivityEmptyUser},
+		{"PaginationMetadata", testActivityPaginationMetadata},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -73,7 +75,7 @@ func testActivityUsernameChange(t *testing.T, ds *Datastore) {
 		details: map[string]interface{}{"detail": 2},
 	}))
 
-	activities, err := ds.ListActivities(context.Background(), fleet.ListActivitiesOptions{})
+	activities, _, err := ds.ListActivities(context.Background(), fleet.ListActivitiesOptions{})
 	require.NoError(t, err)
 	assert.Len(t, activities, 2)
 	assert.Equal(t, "fullname", *activities[0].ActorFullName)
@@ -82,7 +84,7 @@ func testActivityUsernameChange(t *testing.T, ds *Datastore) {
 	err = ds.SaveUser(context.Background(), u)
 	require.NoError(t, err)
 
-	activities, err = ds.ListActivities(context.Background(), fleet.ListActivitiesOptions{})
+	activities, _, err = ds.ListActivities(context.Background(), fleet.ListActivitiesOptions{})
 	require.NoError(t, err)
 	assert.Len(t, activities, 2)
 	assert.Equal(t, "newname", *activities[0].ActorFullName)
@@ -92,7 +94,7 @@ func testActivityUsernameChange(t *testing.T, ds *Datastore) {
 	err = ds.DeleteUser(context.Background(), u.ID)
 	require.NoError(t, err)
 
-	activities, err = ds.ListActivities(context.Background(), fleet.ListActivitiesOptions{})
+	activities, _, err = ds.ListActivities(context.Background(), fleet.ListActivitiesOptions{})
 	require.NoError(t, err)
 	assert.Len(t, activities, 2)
 	assert.Equal(t, "fullname", *activities[0].ActorFullName)
@@ -123,7 +125,7 @@ func testActivityNew(t *testing.T, ds *Datastore) {
 			PerPage: 1,
 		},
 	}
-	activities, err := ds.ListActivities(context.Background(), opt)
+	activities, _, err := ds.ListActivities(context.Background(), opt)
 	require.NoError(t, err)
 	assert.Len(t, activities, 1)
 	assert.Equal(t, "fullname", *activities[0].ActorFullName)
@@ -135,7 +137,7 @@ func testActivityNew(t *testing.T, ds *Datastore) {
 			PerPage: 1,
 		},
 	}
-	activities, err = ds.ListActivities(context.Background(), opt)
+	activities, _, err = ds.ListActivities(context.Background(), opt)
 	require.NoError(t, err)
 	assert.Len(t, activities, 1)
 	assert.Equal(t, "fullname", *activities[0].ActorFullName)
@@ -147,7 +149,7 @@ func testActivityNew(t *testing.T, ds *Datastore) {
 			PerPage: 10,
 		},
 	}
-	activities, err = ds.ListActivities(context.Background(), opt)
+	activities, _, err = ds.ListActivities(context.Background(), opt)
 	require.NoError(t, err)
 	assert.Len(t, activities, 2)
 }
@@ -175,7 +177,7 @@ func testListActivitiesStreamed(t *testing.T, ds *Datastore) {
 		details: map[string]interface{}{"detail": 3},
 	}))
 
-	activities, err := ds.ListActivities(context.Background(), fleet.ListActivitiesOptions{})
+	activities, _, err := ds.ListActivities(context.Background(), fleet.ListActivitiesOptions{})
 	require.NoError(t, err)
 	assert.Len(t, activities, 3)
 
@@ -187,14 +189,14 @@ func testListActivitiesStreamed(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Reload activities (with streamed field updated).
-	activities, err = ds.ListActivities(context.Background(), fleet.ListActivitiesOptions{})
+	activities, _, err = ds.ListActivities(context.Background(), fleet.ListActivitiesOptions{})
 	require.NoError(t, err)
 	assert.Len(t, activities, 3)
 	sort.Slice(activities, func(i, j int) bool {
 		return activities[i].ID < activities[j].ID
 	})
 
-	nonStreamed, err := ds.ListActivities(context.Background(), fleet.ListActivitiesOptions{
+	nonStreamed, _, err := ds.ListActivities(context.Background(), fleet.ListActivitiesOptions{
 		Streamed: ptr.Bool(false),
 	})
 	require.NoError(t, err)
@@ -202,7 +204,7 @@ func testListActivitiesStreamed(t *testing.T, ds *Datastore) {
 	require.Equal(t, nonStreamed[0], activities[1])
 	require.Equal(t, nonStreamed[1], activities[2])
 
-	streamed, err := ds.ListActivities(context.Background(), fleet.ListActivitiesOptions{
+	streamed, _, err := ds.ListActivities(context.Background(), fleet.ListActivitiesOptions{
 		Streamed: ptr.Bool(true),
 	})
 	require.NoError(t, err)
@@ -215,7 +217,75 @@ func testActivityEmptyUser(t *testing.T, ds *Datastore) {
 		name:    "test1",
 		details: map[string]interface{}{"detail": 1, "sometext": "aaa"},
 	}))
-	activities, err := ds.ListActivities(context.Background(), fleet.ListActivitiesOptions{})
+	activities, _, err := ds.ListActivities(context.Background(), fleet.ListActivitiesOptions{})
 	require.NoError(t, err)
 	assert.Len(t, activities, 1)
+}
+
+func testActivityPaginationMetadata(t *testing.T, ds *Datastore) {
+	for i := 0; i < 3; i++ {
+		require.NoError(t, ds.NewActivity(context.Background(), nil, dummyActivity{
+			name:    fmt.Sprintf("test-%d", i),
+			details: map[string]interface{}{},
+		}))
+	}
+
+	cases := []struct {
+		name  string
+		opts  fleet.ListOptions
+		count int
+		meta  *fleet.PaginationMetadata
+	}{
+		{
+			"default options",
+			fleet.ListOptions{PerPage: 0},
+			3,
+			&fleet.PaginationMetadata{},
+		},
+		{
+			"per page 2",
+			fleet.ListOptions{PerPage: 2},
+			2,
+			&fleet.PaginationMetadata{HasNextResults: true},
+		},
+		{
+			"per page 2 - page 1",
+			fleet.ListOptions{PerPage: 2, Page: 1},
+			1,
+			&fleet.PaginationMetadata{HasPreviousResults: true},
+		},
+		{
+			"per page 3",
+			fleet.ListOptions{PerPage: 3},
+			3,
+			&fleet.PaginationMetadata{},
+		},
+		{
+			`after "0" - orderKey "a.id"`,
+			fleet.ListOptions{After: "0", OrderKey: "a.id"},
+			3,
+			nil,
+		},
+		{
+			"per page 4",
+			fleet.ListOptions{PerPage: 4},
+			3,
+			&fleet.PaginationMetadata{},
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			activities, metadata, err := ds.ListActivities(context.Background(), fleet.ListActivitiesOptions{ListOptions: c.opts})
+			require.NoError(t, err)
+			assert.Len(t, activities, c.count)
+			if c.meta == nil {
+				assert.Nil(t, metadata)
+			} else {
+				require.NotNil(t, metadata)
+				assert.Equal(t, c.meta.HasNextResults, metadata.HasNextResults)
+				assert.Equal(t, c.meta.HasPreviousResults, metadata.HasPreviousResults)
+			}
+		})
+	}
 }

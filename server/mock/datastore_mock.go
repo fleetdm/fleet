@@ -342,7 +342,7 @@ type UpdateHostTablesOnMDMUnenrollFunc func(ctx context.Context, uuid string) er
 
 type NewActivityFunc func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error
 
-type ListActivitiesFunc func(ctx context.Context, opt fleet.ListActivitiesOptions) ([]*fleet.Activity, error)
+type ListActivitiesFunc func(ctx context.Context, opt fleet.ListActivitiesOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error)
 
 type MarkActivitiesAsStreamedFunc func(ctx context.Context, activityIDs []uint) error
 
@@ -430,6 +430,8 @@ type TeamAgentOptionsFunc func(ctx context.Context, teamID uint) (*json.RawMessa
 
 type TeamFeaturesFunc func(ctx context.Context, teamID uint) (*fleet.Features, error)
 
+type TeamMDMConfigFunc func(ctx context.Context, teamID uint) (*fleet.TeamMDM, error)
+
 type SaveHostPackStatsFunc func(ctx context.Context, hostID uint, stats []fleet.PackStats) error
 
 type AsyncBatchSaveHostsScheduledQueryStatsFunc func(ctx context.Context, stats map[uint][]fleet.ScheduledQueryStats, batchSize int) (int, error)
@@ -459,6 +461,14 @@ type SetOrUpdateMDMDataFunc func(ctx context.Context, hostID uint, isServer bool
 type SetOrUpdateHostDisksSpaceFunc func(ctx context.Context, hostID uint, gigsAvailable float64, percentAvailable float64) error
 
 type SetOrUpdateHostDisksEncryptionFunc func(ctx context.Context, hostID uint, encrypted bool) error
+
+type SetOrUpdateHostDiskEncryptionKeyFunc func(ctx context.Context, hostID uint, encryptedBase64Key string) error
+
+type GetUnverifiedDiskEncryptionKeysFunc func(ctx context.Context) ([]fleet.HostDiskEncryptionKey, error)
+
+type SetHostsDiskEncryptionKeyStatusFunc func(ctx context.Context, hostIDs []uint, encryptable bool, threshold time.Time) error
+
+type GetHostDiskEncryptionKeyFunc func(ctx context.Context, hostID uint) (*fleet.HostDiskEncryptionKey, error)
 
 type SetOrUpdateHostOrbitInfoFunc func(ctx context.Context, hostID uint, version string) error
 
@@ -494,6 +504,14 @@ type InsertOSVulnerabilitiesFunc func(ctx context.Context, vulnerabilities []fle
 
 type DeleteOSVulnerabilitiesFunc func(ctx context.Context, vulnerabilities []fleet.OSVulnerability) error
 
+type NewMDMAppleConfigProfileFunc func(ctx context.Context, p fleet.MDMAppleConfigProfile) (*fleet.MDMAppleConfigProfile, error)
+
+type GetMDMAppleConfigProfileFunc func(ctx context.Context, profileID uint) (*fleet.MDMAppleConfigProfile, error)
+
+type ListMDMAppleConfigProfilesFunc func(ctx context.Context, teamID *uint) ([]*fleet.MDMAppleConfigProfile, error)
+
+type DeleteMDMAppleConfigProfileFunc func(ctx context.Context, profileID uint) error
+
 type NewMDMAppleEnrollmentProfileFunc func(ctx context.Context, enrollmentPayload fleet.MDMAppleEnrollmentProfilePayload) (*fleet.MDMAppleEnrollmentProfile, error)
 
 type GetMDMAppleEnrollmentProfileByTokenFunc func(ctx context.Context, token string) (*fleet.MDMAppleEnrollmentProfile, error)
@@ -514,11 +532,15 @@ type MDMAppleInstallerDetailsByTokenFunc func(ctx context.Context, token string)
 
 type ListMDMAppleInstallersFunc func(ctx context.Context) ([]fleet.MDMAppleInstaller, error)
 
+type BatchSetMDMAppleProfilesFunc func(ctx context.Context, tmID *uint, profiles []*fleet.MDMAppleConfigProfile) error
+
 type MDMAppleListDevicesFunc func(ctx context.Context) ([]fleet.MDMAppleDevice, error)
 
 type IngestMDMAppleDevicesFromDEPSyncFunc func(ctx context.Context, devices []godep.Device) (int64, error)
 
 type IngestMDMAppleDeviceFromCheckinFunc func(ctx context.Context, mdmHost fleet.MDMAppleHostDetails) error
+
+type GetNanoMDMEnrollmentStatusFunc func(ctx context.Context, id string) (bool, error)
 
 type IncreasePolicyAutomationIterationFunc func(ctx context.Context, policyID uint) error
 
@@ -1149,6 +1171,9 @@ type DataStore struct {
 	TeamFeaturesFunc        TeamFeaturesFunc
 	TeamFeaturesFuncInvoked bool
 
+	TeamMDMConfigFunc        TeamMDMConfigFunc
+	TeamMDMConfigFuncInvoked bool
+
 	SaveHostPackStatsFunc        SaveHostPackStatsFunc
 	SaveHostPackStatsFuncInvoked bool
 
@@ -1193,6 +1218,18 @@ type DataStore struct {
 
 	SetOrUpdateHostDisksEncryptionFunc        SetOrUpdateHostDisksEncryptionFunc
 	SetOrUpdateHostDisksEncryptionFuncInvoked bool
+
+	SetOrUpdateHostDiskEncryptionKeyFunc        SetOrUpdateHostDiskEncryptionKeyFunc
+	SetOrUpdateHostDiskEncryptionKeyFuncInvoked bool
+
+	GetUnverifiedDiskEncryptionKeysFunc        GetUnverifiedDiskEncryptionKeysFunc
+	GetUnverifiedDiskEncryptionKeysFuncInvoked bool
+
+	SetHostsDiskEncryptionKeyStatusFunc        SetHostsDiskEncryptionKeyStatusFunc
+	SetHostsDiskEncryptionKeyStatusFuncInvoked bool
+
+	GetHostDiskEncryptionKeyFunc        GetHostDiskEncryptionKeyFunc
+	GetHostDiskEncryptionKeyFuncInvoked bool
 
 	SetOrUpdateHostOrbitInfoFunc        SetOrUpdateHostOrbitInfoFunc
 	SetOrUpdateHostOrbitInfoFuncInvoked bool
@@ -1245,6 +1282,18 @@ type DataStore struct {
 	DeleteOSVulnerabilitiesFunc        DeleteOSVulnerabilitiesFunc
 	DeleteOSVulnerabilitiesFuncInvoked bool
 
+	NewMDMAppleConfigProfileFunc        NewMDMAppleConfigProfileFunc
+	NewMDMAppleConfigProfileFuncInvoked bool
+
+	GetMDMAppleConfigProfileFunc        GetMDMAppleConfigProfileFunc
+	GetMDMAppleConfigProfileFuncInvoked bool
+
+	ListMDMAppleConfigProfilesFunc        ListMDMAppleConfigProfilesFunc
+	ListMDMAppleConfigProfilesFuncInvoked bool
+
+	DeleteMDMAppleConfigProfileFunc        DeleteMDMAppleConfigProfileFunc
+	DeleteMDMAppleConfigProfileFuncInvoked bool
+
 	NewMDMAppleEnrollmentProfileFunc        NewMDMAppleEnrollmentProfileFunc
 	NewMDMAppleEnrollmentProfileFuncInvoked bool
 
@@ -1275,6 +1324,9 @@ type DataStore struct {
 	ListMDMAppleInstallersFunc        ListMDMAppleInstallersFunc
 	ListMDMAppleInstallersFuncInvoked bool
 
+	BatchSetMDMAppleProfilesFunc        BatchSetMDMAppleProfilesFunc
+	BatchSetMDMAppleProfilesFuncInvoked bool
+
 	MDMAppleListDevicesFunc        MDMAppleListDevicesFunc
 	MDMAppleListDevicesFuncInvoked bool
 
@@ -1283,6 +1335,9 @@ type DataStore struct {
 
 	IngestMDMAppleDeviceFromCheckinFunc        IngestMDMAppleDeviceFromCheckinFunc
 	IngestMDMAppleDeviceFromCheckinFuncInvoked bool
+
+	GetNanoMDMEnrollmentStatusFunc        GetNanoMDMEnrollmentStatusFunc
+	GetNanoMDMEnrollmentStatusFuncInvoked bool
 
 	IncreasePolicyAutomationIterationFunc        IncreasePolicyAutomationIterationFunc
 	IncreasePolicyAutomationIterationFuncInvoked bool
@@ -2111,7 +2166,7 @@ func (s *DataStore) NewActivity(ctx context.Context, user *fleet.User, activity 
 	return s.NewActivityFunc(ctx, user, activity)
 }
 
-func (s *DataStore) ListActivities(ctx context.Context, opt fleet.ListActivitiesOptions) ([]*fleet.Activity, error) {
+func (s *DataStore) ListActivities(ctx context.Context, opt fleet.ListActivitiesOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error) {
 	s.ListActivitiesFuncInvoked = true
 	return s.ListActivitiesFunc(ctx, opt)
 }
@@ -2331,6 +2386,11 @@ func (s *DataStore) TeamFeatures(ctx context.Context, teamID uint) (*fleet.Featu
 	return s.TeamFeaturesFunc(ctx, teamID)
 }
 
+func (s *DataStore) TeamMDMConfig(ctx context.Context, teamID uint) (*fleet.TeamMDM, error) {
+	s.TeamMDMConfigFuncInvoked = true
+	return s.TeamMDMConfigFunc(ctx, teamID)
+}
+
 func (s *DataStore) SaveHostPackStats(ctx context.Context, hostID uint, stats []fleet.PackStats) error {
 	s.SaveHostPackStatsFuncInvoked = true
 	return s.SaveHostPackStatsFunc(ctx, hostID, stats)
@@ -2404,6 +2464,26 @@ func (s *DataStore) SetOrUpdateHostDisksSpace(ctx context.Context, hostID uint, 
 func (s *DataStore) SetOrUpdateHostDisksEncryption(ctx context.Context, hostID uint, encrypted bool) error {
 	s.SetOrUpdateHostDisksEncryptionFuncInvoked = true
 	return s.SetOrUpdateHostDisksEncryptionFunc(ctx, hostID, encrypted)
+}
+
+func (s *DataStore) SetOrUpdateHostDiskEncryptionKey(ctx context.Context, hostID uint, encryptedBase64Key string) error {
+	s.SetOrUpdateHostDiskEncryptionKeyFuncInvoked = true
+	return s.SetOrUpdateHostDiskEncryptionKeyFunc(ctx, hostID, encryptedBase64Key)
+}
+
+func (s *DataStore) GetUnverifiedDiskEncryptionKeys(ctx context.Context) ([]fleet.HostDiskEncryptionKey, error) {
+	s.GetUnverifiedDiskEncryptionKeysFuncInvoked = true
+	return s.GetUnverifiedDiskEncryptionKeysFunc(ctx)
+}
+
+func (s *DataStore) SetHostsDiskEncryptionKeyStatus(ctx context.Context, hostIDs []uint, encryptable bool, threshold time.Time) error {
+	s.SetHostsDiskEncryptionKeyStatusFuncInvoked = true
+	return s.SetHostsDiskEncryptionKeyStatusFunc(ctx, hostIDs, encryptable, threshold)
+}
+
+func (s *DataStore) GetHostDiskEncryptionKey(ctx context.Context, hostID uint) (*fleet.HostDiskEncryptionKey, error) {
+	s.GetHostDiskEncryptionKeyFuncInvoked = true
+	return s.GetHostDiskEncryptionKeyFunc(ctx, hostID)
 }
 
 func (s *DataStore) SetOrUpdateHostOrbitInfo(ctx context.Context, hostID uint, version string) error {
@@ -2491,6 +2571,26 @@ func (s *DataStore) DeleteOSVulnerabilities(ctx context.Context, vulnerabilities
 	return s.DeleteOSVulnerabilitiesFunc(ctx, vulnerabilities)
 }
 
+func (s *DataStore) NewMDMAppleConfigProfile(ctx context.Context, p fleet.MDMAppleConfigProfile) (*fleet.MDMAppleConfigProfile, error) {
+	s.NewMDMAppleConfigProfileFuncInvoked = true
+	return s.NewMDMAppleConfigProfileFunc(ctx, p)
+}
+
+func (s *DataStore) GetMDMAppleConfigProfile(ctx context.Context, profileID uint) (*fleet.MDMAppleConfigProfile, error) {
+	s.GetMDMAppleConfigProfileFuncInvoked = true
+	return s.GetMDMAppleConfigProfileFunc(ctx, profileID)
+}
+
+func (s *DataStore) ListMDMAppleConfigProfiles(ctx context.Context, teamID *uint) ([]*fleet.MDMAppleConfigProfile, error) {
+	s.ListMDMAppleConfigProfilesFuncInvoked = true
+	return s.ListMDMAppleConfigProfilesFunc(ctx, teamID)
+}
+
+func (s *DataStore) DeleteMDMAppleConfigProfile(ctx context.Context, profileID uint) error {
+	s.DeleteMDMAppleConfigProfileFuncInvoked = true
+	return s.DeleteMDMAppleConfigProfileFunc(ctx, profileID)
+}
+
 func (s *DataStore) NewMDMAppleEnrollmentProfile(ctx context.Context, enrollmentPayload fleet.MDMAppleEnrollmentProfilePayload) (*fleet.MDMAppleEnrollmentProfile, error) {
 	s.NewMDMAppleEnrollmentProfileFuncInvoked = true
 	return s.NewMDMAppleEnrollmentProfileFunc(ctx, enrollmentPayload)
@@ -2541,6 +2641,11 @@ func (s *DataStore) ListMDMAppleInstallers(ctx context.Context) ([]fleet.MDMAppl
 	return s.ListMDMAppleInstallersFunc(ctx)
 }
 
+func (s *DataStore) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, profiles []*fleet.MDMAppleConfigProfile) error {
+	s.BatchSetMDMAppleProfilesFuncInvoked = true
+	return s.BatchSetMDMAppleProfilesFunc(ctx, tmID, profiles)
+}
+
 func (s *DataStore) MDMAppleListDevices(ctx context.Context) ([]fleet.MDMAppleDevice, error) {
 	s.MDMAppleListDevicesFuncInvoked = true
 	return s.MDMAppleListDevicesFunc(ctx)
@@ -2554,6 +2659,11 @@ func (s *DataStore) IngestMDMAppleDevicesFromDEPSync(ctx context.Context, device
 func (s *DataStore) IngestMDMAppleDeviceFromCheckin(ctx context.Context, mdmHost fleet.MDMAppleHostDetails) error {
 	s.IngestMDMAppleDeviceFromCheckinFuncInvoked = true
 	return s.IngestMDMAppleDeviceFromCheckinFunc(ctx, mdmHost)
+}
+
+func (s *DataStore) GetNanoMDMEnrollmentStatus(ctx context.Context, id string) (bool, error) {
+	s.GetNanoMDMEnrollmentStatusFuncInvoked = true
+	return s.GetNanoMDMEnrollmentStatusFunc(ctx, id)
 }
 
 func (s *DataStore) IncreasePolicyAutomationIteration(ctx context.Context, policyID uint) error {

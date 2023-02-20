@@ -2,17 +2,18 @@
   <div purpose="hero-background" class="container-lg d-flex justify-content-center">
     <div purpose="hero-container" class="d-flex flex-column align-items-center">
       <div purpose="hero-text">
+        <h4>Limited beta</h4>
         <h1>A better MDM</h1>
         <p>Legacy MDMs have left you in the dark for way too long. Fleet’s cross-platform MDM gives IT teams more visibility out of the box.</p>
         <div purpose="button-row" class="d-flex flex-sm-row flex-column justify-content-center align-items-center">
-          <a purpose="mdm-beta-button" @click="clickOpenSignupModal()">Join the beta</a>
+          <a purpose="mdm-beta-button" @click="clickOpenSignupModal()">Request access</a>
           <a href="https://calendly.com/fleetdm/demo?utm_source=mdm+demo" target="_blank" purpose="animated-arrow-button-red">Talk to an expert</a>
         </div>
       </div>
       <img alt="The MDM page hero image" purpose="hero-image" class="d-none d-sm-block" src="/images/fleet-mdm-hero-1006x595@2x.png">
     </div>
   </div>
-  <div purpose="page-container" class="container-lg">
+  <!-- <div purpose="page-container" class="container-lg">
 
     <div purpose="section" class="mx-auto mb-0">
       <div class="d-flex flex-column text-left text-md-center">
@@ -52,7 +53,7 @@
     </div>
 
     <div purpose="button-row" style="margin-top: 60px;" class="d-flex flex-sm-row flex-column justify-content-center align-items-center mx-auto">
-      <a purpose="mdm-beta-button" @click="clickOpenSignupModal()">Join the beta</a>
+      <a purpose="mdm-beta-button" @click="clickOpenSignupModal()">Request access</a>
       <a href="https://calendly.com/fleetdm/demo?utm_source=mdm+demo" target="_blank" purpose="animated-arrow-button-red">Talk to an expert</a>
     </div>
 
@@ -88,7 +89,7 @@
         </div>
       </div>
       <div purpose="button-row" class="d-flex flex-sm-row flex-column justify-content-center align-items-center w-100 w-sm-auto mx-auto">
-        <a purpose="mdm-beta-button" @click="clickOpenSignupModal()">Join the beta</a>
+        <a purpose="mdm-beta-button" @click="clickOpenSignupModal()">Request access</a>
         <a href="https://calendly.com/fleetdm/demo?utm_source=mdm+demo" target="_blank" purpose="animated-arrow-button-red">Talk to an expert</a>
       </div>
 
@@ -113,13 +114,13 @@
       <img alt="The Atlassian logo" purpose="atlassian-logo" src="/images/logo-atlassian-muted-172x22@2x.png">
       <img alt="The Twilio Segment logo" purpose="segment-logo" src="/images/logo-segment-muted-150x34@2x.png">
     </div>
-  </div>
+  </div> -->
 
   <modal v-if="modal === 'beta-signup'" @close="closeModal()" data-backdrop="false" v-cloak purpose="modal">
     <div class="container d-flex flex-column justify-content-center align-items-center" purpose="modal-container">
       <div class="modal-header">
         <h4>See the future of device management</h4>
-        <h2 class="text-center">Join the Fleet MDM beta today</h2>
+        <h2 class="text-center">Better MDM starts here</h2>
       </div>
       <div purpose="modal-form" v-if="!showSignupFormSuccess">
       <ajax-form action="deliverMdmBetaSignup" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-data="formData" :form-rules="formRules" :form-errors.sync="formErrors" @submitted="submittedForm()">
@@ -136,7 +137,7 @@
           <div class="form-group">
             <div class="d-flex flex-sm-row flex-column">
               <div class="pr-0 pr-sm-3 pb-4 pb-sm-0">
-                <label for="jobTitle">Job Title</label>
+                <label for="jobTitle">Job title</label>
                 <input class="form-control" id="jobTitle" :class="[formErrors.jobTitle ? 'is-invalid' : '']" v-model.trim="formData.jobTitle" @input="typeClearOneFormError('jobTitle')">
                 <div class="invalid-feedback" v-if="formErrors.jobTitle">Please enter your job title.
                 </div>
@@ -150,13 +151,13 @@
           </div>
           <cloud-error v-if="cloudError"></cloud-error>
         <div class="border-0 justify-content-center">
-          <ajax-button purpose="submit-button" spinner="true" type="submit" :syncing="syncing" class="btn btn-sm btn-block btn-primary">Save your spot</ajax-button>
+          <ajax-button purpose="submit-button" spinner="true" type="submit" :syncing="syncing" class="btn btn-sm btn-block btn-primary">Request access</ajax-button>
         </div>
       </ajax-form>
       </div>
       <div purpose="modal-form" class="text-center" v-else>
         <h3>You're all set!</h3>
-        <p>A Fleet team member will reach out via email with more information.</p>
+        <p>A Fleet team member will reach out via email with more information if selected.</p>
       </div>
     </div>
   </modal>

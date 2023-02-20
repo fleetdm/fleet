@@ -36,9 +36,11 @@ const AddPolicyModal = ({
     setLastEditedQueryCritical,
     setLastEditedQueryPlatform,
     setPolicyTeamId,
+    setDefaultPolicy,
   } = useContext(PolicyContext);
 
   const onAddPolicy = (selectedPolicy: IPolicyNew) => {
+    setDefaultPolicy(true);
     teamName
       ? setLastEditedQueryName(`${selectedPolicy.name} (${teamName})`)
       : setLastEditedQueryName(selectedPolicy.name);

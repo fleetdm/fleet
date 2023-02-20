@@ -444,7 +444,7 @@ type Datastore interface {
 	// ActivitiesStore
 
 	NewActivity(ctx context.Context, user *User, activity ActivityDetails) error
-	ListActivities(ctx context.Context, opt ListActivitiesOptions) ([]*Activity, error)
+	ListActivities(ctx context.Context, opt ListActivitiesOptions) ([]*Activity, *PaginationMetadata, error)
 	MarkActivitiesAsStreamed(ctx context.Context, activityIDs []uint) error
 
 	///////////////////////////////////////////////////////////////////////////////
@@ -582,6 +582,9 @@ type Datastore interface {
 	// TeamFeatures loads the features enabled for a team.
 	TeamFeatures(ctx context.Context, teamID uint) (*Features, error)
 
+	// TeamMDMConfig loads the MDM config for a team.
+	TeamMDMConfig(ctx context.Context, teamID uint) (*TeamMDM, error)
+
 	// SaveHostPackStats stores (and updates) the pack's scheduled queries stats of a host.
 	SaveHostPackStats(ctx context.Context, hostID uint, stats []PackStats) error
 	// AsyncBatchSaveHostsScheduledQueryStats efficiently saves a batch of hosts'
@@ -633,6 +636,18 @@ type Datastore interface {
 	SetOrUpdateMDMData(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string, installedFromDep bool, name string) error
 	SetOrUpdateHostDisksSpace(ctx context.Context, hostID uint, gigsAvailable, percentAvailable float64) error
 	SetOrUpdateHostDisksEncryption(ctx context.Context, hostID uint, encrypted bool) error
+	// SetOrUpdateHostDiskEncryptionKey sets the base64, encrypted key for
+	// a host
+	SetOrUpdateHostDiskEncryptionKey(ctx context.Context, hostID uint, encryptedBase64Key string) error
+	// GetUnverifiedDiskEncryptionKeys returns all the encryption keys that
+	// are collected but their decryptable status is not known yet (ie:
+	// we're able to decrypt the key using a private key in the server)
+	GetUnverifiedDiskEncryptionKeys(ctx context.Context) ([]HostDiskEncryptionKey, error)
+	// SetHostDiskEncryptionKeyStatus sets the encryptable status for the set
+	// of encription keys provided
+	SetHostsDiskEncryptionKeyStatus(ctx context.Context, hostIDs []uint, encryptable bool, threshold time.Time) error
+	// GetHostDiskEncryptionKey returns the encryption key information for a given host
+	GetHostDiskEncryptionKey(ctx context.Context, hostID uint) (*HostDiskEncryptionKey, error)
 	// SetOrUpdateHostOrbitInfo inserts of updates the orbit info for a host
 	SetOrUpdateHostOrbitInfo(ctx context.Context, hostID uint, version string) error
 
@@ -686,6 +701,21 @@ type Datastore interface {
 	///////////////////////////////////////////////////////////////////////////////
 	// Apple MDM
 
+	// NewMDMAppleConfigProfile creates and returns a new configuration profile.
+	NewMDMAppleConfigProfile(ctx context.Context, p MDMAppleConfigProfile) (*MDMAppleConfigProfile, error)
+
+	// GetMDMAppleConfigProfile returns the mdm config profile corresponding to the specified
+	// profile id.
+	GetMDMAppleConfigProfile(ctx context.Context, profileID uint) (*MDMAppleConfigProfile, error)
+
+	// ListMDMAppleConfigProfiles lists mdm config profiles associated with the specified team id.
+	// For global config profiles, specify zero as the team id.
+	ListMDMAppleConfigProfiles(ctx context.Context, teamID *uint) ([]*MDMAppleConfigProfile, error)
+
+	// DeleteMDMAppleConfigProfile deleted the mdm config profile corresponding to the specified
+	// profile id.
+	DeleteMDMAppleConfigProfile(ctx context.Context, profileID uint) error
+
 	// NewMDMAppleEnrollmentProfile creates and returns new enrollment profile.
 	// Such enrollment profiles allow devices to enroll to Fleet MDM.
 	NewMDMAppleEnrollmentProfile(ctx context.Context, enrollmentPayload MDMAppleEnrollmentProfilePayload) (*MDMAppleEnrollmentProfile, error)
@@ -723,6 +753,10 @@ type Datastore interface {
 	// ListMDMAppleInstallers list all the uploaded installers.
 	ListMDMAppleInstallers(ctx context.Context) ([]MDMAppleInstaller, error)
 
+	// BatchSetMDMAppleProfiles sets the MDM Apple profiles for the given team or
+	// no team.
+	BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, profiles []*MDMAppleConfigProfile) error
+
 	// MDMAppleListDevices lists all the MDM enrolled devices.
 	MDMAppleListDevices(ctx context.Context) ([]MDMAppleDevice, error)
 
@@ -733,6 +767,9 @@ type Datastore interface {
 	// IngestMDMAppleDeviceFromCheckin creates a new Fleet host record for an MDM-enrolled device that is
 	// not already enrolled in Fleet.
 	IngestMDMAppleDeviceFromCheckin(ctx context.Context, mdmHost MDMAppleHostDetails) error
+
+	// GetNanoMDMEnrollmentStatus returns whether the identified enrollment is enabled
+	GetNanoMDMEnrollmentStatus(ctx context.Context, id string) (bool, error)
 
 	// IncreasePolicyAutomationIteration marks the policy to fire automation again.
 	IncreasePolicyAutomationIteration(ctx context.Context, policyID uint) error

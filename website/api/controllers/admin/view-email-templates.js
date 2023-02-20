@@ -39,13 +39,13 @@ module.exports = {
     markdownEmailPaths = markdownEmailPaths.map((templatePath)=>{
       let relativePath = path.relative(path.join(sails.config.paths.views, 'emails/'), templatePath);
       let extension = path.extname(relativePath);
-      return _.trimRight(relativePath, extension);
+      return relativePath.split(extension)[0];
     });
 
     templatePaths = templatePaths.map((templatePath)=>{
       let relativePath = path.relative(path.join(sails.config.paths.views, 'emails/'), templatePath);
       let extension = path.extname(relativePath);
-      return _.trimRight(relativePath, extension);
+      return relativePath.split(extension)[0];
     });
 
     // Respond with view.

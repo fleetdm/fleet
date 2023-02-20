@@ -64,7 +64,6 @@ module.exports = {
       'drewbakerfdm',
       'lucasmrod',
       'ksatter',
-      'guillaumeross',
       'charlottechance',
       'zwinnerman-fleetdm',
       'hollidayn',
@@ -192,6 +191,7 @@ module.exports = {
       //  ██║███████║███████║╚██████╔╝███████╗    ╚██████╗███████╗╚██████╔╝███████║███████╗██████╔╝
       //  ╚═╝╚══════╝╚══════╝ ╚═════╝ ╚══════╝     ╚═════╝╚══════╝ ╚═════╝ ╚══════╝╚══════╝╚═════╝
       //
+      //
       // Handle closed issue by commenting on it.
       let owner = repository.owner.login;
       let repo = repository.name;
@@ -220,9 +220,17 @@ module.exports = {
         max_tokens: 256//eslint-disable-line camelcase
       }, {
         Authorization: `Bearer ${sails.config.custom.openAiSecret}`
+      })
+      .tolerate((err)=>{
+        sails.log('Failed to generate haiku using OpenAI.  Error details from OpenAI:',err);
       });
-      newBotComment = openAiReport.choices[0].text;
-      newBotComment = newBotComment.replace(/^\s*\n*[^\n:]*Haiku[^\n:]*:\s*/i,'');// « eliminate "*Haiku:" prefix line, if one is generated
+
+      if (!openAiReport) {// If OpenAI could not be reached…
+        newBotComment = 'I couldn\'t think of a haiku this time.  (See fleetdm.com logs for more information.)';
+      } else {// Otherwise, haiku was successfully generated…
+        newBotComment = openAiReport.choices[0].text;
+        newBotComment = newBotComment.replace(/^\s*\n*[^\n:]*Haiku[^\n:]*:\s*/i,'');// « eliminate "*Haiku:" prefix line, if one is generated
+      }
 
       // Now that we know what to say, add our comment.
       await sails.helpers.http.post('https://api.github.com/repos/'+encodeURIComponent(owner)+'/'+encodeURIComponent(repo)+'/issues/'+encodeURIComponent(issueNumber)+'/comments',
@@ -297,14 +305,14 @@ module.exports = {
 
         // Check whether the "main" branch is currently frozen (i.e. a feature freeze)
         // [?] https://docs.mergefreeze.com/web-api#get-freeze-status
-        let mergeFreezeMainBranchStatusReport = await sails.helpers.http.get('https://www.mergefreeze.com/api/branches/fleetdm/fleet/main', { access_token: sails.config.custom.mergeFreezeAccessToken }); //eslint-disable-line camelcase
+        let mergeFreezeMainBranchStatusReport = await sails.helpers.http.get('https://www.mergefreeze.com/api/branches/fleetdm/fleet/main', { access_token: sails.config.custom.mergeFreezeAccessToken }) //eslint-disable-line camelcase
+        .tolerate(['non200Response', 'requestFailed', {name: 'TimeoutError'}], (err)=>{
+          // If the MergeFreeze API returns a non 200 response, log a warning and continue under the assumption that the main branch is not frozen.
+          sails.log.warn('When sending a request to the MergeFreeze API to get the status of the main branch, MergeFreeze did not respond with a 2xx status code.  (Error details forthcoming in just a sec.)  First, how to remediate: If the main branch is frozen, it will need to be manually unfrozen before PR #'+prNumber+' can be merged. Raw underlying error from MergeFreeze: '+err.stack);
+          return { frozen: false };
+        });
         sails.log('#'+prNumber+' is under consideration...  The MergeFreeze API claims that it current main branch "frozen" status is:',mergeFreezeMainBranchStatusReport.frozen);
-        let isMainBranchFrozen = mergeFreezeMainBranchStatusReport.frozen || (
-          // TODO: Remove this timeboxed hack to consider the repo frozen
-          // for a while as a workaround for an issue where the MergeFreeze API
-          // reports that the repo is not frozen, when it actually is frozen.
-          Date.now() < (new Date('Jul 28, 2022 14:00 UTC')).getTime()
-        );
+        let isMainBranchFrozen = mergeFreezeMainBranchStatusReport.frozen;
 
         // Add the #handbook label to PRs that only make changes to the handbook.
         if(isHandbookPR) {
@@ -409,8 +417,8 @@ module.exports = {
         });//∞ß
       }//ﬁ
     } else if (
-      (ghNoun === 'issue_comment' && ['deleted'].includes(action) && !GITHUB_USERNAMES_OF_BOTS_AND_MAINTAINERS.includes(comment.user.login))||
-      (ghNoun === 'commit_comment' && ['created'].includes(action) && !GITHUB_USERNAMES_OF_BOTS_AND_MAINTAINERS.includes(comment.user.login))||
+      (ghNoun === 'issue_comment' && ['deleted'].includes(action) && !GITHUB_USERNAMES_OF_BOTS_AND_MAINTAINERS.includes(comment.user.login.toLowerCase()))||
+      (ghNoun === 'commit_comment' && ['created'].includes(action) && !GITHUB_USERNAMES_OF_BOTS_AND_MAINTAINERS.includes(comment.user.login.toLowerCase()))||
       (ghNoun === 'label' && false /* label change notifications temporarily disabled until digital experience team has time to clean up labels.  FUTURE: turn this back on after doing that cleanup to facilitate gradual ongoing maintenance and education rather than herculean cleanup efforts and retraining */ && ['created','edited','deleted'].includes(action) && GITHUB_USERNAME_OF_DRI_FOR_LABELS !== sender.login.toLowerCase())||//« exempt label changes made by the directly responsible individual for labels, because otherwise when process changes/fiddlings happen, they can otherwise end up making too much noise in Slack
       (ghNoun === 'issue_comment' && ['created'].includes(action) && issueOrPr.state !== 'open' && (issueOrPr.closed_at) && ((new Date(issueOrPr.closed_at)).getTime() < Date.now() - 7*24*60*60*1000 ) && !GITHUB_USERNAMES_OF_BOTS_AND_MAINTAINERS.includes(sender.login.toLowerCase()) )
     ) {
@@ -433,7 +441,7 @@ module.exports = {
       // posting to the Fleet Slack.
       // > FUTURE: also post to Slack about deleted issues, new repos, and deleted repos
       await sails.helpers.http.post(
-        sails.config.custom.slackWebhookUrlForGithubBot,//« #g-operations channel (Fleet Slack workspace)
+        sails.config.custom.slackWebhookUrlForGithubBot,//« #g-marketing channel (Fleet Slack workspace)
         {
           text:
           (

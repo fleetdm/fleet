@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"crypto/x509"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"io/ioutil"
@@ -22,10 +24,14 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/schedule"
+	"github.com/micromdm/nanodep/tokenpki"
+	"go.mozilla.org/pkcs7"
 
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"github.com/go-kit/log"
+	nanodep_client "github.com/micromdm/nanodep/client"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -856,8 +862,8 @@ func TestCronActivitiesStreaming(t *testing.T) {
 	t.Run("basic", func(t *testing.T) {
 		as := []*fleet.Activity{a1, a2, a3}
 
-		ds.ListActivitiesFunc = func(ctx context.Context, opt fleet.ListActivitiesOptions) ([]*fleet.Activity, error) {
-			return as, nil
+		ds.ListActivitiesFunc = func(ctx context.Context, opt fleet.ListActivitiesOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error) {
+			return as, nil, nil
 		}
 
 		ds.MarkActivitiesAsStreamedFunc = func(ctx context.Context, activityIDs []uint) error {
@@ -880,8 +886,8 @@ func TestCronActivitiesStreaming(t *testing.T) {
 	t.Run("fail_to_stream_an_activity", func(t *testing.T) {
 		as := []*fleet.Activity{a1, a2, a3}
 
-		ds.ListActivitiesFunc = func(ctx context.Context, opt fleet.ListActivitiesOptions) ([]*fleet.Activity, error) {
-			return as, nil
+		ds.ListActivitiesFunc = func(ctx context.Context, opt fleet.ListActivitiesOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error) {
+			return as, nil, nil
 		}
 
 		ds.MarkActivitiesAsStreamedFunc = func(ctx context.Context, activityIDs []uint) error {
@@ -908,18 +914,18 @@ func TestCronActivitiesStreaming(t *testing.T) {
 			as[i] = newActivity(uint(i), "foo", uint(i), "foog", "fooe", "bar", `{"bar": "foo"}`)
 		}
 
-		ds.ListActivitiesFunc = func(ctx context.Context, opt fleet.ListActivitiesOptions) ([]*fleet.Activity, error) {
+		ds.ListActivitiesFunc = func(ctx context.Context, opt fleet.ListActivitiesOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error) {
 			require.Equal(t, opt.PerPage, ActivitiesToStreamBatchCount)
 			switch opt.Page {
 			case 0:
-				return as[:ActivitiesToStreamBatchCount], nil
+				return as[:ActivitiesToStreamBatchCount], nil, nil
 			case 1:
-				return as[ActivitiesToStreamBatchCount : ActivitiesToStreamBatchCount*2], nil
+				return as[ActivitiesToStreamBatchCount : ActivitiesToStreamBatchCount*2], nil, nil
 			case 2:
-				return as[ActivitiesToStreamBatchCount*2:], nil
+				return as[ActivitiesToStreamBatchCount*2:], nil, nil
 			default:
 				t.Fatalf("invalid page requested: %d", opt.Page)
-				return nil, nil
+				return nil, nil, nil
 			}
 		}
 
@@ -971,4 +977,87 @@ func (j *jsonLogger) Write(ctx context.Context, logs []json.RawMessage) error {
 		j.logs = append(j.logs, string(log))
 	}
 	return nil
+}
+
+func TestVerifyDiskEncryptionKeysJob(t *testing.T) {
+	ds := new(mock.Store)
+	ctx := context.Background()
+	logger := log.NewNopLogger()
+
+	testBMToken := &nanodep_client.OAuth1Tokens{
+		ConsumerKey:       "test_consumer",
+		ConsumerSecret:    "test_secret",
+		AccessToken:       "test_access_token",
+		AccessSecret:      "test_access_secret",
+		AccessTokenExpiry: time.Date(2999, 1, 1, 0, 0, 0, 0, time.UTC),
+	}
+	testCert, testKey, err := apple_mdm.NewSCEPCACertKey()
+	require.NoError(t, err)
+	testCertPEM := tokenpki.PEMCertificate(testCert.Raw)
+	testKeyPEM := tokenpki.PEMRSAPrivateKey(testKey)
+
+	recoveryKey := "AAA-BBB-CCC"
+	encryptedKey, err := pkcs7.Encrypt([]byte(recoveryKey), []*x509.Certificate{testCert})
+	require.NoError(t, err)
+	base64EncryptedKey := base64.StdEncoding.EncodeToString(encryptedKey)
+
+	fleetCfg := config.TestConfig()
+	config.SetTestMDMConfig(t, &fleetCfg, testCertPEM, testKeyPEM, testBMToken)
+
+	now := time.Now()
+
+	t.Run("able to decrypt", func(t *testing.T) {
+		ds.GetUnverifiedDiskEncryptionKeysFunc = func(ctx context.Context) ([]fleet.HostDiskEncryptionKey, error) {
+			return []fleet.HostDiskEncryptionKey{
+				{HostID: 1, Base64Encrypted: base64EncryptedKey, UpdatedAt: now},
+				{HostID: 2, Base64Encrypted: base64EncryptedKey, UpdatedAt: now.Add(time.Hour)},
+				{HostID: 3, Base64Encrypted: "BAD-KEY", UpdatedAt: now.Add(-time.Hour)},
+			}, nil
+		}
+
+		calls := 0
+		ds.SetHostsDiskEncryptionKeyStatusFunc = func(ctx context.Context, hostIDs []uint, decryptable bool, threshold time.Time) error {
+			calls++
+			require.Equal(t, now.Add(time.Hour), threshold)
+
+			// first call, decryptable values
+			if decryptable {
+				require.EqualValues(t, []uint{1, 2}, hostIDs)
+				return nil
+			}
+
+			// second call, non-decryptable values
+			require.EqualValues(t, []uint{3}, hostIDs)
+			return nil
+		}
+
+		err = verifyDiskEncryptionKeys(ctx, logger, ds, &fleetCfg)
+		require.NoError(t, err)
+		require.True(t, ds.GetUnverifiedDiskEncryptionKeysFuncInvoked)
+		require.True(t, ds.SetHostsDiskEncryptionKeyStatusFuncInvoked)
+		require.Equal(t, 2, calls)
+	})
+
+	t.Run("unable to decrypt", func(t *testing.T) {
+		ds.GetUnverifiedDiskEncryptionKeysFunc = func(ctx context.Context) ([]fleet.HostDiskEncryptionKey, error) {
+			return []fleet.HostDiskEncryptionKey{{HostID: 1, Base64Encrypted: "RANDOM"}}, nil
+		}
+
+		calls := 0
+		ds.SetHostsDiskEncryptionKeyStatusFunc = func(ctx context.Context, hostIDs []uint, encryptable bool, threshold time.Time) error {
+			calls++
+			if !encryptable {
+				require.EqualValues(t, []uint{1}, hostIDs)
+				return nil
+			}
+			require.Empty(t, hostIDs)
+			return nil
+		}
+
+		err = verifyDiskEncryptionKeys(ctx, logger, ds, &fleetCfg)
+		require.NoError(t, err)
+		require.True(t, ds.GetUnverifiedDiskEncryptionKeysFuncInvoked)
+		require.True(t, ds.SetHostsDiskEncryptionKeyStatusFuncInvoked)
+		require.Equal(t, 2, calls)
+	})
 }

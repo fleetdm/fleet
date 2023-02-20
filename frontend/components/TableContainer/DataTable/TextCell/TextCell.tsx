@@ -1,4 +1,5 @@
 import React from "react";
+import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 
 interface ITextCellProps {
   value: string | number | boolean | { timeString: string };
@@ -20,7 +21,7 @@ const TextCell = ({
   }
   return (
     <span className={`text-cell ${classes} ${greyed && "grey-cell"}`}>
-      {formatter(val)}
+      {formatter(val) || DEFAULT_EMPTY_CELL_VALUE}
     </span>
   );
 };

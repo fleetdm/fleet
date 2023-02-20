@@ -22,6 +22,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
+	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/micromdm/nanodep/godep"
 	"github.com/stretchr/testify/assert"
@@ -136,6 +137,10 @@ func TestHosts(t *testing.T) {
 		{"HostOrder", testHostOrder},
 		{"GetHostMDMCheckinInfo", testHostsGetHostMDMCheckinInfo},
 		{"UnenrollFromMDM", testHostsUnenrollFromMDM},
+		{"LoadHostByOrbitNodeKey", testHostsLoadHostByOrbitNodeKey},
+		{"SetOrUpdateHostDiskEncryptionKeys", testHostsSetOrUpdateHostDisksEncryptionKey},
+		{"SetHostsDiskEncryptionKeyStatus", testHostsSetDiskEncryptionKeyStatus},
+		{"GetUnverifiedDiskEncryptionKeys", testHostsGetUnverifiedDiskEncryptionKeys},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -1143,25 +1148,25 @@ func testHostMDMSelect(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		require.Len(t, hosts, 1)
 		require.Equal(t, h.ID, hosts[0].ID)
-		require.Equal(t, c.expectedMDMStatus, hosts[0].MDMEnrollmentStatus)
-		require.Equal(t, c.expectedMDMServerURL, hosts[0].MDMServerURL)
+		require.Equal(t, c.expectedMDMStatus, hosts[0].MDM.EnrollmentStatus)
+		require.Equal(t, c.expectedMDMServerURL, hosts[0].MDM.ServerURL)
 
 		hosts, err = ds.SearchHosts(ctx, fleet.TeamFilter{User: test.UserAdmin}, "")
 		require.NoError(t, err)
 		require.Len(t, hosts, 1)
 		require.Equal(t, h.ID, hosts[0].ID)
-		require.Equal(t, c.expectedMDMStatus, hosts[0].MDMEnrollmentStatus)
-		require.Equal(t, c.expectedMDMServerURL, hosts[0].MDMServerURL)
+		require.Equal(t, c.expectedMDMStatus, hosts[0].MDM.EnrollmentStatus)
+		require.Equal(t, c.expectedMDMServerURL, hosts[0].MDM.ServerURL)
 
 		host, err := ds.Host(ctx, h.ID)
 		require.NoError(t, err)
-		require.Equal(t, c.expectedMDMStatus, host.MDMEnrollmentStatus)
-		require.Equal(t, c.expectedMDMServerURL, host.MDMServerURL)
+		require.Equal(t, c.expectedMDMStatus, host.MDM.EnrollmentStatus)
+		require.Equal(t, c.expectedMDMServerURL, host.MDM.ServerURL)
 
 		host, err = ds.HostByIdentifier(ctx, h.UUID)
 		require.NoError(t, err)
-		require.Equal(t, c.expectedMDMStatus, host.MDMEnrollmentStatus)
-		require.Equal(t, c.expectedMDMServerURL, host.MDMServerURL)
+		require.Equal(t, c.expectedMDMStatus, host.MDM.EnrollmentStatus)
+		require.Equal(t, c.expectedMDMServerURL, host.MDM.ServerURL)
 	}
 }
 
@@ -5264,6 +5269,9 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	// set host orbit info
 	err = ds.SetOrUpdateHostOrbitInfo(context.Background(), host.ID, "1.1.0")
 	require.NoError(t, err)
+	// set an encryption key
+	err = ds.SetOrUpdateHostDiskEncryptionKey(context.Background(), host.ID, "TESTKEY")
+	require.NoError(t, err)
 
 	// Operating system vulnerabilities
 	_, err = ds.writer.Exec(
@@ -5899,4 +5907,292 @@ func testHostsGetHostMDMCheckinInfo(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, host.HardwareSerial, info.HardwareSerial)
 	require.Equal(t, true, info.InstalledFromDEP)
+}
+
+func testHostsLoadHostByOrbitNodeKey(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	for _, tt := range enrollTests {
+		h, err := ds.EnrollHost(ctx, tt.uuid, tt.nodeKey, nil, 0)
+		require.NoError(t, err)
+
+		orbitKey := uuid.New().String()
+		// on orbit enrollment, the "hardware UUID" is matched with the osquery
+		// host ID to identify the host being enrolled
+		_, err = ds.EnrollOrbit(ctx, *h.OsqueryHostID, orbitKey, nil)
+		require.NoError(t, err)
+
+		// the returned host by LoadHostByOrbitNodeKey will have the orbit key stored
+		h.OrbitNodeKey = &orbitKey
+		returned, err := ds.LoadHostByOrbitNodeKey(ctx, orbitKey)
+		require.NoError(t, err)
+		assert.Equal(t, h, returned)
+	}
+
+	// test loading an unknown orbit key
+	_, err := ds.LoadHostByOrbitNodeKey(ctx, uuid.New().String())
+	require.Error(t, err)
+	require.True(t, fleet.IsNotFound(err))
+
+	createOrbitHost := func(tag string) *fleet.Host {
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			Platform:        tag,
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+			OsqueryHostID:   ptr.String(tag),
+			NodeKey:         ptr.String(tag),
+			UUID:            fmt.Sprintf(tag),
+			Hostname:        tag + ".local",
+		})
+		require.NoError(t, err)
+
+		orbitKey := uuid.New().String()
+		_, err = ds.EnrollOrbit(ctx, *h.OsqueryHostID, orbitKey, nil)
+		require.NoError(t, err)
+		h.OrbitNodeKey = &orbitKey
+		return h
+	}
+
+	// create a host enrolled in Simple MDM
+	hSimple := createOrbitHost("simple")
+	err = ds.SetOrUpdateMDMData(ctx, hSimple.ID, false, true, "https://simplemdm.com", true, fleet.WellKnownMDMSimpleMDM)
+	require.NoError(t, err)
+
+	loadSimple, err := ds.LoadHostByOrbitNodeKey(ctx, *hSimple.OrbitNodeKey)
+	require.NoError(t, err)
+	require.Equal(t, hSimple.ID, loadSimple.ID)
+	require.NotNil(t, loadSimple.MDMInfo)
+	require.Equal(t, hSimple.ID, loadSimple.MDMInfo.HostID)
+	require.True(t, loadSimple.IsOsqueryEnrolled())
+	require.False(t, loadSimple.MDMInfo.IsPendingDEPFleetEnrollment())
+
+	// create a host that will be pending enrollment in Fleet MDM
+	hFleet := createOrbitHost("fleet")
+	err = ds.SetOrUpdateMDMData(ctx, hFleet.ID, false, false, "https://fleetdm.com", true, fleet.WellKnownMDMFleet)
+	require.NoError(t, err)
+
+	loadFleet, err := ds.LoadHostByOrbitNodeKey(ctx, *hFleet.OrbitNodeKey)
+	require.NoError(t, err)
+	require.Equal(t, hFleet.ID, loadFleet.ID)
+	require.NotNil(t, loadFleet.MDMInfo)
+	require.Equal(t, hFleet.ID, loadFleet.MDMInfo.HostID)
+	require.True(t, loadFleet.IsOsqueryEnrolled())
+	require.True(t, loadFleet.MDMInfo.IsPendingDEPFleetEnrollment())
+}
+
+func checkEncryptionKeyStatus(t *testing.T, ds *Datastore, hostID uint, expected *bool) {
+	ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+		var actual *bool
+
+		row := tx.QueryRowxContext(
+			context.Background(),
+			"SELECT decryptable FROM host_disk_encryption_keys WHERE host_id = ?",
+			hostID,
+		)
+
+		err := row.Scan(&actual)
+		require.NoError(t, err)
+		require.Equal(t, expected, actual)
+		return nil
+	})
+}
+
+func testHostsSetOrUpdateHostDisksEncryptionKey(t *testing.T, ds *Datastore) {
+	host, err := ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         ptr.String("1"),
+		UUID:            "1",
+		OsqueryHostID:   ptr.String("1"),
+		Hostname:        "foo.local",
+		PrimaryIP:       "192.168.1.1",
+		PrimaryMac:      "30-65-EC-6F-C4-58",
+	})
+	require.NoError(t, err)
+	host2, err := ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         ptr.String("2"),
+		UUID:            "2",
+		OsqueryHostID:   ptr.String("2"),
+		Hostname:        "foo.local2",
+		PrimaryIP:       "192.168.1.2",
+		PrimaryMac:      "30-65-EC-6F-C4-59",
+	})
+	require.NoError(t, err)
+
+	err = ds.SetOrUpdateHostDiskEncryptionKey(context.Background(), host.ID, "AAA")
+	require.NoError(t, err)
+
+	err = ds.SetOrUpdateHostDiskEncryptionKey(context.Background(), host2.ID, "BBB")
+	require.NoError(t, err)
+
+	checkEncryptionKey := func(hostID uint, expected string) {
+		actual, err := ds.GetHostDiskEncryptionKey(context.Background(), hostID)
+		require.NoError(t, err)
+		require.Equal(t, expected, actual.Base64Encrypted)
+	}
+
+	h, err := ds.Host(context.Background(), host.ID)
+	require.NoError(t, err)
+	checkEncryptionKey(h.ID, "AAA")
+
+	h, err = ds.Host(context.Background(), host2.ID)
+	require.NoError(t, err)
+	checkEncryptionKey(h.ID, "BBB")
+
+	err = ds.SetOrUpdateHostDiskEncryptionKey(context.Background(), host2.ID, "CCC")
+	require.NoError(t, err)
+
+	h, err = ds.Host(context.Background(), host2.ID)
+	require.NoError(t, err)
+	checkEncryptionKey(h.ID, "CCC")
+
+	// setting the encryption key to an existing value doesn't change its
+	// encryption status
+	err = ds.SetHostsDiskEncryptionKeyStatus(context.Background(), []uint{host.ID}, true, time.Now().Add(time.Hour))
+	require.NoError(t, err)
+	checkEncryptionKeyStatus(t, ds, host.ID, ptr.Bool(true))
+
+	// same key doesn't change encryption status
+	err = ds.SetOrUpdateHostDiskEncryptionKey(context.Background(), host.ID, "AAA")
+	require.NoError(t, err)
+	checkEncryptionKeyStatus(t, ds, host.ID, ptr.Bool(true))
+
+	// different key resets encryption status
+	err = ds.SetOrUpdateHostDiskEncryptionKey(context.Background(), host.ID, "XZY")
+	require.NoError(t, err)
+	checkEncryptionKeyStatus(t, ds, host.ID, nil)
+}
+
+func testHostsSetDiskEncryptionKeyStatus(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	host, err := ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         ptr.String("1"),
+		UUID:            "1",
+		OsqueryHostID:   ptr.String("1"),
+		Hostname:        "foo.local",
+		PrimaryIP:       "192.168.1.1",
+		PrimaryMac:      "30-65-EC-6F-C4-58",
+	})
+	require.NoError(t, err)
+	err = ds.SetOrUpdateHostDiskEncryptionKey(ctx, host.ID, "TESTKEY")
+	require.NoError(t, err)
+
+	host2, err := ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         ptr.String("2"),
+		UUID:            "2",
+		OsqueryHostID:   ptr.String("2"),
+		Hostname:        "foo.local",
+		PrimaryIP:       "192.168.1.1",
+		PrimaryMac:      "30-65-EC-6F-C4-58",
+	})
+	require.NoError(t, err)
+
+	err = ds.SetOrUpdateHostDiskEncryptionKey(ctx, host2.ID, "TESTKEY")
+	require.NoError(t, err)
+
+	threshold := time.Now().Add(time.Hour)
+
+	// empty set
+	err = ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{}, false, threshold)
+	require.NoError(t, err)
+	checkEncryptionKeyStatus(t, ds, host.ID, nil)
+	checkEncryptionKeyStatus(t, ds, host2.ID, nil)
+
+	// keys that changed after the provided threshold are not updated
+	err = ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{host.ID, host2.ID}, true, threshold.Add(-24*time.Hour))
+	require.NoError(t, err)
+	checkEncryptionKeyStatus(t, ds, host.ID, nil)
+	checkEncryptionKeyStatus(t, ds, host2.ID, nil)
+
+	// single host
+	err = ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{host.ID}, true, threshold)
+	require.NoError(t, err)
+	checkEncryptionKeyStatus(t, ds, host.ID, ptr.Bool(true))
+	checkEncryptionKeyStatus(t, ds, host2.ID, nil)
+
+	// multiple hosts
+	err = ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{host.ID, host2.ID}, true, threshold)
+	require.NoError(t, err)
+	checkEncryptionKeyStatus(t, ds, host.ID, ptr.Bool(true))
+	checkEncryptionKeyStatus(t, ds, host2.ID, ptr.Bool(true))
+
+	err = ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{host.ID, host2.ID}, false, threshold)
+	require.NoError(t, err)
+	checkEncryptionKeyStatus(t, ds, host.ID, ptr.Bool(false))
+	checkEncryptionKeyStatus(t, ds, host2.ID, ptr.Bool(false))
+}
+
+func testHostsGetUnverifiedDiskEncryptionKeys(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	host, err := ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         ptr.String("1"),
+		UUID:            "1",
+		OsqueryHostID:   ptr.String("1"),
+		Hostname:        "foo.local",
+		PrimaryIP:       "192.168.1.1",
+		PrimaryMac:      "30-65-EC-6F-C4-58",
+	})
+	require.NoError(t, err)
+	host2, err := ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         ptr.String("2"),
+		UUID:            "2",
+		OsqueryHostID:   ptr.String("2"),
+		Hostname:        "foo.local",
+		PrimaryIP:       "192.168.1.1",
+		PrimaryMac:      "30-65-EC-6F-C4-58",
+	})
+	require.NoError(t, err)
+
+	err = ds.SetOrUpdateHostDiskEncryptionKey(ctx, host.ID, "TESTKEY")
+	require.NoError(t, err)
+	err = ds.SetOrUpdateHostDiskEncryptionKey(ctx, host2.ID, "TESTKEY")
+	require.NoError(t, err)
+
+	keys, err := ds.GetUnverifiedDiskEncryptionKeys(ctx)
+	require.NoError(t, err)
+	require.Len(t, keys, 2)
+	// ensure the updated_at value is grabbed from the database
+	for _, k := range keys {
+		require.NotZero(t, k.UpdatedAt)
+	}
+
+	threshold := time.Now().Add(time.Hour)
+
+	err = ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{host.ID}, false, threshold)
+	require.NoError(t, err)
+
+	keys, err = ds.GetUnverifiedDiskEncryptionKeys(ctx)
+	require.NoError(t, err)
+	require.Len(t, keys, 1)
+
+	err = ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{host.ID, host2.ID}, false, threshold)
+	require.NoError(t, err)
+
+	keys, err = ds.GetUnverifiedDiskEncryptionKeys(ctx)
+	require.NoError(t, err)
+	require.Empty(t, keys)
 }

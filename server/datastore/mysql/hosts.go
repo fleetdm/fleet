@@ -330,6 +330,7 @@ var hostRefs = []string{
 	"host_disks",
 	"operating_system_vulnerabilities",
 	"host_updates",
+	"host_disk_encryption_keys",
 }
 
 func (ds *Datastore) DeleteHost(ctx context.Context, hid uint) error {
@@ -419,7 +420,7 @@ SELECT
       host_id = h.id
   ) AS additional,
   COALESCE(failing_policies.count, 0) AS failing_policies_count,
-  COALESCE(failing_policies.count, 0) AS total_issues_count 
+  COALESCE(failing_policies.count, 0) AS total_issues_count
   ` + hostMDMSelect + `
 FROM
   hosts h
@@ -428,6 +429,7 @@ FROM
   LEFT JOIN host_updates hu ON (h.id = hu.host_id)
   LEFT JOIN host_disks hd ON hd.host_id = h.id
   LEFT JOIN host_mdm hmdm on hmdm.host_id = h.id
+  LEFT JOIN host_disk_encryption_keys hdek ON hdek.host_id = h.id
   JOIN (
     SELECT
       count(*) as count
@@ -475,18 +477,32 @@ LIMIT
 }
 
 const hostMDMSelect = `,
-	CASE
-		WHEN hmdm.is_server = 1 THEN NULL
-		WHEN hmdm.enrolled = 1 AND hmdm.installed_from_dep = 0 THEN 'On (manual)'
-		WHEN hmdm.enrolled = 1 AND hmdm.installed_from_dep = 1 THEN 'On (automatic)'
-		WHEN hmdm.enrolled = 0 AND hmdm.installed_from_dep = 1 THEN 'Pending'
-		WHEN hmdm.enrolled = 0 AND hmdm.installed_from_dep = 0 THEN 'Off'
-		ELSE NULL
-	END AS mdm_enrollment_status,
-	CASE 
-		WHEN hmdm.is_server = 1 THEN NULL
-		ELSE hmdm.server_url 
-	END as mdm_server_url
+	JSON_OBJECT(
+		'enrollment_status',
+		CASE
+			WHEN hmdm.is_server = 1 THEN NULL
+			WHEN hmdm.enrolled = 1 AND hmdm.installed_from_dep = 0 THEN 'On (manual)'
+			WHEN hmdm.enrolled = 1 AND hmdm.installed_from_dep = 1 THEN 'On (automatic)'
+			WHEN hmdm.enrolled = 0 AND hmdm.installed_from_dep = 1 THEN 'Pending'
+			WHEN hmdm.enrolled = 0 AND hmdm.installed_from_dep = 0 THEN 'Off'
+			ELSE NULL
+		END,
+		'server_url',
+		CASE
+			WHEN hmdm.is_server = 1 THEN NULL
+			ELSE hmdm.server_url
+		END,
+		'encryption_key_available',
+		CASE
+                       /* roberto: this is the only way I have found for MySQL to
+                        * return true and false instead of 0 and 1 in the JSON, the
+                        * unmarshaller was having problems converting int values to
+                        * booleans.
+                        */
+			WHEN hdek.decryptable IS NULL OR hdek.decryptable = 0 THEN CAST(FALSE AS JSON)
+			ELSE CAST(TRUE AS JSON)
+		END
+	) mdm_host_data
 	`
 
 func amountEnrolledHostsByOSDB(ctx context.Context, db sqlx.QueryerContext) (byOS map[string][]fleet.HostsCountByOSVersion, totalCount int, err error) {
@@ -680,7 +696,8 @@ func (ds *Datastore) applyHostFilters(opt fleet.HostListOptions, sql string, fil
     LEFT JOIN host_updates hu ON (h.id = hu.host_id)
     LEFT JOIN teams t ON (h.team_id = t.id)
     LEFT JOIN host_disks hd ON hd.host_id = h.id
-	LEFT JOIN host_mdm hmdm ON hmdm.host_id = h.id
+    LEFT JOIN host_mdm hmdm ON hmdm.host_id = h.id
+    LEFT JOIN host_disk_encryption_keys hdek ON hdek.host_id = h.id
     %s
     %s
     %s
@@ -712,7 +729,7 @@ func (ds *Datastore) applyHostFilters(opt fleet.HostListOptions, sql string, fil
 	sql, params = filterHostsByMDM(sql, opt, params)
 	sql, params = filterHostsByOS(sql, opt, params)
 	sql, params = hostSearchLike(sql, params, opt.MatchQuery, hostSearchColumns...)
-	sql, params = appendListOptionsWithCursorToSQL(sql, params, opt.ListOptions)
+	sql, params = appendListOptionsWithCursorToSQL(sql, params, &opt.ListOptions)
 
 	return sql, params
 }
@@ -1211,11 +1228,92 @@ func (ds *Datastore) LoadHostByNodeKey(ctx context.Context, nodeKey string) (*fl
 // LoadHostByOrbitNodeKey loads the whole host identified by the node key.
 // If the node key is invalid it returns a NotFoundError.
 func (ds *Datastore) LoadHostByOrbitNodeKey(ctx context.Context, nodeKey string) (*fleet.Host, error) {
-	query := `SELECT * FROM hosts WHERE orbit_node_key = ?`
+	query := `
+    SELECT
+      h.id,
+      h.osquery_host_id,
+      h.created_at,
+      h.updated_at,
+      h.detail_updated_at,
+      h.node_key,
+      h.hostname,
+      h.uuid,
+      h.platform,
+      h.osquery_version,
+      h.os_version,
+      h.build,
+      h.platform_like,
+      h.code_name,
+      h.uptime,
+      h.memory,
+      h.cpu_type,
+      h.cpu_subtype,
+      h.cpu_brand,
+      h.cpu_physical_cores,
+      h.cpu_logical_cores,
+      h.hardware_vendor,
+      h.hardware_model,
+      h.hardware_version,
+      h.hardware_serial,
+      h.computer_name,
+      h.primary_ip_id,
+      h.distributed_interval,
+      h.logger_tls_period,
+      h.config_tls_refresh,
+      h.primary_ip,
+      h.primary_mac,
+      h.label_updated_at,
+      h.last_enrolled_at,
+      h.refetch_requested,
+      h.team_id,
+      h.policy_updated_at,
+      h.public_ip,
+      h.orbit_node_key,
+      hm.host_id,
+      hm.enrolled,
+      hm.server_url,
+      hm.installed_from_dep,
+      hm.mdm_id,
+      hm.is_server,
+      COALESCE(mdms.name, ?) AS name
+    FROM
+      hosts h
+    LEFT OUTER JOIN
+      host_mdm hm
+    ON
+      hm.host_id = h.id
+    LEFT OUTER JOIN
+      mobile_device_management_solutions mdms
+    ON
+      hm.mdm_id = mdms.id
+    WHERE
+      h.orbit_node_key = ?`
 
-	var host fleet.Host
-	switch err := ds.getContextTryStmt(ctx, &host, query, nodeKey); {
+	var hostWithMDM struct {
+		fleet.Host
+		HostID           *uint   `db:"host_id"`
+		Enrolled         *bool   `db:"enrolled"`
+		ServerURL        *string `db:"server_url"`
+		InstalledFromDep *bool   `db:"installed_from_dep"`
+		IsServer         *bool   `db:"is_server"`
+		MDMID            *uint   `db:"mdm_id"`
+		Name             *string `db:"name"`
+	}
+	switch err := ds.getContextTryStmt(ctx, &hostWithMDM, query, fleet.UnknownMDMName, nodeKey); {
 	case err == nil:
+		host := hostWithMDM.Host
+		// leave MDMInfo nil unless it has mdm information
+		if hostWithMDM.HostID != nil {
+			host.MDMInfo = &fleet.HostMDM{
+				HostID:           *hostWithMDM.HostID,
+				Enrolled:         *hostWithMDM.Enrolled,
+				ServerURL:        *hostWithMDM.ServerURL,
+				InstalledFromDep: *hostWithMDM.InstalledFromDep,
+				IsServer:         *hostWithMDM.IsServer,
+				MDMID:            hostWithMDM.MDMID,
+				Name:             *hostWithMDM.Name,
+			}
+		}
 		return &host, nil
 	case errors.Is(err, sql.ErrNoRows):
 		return nil, ctxerr.Wrap(ctx, notFound("Host"))
@@ -1399,6 +1497,7 @@ func (ds *Datastore) SearchHosts(ctx context.Context, filter fleet.TeamFilter, m
   LEFT JOIN host_updates hu ON (h.id = hu.host_id)
   LEFT JOIN host_disks hd ON hd.host_id = h.id
   LEFT JOIN host_mdm hmdm on hmdm.host_id = h.id
+  LEFT JOIN host_disk_encryption_keys hdek ON hdek.host_id = h.id
   WHERE TRUE`
 
 	var args []interface{}
@@ -1426,6 +1525,7 @@ func (ds *Datastore) SearchHosts(ctx context.Context, filter fleet.TeamFilter, m
 	if err := sqlx.SelectContext(ctx, ds.reader, &hosts, query, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "searching hosts")
 	}
+
 	return hosts, nil
 }
 
@@ -1498,13 +1598,14 @@ func (ds *Datastore) HostByIdentifier(ctx context.Context, identifier string) (*
       COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,
       COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,
       COALESCE(hst.seen_time, h.created_at) AS seen_time,
-	  COALESCE(hu.software_updated_at, h.created_at) AS software_updated_at 
+	  COALESCE(hu.software_updated_at, h.created_at) AS software_updated_at
 	  ` + hostMDMSelect + `
     FROM hosts h
     LEFT JOIN host_seen_times hst ON (h.id = hst.host_id)
 	LEFT JOIN host_updates hu ON (h.id = hu.host_id)
     LEFT JOIN host_disks hd ON hd.host_id = h.id
 	LEFT JOIN host_mdm hmdm ON hmdm.host_id = h.id
+    LEFT JOIN host_disk_encryption_keys hdek ON hdek.host_id = h.id
     WHERE ? IN (h.hostname, h.osquery_host_id, h.node_key, h.uuid)
     LIMIT 1
 	`
@@ -2248,6 +2349,74 @@ func (ds *Datastore) SetOrUpdateHostDisksEncryption(ctx context.Context, hostID 
 	)
 }
 
+func (ds *Datastore) SetOrUpdateHostDiskEncryptionKey(ctx context.Context, hostID uint, encryptedBase64Key string) error {
+	_, err := ds.writer.ExecContext(ctx, `
+           INSERT INTO host_disk_encryption_keys (host_id, base64_encrypted) 
+	   VALUES (?, ?)
+	   ON DUPLICATE KEY UPDATE
+   	     /* if the key has changed, NULLify this value so it can be calculated again */
+             decryptable = IF(base64_encrypted = VALUES(base64_encrypted), decryptable, NULL),
+   	     base64_encrypted = VALUES(base64_encrypted)
+      `, hostID, encryptedBase64Key)
+	return err
+
+}
+
+func (ds *Datastore) GetUnverifiedDiskEncryptionKeys(ctx context.Context) ([]fleet.HostDiskEncryptionKey, error) {
+	var keys []fleet.HostDiskEncryptionKey
+	err := sqlx.SelectContext(ctx, ds.reader, &keys, `
+          SELECT
+            base64_encrypted,
+            host_id,
+            updated_at
+          FROM
+            host_disk_encryption_keys
+          WHERE
+            decryptable IS NULL
+	`)
+	return keys, err
+}
+
+func (ds *Datastore) SetHostsDiskEncryptionKeyStatus(
+	ctx context.Context,
+	hostIDs []uint,
+	decryptable bool,
+	threshold time.Time,
+) error {
+	if len(hostIDs) == 0 {
+		return nil
+	}
+
+	query, args, err := sqlx.In(
+		"UPDATE host_disk_encryption_keys SET decryptable = ? WHERE host_id IN (?) AND updated_at <= ?",
+		decryptable, hostIDs, threshold,
+	)
+	if err != nil {
+		return err
+	}
+	_, err = ds.writer.ExecContext(ctx, query, args...)
+	return err
+}
+
+func (ds *Datastore) GetHostDiskEncryptionKey(ctx context.Context, hostID uint) (*fleet.HostDiskEncryptionKey, error) {
+	var key fleet.HostDiskEncryptionKey
+	err := sqlx.GetContext(ctx, ds.reader, &key, `
+          SELECT
+            host_id, base64_encrypted, decryptable, updated_at
+          FROM
+            host_disk_encryption_keys
+          WHERE host_id = ?`, hostID)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			msg := fmt.Sprintf("for host %d", hostID)
+			return nil, ctxerr.Wrap(ctx, notFound("HostDiskEncryptionKey").WithMessage(msg))
+		}
+		return nil, ctxerr.Wrapf(ctx, err, "getting data from host_mdm for host_id %d", hostID)
+	}
+	return &key, nil
+}
+
 func (ds *Datastore) SetOrUpdateHostOrbitInfo(ctx context.Context, hostID uint, version string) error {
 	return ds.updateOrInsert(
 		ctx,
@@ -2306,13 +2475,18 @@ func (ds *Datastore) GetHostMDMCheckinInfo(ctx context.Context, hostUUID string)
 	var hmdm fleet.HostMDMCheckinInfo
 	err := sqlx.GetContext(ctx, ds.reader, &hmdm, `
 		SELECT
-			h.hardware_serial, hm.installed_from_dep 
+			h.hardware_serial,
+			COALESCE(hm.installed_from_dep, false) as installed_from_dep,
+			hd.display_name
 		FROM
 			hosts h
-		JOIN
+		LEFT JOIN
 			host_mdm hm
 		ON h.id = hm.host_id
-		WHERE h.uuid = ?`, hostUUID)
+		LEFT JOIN
+			host_display_names hd
+		ON h.id = hd.host_id
+		WHERE h.uuid = ? LIMIT 1`, hostUUID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ctxerr.Wrap(ctx, notFound("MDM").WithMessage(hostUUID))
@@ -2764,6 +2938,9 @@ func (ds *Datastore) HostLite(ctx context.Context, id uint) (*fleet.Host, error)
 		"node_key",
 		"hostname",
 		"uuid",
+		"hardware_serial",
+		"hardware_model",
+		"computer_name",
 		"platform",
 		"team_id",
 		"distributed_interval",

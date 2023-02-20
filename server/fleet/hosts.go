@@ -202,11 +202,43 @@ type Host struct {
 	// struct tag here has csv:"-".
 	DeviceMapping *json.RawMessage `json:"device_mapping,omitempty" db:"device_mapping" csv:"-"`
 
-	// MDMEnrollmentStatus is a string representation of state derived from booleans stored in the host_mdm
-	// table, loaded by JOIN in datastore
-	MDMEnrollmentStatus *string `json:"mdm_enrollment_status" db:"mdm_enrollment_status" csv:"mdm_enrollment_status"`
-	// MDMServerURL is the server_url stored in the host_mdm table, loaded by JOIN in datastore
-	MDMServerURL *string `json:"mdm_server_url" db:"mdm_server_url" csv:"mdm_server_url"`
+	MDM MDMHostData `json:"mdm" db:"mdm_host_data" csv:"-"`
+
+	// MDMInfo stores the MDM information about the host. Note that as for many
+	// other host fields, it is not filled in by all host-returning datastore
+	// methods.
+	MDMInfo *HostMDM `json:"-" csv:"-"`
+}
+
+type MDMHostData struct {
+	// For CSV columns, since the CSV is flattened, we keep the "mdm." prefix
+	// along with the column name.
+
+	// EnrollmentStatus is a string representation of state derived from
+	// booleans stored in the host_mdm table, loaded by JOIN in datastore
+	EnrollmentStatus *string `json:"enrollment_status" db:"-" csv:"mdm.enrollment_status"`
+	// ServerURL is the server_url stored in the host_mdm table, loaded by
+	// JOIN in datastore
+	ServerURL *string `json:"server_url" db:"-" csv:"mdm.server_url"`
+	// EncryptionKeyAvailable indicates if Fleet was able to retrieve and
+	// decode an encryption key for the host.
+	EncryptionKeyAvailable bool `json:"encryption_key_available" db:"-" csv:"-"`
+}
+
+// Scan implements the Scanner interface for sqlx, to support unmarshaling a
+// JSON object from the database into a MDMHostData struct.
+func (d *MDMHostData) Scan(v interface{}) error {
+	switch v := v.(type) {
+	case []byte:
+		return json.Unmarshal(v, d)
+	default:
+		return fmt.Errorf("unsupported type: %T", v)
+	}
+}
+
+// IsOsqueryEnrolled returns true if the host is enrolled via osquery.
+func (h *Host) IsOsqueryEnrolled() bool {
+	return h.OsqueryHostID != nil && *h.OsqueryHostID != ""
 }
 
 // DisplayName returns ComputerName if it isn't empty. Otherwise, it returns Hostname if it isn't
@@ -318,7 +350,7 @@ func (h *Host) FleetPlatform() string {
 
 // HostLinuxOSs are the possible linux values for Host.Platform.
 var HostLinuxOSs = []string{
-	"linux", "ubuntu", "debian", "rhel", "centos", "sles", "kali", "gentoo", "amzn", "pop", "arch", "linuxmint", "void",
+	"linux", "ubuntu", "debian", "rhel", "centos", "sles", "kali", "gentoo", "amzn", "pop", "arch", "linuxmint", "void", "nixos",
 }
 
 func IsLinux(hostPlatform string) bool {
@@ -392,13 +424,24 @@ type HostMunkiInfo struct {
 // used by a host. Note that it uses a different JSON representation than its
 // struct - it implements a custom JSON marshaler.
 type HostMDM struct {
-	HostID           uint   `db:"host_id" json:"-"`
-	Enrolled         bool   `db:"enrolled" json:"-"`
-	ServerURL        string `db:"server_url" json:"-"`
-	InstalledFromDep bool   `db:"installed_from_dep" json:"-"`
-	IsServer         bool   `db:"is_server" json:"-"`
-	MDMID            *uint  `db:"mdm_id" json:"-"`
-	Name             string `db:"name" json:"-"`
+	HostID           uint   `db:"host_id" json:"-" csv:"-"`
+	Enrolled         bool   `db:"enrolled" json:"-" csv:"-"`
+	ServerURL        string `db:"server_url" json:"-" csv:"-"`
+	InstalledFromDep bool   `db:"installed_from_dep" json:"-" csv:"-"`
+	IsServer         bool   `db:"is_server" json:"-" csv:"-"`
+	MDMID            *uint  `db:"mdm_id" json:"-" csv:"-"`
+	Name             string `db:"name" json:"-" csv:"-"`
+}
+
+// IsPendingDEPFleetEnrollment returns true if the host's MDM information
+// indicates that it is in pending state for Fleet MDM DEP (automatic)
+// enrollment.
+func (h *HostMDM) IsPendingDEPFleetEnrollment() bool {
+	if h == nil {
+		return false
+	}
+	return (!h.IsServer) && (!h.Enrolled) && h.InstalledFromDep &&
+		h.Name == WellKnownMDMFleet
 }
 
 // HostMunkiIssue represents a single munki issue for a host.
@@ -597,4 +640,13 @@ type EnrollHostLimiter interface {
 type HostMDMCheckinInfo struct {
 	HardwareSerial   string `json:"hardware_serial" db:"hardware_serial"`
 	InstalledFromDEP bool   `json:"installed_from_dep" db:"installed_from_dep"`
+	DisplayName      string `json:"display_name" db:"display_name"`
+}
+
+type HostDiskEncryptionKey struct {
+	HostID          uint      `json:"-" db:"host_id"`
+	Base64Encrypted string    `json:"-" db:"base64_encrypted"`
+	Decryptable     *bool     `json:"-" db:"decryptable"`
+	UpdatedAt       time.Time `json:"updated_at" db:"updated_at"`
+	DecryptedValue  string    `json:"key" db:"-"`
 }

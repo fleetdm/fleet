@@ -27,6 +27,10 @@
     overflow-wrap: break-word;
     display: block;
     white-space: pre-wrap;
+
+    .safari-hack {
+      height: 0px;
+    }
   }
 
   @media (min-width: $break-990) {

@@ -1,0 +1,1 @@
+* Only set public IPs on the `host.public_ip` field and add documentation on how to properly configure the deployment to ingest correct public IPs from enrolled devices.

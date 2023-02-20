@@ -17,7 +17,6 @@ At Fleet, [anyone can contribute](https://fleetdm.com/handbook/company#openness)
 | Product group             | Goal _(value for customers and/or community)_                       |
 |:--------------------------|:--------------------------------------------------------------------|
 | [MDM](#mdm-group)                                       | Reach maturity in the "MDM" product category.
-| [Compliance](#compliance-group)                         | Deliver out-of-the-box CIS compliance for customers.
 | [Customer experience (CX)](#customer-experience-group)  | Make customers happier and more successful.
 
 
@@ -31,25 +30,13 @@ The goal of the MDM group is to reach [product maturity](https://drive.google.co
 | Quality assurance                 | Reed Haynes
 | Product manager                   | Noah Talerman
 | Engineering manager               | Luke Heath
-| Software engineers (developers)   | Gabe Hernandez, Jacob Shandling, _Marcos Oviedo_, Martin Angers, _Rachel Perkins_, Roberto Dip, Sarah Gillespie
+| Software engineers (developers)   | Gabe Hernandez, Jacob Shandling, Martin Angers, Roberto Dip, Sarah Gillespie
 
-
-### Compliance group
-
-The goal of the Compliance group is to deliver out-of-the-box CIS compliance for customers.
-
-| Responsibility                    | Human(s)                  |
-|:----------------------------------|:--------------------------|
-| Designer                          | Mike Thomas
-| Quality assurance                 | Reed Haynes
-| Product manager                   | Sharon Katz
-| Engineering manager               | Sharon Katz
-| Software engineers (developers)   | Artemis Tosini, _Lucas Rodriguez_, _Marcos Oviedo (joining in late Jan 2023)_
 
 
 ### Customer experience group
 
-The goal of the customer experience group is to make customers happier and more successful.  This includes simpler deployments, more successful customer onboarding, features that drive more win-win meetings with Fleet's sales team, and "whole product solutions", including professional services, design partnerships, and training.
+The goal of the customer experience group is to make customers happier and more successful.  This includes simpler deployments, more successful customer onboarding, features that drive more win-win meetings with Fleet's sales team (such as initiatives like out-of-the-box CIS compliance for customers), and "whole product solutions", including professional services, design partnerships, and training.
 
 
 | Responsibility                    | Human(s)                  |
@@ -57,8 +44,8 @@ The goal of the customer experience group is to make customers happier and more 
 | Designer                          | Mike Thomas
 | Quality assurance                 | Reed Haynes
 | Product manager                   | Zay Hanlon
-| Engineering manager               | Zay Hanlon
-| Software engineers (developers)   | Eric Shaw, _Lucas Rodriguez_, _Marcos Oviedo_, _Rachel Perkins_, Robert Fairburn, Zach Winnerman
+| Engineering manager               | Sharon Katz
+| Software engineers (developers)   | Artemis Tosini, Eric Shaw, Juan Fernandez, Lucas Rodriguez, Marcos Oviedo, Rachel Perkins, Robert Fairburn, Zach Winnerman
 
 
 

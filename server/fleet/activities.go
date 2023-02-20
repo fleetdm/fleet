@@ -34,6 +34,7 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityTypeUserAddedBySSO{},
 
 	ActivityTypeUserLoggedIn{},
+	ActivityTypeUserFailedLogin{},
 
 	ActivityTypeCreatedUser{},
 	ActivityTypeDeletedUser{},
@@ -44,6 +45,14 @@ var ActivityDetailsList = []ActivityDetails{
 
 	ActivityTypeMDMEnrolled{},
 	ActivityTypeMDMUnenrolled{},
+
+	ActivityTypeEditedMacOSMinVersion{},
+
+	ActivityTypeReadHostDiskEncryptionKey{},
+
+	ActivityTypeCreatedMacosProfile{},
+	ActivityTypeDeletedMacosProfile{},
+	ActivityTypeEditedMacosProfile{},
 }
 
 type ActivityDetails interface {
@@ -67,7 +76,7 @@ func (a ActivityTypeCreatedPack) Documentation() (activity string, details strin
 		`This activity contains the following fields:
 - "pack_id": the id of the created pack.
 - "pack_name": the name of the created pack.`, `{
-	"pack_id": 123, 
+	"pack_id": 123,
 	"pack_name": "foo"
 }`
 }
@@ -86,7 +95,7 @@ func (a ActivityTypeEditedPack) Documentation() (activity string, details string
 		`This activity contains the following fields:
 - "pack_id": the id of the edited pack.
 - "pack_name": the name of the edited pack.`, `{
-	"pack_id": 123, 
+	"pack_id": 123,
 	"pack_name": "foo"
 }`
 }
@@ -132,7 +141,7 @@ func (a ActivityTypeCreatedPolicy) Documentation() (activity string, details str
 		`This activity contains the following fields:
 - "policy_id": the ID of the created policy.
 - "policy_name": the name of the created policy.`, `{
-	"policy_id": 123, 
+	"policy_id": 123,
 	"policy_name": "foo"
 }`
 }
@@ -151,7 +160,7 @@ func (a ActivityTypeEditedPolicy) Documentation() (activity string, details stri
 		`This activity contains the following fields:
 - "policy_id": the ID of the edited policy.
 - "policy_name": the name of the edited policy.`, `{
-	"policy_id": 123, 
+	"policy_id": 123,
 	"policy_name": "foo"
 }`
 }
@@ -170,7 +179,7 @@ func (a ActivityTypeDeletedPolicy) Documentation() (activity string, details str
 		`This activity contains the following fields:
 - "policy_id": the ID of the deleted policy.
 - "policy_name": the name of the deleted policy.`, `{
-	"policy_id": 123, 
+	"policy_id": 123,
 	"policy_name": "foo"
 }`
 }
@@ -229,7 +238,7 @@ func (a ActivityTypeCreatedSavedQuery) Documentation() (activity string, details
 		`This activity contains the following fields:
 - "query_id": the ID of the created query.
 - "query_name": the name of the created query.`, `{
-	"query_id": 123, 
+	"query_id": 123,
 	"query_name": "foo"
 }`
 }
@@ -248,7 +257,7 @@ func (a ActivityTypeEditedSavedQuery) Documentation() (activity string, details 
 		`This activity contains the following fields:
 - "query_id": the ID of the query being edited.
 - "query_name": the name of the query being edited.`, `{
-	"query_id": 123, 
+	"query_id": 123,
 	"query_name": "foo"
 }`
 }
@@ -323,7 +332,7 @@ func (a ActivityTypeCreatedTeam) Documentation() (activity string, details strin
 		`This activity contains the following fields:
 - "team_id": unique ID of the created team.
 - "team_name": the name of the created team.`, `{
-	"team_id": 123, 
+	"team_id": 123,
 	"team_name": "foo"
 }`
 }
@@ -342,7 +351,7 @@ func (a ActivityTypeDeletedTeam) Documentation() (activity string, details strin
 		`This activity contains the following fields:
 - "team_id": unique ID of the deleted team.
 - "team_name": the name of the deleted team.`, `{
-	"team_id": 123, 
+	"team_id": 123,
 	"team_name": "foo"
 }`
 }
@@ -367,7 +376,7 @@ func (a ActivityTypeAppliedSpecTeam) Documentation() (activity string, details s
 - "name": Name of the team.`, `{
 	"teams": [
 		{
-			"id": 123, 
+			"id": 123,
 			"name": "foo"
 		}
 	]
@@ -390,7 +399,7 @@ func (a ActivityTypeEditedAgentOptions) Documentation() (activity string, detail
 - "global": "true" if the user updated the global agent options, "false" if the agent options of a team were updated.
 - "team_id": unique ID of the team for which the agent options were updated (null if global is true).
 - "team_name": the name of the team for which the agent options were updated (null if global is true).`, `{
-	"team_id": 123, 
+	"team_id": 123,
 	"team_name": "foo",
 	"global": false
 }`
@@ -412,7 +421,7 @@ func (a ActivityTypeLiveQuery) Documentation() (activity string, details string,
 - "targets_count": Number of hosts where the live query was targeted to run.
 - "query_sql": The SQL query to run on hosts.
 - "query_name": Name of the query (this field is not set if this was not a saved query).`, `{
-	"targets_count": 5000, 
+	"targets_count": 5000,
 	"query_sql": "SELECT * from osquery_info;",
 	"query_name": "foo"
 }`
@@ -432,13 +441,18 @@ func (a ActivityTypeUserAddedBySSO) Documentation() (activity string, details st
 type Activity struct {
 	CreateTimestamp
 	ID            uint             `json:"id" db:"id"`
-	ActorFullName *string          `json:"actor_full_name" db:"name"`
-	ActorID       *uint            `json:"actor_id" db:"user_id"`
-	ActorGravatar *string          `json:"actor_gravatar" db:"gravatar_url"`
-	ActorEmail    *string          `json:"actor_email" db:"email"`
+	ActorFullName *string          `json:"actor_full_name,omitempty" db:"name"`
+	ActorID       *uint            `json:"actor_id,omitempty" db:"user_id"`
+	ActorGravatar *string          `json:"actor_gravatar,omitempty" db:"gravatar_url"`
+	ActorEmail    *string          `json:"actor_email,omitempty" db:"email"`
 	Type          string           `json:"type" db:"activity_type"`
 	Details       *json.RawMessage `json:"details" db:"details"`
 	Streamed      *bool            `json:"-" db:"streamed"`
+}
+
+// AuthzType implement AuthzTyper to be able to verify access to activities
+func (*Activity) AuthzType() string {
+	return "activity"
 }
 
 type ActivityTypeUserLoggedIn struct {
@@ -453,6 +467,25 @@ func (a ActivityTypeUserLoggedIn) Documentation() (activity string, details stri
 	return `Generated when users successfully log in to Fleet.`,
 		`This activity contains the following fields:
 - "public_ip": Public IP of the login request.`, `{
+	"public_ip": "168.226.215.82"
+}`
+}
+
+type ActivityTypeUserFailedLogin struct {
+	Email    string `json:"email"`
+	PublicIP string `json:"public_ip"`
+}
+
+func (a ActivityTypeUserFailedLogin) ActivityName() string {
+	return "user_failed_login"
+}
+
+func (a ActivityTypeUserFailedLogin) Documentation() (activity string, details string, detailsExample string) {
+	return `Generated when users try to log in to Fleet and fail.`,
+		`This activity contains the following fields:
+- "email": The email used in the login request.
+- "public_ip": Public IP of the login request.`, `{
+	"email": "foo@example.com",
 	"public_ip": "168.226.215.82"
 }`
 }
@@ -615,6 +648,7 @@ func (a ActivityTypeDeletedUserTeamRole) Documentation() (activity string, detai
 
 type ActivityTypeMDMEnrolled struct {
 	HostSerial       string `json:"host_serial"`
+	HostDisplayName  string `json:"host_display_name"`
 	InstalledFromDEP bool   `json:"installed_from_dep"`
 }
 
@@ -626,14 +660,17 @@ func (a ActivityTypeMDMEnrolled) Documentation() (activity string, details strin
 	return `Generated when a host is enrolled in Fleet's MDM.`,
 		`This activity contains the following fields:
 - "host_serial": Serial number of the host.
+- "host_display_name": Display name of the host.
 - "installed_from_dep": Whether the host was enrolled via DEP.`, `{
   "host_serial": "C08VQ2AXHT96",
+  "host_display_name": "MacBookPro16,1 (C08VQ2AXHT96)",
   "installed_from_dep": true
 }`
 }
 
 type ActivityTypeMDMUnenrolled struct {
 	HostSerial       string `json:"host_serial"`
+	HostDisplayName  string `json:"host_display_name"`
 	InstalledFromDEP bool   `json:"installed_from_dep"`
 }
 
@@ -645,13 +682,123 @@ func (a ActivityTypeMDMUnenrolled) Documentation() (activity string, details str
 	return `Generated when a host is unenrolled from Fleet's MDM.`,
 		`This activity contains the following fields:
 - "host_serial": Serial number of the host.
+- "host_display_name": Display name of the host.
 - "installed_from_dep": Whether the host was enrolled via DEP.`, `{
   "host_serial": "C08VQ2AXHT96",
+  "host_display_name": "MacBookPro16,1 (C08VQ2AXHT96)",
   "installed_from_dep": true
 }`
 }
 
-// AuthzType implement AuthzTyper to be able to verify access to activities
-func (*Activity) AuthzType() string {
-	return "activity"
+type ActivityTypeEditedMacOSMinVersion struct {
+	TeamID         *uint   `json:"team_id"`
+	TeamName       *string `json:"team_name"`
+	MinimumVersion string  `json:"minimum_version"`
+	Deadline       string  `json:"deadline"`
+}
+
+func (a ActivityTypeEditedMacOSMinVersion) ActivityName() string {
+	return "edited_macos_min_version"
+}
+
+func (a ActivityTypeEditedMacOSMinVersion) Documentation() (activity string, details string, detailsExample string) {
+	return `Generated when the minimum required macOS version or deadline is modified.`,
+		`This activity contains the following fields:
+- "team_id": The ID of the team that the minimum macOS version applies to, null if it applies to devices that are not in a team.
+- "team_name": The name of the team that the minimum macOS version applies to, null if it applies to devices that are not in a team.
+- "minimum_version": The minimum macOS version required, empty if the requirement was removed.
+- "deadline": The deadline by which the minimum version requirement must be applied, empty if the requirement was removed.`, `{
+  "team_id": 3,
+  "team_name": "Workstations",
+  "minimum_version": "13.0.1",
+  "deadline": "2023-06-01"
+}`
+}
+
+type ActivityTypeReadHostDiskEncryptionKey struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+}
+
+func (a ActivityTypeReadHostDiskEncryptionKey) ActivityName() string {
+	return "read_host_disk_encryption_key"
+}
+
+func (a ActivityTypeReadHostDiskEncryptionKey) Documentation() (activity string, details string, detailsExample string) {
+	return `Generated when a user reads the disk encryption key for a host.`,
+		`This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.`, `{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro",
+}`
+}
+
+type ActivityTypeCreatedMacosProfile struct {
+	ProfileName       string  `json:"profile_name"`
+	ProfileIdentifier string  `json:"profile_identifier"`
+	TeamID            *uint   `json:"team_id"`
+	TeamName          *string `json:"team_name"`
+}
+
+func (a ActivityTypeCreatedMacosProfile) ActivityName() string {
+	return "created_macos_profile"
+}
+
+func (a ActivityTypeCreatedMacosProfile) Documentation() (activity, details, detailsExample string) {
+	return `Generated when a user adds a new macOS profile to a team (or no team).`,
+		`This activity contains the following fields:
+- "profile_name": Name of the profile.
+- "profile_identifier": Identifier of the profile.
+- "team_id": The ID of the team that the profile applies to, null if it applies to devices that are not in a team.
+- "team_name": The name of the team that the profile applies to, null if it applies to devices that are not in a team.`, `{
+  "profile_name": "Custom settings 1",
+  "profile_identifier": "com.my.profile",
+  "team_id": 123,
+  "team_name": "Workstations"
+}`
+}
+
+type ActivityTypeDeletedMacosProfile struct {
+	ProfileName       string  `json:"profile_name"`
+	ProfileIdentifier string  `json:"profile_identifier"`
+	TeamID            *uint   `json:"team_id"`
+	TeamName          *string `json:"team_name"`
+}
+
+func (a ActivityTypeDeletedMacosProfile) ActivityName() string {
+	return "deleted_macos_profile"
+}
+
+func (a ActivityTypeDeletedMacosProfile) Documentation() (activity, details, detailsExample string) {
+	return `Generated when a user deletes a macOS profile from a team (or no team).`,
+		`This activity contains the following fields:
+- "profile_name": Name of the deleted profile.
+- "profile_identifier": Identifier of deleted the profile.
+- "team_id": The ID of the team that the profile applied to, null if it applied to devices that are not in a team.
+- "team_name": The name of the team that the profile applied to, null if it applied to devices that are not in a team.`, `{
+  "profile_name": "Custom settings 1",
+  "profile_identifier": "com.my.profile",
+  "team_id": 123,
+  "team_name": "Workstations"
+}`
+}
+
+type ActivityTypeEditedMacosProfile struct {
+	TeamID   *uint   `json:"team_id"`
+	TeamName *string `json:"team_name"`
+}
+
+func (a ActivityTypeEditedMacosProfile) ActivityName() string {
+	return "edited_macos_profile"
+}
+
+func (a ActivityTypeEditedMacosProfile) Documentation() (activity, details, detailsExample string) {
+	return `Generated when a user edits the macOS profiles of a team (or no team) via the fleetctl CLI.`,
+		`This activity contains the following fields:
+- "team_id": The ID of the team that the profiles apply to, null if they apply to devices that are not in a team.
+- "team_name": The name of the team that the profiles apply to, null if they apply to devices that are not in a team.`, `{
+  "team_id": 123,
+  "team_name": "Workstations"
+}`
 }

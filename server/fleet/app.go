@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/url"
+	"regexp"
 	"sort"
 	"time"
 
@@ -111,10 +112,89 @@ type MDM struct {
 	// API.
 	AppleBMTermsExpired bool `json:"apple_bm_terms_expired"`
 
+	// EnabledAndConfigured is set to true if Fleet has been
+	// configured with all the required certificates. It cant' be set
+	// manually via the PATCH /config API, it's only set automatically when
+	// the server starts.
+	EnabledAndConfigured bool `json:"enabled_and_configured"`
+
+	MacOSUpdates MacOSUpdates `json:"macos_updates"`
+
 	/////////////////////////////////////////////////////////////////
 	// WARNING: If you add to this struct make sure it's taken into
 	// account in the AppConfig Clone implementation!
 	/////////////////////////////////////////////////////////////////
+}
+
+// versionStringRegex is used to validate that a version string is in the x.y.z
+// format only (no prerelease or build metadata).
+var versionStringRegex = regexp.MustCompile(`^\d+(\.\d+)?(\.\d+)?$`)
+
+// MacOSUpdates is part of AppConfig and defines the macOS update settings.
+type MacOSUpdates struct {
+	// MinimumVerssion is the required minimum operating system version.
+	MinimumVersion string `json:"minimum_version"`
+	// Deadline the required installation date for Nudge to enforce the required
+	// operating system version.
+	Deadline string `json:"deadline"`
+}
+
+func (m MacOSUpdates) Validate() error {
+	// if no settings are provided it's okay to skip further validation
+	if m.MinimumVersion == "" && m.Deadline == "" {
+		return nil
+	}
+
+	if m.MinimumVersion != "" && m.Deadline == "" {
+		return errors.New("deadline is required when minimum_version is provided")
+	}
+
+	if m.Deadline != "" && m.MinimumVersion == "" {
+		return errors.New("minimum_version is required when deadline is provided")
+	}
+
+	if !versionStringRegex.MatchString(m.MinimumVersion) {
+		return errors.New(`minimum_version accepts version numbers only. (E.g., "13.0.1.") NOT "Ventura 13" or "13.0.1 (22A400)"`)
+	}
+
+	if _, err := time.Parse("2006-01-02", m.Deadline); err != nil {
+		return errors.New(`deadline accepts YYYY-MM-DD format only (E.g., "2023-06-01.")`)
+	}
+
+	return nil
+}
+
+// MacOSSettings contains settings specific to macOS.
+type MacOSSettings struct {
+	CustomSettings []string `json:"custom_settings"`
+}
+
+func (s MacOSSettings) ToMap() map[string]interface{} {
+	return map[string]interface{}{
+		"custom_settings": s.CustomSettings,
+	}
+}
+
+// CustomSettingsFromMap sets the custom settings field from the provided map,
+// which is the map type from the ApplyTeams spec struct. It returns true if
+// the custom settings were set from the map, false if they were left
+// unchanged.
+func (s *MacOSSettings) CustomSettingsFromMap(m map[string]interface{}) bool {
+	if v, ok := m["custom_settings"]; ok {
+		vals, ok := v.([]interface{})
+		if v == nil || ok {
+			strs := make([]string, 0, len(vals))
+			for _, v := range vals {
+				s, ok := v.(string)
+				if ok && s != "" {
+					strs = append(strs, s)
+				}
+			}
+			s.CustomSettings = strs
+			return true
+		}
+	}
+	return false
 }
 
 // AppConfig holds server configuration that can be changed via the API.
@@ -143,6 +223,8 @@ type AppConfig struct {
 	Integrations    Integrations    `json:"integrations"`
 
 	MDM MDM `json:"mdm"`
+
+	MacOSSettings MacOSSettings `json:"macos_settings"`
 
 	// when true, strictDecoding causes the UnmarshalJSON method to return an
 	// error if there are unknown fields in the raw JSON.
@@ -221,6 +303,11 @@ func (c *AppConfig) Copy() *AppConfig {
 			zd := *z
 			clone.Integrations.Zendesk[i] = &zd
 		}
+	}
+
+	if c.MacOSSettings.CustomSettings != nil {
+		clone.MacOSSettings.CustomSettings = make([]string, len(c.MacOSSettings.CustomSettings))
+		copy(clone.MacOSSettings.CustomSettings, c.MacOSSettings.CustomSettings)
 	}
 
 	return &clone
@@ -480,14 +567,19 @@ type ListOptions struct {
 	// (varies depending on entity, eg. hostname, IP address for hosts).
 	// Handling for this parameter must be implemented separately for each type.
 	MatchQuery string `query:"query,optional"`
-
 	// After denotes the row to start from. This is meant to be used in conjunction with OrderKey
 	// If OrderKey is "id", it'll assume After is a number and will try to convert it.
 	After string `query:"after,optional"`
+	// Used to request the metadata of a query
+	IncludeMetadata bool
 }
 
 func (l ListOptions) Empty() bool {
 	return l == ListOptions{}
+}
+
+func (l ListOptions) UsesCursorPagination() bool {
+	return l.After != "" && l.OrderKey != ""
 }
 
 type ListQueryOptions struct {
@@ -670,4 +762,16 @@ type KafkaRESTConfig struct {
 	ResultTopic string `json:"result_topic"`
 	AuditTopic  string `json:"audit_topic"`
 	ProxyHost   string `json:"proxyhost"`
+}
+
+// DeviceGlobalConfig is a subset of AppConfig with information used by the
+// device endpoints
+type DeviceGlobalConfig struct {
+	MDM DeviceGlobalMDMConfig `json:"mdm"`
+}
+
+// DeviceGlobalMDMConfig is a subset of AppConfig.MDM with information used by
+// the device endpoints
+type DeviceGlobalMDMConfig struct {
+	EnabledAndConfigured bool `json:"enabled_and_configured"`
 }

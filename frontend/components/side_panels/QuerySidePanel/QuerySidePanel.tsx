@@ -15,6 +15,7 @@ import CloseIcon from "../../../../assets/images/icon-close-black-50-8x8@2x.png"
 import QueryTableExample from "./QueryTableExample";
 import QueryTableNotes from "./QueryTableNotes";
 import EventedTableTag from "./EventedTableTag";
+import CustomLink from "components/CustomLink";
 
 interface IQuerySidePanel {
   selectedOsqueryTable: IOsQueryTable;
@@ -86,6 +87,11 @@ const QuerySidePanel = ({
       <QueryTableColumns columns={columns} />
       {examples && <QueryTableExample example={examples} />}
       {notes && <QueryTableNotes notes={notes} />}
+      <CustomLink
+        url={`https://www.fleetdm.com/tables/${name}`}
+        text="Source"
+        newTab
+      />
     </>
   );
 };

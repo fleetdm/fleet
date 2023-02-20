@@ -213,4 +213,6 @@ type CPETranslation struct {
 	Product  []string `json:"product"`
 	Vendor   []string `json:"vendor"`
 	TargetSW []string `json:"target_sw"`
+	// If Skip is set, no NVD vulnerabilities will be reported for the matching software.
+	Skip bool `json:"skip"`
 }

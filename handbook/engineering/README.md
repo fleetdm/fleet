@@ -22,8 +22,7 @@
 ### Principles
 
 - Support the [Maker Schedule](http://www.paulgraham.com/makersschedule.html) by keeping meetings to a minimum.
-- Each individual must have a weekly sync 1:1 meeting with their manager. This is key to making sure each individual has a voice within the organization.
-- Each team should have a fixed weekly sync check-in. This helps reinforce team bonds and alignment.
+- Each individual must have a weekly or biweekly sync 1:1 meeting with their manager. This is key to making sure each individual has a voice within the organization.
 - Favor async communication when possible. This is very important to make sure every stakeholder on a project can have a clear understanding of what’s happening or what was decided, without needing to attend every meeting (i.e., if a person is sick or on vacation or just life happened.)
 - If an async conversation is not proving to be effective, never hesitate to hop on or schedule a call. Always document the decisions made in a ticket, document, or whatever makes sense for the conversation.
 
@@ -34,7 +33,7 @@ The following is the subset of proposed engineering meetings. Each group is free
 - Sprints are 3 weeks long to match our release cadence.
 - There are 5 “Scrum Ceremonies” performed during each sprint:
   - Sprint planning - At the first Monday of the sprint the team and stakeholders meet and pick items from the backlog. The team commit to finish those items.
-  - Daily sync standup - The team meet daily for updates. Each team member present what they did since the last sync and what they intend to do until next sync. Any impediments are raised.
+  - Daily sync standup - The team meets daily for updates. Each team member presents what they did since the last sync and what they intend to do until next sync. Any road blocks are raised.
   - Weekly estimation sessions - once a week (3 times a sprint) the team will estimate items in the backlog. Goals:
     - Have Stakeholders know in advance the time it will take to achieve those items.
     - Make it easier in the next planning meeting to know what the team can take for the next sprint.
@@ -88,40 +87,19 @@ For each attendee:
 
 A chance for deeper, synchronous discussion on topics relevant to that group. Held weekly for 30 minutes - one hour.
 
-e.g., “Interface Weekly” - “Platform Weekly” - “Agent Weekly”
+e.g., “Frontend Weekly” - “Backend Weekly” - “Agent Weekly”
 
 In some groups, this may be split into smaller discussions related to the different focuses of members within the group.
 
 #### Participants
 
-This would include members of each group.
+This would include anyone who wishes to participate. 
 
-#### Sample agenda (Platform)
+#### Sample Agenda (MDM)
 
-- Announcements
 - Anything at risk for the release?
-- Bug assignment
-- Retries in the datastore
-- Platform scale GOTCHAS doc
-- MarshalJSON to hide passwords and API tokens. Thoughts?
-
-#### Sample Agenda (Interface)
-
-- What’s good?
-- Anything at risk for the release?
-- Bug assignment
 - Confirm response payload matches spec
-- Discuss completion of Redux removal
-
-### Standup
-
-(Optional, varies by group) This is to provide status reports, discover blockers, and keep the group in sync.
-
-If desired, each group can implement daily (or some other cadence) standups. Ultimately, it’s up to the Engineering Manager to make sure that the team is communicating appropriately to deliver results.
-
-#### Participants
-
-This would include any members of the group.
+- Discuss common patterns and conventions in the codebase
 
 ### Engineering Leadership Weekly (Weekly ~ one hour)
 
@@ -213,9 +191,9 @@ In either case, if the oncall engineer has the knowledge and confidence to revie
 
 #### 3. Customer success meetings
 
-The oncall engineer is asked to attend all the customer success meetings during the week.
+The oncall engineer is encouraged to attend some of the customer success meetings during the week. Post a message to the #g-customer-experience Slack channel requesting invitations to upcoming meetings.
 
-The engineer will receive calendar invitations for the appropriate meetings. This has a dual purpose of providing more context for how our customers use Fleet. Also, the engineer should actively participate and provide input where appropriate (if not sure, please ask your manager or organizer of the call).
+This has a dual purpose of providing more context for how our customers use Fleet. The engineer should actively participate and provide input where appropriate (if not sure, please ask your manager or organizer of the call).
 
 #### 4. Improve documentation
 
@@ -280,6 +258,10 @@ At Fleet, we consider an outage to be a situation where new features or previous
 - Occurences of outages are tracked in the [Outages](https://docs.google.com/spreadsheets/d/1a8rUk0pGlCPpPHAV60kCEUBLvavHHXbk_L3BI0ybME4/edit#gid=0) spreadsheet.
 - Fleet encourages embracing the inevitability of mistakes and discourages blame games.
 - Fleet stresses the critical importance of avoiding outages because they make customers' lives worse instead of better.
+
+## Do we estimate released bugs and outages?
+
+Estimating bugs and outages can be helpful in getting on the same page about how much time we want to spend on a given piece of unplanned work, and how much the ∑ of unplanned work is affecting a team's throughput.
 
 ## Project boards
 
@@ -749,7 +731,9 @@ To target a different version of Fleet, use the `--tag` flag to target any tag i
 
 To start a preview without starting the simulated hosts, use the `--no-hosts` flag (e.g., `fleetctl preview --no-hosts`).
 
-For each bug found, please use the [bug report template](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&template=bug-report.md&title=) to create a new bug.
+For each bug found, please use the [bug report template](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&template=bug-report.md&title=) to create a new bug report issue.
+
+For unreleased bugs in an active sprint, no bug report issue is created. Instead, QA moves the associated story (ignoring any technical sub-task issues) back to the "In progress" column in the appropriate project board and assigns the [engineering manager (EM)](../company/development-groups#current-product-groups). QA adds comments about the back or lack of expected functionality that was found. Fixing the bug becomes part of the story.
 
 ### Bug process
 
@@ -769,8 +753,6 @@ See [Bug states and filters](#bug-states-and-filters) at the end of this documen
 When a new bug is created using the [bug report form](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&template=bug-report.md&title=), it is in the "inbox" state. 
 At this state, the [bug review DRI](#rituals) (QA) is responsible for going through the inbox and asking for more reproduction details from the reporter, asking the product team for more guidance, or acknowledging the bugs.
 
-> Some bugs may be the domain of the Digital Experience team. If QA believes this is the case, then QA should put the bug onto the g-marketing board, put it into the current release, and assign it to the DRI of the Digital Experience team. The Digital Experience team has their own bug process, which is not governed by this process.
-
 #### Weekly bug review
 QA has weekly check-in with product to go over the inbox items. QA is responsible for proposing “not a bug”, closing due to lack of response (with a nice message), or raising other relevant questions. All requires product agreement
 
@@ -784,7 +766,7 @@ If the inbox item is a bug, QA should apply the acknowledged state to the bug. Q
 Once reproduced, QA should document the reproduction steps and move it to the reproduced state.
 
 #### Reproduced
-When reproduced, the assigned engineering manager (EM) is responsible for investigating the root cause of the bug and proposing solutions to their product counterpart if it requires discussion. Otherwise, the EM includes it in this release (if there's space) or the next release.
+When reproduced, the bug is assigned to the appropriate EM and added to the product backlog. The EM is responsible for investigating the root cause of the bug and proposing solutions to their product counterpart if it requires discussion. Otherwise, the EM includes it in this release (if there's space) or the next release.
 
 #### After reproduced
 After it's in a release formally, the bug should be treated like any other piece of work per the standard engineering process.
@@ -844,23 +826,23 @@ Every week, the head of product is responsible for reviewing these two states to
 #### Inbox
 The bug has just come in. 
 
-If using the standard bug report, the bug is labeled “bug” and “reproduce." It is not assigned to anyone and is not on a board. [See on GitHub](https://github.com/fleetdm/fleet/issues?q=archived%3Afalse+org%3Afleetdm+is%3Aissue+is%3Aopen+label%3Abug+label%3A%3Areproduce+-project%3Afleetdm%2F37+-project%3Afleetdm%2F40+sort%3Aupdated-asc).
+If using the standard bug report, the bug is labeled “bug” and “reproduce." It is not assigned to anyone. [See on GitHub](https://github.com/fleetdm/fleet/issues?q=archived%3Afalse+org%3Afleetdm+is%3Aissue+is%3Aopen+label%3Abug+label%3A%3Areproduce+sort%3Aupdated-asc+assignee%3Anone).
 
 #### Acknowledged 
 QA has gone through the inbox and has accepted it as a bug to be reproduced. 
 
-QA assigns themselves and adds it to the Release board under “awaiting QA.” [See on GitHub](https://github.com/fleetdm/fleet/issues?q=archived%3Afalse+org%3Afleetdm+is%3Aissue+is%3Aopen+label%3Abug+label%3A%3Areproduce+-project%3Afleetdm%2F37+sort%3Aupdated-asc).
+QA assigns themselves to the bug, thereby acknowledging its receipt. [See on GitHub](https://github.com/fleetdm/fleet/issues?q=archived%3Afalse+org%3Afleetdm+is%3Aissue+is%3Aopen+label%3Abug+label%3A%3Areproduce+sort%3Aupdated-asc).
 
 #### Reproduced
 QA has reproduced the issue successfully. It should now be transferred to engineering. 
 
-Remove the “reproduce” label, add the label of the relevant team (#agent, #platform, #interface), and assign it to the relevant engineering manager. (Make your best guess as to which team. The EM will re-assign if they think it belongs to another team.) Move it to “Ready” in the Release board. [See on GitHub](https://github.com/fleetdm/fleet/issues?q=archived%3Afalse+org%3Afleetdm+is%3Aissue+is%3Aopen+label%3Abug+-label%3A%3Areproduce+-project%3Afleetdm%2F37+project%3Afleetdm%2F40+-assignee%3Axpkoala+sort%3Aupdated-asc).
+Remove the “reproduce” label, add the label of the relevant team (e.g. #cx, #mdm, #compliance), add the "product" label, and assign it to the relevant engineering manager. (Make your best guess as to which team. The EM will re-assign if they think it belongs to another team.) [See on GitHub](https://github.com/fleetdm/fleet/issues?q=archived%3Afalse+org%3Afleetdm+is%3Aissue+is%3Aopen+label%3Abug+label%3A%3Aproduct%2C%3Arelease+-label%3A%3Areproduce+-assignee%3Axpkoala+sort%3Aupdated-asc+).
 
 #### Orphans 
-These are bugs that do not have the reproduce label and do not exist on the release board. This filter serves as a sanity check. There should be no bugs in this state because they are likely to be forgotten by our process. [See on GitHub](https://github.com/fleetdm/fleet/issues?q=archived%3Afalse+org%3Afleetdm+is%3Aissue+is%3Aopen+sort%3Aupdated-asc+label%3Abug+-label%3A%3Areproduce+-project%3Afleetdm%2F37+-project%3Afleetdm%2F40+).
+These are bugs that do not have the reproduce label but do not have the "release" or "product" label on them. As such, they will not appear in the boards and thus are likely to be forgotten by our process. This filter serves as a sanity check. There should be no bugs in this state. [See on GitHub](https://github.com/fleetdm/fleet/issues?q=archived%3Afalse+org%3Afleetdm+is%3Aissue+is%3Aopen+sort%3Aupdated-asc+label%3Abug+-label%3A%3Areproduce+-label%3A%3Aproduct+-label%3A%3Arelease).
 
 #### Reproduced orphans 
-These are bugs that do not have the reproduce label and do exist on the release board, but do not have one of the three teams tagged. There should be no bugs in this state. This will risk being forgotten by the process because it does not appear in any of the standard team-based filters, which means it risks never being seen by engineering. [See on GitHub](https://github.com/fleetdm/fleet/issues?q=archived%3Afalse+org%3Afleetdm+is%3Aissue+is%3Aopen+sort%3Aupdated-asc+label%3Abug+-label%3A%3Areproduce+-project%3Afleetdm%2F37+project%3Afleetdm%2F40+-assignee%3Axpkoala+-label%3A%23interface+-label%3A%23platform+-label%3A%23agent+).
+These are bugs that do not have the reproduce label and do exist on the release board, but do not have one of the three teams tagged. There should be no bugs in this state. This will risk being forgotten by the process because it does not appear in any of the standard team-based filters, which means it risks never being seen by engineering. [See on GitHub](https://github.com/fleetdm/fleet/issues?q=archived%3Afalse+org%3Afleetdm+is%3Aissue+is%3Aopen+sort%3Aupdated-asc+label%3Abug+-label%3A%3Areproduce+label%3A%3Aproduct%2C%3Arelease+-assignee%3Axpkoala+-label%3A%23cx+-label%3A%23mdm+-label%3A%23compliance).
 
 #### All bugs
 [See on GitHub](https://github.com/fleetdm/fleet/issues?q=is%3Aissue+is%3Aopen+label%3Abug).
@@ -887,7 +869,7 @@ The following rituals are engaged in by the directly responsible individual (DRI
 | Oncall handoff               | Weekly              | Hand off the oncall engineering responsibilities to the next oncall engineer.                                                        | Zach Wasserman |
 | Vulnerability alerts (fleetdm.com)   | Weekly              | Review and remediate or dismiss [vulnerability alerts](https://github.com/fleetdm/fleet/security) for the fleetdm.com codebase on GitHub. | Eric Shaw |
 | Vulnerability alerts (frontend)   | Weekly              | Review and remediate or dismiss [vulnerability alerts](https://github.com/fleetdm/fleet/security) for the Fleet frontend codebase (and related JS) on GitHub. | Luke Heath |
-| Vulnerability alerts (backend)   | Weekly              | Review and remediate or dismiss [vulnerability alerts](https://github.com/fleetdm/fleet/security) for the Fleet backend codebase (and all Go code) on GitHub. | Tomás Touceda |
+| Vulnerability alerts (backend)   | Weekly              | Review and remediate or dismiss [vulnerability alerts](https://github.com/fleetdm/fleet/security) for the Fleet backend codebase (and all Go code) on GitHub. | Zach Wasserman |
 | Release ritual                | Every three weeks   | Go through the process of releasing the next iteration of Fleet.                                                                       | Zach Wasserman |
 | Create patch release branch   | Every patch release | Go through the process of creating a patch release branch, cherry picking commits, and pushing the branch to github.com/fleetdm/fleet. | Luke Heath     |
 | Bug review   | Weekly | Review bugs that are in QA's inbox. | Reed Haynes     |
@@ -905,7 +887,6 @@ First responders:
 
 Escalations (in order):
 
-- Tomas Touceda
 - Zach Wasserman
 
 The first responder oncall will take ownership of the @sandbox-oncall alias in Slack for ease first thing Monday morning.
@@ -931,9 +912,8 @@ The following [Slack channels are maintained](https://fleetdm.com/handbook/compa
 | Slack channel        | [DRI](https://fleetdm.com/handbook/company#why-group-slack-channels) |
 | :------------------- | :------------------------------------------------------------------- |
 | `#help-engineering`  | Zach Wasserman                                                       |
-| `#g-platform`        | Tomás Touceda                                                        |
-| `#g-interface`       | Luke Heath                                                           |
-| `#g-agent`           | Zach Wasserman                                                       |
+| `#g-mdm`             | Luke Heath                                                           |
+| `#g-compliance`      | Sharon Katz                                                          |
 | `#_pov-environments` | Ben Edwards                                                          |
 | `#help-qa`           | Reed Haynes                                                          |
 

@@ -24,7 +24,7 @@ const EmptyTable = ({
         </div>
       )}
       <div className={`${baseClass}__inner`}>
-        {header && <h2>{header}</h2>}
+        {header && <h3>{header}</h3>}
         {info && <p>{info}</p>}
         {additionalInfo && <p>{additionalInfo}</p>}
       </div>

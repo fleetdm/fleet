@@ -38,7 +38,7 @@ module "alb" {
 
   target_groups = [
     {
-      name_prefix      = var.alb_config.name
+      name             = var.alb_config.name
       backend_protocol = "HTTP"
       backend_port     = 80
       target_type      = "ip"
@@ -64,9 +64,14 @@ module "alb" {
 
   http_tcp_listeners = [
     {
-      port               = 80
-      protocol           = "HTTP"
-      target_group_index = 0
+      port        = 80
+      protocol    = "HTTP"
+      action_type = "redirect"
+      redirect = {
+        port        = "443"
+        protocol    = "HTTPS"
+        status_code = "HTTP_301"
+      }
     }
   ]
 }
@@ -74,11 +79,20 @@ module "alb" {
 resource "aws_security_group" "alb" {
   #checkov:skip=CKV2_AWS_5:False positive
   vpc_id      = var.vpc_id
-  description = "Fleet's ALB Security Group"
+  description = "Fleet ALB Security Group"
   ingress {
     description      = "Ingress from all, its a public load balancer"
     from_port        = 443
     to_port          = 443
+    protocol         = "tcp"
+    cidr_blocks      = ["0.0.0.0/0"]
+    ipv6_cidr_blocks = ["::/0"]
+  }
+
+  ingress {
+    description      = "For http to https redirect"
+    from_port        = 80
+    to_port          = 80
     protocol         = "tcp"
     cidr_blocks      = ["0.0.0.0/0"]
     ipv6_cidr_blocks = ["::/0"]

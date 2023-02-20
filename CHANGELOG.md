@@ -1,3 +1,86 @@
+## Fleet 4.27.1 (Feb 16, 2023)
+
+* Fixed "Turn off MDM" button appearing on host details without Fleet MDM enabled. 
+
+* Upgrade Go to 1.19.6 to remediate some low severity [denial of service vulnerabilities](https://groups.google.com/g/golang-announce/c/V0aBFqaFs_E/m/CnYKgKwBBQAJ) in the standard library.
+
+## Fleet 4.27.0 (Feb 3, 2023)
+
+* Added API endpoint to unenroll a host from Fleet's MDM.
+
+* Added Request CSR and Change default MDM BM team modals to Integrations > MDM.
+
+* Added a `notifications` object to the response payload of `GET /api/fleet/orbit/config` that includes a `renew_enrollment_profile` field to indicate to fleetd that it needs to run a command on the device to renew the DEP enrollment profile.
+
+* Added modal for automatic enrollment of a macOS host to MDM.
+
+* Integrated with CSR request endpoint in fleet UI.
+
+* Updated `Select targets` UI so that `Platforms`, `Teams`, and `Labels` become `AND` filters. Selecting 2 or more `Platforms`, `Teams`, and `Labels` continue to behave as `OR` filters.
+
+* Added new activities to the activities API when a host is enrolled/unenrolled from Fleet's MDM.
+
+* Implemented macOS update version content panel.
+
+* Added an activity `edited_macos_min_version` when the required minimum macOS version is updated.
+
+* Added the `GET /device/{token}/mdm/apple/manual_enrollment_profile` endpoint to allow downloading the manual MDM enrollment profile from the "My Device" page in Fleet Desktop.
+
+* Run authorization checks before processing policy specs.
+
+* Implemented the new Controls page and updated styling of the site-level navigation.
+
+* Made `fleetctl get teams --yaml` output compatible with `fleetctl apply -f`.
+
+* Added the `POST /api/v1/fleet/mdm/apple/request_csr` endpoint to trigger a Certificate Signing Request to fleetdm.com and return the associated APNs private key and SCEP certificate and key.
+
+* Added mdm enrollment status and mdm server url to `GET /hosts` and `GET /hosts/:id` endpoint
+  responses.
+
+* Added keys to the `GET /config` and `GET /device/:token` endpoints to inform if Fleet's MDM is properly configured.
+
+* Add edited min macos version activity.
+
+* User can hover over host UUID to see and copy full ID string.
+
+* Made the 'Back to all hosts' link on the host details page fall back to the default path to the
+  manage hosts page. This addresses a bug in this functionality when the user navigates directly
+  with the URL.
+
+* Implemented the ability for an authorized user to unenroll a host from MDM on its host details page. The host must be enrolled in MDM and online.
+
+* Added nixos to the list of platforms that are detected at linux distributions.
+
+* Allow to configure a minimum macOS version and a deadline for hosts enrolled into Fleet's MDM.
+
+* Added license expiry to account information page for premium users.
+
+* Removed stale time from loading team policies/policy automation so users are provided accurate team data when toggling between teams.
+
+* Updated to software empty states and host details empty states.
+
+* Changed default hosts per page from 100 to 50.
+
+* Support `CrOS` as a valid platform string for customers with ChromeOS hosts.
+
+* Clean tables at smaller screen widths.
+
+* Log failed login attempts for user+pw and SSO logins (in the activity feed).
+
+* Added `meta` attribute to `GET /activities` endpoint that includes pagination metadata. Fixed edge case
+  on UI for pagination buttons on activities card.
+
+* Fleet Premium shows pending hosts on the dashboard and manage host page.
+
+* Use stricter file permissions in `fleetctl updates add` command.
+
+* When table only has 1 host, remove bulky tooltip overflow.
+
+* Documented the Apple Push Notification service (APNs) and Apple Business Manager (ABM) setup and renewal steps.
+
+* Fixed pagination on manage host page.
+
+
 ## Fleet 4.26.0 (Jan 13, 2023)
 
 * Added functionality to ingest device information from Apple MDM endpoints so that an MDM device can

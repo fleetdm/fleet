@@ -79,6 +79,11 @@ the account verification message.)`,
       'parameters should have been validated/coerced _before_ they were sent.'
     },
 
+    requestToSandboxTimedOut: {
+      statusCode: 408,
+      description: 'The request to the cloud provisioner exceeded the set timeout.',
+    },
+
     emailAlreadyInUse: {
       statusCode: 409,
       description: 'The provided email address is already in use.',
@@ -123,14 +128,15 @@ the account verification message.)`,
         'Authorization':sails.config.custom.cloudProvisionerSecret
       }
     )
-    .timeout(5000)
+    .timeout(10000)// FUTURE: set this timeout to be 5000ms
     .intercept(['requestFailed', 'non200Response'], (err)=>{
       // If we received a non-200 response from the cloud provisioner API, we'll throw a 500 error.
       return new Error('When attempting to provision a new user who just signed up ('+emailAddress+'), the cloud provisioner gave a non 200 response. The incomplete user record has not been saved in the database, and the user will be asked to try signing up again. Raw response received from provisioner: '+err.stack);
     })
-    .intercept({name: 'TimeoutError'}, (err)=>{
-      // If the request timed out, we'll throw a 500 error.
-      return new Error('When attempting to provision a new user who just signed up ('+emailAddress+'), the request to the cloud provisioner took over timed out. The incomplete user record has not been saved in the database, and the user will be asked to try signing up again. Raw error: '+err.stack);
+    .intercept({name: 'TimeoutError'},(err)=>{
+      // If the request timed out, log a warning and return a 'requestToSandboxTimedOut' response.
+      sails.log.warn('When attempting to provision a new user who just signed up ('+emailAddress+'), the request to the cloud provisioner took over timed out. The incomplete user record has not been saved in the database, and the user will be asked to try signing up again. Raw error: '+err.stack);
+      return 'requestToSandboxTimedOut';
     });
 
     if(!cloudProvisionerResponseData.URL) {

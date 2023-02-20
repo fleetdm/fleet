@@ -41,7 +41,7 @@ func (ds *Datastore) ListScheduledQueriesInPackWithStats(ctx context.Context, id
 		LEFT JOIN aggregated_stats ag ON (ag.id=sq.id AND ag.type='scheduled_query')
 		WHERE sq.pack_id = ?
 	`
-	query = appendListOptionsToSQL(query, opts)
+	query = appendListOptionsToSQL(query, &opts)
 	results := []*fleet.ScheduledQuery{}
 
 	if err := sqlx.SelectContext(ctx, ds.reader, &results, query, id); err != nil {

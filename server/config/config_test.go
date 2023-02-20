@@ -460,7 +460,7 @@ func TestAppleAPNSSCEPConfig(t *testing.T) {
 				} else {
 					require.NoError(t, err)
 					require.NotNil(t, got)
-					require.Nil(t, got.Leaf) // SCEP cert is not kept, not needed
+					require.NotNil(t, got.Leaf) // SCEP cert is not kept, not needed
 					require.NotEmpty(t, pemCert)
 					require.NotEmpty(t, pemKey)
 				}

@@ -4,84 +4,309 @@
  *
  * App-wide styles for our <call-to-action> component.
  */
-[parasails-component='call-to-action'] {
-   background-image: url('/images/call-to-action-banner-background.svg');
-   background-position-x: center;
-   background-size: cover;
-   background-color: #192147;
-   padding: 60px 90px;
-   border-radius: 16px;
-   margin-top: 40px;
-   margin-bottom: 40px;
+  // Note: This component has been given an ID to override page specific styles
+[parasails-component='call-to-action'], #cta-component {
+  margin-top: 40px;
+  margin-bottom: 40px;
 
-  [purpose='cta-content'] {
-   color: #FFF;
-   margin-bottom: 24px;
-   [purpose='cta-title'] {
-     font-weight: 900;
-     font-size: 28px;
-     line-height: 40px;
-     margin-bottom: 4px;
-   }
-   [purpose='cta-text'] {
-     font-size: 18px;
-     line-height: 28px;
-     margin-bottom: 0px;
-   }
- }
-
- [purpose='cta-buttons'] {
-   [purpose='primary-button'] {
-     padding: 16px 63px;
-   }
-   [purpose='secondary-button'] {
-     .btn-animated-arrow-red();
-   }
+  // For customizeable call to action
+  [purpose='custom-cta'] {
+    background-image: url('/images/call-to-action-banner-background.svg');
+    background-position-x: center;
+    background-size: cover;
+    background-color: #192147;
+    padding: 60px 90px;
+    border-radius: 16px;
+    [purpose='custom-cta-content'] {
+     color: #FFF;
+     margin-bottom: 24px;
+     [purpose='custom-cta-title'] {
+       font-weight: 900;
+       font-size: 28px;
+       line-height: 40px;
+       margin-bottom: 4px;
+     }
+     [purpose='custom-cta-text'] {
+       font-size: 18px;
+       line-height: 28px;
+       margin-bottom: 0px;
+     }
+    }
+    [purpose='custom-cta-buttons'] {
+       [purpose='primary-button'] {
+          padding: 16px 63px;
+       }
+       [purpose='secondary-button'] {
+          .btn-animated-arrow-red();
+       }
+    }
   }
+
+  // For type="fleet-premium"
+  [purpose='fleet-premium-cta'] {
+    color: @core-fleet-black;
+    padding-left: 100px;
+    padding-right: 100px;
+    padding-top: 24px;
+    padding-bottom: 24px;
+    background: linear-gradient(96.55deg, #F9FBFF 2.02%, #FDFEFF 100%);
+    border: 1px solid #E2E4EA;
+    border-radius: 16px;
+    [purpose='premium-cta-text'] {
+      padding-right: 16px;
+      h2 {
+        white-space: nowrap;
+        font-size: 32px;
+        line-height: 38px;
+        font-weight: 400;
+        margin-bottom: 16px;
+        margin-top: 0px;
+      }
+      span {
+        font-weight: 700;
+      }
+    }
+    [purpose='premium-cta-image'] {
+      img {
+        height: 220px;
+        width: auto;
+        padding: 0;
+      }
+    }
+    [purpose='premium-cta-btn'] {
+      margin-top: 16px;
+      text-align: center;
+      font-weight: 700;
+      padding: 4px 16px;
+      display: flex;
+      justify-content: center;
+      align-content: center;
+      height: 48px;
+      width: 127px;
+      position: relative;
+      background: #FF5C83;
+      box-shadow: 1px 1px 2px rgba(25, 33, 71, 0.24);
+      border-radius: 6px;
+      color: #fff;
+      overflow: hidden;
+      flex-wrap: wrap;
+    }
+  }
+
+  // Type='mdm-beta' styles
+  [purpose='mdm-beta-cta-container'] {
+    background: linear-gradient(162.94deg, #E8F1F6 -31.38%, #F9FAFC 59.63%);
+    border: 1px solid #E2E4EA;
+    border-radius: 16px;
+    overflow: hidden;
+    [purpose='mdm-beta-cta-background'] {
+      background-image: url('/images/banner-fleet-city-573x247@2x.png');
+      background-position-x: right;
+      background-size: contain;
+      background-repeat: no-repeat;
+    }
+    [purpose='mdm-beta-cta'] {
+      color: @core-fleet-black;
+      padding-left: 100px;
+      padding-right: 100px;
+      padding-top: 40px;
+      padding-bottom: 40px;
+
+      [purpose='mdm-cta-subtitle'] {
+        font-size: 16px;
+        line-height: 20px;
+        margin-bottom: 0px;
+        color: #525D5F;
+      }
+      [purpose='mdm-cta-title'] {
+        margin-top: 0px;
+        margin-bottom: 16px;
+        font-weight: 900;
+        font-size: 32px;
+        line-height: 32px;
+      }
+      [purpose='mdm-cta-text'] {
+        width: 55%;
+        span {
+          display: block;
+        }
+      }
+    }
+    [purpose='mdm-cta-btn'] {
+      margin-top: 16px;
+      text-align: center;
+      font-weight: 700;
+      padding: 4px 16px;
+      display: flex;
+      justify-content: center;
+      align-content: center;
+      height: 48px;
+      width: 157px;
+      position: relative;
+      background: #FF5C83;
+      box-shadow: 1px 1px 2px rgba(25, 33, 71, 0.24);
+      border-radius: 6px;
+      color: #fff;
+      overflow: hidden;
+      flex-wrap: wrap;
+    }
+  }
+
+  // Shared button hover styles
+  [purpose='mdm-cta-btn']::before, [purpose='premium-cta-btn']::before {
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0) 100%);
+    opacity: 1;
+    content: ' ';
+    position: absolute;
+    top: 0;
+    left: -5px;
+    width: 55%;
+    height: 100%;
+    transform: skew(-10deg);
+    transition: left 0.5s ease-in, opacity 0.50s ease-in, width 0.5s ease-in;
+  }
+  [purpose='mdm-cta-btn']:hover:before, [purpose='premium-cta-btn']:hover:before {
+    opacity: 0;
+    left: 160px;
+    width: 110%;
+  }
+
+
 
   @media(max-width: 991px) {
-    padding: 60px 45px;
-    [purpose='cta-content'] {
-      [purpose='cta-title'] {
-        font-weight: 900;
-        font-size: 24px;
-        line-height: 32px;
-        margin-bottom: 4px;
+    [purpose='custom-cta'] {
+      padding: 60px 45px;
+      [purpose='custom-cta-content'] {
+        [purpose='custom-cta-title'] {
+          font-weight: 900;
+          font-size: 24px;
+          line-height: 32px;
+          margin-bottom: 4px;
+        }
+        [purpose='custom-cta-text'] {
+          font-size: 16px;
+          line-height: 24px;
+          margin-bottom: 0px;
+        }
       }
-      [purpose='cta-text'] {
-        font-size: 16px;
-        line-height: 24px;
-        margin-bottom: 0px;
+      [purpose='custom-cta-buttons'] {
+        [purpose='primary-button'] {
+          padding: 16px 63px;
+        }
       }
     }
-    [purpose='cta-buttons'] {
-      [purpose='primary-button'] {
-        padding: 16px 63px;
+    [purpose='mdm-beta-cta'] {
+      padding-left: 60px;
+      padding-right: 60px;
+      padding-top: 40px;
+      padding-bottom: 40px;
+    }
+    [purpose='fleet-premium-cta'] {
+      padding: 24px 60px;
+    }
+  }
+
+  @media (max-width: 768px) {
+    [purpose='mdm-beta-cta-container'] {
+      background: linear-gradient(164.14deg, #E8F1F6 11.82%, #FFFFFF 46.12%);
+      [purpose='mdm-beta-cta-background'] {
+        background-image: url('/images/banner-fleet-city-573x247@2x.png');
+        background-position-x: right;
+        background-size: 100%;
+        background-repeat: no-repeat;
+      }
+      [purpose='mdm-beta-cta'] {
+        padding-left: 40px;
+        padding-right: 40px;
+        padding-top: 40px;
+        padding-bottom: 40px;
+        [purpose='mdm-cta-text'] {
+          width: 100%;
+          text-align: center;
+          margin-top: 40%;
+        }
+        [purpose='mdm-cta-btn'] {
+          width: 100%;
+        }
+      }
+    }
+    [purpose='fleet-premium-cta'] {
+      padding: 40px;
+    }
+  }
+  @media(max-width: 680px) {
+    [purpose='fleet-premium-cta'] {
+      padding: 20px;
+      justify-content: center;
+      [purpose='premium-cta-text'] {
+        padding-right: 0px;
+        padding-left: 20px;
+        h2 {
+          font-size: 28px;
+        }
       }
     }
   }
 
-  @media(max-width: 576px) {
-    padding: 60px 24px;
-    margin-left: -16px;
-    margin-right: -16px;
-    [purpose='cta-buttons'] {
-      [purpose='primary-button'] {
-        padding: 16px 63px;
+  @media(max-width: 575px) {
+    [purpose='custom-cta'] {
+      padding: 60px 24px;
+      margin-left: -16px;
+      margin-right: -16px;
+      [purpose='custom-cta-buttons'] {
+        [purpose='primary-button'] {
+          padding: 16px 63px;
+        }
+      }
+
+      [purpose='custom-cta-content'] {
+        [purpose='custom-cta-title'] {
+          font-weight: 900;
+          font-size: 24px;
+          line-height: 32px;
+          margin-bottom: 4px;
+        }
+        [purpose='custom-cta-text'] {
+          font-size: 16px;
+          line-height: 24px;
+          margin-bottom: 0px;
+        }
       }
     }
-    [purpose='cta-content'] {
-
-      [purpose='cta-title'] {
-        font-weight: 900;
-        font-size: 24px;
-        line-height: 32px;
-        margin-bottom: 4px;
+    [purpose='mdm-beta-cta-container'] {
+      [purpose='mdm-beta-cta-background'] {
+        background-image: none;
+        background-size: 100%;
+        background-position-y: top;
+        height: 50%;
+        max-height: 50%;
       }
-      [purpose='cta-text'] {
-        font-size: 16px;
-        line-height: 24px;
-        margin-bottom: 0px;
+      [purpose='mdm-beta-cta'] {
+        padding: 24px;
+        [purpose='mdm-small-banner'] {
+          margin-right: -24px;
+          margin-left: -24px;
+        }
+        [purpose='mdm-cta-text'] {
+          margin-top: 0px;
+        }
+      }
+    }
+
+    [purpose='fleet-premium-cta'] {
+      padding: 24px;
+      text-align: center;
+      [purpose='premium-cta-text'] {
+        padding-right: 0;
+        padding-left: 0;
+        h2 {
+        font-size: 24px;
+        white-space: normal;
+        line-height: 38px;
+        }
+      }
+      [purpose='premium-cta-btn'] {
+        width: 100%;
       }
     }
   }

@@ -10,7 +10,8 @@ const sendRequest = async (
   method: "GET" | "POST" | "PATCH" | "DELETE" | "HEAD",
   path: string,
   data?: unknown,
-  responseType: AxiosResponseType = "json"
+  responseType: AxiosResponseType = "json",
+  timeout?: number
 ): Promise<any> => {
   const { origin } = global.window.location;
 
@@ -23,6 +24,7 @@ const sendRequest = async (
       url,
       data,
       responseType,
+      timeout,
       headers: {
         Authorization: `Bearer ${token}`,
       },

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/fleetdm/fleet/v4/pkg/spec"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -68,7 +69,8 @@ func applyCommand() *cli.Command {
 				Force:  flForce,
 				DryRun: flDryRun,
 			}
-			err = fleetClient.ApplyGroup(c.Context, specs, logf, opts)
+			baseDir := filepath.Dir(flFilename)
+			err = fleetClient.ApplyGroup(c.Context, specs, baseDir, logf, opts)
 			if err != nil {
 				return err
 			}

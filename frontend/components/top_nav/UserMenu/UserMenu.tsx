@@ -7,7 +7,7 @@ import PATHS from "router/paths";
 
 // @ts-ignore
 import DropdownButton from "components/buttons/DropdownButton";
-import Avatar from "../../Avatar";
+import AvatarTopNav from "../../AvatarTopNav";
 
 const baseClass = "user-menu";
 
@@ -72,9 +72,9 @@ const UserMenu = ({
   return (
     <div className={baseClass}>
       <DropdownButton options={dropdownItems}>
-        <Avatar
+        <AvatarTopNav
           className={`${baseClass}__avatar-image`}
-          user={{ gravatarURL: currentUser.gravatarURL }}
+          user={{ gravatar_url_dark: currentUser.gravatar_url_dark }}
           size="small"
         />
       </DropdownButton>

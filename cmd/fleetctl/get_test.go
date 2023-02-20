@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"path/filepath"
 	"strings"
@@ -12,6 +13,7 @@ import (
 	"github.com/ghodss/yaml"
 
 	"github.com/fleetdm/fleet/v4/pkg/spec"
+	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
@@ -130,6 +132,7 @@ func TestGetTeams(t *testing.T) {
 						Name:        "team1",
 						Description: "team1 description",
 						UserCount:   99,
+						HostCount:   42,
 						Config: fleet.TeamConfig{
 							Features: fleet.Features{
 								EnableHostUsers:         true,
@@ -143,47 +146,46 @@ func TestGetTeams(t *testing.T) {
 						Name:        "team2",
 						Description: "team2 description",
 						UserCount:   87,
+						HostCount:   43,
 						Config: fleet.TeamConfig{
 							AgentOptions: &agentOpts,
 							Features: fleet.Features{
 								AdditionalQueries: &additionalQueries,
+							},
+							MDM: fleet.TeamMDM{
+								MacOSUpdates: fleet.MacOSUpdates{
+									MinimumVersion: "12.3.1",
+									Deadline:       "2021-12-14",
+								},
 							},
 						},
 					},
 				}, nil
 			}
 
-			expectedText := `+-----------+-------------------+------------+
-| TEAM NAME |    DESCRIPTION    | USER COUNT |
-+-----------+-------------------+------------+
-| team1     | team1 description |         99 |
-+-----------+-------------------+------------+
-| team2     | team2 description |         87 |
-+-----------+-------------------+------------+
+			expectedText := `+-----------+------------+------------+
+| TEAM NAME | HOST COUNT | USER COUNT |
++-----------+------------+------------+
+| team1     |         42 |         99 |
++-----------+------------+------------+
+| team2     |         43 |         87 |
++-----------+------------+------------+
 `
 			expectedYaml := `---
 apiVersion: v1
 kind: team
 spec:
   team:
-    created_at: "1999-03-10T02:45:06.371Z"
-    description: team1 description
     features:
       enable_host_users: true
       enable_software_inventory: true
-    host_count: 0
-    id: 42
-    integrations:
-      jira: null
-      zendesk: null
+    mdm:
+      macos_updates:
+        minimum_version: ""
+        deadline: ""
+    macos_settings:
+      custom_settings:
     name: team1
-    user_count: 99
-    webhook_settings:
-      failing_policies_webhook:
-        destination_url: ""
-        enable_failing_policies_webhook: false
-        host_batch_size: 0
-        policy_ids: null
 ---
 apiVersion: v1
 kind: team
@@ -196,39 +198,37 @@ spec:
         platforms:
           darwin:
             foo: override
-    created_at: "1999-03-10T02:45:06.371Z"
-    description: team2 description
     features:
       additional_queries:
         foo: bar
       enable_host_users: false
       enable_software_inventory: false
-    host_count: 0
-    id: 43
-    integrations:
-      jira: null
-      zendesk: null
+    mdm:
+      macos_updates:
+        minimum_version: "12.3.1"
+        deadline: "2021-12-14"
+    macos_settings:
+      custom_settings:
     name: team2
-    user_count: 87
-    webhook_settings:
-      failing_policies_webhook:
-        destination_url: ""
-        enable_failing_policies_webhook: false
-        host_batch_size: 0
-        policy_ids: null
 `
-			expectedJson := `{"kind":"team","apiVersion":"v1","spec":{"team":{"id":42,"created_at":"1999-03-10T02:45:06.371Z","name":"team1","description":"team1 description","webhook_settings":{"failing_policies_webhook":{"enable_failing_policies_webhook":false,"destination_url":"","policy_ids":null,"host_batch_size":0}},"integrations":{"jira":null,"zendesk":null},"features":{"enable_host_users":true,"enable_software_inventory":true},"user_count":99,"host_count":0}}}
-{"kind":"team","apiVersion":"v1","spec":{"team":{"id":43,"created_at":"1999-03-10T02:45:06.371Z","name":"team2","description":"team2 description","agent_options":{"config":{"foo":"bar"},"overrides":{"platforms":{"darwin":{"foo":"override"}}}},"webhook_settings":{"failing_policies_webhook":{"enable_failing_policies_webhook":false,"destination_url":"","policy_ids":null,"host_batch_size":0}},"integrations":{"jira":null,"zendesk":null},"features":{"enable_host_users":false,"enable_software_inventory":false,"additional_queries":{"foo":"bar"}},"user_count":87,"host_count":0}}}
+			expectedJson := `{"kind":"team","apiVersion":"v1","spec":{"team":{"id":42,"created_at":"1999-03-10T02:45:06.371Z","name":"team1","description":"team1 description","webhook_settings":{"failing_policies_webhook":{"enable_failing_policies_webhook":false,"destination_url":"","policy_ids":null,"host_batch_size":0}},"integrations":{"jira":null,"zendesk":null},"features":{"enable_host_users":true,"enable_software_inventory":true},"mdm":{"macos_updates":{"minimum_version":"","deadline":""}},"macos_settings":{"custom_settings":null},"user_count":99,"host_count":42}}}
+{"kind":"team","apiVersion":"v1","spec":{"team":{"id":43,"created_at":"1999-03-10T02:45:06.371Z","name":"team2","description":"team2 description","agent_options":{"config":{"foo":"bar"},"overrides":{"platforms":{"darwin":{"foo":"override"}}}},"webhook_settings":{"failing_policies_webhook":{"enable_failing_policies_webhook":false,"destination_url":"","policy_ids":null,"host_batch_size":0}},"integrations":{"jira":null,"zendesk":null},"features":{"enable_host_users":false,"enable_software_inventory":false,"additional_queries":{"foo":"bar"}},"mdm":{"macos_updates":{"minimum_version":"12.3.1","deadline":"2021-12-14"}},"macos_settings":{"custom_settings":null},"user_count":87,"host_count":43}}}
 `
+
 			if tt.shouldHaveExpiredBanner {
 				expectedJson = expiredBanner.String() + expectedJson
-				expectedYaml = expiredBanner.String() + expectedYaml
 				expectedText = expiredBanner.String() + expectedText
 			}
 
 			assert.Equal(t, expectedText, runAppForTest(t, []string{"get", "teams"}))
-			assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "teams", "--yaml"}))
 			assert.Equal(t, expectedJson, runAppForTest(t, []string{"get", "teams", "--json"}))
+
+			actualYaml := runAppForTest(t, []string{"get", "teams", "--yaml"})
+			if tt.shouldHaveExpiredBanner {
+				require.True(t, strings.HasPrefix(actualYaml, expiredBanner.String()))
+				actualYaml = strings.TrimPrefix(actualYaml, expiredBanner.String())
+			}
+			assert.YAMLEq(t, expectedYaml, actualYaml)
 		})
 	}
 }
@@ -248,15 +248,16 @@ func TestGetTeamsByName(t *testing.T) {
 				Name:        "team1",
 				Description: "team1 description",
 				UserCount:   99,
+				HostCount:   43,
 			},
 		}, nil
 	}
 
-	expectedText := `+-----------+-------------------+------------+
-| TEAM NAME |    DESCRIPTION    | USER COUNT |
-+-----------+-------------------+------------+
-| team1     | team1 description |         99 |
-+-----------+-------------------+------------+
+	expectedText := `+-----------+------------+------------+
+| TEAM NAME | HOST COUNT | USER COUNT |
++-----------+------------+------------+
+| team1     |         43 |         99 |
++-----------+------------+------------+
 `
 	assert.Equal(t, expectedText, runAppForTest(t, []string{"get", "teams", "--name", "test1"}))
 }
@@ -475,7 +476,13 @@ spec:
     zendesk: null
   mdm:
     apple_bm_terms_expired: false
+    enabled_and_configured: false
     apple_bm_default_team: ""
+    macos_updates:
+      minimum_version: ""
+      deadline: ""
+  macos_settings:
+    custom_settings:
   org_info:
     org_logo_url: ""
     org_name: ""
@@ -562,6 +569,15 @@ spec:
       "enable_host_users": true,
       "enable_software_inventory": false
     },
+    "macos_settings": {
+      "custom_settings": null
+    },
+    "mdm": {
+      "macos_updates": {
+	"minimum_version": "",
+	"deadline": ""
+      }
+    },
     "sso_settings": {
       "entity_id": "",
       "issuer_uri": "",
@@ -596,7 +612,15 @@ spec:
       "interval": "0s"
     },
     "integrations": { "jira": null, "zendesk": null },
-    "mdm": { "apple_bm_terms_expired": false, "apple_bm_default_team": "" }
+    "mdm": {
+      "apple_bm_terms_expired": false,
+      "enabled_and_configured": false,
+      "apple_bm_default_team": "",
+      "macos_updates": {
+	"minimum_version": "",
+	"deadline": ""
+      }
+    }
   }
 }
 `
@@ -622,9 +646,15 @@ spec:
   integrations:
     jira: null
     zendesk: null
+  macos_settings:
+    custom_settings:
   mdm:
     apple_bm_default_team: ""
     apple_bm_terms_expired: false
+    enabled_and_configured: false
+    macos_updates:
+      minimum_version: ""
+      deadline: ""
   license:
     expiration: "0001-01-01T00:00:00Z"
     tier: free
@@ -757,6 +787,15 @@ spec:
       "enable_host_users": true,
       "enable_software_inventory": false
     },
+    "macos_settings": {
+      "custom_settings": null
+    },
+    "mdm": {
+      "macos_updates": {
+	"minimum_version": "",
+	"deadline": ""
+      }
+    },
     "sso_settings": {
       "enable_jit_provisioning": false,
       "entity_id": "",
@@ -798,10 +837,15 @@ spec:
       "jira": null,
       "zendesk": null
     },
-		"mdm": {
+    "mdm": {
       "apple_bm_default_team": "",
-			"apple_bm_terms_expired": false
-		},
+      "apple_bm_terms_expired": false,
+      "enabled_and_configured": false,
+      "macos_updates": {
+	"minimum_version": "",
+	"deadline": ""
+      }
+    },
     "update_interval": {
       "osquery_detail": "1h0m0s",
       "osquery_policy": "1h0m0s"
@@ -1617,4 +1661,99 @@ func TestGetCarveWithError(t *testing.T) {
 	}
 
 	runAppCheckErr(t, []string{"get", "carve", "1"}, "test error")
+}
+
+// TestGetTeamsYAMLAndApply checks that the output of `get teams --yaml` can be applied
+// via the `apply` command.
+func TestGetTeamsYAMLAndApply(t *testing.T) {
+	cfg := config.TestConfig()
+	cfg.MDMApple.Enable = true
+	_, ds := runServerWithMockedDS(t, &service.TestServerOpts{
+		License:     &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)},
+		FleetConfig: &cfg,
+	})
+
+	created_at, err := time.Parse(time.RFC3339, "1999-03-10T02:45:06.371Z")
+	require.NoError(t, err)
+	agentOpts := json.RawMessage(`
+{
+  "config": {
+      "options": {
+        "distributed_interval": 10
+      }
+  },
+  "overrides": {
+    "platforms": {
+      "darwin": {
+        "options": {
+          "distributed_interval": 5
+        }
+      }
+    }
+  }
+}`)
+	additionalQueries := json.RawMessage(`{"time":"SELECT * FROM time;"}`)
+	team1 := &fleet.Team{
+		ID:          42,
+		CreatedAt:   created_at,
+		Name:        "team1",
+		Description: "team1 description",
+		UserCount:   99,
+		Config: fleet.TeamConfig{
+			Features: fleet.Features{
+				EnableHostUsers:         true,
+				EnableSoftwareInventory: true,
+			},
+		},
+	}
+	team2 := &fleet.Team{
+		ID:          43,
+		CreatedAt:   created_at,
+		Name:        "team2",
+		Description: "team2 description",
+		UserCount:   87,
+		Config: fleet.TeamConfig{
+			AgentOptions: &agentOpts,
+			Features: fleet.Features{
+				AdditionalQueries: &additionalQueries,
+			},
+			MDM: fleet.TeamMDM{
+				MacOSUpdates: fleet.MacOSUpdates{
+					MinimumVersion: "12.3.1",
+					Deadline:       "2021-12-14",
+				},
+			},
+		},
+	}
+	ds.ListTeamsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error) {
+		return []*fleet.Team{team1, team2}, nil
+	}
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{AgentOptions: &agentOpts}, nil
+	}
+	ds.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
+		return team, nil
+	}
+	ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
+		return nil
+	}
+	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+		return nil
+	}
+	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
+		if name == "team1" {
+			return team1, nil
+		} else if name == "team2" {
+			return team2, nil
+		}
+		return nil, fmt.Errorf("team not found: %s", name)
+	}
+	ds.BatchSetMDMAppleProfilesFunc = func(ctx context.Context, teamID *uint, profiles []*fleet.MDMAppleConfigProfile) error {
+		return nil
+	}
+
+	actualYaml := runAppForTest(t, []string{"get", "teams", "--yaml"})
+	yamlFilePath := writeTmpYml(t, actualYaml)
+
+	require.Equal(t, "[+] applied 2 teams\n", runAppForTest(t, []string{"apply", "-f", yamlFilePath}))
 }

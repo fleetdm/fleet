@@ -106,6 +106,10 @@ module.exports = {
           nextBillingAt: Date.now() + (1000 * 60 * 60 * 24 * 7),
         };
         break;
+      case 'email-signed-csr-for-apns':
+        layout = 'layout-email';
+        fakeData = {};
+        break;
       default:
         layout = 'layout-email-newsletter';
         fakeData = {
