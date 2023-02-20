@@ -14,11 +14,11 @@ go.mod @fleetdm/go
 /infrastructure/ @zwinnerman-fleetdm @edwardsb @rfairburn
 /charts/ @zwinnerman-fleetdm @edwardsb @rfairburn
 
-# GitHub settings + actions + issue templates
-/.github/ @zwass @mikermcneil
+# GitHub issue templates
+/.github/ISSUE_TEMPLATE @mikermcneil
 
 # Codeowners file
-/CODEOWNERS @zwass @mikermcneil
+/CODEOWNERS @mikermcneil
 
 # Changelog
 /CHANGELOG.md @noahtalerman
@@ -48,7 +48,7 @@ go.mod @fleetdm/go
 # - CEO is DRI for pricing
 # - Mo is DRI for features table
 # - Eric is DRI for website frontend code
-/website/views/pages/pricing.ejs @zhumo @jarodreyes @alexmitchelliii @eashaw @mikermcneil
+/website/views/pages/pricing.ejs @mikermcneil
 
 # Website redirects and URLs
 /website/config/routes.js @eashaw @jarodreyes
