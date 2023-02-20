@@ -92,12 +92,14 @@ Here's why we use a wireframe-first approach at Fleet.
 
 
 ## Why do we use one repo?
-At Fleet, we keep everything in one repo ([`fleetdm/fleet`](https://github.com/fleetdm/fleet)). The only exception ([`fleetdm/confidential`](https://github.com/fleetdm/confidential)) is when we're working on something confidential since GitHub does not allow confidential issues inside public repos. Here's why:
+At Fleet, we keep everything in one repo ([`fleetdm/fleet`](https://github.com/fleetdm/fleet)). Here's why:
 
 - One repo is easier to manage. It has less surface area for keeping content up to date and reduces the risk of things getting lost and forgotten.
 - Our work is more visible and accessible to the community when all project pieces are available in one repo. 
 - One repo pools GitHub stars and more accurately reflects Fleet’s presence.
 - One repo means one set of automations and labels to manage, resulting in a consistent GitHub experience that is easier to keep organized.
+
+The only exception ([`fleetdm/confidential`](https://github.com/fleetdm/confidential)) is when we're working on something confidential since GitHub does not allow confidential issues inside public repos.
 
 > Tip: Did you know that you can [search through issues from both repos](https://github.com/issues?q=archived%3Afalse+org%3Afleetdm+is%3Aissue+is%3Aopen+) at the same time?  In addition to the built-in search in the handbook on fleetdm.com, you can also search for any content from the handbook, documentation, or issue templates from either repo [using GitHub search](https://github.com/search?q=org%3Afleetdm+path%3A.github%2FISSUE_TEMPLATE+path%3Ahandbook%2F+path%3Adocs%2F+foo&type=code).
 
