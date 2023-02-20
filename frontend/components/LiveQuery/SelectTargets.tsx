@@ -136,6 +136,7 @@ const SelectTargets = ({
   const [searchText, setSearchText] = useState("");
   const [debouncedSearchText, setDebouncedSearchText] = useState("");
   const [isDebouncing, setIsDebouncing] = useState(false);
+  const [allHostsSelected, setAllHostsSelected] = useState(false);
 
   const debounceSearch = useDebouncedCallback(
     (search: string) => {
@@ -266,8 +267,20 @@ const SelectTargets = ({
 
     // if the target was previously selected, we want to remove it now
     const newTargets = prevTargets.filter((t) => t.id !== selectedEntity.id);
+
     // if the length remains the same, the target was not previously selected so we want to add it now
     prevTargets.length === newTargets.length && newTargets.push(selectedEntity);
+
+    // if allHostsSelected, UI greys out other target filters
+    if (isLabel(selectedEntity)) {
+      const selectedLabelEntity = selectedEntity as ILabel;
+      if (
+        selectedLabelEntity.name === "All Hosts" &&
+        selectedLabelEntity.label_type === "builtin"
+      ) {
+        setAllHostsSelected(!allHostsSelected);
+      }
+    }
 
     isLabel(selectedEntity)
       ? setTargetedLabels(newTargets as ILabel[])
@@ -385,13 +398,28 @@ const SelectTargets = ({
     <div className={`${baseClass}__wrapper`}>
       <h1>Select targets</h1>
       <div className={`${baseClass}__target-selectors`}>
-        {!!labels?.allHosts.length &&
-          renderTargetEntityList("", labels.allHosts)}
-        {!!labels?.platforms?.length &&
-          renderTargetEntityList("Platforms", labels.platforms)}
-        {!!teams?.length && renderTargetEntityList("Teams", teams)}
-        {!!labels?.other?.length &&
-          renderTargetEntityList("Labels", labels.other)}
+        <div
+          className={
+            !allHostsSelected &&
+            (selectedTargets.length || targetedHosts.length)
+              ? `${baseClass}__target-selectors--greyed`
+              : ""
+          }
+        >
+          {!!labels?.allHosts.length &&
+            renderTargetEntityList("", labels.allHosts)}
+        </div>
+        <div
+          className={
+            allHostsSelected ? `${baseClass}__target-selectors--greyed` : ""
+          }
+        >
+          {!!labels?.platforms?.length &&
+            renderTargetEntityList("Platforms", labels.platforms)}
+          {!!teams?.length && renderTargetEntityList("Teams", teams)}
+          {!!labels?.other?.length &&
+            renderTargetEntityList("Labels", labels.other)}
+        </div>
       </div>
       <TargetsInput
         tabIndex={inputTabIndex || 0}
@@ -403,6 +431,7 @@ const SelectTargets = ({
         setSearchText={setSearchText}
         handleRowSelect={handleRowSelect}
         handleRowRemove={handleRowRemove}
+        greyedOut={allHostsSelected}
       />
       <div className={`${baseClass}__targets-button-wrap`}>
         <Button

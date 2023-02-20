@@ -21,6 +21,7 @@ interface ITargetsInputProps {
   setSearchText: (value: string) => void;
   handleRowSelect: (value: Row) => void;
   handleRowRemove: (value: Row) => void;
+  greyedOut?: boolean;
 }
 
 const baseClass = "targets-input";
@@ -35,6 +36,7 @@ const TargetsInput = ({
   handleRowSelect,
   handleRowRemove,
   setSearchText,
+  greyedOut,
 }: ITargetsInputProps): JSX.Element => {
   const resultsDropdownTableHeaders = generateTableHeaders();
   const selectedTableHeaders = generateTableHeaders(handleRowRemove);
@@ -49,17 +51,21 @@ const TargetsInput = ({
   return (
     <div>
       <div className={baseClass}>
-        <Input
-          autofocus
-          type="search"
-          iconName="search"
-          value={searchText}
-          tabIndex={tabIndex}
-          iconPosition="start"
-          label="Target specific hosts"
-          placeholder={HOSTS_SEARCH_BOX_PLACEHOLDER}
-          onChange={setSearchText}
-        />
+        <div
+          className={greyedOut ? `${baseClass}__target-selectors--greyed` : ""}
+        >
+          <Input
+            autofocus
+            type="search"
+            iconName="search"
+            value={searchText}
+            tabIndex={tabIndex}
+            iconPosition="start"
+            label="Target specific hosts"
+            placeholder={HOSTS_SEARCH_BOX_PLACEHOLDER}
+            onChange={setSearchText}
+          />
+        </div>
         {isActiveSearch && (
           <div className={`${baseClass}__hosts-search-dropdown`}>
             <TableContainer
@@ -93,17 +99,23 @@ const TargetsInput = ({
           </div>
         )}
         <div className={`${baseClass}__hosts-selected-table`}>
-          <TableContainer
-            columns={selectedTableHeaders}
-            data={targetedHosts}
-            isLoading={false}
-            resultsTitle=""
-            showMarkAllPages={false}
-            isAllPagesSelected={false}
-            disableCount
-            disablePagination
-            emptyComponent={() => <></>}
-          />
+          <div
+            className={
+              greyedOut ? `${baseClass}__target-selectors--greyed` : ""
+            }
+          >
+            <TableContainer
+              columns={selectedTableHeaders}
+              data={targetedHosts}
+              isLoading={false}
+              resultsTitle=""
+              showMarkAllPages={false}
+              isAllPagesSelected={false}
+              disableCount
+              disablePagination
+              emptyComponent={() => <></>}
+            />
+          </div>
         </div>
       </div>
     </div>

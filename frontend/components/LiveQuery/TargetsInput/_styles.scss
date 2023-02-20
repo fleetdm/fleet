@@ -1,6 +1,10 @@
 .targets-input {
   position: relative;
 
+  &__target-selectors--greyed {
+    opacity: 50%;
+  }
+
   &__hosts-search-dropdown {
     width: 100%;
     position: absolute;

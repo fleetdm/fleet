@@ -119,6 +119,10 @@
         }
       }
     }
+
+    &--greyed {
+      opacity: 60%;
+    }
   }
   &__targets-button-wrap {
     margin-top: 30px;
