@@ -35,7 +35,7 @@ jobs:
 
     # Set the Node.js version
     - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@f1f314fca9dfce2769ece7d933488f076716723e # v1
+      uses: actions/setup-node@64ed1c7eab4cce3362f8c340dee64e5eaeef8f7c # v1
       with:
         node-version: ${{ matrix.node-version }}
 
