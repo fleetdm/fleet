@@ -35,7 +35,7 @@ We use the Zoom add-on for Google Calendar to schedule Zoom meetings when we cre
 We configure our Zoom meetings to let participants join before the host starts the meeting. We do this to make sure meetings start on time, even if the host isn't there.
 
 ### Key reviews
-Every release cycle, each department leader prepares a [key review deck](https://about.gitlab.com/handbook/key-review/#purpose) and presents it to the CEO. In this deck, the department will highlight KPI metrics and progress of OKRs. The information for creating this deck is located in the ["🌈 Fleet" Google drive](https://drive.google.com/drive/folders/1lizTSi7YotG_zA7zJeHuOXTg_KF1Ji8k) using ["How to create key review"](https://docs.google.com/document/d/1PDwJL0HiCz-KbEGZMfldAYX_aLk5OVAU1MMSgMYYF2A/edit?usp=sharing)(internal doc).
+Every release cycle, each department leader prepares a [key review deck](https://about.gitlab.com/handbook/key-review/#purpose) and presents it to the CEO. In this deck, the department will highlight KPI metrics (numbers measuring everyday excellence) and progress of timebound goals for a particular quarter (OKRs). The information for creating this deck is located in the ["🌈 Fleet" Google drive](https://drive.google.com/drive/folders/1lizTSi7YotG_zA7zJeHuOXTg_KF1Ji8k) using ["How to create key review"](https://docs.google.com/document/d/1PDwJL0HiCz-KbEGZMfldAYX_aLk5OVAU1MMSgMYYF2A/edit?usp=sharing)(internal doc).
 
 
 ## Spending company money
@@ -193,7 +193,6 @@ maintaining an expressive labeling system. For example, instead of a label calle
 | `#`               | Noun        | `#platform`, `#interface`, `#agent`
 | `:`               | Verb        | `:dev`, `:research`, `:design`
 | `~`               | Adjective   | `~blocked`, `~frontend`, `~backend`
-| `!`               | OKR         | `!vuln`, `!desktop`, `!upgrade`
 
 
 
