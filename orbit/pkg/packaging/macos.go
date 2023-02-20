@@ -19,7 +19,7 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-var bomRegexp = regexp.MustCompile(`(?m)(.+)\t([0-9]+/[0-9]+)`)
+var bomRegexp = regexp.MustCompile(`(.+)\t([0-9]+/[0-9]+)`)
 
 // See helful docs in http://bomutils.dyndns.org/tutorial.html
 
