@@ -1,4 +1,4 @@
-package main
+package orbit_info
 
 import (
 	"context"
@@ -11,8 +11,8 @@ import (
 	"github.com/osquery/osquery-go/plugin/table"
 )
 
-// orbitInfoExtension implements an extension table that provides info about Orbit.
-type orbitInfoExtension struct {
+// Extension implements an extension table that provides info about Orbit.
+type Extension struct {
 	orbitClient     *service.OrbitClient
 	orbitChannel    string
 	osquerydChannel string
@@ -20,15 +20,25 @@ type orbitInfoExtension struct {
 	trw             *token.ReadWriter
 }
 
-var _ orbit_table.Extension = orbitInfoExtension{}
+var _ orbit_table.Extension = (*Extension)(nil)
+
+func New(orbitClient *service.OrbitClient, orbitChannel, osquerydChannel, desktopChannel string, trw *token.ReadWriter) *Extension {
+	return &Extension{
+		orbitClient:     orbitClient,
+		orbitChannel:    orbitChannel,
+		osquerydChannel: osquerydChannel,
+		desktopChannel:  desktopChannel,
+		trw:             trw,
+	}
+}
 
 // Name partially implements orbit_table.Extension.
-func (o orbitInfoExtension) Name() string {
+func (o Extension) Name() string {
 	return "orbit_info"
 }
 
 // Columns partially implements orbit_table.Extension.
-func (o orbitInfoExtension) Columns() []table.ColumnDefinition {
+func (o Extension) Columns() []table.ColumnDefinition {
 	return []table.ColumnDefinition{
 		table.TextColumn("version"),
 		table.TextColumn("device_auth_token"),
@@ -40,8 +50,8 @@ func (o orbitInfoExtension) Columns() []table.ColumnDefinition {
 	}
 }
 
-// GenerateFunc partially implements orbit_table.Extension.
-func (o orbitInfoExtension) GenerateFunc(_ context.Context, _ table.QueryContext) ([]map[string]string, error) {
+// GenerateFunc partially implements table.Extension.
+func (o Extension) GenerateFunc(_ context.Context, _ table.QueryContext) ([]map[string]string, error) {
 	v := build.Version
 	if v == "" {
 		v = "unknown"
