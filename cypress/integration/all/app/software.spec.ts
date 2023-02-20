@@ -55,7 +55,7 @@ const enableWebhook = {
     },
     failing_policies_webhook: {
       enable_failing_policies_webhook: false,
-      destination_url: "ok.com",
+      destination_url: "https://www.foo.com/bar",
       policy_ids: [5, 10],
       host_batch_size: 0,
     },
@@ -115,7 +115,7 @@ const enableJiraSoftwareIntegration = {
     },
     failing_policies_webhook: {
       enable_failing_policies_webhook: false,
-      destination_url: "ok.com",
+      destination_url: "https://www.foo.com/bar",
       policy_ids: [5, 10],
       host_batch_size: 0,
     },
@@ -175,7 +175,7 @@ const enableZendeskSoftwareIntegration = {
     },
     failing_policies_webhook: {
       enable_failing_policies_webhook: false,
-      destination_url: "ok.com",
+      destination_url: "https://www.foo.com/bar",
       policy_ids: [5, 10],
       host_batch_size: 0,
     },
