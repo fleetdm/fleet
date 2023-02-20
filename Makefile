@@ -151,11 +151,11 @@ test: lint test-go test-js
 generate: clean-assets generate-js generate-go
 
 generate-ci:
-	NODE_ENV=development webpack
+	NODE_ENV=development yarn run webpack
 	make generate-go
 
 generate-js: clean-assets .prefix
-	NODE_ENV=production webpack --progress --colors
+	NODE_ENV=production yarn run webpack --progress --colors
 
 generate-go: .prefix
 	go run github.com/kevinburke/go-bindata/go-bindata -pkg=bindata -tags full \
