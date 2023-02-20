@@ -1,4 +1,4 @@
-name: Generate osqueryd targets for Orbit
+name: Generate osqueryd targets for Fleetd
 
 on:
   push:
