@@ -412,7 +412,7 @@ func executeMDMcommand(inputCMD string) (string, error) {
 	}
 
 	if len(outputCmd) == 0 {
-		return "", fmt.Errorf("the OS MDM stack returned an empty string")
+		return "", errors.New("the OS MDM stack returned an empty string")
 	}
 
 	return outputCmd, nil
