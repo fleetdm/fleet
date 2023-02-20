@@ -107,26 +107,31 @@ TODO?
 
 
 
-## Why?
+## Context
 
-TODO
+Anything else that contributors should keep in mind when working on this change?
 
-<!-- 
+- [Remember the user](https://fleetdm.com/handbook/company#empathy)
+- [Iterate](https://fleetdm.com/handbook/company#results)
+
+<!--  TODO: instead of these commented out goodies, pull into the handbook and leave behind a link:
+
 This section is optional and can be included or deleted, as time allows.
-
-Read more: TODO: replace the details below with a link to the handbook
-
-These questions are helpful for the product team when considering what to prioritize.  (The act of writing the answers is a lot of the value!)  But these answers can also be helpful when users or contributors (including our future selves) have questions about how best to estimate, iterate, or refine.
 
 As Fleet grows as an all-remote company with more asynchronous processes across timezones, we will rely on this section more and more.
 
-- Why prioritize this?
+Here are some examples of questions that might be helpful to answer:
+
+- What else should a contributor keep in mind when working on this change?
 - Why create this user story?  Why should Fleet work on it?
+- Why now?  Why prioritize this user story today?
 - What is the business case?  How does this contribute to reaching Fleet's strategic goals?
 - What's the problem?
 - What is the current situation? Why does the current situation hurt?
 - Who are the affected users?
 - What are they doing right now to resolve this issue? Why is this so bad?
+
+These questions are helpful for the product team when considering what to prioritize.  (The act of writing the answers is a lot of the value!)  But these answers can also be helpful when users or contributors (including our future selves) have questions about how best to estimate, iterate, or refine.
 -->
 
 This user story is considered "ready for development" when:
