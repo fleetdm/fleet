@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Fleet Device Management Inc is an [open-core company](https://www.heavybit.com/library/video/commercial-open-source-business-strategies/) that sells subscriptions that offer [more features and support](https://fleetdm.com/pricing) for Fleet and [osquery](https://osquery.io), the leading open source endpoint agent.
+Fleet Device Management Inc is an [open-core company](https://fleetdm.com/handbook/company/why-this-way#why-this-way) that sells subscriptions that offer [more features and support](https://fleetdm.com/pricing) for Fleet and osquery, the leading open-source security agent.  Today, Fleet enrolls millions of laptops and servers, and it is especially popular with [enterprise IT and security teams](https://www.linuxfoundation.org/press/press-release/the-linux-foundation-announces-intent-to-form-new-foundation-to-support-osquery-community).
 
 We are dedicated to:
 
@@ -14,17 +14,13 @@ We are dedicated to:
 ## Culture
 
 ### All remote
-Fleet Device Management Inc. is an all-remote company with team members spread across four continents and eight time zones.  The broader team of contributors [worldwide](https://github.com/fleetdm/fleet/graphs/contributors) submits patches, bug reports, troubleshooting tips, improvements, and real-world insights to Fleet's open-source code base, documentation, website, and [company handbook](https://fleetdm.com/handbook/company/why-this-way#why-handbook-first-strategy).
+Fleet Device Management Inc. is an all-remote company with 30+ team members spread across four continents and eight time zones.  The broader team of contributors [worldwide](https://github.com/fleetdm/fleet/graphs/contributors) submits patches, bug reports, troubleshooting tips, improvements, and real-world insights to Fleet's open-source code base, documentation, website, and [company handbook](https://fleetdm.com/handbook/company/why-this-way#why-handbook-first-strategy).
 
 ### Open source
-The majority of the code, documentation, and content we create at Fleet is public and source-available.  The Fleet handbook is the central guide for how we run the company, and even it is open to the world.  We [strive to be open](https://fleetdm.com/handbook/company/why-this-way#why-open-source) and transparent in the way we run the business, as much as confidentiality agreements (and time) allow. We perform better with an audience, and our audience performs better with us.
+The majority of the code, documentation, and content we create at Fleet is public and source-available.  The Fleet handbook is the central guide for how we run the company, and even it is open to the world.  We [strive to be open](https://fleetdm.com/handbook/company/why-this-way#why-open-source) and transparent in the way we run the business, as much as confidentiality agreements (and time) allow. We perform better with an audience, and our audience [performs better](https://fleetdm.com/handbook/company/why-this-way#why-open-source) with us.
 
 ### Why this way?
-At Fleet, we rarely label ideas as drafts or theories.  Everything is [always in draft](https://about.gitlab.com/handbook/values/#everything-is-in-draft) and subject to change in future iterations.  But to get [results](https://fleetdm.com/handbook/company#results), we need to balance being smart with moving quickly.  That means embracing decisiveness in the face of uncertainty.
-
-To increase clarity and encourage teams to make decisions quickly, leaders and [DRIs (directly responsible individuals)](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) should explicitly mention when they are voicing an opinion or a decision.  When an [opinion](https://blog.codinghorror.com/strong-opinions-weakly-held/) is voiced, there's space for near-term debate.  When a [decision](https://about.gitlab.com/handbook/values/#disagree-commit-and-disagree) is voiced, team commitment is required.
-
-The ["Why this way?"](https://fleetdm.com/handbook/company/why-this-way) page discusses some of Fleet's decisions about the best way to work.  For example: ["Why open source?"](https://fleetdm.com/handbook/company/why-this-way#why-open-source) and ["Why do we use a wireframe-first approach?"](https://fleetdm.com/handbook/company/why-this-way#why-do-we-use-a-wireframe-first-approach) and ["Why handbook-first strategy?"](https://fleetdm.com/handbook/company/why-this-way#why-handbook-first-strategy).
+At Fleet, we write things down.  Even when we might be wrong.  This helps us move quickly, provides clarity, and enables asynchronous work.  The "Why this way?" page in the handbook discusses some of our most important decisions about the best way to work and the reasoning for them.  For example: _"Why open source?"_, _"Why do we use a wireframe-first approach?"_, _"Why direct responsibility?_, and _"Why handbook-first strategy?"_  You can read more about these principles and suggest improvements in ["Why this way?"](https://fleetdm.com/handbook/company/why-this-way)
 
 
 ## Open positions
@@ -36,29 +32,26 @@ Fleet is currently hiring for the following positions:
 - 🫧 [Revenue Operations Manager](https://fleet-device-management.breezy.hr/p/c28cce9abf5e-revenue-ops)
 - 🫧 [Field Marketer](https://fleet-device-management.breezy.hr/p/3bd97ce5f54a-field-marketing-manager-enterprise)
 
-> Interested in joining the team at Fleet, or know someone who might be?  Click one of the positions to read the job description and apply, or you can share a [direct link to this page](https://fleetdm.com/handbook/company) for a short read about the company, including our vision, values, history, and all currently open positions.  Thank you for the help!
+> Interested in joining the team at Fleet, or know someone who might be?  Click one of the positions to read the job description and apply, or you can share a [direct link to this page](https://fleetdm.com/handbook/company#open-positions) for a short read about the company, including our vision, values, history, and all currently open positions.  Thank you for the help!
+
+### Is it any good?
+
+Why should you join us?  🛸
+
+- Work from anywhere with good internet. (We're 100% remote. No office. No commute.) Everyone works remote, but you don't feel remote. There is no 'headquarters'. You are free to travel and move.
+- Fleet can offer you a competitive salary, significant equity, and an independent, outsider-friendly culture. Work with helpful, kind, and motivated people who know what they're doing.
+- At Fleet, we value focus, iteration, and meaningful results – not 60 hour work weeks. We are non-judgmental and laser-focused on growing the company.
+- Work closely with experienced, well-funded founders and a great team, including the people who created osquery and Sails. We care about openness and transparency.
+- Work computers can be private and safe. Help make endpoint monitoring less intrusive and more transparent.
+- Protect the production servers and employee laptops of Earth's largest companies. Work on a product used by lots of people who care about what you do.
+- Fleet is growing quickly, with significant revenue from Fortune 1000 customers. You will have lots of opportunities to make decisions, learn, and try new things.
 
 
-## Org chart
+## Values
 
-Fleet's organizational chart is accessible as a sub-tab in ["🧑‍🚀 Fleeties" (private google doc)](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0).  On the other sub-tabs, you can also check out a world map of where everyone is located, hiring stats, and fun facts about each team member.
+Fleet's values are a set of five ideals adopted by everyone on the team. They describe the culture we are working together to deliver, inside and outside the company: 🔴 Empathy, 🟠 Ownership, 🟢 Results, 🔵 Objectivity, and 🟣 Openness.
 
-
-## Product groups
-Fleet organizes cross-functional groups focused on particular business goals. These include the product quality lead, a designer, developers, a product manager, and an engineering manager.  For more information, check out the ["Product groups"](./development-groups.md) page.
-
-
-## 🌈 Values
-
-Fleet's values are a set of five ideals adopted by everyone on the team.  They describe the culture we are working together to deliver, inside and outside the company:
-
-1. 🔴 Empathy
-2. 🟠 Ownership
-3. 🟢 Results
-4. 🔵 Objectivity
-5. 🟣 Openness
-
-When a new team member joins Fleet, they adopt the values, from day one.  This way, even as the company grows, everybody knows what to expect from the people with whom they work. Having a shared mindset keeps us quick and determined.
+Values play an important role in hiring, performance management, and compensation decisions. When a new team member joins Fleet, they adopt the values, from day one.  This way, even as the company grows, everybody knows what to expect from the people they work with.  Having a shared mindset keeps us quick and determined.
 
 ### 🔴 Empathy
 Empathy leads to better understanding, better communication, and better decisions.  Try to understand what people may be going through, so you can help make it better.
@@ -115,6 +108,8 @@ When Kolide's attention shifted away from Fleet, and towards their separate, use
 ### 2020: Fleet was incorporated
 Zach partnered with our CEO, Mike McNeil, to found a new, independent company: Fleet Device Management Inc.  In November 2020, we [announced](https://medium.com/fleetdm/a-new-fleet-d4096c7de978) the transition and kicked off the logistics of moving the GitHub repository.
 
+### 2022: Millions of hosts
+Fleet raised its Series A funding round.  The world now has at least 1.65 million computers and virtual hosts enrolled in Fleet, including enterprises, governments, startups, families, and hobbyist racks all over the world.
 
 ## Slack channels
 
