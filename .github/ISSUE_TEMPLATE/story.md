@@ -8,8 +8,8 @@ assignees: ''
 ---
 
 > **This issue's remaining effort can be completed in ≤1 sprint.  It will be valuable even if nothing else ships.**
->
-> It will be prioritized, [drafted](https://fleetdm.com/handbook/company/development-groups#drafting), estimated, and scheduled prior to starting implementation.
+> 
+> It is [planned and ready](https://fleetdm.com/handbook/company/development-groups#making-changes) to implement.
 
 ## Goal
 
@@ -19,24 +19,12 @@ assignees: ''
 | I want to _________________________________________
 | so that I can _________________________________________.
 
-
-## Bibliography
-This user story is ready for implementation if the following are true:
-- [x] Issue created
-- [ ] [Product group](https://fleetdm.com/handbook/company/product-groups) label added (e.g. `#cx`, `#mdm`)
-- [ ] Changes [specified](https://fleetdm.com/handbook/company/development-groups#drafting) and [designed](https://fleetdm.com/handbook/company/why-this-way#why-do-we-use-a-wireframe-first-approach)
-- [ ] [Designs revised and approved](https://fleetdm.com/handbook/business-operations/ceo-handbook#calendar-audit)
-- [ ] [Estimated](https://fleetdm.com/handbook/company/why-this-way#why-scrum)
-- [ ] [Scheduled](https://fleetdm.com/handbook/company/why-this-way#why-a-three-week-cadence) for development
-
-> ℹ️  Great user stories have [clearly-defined changes]().
-
 ## Changes
 
-This user story's estimation [includes](https://fleetdm.com/handbook/company/development-groups#drafting) completing:
-- [ ] UI changes: https://fleetdm.com/handbook/company/development-groups#defining-done <!-- Insert the link to the relevant Figma file describing all relevant changes. Remove this checkbox if there are no changes to the user interface. -->
+This issue's estimation includes completing:
+- [ ] UI changes: TODO <!-- Insert the link to the relevant Figma file describing all relevant changes. Remove this checkbox if there are no changes to the user interface. -->
 - [ ] CLI usage changes: TODO <!-- Specify what changes to the CLI usage are required. Remove this checkbox if there are no changes to the CLI. -->
-- [ ] ... <!-- Include any other notable requirements to draw extra attention to. -->
+- [ ] ... <!-- If there are any other notable requirements to draw extra attention to, add them as checkboxes here.  Otherwise, remove this checkbox. -->
 - [ ] REST API changes: TODO <!-- Specify what changes to the API are required.  Remove this checkbox if there are no changes necessary. -->
 - [ ] Database schema migrations: TODO <!-- Specify what changes to the database schema are required. (This willl be used to change migration scripts accordingly.) Remove this checkbox if there are no changes necessary. -->
 - [ ] Outdated documentation changes: TODO <!-- Specify what changes to the documentation are required. Remove this checkbox if there are no changes necessary. -->
@@ -45,7 +33,7 @@ This user story's estimation [includes](https://fleetdm.com/handbook/company/dev
 - [ ] Changes to paid features or tiers? TODO  <!-- List changes to paid features or tiers required.  Implementation of paid features should live in the `ee/` directory.  Remove this checkbox if there are no changes necessary. -->
 - [ ] QA complete?
 
-> ℹ️  Please read this issue carefully and pay special [attention to UI wireframes](https://fleetdm.com/handbook/company/why-this-way/development-groups#implementation).
+> ℹ️  Please read this issue carefully.  Pay [special attention](https://fleetdm.com/handbook/company/development-groups#developing-from-wireframes) to UI wireframes, especially "dev notes".
 
 <!--
 ## Context
@@ -65,6 +53,11 @@ What else should contributors keep in mind when working on this change?  (Option
 Fleet's product goal is to create experiences that users want.
 
 To deliver on this mission, we need a clear, repeatable process for turning an idea into concrete changes to the product that work every time. We also need to allow [open source contributions](https://fleetdm.com/handbook/company#open-source) at any point in the process from the wider Fleet community - these won't necessarily follow this process.
+
+To make a change to Fleet:
+- First, [prioritize it](https://fleetdm.com/handbook/product).
+- Then, [draft it](https://fleetdm.com/handbook/company/development-groups#making-changes). (Plan it out.)
+- Finally, [implement it](https://fleetdm.com/handbook/company/development-groups#implementing).
 
 #### Planned and unplanned changes
 Most changes to Fleet are planned changes. They are [prioritized](https://fleetdm.com/handbook/product), defined, designed, revised, estimated, and scheduled into a release sprint _prior to starting implementation_.  The process of going from a prioritized goal to an estimated, scheduled, committed user story with a target release is called "drafting", or "the drafting phase".
@@ -145,8 +138,7 @@ Here are some examples of questions that might be helpful to answer:
 These questions are helpful for the product team when considering what to prioritize.  (The act of writing the answers is a lot of the value!)  But these answers can also be helpful when users or contributors (including our future selves) have questions about how best to estimate, iterate, or refine.
 
 
-
-### Implementation
+### Implementing
 
 #### Developing from wireframes
 Please read carefully and [pay special attention](https://fleetdm.com/handbook/company/why-this-way#why-do-we-use-a-wireframe-first-approach) to UI wireframes.
@@ -162,6 +154,7 @@ A user story is estimated to fit within 1 sprint and drives business value when 
 - will NOT be looked at or QA'd by quality assurance
 - will NOT, in isolation, necessarily deliver any direct, independent business value
 - can be included as links in this user story's "definition of done" checklist
+- can be created by anyone
 - are NOT the right place to post GitHub comments (instead, concentrate conversation in the top-level "user story" issue)
 
 
