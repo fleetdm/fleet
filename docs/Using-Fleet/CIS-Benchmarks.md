@@ -22,8 +22,6 @@ There are two types of CIS Benchmark checks, "Manual" and "Automated".
 
 Fleet only implements "Automated" checks. "Manual" checks cannot be automated as a Fleet policy. As such, they require administrators to implement other processes to conduct the check.
 
-The manual checks which are not included in Fleet are documented below. 
-
 ## Requirements
 
 Following are the requirements to use the CIS Benchmarks in Fleet:
