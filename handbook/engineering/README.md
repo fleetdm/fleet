@@ -889,7 +889,7 @@ Escalations (in order):
 
 - Zach Wasserman
 
-The first responder oncall will take ownership of the @sandbox-oncall alias in Slack for ease first thing Monday morning.
+The first responder oncall will take ownership of the @infrastructure-oncall alias in Slack for ease first thing Monday morning.
 
 Expected response times: during business hours, 1 hour. Outside of business hours 4 hours.
 
@@ -899,7 +899,7 @@ We should collect both the email for the customer and information for the error.
 
 Escalation of issues will be done by hand for the moment.
 
-All infrastructure alarms will go to #g-infrastructure.
+All infrastructure alarms will go to #g-customer-experience.
 
 The information needed to evaluate and potentially fix any issues is documented in the [runbook](https://github.com/fleetdm/fleet/blob/main/infrastructure/sandbox/readme.md).
 
