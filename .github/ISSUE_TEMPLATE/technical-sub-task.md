@@ -1,8 +1,8 @@
 ---
-name: 🎟  Technical sub-task
-about: Specify an optional technical sub-task for a Scrum user story. 
+name: 🧩  Technical sub-task
+about: Specify an optional technical sub-task for a user story. 
 title: ''
-labels: 'sub-task'
+labels: 'sub-task,:release,#cx'
 assignees: ''
 
 ---
