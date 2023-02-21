@@ -362,7 +362,7 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure 'Back up files and directories' is set to 'Administrators
+  name: CIS - Ensure 'Back up files and directories' is set to 'Administrators'
   platforms: win10
   platform: windows
   description: |
@@ -370,16 +370,16 @@ spec:
     The recommended state for this setting is: Administrators.
     Note: This user right is considered a "sensitive privilege" for the purposes of auditing. Rationale:
     Users who are able to back up data from a computer could take the backup media to a non-domain computer on which they have administrative privileges and restore the data. They could take ownership of the files and view any unencrypted data that is contained within the backup set.
+    Rationale:
+    Users who are able to back up data from a computer could take the backup media to a non- domain computer on which they have administrative privileges and restore the data. They could take ownership of the files and view any unencrypted data that is contained within the backup set.
+    Impact:
+    Changes in the membership of the groups that have the Back up files and directories user right could limit the abilities of users who are assigned to specific administrative roles in your environment. You should confirm that authorized backup administrators are still able to perform backup operations.
   resolution: |
     Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'Administrators':
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to a list containing only 'Administrators':
     'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Back up files and directories'
   query: |
-    SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/LocalPoliciesSecurityOptions/Accounts_RenameAdministratorAccount</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output != "Administrator";
-OMA-URI: ./Device/Vendor/MSFT/Policy/Config/UserRights/BackupFilesAndDirectories
-Data type: String
-Value: Administrators
-
+    SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/UserRights/BackupFilesAndDirectories</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output = "Administrators";
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-2.2.7
   contributors: sharon-fdm
