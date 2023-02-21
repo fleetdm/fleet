@@ -213,7 +213,7 @@ func getCmdResponseData(outputCmd string) (string, error) {
 				// extracting the data from the result
 				workStr := element.Item[0].Data
 				if len(workStr) == 0 {
-					workStr = "data_not_set" // default value for empty data
+					workStr = "" // default value for empty data
 				}
 				responseData += workStr
 			}
@@ -416,7 +416,7 @@ func executeMDMcommand(inputCMD string) (string, error) {
 	}
 
 	if len(outputCmd) == 0 {
-		return "", fmt.Errorf("the OS MDM stack returned an empty string")
+		return "", errors.New("the OS MDM stack returned an empty string")
 	}
 
 	return outputCmd, nil

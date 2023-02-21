@@ -6,12 +6,13 @@ package pwd_policy
 import (
 	"context"
 	"fmt"
-	tbl_common "github.com/fleetdm/fleet/v4/orbit/pkg/table/common"
-	"github.com/osquery/osquery-go/plugin/table"
-	"github.com/rs/zerolog/log"
 	"os/exec"
 	"syscall"
 	"time"
+
+	tbl_common "github.com/fleetdm/fleet/v4/orbit/pkg/table/common"
+	"github.com/osquery/osquery-go/plugin/table"
+	"github.com/rs/zerolog/log"
 )
 
 // Columns is the schema of the table.
@@ -35,7 +36,7 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, "pwpolicy", "-getaccountpolicies")
+	cmd := exec.CommandContext(ctx, "/usr/bin/pwpolicy", "-getaccountpolicies")
 
 	// Run as the current console user (otherwise we get empty results for the root user)
 	cmd.SysProcAttr = &syscall.SysProcAttr{
@@ -71,9 +72,11 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 	}
 
 	return []map[string]string{
-		{"max_failed_attempts": maxFailedAttempts,
+		{
+			"max_failed_attempts":  maxFailedAttempts,
 			"expires_every_n_days": expiresEveryNDays,
 			"days_to_expiration":   daysToExpiration,
-			"history_depth":        historyDepth},
+			"history_depth":        historyDepth,
+		},
 	}, nil
 }

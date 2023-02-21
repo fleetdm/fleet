@@ -48,6 +48,7 @@ import ManageControlsPage from "pages/ManageControlsPage/ManageControlsPage";
 import MembersPage from "pages/admin/TeamManagementPage/TeamDetailsWrapper/MembersPage";
 import AgentOptionsPage from "pages/admin/TeamManagementPage/TeamDetailsWrapper/AgentOptionsPage";
 import MacOSUpdates from "pages/MacOSUpdates";
+import MacOSSettings from "pages/ManageControlsPage/MacOSSettings";
 
 import PATHS from "router/paths";
 import AppProvider from "context/app";
@@ -78,17 +79,6 @@ const AppWrapper = ({ children, location }: IAppWrapperProps) => (
     </RoutingProvider>
   </AppProvider>
 );
-
-const MacSettingsPage = () => {
-  return (
-    <div>
-      <EmptyTable
-        header="Coming soon"
-        info="The ability to store disk encryption keys and customize macOS settings are currently in development."
-      />
-    </div>
-  );
-};
 
 const routes = (
   <Router history={browserHistory}>
@@ -179,7 +169,8 @@ const routes = (
               <IndexRedirect to={"mac-os-updates"} />
               <Route component={ManageControlsPage}>
                 <Route path="mac-os-updates" component={MacOSUpdates} />
-                <Route path="mac-settings" component={MacSettingsPage} />
+                <Route path="mac-settings" component={MacOSSettings} />
+                <Route path="mac-settings/:section" component={MacOSSettings} />
               </Route>
             </Route>
           </Route>
