@@ -2,7 +2,7 @@
 name: 🎟  Story
 about: Specify an iterative change to the Fleet product.  (e.g. "As a user, I want to sign in with SSO.")
 title: ''
-labels: 'story,:product'
+labels: 'story,:product,#cx'
 assignees: ''
 
 ---
@@ -127,10 +127,11 @@ A user story is estimated to fit within 1 sprint and drives business value when 
 
 ## Defining "done"
 
-This user story is estimated to include the following changes, and will be considered "done" when:
+This user story's estimation includes all remaining effort for the following changes, and will be considered "done" when:
 
 - [ ] UI changes: TODO <!-- Insert the link to the relevant Figma file describing all relevant changes. Remove this checkbox if there are no changes to the user interface. -->
 - [ ] CLI usage changes: TODO <!-- Specify what changes to the CLI usage are required. Remove this checkbox if there are no changes to the CLI. -->
+- [ ] ... <!-- Include any other notable requirements to draw extra attention to. -->
 - [ ] REST API changes: TODO <!-- Specify what changes to the API are required.  Remove this checkbox if there are no changes necessary. -->
 - [ ] Database schema migrations: TODO <!-- Specify what changes to the database schema are required. (This willl be used to change migration scripts accordingly.) Remove this checkbox if there are no changes necessary. -->
 - [ ] Outdated documentation changes: TODO <!-- Specify what changes to the documentation are required. Remove this checkbox if there are no changes necessary. -->
