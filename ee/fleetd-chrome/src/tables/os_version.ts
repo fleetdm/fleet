@@ -17,14 +17,14 @@ export default class TableOSVersion extends Table {
     const { arch, os: platform } = platform_info;
 
     return [
-      [
-        data.platform,
-        platform,
-        platform,
-        data.platformVersion,
-        data.platformVersion,
-        arch,
-      ],
+      {
+        name: data.platform,
+        platform: platform,
+        platform_like: platform,
+        version: data.platformVersion,
+        build: data.platformVersion,
+        arch: arch,
+      },
     ];
   }
 }

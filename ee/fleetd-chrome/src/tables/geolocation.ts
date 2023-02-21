@@ -8,6 +8,13 @@ export default class TableGeolocation extends Table {
     const resp = await fetch("https://ipapi.co/json");
     const json = await resp.json();
     console.log(json);
-    return [[json.ip, json.city, json.country_name, json.region]];
+    return [
+      {
+        ip: json.ip,
+        city: json.city,
+        country: json.country_name,
+        region: json.region,
+      },
+    ];
   }
 }

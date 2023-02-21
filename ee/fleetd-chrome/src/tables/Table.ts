@@ -3,18 +3,17 @@ import * as SQLite from "wa-sqlite";
 export default abstract class Table implements SQLiteModule {
   sqlite3: SQLiteAPI;
   db: number;
+  name: string;
+  columns: string[];
 
   abstract generate(
     idxNum: number,
     idxString: string,
     values: Array<number>
-  ): any;
+  ): Promise<Record<string, string | number>[]>;
 
   // injected by wa-sqlite, but missing from SQLiteModule definition
   handleAsync(f: () => Promise<any>): any {}
-
-  name = "table_name";
-  columns = ["platform", "platform_like", "version"];
 
   cursorStates = new Map();
 
@@ -92,8 +91,13 @@ export default abstract class Table implements SQLiteModule {
     pContext: number,
     iCol: number
   ): number | Promise<number> {
+    // Get the generated rows for this cursor.
     const cursorState = this.cursorStates.get(pCursor);
-    const value = cursorState.rows[cursorState.index][iCol];
+    // Get the current row.
+    const row = cursorState.rows[cursorState.index];
+    // Get the column for the row, looking up the column index by the column name.
+    const value = row[this.columns[iCol]];
+
     this.sqlite3.result(pContext, value);
     return SQLite.SQLITE_OK;
   }

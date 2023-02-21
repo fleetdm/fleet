@@ -45,14 +45,14 @@ export default class TableSystemInfo extends Table {
     }
 
     return [
-      [
+      {
         uuid,
         hostname,
-        hostname,
+        computer_name: hostname,
         hardware_serial,
         hardware_vendor,
         hardware_model,
-      ],
+      },
     ];
   }
 }
