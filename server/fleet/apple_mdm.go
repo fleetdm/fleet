@@ -33,16 +33,16 @@ var (
 	MDMAppleDeliveryPending MDMAppleDeliveryStatus = "pending"
 )
 
-func MDMAppleDeliveryStatusFromCommandStatus(cmdStatus string) MDMAppleDeliveryStatus {
+func MDMAppleDeliveryStatusFromCommandStatus(cmdStatus string) *MDMAppleDeliveryStatus {
 	switch cmdStatus {
 	case "Acknowledged":
-		return MDMAppleDeliveryApplied
+		return &MDMAppleDeliveryApplied
 	case "Error", "CommandFormatError":
-		return MDMAppleDeliveryFailed
+		return &MDMAppleDeliveryFailed
 	case "Idle", "NotNow":
-		return MDMAppleDeliveryPending
+		return &MDMAppleDeliveryPending
 	default:
-		return ""
+		return nil
 	}
 }
 
@@ -408,7 +408,7 @@ type HostMDMAppleProfile struct {
 	HostUUID      string
 	CommandUUID   string
 	ProfileID     uint
-	Status        MDMAppleDeliveryStatus
+	Status        *MDMAppleDeliveryStatus
 	OperationType MDMAppleOperationType
 	Detail        string
 }

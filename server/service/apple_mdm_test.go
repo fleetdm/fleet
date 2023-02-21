@@ -722,7 +722,7 @@ func TestMDMCommandAndReportResultsProfileHandling(t *testing.T) {
 			requestType: "InstallProfile",
 			errors:      nil,
 			want: &fleet.HostMDMAppleProfile{
-				Status:        fleet.MDMAppleDeliveryApplied,
+				Status:        &fleet.MDMAppleDeliveryApplied,
 				Detail:        "",
 				OperationType: fleet.MDMAppleOperationTypeInstall,
 			},
@@ -732,7 +732,7 @@ func TestMDMCommandAndReportResultsProfileHandling(t *testing.T) {
 			requestType: "RemoveProfile",
 			errors:      nil,
 			want: &fleet.HostMDMAppleProfile{
-				Status:        fleet.MDMAppleDeliveryApplied,
+				Status:        &fleet.MDMAppleDeliveryApplied,
 				Detail:        "",
 				OperationType: fleet.MDMAppleOperationTypeRemove,
 			},
@@ -744,7 +744,7 @@ func TestMDMCommandAndReportResultsProfileHandling(t *testing.T) {
 				{ErrorCode: 123, ErrorDomain: "testDomain", USEnglishDescription: "testMessage"},
 			},
 			want: &fleet.HostMDMAppleProfile{
-				Status:        fleet.MDMAppleDeliveryFailed,
+				Status:        &fleet.MDMAppleDeliveryFailed,
 				Detail:        "testDomain (123): testMessage\n",
 				OperationType: fleet.MDMAppleOperationTypeInstall,
 			},
@@ -757,7 +757,7 @@ func TestMDMCommandAndReportResultsProfileHandling(t *testing.T) {
 				{ErrorCode: 321, ErrorDomain: "domainTest", USEnglishDescription: "messageTest"},
 			},
 			want: &fleet.HostMDMAppleProfile{
-				Status:        fleet.MDMAppleDeliveryFailed,
+				Status:        &fleet.MDMAppleDeliveryFailed,
 				Detail:        "testDomain (123): testMessage\ndomainTest (321): messageTest\n",
 				OperationType: fleet.MDMAppleOperationTypeRemove,
 			},
@@ -767,7 +767,7 @@ func TestMDMCommandAndReportResultsProfileHandling(t *testing.T) {
 			requestType: "RemoveProfile",
 			errors:      nil,
 			want: &fleet.HostMDMAppleProfile{
-				Status:        fleet.MDMAppleDeliveryFailed,
+				Status:        &fleet.MDMAppleDeliveryFailed,
 				Detail:        "",
 				OperationType: fleet.MDMAppleOperationTypeRemove,
 			},

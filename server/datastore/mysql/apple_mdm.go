@@ -934,9 +934,6 @@ func (ds *Datastore) ListMDMAppleProfilesToRemove(ctx context.Context) ([]*fleet
           RIGHT JOIN host_mdm_apple_profiles hmap
             ON hmap.profile_id = ds.profile_id AND hmap.host_uuid = ds.uuid
           WHERE ds.profile_id IS NULL AND ds.uuid IS NULL
-	  -- 'applied' and 'pending' shouldn't be removed, as for 'failed' we
-	  -- decided to not do retries for the MVP.
-          AND hmap.status IN ('pending', 'applied')
           AND hmap.operation_type != 'remove'
 	`
 
