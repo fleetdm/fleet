@@ -62,37 +62,4 @@ describe("MacSettingsIndicator", () => {
     fireEvent.click(renderedButton);
     expect(screen.getByText("onClick called")).toBeInTheDocument();
   });
-
-  it("Renders text, icon, tooltip and onClick", () => {
-    const indicatorText = "test text";
-    const tooltipText = "test tooltip text";
-    const onClick = () => {
-      const newDiv = document.createElement("div");
-      newDiv.appendChild(document.createTextNode("onClick called"));
-      document.body.appendChild(newDiv);
-    };
-    render(
-      <MacSettingsIndicator
-        indicatorText={indicatorText}
-        iconName="success"
-        onClick={() => {
-          onClick();
-        }}
-        tooltip={{ tooltipText }}
-      />
-    );
-
-    const renderedIndicatorText = screen.getByText(indicatorText);
-    const renderedIcon = screen.getByTestId("icon");
-    const renderedButton = screen.getByRole("button");
-    const renderedTooltipText = screen.getByText(tooltipText);
-
-    expect(renderedIndicatorText).toBeInTheDocument();
-    expect(renderedIcon).toBeInTheDocument();
-    expect(renderedButton).toBeInTheDocument();
-    expect(renderedTooltipText).toBeInTheDocument();
-
-    fireEvent.click(renderedButton);
-    expect(screen.getByText("onClick called")).toBeInTheDocument();
-  });
 });
