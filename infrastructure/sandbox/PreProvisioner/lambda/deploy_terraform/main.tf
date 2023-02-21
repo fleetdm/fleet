@@ -162,7 +162,7 @@ resource "helm_release" "main" {
 
   set {
     name  = "imageTag"
-    value = "v4.27.1"
+    value = "v4.26.0-1"
   }
 
   set {
@@ -192,7 +192,8 @@ resource "helm_release" "main" {
 
   set {
     name  = "crons.vulnerabilities"
-    value = "${random_integer.cron_offset.result},${random_integer.cron_offset.result + 15},${random_integer.cron_offset.result + 30},${random_integer.cron_offset.result + 45} * * * *"
+    value = "${random_integer.cron_offset.result} * * * *"
+    #value = "${random_integer.cron_offset.result},${random_integer.cron_offset.result + 15},${random_integer.cron_offset.result + 30},${random_integer.cron_offset.result + 45} * * * *"
   }
 }
 

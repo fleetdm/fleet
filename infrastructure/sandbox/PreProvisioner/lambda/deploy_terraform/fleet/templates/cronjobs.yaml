@@ -10,11 +10,12 @@ metadata:
   name: {{ .Values.fleetName }}
   namespace: {{ .Release.Namespace }}
 spec:
-  schedule: {{ .Values.crons.vulnerabilities }}
+  schedule: "{{ .Values.crons.vulnerabilities }}"
   jobTemplate:
     spec:
       template:
         spec:
+          restartPolicy: Never
           containers:
           - name: {{ .Values.fleetName }}
             imagePullPolicy: Always
@@ -343,15 +344,3 @@ spec:
             - name: tmp
               emptyDir:
           {{- end }}
-          {{- with .Values.nodeSelector }}
-          nodeSelector:
-            {{- toYaml . | nindent 8 }}
-          {{- end }}
-        {{- with .Values.affinity }}
-          affinity:
-            {{- toYaml . | nindent 8 }}
-        {{- end }}
-        {{- with .Values.tolerations }}
-          tolerations:
-            {{- toYaml . | nindent 8 }}
-        {{- end }}
