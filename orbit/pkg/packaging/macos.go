@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
 
 	"github.com/Masterminds/semver"
@@ -17,6 +18,8 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/secure"
 	"github.com/rs/zerolog/log"
 )
+
+var bomRegexp = regexp.MustCompile(`(.+)\t([0-9]+/[0-9]+)`)
 
 // See helful docs in http://bomutils.dyndns.org/tutorial.html
 
@@ -284,21 +287,50 @@ func xarBom(opt Options, rootPath string) error {
 		return fmt.Errorf("cpio Scripts: %w", err)
 	}
 
-	// Make bom
+	// Make Bill of materials (bom)
 	var cmdMkbom *exec.Cmd
-	var isDarwin = runtime.GOOS == "darwin"
-	var isLinuxNative = runtime.GOOS == "linux" && opt.NativeTooling
+	isDarwin := runtime.GOOS == "darwin"
+	isLinuxNative := runtime.GOOS == "linux" && opt.NativeTooling
 
 	switch {
-	case isDarwin, isLinuxNative:
-		cmdMkbom = exec.Command("mkbom", filepath.Join(rootPath, "root"), filepath.Join("flat", "base.pkg", "Bom"))
+	case isDarwin:
+		// Using mkbom directly results in permissions listed for the current user and group. We
+		// transform the output in order to explicitly set root (0) and admin (80).
+		inBomPath := filepath.Join(rootPath, "inBom")
+		cmd := exec.Command("mkbom", filepath.Join(rootPath, "root"), inBomPath)
+		if err := cmd.Run(); err != nil {
+			return fmt.Errorf("initial mkbom: %w", err)
+		}
+		bomContents, err := exec.Command("lsbom", inBomPath).Output()
+		if err != nil {
+			return fmt.Errorf("lsbom inBom: %w", err)
+		}
+		bomContents = bomReplace(bomContents)
+		if err := ioutil.WriteFile(inBomPath, bomContents, 0); err != nil {
+			return fmt.Errorf("write inBom: %w", err)
+		}
+
+		// Use the file list (with transformed permissions) via -i flag
+		cmdMkbom = exec.Command("mkbom", "-i", "inBom", filepath.Join("flat", "base.pkg", "Bom"))
+		cmdMkbom.Dir = rootPath
+
+	// No need for transformation when using the Linux mkbom because of the -u and -g flags
+	// available in that command.
+	case isLinuxNative:
+		cmdMkbom = exec.Command(
+			"mkbom", "-u", "0", "-g", "80",
+			filepath.Join(rootPath, "root"), filepath.Join("flat", "base.pkg", "Bom"),
+		)
 		cmdMkbom.Dir = rootPath
 	default:
+		// Same as linux native, but modified for running in Docker. This should
+		// be either Windows, or Linux without the --native-tooling flag.
 		cmdMkbom = exec.Command(
 			"docker", "run", "--rm", "-v", rootPath+":/root", "fleetdm/bomutils",
 			"mkbom", "-u", "0", "-g", "80",
 			// Use / instead of filepath.Join because these will always be paths within the Docker
-			// container (so Linux file paths)
+			// container (so Linux file paths) -- if we use filepath.Join we'll get invalid paths on
+			// Windows due to use of backslashes.
 			"/root/root", "/root/flat/base.pkg/Bom",
 		)
 	}
@@ -345,6 +377,11 @@ func xarBom(opt Options, rootPath string) error {
 	}
 
 	return nil
+}
+
+// bomReplace replaces the permission strings (typically "501/20") with the appropriate string ("0/80")
+func bomReplace(inBom []byte) []byte {
+	return bomRegexp.ReplaceAll(inBom, []byte("$1\t0/80"))
 }
 
 func cpio(srcPath, dstPath string) error {
