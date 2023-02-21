@@ -225,8 +225,8 @@ spec:
     Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'No One':
     'Computer Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Access Credential Manager as a trusted caller'
   query: |
-    SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Config/UserRights/AccessCredentialManagerAsTrustedCaller</LocURI></Target></Item></Get></SyncBody>" 
-    AND mdm_command_output = "";
+    SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/UserRights/AccessCredentialManagerAsTrustedCaller</LocURI></Target></Item></Get></SyncBody>" 
+    AND mdm_command_output = "data_not_set";
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-2.2.1
   contributors: sharon-fdm
@@ -249,8 +249,8 @@ spec:
     Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'Administrators, Remote Desktop Users':
     'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Access this computer from the network'
   query: |
-    SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Config/UserRights/AccessFromNetwork</LocURI></Target></Item></Get></SyncBody>" 
-    AND mdm_command_output = "Administrators, Remote Desktop Users";
+    SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/UserRights/AccessFromNetwork</LocURI></Target></Item></Get></SyncBody>" 
+    AND mdm_command_output  LIKE "Administrators_REMOTE INTERACTIVE LOGON";
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-2.2.2
   contributors: sharon-fdm
