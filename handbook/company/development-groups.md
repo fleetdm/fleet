@@ -53,14 +53,14 @@ The goal of the customer experience (CX) group is to make customers happier and 
 
 ## Making changes
 
-Fleet's product goal is to create experiences that users want.
+Fleet's highest product ambition is to create experiences that users want.
 
-To deliver on this mission, we need a clear, repeatable process for turning an idea into concrete changes to the product that work every time. We also need to allow [open source contributions](https://fleetdm.com/handbook/company#open-source) at any point in the process from the wider Fleet community - these won't necessarily follow this process.
+To deliver on this mission, we need a clear, repeatable process for turning an idea into a set of cohesively-designed changes in the product. We also need to allow [open source contributions](https://fleetdm.com/handbook/company#open-source) at any point in the process from the wider Fleet community - these won't necessarily follow this process.
 
 To make a change to Fleet:
-- First, [prioritize it](https://fleetdm.com/handbook/product).
-- Then, [draft it](https://fleetdm.com/handbook/company/development-groups#making-changes). (Plan it out.)
-- Finally, [implement it](https://fleetdm.com/handbook/company/development-groups#implementing).
+- First, [get it prioritized](https://fleetdm.com/handbook/product).
+- Then, it will be [drafted](https://fleetdm.com/handbook/company/development-groups#drafting) (planned).
+- Next, it will be [implemented](https://fleetdm.com/handbook/company/development-groups#implementing) and [released](https://fleetdm.com/handbook/engineering#release-process).
 
 ### Planned and unplanned changes
 Most changes to Fleet are planned changes. They are [prioritized](https://fleetdm.com/handbook/product), defined, designed, revised, estimated, and scheduled into a release sprint _prior to starting implementation_.  The process of going from a prioritized goal to an estimated, scheduled, committed user story with a target release is called "drafting", or "the drafting phase".
