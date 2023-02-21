@@ -4,11 +4,11 @@
 
 At Fleet, we are always striving to keep up with our customers, and recently we have heard from many of you that you would like to get even more control from your Fleet Premium plan. In order to give you more control and better compliance postures we are announcing a new pricing tier, Fleet Ultimate.
 
-First and foremost, Fleet Ultimate offers the same great features as Premium (Teams, Employee/Device mapping, and audit log destinations, to name a few) but for larger organizations that need even more customization. With Platinum support, we can help you set up your automation of audit logs, setup your teams, and, in some cases, discuss what a custom dashboard would look like for your teams. However, in this latest release, there are changes coming to every pricing tier… here are a few.
+First and foremost, Fleet Ultimate offers the same great features as Premium (Teams, Employee/Device mapping, and audit log destinations, to name a few) but for larger organizations that need even more customization. With Ultimate support, we can help you set up your automation of audit logs, setup your teams, and, in some cases, discuss what a custom dashboard would look like for your teams. However, in this latest release, there are changes coming to every pricing tier… here are a few.
 
 ## Compliance-ready queries for all macOS CIS benchmarks
 
-As part of both Premium and Ultimate we will be offering companies the ability to schedule and run a complete set of CIS policies. As of today we have 100% coverage for all macOS CIS benchmarks. CIS (Center for Internet Security) publish benchmark documents that describe how computers should be configured in order for them to avoid vulnerabilities addressed therein. 
+As part of both Premium and Ultimate we will be offering companies the ability to schedule and run a complete set of CIS policies. As of today we have 100% coverage for all macOS CIS benchmarks that are automatable (the last CIS benchmarks need to be run manually). The Center for Internet Security (CIS) publishes benchmark documents that describe how computers should be configured in order for them to avoid vulnerabilities addressed therein. 
 
 If you have upgraded to a premium Fleet plan you will have the ability to import these CIS benchmarks into your queries list where you can schedule or edit them. Once you import them you would see something like this:
 
@@ -20,6 +20,8 @@ If you have upgraded to a premium Fleet plan you will have the ability to import
 
 In addition to some new options for our Fleet Ultimate customers, we wanted to give you better insight into the cost/host on a truly diverse array of machines. We know we have hundreds of customers using Fleet across their servers but not getting the complete set of premium features like Teams, audit logs and scheduled queries. By giving you the ability to enter your entire fleet we hope to unlock those premium Enterprise features for many more customers. Visit the [pricing page](https://fleetdm.com/pricing?utm_source=pricing+demo+top+premium) to play with the new calculator.
 
+Lastly, we are making one substantial change to the Fleet Premium product, a flat rate of $3500/month for up to 500 hosts (after that we charge for extra hosts at an agreed upon contract price). This comes to $7 a host. We believe it is affordable given these queries save your Security team hundreds if not thousands of hours in maintenance and upkeep.
+
 ## Custom dashboards for vulnerability management
 
 In addition to better control, many of our customers want to build better tooling around reporting. In order to showcase the ability to use the Fleet API to build your own automation and reporting, we created our own internal dashboard. Here is a preview:
@@ -28,7 +30,6 @@ In addition to better control, many of our customers want to build better toolin
 
 If you’d like to discuss a dashboard like this for your team, feel free to [schedule time with our expert services team](https://calendly.com/fleetdm/demo?utm_source=pricing+demo+top+premium). 
 
-Lastly, we are making one substantial change to the Fleet Premium product, a flat rate of $3500/month for up to 500 hosts (after that we charge for extra hosts at an agreed upon contract price). This comes to $7 a host. We believe it is affordable given these queries save your Security team hundreds if not thousands of hours in maintenance and upkeep.
 
 ## Fleet Community Edition - still free, free forever.
 
