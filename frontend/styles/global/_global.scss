@@ -47,6 +47,12 @@ a {
   text-decoration: none;
 }
 
+.__react_component_tooltip {
+  a {
+    color: $core-white;
+  }
+}
+
 .body-wrap {
   padding: $pad-xlarge;
   border-radius: 3px;
