@@ -40,7 +40,7 @@
     "memoize-one": "5.2.1",
     "nock": "13.2.4",
     "node-bourbon": "4.2.8",
-    "node-sass": "7.0.1",
+    "node-sass": "8.0.0",
     "normalizr": "3.6.2",
     "postcss-loader": "3.0.0",
     "prop-types": "15.8.1",

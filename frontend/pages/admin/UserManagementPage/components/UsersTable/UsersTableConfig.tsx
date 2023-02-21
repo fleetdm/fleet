@@ -7,6 +7,7 @@ import { IInvite } from "interfaces/invite";
 import { IUser } from "interfaces/user";
 import { IDropdownOption } from "interfaces/dropdownOption";
 import { generateRole, generateTeam, greyCell } from "utilities/helpers";
+import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import DropdownCell from "../../../../../components/TableContainer/DataTable/DropdownCell";
 
 interface IHeaderProps {
@@ -193,7 +194,7 @@ const enhanceUserData = (
 ): IUserTableData[] => {
   return users.map((user) => {
     return {
-      name: user.name || "---",
+      name: user.name || DEFAULT_EMPTY_CELL_VALUE,
       status: generateStatus("user", user),
       email: user.email,
       teams: generateTeam(user.teams, user.global_role),
@@ -212,7 +213,7 @@ const enhanceUserData = (
 const enhanceInviteData = (invites: IInvite[]): IUserTableData[] => {
   return invites.map((invite) => {
     return {
-      name: invite.name || "---",
+      name: invite.name || DEFAULT_EMPTY_CELL_VALUE,
       status: generateStatus("invite", invite),
       email: invite.email,
       teams: generateTeam(invite.teams, invite.global_role),
