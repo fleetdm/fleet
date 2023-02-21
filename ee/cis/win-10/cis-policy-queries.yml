@@ -295,7 +295,7 @@ spec:
     Organizations that have not restricted users to roles with limited privileges will find it difficult to impose this countermeasure. Also, if you have installed optional components such as ASP.NET or IIS, you may need to assign the Adjust memory quotas for a process user right to additional accounts that are required by those components. Otherwise, this countermeasure should have no impact on most computers. If this user right is necessary for a user account, it can be assigned to a local computer account instead of a domain account.
   resolution: |
     Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'Administrators, LOCAL SERVICE, NETWORK SERVICE':
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to a list of only 'Administrators', 'LOCAL SERVICE' and 'NETWORK SERVICE':
     'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Adjust memory quotas for a process'
   query: |
     SELECT 1 FROM todo_add_query;
