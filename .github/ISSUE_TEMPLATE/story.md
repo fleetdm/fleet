@@ -7,7 +7,7 @@ assignees: ''
 
 ---
 
-> **A user story is estimated to fit within 1 sprint, is QA'd, and drives independent business value.**
+> **Remaining work from this issue is estimated to fit in 1 sprint and adds value independently from any other issues.**
 
 ## Goal
 
