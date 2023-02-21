@@ -6,6 +6,7 @@ import { Row } from "react-table";
 import { IDataColumn } from "interfaces/datatable_config";
 
 import TextCell from "components/TableContainer/DataTable/TextCell";
+import LiveQueryIssueCell from "components/TableContainer/DataTable/IssueCell/IssueCell";
 import StatusIndicator from "components/StatusIndicator";
 import RemoveIcon from "../../../../assets/images/icon-action-remove-20x20@2x.png";
 
@@ -30,6 +31,17 @@ export const generateTableHeaders = (
     : [];
 
   return [
+    {
+      title: "",
+      Header: "",
+      accessor: "distributed_interval",
+      Cell: (cellProps) => (
+        <LiveQueryIssueCell
+          distributedInterval={cellProps.cell.value}
+          rowId={cellProps.row.original.id}
+        />
+      ),
+    },
     {
       title: "Host",
       Header: "Host",
