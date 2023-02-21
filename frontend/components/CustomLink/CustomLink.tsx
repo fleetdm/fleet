@@ -2,6 +2,7 @@ import React from "react";
 
 import Icon from "components/Icon";
 import classnames from "classnames";
+import { Colors } from "styles/var/colors";
 
 interface ICustomLinkProps {
   url: string;
@@ -10,7 +11,7 @@ interface ICustomLinkProps {
   newTab?: boolean;
   /** Icon wraps on new line with last word */
   multiline?: boolean;
-  black?: boolean;
+  iconColor?: Colors;
 }
 
 const baseClass = "custom-link";
@@ -21,7 +22,7 @@ const CustomLink = ({
   className,
   newTab = false,
   multiline = false,
-  black = false,
+  iconColor = "core-fleet-blue",
 }: ICustomLinkProps): JSX.Element => {
   const customLinkClass = classnames(baseClass, className);
 
@@ -39,7 +40,7 @@ const CustomLink = ({
           <Icon
             name="external-link"
             className={`${baseClass}__external-icon`}
-            color={black ? "core-fleet-black" : "core-fleet-blue"}
+            color={iconColor}
           />
         )}
       </span>
@@ -51,7 +52,7 @@ const CustomLink = ({
         <Icon
           name="external-link"
           className={`${baseClass}__external-icon`}
-          color={black ? "core-fleet-black" : "core-fleet-blue"}
+          color={iconColor}
         />
       )}
     </>
