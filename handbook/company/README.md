@@ -19,7 +19,8 @@ Fleet Device Management Inc. is an all-remote company with 30+ team members spre
 ### Open source
 The majority of the code, documentation, and content we create at Fleet is public and source-available.  The Fleet handbook is the central guide for how we run the company, and even it is open to the world.  We [strive to be open](https://fleetdm.com/handbook/company/why-this-way#why-open-source) and transparent in the way we run the business, as much as confidentiality agreements (and time) allow. We perform better with an audience, and our audience [performs better](https://fleetdm.com/handbook/company/why-this-way#why-open-source) with us.
 
-### Why this way?
+
+## Why this way?
 At Fleet, we write things down.  Even when we might be wrong.  This helps us move quickly, provides clarity, and enables asynchronous work.  The "Why this way?" page in the handbook discusses some of our most important decisions about the best way to work and the reasoning for them.  For example: _"Why open source?"_, _"Why do we use a wireframe-first approach?"_, _"Why direct responsibility?_, and _"Why handbook-first strategy?"_  You can read more about these principles and suggest improvements in ["Why this way?"](https://fleetdm.com/handbook/company/why-this-way)
 
 
@@ -111,6 +112,14 @@ Zach partnered with our CEO, Mike McNeil, to found a new, independent company: F
 ### 2022: Millions of hosts
 Fleet raised its Series A funding round.  The world now has at least 1.65 million computers and virtual hosts enrolled in Fleet, including enterprises, governments, startups, families, and hobbyist racks all over the world.
 
+
+## Org chart
+To provide clarity about decision-making, responsibility, and resources, everyone at Fleet has a manager, and every manager has direct reports.  Fleet's organizational chart is accessible company-wide as a sub-tab in ["🧑‍🚀 Fleeties" (private google doc)](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0).  On the other sub-tabs, you can also check out a world map of where everyone is located, hiring stats, and fun facts about each team member.
+
+## Product groups
+Above and beyond the organizational chart, Fleet organizes cross-functional groups focused on particular business goals.  This helps product development teams move more quickly by eliminating roundtrips spent waiting for feedback and answers from people in other departments. Product groups include a designer, a product quality lead, developers, a product manager, and an engineering manager.  For more information, check out the ["Product groups"](./development-groups.md) page.
+
+
 ## Slack channels
 
 The following Slack channels are maintained by Fleet's founders:
@@ -120,8 +129,6 @@ The following Slack channels are maintained by Fleet's founders:
 | `#general`                  | N/A _(announce something company-wide)_
 | `#thanks`                   | N/A _(say thank you)_
 | `#random`                   | N/A _(be random)_
-
-
 
 
 
