@@ -9,6 +9,7 @@ import (
 	"crypto/x509/pkix"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"math/big"
@@ -574,13 +575,28 @@ func (s *integrationMDMTestSuite) TestMDMAppleUnenroll() {
 	originalPushMock := s.pushProvider.PushFunc
 	defer func() { s.pushProvider.PushFunc = originalPushMock }()
 
-	// TODO: this is not working as expected, we're still waiting on the
-	// device to unenroll even if we weren't able to send a push
-	// notification, we should return an error instead.
-	//
-	// the APNs service returns an error
-	// s.pushProvider.PushFunc = mockFailedPush
-	// s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/mdm/hosts/%d/unenroll", h.ID), nil, http.StatusOK)
+	// if there's an error coming from APNs servers
+	s.pushProvider.PushFunc = func(pushes []*mdm.Push) (map[string]*push.Response, error) {
+		return map[string]*push.Response{
+			pushes[0].Token.String(): {
+				Id:  uuid.New().String(),
+				Err: errors.New("test"),
+			},
+		}, nil
+	}
+	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/mdm/hosts/%d/unenroll", h.ID), nil, http.StatusBadGateway)
+
+	// if there was an error unrelated to APNs
+	s.pushProvider.PushFunc = func(pushes []*mdm.Push) (map[string]*push.Response, error) {
+		res := map[string]*push.Response{
+			pushes[0].Token.String(): {
+				Id:  uuid.New().String(),
+				Err: nil,
+			},
+		}
+		return res, errors.New("baz")
+	}
+	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/mdm/hosts/%d/unenroll", h.ID), nil, http.StatusInternalServerError)
 
 	// try again, but this time the host is online and answers
 	s.pushProvider.PushFunc = func(pushes []*mdm.Push) (map[string]*push.Response, error) {

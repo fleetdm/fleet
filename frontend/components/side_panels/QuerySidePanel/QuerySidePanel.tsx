@@ -6,6 +6,7 @@ import { osqueryTableNames } from "utilities/osquery_tables";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
 import FleetMarkdown from "components/FleetMarkdown";
+import CustomLink from "components/CustomLink";
 
 import QueryTableColumns from "./QueryTableColumns";
 import QueryTablePlatforms from "./QueryTablePlatforms";
@@ -86,6 +87,11 @@ const QuerySidePanel = ({
       <QueryTableColumns columns={columns} />
       {examples && <QueryTableExample example={examples} />}
       {notes && <QueryTableNotes notes={notes} />}
+      <CustomLink
+        url={`https://www.fleetdm.com/tables/${name}`}
+        text="Source"
+        newTab
+      />
     </>
   );
 };

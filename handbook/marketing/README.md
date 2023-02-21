@@ -1,4 +1,4 @@
-# Marketing
+# Community
 
 ## Marketing
 
@@ -667,4 +667,4 @@ These groups maintain the following [Slack channels](https://fleetdm.com/handboo
 
 
 <meta name="maintainedBy" value="jarodreyes">
-<meta name="title" value="🫧 Marketing">
+<meta name="title" value="🫧 Community">

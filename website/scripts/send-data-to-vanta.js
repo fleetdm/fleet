@@ -149,7 +149,7 @@ module.exports = {
       let macHostsToSyncWithVanta = [];
 
 
-      await sails.helpers.flow.simultaneouslyForEach(macOsHosts, async (host)=>{
+      await sails.helpers.flow.simultaneouslyForEach(macOsHosts, async (host) => {
         let hostIdAsString = String(host.id);
         // Start building the host resource to send to Vanta, using information we get from the Fleet instance's get Hosts endpoint
         let macOsHostToSyncWithVanta = {
@@ -181,13 +181,15 @@ module.exports = {
           return new Error(`When sending a request to the Fleet instance's /hosts/${host.id} endpoint for a Vanta connection (id: ${connectionIdAsString}), an error occurred: ${err}`);
         });
 
-        // Build a drive object for this host, using the host's disk_encryption_enabled value to set the boolean values for `encrytped` and `filevaultEnabled`
-        let driveInformationForThisHost = {
-          name: 'Hard drive',
-          encrypted: detailedInformationAboutThisHost.host.disk_encryption_enabled,
-          filevaultEnabled: detailedInformationAboutThisHost.host.disk_encryption_enabled,
-        };
-        macOsHostToSyncWithVanta.drives.push(driveInformationForThisHost);
+        if (detailedInformationAboutThisHost.host.disk_encryption_enabled !== undefined && detailedInformationAboutThisHost.host.disk_encryption_enabled !== null) {
+          // Build a drive object for this host, using the host's disk_encryption_enabled value to set the boolean values for `encrytped` and `filevaultEnabled`
+          let driveInformationForThisHost = {
+            name: 'Hard drive',
+            encrypted: detailedInformationAboutThisHost.host.disk_encryption_enabled,
+            filevaultEnabled: detailedInformationAboutThisHost.host.disk_encryption_enabled,
+          };
+          macOsHostToSyncWithVanta.drives.push(driveInformationForThisHost);
+        }
 
         // Iterate through the array of software on a host to populate this hosts applications and
         // browserExtensions arrays.

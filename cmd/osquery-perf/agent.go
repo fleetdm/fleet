@@ -212,6 +212,7 @@ type agent struct {
 
 	EnrollSecret          string
 	UUID                  string
+	SerialNumber          string
 	ConfigInterval        time.Duration
 	QueryInterval         time.Duration
 	DiskEncryptionEnabled bool
@@ -264,7 +265,8 @@ func newAgent(
 		EnrollSecret:   enrollSecret,
 		ConfigInterval: configInterval,
 		QueryInterval:  queryInterval,
-		UUID:           uuid.New().String(),
+		UUID:           strings.ToUpper(uuid.New().String()),
+		SerialNumber:   randSerial(),
 	}
 }
 
@@ -1268,4 +1270,16 @@ func main() {
 
 	fmt.Println("Agents running. Kill with C-c.")
 	<-make(chan struct{})
+}
+
+// numbers plus capital letters without I, L, O for readability
+const serialLetters = "0123456789ABCDEFGHJKMNPQRSTUVWXYZ"
+
+func randSerial() string {
+	b := make([]byte, 12)
+	for i := range b {
+		//nolint:gosec // not used for crypto, only to generate random serial for testing
+		b[i] = serialLetters[rand.Intn(len(serialLetters))]
+	}
+	return string(b)
 }

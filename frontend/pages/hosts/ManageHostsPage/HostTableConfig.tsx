@@ -16,6 +16,7 @@ import TextCell from "components/TableContainer/DataTable/TextCell/TextCell";
 import TruncatedTextCell from "components/TableContainer/DataTable/TruncatedTextCell";
 import TooltipWrapper from "components/TooltipWrapper";
 import HumanTimeDiffWithDateTip from "components/HumanTimeDiffWithDateTip";
+import CustomLink from "components/CustomLink";
 import {
   humanHostMemory,
   humanHostLastRestart,
@@ -28,6 +29,7 @@ import { ITeamSummary } from "interfaces/team";
 import { IUser } from "interfaces/user";
 import PATHS from "router/paths";
 import permissionUtils from "utilities/permissions";
+import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import getHostStatusTooltipText from "../helpers";
 
 interface IGetToggleAllRowsSelectedProps {
@@ -424,7 +426,40 @@ const allHostTableHeaders: IDataColumn[] = [
       />
     ),
     accessor: "public_ip",
-    Cell: (cellProps: ICellProps) => <TextCell value={cellProps.cell.value} />,
+    Cell: (cellProps: ICellProps) => {
+      if (cellProps.cell.value) {
+        return <TextCell value={cellProps.cell.value} />;
+      }
+      return (
+        <>
+          <span
+            className="text-cell text-muted tooltip"
+            data-tip
+            data-for={`public-ip-tooltip__${cellProps.row.original.id}`}
+          >
+            {DEFAULT_EMPTY_CELL_VALUE}
+          </span>
+          <ReactTooltip
+            place="top"
+            effect="solid"
+            backgroundColor="#3e4771"
+            id={`public-ip__${cellProps.row.original.id}`}
+            data-html
+            clickable
+            delayHide={200} // need delay set to hover using clickable
+          >
+            Public IP address could not be
+            <br /> determined.{" "}
+            <CustomLink
+              url="https://fleetdm.com/docs/deploying/configuration#public-i-ps-of-devices"
+              text="Learn more"
+              newTab
+              iconColor="core-fleet-white"
+            />
+          </ReactTooltip>
+        </>
+      );
+    },
   },
   {
     title: "Last fetched",
