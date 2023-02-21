@@ -317,11 +317,13 @@ spec:
     Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'Administrators, Users':
     'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Allow log on locally'
   query: |
-    SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/LocalPoliciesSecurityOptions/Accounts_RenameAdministratorAccount</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output != "Administrator";
-OMA-URI: ./Device/Vendor/MSFT/Policy/Config/UserRights/AllowLocalLogOn
-Data type: String
-Value: Administrators, Users
-
+    SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/UserRights/AllowLocalLogOn</LocURI></Target></Item></Get></SyncBody>" 
+    AND 
+    (
+        mdm_command_output LIKE "Administrators_Users"
+        OR
+        mdm_command_output LIKE "Users_Administrators"
+    );
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-2.2.5
   contributors: sharon-fdm
