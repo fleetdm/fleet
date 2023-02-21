@@ -40,6 +40,8 @@ import Clipboard from "./Clipboard";
 import Eye from "./Eye";
 import Pencil from "./Pencil";
 import TrashCan from "./TrashCan";
+import Profile from "./Profile";
+import Download from "./Download";
 
 // a mapping of the usable names of icons to the icon source.
 export const ICON_MAP = {
@@ -82,6 +84,8 @@ export const ICON_MAP = {
   "darwin-purple": ApplePurple,
   "windows-blue": WindowsBlue,
   "linux-green": LinuxGreen,
+  profile: Profile,
+  download: Download,
 };
 
 export type IconNames = keyof typeof ICON_MAP;

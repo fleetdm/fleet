@@ -1,6 +1,7 @@
 import React from "react";
 import classnames from "classnames";
 import ReactTooltip from "react-tooltip";
+import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 
 interface IStatusIndicatorProps {
   value: string;
@@ -12,7 +13,7 @@ interface IStatusIndicatorProps {
 }
 
 const generateClassTag = (rawValue: string): string => {
-  if (rawValue === "---") {
+  if (rawValue === DEFAULT_EMPTY_CELL_VALUE) {
     return "indeterminate";
   }
   return rawValue.replace(" ", "-").toLowerCase();

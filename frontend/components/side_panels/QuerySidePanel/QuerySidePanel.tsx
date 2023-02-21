@@ -6,6 +6,7 @@ import { osqueryTableNames } from "utilities/osquery_tables";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
 import FleetMarkdown from "components/FleetMarkdown";
+import CustomLink from "components/CustomLink";
 
 import QueryTableColumns from "./QueryTableColumns";
 import QueryTablePlatforms from "./QueryTablePlatforms";
@@ -15,7 +16,6 @@ import CloseIcon from "../../../../assets/images/icon-close-black-50-8x8@2x.png"
 import QueryTableExample from "./QueryTableExample";
 import QueryTableNotes from "./QueryTableNotes";
 import EventedTableTag from "./EventedTableTag";
-import CustomLink from "components/CustomLink";
 
 interface IQuerySidePanel {
   selectedOsqueryTable: IOsQueryTable;

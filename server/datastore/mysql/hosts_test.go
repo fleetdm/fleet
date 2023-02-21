@@ -923,6 +923,17 @@ func testHostsUnenrollFromMDM(t *testing.T, ds *Datastore) {
 	err = ds.SetOrUpdateMDMData(ctx, h2.ID, false, true, simpleMDM, true, "")
 	require.NoError(t, err)
 
+	// force is_server to NULL for host 1
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE host_mdm SET is_server = NULL WHERE host_id = ?`, h.ID)
+		return err
+	})
+	// GetHostMDM should still work and return false for is_server
+	hmdm, err := ds.GetHostMDM(ctx, h.ID)
+	require.NoError(t, err)
+	require.Equal(t, h.ID, hmdm.HostID)
+	require.False(t, hmdm.IsServer)
+
 	for _, hi := range []*fleet.Host{h, h2} {
 		hmdm, err := ds.GetHostMDM(ctx, hi.ID)
 		require.NoError(t, err)
@@ -5980,6 +5991,17 @@ func testHostsLoadHostByOrbitNodeKey(t *testing.T, ds *Datastore) {
 	require.Equal(t, hFleet.ID, loadFleet.MDMInfo.HostID)
 	require.True(t, loadFleet.IsOsqueryEnrolled())
 	require.True(t, loadFleet.MDMInfo.IsPendingDEPFleetEnrollment())
+	require.False(t, loadFleet.MDMInfo.IsServer)
+
+	// force its is_server mdm field to NULL, should be same as false
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE host_mdm SET is_server = NULL WHERE host_id = ?`, hFleet.ID)
+		return err
+	})
+	loadFleet, err = ds.LoadHostByOrbitNodeKey(ctx, *hFleet.OrbitNodeKey)
+	require.NoError(t, err)
+	require.Equal(t, hFleet.ID, loadFleet.ID)
+	require.False(t, loadFleet.MDMInfo.IsServer)
 }
 
 func checkEncryptionKeyStatus(t *testing.T, ds *Datastore, hostID uint, expected *bool) {
