@@ -13,6 +13,8 @@ This guide includes everything you need to know about Fleet’s editorial proces
 | Artwork | Mike Thomas |
 | Schedule & Publish | Drew Baker |
 
+> What is a [DRI](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility)?
+
 ## Who can publish articles?
 
 Everyone is welcome to suggest article ideas or submit drafts. Reach out to Jarod Reyes in [#help-content-calendar](https://fleetdm.slack.com/archives/C03PH3BBVSM) on Slack, and include a summary of your idea in the thread.
