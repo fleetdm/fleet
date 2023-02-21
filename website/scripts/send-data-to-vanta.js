@@ -71,12 +71,16 @@ module.exports = {
       for(let user of responseFromUserEndpoint.users) {
 
         let authMethod;
+        let mfaEnabled = false;
+        let mfaMethods = [];
         if(user.sso_enabled && !user.api_only) { // If the user has sso_enabled: true, set the authMethod to SSO.
           authMethod = 'SSO';
         } else if(user.api_only) { // If the user is an api-only user, set the authMethod to 'TOKEN'
           authMethod = 'TOKEN';
+          mfaMethods = ['UNSUPPORTED'];
         } else {// Otherwise, set the authMethod to 'PASSWORD'
           authMethod = 'PASSWORD';
+          mfaMethods = ['DISABLED'];
         }
 
         // Set the permissionLevel using the user's global_role value.
@@ -96,8 +100,8 @@ module.exports = {
           email: user.email,
           createdTimestamp: user.created_at,
           status: 'ACTIVE',// Always set to 'ACTIVE', if a user is removed from the Fleet instance, it will not be included in the response from the Fleet instance's /users endpoint.
-          mfaEnabled: false,
-          mfaMethods: ['DISABLED'],
+          mfaEnabled,
+          mfaMethods,
           externalUrl: vantaConnection.fleetInstanceUrl,// Setting externalUrl (Required by Vanta) for all users to be the Fleet instance url.
           authMethod,
           permissionLevel,
@@ -145,7 +149,7 @@ module.exports = {
       let macHostsToSyncWithVanta = [];
 
 
-      await sails.helpers.flow.simultaneouslyForEach(macOsHosts, async (host)=>{
+      await sails.helpers.flow.simultaneouslyForEach(macOsHosts, async (host) => {
         let hostIdAsString = String(host.id);
         // Start building the host resource to send to Vanta, using information we get from the Fleet instance's get Hosts endpoint
         let macOsHostToSyncWithVanta = {
@@ -177,31 +181,37 @@ module.exports = {
           return new Error(`When sending a request to the Fleet instance's /hosts/${host.id} endpoint for a Vanta connection (id: ${connectionIdAsString}), an error occurred: ${err}`);
         });
 
-        // Build a drive object for this host, using the host's disk_encryption_enabled value to set the boolean values for `encrytped` and `filevaultEnabled`
-        let driveInformationForThisHost = {
-          name: 'Hard drive',
-          encrypted: detailedInformationAboutThisHost.host.disk_encryption_enabled,
-          filevaultEnabled: detailedInformationAboutThisHost.host.disk_encryption_enabled,
-        };
-        macOsHostToSyncWithVanta.drives.push(driveInformationForThisHost);
+        if (detailedInformationAboutThisHost.host.disk_encryption_enabled !== undefined && detailedInformationAboutThisHost.host.disk_encryption_enabled !== null) {
+          // Build a drive object for this host, using the host's disk_encryption_enabled value to set the boolean values for `encrytped` and `filevaultEnabled`
+          let driveInformationForThisHost = {
+            name: 'Hard drive',
+            encrypted: detailedInformationAboutThisHost.host.disk_encryption_enabled,
+            filevaultEnabled: detailedInformationAboutThisHost.host.disk_encryption_enabled,
+          };
+          macOsHostToSyncWithVanta.drives.push(driveInformationForThisHost);
+        }
 
-        // Iterate through the array of software on a host to populate this hosts applications and browserExtensions arrays.
-        for(let software of detailedInformationAboutThisHost.host.software) {
-          let softwareToAdd = {};
-          if(software.source === 'firefox_addons') {
-            softwareToAdd.name = software.name;
-            softwareToAdd.browser = 'FIREFOX';
-            softwareToAdd.extensionId = software.name +' '+ software.version;// Set the extensionId to be the software's name and the software version.
-            macOsHostToSyncWithVanta.browserExtensions.push(softwareToAdd);
-          } else if(software.source === 'chrome_extensions') {
-            softwareToAdd.name = software.name;
-            softwareToAdd.extensionId = software.name +' '+ software.version;
-            softwareToAdd.browser = 'CHROME';
-            macOsHostToSyncWithVanta.browserExtensions.push(softwareToAdd);
-          } else if(software.source === 'apps') {
-            softwareToAdd.name = software.name +' '+ software.version;
-            softwareToAdd.bundleId = software.bundle_identifier ? software.bundle_identifier : ' '; // If the software is missing a bundle identifier, we'll set it to a blank string.
-            macOsHostToSyncWithVanta.applications.push(softwareToAdd);
+        // Iterate through the array of software on a host to populate this hosts applications and
+        // browserExtensions arrays.
+        const softwareList = detailedInformationAboutThisHost.host.software;
+        if (softwareList) {
+          for (let software of softwareList) {
+            let softwareToAdd = {};
+            if (software.source === 'firefox_addons') {
+              softwareToAdd.name = software.name;
+              softwareToAdd.browser = 'FIREFOX';
+              softwareToAdd.extensionId = software.name + ' ' + software.version;// Set the extensionId to be the software's name and the software version.
+              macOsHostToSyncWithVanta.browserExtensions.push(softwareToAdd);
+            } else if (software.source === 'chrome_extensions') {
+              softwareToAdd.name = software.name;
+              softwareToAdd.extensionId = software.name + ' ' + software.version;
+              softwareToAdd.browser = 'CHROME';
+              macOsHostToSyncWithVanta.browserExtensions.push(softwareToAdd);
+            } else if (software.source === 'apps') {
+              softwareToAdd.name = software.name + ' ' + software.version;
+              softwareToAdd.bundleId = software.bundle_identifier ? software.bundle_identifier : ' '; // If the software is missing a bundle identifier, we'll set it to a blank string.
+              macOsHostToSyncWithVanta.applications.push(softwareToAdd);
+            }
           }
         }
 
@@ -276,7 +286,7 @@ module.exports = {
       } else {
         // If an error was logged for a VantaConnection, log the error, and increment the numberOfLoggedErrors
         numberOfLoggedErrors++;
-        sails.log('An error occurred while syncing the vanta connection for VantaCustomer with id '+connectionIdAsString+'. Logged error:\n'+errorReportById[connectionIdAsString]);
+        sails.log.warn('An error occurred while syncing the vanta connection for VantaCustomer with id '+connectionIdAsString+'. Logged error:\n'+errorReportById[connectionIdAsString]);
       }
     }//∞
 

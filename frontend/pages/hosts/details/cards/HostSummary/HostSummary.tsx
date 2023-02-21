@@ -7,6 +7,7 @@ import Button from "components/buttons/Button";
 import DiskSpaceGraph from "components/DiskSpaceGraph";
 import HumanTimeDiffWithDateTip from "components/HumanTimeDiffWithDateTip";
 import { humanHostMemory, wrapFleetHelper } from "utilities/helpers";
+import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import getHostStatusTooltipText from "pages/hosts/helpers";
 import StatusIndicator from "components/StatusIndicator";
 import IssueIcon from "../../../../../../assets/images/icon-issue-fleet-black-50-16x16@2x.png";
@@ -212,7 +213,9 @@ const HostSummary = ({
         <div className="title__inner">
           <div className="display-name-container">
             <h1 className="display-name">
-              {deviceUser ? "My device" : titleData.display_name || "---"}
+              {deviceUser
+                ? "My device"
+                : titleData.display_name || DEFAULT_EMPTY_CELL_VALUE}
             </h1>
 
             <p className="last-fetched">

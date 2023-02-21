@@ -14,7 +14,6 @@ import {
   IPolicyStats,
   ILoadAllPoliciesResponse,
   ILoadTeamPoliciesResponse,
-  IPolicy,
 } from "interfaces/policy";
 import { ITeamConfig } from "interfaces/team";
 
