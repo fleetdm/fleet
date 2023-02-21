@@ -13,7 +13,7 @@ As part of both Premium and Ultimate we will be offering companies the ability t
 If you have upgraded to a premium Fleet plan you will have the ability to import these CIS benchmarks into your queries list where you can schedule or edit them. Once you import them you would see something like this:
 
 
-![CIS Queries in Dashboard](../website/assets/images/articles/cis-queries-900X500@2x.png)
+![CIS Queries in Dashboard](../website/assets/images/articles/cis-queries-1468x770@2x.png)
 
 ## Custom Pricing for mac, Windows, Linux machines, servers and Kubernetes containers
 ![Fleet Ultimate Calculator](../website/assets/images/articles/fleet-ultimate-calculator-372x564@2x.png)
