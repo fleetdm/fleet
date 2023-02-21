@@ -266,6 +266,10 @@ spec:
     The recommended state for this setting is: No One.
     Note: This user right is considered a "sensitive privilege" for the purposes of auditing. Rationale:
     The Act as part of the operating system user right is extremely powerful. Anyone with this user right can take complete control of the computer and erase evidence of their activities.
+    Rationale:
+    The Act as part of the operating system user right is extremely powerful. Anyone with this user right can take complete control of the computer and erase evidence of their activities.
+    Impact:
+    There should be little or no impact because the Act as part of the operating system user right is rarely needed by any accounts other than the Local System account, which implicitly has this right.
   resolution: |
     Automatic method:
     Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'No One':
@@ -287,6 +291,8 @@ spec:
     The recommended state for this setting is: Administrators, LOCAL SERVICE, NETWORK SERVICE.
     Rationale:
     A user with the Adjust memory quotas for a process user right can reduce the amount of memory that is available to any process, which could cause business-critical network applications to become slow or to fail. In the wrong hands, this privilege could be used to start a denial of service (DoS) attack.
+    Impact:
+    Organizations that have not restricted users to roles with limited privileges will find it difficult to impose this countermeasure. Also, if you have installed optional components such as ASP.NET or IIS, you may need to assign the Adjust memory quotas for a process user right to additional accounts that are required by those components. Otherwise, this countermeasure should have no impact on most computers. If this user right is necessary for a user account, it can be assigned to a local computer account instead of a domain account.
   resolution: |
     Automatic method:
     Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'Administrators, LOCAL SERVICE, NETWORK SERVICE':
