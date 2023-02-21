@@ -22,7 +22,7 @@
           "pid": "9072",
           "platform_mask": "2",
           "start_time": "1660223255",
-          "uuid": "AF028C41-1AAD-4025-7391-A93C26B9A17A",
+          "uuid": "{{ .UUID }}",
           "version": "5.4.0",
           "watcher": "-1"
         },
@@ -155,7 +155,7 @@
     "hardware_version": "-1",
     "local_hostname": "{{ .CachedString "hostname" }}",
     "physical_memory": "17179869184",
-    "uuid":"4740D59F-699E-5B29-960B-979AAF9BBEEC"
+    "uuid":"{{ .UUID }}"
   }
 ]
 {{- end }}

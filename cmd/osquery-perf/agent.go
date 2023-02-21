@@ -461,22 +461,22 @@ func (a *agent) orbitEnroll() error {
 	// TODO(mna): would it be important for osquery-perf to provide a serial? Probably not for now...
 	params := service.EnrollOrbitRequest{EnrollSecret: a.EnrollSecret, HardwareUUID: a.UUID, HardwareSerial: ""}
 
-	req := fasthttp.AcquireRequest()
-
 	jsonBytes, err := json.Marshal(params)
 	if err != nil {
 		log.Println("orbit json marshall:", err)
 		return err
 	}
 
+	req := fasthttp.AcquireRequest()
 	req.SetBody(jsonBytes)
 	req.Header.SetMethod("POST")
 	req.Header.SetContentType("application/json")
 	req.Header.SetRequestURI(a.serverAddress + "/api/fleet/orbit/enroll")
-
 	resp := fasthttp.AcquireResponse()
 
 	a.waitingDo(req, resp)
+
+	fasthttp.ReleaseRequest(req)
 	defer fasthttp.ReleaseResponse(resp)
 
 	if resp.StatusCode() != http.StatusOK {
@@ -540,6 +540,7 @@ func (a *agent) enroll(i int, onlyAlreadyEnrolled bool) error {
 	a.stats.IncrementEnrollments()
 
 	a.nodeKeyManager.Add(a.nodeKey)
+	fmt.Println(">>>> OSQUERY ENROLL: node: ", a.nodeKey, ", uuid: ", a.UUID)
 
 	return nil
 }
@@ -564,6 +565,7 @@ func (a *agent) config() {
 		log.Println("config status:", res.StatusCode())
 		return
 	}
+	fmt.Println(">>>>> osquery config succeeded with ", a.nodeKey)
 
 	parsedResp := struct {
 		Packs map[string]struct {
@@ -582,8 +584,6 @@ func (a *agent) config() {
 		}
 	}
 	a.scheduledQueries = scheduledQueries
-
-	// No need to read the config body
 }
 
 const stringVals = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_."
