@@ -337,7 +337,7 @@ func (a *agent) runOrbitLoop() {
 		true,
 		a.EnrollSecret,
 		a.UUID,
-		"",
+		a.SerialNumber,
 	)
 	if err != nil {
 		log.Println("creating orbit client: ", err)
