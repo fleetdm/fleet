@@ -1,13 +1,12 @@
-// @ts-ignore
 import SQLiteAsyncESMFactory from "wa-sqlite/dist/wa-sqlite-async.mjs";
 
 import * as SQLite from "wa-sqlite";
 
-import VirtualDatabase from "./db.js";
+import VirtualDatabase from "./db";
 
 let NODE_KEY = "";
 
-const request = async (path: string, body: any) => {
+const request = async (path: string, body: Record<string, any>) => {
   const { fleet_url } = await chrome.storage.managed.get({
     fleet_url: "https://fleet.loophole.site",
   });

@@ -5,13 +5,13 @@
     "wa-sqlite": "rhashimoto/wa-sqlite#buildless"
   },
   "devDependencies": {
-    "@types/chrome": "^0.0.212",
-    "typescript": "^4.9.5",
+    "@types/chrome": "^0.0.217",
     "css-loader": "^6.7.3",
     "node-sass": "^8.0.0",
     "sass-loader": "^13.2.0",
     "style-loader": "^3.3.1",
     "ts-loader": "^9.4.2",
+    "typescript": "^4.9.5",
     "webpack": "^5.75.0",
     "webpack-cli": "^5.0.1",
     "webpack-merge": "^5.8.0"
