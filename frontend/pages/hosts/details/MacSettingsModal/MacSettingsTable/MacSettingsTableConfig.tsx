@@ -1,7 +1,7 @@
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import React from "react";
 import {
-  IMacMdmProfile,
+  IHostMacMdmProfile,
   MacMdmProfileOperationType,
   MacMdmProfileStatus,
 } from "interfaces/mdm";
@@ -22,7 +22,7 @@ interface ICellProps {
     value: string;
   };
   row: {
-    original: IMacMdmProfile;
+    original: IHostMacMdmProfile;
   };
 }
 

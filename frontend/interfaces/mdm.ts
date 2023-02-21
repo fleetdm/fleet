@@ -71,12 +71,12 @@ export interface IMdmProfilesResponse {
 export type MacMdmProfileStatus = "success" | "pending" | "failed";
 export type MacMdmProfileOperationType = "remove" | "install";
 
-export type IMacMdmProfile = {
+export type IHostMacMdmProfile = {
   profile_id: number;
   name: string;
   operation_type: MacMdmProfileOperationType;
   status: MacMdmProfileStatus;
   detail: string;
 };
-export type IMacSettings = IMacMdmProfile[];
+export type IMacSettings = IHostMacMdmProfile[];
 export type MacSettingsStatus = "Failing" | "Latest" | "Pending";
