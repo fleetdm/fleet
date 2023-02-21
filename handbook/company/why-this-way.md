@@ -1,10 +1,12 @@
 # Why this way?
 
-Here are some of Fleet's decisions about the best way to work, and the reasoning for them.
+At Fleet, we rarely label ideas as drafts or theories.  Everything is [always in draft](https://about.gitlab.com/handbook/values/#everything-is-in-draft) and subject to change in future iterations.
+
+To increase clarity and encourage teams to make decisions quickly, leaders and [DRIs](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) sometimes need to explicitly mention when they are voicing an [opinion](https://blog.codinghorror.com/strong-opinions-weakly-held/) or a [decision](https://about.gitlab.com/handbook/values/#disagree-commit-and-disagree).  When an _opinion_ is voiced, there's space for near-term debate.  When a _decision_ is voiced, team commitment is required.
 
 Any past decision is open to questioning in a future iteration, as long as you act in accordance with it until it is changed. When you want to reopen a conversation about a past decision, communicate with the [DRI (directly responsible individual)](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) who can change the decision instead of someone who can't.  Show your argument is informed by previous conversations, and assume the original decision was made [with the best intent](https://about.gitlab.com/handbook/values/#assume-positive-intent).
 
-Fleet's CEO is the directly-responsible individual for the decisions on this handbook page.
+Here are some of Fleet's decisions about the best way to work, and the reasoning for them.
 
 ## Why open source?
 
@@ -50,12 +52,19 @@ Like Apple and GitLab, Fleet uses the concept of [directly responsible individua
 
 A DRI is a person who is singularly responsble for a given aspect of the open-source project, the product, or the company.  A DRI is responsible for making decisions, accomplishing goals, and getting any resources necessary to make a given area of Fleet successful.
 
-For example, every department maintains its own dedicated [handbook page](https://fleetdm.com/handbook), with a single DRI, and which is kept up to date with accurate, current information, including the group's [kanban board](https://github.com/orgs/fleetdm/projects?type=beta), Slack channels, and recurring tasks ("rituals").
+For example, every department maintains its own dedicated [handbook page](https://fleetdm.com/handbook), with a single DRI, and which is kept up to date with accurate, current information, including the group's kanban board, Slack channels, and recurring tasks ("rituals").
 
 DRIs help us collaborate efficiently by knowing exactly who is responsible and can make decisions about the work they're doing.  This saves time by eliminating a requirement for consensus decisions or political presenteeism, enables faster decision-making, and ensures a single individual is aware of what to do next.
 
-You can view DRIs in:
-1. The [CODEOWNERS files](https://github.com/fleetdm/fleet/blob/main/CODEOWNERS) of the fleetdm/fleet and fleetdm/confidential repositories.
+### Reporting structure
+In addition to Fleet's [organizational chart](https://fleetdm.com/handbook/company#org-chart), the company also organizes [cross-functional product groups](https://fleetdm.com/handbook/company#product-groups) to allow for faster collaboration and fewer roundtrips.
+
+
+### Reviewers
+Fleet aims to make picking the right reviewer for your change as easy and automatic as possible.  In many cases, you won't need to select a particular reviewer for your pull request.  (It will just happen automatically.)
+
+To check out the right person to review a given piece of content or source code path, consider:
+1. The [CODEOWNERS](https://github.com/fleetdm/fleet/blob/main/CODEOWNERS) files of the fleetdm/fleet and fleetdm/confidential repositories.
 2. The  `name="maintainedBy"` tags at the very bottom of the raw markdown source for [every handbook page](https://github.com/fleetdm/fleet/tree/main/handbook) and [individual article](https://github.com/fleetdm/fleet/tree/main/articles).
 3. The job titles and reporting structure indicated by the [company's organizational chart](https://fleetdm.com/handbook/company#org-chart) and the roles in our [cross-functional product groups](https://fleetdm.com/handbook/company#product-groups).
 
@@ -79,13 +88,18 @@ Here's why we use a wireframe-first approach at Fleet.
 - Wireframing is important for both maintaining the quality of our work and outlining what work needs to be done.
 - With Figma, thanks to its powerful component and auto-layout features, we can create high-fidelity wireframes - fast. We can iterate quickly without costing more work and less [sunk-cost fallacy](https://dictionary.cambridge.org/dictionary/english/sunk-cost-fallacy).
 
+
 ## Why do we use one repo?
-At Fleet, we keep everything in one repo. The only exception is when we're working on something confidential since GitHub does not allow confidential issues inside public repos. Here's why:
+At Fleet, we keep everything in one repo ([`fleetdm/fleet`](https://github.com/fleetdm/fleet)). Here's why:
 
 - One repo is easier to manage. It has less surface area for keeping content up to date and reduces the risk of things getting lost and forgotten.
 - Our work is more visible and accessible to the community when all project pieces are available in one repo. 
 - One repo pools GitHub stars and more accurately reflects Fleet’s presence.
 - One repo means one set of automations and labels to manage, resulting in a consistent GitHub experience that is easier to keep organized.
+
+The only exception ([`fleetdm/confidential`](https://github.com/fleetdm/confidential)) is when we're working on something confidential since GitHub does not allow confidential issues inside public repos.
+
+> Tip: Did you know that you can [search through issues from both repos](https://github.com/issues?q=archived%3Afalse+org%3Afleetdm+is%3Aissue+is%3Aopen+) at the same time?  In addition to the built-in search in the handbook on fleetdm.com, you can also search for any content from the handbook, documentation, or issue templates from either repo [using GitHub search](https://github.com/search?q=org%3Afleetdm+path%3A.github%2FISSUE_TEMPLATE+path%3Ahandbook%2F+path%3Adocs%2F+foo&type=code).
 
 
 ## Why not continuously generate REST API reference docs from javadoc-style code comments?

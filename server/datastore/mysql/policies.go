@@ -633,6 +633,7 @@ func (ds *Datastore) CleanupPolicyMembership(ctx context.Context, now time.Time)
 	const (
 		recentlyUpdatedPoliciesInterval = 24 * time.Hour
 
+		// Using `p.created_at < p.updated.at` to ignore newly created.
 		updatedPoliciesStmt = `
 			SELECT
 				p.id,
@@ -641,7 +642,7 @@ func (ds *Datastore) CleanupPolicyMembership(ctx context.Context, now time.Time)
 				policies p
 			WHERE
 				p.updated_at >= DATE_SUB(?, INTERVAL ? SECOND) AND
-				p.created_at < p.updated_at`  // ignore newly created
+				p.created_at < p.updated_at`
 
 		deleteMembershipStmt = `
 			DELETE

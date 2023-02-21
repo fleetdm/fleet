@@ -151,11 +151,11 @@ test: lint test-go test-js
 generate: clean-assets generate-js generate-go
 
 generate-ci:
-	NODE_ENV=development webpack
+	NODE_OPTIONS=--openssl-legacy-provider NODE_ENV=development yarn run webpack
 	make generate-go
 
 generate-js: clean-assets .prefix
-	NODE_ENV=production webpack --progress --colors
+	NODE_OPTIONS=--openssl-legacy-provider NODE_ENV=production yarn run webpack --progress --colors
 
 generate-go: .prefix
 	go run github.com/kevinburke/go-bindata/go-bindata -pkg=bindata -tags full \
@@ -166,14 +166,14 @@ generate-go: .prefix
 # output bundle file. then, generate debug bindata source file. finally, we
 # run webpack in watch mode to continuously re-generate the bundle
 generate-dev: .prefix
-	NODE_ENV=development webpack --progress --colors
+	NODE_OPTIONS=--openssl-legacy-provider NODE_ENV=development yarn run webpack --progress --colors
 	go run github.com/kevinburke/go-bindata/go-bindata -debug -pkg=bindata -tags full \
 		-o=server/bindata/generated.go \
 		frontend/templates/ assets/... server/mail/templates
-	NODE_ENV=development webpack --progress --colors --watch
+	NODE_OPTIONS=--openssl-legacy-provider NODE_ENV=development yarn run webpack --progress --colors --watch
 
 generate-mock: .prefix
-	go install github.com/fleetdm/mockimpl@8d7943aa39d8f5f464d3d3618d9571d385f7bcc5
+	go install github.com/fleetdm/mockimpl@ecbb3041eabfc9e046a3f2e414e32c28254b75b2
 	go generate github.com/fleetdm/fleet/v4/server/mock github.com/fleetdm/fleet/v4/server/mock/mockresult github.com/fleetdm/fleet/v4/server/service/mock
 
 generate-doc: .prefix

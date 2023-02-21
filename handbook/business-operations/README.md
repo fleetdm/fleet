@@ -35,7 +35,7 @@ We use the Zoom add-on for Google Calendar to schedule Zoom meetings when we cre
 We configure our Zoom meetings to let participants join before the host starts the meeting. We do this to make sure meetings start on time, even if the host isn't there.
 
 ### Key reviews
-Every release cycle, each department leader prepares a [key review deck](https://about.gitlab.com/handbook/key-review/#purpose) and presents it to the CEO. In this deck, the department will highlight KPI metrics and progress of OKRs. The information for creating this deck is located in the ["🌈 Fleet" Google drive](https://drive.google.com/drive/folders/1lizTSi7YotG_zA7zJeHuOXTg_KF1Ji8k) using ["How to create key review"](https://docs.google.com/document/d/1PDwJL0HiCz-KbEGZMfldAYX_aLk5OVAU1MMSgMYYF2A/edit?usp=sharing)(internal doc).
+Every release cycle, each department leader prepares a [key review deck](https://about.gitlab.com/handbook/key-review/#purpose) and presents it to the CEO. In this deck, the department will highlight KPI metrics (numbers measuring everyday excellence) and progress of timebound goals for a particular quarter (OKRs). The information for creating this deck is located in the ["🌈 Fleet" Google drive](https://drive.google.com/drive/folders/1lizTSi7YotG_zA7zJeHuOXTg_KF1Ji8k) using ["How to create key review"](https://docs.google.com/document/d/1PDwJL0HiCz-KbEGZMfldAYX_aLk5OVAU1MMSgMYYF2A/edit?usp=sharing)(internal doc).
 
 
 ## Spending company money
@@ -132,10 +132,15 @@ Please see [handbook/company#open-positions](https://fleetdm.com/handbook/compan
 ## Team member onboarding
 
 ### Training
-It's important that every team member at Fleet takes the time to get fully trained and onboarded. 
+It's [important](https://fleetdm.com/handbook/company/why-this-way#why-the-emphasis-on-training) that every team member at Fleet takes the time to get fully trained and onboarded. 
 When a new team member joins Fleet, we create an onboarding issue for them in the [fleetdm/confidential](https://github.com/fleetdm/confidential) repo using this [issue template](https://github.com/fleetdm/confidential/blob/main/.github/ISSUE_TEMPLATE/onboarding.md). 
 We want to make sure that the new team member will be able to complete every task in their issue. To make sure the new team member is successful in their onboarding, we customize their issue by commenting on any tasks they won't need to complete.
-We believe in taking onboarding and training seriously and that the onboarding template is an essential source of truth and good use of time for every single new hire. If managers see a step that they don't feel is necessary, they should make a pull request to the [onboarding template](https://github.com/fleetdm/confidential/blob/main/.github/ISSUE_TEMPLATE/onboarding.md) and request a review from People operations.
+We believe in taking onboarding and training seriously and that the onboarding template is an essential source of truth and good use of time for every single new hire. If managers see a step that they don't feel is necessary, they should make a pull request to the [onboarding template](https://github.com/fleetdm/confidential/blob/main/.github/ISSUE_TEMPLATE/onboarding.md).
+
+Expectations during onboarding:
+- Onboarding time (all checkboxes checked) is a KPI for the business operations team.  Our goal is 14 days or less.
+- The first 3 weekdays (excluding days off) for **every new team member** at Fleet is reserved for completing onboarding tasks from the checkboxes in their onboarding issue.  New team members **should not work on anything else during this time**, whether or not other tasks are stacking up or assigned.  It is OK, expected, and appreciated for new team members to **remind their manager and colleagues** of this [important](https://fleetdm.com/handbook/company/why-this-way#why-the-emphasis-on-training) responsibility.
+- Even after the first 3 days, during the rest of their first 2 weeks, completing onboarding tasks on time is a new team member's [highest priority](https://fleetdm.com/handbook/company/why-this-way#why-the-emphasis-on-training).
 
 
 ### Sightseeing tour
@@ -188,7 +193,6 @@ maintaining an expressive labeling system. For example, instead of a label calle
 | `#`               | Noun        | `#platform`, `#interface`, `#agent`
 | `:`               | Verb        | `:dev`, `:research`, `:design`
 | `~`               | Adjective   | `~blocked`, `~frontend`, `~backend`
-| `!`               | OKR         | `!vuln`, `!desktop`, `!upgrade`
 
 
 
@@ -206,10 +210,11 @@ We configure our [working hours in Slack](https://slack.com/help/articles/360025
 #### Slack channel prefixes
 We have specific channels for various topics, but we also have more general channels for the teams at Fleet.
 We use these prefixes to organize the Fleet Slack:
- * ***g-***: for team/group channels *(Note: "g-" is short for "grupo")*.
+ * ***g-***: for team/group channels *(Note: "g-" is short for "grupo" or "group")*.
  * ***oooh-***: used to discuss and share interesting information about a topic.
  * ***help-***: for asking for help on specific topics.
  * ***at*** or ***fleet-at***: for customer channels.
+ * ***2023-***: for temporary channels _(Note: specify the relevant year in four digits, like "YYYY-`)_
 
 #### Slack communications and best practices
 In consideration of our team, Fleet avoids using global tags in channels (i.e. @here, @channel, etc). 

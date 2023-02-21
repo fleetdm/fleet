@@ -19,7 +19,7 @@ parasails.registerComponent('callToAction', {
     'primaryButtonHref', // Required: the url that the call to action button leads
     'secondaryButtonText', // Optional: if provided with a `secondaryButtonHref`, a second button will be added to the call to action with this value as the button text
     'secondaryButtonHref', // Optional: if provided with a `secondaryButtonText`, a second button will be added to the call to action with this value as the href
-    'type',// Optional: if provided, all other values will be ignored, and this component will display a specified varient, can be set to 'premium-upgrade' or 'mdm-beta'.
+    'preset',// Optional: if provided, all other values will be ignored, and this component will display a specified varient, can be set to 'premium-upgrade' or 'mdm-beta'.
   ],
 
   //  ╦╔╗╔╦╔╦╗╦╔═╗╦    ╔═╗╔╦╗╔═╗╔╦╗╔═╗
@@ -32,7 +32,7 @@ parasails.registerComponent('callToAction', {
     let calltoActionPrimaryBtnHref = '';
     let calltoActionSecondaryBtnText = '';
     let calltoActionSecondaryBtnHref = '';
-    let callToActionType = '';
+    let callToActionPreset = '';
 
     return {
       callToActionTitle,
@@ -41,7 +41,7 @@ parasails.registerComponent('callToAction', {
       calltoActionPrimaryBtnHref,
       calltoActionSecondaryBtnText,
       calltoActionSecondaryBtnHref,
-      callToActionType
+      callToActionPreset
     };
   },
 
@@ -50,7 +50,7 @@ parasails.registerComponent('callToAction', {
   //  ╩ ╩ ╩ ╩ ╩╩═╝
   template: `
   <div id="cta-component">
-    <div v-if="!callToActionType" purpose="custom-cta">
+    <div v-if="!callToActionPreset" purpose="custom-cta">
       <div purpose="custom-cta-content" class="text-white text-center">
         <div purpose="custom-cta-title">{{callToActionTitle}}</div>
         <div purpose="custom-cta-text">{{callToActionText}}</div>
@@ -63,7 +63,7 @@ parasails.registerComponent('callToAction', {
       </div>
     </div>
     <div v-else>
-      <div v-if="callToActionType === 'premium-upgrade'" purpose="fleet-premium-cta" class="d-flex flex-column flex-sm-row align-items-center justify-content-center">
+      <div v-if="callToActionPreset === 'premium-upgrade'" purpose="fleet-premium-cta" class="d-flex flex-column flex-sm-row align-items-center justify-content-center">
         <div class="order-2 order-sm-1 justify-content-center" purpose="premium-cta-text">
           <h2>Get even more control <br>with <span>Fleet Premium</span></h2>
           <a style="color: #fff; text-decoration: none;" purpose="premium-cta-btn" href="/upgrade">Learn more</a>
@@ -72,7 +72,7 @@ parasails.registerComponent('callToAction', {
           <img alt="A computer reporting it's disk encryption status" src="/images/premium-landing-feature-4.svg">
         </div>
       </div>
-      <div v-else-if="callToActionType === 'mdm-beta'" purpose="mdm-beta-cta-container">
+      <div v-else-if="callToActionPreset === 'mdm-beta'" purpose="mdm-beta-cta-container">
         <div purpose="mdm-beta-cta-background">
           <div purpose="mdm-beta-cta" class="d-flex flex-column flex-sm-row">
             <div purpose="mdm-small-banner" class="d-flex d-sm-none">
@@ -98,9 +98,9 @@ parasails.registerComponent('callToAction', {
 
   },
   mounted: async function() {
-    if(this.type){
-      if(_.contains(['premium-upgrade', 'mdm-beta'], this.type)){
-        this.callToActionType = this.type;
+    if(this.preset){
+      if(_.contains(['premium-upgrade', 'mdm-beta'], this.preset)){
+        this.callToActionPreset = this.preset;
       } else {
         throw new Error('Incomplete usage of <call-to-action>: If providing a type, it must be either \'premium-upgrade\' or \'mdm-beta\'');
       }

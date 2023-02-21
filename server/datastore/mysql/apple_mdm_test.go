@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/jmoiron/sqlx"
@@ -630,14 +631,16 @@ func checkMDMHostRelatedTables(t *testing.T, ds *Datastore, hostID uint, expecte
 	err = sqlx.GetContext(context.Background(), ds.reader, &hmdm, `SELECT host_id, server_url, mdm_id FROM host_mdm WHERE host_id = ?`, hostID)
 	require.NoError(t, err)
 	require.Equal(t, hostID, hmdm.HostID)
-	require.Equal(t, appCfg.ServerSettings.ServerURL, hmdm.ServerURL)
+	serverURL, err := apple_mdm.ResolveAppleMDMURL(appCfg.ServerSettings.ServerURL)
+	require.NoError(t, err)
+	require.Equal(t, serverURL, hmdm.ServerURL)
 	require.NotEmpty(t, hmdm.MDMID)
 
 	var mdmSolution fleet.MDMSolution
 	err = sqlx.GetContext(context.Background(), ds.reader, &mdmSolution, `SELECT name, server_url FROM mobile_device_management_solutions WHERE id = ?`, hmdm.MDMID)
 	require.NoError(t, err)
 	require.Equal(t, fleet.WellKnownMDMFleet, mdmSolution.Name)
-	require.Equal(t, appCfg.ServerSettings.ServerURL, mdmSolution.ServerURL)
+	require.Equal(t, serverURL, mdmSolution.ServerURL)
 }
 
 // createBuiltinLabels creates entries for "All Hosts" and "macOS" labels, which are assumed to be

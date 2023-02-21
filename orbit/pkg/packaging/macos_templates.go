@@ -39,6 +39,7 @@ var macosDistributionTemplate = template.Must(template.New("").Option("missingke
         <bundle id="{{.Identifier}}" path="" />
       </bundle-version>
     </pkg-ref>
+	<options customize="never" hostArchitectures="arm64,x86_64" require-scripts="false" allow-external-scripts="false" />
 </installer-gui-script>
 `))
 
