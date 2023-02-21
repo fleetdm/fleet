@@ -5,6 +5,7 @@ package mock
 import (
 	"context"
 	"encoding/json"
+	"sync"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
@@ -46,39 +47,55 @@ type TLSService struct {
 
 	SubmitResultLogsFunc        SubmitResultLogsFunc
 	SubmitResultLogsFuncInvoked bool
+
+	mu sync.Mutex
 }
 
 func (s *TLSService) EnrollAgent(ctx context.Context, enrollSecret string, hostIdentifier string, hostDetails map[string](map[string]string)) (nodeKey string, err error) {
+	s.mu.Lock()
 	s.EnrollAgentFuncInvoked = true
+	s.mu.Unlock()
 	return s.EnrollAgentFunc(ctx, enrollSecret, hostIdentifier, hostDetails)
 }
 
 func (s *TLSService) AuthenticateHost(ctx context.Context, nodeKey string) (host *fleet.Host, debug bool, err error) {
+	s.mu.Lock()
 	s.AuthenticateHostFuncInvoked = true
+	s.mu.Unlock()
 	return s.AuthenticateHostFunc(ctx, nodeKey)
 }
 
 func (s *TLSService) GetClientConfig(ctx context.Context) (config map[string]interface{}, err error) {
+	s.mu.Lock()
 	s.GetClientConfigFuncInvoked = true
+	s.mu.Unlock()
 	return s.GetClientConfigFunc(ctx)
 }
 
 func (s *TLSService) GetDistributedQueries(ctx context.Context) (queries map[string]string, discovery map[string]string, accelerate uint, err error) {
+	s.mu.Lock()
 	s.GetDistributedQueriesFuncInvoked = true
+	s.mu.Unlock()
 	return s.GetDistributedQueriesFunc(ctx)
 }
 
 func (s *TLSService) SubmitDistributedQueryResults(ctx context.Context, results fleet.OsqueryDistributedQueryResults, statuses map[string]fleet.OsqueryStatus, messages map[string]string) (err error) {
+	s.mu.Lock()
 	s.SubmitDistributedQueryResultsFuncInvoked = true
+	s.mu.Unlock()
 	return s.SubmitDistributedQueryResultsFunc(ctx, results, statuses, messages)
 }
 
 func (s *TLSService) SubmitStatusLogs(ctx context.Context, logs []json.RawMessage) (err error) {
+	s.mu.Lock()
 	s.SubmitStatusLogsFuncInvoked = true
+	s.mu.Unlock()
 	return s.SubmitStatusLogsFunc(ctx, logs)
 }
 
 func (s *TLSService) SubmitResultLogs(ctx context.Context, logs []json.RawMessage) (err error) {
+	s.mu.Lock()
 	s.SubmitResultLogsFuncInvoked = true
+	s.mu.Unlock()
 	return s.SubmitResultLogsFunc(ctx, logs)
 }
