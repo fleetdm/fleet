@@ -55,11 +55,15 @@ export interface IMdmSummaryResponse {
   mobile_device_management_solution: IMdmSolution[] | null;
 }
 
+export type MacMdmProfileStatus = "success" | "pending" | "failed";
+export type MacMdmProfileOperationType = "remove" | "install";
+
 export type IMacMdmProfile = {
+  profile_id: number;
   name: string;
-  status: "failed" | "pending" | "applied";
-  detail: "" | "Removing enforcement" | "Enforcing";
-  error: string;
+  operation_type: MacMdmProfileOperationType;
+  status: MacMdmProfileStatus;
+  detail: string;
 };
 export type IMacSettings = IMacMdmProfile[];
 export type MacSettingsStatus = "Failing" | "Latest" | "Pending";

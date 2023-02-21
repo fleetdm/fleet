@@ -1,12 +1,14 @@
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import React from "react";
-import { IMacMdmProfile } from "interfaces/mdm";
-import { uniqueId } from "lodash";
-import ReactTooltip from "react-tooltip";
-import { COLORS } from "styles/var/colors";
+import {
+  IMacMdmProfile,
+  MacMdmProfileOperationType,
+  MacMdmProfileStatus,
+} from "interfaces/mdm";
+import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import TruncatedTextCell from "components/TableContainer/DataTable/TruncatedTextCell";
 import MacSettingsIndicator from "../../MacSettingsIndicator";
-import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
+import { IMacSettingsIndicator } from "../../MacSettingsIndicator/MacSettingsIndicator";
 
 interface IHeaderProps {
   column: {
@@ -35,40 +37,44 @@ interface IDataColumn {
   sortType?: string;
 }
 
-const getStatusDisplayOptions = (
-  profile: IMacMdmProfile
-): {
-  statusText: string;
-  iconName: "pending" | "success" | "error";
-  tooltipText: string | null;
-} => {
-  const SETTING_STATUS_OPTIONS = {
+const PROFILE_DISPLAY_CONFIG: Record<
+  MacMdmProfileOperationType,
+  Record<MacMdmProfileStatus, IMacSettingsIndicator | null>
+> = {
+  install: {
     pending: {
-      Enforcing: "Setting will be enforced when the host comes online.",
-      "Removing enforcement":
-        "Enforcement will be removed when the host comes online.",
-      "": "",
-    },
-    applied: {
-      iconName: "success",
-      tooltipText: "Host applied the setting.",
-    },
-    failed: { iconName: "error", tooltipText: null },
-  } as const;
-
-  if (profile.status === "pending") {
-    return {
-      statusText: `${profile.detail} (pending)`,
+      indicatorText: "Enforcing (pending)",
       iconName: "pending",
-      tooltipText: SETTING_STATUS_OPTIONS.pending[profile.detail],
-    };
-  }
-  return {
-    statusText:
-      profile.status.charAt(0).toUpperCase() + profile.status.slice(1),
-    iconName: SETTING_STATUS_OPTIONS[profile.status].iconName,
-    tooltipText: SETTING_STATUS_OPTIONS[profile.status].tooltipText,
-  };
+      tooltip: {
+        tooltipText: "Setting will be enforced when the host comes online.",
+      },
+    },
+    success: {
+      indicatorText: "Applied",
+      iconName: "success",
+      tooltip: { tooltipText: "Host applied the setting." },
+    },
+    failed: {
+      indicatorText: "Failed",
+      iconName: "error",
+      tooltip: undefined,
+    },
+  },
+  remove: {
+    pending: {
+      indicatorText: "Removing enforcement (pending)",
+      iconName: "pending",
+      tooltip: {
+        tooltipText: "Enforcement will be removed when the host comes online.",
+      },
+    },
+    success: null, // should not be reached
+    failed: {
+      indicatorText: "Failed",
+      iconName: "error",
+      tooltip: undefined,
+    },
+  },
 };
 
 const tableHeaders: IDataColumn[] = [
@@ -87,26 +93,42 @@ const tableHeaders: IDataColumn[] = [
     disableSortBy: true,
     accessor: "statusText",
     Cell: (cellProps: ICellProps) => {
-      const { statusText, iconName, tooltipText } = getStatusDisplayOptions(
-        cellProps.row.original
-      );
-      return (
-        <MacSettingsIndicator
-          indicatorText={statusText}
-          iconName={iconName}
-          tooltip={{ tooltipText, position: "top" }}
-        />
-      );
+      const { status, operation_type } = cellProps.row.original;
+      const options = PROFILE_DISPLAY_CONFIG[operation_type]?.[status];
+      if (options) {
+        const { indicatorText, iconName } = options;
+        const tooltip = {
+          tooltipText: options.tooltip?.tooltipText ?? null,
+          position: "top" as const,
+        };
+        return (
+          <MacSettingsIndicator
+            indicatorText={indicatorText}
+            iconName={iconName}
+            tooltip={tooltip}
+          />
+        );
+      }
+
+      // graceful error - this state should not be reached based on the API spec
+      return <TextCell value="Unrecognized" />;
     },
   },
   {
     title: "Error",
     Header: "Error",
     disableSortBy: true,
-    accessor: "error",
+    accessor: "detail",
     Cell: (cellProps: ICellProps): JSX.Element => {
-      const error = cellProps.row.original.error;
-      return <TruncatedTextCell value={error || DEFAULT_EMPTY_CELL_VALUE} />;
+      const profile = cellProps.row.original;
+      return (
+        <TruncatedTextCell
+          value={
+            (profile.status === "failed" && profile.detail) ||
+            DEFAULT_EMPTY_CELL_VALUE
+          }
+        />
+      );
     },
   },
 ];

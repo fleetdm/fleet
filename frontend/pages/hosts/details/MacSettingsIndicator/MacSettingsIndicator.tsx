@@ -6,7 +6,7 @@ import Button from "components/buttons/Button";
 
 const baseClass = "settings-indicator";
 
-interface IMacSettingsIndicator {
+export interface IMacSettingsIndicator {
   indicatorText: string;
   iconName: IconNames;
   onClick?: () => void;

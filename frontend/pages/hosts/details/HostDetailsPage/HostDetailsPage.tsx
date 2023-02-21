@@ -321,28 +321,49 @@ const HostDetailsPage = ({
   if (host) {
     host.mdm.profiles = [
       {
-        name: "Restrictions",
-        status: "failed",
+        profile_id: 42,
+        name: "Users",
+        status: "success",
+        operation_type: "install",
         detail: "",
-        error: "The “Restrictions” payload couldn’t be installed.",
       },
       {
+        profile_id: 1,
+        name: "Restrictions",
+        operation_type: "install",
+        status: "failed",
+        detail: "The “Restrictions” payload couldn’t be installed.",
+      },
+      {
+        profile_id: 2,
         name: "Password",
+        operation_type: "install",
         status: "pending",
         detail: "Removing enforcement",
-        error: "",
       },
       {
-        name: "Wifi",
+        profile_id: 3,
+        name: "Restrictions",
+        operation_type: "remove",
+        status: "failed",
+        detail: "The profile could not be removed.",
+      },
+
+      {
+        profile_id: 4,
+        name: "Password",
         status: "pending",
-        detail: "Enforcing",
-        error: "",
-      },
-      {
-        name: "Users",
-        status: "applied",
+        operation_type: "remove",
         detail: "",
-        error: "",
+      },
+
+      // below case should never be returned
+      {
+        profile_id: 5,
+        name: "secret sauce",
+        status: "success",
+        operation_type: "remove",
+        detail: "",
       },
     ];
   }
