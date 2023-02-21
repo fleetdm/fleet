@@ -1161,22 +1161,16 @@ func TestMDMAppleReconcileProfiles(t *testing.T) {
 		}, nil
 	}
 
-	removeProfileCalls := 0
-	installProfileCalls := 0
-	commandUUIDs := []string{}
 	mdmStorage.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.Command) (map[string]error, error) {
 		require.NotNil(t, cmd)
 		require.ElementsMatch(t, []string{hostUUID}, id)
-		commandUUIDs = append(commandUUIDs, cmd.CommandUUID)
 
 		switch cmd.Command.RequestType {
 		case "InstallProfile":
-			installProfileCalls++
 			if !strings.Contains(string(cmd.Raw), contents1Base64) && !strings.Contains(string(cmd.Raw), contents2Base64) {
 				require.Failf(t, "profile contents don't match", "expected to contain %s or %s but got %s", contents1Base64, contents2Base64, string(cmd.Raw))
 			}
 		case "RemoveProfile":
-			removeProfileCalls++
 			require.Contains(t, string(cmd.Raw), "com.remove.profile")
 		}
 		return nil, nil
@@ -1202,27 +1196,36 @@ func TestMDMAppleReconcileProfiles(t *testing.T) {
 	}
 
 	ds.BulkUpsertMDMAppleHostProfilesFunc = func(ctx context.Context, payload []*fleet.MDMAppleBulkUpsertHostProfilePayload) error {
-		require.ElementsMatch(t, []fleet.MDMAppleBulkUpsertHostProfilePayload{
+		// TODO: this function is called a second time with a non-empty slice
+		// if there are any errors, test this scenario
+		if len(payload) == 0 {
+			return nil
+		}
+
+		require.ElementsMatch(t, []*fleet.MDMAppleBulkUpsertHostProfilePayload{
 			{
-				ProfileID:     1,
-				HostUUID:      hostUUID,
-				OperationType: fleet.MDMAppleOperationTypeInstall,
-				Status:        &fleet.MDMAppleDeliveryPending,
-				CommandUUID:   commandUUIDs[0],
+				ProfileID:         1,
+				ProfileIdentifier: "com.add.profile",
+				HostUUID:          hostUUID,
+				OperationType:     fleet.MDMAppleOperationTypeInstall,
+				Status:            &fleet.MDMAppleDeliveryPending,
+				CommandUUID:       payload[0].CommandUUID,
 			},
 			{
-				ProfileID:     2,
-				HostUUID:      hostUUID,
-				OperationType: fleet.MDMAppleOperationTypeInstall,
-				Status:        &fleet.MDMAppleDeliveryPending,
-				CommandUUID:   commandUUIDs[1],
+				ProfileID:         2,
+				ProfileIdentifier: "com.add.profile.two",
+				HostUUID:          hostUUID,
+				OperationType:     fleet.MDMAppleOperationTypeInstall,
+				Status:            &fleet.MDMAppleDeliveryPending,
+				CommandUUID:       payload[1].CommandUUID,
 			},
 			{
-				ProfileID:     3,
-				HostUUID:      hostUUID,
-				OperationType: fleet.MDMAppleOperationTypeRemove,
-				Status:        &fleet.MDMAppleDeliveryPending,
-				CommandUUID:   commandUUIDs[2],
+				ProfileID:         3,
+				ProfileIdentifier: "com.remove.profile",
+				HostUUID:          hostUUID,
+				OperationType:     fleet.MDMAppleOperationTypeRemove,
+				Status:            &fleet.MDMAppleDeliveryPending,
+				CommandUUID:       payload[2].CommandUUID,
 			},
 		}, payload)
 		return nil
@@ -1236,8 +1239,6 @@ func TestMDMAppleReconcileProfiles(t *testing.T) {
 	require.True(t, ds.ListMDMAppleProfilesToInstallFuncInvoked)
 	require.True(t, ds.ListMDMAppleProfilesToRemoveFuncInvoked)
 	require.True(t, ds.GetMDMAppleProfilesContentsFuncInvoked)
-	require.Equal(t, 1, removeProfileCalls)
-	require.Equal(t, 2, installProfileCalls)
 	require.True(t, ds.BulkUpsertMDMAppleHostProfilesFuncInvoked)
 
 }

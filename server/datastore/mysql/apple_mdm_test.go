@@ -29,7 +29,6 @@ func TestMDMAppleConfigProfile(t *testing.T) {
 		{"TestListMDMAppleConfigProfiles", testListMDMAppleConfigProfiles},
 		{"TestBatchSetMDMAppleProfiles", testBatchSetMDMAppleProfiles},
 		{"TestMDMAppleProfileManagement", testMDMAppleProfileManagement},
-		{"TestGetMDMAppleProfilesContents", testGetMDMAppleProfilesContents},
 		{"TestUpdateHostMDMAppleProfile", testGetMDMAppleProfilesContents},
 	}
 
