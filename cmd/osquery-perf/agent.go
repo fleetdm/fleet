@@ -237,6 +237,7 @@ func newAgent(
 	policyPassProb float64,
 	orbitProb float64,
 	munkiIssueProb float64, munkiIssueCount int,
+	emptySerialProb float64,
 ) *agent {
 	var deviceAuthToken *string
 	if rand.Float64() <= orbitProb {
@@ -245,6 +246,10 @@ func newAgent(
 	// #nosec (osquery-perf is only used for testing)
 	tlsConfig := &tls.Config{
 		InsecureSkipVerify: true,
+	}
+	serial := uuid.New().String()
+	if rand.Float64() <= emptySerialProb {
+		serial = ""
 	}
 	return &agent{
 		agentIndex:      agentIndex,
@@ -266,7 +271,7 @@ func newAgent(
 		ConfigInterval: configInterval,
 		QueryInterval:  queryInterval,
 		UUID:           uuid.New().String(),
-		HardwareSerial: uuid.New().String(),
+		HardwareSerial: serial,
 	}
 }
 
@@ -1205,6 +1210,7 @@ func main() {
 		munkiIssueProb              = flag.Float64("munki_issue_prob", 0.5, "Probability of a host having munki issues (note that ~50% of hosts have munki installed) [0, 1]")
 		munkiIssueCount             = flag.Int("munki_issue_count", 10, "Number of munki issues reported by hosts identified to have munki issues")
 		osTemplates                 = flag.String("os_templates", "mac10.14.6", fmt.Sprintf("Comma separated list of host OS templates to use (any of %v, with or without the .tmpl extension)", allowedTemplateNames))
+		emptySerialProb             = flag.Float64("empty_serial_prob", 0.1, "Probability of a host having no serial number [0, 1]")
 	)
 
 	flag.Parse()
@@ -1264,6 +1270,7 @@ func main() {
 			*orbitProb,
 			*munkiIssueProb,
 			*munkiIssueCount,
+			*emptySerialProb,
 		)
 		a.stats = stats
 		a.nodeKeyManager = nodeKeyManager
