@@ -19,7 +19,6 @@ const getProfileMessageSuffix = (
 ) => {
   let messageSuffix = <>all macOS hosts</>;
   if (isPremiumTier) {
-    // TODO - confirm 'no team' values for  team_name
     messageSuffix = teamName ? (
       <>
         macOS hosts assigned to the <b>{teamName}</b> team
