@@ -21,6 +21,5 @@ export const resolve = {
 export const output = {
   filename: "[name].bundle.js",
   path: _resolve(__dirname, "dist", "js"),
-  //chunkFormat: "commonjs",
-  chunkLoading: "importScripts",
+  chunkFormat: "commonjs",
 };

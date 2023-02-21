@@ -5,12 +5,41 @@ import * as SQLite from "wa-sqlite";
 
 import VirtualDatabase from "./db.js";
 
-const enroll = async (host_details) => {
-  const { fleet_url, enroll_secret } = await chrome.storage.managed.get({
+let NODE_KEY = "";
+
+const request = async (path: string, body: any) => {
+  const { fleet_url } = await chrome.storage.managed.get({
     fleet_url: "https://fleet.loophole.site",
+  });
+
+  const response = await fetch(new URL(path, fleet_url), {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+  const response_body = await response.json();
+
+  if (!response.ok) {
+    throw new Error("request failed: " + response_body.error);
+  }
+  if (response_body.node_invalid) {
+    throw new Error("request failed with node_invalid: " + response_body.error);
+  }
+
+  return response_body;
+};
+
+interface SystemInfo {
+  hardware_serial: string;
+  uuid: string;
+}
+interface EnrollDetails {
+  system_info?: SystemInfo;
+  os_version?: Map<string, any>;
+}
+const enroll = async (host_details: EnrollDetails) => {
+  const { enroll_secret } = await chrome.storage.managed.get({
     enroll_secret: "Y3nHXcZUBcFJc/7e6V6k1z7RG22rrAnQ",
   });
-  console.log("enrolling: ", fleet_url, enroll_secret);
 
   let host_identifier = host_details.system_info.hardware_serial;
   if (!host_identifier) {
@@ -22,20 +51,21 @@ const enroll = async (host_details) => {
     host_details,
     host_identifier,
   };
-  const response = await fetch(new URL("/api/osquery/enroll", fleet_url), {
-    method: "POST",
-    body: JSON.stringify(enroll_request),
-  });
-  const response_body = await response.json();
-
-  if (!response.ok) {
-    throw new Error("enroll failed: " + response_body.error);
-  }
-  if (response_body.node_invalid) {
-    throw new Error("enroll failed with node_invalid: " + response_body.error);
-  }
+  const response_body = await request("/api/osquery/enroll", enroll_request);
 
   return response_body.node_key;
+};
+
+const live_query = async () => {
+  const live_query_request = {
+    node_key: NODE_KEY,
+  };
+  const response = await request(
+    "/api/osquery/distributed/read",
+    live_query_request
+  );
+
+  console.log(response);
 };
 
 (async () => {
@@ -53,6 +83,7 @@ const enroll = async (host_details) => {
       os_version: os_version[0],
       system_info: system_info[0],
     });
+    NODE_KEY = node_key;
     console.log("got node key: ", node_key);
   } catch (err) {
     console.error("enroll failed: " + err);
@@ -60,3 +91,5 @@ const enroll = async (host_details) => {
 
   await sqlite3.close(db);
 })();
+
+setInterval(live_query, 10 * 1000);

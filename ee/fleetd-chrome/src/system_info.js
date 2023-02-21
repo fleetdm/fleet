@@ -19,14 +19,14 @@ export default class TableSystemInfo extends Table {
     try {
       hostname = await chrome.enterprise.deviceAttributes.getDeviceHostname();
     } catch (err) {
-      console.error("get hostname:", err);
+      console.warn("get hostname:", err);
     }
 
     let hardware_serial = "";
     try {
       hardware_serial = await chrome.enterprise.deviceAttributes.getDeviceSerialNumber();
     } catch (err) {
-      console.error("get serial number:", err);
+      console.warn("get serial number:", err);
     }
 
     let hardware_vendor = "",
@@ -37,7 +37,7 @@ export default class TableSystemInfo extends Table {
       hardware_vendor = platform_info.manufacturer;
       hardware_model = platform_info.model;
     } catch (err) {
-      console.error("get platform info:", err);
+      console.warn("get platform info:", err);
     }
 
     return [
