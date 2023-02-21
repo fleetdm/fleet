@@ -12,7 +12,7 @@ The Center for Internet Security website offers documentation for all CIS Benchm
 
 Fleet has implemented CIS benchmarks for the following platforms:
 - CIS Apple macOS 13.0 Ventura Benchmark v1.0.0 - 11-14-2022 (82 checks) 
-- CIS Microsoft Windows 10 Enterprise Benchmark v1.12.0 - 02-15-2022 (Coming Soon!)
+- CIS Microsoft Windows 10 Enterprise Benchmark v1.12.0 - 02-15-2022 (In progress)
 
 ## Manual vs Automated
 
@@ -24,33 +24,6 @@ Fleet only implements "Automated" checks. "Manual" checks cannot be automated as
 
 The manual checks which are not included in Fleet are documented below. 
 
-## Example CIS check
-
-Sample: `CIS - Ensure Install of macOS Updates Is Enabled` for macOS 13 Ventura Benchmark v1.0.0.
-
-<img src=https://user-images.githubusercontent.com/2073526/220428662-b324f6b7-7209-49a5-ae9f-4131316d8d1a.png />
-
-Such policy corresponds with the following entry in [cis-policy-queries.yml](https://raw.githubusercontent.com/fleetdm/fleet/main/ee/cis/macos-13/cis-policy-queries.yml):
-```yml
----
-apiVersion: v1
-kind: policy
-spec:
-  name: CIS - Ensure Install of macOS Updates Is Enabled (MDM Required)
-  platforms: macOS
-  platform: darwin
-  description: Ensure that macOS updates are installed after they are available from Apple.
-  resolution: "Ask your system administrator to deploy an MDM profile that enables automatic install of macOS updates."
-  query: SELECT 1 FROM managed_policies WHERE domain='com.apple.SoftwareUpdate' AND name='AutomaticallyInstallMacOSUpdates' AND value=1 LIMIT 1;
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-macos-13-1.4
-  contributors: sharon-fdm
-```
-
-- The `description` briefly explains the check and its rationale.
-- The `resolution` explains how administrators can remediate a failing check on a host.
-- The `query` field is the osquery query that will execute on devices.
-
 ## Requirements
 
 Following are the requirements to use the CIS Benchmarks in Fleet:
@@ -60,13 +33,13 @@ Following are the requirements to use the CIS Benchmarks in Fleet:
 - Devices must be enrolled to an MDM solution.
 - On macOS, the orbit executable in Fleetd must have "Full Disk Access", see [Grant Full Disk Access to Osquery on macOS](Adding-hosts.md#grant-full-disk-access-to-osquery-on-macos).
 
-## Apple macOS 13 Ventura Benchmark v1.0.0
+## How to add CIS Benchmarks
 
-All queries are stored under our restricted licensed folder `ee/cis/macos-13/cis-policy-queries.yml`.
+All CIS policies are stored under our restricted licensed folder `ee/cis/`.
 
 How to import them to Fleet:
 ```sh
-# Download policy queries from Fleet's repository.
+# Download policy queries from Fleet's repository (e.g. for macOS 13)
 wget https://raw.githubusercontent.com/fleetdm/fleet/main/ee/cis/macos-13/cis-policy-queries.yml
 
 # Apply the downloaded policies to Fleet.
