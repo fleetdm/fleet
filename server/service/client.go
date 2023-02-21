@@ -260,6 +260,7 @@ func (c *Client) ApplyGroup(
 		if opts.DryRun {
 			logfn("[!] ignoring policies, dry run mode only supported for 'config' and 'team' specs\n")
 		} else {
+			// If set, override the team in all the policies.
 			if opts.TeamForPolicies != "" {
 				for _, policySpec := range specs.Policies {
 					policySpec.Team = opts.TeamForPolicies

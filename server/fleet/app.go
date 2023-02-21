@@ -602,7 +602,7 @@ type ApplySpecOptions struct {
 	// DryRun indicates that the spec should not be applied, but the validation
 	// errors should be returned.
 	DryRun bool
-	// Team name to set in policy specs.
+	// TeamForPolicies is the name of the team to set in policy specs.
 	TeamForPolicies string
 }
 

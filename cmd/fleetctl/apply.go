@@ -43,7 +43,7 @@ func applyCommand() *cli.Command {
 			},
 			&cli.StringFlag{
 				Name:  "policies-team",
-				Usage: "A team's name, this flag is only used on policies specs (overrides 'team' key in the policies file)",
+				Usage: "A team's name, this flag is only used on policies specs (overrides 'team' key in the policies file). This allows to easily import a group of policies to a team.",
 			},
 			configFlag(),
 			contextFlag(),
