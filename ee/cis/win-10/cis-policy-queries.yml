@@ -226,7 +226,7 @@ spec:
     'Computer Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Access Credential Manager as a trusted caller'
   query: |
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Config/UserRights/AccessCredentialManagerAsTrustedCaller</LocURI></Target></Item></Get></SyncBody>" 
-    AND mdm_command_output = "No One";
+    AND mdm_command_output = "";
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-2.2.1
   contributors: sharon-fdm
@@ -242,16 +242,15 @@ spec:
     The recommended state for this setting is: Administrators, Remote Desktop Users.
     Rationale:
     Users who can connect from their computer to the network can access resources on target computers for which they have permission. For example, the Access this computer from the network user right is required for users to connect to shared printers and folders. If this user right is assigned to the Everyone group, then anyone will be able to read the files in those shared folders. However, this situation is unlikely for new installations of Windows Server 2003 with Service Pack 1 (SP1), because the default share and NTFS permissions in Windows Server 2003 do not include the Everyone group. This vulnerability may have a higher level of risk for computers that you upgrade from Windows NT 4.0 or Windows 2000, because the default permissions for these operating systems are not as restrictive as the default permissions in Windows Server 2003.
+    Impact:
+    If you remove the Access this computer from the network user right on Domain Controllers for all users, no one will be able to log on to the domain or use network resources. If you remove this user right on Member Servers, users will not be able to connect to those servers through the network. Successful negotiation of IPsec connections requires that the initiating machine has this right, therefore if using IPsec, it is recommended that it be assigned to the Authenticated Users group. If you have installed optional components such as ASP.NET or Internet Information Services (IIS), you may need to assign this user right to additional accounts that are required by those components. It is important to verify that authorized users are assigned this user right for the computers they need to access the network.
   resolution: |
     Automatic method:
     Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'Administrators, Remote Desktop Users':
     'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Access this computer from the network'
   query: |
-    SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/LocalPoliciesSecurityOptions/Accounts_RenameAdministratorAccount</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output != "Administrator";
-OMA-URI: ./Device/Vendor/MSFT/Policy/Config/UserRights/AccessFromNetwork
-Data type: String
-Value: Administrators, Remote Desktop Users
-
+    SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Config/UserRights/AccessFromNetwork</LocURI></Target></Item></Get></SyncBody>" 
+    AND mdm_command_output = "Administrators, Remote Desktop Users";
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-2.2.2
   contributors: sharon-fdm
