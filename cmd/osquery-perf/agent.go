@@ -212,7 +212,7 @@ type agent struct {
 
 	EnrollSecret          string
 	UUID                  string
-	HardwareSerial        string
+	SerialNumber          string
 	ConfigInterval        time.Duration
 	QueryInterval         time.Duration
 	DiskEncryptionEnabled bool
@@ -247,7 +247,7 @@ func newAgent(
 	tlsConfig := &tls.Config{
 		InsecureSkipVerify: true,
 	}
-	serial := uuid.New().String()
+	serial := randSerial()
 	if rand.Float64() <= emptySerialProb {
 		serial = ""
 	}
@@ -270,8 +270,8 @@ func newAgent(
 		EnrollSecret:   enrollSecret,
 		ConfigInterval: configInterval,
 		QueryInterval:  queryInterval,
-		UUID:           uuid.New().String(),
-		HardwareSerial: serial,
+		UUID:           strings.ToUpper(uuid.New().String()),
+		SerialNumber:   serial,
 	}
 }
 
@@ -468,7 +468,7 @@ func (a *agent) orbitEnroll() error {
 	params := service.EnrollOrbitRequest{
 		EnrollSecret:   a.EnrollSecret,
 		HardwareUUID:   a.UUID,
-		HardwareSerial: a.HardwareSerial,
+		HardwareSerial: a.SerialNumber,
 	}
 
 	jsonBytes, err := json.Marshal(params)
@@ -1280,4 +1280,16 @@ func main() {
 
 	fmt.Println("Agents running. Kill with C-c.")
 	<-make(chan struct{})
+}
+
+// numbers plus capital letters without I, L, O for readability
+const serialLetters = "0123456789ABCDEFGHJKMNPQRSTUVWXYZ"
+
+func randSerial() string {
+	b := make([]byte, 12)
+	for i := range b {
+		//nolint:gosec // not used for crypto, only to generate random serial for testing
+		b[i] = serialLetters[rand.Intn(len(serialLetters))]
+	}
+	return string(b)
 }

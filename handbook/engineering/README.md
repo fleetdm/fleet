@@ -22,8 +22,7 @@
 ### Principles
 
 - Support the [Maker Schedule](http://www.paulgraham.com/makersschedule.html) by keeping meetings to a minimum.
-- Each individual must have a weekly sync 1:1 meeting with their manager. This is key to making sure each individual has a voice within the organization.
-- Each team should have a fixed weekly sync check-in. This helps reinforce team bonds and alignment.
+- Each individual must have a weekly or biweekly sync 1:1 meeting with their manager. This is key to making sure each individual has a voice within the organization.
 - Favor async communication when possible. This is very important to make sure every stakeholder on a project can have a clear understanding of what’s happening or what was decided, without needing to attend every meeting (i.e., if a person is sick or on vacation or just life happened.)
 - If an async conversation is not proving to be effective, never hesitate to hop on or schedule a call. Always document the decisions made in a ticket, document, or whatever makes sense for the conversation.
 
@@ -34,7 +33,7 @@ The following is the subset of proposed engineering meetings. Each group is free
 - Sprints are 3 weeks long to match our release cadence.
 - There are 5 “Scrum Ceremonies” performed during each sprint:
   - Sprint planning - At the first Monday of the sprint the team and stakeholders meet and pick items from the backlog. The team commit to finish those items.
-  - Daily sync standup - The team meet daily for updates. Each team member present what they did since the last sync and what they intend to do until next sync. Any impediments are raised.
+  - Daily sync standup - The team meets daily for updates. Each team member presents what they did since the last sync and what they intend to do until next sync. Any road blocks are raised.
   - Weekly estimation sessions - once a week (3 times a sprint) the team will estimate items in the backlog. Goals:
     - Have Stakeholders know in advance the time it will take to achieve those items.
     - Make it easier in the next planning meeting to know what the team can take for the next sprint.
@@ -88,31 +87,19 @@ For each attendee:
 
 A chance for deeper, synchronous discussion on topics relevant to that group. Held weekly for 30 minutes - one hour.
 
-e.g., “Interface Weekly” - “Platform Weekly” - “Agent Weekly”
+e.g., “Frontend Weekly” - “Backend Weekly” - “Agent Weekly”
 
 In some groups, this may be split into smaller discussions related to the different focuses of members within the group.
 
 #### Participants
 
-This would include members of each group.
+This would include anyone who wishes to participate. 
 
 #### Sample Agenda (MDM)
 
-- What’s good?
 - Anything at risk for the release?
-- Bug assignment
 - Confirm response payload matches spec
-- Discuss completion of Redux removal
-
-### Standup
-
-(Optional, varies by group) This is to provide status reports, discover blockers, and keep the group in sync.
-
-If desired, each group can implement daily (or some other cadence) standups. Ultimately, it’s up to the Engineering Manager to make sure that the team is communicating appropriately to deliver results.
-
-#### Participants
-
-This would include any members of the group.
+- Discuss common patterns and conventions in the codebase
 
 ### Engineering Leadership Weekly (Weekly ~ one hour)
 
@@ -204,9 +191,9 @@ In either case, if the oncall engineer has the knowledge and confidence to revie
 
 #### 3. Customer success meetings
 
-The oncall engineer is asked to attend all the customer success meetings during the week.
+The oncall engineer is encouraged to attend some of the customer success meetings during the week. Post a message to the #g-customer-experience Slack channel requesting invitations to upcoming meetings.
 
-The engineer will receive calendar invitations for the appropriate meetings. This has a dual purpose of providing more context for how our customers use Fleet. Also, the engineer should actively participate and provide input where appropriate (if not sure, please ask your manager or organizer of the call).
+This has a dual purpose of providing more context for how our customers use Fleet. The engineer should actively participate and provide input where appropriate (if not sure, please ask your manager or organizer of the call).
 
 #### 4. Improve documentation
 
@@ -902,7 +889,7 @@ Escalations (in order):
 
 - Zach Wasserman
 
-The first responder oncall will take ownership of the @sandbox-oncall alias in Slack for ease first thing Monday morning.
+The first responder oncall will take ownership of the @infrastructure-oncall alias in Slack for ease first thing Monday morning.
 
 Expected response times: during business hours, 1 hour. Outside of business hours 4 hours.
 
@@ -912,7 +899,7 @@ We should collect both the email for the customer and information for the error.
 
 Escalation of issues will be done by hand for the moment.
 
-All infrastructure alarms will go to #g-infrastructure.
+All infrastructure alarms will go to #help-p1.
 
 The information needed to evaluate and potentially fix any issues is documented in the [runbook](https://github.com/fleetdm/fleet/blob/main/infrastructure/sandbox/readme.md).
 

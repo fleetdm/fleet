@@ -44,7 +44,7 @@
             "cpu_subtype": "Intel x86-64h Haswell",
             "cpu_type": "x86_64h",
             "hardware_model": "MacBookPro11,4",
-            "hardware_serial": "{{ .HardwareSerial }}",
+            "hardware_serial": "{{ .SerialNumber }}",
             "hardware_vendor": "Apple Inc.",
             "hardware_version": "1.0",
             "hostname": "{{ .CachedString "hostname" }}",
@@ -135,7 +135,7 @@
 [
   {
     "hostname":"{{ .CachedString "hostname" }}",
-    "uuid":"{{ .UUID }}",
+    "uuid": "{{ .UUID }}",
     "cpu_type":"x86_64h",
     "cpu_subtype":"Intel x86-64h Haswell",
     "cpu_brand":"Intel(R) Core(TM) i7-4770HQ CPU @ 2.20GHz",
@@ -146,7 +146,7 @@
     "hardware_vendor":"Apple Inc.",
     "hardware_model":"MacBookPro11,4",
     "hardware_version":"1.0",
-    "hardware_serial":"{{ .HardwareSerial }}",
+    "hardware_serial":"{{ .SerialNumber }}",
     "computer_name":"{{ .CachedString "hostname" }}",
     "local_hostname":"{{ .CachedString "hostname" }}"
   }

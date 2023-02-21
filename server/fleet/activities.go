@@ -49,6 +49,10 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityTypeEditedMacOSMinVersion{},
 
 	ActivityTypeReadHostDiskEncryptionKey{},
+
+	ActivityTypeCreatedMacosProfile{},
+	ActivityTypeDeletedMacosProfile{},
+	ActivityTypeEditedMacosProfile{},
 }
 
 type ActivityDetails interface {
@@ -727,5 +731,74 @@ func (a ActivityTypeReadHostDiskEncryptionKey) Documentation() (activity string,
 - "host_display_name": Display name of the host.`, `{
   "host_id": 1,
   "host_display_name": "Anna's MacBook Pro",
+}`
+}
+
+type ActivityTypeCreatedMacosProfile struct {
+	ProfileName       string  `json:"profile_name"`
+	ProfileIdentifier string  `json:"profile_identifier"`
+	TeamID            *uint   `json:"team_id"`
+	TeamName          *string `json:"team_name"`
+}
+
+func (a ActivityTypeCreatedMacosProfile) ActivityName() string {
+	return "created_macos_profile"
+}
+
+func (a ActivityTypeCreatedMacosProfile) Documentation() (activity, details, detailsExample string) {
+	return `Generated when a user adds a new macOS profile to a team (or no team).`,
+		`This activity contains the following fields:
+- "profile_name": Name of the profile.
+- "profile_identifier": Identifier of the profile.
+- "team_id": The ID of the team that the profile applies to, null if it applies to devices that are not in a team.
+- "team_name": The name of the team that the profile applies to, null if it applies to devices that are not in a team.`, `{
+  "profile_name": "Custom settings 1",
+  "profile_identifier": "com.my.profile",
+  "team_id": 123,
+  "team_name": "Workstations"
+}`
+}
+
+type ActivityTypeDeletedMacosProfile struct {
+	ProfileName       string  `json:"profile_name"`
+	ProfileIdentifier string  `json:"profile_identifier"`
+	TeamID            *uint   `json:"team_id"`
+	TeamName          *string `json:"team_name"`
+}
+
+func (a ActivityTypeDeletedMacosProfile) ActivityName() string {
+	return "deleted_macos_profile"
+}
+
+func (a ActivityTypeDeletedMacosProfile) Documentation() (activity, details, detailsExample string) {
+	return `Generated when a user deletes a macOS profile from a team (or no team).`,
+		`This activity contains the following fields:
+- "profile_name": Name of the deleted profile.
+- "profile_identifier": Identifier of deleted the profile.
+- "team_id": The ID of the team that the profile applied to, null if it applied to devices that are not in a team.
+- "team_name": The name of the team that the profile applied to, null if it applied to devices that are not in a team.`, `{
+  "profile_name": "Custom settings 1",
+  "profile_identifier": "com.my.profile",
+  "team_id": 123,
+  "team_name": "Workstations"
+}`
+}
+
+type ActivityTypeEditedMacosProfile struct {
+	TeamID   *uint   `json:"team_id"`
+	TeamName *string `json:"team_name"`
+}
+
+func (a ActivityTypeEditedMacosProfile) ActivityName() string {
+	return "edited_macos_profile"
+}
+
+func (a ActivityTypeEditedMacosProfile) Documentation() (activity, details, detailsExample string) {
+	return `Generated when a user edits the macOS profiles of a team (or no team) via the fleetctl CLI.`,
+		`This activity contains the following fields:
+- "team_id": The ID of the team that the profiles apply to, null if they apply to devices that are not in a team.
+- "team_name": The name of the team that the profiles apply to, null if they apply to devices that are not in a team.`, `{
+  "team_id": 123,
+  "team_name": "Workstations"
 }`
 }

@@ -1,6 +1,7 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"crypto/rsa"
@@ -8,10 +9,12 @@ import (
 	"crypto/x509/pkix"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"math/big"
 	mathrand "math/rand"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -46,6 +49,7 @@ import (
 	scepclient "github.com/micromdm/scep/v2/client"
 	"github.com/micromdm/scep/v2/cryptoutil/x509util"
 	"github.com/micromdm/scep/v2/scep"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"go.mozilla.org/pkcs7"
@@ -571,13 +575,28 @@ func (s *integrationMDMTestSuite) TestMDMAppleUnenroll() {
 	originalPushMock := s.pushProvider.PushFunc
 	defer func() { s.pushProvider.PushFunc = originalPushMock }()
 
-	// TODO: this is not working as expected, we're still waiting on the
-	// device to unenroll even if we weren't able to send a push
-	// notification, we should return an error instead.
-	//
-	// the APNs service returns an error
-	// s.pushProvider.PushFunc = mockFailedPush
-	// s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/mdm/hosts/%d/unenroll", h.ID), nil, http.StatusOK)
+	// if there's an error coming from APNs servers
+	s.pushProvider.PushFunc = func(pushes []*mdm.Push) (map[string]*push.Response, error) {
+		return map[string]*push.Response{
+			pushes[0].Token.String(): {
+				Id:  uuid.New().String(),
+				Err: errors.New("test"),
+			},
+		}, nil
+	}
+	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/mdm/hosts/%d/unenroll", h.ID), nil, http.StatusBadGateway)
+
+	// if there was an error unrelated to APNs
+	s.pushProvider.PushFunc = func(pushes []*mdm.Push) (map[string]*push.Response, error) {
+		res := map[string]*push.Response{
+			pushes[0].Token.String(): {
+				Id:  uuid.New().String(),
+				Err: nil,
+			},
+		}
+		return res, errors.New("baz")
+	}
+	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/mdm/hosts/%d/unenroll", h.ID), nil, http.StatusInternalServerError)
 
 	// try again, but this time the host is online and answers
 	s.pushProvider.PushFunc = func(pushes []*mdm.Push) (map[string]*push.Response, error) {
@@ -753,6 +772,288 @@ func (s *integrationMDMTestSuite) TestMDMAppleGetEncryptionKey() {
 	s.token = s.getTestToken(u.Email, test.GoodPassword)
 	resp = getHostEncryptionKeyResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/mdm/hosts/%d/encryption_key", host.ID), nil, http.StatusForbidden, &resp)
+}
+
+func (s *integrationMDMTestSuite) TestMDMAppleConfigProfileCRUD() {
+	t := s.T()
+	ctx := context.Background()
+
+	testTeam, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "TestTeam"})
+	require.NoError(t, err)
+
+	testProfiles := make(map[string]fleet.MDMAppleConfigProfile)
+	generateTestProfile := func(name string) {
+		cp := fleet.MDMAppleConfigProfile{
+			Name:       name,
+			Identifier: fmt.Sprintf("%s.SomeIdentifier", name),
+		}
+		cp.Mobileconfig = mcBytesForTest(cp.Name, cp.Identifier, fmt.Sprintf("%s.UUID", name))
+		testProfiles[name] = cp
+	}
+	setTestProfileID := func(name string, id uint) {
+		tp := testProfiles[name]
+		tp.ProfileID = id
+		testProfiles[name] = tp
+	}
+
+	generateNewReq := func(name string, teamID *uint) (*bytes.Buffer, map[string]string) {
+		body := &bytes.Buffer{}
+		writer := multipart.NewWriter(body)
+		if teamID != nil {
+			err = writer.WriteField("team_id", fmt.Sprintf("%d", testTeam.ID))
+			require.NoError(t, err)
+		}
+		ff, err := writer.CreateFormFile("profile", "some_filename")
+		require.NoError(t, err)
+		_, err = io.Copy(ff, bytes.NewReader(testProfiles[name].Mobileconfig))
+		require.NoError(t, err)
+		writer.Close()
+
+		headers := map[string]string{
+			"Content-Type":  writer.FormDataContentType(),
+			"Accept":        "application/json",
+			"Authorization": fmt.Sprintf("Bearer %s", s.token),
+		}
+
+		return body, headers
+	}
+
+	checkGetResponse := func(resp *http.Response, expected fleet.MDMAppleConfigProfile) {
+		// check expected headers
+		require.Contains(t, resp.Header["Content-Type"], "application/x-apple-aspen-config")
+		require.Contains(t, resp.Header["Content-Disposition"], fmt.Sprintf(`attachment;filename="%s_%s.%s"`, time.Now().Format("2006-01-02"), strings.ReplaceAll(expected.Name, " ", "_"), "mobileconfig"))
+		// check expected body
+		var bb bytes.Buffer
+		_, err = io.Copy(&bb, resp.Body)
+		require.NoError(t, err)
+		require.Equal(t, []byte(expected.Mobileconfig), bb.Bytes())
+	}
+
+	checkConfigProfile := func(expected fleet.MDMAppleConfigProfile, actual fleet.MDMAppleConfigProfile) {
+		require.Equal(t, expected.Name, actual.Name)
+		require.Equal(t, expected.Identifier, actual.Identifier)
+	}
+
+	// create new profile (no team)
+	generateTestProfile("TestNoTeam")
+	body, headers := generateNewReq("TestNoTeam", nil)
+	newResp := s.DoRawWithHeaders("POST", "/api/latest/fleet/mdm/apple/profiles", body.Bytes(), http.StatusOK, headers)
+	var newCP fleet.MDMAppleConfigProfile
+	err = json.NewDecoder(newResp.Body).Decode(&newCP)
+	require.NoError(t, err)
+	require.NotEmpty(t, newCP.ProfileID)
+	setTestProfileID("TestNoTeam", newCP.ProfileID)
+
+	// create new profile (with team id)
+	generateTestProfile("TestWithTeamID")
+	body, headers = generateNewReq("TestWithTeamID", ptr.Uint(1))
+	newResp = s.DoRawWithHeaders("POST", "/api/latest/fleet/mdm/apple/profiles", body.Bytes(), http.StatusOK, headers)
+	err = json.NewDecoder(newResp.Body).Decode(&newCP)
+	require.NoError(t, err)
+	require.NotEmpty(t, newCP.ProfileID)
+	setTestProfileID("TestWithTeamID", newCP.ProfileID)
+
+	// list profiles (no team)
+	expectedCP := testProfiles["TestNoTeam"]
+	var listResp listMDMAppleConfigProfilesResponse
+	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/profiles", nil, http.StatusOK, &listResp)
+	require.Len(t, listResp.ConfigProfiles, 1)
+	respCP := listResp.ConfigProfiles[0]
+	require.Equal(t, expectedCP.Name, respCP.Name)
+	checkConfigProfile(expectedCP, *respCP)
+	require.Empty(t, respCP.Mobileconfig) // list profiles endpoint shouldn't include mobileconfig bytes
+	require.Empty(t, respCP.TeamID)       // zero means no team
+
+	// list profiles (team 1)
+	expectedCP = testProfiles["TestWithTeamID"]
+	listResp = listMDMAppleConfigProfilesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/profiles", listMDMAppleConfigProfilesRequest{TeamID: testTeam.ID}, http.StatusOK, &listResp)
+	require.Len(t, listResp.ConfigProfiles, 1)
+	respCP = listResp.ConfigProfiles[0]
+	require.Equal(t, expectedCP.Name, respCP.Name)
+	checkConfigProfile(expectedCP, *respCP)
+	require.Empty(t, respCP.Mobileconfig)         // list profiles endpoint shouldn't include mobileconfig bytes
+	require.Equal(t, testTeam.ID, *respCP.TeamID) // team 1
+
+	// get profile (no team)
+	expectedCP = testProfiles["TestNoTeam"]
+	getPath := fmt.Sprintf("/api/latest/fleet/mdm/apple/profiles/%d", expectedCP.ProfileID)
+	getResp := s.DoRawWithHeaders("GET", getPath, nil, http.StatusOK, map[string]string{"Authorization": fmt.Sprintf("Bearer %s", s.token)})
+	checkGetResponse(getResp, expectedCP)
+
+	// get profile (team 1)
+	expectedCP = testProfiles["TestWithTeamID"]
+	getPath = fmt.Sprintf("/api/latest/fleet/mdm/apple/profiles/%d", expectedCP.ProfileID)
+	getResp = s.DoRawWithHeaders("GET", getPath, nil, http.StatusOK, map[string]string{"Authorization": fmt.Sprintf("Bearer %s", s.token)})
+	checkGetResponse(getResp, expectedCP)
+
+	// delete profile (no team)
+	deletedCP := testProfiles["TestNoTeam"]
+	deletePath := fmt.Sprintf("/api/latest/fleet/mdm/apple/profiles/%d", deletedCP.ProfileID)
+	var deleteResp deleteMDMAppleConfigProfileResponse
+	s.DoJSON("DELETE", deletePath, nil, http.StatusOK, &deleteResp)
+	// confirm deleted
+	listResp = listMDMAppleConfigProfilesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/profiles", listMDMAppleConfigProfilesRequest{}, http.StatusOK, &listResp)
+	require.Len(t, listResp.ConfigProfiles, 0)
+	getPath = fmt.Sprintf("/api/latest/fleet/mdm/apple/profiles/%d", deletedCP.ProfileID)
+	_ = s.DoRawWithHeaders("GET", getPath, nil, http.StatusNotFound, map[string]string{"Authorization": fmt.Sprintf("Bearer %s", s.token)})
+
+	// delete profile (team 1)
+	deletedCP = testProfiles["TestWithTeamID"]
+	deletePath = fmt.Sprintf("/api/latest/fleet/mdm/apple/profiles/%d", deletedCP.ProfileID)
+	deleteResp = deleteMDMAppleConfigProfileResponse{}
+	s.DoJSON("DELETE", deletePath, nil, http.StatusOK, &deleteResp)
+	// confirm deleted
+	listResp = listMDMAppleConfigProfilesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/profiles", listMDMAppleConfigProfilesRequest{TeamID: testTeam.ID}, http.StatusOK, &listResp)
+	require.Len(t, listResp.ConfigProfiles, 0)
+	getPath = fmt.Sprintf("/api/latest/fleet/mdm/apple/profiles/%d", deletedCP.ProfileID)
+	_ = s.DoRawWithHeaders("GET", getPath, nil, http.StatusNotFound, map[string]string{"Authorization": fmt.Sprintf("Bearer %s", s.token)})
+}
+
+func (s *integrationMDMTestSuite) TestAppConfigMDMAppleProfiles() {
+	t := s.T()
+
+	// set the macos custom settings fields
+	acResp := appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+	  "macos_settings": { "custom_settings": ["foo", "bar"] }
+  }`), http.StatusOK, &acResp)
+	assert.Equal(t, []string{"foo", "bar"}, acResp.MacOSSettings.CustomSettings)
+
+	// check that they are returned by a GET /config
+	acResp = appConfigResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	assert.Equal(t, []string{"foo", "bar"}, acResp.MacOSSettings.CustomSettings)
+
+	// patch without specifying the macos custom settings fields, should not remove them
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+	  "macos_settings": {}
+  }`), http.StatusOK, &acResp)
+	assert.Equal(t, []string{"foo", "bar"}, acResp.MacOSSettings.CustomSettings)
+
+	// patch with explicitly empty macos custom settings fields, would remove
+	// them but this is a dry-run
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"macos_settings": {"custom_settings": null}
+  }`), http.StatusOK, &acResp, "dry_run", "true")
+	assert.Equal(t, []string{"foo", "bar"}, acResp.MacOSSettings.CustomSettings)
+
+	// patch with explicitly empty macos custom settings fields, removes them
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"macos_settings": {"custom_settings": null}
+  }`), http.StatusOK, &acResp)
+	assert.Empty(t, acResp.MacOSSettings.CustomSettings)
+}
+
+func (s *integrationMDMTestSuite) TestApplyTeamsMDMAppleProfiles() {
+	t := s.T()
+
+	// create a team through the service so it initializes the agent ops
+	teamName := t.Name() + "team1"
+	team := &fleet.Team{
+		Name:        teamName,
+		Description: "desc team1",
+	}
+	var createTeamResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", team, http.StatusOK, &createTeamResp)
+	require.NotZero(t, createTeamResp.Team.ID)
+	team = createTeamResp.Team
+
+	// apply with custom macos settings
+	teamSpecs := applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
+		Name:          teamName,
+		MacOSSettings: map[string]interface{}{"custom_settings": []string{"foo", "bar"}},
+	}}}
+	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
+
+	// retrieving the team returns the custom macos settings
+	var teamResp getTeamResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+	require.Equal(t, []string{"foo", "bar"}, teamResp.Team.Config.MacOSSettings.CustomSettings)
+
+	// apply with invalid macos settings subfield should fail
+	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
+		Name:          teamName,
+		MacOSSettings: map[string]interface{}{"foo_bar": 123},
+	}}}
+	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusBadRequest)
+
+	// apply without custom macos settings specified, should not replace existing settings
+	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
+		Name:          teamName,
+		MacOSSettings: map[string]interface{}{},
+	}}}
+	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
+	teamResp = getTeamResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+	require.Equal(t, []string{"foo", "bar"}, teamResp.Team.Config.MacOSSettings.CustomSettings)
+
+	// apply with explicitly empty custom macos settings would clear the existing
+	// settings, but dry-run
+	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
+		Name:          teamName,
+		MacOSSettings: map[string]interface{}{"custom_settings": []string{}},
+	}}}
+	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK, "dry_run", "true")
+	teamResp = getTeamResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+	require.Equal(t, []string{"foo", "bar"}, teamResp.Team.Config.MacOSSettings.CustomSettings)
+
+	// apply with explicitly empty custom macos settings clears the existing settings
+	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
+		Name:          teamName,
+		MacOSSettings: map[string]interface{}{"custom_settings": []string{}},
+	}}}
+	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
+	teamResp = getTeamResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+	require.Equal(t, []string{}, teamResp.Team.Config.MacOSSettings.CustomSettings)
+}
+
+func (s *integrationMDMTestSuite) TestBatchSetMDMAppleProfiles() {
+	t := s.T()
+	ctx := context.Background()
+
+	// create a new team
+	tm, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "batch_set_mdm_profiles"})
+	require.NoError(t, err)
+
+	// apply an empty set to no-team
+	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: nil}, http.StatusNoContent)
+	s.lastActivityMatches(
+		fleet.ActivityTypeEditedMacosProfile{}.ActivityName(),
+		`{"team_id": null, "team_name": null}`,
+		0,
+	)
+
+	// apply to both team id and name
+	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: nil},
+		http.StatusUnprocessableEntity, "team_id", strconv.Itoa(int(tm.ID)), "team_name", tm.Name)
+
+	// invalid team name
+	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: nil},
+		http.StatusNotFound, "team_name", uuid.New().String())
+
+	// duplicate profile names
+	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: [][]byte{
+		mobileconfigForTest("N1", "I1"),
+		mobileconfigForTest("N1", "I2"),
+	}}, http.StatusUnprocessableEntity, "team_id", strconv.Itoa(int(tm.ID)))
+
+	// successfully apply a profile for the team
+	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: [][]byte{
+		mobileconfigForTest("N1", "I1"),
+	}}, http.StatusNoContent, "team_id", strconv.Itoa(int(tm.ID)))
+	s.lastActivityMatches(
+		fleet.ActivityTypeEditedMacosProfile{}.ActivityName(),
+		fmt.Sprintf(`{"team_id": %d, "team_name": %q}`, tm.ID, tm.Name),
+		0,
+	)
 }
 
 type device struct {

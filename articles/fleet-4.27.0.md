@@ -21,7 +21,7 @@ In the UI an account administrator will see the following information:
 
 If you pair this new login activity with the audit improvements from [release 4.26](https://fleetdm.com/releases/fleet-4.26.0) you can now set up an alert if multiple failed login attempts occur. 
 
-<call-to-action type="premium-upgrade"></call-to-action>
+<call-to-action preset="premium-upgrade"></call-to-action>
 
 ## Better search filters on the ‘Select Targets’ screen in Fleet
 
@@ -38,6 +38,12 @@ Previously, the higher-level categories of Platform, Team, and Labels operated a
 _Selecting explicit host IDs will always run the query on those hosts (no matter the chosen team, labels or platforms) and selecting “All hosts” will make the query run on all hosts (no matter the chosen team, labels or platforms)._
 
 For more information on how to run queries, check out the [documentation here.](https://fleetdm.com/docs/using-fleet/fleet-ui#run-a-query)
+
+## A note about osquery packs
+
+Packs are a function of osquery that provide a portable format to import /export queries in and out of platforms like Fleet. These osquery packs still exist, but have been removed from the Fleet UI. Access via API is still available for backwards compatibility.
+
+Within Fleet we've introduced the concept of teams in Fleet premium to target specific groups of hosts, but you can also still use scheduled queries in Fleet free (works like packs) to target all your hosts.
 
 ## More new features, improvements, and bug fixes
 
@@ -75,6 +81,6 @@ Visit our [upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in
 <meta name="category" value="releases">
 <meta name="authorFullName" value="Noah Talerman">
 <meta name="authorGitHubUsername" value="noahtalerman">
-<meta name="publishedOn" value="2023-02-06">
+<meta name="publishedOn" value="2023-02-14">
 <meta name="articleTitle" value="Fleet 4.27.0 | Improved access management and improved search filters">
 <meta name="articleImageUrl" value="../website/assets/images/articles/fleet-4.27.0-1600x900@2x.png">

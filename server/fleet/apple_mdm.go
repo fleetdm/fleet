@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/micromdm/nanodep/godep"
@@ -251,6 +252,75 @@ func (mc Mobileconfig) ParseConfigProfile() (*MDMAppleConfigProfile, error) {
 	}, nil
 }
 
+// GetPayloadTypes attempts to parse the PayloadContent list of the Mobileconfig's TopLevel object.
+// It returns the PayloadType for each PayloadContentItem.
+//
+// See also https://developer.apple.com/documentation/devicemanagement/toplevel
+func (mc Mobileconfig) GetPayloadTypes() ([]string, error) {
+	mcBytes := mc
+	if !bytes.HasPrefix(mcBytes, []byte("<?xml")) {
+		p7, err := pkcs7.Parse(mcBytes)
+		if err != nil {
+			return nil, fmt.Errorf("mobileconfig is not XML nor PKCS7 parseable: %w", err)
+		}
+		err = p7.Verify()
+		if err != nil {
+			return nil, err
+		}
+		mcBytes = Mobileconfig(p7.Content)
+	}
+
+	// unmarshal the values we need from the top-level object
+	var tlo struct {
+		IsEncrypted    bool
+		PayloadContent []map[string]interface{}
+		PayloadType    string
+	}
+	_, err := plist.Unmarshal(mcBytes, &tlo)
+	if err != nil {
+		return nil, err
+	}
+	// confirm that the top-level payload type matches the expected value
+	if tlo.PayloadType != "Configuration" {
+		return nil, &ErrInvalidPayloadType{tlo.PayloadType}
+	}
+
+	if len(tlo.PayloadContent) < 1 {
+		if tlo.IsEncrypted {
+			return nil, ErrEncryptedPayloadContent
+		}
+		return nil, ErrEmptyPayloadContent
+	}
+
+	// extract the payload types of each payload content item from the array of
+	// payload dictionaries
+	var result []string
+	for _, payloadDict := range tlo.PayloadContent {
+		pt, ok := payloadDict["PayloadType"]
+		if !ok {
+			continue
+		}
+		if s, ok := pt.(string); ok {
+			result = append(result, s)
+		}
+	}
+
+	return result, nil
+}
+
+type ErrInvalidPayloadType struct {
+	payloadType string
+}
+
+func (e ErrInvalidPayloadType) Error() string {
+	return fmt.Sprintf("invalid PayloadType: %s", e.payloadType)
+}
+
+var (
+	ErrEmptyPayloadContent     = errors.New("empty PayloadContent")
+	ErrEncryptedPayloadContent = errors.New("encrypted PayloadContent")
+)
+
 // MDMAppleConfigProfile represents an Apple MDM configuration profile in Fleet.
 // Configuration profiles are used to configure Apple devices .
 // See also https://developer.apple.com/documentation/devicemanagement/configuring_multiple_devices_using_profiles.
@@ -278,9 +348,29 @@ func (cp MDMAppleConfigProfile) AuthzType() string {
 	return "mdm_apple_config_profile"
 }
 
-func (cp MDMAppleConfigProfile) Validate() error {
-	// TODO(sarah): Additional validations for PayloadContent (e.g., screening out FileVault payloads)
-	// should be handled here
+// ScreenPayloadTypes screens the profile's Mobileconfig and returns an error if it
+// detects certain PayloadTypes related to FileVault settings.
+func (cp MDMAppleConfigProfile) ScreenPayloadTypes() error {
+	pct, err := cp.Mobileconfig.GetPayloadTypes()
+	if err != nil {
+		switch {
+		case errors.Is(err, ErrEmptyPayloadContent), errors.Is(err, ErrEncryptedPayloadContent):
+			// ok, there's nothing for us to screen
+		default:
+			return err
+		}
+	}
+
+	var screened []string
+	for _, t := range pct {
+		switch t {
+		case "com.apple.security.FDERecoveryKeyEscrow", "com.apple.MCX.FileVault2", "com.apple.security.FDERecoveryRedirect":
+			screened = append(screened, t)
+		}
+	}
+	if len(screened) > 0 {
+		return fmt.Errorf("unsupported PayloadType(s): %s", strings.Join(screened, ", "))
+	}
 
 	return nil
 }

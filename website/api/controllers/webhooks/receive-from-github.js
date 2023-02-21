@@ -305,14 +305,14 @@ module.exports = {
 
         // Check whether the "main" branch is currently frozen (i.e. a feature freeze)
         // [?] https://docs.mergefreeze.com/web-api#get-freeze-status
-        let mergeFreezeMainBranchStatusReport = await sails.helpers.http.get('https://www.mergefreeze.com/api/branches/fleetdm/fleet/main', { access_token: sails.config.custom.mergeFreezeAccessToken }); //eslint-disable-line camelcase
+        let mergeFreezeMainBranchStatusReport = await sails.helpers.http.get('https://www.mergefreeze.com/api/branches/fleetdm/fleet/main', { access_token: sails.config.custom.mergeFreezeAccessToken }) //eslint-disable-line camelcase
+        .tolerate(['non200Response', 'requestFailed', {name: 'TimeoutError'}], (err)=>{
+          // If the MergeFreeze API returns a non 200 response, log a warning and continue under the assumption that the main branch is not frozen.
+          sails.log.warn('When sending a request to the MergeFreeze API to get the status of the main branch, MergeFreeze did not respond with a 2xx status code.  (Error details forthcoming in just a sec.)  First, how to remediate: If the main branch is frozen, it will need to be manually unfrozen before PR #'+prNumber+' can be merged. Raw underlying error from MergeFreeze: '+err.stack);
+          return { frozen: false };
+        });
         sails.log('#'+prNumber+' is under consideration...  The MergeFreeze API claims that it current main branch "frozen" status is:',mergeFreezeMainBranchStatusReport.frozen);
-        let isMainBranchFrozen = mergeFreezeMainBranchStatusReport.frozen || (
-          // TODO: Remove this timeboxed hack to consider the repo frozen
-          // for a while as a workaround for an issue where the MergeFreeze API
-          // reports that the repo is not frozen, when it actually is frozen.
-          Date.now() < (new Date('Jul 28, 2022 14:00 UTC')).getTime()
-        );
+        let isMainBranchFrozen = mergeFreezeMainBranchStatusReport.frozen;
 
         // Add the #handbook label to PRs that only make changes to the handbook.
         if(isHandbookPR) {

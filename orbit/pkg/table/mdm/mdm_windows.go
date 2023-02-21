@@ -31,16 +31,17 @@ var (
 	modmdmlocalmgmt    = windows.NewLazySystemDLL("mdmlocalmanagement.dll")
 	modkernel32        = windows.NewLazySystemDLL("kernel32.dll")
 
-	procIsDeviceRegisteredWithManagement = modmdmregistration.NewProc("IsDeviceRegisteredWithManagement")
-	procSendSyncMLcommand                = modmdmlocalmgmt.NewProc("ApplyLocalManagementSyncML")
-	proclstrlenW                         = modkernel32.NewProc("lstrlenW")
-	procRtlMoveMemory                    = modkernel32.NewProc("RtlMoveMemory")
+	procIsDeviceRegisteredWithManagement  = modmdmregistration.NewProc("IsDeviceRegisteredWithManagement")
+	procSendSyncMLcommand                 = modmdmlocalmgmt.NewProc("ApplyLocalManagementSyncML")
+	procRegisterDeviceWithLocalManagement = modmdmlocalmgmt.NewProc("RegisterDeviceWithLocalManagement")
+	proclstrlenW                          = modkernel32.NewProc("lstrlenW")
+	procRtlMoveMemory                     = modkernel32.NewProc("RtlMoveMemory")
 
 	// Synchronization mutex
 	mu sync.Mutex
 
-	// SMBIOS UUID SHA256 hash generation executor
-	uuidHashGeneration sync.Once
+	// MDM Management stack initialization executor
+	mdmManagementStackInit sync.Once
 
 	// SHA256 hash of device SMBIOS UUID
 	uuidHash []byte
@@ -212,7 +213,7 @@ func getCmdResponseData(outputCmd string) (string, error) {
 				// extracting the data from the result
 				workStr := element.Item[0].Data
 				if len(workStr) == 0 {
-					workStr = "data_not_set" // default value for empty data
+					workStr = "" // default value for empty data
 				}
 				responseData += workStr
 			}
@@ -389,9 +390,12 @@ func executeMDMcommand(inputCMD string) (string, error) {
 	}
 
 	// MDM stack is ready to receive commands
+	// The code below is just using returnCode to determine if call was successul or not. The err
+	// variable returns status above call dispatching so it not needed and actually introduce
+	// confusion about the status of the call.
 	var outputStrBuffer *uint16
-	if returnCode, _, err := procSendSyncMLcommand.Call(uintptr(unsafe.Pointer(&inputCmdPtr[0])), uintptr(unsafe.Pointer(&outputStrBuffer))); returnCode != uintptr(windows.ERROR_SUCCESS) {
-		return "", fmt.Errorf("there was an error calling ApplyLocalManagementSyncML(): %s (0x%X)", err, returnCode)
+	if returnCode, _, _ := procSendSyncMLcommand.Call(uintptr(unsafe.Pointer(&inputCmdPtr[0])), uintptr(unsafe.Pointer(&outputStrBuffer))); returnCode != uintptr(windows.ERROR_SUCCESS) {
+		return "", fmt.Errorf("there was an error calling ApplyLocalManagementSyncML(): (0x%X)", err, returnCode)
 	}
 
 	// converting windows MDM UTF16 output string into go string
@@ -412,7 +416,7 @@ func executeMDMcommand(inputCMD string) (string, error) {
 	}
 
 	if len(outputCmd) == 0 {
-		return "", fmt.Errorf("the OS MDM stack returned an empty string")
+		return "", errors.New("the OS MDM stack returned an empty string")
 	}
 
 	return outputCmd, nil
@@ -541,13 +545,30 @@ func getUUIDhash() ([]byte, error) {
 
 // enableCmdExecution initializes the registry flags required for OS MDM execution
 func enableCmdExecution() error {
-	// generating SHA256 hash of SMBIOS UUID
+	// initialize MDM stack management by generating SHA256 hash of SMBIOS UUID and calling RegisterDeviceWithLocalManagement()
 	// this is wrapped by sync.Once so it only executes once
-	uuidHashGeneration.Do(func() {
+	mdmManagementStackInit.Do(func() {
+		// making sure that COM is initialized
+		// this is a best effort call as COM stack could have been initialized already by other components
+		err := windows.CoInitializeEx(0, windows.COINIT_MULTITHREADED)
+		if err != nil {
+			log.Error().Msgf("there was an error calling CoInitializeEx(): (%s)", err)
+		}
+
+		// calling RegisterDeviceWithLocalManagement() to initialize the MDM stack
+		// The code below is just using returnCode to determine if call was successul or not. The err
+		// variable returns status above call dispatching so it not needed and actually introduce
+		// confusion about the status of the call.
+		if returnCode, _, _ := procRegisterDeviceWithLocalManagement.Call(uintptr(unsafe.Pointer(nil))); returnCode != uintptr(windows.ERROR_SUCCESS) {
+			log.Error().Msgf("there was an error calling RegisterDeviceWithLocalManagement(): (0x%X)", returnCode)
+			return
+		}
+
 		// generate SHA256 hash of UUID bytes
 		workHash, err := getUUIDhash()
 		if err != nil {
-			log.Debug().Err(err).Msg("there was an issue generating the UUID hash")
+			log.Error().Err(err).Msg("there was an issue generating the UUID hash")
+			return
 		}
 
 		// making the UUID hash to be globally accessible

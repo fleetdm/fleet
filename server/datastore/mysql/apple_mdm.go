@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"errors"
@@ -9,6 +10,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
@@ -69,17 +71,17 @@ func formatErrorDuplicateConfigProfile(err error, cp *fleet.MDMAppleConfigProfil
 
 func (ds *Datastore) ListMDMAppleConfigProfiles(ctx context.Context, teamID *uint) ([]*fleet.MDMAppleConfigProfile, error) {
 	stmt := `
-SELECT 
-	profile_id, 
-	team_id, 
-	name, 
-	identifier, 
-	mobileconfig, 
-	created_at, 
-	updated_at 
-FROM 
-	mdm_apple_configuration_profiles 
-WHERE 
+SELECT
+	profile_id,
+	team_id,
+	name,
+	identifier,
+	mobileconfig,
+	created_at,
+	updated_at
+FROM
+	mdm_apple_configuration_profiles
+WHERE
 	team_id=?`
 
 	if teamID == nil {
@@ -96,17 +98,17 @@ WHERE
 
 func (ds *Datastore) GetMDMAppleConfigProfile(ctx context.Context, profileID uint) (*fleet.MDMAppleConfigProfile, error) {
 	stmt := `
-SELECT 
-	profile_id, 
-	team_id, 
-	name, 
-	identifier, 
-	mobileconfig, 
-	created_at, 
-	updated_at 
-FROM 
-	mdm_apple_configuration_profiles 
-WHERE 
+SELECT
+	profile_id,
+	team_id,
+	name,
+	identifier,
+	mobileconfig,
+	created_at,
+	updated_at
+FROM
+	mdm_apple_configuration_profiles
+WHERE
 	profile_id=?`
 
 	var res fleet.MDMAppleConfigProfile
@@ -430,7 +432,7 @@ func updateMDMAppleHostDB(
 		return ctxerr.Wrap(ctx, err, "update mdm apple host")
 	}
 
-	if err := upsertMDMAppleHostMDMInfoDB(ctx, tx, appCfg.ServerSettings.ServerURL, false, hostID); err != nil {
+	if err := upsertMDMAppleHostMDMInfoDB(ctx, tx, appCfg.ServerSettings, false, hostID); err != nil {
 		return ctxerr.Wrap(ctx, err, "ingest mdm apple host upsert MDM info")
 	}
 
@@ -489,7 +491,7 @@ func insertMDMAppleHostDB(
 		return ctxerr.Wrap(ctx, err, "ingest mdm apple host upsert label membership")
 	}
 
-	if err := upsertMDMAppleHostMDMInfoDB(ctx, tx, appCfg.ServerSettings.ServerURL, false, host.ID); err != nil {
+	if err := upsertMDMAppleHostMDMInfoDB(ctx, tx, appCfg.ServerSettings, false, host.ID); err != nil {
 		return ctxerr.Wrap(ctx, err, "ingest mdm apple host upsert MDM info")
 	}
 	return nil
@@ -604,7 +606,7 @@ func (ds *Datastore) IngestMDMAppleDevicesFromDEPSync(ctx context.Context, devic
 		for _, h := range hosts {
 			ids = append(ids, h.ID)
 		}
-		if err := upsertMDMAppleHostMDMInfoDB(ctx, tx, appCfg.ServerSettings.ServerURL, true, ids...); err != nil {
+		if err := upsertMDMAppleHostMDMInfoDB(ctx, tx, appCfg.ServerSettings, true, ids...); err != nil {
 			return ctxerr.Wrap(ctx, err, "ingest mdm apple host upsert MDM info")
 		}
 
@@ -633,7 +635,12 @@ func upsertMDMAppleHostDisplayNamesDB(ctx context.Context, tx sqlx.ExtContext, h
 	return nil
 }
 
-func upsertMDMAppleHostMDMInfoDB(ctx context.Context, tx sqlx.ExtContext, serverURL string, fromSync bool, hostIDs ...uint) error {
+func upsertMDMAppleHostMDMInfoDB(ctx context.Context, tx sqlx.ExtContext, serverSettings fleet.ServerSettings, fromSync bool, hostIDs ...uint) error {
+	serverURL, err := apple_mdm.ResolveAppleMDMURL(serverSettings.ServerURL)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "resolve Fleet MDM URL")
+	}
+
 	result, err := tx.ExecContext(ctx, `
 		INSERT INTO mobile_device_management_solutions (name, server_url) VALUES (?, ?)
 		ON DUPLICATE KEY UPDATE server_url = VALUES(server_url)`,
@@ -759,4 +766,112 @@ func (ds *Datastore) GetNanoMDMEnrollmentStatus(ctx context.Context, id string) 
 	}
 
 	return enabled, nil
+}
+
+func (ds *Datastore) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, profiles []*fleet.MDMAppleConfigProfile) error {
+	const loadExistingProfiles = `
+SELECT
+  identifier,
+  mobileconfig
+FROM
+  mdm_apple_configuration_profiles
+WHERE
+  team_id = ? AND
+  identifier IN (?)
+`
+
+	const deleteProfilesNotInList = `
+DELETE FROM
+  mdm_apple_configuration_profiles
+WHERE
+  team_id = ? AND
+  identifier NOT IN (?)
+`
+
+	const deleteAllExistingProfiles = `
+DELETE FROM
+  mdm_apple_configuration_profiles
+WHERE
+  team_id = ?
+`
+
+	const insertNewOrEditedProfile = `
+INSERT INTO
+  mdm_apple_configuration_profiles (
+    team_id, identifier, name, mobileconfig
+  )
+VALUES
+  ( ?, ?, ?, ? )
+`
+
+	// use a profile team id of 0 if no-team
+	var profTeamID uint
+	if tmID != nil {
+		profTeamID = *tmID
+	}
+
+	// build a list of identifiers for the incoming profiles, will keep the
+	// existing ones if there's a match and no change
+	incomingIdents := make([]string, len(profiles))
+	// at the same time, index the incoming profiles keyed by identifier for ease
+	// or processing
+	incomingProfs := make(map[string]*fleet.MDMAppleConfigProfile, len(profiles))
+	for i, p := range profiles {
+		incomingIdents[i] = p.Identifier
+		incomingProfs[p.Identifier] = p
+	}
+
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		var existingProfiles []*fleet.MDMAppleConfigProfile
+
+		if len(incomingIdents) > 0 {
+			// load existing profiles that match the incoming profiles by identifiers
+			stmt, args, err := sqlx.In(loadExistingProfiles, profTeamID, incomingIdents)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "build query to load existing profiles")
+			}
+			if err := sqlx.SelectContext(ctx, tx, &existingProfiles, stmt, args...); err != nil {
+				return ctxerr.Wrap(ctx, err, "load existing profiles")
+			}
+		}
+
+		// match the existing profiles to the incoming ones and keep the existing
+		// ones that have not changed
+		keepIdents := make([]string, 0, len(incomingIdents))
+		for _, p := range existingProfiles {
+			if newP := incomingProfs[p.Identifier]; newP != nil {
+				if bytes.Equal(newP.Mobileconfig, p.Mobileconfig) {
+					// the profile has not changed, keep the existing one
+					keepIdents = append(keepIdents, p.Identifier)
+					delete(incomingProfs, p.Identifier)
+				}
+			}
+		}
+
+		var (
+			stmt string
+			args []interface{}
+			err  error
+		)
+		if len(keepIdents) > 0 {
+			// delete the obsolete profiles (all those that are not in keepIdents)
+			stmt, args, err = sqlx.In(deleteProfilesNotInList, profTeamID, keepIdents)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "build statement to delete obsolete profiles")
+			}
+		} else {
+			stmt, args = deleteAllExistingProfiles, []interface{}{profTeamID}
+		}
+		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "delete obsolete profiles")
+		}
+
+		// insert the new profiles and the ones that have changed
+		for _, p := range incomingProfs {
+			if _, err := tx.ExecContext(ctx, insertNewOrEditedProfile, profTeamID, p.Identifier, p.Name, p.Mobileconfig); err != nil {
+				return ctxerr.Wrapf(ctx, err, "insert new/edited profile with identifier %q", p.Identifier)
+			}
+		}
+		return nil
+	})
 }

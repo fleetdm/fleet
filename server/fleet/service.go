@@ -15,7 +15,8 @@ import (
 //
 // TODO: find if there's a better way to accomplish this and standardize.
 type EnterpriseOverrides struct {
-	HostFeatures func(context context.Context, host *Host) (*Features, error)
+	HostFeatures   func(context context.Context, host *Host) (*Features, error)
+	TeamByIDOrName func(ctx context.Context, id *uint, name *string) (*Team, error)
 }
 
 type OsqueryService interface {
@@ -546,6 +547,16 @@ type Service interface {
 	GetAppleBM(ctx context.Context) (*AppleBM, error)
 	RequestMDMAppleCSR(ctx context.Context, email, org string) (*AppleCSR, error)
 
+	// NewMDMAppleConfigProfile creates a new configuration profile for the specified team.
+	NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r io.Reader, size int64) (*MDMAppleConfigProfile, error)
+	// GetMDMAppleConfigProfile retrieves the specified configuration profile.
+	GetMDMAppleConfigProfile(ctx context.Context, profileID uint) (*MDMAppleConfigProfile, error)
+	// DeleteMDMAppleConfigProfile deletes the specified configuration profile.
+	DeleteMDMAppleConfigProfile(ctx context.Context, profileID uint) error
+	// ListMDMAppleConfigProfiles returns the list of all the configuration profiles for the
+	// specified team.
+	ListMDMAppleConfigProfiles(ctx context.Context, teamID uint) ([]*MDMAppleConfigProfile, error)
+
 	// NewMDMAppleEnrollmentProfile creates and returns new enrollment profile.
 	// Such enrollment profiles allow devices to enroll to Fleet MDM.
 	NewMDMAppleEnrollmentProfile(ctx context.Context, enrollmentPayload MDMAppleEnrollmentProfilePayload) (enrollmentProfile *MDMAppleEnrollmentProfile, err error)
@@ -602,6 +613,10 @@ type Service interface {
 	// EnqueueMDMAppleCommandRemoveEnrollmentProfile enqueues a command to remove the
 	// profile used for Fleet MDM enrollment from the specified device.
 	EnqueueMDMAppleCommandRemoveEnrollmentProfile(ctx context.Context, hostID uint) error
+
+	// BatchSetMDMAppleProfiles replaces the custom macOS profiles for a specified
+	// team or for hosts with no team.
+	BatchSetMDMAppleProfiles(ctx context.Context, teamID *uint, teamName *string, profiles [][]byte, dryRun bool) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// CronSchedulesService

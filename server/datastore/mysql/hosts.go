@@ -1365,7 +1365,7 @@ func (ds *Datastore) LoadHostByOrbitNodeKey(ctx context.Context, nodeKey string)
       hm.server_url,
       hm.installed_from_dep,
       hm.mdm_id,
-      hm.is_server,
+      COALESCE(hm.is_server, false) AS is_server,
       COALESCE(mdms.name, ?) AS name
     FROM
       hosts h
@@ -2442,7 +2442,7 @@ func (ds *Datastore) SetOrUpdateHostDisksEncryption(ctx context.Context, hostID 
 
 func (ds *Datastore) SetOrUpdateHostDiskEncryptionKey(ctx context.Context, hostID uint, encryptedBase64Key string) error {
 	_, err := ds.writer.ExecContext(ctx, `
-           INSERT INTO host_disk_encryption_keys (host_id, base64_encrypted) 
+           INSERT INTO host_disk_encryption_keys (host_id, base64_encrypted)
 	   VALUES (?, ?)
 	   ON DUPLICATE KEY UPDATE
    	     /* if the key has changed, NULLify this value so it can be calculated again */
@@ -2546,7 +2546,7 @@ func (ds *Datastore) GetHostMDM(ctx context.Context, hostID uint) (*fleet.HostMD
 	var hmdm fleet.HostMDM
 	err := sqlx.GetContext(ctx, ds.reader, &hmdm, `
 		SELECT
-			hm.host_id, hm.enrolled, hm.server_url, hm.installed_from_dep, hm.mdm_id, hm.is_server, COALESCE(mdms.name, ?) AS name
+			hm.host_id, hm.enrolled, hm.server_url, hm.installed_from_dep, hm.mdm_id, COALESCE(hm.is_server, false) AS is_server, COALESCE(mdms.name, ?) AS name
 		FROM
 			host_mdm hm
 		LEFT OUTER JOIN

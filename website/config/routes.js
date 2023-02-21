@@ -276,6 +276,12 @@ module.exports.routes = {
 
 
 
+  //  ╦╔╦╗╔═╗╔═╗╦╔╗╔╔═╗  ┌─┬  ┌─┐┌┐┌┌┬┐┬┌┐┌┌─┐  ┌─┐┌─┐┌─┐┌─┐┌─┐─┐
+  //  ║║║║╠═╣║ ╦║║║║║╣   │ │  ├─┤│││ │││││││ ┬  ├─┘├─┤│ ┬├┤ └─┐ │
+  //  ╩╩ ╩╩ ╩╚═╝╩╝╚╝╚═╝  └─┴─┘┴ ┴┘└┘─┴┘┴┘└┘└─┘  ┴  ┴ ┴└─┘└─┘└─┘─┘
+  'GET /imagine/unused-software': { action: 'imagine/view-unused-software' },
+
+
   //  ╦  ╔═╗╔═╗╔═╗╔═╗╦ ╦  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗
   //  ║  ║╣ ║ ╦╠═╣║  ╚╦╝  ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗
   //  ╩═╝╚═╝╚═╝╩ ╩╚═╝ ╩   ╩╚═╚═╝═╩╝╩╩╚═╚═╝╚═╝ ╩ ╚═╝
@@ -384,8 +390,8 @@ module.exports.routes = {
   'GET /security':               'https://github.com/fleetdm/fleet/security/policy',
   'GET /trust':                  'https://app.vanta.com/fleet/trust/5i2ulsbd76k619q9leaoh0',
   'GET /hall-of-fame':           'https://github.com/fleetdm/fleet/pulse',
-  'GET /apply':                  'https://fleet-device-management.breezy.hr',
-  'GET /jobs':                   'https://fleet-device-management.breezy.hr',
+  'GET /apply':                  '/jobs',
+  'GET /jobs':                   'https://fleetdm.com/handbook/company#open-positions',
   'GET /company/stewardship':    'https://github.com/fleetdm/fleet', // FUTURE: page about how we approach open source and our commitments to the community
   'GET /legal/terms':            'https://docs.google.com/document/d/1OM6YDVIs7bP8wg6iA3VG13X086r64tWDqBSRudG4a0Y/edit',
   'GET /legal/privacy':          'https://docs.google.com/document/d/17i_g1aGpnuSmlqj35-yHJiwj7WRrLdC_Typc1Yb7aBE/edit',

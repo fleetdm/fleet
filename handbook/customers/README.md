@@ -271,6 +271,14 @@ Fleet's subscription agreement is available at [fleetdm.com/terms](https://fleet
 
 Fleeties can find a summary of contract terms in the relevant [customer's Salesforce opportunity.](https://fleetdm.lightning.force.com/lightning/o/Opportunity/list?filterName=Recent)
 
+### Reviewing subscription agreement
+
+To quickly get help doing a legal review of a prospect subscription agreement, with or without redlines:
+
+1. Visit https://github.com/fleetdm/confidential/issues/new/choose
+2. Select "Contract signature or legal review"
+3. Follow the instructions in the "Submitting this request" section
+
 ## Customer DRI change
 Sometimes there is a change in the champion within the customer's organization.
 1. Get an introduction to the new DRIs including names, roles, contact information.
@@ -307,7 +315,7 @@ Our one-pager offers a summary of what Fleet does. It can help stakeholders beco
 
 ### Intro deck
 
-Fleet's intro deck adds additional detail to our pitch. Find it in [pdf](https://drive.google.com/file/d/1Z7WsGt9AteSMvHfjcFZcgYBH02Ki1AMs/view?usp=sharing).
+Fleet's intro deck adds additional detail to our pitch. Find it in [pdf](https://drive.google.com/file/d/1onSXxQgYPwt1plAfBY4dG34uXabtd25T/view?usp=share_link).
 
 ### Intro video
 

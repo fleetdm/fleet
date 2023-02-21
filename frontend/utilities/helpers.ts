@@ -38,6 +38,7 @@ import { IUser } from "interfaces/user";
 import stringUtils from "utilities/strings";
 import sortUtils from "utilities/sort";
 import {
+  DEFAULT_EMPTY_CELL_VALUE,
   DEFAULT_GRAVATAR_LINK,
   DEFAULT_GRAVATAR_LINK_DARK,
   PLATFORM_LABEL_DISPLAY_TYPES,
@@ -575,7 +576,7 @@ export const humanHostLastRestart = (
   if (
     !detailUpdatedAt ||
     !uptime ||
-    detailUpdatedAt === "---" ||
+    detailUpdatedAt === DEFAULT_EMPTY_CELL_VALUE ||
     detailUpdatedAt < "2016-07-28T00:00:00Z" ||
     typeof uptime !== "number"
   ) {
@@ -825,7 +826,7 @@ export const normalizeEmptyValues = (
       if ((Number.isFinite(value) && value !== 0) || !isEmpty(value)) {
         Object.assign(result, { [key]: value });
       } else {
-        Object.assign(result, { [key]: "---" });
+        Object.assign(result, { [key]: DEFAULT_EMPTY_CELL_VALUE });
       }
       return result;
     },
@@ -837,7 +838,7 @@ export const wrapFleetHelper = (
   helperFn: (value: any) => string, // TODO: replace any with unknown and improve type narrowing by callers
   value: string
 ): string => {
-  return value === "---" ? value : helperFn(value);
+  return value === DEFAULT_EMPTY_CELL_VALUE ? value : helperFn(value);
 };
 
 export default {

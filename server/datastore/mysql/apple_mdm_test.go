@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/jmoiron/sqlx"
@@ -26,6 +27,7 @@ func TestMDMAppleConfigProfile(t *testing.T) {
 		{"TestNewMDMAppleConfigProfileDuplicateIdentifier", testNewMDMAppleConfigProfileDuplicateIdentifier},
 		{"TestDeleteMDMAppleConfigProfile", testDeleteMDMAppleConfigProfile},
 		{"TestListMDMAppleConfigProfiles", testListMDMAppleConfigProfiles},
+		{"TestBatchSetMDMAppleProfiles", testBatchSetMDMAppleProfiles},
 	}
 
 	for _, c := range cases {
@@ -483,6 +485,128 @@ func testUpdateHostTablesOnMDMUnenroll(t *testing.T, ds *Datastore) {
 	require.Equal(t, 0, count)
 }
 
+func testBatchSetMDMAppleProfiles(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	applyAndExpect := func(newSet []*fleet.MDMAppleConfigProfile, tmID *uint, want []*fleet.MDMAppleConfigProfile) map[string]uint {
+		err := ds.BatchSetMDMAppleProfiles(ctx, tmID, newSet)
+		require.NoError(t, err)
+		got, err := ds.ListMDMAppleConfigProfiles(ctx, tmID)
+		require.NoError(t, err)
+
+		// compare only the fields we care about, and build the resulting map of
+		// profile identifier as key to profile ID as value
+		m := make(map[string]uint)
+		for _, gotp := range got {
+			m[gotp.Identifier] = gotp.ProfileID
+			if gotp.TeamID != nil && *gotp.TeamID == 0 {
+				gotp.TeamID = nil
+			}
+			gotp.ProfileID = 0
+			gotp.CreatedAt = time.Time{}
+			gotp.UpdatedAt = time.Time{}
+		}
+		// order is not guaranteed
+		require.ElementsMatch(t, want, got)
+
+		return m
+	}
+
+	withTeamID := func(p *fleet.MDMAppleConfigProfile, tmID uint) *fleet.MDMAppleConfigProfile {
+		p.TeamID = &tmID
+		return p
+	}
+
+	// apply empty set for no-team
+	applyAndExpect(nil, nil, nil)
+
+	// apply single profile set for tm1
+	mTm1 := applyAndExpect([]*fleet.MDMAppleConfigProfile{
+		configProfileForTest(t, "N1", "I1", "a"),
+	}, ptr.Uint(1), []*fleet.MDMAppleConfigProfile{
+		withTeamID(configProfileForTest(t, "N1", "I1", "a"), 1),
+	})
+
+	// apply single profile set for no-team
+	mNoTm := applyAndExpect([]*fleet.MDMAppleConfigProfile{
+		configProfileForTest(t, "N1", "I1", "b"),
+	}, nil, []*fleet.MDMAppleConfigProfile{
+		configProfileForTest(t, "N1", "I1", "b"),
+	})
+
+	// apply new profile set for tm1
+	mTm1b := applyAndExpect([]*fleet.MDMAppleConfigProfile{
+		configProfileForTest(t, "N1", "I1", "a"), // unchanged
+		configProfileForTest(t, "N2", "I2", "b"),
+	}, ptr.Uint(1), []*fleet.MDMAppleConfigProfile{
+		withTeamID(configProfileForTest(t, "N1", "I1", "a"), 1),
+		withTeamID(configProfileForTest(t, "N2", "I2", "b"), 1),
+	})
+	// identifier for N1-I1 is unchanged
+	require.Equal(t, mTm1["I1"], mTm1b["I1"])
+
+	// apply edited (by name only) profile set for no-team
+	mNoTmb := applyAndExpect([]*fleet.MDMAppleConfigProfile{
+		configProfileForTest(t, "N2", "I1", "b"),
+	}, nil, []*fleet.MDMAppleConfigProfile{
+		configProfileForTest(t, "N2", "I1", "b"),
+	})
+	require.NotEqual(t, mNoTm["I1"], mNoTmb["I1"])
+
+	// apply edited profile (by content only), unchanged profile and new profile
+	// for tm1
+	mTm1c := applyAndExpect([]*fleet.MDMAppleConfigProfile{
+		configProfileForTest(t, "N1", "I1", "z"), // content updated
+		configProfileForTest(t, "N2", "I2", "b"), // unchanged
+		configProfileForTest(t, "N3", "I3", "c"), // new
+	}, ptr.Uint(1), []*fleet.MDMAppleConfigProfile{
+		withTeamID(configProfileForTest(t, "N1", "I1", "z"), 1),
+		withTeamID(configProfileForTest(t, "N2", "I2", "b"), 1),
+		withTeamID(configProfileForTest(t, "N3", "I3", "c"), 1),
+	})
+	// identifier for N1-I1 is changed
+	require.NotEqual(t, mTm1b["I1"], mTm1c["I1"])
+	// identifier for N2-I2 is unchanged
+	require.Equal(t, mTm1b["I2"], mTm1c["I2"])
+
+	// apply only new profiles to no-team
+	applyAndExpect([]*fleet.MDMAppleConfigProfile{
+		configProfileForTest(t, "N4", "I4", "d"),
+		configProfileForTest(t, "N5", "I5", "e"),
+	}, nil, []*fleet.MDMAppleConfigProfile{
+		configProfileForTest(t, "N4", "I4", "d"),
+		configProfileForTest(t, "N5", "I5", "e"),
+	})
+
+	// clear profiles for tm1
+	applyAndExpect(nil, ptr.Uint(1), nil)
+}
+
+func configProfileForTest(t *testing.T, name, identifier, uuid string) *fleet.MDMAppleConfigProfile {
+	prof := fleet.Mobileconfig(fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array/>
+	<key>PayloadDisplayName</key>
+	<string>%s</string>
+	<key>PayloadIdentifier</key>
+	<string>%s</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>%s</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+</dict>
+</plist>
+`, name, identifier, uuid))
+	cp, err := prof.ParseConfigProfile()
+	require.NoError(t, err)
+	return cp
+}
+
 // checkMDMHostRelatedTables checks that rows are inserted for new MDM hosts in
 // each of host_display_names, host_seen_times, and label_membership. Note that
 // related tables records for pre-existing hosts are created outside of the MDM
@@ -507,14 +631,16 @@ func checkMDMHostRelatedTables(t *testing.T, ds *Datastore, hostID uint, expecte
 	err = sqlx.GetContext(context.Background(), ds.reader, &hmdm, `SELECT host_id, server_url, mdm_id FROM host_mdm WHERE host_id = ?`, hostID)
 	require.NoError(t, err)
 	require.Equal(t, hostID, hmdm.HostID)
-	require.Equal(t, appCfg.ServerSettings.ServerURL, hmdm.ServerURL)
+	serverURL, err := apple_mdm.ResolveAppleMDMURL(appCfg.ServerSettings.ServerURL)
+	require.NoError(t, err)
+	require.Equal(t, serverURL, hmdm.ServerURL)
 	require.NotEmpty(t, hmdm.MDMID)
 
 	var mdmSolution fleet.MDMSolution
 	err = sqlx.GetContext(context.Background(), ds.reader, &mdmSolution, `SELECT name, server_url FROM mobile_device_management_solutions WHERE id = ?`, hmdm.MDMID)
 	require.NoError(t, err)
 	require.Equal(t, fleet.WellKnownMDMFleet, mdmSolution.Name)
-	require.Equal(t, appCfg.ServerSettings.ServerURL, mdmSolution.ServerURL)
+	require.Equal(t, serverURL, mdmSolution.ServerURL)
 }
 
 // createBuiltinLabels creates entries for "All Hosts" and "macOS" labels, which are assumed to be

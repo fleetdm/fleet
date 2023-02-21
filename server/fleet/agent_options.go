@@ -500,6 +500,7 @@ type OsqueryCommandLineFlagsHidden struct {
 	MinLogLevel           int32  `json:"minloglevel"`
 	StopLoggingIfFullDisk bool   `json:"stop_logging_if_full_disk"`
 	AllowUnsafe           bool   `json:"allow_unsafe"`
+	TLSDump               bool   `json:"tls_dump"`
 }
 
 // while ValidateJSONAgentOptions validates an entire Agent Options payload,
