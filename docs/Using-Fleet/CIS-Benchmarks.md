@@ -6,7 +6,7 @@ For more information about CIS Benchmarks check out [Center for Internet Securit
 Fleet implements CIS Benchmarks using [Policies](./REST-API.md#policies). Each specific CIS benchmark check is implemented with a policy query in Fleet.
 <img src=https://user-images.githubusercontent.com/2073526/220428249-7a1b6433-24fe-4686-8dfb-b555c199f47d.png />
 
-All CIS Benchmarks implemented by Fleet are restricted to a Fleet Premium license.
+All CIS Benchmarks implemented by Fleet are limited to a Fleet Premium or Fleet Ultimate license.
 
 The Center for Internet Security website offers documentation for all CIS Benchmarks in PDF format. Such PDFs document all the checks, their description, rationale and how to remediate them.
 
