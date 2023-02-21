@@ -1,4 +1,3 @@
-import { IHost } from "../interfaces/host";
 import { IQuery } from "../interfaces/query";
 import { IPolicy } from "../interfaces/policy";
 import URL_PREFIX from "./url_prefix";
@@ -8,6 +7,7 @@ export default {
   CONTROLS: `${URL_PREFIX}/controls`,
   CONTROLS_MAC_OS_UPDATES: `${URL_PREFIX}/controls/mac-os-updates`,
   CONTROLS_MAC_SETTINGS: `${URL_PREFIX}/controls/mac-settings`,
+  CONTROLS_CUSTOM_SETTINGS: `${URL_PREFIX}/controls/mac-settings/custom-settings`,
   DASHBOARD: `${URL_PREFIX}/dashboard`,
   DASHBOARD_LINUX: `${URL_PREFIX}/dashboard/linux`,
   DASHBOARD_MAC: `${URL_PREFIX}/dashboard/mac`,
