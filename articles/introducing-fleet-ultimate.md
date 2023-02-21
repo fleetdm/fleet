@@ -41,4 +41,4 @@ At our core, we are an open-source company. You can join our repos and commit ju
 <meta name="authorFullName" value="Jarod Reyes">
 <meta name="publishedOn" value="2023-02-20">
 <meta name="articleTitle" value="Introducing CIS benchmarks, managed-cloud hosting and custom calculator in the new Fleet Ultimate plan.">
-<meta name="articleImageUrl" value="../website/assets/images/articles/happy-1st-anniversary-fleet-cover-800x450@2x.jpg">
+<meta name="articleImageUrl" value="../website/assets/images/articles/happy-1st-anniversary-fleet-cover-800x450@2x.png">
