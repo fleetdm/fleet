@@ -1179,25 +1179,7 @@ osquery:
 
 > Applies only to Fleet Premium. Acitivity information is available for all Fleet instances using the [Activities API](https://fleetdm.com/docs/using-fleet/rest-api#activities).
 
-Stream Fleet user activities to logs using Fleet's logging plugins.
-
-The following types of activity are included:
-
-Created pack
-Edited pack
-Deleted pack
-Applied pack with fleetctl
-Created policy
-Edited policy
-Deleted policy
-Applied policy with fleetctl
-Created saved query
-Edited saved query
-Deleted saved query
-Applied query with fleetctl
-Ran live query
-Created team
-Deleted team
+Stream Fleet user activities to logs using Fleet's logging plugins. The audit events are logged in an asynchronous fashion. It can take up to 5 minutes for an event to be logged.
 
 ##### activity_enable_audit_log
 
