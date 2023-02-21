@@ -9,7 +9,7 @@ assignees: ''
 
 > **This issue's remaining effort can be completed in ≤1 sprint.  It will be valuable even if nothing else ships.**
 > 
-> It is [planned and ready](https://fleetdm.com/handbook/company/development-groups#making-changes) to implement.
+> It is [planned and ready](https://fleetdm.com/handbook/company/development-groups#making-changes) to implement.  It is on the proper kanban board.
 
 ## Goal
 
@@ -33,14 +33,15 @@ This issue's estimation includes completing:
 - [ ] Changes to paid features or tiers? TODO  <!-- List changes to paid features or tiers required.  Implementation of paid features should live in the `ee/` directory.  Remove this checkbox if there are no changes necessary. -->
 - [ ] QA complete?
 
-> ℹ️  Please read this issue carefully.  Pay [special attention](https://fleetdm.com/handbook/company/development-groups#developing-from-wireframes) to UI wireframes, especially "dev notes".
+> ℹ️  Please read this issue carefully and understand it.  Pay [special attention](https://fleetdm.com/handbook/company/development-groups#developing-from-wireframes) to UI wireframes, especially "dev notes".
 
 <!--
 ## Context
-What else should contributors keep in mind when working on this change?  (Optional.)
+What else should contributors [keep in mind](https://fleetdm.com/handbook/company/development-groups#developing-from-wireframes) when working on this change?  (Optional.)
 1. 
 2. 
 -->
+
 
 
 
