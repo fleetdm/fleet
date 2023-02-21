@@ -69,6 +69,7 @@ type integrationMDMTestSuite struct {
 	pushProvider         *mock.APNSPushProvider
 	depStorage           nanodep_storage.AllStorage
 	depSchedule          *schedule.Schedule
+	profileSchedule      *schedule.Schedule
 }
 
 func (s *integrationMDMTestSuite) SetupSuite() {
@@ -98,6 +99,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	)
 
 	var depSchedule *schedule.Schedule
+	var profileSchedule *schedule.Schedule
 	config := TestServerOpts{
 		License: &fleet.LicenseInfo{
 			Tier: fleet.TierPremium,
@@ -123,6 +125,20 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 					return depSchedule, nil
 				}
 			},
+			func(ctx context.Context, ds fleet.Datastore) fleet.NewCronScheduleFunc {
+				return func() (fleet.CronSchedule, error) {
+					const name = string(fleet.CronMDMAppleProfileManager)
+					logger := kitlog.NewJSONLogger(os.Stdout)
+					profileSchedule := schedule.New(
+						ctx, name, s.T().Name(), 1*time.Hour, ds, ds,
+						schedule.WithLogger(logger),
+						schedule.WithJob("manage_profiles", func(ctx context.Context) error {
+							return ReconcileProfiles(ctx, ds, NewMDMAppleCommander(mdmStorage, mdmPushService), logger)
+						}),
+					)
+					return profileSchedule, nil
+				}
+			},
 		},
 	}
 	users, server := RunServerForTestsWithDS(s.T(), s.ds, &config)
@@ -134,6 +150,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	s.pushProvider = pushProvider
 	s.depStorage = depStorage
 	s.depSchedule = depSchedule
+	s.profileSchedule = profileSchedule
 
 	fleetdmSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		status := s.fleetDMNextCSRStatus.Swap(http.StatusOK)

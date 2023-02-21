@@ -27,7 +27,7 @@ const (
 
 type MDMAppleDeliveryStatus string
 
-const (
+var (
 	MDMAppleDeliveryFailed  MDMAppleDeliveryStatus = "failed"
 	MDMAppleDeliveryApplied MDMAppleDeliveryStatus = "applied"
 	MDMAppleDeliveryPending MDMAppleDeliveryStatus = "pending"
@@ -410,7 +410,7 @@ type HostMDMAppleProfile struct {
 	ProfileID     uint
 	Status        MDMAppleDeliveryStatus
 	OperationType MDMAppleOperationType
-	Error         string
+	Detail        string
 }
 
 type MDMAppleProfilePayload struct {
@@ -420,9 +420,10 @@ type MDMAppleProfilePayload struct {
 }
 
 type MDMAppleBulkUpsertHostProfilePayload struct {
-	ProfileID     uint
-	HostUUIDs     []string
-	CommandUUID   string
-	OperationType MDMAppleOperationType
-	Status        MDMAppleDeliveryStatus
+	ProfileID         uint
+	ProfileIdentifier string
+	HostUUID          string
+	CommandUUID       string
+	OperationType     MDMAppleOperationType
+	Status            *MDMAppleDeliveryStatus
 }

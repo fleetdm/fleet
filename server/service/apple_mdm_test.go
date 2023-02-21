@@ -723,7 +723,7 @@ func TestMDMCommandAndReportResultsProfileHandling(t *testing.T) {
 			errors:      nil,
 			want: &fleet.HostMDMAppleProfile{
 				Status:        fleet.MDMAppleDeliveryApplied,
-				Error:         "",
+				Detail:        "",
 				OperationType: fleet.MDMAppleOperationTypeInstall,
 			},
 		},
@@ -733,7 +733,7 @@ func TestMDMCommandAndReportResultsProfileHandling(t *testing.T) {
 			errors:      nil,
 			want: &fleet.HostMDMAppleProfile{
 				Status:        fleet.MDMAppleDeliveryApplied,
-				Error:         "",
+				Detail:        "",
 				OperationType: fleet.MDMAppleOperationTypeRemove,
 			},
 		},
@@ -745,7 +745,7 @@ func TestMDMCommandAndReportResultsProfileHandling(t *testing.T) {
 			},
 			want: &fleet.HostMDMAppleProfile{
 				Status:        fleet.MDMAppleDeliveryFailed,
-				Error:         "testDomain (123): testMessage\n",
+				Detail:        "testDomain (123): testMessage\n",
 				OperationType: fleet.MDMAppleOperationTypeInstall,
 			},
 		},
@@ -758,7 +758,7 @@ func TestMDMCommandAndReportResultsProfileHandling(t *testing.T) {
 			},
 			want: &fleet.HostMDMAppleProfile{
 				Status:        fleet.MDMAppleDeliveryFailed,
-				Error:         "testDomain (123): testMessage\ndomainTest (321): messageTest\n",
+				Detail:        "testDomain (123): testMessage\ndomainTest (321): messageTest\n",
 				OperationType: fleet.MDMAppleOperationTypeRemove,
 			},
 		},
@@ -768,14 +768,14 @@ func TestMDMCommandAndReportResultsProfileHandling(t *testing.T) {
 			errors:      nil,
 			want: &fleet.HostMDMAppleProfile{
 				Status:        fleet.MDMAppleDeliveryFailed,
-				Error:         "",
+				Detail:        "",
 				OperationType: fleet.MDMAppleOperationTypeRemove,
 			},
 		},
 	}
 
 	for _, c := range cases {
-		ds.UpdateMDMAppleHostProfileFunc = func(ctx context.Context, profile *fleet.HostMDMAppleProfile) error {
+		ds.UpdateHostMDMAppleProfileFunc = func(ctx context.Context, profile *fleet.HostMDMAppleProfile) error {
 			c.want.CommandUUID = commandUUID
 			c.want.HostUUID = hostUUID
 			require.Equal(t, c.want, profile)
@@ -1090,8 +1090,9 @@ func TestMDMAppleCommander(t *testing.T) {
 		return false, nil
 	}
 
-	uuid, err := cmdr.InstallProfile(ctx, hostUUIDs, mc)
-	require.NotEmpty(t, uuid)
+	cmdUUID := uuid.New().String()
+	err := cmdr.InstallProfile(ctx, hostUUIDs, mc, cmdUUID)
+	require.NotEmpty(t, cmdUUID)
 	require.NoError(t, err)
 	require.True(t, mdmStorage.EnqueueCommandFuncInvoked)
 	mdmStorage.EnqueueCommandFuncInvoked = false
@@ -1104,12 +1105,13 @@ func TestMDMAppleCommander(t *testing.T) {
 		require.Contains(t, string(cmd.Raw), payloadIdentifier)
 		return nil, nil
 	}
-	uuid, err = cmdr.RemoveProfile(ctx, hostUUIDs, payloadIdentifier)
+	cmdUUID = uuid.New().String()
+	err = cmdr.RemoveProfile(ctx, hostUUIDs, payloadIdentifier, cmdUUID)
 	require.True(t, mdmStorage.EnqueueCommandFuncInvoked)
 	mdmStorage.EnqueueCommandFuncInvoked = false
 	require.True(t, mdmStorage.RetrievePushInfoFuncInvoked)
 	mdmStorage.RetrievePushInfoFuncInvoked = false
-	require.NotEmpty(t, uuid)
+	require.NotEmpty(t, cmdUUID)
 	require.NoError(t, err)
 }
 
@@ -1192,27 +1194,27 @@ func TestMDMAppleReconcileProfiles(t *testing.T) {
 		return false, nil
 	}
 
-	ds.UpsertMDMAppleHostProfileStatusFunc = func(ctx context.Context, payload []fleet.MDMAppleBulkUpsertHostProfilePayload) error {
+	ds.BulkUpsertMDMAppleHostProfilesFunc = func(ctx context.Context, payload []*fleet.MDMAppleBulkUpsertHostProfilePayload) error {
 		require.ElementsMatch(t, []fleet.MDMAppleBulkUpsertHostProfilePayload{
 			{
 				ProfileID:     1,
-				HostUUIDs:     []string{hostUUID},
+				HostUUID:      hostUUID,
 				OperationType: fleet.MDMAppleOperationTypeInstall,
-				Status:        fleet.MDMAppleDeliveryPending,
+				Status:        &fleet.MDMAppleDeliveryPending,
 				CommandUUID:   commandUUIDs[0],
 			},
 			{
 				ProfileID:     2,
-				HostUUIDs:     []string{hostUUID},
+				HostUUID:      hostUUID,
 				OperationType: fleet.MDMAppleOperationTypeInstall,
-				Status:        fleet.MDMAppleDeliveryPending,
+				Status:        &fleet.MDMAppleDeliveryPending,
 				CommandUUID:   commandUUIDs[1],
 			},
 			{
 				ProfileID:     3,
-				HostUUIDs:     []string{hostUUID},
+				HostUUID:      hostUUID,
 				OperationType: fleet.MDMAppleOperationTypeRemove,
-				Status:        fleet.MDMAppleDeliveryPending,
+				Status:        &fleet.MDMAppleDeliveryPending,
 				CommandUUID:   commandUUIDs[2],
 			},
 		}, payload)
@@ -1229,7 +1231,7 @@ func TestMDMAppleReconcileProfiles(t *testing.T) {
 	require.True(t, ds.GetMDMAppleProfilesContentsFuncInvoked)
 	require.Equal(t, 1, removeProfileCalls)
 	require.Equal(t, 2, installProfileCalls)
-	require.True(t, ds.UpsertMDMAppleHostProfileStatusFuncInvoked)
+	require.True(t, ds.BulkUpsertMDMAppleHostProfilesFuncInvoked)
 
 }
 

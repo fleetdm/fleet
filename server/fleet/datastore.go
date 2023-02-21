@@ -787,17 +787,20 @@ type Datastore interface {
 	// registered in `host_mdm_apple_profiles`
 	ListMDMAppleProfilesToRemove(ctx context.Context) ([]*MDMAppleProfilePayload, error)
 
-	// UpsertMDMAppleHostProfileStatus bulk-adds/updates records to track the
+	// BulkUpsertMDMAppleHostProfiles bulk-adds/updates records to track the
 	// status of a profile in a host.
-	UpsertMDMAppleHostProfileStatus(ctx context.Context, payload []MDMAppleBulkUpsertHostProfilePayload) error
+	BulkUpsertMDMAppleHostProfiles(ctx context.Context, payload []*MDMAppleBulkUpsertHostProfilePayload) error
 
 	// GetMDMAppleProfilesContents retrieves the XML contents of the
 	// profiles requested.
 	GetMDMAppleProfilesContents(ctx context.Context, profileIDs []uint) (map[uint]Mobileconfig, error)
 
-	// UpdateMDMAppleHostProfile updates information about a single profile
+	// UpdateHostMDMAppleProfile updates information about a single profile
 	// status.
-	UpdateMDMAppleHostProfile(ctx context.Context, profile *HostMDMAppleProfile) error
+	UpdateHostMDMAppleProfile(ctx context.Context, profile *HostMDMAppleProfile) error
+
+	// GetMDMAppleCommandRequest type returns the request type for the given command
+	GetMDMAppleCommandRequestType(ctx context.Context, commandUUID string) (string, error)
 }
 
 const (

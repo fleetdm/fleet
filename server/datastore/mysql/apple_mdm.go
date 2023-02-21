@@ -217,6 +217,12 @@ WHERE
 	return &enrollment, nil
 }
 
+func (ds *Datastore) GetMDMAppleCommandRequestType(ctx context.Context, commandUUID string) (string, error) {
+	var rt string
+	err := sqlx.GetContext(ctx, ds.reader, &rt, `SELECT request_type FROM nano_commands WHERE command_uuid = ?`, commandUUID)
+	return rt, err
+}
+
 func (ds *Datastore) GetMDMAppleCommandResults(ctx context.Context, commandUUID string) (map[string]*fleet.MDMAppleCommandResult, error) {
 	query := `
 SELECT
@@ -877,20 +883,32 @@ VALUES
 }
 
 func (ds *Datastore) ListMDMAppleProfilesToInstall(ctx context.Context) ([]*fleet.MDMAppleProfilePayload, error) {
+	// The query below is a set difference between:
+	//
+	// - Set A (ds), the desired state, can be obtained from a JOIN between
+	// mdm_apple_configuration_profiles and hosts.
+	// - Set B, the current state given by host_mdm_apple_profiles.
+	//
+	// A - B gives us the profiles that need to be installed.
 	query := `
-          SELECT macp.profile_id, h.uuid as host_uuid
-          FROM mdm_apple_configuration_profiles macp
-          LEFT JOIN hosts h
-              ON h.team_id = macp.team_id OR (h.team_id IS NULL AND macp.team_id = 0)
+          SELECT ds.profile_id, ds.host_uuid, ds.profile_identifier
+          FROM (
+            SELECT
+              macp.profile_id,
+              h.uuid as host_uuid,
+              macp.identifier as profile_identifier
+            FROM mdm_apple_configuration_profiles macp
+            LEFT JOIN hosts h ON h.team_id = macp.team_id OR (h.team_id IS NULL AND macp.team_id = 0)
+          ) as ds
           LEFT JOIN host_mdm_apple_profiles hmap
-              ON hmap.profile_id = macp.profile_id AND hmap.host_uuid = h.uuid
+            ON hmap.profile_id = ds.profile_id AND hmap.host_uuid = ds.host_uuid
           WHERE
-	    hmap.profile_id IS NULL
-	    AND hmap.host_uuid IS NULL
-	    AND hmap.status != 'pending' OR hmap.status IS NULL
-	    AND hmap.operation_type != 'install' OR hmap.operation_type IS NULL
-	    -- accounts for the edge case of having profiles but not having hosts 
-	    AND h.uuid IS NOT NULL
+          hmap.profile_id IS NULL
+          AND hmap.host_uuid IS NULL
+          AND hmap.status != 'pending' OR hmap.status IS NULL
+          AND hmap.operation_type != 'install' OR hmap.operation_type IS NULL
+          -- accounts for the edge case of having profiles but not having hosts 
+          AND ds.host_uuid IS NOT NULL
 	`
 
 	var profiles []*fleet.MDMAppleProfilePayload
@@ -899,18 +917,27 @@ func (ds *Datastore) ListMDMAppleProfilesToInstall(ctx context.Context) ([]*flee
 }
 
 func (ds *Datastore) ListMDMAppleProfilesToRemove(ctx context.Context) ([]*fleet.MDMAppleProfilePayload, error) {
+	// The query below is a set difference between:
+	//
+	// - Set A (ds), the desired state, can be obtained from a JOIN between
+	// mdm_apple_configuration_profiles and hosts.
+	// - Set B, the current state given by host_mdm_apple_profiles.
+	//
+	// B - A gives us the profiles that need to be removed.
 	query := `
-          SELECT hmap.profile_id, hmap.host_uuid, macp.identifier as profile_identifier
-          FROM mdm_apple_configuration_profiles macp
-          LEFT JOIN hosts h
-              ON h.team_id = macp.team_id OR (h.team_id IS NULL AND macp.team_id = 0)
+          SELECT hmap.profile_id, hmap.profile_identifier, hmap.host_uuid
+          FROM (
+            SELECT h.uuid, macp.profile_id
+            FROM mdm_apple_configuration_profiles macp 
+            JOIN hosts h ON h.team_id = macp.team_id OR (h.team_id IS NULL AND macp.team_id = 0)
+          ) as ds
           RIGHT JOIN host_mdm_apple_profiles hmap
-              ON hmap.profile_id = macp.profile_id AND hmap.host_uuid = h.uuid
-          WHERE
-	      macp.profile_id IS NULL
-	      AND h.uuid IS NULL
-	      AND hmap.status != 'pending' OR hmap.status IS NULL
-	      AND hmap.operation_type != 'remove'
+            ON hmap.profile_id = ds.profile_id AND hmap.host_uuid = ds.uuid
+          WHERE ds.profile_id IS NULL AND ds.uuid IS NULL
+	  -- 'applied' and 'pending' shouldn't be removed, as for 'failed' we
+	  -- decided to not do retries for the MVP.
+          AND hmap.status IN ('pending', 'applied')
+          AND hmap.operation_type != 'remove'
 	`
 
 	var profiles []*fleet.MDMAppleProfilePayload
@@ -919,6 +946,10 @@ func (ds *Datastore) ListMDMAppleProfilesToRemove(ctx context.Context) ([]*fleet
 }
 
 func (ds *Datastore) GetMDMAppleProfilesContents(ctx context.Context, ids []uint) (map[uint]fleet.Mobileconfig, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+
 	stmt := `
           SELECT profile_id, mobileconfig as mobileconfig
           FROM mdm_apple_configuration_profiles WHERE profile_id IN (?)
@@ -927,7 +958,7 @@ func (ds *Datastore) GetMDMAppleProfilesContents(ctx context.Context, ids []uint
 	if err != nil {
 		return nil, err
 	}
-	rows, err := ds.reader.QueryxContext(ctx, query, args)
+	rows, err := ds.reader.QueryxContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -944,21 +975,33 @@ func (ds *Datastore) GetMDMAppleProfilesContents(ctx context.Context, ids []uint
 	return results, nil
 }
 
-func (ds *Datastore) UpsertMDMAppleHostProfileStatus(ctx context.Context, payload []fleet.MDMAppleBulkUpsertHostProfilePayload) error {
+func (ds *Datastore) BulkUpsertMDMAppleHostProfiles(ctx context.Context, payload []*fleet.MDMAppleBulkUpsertHostProfilePayload) error {
+	if len(payload) == 0 {
+		return nil
+	}
+
 	var args []any
 	var sb strings.Builder
 
 	for _, p := range payload {
-		for _, uuid := range p.HostUUIDs {
-			args = append(args, p.ProfileID, uuid, p.Status, p.OperationType)
-			sb.WriteString("(?, ?, ?, ?),")
-		}
+		args = append(args, p.ProfileID, p.ProfileIdentifier, p.HostUUID, p.Status, p.OperationType, p.CommandUUID)
+		sb.WriteString("(?, ?, ?, ?, ?, ?),")
 	}
 
 	stmt := fmt.Sprintf(`
-	    INSERT INTO host_mdm_apple_profiles (profile_id, host_uuid, status, operation_type)
+	    INSERT INTO host_mdm_apple_profiles (
+              profile_id,
+              profile_identifier,
+              host_uuid,
+              status,
+              operation_type,
+              command_uuid
+            )
             VALUES %s
-	    ON DUPLICATE KEY UPDATE status = VALUES(status), operation_type = VALUES(operation_type)`,
+	    ON DUPLICATE KEY UPDATE
+              status = VALUES(status),
+              operation_type = VALUES(operation_type),
+              command_uuid = VALUES(command_uuid)`,
 		strings.TrimSuffix(sb.String(), ","),
 	)
 
@@ -966,11 +1009,11 @@ func (ds *Datastore) UpsertMDMAppleHostProfileStatus(ctx context.Context, payloa
 	return err
 }
 
-func (ds *Datastore) UpdateMDMAppleHostProfile(ctx context.Context, profile *fleet.HostMDMAppleProfile) error {
+func (ds *Datastore) UpdateHostMDMAppleProfile(ctx context.Context, profile *fleet.HostMDMAppleProfile) error {
 	_, err := ds.writer.ExecContext(ctx, `
           UPDATE host_mdm_apple_profiles
           SET status = ?, operation_type = ?, error = ?
           WHERE host_uuid = ? AND command_uuid = ?
-        `, profile.Status, profile.OperationType, profile.Error, profile.HostUUID, profile.CommandUUID)
+        `, profile.Status, profile.OperationType, profile.Detail, profile.HostUUID, profile.CommandUUID)
 	return err
 }

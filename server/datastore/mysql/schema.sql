@@ -242,17 +242,17 @@ CREATE TABLE `host_mdm` (
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `host_mdm_apple_profiles` (
   `profile_id` int(10) unsigned NOT NULL,
+  `profile_identifier` varchar(255) NOT NULL,
   `host_uuid` varchar(255) NOT NULL,
   `status` varchar(20) DEFAULT NULL,
   `operation_type` varchar(20) DEFAULT NULL,
-  `error` text,
+  `detail` text,
+  `command_uuid` varchar(127) NOT NULL,
   PRIMARY KEY (`host_uuid`,`profile_id`),
-  KEY `profile_id` (`profile_id`),
   KEY `status` (`status`),
   KEY `operation_type` (`operation_type`),
-  CONSTRAINT `host_mdm_apple_profiles_ibfk_1` FOREIGN KEY (`profile_id`) REFERENCES `mdm_apple_configuration_profiles` (`profile_id`) ON UPDATE CASCADE,
-  CONSTRAINT `host_mdm_apple_profiles_ibfk_2` FOREIGN KEY (`status`) REFERENCES `mdm_apple_delivery_status` (`status`) ON UPDATE CASCADE,
-  CONSTRAINT `host_mdm_apple_profiles_ibfk_3` FOREIGN KEY (`operation_type`) REFERENCES `mdm_apple_operation_type` (`operation_type`) ON UPDATE CASCADE
+  CONSTRAINT `host_mdm_apple_profiles_ibfk_1` FOREIGN KEY (`status`) REFERENCES `mdm_apple_delivery_status` (`status`) ON UPDATE CASCADE,
+  CONSTRAINT `host_mdm_apple_profiles_ibfk_2` FOREIGN KEY (`operation_type`) REFERENCES `mdm_apple_operation_types` (`operation_type`) ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
@@ -522,12 +522,12 @@ CREATE TABLE `mdm_apple_installers` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `mdm_apple_operation_type` (
+CREATE TABLE `mdm_apple_operation_types` (
   `operation_type` varchar(20) NOT NULL,
   PRIMARY KEY (`operation_type`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 /*!40101 SET character_set_client = @saved_cs_client */;
-INSERT INTO `mdm_apple_operation_type` VALUES ('install'),('remove');
+INSERT INTO `mdm_apple_operation_types` VALUES ('install'),('remove');
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `migration_status_tables` (

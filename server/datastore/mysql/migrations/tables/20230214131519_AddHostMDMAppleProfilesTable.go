@@ -43,18 +43,17 @@ func Up_20230214131519(tx *sql.Tx) error {
 
 	_, err = tx.Exec(`
           CREATE TABLE host_mdm_apple_profiles (
-            profile_id       int(10) UNSIGNED NOT NULL,
-            host_uuid        varchar(255) NOT NULL,
-	    status           varchar(20) DEFAULT NULL,
-	    operation_type   varchar(20) DEFAULT NULL,
-	    error            text,
-            command_uuid     varchar(127) NOT NULL,
+            profile_id          int(10) UNSIGNED NOT NULL,
+            profile_identifier  varchar(255) NOT NULL,
+            host_uuid           varchar(255) NOT NULL,
+	    status              varchar(20) DEFAULT NULL,
+	    operation_type      varchar(20) DEFAULT NULL,
+	    detail              text,
+            command_uuid        varchar(127) NOT NULL,
 
 	    PRIMARY KEY (host_uuid, profile_id),
-            FOREIGN KEY (profile_id) REFERENCES mdm_apple_configuration_profiles (profile_id) ON UPDATE CASCADE,
 	    FOREIGN KEY (status) REFERENCES mdm_apple_delivery_status (status) ON UPDATE CASCADE,
-	    FOREIGN KEY (operation_type) REFERENCES mdm_apple_operation_types (operation_type) ON UPDATE CASCADE,
-            FOREIGN KEY (command_uuid) REFERENCES nano_commands (command_uuid) ON UPDATE CASCADE
+	    FOREIGN KEY (operation_type) REFERENCES mdm_apple_operation_types (operation_type) ON UPDATE CASCADE
           )`)
 	return err
 }

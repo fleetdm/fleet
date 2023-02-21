@@ -1151,7 +1151,8 @@ func (svc *Service) EnqueueMDMAppleCommandRemoveEnrollmentProfile(ctx context.Co
 		return fleet.NewUserMessageError(ctxerr.New(ctx, fmt.Sprintf("mdm is not enabled for host %d", hostID)), http.StatusConflict)
 	}
 
-	cmdUUID, err := svc.mdmAppleCommander.RemoveProfile(ctx, []string{h.UUID}, apple_mdm.FleetPayloadIdentifier)
+	cmdUUID := uuid.New().String()
+	err = svc.mdmAppleCommander.RemoveProfile(ctx, []string{h.UUID}, apple_mdm.FleetPayloadIdentifier, cmdUUID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "enqueuing mdm apple remove profile command")
 	}
@@ -1561,21 +1562,35 @@ func (svc *MDMAppleCheckinAndCommandService) DeclarativeManagement(*mdm.Request,
 //
 // [1]: https://developer.apple.com/documentation/devicemanagement/commands_and_queries
 func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Request, res *mdm.CommandResults) (*mdm.Command, error) {
-	switch res.RequestType {
+	// Sometimes we get results like "Idle" which don't contain a command
+	// UUID and are not actionable anyways.
+	if res.CommandUUID == "" {
+		return nil, nil
+	}
+
+	// We explicitly get the request type because it comes empty. There's a
+	// RequestType field in the struct, but it's used when a mdm.Command is
+	// issued.
+	requestType, err := svc.ds.GetMDMAppleCommandRequestType(r.Context, res.CommandUUID)
+	if err != nil {
+		return nil, ctxerr.Wrap(r.Context, err, "command service")
+	}
+
+	switch requestType {
 	case "InstallProfile":
-		return nil, svc.ds.UpdateMDMAppleHostProfile(r.Context, &fleet.HostMDMAppleProfile{
+		return nil, svc.ds.UpdateHostMDMAppleProfile(r.Context, &fleet.HostMDMAppleProfile{
 			CommandUUID:   res.CommandUUID,
 			HostUUID:      res.UDID,
 			Status:        fleet.MDMAppleDeliveryStatusFromCommandStatus(res.Status),
-			Error:         svc.fmtErrorChain(res.ErrorChain),
+			Detail:        svc.fmtErrorChain(res.ErrorChain),
 			OperationType: fleet.MDMAppleOperationTypeInstall,
 		})
 	case "RemoveProfile":
-		return nil, svc.ds.UpdateMDMAppleHostProfile(r.Context, &fleet.HostMDMAppleProfile{
+		return nil, svc.ds.UpdateHostMDMAppleProfile(r.Context, &fleet.HostMDMAppleProfile{
 			CommandUUID:   res.CommandUUID,
 			HostUUID:      res.UDID,
 			Status:        fleet.MDMAppleDeliveryStatusFromCommandStatus(res.Status),
-			Error:         svc.fmtErrorChain(res.ErrorChain),
+			Detail:        svc.fmtErrorChain(res.ErrorChain),
 			OperationType: fleet.MDMAppleOperationTypeRemove,
 		})
 	}
@@ -1585,7 +1600,11 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 func (svc *MDMAppleCheckinAndCommandService) fmtErrorChain(chain []mdm.ErrorChain) string {
 	var sb strings.Builder
 	for _, mdmErr := range chain {
-		sb.WriteString(fmt.Sprintf("%s (%d): %s\n", mdmErr.ErrorDomain, mdmErr.ErrorCode, mdmErr.USEnglishDescription))
+		desc := mdmErr.USEnglishDescription
+		if desc == "" {
+			desc = mdmErr.LocalizedDescription
+		}
+		sb.WriteString(fmt.Sprintf("%s (%d): %s\n", mdmErr.ErrorDomain, mdmErr.ErrorCode, desc))
 	}
 	return sb.String()
 }
@@ -1611,9 +1630,8 @@ func NewMDMAppleCommander(mdmStorage nanomdm_storage.AllStorage, mdmPushService 
 
 // InstallProfile sends the homonymous MDM command to the given hosts, it also
 // takes care of the base64 encoding of the provided profile bytes.
-func (svc *MDMAppleCommander) InstallProfile(ctx context.Context, hostUUIDs []string, profile fleet.Mobileconfig) (string, error) {
+func (svc *MDMAppleCommander) InstallProfile(ctx context.Context, hostUUIDs []string, profile fleet.Mobileconfig, uuid string) error {
 	base64Profile := base64.StdEncoding.EncodeToString(profile)
-	uuid := uuid.New().String()
 	raw := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -1625,17 +1643,16 @@ func (svc *MDMAppleCommander) InstallProfile(ctx context.Context, hostUUIDs []st
 		<key>RequestType</key>
 		<string>InstallProfile</string>
 		<key>Payload</key>
-		<string>%s</string>
+		<data>%s</data>
 	</dict>
 </dict>
 </plist>`, uuid, base64Profile)
 	err := svc.enqueue(ctx, hostUUIDs, raw)
-	return uuid, ctxerr.Wrap(ctx, err, "commander install profile")
+	return ctxerr.Wrap(ctx, err, "commander install profile")
 }
 
 // InstallProfile sends the homonymous MDM command to the given hosts.
-func (svc *MDMAppleCommander) RemoveProfile(ctx context.Context, hostUUIDs []string, profileIdentifier string) (string, error) {
-	uuid := uuid.New().String()
+func (svc *MDMAppleCommander) RemoveProfile(ctx context.Context, hostUUIDs []string, profileIdentifier string, uuid string) error {
 	raw := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -1652,7 +1669,7 @@ func (svc *MDMAppleCommander) RemoveProfile(ctx context.Context, hostUUIDs []str
 </dict>
 </plist>`, uuid, profileIdentifier)
 	err := svc.enqueue(ctx, hostUUIDs, raw)
-	return uuid, ctxerr.Wrap(ctx, err, "commander remove profile")
+	return ctxerr.Wrap(ctx, err, "commander remove profile")
 }
 
 // enqueue takes care of enqueuing the commands and sending push notifications
@@ -1708,6 +1725,13 @@ func (e *APNSDeliveryError) Unwrap() error { return e.Err }
 
 func (e *APNSDeliveryError) StatusCode() int { return http.StatusBadGateway }
 
+// remoteResult is used to capture the results of delivering a payload to a
+// group of hosts.
+type remoteResult struct {
+	Err     error
+	Payload *fleet.MDMAppleBulkUpsertHostProfilePayload
+}
+
 func ReconcileProfiles(
 	ctx context.Context,
 	ds fleet.Datastore,
@@ -1717,82 +1741,127 @@ func ReconcileProfiles(
 	// retrieve the profiles to install/remove.
 	toInstall, err := ds.ListMDMAppleProfilesToInstall(ctx)
 	if err != nil {
-		return err
+		return ctxerr.Wrap(ctx, err, "getting profiles to install")
 	}
-
 	toRemove, err := ds.ListMDMAppleProfilesToRemove(ctx)
 	if err != nil {
-		return err
+		return ctxerr.Wrap(ctx, err, "getting profiles to remove")
 	}
 
-	// Aggregate all the hosts that need to install/remove
-	// profiles by operation type and profile.
-	//
-	// I considered doing this aggregation at the SQL layer
-	// instead (build a list of host uuids for each
-	// profile) but we're limited to use MySQL's CONCAT.
+	// Perform aggregations to support all the operations we need to do
+
+	/// toGetContents contains the IDs of all the profiles from which we
+	// need to retrieve contents. Since the previous query returns one row
+	// per host, it would be too expensive to retrieve the profile contents
+	// there, so we make another request.
 	toGetContents := []uint{}
-	installMap := map[*fleet.MDMAppleProfilePayload][]string{}
-	for _, profile := range toInstall {
-		toGetContents = append(toGetContents, profile.ProfileID)
-		installMap[profile] = append(installMap[profile], profile.HostUUID)
-	}
-	removeMap := map[*fleet.MDMAppleProfilePayload][]string{}
-	for _, profile := range toRemove {
-		removeMap[profile] = append(removeMap[profile], profile.HostUUID)
+
+	// hostProfiles tracks each host_mdm_apple_profile we need to upsert
+	// with the new status, operation_type, etc.
+	hostProfiles := []*fleet.MDMAppleBulkUpsertHostProfilePayload{}
+
+	// targets is a map from profileID -> targetHosts as the underlying MDM
+	// services are optimized to send one command to multiple hosts at the
+	// same time.
+	targets := map[uint][]string{}
+	for _, p := range toInstall {
+		toGetContents = append(toGetContents, p.ProfileID)
+		targets[p.ProfileID] = append(targets[p.ProfileID], p.HostUUID)
+		hostProfiles = append(
+			hostProfiles,
+			&fleet.MDMAppleBulkUpsertHostProfilePayload{
+				ProfileID:         p.ProfileID,
+				HostUUID:          p.HostUUID,
+				OperationType:     fleet.MDMAppleOperationTypeInstall,
+				Status:            &fleet.MDMAppleDeliveryPending,
+				CommandUUID:       uuid.New().String(),
+				ProfileIdentifier: p.ProfileIdentifier,
+			},
+		)
 	}
 
-	// grab the contents of all the profiles we need to install
+	for _, p := range toRemove {
+		targets[p.ProfileID] = append(targets[p.ProfileID], p.HostUUID)
+		hostProfiles = append(
+			hostProfiles,
+			&fleet.MDMAppleBulkUpsertHostProfilePayload{
+				ProfileID:         p.ProfileID,
+				HostUUID:          p.HostUUID,
+				OperationType:     fleet.MDMAppleOperationTypeRemove,
+				Status:            &fleet.MDMAppleDeliveryPending,
+				CommandUUID:       uuid.New().String(),
+				ProfileIdentifier: p.ProfileIdentifier,
+			},
+		)
+	}
+
+	// First update all the profiles in the database before sending the
+	// commands, this prevents race conditions where we could get a
+	// response from the device before we set its status as 'pending'
+	//
+	// We'll do another pass at the end to revert any changes for failed
+	// delivieries.
+	err = ds.BulkUpsertMDMAppleHostProfiles(ctx, hostProfiles)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "updating host profiles")
+	}
+
+	// Grab the contents of all the profiles we need to install
 	profileContents, err := ds.GetMDMAppleProfilesContents(ctx, toGetContents)
 	if err != nil {
-		return err
+		return ctxerr.Wrap(ctx, err, "get profile contents")
 	}
 
-	sentProfiles := []fleet.MDMAppleBulkUpsertHostProfilePayload{}
-	for p, hosts := range installMap {
-		commandUUID, err := commander.InstallProfile(ctx, hosts, profileContents[p.ProfileID])
-		if err != nil {
-			var e *APNSDeliveryError
-			if !errors.As(err, &e) {
-				level.Error(logger).Log("err", "installing profiles on devices", "details", err)
-				continue
+	// Send the install/remove commands for each profile.
+	ch := make(chan remoteResult)
+	defer close(ch)
+	for _, p := range hostProfiles {
+		go func(pp *fleet.MDMAppleBulkUpsertHostProfilePayload) {
+			var err error
+			switch pp.OperationType {
+			case fleet.MDMAppleOperationTypeInstall:
+				err = commander.InstallProfile(ctx, targets[pp.ProfileID], profileContents[pp.ProfileID], pp.CommandUUID)
+			case fleet.MDMAppleOperationTypeRemove:
+				err = commander.RemoveProfile(ctx, targets[pp.ProfileID], pp.ProfileIdentifier, pp.CommandUUID)
 			}
-			level.Debug(logger).Log("err", "sending push notifications, profiles still enqueued to be installed", "details", err)
 
-		}
-		sentProfiles = append(
-			sentProfiles,
-			fleet.MDMAppleBulkUpsertHostProfilePayload{
-				ProfileID:     p.ProfileID,
-				HostUUIDs:     hosts,
-				OperationType: fleet.MDMAppleOperationTypeInstall,
-				Status:        fleet.MDMAppleDeliveryPending,
-				CommandUUID:   commandUUID,
-			},
-		)
-	}
-
-	for p, hosts := range removeMap {
-		commandUUID, err := commander.RemoveProfile(ctx, hosts, p.ProfileIdentifier)
-		if err != nil {
 			var e *APNSDeliveryError
-			if !errors.As(err, &e) {
+			switch {
+			case errors.As(err, &e):
+				level.Debug(logger).Log("err", "sending push notifications, profiles still enqueued", "details", err)
+			case err != nil:
 				level.Error(logger).Log("err", "removing profiles from devices", "details", err)
-				continue
+				ch <- remoteResult{err, pp}
 			}
-			level.Debug(logger).Log("err", "sending push notifications, profiles still enqueued to be removed", "details", err)
-		}
-		sentProfiles = append(
-			sentProfiles,
-			fleet.MDMAppleBulkUpsertHostProfilePayload{
-				ProfileID:     p.ProfileID,
-				HostUUIDs:     hosts,
-				OperationType: fleet.MDMAppleOperationTypeRemove,
-				Status:        fleet.MDMAppleDeliveryPending,
-				CommandUUID:   commandUUID,
-			},
-		)
+
+			ch <- remoteResult{nil, pp}
+		}(p)
 	}
 
-	return ds.UpsertMDMAppleHostProfileStatus(ctx, sentProfiles)
+	// Grab all the failed deliveries and update the status so they're
+	// picked up again in the next run.
+	//
+	// Note that if the APNs push failed we won't try again, as the command
+	// was successfully enqueued, this is only to account for internal
+	// errors like DB failures.
+	failed := []*fleet.MDMAppleBulkUpsertHostProfilePayload{}
+	for i := 0; i < len(hostProfiles); i++ {
+		resp := <-ch
+		if resp.Err != nil {
+			resp.Payload.CommandUUID = ""
+			resp.Payload.Status = nil
+			for _, hostUUID := range targets[resp.Payload.ProfileID] {
+				newPayload := *resp.Payload
+				newPayload.HostUUID = hostUUID
+				failed = append(failed, &newPayload)
+			}
+		}
+
+	}
+	err = ds.BulkUpsertMDMAppleHostProfiles(ctx, failed)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "reverting status of failed profiles")
+	}
+
+	return nil
 }
