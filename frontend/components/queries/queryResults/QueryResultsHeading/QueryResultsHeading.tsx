@@ -117,13 +117,15 @@ const QuertResultsHeading = ({
             />
           )}
         </div>
-        <div className={`${baseClass}__tooltip`}>
-          <TooltipWrapper
-            tipContent={`The hosts’ distributed interval can <br/>impact live query response times.`}
-          >
-            Taking longer than 15 seconds?
-          </TooltipWrapper>
-        </div>
+        {!isQueryFinished && (
+          <div className={`${baseClass}__tooltip`}>
+            <TooltipWrapper
+              tipContent={`The hosts’ distributed interval can <br/>impact live query response times.`}
+            >
+              Taking longer than 15 seconds?
+            </TooltipWrapper>
+          </div>
+        )}
       </div>
       {isQueryFinished ? (
         <FinishedButtons
