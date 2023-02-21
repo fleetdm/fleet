@@ -775,6 +775,11 @@ func TestMDMCommandAndReportResultsProfileHandling(t *testing.T) {
 	}
 
 	for _, c := range cases {
+		ds.GetMDMAppleCommandRequestTypeFunc = func(ctx context.Context, targetCmd string) (string, error) {
+			require.Equal(t, commandUUID, targetCmd)
+			return c.requestType, nil
+		}
+
 		ds.UpdateHostMDMAppleProfileFunc = func(ctx context.Context, profile *fleet.HostMDMAppleProfile) error {
 			c.want.CommandUUID = commandUUID
 			c.want.HostUUID = hostUUID
@@ -793,6 +798,8 @@ func TestMDMCommandAndReportResultsProfileHandling(t *testing.T) {
 			},
 		)
 		require.NoError(t, err)
+		require.True(t, ds.GetMDMAppleCommandRequestTypeFuncInvoked)
+		require.True(t, ds.UpdateHostMDMAppleProfileFuncInvoked)
 	}
 
 }

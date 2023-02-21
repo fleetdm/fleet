@@ -34,8 +34,10 @@ func TestUp_20230214131519(t *testing.T) {
 	require.NoError(t, err)
 
 	insertStmt := `
-          INSERT INTO host_mdm_apple_profiles (profile_id, profile_identifier, host_uuid, command_uuid, status, operation_type, error)
-          VALUES (?, 'com.foo.bar", ?, 'command-uuid', ?, ?, ?)
+          INSERT INTO host_mdm_apple_profiles
+            (profile_id, profile_identifier, host_uuid, command_uuid, status, operation_type, detail)
+          VALUES
+            (?, 'com.foo.bar', ?, 'command-uuid', ?, ?, ?)
         `
 	execNoErr(t, db, insertStmt, profileID, "ABC", "pending", "install", "")
 	execNoErr(t, db, insertStmt, profileID, "DEF", "failed", "remove", "error message")

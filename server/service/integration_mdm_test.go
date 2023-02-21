@@ -129,7 +129,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 				return func() (fleet.CronSchedule, error) {
 					const name = string(fleet.CronMDMAppleProfileManager)
 					logger := kitlog.NewJSONLogger(os.Stdout)
-					profileSchedule := schedule.New(
+					profileSchedule = schedule.New(
 						ctx, name, s.T().Name(), 1*time.Hour, ds, ds,
 						schedule.WithLogger(logger),
 						schedule.WithJob("manage_profiles", func(ctx context.Context) error {
@@ -252,6 +252,56 @@ func (s *integrationMDMTestSuite) TestABMExpiredToken() {
 
 	config = s.getConfig()
 	require.True(t, config.MDM.AppleBMTermsExpired)
+}
+
+func (s *integrationMDMTestSuite) TestProfileManagement() {
+	t := s.T()
+	ctx := context.Background()
+
+	// add global profiles
+	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: [][]byte{
+		mobileconfigForTest("N1", "I1"),
+		mobileconfigForTest("N2", "I2"),
+	}}, http.StatusNoContent)
+
+	// create a new team
+	tm, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "batch_set_mdm_profiles"})
+	require.NoError(t, err)
+
+	// add profiles to the team
+	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: [][]byte{
+		mobileconfigForTest("N3", "I3"),
+	}}, http.StatusNoContent, "team_id", strconv.Itoa(int(tm.ID)))
+
+	// create and enroll a host in MDM
+	host := createHostAndDeviceToken(t, s.ds, "secret-1")
+	d := newDevice(s)
+	d.serial = host.HardwareSerial
+	d.uuid = host.UUID
+	d.mdmEnroll(s)
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+	s.pushProvider.PushFunc = func(pushes []*mdm.Push) (map[string]*push.Response, error) {
+		wg.Done()
+		require.Len(t, pushes, 1)
+		require.Equal(t, pushes[0].PushMagic, "pushmagic"+d.serial)
+		res := map[string]*push.Response{
+			pushes[0].Token.String(): {
+				Id:  uuid.New().String(),
+				Err: nil,
+			},
+		}
+		return res, nil
+	}
+
+	// trigger a profile sync
+	_, err = s.profileSchedule.Trigger()
+	require.NoError(t, err)
+	wg.Wait()
+
+	res := d.getCommands()
+	fmt.Println(res)
 }
 
 func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
@@ -1140,7 +1190,17 @@ func (d *device) checkout() {
 	d.request("application/x-apple-aspen-mdm-checkin", payload)
 }
 
-func (d *device) request(reqType string, payload map[string]any) {
+func (d *device) getCommands() *http.Response {
+	payload := map[string]any{
+		"MessageType":  "Idle",
+		"Topic":        "com.apple.mgmt.External." + d.uuid,
+		"UDID":         d.uuid,
+		"EnrollmentID": "testenrollmentid-" + d.uuid,
+	}
+	return d.request("application/x-apple-aspen-mdm-checkin", payload)
+}
+
+func (d *device) request(reqType string, payload map[string]any) *http.Response {
 	body, err := plist.Marshal(payload)
 	require.NoError(d.s.T(), err)
 
@@ -1151,7 +1211,7 @@ func (d *device) request(reqType string, payload map[string]any) {
 	sig, err := signedData.Finish()
 	require.NoError(d.s.T(), err)
 
-	d.s.DoRawWithHeaders(
+	return d.s.DoRawWithHeaders(
 		"POST",
 		"/mdm/apple/mdm",
 		body,
