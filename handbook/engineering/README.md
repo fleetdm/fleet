@@ -899,7 +899,7 @@ We should collect both the email for the customer and information for the error.
 
 Escalation of issues will be done by hand for the moment.
 
-All infrastructure alarms will go to #g-customer-experience.
+All infrastructure alarms will go to #help-p1.
 
 The information needed to evaluate and potentially fix any issues is documented in the [runbook](https://github.com/fleetdm/fleet/blob/main/infrastructure/sandbox/readme.md).
 
