@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/tls"
+	"encoding/base64"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -257,6 +258,213 @@ func TestMDMAppleEnrollURL(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, tt.expectedURL, enrollURL)
 	}
+}
+
+func TestMDMAppleConfigProfileAuthz(t *testing.T) {
+	svc, ctx, ds := setupAppleMDMService(t)
+
+	testCases := []struct {
+		name             string
+		user             *fleet.User
+		shouldFailGlobal bool
+		shouldFailTeam   bool
+	}{
+		{
+			"global admin",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+			false,
+			false,
+		},
+		{
+			"global maintainer",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleMaintainer)},
+			false,
+			false,
+		},
+		{
+			"global observer",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)},
+			true,
+			true,
+		},
+		{
+			"team admin, belongs to team",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}}},
+			true,
+			false,
+		},
+		{
+			"team admin, DOES NOT belong to team",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleAdmin}}},
+			true,
+			true,
+		},
+		{
+			"team maintainer, belongs to team",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleMaintainer}}},
+			true,
+			false,
+		},
+		{
+			"team maintainer, DOES NOT belong to team",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleMaintainer}}},
+			true,
+			true,
+		},
+		{
+			"team observer, belongs to team",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver}}},
+			true,
+			true,
+		},
+		{
+			"team observer, DOES NOT belong to team",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleObserver}}},
+			true,
+			true,
+		},
+		{
+			"user no roles",
+			&fleet.User{ID: 1337},
+			true,
+			true,
+		},
+	}
+
+	ds.NewMDMAppleConfigProfileFunc = func(ctx context.Context, cp fleet.MDMAppleConfigProfile) (*fleet.MDMAppleConfigProfile, error) {
+		return &cp, nil
+	}
+	ds.ListMDMAppleConfigProfilesFunc = func(ctx context.Context, teamID *uint) ([]*fleet.MDMAppleConfigProfile, error) {
+		return nil, nil
+	}
+	ds.NewActivityFunc = func(context.Context, *fleet.User, fleet.ActivityDetails) error {
+		return nil
+	}
+	mockGetFuncWithTeamID := func(teamID uint) mock.GetMDMAppleConfigProfileFunc {
+		return func(ctx context.Context, profileID uint) (*fleet.MDMAppleConfigProfile, error) {
+			require.Equal(t, uint(42), profileID)
+			return &fleet.MDMAppleConfigProfile{TeamID: &teamID}, nil
+		}
+	}
+	mockDeleteFuncWithTeamID := func(teamID uint) mock.DeleteMDMAppleConfigProfileFunc {
+		return func(ctx context.Context, profileID uint) error {
+			require.Equal(t, uint(42), profileID)
+			return nil
+		}
+	}
+	mockTeamFuncWithUser := func(u *fleet.User) mock.TeamFunc {
+		return func(ctx context.Context, teamID uint) (*fleet.Team, error) {
+			if len(u.Teams) > 0 {
+				for _, t := range u.Teams {
+					if t.ID == teamID {
+						return &fleet.Team{ID: teamID, Users: []fleet.TeamUser{{User: *u, Role: t.Role}}}, nil
+					}
+				}
+			}
+			return &fleet.Team{}, nil
+		}
+	}
+
+	checkShouldFail := func(err error, shouldFail bool) {
+		if !shouldFail {
+			require.NoError(t, err)
+		} else {
+			require.Error(t, err)
+			require.Contains(t, err.Error(), authz.ForbiddenErrorMessage)
+		}
+	}
+
+	mcBytes := mcBytesForTest("Foo", "Bar", "UUID")
+
+	for _, tt := range testCases {
+		ctx := viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
+		ds.TeamFunc = mockTeamFuncWithUser(tt.user)
+
+		t.Run(tt.name, func(t *testing.T) {
+			// test authz create new profile (no team)
+			_, err := svc.NewMDMAppleConfigProfile(ctx, 0, bytes.NewReader(mcBytes), int64(len(mcBytes)))
+			checkShouldFail(err, tt.shouldFailGlobal)
+
+			// test authz create new profile (team 1)
+			_, err = svc.NewMDMAppleConfigProfile(ctx, 1, bytes.NewReader(mcBytes), int64(len(mcBytes)))
+			checkShouldFail(err, tt.shouldFailTeam)
+
+			// test authz list profiles (no team)
+			_, err = svc.ListMDMAppleConfigProfiles(ctx, 0)
+			checkShouldFail(err, tt.shouldFailGlobal)
+
+			// test authz list profiles (team 1)
+			_, err = svc.ListMDMAppleConfigProfiles(ctx, 1)
+			checkShouldFail(err, tt.shouldFailTeam)
+
+			// test authz get config profile (no team)
+			ds.GetMDMAppleConfigProfileFunc = mockGetFuncWithTeamID(0)
+			_, err = svc.GetMDMAppleConfigProfile(ctx, 42)
+			checkShouldFail(err, tt.shouldFailGlobal)
+
+			// test authz delete config profile (no team)
+			ds.DeleteMDMAppleConfigProfileFunc = mockDeleteFuncWithTeamID(0)
+			err = svc.DeleteMDMAppleConfigProfile(ctx, 42)
+			checkShouldFail(err, tt.shouldFailGlobal)
+
+			// test authz get config profile (team 1)
+			ds.GetMDMAppleConfigProfileFunc = mockGetFuncWithTeamID(1)
+			_, err = svc.GetMDMAppleConfigProfile(ctx, 42)
+			checkShouldFail(err, tt.shouldFailTeam)
+
+			// test authz delete config profile (team 1)
+			ds.DeleteMDMAppleConfigProfileFunc = mockDeleteFuncWithTeamID(1)
+			err = svc.DeleteMDMAppleConfigProfile(ctx, 42)
+			checkShouldFail(err, tt.shouldFailTeam)
+		})
+	}
+}
+
+func TestNewMDMAppleConfigProfile(t *testing.T) {
+	svc, ctx, ds := setupAppleMDMService(t)
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+
+	mcBytes := mcBytesForTest("Foo", "Bar", "UUID")
+	r := bytes.NewReader(mcBytes)
+
+	ds.NewMDMAppleConfigProfileFunc = func(ctx context.Context, cp fleet.MDMAppleConfigProfile) (*fleet.MDMAppleConfigProfile, error) {
+		require.Equal(t, "Foo", cp.Name)
+		require.Equal(t, "Bar", cp.Identifier)
+		require.Equal(t, mcBytes, []byte(cp.Mobileconfig))
+		cp.ProfileID = 1
+		return &cp, nil
+	}
+	ds.NewActivityFunc = func(context.Context, *fleet.User, fleet.ActivityDetails) error {
+		return nil
+	}
+
+	cp, err := svc.NewMDMAppleConfigProfile(ctx, 0, r, r.Size())
+	require.NoError(t, err)
+	require.Equal(t, "Foo", cp.Name)
+	require.Equal(t, "Bar", cp.Identifier)
+	require.Equal(t, mcBytes, []byte(cp.Mobileconfig))
+}
+
+func mcBytesForTest(name, identifier, uuid string) []byte {
+	return []byte(fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array/>
+	<key>PayloadDisplayName</key>
+	<string>%s</string>
+	<key>PayloadIdentifier</key>
+	<string>%s</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>%s</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+</dict>
+</plist>
+`, name, identifier, uuid))
 }
 
 func TestAppleMDMEnrollmentProfile(t *testing.T) {
@@ -737,6 +945,79 @@ func TestMDMBatchSetAppleProfiles(t *testing.T) {
 			require.False(t, ds.BatchSetMDMAppleProfilesFuncInvoked)
 		})
 	}
+}
+
+func TestMDMAppleCommander(t *testing.T) {
+	ctx := context.Background()
+	mdmStorage := &nanomdm_mock.Storage{}
+	pushFactory, _ := newMockAPNSPushProviderFactory()
+	pusher := nanomdm_pushsvc.New(
+		mdmStorage,
+		mdmStorage,
+		pushFactory,
+		NewNanoMDMLogger(kitlog.NewJSONLogger(os.Stdout)),
+	)
+	cmdr := NewMDMAppleCommander(mdmStorage, pusher)
+
+	// TODO(roberto): there's a data race in the mock when more
+	// than one host ID is provided because the pusher uses one
+	// goroutine per uuid to send the commands
+	hostUUIDs := []string{"A"}
+	payloadName := "com.foo.bar"
+	payloadIdentifier := "com-foo-bar"
+	mc := mobileconfigForTest(payloadName, payloadIdentifier)
+
+	mdmStorage.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.Command) (map[string]error, error) {
+		require.NotNil(t, cmd)
+		require.Equal(t, cmd.Command.RequestType, "InstallProfile")
+		require.Contains(t, string(cmd.Raw), base64.StdEncoding.EncodeToString(mc))
+		return nil, nil
+	}
+
+	mdmStorage.RetrievePushInfoFunc = func(p0 context.Context, targetUUIDs []string) (map[string]*mdm.Push, error) {
+		require.ElementsMatch(t, hostUUIDs, targetUUIDs)
+		pushes := make(map[string]*mdm.Push, len(targetUUIDs))
+		for _, uuid := range targetUUIDs {
+			pushes[uuid] = &mdm.Push{
+
+				PushMagic: "magic" + uuid,
+				Token:     []byte("token" + uuid),
+				Topic:     "topic" + uuid,
+			}
+		}
+
+		return pushes, nil
+	}
+
+	mdmStorage.RetrievePushCertFunc = func(ctx context.Context, topic string) (*tls.Certificate, string, error) {
+		cert, err := tls.LoadX509KeyPair("testdata/server.pem", "testdata/server.key")
+		return &cert, "", err
+	}
+	mdmStorage.IsPushCertStaleFunc = func(ctx context.Context, topic string, staleToken string) (bool, error) {
+		return false, nil
+	}
+
+	uuid, err := cmdr.InstallProfile(ctx, hostUUIDs, mc)
+	require.NotEmpty(t, uuid)
+	require.NoError(t, err)
+	require.True(t, mdmStorage.EnqueueCommandFuncInvoked)
+	mdmStorage.EnqueueCommandFuncInvoked = false
+	require.True(t, mdmStorage.RetrievePushInfoFuncInvoked)
+	mdmStorage.RetrievePushInfoFuncInvoked = false
+
+	mdmStorage.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.Command) (map[string]error, error) {
+		require.NotNil(t, cmd)
+		require.Equal(t, "RemoveProfile", cmd.Command.RequestType)
+		require.Contains(t, string(cmd.Raw), payloadIdentifier)
+		return nil, nil
+	}
+	uuid, err = cmdr.RemoveProfile(ctx, hostUUIDs, payloadIdentifier)
+	require.True(t, mdmStorage.EnqueueCommandFuncInvoked)
+	mdmStorage.EnqueueCommandFuncInvoked = false
+	require.True(t, mdmStorage.RetrievePushInfoFuncInvoked)
+	mdmStorage.RetrievePushInfoFuncInvoked = false
+	require.NotEmpty(t, uuid)
+	require.NoError(t, err)
 }
 
 func mobileconfigForTest(name, identifier string) []byte {

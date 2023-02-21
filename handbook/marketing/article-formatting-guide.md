@@ -90,7 +90,7 @@ Use the following code snippet to include an inline CTA (call to action) in your
 
 ![Customizable CTA example](../../images/cta-example-1-900x320@2x.jpg)
 
-> __Tip__: paste the code-snippet at the end of your article, or, when creating long articles, consider adding a CTA mid-way through.
+__Tip__: paste the code-snippet at the end of your article, or, when creating long articles, consider adding a CTA mid-way through.
 
 ### How to modify the customizable CTA
 You can customize the CTA to promote what's relevant to your article.
@@ -113,6 +113,9 @@ The secondary call to action interaction. E.g., “Schedule a demo.”
 #### `secondary-button-href` 
 The URL link for your secondary CTA.
 
+#### `preset` (optional)
+If provided, a `preset` will override all other values passed into the call to action component and the component will be rendered as a preset call to action. Check out our [preset examples](#preset-examples) to see our current presets.
+
 ### Example
 In the following example we will modify `title`, `text`, `primary-button-text`, and also remove `secondary-button-text` and `secondary-button-href` to create a call to action that promotes a job opening at Fleet.
 
@@ -126,6 +129,18 @@ In the following example we will modify `title`, `text`, `primary-button-text`, 
 ```
 
 ![Customizable CTA example](../../images/cta-example-2-900x280@2x.jpg)
+
+### Preset examples
+
+`<call-to-action preset="mdm-beta"></call-to-action>`
+
+<call-to-action preset="mdm-beta">
+</call-to-action>
+
+`<call-to-action preset="premium-upgrade"></call-to-action>`
+
+<call-to-action preset="premium-upgrade">
+</call-to-action>
 
 ## Related pages
 - [How to submit and publish an article](./how-to-submit-and-publish-an-article.md)

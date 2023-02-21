@@ -1,17 +1,5 @@
 # Configuration
 
-- [Configuring the Fleet binary](#configuring-the-fleet-binary)
-  - [High-level configuration overview](#high-level-configuration-overview)
-  - [Commands](#commands)
-  - [Options](#options)
-- [Managing osquery configurations](#managing-osquery-configurations)
-- [Running with systemd](#running-with-systemd)
-- [Configuring single sign on](#configuring-single-sign-on)
-  - [Identity provider (IDP) configuration](#identity-provider-IDP-configuration)
-  - [Fleet SSO configuration](#fleet-sso-configuration)
-  - [Creating SSO users in Fleet](#creating-sso-users-in-fleet)
-- [Feature flags](#feature-flags)
-
 ## Configuring the Fleet binary
 
 For information on how to run the `fleet` binary, find detailed usage information by running `fleet --help`. This document is a more detailed version of the data presented in the help output text. If you prefer to use a CLI instead of a web browser, we hope  you like the binary interface of the Fleet application!
@@ -2162,7 +2150,7 @@ The path specified needs to exist and Fleet needs to be able to read and write t
 
 When `current_instance_checks` is set to `auto` (the default), Fleet instances will try to create the `databases_path` if it doesn't exist.
 
-- Default value: none
+- Default value: `/tmp/vulndbs`
 - Environment variable: `FLEET_VULNERABILITIES_DATABASES_PATH`
 - Config file format:
   ```
@@ -2238,6 +2226,19 @@ When running multiple instances of the Fleet server, by default, one of them dyn
   ```
   vulnerabilities:
   	current_instance_checks: yes
+  ```
+
+##### disable_schedule
+
+To externally manage running vulnerability processing set the value to `true` and then run `fleet vuln_processing` using external
+tools like crontab.
+
+- Default value: `false`
+- Environment variable: `FLEET_VULNERABILITIES_DISABLE_SCHEDULE`
+- Config file format:
+  ```
+  vulnerabilities:
+  	disable_schedule: false
   ```
 
 ##### disable_data_sync
@@ -2894,7 +2895,6 @@ For this to work correctly make sure that:
   - `urn:oid:2.5.4.3`
   - `http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name`
 
-
 #### Okta IDP configuration
 
 ![Example Okta IDP Configuration](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/okta-idp-setup.png)
@@ -2962,8 +2962,17 @@ Follow these steps to configure Fleet SSO with Google Workspace. This will requi
 
 9. Enable SSO for a test user and try logging in. Note that Google sometimes takes a long time to propagate the SSO configuration, and it can help to try logging in to Fleet with an Incognito/Private window in the browser.
 
-## Feature flags
+## Public IPs of devices
 
-Fleet features are sometimes gated behind feature flags. This will usually be due to not-yet-stable APIs or not-fully-tested performance characteristics.
+> IMPORTANT: In order for this feature to work properly, devices must connect to Fleet via the public internet.
+> If the agent connects to Fleet via a private network then the "Public IP address" for such device will not be set.
 
-Feature flags on the server are controlled by environment variables prefixed with `FLEET_BETA_`.
+Fleet attempts to deduce the public IP of devices from well-known HTTP headers received on requests made by the osquery agent.
+
+The HTTP request headers are checked in the following order:
+1. If `True-Client-IP` header is set, then Fleet will extract its value.
+2. If `X-Real-IP` header is set, then Fleet will extract its value.
+3. If `X-Forwarded-For` header is set, then Fleet will extract the first comma-separated value.
+4. If none of the above headers are present in the HTTP request then Fleet will attempt to use the remote address of the TCP connection (note that on deployments with ingress proxies the remote address seen by Fleet is the IP of the ingress proxy).
+
+If the IP retrieved using the above heuristic belongs to a private range, then Fleet will ignore it and will not set the "Public IP address" field for the device.
