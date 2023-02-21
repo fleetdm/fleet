@@ -42,6 +42,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/groob/plist"
 	"github.com/jmoiron/sqlx"
+	micromdm "github.com/micromdm/micromdm/mdm/mdm"
 	nanodep_client "github.com/micromdm/nanodep/client"
 	"github.com/micromdm/nanodep/godep"
 	nanodep_storage "github.com/micromdm/nanodep/storage"
@@ -258,20 +259,23 @@ func (s *integrationMDMTestSuite) TestProfileManagement() {
 	t := s.T()
 	ctx := context.Background()
 
-	// add global profiles
-	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: [][]byte{
+	globalProfiles := [][]byte{
 		mobileconfigForTest("N1", "I1"),
 		mobileconfigForTest("N2", "I2"),
-	}}, http.StatusNoContent)
+	}
+
+	// add global profiles
+	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: globalProfiles}, http.StatusNoContent)
 
 	// create a new team
 	tm, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "batch_set_mdm_profiles"})
 	require.NoError(t, err)
 
-	// add profiles to the team
-	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: [][]byte{
+	teamProfiles := [][]byte{
 		mobileconfigForTest("N3", "I3"),
-	}}, http.StatusNoContent, "team_id", strconv.Itoa(int(tm.ID)))
+	}
+	// add profiles to the team
+	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: teamProfiles}, http.StatusNoContent, "team_id", strconv.Itoa(int(tm.ID)))
 
 	// create and enroll a host in MDM
 	host := createHostAndDeviceToken(t, s.ds, "secret-1")
@@ -295,13 +299,88 @@ func (s *integrationMDMTestSuite) TestProfileManagement() {
 		return res, nil
 	}
 
+	checkNextPayloads := func() ([][]byte, []string) {
+		var cmd *micromdm.CommandPayload
+		installs := [][]byte{}
+		removes := []string{}
+
+		for {
+			// on the first run, cmd will be nil and we need to
+			// ping the server via idle
+			if cmd == nil {
+				cmd = d.idle()
+			} else {
+				cmd = d.acknowledge(cmd.CommandUUID)
+			}
+
+			// if after idle or acknowledge cmd is still nil, it
+			// means there aren't any commands left to run
+			if cmd == nil {
+				break
+			}
+
+			switch cmd.Command.RequestType {
+			case "InstallProfile":
+				installs = append(installs, cmd.Command.InstallProfile.Payload)
+			case "RemoveProfile":
+				removes = append(removes, cmd.Command.RemoveProfile.Identifier)
+
+			}
+		}
+
+		return installs, removes
+	}
+
 	// trigger a profile sync
 	_, err = s.profileSchedule.Trigger()
 	require.NoError(t, err)
 	wg.Wait()
 
-	res := d.getCommands()
-	fmt.Println(res)
+	installs, removes := checkNextPayloads()
+	// verify that we received both profiles
+	require.ElementsMatch(t, installs, globalProfiles)
+	require.Empty(t, removes)
+
+	// add the host to a team
+	err = s.ds.AddHostsToTeam(ctx, &tm.ID, []uint{host.ID})
+	require.NoError(t, err)
+
+	// trigger a profile sync
+	wg.Add(3)
+	_, err = s.profileSchedule.Trigger()
+	require.NoError(t, err)
+	wg.Wait()
+
+	installs, removes = checkNextPayloads()
+	// verify that we should install the team profile
+	require.ElementsMatch(t, installs, teamProfiles)
+	// verify that we should delete both profiles
+	require.ElementsMatch(t, removes, []string{"I1", "I2"})
+
+	// set new team profiles (delete + addition)
+	teamProfiles = [][]byte{
+		mobileconfigForTest("N4", "I4"),
+		mobileconfigForTest("N5", "I5"),
+	}
+	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: teamProfiles}, http.StatusNoContent, "team_id", strconv.Itoa(int(tm.ID)))
+
+	// trigger a profile sync
+	wg.Add(3)
+	_, err = s.profileSchedule.Trigger()
+	require.NoError(t, err)
+	wg.Wait()
+	installs, removes = checkNextPayloads()
+	// verify that we should install the team profiles
+	require.ElementsMatch(t, installs, teamProfiles)
+	// verify that we should delete the old team profiles
+	require.ElementsMatch(t, removes, []string{"I3"})
+
+	// with no changes
+	_, err = s.profileSchedule.Trigger()
+	require.NoError(t, err)
+	installs, removes = checkNextPayloads()
+	require.Empty(t, installs)
+	require.Empty(t, removes)
 }
 
 func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
@@ -1190,14 +1269,45 @@ func (d *device) checkout() {
 	d.request("application/x-apple-aspen-mdm-checkin", payload)
 }
 
-func (d *device) getCommands() *http.Response {
+// Devices send an Idle status to signal the server that they're ready to
+// receive commands.
+// The server can signal back with either a command to run
+// or an empty response body to end the communication.
+func (d *device) idle() *micromdm.CommandPayload {
 	payload := map[string]any{
-		"MessageType":  "Idle",
+		"Status":       "Idle",
 		"Topic":        "com.apple.mgmt.External." + d.uuid,
 		"UDID":         d.uuid,
 		"EnrollmentID": "testenrollmentid-" + d.uuid,
 	}
-	return d.request("application/x-apple-aspen-mdm-checkin", payload)
+	return d.sendAndDecodeCommandResponse(payload)
+}
+
+func (d *device) acknowledge(cmdUUID string) *micromdm.CommandPayload {
+	payload := map[string]any{
+		"Status":       "Acknowledged",
+		"Topic":        "com.apple.mgmt.External." + d.uuid,
+		"UDID":         d.uuid,
+		"EnrollmentID": "testenrollmentid-" + d.uuid,
+		"CommandUUID":  cmdUUID,
+	}
+	return d.sendAndDecodeCommandResponse(payload)
+}
+
+func (d *device) sendAndDecodeCommandResponse(payload map[string]any) *micromdm.CommandPayload {
+	res := d.request("", payload)
+	if res.ContentLength == 0 {
+		return nil
+	}
+	raw, err := io.ReadAll(res.Body)
+	require.NoError(d.s.T(), err)
+	cmd, err := mdm.DecodeCommand(raw)
+	require.NoError(d.s.T(), err)
+
+	var p micromdm.CommandPayload
+	err = plist.Unmarshal(cmd.Raw, &p)
+	require.NoError(d.s.T(), err)
+	return &p
 }
 
 func (d *device) request(reqType string, payload map[string]any) *http.Response {

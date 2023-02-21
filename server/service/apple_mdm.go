@@ -1562,7 +1562,7 @@ func (svc *MDMAppleCheckinAndCommandService) DeclarativeManagement(*mdm.Request,
 //
 // [1]: https://developer.apple.com/documentation/devicemanagement/commands_and_queries
 func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Request, res *mdm.CommandResults) (*mdm.Command, error) {
-	// Sometimes we get results like "Idle" which don't contain a command
+	// Sometimes we get results with Status == "Idle" which don't contain a command
 	// UUID and are not actionable anyways.
 	if res.CommandUUID == "" {
 		return nil, nil
