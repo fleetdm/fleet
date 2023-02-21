@@ -1,7 +1,7 @@
-import TableOSVersion from "./os_version";
-import TableGeolocation from "./geolocation";
-import TableSystemInfo from "./system_info";
-import Table from "./Table";
+import TableOSVersion from "./tables/os_version";
+import TableGeolocation from "./tables/geolocation";
+import TableSystemInfo from "./tables/system_info";
+import Table from "./tables/Table";
 
 export default class VirtualDatabase {
   sqlite3: SQLiteAPI;

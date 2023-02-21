@@ -11,11 +11,15 @@ const request = async (path: string, body: Record<string, any>) => {
     fleet_url: "https://fleet.loophole.site",
   });
 
-  const response = await fetch(new URL(path, fleet_url), {
+  const target = new URL(path, fleet_url);
+  const options = {
     method: "POST",
     body: JSON.stringify(body),
-  });
+  };
+  console.debug("request: ", target, options);
+  const response = await fetch(target, options);
   const response_body = await response.json();
+  console.debug("response:", response, "json:", response_body);
 
   if (!response.ok) {
     throw new Error("request failed: " + response_body.error);
@@ -78,6 +82,7 @@ const live_query = async () => {
   const system_info = await virtual.query("SELECT * FROM system_info");
 
   try {
+    console.log("enrolling");
     const node_key = await enroll({
       os_version: os_version[0],
       system_info: system_info[0],
