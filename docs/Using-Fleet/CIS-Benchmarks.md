@@ -20,7 +20,9 @@ There are two types of CIS Benchmark checks, "Manual" and "Automated".
 - Automated: Represents recommendations for which assessment of a technical control can be fully automated and validated to a pass/fail state
 - Manual: Represents recommendations for which assessment of a technical control cannot be fully automated and requires all or some manual steps to validate that the configured state is set as expected.
 
-Fleet only implements "Automated" checks. "Manual" checks cannot be automated and/or require administrators to decide what's best for their organization's requirements.
+Fleet only implements "Automated" checks. "Manual" checks cannot be automated as a Fleet policy. As such, they require administrators to implement other processes to conduct the check.
+
+The manual checks which are not included in Fleet are documented below. 
 
 ## Example CIS check
 
