@@ -26,7 +26,7 @@ Fleet only implements "Automated" checks. "Manual" checks cannot be automated as
 
 Following are the requirements to use the CIS Benchmarks in Fleet:
 
-- Fleet must be Premium licensed.
+- Fleet must be Premium or Ultimate licensed.
 - Devices must be running [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
 - Devices must be enrolled to an MDM solution.
 - On macOS, the orbit executable in Fleetd must have "Full Disk Access", see [Grant Full Disk Access to Osquery on macOS](Adding-hosts.md#grant-full-disk-access-to-osquery-on-macos).
