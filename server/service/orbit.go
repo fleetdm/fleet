@@ -119,7 +119,6 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hardwareUUID, hardwareSeria
 	if err != nil {
 		return "", orbitError{message: "failed to enroll " + err.Error()}
 	}
-	//fmt.Println(">>>> ORBIT ENROLLMENT NODE KEY: ", orbitNodeKey)
 
 	return orbitNodeKey, nil
 }

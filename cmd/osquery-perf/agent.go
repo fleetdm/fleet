@@ -212,6 +212,7 @@ type agent struct {
 
 	EnrollSecret          string
 	UUID                  string
+	HardwareSerial        string
 	ConfigInterval        time.Duration
 	QueryInterval         time.Duration
 	DiskEncryptionEnabled bool
@@ -265,6 +266,7 @@ func newAgent(
 		ConfigInterval: configInterval,
 		QueryInterval:  queryInterval,
 		UUID:           uuid.New().String(),
+		HardwareSerial: uuid.New().String(),
 	}
 }
 
@@ -458,8 +460,11 @@ func (a *agent) waitingDo(req *fasthttp.Request, res *fasthttp.Response) {
 // now, we assume that the agent is not already enrolled, if you kill the agent
 // process then those Orbit node keys are gone.
 func (a *agent) orbitEnroll() error {
-	// TODO(mna): would it be important for osquery-perf to provide a serial? Probably not for now...
-	params := service.EnrollOrbitRequest{EnrollSecret: a.EnrollSecret, HardwareUUID: a.UUID, HardwareSerial: ""}
+	params := service.EnrollOrbitRequest{
+		EnrollSecret:   a.EnrollSecret,
+		HardwareUUID:   a.UUID,
+		HardwareSerial: a.HardwareSerial,
+	}
 
 	jsonBytes, err := json.Marshal(params)
 	if err != nil {
@@ -540,7 +545,6 @@ func (a *agent) enroll(i int, onlyAlreadyEnrolled bool) error {
 	a.stats.IncrementEnrollments()
 
 	a.nodeKeyManager.Add(a.nodeKey)
-	fmt.Println(">>>> OSQUERY ENROLL: node: ", a.nodeKey, ", uuid: ", a.UUID)
 
 	return nil
 }
@@ -565,7 +569,6 @@ func (a *agent) config() {
 		log.Println("config status:", res.StatusCode())
 		return
 	}
-	fmt.Println(">>>>> osquery config succeeded with ", a.nodeKey)
 
 	parsedResp := struct {
 		Packs map[string]struct {

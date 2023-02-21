@@ -44,7 +44,7 @@
             "cpu_subtype": "Intel x86-64h Haswell",
             "cpu_type": "x86_64h",
             "hardware_model": "MacBookPro11,4",
-            "hardware_serial": "D02R835DG8WK",
+            "hardware_serial": "{{ .HardwareSerial }}",
             "hardware_vendor": "Apple Inc.",
             "hardware_version": "1.0",
             "hostname": "{{ .CachedString "hostname" }}",
@@ -146,7 +146,7 @@
     "hardware_vendor":"Apple Inc.",
     "hardware_model":"MacBookPro11,4",
     "hardware_version":"1.0",
-    "hardware_serial":"C02R262BM8LN",
+    "hardware_serial":"{{ .HardwareSerial }}",
     "computer_name":"{{ .CachedString "hostname" }}",
     "local_hostname":"{{ .CachedString "hostname" }}"
   }
