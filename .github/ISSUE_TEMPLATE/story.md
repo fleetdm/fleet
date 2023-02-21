@@ -7,7 +7,7 @@ assignees: ''
 
 ---
 
-> **Remaining work from this issue is estimated to fit in 1 sprint and adds value independently from any other issues.**
+> **Remaining work from this issue is estimated to fit in 1 sprint and add value independently from any other issues.**
 
 ## Goal
 
@@ -127,8 +127,14 @@ A user story is estimated to fit within 1 sprint and drives business value when 
 
 ## Defining "done"
 
-This user story's estimation includes all remaining effort for the following changes, and will be considered "done" when:
+- [x] Issue created
+- [ ] [Product group](https://fleetdm.com/handbook/company/product-groups) label added (e.g. `#cx`, `#mdm`)
+- [ ] [Designed](https://fleetdm.com/handbook/company/why-this-way#why-do-we-use-a-wireframe-first-approach)
+- [ ] [Revised and approved](https://fleetdm.com/handbook/business-operations/ceo-handbook#calendar-audit)
+- [ ] [Estimated](https://fleetdm.com/handbook/company/why-this-way#why-scrum)
+- [ ] Scheduled for [development](https://fleetdm.com/handbook/company/why-this-way#why-a-three-week-cadence)
 
+This user story's estimation includes all remaining effort for the following changes, and will be considered "done" when:
 - [ ] UI changes: TODO <!-- Insert the link to the relevant Figma file describing all relevant changes. Remove this checkbox if there are no changes to the user interface. -->
 - [ ] CLI usage changes: TODO <!-- Specify what changes to the CLI usage are required. Remove this checkbox if there are no changes to the CLI. -->
 - [ ] ... <!-- Include any other notable requirements to draw extra attention to. -->
