@@ -17,6 +17,7 @@ import Icon from "components/Icon";
 
 import { UPLOAD_ERROR_MESSAGES, getErrorMessage } from "./helpers";
 import DeleteProfileModal from "./components/DeleteProfileModal/DeleteProfileModal";
+import FileUploader from "pages/ManageControlsPage/components/FileUploader";
 
 const baseClass = "custom-settings";
 
@@ -165,19 +166,12 @@ const CustomSettings = () => {
 
       {renderProfiles()}
 
-      <div className={`${baseClass}__profile-uploader`}>
-        <Icon name="profile" />
-        <p>Configuration profile (.mobileconfig)</p>
-        <Button isLoading={showLoading}>
-          <label htmlFor="upload-profile">Upload</label>
-        </Button>
-        <input
-          accept=".mobileconfig,application/x-apple-aspen-config"
-          id="upload-profile"
-          type="file"
-          onChange={(e) => onFileUpload(e.target.files)}
-        />
-      </div>
+      <FileUploader
+        icon="profile"
+        message="Configuration profile (.mobileconfig)"
+        isLoading={showLoading}
+        onFileUpload={onFileUpload}
+      />
       {showDeleteProfileModal && selectedProfile.current && (
         <DeleteProfileModal
           profileName={selectedProfile.current?.name}

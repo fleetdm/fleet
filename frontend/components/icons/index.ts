@@ -42,6 +42,7 @@ import Pencil from "./Pencil";
 import TrashCan from "./TrashCan";
 import Profile from "./Profile";
 import Download from "./Download";
+import Files from "./Files";
 
 // a mapping of the usable names of icons to the icon source.
 export const ICON_MAP = {
@@ -86,6 +87,7 @@ export const ICON_MAP = {
   "linux-green": LinuxGreen,
   profile: Profile,
   download: Download,
+  files: Files,
 };
 
 export type IconNames = keyof typeof ICON_MAP;

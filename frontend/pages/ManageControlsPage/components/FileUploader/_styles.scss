@@ -1,0 +1,15 @@
+.file-uploader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  border-radius: $border-radius;
+  background-color: $ui-fleet-blue-10;
+  border: 1px solid $ui-fleet-black-10;
+  padding: $pad-xlarge $pad-large;
+  font-size: $x-small;
+  margin-top: $pad-xxlarge;
+
+  input {
+    display: none;
+  }
+}

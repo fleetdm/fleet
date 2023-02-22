@@ -32,6 +32,10 @@ const controlsSubNav: IControlsSubNavItem[] = [
     name: "macOS settings",
     pathname: PATHS.CONTROLS_MAC_SETTINGS,
   },
+  {
+    name: "macOS scripts",
+    pathname: PATHS.CONTROLS_MAC_SCRIPTS,
+  },
 ];
 
 interface IManageControlsPageProps {
