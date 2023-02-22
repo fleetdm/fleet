@@ -1049,6 +1049,7 @@ var enrollmentProfileMobileconfigTemplate = template.Must(template.New("").Parse
 			<key>ServerCapabilities</key>
 			<array>
 				<string>com.apple.mdm.per-user-connections</string>
+				<string>com.apple.mdm.bootstraptoken</string>
 			</array>
 			<key>ServerURL</key>
 			<string>{{ .ServerURL }}</string>
@@ -1328,6 +1329,72 @@ func (svc *Service) ListMDMAppleInstallers(ctx context.Context) ([]fleet.MDMAppl
 		installers[i].URL = svc.installerURL(installers[i].URLToken, appConfig)
 	}
 	return installers, nil
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Lock a device
+////////////////////////////////////////////////////////////////////////////////
+
+type deviceLockRequest struct {
+	HostID uint `url:"id"`
+}
+
+type deviceLockResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r deviceLockResponse) error() error { return r.Err }
+
+func (r deviceLockResponse) Status() int { return http.StatusNoContent }
+
+func deviceLockEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*deviceLockRequest)
+	err := svc.MDMAppleDeviceLock(ctx, req.HostID)
+	if err != nil {
+		return deviceLockResponse{Err: err}, nil
+	}
+	return deviceLockResponse{}, nil
+}
+
+func (svc *Service) MDMAppleDeviceLock(ctx context.Context, hostID uint) error {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return fleet.ErrMissingLicense
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Wipe a device
+////////////////////////////////////////////////////////////////////////////////
+
+type deviceWipeRequest struct {
+	HostID uint `url:"id"`
+}
+
+type deviceWipeResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r deviceWipeResponse) error() error { return r.Err }
+
+func (r deviceWipeResponse) Status() int { return http.StatusNoContent }
+
+func deviceWipeEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*deviceWipeRequest)
+	err := svc.MDMAppleEraseDevice(ctx, req.HostID)
+	if err != nil {
+		return deviceWipeResponse{Err: err}, nil
+	}
+	return deviceWipeResponse{}, nil
+}
+
+func (svc *Service) MDMAppleEraseDevice(ctx context.Context, hostID uint) error {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return fleet.ErrMissingLicense
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1670,6 +1737,46 @@ func (svc *MDMAppleCommander) RemoveProfile(ctx context.Context, hostUUIDs []str
 </plist>`, uuid, profileIdentifier)
 	err := svc.enqueue(ctx, hostUUIDs, raw)
 	return ctxerr.Wrap(ctx, err, "commander remove profile")
+}
+
+func (svc *MDMAppleCommander) DeviceLock(ctx context.Context, hostUUIDs []string, uuid string) error {
+	pin := apple_mdm.GenerateRandomPin(6)
+	raw := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+  <dict>
+    <key>CommandUUID</key>
+    <string>%s</string>
+    <key>Command</key>
+    <dict>
+      <key>RequestType</key>
+      <string>DeviceLock</string>
+      <key>PIN</key>
+      <string>%s</string>
+    </dict>
+  </dict>
+</plist>`, uuid, pin)
+	return svc.enqueue(ctx, hostUUIDs, raw)
+}
+
+func (svc *MDMAppleCommander) EraseDevice(ctx context.Context, hostUUIDs []string, uuid string) error {
+	pin := apple_mdm.GenerateRandomPin(6)
+	raw := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+  <dict>
+    <key>CommandUUID</key>
+    <string>%s</string>
+    <key>Command</key>
+    <dict>
+      <key>RequestType</key>
+      <string>EraseDevice</string>
+      <key>PIN</key>
+      <string>%s</string>
+    </dict>
+  </dict>
+</plist>`, uuid, pin)
+	return svc.enqueue(ctx, hostUUIDs, raw)
 }
 
 // enqueue takes care of enqueuing the commands and sending push notifications
