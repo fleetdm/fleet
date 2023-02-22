@@ -39,6 +39,7 @@ If most of these qualities sound like you, we would love to chat and see if we'r
 - 🧬 You care about using a consistent voice, messaging, and design.
 - ➕ Bonus: You are comfortable with concepts like security, APIs, and DevOps.
 
+Want to join the team?
 
 You can apply for this position here at [Apply to Fleet](https://3x3q33auqgj.typeform.com/to/upGkhYsN).
 
