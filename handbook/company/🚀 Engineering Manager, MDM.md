@@ -33,5 +33,5 @@ The ideal candidate could act as a tech lead manager, spending some of their tim
 
 Want to join the team?
 
-You can apply for this position here, or ask us anything at https://fleetdm.com/contact.
+You can apply for this position here at [Apply to Fleet](https://3x3q33auqgj.typeform.com/to/upGkhYsN).
 
