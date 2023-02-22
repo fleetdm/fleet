@@ -6,7 +6,6 @@ import MacSettingsTable from "./MacSettingsTable";
 
 interface IMacSettingsModalProps {
   hostMacSettings?: IMacSettings;
-  isLoading: boolean;
   onClose: () => void;
 }
 
@@ -14,16 +13,12 @@ const baseClass = "mac-settings-modal";
 
 const MacSettingsModal = ({
   hostMacSettings,
-  isLoading,
   onClose,
 }: IMacSettingsModalProps) => {
   return (
     <Modal title="macOS settings" onExit={onClose} className={baseClass}>
       <>
-        <MacSettingsTable
-          isLoading={isLoading}
-          hostMacSettings={hostMacSettings}
-        />
+        <MacSettingsTable hostMacSettings={hostMacSettings} />
         <div className="modal-cta-wrap">
           <Button variant="brand" onClick={onClose}>
             Done

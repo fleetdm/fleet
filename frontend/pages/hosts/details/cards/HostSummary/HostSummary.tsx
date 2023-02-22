@@ -13,7 +13,7 @@ import {
   getMacSettingsStatus,
 } from "pages/hosts/helpers";
 import StatusIndicator from "components/StatusIndicator";
-import { IMacSettings, MacSettingsStatus } from "interfaces/mdm";
+import { IMacSettings } from "interfaces/mdm";
 import IssueIcon from "../../../../../../assets/images/icon-issue-fleet-black-50-16x16@2x.png";
 import MacSettingsIndicator from "../../MacSettingsIndicator";
 

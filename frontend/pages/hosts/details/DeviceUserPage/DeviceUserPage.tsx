@@ -383,9 +383,7 @@ const DeviceUserPage = ({
         )}
         {showMacSettingsModal && (
           <MacSettingsModal
-            // TODO: pass loading state from request for above data
             hostMacSettings={host?.mdm.profiles}
-            isLoading={false}
             onClose={toggleMacSettingsModal}
           />
         )}

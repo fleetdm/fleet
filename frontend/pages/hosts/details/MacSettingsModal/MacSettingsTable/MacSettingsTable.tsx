@@ -9,41 +9,33 @@ import tableHeaders from "./MacSettingsTableConfig";
 const baseClass = "macsettings-table";
 
 interface IMacSettingsTableProps {
-  isLoading: boolean;
   hostMacSettings?: IMacSettings;
 }
 
-const MacSettingsTable = ({
-  isLoading,
-  hostMacSettings,
-}: IMacSettingsTableProps) => {
+const MacSettingsTable = ({ hostMacSettings }: IMacSettingsTableProps) => {
   return (
     <div className={baseClass}>
-      {isLoading ? (
-        <Spinner />
-      ) : (
-        <TableContainer
-          resultsTitle="settings"
-          defaultSortHeader="name"
-          columns={tableHeaders}
-          data={hostMacSettings}
-          isLoading={isLoading}
-          emptyComponent={"symbol"}
-          // TODO:
-          // emptyComponent={() =>
-          //   EmptyTable({
-          //     iconName: emptyState().iconName,
-          //     header: emptyState().header,
-          //     info: emptyState().info,
-          //     additionalInfo: emptyState().additionalInfo,
-          //     primaryButton: emptyState().primaryButton,
-          //   })
-          // }
-          showMarkAllPages={false}
-          isAllPagesSelected={false}
-          disablePagination
-        />
-      )}
+      <TableContainer
+        resultsTitle="settings"
+        defaultSortHeader="name"
+        columns={tableHeaders}
+        data={hostMacSettings}
+        emptyComponent={"symbol"}
+        isLoading={false}
+        // TODO:
+        // emptyComponent={() =>
+        //   EmptyTable({
+        //     iconName: emptyState().iconName,
+        //     header: emptyState().header,
+        //     info: emptyState().info,
+        //     additionalInfo: emptyState().additionalInfo,
+        //     primaryButton: emptyState().primaryButton,
+        //   })
+        // }
+        showMarkAllPages={false}
+        isAllPagesSelected={false}
+        disablePagination
+      />
     </div>
   );
 };

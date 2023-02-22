@@ -748,7 +748,6 @@ const HostDetailsPage = ({
         {showMacSettingsModal && (
           <MacSettingsModal
             hostMacSettings={host?.mdm.profiles}
-            isLoading={false}
             onClose={toggleMacSettingsModal}
           />
         )}
