@@ -35,9 +35,7 @@ Fleet is currently hiring for the following positions:
 
 > Interested in joining the team at Fleet, or know someone who might be?  Click one of the positions to read the job description and apply, or you can share a [direct link to this page](https://fleetdm.com/handbook/company#open-positions) for a short read about the company, including our vision, values, history, and all currently open positions.  Thank you for the help!
 
-### Is it any good?
-
-Why should you join us?  🛸
+### Why should you join us?  🛸
 
 - Work from anywhere with good internet. (We're 100% remote. No office. No commute.) Everyone works remote, but you don't feel remote. There is no 'headquarters'. You are free to travel and move.
 - Fleet can offer you a competitive salary, significant equity, and an independent, outsider-friendly culture. Work with helpful, kind, and motivated people who know what they're doing.
