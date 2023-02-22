@@ -46,7 +46,7 @@ If most of these qualities sound like you, we would love to chat and see if we'r
 - 🧬 You care about positivity and desire to uplift and share knowledge with those around you.
 - ➕ Bonus: You are familiar with SCRUM and AGILE methods.
 
-
+Want to join the team?
 
 You can apply for this position here at [Apply to Fleet](https://3x3q33auqgj.typeform.com/to/upGkhYsN).
 
