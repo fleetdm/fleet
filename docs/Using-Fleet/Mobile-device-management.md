@@ -24,9 +24,7 @@ If there is less than 1 day, the window is shown every 2 hours. The end user can
 
 If the end user is past the deadline, Fleet shows the window and end user can't close the window until they upgrade.
 
-## macOS settings
-
-### Disk encryption
+## Disk encryption
 
 In Fleet, you can enforce disk encryption on your macOS hosts. Apple calls this [FileVault](https://support.apple.com/en-us/HT204837). If turned on, hosts’ disk encryption keys will be stored in Fleet.
 
@@ -48,7 +46,7 @@ Fleet UI:
 
 3. Run the `fleetctl apply -f <your-YAML-file-here>` command.
 
-#### Viewing a disk encryption key
+### Viewing a disk encryption key
 
 The disk encryption key allows you to reset a macOS host's password if you don't know it. This way, if you plan to prepare a host for a new employee, you can login to it and erase all its content and settings.
 
@@ -60,7 +58,7 @@ How to view the disk encryption key:
 
 2. On the **Host details** page, select **Actions > Show disk encryption key**.
 
-#### Reset a macOS host's password using the disk encryption key
+### Reset a macOS host's password using the disk encryption key
 
 How to reset a macOS host's password using the disk encryption key:
 
