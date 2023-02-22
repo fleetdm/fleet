@@ -25,6 +25,43 @@ const (
 	MDMAppleEnrollmentTypeManual MDMAppleEnrollmentType = "manual"
 )
 
+// Well-known status responses
+const (
+	MDMAppleStatusAcknowledged       = "Acknowledged"
+	MDMAppleStatusError              = "Error"
+	MDMAppleStatusCommandFormatError = "CommandFormatError"
+	MDMAppleStatusIdle               = "Idle"
+	MDMAppleStatusNotNow             = "NotNow"
+)
+
+type MDMAppleDeliveryStatus string
+
+var (
+	MDMAppleDeliveryFailed  MDMAppleDeliveryStatus = "failed"
+	MDMAppleDeliveryApplied MDMAppleDeliveryStatus = "applied"
+	MDMAppleDeliveryPending MDMAppleDeliveryStatus = "pending"
+)
+
+func MDMAppleDeliveryStatusFromCommandStatus(cmdStatus string) *MDMAppleDeliveryStatus {
+	switch cmdStatus {
+	case MDMAppleStatusAcknowledged:
+		return &MDMAppleDeliveryApplied
+	case MDMAppleStatusError, MDMAppleStatusCommandFormatError:
+		return &MDMAppleDeliveryFailed
+	case MDMAppleStatusIdle, MDMAppleStatusNotNow:
+		return &MDMAppleDeliveryPending
+	default:
+		return nil
+	}
+}
+
+type MDMAppleOperationType string
+
+const (
+	MDMAppleOperationTypeInstall MDMAppleOperationType = "install"
+	MDMAppleOperationTypeRemove  MDMAppleOperationType = "remove"
+)
+
 // MDMAppleEnrollmentProfilePayload contains the data necessary to create
 // an enrollment profile in Fleet.
 type MDMAppleEnrollmentProfilePayload struct {
@@ -373,4 +410,29 @@ func (cp MDMAppleConfigProfile) ScreenPayloadTypes() error {
 	}
 
 	return nil
+}
+
+// HostMDMAppleProfile represents the status of an Apple MDM profile in a host.
+type HostMDMAppleProfile struct {
+	HostUUID      string
+	CommandUUID   string
+	ProfileID     uint
+	Status        *MDMAppleDeliveryStatus
+	OperationType MDMAppleOperationType
+	Detail        string
+}
+
+type MDMAppleProfilePayload struct {
+	ProfileID         uint   `db:"profile_id"`
+	ProfileIdentifier string `db:"profile_identifier"`
+	HostUUID          string `db:"host_uuid"`
+}
+
+type MDMAppleBulkUpsertHostProfilePayload struct {
+	ProfileID         uint
+	ProfileIdentifier string
+	HostUUID          string
+	CommandUUID       string
+	OperationType     MDMAppleOperationType
+	Status            *MDMAppleDeliveryStatus
 }

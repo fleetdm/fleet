@@ -663,7 +663,6 @@ These groups maintain the following [Slack channels](https://fleetdm.com/handboo
 | `#help-swag`                | Drew Baker                                                          |
 | `#oooh-websites`            | Mike Thomas                                                         |
 | `#help-p1`		                | Mike McNeil                                                         |
-| `#g-community`              | Kathy Satterlee                                                     |
 
 
 <meta name="maintainedBy" value="jarodreyes">

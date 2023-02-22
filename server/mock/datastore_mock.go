@@ -547,6 +547,18 @@ type IncreasePolicyAutomationIterationFunc func(ctx context.Context, policyID ui
 
 type OutdatedAutomationBatchFunc func(ctx context.Context) ([]fleet.PolicyFailure, error)
 
+type ListMDMAppleProfilesToInstallFunc func(ctx context.Context) ([]*fleet.MDMAppleProfilePayload, error)
+
+type ListMDMAppleProfilesToRemoveFunc func(ctx context.Context) ([]*fleet.MDMAppleProfilePayload, error)
+
+type BulkUpsertMDMAppleHostProfilesFunc func(ctx context.Context, payload []*fleet.MDMAppleBulkUpsertHostProfilePayload) error
+
+type GetMDMAppleProfilesContentsFunc func(ctx context.Context, profileIDs []uint) (map[uint]fleet.Mobileconfig, error)
+
+type UpdateHostMDMAppleProfileFunc func(ctx context.Context, profile *fleet.HostMDMAppleProfile) error
+
+type GetMDMAppleCommandRequestTypeFunc func(ctx context.Context, commandUUID string) (string, error)
+
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
 	HealthCheckFuncInvoked bool
@@ -1345,6 +1357,24 @@ type DataStore struct {
 
 	OutdatedAutomationBatchFunc        OutdatedAutomationBatchFunc
 	OutdatedAutomationBatchFuncInvoked bool
+
+	ListMDMAppleProfilesToInstallFunc        ListMDMAppleProfilesToInstallFunc
+	ListMDMAppleProfilesToInstallFuncInvoked bool
+
+	ListMDMAppleProfilesToRemoveFunc        ListMDMAppleProfilesToRemoveFunc
+	ListMDMAppleProfilesToRemoveFuncInvoked bool
+
+	BulkUpsertMDMAppleHostProfilesFunc        BulkUpsertMDMAppleHostProfilesFunc
+	BulkUpsertMDMAppleHostProfilesFuncInvoked bool
+
+	GetMDMAppleProfilesContentsFunc        GetMDMAppleProfilesContentsFunc
+	GetMDMAppleProfilesContentsFuncInvoked bool
+
+	UpdateHostMDMAppleProfileFunc        UpdateHostMDMAppleProfileFunc
+	UpdateHostMDMAppleProfileFuncInvoked bool
+
+	GetMDMAppleCommandRequestTypeFunc        GetMDMAppleCommandRequestTypeFunc
+	GetMDMAppleCommandRequestTypeFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -3209,4 +3239,46 @@ func (s *DataStore) OutdatedAutomationBatch(ctx context.Context) ([]fleet.Policy
 	s.OutdatedAutomationBatchFuncInvoked = true
 	s.mu.Unlock()
 	return s.OutdatedAutomationBatchFunc(ctx)
+}
+
+func (s *DataStore) ListMDMAppleProfilesToInstall(ctx context.Context) ([]*fleet.MDMAppleProfilePayload, error) {
+	s.mu.Lock()
+	s.ListMDMAppleProfilesToInstallFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListMDMAppleProfilesToInstallFunc(ctx)
+}
+
+func (s *DataStore) ListMDMAppleProfilesToRemove(ctx context.Context) ([]*fleet.MDMAppleProfilePayload, error) {
+	s.mu.Lock()
+	s.ListMDMAppleProfilesToRemoveFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListMDMAppleProfilesToRemoveFunc(ctx)
+}
+
+func (s *DataStore) BulkUpsertMDMAppleHostProfiles(ctx context.Context, payload []*fleet.MDMAppleBulkUpsertHostProfilePayload) error {
+	s.mu.Lock()
+	s.BulkUpsertMDMAppleHostProfilesFuncInvoked = true
+	s.mu.Unlock()
+	return s.BulkUpsertMDMAppleHostProfilesFunc(ctx, payload)
+}
+
+func (s *DataStore) GetMDMAppleProfilesContents(ctx context.Context, profileIDs []uint) (map[uint]fleet.Mobileconfig, error) {
+	s.mu.Lock()
+	s.GetMDMAppleProfilesContentsFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetMDMAppleProfilesContentsFunc(ctx, profileIDs)
+}
+
+func (s *DataStore) UpdateHostMDMAppleProfile(ctx context.Context, profile *fleet.HostMDMAppleProfile) error {
+	s.mu.Lock()
+	s.UpdateHostMDMAppleProfileFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdateHostMDMAppleProfileFunc(ctx, profile)
+}
+
+func (s *DataStore) GetMDMAppleCommandRequestType(ctx context.Context, commandUUID string) (string, error) {
+	s.mu.Lock()
+	s.GetMDMAppleCommandRequestTypeFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetMDMAppleCommandRequestTypeFunc(ctx, commandUUID)
 }
