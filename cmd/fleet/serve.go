@@ -643,6 +643,18 @@ the way that the Fleet server works.
 				}); err != nil {
 					initFatal(err, "failed to register apple_mdm_dep_profile_assigner schedule")
 				}
+				if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
+					return newMDMAppleProfileManager(
+						ctx,
+						instanceID,
+						ds,
+						service.NewMDMAppleCommander(mdmStorage, mdmPushService),
+						logger,
+						config.Logging.Debug,
+					)
+				}); err != nil {
+					initFatal(err, "failed to register mdm_apple_profile_manager schedule")
+				}
 			}
 
 			if license.IsPremium() && config.Activity.EnableAuditLog {
