@@ -951,10 +951,15 @@ func (ds *Datastore) GenerateHostStatusStatistics(ctx context.Context, filter fl
 // * otherwise if it matched on uuid, use that host
 // * otherwise use the match on serial
 //
-// Not that in general, all options would result in a single match anyway. It's
-// just that our DB schema doesn't enforce this (only osquery_host_id has a
-// unique constraint).
-func matchHostDuringEnrollment(ctx context.Context, q sqlx.QueryerContext, osqueryID, uuid, serial string) (uint, time.Time, error) {
+// Note that in general, all options should result in a single match anyway.
+// It's just that our DB schema doesn't enforce this (only osquery_host_id has
+// a unique constraint). Also, due to things like VMs, the serial number is not
+// guaranteed to match a single host. For that reason, we only attempt the
+// serial number lookup if Fleet MDM is enabled on the server (as we must be
+// able to match by serial in this scenario, since this is the only information
+// we get when enrolling hosts via Apple DEP) AND if the matched host is on the
+// macOS platform (darwin).
+func matchHostDuringEnrollment(ctx context.Context, q sqlx.QueryerContext, isMDMEnabled bool, osqueryID, uuid, serial string) (uint, time.Time, error) {
 	type hostMatch struct {
 		ID             uint
 		LastEnrolledAt time.Time `db:"last_enrolled_at"`
@@ -990,12 +995,12 @@ func matchHostDuringEnrollment(ctx context.Context, q sqlx.QueryerContext, osque
 	//	args = append(args, uuid)
 	//}
 
-	if serial != "" {
+	if serial != "" && isMDMEnabled {
 		if query.Len() > 0 {
 			_, _ = query.WriteString(" UNION ")
 		}
-		_, _ = query.WriteString(`(SELECT id, last_enrolled_at, 3 priority FROM hosts WHERE hardware_serial = ? ORDER BY id LIMIT 1)`)
-		args = append(args, serial)
+		_, _ = query.WriteString(`(SELECT id, last_enrolled_at, 3 priority FROM hosts WHERE hardware_serial = ? AND platform = ? ORDER BY id LIMIT 1)`)
+		args = append(args, serial, "darwin")
 	}
 
 	if err := sqlx.SelectContext(ctx, q, &rows, query.String(), args...); err != nil {
@@ -1011,7 +1016,7 @@ func matchHostDuringEnrollment(ctx context.Context, q sqlx.QueryerContext, osque
 	return rows[0].ID, rows[0].LastEnrolledAt, nil
 }
 
-func (ds *Datastore) EnrollOrbit(ctx context.Context, hardwareUUID, hardwareSerial, orbitNodeKey string, teamID *uint) (*fleet.Host, error) {
+func (ds *Datastore) EnrollOrbit(ctx context.Context, isMDMEnabled bool, hardwareUUID, hardwareSerial, orbitNodeKey string, teamID *uint) (*fleet.Host, error) {
 	if orbitNodeKey == "" {
 		return nil, ctxerr.New(ctx, "orbit node key is empty")
 	}
@@ -1022,7 +1027,7 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, hardwareUUID, hardwareSeri
 
 	var host fleet.Host
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		hostID, _, err := matchHostDuringEnrollment(ctx, tx, "", hardwareUUID, hardwareSerial)
+		hostID, _, err := matchHostDuringEnrollment(ctx, tx, isMDMEnabled, "", hardwareUUID, hardwareSerial)
 		switch {
 		case err == nil:
 			sqlUpdate := `
@@ -1091,7 +1096,7 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, hardwareUUID, hardwareSeri
 }
 
 // EnrollHost enrolls a host
-func (ds *Datastore) EnrollHost(ctx context.Context, osqueryHostID, hardwareUUID, hardwareSerial, nodeKey string, teamID *uint, cooldown time.Duration) (*fleet.Host, error) {
+func (ds *Datastore) EnrollHost(ctx context.Context, isMDMEnabled bool, osqueryHostID, hardwareUUID, hardwareSerial, nodeKey string, teamID *uint, cooldown time.Duration) (*fleet.Host, error) {
 	if osqueryHostID == "" {
 		return nil, ctxerr.New(ctx, "missing osquery host identifier")
 	}
@@ -1100,7 +1105,7 @@ func (ds *Datastore) EnrollHost(ctx context.Context, osqueryHostID, hardwareUUID
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		zeroTime := time.Unix(0, 0).Add(24 * time.Hour)
 
-		matchedID, lastEnrolledAt, err := matchHostDuringEnrollment(ctx, tx, osqueryHostID, hardwareUUID, hardwareSerial)
+		matchedID, lastEnrolledAt, err := matchHostDuringEnrollment(ctx, tx, isMDMEnabled, osqueryHostID, hardwareUUID, hardwareSerial)
 		switch {
 		case err != nil && !errors.Is(err, sql.ErrNoRows):
 			return ctxerr.Wrap(ctx, err, "check existing")

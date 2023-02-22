@@ -6322,12 +6322,12 @@ func (s *integrationTestSuite) TestOrbitConfigNotifications() {
 	require.False(t, resp.Notifications.RenewEnrollmentProfile)
 }
 
-func (s *integrationTestSuite) TestEnrollOrbitAfterDEPSync() {
+func (s *integrationTestSuite) TestEnrollOrbitExistingHostNoSerialMatch() {
 	t := s.T()
 	ctx := context.Background()
 
 	// create a host with minimal information and the serial, no uuid/osquery id
-	// (as when created via DEP sync)
+	// (as when created via DEP sync).
 	dbZeroTime := time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
 	h, err := s.ds.NewHost(ctx, &fleet.Host{
 		HardwareSerial:   uuid.New().String(),
@@ -6347,7 +6347,9 @@ func (s *integrationTestSuite) TestEnrollOrbitAfterDEPSync() {
 		},
 	}, http.StatusOK, &applyResp)
 
-	// enroll the host from orbit, it should match the host above via the serial
+	// enroll the host from orbit, it will NOT match the existing host since MDM
+	// is not configured (it will only look for a match by osquery_host_id with
+	// the provided uuid).
 	var resp EnrollOrbitResponse
 	hostUUID := uuid.New().String()
 	s.DoJSON("POST", "/api/fleet/orbit/enroll", EnrollOrbitRequest{
@@ -6357,22 +6359,27 @@ func (s *integrationTestSuite) TestEnrollOrbitAfterDEPSync() {
 	}, http.StatusOK, &resp)
 	require.NotEmpty(t, resp.OrbitNodeKey)
 
-	// fetch the host, it will match the one created above
-	// (NOTE: cannot check the returned OrbitNodeKey, this field is not part of the response)
-	var hostResp getHostResponse
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", h.ID), nil, http.StatusOK, &hostResp)
-	require.Equal(t, h.ID, hostResp.Host.ID)
-
-	got, err := s.ds.LoadHostByOrbitNodeKey(ctx, resp.OrbitNodeKey)
+	// fetch the host, it will NOT match the one created above
+	orbitHost, err := s.ds.LoadHostByOrbitNodeKey(ctx, resp.OrbitNodeKey)
 	require.NoError(t, err)
-	require.Equal(t, h.ID, got.ID)
+	require.NotEqual(t, h.ID, orbitHost.ID)
 
-	// enroll the host from osquery, it should match the same host
+	// enroll the host from osquery, it should match the Orbit-enrolled host
 	var osqueryResp enrollAgentResponse
-	osqueryID := uuid.New().String()
+
+	// NOTE(mna): using an osquery_host_id that is NOT the host's UUID would not work,
+	// because we haven't enabled lookup by UUID due to not having an index and possible
+	// side-effects of this on host ingestion performance. However, this should not happen
+	// anyway in MDM-enabled environments as we will recommend using the UUID as osquery
+	// host identifier.
+	// See https://github.com/fleetdm/fleet/issues/9033#issuecomment-1411150758
+
+	//osqueryID := uuid.New().String()
+	osqueryID := hostUUID
+
 	s.DoJSON("POST", "/api/osquery/enroll", enrollAgentRequest{
 		EnrollSecret:   secret,
-		HostIdentifier: osqueryID, // osquery host_identifier may not be the same as the host UUID, simulate that here
+		HostIdentifier: osqueryID,
 		HostDetails: map[string]map[string]string{
 			"system_info": {
 				"uuid":            hostUUID,
@@ -6382,10 +6389,10 @@ func (s *integrationTestSuite) TestEnrollOrbitAfterDEPSync() {
 	}, http.StatusOK, &osqueryResp)
 	require.NotEmpty(t, osqueryResp.NodeKey)
 
-	// load the host by osquery node key, should match the initial host
-	got, err = s.ds.LoadHostByNodeKey(ctx, osqueryResp.NodeKey)
+	// load the host by osquery node key, should match the orbit host
+	got, err := s.ds.LoadHostByNodeKey(ctx, osqueryResp.NodeKey)
 	require.NoError(t, err)
-	require.Equal(t, h.ID, got.ID)
+	require.Equal(t, orbitHost.ID, got.ID)
 }
 
 // this test can be deleted once the "v1" version is removed.
@@ -6449,7 +6456,7 @@ func createOrbitEnrolledHost(t *testing.T, os, suffix string, ds fleet.Datastore
 	})
 	require.NoError(t, err)
 	orbitKey := uuid.New().String()
-	_, err = ds.EnrollOrbit(context.Background(), *h.OsqueryHostID, h.HardwareSerial, orbitKey, nil)
+	_, err = ds.EnrollOrbit(context.Background(), false, *h.OsqueryHostID, h.HardwareSerial, orbitKey, nil)
 	require.NoError(t, err)
 	h.OrbitNodeKey = &orbitKey
 	return h

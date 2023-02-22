@@ -115,7 +115,12 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hardwareUUID, hardwareSeria
 		return "", orbitError{message: "failed to generate orbit node key: " + err.Error()}
 	}
 
-	_, err = svc.ds.EnrollOrbit(ctx, hardwareUUID, hardwareSerial, orbitNodeKey, secret.TeamID)
+	appConfig, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return "", orbitError{message: "app config load failed: " + err.Error()}
+	}
+
+	_, err = svc.ds.EnrollOrbit(ctx, appConfig.MDM.EnabledAndConfigured, hardwareUUID, hardwareSerial, orbitNodeKey, secret.TeamID)
 	if err != nil {
 		return "", orbitError{message: "failed to enroll " + err.Error()}
 	}

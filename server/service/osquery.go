@@ -147,14 +147,14 @@ func (svc *Service) EnrollAgent(ctx context.Context, enrollSecret, hostIdentifie
 		hardwareSerial = r["hardware_serial"]
 	}
 
-	host, err := svc.ds.EnrollHost(ctx, hostIdentifier, hardwareUUID, hardwareSerial, nodeKey, secret.TeamID, svc.config.Osquery.EnrollCooldown)
-	if err != nil {
-		return "", osqueryError{message: "save enroll failed: " + err.Error(), nodeInvalid: true}
-	}
-
 	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		return "", osqueryError{message: "app config load failed: " + err.Error(), nodeInvalid: true}
+	}
+
+	host, err := svc.ds.EnrollHost(ctx, appConfig.MDM.EnabledAndConfigured, hostIdentifier, hardwareUUID, hardwareSerial, nodeKey, secret.TeamID, svc.config.Osquery.EnrollCooldown)
+	if err != nil {
+		return "", osqueryError{message: "save enroll failed: " + err.Error(), nodeInvalid: true}
 	}
 
 	features, err := svc.HostFeatures(ctx, host)
