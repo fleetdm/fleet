@@ -8,9 +8,14 @@ import DiskSpaceGraph from "components/DiskSpaceGraph";
 import HumanTimeDiffWithDateTip from "components/HumanTimeDiffWithDateTip";
 import { humanHostMemory, wrapFleetHelper } from "utilities/helpers";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
-import getHostStatusTooltipText from "pages/hosts/helpers";
+import {
+  getHostStatusTooltipText,
+  getMacSettingsStatus,
+} from "pages/hosts/helpers";
 import StatusIndicator from "components/StatusIndicator";
+import { IMacSettings } from "interfaces/mdm";
 import IssueIcon from "../../../../../../assets/images/icon-issue-fleet-black-50-16x16@2x.png";
+import MacSettingsIndicator from "../../MacSettingsIndicator";
 
 const baseClass = "host-summary";
 
@@ -18,6 +23,7 @@ interface IHostDiskEncryptionProps {
   enabled?: boolean;
   tooltip?: string;
 }
+
 interface IHostSummaryProps {
   statusClassName: string;
   titleData: any; // TODO: create interfaces for this and use consistently across host pages and related helpers
@@ -25,6 +31,9 @@ interface IHostSummaryProps {
   isPremiumTier?: boolean;
   isOnlyObserver?: boolean;
   toggleOSPolicyModal?: () => void;
+  toggleMacSettingsModal?: () => void;
+  hostMacSettings?: IMacSettings;
+  mdmName?: string;
   showRefetchSpinner: boolean;
   onRefetchHost: (
     evt: React.MouseEvent<HTMLButtonElement, React.MouseEvent>
@@ -40,6 +49,9 @@ const HostSummary = ({
   isPremiumTier,
   isOnlyObserver,
   toggleOSPolicyModal,
+  toggleMacSettingsModal,
+  hostMacSettings,
+  mdmName,
   showRefetchSpinner,
   onRefetchHost,
   renderActionButtons,
@@ -108,7 +120,7 @@ const HostSummary = ({
             Failing policies ({titleData.issues.failing_policies_count})
           </span>
         </ReactTooltip>
-        <span className={`total-issues-count`}>
+        <span className={"info-flex__data__text"}>
           {titleData.issues.total_issues_count}
         </span>
       </span>
@@ -128,6 +140,41 @@ const HostSummary = ({
     </div>
   );
 
+  const renderMacSettingsIndicator = () => {
+    const STATUS_DISPLAY_OPTIONS = {
+      Latest: {
+        iconName: "success",
+        tooltipText: "Host applied the latest settings",
+      },
+      Pending: {
+        iconName: "pending",
+        tooltipText: "Host will apply the latest settings when it comes online",
+      },
+      Failing: {
+        iconName: "error",
+        tooltipText:
+          "Host failed to apply the latest settings. Click to view error(s).",
+      },
+    } as const;
+
+    const macSettingsStatus = getMacSettingsStatus(hostMacSettings);
+
+    const iconName = STATUS_DISPLAY_OPTIONS[macSettingsStatus].iconName;
+    const tooltipText = STATUS_DISPLAY_OPTIONS[macSettingsStatus].tooltipText;
+
+    return (
+      <div className="info-flex__item info-flex__item--title">
+        <span className="info-flex__header">macOS settings</span>
+        <MacSettingsIndicator
+          indicatorText={macSettingsStatus}
+          iconName={iconName}
+          onClick={toggleMacSettingsModal}
+          tooltip={{ tooltipText }}
+        />
+      </div>
+    );
+  };
+
   const renderSummary = () => {
     const { status, id } = titleData;
     return (
@@ -139,13 +186,23 @@ const HostSummary = ({
             tooltip={{
               id,
               tooltipText: getHostStatusTooltipText(status),
+              position: "bottom",
             }}
           />
         </div>
+
         {titleData.issues?.total_issues_count > 0 &&
           isPremiumTier &&
           renderIssues()}
+
         {isPremiumTier && renderHostTeam()}
+
+        {titleData.platform === "darwin" &&
+          isPremiumTier &&
+          mdmName === "Fleet" && // show if 1 - host is enrolled in Fleet MDM, and
+          hostMacSettings && //  2 - host has at least one setting (profile) enforced
+          renderMacSettingsIndicator()}
+
         <div className="info-flex__item info-flex__item--title">
           <span className="info-flex__header">Disk space</span>
           <DiskSpaceGraph
@@ -154,13 +211,18 @@ const HostSummary = ({
             percentDiskSpaceAvailable={titleData.percent_disk_space_available}
             id={`disk-space-tooltip-${titleData.id}`}
             platform={titleData.platform}
+            tooltipPosition="bottom"
           />
         </div>
+
         {typeof diskEncryption?.enabled === "boolean" &&
         diskEncryption?.tooltip ? (
           <div className="info-flex__item info-flex__item--title">
             <span className="info-flex__header">Disk encryption</span>
-            <TooltipWrapper tipContent={diskEncryption.tooltip}>
+            <TooltipWrapper
+              tipContent={diskEncryption.tooltip}
+              position="bottom"
+            >
               {diskEncryption.enabled ? "On" : "Off"}
             </TooltipWrapper>
           </div>
@@ -184,7 +246,7 @@ const HostSummary = ({
               `${titleData.os_version}`
             ) : (
               <Button
-                onClick={() => toggleOSPolicyModal && toggleOSPolicyModal()}
+                onClick={() => toggleOSPolicyModal?.()}
                 variant="text-link"
                 className={`${baseClass}__os-policy-button`}
               >
