@@ -13,10 +13,10 @@ As part of both Premium and Ultimate we will be offering companies the ability t
 If you have upgraded to a premium Fleet plan you will have the ability to import these CIS benchmarks into your queries list where you can schedule or edit them. Once you import them you would see something like this:
 
 
-![CIS Queries in Dashboard](../website/assets/images/articles/cis-queries-1468x770@2x.png)
+![CIS Queries in Dashboard](../website/assets/images/articles/introducing-fleet-ultimate-cis-queries-1468x770@2x.png)
 
 ## Custom Pricing for mac, Windows, Linux machines, servers and Kubernetes containers
-![Fleet Ultimate Calculator](../website/assets/images/articles/fleet-ultimate-calculator-372x564@2x.png)
+![Fleet Ultimate Calculator](../website/assets/images/articles/introducing-fleet-ultimate-pricing-calculator-372x564@2x.png)
 
 In addition to some new options for our Fleet Ultimate customers, we wanted to give you better insight into the cost/host on a truly diverse array of machines. We know we have hundreds of customers using Fleet across their servers but not getting the complete set of premium features like Teams, audit logs and scheduled queries. By giving you the ability to enter your entire fleet we hope to unlock those premium Enterprise features for many more customers. Visit the [pricing page](https://fleetdm.com/pricing?utm_source=pricing+demo+top+premium) to play with the new calculator.
 
@@ -26,7 +26,7 @@ Lastly, we are making one substantial change to the Fleet Premium product, a fla
 
 In addition to better control, many of our customers want to build better tooling around reporting. In order to showcase the ability to use the Fleet API to build your own automation and reporting, we created our own internal dashboard. Here is a preview:
 
-![CIS Queries in Dashboard](../website/assets/images/articles/fleet-dashboard.gif)
+![CIS Queries in Dashboard](../website/assets/images/articles/introducing-fleet-ultimate-fleet-dashboard-400x190@2x.gif)
 
 If you’d like to discuss a dashboard like this for your team, feel free to [schedule time with our expert services team](https://calendly.com/fleetdm/demo?utm_source=pricing+demo+top+premium). 
 
