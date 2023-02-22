@@ -795,6 +795,19 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 		policies = &hp
 	}
 
+	// If Fleet MDM is enabled and configured, we want to include MDM profiles.
+	ac, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get app config for host mdm profiles")
+	}
+	if ac.MDM.EnabledAndConfigured {
+		profiles, err := svc.ds.GetHostMDMProfiles(ctx, host.UUID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "get host mdm profiles")
+		}
+		host.MDM.Profiles = &profiles
+	}
+
 	return &fleet.HostDetail{
 		Host:      *host,
 		Labels:    labels,

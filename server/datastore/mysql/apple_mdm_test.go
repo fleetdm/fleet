@@ -27,6 +27,7 @@ func TestMDMAppleConfigProfile(t *testing.T) {
 		{"TestNewMDMAppleConfigProfileDuplicateIdentifier", testNewMDMAppleConfigProfileDuplicateIdentifier},
 		{"TestDeleteMDMAppleConfigProfile", testDeleteMDMAppleConfigProfile},
 		{"TestListMDMAppleConfigProfiles", testListMDMAppleConfigProfiles},
+		{"TestHostDetailsMDMProfiles", testHostDetailsMDMProfiles},
 		{"TestBatchSetMDMAppleProfiles", testBatchSetMDMAppleProfiles},
 		{"TestMDMAppleProfileManagement", testMDMAppleProfileManagement},
 		{"TestUpdateHostMDMAppleProfile", testGetMDMAppleProfilesContents},
@@ -190,6 +191,126 @@ func checkConfigProfile(t *testing.T, expected fleet.MDMAppleConfigProfile, actu
 	require.Equal(t, expected.Name, actual.Name)
 	require.Equal(t, expected.Identifier, actual.Identifier)
 	require.Equal(t, expected.Mobileconfig, actual.Mobileconfig)
+}
+
+func testHostDetailsMDMProfiles(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	p0, err := ds.NewMDMAppleConfigProfile(ctx, fleet.MDMAppleConfigProfile{Name: "Name0", Identifier: "Identifier0", Mobileconfig: []byte("profile0-bytes")})
+	require.NoError(t, err)
+
+	p1, err := ds.NewMDMAppleConfigProfile(ctx, fleet.MDMAppleConfigProfile{Name: "Name1", Identifier: "Identifier1", Mobileconfig: []byte("profile1-bytes")})
+	require.NoError(t, err)
+
+	p2, err := ds.NewMDMAppleConfigProfile(ctx, fleet.MDMAppleConfigProfile{Name: "Name2", Identifier: "Identifier2", Mobileconfig: []byte("profile2-bytes")})
+	require.NoError(t, err)
+
+	profiles, err := ds.ListMDMAppleConfigProfiles(ctx, ptr.Uint(0))
+	require.NoError(t, err)
+	require.Len(t, profiles, 3)
+
+	h0, err := ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   ptr.String("host0-osquery-id"),
+		NodeKey:         ptr.String("host0-node-key"),
+		UUID:            "host0-test-mdm-profiles",
+		Hostname:        "hostname0",
+	})
+	require.NoError(t, err)
+
+	gotHost, err := ds.Host(ctx, h0.ID)
+	require.NoError(t, err)
+	require.Nil(t, gotHost.MDM.Profiles)
+	fmt.Println(fmt.Sprintf("%+v", gotHost.MDM))
+	gotProfs, err := ds.GetHostMDMProfiles(ctx, h0.UUID)
+	require.NoError(t, err)
+	require.Nil(t, gotProfs)
+
+	h1, err := ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   ptr.String("host1-osquery-id"),
+		NodeKey:         ptr.String("host1-node-key"),
+		UUID:            "host1-test-mdm-profiles",
+		Hostname:        "hostname1",
+	})
+	require.NoError(t, err)
+
+	gotHost, err = ds.Host(ctx, h1.ID)
+	require.NoError(t, err)
+	require.Nil(t, gotHost.MDM.Profiles)
+	fmt.Println(fmt.Sprintf("%+v", gotHost.MDM))
+	gotProfs, err = ds.GetHostMDMProfiles(ctx, h1.UUID)
+	require.NoError(t, err)
+	require.Nil(t, gotProfs)
+
+	expectedProfiles0 := map[uint]fleet.HostMDMAppleProfile{
+		p0.ProfileID: {HostUUID: h0.UUID, ProfileID: p0.ProfileID, CommandUUID: "cmd0-uuid", Status: &fleet.MDMAppleDeliveryPending, OperationType: fleet.MDMAppleOperationTypeInstall, Detail: ""},
+		p1.ProfileID: {HostUUID: h0.UUID, ProfileID: p1.ProfileID, CommandUUID: "cmd1-uuid", Status: &fleet.MDMAppleDeliveryApplied, OperationType: fleet.MDMAppleOperationTypeInstall, Detail: ""},
+		p2.ProfileID: {HostUUID: h0.UUID, ProfileID: p2.ProfileID, CommandUUID: "cmd2-uuid", Status: &fleet.MDMAppleDeliveryFailed, OperationType: fleet.MDMAppleOperationTypeRemove, Detail: "Error removing profile"},
+	}
+
+	expectedProfiles1 := map[uint]fleet.HostMDMAppleProfile{
+		p0.ProfileID: {HostUUID: h1.UUID, ProfileID: p0.ProfileID, CommandUUID: "cmd0-uuid", Status: &fleet.MDMAppleDeliveryFailed, OperationType: fleet.MDMAppleOperationTypeInstall, Detail: "Error installing profile"},
+		p1.ProfileID: {HostUUID: h1.UUID, ProfileID: p1.ProfileID, CommandUUID: "cmd1-uuid", Status: &fleet.MDMAppleDeliveryApplied, OperationType: fleet.MDMAppleOperationTypeInstall, Detail: ""},
+		p2.ProfileID: {HostUUID: h1.UUID, ProfileID: p2.ProfileID, CommandUUID: "cmd2-uuid", Status: &fleet.MDMAppleDeliveryFailed, OperationType: fleet.MDMAppleOperationTypeRemove, Detail: "Error removing profile"},
+	}
+
+	var args []interface{}
+	for _, p := range expectedProfiles0 {
+		args = append(args, p.HostUUID, p.ProfileID, p.CommandUUID, *p.Status, p.OperationType, p.Detail)
+	}
+	for _, p := range expectedProfiles1 {
+		args = append(args, p.HostUUID, p.ProfileID, p.CommandUUID, *p.Status, p.OperationType, p.Detail)
+	}
+
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `
+	INSERT INTO host_mdm_apple_profiles (
+		host_uuid, profile_id, command_uuid, status, operation_type, detail)
+	VALUES (?,?,?,?,?,?),(?,?,?,?,?,?),(?,?,?,?,?,?),(?,?,?,?,?,?),(?,?,?,?,?,?),(?,?,?,?,?,?)
+		`, args...,
+		)
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+
+	gotHost, err = ds.Host(ctx, h1.ID)
+	require.NoError(t, err)
+	require.Nil(t, gotHost.MDM.Profiles) // ds.Host never returns MDM profiles
+
+	gotProfs, err = ds.GetHostMDMProfiles(ctx, h0.UUID)
+	require.NoError(t, err)
+	require.Len(t, gotProfs, 3)
+	for _, gp := range gotProfs {
+		ep, ok := expectedProfiles0[gp.ProfileID]
+		require.True(t, ok)
+		require.Equal(t, *ep.Status, *gp.Status)
+		require.Equal(t, ep.OperationType, gp.OperationType)
+		require.Equal(t, ep.Detail, gp.Detail)
+	}
+
+	gotHost, err = ds.Host(ctx, h1.ID)
+	require.NoError(t, err)
+	require.Nil(t, gotHost.MDM.Profiles) // ds.Host never returns MDM profiles
+
+	gotProfs, err = ds.GetHostMDMProfiles(ctx, h1.UUID)
+	require.NoError(t, err)
+	require.Len(t, gotProfs, 3)
+	for _, gp := range gotProfs {
+		ep, ok := expectedProfiles1[gp.ProfileID]
+		require.True(t, ok)
+		require.Equal(t, *ep.Status, *gp.Status)
+		require.Equal(t, ep.OperationType, gp.OperationType)
+		require.Equal(t, ep.Detail, gp.Detail)
+	}
 }
 
 func TestIngestMDMAppleDevicesFromDEPSync(t *testing.T) {
@@ -823,7 +944,6 @@ func testMDMAppleProfileManagement(t *testing.T, ds *Datastore) {
 		{ProfileID: globalPfs[1].ProfileID, ProfileIdentifier: globalPfs[1].Identifier, HostUUID: "test-uuid-1"},
 		{ProfileID: globalPfs[2].ProfileID, ProfileIdentifier: globalPfs[2].Identifier, HostUUID: "test-uuid-1"},
 	}, toRemove)
-
 }
 
 // checkMDMHostRelatedTables checks that rows are inserted for new MDM hosts in
