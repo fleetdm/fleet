@@ -105,6 +105,16 @@ the account verification message.)`,
       throw 'emailAlreadyInUse';
     }
 
+    // Create a new customer entry in the Stripe API for this user before we provision a Sandbox Instance.
+    let stripeCustomerId = await sails.helpers.stripe.saveBillingInfo.with({
+      emailAddress: newEmailAddress
+    })
+    .timeout(5000)
+    .retry()
+    .intercept((error)=>{
+      return new Error(`An error occurred when trying to create a Stripe Customer for a new user with the using the email address ${newEmailAddress}. The incomplete user record has not been saved in the database, and the user will be asked to try signing up again. Full error: ${error.raw}`);
+    });
+
     // Provisioning a Fleet sandbox instance for the new user. Note: Because this is the only place where we provision Sandbox instances, We'll provision a Sandbox instance BEFORE
     // creating the new User record. This way, if this fails, we won't save the new record to the database, and the user will see an error on the signup form asking them to try again.
 
@@ -177,6 +187,7 @@ the account verification message.)`,
       fleetSandboxURL: cloudProvisionerResponseData.URL,
       fleetSandboxExpiresAt,
       fleetSandboxDemoKey,
+      stripeCustomerId,
       tosAcceptedByIp: this.req.ip
     }, sails.config.custom.verifyEmailAddresses? {
       emailProofToken: await sails.helpers.strings.random('url-friendly'),
@@ -205,21 +216,6 @@ the account verification message.)`,
       sails.log.warn(`When a new user signed up, a lead/contact could not be verified in the CRM for this email address: ${newEmailAddress}. Raw error: ${err}`);
       return;
     });
-    // If billing feaures are enabled, save a new customer entry in the Stripe API.
-    // Then persist the Stripe customer id in the database.
-    if (sails.config.custom.enableBillingFeatures) {
-      let stripeCustomerId = await sails.helpers.stripe.saveBillingInfo.with({
-        emailAddress: newEmailAddress
-      }).timeout(5000).retry().tolerate((error)=>{
-        // If an error occurred while creating a Stripe customer for this user, we'll log a warning to alert us, and set this user's stripeCustomerId to a empty string.
-        sails.log.warn(`An error occurred when trying to create a Stripe Customer for a new user with the id ${newUserRecord.id} using the email address ${newEmailAddress}. Because this user has already had a Fleet Sandbox Instance provisioned for them, their stripeCustomerId will be set to be an empty string. This user will need to added to Stripe manually through the Stripe Dashboard, and their database record will need to be updated to use their real stripeCustomerId. Full error: ${error}`);
-        return '';
-      });
-      await User.updateOne({id: newUserRecord.id})
-      .set({
-        stripeCustomerId
-      });
-    }
     // Store the user's new id in their session.
     this.req.session.userId = newUserRecord.id;
 
