@@ -210,7 +210,11 @@ the account verification message.)`,
     if (sails.config.custom.enableBillingFeatures) {
       let stripeCustomerId = await sails.helpers.stripe.saveBillingInfo.with({
         emailAddress: newEmailAddress
-      }).timeout(5000).retry();
+      }).timeout(5000).retry().tolerate((error)=>{
+        // If an error occurred while creating a Stripe customer for this user, we'll log a warning to alert us, and set this user's stripeCustomerId to a empty string.
+        sails.log.warn(`An error occurred when trying to create a Stripe Customer for a new user with the id ${newUserRecord.id} using the email address ${newEmailAddress}. Because this user has already had a Fleet Sandbox Instance provisioned for them, their stripeCustomerId will be set to be an empty string. This user will need to added to Stripe manually through the Stripe Dashboard, and their database record will need to be updated to use their real stripeCustomerId. Full error: ${error}`);
+        return '';
+      });
       await User.updateOne({id: newUserRecord.id})
       .set({
         stripeCustomerId
