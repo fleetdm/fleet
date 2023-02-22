@@ -8,7 +8,6 @@ import { AppContext } from "context/app";
 
 import LinkWithContext from "components/LinkWithContext";
 import UserMenu from "components/top_nav/UserMenu";
-import Icon from "components/Icon";
 // @ts-ignore
 import OrgLogoIcon from "components/icons/OrgLogoIcon";
 
@@ -49,7 +48,7 @@ const SiteTopNav = ({
       [`${navItemBaseClass}--active`]: active,
     });
 
-    if (iconName && iconName === "logo") {
+    if (icon && icon === "logo") {
       return (
         <li className={navItemClasses} key={`nav-item-${name}`}>
           <Link
