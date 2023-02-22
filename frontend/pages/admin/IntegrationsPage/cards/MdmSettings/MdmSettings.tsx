@@ -25,7 +25,7 @@ interface IABMKeys {
   decodedPrivate: string;
 }
 
-const baseClass = "mdm-integrations";
+const baseClass = "mdm-settings";
 
 const Mdm = (): JSX.Element => {
   const { isPremiumTier, config } = useContext(AppContext);

@@ -32,6 +32,7 @@ class InputField extends Component {
     hint: PropTypes.oneOfType([
       PropTypes.string,
       PropTypes.arrayOf(PropTypes.string),
+      PropTypes.object,
     ]),
   };
 
@@ -91,6 +92,7 @@ class InputField extends Component {
       blockAutoComplete,
       value,
     } = this.props;
+
     const { onInputChange } = this;
     const shouldShowPasswordClass = type === "password";
     const inputClasses = classnames(baseClass, inputClassName, {

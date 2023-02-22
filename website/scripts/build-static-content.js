@@ -567,8 +567,8 @@ module.exports = {
                 if(column.description) {
                   columnDescriptionForTable = column.description;
                 }
-                // Replacing pipe characters with an html entity in column descriptions to keep it from breaking markdown tables.
-                columnDescriptionForTable = columnDescriptionForTable.replace(/\|/g, '&#124;');
+                // Replacing pipe characters and newlines with html entities in column descriptions to keep it from breaking markdown tables.
+                columnDescriptionForTable = columnDescriptionForTable.replace(/\|/g, '&#124;').replace(/\n/gm, '&#10;');
 
                 keywordsForSyntaxHighlighting.push(column.name);
                 if(column.required) { // If a column has `"required": true`, we'll add a note to the description that will be added to the table

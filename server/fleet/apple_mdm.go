@@ -33,6 +33,15 @@ const (
 	MDMAppleEnrollmentTypeManual MDMAppleEnrollmentType = "manual"
 )
 
+// Well-known status responses
+const (
+	MDMAppleStatusAcknowledged       = "Acknowledged"
+	MDMAppleStatusError              = "Error"
+	MDMAppleStatusCommandFormatError = "CommandFormatError"
+	MDMAppleStatusIdle               = "Idle"
+	MDMAppleStatusNotNow             = "NotNow"
+)
+
 type MDMAppleDeliveryStatus string
 
 var (
@@ -43,11 +52,19 @@ var (
 
 func MDMAppleDeliveryStatusFromCommandStatus(cmdStatus string) *MDMAppleDeliveryStatus {
 	switch cmdStatus {
+<<<<<<< HEAD
 	case "Acknowledged":
 		return &MDMAppleDeliveryApplied
 	case "Error", "CommandFormatError":
 		return &MDMAppleDeliveryFailed
 	case "Idle", "NotNow":
+=======
+	case MDMAppleStatusAcknowledged:
+		return &MDMAppleDeliveryApplied
+	case MDMAppleStatusError, MDMAppleStatusCommandFormatError:
+		return &MDMAppleDeliveryFailed
+	case MDMAppleStatusIdle, MDMAppleStatusNotNow:
+>>>>>>> origin/main
 		return &MDMAppleDeliveryPending
 	default:
 		return nil

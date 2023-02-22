@@ -7,6 +7,8 @@ import Checkbox from "components/forms/fields/Checkbox";
 import Dropdown from "components/forms/fields/Dropdown";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
+import validUrl from "components/forms/validators/valid_url";
+
 import Modal from "components/Modal";
 import {
   IAppConfigFormProps,
@@ -32,7 +34,7 @@ const HostStatusWebhook = ({
     enableHostStatusWebhook:
       appConfig.webhook_settings.host_status_webhook
         .enable_host_status_webhook || false,
-    hostStatusWebhookDestinationURL:
+    hostStatusWebhookDestinationUrl:
       appConfig.webhook_settings.host_status_webhook.destination_url || "",
     hostStatusWebhookHostPercentage:
       appConfig.webhook_settings.host_status_webhook.host_percentage ||
@@ -43,7 +45,7 @@ const HostStatusWebhook = ({
 
   const {
     enableHostStatusWebhook,
-    hostStatusWebhookDestinationURL,
+    hostStatusWebhookDestinationUrl,
     hostStatusWebhookHostPercentage,
     hostStatusWebhookDaysCount,
   } = formData;
@@ -59,8 +61,10 @@ const HostStatusWebhook = ({
     const errors: IAppConfigFormErrors = {};
 
     if (enableHostStatusWebhook) {
-      if (!hostStatusWebhookDestinationURL) {
+      if (!hostStatusWebhookDestinationUrl) {
         errors.destination_url = "Destination URL must be present";
+      } else if (!validUrl({ url: hostStatusWebhookDestinationUrl })) {
+        errors.server_url = `${hostStatusWebhookDestinationUrl} is not a valid URL`;
       }
 
       if (!hostStatusWebhookDaysCount) {
@@ -92,7 +96,7 @@ const HostStatusWebhook = ({
       webhook_settings: {
         host_status_webhook: {
           enable_host_status_webhook: enableHostStatusWebhook,
-          destination_url: hostStatusWebhookDestinationURL,
+          destination_url: hostStatusWebhookDestinationUrl,
           host_percentage: hostStatusWebhookHostPercentage,
           days_count: hostStatusWebhookDaysCount,
         },
@@ -171,8 +175,8 @@ const HostStatusWebhook = ({
               placeholder="https://server.com/example"
               label="Destination URL"
               onChange={handleInputChange}
-              name="hostStatusWebhookDestinationURL"
-              value={hostStatusWebhookDestinationURL}
+              name="hostStatusWebhookDestinationUrl"
+              value={hostStatusWebhookDestinationUrl}
               parseTarget
               onBlur={validateForm}
               error={formErrors.destination_url}

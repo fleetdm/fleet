@@ -35,6 +35,7 @@ module "alb" {
   vpc_id          = var.vpc_id
   subnets         = var.alb_config.subnets
   security_groups = concat(var.alb_config.security_groups, [aws_security_group.alb.id])
+  access_logs     = var.alb_config.access_logs
 
   target_groups = [
     {
