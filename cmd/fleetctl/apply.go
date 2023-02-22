@@ -41,6 +41,10 @@ func applyCommand() *cli.Command {
 				Destination: &flDryRun,
 				Usage:       "Do not apply the file, just validate it (only supported for 'config' and 'team' specs)",
 			},
+			&cli.StringFlag{
+				Name:  "policies-team",
+				Usage: "A team's name, this flag is only used on policies specs (overrides 'team' key in the policies file). This allows to easily import a group of policies to a team.",
+			},
 			configFlag(),
 			contextFlag(),
 			debugFlag(),
@@ -68,6 +72,9 @@ func applyCommand() *cli.Command {
 			opts := fleet.ApplySpecOptions{
 				Force:  flForce,
 				DryRun: flDryRun,
+			}
+			if policiesTeamName := c.String("policies-team"); policiesTeamName != "" {
+				opts.TeamForPolicies = policiesTeamName
 			}
 			baseDir := filepath.Dir(flFilename)
 			err = fleetClient.ApplyGroup(c.Context, specs, baseDir, logf, opts)
