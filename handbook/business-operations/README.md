@@ -98,6 +98,7 @@ When a team member joins Fleet, they pick one of the following holiday schedules
  - **Traditional**: This is based on the country where you work. Non-US team members should let their managers know the dates of national holidays.
  **Or**
  - **Freestyle**: You have no set schedule and start with no holidays. Then you add the days that are holidays to you.
+
 Either way, it's up to you to make sure that your responsibilities are covered, and that your team knows you're out of the office.
 
 ### New parent leave
