@@ -265,6 +265,10 @@ func TestGetTeamsByName(t *testing.T) {
 func TestGetHosts(t *testing.T) {
 	_, ds := runServerWithMockedDS(t)
 
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+
 	// this func is called when no host is specified i.e. `fleetctl get hosts --json`
 	ds.ListHostsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
 		additional := json.RawMessage(`{"query1": [{"col1": "val", "col2": 42}]}`)

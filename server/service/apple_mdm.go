@@ -367,7 +367,6 @@ func (svc *Service) ListMDMAppleConfigProfiles(ctx context.Context, teamID uint)
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 
-	// TODO: record activitiy
 	return cps, nil
 }
 
@@ -432,7 +431,6 @@ func (svc *Service) GetMDMAppleConfigProfile(ctx context.Context, profileID uint
 		return nil, err
 	}
 
-	// TODO: record activitiy
 	return cp, nil
 }
 

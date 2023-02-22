@@ -422,12 +422,12 @@ func (cp MDMAppleConfigProfile) ScreenPayloadTypes() error {
 
 // HostMDMAppleProfile represents the status of an Apple MDM profile in a host.
 type HostMDMAppleProfile struct {
-	HostUUID      string
-	CommandUUID   string
-	ProfileID     uint
-	Status        *MDMAppleDeliveryStatus
-	OperationType MDMAppleOperationType
-	Detail        string
+	HostUUID      string                  `db:"host_uuid" json:"-"`
+	CommandUUID   string                  `db:"command_uuid" json:"-"`
+	ProfileID     uint                    `db:"profile_id" json:"profile_id"`
+	Status        *MDMAppleDeliveryStatus `db:"status" json:"status"`
+	OperationType MDMAppleOperationType   `db:"operation_type" json:"operation_type"`
+	Detail        string                  `db:"detail" json:"detail"`
 }
 
 type MDMAppleProfilePayload struct {
