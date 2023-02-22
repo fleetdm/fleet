@@ -273,20 +273,20 @@ const SelectTargets = ({
     // if the length remains the same, the target was not previously selected so we want to add it now
     prevTargets.length === newTargets.length && newTargets.push(selectedEntity);
 
-    // Logic when to deselect/select "all hosts" when using more granuated filters
-    // if all hosts is selected
+    // Logic when to deselect/select "all hosts" when using more granulated filters
+    // If "all hosts" is selected
     if (isAllHosts(selectedEntity)) {
-      // and all hosts is already selected, deselect it
+      // and "all hosts" is already selected, deselect it
       if (targetedLabels.some((t) => isAllHosts(t))) {
         newTargets = [];
-      } // else deselect everything but all hosts
+      } // else deselect everything but "all hosts"
       else {
         newTargets = [selectedEntity];
       }
       setTargetedTeams([]);
       setTargetedHosts([]);
     }
-    // else deselect all hosts
+    // else deselect "all hosts"
     else {
       if (targetedLabels.some((t) => isAllHosts(t))) {
         setTargetedLabels([]);
@@ -304,7 +304,7 @@ const SelectTargets = ({
     setTargetedHosts((prevHosts) => prevHosts.concat(selectedHost));
     setSearchText("");
 
-    // If "all hosts "already selected when using host target picker, deselect "all hosts"
+    // If "all hosts" is already selected when using host target picker, deselect "all hosts"
     if (targetedLabels.some((t) => isAllHosts(t))) {
       setTargetedLabels([]);
     }
