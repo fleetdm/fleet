@@ -44,10 +44,40 @@ vulnerability processing. By default the Fleet server command internally manages
 			switch status.StatusCode {
 			case fleet.AllMigrationsCompleted:
 				// only continue if db is considered up-to-date
-				break
-			case fleet.NoMigrationsCompleted, fleet.SomeMigrationsCompleted, fleet.UnknownMigrations:
-				initFatal(errors.New("database migrations incompatible with current version"), "refusing to continue processing vulnerabilities")
+			case fleet.NoMigrationsCompleted:
+				migrationError = errors.New("no migrations completed")
+			case fleet.SomeMigrationsCompleted:
+				migrationError = errors.New("partial migrations completed")
+			case fleet.UnknownMigrations:
+				migrationError = errors.New("database migrations incompatible with current version")
 			}
+			if migrationError != nil {
+				initFatal(migrationError, "refusing to continue processing vulnerabilities, database out of sync")
+			}
+
+			ctx, cancel := context.WithTimeout(context.Background(), lockDuration)
+			ctx = license.NewContext(ctx, licenseInfo)
+			instanceID, err := server.GenerateRandomText(64)
+			if err != nil {
+				initFatal(errors.New("error generating random instance identifier"), "")
+			}
+			// using the same lock name as the cron scheduled version of vuln processing, that way if we fail to obtain the lock
+			// it's most likely due to vulnerabilities.disable_schedule=false but still trying to run external vuln processing command
+			lock, err := ds.Lock(ctx, string(fleet.CronVulnerabilities), instanceID, lockDuration)
+			if err != nil {
+				initFatal(err, "failed to obtain vuln processing lock")
+			}
+			if !lock {
+				initFatal(errors.New("vulnerabilities processing locked"),
+					"failed to obtain vuln processing lock, something else still has lock ownership")
+			}
+			defer func() {
+				err = ds.Unlock(ctx, string(fleet.CronVulnerabilities), "vuln_processing_command")
+				if err != nil {
+					initFatal(err, "failed to release vuln processing lock")
+				}
+				cancel()
+			}()
 
 			logger := initLogger(cfg)
 			logger = kitlog.With(logger, fleet.CronVulnerabilities)
