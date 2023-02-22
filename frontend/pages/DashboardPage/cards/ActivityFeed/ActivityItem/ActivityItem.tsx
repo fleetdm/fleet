@@ -182,7 +182,7 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         {activity.actor_full_name
-          ? " turned off mobile device management (MDM) for"
+          ? " told Fleet to turn off mobile device management (MDM) for"
           : "Mobile device management (MDM) was turned off for"}{" "}
         <b>{activity.details?.host_display_name}</b>.
       </>
