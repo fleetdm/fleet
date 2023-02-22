@@ -1,4 +1,4 @@
-⚗️ Product Designer
+# ⚗️ Product Designer
 
 
 ### Your primary responsibilities 🔭
@@ -38,6 +38,7 @@ If most of these qualities sound like you, we would love to chat and see if we'r
 - ✍️ Experience designing CLI experiences for developers or willingness to learn
 - ➕ Bonus: YB2B SaaS background
 
+Want to join the team?
 
 You can apply for this position here at [Apply to Fleet](https://3x3q33auqgj.typeform.com/to/upGkhYsN).
 
