@@ -29,7 +29,7 @@ func TestUp_20230214131519(t *testing.T) {
 
 	_, err = db.Exec(`
           INSERT INTO nano_commands (command_uuid, request_type, command)
-          VALUES ('command-uuid', 'foo', 'bar')
+          VALUES ('command-uuid', 'foo', '<?xml')
 	`)
 	require.NoError(t, err)
 

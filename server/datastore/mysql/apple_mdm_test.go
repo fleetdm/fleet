@@ -625,7 +625,7 @@ func testMDMAppleProfileManagement(t *testing.T, ds *Datastore) {
 
 	_, err = ds.writer.Exec(`
           INSERT INTO nano_commands (command_uuid, request_type, command)
-          VALUES ('command-uuid', 'foo', 'bar')
+          VALUES ('command-uuid', 'foo', '<?xml')
 	`)
 	require.NoError(t, err)
 
