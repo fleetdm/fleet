@@ -422,15 +422,15 @@ Cypress.Commands.add("addUser", (options = {}) => {
 Cypress.Commands.add("addDockerHost", (team = "") => {
   const serverPort = new URL(Cypress.config().baseUrl).port;
   // Get enroll secret
-  let enrollSecretURL = "/api/latest/fleet/spec/enroll_secret";
+  let enrollSecretUrl = "/api/latest/fleet/spec/enroll_secret";
   if (team === "apples") {
-    enrollSecretURL = "/api/latest/fleet/teams/1/secrets";
+    enrollSecretUrl = "/api/latest/fleet/teams/1/secrets";
   } else if (team === "oranges") {
-    enrollSecretURL = "/api/latest/fleet/teams/2/secrets";
+    enrollSecretUrl = "/api/latest/fleet/teams/2/secrets";
   }
 
   cy.request({
-    url: enrollSecretURL,
+    url: enrollSecretUrl,
     auth: {
       bearer: window.localStorage.getItem("FLEET::auth_token"),
     },
