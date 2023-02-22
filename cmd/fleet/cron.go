@@ -12,6 +12,7 @@ import (
 	"time"
 
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	"github.com/fleetdm/fleet/v4/server/service"
 
 	eewebhooks "github.com/fleetdm/fleet/v4/ee/server/webhooks"
 	"github.com/fleetdm/fleet/v4/server"
@@ -867,6 +868,33 @@ func newAppleMDMDEPProfileAssigner(
 		schedule.WithLogger(logger),
 		schedule.WithJob("dep_syncer", func(ctx context.Context) error {
 			return fleetSyncer.Run(ctx)
+		}),
+	)
+
+	return s, nil
+}
+
+func newMDMAppleProfileManager(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	commander *service.MDMAppleCommander,
+	logger kitlog.Logger,
+	loggingDebug bool,
+) (*schedule.Schedule, error) {
+	const (
+		name = string(fleet.CronMDMAppleProfileManager)
+		// Note: per a request from #g-product we are running this cron
+		// every 30 seconds, we should re-evaluate how we handle the
+		// cron interval as we scale to more hosts.
+		defaultInterval = 30 * time.Second
+	)
+	logger = kitlog.With(logger, "cron", name)
+	s := schedule.New(
+		ctx, name, instanceID, defaultInterval, ds, ds,
+		schedule.WithLogger(logger),
+		schedule.WithJob("manage_profiles", func(ctx context.Context) error {
+			return service.ReconcileProfiles(ctx, ds, commander, logger)
 		}),
 	)
 
