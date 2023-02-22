@@ -30,7 +30,7 @@ import { IUser } from "interfaces/user";
 import PATHS from "router/paths";
 import permissionUtils from "utilities/permissions";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
-import { getHostStatusTooltipText } from "../helpers";
+import getHostStatusTooltipText from "../helpers";
 
 interface IGetToggleAllRowsSelectedProps {
   checked: boolean;
