@@ -1,5 +1,4 @@
 import React from "react";
-import Spinner from "components/Spinner";
 import TableContainer from "components/TableContainer";
 import EmptyTable from "components/EmptyTable";
 import { IMacSettings } from "interfaces/mdm";
@@ -22,16 +21,6 @@ const MacSettingsTable = ({ hostMacSettings }: IMacSettingsTableProps) => {
         data={hostMacSettings}
         emptyComponent={"symbol"}
         isLoading={false}
-        // TODO:
-        // emptyComponent={() =>
-        //   EmptyTable({
-        //     iconName: emptyState().iconName,
-        //     header: emptyState().header,
-        //     info: emptyState().info,
-        //     additionalInfo: emptyState().additionalInfo,
-        //     primaryButton: emptyState().primaryButton,
-        //   })
-        // }
         showMarkAllPages={false}
         isAllPagesSelected={false}
         disablePagination
