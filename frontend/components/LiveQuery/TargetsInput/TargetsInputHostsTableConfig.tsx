@@ -46,7 +46,6 @@ export const generateTableHeaders = (
       Header: "Host",
       accessor: "display_name",
       Cell: (cellProps: ICellProps) => {
-        console.log("cellProps.row.original", cellProps.row.original);
         return (
           <LiveQueryIssueCell
             displayName={cellProps.cell.value}
