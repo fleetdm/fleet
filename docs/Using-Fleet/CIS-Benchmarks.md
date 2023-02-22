@@ -101,3 +101,5 @@ The following CIS benchmark checks cannot be automated and must be addressed man
 - 6.3.5 Audit Hide IP Address in Safari Setting (Level 2): Trackers can correlate your visits through various applications including websites and is a threat to your privacy. 
 
 Please refer to the "CIS Apple macOS 13.0 Ventura Benchmark v1.0.0 - 11-14-2022" PDF for descriptions and instructions on how to remediate.
+
+<meta name="pageOrderInSection" value="1700">
