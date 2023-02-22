@@ -105,7 +105,7 @@ the account verification message.)`,
       throw 'emailAlreadyInUse';
     }
 
-    // Create a new customer entry in the Stripe API for this user before we provision a Sandbox Instance.
+    // Create a new customer entry in the Stripe API for this user before we send a request to the cloud provisioner.
     let stripeCustomerId = await sails.helpers.stripe.saveBillingInfo.with({
       emailAddress: newEmailAddress
     })
