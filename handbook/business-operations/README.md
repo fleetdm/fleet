@@ -308,10 +308,11 @@ Every new position being created goes through this process before interviewing, 
   - Reply in the `#hiring-xxxxx-2022` Slack channel, at-mentioning the original proposer, to let them know the new position is approved.
 After getting CEO approval, create a position in Breezy.
 
-#### Creating a new position in Breezy
-Review [Breezy positions video](https://www.loom.com/home) on how to post a job on fleetdm.com/apply using Breezy. Collect candidate feedback from the team and manage the hiring process.
-
-> Breezy is being replaced at the end of Feb 2023.  TODO: Update this section with new instructions for posting the job.
+#### Creating a new position 
+1. A new handbook subpage is created on the "Company" page and a link to the subpage is added to the "Open positions" section on the "Company" page.
+2. The job description is copy/pasted in the new subpage.
+3. When an applicant has completed an application, there is a Zapier automation that will post to `g-business-operations`. 
+4. The applicant information is then forwarded to the applicable `#hiring-xxxxx-202x` Slack channel` and the hiring manager is @mentioned.
 
 ### Recruiting
 #### Checking legal restrictions on hiring
