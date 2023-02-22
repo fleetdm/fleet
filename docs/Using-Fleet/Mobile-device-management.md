@@ -24,7 +24,9 @@ If there is less than 1 day, the window is shown every 2 hours. The end user can
 
 If the end user is past the deadline, Fleet shows the window and end user can't close the window until they upgrade.
 
-## Disk encryption
+## macOS settings
+
+### Disk encryption
 
 In Fleet, you can enforce disk encryption on your macOS hosts. Apple calls this [FileVault](https://support.apple.com/en-us/HT204837). If turned on, hosts’ disk encryption keys will be stored in Fleet.
 
@@ -40,13 +42,13 @@ Fleet UI:
 
 1. Create a `config` YAML document if you don't have one already. Learn how [here](./configuration-files/README.md#organization-settings). This document is used to change settings in Fleet.
 
-> If you want to enforce disk encryption on a team in Fleet, use the `team` YAML document. Learn how to create one [here](./configuration-files/README.md#teams).
+> If you want to enforce disk encryption on all macOS hosts in a specific team in Fleet, use the `team` YAML document. Learn how to create one [here](./configuration-files/README.md#teams).
 
-2. Set the `mdm.disk_encryption` configuration option to `true`.
+2. Set the `mdm.macos_settings.disk_encryption` configuration option to `true`.
 
 3. Run the `fleetctl apply -f <your-YAML-file-here>` command.
 
-### Viewing a disk encryption key
+#### Viewing a disk encryption key
 
 The disk encryption key allows you to unlock a Mac if you forgot login credentials. This key can be accessed by Fleet admin, maintainers, and observers. An event is tracked in the activity feed when a user views the key in Fleet.
 
@@ -56,7 +58,7 @@ How to view the disk encryption key:
 
 2. On the **Host details** page, select **Actions > Show disk encryption key**.
 
-### Unlock a macOS host using the disk encryption key
+#### Unlock a macOS host using the disk encryption key
 
 How to unlock a macOS host using the disk encryption key:
 
@@ -96,6 +98,61 @@ resetpassword
 3. Use the Reset Password utility to reset the account’s password.
 
 4. Restart the computer and log in using the new password.
+
+### Custom settings
+
+In Fleet you can enforce custom settings on your macOS hosts using configuration profiles.
+
+To enforce custom settings, first create configuration profiles with iMazing Profile editor and then add the profiles to Fleet. 
+
+#### Create a configuration profiles with iMazing Profile Creator
+
+How to create a configuration profile with iMazing Profile Creator:
+
+1. Download and install [iMazing Profile Creator](https://imazing.com/profile-editor).
+
+2. Open iMazing Profile Creator and select macOS in the top bar. Fleet only supports enforcing settings on macOS hosts.
+
+3. Find and choose the settings you'd like to enforce on your macOS hosts. Fleet recommends limiting the scope of the settings in your profile so that it only includes settings from one tab in iMazing Profile Creator (ex. **Restrictions** tab). To enforce more settings, you can create and add additional profiles.
+
+4. In iMazing Profile Creator, select the **General** tab. Enter a descriptive name in the **Name** field. When you add this profile to Fleet, Fleet will display this name in the Fleet UI. 
+
+5. In your top menu bar select File > Save As... and save your configuration profile. Make sure the file is saved as .mobileconfig.
+
+### Add configuration profiles to Fleet
+
+In Fleet, you can add configuration profiles using the Fleet UI or fleetctl command-line tool.
+
+The Fleet UI method is a good start if you're just getting familiar with Fleet.
+
+The fleetctl CLI method enables managing configuration profiles in a git repository. This way you can enforce code review and benefit from git's change history.
+
+Fleet UI:
+
+1. In the Fleet UI, head to the **Controls > macOS settings > Custom settings** page.
+
+2. Select **Upload** and choose your configuration profile. After your configuration profile is uploaded to Fleet, Fleet will apply the profile on your macOS hosts. The profile will be applied to new macOS hosts that enroll to Fleet.
+
+fleetctl CLI:
+
+1. Create a `config` YAML document if you don't have one already. Learn how [here](./configuration-files/README.md#organization-settings). This document is used to change settings in Fleet.
+
+> If you want to add configuration profiles to all macOS hosts on a specific team in Fleet, use the `team` YAML document. Learn how to create one [here](./configuration-files/README.md#teams).
+
+2. Add an `mdm.macos_settings.custom_settings` key to your YAML document. This key will hold an array of paths to your configuration profiles. See the below example `config` YAML document:
+
+```yaml
+apiVersion: v1
+kind: config
+spec:
+  macos_settings:
+    custom_settings:
+      - /path/to/configuration_profile_A.mobileconfig
+      - /path/to/configuration_profile_B.mobileconfig
+    ...
+```
+
+3. Run the `fleetctl apply -f <your-config-here>.yml` command to add the configuration profiles to Fleet. Note that this will override any configuration profiles added using the Fleet UI method.
 
 ## Set up
 
@@ -254,6 +311,21 @@ If a Mac has Activation Lock enabled, we recommend asking the end user to follow
 This is because if the Activation Lock is enabled, you will need the Activation Lock bypass code to successfully wipe and reuse the Mac. 
 
 Activation Lock bypass codes can only be retrieved from the Mac up to 30 days after the device is enrolled. This means that when migrating from your old MDM solution, it’s likely that you’ll be unable to retrieve the Activation Lock bypass code.
+
+### Migrate settings
+
+To enforce the same settings on your macOS hosts in Fleet as you did using your old MDM solution, you have to migrate these settings to Fleet.
+
+If your old MDM solution enforced FileVault, follow [these instructions](#how-to-turn-on-disk-encryption) to enforce FileVault (disk encryption) using Fleet.
+
+For all other settings you enforced, you have to first export these settings as configuration profiles from your old MDM solution. Then, you have to add the configuration profiles to Fleet.
+
+How to export settings as configuration profiles:
+
+1. Check if your MDM solution has a feature that allows you to export settings as configuration profiles. If it does, make sure these configuration profiles are exported as .mobileconfig files. If it doesn't, follow the instructions to create configuration profiles using iMazing Profile Creator [here](#create-a-configuration-profiles-with-imazing-profile-creator). Use iMazing Profile Creator to replicate the settings you enforced.
+
+2. Follow the instructions to add configuration profiles to Fleet [here](#add-configuration-profiles-to-fleet).
+
 
 ### Instructions for end users
 
