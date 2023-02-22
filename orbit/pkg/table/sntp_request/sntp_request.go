@@ -1,4 +1,6 @@
-package main
+// sntp_request allows querying SNTP servers to get the timestamp
+// and clock offset from a NTP server (in millisecond precision).
+package sntp_request
 
 import (
 	"context"
@@ -7,23 +9,10 @@ import (
 	"time"
 
 	"github.com/beevik/ntp"
-	orbit_table "github.com/fleetdm/fleet/v4/orbit/pkg/table"
 	"github.com/osquery/osquery-go/plugin/table"
 )
 
-// sntpRequest allows querying SNTP servers to get the timestamp
-// and clock offset from a NTP server (in millisecond precision).
-type sntpRequest struct{}
-
-var _ orbit_table.Extension = sntpRequest{}
-
-// Name partially implements orbit_table.Extension.
-func (t sntpRequest) Name() string {
-	return "sntp_request"
-}
-
-// Columns partially implements orbit_table.Extension.
-func (t sntpRequest) Columns() []table.ColumnDefinition {
+func Columns() []table.ColumnDefinition {
 	return []table.ColumnDefinition{
 		table.TextColumn("server"),
 
@@ -32,8 +21,7 @@ func (t sntpRequest) Columns() []table.ColumnDefinition {
 	}
 }
 
-// GenerateFunc partially implements orbit_table.Extension.
-func (t sntpRequest) GenerateFunc(_ context.Context, queryContext table.QueryContext) ([]map[string]string, error) {
+func GenerateFunc(_ context.Context, queryContext table.QueryContext) ([]map[string]string, error) {
 	server := ""
 	if constraints, ok := queryContext.Constraints["server"]; ok {
 		for _, constraint := range constraints.Constraints {
