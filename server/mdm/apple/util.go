@@ -74,6 +74,10 @@ func DecodePrivateKeyPEM(encoded []byte) (*rsa.PrivateKey, error) {
 	return x509.ParsePKCS1PrivateKey(block.Bytes)
 }
 
+// GenerateRandomPin generates a `lenght`-digit PIN number that takes into
+// account the current time as described in rfc4226 (for one time passwords)
+//
+// The implementation details have been mostly taken from https://github.com/pquerna/otp
 func GenerateRandomPin(length int) string {
 	counter := uint64(time.Now().Unix())
 	buf := make([]byte, 8)
