@@ -2,7 +2,7 @@ import React from "react";
 
 import CustomLink from "components/CustomLink";
 
-import OsUpdateScreenshot from "../../../../../assets/images/nudge-screenshot.png";
+import OsUpdateScreenshot from "../../../../../../assets/images/nudge-screenshot.png";
 
 const baseClass = "nudge-preview";
 
