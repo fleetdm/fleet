@@ -6,6 +6,7 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"math/big"
+	"sync"
 
 	"github.com/micromdm/scep/v2/depot"
 )
@@ -32,24 +33,34 @@ type Depot struct {
 
 	HasCNFunc        HasCNFunc
 	HasCNFuncInvoked bool
+
+	mu sync.Mutex
 }
 
 func (d *Depot) CA(pass []byte) ([]*x509.Certificate, *rsa.PrivateKey, error) {
+	d.mu.Lock()
 	d.CAFuncInvoked = true
+	d.mu.Unlock()
 	return d.CAFunc(pass)
 }
 
 func (d *Depot) Put(name string, crt *x509.Certificate) error {
+	d.mu.Lock()
 	d.PutFuncInvoked = true
+	d.mu.Unlock()
 	return d.PutFunc(name, crt)
 }
 
 func (d *Depot) Serial() (*big.Int, error) {
+	d.mu.Lock()
 	d.SerialFuncInvoked = true
+	d.mu.Unlock()
 	return d.SerialFunc()
 }
 
 func (d *Depot) HasCN(cn string, allowTime int, cert *x509.Certificate, revokeOldCertificate bool) (bool, error) {
+	d.mu.Lock()
 	d.HasCNFuncInvoked = true
+	d.mu.Unlock()
 	return d.HasCNFunc(cn, allowTime, cert, revokeOldCertificate)
 }

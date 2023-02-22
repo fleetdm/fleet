@@ -173,7 +173,7 @@ generate-dev: .prefix
 	NODE_OPTIONS=--openssl-legacy-provider NODE_ENV=development yarn run webpack --progress --colors --watch
 
 generate-mock: .prefix
-	go install github.com/fleetdm/mockimpl@8d7943aa39d8f5f464d3d3618d9571d385f7bcc5
+	go install github.com/fleetdm/mockimpl@ecbb3041eabfc9e046a3f2e414e32c28254b75b2
 	go generate github.com/fleetdm/fleet/v4/server/mock github.com/fleetdm/fleet/v4/server/mock/mockresult github.com/fleetdm/fleet/v4/server/service/mock
 
 generate-doc: .prefix

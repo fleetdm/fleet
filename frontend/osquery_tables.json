@@ -2760,20 +2760,20 @@
         "index": false
       },
       {
-        "name":"issuer2",
-        "description":"Certificate issuer distinguished name",
-        "type":"text",
-        "hidden":true,
-        "required":false,
-        "index":false
+        "name": "issuer2",
+        "description": "Certificate issuer distinguished name",
+        "type": "text",
+        "hidden": true,
+        "required": false,
+        "index": false
       },
       {
-        "name":"subject2",
-        "description":"Certificate distinguished name",
-        "type":"text",
-        "hidden":true,
-        "required":false,
-        "index":false
+        "name": "subject2",
+        "description": "Certificate distinguished name",
+        "type": "text",
+        "hidden": true,
+        "required": false,
+        "index": false
       }
     ]
   },
@@ -8196,12 +8196,12 @@
         "index": false
       },
       {
-        "name":"original_filename",
-        "description":"(Executable files only) Original filename",
-        "type":"text",
-        "hidden":true,
-        "required":false,
-        "index":false
+        "name": "original_filename",
+        "description": "(Executable files only) Original filename",
+        "type": "text",
+        "hidden": true,
+        "required": false,
+        "index": false
       },
       {
         "name": "bsd_flags",
@@ -16664,12 +16664,12 @@
         "index": false
       },
       {
-        "name":"translated",
-        "description":"Indicates whether the process is running under the Rosetta Translation Environment, yes=1, no=0, error=-1.",
-        "type":"integer",
-        "hidden":false,
-        "required":false,
-        "index":false
+        "name": "translated",
+        "description": "Indicates whether the process is running under the Rosetta Translation Environment, yes=1, no=0, error=-1.",
+        "type": "integer",
+        "hidden": false,
+        "required": false,
+        "index": false
       }
     ]
   },
