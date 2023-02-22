@@ -1357,26 +1357,11 @@ func deviceLockEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 }
 
 func (svc *Service) MDMAppleDeviceLock(ctx context.Context, hostID uint) error {
-	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
-		return err
-	}
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
 
-	host, err := svc.ds.HostLite(ctx, hostID)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "host lite")
-	}
-
-	// TODO: define and use right permissions according to the spec.
-	if err := svc.authz.Authorize(ctx, host, fleet.ActionWrite); err != nil {
-		return err
-	}
-
-	// TODO: save the pin (first return value) in the database
-	_, err = svc.mdmAppleCommander.DeviceLock(ctx, []string{host.UUID})
-	if err != nil {
-		return err
-	}
-	return nil
+	return fleet.ErrMissingLicense
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1405,26 +1390,11 @@ func deviceWipeEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 }
 
 func (svc *Service) MDMAppleEraseDevice(ctx context.Context, hostID uint) error {
-	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
-		return err
-	}
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
 
-	host, err := svc.ds.HostLite(ctx, hostID)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "host lite")
-	}
-
-	// TODO: define and use right permissions according to the spec.
-	if err := svc.authz.Authorize(ctx, host, fleet.ActionWrite); err != nil {
-		return err
-	}
-
-	// TODO: save the pin (first return value) in the database
-	_, err = svc.mdmAppleCommander.EraseDevice(ctx, []string{host.UUID})
-	if err != nil {
-		return err
-	}
-	return nil
+	return fleet.ErrMissingLicense
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1769,8 +1739,7 @@ func (svc *MDMAppleCommander) RemoveProfile(ctx context.Context, hostUUIDs []str
 	return ctxerr.Wrap(ctx, err, "commander remove profile")
 }
 
-func (svc *MDMAppleCommander) DeviceLock(ctx context.Context, hostUUIDs []string) (string, error) {
-	uuid := uuid.New().String()
+func (svc *MDMAppleCommander) DeviceLock(ctx context.Context, hostUUIDs []string, uuid string) error {
 	pin := apple_mdm.GenerateRandomPin(6)
 	raw := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -1787,11 +1756,10 @@ func (svc *MDMAppleCommander) DeviceLock(ctx context.Context, hostUUIDs []string
     </dict>
   </dict>
 </plist>`, uuid, pin)
-	return pin, svc.enqueue(ctx, hostUUIDs, raw)
+	return svc.enqueue(ctx, hostUUIDs, raw)
 }
 
-func (svc *MDMAppleCommander) EraseDevice(ctx context.Context, hostUUIDs []string) (string, error) {
-	uuid := uuid.New().String()
+func (svc *MDMAppleCommander) EraseDevice(ctx context.Context, hostUUIDs []string, uuid string) error {
 	pin := apple_mdm.GenerateRandomPin(6)
 	raw := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -1808,7 +1776,7 @@ func (svc *MDMAppleCommander) EraseDevice(ctx context.Context, hostUUIDs []strin
     </dict>
   </dict>
 </plist>`, uuid, pin)
-	return pin, svc.enqueue(ctx, hostUUIDs, raw)
+	return svc.enqueue(ctx, hostUUIDs, raw)
 }
 
 // enqueue takes care of enqueuing the commands and sending push notifications

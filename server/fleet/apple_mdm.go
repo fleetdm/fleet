@@ -2,6 +2,7 @@ package fleet
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -14,6 +15,13 @@ import (
 	"go.mozilla.org/pkcs7"
 	"howett.net/plist"
 )
+
+type MDMAppleCommandIssuer interface {
+	InstallProfile(ctx context.Context, hostUUIDs []string, profile Mobileconfig, uuid string) error
+	RemoveProfile(ctx context.Context, hostUUIDs []string, identifier string, uuid string) error
+	DeviceLock(ctx context.Context, hostUUIDs []string, uuid string) error
+	EraseDevice(ctx context.Context, hostUUIDs []string, uuid string) error
+}
 
 // MDMAppleEnrollmentType is the type for Apple MDM enrollments.
 type MDMAppleEnrollmentType string

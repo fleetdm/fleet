@@ -7,6 +7,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	kitlog "github.com/go-kit/kit/log"
+	"github.com/google/uuid"
 	"github.com/micromdm/nanodep/storage"
 )
 
@@ -81,7 +82,7 @@ func (svc *Service) MDMAppleDeviceLock(ctx context.Context, hostID uint) error {
 	}
 
 	// TODO: save the pin (first return value) in the database
-	_, err = svc.mdmAppleCommander.DeviceLock(ctx, []string{host.UUID})
+	err = svc.mdmAppleCommander.DeviceLock(ctx, []string{host.UUID}, uuid.New().String())
 	if err != nil {
 		return err
 	}
@@ -104,7 +105,7 @@ func (svc *Service) MDMAppleEraseDevice(ctx context.Context, hostID uint) error 
 	}
 
 	// TODO: save the pin (first return value) in the database
-	_, err = svc.mdmAppleCommander.EraseDevice(ctx, []string{host.UUID})
+	err = svc.mdmAppleCommander.EraseDevice(ctx, []string{host.UUID}, uuid.New().String())
 	if err != nil {
 		return err
 	}
