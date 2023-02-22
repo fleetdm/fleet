@@ -50,7 +50,9 @@ Fleet UI:
 
 #### Viewing a disk encryption key
 
-The disk encryption key allows you to unlock a Mac if you forgot login credentials. This key can be accessed by Fleet admin, maintainers, and observers. An event is tracked in the activity feed when a user views the key in Fleet.
+The disk encryption key allows you to reset a macOS host's password if you don't know it. This way, if you plan to prepare a host for a new employee, you can login to it and erase all its content and settings.
+
+The key can be accessed by Fleet admin, maintainers, and observers. An event is tracked in the activity feed when a user views the key in Fleet.
 
 How to view the disk encryption key:
 
@@ -58,9 +60,9 @@ How to view the disk encryption key:
 
 2. On the **Host details** page, select **Actions > Show disk encryption key**.
 
-#### Unlock a macOS host using the disk encryption key
+#### Reset a macOS host's password using the disk encryption key
 
-How to unlock a macOS host using the disk encryption key:
+How to reset a macOS host's password using the disk encryption key:
 
 1. Restart the host. If you just unlocked a host that was locked remotely, the host will automatically restart.
 
