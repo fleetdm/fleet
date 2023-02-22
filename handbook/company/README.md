@@ -119,6 +119,8 @@ To provide clarity about decision-making, responsibility, and resources, everyon
 ## Product groups
 Above and beyond the organizational chart, Fleet organizes cross-functional groups focused on particular business goals.  This helps product development teams move more quickly by eliminating roundtrips spent waiting for feedback and answers from people in other departments. Product groups include a designer, a product quality lead, developers, a product manager, and an engineering manager.  For more information, check out the ["Product groups"](./development-groups.md) page.
 
+## Positioning
+Read about [Fleet's positioning in this confidential Google Doc](https://docs.google.com/document/d/140q7SZ4T_sbsTsL7tdTKsqMqDtXbGBh_8Yiqy36bRI0/edit).
 
 ## Slack channels
 
