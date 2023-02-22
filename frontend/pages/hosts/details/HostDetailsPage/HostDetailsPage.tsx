@@ -540,7 +540,6 @@ const HostDetailsPage = ({
     return (
       <HostActionDropdown
         onSelect={onSelectHostAction}
-        teamId={host.team_id}
         hostStatus={host.status}
         hostMdmEnrollemntStatus={host.mdm.enrollment_status}
         doesStoreEncryptionKey={host.mdm.encryption_key_available}
