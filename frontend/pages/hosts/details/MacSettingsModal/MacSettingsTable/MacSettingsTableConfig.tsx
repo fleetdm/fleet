@@ -48,7 +48,13 @@ const tableHeaders: IDataColumn[] = [
     disableSortBy: true,
     accessor: "statusText",
     Cell: (cellProps: ICellProps) => {
-      return <MacSettingStatusCell profile={cellProps.row.original} />;
+      // return <MacSettingStatusCell profile={cellProps.row.original} />;
+      return (
+        <MacSettingStatusCell
+          status={cellProps.row.original.status}
+          operationType={cellProps.row.original.operation_type}
+        />
+      );
     },
   },
   {

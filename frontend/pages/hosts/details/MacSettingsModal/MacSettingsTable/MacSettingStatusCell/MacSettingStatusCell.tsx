@@ -1,16 +1,22 @@
 import Icon from "components/Icon";
 import TextCell from "components/TableContainer/DataTable/TextCell";
-import { IHostMacMdmProfile } from "interfaces/mdm";
+import {
+  MacMdmProfileOperationType,
+  MacMdmProfileStatus,
+} from "interfaces/mdm";
+import _ from "lodash";
 import React from "react";
 import ReactTooltip from "react-tooltip";
 
 const baseClass = "mac-setting-status-cell";
 
 interface IMacSettingStatusCellProps {
-  profile: IHostMacMdmProfile;
+  status: MacMdmProfileStatus;
+  operationType: MacMdmProfileOperationType;
 }
 const MacSettingStatusCell = ({
-  profile,
+  status,
+  operationType,
 }: IMacSettingStatusCellProps): JSX.Element => {
   const PROFILE_DISPLAY_CONFIG = {
     install: {
@@ -45,11 +51,11 @@ const MacSettingStatusCell = ({
     },
   } as const;
 
-  const { status, operation_type, profile_id: profileId } = profile;
-  const options = PROFILE_DISPLAY_CONFIG[operation_type]?.[status];
+  const options = PROFILE_DISPLAY_CONFIG[operationType]?.[status];
 
   if (options) {
     const { statusText, iconName, tooltipText } = options;
+    const tooltipId = _.uniqueId();
     return (
       <span className={baseClass}>
         <Icon name={iconName} />
@@ -58,7 +64,7 @@ const MacSettingStatusCell = ({
             <span
               className="tooltip tooltip__tooltip-icon"
               data-tip
-              data-for={`${profileId}-status-tooltip`}
+              data-for={tooltipId}
               data-tip-disable={false}
             >
               {statusText}
@@ -67,7 +73,7 @@ const MacSettingStatusCell = ({
               place="top"
               effect="solid"
               backgroundColor="#3e4771"
-              id={`${profileId}-status-tooltip`}
+              id={tooltipId}
               data-html
             >
               <span className="tooltip__tooltip-text">{tooltipText}</span>
