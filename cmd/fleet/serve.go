@@ -653,7 +653,7 @@ the way that the Fleet server works.
 						config.Logging.Debug,
 					)
 				}); err != nil {
-					initFatal(err, "failed to register apple_mdm_dep_profile_assigner schedule")
+					initFatal(err, "failed to register mdm_apple_profile_manager schedule")
 				}
 			}
 
