@@ -46,6 +46,13 @@ Investing in people and providing generous, prioritized training, especially up 
 - help team members feel confident in the better decisions they make at work. 
 - create a culture of helping others, which results in team members feeling more comfortable even if they aren’t familiar with the osquery, security, startup, or IT space. 
 
+Here are a few examples of how Fleet prioritizes training:
+- the first 3 days at the company for every new team member are reserved for working on the tasks and training in their onboarding issue.
+- during the first 2 weeks at the company, every new fleetie joins a **daily 1:1 meeting** with their manager to check in and see how they're doing, and if they have any questions or blockers.  If the manager is not available for this meeting, the CEO (pending availability) or Charlie will join this short daily meeting with them instead.
+- In their first few days, every new fleetie joins:
+  - hands-on contributor experience training session with Charlie where they share their screen, check the configuration of their tools, complete any remaining setup, and discuss best practices.
+  - a short sightseeing tour with Charlie and (pending availability) Fleet's CEO to show them around and welcome them to the company.
+
 
 ## Why direct responsibility?
 Like Apple and GitLab, Fleet uses the concept of [directly responsible individuals (DRIs)](https://about.gitlab.com/handbook/people-group/directly-responsible-individuals/) to know who is responsible for what. 
