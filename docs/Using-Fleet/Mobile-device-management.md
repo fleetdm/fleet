@@ -64,7 +64,7 @@ How to view the disk encryption key:
 
 2. On the **Host details** page, select **Actions > Show disk encryption key**.
 
-### Reset a macOS host's password using the disk encryption key
+#### Reset a macOS host's password using the disk encryption key
 
 How to reset a macOS host's password using the disk encryption key:
 
@@ -96,7 +96,7 @@ How to create a configuration profile with iMazing Profile Creator:
 
 5. In your top menu bar select **File** > **Save As...** and save your configuration profile. Make sure the file is saved as .mobileconfig.
 
-### Add configuration profiles to Fleet
+#### Add configuration profiles to Fleet
 
 In Fleet, you can add configuration profiles using the Fleet UI or fleetctl command-line tool.
 
