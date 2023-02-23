@@ -515,6 +515,9 @@ func TestHostDetailsMDMProfiles(t *testing.T) {
 		return nil, nil
 	}
 
+	expectedNilSlice := []fleet.HostMDMAppleProfile(nil)
+	expectedEmptySlice := []fleet.HostMDMAppleProfile{}
+
 	cases := []struct {
 		name           string
 		mdmEnabled     bool
@@ -531,17 +534,17 @@ func TestHostDetailsMDMProfiles(t *testing.T) {
 		},
 		{
 			name:           "TestGetHostMDMProfilesEmpty",
-			mdmEnabled:     false,
+			mdmEnabled:     true,
 			hostID:         ptr.Uint(21),
 			hostIdentifier: nil,
-			expected:       &[]fleet.HostMDMAppleProfile{},
+			expected:       &expectedEmptySlice,
 		},
 		{
 			name:           "TestGetHostMDMProfilesNil",
 			mdmEnabled:     false,
 			hostID:         ptr.Uint(42),
 			hostIdentifier: nil,
-			expected:       nil,
+			expected:       &expectedNilSlice,
 		},
 		{
 			name:           "TestHostByIdentifierMDMProfilesOK",
@@ -555,14 +558,14 @@ func TestHostDetailsMDMProfiles(t *testing.T) {
 			mdmEnabled:     false,
 			hostID:         nil,
 			hostIdentifier: ptr.String("h0571d3n71f13r"),
-			expected:       nil,
+			expected:       &expectedNilSlice,
 		},
 		{
 			name:           "TestHostByIdentifierMDMProfilesEmpty",
-			mdmEnabled:     false,
+			mdmEnabled:     true,
 			hostID:         nil,
 			hostIdentifier: ptr.String("4n07h3r1d3n71f13r"),
-			expected:       &[]fleet.HostMDMAppleProfile{},
+			expected:       &expectedEmptySlice,
 		},
 	}
 
@@ -593,7 +596,7 @@ func TestHostDetailsMDMProfiles(t *testing.T) {
 			require.True(t, ds.AppConfigFuncInvoked)
 
 			if !c.mdmEnabled {
-				require.Nil(t, gotHost.MDM.Profiles)
+				require.Equal(t, gotHost.MDM.Profiles, c.expected)
 				return
 			}
 
