@@ -672,6 +672,9 @@ spec:
         result_log_file: /dev/null
         status_log_file: /dev/null
         audit_log_file: /dev/null
+        max_age: 0
+        max_backups: 0
+        max_size: 500
       plugin: filesystem
     status:
       config:
@@ -680,6 +683,9 @@ spec:
         result_log_file: /dev/null
         status_log_file: /dev/null
         audit_log_file: /dev/null
+        max_age: 0
+        max_backups: 0
+        max_size: 500
       plugin: filesystem
     audit:
       config:
@@ -688,6 +694,9 @@ spec:
         result_log_file: /dev/null
         status_log_file: /dev/null
         audit_log_file: /dev/null
+        max_age: 0
+        max_backups: 0
+        max_size: 500
       plugin: filesystem
   org_info:
     org_logo_url: ""
@@ -879,7 +888,10 @@ spec:
           "enable_log_rotation": false,
           "result_log_file": "/dev/null",
           "status_log_file": "/dev/null",
-          "audit_log_file": "/dev/null"
+          "audit_log_file": "/dev/null",
+          "max_size": 500,
+		  "max_age": 0,
+          "max_backups": 0
         }
       },
       "status": {
@@ -889,7 +901,10 @@ spec:
           "enable_log_rotation": false,
           "result_log_file": "/dev/null",
           "status_log_file": "/dev/null",
-          "audit_log_file": "/dev/null"
+          "audit_log_file": "/dev/null",
+          "max_size": 500,
+		  "max_age": 0,
+          "max_backups": 0
         }
       },
       "audit": {
@@ -899,7 +914,10 @@ spec:
           "enable_log_rotation": false,
           "result_log_file": "/dev/null",
           "status_log_file": "/dev/null",
-          "audit_log_file": "/dev/null"
+          "audit_log_file": "/dev/null",
+          "max_size": 500,
+		  "max_age": 0,
+          "max_backups": 0
         }
       }
     }
