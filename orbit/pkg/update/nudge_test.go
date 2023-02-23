@@ -44,6 +44,7 @@ func (s *nudgeTestSuite) TestNudgeConfigFetcherAddNudge() {
 		RootDir:      tmpDir,
 		Interval:     interval,
 		runNudgeFn:   runNudgeFn,
+		skipOSCheck:  true,
 	})
 
 	// nudge is not added to targets if nudge config is not present
