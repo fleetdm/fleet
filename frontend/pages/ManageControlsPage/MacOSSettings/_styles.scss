@@ -1,0 +1,14 @@
+.mac-os-settings {
+  font-size: $x-small;
+
+  &__description {
+    margin: $pad-xxlarge 0;
+  }
+
+  &__side-nav {
+
+    .side-nav__nav-list {
+      top: 0
+    }
+  }
+}

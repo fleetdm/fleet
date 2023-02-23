@@ -95,7 +95,7 @@ by an exit code of zero.`,
 					"failed to obtain vuln processing lock, something else still has lock ownership")
 			}
 			defer func() {
-				err = ds.Unlock(ctx, "cron_vulnerabilities", "vuln_processing_command")
+				err = ds.Unlock(ctx, string(fleet.CronVulnerabilities), "vuln_processing_command")
 				if err != nil {
 					initFatal(err, "failed to release vuln processing lock")
 				}

@@ -18,9 +18,12 @@ Customers on a paid tier of Fleet can get in touch directly for commercial suppo
 | Low to medium impact | Chat support during business hours Chat: Dedicated Slack channel (confidential) </br> Response time: **≤1 business day** |
 | High to emergency impact | Expedited phone/chat support during business hours </br> Call or text [the Fleet phone number](https://docs.google.com/document/d/1tE-NpNfw1icmU2MjYuBRib0VWBPVAdmq4NiCrpuI0F0/edit) that was provided in the invoice. </br> Response time: **≤4 hours** |
 
-=======
 
-## New Customer Onboarding Workflow
+## Becoming a customer
+
+To close a deal with a new customer (non-self-service), create a GitHub issue using the "Sale" issue template and follow the steps.
+
+> TODO: dedupe between this section and the issue template
 
 This workflow outlines the process that sales and customer success can follow when a new deal closes. 
 
@@ -62,6 +65,10 @@ This workflow outlines the process that sales and customer success can follow wh
     - Schedule the recurring customer check-in
     - Owns running the meeting, note taking, TODO follow up, etc. 
 
+
+## Fleet's W-9
+
+A recent signed copy of Fleet's W-9 form can be found in [this confidential PDF in Google Drive](https://drive.google.com/file/d/1ugXazEBk1oVm_LqGbYNsIFECcv5jXLA9/view?usp=drivesdk).
 
 ## Customer success calls
 

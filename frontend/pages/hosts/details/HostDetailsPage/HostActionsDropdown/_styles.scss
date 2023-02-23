@@ -68,10 +68,14 @@
       width: 188px;
       left: unset;
       top: unset;
-      max-height: 220px;
+      max-height: none;
       padding: $pad-small;
       position: absolute;
       left: -120px;
+
+      .Select-menu {
+        max-height: none;
+      }
     }
 
     .Select-arrow {

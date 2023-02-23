@@ -1,4 +1,4 @@
-.mdm-integrations {
+.mdm-settings {
   display: flex;
   flex-direction: column;
   width: 65%;
@@ -21,7 +21,7 @@
       margin-bottom: 0;
     }
 
-    .mdm-integrations__edit-team-btn {
+    .mdm-settings-team-btn {
       margin-left: 12px;
 
       .children-wrapper {

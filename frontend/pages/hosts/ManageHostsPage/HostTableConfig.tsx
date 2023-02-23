@@ -435,7 +435,7 @@ const allHostTableHeaders: IDataColumn[] = [
           <span
             className="text-cell text-muted tooltip"
             data-tip
-            data-for={`public-ip-tooltip__${cellProps.row.original.id}`}
+            data-for={`public-ip__${cellProps.row.original.id}`}
           >
             {DEFAULT_EMPTY_CELL_VALUE}
           </span>
