@@ -64,11 +64,14 @@ func (gh GitHubClient) Download(URL string) (string, error) {
 	return fPath, nil
 }
 
-// Bulletins returns a map of 'bulletin name' => 'download URL' of the bulletins stored as assets on Github.
+// MSRCBulletins returns a map of 'MetadataFilename' to 'download URL' of the MSRC bulletins assets
+// stored in our Github NVD repo (https://github.com/fleetdm/nvd/releases)
 func (gh GitHubClient) MSRCBulletins(ctx context.Context) (map[MetadataFileName]string, error) {
 	return gh.list(ctx, mSRCFilePrefix, NewMSRCMetadata)
 }
 
+// MacOfficeReleaseNotes returns the 'MetadataFilename' and the 'download URL' of the latest Mac Office Release
+// Note asset stored in our Github NVD repo (https://github.com/fleetdm/nvd/releases)
 func (gh GitHubClient) MacOfficeReleaseNotes(ctx context.Context) (MetadataFileName, string, error) {
 	resultMap, err := gh.list(ctx, macOfficeReleaseNotesPrefix, NewMacOfficeRelNotesMetadata)
 	if err != nil {
@@ -88,6 +91,10 @@ func (gh GitHubClient) MacOfficeReleaseNotes(ctx context.Context) (MetadataFileN
 	return MetadataFileName{}, "", nil
 }
 
+// list iterates over the latest release in our Github NVD repo
+// (https://github.com/fleetdm/nvd/releases) and collects all assets that start with 'prefix',
+// matching assets are collected in a map, where the key is a 'MetadataFileName' built using 'ctor'
+// and the value is the 'download URL'.
 func (gh GitHubClient) list(ctx context.Context, prefix string, ctor func(fileName string) MetadataFileName) (map[MetadataFileName]string, error) {
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
