@@ -422,6 +422,8 @@ func (s *integrationMDMTestSuite) TestProfileManagement() {
 	var res getHostResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d", host.ID), getHostRequest{}, http.StatusOK, &res)
 	require.NotEmpty(t, res.Host.MDM.Profiles)
+	resProfiles := *res.Host.MDM.Profiles
+	require.Len(t, resProfiles, len(teamProfiles))
 }
 
 func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
