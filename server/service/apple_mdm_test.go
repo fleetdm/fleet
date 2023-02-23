@@ -472,9 +472,9 @@ func TestHostDetailsMDMProfiles(t *testing.T) {
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
 
 	expected := []fleet.HostMDMAppleProfile{
-		{HostUUID: "H057-UU1D-1337", ProfileID: uint(5), CommandUUID: "CMD-UU1D-5", Status: &fleet.MDMAppleDeliveryPending, OperationType: fleet.MDMAppleOperationTypeInstall, Detail: ""},
-		{HostUUID: "H057-UU1D-1337", ProfileID: uint(8), CommandUUID: "CMD-UU1D-8", Status: &fleet.MDMAppleDeliveryApplied, OperationType: fleet.MDMAppleOperationTypeInstall, Detail: ""},
-		{HostUUID: "H057-UU1D-1337", ProfileID: uint(13), CommandUUID: "CMD-UU1D-13", Status: &fleet.MDMAppleDeliveryFailed, OperationType: fleet.MDMAppleOperationTypeRemove, Detail: "Error removing profile"},
+		{HostUUID: "H057-UU1D-1337", Name: "NAME-5", ProfileID: uint(5), CommandUUID: "CMD-UU1D-5", Status: &fleet.MDMAppleDeliveryPending, OperationType: fleet.MDMAppleOperationTypeInstall, Detail: ""},
+		{HostUUID: "H057-UU1D-1337", Name: "NAME-9", ProfileID: uint(8), CommandUUID: "CMD-UU1D-8", Status: &fleet.MDMAppleDeliveryApplied, OperationType: fleet.MDMAppleOperationTypeInstall, Detail: ""},
+		{HostUUID: "H057-UU1D-1337", Name: "NAME-13", ProfileID: uint(13), CommandUUID: "CMD-UU1D-13", Status: &fleet.MDMAppleDeliveryFailed, OperationType: fleet.MDMAppleOperationTypeRemove, Detail: "Error removing profile"},
 	}
 	expectedByProfileID := make(map[uint]fleet.HostMDMAppleProfile)
 	for _, ep := range expected {
@@ -515,6 +515,9 @@ func TestHostDetailsMDMProfiles(t *testing.T) {
 		return nil, nil
 	}
 
+	expectedNilSlice := []fleet.HostMDMAppleProfile(nil)
+	expectedEmptySlice := []fleet.HostMDMAppleProfile{}
+
 	cases := []struct {
 		name           string
 		mdmEnabled     bool
@@ -531,17 +534,17 @@ func TestHostDetailsMDMProfiles(t *testing.T) {
 		},
 		{
 			name:           "TestGetHostMDMProfilesEmpty",
-			mdmEnabled:     false,
+			mdmEnabled:     true,
 			hostID:         ptr.Uint(21),
 			hostIdentifier: nil,
-			expected:       &[]fleet.HostMDMAppleProfile{},
+			expected:       &expectedEmptySlice,
 		},
 		{
 			name:           "TestGetHostMDMProfilesNil",
 			mdmEnabled:     false,
 			hostID:         ptr.Uint(42),
 			hostIdentifier: nil,
-			expected:       nil,
+			expected:       &expectedNilSlice,
 		},
 		{
 			name:           "TestHostByIdentifierMDMProfilesOK",
@@ -555,14 +558,14 @@ func TestHostDetailsMDMProfiles(t *testing.T) {
 			mdmEnabled:     false,
 			hostID:         nil,
 			hostIdentifier: ptr.String("h0571d3n71f13r"),
-			expected:       nil,
+			expected:       &expectedNilSlice,
 		},
 		{
 			name:           "TestHostByIdentifierMDMProfilesEmpty",
-			mdmEnabled:     false,
+			mdmEnabled:     true,
 			hostID:         nil,
 			hostIdentifier: ptr.String("4n07h3r1d3n71f13r"),
-			expected:       &[]fleet.HostMDMAppleProfile{},
+			expected:       &expectedEmptySlice,
 		},
 	}
 
@@ -593,7 +596,7 @@ func TestHostDetailsMDMProfiles(t *testing.T) {
 			require.True(t, ds.AppConfigFuncInvoked)
 
 			if !c.mdmEnabled {
-				require.Nil(t, gotHost.MDM.Profiles)
+				require.Equal(t, gotHost.MDM.Profiles, c.expected)
 				return
 			}
 

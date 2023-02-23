@@ -3128,7 +3128,9 @@ func (s *DataStore) DeleteMDMAppleConfigProfile(ctx context.Context, profileID u
 }
 
 func (s *DataStore) GetHostMDMProfiles(ctx context.Context, hostUUID string) ([]fleet.HostMDMAppleProfile, error) {
+	s.mu.Lock()
 	s.GetHostMDMProfilesFuncInvoked = true
+	s.mu.Unlock()
 	return s.GetHostMDMProfilesFunc(ctx, hostUUID)
 }
 
