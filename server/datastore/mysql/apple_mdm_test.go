@@ -1074,9 +1074,7 @@ func createBuiltinLabels(t *testing.T, ds *Datastore) {
 }
 
 func nanoEnroll(t *testing.T, ds *Datastore, host *fleet.Host) {
-	_, err := ds.writer.Exec(`
-    INSERT INTO nano_devices (id, serial_number) VALUES (?, ?)
-  `, host.UUID, host.HardwareSerial)
+	_, err := ds.writer.Exec(`INSERT INTO nano_devices (id, authenticate) VALUES (?, 'test')`, host.UUID)
 	require.NoError(t, err)
 
 	_, err = ds.writer.Exec(`
