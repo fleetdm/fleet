@@ -34,11 +34,11 @@ Sometimes the end user's Mac will tell them that their macOS is up to date when 
 
 1. From the Apple menu in the top left corner of your screen, select **System Settings** or **System Preferences**.
 
-2. In the dropdown menu, select **Quit System Settings** or **Quit System Preferences**.
+2. In the search bar, type "Software Update." Select **Software Update**.
 
-3. Go to the Nudge window and select **Update Device**. Select **Restart Now** to update.
+3. Type "CMD(⌘)+R" to check for updates. If you see an available update, select **Restart Now** to update.
 
-4. If you still don't see the **Restart Now** option, from the Apple menu in the top left corner of your screen, select **Restart...** to restart your Mac.
+4. If you still don't see an available update, from the Apple menu in the top left corner of your screen, select **Restart...** to restart your Mac.
 
 5. After your Mac restarts, from the Apple menu in the top left corner of your screen, select **System Settings** or **System Preferences**.
 
