@@ -15,7 +15,7 @@ spec:
   query: |
     SELECT 1 FROM security_profile_info WHERE password_history_size >= 24;
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-1.1.1
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_1.1.1
   contributors: marcosd4h
 ---
 apiVersion: v1
@@ -34,7 +34,7 @@ spec:
   query: |
     SELECT 1 FROM security_profile_info WHERE (maximum_password_age <= 365 AND maximum_password_age != 0);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-1.1.2
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_1.1.2
   contributors: marcosd4h
 ---
 apiVersion: v1
@@ -54,7 +54,7 @@ spec:
   query: |
     SELECT 1 FROM security_profile_info WHERE minimum_password_age >= 1;
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-1.1.3
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_1.1.3
   contributors: marcosd4h
 ---
 apiVersion: v1
@@ -73,7 +73,7 @@ spec:
   query: |
     SELECT 1 FROM security_profile_info WHERE minimum_password_length >= 14;
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-1.1.4
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_1.1.4
   contributors: marcosd4h
 ---
 apiVersion: v1
@@ -94,7 +94,7 @@ spec:
   query: |
     SELECT 1 FROM security_profile_info WHERE password_complexity = 1;
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-1.1.5
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_1.1.5
   contributors: marcosd4h
 ---
 apiVersion: v1
@@ -113,7 +113,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\SAM\\RelaxMinimumPasswordLengthLimits' AND data != 0);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-1.1.6
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_1.1.6
   contributors: marcosd4h
 ---
 apiVersion: v1
@@ -134,7 +134,7 @@ spec:
   query: |
     SELECT 1 FROM security_profile_info WHERE clear_text_password = 0;
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-1.1.7
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_1.1.7
   contributors: marcosd4h
 ---
 apiVersion: v1
@@ -148,10 +148,6 @@ spec:
     Although it might seem like a good idea to configure the value for this policy setting to a high value, such a configuration will likely increase the number of calls that the help desk receives to unlock accounts locked by mistake. Users should be aware of the length of time a lock remains in place, so that they realize they only need to call the help desk if they have an extremely urgent need to regain access to their computer.
     The recommended state for this setting is: 15 or more minute(s).
     Note: Password Policy settings (section 1.1) and Account Lockout Policy settings (section 1.2) must be applied via the Default Domain Policy GPO in order to be globally in effect on domain user accounts as their default behavior. If these settings are configured in another GPO, they will only affect local user accounts on the computers that receive the GPO. However, custom exceptions to the default password policy and account lockout policy rules for specific domain users and/or groups can be defined using Password Settings Objects (PSOs), which are completely separate from Group Policy and most easily configured using Active Directory Administrative Center.
-    Rationale:
-    A denial of service (DoS) condition can be created if an attacker abuses the Account lockout threshold and repeatedly attempts to log on with a specific account. Once you configure the Account lockout threshold setting, the account will be locked out after the specified number of failed attempts. If you configure the Account lockout duration setting to 0, then the account will remain locked out until an administrator unlocks it manually.
-    Impact:
-    Although it may seem like a good idea to configure this policy setting to never automatically unlock an account, such a configuration can increase the number of requests that your organization's help desk receives to unlock accounts that were locked by mistake.
   resolution: |
     Automatic method:
     Ask your system administrator to establish the recommended configuration via GP, set the following UI path to '15 or more minute(s)':
@@ -159,7 +155,7 @@ spec:
   query: |
     SELECT 1 FROM todo_add_query;
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-1.2.1
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_1.2.1
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -172,8 +168,6 @@ spec:
     This policy setting determines the number of failed logon attempts before the account is locked. Setting this policy to 0 does not conform to the benchmark as doing so disables the account lockout threshold.
     The recommended state for this setting is: 5 or fewer invalid logon attempt(s), but not 0.
     Note: Password Policy settings (section 1.1) and Account Lockout Policy settings (section 1.2) must be applied via the Default Domain Policy GPO in order to be globally in effect on domain user accounts as their default behavior. If these settings are configured in another GPO, they will only affect local user accounts on the computers that receive the GPO. However, custom exceptions to the default password policy and account lockout policy rules for specific domain users and/or groups can be defined using Password Settings Objects (PSOs), which are completely separate from Group Policy and most easily configured using Active Directory Administrative Center.
-    Rationale:
-    Setting an account lockout threshold reduces the likelihood that an online password brute force attack will be successful. Setting the account lockout threshold too low introduces risk of increased accidental lockouts and/or a malicious actor intentionally locking out accounts.
   resolution: |
     Automatic method:
     Ask your system administrator to establish the recommended configuration via GP, set the following UI path to '5 or fewer invalid login attempt(s), but not 0':
@@ -181,7 +175,7 @@ spec:
   query: |
     SELECT 1 FROM todo_add_query;
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-1.2.2
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_1.2.2
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -195,8 +189,6 @@ spec:
     If you leave this policy setting at its default value or configure the value to an interval that is too long, your environment could be vulnerable to a DoS attack. An attacker could maliciously perform a number of failed logon attempts on all users in the organization, which will lock out their accounts. If no policy were determined to reset the account lockout, it would be a manual task for administrators. Conversely, if a reasonable time value is configured for this policy setting, users would be locked out for a set period until all of the accounts are unlocked automatically.
     The recommended state for this setting is: 15 or more minute(s).
     Note: Password Policy settings (section 1.1) and Account Lockout Policy settings (section 1.2) must be applied via the Default Domain Policy GPO in order to be globally in effect on domain user accounts as their default behavior. If these settings are configured in another GPO, they will only affect local user accounts on the computers that receive the GPO. However, custom exceptions to the default password policy and account lockout policy rules for specific domain users and/or groups can be defined using Password Settings Objects (PSOs), which are completely separate from Group Policy and most easily configured using Active Directory Administrative Center.
-    Rationale:
-    Users can accidentally lock themselves out of their accounts if they mistype their password multiple times. To reduce the chance of such accidental lockouts, the Reset account lockout counter after setting determines the number of minutes that must elapse before the counter that tracks failed logon attempts and triggers lockouts is reset to 0.
   resolution: |
     Automatic method:
     Ask your system administrator to establish the recommended configuration via GP, set the following UI path to '15 or more minute(s)':
@@ -204,7 +196,7 @@ spec:
   query: |
     SELECT 1 FROM todo_add_query;
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-1.2.3
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_1.2.3
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -216,10 +208,6 @@ spec:
   description: |
     This security setting is used by Credential Manager during Backup and Restore. No accounts should have this user right, as it is only assigned to Winlogon. Users' saved credentials might be compromised if this user right is assigned to other entities.
     The recommended state for this setting is: No One.
-    Rationale:
-    If an account is given this right the user of the account may create an application that calls into Credential Manager and is returned the credentials for another user.
-    Impact:
-    None - this is the default behavior.
   resolution: |
     Automatic method:
     Ask your system administrator to establish the recommended configuration via GP, set the following UI path to an empty list of users:
@@ -228,7 +216,7 @@ spec:
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/UserRights/AccessCredentialManagerAsTrustedCaller</LocURI></Target></Item></Get></SyncBody>" 
     AND mdm_command_output = "";
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-2.2.1
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.2.1
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -240,10 +228,6 @@ spec:
   description: |
     This policy setting allows other users on the network to connect to the computer and is required by various network protocols that include Server Message Block (SMB)-based protocols, NetBIOS, Common Internet File System (CIFS), and Component Object Model Plus (COM+).
     The recommended state for this setting is: Administrators, Remote Desktop Users.
-    Rationale:
-    Users who can connect from their computer to the network can access resources on target computers for which they have permission. For example, the Access this computer from the network user right is required for users to connect to shared printers and folders. If this user right is assigned to the Everyone group, then anyone will be able to read the files in those shared folders. However, this situation is unlikely for new installations of Windows Server 2003 with Service Pack 1 (SP1), because the default share and NTFS permissions in Windows Server 2003 do not include the Everyone group. This vulnerability may have a higher level of risk for computers that you upgrade from Windows NT 4.0 or Windows 2000, because the default permissions for these operating systems are not as restrictive as the default permissions in Windows Server 2003.
-    Impact:
-    If you remove the Access this computer from the network user right on Domain Controllers for all users, no one will be able to log on to the domain or use network resources. If you remove this user right on Member Servers, users will not be able to connect to those servers through the network. Successful negotiation of IPsec connections requires that the initiating machine has this right, therefore if using IPsec, it is recommended that it be assigned to the Authenticated Users group. If you have installed optional components such as ASP.NET or Internet Information Services (IIS), you may need to assign this user right to additional accounts that are required by those components. It is important to verify that authorized users are assigned this user right for the computers they need to access the network.
   resolution: |
     Automatic method:
     Ask your system administrator to establish the recommended configuration via GP, set the following UI path to a list containing only 'Administrators' and 'Remote Desktop Users':
@@ -252,7 +236,7 @@ spec:
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/UserRights/AccessFromNetwork</LocURI></Target></Item></Get></SyncBody>" 
     AND mdm_command_output  LIKE "Administrators_REMOTE INTERACTIVE LOGON";
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-2.2.2
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.2.2
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -264,12 +248,7 @@ spec:
   description: |
     This policy setting allows a process to assume the identity of any user and thus gain access to the resources that the user is authorized to access.
     The recommended state for this setting is: No One.
-    Note: This user right is considered a "sensitive privilege" for the purposes of auditing. Rationale:
-    The Act as part of the operating system user right is extremely powerful. Anyone with this user right can take complete control of the computer and erase evidence of their activities.
-    Rationale:
-    The Act as part of the operating system user right is extremely powerful. Anyone with this user right can take complete control of the computer and erase evidence of their activities.
-    Impact:
-    There should be little or no impact because the Act as part of the operating system user right is rarely needed by any accounts other than the Local System account, which implicitly has this right.
+    Note: This user right is considered a "sensitive privilege" for the purposes of auditing. 
   resolution: |
     Automatic method:
     Ask your system administrator to establish the recommended configuration via GP, set the following UI path to an empty list of users:
@@ -277,7 +256,7 @@ spec:
   query: |
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Config/UserRights/ActAsPartOfTheOperatingSystem</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output = "";
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-2.2.3
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.2.3
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -289,10 +268,6 @@ spec:
   description: |
     This policy setting allows a user to adjust the maximum amount of memory that is available to a process. The ability to adjust memory quotas is useful for system tuning, but it can be abused. In the wrong hands, it could be used to launch a denial of service (DoS) attack.
     The recommended state for this setting is: Administrators, LOCAL SERVICE, NETWORK SERVICE.
-    Rationale:
-    A user with the Adjust memory quotas for a process user right can reduce the amount of memory that is available to any process, which could cause business-critical network applications to become slow or to fail. In the wrong hands, this privilege could be used to start a denial of service (DoS) attack.
-    Impact:
-    Organizations that have not restricted users to roles with limited privileges will find it difficult to impose this countermeasure. Also, if you have installed optional components such as ASP.NET or IIS, you may need to assign the Adjust memory quotas for a process user right to additional accounts that are required by those components. Otherwise, this countermeasure should have no impact on most computers. If this user right is necessary for a user account, it can be assigned to a local computer account instead of a domain account.
   resolution: |
     Automatic method:
     Ask your system administrator to establish the recommended configuration via GP, set the following UI path to a list of only 'Administrators', 'LOCAL SERVICE' and 'NETWORK SERVICE':
@@ -300,7 +275,7 @@ spec:
   query: |
     SELECT 1 FROM todo_add_query;
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-2.2.4
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.2.4
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -313,10 +288,6 @@ spec:
     This policy setting determines which users can interactively log on to computers in your environment. Logons that are initiated by pressing the CTRL+ALT+DEL key sequence on the client computer keyboard require this user right. Users who attempt to log on through Terminal Services / Remote Desktop Services or IIS also require this user right.
     The recommended state for this setting is: Administrators, Users.
     Note: The Guest account is also assigned this user right by default. Although this account is disabled by default, it's recommended that you configure this setting through Group Policy. However, this user right should generally be restricted to the Administrators and Users groups. Assign this user right to the Backup Operators group if your organization requires that they have this capability.
-    Rationale:
-    Any account with the Allow log on locally user right can log on at the console of the computer. If you do not restrict this user right to legitimate users who need to be able to log on to the console of the computer, unauthorized users could download and run malicious software to elevate their privileges.
-    Impact:
-    If you remove these default groups, you could limit the abilities of users who are assigned to specific administrative roles in your environment. You should confirm that delegated activities will not be adversely affected by any changes that you make to the Allow log on locally user right.
   resolution: |
     Automatic method:
     Ask your system administrator to establish the recommended configuration via GP, set the following UI path to a list containing only 'Administrators' and 'Users':
@@ -330,7 +301,7 @@ spec:
         mdm_command_output LIKE "Users_Administrators"
     );
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-2.2.5
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.2.5
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -345,10 +316,6 @@ spec:
     The recommended state for this setting is: Administrators, Remote Desktop Users. Note: The above list is to be treated as a whitelist, which implies that the above
     principals need not be present for assessment of this recommendation to pass.
     Note #2: In all versions of Windows prior to Windows 7, Remote Desktop Services was known as Terminal Services, so you should substitute the older term if comparing against an older OS.
-    Rationale:
-    Any account with the Allow log on through Remote Desktop Services user right can log on to the remote console of the computer. If you do not restrict this user right to legitimate users who need to log on to the console of the computer, unauthorized users could download and run malicious software to elevate their privileges.
-    Impact:
-    Removal of the Allow log on through Remote Desktop Services user right from other groups or membership changes in these default groups could limit the abilities of users who perform specific administrative roles in your environment. You should confirm that delegated activities will not be adversely affected.
   resolution: |
     Automatic method:
     Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'Administrators, Remote Desktop Users':
@@ -356,7 +323,7 @@ spec:
   query: |
     SELECT 1 FROM todo_add_query;
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-2.2.6
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.2.6
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -368,12 +335,7 @@ spec:
   description: |
     This policy setting allows users to circumvent file and directory permissions to back up the system. This user right is enabled only when an application (such as NTBACKUP) attempts to access a file or directory through the NTFS file system backup application programming interface (API). Otherwise, the assigned file and directory permissions apply.
     The recommended state for this setting is: Administrators.
-    Note: This user right is considered a "sensitive privilege" for the purposes of auditing. Rationale:
-    Users who are able to back up data from a computer could take the backup media to a non-domain computer on which they have administrative privileges and restore the data. They could take ownership of the files and view any unencrypted data that is contained within the backup set.
-    Rationale:
-    Users who are able to back up data from a computer could take the backup media to a non- domain computer on which they have administrative privileges and restore the data. They could take ownership of the files and view any unencrypted data that is contained within the backup set.
-    Impact:
-    Changes in the membership of the groups that have the Back up files and directories user right could limit the abilities of users who are assigned to specific administrative roles in your environment. You should confirm that authorized backup administrators are still able to perform backup operations.
+    Note: This user right is considered a "sensitive privilege" for the purposes of auditing. 
   resolution: |
     Automatic method:
     Ask your system administrator to establish the recommended configuration via GP, set the following UI path to a list containing only 'Administrators':
@@ -381,5 +343,5 @@ spec:
   query: |
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/UserRights/BackupFilesAndDirectories</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output = "Administrators";
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-2.2.7
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.2.7
   contributors: sharon-fdm
