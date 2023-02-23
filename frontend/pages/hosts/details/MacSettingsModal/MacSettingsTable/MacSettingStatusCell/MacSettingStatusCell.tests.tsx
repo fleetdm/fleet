@@ -9,7 +9,7 @@ import MacSettingStatusCell from "./MacSettingStatusCell";
 
 describe("Mac setting status cell", () => {
   it("Correctly displays the status text of a profile", () => {
-    const status: MacMdmProfileStatus = "success";
+    const status: MacMdmProfileStatus = "applied";
     const operationType: MacMdmProfileOperationType = "install";
 
     render(
@@ -20,7 +20,7 @@ describe("Mac setting status cell", () => {
   });
 
   it("Correctly displays the tooltip text for a profile", async () => {
-    const status: MacMdmProfileStatus = "success";
+    const status: MacMdmProfileStatus = "applied";
     const operationType: MacMdmProfileOperationType = "install";
 
     const customRender = createCustomRenderer();

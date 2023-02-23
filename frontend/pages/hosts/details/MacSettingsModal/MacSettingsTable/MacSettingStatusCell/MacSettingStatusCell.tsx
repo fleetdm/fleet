@@ -25,7 +25,7 @@ const MacSettingStatusCell = ({
         iconName: "pending",
         tooltipText: "Setting will be enforced when the host comes online.",
       },
-      success: {
+      applied: {
         statusText: "Applied",
         iconName: "success",
         tooltipText: "Host applied the setting.",
@@ -42,7 +42,7 @@ const MacSettingStatusCell = ({
         iconName: "pending",
         tooltipText: "Enforcement will be removed when the host comes online.",
       },
-      success: null, // should not be reached
+      applied: null, // should not be reached
       failed: {
         statusText: "Failed",
         iconName: "error",

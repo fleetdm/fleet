@@ -143,12 +143,16 @@ func (ds *Datastore) DeleteMDMAppleConfigProfile(ctx context.Context, profileID 
 func (ds *Datastore) GetHostMDMProfiles(ctx context.Context, hostUUID string) ([]fleet.HostMDMAppleProfile, error) {
 	stmt := `
 SELECT 
-	profile_id, 
+	hmap.profile_id,
+	name, 
 	status, 
 	operation_type, 
 	detail
+	
 FROM 
-	host_mdm_apple_profiles 
+	host_mdm_apple_profiles hmap
+JOIN
+	mdm_apple_configuration_profiles hmacp ON hmap.profile_id = hmacp.profile_id
 WHERE 
 	host_uuid = ?`
 
