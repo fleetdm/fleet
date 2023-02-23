@@ -1,5 +1,20 @@
 # 🫧 Field Marketer
 
+## Let's start with why we exist. 📡
+
+Ever wondered if your employer is monitoring your work computer?
+
+Organizations make huge investments every year to keep their laptops and servers online, secure, compliant, and usable from anywhere. This is called "device management".
+
+At Fleet, we think it's time device management became [transparent](https://fleetdm.com/transparency) and [open source](https://fleetdm.com/handbook/company#open-source).
+
+
+## About the company 🌈
+
+You can read more about the company in our [handbook](https://fleetdm.com/handbook/company), which is public and open to the world.
+
+tldr; Fleet Device Management Inc. is a [recently-funded](https://techcrunch.com/2022/04/28/fleet-nabs-20m-to-enable-enterprises-to-manage-their-devices/) Series A startup founded and backed by the same people who created osquery, the leading open source security agent. Today, osquery is installed on millions of laptops and servers, and it is especially popular with [enterprise IT and security teams](https://www.linuxfoundation.org/press/press-release/the-linux-foundation-announces-intent-to-form-new-foundation-to-support-osquery-community).
+
 
 ## Your primary responsibilities 🔭
 
@@ -39,7 +54,14 @@ If most of these qualities sound like you, we would love to chat and see if we'r
 - 🧬 You care about using a consistent voice, messaging, and design.
 - ➕ Bonus: You are comfortable with concepts like security, APIs, and DevOps.
 
+## Why should you join us? 🛸
+
+Learn more about the company and [why you should join us here](https://fleetdm.com/handbook/company#is-it-any-good).
+
+
+## Want to join the team?
+
 Want to join the team?
 
-You can apply for this position here at [Apply to Fleet](https://3x3q33auqgj.typeform.com/to/upGkhYsN).
+You can [apply for this position here](https://3x3q33auqgj.typeform.com/to/upGkhYsN).
 
