@@ -2441,6 +2441,12 @@ Returns the host information about the device that makes the request.
         "shell": "/sbin/nologin"
       }
     ],
+    "mdm": {
+      "encryption_key_available": false,
+      "enrollment_status": null,
+      "server_url": null,
+      "profiles": null
+    },
     "labels": [
       {
         "created_at": "2021-08-19T02:02:17Z",

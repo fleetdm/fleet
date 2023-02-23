@@ -2247,7 +2247,8 @@ Returns the information of the specified host.
     "mdm": {
       "encryption_key_available": false,
       "enrollment_status": null,
-      "server_url": null
+      "server_url": null,
+      "profiles": null
     }
   }
 }
@@ -2426,7 +2427,8 @@ Returns the information of the host specified using the `uuid`, `osquery_host_id
     "mdm": {
       "encryption_key_available": false,
       "enrollment_status": null,
-      "server_url": null
+      "server_url": null,
+      "profiles": null
     }
   }
 }
