@@ -141,7 +141,7 @@ func (ds *Datastore) DeleteMDMAppleConfigProfile(ctx context.Context, profileID 
 }
 
 func (ds *Datastore) GetHostMDMProfiles(ctx context.Context, hostUUID string) ([]fleet.HostMDMAppleProfile, error) {
-	stmt := `
+	stmt := fmt.Sprintf(`
 SELECT 
 	hmap.profile_id,
 	name, 
@@ -154,7 +154,10 @@ FROM
 JOIN
 	mdm_apple_configuration_profiles hmacp ON hmap.profile_id = hmacp.profile_id
 WHERE 
-	host_uuid = ?`
+	host_uuid = ? AND NOT (operation_type = '%s' AND status = '%s')`,
+		fleet.MDMAppleOperationTypeRemove,
+		fleet.MDMAppleDeliveryApplied,
+	)
 
 	var profiles []fleet.HostMDMAppleProfile
 	if err := sqlx.SelectContext(ctx, ds.reader, &profiles, stmt, hostUUID); err != nil {
