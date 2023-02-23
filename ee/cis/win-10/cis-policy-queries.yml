@@ -184,8 +184,6 @@ spec:
   description: |
     This policy setting allows users to change the size of the pagefile. By making the pagefile extremely large or extremely small, an attacker could easily affect the performance of a compromised computer.
     The recommended state for this setting is: Administrators.
-    Rationale:
-    Users who can change the page file size could make it extremely small or move the file to a highly fragmented storage volume, which could cause reduced computer performance.
   resolution: |
     Automatic method:
     Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'Administrators':
@@ -211,14 +209,11 @@ spec:
     The operating system examines a user's access token to determine the level of the user's privileges. Access tokens are built when users log on to the local computer or connect to a remote computer over a network. When you revoke a privilege, the change is immediately recorded, but the change is not reflected in the user's access token until the next time the user logs on or connects. Users with the ability to create or modify tokens can change the level of access for any currently logged on account. They could escalate their own privileges or create a DoS condition.
   resolution: |
     Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'No One':
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to an empty list:
     'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Create a token object'
   query: |
-    SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/LocalPoliciesSecurityOptions/Accounts_RenameAdministratorAccount</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output != "Administrator";
-OMA-URI: ./Device/Vendor/MSFT/Policy/Config/UserRights/CreateToken
-Data type: String
-Value: No one
-
+    SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/UserRights/CreateToken</LocURI></Target></Item></Get></SyncBody>" 
+    AND mdm_command_output = "";
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.2.11
   contributors: sharon-fdm
