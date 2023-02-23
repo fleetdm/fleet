@@ -532,9 +532,9 @@ spec:
     following UI path to 'Enabled':
     'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\Domain member: Digitally encrypt or sign secure channel data (always)'
   query: |
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Netlogon\Parameters\RequireSignOrSeal' AND data != 0);
+    SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Netlogon\Parameters\RequireSignOrSeal' AND data != 0;
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-win10-enterprise-2.3.6.1
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.6.1
   contributors: artemist-work
 ---
 apiVersion: v1
@@ -557,9 +557,9 @@ spec:
     following UI path to 'Enabled':
     'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\Domain member: Digitally encrypt secure channel data (when possible)'
   query: |
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Netlogon\Parameters\SealSecureChannel' AND data != 0);
+    SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Netlogon\Parameters\SealSecureChannel' AND data != 0;
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-win10-enterprise-2.3.6.2
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.6.2
   contributors: artemist-work
 ---
 apiVersion: v1
@@ -585,7 +585,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Netlogon\Parameters\SignSecureChannel' AND data != 0);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-win10-enterprise-2.3.6.3
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.6.3
   contributors: artemist-work
 ---
 apiVersion: v1
@@ -611,10 +611,10 @@ spec:
     following UI path to 'Disabled':
     'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\Domain member: Disable machine account password changes'
   query: |
-    SELECT 1 FROM registry WHERE (path =
-    'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Netlogon\Parameters\DisablePasswordChange' AND data = 0);
+    SELECT 1 FROM registry WHERE
+      path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Netlogon\Parameters\DisablePasswordChange' AND data = 0;
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-win10-enterprise-2.3.6.4
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.6.4
   contributors: artemist-work
 ---
 apiVersion: v1
@@ -640,11 +640,11 @@ spec:
     following UI path to 30 or fewer days, but not 0:
     'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\Domain member: Maximum machine account password age'
   query: |
-    SELECT 1 FROM registry WHERE (path =
-    'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Netlogon\Parameters\MaximumPasswordAge'
-    AND data <= 30 AND data != 0);
+    SELECT 1 FROM registry WHERE
+      path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Netlogon\Parameters\MaximumPasswordAge'
+    AND data <= 30 AND data != 0;
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-win10-enterprise-2.3.6.5
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.6.5
   contributors: artemist-work
 ---
 apiVersion: v1
@@ -672,10 +672,10 @@ spec:
     following UI path to 'Enabled'
     'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\Domain member: Require strong (Windows 2000 or later) session key'
   query: |
-    SELECT 1 FROM registry WHERE (path =
-    'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Netlogon\Parameters\RequireStrongKey' AND data != 0);
+    SELECT 1 FROM registry WHERE
+      path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Netlogon\Parameters\RequireStrongKey' AND data != 0;
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-win10-enterprise-2.3.6.5
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.6.5
   contributors: artemist-work
 ---
 apiVersion: v1
