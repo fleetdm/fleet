@@ -159,6 +159,13 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 		_, _ = w.Write([]byte(fmt.Sprintf("status: %d", status)))
 	}))
 	s.T().Setenv("TEST_FLEETDM_API_URL", fleetdmSrv.URL)
+
+	appCfg, err := s.ds.AppConfig(context.Background())
+	require.NoError(s.T(), err)
+	appCfg.MDM.EnabledAndConfigured = true
+	err = s.ds.SaveAppConfig(context.Background(), appCfg)
+	require.NoError(s.T(), err)
+
 	s.T().Cleanup(fleetdmSrv.Close)
 }
 
@@ -278,10 +285,20 @@ func (s *integrationMDMTestSuite) TestProfileManagement() {
 	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: teamProfiles}, http.StatusNoContent, "team_id", strconv.Itoa(int(tm.ID)))
 
 	// create and enroll a host in MDM
-	host := createHostAndDeviceToken(t, s.ds, "secret-1")
 	d := newDevice(s)
-	d.serial = host.HardwareSerial
-	d.uuid = host.UUID
+	host, err := s.ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now().Add(-1 * time.Minute),
+		OsqueryHostID:   ptr.String(t.Name()),
+		NodeKey:         ptr.String(t.Name()),
+		UUID:            d.uuid,
+		Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
+		Platform:        "darwin",
+		HardwareSerial:  d.serial,
+	})
+	require.NoError(t, err)
 	d.mdmEnroll(s)
 
 	var wg sync.WaitGroup
@@ -381,6 +398,10 @@ func (s *integrationMDMTestSuite) TestProfileManagement() {
 	installs, removes = checkNextPayloads()
 	require.Empty(t, installs)
 	require.Empty(t, removes)
+
+	var res getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d", host.ID), getHostRequest{}, http.StatusOK, &res)
+	require.NotEmpty(t, res.Host.MDM.Profiles)
 }
 
 func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
