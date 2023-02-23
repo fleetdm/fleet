@@ -28,6 +28,12 @@ If the end user is past the deadline, Fleet shows the window and end user can't 
 
 ## macOS settings
 
+In Fleet you can enforce settings on your macOS hosts remotely.
+
+If you enforce disk encryption with Fleet, the disk encryption key (recovery key) will be stored in Fleet automatically. Learn how [here](#disk-encryption).
+
+You can also enforce custom macOS settings. Learn how [here](#custom-settings).
+
 ### Disk encryption
 
 _Available in Fleet Premium_
