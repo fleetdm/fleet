@@ -30,8 +30,8 @@ func NewMacOfficeRelNotesMetadata(filename string) MetadataFileName {
 	return MetadataFileName{prefix: macOfficeReleaseNotesPrefix, filename: filename}
 }
 
-func (sbn MetadataFileName) date() (time.Time, error) {
-	parts := strings.Split(sbn.filename, "-")
+func (mfn MetadataFileName) date() (time.Time, error) {
+	parts := strings.Split(mfn.filename, "-")
 
 	if len(parts) != 2 {
 		return time.Now(), errors.New("invalid file name")
@@ -40,8 +40,8 @@ func (sbn MetadataFileName) date() (time.Time, error) {
 	return time.Parse(dateLayout, timeRaw)
 }
 
-func (sbn MetadataFileName) Before(other MetadataFileName) bool {
-	a, err := sbn.date()
+func (mfn MetadataFileName) Before(other MetadataFileName) bool {
+	a, err := mfn.date()
 	if err != nil {
 		return false
 	}
@@ -54,8 +54,8 @@ func (sbn MetadataFileName) Before(other MetadataFileName) bool {
 	return a.Before(b)
 }
 
-func (sbn MetadataFileName) ProductName() string {
-	pName := strings.TrimPrefix(sbn.filename, sbn.prefix)
+func (mfn MetadataFileName) ProductName() string {
+	pName := strings.TrimPrefix(mfn.filename, mfn.prefix)
 	parts := strings.Split(pName, "-")
 
 	if len(parts) != 2 {
@@ -65,8 +65,8 @@ func (sbn MetadataFileName) ProductName() string {
 	return strings.Replace(parts[0], "_", " ", -1)
 }
 
-func (sbn MetadataFileName) String() string {
-	return sbn.filename
+func (mfn MetadataFileName) String() string {
+	return mfn.filename
 }
 
 func MSRCFileName(productName string, date time.Time) string {
