@@ -1,6 +1,5 @@
 import React from "react";
 import TableContainer from "components/TableContainer";
-import EmptyTable from "components/EmptyTable";
 import { IMacSettings } from "interfaces/mdm";
 
 import tableHeaders from "./MacSettingsTableConfig";
