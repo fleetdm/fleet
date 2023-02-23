@@ -25,6 +25,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/osservice"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/platform"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/orbit_info"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/token"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update/filestore"
@@ -729,14 +730,13 @@ func main() {
 		registerExtensionRunner(
 			&g,
 			r.ExtensionSocketPath(),
-			table.WithExtension(orbitInfoExtension{
-				orbitClient:     orbitClient,
-				orbitChannel:    c.String("orbit-channel"),
-				osquerydChannel: c.String("osqueryd-channel"),
-				desktopChannel:  c.String("desktop-channel"),
-				trw:             trw,
-			}),
-			table.WithExtension(sntpRequest{}),
+			table.WithExtension(orbit_info.New(
+				orbitClient,
+				c.String("orbit-channel"),
+				c.String("osqueryd-channel"),
+				c.String("desktop-channel"),
+				trw,
+			)),
 		)
 
 		if c.Bool("fleet-desktop") {

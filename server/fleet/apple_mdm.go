@@ -2,6 +2,7 @@ package fleet
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -15,6 +16,13 @@ import (
 	"howett.net/plist"
 )
 
+type MDMAppleCommandIssuer interface {
+	InstallProfile(ctx context.Context, hostUUIDs []string, profile Mobileconfig, uuid string) error
+	RemoveProfile(ctx context.Context, hostUUIDs []string, identifier string, uuid string) error
+	DeviceLock(ctx context.Context, hostUUIDs []string, uuid string) error
+	EraseDevice(ctx context.Context, hostUUIDs []string, uuid string) error
+}
+
 // MDMAppleEnrollmentType is the type for Apple MDM enrollments.
 type MDMAppleEnrollmentType string
 
@@ -23,6 +31,43 @@ const (
 	MDMAppleEnrollmentTypeAutomatic MDMAppleEnrollmentType = "automatic"
 	// MDMAppleEnrollmentTypeManual is the value for manual enrollments.
 	MDMAppleEnrollmentTypeManual MDMAppleEnrollmentType = "manual"
+)
+
+// Well-known status responses
+const (
+	MDMAppleStatusAcknowledged       = "Acknowledged"
+	MDMAppleStatusError              = "Error"
+	MDMAppleStatusCommandFormatError = "CommandFormatError"
+	MDMAppleStatusIdle               = "Idle"
+	MDMAppleStatusNotNow             = "NotNow"
+)
+
+type MDMAppleDeliveryStatus string
+
+var (
+	MDMAppleDeliveryFailed  MDMAppleDeliveryStatus = "failed"
+	MDMAppleDeliveryApplied MDMAppleDeliveryStatus = "applied"
+	MDMAppleDeliveryPending MDMAppleDeliveryStatus = "pending"
+)
+
+func MDMAppleDeliveryStatusFromCommandStatus(cmdStatus string) *MDMAppleDeliveryStatus {
+	switch cmdStatus {
+	case MDMAppleStatusAcknowledged:
+		return &MDMAppleDeliveryApplied
+	case MDMAppleStatusError, MDMAppleStatusCommandFormatError:
+		return &MDMAppleDeliveryFailed
+	case MDMAppleStatusIdle, MDMAppleStatusNotNow:
+		return &MDMAppleDeliveryPending
+	default:
+		return nil
+	}
+}
+
+type MDMAppleOperationType string
+
+const (
+	MDMAppleOperationTypeInstall MDMAppleOperationType = "install"
+	MDMAppleOperationTypeRemove  MDMAppleOperationType = "remove"
 )
 
 // MDMAppleEnrollmentProfilePayload contains the data necessary to create
@@ -373,4 +418,30 @@ func (cp MDMAppleConfigProfile) ScreenPayloadTypes() error {
 	}
 
 	return nil
+}
+
+// HostMDMAppleProfile represents the status of an Apple MDM profile in a host.
+type HostMDMAppleProfile struct {
+	HostUUID      string                  `db:"host_uuid" json:"-"`
+	CommandUUID   string                  `db:"command_uuid" json:"-"`
+	ProfileID     uint                    `db:"profile_id" json:"profile_id"`
+	Name          string                  `db:"name" json:"name"`
+	Status        *MDMAppleDeliveryStatus `db:"status" json:"status"`
+	OperationType MDMAppleOperationType   `db:"operation_type" json:"operation_type"`
+	Detail        string                  `db:"detail" json:"detail"`
+}
+
+type MDMAppleProfilePayload struct {
+	ProfileID         uint   `db:"profile_id"`
+	ProfileIdentifier string `db:"profile_identifier"`
+	HostUUID          string `db:"host_uuid"`
+}
+
+type MDMAppleBulkUpsertHostProfilePayload struct {
+	ProfileID         uint
+	ProfileIdentifier string
+	HostUUID          string
+	CommandUUID       string
+	OperationType     MDMAppleOperationType
+	Status            *MDMAppleDeliveryStatus
 }

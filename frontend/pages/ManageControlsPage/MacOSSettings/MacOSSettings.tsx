@@ -23,6 +23,9 @@ const MacOSSettings = ({ params }: IMacOSSettingsProps) => {
 
   return (
     <div className={baseClass}>
+      <p className={`${baseClass}__description`}>
+        Remotely enforce settings on macOS hosts assigned to this team.
+      </p>
       <SideNav
         className={`${baseClass}__side-nav`}
         navItems={MAC_OS_SETTINGS_NAV_ITEMS}

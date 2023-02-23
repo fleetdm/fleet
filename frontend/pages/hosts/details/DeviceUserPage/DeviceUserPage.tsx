@@ -41,6 +41,7 @@ import FleetIcon from "../../../../../assets/images/fleet-avatar-24x24@2x.png";
 import PolicyDetailsModal from "../cards/Policies/HostPoliciesTable/PolicyDetailsModal";
 import AutoEnrollMdmModal from "./AutoEnrollMdmModal";
 import ManualEnrollMdmModal from "./ManualEnrollMdmModal";
+import MacSettingsModal from "../MacSettingsModal";
 
 const baseClass = "device-user";
 
@@ -75,6 +76,7 @@ const DeviceUserPage = ({
     null
   );
   const [showPolicyDetailsModal, setShowPolicyDetailsModal] = useState(false);
+  const [showMacSettingsModal, setShowMacSettingsModal] = useState(false);
   const [globalConfig, setGlobalConfig] = useState<IDeviceGlobalConfig | null>(
     null
   );
@@ -93,7 +95,7 @@ const DeviceUserPage = ({
     }
   );
 
-  const { data: macadmins, refetch: refetchMacadmins } = useQuery(
+  const { data: deviceMacAdminsData, refetch: refetchMacadmins } = useQuery(
     ["macadmins", deviceAuthToken],
     () => deviceUserAPI.loadHostDetailsExtension(deviceAuthToken, "macadmins"),
     {
@@ -199,6 +201,8 @@ const DeviceUserPage = ({
       "percent_disk_space_available",
       "gigs_disk_space_available",
       "team_name",
+      "platform",
+      "mdm",
     ])
   );
 
@@ -232,6 +236,11 @@ const DeviceUserPage = ({
     },
     [showPolicyDetailsModal, setShowPolicyDetailsModal, setSelectedPolicy]
   );
+
+  const toggleMacSettingsModal = useCallback(() => {
+    setShowMacSettingsModal(!showMacSettingsModal);
+  }, [showMacSettingsModal, setShowMacSettingsModal]);
+
   const onCancelPolicyDetailsModal = useCallback(() => {
     setShowPolicyDetailsModal(!showPolicyDetailsModal);
     setSelectedPolicy(null);
@@ -310,10 +319,13 @@ const DeviceUserPage = ({
               statusClassName={statusClassName}
               titleData={titleData}
               diskEncryption={hostDiskEncryption}
+              isPremiumTier={isPremiumTier}
+              toggleMacSettingsModal={toggleMacSettingsModal}
+              hostMacSettings={host?.mdm.profiles}
+              mdmName={deviceMacAdminsData?.mobile_device_management?.name}
               showRefetchSpinner={showRefetchSpinner}
               onRefetchHost={onRefetchHost}
               renderActionButtons={renderActionButtons}
-              isPremiumTier={isPremiumTier}
               deviceUser
             />
             <TabsWrapper>
@@ -336,7 +348,7 @@ const DeviceUserPage = ({
                   <AboutCard
                     aboutData={aboutData}
                     deviceMapping={deviceMapping}
-                    munki={macadmins?.munki}
+                    munki={deviceMacAdminsData?.munki}
                     wrapFleetHelper={wrapFleetHelper}
                   />
                 </TabPanel>
@@ -367,6 +379,12 @@ const DeviceUserPage = ({
           <PolicyDetailsModal
             onCancel={onCancelPolicyDetailsModal}
             policy={selectedPolicy}
+          />
+        )}
+        {showMacSettingsModal && (
+          <MacSettingsModal
+            hostMacSettings={host?.mdm.profiles}
+            onClose={toggleMacSettingsModal}
           />
         )}
       </div>
