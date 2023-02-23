@@ -277,6 +277,23 @@ func (s *integrationMDMTestSuite) TestProfileManagement() {
 	// add profiles to the team
 	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: teamProfiles}, http.StatusNoContent, "team_id", strconv.Itoa(int(tm.ID)))
 
+	// create a non-macOS host
+	_, err = s.ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now().Add(-1 * time.Minute),
+		OsqueryHostID:   ptr.String(t.Name()),
+		NodeKey:         ptr.String(t.Name()),
+		UUID:            uuid.New().String(),
+		Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
+		Platform:        "windows",
+	})
+	require.NoError(t, err)
+
+	// create a host that's not enrolled into MDM
+	createHostAndDeviceToken(t, s.ds, "secret-1")
+
 	// create and enroll a host in MDM
 	host := createHostAndDeviceToken(t, s.ds, "secret-1")
 	d := newDevice(s)

@@ -475,7 +475,7 @@ func testIngestMDMAppleHostAlreadyExistsInFleet(t *testing.T, ds *Datastore) {
 		HardwareSerial:  testSerial,
 	})
 	require.NoError(t, err)
-	err = ds.SetOrUpdateMDMData(ctx, host.ID, false, false, "https://fleetdm.com", true, "Fleet MDM")
+	err = ds.SetOrUpdateMDMData(ctx, host.ID, false, false, "https://fleetdm.com", true, fleet.WellKnownMDMFleet)
 	require.NoError(t, err)
 	hosts := listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{}, 1)
 	require.Equal(t, testSerial, hosts[0].HardwareSerial)
@@ -761,6 +761,31 @@ func testMDMAppleProfileManagement(t *testing.T, ds *Datastore) {
 		NodeKey:       ptr.String("1337"),
 		UUID:          "test-uuid-1",
 		TeamID:        nil,
+		Platform:      "darwin",
+	})
+	require.NoError(t, err)
+	nanoEnroll(t, ds, host1)
+
+	// non-macOS hosts shouldn't modify any of the results below
+	_, err = ds.NewHost(ctx, &fleet.Host{
+		Hostname:      "test-windows-host",
+		OsqueryHostID: ptr.String("4824"),
+		NodeKey:       ptr.String("4824"),
+		UUID:          "test-windows-host",
+		TeamID:        nil,
+		Platform:      "windows",
+	})
+	require.NoError(t, err)
+
+	// a macOS host that's not MDM enrolled into Fleet shouldn't
+	// modify any of the results below
+	_, err = ds.NewHost(ctx, &fleet.Host{
+		Hostname:      "test-non-mdm-host",
+		OsqueryHostID: ptr.String("4825"),
+		NodeKey:       ptr.String("4825"),
+		UUID:          "test-non-mdm-host",
+		TeamID:        nil,
+		Platform:      "darwin",
 	})
 	require.NoError(t, err)
 
@@ -776,14 +801,16 @@ func testMDMAppleProfileManagement(t *testing.T, ds *Datastore) {
 	// add another host, it belongs to a team
 	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "test team"})
 	require.NoError(t, err)
-	_, err = ds.NewHost(ctx, &fleet.Host{
+	host2, err := ds.NewHost(ctx, &fleet.Host{
 		Hostname:      "test-host2-name",
 		OsqueryHostID: ptr.String("1338"),
 		NodeKey:       ptr.String("1338"),
 		UUID:          "test-uuid-2",
 		TeamID:        &team.ID,
+		Platform:      "darwin",
 	})
 	require.NoError(t, err)
+	nanoEnroll(t, ds, host2)
 
 	// still the same profiles to assign as there are no profiles for team 1
 	profiles, err = ds.ListMDMAppleProfilesToInstall(ctx)
@@ -820,14 +847,16 @@ func testMDMAppleProfileManagement(t *testing.T, ds *Datastore) {
 	}, profiles)
 
 	// add another global host
-	_, err = ds.NewHost(ctx, &fleet.Host{
+	host3, err := ds.NewHost(ctx, &fleet.Host{
 		Hostname:      "test-host3-name",
 		OsqueryHostID: ptr.String("1339"),
 		NodeKey:       ptr.String("1339"),
 		UUID:          "test-uuid-3",
 		TeamID:        nil,
+		Platform:      "darwin",
 	})
 	require.NoError(t, err)
+	nanoEnroll(t, ds, host3)
 
 	// more profiles, this time for both global hosts and the team
 	profiles, err = ds.ListMDMAppleProfilesToInstall(ctx)
@@ -1040,6 +1069,28 @@ func createBuiltinLabels(t *testing.T, ds *Datastore) {
 		"",
 		"",
 		fleet.LabelTypeBuiltIn,
+	)
+	require.NoError(t, err)
+}
+
+func nanoEnroll(t *testing.T, ds *Datastore, host *fleet.Host) {
+	_, err := ds.writer.Exec(`
+    INSERT INTO nano_devices (id, serial_number) VALUES (?, ?)
+  `, host.UUID, host.HardwareSerial)
+	require.NoError(t, err)
+
+	_, err = ds.writer.Exec(`
+INSERT INTO nano_enrollments
+	(id, device_id, user_id, type, topic, push_magic, token_hex)
+VALUES
+	(?, ?, ?, ?, ?, ?, ?)`,
+		host.UUID,
+		host.UUID,
+		nil,
+		"Device",
+		host.UUID+".topic",
+		host.UUID+".magic",
+		host.UUID,
 	)
 	require.NoError(t, err)
 }
