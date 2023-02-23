@@ -2,9 +2,9 @@ package mysql
 
 import (
 	"context"
-	"os/exec"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/pkg/docker"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/migrations/tables"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -62,9 +62,12 @@ func TestMigrations(t *testing.T) {
 
 	require.NoError(t, ds.MigrateTables(context.Background()))
 
+	compose, err := docker.NewCompose()
+	require.NoError(t, err)
+
 	// Dump schema to dumpfile
-	cmd := exec.Command(
-		"docker-compose", "exec", "-T", "mysql_test",
+	cmd := compose.Command(
+		"exec", "-T", "mysql_test",
 		// Command run inside container
 		"mysqldump", "-u"+testUsername, "-p"+testPassword, "TestMigrations", "--compact", "--skip-comments",
 	)

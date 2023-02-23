@@ -19,6 +19,7 @@ import (
 	"github.com/cenkalti/backoff/v4"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/packaging"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
+	"github.com/fleetdm/fleet/v4/pkg/docker"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/open"
 	"github.com/fleetdm/fleet/v4/pkg/spec"
@@ -29,7 +30,7 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
-type dockerComposeVersion int
+var ErrMissingCompose = errors.New("`docker compose` is required for the fleetctl preview experience.\n\nPlease install `docker compose` (https://docs.docker.com/compose/install/).")
 
 const (
 	downloadUrl             = "https://github.com/fleetdm/osquery-in-a-box/archive/%s.zip"
@@ -44,44 +45,7 @@ const (
 	updateRootKeys          = "update-roots"
 	stdQueryLibFilePath     = "std-query-lib-file-path"
 	disableOpenBrowser      = "disable-open-browser"
-
-	dockerComposeV1 dockerComposeVersion = 1
-	dockerComposeV2 dockerComposeVersion = 2
 )
-
-type dockerCompose struct {
-	version dockerComposeVersion
-}
-
-func (d dockerCompose) String() string {
-	if d.version == dockerComposeV1 {
-		return "`docker-compose`"
-	}
-
-	return "`docker compose`"
-}
-
-func (d dockerCompose) Command(arg ...string) *exec.Cmd {
-	if d.version == dockerComposeV1 {
-		return exec.Command("docker-compose", arg...)
-	}
-
-	return exec.Command("docker", append([]string{"compose"}, arg...)...)
-}
-
-func newDockerCompose() (dockerCompose, error) {
-	// first, check if `docker compose` is available
-	if err := exec.Command("docker compose").Run(); err == nil {
-		return dockerCompose{dockerComposeV2}, nil
-	}
-
-	// if not, try to use `docker-compose`
-	if _, err := exec.LookPath("docker-compose"); err == nil {
-		return dockerCompose{dockerComposeV1}, nil
-	}
-
-	return dockerCompose{}, errors.New("`docker compose` is required for the fleetctl preview experience.\n\nPlease install `docker compose` (https://docs.docker.com/compose/install/).")
-}
 
 func previewCommand() *cli.Command {
 	return &cli.Command{
@@ -153,9 +117,9 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 				return err
 			}
 
-			compose, err := newDockerCompose()
+			compose, err := docker.NewCompose()
 			if err != nil {
-				return err
+				return ErrMissingCompose
 			}
 
 			// Download files every time to ensure the user gets the most up to date versions
@@ -580,9 +544,9 @@ func previewStopCommand() *cli.Command {
 				return err
 			}
 
-			compose, err := newDockerCompose()
+			compose, err := docker.NewCompose()
 			if err != nil {
-				return err
+				return ErrMissingCompose
 			}
 
 			previewDir := previewDirectory()
@@ -638,9 +602,10 @@ func previewResetCommand() *cli.Command {
 				return err
 			}
 
-			compose, err := newDockerCompose()
+			compose, err := docker.NewCompose()
 			if err != nil {
-				return err
+				return ErrMissingCompose
+
 			}
 
 			previewDir := previewDirectory()

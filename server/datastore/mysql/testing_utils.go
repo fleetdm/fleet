@@ -7,7 +7,6 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
-	"os/exec"
 	"path"
 	"runtime"
 	"strings"
@@ -16,6 +15,7 @@ import (
 	"time"
 
 	"github.com/WatchBeam/clock"
+	"github.com/fleetdm/fleet/v4/pkg/docker"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/go-kit/kit/log"
 	"github.com/jmoiron/sqlx"
@@ -188,10 +188,12 @@ func initializeDatabase(t testing.TB, testName string, opts *DatastoreTestOption
 	if opts.Replica {
 		dbs = append(dbs, testName+testReplicaDatabaseSuffix)
 	}
+	compose, err := docker.NewCompose()
+	require.NoError(t, err)
 	for _, dbName := range dbs {
 		// Load schema from dumpfile
-		if out, err := exec.Command(
-			"docker-compose", "exec", "-T", "mysql_test",
+		if out, err := compose.Command(
+			"exec", "-T", "mysql_test",
 			// Command run inside container
 			"mysql",
 			"-u"+testUsername, "-p"+testPassword,
