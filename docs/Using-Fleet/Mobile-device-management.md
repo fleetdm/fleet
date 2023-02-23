@@ -26,7 +26,7 @@ If the end user is past the deadline, Fleet shows the window and end user can't 
 
 ### End user experience
 
-Fleet automatically download's the macOS update for the end user so that they don't have to. This way, when the end user selects the **Update Device** button in the Nudge window, they don't have to wait for the update to download before they can install the update.
+Fleet automatically downloads the macOS update for the end user so that they don't have to. This way, when the end user selects the **Update Device** button in the Nudge window, they don't have to wait for the update to download before they can install the update.
 
 > Note that Fleet only automatically download's the update on Intel Macs. WHY? TODO
 
