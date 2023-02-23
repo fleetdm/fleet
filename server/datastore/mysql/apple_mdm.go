@@ -927,7 +927,9 @@ func (ds *Datastore) ListMDMAppleProfilesToInstall(ctx context.Context) ([]*flee
               h.uuid as host_uuid,
               macp.identifier as profile_identifier
             FROM mdm_apple_configuration_profiles macp
-            LEFT JOIN hosts h ON h.team_id = macp.team_id OR (h.team_id IS NULL AND macp.team_id = 0)
+            JOIN hosts h ON h.team_id = macp.team_id OR (h.team_id IS NULL AND macp.team_id = 0)
+            JOIN nano_enrollments ne ON ne.device_id = h.uuid
+            WHERE h.platform = 'darwin' AND ne.enabled = 1
           ) as ds
           LEFT JOIN host_mdm_apple_profiles hmap
             ON hmap.profile_id = ds.profile_id AND hmap.host_uuid = ds.host_uuid
@@ -959,6 +961,8 @@ func (ds *Datastore) ListMDMAppleProfilesToRemove(ctx context.Context) ([]*fleet
             SELECT h.uuid, macp.profile_id
             FROM mdm_apple_configuration_profiles macp 
             JOIN hosts h ON h.team_id = macp.team_id OR (h.team_id IS NULL AND macp.team_id = 0)
+            JOIN nano_enrollments ne ON ne.device_id = h.uuid
+            WHERE h.platform = 'darwin' AND ne.enabled = 1
           ) as ds
           RIGHT JOIN host_mdm_apple_profiles hmap
             ON hmap.profile_id = ds.profile_id AND hmap.host_uuid = ds.uuid
