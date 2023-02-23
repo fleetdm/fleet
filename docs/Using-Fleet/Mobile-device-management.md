@@ -86,11 +86,11 @@ How to create a configuration profile with iMazing Profile Creator:
 
 2. Open iMazing Profile Creator and select macOS in the top bar. Fleet only supports enforcing settings on macOS hosts.
 
-3. Find and choose the settings you'd like to enforce on your macOS hosts. Fleet recommends limiting the scope of the settings in your profile so that it only includes settings from one tab in iMazing Profile Creator (ex. **Restrictions** tab). To enforce more settings, you can create and add additional profiles.
+3. Find and choose the settings you'd like to enforce on your macOS hosts. Fleet recommends limiting the scope of the settings a single profile: only include settings from one tab in iMazing Profile Creator (ex. **Restrictions** tab). To enforce more settings, you can create and add additional profiles.
 
 4. In iMazing Profile Creator, select the **General** tab. Enter a descriptive name in the **Name** field. When you add this profile to Fleet, Fleet will display this name in the Fleet UI. 
 
-5. In your top menu bar select File > Save As... and save your configuration profile. Make sure the file is saved as .mobileconfig.
+5. In your top menu bar select **File** > **Save As...** and save your configuration profile. Make sure the file is saved as .mobileconfig.
 
 ### Add configuration profiles to Fleet
 
