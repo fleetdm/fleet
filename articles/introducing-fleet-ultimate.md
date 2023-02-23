@@ -15,6 +15,8 @@ If you have upgraded to a premium Fleet plan you will have the ability to import
 
 ![CIS Queries in Dashboard](../website/assets/images/articles/introducing-fleet-ultimate-cis-queries-1468x770@2x.png)
 
+To get started with CIS Queries you can find instructions to import them and use them here: https://fleetdm.com/docs/using-fleet/cis-benchmarks
+
 ## Custom Pricing for mac, Windows, Linux machines, servers and Kubernetes containers
 ![Fleet Ultimate Calculator](../website/assets/images/articles/introducing-fleet-ultimate-pricing-calculator-372x564@2x.png)
 
