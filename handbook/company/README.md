@@ -33,10 +33,11 @@ Fleet is currently hiring for the following positions:
 - 🫧 [Revenue Operations Manager](https://fleet-device-management.breezy.hr/p/c28cce9abf5e-revenue-ops)
 - 🫧 [Field Marketer](https://fleet-device-management.breezy.hr/p/3bd97ce5f54a-field-marketing-manager-enterprise)
 
-> Interested in joining the team at Fleet, or know someone who might be?  Click one of the positions to read the job description and apply, or you can share a [direct link to this page](https://fleetdm.com/handbook/company#open-positions) for a short read about the company, including our vision, values, history, and all currently open positions.  Thank you for the help!
+> **🛸 Join us!**  Interested in joining the team at Fleet, or know someone who might be?  Click one of the positions to read the job description and apply.  Or [copy a direct link to this page](https://fleetdm.com/handbook/company#open-positions) to share a short summary about the company, including our vision, values, history, and all currently open positions.  Thank you for the help!
 
-### Why should you join us?  🛸
+### Is it any good?
 
+Here are a few reasons to work at Fleet:
 - Work from anywhere with good internet. (We're 100% remote. No office. No commute.) Everyone works remote, but you don't feel remote. There is no 'headquarters'. You are free to travel and move.
 - Fleet can offer you a competitive salary, significant equity, and an independent, outsider-friendly culture. Work with helpful, kind, and motivated people who know what they're doing.
 - At Fleet, we value focus, iteration, and meaningful results – not 60 hour work weeks. We are non-judgmental and laser-focused on growing the company.
