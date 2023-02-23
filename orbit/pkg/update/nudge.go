@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"runtime"
 	"sync"
 	"time"
 
@@ -44,10 +43,6 @@ type NudgeConfigFetcherOptions struct {
 	// runNudgeFn can be set in tests to mock the command executed to
 	// run Nudge.
 	runNudgeFn func(execPath, configPath string) error
-
-	// skipOSCheck can be set in tests to skip OS checks and run the
-	// nudge checker in non-darwin platforms.
-	skipOSCheck bool
 }
 
 func ApplyNudgeConfigFetcherMiddleware(f OrbitConfigFetcher, opt NudgeConfigFetcherOptions) OrbitConfigFetcher {
@@ -65,11 +60,7 @@ func ApplyNudgeConfigFetcherMiddleware(f OrbitConfigFetcher, opt NudgeConfigFetc
 func (n *NudgeConfigFetcher) GetConfig() (*fleet.OrbitConfig, error) {
 	log.Debug().Msg("running nudge config fetcher middleware")
 	cfg, err := n.Fetcher.GetConfig()
-	switch {
-	case runtime.GOOS != "darwin" && !n.opt.skipOSCheck:
-		log.Debug().Msg("skipping Nudge loop as platform is not darwin")
-		return cfg, err
-	case err != nil:
+	if err != nil {
 		log.Info().Err(err).Msg("calling GetConfig from NudgeConfigFetcher")
 		return nil, err
 	}
