@@ -15,7 +15,7 @@ func TestAnalyze(t *testing.T) {
 	t.Run("latestReleaseNotes", func(t *testing.T) {
 		vulnPath := t.TempDir()
 
-		actual, err := latestReleaseNotes(vulnPath)
+		actual, err := getLatestReleaseNotes(vulnPath)
 		require.NoError(t, err)
 		require.Empty(t, actual)
 
@@ -25,7 +25,7 @@ func TestAnalyze(t *testing.T) {
 		err = ReleaseNotes{{Version: "1"}}.Serialize(time.Now().Add(-35*time.Hour), vulnPath)
 		require.NoError(t, err)
 
-		actual, err = latestReleaseNotes(vulnPath)
+		actual, err = getLatestReleaseNotes(vulnPath)
 		require.NoError(t, err)
 		require.NotEmpty(t, actual)
 		require.Equal(t, "2", actual[0].Version)

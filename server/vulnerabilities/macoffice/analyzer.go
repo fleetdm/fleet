@@ -13,7 +13,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/utils"
 )
 
-func latestReleaseNotes(vulnPath string) (ReleaseNotes, error) {
+// getLatestReleaseNotes returns the most recent Mac Office release notes asset (based on the date in the
+// filename) contained in 'vulnPath'
+func getLatestReleaseNotes(vulnPath string) (ReleaseNotes, error) {
 	fs := io.NewFSClient(vulnPath)
 
 	files, err := fs.MacOfficeReleaseNotes()
@@ -46,6 +48,8 @@ func latestReleaseNotes(vulnPath string) (ReleaseNotes, error) {
 	return relNotes, nil
 }
 
+// collectVulnerabilities compares 'software' againts all 'release notes' returning all detected
+// vulnerabilities.
 func collectVulnerabilities(
 	software *fleet.Software,
 	product ProductType,
@@ -73,7 +77,8 @@ func collectVulnerabilities(
 	return vulns
 }
 
-func storedVulnerabilities(
+// getStoredVulnerabilities return all stored vulnerabilities for 'softwareID'
+func getStoredVulnerabilities(
 	ctx context.Context,
 	ds fleet.Datastore,
 	softwareID uint,
@@ -93,7 +98,7 @@ func storedVulnerabilities(
 	return result, nil
 }
 
-func syncDB(
+func updateVulnsInDB(
 	ctx context.Context,
 	ds fleet.Datastore,
 	detected []fleet.SoftwareVulnerability,
@@ -132,13 +137,15 @@ func syncDB(
 	return inserted, nil
 }
 
+// Analyze uses the most recent Mac Office release notes asset in 'vulnPath' for detecting
+// vulnerabilities on Mac Office apps.
 func Analyze(
 	ctx context.Context,
 	ds fleet.Datastore,
 	vulnPath string,
 	collectVulns bool,
 ) ([]fleet.SoftwareVulnerability, error) {
-	relNotes, err := latestReleaseNotes(vulnPath)
+	relNotes, err := getLatestReleaseNotes(vulnPath)
 	if err != nil {
 		return nil, err
 	}
@@ -168,12 +175,12 @@ func Analyze(
 
 		detected := collectVulnerabilities(software, product, relNotes)
 		// The 'software' instance we get back from the iterator does not include vulnerabilities...
-		existing, err := storedVulnerabilities(ctx, ds, software.ID)
+		existing, err := getStoredVulnerabilities(ctx, ds, software.ID)
 		if err != nil {
 			return nil, err
 		}
 
-		inserted, err := syncDB(ctx, ds, detected, existing)
+		inserted, err := updateVulnsInDB(ctx, ds, detected, existing)
 		if err != nil {
 			return nil, err
 		}
