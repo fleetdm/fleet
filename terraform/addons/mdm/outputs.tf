@@ -31,22 +31,13 @@ output "extra_execution_iam_policies" {
 }
 
 output "scep" {
-  value = {
-    arn = aws_secretsmanager_secret.scep.arn
-    id  = aws_secretsmanager_secret.scep.id
-  }
+  value = aws_secretsmanager_secret.scep
 }
 
 output "dep" {
-  value = {
-    arn = aws_secretsmanager_secret.dep.arn
-    id  = aws_secretsmanager_secret.dep.id
-  }
+  value = aws_secretsmanager_secret.dep
 }
 
 output "apn" {
-  value = {
-    arn = aws_secretsmanager_secret.apn.arn
-    id  = aws_secretsmanager_secret.apn.id
-  }
+  value = aws_secretsmanager_secret.apn
 }
