@@ -8,6 +8,8 @@ To use MDM features you have to connect Fleet to Apple Push Certificates Portal.
 
 ## macOS updates
 
+_Available in Fleet Premium_
+
 Fleet uses [Nudge](https://github.com/macadmins/nudge) to encourage the installation of macOS updates.
 
 When a minimum version and deadline is saved in Fleet, the end user sees the below window until their macOS version is at or above the minimum version. 
@@ -27,6 +29,8 @@ If the end user is past the deadline, Fleet shows the window and end user can't 
 ## macOS settings
 
 ### Disk encryption
+
+_Available in Fleet Premium_
 
 In Fleet, you can enforce disk encryption on your macOS hosts. Apple calls this [FileVault](https://support.apple.com/en-us/HT204837). If turned on, hosts’ disk encryption keys will be stored in Fleet.
 
@@ -249,6 +253,8 @@ How to migrate manually enrolled hosts:
 
 ### Automatically enrolled (DEP) hosts
 
+_Available in Fleet Premium_
+
 If you have macOS hosts that were automatically enrolled to your old MDM solution, you can migrate them to Fleet.
 
 > Make sure your end users have an admin account on their Mac. End users won't be able to migrate on their own if they have a standard account. 
@@ -268,6 +274,8 @@ How to migrate these hosts:
 5. The **My Device** page in Fleet Desktop will present end users with instructions to turn on MDM. Share [these guided instructions](#instructions-for-end-users) with your end users.
 
 ### FileVault recovery keys
+
+_Available in Fleet Premium_
 
 In Fleet, you can enforce FileVault (disk encryption) to be on. If turned on, hosts’ disk encryption keys will be stored in Fleet. Learn how [here](#disk-encryption).
 
