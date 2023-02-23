@@ -74,8 +74,8 @@ const defaultTableHeaders = [
           <span className="hosts-cell__link">
             <ViewAllHostsLink
               queryParams={{
-                os_name: encodeURIComponent(name_only),
-                os_version: encodeURIComponent(version),
+                os_name: name_only,
+                os_version: version,
               }}
               className="os-hosts-link"
             />
