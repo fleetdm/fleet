@@ -396,7 +396,7 @@ func checkMacOfficeVulnerabilities(
 	config *config.VulnerabilitiesConfig,
 	collectVulns bool,
 ) []fleet.SoftwareVulnerability {
-	if config.DisableDataSync {
+	if !config.DisableDataSync {
 		err := macoffice.SyncFromGithub(ctx, vulnPath)
 		if err != nil {
 			errHandler(ctx, logger, "updating mac office release notes", err)
