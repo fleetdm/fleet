@@ -154,8 +154,7 @@ FROM
 JOIN
 	mdm_apple_configuration_profiles hmacp ON hmap.profile_id = hmacp.profile_id
 WHERE 
-	host_uuid = ? AND (operation_type != '%s' OR (operation_type = '%s' AND status != '%s'))`,
-		fleet.MDMAppleOperationTypeRemove,
+	host_uuid = ? AND NOT (operation_type = '%s' AND status = '%s')`,
 		fleet.MDMAppleOperationTypeRemove,
 		fleet.MDMAppleDeliveryApplied,
 	)
