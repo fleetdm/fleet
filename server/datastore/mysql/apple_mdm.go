@@ -140,6 +140,29 @@ func (ds *Datastore) DeleteMDMAppleConfigProfile(ctx context.Context, profileID 
 	return nil
 }
 
+func (ds *Datastore) GetHostMDMProfiles(ctx context.Context, hostUUID string) ([]fleet.HostMDMAppleProfile, error) {
+	stmt := `
+SELECT 
+	hmap.profile_id,
+	name, 
+	status, 
+	operation_type, 
+	detail
+	
+FROM 
+	host_mdm_apple_profiles hmap
+JOIN
+	mdm_apple_configuration_profiles hmacp ON hmap.profile_id = hmacp.profile_id
+WHERE 
+	host_uuid = ?`
+
+	var profiles []fleet.HostMDMAppleProfile
+	if err := sqlx.SelectContext(ctx, ds.reader, &profiles, stmt, hostUUID); err != nil {
+		return nil, err
+	}
+	return profiles, nil
+}
+
 func (ds *Datastore) NewMDMAppleEnrollmentProfile(
 	ctx context.Context,
 	payload fleet.MDMAppleEnrollmentProfilePayload,

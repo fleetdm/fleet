@@ -28,10 +28,10 @@ At Fleet, we write things down.  Even when we might be wrong.  This helps us mov
 
 Fleet is currently hiring for the following positions:
 
-- 🚀 [Engineering Manager, MDM](https://fleet-device-management.breezy.hr/p/41ad774fe34a-engineering-manager-mdm)
-- ⚗️ [Product Designer](https://fleet-device-management.breezy.hr/p/68ef1b6ace54-product-designer)
-- 🫧 [Revenue Operations Manager](https://fleet-device-management.breezy.hr/p/c28cce9abf5e-revenue-ops)
-- 🫧 [Field Marketer](https://fleet-device-management.breezy.hr/p/3bd97ce5f54a-field-marketing-manager-enterprise)
+- 🚀 [Engineering Manager, MDM](https://github.com/fleetdm/fleet/blob/main/handbook/company/%F0%9F%9A%80%20Engineering%20Manager%2C%20MDM.md)
+- ⚗️ [Product Designer](https://github.com/fleetdm/fleet/blob/main/handbook/company/%E2%9A%97%EF%B8%8F%20Product%20Designer.md)
+- 🫧 [Revenue Operations Manager](https://github.com/fleetdm/fleet/blob/main/handbook/company/%F0%9F%AB%A7%20Revenue%20Operations%20Manager.md)
+- 🫧 [Field Marketer](https://github.com/fleetdm/fleet/blob/main/handbook/company/%F0%9F%AB%A7%20Field%20Marketer.md)
 
 > Interested in joining the team at Fleet, or know someone who might be?  Click one of the positions to read the job description and apply, or you can share a [direct link to this page](https://fleetdm.com/handbook/company#open-positions) for a short read about the company, including our vision, values, history, and all currently open positions.  Thank you for the help!
 
