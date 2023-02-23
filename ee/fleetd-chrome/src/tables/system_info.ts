@@ -9,6 +9,9 @@ export default class TableSystemInfo extends Table {
     "hardware_serial",
     "hardware_vendor",
     "hardware_model",
+    "cpu_brand",
+    "cpu_type",
+    "physical_memory",
   ];
 
   async generate() {
@@ -44,6 +47,24 @@ export default class TableSystemInfo extends Table {
       console.warn("get platform info:", err);
     }
 
+    let cpu_brand = "",
+      cpu_type = "";
+    try {
+      const cpu_info = await chrome.system.cpu.getInfo();
+      cpu_brand = cpu_info.modelName;
+      cpu_type = cpu_info.archName;
+    } catch (err) {
+      console.warn("get cpu info:", err);
+    }
+
+    let physical_memory = "";
+    try {
+      const memory_info = await chrome.system.memory.getInfo();
+      physical_memory = memory_info.capacity.toString();
+    } catch (err) {
+      console.warn("get memory info:", err);
+    }
+
     return [
       {
         uuid,
@@ -52,6 +73,9 @@ export default class TableSystemInfo extends Table {
         hardware_serial,
         hardware_vendor,
         hardware_model,
+        cpu_brand,
+        cpu_type,
+        physical_memory,
       },
     ];
   }

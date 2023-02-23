@@ -1,6 +1,8 @@
 import TableOSVersion from "./tables/os_version";
 import TableGeolocation from "./tables/geolocation";
 import TableSystemInfo from "./tables/system_info";
+import TableOsqueryInfo from "./tables/osquery_info";
+import TableNetworkInterfaces from "./tables/network_interfaces";
 import Table from "./tables/Table";
 
 export default class VirtualDatabase {
@@ -14,6 +16,12 @@ export default class VirtualDatabase {
     VirtualDatabase.register(sqlite3, db, new TableOSVersion(sqlite3, db));
     VirtualDatabase.register(sqlite3, db, new TableGeolocation(sqlite3, db));
     VirtualDatabase.register(sqlite3, db, new TableSystemInfo(sqlite3, db));
+    VirtualDatabase.register(sqlite3, db, new TableOsqueryInfo(sqlite3, db));
+    VirtualDatabase.register(
+      sqlite3,
+      db,
+      new TableNetworkInterfaces(sqlite3, db)
+    );
   }
 
   static register(sqlite3: SQLiteAPI, db: number, table: Table) {

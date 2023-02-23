@@ -4,7 +4,9 @@ import * as SQLite from "wa-sqlite";
 
 import VirtualDatabase from "./db";
 
+// Globals should probably be cleaned up into a class encapsulating state.
 let NODE_KEY = "";
+let DATABASE: VirtualDatabase;
 
 const request = async (path: string, body: Record<string, any>) => {
   const { fleet_url } = await chrome.storage.managed.get({
@@ -16,10 +18,10 @@ const request = async (path: string, body: Record<string, any>) => {
     method: "POST",
     body: JSON.stringify(body),
   };
-  console.debug("request: ", target, options);
+  console.debug("Request:", target, options);
   const response = await fetch(target, options);
   const response_body = await response.json();
-  console.debug("response:", response, "json:", response_body);
+  console.debug("Response:", response, "JSON:", response_body);
 
   if (!response.ok) {
     throw new Error("request failed: " + response_body.error);
@@ -68,7 +70,60 @@ const live_query = async () => {
     live_query_request
   );
 
-  console.log(response);
+  if (!response.queries || Object.keys(response.queries).length === 0) {
+    // No queries were returned by the server. Nothing to do.
+    return;
+  }
+
+  const results = {};
+  const statuses = {};
+  const messages = {};
+  for (const query_name in response.queries) {
+    // Run the discovery query to see if we should run the actual query.
+    const query_discovery_sql = response.discovery[query_name];
+    if (query_discovery_sql) {
+      try {
+        const discovery_result = await DATABASE.query(query_discovery_sql);
+        if (discovery_result.length == 0) {
+          // Discovery queries that return no results mean skip running the query.
+          continue;
+        }
+      } catch (err) {
+        // Discovery queries failing is typical -- they are often used to "discover" whether the
+        // tables exist.
+        console.debug(
+          `Discovery (${query_name} sql: "${query_discovery_sql}") failed: ${err}`
+        );
+        continue;
+      }
+    }
+
+    // Run the actual query if discovery passed.
+    try {
+      const query_result = await DATABASE.query(response.queries[query_name]);
+      results[query_name] = query_result;
+      statuses[query_name] = 0;
+    } catch (err) {
+      console.warn(
+        `Query (${query_name} sql: "${query_discovery_sql}") failed: ${err}`
+      );
+      results[query_name] = null;
+      statuses[query_name] = 1;
+      messages[query_name] = err.toString();
+    }
+  }
+
+  const live_query_result_request = {
+    node_key: NODE_KEY,
+    queries: results,
+    statuses,
+    messages,
+  };
+
+  const result_response = await request(
+    "/api/osquery/distributed/write",
+    live_query_result_request
+  );
 };
 
 (async () => {
@@ -77,6 +132,7 @@ const live_query = async () => {
   const db = await sqlite3.open_v2(":memory:");
 
   const virtual = new VirtualDatabase(sqlite3, db);
+  DATABASE = virtual;
 
   const os_version = await virtual.query("SELECT * FROM os_version");
   const system_info = await virtual.query("SELECT * FROM system_info");
@@ -93,7 +149,8 @@ const live_query = async () => {
     console.error("enroll failed: " + err);
   }
 
-  await sqlite3.close(db);
+  //await sqlite3.close(db);
 })();
 
+// Run a live_query routine every 10s.
 setInterval(live_query, 10 * 1000);

@@ -104,6 +104,13 @@ limit 1
 		Platforms:  []string{"windows"},
 		IngestFunc: ingestNetworkInterface,
 	},
+	"network_interface_chrome": {
+		Query: `
+SELECT address, mac FROM network_interfaces LIMIT 1
+`,
+		Platforms:  []string{"chrome"},
+		IngestFunc: ingestNetworkInterface,
+	},
 	"os_version": {
 		// Collect operating system information for the `hosts` table.
 		// Note that data for `operating_system` and `host_operating_system` tables are ingested via
@@ -426,7 +433,9 @@ var extraDetailQueries = map[string]DetailQuery{
 		Discovery:        discoveryTable("munki_info"),
 	},
 	"google_chrome_profiles": {
-		Query:            `SELECT email FROM google_chrome_profiles WHERE NOT ephemeral AND email <> ''`,
+		Query: `SELECT email FROM google_chrome_profiles WHERE NOT ephemeral AND email <> ''
+		UNION
+		`,
 		DirectIngestFunc: directIngestChromeProfiles,
 		Discovery:        discoveryTable("google_chrome_profiles"),
 	},

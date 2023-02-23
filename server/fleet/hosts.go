@@ -362,7 +362,9 @@ func PlatformFromHost(hostPlatform string) string {
 		return "linux"
 	case hostPlatform == "darwin", hostPlatform == "windows",
 		// Some customers have custom agents that support ChromeOS
-		hostPlatform == "CrOS":
+		hostPlatform == "CrOS",
+		// Fleet now supports Chrome via fleetd
+		hostPlatform == "chrome":
 		return hostPlatform
 	default:
 		return ""
