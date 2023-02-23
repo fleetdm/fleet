@@ -10,11 +10,11 @@ To use MDM features you have to connect Fleet to Apple Push Certificates Portal.
 
 Fleet uses [Nudge](https://github.com/macadmins/nudge) to encourage the installation of macOS updates.
 
-When a minimum version and deadline is saved in Fleet, the end user sees the below window until their macOS version is at or above the minimum version. 
+When a minimum version and deadline is saved in Fleet, the end user sees the below Nudge window until their macOS version is at or above the minimum version. 
 
 To set the macOS updates settings in the UI, visit the **Controls** section and then select the **macOS updates** tab. To set the macOS updates settings programmatically, use the configurations listed [here](https://fleetdm.com/docs/using-fleet/configuration-files#mdm-macos-updates).
 
-![Fleet's architecture diagram](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/nudge-window.png)
+![Nudge window](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/nudge-window.png)
 
 As the deadline gets closer, Fleet provides stronger encouragement.
 
@@ -22,7 +22,27 @@ If the end user has more than 1 day until the deadline, the Nudge window is show
 
 If there is less than 1 day, the window is shown every 2 hours. The end user can defer and close the window.
 
-If the end user is past the deadline, Fleet shows the window and end user can't close the window until they upgrade.
+If the end user is past the deadline, Fleet shows the window and end user can't close the window until they update.
+
+### End user experience
+
+Fleet automatically download's the macOS update for the end user so that they don't have to. This way, when the end user selects the **Update Device** button in the Nudge window, they don't have to wait for the update to download before they can install the update.
+
+> Note that Fleet only automatically download's the update on Intel Macs. WHY? TODO
+
+Sometimes the end user's Mac will tell them that their macOS is up to date when it isn't. This creates a frustrating experience for the end user because the Nudge window is telling them to update when no update is presented. Ask the end user to follow the steps below to troubleshoot:
+
+1. From the Apple menu in the top left corner of your screen, select **System Settings** or **System Preferences**.
+
+2. In the dropdown menu, select **Quit System Settings** or **Quit System Preferences**.
+
+3. Go to the Nudge window and select **Update Device**. Select **Restart Now** to update.
+
+4. If you still don't see the **Restart Now** option, from the Apple menu in the top left corner of your screen, select **Restart...** to restart your Mac.
+
+5. After your Mac restarts, from the Apple menu in the top left corner of your screen, select **System Settings** or **System Preferences**.
+
+6. In the search bar, type "Software Update." Select **Software Update** and select **Restart Now** to update.
 
 ## Disk encryption
 
