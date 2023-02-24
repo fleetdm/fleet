@@ -31,7 +31,7 @@ const generateDropdownOptions = (
   if (includeNoTeams) {
     options.unshift({
       disabled: false,
-      label: "No teams",
+      label: "No team",
       value: 0,
     });
   }
