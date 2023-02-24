@@ -35,6 +35,11 @@ func sync(
 		return err
 	}
 
+	// Nothing published yet on remote repo, so we do nothing.
+	if url == "" {
+		return nil
+	}
+
 	local, err := fsClient.MacOfficeReleaseNotes()
 	if err != nil {
 		return err

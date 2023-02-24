@@ -51,10 +51,22 @@ func (mfn MetadataFileName) date() (time.Time, error) {
 }
 
 func (mfn MetadataFileName) Before(other MetadataFileName) bool {
+	// If mfn is empty ...
+	if mfn.filename == "" {
+		return true
+	}
+
+	// If other is empty ...
+	if other.filename == "" {
+		return false
+	}
+
 	// We check that the MetadataFileName contains a valid timestamp at construction time so both of
-	// these calls shouldn't fail.
+	// these calls shouldn't fail, only reason for having an error at this point is if we are
+	// dealing with an 'empty' (MetadataFileName{}) struct.
 	a, _ := mfn.date()
 	b, _ := other.date()
+
 	return a.Before(b)
 }
 
