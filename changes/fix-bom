@@ -1,1 +1,0 @@
-* Fix permissions warnings reported by Suspicious Package in macos pkg installers. These warnings appeared to be purely cosmetic.
