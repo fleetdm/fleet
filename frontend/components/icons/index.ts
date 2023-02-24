@@ -44,6 +44,10 @@ import Profile from "./Profile";
 import Download from "./Download";
 import Files from "./Files";
 import Refresh from "./Refresh";
+import FilePython from "./FilePython";
+import FileZsh from "./FileZsh";
+import FileBash from "./FileBash";
+import FileGeneric from "./FileGeneric";
 
 // a mapping of the usable names of icons to the icon source.
 export const ICON_MAP = {
@@ -89,6 +93,10 @@ export const ICON_MAP = {
   profile: Profile,
   download: Download,
   files: Files,
+  "file-python": FilePython,
+  "file-zsh": FileZsh,
+  "file-bash": FileBash,
+  "file-generic": FileGeneric,
   refresh: Refresh,
 };
 

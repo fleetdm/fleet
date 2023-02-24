@@ -15,7 +15,7 @@ import RerunScriptModal from "./components/RerunScriptModal";
 const scripts = [
   {
     id: 1,
-    name: "Test.sh",
+    name: "Test.py",
     ran: 57,
     pending: 2304,
     errors: 0,

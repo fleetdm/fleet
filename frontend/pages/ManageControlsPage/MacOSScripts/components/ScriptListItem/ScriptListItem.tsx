@@ -18,6 +18,21 @@ const getStatusClassName = (value: number) => {
   return value !== 0 ? `${baseClass}__has-value` : "";
 };
 
+const getFileIconName = (fileName: string) => {
+  const fileExtension = fileName.split(".").pop();
+
+  switch (fileExtension) {
+    case "py":
+      return "file-python";
+    case "zsh":
+      return "file-zsh";
+    case "sh":
+      return "file-bash";
+    default:
+      return "file-generic";
+  }
+};
+
 const ScriptListItem = ({
   script,
   onRerun,
@@ -30,7 +45,7 @@ const ScriptListItem = ({
   return (
     <div className={baseClass}>
       <div className={`${baseClass}__value-group ${baseClass}__script-data`}>
-        <Icon name="profile" />
+        <Icon name={getFileIconName(script.name)} />
         <div className={`${baseClass}__script-info`}>
           <span className={`${baseClass}__script-name`}>{script.name}</span>
           <span className={`${baseClass}__script-uploaded`}>
