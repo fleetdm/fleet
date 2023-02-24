@@ -56,4 +56,14 @@
   &__download-button {
     margin-right: $pad-medium;
   }
+
+  @media (max-width: $break-990) {
+    &__script-statuses {
+      justify-content: flex-end;
+    }
+
+    &__script-actions {
+      display: none;
+    }
+  }
 }

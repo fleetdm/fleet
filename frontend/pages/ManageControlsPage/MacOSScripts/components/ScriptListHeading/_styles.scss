@@ -33,4 +33,15 @@
   &__tooltip-text {
     font-weight: normal;
   }
+
+  @media (max-width: $break-990) {
+    &__script-statuses {
+      justify-content: flex-end;
+    }
+
+
+    &__actions-heading {
+      display: none;
+    }
+  }
 }
