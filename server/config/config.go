@@ -298,6 +298,9 @@ type FilesystemConfig struct {
 	AuditLogFile         string `json:"audit_log_file" yaml:"audit_log_file"`
 	EnableLogRotation    bool   `json:"enable_log_rotation" yaml:"enable_log_rotation"`
 	EnableLogCompression bool   `json:"enable_log_compression" yaml:"enable_log_compression"`
+	MaxSize              int    `json:"max_size" yaml:"max_size"`
+	MaxAge               int    `json:"max_age" yaml:"max_age"`
+	MaxBackups           int    `json:"max_backups" yaml:"max_backups"`
 }
 
 // KafkaRESTConfig defines configs for the Kafka REST Proxy logging plugin.
@@ -943,6 +946,9 @@ func (man Manager) addConfigs() {
 		"Enable automatic rotation for osquery log files")
 	man.addConfigBool("filesystem.enable_log_compression", false,
 		"Enable compression for the rotated osquery log files")
+	man.addConfigInt("filesystem.max_size", 500, "Maximum size in megabytes log files will grow until rotated (only valid if enable_log_rotation is true) default is 500MB")
+	man.addConfigInt("filesystem.max_age", 28, "Maximum number of days to retain old log files based on the timestamp encoded in their filename. Setting to zero wil retain old log files indefinitely (only valid if enable_log_rotation is true) default is 28 days")
+	man.addConfigInt("filesystem.max_backups", 3, "Maximum number of old log files to retain. Setting to zero will retain all old log files (only valid if enable_log_rotation is true) default is 3")
 
 	// KafkaREST
 	man.addConfigString("kafkarest.status_topic", "", "Kafka REST topic for status logs")
@@ -1223,6 +1229,9 @@ func (man Manager) LoadConfig() FleetConfig {
 			AuditLogFile:         man.getConfigString("filesystem.audit_log_file"),
 			EnableLogRotation:    man.getConfigBool("filesystem.enable_log_rotation"),
 			EnableLogCompression: man.getConfigBool("filesystem.enable_log_compression"),
+			MaxSize:              man.getConfigInt("filesystem.max_size"),
+			MaxAge:               man.getConfigInt("filesystem.max_age"),
+			MaxBackups:           man.getConfigInt("filesystem.max_backups"),
 		},
 		KafkaREST: KafkaRESTConfig{
 			StatusTopic:      man.getConfigString("kafkarest.status_topic"),
@@ -1619,6 +1628,7 @@ func TestConfig() FleetConfig {
 			StatusLogFile: testLogFile,
 			ResultLogFile: testLogFile,
 			AuditLogFile:  testLogFile,
+			MaxSize:       500,
 		},
 	}
 }

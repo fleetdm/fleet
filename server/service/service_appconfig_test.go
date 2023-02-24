@@ -158,6 +158,7 @@ func TestService_LoggingConfig(t *testing.T) {
 		AuditLogFile:         logFile,
 		EnableLogRotation:    false,
 		EnableLogCompression: false,
+		MaxSize:              500,
 	}}
 
 	firehoseConfig := fleet.FirehoseConfig{
