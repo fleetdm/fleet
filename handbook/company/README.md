@@ -28,17 +28,16 @@ At Fleet, we write things down.  Even when we might be wrong.  This helps us mov
 
 Fleet is currently hiring for the following positions:
 
-- 🚀 [Engineering Manager, MDM](https://github.com/fleetdm/fleet/blob/main/handbook/company/%F0%9F%9A%80%20Engineering%20Manager%2C%20MDM.md)
-- ⚗️ [Product Designer](https://github.com/fleetdm/fleet/blob/main/handbook/company/%E2%9A%97%EF%B8%8F%20Product%20Designer.md)
-- 🫧 [Revenue Operations Manager](https://github.com/fleetdm/fleet/blob/main/handbook/company/%F0%9F%AB%A7%20Revenue%20Operations%20Manager.md)
-- 🫧 [Field Marketer](https://github.com/fleetdm/fleet/blob/main/handbook/company/%F0%9F%AB%A7%20Field%20Marketer.md)
+- 🚀 [Engineering Manager, MDM](https://fleetdm.com/handbook/company/engineering-manager-mdm)
+- ⚗️ [Product Designer](https://fleetdm.com/handbook/company/product-designer)
+- 🫧 [Revenue Operations Manager](https://fleetdm.com/handbook/company/revenue-operations-manager)
+- 🫧 [Field Marketer](https://fleetdm.com/handbook/company/field-marketer)
 
-> Interested in joining the team at Fleet, or know someone who might be?  Click one of the positions to read the job description and apply, or you can share a [direct link to this page](https://fleetdm.com/handbook/company#open-positions) for a short read about the company, including our vision, values, history, and all currently open positions.  Thank you for the help!
+> **🛸 Join us!**  Interested in joining the team at Fleet, or know someone who might be?  Click one of the positions to read the job description and apply.  Or [copy a direct link to this page](https://fleetdm.com/handbook/company#open-positions) to share a short summary about the company, including our vision, values, history, and all currently open positions.  Thank you for the help!
 
 ### Is it any good?
 
-Why should you join us?  🛸
-
+Here are a few reasons to work at Fleet:
 - Work from anywhere with good internet. (We're 100% remote. No office. No commute.) Everyone works remote, but you don't feel remote. There is no 'headquarters'. You are free to travel and move.
 - Fleet can offer you a competitive salary, significant equity, and an independent, outsider-friendly culture. Work with helpful, kind, and motivated people who know what they're doing.
 - At Fleet, we value focus, iteration, and meaningful results – not 60 hour work weeks. We are non-judgmental and laser-focused on growing the company.
