@@ -102,14 +102,16 @@ func TestGithubClient(t *testing.T) {
 	t.Run("#Bulletins", func(t *testing.T) {
 		sut := NewGitHubClient(nil, mockGHReleaseLister{}, t.TempDir())
 
-		bulletins, err := sut.Bulletins(ctx)
+		bulletins, err := sut.MSRCBulletins(ctx)
 		require.NoError(t, err)
 		require.Len(t, bulletins, 2)
 
-		expectedBulletins := []SecurityBulletinName{
-			NewSecurityBulletinName(fmt.Sprintf("%sWindows_10-2022_09_10.json", mSRCFilePrefix)),
-			NewSecurityBulletinName(fmt.Sprintf("%sWindows_11-2022_09_10.json", mSRCFilePrefix)),
-		}
+		a, err := NewMSRCMetadata(fmt.Sprintf("%sWindows_10-2022_09_10.json", mSRCFilePrefix))
+		require.NoError(t, err)
+		b, err := NewMSRCMetadata(fmt.Sprintf("%sWindows_11-2022_09_10.json", mSRCFilePrefix))
+		require.NoError(t, err)
+
+		expectedBulletins := []MetadataFileName{a, b}
 
 		for _, e := range expectedBulletins {
 			require.NotEmpty(t, bulletins[e])

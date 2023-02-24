@@ -311,6 +311,8 @@ type ListSoftwareVulnerabilitiesByHostIDsSourceFunc func(ctx context.Context, ho
 
 type LoadHostSoftwareFunc func(ctx context.Context, host *fleet.Host, includeCVEScores bool) error
 
+type ListSoftwareBySourceIterFunc func(ctx context.Context, sources []string) (fleet.SoftwareIterator, error)
+
 type AllSoftwareWithoutCPEIteratorFunc func(ctx context.Context, excludedPlatforms []string) (fleet.SoftwareIterator, error)
 
 type AddCPEForSoftwareFunc func(ctx context.Context, software fleet.Software, cpe string) error
@@ -1005,6 +1007,9 @@ type DataStore struct {
 
 	LoadHostSoftwareFunc        LoadHostSoftwareFunc
 	LoadHostSoftwareFuncInvoked bool
+
+	ListSoftwareBySourceIterFunc        ListSoftwareBySourceIterFunc
+	ListSoftwareBySourceIterFuncInvoked bool
 
 	AllSoftwareWithoutCPEIteratorFunc        AllSoftwareWithoutCPEIteratorFunc
 	AllSoftwareWithoutCPEIteratorFuncInvoked bool
@@ -2418,6 +2423,11 @@ func (s *DataStore) LoadHostSoftware(ctx context.Context, host *fleet.Host, incl
 	s.LoadHostSoftwareFuncInvoked = true
 	s.mu.Unlock()
 	return s.LoadHostSoftwareFunc(ctx, host, includeCVEScores)
+}
+
+func (s *DataStore) ListSoftwareBySourceIter(ctx context.Context, sources []string) (fleet.SoftwareIterator, error) {
+	s.ListSoftwareBySourceIterFuncInvoked = true
+	return s.ListSoftwareBySourceIterFunc(ctx, sources)
 }
 
 func (s *DataStore) AllSoftwareWithoutCPEIterator(ctx context.Context, excludedPlatforms []string) (fleet.SoftwareIterator, error) {

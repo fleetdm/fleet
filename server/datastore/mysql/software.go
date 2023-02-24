@@ -659,6 +659,42 @@ func (si *softwareIterator) Next() bool {
 	return si.rows.Next()
 }
 
+func (ds *Datastore) ListSoftwareBySourceIter(
+	ctx context.Context,
+	sources []string,
+) (fleet.SoftwareIterator, error) {
+	if len(sources) == 0 {
+		return nil, errors.New("please provide at least one source")
+	}
+
+	var err error
+	var args []interface{}
+
+	stmt := `SELECT 
+		s.id, 
+		s.name,
+		s.version,
+		s.bundle_identifier,
+		s.release,
+		s.vendor,
+		s.arch,
+		s.source 
+	FROM software s
+	WHERE source IN (?)`
+
+	stmt, args, err = sqlx.In(stmt, sources)
+
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "error while trying to bind sources")
+	}
+
+	rows, err := ds.reader.QueryxContext(ctx, stmt, args...) //nolint:sqlclosecheck
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "error executing SQL statement")
+	}
+	return &softwareIterator{rows: rows}, nil
+}
+
 // AllSoftwareWithoutCPEIterator Returns an iterator for the 'software' table, filtering out
 // software entries with CPEs and from the sources included in the 'excludedSources' param.
 func (ds *Datastore) AllSoftwareWithoutCPEIterator(ctx context.Context, excludedSources []string) (fleet.SoftwareIterator, error) {
