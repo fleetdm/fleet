@@ -3,6 +3,7 @@ package macoffice
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
@@ -129,6 +130,8 @@ func updateVulnsInDB(
 		}
 
 		return nil
+		// Since we are only detecting Mac Office vulnerabilities 'toInsertSet' should be small, so
+		// inserting the whole batch in one go should be ok.
 	}, len(toInsertSet))
 	if err != nil {
 		return nil, err
@@ -188,6 +191,10 @@ func Analyze(
 		if collectVulns {
 			vulnerabilities = append(vulnerabilities, inserted...)
 		}
+	}
+
+	if err := iter.Err(); err != nil {
+		return nil, fmt.Errorf("iter: %w", err)
 	}
 
 	return vulnerabilities, nil
