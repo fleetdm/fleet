@@ -21,7 +21,7 @@ func TestFSClient(t *testing.T) {
 			path := t.TempDir()
 			sut := NewFSClient(path)
 
-			file1 := filepath.Join(path, "my_lyrics.json")
+			file1 := filepath.Join(path, "my_lyrics-2021_10_10.json")
 			bulletin1 := filepath.Join(path, fmt.Sprintf("%sWindows_10-2022_10_10.json", mSRCFilePrefix))
 			bulletin2 := filepath.Join(path, fmt.Sprintf("%sWindows_11-2022_10_10.json", mSRCFilePrefix))
 
