@@ -1,6 +1,21 @@
 # 🚀 Engineering Manager, MDM
 
 
+## Let's start with why we exist. 📡
+
+Ever wondered if your employer is monitoring your work computer?
+
+Organizations make huge investments every year to keep their laptops and servers online, secure, compliant, and usable from anywhere. This is called "device management".
+
+At Fleet, we think it's time device management became [transparent](https://fleetdm.com/transparency) and [open source](https://fleetdm.com/handbook/company#open-source).
+
+
+## About the company 🌈
+
+You can read more about the company in our [handbook](https://fleetdm.com/handbook/company), which is public and open to the world.
+
+tldr; Fleet Device Management Inc. is a [recently-funded](https://techcrunch.com/2022/04/28/fleet-nabs-20m-to-enable-enterprises-to-manage-their-devices/) Series A startup founded and backed by the same people who created osquery, the leading open source security agent. Today, osquery is installed on millions of laptops and servers, and it is especially popular with [enterprise IT and security teams](https://www.linuxfoundation.org/press/press-release/the-linux-foundation-announces-intent-to-form-new-foundation-to-support-osquery-community).
+
 ## Your primary responsibilities 🔭
 
 Your top priority is to ensure the technical success of MDM features within Fleet’s product offering. You'll work collaboratively with business, product, and engineering stakeholders to implement new features efficiently and to specification. Manage daily Scrum process to maintain business alignment and ensure consistent delivery of product features.
@@ -31,7 +46,15 @@ The ideal candidate could act as a tech lead manager, spending some of their tim
 - ➕ Bonus: Familiarity with IT operations, system administration, or cybersecurity.
 
 
-Want to join the team?
+## Why should you join us? 🛸
 
-You can apply for this position here at [Apply to Fleet](https://3x3q33auqgj.typeform.com/to/upGkhYsN).
+Learn more about the company and [why you should join us here](https://fleetdm.com/handbook/company#is-it-any-good).
 
+
+## Want to join the team?
+
+You can [apply for this position here](https://3x3q33auqgj.typeform.com/to/upGkhYsN).
+
+
+<meta name="maintainedBy" value="mikermcneil">
+<meta name="title" value="🚀 Engineering Manager, MDM">

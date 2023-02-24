@@ -526,11 +526,13 @@ func main() {
 		const renewEnrollmentProfileCommandFrequency = time.Hour
 		configFetcher := update.ApplyRenewEnrollmentProfileConfigFetcherMiddleware(orbitClient, renewEnrollmentProfileCommandFrequency)
 
-		// add middleware to handle nudge installation and updates
-		const nudgeLaunchInterval = 30 * time.Minute
-		configFetcher = update.ApplyNudgeConfigFetcherMiddleware(configFetcher, update.NudgeConfigFetcherOptions{
-			UpdateRunner: updateRunner, RootDir: c.String("root-dir"), Interval: nudgeLaunchInterval,
-		})
+		if runtime.GOOS == "darwin" {
+			// add middleware to handle nudge installation and updates
+			const nudgeLaunchInterval = 30 * time.Minute
+			configFetcher = update.ApplyNudgeConfigFetcherMiddleware(configFetcher, update.NudgeConfigFetcherOptions{
+				UpdateRunner: updateRunner, RootDir: c.String("root-dir"), Interval: nudgeLaunchInterval,
+			})
+		}
 
 		const orbitFlagsUpdateInterval = 30 * time.Second
 		flagRunner := update.NewFlagRunner(configFetcher, update.FlagUpdateOptions{

@@ -1346,6 +1346,50 @@ This flag will cause the rotated logs to be compressed with gzip.
      enable_log_compression: true
   ```
 
+##### filesystem_max_size
+
+This flag only has effect if `filesystem_enable_log_rotation` is set to `true`.
+
+Sets the maximum size in megabytes of log files before it gets rotated.
+
+- Default value: `500`
+- Environment variable: `FLEET_FILESYSTEM_MAX_SIZE`
+- Config file format:
+  ```
+  filesystem:
+     max_size: 100
+  ```
+
+##### filesystem_max_age
+
+This flag only has effect if `filesystem_enable_log_rotation` is set to `true`.
+
+Sets the maximum age in days to retain old log files before deletion. Setting this
+to zero will retain all logs.
+
+- Default value: `28`
+- Environment variable: `FLEET_FILESYSTEM_MAX_AGE`
+- Config file format:
+  ```
+  filesystem:
+     max_age: 0
+  ```
+
+##### filesystem_max_backups
+
+This flag only has effect if `filesystem_enable_log_rotation` is set to `true`.
+
+Sets the maximum number of old files to retain before deletion. Setting this
+to zero will retain all logs. _Note_ max_age may still cause them to be deleted.
+
+- Default value: `3`
+- Environment variable: `FLEET_FILESYSTEM_MAX_BACKUPS`
+- Config file format:
+  ```
+  filesystem:
+     max_backups: 0
+  ```
+
 ##### Example YAML
 
 ```yaml
