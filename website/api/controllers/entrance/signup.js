@@ -105,15 +105,20 @@ the account verification message.)`,
       throw 'emailAlreadyInUse';
     }
 
-    // Create a new customer entry in the Stripe API for this user before we send a request to the cloud provisioner.
-    let stripeCustomerId = await sails.helpers.stripe.saveBillingInfo.with({
-      emailAddress: newEmailAddress
-    })
-    .timeout(5000)
-    .retry()
-    .intercept((error)=>{
-      return new Error(`An error occurred when trying to create a Stripe Customer for a new user with the using the email address ${newEmailAddress}. The incomplete user record has not been saved in the database, and the user will be asked to try signing up again. Full error: ${error.raw}`);
-    });
+    let stripeCustomerId;
+    if (!sails.config.custom.enableBillingFeatures) {
+      throw new Error('The Stripe configuration variables (sails.config.custom.stripePublishableKey and sails.config.custom.stripeSecret) are missing!');
+    } else {
+      // Create a new customer entry in the Stripe API for this user before we send a request to the cloud provisioner.
+      stripeCustomerId = await sails.helpers.stripe.saveBillingInfo.with({
+        emailAddress: newEmailAddress
+      })
+      .timeout(5000)
+      .retry()
+      .intercept((error)=>{
+        return new Error(`An error occurred when trying to create a Stripe Customer for a new user with the using the email address ${newEmailAddress}. The incomplete user record has not been saved in the database, and the user will be asked to try signing up again. Full error: ${error.raw}`);
+      });
+    }
 
     // Provisioning a Fleet sandbox instance for the new user. Note: Because this is the only place where we provision Sandbox instances, We'll provision a Sandbox instance BEFORE
     // creating the new User record. This way, if this fails, we won't save the new record to the database, and the user will see an error on the signup form asking them to try again.
