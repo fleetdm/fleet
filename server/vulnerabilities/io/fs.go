@@ -40,7 +40,7 @@ func (fs FSClient) MacOfficeReleaseNotes() ([]MetadataFileName, error) {
 
 func (fs FSClient) list(
 	prefix string,
-	ctor func(filePath string) MetadataFileName,
+	ctor func(filePath string) (MetadataFileName, error),
 ) ([]MetadataFileName, error) {
 	var result []MetadataFileName
 	err := filepath.WalkDir(fs.dir, func(path string, d os.DirEntry, err error) error {
@@ -49,7 +49,11 @@ func (fs FSClient) list(
 		}
 		filePath := filepath.Base(path)
 		if strings.HasPrefix(filePath, prefix) {
-			result = append(result, ctor(filePath))
+			mfn, err := ctor(filePath)
+			if err != nil {
+				return err
+			}
+			result = append(result, mfn)
 		}
 		return nil
 	})

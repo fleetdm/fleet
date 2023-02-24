@@ -22,12 +22,22 @@ type MetadataFileName struct {
 	filename string
 }
 
-func NewMSRCMetadata(filename string) MetadataFileName {
-	return MetadataFileName{prefix: mSRCFilePrefix, filename: filename}
+func NewMSRCMetadata(filename string) (MetadataFileName, error) {
+	mfn := MetadataFileName{prefix: mSRCFilePrefix, filename: filename}
+
+	// Check that the filename contains a valid timestamp
+	_, err := mfn.date()
+
+	return mfn, err
 }
 
-func NewMacOfficeRelNotesMetadata(filename string) MetadataFileName {
-	return MetadataFileName{prefix: macOfficeReleaseNotesPrefix, filename: filename}
+func NewMacOfficeRelNotesMetadata(filename string) (MetadataFileName, error) {
+	mfn := MetadataFileName{prefix: macOfficeReleaseNotesPrefix, filename: filename}
+
+	// Check that the filename contains a valid timestamp
+	_, err := mfn.date()
+
+	return mfn, err
 }
 
 func (mfn MetadataFileName) date() (time.Time, error) {
@@ -41,16 +51,10 @@ func (mfn MetadataFileName) date() (time.Time, error) {
 }
 
 func (mfn MetadataFileName) Before(other MetadataFileName) bool {
-	a, err := mfn.date()
-	if err != nil {
-		return false
-	}
-
-	b, err := other.date()
-	if err != nil {
-		return false
-	}
-
+	// We check that the MetadataFileName contains a valid timestamp at construction time so both of
+	// these calls shouldn't fail.
+	a, _ := mfn.date()
+	b, _ := other.date()
 	return a.Before(b)
 }
 

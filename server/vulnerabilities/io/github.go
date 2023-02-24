@@ -95,7 +95,7 @@ func (gh GitHubClient) MacOfficeReleaseNotes(ctx context.Context) (MetadataFileN
 // (https://github.com/fleetdm/nvd/releases) and collects all assets that start with 'prefix',
 // matching assets are collected in a map, where the key is a 'MetadataFileName' built using 'ctor'
 // and the value is the 'download URL'.
-func (gh GitHubClient) list(ctx context.Context, prefix string, ctor func(fileName string) MetadataFileName) (map[MetadataFileName]string, error) {
+func (gh GitHubClient) list(ctx context.Context, prefix string, ctor func(fileName string) (MetadataFileName, error)) (map[MetadataFileName]string, error) {
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 
@@ -117,7 +117,11 @@ func (gh GitHubClient) list(ctx context.Context, prefix string, ctor func(fileNa
 	for _, e := range releases[0].Assets {
 		name := e.GetName()
 		if strings.HasPrefix(name, prefix) {
-			results[ctor(name)] = e.GetBrowserDownloadURL()
+			metadataFileName, err := ctor(name)
+			if err != nil {
+				return nil, err
+			}
+			results[metadataFileName] = e.GetBrowserDownloadURL()
 		}
 	}
 	return results, nil

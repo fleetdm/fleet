@@ -106,10 +106,12 @@ func TestGithubClient(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, bulletins, 2)
 
-		expectedBulletins := []MetadataFileName{
-			NewMSRCMetadata(fmt.Sprintf("%sWindows_10-2022_09_10.json", mSRCFilePrefix)),
-			NewMSRCMetadata(fmt.Sprintf("%sWindows_11-2022_09_10.json", mSRCFilePrefix)),
-		}
+		a, err := NewMSRCMetadata(fmt.Sprintf("%sWindows_10-2022_09_10.json", mSRCFilePrefix))
+		require.NoError(t, err)
+		b, err := NewMSRCMetadata(fmt.Sprintf("%sWindows_11-2022_09_10.json", mSRCFilePrefix))
+		require.NoError(t, err)
+
+		expectedBulletins := []MetadataFileName{a, b}
 
 		for _, e := range expectedBulletins {
 			require.NotEmpty(t, bulletins[e])

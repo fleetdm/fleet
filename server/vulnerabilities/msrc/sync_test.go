@@ -9,6 +9,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func newMetadataFile(t *testing.T, name string) io.MetadataFileName {
+	mfn, err := io.NewMSRCMetadata(name)
+	require.NoError(t, err)
+	return mfn
+}
+
 func TestSync(t *testing.T) {
 	ctx := context.Background()
 	t.Run("#sync", func(t *testing.T) {
@@ -29,15 +35,18 @@ func TestSync(t *testing.T) {
 
 		testData := io.TestData{
 			RemoteList: map[io.MetadataFileName]string{
-				io.NewMSRCMetadata("Windows_10-2022_10_10.json"): "http://somebulletin.com",
+				newMetadataFile(t, "Windows_10-2022_10_10.json"): "http://somebulletin.com",
 			},
-			LocalList: []io.MetadataFileName{io.NewMSRCMetadata("Windows_10-2022_09_10.json")},
+			LocalList: []io.MetadataFileName{newMetadataFile(t, "Windows_10-2022_09_10.json")},
 		}
 
 		err := sync(ctx, os, io.FsMock{TestData: &testData}, io.GhMock{TestData: &testData})
 		require.NoError(t, err)
 		require.ElementsMatch(t, testData.RemoteDownloaded, []string{"http://somebulletin.com"})
-		require.ElementsMatch(t, testData.LocalDeleted, []io.MetadataFileName{io.NewMSRCMetadata("Windows_10-2022_09_10.json")})
+
+		expectedMfn, err := io.NewMSRCMetadata("Windows_10-2022_09_10.json")
+		require.NoError(t, err)
+		require.ElementsMatch(t, testData.LocalDeleted, []io.MetadataFileName{expectedMfn})
 	})
 
 	t.Run("#bulletinsDelta", func(t *testing.T) {
@@ -59,7 +68,7 @@ func TestSync(t *testing.T) {
 			t.Run("without remote bulletins", func(t *testing.T) {
 				var remote []io.MetadataFileName
 				local := []io.MetadataFileName{
-					io.NewMSRCMetadata("Windows_10-2022_10_10.json"),
+					newMetadataFile(t, "Windows_10-2022_10_10.json"),
 				}
 				toDownload, toDelete := bulletinsDelta(os, local, remote)
 				require.Empty(t, toDownload)
@@ -68,54 +77,54 @@ func TestSync(t *testing.T) {
 
 			t.Run("with remote bulletins", func(t *testing.T) {
 				remote := []io.MetadataFileName{
-					io.NewMSRCMetadata("Windows_10-2022_10_10.json"),
-					io.NewMSRCMetadata("Windows_11-2022_10_10.json"),
-					io.NewMSRCMetadata("Windows_Server_2016-2022_10_10.json"),
-					io.NewMSRCMetadata("Windows_8.1-2022_10_10.json"),
+					newMetadataFile(t, "Windows_10-2022_10_10.json"),
+					newMetadataFile(t, "Windows_11-2022_10_10.json"),
+					newMetadataFile(t, "Windows_Server_2016-2022_10_10.json"),
+					newMetadataFile(t, "Windows_8.1-2022_10_10.json"),
 				}
 				t.Run("no local bulletins", func(t *testing.T) {
 					var local []io.MetadataFileName
 					toDownload, toDelete := bulletinsDelta(os, local, remote)
 
 					require.ElementsMatch(t, toDownload, []io.MetadataFileName{
-						io.NewMSRCMetadata("Windows_10-2022_10_10.json"),
-						io.NewMSRCMetadata("Windows_11-2022_10_10.json"),
+						newMetadataFile(t, "Windows_10-2022_10_10.json"),
+						newMetadataFile(t, "Windows_11-2022_10_10.json"),
 					})
 					require.Empty(t, toDelete)
 				})
 
 				t.Run("missing some local bulletin", func(t *testing.T) {
 					local := []io.MetadataFileName{
-						io.NewMSRCMetadata("Windows_10-2022_10_10.json"),
+						newMetadataFile(t, "Windows_10-2022_10_10.json"),
 					}
 					toDownload, toDelete := bulletinsDelta(os, local, remote)
 
 					require.ElementsMatch(t, toDownload, []io.MetadataFileName{
-						io.NewMSRCMetadata("Windows_11-2022_10_10.json"),
+						newMetadataFile(t, "Windows_11-2022_10_10.json"),
 					})
 					require.Empty(t, toDelete)
 				})
 
 				t.Run("out of date local bulletin", func(t *testing.T) {
 					local := []io.MetadataFileName{
-						io.NewMSRCMetadata("Windows_10-2022_09_10.json"),
-						io.NewMSRCMetadata("Windows_11-2022_10_10.json"),
+						newMetadataFile(t, "Windows_10-2022_09_10.json"),
+						newMetadataFile(t, "Windows_11-2022_10_10.json"),
 					}
 
 					toDownload, toDelete := bulletinsDelta(os, local, remote)
 
 					require.ElementsMatch(t, toDownload, []io.MetadataFileName{
-						io.NewMSRCMetadata("Windows_10-2022_10_10.json"),
+						newMetadataFile(t, "Windows_10-2022_10_10.json"),
 					})
 					require.ElementsMatch(t, toDelete, []io.MetadataFileName{
-						io.NewMSRCMetadata("Windows_10-2022_09_10.json"),
+						newMetadataFile(t, "Windows_10-2022_09_10.json"),
 					})
 				})
 
 				t.Run("up to date local bulletins", func(t *testing.T) {
 					local := []io.MetadataFileName{
-						io.NewMSRCMetadata("Windows_10-2022_10_10.json"),
-						io.NewMSRCMetadata("Windows_11-2022_10_10.json"),
+						newMetadataFile(t, "Windows_10-2022_10_10.json"),
+						newMetadataFile(t, "Windows_11-2022_10_10.json"),
 					}
 
 					toDownload, toDelete := bulletinsDelta(os, local, remote)
@@ -135,8 +144,8 @@ func TestSync(t *testing.T) {
 					KernelVersion: "5.10.76-linuxkit",
 				},
 			}
-			local := []io.MetadataFileName{io.NewMSRCMetadata("Windows_11-2022_10_10.json")}
-			remote := []io.MetadataFileName{io.NewMSRCMetadata("Windows_10-2022_10_10.json")}
+			local := []io.MetadataFileName{newMetadataFile(t, "Windows_11-2022_10_10.json")}
+			remote := []io.MetadataFileName{newMetadataFile(t, "Windows_10-2022_10_10.json")}
 
 			t.Run("nothing to download, nothing to delete", func(t *testing.T) {
 				toDownload, toDelete := bulletinsDelta(os, local, remote)
@@ -152,8 +161,8 @@ func TestSync(t *testing.T) {
 
 				t.Run("returns all remote", func(t *testing.T) {
 					remote := []io.MetadataFileName{
-						io.NewMSRCMetadata("Windows_10-2022_10_10.json"),
-						io.NewMSRCMetadata("Windows_11-2022_10_10.json"),
+						newMetadataFile(t, "Windows_10-2022_10_10.json"),
+						newMetadataFile(t, "Windows_11-2022_10_10.json"),
 					}
 
 					toDownload, toDelete := bulletinsDelta(os, local, remote)
