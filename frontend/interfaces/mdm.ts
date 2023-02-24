@@ -71,12 +71,23 @@ export interface IMdmProfilesResponse {
 export type MacMdmProfileStatus = "applied" | "pending" | "failed";
 export type MacMdmProfileOperationType = "remove" | "install";
 
-export type IHostMacMdmProfile = {
+export interface IHostMacMdmProfile {
   profile_id: number;
   name: string;
   operation_type: MacMdmProfileOperationType;
   status: MacMdmProfileStatus;
   detail: string;
-};
+}
 export type IMacSettings = IHostMacMdmProfile[];
 export type MacSettingsStatus = "Failing" | "Latest" | "Pending";
+
+// TODO: update when we have API
+export interface IMdmScript {
+  id: number;
+  name: string;
+  ran: number;
+  pending: number;
+  errors: number;
+  created_at: string;
+  updated_at: string;
+}

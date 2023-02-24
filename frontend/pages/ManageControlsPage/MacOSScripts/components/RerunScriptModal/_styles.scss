@@ -1,0 +1,10 @@
+.rerun-script-modal {
+  p {
+    margin-top: 0;
+    margin-bottom: $pad-xlarge;
+  }
+
+  &__script-name {
+    font-weight: $bold;
+  }
+}

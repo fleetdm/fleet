@@ -6,7 +6,7 @@ const ProfileListHeading = () => {
   return (
     <div className={baseClass}>
       <span>Configuration profile</span>
-      <span>Actions</span>
+      <span className={`${baseClass}__actions-heading`}>Actions</span>
     </div>
   );
 };

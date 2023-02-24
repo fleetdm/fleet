@@ -43,6 +43,7 @@ import TrashCan from "./TrashCan";
 import Profile from "./Profile";
 import Download from "./Download";
 import Files from "./Files";
+import Refresh from "./Refresh";
 
 // a mapping of the usable names of icons to the icon source.
 export const ICON_MAP = {
@@ -88,6 +89,7 @@ export const ICON_MAP = {
   profile: Profile,
   download: Download,
   files: Files,
+  refresh: Refresh,
 };
 
 export type IconNames = keyof typeof ICON_MAP;
