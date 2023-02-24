@@ -8,7 +8,7 @@ import CloseIcon from "../../../../../../assets/images/icon-close-vibrant-blue-1
 
 interface IFilterPillProps {
   label: string;
-  icon?: any; // TODO: figure out png image types
+  icon?: string;
   tooltipDescription?: string | ReactNode;
   className?: string;
   onClear: () => void;

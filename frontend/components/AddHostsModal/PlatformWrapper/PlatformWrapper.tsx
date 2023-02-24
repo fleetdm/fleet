@@ -121,7 +121,7 @@ const PlatformWrapper = ({
 --disable_carver=false
 --carver_start_endpoint=/api/v1/osquery/carve/begin
 --carver_continue_endpoint=/api/v1/osquery/carve/block
---carver_block_size=2000000`;
+--carver_block_size=8000000`;
 
   const onDownloadEnrollSecret = (evt: React.MouseEvent) => {
     evt.preventDefault();

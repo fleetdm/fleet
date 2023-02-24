@@ -567,8 +567,8 @@ module.exports = {
                 if(column.description) {
                   columnDescriptionForTable = column.description;
                 }
-                // Replacing pipe characters with an html entity in column descriptions to keep it from breaking markdown tables.
-                columnDescriptionForTable = columnDescriptionForTable.replace(/\|/g, '&#124;');
+                // Replacing pipe characters and newlines with html entities in column descriptions to keep it from breaking markdown tables.
+                columnDescriptionForTable = columnDescriptionForTable.replace(/\|/g, '&#124;').replace(/\n/gm, '&#10;');
 
                 keywordsForSyntaxHighlighting.push(column.name);
                 if(column.required) { // If a column has `"required": true`, we'll add a note to the description that will be added to the table
@@ -683,7 +683,7 @@ module.exports = {
             }
             if(!feature.tier) { // Throw an error if a feature is missing a `tier`.
               throw new Error('Could not build pricing table config from pricing-features-table.yml. The "'+feature.name+'" feature is missing a "tier". To resolve, add a "tier" (either "Free" or "Premium") to this feature.');
-            } else if(!_.contains(['Free', 'Premium'], feature.tier)){ // Throw an error if a feature's `tier` is not either "Free" or "Premium".
+            } else if(!_.contains(['Free', 'Premium', 'Ultimate'], feature.tier)){ // Throw an error if a feature's `tier` is not "Free", "Premium", or "Ultimate".
               throw new Error('Could not build pricing table config from pricing-features-table.yml. The "'+feature.name+'" feature has an invalid "tier". to resolve, change the value of this features "tier" (currently set to '+feature.tier+') to be either "Free" or "Premium".');
             }
             if(feature.comingSoon === undefined) { // Throw an error if a feature is missing a `comingSoon` value

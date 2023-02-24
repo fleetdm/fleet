@@ -213,6 +213,23 @@ describe("Activity Feed", () => {
     ).toBeInTheDocument();
   });
 
+  it("renders a user_failed_login type activity globally", () => {
+    const activity = createMockActivity({
+      type: ActivityType.UserFailedLogin,
+      details: { email: "foo@example.com", public_ip: "192.168.0.1" },
+    });
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText(" failed to log in from public IP 192.168.0.1.", {
+        exact: false,
+      })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("foo@example.com", { exact: false })
+    ).toBeInTheDocument();
+  });
+
   it("renders a created_user type activity globally", () => {
     const activity = createMockActivity({
       type: ActivityType.UserCreated,

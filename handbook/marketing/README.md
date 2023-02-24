@@ -1,4 +1,4 @@
-# Marketing
+# Community
 
 ## Marketing
 
@@ -647,6 +647,10 @@ The following table lists the Marketing, Brand, and Community group's rituals, f
 | StackOverflow                 | Weekly    | Search StackOverflow for “osquery,” answer questions with Grammarly, and find a way to feature Fleet in your StackOverflow profile prominently | Rotation: Community team |
 
 
+## Roadmap
+
+https://github.com/orgs/fleetdm/projects/37
+
 ## Slack channels
 
 These groups maintain the following [Slack channels](https://fleetdm.com/handbook/company#group-slack-channels):
@@ -659,8 +663,7 @@ These groups maintain the following [Slack channels](https://fleetdm.com/handboo
 | `#help-swag`                | Drew Baker                                                          |
 | `#oooh-websites`            | Mike Thomas                                                         |
 | `#help-p1`		                | Mike McNeil                                                         |
-| `#g-community`              | Kathy Satterlee                                                     |
 
 
 <meta name="maintainedBy" value="jarodreyes">
-<meta name="title" value="🫧 Marketing">
+<meta name="title" value="🫧 Community">

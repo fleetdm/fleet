@@ -12,6 +12,7 @@ import {
 import softwareAPI from "services/entities/software";
 import hostCountAPI from "services/entities/host_count";
 
+import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import Spinner from "components/Spinner";
 import BackLink from "components/BackLink";
 import MainContent from "components/MainContent";
@@ -96,7 +97,9 @@ const SoftwareDetailsPage = ({
               </div>
               <div className="info-flex__item info-flex__item--title">
                 <span className="info-flex__header">Hosts</span>
-                <span className={`info-flex__data`}>{hostCount || "---"}</span>
+                <span className={`info-flex__data`}>
+                  {hostCount || DEFAULT_EMPTY_CELL_VALUE}
+                </span>
               </div>
             </div>
           </div>

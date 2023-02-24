@@ -6,7 +6,8 @@ import packInterface, { IPack } from "./pack";
 import softwareInterface, { ISoftware } from "./software";
 import hostQueryResult from "./campaign";
 import queryStatsInterface, { IQueryStats } from "./query_stats";
-import { ILicense } from "./config";
+import { ILicense, IDeviceGlobalConfig } from "./config";
+import { IMacSettings, MdmEnrollmentStatus } from "./mdm";
 
 export default PropTypes.shape({
   created_at: PropTypes.string,
@@ -86,10 +87,12 @@ export interface IMunkiData {
 }
 
 export interface IHostMdmData {
-  enrollment_status: string;
+  encryption_key_available: boolean;
+  enrollment_status: MdmEnrollmentStatus | null;
   server_url: string;
-  id: number;
-  name: string;
+  profiles?: IMacSettings;
+  id?: number;
+  name?: string;
 }
 
 export interface IMunkiIssue {
@@ -138,12 +141,22 @@ interface IBattery {
 export interface IHostResponse {
   host: IHost;
 }
+
 export interface IDeviceUserResponse {
   host: IHost;
   license: ILicense;
   org_logo_url: string;
   disk_encryption_enabled?: boolean;
   platform?: string;
+  global_config: IDeviceGlobalConfig;
+}
+
+export interface IHostEncrpytionKeyResponse {
+  host_id: number;
+  encryption_key: {
+    updated_at: string;
+    key: string;
+  };
 }
 
 export interface IHost {
@@ -202,7 +215,7 @@ export interface IHost {
   users: IHostUser[];
   device_users?: IDeviceUser[];
   munki?: IMunkiData;
-  mdm?: IHostMdmData;
+  mdm: IHostMdmData;
   policies: IHostPolicy[];
   query_results?: unknown[];
   geolocation?: IGeoLocation;

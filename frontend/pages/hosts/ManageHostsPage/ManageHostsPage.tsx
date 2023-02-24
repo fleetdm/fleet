@@ -1,9 +1,8 @@
 import React, { useState, useContext, useEffect, useCallback } from "react";
-import { IconNames } from "components/icons";
 import { useQuery } from "react-query";
 import { InjectedRouter, Params } from "react-router/lib/Router";
 import { RouteProps } from "react-router/lib/Route";
-import { find, isEmpty, isEqual, omit } from "lodash";
+import { find, isEmpty, isEqual, omit, invert } from "lodash";
 import { format } from "date-fns";
 import FileSaver from "file-saver";
 
@@ -35,7 +34,7 @@ import {
 import { IHost } from "interfaces/host";
 import { ILabel } from "interfaces/label";
 import { IMunkiIssuesAggregate } from "interfaces/macadmins";
-import { IMdmSolution } from "interfaces/mdm";
+import { IMdmSolution, MDM_ENROLLMENT_STATUS } from "interfaces/mdm";
 import {
   formatOperatingSystemDisplayName,
   IOperatingSystemVersion,
@@ -63,8 +62,6 @@ import TeamsDropdown from "components/TeamsDropdown";
 import Spinner from "components/Spinner";
 import MainContent from "components/MainContent";
 import EmptyTable from "components/EmptyTable";
-
-import { getValidatedTeamId } from "utilities/helpers";
 import {
   defaultHiddenColumns,
   generateVisibleTableColumns,
@@ -424,12 +421,7 @@ const ManageHostsPage = ({
     setIsHostsLoading(true);
     options = {
       ...options,
-      teamId: getValidatedTeamId(
-        availableTeams || [],
-        options.teamId as number,
-        currentUser,
-        isOnGlobalTeam as boolean
-      ),
+      teamId: currentTeam?.id,
     };
 
     if (queryParams.team_id) {
@@ -461,12 +453,7 @@ const ManageHostsPage = ({
 
     options = {
       ...options,
-      teamId: getValidatedTeamId(
-        availableTeams || [],
-        options.teamId as number,
-        currentUser,
-        isOnGlobalTeam as boolean
-      ),
+      teamId: currentTeam?.id,
     };
 
     if (queryParams.team_id) {
@@ -537,7 +524,7 @@ const ManageHostsPage = ({
       osName,
       osVersion,
       page: tableQueryData ? tableQueryData.pageIndex : 0,
-      perPage: tableQueryData ? tableQueryData.pageSize : 100,
+      perPage: tableQueryData ? tableQueryData.pageSize : 50,
       device_mapping: true,
     };
 
@@ -668,18 +655,11 @@ const ManageHostsPage = ({
   const handleTeamSelect = (teamId: number) => {
     const { MANAGE_HOSTS } = PATHS;
 
-    const teamIdParam = getValidatedTeamId(
-      availableTeams || [],
-      teamId,
-      currentUser,
-      isOnGlobalTeam ?? false
-    );
-
     const slimmerParams = omit(queryParams, ["team_id"]);
 
-    const newQueryParams = !teamIdParam
+    const newQueryParams = !teamId
       ? slimmerParams
-      : Object.assign(slimmerParams, { team_id: teamIdParam });
+      : Object.assign(slimmerParams, { team_id: teamId });
 
     const nextLocation = getNextLocationPath({
       pathPrefix: MANAGE_HOSTS,
@@ -1157,8 +1137,8 @@ const ManageHostsPage = ({
         : `${name || ""}`
     );
     const TooltipDescription = (
-      <span className={`tooltip__tooltip-text`}>
-        {`Hosts with ${formatOperatingSystemDisplayName(name_only || name)}`},
+      <span className="tooltip__tooltip-text">
+        Hosts with {formatOperatingSystemDisplayName(name_only || name)},
         <br />
         {version && `${version} installed`}
       </span>
@@ -1218,7 +1198,7 @@ const ManageHostsPage = ({
     const label = name ? `${name} ${server_url}` : `${server_url}`;
 
     const TooltipDescription = (
-      <span className={`tooltip__tooltip-text`}>
+      <span className="tooltip__tooltip-text">
         Host enrolled
         {name !== "Unknown" && ` to ${name}`}
         <br /> at {server_url}
@@ -1237,54 +1217,54 @@ const ManageHostsPage = ({
   const renderMDMEnrollmentFilterBlock = () => {
     if (!mdmEnrollmentStatus) return null;
 
-    let label: string;
-    switch (mdmEnrollmentStatus) {
-      case "automatic":
-        label = "MDM status: On (automatic)";
-        break;
-      case "manual":
-        label = "MDM status: On (manual)";
-        break;
-      default:
-        label = "MDM status: Off";
-    }
+    const label = `MDM status: ${
+      invert(MDM_ENROLLMENT_STATUS)[mdmEnrollmentStatus]
+    }`;
 
-    let TooltipDescription: JSX.Element;
-    switch (mdmEnrollmentStatus) {
-      case "automatic":
-        TooltipDescription = (
-          <span className={`tooltip__tooltip-text`}>
-            Hosts automatically enrolled in <br />
-            an MDM solution using Apple <br />
-            Automated Device Enrollment <br />
-            (DEP) or Windows Autopilot. <br />
-            Administrators can block users <br />
-            from unenrolling these hosts <br />
-            from MDM.
-          </span>
-        );
-        break;
-      case "manual":
-        TooltipDescription = (
-          <span className={`tooltip__tooltip-text`}>
-            Hosts manually enrolled to an <br />
-            MDM solution. Users can unenroll <br />
-            these hosts from MDM.
-          </span>
-        );
-        break;
-      default:
-        TooltipDescription = (
-          <span className={`tooltip__tooltip-text`}>
-            Hosts not enrolled to <br /> an MDM solution.
-          </span>
-        );
-    }
+    // More narrow tooltip than other MDM tooltip
+    const MDM_STATUS_PILL_TOOLTIP: Record<string, JSX.Element> = {
+      automatic: (
+        <span className="tooltip__tooltip-text">
+          MDM was turned on <br />
+          automatically using Apple <br />
+          Automated Device <br />
+          Enrollment (DEP) or <br />
+          Windows Autopilot. <br />
+          Administrators can block <br />
+          device users from turning
+          <br /> MDM off.
+        </span>
+      ),
+      manual: (
+        <span className="tooltip__tooltip-text">
+          MDM was turned on <br />
+          manually. Device users <br />
+          can turn MDM off.
+        </span>
+      ),
+      unenrolled: (
+        <span className="tooltip__tooltip-text">
+          Hosts with MDM off <br />
+          don&apos;t receive macOS <br />
+          settings and macOS <br />
+          update encouragement.
+        </span>
+      ),
+      pending: (
+        <span className="tooltip__tooltip-text">
+          Hosts ordered using Apple <br />
+          Business Manager (ABM). <br />
+          They will automatically enroll <br />
+          to Fleet and turn on MDM <br />
+          when they&apos;re unboxed.
+        </span>
+      ),
+    };
 
     return (
       <FilterPill
         label={label}
-        tooltipDescription={TooltipDescription}
+        tooltipDescription={MDM_STATUS_PILL_TOOLTIP[mdmEnrollmentStatus]}
         onClear={handleClearMDMEnrollmentFilter}
       />
     );
@@ -1296,7 +1276,7 @@ const ManageHostsPage = ({
         <FilterPill
           label={munkiIssueDetails.name}
           tooltipDescription={
-            <span className={`tooltip__tooltip-text`}>
+            <span className="tooltip__tooltip-text">
               Hosts that reported this Munki issue <br />
               the last time Munki ran on each host.
             </span>
@@ -1310,7 +1290,7 @@ const ManageHostsPage = ({
 
   const renderLowDiskSpaceFilterBlock = () => {
     const TooltipDescription = (
-      <span className={`tooltip__tooltip-text`}>
+      <span className="tooltip__tooltip-text">
         Hosts that have {lowDiskSpaceHosts} GB or less <br />
         disk space available.
       </span>
@@ -1498,12 +1478,7 @@ const ManageHostsPage = ({
 
     options = {
       ...options,
-      teamId: getValidatedTeamId(
-        availableTeams || [],
-        options.teamId as number,
-        currentUser,
-        isOnGlobalTeam as boolean
-      ),
+      teamId: currentTeam?.id,
     };
 
     if (queryParams.team_id) {
@@ -1651,14 +1626,7 @@ const ManageHostsPage = ({
   };
 
   const renderTable = () => {
-    if (
-      !config ||
-      !currentUser ||
-      isHostCountLoading ||
-      isHostsLoading ||
-      isLoadingPolicy ||
-      !teamSync
-    ) {
+    if (!config || !currentUser || !teamSync) {
       return <Spinner />;
     }
 
@@ -1767,14 +1735,14 @@ const ManageHostsPage = ({
       <TableContainer
         columns={tableColumns}
         data={hosts || []}
-        isLoading={isHostsLoading || isHostCountLoading}
+        isLoading={isHostsLoading || isHostCountLoading || isLoadingPolicy}
         manualSortBy
         defaultSortHeader={(sortBy[0] && sortBy[0].key) || DEFAULT_SORT_HEADER}
         defaultSortDirection={
           (sortBy[0] && sortBy[0].direction) || DEFAULT_SORT_DIRECTION
         }
         defaultSearchQuery={searchQuery}
-        pageSize={100}
+        pageSize={50}
         actionButtonText={"Edit columns"}
         actionButtonIcon={EditColumnsIcon}
         actionButtonVariant={"text-icon"}

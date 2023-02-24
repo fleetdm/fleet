@@ -3,12 +3,16 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/url"
 	"os"
 	"strconv"
 	"strings"
 	"time"
+
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	"github.com/fleetdm/fleet/v4/server/service"
 
 	eewebhooks "github.com/fleetdm/fleet/v4/ee/server/webhooks"
 	"github.com/fleetdm/fleet/v4/server"
@@ -17,7 +21,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/policies"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/externalsvc"
@@ -32,9 +35,6 @@ import (
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"github.com/hashicorp/go-multierror"
-	"github.com/micromdm/nanodep/godep"
-	nanodep_log "github.com/micromdm/nanodep/log"
-	depsync "github.com/micromdm/nanodep/sync"
 )
 
 func errHandler(ctx context.Context, logger kitlog.Logger, msg string, err error) {
@@ -80,6 +80,9 @@ func cronVulnerabilities(
 	logger kitlog.Logger,
 	config *config.VulnerabilitiesConfig,
 ) error {
+	if config == nil {
+		return errors.New("nil configuration")
+	}
 	if config.CurrentInstanceChecks == "no" || config.CurrentInstanceChecks == "0" {
 		level.Info(logger).Log("msg", "host not configured to check for vulnerabilities")
 		return nil
@@ -97,21 +100,7 @@ func cronVulnerabilities(
 		return nil
 	}
 
-	var vulnPath string
-	switch {
-	case config.DatabasesPath != "" && appConfig.VulnerabilitySettings.DatabasesPath != "":
-		vulnPath = config.DatabasesPath
-		level.Info(logger).Log(
-			"msg", "fleet config takes precedence over app config when both are configured",
-			"databases_path", vulnPath,
-		)
-	case config.DatabasesPath != "":
-		vulnPath = config.DatabasesPath
-	case appConfig.VulnerabilitySettings.DatabasesPath != "":
-		vulnPath = appConfig.VulnerabilitySettings.DatabasesPath
-	default:
-		level.Info(logger).Log("msg", "vulnerability scanning not configured, vulnerabilities databases path is empty")
-	}
+	vulnPath := configureVulnPath(*config, appConfig, logger)
 	if vulnPath != "" {
 		level.Info(logger).Log("msg", "scanning vulnerabilities")
 		if err := scanVulnerabilities(ctx, ds, logger, config, appConfig, vulnPath); err != nil {
@@ -303,10 +292,6 @@ func checkOvalVulnerabilities(
 	config *config.VulnerabilitiesConfig,
 	collectVulns bool,
 ) []fleet.SoftwareVulnerability {
-	if config.DisableDataSync {
-		return nil
-	}
-
 	var results []fleet.SoftwareVulnerability
 
 	// Get Platforms
@@ -316,13 +301,15 @@ func checkOvalVulnerabilities(
 		return nil
 	}
 
-	// Sync on disk OVAL definitions with current OS Versions.
-	downloaded, err := oval.Refresh(ctx, versions, vulnPath)
-	if err != nil {
-		errHandler(ctx, logger, "updating oval definitions", err)
-	}
-	for _, d := range downloaded {
-		level.Debug(logger).Log("oval-sync-downloaded", d)
+	if !config.DisableDataSync {
+		// Sync on disk OVAL definitions with current OS Versions.
+		downloaded, err := oval.Refresh(ctx, versions, vulnPath)
+		if err != nil {
+			errHandler(ctx, logger, "updating oval definitions", err)
+		}
+		for _, d := range downloaded {
+			level.Debug(logger).Log("oval-sync-downloaded", d)
+		}
 	}
 
 	// Analyze all supported os versions using the synched OVAL definitions.
@@ -366,7 +353,7 @@ func checkNVDVulnerabilities(
 		}
 	}
 
-	if err := nvd.LoadCVEMeta(logger, vulnPath, ds); err != nil {
+	if err := nvd.LoadCVEMeta(ctx, logger, vulnPath, ds); err != nil {
 		errHandler(ctx, logger, "load cve meta", err)
 		// don't return, continue on ...
 	}
@@ -647,7 +634,12 @@ func newFailerClient(forcedFailures string) *worker.TestAutomationFailer {
 }
 
 func newCleanupsAndAggregationSchedule(
-	ctx context.Context, instanceID string, ds fleet.Datastore, logger kitlog.Logger, enrollHostLimiter fleet.EnrollHostLimiter,
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	logger kitlog.Logger,
+	enrollHostLimiter fleet.EnrollHostLimiter,
+	config *config.FleetConfig,
 ) (*schedule.Schedule, error) {
 	const (
 		name            = string(fleet.CronCleanupsThenAggregation)
@@ -747,9 +739,64 @@ func newCleanupsAndAggregationSchedule(
 				return ds.UpdateOSVersions(ctx)
 			},
 		),
+		schedule.WithJob(
+			"verify_disk_encryption_keys",
+			func(ctx context.Context) error {
+				return verifyDiskEncryptionKeys(ctx, logger, ds, config)
+			},
+		),
 	)
 
 	return s, nil
+}
+
+func verifyDiskEncryptionKeys(
+	ctx context.Context,
+	logger kitlog.Logger,
+	ds fleet.Datastore,
+	config *config.FleetConfig,
+) error {
+	if !config.MDM.IsAppleSCEPSet() {
+		logger.Log("inf", "skipping verification of encryption keys as MDM is not fully configured")
+		return nil
+	}
+
+	keys, err := ds.GetUnverifiedDiskEncryptionKeys(ctx)
+	if err != nil {
+		logger.Log("err", "unable to get unverified disk encryption keys from the database", "details", err)
+		return err
+	}
+
+	cert, _, _, err := config.MDM.AppleSCEP()
+	if err != nil {
+		logger.Log("err", "unable to get SCEP keypair to decrypt keys", "details", err)
+		return err
+	}
+
+	decryptable := []uint{}
+	undecryptable := []uint{}
+	var latest time.Time
+	for _, key := range keys {
+		if key.UpdatedAt.After(latest) {
+			latest = key.UpdatedAt
+		}
+		if _, err := apple_mdm.DecryptBase64CMS(key.Base64Encrypted, cert.Leaf, cert.PrivateKey); err != nil {
+			undecryptable = append(undecryptable, key.HostID)
+			continue
+		}
+		decryptable = append(decryptable, key.HostID)
+	}
+
+	if err := ds.SetHostsDiskEncryptionKeyStatus(ctx, decryptable, true, latest); err != nil {
+		logger.Log("err", "unable to update decryptable status", "details", err)
+		return err
+	}
+	if err := ds.SetHostsDiskEncryptionKeyStatus(ctx, undecryptable, false, latest); err != nil {
+		logger.Log("err", "unable to update decryptable status", "details", err)
+		return err
+	}
+
+	return nil
 }
 
 func newUsageStatisticsSchedule(ctx context.Context, instanceID string, ds fleet.Datastore, config config.FleetConfig, license *fleet.LicenseInfo, logger kitlog.Logger) (*schedule.Schedule, error) {
@@ -801,32 +848,6 @@ func trySendStatistics(ctx context.Context, ds fleet.Datastore, frequency time.D
 	return ds.RecordStatisticsSent(ctx)
 }
 
-// NanoDEPLogger is a logger adapter for nanodep.
-type NanoDEPLogger struct {
-	logger kitlog.Logger
-}
-
-func NewNanoDEPLogger(logger kitlog.Logger) *NanoDEPLogger {
-	return &NanoDEPLogger{
-		logger: logger,
-	}
-}
-
-func (l *NanoDEPLogger) Info(keyvals ...interface{}) {
-	level.Info(l.logger).Log(keyvals...)
-}
-
-func (l *NanoDEPLogger) Debug(keyvals ...interface{}) {
-	level.Debug(l.logger).Log(keyvals...)
-}
-
-func (l *NanoDEPLogger) With(keyvals ...interface{}) nanodep_log.Logger {
-	newLogger := kitlog.With(l.logger, keyvals...)
-	return &NanoDEPLogger{
-		logger: newLogger,
-	}
-}
-
 // newAppleMDMDEPProfileAssigner creates the schedule to run the DEP syncer+assigner.
 // The DEP syncer+assigner fetches devices from Apple Business Manager (aka ABM) and applies
 // the current configured DEP profile to them.
@@ -840,65 +861,40 @@ func newAppleMDMDEPProfileAssigner(
 	loggingDebug bool,
 ) (*schedule.Schedule, error) {
 	const name = string(fleet.CronAppleMDMDEPProfileAssigner)
-	depClient := fleet.NewDEPClient(depStorage, ds, logger)
-	assignerOpts := []depsync.AssignerOption{
-		depsync.WithAssignerLogger(NewNanoDEPLogger(kitlog.With(logger, "component", "nanodep-assigner"))),
-	}
-	if loggingDebug {
-		assignerOpts = append(assignerOpts, depsync.WithDebug())
-	}
-	assigner := depsync.NewAssigner(
-		depClient,
-		apple_mdm.DEPName,
-		depStorage,
-		assignerOpts...,
-	)
-	syncer := depsync.NewSyncer(
-		depClient,
-		apple_mdm.DEPName,
-		depStorage,
-		depsync.WithLogger(NewNanoDEPLogger(kitlog.With(logger, "component", "nanodep-syncer"))),
-		depsync.WithCallback(func(ctx context.Context, isFetch bool, resp *godep.DeviceResponse) error {
-			n, err := ds.IngestMDMAppleDevicesFromDEPSync(ctx, resp.Devices)
-			switch {
-			case err != nil:
-				level.Error(kitlog.With(logger, "cron", name, "component", "nanodep-syncer")).Log("err", err)
-				sentry.CaptureException(err)
-			case n > 0:
-				level.Info(kitlog.With(logger, "cron", name, "component", "nanodep-syncer")).Log("msg", fmt.Sprintf("added %d new mdm device(s) to pending hosts", n))
-			default:
-				// ok
-			}
-
-			return assigner.ProcessDeviceResponse(ctx, resp)
-		}),
-	)
-	logger = kitlog.With(logger, "cron", name)
+	logger = kitlog.With(logger, "cron", name, "component", "nanodep-syncer")
+	fleetSyncer := apple_mdm.NewDEPSyncer(ds, depStorage, logger, loggingDebug)
 	s := schedule.New(
 		ctx, name, instanceID, periodicity, ds, ds,
 		schedule.WithLogger(logger),
 		schedule.WithJob("dep_syncer", func(ctx context.Context) error {
-			profileUUID, profileModTime, err := depStorage.RetrieveAssignerProfile(ctx, apple_mdm.DEPName)
-			if err != nil {
-				return err
-			}
-			if profileUUID == "" {
-				logger.Log("msg", "DEP profile not set, nothing to do")
-				return nil
-			}
-			cursor, cursorModTime, err := depStorage.RetrieveCursor(ctx, apple_mdm.DEPName)
-			if err != nil {
-				return err
-			}
-			// If the DEP Profile was changed since last sync then we clear
-			// the cursor and perform a full sync of all devices and profile assigning.
-			if cursor != "" && profileModTime.After(cursorModTime) {
-				logger.Log("msg", "clearing device syncer cursor")
-				if err := depStorage.StoreCursor(ctx, apple_mdm.DEPName, ""); err != nil {
-					return err
-				}
-			}
-			return syncer.Run(ctx)
+			return fleetSyncer.Run(ctx)
+		}),
+	)
+
+	return s, nil
+}
+
+func newMDMAppleProfileManager(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	commander *service.MDMAppleCommander,
+	logger kitlog.Logger,
+	loggingDebug bool,
+) (*schedule.Schedule, error) {
+	const (
+		name = string(fleet.CronMDMAppleProfileManager)
+		// Note: per a request from #g-product we are running this cron
+		// every 30 seconds, we should re-evaluate how we handle the
+		// cron interval as we scale to more hosts.
+		defaultInterval = 30 * time.Second
+	)
+	logger = kitlog.With(logger, "cron", name)
+	s := schedule.New(
+		ctx, name, instanceID, defaultInterval, ds, ds,
+		schedule.WithLogger(logger),
+		schedule.WithJob("manage_profiles", func(ctx context.Context) error {
+			return service.ReconcileProfiles(ctx, ds, commander, logger)
 		}),
 	)
 

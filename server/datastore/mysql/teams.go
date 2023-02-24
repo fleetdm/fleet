@@ -111,13 +111,13 @@ func (ds *Datastore) DeleteTeam(ctx context.Context, tid uint) error {
 }
 
 func (ds *Datastore) TeamByName(ctx context.Context, name string) (*fleet.Team, error) {
-	sql := `
+	stmt := `
 		SELECT * FROM teams
 			WHERE name = ?
 	`
 	team := &fleet.Team{}
 
-	if err := sqlx.GetContext(ctx, ds.reader, team, sql, name); err != nil {
+	if err := sqlx.GetContext(ctx, ds.reader, team, stmt, name); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "select team")
 	}
 
@@ -356,6 +356,21 @@ func teamFeaturesDB(ctx context.Context, q sqlx.QueryerContext, tid uint) (*flee
 		}
 	}
 	return &features, nil
+}
+
+func (ds *Datastore) TeamMDMConfig(ctx context.Context, tid uint) (*fleet.TeamMDM, error) {
+	sql := `SELECT config->'$.mdm' AS mdm FROM teams WHERE id = ?`
+	var raw *json.RawMessage
+	if err := sqlx.GetContext(ctx, ds.reader, &raw, sql, tid); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "select team MDM config")
+	}
+	var mdmConfig *fleet.TeamMDM
+	if raw != nil {
+		if err := json.Unmarshal(*raw, &mdmConfig); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "unmarshal team MDM config")
+		}
+	}
+	return mdmConfig, nil
 }
 
 // DeleteIntegrationsFromTeams removes the deleted integrations from any team

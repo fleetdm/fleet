@@ -15,7 +15,8 @@ import (
 //
 // TODO: find if there's a better way to accomplish this and standardize.
 type EnterpriseOverrides struct {
-	HostFeatures func(context context.Context, host *Host) (*Features, error)
+	HostFeatures   func(context context.Context, host *Host) (*Features, error)
+	TeamByIDOrName func(ctx context.Context, id *uint, name *string) (*Team, error)
 }
 
 type OsqueryService interface {
@@ -58,7 +59,7 @@ type Service interface {
 	// if the team id is not nil for host, otherwise it returns flags from global
 	// agent options. It also returns any notifications that fleet wants to surface
 	// to fleetd (formerly orbit).
-	GetOrbitConfig(ctx context.Context) (flags json.RawMessage, extensions json.RawMessage, notifications OrbitConfigNotifications, err error)
+	GetOrbitConfig(ctx context.Context) (OrbitConfig, error)
 
 	// SetOrUpdateDeviceAuthToken creates or updates a device auth token for the given host.
 	SetOrUpdateDeviceAuthToken(ctx context.Context, authToken string) error
@@ -324,6 +325,8 @@ type Service interface {
 	GetMDMSolution(ctx context.Context, mdmID uint) (*MDMSolution, error)
 	GetMunkiIssue(ctx context.Context, munkiIssueID uint) (*MunkiIssue, error)
 
+	HostEncryptionKey(ctx context.Context, id uint) (*HostDiskEncryptionKey, error)
+
 	// OSVersions returns a list of operating systems and associated host counts, which may be
 	// filtered using the following optional criteria: team id, platform, or name and version.
 	// Name cannot be used without version, and conversely, version cannot be used without name.
@@ -460,6 +463,15 @@ type Service interface {
 	///////////////////////////////////////////////////////////////////////////////
 	// ActivitiesService
 
+	// NewActivity creates the given activity on the datastore.
+	//
+	// What we call "Activities" are administrative operations,
+	// logins, running a live query, etc.
+	NewActivity(ctx context.Context, user *User, activity ActivityDetails) error
+	// ListActivities lists the activities stored in the datastore.
+	//
+	// What we call "Activities" are administrative operations,
+	// logins, running a live query, etc.
 	ListActivities(ctx context.Context, opt ListActivitiesOptions) ([]*Activity, *PaginationMetadata, error)
 
 	///////////////////////////////////////////////////////////////////////////////
@@ -533,6 +545,17 @@ type Service interface {
 
 	GetAppleMDM(ctx context.Context) (*AppleMDM, error)
 	GetAppleBM(ctx context.Context) (*AppleBM, error)
+	RequestMDMAppleCSR(ctx context.Context, email, org string) (*AppleCSR, error)
+
+	// NewMDMAppleConfigProfile creates a new configuration profile for the specified team.
+	NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r io.Reader, size int64) (*MDMAppleConfigProfile, error)
+	// GetMDMAppleConfigProfile retrieves the specified configuration profile.
+	GetMDMAppleConfigProfile(ctx context.Context, profileID uint) (*MDMAppleConfigProfile, error)
+	// DeleteMDMAppleConfigProfile deletes the specified configuration profile.
+	DeleteMDMAppleConfigProfile(ctx context.Context, profileID uint) error
+	// ListMDMAppleConfigProfiles returns the list of all the configuration profiles for the
+	// specified team.
+	ListMDMAppleConfigProfiles(ctx context.Context, teamID uint) ([]*MDMAppleConfigProfile, error)
 
 	// NewMDMAppleEnrollmentProfile creates and returns new enrollment profile.
 	// Such enrollment profiles allow devices to enroll to Fleet MDM.
@@ -586,6 +609,20 @@ type Service interface {
 
 	// EnqueueMDMAppleCommand enqueues a command for execution on the given devices.
 	EnqueueMDMAppleCommand(ctx context.Context, command *MDMAppleCommand, deviceIDs []string, noPush bool) (status int, result *CommandEnqueueResult, err error)
+
+	// EnqueueMDMAppleCommandRemoveEnrollmentProfile enqueues a command to remove the
+	// profile used for Fleet MDM enrollment from the specified device.
+	EnqueueMDMAppleCommandRemoveEnrollmentProfile(ctx context.Context, hostID uint) error
+
+	// BatchSetMDMAppleProfiles replaces the custom macOS profiles for a specified
+	// team or for hosts with no team.
+	BatchSetMDMAppleProfiles(ctx context.Context, teamID *uint, teamName *string, profiles [][]byte, dryRun bool) error
+
+	// MDMAppleDeviceLock remote locks a host
+	MDMAppleDeviceLock(ctx context.Context, hostID uint) error
+
+	// MMDAppleEraseDevice erases a host
+	MDMAppleEraseDevice(ctx context.Context, hostID uint) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// CronSchedulesService

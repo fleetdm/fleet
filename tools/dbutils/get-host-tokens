@@ -1,0 +1,3 @@
+#!/bin/bash
+
+docker compose exec mysql mysql -uroot -ptoor -Dfleet -e "SELECT host_id, token FROM host_device_auth;"

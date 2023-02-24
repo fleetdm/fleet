@@ -194,7 +194,7 @@ describe("App settings flow", () => {
       // specifically targeting this one to avoid conflict
       // with cypress seeing multiple "metadata url" - one
       // in a tooltip, the other as the actual label
-      cy.getAttached("[for='metadataURL']")
+      cy.getAttached("[for='metadataUrl']")
         .click()
         .type("http://github.com/fleetdm/fleet");
 
@@ -223,7 +223,7 @@ describe("App settings flow", () => {
         "https://http.cat/100"
       );
 
-      cy.getAttached("#metadataURL").should(
+      cy.getAttached("#metadataUrl").should(
         "have.value",
         "http://github.com/fleetdm/fleet"
       );
@@ -280,7 +280,7 @@ describe("App settings flow", () => {
       );
       cy.findByText(/single sign-on options/i).click();
 
-      cy.getAttached("#metadataURL").should(
+      cy.getAttached("#metadataUrl").should(
         "have.value",
         "http://github.com/fleetdm/fleet"
       );

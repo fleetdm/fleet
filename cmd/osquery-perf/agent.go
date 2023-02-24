@@ -210,10 +210,12 @@ type agent struct {
 
 	// The following are exported to be used by the templates.
 
-	EnrollSecret   string
-	UUID           string
-	ConfigInterval time.Duration
-	QueryInterval  time.Duration
+	EnrollSecret          string
+	UUID                  string
+	SerialNumber          string
+	ConfigInterval        time.Duration
+	QueryInterval         time.Duration
+	DiskEncryptionEnabled bool
 }
 
 type entityCount struct {
@@ -263,7 +265,8 @@ func newAgent(
 		EnrollSecret:   enrollSecret,
 		ConfigInterval: configInterval,
 		QueryInterval:  queryInterval,
-		UUID:           uuid.New().String(),
+		UUID:           strings.ToUpper(uuid.New().String()),
+		SerialNumber:   randSerial(),
 	}
 }
 
@@ -984,8 +987,8 @@ func (a *agent) diskSpace() []map[string]string {
 
 func (a *agent) diskEncryption() []map[string]string {
 	// 50% of results have encryption enabled
-	enabled := rand.Intn(2) == 1
-	if enabled {
+	a.DiskEncryptionEnabled = rand.Intn(2) == 1
+	if a.DiskEncryptionEnabled {
 		return []map[string]string{{"1": "1"}}
 	}
 	return []map[string]string{}
@@ -993,8 +996,8 @@ func (a *agent) diskEncryption() []map[string]string {
 
 func (a *agent) diskEncryptionLinux() []map[string]string {
 	// 50% of results have encryption enabled
-	enabled := rand.Intn(2) == 1
-	if enabled {
+	a.DiskEncryptionEnabled = rand.Intn(2) == 1
+	if a.DiskEncryptionEnabled {
 		return []map[string]string{
 			{"path": "/etc", "encrypted": "0"},
 			{"path": "/tmp", "encrypted": "0"},
@@ -1090,7 +1093,8 @@ func (a *agent) processQuery(name, query string) (handled bool, results []map[st
 			results = a.diskEncryptionLinux()
 		}
 		return true, results, &ss
-	case strings.HasPrefix(name, hostDetailQueryPrefix+"disk_encryption_"):
+	case name == hostDetailQueryPrefix+"disk_encryption_darwin" ||
+		name == hostDetailQueryPrefix+"disk_encryption_windows":
 		ss := fleet.OsqueryStatus(rand.Intn(2))
 		if ss == fleet.StatusOK {
 			results = a.diskEncryption()
@@ -1266,4 +1270,16 @@ func main() {
 
 	fmt.Println("Agents running. Kill with C-c.")
 	<-make(chan struct{})
+}
+
+// numbers plus capital letters without I, L, O for readability
+const serialLetters = "0123456789ABCDEFGHJKMNPQRSTUVWXYZ"
+
+func randSerial() string {
+	b := make([]byte, 12)
+	for i := range b {
+		//nolint:gosec // not used for crypto, only to generate random serial for testing
+		b[i] = serialLetters[rand.Intn(len(serialLetters))]
+	}
+	return string(b)
 }

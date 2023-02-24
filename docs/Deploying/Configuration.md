@@ -1,17 +1,5 @@
 # Configuration
 
-- [Configuring the Fleet binary](#configuring-the-fleet-binary)
-  - [High-level configuration overview](#high-level-configuration-overview)
-  - [Commands](#commands)
-  - [Options](#options)
-- [Managing osquery configurations](#managing-osquery-configurations)
-- [Running with systemd](#running-with-systemd)
-- [Configuring single sign on](#configuring-single-sign-on)
-  - [Identity provider (IDP) configuration](#identity-provider-IDP-configuration)
-  - [Fleet SSO configuration](#fleet-sso-configuration)
-  - [Creating SSO users in Fleet](#creating-sso-users-in-fleet)
-- [Feature flags](#feature-flags)
-
 ## Configuring the Fleet binary
 
 For information on how to run the `fleet` binary, find detailed usage information by running `fleet --help`. This document is a more detailed version of the data presented in the help output text. If you prefer to use a CLI instead of a web browser, we hope  you like the binary interface of the Fleet application!
@@ -55,41 +43,13 @@ The `fleet` binary contains several "commands." Similarly to how `git` has many 
 
 You can specify options in the order of precedence via
 
-- a configuration file (in YAML format).
-- environment variables.
-- command-line flags.
+1. a configuration file (in YAML format)
+2. environment variables
+3. command-line flags
 
 For example, all of the following ways of launching Fleet are equivalent:
 
-##### Using only CLI flags
-
-```
-/usr/bin/fleet serve \
---mysql_address=127.0.0.1:3306 \
---mysql_database=fleet \
---mysql_username=root \
---mysql_password=toor \
---redis_address=127.0.0.1:6379 \
---server_cert=/tmp/server.cert \
---server_key=/tmp/server.key \
---logging_json
-```
-
-##### Using only environment variables
-
-```
-FLEET_MYSQL_ADDRESS=127.0.0.1:3306 \
-FLEET_MYSQL_DATABASE=fleet \
-FLEET_MYSQL_USERNAME=root \
-FLEET_MYSQL_PASSWORD=toor \
-FLEET_REDIS_ADDRESS=127.0.0.1:6379 \
-FLEET_SERVER_CERT=/tmp/server.cert \
-FLEET_SERVER_KEY=/tmp/server.key \
-FLEET_LOGGING_JSON=true \
-/usr/bin/fleet serve
-```
-
-##### Using a YAML config file
+##### 1. Using a YAML config file
 
 ```
 echo '
@@ -111,6 +71,35 @@ fleet serve --config /tmp/fleet.yml
 ```
 
 For more information on using YAML configuration files with fleet, please see the [configuration files](https://fleetdm.com/docs/using-fleet/configuration-files) documentation.
+
+##### 2. Using only environment variables
+
+```
+FLEET_MYSQL_ADDRESS=127.0.0.1:3306 \
+FLEET_MYSQL_DATABASE=fleet \
+FLEET_MYSQL_USERNAME=root \
+FLEET_MYSQL_PASSWORD=toor \
+FLEET_REDIS_ADDRESS=127.0.0.1:6379 \
+FLEET_SERVER_CERT=/tmp/server.cert \
+FLEET_SERVER_KEY=/tmp/server.key \
+FLEET_LOGGING_JSON=true \
+/usr/bin/fleet serve
+```
+
+##### 3. Using only CLI flags
+
+```
+/usr/bin/fleet serve \
+--mysql_address=127.0.0.1:3306 \
+--mysql_database=fleet \
+--mysql_username=root \
+--mysql_password=toor \
+--redis_address=127.0.0.1:6379 \
+--server_cert=/tmp/server.cert \
+--server_key=/tmp/server.key \
+--logging_json
+```
+
 
 ### What are the options?
 
@@ -224,7 +213,7 @@ The path to a PEM encoded certificate is used for TLS authentication.
 
 ##### mysql_tls_key
 
-The path to a PEM encoded private key uses for TLS authentication.
+The path to a PEM encoded private key used for TLS authentication.
 
 - Default value: none
 - Environment variable: `FLEET_MYSQL_TLS_KEY`
@@ -394,7 +383,7 @@ Use a TLS connection to the Redis server.
 
 ##### redis_duplicate_results
 
-Whether or not to duplicate Live Query results to another Redis channel named `LQDuplicate`. This is useful in a scenario involving shipping the Live Query results outside of Fleet, near-realtime.
+Whether or not to duplicate Live Query results to another Redis channel named `LQDuplicate`. This is useful in a scenario involving shipping the Live Query results outside of Fleet, near real-time.
 
 - Default value: `false`
 - Environment variable: `FLEET_REDIS_DUPLICATE_RESULTS`
@@ -903,9 +892,11 @@ The identifier to use when determining uniqueness of hosts.
 
 Options are `provided` (default), `uuid`, `hostname`, or `instance`.
 
-This setting works in combination with the `--host_identifier` flag in osquery. In most deployments, using `uuid` will be the best option. The flag defaults to `provided` -- preserving the existing behavior of Fleet's handling of host identifiers -- using the identifier provided by osquery. `instance`, `uuid`, and `hostname` correspond to the same meanings as for osquery's `--host_identifier` flag.
+This setting works in combination with the `--host_identifier` flag in osquery. In most deployments, using `uuid` will be the best option. The flag defaults to `provided` -- preserving the existing behavior of Fleet's handling of host identifiers -- using the identifier provided by osquery. `instance`, `uuid`, and `hostname` correspond to the same meanings as osquery's `--host_identifier` flag.
 
 Users that have duplicate UUIDs in their environment can benefit from setting this flag to `instance`.
+
+> If you are enrolling your hosts using Fleet generated packages, it is reccommended to use `uuid` as your indentifier. This prevents potential issues with duplicate host enrollments. 
 
 - Default value: `provided`
 - Environment variable: `FLEET_OSQUERY_HOST_IDENTIFIER`
@@ -935,6 +926,8 @@ The interval at which Fleet will ask osquery agents to update their results for 
 
 Setting this to a higher value can reduce baseline load on the Fleet server in larger deployments.
 
+> Setting this to a lower value can increase baseline load significantly and cause performance issues or even outages. Proceed with caution.
+
 Valid time units are `s`, `m`, `h`.
 
 - Default value: `1h`
@@ -942,7 +935,7 @@ Valid time units are `s`, `m`, `h`.
 - Config file format:
   ```
   osquery:
-  	label_update_interval: 30m
+  	label_update_interval: 90m
   ```
 
 ##### osquery_policy_update_interval
@@ -951,6 +944,8 @@ The interval at which Fleet will ask osquery agents to update their results for 
 
 Setting this to a higher value can reduce baseline load on the Fleet server in larger deployments.
 
+> Setting this to a lower value can increase baseline load significantly and cause performance issues or even outages. Proceed with caution.
+
 Valid time units are `s`, `m`, `h`.
 
 - Default value: `1h`
@@ -958,7 +953,7 @@ Valid time units are `s`, `m`, `h`.
 - Config file format:
   ```
   osquery:
-  	policy_update_interval: 30m
+  	policy_update_interval: 90m
   ```
 
 ##### osquery_detail_update_interval
@@ -967,6 +962,8 @@ The interval at which Fleet will ask osquery agents to update host details (such
 
 Setting this to a higher value can reduce baseline load on the Fleet server in larger deployments.
 
+> Setting this to a lower value can increase baseline load significantly and cause performance issues or even outages. Proceed with caution.
+
 Valid time units are `s`, `m`, `h`.
 
 - Default value: `1h`
@@ -974,7 +971,7 @@ Valid time units are `s`, `m`, `h`.
 - Config file format:
   ```
   osquery:
-  	detail_update_interval: 30m
+  	detail_update_interval: 90m
   ```
 
 ##### osquery_status_log_plugin
@@ -1025,7 +1022,7 @@ to the amount of time it takes for Fleet to give the host the label queries.
 
 ##### osquery_enable_async_host_processing
 
-**Experimental feature**. Enable asynchronous processing of hosts' query results. Currently, only supported for label query execution, policy membership results, hosts' last seen timestamp and hosts' scheduled query statistics. This may improve the performance and CPU usage of the Fleet instances and MySQL database servers for setups with a large number of hosts while requiring more resources from Redis server(s).
+**Experimental feature**. Enable asynchronous processing of hosts' query results. Currently, asyncronous processing is only supported for label query execution, policy membership results, hosts' last seen timestamp, and hosts' scheduled query statistics. This may improve the performance and CPU usage of the Fleet instances and MySQL database servers for setups with a large number of hosts while requiring more resources from Redis server(s).
 
 Note that currently, if both the failing policies webhook *and* this `osquery.enable_async_host_processing` option are set, some failing policies webhooks could be missing (some transitions from succeeding to failing or vice-versa could happen without triggering a webhook request).
 
@@ -1178,13 +1175,16 @@ osquery:
   status_log_plugin: firehose
   result_log_plugin: firehose
 ```
+#### External Activity Audit Logging
 
-#### activity_enable_audit_log
+> Applies only to Fleet Premium. Acitivity information is available for all Fleet instances using the [Activities API](https://fleetdm.com/docs/using-fleet/rest-api#activities).
+
+Stream Fleet user activities to logs using Fleet's logging plugins. The audit events are logged in an asynchronous fashion. It can take up to 5 minutes for an event to be logged.
+
+##### activity_enable_audit_log
 
 This enables/disables the log output for audit events.
 See the `activity_audit_log_plugin` option below that specifies the logging destination.
-
-The audit events are logged in an asynchronous fashion. It can take up to 5 minutes for an event to be logged.
 
 - Default value: `false`
 - Environment variable: `FLEET_ACTIVITY_ENABLE_AUDIT_LOG`
@@ -1194,12 +1194,14 @@ The audit events are logged in an asynchronous fashion. It can take up to 5 minu
     enable_audit_log: true
   ```
 
-#### activity_audit_log_plugin
+##### activity_audit_log_plugin
 
 This is the log output plugin that should be used for audit logs.
-This flag only has effect if `activity_enable_audit_log` is set to `true`.
+This flag only has effect if `activity_enable_audit_log` is set to `true`. 
 
-Options are `filesystem`, `firehose`, `kinesis`, `lambda`, `pubsub`, `kafkarest`, and `stdout`.
+Each plugin has additional configuration options. Please see the configuration section linked below for your logging plugin.
+
+Options are [`filesystem`](#filesystem), [`firehose`](#firehose), [`kinesis`](#kinesis), [`lambda`](#lambda), [`pubsub`](#pubsub), [`kafkarest`](#kafka-rest-proxy-logging), and `stdout` (no additional configuration needed).
 
 - Default value: `filesystem`
 - Environment variable: `FLEET_ACTIVITY_AUDIT_LOG_PLUGIN`
@@ -1342,6 +1344,50 @@ This flag will cause the rotated logs to be compressed with gzip.
   ```
   filesystem:
      enable_log_compression: true
+  ```
+
+##### filesystem_max_size
+
+This flag only has effect if `filesystem_enable_log_rotation` is set to `true`.
+
+Sets the maximum size in megabytes of log files before it gets rotated.
+
+- Default value: `500`
+- Environment variable: `FLEET_FILESYSTEM_MAX_SIZE`
+- Config file format:
+  ```
+  filesystem:
+     max_size: 100
+  ```
+
+##### filesystem_max_age
+
+This flag only has effect if `filesystem_enable_log_rotation` is set to `true`.
+
+Sets the maximum age in days to retain old log files before deletion. Setting this
+to zero will retain all logs.
+
+- Default value: `28`
+- Environment variable: `FLEET_FILESYSTEM_MAX_AGE`
+- Config file format:
+  ```
+  filesystem:
+     max_age: 0
+  ```
+
+##### filesystem_max_backups
+
+This flag only has effect if `filesystem_enable_log_rotation` is set to `true`.
+
+Sets the maximum number of old files to retain before deletion. Setting this
+to zero will retain all logs. _Note_ max_age may still cause them to be deleted.
+
+- Default value: `3`
+- Environment variable: `FLEET_FILESYSTEM_MAX_BACKUPS`
+- Config file format:
+  ```
+  filesystem:
+     max_backups: 0
   ```
 
 ##### Example YAML
@@ -2153,7 +2199,7 @@ The path specified needs to exist and Fleet needs to be able to read and write t
 
 When `current_instance_checks` is set to `auto` (the default), Fleet instances will try to create the `databases_path` if it doesn't exist.
 
-- Default value: none
+- Default value: `/tmp/vulndbs`
 - Environment variable: `FLEET_VULNERABILITIES_DATABASES_PATH`
 - Config file format:
   ```
@@ -2229,6 +2275,19 @@ When running multiple instances of the Fleet server, by default, one of them dyn
   ```
   vulnerabilities:
   	current_instance_checks: yes
+  ```
+
+##### disable_schedule
+
+To externally manage running vulnerability processing set the value to `true` and then run `fleet vuln_processing` using external
+tools like crontab.
+
+- Default value: `false`
+- Environment variable: `FLEET_VULNERABILITIES_DISABLE_SCHEDULE`
+- Config file format:
+  ```
+  vulnerabilities:
+  	disable_schedule: false
   ```
 
 ##### disable_data_sync
@@ -2519,9 +2578,9 @@ packaging:
     region: us-east-1
 ```
 
-#### MDM (mobile device management) - IN PROGRESS
+#### Mobile device management (MDM)
 
-> This feature is currently in development and is not ready for use.
+> MDM features are not ready for production and are currently in development. These features are disabled by default.
 
 ##### apple_apns_cert
 
@@ -2802,7 +2861,7 @@ After modifying the configuration you will need to reload and restart the Fleet 
 
 Fleet supports SAML single sign-on capability.
 
-Fleet supports both SP-initiated SAML login and IDP-initiated login however, IDP-initiated login must be enabled in the web interface's SAML single sign-on options.
+Fleet supports both SP-initiated SAML login and IDP-initiated login. However, IDP-initiated login must be enabled in the web interface's SAML single sign-on options.
 
 Fleet supports the SAML Web Browser SSO Profile using the HTTP Redirect Binding.
 
@@ -2837,7 +2896,7 @@ Otherwise, the following values are required:
 - _Identity provider name_ - A human-readable name of the IDP. This is rendered on the login page.
 
 - _Entity ID_ - A URI that identifies your Fleet instance as the issuer of authorization
-  requests (e.g., `fleet.example.com`). This much match the _Entity ID_ configured with the IDP.
+  requests (e.g., `fleet.example.com`). This must match the _Entity ID_ configured with the IDP.
 
 - _Issuer URI_ - Obtain this value from the IDP.
 
@@ -2884,7 +2943,6 @@ For this to work correctly make sure that:
   - `cn`
   - `urn:oid:2.5.4.3`
   - `http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name`
-
 
 #### Okta IDP configuration
 
@@ -2953,8 +3011,17 @@ Follow these steps to configure Fleet SSO with Google Workspace. This will requi
 
 9. Enable SSO for a test user and try logging in. Note that Google sometimes takes a long time to propagate the SSO configuration, and it can help to try logging in to Fleet with an Incognito/Private window in the browser.
 
-## Feature flags
+## Public IPs of devices
 
-Fleet features are sometimes gated behind feature flags. This will usually be due to not-yet-stable APIs or not-fully-tested performance characteristics.
+> IMPORTANT: In order for this feature to work properly, devices must connect to Fleet via the public internet.
+> If the agent connects to Fleet via a private network then the "Public IP address" for such device will not be set.
 
-Feature flags on the server are controlled by environment variables prefixed with `FLEET_BETA_`.
+Fleet attempts to deduce the public IP of devices from well-known HTTP headers received on requests made by the osquery agent.
+
+The HTTP request headers are checked in the following order:
+1. If `True-Client-IP` header is set, then Fleet will extract its value.
+2. If `X-Real-IP` header is set, then Fleet will extract its value.
+3. If `X-Forwarded-For` header is set, then Fleet will extract the first comma-separated value.
+4. If none of the above headers are present in the HTTP request then Fleet will attempt to use the remote address of the TCP connection (note that on deployments with ingress proxies the remote address seen by Fleet is the IP of the ingress proxy).
+
+If the IP retrieved using the above heuristic belongs to a private range, then Fleet will ignore it and will not set the "Public IP address" field for the device.

@@ -41,6 +41,12 @@ export interface ITeam extends ITeamSummary {
   host_count?: number;
   secrets?: IEnrollSecret[];
   role?: string; // role value is included when the team is in the context of a user
+  mdm?: {
+    macos_updates: {
+      minimum_version: string;
+      deadline: string;
+    };
+  };
 }
 
 /**

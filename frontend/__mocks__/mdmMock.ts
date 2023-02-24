@@ -15,6 +15,7 @@ export const createMockMdmSolution = (
 };
 
 const DEFAULT_HOST_MDM_DATA: IHostMdmData = {
+  encryption_key_available: false,
   enrollment_status: "On (automatic)",
   server_url: "http://mdmsolution.com",
   name: "MDM Solution",

@@ -16,9 +16,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/service"
-
 	"github.com/fleetdm/fleet/v4/orbit/pkg/augeas"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/build"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
@@ -28,12 +25,15 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/osservice"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/platform"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/orbit_info"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/token"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update/filestore"
 	"github.com/fleetdm/fleet/v4/pkg/certificate"
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
+	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/oklog/run"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -138,6 +138,12 @@ func main() {
 			Name:    "fleet-desktop",
 			Usage:   "Launch Fleet Desktop application (flag currently only used on darwin)",
 			EnvVars: []string{"ORBIT_FLEET_DESKTOP"},
+		},
+		&cli.BoolFlag{
+			Name:    "disable-kickstart-softwareupdated",
+			Usage:   "Disable periodic execution of 'launchctl kickstart -k softwareupdated' on macOS",
+			EnvVars: []string{"ORBIT_FLEET_DISABLE_KICKSTART_SOFTWAREUPDATED"},
+			Hidden:  true,
 		},
 	}
 	app.Before = func(c *cli.Context) error {
@@ -266,6 +272,15 @@ func main() {
 		systemChecker := newSystemChecker()
 		g.Add(systemChecker.Execute, systemChecker.Interrupt)
 		go osservice.SetupServiceManagement(constant.SystemServiceName, systemChecker.svcInterruptCh, appDoneCh)
+
+		// periodically run launchctl kickstart -k softwareupdated on macOS
+		if runtime.GOOS == "darwin" && !c.Bool("disable-kickstart-softwareupdated") {
+			const softwareUpdatedKickstartInterval = 12 * time.Hour
+			updatedRunner := update.NewSoftwareUpdatedRunner(update.SoftwareUpdatedOptions{
+				Interval: softwareUpdatedKickstartInterval,
+			})
+			g.Add(updatedRunner.Execute, updatedRunner.Interrupt)
+		}
 
 		// NOTE: When running in dev-mode, even if `disable-updates` is set,
 		// it fetches osqueryd once as part of initialization.
@@ -505,8 +520,22 @@ func main() {
 		if err != nil {
 			return fmt.Errorf("error new orbit client: %w", err)
 		}
+
+		// create the notifications middleware that wraps the orbit client
+		// (must be shared by all runners that use a ConfigFetcher).
+		const renewEnrollmentProfileCommandFrequency = time.Hour
+		configFetcher := update.ApplyRenewEnrollmentProfileConfigFetcherMiddleware(orbitClient, renewEnrollmentProfileCommandFrequency)
+
+		if runtime.GOOS == "darwin" {
+			// add middleware to handle nudge installation and updates
+			const nudgeLaunchInterval = 30 * time.Minute
+			configFetcher = update.ApplyNudgeConfigFetcherMiddleware(configFetcher, update.NudgeConfigFetcherOptions{
+				UpdateRunner: updateRunner, RootDir: c.String("root-dir"), Interval: nudgeLaunchInterval,
+			})
+		}
+
 		const orbitFlagsUpdateInterval = 30 * time.Second
-		flagRunner := update.NewFlagRunner(orbitClient, update.FlagUpdateOptions{
+		flagRunner := update.NewFlagRunner(configFetcher, update.FlagUpdateOptions{
 			CheckInterval: orbitFlagsUpdateInterval,
 			RootDir:       c.String("root-dir"),
 		})
@@ -523,7 +552,7 @@ func main() {
 		// and all relevant things for it (like certs, enroll secrets, tls proxy, etc) is configured
 		if !c.Bool("disable-updates") || c.Bool("dev-mode") {
 			const orbitExtensionUpdateInterval = 60 * time.Second
-			extRunner := update.NewExtensionConfigUpdateRunner(orbitClient, update.ExtensionUpdateOptions{
+			extRunner := update.NewExtensionConfigUpdateRunner(configFetcher, update.ExtensionUpdateOptions{
 				CheckInterval: orbitExtensionUpdateInterval,
 				RootDir:       c.String("root-dir"),
 			}, updateRunner)
@@ -703,14 +732,13 @@ func main() {
 		registerExtensionRunner(
 			&g,
 			r.ExtensionSocketPath(),
-			table.WithExtension(orbitInfoExtension{
-				orbitClient:     orbitClient,
-				orbitChannel:    c.String("orbit-channel"),
-				osquerydChannel: c.String("osqueryd-channel"),
-				desktopChannel:  c.String("desktop-channel"),
-				trw:             trw,
-			}),
-			table.WithExtension(sntpRequest{}),
+			table.WithExtension(orbit_info.New(
+				orbitClient,
+				c.String("orbit-channel"),
+				c.String("osqueryd-channel"),
+				c.String("desktop-channel"),
+				trw,
+			)),
 		)
 
 		if c.Bool("fleet-desktop") {

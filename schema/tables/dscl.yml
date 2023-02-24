@@ -1,0 +1,23 @@
+name: dscl
+platforms:
+  - darwin
+description: Returns the output of the `dscl . -read` command (local domain).
+columns:
+  - name: command
+    type: text
+    required: true
+    description: The dscl command to execute, only "read" is currently supported.
+  - name: path
+    type: text
+    required: true
+    description: The path to use in the read command.
+  - name: key
+    type: text
+    required: true
+    description: The key to query on the read command and path.
+  - name: value
+    type: text
+    required: false
+    description: The value of the read path and key. The value is the empty string if the key doesn't exist.
+notes: This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
+evented: false

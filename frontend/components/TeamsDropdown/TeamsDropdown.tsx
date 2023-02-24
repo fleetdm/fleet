@@ -8,7 +8,8 @@ import { AppContext } from "context/app";
 
 const generateDropdownOptions = (
   teams: ITeamSummary[] | undefined,
-  includeAll: boolean
+  includeAll: boolean,
+  includeNoTeams?: boolean
 ) => {
   if (!teams) {
     return [];
@@ -27,13 +28,20 @@ const generateDropdownOptions = (
       value: 0,
     });
   }
-
+  if (includeNoTeams) {
+    options.unshift({
+      disabled: false,
+      label: "No team",
+      value: 0,
+    });
+  }
   return options;
 };
 interface ITeamsDropdownProps {
   currentUserTeams: ITeamSummary[];
   selectedTeamId?: number;
   includeAll?: boolean; // Include the "All Teams" option;
+  includeNoTeams?: boolean;
   isDisabled?: boolean;
   onChange: (newSelectedValue: number) => void;
   onOpen?: () => void;
@@ -46,6 +54,7 @@ const TeamsDropdown = ({
   currentUserTeams,
   selectedTeamId,
   includeAll = true,
+  includeNoTeams = false,
   isDisabled,
   onChange,
   onOpen,
@@ -55,8 +64,12 @@ const TeamsDropdown = ({
 
   const teamOptions = useMemo(
     () =>
-      generateDropdownOptions(currentUserTeams, includeAll && isOnGlobalTeam),
-    [currentUserTeams, includeAll, isOnGlobalTeam]
+      generateDropdownOptions(
+        currentUserTeams,
+        includeAll && isOnGlobalTeam,
+        includeNoTeams
+      ),
+    [currentUserTeams, includeAll, isOnGlobalTeam, includeNoTeams]
   );
 
   const selectedValue = teamOptions.find(

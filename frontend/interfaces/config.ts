@@ -43,8 +43,14 @@ export default PropTypes.shape({
   organization: PropTypes.string,
   device_count: PropTypes.number,
   expiration: PropTypes.string,
+  mdm_feature_flag_enabled: PropTypes.bool,
   mdm: PropTypes.shape({
+    enabled_and_configured: PropTypes.bool,
     apple_bm_terms_expired: PropTypes.bool,
+    macos_updates: PropTypes.shape({
+      minimum_version: PropTypes.string,
+      deadline: PropTypes.string,
+    }),
   }),
   note: PropTypes.string,
   // vulnerability_settings: PropTypes.any, TODO
@@ -84,6 +90,19 @@ export interface ILicense {
   organization: string;
 }
 
+export interface IMdmConfig {
+  enabled_and_configured: boolean;
+  apple_bm_terms_expired: boolean;
+  macos_updates: {
+    minimum_version: string;
+    deadline: string;
+  };
+}
+
+export interface IDeviceGlobalConfig {
+  mdm: Pick<IMdmConfig, "enabled_and_configured">;
+}
+
 export interface IFleetDesktopSettings {
   transparency_url: string;
 }
@@ -92,36 +111,36 @@ export interface IConfigFormData {
   smtpAuthenticationMethod: string;
   smtpAuthenticationType: string;
   domain: string;
-  smtpEnableSSLTLS: boolean;
-  enableStartTLS: boolean;
-  serverURL: string;
-  orgLogoURL: string;
+  smtpEnableSslTls: boolean;
+  enableStartTls: boolean;
+  serverUrl: string;
+  orgLogoUrl: string;
   orgName: string;
   smtpPassword: string;
   smtpPort?: number;
   smtpSenderAddress: string;
   smtpServer: string;
   smtpUsername: string;
-  verifySSLCerts: boolean;
-  entityID: string;
-  issuerURI: string;
-  idpImageURL: string;
+  verifySslCerts: boolean;
+  entityId: string;
+  issuerUri: string;
+  idpImageUrl: string;
   metadata: string;
-  metadataURL: string;
+  metadataUrl: string;
   idpName: string;
-  enableSSO: boolean;
-  enableSSOIDPLogin: boolean;
-  enableSMTP: boolean;
+  enableSso: boolean;
+  enableSsoIdpLogin: boolean;
+  enableSmtp: boolean;
   enableHostExpiry: boolean;
   hostExpiryWindow: number;
   disableLiveQuery: boolean;
   agentOptions: any;
   enableHostStatusWebhook: boolean;
-  hostStatusWebhookDestinationURL?: string;
+  hostStatusWebhookDestinationUrl?: string;
   hostStatusWebhookHostPercentage?: number;
   hostStatusWebhookDaysCount?: number;
   enableUsageStatistics: boolean;
-  transparency_url: string;
+  transparencyUrl: string;
 }
 
 export interface IConfigFeatures {
@@ -215,10 +234,8 @@ export interface IConfig {
       };
     };
   };
-  mdm_enabled?: boolean;
-  mdm: {
-    apple_bm_terms_expired: boolean;
-  };
+  mdm: IMdmConfig;
+  mdm_feature_flag_enabled: boolean;
 }
 
 export interface IWebhookSettings {

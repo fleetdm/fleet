@@ -1,0 +1,11 @@
+name: user_login_settings
+platforms:
+  - darwin
+description: Options of login and password (e.g password hints enabled) for all users.
+columns:
+  - name: password_hint_enabled
+    type: integer
+    required: false
+    description: whether password hint is enabled for any user. 1 means one or more users has a password hint set, 0 means no user has a password hint set
+notes: This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
+evented: false

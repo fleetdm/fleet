@@ -85,9 +85,6 @@ describe("Premium tier - Observer user", () => {
       beforeEach(() => hostDetailsPage.visitsHostDetailsPage(1));
       it("should render elements according to role-based access controls", () => {
         hostDetailsPage.verifiesTeam("Apples");
-        hostDetailsPage.hidesButton("Transfer");
-        hostDetailsPage.hidesButton("Delete");
-        hostDetailsPage.hidesCustomQueryHost();
         hostDetailsPage.hidesCreateOSPolicy();
       });
     });

@@ -7,13 +7,6 @@ import (
 	"strings"
 )
 
-// OrbitConfigNotifications are notifications that the fleet server sends to
-// fleetd (orbit) so that it can run commands or more generally react to this
-// information.
-type OrbitConfigNotifications struct {
-	RenewEnrollmentProfile bool `json:"renew_enrollment_profile,omitempty"`
-}
-
 type AgentOptions struct {
 	// Config is the base config options.
 	Config json.RawMessage `json:"config"`
@@ -507,6 +500,7 @@ type OsqueryCommandLineFlagsHidden struct {
 	MinLogLevel           int32  `json:"minloglevel"`
 	StopLoggingIfFullDisk bool   `json:"stop_logging_if_full_disk"`
 	AllowUnsafe           bool   `json:"allow_unsafe"`
+	TLSDump               bool   `json:"tls_dump"`
 }
 
 // while ValidateJSONAgentOptions validates an entire Agent Options payload,

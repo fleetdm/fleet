@@ -25,6 +25,23 @@ const (
 	readAndExecute = uint32(131241)
 )
 
+// ChmodRestrictFile sets the appropriate permissions on a file so it can not be read by everyone
+// On POSIX this is a normal chmod call.
+func ChmodRestrictFile(path string) error {
+	if err := acl.Apply(
+		path,
+		true,
+		false,
+		acl.GrantSid(windows.GENERIC_ALL, constant.SystemSID),
+		acl.GrantSid(windows.GENERIC_ALL, constant.AdminSID),
+		acl.GrantSid(0, constant.UserSID), // no access permissions for regular users
+	); err != nil {
+		return fmt.Errorf("restricting file access: %w", err)
+	}
+
+	return nil
+}
+
 // ChmodExecutableDirectory sets the appropriate permissions on the parent
 // directory of an executable file. On Windows this involves setting the
 // appropriate ACLs.
@@ -84,7 +101,8 @@ func signalThroughNamedEvent(channelId string) error {
 		return errors.New("event handle is invalid")
 	}
 
-	defer windows.CloseHandle(h) // closing the handle to avoid handle leaks
+	// Closing the handle to avoid handle leaks.
+	defer windows.CloseHandle(h) //nolint:errcheck
 
 	// signaling the event
 	// https://learn.microsoft.com/en-us/windows/win32/api/synchapi/nf-synchapi-setevent
@@ -142,7 +160,8 @@ func GetProcessByName(name string) (*gopsutil_process.Process, error) {
 	if snapshot == windows.InvalidHandle {
 		return nil, errors.New("the snapshot returned returned by CreateToolhelp32Snapshot is invalid")
 	}
-	defer windows.CloseHandle(snapshot)
+	// Closing the handle to avoid handle leaks.
+	defer windows.CloseHandle(snapshot) //nolint:errcheck
 
 	var foundProcessID uint32 = 0
 

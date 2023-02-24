@@ -38,7 +38,9 @@ import { IUser } from "interfaces/user";
 import stringUtils from "utilities/strings";
 import sortUtils from "utilities/sort";
 import {
+  DEFAULT_EMPTY_CELL_VALUE,
   DEFAULT_GRAVATAR_LINK,
+  DEFAULT_GRAVATAR_LINK_DARK,
   PLATFORM_LABEL_DISPLAY_TYPES,
 } from "utilities/constants";
 import { IScheduledQueryStats } from "interfaces/scheduled_query_stats";
@@ -50,12 +52,16 @@ export const addGravatarUrlToResource = (resource: any): any => {
   const { email } = resource;
 
   const emailHash = md5(email.toLowerCase());
-  const gravatarURL = `https://www.gravatar.com/avatar/${emailHash}?d=${encodeURIComponent(
+  const gravatar_url = `https://www.gravatar.com/avatar/${emailHash}?d=${encodeURIComponent(
     DEFAULT_GRAVATAR_LINK
+  )}&size=200`;
+  const gravatar_url_dark = `https://www.gravatar.com/avatar/${emailHash}?d=${encodeURIComponent(
+    DEFAULT_GRAVATAR_LINK_DARK
   )}&size=200`;
   return {
     ...resource,
-    gravatarURL,
+    gravatar_url,
+    gravatar_url_dark,
   };
 };
 
@@ -570,7 +576,7 @@ export const humanHostLastRestart = (
   if (
     !detailUpdatedAt ||
     !uptime ||
-    detailUpdatedAt === "---" ||
+    detailUpdatedAt === DEFAULT_EMPTY_CELL_VALUE ||
     detailUpdatedAt < "2016-07-28T00:00:00Z" ||
     typeof uptime !== "number"
   ) {
@@ -683,6 +689,16 @@ export const licenseExpirationWarning = (expiration: string): boolean => {
   return isAfter(new Date(), new Date(expiration));
 };
 
+export const readableDate = (date: string) => {
+  const dateString = new Date(date);
+
+  return new Intl.DateTimeFormat(navigator.language, {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  }).format(dateString);
+};
+
 export const performanceIndicator = (
   scheduledQueryStats: IScheduledQueryStats
 ): string => {
@@ -775,28 +791,6 @@ export const getSortedTeamOptions = memoize((teams: ITeam[]) =>
     .sort((a, b) => sortUtils.caseInsensitiveAsc(a.label, b.label))
 );
 
-export const getValidatedTeamId = (
-  teams: ITeam[] | ITeamSummary[],
-  teamId: number,
-  currentUser: IUser | null,
-  isOnGlobalTeam: boolean
-) => {
-  let currentUserTeams: ITeamSummary[] = [];
-  if (isOnGlobalTeam) {
-    currentUserTeams = teams;
-  } else if (currentUser && currentUser.teams) {
-    currentUserTeams = currentUser.teams;
-  }
-
-  const currentUserTeamIds = currentUserTeams.map((t) => t.id);
-  const validatedTeamId =
-    !isNaN(teamId) && teamId > 0 && currentUserTeamIds.includes(teamId)
-      ? teamId
-      : undefined;
-
-  return validatedTeamId;
-};
-
 // returns a mixture of props from host
 export const normalizeEmptyValues = (
   hostData: Partial<IHost>
@@ -810,7 +804,7 @@ export const normalizeEmptyValues = (
       if ((Number.isFinite(value) && value !== 0) || !isEmpty(value)) {
         Object.assign(result, { [key]: value });
       } else {
-        Object.assign(result, { [key]: "---" });
+        Object.assign(result, { [key]: DEFAULT_EMPTY_CELL_VALUE });
       }
       return result;
     },
@@ -822,7 +816,7 @@ export const wrapFleetHelper = (
   helperFn: (value: any) => string, // TODO: replace any with unknown and improve type narrowing by callers
   value: string
 ): string => {
-  return value === "---" ? value : helperFn(value);
+  return value === DEFAULT_EMPTY_CELL_VALUE ? value : helperFn(value);
 };
 
 export default {
@@ -850,12 +844,12 @@ export default {
   humanQueryLastRun,
   inMilliseconds,
   licenseExpirationWarning,
+  readableDate,
   secondsToHms,
   secondsToDhms,
   labelSlug,
   setupData,
   syntaxHighlight,
-  getValidatedTeamId,
   normalizeEmptyValues,
   wrapFleetHelper,
 };

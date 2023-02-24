@@ -4,10 +4,21 @@ import React from "react";
 import { Row } from "react-table";
 
 import { IDataColumn } from "interfaces/datatable_config";
+import { IHost } from "interfaces/host";
 
 import TextCell from "components/TableContainer/DataTable/TextCell";
+import LiveQueryIssueCell from "components/TableContainer/DataTable/LiveQueryIssueCell/LiveQueryIssueCell";
 import StatusIndicator from "components/StatusIndicator";
 import RemoveIcon from "../../../../assets/images/icon-action-remove-20x20@2x.png";
+
+interface ICellProps {
+  cell: {
+    value: string;
+  };
+  row: {
+    original: IHost;
+  };
+}
 
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
@@ -33,9 +44,17 @@ export const generateTableHeaders = (
     {
       title: "Host",
       Header: "Host",
-      disableSortBy: true,
       accessor: "display_name",
-      Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
+      Cell: (cellProps: ICellProps) => {
+        return (
+          <LiveQueryIssueCell
+            displayName={cellProps.cell.value}
+            distributedInterval={cellProps.row.original.distributed_interval}
+            status={cellProps.row.original.status}
+            rowId={cellProps.row.original.id}
+          />
+        );
+      },
     },
     // TODO: Consider removing status column from selected hosts table because
     // status info is not refreshed once a target has been selected

@@ -1,4 +1,10 @@
 name: xprotect_meta
+description: "This Mac's browser-related [XProtect](https://support.apple.com/en-ca/guide/security/sec469d47bd8/web) signatures."
+columns:
+  - name: identifier
+    description: "Browser extension or plugin [identifier](https://fleetdm.com/tables/safari_extensions)"
+  - name: min_version
+    description: "The minimum allowed plugin version, or 'any' if no version is allowed."
 examples: >-
   See the minimum version of specific components allowed by Xprotect. This
   usually means the previous versions have vulnerabilities that are being

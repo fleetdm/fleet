@@ -81,4 +81,11 @@ var (
 			return nil
 		},
 	}
+
+	NudgeMacOSTarget = TargetInfo{
+		Platform:             "macos",
+		Channel:              "stable",
+		TargetFile:           "nudge.app.tar.gz",
+		ExtractedExecSubPath: []string{"Nudge.app", "Contents", "MacOS", "Nudge"},
+	}
 )

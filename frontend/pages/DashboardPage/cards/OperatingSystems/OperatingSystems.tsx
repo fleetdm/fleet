@@ -19,6 +19,7 @@ import Spinner from "components/Spinner";
 import TableDataError from "components/DataError";
 import LastUpdatedText from "components/LastUpdatedText";
 import CustomLink from "components/CustomLink";
+import EmptyTable from "components/EmptyTable";
 
 import generateTableHeaders from "./OperatingSystemsTableConfig";
 
@@ -26,6 +27,10 @@ interface IOperatingSystemsCardProps {
   currentTeamId: number | undefined;
   selectedPlatform: ISelectedPlatform;
   showTitle: boolean;
+  /** controls the displaying of description text under the title. Defaults to `true` */
+  showDescription?: boolean;
+  /** controls the displaying of the **Name** column in the table. Defaults to `true` */
+  includeNameColumn?: boolean;
   setShowTitle: (showTitle: boolean) => void;
   setTitleDetail?: (content: JSX.Element | string | null) => void;
   setTitleDescription?: (content: JSX.Element | string | null) => void;
@@ -37,21 +42,22 @@ const PAGE_SIZE = 8;
 const baseClass = "operating-systems";
 
 const EmptyOperatingSystems = (platform: ISelectedPlatform): JSX.Element => (
-  <div className={`${baseClass}__empty-os`}>
-    <h1>{`No${
+  <EmptyTable
+    className={`${baseClass}__os-empty-table`}
+    header={`No${
       ` ${PLATFORM_DISPLAY_NAMES[platform]}` || ""
-    } operating systems detected.`}</h1>
-    <p>
-      {`Did you add ${`${PLATFORM_DISPLAY_NAMES[platform]} ` || ""}hosts to
-      Fleet? Try again in about an hour as the system catches up.`}
-    </p>
-  </div>
+    } operating systems detected.`}
+    info="This report is updated every hour to protect the performance of your
+      devices."
+  />
 );
 
 const OperatingSystems = ({
   currentTeamId,
   selectedPlatform,
   showTitle,
+  showDescription = true,
+  includeNameColumn = true,
   setShowTitle,
   setTitleDetail,
   setTitleDescription,
@@ -83,6 +89,7 @@ const OperatingSystems = ({
   );
 
   const description =
+    showDescription &&
     OS_VENDOR_BY_PLATFORM[selectedPlatform] &&
     OS_END_OF_LIFE_LINK_BY_PLATFORM[selectedPlatform] ? (
       <p>
@@ -121,7 +128,7 @@ const OperatingSystems = ({
     setTitleDetail?.(null);
   }, [isFetching, osInfo, setTitleDescription, setTitleDetail]);
 
-  const tableHeaders = generateTableHeaders();
+  const tableHeaders = generateTableHeaders(includeNameColumn);
   const showPaginationControls = (osInfo?.os_versions?.length || 0) > 8;
 
   // Renders opaque information as host information is loading

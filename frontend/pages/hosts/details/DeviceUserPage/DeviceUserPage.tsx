@@ -16,6 +16,7 @@ import {
 } from "interfaces/host";
 import { ISoftware } from "interfaces/software";
 import { IHostPolicy } from "interfaces/policy";
+import { IDeviceGlobalConfig } from "interfaces/config";
 import DeviceUserError from "components/DeviceUserError";
 // @ts-ignore
 import OrgLogoIcon from "components/icons/OrgLogoIcon";
@@ -34,11 +35,13 @@ import AboutCard from "../cards/About";
 import SoftwareCard from "../cards/Software";
 import PoliciesCard from "../cards/Policies";
 import InfoModal from "./InfoModal";
-import ManualEnrollMdmModal from "./ManualEnrollMdmModal";
 
 import InfoIcon from "../../../../../assets/images/icon-info-purple-14x14@2x.png";
 import FleetIcon from "../../../../../assets/images/fleet-avatar-24x24@2x.png";
 import PolicyDetailsModal from "../cards/Policies/HostPoliciesTable/PolicyDetailsModal";
+import AutoEnrollMdmModal from "./AutoEnrollMdmModal";
+import ManualEnrollMdmModal from "./ManualEnrollMdmModal";
+import MacSettingsModal from "../MacSettingsModal";
 
 const baseClass = "device-user";
 
@@ -59,7 +62,7 @@ const DeviceUserPage = ({
 
   const [isPremiumTier, setIsPremiumTier] = useState(false);
   const [showInfoModal, setShowInfoModal] = useState(false);
-  const [showMdmModal, setShowMdmModal] = useState(false);
+  const [showEnrollMdmModal, setShowEnrollMdmModal] = useState(false);
   const [refetchStartTime, setRefetchStartTime] = useState<number | null>(null);
   const [showRefetchSpinner, setShowRefetchSpinner] = useState(false);
   const [hostSoftware, setHostSoftware] = useState<ISoftware[]>([]);
@@ -73,6 +76,10 @@ const DeviceUserPage = ({
     null
   );
   const [showPolicyDetailsModal, setShowPolicyDetailsModal] = useState(false);
+  const [showMacSettingsModal, setShowMacSettingsModal] = useState(false);
+  const [globalConfig, setGlobalConfig] = useState<IDeviceGlobalConfig | null>(
+    null
+  );
 
   const { data: deviceMapping, refetch: refetchDeviceMapping } = useQuery(
     ["deviceMapping", deviceAuthToken],
@@ -88,7 +95,7 @@ const DeviceUserPage = ({
     }
   );
 
-  const { data: macadmins, refetch: refetchMacadmins } = useQuery(
+  const { data: deviceMacAdminsData, refetch: refetchMacadmins } = useQuery(
     ["macadmins", deviceAuthToken],
     () => deviceUserAPI.loadHostDetailsExtension(deviceAuthToken, "macadmins"),
     {
@@ -131,6 +138,7 @@ const DeviceUserPage = ({
           ),
         });
         setOrgLogoURL(returnedHost.org_logo_url);
+        setGlobalConfig(returnedHost.global_config);
         if (returnedHost?.host.refetch_requested) {
           // If the API reports that a Fleet refetch request is pending, we want to check back for fresh
           // host details. Here we set a one second timeout and poll the API again using
@@ -193,6 +201,8 @@ const DeviceUserPage = ({
       "percent_disk_space_available",
       "gigs_disk_space_available",
       "team_name",
+      "platform",
+      "mdm",
     ])
   );
 
@@ -215,9 +225,9 @@ const DeviceUserPage = ({
     setShowInfoModal(!showInfoModal);
   }, [showInfoModal, setShowInfoModal]);
 
-  const toggleTurnOnMdmModal = useCallback(() => {
-    setShowMdmModal(!showMdmModal);
-  }, [showMdmModal, setShowMdmModal]);
+  const toggleEnrollMdmModal = useCallback(() => {
+    setShowEnrollMdmModal(!showEnrollMdmModal);
+  }, [showEnrollMdmModal, setShowEnrollMdmModal]);
 
   const togglePolicyDetailsModal = useCallback(
     (policy: IHostPolicy) => {
@@ -226,6 +236,11 @@ const DeviceUserPage = ({
     },
     [showPolicyDetailsModal, setShowPolicyDetailsModal, setSelectedPolicy]
   );
+
+  const toggleMacSettingsModal = useCallback(() => {
+    setShowMacSettingsModal(!showMacSettingsModal);
+  }, [showMacSettingsModal, setShowMacSettingsModal]);
+
   const onCancelPolicyDetailsModal = useCallback(() => {
     setShowPolicyDetailsModal(!showPolicyDetailsModal);
     setSelectedPolicy(null);
@@ -264,12 +279,26 @@ const DeviceUserPage = ({
   const statusClassName = classnames("status", `status--${host?.status}`);
 
   const turnOnMdmButton = (
-    <Button variant="unstyled" onClick={() => setShowMdmModal(true)}>
+    <Button variant="unstyled" onClick={toggleEnrollMdmModal}>
       <b>Turn on MDM</b>
     </Button>
   );
+
+  const renderEnrollMdmModal = () => {
+    return host?.mdm.enrollment_status === "Pending" ? (
+      <AutoEnrollMdmModal onCancel={toggleEnrollMdmModal} />
+    ) : (
+      <ManualEnrollMdmModal
+        onCancel={toggleEnrollMdmModal}
+        token={deviceAuthToken}
+      />
+    );
+  };
+
   const renderDeviceUserPage = () => {
     const failingPoliciesCount = host?.issues?.failing_policies_count || 0;
+    const isMdmUnenrolled =
+      host?.mdm.enrollment_status === "Off" || !host?.mdm.enrollment_status;
     return (
       <div className="fleet-desktop-wrapper">
         {isLoadingHost ? (
@@ -277,7 +306,8 @@ const DeviceUserPage = ({
         ) : (
           <div className={`${baseClass} body-wrap`}>
             {host?.platform === "darwin" &&
-              host?.mdm?.enrollment_status === "Unenrolled" && (
+              isMdmUnenrolled &&
+              globalConfig?.mdm.enabled_and_configured && (
                 <InfoBanner color="yellow" cta={turnOnMdmButton} pageLevel>
                   Mobile device management (MDM) is off. MDM allows your
                   organization to change settings and install software. This
@@ -289,10 +319,13 @@ const DeviceUserPage = ({
               statusClassName={statusClassName}
               titleData={titleData}
               diskEncryption={hostDiskEncryption}
+              isPremiumTier={isPremiumTier}
+              toggleMacSettingsModal={toggleMacSettingsModal}
+              hostMacSettings={host?.mdm.profiles}
+              mdmName={deviceMacAdminsData?.mobile_device_management?.name}
               showRefetchSpinner={showRefetchSpinner}
               onRefetchHost={onRefetchHost}
               renderActionButtons={renderActionButtons}
-              isPremiumTier={isPremiumTier}
               deviceUser
             />
             <TabsWrapper>
@@ -315,7 +348,7 @@ const DeviceUserPage = ({
                   <AboutCard
                     aboutData={aboutData}
                     deviceMapping={deviceMapping}
-                    munki={macadmins?.munki}
+                    munki={deviceMacAdminsData?.munki}
                     wrapFleetHelper={wrapFleetHelper}
                   />
                 </TabPanel>
@@ -339,18 +372,19 @@ const DeviceUserPage = ({
               </Tabs>
             </TabsWrapper>
             {showInfoModal && <InfoModal onCancel={toggleInfoModal} />}
-            {showMdmModal && (
-              <ManualEnrollMdmModal
-                onCancel={toggleTurnOnMdmModal}
-                token={deviceAuthToken}
-              />
-            )}
+            {showEnrollMdmModal && renderEnrollMdmModal()}
           </div>
         )}
         {!!host && showPolicyDetailsModal && (
           <PolicyDetailsModal
             onCancel={onCancelPolicyDetailsModal}
             policy={selectedPolicy}
+          />
+        )}
+        {showMacSettingsModal && (
+          <MacSettingsModal
+            hostMacSettings={host?.mdm.profiles}
+            onClose={toggleMacSettingsModal}
           />
         )}
       </div>

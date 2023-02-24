@@ -50,14 +50,22 @@ variable "ecs_cluster" {
 
 variable "fleet_config" {
   type = object({
-    mem                         = optional(number, 512)
-    cpu                         = optional(number, 256)
-    image                       = optional(string, "fleetdm/fleet:v4.22.1")
-    extra_environment_variables = optional(map(string), {})
-    extra_iam_policies          = optional(list(string), [])
-    extra_secrets               = optional(map(string), {})
-    security_groups             = optional(list(string), null)
-    iam_role_arn                = optional(string, null)
+    mem                          = optional(number, 4096)
+    cpu                          = optional(number, 512)
+    image                        = optional(string, "fleetdm/fleet:v4.22.1")
+    family                       = optional(string, "fleet")
+    extra_environment_variables  = optional(map(string), {})
+    extra_iam_policies           = optional(list(string), [])
+    extra_execution_iam_policies = optional(list(string), [])
+    extra_secrets                = optional(map(string), {})
+    security_groups              = optional(list(string), null)
+    security_group_name          = optional(string, "fleet")
+    iam_role_arn                 = optional(string, null)
+    service = optional(object({
+      name = optional(string, "fleet")
+      }), {
+      name = "fleet"
+    })
     database = object({
       password_secret_arn = string
       user                = string
@@ -72,6 +80,7 @@ variable "fleet_config" {
     awslogs = optional(object({
       name      = optional(string, null)
       region    = optional(string, null)
+      create    = optional(bool, true)
       prefix    = optional(string, "fleet")
       retention = optional(number, 5)
       }), {
@@ -98,16 +107,40 @@ variable "fleet_config" {
       memory_tracking_target_value = 80
       cpu_tracking_target_value    = 80
     })
+    iam = optional(object({
+      role = optional(object({
+        name        = optional(string, "fleet-role")
+        policy_name = optional(string, "fleet-iam-policy")
+        }), {
+        name        = "fleet-role"
+        policy_name = "fleet-iam-policy"
+      })
+      execution = optional(object({
+        name        = optional(string, "fleet-execution-role")
+        policy_name = optional(string, "fleet-execution-role")
+        }), {
+        name        = "fleet-execution-role"
+        policy_name = "fleet-iam-policy-execution"
+      })
+      }), {
+      name = "fleetdm-execution-role"
+    })
   })
   default = {
-    mem                         = 512
-    cpu                         = 256
-    image                       = "fleetdm/fleet:v4.22.1"
-    extra_environment_variables = {}
-    extra_iam_policies          = []
-    extra_secrets               = {}
-    security_groups             = null
-    iam_role_arn                = null
+    mem                          = 512
+    cpu                          = 256
+    image                        = "fleetdm/fleet:v4.22.1"
+    family                       = "fleet"
+    extra_environment_variables  = {}
+    extra_iam_policies           = []
+    extra_execution_iam_policies = []
+    extra_secrets                = {}
+    security_groups              = null
+    security_group_name          = "fleet"
+    iam_role_arn                 = null
+    service = {
+      name = "fleet"
+    }
     database = {
       password_secret_arn = null
       user                = null
@@ -122,6 +155,7 @@ variable "fleet_config" {
     awslogs = {
       name      = null
       region    = null
+      create    = true
       prefix    = "fleet"
       retention = 5
     }
@@ -137,6 +171,16 @@ variable "fleet_config" {
       min_capacity                 = 1
       memory_tracking_target_value = 80
       cpu_tracking_target_value    = 80
+    }
+    iam = {
+      role = {
+        name        = "fleet-role"
+        policy_name = "fleet-iam-policy"
+      }
+      execution = {
+        name        = "fleet-execution-role"
+        policy_name = "fleet-iam-policy-execution"
+      }
     }
   }
   description = "The configuration object for Fleet itself. Fields that default to null will have their respective resources created if not specified."

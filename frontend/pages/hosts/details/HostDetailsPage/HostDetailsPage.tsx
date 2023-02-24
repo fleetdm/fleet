@@ -28,17 +28,12 @@ import { IQuery, IFleetQueriesResponse } from "interfaces/query";
 import { IQueryStats } from "interfaces/query_stats";
 import { ISoftware } from "interfaces/software";
 import { ITeam } from "interfaces/team";
-import { IUser } from "interfaces/user";
-import permissionUtils from "utilities/permissions";
 
-import ReactTooltip from "react-tooltip";
 import Spinner from "components/Spinner";
-import Button from "components/buttons/Button";
 import TabsWrapper from "components/TabsWrapper";
 import MainContent from "components/MainContent";
 import InfoBanner from "components/InfoBanner";
 import BackLink from "components/BackLink";
-import Icon from "components/Icon";
 
 import {
   normalizeEmptyValues,
@@ -59,13 +54,15 @@ import PacksCard from "../cards/Packs";
 import SelectQueryModal from "./modals/SelectQueryModal";
 import PolicyDetailsModal from "../cards/Policies/HostPoliciesTable/PolicyDetailsModal";
 import OSPolicyModal from "./modals/OSPolicyModal";
+import UnenrollMdmModal from "./modals/UnenrollMdmModal";
 import TransferHostModal from "../../components/TransferHostModal";
 import DeleteHostModal from "../../components/DeleteHostModal";
 
 import parseOsVersion from "./modals/OSPolicyModal/helpers";
-import DeleteIcon from "../../../../../assets/images/icon-action-delete-14x14@2x.png";
-import QueryIcon from "../../../../../assets/images/icon-action-query-16x16@2x.png";
-import TransferIcon from "../../../../../assets/images/icon-action-transfer-16x16@2x.png";
+
+import DiskEncryptionKeyModal from "./modals/DiskEncryptionKeyModal";
+import HostActionDropdown from "./HostActionsDropdown/HostActionsDropdown";
+import MacSettingsModal from "../MacSettingsModal";
 
 const baseClass = "host-details";
 
@@ -110,11 +107,9 @@ const HostDetailsPage = ({
   const hostIdFromURL = parseInt(host_id, 10);
   const {
     config,
-    currentUser,
-    isGlobalAdmin,
-    isPremiumTier,
+    isGlobalAdmin = false,
+    isPremiumTier = false,
     isOnlyObserver,
-    isGlobalMaintainer,
     filteredHostsPath,
   } = useContext(AppContext);
   const {
@@ -127,26 +122,15 @@ const HostDetailsPage = ({
   } = useContext(PolicyContext);
   const { renderFlash } = useContext(NotificationContext);
   const handlePageError = useErrorHandler();
-  const canTransferTeam =
-    isPremiumTier && (isGlobalAdmin || isGlobalMaintainer);
-
-  const canDeleteHost = (user: IUser, host: IHost) => {
-    if (
-      isGlobalAdmin ||
-      isGlobalMaintainer ||
-      permissionUtils.isTeamAdmin(user, host.team_id) ||
-      permissionUtils.isTeamMaintainer(user, host.team_id)
-    ) {
-      return true;
-    }
-    return false;
-  };
 
   const [showDeleteHostModal, setShowDeleteHostModal] = useState(false);
   const [showTransferHostModal, setShowTransferHostModal] = useState(false);
   const [showQueryHostModal, setShowQueryHostModal] = useState(false);
   const [showPolicyDetailsModal, setPolicyDetailsModal] = useState(false);
   const [showOSPolicyModal, setShowOSPolicyModal] = useState(false);
+  const [showMacSettingsModal, setShowMacSettingsModal] = useState(false);
+  const [showUnenrollMdmModal, setShowUnenrollMdmModal] = useState(false);
+  const [showDiskEncryptionModal, setShowDiskEncryptionModal] = useState(false);
   const [selectedPolicy, setSelectedPolicy] = useState<IHostPolicy | null>(
     null
   );
@@ -235,7 +219,7 @@ const HostDetailsPage = ({
   const refetchExtensions = () => {
     deviceMapping !== null && refetchDeviceMapping();
     macadmins !== null && refetchMacadmins();
-    mdm !== null && refetchMdm();
+    mdm?.enrollment_status !== null && refetchMdm();
   };
 
   const {
@@ -347,7 +331,7 @@ const HostDetailsPage = ({
         }) || []
       );
     });
-  }, [usersSearchString]);
+  }, [usersSearchString, host?.users]);
 
   const titleData = normalizeEmptyValues(
     pick(host, [
@@ -405,10 +389,18 @@ const HostDetailsPage = ({
     setShowOSPolicyModal(!showOSPolicyModal);
   }, [showOSPolicyModal, setShowOSPolicyModal]);
 
+  const toggleMacSettingsModal = useCallback(() => {
+    setShowMacSettingsModal(!showMacSettingsModal);
+  }, [showMacSettingsModal, setShowMacSettingsModal]);
+
   const onCancelPolicyDetailsModal = useCallback(() => {
     setPolicyDetailsModal(!showPolicyDetailsModal);
     setSelectedPolicy(null);
   }, [showPolicyDetailsModal, setPolicyDetailsModal, setSelectedPolicy]);
+
+  const toggleUnenrollMdmModal = useCallback(() => {
+    setShowUnenrollMdmModal(!showUnenrollMdmModal);
+  }, [showUnenrollMdmModal, setShowUnenrollMdmModal]);
 
   const onCreateNewPolicy = () => {
     const { NEW_POLICY } = PATHS;
@@ -519,60 +511,39 @@ const HostDetailsPage = ({
     []
   );
 
+  const onSelectHostAction = (action: string) => {
+    switch (action) {
+      case "transfer":
+        setShowTransferHostModal(true);
+        break;
+      case "query":
+        setShowQueryHostModal(true);
+        break;
+      case "diskEncryption":
+        setShowDiskEncryptionModal(true);
+        break;
+      case "mdmOff":
+        toggleUnenrollMdmModal();
+        break;
+      case "delete":
+        setShowDeleteHostModal(true);
+        break;
+      default:
+    }
+  };
+
   const renderActionButtons = () => {
-    const isOnline = host?.status === "online";
+    if (!host) {
+      return null;
+    }
 
     return (
-      <div className={`${baseClass}__action-button-container`}>
-        {canTransferTeam && (
-          <Button
-            onClick={() => setShowTransferHostModal(true)}
-            variant="text-icon"
-            className={`${baseClass}__transfer-button`}
-          >
-            <>
-              Transfer <img src={TransferIcon} alt="Transfer host icon" />
-            </>
-          </Button>
-        )}
-        <div
-          data-tip
-          data-for="query"
-          data-tip-disable={isOnline}
-          className={`${!isOnline && "tooltip"}`}
-        >
-          <Button
-            onClick={() => setShowQueryHostModal(true)}
-            variant="text-icon"
-            disabled={!isOnline}
-            className={`${baseClass}__query-button`}
-          >
-            <>
-              Query <img src={QueryIcon} alt="Query host icon" />
-            </>
-          </Button>
-        </div>
-        <ReactTooltip
-          place="bottom"
-          effect="solid"
-          id="query"
-          backgroundColor="#3e4771"
-        >
-          <span className={`${baseClass}__tooltip-text`}>
-            You can’t query <br /> an offline host.
-          </span>
-        </ReactTooltip>
-        {currentUser && host && canDeleteHost(currentUser, host) && (
-          <Button
-            onClick={() => setShowDeleteHostModal(true)}
-            variant="text-icon"
-          >
-            <>
-              Delete <img src={DeleteIcon} alt="Delete host icon" />
-            </>
-          </Button>
-        )}
-      </div>
+      <HostActionDropdown
+        onSelect={onSelectHostAction}
+        hostStatus={host.status}
+        hostMdmEnrollemntStatus={host.mdm.enrollment_status}
+        doesStoreEncryptionKey={host.mdm.encryption_key_available}
+      />
     );
   };
 
@@ -625,12 +596,16 @@ const HostDetailsPage = ({
     router.push(navPath);
   };
 
+  const isMdmUnenrolled =
+    host?.mdm.enrollment_status === "Off" || !host?.mdm.enrollment_status;
+
   return (
     <MainContent className={baseClass}>
       <div className={`${baseClass}__wrapper`}>
         <div className={`${baseClass}__header-links`}>
           {host?.platform === "darwin" &&
-            host?.mdm?.enrollment_status === "Unenrolled" && (
+            isMdmUnenrolled &&
+            config?.mdm.enabled_and_configured && (
               <InfoBanner color="yellow" pageLevel>
                 To change settings and install software, ask the end user to
                 follow the <strong>Turn on MDM</strong> instructions on their{" "}
@@ -649,6 +624,9 @@ const HostDetailsPage = ({
           isPremiumTier={isPremiumTier}
           isOnlyObserver={isOnlyObserver}
           toggleOSPolicyModal={toggleOSPolicyModal}
+          toggleMacSettingsModal={toggleMacSettingsModal}
+          hostMacSettings={host?.mdm.profiles}
+          mdmName={mdm?.name}
           showRefetchSpinner={showRefetchSpinner}
           onRefetchHost={onRefetchHost}
           renderActionButtons={renderActionButtons}
@@ -764,6 +742,21 @@ const HostDetailsPage = ({
             detailsUpdatedAt={host?.detail_updated_at}
             osPolicy={osPolicyQuery}
             osPolicyLabel={osPolicyLabel}
+          />
+        )}
+        {showMacSettingsModal && (
+          <MacSettingsModal
+            hostMacSettings={host?.mdm.profiles}
+            onClose={toggleMacSettingsModal}
+          />
+        )}
+        {showUnenrollMdmModal && !!host && (
+          <UnenrollMdmModal hostId={host.id} onClose={toggleUnenrollMdmModal} />
+        )}
+        {showDiskEncryptionModal && host && (
+          <DiskEncryptionKeyModal
+            hostId={host.id}
+            onCancel={() => setShowDiskEncryptionModal(false)}
           />
         )}
       </div>

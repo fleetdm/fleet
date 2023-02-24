@@ -8,7 +8,7 @@ import {
   Router,
 } from "react-router";
 
-import AppSettingsPage from "pages/admin/AppSettingsPage";
+import OrgSettingsPage from "pages/admin/OrgSettingsPage";
 import AdminIntegrationsPage from "pages/admin/IntegrationsPage";
 import AdminUserManagementPage from "pages/admin/UserManagementPage";
 import AdminTeamManagementPage from "pages/admin/TeamManagementPage";
@@ -44,8 +44,12 @@ import Fleet403 from "pages/errors/Fleet403";
 import Fleet404 from "pages/errors/Fleet404";
 import UserSettingsPage from "pages/UserSettingsPage";
 import SettingsWrapper from "pages/admin/SettingsWrapper/SettingsWrapper";
+import ManageControlsPage from "pages/ManageControlsPage/ManageControlsPage";
 import MembersPage from "pages/admin/TeamManagementPage/TeamDetailsWrapper/MembersPage";
 import AgentOptionsPage from "pages/admin/TeamManagementPage/TeamDetailsWrapper/AgentOptionsPage";
+import MacOSUpdates from "pages/ManageControlsPage/MacOSUpdates";
+import MacOSSettings from "pages/ManageControlsPage/MacOSSettings";
+
 import PATHS from "router/paths";
 import AppProvider from "context/app";
 import RoutingProvider from "context/routing";
@@ -57,6 +61,7 @@ import UnauthenticatedRoutes from "./components/UnauthenticatedRoutes";
 import AuthGlobalAdminMaintainerRoutes from "./components/AuthGlobalAdminMaintainerRoutes";
 import AuthAnyMaintainerAnyAdminRoutes from "./components/AuthAnyMaintainerAnyAdminRoutes";
 import PremiumRoutes from "./components/PremiumRoutes";
+import MdmEnabledRoutes from "./components/MdmEnabledRoutes/MdmEnabledRoutes";
 
 interface IAppWrapperProps {
   children: JSX.Element;
@@ -108,10 +113,10 @@ const routes = (
             <IndexRedirect to={"organization"} />
             <Route component={SettingsWrapper}>
               <Route component={AuthGlobalAdminRoutes}>
-                <Route path="organization" component={AppSettingsPage} />
+                <Route path="organization" component={OrgSettingsPage} />
                 <Route
                   path="organization/:section"
-                  component={AppSettingsPage}
+                  component={OrgSettingsPage}
                 />
                 <Route path="integrations" component={AdminIntegrationsPage} />
                 <Route
@@ -157,6 +162,18 @@ const routes = (
               </Route>
             </Route>
           </Route>
+
+          <Route path="controls" component={AuthAnyMaintainerAnyAdminRoutes}>
+            <Route component={MdmEnabledRoutes}>
+              <IndexRedirect to={"mac-os-updates"} />
+              <Route component={ManageControlsPage}>
+                <Route path="mac-os-updates" component={MacOSUpdates} />
+                <Route path="mac-settings" component={MacOSSettings} />
+                <Route path="mac-settings/:section" component={MacOSSettings} />
+              </Route>
+            </Route>
+          </Route>
+
           <Route path="software">
             <IndexRedirect to={"manage"} />
             <Route path="manage" component={ManageSoftwarePage} />

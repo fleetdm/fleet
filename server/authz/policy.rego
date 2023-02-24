@@ -22,6 +22,9 @@ change_password := "change_password"
 run := "run"
 run_new := "run_new"
 
+# MDM specific actions
+mdm_command := "mdm_command"
+
 # Roles
 admin := "admin"
 maintainer := "maintainer"
@@ -514,6 +517,37 @@ allow {
 ##
 # Apple MDM
 ##
+
+# Global admins and maintainers can read and write Apple MDM config profiles.
+allow {
+  object.type == "mdm_apple_config_profile"
+  subject.global_role == [admin, maintainer][_]
+  action == [read, write][_]
+}
+
+# Team admins and maintainers can read and write Apple MDM config profiles on their teams.
+allow {
+  not is_null(object.team_id)
+  object.team_id != 0
+  object.type == "mdm_apple_config_profile"
+  team_role(subject, object.team_id) == [admin, maintainer][_]
+  action == [read, write][_]
+}
+
+# Global admins and maintainers can issue MDM commands to all hosts.
+allow {
+  object.type == "host"
+  subject.global_role == [admin, maintainer][_]
+  action == mdm_command
+}
+
+# Team admins and maintainers can issue MDM commands to hosts on their teams.
+allow {
+  not is_null(object.team_id)
+  object.type == "host"
+  team_role(subject, object.team_id) == [admin, maintainer][_]
+  action == mdm_command
+}
 
 # Global admins can read and write MDM apple information.
 allow {

@@ -522,10 +522,21 @@ Delete pack by name.
 
 > This feature is currently in development and is not ready for use.
 
+> Only Fleet MDM specific endpoints are located within the root /mdm/ path.
+
 The MDM endpoints exist to support the related command-line interface sub-commands of `fleetctl`, such as `fleetctl generate mdm-apple` and `fleetctl get mdm-apple`, as well as the Fleet UI.
 
 - [Get Apple MDM](#get-apple-mdm)
 - [Get Apple BM](#get-apple-bm)
+- [Unenroll host from Fleet MDM](#unenroll-host-from-fleet-mdm)
+- [Generate Apple DEP Key Pair](#generate-apple-dep-key-pair)
+- [Request Certificate Signing Request (CSR)](#request-certificate-signing-request-csr)
+- [Batch-apply Apple MDM custom settings](#batch-apply-apple-mdm-custom-settings)
+
+- [New configuration profile](#new-mdm-apple-configuration-profile)
+- [List configuration profiles](#list-mdm-apple-configuration-profiles)
+- [Download configuration profile](#download-mdm-apple-configuration-profile)
+- [Delete configuration profile](#delete-mdm-apple-confugruation-profile)
 
 ### Get Apple MDM
 
@@ -580,6 +591,24 @@ None.
 }
 ```
 
+### Unenroll host from Fleet MDM
+
+`PATCH /api/v1/fleet/mdm/hosts/{id}/unenroll`
+
+#### Parameters
+
+| Name | Type    | In   | Description                           |
+| ---- | ------- | ---- | ------------------------------------- |
+| id   | integer | path | **Required.** The host's ID in Fleet. |
+
+#### Example
+
+`PATCH /api/v1/fleet/mdm/hosts/42/unenroll`
+
+##### Default response
+
+`Status: 200`
+
 ### Generate Apple DEP Key Pair
 
 #### Parameters
@@ -600,6 +629,242 @@ None.
 ```
 
 Note that the `public_key` and `private_key` are base64 encoded and should be decoded before writing them to files.
+
+### Request Certificate Signing Request (CSR)
+
+`POST /api/v1/fleet/mdm/apple/request_csr`
+
+#### Parameters
+
+| Name          | Type   | In   | Description                                                                            |
+| ------------- | ------ | ---- | -------------------------------------------------------------------------------------- |
+| email_address | string | body | **Required.** The email that will be associated with the Apple APNs certificate.       |
+| organization  | string | body | **Required.** The name of the organization associated with the Apple APNs certificate. |
+
+#### Example
+
+`POST /api/v1/fleet/mdm/apple/request_csr`
+
+##### Default response
+
+```
+{
+  "apns_key": "aGV5LCBJJ20gc2VjcmV0Cg==",
+  "scep_cert": "bHR5LCBJJ20gc2VjcmV0Cg=",
+  "scep_key": "lKT5LCBJJ20gc2VjcmV0Cg="
+}
+```
+
+Note that the response fields are base64 encoded and should be decoded before writing them to files.
+Once base64-decoded, they are PEM-encoded certificate and keys.
+
+### New MDM Apple configuration profile
+
+Add a new configuration profile to be applied to macOS hosts enrolled to Fleet's MDM.
+
+`POST /api/v1/fleet/mdm/apple/profiles`
+
+#### Parameters
+
+| Name                      | Type     | In   | Description                                                               |
+| ------------------------- | -------- | ---- | ------------------------------------------------------------------------- |
+| profile                   | file     | form | **Required**. The mobileconfig file containing the profile.               |
+| team_id                   | string   | form | _Available in Fleet Premium_ The team id for the profile. If specified, the profile is applied to only hosts that are assigned to the specified team. If not specified, the profile is applied to only to hosts that are not assigned to any team. |
+
+#### Example
+
+Add a new configuration profile to be applied to macOS hosts enrolled to Fleet's MDM that are
+assigned to a team. Note that in this example the form data specifies`team_id` in addition to
+`profile`. 
+
+`POST /api/v1/fleet/mdm/apple/profiles`
+
+##### Request headers
+
+```
+Content-Length: 850
+Content-Type: multipart/form-data; boundary=------------------------f02md47480und42y
+```
+
+##### Request body
+
+```
+--------------------------f02md47480und42y
+Content-Disposition: form-data; name="team_id"
+
+1
+--------------------------f02md47480und42y
+Content-Disposition: form-data; name="profile"; filename="Foo.mobileconfig"
+Content-Type: application/octet-stream
+
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array/>
+	<key>PayloadDisplayName</key>
+	<string>Example profile</string>
+	<key>PayloadIdentifier</key>
+	<string>com.example.profile</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>0BBF3E23-7F56-48FC-A2B6-5ACC598A4A69</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+</dict>
+</plist>
+--------------------------f02md47480und42y--
+
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "profile_id": 42
+}
+```
+
+###### Additional notes
+If the response is `Status: 409 Conflict`, the body may include additional error details in the case
+of duplicate payload display name or duplicate payload identifier.
+
+
+### List MDM Apple configuration profiles
+
+Get a list of the configuration profiles stored in Fleet MDM. For Fleet Premium uses, the list can
+optionally be filtered by team id. If no team id is specified, team profiles are excluded from the
+results (i.e., only profiles that are not associated with a team are listed).
+
+`GET /api/v1/fleet/mdm/apple/profiles`
+
+#### Parameters
+
+| Name                      | Type   | In    | Description                                                               |
+| ------------------------- | ------ | ----- | ------------------------------------------------------------------------- |
+| team_id                   | string | query | _Available in Fleet Premium_ The team id to filter profiles.              |
+
+#### Example
+
+List all configuration profiles for macOS hosts enrolled to Fleet's MDM that are not assigned to any team.
+
+`GET /api/v1/fleet/mdm/apple/profiles`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "profiles": [
+    {
+        "profile_id": 1337,
+        "team_id": 0,
+        "name": "Example profile",
+        "identifier": "com.example.profile",
+        "created_at": "2023-03-31T00:00:00Z",
+        "updated_at": "2023-03-31T00:00:00Z"
+    }
+  ]
+}
+```
+
+### Download MDM Apple configuration profile
+
+`GET /api/v1/fleet/mdm/apple/profiles/{profile_id}`
+
+#### Parameters
+
+| Name                      | Type    | In    | Description                                                               | 
+| ------------------------- | ------- | ----- | ------------------------------------------------------------------------- |
+| profile_id                | integer | url   | **Required** The id of the profile to download.                           |
+
+#### Example
+
+`GET /api/v1/fleet/mdm/apple/profiles/42`
+
+##### Default response
+
+`Status: 200` 
+
+**Note** To confirm success, it is important for clients to match content length with the response
+header (this is done automatically by most clients, including the browser) rather than relying
+solely on the response status code returned by this endpoint.
+
+##### Example response headers
+
+```
+	Content-Length: 542
+	Content-Type: application/octet-stream
+	Content-Disposition: attachment;filename="2023-03-31 Example profile.mobileconfig"
+```
+
+###### Example response body
+```
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array/>
+	<key>PayloadDisplayName</key>
+	<string>Example profile</string>
+	<key>PayloadIdentifier</key>
+	<string>com.example.profile</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>0BBF3E23-7F56-48FC-A2B6-5ACC598A4A69</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+</dict>
+</plist>
+```
+
+### Delete MDM Apple configuration profile
+
+`DELETE /api/v1/fleet/mdm/apple/profiles/{profile_id}`
+
+#### Parameters
+
+| Name                      | Type    | In    | Description                                                               | 
+| ------------------------- | ------- | ----- | ------------------------------------------------------------------------- |
+| profile_id                | integer | url   | **Required** The id of the profile to delete.                             |
+
+#### Example
+
+`DELETE /api/v1/fleet/mdm/apple/profiles/42`
+
+##### Default response
+
+`Status: 200`
+
+### Batch-apply Apple MDM custom settings
+
+`POST /api/v1/fleet/mdm/apple/profiles/batch`
+
+#### Parameters
+
+| Name          | Type   | In    | Description                                                                                                                       |
+| ------------- | ------ | ----  | --------------------------------------------------------------------------------------                                            |
+| team_id       | number | query | _Available in Fleet Premium_ The team ID to apply the custom settings to. Only one of team_name/team_id can be provided.          |
+| team_name     | string | query | _Available in Fleet Premium_ The name of the team to apply the custom settings to. Only one of team_name/team_id can be provided. |
+| dry_run       | bool   | query | Validate the provided profiles and return any validation errors, but do not apply the changes.                                    |
+| profiles      | json   | body  | An array of strings, the base64-encoded .mobileconfig files to apply.                                                             |
+
+If no team (id or name) is provided, the profiles are applied for all hosts (for _Fleet Free_) or for hosts that are not part of a team (for _Fleet Premium_). After the call, the provided list of `profiles` will be the active profiles for that team (or no team) - that is, any existing profile that is not part of that list will be removed, and an existing profile with the same payload identifier as a new profile will be edited. If the list of provided `profiles` is empty, all profiles are removed for that team (or no team).
+
+#### Example
+
+`POST /api/v1/fleet/mdm/apple/profiles/batch`
+
+##### Default response
+
+`204`
 
 ## Get or apply configuration files
 
@@ -1096,7 +1361,7 @@ If the `name` is not already associated with an existing team, this API route cr
 #### Parameters
 
 | Name          | Type   | In    | Description                                                                                                                                                                                                                         |
-| ------------- | ------ | ----  | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ------------- | ------ | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | name          | string | body  | **Required.** The team's name.                                                                                                                                                                                                      |
 | agent_options | object | body  | The agent options spec that is applied to the hosts assigned to the specified to team. These agent options completely override the global agent options specified in the [`GET /api/v1/fleet/config API route`](#get-configuration) |
 | features      | object | body  | The features that are applied to the hosts assigned to the specified to team. These features completely override the global features specified in the [`GET /api/v1/fleet/config API route`](#get-configuration)                    |
@@ -1352,9 +1617,9 @@ This replaces the active global enroll secrets with the secrets specified.
 
 #### Parameters
 
-| Name    | Type   | In   | Description                                                    |
-| ------  | ------ | ---- | -------------------------------------------------------------- |
-| secrets | list   | body | **Required.** The plain text string used as the enroll secret. Note that there is a limit of 50 secrets allowed. |
+| Name    | Type | In   | Description                                                                                                      |
+| ------- | ---- | ---- | ---------------------------------------------------------------------------------------------------------------- |
+| secrets | list | body | **Required.** The plain text string used as the enroll secret. Note that there is a limit of 50 secrets allowed. |
 
 #### Example
 
@@ -1439,15 +1704,15 @@ for which the user has an observer role.
 
 #### Parameters
 
-| Name              | Type    | In   | Description                                                                                                                                      |
-|-------------------|---------|------|--------------------------------------------------------------------------------------------------------------------------------------------------|
-| query             | string  | body | The query used to identify hosts to target. Searchable items include a host's hostname or IPv4 address.                                          |
-| query_id          | integer | body | The saved query (if any) that will be run. The `observer_can_run` property on the query and the user's roles affect which targets are included.  |
-| excluded_host_ids | array   | body | The list of host ids to omit from the search results.                                                           |
+| Name              | Type    | In   | Description                                                                                                                                     |
+| ----------------- | ------- | ---- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| query             | string  | body | The query used to identify hosts to target. Searchable items include a host's hostname or IPv4 address.                                         |
+| query_id          | integer | body | The saved query (if any) that will be run. The `observer_can_run` property on the query and the user's roles affect which targets are included. |
+| excluded_host_ids | array   | body | The list of host ids to omit from the search results.                                                                                           |
 
 #### Example
 
-`POST /api/v1/fleet/targets/search`
+`POST /api/v1/fleet/hosts/search`
 
 ##### Request body
 
@@ -1520,10 +1785,10 @@ Counts the number of online and offline hosts included in a given set of selecte
 
 #### Parameters
 
-| Name     | Type    | In   | Description                                                                                                                                         |
-|----------|---------|------|-----------------------------------------------------------------------------------------------------------------------------------------------------|
-| query_id | integer | body | The saved query (if any) that will be run. The `observer_can_run` property on the query and the user's roles determine which targets are included.  |
-| selected | object  | body | The object includes lists of selected host IDs, label IDs, and team IDs.                                                                            |
+| Name     | Type    | In   | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| -------- | ------- | ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| query_id | integer | body | The saved query (if any) that will be run. The `observer_can_run` property on the query and the user's roles determine which targets are included.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| selected | object  | body | The object includes lists of selected host IDs (`selected.hosts`), label IDs (`selected.labels`), and team IDs (`selected.teams`). When provided, builtin label IDs, custom label IDs and team IDs become `AND` filters. Within each selector, selecting two or more teams, two or more builtin labels, or two or more custom labels, behave as `OR` filters. There's one special case for the builtin label "All hosts", if such label is selected, then all other label and team selectors are ignored (and all hosts will be selected). If a host ID is explicitly included in `selected.hosts`, then it is assured that the query will be selected to run on it (no matter the contents of `selected.labels` and `selected.teams`). See examples below. |
 
 #### Example
 
@@ -1562,11 +1827,11 @@ After you initiate the query, [get results via WebSocket](#retrieve-live-query-r
 
 #### Parameters
 
-| Name     | Type    | In   | Description                                                                                                                                                           |
-| -------- | ------- | ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| query    | string  | body | The SQL if using a custom query.                                                                                                                                      |
-| query_id | integer | body | The saved query (if any) that will be run. Required if running query as an observer. The `observer_can_run` property on the query effects which targets are included. |
-| selected | object  | body | **Required.** The desired targets for the query specified by ID. This object can contain `hosts`, `labels`, and/or `teams` properties. See examples below.            |
+| Name     | Type    | In   | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| -------- | ------- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| query    | string  | body | The SQL if using a custom query.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| query_id | integer | body | The saved query (if any) that will be run. Required if running query as an observer. The `observer_can_run` property on the query effects which targets are included.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| selected | object  | body | **Required.** The object includes lists of selected host IDs (`selected.hosts`), label IDs (`selected.labels`), and team IDs (`selected.teams`). When provided, builtin label IDs, custom label IDs and team IDs become `AND` filters. Within each selector, selecting two or more teams, two or more builtin labels, or two or more custom labels, behave as `OR` filters. There's one special case for the builtin label "All hosts", if such label is selected, then all other label and team selectors are ignored (and all hosts will be selected). If a host ID is explicitly included in `selected.hosts`, then it is assured that the query will be selected to run on it (no matter the contents of `selected.labels` and `selected.teams`). See examples below. |
 
 One of `query` and `query_id` must be specified.
 
@@ -1658,11 +1923,11 @@ After the query has been initiated, [get results via WebSocket](#retrieve-live-q
 
 #### Parameters
 
-| Name     | Type    | In   | Description                                                                                                                                                  |
-| -------- | ------- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| query    | string  | body | The SQL of the query.                                                                                                                                        |
-| query_id | integer | body | The saved query (if any) that will be run. The `observer_can_run` property on the query effects which targets are included.                                  |
-| selected | object  | body | **Required.** The desired targets for the query specified by name. This object can contain `hosts`, `labels`, and/or `teams` properties. See examples below. |
+| Name     | Type    | In   | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| -------- | ------- | ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| query    | string  | body | The SQL of the query.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| query_id | integer | body | The saved query (if any) that will be run. The `observer_can_run` property on the query effects which targets are included.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| selected | object  | body | **Required.** The object includes lists of selected hostnames (`selected.hosts`), label names (`labels`). When provided, builtin label names and custom label names become `AND` filters. Within each selector, selecting two or more builtin labels, or two or more custom labels, behave as `OR` filters. There's one special case for the builtin label `"All hosts"`, if such label is selected, then all other label and team selectors are ignored (and all hosts will be selected). If a host's hostname is explicitly included in `selected.hosts`, then it is assured that the query will be selected to run on it (no matter the contents of `selected.labels`). See examples below. |
 
 One of `query` and `query_id` must be specified.
 
@@ -2040,9 +2305,9 @@ currently pending.
 
 #### Parameters
 
-| Name            | Type   | In    | Description                                        |
-| --------------- | ------ | ----- | ---------------------------------------------------|
-| name            | string | query | The name of the cron schedule to trigger.          |
+| Name | Type   | In    | Description                               |
+| ---- | ------ | ----- | ----------------------------------------- |
+| name | string | query | The name of the cron schedule to trigger. |
 
 #### Example
 
@@ -2075,9 +2340,9 @@ Returns the host information about the device that makes the request.
 
 ##### Parameters
 
-| Name            | Type   | In    | Description                                        |
-| --------------- | ------ | ----- | ---------------------------------------------------|
-| token           | string | path  | The device's authentication token.                 |
+| Name  | Type   | In   | Description                        |
+| ----- | ------ | ---- | ---------------------------------- |
+| token | string | path | The device's authentication token. |
 
 ##### Example
 
@@ -2225,6 +2490,11 @@ Returns the host information about the device that makes the request.
   "license": {
     "tier": "free",
     "expiration": "2031-01-01T00:00:00Z"
+  },
+  "global_config": {
+    "mdm": {
+      "enabled_and_configured": false
+    }
   }
 }
 ```
@@ -2237,9 +2507,9 @@ Same as [Refetch host route](https://fleetdm.com/docs/using-fleet/rest-api#refet
 
 ##### Parameters
 
-| Name            | Type   | In    | Description                            |
-| --------------- | ------ | ----- | ---------------------------------------|
-| token           | string | path  | The device's authentication token.     |
+| Name  | Type   | In   | Description                        |
+| ----- | ------ | ---- | ---------------------------------- |
+| token | string | path | The device's authentication token. |
 
 #### Get device's Google Chrome profiles
 
@@ -2249,9 +2519,9 @@ Same as [Get host's Google Chrome profiles](https://fleetdm.com/docs/using-fleet
 
 ##### Parameters
 
-| Name            | Type   | In    | Description                            |
-| --------------- | ------ | ----- | ---------------------------------------|
-| token           | string | path  | The device's authentication token.     |
+| Name  | Type   | In   | Description                        |
+| ----- | ------ | ---- | ---------------------------------- |
+| token | string | path | The device's authentication token. |
 
 #### Get device's mobile device management (MDM) and Munki information
 
@@ -2261,9 +2531,9 @@ Same as [Get host's mobile device management and Munki information](https://flee
 
 ##### Parameters
 
-| Name            | Type   | In    | Description                            |
-| --------------- | ------ | ----- | ---------------------------------------|
-| token           | string | path  | The device's authentication token.     |
+| Name  | Type   | In   | Description                        |
+| ----- | ------ | ---- | ---------------------------------- |
+| token | string | path | The device's authentication token. |
 
 
 #### Get Fleet Desktop information
@@ -2275,9 +2545,9 @@ Gets all information required by Fleet Desktop to notify the user if there are a
 
 ##### Parameters
 
-| Name            | Type   | In    | Description                            |
-| --------------- | ------ | ----- | ---------------------------------------|
-| token           | string | path  | The device's authentication token.     |
+| Name  | Type   | In   | Description                        |
+| ----- | ------ | ---- | ---------------------------------- |
+| token | string | path | The device's authentication token. |
 
 ##### Example
 
@@ -2305,9 +2575,9 @@ Lists the policies applied to the current device.
 
 ##### Parameters
 
-| Name            | Type   | In    | Description                            |
-| --------------- | ------ | ----- | ---------------------------------------|
-| token           | string | path  | The device's authentication token.     |
+| Name  | Type   | In   | Description                        |
+| ----- | ------ | ---- | ---------------------------------- |
+| token | string | path | The device's authentication token. |
 
 ##### Example
 
@@ -2359,9 +2629,9 @@ This supports the dynamic discovery of API features supported by the server for 
 
 ##### Parameters
 
-| Name            | Type   | In    | Description                            |
-| --------------- | ------ | ----- | ---------------------------------------|
-| token           | string | path  | The device's authentication token.     |
+| Name  | Type   | In   | Description                        |
+| ----- | ------ | ---- | ---------------------------------- |
+| token | string | path | The device's authentication token. |
 
 ##### Example
 
@@ -2385,9 +2655,9 @@ Returns the URL to open when clicking the "Transparency" menu item in Fleet Desk
 
 ##### Parameters
 
-| Name            | Type   | In    | Description                            |
-| --------------- | ------ | ----- | ---------------------------------------|
-| token           | string | path  | The device's authentication token.     |
+| Name  | Type   | In   | Description                        |
+| ----- | ------ | ---- | ---------------------------------- |
+| token | string | path | The device's authentication token. |
 
 ##### Example
 
@@ -2407,9 +2677,9 @@ Downloads the Mobile Device Management (MDM) enrollment profile to install on th
 
 ##### Parameters
 
-| Name            | Type   | In    | Description                            |
-| --------------- | ------ | ----- | ---------------------------------------|
-| token           | string | path  | The device's authentication token.     |
+| Name  | Type   | In   | Description                        |
+| ----- | ------ | ---- | ---------------------------------- |
+| token | string | path | The device's authentication token. |
 
 ##### Example
 
@@ -2444,12 +2714,12 @@ Downloads a pre-built fleet-osquery installer with the given parameters.
 
 #### Parameters
 
-| Name          | Type    | In                     | Description                                                        |
-| ------------- | ------- | ---------------------- | ------------------------------------------------------------------ |
-| kind          | string  | path                   | The installer kind: pkg, msi, deb or rpm.                          |
-| enroll_secret | string  | x-www-form-urlencoded  | The global enroll secret.                                          |
-| token         | string  | x-www-form-urlencoded  | The authentication token.                                          |
-| desktop       | boolean | x-www-form-urlencoded  | Set to `true` to ask for an installer that includes Fleet Desktop. |
+| Name          | Type    | In                    | Description                                                        |
+| ------------- | ------- | --------------------- | ------------------------------------------------------------------ |
+| kind          | string  | path                  | The installer kind: pkg, msi, deb or rpm.                          |
+| enroll_secret | string  | x-www-form-urlencoded | The global enroll secret.                                          |
+| token         | string  | x-www-form-urlencoded | The authentication token.                                          |
+| desktop       | boolean | x-www-form-urlencoded | Set to `true` to ask for an installer that includes Fleet Desktop. |
 
 ##### Default response
 
@@ -2504,11 +2774,11 @@ Sets up a new Fleet instance with the given parameters.
 
 #### Parameters
 
-| Name          | Type    | In                     | Description                                                        |
-| ------------- | ------- | ---------------------- | ------------------------------------------------------------------ |
-| admin         | object  | body                   | **Required.** Contains the following admin user details: `admin`, `email`, `name`, `password`, and `password_confirmation`.                        |
-| org_info      | object  | body                   | **Required.** Contains the following organizational details: `org_name`.                         |
-| server_url    | string  | body                   | **Required.** The URL of the Fleet instance.                                      |
+| Name       | Type   | In   | Description                                                                                                                 |
+| ---------- | ------ | ---- | --------------------------------------------------------------------------------------------------------------------------- |
+| admin      | object | body | **Required.** Contains the following admin user details: `admin`, `email`, `name`, `password`, and `password_confirmation`. |
+| org_info   | object | body | **Required.** Contains the following organizational details: `org_name`.                                                    |
+| server_url | string | body | **Required.** The URL of the Fleet instance.                                                                                |
 
 
 ##### Request body

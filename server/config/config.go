@@ -298,6 +298,9 @@ type FilesystemConfig struct {
 	AuditLogFile         string `json:"audit_log_file" yaml:"audit_log_file"`
 	EnableLogRotation    bool   `json:"enable_log_rotation" yaml:"enable_log_rotation"`
 	EnableLogCompression bool   `json:"enable_log_compression" yaml:"enable_log_compression"`
+	MaxSize              int    `json:"max_size" yaml:"max_size"`
+	MaxAge               int    `json:"max_age" yaml:"max_age"`
+	MaxBackups           int    `json:"max_backups" yaml:"max_backups"`
 }
 
 // KafkaRESTConfig defines configs for the Kafka REST Proxy logging plugin.
@@ -324,6 +327,7 @@ type VulnerabilitiesConfig struct {
 	CPETranslationsURL          string        `json:"cpe_translations_url" yaml:"cpe_translations_url"`
 	CVEFeedPrefixURL            string        `json:"cve_feed_prefix_url" yaml:"cve_feed_prefix_url"`
 	CurrentInstanceChecks       string        `json:"current_instance_checks" yaml:"current_instance_checks"`
+	DisableSchedule             bool          `json:"disable_schedule" yaml:"disable_schedule"`
 	DisableDataSync             bool          `json:"disable_data_sync" yaml:"disable_data_sync"`
 	RecentVulnerabilityMaxAge   time.Duration `json:"recent_vulnerability_max_age" yaml:"recent_vulnerability_max_age"`
 	DisableWinOSVulnerabilities bool          `json:"disable_win_os_vulnerabilities" yaml:"disable_win_os_vulnerabilities"`
@@ -583,7 +587,7 @@ func (m *MDMConfig) AppleSCEP() (cert *tls.Certificate, pemCert, pemKey []byte, 
 			m.AppleSCEPKey,
 			[]byte(m.AppleSCEPKeyBytes),
 		}
-		cert, err := pair.Parse(false)
+		cert, err := pair.Parse(true)
 		if err != nil {
 			return nil, nil, nil, fmt.Errorf("Apple MDM SCEP configuration: %w", err)
 		}
@@ -942,6 +946,9 @@ func (man Manager) addConfigs() {
 		"Enable automatic rotation for osquery log files")
 	man.addConfigBool("filesystem.enable_log_compression", false,
 		"Enable compression for the rotated osquery log files")
+	man.addConfigInt("filesystem.max_size", 500, "Maximum size in megabytes log files will grow until rotated (only valid if enable_log_rotation is true) default is 500MB")
+	man.addConfigInt("filesystem.max_age", 28, "Maximum number of days to retain old log files based on the timestamp encoded in their filename. Setting to zero wil retain old log files indefinitely (only valid if enable_log_rotation is true) default is 28 days")
+	man.addConfigInt("filesystem.max_backups", 3, "Maximum number of old log files to retain. Setting to zero will retain all old log files (only valid if enable_log_rotation is true) default is 3")
 
 	// KafkaREST
 	man.addConfigString("kafkarest.status_topic", "", "Kafka REST topic for status logs")
@@ -969,6 +976,8 @@ func (man Manager) addConfigs() {
 		"Prefix URL for the CVE data feed. If empty, default to https://nvd.nist.gov/")
 	man.addConfigString("vulnerabilities.current_instance_checks", "auto",
 		"Allows to manually select an instance to do the vulnerability processing.")
+	man.addConfigBool("vulnerabilities.disable_schedule", false,
+		"Set this to true when the vulnerability processing job is scheduled by an external mechanism")
 	man.addConfigBool("vulnerabilities.disable_data_sync", false,
 		"Skips synchronizing data streams and expects them to be available in the databases_path.")
 	man.addConfigDuration("vulnerabilities.recent_vulnerability_max_age", 30*24*time.Hour,
@@ -1220,6 +1229,9 @@ func (man Manager) LoadConfig() FleetConfig {
 			AuditLogFile:         man.getConfigString("filesystem.audit_log_file"),
 			EnableLogRotation:    man.getConfigBool("filesystem.enable_log_rotation"),
 			EnableLogCompression: man.getConfigBool("filesystem.enable_log_compression"),
+			MaxSize:              man.getConfigInt("filesystem.max_size"),
+			MaxAge:               man.getConfigInt("filesystem.max_age"),
+			MaxBackups:           man.getConfigInt("filesystem.max_backups"),
 		},
 		KafkaREST: KafkaRESTConfig{
 			StatusTopic:      man.getConfigString("kafkarest.status_topic"),
@@ -1240,6 +1252,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			CPETranslationsURL:          man.getConfigString("vulnerabilities.cpe_translations_url"),
 			CVEFeedPrefixURL:            man.getConfigString("vulnerabilities.cve_feed_prefix_url"),
 			CurrentInstanceChecks:       man.getConfigString("vulnerabilities.current_instance_checks"),
+			DisableSchedule:             man.getConfigBool("vulnerabilities.disable_schedule"),
 			DisableDataSync:             man.getConfigBool("vulnerabilities.disable_data_sync"),
 			RecentVulnerabilityMaxAge:   man.getConfigDuration("vulnerabilities.recent_vulnerability_max_age"),
 			DisableWinOSVulnerabilities: man.getConfigBool("vulnerabilities.disable_win_os_vulnerabilities"),
@@ -1615,6 +1628,7 @@ func TestConfig() FleetConfig {
 			StatusLogFile: testLogFile,
 			ResultLogFile: testLogFile,
 			AuditLogFile:  testLogFile,
+			MaxSize:       500,
 		},
 	}
 }

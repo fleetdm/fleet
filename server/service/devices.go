@@ -92,10 +92,11 @@ func (r *getDeviceHostRequest) deviceAuthToken() string {
 }
 
 type getDeviceHostResponse struct {
-	Host       *HostDetailResponse `json:"host"`
-	OrgLogoURL string              `json:"org_logo_url"`
-	Err        error               `json:"error,omitempty"`
-	License    fleet.LicenseInfo   `json:"license"`
+	Host         *HostDetailResponse      `json:"host"`
+	OrgLogoURL   string                   `json:"org_logo_url"`
+	Err          error                    `json:"error,omitempty"`
+	License      fleet.LicenseInfo        `json:"license"`
+	GlobalConfig fleet.DeviceGlobalConfig `json:"global_config"`
 }
 
 func (r getDeviceHostResponse) error() error { return r.Err }
@@ -135,10 +136,17 @@ func getDeviceHostEndpoint(ctx context.Context, request interface{}, svc fleet.S
 		return getDeviceHostResponse{Err: err}, nil
 	}
 
+	deviceGlobalConfig := fleet.DeviceGlobalConfig{
+		MDM: fleet.DeviceGlobalMDMConfig{
+			EnabledAndConfigured: ac.MDM.EnabledAndConfigured,
+		},
+	}
+
 	return getDeviceHostResponse{
-		Host:       resp,
-		OrgLogoURL: ac.OrgInfo.OrgLogoURL,
-		License:    *license,
+		Host:         resp,
+		OrgLogoURL:   ac.OrgInfo.OrgLogoURL,
+		License:      *license,
+		GlobalConfig: deviceGlobalConfig,
 	}, nil
 }
 

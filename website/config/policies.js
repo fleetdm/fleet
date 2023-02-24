@@ -16,6 +16,7 @@ module.exports.policies = {
   // Bypass the `is-logged-in` policy for:
   'entrance/*': true,
   'webhooks/*': true,
+  'imagine/*': true,
   'account/logout': true,
   'view-homepage-or-redirect': true,
   'view-faq': true,
@@ -49,4 +50,9 @@ module.exports.policies = {
   'create-vanta-authorization-request': true,
   'view-fleet-mdm': true,
   'deliver-mdm-beta-signup': true,
+  'deliver-apple-csr': true,
+  'download-rss-feed': true,
+  'view-upgrade': true,
+  'deliver-premium-upgrade-form': true,
+  'view-compliance': true,
 };
