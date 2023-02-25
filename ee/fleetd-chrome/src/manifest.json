@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Fleetd for Chrome",
-  "description": "Testing Fleetd",
-  "version": "1.16",
+  "description": "<filled in by webpack>",
+  "version": "<filled in by webpack>",
   "update_url": "https://crx.fleetuem.com/fleetd-chrome/updates.xml",
   "icons": { "16": "icon16.png", "48": "icon48.png", "128": "icon128.png" },
   "action": {

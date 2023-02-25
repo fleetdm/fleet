@@ -1,3 +1,6 @@
+// Some of this webpack config inspired by MIT licensed
+// https://github.com/samuelsimoes/chrome-extension-webpack-boilerplate
+
 import { resolve as _resolve, dirname } from "path";
 import { fileURLToPath } from "url";
 import CopyWebpackPlugin from "copy-webpack-plugin";
@@ -24,7 +27,19 @@ export const resolve = {
 export const plugins = [
   new CopyWebpackPlugin({
     patterns: [
-      { from: "./src/manifest.json" },
+      {
+        from: "./src/manifest.json",
+        transform: function (content, _path) {
+          // Set description and version from contents of package.json.
+          return Buffer.from(
+            JSON.stringify({
+              ...JSON.parse(content.toString()),
+              description: process.env.npm_package_description,
+              version: process.env.npm_package_version,
+            })
+          );
+        },
+      },
       { from: "./src/schema.json" },
       { from: "./src/icons" },
     ],
