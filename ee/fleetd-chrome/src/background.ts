@@ -5,10 +5,14 @@ import * as SQLite from "wa-sqlite";
 import VirtualDatabase from "./db";
 
 // Globals should probably be cleaned up into a class encapsulating state.
-let NODE_KEY = "";
 let DATABASE: VirtualDatabase;
 
-const request = async (path: string, body: Record<string, any>) => {
+interface requestArgs {
+  path: string;
+  body: Record<string, any>;
+  reenroll?: boolean;
+}
+const request = async ({ path, body, reenroll = true }: requestArgs) => {
   const { fleet_url } = await chrome.storage.managed.get({
     fleet_url: "https://fleet.loophole.site",
   });
@@ -23,11 +27,21 @@ const request = async (path: string, body: Record<string, any>) => {
   const response_body = await response.json();
   console.debug("Response:", response, "JSON:", response_body);
 
-  if (!response.ok) {
-    throw new Error("request failed: " + response_body.error);
-  }
   if (response_body.node_invalid) {
-    throw new Error("request failed with node_invalid: " + response_body.error);
+    await clearNodeKey();
+    if (reenroll) {
+      try {
+        await enroll();
+      } catch (err) {
+        throw new NodeInvalidError(`reenroll failed: ${err}`);
+      }
+      return await request({ path, body, reenroll: false });
+    } else {
+      throw new NodeInvalidError(response_body.error);
+    }
+  }
+  if (!response.ok) {
+    throw new Error(`${path} request failed: ${response_body.error}`);
   }
 
   return response_body;
@@ -41,9 +55,16 @@ interface EnrollDetails {
   system_info?: SystemInfo;
   os_version?: Map<string, any>;
 }
-const enroll = async (host_details: EnrollDetails) => {
+const enroll = async () => {
+  const os_version = await DATABASE.query("SELECT * FROM os_version");
+  const system_info = await DATABASE.query("SELECT * FROM system_info");
+  const host_details = {
+    os_version: os_version[0],
+    system_info: system_info[0],
+  };
+
   const { enroll_secret } = await chrome.storage.managed.get({
-    enroll_secret: "Y3nHXcZUBcFJc/7e6V6k1z7RG22rrAnQ",
+    enroll_secret: "Y3nHXcZUBcFJc/7e6V6k1z7RG22rrAnQ", // + "bad",
   });
 
   let host_identifier = host_details.system_info.hardware_serial;
@@ -56,19 +77,26 @@ const enroll = async (host_details: EnrollDetails) => {
     host_details,
     host_identifier,
   };
-  const response_body = await request("/api/osquery/enroll", enroll_request);
+  const response_body = await request({
+    path: "/api/osquery/enroll",
+    body: enroll_request,
+    reenroll: false,
+  });
 
-  return response_body.node_key;
+  const { node_key } = response_body;
+  if (node_key === "") {
+    throw new Error("server returned empty node key without error");
+  }
+  await setNodeKey(node_key);
 };
 
 const live_query = async () => {
-  const live_query_request = {
-    node_key: NODE_KEY,
-  };
-  const response = await request(
-    "/api/osquery/distributed/read",
-    live_query_request
-  );
+  const node_key = await getNodeKey();
+  const live_query_request = { node_key };
+  const response = await request({
+    path: "/api/osquery/distributed/read",
+    body: live_query_request,
+  });
 
   if (!response.queries || Object.keys(response.queries).length === 0) {
     // No queries were returned by the server. Nothing to do.
@@ -114,16 +142,29 @@ const live_query = async () => {
   }
 
   const live_query_result_request = {
-    node_key: NODE_KEY,
+    node_key,
     queries: results,
     statuses,
     messages,
   };
 
-  const result_response = await request(
-    "/api/osquery/distributed/write",
-    live_query_result_request
-  );
+  const result_response = await request({
+    path: "/api/osquery/distributed/write",
+    body: live_query_result_request,
+  });
+};
+
+const getNodeKey = async () => {
+  const { node_key } = await chrome.storage.local.get("node_key");
+  return node_key;
+};
+
+const clearNodeKey = async () => {
+  await chrome.storage.local.remove("node_key");
+};
+
+const setNodeKey = async (node_key: string) => {
+  await chrome.storage.local.set({ node_key });
 };
 
 (async () => {
@@ -134,23 +175,20 @@ const live_query = async () => {
   const virtual = new VirtualDatabase(sqlite3, db);
   DATABASE = virtual;
 
-  const os_version = await virtual.query("SELECT * FROM os_version");
-  const system_info = await virtual.query("SELECT * FROM system_info");
-
-  try {
-    console.log("enrolling");
-    const node_key = await enroll({
-      os_version: os_version[0],
-      system_info: system_info[0],
-    });
-    NODE_KEY = node_key;
-    console.log("got node key: ", node_key);
-  } catch (err) {
-    console.error("enroll failed: " + err);
+  const node_key = await getNodeKey();
+  if (!node_key) {
+    await enroll();
   }
 
   //await sqlite3.close(db);
 })();
+
+class NodeInvalidError extends Error {
+  constructor(message: string) {
+    super(`request failed with node_invalid: ${message}`);
+    this.name = "NodeInvalidError";
+  }
+}
 
 // Run a live_query routine every 10s.
 setInterval(live_query, 10 * 1000);

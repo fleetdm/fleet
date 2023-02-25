@@ -29,8 +29,8 @@ export const plugins = [
     patterns: [
       {
         from: "./src/manifest.json",
+        // Set description and version from contents of package.json.
         transform: function (content, _path) {
-          // Set description and version from contents of package.json.
           return Buffer.from(
             JSON.stringify({
               ...JSON.parse(content.toString()),

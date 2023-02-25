@@ -29,16 +29,17 @@
     "identity.email",
     "loginState",
     "management",
-    "platformKeys",
     "privacy",
     "proxy",
+    "platformKeys",
     "sessions",
     "storage",
-    "tabs",
     "system.cpu",
     "system.display",
     "system.memory",
-    "system.storage"
+    "system.storage",
+    "unlimitedStorage",
+    "tabs"
   ],
   "host_permissions": ["http://*/*", "https://*/*"],
   "storage": {
