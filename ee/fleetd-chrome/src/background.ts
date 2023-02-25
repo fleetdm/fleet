@@ -4,7 +4,7 @@ import * as SQLite from "wa-sqlite";
 
 import VirtualDatabase from "./db";
 
-// Globals should probably be cleaned up into a class encapsulating state.
+// TODO: Globals should probably be cleaned up into a class encapsulating state.
 let DATABASE: VirtualDatabase;
 
 interface requestArgs {
@@ -28,6 +28,8 @@ const request = async ({ path, body = {} }: requestArgs): Promise<any> => {
   console.debug("Response:", response, "JSON:", response_body);
 
   if (response_body.node_invalid) {
+    // QUESTION: Is it acceptable design for us to be modifying the storage state in this function?
+    // Should the only side effect be the network request?
     await clearNodeKey();
     throw new NodeInvalidError(response_body.error);
   }
@@ -196,13 +198,15 @@ class NodeInvalidError extends Error {
   }
 }
 
+// QUESTION maybe we should use one of the persistence mechanisms described in
+// https://stackoverflow.com/a/66618269/491710? The "offscreen API" mechanism might be useful.
+
 // This is a bit funky here. We want the main loop to run every 10 seconds, but we have to be
 // careful that we clear the old timeouts because of the alarm triggering that causes an additional
 // call to mainLoop. If we don't clear the timeout, we'll start getting more and more calls to
 // mainLoop each time the alarm fires.
 let mainTimeout: ReturnType<typeof setTimeout>;
 const mainLoop = async () => {
-  console.debug("mainLoop");
   await main();
   clearTimeout(mainTimeout);
   mainTimeout = setTimeout(mainLoop, 10 * 1000);
