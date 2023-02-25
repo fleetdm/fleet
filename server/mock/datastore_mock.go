@@ -2426,7 +2426,9 @@ func (s *DataStore) LoadHostSoftware(ctx context.Context, host *fleet.Host, incl
 }
 
 func (s *DataStore) ListSoftwareBySourceIter(ctx context.Context, sources []string) (fleet.SoftwareIterator, error) {
+	s.mu.Lock()
 	s.ListSoftwareBySourceIterFuncInvoked = true
+	s.mu.Unlock()
 	return s.ListSoftwareBySourceIterFunc(ctx, sources)
 }
 
