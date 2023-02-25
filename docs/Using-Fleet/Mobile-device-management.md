@@ -8,13 +8,11 @@ To use MDM features you have to connect Fleet to Apple Push Certificates Portal.
 
 ## macOS updates
 
-Native macOS update reminders are available in Fleet Free. To trigger these reminders, run the ["Schedule an OS update" MDM command](https://developer.apple.com/documentation/devicemanagement/schedule_an_os_update).
-
-End user macOS update reminders (via [Nudge](https://github.com/macadmins/nudge)) are avaiable in Fleet Premium.
-
 ### End user macOS update reminders via Nudge
 
 _Available in Fleet Premium_
+
+End users can be reminded and encouraged to update macOS (via [Nudge](https://github.com/macadmins/nudge)).
 
 When a minimum version and deadline is saved in Fleet, the end user sees the below window until their macOS version is at or above the minimum version. 
 
@@ -29,6 +27,10 @@ If the end user has more than 1 day until the deadline, the Nudge window is show
 If there is less than 1 day, the window is shown every 2 hours. The end user can defer and close the window.
 
 If the end user is past the deadline, Fleet shows the window and end user can't close the window until they upgrade.
+
+### End user macOS update via built-in macOS notifications
+
+Built-in macOS update reminders are available for all Fleet instances. To trigger these reminders, run the ["Schedule an OS update" MDM command](https://developer.apple.com/documentation/devicemanagement/schedule_an_os_update).
 
 ## macOS settings
 
