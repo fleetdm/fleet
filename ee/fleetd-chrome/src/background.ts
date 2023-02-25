@@ -10,8 +10,9 @@ let DATABASE: VirtualDatabase;
 interface requestArgs {
   path: string;
   body?: Record<string, any>;
+  reenroll?: boolean;
 }
-const request = async ({ path, body = {} }: requestArgs) => {
+const request = async ({ path, body = {} }: requestArgs): Promise<any> => {
   const { fleet_url } = await chrome.storage.managed.get({
     fleet_url: "https://fleet.loophole.site",
   });
@@ -37,35 +38,29 @@ const request = async ({ path, body = {} }: requestArgs) => {
   return response_body;
 };
 
-const authenticatedRequest = async ({ path, body = {} }: requestArgs) => {
-  const { fleet_url } = await chrome.storage.managed.get({
-    fleet_url: "https://fleet.loophole.site",
-  });
+const authenticatedRequest = async ({
+  path,
+  body = {},
+  reenroll = true,
+}: requestArgs): Promise<any> => {
   const node_key = await getNodeKey();
   if (!node_key) {
     console.warn(`node key empty in ${path} request`);
   }
 
-  const target = new URL(path, fleet_url);
-  const options = {
-    method: "POST",
-    body: JSON.stringify({ ...body, node_key }),
-  };
-  console.debug("Request:", target, options);
-  const response = await fetch(target, options);
-  const response_body = await response.json();
-  console.debug("Response:", response, "JSON:", response_body);
-
-  if (response_body.node_invalid) {
-    await clearNodeKey();
-    await enroll();
-    return await authenticatedRequest({ path, body });
+  try {
+    const response_body = await request({ path, body: { ...body, node_key } });
+    return response_body;
+  } catch (err) {
+    // Reenroll if it's a node_invalid issue (and we haven't already tried a reenroll), otherwise
+    // rethrow the error.
+    if (err instanceof NodeInvalidError && reenroll) {
+      await enroll();
+      // Prevent infinite recursion by disabling reenroll on the retry.
+      return await authenticatedRequest({ path, body, reenroll: false });
+    }
+    throw err;
   }
-  if (!response.ok) {
-    throw new Error(`${path} request failed: ${response_body.error}`);
-  }
-
-  return response_body;
 };
 
 const enroll = async () => {
@@ -77,7 +72,7 @@ const enroll = async () => {
   };
 
   const { enroll_secret } = await chrome.storage.managed.get({
-    enroll_secret: "Y3nHXcZUBcFJc/7e6V6k1z7RG22rrAnQ", // + "bad",
+    enroll_secret: "Y3nHXcZUBcFJc/7e6V6k1z7RG22rrAnQ",
   });
 
   let host_identifier = host_details.system_info.hardware_serial;
@@ -175,21 +170,24 @@ const setNodeKey = async (node_key: string) => {
   await chrome.storage.local.set({ node_key });
 };
 
-(async () => {
-  const module = await SQLiteAsyncESMFactory();
-  const sqlite3 = SQLite.Factory(module);
-  const db = await sqlite3.open_v2(":memory:");
+const main = async () => {
+  console.debug("main");
+  if (!DATABASE) {
+    const module = await SQLiteAsyncESMFactory();
+    const sqlite3 = SQLite.Factory(module);
+    const db = await sqlite3.open_v2(":memory:");
 
-  const virtual = new VirtualDatabase(sqlite3, db);
-  DATABASE = virtual;
+    const virtual = new VirtualDatabase(sqlite3, db);
+    DATABASE = virtual;
+  }
 
   const node_key = await getNodeKey();
   if (!node_key) {
     await enroll();
   }
-
+  await live_query();
   //await sqlite3.close(db);
-})();
+};
 
 class NodeInvalidError extends Error {
   constructor(message: string) {
@@ -198,5 +196,30 @@ class NodeInvalidError extends Error {
   }
 }
 
-// Run a live_query routine every 10s.
-setInterval(live_query, 10 * 1000);
+// This is a bit funky here. We want the main loop to run every 10 seconds, but we have to be
+// careful that we clear the old timeouts because of the alarm triggering that causes an additional
+// call to mainLoop. If we don't clear the timeout, we'll start getting more and more calls to
+// mainLoop each time the alarm fires.
+let mainTimeout: ReturnType<typeof setTimeout>;
+const mainLoop = async () => {
+  console.debug("mainLoop");
+  await main();
+  clearTimeout(mainTimeout);
+  mainTimeout = setTimeout(mainLoop, 10 * 1000);
+};
+mainLoop();
+
+// This alarm is used to ensure the extension "wakes up" at least once every minute. Otherwise
+// Chrome could shut it down in the background.
+const MAIN_ALARM = "main";
+chrome.alarms.create(MAIN_ALARM, { periodInMinutes: 1 });
+chrome.alarms.onAlarm.addListener(async ({ name }) => {
+  console.debug(`alarm ${name} $fired`);
+  switch (name) {
+    case MAIN_ALARM:
+      await mainLoop();
+      break;
+    default:
+      console.error(`unknown alarm ${name}`);
+  }
+});
