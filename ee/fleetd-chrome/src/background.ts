@@ -9,10 +9,9 @@ let DATABASE: VirtualDatabase;
 
 interface requestArgs {
   path: string;
-  body: Record<string, any>;
-  reenroll?: boolean;
+  body?: Record<string, any>;
 }
-const request = async ({ path, body, reenroll = true }: requestArgs) => {
+const request = async ({ path, body = {} }: requestArgs) => {
   const { fleet_url } = await chrome.storage.managed.get({
     fleet_url: "https://fleet.loophole.site",
   });
@@ -29,16 +28,7 @@ const request = async ({ path, body, reenroll = true }: requestArgs) => {
 
   if (response_body.node_invalid) {
     await clearNodeKey();
-    if (reenroll) {
-      try {
-        await enroll();
-      } catch (err) {
-        throw new NodeInvalidError(`reenroll failed: ${err}`);
-      }
-      return await request({ path, body, reenroll: false });
-    } else {
-      throw new NodeInvalidError(response_body.error);
-    }
+    throw new NodeInvalidError(response_body.error);
   }
   if (!response.ok) {
     throw new Error(`${path} request failed: ${response_body.error}`);
@@ -47,14 +37,37 @@ const request = async ({ path, body, reenroll = true }: requestArgs) => {
   return response_body;
 };
 
-interface SystemInfo {
-  hardware_serial: string;
-  uuid: string;
-}
-interface EnrollDetails {
-  system_info?: SystemInfo;
-  os_version?: Map<string, any>;
-}
+const authenticatedRequest = async ({ path, body = {} }: requestArgs) => {
+  const { fleet_url } = await chrome.storage.managed.get({
+    fleet_url: "https://fleet.loophole.site",
+  });
+  const node_key = await getNodeKey();
+  if (!node_key) {
+    console.warn(`node key empty in ${path} request`);
+  }
+
+  const target = new URL(path, fleet_url);
+  const options = {
+    method: "POST",
+    body: JSON.stringify({ ...body, node_key }),
+  };
+  console.debug("Request:", target, options);
+  const response = await fetch(target, options);
+  const response_body = await response.json();
+  console.debug("Response:", response, "JSON:", response_body);
+
+  if (response_body.node_invalid) {
+    await clearNodeKey();
+    await enroll();
+    return await authenticatedRequest({ path, body });
+  }
+  if (!response.ok) {
+    throw new Error(`${path} request failed: ${response_body.error}`);
+  }
+
+  return response_body;
+};
+
 const enroll = async () => {
   const os_version = await DATABASE.query("SELECT * FROM os_version");
   const system_info = await DATABASE.query("SELECT * FROM system_info");
@@ -80,7 +93,6 @@ const enroll = async () => {
   const response_body = await request({
     path: "/api/osquery/enroll",
     body: enroll_request,
-    reenroll: false,
   });
 
   const { node_key } = response_body;
@@ -91,11 +103,8 @@ const enroll = async () => {
 };
 
 const live_query = async () => {
-  const node_key = await getNodeKey();
-  const live_query_request = { node_key };
-  const response = await request({
+  const response = await authenticatedRequest({
     path: "/api/osquery/distributed/read",
-    body: live_query_request,
   });
 
   if (!response.queries || Object.keys(response.queries).length === 0) {
@@ -142,13 +151,12 @@ const live_query = async () => {
   }
 
   const live_query_result_request = {
-    node_key,
     queries: results,
     statuses,
     messages,
   };
 
-  const result_response = await request({
+  await authenticatedRequest({
     path: "/api/osquery/distributed/write",
     body: live_query_result_request,
   });
