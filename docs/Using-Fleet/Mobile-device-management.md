@@ -30,7 +30,7 @@ If the end user is past the deadline, Fleet shows the window and end user can't 
 
 ### End user experience
 
-Fleet automatically downloads macOS updates for the end user so that they don't have to. This way, end user's don't have to wait for the update to download before they can install it.
+Fleet automatically downloads macOS updates for the end user so that they don't have to. This way, end users don't have to wait for the update to download before they can install it.
 
 > Fleet automatically downloads updates on Intel Macs. On Macs with Apple silicon (e.g. M1), end users may have to download the update before they install it. Apple doesn't support downloading the update for the end user on Macs with Apple silicon.
 
