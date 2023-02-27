@@ -13,6 +13,7 @@ interface IHostActionsDropdownProps {
   hostStatus: string;
   hostMdmEnrollemntStatus: MdmEnrollmentStatus | null;
   doesStoreEncryptionKey?: boolean;
+  mdmName?: string;
   onSelect: (value: string) => void;
 }
 
@@ -21,6 +22,7 @@ const HostActionsDropdown = ({
   hostStatus,
   hostMdmEnrollemntStatus,
   doesStoreEncryptionKey,
+  mdmName,
 }: IHostActionsDropdownProps) => {
   const {
     isPremiumTier = false,
@@ -41,6 +43,7 @@ const HostActionsDropdown = ({
     isEnrolledInMdm: ["On (automatic)", "On (manual)"].includes(
       hostMdmEnrollemntStatus ?? ""
     ),
+    isFleetMdm: mdmName === "Fleet",
     isMdmFeatureFlagEnabled,
     doesStoreEncryptionKey: doesStoreEncryptionKey ?? false,
   });
