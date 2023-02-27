@@ -181,7 +181,7 @@ The community contact (Kathy) is responsible for the first response to GitHub is
 
 We respond within 1-hour (during business hours) for interactions and ask the oncall engineer to address any questions sent their way promptly. When Kathy is unavailable, the oncall engineer may sometimes be asked to take over the first response duties. Note that we do not need to have answers within 1 hour -- we need to at least acknowledge and collect any additional necessary information, while researching/escalating to find answers internally. See [Escalations](#escalations) for more on this.
 
-> Response SLAs help us measure and guarantee the responsiveness that a customer can expect from Fleet.  But SLAs aside, when a Fleet customer has an emegency or other time-sensitive situation ongoing, it is Fleet's priority to help them find them a solution quickly.
+> Response SLAs help us measure and guarantee the responsiveness that a customer [can expect](https://fleetdm.com/handbook/company#values) from Fleet.  But SLAs aside, when a Fleet customer has an emegency or other time-sensitive situation ongoing, it is Fleet's priority to help them find them a solution quickly.
 
 #### 2. PR reviews
 
