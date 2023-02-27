@@ -32,7 +32,8 @@ func createVulnProcessingCmd(configManager config.Manager) *cobra.Command {
 		Long: `The vuln_processing command is intended for advanced configurations that want to externally manage 
 vulnerability processing. By default the Fleet server command internally manages vulnerability processing via scheduled
 'cron' style jobs, but setting 'vulnerabilities.disable_schedule=true' or 'FLEET_VULNERABILITIES_DISABLE_SCHEDULE=true' 
-will disable it on the server allowing the user configure their own 'cron' mechanism`,
+will disable it on the server allowing the user configure their own 'cron' mechanism. Successful processing will be indicated
+by an exit code of zero.`,
 		Run: func(cmd *cobra.Command, args []string) {
 			cfg := configManager.LoadConfig()
 			if dev {
@@ -138,7 +139,7 @@ will disable it on the server allowing the user configure their own 'cron' mecha
 		&lockDuration,
 		"lock_duration",
 		time.Second*60*60,
-		"the duration (https://pkg.go.dev/time#ParseDuration) the lock should be obtained, ideally this duration is less than the interval in which the job runs (defaults to 60m)")
+		"the duration (https://pkg.go.dev/time#ParseDuration) the lock should be obtained, ideally this duration is less than the interval in which the job runs (defaults to 60m). If vuln processing isn't finished before this duration the command will exit with a non-zero status code.")
 
 	return vulnProcessingCmd
 }
