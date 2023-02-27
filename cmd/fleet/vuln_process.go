@@ -77,7 +77,7 @@ will disable it on the server allowing the user configure their own 'cron' mecha
 				initFatal(migrationError, "refusing to continue processing vulnerabilities, database out of sync")
 			}
 
-			ctx := context.Background()
+			ctx, cancel := context.WithTimeout(context.Background(), lockDuration)
 			ctx = license.NewContext(ctx, licenseInfo)
 			instanceID, err := server.GenerateRandomText(64)
 			if err != nil {
@@ -98,6 +98,7 @@ will disable it on the server allowing the user configure their own 'cron' mecha
 				if err != nil {
 					initFatal(err, "failed to release vuln processing lock")
 				}
+				cancel()
 			}()
 
 			logger := initLogger(cfg)

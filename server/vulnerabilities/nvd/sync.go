@@ -181,6 +181,7 @@ func DownloadCISAKnownExploitsFeed(vulnPath string) error {
 func LoadCVEMeta(ctx context.Context, logger log.Logger, vulnPath string, ds fleet.Datastore) error {
 	if !license.IsPremium(ctx) {
 		level.Info(logger).Log("msg", "skipping cve_meta parsing due to license check")
+		return nil
 	}
 	// load cvss scores
 	files, err := getNVDCVEFeedFiles(vulnPath)
