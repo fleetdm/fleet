@@ -199,7 +199,8 @@ class NodeInvalidError extends Error {
 }
 
 // QUESTION maybe we should use one of the persistence mechanisms described in
-// https://stackoverflow.com/a/66618269/491710? The "offscreen API" mechanism might be useful.
+// https://stackoverflow.com/a/66618269/491710? The "offscreen API" mechanism might be useful. On
+// the other hand, this seems to work decently well and adding the complexity might not be worth it.
 
 // This is a bit funky here. We want the main loop to run every 10 seconds, but we have to be
 // careful that we clear the old timeouts because of the alarm triggering that causes an additional
