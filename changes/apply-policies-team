@@ -1,1 +1,0 @@
-* Add `--policies-team` flag to `fleetctl apply` to easily import a group of policies into a team.

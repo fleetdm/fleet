@@ -1,3 +1,72 @@
+## Fleet 4.28.0 (Feb 24, 2023)
+
+* Added logic to ingest and decrypt FileVault recovery keys on macOS if Fleet's MDM is enabled.
+
+* Create activity feed types for the creation, update, and deletion of macOS profiles (settings) via
+  MDM.
+
+* Added an API endpoint to retrieve a host disk encryption key for macOS if Fleet's MDM is enabled.
+
+* Added UI implementation for users to upload, download, and deleted macos profiles.
+
+* Added activity feed types for the creation, update, and deletion of macOS profiles (settings) via
+  MDM.
+
+* Added API endpoints to create, delete, list, and download MDM configuration profiles.
+
+* Added "edited macos profiles" activity when updating a team's (or no team's) custom macOS settings via `fleetctl apply`.
+
+* Enabled installation and auto-updates of Nudge via Orbit.
+
+* Added support for providing `macos_settings.custom_settings` profiles for team (with Fleet Premium) and no-team levels via `fleetctl apply`.
+
+* Added `--policies-team` flag to `fleetctl apply` to easily import a group of policies into a team.
+
+* Remove requirement for Rosetta in installation of macOS packages on Apple Silicon. The binaries have been "universal" for a while now, but the installer still required Rosetta until now.
+
+* Added max height on org logo image to ensure consistent height of the nav bar.
+
+* UI default policies pre-select targeted platform(s) only.
+
+* Parse the Mac Office release notes and use that for doing vulnerability processing.
+
+* Only set public IPs on the `host.public_ip` field and add documentation on how to properly configure the deployment to ingest correct public IPs from enrolled devices.
+
+* Added tooltip with link to UI when Public IP address cannot be determined.
+
+* Update to better URL validation in UI.
+
+* Set policy platforms using the platform checkboxes as a user would expect the options to successfully save.
+
+* Standardized on a default value for empty cells in the UI.
+
+* Added link to query table in UI source (fleetdm.com/tables/table_name).
+
+* Added live query distributed interval warnings on select targets picker and live query result page.
+
+* Added a macOS settings indicator and modal on the host details and device user pages.
+
+* Added configuration parameters for the filesystem logging destination -- max_size, max_age, and max_backups are now configurable rather than hardcoded values.
+
+* Live query/policy selecting "All hosts" is mutually exclusive from other filters.
+
+* Minor server changes to support Fleetd for ChromeOS (to be released soon).
+
+* Fixed `network_interface_unix` and `network_interface_windows` to ingest "Private IPs" only
+  (filter out "Public IPs").
+
+* Fixed how the Fleet MDM server URL is generated when stored for hosts enrolled in Fleet MDM.
+
+* Fixed a panic when loading information for a host enrolled in MDM and its `is_server` field is
+  `NULL`.
+
+* Fixed bug with host count on hosts filtered by operating system version.
+
+* Fixed permissions warnings reported by Suspicious Package in macos pkg installers. These warnings
+  appeared to be purely cosmetic.
+
+* Fixed UI bug: Long words in activity feed wrap within the div.
+
 ## Fleet 4.27.1 (Feb 16, 2023)
 
 * Fixed "Turn off MDM" button appearing on host details without Fleet MDM enabled. 

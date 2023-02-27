@@ -1,1 +1,0 @@
-* Fixed a panic when loading information for a host enrolled in MDM and its `is_server` field is `NULL`.
