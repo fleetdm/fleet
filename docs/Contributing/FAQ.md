@@ -91,3 +91,4 @@ If you also have Orbit running on hosts, it will need access to these API endpoi
 * `/api/fleet/orbit/config`
 * `/api/fleet/orbit/device_token`
 * `/api/fleet/orbit/ping`
+* `/api/osquery/log`
