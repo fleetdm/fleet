@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/url"
 	"os"
@@ -82,7 +81,7 @@ func cronVulnerabilities(
 	config *config.VulnerabilitiesConfig,
 ) error {
 	if config == nil {
-		return errors.New("nil configuration")
+		return fmt.Errorf("nil configuration")
 	}
 	if config.CurrentInstanceChecks == "no" || config.CurrentInstanceChecks == "0" {
 		level.Info(logger).Log("msg", "host not configured to check for vulnerabilities")

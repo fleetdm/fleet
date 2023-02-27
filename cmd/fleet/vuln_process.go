@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"time"
 
@@ -46,7 +45,7 @@ vulnerability processing. By default the Fleet server command internally manages
 				// only continue if db is considered up-to-date
 				break
 			case fleet.NoMigrationsCompleted, fleet.SomeMigrationsCompleted, fleet.UnknownMigrations:
-				initFatal(errors.New("database migrations incompatible with current version"), "refusing to continue processing vulnerabilities")
+				initFatal(fmt.Errorf("database migrations incompatible with current version"), "refusing to continue processing vulnerabilities")
 			}
 
 			logger := initLogger(cfg)
@@ -62,7 +61,7 @@ vulnerability processing. By default the Fleet server command internally manages
 			// this really shouldn't ever be empty string since it's defaulted, but could be due to some misconfiguration
 			// we'll throw an error here since the entire point of this command is to process vulnerabilities
 			if vulnPath == "" {
-				initFatal(errors.New("vuln path empty, check environment variables or app config yml"), "error during vulnerability processing")
+				initFatal(fmt.Errorf("vuln path empty, check environment variables or app config yml"), "error during vulnerability processing")
 			}
 			level.Info(logger).Log("msg", "scanning vulnerabilities")
 			err = scanVulnerabilities(ctx, ds, logger, &vulnConfig, appConfig, vulnPath)
