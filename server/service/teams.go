@@ -193,7 +193,7 @@ func (req *applyTeamSpecsRequest) DecodeBody(ctx context.Context, r io.Reader) e
 	// the MacOSSettings field must be validated separately, since it
 	// JSON-decodes into a free-form map.
 	for _, spec := range req.Specs {
-		if spec == nil || spec.MacOSSettings == nil {
+		if spec == nil || spec.MDM.MacOSSettings == nil {
 			continue
 		}
 
@@ -201,7 +201,7 @@ func (req *applyTeamSpecsRequest) DecodeBody(ctx context.Context, r io.Reader) e
 		validMap := macOSSettings.ToMap()
 
 		// the keys provided must be valid
-		for k := range spec.MacOSSettings {
+		for k := range spec.MDM.MacOSSettings {
 			if _, ok := validMap[k]; !ok {
 				return ctxerr.Wrap(ctx, fleet.NewUserMessageError(
 					fmt.Errorf("json: unknown field %q", k),

@@ -582,7 +582,7 @@ func (svc Service) createTeamFromSpec(ctx context.Context, spec *fleet.TeamSpec,
 	}
 
 	var macOSSettings fleet.MacOSSettings
-	if macOSSettings.CustomSettingsFromMap(spec.MacOSSettings) && len(macOSSettings.CustomSettings) > 0 {
+	if macOSSettings.CustomSettingsFromMap(spec.MDM.MacOSSettings) && len(macOSSettings.CustomSettings) > 0 {
 		if !svc.config.MDMApple.Enable {
 			// TODO(mna): eventually we should detect the minimum config required for
 			// this to be allowed, probably just SCEP/APNs?
@@ -594,13 +594,15 @@ func (svc Service) createTeamFromSpec(ctx context.Context, spec *fleet.TeamSpec,
 		return &fleet.Team{Name: spec.Name}, nil
 	}
 
+	var teamMDM fleet.TeamMDM
+	teamMDM.MacOSUpdates = spec.MDM.MacOSUpdates
+	teamMDM.MacOSSettings = macOSSettings
 	return svc.ds.NewTeam(ctx, &fleet.Team{
 		Name: spec.Name,
 		Config: fleet.TeamConfig{
-			AgentOptions:  agentOptions,
-			Features:      features,
-			MDM:           spec.MDM,
-			MacOSSettings: macOSSettings,
+			AgentOptions: agentOptions,
+			Features:     features,
+			MDM:          teamMDM,
 		},
 		Secrets: secrets,
 	})
@@ -626,9 +628,9 @@ func (svc Service) editTeamFromSpec(ctx context.Context, team *fleet.Team, spec 
 		return err
 	}
 	team.Config.Features = features
-	team.Config.MDM = spec.MDM
-	if team.Config.MacOSSettings.CustomSettingsFromMap(spec.MacOSSettings) &&
-		len(team.Config.MacOSSettings.CustomSettings) > 0 {
+	team.Config.MDM.MacOSUpdates = spec.MDM.MacOSUpdates
+	if team.Config.MDM.MacOSSettings.CustomSettingsFromMap(spec.MDM.MacOSSettings) &&
+		len(team.Config.MDM.MacOSSettings.CustomSettings) > 0 {
 		if !svc.config.MDMApple.Enable {
 			// TODO(mna): eventually we should detect the minimum config required for
 			// this to be allowed, probably just SCEP/APNs?

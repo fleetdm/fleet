@@ -1107,36 +1107,36 @@ func (s *integrationMDMTestSuite) TestAppConfigMDMAppleProfiles() {
 	// set the macos custom settings fields
 	acResp := appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-	  "macos_settings": { "custom_settings": ["foo", "bar"] }
+		"mdm": { "macos_settings": { "custom_settings": ["foo", "bar"] } }
   }`), http.StatusOK, &acResp)
-	assert.Equal(t, []string{"foo", "bar"}, acResp.MacOSSettings.CustomSettings)
+	assert.Equal(t, []string{"foo", "bar"}, acResp.MDM.MacOSSettings.CustomSettings)
 
 	// check that they are returned by a GET /config
 	acResp = appConfigResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
-	assert.Equal(t, []string{"foo", "bar"}, acResp.MacOSSettings.CustomSettings)
+	assert.Equal(t, []string{"foo", "bar"}, acResp.MDM.MacOSSettings.CustomSettings)
 
 	// patch without specifying the macos custom settings fields, should not remove them
 	acResp = appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-	  "macos_settings": {}
+		"mdm": { "macos_settings": {} }
   }`), http.StatusOK, &acResp)
-	assert.Equal(t, []string{"foo", "bar"}, acResp.MacOSSettings.CustomSettings)
+	assert.Equal(t, []string{"foo", "bar"}, acResp.MDM.MacOSSettings.CustomSettings)
 
 	// patch with explicitly empty macos custom settings fields, would remove
 	// them but this is a dry-run
 	acResp = appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-		"macos_settings": {"custom_settings": null}
+		"mdm": { "macos_settings": { "custom_settings": null } }
   }`), http.StatusOK, &acResp, "dry_run", "true")
-	assert.Equal(t, []string{"foo", "bar"}, acResp.MacOSSettings.CustomSettings)
+	assert.Equal(t, []string{"foo", "bar"}, acResp.MDM.MacOSSettings.CustomSettings)
 
 	// patch with explicitly empty macos custom settings fields, removes them
 	acResp = appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-		"macos_settings": {"custom_settings": null}
+		"mdm": { "macos_settings": { "custom_settings": null } }
   }`), http.StatusOK, &acResp)
-	assert.Empty(t, acResp.MacOSSettings.CustomSettings)
+	assert.Empty(t, acResp.MDM.MacOSSettings.CustomSettings)
 }
 
 func (s *integrationMDMTestSuite) TestApplyTeamsMDMAppleProfiles() {
@@ -1155,53 +1155,63 @@ func (s *integrationMDMTestSuite) TestApplyTeamsMDMAppleProfiles() {
 
 	// apply with custom macos settings
 	teamSpecs := applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
-		Name:          teamName,
-		MacOSSettings: map[string]interface{}{"custom_settings": []string{"foo", "bar"}},
+		Name: teamName,
+		MDM: fleet.TeamSpecMDM{
+			MacOSSettings: map[string]interface{}{"custom_settings": []string{"foo", "bar"}},
+		},
 	}}}
 	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
 
 	// retrieving the team returns the custom macos settings
 	var teamResp getTeamResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
-	require.Equal(t, []string{"foo", "bar"}, teamResp.Team.Config.MacOSSettings.CustomSettings)
+	require.Equal(t, []string{"foo", "bar"}, teamResp.Team.Config.MDM.MacOSSettings.CustomSettings)
 
 	// apply with invalid macos settings subfield should fail
 	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
-		Name:          teamName,
-		MacOSSettings: map[string]interface{}{"foo_bar": 123},
+		Name: teamName,
+		MDM: fleet.TeamSpecMDM{
+			MacOSSettings: map[string]interface{}{"foo_bar": 123},
+		},
 	}}}
 	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusBadRequest)
 
 	// apply without custom macos settings specified, should not replace existing settings
 	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
-		Name:          teamName,
-		MacOSSettings: map[string]interface{}{},
+		Name: teamName,
+		MDM: fleet.TeamSpecMDM{
+			MacOSSettings: map[string]interface{}{},
+		},
 	}}}
 	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
 	teamResp = getTeamResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
-	require.Equal(t, []string{"foo", "bar"}, teamResp.Team.Config.MacOSSettings.CustomSettings)
+	require.Equal(t, []string{"foo", "bar"}, teamResp.Team.Config.MDM.MacOSSettings.CustomSettings)
 
 	// apply with explicitly empty custom macos settings would clear the existing
 	// settings, but dry-run
 	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
-		Name:          teamName,
-		MacOSSettings: map[string]interface{}{"custom_settings": []string{}},
+		Name: teamName,
+		MDM: fleet.TeamSpecMDM{
+			MacOSSettings: map[string]interface{}{"custom_settings": []string{}},
+		},
 	}}}
 	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK, "dry_run", "true")
 	teamResp = getTeamResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
-	require.Equal(t, []string{"foo", "bar"}, teamResp.Team.Config.MacOSSettings.CustomSettings)
+	require.Equal(t, []string{"foo", "bar"}, teamResp.Team.Config.MDM.MacOSSettings.CustomSettings)
 
 	// apply with explicitly empty custom macos settings clears the existing settings
 	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
-		Name:          teamName,
-		MacOSSettings: map[string]interface{}{"custom_settings": []string{}},
+		Name: teamName,
+		MDM: fleet.TeamSpecMDM{
+			MacOSSettings: map[string]interface{}{"custom_settings": []string{}},
+		},
 	}}}
 	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
 	teamResp = getTeamResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
-	require.Equal(t, []string{}, teamResp.Team.Config.MacOSSettings.CustomSettings)
+	require.Equal(t, []string{}, teamResp.Team.Config.MDM.MacOSSettings.CustomSettings)
 }
 
 func (s *integrationMDMTestSuite) TestBatchSetMDMAppleProfiles() {

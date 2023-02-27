@@ -118,7 +118,8 @@ type MDM struct {
 	// the server starts.
 	EnabledAndConfigured bool `json:"enabled_and_configured"`
 
-	MacOSUpdates MacOSUpdates `json:"macos_updates"`
+	MacOSUpdates  MacOSUpdates  `json:"macos_updates"`
+	MacOSSettings MacOSSettings `json:"macos_settings"`
 
 	/////////////////////////////////////////////////////////////////
 	// WARNING: If you add to this struct make sure it's taken into
@@ -228,8 +229,6 @@ type AppConfig struct {
 
 	MDM MDM `json:"mdm"`
 
-	MacOSSettings MacOSSettings `json:"macos_settings"`
-
 	// when true, strictDecoding causes the UnmarshalJSON method to return an
 	// error if there are unknown fields in the raw JSON.
 	strictDecoding bool
@@ -288,7 +287,6 @@ func (c *AppConfig) Copy() *AppConfig {
 	// SSOSettings: nothing needs cloning
 	// FleetDesktop: nothing needs cloning
 	// VulnerabilitySettings: nothing needs cloning
-	// MDM: nothing needs cloning
 
 	if c.WebhookSettings.FailingPoliciesWebhook.PolicyIDs != nil {
 		clone.WebhookSettings.FailingPoliciesWebhook.PolicyIDs = make([]uint, len(c.WebhookSettings.FailingPoliciesWebhook.PolicyIDs))
@@ -309,9 +307,9 @@ func (c *AppConfig) Copy() *AppConfig {
 		}
 	}
 
-	if c.MacOSSettings.CustomSettings != nil {
-		clone.MacOSSettings.CustomSettings = make([]string, len(c.MacOSSettings.CustomSettings))
-		copy(clone.MacOSSettings.CustomSettings, c.MacOSSettings.CustomSettings)
+	if c.MDM.MacOSSettings.CustomSettings != nil {
+		clone.MDM.MacOSSettings.CustomSettings = make([]string, len(c.MDM.MacOSSettings.CustomSettings))
+		copy(clone.MDM.MacOSSettings.CustomSettings, c.MDM.MacOSSettings.CustomSettings)
 	}
 
 	return &clone

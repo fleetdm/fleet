@@ -4814,7 +4814,7 @@ func (s *integrationTestSuite) TestAppConfig() {
 
 	// set the macos custom settings fields, fails due to MDM not configured
 	res := s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-	  "macos_settings": { "custom_settings": ["foo", "bar"] }
+		"mdm": { "macos_settings": { "custom_settings": ["foo", "bar"] } }
   }`), http.StatusUnprocessableEntity)
 	errMsg := extractServerErrorText(res.Body)
 	assert.Contains(t, errMsg, "Fleet MDM is not enabled")

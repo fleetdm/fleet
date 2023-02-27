@@ -137,7 +137,6 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 			WebhookSettings: config.WebhookSettings,
 			Integrations:    config.Integrations,
 			MDM:             config.MDM,
-			MacOSSettings:   config.MacOSSettings,
 		},
 		appConfigResponseFields: appConfigResponseFields{
 			UpdateInterval:  updateIntervalConfig,
@@ -282,7 +281,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: err.Error()})
 	}
 
-	if len(newAppConfig.MacOSSettings.CustomSettings) != 0 {
+	if len(newAppConfig.MDM.MacOSSettings.CustomSettings) != 0 {
 		if !svc.config.MDMApple.Enable {
 			// TODO(mna): eventually we should detect the minimum config required for
 			// this to be allowed, probably just SCEP/APNs?
