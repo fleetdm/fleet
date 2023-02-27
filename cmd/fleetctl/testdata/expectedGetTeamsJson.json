@@ -27,11 +27,11 @@
 				"macos_updates": {
 					"minimum_version": "",
 					"deadline": ""
+				},
+				"macos_settings": {
+					"custom_settings": null,
+					"enable_disk_encryption": false
 				}
-			},
-			"macos_settings": {
-				"custom_settings": null,
-				"enable_disk_encryption": false
 			},
 			"user_count": 99,
 			"host_count": 42
@@ -82,11 +82,11 @@
 				"macos_updates": {
 					"minimum_version": "12.3.1",
 					"deadline": "2021-12-14"
+				},
+				"macos_settings": {
+					"custom_settings": null,
+					"enable_disk_encryption": false
 				}
-			},
-			"macos_settings": {
-				"custom_settings": null,
-				"enable_disk_encryption": false
 			},
 			"user_count": 87,
 			"host_count": 43

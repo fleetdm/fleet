@@ -35,10 +35,6 @@
 			"enable_host_users": true,
 			"enable_software_inventory": false
 		},
-		"macos_settings": {
-			"custom_settings": null,
-			"enable_disk_encryption": false
-		},
 		"sso_settings": {
 			"entity_id": "",
 			"issuer_uri": "",
@@ -87,6 +83,10 @@
 			"macos_updates": {
 				"minimum_version": "",
 				"deadline": ""
+			},
+			"macos_settings": {
+				"custom_settings": null,
+				"enable_disk_encryption": false
 			}
 		}
 	}
