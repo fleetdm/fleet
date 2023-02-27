@@ -543,6 +543,7 @@ const HostDetailsPage = ({
         hostStatus={host.status}
         hostMdmEnrollemntStatus={host.mdm.enrollment_status}
         doesStoreEncryptionKey={host.mdm.encryption_key_available}
+        mdmName={mdm?.name}
       />
     );
   };

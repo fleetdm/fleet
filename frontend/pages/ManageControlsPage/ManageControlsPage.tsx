@@ -54,9 +54,12 @@ const ManageControlsPage = ({
   location,
   router,
 }: IManageControlsPageProps): JSX.Element => {
-  const { availableTeams, isPremiumTier, setCurrentTeam } = useContext(
-    AppContext
-  );
+  const {
+    availableTeams,
+    isPremiumTier,
+    currentTeam,
+    setCurrentTeam,
+  } = useContext(AppContext);
 
   const { data: mdmApple, isLoading: isLoadingMdmApple } = useQuery<
     IMdmApple,
@@ -69,7 +72,9 @@ const ManageControlsPage = ({
 
   const navigateToNav = (i: number): void => {
     const navPath = controlsSubNav[i].pathname;
-    router.push(navPath);
+    const teamId = currentTeam?.id || undefined;
+    const queryString = teamId === undefined ? "" : `?team_id=${teamId}`;
+    router.replace(navPath + queryString);
   };
 
   const handleTeamSelect = (ctx: ITeamsDropdownState) => {
