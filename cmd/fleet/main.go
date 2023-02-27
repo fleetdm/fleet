@@ -21,7 +21,6 @@ func main() {
 
 	configManager := config.NewManager(rootCmd)
 
-	rootCmd.AddCommand(createVulnProcessingCmd(configManager))
 	rootCmd.AddCommand(createPrepareCmd(configManager))
 	rootCmd.AddCommand(createServeCmd(configManager))
 	rootCmd.AddCommand(createConfigDumpCmd(configManager))
