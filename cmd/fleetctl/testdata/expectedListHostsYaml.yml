@@ -36,6 +36,7 @@ spec:
   mdm:
     encryption_key_available: false
     enrollment_status: null
+    name: ""
     server_url: null
   memory: 0
   os_version: ""
