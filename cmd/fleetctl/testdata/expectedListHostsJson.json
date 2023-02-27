@@ -42,6 +42,7 @@
 		"mdm": {
 			"encryption_key_available": false,
 			"enrollment_status": null,
+			"name": "",
 			"server_url": null
 		},
 		"team_id": null,
@@ -109,6 +110,7 @@
 		"mdm": {
 			"encryption_key_available": false,
 			"enrollment_status": null,
+			"name": "",
 			"server_url": null
 		},
 		"team_id": null,
