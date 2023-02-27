@@ -4,6 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/fleetdm/fleet/v4/server"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
+	"os"
 	"time"
 
 	"github.com/WatchBeam/clock"
@@ -15,7 +18,12 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var dev bool
+var (
+	dev               bool
+	devLicense        bool
+	devExpiredLicense bool
+	lockDuration      time.Duration
+)
 
 func createVulnProcessingCmd(configManager config.Manager) *cobra.Command {
 	vulnProcessingCmd := &cobra.Command{
@@ -23,11 +31,24 @@ func createVulnProcessingCmd(configManager config.Manager) *cobra.Command {
 		Short: "Run the vulnerability processing features of Fleet",
 		Long: `The vuln_processing command is intended for advanced configurations that want to externally manage 
 vulnerability processing. By default the Fleet server command internally manages vulnerability processing via scheduled
-'cron' style jobs.`,
+'cron' style jobs, but setting 'vulnerabilities.disable_schedule=true' or 'FLEET_VULNERABILITIES_DISABLE_SCHEDULE=true' 
+will disable it on the server allowing the user configure their own 'cron' mechanism`,
 		Run: func(cmd *cobra.Command, args []string) {
 			cfg := configManager.LoadConfig()
 			if dev {
 				applyDevFlags(&cfg)
+			}
+
+			licenseInfo, err := initLicense(cfg, devLicense, devExpiredLicense)
+			if err != nil {
+				initFatal(
+					err,
+					"failed to load license - for help use https://fleetdm.com/contact",
+				)
+			}
+
+			if licenseInfo != nil && licenseInfo.IsPremium() && licenseInfo.IsExpired() {
+				fleet.WriteExpiredLicenseBanner(os.Stderr)
 			}
 
 			ds, err := mysql.New(cfg.Mysql, clock.C)
@@ -41,18 +62,47 @@ vulnerability processing. By default the Fleet server command internally manages
 				initFatal(err, "retrieving migration status")
 			}
 
+			var migrationError error
 			switch status.StatusCode {
 			case fleet.AllMigrationsCompleted:
 				// only continue if db is considered up-to-date
-				break
-			case fleet.NoMigrationsCompleted, fleet.SomeMigrationsCompleted, fleet.UnknownMigrations:
-				initFatal(errors.New("database migrations incompatible with current version"), "refusing to continue processing vulnerabilities")
+			case fleet.NoMigrationsCompleted:
+				migrationError = errors.New("no migrations completed")
+			case fleet.SomeMigrationsCompleted:
+				migrationError = errors.New("partial migrations completed")
+			case fleet.UnknownMigrations:
+				migrationError = errors.New("database migrations incompatible with current version")
 			}
+			if migrationError != nil {
+				initFatal(migrationError, "refusing to continue processing vulnerabilities, database out of sync")
+			}
+
+			ctx := context.Background()
+			ctx = license.NewContext(ctx, licenseInfo)
+			instanceID, err := server.GenerateRandomText(64)
+			if err != nil {
+				initFatal(errors.New("error generating random instance identifier"), "")
+			}
+			// using the same lock name as the cron scheduled version of vuln processing, that way if we fail to obtain the lock
+			// it's most likely due to vulnerabilities.disable_schedule=false but still trying to run external vuln processing command
+			lock, err := ds.Lock(ctx, "cron_vulnerabilities", instanceID, lockDuration)
+			if err != nil {
+				initFatal(err, "failed to obtain vuln processing lock")
+			}
+			if !lock {
+				initFatal(errors.New("vulnerabilities processing locked"),
+					"failed to obtain vuln processing lock, something else still has lock ownership")
+			}
+			defer func() {
+				err = ds.Unlock(ctx, "cron_vulnerabilities", "vuln_processing_command")
+				if err != nil {
+					initFatal(err, "failed to release vuln processing lock")
+				}
+			}()
 
 			logger := initLogger(cfg)
 			logger = kitlog.With(logger, fleet.CronVulnerabilities)
 
-			ctx := context.Background()
 			appConfig, err := ds.AppConfig(ctx)
 			if err != nil {
 				initFatal(err, "error fetching app config during vulnerability processing")
@@ -81,6 +131,13 @@ vulnerability processing. By default the Fleet server command internally manages
 		},
 	}
 	vulnProcessingCmd.PersistentFlags().BoolVar(&dev, "dev", false, "Enable developer options")
+	vulnProcessingCmd.PersistentFlags().BoolVar(&devLicense, "dev_license", false, "Enable development license")
+	vulnProcessingCmd.PersistentFlags().BoolVar(&devExpiredLicense, "dev_expired_license", false, "Enable expired development license")
+	vulnProcessingCmd.PersistentFlags().DurationVar(
+		&lockDuration,
+		"lock_duration",
+		time.Second*60,
+		"the duration (https://pkg.go.dev/time#ParseDuration) the lock should be obtained, ideally this duration is less than the interval in which the job runs (defaults to 60s)")
 
 	return vulnProcessingCmd
 }
