@@ -38,6 +38,10 @@ const (
 	// FleetPayloadIdentifier is the value for the "<key>PayloadIdentifier</key>"
 	// used by Fleet MDM on the enrollment profile.
 	FleetPayloadIdentifier = "com.fleetdm.fleet.mdm.apple"
+
+	// FleetdConfigPayloadIdentifier is the value for the PayloadIdentifier used
+	// by fleetd to read configuration values from the system.
+	FleetdConfigPayloadIdentifier = "com.fleetdm.fleetd.config"
 )
 
 func ResolveAppleMDMURL(serverURL string) (string, error) {
