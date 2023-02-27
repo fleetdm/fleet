@@ -118,7 +118,14 @@ spec:
       1. The PayloadType string is com.apple.applicationaccess.
       2. The key to include is allowCloudKeychainSync.
       3. The key must be set to <true/>.
-  query: SELECT 1 FROM managed_policies WHERE domain='com.apple.applicationaccess' AND name='allowCloudKeychainSync' AND (value = 1 OR value = 'true') LIMIT 1;
+  query: |
+    SELECT 1 WHERE NOT EXISTS (
+        SELECT 1 FROM managed_policies WHERE 
+            domain='com.apple.applicationaccess' 
+            AND 
+            name='allowCloudKeychainSync' 
+            AND (value = 0 OR value = 'false') 
+    );
   purpose: Informational
   tags: compliance, CIS, CIS_Level2, CIS-macos-13-2.1.1.1-enable
   contributors: sharon-fdm
@@ -140,7 +147,14 @@ spec:
       1. The PayloadType string is com.apple.applicationaccess.
       2. The key to include is allowCloudKeychainSync.
       3. The key must be set to <false/>.
-  query: SELECT 1 FROM managed_policies WHERE domain='com.apple.applicationaccess' AND name='allowCloudKeychainSync' AND (value = 0 OR value = 'false') LIMIT 1;
+  query: |
+    SELECT 1 WHERE NOT EXISTS (
+        SELECT 1 FROM managed_policies WHERE 
+            domain='com.apple.applicationaccess' 
+            AND 
+            name='allowCloudKeychainSync' 
+            AND (value = 1 OR value = 'true') 
+    );
   purpose: Informational
   tags: compliance, CIS, CIS_Level2, CIS-macos-13-2.1.1.1-disable
   contributors: sharon-fdm
