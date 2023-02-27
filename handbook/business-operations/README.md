@@ -285,6 +285,8 @@ When the final signature is added to an envelope in DocuSign, it is marked as co
 
 ## Hiring
 
+> Are you a new fleetie joining the Business Operations team?  For Loom recordings demonstrating how to make offers, hire, onboard, and more please see [this classified Google Doc](https://docs.google.com/document/d/1fimxQguPOtK-2YLAVjWRNCYqs5TszAHJslhtT_23Ly0/edit).
+
 ### Creating a new position
 Every new position being created goes through this process before interviewing, accepting applicants, or extending offers.
 1. Add the proposed position to ["Fleeties"](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) as a new row, with a blank start date.  Be sure to include job title, manager, and department.
