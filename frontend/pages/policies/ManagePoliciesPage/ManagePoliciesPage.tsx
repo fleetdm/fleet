@@ -68,7 +68,7 @@ const ManagePolicyPage = ({
   } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
-  const teamId = currentTeam?.id;
+  const teamId = currentTeam?.id || 0;
 
   const {
     setLastEditedQueryName,
