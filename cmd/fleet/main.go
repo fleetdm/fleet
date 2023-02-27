@@ -2,8 +2,6 @@ package main
 
 import (
 	"fmt"
-	kitlog "github.com/go-kit/kit/log"
-	"github.com/go-kit/kit/log/level"
 	"math/rand"
 	"os"
 	"time"
@@ -93,23 +91,4 @@ func applyDevFlags(cfg *config.FleetConfig) {
 		DisableSSL:       true,
 		ForceS3PathStyle: true,
 	}
-}
-
-func initLogger(cfg config.FleetConfig) kitlog.Logger {
-	var logger kitlog.Logger
-	{
-		output := os.Stderr
-		if cfg.Logging.JSON {
-			logger = kitlog.NewJSONLogger(output)
-		} else {
-			logger = kitlog.NewLogfmtLogger(output)
-		}
-		if cfg.Logging.Debug {
-			logger = level.NewFilter(logger, level.AllowDebug())
-		} else {
-			logger = level.NewFilter(logger, level.AllowInfo())
-		}
-		logger = kitlog.With(logger, "ts", kitlog.DefaultTimestampUTC)
-	}
-	return logger
 }

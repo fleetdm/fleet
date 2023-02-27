@@ -124,7 +124,21 @@ the way that the Fleet server works.
 				fleet.WriteExpiredLicenseBanner(os.Stderr)
 			}
 
-			logger := initLogger(config)
+			var logger kitlog.Logger
+			{
+				output := os.Stderr
+				if config.Logging.JSON {
+					logger = kitlog.NewJSONLogger(output)
+				} else {
+					logger = kitlog.NewLogfmtLogger(output)
+				}
+				if config.Logging.Debug {
+					logger = level.NewFilter(logger, level.AllowDebug())
+				} else {
+					logger = level.NewFilter(logger, level.AllowInfo())
+				}
+				logger = kitlog.With(logger, "ts", kitlog.DefaultTimestampUTC)
+			}
 
 			// Init tracing
 			if config.Logging.TracingEnabled {
@@ -605,13 +619,10 @@ the way that the Fleet server works.
 				initFatal(err, "failed to register stats schedule")
 			}
 
-			if !config.Vulnerabilities.ExternalScheduled {
-				// vuln processing by default is run by internal cron mechanism
-				if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-					return newVulnerabilitiesSchedule(ctx, instanceID, ds, logger, &config.Vulnerabilities)
-				}); err != nil {
-					initFatal(err, "failed to register vulnerabilities schedule")
-				}
+			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
+				return newVulnerabilitiesSchedule(ctx, instanceID, ds, logger, &config.Vulnerabilities)
+			}); err != nil {
+				initFatal(err, "failed to register vulnerabilities schedule")
 			}
 
 			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {

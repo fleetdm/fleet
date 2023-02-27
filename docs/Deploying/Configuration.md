@@ -2231,19 +2231,6 @@ When running multiple instances of the Fleet server, by default, one of them dyn
   	current_instance_checks: yes
   ```
 
-##### external_scheduled
-
-To externally manage running vulnerability processing set the value to `true` and then run `fleet vuln_processing` using external
-tools like crontab.
-
-- Default value: `false`
-- Environment variable: `FLEET_VULNERABILITIES_EXTERNAL_SCHEDULED`
-- Config file format:
-  ```
-  vulnerabilities:
-  	external_scheduled: false
-  ```
-
 ##### disable_data_sync
 
 Fleet by default automatically downloads and keeps the different data streams needed to properly do vulnerability processing. In some setups, this behavior is not wanted, as access to outside resources might be blocked, or the data stream files might need review/audit before use.
