@@ -3,8 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"time"
-
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
@@ -12,6 +10,7 @@ import (
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"github.com/spf13/cobra"
+	"time"
 )
 
 var dev bool

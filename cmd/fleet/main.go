@@ -2,13 +2,13 @@ package main
 
 import (
 	"fmt"
+	kitlog "github.com/go-kit/kit/log"
+	"github.com/go-kit/kit/log/level"
 	"math/rand"
 	"os"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/config"
-	kitlog "github.com/go-kit/kit/log"
-	"github.com/go-kit/kit/log/level"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/spf13/cobra"
 )
