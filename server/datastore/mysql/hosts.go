@@ -428,8 +428,7 @@ FROM
   LEFT JOIN host_seen_times hst ON (h.id = hst.host_id)
   LEFT JOIN host_updates hu ON (h.id = hu.host_id)
   LEFT JOIN host_disks hd ON hd.host_id = h.id
-  LEFT JOIN host_mdm hmdm on hmdm.host_id = h.id
-  LEFT JOIN host_disk_encryption_keys hdek ON hdek.host_id = h.id
+  ` + hostMDMJoin + `
   JOIN (
     SELECT
       count(*) as count
@@ -477,7 +476,7 @@ LIMIT
 }
 
 // hostMDMSelect is the SQL fragment used to construct the JSON object
-// of MDM host data.
+// of MDM host data. It assumes that hostMDMJoin is included in the query.
 const hostMDMSelect = `,
 	JSON_OBJECT(
 		'enrollment_status',
@@ -503,9 +502,29 @@ const hostMDMSelect = `,
                         */
 			WHEN hdek.decryptable IS NULL OR hdek.decryptable = 0 THEN CAST(FALSE AS JSON)
 			ELSE CAST(TRUE AS JSON)
-		END
+		END,
+		'name', hmdm.name
 	) mdm_host_data
 	`
+
+// hostMDMJoin is the SQL fragment used to join MDM-related tables to the hosts table. It is a
+// dependency of the hostMDMSelect fragment.
+const hostMDMJoin = `  
+  LEFT JOIN (
+	SELECT 
+	  host_mdm.is_server, 
+	  host_mdm.enrolled, 
+	  host_mdm.installed_from_dep, 
+	  host_mdm.server_url, 
+	  host_mdm.mdm_id, 
+	  host_mdm.host_id, 
+	  name 
+	FROM 
+	  host_mdm 
+	  LEFT JOIN mobile_device_management_solutions ON host_mdm.mdm_id = mobile_device_management_solutions.id
+  ) hmdm ON hmdm.host_id = h.id
+  LEFT JOIN host_disk_encryption_keys hdek ON hdek.host_id = h.id
+  `
 
 func amountEnrolledHostsByOSDB(ctx context.Context, db sqlx.QueryerContext) (byOS map[string][]fleet.HostsCountByOSVersion, totalCount int, err error) {
 	var hostsByOS []struct {
@@ -698,8 +717,7 @@ func (ds *Datastore) applyHostFilters(opt fleet.HostListOptions, sql string, fil
     LEFT JOIN host_updates hu ON (h.id = hu.host_id)
     LEFT JOIN teams t ON (h.team_id = t.id)
     LEFT JOIN host_disks hd ON hd.host_id = h.id
-    LEFT JOIN host_mdm hmdm ON hmdm.host_id = h.id
-    LEFT JOIN host_disk_encryption_keys hdek ON hdek.host_id = h.id
+    %s
     %s
     %s
     %s
@@ -710,6 +728,7 @@ func (ds *Datastore) applyHostFilters(opt fleet.HostListOptions, sql string, fil
     `,
 
 		// JOINs
+		hostMDMJoin,
 		deviceMappingJoin,
 		policyMembershipJoin,
 		failingPoliciesJoin,
@@ -1498,8 +1517,7 @@ func (ds *Datastore) SearchHosts(ctx context.Context, filter fleet.TeamFilter, m
   LEFT JOIN host_seen_times hst ON (h.id = hst.host_id)
   LEFT JOIN host_updates hu ON (h.id = hu.host_id)
   LEFT JOIN host_disks hd ON hd.host_id = h.id
-  LEFT JOIN host_mdm hmdm on hmdm.host_id = h.id
-  LEFT JOIN host_disk_encryption_keys hdek ON hdek.host_id = h.id
+  ` + hostMDMJoin + `
   WHERE TRUE`
 
 	var args []interface{}
@@ -1606,8 +1624,7 @@ func (ds *Datastore) HostByIdentifier(ctx context.Context, identifier string) (*
     LEFT JOIN host_seen_times hst ON (h.id = hst.host_id)
 	LEFT JOIN host_updates hu ON (h.id = hu.host_id)
     LEFT JOIN host_disks hd ON hd.host_id = h.id
-	LEFT JOIN host_mdm hmdm ON hmdm.host_id = h.id
-    LEFT JOIN host_disk_encryption_keys hdek ON hdek.host_id = h.id
+	` + hostMDMJoin + `
     WHERE ? IN (h.hostname, h.osquery_host_id, h.node_key, h.uuid)
     LIMIT 1
 	`
