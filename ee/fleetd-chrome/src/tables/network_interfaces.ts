@@ -5,9 +5,12 @@ export default class TableNetworkInterfaces extends Table {
   columns = ["mac", "address", "ipv4", "ipv6"];
 
   async generate() {
-    let mac = "",
-      ipv4 = "",
-      ipv6 = "";
+    const {
+      ipv4,
+      ipv6,
+      macAddress: mac,
+      // @ts-expect-error @types/chrome doesn't yet have the getNetworkDetails Promise API.
+    } = (await chrome.enterprise.networkingAttributes.getNetworkDetails()) as chrome.enterprise.networkingAttributes.NetworkDetails;
 
     return [
       {
