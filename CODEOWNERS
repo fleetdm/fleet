@@ -72,7 +72,7 @@ go.mod @fleetdm/go
 /handbook/company @mikermcneil
 /handbook/company/* @mikermcneil
 /handbook/business-operations @hollidayn
-/handbook/business-operations/ceo-handbook.md @charlottechance
+/handbook/business-operations/ceo-handbook.md @mikermcneil
 /handbook/business-operations/* @hollidayn
 /handbook/security @mikermcneil
 /handbook/engineering @zwass
