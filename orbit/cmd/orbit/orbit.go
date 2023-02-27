@@ -233,8 +233,7 @@ func main() {
 			// alarms when users look into the orbit logs, it's perfectly normal to
 			// not have a configuration profile, or to get into this situation in
 			// operating systems that don't have profile support.
-			case errors.Is(err, profiles.ErrNotImplemented):
-			case errors.Is(err, profiles.ErrNotFound):
+			case errors.Is(err, profiles.ErrNotImplemented), errors.Is(err, profiles.ErrNotFound):
 				log.Debug().Msgf("reading configuration profile: %e", err)
 			case err != nil:
 				// TODO: should we retun here? that will make orbit exit
