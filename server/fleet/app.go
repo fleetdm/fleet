@@ -166,12 +166,16 @@ func (m MacOSUpdates) Validate() error {
 
 // MacOSSettings contains settings specific to macOS.
 type MacOSSettings struct {
-	CustomSettings []string `json:"custom_settings"`
+	CustomSettings       []string `json:"custom_settings"`
+	EnableDiskEncryption bool     `json:"enable_disk_encryption"`
+
+	// NOTE: make sure to update the ToMap method when adding/updating fields.
 }
 
 func (s MacOSSettings) ToMap() map[string]interface{} {
 	return map[string]interface{}{
-		"custom_settings": s.CustomSettings,
+		"custom_settings":        s.CustomSettings,
+		"enable_disk_encryption": s.EnableDiskEncryption,
 	}
 }
 
