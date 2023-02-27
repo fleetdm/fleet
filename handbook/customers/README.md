@@ -286,6 +286,13 @@ To quickly get help doing a legal review of a prospect subscription agreement, w
 2. Select "Contract signature or legal review"
 3. Follow the instructions in the "Submitting this request" section
 
+If the prospect/customer/partner is originating the request for signature:
+1. Communicate that the Fleet signatory is Mike McNeil, CEO and share his email
+2. Mike will create the github issue mentioned above when he gets request
+3. Mike will forward to business operations for review
+4. Business operations will notify Mike and internal requestor when ready for signature
+5. Mike will sign and close the issue
+
 ## Customer DRI change
 Sometimes there is a change in the champion within the customer's organization.
 1. Get an introduction to the new DRIs including names, roles, contact information.

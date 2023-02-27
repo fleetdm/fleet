@@ -1159,6 +1159,47 @@ func TestMDMBatchSetAppleProfiles(t *testing.T) {
 			},
 			``,
 		},
+		{
+			"unsupported payload type",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+			false,
+			nil,
+			nil,
+			[][]byte{[]byte(`<?xml version="1.0" encoding="UTF-8"?>
+			<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+			<plist version="1.0">
+			<dict>
+				<key>PayloadContent</key>
+				<array>
+					<dict>
+						<key>Enable</key>
+						<string>On</string>
+						<key>PayloadDisplayName</key>
+						<string>FileVault 2</string>
+						<key>PayloadIdentifier</key>
+						<string>com.apple.MCX.FileVault2.A5874654-D6BA-4649-84B5-43847953B369</string>
+						<key>PayloadType</key>
+						<string>com.apple.MCX.FileVault2</string>
+						<key>PayloadUUID</key>
+						<string>A5874654-D6BA-4649-84B5-43847953B369</string>
+						<key>PayloadVersion</key>
+						<integer>1</integer>
+					</dict>
+				</array>
+				<key>PayloadDisplayName</key>
+				<string>Config Profile Name</string>
+				<key>PayloadIdentifier</key>
+				<string>com.example.config.FE42D0A2-DBA9-4B72-BC67-9288665B8D59</string>
+				<key>PayloadType</key>
+				<string>Configuration</string>
+				<key>PayloadUUID</key>
+				<string>FE42D0A2-DBA9-4B72-BC67-9288665B8D59</string>
+				<key>PayloadVersion</key>
+				<integer>1</integer>
+			</dict>
+			</plist>`)},
+			"unsupported PayloadType(s)",
+		},
 	}
 
 	for _, tt := range testCases {
