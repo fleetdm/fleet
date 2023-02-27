@@ -109,12 +109,11 @@ module.exports.custom = {
 
     'articles': ['jarodreyes', 'mike-j-thomas', 'eashaw', 'zwass', 'mikermcneil'],
 
-    'handbook': ['mike-j-thomas', 'eashaw', 'mikermcneil', 'zwass', 'mikermcneil'],// (default for handbook)
+    'handbook': ['mike-j-thomas', 'eashaw', 'mikermcneil', 'zwass'],// (default for handbook)
     'handbook/company': 'mikermcneil',
     'handbook/business-operations': ['hollidayn', 'mikermcneil'],
     'handbook/engineering': 'zwass',
     'handbook/product': ['noahtalerman', 'zhumo'],
-    'handbook/security': 'mikermcneil',
     'handbook/customers': ['alexmitchelliii','zayhanlon','dherder'],
     'handbook/marketing': ['jarodreyes', 'mike-j-thomas'],
 
@@ -124,9 +123,8 @@ module.exports.custom = {
     'website/package.json': 'eashaw',
     '.github/workflows/deploy-fleet-website.yml': ['eashaw','mikermcneil'],// (website deploy script)
     '.github/workflows/test-website.yml': ['eashaw','mikermcneil'],// (website CI test script)
-
     'website/config/routes.js': ['eashaw', 'mike-j-thomas', 'jarodreyes'],// (for managing website URLs)
-
+    'website/config/policies.js': ['eashaw', 'mikermcneil'],// (for adding new pages and managing permissions)
     'website/api/controllers/imagine': ['eashaw', 'jarodreyes'],// landing pages
 
     'docs': ['zwass', 'mikermcneil', 'zhumo', 'jarodreyes', 'ksatter'],// (default for docs)
@@ -169,11 +167,11 @@ module.exports.custom = {
     '.github/ISSUE_TEMPLATE/9-renewal.md': ['zayhanlon', 'hollidayn', 'alexmitchelliii'],
     '.github/ISSUE_TEMPLATE/hiring.md': 'mikermcneil',
     '.github/ISSUE_TEMPLATE/onboarding.md': 'mikermcneil',
-    '.github/ISSUE_TEMPLATE/y-offboarding.md': 'mikermcneil',
-    '.github/ISSUE_TEMPLATE/x-moving.md': ['mikermcneil'],
-    '.github/ISSUE_TEMPLATE/equity-grants.md': ['mikermcneil','hollidayn'],
-    '.github/ISSUE_TEMPLATE/signature-or-legal-review.md': ['hollidayn'],
-    '.github/ISSUE_TEMPLATE/new-fleet-instance.md': ['mikermcneil','hollidayn', 'zayhanlon'],
+    '.github/ISSUE_TEMPLATE/y-offboarding.md': 'hollidayn',
+    '.github/ISSUE_TEMPLATE/x-moving.md': 'hollidayn',
+    '.github/ISSUE_TEMPLATE/equity-grants.md': 'mikermcneil',
+    '.github/ISSUE_TEMPLATE/signature-or-legal-review.md': 'hollidayn',
+    '.github/ISSUE_TEMPLATE/new-fleet-instance.md': ['hollidayn', 'zayhanlon'],
 
   },
 
