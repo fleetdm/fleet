@@ -12,7 +12,7 @@
 			<key>PayloadIdentifier</key>
 			<string>com.fleetdm.cis-2.1.1.1.check-enable</string>
 			<key>PayloadUUID</key>
-			<string>5E0699D0-A75F-46D4-9322-C170D47FEBEE</string>
+			<string>68D8C498-FB81-4262-9EF4-E689B5A6B40F</string>
 			<key>allowCloudKeychainSync</key>
 			<true/>
 		</dict>
@@ -30,7 +30,7 @@
 	<key>PayloadType</key>
 	<string>Configuration</string>
 	<key>PayloadUUID</key>
-	<string>22D0C77F-954A-43BF-BD7E-756C557C3708</string>
+	<string>EE1BA83A-E145-4F5B-9597-836DC357BBE7</string>
 	<key>PayloadVersion</key>
 	<integer>1</integer>
 </dict>
