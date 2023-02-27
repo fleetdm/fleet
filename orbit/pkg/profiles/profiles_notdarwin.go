@@ -5,6 +5,6 @@ package profiles
 
 import "github.com/fleetdm/fleet/v4/server/fleet"
 
-func GetFleetdConfig() (*fleet.MDMAppleFleetdConfiguration, error) {
+func GetFleetdConfig() (*fleet.MDMAppleFleetdConfig, error) {
 	return nil, ErrNotImplemented
 }
