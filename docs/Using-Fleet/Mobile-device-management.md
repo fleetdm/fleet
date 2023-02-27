@@ -30,11 +30,11 @@ If the end user is past the deadline, Fleet shows the window and end user can't 
 
 ### End user experience
 
-Fleet automatically downloads the macOS update for the end user so that they don't have to. This way, when the end user selects the **Update Device** button in the Nudge window, they don't have to wait for the update to download before they can install the update.
+Fleet automatically downloads macOS updates for the end user so that they don't have to. This way, end user's don't have to wait for the update to download before they can install it.
 
-> Fleet only automatically download's the update on Intel Macs. On Macs with Apple silicon (e.g. M1), the end user will have to download the update before they install the update. Apple doesn't support downloading the macOS update for the user on Macs with Apple silicon.
+> Fleet automatically downloads updates on Intel Macs. On Macs with Apple silicon (e.g. M1), end users may have to download the update before they install it. Apple doesn't support downloading the update for the end user on Macs with Apple silicon.
 
-Sometimes the end user's Mac will tell them that their macOS is up to date when it isn't. This is a known bug in macOS. This bug creates a frustrating experience for the end user because the Nudge window is telling them to update when no update is presented. Ask the end user to follow the steps below to troubleshoot:
+Sometimes the end user's Mac will say that macOS is up to date when it isn't. This known bug creates a frustrating experience for the end user. Ask the end user to follow the steps below to troubleshoot:
 
 1. From the Apple menu in the top left corner of your screen, select **System Settings** or **System Preferences**.
 
