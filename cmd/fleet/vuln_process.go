@@ -85,7 +85,7 @@ will disable it on the server allowing the user configure their own 'cron' mecha
 			}
 			// using the same lock name as the cron scheduled version of vuln processing, that way if we fail to obtain the lock
 			// it's most likely due to vulnerabilities.disable_schedule=false but still trying to run external vuln processing command
-			lock, err := ds.Lock(ctx, "cron_vulnerabilities", instanceID, lockDuration)
+			lock, err := ds.Lock(ctx, string(fleet.CronVulnerabilities), instanceID, lockDuration)
 			if err != nil {
 				initFatal(err, "failed to obtain vuln processing lock")
 			}
@@ -136,8 +136,8 @@ will disable it on the server allowing the user configure their own 'cron' mecha
 	vulnProcessingCmd.PersistentFlags().DurationVar(
 		&lockDuration,
 		"lock_duration",
-		time.Second*60,
-		"the duration (https://pkg.go.dev/time#ParseDuration) the lock should be obtained, ideally this duration is less than the interval in which the job runs (defaults to 60s)")
+		time.Second*60*60,
+		"the duration (https://pkg.go.dev/time#ParseDuration) the lock should be obtained, ideally this duration is less than the interval in which the job runs (defaults to 60m)")
 
 	return vulnProcessingCmd
 }
