@@ -133,14 +133,13 @@ const live_query = async () => {
     }
 
     // Run the actual query if discovery passed.
+    const query_sql = response.queries[query_name];
     try {
-      const query_result = await DATABASE.query(response.queries[query_name]);
+      const query_result = await DATABASE.query(query_sql);
       results[query_name] = query_result;
       statuses[query_name] = 0;
     } catch (err) {
-      console.warn(
-        `Query (${query_name} sql: "${query_discovery_sql}") failed: ${err}`
-      );
+      console.warn(`Query (${query_name} sql: "${query_sql}") failed: ${err}`);
       results[query_name] = null;
       statuses[query_name] = 1;
       messages[query_name] = err.toString();

@@ -19,10 +19,10 @@ export default class TableSystemInfo extends Table {
     const uuid = await chrome.instanceID.getID();
 
     // TODO should it default to UUID or should Fleet handle it somehow?
-    let hostname = uuid;
+    let hostname = "";
     try {
       // @ts-expect-error @types/chrome doesn't yet have the deviceAttributes Promise API.
-      hostname = await chrome.enterprise.deviceAttributes.getDeviceHostname();
+      hostname = (await chrome.enterprise.deviceAttributes.getDeviceHostname()) as string;
     } catch (err) {
       console.warn("get hostname:", err);
     }
@@ -69,7 +69,7 @@ export default class TableSystemInfo extends Table {
       {
         uuid,
         hostname,
-        computer_name: hostname,
+        computer_name: hostname ? hostname : `ChromeOS ${hardware_serial}`,
         hardware_serial,
         hardware_vendor,
         hardware_model,
