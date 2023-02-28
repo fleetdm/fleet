@@ -289,7 +289,7 @@ jobs:
 
     - name: Debug on failure
       if: failure()
-      uses: mxschmitt/action-tmate@8b4e4ac71822ed7e0ad5fb3d1c33483e9e8fb270 # v3
+      uses: mxschmitt/action-tmate@1005f9c9db5f1b055a495e72c6e589764984baf6 # v3
 
   orbit-windows:
     timeout-minutes: 15
