@@ -22,7 +22,7 @@
 	<key>PayloadDisplayName</key>
 	<string>Ensure iCloud Keychain is disabled</string>
 	<key>PayloadIdentifier</key>
-	<string>com.fleetdm.cis-2.1.1.1-enable</string>
+	<string>com.fleetdm.cis-2.1.1.1-disable</string>
 	<key>PayloadRemovalDisallowed</key>
 	<false/>
 	<key>PayloadScope</key>
