@@ -447,6 +447,7 @@ func TestMDMEnrollment(t *testing.T) {
 		{"TestBeforeDEPSync", testIngestMDMAppleCheckinBeforeDEPSync},
 		{"TestMultipleIngest", testIngestMDMAppleCheckinMultipleIngest},
 		{"TestCheckOut", testUpdateHostTablesOnMDMUnenroll},
+		{"TestNonDarwinHostAlreadyExistsInFleet", testIngestMDMNonDarwinHostAlreadyExistsInFleet},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -473,6 +474,7 @@ func testIngestMDMAppleHostAlreadyExistsInFleet(t *testing.T, ds *Datastore) {
 		NodeKey:         ptr.String("1337"),
 		UUID:            testUUID,
 		HardwareSerial:  testSerial,
+		Platform:        "darwin",
 	})
 	require.NoError(t, err)
 	err = ds.SetOrUpdateMDMData(ctx, host.ID, false, false, "https://fleetdm.com", true, fleet.WellKnownMDMFleet)
@@ -490,6 +492,52 @@ func testIngestMDMAppleHostAlreadyExistsInFleet(t *testing.T, ds *Datastore) {
 	hosts = listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{}, 1)
 	require.Equal(t, testSerial, hosts[0].HardwareSerial)
 	require.Equal(t, testUUID, hosts[0].UUID)
+}
+
+func testIngestMDMNonDarwinHostAlreadyExistsInFleet(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	testSerial := "test-serial"
+	testUUID := "test-uuid"
+
+	// this cannot happen for real, but it tests the host-matching logic in that
+	// even if the host does match on serial number, it is not used as matching
+	// host because it is not a macOS (darwin) platform host.
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:        "test-host-name",
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   ptr.String("1337"),
+		NodeKey:         ptr.String("1337"),
+		UUID:            testUUID,
+		HardwareSerial:  testSerial,
+		Platform:        "linux",
+	})
+	require.NoError(t, err)
+	err = ds.SetOrUpdateMDMData(ctx, host.ID, false, false, "https://fleetdm.com", true, "Fleet MDM")
+	require.NoError(t, err)
+	hosts := listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{}, 1)
+	require.Equal(t, testSerial, hosts[0].HardwareSerial)
+	require.Equal(t, testUUID, hosts[0].UUID)
+
+	err = ds.IngestMDMAppleDeviceFromCheckin(ctx, fleet.MDMAppleHostDetails{
+		UDID:         testUUID,
+		SerialNumber: testSerial,
+	})
+	require.NoError(t, err)
+
+	hosts = listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{}, 2)
+	// a new host was created with the provided uuid/serial and darwin as platform
+	require.Equal(t, testSerial, hosts[0].HardwareSerial)
+	require.Equal(t, testUUID, hosts[0].UUID)
+	require.Equal(t, testSerial, hosts[1].HardwareSerial)
+	require.Equal(t, testUUID, hosts[1].UUID)
+	id0, id1 := hosts[0].ID, hosts[1].ID
+	platform0, platform1 := hosts[0].Platform, hosts[1].Platform
+	require.NotEqual(t, id0, id1)
+	require.NotEqual(t, platform0, platform1)
+	require.ElementsMatch(t, []string{"darwin", "linux"}, []string{platform0, platform1})
 }
 
 func testIngestMDMAppleIngestAfterDEPSync(t *testing.T, ds *Datastore) {

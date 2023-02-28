@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/live_query/live_query_mock"
@@ -65,9 +66,12 @@ func (ts *withServer) SetupSuite(dbName string) {
 	ts.withDS.SetupSuite(dbName)
 
 	rs := pubsub.NewInmemQueryResults()
+	cfg := config.TestConfig()
+	cfg.Osquery.EnrollCooldown = 0
 	users, server := RunServerForTestsWithDS(ts.s.T(), ts.ds, &TestServerOpts{
-		Rs: rs,
-		Lq: ts.lq,
+		Rs:          rs,
+		Lq:          ts.lq,
+		FleetConfig: &cfg,
 	})
 	ts.server = server
 	ts.users = users

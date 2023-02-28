@@ -419,10 +419,9 @@ func ingestMDMAppleDeviceFromCheckinDB(
 		return ctxerr.New(ctx, "ingest mdm apple host from checkin expected unique device id but got empty string")
 	}
 
-	stmt := `SELECT id, uuid, hardware_serial FROM hosts WHERE uuid = ? OR hardware_serial = ?`
-
-	var foundHost fleet.Host
-	err := sqlx.GetContext(ctx, tx, &foundHost, stmt, mdmHost.UDID, mdmHost.SerialNumber)
+	// MDM is necessarily enabled if this gets called, always pass true for that
+	// parameter.
+	matchID, _, err := matchHostDuringEnrollment(ctx, tx, true, "", mdmHost.UDID, mdmHost.SerialNumber)
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
 		return insertMDMAppleHostDB(ctx, tx, mdmHost, logger, appCfg)
@@ -431,8 +430,7 @@ func ingestMDMAppleDeviceFromCheckinDB(
 		return ctxerr.Wrap(ctx, err, "get mdm apple host by serial number or udid")
 
 	default:
-		return updateMDMAppleHostDB(ctx, tx, foundHost.ID, mdmHost, appCfg)
-
+		return updateMDMAppleHostDB(ctx, tx, matchID, mdmHost, appCfg)
 	}
 }
 
@@ -450,7 +448,7 @@ func updateMDMAppleHostDB(
 			hardware_model = ?,
 			platform =  ?,
 			refetch_requested = ?,
-			osquery_host_id = ?
+			osquery_host_id = COALESCE(NULLIF(osquery_host_id, ''), ?)
 		WHERE id = ?`
 
 	if _, err := tx.ExecContext(
@@ -461,9 +459,7 @@ func updateMDMAppleHostDB(
 		mdmHost.Model,
 		"darwin",
 		1,
-		// Set osquery_host_id to the device UUID mimicking what EnrollOrbit does.
-		// TODO: see https://github.com/fleetdm/fleet/issues/9033 for why this is
-		// not ideal, and improve the handling based on whatever is decided there.
+		// Set osquery_host_id to the device UUID only if it is not already set.
 		mdmHost.UDID,
 		hostID,
 	); err != nil {

@@ -27,6 +27,7 @@ type OrbitClient struct {
 	nodeKeyFilePath string
 	enrollSecret    string
 	uuid            string
+	serial          string
 
 	enrolledMu sync.Mutex
 	enrolled   bool
@@ -76,7 +77,7 @@ func (oc *OrbitClient) request(verb string, path string, params interface{}, res
 // rootDir is the Orbit's root directory, where the Orbit node key is loaded-from/stored.
 // addr is the address of the Fleet server.
 // uuid is the UUID of the OrbitClient instance.
-func NewOrbitClient(rootDir string, addr string, rootCA string, insecureSkipVerify bool, enrollSecret, uuid string) (*OrbitClient, error) {
+func NewOrbitClient(rootDir string, addr string, rootCA string, insecureSkipVerify bool, enrollSecret, uuid, serialNum string) (*OrbitClient, error) {
 	orbitCapabilities := fleet.CapabilityMap{}
 	bc, err := newBaseClient(addr, insecureSkipVerify, rootCA, "", orbitCapabilities)
 	if err != nil {
@@ -89,6 +90,7 @@ func NewOrbitClient(rootDir string, addr string, rootCA string, insecureSkipVeri
 		baseClient:      bc,
 		enrollSecret:    enrollSecret,
 		uuid:            uuid,
+		serial:          serialNum,
 		enrolled:        false,
 	}, nil
 }
@@ -135,7 +137,7 @@ func (oc *OrbitClient) Ping() error {
 
 func (oc *OrbitClient) enroll() (string, error) {
 	verb, path := "POST", "/api/fleet/orbit/enroll"
-	params := EnrollOrbitRequest{EnrollSecret: oc.enrollSecret, HardwareUUID: oc.uuid}
+	params := EnrollOrbitRequest{EnrollSecret: oc.enrollSecret, HardwareUUID: oc.uuid, HardwareSerial: oc.serial}
 	var resp EnrollOrbitResponse
 	err := oc.request(verb, path, params, &resp)
 	if err != nil {

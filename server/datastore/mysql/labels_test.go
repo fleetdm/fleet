@@ -78,7 +78,7 @@ func testLabelsAddAllHosts(deferred bool, t *testing.T, db *Datastore) {
 	var host *fleet.Host
 	var err error
 	for i := 0; i < 10; i++ {
-		host, err = db.EnrollHost(context.Background(), fmt.Sprint(i), fmt.Sprint(i), nil, 0)
+		host, err = db.EnrollHost(context.Background(), false, fmt.Sprint(i), "", "", fmt.Sprint(i), nil, 0)
 		require.Nil(t, err, "enrollment should succeed")
 		hosts = append(hosts, *host)
 	}
@@ -727,7 +727,7 @@ func testLabelsSave(t *testing.T, db *Datastore) {
 }
 
 func testLabelsQueriesForCentOSHost(t *testing.T, db *Datastore) {
-	host, err := db.EnrollHost(context.Background(), "0", "0", nil, 0)
+	host, err := db.EnrollHost(context.Background(), false, "0", "", "", "0", nil, 0)
 	require.NoError(t, err, "enrollment should succeed")
 
 	host.Platform = "rhel"
