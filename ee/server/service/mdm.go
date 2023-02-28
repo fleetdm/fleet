@@ -1,6 +1,7 @@
 package service
 
 import (
+	"bytes"
 	"context"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -109,5 +110,45 @@ func (svc *Service) MDMAppleEraseDevice(ctx context.Context, hostID uint) error 
 	if err != nil {
 		return err
 	}
+	return nil
+}
+
+// TODO: this probably shouldn't be a public service method that deals with
+// authorization logic as is not directly called from an endpoint handler. Some
+// ideas:
+//
+// - use this logic in the cron job that installs configuration profiles
+// - use this logic in the service methods that modify app/team configs and
+// call it if filevault is turned on/off
+func (svc *Service) MDMAppleEnableFileVaultAndEscrow(ctx context.Context, teamID uint) error {
+	// TODO: double-check if this is correct
+	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleConfigProfile{TeamID: &teamID}, fleet.ActionWrite); err != nil {
+		return ctxerr.Wrap(ctx, err, "enabling FileVault")
+	}
+
+	_, cert, _, err := svc.config.MDM.AppleSCEP()
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "enabling FileVault")
+	}
+
+	var (
+		params   = fileVaultProfileOptions{apple_mdm.FleetFileVaultPayloadIdentifier, cert}
+		contents bytes.Buffer
+	)
+	if err := fileVaultProfileTemplate.Execute(&contents, params); err != nil {
+		return ctxerr.Wrap(ctx, err, "enabling FileVault")
+	}
+
+	mc := fleet.Mobileconfig(contents.Bytes())
+	cp, err := mc.ParseConfigProfile()
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "enabling FileVault")
+	}
+
+	cp.TeamID = &teamID
+	if _, err := svc.ds.NewMDMAppleConfigProfile(ctx, *cp); err != nil {
+		return ctxerr.Wrap(ctx, err, "enabling FileVault")
+	}
+
 	return nil
 }
