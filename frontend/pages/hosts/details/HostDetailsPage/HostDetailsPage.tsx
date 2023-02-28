@@ -600,6 +600,11 @@ const HostDetailsPage = ({
   const isMdmUnenrolled =
     host?.mdm.enrollment_status === "Off" || !host?.mdm.enrollment_status;
 
+  // TODO: actually determine below value
+  const diskEncryptionUserActionRequired = true;
+
+  const isAppleBmTermsExpired = config?.mdm?.apple_bm_terms_expired;
+
   return (
     <MainContent className={baseClass}>
       <div className={`${baseClass}__wrapper`}>
@@ -613,6 +618,19 @@ const HostDetailsPage = ({
                 <strong>My device</strong> page.
               </InfoBanner>
             )}
+          {/* TODO: remove below true to restore actual render conditions */}
+          {(true ||
+            (isPremiumTier &&
+              !isMdmUnenrolled &&
+              config?.mdm.enabled_and_configured &&
+              !isAppleBmTermsExpired &&
+              diskEncryptionUserActionRequired)) && (
+            <InfoBanner color="yellow" pageLevel>
+              Disk encryption: Requires action from the end user. Ask the end
+              user to follow <b>Disk encryption</b> instructions on their{" "}
+              <b>My device</b> page.
+            </InfoBanner>
+          )}
           <BackLink
             text="Back to all hosts"
             path={filteredHostsPath || PATHS.MANAGE_HOSTS}
