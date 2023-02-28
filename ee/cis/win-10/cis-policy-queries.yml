@@ -58,7 +58,7 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure 'Minimum password length' is set to '14 or more characters' 
+  name: CIS - Ensure 'Minimum password length' is set to '14 or more characters'
   platforms: win10
   platform: windows
   description: |
@@ -76,7 +76,7 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure 'Password must meet complexity requirements' is set to 'Enabled' 
+  name: CIS - Ensure 'Password must meet complexity requirements' is set to 'Enabled'
   platforms: win10
   platform: windows
   description: |
@@ -243,7 +243,7 @@ spec:
   description: |
     This policy setting allows a process to assume the identity of any user and thus gain access to the resources that the user is authorized to access.
     The recommended state for this setting is: No One.
-    Note: This user right is considered a "sensitive privilege" for the purposes of auditing. 
+    Note: This user right is considered a "sensitive privilege" for the purposes of auditing.
   resolution: |
     Automatic method:
     Ask your system administrator to establish the recommended configuration via GP, set the following UI path to an empty list of users:
@@ -330,7 +330,7 @@ spec:
   description: |
     This policy setting allows users to circumvent file and directory permissions to back up the system. This user right is enabled only when an application (such as NTBACKUP) attempts to access a file or directory through the NTFS file system backup application programming interface (API). Otherwise, the assigned file and directory permissions apply.
     The recommended state for this setting is: Administrators.
-    Note: This user right is considered a "sensitive privilege" for the purposes of auditing. 
+    Note: This user right is considered a "sensitive privilege" for the purposes of auditing.
   resolution: |
     Automatic method:
     Ask your system administrator to establish the recommended configuration via GP, set the following UI path to a list containing only 'Administrators':
@@ -344,11 +344,11 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure 'Accounts Administrator account status' is set to 'Disabled' 
+  name: CIS - Ensure 'Accounts Administrator account status' is set to 'Disabled'
   platforms: win10
   platform: windows
   description: |
-    This policy setting enables or disables the Administrator account during normal operation. 
+    This policy setting enables or disables the Administrator account during normal operation.
   resolution: |
     Automatic method:
     Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'Disabled':
@@ -422,7 +422,7 @@ spec:
   description: |
     The built-in local administrator account is a well-known account name that attackers will
     target. It is recommended to choose another name for this account, and to avoid names that
-    denote administrative or elevated access accounts. 
+    denote administrative or elevated access accounts.
   resolution: |
     Automatic method:
     Ask your system administrator to establish the recommended configuration via GP, set the following UI path to value different than 'Administrator':
@@ -481,7 +481,7 @@ spec:
     This policy setting determines whether the system shuts down if it is unable to log Security
     events. It is a requirement for Trusted Computer System Evaluation Criteria (TCSEC)-C2 and
     Common Criteria certification to prevent auditable events from occurring if the audit system is
-    unable to log them. 
+    unable to log them.
   resolution: |
     Automatic method:
     Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'Disabled':
@@ -501,7 +501,7 @@ spec:
   description: |
     For a computer to print to a shared printer, the driver for that shared printer must be
     installed on the local computer. This security setting determines who is allowed to install a
-    printer driver as part of connecting to a shared printer. 
+    printer driver as part of connecting to a shared printer.
   resolution: |
     Automatic method:
     Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'Enabled':
@@ -519,7 +519,7 @@ spec:
   platforms: win10
   platform: windows
   description: |
-    This policy setting determines whether users must press CTRL+ALT+DEL before they log on. 
+    This policy setting determines whether users must press CTRL+ALT+DEL before they log on.
   resolution: |
     Automatic method:
     Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'Disabled':
@@ -589,7 +589,7 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Configure 'Interactive logon Message text for users attempting to log on' 
+  name: CIS - Configure 'Interactive logon Message text for users attempting to log on'
   platforms: win10
   platform: windows
   description: |
@@ -666,3 +666,131 @@ spec:
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.7.8
   contributors: marcosd4h
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - TODO
+  platforms: win10
+  platform: windows
+  description: |
+    TODO
+  resolution: |
+    TODO
+  query: |
+    TODO
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_9.2.1
+  contributors: RachelElysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - TODO
+  platforms: win10
+  platform: windows
+  description: |
+    TODO
+  resolution: |
+    TODO
+  query: |
+    TODO
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_9.2.2
+  contributors: RachelElysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - TODO
+  platforms: win10
+  platform: windows
+  description: |
+    TODO
+  resolution: |
+    TODO
+  query: |
+    TODO
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_9.2.3
+  contributors: RachelElysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - TODO
+  platforms: win10
+  platform: windows
+  description: |
+    TODO
+  resolution: |
+    TODO
+  query: |
+    TODO
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_9.2.4
+  contributors: RachelElysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - TODO
+  platforms: win10
+  platform: windows
+  description: |
+    TODO
+  resolution: |
+    TODO
+  query: |
+    TODO
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_9.2.5
+  contributors: RachelElysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - TODO
+  platforms: win10
+  platform: windows
+  description: |
+    TODO
+  resolution: |
+    TODO
+  query: |
+    TODO
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_9.2.6
+  contributors: RachelElysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - TODO
+  platforms: win10
+  platform: windows
+  description: |
+    TODO
+  resolution: |
+    TODO
+  query: |
+    TODO
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_9.2.7
+  contributors: RachelElysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - TODO
+  platforms: win10
+  platform: windows
+  description: |
+    TODO
+  resolution: |
+    TODO
+  query: |
+    TODO
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_9.2.8
+  contributors: RachelElysia
