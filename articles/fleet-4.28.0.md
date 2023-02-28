@@ -95,3 +95,10 @@ Fleet continues to make significant progress on the Fleet MDM. If you want acces
 ## Ready to upgrade?
 
 Visit our [upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in the Fleet docs for instructions on updating to Fleet 4.28.0.
+
+<meta name="category" value="releases">
+<meta name="authorFullName" value="JD Strong">
+<meta name="authorGitHubUsername" value="spokanemac">
+<meta name="publishedOn" value="2023-02-28">
+<meta name="articleTitle" value="Fleet 4.28.0 | CIS benchmarks for Ventura">
+<meta name="articleImageUrl" value=".../website/assets/images/articles/fleet-4.28.0-1600x900@2x.png">
