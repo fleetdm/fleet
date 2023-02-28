@@ -76,6 +76,12 @@ type integrationMDMTestSuite struct {
 func (s *integrationMDMTestSuite) SetupSuite() {
 	s.withDS.SetupSuite("integrationMDMTestSuite")
 
+	appConf, err := s.ds.AppConfig(context.Background())
+	require.NoError(s.T(), err)
+	appConf.MDM.EnabledAndConfigured = true
+	err = s.ds.SaveAppConfig(context.Background(), appConf)
+	require.NoError(s.T(), err)
+
 	testCert, testKey, err := apple_mdm.NewSCEPCACertKey()
 	require.NoError(s.T(), err)
 	testCertPEM := tokenpki.PEMCertificate(testCert.Raw)
@@ -83,6 +89,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 
 	fleetCfg := config.TestConfig()
 	config.SetTestMDMConfig(s.T(), &fleetCfg, testCertPEM, testKeyPEM, testBMToken)
+	fleetCfg.Osquery.EnrollCooldown = 0
 
 	mdmStorage, err := s.ds.NewMDMAppleMDMStorage(testCertPEM, testKeyPEM)
 	require.NoError(s.T(), err)
@@ -1243,6 +1250,73 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMAppleProfiles() {
 		fmt.Sprintf(`{"team_id": %d, "team_name": %q}`, tm.ID, tm.Name),
 		0,
 	)
+}
+
+func (s *integrationMDMTestSuite) TestEnrollOrbitAfterDEPSync() {
+	t := s.T()
+	ctx := context.Background()
+
+	// create a host with minimal information and the serial, no uuid/osquery id
+	// (as when created via DEP sync). Platform must be "darwin" as this is the
+	// only supported OS with DEP.
+	dbZeroTime := time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
+	h, err := s.ds.NewHost(ctx, &fleet.Host{
+		HardwareSerial:   uuid.New().String(),
+		Platform:         "darwin",
+		LastEnrolledAt:   dbZeroTime,
+		DetailUpdatedAt:  dbZeroTime,
+		RefetchRequested: true,
+	})
+	require.NoError(t, err)
+
+	// create an enroll secret
+	secret := uuid.New().String()
+	var applyResp applyEnrollSecretSpecResponse
+	s.DoJSON("POST", "/api/latest/fleet/spec/enroll_secret", applyEnrollSecretSpecRequest{
+		Spec: &fleet.EnrollSecretSpec{
+			Secrets: []*fleet.EnrollSecret{{Secret: secret}},
+		},
+	}, http.StatusOK, &applyResp)
+
+	// enroll the host from orbit, it should match the host above via the serial
+	var resp EnrollOrbitResponse
+	hostUUID := uuid.New().String()
+	s.DoJSON("POST", "/api/fleet/orbit/enroll", EnrollOrbitRequest{
+		EnrollSecret:   secret,
+		HardwareUUID:   hostUUID, // will not match any existing host
+		HardwareSerial: h.HardwareSerial,
+	}, http.StatusOK, &resp)
+	require.NotEmpty(t, resp.OrbitNodeKey)
+
+	// fetch the host, it will match the one created above
+	// (NOTE: cannot check the returned OrbitNodeKey, this field is not part of the response)
+	var hostResp getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", h.ID), nil, http.StatusOK, &hostResp)
+	require.Equal(t, h.ID, hostResp.Host.ID)
+
+	got, err := s.ds.LoadHostByOrbitNodeKey(ctx, resp.OrbitNodeKey)
+	require.NoError(t, err)
+	require.Equal(t, h.ID, got.ID)
+
+	// enroll the host from osquery, it should match the same host
+	var osqueryResp enrollAgentResponse
+	osqueryID := uuid.New().String()
+	s.DoJSON("POST", "/api/osquery/enroll", enrollAgentRequest{
+		EnrollSecret:   secret,
+		HostIdentifier: osqueryID, // osquery host_identifier may not be the same as the host UUID, simulate that here
+		HostDetails: map[string]map[string]string{
+			"system_info": {
+				"uuid":            hostUUID,
+				"hardware_serial": h.HardwareSerial,
+			},
+		},
+	}, http.StatusOK, &osqueryResp)
+	require.NotEmpty(t, osqueryResp.NodeKey)
+
+	// load the host by osquery node key, should match the initial host
+	got, err = s.ds.LoadHostByNodeKey(ctx, osqueryResp.NodeKey)
+	require.NoError(t, err)
+	require.Equal(t, h.ID, got.ID)
 }
 
 type device struct {

@@ -237,6 +237,7 @@ func newAgent(
 	policyPassProb float64,
 	orbitProb float64,
 	munkiIssueProb float64, munkiIssueCount int,
+	emptySerialProb float64,
 ) *agent {
 	var deviceAuthToken *string
 	if rand.Float64() <= orbitProb {
@@ -245,6 +246,10 @@ func newAgent(
 	// #nosec (osquery-perf is only used for testing)
 	tlsConfig := &tls.Config{
 		InsecureSkipVerify: true,
+	}
+	serial := randSerial()
+	if rand.Float64() <= emptySerialProb {
+		serial = ""
 	}
 	return &agent{
 		agentIndex:      agentIndex,
@@ -266,7 +271,7 @@ func newAgent(
 		ConfigInterval: configInterval,
 		QueryInterval:  queryInterval,
 		UUID:           strings.ToUpper(uuid.New().String()),
-		SerialNumber:   randSerial(),
+		SerialNumber:   serial,
 	}
 }
 
@@ -332,6 +337,7 @@ func (a *agent) runOrbitLoop() {
 		true,
 		a.EnrollSecret,
 		a.UUID,
+		a.SerialNumber,
 	)
 	if err != nil {
 		log.Println("creating orbit client: ", err)
@@ -459,9 +465,11 @@ func (a *agent) waitingDo(req *fasthttp.Request, res *fasthttp.Response) {
 // now, we assume that the agent is not already enrolled, if you kill the agent
 // process then those Orbit node keys are gone.
 func (a *agent) orbitEnroll() error {
-	params := service.EnrollOrbitRequest{EnrollSecret: a.EnrollSecret, HardwareUUID: a.UUID}
-
-	req := fasthttp.AcquireRequest()
+	params := service.EnrollOrbitRequest{
+		EnrollSecret:   a.EnrollSecret,
+		HardwareUUID:   a.UUID,
+		HardwareSerial: a.SerialNumber,
+	}
 
 	jsonBytes, err := json.Marshal(params)
 	if err != nil {
@@ -469,14 +477,16 @@ func (a *agent) orbitEnroll() error {
 		return err
 	}
 
+	req := fasthttp.AcquireRequest()
 	req.SetBody(jsonBytes)
 	req.Header.SetMethod("POST")
 	req.Header.SetContentType("application/json")
 	req.Header.SetRequestURI(a.serverAddress + "/api/fleet/orbit/enroll")
-
 	resp := fasthttp.AcquireResponse()
 
 	a.waitingDo(req, resp)
+
+	fasthttp.ReleaseRequest(req)
 	defer fasthttp.ReleaseResponse(resp)
 
 	if resp.StatusCode() != http.StatusOK {
@@ -582,8 +592,6 @@ func (a *agent) config() {
 		}
 	}
 	a.scheduledQueries = scheduledQueries
-
-	// No need to read the config body
 }
 
 const stringVals = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_."
@@ -1202,6 +1210,7 @@ func main() {
 		munkiIssueProb              = flag.Float64("munki_issue_prob", 0.5, "Probability of a host having munki issues (note that ~50% of hosts have munki installed) [0, 1]")
 		munkiIssueCount             = flag.Int("munki_issue_count", 10, "Number of munki issues reported by hosts identified to have munki issues")
 		osTemplates                 = flag.String("os_templates", "mac10.14.6", fmt.Sprintf("Comma separated list of host OS templates to use (any of %v, with or without the .tmpl extension)", allowedTemplateNames))
+		emptySerialProb             = flag.Float64("empty_serial_prob", 0.1, "Probability of a host having no serial number [0, 1]")
 	)
 
 	flag.Parse()
@@ -1261,6 +1270,7 @@ func main() {
 			*orbitProb,
 			*munkiIssueProb,
 			*munkiIssueCount,
+			*emptySerialProb,
 		)
 		a.stats = stats
 		a.nodeKeyManager = nodeKeyManager
