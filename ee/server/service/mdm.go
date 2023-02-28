@@ -3,6 +3,7 @@ package service
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -113,28 +114,17 @@ func (svc *Service) MDMAppleEraseDevice(ctx context.Context, hostID uint) error 
 	return nil
 }
 
-// TODO: this probably shouldn't be a public service method that deals with
-// authorization logic as is not directly called from an endpoint handler. Some
-// ideas:
-//
-// - use this logic in the cron job that installs configuration profiles
-// - use this logic in the service methods that modify app/team configs and
-// call it if filevault is turned on/off
 func (svc *Service) MDMAppleEnableFileVaultAndEscrow(ctx context.Context, teamID uint) error {
-	// TODO: double-check if this is correct
-	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleConfigProfile{TeamID: &teamID}, fleet.ActionWrite); err != nil {
-		return ctxerr.Wrap(ctx, err, "enabling FileVault")
-	}
-
-	_, cert, _, err := svc.config.MDM.AppleSCEP()
+	cert, _, _, err := svc.config.MDM.AppleSCEP()
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "enabling FileVault")
 	}
 
-	var (
-		params   = fileVaultProfileOptions{apple_mdm.FleetFileVaultPayloadIdentifier, cert}
-		contents bytes.Buffer
-	)
+	var contents bytes.Buffer
+	params := fileVaultProfileOptions{
+		PayloadIdentifier:    apple_mdm.FleetFileVaultPayloadIdentifier,
+		Base64DerCertificate: base64.StdEncoding.EncodeToString(cert.Leaf.Raw),
+	}
 	if err := fileVaultProfileTemplate.Execute(&contents, params); err != nil {
 		return ctxerr.Wrap(ctx, err, "enabling FileVault")
 	}
@@ -144,11 +134,13 @@ func (svc *Service) MDMAppleEnableFileVaultAndEscrow(ctx context.Context, teamID
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "enabling FileVault")
 	}
-
 	cp.TeamID = &teamID
-	if _, err := svc.ds.NewMDMAppleConfigProfile(ctx, *cp); err != nil {
-		return ctxerr.Wrap(ctx, err, "enabling FileVault")
-	}
 
-	return nil
+	_, err = svc.ds.NewMDMAppleConfigProfile(ctx, *cp)
+	return ctxerr.Wrap(ctx, err, "enabling FileVault")
+}
+
+func (svc *Service) MDMAppleDisableFileVaultAndEscrow(ctx context.Context, teamID uint) error {
+	err := svc.ds.DeleteMDMAppleConfigProfileByTeamAndIdentifier(ctx, teamID, apple_mdm.FleetFileVaultPayloadIdentifier)
+	return ctxerr.Wrap(ctx, err, "disabling FileVault")
 }

@@ -3,12 +3,11 @@ package service
 import "text/template"
 
 type fileVaultProfileOptions struct {
-	PayloadIdentifier string
-	PEMCertificate    []byte
+	PayloadIdentifier    string
+	Base64DerCertificate string
 }
 
-var fileVaultProfileTemplate = template.Must(template.New("").Option("missingkey=error").Parse(`
-<?xml version="1.0" encoding="UTF-8"?>
+var fileVaultProfileTemplate = template.Must(template.New("").Option("missingkey=error").Parse(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
@@ -50,11 +49,9 @@ var fileVaultProfileTemplate = template.Must(template.New("").Option("missingkey
 		</dict>
 		<dict>
 			<key>PayloadCertificateFileName</key>
-			<string>fleet-mdm-apple-scep</string>
+			<string>Fleet certificate</string>
 			<key>PayloadContent</key>
-			<data>
-			{{ .Base64DerCertificate }}
-			</data>
+			<data>{{ .Base64DerCertificate }}</data>
 			<key>PayloadDisplayName</key>
 			<string>Certificate Root</string>
 			<key>PayloadIdentifier</key>
@@ -68,7 +65,7 @@ var fileVaultProfileTemplate = template.Must(template.New("").Option("missingkey
 		</dict>
 	</array>
 	<key>PayloadDisplayName</key>
-	<string>Enable FileVault</string>
+	<string>Disk encryption</string>
 	<key>PayloadIdentifier</key>
 	<string>{{ .PayloadIdentifier }}</string>
 	<key>PayloadType</key>

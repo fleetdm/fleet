@@ -629,6 +629,10 @@ type Service interface {
 	// escrow the recovery key.
 	MDMAppleEnableFileVaultAndEscrow(ctx context.Context, teamID uint) error
 
+	// MDMAppleDisableFileVaultAndEscrow removes the FileVault configuration
+	// profile for the given team.
+	MDMAppleDisableFileVaultAndEscrow(ctx context.Context, teamID uint) error
+
 	///////////////////////////////////////////////////////////////////////////////
 	// CronSchedulesService
 
