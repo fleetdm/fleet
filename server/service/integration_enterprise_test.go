@@ -80,7 +80,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 	// updates a team, no secret is provided so it will keep the one generated
 	// automatically when the team was created.
 	agentOpts := json.RawMessage(`{"config": {"views": {"foo": "bar"}}, "overrides": {"platforms": {"darwin": {"views": {"bar": "qux"}}}}}`)
-	mdm := fleet.TeamMDM{
+	mdm := fleet.TeamSpecMDM{
 		MacOSUpdates: fleet.MacOSUpdates{
 			MinimumVersion: "10.15.0",
 			Deadline:       "2021-01-01",
@@ -112,7 +112,12 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 		EnableSoftwareInventory: false,
 		AdditionalQueries:       ptr.RawMessage(json.RawMessage(`{"foo": "bar"}`)),
 	}, team.Config.Features)
-	require.Equal(t, mdm, team.Config.MDM)
+	require.Equal(t, fleet.TeamMDM{
+		MacOSUpdates: fleet.MacOSUpdates{
+			MinimumVersion: "10.15.0",
+			Deadline:       "2021-01-01",
+		},
+	}, team.Config.MDM)
 
 	// an activity was created for team spec applied
 	s.lastActivityMatches(fleet.ActivityTypeAppliedSpecTeam{}.ActivityName(), fmt.Sprintf(`{"teams": [{"id": %d, "name": %q}]}`, team.ID, team.Name), 0)
@@ -141,10 +146,20 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 
 	// dry-run with valid agent options and custom macos settings
 	agentOpts = json.RawMessage(`{"config": {"views": {"foo": "qux"}}}`)
-	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{Name: teamName, AgentOptions: agentOpts, MacOSSettings: map[string]interface{}{"custom_settings": []string{"foo", "bar"}}}}}
+	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{Name: teamName, AgentOptions: agentOpts, MDM: fleet.TeamSpecMDM{MacOSSettings: map[string]interface{}{"custom_settings": []string{"foo", "bar"}}}}}}
 	res = s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusUnprocessableEntity, "dry_run", "true")
 	errMsg := extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "Fleet MDM is not enabled")
+	require.Contains(t, errMsg, "Couldn't update macos_settings because MDM features aren't turned on in Fleet.")
+
+	// dry-run with macos disk encryption set to false, no error
+	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{Name: teamName, MDM: fleet.TeamSpecMDM{MacOSSettings: map[string]interface{}{"enable_disk_encryption": false}}}}}
+	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK, "dry_run", "true")
+
+	// dry-run with macos disk encryption set to true
+	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{Name: teamName, MDM: fleet.TeamSpecMDM{MacOSSettings: map[string]interface{}{"enable_disk_encryption": true}}}}}
+	res = s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusUnprocessableEntity, "dry_run", "true")
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Couldn't update macos_settings because MDM features aren't turned on in Fleet.")
 
 	// dry-run with valid agent options only
 	agentOpts = json.RawMessage(`{"config": {"views": {"foo": "qux"}}}`)
@@ -154,7 +169,8 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 	team, err = s.ds.TeamByName(context.Background(), teamName)
 	require.NoError(t, err)
 	require.Contains(t, string(*team.Config.AgentOptions), `"foo": "bar"`) // unchanged
-	require.Empty(t, team.Config.MacOSSettings.CustomSettings)             // unchanged
+	require.Empty(t, team.Config.MDM.MacOSSettings.CustomSettings)         // unchanged
+	require.False(t, team.Config.MDM.MacOSSettings.EnableDiskEncryption)   // unchanged
 
 	// apply without agent options specified
 	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{Name: teamName}}}
