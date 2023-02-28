@@ -180,6 +180,9 @@ const main = async () => {
 
     const virtual = new VirtualDatabase(sqlite3, db);
     DATABASE = virtual;
+
+    // Expose it for debugging in console
+    globalThis.DB = DATABASE;
   }
 
   const node_key = await getNodeKey();
