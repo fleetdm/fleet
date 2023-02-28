@@ -16,7 +16,14 @@ spec:
     1. The `PayloadType` string is com.apple.applicationaccess.
     2. The key to include is allowAssistant.
     3. The key must be set to <true/>.
-  query: SELECT 1 FROM managed_policies WHERE domain = 'com.apple.applicationaccess' AND name = 'allowAssistant' AND (value = '1' OR value = 'true');
+  query: |
+      SELECT 1 WHERE NOT EXISTS (
+        SELECT 1 FROM managed_policies WHERE 
+            domain='com.apple.applicationaccess' 
+            AND 
+            name='allowAssistant' 
+             AND (value = '0' OR value = 'false')
+        );  
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-macos-13-2.5.1-enable
   contributors: sharon-fdm
