@@ -4817,7 +4817,7 @@ func (s *integrationTestSuite) TestAppConfig() {
 		"mdm": { "macos_settings": { "custom_settings": ["foo", "bar"] } }
   }`), http.StatusUnprocessableEntity)
 	errMsg := extractServerErrorText(res.Body)
-	assert.Contains(t, errMsg, "Fleet MDM is not enabled")
+	assert.Contains(t, errMsg, "Couldn't update macos_settings because MDM features aren't turned on in Fleet.")
 
 	// try to set the apple bm default team, which is premium only
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{

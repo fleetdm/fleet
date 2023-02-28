@@ -586,7 +586,8 @@ func (svc Service) createTeamFromSpec(ctx context.Context, spec *fleet.TeamSpec,
 		if !svc.config.MDMApple.Enable {
 			// TODO(mna): eventually we should detect the minimum config required for
 			// this to be allowed, probably just SCEP/APNs?
-			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("macos_settings.custom_settings", "cannot set custom settings: Fleet MDM is not enabled"))
+			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("macos_settings.custom_settings",
+				`Couldn't update macos_settings because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`))
 		}
 	}
 
@@ -634,7 +635,8 @@ func (svc Service) editTeamFromSpec(ctx context.Context, team *fleet.Team, spec 
 		if !svc.config.MDMApple.Enable {
 			// TODO(mna): eventually we should detect the minimum config required for
 			// this to be allowed, probably just SCEP/APNs?
-			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("macos_settings.custom_settings", "cannot set custom settings: Fleet MDM is not enabled"))
+			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("macos_settings.custom_settings",
+				`Couldn't update macos_settings because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`))
 		}
 	}
 

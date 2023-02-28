@@ -149,7 +149,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{Name: teamName, AgentOptions: agentOpts, MDM: fleet.TeamSpecMDM{MacOSSettings: map[string]interface{}{"custom_settings": []string{"foo", "bar"}}}}}}
 	res = s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusUnprocessableEntity, "dry_run", "true")
 	errMsg := extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "Fleet MDM is not enabled")
+	require.Contains(t, errMsg, "Couldn't update macos_settings because MDM features aren't turned on in Fleet.")
 
 	// dry-run with valid agent options only
 	agentOpts = json.RawMessage(`{"config": {"views": {"foo": "qux"}}}`)
