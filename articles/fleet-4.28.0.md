@@ -32,6 +32,8 @@ Premium and Ultimate Fleet plans have the ability to import the CIS benchmarks i
 
 For more information on adding CIS Benchmarks, check out the [documentation here](https://fleetdm.com/docs/using-fleet/cis-benchmarks#how-to-add-cis-benchmarks).
 
+<call-to-action preset="premium-upgrade"></call-to-action>
+
 ## Reduced false negatives from National Vulnerability Database (NVD) policies
 
 A false negative occurs when a policy reports there is not a vulnerability, but there actually is a vulnerability. Even if a policy reports zero vulnerabilities, that does not imply there are no vulnerabilities present. Both of these types of errors can cause problems when trying to identify vulnerabilities that need attention.
@@ -67,7 +69,7 @@ For more information on enabling this functionality, check out the [documentati
 *   Enabled installation and auto-updates of Nudge via Orbit.
 *   Added support for providing macos\_settings.custom\_settings profiles for team (with Fleet Premium) and no-team levels via fleetctl apply.
 
-Fleet continues to make significant progress on the Fleet MDM. If you want access to the device management beta, please [sign up here](https://fleetdm.com/device-management).
+<call-to-action preset="mdm-beta"></call-to-action>
 
 #### List of other features
 
