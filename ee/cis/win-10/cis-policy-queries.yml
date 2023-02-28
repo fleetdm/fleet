@@ -680,7 +680,7 @@ spec:
   query: |
     TODO
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_9.2.1
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_9.3.1
   contributors: RachelElysia
 ---
 apiVersion: v1
@@ -696,7 +696,7 @@ spec:
   query: |
     TODO
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_9.2.2
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_9.3.2
   contributors: RachelElysia
 ---
 apiVersion: v1
@@ -712,7 +712,7 @@ spec:
   query: |
     TODO
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_9.2.3
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_9.3.3
   contributors: RachelElysia
 ---
 apiVersion: v1
@@ -728,7 +728,7 @@ spec:
   query: |
     TODO
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_9.2.4
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_9.3.4
   contributors: RachelElysia
 ---
 apiVersion: v1
@@ -744,7 +744,7 @@ spec:
   query: |
     TODO
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_9.2.5
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_9.3.5
   contributors: RachelElysia
 ---
 apiVersion: v1
@@ -760,7 +760,7 @@ spec:
   query: |
     TODO
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_9.2.6
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_9.3.6
   contributors: RachelElysia
 ---
 apiVersion: v1
@@ -776,7 +776,7 @@ spec:
   query: |
     TODO
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_9.2.7
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_9.3.7
   contributors: RachelElysia
 ---
 apiVersion: v1
@@ -792,5 +792,37 @@ spec:
   query: |
     TODO
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_9.2.8
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_9.3.8
+  contributors: RachelElysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - TODO
+  platforms: win10
+  platform: windows
+  description: |
+    TODO
+  resolution: |
+    TODO
+  query: |
+    TODO
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_9.3.11
+  contributors: RachelElysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - TODO
+  platforms: win10
+  platform: windows
+  description: |
+    TODO
+  resolution: |
+    TODO
+  query: |
+    TODO
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_9.3.12
   contributors: RachelElysia
