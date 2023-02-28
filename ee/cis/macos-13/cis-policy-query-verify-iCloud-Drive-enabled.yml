@@ -16,7 +16,6 @@ spec:
       2. The key to include is allowCloudDocumentSync.
       3. The key must be set to <true/>.
   query: |
-
     SELECT 1 WHERE NOT EXISTS (
         SELECT 1 FROM managed_policies WHERE 
             domain='com.apple.applicationaccess' 
