@@ -681,6 +681,28 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
+  name: CIS - Ensure Show Bluetooth Status in Menu Bar Is Enabled (MDM Required)
+  platforms: macOS
+  platform: darwin
+  description: |
+    Enabling "Show Bluetooth status in menu bar" is a security awareness method that
+    helps understand the current state of Bluetooth, including whether it is enabled,
+    discoverable, what paired devices exist, and what paired devices are currently active.
+  resolution: |
+    Automated method:
+    Ask your system administrator to deploy an MDM profile that enables the Bluetooth status in the menu bar.
+    Create or edit a configuration profile with the following information:
+    1. The `PayloadType` string is `com.apple.controlcenter`.
+    2. The key to include is `Bluetooth`.
+    3. The key must be set to `<integer>18</integer>`.
+  query: SELECT 1 FROM managed_policies WHERE domain = 'com.apple.controlcenter' AND name = 'Bluetooth' AND value = 18;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS-macos-13-2.5.1
+  contributors: lucasmrod
+---
+apiVersion: v1
+kind: policy
+spec:
   name: CIS - Ensure Location Services Is Enabled
   platforms: macOS
   platform: darwin
