@@ -1046,3 +1046,94 @@ func (ds *Datastore) UpdateHostMDMAppleProfile(ctx context.Context, profile *fle
         `, profile.Status, profile.OperationType, profile.Detail, profile.HostUUID, profile.CommandUUID)
 	return err
 }
+
+func (ds *Datastore) GetMDMAppleHostsProfilesSummary(ctx context.Context, teamID *uint) (*fleet.MDMAppleHostsProfilesSummary, error) {
+	sqlFmt := `
+SELECT
+	count(us.host_uuid) AS count,
+	us.status
+FROM (
+	SELECT
+		host_uuid,
+		status
+	FROM
+		host_mdm_apple_profiles
+	WHERE
+		status = 'failed'
+	UNION
+	SELECT
+		host_uuid,
+		status
+	FROM
+		host_mdm_apple_profiles hmap
+	WHERE
+		status = 'pending'
+		AND host_uuid NOT IN(
+			SELECT
+				hmap2.host_uuid FROM host_mdm_apple_profiles hmap2
+			WHERE
+				hmap.host_uuid = hmap2.host_uuid
+				AND hmap2.status = 'failed')
+	UNION
+	SELECT
+		host_uuid, 
+		status
+	FROM
+		host_mdm_apple_profiles hmap
+	WHERE
+		status = 'applied'
+		AND host_uuid NOT IN(
+			SELECT
+				hmap2.host_uuid FROM host_mdm_apple_profiles hmap2
+			WHERE
+				hmap.host_uuid = hmap2.host_uuid
+				AND(hmap2.status = 'pending'
+					OR hmap2.status = 'failed'))) us
+WHERE
+	EXISTS (
+		SELECT
+			1
+		FROM
+			hosts h
+		WHERE
+			h.uuid = us.host_uuid
+			AND %s)
+	GROUP BY
+		status
+	`
+
+	teamFilter := "h.team_id IS NULL"
+	if teamID != nil && *teamID > 0 {
+		teamFilter = fmt.Sprintf("h.team_id = %d", *teamID)
+	}
+
+	var rows []struct {
+		Count  uint                         `db:"count"`
+		Status fleet.MDMAppleDeliveryStatus `db:"status"`
+	}
+	err := sqlx.SelectContext(ctx, ds.reader, &rows, fmt.Sprintf(sqlFmt, teamFilter))
+	if err != nil {
+		return nil, err
+	}
+
+	if len(rows) > 3 {
+		return nil, ctxerr.Errorf(ctx, "getting mdm profiles summary: expected not more than three rows but got %d", len(rows))
+	}
+
+	res := fleet.MDMAppleHostsProfilesSummary{}
+	for _, r := range rows {
+		switch r.Status {
+		case fleet.MDMAppleDeliveryApplied:
+			res.Latest = r.Count
+		case fleet.MDMAppleDeliveryFailed:
+			res.Failed = r.Count
+		case fleet.MDMAppleDeliveryPending:
+			res.Pending = r.Count
+		default:
+			// this should never happen
+			return nil, ctxerr.Errorf(ctx, "getting mdm profiles summary: unrecognized status: %s", r.Status)
+		}
+	}
+
+	return &res, nil
+}

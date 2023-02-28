@@ -563,6 +563,8 @@ type UpdateHostMDMAppleProfileFunc func(ctx context.Context, profile *fleet.Host
 
 type GetMDMAppleCommandRequestTypeFunc func(ctx context.Context, commandUUID string) (string, error)
 
+type GetMDMAppleHostsProfilesSummaryFunc func(ctx context.Context, teamID *uint) (*fleet.MDMAppleHostsProfilesSummary, error)
+
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
 	HealthCheckFuncInvoked bool
@@ -1385,6 +1387,9 @@ type DataStore struct {
 
 	GetMDMAppleCommandRequestTypeFunc        GetMDMAppleCommandRequestTypeFunc
 	GetMDMAppleCommandRequestTypeFuncInvoked bool
+
+	GetMDMAppleHostsProfilesSummaryFunc        GetMDMAppleHostsProfilesSummaryFunc
+	GetMDMAppleHostsProfilesSummaryFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -3305,4 +3310,11 @@ func (s *DataStore) GetMDMAppleCommandRequestType(ctx context.Context, commandUU
 	s.GetMDMAppleCommandRequestTypeFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetMDMAppleCommandRequestTypeFunc(ctx, commandUUID)
+}
+
+func (s *DataStore) GetMDMAppleHostsProfilesSummary(ctx context.Context, teamID *uint) (*fleet.MDMAppleHostsProfilesSummary, error) {
+	s.mu.Lock()
+	s.GetMDMAppleHostsProfilesSummaryFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetMDMAppleHostsProfilesSummaryFunc(ctx, teamID)
 }
