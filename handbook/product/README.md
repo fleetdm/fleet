@@ -274,7 +274,7 @@ The product team is responsible for providing the [marketing team](../marketing/
 the release blog post. This is accomplished by filing a release blog post issue and adding
 the issue to the growth board on GitHub.
 
-The release blog post issue includes a list of the primary *Tier 1* features included in the upcoming
+The release blog post issue includes a list of the primary *Tier 2/3* features included in the upcoming
 release. This list of features should point the reader to the GitHub issue that explains each
 feature in more detail.
 
