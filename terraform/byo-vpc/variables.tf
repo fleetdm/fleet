@@ -287,6 +287,6 @@ variable "alb_config" {
     security_groups = optional(list(string), [])
     access_logs     = optional(map(string), {})
     certificate_arn = string
-    allowed_cirds   = optional(list(string), ["0.0.0.0/0"])
+    allowed_cidrs   = optional(list(string), ["0.0.0.0/0"])
   })
 }
