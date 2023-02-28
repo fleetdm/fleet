@@ -25,7 +25,7 @@ All Fleet employees and long-term collaborators are expected to read and electro
 
 | Policy owner   | Effective date |
 | -------------- | -------------- |
-| @GuillaumeRoss | 2022-06-01     |
+| @mikermcneil | 2022-06-01     |
 
 Fleet requires all workforce members to comply with the following acceptable use requirements and procedures:
 
@@ -60,7 +60,7 @@ Fleet requires all workforce members to comply with the following acceptable use
 
 | Policy owner   | Effective date |
 | -------------- | -------------- |
-| @GuillaumeRoss | 2022-06-01     |
+| @zwass | 2022-06-01     |
 
 Fleet requires all workforce members to comply with the following acceptable use requirements and procedures, such that:
 
@@ -84,40 +84,40 @@ Fleet requires all workforce members to comply with the following acceptable use
 
 Fleet policy requires that:
 
-1. access authorization shall be implemented using role-based access control (RBAC) or a similar mechanism.
+1. Access authorization shall be implemented using role-based access control (RBAC) or a similar mechanism.
 
-2. standard access based on a user's job role may be pre-provisioned during employee onboarding. All subsequent access requests to computing resources must be approved by the requestor’s manager prior to granting and provisioning of access.
+2. Standard access based on a user's job role may be pre-provisioned during employee onboarding. All subsequent access requests to computing resources must be approved by the requestor’s manager prior to granting and provisioning of access.
 
-3. access to critical resources, such as production environments, must be approved by the security team in addition to the requestor’s manager.
+3. Access to critical resources, such as production environments, must be approved by the security team in addition to the requestor’s manager.
 
-4. access must be reviewed regularly and revoked if no longer needed.
+4. Access must be reviewed regularly and revoked if no longer needed.
 
-5. upon the termination of employment, all system access must be revoked, and user accounts terminated within 24-hours or one business day, whichever is shorter.
+5. Upon the termination of employment, all system access must be revoked, and user accounts terminated within 24-hours or one business day, whichever is shorter.
 
-6. all system access must be reviewed at least annually and whenever a user's job role changes.
+6. All system access must be reviewed at least annually and whenever a user's job role changes.
 
 ### Shared secrets management
 
 Fleet policy requires that:
 
-1. use of shared credentials/secrets must be minimized.
+1. Use of shared credentials/secrets must be minimized.
 
-2. if required by business operations, secrets/credentials must be shared securely and stored in encrypted vaults that meet the Fleet data encryption standards.
+2. If required by business operations, secrets/credentials must be shared securely and stored in encrypted vaults that meet the Fleet data encryption standards.
 
 ### Privileged access management
 
 Fleet policy requires that:
 
-1. automation with service accounts must be used to configure production systems when technically feasible.
+1. Automation with service accounts must be used to configure production systems when technically feasible.
 
-2. use of high privilege accounts must only be performed when absolutely necessary.
+2. Use of high privilege accounts must only be performed when absolutely necessary.
 
 ## Asset management policy
 > _Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)_
 
 | Policy owner   | Effective date |
 | -------------- | -------------- |
-| @GuillaumeRoss | 2022-06-01     |
+| @zwass | 2022-06-01     |
 
 You can't protect what you can't see. Therefore, Fleet must maintain an accurate and up-to-date inventory of its physical and digital assets.
 
@@ -134,7 +134,7 @@ Fleet policy requires that:
 
 | Policy owner   | Effective date |
 | -------------- | -------------- |
-| @GuillaumeRoss | 2022-06-01     |
+| @zwass | 2022-06-01     |
 
 The Fleet business continuity and disaster recovery plan establishes procedures to recover Fleet following a disruption resulting from a disaster. 
 
@@ -160,13 +160,13 @@ The following teams have been developed and trained to respond to a contingency 
 
 2. **People Ops** is responsible for ensuring the physical safety of all Fleet personnel and coordinating the response to incidents that could impact it. Fleet has no physical site to recover. The team reports to the CEO.
 
-3. **Security** is responsible for assessing and responding to all cybersecurity-related incidents according to Fleet Incident Response policy and procedures. The security team shall assist the above teams in recovery as needed in non-cybersecurity events. The team leader is the Head of Security.
+3. **Security** is responsible for assessing and responding to all cybersecurity-related incidents according to Fleet Incident Response policy and procedures. The security team shall assist the above teams in recovery as needed in non-cybersecurity events. The team leader is the CTO.
 
 Members of the above teams must maintain local copies of the contact information of the BCDR succession team. Additionally, the team leads must maintain a local copy of this policy in the event Internet access is not available during a disaster scenario.
 
 All executive leadership shall be informed of any and all contingency events.
 
-Current Fleet continuity leadership team members include the Head of Security, CEO, and CTO.
+Current Fleet continuity leadership team members include the CEO and CTO.
 
 ### General Disaster Recovery Procedures
 
@@ -233,7 +233,7 @@ Fleet policy requires that:
 
 6. The data retention period must be defined and comply with any and all applicable regulatory and contractual requirements.  More specifically,
 
-  * data and records belonging to Fleet platform customers must be retained
+  * Data and records belonging to Fleet platform customers must be retained
     per Fleet product terms and conditions and/or specific contractual
     agreements.
 
@@ -324,7 +324,7 @@ Most Fleet data is **public** yet retained and backed up not due to our data han
 
 | Policy owner   | Effective date |
 | -------------- | -------------- |
-| @GuillaumeRoss | 2022-06-01     |
+| @zwass | 2022-06-01     |
 
 Fleet requires all workforce members to comply with the encryption policy, such that:
 
@@ -359,7 +359,7 @@ Encryption and key management for local disk encryption of end-user devices foll
 
 | Policy owner   | Effective date |
 | -------------- | -------------- |
-| @GuillaumeRoss | 2022-06-01     |
+| @mikermcneil | 2022-06-01     |
 
 
 Fleet is committed to ensuring all workforce members participate in security and compliance in their roles at Fleet. We encourage self-management and reward the right behaviors. 
@@ -409,9 +409,9 @@ Fleet policy requires that:
 
 The Security Incident Response Team (SIRT) is responsible for
 
-* reviewing analyzing, and logging all received reports and tracking their statuses.
-* performing investigations, creating and executing action plans, and post-incident activities.
-* collaboration with law enforcement agencies.
+* Reviewing analyzing, and logging all received reports and tracking their statuses.
+* Performing investigations, creating and executing action plans, and post-incident activities.
+* Collaboration with law enforcement agencies.
 
 Current members of the Fleet SIRT:
 
@@ -676,7 +676,7 @@ incident response plan annually.
 
 | Policy owner   | Effective date |
 | -------------- | -------------- |
-| @GuillaumeRoss | 2022-06-01     |
+| @zwass | 2022-06-01     |
 
 Fleet Device Management is committed to conducting business in compliance with all applicable laws, regulations, and company policies. Fleet has adopted this policy to outline the security measures required to protect electronic information systems and related equipment from unauthorized use.
 
@@ -696,7 +696,7 @@ CTO                                             | Oversight over information sec
 
 | Policy owner   | Effective date |
 | -------------- | -------------- |
-| @GuillaumeRoss | 2022-06-01     |
+| @zwass | 2022-06-01     |
 
 Fleet policy requires
 
@@ -717,17 +717,17 @@ Fleet policy requires
 
 | Policy owner   | Effective date |
 | -------------- | -------------- |
-| @GuillaumeRoss | 2022-06-01     |
+| @zwass | 2022-06-01     |
 
 Fleet policy requires:
 
-1. a thorough risk assessment must be conducted to evaluate potential threats and vulnerabilities to the confidentiality, integrity, and availability of sensitive, confidential, and proprietary electronic information Fleet stores, transmits, and/or processes.
+1. A thorough risk assessment must be conducted to evaluate potential threats and vulnerabilities to the confidentiality, integrity, and availability of sensitive, confidential, and proprietary electronic information Fleet stores, transmits, and/or processes.
 
-2. risk assessments must be performed with any major change to Fleet's business or technical operations and/or supporting infrastructure no less than once per year.
+2. Risk assessments must be performed with any major change to Fleet's business or technical operations and/or supporting infrastructure no less than once per year.
 
-3. strategies shall be developed to mitigate or accept the risks identified in the risk assessment process.
+3. Strategies shall be developed to mitigate or accept the risks identified in the risk assessment process.
 
-4.  The risk register is monitored quarterly to assess compliance with the above policy, and document newly discovered or created risks.
+4. The risk register is monitored quarterly to assess compliance with the above policy, and document newly discovered or created risks.
 
 ### Acceptable Risk Levels
 
@@ -779,7 +779,7 @@ Fleet policy requires that:
 
 | Policy owner   | Effective date |
 | -------------- | -------------- |
-| @GuillaumeRoss | 2022-06-01     |
+| @zwass | 2022-06-01     |
 
 Fleet policy requires that:
 
@@ -789,7 +789,7 @@ Fleet policy requires that:
 
 2. Fleet must annually review all policies.
 
-3. Fleet maintains all policy changes must be approved by Fleet's head of security. Additionally,
+3. Fleet maintains all policy changes must be approved by Fleet's CTO or CEO. Additionally,
 
   * Major changes may require approval by Fleet CEO or designee;
   * Changes to policies and procedures related to product development may
@@ -811,7 +811,7 @@ Fleet policy requires that:
 
 | Policy owner   | Effective date |
 | -------------- | -------------- |
-| @GuillaumeRoss | 2022-06-01     |
+| @mikermcneil | 2022-06-01     |
 
 Fleet makes every effort to assure all third-party organizations are
 compliant and do not compromise the integrity, security, and privacy of Fleet
