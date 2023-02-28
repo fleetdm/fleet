@@ -12,13 +12,14 @@ import { ITarget } from "interfaces/target";
 import Button from "components/buttons/Button";
 import TabsWrapper from "components/TabsWrapper";
 import InfoBanner from "components/InfoBanner";
+import ShowQueryModal from "components/modals/ShowQueryModal";
 import QueryResultsHeading from "components/queries/queryResults/QueryResultsHeading";
 import AwaitingResults from "components/queries/queryResults/AwaitingResults";
 
 import PolicyQueryTable from "../PolicyQueriesTable/PolicyQueriesTable";
 import PolicyQueriesErrorsTable from "../PolicyQueriesErrorsTable/PolicyQueriesErrorsTable";
-
 import DownloadIcon from "../../../../../../assets/images/icon-download-12x12@2x.png";
+import EyeIcon from "../../../../../../assets/images/icon-eye-16x16@2x.png";
 
 interface IQueryResultsProps {
   campaign: ICampaign;
@@ -54,6 +55,7 @@ const QueryResults = ({
   const totalRowsCount = get(campaign, ["hosts_count", "successful"], 0);
 
   const [navTabIndex, setNavTabIndex] = useState(0);
+  const [showQueryModal, setShowQueryModal] = useState(false);
 
   const onExportQueryResults = (evt: React.MouseEvent<HTMLButtonElement>) => {
     evt.preventDefault();
@@ -95,9 +97,43 @@ const QueryResults = ({
     }
   };
 
+  const onShowQueryModal = () => {
+    setShowQueryModal(!showQueryModal);
+  };
+
   const onQueryDone = () => {
     setSelectedTargets([]);
     goToQueryEditor();
+  };
+
+  const renderTableButtons = (tableType: "results" | "errors") => {
+    return (
+      <div className={`${baseClass}__results-cta`}>
+        <Button
+          className={`${baseClass}__show-query-btn`}
+          onClick={onShowQueryModal}
+          variant="text-link"
+        >
+          <>
+            Show query <img alt="Show query" src={EyeIcon} />
+          </>
+        </Button>
+        <Button
+          className={`${baseClass}__export-btn`}
+          onClick={
+            tableType === "errors"
+              ? onExportErrorsResults
+              : onExportQueryResults
+          }
+          variant="text-link"
+        >
+          <>
+            {`Export ${tableType}`}{" "}
+            <img alt={`Export ${tableType}`} src={DownloadIcon} />
+          </>
+        </Button>
+      </div>
+    );
   };
 
   const renderTable = () => {
@@ -135,15 +171,7 @@ const QueryResults = ({
             {totalRowsCount} result{totalRowsCount !== 1 && "s"}
           </span>
           <div className={`${baseClass}__results-cta`}>
-            <Button
-              className={`${baseClass}__export-btn`}
-              onClick={onExportQueryResults}
-              variant="text-link"
-            >
-              <>
-                Export results <img alt="" src={DownloadIcon} />
-              </>
-            </Button>
+            {renderTableButtons("results")}
           </div>
         </div>
         <PolicyQueryTable
@@ -165,15 +193,7 @@ const QueryResults = ({
             </span>
           )}
           <div className={`${baseClass}__errors-cta`}>
-            <Button
-              className={`${baseClass}__export-btn`}
-              onClick={onExportErrorsResults}
-              variant="text-link"
-            >
-              <>
-                Export errors <img alt="" src={DownloadIcon} />
-              </>
-            </Button>
+            {renderTableButtons("errors")}
           </div>
         </div>
         <PolicyQueriesErrorsTable
@@ -216,6 +236,9 @@ const QueryResults = ({
           <TabPanel>{renderErrorsTable()}</TabPanel>
         </Tabs>
       </TabsWrapper>
+      {showQueryModal && (
+        <ShowQueryModal livePolicy onCancel={onShowQueryModal} />
+      )}
     </div>
   );
 };

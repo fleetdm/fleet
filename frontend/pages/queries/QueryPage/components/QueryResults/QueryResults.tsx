@@ -12,10 +12,10 @@ import { ITarget } from "interfaces/target";
 import Button from "components/buttons/Button";
 import TableContainer from "components/TableContainer";
 import TabsWrapper from "components/TabsWrapper";
+import ShowQueryModal from "components/modals/ShowQueryModal";
 import QueryResultsHeading from "components/queries/queryResults/QueryResultsHeading";
 import AwaitingResults from "components/queries/queryResults/AwaitingResults";
 
-import ShowQueryModal from "./ShowQueryModal";
 import resultsTableHeaders from "./QueryResultsTableConfig";
 
 import DownloadIcon from "../../../../../../assets/images/icon-download-12x12@2x.png";
@@ -230,7 +230,9 @@ const QueryResults = ({
           <TabPanel>{renderErrorsTab()}</TabPanel>
         </Tabs>
       </TabsWrapper>
-      {showQueryModal && <ShowQueryModal onCancel={onShowQueryModal} />}
+      {showQueryModal && (
+        <ShowQueryModal liveQuery onCancel={onShowQueryModal} />
+      )}
     </div>
   );
 };
