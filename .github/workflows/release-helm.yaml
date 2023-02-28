@@ -25,7 +25,7 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
     - uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b # v2
-    - uses: stefanprodan/helm-gh-pages@b43a8719cc63fdb3aa943cc57359ab19118eab3f
+    - uses: stefanprodan/helm-gh-pages@0ad2bb377311d61ac04ad9eb6f252fb68e207260
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
         charts_dir: charts
