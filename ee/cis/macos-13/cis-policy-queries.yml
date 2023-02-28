@@ -117,7 +117,7 @@ spec:
     Create or edit a configuration profile with the following information:
       1. The PayloadType string is com.apple.applicationaccess.
       2. The key to include is allowCloudKeychainSync.
-      3. The key must be set to <true/>.
+      3. The key must be set to <true/> or <false/> based on organization decision.
   query: |
     SELECT 1 FROM managed_policies WHERE 
         domain='com.apple.applicationaccess' AND name='allowCloudKeychainSync';
