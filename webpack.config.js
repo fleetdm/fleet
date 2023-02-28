@@ -7,6 +7,7 @@ const HtmlWebpackPlugin = require("html-webpack-plugin");
 const MiniCssExtractPlugin = require("mini-css-extract-plugin");
 const WebpackNotifierPlugin = require("webpack-notifier");
 const ForkTsCheckerWebpackPlugin = require("fork-ts-checker-webpack-plugin");
+const globImporter = require("node-sass-glob-importer");
 
 const DEV_SOURCE_MAPS = "eval-source-map";
 
@@ -107,9 +108,9 @@ const config = {
             options: {
               sourceMap: true,
               includePaths: [bourbon],
+              importer: globImporter(),
             },
           },
-          { loader: "import-glob-loader" },
         ],
       },
       {

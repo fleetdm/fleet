@@ -1,6 +1,7 @@
 const path = require("path");
 const bourbon = require("node-bourbon").includePaths;
 const MiniCssExtractPlugin = require("mini-css-extract-plugin");
+const globImporter = require("node-sass-glob-importer");
 
 module.exports = {
   webpackFinal: async (config) => {
@@ -21,23 +22,20 @@ module.exports = {
           options: {
             sourceMap: true,
             includePaths: [bourbon],
+            importer: globImporter(),
           },
         },
-        { loader: "import-glob-loader" },
       ],
     });
 
-    config.plugins.push(new MiniCssExtractPlugin({ filename: '[name].css' }))
-    config.resolve.modules.push(path.resolve(__dirname, '../frontend'));
+    config.plugins.push(new MiniCssExtractPlugin({ filename: "[name].css" }));
+    config.resolve.modules.push(path.resolve(__dirname, "../frontend"));
 
     return config;
   },
-  "stories": [
+  stories: [
     "../frontend/components/**/*.stories.mdx",
-    "../frontend/components/**/*.stories.@(js|jsx|ts|tsx)"
+    "../frontend/components/**/*.stories.@(js|jsx|ts|tsx)",
   ],
-  "addons": [
-    "@storybook/addon-links",
-    "@storybook/addon-essentials"
-  ]
-}
+  addons: ["@storybook/addon-links", "@storybook/addon-essentials"],
+};
