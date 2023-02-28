@@ -5410,6 +5410,12 @@ _Available in Fleet Premium_
         "policy_ids": null,
         "host_batch_size": 0
       }
+    },
+    "mdm": {
+      "macos_settings": {
+        "custom_settings": [],
+        "enable_disk_encryption": false
+      }
     }
   }
 }
