@@ -761,7 +761,7 @@ QA may also propose that a reported bug is not actually a bug. A bug is defined 
 #### Acknowledging bugs
 If the inbox item is a bug, QA should apply the acknowledged state to the bug. QA has one week to reproduce the bug.
 
-For community-reported bugs, this may require QA to gather more information from the reporter. QA should acknowledge the bug and reach out to reports if more information is needed to reproduce the issue. Reporters have six weeks to provide follow-up information for each report. We'll ping them again as a reminder at three weeks. After six weeks, we'll close the bug to remove it from our visibility, but reporters are welcome to re-open and provide context.
+For community-reported bugs, this may require QA to gather more information from the reporter. QA should acknowledge the bug and reach out to the reporter if more information is needed to reproduce the issue. Reporters have six weeks to provide follow-up information for each report. We'll ping them again as a reminder at three weeks. After six weeks, we'll close the bug to remove it from our visibility, but reporters are welcome to re-open and provide context.
 
 Once reproduced, QA should document the reproduction steps in the description, align with product on what is the desired outcome during the weekly bug review meetings, and move it to the reproduced state.
 
