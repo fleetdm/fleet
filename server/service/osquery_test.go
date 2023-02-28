@@ -213,7 +213,7 @@ func TestEnrollAgent(t *testing.T) {
 			return nil, errors.New("not found")
 		}
 	}
-	ds.EnrollHostFunc = func(ctx context.Context, osqueryHostId, nodeKey string, teamID *uint, cooldown time.Duration) (*fleet.Host, error) {
+	ds.EnrollHostFunc = func(ctx context.Context, isMDMEnabled bool, osqueryHostId, hUUID, hSerial, nodeKey string, teamID *uint, cooldown time.Duration) (*fleet.Host, error) {
 		assert.Equal(t, ptr.Uint(3), teamID)
 		return &fleet.Host{
 			OsqueryHostID: &osqueryHostId, NodeKey: &nodeKey,
@@ -244,7 +244,7 @@ func TestEnrollAgentEnforceLimit(t *testing.T) {
 				return nil, errors.New("not found")
 			}
 		}
-		ds.EnrollHostFunc = func(ctx context.Context, osqueryHostId, nodeKey string, teamID *uint, cooldown time.Duration) (*fleet.Host, error) {
+		ds.EnrollHostFunc = func(ctx context.Context, isMDMEnabled bool, osqueryHostId, hUUID, hSerial, nodeKey string, teamID *uint, cooldown time.Duration) (*fleet.Host, error) {
 			hostIDSeq++
 			return &fleet.Host{
 				ID: hostIDSeq, OsqueryHostID: &osqueryHostId, NodeKey: &nodeKey,
@@ -328,7 +328,7 @@ func TestEnrollAgentDetails(t *testing.T) {
 	ds.VerifyEnrollSecretFunc = func(ctx context.Context, secret string) (*fleet.EnrollSecret, error) {
 		return &fleet.EnrollSecret{}, nil
 	}
-	ds.EnrollHostFunc = func(ctx context.Context, osqueryHostId, nodeKey string, teamID *uint, cooldown time.Duration) (*fleet.Host, error) {
+	ds.EnrollHostFunc = func(ctx context.Context, isMDMEnabled bool, osqueryHostId, hUUID, hSerial, nodeKey string, teamID *uint, cooldown time.Duration) (*fleet.Host, error) {
 		return &fleet.Host{
 			OsqueryHostID: &osqueryHostId, NodeKey: &nodeKey,
 		}, nil
