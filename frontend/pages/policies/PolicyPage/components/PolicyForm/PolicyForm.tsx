@@ -237,10 +237,7 @@ const PolicyForm = ({
         description: lastEditedQueryDescription,
         query: lastEditedQueryBody,
         resolution: lastEditedQueryResolution,
-        platform:
-          defaultPolicy && lastEditedQueryPlatform
-            ? lastEditedQueryPlatform
-            : newPlatformString,
+        platform: newPlatformString,
       };
       if (isPremiumTier) {
         payload.critical = lastEditedQueryCritical;

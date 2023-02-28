@@ -45,12 +45,7 @@ func newTestService(t *testing.T, ds fleet.Datastore, rs fleet.QueryResultStore,
 func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig config.FleetConfig, rs fleet.QueryResultStore, lq fleet.LiveQueryStore, opts ...*TestServerOpts) (fleet.Service, context.Context) {
 	mailer := &mockMailService{SendEmailFn: func(e fleet.Email) error { return nil }}
 	lic := &fleet.LicenseInfo{Tier: fleet.TierFree}
-	writer, err := logging.NewFilesystemLogWriter(
-		fleetConfig.Filesystem.StatusLogFile,
-		kitlog.NewNopLogger(),
-		fleetConfig.Filesystem.EnableLogRotation,
-		fleetConfig.Filesystem.EnableLogCompression,
-	)
+	writer, err := logging.NewFilesystemLogWriter(fleetConfig.Filesystem.StatusLogFile, kitlog.NewNopLogger(), fleetConfig.Filesystem.EnableLogRotation, fleetConfig.Filesystem.EnableLogCompression, 500, 28, 3)
 	require.NoError(t, err)
 
 	osqlogger := &OsqueryLogger{Status: writer, Result: writer}
@@ -147,7 +142,16 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		panic(err)
 	}
 	if lic.IsPremium() {
-		svc, err = eeservice.NewService(svc, ds, kitlog.NewNopLogger(), fleetConfig, mailer, c, depStorage)
+		svc, err = eeservice.NewService(
+			svc,
+			ds,
+			kitlog.NewNopLogger(),
+			fleetConfig,
+			mailer,
+			c,
+			depStorage,
+			NewMDMAppleCommander(mdmStorage, mdmPusher),
+		)
 		if err != nil {
 			panic(err)
 		}

@@ -68,5 +68,16 @@
     "filter": {
       "skip": true
     }
+  },
+  {
+    "software": {
+      "bundle_identifier": [
+        "/(?i)com\\.microsoft\\.(powerpoint|word|excel|onenote|outlook)/"
+      ],
+      "source": ["apps"]
+    },
+    "filter": {
+      "skip": true
+    }
   }
 ]

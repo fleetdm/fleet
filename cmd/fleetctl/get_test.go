@@ -265,6 +265,10 @@ func TestGetTeamsByName(t *testing.T) {
 func TestGetHosts(t *testing.T) {
 	_, ds := runServerWithMockedDS(t)
 
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+
 	// this func is called when no host is specified i.e. `fleetctl get hosts --json`
 	ds.ListHostsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
 		additional := json.RawMessage(`{"query1": [{"col1": "val", "col2": 42}]}`)
@@ -668,6 +672,9 @@ spec:
         result_log_file: /dev/null
         status_log_file: /dev/null
         audit_log_file: /dev/null
+        max_age: 0
+        max_backups: 0
+        max_size: 500
       plugin: filesystem
     status:
       config:
@@ -676,6 +683,9 @@ spec:
         result_log_file: /dev/null
         status_log_file: /dev/null
         audit_log_file: /dev/null
+        max_age: 0
+        max_backups: 0
+        max_size: 500
       plugin: filesystem
     audit:
       config:
@@ -684,6 +694,9 @@ spec:
         result_log_file: /dev/null
         status_log_file: /dev/null
         audit_log_file: /dev/null
+        max_age: 0
+        max_backups: 0
+        max_size: 500
       plugin: filesystem
   org_info:
     org_logo_url: ""
@@ -875,7 +888,10 @@ spec:
           "enable_log_rotation": false,
           "result_log_file": "/dev/null",
           "status_log_file": "/dev/null",
-          "audit_log_file": "/dev/null"
+          "audit_log_file": "/dev/null",
+          "max_size": 500,
+		  "max_age": 0,
+          "max_backups": 0
         }
       },
       "status": {
@@ -885,7 +901,10 @@ spec:
           "enable_log_rotation": false,
           "result_log_file": "/dev/null",
           "status_log_file": "/dev/null",
-          "audit_log_file": "/dev/null"
+          "audit_log_file": "/dev/null",
+          "max_size": 500,
+		  "max_age": 0,
+          "max_backups": 0
         }
       },
       "audit": {
@@ -895,7 +914,10 @@ spec:
           "enable_log_rotation": false,
           "result_log_file": "/dev/null",
           "status_log_file": "/dev/null",
-          "audit_log_file": "/dev/null"
+          "audit_log_file": "/dev/null",
+          "max_size": 500,
+		  "max_age": 0,
+          "max_backups": 0
         }
       }
     }

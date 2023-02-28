@@ -37,6 +37,7 @@ func TestSoftware(t *testing.T) {
 		{"HostsByCVE", testHostsByCVE},
 		{"HostsBySoftwareIDs", testHostsBySoftwareIDs},
 		{"UpdateHostSoftware", testUpdateHostSoftware},
+		{"ListSoftwareBySourceIter", testListSoftwareBySourceIter},
 		{"ListSoftwareByHostIDShort", testListSoftwareByHostIDShort},
 		{"ListSoftwareVulnerabilitiesByHostIDsSource", testListSoftwareVulnerabilitiesByHostIDsSource},
 		{"InsertSoftwareVulnerabilities", testInsertSoftwareVulnerabilities},
@@ -1389,6 +1390,39 @@ func testUpdateHostSoftware(t *testing.T, ds *Datastore) {
 	err = ds.UpdateHostSoftware(ctx, host.ID, sw)
 	require.NoError(t, err)
 	validateSoftware(tup{"bar", lastYear}, tup{"baz", future}, tup{"qux", future})
+}
+
+func testListSoftwareBySourceIter(t *testing.T, ds *Datastore) {
+	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+
+	software := []fleet.Software{
+		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
+		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
+		{Name: "foo", Version: "v0.0.2", Source: "apps"},
+		{Name: "foo", Version: "0.0.3", Source: "apps"},
+		{Name: "bar", Version: "0.0.3", Source: "deb_packages"},
+	}
+
+	require.NoError(t, ds.UpdateHostSoftware(context.Background(), host.ID, software))
+
+	expected := []fleet.Software{
+		{Name: "foo", Version: "v0.0.2", Source: "apps"},
+		{Name: "foo", Version: "0.0.3", Source: "apps"},
+	}
+
+	var actual []fleet.Software
+
+	iter, err := ds.ListSoftwareBySourceIter(context.Background(), []string{"apps"})
+	require.NoError(t, err)
+	defer iter.Close()
+
+	for iter.Next() {
+		software, err := iter.Value()
+		require.NoError(t, err)
+		actual = append(actual, *software)
+	}
+
+	test.ElementsMatchSkipID(t, expected, actual)
 }
 
 func testListSoftwareByHostIDShort(t *testing.T, ds *Datastore) {

@@ -1,7 +1,6 @@
 import React, { useContext } from "react";
 
 import { MdmEnrollmentStatus } from "interfaces/mdm";
-import permissionUtils from "utilities/permissions";
 import { AppContext } from "context/app";
 
 // @ts-ignore
@@ -11,40 +10,41 @@ import { generateHostActionOptions } from "./helpers";
 const baseClass = "host-actions-dropdown";
 
 interface IHostActionsDropdownProps {
-  onSelect: (value: string) => void;
-  teamId: number | null;
   hostStatus: string;
   hostMdmEnrollemntStatus: MdmEnrollmentStatus | null;
   doesStoreEncryptionKey?: boolean;
+  mdmName?: string;
+  onSelect: (value: string) => void;
 }
 
 const HostActionsDropdown = ({
   onSelect,
-  teamId,
   hostStatus,
   hostMdmEnrollemntStatus,
   doesStoreEncryptionKey,
+  mdmName,
 }: IHostActionsDropdownProps) => {
   const {
-    currentUser,
     isPremiumTier = false,
     isGlobalAdmin = false,
     isGlobalMaintainer = false,
+    isMdmFeatureFlagEnabled = false,
+    isTeamAdmin = false,
+    isTeamMaintainer = false,
   } = useContext(AppContext);
 
   const options = generateHostActionOptions({
     isPremiumTier,
     isGlobalAdmin,
     isGlobalMaintainer,
-    isTeamAdmin: permissionUtils.isTeamAdmin(currentUser, teamId ?? null),
-    isTeamMaintainer: permissionUtils.isTeamMaintainer(
-      currentUser,
-      teamId ?? null
-    ),
+    isTeamAdmin,
+    isTeamMaintainer,
     isHostOnline: hostStatus === "online",
     isEnrolledInMdm: ["On (automatic)", "On (manual)"].includes(
       hostMdmEnrollemntStatus ?? ""
     ),
+    isFleetMdm: mdmName === "Fleet",
+    isMdmFeatureFlagEnabled,
     doesStoreEncryptionKey: doesStoreEncryptionKey ?? false,
   });
 

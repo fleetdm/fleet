@@ -1,0 +1,37 @@
+name: orbit_info
+platforms:
+  - darwin
+  - linux
+  - windows
+description: Returns information about the orbit instance.
+columns:
+  - name: version
+    type: text
+    required: false
+    description: Version of the orbit instance.
+  - name: device_auth_token
+    type: text
+    required: false
+    description: Current Fleet Desktop token in the instance.
+  - name: enrolled
+    type: text
+    required: false
+    description: Returns whether the Orbit instance is enrolled to Fleet (true/false).
+  - name: last_recorded_error
+    type: text
+    required: false
+    description: Last recorded error in Orbit.
+  - name: orbit_channel
+    type: text
+    required: false
+    description: The Update Framework update channel used for the orbit executable.
+  - name: osqueryd_channel
+    type: text
+    required: false
+    description: The Update Framework update channel used for the osqueryd executable.
+  - name: desktop_channel
+    type: text
+    required: false
+    description: The Update Framework update channel used for the Fleet Desktop executable.
+notes: This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
+evented: false

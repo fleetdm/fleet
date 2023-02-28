@@ -12,6 +12,7 @@ import (
 	"time"
 
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	"github.com/fleetdm/fleet/v4/server/service"
 
 	eewebhooks "github.com/fleetdm/fleet/v4/ee/server/webhooks"
 	"github.com/fleetdm/fleet/v4/server"
@@ -24,6 +25,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/externalsvc"
 	"github.com/fleetdm/fleet/v4/server/service/schedule"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/macoffice"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/msrc"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/oval"
@@ -160,6 +162,8 @@ func scanVulnerabilities(
 
 	nvdVulns := checkNVDVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
 	ovalVulns := checkOvalVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
+	macOfficeVulns := checkMacOfficeVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
+
 	checkWinVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
 
 	// If no automations enabled, then there is nothing else to do...
@@ -167,9 +171,10 @@ func scanVulnerabilities(
 		return nil
 	}
 
-	vulns := make([]fleet.SoftwareVulnerability, 0, len(nvdVulns)+len(ovalVulns))
+	vulns := make([]fleet.SoftwareVulnerability, 0, len(nvdVulns)+len(ovalVulns)+len(macOfficeVulns))
 	vulns = append(vulns, nvdVulns...)
 	vulns = append(vulns, ovalVulns...)
+	vulns = append(vulns, macOfficeVulns...)
 
 	meta, err := ds.ListCVEs(ctx, config.RecentVulnerabilityMaxAge)
 	if err != nil {
@@ -370,6 +375,39 @@ func checkNVDVulnerabilities(
 	}
 
 	return vulns
+}
+
+func checkMacOfficeVulnerabilities(
+	ctx context.Context,
+	ds fleet.Datastore,
+	logger kitlog.Logger,
+	vulnPath string,
+	config *config.VulnerabilitiesConfig,
+	collectVulns bool,
+) []fleet.SoftwareVulnerability {
+	if !config.DisableDataSync {
+		err := macoffice.SyncFromGithub(ctx, vulnPath)
+		if err != nil {
+			errHandler(ctx, logger, "updating mac office release notes", err)
+		}
+
+		level.Debug(logger).Log("finished sync mac office release notes")
+	}
+
+	start := time.Now()
+	r, err := macoffice.Analyze(ctx, ds, vulnPath, collectVulns)
+	elapsed := time.Since(start)
+
+	level.Debug(logger).Log(
+		"msg", "mac-office-analysis-done",
+		"elapsed", elapsed,
+		"found new", len(r))
+
+	if err != nil {
+		errHandler(ctx, logger, "analyzing mac office products for vulnerabilities", err)
+	}
+
+	return r
 }
 
 func newAutomationsSchedule(
@@ -867,6 +905,33 @@ func newAppleMDMDEPProfileAssigner(
 		schedule.WithLogger(logger),
 		schedule.WithJob("dep_syncer", func(ctx context.Context) error {
 			return fleetSyncer.Run(ctx)
+		}),
+	)
+
+	return s, nil
+}
+
+func newMDMAppleProfileManager(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	commander *service.MDMAppleCommander,
+	logger kitlog.Logger,
+	loggingDebug bool,
+) (*schedule.Schedule, error) {
+	const (
+		name = string(fleet.CronMDMAppleProfileManager)
+		// Note: per a request from #g-product we are running this cron
+		// every 30 seconds, we should re-evaluate how we handle the
+		// cron interval as we scale to more hosts.
+		defaultInterval = 30 * time.Second
+	)
+	logger = kitlog.With(logger, "cron", name)
+	s := schedule.New(
+		ctx, name, instanceID, defaultInterval, ds, ds,
+		schedule.WithLogger(logger),
+		schedule.WithJob("manage_profiles", func(ctx context.Context) error {
+			return service.ReconcileProfiles(ctx, ds, commander, logger)
 		}),
 	)
 

@@ -1163,6 +1163,7 @@ func testHostMDMSelect(t *testing.T, ds *Datastore) {
 		require.Equal(t, h.ID, hosts[0].ID)
 		require.Equal(t, c.expectedMDMStatus, hosts[0].MDM.EnrollmentStatus)
 		require.Equal(t, c.expectedMDMServerURL, hosts[0].MDM.ServerURL)
+		require.Equal(t, "test", hosts[0].MDM.Name)
 
 		hosts, err = ds.SearchHosts(ctx, fleet.TeamFilter{User: test.UserAdmin}, "")
 		require.NoError(t, err)
@@ -1170,16 +1171,19 @@ func testHostMDMSelect(t *testing.T, ds *Datastore) {
 		require.Equal(t, h.ID, hosts[0].ID)
 		require.Equal(t, c.expectedMDMStatus, hosts[0].MDM.EnrollmentStatus)
 		require.Equal(t, c.expectedMDMServerURL, hosts[0].MDM.ServerURL)
+		require.Equal(t, "test", hosts[0].MDM.Name)
 
 		host, err := ds.Host(ctx, h.ID)
 		require.NoError(t, err)
 		require.Equal(t, c.expectedMDMStatus, host.MDM.EnrollmentStatus)
 		require.Equal(t, c.expectedMDMServerURL, host.MDM.ServerURL)
+		require.Equal(t, "test", hosts[0].MDM.Name)
 
 		host, err = ds.HostByIdentifier(ctx, h.UUID)
 		require.NoError(t, err)
 		require.Equal(t, c.expectedMDMStatus, host.MDM.EnrollmentStatus)
 		require.Equal(t, c.expectedMDMServerURL, host.MDM.ServerURL)
+		require.Equal(t, "test", hosts[0].MDM.Name)
 	}
 }
 

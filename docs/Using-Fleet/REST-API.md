@@ -1867,6 +1867,7 @@ If `after` is being used with `created_at` or `updated_at`, the table must be sp
       "mdm": {
         "encryption_key_available": false,
         "enrollment_status": null,
+        "name": "",
         "server_url": null
       }
     }
@@ -2247,6 +2248,7 @@ Returns the information of the specified host.
     "mdm": {
       "encryption_key_available": false,
       "enrollment_status": null,
+      "name": "",
       "server_url": null
     }
   }
@@ -2426,6 +2428,7 @@ Returns the information of the host specified using the `uuid`, `osquery_host_id
     "mdm": {
       "encryption_key_available": false,
       "enrollment_status": null,
+      "name": "",
       "server_url": null
     }
   }
@@ -2593,15 +2596,9 @@ Request (`filters` is specified):
 
 ### Get host's Google Chrome profiles
 
-Requires the [macadmins osquery
-extension](https://github.com/macadmins/osquery-extension) which comes bundled
-in [Fleet's osquery
-installers](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
-Currently supported only on macOS.
+Retrieves a host's Google Chrome profile information which can be used to link a host to a specific user by email.
 
-
-Retrieves a host's Google Chrome profile information which can be used to link a host to a specific
-user by email.
+Requires [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
 
 `GET /api/v1/fleet/hosts/{id}/device_mapping`
 
@@ -3408,7 +3405,13 @@ Returns a list of the hosts that belong to the specified label.
       "pack_stats": null,
       "team_name": null,
       "status": "offline",
-      "display_text": "e2e7f8d8983d"
+      "display_text": "e2e7f8d8983d",
+      "mdm": {
+        "encryption_key_available": false,
+        "enrollment_status": null,
+        "name": "",
+        "server_url": null
+      }
     }
   ]
 }

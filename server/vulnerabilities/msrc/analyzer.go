@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	io "github.com/fleetdm/fleet/v4/server/vulnerabilities/msrc/io"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/io"
 	msrc "github.com/fleetdm/fleet/v4/server/vulnerabilities/msrc/parsed"
 	utils "github.com/fleetdm/fleet/v4/server/vulnerabilities/utils"
 )
@@ -176,7 +176,7 @@ func patched(
 // loadBulletin loads the most recent bulletin for the given os
 func loadBulletin(os fleet.OperatingSystem, dir string) (*msrc.SecurityBulletin, error) {
 	product := msrc.NewProductFromOS(os)
-	fileName := io.FileName(product.Name(), time.Now())
+	fileName := io.MSRCFileName(product.Name(), time.Now())
 
 	latest, err := utils.LatestFile(fileName, dir)
 	if err != nil {

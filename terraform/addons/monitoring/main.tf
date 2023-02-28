@@ -10,17 +10,17 @@ resource "aws_cloudwatch_metric_alarm" "cpu_utilization_too_high" {
   statistic           = "Average"
   threshold           = 80
   alarm_description   = "Average database CPU utilization over last 5 minutes too high"
-  alarm_actions       = [var.sns_topic_arn]
-  ok_actions          = [var.sns_topic_arn]
+  alarm_actions       = lookup(var.sns_topic_arns_map, "rds_cpu_untilizaton_too_high", var.default_sns_topic_arns)
+  ok_actions          = lookup(var.sns_topic_arns_map, "rds_cpu_untilizaton_too_high", var.default_sns_topic_arns)
   dimensions = {
     DBInstanceIdentifier = each.key
   }
 }
 
 resource "aws_db_event_subscription" "default" {
-  count     = var.mysql_cluster_members == [] ? 0 : 1
+  count     = length(var.mysql_cluster_members) == 0 || (contains(keys(var.sns_topic_arns_map), "rds_db_event_subscription") == false && length(var.default_sns_topic_arns) == 0) ? 0 : 1
   name      = "rds-event-sub-${var.customer_prefix}"
-  sns_topic = var.sns_topic_arn
+  sns_topic = try(var.sns_topic_arns_map.rds_db_event_subscription[0], var.default_sns_topic_arns[0])
 
   source_type = "db-instance"
   source_ids  = var.mysql_cluster_members
@@ -49,8 +49,8 @@ resource "aws_cloudwatch_metric_alarm" "alb_healthyhosts" {
   threshold           = var.fleet_min_containers
   alarm_description   = "This alarm indicates the number of Healthy Fleet hosts is lower than expected. Please investigate the load balancer \"${var.alb_name}\" or the target group \"${var.alb_target_group_name}\" and the fleet backend service \"${var.fleet_ecs_service_name}\""
   actions_enabled     = "true"
-  alarm_actions       = [var.sns_topic_arn]
-  ok_actions          = [var.sns_topic_arn]
+  alarm_actions       = lookup(var.sns_topic_arns_map, "alb_helthyhosts", var.default_sns_topic_arns)
+  ok_actions          = lookup(var.sns_topic_arns_map, "alb_helthyhosts", var.default_sns_topic_arns)
   dimensions = {
     TargetGroup  = var.alb_target_group_arn_suffix
     LoadBalancer = var.alb_arn_suffix
@@ -65,8 +65,8 @@ resource "aws_cloudwatch_metric_alarm" "target_response_time" {
   evaluation_periods        = "2"
   threshold_metric_id       = "e1"
   alarm_description         = "This alarm indicates the Fleet server response time is greater than it usually is. Please investigate the ecs service \"${var.fleet_ecs_service_name}\" because the backend might need to be scaled up."
-  alarm_actions             = [var.sns_topic_arn]
-  ok_actions                = [var.sns_topic_arn]
+  alarm_actions             = lookup(var.sns_topic_arns_map, "backend_response_time", var.default_sns_topic_arns)
+  ok_actions                = lookup(var.sns_topic_arns_map, "backend_response_time", var.default_sns_topic_arns)
   insufficient_data_actions = []
 
   metric_query {
@@ -105,8 +105,8 @@ resource "aws_cloudwatch_metric_alarm" "lb" {
   statistic           = "Sum"
   threshold           = "0"
   alarm_description   = "This alarm indicates there are an abnormal amount of 5XX responses.  Either the lb cannot talk with the Fleet backend target or Fleet is returning an error."
-  alarm_actions       = [var.sns_topic_arn]
-  ok_actions          = [var.sns_topic_arn]
+  alarm_actions       = lookup(var.sns_topic_arns_map, "alb_httpcode_5xx", var.default_sns_topic_arns)
+  ok_actions          = lookup(var.sns_topic_arns_map, "alb_httpcode_5xx", var.default_sns_topic_arns)
   treat_missing_data  = "notBreaching"
   dimensions = {
     LoadBalancer = var.alb_arn_suffix
@@ -125,8 +125,8 @@ resource "aws_cloudwatch_metric_alarm" "redis_cpu" {
   namespace           = "AWS/ElastiCache"
   period              = "300"
   statistic           = "Average"
-  alarm_actions       = [var.sns_topic_arn]
-  ok_actions          = [var.sns_topic_arn]
+  alarm_actions       = lookup(var.sns_topic_arns_map, "redis_cpu_utilization", var.default_sns_topic_arns)
+  ok_actions          = lookup(var.sns_topic_arns_map, "redis_cpu_utilization", var.default_sns_topic_arns)
 
   threshold = "70"
 
@@ -146,8 +146,8 @@ resource "aws_cloudwatch_metric_alarm" "redis_cpu_engine_utilization" {
   namespace           = "AWS/ElastiCache"
   period              = "300"
   statistic           = "Average"
-  alarm_actions       = [var.sns_topic_arn]
-  ok_actions          = [var.sns_topic_arn]
+  alarm_actions       = lookup(var.sns_topic_arns_map, "redis_cpu_engine_utilization", var.default_sns_topic_arns)
+  ok_actions          = lookup(var.sns_topic_arns_map, "redis_cpu_engine_utilization", var.default_sns_topic_arns)
 
   threshold = "25"
 
@@ -167,8 +167,8 @@ resource "aws_cloudwatch_metric_alarm" "redis-database-memory-percentage" {
   namespace           = "AWS/ElastiCache"
   period              = "300"
   statistic           = "Average"
-  alarm_actions       = [var.sns_topic_arn]
-  ok_actions          = [var.sns_topic_arn]
+  alarm_actions       = lookup(var.sns_topic_arns_map, "redis_database_memory_percentage", var.default_sns_topic_arns)
+  ok_actions          = lookup(var.sns_topic_arns_map, "redis_database_memory_percentage", var.default_sns_topic_arns)
 
   threshold = "80"
 
@@ -185,8 +185,8 @@ resource "aws_cloudwatch_metric_alarm" "redis-current-connections" {
   comparison_operator       = "LessThanLowerOrGreaterThanUpperThreshold"
   evaluation_periods        = "5"
   threshold_metric_id       = "e1"
-  alarm_actions             = [var.sns_topic_arn]
-  ok_actions                = [var.sns_topic_arn]
+  alarm_actions             = lookup(var.sns_topic_arns_map, "redis_current_connections", var.default_sns_topic_arns)
+  ok_actions                = lookup(var.sns_topic_arns_map, "redis_current_connections", var.default_sns_topic_arns)
   insufficient_data_actions = []
 
   metric_query {
@@ -215,13 +215,13 @@ resource "aws_cloudwatch_metric_alarm" "redis-current-connections" {
 
 resource "aws_cloudwatch_metric_alarm" "redis-replication-lag" {
   for_each                  = toset(var.redis_cluster_members)
-  alarm_name                = "redis-replication-lag-${var.customer_prefix}"
+  alarm_name                = "redis-replication-lag-${each.key}-${var.customer_prefix}"
   alarm_description         = "This metric is only applicable for a node running as a read replica. It represents how far behind, in seconds, the replica is in applying changes from the primary node. For Redis engine version 5.0.6 onwards, the lag can be measured in milliseconds."
   comparison_operator       = "GreaterThanUpperThreshold"
   evaluation_periods        = "3"
   threshold_metric_id       = "e1"
-  alarm_actions             = [var.sns_topic_arn]
-  ok_actions                = [var.sns_topic_arn]
+  alarm_actions             = lookup(var.sns_topic_arns_map, "redis_replication_lag", var.default_sns_topic_arns)
+  ok_actions                = lookup(var.sns_topic_arns_map, "redis_replication_lag", var.default_sns_topic_arns)
   insufficient_data_actions = []
 
   metric_query {
@@ -260,8 +260,8 @@ resource "aws_cloudwatch_metric_alarm" "acm_certificate_expired" {
   metric_name         = "DaysToExpiry"
   actions_enabled     = "true"
   alarm_description   = "ACM Certificate will expire soon"
-  alarm_actions       = [var.sns_topic_arn]
-  ok_actions          = [var.sns_topic_arn]
+  alarm_actions       = lookup(var.sns_topic_arns_map, "acm_certificate_expired", var.default_sns_topic_arns)
+  ok_actions          = lookup(var.sns_topic_arns_map, "acm_certificate_expired", var.default_sns_topic_arns)
 
   dimensions = {
     CertificateArn = var.acm_certificate_arn

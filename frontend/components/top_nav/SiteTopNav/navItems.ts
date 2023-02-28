@@ -61,6 +61,7 @@ export default (
         pathname: PATHS.CONTROLS,
       },
       exclude: !isMaintainerOrAdmin || !isMdmFeatureFlagEnabled,
+      withContext: true,
     },
     {
       name: "Software",
@@ -84,6 +85,7 @@ export default (
         pathname: PATHS.MANAGE_SCHEDULE,
       },
       exclude: !isMaintainerOrAdmin,
+      withContext: true,
     },
     {
       name: "Policies",
@@ -91,6 +93,7 @@ export default (
         regex: new RegExp(`^${URL_PREFIX}/(policies)/`),
         pathname: PATHS.MANAGE_POLICIES,
       },
+      withContext: true,
     },
   ];
 

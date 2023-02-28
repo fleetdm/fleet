@@ -33,8 +33,14 @@ variable "alb_arn_suffix" {
   default = null
 }
 
-variable "sns_topic_arn" {
-  type    = string
+variable "default_sns_topic_arns" {
+  type    = list(string)
+  default = []
+}
+
+variable "sns_topic_arns_map" {
+  type    = map(list(string))
+  default = {}
 }
 
 variable "mysql_cluster_members" {

@@ -18,6 +18,7 @@ import Dropdown from "components/forms/fields/Dropdown";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import Radio from "components/forms/fields/Radio";
+import validUrl from "components/forms/validators/valid_url";
 
 import PreviewPayloadModal from "../PreviewPayloadModal";
 import PreviewTicketModal from "../PreviewTicketModal";
@@ -192,6 +193,8 @@ const ManageAutomationsModal = ({
 
     if (isWebhookEnabled && !destinationUrl) {
       newErrors.url = "Please add a destination URL";
+    } else if (!validUrl({ url: destinationUrl })) {
+      newErrors.url = `${destinationUrl} is not a valid URL`;
     } else {
       delete newErrors.url;
     }

@@ -62,6 +62,7 @@ import parseOsVersion from "./modals/OSPolicyModal/helpers";
 
 import DiskEncryptionKeyModal from "./modals/DiskEncryptionKeyModal";
 import HostActionDropdown from "./HostActionsDropdown/HostActionsDropdown";
+import MacSettingsModal from "../MacSettingsModal";
 
 const baseClass = "host-details";
 
@@ -127,6 +128,7 @@ const HostDetailsPage = ({
   const [showQueryHostModal, setShowQueryHostModal] = useState(false);
   const [showPolicyDetailsModal, setPolicyDetailsModal] = useState(false);
   const [showOSPolicyModal, setShowOSPolicyModal] = useState(false);
+  const [showMacSettingsModal, setShowMacSettingsModal] = useState(false);
   const [showUnenrollMdmModal, setShowUnenrollMdmModal] = useState(false);
   const [showDiskEncryptionModal, setShowDiskEncryptionModal] = useState(false);
   const [selectedPolicy, setSelectedPolicy] = useState<IHostPolicy | null>(
@@ -145,7 +147,6 @@ const HostDetailsPage = ({
   ] = useState<IHostDiskEncryptionProps>({});
   const [usersState, setUsersState] = useState<{ username: string }[]>([]);
   const [usersSearchString, setUsersSearchString] = useState("");
-  const [hideEditMdm, setHideEditMdm] = useState<boolean>(false);
 
   const { data: fleetQueries, error: fleetQueriesError } = useQuery<
     IFleetQueriesResponse,
@@ -388,6 +389,10 @@ const HostDetailsPage = ({
     setShowOSPolicyModal(!showOSPolicyModal);
   }, [showOSPolicyModal, setShowOSPolicyModal]);
 
+  const toggleMacSettingsModal = useCallback(() => {
+    setShowMacSettingsModal(!showMacSettingsModal);
+  }, [showMacSettingsModal, setShowMacSettingsModal]);
+
   const onCancelPolicyDetailsModal = useCallback(() => {
     setPolicyDetailsModal(!showPolicyDetailsModal);
     setSelectedPolicy(null);
@@ -535,10 +540,10 @@ const HostDetailsPage = ({
     return (
       <HostActionDropdown
         onSelect={onSelectHostAction}
-        teamId={host.team_id}
         hostStatus={host.status}
         hostMdmEnrollemntStatus={host.mdm.enrollment_status}
         doesStoreEncryptionKey={host.mdm.encryption_key_available}
+        mdmName={mdm?.name}
       />
     );
   };
@@ -620,6 +625,9 @@ const HostDetailsPage = ({
           isPremiumTier={isPremiumTier}
           isOnlyObserver={isOnlyObserver}
           toggleOSPolicyModal={toggleOSPolicyModal}
+          toggleMacSettingsModal={toggleMacSettingsModal}
+          hostMacSettings={host?.mdm.profiles}
+          mdmName={mdm?.name}
           showRefetchSpinner={showRefetchSpinner}
           onRefetchHost={onRefetchHost}
           renderActionButtons={renderActionButtons}
@@ -737,14 +745,14 @@ const HostDetailsPage = ({
             osPolicyLabel={osPolicyLabel}
           />
         )}
-        {showUnenrollMdmModal && !!host && (
-          <UnenrollMdmModal
-            hostId={host.id}
-            onClose={toggleUnenrollMdmModal}
-            onSuccess={() => {
-              setHideEditMdm(true);
-            }}
+        {showMacSettingsModal && (
+          <MacSettingsModal
+            hostMacSettings={host?.mdm.profiles}
+            onClose={toggleMacSettingsModal}
           />
+        )}
+        {showUnenrollMdmModal && !!host && (
+          <UnenrollMdmModal hostId={host.id} onClose={toggleUnenrollMdmModal} />
         )}
         {showDiskEncryptionModal && host && (
           <DiskEncryptionKeyModal

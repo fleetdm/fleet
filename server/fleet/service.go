@@ -618,6 +618,12 @@ type Service interface {
 	// team or for hosts with no team.
 	BatchSetMDMAppleProfiles(ctx context.Context, teamID *uint, teamName *string, profiles [][]byte, dryRun bool) error
 
+	// MDMAppleDeviceLock remote locks a host
+	MDMAppleDeviceLock(ctx context.Context, hostID uint) error
+
+	// MMDAppleEraseDevice erases a host
+	MDMAppleEraseDevice(ctx context.Context, hostID uint) error
+
 	///////////////////////////////////////////////////////////////////////////////
 	// CronSchedulesService
 

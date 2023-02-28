@@ -111,4 +111,5 @@ const (
 	UbuntuOVALSource
 	RHELOVALSource
 	MSRCSource
+	MacOfficeReleaseNotesSource
 )

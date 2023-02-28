@@ -43,9 +43,9 @@ There are a few main places of interest to monitor the load and resource usage:
 
 #### Using a release tag instead of a branch
 
-Since the tag name on Dockerhub doesn't match the tag name on GitHub, this presents a special use case when wanting to deploy a release tag.  In this case, you can use the optional `-var github_branch` in order to specify the separate tag.  For example, you would use the following to deploy a loadtest of version 4.27.1:
+Since the tag name on Dockerhub doesn't match the tag name on GitHub, this presents a special use case when wanting to deploy a release tag.  In this case, you can use the optional `-var github_branch` in order to specify the separate tag.  For example, you would use the following to deploy a loadtest of version 4.28.0:
 
-`terraform apply -var tag=v4.27.1 -var github_branch=fleet-v4.27.1 -var loadtest_containers=8`
+`terraform apply -var tag=v4.28.0 -var github_branch=fleet-v4.28.0 -var loadtest_containers=8`
 
 #### General Troubleshooting
 
