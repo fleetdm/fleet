@@ -1,9 +1,10 @@
-import React, { useState } from "react";
+import React, { useState, useContext } from "react";
 import { Row } from "react-table";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 import classnames from "classnames";
 import { format } from "date-fns";
 import FileSaver from "file-saver";
+import { QueryContext } from "context/query";
 
 import convertToCSV from "utilities/convert_to_csv";
 import { ICampaign } from "interfaces/campaign";
@@ -73,6 +74,8 @@ const QueryResults = ({
   goToQueryEditor,
   targetsTotalCount,
 }: IQueryResultsProps): JSX.Element => {
+  const { lastEditedQueryBody } = useContext(QueryContext);
+
   const { hosts_count: hostsCount, query_results: queryResults, errors } =
     campaign || {};
 
@@ -231,7 +234,10 @@ const QueryResults = ({
         </Tabs>
       </TabsWrapper>
       {showQueryModal && (
-        <ShowQueryModal liveQuery onCancel={onShowQueryModal} />
+        <ShowQueryModal
+          query={lastEditedQueryBody}
+          onCancel={onShowQueryModal}
+        />
       )}
     </div>
   );
