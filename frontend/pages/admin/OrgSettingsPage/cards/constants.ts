@@ -15,6 +15,7 @@ export interface IFormField {
 }
 
 export interface IAppConfigFormErrors {
+  metadata?: string | null;
   metadata_url?: string | null;
   entity_id?: string | null;
   idp_name?: string | null;

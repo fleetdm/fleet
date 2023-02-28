@@ -239,6 +239,7 @@ func TestGetDetailQueries(t *testing.T) {
 	baseQueries := []string{
 		"network_interface_unix",
 		"network_interface_windows",
+		"network_interface_chrome",
 		"os_version",
 		"os_version_windows",
 		"osquery_flags",
@@ -266,7 +267,7 @@ func TestGetDetailQueries(t *testing.T) {
 	sortedKeysCompare(t, queriesNoConfig, baseQueries)
 
 	queriesWithoutWinOSVuln := GetDetailQueries(context.Background(), config.FleetConfig{Vulnerabilities: config.VulnerabilitiesConfig{DisableWinOSVulnerabilities: true}}, nil, nil)
-	require.Len(t, queriesWithoutWinOSVuln, 22)
+	require.Len(t, queriesWithoutWinOSVuln, 23)
 
 	queriesWithUsers := GetDetailQueries(context.Background(), config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}}, nil, &fleet.Features{EnableHostUsers: true})
 	qs := append(baseQueries, "users", "scheduled_query_stats")
@@ -406,6 +407,37 @@ func TestDetailQueriesOSVersionWindows(t *testing.T) {
 
 	assert.NoError(t, ingest(context.Background(), log.NewNopLogger(), &host, rows))
 	assert.Equal(t, "Windows 10 Enterprise LTSC ", host.OSVersion)
+}
+
+func TestDetailQueriesOSVersionChrome(t *testing.T) {
+	var initialHost fleet.Host
+	host := initialHost
+
+	ingest := GetDetailQueries(context.Background(), config.FleetConfig{}, nil, nil)["os_version"].IngestFunc
+
+	assert.NoError(t, ingest(context.Background(), log.NewNopLogger(), &host, nil))
+	assert.Equal(t, initialHost, host)
+
+	var rows []map[string]string
+	require.NoError(t, json.Unmarshal([]byte(`
+[{
+    "hostname": "chromeo",
+    "arch": "x86_64",
+    "build": "chrome-build",
+    "codename": "",
+    "major": "1",
+    "minor": "3",
+    "name": "chromeos",
+    "patch": "7",
+    "platform": "chrome",
+    "platform_like": "chrome",
+    "version": "1.3.3.7"
+}]`),
+		&rows,
+	))
+
+	assert.NoError(t, ingest(context.Background(), log.NewNopLogger(), &host, rows))
+	assert.Equal(t, "chromeos chrome-build", host.OSVersion)
 }
 
 func TestDirectIngestMDMMac(t *testing.T) {

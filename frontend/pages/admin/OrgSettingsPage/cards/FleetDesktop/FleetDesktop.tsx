@@ -24,27 +24,25 @@ const FleetDesktop = ({
   isUpdatingSettings,
 }: IAppConfigFormProps): JSX.Element => {
   const [formData, setFormData] = useState<
-    Pick<IConfigFormData, "transparency_url">
+    Pick<IConfigFormData, "transparencyUrl">
   >({
-    transparency_url:
+    transparencyUrl:
       appConfig.fleet_desktop?.transparency_url || DEFAULT_TRANSPARENCY_URL,
   });
 
   const [formErrors, setFormErrors] = useState<IAppConfigFormErrors>({});
 
   const handleInputChange = ({ value }: IFormField) => {
-    setFormData({ transparency_url: value.toString() });
+    setFormData({ transparencyUrl: value.toString() });
     setFormErrors({});
   };
 
   const validateForm = () => {
-    const { transparency_url } = formData;
+    const { transparencyUrl } = formData;
 
     const errors: IAppConfigFormErrors = {};
-    if (!transparency_url) {
-      errors.transparency_url = "Transparency URL name must be present";
-    } else if (!validUrl(transparency_url)) {
-      errors.transparency_url = `${transparency_url} is not a valid URL`;
+    if (transparencyUrl && !validUrl({ url: transparencyUrl })) {
+      errors.transparency_url = `${transparencyUrl} is not a valid URL`;
     }
 
     setFormErrors(errors);
@@ -55,7 +53,7 @@ const FleetDesktop = ({
 
     const formDataForAPI: Pick<IConfig, "fleet_desktop"> = {
       fleet_desktop: {
-        transparency_url: formData.transparency_url,
+        transparency_url: formData.transparencyUrl,
       },
     };
 
@@ -75,10 +73,11 @@ const FleetDesktop = ({
             label="Custom transparency URL"
             onChange={handleInputChange}
             name="transparency_url"
-            value={formData.transparency_url}
+            value={formData.transparencyUrl}
             parseTarget
             onBlur={validateForm}
             error={formErrors.transparency_url}
+            placeholder="https://fleetdm.com/transparency"
           />
           <p className={`${baseClass}__component-details`}>
             When an end user clicks “Transparency” in the Fleet Desktop menu, by

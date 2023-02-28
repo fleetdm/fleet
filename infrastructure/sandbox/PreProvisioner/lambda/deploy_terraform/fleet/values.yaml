@@ -187,3 +187,6 @@ gke:
     useManagedCertificate: false
   # Workload Identity allows the K8s service account to assume the IAM permissions of a GCP service account
   workloadIdentityEmail: ""
+
+crons:
+  vulnerabilities: "0,15,30,45 * * * *"

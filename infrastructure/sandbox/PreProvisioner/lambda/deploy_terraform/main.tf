@@ -81,6 +81,11 @@ resource "random_password" "db" {
   length = 8
 }
 
+resource "random_integer" "cron_offset" {
+  min = 0
+  max = 14
+}
+
 resource "helm_release" "main" {
   name  = terraform.workspace
   chart = "${path.module}/fleet"
@@ -157,7 +162,7 @@ resource "helm_release" "main" {
 
   set {
     name  = "imageTag"
-    value = "v4.27.1"
+    value = "v4.26.0-1"
   }
 
   set {
@@ -183,6 +188,11 @@ resource "helm_release" "main" {
   set {
     name  = "serviceAccountAnnotations.eks\\.amazonaws\\.com/role-arn"
     value = aws_iam_role.main.arn
+  }
+
+  set {
+    name  = "crons.vulnerabilities"
+    value = "${random_integer.cron_offset.result}\\,${random_integer.cron_offset.result + 15}\\,${random_integer.cron_offset.result + 30}\\,${random_integer.cron_offset.result + 45} * * * *"
   }
 }
 

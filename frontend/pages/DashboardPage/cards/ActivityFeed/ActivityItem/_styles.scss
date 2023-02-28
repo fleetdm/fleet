@@ -38,6 +38,7 @@
 
   &__details-topline {
     font-size: $x-small;
+    overflow-wrap: anywhere;
   }
 
   &__details-bottomline {

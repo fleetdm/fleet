@@ -149,16 +149,21 @@ Please read carefully and [pay special attention](https://fleetdm.com/handbook/c
 Designs have usually gone through multiple rounds of revisions, but they could easily still be overlooking complexities or edge cases!  When you think you've discovered a blocker, communicate.  Leave a comment [mentioning the appropriate PM](https://fleetdm.com/handbook/company/development-groups) or ask for feedback at your next standup.  Then update this user story's estimation, wireframes, and "definition of done" to reflect your updated understanding. 
 
 
-#### Technical sub-tasks
-The simplest way to manage work is to use a single user story issue, then pass it around between contributors/asignees as seldom as possible.  For some teams, for particular user stories on a case-by-case basis, it may be worthwhile to invest additional overhead in creating separate **technical sub-task** issues.
+#### Sub-tasks
+The simplest way to manage work is to use a single user story issue, then pass it around between contributors/asignees as seldom as possible.  But on a case-by-case basis, for particular user stories and teams, it can sometimes be worthwhile to invest additional overhead in creating separate **unestimated sub-task** issues ("sub-tasks").
 
-A user story is estimated to fit within 1 sprint and drives business value when released, independent of other stories.  **Technical sub-tasks** are not.  If sub-task issues are created for a given user story, then they:
+A user story is estimated to fit within 1 sprint and drives business value when released, independent of other stories.  Sub-tasks are not.
+
+Sub-tasks:
 - are NOT estimated
-- will NOT be looked at or QA'd by quality assurance
-- will NOT, in isolation, necessarily deliver any direct, independent business value
-- can be included as links in this user story's "definition of done" checklist
 - can be created by anyone
-- are NOT the right place to post GitHub comments (instead, concentrate conversation in the top-level "user story" issue)
+- add extra management overhead and should be used sparingly
+- do NOT have nested sub-tasks
+- will NOT necessarily, in isolation, deliver any business value
+- are always attached to exactly ONE top-level "user story" (which does drive business value)
+- are included as links in the parent user story's "definition of done" checklist
+- are NOT the best place to post GitHub comments (instead, concentrate conversation in the top-level "user story" issue)
+- will NOT be looked at or QA'd by quality assurance
 
 
 #### Development best practices

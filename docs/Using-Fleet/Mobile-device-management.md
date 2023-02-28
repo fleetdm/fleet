@@ -8,13 +8,17 @@ To use MDM features you have to connect Fleet to Apple Push Certificates Portal.
 
 ## macOS updates
 
-Fleet uses [Nudge](https://github.com/macadmins/nudge) to encourage the installation of macOS updates.
+### End user macOS update reminders via Nudge
 
-When a minimum version and deadline is saved in Fleet, the end user sees the below window until their macOS version is at or above the minimum version. 
+_Available in Fleet Premium_
+
+End users can be reminded and encouraged to update macOS (via [Nudge](https://github.com/macadmins/nudge)).
+
+When a minimum version and deadline is saved in Fleet, the end user sees the below Nudge window until their macOS version is at or above the minimum version. 
 
 To set the macOS updates settings in the UI, visit the **Controls** section and then select the **macOS updates** tab. To set the macOS updates settings programmatically, use the configurations listed [here](https://fleetdm.com/docs/using-fleet/configuration-files#mdm-macos-updates).
 
-![Fleet's architecture diagram](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/nudge-window.png)
+![Nudge window](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/nudge-window.png)
 
 As the deadline gets closer, Fleet provides stronger encouragement.
 
@@ -22,9 +26,43 @@ If the end user has more than 1 day until the deadline, the Nudge window is show
 
 If there is less than 1 day, the window is shown every 2 hours. The end user can defer and close the window.
 
-If the end user is past the deadline, Fleet shows the window and end user can't close the window until they upgrade.
+If the end user is past the deadline, Fleet shows the window and end user can't close the window until they update.
 
-## Disk encryption
+### End user experience
+
+Fleet automatically downloads macOS updates for the end user so that they don't have to. This way, end users don't have to wait for the update to download before they can install it.
+
+> Fleet automatically downloads updates on Intel Macs. On Macs with Apple silicon (e.g. M1), end users may have to download the update before they install it. Apple doesn't support downloading the update for the end user on Macs with Apple silicon.
+
+Sometimes the end user's Mac will say that macOS is up to date when it isn't. This known bug creates a frustrating experience for the end user. Ask the end user to follow the steps below to troubleshoot:
+
+1. From the Apple menu in the top left corner of your screen, select **System Settings** or **System Preferences**.
+
+2. In the search bar, type "Software Update." Select **Software Update**.
+
+3. Type "Command (⌘)-R" to check for updates. If you see an available update, select **Restart Now** to update.
+
+4. If you still don't see an available update, from the Apple menu in the top left corner of your screen, select **Restart...** to restart your Mac.
+
+5. After your Mac restarts, from the Apple menu in the top left corner of your screen, select **System Settings** or **System Preferences**.
+
+6. In the search bar, type "Software Update." Select **Software Update** and select **Restart Now** to update.
+
+### End user macOS update via built-in macOS notifications
+
+Built-in macOS update reminders are available for all Fleet instances. To trigger these reminders, run the ["Schedule an OS update" MDM command](https://developer.apple.com/documentation/devicemanagement/schedule_an_os_update).
+
+## macOS settings
+
+In Fleet you can enforce settings on your macOS hosts remotely.
+
+If you enforce disk encryption with Fleet, the disk encryption key (recovery key) will be stored in Fleet automatically. Learn how [here](#disk-encryption).
+
+You can also enforce custom macOS settings. Learn how [here](#custom-settings).
+
+### Disk encryption
+
+_Available in Fleet Premium_
 
 In Fleet, you can enforce disk encryption on your macOS hosts. Apple calls this [FileVault](https://support.apple.com/en-us/HT204837). If turned on, hosts’ disk encryption keys will be stored in Fleet.
 
@@ -40,15 +78,17 @@ Fleet UI:
 
 1. Create a `config` YAML document if you don't have one already. Learn how [here](./configuration-files/README.md#organization-settings). This document is used to change settings in Fleet.
 
-> If you want to enforce disk encryption on a team in Fleet, use the `team` YAML document. Learn how to create one [here](./configuration-files/README.md#teams).
+> If you want to enforce disk encryption on all macOS hosts in a specific team in Fleet, use the `team` YAML document. Learn how to create one [here](./configuration-files/README.md#teams).
 
-2. Set the `mdm.disk_encryption` configuration option to `true`.
+2. Set the `mdm.macos_settings.disk_encryption` configuration option to `true`.
 
 3. Run the `fleetctl apply -f <your-YAML-file-here>` command.
 
-### Viewing a disk encryption key
+#### Viewing a disk encryption key
 
-The disk encryption key allows you to unlock a Mac if you forgot login credentials. This key can be accessed by Fleet admin, maintainers, and observers. An event is tracked in the activity feed when a user views the key in Fleet.
+The disk encryption key allows you to reset a macOS host's password if you don't know it. This way, if you plan to prepare a host for a new employee, you can login to it and erase all its content and settings.
+
+The key can be accessed by Fleet admin, maintainers, and observers. An event is tracked in the activity feed when a user views the key in Fleet.
 
 How to view the disk encryption key:
 
@@ -56,46 +96,72 @@ How to view the disk encryption key:
 
 2. On the **Host details** page, select **Actions > Show disk encryption key**.
 
-### Unlock a macOS host using the disk encryption key
+#### Reset a macOS host's password using the disk encryption key
 
-How to unlock a macOS host using the disk encryption key:
+How to reset a macOS host's password using the disk encryption key:
 
-1. Restart the device while holding Command + R
+1. Restart the host. If you just unlocked a host that was locked remotely, the host will automatically restart.
 
-2. Open Terminal
+2. On the Mac's login screen, enter the incorrect password three times. After the third failed login attempt, the Mac will display a prompt below the password field with the following message: "If you forgot your password, you can reset it using your Recovery Key." Select the right facing arrow at the end of this prompt. 
 
-3. Unlock the disk encryption key by executing a command similar to:
+3. Enter the disk encryption key. Note that Apple calls this "Recovery key." Learn how to find a host's disk encryption key [here in the docs](#viewing-a-disk-encryption-key).
+
+4. The Mac will display a prompt to reset the password. Reset the password and save this password somewhere safe. If you plan to prepare this Mac for a new employee, you'll need this password to erase all content and settings on the Mac.
+
+### Custom settings
+
+In Fleet you can enforce custom settings on your macOS hosts using configuration profiles.
+
+To enforce custom settings, first create configuration profiles with iMazing Profile editor and then add the profiles to Fleet. 
+
+#### Create a configuration profiles with iMazing Profile Creator
+
+How to create a configuration profile with iMazing Profile Creator:
+
+1. Download and install [iMazing Profile Creator](https://imazing.com/profile-editor).
+
+2. Open iMazing Profile Creator and select macOS in the top bar. Fleet only supports enforcing settings on macOS hosts.
+
+3. Find and choose the settings you'd like to enforce on your macOS hosts. Fleet recommends limiting the scope of the settings a single profile: only include settings from one tab in iMazing Profile Creator (ex. **Restrictions** tab). To enforce more settings, you can create and add additional profiles.
+
+4. In iMazing Profile Creator, select the **General** tab. Enter a descriptive name in the **Name** field. When you add this profile to Fleet, Fleet will display this name in the Fleet UI. 
+
+5. In your top menu bar select **File** > **Save As...** and save your configuration profile. Make sure the file is saved as .mobileconfig.
+
+#### Add configuration profiles to Fleet
+
+In Fleet, you can add configuration profiles using the Fleet UI or fleetctl command-line tool.
+
+The Fleet UI method is a good start if you're just getting familiar with Fleet.
+
+The fleetctl CLI method enables managing configuration profiles in a git repository. This way you can enforce code review and benefit from git's change history.
+
+Fleet UI:
+
+1. In the Fleet UI, head to the **Controls > macOS settings > Custom settings** page.
+
+2. Select **Upload** and choose your configuration profile. After your configuration profile is uploaded to Fleet, Fleet will apply the profile on your macOS hosts. The profile will be applied to new macOS hosts that enroll to Fleet.
+
+fleetctl CLI:
+
+1. Create a `config` YAML document if you don't have one already. Learn how [here](./configuration-files/README.md#organization-settings). This document is used to change settings in Fleet.
+
+> If you want to add configuration profiles to all macOS hosts on a specific team in Fleet, use the `team` YAML document. Learn how to create one [here](./configuration-files/README.md#teams).
+
+2. Add an `mdm.macos_settings.custom_settings` key to your YAML document. This key will hold an array of paths to your configuration profiles. See the below example `config` YAML document:
+
+```yaml
+apiVersion: v1
+kind: config
+spec:
+  macos_settings:
+    custom_settings:
+      - /path/to/configuration_profile_A.mobileconfig
+      - /path/to/configuration_profile_B.mobileconfig
+    ...
 ```
-security unlock-keychain <path to the secure copy of the 
-FileVaultMaster.keychain file>
-```
 
-4. Locate the Logical Volume UUID of the encrypted disk by executing:
-```
-diskutil cs list
-```
-
-5. Unlock the encrypted drive with the Logical Volume UUID and disk encryption key by executing a command similar to:
-```
-diskutil cs unlockVolume <UUID> -recoveryKeychain <path to the secure copy of the FileVaultMaster.keychain file>
-```
-6. Turn off disk encryption by executing a command similar to: 
-```
-diskutil cs revert <UUID> -recoveryKeychain <path to the secure copy of the FileVaultMaster.keychain file>
-```
-
-Once successful, you can reset the account password using the Reset Password utility and recover data by either logging in to the user’s account or using the command line.
-
-1. Restart the device while pressing Command + R.
-
-2. Open Terminal and launch the Reset Password utility by executing:
-```
-resetpassword
-```
-
-3. Use the Reset Password utility to reset the account’s password.
-
-4. Restart the computer and log in using the new password.
+3. Run the `fleetctl apply -f <your-config-here>.yml` command to add the configuration profiles to Fleet. Note that this will override any configuration profiles added using the Fleet UI method.
 
 ## Set up
 
@@ -219,6 +285,8 @@ How to migrate manually enrolled hosts:
 
 ### Automatically enrolled (DEP) hosts
 
+_Available in Fleet Premium_
+
 If you have macOS hosts that were automatically enrolled to your old MDM solution, you can migrate them to Fleet.
 
 > Make sure your end users have an admin account on their Mac. End users won't be able to migrate on their own if they have a standard account. 
@@ -239,6 +307,8 @@ How to migrate these hosts:
 
 ### FileVault recovery keys
 
+_Available in Fleet Premium_
+
 In Fleet, you can enforce FileVault (disk encryption) to be on. If turned on, hosts’ disk encryption keys will be stored in Fleet. Learn how [here](#disk-encryption).
 
 During migration from your old MDM solution, disk encryption will be turned off for your macOS hosts until they are enrolled to Fleet and MDM is turned on for these hosts.
@@ -254,6 +324,21 @@ If a Mac has Activation Lock enabled, we recommend asking the end user to follow
 This is because if the Activation Lock is enabled, you will need the Activation Lock bypass code to successfully wipe and reuse the Mac. 
 
 Activation Lock bypass codes can only be retrieved from the Mac up to 30 days after the device is enrolled. This means that when migrating from your old MDM solution, it’s likely that you’ll be unable to retrieve the Activation Lock bypass code.
+
+### Migrate settings
+
+To enforce the same settings on your macOS hosts in Fleet as you did using your old MDM solution, you have to migrate these settings to Fleet.
+
+If your old MDM solution enforced FileVault, follow [these instructions](#how-to-turn-on-disk-encryption) to enforce FileVault (disk encryption) using Fleet.
+
+For all other settings you enforced, you have to first export these settings as configuration profiles from your old MDM solution. Then, you have to add the configuration profiles to Fleet.
+
+How to export settings as configuration profiles:
+
+1. Check if your MDM solution has a feature that allows you to export settings as configuration profiles. If it does, make sure these configuration profiles are exported as .mobileconfig files. If it doesn't, follow the instructions to create configuration profiles using iMazing Profile Creator [here](#create-a-configuration-profiles-with-imazing-profile-creator). Use iMazing Profile Creator to replicate the settings you enforced.
+
+2. Follow the instructions to add configuration profiles to Fleet [here](#add-configuration-profiles-to-fleet).
+
 
 ### Instructions for end users
 

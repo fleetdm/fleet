@@ -101,7 +101,8 @@ func signalThroughNamedEvent(channelId string) error {
 		return errors.New("event handle is invalid")
 	}
 
-	defer windows.CloseHandle(h) // closing the handle to avoid handle leaks
+	// Closing the handle to avoid handle leaks.
+	defer windows.CloseHandle(h) //nolint:errcheck
 
 	// signaling the event
 	// https://learn.microsoft.com/en-us/windows/win32/api/synchapi/nf-synchapi-setevent
@@ -159,7 +160,8 @@ func GetProcessByName(name string) (*gopsutil_process.Process, error) {
 	if snapshot == windows.InvalidHandle {
 		return nil, errors.New("the snapshot returned returned by CreateToolhelp32Snapshot is invalid")
 	}
-	defer windows.CloseHandle(snapshot)
+	// Closing the handle to avoid handle leaks.
+	defer windows.CloseHandle(snapshot) //nolint:errcheck
 
 	var foundProcessID uint32 = 0
 

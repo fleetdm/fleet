@@ -56,8 +56,8 @@
               vertical-align: sub;
             }
 
-            .total-issues-count {
-              margin-left: $pad-small;
+            &__text {
+              padding-left: $pad-xsmall;
             }
           }
         }

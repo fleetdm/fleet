@@ -42,6 +42,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/groob/plist"
 	"github.com/jmoiron/sqlx"
+	micromdm "github.com/micromdm/micromdm/mdm/mdm"
 	nanodep_client "github.com/micromdm/nanodep/client"
 	"github.com/micromdm/nanodep/godep"
 	nanodep_storage "github.com/micromdm/nanodep/storage"
@@ -69,6 +70,7 @@ type integrationMDMTestSuite struct {
 	pushProvider         *mock.APNSPushProvider
 	depStorage           nanodep_storage.AllStorage
 	depSchedule          *schedule.Schedule
+	profileSchedule      *schedule.Schedule
 }
 
 func (s *integrationMDMTestSuite) SetupSuite() {
@@ -98,6 +100,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	)
 
 	var depSchedule *schedule.Schedule
+	var profileSchedule *schedule.Schedule
 	config := TestServerOpts{
 		License: &fleet.LicenseInfo{
 			Tier: fleet.TierPremium,
@@ -123,6 +126,20 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 					return depSchedule, nil
 				}
 			},
+			func(ctx context.Context, ds fleet.Datastore) fleet.NewCronScheduleFunc {
+				return func() (fleet.CronSchedule, error) {
+					const name = string(fleet.CronMDMAppleProfileManager)
+					logger := kitlog.NewJSONLogger(os.Stdout)
+					profileSchedule = schedule.New(
+						ctx, name, s.T().Name(), 1*time.Hour, ds, ds,
+						schedule.WithLogger(logger),
+						schedule.WithJob("manage_profiles", func(ctx context.Context) error {
+							return ReconcileProfiles(ctx, ds, NewMDMAppleCommander(mdmStorage, mdmPushService), logger)
+						}),
+					)
+					return profileSchedule, nil
+				}
+			},
 		},
 	}
 	users, server := RunServerForTestsWithDS(s.T(), s.ds, &config)
@@ -134,6 +151,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	s.pushProvider = pushProvider
 	s.depStorage = depStorage
 	s.depSchedule = depSchedule
+	s.profileSchedule = profileSchedule
 
 	fleetdmSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		status := s.fleetDMNextCSRStatus.Swap(http.StatusOK)
@@ -141,6 +159,13 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 		_, _ = w.Write([]byte(fmt.Sprintf("status: %d", status)))
 	}))
 	s.T().Setenv("TEST_FLEETDM_API_URL", fleetdmSrv.URL)
+
+	appCfg, err := s.ds.AppConfig(context.Background())
+	require.NoError(s.T(), err)
+	appCfg.MDM.EnabledAndConfigured = true
+	err = s.ds.SaveAppConfig(context.Background(), appCfg)
+	require.NoError(s.T(), err)
+
 	s.T().Cleanup(fleetdmSrv.Close)
 }
 
@@ -235,6 +260,170 @@ func (s *integrationMDMTestSuite) TestABMExpiredToken() {
 
 	config = s.getConfig()
 	require.True(t, config.MDM.AppleBMTermsExpired)
+}
+
+func (s *integrationMDMTestSuite) TestProfileManagement() {
+	t := s.T()
+	ctx := context.Background()
+
+	globalProfiles := [][]byte{
+		mobileconfigForTest("N1", "I1"),
+		mobileconfigForTest("N2", "I2"),
+	}
+
+	// add global profiles
+	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: globalProfiles}, http.StatusNoContent)
+
+	// create a new team
+	tm, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "batch_set_mdm_profiles"})
+	require.NoError(t, err)
+
+	teamProfiles := [][]byte{
+		mobileconfigForTest("N3", "I3"),
+	}
+	// add profiles to the team
+	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: teamProfiles}, http.StatusNoContent, "team_id", strconv.Itoa(int(tm.ID)))
+
+	// create a non-macOS host
+	_, err = s.ds.NewHost(context.Background(), &fleet.Host{
+		OsqueryHostID: ptr.String("non-macos-host"),
+		NodeKey:       ptr.String("non-macos-host"),
+		UUID:          uuid.New().String(),
+		Hostname:      fmt.Sprintf("%sfoo.local.non.macos", t.Name()),
+		Platform:      "windows",
+	})
+	require.NoError(t, err)
+
+	// create a host that's not enrolled into MDM
+	_, err = s.ds.NewHost(context.Background(), &fleet.Host{
+		OsqueryHostID: ptr.String("not-mdm-enrolled"),
+		NodeKey:       ptr.String("not-mdm-enrolled"),
+		UUID:          uuid.New().String(),
+		Hostname:      fmt.Sprintf("%sfoo.local.not.enrolled", t.Name()),
+		Platform:      "darwin",
+	})
+	require.NoError(t, err)
+
+	// create and enroll a host in MDM
+	d := newDevice(s)
+	host, err := s.ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now().Add(-1 * time.Minute),
+		OsqueryHostID:   ptr.String(t.Name()),
+		NodeKey:         ptr.String(t.Name()),
+		UUID:            d.uuid,
+		Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
+		Platform:        "darwin",
+		HardwareSerial:  d.serial,
+	})
+	require.NoError(t, err)
+	d.mdmEnroll(s)
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+	s.pushProvider.PushFunc = func(pushes []*mdm.Push) (map[string]*push.Response, error) {
+		wg.Done()
+		require.Len(t, pushes, 1)
+		require.Equal(t, pushes[0].PushMagic, "pushmagic"+d.serial)
+		res := map[string]*push.Response{
+			pushes[0].Token.String(): {
+				Id:  uuid.New().String(),
+				Err: nil,
+			},
+		}
+		return res, nil
+	}
+
+	checkNextPayloads := func() ([][]byte, []string) {
+		var cmd *micromdm.CommandPayload
+		installs := [][]byte{}
+		removes := []string{}
+
+		for {
+			// on the first run, cmd will be nil and we need to
+			// ping the server via idle
+			if cmd == nil {
+				cmd = d.idle()
+			} else {
+				cmd = d.acknowledge(cmd.CommandUUID)
+			}
+
+			// if after idle or acknowledge cmd is still nil, it
+			// means there aren't any commands left to run
+			if cmd == nil {
+				break
+			}
+
+			switch cmd.Command.RequestType {
+			case "InstallProfile":
+				installs = append(installs, cmd.Command.InstallProfile.Payload)
+			case "RemoveProfile":
+				removes = append(removes, cmd.Command.RemoveProfile.Identifier)
+
+			}
+		}
+
+		return installs, removes
+	}
+
+	// trigger a profile sync
+	_, err = s.profileSchedule.Trigger()
+	require.NoError(t, err)
+	wg.Wait()
+
+	installs, removes := checkNextPayloads()
+	// verify that we received both profiles
+	require.ElementsMatch(t, installs, globalProfiles)
+	require.Empty(t, removes)
+
+	// add the host to a team
+	err = s.ds.AddHostsToTeam(ctx, &tm.ID, []uint{host.ID})
+	require.NoError(t, err)
+
+	// trigger a profile sync
+	wg.Add(3)
+	_, err = s.profileSchedule.Trigger()
+	require.NoError(t, err)
+	wg.Wait()
+
+	installs, removes = checkNextPayloads()
+	// verify that we should install the team profile
+	require.ElementsMatch(t, installs, teamProfiles)
+	// verify that we should delete both profiles
+	require.ElementsMatch(t, removes, []string{"I1", "I2"})
+
+	// set new team profiles (delete + addition)
+	teamProfiles = [][]byte{
+		mobileconfigForTest("N4", "I4"),
+		mobileconfigForTest("N5", "I5"),
+	}
+	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: teamProfiles}, http.StatusNoContent, "team_id", strconv.Itoa(int(tm.ID)))
+
+	// trigger a profile sync
+	wg.Add(3)
+	_, err = s.profileSchedule.Trigger()
+	require.NoError(t, err)
+	wg.Wait()
+	installs, removes = checkNextPayloads()
+	// verify that we should install the team profiles
+	require.ElementsMatch(t, installs, teamProfiles)
+	// verify that we should delete the old team profiles
+	require.ElementsMatch(t, removes, []string{"I3"})
+
+	// with no changes
+	_, err = s.profileSchedule.Trigger()
+	require.NoError(t, err)
+	installs, removes = checkNextPayloads()
+	require.Empty(t, installs)
+	require.Empty(t, removes)
+
+	var res getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d", host.ID), getHostRequest{}, http.StatusOK, &res)
+	require.NotEmpty(t, res.Host.MDM.Profiles)
+	resProfiles := *res.Host.MDM.Profiles
+	require.Len(t, resProfiles, len(teamProfiles))
 }
 
 func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
@@ -1123,7 +1312,48 @@ func (d *device) checkout() {
 	d.request("application/x-apple-aspen-mdm-checkin", payload)
 }
 
-func (d *device) request(reqType string, payload map[string]any) {
+// Devices send an Idle status to signal the server that they're ready to
+// receive commands.
+// The server can signal back with either a command to run
+// or an empty response body to end the communication.
+func (d *device) idle() *micromdm.CommandPayload {
+	payload := map[string]any{
+		"Status":       "Idle",
+		"Topic":        "com.apple.mgmt.External." + d.uuid,
+		"UDID":         d.uuid,
+		"EnrollmentID": "testenrollmentid-" + d.uuid,
+	}
+	return d.sendAndDecodeCommandResponse(payload)
+}
+
+func (d *device) acknowledge(cmdUUID string) *micromdm.CommandPayload {
+	payload := map[string]any{
+		"Status":       "Acknowledged",
+		"Topic":        "com.apple.mgmt.External." + d.uuid,
+		"UDID":         d.uuid,
+		"EnrollmentID": "testenrollmentid-" + d.uuid,
+		"CommandUUID":  cmdUUID,
+	}
+	return d.sendAndDecodeCommandResponse(payload)
+}
+
+func (d *device) sendAndDecodeCommandResponse(payload map[string]any) *micromdm.CommandPayload {
+	res := d.request("", payload)
+	if res.ContentLength == 0 {
+		return nil
+	}
+	raw, err := io.ReadAll(res.Body)
+	require.NoError(d.s.T(), err)
+	cmd, err := mdm.DecodeCommand(raw)
+	require.NoError(d.s.T(), err)
+
+	var p micromdm.CommandPayload
+	err = plist.Unmarshal(cmd.Raw, &p)
+	require.NoError(d.s.T(), err)
+	return &p
+}
+
+func (d *device) request(reqType string, payload map[string]any) *http.Response {
 	body, err := plist.Marshal(payload)
 	require.NoError(d.s.T(), err)
 
@@ -1134,7 +1364,7 @@ func (d *device) request(reqType string, payload map[string]any) {
 	sig, err := signedData.Finish()
 	require.NoError(d.s.T(), err)
 
-	d.s.DoRawWithHeaders(
+	return d.s.DoRawWithHeaders(
 		"POST",
 		"/mdm/apple/mdm",
 		body,

@@ -25,6 +25,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/osservice"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/platform"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/orbit_info"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/token"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update/filestore"
@@ -525,11 +526,13 @@ func main() {
 		const renewEnrollmentProfileCommandFrequency = time.Hour
 		configFetcher := update.ApplyRenewEnrollmentProfileConfigFetcherMiddleware(orbitClient, renewEnrollmentProfileCommandFrequency)
 
-		// add middleware to handle nudge installation and updates
-		const nudgeLaunchInterval = 30 * time.Minute
-		configFetcher = update.ApplyNudgeConfigFetcherMiddleware(configFetcher, update.NudgeConfigFetcherOptions{
-			UpdateRunner: updateRunner, RootDir: c.String("root-dir"), Interval: nudgeLaunchInterval,
-		})
+		if runtime.GOOS == "darwin" {
+			// add middleware to handle nudge installation and updates
+			const nudgeLaunchInterval = 30 * time.Minute
+			configFetcher = update.ApplyNudgeConfigFetcherMiddleware(configFetcher, update.NudgeConfigFetcherOptions{
+				UpdateRunner: updateRunner, RootDir: c.String("root-dir"), Interval: nudgeLaunchInterval,
+			})
+		}
 
 		const orbitFlagsUpdateInterval = 30 * time.Second
 		flagRunner := update.NewFlagRunner(configFetcher, update.FlagUpdateOptions{
@@ -729,14 +732,13 @@ func main() {
 		registerExtensionRunner(
 			&g,
 			r.ExtensionSocketPath(),
-			table.WithExtension(orbitInfoExtension{
-				orbitClient:     orbitClient,
-				orbitChannel:    c.String("orbit-channel"),
-				osquerydChannel: c.String("osqueryd-channel"),
-				desktopChannel:  c.String("desktop-channel"),
-				trw:             trw,
-			}),
-			table.WithExtension(sntpRequest{}),
+			table.WithExtension(orbit_info.New(
+				orbitClient,
+				c.String("orbit-channel"),
+				c.String("osqueryd-channel"),
+				c.String("desktop-channel"),
+				trw,
+			)),
 		)
 
 		if c.Bool("fleet-desktop") {

@@ -3,7 +3,7 @@ import classnames from "classnames";
 
 import { IconNames, ICON_MAP } from "components/icons";
 import { Colors } from "styles/var/colors";
-import { ICON_SIZES, IconSizes } from "styles/var/icon_sizes";
+import { IconSizes } from "styles/var/icon_sizes";
 
 interface IIconProps {
   name: IconNames;

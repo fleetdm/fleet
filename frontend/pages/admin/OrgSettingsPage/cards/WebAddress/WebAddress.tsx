@@ -3,6 +3,8 @@ import React, { useState } from "react";
 import Button from "components/buttons/Button";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
+import validUrl from "components/forms/validators/valid_url";
+
 import {
   IAppConfigFormProps,
   IFormField,
@@ -31,9 +33,10 @@ const WebAddress = ({
 
   const validateForm = () => {
     const errors: IAppConfigFormErrors = {};
-
     if (!serverURL) {
       errors.server_url = "Fleet server URL must be present";
+    } else if (!validUrl({ url: serverURL, protocol: "http" })) {
+      errors.server_url = `${serverURL} is not a valid URL`;
     }
 
     setFormErrors(errors);

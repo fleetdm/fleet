@@ -2,7 +2,7 @@ import PATHS from "router/paths";
 
 import { ISideNavItem } from "../components/SideNav/SideNav";
 import Integrations from "./cards/Integrations";
-import Mdm from "./cards/Mdm/Mdm";
+import Mdm from "./cards/MdmSettings/MdmSettings";
 
 const INTEGRATION_SETTINGS_NAV_ITEMS: ISideNavItem<any>[] = [
   // TODO: types

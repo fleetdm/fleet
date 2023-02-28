@@ -331,7 +331,8 @@ module.exports = {
 
           // If "main" is explicitly frozen, then unfreeze this PR because it no longer contains
           // (or maybe never did contain) changes to freezeworthy files.
-          if (isMainBranchFrozen) {
+          // Note: We'll only do this if the PR is from the fleetdm/fleet repo.
+          if (isMainBranchFrozen && repo === 'fleet') {
 
             sails.pocketOfPrNumbersUnfrozen = _.union(sails.pocketOfPrNumbersUnfrozen, [ prNumber ]);
             sails.log('#'+prNumber+' autoapproved, main branch is frozen...  prNumbers unfrozen:',sails.pocketOfPrNumbersUnfrozen);
@@ -355,7 +356,8 @@ module.exports = {
         } else {
           // If "main" is explicitly frozen, then freeze this PR because it now contains
           // (or maybe always did contain) changes to freezeworthy files.
-          if (isMainBranchFrozen) {
+          // Note: We'll only do this if the PR is from the fleetdm/fleet repo.
+          if (isMainBranchFrozen && repo === 'fleet') {
 
             sails.pocketOfPrNumbersUnfrozen = _.difference(sails.pocketOfPrNumbersUnfrozen, [ prNumber ]);
             sails.log('#'+prNumber+' not autoapproved, main branch is frozen...  prNumbers unfrozen:',sails.pocketOfPrNumbersUnfrozen);

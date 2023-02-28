@@ -19,6 +19,7 @@ const (
 	CronAutomations                CronScheduleName = "automations"
 	CronIntegrations               CronScheduleName = "integrations"
 	CronActivitiesStreaming        CronScheduleName = "activities_streaming"
+	CronMDMAppleProfileManager     CronScheduleName = "mdm_apple_profile_manager"
 )
 
 type CronSchedulesService interface {

@@ -12,6 +12,8 @@ import {
 import Button from "components/buttons/Button";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
+import validUrl from "components/forms/validators/valid_url";
+
 import Spinner from "components/Spinner";
 
 const baseClass = "integration-form";
@@ -86,8 +88,8 @@ const IntegrationForm = ({
   const validateForm = () => {
     let error = null;
 
-    if (url.slice(0, 8) !== "https://") {
-      error = "URL must begin with https://";
+    if (url && !validUrl({ url, protocol: "https" })) {
+      error = `${url} is not a valid HTTPS URL`;
     }
 
     setUrlError(error);
@@ -226,7 +228,7 @@ const IntegrationForm = ({
               tooltip={
                 "\
               To find the Jira project key, head to your project in <br /> \
-              Jira. Your project key is in URL. For example, in <br /> \
+              Jira. Your project key is located in the URL. For example, in <br /> \
               “jira.example.com/projects/JRAEXAMPLE,” <br /> \
               “JRAEXAMPLE” is your project key. \
             "

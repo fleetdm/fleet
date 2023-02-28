@@ -54,3 +54,29 @@ export interface IMdmSummaryResponse {
   mobile_device_management_enrollment_status: IMdmStatus;
   mobile_device_management_solution: IMdmSolution[] | null;
 }
+
+export interface IMdmProfile {
+  profile_id: number;
+  team_id: number;
+  name: string;
+  identifier: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface IMdmProfilesResponse {
+  profiles: IMdmProfile[] | null;
+}
+
+export type MacMdmProfileStatus = "applied" | "pending" | "failed";
+export type MacMdmProfileOperationType = "remove" | "install";
+
+export type IHostMacMdmProfile = {
+  profile_id: number;
+  name: string;
+  operation_type: MacMdmProfileOperationType;
+  status: MacMdmProfileStatus;
+  detail: string;
+};
+export type IMacSettings = IHostMacMdmProfile[];
+export type MacSettingsStatus = "Failing" | "Latest" | "Pending";

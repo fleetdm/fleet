@@ -1,6 +1,6 @@
 #!/bin/bash
 
-if [[$USE_MDM == "1"]]; then
+if [[ $USE_MDM == "1" ]]; then
 export USE_MDM=0
 else
 export USE_MDM=1

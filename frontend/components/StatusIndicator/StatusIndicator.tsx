@@ -8,6 +8,7 @@ interface IStatusIndicatorProps {
   tooltip?: {
     id: number;
     tooltipText: string;
+    position?: "top" | "bottom";
   };
 }
 
@@ -40,7 +41,7 @@ const StatusIndicator = ({
       </span>
       <ReactTooltip
         className="status-tooltip"
-        place="top"
+        place={tooltip?.position ? tooltip.position : "top"}
         type="dark"
         effect="solid"
         id={`status-${tooltip.id}`}

@@ -46,6 +46,13 @@ Investing in people and providing generous, prioritized training, especially up 
 - help team members feel confident in the better decisions they make at work. 
 - create a culture of helping others, which results in team members feeling more comfortable even if they aren’t familiar with the osquery, security, startup, or IT space. 
 
+Here are a few examples of how Fleet prioritizes training:
+- the first 3 days at the company for every new team member are reserved for working on the tasks and training in their onboarding issue.
+- during the first 2 weeks at the company, every new fleetie joins a **daily 1:1 meeting** with their manager to check in and see how they're doing, and if they have any questions or blockers.  If the manager is not available for this meeting, the CEO (pending availability) or Charlie will join this short daily meeting with them instead.
+- In their first few days, every new fleetie joins:
+  - hands-on contributor experience training session with Charlie where they share their screen, check the configuration of their tools, complete any remaining setup, and discuss best practices.
+  - a short sightseeing tour with Charlie and (pending availability) Fleet's CEO to show them around and welcome them to the company.
+
 
 ## Why direct responsibility?
 Like Apple and GitLab, Fleet uses the concept of [directly responsible individuals (DRIs)](https://about.gitlab.com/handbook/people-group/directly-responsible-individuals/) to know who is responsible for what. 
@@ -81,12 +88,17 @@ Here's why we use a wireframe-first approach at Fleet.
 - We can think through the functionality and user experience more deeply by wireframing before committing any code. As a result, our coding decisions are clearer, and our code is cleaner and easier to maintain.
 - Content hierarchy, messaging, error states, interactions, URLs, API parameters, and API response data are all considered during the wireframing process (often with several rounds of review). This initial quality assurance means engineers can focus on their code and confidently catch any potential edge-cases or issues along the way.
 - Wireframing is accessible to people who understand our users but are not necessarily code-literate. So anyone can contribute a suggestion (at any level of fidelity). At the very least, you'll need a napkin and a pen, although we prefer to use Figma.
+- Wireframes can be shown to customers and other users in the community [for feedback](https://www.linkedin.com/feed/update/urn:li:activity:7034272412724555776?commentUrn=urn%3Ali%3Acomment%3A%28activity%3A7034272412724555776%2C7034276934494683136%29&replyUrn=urn%3Ali%3Acomment%3A%28activity%3A7034272412724555776%2C7034539835654569984%29&dashCommentUrn=urn%3Ali%3Afsd_comment%3A%287034276934494683136%2Curn%3Ali%3Aactivity%3A7034272412724555776%29&dashReplyUrn=urn%3Ali%3Afsd_comment%3A%287034539835654569984%2Curn%3Ali%3Aactivity%3A7034272412724555776%29).
 - Designing from the "outside, in" gives us the opportunity to obsess over details in the interaction design.  An undefined "what" exposes the results to the chaos of unplanned extra work and context shifting for engineers.  This way, every engineer doesn't have to personally spend the time to get and stay up to speed with: 
   - the latest reactions from users
   - all of the motivations and discussions from the previous rounds of wireframe revisions that were thrown away
   - how the UI has evolved in previous releases to better serve the people using and building it
 - Wireframing is important for both maintaining the quality of our work and outlining what work needs to be done.
 - With Figma, thanks to its powerful component and auto-layout features, we can create high-fidelity wireframes - fast. We can iterate quickly without costing more work and less [sunk-cost fallacy](https://dictionary.cambridge.org/dictionary/english/sunk-cost-fallacy).
+- But wireframes don't have to be high fidelity.  It is OK to communicate ideas for changes using ugly, marked-up screenshots, a photo of a piece of paper.  Fleet's [drafting process](https://fleetdm.com/handbook/company/development-groups#making-changes) helps turn these rough wireframes into product changes that can be implemented quickly with minimal UX and technical debt.
+- Wireframes created to describe individual changes are disposable and may have slight stylistic inconsistencies.  Fleet's user interface styleguide in Figma is the source of truth for overarching design decisions like spacing, typography, and colors.
+
+> Got a question about creating wireframes or the drafting process?  Mention Noah Talerman or Luke Heath in `#help-product`.
 
 
 ## Why do we use one repo?

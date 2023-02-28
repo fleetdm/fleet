@@ -1,0 +1,1 @@
+* added configuration parameters for the filesystem logging destination -- max_size, max_age, and max_backups are now configurable rather than hardcoded values

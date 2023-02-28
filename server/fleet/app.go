@@ -602,6 +602,8 @@ type ApplySpecOptions struct {
 	// DryRun indicates that the spec should not be applied, but the validation
 	// errors should be returned.
 	DryRun bool
+	// TeamForPolicies is the name of the team to set in policy specs.
+	TeamForPolicies string
 }
 
 // RawQuery returns the ApplySpecOptions url-encoded for use in an URL's

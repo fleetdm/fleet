@@ -15,12 +15,13 @@ import (
 type Service struct {
 	fleet.Service
 
-	ds         fleet.Datastore
-	logger     kitlog.Logger
-	config     config.FleetConfig
-	clock      clock.Clock
-	authz      *authz.Authorizer
-	depStorage storage.AllStorage
+	ds                fleet.Datastore
+	logger            kitlog.Logger
+	config            config.FleetConfig
+	clock             clock.Clock
+	authz             *authz.Authorizer
+	depStorage        storage.AllStorage
+	mdmAppleCommander fleet.MDMAppleCommandIssuer
 }
 
 func NewService(
@@ -31,6 +32,7 @@ func NewService(
 	mailService fleet.MailService,
 	c clock.Clock,
 	depStorage storage.AllStorage,
+	mdmAppleCommander fleet.MDMAppleCommandIssuer,
 ) (*Service, error) {
 	authorizer, err := authz.NewAuthorizer()
 	if err != nil {
@@ -38,13 +40,14 @@ func NewService(
 	}
 
 	eeservice := &Service{
-		Service:    svc,
-		ds:         ds,
-		logger:     logger,
-		config:     config,
-		clock:      c,
-		authz:      authorizer,
-		depStorage: depStorage,
+		Service:           svc,
+		ds:                ds,
+		logger:            logger,
+		config:            config,
+		clock:             c,
+		authz:             authorizer,
+		depStorage:        depStorage,
+		mdmAppleCommander: mdmAppleCommander,
 	}
 
 	// Override methods that can't be easily overriden via

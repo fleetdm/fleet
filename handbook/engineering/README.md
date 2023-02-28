@@ -913,7 +913,7 @@ The following [Slack channels are maintained](https://fleetdm.com/handbook/compa
 | :------------------- | :------------------------------------------------------------------- |
 | `#help-engineering`  | Zach Wasserman                                                       |
 | `#g-mdm`             | Luke Heath                                                           |
-| `#g-compliance`      | Sharon Katz                                                          |
+| `#g-customer-experience` | Sharon Katz                                                      |
 | `#_pov-environments` | Ben Edwards                                                          |
 | `#help-qa`           | Reed Haynes                                                          |
 

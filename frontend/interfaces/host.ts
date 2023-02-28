@@ -7,7 +7,7 @@ import softwareInterface, { ISoftware } from "./software";
 import hostQueryResult from "./campaign";
 import queryStatsInterface, { IQueryStats } from "./query_stats";
 import { ILicense, IDeviceGlobalConfig } from "./config";
-import { MdmEnrollmentStatus } from "./mdm";
+import { IMacSettings, MdmEnrollmentStatus } from "./mdm";
 
 export default PropTypes.shape({
   created_at: PropTypes.string,
@@ -90,6 +90,7 @@ export interface IHostMdmData {
   encryption_key_available: boolean;
   enrollment_status: MdmEnrollmentStatus | null;
   server_url: string;
+  profiles?: IMacSettings;
   id?: number;
   name?: string;
 }

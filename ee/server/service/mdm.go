@@ -7,6 +7,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	kitlog "github.com/go-kit/kit/log"
+	"github.com/google/uuid"
 	"github.com/micromdm/nanodep/storage"
 )
 
@@ -63,4 +64,50 @@ func getAppleBMAccountDetail(ctx context.Context, depStorage storage.AllStorage,
 		AppleID: res.AdminID,
 		OrgName: res.OrgName,
 	}, nil
+}
+
+func (svc *Service) MDMAppleDeviceLock(ctx context.Context, hostID uint) error {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return err
+	}
+
+	host, err := svc.ds.HostLite(ctx, hostID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "host lite")
+	}
+
+	// TODO: define and use right permissions according to the spec.
+	if err := svc.authz.Authorize(ctx, host, fleet.ActionWrite); err != nil {
+		return err
+	}
+
+	// TODO: save the pin (first return value) in the database
+	err = svc.mdmAppleCommander.DeviceLock(ctx, []string{host.UUID}, uuid.New().String())
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (svc *Service) MDMAppleEraseDevice(ctx context.Context, hostID uint) error {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return err
+	}
+
+	host, err := svc.ds.HostLite(ctx, hostID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "host lite")
+	}
+
+	// TODO: define and use right permissions according to the spec.
+	if err := svc.authz.Authorize(ctx, host, fleet.ActionWrite); err != nil {
+		return err
+	}
+
+	// TODO: save the pin (first return value) in the database
+	err = svc.mdmAppleCommander.EraseDevice(ctx, []string{host.UUID}, uuid.New().String())
+	if err != nil {
+		return err
+	}
+	return nil
 }

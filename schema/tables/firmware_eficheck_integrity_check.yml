@@ -15,6 +15,5 @@ columns:
     description: |
       Output of the `/usr/libexec/firmwarecheckers/eficheck/eficheck --integrity-check` command.
       This value is only valid when chip is "intel-t1".
-notes: >-
-  - This table is not a core osquery table. It is included as part of Fleetd, the osquery manager from Fleet.
+notes: This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
 evented: false

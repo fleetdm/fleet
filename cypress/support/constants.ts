@@ -79,7 +79,7 @@ const CONFIG_INTEGRATIONS_AUTOMATIONS = {
     },
     failing_policies_webhook: {
       enable_failing_policies_webhook: false,
-      destination_url: "ok.com",
+      destination_url: "https://www.foo.com/bar",
       policy_ids: [5, 10],
       host_batch_size: 0,
     },
@@ -224,12 +224,12 @@ const CONFIG_INTEGRATIONS_AUTOMATIONS_DISABLED = {
     },
     failing_policies_webhook: {
       enable_failing_policies_webhook: false,
-      destination_url: "ok.com",
+      destination_url: "https://www.foo.com/bar",
       policy_ids: [5, 10],
       host_batch_size: 0,
     },
     vulnerabilities_webhook: {
-      destination_url: "www.foo.com/bar",
+      destination_url: "http://www.foo.com/bar",
       enable_vulnerabilities_webhook: false,
     },
   },

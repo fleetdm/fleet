@@ -182,18 +182,18 @@ In order for osquery to connect to the fleet server, there are some flags that n
  --tls_server_certs=/etc/osquery/fleet.crt
  --tls_hostname=fleet.example.com 
  --host_identifier=uuid 
- --enroll_tls_endpoint=/api/v1/osquery/enroll 
+ --enroll_tls_endpoint=/api/osquery/enroll 
  --config_plugin=tls 
- --config_tls_endpoint=/api/v1/osquery/config 
+ --config_tls_endpoint=/api/osquery/config 
  --config_refresh=10 
  --disable_distributed=false
  --distributed_plugin=tls 
  --distributed_interval=10 
  --distributed_tls_max_attempts=3 
- --distributed_tls_read_endpoint=/api/v1/osquery/distributed/read 
- --distributed_tls_write_endpoint=/api/v1/osquery/distributed/write 
+ --distributed_tls_read_endpoint=/api/osquery/distributed/read 
+ --distributed_tls_write_endpoint=/api/osquery/distributed/write 
  --logger_plugin=tls 
- --logger_tls_endpoint=/api/v1/osquery/log 
+ --logger_tls_endpoint=/api/osquery/log 
  --logger_tls_period=10
  ```
 These can be specified directly in the command line or saved to a flag file. 
@@ -208,18 +208,18 @@ sudo osqueryd \
  --tls_server_certs=/etc/osquery/fleet.crt \
  --tls_hostname=fleet.example.com \
  --host_identifier=uuid \
- --enroll_tls_endpoint=/api/v1/osquery/enroll \
+ --enroll_tls_endpoint=/api/osquery/enroll \
  --config_plugin=tls \
- --config_tls_endpoint=/api/v1/osquery/config \
+ --config_tls_endpoint=/api/osquery/config \
  --config_refresh=10 \
  --disable_distributed=false \
  --distributed_plugin=tls \
  --distributed_interval=10 \
  --distributed_tls_max_attempts=3 \
- --distributed_tls_read_endpoint=/api/v1/osquery/distributed/read \
- --distributed_tls_write_endpoint=/api/v1/osquery/distributed/write \
+ --distributed_tls_read_endpoint=/api/osquery/distributed/read \
+ --distributed_tls_write_endpoint=/api/osquery/distributed/write \
  --logger_plugin=tls \
- --logger_tls_endpoint=/api/v1/osquery/log \
+ --logger_tls_endpoint=/api/osquery/log \
  --logger_tls_period=10
 ```
 

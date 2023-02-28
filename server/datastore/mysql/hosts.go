@@ -476,6 +476,8 @@ LIMIT
 	return &host, nil
 }
 
+// hostMDMSelect is the SQL fragment used to construct the JSON object
+// of MDM host data.
 const hostMDMSelect = `,
 	JSON_OBJECT(
 		'enrollment_status',
@@ -2359,7 +2361,6 @@ func (ds *Datastore) SetOrUpdateHostDiskEncryptionKey(ctx context.Context, hostI
    	     base64_encrypted = VALUES(base64_encrypted)
       `, hostID, encryptedBase64Key)
 	return err
-
 }
 
 func (ds *Datastore) GetUnverifiedDiskEncryptionKeys(ctx context.Context) ([]fleet.HostDiskEncryptionKey, error) {
@@ -2406,7 +2407,6 @@ func (ds *Datastore) GetHostDiskEncryptionKey(ctx context.Context, hostID uint) 
           FROM
             host_disk_encryption_keys
           WHERE host_id = ?`, hostID)
-
 	if err != nil {
 		if err == sql.ErrNoRows {
 			msg := fmt.Sprintf("for host %d", hostID)

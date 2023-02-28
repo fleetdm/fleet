@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/sntp_request"
 	"github.com/macadmins/osquery-extension/tables/chromeuserprofiles"
 	"github.com/macadmins/osquery-extension/tables/fileline"
 	"github.com/macadmins/osquery-extension/tables/puppet"
@@ -93,11 +94,15 @@ func (r *Runner) Execute() error {
 	}
 
 	plugins := []osquery.OsqueryPlugin{
+		// MacAdmins extensions.
 		table.NewPlugin("puppet_info", puppet.PuppetInfoColumns(), puppet.PuppetInfoGenerate),
 		table.NewPlugin("puppet_logs", puppet.PuppetLogsColumns(), puppet.PuppetLogsGenerate),
 		table.NewPlugin("puppet_state", puppet.PuppetStateColumns(), puppet.PuppetStateGenerate),
 		table.NewPlugin("google_chrome_profiles", chromeuserprofiles.GoogleChromeProfilesColumns(), chromeuserprofiles.GoogleChromeProfilesGenerate),
 		table.NewPlugin("file_lines", fileline.FileLineColumns(), fileline.FileLineGenerate),
+
+		// Orbit extensions.
+		table.NewPlugin("sntp_request", sntp_request.Columns(), sntp_request.GenerateFunc),
 	}
 	plugins = append(plugins, platformTables()...)
 	for _, t := range r.tableExtensions {

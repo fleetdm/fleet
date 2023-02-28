@@ -113,6 +113,11 @@ var hostDetailQueries = map[string]DetailQuery{
 		Platforms:  []string{"windows"},
 		IngestFunc: ingestNetworkInterface,
 	},
+	"network_interface_chrome": {
+		Query:      `SELECT address, mac FROM network_interfaces LIMIT 1`,
+		Platforms:  []string{"chrome"},
+		IngestFunc: ingestNetworkInterface,
+	},
 	"os_version": {
 		// Collect operating system information for the `hosts` table.
 		// Note that data for `operating_system` and `host_operating_system` tables are ingested via
@@ -903,16 +908,20 @@ func directIngestOSUnixLike(ctx context.Context, logger log.Logger, host *fleet.
 // depend on available data, which varies between operating systems.
 func parseOSVersion(name string, version string, major string, minor string, patch string, build string) string {
 	var osVersion string
-	if strings.Contains(strings.ToLower(name), "ubuntu") {
+	switch {
+	case strings.Contains(strings.ToLower(name), "ubuntu"):
 		// Ubuntu takes a different approach to updating patch IDs so we instead use
 		// the version string provided after removing the code name.
 		regx := regexp.MustCompile(`\(.*\)`)
 		osVersion = strings.TrimSpace(regx.ReplaceAllString(version, ""))
-	} else if major != "0" || minor != "0" || patch != "0" {
+	case strings.Contains(strings.ToLower(name), "chrome"):
+		osVersion = build
+	case major != "0" || minor != "0" || patch != "0":
 		osVersion = fmt.Sprintf("%s.%s.%s", major, minor, patch)
-	} else {
+	default:
 		osVersion = build
 	}
+
 	osVersion = strings.Trim(osVersion, ".")
 
 	return osVersion

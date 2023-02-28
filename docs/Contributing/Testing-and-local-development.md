@@ -29,6 +29,14 @@
   - [Testing pre-built installers](#testing-pre-built-installers)
   - [Telemetry](#telemetry)
   - [MDM setup and testing](#mdm-setup-and-testing)
+    - [ABM setup](#abm-setup)
+      - [Private key + certificate](#private-key--certificate)
+      - [Encrypted token](#encrypted-token)
+    - [APNs and SCEP setup](#apns-and-scep-setup)
+    - [Running the server](#running-the-server)
+    - [Testing MDM](#testing-mdm)
+      - [Testing manual enrollment](#testing-manual-enrollment)
+      - [Testing DEP enrollment](#testing-dep-enrollment)
 
 ## License key
 
@@ -53,7 +61,7 @@ Check out [`/tools/osquery` directory instructions](https://github.com/fleetdm/f
 You must install the [`golangci-lint`](https://golangci-lint.run/) command to run `make test[-go]` or `make lint[-go]`, using:
 
 ```
-go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.47.3
+go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.51.1
 ```
 
 Make sure it is available in your `PATH`. To execute the basic unit and integration tests, run the following from the root of the repository:

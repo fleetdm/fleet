@@ -1,0 +1,82 @@
+.custom-settings {
+
+  h2 {
+    margin-top: 0;
+    padding-bottom: $pad-small;
+    font-size: $medium;
+    font-weight: $regular;
+    color: $core-fleet-black;
+    border-bottom: solid 1px $ui-fleet-black-10;
+  }
+
+  &__description {
+    font-size: $x-small;
+    margin: $pad-xxlarge 0;
+  }
+
+  &__profiles-header {
+    padding: $pad-medium $pad-large;
+    display: flex;
+    justify-content: space-between;
+    font-size: $x-small;
+    font-weight: $bold;
+    border-bottom: 1px solid $ui-fleet-black-10;
+  }
+
+  &__profile-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  &__profile {
+    padding: $pad-medium $pad-large;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid $ui-fleet-black-10;
+  }
+
+  &__profile-data {
+    display: flex;
+    align-items: center;
+  }
+  &__profile-info {
+    margin-left: $pad-medium;
+    display: flex;
+    flex-direction: column;
+  }
+
+  &__profile-name {
+    font-size: $x-small;
+  }
+
+  &__profile-uploaded {
+    font-size: $xx-small;
+  }
+
+  &__download-button, &__delete-button {
+    width: 40px;
+    height: 40px;
+  }
+
+  &__download-button {
+    margin-right: $pad-medium;
+  }
+
+  &__profile-uploader {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    border-radius: $border-radius;
+    background-color: $ui-fleet-blue-10;
+    border: 1px solid $ui-fleet-black-10;
+    padding: $pad-xlarge $pad-large;
+    font-size: $x-small;
+    margin-top: $pad-xxlarge;
+
+    input {
+      display: none;
+    }
+  }
+}

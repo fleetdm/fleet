@@ -27,9 +27,9 @@ export interface IHostCountLoadOptions {
   mdmId?: number;
   mdmEnrollmentStatus?: string;
   munkiIssueId?: number;
-  os_id?: number;
-  os_name?: string;
-  os_version?: string;
+  osId?: number;
+  osName?: string;
+  osVersion?: string;
 }
 
 export default {
@@ -46,6 +46,9 @@ export default {
     const munkiIssueId = options?.munkiIssueId;
     const lowDiskSpaceHosts = options?.lowDiskSpaceHosts;
     const label = getLabelParam(selectedLabels);
+    const osId = options?.osId;
+    const osName = options?.osName;
+    const osVersion = options?.osVersion;
 
     const queryParams = {
       query: globalFilter,
@@ -59,6 +62,9 @@ export default {
         munkiIssueId,
         softwareId,
         lowDiskSpaceHosts,
+        osName,
+        osId,
+        osVersion,
       }),
       label_id: label,
       status,

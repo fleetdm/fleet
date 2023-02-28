@@ -19,6 +19,5 @@ columns:
     type: text
     required: false
     description: The value of the read path and key. The value is the empty string if the key doesn't exist.
-notes: >-
-  - This table is not a core osquery table. It is included as part of Fleetd, the osquery manager from Fleet.
+notes: This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
 evented: false

@@ -6,12 +6,13 @@ package user_login_settings
 import (
 	"context"
 	"fmt"
-	tbl_common "github.com/fleetdm/fleet/v4/orbit/pkg/table/common"
-	"github.com/osquery/osquery-go/plugin/table"
 	"os/exec"
 	"strings"
 	"syscall"
 	"time"
+
+	tbl_common "github.com/fleetdm/fleet/v4/orbit/pkg/table/common"
+	"github.com/osquery/osquery-go/plugin/table"
 )
 
 // Columns is the schema of the table.
@@ -31,7 +32,7 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, "dscl", ".", "-list", "/Users", "hint")
+	cmd := exec.CommandContext(ctx, "/usr/bin/dscl", ".", "-list", "/Users", "hint")
 
 	// Run as the current console user (otherwise we get empty results for the root user)
 	cmd.SysProcAttr = &syscall.SysProcAttr{

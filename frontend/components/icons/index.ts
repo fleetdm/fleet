@@ -16,6 +16,7 @@ import EmptyTeams from "./EmptyTeams";
 import ExternalLink from "./ExternalLink";
 import Issue from "./Issue";
 import Plus from "./Plus";
+import Pending from "./Pending";
 
 import LowDiskSpaceHosts from "./LowDiskSpaceHosts";
 import MissingHosts from "./MissingHosts";
@@ -39,6 +40,8 @@ import Clipboard from "./Clipboard";
 import Eye from "./Eye";
 import Pencil from "./Pencil";
 import TrashCan from "./TrashCan";
+import Profile from "./Profile";
+import Download from "./Download";
 
 // a mapping of the usable names of icons to the icon source.
 export const ICON_MAP = {
@@ -65,6 +68,7 @@ export const ICON_MAP = {
   clipboard: Clipboard,
   eye: Eye,
   pencil: Pencil,
+  pending: Pending,
   trash: TrashCan,
   success: Success,
   error: Error,
@@ -80,6 +84,8 @@ export const ICON_MAP = {
   "darwin-purple": ApplePurple,
   "windows-blue": WindowsBlue,
   "linux-green": LinuxGreen,
+  profile: Profile,
+  download: Download,
 };
 
 export type IconNames = keyof typeof ICON_MAP;

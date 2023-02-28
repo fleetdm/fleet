@@ -69,7 +69,7 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 		return nil, errors.New("missing key argument")
 	}
 
-	cmd := exec.Command("dscl", ".", "-"+command, path, key)
+	cmd := exec.Command("/usr/bin/dscl", ".", command, path, key)
 	out, err := cmd.Output()
 	if err != nil {
 		return nil, fmt.Errorf("command failed: %w", err)

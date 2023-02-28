@@ -791,28 +791,6 @@ export const getSortedTeamOptions = memoize((teams: ITeam[]) =>
     .sort((a, b) => sortUtils.caseInsensitiveAsc(a.label, b.label))
 );
 
-export const getValidatedTeamId = (
-  teams: ITeam[] | ITeamSummary[],
-  teamId: number,
-  currentUser: IUser | null,
-  isOnGlobalTeam: boolean
-) => {
-  let currentUserTeams: ITeamSummary[] = [];
-  if (isOnGlobalTeam) {
-    currentUserTeams = teams;
-  } else if (currentUser && currentUser.teams) {
-    currentUserTeams = currentUser.teams;
-  }
-
-  const currentUserTeamIds = currentUserTeams.map((t) => t.id);
-  const validatedTeamId =
-    !isNaN(teamId) && teamId > 0 && currentUserTeamIds.includes(teamId)
-      ? teamId
-      : undefined;
-
-  return validatedTeamId;
-};
-
 // returns a mixture of props from host
 export const normalizeEmptyValues = (
   hostData: Partial<IHost>
@@ -872,7 +850,6 @@ export default {
   labelSlug,
   setupData,
   syntaxHighlight,
-  getValidatedTeamId,
   normalizeEmptyValues,
   wrapFleetHelper,
 };

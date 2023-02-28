@@ -30,7 +30,7 @@ module "monitoring" {
   alb_target_group_name       = module.main.byo-vpc.byo-db.alb.target_group_names[0]
   alb_target_group_arn_suffix = module.main.byo-vpc.byo-db.alb.target_group_arn_suffixes[0]
   alb_arn_suffix              = module.main.byo-vpc.byo-db.alb.lb_arn_suffix
-  sns_topic_arn               = var.sns_topic_arn
+  default_sns_topic_arns      = [var.sns_topic_arn]
   mysql_cluster_members       = module.main.byo-vpc.rds.cluster_members
   redis_cluster_members       = module.main.byo-vpc.redis.member_clusters[0]
   acm_certificate_arn         = module.acm.acm_certificate_arn
@@ -77,11 +77,12 @@ No modules.
 | <a name="input_alb_target_group_arn_suffix"></a> [alb\_target\_group\_arn\_suffix](#input\_alb\_target\_group\_arn\_suffix) | n/a | `string` | `null` | no |
 | <a name="input_alb_target_group_name"></a> [alb\_target\_group\_name](#input\_alb\_target\_group\_name) | n/a | `string` | `null` | no |
 | <a name="input_customer_prefix"></a> [customer\_prefix](#input\_customer\_prefix) | n/a | `string` | `"fleet"` | no |
+| <a name="input_default_sns_topic_arns"></a> [default\_sns\_topic\_arns](#input\_default\_sns\_topic\_arns) | n/a | `list(string)` | `[]` | no |
 | <a name="input_fleet_ecs_service_name"></a> [fleet\_ecs\_service\_name](#input\_fleet\_ecs\_service\_name) | n/a | `string` | `null` | no |
 | <a name="input_fleet_min_containers"></a> [fleet\_min\_containers](#input\_fleet\_min\_containers) | n/a | `number` | `1` | no |
 | <a name="input_mysql_cluster_members"></a> [mysql\_cluster\_members](#input\_mysql\_cluster\_members) | n/a | `list(string)` | `[]` | no |
 | <a name="input_redis_cluster_members"></a> [redis\_cluster\_members](#input\_redis\_cluster\_members) | n/a | `list(string)` | `[]` | no |
-| <a name="input_sns_topic_arn"></a> [sns\_topic\_arn](#input\_sns\_topic\_arn) | n/a | `string` | n/a | yes |
+| <a name="input_sns_topic_arns_map"></a> [sns\_topic\_arns\_map](#input\_sns\_topic\_arns\_map) | n/a | `map(list(string))` | `{}` | no |
 
 ## Outputs
 
