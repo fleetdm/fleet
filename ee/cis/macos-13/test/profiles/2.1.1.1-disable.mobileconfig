@@ -10,7 +10,7 @@
 			<key>PayloadType</key>
 			<string>com.apple.applicationaccess</string>
 			<key>PayloadIdentifier</key>
-			<string>com.fleetdm.cis-2.1.1.1.check-enable</string>
+			<string>com.fleetdm.cis-2.1.1.1.check-disable</string>
 			<key>PayloadUUID</key>
 			<string>6C0E23EB-8146-47E0-8A76-FE94958468CA</string>
 			<key>allowCloudKeychainSync</key>
