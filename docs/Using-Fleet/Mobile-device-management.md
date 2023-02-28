@@ -14,7 +14,7 @@ _Available in Fleet Premium_
 
 End users can be reminded and encouraged to update macOS (via [Nudge](https://github.com/macadmins/nudge)).
 
-When a minimum version and deadline is saved in Fleet, the end user sees the below window until their macOS version is at or above the minimum version. 
+When a minimum version and deadline is saved in Fleet, the end user sees the below window until their macOS version is at or above the minimum version.
 
 To set the macOS updates settings in the UI, visit the **Controls** section and then select the **macOS updates** tab. To set the macOS updates settings programmatically, use the configurations listed [here](https://fleetdm.com/docs/using-fleet/configuration-files#mdm-macos-updates).
 
@@ -60,7 +60,7 @@ Fleet UI:
 
 > If you want to enforce disk encryption on all macOS hosts in a specific team in Fleet, use the `team` YAML document. Learn how to create one [here](./configuration-files/README.md#teams).
 
-2. Set the `mdm.macos_settings.disk_encryption` configuration option to `true`.
+2. Set the `mdm.macos_settings.enable_disk_encryption` configuration option to `true`.
 
 3. Run the `fleetctl apply -f <your-YAML-file-here>` command.
 
@@ -82,7 +82,7 @@ How to reset a macOS host's password using the disk encryption key:
 
 1. Restart the host. If you just unlocked a host that was locked remotely, the host will automatically restart.
 
-2. On the Mac's login screen, enter the incorrect password three times. After the third failed login attempt, the Mac will display a prompt below the password field with the following message: "If you forgot your password, you can reset it using your Recovery Key." Select the right facing arrow at the end of this prompt. 
+2. On the Mac's login screen, enter the incorrect password three times. After the third failed login attempt, the Mac will display a prompt below the password field with the following message: "If you forgot your password, you can reset it using your Recovery Key." Select the right facing arrow at the end of this prompt.
 
 3. Enter the disk encryption key. Note that Apple calls this "Recovery key." Learn how to find a host's disk encryption key [here in the docs](#viewing-a-disk-encryption-key).
 
@@ -92,7 +92,7 @@ How to reset a macOS host's password using the disk encryption key:
 
 In Fleet you can enforce custom settings on your macOS hosts using configuration profiles.
 
-To enforce custom settings, first create configuration profiles with iMazing Profile editor and then add the profiles to Fleet. 
+To enforce custom settings, first create configuration profiles with iMazing Profile editor and then add the profiles to Fleet.
 
 #### Create a configuration profiles with iMazing Profile Creator
 
@@ -104,7 +104,7 @@ How to create a configuration profile with iMazing Profile Creator:
 
 3. Find and choose the settings you'd like to enforce on your macOS hosts. Fleet recommends limiting the scope of the settings a single profile: only include settings from one tab in iMazing Profile Creator (ex. **Restrictions** tab). To enforce more settings, you can create and add additional profiles.
 
-4. In iMazing Profile Creator, select the **General** tab. Enter a descriptive name in the **Name** field. When you add this profile to Fleet, Fleet will display this name in the Fleet UI. 
+4. In iMazing Profile Creator, select the **General** tab. Enter a descriptive name in the **Name** field. When you add this profile to Fleet, Fleet will display this name in the Fleet UI.
 
 5. In your top menu bar select **File** > **Save As...** and save your configuration profile. Make sure the file is saved as .mobileconfig.
 
@@ -134,11 +134,12 @@ fleetctl CLI:
 apiVersion: v1
 kind: config
 spec:
-  macos_settings:
-    custom_settings:
-      - /path/to/configuration_profile_A.mobileconfig
-      - /path/to/configuration_profile_B.mobileconfig
-    ...
+  mdm:
+    macos_settings:
+      custom_settings:
+        - /path/to/configuration_profile_A.mobileconfig
+        - /path/to/configuration_profile_B.mobileconfig
+      ...
 ```
 
 3. Run the `fleetctl apply -f <your-config-here>.yml` command to add the configuration profiles to Fleet. Note that this will override any configuration profiles added using the Fleet UI method.
@@ -255,7 +256,7 @@ To migrate hosts from your old MDM solution to Fleet you’ll first have to [dep
 
 If you have macOS hosts that were manually enrolled to your old MDM solution, you can migrate them to Fleet.
 
-> Make sure your end users have an admin account on their Mac. End users won't be able to migrate on their own if they have a standard account. 
+> Make sure your end users have an admin account on their Mac. End users won't be able to migrate on their own if they have a standard account.
 
 How to migrate manually enrolled hosts:
 
@@ -269,7 +270,7 @@ _Available in Fleet Premium_
 
 If you have macOS hosts that were automatically enrolled to your old MDM solution, you can migrate them to Fleet.
 
-> Make sure your end users have an admin account on their Mac. End users won't be able to migrate on their own if they have a standard account. 
+> Make sure your end users have an admin account on their Mac. End users won't be able to migrate on their own if they have a standard account.
 
 To check if you have hosts that were automatically enrolled, login to [Apple Business Manager](https://business.apple.com/) and select Devices.
 
@@ -277,9 +278,9 @@ How to migrate these hosts:
 
 1. Connect Fleet to Apple Business Manager (ABM). Learn how [here](#apple-business-manager-abm).
 
-2. In ABM, unassign these hosts' MDM server from the old MDM solution: In ABM, select **Devices** and then select **All Devices**. Then, select **Edit** next to **Edit MDM Server**, select **Unassign from the current MDM**, and select **Continue**. 
+2. In ABM, unassign these hosts' MDM server from the old MDM solution: In ABM, select **Devices** and then select **All Devices**. Then, select **Edit** next to **Edit MDM Server**, select **Unassign from the current MDM**, and select **Continue**.
 
-3. In ABM, assign these hosts' MDM server to Fleet: In ABM, select **Devices** and then select **All Devices**. Then, select **Edit** next to **Edit MDM Server**, select **Assign to the following MDM:**, select your Fleet server in the dropdown, and select **Continue**. 
+3. In ABM, assign these hosts' MDM server to Fleet: In ABM, select **Devices** and then select **All Devices**. Then, select **Edit** next to **Edit MDM Server**, select **Assign to the following MDM:**, select your Fleet server in the dropdown, and select **Continue**.
 
 4. In your old MDM solution, unenroll these hosts. MacOS does not allow multiple MDMs to be installed at once. This step is required to present end users with instructions to turn on MDM in Fleet.
 
@@ -299,9 +300,9 @@ If your old MDM solution enforced disk encryption, your end users will need to r
 
 In Fleet, the [Activation Lock](https://support.apple.com/en-us/HT208987) feature is disabled by default for automatically enrolled (DEP) hosts.
 
-If a Mac has Activation Lock enabled, we recommend asking the end user to follow these instructions to disable Activation Lock before migrating this host to Fleet: https://support.apple.com/en-us/HT208987. 
+If a Mac has Activation Lock enabled, we recommend asking the end user to follow these instructions to disable Activation Lock before migrating this host to Fleet: https://support.apple.com/en-us/HT208987.
 
-This is because if the Activation Lock is enabled, you will need the Activation Lock bypass code to successfully wipe and reuse the Mac. 
+This is because if the Activation Lock is enabled, you will need the Activation Lock bypass code to successfully wipe and reuse the Mac.
 
 Activation Lock bypass codes can only be retrieved from the Mac up to 30 days after the device is enrolled. This means that when migrating from your old MDM solution, it’s likely that you’ll be unable to retrieve the Activation Lock bypass code.
 
@@ -322,7 +323,7 @@ How to export settings as configuration profiles:
 
 ### Instructions for end users
 
-Your organization uses Fleet to check if all devices meet its security policies. 
+Your organization uses Fleet to check if all devices meet its security policies.
 
 Fleet includes device management features (called “MDM”) that allow your IT team to change settings remotely on your Mac. This lets your organization keep your Mac up to date so you don’t have to.
 
