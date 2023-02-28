@@ -113,6 +113,15 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 			macOSMinVersionUpdated = team.Config.MDM.MacOSUpdates != *payload.MDM.MacOSUpdates
 			team.Config.MDM.MacOSUpdates = *payload.MDM.MacOSUpdates
 		}
+
+		if payload.MDM.MacOSSettings != nil {
+			if !svc.config.MDMApple.Enable && payload.MDM.MacOSSettings.EnableDiskEncryption {
+				return nil, fleet.NewInvalidArgumentError("macos_settings.enable_disk_encryption",
+					`Couldn't update macos_settings because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`)
+			}
+
+			team.Config.MDM.MacOSSettings.EnableDiskEncryption = payload.MDM.MacOSSettings.EnableDiskEncryption
+		}
 	}
 
 	if payload.Integrations != nil {
