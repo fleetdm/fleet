@@ -54,6 +54,9 @@ Utilizing smaller instances, reducing resource needs, and lowering your expendit
 
 For more information on enabling this functionality, check out the [documentation here](https://fleetdm.com/docs/using-fleet/vulnerability-processing#advanced-configuration).
 
+<call-to-action preset="mdm-beta">
+</call-to-action>
+
 ## More new features, improvements, and bug fixes
 
 #### List of MDM features
