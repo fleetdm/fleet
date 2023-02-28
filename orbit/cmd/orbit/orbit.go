@@ -236,7 +236,6 @@ func main() {
 			case errors.Is(err, profiles.ErrNotImplemented), errors.Is(err, profiles.ErrNotFound):
 				log.Debug().Msgf("reading configuration profile: %v", err)
 			case err != nil:
-				// TODO: should we retun here? that will make orbit exit
 				log.Error().Err(err).Msg("reading configuration profile")
 			case config.EnrollSecret == "" || config.FleetURL == "":
 				log.Debug().Msg("enroll secret or fleet url are empty in configuration profile, not setting either")
