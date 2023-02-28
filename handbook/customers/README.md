@@ -260,7 +260,14 @@ Customer team members can reach the engineering oncall for assistance by writing
 ## Runbook
 
 ### Responding to a request to change a credit card number
-To change a customer's credit card number, you identify the customer's account email, log into Stripe, and choose the subscriptions associated with that account. You can then email the customer an invoice, and they can update the payment method on file.
+
+You can help a Premium license dispenser customers change their credit card by directing them to their [account dashboard](https://fleetdm.com/customers/dashboard). On that page, the customer can update their billing card by clicking the pencil icon next to their billing information.
+
+### Algolia crawler errors
+
+At least once every hour, an Algolia crawler reindexes the Fleet website's content. If an error occurs while the website is being reindexed, Algolia will block our crawler, and respond to requests with this message: `"This action cannot be executed on a blocked crawler"`.
+
+When this happens, the crawler will need to be manually started in the [Algolia crawler dashboard](https://crawler.algolia.com/admin/) to be unblocked. To do this, log into the crawler dashboard using the login saved in 1password and click the "Restart crawling" button. If the crawler successfully reindexes the Fleet website, no further action is needed. If another error occurs while the crawler is running, add a screenshot of the error to the GitHub issue that was created for the alert and @mention `eashaw` for more help.
 
 ## Customer codenames
 Occasionally, we will need to track public issues for customers that wish to remain anonymous on our public issue tracker. To do this, we choose an appropriate minor planet name from this [Wikipedia page](https://en.wikipedia.org/wiki/List_of_named_minor_planets_(alphabetical)) and create a label which we attach to the issue and any future issues for this customer.
