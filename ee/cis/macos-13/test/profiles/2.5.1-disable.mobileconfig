@@ -10,19 +10,19 @@
 			<key>PayloadType</key>
 			<string>com.apple.applicationaccess</string>
 			<key>PayloadIdentifier</key>
-			<string>com.fleetdm.cis-2.1.1.2.check-disable</string>
+			<string>com.fleetdm.cis-2.5.1.check-disable</string>
 			<key>PayloadUUID</key>
-			<string>E64911E7-7837-4024-BB6F-D0740D39A336</string>
-			<key>allowCloudDocumentSync</key>
+			<string>4B56DF79-ECAF-4175-AACC-95F08A980B6C</string>
+			<key>allowAssistant</key>
 			<false/>
 		</dict>
 	</array>
 	<key>PayloadDescription</key>
 	<string>test</string>
 	<key>PayloadDisplayName</key>
-	<string>Disable iCloud Drive storage solution usage</string>
+	<string>Disable Siri</string>
 	<key>PayloadIdentifier</key>
-	<string>com.fleetdm.cis-2.1.1.2-disable</string>
+	<string>com.fleetdm.cis-2.5.1-disable</string>
 	<key>PayloadRemovalDisallowed</key>
 	<false/>
 	<key>PayloadScope</key>
@@ -30,7 +30,7 @@
 	<key>PayloadType</key>
 	<string>Configuration</string>
 	<key>PayloadUUID</key>
-	<string>DDBB62CC-E1DA-4EE2-A747-753D54A57BDC</string>
+	<string>FB3E1980-5FE2-4C8F-BCF8-6FFF4117C962</string>
 	<key>PayloadVersion</key>
 	<integer>1</integer>
 </dict>
