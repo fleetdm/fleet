@@ -2,7 +2,7 @@
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure Siri is enabled (Based on organization's policy) (MDM Required)
+  name: CIS - Ensure Siri is disabled (Based on organization's policy) (MDM Required)
   platforms: macOS
   platform: darwin
   description: |
@@ -15,15 +15,15 @@ spec:
     Create or edit a configuration profile with the following information:
     1. The `PayloadType` string is com.apple.applicationaccess.
     2. The key to include is allowAssistant.
-    3. The key must be set to <true/>.
+    3. The key must be set to <false/>.
   query: |
       SELECT 1 WHERE NOT EXISTS (
         SELECT 1 FROM managed_policies WHERE 
             domain='com.apple.applicationaccess' 
             AND 
             name='allowAssistant' 
-             AND (value = '0' OR value = 'false')
+             AND (value = '1' OR value = 'true')
         );  
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-macos-13-2.5.1-enable
+  tags: compliance, CIS, CIS_Level1, CIS-macos-13-2.5.1-disable
   contributors: sharon-fdm
