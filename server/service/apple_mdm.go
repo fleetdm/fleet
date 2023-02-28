@@ -1485,8 +1485,6 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 				fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%d]", i), err.Error()))
 		}
 
-		fmt.Println(">>>>>> received profile : ", mdmProf.Name, mdmProf.Identifier)
-
 		if byName[mdmProf.Name] {
 			return ctxerr.Wrap(ctx,
 				fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%d]", i), fmt.Sprintf("Couldn’t edit custom_settings. More than one configuration profile have the same name (PayloadDisplayName): %q", mdmProf.Name)),
