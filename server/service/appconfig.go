@@ -453,6 +453,10 @@ func (svc *Service) validateMDM(
 	mdm *fleet.MDM,
 	invalid *fleet.InvalidArgumentError,
 ) {
+	if mdm.MacOSSettings.EnableDiskEncryption && !license.IsPremium() {
+		invalid.Append("macos_settings.enable_disk_encryption", ErrMissingLicense.Error())
+	}
+
 	if !svc.config.MDMApple.Enable {
 		// TODO(mna): eventually we should detect the minimum config required for
 		// this to be allowed, probably just SCEP/APNs?
@@ -466,10 +470,6 @@ func (svc *Service) validateMDM(
 			invalid.Append("macos_settings.enable_disk_encryption",
 				`Couldn't update macos_settings because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`)
 		}
-	}
-
-	if mdm.MacOSSettings.EnableDiskEncryption && !license.IsPremium() {
-		invalid.Append("macos_settings.enable_disk_encryption", ErrMissingLicense.Error())
 	}
 
 	if name := mdm.AppleBMDefaultTeam; name != "" && name != oldMdm.AppleBMDefaultTeam {
