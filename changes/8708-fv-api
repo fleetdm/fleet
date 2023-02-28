@@ -1,1 +1,0 @@
-* Added an API endpoint to retrieve a host disk encryption key for macOS if Fleet's MDM is enabled.

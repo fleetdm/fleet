@@ -445,3 +445,10 @@ type MDMAppleBulkUpsertHostProfilePayload struct {
 	OperationType     MDMAppleOperationType
 	Status            *MDMAppleDeliveryStatus
 }
+
+// MDMAppleFleetdConfig contains the fields used to configure
+// `fleetd` in macOS devices via a configuration profile.
+type MDMAppleFleetdConfig struct {
+	FleetURL     string
+	EnrollSecret string
+}

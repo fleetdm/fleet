@@ -1867,6 +1867,7 @@ If `after` is being used with `created_at` or `updated_at`, the table must be sp
       "mdm": {
         "encryption_key_available": false,
         "enrollment_status": null,
+        "name": "",
         "server_url": null
       }
     }
@@ -2247,6 +2248,7 @@ Returns the information of the specified host.
     "mdm": {
       "encryption_key_available": false,
       "enrollment_status": null,
+      "name": "",
       "server_url": null
     }
   }
@@ -2426,6 +2428,7 @@ Returns the information of the host specified using the `uuid`, `osquery_host_id
     "mdm": {
       "encryption_key_available": false,
       "enrollment_status": null,
+      "name": "",
       "server_url": null
     }
   }
@@ -3402,7 +3405,13 @@ Returns a list of the hosts that belong to the specified label.
       "pack_stats": null,
       "team_name": null,
       "status": "offline",
-      "display_text": "e2e7f8d8983d"
+      "display_text": "e2e7f8d8983d",
+      "mdm": {
+        "encryption_key_available": false,
+        "enrollment_status": null,
+        "name": "",
+        "server_url": null
+      }
     }
   ]
 }

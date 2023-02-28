@@ -47,7 +47,7 @@ jobs:
 
       - name: Login to Amazon ECR
         id: login-ecr
-        uses: aws-actions/amazon-ecr-login@b874a33292cc9887d2e80bc63f6f1a11fccb4a7b # v1
+        uses: aws-actions/amazon-ecr-login@261a7de32bda11ba01f4d75c4ed6caf3739e54be # v1
 
       - name: Build, tag, and push image to Amazon ECR
         env:
