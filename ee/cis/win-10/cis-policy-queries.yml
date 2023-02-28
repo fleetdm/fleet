@@ -770,7 +770,7 @@ spec:
     Policies\Security Options\Network access: Let Everyone permissions apply to
     anonymous users'
   query: |
-    TODO
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\Lsa\everyoneincludesanonymous' AND data == 0);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.10.5
   contributors: rachelelysia
@@ -792,7 +792,7 @@ spec:
     Policies\Security Options\Network access: Named Pipes that can be accessed
     anonymously'
   query: |
-    TODO
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\LanManServer\Parameters\NullSessionPipes' and data == '');
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.10.6
   contributors: rachelelysia
@@ -816,7 +816,7 @@ spec:
     'Computer Configuration\Policies\Windows Settings\Security Settings\Local
     Policies\Security Options\Network access: Remotely accessible registry paths'
   query: |
-    TODO
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\SecurePipeServers\\Winreg\\AllowedExactPaths\Machine' and data == 'System\CurrentControlSet\Control\ProductOptions,System\CurrentControlSet\Control\Server Applications,Software\Microsoft\Windows NT\CurrentVersion');
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.10.7
   contributors: rachelelysia
