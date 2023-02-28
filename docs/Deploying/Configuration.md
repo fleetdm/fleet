@@ -2231,17 +2231,17 @@ When running multiple instances of the Fleet server, by default, one of them dyn
   	current_instance_checks: yes
   ```
 
-##### external_scheduled
+##### disable_schedule
 
 To externally manage running vulnerability processing set the value to `true` and then run `fleet vuln_processing` using external
 tools like crontab.
 
 - Default value: `false`
-- Environment variable: `FLEET_VULNERABILITIES_EXTERNAL_SCHEDULED`
+- Environment variable: `FLEET_VULNERABILITIES_DISABLE_SCHEDULE`
 - Config file format:
   ```
   vulnerabilities:
-  	external_scheduled: false
+  	disable_schedule: false
   ```
 
 ##### disable_data_sync

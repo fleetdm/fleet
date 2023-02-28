@@ -323,7 +323,7 @@ type VulnerabilitiesConfig struct {
 	CPETranslationsURL          string        `json:"cpe_translations_url" yaml:"cpe_translations_url"`
 	CVEFeedPrefixURL            string        `json:"cve_feed_prefix_url" yaml:"cve_feed_prefix_url"`
 	CurrentInstanceChecks       string        `json:"current_instance_checks" yaml:"current_instance_checks"`
-	ExternalScheduled           bool          `json:"external_scheduled" yaml:"external_scheduled"`
+	DisableSchedule             bool          `json:"disable_schedule" yaml:"disable_schedule"`
 	DisableDataSync             bool          `json:"disable_data_sync" yaml:"disable_data_sync"`
 	RecentVulnerabilityMaxAge   time.Duration `json:"recent_vulnerability_max_age" yaml:"recent_vulnerability_max_age"`
 	DisableWinOSVulnerabilities bool          `json:"disable_win_os_vulnerabilities" yaml:"disable_win_os_vulnerabilities"`
@@ -969,8 +969,8 @@ func (man Manager) addConfigs() {
 		"Prefix URL for the CVE data feed. If empty, default to https://nvd.nist.gov/")
 	man.addConfigString("vulnerabilities.current_instance_checks", "auto",
 		"Allows to manually select an instance to do the vulnerability processing.")
-	man.addConfigBool("vulnerabilities.external_scheduled", false,
-		"Vulnerability processing is managed by an external 'cron' mechanism.")
+	man.addConfigBool("vulnerabilities.disable_schedule", false,
+		"Set this to true when the vulnerability processing job is scheduled by an external mechanism")
 	man.addConfigBool("vulnerabilities.disable_data_sync", false,
 		"Skips synchronizing data streams and expects them to be available in the databases_path.")
 	man.addConfigDuration("vulnerabilities.recent_vulnerability_max_age", 30*24*time.Hour,
@@ -1242,7 +1242,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			CPETranslationsURL:          man.getConfigString("vulnerabilities.cpe_translations_url"),
 			CVEFeedPrefixURL:            man.getConfigString("vulnerabilities.cve_feed_prefix_url"),
 			CurrentInstanceChecks:       man.getConfigString("vulnerabilities.current_instance_checks"),
-			ExternalScheduled:           man.getConfigBool("vulnerabilities.external_scheduled"),
+			DisableSchedule:             man.getConfigBool("vulnerabilities.disable_schedule"),
 			DisableDataSync:             man.getConfigBool("vulnerabilities.disable_data_sync"),
 			RecentVulnerabilityMaxAge:   man.getConfigDuration("vulnerabilities.recent_vulnerability_max_age"),
 			DisableWinOSVulnerabilities: man.getConfigBool("vulnerabilities.disable_win_os_vulnerabilities"),

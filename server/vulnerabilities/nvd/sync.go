@@ -5,6 +5,7 @@ import (
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"io"
 	"net/url"
 	"os"
@@ -177,7 +178,11 @@ func DownloadCISAKnownExploitsFeed(vulnPath string) error {
 
 // LoadCVEMeta loads the cvss scores, epss scores, and known exploits from the previously downloaded feeds and saves
 // them to the database.
-func LoadCVEMeta(logger log.Logger, vulnPath string, ds fleet.Datastore) error {
+func LoadCVEMeta(ctx context.Context, logger log.Logger, vulnPath string, ds fleet.Datastore) error {
+	if !license.IsPremium(ctx) {
+		level.Info(logger).Log("msg", "skipping cve_meta parsing due to license check")
+		return nil
+	}
 	// load cvss scores
 	files, err := getNVDCVEFeedFiles(vulnPath)
 	if err != nil {
@@ -277,10 +282,9 @@ func LoadCVEMeta(logger log.Logger, vulnPath string, ds fleet.Datastore) error {
 		meta = append(meta, score)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
+	insertCtx, cancel := context.WithTimeout(ctx, 1*time.Minute)
 	defer cancel()
-
-	if err := ds.InsertCVEMeta(ctx, meta); err != nil {
+	if err := ds.InsertCVEMeta(insertCtx, meta); err != nil {
 		return fmt.Errorf("insert cve meta: %w", err)
 	}
 

@@ -293,10 +293,6 @@ func checkOvalVulnerabilities(
 	config *config.VulnerabilitiesConfig,
 	collectVulns bool,
 ) []fleet.SoftwareVulnerability {
-	if config.DisableDataSync {
-		return nil
-	}
-
 	var results []fleet.SoftwareVulnerability
 
 	// Get Platforms
@@ -306,13 +302,15 @@ func checkOvalVulnerabilities(
 		return nil
 	}
 
-	// Sync on disk OVAL definitions with current OS Versions.
-	downloaded, err := oval.Refresh(ctx, versions, vulnPath)
-	if err != nil {
-		errHandler(ctx, logger, "updating oval definitions", err)
-	}
-	for _, d := range downloaded {
-		level.Debug(logger).Log("oval-sync-downloaded", d)
+	if !config.DisableDataSync {
+		// Sync on disk OVAL definitions with current OS Versions.
+		downloaded, err := oval.Refresh(ctx, versions, vulnPath)
+		if err != nil {
+			errHandler(ctx, logger, "updating oval definitions", err)
+		}
+		for _, d := range downloaded {
+			level.Debug(logger).Log("oval-sync-downloaded", d)
+		}
 	}
 
 	// Analyze all supported os versions using the synched OVAL definitions.
@@ -356,7 +354,7 @@ func checkNVDVulnerabilities(
 		}
 	}
 
-	if err := nvd.LoadCVEMeta(logger, vulnPath, ds); err != nil {
+	if err := nvd.LoadCVEMeta(ctx, logger, vulnPath, ds); err != nil {
 		errHandler(ctx, logger, "load cve meta", err)
 		// don't return, continue on ...
 	}
