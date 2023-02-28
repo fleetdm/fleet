@@ -299,6 +299,9 @@ const DeviceUserPage = ({
     const failingPoliciesCount = host?.issues?.failing_policies_count || 0;
     const isMdmUnenrolled =
       host?.mdm.enrollment_status === "Off" || !host?.mdm.enrollment_status;
+
+    // TODO: actually determine below
+    const diskEncryptionUserActionRequired = true;
     return (
       <div className="fleet-desktop-wrapper">
         {isLoadingHost ? (
@@ -315,6 +318,18 @@ const DeviceUserPage = ({
                   don’t have to.
                 </InfoBanner>
               )}
+            {/* TODO: remove below true to restore actual render conditions */}
+            {(true ||
+              (isPremiumTier &&
+                !isMdmUnenrolled &&
+                globalConfig?.mdm.enabled_and_configured &&
+                diskEncryptionUserActionRequired)) && (
+              <InfoBanner color="yellow">
+                Disk encryption: Log out of your device or restart to turn on
+                disk encryption. This prevents unauthorized access to the
+                information on your device.
+              </InfoBanner>
+            )}
             <HostSummaryCard
               statusClassName={statusClassName}
               titleData={titleData}

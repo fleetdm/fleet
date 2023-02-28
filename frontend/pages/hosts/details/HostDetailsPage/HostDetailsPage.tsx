@@ -625,7 +625,7 @@ const HostDetailsPage = ({
               config?.mdm.enabled_and_configured &&
               !isAppleBmTermsExpired &&
               diskEncryptionUserActionRequired)) && (
-            <InfoBanner color="yellow" pageLevel>
+            <InfoBanner color="yellow">
               Disk encryption: Requires action from the end user. Ask the end
               user to follow <b>Disk encryption</b> instructions on their{" "}
               <b>My device</b> page.
