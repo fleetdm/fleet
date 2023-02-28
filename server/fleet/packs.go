@@ -61,7 +61,7 @@ func (p *Pack) teamPack() (*uint, error) {
 		return nil, nil
 	}
 	t := strings.TrimPrefix(*p.Type, "team-")
-	teamID, err := strconv.ParseUint(t, 10, 64)
+	teamID, err := strconv.ParseUint(t, 10, 32)
 	if err != nil {
 		return nil, err
 	}
