@@ -16,7 +16,9 @@ For upgrade instructions, see our [upgrade guide](https://fleetdm.com/docs/deplo
 
 _Available in Fleet Premium and Fleet Ultimate_
 
-[![Video: CIS Benchmarks for macOS 13 Ventura](https://img.youtube.com/vi/_uExv-1v4jQ/0.jpg)](https://www.youtube.com/watch?v=_uExv-1v4jQ "Video: CIS Benchmarks for macOS 13 Ventura")
+<div purpose="embedded-content">
+    <iframe src="https://www.youtube.com/embed/_uExv-1v4jQ" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+</div>
 
 Fleet now includes scheduling and running a complete set of [CIS benchmark policies](https://fleetdm.com/docs/using-fleet/cis-benchmarks) as part of Premium and Ultimate. The Center for Internet Security publishes benchmark documents that describe how computers should be configured in order for them to avoid vulnerabilities addressed therein. Today, we have 100% coverage for all automatable macOS 13 Ventura CIS benchmarks.\*
 
@@ -24,7 +26,7 @@ CIS benchmark policies represent the consensus-based effort of cybersecurity exp
 
 Premium and Ultimate Fleet plans have the ability to import the CIS benchmarks into your queries list, where you can schedule or edit them. Once imported, you would see something like this:
 
-![](https://lh5.googleusercontent.com/M1dOOcAsg7-WzqUToPsHw0D4H0H3XeCJ37idQsiG4f1cNaV7AyGMYEr9jz1E2UM72erX7WE9EJLxFTjelwi2zdEFX5fa2D1wl7uAusMKXgtJo2wqCmvENvThfPsFcK4XxRCmuAI9kSGqS5nuVhJnmC8)
+![CIS Benchmarks](../website/assets/images/articles/fleet-4.28.0-cis-benchmarks-497x179@2x.png)
 
 \*Some CIS Benchmarks require manual intervention.
 
@@ -42,7 +44,9 @@ Learn more about [Fleet’s vulnerability processing](https://fleetdm.com/docs/
 
 ## Cost savings through reduced background jobs
 
-[![Video: Reduced Vulnerability background jobs](https://img.youtube.com/vi/7LfrZ7dqQxY/0.jpg)](https://www.youtube.com/watch?v=7LfrZ7dqQxY "Video: Reduced Vulnerability background jobs")
+<div purpose="embedded-content">
+    <iframe src="https://www.youtube.com/embed/7LfrZ7dqQxY" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+</div>
 
 Fleet is working diligently to reduce the overhead associated with running several background jobs, including [vulnerability processing](https://fleetdm.com/docs/using-fleet/vulnerability-processing). Background jobs with significant resource needs have been moved from _scheduled_ to _on-demand._ These changes help reduce resource needs and, ultimately, infrastructure costs. 
 
@@ -101,4 +105,4 @@ Visit our [upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in
 <meta name="authorGitHubUsername" value="spokanemac">
 <meta name="publishedOn" value="2023-02-28">
 <meta name="articleTitle" value="Fleet 4.28.0 | CIS benchmarks for Ventura">
-<meta name="articleImageUrl" value=".../website/assets/images/articles/fleet-4.28.0-1600x900@2x.png">
+<meta name="articleImageUrl" value="../website/assets/images/articles/fleet-4.28.0-800x450@2x.png">
