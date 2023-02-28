@@ -269,7 +269,7 @@ Estimating bugs and outages can be helpful in getting on the same page about how
 
 [⚗️ Roadmap](https://github.com/orgs/fleetdm/projects/41) - Planning for the next release (shared with the Product team).
 
-## Scaling GOTCHAS
+## Scaling gotchas
 
 ### Overall
 
@@ -876,9 +876,9 @@ The following rituals are engaged in by the directly responsible individual (DRI
 | Release testing/QA | Every three weeks | Every release cycle, by end of day Wednesday of release week, all issues move to "Ready for release" on the 🚀Release board. | Reed Haynes |
 | Release testing/QA report | Every three weeks | Every release cycle, on the Monday of release week, the DRI for the release ritual is updated on status of testing. | Reed Haynes |
 
-## Fleet Infrastructure Oncall
+## 24/7 on-call
 
-The infrastructure oncall team will be responsible for alarms related to fleetdm.com, Fleet sandbox, and Fleet managed cloud. Oncall will happen in shifts of 1 week. The people involved in them will be:
+The 24/7 on-call (aka infrastructure on-call) team is responsible for alarms related to fleetdm.com, Fleet sandbox, Fleet managed cloud, as well as delivering 24/7 support for Fleet Ultimate customers.  The infrastructure (24/7) on-call responsibility  happen in shifts of 1 week. The people involved in them will be:
 
 First responders:
 
