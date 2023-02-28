@@ -687,7 +687,7 @@ spec:
     Firewall with Advanced Security\Windows Firewall with Advanced
     Security\Windows Firewall Properties\Private Profile\Firewall state'
   query: |
-    HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\WindowsFirewall\PrivateProfile
+    HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\WindowsFirewall\\PrivateProfile
   :EnableFirewall
     TODO
   purpose: Informational
@@ -709,12 +709,10 @@ spec:
     To establish the recommended configuration via GP, set the following UI path to Block
     (default):
     'Computer Configuration\Policies\Windows Settings\Security Settings\Windows
-    Firewall with Advanced Security\Windows Firewall with Advanced
-    Security\Windows Firewall Properties\Private Profile\Inbound connections'
+    Firewall with Advanced Security\Windows Defender Firewall with Advanced
+    Security\Windows Defender Firewall Properties\Private Profile\Inbound connections'
   query: |
-    HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\WindowsFirewall\PrivateProfile
-  :DefaultInboundAction
-    TODO
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\WindowsFirewall\\PrivateProfile\DefaultInboundAction' and data == 1);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_9.2.2
   contributors: RachelElysia
