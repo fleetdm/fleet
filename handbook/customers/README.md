@@ -265,9 +265,12 @@ You can help a Premium license dispenser customers change their credit card by d
 
 ### Algolia crawler errors
 
-At least once every hour, an Algolia crawler reindexes the Fleet website's content. If an error occurs while the website is being reindexed, Algolia will block our crawler, and respond to requests with this message: `"This action cannot be executed on a blocked crawler"`.
+At least once every hour, an Algolia crawler reindexes the Fleet website's content. If an error occurs while the website is being indexed, Algolia will block our crawler and respond to requests with this message: `"This action cannot be executed on a blocked crawler"`.
 
-When this happens, the crawler will need to be manually started in the [Algolia crawler dashboard](https://crawler.algolia.com/admin/) to be unblocked. To do this, log into the crawler dashboard using the login saved in 1password and click the "Restart crawling" button. If the crawler successfully reindexes the Fleet website, no further action is needed. If another error occurs while the crawler is running, add a screenshot of the error to the GitHub issue that was created for the alert and @mention `eashaw` for more help.
+When this happens, you'll need to manually start the crawler in the [Algolia crawler dashboard](https://crawler.algolia.com/admin/) to unblock it. 
+You can do this by logging into the crawler dashboard using the login saved in 1password and clicking the "Restart crawling" button on our crawler's "overview" page](https://crawler.algolia.com/admin/crawlers/497dd4fd-f8dd-4ffb-85c9-2a56b7fafe98/overview).
+
+No further action is needed if the crawler successfully reindexes the Fleet website. If another error occurs while the crawler is running, take a screenshot of the error and add it to the GitHub issue created for the alert and @mention `eashaw` for help.
 
 ## Customer codenames
 Occasionally, we will need to track public issues for customers that wish to remain anonymous on our public issue tracker. To do this, we choose an appropriate minor planet name from this [Wikipedia page](https://en.wikipedia.org/wiki/List_of_named_minor_planets_(alphabetical)) and create a label which we attach to the issue and any future issues for this customer.
