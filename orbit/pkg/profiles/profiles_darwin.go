@@ -1,5 +1,4 @@
 //go:build darwin
-// +build darwin
 
 package profiles
 
@@ -13,24 +12,24 @@ import (
 	"github.com/groob/plist"
 )
 
-type profileItem[T any] struct {
-	PayloadContent T
+type profileItem struct {
+	PayloadContent fleet.MDMAppleFleetdConfig
 	PayloadType    string
 }
 
-type profilePayload[T any] struct {
+type profilePayload struct {
 	ProfileIdentifier string
-	ProfileItems      []profileItem[T]
+	ProfileItems      []profileItem
 }
 
-type profilesOutput[T any] struct {
-	ComputerLevel []profilePayload[T] `plist:"_computerlevel"`
+type profilesOutput struct {
+	ComputerLevel []profilePayload `plist:"_computerlevel"`
 }
 
 // GetFleetdConfig searches and parses a device level configuration profile
 // with Fleet's payload identifier.
 func GetFleetdConfig() (*fleet.MDMAppleFleetdConfig, error) {
-	p, err := getProfile[fleet.MDMAppleFleetdConfig](apple_mdm.FleetdConfigPayloadIdentifier)
+	p, err := getProfile(apple_mdm.FleetdConfigPayloadIdentifier)
 	if err != nil {
 		return nil, err
 	}
@@ -38,13 +37,13 @@ func GetFleetdConfig() (*fleet.MDMAppleFleetdConfig, error) {
 	return &p.ProfileItems[0].PayloadContent, nil
 }
 
-func getProfile[T any](identifier string) (*profilePayload[T], error) {
+func getProfile(identifier string) (*profilePayload, error) {
 	outBuf, err := execProfileCmd()
 	if err != nil {
 		return nil, fmt.Errorf("get profile: %w", err)
 	}
 
-	var profiles profilesOutput[T]
+	var profiles profilesOutput
 	if err := plist.Unmarshal(outBuf.Bytes(), &profiles); err != nil {
 		return nil, fmt.Errorf("get profile: %w", err)
 	}

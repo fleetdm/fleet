@@ -234,7 +234,7 @@ func main() {
 			// not have a configuration profile, or to get into this situation in
 			// operating systems that don't have profile support.
 			case errors.Is(err, profiles.ErrNotImplemented), errors.Is(err, profiles.ErrNotFound):
-				log.Debug().Msgf("reading configuration profile: %e", err)
+				log.Debug().Msgf("reading configuration profile: %v", err)
 			case err != nil:
 				// TODO: should we retun here? that will make orbit exit
 				log.Error().Err(err).Msg("reading configuration profile")
