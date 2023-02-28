@@ -66,7 +66,7 @@ func TestMDMAppleEnableFileVaultAndEscrow(t *testing.T) {
 }
 
 func TestMDMAppleDisableFileVaultAndEscrow(t *testing.T) {
-	var wantTeamID uint = 0
+	var wantTeamID uint
 	ds, svc := setup()
 	ds.DeleteMDMAppleConfigProfileByTeamAndIdentifierFunc = func(ctx context.Context, teamID uint, profileIdentifier string) error {
 		require.Equal(t, wantTeamID, teamID)
