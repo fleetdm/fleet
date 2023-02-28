@@ -6,6 +6,7 @@ import TableNetworkInterfaces from "./tables/network_interfaces";
 import TableUsers from "./tables/users";
 import TableGroups from "./tables/groups";
 import Table from "./tables/Table";
+import TableChromeExtensions from "./tables/chrome_extensions";
 
 export default class VirtualDatabase {
   sqlite3: SQLiteAPI;
@@ -26,6 +27,11 @@ export default class VirtualDatabase {
     );
     VirtualDatabase.register(sqlite3, db, new TableUsers(sqlite3, db));
     VirtualDatabase.register(sqlite3, db, new TableGroups(sqlite3, db));
+    VirtualDatabase.register(
+      sqlite3,
+      db,
+      new TableChromeExtensions(sqlite3, db)
+    );
   }
 
   static register(sqlite3: SQLiteAPI, db: number, table: Table) {
