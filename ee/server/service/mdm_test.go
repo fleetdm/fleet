@@ -48,7 +48,7 @@ func TestMDMAppleEnableFileVaultAndEscrow(t *testing.T) {
 		require.True(t, ds.NewMDMAppleConfigProfileFuncInvoked)
 	})
 
-	t.Run("", func(t *testing.T) {
+	t.Run("happy path", func(t *testing.T) {
 		var teamID uint = 4
 		ds, svc := setup()
 		ds.NewMDMAppleConfigProfileFunc = func(ctx context.Context, p fleet.MDMAppleConfigProfile) (*fleet.MDMAppleConfigProfile, error) {
@@ -59,7 +59,8 @@ func TestMDMAppleEnableFileVaultAndEscrow(t *testing.T) {
 			return nil, nil
 		}
 
-		svc.MDMAppleEnableFileVaultAndEscrow(ctx, teamID)
+		err := svc.MDMAppleEnableFileVaultAndEscrow(ctx, teamID)
+		require.NoError(t, err)
 		require.True(t, ds.NewMDMAppleConfigProfileFuncInvoked)
 	})
 }
