@@ -22,7 +22,7 @@ spec:
             domain='com.apple.applicationaccess' 
             AND 
             name='allowCloudKeychainSync' 
-             AND (value = 1 OR value = 'true')
+             AND (value = '1' OR value = 'true')
         );  
   purpose: Informational
   tags: compliance, CIS, CIS_Level2, CIS-macos-13-2.1.1.1-enable
