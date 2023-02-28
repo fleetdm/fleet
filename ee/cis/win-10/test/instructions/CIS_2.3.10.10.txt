@@ -4,7 +4,7 @@ Expected scenario
 'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\Network access: Restrict clients allowed to make
 remote calls to SAM'
 
-2) After running the policy check, it should return '' (or 'O:BAG:BAD:' if the setting was previously modified) indicating that setting was properly set
+2) After running the policy check, it should return 1 indicating that setting was properly set
 
 
 
