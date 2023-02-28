@@ -183,7 +183,9 @@ func (s MacOSSettings) ToMap() map[string]interface{} {
 
 // FromMap sets the macOS settings from the provided map, which is the map type
 // from the ApplyTeams spec struct. It returns a map of fields that were set in
-// the map (ie. the key was present even if empty) or an error.
+// the map (ie. the key was present even if empty) or an error. If the
+// operation updates an existing team, it should be called on the existing
+// MacOSSettings so that its fields are replaced only if present in the map.
 func (s *MacOSSettings) FromMap(m map[string]interface{}) (map[string]bool, error) {
 	set := make(map[string]bool)
 

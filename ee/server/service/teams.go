@@ -584,8 +584,8 @@ func (svc *Service) createTeamFromSpec(
 		}
 	}
 
-	macOSSettings, err := svc.applyTeamMacOSSettings(ctx, spec)
-	if err != nil {
+	var macOSSettings fleet.MacOSSettings
+	if err := svc.applyTeamMacOSSettings(ctx, spec, &macOSSettings); err != nil {
 		return nil, err
 	}
 
@@ -600,7 +600,7 @@ func (svc *Service) createTeamFromSpec(
 			Features:     features,
 			MDM: fleet.TeamMDM{
 				MacOSUpdates:  spec.MDM.MacOSUpdates,
-				MacOSSettings: *macOSSettings,
+				MacOSSettings: macOSSettings,
 			},
 		},
 		Secrets: secrets,
@@ -635,11 +635,9 @@ func (svc *Service) editTeamFromSpec(
 	team.Config.Features = features
 	team.Config.MDM.MacOSUpdates = spec.MDM.MacOSUpdates
 
-	macOSSettings, err := svc.applyTeamMacOSSettings(ctx, spec)
-	if err != nil {
+	if err := svc.applyTeamMacOSSettings(ctx, spec, &team.Config.MDM.MacOSSettings); err != nil {
 		return err
 	}
-	team.Config.MDM.MacOSSettings = *macOSSettings
 
 	if len(secrets) > 0 {
 		team.Secrets = secrets
@@ -662,15 +660,14 @@ func (svc *Service) editTeamFromSpec(
 	return nil
 }
 
-func (svc *Service) applyTeamMacOSSettings(ctx context.Context, spec *fleet.TeamSpec) (*fleet.MacOSSettings, error) {
-	var macOSSettings fleet.MacOSSettings
-	setFields, err := macOSSettings.FromMap(spec.MDM.MacOSSettings)
+func (svc *Service) applyTeamMacOSSettings(ctx context.Context, spec *fleet.TeamSpec, applyUpon *fleet.MacOSSettings) error {
+	setFields, err := applyUpon.FromMap(spec.MDM.MacOSSettings)
 	if err != nil {
-		return nil, fleet.NewUserMessageError(err, http.StatusBadRequest)
+		return fleet.NewUserMessageError(err, http.StatusBadRequest)
 	}
 
-	if (setFields["custom_settings"] && len(macOSSettings.CustomSettings) > 0) ||
-		(setFields["enable_disk_encryption"] && macOSSettings.EnableDiskEncryption) {
+	if (setFields["custom_settings"] && len(applyUpon.CustomSettings) > 0) ||
+		(setFields["enable_disk_encryption"] && applyUpon.EnableDiskEncryption) {
 		field := "custom_settings"
 		if !setFields["custom_settings"] {
 			field = "enable_disk_encryption"
@@ -678,12 +675,12 @@ func (svc *Service) applyTeamMacOSSettings(ctx context.Context, spec *fleet.Team
 		if !svc.config.MDMApple.Enable {
 			// TODO(mna): eventually we should detect the minimum config required for
 			// this to be allowed, probably just SCEP/APNs?
-			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError(fmt.Sprintf("macos_settings.%s", field),
+			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError(fmt.Sprintf("macos_settings.%s", field),
 				`Couldn't update macos_settings because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`))
 		}
 	}
 
-	return &macOSSettings, nil
+	return nil
 }
 
 // unmarshalWithGlobalDefaults unmarshals features from a team spec, and
