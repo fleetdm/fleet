@@ -681,7 +681,7 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure Show Bluetooth Status in Menu Bar Is Enabled (MDM Required)
+  name: CIS - Ensure Siri has a policy to enable/disable it. (Will only check policy existance) (MDM Required)
   platforms: macOS
   platform: darwin
   description: |
