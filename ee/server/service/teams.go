@@ -106,11 +106,13 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 
 	var macOSMinVersionUpdated bool
 	if payload.MDM != nil {
-		if err := payload.MDM.MacOSUpdates.Validate(); err != nil {
-			return nil, fleet.NewInvalidArgumentError("macos_updates", err.Error())
+		if payload.MDM.MacOSUpdates != nil {
+			if err := payload.MDM.MacOSUpdates.Validate(); err != nil {
+				return nil, fleet.NewInvalidArgumentError("macos_updates", err.Error())
+			}
+			macOSMinVersionUpdated = team.Config.MDM.MacOSUpdates != *payload.MDM.MacOSUpdates
+			team.Config.MDM.MacOSUpdates = *payload.MDM.MacOSUpdates
 		}
-		macOSMinVersionUpdated = team.Config.MDM.MacOSUpdates != payload.MDM.MacOSUpdates
-		team.Config.MDM = *payload.MDM
 	}
 
 	if payload.Integrations != nil {
