@@ -261,7 +261,7 @@ and customer success team prior to a release of Fleet.
 Keep the business up to date with improvements and changes to the Fleet product so that all stakeholders can communicate
 with customers and users.
 
-### Product Marketing Tiers 
+### Product marketing tiers 
 After the kickoff of a product sprint, the marketing and product teams should decide which features are most important to highlight. When a feature gets scheduled for release the Tier helps marketing give it the biggest impact. Once the features have been discussed the next step is to bucket them into tiers for marketing prioritization. The current tiers are 1-3. 
 
 - Tier 1: A separate product feature announcement. The most important release types, these require a specific and custom marketing package. Usually including an individual blog post, a demo video and potentially a press release or official product marketing launch. Due to limited availability there is only room for one Tier 1 product announcement per release sprint.
