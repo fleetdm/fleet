@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/url"
+	"reflect"
 	"regexp"
 	"sort"
 	"time"
@@ -170,7 +171,7 @@ type MacOSSettings struct {
 	CustomSettings       []string `json:"custom_settings"`
 	EnableDiskEncryption bool     `json:"enable_disk_encryption"`
 
-	// NOTE: make sure to update the ToMap method when adding/updating fields.
+	// NOTE: make sure to update the ToMap/FromMap methods when adding/updating fields.
 }
 
 func (s MacOSSettings) ToMap() map[string]interface{} {
@@ -180,26 +181,49 @@ func (s MacOSSettings) ToMap() map[string]interface{} {
 	}
 }
 
-// CustomSettingsFromMap sets the custom settings field from the provided map,
-// which is the map type from the ApplyTeams spec struct. It returns true if
-// the custom settings were set from the map, false if they were left
-// unchanged.
-func (s *MacOSSettings) CustomSettingsFromMap(m map[string]interface{}) bool {
+// FromMap sets the macOS settings from the provided map, which is the map type
+// from the ApplyTeams spec struct. It returns a map of fields that were set in
+// the map (ie. the key was present even if empty) or an error.
+func (s *MacOSSettings) FromMap(m map[string]interface{}) (map[string]bool, error) {
+	set := make(map[string]bool)
+
 	if v, ok := m["custom_settings"]; ok {
+		set["custom_settings"] = true
+
 		vals, ok := v.([]interface{})
 		if v == nil || ok {
 			strs := make([]string, 0, len(vals))
 			for _, v := range vals {
-				s, ok := v.(string)
-				if ok && s != "" {
-					strs = append(strs, s)
+				str, ok := v.(string)
+				if !ok {
+					// error, must be a []string
+					return nil, &json.UnmarshalTypeError{
+						Value: fmt.Sprintf("%T", v),
+						Type:  reflect.TypeOf(s.CustomSettings),
+						Field: "macos_settings.custom_settings",
+					}
 				}
+				strs = append(strs, str)
 			}
 			s.CustomSettings = strs
-			return true
 		}
 	}
-	return false
+
+	if v, ok := m["enable_disk_encryption"]; ok {
+		set["enable_disk_encryption"] = true
+		b, ok := v.(bool)
+		if !ok {
+			// error, must be a bool
+			return nil, &json.UnmarshalTypeError{
+				Value: fmt.Sprintf("%T", v),
+				Type:  reflect.TypeOf(s.EnableDiskEncryption),
+				Field: "macos_settings.enable_disk_encryption",
+			}
+		}
+		s.EnableDiskEncryption = b
+	}
+
+	return set, nil
 }
 
 // AppConfig holds server configuration that can be changed via the API.

@@ -548,9 +548,6 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 	}
 
 	if len(details) > 0 {
-		// TODO(mna): we don't create separate activities for e.g. edited agent
-		// options when applying team specs, so I didn't create explicit activities
-		// for min macos version either. Not sure if that's what we want.
 		if err := svc.ds.NewActivity(
 			ctx,
 			authz.UserFromContext(ctx),
@@ -564,7 +561,13 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 	return nil
 }
 
-func (svc Service) createTeamFromSpec(ctx context.Context, spec *fleet.TeamSpec, defaults *fleet.AppConfig, secrets []*fleet.EnrollSecret, dryRun bool) (*fleet.Team, error) {
+func (svc *Service) createTeamFromSpec(
+	ctx context.Context,
+	spec *fleet.TeamSpec,
+	defaults *fleet.AppConfig,
+	secrets []*fleet.EnrollSecret,
+	dryRun bool,
+) (*fleet.Team, error) {
 	agentOptions := &spec.AgentOptions
 	if len(spec.AgentOptions) == 0 {
 		agentOptions = defaults.AgentOptions
@@ -581,35 +584,36 @@ func (svc Service) createTeamFromSpec(ctx context.Context, spec *fleet.TeamSpec,
 		}
 	}
 
-	var macOSSettings fleet.MacOSSettings
-	if macOSSettings.CustomSettingsFromMap(spec.MDM.MacOSSettings) && len(macOSSettings.CustomSettings) > 0 {
-		if !svc.config.MDMApple.Enable {
-			// TODO(mna): eventually we should detect the minimum config required for
-			// this to be allowed, probably just SCEP/APNs?
-			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("macos_settings.custom_settings",
-				`Couldn't update macos_settings because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`))
-		}
+	macOSSettings, err := svc.applyTeamMacOSSettings(ctx, spec)
+	if err != nil {
+		return nil, err
 	}
 
 	if dryRun {
 		return &fleet.Team{Name: spec.Name}, nil
 	}
 
-	var teamMDM fleet.TeamMDM
-	teamMDM.MacOSUpdates = spec.MDM.MacOSUpdates
-	teamMDM.MacOSSettings = macOSSettings
 	return svc.ds.NewTeam(ctx, &fleet.Team{
 		Name: spec.Name,
 		Config: fleet.TeamConfig{
 			AgentOptions: agentOptions,
 			Features:     features,
-			MDM:          teamMDM,
+			MDM: fleet.TeamMDM{
+				MacOSUpdates:  spec.MDM.MacOSUpdates,
+				MacOSSettings: *macOSSettings,
+			},
 		},
 		Secrets: secrets,
 	})
 }
 
-func (svc Service) editTeamFromSpec(ctx context.Context, team *fleet.Team, spec *fleet.TeamSpec, secrets []*fleet.EnrollSecret, dryRun bool) error {
+func (svc *Service) editTeamFromSpec(
+	ctx context.Context,
+	team *fleet.Team,
+	spec *fleet.TeamSpec,
+	secrets []*fleet.EnrollSecret,
+	dryRun bool,
+) error {
 	team.Name = spec.Name
 
 	// if agent options are not provided, do not change them
@@ -630,15 +634,12 @@ func (svc Service) editTeamFromSpec(ctx context.Context, team *fleet.Team, spec 
 	}
 	team.Config.Features = features
 	team.Config.MDM.MacOSUpdates = spec.MDM.MacOSUpdates
-	if team.Config.MDM.MacOSSettings.CustomSettingsFromMap(spec.MDM.MacOSSettings) &&
-		len(team.Config.MDM.MacOSSettings.CustomSettings) > 0 {
-		if !svc.config.MDMApple.Enable {
-			// TODO(mna): eventually we should detect the minimum config required for
-			// this to be allowed, probably just SCEP/APNs?
-			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("macos_settings.custom_settings",
-				`Couldn't update macos_settings because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`))
-		}
+
+	macOSSettings, err := svc.applyTeamMacOSSettings(ctx, spec)
+	if err != nil {
+		return err
 	}
+	team.Config.MDM.MacOSSettings = *macOSSettings
 
 	if len(secrets) > 0 {
 		team.Secrets = secrets
@@ -659,6 +660,30 @@ func (svc Service) editTeamFromSpec(ctx context.Context, team *fleet.Team, spec 
 		}
 	}
 	return nil
+}
+
+func (svc *Service) applyTeamMacOSSettings(ctx context.Context, spec *fleet.TeamSpec) (*fleet.MacOSSettings, error) {
+	var macOSSettings fleet.MacOSSettings
+	setFields, err := macOSSettings.FromMap(spec.MDM.MacOSSettings)
+	if err != nil {
+		return nil, fleet.NewUserMessageError(err, http.StatusBadRequest)
+	}
+
+	if (setFields["custom_settings"] && len(macOSSettings.CustomSettings) > 0) ||
+		(setFields["enable_disk_encryption"] && macOSSettings.EnableDiskEncryption) {
+		field := "custom_settings"
+		if !setFields["custom_settings"] {
+			field = "enable_disk_encryption"
+		}
+		if !svc.config.MDMApple.Enable {
+			// TODO(mna): eventually we should detect the minimum config required for
+			// this to be allowed, probably just SCEP/APNs?
+			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError(fmt.Sprintf("macos_settings.%s", field),
+				`Couldn't update macos_settings because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`))
+		}
+	}
+
+	return &macOSSettings, nil
 }
 
 // unmarshalWithGlobalDefaults unmarshals features from a team spec, and
