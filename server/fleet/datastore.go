@@ -668,10 +668,10 @@ type Datastore interface {
 	// EnrollHost will enroll a new host with the given identifier, setting the node key, and team. Implementations of
 	// this method should respect the provided host enrollment cooldown, by returning an error if the host has enrolled
 	// within the cooldown period.
-	EnrollHost(ctx context.Context, osqueryHostId, nodeKey string, teamID *uint, cooldown time.Duration) (*Host, error)
+	EnrollHost(ctx context.Context, isMDMEnabled bool, osqueryHostId, hardwareUUID, hardwareSerial, nodeKey string, teamID *uint, cooldown time.Duration) (*Host, error)
 
 	// EnrollOrbit will enroll a new orbit host with the given uuid, setting the orbit node key
-	EnrollOrbit(ctx context.Context, hardwareUUID string, orbitNodeKey string, teamID *uint) (*Host, error)
+	EnrollOrbit(ctx context.Context, isMDMEnabled bool, hardwareUUID, hardwareSerial, orbitNodeKey string, teamID *uint) (*Host, error)
 
 	SerialUpdateHost(ctx context.Context, host *Host) error
 
