@@ -667,26 +667,26 @@ spec:
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.7.8
   contributors: marcosd4h
 ---
-apiVersion: v1
-kind: policy
-spec:
-  name: >
-    CIS - Ensure 'Network access : Allow anonymous SID/Name translation' is set to 'Disabled' (Automated)
-  platforms: win10
-  platform: windows
-  description: |
-    This policy setting determines whether an anonymous user can request security identifier
-    (SID) attributes for another user, or use a SID to obtain its corresponding user name.
-    The recommended state for this setting is: Disabled.
-  resolution: |
-    To establish the recommended configuration via GP, set the following UI path to Disabled:
-    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\Network access: Allow anonymous SID/Name translation'
-  query: |
-    TODO
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.10.1
-  contributors: rachelelysia
----
+# apiVersion: v1
+# kind: policy
+# spec:
+#   name: >
+#     CIS - Ensure 'Network access : Allow anonymous SID/Name translation' is set to 'Disabled' (Automated)
+#   platforms: win10
+#   platform: windows
+#   description: |
+#     This policy setting determines whether an anonymous user can request security identifier
+#     (SID) attributes for another user, or use a SID to obtain its corresponding user name.
+#     The recommended state for this setting is: Disabled.
+#   resolution: |
+#     To establish the recommended configuration via GP, set the following UI path to Disabled:
+#     'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\Network access: Allow anonymous SID/Name translation'
+#   query: |
+#     TODO: See ./test/debug/CIS_2.3.10.1.txt for more information
+#   purpose: Informational
+#   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.10.1
+#   contributors: rachelelysia
+# ---
 apiVersion: v1
 kind: policy
 spec:
@@ -920,7 +920,7 @@ spec:
     Policies\Security Options\Network access: Shares that can be accessed
     anonymously'
   query: |
-    TODO
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\LanManServer\\Parameters\NullSessionShares' and data == '');
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.10.11
   contributors: rachelelysia
@@ -945,7 +945,7 @@ spec:
     Policies\Security Options\Network access: Sharing and security model for
     local accounts'
   query: |
-    TODO
+        SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\Lsa\forceguest' AND data == 0);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.10.12
   contributors: rachelelysia
