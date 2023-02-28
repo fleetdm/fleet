@@ -42,6 +42,7 @@ import PolicyDetailsModal from "../cards/Policies/HostPoliciesTable/PolicyDetail
 import AutoEnrollMdmModal from "./AutoEnrollMdmModal";
 import ManualEnrollMdmModal from "./ManualEnrollMdmModal";
 import MacSettingsModal from "../MacSettingsModal";
+import ResetKeyModal from "./ResetKeyModal";
 
 const baseClass = "device-user";
 
@@ -63,6 +64,7 @@ const DeviceUserPage = ({
   const [isPremiumTier, setIsPremiumTier] = useState(false);
   const [showInfoModal, setShowInfoModal] = useState(false);
   const [showEnrollMdmModal, setShowEnrollMdmModal] = useState(false);
+  const [showResetKeyModal, setShowResetKeyModal] = useState(false);
   const [refetchStartTime, setRefetchStartTime] = useState<number | null>(null);
   const [showRefetchSpinner, setShowRefetchSpinner] = useState(false);
   const [hostSoftware, setHostSoftware] = useState<ISoftware[]>([]);
@@ -95,7 +97,7 @@ const DeviceUserPage = ({
     }
   );
 
-  const { data: deviceMacAdminsData, refetch: refetchMacadmins } = useQuery(
+  const { data: deviceMacAdminsData } = useQuery(
     ["macadmins", deviceAuthToken],
     () => deviceUserAPI.loadHostDetailsExtension(deviceAuthToken, "macadmins"),
     {
@@ -229,6 +231,10 @@ const DeviceUserPage = ({
     setShowEnrollMdmModal(!showEnrollMdmModal);
   }, [showEnrollMdmModal, setShowEnrollMdmModal]);
 
+  const toggleResetKeyModal = useCallback(() => {
+    setShowResetKeyModal(!showResetKeyModal);
+  }, [showResetKeyModal, setShowResetKeyModal]);
+
   const togglePolicyDetailsModal = useCallback(
     (policy: IHostPolicy) => {
       setShowPolicyDetailsModal(!showPolicyDetailsModal);
@@ -295,6 +301,12 @@ const DeviceUserPage = ({
     );
   };
 
+  const resetKeyButton = (
+    <Button variant="unstyled" onClick={toggleResetKeyModal}>
+      <b>Reset key</b>
+    </Button>
+  );
+
   const renderDeviceUserPage = () => {
     const failingPoliciesCount = host?.issues?.failing_policies_count || 0;
     const isMdmUnenrolled =
@@ -302,6 +314,7 @@ const DeviceUserPage = ({
 
     // TODO: actually determine below
     const diskEncryptionUserActionRequired = true;
+    const diskEncryptionKeyResetRequired = true;
     return (
       <div className="fleet-desktop-wrapper">
         {isLoadingHost ? (
@@ -311,6 +324,7 @@ const DeviceUserPage = ({
             {host?.platform === "darwin" &&
               isMdmUnenrolled &&
               globalConfig?.mdm.enabled_and_configured && (
+                // Turn on MDM banner
                 <InfoBanner color="yellow" cta={turnOnMdmButton} pageLevel>
                   Mobile device management (MDM) is off. MDM allows your
                   organization to change settings and install software. This
@@ -324,10 +338,24 @@ const DeviceUserPage = ({
                 !isMdmUnenrolled &&
                 globalConfig?.mdm.enabled_and_configured &&
                 diskEncryptionUserActionRequired)) && (
+              // MDM - Disk Encryption: My Device user action required banner
               <InfoBanner color="yellow">
                 Disk encryption: Log out of your device or restart to turn on
                 disk encryption. This prevents unauthorized access to the
                 information on your device.
+              </InfoBanner>
+            )}
+            {/* TODO: remove below true to restore actual render conditions */}
+            {(true ||
+              (isPremiumTier &&
+                !isMdmUnenrolled &&
+                globalConfig?.mdm.enabled_and_configured &&
+                diskEncryptionKeyResetRequired)) && (
+              // MDM - Disk Encryption: Reset key required banner
+              <InfoBanner color="yellow" cta={resetKeyButton}>
+                Disk encryption: Reset your disk encryption key. This lets your
+                organization help you unlock your device if you forget your
+                password.
               </InfoBanner>
             )}
             <HostSummaryCard
@@ -388,6 +416,9 @@ const DeviceUserPage = ({
             </TabsWrapper>
             {showInfoModal && <InfoModal onCancel={toggleInfoModal} />}
             {showEnrollMdmModal && renderEnrollMdmModal()}
+            {showResetKeyModal && (
+              <ResetKeyModal onCancel={toggleResetKeyModal} />
+            )}
           </div>
         )}
         {!!host && showPolicyDetailsModal && (
