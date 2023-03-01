@@ -42,12 +42,12 @@ func (svc *Service) GetSSOUser(ctx context.Context, auth fleet.Auth) (*fleet.Use
 			return nil, ctxerr.Wrap(ctx, err, "user roles from SSO attributes")
 		}
 		oldGlobalRole := user.GlobalRole
-		oldTeamRoles := user.Teams
+		oldTeamsRoles := user.Teams
 
 		// rolesChanged assumes that there cannot be multiple role entries for the same team,
 		// which is ok because the "old" values comes from the database and the "new" values
 		// come from fleet.RolesFromSSOAttributes which already checks for duplicates.
-		if !rolesChanged(oldGlobalRole, oldTeamRoles, newGlobalRole, newTeamsRoles) {
+		if !rolesChanged(oldGlobalRole, oldTeamsRoles, newGlobalRole, newTeamsRoles) {
 			// Roles haven't changed, so nothing to do.
 			return user, nil
 		}
@@ -59,7 +59,7 @@ func (svc *Service) GetSSOUser(ctx context.Context, auth fleet.Auth) (*fleet.Use
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "save user")
 		}
-		if err := fleet.LogRoleChangeActivities(ctx, svc.ds, user, oldGlobalRole, oldTeamRoles, user); err != nil {
+		if err := fleet.LogRoleChangeActivities(ctx, svc.ds, user, oldGlobalRole, oldTeamsRoles, user); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "log activities for role change")
 		}
 		return user, nil
