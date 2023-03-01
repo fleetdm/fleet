@@ -97,12 +97,12 @@ func (s SSORolesInfo) verify() error {
 	}
 	// Check for duplicate entries for the same team.
 	// This is just in case some IdP allows duplicating attributes.
-	teamMap := make(map[uint]struct{})
+	teamSet := make(map[uint]struct{})
 	for _, teamRole := range s.Teams {
-		if _, ok := teamMap[teamRole.ID]; ok {
+		if _, ok := teamSet[teamRole.ID]; ok {
 			return fmt.Errorf("duplicate team entry: %d", teamRole.ID)
 		}
-		teamMap[teamRole.ID] = struct{}{}
+		teamSet[teamRole.ID] = struct{}{}
 	}
 	return nil
 }
@@ -123,7 +123,7 @@ const (
 //
 // For both attributes currently supported values are `admin`, `maintainer` and `observer`
 func RolesFromSSOAttributes(attributes []SAMLAttribute) (SSORolesInfo, error) {
-	ssoRoleInfo := SSORolesInfo{}
+	ssoRolesInfo := SSORolesInfo{}
 	for _, attribute := range attributes {
 		switch {
 		case attribute.Name == globalUserRoleSSOAttrName:
@@ -131,7 +131,7 @@ func RolesFromSSOAttributes(attributes []SAMLAttribute) (SSORolesInfo, error) {
 			if err != nil {
 				return SSORolesInfo{}, fmt.Errorf("parse global role: %w", err)
 			}
-			ssoRoleInfo.Global = ptr.String(role)
+			ssoRolesInfo.Global = ptr.String(role)
 		case strings.HasPrefix(attribute.Name, teamUserRoleSSOAttrNamePrefix):
 			teamIDSuffix := strings.TrimPrefix(attribute.Name, teamUserRoleSSOAttrNamePrefix)
 			teamID, err := strconv.ParseUint(teamIDSuffix, 10, 32)
@@ -142,7 +142,7 @@ func RolesFromSSOAttributes(attributes []SAMLAttribute) (SSORolesInfo, error) {
 			if err != nil {
 				return SSORolesInfo{}, fmt.Errorf("parse team role: %w", err)
 			}
-			ssoRoleInfo.Teams = append(ssoRoleInfo.Teams, TeamRole{
+			ssoRolesInfo.Teams = append(ssoRolesInfo.Teams, TeamRole{
 				ID:   uint(teamID),
 				Role: teamRole,
 			})
@@ -150,15 +150,15 @@ func RolesFromSSOAttributes(attributes []SAMLAttribute) (SSORolesInfo, error) {
 			continue
 		}
 	}
-	if err := ssoRoleInfo.verify(); err != nil {
+	if err := ssoRolesInfo.verify(); err != nil {
 		return SSORolesInfo{}, err
 	}
-	if ssoRoleInfo.empty() {
+	if ssoRolesInfo.empty() {
 		// When the configuration is not set, the default is to
 		// make the user a global observer.
 		return SSORolesInfo{Global: ptr.String(RoleObserver)}, nil
 	}
-	return ssoRoleInfo, nil
+	return ssoRolesInfo, nil
 }
 
 func parseRole(values []SAMLAttributeValue) (string, error) {
