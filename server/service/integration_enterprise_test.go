@@ -1749,11 +1749,19 @@ func (s *integrationEnterpriseTestSuite) TestSSOJITProvisioning() {
 	})
 	require.Contains(t, body, "Redirecting to Fleet at  ...")
 
-	// Create a team for the test below
+	// We cannot use NewTeam and must use adhoc SQL because the teams.id is
+	// auto-incremented and other tests cause it to be different than what we need (ID=1).
+	var execErr error
+	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+		_, execErr = db.ExecContext(context.Background(), `INSERT INTO teams (id, name) VALUES (1, 'Foobar') ON DUPLICATE KEY UPDATE name = VALUES(name);`)
+		return execErr
+	})
+	require.NoError(t, execErr)
+
+	// Create a team for the test below.
 	_, err = s.ds.NewTeam(context.Background(), &fleet.Team{
-		ID:          1,
-		Name:        "team1_" + t.Name(),
-		Description: "desc team1_" + t.Name(),
+		Name:        "team_" + t.Name(),
+		Description: "desc team_" + t.Name(),
 	})
 	require.NoError(t, err)
 
