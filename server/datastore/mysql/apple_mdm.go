@@ -140,6 +140,20 @@ func (ds *Datastore) DeleteMDMAppleConfigProfile(ctx context.Context, profileID 
 	return nil
 }
 
+func (ds *Datastore) DeleteMDMAppleConfigProfileByTeamAndIdentifier(ctx context.Context, teamID uint, profileIdentifier string) error {
+	res, err := ds.writer.ExecContext(ctx, `DELETE FROM mdm_apple_configuration_profiles WHERE team_id = ? AND identifier = ?`, teamID, profileIdentifier)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err)
+	}
+
+	if deleted, _ := res.RowsAffected(); deleted == 0 {
+		message := fmt.Sprintf("identifier: %s, team_id: %d", profileIdentifier, teamID)
+		return ctxerr.Wrap(ctx, notFound("MDMAppleConfigProfile").WithMessage(message))
+	}
+
+	return nil
+}
+
 func (ds *Datastore) GetHostMDMProfiles(ctx context.Context, hostUUID string) ([]fleet.HostMDMAppleProfile, error) {
 	stmt := fmt.Sprintf(`
 SELECT 

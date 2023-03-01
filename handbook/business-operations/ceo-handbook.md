@@ -205,7 +205,7 @@ All Fleet team members are eligibile to apply for the CEO Shadow Program. Eligib
 ### How to apply
  1. Create a pull request to add yourself to the [rotation schedule](https://github.com/fleetdm/fleet/edit/main/handbook/people/ceo-handbook.md#rotation-schedule).
  2. Assign your manager and ask them to approve (but not merge) the pull request.
- 3. Once your manager approves the pull request, assign the pull request to `CharlotteChance`, link to the pull request in the #help-ceo-shadow channel, and tag `@Charlie`.
+ 3. Once your manager approves the pull request, assign the pull request to `mikermcneil`, link to the pull request in the #help-ceo-shadow channel, and tag `@mikermcneil`.
 
 ### Parental participation 
 To allow flexibility for parents to participate, there will be some rotations identified as "parent-friendly" weeks. These are weeks when Mike doesn't need a shadow for the full 5 workdays or where the program is split so the weeks are not consecutive.
