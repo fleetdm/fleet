@@ -1048,6 +1048,7 @@ func (ds *Datastore) UpdateHostMDMAppleProfile(ctx context.Context, profile *fle
 }
 
 func (ds *Datastore) GetMDMAppleHostsProfilesSummary(ctx context.Context, teamID *uint) (*fleet.MDMAppleHostsProfilesSummary, error) {
+	// TODO(sarah): add cases to handle Fleet-managed profiles (e.g., disk encryption)
 	sqlFmt := `
 SELECT
 	count(us.host_uuid) AS count,
