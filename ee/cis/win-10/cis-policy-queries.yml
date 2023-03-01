@@ -675,21 +675,13 @@ spec:
   platforms: win10
   platform: windows
   description: |
-    Select On (recommended) to have Windows Firewall with Advanced Security use the
-    settings for this profile to filter network traffic. If you select Off, Windows Firewall with
-    Advanced Security will not use any of the firewall rules or connection security rules for this
-    profile.
+    Select On (recommended) to have Windows Firewall with Advanced Security use the settings for this profile to filter network traffic. If you select Off, Windows Firewall with Advanced Security will not use any of the firewall rules or connection security rules for this profile.
     The recommended state for this setting is: On (recommended).
   resolution: |
-    To establish the recommended configuration via GP, set the following UI path to On
-    (recommended):
-    'Computer Configuration\Policies\Windows Settings\Security Settings\Windows
-    Firewall with Advanced Security\Windows Firewall with Advanced
-    Security\Windows Firewall Properties\Private Profile\Firewall state'
+    To establish the recommended configuration via GP, set the following UI path to 'On (recommended)':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Windows Defender Firewall with Advanced Security\Windows Defender Firewall with Advanced Security - Local Group Policy Object\Windows Defender Firewall Properties\Private Profile\Firewall state'
   query: |
-    HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\WindowsFirewall\\PrivateProfile
-  :EnableFirewall
-    TODO
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\WindowsFirewall\\PrivateProfile\EnableFirewall' and data == 1);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_9.2.1
   contributors: RachelElysia
@@ -702,15 +694,11 @@ spec:
   platforms: win10
   platform: windows
   description: |
-    This setting determines the behavior for inbound connections that do not match an
-    inbound firewall rule.
+    This setting determines the behavior for inbound connections that do not match an inbound firewall rule.
     The recommended state for this setting is: Block (default).
   resolution: |
-    To establish the recommended configuration via GP, set the following UI path to Block
-    (default):
-    'Computer Configuration\Policies\Windows Settings\Security Settings\Windows
-    Firewall with Advanced Security\Windows Defender Firewall with Advanced
-    Security\Windows Defender Firewall Properties\Private Profile\Inbound connections'
+    To establish the recommended configuration via GP, set the following UI path to 'Block (default)'':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Windows Defender Firewall with Advanced Security\Windows Defender Firewall with Advanced Security - Local Group Policy Object\Windows Defender Firewall Properties\Private Profile\Inbound connections'
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\WindowsFirewall\\PrivateProfile\DefaultInboundAction' and data == 1);
   purpose: Informational
@@ -729,33 +717,12 @@ spec:
     outbound firewall rule.
     The recommended state for this setting is: Allow (default).
   resolution: |
-    To establish the recommended configuration via GP, set the following UI path to Allow
-    (default):
-    'Computer Configuration\Policies\Windows Settings\Security Settings\Windows
-    Firewall with Advanced Security\Windows Firewall with Advanced
-    Security\Windows Firewall Properties\Private Profile\Outbound connections'
+    To establish the recommended configuration via GP, set the following UI path to 'Allow (default)'':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Windows Defender Firewall with Advanced Security\Windows Defender Firewall with Advanced Security - Local Group Policy Object\Windows Defender Firewall Properties\Private Profile\Outbound connections'
   query: |
-    HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\WindowsFirewall\PrivateProfile
-  :DefaultOutboundAction
-    TODO
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\WindowsFirewall\\PrivateProfile\DefaultOutboundAction' and data == 0);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_9.2.3
-  contributors: RachelElysia
----
-apiVersion: v1
-kind: policy
-spec:
-  name: CIS - TODO
-  platforms: win10
-  platform: windows
-  description: |
-    TODO
-  resolution: |
-    TODO
-  query: |
-    TODO
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_9.2.4
   contributors: RachelElysia
 ---
 apiVersion: v1
@@ -766,18 +733,32 @@ spec:
   platforms: win10
   platform: windows
   description: |
-    Select this option to have Windows Firewall with Advanced Security display notifications to
-    the user when a program is blocked from receiving inbound connections.
+    Select this option to have Windows Firewall with Advanced Security display notifications to the user when a program is blocked from receiving inbound connections.
     The recommended state for this setting is: No.
   resolution: |
     To establish the recommended configuration via GP, set the following UI path to No:
-    'Computer Configuration\Policies\Windows Settings\Security Settings\Windows
-    Firewall with Advanced Security\Windows Firewall with Advanced
-    Security\Windows Firewall Properties\Private Profile\Settings
-    Customize\Display a notification'
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Windows Defender Firewall with Advanced Security\Windows Defender Firewall with Advanced Security - Local Group Policy Object\Windows Defender Firewall Properties\Private Profile\Settings Customize\Display a notification'
   query: |
-    HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\WindowsFirewall\PrivateProfile
-:DisableNotifications
+   SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\WindowsFirewall\\PrivateProfile\DisableNotifications' and data == 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_9.2.4
+  contributors: RachelElysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Windows Firewall: Private: Logging: Name' is set to '%SystemRoot%\System32\logfiles\firewall\privatefw.log' (Automated)
+  platforms: win10
+  platform: windows
+  description: |
+    Use this option to specify the path and name of the file in which Windows Firewall will write its log information.
+    The recommended state for this setting is: %SystemRoot%\System32\logfiles\firewall\privatefw.log.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to %SystemRoot%\System32\logfiles\firewall\privatefw.log:
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Windows Defender Firewall with Advanced Security\Windows Defender Firewall with Advanced Security - Local Group Policy Object\Windows Defender Firewall Properties\Private Profile\Logging Customize\Name'
+  query: |
+   
     TODO
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_9.2.5
