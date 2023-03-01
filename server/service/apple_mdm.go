@@ -1565,6 +1565,69 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+// Update MDM Apple Settings
+////////////////////////////////////////////////////////////////////////////////
+
+type updateMDMAppleSettingsRequest struct {
+	fleet.MDMAppleSettingsPayload
+}
+
+type updateMDMAppleSettingsResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r updateMDMAppleSettingsResponse) error() error { return r.Err }
+
+func (r updateMDMAppleSettingsResponse) Status() int { return http.StatusNoContent }
+
+// This endpoint is required because the UI must allow maintainers (in addition
+// to admins) to update some MDM Apple settings, while the update config/update
+// team endpoints only allow write access to admins.
+func updateMDMAppleSettingsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*updateMDMAppleSettingsRequest)
+	if err := svc.UpdateMDMAppleSettings(ctx, req.MDMAppleSettingsPayload); err != nil {
+		return updateMDMAppleSettingsResponse{Err: err}, nil
+	}
+	return updateMDMAppleSettingsResponse{}, nil
+}
+
+func (svc *Service) UpdateMDMAppleSettings(ctx context.Context, payload fleet.MDMAppleSettingsPayload) error {
+	// for now, assume all settings require premium (this is true for the first
+	// supported setting, enable_disk_encryption. Adjust as needed in the future
+	// if this is not always the case).
+	license, err := svc.License(ctx)
+	if err != nil {
+		svc.authz.SkipAuthorization(ctx) // so that the error message is not replaced by "forbidden"
+		return err
+	}
+	if !license.IsPremium() {
+		svc.authz.SkipAuthorization(ctx) // so that the error message is not replaced by "forbidden"
+		return ErrMissingLicense
+	}
+
+	if err := svc.authz.Authorize(ctx, payload, fleet.ActionWrite); err != nil {
+		return ctxerr.Wrap(ctx, err)
+	}
+
+	if payload.TeamID != nil {
+		tm, err := svc.EnterpriseOverrides.TeamByIDOrName(ctx, payload.TeamID, nil)
+		if err != nil {
+			return err
+		}
+		return svc.UpdateTeamMDMAppleSettings(ctx, tm, payload)
+	}
+	return svc.updateAppConfigMDMAppleSettings(ctx, payload)
+}
+
+func (svc *Service) UpdateTeamMDMAppleSettings(ctx context.Context, tm *fleet.Team, payload fleet.MDMAppleSettingsPayload) error {
+	return fleet.ErrMissingLicense
+}
+
+func (svc *Service) updateAppConfigMDMAppleSettings(ctx context.Context, payload fleet.MDMAppleSettingsPayload) error {
+	panic("unimplemented")
+}
+
+////////////////////////////////////////////////////////////////////////////////
 // FileVault-related free version implementation
 ////////////////////////////////////////////////////////////////////////////////
 

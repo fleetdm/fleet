@@ -638,6 +638,15 @@ type Service interface {
 	// profile for the given team.
 	MDMAppleDisableFileVaultAndEscrow(ctx context.Context, teamID uint) error
 
+	// UpdateMDMAppleSettings updates the specified MDM Apple settings for a
+	// specified team or for hosts with no team.
+	UpdateMDMAppleSettings(ctx context.Context, payload MDMAppleSettingsPayload) error
+
+	// UpdateTeamMDMAppleSettings is the team-specific service method for when
+	// a team ID is provided to the UpdateMDMAppleSettings method. This is a
+	// distinct method so that it can be implemented under the ee/ package.
+	UpdateTeamMDMAppleSettings(ctx context.Context, tm *Team, payload MDMAppleSettingsPayload) error
+
 	///////////////////////////////////////////////////////////////////////////////
 	// CronSchedulesService
 

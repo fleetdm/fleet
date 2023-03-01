@@ -710,3 +710,7 @@ func unmarshalWithGlobalDefaults(b *json.RawMessage) (fleet.Features, error) {
 
 	return *defaults, nil
 }
+
+func (svc *Service) UpdateTeamMDMAppleSettings(ctx context.Context, tm *fleet.Team, payload fleet.MDMAppleSettingsPayload) error {
+	panic("unimplemented")
+}
