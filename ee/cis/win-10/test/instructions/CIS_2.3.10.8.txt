@@ -32,7 +32,6 @@ System\CurrentControlSet\Control\Terminal Server\UserConfig
 System\CurrentControlSet\Control\Terminal Server\DefaultUserConfiguration
 Software\Microsoft\Windows NT\CurrentVersion\Perflib
 System\CurrentControlSet\Services\SysmonLog':
-'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\Network access: Remotely accessible registry paths
-and sub-paths'
+'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\Network access: Remotely accessible registry paths and sub-paths'
 
 2) After running the policy check, it should return nothing, indicating that setting was set to a non-compliant value

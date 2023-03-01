@@ -723,9 +723,7 @@ spec:
     environment.
   resolution: |
     To establish the recommended configuration via GP, set the following UI path to Enabled:
-    'Computer Configuration\Policies\Windows Settings\Security Settings\Local
-    Policies\Security Options\Network access: Do not allow anonymous enumeration
-    of SAM accounts and shares'
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\Network access: Do not allow anonymous enumeration of SAM accounts and shares'
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\Lsa\restrictanonymous' AND data != 0);
   purpose: Informational
@@ -745,9 +743,7 @@ spec:
     authentication.
   resolution: |
     To establish the recommended configuration via GP, set the following UI path to Enabled:
-    'Computer Configuration\Policies\Windows Settings\Security Settings\Local
-    Policies\Security Options\Network access: Do not allow storage of passwords
-    and credentials for network authentication'
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\Network access: Do not allow storage of passwords and credentials for network authentication'
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\Lsa\disabledomaincreds' AND data != 0);
   purpose: Informational
@@ -766,9 +762,7 @@ spec:
     connections to the computer.
   resolution: |
     To establish the recommended configuration via GP, set the following UI path to Disabled:
-    'Computer Configuration\Policies\Windows Settings\Security Settings\Local
-    Policies\Security Options\Network access: Let Everyone permissions apply to
-    anonymous users'
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\Network access: Let Everyone permissions apply to anonymous users'
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\Lsa\everyoneincludesanonymous' AND data == 0);
   purpose: Informational
@@ -788,9 +782,7 @@ spec:
   resolution: |
     To establish the recommended configuration via GP, set the following UI path to <blank>
     (i.e. None):
-    'Computer Configuration\Policies\Windows Settings\Security Settings\Local
-    Policies\Security Options\Network access: Named Pipes that can be accessed
-    anonymously'
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\Network access: Named Pipes that can be accessed anonymously'
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\LanManServer\\Parameters\NullSessionPipes' and data == '');
   purpose: Informational
@@ -813,8 +805,7 @@ spec:
     System\CurrentControlSet\Control\ProductOptions
     System\CurrentControlSet\Control\Server Applications
     SOFTWARE\Microsoft\Windows NT\CurrentVersion
-    'Computer Configuration\Policies\Windows Settings\Security Settings\Local
-    Policies\Security Options\Network access: Remotely accessible registry paths'
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\Network access: Remotely accessible registry paths'
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\SecurePipeServers\\Winreg\\AllowedExactPaths\Machine' and data == 'System\CurrentControlSet\Control\ProductOptions,System\CurrentControlSet\Control\Server Applications,Software\Microsoft\Windows NT\CurrentVersion');
   purpose: Informational
@@ -845,9 +836,7 @@ spec:
     System\CurrentControlSet\Control\Terminal Server\DefaultUserConfiguration
     SOFTWARE\Microsoft\Windows NT\CurrentVersion\Perflib
     System\CurrentControlSet\Services\SysmonLog
-    'Computer Configuration\Policies\Windows Settings\Security Settings\Local
-    Policies\Security Options\Network access: Remotely accessible registry paths
-    and sub-paths'
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\Network access: Remotely accessible registry paths and sub-paths'
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\SecurePipeServers\\Winreg\\AllowedPaths\Machine' and data == 'System\CurrentControlSet\Control\Print\Printers,System\CurrentControlSet\Services\Eventlog,Software\Microsoft\OLAP Server,Software\Microsoft\Windows NT\CurrentVersion\Print,Software\Microsoft\Windows NT\CurrentVersion\Windows,System\CurrentControlSet\Control\ContentIndex,System\CurrentControlSet\Control\Terminal Server,System\CurrentControlSet\Control\Terminal Server\UserConfig,System\CurrentControlSet\Control\Terminal Server\DefaultUserConfiguration,Software\Microsoft\Windows NT\CurrentVersion\Perflib,System\CurrentControlSet\Services\SysmonLog');
   purpose: Informational
@@ -872,9 +861,7 @@ spec:
     server service restricts unauthenticated clients' access to named resources.
   resolution: |
     To establish the recommended configuration via GP, set the following UI path to Enabled:
-    'Computer Configuration\Policies\Windows Settings\Security Settings\Local
-    Policies\Security Options\Network access: Restrict anonymous access to Named
-    Pipes and Shares'
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\Network access: Restrict anonymous access to Named Pipes and Shares'
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\LanManServer\\Parameters\restrictnullsessaccess' and data == '1');
   purpose: Informational
@@ -893,9 +880,7 @@ spec:
   resolution: |
     To establish the recommended configuration via GP, set the following UI path to
     Administrators: Remote Access: Allow:
-    'Computer Configuration\Policies\Windows Settings\Security Settings\Local
-    Policies\Security Options\Network access: Restrict clients allowed to make
-    remote calls to SAM'
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\Network access: Restrict clients allowed to make remote calls to SAM'
   query: |
 SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\Lsa\RestrictRemoteSAM' and (data == '' or data == 'O:BAG:BAD:'));
   purpose: Informational
@@ -916,9 +901,7 @@ spec:
   resolution: |
     To establish the recommended configuration via GP, set the following UI path to <blank>
     (i.e. None):
-    'Computer Configuration\Policies\Windows Settings\Security Settings\Local
-    Policies\Security Options\Network access: Shares that can be accessed
-    anonymously'
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\Network access: Shares that can be accessed anonymously'
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\LanManServer\\Parameters\NullSessionShares' and data == '');
   purpose: Informational
@@ -941,9 +924,7 @@ spec:
   resolution: |
     To establish the recommended configuration via GP, set the following UI path to Classic -
     local users authenticate as themselves:
-    'Computer Configuration\Policies\Windows Settings\Security Settings\Local
-    Policies\Security Options\Network access: Sharing and security model for
-    local accounts'
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\Network access: Sharing and security model for local accounts'
   query: |
         SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\Lsa\forceguest' AND data == 0);
   purpose: Informational

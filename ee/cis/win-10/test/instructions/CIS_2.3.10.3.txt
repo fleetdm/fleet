@@ -13,5 +13,3 @@ Failure scenario
 'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\Network access: Do not allow anonymous enumeration of SAM accounts and shares'
 
 2) After running the policy check, it should return nothing, indicating that setting was set to a non-compliant value
-
-ee/
