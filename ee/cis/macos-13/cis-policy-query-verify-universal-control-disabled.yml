@@ -20,7 +20,7 @@ spec:
         domain='com.apple.universalcontrol' 
         AND 
         name='Disable' 
-        AND value = 'true';  
+        AND value = '1';  
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-macos-13-2.8.1-disable
   contributors: sharon-fdm
