@@ -515,6 +515,8 @@ type ListMDMAppleConfigProfilesFunc func(ctx context.Context, teamID *uint) ([]*
 
 type DeleteMDMAppleConfigProfileFunc func(ctx context.Context, profileID uint) error
 
+type DeleteMDMAppleConfigProfileByTeamAndIdentifierFunc func(ctx context.Context, teamID uint, profileIdentifier string) error
+
 type GetHostMDMProfilesFunc func(ctx context.Context, hostUUID string) ([]fleet.HostMDMAppleProfile, error)
 
 type NewMDMAppleEnrollmentProfileFunc func(ctx context.Context, enrollmentPayload fleet.MDMAppleEnrollmentProfilePayload) (*fleet.MDMAppleEnrollmentProfile, error)
@@ -1313,6 +1315,9 @@ type DataStore struct {
 
 	DeleteMDMAppleConfigProfileFunc        DeleteMDMAppleConfigProfileFunc
 	DeleteMDMAppleConfigProfileFuncInvoked bool
+
+	DeleteMDMAppleConfigProfileByTeamAndIdentifierFunc        DeleteMDMAppleConfigProfileByTeamAndIdentifierFunc
+	DeleteMDMAppleConfigProfileByTeamAndIdentifierFuncInvoked bool
 
 	GetHostMDMProfilesFunc        GetHostMDMProfilesFunc
 	GetHostMDMProfilesFuncInvoked bool
@@ -3137,6 +3142,13 @@ func (s *DataStore) DeleteMDMAppleConfigProfile(ctx context.Context, profileID u
 	s.DeleteMDMAppleConfigProfileFuncInvoked = true
 	s.mu.Unlock()
 	return s.DeleteMDMAppleConfigProfileFunc(ctx, profileID)
+}
+
+func (s *DataStore) DeleteMDMAppleConfigProfileByTeamAndIdentifier(ctx context.Context, teamID uint, profileIdentifier string) error {
+	s.mu.Lock()
+	s.DeleteMDMAppleConfigProfileByTeamAndIdentifierFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteMDMAppleConfigProfileByTeamAndIdentifierFunc(ctx, teamID, profileIdentifier)
 }
 
 func (s *DataStore) GetHostMDMProfiles(ctx context.Context, hostUUID string) ([]fleet.HostMDMAppleProfile, error) {

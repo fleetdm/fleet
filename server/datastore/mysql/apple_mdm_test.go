@@ -26,6 +26,7 @@ func TestMDMAppleConfigProfile(t *testing.T) {
 		{"TestNewMDMAppleConfigProfileDuplicateName", testNewMDMAppleConfigProfileDuplicateName},
 		{"TestNewMDMAppleConfigProfileDuplicateIdentifier", testNewMDMAppleConfigProfileDuplicateIdentifier},
 		{"TestDeleteMDMAppleConfigProfile", testDeleteMDMAppleConfigProfile},
+		{"TestDeleteMDMAppleConfigProfileByTeamAndIdentifier", testDeleteMDMAppleConfigProfileByTeamAndIdentifier},
 		{"TestListMDMAppleConfigProfiles", testListMDMAppleConfigProfiles},
 		{"TestHostDetailsMDMProfiles", testHostDetailsMDMProfiles},
 		{"TestBatchSetMDMAppleProfiles", testBatchSetMDMAppleProfiles},
@@ -163,6 +164,20 @@ func testDeleteMDMAppleConfigProfile(t *testing.T, ds *Datastore) {
 	require.ErrorIs(t, err, sql.ErrNoRows)
 
 	err = ds.DeleteMDMAppleConfigProfile(ctx, initialCP.ProfileID)
+	require.ErrorIs(t, err, sql.ErrNoRows)
+}
+
+func testDeleteMDMAppleConfigProfileByTeamAndIdentifier(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	initialCP := storeDummyConfigProfileForTest(t, ds)
+
+	err := ds.DeleteMDMAppleConfigProfileByTeamAndIdentifier(ctx, *initialCP.TeamID, initialCP.Identifier)
+	require.NoError(t, err)
+
+	_, err = ds.GetMDMAppleConfigProfile(ctx, initialCP.ProfileID)
+	require.ErrorIs(t, err, sql.ErrNoRows)
+
+	err = ds.DeleteMDMAppleConfigProfileByTeamAndIdentifier(ctx, *initialCP.TeamID, initialCP.Identifier)
 	require.ErrorIs(t, err, sql.ErrNoRows)
 }
 
