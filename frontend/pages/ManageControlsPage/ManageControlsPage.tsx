@@ -106,7 +106,9 @@ const ManageControlsPage = ({
     </div>
   );
 
-  const onConnectClick = () => router.push(PATHS.ADMIN_INTEGRATIONS_MDM);
+  const onConnectClick = () => {
+    router.push(PATHS.ADMIN_INTEGRATIONS_MDM);
+  };
 
   const renderBody = () => {
     if (isLoadingMdmApple) {
