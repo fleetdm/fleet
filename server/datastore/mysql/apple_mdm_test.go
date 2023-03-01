@@ -31,6 +31,7 @@ func TestMDMAppleConfigProfile(t *testing.T) {
 		{"TestBatchSetMDMAppleProfiles", testBatchSetMDMAppleProfiles},
 		{"TestMDMAppleProfileManagement", testMDMAppleProfileManagement},
 		{"TestUpdateHostMDMAppleProfile", testGetMDMAppleProfilesContents},
+		{"TestMDMAppleHostsProfilesSummary", testMDMAppleHostsProfilesSummary},
 	}
 
 	for _, c := range cases {
@@ -1141,9 +1142,8 @@ VALUES
 	require.NoError(t, err)
 }
 
-func TestMDMAppleHostsProfilesSummary(t *testing.T) {
+func testMDMAppleHostsProfilesSummary(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
-	ds := CreateMySQLDS(t)
 
 	generateCP := func(name string, identifier string, teamID uint) *fleet.MDMAppleConfigProfile {
 		mc := fleet.Mobileconfig([]byte(name + identifier))

@@ -1082,7 +1082,9 @@ FROM (
 			END) AS pending
 	FROM
 		host_mdm_apple_profiles hmap
-		WHERE
+	GROUP BY
+		host_uuid) AS h
+WHERE
 	EXISTS (
 		SELECT
 			1
@@ -1091,8 +1093,6 @@ FROM (
 		WHERE
 			hosts.uuid = host_uuid
 			AND %s)
-	GROUP BY
-		host_uuid) AS h
 `
 
 	teamFilter := "hosts.team_id IS NULL"
