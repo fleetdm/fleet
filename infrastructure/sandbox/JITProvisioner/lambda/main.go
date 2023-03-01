@@ -176,6 +176,29 @@ func claimFleet(fleet LifecycleRecord, svc *dynamodb.DynamoDB) (err error) {
 	return
 }
 
+func saveToken(fleet LifecycleRecord, svc *dynamodb.DynamoDB) (err error) {
+	log.Printf("Saving Token: %+v", fleet)
+	// Perform a conditional update to claim the item
+	input := &dynamodb.UpdateItemInput{
+		TableName:           aws.String(options.LifecycleTable),
+		Key: map[string]*dynamodb.AttributeValue{
+			"ID": {
+				S: aws.String(fleet.ID),
+			},
+		},
+		UpdateExpression:         aws.String("set Token = :v1"),
+		ExpressionAttributeValues: map[string]*dynamodb.AttributeValue{
+			":v1": {
+				S: aws.String(fleet.Token),
+			},
+		},
+	}
+	if _, err = svc.UpdateItem(input); err != nil {
+		return
+	}
+	return
+}
+
 func getToken(id string, svc *dynamodb.DynamoDB) (token string, err error) {
 	input := &dynamodb.GetItemInput{
 		TableName: aws.String(options.LifecycleTable),
@@ -321,6 +344,11 @@ func NewFleet(c *gin.Context, in *NewFleetInput) (ret *NewFleetOutput, err error
 		log.Print(err)
 		return
 	}
+	log.Print("Saving admin token for addUser")
+	if err = saveToken(fleet, dynamodb.New(session.New())); err != nil {
+	    log.Print(err)
+	    return
+    }
 	return
 }
 
