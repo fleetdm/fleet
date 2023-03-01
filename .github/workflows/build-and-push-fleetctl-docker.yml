@@ -56,7 +56,7 @@ jobs:
 
       - name: Push To quay.io
         id: push-to-quay
-        uses: redhat-actions/push-to-registry@v2
+        uses: redhat-actions/push-to-registry@9986a6552bc4571882a4a67e016b17361412b4df # v2.7.1
         with:
           image: fleetdm/fleetctl
           tags: ${{ inputs.image_tag }}
