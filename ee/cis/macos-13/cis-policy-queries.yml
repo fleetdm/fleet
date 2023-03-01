@@ -129,7 +129,7 @@ spec:
     /*CIS does not make a hard recommendation for this policy. Fleet has provided two policies (one failing, one succeeding). 
       Depending on your organization's decision, you can delete this policy or its counterpart.*/
   purpose: Informational
-  tags: compliance, CIS, CIS_Level2, CIS-macos-13-2.1.1.1-disable
+  tags: compliance, CIS, CIS_Level2, CIS-macos-13-2.1.1.1-disable, decision-needed
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -160,7 +160,7 @@ spec:
     /*CIS does not make a hard recommendation for this policy. Fleet has provided two policies (one failing, one succeeding). 
       Depending on your organization's decision, you can delete this policy or its counterpart.*/
   purpose: Informational
-  tags: compliance, CIS, CIS_Level2, CIS-macos-13-2.1.1.1-enable
+  tags: compliance, CIS, CIS_Level2, CIS-macos-13-2.1.1.1-enable, decision-needed
   contributors: sharon-fdm
 ---
 apiVersion: v1
