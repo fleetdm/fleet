@@ -97,7 +97,7 @@ const ManualEnrollMdmModal = ({
               </Button>
             )}
           </li>
-          <li>Click on the profile you just downloaded.</li>
+          <li>Open the profile you just downloaded.</li>
           <li>
             From the Apple menu in the top left corner of your screen, select{" "}
             <b>System Settings</b> or <b>System Preferences</b>.
