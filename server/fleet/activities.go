@@ -839,9 +839,9 @@ func LogRoleChangeActivities(ctx context.Context, ds Datastore, adminUser *User,
 		oldTeamsLookup[t.ID] = t
 	}
 
-	newTeamLookup := make(map[uint]struct{}, len(user.Teams))
+	newTeamsLookup := make(map[uint]struct{}, len(user.Teams))
 	for _, t := range user.Teams {
-		newTeamLookup[t.ID] = struct{}{}
+		newTeamsLookup[t.ID] = struct{}{}
 		o, ok := oldTeamsLookup[t.ID]
 		if ok && o.Role == t.Role {
 			continue
@@ -862,7 +862,7 @@ func LogRoleChangeActivities(ctx context.Context, ds Datastore, adminUser *User,
 		}
 	}
 	for _, o := range oldTeamRoles {
-		if _, ok := newTeamLookup[o.ID]; ok {
+		if _, ok := newTeamsLookup[o.ID]; ok {
 			continue
 		}
 		if err := ds.NewActivity(
