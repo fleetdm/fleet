@@ -495,7 +495,7 @@ func (svc *Service) DeleteMDMAppleConfigProfile(ctx context.Context, profileID u
 }
 
 type getMDMAppleProfilesSummaryRequest struct {
-	TeamID *uint `url:"team_id,optional"`
+	TeamID *uint `query:"team_id,optional"`
 }
 
 type getMDMAppleProfilesSummaryResponse struct {
