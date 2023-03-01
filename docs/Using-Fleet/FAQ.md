@@ -56,6 +56,7 @@
   - [How can I renew my Apple Business Manager server token?](#how-can-i-renew-my-apple-business-manager-server-token)
   - [Why am I getting errors when generating a .msi package on MacOS?](#why-am-i-getting-errors-when-generating-a-msi-package-on-macos)
   - [Where did Packs go?](#where-did-packs-go)
+  - [What happens when I turn off MDM?](#what-happens-when-i-turn-off-mdm)
 
 ## How can I switch to Fleet from Kolide Fleet?
 
@@ -406,3 +407,11 @@ There are many challenges to generating .msi packages on any OS but Windows. Err
 
 Packs are a function of osquery that provide a portable format to import /export queries in and out of platforms like Fleet. These osquery packs still exist, but have been removed from the Fleet UI. Access via API is still available for backwards compatibility.
 Within Fleet we've introduced the concept of teams in Fleet premium to target specific groups of hosts, but you can also still use scheduled queries in Fleet free (works like packs) to target all your hosts.
+
+## What happens when I turn off MDM?
+
+In the Fleet UI, you can turn off MDM for a host by selecting **Actions > Turn off MDM** on the **Host details** page.
+
+When you turn off MDM for a host, Fleet removes the enforcement of all macOS settings for that host. Also, the host will stop receiving macOS update reminders via Nudge. Turning MDM off doesn't remove the fleetd agent from the host. To remove the fleetd agent, share [these guided instructions](#how-can-i-uninstall-the-osquery-agent) with the end user.
+
+To enforce macOS settings and send macOS update reminders, the host has to turn MDM back on. To turn MDM on, share these guided instructions with the end user. Turning MDM back on for a host requires end user action.
