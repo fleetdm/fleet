@@ -77,6 +77,11 @@ fleetctl apply -f cis-policy-queries.yml
 
 The above will add all the automated CIS Benchmark checks as Fleet policies.
 
+### macOS 13.0 Ventura Benchmark manual checks that require customer decision
+- 2.1.1.1 Audit iCloud Keychain (Level 2): Ensure that the iCloud keychain is used consistently with organizational requirements.
+    The customer will decide whether iCloud keychain should be enabled or disable and use only the relevant query
+    2.1.1.1-enabled OR 2.1.1.1-disabled
+
 ### macOS 13.0 Ventura Benchmark manual checks
 
 The following CIS benchmark checks cannot be automated and must be addressed manually (they are flagged as "Manual"):
