@@ -1289,7 +1289,7 @@ func (s *integrationMDMTestSuite) TestApplyTeamsMDMAppleProfiles() {
 	require.Equal(t, []string{}, teamResp.Team.Config.MDM.MacOSSettings.CustomSettings)
 }
 
-func (s *integrationMDMTestSuite) TestApplyTeamsMDMAppleDiskEncryption() {
+func (s *integrationMDMTestSuite) TestTeamsMDMAppleDiskEncryption() {
 	t := s.T()
 
 	// create a team through the service so it initializes the agent ops
@@ -1365,6 +1365,26 @@ func (s *integrationMDMTestSuite) TestApplyTeamsMDMAppleDiskEncryption() {
 	teamResp = getTeamResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
 	require.False(t, teamResp.Team.Config.MDM.MacOSSettings.EnableDiskEncryption)
+
+	// modify team's disk encryption via ModifyTeam endpoint
+	var modResp teamResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
+		MDM: &fleet.TeamPayloadMDM{
+			MacOSSettings: &fleet.MacOSSettings{EnableDiskEncryption: true},
+		},
+	}, http.StatusOK, &modResp)
+	require.True(t, modResp.Team.Config.MDM.MacOSSettings.EnableDiskEncryption)
+
+	// modify team's disk encryption and description via ModifyTeam endpoint
+	modResp = teamResponse{}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
+		Description: ptr.String("foobar"),
+		MDM: &fleet.TeamPayloadMDM{
+			MacOSSettings: &fleet.MacOSSettings{EnableDiskEncryption: false},
+		},
+	}, http.StatusOK, &modResp)
+	require.False(t, modResp.Team.Config.MDM.MacOSSettings.EnableDiskEncryption)
+	require.Equal(t, "foobar", modResp.Team.Description)
 }
 
 func (s *integrationMDMTestSuite) TestBatchSetMDMAppleProfiles() {
