@@ -130,6 +130,6 @@ func TestPack_TeamPack(t *testing.T) {
 	assert.Nil(t, id)
 
 	p.Type = ptr.String("team-foobar")
-	id, err = p.teamPack()
+	_, err = p.teamPack()
 	assert.Error(t, err)
 }
