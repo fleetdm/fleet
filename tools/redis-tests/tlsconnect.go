@@ -10,7 +10,7 @@
 //     ./tests/tls/ca.crt --tls-cert-file ./tests/tls/redis.crt --tls-key-file
 //     ./tests/tls/redis.key`
 //   - Run this command to test connection, e.g.:
-//     `go run ./tools/redis-tests/tlsconnect.go -- -redis-addr localhost:7379 -cacert ./tests/tls/ca.crt
+//     `go run ./tools/redis-tests/tlsconnect.go -- -addr localhost:7379 -cacert ./tests/tls/ca.crt
 //     -cert ./tests/tls/redis.crt -key ./tests/tls/redis.key PING` -skip
 package main
 
@@ -23,7 +23,7 @@ import (
 )
 
 var (
-	addrFlag       = flag.String("redis-addr", "", "Redis TLS address, including port")
+	addrFlag       = flag.String("addr", "", "Redis TLS address, including port")
 	certFlag       = flag.String("cert", "", "Redis TLS certificate file")
 	keyFlag        = flag.String("key", "", "Redis TLS key file")
 	cacertFlag     = flag.String("cacert", "", "Redis TLS CA certificate file")
