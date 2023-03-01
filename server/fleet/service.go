@@ -624,6 +624,15 @@ type Service interface {
 	// MMDAppleEraseDevice erases a host
 	MDMAppleEraseDevice(ctx context.Context, hostID uint) error
 
+	// MDMAppleEnableFileVaultAndEscrow adds a configuration profile for the
+	// given team that enables FileVault with a config that allows Fleet to
+	// escrow the recovery key.
+	MDMAppleEnableFileVaultAndEscrow(ctx context.Context, teamID uint) error
+
+	// MDMAppleDisableFileVaultAndEscrow removes the FileVault configuration
+	// profile for the given team.
+	MDMAppleDisableFileVaultAndEscrow(ctx context.Context, teamID uint) error
+
 	///////////////////////////////////////////////////////////////////////////////
 	// CronSchedulesService
 
