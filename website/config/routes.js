@@ -279,7 +279,7 @@ module.exports.routes = {
     action: 'demo/view-okta-webflow',
     locals: {
       layout: 'layouts/layout-sandbox',
-      hideHeaderOnThisPage: true,
+      optimizeForAppleWebview: true,
     }
   },
 
