@@ -30,11 +30,17 @@ If the end user is past the deadline, Fleet shows the window and end user can't 
 
 ### End user experience
 
-Fleet automatically downloads macOS updates for the end user so that they don't have to. This way, end users don't have to wait for the update to download before they can install it.
+Apple has a two-step process for macOS updates. First, the host downloads the macOS update in the background without interrupting the end user. Then, the host installs the update, which prevents the end user from using the host.
 
-> Fleet automatically downloads updates on Intel Macs. On Macs with Apple silicon (e.g. M1), end users may have to download the update before they install it. Apple doesn't support downloading the update for the end user on Macs with Apple silicon.
+Downloading the macOS update can be triggered programmatically, while installing the update always requires end user action.
 
-Sometimes the end user's Mac will say that macOS is up to date when it isn't. This known bug creates a frustrating experience for the end user. Ask the end user to follow the steps below to troubleshoot:
+Fleet downloads macOS updates programmatically on Intel Macs. This way, end users don't have to wait for the update to download before they can install it.
+
+> On Macs with Apple silicon (e.g. M1), downloading the macOS update may require end user action. Apple doesn't support downloading the update programmatically on Macs with Apple silicon.
+
+#### Known issue
+
+Sometimes the end user's Mac will say that macOS is up to date when it isn't. This known issue creates a frustrating experience for the end user. Ask the end user to follow the steps below to troubleshoot:
 
 1. From the Apple menu in the top left corner of your screen, select **System Settings** or **System Preferences**.
 
