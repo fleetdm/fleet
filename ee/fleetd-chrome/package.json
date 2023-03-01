@@ -1,9 +1,9 @@
 {
   "name": "fleetd-for-chrome",
   "description": "Extension for Fleetd on ChromeOS",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "dependencies": {
-    "wa-sqlite": "rhashimoto/wa-sqlite#buildless"
+    "wa-sqlite": "github:rhashimoto/wa-sqlite#buildless"
   },
   "devDependencies": {
     "@types/chrome": "^0.0.217",
