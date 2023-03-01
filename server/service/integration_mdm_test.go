@@ -426,11 +426,23 @@ func (s *integrationMDMTestSuite) TestProfileManagement() {
 	require.Empty(t, installs)
 	require.Empty(t, removes)
 
-	var res getHostResponse
-	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d", host.ID), getHostRequest{}, http.StatusOK, &res)
-	require.NotEmpty(t, res.Host.MDM.Profiles)
-	resProfiles := *res.Host.MDM.Profiles
+	var hostResp getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d", host.ID), getHostRequest{}, http.StatusOK, &hostResp)
+	require.NotEmpty(t, hostResp.Host.MDM.Profiles)
+	resProfiles := *hostResp.Host.MDM.Profiles
 	require.Len(t, resProfiles, len(teamProfiles))
+
+	var teamSummaryResp getMDMAppleProfilesSummaryResponse
+	s.DoJSON("GET", "/api/v1/fleet/mdm/apple/profiles/summary", getMDMAppleProfilesSummaryRequest{TeamID: &tm.ID}, http.StatusOK, &teamSummaryResp)
+	require.Equal(t, uint(0), teamSummaryResp.Pending)
+	require.Equal(t, uint(0), teamSummaryResp.Failed)
+	require.Equal(t, uint(1), teamSummaryResp.Latest)
+
+	var noTeamSummaryResp getMDMAppleProfilesSummaryResponse
+	s.DoJSON("GET", "/api/v1/fleet/mdm/apple/profiles/summary", getMDMAppleProfilesSummaryRequest{}, http.StatusOK, &noTeamSummaryResp)
+	require.Equal(t, uint(0), noTeamSummaryResp.Pending)
+	require.Equal(t, uint(0), noTeamSummaryResp.Failed)
+	require.Equal(t, uint(0), noTeamSummaryResp.Latest)
 }
 
 func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {

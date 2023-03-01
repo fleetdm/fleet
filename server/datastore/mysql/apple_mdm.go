@@ -1051,89 +1051,59 @@ func (ds *Datastore) GetMDMAppleHostsProfilesSummary(ctx context.Context, teamID
 	// TODO(sarah): add cases to handle Fleet-managed profiles (e.g., disk encryption)
 	sqlFmt := `
 SELECT
-	count(us.host_uuid) AS count,
-	us.status
+	COUNT(
+		CASE WHEN h.failed > 0 THEN
+			'failed'
+		END) AS failed,
+	COUNT(
+		CASE WHEN h.failed = 0
+			AND h.pending > 0 THEN
+			'pending'
+		END) AS pending,
+	COUNT(
+		CASE WHEN h.failed = 0
+			AND h.pending = 0 THEN
+			'applied'
+		END) AS latest
 FROM (
 	SELECT
 		host_uuid,
-		status
-	FROM
-		host_mdm_apple_profiles
-	WHERE
-		status = 'failed'
-	UNION
-	SELECT
-		host_uuid,
-		status
-	FROM
-		host_mdm_apple_profiles hmap
-	WHERE
-		status = 'pending'
-		AND host_uuid NOT IN(
-			SELECT
-				hmap2.host_uuid FROM host_mdm_apple_profiles hmap2
-			WHERE
-				hmap.host_uuid = hmap2.host_uuid
-				AND hmap2.status = 'failed')
-	UNION
-	SELECT
-		host_uuid, 
-		status
+		COUNT(
+			CASE WHEN status = 'applied' THEN
+				1
+			END) AS applied,
+		COUNT(
+			CASE WHEN status = 'failed' THEN
+				1
+			END) AS failed,
+		COUNT(
+			CASE WHEN status = 'pending' THEN
+				1
+			END) AS pending
 	FROM
 		host_mdm_apple_profiles hmap
-	WHERE
-		status = 'applied'
-		AND host_uuid NOT IN(
-			SELECT
-				hmap2.host_uuid FROM host_mdm_apple_profiles hmap2
-			WHERE
-				hmap.host_uuid = hmap2.host_uuid
-				AND(hmap2.status = 'pending'
-					OR hmap2.status = 'failed'))) us
-WHERE
+		WHERE
 	EXISTS (
 		SELECT
 			1
 		FROM
-			hosts h
+			hosts
 		WHERE
-			h.uuid = us.host_uuid
+			hosts.uuid = host_uuid
 			AND %s)
 	GROUP BY
-		status
-	`
+		host_uuid) AS h
+`
 
-	teamFilter := "h.team_id IS NULL"
+	teamFilter := "hosts.team_id IS NULL"
 	if teamID != nil && *teamID > 0 {
-		teamFilter = fmt.Sprintf("h.team_id = %d", *teamID)
+		teamFilter = fmt.Sprintf("hosts.team_id = %d", *teamID)
 	}
 
-	var rows []struct {
-		Count  uint                         `db:"count"`
-		Status fleet.MDMAppleDeliveryStatus `db:"status"`
-	}
-	err := sqlx.SelectContext(ctx, ds.reader, &rows, fmt.Sprintf(sqlFmt, teamFilter))
+	var res fleet.MDMAppleHostsProfilesSummary
+	err := sqlx.GetContext(ctx, ds.reader, &res, fmt.Sprintf(sqlFmt, teamFilter))
 	if err != nil {
 		return nil, err
-	}
-
-	if len(rows) > 3 {
-		return nil, ctxerr.Errorf(ctx, "getting mdm profiles summary: expected not more than three rows but got %d", len(rows))
-	}
-
-	res := fleet.MDMAppleHostsProfilesSummary{}
-	for _, r := range rows {
-		switch r.Status {
-		case fleet.MDMAppleDeliveryApplied:
-			res.Latest = r.Count
-		case fleet.MDMAppleDeliveryFailed:
-			res.Failed = r.Count
-		case fleet.MDMAppleDeliveryPending:
-			res.Pending = r.Count
-		default:
-			// this should never happen
-			return nil, ctxerr.Errorf(ctx, "getting mdm profiles summary: unrecognized status: %s", r.Status)
-		}
 	}
 
 	return &res, nil

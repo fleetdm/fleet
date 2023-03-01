@@ -340,6 +340,9 @@ func TestMDMAppleConfigProfileAuthz(t *testing.T) {
 	ds.NewActivityFunc = func(context.Context, *fleet.User, fleet.ActivityDetails) error {
 		return nil
 	}
+	ds.GetMDMAppleHostsProfilesSummaryFunc = func(context.Context, *uint) (*fleet.MDMAppleHostsProfilesSummary, error) {
+		return nil, nil
+	}
 	mockGetFuncWithTeamID := func(teamID uint) mock.GetMDMAppleConfigProfileFunc {
 		return func(ctx context.Context, profileID uint) (*fleet.MDMAppleConfigProfile, error) {
 			require.Equal(t, uint(42), profileID)
@@ -415,6 +418,14 @@ func TestMDMAppleConfigProfileAuthz(t *testing.T) {
 			// test authz delete config profile (team 1)
 			ds.DeleteMDMAppleConfigProfileFunc = mockDeleteFuncWithTeamID(1)
 			err = svc.DeleteMDMAppleConfigProfile(ctx, 42)
+			checkShouldFail(err, tt.shouldFailTeam)
+
+			// test authz get profiles summary (no team)
+			_, err = svc.GetMDMAppleProfilesSummary(ctx, nil)
+			checkShouldFail(err, tt.shouldFailGlobal)
+
+			// test authz get profiles summary (no team)
+			_, err = svc.GetMDMAppleProfilesSummary(ctx, ptr.Uint(1))
 			checkShouldFail(err, tt.shouldFailTeam)
 		})
 	}
