@@ -2,7 +2,7 @@
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure Universal Control is disabled (Based on organization's policy) (MDM Required)
+  name: CIS - Ensure Universal Control is enabled (Based on organization's policy) (MDM Required)
   platforms: macOS
   platform: darwin
   description: |
@@ -14,13 +14,13 @@ spec:
     Create or edit a configuration profile with the following information:
     1. The `PayloadType` string is com.apple.universalcontrol.
     2. The key to include is 'Disable'.
-    3. The key must be set to <true/>.
+    3. The key must be set to <false/>.
   query: |
       SELECT 1 FROM managed_policies WHERE 
         domain='com.apple.universalcontrol' 
         AND 
         name='Disable' 
-        AND value = 'true';  
+        AND value = 'false';  
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-macos-13-2.8.1-disable
+  tags: compliance, CIS, CIS_Level1, CIS-macos-13-2.8.1-enable
   contributors: sharon-fdm
