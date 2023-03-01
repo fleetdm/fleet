@@ -1735,6 +1735,40 @@ func (s *integrationEnterpriseTestSuite) TestSSOJITProvisioning() {
 		}
 		return false
 	})
+
+	// A user with pre-configured roles can be created
+	// see `tools/saml/users.php` for details.
+	auth, body = s.LoginSSOUser("sso_user_3_global_admin", "user123#")
+	assert.Equal(t, "sso_user_3_global_admin@example.com", auth.UserID())
+	assert.Equal(t, "SSO User 3", auth.UserDisplayName())
+	assert.Contains(t, auth.AssertionAttributes(), fleet.SAMLAttribute{
+		Name: "FLEET_JIT_USER_ROLE_GLOBAL",
+		Values: []fleet.SAMLAttributeValue{{
+			Value: "admin",
+		}},
+	})
+	require.Contains(t, body, "Redirecting to Fleet at  ...")
+
+	// Create a team for the test below
+	_, err = s.ds.NewTeam(context.Background(), &fleet.Team{
+		ID:          1,
+		Name:        "team1_" + t.Name(),
+		Description: "desc team1_" + t.Name(),
+	})
+	require.NoError(t, err)
+
+	// A user with pre-configured roles can be created
+	// see `tools/saml/users.php` for details.
+	auth, body = s.LoginSSOUser("sso_user_4_team_maintainer", "user123#")
+	assert.Equal(t, "sso_user_4_team_maintainer@example.com", auth.UserID())
+	assert.Equal(t, "SSO User 4", auth.UserDisplayName())
+	assert.Contains(t, auth.AssertionAttributes(), fleet.SAMLAttribute{
+		Name: "FLEET_JIT_USER_ROLE_TEAM_1",
+		Values: []fleet.SAMLAttributeValue{{
+			Value: "maintainer",
+		}},
+	})
+	require.Contains(t, body, "Redirecting to Fleet at  ...")
 }
 
 func (s *integrationEnterpriseTestSuite) TestDistributedReadWithFeatures() {
