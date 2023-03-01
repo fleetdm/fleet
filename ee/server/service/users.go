@@ -37,7 +37,7 @@ func (svc *Service) GetSSOUser(ctx context.Context, auth fleet.Auth) (*fleet.Use
 			return user, nil
 		}
 
-		newGlobalRole, newTeamRoles, err := svc.userRolesFromSSOAttributes(ctx, auth)
+		newGlobalRole, newTeamsRoles, err := svc.userRolesFromSSOAttributes(ctx, auth)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "user roles from SSO attributes")
 		}
@@ -47,13 +47,13 @@ func (svc *Service) GetSSOUser(ctx context.Context, auth fleet.Auth) (*fleet.Use
 		// rolesChanged assumes that there cannot be multiple role entries for the same team,
 		// which is ok because the "old" values comes from the database and the "new" values
 		// come from fleet.RolesFromSSOAttributes which already checks for duplicates.
-		if !rolesChanged(oldGlobalRole, oldTeamRoles, newGlobalRole, newTeamRoles) {
+		if !rolesChanged(oldGlobalRole, oldTeamRoles, newGlobalRole, newTeamsRoles) {
 			// Roles haven't changed, so nothing to do.
 			return user, nil
 		}
 
 		user.GlobalRole = newGlobalRole
-		user.Teams = newTeamRoles
+		user.Teams = newTeamsRoles
 
 		err = svc.ds.SaveUser(ctx, user)
 		if err != nil {
@@ -134,22 +134,22 @@ func rolesChanged(oldGlobal *string, oldTeams []fleet.UserTeam, newGlobal *strin
 // `fleet.User` struct fields `GlobalRole` and `Teams` respectively.
 //
 // If the custom attributes are not found, then the default global observer ("observer", nil, nil) is returned.
-func (svc *Service) userRolesFromSSOAttributes(ctx context.Context, auth fleet.Auth) (globalRole *string, teamRoles []fleet.UserTeam, err error) {
-	ssoRoleInfo, err := fleet.RolesFromSSOAttributes(auth.AssertionAttributes())
+func (svc *Service) userRolesFromSSOAttributes(ctx context.Context, auth fleet.Auth) (globalRole *string, teamsRoles []fleet.UserTeam, err error) {
+	ssoRolesInfo, err := fleet.RolesFromSSOAttributes(auth.AssertionAttributes())
 	if err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "invalid SSO attributes")
 	}
 
-	for _, teamRole := range ssoRoleInfo.Teams {
+	for _, teamRole := range ssoRolesInfo.Teams {
 		team, err := svc.ds.Team(ctx, teamRole.ID)
 		if err != nil {
 			return nil, nil, ctxerr.Wrap(ctx, err, "invalid team")
 		}
-		teamRoles = append(teamRoles, fleet.UserTeam{
+		teamsRoles = append(teamsRoles, fleet.UserTeam{
 			Team: *team,
 			Role: teamRole.Role,
 		})
 	}
 
-	return ssoRoleInfo.Global, teamRoles, nil
+	return ssoRolesInfo.Global, teamsRoles, nil
 }
