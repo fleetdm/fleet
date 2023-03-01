@@ -64,7 +64,7 @@ require (
 	github.com/micromdm/nanomdm v0.3.0
 	github.com/micromdm/scep/v2 v2.1.0
 	github.com/mitchellh/go-ps v1.0.0
-	github.com/mitchellh/gon v0.2.3
+	github.com/mitchellh/gon v0.2.5
 	github.com/mna/redisc v1.3.2
 	github.com/ngrok/sqlmw v0.0.0-20211220175533-9d16fdc47b31
 	github.com/nukosuke/go-zendesk v0.13.1
