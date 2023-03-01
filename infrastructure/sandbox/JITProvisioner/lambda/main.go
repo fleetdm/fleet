@@ -186,7 +186,8 @@ func saveToken(fleet LifecycleRecord, svc *dynamodb.DynamoDB) (err error) {
 				S: aws.String(fleet.ID),
 			},
 		},
-		UpdateExpression:         aws.String("set Token = :v1"),
+		UpdateExpression:         aws.String("set #fleet_token = :v1"),
+		ExpressionAttributeNames: map[string]*string{"#fleet_token": aws.String("Token")},
 		ExpressionAttributeValues: map[string]*dynamodb.AttributeValue{
 			":v1": {
 				S: aws.String(fleet.Token),
@@ -329,6 +330,7 @@ func NewFleet(c *gin.Context, in *NewFleetInput) (ret *NewFleetOutput, err error
 		log.Print(err)
 		return
 	}
+	fleet.Token = token
 	log.Print("Triggering SFN to start teardown timer")
 	if err = triggerSFN(fleet.ID, in.SandboxExpiration); err != nil {
 		log.Print(err)
