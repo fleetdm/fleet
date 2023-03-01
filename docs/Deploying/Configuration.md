@@ -2948,7 +2948,7 @@ For this to work correctly make sure that:
 
 #### Customization of user roles
 
-Users created via JIT provisioning can be set Fleet roles using SAML custom attributes that are sent by the IdP in `SAMLResponse`s during login.
+Users created via JIT provisioning can be assigned Fleet roles using SAML custom attributes that are sent by the IdP in `SAMLResponse`s during login.
 Fleet will attempt to parse SAML custom attributes with the following format:
 - `FLEET_JIT_USER_ROLE_GLOBAL`: Specifies the global role to use when creating the user.
 - `FLEET_JIT_USER_ROLE_TEAM_<TEAM_ID>`: Specifies team role for team with ID `<TEAM_ID>` to use when creating the user.
