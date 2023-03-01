@@ -113,6 +113,11 @@ var hostDetailQueries = map[string]DetailQuery{
 		Platforms:  []string{"windows"},
 		IngestFunc: ingestNetworkInterface,
 	},
+	"network_interface_chrome": {
+		Query:      `SELECT address, mac FROM network_interfaces LIMIT 1`,
+		Platforms:  []string{"chrome"},
+		IngestFunc: ingestNetworkInterface,
+	},
 	"os_version": {
 		// Collect operating system information for the `hosts` table.
 		// Note that data for `operating_system` and `host_operating_system` tables are ingested via
@@ -565,7 +570,7 @@ var mdmQueries = map[string]DetailQuery{
 		// > location at any time.
 		//
 		// [1]: https://developer.apple.com/documentation/devicemanagement/fderecoverykeyescrow
-		Query:            `SELECT to_base64(group_concat(line)) as filevault_key FROM file_lines WHERE path='/var/db/FileVaultPRK.dat'`,
+		Query:            `SELECT to_base64(group_concat(line, x'0a')) as filevault_key FROM file_lines WHERE path='/var/db/FileVaultPRK.dat'`,
 		Platforms:        []string{"darwin"},
 		DirectIngestFunc: directIngestDiskEncryptionKeyDarwin,
 		Discovery:        discoveryTable("file_lines"),
@@ -903,16 +908,20 @@ func directIngestOSUnixLike(ctx context.Context, logger log.Logger, host *fleet.
 // depend on available data, which varies between operating systems.
 func parseOSVersion(name string, version string, major string, minor string, patch string, build string) string {
 	var osVersion string
-	if strings.Contains(strings.ToLower(name), "ubuntu") {
+	switch {
+	case strings.Contains(strings.ToLower(name), "ubuntu"):
 		// Ubuntu takes a different approach to updating patch IDs so we instead use
 		// the version string provided after removing the code name.
 		regx := regexp.MustCompile(`\(.*\)`)
 		osVersion = strings.TrimSpace(regx.ReplaceAllString(version, ""))
-	} else if major != "0" || minor != "0" || patch != "0" {
+	case strings.Contains(strings.ToLower(name), "chrome"):
+		osVersion = build
+	case major != "0" || minor != "0" || patch != "0":
 		osVersion = fmt.Sprintf("%s.%s.%s", major, minor, patch)
-	} else {
+	default:
 		osVersion = build
 	}
+
 	osVersion = strings.Trim(osVersion, ".")
 
 	return osVersion
@@ -1281,6 +1290,16 @@ func directIngestDiskEncryptionKeyDarwin(
 			"msg", fmt.Sprintf("/var/db/FileVaultPRK.dat should have a single line, but got %d", len(rows)),
 			"host", host.Hostname,
 		)
+	}
+
+	if strings.TrimSpace(rows[0]["filevault_key"]) == "" {
+		level.Debug(logger).Log(
+			"component", "service",
+			"method", "directIngestDiskEncryptionKeyDarwin",
+			"msg", "host reported empty /var/db/FileVaultPRK.dat contents",
+			"host", host.Hostname,
+		)
+		return nil
 	}
 
 	return ds.SetOrUpdateHostDiskEncryptionKey(ctx, host.ID, rows[0]["filevault_key"])

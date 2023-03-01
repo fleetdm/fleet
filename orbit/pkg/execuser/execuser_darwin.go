@@ -20,11 +20,24 @@ func run(path string, opts eopts) error {
 	if opts.stderrPath != "" {
 		arg = append(arg, "--stderr", opts.stderrPath)
 	}
+
+	// set environment variables
 	for _, nv := range opts.env {
 		arg = append(arg, "--env", fmt.Sprintf("%s=%s", nv[0], nv[1]))
 	}
+
+	// set the path to be executed
 	arg = append(arg, path)
-	cmd := exec.Command("open", arg...)
+
+	// set the program arguments
+	if len(opts.args) > 0 {
+		arg = append(arg, "--args")
+		for _, nv := range opts.args {
+			arg = append(arg, nv[0], nv[1])
+		}
+	}
+
+	cmd := exec.Command("/usr/bin/open", arg...)
 	cmd.Stderr = os.Stderr
 	cmd.Stdout = os.Stdout
 	if err := cmd.Run(); err != nil {

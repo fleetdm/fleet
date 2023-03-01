@@ -591,7 +591,16 @@ the way that the Fleet server works.
 			}
 
 			if license.IsPremium() {
-				svc, err = eeservice.NewService(svc, ds, logger, config, mailService, clock.C, depStorage)
+				svc, err = eeservice.NewService(
+					svc,
+					ds,
+					logger,
+					config,
+					mailService,
+					clock.C,
+					depStorage,
+					service.NewMDMAppleCommander(mdmStorage, mdmPushService),
+				)
 				if err != nil {
 					initFatal(err, "initial Fleet Premium service")
 				}

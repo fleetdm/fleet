@@ -37,6 +37,9 @@ func TestHostDetails(t *testing.T) {
 			Description: "the foobar label",
 		},
 	}
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
 	ds.ListLabelsForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Label, error) {
 		return expectedLabels, nil
 	}
@@ -82,6 +85,10 @@ func TestHostAuth(t *testing.T) {
 
 	teamHost := &fleet.Host{TeamID: ptr.Uint(1)}
 	globalHost := &fleet.Host{}
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
 
 	ds.DeleteHostFunc = func(ctx context.Context, hid uint) error {
 		return nil

@@ -54,7 +54,7 @@ type Service interface {
 	// AuthenticateOrbitHost loads host identified by orbit's nodeKey. Returns an error if that nodeKey doesn't exist
 	AuthenticateOrbitHost(ctx context.Context, nodeKey string) (host *Host, debug bool, err error)
 	// EnrollOrbit enrolls orbit to Fleet by using the enrollSecret and returns the orbitNodeKey if successful
-	EnrollOrbit(ctx context.Context, hardwareUUID string, enrollSecret string) (orbitNodeKey string, err error)
+	EnrollOrbit(ctx context.Context, hardwareUUID, hardwareSerial, enrollSecret string) (orbitNodeKey string, err error)
 	// GetOrbitConfig returns team specific flags and extensions in agent options
 	// if the team id is not nil for host, otherwise it returns flags from global
 	// agent options. It also returns any notifications that fleet wants to surface
@@ -617,6 +617,21 @@ type Service interface {
 	// BatchSetMDMAppleProfiles replaces the custom macOS profiles for a specified
 	// team or for hosts with no team.
 	BatchSetMDMAppleProfiles(ctx context.Context, teamID *uint, teamName *string, profiles [][]byte, dryRun bool) error
+
+	// MDMAppleDeviceLock remote locks a host
+	MDMAppleDeviceLock(ctx context.Context, hostID uint) error
+
+	// MMDAppleEraseDevice erases a host
+	MDMAppleEraseDevice(ctx context.Context, hostID uint) error
+
+	// MDMAppleEnableFileVaultAndEscrow adds a configuration profile for the
+	// given team that enables FileVault with a config that allows Fleet to
+	// escrow the recovery key.
+	MDMAppleEnableFileVaultAndEscrow(ctx context.Context, teamID uint) error
+
+	// MDMAppleDisableFileVaultAndEscrow removes the FileVault configuration
+	// profile for the given team.
+	MDMAppleDisableFileVaultAndEscrow(ctx context.Context, teamID uint) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// CronSchedulesService

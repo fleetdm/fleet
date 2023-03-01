@@ -2,6 +2,7 @@ package fleet
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -14,6 +15,13 @@ import (
 	"go.mozilla.org/pkcs7"
 	"howett.net/plist"
 )
+
+type MDMAppleCommandIssuer interface {
+	InstallProfile(ctx context.Context, hostUUIDs []string, profile Mobileconfig, uuid string) error
+	RemoveProfile(ctx context.Context, hostUUIDs []string, identifier string, uuid string) error
+	DeviceLock(ctx context.Context, hostUUIDs []string, uuid string) error
+	EraseDevice(ctx context.Context, hostUUIDs []string, uuid string) error
+}
 
 // MDMAppleEnrollmentType is the type for Apple MDM enrollments.
 type MDMAppleEnrollmentType string
@@ -414,12 +422,13 @@ func (cp MDMAppleConfigProfile) ScreenPayloadTypes() error {
 
 // HostMDMAppleProfile represents the status of an Apple MDM profile in a host.
 type HostMDMAppleProfile struct {
-	HostUUID      string
-	CommandUUID   string
-	ProfileID     uint
-	Status        *MDMAppleDeliveryStatus
-	OperationType MDMAppleOperationType
-	Detail        string
+	HostUUID      string                  `db:"host_uuid" json:"-"`
+	CommandUUID   string                  `db:"command_uuid" json:"-"`
+	ProfileID     uint                    `db:"profile_id" json:"profile_id"`
+	Name          string                  `db:"name" json:"name"`
+	Status        *MDMAppleDeliveryStatus `db:"status" json:"status"`
+	OperationType MDMAppleOperationType   `db:"operation_type" json:"operation_type"`
+	Detail        string                  `db:"detail" json:"detail"`
 }
 
 type MDMAppleProfilePayload struct {
@@ -435,4 +444,11 @@ type MDMAppleBulkUpsertHostProfilePayload struct {
 	CommandUUID       string
 	OperationType     MDMAppleOperationType
 	Status            *MDMAppleDeliveryStatus
+}
+
+// MDMAppleFleetdConfig contains the fields used to configure
+// `fleetd` in macOS devices via a configuration profile.
+type MDMAppleFleetdConfig struct {
+	FleetURL     string
+	EnrollSecret string
 }

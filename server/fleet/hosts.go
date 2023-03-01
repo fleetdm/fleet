@@ -220,9 +220,20 @@ type MDMHostData struct {
 	// ServerURL is the server_url stored in the host_mdm table, loaded by
 	// JOIN in datastore
 	ServerURL *string `json:"server_url" db:"-" csv:"mdm.server_url"`
+	// Name is the name of the MDM solution for the host.
+	Name string `json:"name" db:"name" csv:"-"`
+
 	// EncryptionKeyAvailable indicates if Fleet was able to retrieve and
 	// decode an encryption key for the host.
 	EncryptionKeyAvailable bool `json:"encryption_key_available" db:"-" csv:"-"`
+
+	// Profiles is a list of HostMDMProfiles for the host. Note that as for many
+	// other host fields, it is not filled in by all host-returning datastore methods.
+	//
+	// It is a pointer to a slice so that when set, it gets marhsaled even
+	// if the slice is empty, but when unset, it doesn't get marshaled
+	// (e.g. we don't return that information for the List Hosts endpoint).
+	Profiles *[]HostMDMAppleProfile `json:"profiles,omitempty" db:"profiles" csv:"-"`
 }
 
 // Scan implements the Scanner interface for sqlx, to support unmarshaling a
@@ -268,7 +279,7 @@ func (h Host) AuthzType() string {
 }
 
 // HostDetail provides the full host metadata along with associated labels and
-// packs.
+// packs. It also includes policies, batteries, and MDM profiles, as applicable.
 type HostDetail struct {
 	Host
 	// Labels is the list of labels the host is a member of.
@@ -384,7 +395,10 @@ func PlatformFromHost(hostPlatform string) string {
 		return "linux"
 	case hostPlatform == "darwin", hostPlatform == "windows",
 		// Some customers have custom agents that support ChromeOS
-		hostPlatform == "CrOS":
+		// TODO remove this once that customer migrates to Fleetd for Chrome
+		hostPlatform == "CrOS",
+		// Fleet now supports Chrome via fleetd
+		hostPlatform == "chrome":
 		return hostPlatform
 	default:
 		return ""

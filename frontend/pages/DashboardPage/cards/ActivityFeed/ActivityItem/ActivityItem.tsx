@@ -182,7 +182,7 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         {activity.actor_full_name
-          ? " turned off mobile device management (MDM) for"
+          ? " told Fleet to turn off mobile device management (MDM) for"
           : "Mobile device management (MDM) was turned off for"}{" "}
         <b>{activity.details?.host_display_name}</b>.
       </>
@@ -350,10 +350,10 @@ const getDetail = (
       return TAGGED_TEMPLATES.createMacOSProfile(activity, isPremiumTier);
     }
     case ActivityType.DeletedMacOSProfile: {
-      return TAGGED_TEMPLATES.createMacOSProfile(activity, isPremiumTier);
+      return TAGGED_TEMPLATES.deleteMacOSProfile(activity, isPremiumTier);
     }
     case ActivityType.EditedMacOSProfile: {
-      return TAGGED_TEMPLATES.createMacOSProfile(activity, isPremiumTier);
+      return TAGGED_TEMPLATES.editMacOSProfile(activity, isPremiumTier);
     }
     default: {
       return TAGGED_TEMPLATES.defaultActivityTemplate(activity);

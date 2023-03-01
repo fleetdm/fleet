@@ -239,6 +239,7 @@ func TestGetDetailQueries(t *testing.T) {
 	baseQueries := []string{
 		"network_interface_unix",
 		"network_interface_windows",
+		"network_interface_chrome",
 		"os_version",
 		"os_version_windows",
 		"osquery_flags",
@@ -266,7 +267,7 @@ func TestGetDetailQueries(t *testing.T) {
 	sortedKeysCompare(t, queriesNoConfig, baseQueries)
 
 	queriesWithoutWinOSVuln := GetDetailQueries(context.Background(), config.FleetConfig{Vulnerabilities: config.VulnerabilitiesConfig{DisableWinOSVulnerabilities: true}}, nil, nil)
-	require.Len(t, queriesWithoutWinOSVuln, 22)
+	require.Len(t, queriesWithoutWinOSVuln, 23)
 
 	queriesWithUsers := GetDetailQueries(context.Background(), config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}}, nil, &fleet.Features{EnableHostUsers: true})
 	qs := append(baseQueries, "users", "scheduled_query_stats")
@@ -406,6 +407,37 @@ func TestDetailQueriesOSVersionWindows(t *testing.T) {
 
 	assert.NoError(t, ingest(context.Background(), log.NewNopLogger(), &host, rows))
 	assert.Equal(t, "Windows 10 Enterprise LTSC ", host.OSVersion)
+}
+
+func TestDetailQueriesOSVersionChrome(t *testing.T) {
+	var initialHost fleet.Host
+	host := initialHost
+
+	ingest := GetDetailQueries(context.Background(), config.FleetConfig{}, nil, nil)["os_version"].IngestFunc
+
+	assert.NoError(t, ingest(context.Background(), log.NewNopLogger(), &host, nil))
+	assert.Equal(t, initialHost, host)
+
+	var rows []map[string]string
+	require.NoError(t, json.Unmarshal([]byte(`
+[{
+    "hostname": "chromeo",
+    "arch": "x86_64",
+    "build": "chrome-build",
+    "codename": "",
+    "major": "1",
+    "minor": "3",
+    "name": "chromeos",
+    "patch": "7",
+    "platform": "chrome",
+    "platform_like": "chrome",
+    "version": "1.3.3.7"
+}]`),
+		&rows,
+	))
+
+	assert.NoError(t, ingest(context.Background(), log.NewNopLogger(), &host, rows))
+	assert.Equal(t, "chromeos chrome-build", host.OSVersion)
 }
 
 func TestDirectIngestMDMMac(t *testing.T) {
@@ -835,4 +867,29 @@ func TestDirectIngestDiskEncryptionLinux(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.True(t, ds.SetOrUpdateHostDisksEncryptionFuncInvoked)
+}
+
+func TestDirectIngestDiskEncryptionKeyDarwin(t *testing.T) {
+	ds := new(mock.Store)
+	ctx := context.Background()
+	logger := log.NewNopLogger()
+	wantKey := "OTM5ODRDQTYtOUY1Mi00NERELTkxOUEtMDlBN0ZBOUUzNUY5Cg=="
+	host := &fleet.Host{ID: 1}
+	ds.SetOrUpdateHostDiskEncryptionKeyFunc = func(ctx context.Context, hostID uint, encryptedBase64Key string) error {
+		require.Equal(t, wantKey, encryptedBase64Key)
+		require.Equal(t, host.ID, hostID)
+		return nil
+	}
+
+	err := directIngestDiskEncryptionKeyDarwin(ctx, logger, host, ds, []map[string]string{})
+	require.NoError(t, err)
+	require.False(t, ds.SetOrUpdateHostDiskEncryptionKeyFuncInvoked)
+
+	err = directIngestDiskEncryptionKeyDarwin(ctx, logger, host, ds, []map[string]string{{"filevault_key": ""}})
+	require.NoError(t, err)
+	require.False(t, ds.SetOrUpdateHostDiskEncryptionKeyFuncInvoked)
+
+	err = directIngestDiskEncryptionKeyDarwin(ctx, logger, host, ds, []map[string]string{{"filevault_key": wantKey}})
+	require.NoError(t, err)
+	require.True(t, ds.SetOrUpdateHostDiskEncryptionKeyFuncInvoked)
 }

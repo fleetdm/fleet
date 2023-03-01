@@ -76,6 +76,12 @@ type integrationMDMTestSuite struct {
 func (s *integrationMDMTestSuite) SetupSuite() {
 	s.withDS.SetupSuite("integrationMDMTestSuite")
 
+	appConf, err := s.ds.AppConfig(context.Background())
+	require.NoError(s.T(), err)
+	appConf.MDM.EnabledAndConfigured = true
+	err = s.ds.SaveAppConfig(context.Background(), appConf)
+	require.NoError(s.T(), err)
+
 	testCert, testKey, err := apple_mdm.NewSCEPCACertKey()
 	require.NoError(s.T(), err)
 	testCertPEM := tokenpki.PEMCertificate(testCert.Raw)
@@ -83,6 +89,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 
 	fleetCfg := config.TestConfig()
 	config.SetTestMDMConfig(s.T(), &fleetCfg, testCertPEM, testKeyPEM, testBMToken)
+	fleetCfg.Osquery.EnrollCooldown = 0
 
 	mdmStorage, err := s.ds.NewMDMAppleMDMStorage(testCertPEM, testKeyPEM)
 	require.NoError(s.T(), err)
@@ -159,6 +166,13 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 		_, _ = w.Write([]byte(fmt.Sprintf("status: %d", status)))
 	}))
 	s.T().Setenv("TEST_FLEETDM_API_URL", fleetdmSrv.URL)
+
+	appCfg, err := s.ds.AppConfig(context.Background())
+	require.NoError(s.T(), err)
+	appCfg.MDM.EnabledAndConfigured = true
+	err = s.ds.SaveAppConfig(context.Background(), appCfg)
+	require.NoError(s.T(), err)
+
 	s.T().Cleanup(fleetdmSrv.Close)
 }
 
@@ -277,11 +291,41 @@ func (s *integrationMDMTestSuite) TestProfileManagement() {
 	// add profiles to the team
 	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: teamProfiles}, http.StatusNoContent, "team_id", strconv.Itoa(int(tm.ID)))
 
+	// create a non-macOS host
+	_, err = s.ds.NewHost(context.Background(), &fleet.Host{
+		OsqueryHostID: ptr.String("non-macos-host"),
+		NodeKey:       ptr.String("non-macos-host"),
+		UUID:          uuid.New().String(),
+		Hostname:      fmt.Sprintf("%sfoo.local.non.macos", t.Name()),
+		Platform:      "windows",
+	})
+	require.NoError(t, err)
+
+	// create a host that's not enrolled into MDM
+	_, err = s.ds.NewHost(context.Background(), &fleet.Host{
+		OsqueryHostID: ptr.String("not-mdm-enrolled"),
+		NodeKey:       ptr.String("not-mdm-enrolled"),
+		UUID:          uuid.New().String(),
+		Hostname:      fmt.Sprintf("%sfoo.local.not.enrolled", t.Name()),
+		Platform:      "darwin",
+	})
+	require.NoError(t, err)
+
 	// create and enroll a host in MDM
-	host := createHostAndDeviceToken(t, s.ds, "secret-1")
 	d := newDevice(s)
-	d.serial = host.HardwareSerial
-	d.uuid = host.UUID
+	host, err := s.ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now().Add(-1 * time.Minute),
+		OsqueryHostID:   ptr.String(t.Name()),
+		NodeKey:         ptr.String(t.Name()),
+		UUID:            d.uuid,
+		Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
+		Platform:        "darwin",
+		HardwareSerial:  d.serial,
+	})
+	require.NoError(t, err)
 	d.mdmEnroll(s)
 
 	var wg sync.WaitGroup
@@ -381,6 +425,12 @@ func (s *integrationMDMTestSuite) TestProfileManagement() {
 	installs, removes = checkNextPayloads()
 	require.Empty(t, installs)
 	require.Empty(t, removes)
+
+	var res getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d", host.ID), getHostRequest{}, http.StatusOK, &res)
+	require.NotEmpty(t, res.Host.MDM.Profiles)
+	resProfiles := *res.Host.MDM.Profiles
+	require.Len(t, resProfiles, len(teamProfiles))
 }
 
 func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
@@ -1064,36 +1114,78 @@ func (s *integrationMDMTestSuite) TestAppConfigMDMAppleProfiles() {
 	// set the macos custom settings fields
 	acResp := appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-	  "macos_settings": { "custom_settings": ["foo", "bar"] }
+		"mdm": { "macos_settings": { "custom_settings": ["foo", "bar"] } }
   }`), http.StatusOK, &acResp)
-	assert.Equal(t, []string{"foo", "bar"}, acResp.MacOSSettings.CustomSettings)
+	assert.Equal(t, []string{"foo", "bar"}, acResp.MDM.MacOSSettings.CustomSettings)
 
 	// check that they are returned by a GET /config
 	acResp = appConfigResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
-	assert.Equal(t, []string{"foo", "bar"}, acResp.MacOSSettings.CustomSettings)
+	assert.Equal(t, []string{"foo", "bar"}, acResp.MDM.MacOSSettings.CustomSettings)
 
-	// patch without specifying the macos custom settings fields, should not remove them
+	// patch without specifying the macos custom settings fields and an unrelated
+	// field, should not remove them
 	acResp = appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-	  "macos_settings": {}
+		"mdm": { "macos_settings": {"enable_disk_encryption": true} }
   }`), http.StatusOK, &acResp)
-	assert.Equal(t, []string{"foo", "bar"}, acResp.MacOSSettings.CustomSettings)
+	assert.Equal(t, []string{"foo", "bar"}, acResp.MDM.MacOSSettings.CustomSettings)
 
 	// patch with explicitly empty macos custom settings fields, would remove
 	// them but this is a dry-run
 	acResp = appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-		"macos_settings": {"custom_settings": null}
+		"mdm": { "macos_settings": { "custom_settings": null } }
   }`), http.StatusOK, &acResp, "dry_run", "true")
-	assert.Equal(t, []string{"foo", "bar"}, acResp.MacOSSettings.CustomSettings)
+	assert.Equal(t, []string{"foo", "bar"}, acResp.MDM.MacOSSettings.CustomSettings)
 
 	// patch with explicitly empty macos custom settings fields, removes them
 	acResp = appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-		"macos_settings": {"custom_settings": null}
+		"mdm": { "macos_settings": { "custom_settings": null } }
   }`), http.StatusOK, &acResp)
-	assert.Empty(t, acResp.MacOSSettings.CustomSettings)
+	assert.Empty(t, acResp.MDM.MacOSSettings.CustomSettings)
+}
+
+func (s *integrationMDMTestSuite) TestAppConfigMDMAppleDiskEncryption() {
+	t := s.T()
+
+	// set the macos disk encryption field
+	acResp := appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": { "macos_settings": { "enable_disk_encryption": true } }
+  }`), http.StatusOK, &acResp)
+	assert.True(t, acResp.MDM.MacOSSettings.EnableDiskEncryption)
+
+	// check that they are returned by a GET /config
+	acResp = appConfigResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	assert.True(t, acResp.MDM.MacOSSettings.EnableDiskEncryption)
+
+	// patch without specifying the macos disk encryption and an unrelated field,
+	// should not alter it
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+			"mdm": { "macos_settings": {"custom_settings": ["a"]} }
+		}`), http.StatusOK, &acResp)
+	assert.True(t, acResp.MDM.MacOSSettings.EnableDiskEncryption)
+	assert.Equal(t, []string{"a"}, acResp.MDM.MacOSSettings.CustomSettings)
+
+	// patch with false, would reset it but this is a dry-run
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+				"mdm": { "macos_settings": { "enable_disk_encryption": false } }
+		  }`), http.StatusOK, &acResp, "dry_run", "true")
+	assert.True(t, acResp.MDM.MacOSSettings.EnableDiskEncryption)
+	assert.Equal(t, []string{"a"}, acResp.MDM.MacOSSettings.CustomSettings)
+
+	// patch with false, resets it
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": { "macos_settings": { "enable_disk_encryption": false, "custom_settings": ["b"] } }
+		  }`), http.StatusOK, &acResp)
+	assert.False(t, acResp.MDM.MacOSSettings.EnableDiskEncryption)
+	assert.Equal(t, []string{"b"}, acResp.MDM.MacOSSettings.CustomSettings)
 }
 
 func (s *integrationMDMTestSuite) TestApplyTeamsMDMAppleProfiles() {
@@ -1112,53 +1204,155 @@ func (s *integrationMDMTestSuite) TestApplyTeamsMDMAppleProfiles() {
 
 	// apply with custom macos settings
 	teamSpecs := applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
-		Name:          teamName,
-		MacOSSettings: map[string]interface{}{"custom_settings": []string{"foo", "bar"}},
+		Name: teamName,
+		MDM: fleet.TeamSpecMDM{
+			MacOSSettings: map[string]interface{}{"custom_settings": []string{"foo", "bar"}},
+		},
 	}}}
 	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
 
 	// retrieving the team returns the custom macos settings
 	var teamResp getTeamResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
-	require.Equal(t, []string{"foo", "bar"}, teamResp.Team.Config.MacOSSettings.CustomSettings)
+	require.Equal(t, []string{"foo", "bar"}, teamResp.Team.Config.MDM.MacOSSettings.CustomSettings)
 
 	// apply with invalid macos settings subfield should fail
 	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
-		Name:          teamName,
-		MacOSSettings: map[string]interface{}{"foo_bar": 123},
+		Name: teamName,
+		MDM: fleet.TeamSpecMDM{
+			MacOSSettings: map[string]interface{}{"foo_bar": 123},
+		},
 	}}}
-	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusBadRequest)
+	res := s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusBadRequest)
+	errMsg := extractServerErrorText(res.Body)
+	assert.Contains(t, errMsg, `unsupported key provided: "foo_bar"`)
 
-	// apply without custom macos settings specified, should not replace existing settings
+	// apply with some good and some bad macos settings subfield should fail
 	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
-		Name:          teamName,
-		MacOSSettings: map[string]interface{}{},
+		Name: teamName,
+		MDM: fleet.TeamSpecMDM{
+			MacOSSettings: map[string]interface{}{"custom_settings": []interface{}{"A", true}},
+		},
+	}}}
+	res = s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusBadRequest)
+	errMsg = extractServerErrorText(res.Body)
+	assert.Contains(t, errMsg, `invalid value type at 'macos_settings.custom_settings': expected array of strings but got bool`)
+
+	// apply without custom macos settings specified and unrelated field, should
+	// not replace existing settings
+	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
+		Name: teamName,
+		MDM: fleet.TeamSpecMDM{
+			MacOSSettings: map[string]interface{}{"enable_disk_encryption": false},
+		},
 	}}}
 	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
 	teamResp = getTeamResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
-	require.Equal(t, []string{"foo", "bar"}, teamResp.Team.Config.MacOSSettings.CustomSettings)
+	require.Equal(t, []string{"foo", "bar"}, teamResp.Team.Config.MDM.MacOSSettings.CustomSettings)
 
 	// apply with explicitly empty custom macos settings would clear the existing
 	// settings, but dry-run
 	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
-		Name:          teamName,
-		MacOSSettings: map[string]interface{}{"custom_settings": []string{}},
+		Name: teamName,
+		MDM: fleet.TeamSpecMDM{
+			MacOSSettings: map[string]interface{}{"custom_settings": []string{}},
+		},
 	}}}
 	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK, "dry_run", "true")
 	teamResp = getTeamResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
-	require.Equal(t, []string{"foo", "bar"}, teamResp.Team.Config.MacOSSettings.CustomSettings)
+	require.Equal(t, []string{"foo", "bar"}, teamResp.Team.Config.MDM.MacOSSettings.CustomSettings)
 
 	// apply with explicitly empty custom macos settings clears the existing settings
 	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
-		Name:          teamName,
-		MacOSSettings: map[string]interface{}{"custom_settings": []string{}},
+		Name: teamName,
+		MDM: fleet.TeamSpecMDM{
+			MacOSSettings: map[string]interface{}{"custom_settings": []string{}},
+		},
 	}}}
 	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
 	teamResp = getTeamResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
-	require.Equal(t, []string{}, teamResp.Team.Config.MacOSSettings.CustomSettings)
+	require.Equal(t, []string{}, teamResp.Team.Config.MDM.MacOSSettings.CustomSettings)
+}
+
+func (s *integrationMDMTestSuite) TestApplyTeamsMDMAppleDiskEncryption() {
+	t := s.T()
+
+	// create a team through the service so it initializes the agent ops
+	teamName := t.Name() + "team1"
+	team := &fleet.Team{
+		Name:        teamName,
+		Description: "desc team1",
+	}
+	var createTeamResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", team, http.StatusOK, &createTeamResp)
+	require.NotZero(t, createTeamResp.Team.ID)
+	team = createTeamResp.Team
+
+	// apply with disk encryption
+	teamSpecs := applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
+		Name: teamName,
+		MDM: fleet.TeamSpecMDM{
+			MacOSSettings: map[string]interface{}{"enable_disk_encryption": true},
+		},
+	}}}
+	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
+
+	// retrieving the team returns the disk encryption setting
+	var teamResp getTeamResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+	require.True(t, teamResp.Team.Config.MDM.MacOSSettings.EnableDiskEncryption)
+
+	// apply with invalid disk encryption value should fail
+	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
+		Name: teamName,
+		MDM: fleet.TeamSpecMDM{
+			MacOSSettings: map[string]interface{}{"enable_disk_encryption": 123},
+		},
+	}}}
+	res := s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusBadRequest)
+	errMsg := extractServerErrorText(res.Body)
+	assert.Contains(t, errMsg, `invalid value type at 'macos_settings.enable_disk_encryption': expected bool but got float64`)
+
+	// apply without disk encryption settings specified and unrelated field,
+	// should not replace existing disk encryption
+	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
+		Name: teamName,
+		MDM: fleet.TeamSpecMDM{
+			MacOSSettings: map[string]interface{}{"custom_settings": []string{"a"}},
+		},
+	}}}
+	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
+	teamResp = getTeamResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+	require.True(t, teamResp.Team.Config.MDM.MacOSSettings.EnableDiskEncryption)
+	require.Equal(t, []string{"a"}, teamResp.Team.Config.MDM.MacOSSettings.CustomSettings)
+
+	// apply with false would clear the existing setting, but dry-run
+	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
+		Name: teamName,
+		MDM: fleet.TeamSpecMDM{
+			MacOSSettings: map[string]interface{}{"enable_disk_encryption": false},
+		},
+	}}}
+	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK, "dry_run", "true")
+	teamResp = getTeamResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+	require.True(t, teamResp.Team.Config.MDM.MacOSSettings.EnableDiskEncryption)
+
+	// apply with false clears the existing setting
+	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
+		Name: teamName,
+		MDM: fleet.TeamSpecMDM{
+			MacOSSettings: map[string]interface{}{"enable_disk_encryption": false},
+		},
+	}}}
+	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
+	teamResp = getTeamResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+	require.False(t, teamResp.Team.Config.MDM.MacOSSettings.EnableDiskEncryption)
 }
 
 func (s *integrationMDMTestSuite) TestBatchSetMDMAppleProfiles() {
@@ -1200,6 +1394,73 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMAppleProfiles() {
 		fmt.Sprintf(`{"team_id": %d, "team_name": %q}`, tm.ID, tm.Name),
 		0,
 	)
+}
+
+func (s *integrationMDMTestSuite) TestEnrollOrbitAfterDEPSync() {
+	t := s.T()
+	ctx := context.Background()
+
+	// create a host with minimal information and the serial, no uuid/osquery id
+	// (as when created via DEP sync). Platform must be "darwin" as this is the
+	// only supported OS with DEP.
+	dbZeroTime := time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
+	h, err := s.ds.NewHost(ctx, &fleet.Host{
+		HardwareSerial:   uuid.New().String(),
+		Platform:         "darwin",
+		LastEnrolledAt:   dbZeroTime,
+		DetailUpdatedAt:  dbZeroTime,
+		RefetchRequested: true,
+	})
+	require.NoError(t, err)
+
+	// create an enroll secret
+	secret := uuid.New().String()
+	var applyResp applyEnrollSecretSpecResponse
+	s.DoJSON("POST", "/api/latest/fleet/spec/enroll_secret", applyEnrollSecretSpecRequest{
+		Spec: &fleet.EnrollSecretSpec{
+			Secrets: []*fleet.EnrollSecret{{Secret: secret}},
+		},
+	}, http.StatusOK, &applyResp)
+
+	// enroll the host from orbit, it should match the host above via the serial
+	var resp EnrollOrbitResponse
+	hostUUID := uuid.New().String()
+	s.DoJSON("POST", "/api/fleet/orbit/enroll", EnrollOrbitRequest{
+		EnrollSecret:   secret,
+		HardwareUUID:   hostUUID, // will not match any existing host
+		HardwareSerial: h.HardwareSerial,
+	}, http.StatusOK, &resp)
+	require.NotEmpty(t, resp.OrbitNodeKey)
+
+	// fetch the host, it will match the one created above
+	// (NOTE: cannot check the returned OrbitNodeKey, this field is not part of the response)
+	var hostResp getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", h.ID), nil, http.StatusOK, &hostResp)
+	require.Equal(t, h.ID, hostResp.Host.ID)
+
+	got, err := s.ds.LoadHostByOrbitNodeKey(ctx, resp.OrbitNodeKey)
+	require.NoError(t, err)
+	require.Equal(t, h.ID, got.ID)
+
+	// enroll the host from osquery, it should match the same host
+	var osqueryResp enrollAgentResponse
+	osqueryID := uuid.New().String()
+	s.DoJSON("POST", "/api/osquery/enroll", enrollAgentRequest{
+		EnrollSecret:   secret,
+		HostIdentifier: osqueryID, // osquery host_identifier may not be the same as the host UUID, simulate that here
+		HostDetails: map[string]map[string]string{
+			"system_info": {
+				"uuid":            hostUUID,
+				"hardware_serial": h.HardwareSerial,
+			},
+		},
+	}, http.StatusOK, &osqueryResp)
+	require.NotEmpty(t, osqueryResp.NodeKey)
+
+	// load the host by osquery node key, should match the initial host
+	got, err = s.ds.LoadHostByNodeKey(ctx, osqueryResp.NodeKey)
+	require.NoError(t, err)
+	require.Equal(t, h.ID, got.ID)
 }
 
 type device struct {

@@ -202,7 +202,7 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure Set Time and Date Automatically Is Enabled (MDM required)
+  name: CIS - Ensure Set Time and Date Automatically Is Enabled (MDM Required)
   platforms: macOS
   platform: darwin
   description: 
@@ -1032,7 +1032,7 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure FileVault Is Enabled (MDM required)
+  name: CIS - Ensure FileVault Is Enabled (MDM Required)
   platforms: macOS
   platform: darwin
   description: Checks that FileVault Is Enabled. FileVault secures a system's data by automatically encrypting its boot volume and requiring a password or recovery key to access it. This policy checks that filevault is enabled on the device and that the user is not allowed to disable it.
@@ -1059,7 +1059,7 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure Login Window Displays as Name and Password Is Enabled (MDM required)
+  name: CIS - Ensure Login Window Displays as Name and Password Is Enabled (MDM Required)
   platforms: macOS
   platform: darwin
   description: Checks Login Window Displays as Name and Password Is Enabled.

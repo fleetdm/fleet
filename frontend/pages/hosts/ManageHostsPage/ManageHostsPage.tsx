@@ -62,8 +62,6 @@ import TeamsDropdown from "components/TeamsDropdown";
 import Spinner from "components/Spinner";
 import MainContent from "components/MainContent";
 import EmptyTable from "components/EmptyTable";
-
-import { getValidatedTeamId } from "utilities/helpers";
 import {
   defaultHiddenColumns,
   generateVisibleTableColumns,
@@ -423,12 +421,7 @@ const ManageHostsPage = ({
     setIsHostsLoading(true);
     options = {
       ...options,
-      teamId: getValidatedTeamId(
-        availableTeams || [],
-        options.teamId as number,
-        currentUser,
-        isOnGlobalTeam as boolean
-      ),
+      teamId: currentTeam?.id,
     };
 
     if (queryParams.team_id) {
@@ -460,12 +453,7 @@ const ManageHostsPage = ({
 
     options = {
       ...options,
-      teamId: getValidatedTeamId(
-        availableTeams || [],
-        options.teamId as number,
-        currentUser,
-        isOnGlobalTeam as boolean
-      ),
+      teamId: currentTeam?.id,
     };
 
     if (queryParams.team_id) {
@@ -667,18 +655,11 @@ const ManageHostsPage = ({
   const handleTeamSelect = (teamId: number) => {
     const { MANAGE_HOSTS } = PATHS;
 
-    const teamIdParam = getValidatedTeamId(
-      availableTeams || [],
-      teamId,
-      currentUser,
-      isOnGlobalTeam ?? false
-    );
-
     const slimmerParams = omit(queryParams, ["team_id"]);
 
-    const newQueryParams = !teamIdParam
+    const newQueryParams = !teamId
       ? slimmerParams
-      : Object.assign(slimmerParams, { team_id: teamIdParam });
+      : Object.assign(slimmerParams, { team_id: teamId });
 
     const nextLocation = getNextLocationPath({
       pathPrefix: MANAGE_HOSTS,
@@ -1497,12 +1478,7 @@ const ManageHostsPage = ({
 
     options = {
       ...options,
-      teamId: getValidatedTeamId(
-        availableTeams || [],
-        options.teamId as number,
-        currentUser,
-        isOnGlobalTeam as boolean
-      ),
+      teamId: currentTeam?.id,
     };
 
     if (queryParams.team_id) {

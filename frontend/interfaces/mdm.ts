@@ -68,7 +68,7 @@ export interface IMdmProfilesResponse {
   profiles: IMdmProfile[] | null;
 }
 
-export type MacMdmProfileStatus = "success" | "pending" | "failed";
+export type MacMdmProfileStatus = "applied" | "pending" | "failed";
 export type MacMdmProfileOperationType = "remove" | "install";
 
 export type IHostMacMdmProfile = {

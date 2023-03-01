@@ -424,33 +424,7 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				BundleIdentifier: "com.apple.mail",
 			}, cpe: "cpe:2.3:a:apple:mail:16.0:*:*:*:*:macos:*:*",
 		},
-		{
-			software: fleet.Software{
-				Name:             "Microsoft Excel.app",
-				Source:           "apps",
-				Version:          "16.65",
-				Vendor:           "",
-				BundleIdentifier: "com.microsoft.Excel",
-			}, cpe: "cpe:2.3:a:microsoft:excel:16.65:*:*:*:*:macos:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:             "Microsoft PowerPoint.app",
-				Source:           "apps",
-				Version:          "16.65",
-				Vendor:           "",
-				BundleIdentifier: "com.microsoft.Powerpoint",
-			}, cpe: "cpe:2.3:a:microsoft:powerpoint:16.65:*:*:*:*:macos:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:             "Microsoft Word.app",
-				Source:           "apps",
-				Version:          "16.65",
-				Vendor:           "",
-				BundleIdentifier: "com.microsoft.Word",
-			}, cpe: "cpe:2.3:a:microsoft:word:16.65:*:*:*:*:macos:*:*",
-		},
+
 		{
 			software: fleet.Software{
 				Name:             "Music.app",
@@ -1140,6 +1114,31 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Source:           "chrome_extensions",
 				Version:          "0.10",
 				BundleIdentifier: "",
+			}, cpe: "",
+		},
+		// We don't use NVD to detect Mac Office vulnerabilities so all these should have an empty CPE
+		{
+			software: fleet.Software{
+				Name:             "Microsoft PowerPoint.app",
+				Source:           "apps",
+				Version:          "16.69.1",
+				BundleIdentifier: "com.microsoft.Powerpoint",
+			}, cpe: "",
+		},
+		{
+			software: fleet.Software{
+				Name:             "Microsoft Word.app",
+				Source:           "apps",
+				Version:          "16.69.1",
+				BundleIdentifier: "com.microsoft.Word",
+			}, cpe: "",
+		},
+		{
+			software: fleet.Software{
+				Name:             "Microsoft Excel.app",
+				Source:           "apps",
+				Version:          "16.69.1",
+				BundleIdentifier: "com.microsoft.Excel",
 			}, cpe: "",
 		},
 	}

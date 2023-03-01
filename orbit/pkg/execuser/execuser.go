@@ -4,6 +4,7 @@ package execuser
 
 type eopts struct {
 	env        [][2]string
+	args       [][2]string
 	stderrPath string //nolint:structcheck,unused
 }
 
@@ -14,6 +15,17 @@ type Option func(*eopts)
 func WithEnv(name, value string) Option {
 	return func(a *eopts) {
 		a.env = append(a.env, [2]string{name, value})
+	}
+}
+
+// WithArg sets command line arguments for the application.
+//
+// TODO: for now CLI arguments are only used by the darwin
+// implementation, just because it's the only platform that needs
+// them.
+func WithArg(name, value string) Option {
+	return func(a *eopts) {
+		a.args = append(a.args, [2]string{name, value})
 	}
 }
 

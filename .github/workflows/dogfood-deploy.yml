@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       DOCKER_IMAGE:
-        description: 'The full name of the docker image to be deployed. (e.g. fleetdm/fleet:v4.27.1)'
+        description: 'The full name of the docker image to be deployed. (e.g. fleetdm/fleet:v4.28.0)'
         required: true
 
 # This allows a subsequently queued workflow run to interrupt previous runs
@@ -49,11 +49,11 @@ jobs:
       - id: fail-on-main
         run: "false"
         if: ${{ github.ref == 'main' }}
-      - uses: aws-actions/configure-aws-credentials@v1
+      - uses: aws-actions/configure-aws-credentials@67fbcbb121271f7775d2e7715933280b06314838 # v1.7.0
         with:
           role-to-assume: ${{env.AWS_IAM_ROLE}}
           aws-region: ${{ env.AWS_REGION }}
-      - uses: hashicorp/setup-terraform@v2
+      - uses: hashicorp/setup-terraform@633666f66e0061ca3b725c73b2ec20cd13a8fdd1 # v2.0.3
         with:
           terraform_version: 1.0.4
           terraform_wrapper: false

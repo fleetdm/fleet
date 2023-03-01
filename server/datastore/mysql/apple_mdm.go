@@ -140,6 +140,46 @@ func (ds *Datastore) DeleteMDMAppleConfigProfile(ctx context.Context, profileID 
 	return nil
 }
 
+func (ds *Datastore) DeleteMDMAppleConfigProfileByTeamAndIdentifier(ctx context.Context, teamID uint, profileIdentifier string) error {
+	res, err := ds.writer.ExecContext(ctx, `DELETE FROM mdm_apple_configuration_profiles WHERE team_id = ? AND identifier = ?`, teamID, profileIdentifier)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err)
+	}
+
+	if deleted, _ := res.RowsAffected(); deleted == 0 {
+		message := fmt.Sprintf("identifier: %s, team_id: %d", profileIdentifier, teamID)
+		return ctxerr.Wrap(ctx, notFound("MDMAppleConfigProfile").WithMessage(message))
+	}
+
+	return nil
+}
+
+func (ds *Datastore) GetHostMDMProfiles(ctx context.Context, hostUUID string) ([]fleet.HostMDMAppleProfile, error) {
+	stmt := fmt.Sprintf(`
+SELECT 
+	hmap.profile_id,
+	name, 
+	status, 
+	operation_type, 
+	detail
+	
+FROM 
+	host_mdm_apple_profiles hmap
+JOIN
+	mdm_apple_configuration_profiles hmacp ON hmap.profile_id = hmacp.profile_id
+WHERE 
+	host_uuid = ? AND NOT (operation_type = '%s' AND status = '%s')`,
+		fleet.MDMAppleOperationTypeRemove,
+		fleet.MDMAppleDeliveryApplied,
+	)
+
+	var profiles []fleet.HostMDMAppleProfile
+	if err := sqlx.SelectContext(ctx, ds.reader, &profiles, stmt, hostUUID); err != nil {
+		return nil, err
+	}
+	return profiles, nil
+}
+
 func (ds *Datastore) NewMDMAppleEnrollmentProfile(
 	ctx context.Context,
 	payload fleet.MDMAppleEnrollmentProfilePayload,
@@ -393,10 +433,9 @@ func ingestMDMAppleDeviceFromCheckinDB(
 		return ctxerr.New(ctx, "ingest mdm apple host from checkin expected unique device id but got empty string")
 	}
 
-	stmt := `SELECT id, uuid, hardware_serial FROM hosts WHERE uuid = ? OR hardware_serial = ?`
-
-	var foundHost fleet.Host
-	err := sqlx.GetContext(ctx, tx, &foundHost, stmt, mdmHost.UDID, mdmHost.SerialNumber)
+	// MDM is necessarily enabled if this gets called, always pass true for that
+	// parameter.
+	matchID, _, err := matchHostDuringEnrollment(ctx, tx, true, "", mdmHost.UDID, mdmHost.SerialNumber)
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
 		return insertMDMAppleHostDB(ctx, tx, mdmHost, logger, appCfg)
@@ -405,8 +444,7 @@ func ingestMDMAppleDeviceFromCheckinDB(
 		return ctxerr.Wrap(ctx, err, "get mdm apple host by serial number or udid")
 
 	default:
-		return updateMDMAppleHostDB(ctx, tx, foundHost.ID, mdmHost, appCfg)
-
+		return updateMDMAppleHostDB(ctx, tx, matchID, mdmHost, appCfg)
 	}
 }
 
@@ -424,7 +462,7 @@ func updateMDMAppleHostDB(
 			hardware_model = ?,
 			platform =  ?,
 			refetch_requested = ?,
-			osquery_host_id = ?
+			osquery_host_id = COALESCE(NULLIF(osquery_host_id, ''), ?)
 		WHERE id = ?`
 
 	if _, err := tx.ExecContext(
@@ -435,9 +473,7 @@ func updateMDMAppleHostDB(
 		mdmHost.Model,
 		"darwin",
 		1,
-		// Set osquery_host_id to the device UUID mimicking what EnrollOrbit does.
-		// TODO: see https://github.com/fleetdm/fleet/issues/9033 for why this is
-		// not ideal, and improve the handling based on whatever is decided there.
+		// Set osquery_host_id to the device UUID only if it is not already set.
 		mdmHost.UDID,
 		hostID,
 	); err != nil {
@@ -904,7 +940,9 @@ func (ds *Datastore) ListMDMAppleProfilesToInstall(ctx context.Context) ([]*flee
               h.uuid as host_uuid,
               macp.identifier as profile_identifier
             FROM mdm_apple_configuration_profiles macp
-            LEFT JOIN hosts h ON h.team_id = macp.team_id OR (h.team_id IS NULL AND macp.team_id = 0)
+            JOIN hosts h ON h.team_id = macp.team_id OR (h.team_id IS NULL AND macp.team_id = 0)
+            JOIN nano_enrollments ne ON ne.device_id = h.uuid
+            WHERE h.platform = 'darwin' AND ne.enabled = 1
           ) as ds
           LEFT JOIN host_mdm_apple_profiles hmap
             ON hmap.profile_id = ds.profile_id AND hmap.host_uuid = ds.host_uuid
@@ -936,6 +974,8 @@ func (ds *Datastore) ListMDMAppleProfilesToRemove(ctx context.Context) ([]*fleet
             SELECT h.uuid, macp.profile_id
             FROM mdm_apple_configuration_profiles macp 
             JOIN hosts h ON h.team_id = macp.team_id OR (h.team_id IS NULL AND macp.team_id = 0)
+            JOIN nano_enrollments ne ON ne.device_id = h.uuid
+            WHERE h.platform = 'darwin' AND ne.enabled = 1
           ) as ds
           RIGHT JOIN host_mdm_apple_profiles hmap
             ON hmap.profile_id = ds.profile_id AND hmap.host_uuid = ds.uuid

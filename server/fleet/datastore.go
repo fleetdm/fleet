@@ -396,6 +396,11 @@ type Datastore interface {
 	ListSoftwareForVulnDetection(ctx context.Context, hostID uint) ([]Software, error)
 	ListSoftwareVulnerabilitiesByHostIDsSource(ctx context.Context, hostIDs []uint, source VulnerabilitySource) (map[uint][]SoftwareVulnerability, error)
 	LoadHostSoftware(ctx context.Context, host *Host, includeCVEScores bool) error
+
+	// ListSoftwareBySourceIter returns an iterator for consuming all software rows filtered by
+	// their 'source'.
+	ListSoftwareBySourceIter(ctx context.Context, sources []string) (SoftwareIterator, error)
+
 	AllSoftwareWithoutCPEIterator(ctx context.Context, excludedPlatforms []string) (SoftwareIterator, error)
 	AddCPEForSoftware(ctx context.Context, software Software, cpe string) error
 	ListSoftwareCPEs(ctx context.Context) ([]SoftwareCPE, error)
@@ -663,10 +668,10 @@ type Datastore interface {
 	// EnrollHost will enroll a new host with the given identifier, setting the node key, and team. Implementations of
 	// this method should respect the provided host enrollment cooldown, by returning an error if the host has enrolled
 	// within the cooldown period.
-	EnrollHost(ctx context.Context, osqueryHostId, nodeKey string, teamID *uint, cooldown time.Duration) (*Host, error)
+	EnrollHost(ctx context.Context, isMDMEnabled bool, osqueryHostId, hardwareUUID, hardwareSerial, nodeKey string, teamID *uint, cooldown time.Duration) (*Host, error)
 
 	// EnrollOrbit will enroll a new orbit host with the given uuid, setting the orbit node key
-	EnrollOrbit(ctx context.Context, hardwareUUID string, orbitNodeKey string, teamID *uint) (*Host, error)
+	EnrollOrbit(ctx context.Context, isMDMEnabled bool, hardwareUUID, hardwareSerial, orbitNodeKey string, teamID *uint) (*Host, error)
 
 	SerialUpdateHost(ctx context.Context, host *Host) error
 
@@ -712,9 +717,16 @@ type Datastore interface {
 	// For global config profiles, specify zero as the team id.
 	ListMDMAppleConfigProfiles(ctx context.Context, teamID *uint) ([]*MDMAppleConfigProfile, error)
 
-	// DeleteMDMAppleConfigProfile deleted the mdm config profile corresponding to the specified
-	// profile id.
+	// DeleteMDMAppleConfigProfile deletes the mdm config profile corresponding
+	// to the specified profile id.
 	DeleteMDMAppleConfigProfile(ctx context.Context, profileID uint) error
+
+	// DeleteMDMAppleConfigProfileByTeamAndIdentifier deletes a configuration
+	// profile using the unique key defined by `team_id` and `identifier`
+	DeleteMDMAppleConfigProfileByTeamAndIdentifier(ctx context.Context, teamID uint, profileIdentifier string) error
+
+	// GetHostMDMProfiles returns the MDM profile information for the specified host UUID.
+	GetHostMDMProfiles(ctx context.Context, hostUUID string) ([]HostMDMAppleProfile, error)
 
 	// NewMDMAppleEnrollmentProfile creates and returns new enrollment profile.
 	// Such enrollment profiles allow devices to enroll to Fleet MDM.

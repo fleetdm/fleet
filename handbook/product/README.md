@@ -253,7 +253,7 @@ There are two types of tooltips. The two types of tooltips have some unique styl
 
 ## Release 
 
-This section outlines the communication between the product team, growth team, product team,
+This section outlines the communication between the product team, marketing team, product team,
 and customer success team prior to a release of Fleet.
 
 ### Goal
@@ -261,13 +261,20 @@ and customer success team prior to a release of Fleet.
 Keep the business up to date with improvements and changes to the Fleet product so that all stakeholders can communicate
 with customers and users.
 
+### Product marketing tiers 
+After the kickoff of a product sprint, the marketing and product teams should decide which features are most important to highlight. When a feature gets scheduled for release the Tier helps marketing give it the biggest impact. Once the features have been discussed the next step is to bucket them into tiers for marketing prioritization. The current tiers are 1-3. 
+
+- Tier 1: A separate product feature announcement. The most important release types, these require a specific and custom marketing package. Usually including an individual blog post, a demo video and potentially a press release or official product marketing launch. Due to limited availability there is only room for one Tier 1 product announcement per release sprint.
+- Tier 2: A highlighted feature in the release notes. This product feature will be highlighted at the top of the Sprint Release blog post. Depending on the feature specifics this will include: a 1-2 paragraph write-up of the feature, a demo video (if applicable) and a link to the docs. Ideally there would be no more than 3 *Tier 2* features in a release post, otherwise the top features will be crowded.
+- Tier 3: A feature worth mentioning in the changelog. In most cases a product feature will fit into this Tier. This includes 1-2 sentences in the Changelog and release blog post. 
+
 ### Blog post
 
-The product team is responsible for providing the [growth team](../growth/README.md) with the necessary information for writing
+The product team is responsible for providing the [marketing team](../marketing/README.md) with the necessary information for writing
 the release blog post. This is accomplished by filing a release blog post issue and adding
 the issue to the growth board on GitHub.
 
-The release blog post issue includes a list of the primary features included in the upcoming
+The release blog post issue includes a list of the primary *Tier 2/3* features included in the upcoming
 release. This list of features should point the reader to the GitHub issue that explains each
 feature in more detail.
 
@@ -278,7 +285,6 @@ Find an example release blog post issue [here](https://github.com/fleetdm/fleet/
 The product team is responsible for providing the [customer success team](../customers/README.md) with the necessary information
 for writing a release customer announcement. This is accomplished by filing a release customer announcement issue and adding
 the issue to the customer success board on GitHub. 
-
 
 The release blog post issue is filed in the private fleetdm/confidential repository because the
 comment section may contain private information about Fleet's customers.
@@ -374,10 +380,11 @@ Directly Responsible Individuals (DRI) engage in the ritual(s) below at the freq
 
 | Ritual                       | Frequency                | Description                                         | DRI               |
 |:-----------------------------|:-----------------------------|:----------------------------------------------------|-------------------|
-| 🗣 Product Feature Requests  | Weekly (Tuesdays) | We make a decision regarding which customer and community feature requests can be committed to in the next six weeks. We create issues for any requests that don't already have one. | Mo Zhu |
-| 🗣️ Product Feature Requests prep and cleanup | Weekly (Tuesdays) | Every week a backup doc is created to accompany the 🗣️ Product Feature Requests event | Mo Zhu |
-| 🗣 Product Office Hours  | Weekly (Thursdays) | Ask questions to the product team | Mo Zhu |
+| 🗣 Product feature requests  | Weekly (Tuesdays) | We make a decision regarding which customer and community feature requests can be committed to in the next six weeks. We create issues for any requests that don't already have one. | Mo Zhu |
+| 🗣️ Product feature requests prep and cleanup | Weekly (Tuesdays) | Every week a backup doc is created to accompany the 🗣️ Product Feature Requests event | Mo Zhu |
+| 🗣 Product office hours  | Weekly (Thursdays) | Ask questions to the product team | Mo Zhu |
 | ✨ Product design review  | Weekly (Thursdays) | The Product team discusses "ready for review" items and makes the decision on whether the UI changes are ready for engineering specification and later implementation. | Noah Talerman |
+| Sprint release notes kick-off meeting | Triweekly (Wednesday) | Communicate high-value features from the current sprint to prepare release blog post and drumbeat social posts, etc in the leadup to release at the end of each sprint.  Marketing is responsible for getting what they need to publish and promote the release, including a great release post.  Product is responsible for helping marketing understand what is coming early enough that there is time to prepare.
 
 ## Slack channels
 

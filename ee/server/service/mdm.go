@@ -1,12 +1,15 @@
 package service
 
 import (
+	"bytes"
 	"context"
+	"encoding/base64"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	kitlog "github.com/go-kit/kit/log"
+	"github.com/google/uuid"
 	"github.com/micromdm/nanodep/storage"
 )
 
@@ -63,4 +66,81 @@ func getAppleBMAccountDetail(ctx context.Context, depStorage storage.AllStorage,
 		AppleID: res.AdminID,
 		OrgName: res.OrgName,
 	}, nil
+}
+
+func (svc *Service) MDMAppleDeviceLock(ctx context.Context, hostID uint) error {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return err
+	}
+
+	host, err := svc.ds.HostLite(ctx, hostID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "host lite")
+	}
+
+	// TODO: define and use right permissions according to the spec.
+	if err := svc.authz.Authorize(ctx, host, fleet.ActionWrite); err != nil {
+		return err
+	}
+
+	// TODO: save the pin (first return value) in the database
+	err = svc.mdmAppleCommander.DeviceLock(ctx, []string{host.UUID}, uuid.New().String())
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (svc *Service) MDMAppleEraseDevice(ctx context.Context, hostID uint) error {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return err
+	}
+
+	host, err := svc.ds.HostLite(ctx, hostID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "host lite")
+	}
+
+	// TODO: define and use right permissions according to the spec.
+	if err := svc.authz.Authorize(ctx, host, fleet.ActionWrite); err != nil {
+		return err
+	}
+
+	// TODO: save the pin (first return value) in the database
+	err = svc.mdmAppleCommander.EraseDevice(ctx, []string{host.UUID}, uuid.New().String())
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (svc *Service) MDMAppleEnableFileVaultAndEscrow(ctx context.Context, teamID uint) error {
+	cert, _, _, err := svc.config.MDM.AppleSCEP()
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "enabling FileVault")
+	}
+
+	var contents bytes.Buffer
+	params := fileVaultProfileOptions{
+		PayloadIdentifier:    apple_mdm.FleetFileVaultPayloadIdentifier,
+		Base64DerCertificate: base64.StdEncoding.EncodeToString(cert.Leaf.Raw),
+	}
+	if err := fileVaultProfileTemplate.Execute(&contents, params); err != nil {
+		return ctxerr.Wrap(ctx, err, "enabling FileVault")
+	}
+
+	mc := fleet.Mobileconfig(contents.Bytes())
+	cp, err := mc.ParseConfigProfile()
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "enabling FileVault")
+	}
+	cp.TeamID = &teamID
+
+	_, err = svc.ds.NewMDMAppleConfigProfile(ctx, *cp)
+	return ctxerr.Wrap(ctx, err, "enabling FileVault")
+}
+
+func (svc *Service) MDMAppleDisableFileVaultAndEscrow(ctx context.Context, teamID uint) error {
+	err := svc.ds.DeleteMDMAppleConfigProfileByTeamAndIdentifier(ctx, teamID, apple_mdm.FleetFileVaultPayloadIdentifier)
+	return ctxerr.Wrap(ctx, err, "disabling FileVault")
 }

@@ -1,5 +1,5 @@
 ---
-# The latest version of CIS Benchmarks for Windows 10 standalone is version 1.0.1
+# The latest version of CIS Benchmarks for Windows 10 Enterprise is version 1.12.0
 apiVersion: v1
 kind: policy
 spec:
@@ -15,7 +15,7 @@ spec:
   query: |
     SELECT 1 FROM security_profile_info WHERE password_history_size >= 24;
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-1.1.1
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_1.1.1
   contributors: marcosd4h
 ---
 apiVersion: v1
@@ -28,13 +28,12 @@ spec:
     This policy setting defines how long a user can use their password before it expires.
   resolution: |
     Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, set the
-    following UI path to 365 or fewer days, but not 0:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 365 or fewer days, but not 0:
     'Computer Configuration\Policies\Windows Settings\Security Settings\Account Policies\Password Policy\Maximum password age'
   query: |
     SELECT 1 FROM security_profile_info WHERE (maximum_password_age <= 365 AND maximum_password_age != 0);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-1.1.2
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_1.1.2
   contributors: marcosd4h
 ---
 apiVersion: v1
@@ -48,38 +47,36 @@ spec:
     change it. The range of values for this policy setting is between 1 and 999 days.
   resolution: |
     Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, set the
-    following UI path to 1 or more days:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 1 or more days:
     'Computer Configuration\Policies\Windows Settings\Security Settings\Account Policies\Password Policy\Minimum password age'
   query: |
     SELECT 1 FROM security_profile_info WHERE minimum_password_age >= 1;
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-1.1.3
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_1.1.3
   contributors: marcosd4h
 ---
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure 'Minimum password length' is set to '14 or more characters' 
+  name: CIS - Ensure 'Minimum password length' is set to '14 or more characters'
   platforms: win10
   platform: windows
   description: |
     This policy setting determines the least number of characters that make up a password for a user account.
   resolution: |
     Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, set the
-    following UI path to 14 or more characters
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 14 or more characters
     'Computer Configuration\Policies\Windows Settings\Security Settings\Account Policies\Password Policy\Minimum password length'
   query: |
     SELECT 1 FROM security_profile_info WHERE minimum_password_length >= 14;
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-1.1.4
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_1.1.4
   contributors: marcosd4h
 ---
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure 'Password must meet complexity requirements' is set to 'Enabled' 
+  name: CIS - Ensure 'Password must meet complexity requirements' is set to 'Enabled'
   platforms: win10
   platform: windows
   description: |
@@ -88,13 +85,12 @@ spec:
     discover with several publicly available tools.
   resolution: |
     Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, set the
-    following UI path to 'Enabled':
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'Enabled':
     'Computer Configuration\Policies\Windows Settings\Security Settings\Account Policies\Password Policy\Password must meet complexity requirements'
   query: |
     SELECT 1 FROM security_profile_info WHERE password_complexity = 1;
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-1.1.5
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_1.1.5
   contributors: marcosd4h
 ---
 apiVersion: v1
@@ -107,13 +103,12 @@ spec:
     This policy setting determines whether the minimum password length setting can be increased beyond the legacy limit of 14 characters.
   resolution: |
     Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, set the
-    following UI path to 'Enabled':
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'Enabled':
     'Computer Configuration\Policies\Windows Settings\Security Settings\Account Policies\Password Policy\Relax minimum password length limits'
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\SAM\\RelaxMinimumPasswordLengthLimits' AND data != 0);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-1.1.6
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_1.1.6
   contributors: marcosd4h
 ---
 apiVersion: v1
@@ -134,5 +129,806 @@ spec:
   query: |
     SELECT 1 FROM security_profile_info WHERE clear_text_password = 0;
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-win10-stand-alone-1.1.7
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_1.1.7
   contributors: marcosd4h
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Account lockout duration' is set to '15 or more minute(s)' (Automated)
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting determines the length of time that must pass before a locked account is unlocked and a user can try to log on again. The setting does this by specifying the number of minutes a locked out account will remain unavailable. If the value for this policy setting is configured to 0, locked out accounts will remain locked out until an administrator manually unlocks them.
+    Although it might seem like a good idea to configure the value for this policy setting to a high value, such a configuration will likely increase the number of calls that the help desk receives to unlock accounts locked by mistake. Users should be aware of the length of time a lock remains in place, so that they realize they only need to call the help desk if they have an extremely urgent need to regain access to their computer.
+    The recommended state for this setting is: 15 or more minute(s).
+    Note: Password Policy settings (section 1.1) and Account Lockout Policy settings (section 1.2) must be applied via the Default Domain Policy GPO in order to be globally in effect on domain user accounts as their default behavior. If these settings are configured in another GPO, they will only affect local user accounts on the computers that receive the GPO. However, custom exceptions to the default password policy and account lockout policy rules for specific domain users and/or groups can be defined using Password Settings Objects (PSOs), which are completely separate from Group Policy and most easily configured using Active Directory Administrative Center.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to '15 or more minute(s)':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Account Policies\Account Lockout Policy\Account lockout duration'
+  query: |
+    SELECT 1 FROM todo_add_query;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_1.2.1
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Account lockout threshold' is set to '5 or fewer invalid logon attempt(s), but not 0'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting determines the number of failed logon attempts before the account is locked. Setting this policy to 0 does not conform to the benchmark as doing so disables the account lockout threshold.
+    The recommended state for this setting is: 5 or fewer invalid logon attempt(s), but not 0.
+    Note: Password Policy settings (section 1.1) and Account Lockout Policy settings (section 1.2) must be applied via the Default Domain Policy GPO in order to be globally in effect on domain user accounts as their default behavior. If these settings are configured in another GPO, they will only affect local user accounts on the computers that receive the GPO. However, custom exceptions to the default password policy and account lockout policy rules for specific domain users and/or groups can be defined using Password Settings Objects (PSOs), which are completely separate from Group Policy and most easily configured using Active Directory Administrative Center.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to '5 or fewer invalid login attempt(s), but not 0':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Account Policies\Account Lockout Policy\Account lockout threshold'
+  query: |
+    SELECT 1 FROM todo_add_query;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_1.2.2
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Reset account lockout counter after' is set to '15 or more minute(s)' (Automated)
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting determines the length of time before the Account lockout threshold resets to zero. The default value for this policy setting is Not Defined. If the Account lockout threshold is defined, this reset time must be less than or equal to the value for the Account lockout duration setting.
+    If you leave this policy setting at its default value or configure the value to an interval that is too long, your environment could be vulnerable to a DoS attack. An attacker could maliciously perform a number of failed logon attempts on all users in the organization, which will lock out their accounts. If no policy were determined to reset the account lockout, it would be a manual task for administrators. Conversely, if a reasonable time value is configured for this policy setting, users would be locked out for a set period until all of the accounts are unlocked automatically.
+    The recommended state for this setting is: 15 or more minute(s).
+    Note: Password Policy settings (section 1.1) and Account Lockout Policy settings (section 1.2) must be applied via the Default Domain Policy GPO in order to be globally in effect on domain user accounts as their default behavior. If these settings are configured in another GPO, they will only affect local user accounts on the computers that receive the GPO. However, custom exceptions to the default password policy and account lockout policy rules for specific domain users and/or groups can be defined using Password Settings Objects (PSOs), which are completely separate from Group Policy and most easily configured using Active Directory Administrative Center.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to '15 or more minute(s)':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Account Policies\Account Lockout Policy\Reset account lockout counter after'
+  query: |
+    SELECT 1 FROM todo_add_query;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_1.2.3
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Access Credential Manager as a trusted caller' is set to 'No One'
+  platforms: win10
+  platform: windows
+  description: |
+    This security setting is used by Credential Manager during Backup and Restore. No accounts should have this user right, as it is only assigned to Winlogon. Users' saved credentials might be compromised if this user right is assigned to other entities.
+    The recommended state for this setting is: No One.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to an empty list of users:
+    'Computer Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Access Credential Manager as a trusted caller'
+  query: |
+    SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/UserRights/AccessCredentialManagerAsTrustedCaller</LocURI></Target></Item></Get></SyncBody>" 
+    AND mdm_command_output = "";
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.2.1
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Access this computer from the network' is set to 'Administrators, Remote Desktop Users'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting allows other users on the network to connect to the computer and is required by various network protocols that include Server Message Block (SMB)-based protocols, NetBIOS, Common Internet File System (CIFS), and Component Object Model Plus (COM+).
+    The recommended state for this setting is: Administrators, Remote Desktop Users.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to a list containing only 'Administrators' and 'Remote Desktop Users':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Access this computer from the network'
+  query: |
+    SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/UserRights/AccessFromNetwork</LocURI></Target></Item></Get></SyncBody>" 
+    AND mdm_command_output  LIKE "Administrators_REMOTE INTERACTIVE LOGON";
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.2.2, english-support-only
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Act as part of the operating system' is set to 'No One' (Automated)
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting allows a process to assume the identity of any user and thus gain access to the resources that the user is authorized to access.
+    The recommended state for this setting is: No One.
+    Note: This user right is considered a "sensitive privilege" for the purposes of auditing.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to an empty list of users:
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Act as part of the operating system'
+  query: |
+    SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Config/UserRights/ActAsPartOfTheOperatingSystem</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output = "";
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.2.3
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Adjust memory quotas for a process' is set to 'Administrators, LOCAL SERVICE, NETWORK SERVICE'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting allows a user to adjust the maximum amount of memory that is available to a process. The ability to adjust memory quotas is useful for system tuning, but it can be abused. In the wrong hands, it could be used to launch a denial of service (DoS) attack.
+    The recommended state for this setting is: Administrators, LOCAL SERVICE, NETWORK SERVICE.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to a list of only 'Administrators', 'LOCAL SERVICE' and 'NETWORK SERVICE':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Adjust memory quotas for a process'
+  query: |
+    SELECT 1 FROM todo_add_query;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.2.4, english-support-only
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Allow log on locally' is set to 'Administrators, Users'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting determines which users can interactively log on to computers in your environment. Logons that are initiated by pressing the CTRL+ALT+DEL key sequence on the client computer keyboard require this user right. Users who attempt to log on through Terminal Services / Remote Desktop Services or IIS also require this user right.
+    The recommended state for this setting is: Administrators, Users.
+    Note: The Guest account is also assigned this user right by default. Although this account is disabled by default, it's recommended that you configure this setting through Group Policy. However, this user right should generally be restricted to the Administrators and Users groups. Assign this user right to the Backup Operators group if your organization requires that they have this capability.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to a list containing only 'Administrators' and 'Users':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Allow log on locally'
+  query: |
+    SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/UserRights/AllowLocalLogOn</LocURI></Target></Item></Get></SyncBody>" 
+    AND 
+    (
+        mdm_command_output LIKE "Administrators_Users"
+        OR
+        mdm_command_output LIKE "Users_Administrators"
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.2.5, english-support-only
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Allow log on through Remote Desktop Services' is set to 'Administrators, Remote Desktop Users'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting determines which users or groups have the right to log on as a Remote Desktop Services client. If your organization uses Remote Assistance as part of its help desk strategy, create a group and assign it this user right through Group Policy. If the help desk in your organization does not use Remote Assistance, assign this user right only to the Administrators group or use the Restricted Groups feature to ensure that no user accounts are part of the Remote Desktop Users group.
+    Restrict this user right to the Administrators group, and possibly the Remote Desktop Users group, to prevent unwanted users from gaining access to computers on your network by means of the Remote Assistance feature.
+    The recommended state for this setting is: Administrators, Remote Desktop Users. Note: The above list is to be treated as a whitelist, which implies that the above
+    principals need not be present for assessment of this recommendation to pass.
+    Note #2: In all versions of Windows prior to Windows 7, Remote Desktop Services was known as Terminal Services, so you should substitute the older term if comparing against an older OS.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'Administrators, Remote Desktop Users':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Allow log on through Remote Desktop Services'
+  query: |
+    SELECT 1 FROM todo_add_query;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.2.6, english-support-only
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Back up files and directories' is set to 'Administrators'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting allows users to circumvent file and directory permissions to back up the system. This user right is enabled only when an application (such as NTBACKUP) attempts to access a file or directory through the NTFS file system backup application programming interface (API). Otherwise, the assigned file and directory permissions apply.
+    The recommended state for this setting is: Administrators.
+    Note: This user right is considered a "sensitive privilege" for the purposes of auditing.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to a list containing only 'Administrators':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Back up files and directories'
+  query: |
+    SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/UserRights/BackupFilesAndDirectories</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output = "Administrators";
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.2.7, english-support-only
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Accounts Administrator account status' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting enables or disables the Administrator account during normal operation.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'Disabled':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\Accounts: Administrator account status'
+  query: |
+    SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/LocalPoliciesSecurityOptions/Accounts_EnableAdministratorAccountStatus</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output == 0;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.1.1
+  contributors: marcosd4h
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Accounts Block Microsoft accounts' is set to 'Users can't add or log on with Microsoft accounts'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting prevents users from adding new Microsoft accounts on this computer.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'Users can't add or log on with Microsoft account':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\Accounts: Block Microsoft accounts'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System\\NoConnectedUser' AND data == 3);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.1.2
+  contributors: marcosd4h
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Accounts Guest account status' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting determines whether the Guest account is enabled or disabled. The Guest account allows unauthenticated network users to gain access to the system.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'Disabled':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\Accounts: Guest account status'
+  query: |
+    SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/LocalPoliciesSecurityOptions/Accounts_EnableGuestAccountStatus</LocURI></Target></Item></Get></SyncBody>" and mdm_command_output == 0;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.1.3
+  contributors: marcosd4h
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Accounts Limit local account use of blank passwords to console logon only' is set to 'Enabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting determines whether local accounts that are not password protected can be used to log on from locations other than the physical computer console.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'Enabled':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\Accounts: Limit local account use of blank passwords to console logon only'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\Lsa\\LimitBlankPasswordUse' AND data == 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.1.4
+  contributors: marcosd4h
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Configure 'Accounts Rename administrator account'
+  platforms: win10
+  platform: windows
+  description: |
+    The built-in local administrator account is a well-known account name that attackers will
+    target. It is recommended to choose another name for this account, and to avoid names that
+    denote administrative or elevated access accounts.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to value different than 'Administrator':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\Accounts: Rename administrator account'
+  query: |
+    SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/LocalPoliciesSecurityOptions/Accounts_RenameAdministratorAccount</LocURI></Target></Item></Get></SyncBody>" and mdm_command_output != "Administrator";
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.1.5
+  contributors: marcosd4h
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Configure 'Accounts Rename guest account'
+  platforms: win10
+  platform: windows
+  description: |
+    The built-in local guest account is another well-known name to attackers. It is recommended to
+    rename this account to something that does not indicate its purpose. Even if you disable this
+    account, which is recommended, ensure that you rename it for added security.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to value different than 'Guest':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\Accounts: Rename guest account'
+  query: |
+    SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/LocalPoliciesSecurityOptions/Accounts_RenameGuestAccount</LocURI></Target></Item></Get></SyncBody>" and mdm_command_output != "Guest";
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.1.6
+  contributors: marcosd4h
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Audit Force audit policy subcategory settings (Windows Vista or later) to override audit policy category settings' is set to 'Enabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting allows administrators to enable the more precise auditing capabilities.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'Enabled':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\Audit: Force audit policy subcategory settings (Windows Vista or later) to override audit policy category settings'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\Lsa\\SCENoApplyLegacyAuditPolicy' AND data == 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.2.1
+  contributors: marcosd4h
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Audit Shut down system immediately if unable to log security audits' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting determines whether the system shuts down if it is unable to log Security
+    events. It is a requirement for Trusted Computer System Evaluation Criteria (TCSEC)-C2 and
+    Common Criteria certification to prevent auditable events from occurring if the audit system is
+    unable to log them.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'Disabled':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\Audit: Shut down system immediately if unable to log security audits'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\Lsa\\crashonauditfail' AND data == 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.2.2
+  contributors: marcosd4h
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Devices Prevent users from installing printer drivers' is set to 'Enabled'
+  platforms: win10
+  platform: windows
+  description: |
+    For a computer to print to a shared printer, the driver for that shared printer must be
+    installed on the local computer. This security setting determines who is allowed to install a
+    printer driver as part of connecting to a shared printer.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'Enabled':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\Devices: Prevent users from installing printer drivers'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\Print\\Providers\\LanManPrint Services\\Servers\\AddPrinterDrivers' AND data == 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.4.1
+  contributors: marcosd4h
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Interactive logon Do not require CTRL+ALT+DEL' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting determines whether users must press CTRL+ALT+DEL before they log on.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'Disabled':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\Interactive logon: Do not require CTRL+ALT+DEL'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System\\DisableCAD' AND data == 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.7.1
+  contributors: marcosd4h
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Interactive logon Don't display last signed-in' is set to 'Enabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting determines whether the account name of the last user to log on to the client
+    computers in your organization will be displayed in each computer's respective Windows logon
+    screen.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'Enabled':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\Interactive logon: Don't display last signed-in'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System\\dontdisplaylastusername' AND data == 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.7.2
+  contributors: marcosd4h
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Interactive logon Machine account lockout threshold' is set to '10 or fewer invalid logon attempts, but not 0'
+  platforms: win10
+  platform: windows
+  description: |
+    This security setting determines the number of failed logon attempts that causes the machine to be locked out.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to '10 or fewer invalid logon attempts, but not 0':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\Interactive logon: Machine account lockout threshold'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System\\MaxDevicePasswordFailedAttempts' AND data <= 10 AND data != 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.7.3
+  contributors: marcosd4h
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Interactive logon Machine inactivity limit' is set to '900 or fewer second(s), but not 0'
+  platforms: win10
+  platform: windows
+  description: |
+    Windows notices inactivity of a logon session, and if the amount of inactive time exceeds the inactivity limit, then the screen saver will run, locking the session.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to '900 or fewer seconds, but not 0':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\Interactive logon: Machine inactivity limit'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System\\InactivityTimeoutSecs' AND data <= 900 AND data != 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.7.4
+  contributors: marcosd4h
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Configure 'Interactive logon Message text for users attempting to log on'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting specifies a text message that displays to users when they log on. Set the
+    following group policy to a value that is consistent with the security and operational
+    requirements of your organization.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to a value that is consistent with the security and operational requirements
+    of your organization:
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\Interactive logon: Message text for users attempting to log on'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System\\legalnoticetext' AND data != "");
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.7.5
+  contributors: marcosd4h
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Configure 'Interactive logon Message title for users attempting to log on'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting specifies the text displayed in the title bar of the window that users see
+    when they log on to the system. Configure this setting in a manner that is consistent with the
+    security and operational requirements of your organization.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to a value that is consistent with the security and operational requirements
+    of your organization:
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\Interactive logon: Message title for users attempting to log on'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System\\legalnoticecaption' AND data != "");
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.7.6
+  contributors: marcosd4h
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Interactive logon Prompt user to change password before expiration' is set to 'between 5 and 14 days'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting specifies the text displayed in the title bar of the window that users see
+    when they log on to the system. Configure this setting in a manner that is consistent with the
+    security and operational requirements of your organization.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to a value 'between 5 and 14 days':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\Interactive logon: Prompt user to change password before expiration'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon\\PasswordExpiryWarning' AND CAST(data AS INTEGER) >= 5 AND CAST(data AS INTEGER) <= 14);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.7.7
+  contributors: marcosd4h
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Interactive logon Smart card removal behavior' is set to 'Lock Workstation' or higher
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting determines what happens when the smart card for a logged-on user is removed from the smart card reader.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the
+    following UI path to 'Lock Workstation (or, if applicable for your environment, Force Logoff or Disconnect if a Remote Desktop Services session)':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\Interactive logon: Smart card removal behavior'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon\\scremoveoption' AND CAST(data AS INTEGER) >= 1 AND CAST(data AS INTEGER) <= 3);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.7.8
+  contributors: marcosd4h
+---
+# apiVersion: v1
+# kind: policy
+# spec:
+#   name: >
+#     CIS - Ensure 'Network access : Allow anonymous SID/Name translation' is set to 'Disabled' (Automated)
+#   platforms: win10
+#   platform: windows
+#   description: |
+#     This policy setting determines whether an anonymous user can request security identifier
+#     (SID) attributes for another user, or use a SID to obtain its corresponding user name.
+#     The recommended state for this setting is: Disabled.
+#   resolution: |
+#     To establish the recommended configuration via GP, set the following UI path to Disabled:
+#     'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\Network access: Allow anonymous SID/Name translation'
+#   query: |
+#     TODO: See ./test/debug/CIS_2.3.10.1.txt for more information
+#   purpose: Informational
+#   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.10.1
+#   contributors: rachelelysia
+# ---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Network access: Do not allow anonymous enumeration of SAM accounts' is set to 'Enabled' (Automated)
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting controls the ability of anonymous users to enumerate the accounts in
+    the Security Accounts Manager (SAM). If you enable this policy setting, users with
+    anonymous connections will not be able to enumerate domain account user names on the
+    systems in your environment. This policy setting also allows additional restrictions on
+    anonymous connections.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\Network access: Do not allow anonymous enumeration of SAM accounts'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\Lsa\restrictanonymoussam' AND data != 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.10.2
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Network access: Do not allow anonymous enumeration of SAM accounts and shares' is set to 'Enabled' (Automated)
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting controls the ability of anonymous users to enumerate SAM accounts as
+    well as shares. If you enable this policy setting, anonymous users will not be able to
+    enumerate domain account user names and network share names on the systems in your
+    environment.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\Network access: Do not allow anonymous enumeration of SAM accounts and shares'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\Lsa\restrictanonymous' AND data != 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.10.3
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Network access: Do not allow storage of passwords and credentials for network authentication' is set to 'Enabled' (Automated)
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting determines whether Credential Manager (formerly called Stored User
+    Names and Passwords) saves passwords or credentials for later use when it gains domain
+    authentication.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\Network access: Do not allow storage of passwords and credentials for network authentication'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\Lsa\disabledomaincreds' AND data != 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.10.4
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Network access: Let Everyone permissions apply to anonymous users' is set to 'Disabled' (Automated)
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting determines what additional permissions are assigned for anonymous
+    connections to the computer.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Disabled:
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\Network access: Let Everyone permissions apply to anonymous users'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\Lsa\everyoneincludesanonymous' AND data == 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.10.5
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Network access: Named Pipes that can be accessed anonymously' is set to 'None' (Automated)
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting determines which communication sessions, or pipes, will have attributes
+    and permissions that allow anonymous access.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to <blank>
+    (i.e. None):
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\Network access: Named Pipes that can be accessed anonymously'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\LanManServer\\Parameters\NullSessionPipes' and data == '');
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.10.6
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Network access: Remotely accessible registry paths' is configured (Automated)
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting determines which registry paths will be accessible over the network,
+    regardless of the users or groups listed in the access control list (ACL) of the winreg
+    registry key.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to:
+    System\CurrentControlSet\Control\ProductOptions
+    System\CurrentControlSet\Control\Server Applications
+    SOFTWARE\Microsoft\Windows NT\CurrentVersion
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\Network access: Remotely accessible registry paths'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\SecurePipeServers\\Winreg\\AllowedExactPaths\Machine' and data == 'System\CurrentControlSet\Control\ProductOptions,System\CurrentControlSet\Control\Server Applications,Software\Microsoft\Windows NT\CurrentVersion');
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.10.7
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Network access: Remotely accessible registry paths and sub-paths' is configured (Automated)
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting determines which registry paths and sub-paths will be accessible over
+    the network, regardless of the users or groups listed in the access control list (ACL) of the
+    winreg registry key.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to:
+    System\CurrentControlSet\Control\Print\Printers
+    System\CurrentControlSet\Services\Eventlog
+    SOFTWARE\Microsoft\OLAP Server
+    SOFTWARE\Microsoft\Windows NT\CurrentVersion\Print
+    SOFTWARE\Microsoft\Windows NT\CurrentVersion\Windows
+    System\CurrentControlSet\Control\ContentIndex
+    System\CurrentControlSet\Control\Terminal Server
+    System\CurrentControlSet\Control\Terminal Server\UserConfig
+    System\CurrentControlSet\Control\Terminal Server\DefaultUserConfiguration
+    SOFTWARE\Microsoft\Windows NT\CurrentVersion\Perflib
+    System\CurrentControlSet\Services\SysmonLog
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\Network access: Remotely accessible registry paths and sub-paths'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\SecurePipeServers\\Winreg\\AllowedPaths\Machine' and data == 'System\CurrentControlSet\Control\Print\Printers,System\CurrentControlSet\Services\Eventlog,Software\Microsoft\OLAP Server,Software\Microsoft\Windows NT\CurrentVersion\Print,Software\Microsoft\Windows NT\CurrentVersion\Windows,System\CurrentControlSet\Control\ContentIndex,System\CurrentControlSet\Control\Terminal Server,System\CurrentControlSet\Control\Terminal Server\UserConfig,System\CurrentControlSet\Control\Terminal Server\DefaultUserConfiguration,Software\Microsoft\Windows NT\CurrentVersion\Perflib,System\CurrentControlSet\Services\SysmonLog');
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.10.8
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Network access: Restrict anonymous access to Named Pipes and Shares' is set to 'Enabled' (Automated)
+  platforms: win10
+  platform: windows
+  description: |
+    When enabled, this policy setting restricts anonymous access to only those shares and
+    pipes that are named in the Network access: Named pipes that can be accessed
+    anonymously and Network access: Shares that can be accessed anonymously settings.
+    This policy setting controls null session access to shares on your computers by adding
+    RestrictNullSessAccess with the value 1 in the
+    HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\LanManServer\Parameters
+    registry key. This registry value toggles null session shares on or off to control whether the
+    server service restricts unauthenticated clients' access to named resources.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\Network access: Restrict anonymous access to Named Pipes and Shares'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\LanManServer\\Parameters\restrictnullsessaccess' and data == '1');
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.10.9
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Network access: Restrict clients allowed to make remote calls to SAM' is set to 'Administrators: Remote Access: Allow' (Automated)
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting allows you to restrict remote RPC connections to SAM.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to
+    Administrators: Remote Access: Allow:
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\Network access: Restrict clients allowed to make remote calls to SAM'
+  query: |
+SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\Lsa\RestrictRemoteSAM' and (data == '' or data == 'O:BAG:BAD:'));
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.10.10
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Network access: Shares that can be accessed anonymously' is set to 'None' (Automated)
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting determines which network shares can be accessed by anonymous users.
+    The default configuration for this policy setting has little effect because all users have to be
+    authenticated before they can access shared resources on the server.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to <blank>
+    (i.e. None):
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\Network access: Shares that can be accessed anonymously'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\LanManServer\\Parameters\NullSessionShares' and data == '');
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.10.11
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Network access: Sharing and security model for local accounts' is set to 'Classic - local users authenticate as themselves' (Automated)
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting determines how network logons that use local accounts are
+    authenticated. The Classic option allows precise control over access to resources, including
+    the ability to assign different types of access to different users for the same resource. The
+    Guest only option allows you to treat all users equally. In this context, all users authenticate
+    as Guest only to receive the same access level to a given resource.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Classic -
+    local users authenticate as themselves:
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\Network access: Sharing and security model for local accounts'
+  query: |
+        SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\Lsa\forceguest' AND data == 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.10.12
+  contributors: rachelelysia
+---
+

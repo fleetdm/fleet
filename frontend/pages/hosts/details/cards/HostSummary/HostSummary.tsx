@@ -8,14 +8,12 @@ import DiskSpaceGraph from "components/DiskSpaceGraph";
 import HumanTimeDiffWithDateTip from "components/HumanTimeDiffWithDateTip";
 import { humanHostMemory, wrapFleetHelper } from "utilities/helpers";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
-import {
-  getHostStatusTooltipText,
-  getMacSettingsStatus,
-} from "pages/hosts/helpers";
 import StatusIndicator from "components/StatusIndicator";
 import { IMacSettings } from "interfaces/mdm";
+import getHostStatusTooltipText from "pages/hosts/helpers";
 import IssueIcon from "../../../../../../assets/images/icon-issue-fleet-black-50-16x16@2x.png";
-import MacSettingsIndicator from "../../MacSettingsIndicator";
+import MacSettingsIndicator from "./MacSettingsIndicator";
+import HostSummaryIndicator from "./HostSummaryIndicator";
 
 const baseClass = "host-summary";
 
@@ -140,41 +138,6 @@ const HostSummary = ({
     </div>
   );
 
-  const renderMacSettingsIndicator = () => {
-    const STATUS_DISPLAY_OPTIONS = {
-      Latest: {
-        iconName: "success",
-        tooltipText: "Host applied the latest settings",
-      },
-      Pending: {
-        iconName: "pending",
-        tooltipText: "Host will apply the latest settings when it comes online",
-      },
-      Failing: {
-        iconName: "error",
-        tooltipText:
-          "Host failed to apply the latest settings. Click to view error(s).",
-      },
-    } as const;
-
-    const macSettingsStatus = getMacSettingsStatus(hostMacSettings);
-
-    const iconName = STATUS_DISPLAY_OPTIONS[macSettingsStatus].iconName;
-    const tooltipText = STATUS_DISPLAY_OPTIONS[macSettingsStatus].tooltipText;
-
-    return (
-      <div className="info-flex__item info-flex__item--title">
-        <span className="info-flex__header">macOS settings</span>
-        <MacSettingsIndicator
-          indicatorText={macSettingsStatus}
-          iconName={iconName}
-          onClick={toggleMacSettingsModal}
-          tooltip={{ tooltipText }}
-        />
-      </div>
-    );
-  };
-
   const renderSummary = () => {
     const { status, id } = titleData;
     return (
@@ -200,8 +163,14 @@ const HostSummary = ({
         {titleData.platform === "darwin" &&
           isPremiumTier &&
           mdmName === "Fleet" && // show if 1 - host is enrolled in Fleet MDM, and
-          hostMacSettings && //  2 - host has at least one setting (profile) enforced
-          renderMacSettingsIndicator()}
+          hostMacSettings && ( //  2 - host has at least one setting (profile) enforced
+            <HostSummaryIndicator title="macOS settings">
+              <MacSettingsIndicator
+                profiles={hostMacSettings}
+                onClick={toggleMacSettingsModal}
+              />
+            </HostSummaryIndicator>
+          )}
 
         <div className="info-flex__item info-flex__item--title">
           <span className="info-flex__header">Disk space</span>

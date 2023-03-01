@@ -467,6 +467,146 @@ func mcBytesForTest(name, identifier, uuid string) []byte {
 `, name, identifier, uuid))
 }
 
+func TestHostDetailsMDMProfiles(t *testing.T) {
+	svc, ctx, ds := setupAppleMDMService(t)
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+
+	expected := []fleet.HostMDMAppleProfile{
+		{HostUUID: "H057-UU1D-1337", Name: "NAME-5", ProfileID: uint(5), CommandUUID: "CMD-UU1D-5", Status: &fleet.MDMAppleDeliveryPending, OperationType: fleet.MDMAppleOperationTypeInstall, Detail: ""},
+		{HostUUID: "H057-UU1D-1337", Name: "NAME-9", ProfileID: uint(8), CommandUUID: "CMD-UU1D-8", Status: &fleet.MDMAppleDeliveryApplied, OperationType: fleet.MDMAppleOperationTypeInstall, Detail: ""},
+		{HostUUID: "H057-UU1D-1337", Name: "NAME-13", ProfileID: uint(13), CommandUUID: "CMD-UU1D-13", Status: &fleet.MDMAppleDeliveryFailed, OperationType: fleet.MDMAppleOperationTypeRemove, Detail: "Error removing profile"},
+	}
+	expectedByProfileID := make(map[uint]fleet.HostMDMAppleProfile)
+	for _, ep := range expected {
+		expectedByProfileID[ep.ProfileID] = ep
+	}
+
+	ds.GetHostMDMProfilesFunc = func(ctx context.Context, hostUUID string) ([]fleet.HostMDMAppleProfile, error) {
+		if hostUUID == "H057-UU1D-1337" {
+			return expected, nil
+		}
+		return []fleet.HostMDMAppleProfile{}, nil
+	}
+	ds.HostFunc = func(ctx context.Context, hostID uint) (*fleet.Host, error) {
+		if hostID == uint(42) {
+			return &fleet.Host{ID: uint(42), UUID: "H057-UU1D-1337"}, nil
+		}
+		return &fleet.Host{ID: hostID, UUID: "WR0N6-UU1D"}, nil
+	}
+	ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
+		if identifier == "h0571d3n71f13r" {
+			return &fleet.Host{ID: uint(42), UUID: "H057-UU1D-1337"}, nil
+		}
+		return &fleet.Host{ID: uint(21), UUID: "WR0N6-UU1D"}, nil
+	}
+	ds.LoadHostSoftwareFunc = func(ctx context.Context, host *fleet.Host, includeCVEScores bool) error {
+		return nil
+	}
+	ds.ListLabelsForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Label, error) {
+		return nil, nil
+	}
+	ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) (packs []*fleet.Pack, err error) {
+		return nil, nil
+	}
+	ds.ListHostBatteriesFunc = func(ctx context.Context, id uint) ([]*fleet.HostBattery, error) {
+		return nil, nil
+	}
+	ds.ListPoliciesForHostFunc = func(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
+		return nil, nil
+	}
+
+	expectedNilSlice := []fleet.HostMDMAppleProfile(nil)
+	expectedEmptySlice := []fleet.HostMDMAppleProfile{}
+
+	cases := []struct {
+		name           string
+		mdmEnabled     bool
+		hostID         *uint
+		hostIdentifier *string
+		expected       *[]fleet.HostMDMAppleProfile
+	}{
+		{
+			name:           "TestGetHostMDMProfilesOK",
+			mdmEnabled:     true,
+			hostID:         ptr.Uint(42),
+			hostIdentifier: nil,
+			expected:       &expected,
+		},
+		{
+			name:           "TestGetHostMDMProfilesEmpty",
+			mdmEnabled:     true,
+			hostID:         ptr.Uint(21),
+			hostIdentifier: nil,
+			expected:       &expectedEmptySlice,
+		},
+		{
+			name:           "TestGetHostMDMProfilesNil",
+			mdmEnabled:     false,
+			hostID:         ptr.Uint(42),
+			hostIdentifier: nil,
+			expected:       &expectedNilSlice,
+		},
+		{
+			name:           "TestHostByIdentifierMDMProfilesOK",
+			mdmEnabled:     true,
+			hostID:         nil,
+			hostIdentifier: ptr.String("h0571d3n71f13r"),
+			expected:       &expected,
+		},
+		{
+			name:           "TestHostByIdentifierMDMProfilesNil",
+			mdmEnabled:     false,
+			hostID:         nil,
+			hostIdentifier: ptr.String("h0571d3n71f13r"),
+			expected:       &expectedNilSlice,
+		},
+		{
+			name:           "TestHostByIdentifierMDMProfilesEmpty",
+			mdmEnabled:     true,
+			hostID:         nil,
+			hostIdentifier: ptr.String("4n07h3r1d3n71f13r"),
+			expected:       &expectedEmptySlice,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			ds.AppConfigFunc = func(context.Context) (*fleet.AppConfig, error) {
+				return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: c.mdmEnabled}}, nil
+			}
+			ds.AppConfigFuncInvoked = false
+			ds.HostFuncInvoked = false
+			ds.HostByIdentifierFuncInvoked = false
+			ds.GetHostMDMProfilesFuncInvoked = false
+
+			var gotHost *fleet.HostDetail
+			if c.hostID != nil {
+				h, err := svc.GetHost(ctx, *c.hostID, fleet.HostDetailOptions{})
+				require.NoError(t, err)
+				require.True(t, ds.HostFuncInvoked)
+				gotHost = h
+			}
+			if c.hostIdentifier != nil {
+				h, err := svc.HostByIdentifier(ctx, *c.hostIdentifier, fleet.HostDetailOptions{})
+				require.NoError(t, err)
+				require.True(t, ds.HostByIdentifierFuncInvoked)
+				gotHost = h
+			}
+			require.NotNil(t, gotHost)
+			require.True(t, ds.AppConfigFuncInvoked)
+
+			if !c.mdmEnabled {
+				require.Equal(t, gotHost.MDM.Profiles, c.expected)
+				return
+			}
+
+			require.True(t, ds.GetHostMDMProfilesFuncInvoked)
+			require.NotNil(t, gotHost.MDM.Profiles)
+			require.ElementsMatch(t, *c.expected, *gotHost.MDM.Profiles)
+		})
+	}
+}
+
 func TestAppleMDMEnrollmentProfile(t *testing.T) {
 	svc, ctx, _ := setupAppleMDMService(t)
 
@@ -801,7 +941,6 @@ func TestMDMCommandAndReportResultsProfileHandling(t *testing.T) {
 		require.True(t, ds.GetMDMAppleCommandRequestTypeFuncInvoked)
 		require.True(t, ds.UpdateHostMDMAppleProfileFuncInvoked)
 	}
-
 }
 
 func TestMDMBatchSetAppleProfiles(t *testing.T) {
@@ -1020,6 +1159,47 @@ func TestMDMBatchSetAppleProfiles(t *testing.T) {
 			},
 			``,
 		},
+		{
+			"unsupported payload type",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+			false,
+			nil,
+			nil,
+			[][]byte{[]byte(`<?xml version="1.0" encoding="UTF-8"?>
+			<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+			<plist version="1.0">
+			<dict>
+				<key>PayloadContent</key>
+				<array>
+					<dict>
+						<key>Enable</key>
+						<string>On</string>
+						<key>PayloadDisplayName</key>
+						<string>FileVault 2</string>
+						<key>PayloadIdentifier</key>
+						<string>com.apple.MCX.FileVault2.A5874654-D6BA-4649-84B5-43847953B369</string>
+						<key>PayloadType</key>
+						<string>com.apple.MCX.FileVault2</string>
+						<key>PayloadUUID</key>
+						<string>A5874654-D6BA-4649-84B5-43847953B369</string>
+						<key>PayloadVersion</key>
+						<integer>1</integer>
+					</dict>
+				</array>
+				<key>PayloadDisplayName</key>
+				<string>Config Profile Name</string>
+				<key>PayloadIdentifier</key>
+				<string>com.example.config.FE42D0A2-DBA9-4B72-BC67-9288665B8D59</string>
+				<key>PayloadType</key>
+				<string>Configuration</string>
+				<key>PayloadUUID</key>
+				<string>FE42D0A2-DBA9-4B72-BC67-9288665B8D59</string>
+				<key>PayloadVersion</key>
+				<integer>1</integer>
+			</dict>
+			</plist>`)},
+			"unsupported PayloadType(s)",
+		},
 	}
 
 	for _, tt := range testCases {
@@ -1079,7 +1259,6 @@ func TestMDMAppleCommander(t *testing.T) {
 		pushes := make(map[string]*mdm.Push, len(targetUUIDs))
 		for _, uuid := range targetUUIDs {
 			pushes[uuid] = &mdm.Push{
-
 				PushMagic: "magic" + uuid,
 				Token:     []byte("token" + uuid),
 				Topic:     "topic" + uuid,
@@ -1240,7 +1419,16 @@ func TestMDMAppleReconcileProfiles(t *testing.T) {
 	require.True(t, ds.ListMDMAppleProfilesToRemoveFuncInvoked)
 	require.True(t, ds.GetMDMAppleProfilesContentsFuncInvoked)
 	require.True(t, ds.BulkUpsertMDMAppleHostProfilesFuncInvoked)
+}
 
+func TestAppleMDMFileVaultEscrowFunctions(t *testing.T) {
+	svc := Service{}
+
+	err := svc.MDMAppleEnableFileVaultAndEscrow(context.Background(), uint(1))
+	require.ErrorIs(t, fleet.ErrMissingLicense, err)
+
+	err = svc.MDMAppleDisableFileVaultAndEscrow(context.Background(), uint(1))
+	require.ErrorIs(t, fleet.ErrMissingLicense, err)
 }
 
 func mobileconfigForTest(name, identifier string) []byte {

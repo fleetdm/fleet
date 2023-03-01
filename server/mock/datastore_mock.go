@@ -311,6 +311,8 @@ type ListSoftwareVulnerabilitiesByHostIDsSourceFunc func(ctx context.Context, ho
 
 type LoadHostSoftwareFunc func(ctx context.Context, host *fleet.Host, includeCVEScores bool) error
 
+type ListSoftwareBySourceIterFunc func(ctx context.Context, sources []string) (fleet.SoftwareIterator, error)
+
 type AllSoftwareWithoutCPEIteratorFunc func(ctx context.Context, excludedPlatforms []string) (fleet.SoftwareIterator, error)
 
 type AddCPEForSoftwareFunc func(ctx context.Context, software fleet.Software, cpe string) error
@@ -479,9 +481,9 @@ type ReplaceHostBatteriesFunc func(ctx context.Context, id uint, mappings []*fle
 
 type VerifyEnrollSecretFunc func(ctx context.Context, secret string) (*fleet.EnrollSecret, error)
 
-type EnrollHostFunc func(ctx context.Context, osqueryHostId string, nodeKey string, teamID *uint, cooldown time.Duration) (*fleet.Host, error)
+type EnrollHostFunc func(ctx context.Context, isMDMEnabled bool, osqueryHostId string, hardwareUUID string, hardwareSerial string, nodeKey string, teamID *uint, cooldown time.Duration) (*fleet.Host, error)
 
-type EnrollOrbitFunc func(ctx context.Context, hardwareUUID string, orbitNodeKey string, teamID *uint) (*fleet.Host, error)
+type EnrollOrbitFunc func(ctx context.Context, isMDMEnabled bool, hardwareUUID string, hardwareSerial string, orbitNodeKey string, teamID *uint) (*fleet.Host, error)
 
 type SerialUpdateHostFunc func(ctx context.Context, host *fleet.Host) error
 
@@ -512,6 +514,10 @@ type GetMDMAppleConfigProfileFunc func(ctx context.Context, profileID uint) (*fl
 type ListMDMAppleConfigProfilesFunc func(ctx context.Context, teamID *uint) ([]*fleet.MDMAppleConfigProfile, error)
 
 type DeleteMDMAppleConfigProfileFunc func(ctx context.Context, profileID uint) error
+
+type DeleteMDMAppleConfigProfileByTeamAndIdentifierFunc func(ctx context.Context, teamID uint, profileIdentifier string) error
+
+type GetHostMDMProfilesFunc func(ctx context.Context, hostUUID string) ([]fleet.HostMDMAppleProfile, error)
 
 type NewMDMAppleEnrollmentProfileFunc func(ctx context.Context, enrollmentPayload fleet.MDMAppleEnrollmentProfilePayload) (*fleet.MDMAppleEnrollmentProfile, error)
 
@@ -1004,6 +1010,9 @@ type DataStore struct {
 	LoadHostSoftwareFunc        LoadHostSoftwareFunc
 	LoadHostSoftwareFuncInvoked bool
 
+	ListSoftwareBySourceIterFunc        ListSoftwareBySourceIterFunc
+	ListSoftwareBySourceIterFuncInvoked bool
+
 	AllSoftwareWithoutCPEIteratorFunc        AllSoftwareWithoutCPEIteratorFunc
 	AllSoftwareWithoutCPEIteratorFuncInvoked bool
 
@@ -1306,6 +1315,12 @@ type DataStore struct {
 
 	DeleteMDMAppleConfigProfileFunc        DeleteMDMAppleConfigProfileFunc
 	DeleteMDMAppleConfigProfileFuncInvoked bool
+
+	DeleteMDMAppleConfigProfileByTeamAndIdentifierFunc        DeleteMDMAppleConfigProfileByTeamAndIdentifierFunc
+	DeleteMDMAppleConfigProfileByTeamAndIdentifierFuncInvoked bool
+
+	GetHostMDMProfilesFunc        GetHostMDMProfilesFunc
+	GetHostMDMProfilesFuncInvoked bool
 
 	NewMDMAppleEnrollmentProfileFunc        NewMDMAppleEnrollmentProfileFunc
 	NewMDMAppleEnrollmentProfileFuncInvoked bool
@@ -2415,6 +2430,13 @@ func (s *DataStore) LoadHostSoftware(ctx context.Context, host *fleet.Host, incl
 	return s.LoadHostSoftwareFunc(ctx, host, includeCVEScores)
 }
 
+func (s *DataStore) ListSoftwareBySourceIter(ctx context.Context, sources []string) (fleet.SoftwareIterator, error) {
+	s.mu.Lock()
+	s.ListSoftwareBySourceIterFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListSoftwareBySourceIterFunc(ctx, sources)
+}
+
 func (s *DataStore) AllSoftwareWithoutCPEIterator(ctx context.Context, excludedPlatforms []string) (fleet.SoftwareIterator, error) {
 	s.mu.Lock()
 	s.AllSoftwareWithoutCPEIteratorFuncInvoked = true
@@ -3003,18 +3025,18 @@ func (s *DataStore) VerifyEnrollSecret(ctx context.Context, secret string) (*fle
 	return s.VerifyEnrollSecretFunc(ctx, secret)
 }
 
-func (s *DataStore) EnrollHost(ctx context.Context, osqueryHostId string, nodeKey string, teamID *uint, cooldown time.Duration) (*fleet.Host, error) {
+func (s *DataStore) EnrollHost(ctx context.Context, isMDMEnabled bool, osqueryHostId string, hardwareUUID string, hardwareSerial string, nodeKey string, teamID *uint, cooldown time.Duration) (*fleet.Host, error) {
 	s.mu.Lock()
 	s.EnrollHostFuncInvoked = true
 	s.mu.Unlock()
-	return s.EnrollHostFunc(ctx, osqueryHostId, nodeKey, teamID, cooldown)
+	return s.EnrollHostFunc(ctx, isMDMEnabled, osqueryHostId, hardwareUUID, hardwareSerial, nodeKey, teamID, cooldown)
 }
 
-func (s *DataStore) EnrollOrbit(ctx context.Context, hardwareUUID string, orbitNodeKey string, teamID *uint) (*fleet.Host, error) {
+func (s *DataStore) EnrollOrbit(ctx context.Context, isMDMEnabled bool, hardwareUUID string, hardwareSerial string, orbitNodeKey string, teamID *uint) (*fleet.Host, error) {
 	s.mu.Lock()
 	s.EnrollOrbitFuncInvoked = true
 	s.mu.Unlock()
-	return s.EnrollOrbitFunc(ctx, hardwareUUID, orbitNodeKey, teamID)
+	return s.EnrollOrbitFunc(ctx, isMDMEnabled, hardwareUUID, hardwareSerial, orbitNodeKey, teamID)
 }
 
 func (s *DataStore) SerialUpdateHost(ctx context.Context, host *fleet.Host) error {
@@ -3120,6 +3142,20 @@ func (s *DataStore) DeleteMDMAppleConfigProfile(ctx context.Context, profileID u
 	s.DeleteMDMAppleConfigProfileFuncInvoked = true
 	s.mu.Unlock()
 	return s.DeleteMDMAppleConfigProfileFunc(ctx, profileID)
+}
+
+func (s *DataStore) DeleteMDMAppleConfigProfileByTeamAndIdentifier(ctx context.Context, teamID uint, profileIdentifier string) error {
+	s.mu.Lock()
+	s.DeleteMDMAppleConfigProfileByTeamAndIdentifierFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteMDMAppleConfigProfileByTeamAndIdentifierFunc(ctx, teamID, profileIdentifier)
+}
+
+func (s *DataStore) GetHostMDMProfiles(ctx context.Context, hostUUID string) ([]fleet.HostMDMAppleProfile, error) {
+	s.mu.Lock()
+	s.GetHostMDMProfilesFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostMDMProfilesFunc(ctx, hostUUID)
 }
 
 func (s *DataStore) NewMDMAppleEnrollmentProfile(ctx context.Context, enrollmentPayload fleet.MDMAppleEnrollmentProfilePayload) (*fleet.MDMAppleEnrollmentProfile, error) {

@@ -6,12 +6,12 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"sync"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/execuser"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/rs/zerolog/log"
 )
@@ -124,7 +124,7 @@ func (n *NudgeConfigFetcher) configure(nudgeCfg fleet.NudgeConfig) error {
 
 	cfgFile := filepath.Join(n.opt.RootDir, nudgeConfigFile)
 	writeConfig := func() error {
-		return os.WriteFile(cfgFile, jsonCfg, constant.DefaultFileMode)
+		return os.WriteFile(cfgFile, jsonCfg, constant.DefaultWorldReadableFileMode)
 	}
 
 	fileInfo, err := os.Stat(cfgFile)
@@ -184,7 +184,7 @@ func (n *NudgeConfigFetcher) launch() error {
 
 			fn := n.opt.runNudgeFn
 			if fn == nil {
-				fn = func(execPath, configPath string) error {
+				fn = func(appPath, configPath string) error {
 					// TODO(roberto): when an user selects "Later" from the
 					// Nudge defer menu, the Nudge UI will be shown the
 					// next time Nudge is launched. If for some reason orbit
@@ -197,15 +197,15 @@ func (n *NudgeConfigFetcher) launch() error {
 					// respect the time chosen (eg: next day) and it won't
 					// show up even if it's opened multiple times in that
 					// interval.
-					cmd := exec.Command(execPath, "-json-url", configPath)
-					cmd.Stderr = os.Stderr
-					cmd.Stdout = os.Stdout
-					log.Info().Str("cmd", cmd.String()).Msg("start Nudge")
-					return cmd.Run()
+					log.Info().Msg("running Nudge")
+					return execuser.Run(
+						appPath,
+						execuser.WithArg("-json-url", configPath),
+					)
 				}
 			}
 
-			if err := fn(nudge.ExecPath, fmt.Sprintf("file://%s", cfgFile)); err != nil {
+			if err := fn(nudge.DirPath, fmt.Sprintf("file://%s", cfgFile)); err != nil {
 				return fmt.Errorf("opening Nudge with config %q: %w", cfgFile, err)
 			}
 
