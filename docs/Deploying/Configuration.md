@@ -2949,7 +2949,7 @@ For this to work correctly make sure that:
 #### Customization of user roles
 
 Users created via JIT provisioning can be set Fleet roles using SAML custom attributes that are sent by the IdP in `SAMLResponse`s during login.
-Fleet will attempt parse SAML custom attributes with the following format:
+Fleet will attempt to parse SAML custom attributes with the following format:
 - `FLEET_JIT_USER_ROLE_GLOBAL`: Specifies the global role to use when creating the user.
 - `FLEET_JIT_USER_ROLE_TEAM_<TEAM_ID>`: Specifies team role for team with ID `<TEAM_ID>` to use when creating the user.
 
@@ -2959,7 +2959,7 @@ NOTE: Setting both `FLEET_JIT_USER_ROLE_GLOBAL` and `FLEET_JIT_USER_ROLE_TEAM_<T
 
 During SSO login, if the account already exists, the roles of the Fleet account will be updated to match those set in the SAML custom attributes.
 
-If none of the attributes above are set, then Fleet will default to use the `Global Observer` role
+If none of the attributes above are set, then Fleet will default to use the `Global Observer` role.
 
 Here's a `SAMLResponse` sample to set the role of SSO users to Global `admin`:
 ```xml
@@ -2982,7 +2982,6 @@ Here's a `SAMLResponse` sample to set the role of SSO users to Global `admin`:
 </saml2:Assertion>
 [...]
 ```
-
 
 Here's a `SAMLResponse` sample to set the role of SSO users to `observer` in team with ID `1` and `maintainer` in team with ID `2`:
 ```xml
