@@ -2,33 +2,59 @@ package macoffice
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/test"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/io"
 	"github.com/stretchr/testify/require"
 )
 
 func TestAnalyze(t *testing.T) {
 	t.Run("latestReleaseNotes", func(t *testing.T) {
-		vulnPath := t.TempDir()
+		t.Run("when vuln path exists", func(t *testing.T) {
+			vulnPath := t.TempDir()
 
-		actual, err := getLatestReleaseNotes(vulnPath)
-		require.NoError(t, err)
-		require.Empty(t, actual)
+			actual, err := getLatestReleaseNotes(vulnPath)
+			require.NoError(t, err)
+			require.Empty(t, actual)
 
-		err = ReleaseNotes{{Version: "2"}}.Serialize(time.Now(), vulnPath)
-		require.NoError(t, err)
+			err = ReleaseNotes{{Version: "2"}}.Serialize(time.Now(), vulnPath)
+			require.NoError(t, err)
 
-		err = ReleaseNotes{{Version: "1"}}.Serialize(time.Now().Add(-35*time.Hour), vulnPath)
-		require.NoError(t, err)
+			err = ReleaseNotes{{Version: "1"}}.Serialize(time.Now().Add(-35*time.Hour), vulnPath)
+			require.NoError(t, err)
 
-		actual, err = getLatestReleaseNotes(vulnPath)
-		require.NoError(t, err)
-		require.NotEmpty(t, actual)
-		require.Equal(t, "2", actual[0].Version)
+			actual, err = getLatestReleaseNotes(vulnPath)
+			require.NoError(t, err)
+			require.NotEmpty(t, actual)
+			require.Equal(t, "2", actual[0].Version)
+		})
+
+		t.Run("when vuln path does not exists", func(t *testing.T) {
+			_, err := getLatestReleaseNotes("bad path")
+			require.Error(t, err)
+		})
+
+		t.Run("when the json file is invalid", func(t *testing.T) {
+			vulnPath := t.TempDir()
+
+			fileName := io.MacOfficeRelNotesFileName(time.Now())
+			filePath := filepath.Join(vulnPath, fileName)
+
+			f, err := os.Create(filePath)
+			require.NoError(t, err)
+			defer f.Close()
+
+			f.WriteString("some bad json")
+
+			_, err = getLatestReleaseNotes(vulnPath)
+			require.Error(t, err)
+		})
 	})
 
 	t.Run("detects office vulnerabilities", func(t *testing.T) {
