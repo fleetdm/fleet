@@ -275,6 +275,15 @@ module.exports.routes = {
   },
 
 
+  'GET /demo/okta-webflow': {
+    action: 'demo/view-okta-webflow',
+    locals: {
+      layout: 'layouts/layout-sandbox',
+      hideHeaderOnThisPage: true,
+    }
+  },
+
+
 
   //  ╦╔╦╗╔═╗╔═╗╦╔╗╔╔═╗  ┌─┬  ┌─┐┌┐┌┌┬┐┬┌┐┌┌─┐  ┌─┐┌─┐┌─┐┌─┐┌─┐─┐
   //  ║║║║╠═╣║ ╦║║║║║╣   │ │  ├─┤│││ │││││││ ┬  ├─┘├─┤│ ┬├┤ └─┐ │
