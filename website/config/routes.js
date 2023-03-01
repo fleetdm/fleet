@@ -275,8 +275,8 @@ module.exports.routes = {
   },
 
 
-  'GET /demo/okta-webflow': {
-    action: 'demo/view-okta-webflow',
+  'GET /experimental/okta-webflow': {
+    action: 'experimental/view-okta-webflow',
     locals: {
       layout: 'layouts/layout-sandbox',
       optimizeForAppleWebview: true,

@@ -10,7 +10,7 @@ module.exports = {
   exits: {
 
     success: {
-      viewTemplatePath: 'pages/demo/okta-webflow'
+      viewTemplatePath: 'pages/experimental/okta-webflow'
     }
 
   },
