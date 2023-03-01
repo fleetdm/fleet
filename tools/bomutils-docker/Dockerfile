@@ -1,4 +1,4 @@
-FROM debian:stable-slim@sha256:0f116858482fd8222b4f7e9b4cdc9a054051e67fbb8a57bc22651f0d56b45ad8@sha256:0f116858482fd8222b4f7e9b4cdc9a054051e67fbb8a57bc22651f0d56b45ad8 AS builder
+FROM debian:stable-slim@sha256:0f116858482fd8222b4f7e9b4cdc9a054051e67fbb8a57bc22651f0d56b45ad8 AS builder
 
 RUN apt-get update
 RUN apt-get install -y build-essential autoconf libxml2-dev libssl-dev zlib1g-dev curl
