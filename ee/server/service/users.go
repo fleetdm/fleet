@@ -112,7 +112,7 @@ func rolesChanged(oldGlobal *string, oldTeams []fleet.UserTeam, newGlobal *strin
 	if len(oldTeams) != len(newTeams) {
 		return true
 	}
-	oldTeamsMap := make(map[uint]fleet.UserTeam)
+	oldTeamsMap := make(map[uint]fleet.UserTeam, len(oldTeams))
 	for _, oldTeam := range oldTeams {
 		oldTeamsMap[oldTeam.Team.ID] = oldTeam
 	}
