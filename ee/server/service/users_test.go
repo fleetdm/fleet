@@ -138,6 +138,30 @@ func TestRolesChanged(t *testing.T) {
 			},
 			expectedRolesChanged: true,
 		},
+		{
+			name: "removed-from-a-team-and-added-to-another",
+			oldTeams: []fleet.UserTeam{
+				{
+					Team: fleet.Team{ID: 1},
+					Role: "admin",
+				},
+				{
+					Team: fleet.Team{ID: 3},
+					Role: "observer",
+				},
+			},
+			newTeams: []fleet.UserTeam{
+				{
+					Team: fleet.Team{ID: 1},
+					Role: "admin",
+				},
+				{
+					Team: fleet.Team{ID: 2},
+					Role: "maintainer",
+				},
+			},
+			expectedRolesChanged: true,
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			require.Equal(t, tc.expectedRolesChanged, rolesChanged(tc.oldGlobal, tc.oldTeams, tc.newGlobal, tc.newTeams))
