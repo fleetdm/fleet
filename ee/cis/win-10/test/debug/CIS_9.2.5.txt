@@ -1,0 +1,26 @@
+Expected scenario
+==================
+1) Open "Edit Group Policy" tool and set the following UI path to '%SystemRoot%\System32\logfiles\firewall\privatefw.log':
+'Computer Configuration\Policies\Windows Settings\Security Settings\Windows Defender Firewall with Advanced Security\Windows Defender Firewall with Advanced Security - Local Group Policy Object\Windows Defender Firewall Properties\Private Profile\Logging Customize\Name'
+2) After running the policy check, it should return 1 indicating that setting was properly set
+
+
+
+Failure scenario
+==================
+1) Open "Edit Group Policy" tool and set the following UI path to values different than '%SystemRoot%\System32\logfiles\firewall\privatefw.log':
+'Computer Configuration\Policies\Windows Settings\Security Settings\Windows Defender Firewall with Advanced Security\Windows Defender Firewall with Advanced Security - Local Group Policy Object\Windows Defender Firewall Properties\Private Profile\Logging Customize\Name'
+
+2) After running the policy check, it should return nothing, indicating that setting was set to a non-compliant value
+
+TODO
+==================
+Figure out why HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\WindowsFirewall\PrivateProfile\\Logging is not showing up in the registry
+
+Notes
+==================
+The path does not exist in the registry even after configured: HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\WindowsFirewall\PrivateProfile\\Logging
+CIS Benchmark Page 414: https://drive.google.com/file/d/16M2AuKHu_x-WJZWObhl_7MpZkPkKSQaq/view
+Tenable item: https://www.tenable.com/audits/items/CIS_MS_Windows_10_Enterprise_Level_1_Bitlocker_v1.12.0.audit:cc5a4886281f20b4ccac84a9d63622bc
+
+
