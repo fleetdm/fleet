@@ -180,7 +180,7 @@ func saveToken(fleet LifecycleRecord, svc *dynamodb.DynamoDB) (err error) {
 	log.Printf("Saving Token: %+v", fleet)
 	// Perform a conditional update to claim the item
 	input := &dynamodb.UpdateItemInput{
-		TableName:           aws.String(options.LifecycleTable),
+		TableName: aws.String(options.LifecycleTable),
 		Key: map[string]*dynamodb.AttributeValue{
 			"ID": {
 				S: aws.String(fleet.ID),
@@ -348,9 +348,9 @@ func NewFleet(c *gin.Context, in *NewFleetInput) (ret *NewFleetOutput, err error
 	}
 	log.Print("Saving admin token for addUser")
 	if err = saveToken(fleet, dynamodb.New(session.New())); err != nil {
-	    log.Print(err)
-	    return
-    }
+		log.Print(err)
+		return
+	}
 	return
 }
 
