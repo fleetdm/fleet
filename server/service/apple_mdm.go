@@ -1614,17 +1614,31 @@ func (svc *Service) UpdateMDMAppleSettings(ctx context.Context, payload fleet.MD
 		if err != nil {
 			return err
 		}
-		return svc.UpdateTeamMDMAppleSettings(ctx, tm, payload)
+		return svc.EnterpriseOverrides.UpdateTeamMDMAppleSettings(ctx, tm, payload)
 	}
 	return svc.updateAppConfigMDMAppleSettings(ctx, payload)
 }
 
-func (svc *Service) UpdateTeamMDMAppleSettings(ctx context.Context, tm *fleet.Team, payload fleet.MDMAppleSettingsPayload) error {
-	return fleet.ErrMissingLicense
-}
-
 func (svc *Service) updateAppConfigMDMAppleSettings(ctx context.Context, payload fleet.MDMAppleSettingsPayload) error {
-	panic("unimplemented")
+	ac, err := svc.AppConfig(ctx)
+	if err != nil {
+		return err
+	}
+
+	var didUpdate bool
+	if payload.EnableDiskEncryption != nil {
+		if ac.MDM.MacOSSettings.EnableDiskEncryption != *payload.EnableDiskEncryption {
+			ac.MDM.MacOSSettings.EnableDiskEncryption = *payload.EnableDiskEncryption
+			didUpdate = true
+		}
+	}
+
+	if didUpdate {
+		if err := svc.ds.SaveAppConfig(ctx, ac); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////

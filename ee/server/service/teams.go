@@ -711,6 +711,19 @@ func unmarshalWithGlobalDefaults(b *json.RawMessage) (fleet.Features, error) {
 	return *defaults, nil
 }
 
-func (svc *Service) UpdateTeamMDMAppleSettings(ctx context.Context, tm *fleet.Team, payload fleet.MDMAppleSettingsPayload) error {
-	panic("unimplemented")
+func (svc *Service) updateTeamMDMAppleSettings(ctx context.Context, tm *fleet.Team, payload fleet.MDMAppleSettingsPayload) error {
+	var didUpdate bool
+	if payload.EnableDiskEncryption != nil {
+		if tm.Config.MDM.MacOSSettings.EnableDiskEncryption != *payload.EnableDiskEncryption {
+			tm.Config.MDM.MacOSSettings.EnableDiskEncryption = *payload.EnableDiskEncryption
+			didUpdate = true
+		}
+	}
+
+	if didUpdate {
+		if _, err := svc.ds.SaveTeam(ctx, tm); err != nil {
+			return err
+		}
+	}
+	return nil
 }
