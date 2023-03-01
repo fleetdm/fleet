@@ -287,10 +287,6 @@ jobs:
         name: orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}.msi
         path: orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}.msi
 
-    - name: Debug on failure
-      if: failure()
-      uses: mxschmitt/action-tmate@8b4e4ac71822ed7e0ad5fb3d1c33483e9e8fb270 # v3
-
   orbit-windows:
     timeout-minutes: 15
     strategy:
