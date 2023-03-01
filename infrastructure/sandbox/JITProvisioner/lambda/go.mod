@@ -91,7 +91,7 @@ require (
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/ngrok/sqlmw v0.0.0-20211220175533-9d16fdc47b31 // indirect
 	github.com/nukosuke/go-zendesk v0.12.0 // indirect
-	github.com/open-policy-agent/opa v0.42.0 // indirect
+	github.com/open-policy-agent/opa v0.43.1 // indirect
 	github.com/oschwald/geoip2-golang v1.6.1 // indirect
 	github.com/oschwald/maxminddb-golang v1.8.0 // indirect
 	github.com/pelletier/go-toml v1.9.3 // indirect
@@ -116,7 +116,7 @@ require (
 	github.com/throttled/throttled/v2 v2.8.0 // indirect
 	github.com/trivago/tgo v1.0.7 // indirect
 	github.com/ugorji/go/codec v1.2.6 // indirect
-	github.com/vektah/gqlparser/v2 v2.4.5 // indirect
+	github.com/vektah/gqlparser/v2 v2.4.6 // indirect
 	github.com/xeipuuv/gojsonpointer v0.0.0-20190905194746-02993c407bfb // indirect
 	github.com/xeipuuv/gojsonreference v0.0.0-20180127040603-bd5ef7bd5415 // indirect
 	github.com/yashtewari/glob-intersection v0.1.0 // indirect
@@ -137,7 +137,7 @@ require (
 	google.golang.org/api v0.56.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/genproto v0.0.0-20220107163113-42d7afdf6368 // indirect
-	google.golang.org/grpc v1.47.0 // indirect
+	google.golang.org/grpc v1.48.0 // indirect
 	google.golang.org/protobuf v1.28.0 // indirect
 	gopkg.in/guregu/null.v3 v3.4.0 // indirect
 	gopkg.in/ini.v1 v1.62.0 // indirect
