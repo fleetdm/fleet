@@ -134,7 +134,7 @@ func RolesFromSSOAttributes(attributes []SAMLAttribute) (SSORolesInfo, error) {
 			ssoRoleInfo.Global = ptr.String(role)
 		case strings.HasPrefix(attribute.Name, teamUserRoleSSOAttrNamePrefix):
 			teamIDSuffix := strings.TrimPrefix(attribute.Name, teamUserRoleSSOAttrNamePrefix)
-			teamID, err := strconv.ParseUint(teamIDSuffix, 10, 64)
+			teamID, err := strconv.ParseUint(teamIDSuffix, 10, 32)
 			if err != nil {
 				return SSORolesInfo{}, fmt.Errorf("parse team ID: %w", err)
 			}
