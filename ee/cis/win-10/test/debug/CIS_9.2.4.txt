@@ -1,6 +1,6 @@
 Expected scenario
 ==================
-1) Open "Edit Group Policy" tool and set the following UI path to 'Np':
+1) Open "Edit Group Policy" tool and set the following UI path to 'No':
 'Computer Configuration\Policies\Windows Settings\Security Settings\Windows Defender Firewall with Advanced Security\Windows Defender Firewall with Advanced Security - Local Group Policy Object\Windows Defender Firewall Properties\Private Profile\Settings Customize\Display a notification'
 
 2) After running the policy check, it should return 1 indicating that setting was properly set
