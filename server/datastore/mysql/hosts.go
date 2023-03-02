@@ -832,24 +832,29 @@ func filterHostsByMDMProfileStatus(sql string, opt fleet.HostListOptions, params
 		return sql, params
 	}
 
-	sql += ` AND EXISTS (SELECT 1 FROM host_mdm_apple_profiles hmap WHERE hmap.host_uuid = h.uuid`
+	newSQL := ` AND EXISTS (SELECT 1 FROM host_mdm_apple_profiles hmap WHERE hmap.host_uuid = h.uuid`
+	newParams := []interface{}{}
 
 	switch opt.MDMProfilesStatusFilter {
 	case fleet.MDMProfilesStatusFailed:
-		sql += ` AND status = ?)`
-		params = append(params, fleet.MDMAppleDeliveryFailed)
+		newSQL += ` AND status = ?)`
+		newParams = append(newParams, fleet.MDMAppleDeliveryFailed)
 
 	case fleet.MDMProfilesStatusPending:
-		sql += ` AND status = ? AND h.uuid NOT IN (SELECT host_uuid FROM host_mdm_apple_profiles hmap2 WHERE hmap2.host_uuid = h.uuid AND status = ?))`
-		params = append(params, fleet.MDMAppleDeliveryPending, fleet.MDMAppleDeliveryFailed)
+		newSQL += ` AND status = ? AND h.uuid NOT IN (SELECT host_uuid FROM host_mdm_apple_profiles hmap2 WHERE hmap2.host_uuid = h.uuid AND status = ?))`
+		newParams = append(newParams, fleet.MDMAppleDeliveryPending, fleet.MDMAppleDeliveryFailed)
 
 	case fleet.MDMProfilesStatusLatest:
-		sql += ` AND status = ? AND h.uuid NOT IN (SELECT host_uuid FROM host_mdm_apple_profiles hmap2 WHERE hmap2.host_uuid = h.uuid AND (status = ? OR status = ?)))`
-		params = append(params, fleet.MDMAppleDeliveryApplied, fleet.MDMAppleDeliveryPending, fleet.MDMAppleDeliveryFailed)
+		newSQL += ` AND status = ? AND h.uuid NOT IN (SELECT host_uuid FROM host_mdm_apple_profiles hmap2 WHERE hmap2.host_uuid = h.uuid AND (status = ? OR status = ?)))`
+		newParams = append(newParams, fleet.MDMAppleDeliveryApplied, fleet.MDMAppleDeliveryPending, fleet.MDMAppleDeliveryFailed)
 
+	default:
+		// if this ever happens, someone probably added a new MDMProfilesStatusFilter and forgot to
+		// update this helper function ;)
+		return sql, params
 	}
 
-	return sql, params
+	return sql + newSQL, append(params, newParams...)
 }
 
 func (ds *Datastore) CountHosts(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) (int, error) {
