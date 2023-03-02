@@ -748,6 +748,7 @@ func (ds *Datastore) applyHostFilters(opt fleet.HostListOptions, sql string, fil
 	sql, params = filterHostsByTeam(sql, opt, params)
 	sql, params = filterHostsByPolicy(sql, opt, params)
 	sql, params = filterHostsByMDM(sql, opt, params)
+	sql, params = filterHostsByMDMProfileStatus(sql, opt, params)
 	sql, params = filterHostsByOS(sql, opt, params)
 	sql, params = hostSearchLike(sql, params, opt.MatchQuery, hostSearchColumns...)
 	sql, params = appendListOptionsWithCursorToSQL(sql, params, &opt.ListOptions)
@@ -823,6 +824,31 @@ func filterHostsByStatus(now time.Time, sql string, opt fleet.HostListOptions, p
 		sql += "AND DATE_ADD(COALESCE(hst.seen_time, h.created_at), INTERVAL 30 DAY) <= ?"
 		params = append(params, now)
 	}
+	return sql, params
+}
+
+func filterHostsByMDMProfileStatus(sql string, opt fleet.HostListOptions, params []interface{}) (string, []interface{}) {
+	if opt.MDMProfilesStatusFilter == "" {
+		return sql, params
+	}
+
+	sql += ` AND EXISTS (SELECT 1 FROM host_mdm_apple_profiles hmap WHERE hmap.host_uuid = h.uuid`
+
+	switch opt.MDMProfilesStatusFilter {
+	case fleet.MDMProfilesStatusFailed:
+		sql += ` AND status = ?)`
+		params = append(params, fleet.MDMAppleDeliveryFailed)
+
+	case fleet.MDMProfilesStatusPending:
+		sql += ` AND status = ? AND h.uuid NOT IN (SELECT host_uuid FROM host_mdm_apple_profiles hmap2 WHERE hmap2.host_uuid = h.uuid AND status = ?))`
+		params = append(params, fleet.MDMAppleDeliveryPending, fleet.MDMAppleDeliveryFailed)
+
+	case fleet.MDMProfilesStatusLatest:
+		sql += ` AND status = ? AND h.uuid NOT IN (SELECT host_uuid FROM host_mdm_apple_profiles hmap2 WHERE hmap2.host_uuid = h.uuid AND (status = ? OR status = ?)))`
+		params = append(params, fleet.MDMAppleDeliveryApplied, fleet.MDMAppleDeliveryPending, fleet.MDMAppleDeliveryFailed)
+
+	}
+
 	return sql, params
 }
 

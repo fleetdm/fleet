@@ -49,6 +49,15 @@ const (
 	MDMEnrollStatusUnenrolled = MDMEnrollStatus("unenrolled")
 )
 
+// MDMEnrollStatus defines the possible MDM enrollment statuses.
+type MDMProfilesStatus string
+
+const (
+	MDMProfilesStatusLatest  = MDMProfilesStatus("latest")
+	MDMProfilesStatusPending = MDMProfilesStatus("pending")
+	MDMProfilesStatusFailed  = MDMProfilesStatus("failed")
+)
+
 // NOTE: any changes to the hosts filters is likely to impact at least the following
 // endpoints, due to how they share the same implementation at the Datastore level:
 //
@@ -82,6 +91,10 @@ type HostListOptions struct {
 	OSVersionFilter *string
 
 	DisableFailingPolicies bool
+
+	// MDMProfileStatusFilter filters the hosts by the status of MDM configuration profiles
+	// appled to the hosts.
+	MDMProfilesStatusFilter MDMProfilesStatus
 
 	// MDMIDFilter filters the hosts by MDM ID.
 	MDMIDFilter *uint

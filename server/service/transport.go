@@ -311,6 +311,16 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 		return hopt, ctxerr.Errorf(r.Context(), "invalid mdm enrollment status %s", enrollmentStatus)
 	}
 
+	mdmProfilesStatus := r.URL.Query().Get("mdm_profiles_status")
+	switch fleet.MDMProfilesStatus(mdmProfilesStatus) {
+	case fleet.MDMProfilesStatusFailed, fleet.MDMProfilesStatusPending, fleet.MDMProfilesStatusLatest:
+		hopt.MDMProfilesStatusFilter = fleet.MDMProfilesStatus(mdmProfilesStatus)
+	case "":
+		// No error when unset
+	default:
+		return hopt, ctxerr.Errorf(r.Context(), "invalid mdm profiles status %s", mdmProfilesStatus)
+	}
+
 	munkiIssueID := r.URL.Query().Get("munki_issue_id")
 	if munkiIssueID != "" {
 		id, err := strconv.Atoi(munkiIssueID)
