@@ -745,6 +745,25 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
+  name: CIS - Ensure an Administrator Password Is Required to Access System-Wide Preferences (Fleetd required)
+  platforms: macOS
+  platform: darwin
+  description: Checks that an Administrator Password Is Required to Access System-Wide Preferences
+  resolution: |
+    Graphical method:
+      Perform the following steps to ensure an administrator password is required to access system-wide preferences:
+        1. Open System Settings
+        2. Open Privacy & Security
+        3. Select Advanced
+        4. Set Require an administrator password to access system-wide settings to enabled
+  query: SELECT 1 FROM authdb WHERE right_name = 'system.preferences' AND json_extract(json_result, '$.shared') == 0;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS-macos-13-2.6.7
+  contributors: artemist-work
+---
+apiVersion: v1
+kind: policy
+spec:
   name: CIS - Ensure Screen Saver Corners Are Secure (FDA Required)
   platforms: macOS
   platform: darwin
