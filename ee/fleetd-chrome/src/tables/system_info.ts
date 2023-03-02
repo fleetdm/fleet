@@ -38,7 +38,9 @@ export default class TableSystemInfo extends Table {
     let hardware_vendor = "",
       hardware_model = "";
     try {
-      // TODO figure out why this throws "Not allowed" error on test device
+      // This throws "Not allowed" error if
+      // https://chromeenterprise.google/policies/?policy=EnterpriseHardwarePlatformAPIEnabled is
+      // not configured to enabled for the device.
       // @ts-expect-error @types/chrome doesn't yet have the deviceAttributes Promise API.
       const platform_info = await chrome.enterprise.hardwarePlatform.getHardwarePlatformInfo();
       hardware_vendor = platform_info.manufacturer;

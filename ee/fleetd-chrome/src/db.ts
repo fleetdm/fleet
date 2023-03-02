@@ -4,7 +4,6 @@ import TableSystemInfo from "./tables/system_info";
 import TableOsqueryInfo from "./tables/osquery_info";
 import TableNetworkInterfaces from "./tables/network_interfaces";
 import TableUsers from "./tables/users";
-import TableGroups from "./tables/groups";
 import Table from "./tables/Table";
 import TableChromeExtensions from "./tables/chrome_extensions";
 
@@ -26,7 +25,6 @@ export default class VirtualDatabase {
       new TableNetworkInterfaces(sqlite3, db)
     );
     VirtualDatabase.register(sqlite3, db, new TableUsers(sqlite3, db));
-    VirtualDatabase.register(sqlite3, db, new TableGroups(sqlite3, db));
     VirtualDatabase.register(
       sqlite3,
       db,
