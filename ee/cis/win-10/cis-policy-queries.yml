@@ -1007,78 +1007,78 @@ spec:
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_9.2.4
   contributors: RachelElysia
 ---
-# apiVersion: v1
-# kind: policy
-# spec:
-#   name: >
-#     CIS - Ensure 'Windows Firewall: Private: Logging: Name' is set to '%SystemRoot%\System32\logfiles\firewall\privatefw.log' (Automated)
-#   platforms: win10
-#   platform: windows
-#   description: |
-#     Use this option to specify the path and name of the file in which Windows Firewall will write its log information.
-#     The recommended state for this setting is: %SystemRoot%\System32\logfiles\firewall\privatefw.log.
-#   resolution: |
-#     To establish the recommended configuration via GP, set the following UI path to '%SystemRoot%\System32\logfiles\firewall\privatefw.log':
-#     'Computer Configuration\Policies\Windows Settings\Security Settings\Windows Defender Firewall with Advanced Security\Windows Defender Firewall with Advanced Security - Local Group Policy Object\Windows Defender Firewall Properties\Private Profile\Logging Customize\Name'
-#   query: |
-#     TODO    SELECT * FROM registry WHERE (key = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\WindowsFirewall\\PrivateProfile\\Logging\LogFilePath' and data == '%SystemRoot%\System32\logfiles\firewall\privatefw.log');
-#   purpose: Informational
-#   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_9.2.5
-#   contributors: RachelElysia
-# ---
-# apiVersion: v1
-# kind: policy
-# spec:
-#   name: >
-#     CIS - Ensure 'Windows Firewall: Private: Logging: Size limit (KB)' is set to '16,384 KB or greater' (Automated)
-#   platforms: win10
-#   platform: windows
-#   description: |
-#     Use this option to specify the size limit of the file in which Windows Firewall will write its log information.
-#     The recommended state for this setting is: 16,384 KB or greater.
-#   resolution: |
-#     To establish the recommended configuration via GP, set the following UI path to 16,384 KB or greater:
-#     'Computer Configuration\Policies\Windows Settings\Security Settings\Windows Firewall with Advanced Security\Windows Firewall with Advanced Security\Windows Firewall Properties\Private Profile\Logging Customize\Size limit (KB)'
-#   query: |
-#     SELECT * FROM registry WHERE (key = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\WindowsFirewall\\PrivateProfile\\Logging\LogFileSize' and data >= 16384 );
-#   purpose: Informational
-#   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_9.2.6
-#   contributors: RachelElysia
-# ---
-# apiVersion: v1
-# kind: policy
-# spec:
-#   name: >
-#     CIS - Ensure 'Windows Firewall: Private: Logging: Log dropped packets' is set to 'Yes' (Automated)
-#   platforms: win10
-#   platform: windows
-#   description: |
-#     Use this option to log when Windows Firewall with Advanced Security discards an inbound packet for any reason. The log records why and when the packet was dropped. Look for entries with the word DROP in the action column of the log.
-#     The recommended state for this setting is: Yes.
-#   resolution: |
-#     To establish the recommended configuration via GP, set the following UI path to Yes:
-#     'Computer Configuration\Policies\Windows Settings\Security Settings\Windows Firewall with Advanced Security\Windows Firewall with Advanced Security\Windows Firewall Properties\Private Profile\Logging Customize\Log dropped packets'
-#   query: |
-#     SELECT 1 FROM registry WHERE (key = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\WindowsFirewall\\PrivateProfile\\Logging\LogDroppedPackets' and data == 1);
-#   purpose: Informational
-#   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_9.2.7
-#   contributors: RachelElysia
-# ---
-# apiVersion: v1
-# kind: policy
-# spec:
-#   name: >
-#     CIS - Ensure 'Windows Firewall: Private: Logging: Log successful connections' is set to 'Yes' (Automated)
-#   platforms: win10
-#   platform: windows
-#   description: |
-#     Use this option to log when Windows Firewall with Advanced Security allows an inbound connection. The log records why and when the connection was formed. Look for entries with the word ALLOW in the action column of the log.
-#     The recommended state for this setting is: Yes.
-#   resolution: |
-#     To establish the recommended configuration via GP, set the following UI path to Yes:
-#     'Computer Configuration\Policies\Windows Settings\Security Settings\Windows Firewall with Advanced Security\Windows Firewall with Advanced Security\Windows Firewall Properties\Private Profile\Logging Customize\Log successful connections'
-#   query: |
-#     SELECT 1 FROM registry WHERE (key = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\WindowsFirewall\\PrivateProfile\\Logging\LogSuccessfulConnections' and data == 1 );
-#   purpose: Informational
-#   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_9.2.8
-#   contributors: RachelElysia
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Windows Firewall: Private: Logging: Name' is set to '%SystemRoot%\System32\logfiles\firewall\privatefw.log' (Automated)
+  platforms: win10
+  platform: windows
+  description: |
+    Use this option to specify the path and name of the file in which Windows Firewall will write its log information.
+    The recommended state for this setting is: %SystemRoot%\System32\logfiles\firewall\privatefw.log.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to '%SystemRoot%\System32\logfiles\firewall\privatefw.log':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Windows Defender Firewall with Advanced Security\Windows Defender Firewall with Advanced Security - Local Group Policy Object\Windows Defender Firewall Properties\Private Profile\Logging Customize\Name'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\WindowsFirewall\\PrivateProfile\\Logging\LogFilePath' AND data ='%systemroot%\system32\logfiles\firewall\pfirewall.log');
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_9.2.5
+  contributors: RachelElysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Windows Firewall: Private: Logging: Size limit (KB)' is set to '16,384 KB or greater' (Automated)
+  platforms: win10
+  platform: windows
+  description: |
+    Use this option to specify the size limit of the file in which Windows Firewall will write its log information.
+    The recommended state for this setting is: 16,384 KB or greater.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to 16,384 KB or greater:
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Windows Firewall with Advanced Security\Windows Firewall with Advanced Security\Windows Firewall Properties\Private Profile\Logging Customize\Size limit (KB)'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\WindowsFirewall\\PrivateProfile\\Logging\LogFileSize' and CAST(data AS INTEGER) >= 16384 );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_9.2.6
+  contributors: RachelElysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Windows Firewall: Private: Logging: Log dropped packets' is set to 'Yes' (Automated)
+  platforms: win10
+  platform: windows
+  description: |
+    Use this option to log when Windows Firewall with Advanced Security discards an inbound packet for any reason. The log records why and when the packet was dropped. Look for entries with the word DROP in the action column of the log.
+    The recommended state for this setting is: Yes.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Yes:
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Windows Firewall with Advanced Security\Windows Firewall with Advanced Security\Windows Firewall Properties\Private Profile\Logging Customize\Log dropped packets'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\WindowsFirewall\\PrivateProfile\\Logging\LogDroppedPackets' and data == 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_9.2.7
+  contributors: RachelElysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Windows Firewall: Private: Logging: Log successful connections' is set to 'Yes' (Automated)
+  platforms: win10
+  platform: windows
+  description: |
+    Use this option to log when Windows Firewall with Advanced Security allows an inbound connection. The log records why and when the connection was formed. Look for entries with the word ALLOW in the action column of the log.
+    The recommended state for this setting is: Yes.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Yes:
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Windows Firewall with Advanced Security\Windows Firewall with Advanced Security\Windows Firewall Properties\Private Profile\Logging Customize\Log successful connections'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\WindowsFirewall\\PrivateProfile\\Logging\LogSuccessfulConnections' and data == 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_9.2.8
+  contributors: RachelElysia

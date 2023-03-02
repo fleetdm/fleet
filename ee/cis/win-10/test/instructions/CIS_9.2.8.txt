@@ -12,15 +12,3 @@ Failure scenario
 'Computer Configuration\Policies\Windows Settings\Security Settings\Windows Defender Firewall with Advanced Security\Windows Defender Firewall with Advanced Security - Local Group Policy Object\Windows Defender Firewall Properties\Private Profile\Logging Customize\Log successful connections'
 
 2) After running the policy check, it should return nothing, indicating that setting was set to a non-compliant value
-
-TODO
-==================
-Figure out why HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\WindowsFirewall\PrivateProfile\\Logging is not showing up in the registry
-
-Notes
-==================
-The path does not exist in the registry even after configured: HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\WindowsFirewall\PrivateProfile\\Logging
-CIS Benchmark Page 420: https://drive.google.com/file/d/16M2AuKHu_x-WJZWObhl_7MpZkPkKSQaq/view
-Tenable item: https://www.tenable.com/audits/items/CIS_Microsoft_Windows_10_Stand-alone_v1.0.1_L1.audit:6a3637269759145567c3061f01fb6b9a
-
-
