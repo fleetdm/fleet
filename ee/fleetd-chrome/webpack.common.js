@@ -30,7 +30,8 @@ export const plugins = [
     patterns: [
       {
         from: "./src/manifest.json",
-        // Set description and version from contents of package.json.
+        // Set description and version in extension manifest.json from contents of package.json (so
+        // that there's only one place to update).
         transform: function (content, _path) {
           return Buffer.from(
             JSON.stringify({
