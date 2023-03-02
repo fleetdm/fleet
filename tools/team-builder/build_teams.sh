@@ -67,7 +67,7 @@ run(){
 
 create_teams(){
    
-  #If a header is provided, parse the first line of the file to retreive columns and skip first line of file when creating teams
+  # If a header is provided, parse the first line of the file to retrieve columns and skip first line of file when creating teams
   if ($header == true )
 	  then
 	    i=1
