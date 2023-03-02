@@ -666,7 +666,7 @@ spec:
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.7.8
   contributors: marcosd4h
-  ---
+---
 # apiVersion: v1
 # kind: policy
 # spec:

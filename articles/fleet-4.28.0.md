@@ -9,7 +9,7 @@ For upgrade instructions, see our [upgrade guide](https://fleetdm.com/docs/deplo
 ## Highlights
 
 *   Center for Internet Security (CIS) benchmarks for macOS 13 Ventura
-*   Reduced false negatives from National Vulnerability Database (NVD) policies
+*   Reduced false negatives from MS Office products related to vulnerabilities reported in the NVD
 *   Cost savings through reduced background jobs
 
 ## Center for Internet Security (CIS) benchmarks for macOS 13 Ventura
@@ -34,11 +34,11 @@ For more information on adding CIS Benchmarks, check out the [documentation her
 
 <call-to-action preset="premium-upgrade"></call-to-action>
 
-## Reduced false negatives from National Vulnerability Database (NVD) policies
+## Reduced false negatives from MS Office products related to vulnerabilities reported in the NVD
 
 A false negative occurs when a policy reports there is not a vulnerability, but there actually is a vulnerability. Even if a policy reports zero vulnerabilities, that does not imply there are no vulnerabilities present. Both of these types of errors can cause problems when trying to identify vulnerabilities that need attention.
 
-Due to limitations with the [National Vulnerability Database](https://nvd.nist.gov/) (NVD), the [Common Platform Enumeration](https://nvd.nist.gov/products/cpe) (CPE), a structured naming scheme, maps to a suite version (e.g., Microsoft Word 2019) instead of the software version number (e.g., 16.11201) provided by osquery for product vulnerabilities. To reduce false negatives, Fleet has worked to process vulnerabilities directly from the [Microsoft Security Response Center](https://www.microsoft.com/en-us/msrc/) (MSRC). Fleet is now able to create policies from the MSRC and product release notes. Fleet will exclude Microsoft product vulnerabilities provided by the NVD, prioritizing vulnerabilities enumerated by the MSRC and product release notes.
+Due to limitations with the [National Vulnerability Database](https://nvd.nist.gov/) (NVD), the [Common Platform Enumeration](https://nvd.nist.gov/products/cpe) (CPE), a structured naming scheme, maps to a suite version (e.g., Microsoft Word 2019) instead of the software version number (e.g., 16.11201) provided by osquery for product vulnerabilities. To reduce false negatives, Fleet has worked to process vulnerabilities directly from the [Microsoft Security Response Center](https://www.microsoft.com/en-us/msrc/) (MSRC). Fleet now pulls vulnerability data from the MSRC for Microsoft Office products. Fleet will exclude Microsoft product vulnerabilities provided by the NVD, prioritizing vulnerabilities enumerated by the MSRC and product release notes.
 
 The new method for collecting and establishing vulnerability profiles for Fleet provides for more accurate CVE policy creation. It reduces the chance of false negatives or the potential to miss alerting to a vulnerability. Reducing false negatives in Fleet’s policies increases your security standing, bringing you 🟢 Results through 🔵 Objectivity by prioritizing a source of truth and 🟣 Openness in our vulnerability discovery process.
 
