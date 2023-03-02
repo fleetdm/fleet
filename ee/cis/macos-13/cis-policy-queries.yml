@@ -2122,6 +2122,14 @@ spec:
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-macos-13-6.3.1
   contributors: artemist-work
+
+
+
+
+
+
+
+
 ---
 apiVersion: v1
 kind: policy
