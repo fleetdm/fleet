@@ -37,7 +37,7 @@ jobs:
     - uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b # v2
 
     # Configure our access credentials for the Heroku CLI
-    - uses: akhileshns/heroku-deploy@79ef2ae4ff9b897010907016b268fd0f88561820 # v3.6.8
+    - uses: akhileshns/heroku-deploy@5ef17ff17a3fb8e9ad822ae6a61648a3ef9e0c3d # v3.6.8
       with:
         heroku_api_key: ${{secrets.HEROKU_API_TOKEN_FOR_BOT_USER}}
         heroku_app_name: "" # this has to be blank or it doesn't work
