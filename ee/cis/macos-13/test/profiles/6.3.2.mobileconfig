@@ -8,21 +8,21 @@
 			<key>PayloadDisplayName</key>
 			<string>test</string>
 			<key>PayloadType</key>
-			<string>com.apple.applicationaccess</string>
+			<string>com.apple.Safari</string>
 			<key>PayloadIdentifier</key>
-			<string>com.fleetdm.cis-2.5.1.check-disable</string>
+			<string>com.fleetdm.cis-6.3.2.check</string>
 			<key>PayloadUUID</key>
-			<string>4B56DF79-ECAF-4175-AACC-95F08A980B6C</string>
-			<key>allowAssistant</key>
-			<false/>
+			<string>61BC98A2-9482-4EB3-9184-FB6A8B8E33E8</string>
+			<key>HistoryAgeInDaysLimit</key>
+			<integer><1></integer>
 		</dict>
 	</array>
 	<key>PayloadDescription</key>
 	<string>test</string>
 	<key>PayloadDisplayName</key>
-	<string>Disable Siri</string>
+	<string>Audit History and Remove History Items</string>
 	<key>PayloadIdentifier</key>
-	<string>com.fleetdm.cis-2.5.1-disable</string>
+	<string>com.fleetdm.cis-6.3.2</string>
 	<key>PayloadRemovalDisallowed</key>
 	<false/>
 	<key>PayloadScope</key>
@@ -30,7 +30,7 @@
 	<key>PayloadType</key>
 	<string>Configuration</string>
 	<key>PayloadUUID</key>
-	<string>FB3E1980-5FE2-4C8F-BCF8-6FFF4117C962</string>
+	<string>1D6C407D-8C28-4BDC-9837-DF5ED49E8059</string>
 	<key>PayloadVersion</key>
 	<integer>1</integer>
 </dict>
