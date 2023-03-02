@@ -931,4 +931,144 @@ spec:
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.10.12
   contributors: rachelelysia
 ---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'User Account Control: Admin Approval Mode for the Built-in Administrator account' is set to 'Enabled' (Automated)
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting controls the behavior of Admin Approval Mode for the built-in Administrator account.
+    The recommended state for this setting is: Enabled.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\User Account Control: Admin Approval Mode for the Built-in Administrator account'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System\FilterAdministratorToken' AND data == 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.17.1
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'User Account Control: Behavior of the elevation prompt for administrators in Admin Approval Mode' is set to 'Prompt for consent on the secure desktop' (Automated)
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting controls the behavior of the elevation prompt for administrators.
+    The recommended state for this setting is: Prompt for consent on the secure desktop.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to 'Prompt for consent on the secure desktop':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\User Account Control: Behavior of the elevation prompt for administrators in Admin Approval Mode'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System\ConsentPromptBehaviorAdmin' AND data == 2);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.17.2
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - TODO
+  platforms: win10
+  platform: windows
+  description: |
+    TODO
+  resolution: |
+    TODO
+  query: |
+    TODO
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.17.3
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - TODO
+  platforms: win10
+  platform: windows
+  description: |
+    TODO
+  resolution: |
+    TODO
+  query: |
+    TODO
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.17.4
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - TODO
+  platforms: win10
+  platform: windows
+  description: |
+    TODO
+  resolution: |
+    TODO
+  query: |
+    TODO
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.17.5
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - TODO
+  platforms: win10
+  platform: windows
+  description: |
+    TODO
+  resolution: |
+    TODO
+  query: |
+    TODO
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.17.6
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - TODO
+  platforms: win10
+  platform: windows
+  description: |
+    TODO
+  resolution: |
+    TODO
+  query: |
+    TODO
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.17.7
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - TODO
+  platforms: win10
+  platform: windows
+  description: |
+    TODO
+  resolution: |
+    TODO
+  query: |
+    TODO
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.17.8
+  contributors: rachelelysia
+---
 
