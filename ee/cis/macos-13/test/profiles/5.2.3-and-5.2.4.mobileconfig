@@ -8,21 +8,21 @@
 			<key>PayloadDisplayName</key>
 			<string>test</string>
 			<key>PayloadType</key>
-			<string>com.apple.applicationaccess</string>
+			<string>com.apple.mobiledevice.passwordpolicy</string>
 			<key>PayloadIdentifier</key>
-			<string>com.fleetdm.cis-2.5.1.check-disable</string>
+			<string>com.fleetdm.cis-5.2.3-and-5.2.4.check</string>
 			<key>PayloadUUID</key>
-			<string>4B56DF79-ECAF-4175-AACC-95F08A980B6C</string>
-			<key>allowAssistant</key>
-			<false/>
+			<string>207388F7-0144-4518-9CCD-9E488EF9C5D7</string>
+			<key>requireAlphanumeric</key>
+			<true/>
 		</dict>
 	</array>
 	<key>PayloadDescription</key>
 	<string>test</string>
 	<key>PayloadDisplayName</key>
-	<string>Disable Siri</string>
+	<string>Require AlphaNumeric characters in password</string>
 	<key>PayloadIdentifier</key>
-	<string>com.fleetdm.cis-2.5.1-disable</string>
+	<string>com.fleetdm.cis-5.2.3-and-5.2.4</string>
 	<key>PayloadRemovalDisallowed</key>
 	<false/>
 	<key>PayloadScope</key>
@@ -30,9 +30,8 @@
 	<key>PayloadType</key>
 	<string>Configuration</string>
 	<key>PayloadUUID</key>
-	<string>FB3E1980-5FE2-4C8F-BCF8-6FFF4117C962</string>
+	<string>19BDCDC8-7E9E-48A6-9468-F87EE865F677</string>
 	<key>PayloadVersion</key>
 	<integer>1</integer>
 </dict>
 </plist>
-
