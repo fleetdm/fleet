@@ -684,8 +684,8 @@ type EnrollSecretSpec struct {
 }
 
 const (
-	// tierBasic is for backward compatibility with previous tier names
-	TierBasic = "basic"
+	// tierBasicDeprecated is for backward compatibility with previous tier names
+	tierBasicDeprecated = "basic"
 
 	// TierPremium is Fleet Premium aka the paid license.
 	TierPremium = "premium"
@@ -712,11 +712,17 @@ type LicenseInfo struct {
 }
 
 func (l *LicenseInfo) IsPremium() bool {
-	return l.Tier == TierPremium || l.Tier == TierBasic || l.Tier == TierTrial
+	return l.Tier == TierPremium || l.Tier == tierBasicDeprecated || l.Tier == TierTrial
 }
 
 func (l *LicenseInfo) IsExpired() bool {
 	return l.Expiration.Before(time.Now())
+}
+
+func (l *LicenseInfo) ForceUpgrade() {
+	if l.Tier == tierBasicDeprecated {
+		l.Tier = TierPremium
+	}
 }
 
 const (

@@ -70,9 +70,7 @@ func LoadLicense(licenseKey string) (*fleet.LicenseInfo, error) {
 	}
 
 	// for backwards compatibility we'll convert basic tier to premium
-	if license.Tier == fleet.TierBasic {
-		license.Tier = fleet.TierPremium
-	}
+	license.ForceUpgrade()
 
 	return license, nil
 }

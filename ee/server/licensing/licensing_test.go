@@ -94,3 +94,14 @@ func TestLoadLicenseTrialTier(t *testing.T) {
 	require.Equal(t, "trial", license.Tier)
 	require.True(t, license.IsPremium())
 }
+
+func TestForceUpgrade(t *testing.T) {
+	t.Parallel()
+	// tier = basic
+	key := "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJGbGVldCBEZXZpY2UgTWFuYWdlbWVudCBJbmMuIiwiZXhwIjoxNjQwOTk1MjAwLCJzdWIiOiJ0ZXN0IiwiZGV2aWNlcyI6MTAwLCJub3RlIjoiZm9yIGRldmVsb3BtZW50IG9ubHkiLCJ0aWVyIjoiYmFzaWMiLCJpYXQiOjE2Nzc3ODkzMjZ9.DOQ5AGHthInA3pGv6U4xf3PGdGZCRTkbkn96g45PPEvpUN0LwNMOc8FL-wWowZ2rp5yvqmKlb_gzkAh7jkhz8g"
+	license, err := LoadLicense(key)
+	require.NoError(t, err)
+	license.ForceUpgrade()
+	require.Equal(t, fleet.TierPremium, license.Tier)
+	require.True(t, license.IsPremium())
+}
