@@ -70,7 +70,7 @@ $ ./build_teams.sh -s test.csv -u fleet.org.com -c "Name Code" -n Name
 
 By default, the template stored in `team_config.yml` will be applied. This file only creates the team and adds a randomly generated enroll secret. The team will inherit global agent options. You can modify the file to include additional options.
 
-If you modify the agent options, please note the placeholders for name and secret, these are necessary for the appropriate vales generated in the script to be applied
+If you modify the agent options, please note the placeholders for name and secret, these are necessary for the appropriate vales generated in the script to be applied.
 
 ```yml   
     name: ${name}
