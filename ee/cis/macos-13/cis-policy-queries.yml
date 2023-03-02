@@ -1828,26 +1828,6 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure Complex Password Must Contain Special Character Is Configured
-  platforms: macOS
-  platform: darwin
-  description: |
-    Complex passwords contain one character from each of the following classes: English uppercase letters, English lowercase letters, Westernized Arabic numerals, and non- alphanumeric characters. Ensure that a special character is part of the password policy on the computer.
-  resolution: |
-    Ask your system administrator to deploy an MDM profile that ensures Complex Password Must Contain Special Characters
-  query: |
-    SELECT 1 FROM managed_policies WHERE
-      domain = 'com.apple.mobiledevice.passwordpolicy' AND
-      name = 'minComplexChars' AND
-      value = <integer>1</integer>
-      LIMIT 1;
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level2, CIS-macos-13-5.2.5
-  contributors: sharon-fdm
----
-apiVersion: v1
-kind: policy
-spec:
   name: CIS - Ensure Password Age Is Configured (Fleetd Required)
   platforms: macOS
   platform: darwin
@@ -2122,14 +2102,44 @@ spec:
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-macos-13-6.3.1
   contributors: artemist-work
-
-
-
-
-
-
-
-
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Audit Safari Web Browser History and Remove History Items (organisation decision needed)
+  platforms: macOS
+  platform: darwin
+  description: |
+    Organizational management of user web browsing history is a challenge effected by multiple facets. Organizations should decide whether to manage browser history and how much history should be maintained.
+    Rationale:
+    There are conflicting concerns in the retention of browser history. Unlimited retention:
+    - Consumes disk space
+    - Preferred by on disk forensics teams
+    - User searchable for old visited pages
+    - User privacy concerns
+    - Security concerns to retain old links that may be stale or lead to compromised
+    pages or pages with changes or inappropriate content
+    Old browser history becomes stale and the use or misuse of the data can lead to unwanted outcomes. Search engine results are maintained and often provide much more relevant current information than old website visit information.
+  resolution: |
+    Ask your system administrator to deploy an MDM profile that set the history per organisation decision
+  query: |
+    SELECT 1 FROM managed_policies WHERE
+      domain = 'com.apple.Safari' AND
+      name = 'HistoryAgeInDaysLimit' AND
+      /*
+       Please replace the checked value bellow to match the one decided by your organisation.
+       1 - After one day
+       7 - After one week
+       14 - After two weeks
+       31 - After one month
+       365 - After one year
+       36500 - Set Manually
+      */
+      value = '1' 
+      LIMIT 1;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS-macos-13-6.3.2, decision-needed
+  contributors: sharon-fdm
 ---
 apiVersion: v1
 kind: policy
