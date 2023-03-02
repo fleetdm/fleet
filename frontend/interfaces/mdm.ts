@@ -81,6 +81,14 @@ export interface IHostMacMdmProfile {
 export type IMacSettings = IHostMacMdmProfile[];
 export type MacSettingsStatus = "Failing" | "Latest" | "Pending";
 
+export interface IDiskEncryptionStatusAggregate {
+  applied: number;
+  action_required: number;
+  enforcing: number;
+  failed: number;
+  removing_enforcement: number;
+}
+
 // TODO: update when we have API
 export interface IMdmScript {
   id: number;

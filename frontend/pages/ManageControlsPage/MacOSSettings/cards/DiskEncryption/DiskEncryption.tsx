@@ -6,6 +6,8 @@ import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
 import Checkbox from "components/forms/fields/Checkbox";
 
+import DiskEncryptionTable from "./components/DiskEncryptionTable";
+
 const baseClass = "disk-encryption";
 
 const PremiumFeatureMessage = () => {
@@ -24,13 +26,26 @@ const PremiumFeatureMessage = () => {
 };
 
 const DiskEncryption = () => {
+  const data = {
+    applied: 1,
+    action_required: 10,
+    enforcing: 1000,
+    failed: 10000,
+    removing_enforcement: 100000,
+  };
+
   // TODO: replace default value with enable disk encryption API call
   const [showAggregate, setShowAggregate] = useState(false);
+  const [isChecked, setIsChecked] = useState(false);
 
   const { isPremiumTier } = useContext(AppContext);
 
-  const onUpdateDiskEncryption = (value: boolean) => {
-    setShowAggregate(value);
+  const onToggleCheckbox = (value: boolean) => {
+    setIsChecked(value);
+  };
+
+  const onUpdateDiskEncryption = () => {
+    setShowAggregate(isChecked);
   };
 
   return (
@@ -40,8 +55,8 @@ const DiskEncryption = () => {
         <PremiumFeatureMessage />
       ) : (
         <>
-          {showAggregate ? <div>Aggregate</div> : null}
-          <Checkbox onChange={onUpdateDiskEncryption} value={showAggregate}>
+          {showAggregate ? <DiskEncryptionTable aggregateData={data} /> : null}
+          <Checkbox onChange={onToggleCheckbox} value={isChecked}>
             On
           </Checkbox>
           <p>
