@@ -384,7 +384,7 @@ func (svc *Service) ModifyUser(ctx context.Context, userID uint, p fleet.UserPay
 		return nil, err
 	}
 	adminUser := authz.UserFromContext(ctx)
-	if err := logRoleChangeActivities(ctx, svc.ds, adminUser, oldGlobalRole, oldTeams, user); err != nil {
+	if err := fleet.LogRoleChangeActivities(ctx, svc.ds, adminUser, oldGlobalRole, oldTeams, user); err != nil {
 		return nil, err
 	}
 
