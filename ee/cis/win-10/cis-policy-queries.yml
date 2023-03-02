@@ -666,6 +666,270 @@ spec:
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.7.8
   contributors: marcosd4h
+  ---
+# apiVersion: v1
+# kind: policy
+# spec:
+#   name: >
+#     CIS - Ensure 'Network access : Allow anonymous SID/Name translation' is set to 'Disabled' (Automated)
+#   platforms: win10
+#   platform: windows
+#   description: |
+#     This policy setting determines whether an anonymous user can request security identifier
+#     (SID) attributes for another user, or use a SID to obtain its corresponding user name.
+#     The recommended state for this setting is: Disabled.
+#   resolution: |
+#     To establish the recommended configuration via GP, set the following UI path to Disabled:
+#     'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\Network access: Allow anonymous SID/Name translation'
+#   query: |
+#     TODO: See ./test/debug/CIS_2.3.10.1.txt for more information
+#   purpose: Informational
+#   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.10.1
+#   contributors: rachelelysia
+# ---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Network access: Do not allow anonymous enumeration of SAM accounts' is set to 'Enabled' (Automated)
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting controls the ability of anonymous users to enumerate the accounts in
+    the Security Accounts Manager (SAM). If you enable this policy setting, users with
+    anonymous connections will not be able to enumerate domain account user names on the
+    systems in your environment. This policy setting also allows additional restrictions on
+    anonymous connections.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\Network access: Do not allow anonymous enumeration of SAM accounts'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\Lsa\restrictanonymoussam' AND data != 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.10.2
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Network access: Do not allow anonymous enumeration of SAM accounts and shares' is set to 'Enabled' (Automated)
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting controls the ability of anonymous users to enumerate SAM accounts as
+    well as shares. If you enable this policy setting, anonymous users will not be able to
+    enumerate domain account user names and network share names on the systems in your
+    environment.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\Network access: Do not allow anonymous enumeration of SAM accounts and shares'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\Lsa\restrictanonymous' AND data != 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.10.3
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Network access: Do not allow storage of passwords and credentials for network authentication' is set to 'Enabled' (Automated)
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting determines whether Credential Manager (formerly called Stored User
+    Names and Passwords) saves passwords or credentials for later use when it gains domain
+    authentication.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\Network access: Do not allow storage of passwords and credentials for network authentication'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\Lsa\disabledomaincreds' AND data != 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.10.4
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Network access: Let Everyone permissions apply to anonymous users' is set to 'Disabled' (Automated)
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting determines what additional permissions are assigned for anonymous
+    connections to the computer.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Disabled:
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\Network access: Let Everyone permissions apply to anonymous users'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\Lsa\everyoneincludesanonymous' AND data == 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.10.5
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Network access: Named Pipes that can be accessed anonymously' is set to 'None' (Automated)
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting determines which communication sessions, or pipes, will have attributes
+    and permissions that allow anonymous access.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to <blank>
+    (i.e. None):
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\Network access: Named Pipes that can be accessed anonymously'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\LanManServer\\Parameters\NullSessionPipes' and data == '');
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.10.6
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Network access: Remotely accessible registry paths' is configured (Automated)
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting determines which registry paths will be accessible over the network,
+    regardless of the users or groups listed in the access control list (ACL) of the winreg
+    registry key.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to:
+    System\CurrentControlSet\Control\ProductOptions
+    System\CurrentControlSet\Control\Server Applications
+    SOFTWARE\Microsoft\Windows NT\CurrentVersion
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\Network access: Remotely accessible registry paths'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\SecurePipeServers\\Winreg\\AllowedExactPaths\Machine' and data == 'System\CurrentControlSet\Control\ProductOptions,System\CurrentControlSet\Control\Server Applications,Software\Microsoft\Windows NT\CurrentVersion');
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.10.7
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Network access: Remotely accessible registry paths and sub-paths' is configured (Automated)
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting determines which registry paths and sub-paths will be accessible over
+    the network, regardless of the users or groups listed in the access control list (ACL) of the
+    winreg registry key.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to:
+    System\CurrentControlSet\Control\Print\Printers
+    System\CurrentControlSet\Services\Eventlog
+    SOFTWARE\Microsoft\OLAP Server
+    SOFTWARE\Microsoft\Windows NT\CurrentVersion\Print
+    SOFTWARE\Microsoft\Windows NT\CurrentVersion\Windows
+    System\CurrentControlSet\Control\ContentIndex
+    System\CurrentControlSet\Control\Terminal Server
+    System\CurrentControlSet\Control\Terminal Server\UserConfig
+    System\CurrentControlSet\Control\Terminal Server\DefaultUserConfiguration
+    SOFTWARE\Microsoft\Windows NT\CurrentVersion\Perflib
+    System\CurrentControlSet\Services\SysmonLog
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\Network access: Remotely accessible registry paths and sub-paths'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\SecurePipeServers\\Winreg\\AllowedPaths\Machine' and data == 'System\CurrentControlSet\Control\Print\Printers,System\CurrentControlSet\Services\Eventlog,Software\Microsoft\OLAP Server,Software\Microsoft\Windows NT\CurrentVersion\Print,Software\Microsoft\Windows NT\CurrentVersion\Windows,System\CurrentControlSet\Control\ContentIndex,System\CurrentControlSet\Control\Terminal Server,System\CurrentControlSet\Control\Terminal Server\UserConfig,System\CurrentControlSet\Control\Terminal Server\DefaultUserConfiguration,Software\Microsoft\Windows NT\CurrentVersion\Perflib,System\CurrentControlSet\Services\SysmonLog');
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.10.8
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Network access: Restrict anonymous access to Named Pipes and Shares' is set to 'Enabled' (Automated)
+  platforms: win10
+  platform: windows
+  description: |
+    When enabled, this policy setting restricts anonymous access to only those shares and
+    pipes that are named in the Network access: Named pipes that can be accessed
+    anonymously and Network access: Shares that can be accessed anonymously settings.
+    This policy setting controls null session access to shares on your computers by adding
+    RestrictNullSessAccess with the value 1 in the
+    HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\LanManServer\Parameters
+    registry key. This registry value toggles null session shares on or off to control whether the
+    server service restricts unauthenticated clients' access to named resources.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\Network access: Restrict anonymous access to Named Pipes and Shares'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\LanManServer\\Parameters\restrictnullsessaccess' and data == '1');
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.10.9
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Network access: Restrict clients allowed to make remote calls to SAM' is set to 'Administrators: Remote Access: Allow' (Automated)
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting allows you to restrict remote RPC connections to SAM.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to
+    Administrators: Remote Access: Allow:
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\Network access: Restrict clients allowed to make remote calls to SAM'
+  query: |
+SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\Lsa\RestrictRemoteSAM' and (data == '' or data == 'O:BAG:BAD:'));
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.10.10
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Network access: Shares that can be accessed anonymously' is set to 'None' (Automated)
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting determines which network shares can be accessed by anonymous users.
+    The default configuration for this policy setting has little effect because all users have to be
+    authenticated before they can access shared resources on the server.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to <blank>
+    (i.e. None):
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\Network access: Shares that can be accessed anonymously'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\LanManServer\\Parameters\NullSessionShares' and data == '');
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.10.11
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Network access: Sharing and security model for local accounts' is set to 'Classic - local users authenticate as themselves' (Automated)
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting determines how network logons that use local accounts are
+    authenticated. The Classic option allows precise control over access to resources, including
+    the ability to assign different types of access to different users for the same resource. The
+    Guest only option allows you to treat all users equally. In this context, all users authenticate
+    as Guest only to receive the same access level to a given resource.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Classic -
+    local users authenticate as themselves:
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\Network access: Sharing and security model for local accounts'
+  query: |
+        SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\Lsa\forceguest' AND data == 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.10.12
+  contributors: rachelelysia
 ---
 apiVersion: v1
 kind: policy
