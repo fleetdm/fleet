@@ -2,6 +2,9 @@ import React from "react";
 import { Params } from "react-router/lib/Router";
 
 import SideNav from "pages/admin/components/SideNav";
+import { useQuery } from "react-query";
+import { IMdmProfile, IMdmProfilesResponse } from "interfaces/mdm";
+import mdmAPI from "services/entities/mdm";
 
 import MAC_OS_SETTINGS_NAV_ITEMS from "./MacOSSettingsNavItems";
 import AggregateMacSettingsIndicators from "./AggregateMacSettingsIndicators";
@@ -23,6 +26,19 @@ const MacOSSettings = ({ params, location }: IMacOSSettingsProps) => {
   // Avoids possible case where Number(undefined) returns NaN
   const teamId = team_id === undefined ? team_id : Number(team_id);
 
+  const {
+    data: profiles,
+    error: errorProfiles,
+    refetch: refectchProfiles,
+  } = useQuery<IMdmProfilesResponse, unknown, IMdmProfile[] | null>(
+    ["profiles", teamId],
+    () => mdmAPI.getProfiles(teamId),
+    {
+      select: (data) => data.profiles,
+      refetchOnWindowFocus: false,
+    }
+  );
+
   const DEFAULT_SETTINGS_SECTION = MAC_OS_SETTINGS_NAV_ITEMS[0];
 
   const currentFormSection =
@@ -36,7 +52,7 @@ const MacOSSettings = ({ params, location }: IMacOSSettingsProps) => {
       <p className={`${baseClass}__description`}>
         Remotely enforce settings on macOS hosts assigned to this team.
       </p>
-      <AggregateMacSettingsIndicators teamId={teamId} />
+      {profiles && <AggregateMacSettingsIndicators teamId={teamId} />}
       <SideNav
         className={`${baseClass}__side-nav`}
         navItems={MAC_OS_SETTINGS_NAV_ITEMS}
