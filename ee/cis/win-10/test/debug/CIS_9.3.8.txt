@@ -22,4 +22,4 @@ Notes
 ==================
 The path 'PublicProfile' does not exist in the registry even after configured (Even though path 'PrivateProfile' does exist)
 CIS Benchmark Page 436: https://drive.google.com/file/d/16M2AuKHu_x-WJZWObhl_7MpZkPkKSQaq/view 
-Tenable item: 
+Tenable item: https://www.tenable.com/audits/items/CIS_Microsoft_Windows_10_Stand-alone_v1.0.1_L1.audit:5a42faa21e6e52d265986b93ec34c543

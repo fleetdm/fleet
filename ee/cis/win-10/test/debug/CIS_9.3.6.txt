@@ -22,4 +22,4 @@ Notes
 ==================
 The path 'PublicProfile' does not exist in the registry even after configured (Even though path 'PrivateProfile' does exist)
 CIS Benchmark Page 432: https://drive.google.com/file/d/16M2AuKHu_x-WJZWObhl_7MpZkPkKSQaq/view 
-Tenable item: 
+Tenable item: https://www.tenable.com/audits/items/CIS_MS_Windows_10_Enterprise_Level_1_Bitlocker_v1.12.0.audit:3bde5902cfa3100253194cddc15d9a78
