@@ -100,6 +100,11 @@ spec:
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-macos-13-1.7
   contributors: lucasmrod
+
+
+
+
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 ---
 apiVersion: v1
 kind: policy
@@ -130,6 +135,9 @@ spec:
   purpose: Informational
   tags: compliance, CIS, CIS_Level2, CIS-macos-13-2.1.1.2-disabled, decision-needed
   contributors: sharon-fdm
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+
+
 ---
 apiVersion: v1
 kind: policy
@@ -160,6 +168,10 @@ spec:
   purpose: Informational
   tags: compliance, CIS, CIS_Level2, CIS-macos-13-2.1.1.2-enabled, decision-needed
   contributors: sharon-fdm
+
+
+YYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY
+
 ---
 apiVersion: v1
 kind: policy
