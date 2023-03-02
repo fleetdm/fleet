@@ -7,7 +7,7 @@ import { IMdmProfile, IMdmProfilesResponse } from "interfaces/mdm";
 import mdmAPI from "services/entities/mdm";
 
 import MAC_OS_SETTINGS_NAV_ITEMS from "./MacOSSettingsNavItems";
-import AggregateMacSettingsIndicators from "./AggregateMacSettingsIndicators";
+import AggregateMacSettingsIndicators from "./AggregateMacSettingsIndicators/AggregateMacSettingsIndicators";
 
 const baseClass = "mac-os-settings";
 
