@@ -28,9 +28,10 @@ At Fleet, we write things down.  Even when we might be wrong.  This helps us mov
 
 Fleet is currently hiring for the following positions:
 
-- 🚀 [Engineering Manager, MDM](https://fleetdm.com/handbook/company/engineering-manager-mdm)
+- 🔦 Head of Business Operations
+- 🔦 Executive Assistant
 - ⚗️ [Product Designer](https://fleetdm.com/handbook/company/product-designer)
-- 🫧 [Revenue Operations Manager](https://fleetdm.com/handbook/company/revenue-operations-manager)
+- 🔦 [Revenue Operations Manager](https://fleetdm.com/handbook/company/revenue-operations-manager)
 - 🫧 [Field Marketer](https://fleetdm.com/handbook/company/field-marketer)
 
 > **🛸 Join us!**  Interested in joining the team at Fleet, or know someone who might be?  Click one of the positions to read the job description and apply.  Or [copy a direct link to this page](https://fleetdm.com/handbook/company#open-positions) to share a short summary about the company, including our vision, values, history, and all currently open positions.  Thank you for the help!
