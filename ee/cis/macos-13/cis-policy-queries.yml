@@ -1702,6 +1702,15 @@ spec:
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-macos-13-5.2.2
   contributors: sharon-fdm
+
+
+
+
+
+
+
+
+
 ---
 apiVersion: v1
 kind: policy
