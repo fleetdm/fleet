@@ -1,4 +1,4 @@
-FROM alpine:3.17.2@sha256:e2e16842c9b54d985bf1ef9242a313f36b856181f188de21313820e177002501
+FROM alpine:3.17.2@sha256:69665d02cb32192e52e07644d76bc6f25abeb5410edc1c7a81a10ba3f0efb90a
 LABEL maintainer="Fleet Developers"
 
 RUN apk --update add ca-certificates
