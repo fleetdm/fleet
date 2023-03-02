@@ -1,0 +1,1 @@
+- Pin Docker image hashes in Dockerfiles for increased security.

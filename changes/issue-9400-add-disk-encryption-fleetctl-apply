@@ -1,0 +1,1 @@
+* Added the `mdm.macos_settings.enable_disk_encryption` option to the `fleetctl apply` configuration files of "config" and "team" kind as a Fleet Premium feature.

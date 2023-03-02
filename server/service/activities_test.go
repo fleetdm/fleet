@@ -132,7 +132,7 @@ func Test_logRoleChangeActivities(t *testing.T) {
 				GlobalRole: tt.newRole,
 				Teams:      newTeams,
 			}
-			require.NoError(t, logRoleChangeActivities(ctx, ds, &fleet.User{}, tt.oldRole, oldTeams, newUser))
+			require.NoError(t, fleet.LogRoleChangeActivities(ctx, ds, &fleet.User{}, tt.oldRole, oldTeams, newUser))
 			require.Equal(t, tt.expectActivities, activities)
 		})
 	}
