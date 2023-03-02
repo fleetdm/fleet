@@ -40,7 +40,7 @@ run(){
 
 
 	#Verify that passed file exists
-	if !(test -f $source)
+	if !(test -f "$source")
 		then
 			echo "Source file not found"
 			return
