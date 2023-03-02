@@ -713,8 +713,7 @@ spec:
   platforms: win10
   platform: windows
   description: |
-    This setting determines the behavior for outbound connections that do not match an
-    outbound firewall rule.
+    This setting determines the behavior for outbound connections that do not match an outbound firewall rule.
     The recommended state for this setting is: Allow (default).
   resolution: |
     To establish the recommended configuration via GP, set the following UI path to 'Allow (default)'':
