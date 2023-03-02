@@ -78,6 +78,7 @@ fleetctl apply -f cis-policy-queries.yml
 The above will add all the automated CIS Benchmark checks as Fleet policies.
 
 ### macOS 13.0 Ventura Benchmark manual checks that require customer decision
+
 - 2.1.1.1 Audit iCloud Keychain (Level 2): Ensure that the iCloud keychain is used consistently with organizational requirements.
     The customer will decide whether iCloud keychain should be enabled or disabled and use only the relevant query
     2.1.1.1-enabled OR 2.1.1.1-disabled
@@ -87,6 +88,9 @@ The above will add all the automated CIS Benchmark checks as Fleet policies.
 - 2.5.1 Audit Siri (Level 1): Ensure that the Siri is used consistently with organizational requirements.
     The customer will decide whether Siri should be enabled or disabled and use only the relevant query
     2.5.1-enabled OR 2.5.1-disabled
+- 2.8.1 Audit Universal Control (Level 1): Ensure that the Universal Control is used consistently with organizational requirements.
+    The customer will decide whether Universal Control should be enabled or disabled and use only the relevant query
+    2.8.1-enabled OR 2.8.1-disabled
 
 ### macOS 13.0 Ventura Benchmark manual checks
 
