@@ -10,10 +10,19 @@ const baseClass = "mac-os-settings";
 
 interface IMacOSSettingsProps {
   params: Params;
+  // location field looks like this to integrate with the react router Route component, which
+  // renders this one
+  location: {
+    query: { team_id?: string };
+  };
 }
 
-const MacOSSettings = ({ params }: IMacOSSettingsProps) => {
+const MacOSSettings = ({ params, location }: IMacOSSettingsProps) => {
   const { section } = params;
+  const { team_id } = location.query;
+  // Avoids possible case where Number(undefined) returns NaN
+  const teamId = team_id === undefined ? team_id : Number(team_id);
+
   const DEFAULT_SETTINGS_SECTION = MAC_OS_SETTINGS_NAV_ITEMS[0];
 
   const currentFormSection =
@@ -27,7 +36,7 @@ const MacOSSettings = ({ params }: IMacOSSettingsProps) => {
       <p className={`${baseClass}__description`}>
         Remotely enforce settings on macOS hosts assigned to this team.
       </p>
-      <AggregateMacSettingsIndicators />
+      <AggregateMacSettingsIndicators teamId={teamId} />
       <SideNav
         className={`${baseClass}__side-nav`}
         navItems={MAC_OS_SETTINGS_NAV_ITEMS}

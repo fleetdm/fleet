@@ -1,10 +1,18 @@
 import { IAggregateMacSettingsStatus } from "interfaces/mdm";
 import MacSettingsIndicator from "pages/hosts/details/MacSettingsIndicator";
 import React from "react";
+import { useQuery } from "react-query";
+import mdmAPI from "services/entities/mdm";
 
 const baseClass = "aggregate-mac-settings-indicators";
 
-const AggregateMacSettingsIndicators = () => {
+interface AggregateMacSettingsIndicatorsProps {
+  teamId?: number;
+}
+
+const AggregateMacSettingsIndicators = ({
+  teamId,
+}: AggregateMacSettingsIndicatorsProps) => {
   const AGGREGATE_STATUS_DISPLAY_OPTIONS = {
     latest: {
       text: "Latest",
@@ -25,20 +33,26 @@ const AggregateMacSettingsIndicators = () => {
     },
   } as const;
 
-  const aggregateProfileData: IAggregateMacSettingsStatus = {
-    latest: 100,
-    pending: 100,
-    failing: 100,
-  };
+  const {
+    data: aggregateProfileStatusesResponse,
+  } = useQuery<IAggregateMacSettingsStatus>(
+    ["aggregateProfileStatuses", teamId],
+    () => mdmAPI.getAggregateProfileStatuses(teamId)
+  );
 
-  const aggregateStatusDataArray = Object.entries(aggregateProfileData) as [
+  const DISPLAY_ORDER = ["latest", "pending", "failing"] as const;
+  const orderedResponseKVArr: [
     keyof IAggregateMacSettingsStatus,
     number
-  ][];
+  ][] = aggregateProfileStatusesResponse
+    ? DISPLAY_ORDER.map((key) => {
+        return [key, aggregateProfileStatusesResponse[key]];
+      })
+    : [];
 
-  const indicators = aggregateStatusDataArray.map(([indicatorType, count]) => {
+  const indicators = orderedResponseKVArr.map(([status, count]) => {
     const { text, iconName, tooltipText } = AGGREGATE_STATUS_DISPLAY_OPTIONS[
-      indicatorType
+      status
     ];
     return (
       <div className="aggregate-mac-settings-indicator">
