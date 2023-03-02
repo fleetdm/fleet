@@ -557,6 +557,11 @@ type Service interface {
 	// specified team.
 	ListMDMAppleConfigProfiles(ctx context.Context, teamID uint) ([]*MDMAppleConfigProfile, error)
 
+	// GetMDMAppleProfilesSummary summarizes the current state of MDM configuration profiles on
+	// each host in the specified team (or, if no team is specified, each host that is not assigned
+	// to any team).
+	GetMDMAppleProfilesSummary(ctx context.Context, teamID *uint) (*MDMAppleHostsProfilesSummary, error)
+
 	// NewMDMAppleEnrollmentProfile creates and returns new enrollment profile.
 	// Such enrollment profiles allow devices to enroll to Fleet MDM.
 	NewMDMAppleEnrollmentProfile(ctx context.Context, enrollmentPayload MDMAppleEnrollmentProfilePayload) (enrollmentProfile *MDMAppleEnrollmentProfile, err error)
@@ -623,6 +628,15 @@ type Service interface {
 
 	// MMDAppleEraseDevice erases a host
 	MDMAppleEraseDevice(ctx context.Context, hostID uint) error
+
+	// MDMAppleEnableFileVaultAndEscrow adds a configuration profile for the
+	// given team that enables FileVault with a config that allows Fleet to
+	// escrow the recovery key.
+	MDMAppleEnableFileVaultAndEscrow(ctx context.Context, teamID uint) error
+
+	// MDMAppleDisableFileVaultAndEscrow removes the FileVault configuration
+	// profile for the given team.
+	MDMAppleDisableFileVaultAndEscrow(ctx context.Context, teamID uint) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// CronSchedulesService

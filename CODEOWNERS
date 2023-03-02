@@ -16,6 +16,7 @@ go.mod @fleetdm/go
 *.tf @edwardsb @zwinnerman-fleetdm @rfairburn
 /infrastructure/ @zwinnerman-fleetdm @edwardsb @rfairburn
 /charts/ @zwinnerman-fleetdm @edwardsb @rfairburn
+/terraform @zwinnerman-fleetdm @edwardsb @rfairburn
 
 # GitHub issue templates
 /.github/ISSUE_TEMPLATE @mikermcneil

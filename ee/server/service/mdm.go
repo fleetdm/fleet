@@ -1,7 +1,9 @@
 package service
 
 import (
+	"bytes"
 	"context"
+	"encoding/base64"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -110,4 +112,35 @@ func (svc *Service) MDMAppleEraseDevice(ctx context.Context, hostID uint) error 
 		return err
 	}
 	return nil
+}
+
+func (svc *Service) MDMAppleEnableFileVaultAndEscrow(ctx context.Context, teamID uint) error {
+	cert, _, _, err := svc.config.MDM.AppleSCEP()
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "enabling FileVault")
+	}
+
+	var contents bytes.Buffer
+	params := fileVaultProfileOptions{
+		PayloadIdentifier:    apple_mdm.FleetFileVaultPayloadIdentifier,
+		Base64DerCertificate: base64.StdEncoding.EncodeToString(cert.Leaf.Raw),
+	}
+	if err := fileVaultProfileTemplate.Execute(&contents, params); err != nil {
+		return ctxerr.Wrap(ctx, err, "enabling FileVault")
+	}
+
+	mc := fleet.Mobileconfig(contents.Bytes())
+	cp, err := mc.ParseConfigProfile()
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "enabling FileVault")
+	}
+	cp.TeamID = &teamID
+
+	_, err = svc.ds.NewMDMAppleConfigProfile(ctx, *cp)
+	return ctxerr.Wrap(ctx, err, "enabling FileVault")
+}
+
+func (svc *Service) MDMAppleDisableFileVaultAndEscrow(ctx context.Context, teamID uint) error {
+	err := svc.ds.DeleteMDMAppleConfigProfileByTeamAndIdentifier(ctx, teamID, apple_mdm.FleetFileVaultPayloadIdentifier)
+	return ctxerr.Wrap(ctx, err, "disabling FileVault")
 }
