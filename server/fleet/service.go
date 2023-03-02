@@ -557,6 +557,11 @@ type Service interface {
 	// specified team.
 	ListMDMAppleConfigProfiles(ctx context.Context, teamID uint) ([]*MDMAppleConfigProfile, error)
 
+	// GetMDMAppleProfilesSummary summarizes the current state of MDM configuration profiles on
+	// each host in the specified team (or, if no team is specified, each host that is not assigned
+	// to any team).
+	GetMDMAppleProfilesSummary(ctx context.Context, teamID *uint) (*MDMAppleHostsProfilesSummary, error)
+
 	// NewMDMAppleEnrollmentProfile creates and returns new enrollment profile.
 	// Such enrollment profiles allow devices to enroll to Fleet MDM.
 	NewMDMAppleEnrollmentProfile(ctx context.Context, enrollmentPayload MDMAppleEnrollmentProfilePayload) (enrollmentProfile *MDMAppleEnrollmentProfile, err error)

@@ -1060,3 +1060,65 @@ func (ds *Datastore) UpdateHostMDMAppleProfile(ctx context.Context, profile *fle
         `, profile.Status, profile.OperationType, profile.Detail, profile.HostUUID, profile.CommandUUID)
 	return err
 }
+
+func (ds *Datastore) GetMDMAppleHostsProfilesSummary(ctx context.Context, teamID *uint) (*fleet.MDMAppleHostsProfilesSummary, error) {
+	// TODO(sarah): add cases to handle Fleet-managed profiles (e.g., disk encryption)
+	sqlFmt := `
+SELECT
+	COUNT(
+		CASE WHEN h.failed > 0 THEN
+			'failed'
+		END) AS failed,
+	COUNT(
+		CASE WHEN h.failed = 0
+			AND h.pending > 0 THEN
+			'pending'
+		END) AS pending,
+	COUNT(
+		CASE WHEN h.failed = 0
+			AND h.pending = 0 THEN
+			'applied'
+		END) AS latest
+FROM (
+	SELECT
+		host_uuid,
+		COUNT(
+			CASE WHEN status = 'applied' THEN
+				1
+			END) AS applied,
+		COUNT(
+			CASE WHEN status = 'failed' THEN
+				1
+			END) AS failed,
+		COUNT(
+			CASE WHEN status = 'pending' THEN
+				1
+			END) AS pending
+	FROM
+		host_mdm_apple_profiles hmap
+	GROUP BY
+		host_uuid) AS h
+WHERE
+	EXISTS (
+		SELECT
+			1
+		FROM
+			hosts
+		WHERE
+			hosts.uuid = host_uuid
+			AND %s)
+`
+
+	teamFilter := "hosts.team_id IS NULL"
+	if teamID != nil && *teamID > 0 {
+		teamFilter = fmt.Sprintf("hosts.team_id = %d", *teamID)
+	}
+
+	var res fleet.MDMAppleHostsProfilesSummary
+	err := sqlx.GetContext(ctx, ds.reader, &res, fmt.Sprintf(sqlFmt, teamFilter))
+	if err != nil {
+		return nil, err
+	}
+
+	return &res, nil
+}

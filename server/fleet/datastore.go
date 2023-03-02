@@ -813,6 +813,11 @@ type Datastore interface {
 
 	// GetMDMAppleCommandRequest type returns the request type for the given command
 	GetMDMAppleCommandRequestType(ctx context.Context, commandUUID string) (string, error)
+
+	// GetMDMAppleHostsProfilesSummary summarizes the current state of MDM configuration profiles on
+	// each host in the specified team (or, if no team is specified, each host that is not assigned
+	// to any team).
+	GetMDMAppleHostsProfilesSummary(ctx context.Context, teamID *uint) (*MDMAppleHostsProfilesSummary, error)
 }
 
 const (
