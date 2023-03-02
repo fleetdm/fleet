@@ -1559,6 +1559,18 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+// FileVault-related free version implementation
+////////////////////////////////////////////////////////////////////////////////
+
+func (svc *Service) MDMAppleEnableFileVaultAndEscrow(ctx context.Context, teamID uint) error {
+	return fleet.ErrMissingLicense
+}
+
+func (svc *Service) MDMAppleDisableFileVaultAndEscrow(ctx context.Context, teamID uint) error {
+	return fleet.ErrMissingLicense
+}
+
+////////////////////////////////////////////////////////////////////////////////
 // Implementation of nanomdm's CheckinAndCommandService interface
 ////////////////////////////////////////////////////////////////////////////////
 

@@ -1432,6 +1432,16 @@ func TestMDMAppleReconcileProfiles(t *testing.T) {
 	require.True(t, ds.BulkUpsertMDMAppleHostProfilesFuncInvoked)
 }
 
+func TestAppleMDMFileVaultEscrowFunctions(t *testing.T) {
+	svc := Service{}
+
+	err := svc.MDMAppleEnableFileVaultAndEscrow(context.Background(), uint(1))
+	require.ErrorIs(t, fleet.ErrMissingLicense, err)
+
+	err = svc.MDMAppleDisableFileVaultAndEscrow(context.Background(), uint(1))
+	require.ErrorIs(t, fleet.ErrMissingLicense, err)
+}
+
 func mobileconfigForTest(name, identifier string) []byte {
 	return []byte(fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">

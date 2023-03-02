@@ -274,6 +274,14 @@ module.exports.routes = {
     }
   },
 
+  'GET /osquery-management': {
+    action: 'view-osquery-management',
+    locals: {
+      pageTitleForMeta: 'Osquery management | Fleet for osquery',
+      pageDescriptionForMeta: 'Fleet lets you harness the power of osquery to stream accurate, real-time data from all your endpoints.',
+    }
+  },
+
 
 
   //  ╦╔╦╗╔═╗╔═╗╦╔╗╔╔═╗  ┌─┬  ┌─┐┌┐┌┌┬┐┬┌┐┌┌─┐  ┌─┐┌─┐┌─┐┌─┐┌─┐─┐
@@ -340,7 +348,7 @@ module.exports.routes = {
   'GET /handbook/security': '/handbook/business-operations/security',
   'GET /handbook/security/security-policies':'/handbook/business-operations/security-policies#information-security-policy-and-acceptable-use-policy',// « reasoning: https://github.com/fleetdm/fleet/pull/9624
   'GET /handbook/handbook': '/handbook/company/handbook',
-
+  'GET /handbook/company/product-groups': '/handbook/company/development-groups',
 
   //  ╔╦╗╦╔═╗╔═╗  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗   ┬   ╔╦╗╔═╗╦ ╦╔╗╔╦  ╔═╗╔═╗╔╦╗╔═╗
   //  ║║║║╚═╗║    ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗  ┌┼─   ║║║ ║║║║║║║║  ║ ║╠═╣ ║║╚═╗
