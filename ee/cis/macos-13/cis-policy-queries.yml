@@ -100,9 +100,6 @@ spec:
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-macos-13-1.7
   contributors: lucasmrod
-
-
-
 ---
 apiVersion: v1
 kind: policy
@@ -128,11 +125,41 @@ spec:
             name='allowCloudDocumentSync' 
              AND (value = '1' OR value = 'true')
         );  
+    /*CIS does not make a hard recommendation for this policy. Fleet has provided two policies (one failing, one succeeding). 
+      Depending on your organization's decision, you can delete this policy or its counterpart.*/
   purpose: Informational
   tags: compliance, CIS, CIS_Level2, CIS-macos-13-2.1.1.2-disabled, decision-needed
   contributors: sharon-fdm
-
-
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure iCloud Drive storage solution is enabled (MDM Required)
+  platforms: macOS
+  platform: darwin
+  description: |
+    iCloud Drive is Apple's storage solution for applications on both macOS and iOS to use the same files that are resident in Apple's cloud storage. The iCloud Drive folder is available much like Dropbox, Microsoft OneDrive, or Google Drive.
+    One of the concerns in public cloud storage is that proprietary data may be inappropriately stored in an end user's personal repository. Organizations that need specific controls on information should ensure that this service is turned off or the user knows what information must be stored on services that are approved for storage of controlled information.
+    This query will check for the existance of the policy not its value (That should be set per organization's decision)
+  resolution: |
+    The administrator should configure this via MDM profile.
+    Create or edit a configuration profile with the following information:
+      1. The PayloadType string is com.apple.applicationaccess.
+      2. The key to include is allowCloudDocumentSync.
+      3. The key must be set to <true/>.
+  query: |
+    SELECT 1 WHERE NOT EXISTS (
+        SELECT 1 FROM managed_policies WHERE 
+            domain='com.apple.applicationaccess' 
+            AND 
+            name='allowCloudDocumentSync' 
+             AND (value = '0' OR value = 'false')
+        );  
+    /*CIS does not make a hard recommendation for this policy. Fleet has provided two policies (one failing, one succeeding). 
+      Depending on your organization's decision, you can delete this policy or its counterpart.*/
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS-macos-13-2.1.1.2-enabled, decision-needed
+  contributors: sharon-fdm
 ---
 apiVersion: v1
 kind: policy
