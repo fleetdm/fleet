@@ -782,7 +782,32 @@ spec:
 
 
 
-
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Universal Control is disabled (Based on organization's policy) (MDM Required)
+  platforms: macOS
+  platform: darwin
+  description: |
+    Universal Control is an Apple feature that allows Mac users to control multiple other Macs and iPads with the same keyboard, mouse, and trackpad using the same Apple ID. The technology relies on already available iCloud services, particularly Handoff.
+    Universal Control simplifies the use of iCloud connectivity of multiple computers using the same Apple ID. This may simplify data transfer from organizationally-managed and personal devices. The use of the same iCloud account and Handoff is the underlying concern that should be evaluated. The use of the same keyboard or mouse across multiple devices does not by itself decrease organizational security.
+  resolution: |
+    Automated method:
+    Ask your system administrator to deploy an MDM profile that enables the Bluetooth status in the menu bar.
+    Create or edit a configuration profile with the following information:
+    1. The `PayloadType` string is com.apple.universalcontrol.
+    2. The key to include is 'Disable'.
+    3. The key must be set to <true/>.
+  query: |
+      SELECT 1 FROM managed_policies WHERE 
+        domain='com.apple.universalcontrol' 
+        AND 
+        name='Disable' 
+        AND value = '1';  
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS-macos-13-2.8.1-disabled, decision-needed
+  contributors: sharon-fdm
 
 
 
