@@ -93,10 +93,15 @@ create_team(){
 
   #Generate yml based on template provided
 
-	( echo "cat <<EOF >final.yml";
-	cat team_config.yml;
-	) >temp.yml
-	. temp.yml
+	cat <<EOF > final.yml
+apiVersion: v1
+kind: team
+spec:
+  team:
+    name: ${name}
+    secrets:
+      - secret: ${secret}
+EOF
 
   # Apply the new team to fleet
 	echo "Adding $name team to Fleet"
