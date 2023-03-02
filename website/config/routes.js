@@ -283,6 +283,15 @@ module.exports.routes = {
   },
 
 
+  'GET /experimental/okta-webflow': {
+    action: 'experimental/view-okta-webflow',
+    locals: {
+      layout: 'layouts/layout-sandbox',
+      optimizeForAppleWebview: true,
+    }
+  },
+
+
 
   //  ╦╔╦╗╔═╗╔═╗╦╔╗╔╔═╗  ┌─┬  ┌─┐┌┐┌┌┬┐┬┌┐┌┌─┐  ┌─┐┌─┐┌─┐┌─┐┌─┐─┐
   //  ║║║║╠═╣║ ╦║║║║║╣   │ │  ├─┤│││ │││││││ ┬  ├─┘├─┤│ ┬├┤ └─┐ │

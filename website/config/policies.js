@@ -56,4 +56,5 @@ module.exports.policies = {
   'deliver-premium-upgrade-form': true,
   'view-compliance': true,
   'view-osquery-management': true,
+  'experimental/*': true, // For internal Fleet demos
 };
