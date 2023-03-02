@@ -1839,7 +1839,7 @@ spec:
     SELECT 1 FROM managed_policies WHERE
       domain = 'com.apple.mobiledevice.passwordpolicy' AND
       name = 'minComplexChars' AND
-      value = <integer>1</integer>
+      value = '1'
       LIMIT 1;
   purpose: Informational
   tags: compliance, CIS, CIS_Level2, CIS-macos-13-5.2.5
