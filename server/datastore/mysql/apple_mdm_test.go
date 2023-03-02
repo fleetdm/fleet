@@ -26,11 +26,13 @@ func TestMDMAppleConfigProfile(t *testing.T) {
 		{"TestNewMDMAppleConfigProfileDuplicateName", testNewMDMAppleConfigProfileDuplicateName},
 		{"TestNewMDMAppleConfigProfileDuplicateIdentifier", testNewMDMAppleConfigProfileDuplicateIdentifier},
 		{"TestDeleteMDMAppleConfigProfile", testDeleteMDMAppleConfigProfile},
+		{"TestDeleteMDMAppleConfigProfileByTeamAndIdentifier", testDeleteMDMAppleConfigProfileByTeamAndIdentifier},
 		{"TestListMDMAppleConfigProfiles", testListMDMAppleConfigProfiles},
 		{"TestHostDetailsMDMProfiles", testHostDetailsMDMProfiles},
 		{"TestBatchSetMDMAppleProfiles", testBatchSetMDMAppleProfiles},
 		{"TestMDMAppleProfileManagement", testMDMAppleProfileManagement},
 		{"TestUpdateHostMDMAppleProfile", testGetMDMAppleProfilesContents},
+		{"TestMDMAppleHostsProfilesSummary", testMDMAppleHostsProfilesSummary},
 	}
 
 	for _, c := range cases {
@@ -163,6 +165,20 @@ func testDeleteMDMAppleConfigProfile(t *testing.T, ds *Datastore) {
 	require.ErrorIs(t, err, sql.ErrNoRows)
 
 	err = ds.DeleteMDMAppleConfigProfile(ctx, initialCP.ProfileID)
+	require.ErrorIs(t, err, sql.ErrNoRows)
+}
+
+func testDeleteMDMAppleConfigProfileByTeamAndIdentifier(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	initialCP := storeDummyConfigProfileForTest(t, ds)
+
+	err := ds.DeleteMDMAppleConfigProfileByTeamAndIdentifier(ctx, *initialCP.TeamID, initialCP.Identifier)
+	require.NoError(t, err)
+
+	_, err = ds.GetMDMAppleConfigProfile(ctx, initialCP.ProfileID)
+	require.ErrorIs(t, err, sql.ErrNoRows)
+
+	err = ds.DeleteMDMAppleConfigProfileByTeamAndIdentifier(ctx, *initialCP.TeamID, initialCP.Identifier)
 	require.ErrorIs(t, err, sql.ErrNoRows)
 }
 
@@ -1139,4 +1155,154 @@ VALUES
 		host.UUID,
 	)
 	require.NoError(t, err)
+}
+
+func testMDMAppleHostsProfilesSummary(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	generateCP := func(name string, identifier string, teamID uint) *fleet.MDMAppleConfigProfile {
+		mc := fleet.Mobileconfig([]byte(name + identifier))
+		return &fleet.MDMAppleConfigProfile{
+			Name:         name,
+			Identifier:   identifier,
+			TeamID:       &teamID,
+			Mobileconfig: mc,
+		}
+	}
+
+	upsertHostCPs := func(hosts []*fleet.Host, profiles []*fleet.MDMAppleConfigProfile, opType fleet.MDMAppleOperationType, status fleet.MDMAppleDeliveryStatus) {
+		upserts := []*fleet.MDMAppleBulkUpsertHostProfilePayload{}
+		for _, h := range hosts {
+			for _, cp := range profiles {
+				payload := fleet.MDMAppleBulkUpsertHostProfilePayload{
+					ProfileID:         cp.ProfileID,
+					ProfileIdentifier: cp.Identifier,
+					HostUUID:          h.UUID,
+					CommandUUID:       "",
+					OperationType:     opType,
+					Status:            &status,
+				}
+				upserts = append(upserts, &payload)
+			}
+		}
+		err := ds.BulkUpsertMDMAppleHostProfiles(ctx, upserts)
+		require.NoError(t, err)
+	}
+
+	var hosts []*fleet.Host
+	for i := 0; i < 10; i++ {
+		h := test.NewHost(t, ds, fmt.Sprintf("foo.local.%d", i), "1.1.1.1",
+			fmt.Sprintf("%d", i), fmt.Sprintf("%d", i), time.Now())
+		hosts = append(hosts, h)
+	}
+
+	// create somes config profiles for no team
+	var noTeamCPs []*fleet.MDMAppleConfigProfile
+	for i := 0; i < 10; i++ {
+		cp, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP(fmt.Sprintf("name%d", i), fmt.Sprintf("identifier%d", i), 0))
+		require.NoError(t, err)
+		noTeamCPs = append(noTeamCPs, cp)
+	}
+
+	// all hosts pending install of all profiles
+	upsertHostCPs(hosts, noTeamCPs, fleet.MDMAppleOperationTypeInstall, fleet.MDMAppleDeliveryPending)
+	res, err := ds.GetMDMAppleHostsProfilesSummary(ctx, nil)
+	require.NoError(t, err)
+	require.NotNil(t, res)
+	require.Equal(t, uint(len(hosts)), res.Pending) // each host only counts once
+	require.Equal(t, uint(0), res.Failed)
+	require.Equal(t, uint(0), res.Latest)
+
+	// hosts[0] and hosts[1] failed one profile
+	upsertHostCPs(hosts[0:2], noTeamCPs[0:1], fleet.MDMAppleOperationTypeInstall, fleet.MDMAppleDeliveryFailed)
+	// hosts[0] also failed another profile
+	upsertHostCPs(hosts[0:1], noTeamCPs[1:2], fleet.MDMAppleOperationTypeInstall, fleet.MDMAppleDeliveryFailed)
+	res, err = ds.GetMDMAppleHostsProfilesSummary(ctx, nil) // get summary for profiles with no team
+	require.NoError(t, err)
+	require.NotNil(t, res)
+	require.Equal(t, uint(len(hosts)-2), res.Pending) // two hosts are failing at least one profile (hosts[0] and hosts[1])
+	require.Equal(t, uint(2), res.Failed)             // only count one failure per host (hosts[0] failed two profiles but only counts once)
+	require.Equal(t, uint(0), res.Latest)
+
+	// hosts[0:3] applied a third profile
+	upsertHostCPs(hosts[0:3], noTeamCPs[2:3], fleet.MDMAppleOperationTypeInstall, fleet.MDMAppleDeliveryApplied)
+	res, err = ds.GetMDMAppleHostsProfilesSummary(ctx, nil) // get summary for profiles with no team
+	require.NoError(t, err)
+	require.NotNil(t, res)
+	require.Equal(t, uint(len(hosts)-2), res.Pending) // no change
+	require.Equal(t, uint(2), res.Failed)             // no change
+	require.Equal(t, uint(0), res.Latest)             // no change, host must apply all profiles count as latest
+
+	// hosts[9] applied all profiles
+	upsertHostCPs(hosts[9:10], noTeamCPs, fleet.MDMAppleOperationTypeInstall, fleet.MDMAppleDeliveryApplied)
+	res, err = ds.GetMDMAppleHostsProfilesSummary(ctx, nil) // get summary for profiles with no team
+	require.NoError(t, err)
+	require.NotNil(t, res)
+	require.Equal(t, uint(len(hosts)-3), res.Pending) // subtract third host from pending
+	require.Equal(t, uint(2), res.Failed)             // no change
+	require.Equal(t, uint(1), res.Latest)             // add one host that has applied all profiles
+
+	// create a team
+	tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "rocket"})
+	require.NoError(t, err)
+	res, err = ds.GetMDMAppleHostsProfilesSummary(ctx, &tm.ID) // get summary new team
+	require.NoError(t, err)
+	require.NotNil(t, res)
+	require.Equal(t, uint(0), res.Pending) // no profiles yet
+	require.Equal(t, uint(0), res.Failed)  // no profiles yet
+	require.Equal(t, uint(0), res.Latest)  // no profiles yet
+
+	// transfer hosts[9] to new team
+	err = ds.AddHostsToTeam(ctx, &tm.ID, []uint{hosts[9].ID})
+	require.NoError(t, err)
+	// remove all no team profiles from hosts[9]
+	upsertHostCPs(hosts[9:10], noTeamCPs, fleet.MDMAppleOperationTypeRemove, fleet.MDMAppleDeliveryPending)
+
+	res, err = ds.GetMDMAppleHostsProfilesSummary(ctx, nil) // get summary for profiles with no team
+	require.NoError(t, err)
+	require.NotNil(t, res)
+	require.Equal(t, uint(len(hosts)-3), res.Pending) // subtract two failed hosts and one transferred host
+	require.Equal(t, uint(2), res.Failed)             // no change
+	require.Equal(t, uint(0), res.Latest)             // hosts[9] was transferred so this is now zero
+
+	res, err = ds.GetMDMAppleHostsProfilesSummary(ctx, &tm.ID) // get summary for new team
+	require.NoError(t, err)
+	require.NotNil(t, res)
+	require.Equal(t, uint(1), res.Pending) // hosts[9] is pending removal of old profiles
+	require.Equal(t, uint(0), res.Failed)
+	require.Equal(t, uint(0), res.Latest)
+
+	// create somes config profiles for the new team
+	var teamCPs []*fleet.MDMAppleConfigProfile
+	for i := 0; i < 10; i++ {
+		cp, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP(fmt.Sprintf("name%d", i), fmt.Sprintf("identifier%d", i), tm.ID))
+		require.NoError(t, err)
+		teamCPs = append(teamCPs, cp)
+	}
+
+	// install all team profiles on hosts[9]
+	upsertHostCPs(hosts[9:10], teamCPs, fleet.MDMAppleOperationTypeInstall, fleet.MDMAppleDeliveryApplied)
+	res, err = ds.GetMDMAppleHostsProfilesSummary(ctx, &tm.ID)
+	require.NoError(t, err)
+	require.NotNil(t, res)
+	require.Equal(t, uint(1), res.Pending) // hosts[9] is still pending removal of old profiles
+	require.Equal(t, uint(0), res.Failed)
+	require.Equal(t, uint(0), res.Latest)
+
+	// hosts[9] successfully removed old profiles
+	upsertHostCPs(hosts[9:10], noTeamCPs, fleet.MDMAppleOperationTypeRemove, fleet.MDMAppleDeliveryApplied)
+	res, err = ds.GetMDMAppleHostsProfilesSummary(ctx, &tm.ID)
+	require.NoError(t, err)
+	require.NotNil(t, res)
+	require.Equal(t, uint(0), res.Pending)
+	require.Equal(t, uint(0), res.Failed)
+	require.Equal(t, uint(1), res.Latest) // hosts[9] is all good
+
+	// confirm no changes in summary for profiles with no team
+	res, err = ds.GetMDMAppleHostsProfilesSummary(ctx, ptr.Uint(0)) // team id zero represents no team
+	require.NoError(t, err)
+	require.NotNil(t, res)
+	require.Equal(t, uint(len(hosts)-3), res.Pending) // subtract two failed hosts and one transferred host
+	require.Equal(t, uint(2), res.Failed)             // two failed hosts
+	require.Equal(t, uint(0), res.Latest)             // hosts[9] transferred to new team so is not counted under no team
 }

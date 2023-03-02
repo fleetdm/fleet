@@ -1,0 +1,29 @@
+Expected scenario
+==================
+1) Open "Edit Group Policy" tool and set the following UI path to 'Disabled':
+'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\Network access: Allow anonymous SID/Name
+translation'
+
+2) After running the policy check, it should return 1 indicating that setting was properly set
+
+
+
+Failure scenario
+==================
+1) Open "Edit Group Policy" tool and set the following UI path to a value different than 'Disabled':
+'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\Network access: Allow anonymous SID/Name
+translation'
+
+2) After running the policy check, it should return nothing, indicating that setting was set to a non-compliant value
+
+TODO
+==================
+Everything is done but writing the Query
+
+Notes
+==================
+- No HKEY
+- No OMAURI
+- CIS Benchmarks Page 228: https://drive.google.com/file/d/16M2AuKHu_x-WJZWObhl_7MpZkPkKSQaq/view
+- Tenable website entry: https://www.tenable.com/audits/items/CIS_Microsoft_Windows_Server_2022_Benchmark_v1.0.0_L1_DC.audit:2160eacb1749dc3d77171ae1d7a2db96
+- Tried searching all related registry items (SELECT * FROM registry WHERE (key = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\Lsa');) for a path being modified, but that path has nothing related to this policy
