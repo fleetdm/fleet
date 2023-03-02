@@ -1078,7 +1078,7 @@ SELECT
 		CASE WHEN h.failed = 0
 			AND h.pending = 0 THEN
 			'applied'
-		END) AS latest
+		END) AS applied
 FROM (
 	SELECT
 		host_uuid,
