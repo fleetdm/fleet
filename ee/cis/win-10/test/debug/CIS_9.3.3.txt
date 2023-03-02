@@ -1,0 +1,24 @@
+Expected scenario
+==================
+1) Open "Edit Group Policy" tool and set the following UI path to 'Allow (default)':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Windows Defender Firewall with Advanced Security\Windows Defender Firewall with Advanced Security - Local Group Policy Object\Windows Defender Firewall Properties\Public Profile\Outbound connections'
+2) After running the policy check, it should return 1 indicating that setting was properly set
+
+
+
+Failure scenario
+==================
+1) Open "Edit Group Policy" tool and set the following UI path to values different than 'Allow (default)':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Windows Defender Firewall with Advanced Security\Windows Defender Firewall with Advanced Security - Local Group Policy Object\Windows Defender Firewall Properties\Public Profile\Outbound connections'
+
+2) After running the policy check, it should return nothing, indicating that setting was set to a non-compliant value
+
+TODO
+==================
+Figure out why HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\WindowsFirewall\PublicProfile is not showing up in the registry
+
+Notes
+==================
+The path 'PublicProfile' does not exist in the registry even after configured (Even though path 'PrivateProfile' does exist)
+CIS Benchmark Page 426: https://drive.google.com/file/d/16M2AuKHu_x-WJZWObhl_7MpZkPkKSQaq/view
+Tenable item: 
