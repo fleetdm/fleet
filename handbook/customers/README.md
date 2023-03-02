@@ -288,6 +288,11 @@ Fleet's subscription agreement is available at [fleetdm.com/terms](https://fleet
 
 Fleeties can find a summary of contract terms in the relevant [customer's Salesforce opportunity.](https://fleetdm.lightning.force.com/lightning/o/Opportunity/list?filterName=Recent)
 
+### Standard terms
+For all subscription agreements, NDAs, and similar contracts, Fleet maintains a [standard set of terms and maximum allowable adjustments for those terms](https://docs.google.com/spreadsheets/d/1gAenC948YWG2NwcaVHleUvX0LzS8suyMFpjaBqxHQNg/edit#gid=1136345578).
+
+Exceptions to these maximum allowable adjustments always require CEO approval, whether in the form of redlines to Fleet's agreements or in terms on a prospective customer's own contract.
+
 ### Reviewing subscription agreement
 
 To quickly get help doing a legal review of a prospect subscription agreement, with or without redlines:
@@ -297,11 +302,11 @@ To quickly get help doing a legal review of a prospect subscription agreement, w
 3. Follow the instructions in the "Submitting this request" section
 
 If the prospect/customer/partner is originating the request for signature:
-1. Communicate that the Fleet signatory is Mike McNeil, CEO and share his email
+1. Communicate to the prospect that the Fleet signatory is Mike McNeil, CEO and share his email.
 2. Mike will create the github issue mentioned above when he gets request
 3. Mike will forward to business operations for review
-4. Business operations will notify Mike and internal requestor when ready for signature
-5. Mike will sign and close the issue
+4. Business operations will notify Mike and the requestor (via GitHub comment w/ at-mention) when ready for signature
+5. Mike will sign and close the issue.  (This sends a notification to the requestor automatically.)
 
 ## Customer DRI change
 Sometimes there is a change in the champion within the customer's organization.
