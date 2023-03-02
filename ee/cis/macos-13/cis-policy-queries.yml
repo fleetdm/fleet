@@ -677,6 +677,15 @@ spec:
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-macos-13-2.4.2
   contributors: lucasmrod
+
+
+
+
+
+
+
+
+
 ---
 apiVersion: v1
 kind: policy
