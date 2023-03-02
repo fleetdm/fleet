@@ -137,7 +137,6 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 			WebhookSettings: config.WebhookSettings,
 			Integrations:    config.Integrations,
 			MDM:             config.MDM,
-			MacOSSettings:   config.MacOSSettings,
 		},
 		appConfigResponseFields: appConfigResponseFields{
 			UpdateInterval:  updateIntervalConfig,
@@ -248,10 +247,6 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	}
 	oldAppConfig := appConfig.Copy()
 
-	// keep this original values, as they cannot be modified via this request.
-	origAppleBMTerms := oldAppConfig.MDM.AppleBMTermsExpired
-	origMDMEnabled := oldAppConfig.MDM.EnabledAndConfigured
-
 	license, err := svc.License(ctx)
 	if err != nil {
 		return nil, err
@@ -273,22 +268,10 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		return nil, ctxerr.Wrap(ctx, err, "modify AppConfig")
 	}
 
-	// TODO(mna): this ports the validations from the old validationMiddleware
-	// correctly, but this could be optimized so that we don't unmarshal the
-	// incoming bytes twice.
 	invalid := &fleet.InvalidArgumentError{}
 	var newAppConfig fleet.AppConfig
 	if err := json.Unmarshal(p, &newAppConfig); err != nil {
 		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: err.Error()})
-	}
-
-	if len(newAppConfig.MacOSSettings.CustomSettings) != 0 {
-		if !svc.config.MDMApple.Enable {
-			// TODO(mna): eventually we should detect the minimum config required for
-			// this to be allowed, probably just SCEP/APNs?
-			invalid.Append("macos_settings.custom_settings", "cannot set custom settings: Fleet MDM is not enabled")
-			return nil, ctxerr.Wrap(ctx, invalid)
-		}
 	}
 
 	if newAppConfig.FleetDesktop.TransparencyURL != "" {
@@ -358,8 +341,8 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	// payload we don't return an error in this case because it would
 	// prevent using the output of fleetctl get config as input to fleetctl
 	// apply or this endpoint.
-	appConfig.MDM.AppleBMTermsExpired = origAppleBMTerms
-	appConfig.MDM.EnabledAndConfigured = origMDMEnabled
+	appConfig.MDM.AppleBMTermsExpired = oldAppConfig.MDM.AppleBMTermsExpired
+	appConfig.MDM.EnabledAndConfigured = oldAppConfig.MDM.EnabledAndConfigured
 
 	// do not send a test email in dry-run mode, so this is a good place to stop
 	// (we also delete the removed integrations after that, which we don't want
@@ -470,6 +453,25 @@ func (svc *Service) validateMDM(
 	mdm *fleet.MDM,
 	invalid *fleet.InvalidArgumentError,
 ) {
+	if mdm.MacOSSettings.EnableDiskEncryption && !license.IsPremium() {
+		invalid.Append("macos_settings.enable_disk_encryption", ErrMissingLicense.Error())
+	}
+
+	if !svc.config.MDMApple.Enable {
+		// TODO(mna): eventually we should detect the minimum config required for
+		// this to be allowed, probably just SCEP/APNs?
+
+		if len(mdm.MacOSSettings.CustomSettings) != 0 {
+			invalid.Append("macos_settings.custom_settings",
+				`Couldn't update macos_settings because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`)
+		}
+
+		if mdm.MacOSSettings.EnableDiskEncryption {
+			invalid.Append("macos_settings.enable_disk_encryption",
+				`Couldn't update macos_settings because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`)
+		}
+	}
+
 	if name := mdm.AppleBMDefaultTeam; name != "" && name != oldMdm.AppleBMDefaultTeam {
 		if !license.IsPremium() {
 			invalid.Append("mdm.apple_bm_default_team", ErrMissingLicense.Error())

@@ -259,6 +259,8 @@ func (svc *Service) DestroySession(ctx context.Context) error {
 ////////////////////////////////////////////////////////////////////////////////
 
 type initiateSSORequest struct {
+	// RelayURL is the URL path that the IdP will redirect to once authenticated
+	// (e.g. "/dashboard").
 	RelayURL string `json:"relay_url"`
 }
 
@@ -448,12 +450,9 @@ func (svc *Service) InitSSOCallback(ctx context.Context, auth fleet.Auth) (strin
 		return "", ctxerr.Wrap(ctx, ssoError{err: err, code: ssoOrgDisabled}, "callback sso")
 	}
 
-	// Load the request metadata if available
-
-	// localhost:9080/simplesaml/saml2/idp/SSOService.php?spentityid=https://localhost:8080
+	// Load the request metadata if available.
 	var metadata *sso.Metadata
 	var redirectURL string
-
 	if appConfig.SSOSettings.EnableSSOIdPLogin && auth.RequestID() == "" {
 		// Missing request ID indicates this was IdP-initiated. Only allow if
 		// configured to do so.

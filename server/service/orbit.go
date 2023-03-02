@@ -22,8 +22,9 @@ type orbitError struct {
 }
 
 type EnrollOrbitRequest struct {
-	EnrollSecret string `json:"enroll_secret"`
-	HardwareUUID string `json:"hardware_uuid"`
+	EnrollSecret   string `json:"enroll_secret"`
+	HardwareUUID   string `json:"hardware_uuid"`
+	HardwareSerial string `json:"hardware_serial"`
 }
 
 type EnrollOrbitResponse struct {
@@ -71,7 +72,7 @@ func (r EnrollOrbitResponse) hijackRender(ctx context.Context, w http.ResponseWr
 
 func enrollOrbitEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*EnrollOrbitRequest)
-	nodeKey, err := svc.EnrollOrbit(ctx, req.HardwareUUID, req.EnrollSecret)
+	nodeKey, err := svc.EnrollOrbit(ctx, req.HardwareUUID, req.HardwareSerial, req.EnrollSecret)
 	if err != nil {
 		return EnrollOrbitResponse{Err: err}, nil
 	}
@@ -99,10 +100,10 @@ func (svc *Service) AuthenticateOrbitHost(ctx context.Context, orbitNodeKey stri
 }
 
 // EnrollOrbit returns an orbit nodeKey on successful enroll
-func (svc *Service) EnrollOrbit(ctx context.Context, hardwareUUID string, enrollSecret string) (string, error) {
+func (svc *Service) EnrollOrbit(ctx context.Context, hardwareUUID, hardwareSerial, enrollSecret string) (string, error) {
 	// this is not a user-authenticated endpoint
 	svc.authz.SkipAuthorization(ctx)
-	logging.WithExtras(ctx, "hardware_uuid", hardwareUUID)
+	logging.WithExtras(ctx, "hardware_uuid", hardwareUUID, "hardware_serial", hardwareSerial)
 
 	secret, err := svc.ds.VerifyEnrollSecret(ctx, enrollSecret)
 	if err != nil {
@@ -114,7 +115,12 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hardwareUUID string, enroll
 		return "", orbitError{message: "failed to generate orbit node key: " + err.Error()}
 	}
 
-	_, err = svc.ds.EnrollOrbit(ctx, hardwareUUID, orbitNodeKey, secret.TeamID)
+	appConfig, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return "", orbitError{message: "app config load failed: " + err.Error()}
+	}
+
+	_, err = svc.ds.EnrollOrbit(ctx, appConfig.MDM.EnabledAndConfigured, hardwareUUID, hardwareSerial, orbitNodeKey, secret.TeamID)
 	if err != nil {
 		return "", orbitError{message: "failed to enroll " + err.Error()}
 	}

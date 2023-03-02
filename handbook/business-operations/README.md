@@ -390,11 +390,21 @@ Then hit send!  After all of the signatures are there, the completed document wi
 
 
 #### Purchasing a company-issued device
-Fleet provides laptops for team members to use while working at Fleet. As soon as an offer is accepted, `mikermcneil` will reach out to the new team member to start this process. `@charlottechance` will work with the new team member to get their laptop purchased and shipped to them.
-Most of the team at Fleet uses 16" MacBook Pros, but team members are free to choose any laptop or operating system that works for them, as long as the price [is within reason](#spending-company-money).
-When selecting your new laptop, we ask that you optimize your configuration to have a large hard drive and be available for delivery or pickup quickly, without waiting for customization.
-New equipment for projects are requested in #help-business-operations, please tag `mikermcneil` in your post. Include device requested (specs), reason for request, and timeline for when the device is needed. 
-When a device has been purchased, it's added to the [spreadsheet of company equipment](https://docs.google.com/spreadsheets/d/1hFlymLlRWIaWeVh14IRz03yE-ytBLfUaqVz0VVmmoGI/edit#gid=0) where we keep track of devices and equipment, purchased by Fleet. When the team member receives their computer, they will complete the entry by adding a description, model, and serial number to the spreadsheet.
+Fleet provides laptops for team members to use while working at Fleet. As soon as an offer is accepted, Nathan Holliday will reach out to the new team member to start this process, and will work with the new team member to get their laptop purchased and shipped to them on time.
+
+##### Selecting a laptop
+Most of the team at Fleet uses 16" MacBook Pros, but team members are free to choose any laptop or operating system that works for them, as long as the price [is within reason](#spending-company-money) and supported by our device management solution.  (Good news: Since Fleet uses Fleet for device management, every operating system is supported!)
+
+When selecting your new laptop, optimize your configuration to:
+1. have a reasonably large hard drive
+2. while still being available for delivery or pickup quickly, without waiting for customization.
+
+To request new equipment, post in #g-business-operations. Include a link to the requested equipment (including any specs), reason for request, and timeline for when the device is needed. 
+
+##### Tracking equipment
+When a device has been purchased, it's added to the [spreadsheet of company equipment](https://docs.google.com/spreadsheets/d/1hFlymLlRWIaWeVh14IRz03yE-ytBLfUaqVz0VVmmoGI/edit#gid=0) where we keep track of devices and equipment, purchased by Fleet.
+
+When you receive your new their computer, complete the entry by adding a description, model, and serial number to the spreadsheet.
 
 
 
@@ -454,7 +464,13 @@ At Fleet, we care about security. Here are a few resources about Fleet's securit
 ## Finance
 
 ### Monthly accounting
-Create a new issue for the current month and year named "Closing out YYYY-MM" using the [monthly accounting issue template](https://github.com/fleetdm/confidential/blob/main/.github/ISSUE_TEMPLATE/5-monthly-accounting.md) in GitHub and complete all of the tasks in the issue. 
+Create a [new montly accounting issue](https://github.com/fleetdm/confidential/issues/new/choose) for the current month and year named "Closing out YYYY-MM" in GitHub and complete all of the tasks in the issue. (This uses the [monthly accounting issue template](https://github.com/fleetdm/confidential/blob/main/.github/ISSUE_TEMPLATE/5-monthly-accounting.md).
+
+#### When is the issue created?
+In order to fulfill our monthly reporting requirement of providing GAAP financials which are not ready until after several days into the next month, we create the monthly accounting issue for the previous month on the third Friday of the following month.  For example, the monthly accounting issue to close out the month of January is created on the second Friday in February.  (This is because we won't necessarily have the GAAP financials from our accountants until as late as the 21st of the following month.)
+
+#### SLA?
+After it is created, the monthly accounting issue should be completed and closed within 3 business days.
 
 
 ### Payroll

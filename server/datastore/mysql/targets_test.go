@@ -265,8 +265,8 @@ func testTargetsHostStatus(t *testing.T, ds *Datastore) {
 
 	mockClock := clock.NewMockClock()
 
-	h, err := ds.EnrollHost(context.Background(), "1", "key1", nil, 0)
-	require.Nil(t, err)
+	h, err := ds.EnrollHost(context.Background(), false, "1", "", "", "key1", nil, 0)
+	require.NoError(t, err)
 
 	user := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
 	filter := fleet.TeamFilter{User: user}

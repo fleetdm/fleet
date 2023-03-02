@@ -868,3 +868,28 @@ func TestDirectIngestDiskEncryptionLinux(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, ds.SetOrUpdateHostDisksEncryptionFuncInvoked)
 }
+
+func TestDirectIngestDiskEncryptionKeyDarwin(t *testing.T) {
+	ds := new(mock.Store)
+	ctx := context.Background()
+	logger := log.NewNopLogger()
+	wantKey := "OTM5ODRDQTYtOUY1Mi00NERELTkxOUEtMDlBN0ZBOUUzNUY5Cg=="
+	host := &fleet.Host{ID: 1}
+	ds.SetOrUpdateHostDiskEncryptionKeyFunc = func(ctx context.Context, hostID uint, encryptedBase64Key string) error {
+		require.Equal(t, wantKey, encryptedBase64Key)
+		require.Equal(t, host.ID, hostID)
+		return nil
+	}
+
+	err := directIngestDiskEncryptionKeyDarwin(ctx, logger, host, ds, []map[string]string{})
+	require.NoError(t, err)
+	require.False(t, ds.SetOrUpdateHostDiskEncryptionKeyFuncInvoked)
+
+	err = directIngestDiskEncryptionKeyDarwin(ctx, logger, host, ds, []map[string]string{{"filevault_key": ""}})
+	require.NoError(t, err)
+	require.False(t, ds.SetOrUpdateHostDiskEncryptionKeyFuncInvoked)
+
+	err = directIngestDiskEncryptionKeyDarwin(ctx, logger, host, ds, []map[string]string{{"filevault_key": wantKey}})
+	require.NoError(t, err)
+	require.True(t, ds.SetOrUpdateHostDiskEncryptionKeyFuncInvoked)
+}

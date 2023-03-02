@@ -24,6 +24,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/osquery"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/osservice"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/platform"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/profiles"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/orbit_info"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/token"
@@ -223,6 +224,32 @@ func main() {
 			}
 		}
 
+		// if neither are set, this might be an agent deployed via MDM, try to read
+		// both configs from a configuration profile
+		if c.String("fleet-url") == "" && c.String("enroll-secret") == "" {
+			config, err := profiles.GetFleetdConfig()
+			switch {
+			// handle these errors separately as debug messages to not raise false
+			// alarms when users look into the orbit logs, it's perfectly normal to
+			// not have a configuration profile, or to get into this situation in
+			// operating systems that don't have profile support.
+			case errors.Is(err, profiles.ErrNotImplemented), errors.Is(err, profiles.ErrNotFound):
+				log.Debug().Msgf("reading configuration profile: %v", err)
+			case err != nil:
+				log.Error().Err(err).Msg("reading configuration profile")
+			case config.EnrollSecret == "" || config.FleetURL == "":
+				log.Debug().Msg("enroll secret or fleet url are empty in configuration profile, not setting either")
+			default:
+				log.Info().Msg("setting enroll-secret and fleet-url configs from configuration profile")
+				if err := c.Set("enroll-secret", config.EnrollSecret); err != nil {
+					return fmt.Errorf("set enroll secret from configuration profile: %w", err)
+				}
+				if err := c.Set("fleet-url", config.FleetURL); err != nil {
+					return fmt.Errorf("set fleet URL from configuration profile: %w", err)
+				}
+			}
+		}
+
 		if err := secure.MkdirAll(c.String("root-dir"), constant.DefaultDirMode); err != nil {
 			return fmt.Errorf("initialize root dir: %w", err)
 		}
@@ -380,12 +407,12 @@ func main() {
 			return fmt.Errorf("cleanup old files: %w", err)
 		}
 
-		log.Debug().Msg("running single query (SELECT uuid FROM system_info)")
-		uuidStr, err := getUUID(osquerydPath)
+		log.Debug().Msg("running single query (SELECT uuid, hardware_serial FROM system_info)")
+		uuidStr, serial, err := getUUIDAndSerial(osquerydPath)
 		if err != nil {
 			return fmt.Errorf("get UUID: %w", err)
 		}
-		log.Debug().Msg("UUID is " + uuidStr)
+		log.Debug().Msgf("UUID is %s, serial is %s", uuidStr, serial)
 
 		var options []osquery.Option
 		options = append(options, osquery.WithDataPath(c.String("root-dir")))
@@ -516,6 +543,7 @@ func main() {
 			c.Bool("insecure"),
 			enrollSecret,
 			uuidStr,
+			serial,
 		)
 		if err != nil {
 			return fmt.Errorf("error new orbit client: %w", err)
@@ -722,6 +750,7 @@ func main() {
 			c.Bool("insecure"),
 			enrollSecret,
 			uuidStr,
+			serial,
 		)
 		if err != nil {
 			return fmt.Errorf("new client for capabilities checker: %w", err)
@@ -907,37 +936,44 @@ func (d *desktopRunner) interrupt(err error) {
 	}
 }
 
-// shell out to osquery (on Linux and macOS) or to wmic (on Windows), and get the system uuid
-func getUUID(osqueryPath string) (string, error) {
+// shell out to osquery (on Linux and macOS) or to wmic (on Windows), and get
+// the system uuid and serial number
+func getUUIDAndSerial(osqueryPath string) (uuid, serial string, err error) {
 	if runtime.GOOS == "windows" {
+		// NOTE: Windows uses a different approach as there were issues at the time
+		// with shelling out to osquery - from what the team remembers it would
+		// sometimes fail due to the osquery process not being ready yet. A recent
+		// CI run without the Windows special-case did succeed, but since we don't
+		// need the serial number for Windows at the moment, we opted to keep the
+		// code as it is.
 		uuidData, uuidSource, err := platform.GetSMBiosUUID()
 		if err != nil {
-			return "", err
+			return "", "", err
 		}
 
 		log.Debug().Msgf("UUID source was %s.", uuidSource)
-
-		return uuidData, nil
+		return uuidData, "", nil
 	}
-	type UuidOutput struct {
-		UuidString string `json:"uuid"`
+	type Output struct {
+		UuidString     string `json:"uuid"`
+		HardwareSerial string `json:"hardware_serial"`
 	}
 
-	args := []string{"-S", "--json", "select uuid from system_info"}
+	args := []string{"-S", "--json", "select uuid, hardware_serial from system_info"}
 	out, err := exec.Command(osqueryPath, args...).Output()
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
-	var uuids []UuidOutput
-	err = json.Unmarshal(out, &uuids)
+	var sysinfo []Output
+	err = json.Unmarshal(out, &sysinfo)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 
-	if len(uuids) != 1 {
-		return "", fmt.Errorf("invalid number of rows from system_info query: %d", len(uuids))
+	if len(sysinfo) != 1 {
+		return "", "", fmt.Errorf("invalid number of rows from system_info query: %d", len(sysinfo))
 	}
-	return uuids[0].UuidString, nil
+	return sysinfo[0].UuidString, sysinfo[0].HardwareSerial, nil
 }
 
 var versionCommand = &cli.Command{

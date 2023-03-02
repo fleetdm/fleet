@@ -1,9 +1,10 @@
-import React, { useState } from "react";
+import React, { useState, useContext } from "react";
 import { Row } from "react-table";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 import classnames from "classnames";
 import { format } from "date-fns";
 import FileSaver from "file-saver";
+import { QueryContext } from "context/query";
 
 import convertToCSV from "utilities/convert_to_csv";
 import { ICampaign } from "interfaces/campaign";
@@ -12,10 +13,10 @@ import { ITarget } from "interfaces/target";
 import Button from "components/buttons/Button";
 import TableContainer from "components/TableContainer";
 import TabsWrapper from "components/TabsWrapper";
+import ShowQueryModal from "components/modals/ShowQueryModal";
 import QueryResultsHeading from "components/queries/queryResults/QueryResultsHeading";
 import AwaitingResults from "components/queries/queryResults/AwaitingResults";
 
-import ShowQueryModal from "./ShowQueryModal";
 import resultsTableHeaders from "./QueryResultsTableConfig";
 
 import DownloadIcon from "../../../../../../assets/images/icon-download-12x12@2x.png";
@@ -73,6 +74,8 @@ const QueryResults = ({
   goToQueryEditor,
   targetsTotalCount,
 }: IQueryResultsProps): JSX.Element => {
+  const { lastEditedQueryBody } = useContext(QueryContext);
+
   const { hosts_count: hostsCount, query_results: queryResults, errors } =
     campaign || {};
 
@@ -230,7 +233,12 @@ const QueryResults = ({
           <TabPanel>{renderErrorsTab()}</TabPanel>
         </Tabs>
       </TabsWrapper>
-      {showQueryModal && <ShowQueryModal onCancel={onShowQueryModal} />}
+      {showQueryModal && (
+        <ShowQueryModal
+          query={lastEditedQueryBody}
+          onCancel={onShowQueryModal}
+        />
+      )}
     </div>
   );
 };
