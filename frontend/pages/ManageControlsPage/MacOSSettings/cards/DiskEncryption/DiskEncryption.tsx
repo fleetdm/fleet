@@ -56,7 +56,11 @@ const DiskEncryption = () => {
       ) : (
         <>
           {showAggregate ? <DiskEncryptionTable aggregateData={data} /> : null}
-          <Checkbox onChange={onToggleCheckbox} value={isChecked}>
+          <Checkbox
+            onChange={onToggleCheckbox}
+            value={isChecked}
+            className={`${baseClass}__checkbox`}
+          >
             On
           </Checkbox>
           <p>
@@ -68,7 +72,12 @@ const DiskEncryption = () => {
               newTab
             />
           </p>
-          <Button onClick={onUpdateDiskEncryption}>Save</Button>
+          <Button
+            className={`${baseClass}__save-button`}
+            onClick={onUpdateDiskEncryption}
+          >
+            Save
+          </Button>
         </>
       )}
     </div>

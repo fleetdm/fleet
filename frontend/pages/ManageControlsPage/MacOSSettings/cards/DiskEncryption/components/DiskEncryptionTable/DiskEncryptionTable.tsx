@@ -23,8 +23,6 @@ const DiskEncryptionTable = ({ aggregateData }: IDiskEncryptionTableProps) => {
   const tableHeaders = generateTableHeaders();
   const tableData = generateTableData(aggregateData);
 
-  console.log("TABLE DATA", tableData);
-
   return (
     <div className={baseClass}>
       <TableContainer

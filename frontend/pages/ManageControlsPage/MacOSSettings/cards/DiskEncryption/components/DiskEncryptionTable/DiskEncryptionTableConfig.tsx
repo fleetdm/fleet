@@ -31,21 +31,16 @@ interface IHeaderProps {
   };
 }
 
-type CellWithCellProps = {
-  Cell: (props: ICellProps) => JSX.Element;
-};
-
-type CellWithStatusCellProps = {
-  Cell: (props: IStatusCellProps) => JSX.Element;
-};
-
 type IDataColumn = {
   title: string;
   Header: ((props: IHeaderProps) => JSX.Element) | string;
   accessor: string;
   disableHidden?: boolean;
   disableSortBy?: boolean;
-} & (CellWithCellProps | CellWithStatusCellProps);
+  Cell:
+    | ((props: ICellProps) => JSX.Element)
+    | ((props: IStatusCellProps) => JSX.Element);
+};
 
 const defaultTableHeaders: IDataColumn[] = [
   {
@@ -75,7 +70,6 @@ const defaultTableHeaders: IDataColumn[] = [
         disableSortBy={false}
       />
     ),
-    disableSortBy: true,
     accessor: "hosts",
     Cell: ({ cell: { value } }: ICellProps) => <TextCell value={value} />,
   },
