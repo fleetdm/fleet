@@ -1048,7 +1048,7 @@ spec:
     Administrators: Remote Access: Allow:
     'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\Network access: Restrict clients allowed to make remote calls to SAM'
   query: |
-SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\Lsa\RestrictRemoteSAM' and (data == '' or data == 'O:BAG:BAD:'));
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\Lsa\RestrictRemoteSAM' and (data == '' or data == 'O:BAG:BAD:'));
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.10.10
   contributors: rachelelysia
@@ -1092,7 +1092,7 @@ spec:
     local users authenticate as themselves:
     'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\Network access: Sharing and security model for local accounts'
   query: |
-        SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\Lsa\forceguest' AND data == 0);
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\Lsa\forceguest' AND data == 0);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.10.12
   contributors: rachelelysia
@@ -1255,4 +1255,3 @@ spec:
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.17.8
   contributors: rachelelysia
 ---
-
