@@ -2122,6 +2122,11 @@ spec:
     Old browser history becomes stale and the use or misuse of the data can lead to unwanted outcomes. Search engine results are maintained and often provide much more relevant current information than old website visit information.
   resolution: |
     Ask your system administrator to deploy an MDM profile that set the history per organization decision
+    Profile Method:
+      Create or edit a configuration profile with the following information:
+      1. The PayloadType string is com.apple.Safari
+      2. The key to include is HistoryAgeInDaysLimit
+      3. The key must be set to: <integer><1,7,14,31,365,36500></integer>
   query: |
     SELECT 1 FROM managed_policies WHERE
       domain = 'com.apple.Safari' AND
