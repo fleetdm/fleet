@@ -55,7 +55,7 @@ type MDMProfilesStatus string
 const (
 	MDMProfilesStatusLatest  = MDMProfilesStatus("latest")
 	MDMProfilesStatusPending = MDMProfilesStatus("pending")
-	MDMProfilesStatusFailed  = MDMProfilesStatus("failed")
+	MDMProfilesStatusFailing = MDMProfilesStatus("failing")
 )
 
 // NOTE: any changes to the hosts filters is likely to impact at least the following

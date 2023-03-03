@@ -842,7 +842,7 @@ func filterHostsByMDMProfileStatus(sql string, opt fleet.HostListOptions, params
 	newSQL += ` AND EXISTS (SELECT 1 FROM host_mdm_apple_profiles hmap WHERE hmap.host_uuid = h.uuid`
 
 	switch opt.MDMProfilesStatusFilter {
-	case fleet.MDMProfilesStatusFailed:
+	case fleet.MDMProfilesStatusFailing:
 		newSQL += ` AND status = ?)`
 		newParams = append(newParams, fleet.MDMAppleDeliveryFailed)
 

@@ -1229,7 +1229,7 @@ func testMDMAppleHostsProfilesStatus(t *testing.T, ds *Datastore) {
 	require.Equal(t, uint(0), res.Failed)
 	require.Equal(t, uint(0), res.Latest)
 	require.True(t, checkListHosts(fleet.MDMProfilesStatusPending, nil, hosts))
-	require.True(t, checkListHosts(fleet.MDMProfilesStatusFailed, nil, []*fleet.Host{}))
+	require.True(t, checkListHosts(fleet.MDMProfilesStatusFailing, nil, []*fleet.Host{}))
 	require.True(t, checkListHosts(fleet.MDMProfilesStatusLatest, nil, []*fleet.Host{}))
 
 	// hosts[0] and hosts[1] failed one profile
@@ -1243,7 +1243,7 @@ func testMDMAppleHostsProfilesStatus(t *testing.T, ds *Datastore) {
 	require.Equal(t, uint(2), res.Failed)             // only count one failure per host (hosts[0] failed two profiles but only counts once)
 	require.Equal(t, uint(0), res.Latest)
 	require.True(t, checkListHosts(fleet.MDMProfilesStatusPending, nil, hosts[2:]))
-	require.True(t, checkListHosts(fleet.MDMProfilesStatusFailed, nil, hosts[0:2]))
+	require.True(t, checkListHosts(fleet.MDMProfilesStatusFailing, nil, hosts[0:2]))
 	require.True(t, checkListHosts(fleet.MDMProfilesStatusLatest, nil, []*fleet.Host{}))
 
 	// hosts[0:3] applied a third profile
@@ -1255,7 +1255,7 @@ func testMDMAppleHostsProfilesStatus(t *testing.T, ds *Datastore) {
 	require.Equal(t, uint(2), res.Failed)             // no change
 	require.Equal(t, uint(0), res.Latest)             // no change, host must apply all profiles count as latest
 	require.True(t, checkListHosts(fleet.MDMProfilesStatusPending, nil, hosts[2:]))
-	require.True(t, checkListHosts(fleet.MDMProfilesStatusFailed, nil, hosts[0:2]))
+	require.True(t, checkListHosts(fleet.MDMProfilesStatusFailing, nil, hosts[0:2]))
 	require.True(t, checkListHosts(fleet.MDMProfilesStatusLatest, nil, []*fleet.Host{}))
 
 	// hosts[9] applied all profiles
@@ -1267,7 +1267,7 @@ func testMDMAppleHostsProfilesStatus(t *testing.T, ds *Datastore) {
 	require.Equal(t, uint(2), res.Failed)             // no change
 	require.Equal(t, uint(1), res.Latest)             // add one host that has applied all profiles
 	require.True(t, checkListHosts(fleet.MDMProfilesStatusPending, nil, hosts[2:9]))
-	require.True(t, checkListHosts(fleet.MDMProfilesStatusFailed, nil, hosts[0:2]))
+	require.True(t, checkListHosts(fleet.MDMProfilesStatusFailing, nil, hosts[0:2]))
 	require.True(t, checkListHosts(fleet.MDMProfilesStatusLatest, nil, hosts[9:10]))
 
 	// create a team
@@ -1280,7 +1280,7 @@ func testMDMAppleHostsProfilesStatus(t *testing.T, ds *Datastore) {
 	require.Equal(t, uint(0), res.Failed)  // no profiles yet
 	require.Equal(t, uint(0), res.Latest)  // no profiles yet
 	require.True(t, checkListHosts(fleet.MDMProfilesStatusPending, &tm.ID, []*fleet.Host{}))
-	require.True(t, checkListHosts(fleet.MDMProfilesStatusFailed, &tm.ID, []*fleet.Host{}))
+	require.True(t, checkListHosts(fleet.MDMProfilesStatusFailing, &tm.ID, []*fleet.Host{}))
 	require.True(t, checkListHosts(fleet.MDMProfilesStatusLatest, &tm.ID, []*fleet.Host{}))
 
 	// transfer hosts[9] to new team
@@ -1296,7 +1296,7 @@ func testMDMAppleHostsProfilesStatus(t *testing.T, ds *Datastore) {
 	require.Equal(t, uint(2), res.Failed)             // no change
 	require.Equal(t, uint(0), res.Latest)             // hosts[9] was transferred so this is now zero
 	require.True(t, checkListHosts(fleet.MDMProfilesStatusPending, nil, hosts[2:9]))
-	require.True(t, checkListHosts(fleet.MDMProfilesStatusFailed, nil, hosts[0:2]))
+	require.True(t, checkListHosts(fleet.MDMProfilesStatusFailing, nil, hosts[0:2]))
 	require.True(t, checkListHosts(fleet.MDMProfilesStatusLatest, nil, []*fleet.Host{}))
 
 	res, err = ds.GetMDMAppleHostsProfilesSummary(ctx, &tm.ID) // get summary for new team
@@ -1306,7 +1306,7 @@ func testMDMAppleHostsProfilesStatus(t *testing.T, ds *Datastore) {
 	require.Equal(t, uint(0), res.Failed)
 	require.Equal(t, uint(0), res.Latest)
 	require.True(t, checkListHosts(fleet.MDMProfilesStatusPending, &tm.ID, hosts[9:10]))
-	require.True(t, checkListHosts(fleet.MDMProfilesStatusFailed, &tm.ID, []*fleet.Host{}))
+	require.True(t, checkListHosts(fleet.MDMProfilesStatusFailing, &tm.ID, []*fleet.Host{}))
 	require.True(t, checkListHosts(fleet.MDMProfilesStatusLatest, &tm.ID, []*fleet.Host{}))
 
 	// create somes config profiles for the new team
@@ -1326,7 +1326,7 @@ func testMDMAppleHostsProfilesStatus(t *testing.T, ds *Datastore) {
 	require.Equal(t, uint(0), res.Failed)
 	require.Equal(t, uint(0), res.Latest)
 	require.True(t, checkListHosts(fleet.MDMProfilesStatusPending, &tm.ID, hosts[9:10]))
-	require.True(t, checkListHosts(fleet.MDMProfilesStatusFailed, &tm.ID, []*fleet.Host{}))
+	require.True(t, checkListHosts(fleet.MDMProfilesStatusFailing, &tm.ID, []*fleet.Host{}))
 	require.True(t, checkListHosts(fleet.MDMProfilesStatusLatest, &tm.ID, []*fleet.Host{}))
 
 	// hosts[9] successfully removed old profiles
@@ -1338,7 +1338,7 @@ func testMDMAppleHostsProfilesStatus(t *testing.T, ds *Datastore) {
 	require.Equal(t, uint(0), res.Failed)
 	require.Equal(t, uint(1), res.Latest) // hosts[9] is all good
 	require.True(t, checkListHosts(fleet.MDMProfilesStatusPending, &tm.ID, []*fleet.Host{}))
-	require.True(t, checkListHosts(fleet.MDMProfilesStatusFailed, &tm.ID, []*fleet.Host{}))
+	require.True(t, checkListHosts(fleet.MDMProfilesStatusFailing, &tm.ID, []*fleet.Host{}))
 	require.True(t, checkListHosts(fleet.MDMProfilesStatusLatest, &tm.ID, hosts[9:10]))
 
 	// confirm no changes in summary for profiles with no team
@@ -1349,6 +1349,6 @@ func testMDMAppleHostsProfilesStatus(t *testing.T, ds *Datastore) {
 	require.Equal(t, uint(2), res.Failed)             // two failed hosts
 	require.Equal(t, uint(0), res.Latest)             // hosts[9] transferred to new team so is not counted under no team
 	require.True(t, checkListHosts(fleet.MDMProfilesStatusPending, nil, hosts[2:9]))
-	require.True(t, checkListHosts(fleet.MDMProfilesStatusFailed, nil, hosts[0:2]))
+	require.True(t, checkListHosts(fleet.MDMProfilesStatusFailing, nil, hosts[0:2]))
 	require.True(t, checkListHosts(fleet.MDMProfilesStatusLatest, nil, []*fleet.Host{}))
 }

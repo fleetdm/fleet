@@ -313,7 +313,7 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 
 	mdmProfilesStatus := r.URL.Query().Get("mdm_profiles_status")
 	switch fleet.MDMProfilesStatus(mdmProfilesStatus) {
-	case fleet.MDMProfilesStatusFailed, fleet.MDMProfilesStatusPending, fleet.MDMProfilesStatusLatest:
+	case fleet.MDMProfilesStatusFailing, fleet.MDMProfilesStatusPending, fleet.MDMProfilesStatusLatest:
 		hopt.MDMProfilesStatusFilter = fleet.MDMProfilesStatus(mdmProfilesStatus)
 	case "":
 		// No error when unset
