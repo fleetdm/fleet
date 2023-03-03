@@ -931,6 +931,9 @@ spec:
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.10.12
   contributors: rachelelysia
 ---
+abcabcabcabcabcabc
+abcabcabcabcabcabcabcabcabcabc
+abcabcabcabcabcabcabcabc
 apiVersion: v1
 kind: policy
 spec:
@@ -1082,3 +1085,7 @@ spec:
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_9.2.8
   contributors: RachelElysia
+  abcabc
+  abcabc
+  abcabc
+  abcabc
