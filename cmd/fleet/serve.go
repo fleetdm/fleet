@@ -337,6 +337,9 @@ the way that the Fleet server works.
 				Filesystem: logging.FilesystemConfig{
 					EnableLogRotation:    config.Filesystem.EnableLogRotation,
 					EnableLogCompression: config.Filesystem.EnableLogCompression,
+					MaxSize:              config.Filesystem.MaxSize,
+					MaxAge:               config.Filesystem.MaxAge,
+					MaxBackups:           config.Filesystem.MaxBackups,
 				},
 				Firehose: logging.FirehoseConfig{
 					Region:           config.Firehose.Region,
