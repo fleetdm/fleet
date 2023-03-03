@@ -931,4 +931,644 @@ spec:
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.10.12
   contributors: rachelelysia
 ---
-
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Change the system time' is set to 'Administrators, LOCAL SERVICE'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting determines which users and groups can change the time and date on the
+    internal clock of the computers in your environment. Users who are assigned this user right can
+    affect the appearance of event logs. When a computer's time setting is changed, logged events
+    reflect the new time, not the actual time that the events occurred.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'Administrators, LOCAL SERVICE':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Change the system time'
+  query: |
+    SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/UserRights/ChangeSystemTime</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output LIKE "Administrators%" AND mdm_command_output LIKE "%LOCAL SERVICE";
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.2.8
+  contributors: marcosd4h
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Change the time zone' is set to 'Administrators, LOCAL SERVICE, Users'
+  platforms: win10
+  platform: windows
+  description: |
+    This setting determines which users can change the time zone of the computer. This ability holds no great danger for the computer and may be useful for mobile workers.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'Administrators, LOCAL SERVICE, Users':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Change the time zone'
+  query: |
+    tbd
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.2.9, CIS_not_completed
+  contributors: marcosd4h
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Create a pagefile' is set to 'Administrators'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting allows users to change the size of the pagefile. By making the pagefile extremely large or extremely small, an attacker could easily affect the performance of a compromised computer.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'Administrators':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Create a pagefile'
+  query: |
+    SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/UserRights/ChangeSystemTime</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output LIKE "%Administrators%";
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.2.10
+  contributors: marcosd4h
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Create a token object' is set to an empty list
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting allows a process to create an access token, which may provide elevated rights to access sensitive data.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to an empty list:
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Create a token object'
+  query: |
+    SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/UserRights/CreateToken</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output == "";
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.2.11
+  contributors: marcosd4h
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Create global objects' is set to 'Administrators, LOCAL SERVICE, NETWORK SERVICE, SERVICE'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting allows users to change the size of the pagefile. By making the pagefile extremely large or extremely small, an attacker could easily affect the performance of a compromised computer.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'Administrators, LOCAL SERVICE, NETWORK SERVICE, SERVICE':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Create global objects'
+  query: |
+    SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/UserRights/CreateGlobalObjects</LocURI></Target></Item></Get></SyncBody>" AND (regex_match(mdm_command_output,".*(Administrators|LOCAL SERVICE|NETWORK SERVICE|([^\w\s]SERVICE)).*",0) is not null);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.2.12
+  contributors: marcosd4h
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Create permanent shared objects' is set to an empty list
+  platforms: win10
+  platform: windows
+  description: |
+    This user right is useful to kernel-mode components that extend the object namespace. However,
+    components that run in kernel mode have this user right inherently. Therefore, it is typically
+    not necessary to specifically assign this user right.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to an empty list:
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Create permanent shared objects'
+  query: |
+    SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/UserRights/CreatePermanentSharedObjects</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output == "";
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.2.13
+  contributors: marcosd4h
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Create symbolic links' is set to 'Administrators or NT VIRTUAL MACHINE\Virtual Machines'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting determines which users can create symbolic links. In Windows Vista, existing
+    NTFS file system objects, such as files and folders, can be accessed by referring to a new kind
+    of file system object called a symbolic link. A symbolic link is a pointer (much like a shortcut
+    or .lnk file) to another file system object, which can be a file, folder, shortcut or another
+    symbolic link. The difference between a shortcut and a symbolic link is that a shortcut only
+    works from within the Windows shell. To other programs and applications, shortcuts are just
+    another file, whereas with symbolic links, the concept of a shortcut is implemented as a feature
+    of the NTFS file system. Symbolic links can potentially expose security vulnerabilities in
+    applications that are not designed to use them. For this reason, the privilege for creating
+    symbolic links should only be assigned to trusted users. By default, only Administrators can
+    create symbolic links.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'Administrators or NT VIRTUAL MACHINE\Virtual Machines'
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Create symbolic links'
+  query: |
+    SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/UserRights/CreateSymbolicLinks</LocURI></Target></Item></Get></SyncBody>" AND (regex_match(mdm_command_output,".*(Administrators|Virtual Machines).*",0) is not null);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.2.14
+  contributors: marcosd4h
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Debug programs' is set to 'Administrators'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting determines which user accounts will have the right to attach a debugger to
+    any process or to the kernel, which provides complete access to sensitive and critical operating
+    system components. Developers who are debugging their own applications do not need to be
+    assigned this user right; however, developers who are debugging new system components will need it.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'Administrators'
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Debug programs'
+  query: |
+    SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/UserRights/DebugPrograms</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output == "Administrators";
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.2.15
+  contributors: marcosd4h
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Deny access to this computer from the network' includes 'Guest'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting prohibits users from connecting to a computer from across the network, which
+    would allow users to access and potentially modify data remotely. In high security environments,
+    there should be no need for remote users to access data on a computer. Instead, file sharing
+    should be accomplished through the use of network servers. This user right supersedes the Access
+    this computer from the network user right if an account is subject to both policies.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, ensure that the following UI path includes 'Guest'
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Deny access to this computer from the network'
+  query: |
+    SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/UserRights/DenyAccessFromNetwork</LocURI></Target></Item></Get></SyncBody>" AND (regex_match(mdm_command_output,".*(Guest).*",0) is not null);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.2.16
+  contributors: marcosd4h
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Deny log on as a batch job' includes 'Guest'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting determines which accounts will not be able to log on to the computer as a
+    batch job. A batch job is not a batch (.bat) file, but rather a batch-queue facility. Accounts that use the Task Scheduler to schedule jobs need this user right.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, ensure that the following UI path includes 'Guests'
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Deny log on as a batch job'
+  query: |
+    TBD
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.2.17, CIS_not_completed
+  contributors: marcosd4h
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Deny log on as a service' includes 'Guest'
+  platforms: win10
+  platform: windows
+  description: |
+    This security setting determines which service accounts are prevented from registering a process
+    as a service. This user right supersedes the Log on as a service user right if an account is subject to both policies.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, ensure that the following UI path includes 'Guests'
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Deny log on as a service'
+  query: |
+    TBD
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.2.18, CIS_not_completed
+  contributors: marcosd4h
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Deny log on locally' includes 'Guest'
+  platforms: win10
+  platform: windows
+  description: |
+    This security setting determines which users are prevented from logging on at the computer. This
+    policy setting supersedes the Allow log on locally policy setting if an account is subject to
+    both policies.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, ensure that the following UI path includes 'Guests'
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Deny log on locally'
+  query: |
+    SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/UserRights/DenyLocalLogOn</LocURI></Target></Item></Get></SyncBody>" AND (regex_match(mdm_command_output,".*(Guest).*",0) is not null);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.2.19
+  contributors: marcosd4h
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Deny log on through Remote Desktop Services' includes 'Guest'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting determines whether users can log on as Remote Desktop clients. This user right supersedes the Allow log on through Remote Desktop Services user right if an account is subject to both policies.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, ensure that the following UI path includes 'Guests'
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Deny log on through Remote Desktop Services'
+  query: |
+    SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/UserRights/DenyRemoteDesktopServicesLogOn</LocURI></Target></Item></Get></SyncBody>" AND (regex_match(mdm_command_output,".*(Guest).*",0) is not null);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.2.20
+  contributors: marcosd4h
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Enable computer and user accounts to be trusted for delegation' is set to an empty list
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting allows users to change the Trusted for Delegation setting on a computer object in Active Directory. Abuse of this privilege could allow unauthorized users to impersonate other users on the network.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, ensure that the following UI path is set to an empty list
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Enable computer and user accounts to be trusted for delegation'
+  query: |
+    SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/UserRights/EnableDelegation</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output == "";
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.2.21
+  contributors: marcosd4h
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Force shutdown from a remote system' is set to 'Administrators'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting allows users to shut down Windows Vista-based and newer computers from
+    remote locations on the network. Anyone who has been assigned this user right can cause a denial
+    of service (DoS) condition, which would make the computer unavailable to service user requests.
+    Therefore, it is recommended that only highly trusted administrators be assigned this user.
+    right.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, ensure that the following UI path is set to an empty list
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Force shutdown from a remote system'
+  query: |
+    SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/UserRights/RemoteShutdown</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output == "Administrators";
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.2.22
+  contributors: marcosd4h
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Generate security audits' is set to 'LOCAL SERVICE, NETWORK SERVICE'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting determines which users or processes can generate audit records in the Security log.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, ensure that the following UI path is set to an empty list
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Generate security audits'
+  query: |
+    SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/UserRights/GenerateSecurityAudits</LocURI></Target></Item></Get></SyncBody>" AND (regex_match(mdm_command_output,".*(LOCAL SERVICE|NETWORK SERVICE).*",0) is not null);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.2.23
+  contributors: marcosd4h
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Impersonate a client after authentication' is set to 'Administrators, LOCAL SERVICE, NETWORK SERVICE, SERVICE'
+  platforms: win10
+  platform: windows
+  description: |
+    The policy setting allows programs that run on behalf of a user to impersonate that user (or
+    another specified account) so that they can act on behalf of the user. If this user right is
+    required for this kind of impersonation, an unauthorized user will not be able to convince a
+    client to connect—for example, by remote procedure call (RPC) or named pipes—to a service that
+    they have created to impersonate that client, which could elevate the unauthorized user's permissions to administrative or system levels.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, ensure that the following UI path is set to an empty list
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Impersonate a client after authentication'
+  query: |
+    SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/UserRights/ImpersonateClient</LocURI></Target></Item></Get></SyncBody>" AND (regex_match(mdm_command_output,".*(Administrators|LOCAL SERVICE|NETWORK SERVICE|([^\w\s]SERVICE)).*",0) is not null);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.2.24
+  contributors: marcosd4h
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Increase scheduling priority' is set to 'Administrators, Window Manager\Window Manager Group'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting determines whether users can increase the base priority class of a process.
+    (It is not a privileged operation to increase relative priority within a priority class.) This
+    user right is not required by administrative tools that are supplied with the operating system but might be required by software development tools.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, ensure that the following UI path is set to an empty list
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Increase scheduling priority'
+  query: |
+    SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/UserRights/IncreaseSchedulingPriority</LocURI></Target></Item></Get></SyncBody>" AND (regex_match(mdm_command_output,".*(Administrators|Window Manager Group).*",0) is not null);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.2.25
+  contributors: marcosd4h
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Load and unload device drivers' is set to 'Administrators'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting allows users to dynamically load a new device driver on a system. An
+    attacker could potentially use this capability to install malicious code that appears to be a
+    device driver. This user right is required for users to add local printers or printer drivers in
+    Windows.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, ensure that the following UI path is set to an empty list
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Increase scheduling priority'
+  query: |
+    SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/UserRights/LoadUnloadDeviceDrivers</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output == "Administrators";
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.2.26
+  contributors: marcosd4h
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Lock pages in memory' is set to an empty list
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting allows a process to keep data in physical memory, which prevents the system from paging the data to virtual memory on disk. If this user right is assigned, significant degradation of system performance can occur.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, ensure that the following UI path is set to an empty list
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Lock pages in memory'
+  query: |
+    SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/UserRights/LockMemory</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output == "";
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.2.27
+  contributors: marcosd4h
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Log on as a batch job' is set to 'Administrators'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting allows accounts to log on using the task scheduler service. Because the task
+    scheduler is often used for administrative purposes, it may be needed in enterprise
+    environments. However, its use should be restricted in high security environments to prevent
+    misuse of system resources or to prevent attackers from using the right to launch malicious code
+    after gaining user level access to a computer.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, ensure that the following UI path is set to an empty list
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Log on as a batch job'
+  query: |
+    TBD
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.2.28, CIS_not_completed
+  contributors: marcosd4h
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Configure 'Log on as a service'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting allows accounts to launch network services or to register a process as a
+    service running on the system. This user right should be restricted on any computer in a high
+    security environment, but because many applications may require this privilege, it should be
+    carefully evaluated and tested before configuring it in an enterprise environment. On Windows
+    Vista-based (and newer) computers, no users or groups have this privilege by default.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, ensure that the following UI path is set to an empty list
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Log on as a service'
+  query: |
+    TBD
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.2.29, CIS_not_completed
+  contributors: marcosd4h
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Manage auditing and security log' is set to 'Administrators'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting determines which users can change the auditing options for files and directories and clear the Security log.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, ensure that the following UI path is set to an empty list
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Manage auditing and security log'
+  query: |
+    SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/UserRights/ManageAuditingAndSecurityLog</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output == "Administrators";
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.2.30
+  contributors: marcosd4h
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Modify an object label' is set to an empty list
+  platforms: win10
+  platform: windows
+  description: |
+    This privilege determines which user accounts can modify the integrity label of objects, such as
+    files, registry keys, or processes owned by other users. Processes running under a user account
+    can modify the label of an object owned by that user to a lower level without this privilege.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, ensure that the following UI path is set to an empty list
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Modify an object label'
+  query: |
+    SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/UserRights/ModifyObjectLabel</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output == "";
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.2.31
+  contributors: marcosd4h
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Modify firmware environment values' is set to 'Administrators'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting allows users to configure the system-wide environment variables that affect
+    hardware configuration. This information is typically stored in the Last Known Good
+    Configuration. Modification of these values and could lead to a hardware failure that would result in a denial of service condition.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, ensure that the following UI path is set to an empty list
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Modify firmware environment values'
+  query: |
+    SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/UserRights/ModifyFirmwareEnvironment</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output == "Administrators";
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.2.32
+  contributors: marcosd4h
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Perform volume maintenance tasks' is set to 'Administrators'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting allows users to manage the system's volume or disk configuration, which could allow a user to delete a volume and cause data loss as well as a denial-ofservice condition.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, ensure that the following UI path is set to an empty list
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Perform volume maintenance tasks'
+  query: |
+    TBD
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.2.33, CIS_not_completed
+  contributors: marcosd4h
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Profile single process' is set to 'Administrators'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting determines which users can use tools to monitor the performance of
+    non-system processes. Typically, you do not need to configure this user right to use the
+    Microsoft Management Console (MMC) Performance snap-in. However, you do need this user right if
+    System Monitor is configured to collect data using Windows Management Instrumentation (WMI).
+    Restricting the Profile single process user right prevents intruders from gaining additional
+    information that could be used to mount an attack on the system.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, ensure that the following UI path is set to an empty list
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Profile single process'
+  query: |
+    SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/UserRights/ProfileSingleProcess</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output == "Administrators";
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.2.34
+  contributors: marcosd4h
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Profile system performance' is set to 'Administrators, NT SERVICE\WdiServiceHost'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting allows users to use tools to view the performance of different system
+    processes, which could be abused to allow attackers to determine a system's active processes and
+    provide insight into the potential attack surface of the computer.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, ensure that the following UI path is set to an empty list
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Profile system performance'
+  query: |
+    TBD
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.2.35, CIS_not_completed
+  contributors: marcosd4h
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Replace a process level token' is set to 'LOCAL SERVICE, NETWORK SERVICE'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting allows one process or service to start another service or process with a
+    different security access token, which can be used to modify the security access token of that sub-process and result in the escalation of privileges.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, ensure that the following UI path is set to an empty list
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Replace a process level token'
+  query: |
+    TBD
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.2.36, CIS_not_completed
+  contributors: marcosd4h
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Restore files and directories' is set to 'Administrators'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting determines which users can bypass file, directory, registry, and other
+    persistent object permissions when restoring backed up files and directories on computers that
+    run Windows Vista (or newer) in your environment. This user right also determines which users
+    can set valid security principals as object owners; it is similar to the Back up files and
+    directories user right.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, ensure that the following UI path is set to an empty list
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Restore files and directories'
+  query: |
+    SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/UserRights/RestoreFilesAndDirectories</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output == "Administrators";
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.2.37
+  contributors: marcosd4h
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Shut down the system' is set to 'Administrators, Users'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting determines which users who are logged on locally to the computers in your
+    environment can shut down the operating system with the Shut Down command. Misuse of this user right can result in a denial of service condition.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, ensure that the following UI path is set to an empty list
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Shut down the system'
+  query: |
+    TBD
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.2.38, CIS_not_completed
+  contributors: marcosd4h
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Take ownership of files or other objects' is set to 'Administrators'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting allows users to take ownership of files, folders, registry keys, processes,
+    or threads. This user right bypasses any permissions that are in place to protect objects to give ownership to the specified user.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, ensure that the following UI path is set to an empty list
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Take ownership of files or other objects'
+  query: |
+    SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/UserRights/TakeOwnership</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output == "Administrators";
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.2.39
+  contributors: marcosd4h
+---
