@@ -8,6 +8,7 @@ data "aws_iam_policy_document" "main" {
       "xray:GetSamplingRules",
       "xray:GetSamplingTargets",
       "xray:GetSamplingStatisticSummaries",
+      "logs:PutLogEvents",
     ]
     resources = ["*"]
   }
