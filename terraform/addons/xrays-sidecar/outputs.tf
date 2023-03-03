@@ -4,6 +4,10 @@ output "fleet_extra_iam_policies" {
   ]
 }
 
+output "fleet_extra_execution_iam_policies" {
+  value = aws_iam_policy.execution.arn
+}
+
 output "fleet_sidecars" {
   value = [
     {

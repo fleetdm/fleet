@@ -16,3 +16,17 @@ data "aws_iam_policy_document" "main" {
 resource "aws_iam_policy" "main" {
   policy = data.aws_iam_policy_document.main.json
 }
+
+data "aws_iam_policy_document" "execution" {
+  statement {
+    actions = [
+      "logs:CreateLogStream",
+      "logs:PutLogEvents",
+    ]
+    resources = ["*"]
+  }
+}
+
+resource "aws_iam_policy" "execution" {
+  policy = data.aws_iam_policy_document.execution.json
+}
