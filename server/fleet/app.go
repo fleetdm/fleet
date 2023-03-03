@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/url"
+	"reflect"
 	"regexp"
 	"sort"
 	"time"
@@ -118,7 +119,8 @@ type MDM struct {
 	// the server starts.
 	EnabledAndConfigured bool `json:"enabled_and_configured"`
 
-	MacOSUpdates MacOSUpdates `json:"macos_updates"`
+	MacOSUpdates  MacOSUpdates  `json:"macos_updates"`
+	MacOSSettings MacOSSettings `json:"macos_settings"`
 
 	/////////////////////////////////////////////////////////////////
 	// WARNING: If you add to this struct make sure it's taken into
@@ -166,35 +168,64 @@ func (m MacOSUpdates) Validate() error {
 
 // MacOSSettings contains settings specific to macOS.
 type MacOSSettings struct {
-	CustomSettings []string `json:"custom_settings"`
+	CustomSettings       []string `json:"custom_settings"`
+	EnableDiskEncryption bool     `json:"enable_disk_encryption"`
+
+	// NOTE: make sure to update the ToMap/FromMap methods when adding/updating fields.
 }
 
 func (s MacOSSettings) ToMap() map[string]interface{} {
 	return map[string]interface{}{
-		"custom_settings": s.CustomSettings,
+		"custom_settings":        s.CustomSettings,
+		"enable_disk_encryption": s.EnableDiskEncryption,
 	}
 }
 
-// CustomSettingsFromMap sets the custom settings field from the provided map,
-// which is the map type from the ApplyTeams spec struct. It returns true if
-// the custom settings were set from the map, false if they were left
-// unchanged.
-func (s *MacOSSettings) CustomSettingsFromMap(m map[string]interface{}) bool {
+// FromMap sets the macOS settings from the provided map, which is the map type
+// from the ApplyTeams spec struct. It returns a map of fields that were set in
+// the map (ie. the key was present even if empty) or an error. If the
+// operation updates an existing team, it should be called on the existing
+// MacOSSettings so that its fields are replaced only if present in the map.
+func (s *MacOSSettings) FromMap(m map[string]interface{}) (map[string]bool, error) {
+	set := make(map[string]bool)
+
 	if v, ok := m["custom_settings"]; ok {
+		set["custom_settings"] = true
+
 		vals, ok := v.([]interface{})
 		if v == nil || ok {
 			strs := make([]string, 0, len(vals))
 			for _, v := range vals {
-				s, ok := v.(string)
-				if ok && s != "" {
-					strs = append(strs, s)
+				str, ok := v.(string)
+				if !ok {
+					// error, must be a []string
+					return nil, &json.UnmarshalTypeError{
+						Value: fmt.Sprintf("%T", v),
+						Type:  reflect.TypeOf(s.CustomSettings),
+						Field: "macos_settings.custom_settings",
+					}
 				}
+				strs = append(strs, str)
 			}
 			s.CustomSettings = strs
-			return true
 		}
 	}
-	return false
+
+	if v, ok := m["enable_disk_encryption"]; ok {
+		set["enable_disk_encryption"] = true
+		b, ok := v.(bool)
+		if !ok {
+			// error, must be a bool
+			return nil, &json.UnmarshalTypeError{
+				Value: fmt.Sprintf("%T", v),
+				Type:  reflect.TypeOf(s.EnableDiskEncryption),
+				Field: "macos_settings.enable_disk_encryption",
+			}
+		}
+		s.EnableDiskEncryption = b
+	}
+
+	return set, nil
 }
 
 // AppConfig holds server configuration that can be changed via the API.
@@ -223,8 +254,6 @@ type AppConfig struct {
 	Integrations    Integrations    `json:"integrations"`
 
 	MDM MDM `json:"mdm"`
-
-	MacOSSettings MacOSSettings `json:"macos_settings"`
 
 	// when true, strictDecoding causes the UnmarshalJSON method to return an
 	// error if there are unknown fields in the raw JSON.
@@ -284,7 +313,6 @@ func (c *AppConfig) Copy() *AppConfig {
 	// SSOSettings: nothing needs cloning
 	// FleetDesktop: nothing needs cloning
 	// VulnerabilitySettings: nothing needs cloning
-	// MDM: nothing needs cloning
 
 	if c.WebhookSettings.FailingPoliciesWebhook.PolicyIDs != nil {
 		clone.WebhookSettings.FailingPoliciesWebhook.PolicyIDs = make([]uint, len(c.WebhookSettings.FailingPoliciesWebhook.PolicyIDs))
@@ -305,9 +333,9 @@ func (c *AppConfig) Copy() *AppConfig {
 		}
 	}
 
-	if c.MacOSSettings.CustomSettings != nil {
-		clone.MacOSSettings.CustomSettings = make([]string, len(c.MacOSSettings.CustomSettings))
-		copy(clone.MacOSSettings.CustomSettings, c.MacOSSettings.CustomSettings)
+	if c.MDM.MacOSSettings.CustomSettings != nil {
+		clone.MDM.MacOSSettings.CustomSettings = make([]string, len(c.MDM.MacOSSettings.CustomSettings))
+		copy(clone.MDM.MacOSSettings.CustomSettings, c.MDM.MacOSSettings.CustomSettings)
 	}
 
 	return &clone
@@ -656,13 +684,17 @@ type EnrollSecretSpec struct {
 }
 
 const (
-	// tierBasic is for backward compatibility with previous tier names
-	tierBasic = "basic"
+	// tierBasicDeprecated is for backward compatibility with previous tier names
+	tierBasicDeprecated = "basic"
 
 	// TierPremium is Fleet Premium aka the paid license.
 	TierPremium = "premium"
 	// TierFree is Fleet Free aka the free license.
 	TierFree = "free"
+	// TierTrial is Fleet Premium but in trial mode
+	// this is used to distinguish between Premium, enabling different functionality
+	// when the license is expired, like disabling certain features
+	TierTrial = "trial"
 )
 
 // LicenseInfo contains information about the Fleet license.
@@ -680,11 +712,17 @@ type LicenseInfo struct {
 }
 
 func (l *LicenseInfo) IsPremium() bool {
-	return l.Tier == TierPremium || l.Tier == tierBasic
+	return l.Tier == TierPremium || l.Tier == tierBasicDeprecated || l.Tier == TierTrial
 }
 
 func (l *LicenseInfo) IsExpired() bool {
 	return l.Expiration.Before(time.Now())
+}
+
+func (l *LicenseInfo) ForceUpgrade() {
+	if l.Tier == tierBasicDeprecated {
+		l.Tier = TierPremium
+	}
 }
 
 const (

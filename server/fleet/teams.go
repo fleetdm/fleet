@@ -125,7 +125,6 @@ type TeamConfig struct {
 	Integrations    TeamIntegrations    `json:"integrations"`
 	Features        Features            `json:"features"`
 	MDM             TeamMDM             `json:"mdm"`
-	MacOSSettings   MacOSSettings       `json:"macos_settings"`
 }
 
 type TeamWebhookSettings struct {
@@ -133,7 +132,22 @@ type TeamWebhookSettings struct {
 }
 
 type TeamMDM struct {
+	MacOSUpdates  MacOSUpdates  `json:"macos_updates"`
+	MacOSSettings MacOSSettings `json:"macos_settings"`
+	// NOTE: TeamSpecMDM must be kept in sync with TeamMDM.
+}
+
+type TeamSpecMDM struct {
 	MacOSUpdates MacOSUpdates `json:"macos_updates"`
+
+	// A map is used for the macos settings so that we can easily detect if its
+	// sub-keys were provided or not in an "apply" call. E.g. if the
+	// custom_settings key is specified but empty, then we need to clear the
+	// value, but if it isn't provided, we need to leave the existing value
+	// unmodified.
+	MacOSSettings map[string]interface{} `json:"macos_settings"`
+
+	// NOTE: TeamMDM must be kept in sync with TeamSpecMDM.
 }
 
 // Scan implements the sql.Scanner interface
@@ -271,14 +285,7 @@ type TeamSpec struct {
 
 	Secrets  []EnrollSecret   `json:"secrets,omitempty"`
 	Features *json.RawMessage `json:"features"`
-	MDM      TeamMDM          `json:"mdm"`
-
-	// A map is used for the macos settings so that we can easily detect if its
-	// sub-keys were provided or not in an "apply" call. E.g. if the
-	// custom_settings key is specified but empty, then we need to clear the
-	// value, but if it isn't provided, we need to leave the existing value
-	// unmodified.
-	MacOSSettings map[string]interface{} `json:"macos_settings"`
+	MDM      TeamSpecMDM      `json:"mdm"`
 }
 
 // TeamSpecFromTeam returns a TeamSpec constructed from the given Team.
@@ -300,12 +307,14 @@ func TeamSpecFromTeam(t *Team) (*TeamSpec, error) {
 		agentOptions = *t.Config.AgentOptions
 	}
 
+	var mdmSpec TeamSpecMDM
+	mdmSpec.MacOSUpdates = t.Config.MDM.MacOSUpdates
+	mdmSpec.MacOSSettings = t.Config.MDM.MacOSSettings.ToMap()
 	return &TeamSpec{
-		Name:          t.Name,
-		AgentOptions:  agentOptions,
-		Features:      &featuresJSON,
-		Secrets:       secrets,
-		MDM:           t.Config.MDM,
-		MacOSSettings: t.Config.MacOSSettings.ToMap(),
+		Name:         t.Name,
+		AgentOptions: agentOptions,
+		Features:     &featuresJSON,
+		Secrets:      secrets,
+		MDM:          mdmSpec,
 	}, nil
 }

@@ -52,10 +52,12 @@ const SiteTopNav = ({
       return (
         <li className={navItemClasses} key={`nav-item-${name}`}>
           <Link
-            className={`${navItemBaseClass}__logo`}
+            className={`${navItemBaseClass}__logo-wrapper`}
             to={navItem.location.pathname}
           >
-            <OrgLogoIcon className="logo" src={orgLogoURL} />
+            <div className={`${navItemBaseClass}__logo`}>
+              <OrgLogoIcon className="logo" src={orgLogoURL} />
+            </div>
           </Link>
         </li>
       );

@@ -445,3 +445,26 @@ type MDMAppleBulkUpsertHostProfilePayload struct {
 	OperationType     MDMAppleOperationType
 	Status            *MDMAppleDeliveryStatus
 }
+
+// MDMAppleHostsProfilesSummary reports the number of hosts being managed with MDM configuration
+// profiles. Each host may be counted in only one of three mutually-exclusive categories:
+// Failed, Pending, or Latest.
+type MDMAppleHostsProfilesSummary struct {
+	// Latest includes each host that has successfully applied all of the profiles currently
+	// applicable to the host. If any of the profiles are pending or failed for the host, the host
+	// is not counted as latest.
+	Latest uint `json:"latest" db:"latest"`
+	// Failed includes each host that has failed to apply one or more of the profiles currently
+	// applicable to the host.
+	Failed uint `json:"failed" db:"failed"`
+	// Pending includes each host that has not yet applied one or more of the profiles currently
+	// applicable to the host. If a host failed to apply any profiles, it is not counted as pending.
+	Pending uint `json:"pending" db:"pending"`
+}
+
+// MDMAppleFleetdConfig contains the fields used to configure
+// `fleetd` in macOS devices via a configuration profile.
+type MDMAppleFleetdConfig struct {
+	FleetURL     string
+	EnrollSecret string
+}

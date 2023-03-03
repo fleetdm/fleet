@@ -1,11 +1,13 @@
 import React, { useContext } from "react";
-
+import { find } from "lodash";
+import { useQuery } from "react-query";
 import { Tab, Tabs, TabList } from "react-tabs";
 import { InjectedRouter } from "react-router";
+
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
-
 import mdmAppleAPI from "services/entities/mdm_apple";
+import { IMdmApple } from "interfaces/mdm";
 
 import TabsWrapper from "components/TabsWrapper";
 import MainContent from "components/MainContent";
@@ -14,11 +16,6 @@ import TeamsDropdownHeader, {
 } from "components/PageHeader/TeamsDropdownHeader";
 import EmptyTable from "components/EmptyTable";
 import Button from "components/buttons/Button";
-
-import { IMdmApple } from "interfaces/mdm";
-
-import { find } from "lodash";
-import { useQuery } from "react-query";
 import Spinner from "components/Spinner";
 
 interface IControlsSubNavItem {
@@ -57,9 +54,12 @@ const ManageControlsPage = ({
   location,
   router,
 }: IManageControlsPageProps): JSX.Element => {
-  const { availableTeams, isPremiumTier, setCurrentTeam } = useContext(
-    AppContext
-  );
+  const {
+    availableTeams,
+    isPremiumTier,
+    currentTeam,
+    setCurrentTeam,
+  } = useContext(AppContext);
 
   const { data: mdmApple, isLoading: isLoadingMdmApple } = useQuery<
     IMdmApple,
@@ -72,7 +72,9 @@ const ManageControlsPage = ({
 
   const navigateToNav = (i: number): void => {
     const navPath = controlsSubNav[i].pathname;
-    router.push(navPath);
+    const teamId = currentTeam?.id || undefined;
+    const queryString = teamId === undefined ? "" : `?team_id=${teamId}`;
+    router.replace(navPath + queryString);
   };
 
   const handleTeamSelect = (ctx: ITeamsDropdownState) => {

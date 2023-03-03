@@ -1026,6 +1026,8 @@ Modifies the Fleet's configuration with the supplied information.
 | apple_bm_default_team             | string  | body  | _mdm settings_. The default team to use with Apple Business Manager. **Requires Fleet Premium license** |
 | minimum_version                   | string  | body  | _mdm.macos_updates settings_. Hosts that belong to no team and are enrolled into Fleet's MDM will be nudged until their macOS is at or above this version. **Requires Fleet Premium license** |
 | deadline                          | string  | body  | _mdm.macos_updates settings_. Hosts that belong to no team and are enrolled into Fleet's MDM won't be able to dismiss the Nudge window once this deadline is past. **Requires Fleet Premium license** |
+| custom_settings                   | list    | body  | _mdm.macos_settings settings_. Hosts that belong to no team and are enrolled into Fleet's MDM will have those custom profiles applied. |
+| enable_disk_encryption            | boolean | body  | _mdm.macos_settings settings_. Hosts that belong to no team and are enrolled into Fleet's MDM will have disk encryption enabled if set to true. **Requires Fleet Premium license** |
 | additional_queries                | boolean | body  | Whether or not additional queries are enabled on hosts.                                                                                                                                |
 | force                             | bool    | query | Force apply the agent options even if there are validation errors.                                                                                                 |
 | dry_run                           | bool    | query | Validate the configuration and return any validation errors, but do not apply the changes.                                                                         |
@@ -1106,6 +1108,10 @@ Modifies the Fleet's configuration with the supplied information.
     "macos_updates": {
       "minimum_version": "12.3.1",
       "deadline": "2022-01-01"
+    },
+    "macos_settings": {
+      "custom_settings": ["path/to/profile1.mobileconfig"],
+      "enable_disk_encryption": true
     }
   },
   "agent_options": {
@@ -1161,13 +1167,6 @@ Modifies the Fleet's configuration with the supplied information.
         "enable_software_vulnerabilities": false
       }
     ]
-  },
-  "mdm": {
-    "apple_bm_default_team": "",
-    "macos_updates": {
-      "minimum_version": "12.3.1",
-      "deadline": "2022-01-01"
-    }
   },
   "logging": {
       "debug": false,
@@ -1867,6 +1866,7 @@ If `after` is being used with `created_at` or `updated_at`, the table must be sp
       "mdm": {
         "encryption_key_available": false,
         "enrollment_status": null,
+        "name": "",
         "server_url": null
       }
     }
@@ -2247,6 +2247,7 @@ Returns the information of the specified host.
     "mdm": {
       "encryption_key_available": false,
       "enrollment_status": null,
+      "name": "",
       "server_url": null
     }
   }
@@ -2426,6 +2427,7 @@ Returns the information of the host specified using the `uuid`, `osquery_host_id
     "mdm": {
       "encryption_key_available": false,
       "enrollment_status": null,
+      "name": "",
       "server_url": null
     }
   }
@@ -3402,7 +3404,13 @@ Returns a list of the hosts that belong to the specified label.
       "pack_stats": null,
       "team_name": null,
       "status": "offline",
-      "display_text": "e2e7f8d8983d"
+      "display_text": "e2e7f8d8983d",
+      "mdm": {
+        "encryption_key_available": false,
+        "enrollment_status": null,
+        "name": "",
+        "server_url": null
+      }
     }
   ]
 }

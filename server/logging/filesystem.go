@@ -6,15 +6,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/fleetdm/fleet/v4/pkg/secure"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	lumberjack "gopkg.in/natefinch/lumberjack.v2"
 	"io"
 	"os"
 	"os/signal"
 	"sync"
 	"syscall"
-
-	"github.com/fleetdm/fleet/v4/pkg/secure"
-	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
-	lumberjack "gopkg.in/natefinch/lumberjack.v2"
 
 	"github.com/go-kit/kit/log"
 )
@@ -29,7 +28,7 @@ type filesystemLogWriter struct {
 // enableRotation is true
 //
 // The enableCompression argument is only used when enableRotation is true.
-func NewFilesystemLogWriter(path string, appLogger log.Logger, enableRotation bool, enableCompression bool) (*filesystemLogWriter, error) {
+func NewFilesystemLogWriter(path string, appLogger log.Logger, enableRotation, enableCompression bool, maxSize, maxAge, maxBackups int) (*filesystemLogWriter, error) {
 	// Fail early if the process does not have the necessary
 	// permissions to open the file at path.
 	file, err := openFile(path)
@@ -46,9 +45,9 @@ func NewFilesystemLogWriter(path string, appLogger log.Logger, enableRotation bo
 	file.Close()
 	fsLogger := &lumberjack.Logger{
 		Filename:   path,
-		MaxSize:    500, // megabytes
-		MaxBackups: 3,
-		MaxAge:     28, // days
+		MaxSize:    maxSize, // megabytes
+		MaxBackups: maxBackups,
+		MaxAge:     maxAge, // days
 		Compress:   enableCompression,
 	}
 	appLogger = log.With(appLogger, "component", "filesystem-logger")

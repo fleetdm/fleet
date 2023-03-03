@@ -340,6 +340,9 @@ func TestMDMAppleConfigProfileAuthz(t *testing.T) {
 	ds.NewActivityFunc = func(context.Context, *fleet.User, fleet.ActivityDetails) error {
 		return nil
 	}
+	ds.GetMDMAppleHostsProfilesSummaryFunc = func(context.Context, *uint) (*fleet.MDMAppleHostsProfilesSummary, error) {
+		return nil, nil
+	}
 	mockGetFuncWithTeamID := func(teamID uint) mock.GetMDMAppleConfigProfileFunc {
 		return func(ctx context.Context, profileID uint) (*fleet.MDMAppleConfigProfile, error) {
 			require.Equal(t, uint(42), profileID)
@@ -415,6 +418,14 @@ func TestMDMAppleConfigProfileAuthz(t *testing.T) {
 			// test authz delete config profile (team 1)
 			ds.DeleteMDMAppleConfigProfileFunc = mockDeleteFuncWithTeamID(1)
 			err = svc.DeleteMDMAppleConfigProfile(ctx, 42)
+			checkShouldFail(err, tt.shouldFailTeam)
+
+			// test authz get profiles summary (no team)
+			_, err = svc.GetMDMAppleProfilesSummary(ctx, nil)
+			checkShouldFail(err, tt.shouldFailGlobal)
+
+			// test authz get profiles summary (no team)
+			_, err = svc.GetMDMAppleProfilesSummary(ctx, ptr.Uint(1))
 			checkShouldFail(err, tt.shouldFailTeam)
 		})
 	}
@@ -1159,6 +1170,47 @@ func TestMDMBatchSetAppleProfiles(t *testing.T) {
 			},
 			``,
 		},
+		{
+			"unsupported payload type",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+			false,
+			nil,
+			nil,
+			[][]byte{[]byte(`<?xml version="1.0" encoding="UTF-8"?>
+			<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+			<plist version="1.0">
+			<dict>
+				<key>PayloadContent</key>
+				<array>
+					<dict>
+						<key>Enable</key>
+						<string>On</string>
+						<key>PayloadDisplayName</key>
+						<string>FileVault 2</string>
+						<key>PayloadIdentifier</key>
+						<string>com.apple.MCX.FileVault2.A5874654-D6BA-4649-84B5-43847953B369</string>
+						<key>PayloadType</key>
+						<string>com.apple.MCX.FileVault2</string>
+						<key>PayloadUUID</key>
+						<string>A5874654-D6BA-4649-84B5-43847953B369</string>
+						<key>PayloadVersion</key>
+						<integer>1</integer>
+					</dict>
+				</array>
+				<key>PayloadDisplayName</key>
+				<string>Config Profile Name</string>
+				<key>PayloadIdentifier</key>
+				<string>com.example.config.FE42D0A2-DBA9-4B72-BC67-9288665B8D59</string>
+				<key>PayloadType</key>
+				<string>Configuration</string>
+				<key>PayloadUUID</key>
+				<string>FE42D0A2-DBA9-4B72-BC67-9288665B8D59</string>
+				<key>PayloadVersion</key>
+				<integer>1</integer>
+			</dict>
+			</plist>`)},
+			"unsupported PayloadType(s)",
+		},
 	}
 
 	for _, tt := range testCases {
@@ -1378,6 +1430,16 @@ func TestMDMAppleReconcileProfiles(t *testing.T) {
 	require.True(t, ds.ListMDMAppleProfilesToRemoveFuncInvoked)
 	require.True(t, ds.GetMDMAppleProfilesContentsFuncInvoked)
 	require.True(t, ds.BulkUpsertMDMAppleHostProfilesFuncInvoked)
+}
+
+func TestAppleMDMFileVaultEscrowFunctions(t *testing.T) {
+	svc := Service{}
+
+	err := svc.MDMAppleEnableFileVaultAndEscrow(context.Background(), uint(1))
+	require.ErrorIs(t, fleet.ErrMissingLicense, err)
+
+	err = svc.MDMAppleDisableFileVaultAndEscrow(context.Background(), uint(1))
+	require.ErrorIs(t, fleet.ErrMissingLicense, err)
 }
 
 func mobileconfigForTest(name, identifier string) []byte {

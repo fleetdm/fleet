@@ -260,7 +260,17 @@ Customer team members can reach the engineering oncall for assistance by writing
 ## Runbook
 
 ### Responding to a request to change a credit card number
-To change a customer's credit card number, you identify the customer's account email, log into Stripe, and choose the subscriptions associated with that account. You can then email the customer an invoice, and they can update the payment method on file.
+
+You can help a Premium license dispenser customers change their credit card by directing them to their [account dashboard](https://fleetdm.com/customers/dashboard). On that page, the customer can update their billing card by clicking the pencil icon next to their billing information.
+
+### Algolia crawler errors
+
+At least once every hour, an Algolia crawler reindexes the Fleet website's content. If an error occurs while the website is being indexed, Algolia will block our crawler and respond to requests with this message: `"This action cannot be executed on a blocked crawler"`.
+
+When this happens, you'll need to manually start the crawler in the [Algolia crawler dashboard](https://crawler.algolia.com/admin/) to unblock it. 
+You can do this by logging into the crawler dashboard using the login saved in 1password and clicking the "Restart crawling" button on our crawler's "overview" page](https://crawler.algolia.com/admin/crawlers/497dd4fd-f8dd-4ffb-85c9-2a56b7fafe98/overview).
+
+No further action is needed if the crawler successfully reindexes the Fleet website. If another error occurs while the crawler is running, take a screenshot of the error and add it to the GitHub issue created for the alert and @mention `eashaw` for help.
 
 ## Customer codenames
 Occasionally, we will need to track public issues for customers that wish to remain anonymous on our public issue tracker. To do this, we choose an appropriate minor planet name from this [Wikipedia page](https://en.wikipedia.org/wiki/List_of_named_minor_planets_(alphabetical)) and create a label which we attach to the issue and any future issues for this customer.
@@ -278,6 +288,11 @@ Fleet's subscription agreement is available at [fleetdm.com/terms](https://fleet
 
 Fleeties can find a summary of contract terms in the relevant [customer's Salesforce opportunity.](https://fleetdm.lightning.force.com/lightning/o/Opportunity/list?filterName=Recent)
 
+### Standard terms
+For all subscription agreements, NDAs, and similar contracts, Fleet maintains a [standard set of terms and maximum allowable adjustments for those terms](https://docs.google.com/spreadsheets/d/1gAenC948YWG2NwcaVHleUvX0LzS8suyMFpjaBqxHQNg/edit#gid=1136345578).
+
+Exceptions to these maximum allowable adjustments always require CEO approval, whether in the form of redlines to Fleet's agreements or in terms on a prospective customer's own contract.
+
 ### Reviewing subscription agreement
 
 To quickly get help doing a legal review of a prospect subscription agreement, with or without redlines:
@@ -285,6 +300,13 @@ To quickly get help doing a legal review of a prospect subscription agreement, w
 1. Visit https://github.com/fleetdm/confidential/issues/new/choose
 2. Select "Contract signature or legal review"
 3. Follow the instructions in the "Submitting this request" section
+
+If the prospect/customer/partner is originating the request for signature:
+1. Communicate to the prospect that the Fleet signatory is Mike McNeil, CEO and share his email.
+2. Mike will create the github issue mentioned above when he gets request
+3. Mike will forward to business operations for review
+4. Business operations will notify Mike and the requestor (via GitHub comment w/ at-mention) when ready for signature
+5. Mike will sign and close the issue.  (This sends a notification to the requestor automatically.)
 
 ## Customer DRI change
 Sometimes there is a change in the champion within the customer's organization.
