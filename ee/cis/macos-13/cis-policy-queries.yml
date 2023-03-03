@@ -1828,6 +1828,29 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
+  name: CIS - Ensure Complex Password Must Contain Alphabetic Characters AND Numeric Characters Is Configured (MDM Required)
+  platforms: macOS
+  platform: darwin
+  description: |
+    CIS - 5.2.3 - Complex passwords contain one character from each of the following classes: English uppercase letters, English lowercase letters, Westernized Arabic numerals, and non- alphanumeric characters.
+    Ensure that an Alphabetic character is part of the password policy on the computer.
+    CIS - 5.2.4 - Complex passwords contain one character from each of the following classes: English uppercase letters, English lowercase letters, Westernized Arabic numerals, and non- alphanumeric characters.
+    Ensure that a number or numeric value is part of the password policy on the computer.
+  resolution: |
+    Ask your system administrator to deploy an MDM profile that ensures Complex Password Must Contain Alphabetic Characters
+  query: |
+    SELECT 1 FROM managed_policies WHERE
+      domain = 'com.apple.mobiledevice.passwordpolicy' AND
+      name = 'requireAlphanumeric' AND
+      (value = 1 OR value = 'true')
+      LIMIT 1;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS-macos-13-5.2.3, CIS-macos-13-5.2.4
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
   name: CIS - Ensure Password Age Is Configured (Fleetd Required)
   platforms: macOS
   platform: darwin
