@@ -139,7 +139,8 @@ func TestAnalyzer(t *testing.T) {
 			require.NoError(t, err)
 			defer f.Close()
 
-			f.WriteString("some bad json")
+			_, err = f.WriteString("some bad json")
+			require.NoError(t, err)
 
 			_, err = getLatestReleaseNotes(vulnPath)
 			require.Error(t, err)
