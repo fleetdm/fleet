@@ -1442,6 +1442,13 @@ func TestAppleMDMFileVaultEscrowFunctions(t *testing.T) {
 	require.ErrorIs(t, fleet.ErrMissingLicense, err)
 }
 
+func TestGenerateEnrollmentProfileMobileConfig(t *testing.T) {
+	// SCEP challenge should be escaped for XML
+	b, err := generateEnrollmentProfileMobileconfig("foo", "https://example.com", "foo&bar", "topic")
+	require.NoError(t, err)
+	require.Contains(t, string(b), "foo&amp;bar")
+}
+
 func mobileconfigForTest(name, identifier string) []byte {
 	return []byte(fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
