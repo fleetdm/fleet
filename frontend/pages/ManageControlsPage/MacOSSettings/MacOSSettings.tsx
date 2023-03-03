@@ -24,7 +24,7 @@ const MacOSSettings = ({ params, location }: IMacOSSettingsProps) => {
   const { section } = params;
   const { team_id } = location.query;
   // Avoids possible case where Number(undefined) returns NaN
-  const teamId = team_id === undefined ? team_id : Number(team_id);
+  const teamId = team_id === undefined ? 0 : Number(team_id); // team_id===0 for 'No teams'
 
   const {
     data: profiles,
