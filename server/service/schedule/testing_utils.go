@@ -88,6 +88,7 @@ func (ml *MockLock) Unlock(ctx context.Context, name string, owner string) error
 	if ml.Unlocked != nil {
 		ml.Unlocked <- struct{}{}
 	}
+	ml.expiresAt = time.Now()
 	return nil
 }
 
