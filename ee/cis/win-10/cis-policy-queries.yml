@@ -667,26 +667,161 @@ spec:
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.7.8
   contributors: marcosd4h
 ---
-# apiVersion: v1
-# kind: policy
-# spec:
-#   name: >
-#     CIS - Ensure 'Network access : Allow anonymous SID/Name translation' is set to 'Disabled' (Automated)
-#   platforms: win10
-#   platform: windows
-#   description: |
-#     This policy setting determines whether an anonymous user can request security identifier
-#     (SID) attributes for another user, or use a SID to obtain its corresponding user name.
-#     The recommended state for this setting is: Disabled.
-#   resolution: |
-#     To establish the recommended configuration via GP, set the following UI path to Disabled:
-#     'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\Network access: Allow anonymous SID/Name translation'
-#   query: |
-#     TODO: See ./test/debug/CIS_2.3.10.1.txt for more information
-#   purpose: Informational
-#   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.10.1
-#   contributors: rachelelysia
-# ---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure that 'Microsoft network client Digitally sign communications (always)' is set to 'Enabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting determines whether packet signing is required by the SMB client component.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'Enabled':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\Microsoft network client: Digitally sign communications (always)'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\CurrentControlSet\\Services\\LanmanWorkstation\\Parameters\\RequireSecuritySignature' AND data != 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.8.1
+  contributors: marcosd4h
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure that 'Microsoft network client Digitally sign communications (if server agrees)' is set to 'Enabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting determines whether the SMB client will attempt to negotiate SMB packet signing.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'Enabled':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\Microsoft network client: Digitally sign communications (if server agrees)'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\CurrentControlSet\\Services\\LanmanWorkstation\\Parameters\\EnableSecuritySignature' AND data != 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.8.2
+  contributors: marcosd4h
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure that 'Microsoft network client Send unencrypted password to third-party SMB servers' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting determines whether the SMB redirector will send plaintext passwords during authentication to third-party SMB servers that do not support password encryption.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'Disabled':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\Microsoft network client: Send unencrypted password to third-party SMB servers'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\CurrentControlSet\\Services\\LanmanWorkstation\\Parameters\\EnablePlainTextPassword' AND data = 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.8.3
+  contributors: marcosd4h
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure that 'Microsoft network server Amount of idle time required before suspending session' is set to '15 or fewer minute(s)'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting allows you to specify the amount of continuous idle time that must pass in
+    an SMB session before the session is suspended because of inactivity. Administrators can use
+    this policy setting to control when a computer suspends an inactive SMB session. If client
+    activity resumes, the session is automatically reestablished.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'Disabled':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\Microsoft network server: Amount of idle time required before suspending session'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\CurrentControlSet\\Services\\LanManServer\\Parameters\\autodisconnect' AND CAST(data AS INTEGER) <= 15 AND CAST(data AS INTEGER) >= 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.9.1
+  contributors: marcosd4h
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure that 'Microsoft network server Digitally sign communications (always)' is set to 'Enabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting determines whether packet signing is required by the SMB server component.
+    Enable this policy setting in a mixed environment to prevent downstream clients from using the
+    workstation as a network server.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'Enabled':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\Microsoft network server: Digitally sign communications (always)'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\CurrentControlSet\\Services\\LanManServer\\Parameters\\requiresecuritysignature' AND data != 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.9.2
+  contributors: marcosd4h
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure that 'Microsoft network server Digitally sign communications (if client agrees)' is set to 'Enabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting determines whether the SMB server will negotiate SMB packet signing with
+    clients that request it. If no signing request comes from the client, a connection will be
+    allowed without a signature if the Microsoft network server: Digitally sign communications (always) setting is not enabled.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'Enabled':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\Microsoft network server: Digitally sign communications (if client agrees)'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\CurrentControlSet\\Services\\LanManServer\\Parameters\\enablesecuritysignature' AND data != 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.9.3
+  contributors: marcosd4h
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure that 'Microsoft network server Disconnect clients when logon hours expire' is set to 'Enabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This security setting determines whether to disconnect users who are connected to the local
+    computer outside their user account's valid logon hours. This setting affects the Server Message
+    Block (SMB) component.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'Enabled':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\Microsoft network server: Disconnect clients when logon hours expire'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\CurrentControlSet\\Services\\LanManServer\\Parameters\\enableforcedlogoff' AND data != 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.9.4
+  contributors: marcosd4h
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure that 'Microsoft network server Server SPN target name validation level' is set to 'Accept if provided by client'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting controls the level of validation a computer with shared folders or printers
+    (the server) performs on the service principal name (SPN) that is provided by the client
+    computer when it establishes a session using the server message block (SMB) protocol.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'Accept if provided by client':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\Microsoft network server: Server SPN target name validation level'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\CurrentControlSet\\Services\\LanManServer\\Parameters\\SmbServerNameHardeningLevel' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.9.5
+  contributors: marcosd4h
+---
 apiVersion: v1
 kind: policy
 spec:
