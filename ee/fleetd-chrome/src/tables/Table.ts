@@ -1,10 +1,16 @@
 import * as SQLite from "wa-sqlite";
 
+class cursorState {
+  rowIndex: number;
+  rows: Record<string, string | number>[];
+}
+
 export default abstract class Table implements SQLiteModule {
   sqlite3: SQLiteAPI;
   db: number;
   name: string;
   columns: string[];
+  cursorStates: Map<number, cursorState>;
 
   abstract generate(
     idxNum: number,
@@ -12,15 +18,17 @@ export default abstract class Table implements SQLiteModule {
     values: Array<number>
   ): Promise<Record<string, string | number>[]>;
 
-  // injected by wa-sqlite, but missing from SQLiteModule definition
-  handleAsync(f: () => Promise<any>): any {}
-
-  cursorStates = new Map();
-
   constructor(sqlite3: SQLiteAPI, db: number) {
     this.sqlite3 = sqlite3;
     this.db = db;
+    this.cursorStates = new Map();
   }
+
+  // This is replaced by wa-sqlite when SQLite is loaded up, but missing from the SQLiteModule
+  // definition. We add it here to make Typescript happy.
+  handleAsync(f: () => Promise<any>): any {}
+
+  // All the methods below are documented in https://www.sqlite.org/vtab.html#virtual_table_methods.
 
   xConnect(
     db: number,
@@ -29,6 +37,7 @@ export default abstract class Table implements SQLiteModule {
     pVTab: number,
     pzString: { set: (arg0: string) => void }
   ): number | Promise<number> {
+    // Register the table schema.
     const sql = `CREATE TABLE ${this.name} (${this.columns.join(",")})`;
     pzString.set(sql);
     return SQLite.SQLITE_OK;
@@ -38,6 +47,7 @@ export default abstract class Table implements SQLiteModule {
     pVTab: number,
     indexInfo: SQLiteModuleIndexInfo
   ): number | Promise<number> {
+    // In the future we might be able to use this for some tables to optimize queries.
     return SQLite.SQLITE_OK;
   }
 
@@ -50,11 +60,14 @@ export default abstract class Table implements SQLiteModule {
   }
 
   xOpen(pVTab: number, pCursor: number): number | Promise<number> {
-    this.cursorStates.set(pCursor, {});
+    // Initialize a new cursor state (called at the beginning of a query to the table).
+    this.cursorStates.set(pCursor, new cursorState());
     return SQLite.SQLITE_OK;
   }
 
   xClose(pCursor: number): number | Promise<number> {
+    // Clean up the cursor state (called when the query completes). Important that we do this so
+    // that the resources don't remain allocated after the query completes!
     this.cursorStates.delete(pCursor);
     return SQLite.SQLITE_OK;
   }
@@ -65,9 +78,11 @@ export default abstract class Table implements SQLiteModule {
     idxStr: string | null,
     values: Array<number>
   ): Promise<number> {
+    // Generate the actual query results here during this filter call. Store them in the cursor state
+    // so that SQLite can request each row and column.
     return this.handleAsync(async () => {
       const cursorState = this.cursorStates.get(pCursor);
-      cursorState.index = 0;
+      cursorState.rowIndex = 0;
       cursorState.rows = await this.generate(idxNum, idxStr, values);
 
       return SQLite.SQLITE_OK;
@@ -75,15 +90,16 @@ export default abstract class Table implements SQLiteModule {
   }
 
   xNext(pCursor: number): number | Promise<number> {
-    // Advance to the next valid row or EOF.
+    // Advance the row index for the cursor.
     const cursorState = this.cursorStates.get(pCursor);
-    cursorState.index += 1;
+    cursorState.rowIndex += 1;
     return SQLite.SQLITE_OK;
   }
 
   xEof(pCursor: number): number | Promise<number> {
+    // Check whether we've returned all rows (cursor index is beyond number of rows).
     const cursorState = this.cursorStates.get(pCursor);
-    return Number(cursorState.index >= cursorState.rows.length);
+    return Number(cursorState.rowIndex >= cursorState.rows.length);
   }
 
   xColumn(
@@ -94,10 +110,11 @@ export default abstract class Table implements SQLiteModule {
     // Get the generated rows for this cursor.
     const cursorState = this.cursorStates.get(pCursor);
     // Get the current row.
-    const row = cursorState.rows[cursorState.index];
+    const row = cursorState.rows[cursorState.rowIndex];
     // Get the column for the row, looking up the column index by the column name.
     const value = row[this.columns[iCol]];
-
+    // Provide the result through calling the sqlite3.result() function, then return a success
+    // code.
     this.sqlite3.result(pContext, value);
     return SQLite.SQLITE_OK;
   }
@@ -106,8 +123,9 @@ export default abstract class Table implements SQLiteModule {
     pCursor: number,
     pRowid: { set: (arg0: number) => void }
   ): number | Promise<number> {
+    // Get the current row index.
     const cursorState = this.cursorStates.get(pCursor);
-    pRowid.set(cursorState.index);
+    pRowid.set(cursorState.rowIndex);
     return SQLite.SQLITE_OK;
   }
 }

@@ -17,8 +17,8 @@ export default class TableChromeExtensions extends Table {
     const extensions = await chrome.management.getAll();
     let rows = [];
     for (let ext of extensions) {
-      // Osquery returns these two merged together which doesn't necessarily seem like the most
-      // intuitive option, but we do that to match.
+      // Osquery returns these two permission types merged together which doesn't necessarily seem
+      // like the most intuitive option, but we do that to match.
       const mergedPerms = [...ext.permissions, ...ext.hostPermissions];
       rows.push({
         browser_type: "chrome",
