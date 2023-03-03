@@ -14,7 +14,7 @@
 			<key>PayloadUUID</key>
 			<string>61BC98A2-9482-4EB3-9184-FB6A8B8E33E8</string>
 			<key>HistoryAgeInDaysLimit</key>
-			<integer><1></integer>
+			<integer>1</integer>
 		</dict>
 	</array>
 	<key>PayloadDescription</key>
