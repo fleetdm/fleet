@@ -1059,6 +1059,75 @@ func testHostsListMDM(t *testing.T, ds *Datastore) {
 	assert.Equal(t, 1, len(hosts))
 }
 
+func testHostsFilterMDMProfilesStatus(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	var hostIDs []uint
+	for i := 0; i < 10; i++ {
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now().Add(-time.Duration(i) * time.Minute * 2),
+			OsqueryHostID:   ptr.String(strconv.Itoa(i)),
+			NodeKey:         ptr.String(fmt.Sprintf("%d", i)),
+			UUID:            fmt.Sprintf("%d", i),
+			Hostname:        fmt.Sprintf("foo.local%d", i),
+		})
+		require.NoError(t, err)
+		hostIDs = append(hostIDs, h.ID)
+	}
+
+	// enrollment: pending
+	n, err := ds.IngestMDMAppleDevicesFromDEPSync(ctx, []godep.Device{
+		{SerialNumber: "532141num832", Model: "MacBook Pro", OS: "OSX", OpType: "added"},
+	})
+	require.NoError(t, err)
+	require.Equal(t, int64(1), n)
+
+	const simpleMDM, kandji, unknown = "https://simplemdm.com", "https://kandji.io", "https://url.com"
+	err = ds.SetOrUpdateMDMData(ctx, hostIDs[0], false, true, simpleMDM, true, fleet.WellKnownMDMSimpleMDM) // enrollment: automatic
+	require.NoError(t, err)
+	err = ds.SetOrUpdateMDMData(ctx, hostIDs[1], false, true, kandji, true, fleet.WellKnownMDMKandji) // enrollment: automatic
+	require.NoError(t, err)
+	err = ds.SetOrUpdateMDMData(ctx, hostIDs[2], false, true, unknown, false, fleet.UnknownMDMName) // enrollment: manual
+	require.NoError(t, err)
+	err = ds.SetOrUpdateMDMData(ctx, hostIDs[3], false, false, simpleMDM, false, fleet.WellKnownMDMSimpleMDM) // enrollment: unenrolled
+	require.NoError(t, err)
+
+	var simpleMDMID uint
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &simpleMDMID, `SELECT id FROM mobile_device_management_solutions WHERE name = ? AND server_url = ?`, fleet.WellKnownMDMSimpleMDM, simpleMDM)
+	})
+	var kandjiID uint
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &kandjiID, `SELECT id FROM mobile_device_management_solutions WHERE name = ? AND server_url = ?`, fleet.WellKnownMDMKandji, kandji)
+	})
+
+	filter := fleet.TeamFilter{User: test.UserAdmin}
+
+	hosts := listHostsCheckCount(t, ds, filter, fleet.HostListOptions{MDMIDFilter: &simpleMDMID}, 2)
+	assert.Equal(t, 2, len(hosts))
+
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{MDMIDFilter: &kandjiID}, 1)
+	assert.Equal(t, 1, len(hosts))
+
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{MDMEnrollmentStatusFilter: fleet.MDMEnrollStatusAutomatic}, 2)
+	assert.Equal(t, 2, len(hosts))
+
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{MDMEnrollmentStatusFilter: fleet.MDMEnrollStatusManual}, 1)
+	assert.Equal(t, 1, len(hosts))
+
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{MDMEnrollmentStatusFilter: fleet.MDMEnrollStatusUnenrolled}, 1)
+	assert.Equal(t, 1, len(hosts))
+
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{MDMEnrollmentStatusFilter: fleet.MDMEnrollStatusAutomatic, MDMIDFilter: &kandjiID}, 1)
+	assert.Equal(t, 1, len(hosts))
+
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{MDMEnrollmentStatusFilter: fleet.MDMEnrollStatusPending}, 1)
+	assert.Equal(t, 1, len(hosts))
+}
+
 func testHostMDMSelect(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 	mdmServerURL := "https://mdm.example.com"

@@ -832,8 +832,14 @@ func filterHostsByMDMProfileStatus(sql string, opt fleet.HostListOptions, params
 		return sql, params
 	}
 
-	newSQL := ` AND EXISTS (SELECT 1 FROM host_mdm_apple_profiles hmap WHERE hmap.host_uuid = h.uuid`
+	newSQL := ""
 	newParams := []interface{}{}
+
+	if opt.TeamFilter == nil {
+		newSQL += ` AND h.team_id IS NULL`
+	}
+
+	newSQL += ` AND EXISTS (SELECT 1 FROM host_mdm_apple_profiles hmap WHERE hmap.host_uuid = h.uuid`
 
 	switch opt.MDMProfilesStatusFilter {
 	case fleet.MDMProfilesStatusFailed:
