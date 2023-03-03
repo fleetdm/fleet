@@ -33,5 +33,6 @@ output "fleet_extra_environment_variables" {
     FLEET_LOGGING_TRACING_ENABLED = "true"
     FLEET_LOGGING_TRACING_TYPE    = "opentelemetry"
     OTEL_SERVICE_NAME             = "fleet"
+    OTEL_EXPORTER_OTLP_ENDPOINT   = "http://localhost:4317"
   }
 }
