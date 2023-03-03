@@ -225,7 +225,6 @@ func (s *Schedule) Start() {
 					s.setIntervalStartedAt(newStart)
 					schedTicker.Reset(s.getRemainingInterval(newStart))
 					level.Debug(s.logger).Log("waiting", fmt.Sprintf("triggered run spanned schedule interval, new wait %v", s.getRemainingInterval(newStart)))
-					continue
 				}
 
 				cancelHold()
