@@ -23,7 +23,7 @@ func (gh GhMock) MacOfficeReleaseNotes(ctx context.Context) (MetadataFileName, s
 	for k, v := range gh.TestData.RemoteList {
 		return k, v, gh.TestData.RemoteListError
 	}
-	return MetadataFileName{}, "", nil
+	return MetadataFileName{}, "", gh.TestData.RemoteListError
 }
 
 func (gh GhMock) Download(url string) (string, error) {
