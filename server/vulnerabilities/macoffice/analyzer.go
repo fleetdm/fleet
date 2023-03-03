@@ -81,10 +81,10 @@ func collectVulnerabilities(
 // getStoredVulnerabilities return all stored vulnerabilities for 'softwareID'
 func getStoredVulnerabilities(
 	ctx context.Context,
-	getSoftwareDBCall func(ctx context.Context, id uint, includeCVEScores bool) (*fleet.Software, error),
+	ds fleet.Datastore,
 	softwareID uint,
 ) ([]fleet.SoftwareVulnerability, error) {
-	storedSoftware, err := getSoftwareDBCall(ctx, softwareID, false)
+	storedSoftware, err := ds.SoftwareByID(ctx, softwareID, false)
 	if err != nil {
 		return nil, err
 	}
@@ -101,10 +101,9 @@ func getStoredVulnerabilities(
 
 func updateVulnsInDB(
 	ctx context.Context,
+	ds fleet.Datastore,
 	detected []fleet.SoftwareVulnerability,
 	existing []fleet.SoftwareVulnerability,
-	delVulnsDBCall func(ctx context.Context, vulnerabilities []fleet.SoftwareVulnerability) error,
-	insertVulnsDBCall func(ctx context.Context, vulns []fleet.SoftwareVulnerability, source fleet.VulnerabilitySource) (int64, error),
 ) ([]fleet.SoftwareVulnerability, error) {
 	toInsert, toDelete := utils.VulnsDelta(detected, existing)
 
@@ -114,14 +113,14 @@ func updateVulnsInDB(
 		toInsertSet[i.Key()] = i
 	}
 
-	err := delVulnsDBCall(ctx, toDelete)
+	err := ds.DeleteSoftwareVulnerabilities(ctx, toDelete)
 	if err != nil {
 		return nil, err
 	}
 
 	inserted := make([]fleet.SoftwareVulnerability, 0, len(toInsertSet))
 	err = utils.BatchProcess(toInsertSet, func(v []fleet.SoftwareVulnerability) error {
-		n, err := insertVulnsDBCall(ctx, v, fleet.MacOfficeReleaseNotesSource)
+		n, err := ds.InsertSoftwareVulnerabilities(ctx, v, fleet.MacOfficeReleaseNotesSource)
 		if err != nil {
 			return err
 		}
@@ -179,12 +178,12 @@ func Analyze(
 
 		detected := collectVulnerabilities(software, product, relNotes)
 		// The 'software' instance we get back from the iterator does not include vulnerabilities...
-		existing, err := getStoredVulnerabilities(ctx, ds.SoftwareByID, software.ID)
+		existing, err := getStoredVulnerabilities(ctx, ds, software.ID)
 		if err != nil {
 			return nil, err
 		}
 
-		inserted, err := updateVulnsInDB(ctx, detected, existing, ds.DeleteSoftwareVulnerabilities, ds.InsertSoftwareVulnerabilities)
+		inserted, err := updateVulnsInDB(ctx, ds, detected, existing)
 		if err != nil {
 			return nil, err
 		}

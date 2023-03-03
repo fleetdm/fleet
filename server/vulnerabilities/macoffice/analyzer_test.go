@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/io"
 	"github.com/stretchr/testify/require"
 )
@@ -33,15 +34,15 @@ func TestAnalyzer(t *testing.T) {
 
 	t.Run("updateVulnsInDB", func(t *testing.T) {
 		t.Run("on error when deleting vulns", func(t *testing.T) {
-			delDBCall := func(ctx context.Context, vulnerabilities []fleet.SoftwareVulnerability) error {
+			ds := new(mock.Store)
+			ds.DeleteSoftwareVulnerabilitiesFunc = func(ctx context.Context, vulnerabilities []fleet.SoftwareVulnerability) error {
 				return errors.New("some error")
 			}
-
-			insertVulnsDBCall := func(ctx context.Context, vulns []fleet.SoftwareVulnerability, source fleet.VulnerabilitySource) (int64, error) {
+			ds.InsertSoftwareVulnerabilitiesFunc = func(ctx context.Context, vulns []fleet.SoftwareVulnerability, source fleet.VulnerabilitySource) (int64, error) {
 				return 0, nil
 			}
 
-			vulns, err := updateVulnsInDB(ctx, nil, nil, delDBCall, insertVulnsDBCall)
+			vulns, err := updateVulnsInDB(ctx, ds, nil, nil)
 			require.Empty(t, vulns)
 			require.Error(t, err, "some error")
 		})
@@ -51,15 +52,15 @@ func TestAnalyzer(t *testing.T) {
 				{SoftwareID: 1, CVE: "123"},
 			}
 
-			delDBCall := func(ctx context.Context, vulnerabilities []fleet.SoftwareVulnerability) error {
+			ds := new(mock.Store)
+			ds.DeleteSoftwareVulnerabilitiesFunc = func(ctx context.Context, vulnerabilities []fleet.SoftwareVulnerability) error {
 				return nil
 			}
-
-			insertVulnsDBCall := func(ctx context.Context, vulns []fleet.SoftwareVulnerability, source fleet.VulnerabilitySource) (int64, error) {
+			ds.InsertSoftwareVulnerabilitiesFunc = func(ctx context.Context, vulns []fleet.SoftwareVulnerability, source fleet.VulnerabilitySource) (int64, error) {
 				return 0, errors.New("some error")
 			}
 
-			vulns, err := updateVulnsInDB(ctx, detected, nil, delDBCall, insertVulnsDBCall)
+			vulns, err := updateVulnsInDB(ctx, ds, detected, nil)
 			require.Empty(t, vulns)
 			require.Error(t, err, "some error")
 		})
@@ -76,11 +77,12 @@ func TestAnalyzer(t *testing.T) {
 
 	t.Run("getStoredVulnerabilities", func(t *testing.T) {
 		t.Run("on error", func(t *testing.T) {
-			dbCall := func(ctx context.Context, id uint, includeCVEScores bool) (*fleet.Software, error) {
+			ds := new(mock.Store)
+			ds.SoftwareByIDFunc = func(ctx context.Context, id uint, includeCVEScores bool) (*fleet.Software, error) {
 				return nil, errors.New("some error")
 			}
 
-			vulns, err := getStoredVulnerabilities(ctx, dbCall, uint(0))
+			vulns, err := getStoredVulnerabilities(ctx, ds, uint(0))
 			require.Empty(t, vulns)
 			require.Error(t, err, "some error")
 		})
