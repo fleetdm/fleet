@@ -1162,7 +1162,7 @@ spec:
   query: |
     SELECT 1 FROM registry where (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer\AllowOnlineTips' AND data == 0);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.1.2.3
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.1.3
   contributors: rachelelysia
 ---
 
