@@ -1409,6 +1409,71 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
+  name: CIS - Ensure 'System cryptography Force strong key protection for user keys stored on the computer' is set to 'User is prompted when the key is first used or higher'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting determines whether users' private keys (such as their S-MIME keys) require a password to be used.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'User is prompted when the key is first used or higher':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\System cryptography: Force strong key protection for user keys stored on the computer'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Cryptography\\ForceKeyProtection' AND CAST(data AS INTEGER) >= 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.14.1
+  contributors: marcosd4h  
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'System objects Require case insensitivity for non Windows subsystems' is set to 'Enabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting determines whether case insensitivity is enforced for all subsystems. The
+    Microsoft Win32 subsystem is case insensitive. However, the kernel supports case sensitivity for
+    other subsystems, such as the Portable Operating System Interface for UNIX (POSIX). Because
+    Windows is case insensitive (but the POSIX subsystem will support case sensitivity), failure to
+    enforce this policy setting makes it possible for a user of the POSIX subsystem to create a file
+    with the same name as another file by using mixed case to label it. Such a situation can block
+    access to these files by another user who uses typical Win32 tools, because only one of the
+    files will be available.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'Enabled':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\System objects: Require case insensitivity for non Windows subsystems'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\Session Manager\\kernel\\obcaseinsensitive' AND data != 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.15.1
+  contributors: marcosd4h  
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'System objects Strengthen default permissions of internal system objects (e.g. Symbolic Links)' is set to 'Enabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting determines the strength of the default discretionary access control list
+    (DACL) for objects. Active Directory maintains a global list of shared system resources, such as
+    DOS device names, mutexes, and semaphores. In this way, objects can be located and shared among
+    processes. Each type of object is created with a default DACL that specifies who can access the
+    objects and what permissions are granted.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'Enabled':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\System objects: Strengthen default permissions of internal system objects (e.g. Symbolic Links)
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\Session Manager\\ProtectionMode' AND data != 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.15.2
+  contributors: marcosd4h  
+---
+apiVersion: v1
+kind: policy
+spec:
   name: >
     CIS - Ensure 'User Account Control: Admin Approval Mode for the Built-in Administrator account' is set to 'Enabled'
   platforms: win10
