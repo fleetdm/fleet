@@ -1255,6 +1255,225 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
+  name: CIS - Ensure 'Network security Allow Local System to use computer identity for NTLM' is set to 'Enabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting determines whether Local System services that use Negotiate when reverting to NTLM authentication can use the computer identity.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'Enabled':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\Network security: Allow Local System to use computer identity for NTLM'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\Lsa\\UseMachineId' AND data != 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.11.1
+  contributors: marcosd4h
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Network security Allow LocalSystem NULL session fallback' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting determines whether NTLM is allowed to fall back to a NULL session when used with LocalSystem.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'Disabled':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\Network security: Allow LocalSystem NULL session fallback'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\Lsa\\MSV1_0\\allownullsessionfallback' AND data == 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.11.2
+  contributors: marcosd4h
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Network Security Allow PKU2U authentication requests to this computer to use online identities' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This setting determines if online identities are able to authenticate to this computer.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'Disabled':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\Network Security: Allow PKU2U authentication requests to this computer to use online identities'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\Lsa\\pku2u\\AllowOnlineID' AND data == 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.11.3
+  contributors: marcosd4h
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Network security Configure encryption types allowed for Kerberos' is set to 'AES128_HMAC_SHA1, AES256_HMAC_SHA1, Future encryption types'
+  platforms: win10
+  platform: windows
+  description: |
+    This setting determines if online identities are able to authenticate to this computer.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'AES128_HMAC_SHA1, AES256_HMAC_SHA1, Future encryption types':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\Network security: Configure encryption types allowed for Kerberos'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System\\Kerberos\\Parameters\\SupportedEncryptionTypes' AND ((CAST(data AS INTEGER) & 0x8) AND (CAST(data AS INTEGER) & 0x10) AND (CAST(data AS INTEGER) & 0xe0) AND ((CAST(data AS INTEGER) & 0x1) = 0) AND ((CAST(data AS INTEGER) & 0x2) = 0) AND ((CAST(data AS INTEGER) & 0x4) = 0)));
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.11.4
+  contributors: marcosd4h
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Network security Do not store LAN Manager hash value on next password change' is set to 'Enabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting determines whether the LAN Manager (LM) hash value for the new password is
+    stored when the password is changed. The LM hash is relatively weak and prone to attack compared
+    to the cryptographically stronger Microsoft Windows NT hash. Since LM hashes are stored on the
+    local computer in the security database, passwords can then be easily compromised if the
+    database is attacked.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'Enabled':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\Network security: Do not store LAN Manager hash value on next password change'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\Lsa\\NoLmHash' AND data != 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.11.5
+  contributors: marcosd4h
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Network security Force logoff when logon hours expire' is set to 'Enabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting determines whether to disconnect users who are connected to the local
+    computer outside their user account's valid logon hours. This setting affects the Server Message
+    Block (SMB) component.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'Enabled':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\Network security: Force logoff when logon hours expire'
+  query: |
+    TBD
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.11.6, CIS_not_completed
+  contributors: marcosd4h
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Network security LAN Manager authentication level' is set to 'Send NTLMv2 response only. Refuse LM & NTLM'
+  platforms: win10
+  platform: windows
+  description: |
+    LAN Manager (LM) was a family of early Microsoft client/server software (predating Windows NT)
+    that allowed users to link personal computers together on a single network. LM network
+    capabilities included transparent file and print sharing, user security features, and network
+    administration tools. In Active Directory domains, the Kerberos protocol is the default
+    authentication protocol.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'Send NTLMv2 response only. Refuse LM & NTLM':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\Network security: LAN Manager authentication level'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\Lsa\\LmCompatibilityLevel' AND data == 5);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.11.7
+  contributors: marcosd4h
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Network security LDAP client signing requirements' is set to 'Negotiate signing or higher'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting determines the level of data signing that is requested on behalf of clients that issue LDAP BIND requests.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'Negotiate signing or higher':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\Network security: LDAP client signing requirements'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\ldap\\ldapclientintegrity' AND data >= 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.11.8
+  contributors: marcosd4h
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'System cryptography Force strong key protection for user keys stored on the computer' is set to 'User is prompted when the key is first used or higher'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting determines whether users' private keys (such as their S-MIME keys) require a password to be used.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'User is prompted when the key is first used or higher':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\System cryptography: Force strong key protection for user keys stored on the computer'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Cryptography\\ForceKeyProtection' AND CAST(data AS INTEGER) >= 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.14.1
+  contributors: marcosd4h  
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'System objects Require case insensitivity for non Windows subsystems' is set to 'Enabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting determines whether case insensitivity is enforced for all subsystems. The
+    Microsoft Win32 subsystem is case insensitive. However, the kernel supports case sensitivity for
+    other subsystems, such as the Portable Operating System Interface for UNIX (POSIX). Because
+    Windows is case insensitive (but the POSIX subsystem will support case sensitivity), failure to
+    enforce this policy setting makes it possible for a user of the POSIX subsystem to create a file
+    with the same name as another file by using mixed case to label it. Such a situation can block
+    access to these files by another user who uses typical Win32 tools, because only one of the
+    files will be available.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'Enabled':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\System objects: Require case insensitivity for non Windows subsystems'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\Session Manager\\kernel\\obcaseinsensitive' AND data != 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.15.1
+  contributors: marcosd4h  
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'System objects Strengthen default permissions of internal system objects (e.g. Symbolic Links)' is set to 'Enabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting determines the strength of the default discretionary access control list
+    (DACL) for objects. Active Directory maintains a global list of shared system resources, such as
+    DOS device names, mutexes, and semaphores. In this way, objects can be located and shared among
+    processes. Each type of object is created with a default DACL that specifies who can access the
+    objects and what permissions are granted.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'Enabled':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\System objects: Strengthen default permissions of internal system objects (e.g. Symbolic Links)
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\Session Manager\\ProtectionMode' AND data != 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.15.2
+  contributors: marcosd4h  
+---
+apiVersion: v1
+kind: policy
+spec:
   name: >
     CIS - Ensure 'User Account Control: Admin Approval Mode for the Built-in Administrator account' is set to 'Enabled'
   platforms: win10
