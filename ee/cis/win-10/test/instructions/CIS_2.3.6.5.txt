@@ -1,0 +1,17 @@
+Expected scenario
+==================
+1) Open "Edit Group Policy" tool and set the following UI path to '30 days':
+'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\Domain member: Maximum machine account password age'
+
+2) After running the policy check, it should return 1 indicating that setting was properly set
+
+
+
+Failure scenario
+==================
+1) Open "Edit Group Policy" tool and set the following UI path to '0 days':
+'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\Domain member: Maximum machine account password age'
+
+2) After running the policy check, it should return nothing, indicating that setting was set to a non-compliant value
+
+
