@@ -1411,7 +1411,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: >
-    CIS - Ensure 'Windows Firewall: Public: Firewall state' is set to 'On (recommended)' (Automated)
+    CIS - Ensure 'Windows Firewall: Public: Firewall state' is set to 'On (recommended)'
   platforms: win10
   platform: windows
   description: |
@@ -1430,7 +1430,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: >
-    CIS - Ensure 'Windows Firewall: Public: Inbound connections' is set to 'Block (default)' (Automated)
+    CIS - Ensure 'Windows Firewall: Public: Inbound connections' is set to 'Block (default)'
   platforms: win10
   platform: windows
   description: |
@@ -1449,7 +1449,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: >
-    CIS - Ensure 'Windows Firewall: Public: Outbound connections' is set to 'Allow (default)' (Automated)
+    CIS - Ensure 'Windows Firewall: Public: Outbound connections' is set to 'Allow (default)'
   platforms: win10
   platform: windows
   description: |
@@ -1468,7 +1468,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: >
-    CIS - Ensure 'Windows Firewall: Public: Settings: Display a notification' is set to 'No' (Automated)
+    CIS - Ensure 'Windows Firewall: Public: Settings: Display a notification' is set to 'No'
   platforms: win10
   platform: windows
   description: |
@@ -1487,7 +1487,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: >
-    CIS - Ensure 'Windows Firewall: Public: Settings: Apply local firewall rules' is set to 'No' (Automated)
+    CIS - Ensure 'Windows Firewall: Public: Settings: Apply local firewall rules' is set to 'No'
   platforms: win10
   platform: windows
   description: |
@@ -1506,7 +1506,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: >
-    CIS - Ensure 'Windows Firewall: Public: Settings: Apply local connection security rules' is set to 'No' (Automated)
+    CIS - Ensure 'Windows Firewall: Public: Settings: Apply local connection security rules' is set to 'No'
   platforms: win10
   platform: windows
   description: |
@@ -1525,7 +1525,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: >
-    CIS - Ensure 'Windows Firewall: Public: Logging: Name' is set to '%SystemRoot%\System32\logfiles\firewall\publicfw.log' (Automated)
+    CIS - Ensure 'Windows Firewall: Public: Logging: Name' is set to '%SystemRoot%\System32\logfiles\firewall\publicfw.log'
   platforms: win10
   platform: windows
   description: |
@@ -1544,7 +1544,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: >
-    CIS - Ensure 'Windows Firewall: Public: Logging: Size limit (KB)' is set to '16,384 KB or greater' (Automated)
+    CIS - Ensure 'Windows Firewall: Public: Logging: Size limit (KB)' is set to '16,384 KB or greater'
   platforms: win10
   platform: windows
   description: |
@@ -1563,7 +1563,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: >
-    CIS - Ensure 'Windows Firewall: Public: Firewall state' is set to 'On (recommended)' (Automated)
+    CIS - Ensure 'Windows Firewall: Public: Firewall state' is set to 'On (recommended)'
   platforms: win10
   platform: windows
   description: |
@@ -1582,7 +1582,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: >
-    CIS - Ensure 'Windows Firewall: Public: Logging: Log successful connections' is set to 'Yes' (Automated)
+    CIS - Ensure 'Windows Firewall: Public: Logging: Log successful connections' is set to 'Yes'
   platforms: win10
   platform: windows
   description: |
