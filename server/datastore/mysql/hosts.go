@@ -748,7 +748,7 @@ func (ds *Datastore) applyHostFilters(opt fleet.HostListOptions, sql string, fil
 	sql, params = filterHostsByTeam(sql, opt, params)
 	sql, params = filterHostsByPolicy(sql, opt, params)
 	sql, params = filterHostsByMDM(sql, opt, params)
-	sql, params = filterHostsByMDMProfileStatus(sql, opt, params)
+	sql, params = filterHostsByMacOSSettingsStatus(sql, opt, params)
 	sql, params = filterHostsByOS(sql, opt, params)
 	sql, params = hostSearchLike(sql, params, opt.MatchQuery, hostSearchColumns...)
 	sql, params = appendListOptionsWithCursorToSQL(sql, params, &opt.ListOptions)
@@ -827,8 +827,8 @@ func filterHostsByStatus(now time.Time, sql string, opt fleet.HostListOptions, p
 	return sql, params
 }
 
-func filterHostsByMDMProfileStatus(sql string, opt fleet.HostListOptions, params []interface{}) (string, []interface{}) {
-	if opt.MDMProfilesStatusFilter == "" {
+func filterHostsByMacOSSettingsStatus(sql string, opt fleet.HostListOptions, params []interface{}) (string, []interface{}) {
+	if opt.MacOSSettingsFilter == "" {
 		return sql, params
 	}
 
@@ -841,21 +841,21 @@ func filterHostsByMDMProfileStatus(sql string, opt fleet.HostListOptions, params
 
 	newSQL += ` AND EXISTS (SELECT 1 FROM host_mdm_apple_profiles hmap WHERE hmap.host_uuid = h.uuid`
 
-	switch opt.MDMProfilesStatusFilter {
-	case fleet.MDMProfilesStatusFailing:
+	switch opt.MacOSSettingsFilter {
+	case fleet.MacOSSettingsStatusFailing:
 		newSQL += ` AND status = ?)`
 		newParams = append(newParams, fleet.MDMAppleDeliveryFailed)
 
-	case fleet.MDMProfilesStatusPending:
+	case fleet.MacOSSettingsStatusPending:
 		newSQL += ` AND status = ? AND h.uuid NOT IN (SELECT host_uuid FROM host_mdm_apple_profiles hmap2 WHERE hmap2.host_uuid = h.uuid AND status = ?))`
 		newParams = append(newParams, fleet.MDMAppleDeliveryPending, fleet.MDMAppleDeliveryFailed)
 
-	case fleet.MDMProfilesStatusLatest:
+	case fleet.MacOSSettingsStatusLatest:
 		newSQL += ` AND status = ? AND h.uuid NOT IN (SELECT host_uuid FROM host_mdm_apple_profiles hmap2 WHERE hmap2.host_uuid = h.uuid AND (status = ? OR status = ?)))`
 		newParams = append(newParams, fleet.MDMAppleDeliveryApplied, fleet.MDMAppleDeliveryPending, fleet.MDMAppleDeliveryFailed)
 
 	default:
-		// if this ever happens, someone probably added a new MDMProfilesStatusFilter and forgot to
+		// if this ever happens, someone probably added a new MacOSSettingsStatusFilter and forgot to
 		// update this helper function ;)
 		return sql, params
 	}

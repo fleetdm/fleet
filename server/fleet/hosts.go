@@ -49,13 +49,14 @@ const (
 	MDMEnrollStatusUnenrolled = MDMEnrollStatus("unenrolled")
 )
 
-// MDMEnrollStatus defines the possible MDM enrollment statuses.
-type MDMProfilesStatus string
+// MacOSSettingsStatus defines the possible statuses of the host's macOS settings, which is derived from the
+// status of MDM configuration profiles applied to the host.
+type MacOSSettingsStatus string
 
 const (
-	MDMProfilesStatusLatest  = MDMProfilesStatus("latest")
-	MDMProfilesStatusPending = MDMProfilesStatus("pending")
-	MDMProfilesStatusFailing = MDMProfilesStatus("failing")
+	MacOSSettingsStatusLatest  = MacOSSettingsStatus("latest")
+	MacOSSettingsStatusPending = MacOSSettingsStatus("pending")
+	MacOSSettingsStatusFailing = MacOSSettingsStatus("failing")
 )
 
 // NOTE: any changes to the hosts filters is likely to impact at least the following
@@ -92,9 +93,9 @@ type HostListOptions struct {
 
 	DisableFailingPolicies bool
 
-	// MDMProfileStatusFilter filters the hosts by the status of MDM configuration profiles
+	// MacOSSettingsFilter filters the hosts by the status of MDM configuration profiles
 	// appled to the hosts.
-	MDMProfilesStatusFilter MDMProfilesStatus
+	MacOSSettingsFilter MacOSSettingsStatus
 
 	// MDMIDFilter filters the hosts by MDM ID.
 	MDMIDFilter *uint
