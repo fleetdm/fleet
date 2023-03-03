@@ -591,7 +591,10 @@ The following table lists the People group's rituals, frequency, and Directly Re
 
 
 ## Kanban
-Any contributor can [view the kanban board](https://app.zenhub.com/workspaces/-g-business-operations-63f3dc3cc931f6247fcf55a9/board?sprints=none) including the active sprint and pending tasks for the business operations department.
+Any contributor can [view the kanban board](https://app.zenhub.com/workspaces/-g-business-operations-63f3dc3cc931f6247fcf55a9/board?sprints=none) for the business operations department, including pending tasks in the active sprint and any new requests.
+
+## Intake
+To make a request of the business operations department, [create an issue using one of our issue templates](https://github.com/fleetdm/confidential/issues/new/choose).  If you don't see what you need, or you are unsure, add your question to the agenda for the next bizops office hours call (weekly).  If you're not sure that your request can wait that long, then please ask for help in our group Slack channel: `#g-business-operations`.
 
 
 ## Slack channels
