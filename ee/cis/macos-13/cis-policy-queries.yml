@@ -1828,7 +1828,7 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure Complex Password Must Contain Alphabetic Characters AND Numeric Characters Is Configured
+  name: CIS - Ensure Complex Password Must Contain Alphabetic Characters AND Numeric Characters Is Configured (MDM Required)
   platforms: macOS
   platform: darwin
   description: |
