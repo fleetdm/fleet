@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"encoding/xml"
 	"errors"
 	"fmt"
 	"io"
@@ -1124,6 +1125,11 @@ func generateEnrollmentProfileMobileconfig(orgName, fleetURL, scepChallenge, top
 		return nil, fmt.Errorf("resolve Apple MDM url: %w", err)
 	}
 
+	var escaped strings.Builder
+	if err := xml.EscapeText(&escaped, []byte(scepChallenge)); err != nil {
+		return nil, fmt.Errorf("escape SCEP challenge for XML: %w", err)
+	}
+
 	var buf bytes.Buffer
 	if err := enrollmentProfileMobileconfigTemplate.Execute(&buf, struct {
 		Organization  string
@@ -1134,7 +1140,7 @@ func generateEnrollmentProfileMobileconfig(orgName, fleetURL, scepChallenge, top
 	}{
 		Organization:  orgName,
 		SCEPURL:       scepURL,
-		SCEPChallenge: scepChallenge,
+		SCEPChallenge: escaped.String(),
 		Topic:         topic,
 		ServerURL:     serverURL,
 	}); err != nil {
