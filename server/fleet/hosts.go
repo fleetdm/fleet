@@ -59,6 +59,15 @@ const (
 	MacOSSettingsStatusFailing = MacOSSettingsStatus("failing")
 )
 
+func (s MacOSSettingsStatus) IsValid() bool {
+	switch s {
+	case MacOSSettingsStatusFailing, MacOSSettingsStatusPending, MacOSSettingsStatusLatest:
+		return true
+	default:
+		return false
+	}
+}
+
 // NOTE: any changes to the hosts filters is likely to impact at least the following
 // endpoints, due to how they share the same implementation at the Datastore level:
 //

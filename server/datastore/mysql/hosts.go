@@ -828,36 +828,32 @@ func filterHostsByStatus(now time.Time, sql string, opt fleet.HostListOptions, p
 }
 
 func filterHostsByMacOSSettingsStatus(sql string, opt fleet.HostListOptions, params []interface{}) (string, []interface{}) {
-	if opt.MacOSSettingsFilter == "" {
+	if !opt.MacOSSettingsFilter.IsValid() {
 		return sql, params
 	}
 
 	newSQL := ""
 	newParams := []interface{}{}
 
-	if opt.TeamFilter == nil {
+	if opt.TeamFilter == nil || *opt.TeamFilter == 0 {
+		// add "no team" filter
 		newSQL += ` AND h.team_id IS NULL`
 	}
 
-	newSQL += ` AND EXISTS (SELECT 1 FROM host_mdm_apple_profiles hmap WHERE hmap.host_uuid = h.uuid`
+	newSQL += ` AND EXISTS (SELECT 1 FROM host_mdm_apple_profiles hmap WHERE hmap.host_uuid = h.uuid AND status = ?`
 
 	switch opt.MacOSSettingsFilter {
 	case fleet.MacOSSettingsStatusFailing:
-		newSQL += ` AND status = ?)`
+		newSQL += `)`
 		newParams = append(newParams, fleet.MDMAppleDeliveryFailed)
 
 	case fleet.MacOSSettingsStatusPending:
-		newSQL += ` AND status = ? AND h.uuid NOT IN (SELECT host_uuid FROM host_mdm_apple_profiles hmap2 WHERE hmap2.host_uuid = h.uuid AND status = ?))`
+		newSQL += ` AND NOT EXISTS (SELECT 1 FROM host_mdm_apple_profiles hmap2 WHERE h.uuid = hmap2.host_uuid AND hmap2.status = ?))`
 		newParams = append(newParams, fleet.MDMAppleDeliveryPending, fleet.MDMAppleDeliveryFailed)
 
 	case fleet.MacOSSettingsStatusLatest:
-		newSQL += ` AND status = ? AND h.uuid NOT IN (SELECT host_uuid FROM host_mdm_apple_profiles hmap2 WHERE hmap2.host_uuid = h.uuid AND (status = ? OR status = ?)))`
+		newSQL += ` AND NOT EXISTS (SELECT 1 FROM host_mdm_apple_profiles hmap2 WHERE h.uuid = hmap2.host_uuid AND (hmap2.status = ? OR hmap2.status = ?)))`
 		newParams = append(newParams, fleet.MDMAppleDeliveryApplied, fleet.MDMAppleDeliveryPending, fleet.MDMAppleDeliveryFailed)
-
-	default:
-		// if this ever happens, someone probably added a new MacOSSettingsStatusFilter and forgot to
-		// update this helper function ;)
-		return sql, params
 	}
 
 	return sql + newSQL, append(params, newParams...)
