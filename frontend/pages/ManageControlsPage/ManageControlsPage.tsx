@@ -1,13 +1,11 @@
 import React, { useContext } from "react";
 import { find } from "lodash";
-import { useQuery } from "react-query";
 import { Tab, Tabs, TabList } from "react-tabs";
 import { InjectedRouter } from "react-router";
+import { Location } from "history";
 
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
-import mdmAppleAPI from "services/entities/mdm_apple";
-import { IMdmApple } from "interfaces/mdm";
 
 import TabsWrapper from "components/TabsWrapper";
 import MainContent from "components/MainContent";
@@ -16,7 +14,6 @@ import TeamsDropdownHeader, {
 } from "components/PageHeader/TeamsDropdownHeader";
 import EmptyTable from "components/EmptyTable";
 import Button from "components/buttons/Button";
-import Spinner from "components/Spinner";
 
 interface IControlsSubNavItem {
   name: string;
@@ -36,7 +33,7 @@ const controlsSubNav: IControlsSubNavItem[] = [
 
 interface IManageControlsPageProps {
   children: JSX.Element;
-  location: any; // no type in react-router v3
+  location: Location;
   router: InjectedRouter; // v3
 }
 
@@ -59,16 +56,8 @@ const ManageControlsPage = ({
     isPremiumTier,
     currentTeam,
     setCurrentTeam,
+    config,
   } = useContext(AppContext);
-
-  const { data: mdmApple, isLoading: isLoadingMdmApple } = useQuery<
-    IMdmApple,
-    Error
-  >(["mdmAppleAPI"], () => mdmAppleAPI.getAppleAPNInfo(), {
-    enabled: isPremiumTier,
-    staleTime: 5000,
-    retry: false,
-  });
 
   const navigateToNav = (i: number): void => {
     const navPath = controlsSubNav[i].pathname;
@@ -109,10 +98,7 @@ const ManageControlsPage = ({
   const onConnectClick = () => router.push(PATHS.ADMIN_INTEGRATIONS_MDM);
 
   const renderBody = () => {
-    if (isLoadingMdmApple) {
-      return <Spinner />;
-    }
-    return mdmApple ? (
+    return isPremiumTier && config?.mdm.enabled_and_configured ? (
       <div>
         <TabsWrapper>
           <Tabs
