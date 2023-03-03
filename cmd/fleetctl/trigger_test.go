@@ -13,7 +13,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/schedule"
 	kitlog "github.com/go-kit/kit/log"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -50,6 +49,7 @@ func TestTrigger(t *testing.T) {
 	}
 
 	r, w, _ := os.Pipe()
+	oldStdout := os.Stdout
 	os.Stdout = w
 
 	_, _ = runServerWithMockedDS(t, &service.TestServerOpts{
@@ -78,6 +78,7 @@ func TestTrigger(t *testing.T) {
 		assert.Equal(t, "", runAppForTest(t, c.args))
 	}
 
+	os.Stdout = oldStdout
 	w.Close()
 	out, _ := ioutil.ReadAll(r)
 	outlines := strings.Split(string(out), "\n")
