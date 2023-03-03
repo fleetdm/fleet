@@ -871,8 +871,8 @@ Get aggregate status counts of MDM profiles applying to macOS hosts enrolled to 
 ```json
 {
   "latest": 123,
-  "pending": 123,
-  "failed": 123
+  "failing": 123,
+  "pending": 123
 }
 ```
 

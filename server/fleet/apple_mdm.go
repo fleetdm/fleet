@@ -453,13 +453,13 @@ type MDMAppleHostsProfilesSummary struct {
 	// Latest includes each host that has successfully applied all of the profiles currently
 	// applicable to the host. If any of the profiles are pending or failed for the host, the host
 	// is not counted as latest.
-	Latest uint `json:"latest" db:"latest"`
-	// Failed includes each host that has failed to apply one or more of the profiles currently
-	// applicable to the host.
-	Failed uint `json:"failed" db:"failed"`
+	Latest uint `json:"latest" db:"applied"`
 	// Pending includes each host that has not yet applied one or more of the profiles currently
 	// applicable to the host. If a host failed to apply any profiles, it is not counted as pending.
 	Pending uint `json:"pending" db:"pending"`
+	// Failed includes each host that has failed to apply one or more of the profiles currently
+	// applicable to the host.
+	Failed uint `json:"failing" db:"failed"`
 }
 
 // MDMAppleFleetdConfig contains the fields used to configure
