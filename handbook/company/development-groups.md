@@ -30,7 +30,7 @@ The goal of the MDM group is to reach [product maturity](https://drive.google.co
 | Quality assurance                 | Reed Haynes
 | Product manager                   | Noah Talerman
 | Engineering manager               | Luke Heath
-| Software engineers (developers)   | Gabe Hernandez, Jacob Shandling, Martin Angers, Roberto Dip, Sarah Gillespie
+| Software engineers (developers)   | Gabe Hernandez, Jacob Shandling, Martin Angers*, Roberto Dip, Sarah Gillespie
 
 > The Slack channel, kanban release board, and label for this product group is `#g-mdm`.
 
@@ -46,7 +46,7 @@ The goal of the customer experience (CX) group is to make customers happier and 
 | Quality assurance                 | Reed Haynes
 | Product manager                   | Zay Hanlon
 | Engineering manager               | Sharon Katz
-| Software engineers (developers)   | Artemis Tosini, Eric Shaw, Juan Fernandez, Lucas Rodriguez, Marcos Oviedo, Rachel Perkins, Robert Fairburn, Zach Winnerman
+| Software engineers (developers)   | Artemis Tosini, Lucas Rodriguez, Marcos Oviedo, Rachel Perkins,Juan Fernandez*<br><br>Eric Shaw _(fleetdm.com specialty)_<br><br>Robert Fairburn, Zach Winnerman _(infrastructure specialty)_
 
 > The Slack channel, kanban release board, and label for this product group is `#g-customer-experience`.
 

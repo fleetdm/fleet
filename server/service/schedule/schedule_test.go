@@ -446,6 +446,69 @@ func TestScheduleHoldLock(t *testing.T) {
 	}
 }
 
+func TestTriggerReleaseLock(t *testing.T) {
+	ctx, cancelFn := context.WithCancel(context.Background())
+	defer cancelFn()
+
+	name := "test_trigger_release_lock"
+	instanceID := "test_instance"
+	schedInterval := 2 * time.Second
+	jobRuntime := 2200 * time.Millisecond
+
+	locker := SetupMockLocker(name, instanceID, time.Now().Truncate(1*time.Second))
+	err := locker.AddChannels(t, "unlocked")
+	require.NoError(t, err)
+	seedStats := fleet.CronStats{
+		ID:        1,
+		StatsType: fleet.CronStatsTypeScheduled,
+		Name:      name,
+		Instance:  instanceID,
+		CreatedAt: time.Now().Truncate(1 * time.Second),
+		UpdatedAt: time.Now().Truncate(1 * time.Second),
+
+		Status: fleet.CronStatsStatusCompleted,
+	}
+	statsStore := SetUpMockStatsStore(name, seedStats)
+
+	jobsRun := uint32(0)
+	s := New(
+		ctx, name, instanceID, schedInterval, locker, statsStore,
+		WithJob("test_job", func(ctx context.Context) error {
+			time.Sleep(jobRuntime)
+			atomic.AddUint32(&jobsRun, 1)
+			return nil
+		}),
+	)
+	s.Start()
+
+	<-time.After(1 * time.Second)
+	_, err = s.Trigger()
+	require.NoError(t, err)
+
+	select {
+	case <-time.After(4 * schedInterval):
+		t.Errorf("timeout")
+		t.FailNow()
+	case <-locker.Unlocked:
+		stats, err := statsStore.GetLatestCronStats(ctx, name)
+		require.NoError(t, err)
+		require.Len(t, stats, 2)
+
+		statsByType := make(map[fleet.CronStatsType]fleet.CronStats)
+		for _, s := range stats {
+			statsByType[s.StatsType] = s
+		}
+		require.Len(t, statsByType, 2)
+		require.Contains(t, statsByType, fleet.CronStatsTypeTriggered)
+		require.Contains(t, statsByType, fleet.CronStatsTypeScheduled)
+
+		require.Equal(t, fleet.CronStatsStatusCompleted, statsByType[fleet.CronStatsTypeTriggered].Status)
+		require.Equal(t, seedStats, statsByType[fleet.CronStatsTypeScheduled])
+	}
+
+	require.True(t, locker.expiresAt.Before(time.Now()))
+}
+
 func TestMultipleScheduleInstancesConfigChangesDS(t *testing.T) {
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()

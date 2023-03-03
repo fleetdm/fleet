@@ -39,6 +39,10 @@ const (
 	// used by Fleet MDM on the enrollment profile.
 	FleetPayloadIdentifier = "com.fleetdm.fleet.mdm.apple"
 
+	// FleetFileVaultPayloadIdentifier is the value for the PayloadIdentifier
+	// used by Fleet to configure FileVault and FileVault Escrow.
+	FleetFileVaultPayloadIdentifier = "com.fleetdm.fleet.mdm.filevault"
+
 	// FleetdConfigPayloadIdentifier is the value for the PayloadIdentifier used
 	// by fleetd to read configuration values from the system.
 	FleetdConfigPayloadIdentifier = "com.fleetdm.fleetd.config"
