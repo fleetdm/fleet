@@ -46,7 +46,7 @@ resource "aws_ecs_task_definition" "backend" {
   cpu                      = var.fleet_config.cpu
   memory                   = var.fleet_config.mem
   container_definitions = jsonencode(
-    [
+    concat([
       {
         name        = "fleet"
         image       = var.fleet_config.image
@@ -127,7 +127,7 @@ resource "aws_ecs_task_definition" "backend" {
           },
         ], local.environment)
       }
-  ])
+  ], var.fleet_config.sidecars))
 }
 
 resource "aws_appautoscaling_target" "ecs_target" {
