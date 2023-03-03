@@ -56,6 +56,11 @@ func (h *errorHandler) Handle(ctx context.Context, err error) {
 		logger = kitlog.With(logger, ewlf.LogFields()...)
 	}
 
+	var uuider fleet.ErrorUUIDer
+	if errors.As(err, &uuider) {
+		logger = kitlog.With(logger, "uuid", uuider.UUID())
+	}
+
 	var rle ratelimit.Error
 	if errors.As(err, &rle) {
 		res := rle.Result()

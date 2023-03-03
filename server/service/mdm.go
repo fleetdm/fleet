@@ -40,7 +40,7 @@ func (svc *Service) GetAppleMDM(ctx context.Context) (*fleet.AppleMDM, error) {
 
 	// if there is no apple mdm config, fail with a 404
 	if !svc.config.MDM.IsAppleAPNsSet() {
-		return nil, notFoundError{}
+		return nil, newNotFoundError()
 	}
 
 	apns, _, _, err := svc.config.MDM.AppleAPNs()

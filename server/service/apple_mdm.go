@@ -238,7 +238,10 @@ func (newMDMAppleConfigProfileRequest) DecodeRequest(ctx context.Context, r *htt
 
 	err := r.ParseMultipartForm(512 * units.MiB)
 	if err != nil {
-		return nil, &fleet.BadRequestError{Message: err.Error()}
+		return nil, &fleet.BadRequestError{
+			Message:     "failed to parse multipart form",
+			InternalErr: err,
+		}
 	}
 
 	val, ok := r.MultipartForm.Value["team_id"]
@@ -248,7 +251,7 @@ func (newMDMAppleConfigProfileRequest) DecodeRequest(ctx context.Context, r *htt
 	} else {
 		teamID, err := strconv.Atoi(val[0])
 		if err != nil {
-			return nil, &fleet.BadRequestError{Message: err.Error()}
+			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("failed to decode team_id in multipart form: %s", err.Error())}
 		}
 		decoded.TeamID = uint(teamID)
 	}
@@ -297,13 +300,18 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r
 	b := make([]byte, size)
 	_, err := r.Read(b)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: err.Error()})
+		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+			Message:     "failed to read config profile",
+			InternalErr: err,
+		})
 	}
 
 	mc := fleet.Mobileconfig(b)
 	cp, err := mc.ParseConfigProfile()
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: err.Error()})
+		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+			Message: fmt.Sprintf("failed to parse config profile: %s", err.Error()),
+		})
 	}
 	cp.TeamID = &teamID
 
@@ -549,7 +557,10 @@ type uploadAppleInstallerResponse struct {
 func (uploadAppleInstallerRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	err := r.ParseMultipartForm(512 * units.MiB)
 	if err != nil {
-		return nil, &fleet.BadRequestError{Message: err.Error()}
+		return nil, &fleet.BadRequestError{
+			Message:     "failed to parse multipart form",
+			InternalErr: err,
+		}
 	}
 	installer := r.MultipartForm.File["installer"][0]
 	return &uploadAppleInstallerRequest{
