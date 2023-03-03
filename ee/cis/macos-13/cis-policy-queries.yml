@@ -2106,7 +2106,7 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Audit Safari Web Browser History and Remove History Items (organisation decision needed)
+  name: CIS - Audit Safari Web Browser History and Remove History Items (organization decision needed)(MDM Required)
   platforms: macOS
   platform: darwin
   description: |
@@ -2121,13 +2121,13 @@ spec:
     pages or pages with changes or inappropriate content
     Old browser history becomes stale and the use or misuse of the data can lead to unwanted outcomes. Search engine results are maintained and often provide much more relevant current information than old website visit information.
   resolution: |
-    Ask your system administrator to deploy an MDM profile that set the history per organisation decision
+    Ask your system administrator to deploy an MDM profile that set the history per organization decision
   query: |
     SELECT 1 FROM managed_policies WHERE
       domain = 'com.apple.Safari' AND
       name = 'HistoryAgeInDaysLimit' AND
       /*
-       Please replace the checked value bellow to match the one decided by your organisation.
+       Please replace the checked value bellow to match the one decided by your organization.
        1 - After one day
        7 - After one week
        14 - After two weeks
