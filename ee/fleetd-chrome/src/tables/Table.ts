@@ -1,3 +1,7 @@
+// This is the foundation for all of the tables. We take the low-level SQLite functions and map them
+// to an abstraction so that table implementations only need to define their name, columns, and
+// generate() function.
+
 import * as SQLite from "wa-sqlite";
 
 class cursorState {
@@ -84,7 +88,6 @@ export default abstract class Table implements SQLiteModule {
       const cursorState = this.cursorStates.get(pCursor);
       cursorState.rowIndex = 0;
       cursorState.rows = await this.generate(idxNum, idxStr, values);
-
       return SQLite.SQLITE_OK;
     });
   }
