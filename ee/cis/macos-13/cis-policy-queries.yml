@@ -2149,6 +2149,49 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
+  name: CIS - Audit Safari Web Browser History and Remove History Items (organization decision needed)(MDM Required)
+  platforms: macOS
+  platform: darwin
+  description: |
+    Organizational management of user web browsing history is a challenge effected by multiple facets. Organizations should decide whether to manage browser history and how much history should be maintained.
+    Rationale:
+    There are conflicting concerns in the retention of browser history. Unlimited retention:
+    - Consumes disk space
+    - Preferred by on disk forensics teams
+    - User searchable for old visited pages
+    - User privacy concerns
+    - Security concerns to retain old links that may be stale or lead to compromised
+    pages or pages with changes or inappropriate content
+    Old browser history becomes stale and the use or misuse of the data can lead to unwanted outcomes. Search engine results are maintained and often provide much more relevant current information than old website visit information.
+  resolution: |
+    Ask your system administrator to deploy an MDM profile that set the history per organization decision
+    Profile Method:
+      Create or edit a configuration profile with the following information:
+      1. The PayloadType string is com.apple.Safari
+      2. The key to include is HistoryAgeInDaysLimit
+      3. The key must be set to: <integer><1,7,14,31,365,36500></integer>
+  query: |
+    SELECT 1 FROM managed_policies WHERE
+      domain = 'com.apple.Safari' AND
+      name = 'HistoryAgeInDaysLimit' AND
+      /*
+       Please replace the checked value bellow to match the one decided by your organization.
+       1 - After one day
+       7 - After one week
+       14 - After two weeks
+       31 - After one month
+       365 - After one year
+       36500 - Set Manually
+      */
+      value = '1' 
+      LIMIT 1;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS-macos-13-6.3.2, decision-needed
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
   name: CIS - Ensure Warn When Visiting A Fraudulent Website in Safari Is Enabled (MDM Required)
   platforms: macOS
   platform: darwin
