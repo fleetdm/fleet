@@ -1037,18 +1037,18 @@ func matchHostDuringEnrollment(ctx context.Context, q sqlx.QueryerContext, isMDM
 	return rows[0].ID, rows[0].LastEnrolledAt, nil
 }
 
-func (ds *Datastore) EnrollOrbit(ctx context.Context, isMDMEnabled bool, hardwareUUID, hardwareSerial, orbitNodeKey string, teamID *uint) (*fleet.Host, error) {
+func (ds *Datastore) EnrollOrbit(ctx context.Context, isMDMEnabled bool, hostInfo fleet.OrbitHostInfo, orbitNodeKey string, teamID *uint) (*fleet.Host, error) {
 	if orbitNodeKey == "" {
 		return nil, ctxerr.New(ctx, "orbit node key is empty")
 	}
-	if hardwareUUID == "" {
+	if hostInfo.HardwareUUID == "" {
 		return nil, ctxerr.New(ctx, "hardware uuid is empty")
 	}
-	// NOTE: allow an empty serial, it will be for Windows.
+	// NOTE: allow an empty serial, currently it is empty for Windows.
 
 	var host fleet.Host
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		hostID, _, err := matchHostDuringEnrollment(ctx, tx, isMDMEnabled, "", hardwareUUID, hardwareSerial)
+		hostID, _, err := matchHostDuringEnrollment(ctx, tx, isMDMEnabled, "", hostInfo.HardwareUUID, hostInfo.HardwareSerial)
 		switch {
 		case err == nil:
 			sqlUpdate := `
@@ -1059,9 +1059,16 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, isMDMEnabled bool, hardwar
         uuid = COALESCE(NULLIF(uuid, ''), ?),
         osquery_host_id = COALESCE(NULLIF(osquery_host_id, ''), ?),
         hardware_serial = COALESCE(NULLIF(hardware_serial, ''), ?),
-				team_id = ?
+		team_id = ?
       WHERE id = ?`
-			_, err := tx.ExecContext(ctx, sqlUpdate, orbitNodeKey, hardwareUUID, hardwareUUID, hardwareSerial, teamID, hostID)
+			_, err := tx.ExecContext(ctx, sqlUpdate,
+				orbitNodeKey,
+				hostInfo.HardwareUUID,
+				hostInfo.HardwareUUID,
+				hostInfo.HardwareSerial,
+				teamID,
+				hostID,
+			)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "orbit enroll error updating host details")
 			}
@@ -1086,15 +1093,29 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, isMDMEnabled bool, hardwar
 					team_id,
 					refetch_requested,
 					orbit_node_key,
-					hardware_serial
-				) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
+					hardware_serial,
+					hostname,
+					platform
+				) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?)
 			`
-			result, err := tx.ExecContext(ctx, sqlInsert, zeroTime, zeroTime, zeroTime, zeroTime, hardwareUUID, hardwareUUID, orbitNodeKey, teamID, orbitNodeKey, hardwareSerial)
+			result, err := tx.ExecContext(ctx, sqlInsert,
+				zeroTime,
+				zeroTime,
+				zeroTime,
+				zeroTime,
+				hostInfo.HardwareUUID,
+				hostInfo.HardwareUUID,
+				orbitNodeKey,
+				teamID,
+				orbitNodeKey,
+				hostInfo.HardwareSerial,
+				hostInfo.Hostname,
+				hostInfo.Platform,
+			)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "orbit enroll error inserting host details")
 			}
 			hostID, _ := result.LastInsertId()
-			level.Info(ds.logger).Log("hostID", hostID)
 			const sqlHostDisplayName = `
 				INSERT INTO host_display_names (host_id, display_name) VALUES (?, '')
 			`
@@ -1154,7 +1175,6 @@ func (ds *Datastore) EnrollHost(ctx context.Context, isMDMEnabled bool, osqueryH
 				return ctxerr.Wrap(ctx, err, "insert host")
 			}
 			hostID, _ := result.LastInsertId()
-			level.Info(ds.logger).Log("hostID", hostID)
 			const sqlHostDisplayName = `
 				INSERT INTO host_display_names (host_id, display_name) VALUES (?, '')
 			`
