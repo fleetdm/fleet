@@ -121,7 +121,6 @@ func updateVulnsInDB(
 
 	inserted := make([]fleet.SoftwareVulnerability, 0, len(toInsertSet))
 	err = utils.BatchProcess(toInsertSet, func(v []fleet.SoftwareVulnerability) error {
-		// ds.InsertSoftwareVulnerabilities(ctx, v, fleet.MacOfficeReleaseNotesSource)
 		n, err := insertVulnsDBCall(ctx, v, fleet.MacOfficeReleaseNotesSource)
 		if err != nil {
 			return err
