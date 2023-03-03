@@ -515,6 +515,172 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
+  name: CIS - Ensure 'Digitally encrypt or sign secure channel data (always)' is set to 'Enabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting determines whether all secure channel traffic that is initiated by the
+    domain member must be signed or encrypted.
+    When a computer joins a domain, a computer account is created. After it joins the domain, the
+    computer uses the password for that account to create a secure channel with the Domain
+    Controller for its domain every time that it restarts. Requests that are sent on the secure
+    channel are authenticated—and sensitive information such as passwords are encrypted—but the
+    channel is not integrity-checked, and not all information is encrypted.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the
+    following UI path to 'Enabled':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\Domain member: Digitally encrypt or sign secure channel data (always)'
+  query: |
+    SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Netlogon\Parameters\RequireSignOrSeal' AND data != 0;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.6.1
+  contributors: artemist-work
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Digitally encrypt secure channel data (when possible)' is set to 'Enabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting determines whether a domain member should attempt to negotiate encryption
+    for all secure channel traffic that it initiates.
+    When a computer joins a domain, a computer account is created. After it joins the domain, the
+    computer uses the password for that account to create a secure channel with the Domain
+    Controller for its domain every time that it restarts. Requests that are sent on the secure
+    channel are authenticated—and sensitive information such as passwords are encrypted—but the
+    channel is not integrity-checked, and not all information is encrypted.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the
+    following UI path to 'Enabled':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\Domain member: Digitally encrypt secure channel data (when possible)'
+  query: |
+    SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Netlogon\Parameters\SealSecureChannel' AND data != 0;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.6.2
+  contributors: artemist-work
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Digitally sign secure channel data (when possible)' is set to 'Enabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting determines whether a domain member should attempt to negotiate whether all
+    secure channel traffic that it initiates must be digitally signed. Digital signatures protect
+    the traffic from being modified by anyone who captures the data as it traverses the network.
+    When a computer joins a domain, a computer account is created. After it joins the domain, the
+    computer uses the password for that account to create a secure channel with the Domain
+    Controller for its domain every time that it restarts. Requests that are sent on the secure
+    channel are authenticated—and sensitive information such as passwords are encrypted—but the
+    channel is not integrity-checked, and not all information is encrypted.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the
+    following UI path to 'Enabled':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\Domain member: Digitally sign secure channel data (when possible)'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Netlogon\Parameters\SignSecureChannel' AND data != 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.6.3
+  contributors: artemist-work
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Disable machine account password changes' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting determines whether a domain member can periodically change its computer
+    account password. Computers that cannot automatically change their account passwords are
+    potentially vulnerable, because an attacker might be able to determine the password for the
+    system's domain account.
+    The default configuration for Windows Server 2003-based computers that belong to a domain is
+    that they are automatically required to change the passwords for their accounts every 30 days.
+    If you disable this policy setting, computers that run Windows Server 2003 will retain the same
+    passwords as their computer accounts. Computers that are no longer able to automatically change
+    their account password are at risk from an attacker who could determine the password for the
+    computer's domain account.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the
+    following UI path to 'Disabled':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\Domain member: Disable machine account password changes'
+  query: |
+    SELECT 1 FROM registry WHERE
+      path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Netlogon\Parameters\DisablePasswordChange' AND data = 0;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.6.4
+  contributors: artemist-work
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Maximum machine account password age' is set to '30 or fewer days, but not 0'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting determines the maximum allowable age for a computer account password. By
+    default, domain members automatically change their domain passwords every 30 days. If you
+    increase this interval significantly so that the computers no longer change their passwords, an
+    attacker would have more time to undertake a brute force attack against one of the computer
+    accounts.
+    In Active Directory-based domains, each computer has an account and password just like every
+    user. By default, the domain members automatically change their domain password every 30 days.
+    If you increase this interval significantly, or set it to 0 so that the computers no longer
+    change their passwords, an attacker will have more time to undertake a brute force attack to
+    guess the password of one or more computer accounts.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the
+    following UI path to 30 or fewer days, but not 0:
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\Domain member: Maximum machine account password age'
+  query: |
+    SELECT 1 FROM registry WHERE
+      path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Netlogon\Parameters\MaximumPasswordAge'
+    AND data <= 30 AND data != 0;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.6.5
+  contributors: artemist-work
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Require strong (Windows 2000 or later) session key' is set to 'Enabled'
+  platforms: win10
+  platform: windows
+  description: |
+    When this policy setting is enabled, a secure channel can only be established with Domain
+    Controllers that are capable of encrypting secure channel data with a strong (128-bit) session
+    key. To enable this policy setting, all Domain Controllers in the domain must be able to encrypt
+    secure channel data with a strong key, which means all Domain Controllers must be running
+    Microsoft Windows 2000 or newer.
+
+    Session keys that are used to establish secure channel communications between Domain Controllers
+    and member computers are much stronger in Windows 2000 than they were in previous Microsoft
+    operating systems. Whenever possible, you should take advantage of these stronger session keys
+    to help protect secure channel communications from attacks that attempt to hijack network
+    sessions and eavesdropping. (Eavesdropping is a form of hacking in which network data is read or
+    altered in transit. The data can be modified to hide or change the sender, or be redirected.)
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the
+    following UI path to 'Enabled'
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\Domain member: Require strong (Windows 2000 or later) session key'
+  query: |
+    SELECT 1 FROM registry WHERE
+      path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Netlogon\Parameters\RequireStrongKey' AND data != 0;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.6.5
+  contributors: artemist-work
+---
+apiVersion: v1
+kind: policy
+spec:
   name: CIS - Ensure 'Interactive logon Do not require CTRL+ALT+DEL' is set to 'Disabled'
   platforms: win10
   platform: windows
@@ -929,6 +1095,164 @@ spec:
         SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\Lsa\forceguest' AND data == 0);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.10.12
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'User Account Control: Admin Approval Mode for the Built-in Administrator account' is set to 'Enabled' (Automated)
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting controls the behavior of Admin Approval Mode for the built-in Administrator account.
+    The recommended state for this setting is: Enabled.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\User Account Control: Admin Approval Mode for the Built-in Administrator account'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System\FilterAdministratorToken' AND data == 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.17.1
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'User Account Control: Behavior of the elevation prompt for administrators in Admin Approval Mode' is set to 'Prompt for consent on the secure desktop' (Automated)
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting controls the behavior of the elevation prompt for administrators.
+    The recommended state for this setting is: Prompt for consent on the secure desktop.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to 'Prompt for consent on the secure desktop':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\User Account Control: Behavior of the elevation prompt for administrators in Admin Approval Mode'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System\ConsentPromptBehaviorAdmin' AND data == 2);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.17.2
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'User Account Control: Behavior of the elevation prompt for standard users' is set to 'Automatically deny elevation requests' (Automated)
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting controls the behavior of the elevation prompt for standard users.
+    The recommended state for this setting is: Automatically deny elevation requests.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Automatically deny elevation requests:
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\User Account Control: Behavior of the elevation prompt for standard users'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System\ConsentPromptBehaviorUser' AND data == 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.17.3
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'User Account Control: Detect application installations and prompt for elevation' is set to 'Enabled' (Automated)
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting controls the behavior of application installation detection for the computer.
+    The recommended state for this setting is: Enabled.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\User Account Control: Detect application installations and prompt for elevation'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System\EnableInstallerDetection' and data == 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.17.4
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'User Account Control: Only elevate UIAccess applications that are installed in secure locations' is set to 'Enabled' (Automated)
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting controls whether applications that request to run with a User Interface Accessibility (UIAccess) integrity level must reside in a secure location in the file system. Secure locations are limited to the following:
+    ...\Program Files\, including subfolders
+    ...\Windows\System32\
+    ...\Program Files (x86)\, including subfolders (for 64-bit versions of Windows)
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\User Account Control: Only elevate UIAccess applications that are installed in secure locations'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System\EnableSecureUIAPaths' and data == '1');
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.17.5
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'User Account Control: Run all administrators in Admin Approval Mode' is set to 'Enabled' (Automated)
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting controls the behavior of all User Account Control (UAC) policy settings for the computer. If you change this policy setting, you must restart your computer.
+    The recommended state for this setting is: Enabled.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\User Account Control: Run all administrators in Admin Approval Mode'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System\EnableLUA' and data == 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.17.6
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'User Account Control: Switch to the secure desktop when prompting for elevation' is set to 'Enabled' (Automated)
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting controls whether the elevation request prompt is displayed on the interactive user's desktop or the secure desktop.
+    The recommended state for this setting is: Enabled.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\User Account Control: Switch to the secure desktop when prompting for elevation'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System\PromptOnSecureDesktop' and data == 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.17.7
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'User Account Control: Virtualize file and registry write failures to per-user locations' is set to 'Enabled' (Automated)
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting controls whether application write failures are redirected to defined registry and file system locations. This policy setting mitigates applications that run as administrator and write run-time application data to:
+    %ProgramFiles%
+    %windir%
+    %windir%\System32
+    HKEY_LOCAL_MACHINE\SOFTWARE
+    The recommended state for this setting is: Enabled.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\User Account Control: Virtualize file and registry write failures to per-user locations'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System\EnableVirtualization' and data == 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.17.8
   contributors: rachelelysia
 ---
 
