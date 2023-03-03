@@ -24,6 +24,10 @@
     a {
       font-weight: $regular;
     }
+
+    .settings-indicator {
+      flex-direction: column;
+    }
   }
 
   .aggregate-mac-settings-indicator:last-child {
