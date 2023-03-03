@@ -173,6 +173,15 @@ const setNodeKey = async (node_key: string) => {
 
 const main = async () => {
   console.debug("main");
+
+  // @ts-expect-error @types/chrome doesn't yet have navigator.userAgentData.
+  const platform = navigator.userAgentData.platform;
+  const { installType } = await chrome.management.getSelf();
+  if (platform !== "Chrome OS" && installType !== "development") {
+    console.error("Refusing to run on non Chrome OS with managed install!");
+    return;
+  }
+
   if (!DATABASE) {
     const module = await SQLiteAsyncESMFactory();
     const sqlite3 = SQLite.Factory(module);
