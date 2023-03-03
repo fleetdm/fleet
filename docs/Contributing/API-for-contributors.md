@@ -537,6 +537,7 @@ The MDM endpoints exist to support the related command-line interface sub-comman
 - [List configuration profiles](#list-mdm-apple-configuration-profiles)
 - [Download configuration profile](#download-mdm-apple-configuration-profile)
 - [Delete configuration profile](#delete-mdm-apple-confugruation-profile)
+- [Get Apple MDM profiles summary](#get-mdm-apple-profiles-summary)
 
 ### Get Apple MDM
 
@@ -842,6 +843,39 @@ solely on the response status code returned by this endpoint.
 ##### Default response
 
 `Status: 200`
+
+### Get MDM Apple profiles summary
+
+Get aggregate status counts of MDM profiles applying to hosts. For Fleet Premium uses, the summary can
+optionally be filtered by team id. If no team id is specified, team profiles are excluded from the
+results (i.e., only profiles that are not associated with a team are listed).
+
+`GET /api/v1/fleet/mdm/apple/profiles/summary`
+
+#### Parameters
+
+| Name                      | Type   | In    | Description                                                               |
+| ------------------------- | ------ | ----- | ------------------------------------------------------------------------- |
+| team_id                   | string | query | _Available in Fleet Premium_ The team id to filter profiles.              |
+
+#### Example
+
+Get aggregate status counts of MDM profiles applying to macOS hosts enrolled to Fleet's MDM that are not assigned to any team.
+
+`GET /api/v1/fleet/mdm/apple/profiles/summary`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "latest": 123,
+  "pending": 123,
+  "failed": 123
+}
+```
+
 
 ### Batch-apply Apple MDM custom settings
 

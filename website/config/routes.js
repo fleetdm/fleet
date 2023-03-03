@@ -274,6 +274,23 @@ module.exports.routes = {
     }
   },
 
+  'GET /osquery-management': {
+    action: 'view-osquery-management',
+    locals: {
+      pageTitleForMeta: 'Osquery management | Fleet for osquery',
+      pageDescriptionForMeta: 'Fleet lets you harness the power of osquery to stream accurate, real-time data from all your endpoints.',
+    }
+  },
+
+
+  'GET /experimental/okta-webflow': {
+    action: 'experimental/view-okta-webflow',
+    locals: {
+      layout: 'layouts/layout-sandbox',
+      optimizeForAppleWebview: true,
+    }
+  },
+
 
 
   //  ╦╔╦╗╔═╗╔═╗╦╔╗╔╔═╗  ┌─┬  ┌─┐┌┐┌┌┬┐┬┌┐┌┌─┐  ┌─┐┌─┐┌─┐┌─┐┌─┐─┐

@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"encoding/xml"
 	"errors"
 	"fmt"
 	"io"
@@ -492,6 +493,46 @@ func (svc *Service) DeleteMDMAppleConfigProfile(ctx context.Context, profileID u
 	}
 
 	return nil
+}
+
+type getMDMAppleProfilesSummaryRequest struct {
+	TeamID *uint `query:"team_id,optional"`
+}
+
+type getMDMAppleProfilesSummaryResponse struct {
+	fleet.MDMAppleHostsProfilesSummary
+	Err error `json:"error,omitempty"`
+}
+
+func (r getMDMAppleProfilesSummaryResponse) error() error { return r.Err }
+
+func getMDMAppleProfilesSummaryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*getMDMAppleProfilesSummaryRequest)
+	res := getMDMAppleProfilesSummaryResponse{}
+
+	ps, err := svc.GetMDMAppleProfilesSummary(ctx, req.TeamID)
+	if err != nil {
+		return &getMDMAppleProfilesSummaryResponse{Err: err}, nil
+	}
+
+	res.Latest = ps.Latest
+	res.Failed = ps.Failed
+	res.Pending = ps.Pending
+
+	return &res, nil
+}
+
+func (svc *Service) GetMDMAppleProfilesSummary(ctx context.Context, teamID *uint) (*fleet.MDMAppleHostsProfilesSummary, error) {
+	if err := svc.authz.Authorize(ctx, fleet.MDMAppleConfigProfile{TeamID: teamID}, fleet.ActionRead); err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+
+	ps, err := svc.ds.GetMDMAppleHostsProfilesSummary(ctx, teamID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+
+	return ps, nil
 }
 
 type uploadAppleInstallerRequest struct {
@@ -1084,6 +1125,11 @@ func generateEnrollmentProfileMobileconfig(orgName, fleetURL, scepChallenge, top
 		return nil, fmt.Errorf("resolve Apple MDM url: %w", err)
 	}
 
+	var escaped strings.Builder
+	if err := xml.EscapeText(&escaped, []byte(scepChallenge)); err != nil {
+		return nil, fmt.Errorf("escape SCEP challenge for XML: %w", err)
+	}
+
 	var buf bytes.Buffer
 	if err := enrollmentProfileMobileconfigTemplate.Execute(&buf, struct {
 		Organization  string
@@ -1094,7 +1140,7 @@ func generateEnrollmentProfileMobileconfig(orgName, fleetURL, scepChallenge, top
 	}{
 		Organization:  orgName,
 		SCEPURL:       scepURL,
-		SCEPChallenge: scepChallenge,
+		SCEPChallenge: escaped.String(),
 		Topic:         topic,
 		ServerURL:     serverURL,
 	}); err != nil {

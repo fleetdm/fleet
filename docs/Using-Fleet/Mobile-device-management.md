@@ -14,11 +14,11 @@ _Available in Fleet Premium_
 
 End users can be reminded and encouraged to update macOS (via [Nudge](https://github.com/macadmins/nudge)).
 
-When a minimum version and deadline is saved in Fleet, the end user sees the below window until their macOS version is at or above the minimum version.
+When a minimum version and deadline is saved in Fleet, the end user sees the below Nudge window until their macOS version is at or above the minimum version. 
 
 To set the macOS updates settings in the UI, visit the **Controls** section and then select the **macOS updates** tab. To set the macOS updates settings programmatically, use the configurations listed [here](https://fleetdm.com/docs/using-fleet/configuration-files#mdm-macos-updates).
 
-![Fleet's architecture diagram](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/nudge-window.png)
+![Nudge window](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/nudge-window.png)
 
 As the deadline gets closer, Fleet provides stronger encouragement.
 
@@ -26,7 +26,33 @@ If the end user has more than 1 day until the deadline, the Nudge window is show
 
 If there is less than 1 day, the window is shown every 2 hours. The end user can defer and close the window.
 
-If the end user is past the deadline, Fleet shows the window and end user can't close the window until they upgrade.
+If the end user is past the deadline, Fleet shows the window and end user can't close the window until they update.
+
+### End user experience
+
+Apple has a two-step process for macOS updates. First, the host downloads the macOS update in the background without interrupting the end user. Then, the host installs the update, which prevents the end user from using the host.
+
+Downloading the macOS update can be triggered programmatically, while installing the update always requires end user action.
+
+Fleet downloads macOS updates programmatically on Intel Macs. This way, end users don't have to wait for the update to download before they can install it.
+
+> On Macs with Apple silicon (e.g. M1), downloading the macOS update may require end user action. Apple doesn't support downloading the update programmatically on Macs with Apple silicon.
+
+#### Known issue
+
+Sometimes the end user's Mac will say that macOS is up to date when it isn't. This known issue creates a frustrating experience for the end user. Ask the end user to follow the steps below to troubleshoot:
+
+1. From the Apple menu in the top left corner of your screen, select **System Settings** or **System Preferences**.
+
+2. In the search bar, type "Software Update." Select **Software Update**.
+
+3. Type "Command (⌘)-R" to check for updates. If you see an available update, select **Restart Now** to update.
+
+4. If you still don't see an available update, from the Apple menu in the top left corner of your screen, select **Restart...** to restart your Mac.
+
+5. After your Mac restarts, from the Apple menu in the top left corner of your screen, select **System Settings** or **System Preferences**.
+
+6. In the search bar, type "Software Update." Select **Software Update** and select **Restart Now** to update.
 
 ### End user macOS update via built-in macOS notifications
 
@@ -202,9 +228,15 @@ Connect Fleet to your ABM account to automatically enroll macOS hosts to Fleet w
 
 If a new macOS host that appears in ABM hasn't been unboxed, it will appear in Fleet with **MDM status** set to "Pending." These hosts will automatically enroll to the default team in Fleet. Learn how to update the default team [here](#default-team).
 
-To connect Fleet to ABM, get these four files using the Fleet UI or the `fleetctl` command-line interface: An ABM certificate, private key and server token.
+To connect Fleet to ABM, first create a new MDM server in ABM and then get these two files using the Fleet UI or the `fleetctl` command-line interface: An ABM certificate and private key.
 
-To do this, choose the "Fleet UI" or "fleetctl" method and follow the steps below.
+How to create a new MDM server in ABM:
+
+1. Login to [ABM](https://business.apple.com) and click your name at the bottom of the sidebar, click **Preferences**, then click **MDM Server Assignment**.
+
+2. Click the **Add** button, then enter a unique name for the server. A good name to start is "Fleet MDM."
+
+To get the two files, choose the "Fleet UI" or "fleetctl" method and follow the steps below.
 
 Fleet UI:
 
