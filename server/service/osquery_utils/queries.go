@@ -934,7 +934,7 @@ func parseOSVersion(name string, version string, major string, minor string, pat
 		regx := regexp.MustCompile(`\(.*\)`)
 		osVersion = strings.TrimSpace(regx.ReplaceAllString(version, ""))
 	case strings.Contains(strings.ToLower(name), "chrome"):
-		osVersion = build
+		osVersion = version
 	case major != "0" || minor != "0" || patch != "0":
 		osVersion = fmt.Sprintf("%s.%s.%s", major, minor, patch)
 	default:
