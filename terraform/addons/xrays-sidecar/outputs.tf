@@ -13,7 +13,7 @@ output "fleet_sidecars" {
       "image" : "public.ecr.aws/aws-observability/aws-otel-collector:v0.26.1",
       "essential" : true,
       "command" : [
-        "--config=/etc/ecs/container-insights/otel-task-metrics-config.yaml"
+        "--config=/etc/ecs/ecs-default-config.yaml"
       ],
       "logConfiguration" : {
         "logDriver" : "awslogs",
