@@ -2,7 +2,6 @@ package macoffice
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"testing"
 	"time"
@@ -24,7 +23,6 @@ func TestIntegrationSync(t *testing.T) {
 	entries, err := os.ReadDir(vulnPath)
 	var filesInVulnPath []string
 	for _, e := range entries {
-		fmt.Print(e)
 		filesInVulnPath = append(filesInVulnPath, e.Name())
 	}
 
