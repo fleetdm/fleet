@@ -1907,6 +1907,26 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
+  name: CIS - Ensure Complex Password Must Contain Special Character Is Configured (MDM Required)
+  platforms: macOS
+  platform: darwin
+  description: |
+    Complex passwords contain one character from each of the following classes: English uppercase letters, English lowercase letters, Westernized Arabic numerals, and non- alphanumeric characters. Ensure that a special character is part of the password policy on the computer.
+  resolution: |
+    Ask your system administrator to deploy an MDM profile that ensures Complex Password Must Contain Special Characters
+  query: |
+    SELECT 1 FROM managed_policies WHERE
+      domain = 'com.apple.mobiledevice.passwordpolicy' AND
+      name = 'minComplexChars' AND
+      value >= 1
+      LIMIT 1;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS-macos-13-5.2.5
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
   name: CIS - Ensure Password Age Is Configured (Fleetd Required)
   platforms: macOS
   platform: darwin
