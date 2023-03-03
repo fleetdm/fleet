@@ -179,7 +179,9 @@ The oncall engineer is a second-line responder to questions raised by customers 
 
 The community contact (Kathy) is responsible for the first response to GitHub issues, pull requests, and Slack messages in the [#fleet channel](https://osquery.slack.com/archives/C01DXJL16D8) of osquery Slack, and other public Slacks. Kathy and Zay are responsible for the first response to messages in private customer Slack channels.
 
-We respond within 1-hour (during business hours) for interactions and ask the oncall engineer to address any questions sent their way promptly. When Kathy is unavailable, the oncall engineer may sometimes be asked to take over the first response duties.
+We respond within 1-hour (during business hours) for interactions and ask the oncall engineer to address any questions sent their way promptly. When Kathy is unavailable, the oncall engineer may sometimes be asked to take over the first response duties. Note that we do not need to have answers within 1 hour -- we need to at least acknowledge and collect any additional necessary information, while researching/escalating to find answers internally. See [Escalations](#escalations) for more on this.
+
+> Response SLAs help us measure and guarantee the responsiveness that a customer [can expect](https://fleetdm.com/handbook/company#values) from Fleet.  But SLAs aside, when a Fleet customer has an emergency or other time-sensitive situation ongoing, it is Fleet's priority to help them find them a solution quickly.
 
 #### 2. PR reviews
 
@@ -218,6 +220,18 @@ At the end of your oncall shift, you will be asked to share about how you spent 
 ### How to reach the oncall engineer
 
 Oncall engineers do not need to actively monitor Slack channels, except when called in by the Community or Customer teams. Members of those teams are instructed to `@oncall` in `#help-engineering` to get the attention of the oncall engineer to continue discussing any issues that come up. In some cases, the Community or Customer representative will continue to communicate with the requestor. In others, the oncall engineer will communicate directly (team members should use their judgment and discuss on a case-by-case basis how to best communicate with community members and customers).
+
+### Escalations
+
+When the oncall engineer is unsure of the answer, they should follow this process for escalation.
+
+To achieve quick "first-response" times, you are encouraged to say something like "I don't know the answer and I'm taking it back to the team," or "I think X, but I'm confirming that with the team (or by looking in the code)."
+
+How to escalate:
+
+1. Spend 30 minutes digging into the relevant code ([osquery](https://github.com/osquery/osquery), [Fleet](https://github.com/fleetdm/fleet)) and/or documentation ([osquery](https://osquery.readthedocs.io/en/latest/), [Fleet](https://fleetdm.com/docs)). Even if you don't know the codebase (or even the programming language), you can sometimes find good answers this way. At the least, you'll become more familiar with each project. Try searching the code for relevant keywords, or filenames.
+
+2. Create a new thread in the [#help-engineering channel](https://fleetdm.slack.com/archives/C019WG4GH0A), tagging `@zwass` and provide the information turned up in your research. Please include possibly relevant links (even if you didn't find what you were looking for there). Zach will work with you to craft an appropriate answer or find another team member who can help.
 
 ### Handoff
 
@@ -269,7 +283,7 @@ Estimating bugs and outages can be helpful in getting on the same page about how
 
 [⚗️ Roadmap](https://github.com/orgs/fleetdm/projects/41) - Planning for the next release (shared with the Product team).
 
-## Scaling GOTCHAS
+## Scaling gotchas
 
 ### Overall
 
@@ -826,7 +840,7 @@ Every week, the head of product is responsible for reviewing these two states to
 #### Inbox
 The bug has just come in. 
 
-If using the standard bug report, the bug is labeled “bug” and “reproduce." It is not assigned to anyone. [See on GitHub](https://github.com/fleetdm/fleet/issues?q=archived%3Afalse+org%3Afleetdm+is%3Aissue+is%3Aopen+label%3Abug+label%3A%3Areproduce+sort%3Aupdated-asc+assignee%3Anone).
+If using the standard bug report, the bug is labeled “bug” and “reproduce." It is not assigned to anyone. [See on GitHub](https://github.com/fleetdm/fleet/issues?q=archived%3Afalse+org%3Afleetdm+is%3Aissue+is%3Aopen+label%3Abug+label%3A%3Areproduce+sort%3Aupdated-asc+no%3Aassignee+).
 
 #### Acknowledged 
 QA has gone through the inbox and has accepted it as a bug to be reproduced. 
@@ -842,7 +856,7 @@ Remove the “reproduce” label, add the label of the relevant team (e.g. #cx, 
 These are bugs that do not have the reproduce label but do not have the "release" or "product" label on them. As such, they will not appear in the boards and thus are likely to be forgotten by our process. This filter serves as a sanity check. There should be no bugs in this state. [See on GitHub](https://github.com/fleetdm/fleet/issues?q=archived%3Afalse+org%3Afleetdm+is%3Aissue+is%3Aopen+sort%3Aupdated-asc+label%3Abug+-label%3A%3Areproduce+-label%3A%3Aproduct+-label%3A%3Arelease).
 
 #### Reproduced orphans 
-These are bugs that do not have the reproduce label and do exist on the release board, but do not have one of the three teams tagged. There should be no bugs in this state. This will risk being forgotten by the process because it does not appear in any of the standard team-based filters, which means it risks never being seen by engineering. [See on GitHub](https://github.com/fleetdm/fleet/issues?q=archived%3Afalse+org%3Afleetdm+is%3Aissue+is%3Aopen+sort%3Aupdated-asc+label%3Abug+-label%3A%3Areproduce+label%3A%3Aproduct%2C%3Arelease+-assignee%3Axpkoala+-label%3A%23cx+-label%3A%23mdm+-label%3A%23compliance).
+These are bugs that do not have the reproduce label and do exist on the release board, but do not have one of the three teams tagged. There should be no bugs in this state. This will risk being forgotten by the process because it does not appear in any of the standard team-based filters, which means it risks never being seen by engineering. [See on GitHub](https://github.com/fleetdm/fleet/issues?q=archived%3Afalse+org%3Afleetdm+is%3Aissue+is%3Aopen+sort%3Aupdated-asc+label%3Abug+-label%3A%3Areproduce+label%3A%3Aproduct%2C%3Arelease+-assignee%3Axpkoala+-label%3A%23g-cx+-label%3A%23g-mdm+).
 
 #### All bugs
 [See on GitHub](https://github.com/fleetdm/fleet/issues?q=is%3Aissue+is%3Aopen+label%3Abug).
@@ -876,9 +890,9 @@ The following rituals are engaged in by the directly responsible individual (DRI
 | Release testing/QA | Every three weeks | Every release cycle, by end of day Wednesday of release week, all issues move to "Ready for release" on the 🚀Release board. | Reed Haynes |
 | Release testing/QA report | Every three weeks | Every release cycle, on the Monday of release week, the DRI for the release ritual is updated on status of testing. | Reed Haynes |
 
-## Fleet Sandbox Oncall
+## 24/7 on-call
 
-Oncall for Sandbox will happen in shifts of 1 week. The people involved in them will be:
+The 24/7 on-call (aka infrastructure on-call) team is responsible for alarms related to fleetdm.com, Fleet sandbox, Fleet managed cloud, as well as delivering 24/7 support for Fleet Ultimate customers.  The infrastructure (24/7) on-call responsibility  happen in shifts of 1 week. The people involved in them will be:
 
 First responders:
 
@@ -887,23 +901,26 @@ First responders:
 
 Escalations (in order):
 
-- Zach Wasserman
+- Zay Hanlon
+- Zach Wasserman (Fleet app)
+- Eric Shaw (fleetdm.com)
+- Mike McNeil
 
-The first responder oncall will take ownership of the @infrastructure-oncall alias in Slack for ease first thing Monday morning.
+The first responder oncall will take ownership of the @infrastructure-oncall alias in Slack first thing Monday morning. The previous weeks oncall will provide a summary in the #g-customer-experience Slack channel with a an update on alarms that came up the week before, open issues with or without direct end user impact, and other things to keep an eye out for.  
 
-Expected response times: during business hours, 1 hour. Outside of business hours 4 hours.
+Expected response times: during business hours, 1 hour. Outside of business hours <4 hours.
 
-If the issue is non user facing (provisioner/deprovisioner/temporary errors in osquery/etc), we'll proceed to address the issue. If the issue is user facing (as in, the user noticed this error first hand through the Fleet UI), then we'll proceed to identify the user and ping Mike McNeil in #help-p1 with information about the error (see below) so that he can contact them letting them know that we are aware of this issue and working on it.
+For fleetdm.com and sandbox alarms, if the issue is not user facing (e.g. provisioner/deprovisioner/temporary errors in osquery/etc), the oncall engineer will proceed to address the issue. If the issue is user facing (e.g. the user noticed this error first hand through the Fleet UI), then the oncall engineer will proceed to identify the user and contact them letting them know that we are aware of the issue and working on a resolution. They may also request more information from the user if it is needed. They will cc the VP of Customer Success on any user correspondence. 
 
-We should collect both the email for the customer and information for the error. If the error happens in work hours, we should make a best effort to understand where in the app the error might have occurred. For this, the oncall engineer will post in `#help-engineering` the data they know of the issue and see if anybody in the frontend team can help identify what might be causing it. It’s more helpful to say “we saw that you saw an error while trying to create a query” than to say “your POST /api/blah failed”, but sometimes it’s not exactly clear where the API might be used exactly.
+For Fleet managed cloud alarms that are user facing, the first responder should collect the email address for the customer and all available information on the error. If the error occurs during business hours, the first responder should make a best effort to understand where in the app the error might have occurred. Assistance can be requested in `#help-engineering` by including the data they know regarding the issue, and when available, a frontend or backend engineer can help identify what might be causing the problem. If the error occurs outside of business hours, then the oncall engineer will contact the user letting them know that we are aware of the issue and working on a resolution. It’s more helpful to say something like “we saw that you saw an error while trying to create a query” than to say “your POST /api/blah failed”.
 
-Escalation of issues will be done by hand for the moment.
+Escalation of issues will be done manually by the first responder according to the escalation contacts mentioned above. An outage issue (template available) should be created in the Fleet confidential repo addressing: who was affected?, for how long?, what expected behavior occurred?, how do you know?, what near-term resolution can be taken to recover the affected user?, what is the underlying reason or suspected reason for the outage?, and what are the next steps Fleet will take to address the root cause?.  
 
-All infrastructure alarms will go to #help-p1.
+All infrastructure alarms (fleetdm.com, Fleet managed cloud, and sandbox) will go to #help-p1.
 
 The information needed to evaluate and potentially fix any issues is documented in the [runbook](https://github.com/fleetdm/fleet/blob/main/infrastructure/sandbox/readme.md).
 
-There will not be updates on the Fleet version running in sandbox on Fridays unless there's a critical issue being fixed.
+When an infrastructure oncall engineer is out of office, Mike McNeil will serve as a backup to oncall in #help-p1. All absences must be communicated in advance with Zay Hanlon and Mike McNeil. 
 
 ## Slack channels
 

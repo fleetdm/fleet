@@ -1,10 +1,13 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -163,57 +166,31 @@ func TestGetTeams(t *testing.T) {
 				}, nil
 			}
 
-			expectedText := `+-----------+------------+------------+
-| TEAM NAME | HOST COUNT | USER COUNT |
-+-----------+------------+------------+
-| team1     |         42 |         99 |
-+-----------+------------+------------+
-| team2     |         43 |         87 |
-+-----------+------------+------------+
-`
-			expectedYaml := `---
-apiVersion: v1
-kind: team
-spec:
-  team:
-    features:
-      enable_host_users: true
-      enable_software_inventory: true
-    mdm:
-      macos_updates:
-        minimum_version: ""
-        deadline: ""
-    macos_settings:
-      custom_settings:
-    name: team1
----
-apiVersion: v1
-kind: team
-spec:
-  team:
-    agent_options:
-      config:
-        foo: bar
-      overrides:
-        platforms:
-          darwin:
-            foo: override
-    features:
-      additional_queries:
-        foo: bar
-      enable_host_users: false
-      enable_software_inventory: false
-    mdm:
-      macos_updates:
-        minimum_version: "12.3.1"
-        deadline: "2021-12-14"
-    macos_settings:
-      custom_settings:
-    name: team2
-`
-			expectedJson := `{"kind":"team","apiVersion":"v1","spec":{"team":{"id":42,"created_at":"1999-03-10T02:45:06.371Z","name":"team1","description":"team1 description","webhook_settings":{"failing_policies_webhook":{"enable_failing_policies_webhook":false,"destination_url":"","policy_ids":null,"host_batch_size":0}},"integrations":{"jira":null,"zendesk":null},"features":{"enable_host_users":true,"enable_software_inventory":true},"mdm":{"macos_updates":{"minimum_version":"","deadline":""}},"macos_settings":{"custom_settings":null},"user_count":99,"host_count":42}}}
-{"kind":"team","apiVersion":"v1","spec":{"team":{"id":43,"created_at":"1999-03-10T02:45:06.371Z","name":"team2","description":"team2 description","agent_options":{"config":{"foo":"bar"},"overrides":{"platforms":{"darwin":{"foo":"override"}}}},"webhook_settings":{"failing_policies_webhook":{"enable_failing_policies_webhook":false,"destination_url":"","policy_ids":null,"host_batch_size":0}},"integrations":{"jira":null,"zendesk":null},"features":{"enable_host_users":false,"enable_software_inventory":false,"additional_queries":{"foo":"bar"}},"mdm":{"macos_updates":{"minimum_version":"12.3.1","deadline":"2021-12-14"}},"macos_settings":{"custom_settings":null},"user_count":87,"host_count":43}}}
-`
+			b, err := ioutil.ReadFile(filepath.Join("testdata", "expectedGetTeamsText.txt"))
+			require.NoError(t, err)
+			expectedText := string(b)
+
+			b, err = ioutil.ReadFile(filepath.Join("testdata", "expectedGetTeamsYaml.yml"))
+			require.NoError(t, err)
+			expectedYaml := string(b)
+
+			b, err = ioutil.ReadFile(filepath.Join("testdata", "expectedGetTeamsJson.json"))
+			require.NoError(t, err)
+			// must read each JSON value separately and compact it
+			var buf bytes.Buffer
+			dec := json.NewDecoder(bytes.NewReader(b))
+			for {
+				var raw json.RawMessage
+				if err := dec.Decode(&raw); err != nil {
+					if err == io.EOF {
+						break
+					}
+					require.NoError(t, err)
+				}
+				require.NoError(t, json.Compact(&buf, raw))
+				buf.WriteByte('\n')
+			}
+			expectedJson := buf.String()
 
 			if tt.shouldHaveExpiredBanner {
 				expectedJson = expiredBanner.String() + expectedJson
@@ -221,6 +198,8 @@ spec:
 			}
 
 			assert.Equal(t, expectedText, runAppForTest(t, []string{"get", "teams"}))
+			// cannot use assert.JSONEq like we do for YAML because this is not a
+			// single JSON value, it is a list of 2 JSON objects.
 			assert.Equal(t, expectedJson, runAppForTest(t, []string{"get", "teams", "--json"}))
 
 			actualYaml := runAppForTest(t, []string{"get", "teams", "--yaml"})
@@ -463,171 +442,13 @@ func TestGetConfig(t *testing.T) {
 	}
 
 	t.Run("AppConfig", func(t *testing.T) {
-		expectedYaml := `---
-apiVersion: v1
-kind: config
-spec:
-  fleet_desktop:
-    transparency_url: https://fleetdm.com/transparency
-  host_expiry_settings:
-    host_expiry_enabled: false
-    host_expiry_window: 0
-  features:
-    enable_host_users: true
-    enable_software_inventory: false
-  integrations:
-    jira: null
-    zendesk: null
-  mdm:
-    apple_bm_terms_expired: false
-    enabled_and_configured: false
-    apple_bm_default_team: ""
-    macos_updates:
-      minimum_version: ""
-      deadline: ""
-  macos_settings:
-    custom_settings:
-  org_info:
-    org_logo_url: ""
-    org_name: ""
-  server_settings:
-    deferred_save_host: false
-    enable_analytics: false
-    live_query_disabled: false
-    server_url: ""
-  smtp_settings:
-    authentication_method: ""
-    authentication_type: ""
-    configured: false
-    domain: ""
-    enable_smtp: false
-    enable_ssl_tls: false
-    enable_start_tls: false
-    password: ""
-    port: 0
-    sender_address: ""
-    server: ""
-    user_name: ""
-    verify_ssl_certs: false
-  sso_settings:
-    enable_jit_provisioning: false
-    enable_sso: false
-    enable_sso_idp_login: false
-    entity_id: ""
-    idp_image_url: ""
-    idp_name: ""
-    issuer_uri: ""
-    metadata: ""
-    metadata_url: ""
-  vulnerability_settings:
-    databases_path: /some/path
-  webhook_settings:
-    failing_policies_webhook:
-      destination_url: ""
-      enable_failing_policies_webhook: false
-      host_batch_size: 0
-      policy_ids: null
-    host_status_webhook:
-      days_count: 0
-      destination_url: ""
-      enable_host_status_webhook: false
-      host_percentage: 0
-    interval: 0s
-    vulnerabilities_webhook:
-      destination_url: ""
-      enable_vulnerabilities_webhook: false
-      host_batch_size: 0
-`
-		expectedJson := `
-{
-  "kind": "config",
-  "apiVersion": "v1",
-  "spec": {
-    "org_info": { "org_name": "", "org_logo_url": "" },
-    "server_settings": {
-      "server_url": "",
-      "live_query_disabled": false,
-      "enable_analytics": false,
-      "deferred_save_host": false
-    },
-    "smtp_settings": {
-      "enable_smtp": false,
-      "configured": false,
-      "sender_address": "",
-      "server": "",
-      "port": 0,
-      "authentication_type": "",
-      "user_name": "",
-      "password": "",
-      "enable_ssl_tls": false,
-      "authentication_method": "",
-      "domain": "",
-      "verify_ssl_certs": false,
-      "enable_start_tls": false
-    },
-    "host_expiry_settings": {
-      "host_expiry_enabled": false,
-      "host_expiry_window": 0
-    },
-    "features": {
-      "enable_host_users": true,
-      "enable_software_inventory": false
-    },
-    "macos_settings": {
-      "custom_settings": null
-    },
-    "mdm": {
-      "macos_updates": {
-	"minimum_version": "",
-	"deadline": ""
-      }
-    },
-    "sso_settings": {
-      "entity_id": "",
-      "issuer_uri": "",
-      "idp_image_url": "",
-      "metadata": "",
-      "metadata_url": "",
-      "idp_name": "",
-      "enable_jit_provisioning": false,
-      "enable_sso": false,
-      "enable_sso_idp_login": false
-    },
-    "fleet_desktop": { "transparency_url": "https://fleetdm.com/transparency" },
-    "vulnerability_settings": { "databases_path": "/some/path" },
-    "webhook_settings": {
-      "host_status_webhook": {
-        "enable_host_status_webhook": false,
-        "destination_url": "",
-        "host_percentage": 0,
-        "days_count": 0
-      },
-      "failing_policies_webhook": {
-        "enable_failing_policies_webhook": false,
-        "destination_url": "",
-        "policy_ids": null,
-        "host_batch_size": 0
-      },
-      "vulnerabilities_webhook": {
-        "enable_vulnerabilities_webhook": false,
-        "destination_url": "",
-        "host_batch_size": 0
-      },
-      "interval": "0s"
-    },
-    "integrations": { "jira": null, "zendesk": null },
-    "mdm": {
-      "apple_bm_terms_expired": false,
-      "enabled_and_configured": false,
-      "apple_bm_default_team": "",
-      "macos_updates": {
-	"minimum_version": "",
-	"deadline": ""
-      }
-    }
-  }
-}
-`
+		b, err := os.ReadFile(filepath.Join("testdata", "expectedGetConfigAppConfigYaml.yml"))
+		require.NoError(t, err)
+		expectedYaml := string(b)
+
+		b, err = os.ReadFile(filepath.Join("testdata", "expectedGetConfigAppConfigJson.json"))
+		require.NoError(t, err)
+		expectedJson := string(b)
 
 		assert.YAMLEq(t, expectedYaml, runAppForTest(t, []string{"get", "config"}))
 		assert.YAMLEq(t, expectedYaml, runAppForTest(t, []string{"get", "config", "--yaml"}))
@@ -635,295 +456,13 @@ spec:
 	})
 
 	t.Run("IncludeServerConfig", func(t *testing.T) {
-		expectedYAML := `---
-apiVersion: v1
-kind: config
-spec:
-  fleet_desktop:
-    transparency_url: https://fleetdm.com/transparency
-  host_expiry_settings:
-    host_expiry_enabled: false
-    host_expiry_window: 0
-  features:
-    enable_host_users: true
-    enable_software_inventory: false
-  integrations:
-    jira: null
-    zendesk: null
-  macos_settings:
-    custom_settings:
-  mdm:
-    apple_bm_default_team: ""
-    apple_bm_terms_expired: false
-    enabled_and_configured: false
-    macos_updates:
-      minimum_version: ""
-      deadline: ""
-  license:
-    expiration: "0001-01-01T00:00:00Z"
-    tier: free
-  logging:
-    debug: true
-    json: false
-    result:
-      config:
-        enable_log_compression: false
-        enable_log_rotation: false
-        result_log_file: /dev/null
-        status_log_file: /dev/null
-        audit_log_file: /dev/null
-        max_age: 0
-        max_backups: 0
-        max_size: 500
-      plugin: filesystem
-    status:
-      config:
-        enable_log_compression: false
-        enable_log_rotation: false
-        result_log_file: /dev/null
-        status_log_file: /dev/null
-        audit_log_file: /dev/null
-        max_age: 0
-        max_backups: 0
-        max_size: 500
-      plugin: filesystem
-    audit:
-      config:
-        enable_log_compression: false
-        enable_log_rotation: false
-        result_log_file: /dev/null
-        status_log_file: /dev/null
-        audit_log_file: /dev/null
-        max_age: 0
-        max_backups: 0
-        max_size: 500
-      plugin: filesystem
-  org_info:
-    org_logo_url: ""
-    org_name: ""
-  server_settings:
-    deferred_save_host: false
-    enable_analytics: false
-    live_query_disabled: false
-    server_url: ""
-  smtp_settings:
-    authentication_method: ""
-    authentication_type: ""
-    configured: false
-    domain: ""
-    enable_smtp: false
-    enable_ssl_tls: false
-    enable_start_tls: false
-    password: ""
-    port: 0
-    sender_address: ""
-    server: ""
-    user_name: ""
-    verify_ssl_certs: false
-  sso_settings:
-    enable_jit_provisioning: false
-    enable_sso: false
-    enable_sso_idp_login: false
-    entity_id: ""
-    idp_image_url: ""
-    idp_name: ""
-    issuer_uri: ""
-    metadata: ""
-    metadata_url: ""
-  update_interval:
-    osquery_detail: 1h0m0s
-    osquery_policy: 1h0m0s
-  vulnerabilities:
-    cpe_database_url: ""
-    cpe_translations_url: ""
-    current_instance_checks: ""
-    cve_feed_prefix_url: ""
-    databases_path: ""
-    disable_data_sync: false
-    disable_win_os_vulnerabilities: false
-    periodicity: 0s
-    recent_vulnerability_max_age: 0s
-  vulnerability_settings:
-    databases_path: /some/path
-  webhook_settings:
-    failing_policies_webhook:
-      destination_url: ""
-      enable_failing_policies_webhook: false
-      host_batch_size: 0
-      policy_ids: null
-    host_status_webhook:
-      days_count: 0
-      destination_url: ""
-      enable_host_status_webhook: false
-      host_percentage: 0
-    interval: 0s
-    vulnerabilities_webhook:
-      destination_url: ""
-      enable_vulnerabilities_webhook: false
-      host_batch_size: 0
-`
-		expectedJSON := `
-{
-  "kind": "config",
-  "apiVersion": "v1",
-  "spec": {
-    "org_info": {
-      "org_name": "",
-      "org_logo_url": ""
-    },
-    "server_settings": {
-      "server_url": "",
-      "live_query_disabled": false,
-      "enable_analytics": false,
-      "deferred_save_host": false
-    },
-    "smtp_settings": {
-      "enable_smtp": false,
-      "configured": false,
-      "sender_address": "",
-      "server": "",
-      "port": 0,
-      "authentication_type": "",
-      "user_name": "",
-      "password": "",
-      "enable_ssl_tls": false,
-      "authentication_method": "",
-      "domain": "",
-      "verify_ssl_certs": false,
-      "enable_start_tls": false
-    },
-    "host_expiry_settings": {
-      "host_expiry_enabled": false,
-      "host_expiry_window": 0
-    },
-    "features": {
-      "enable_host_users": true,
-      "enable_software_inventory": false
-    },
-    "macos_settings": {
-      "custom_settings": null
-    },
-    "mdm": {
-      "macos_updates": {
-	"minimum_version": "",
-	"deadline": ""
-      }
-    },
-    "sso_settings": {
-      "enable_jit_provisioning": false,
-      "entity_id": "",
-      "issuer_uri": "",
-      "idp_image_url": "",
-      "metadata": "",
-      "metadata_url": "",
-      "idp_name": "",
-      "enable_sso": false,
-      "enable_sso_idp_login": false
-    },
-    "fleet_desktop": {
-      "transparency_url": "https://fleetdm.com/transparency"
-    },
-    "vulnerability_settings": {
-      "databases_path": "/some/path"
-    },
-    "webhook_settings": {
-      "host_status_webhook": {
-        "enable_host_status_webhook": false,
-        "destination_url": "",
-        "host_percentage": 0,
-        "days_count": 0
-      },
-      "failing_policies_webhook": {
-        "enable_failing_policies_webhook": false,
-        "destination_url": "",
-        "policy_ids": null,
-        "host_batch_size": 0
-      },
-      "vulnerabilities_webhook": {
-        "enable_vulnerabilities_webhook": false,
-        "destination_url": "",
-        "host_batch_size": 0
-      },
-      "interval": "0s"
-    },
-    "integrations": {
-      "jira": null,
-      "zendesk": null
-    },
-    "mdm": {
-      "apple_bm_default_team": "",
-      "apple_bm_terms_expired": false,
-      "enabled_and_configured": false,
-      "macos_updates": {
-	"minimum_version": "",
-	"deadline": ""
-      }
-    },
-    "update_interval": {
-      "osquery_detail": "1h0m0s",
-      "osquery_policy": "1h0m0s"
-    },
-    "vulnerabilities": {
-      "databases_path": "",
-      "periodicity": "0s",
-      "cpe_database_url": "",
-      "cpe_translations_url": "",
-      "cve_feed_prefix_url": "",
-      "current_instance_checks": "",
-      "disable_data_sync": false,
-      "recent_vulnerability_max_age": "0s",
-      "disable_win_os_vulnerabilities": false
-    },
-    "license": {
-      "tier": "free",
-      "expiration": "0001-01-01T00:00:00Z"
-    },
-    "logging": {
-      "debug": true,
-      "json": false,
-      "result": {
-        "plugin": "filesystem",
-        "config": {
-          "enable_log_compression": false,
-          "enable_log_rotation": false,
-          "result_log_file": "/dev/null",
-          "status_log_file": "/dev/null",
-          "audit_log_file": "/dev/null",
-          "max_size": 500,
-		  "max_age": 0,
-          "max_backups": 0
-        }
-      },
-      "status": {
-        "plugin": "filesystem",
-        "config": {
-          "enable_log_compression": false,
-          "enable_log_rotation": false,
-          "result_log_file": "/dev/null",
-          "status_log_file": "/dev/null",
-          "audit_log_file": "/dev/null",
-          "max_size": 500,
-		  "max_age": 0,
-          "max_backups": 0
-        }
-      },
-      "audit": {
-        "plugin": "filesystem",
-        "config": {
-          "enable_log_compression": false,
-          "enable_log_rotation": false,
-          "result_log_file": "/dev/null",
-          "status_log_file": "/dev/null",
-          "audit_log_file": "/dev/null",
-          "max_size": 500,
-		  "max_age": 0,
-          "max_backups": 0
-        }
-      }
-    }
-  }
-}
-`
+		b, err := os.ReadFile(filepath.Join("testdata", "expectedGetConfigIncludeServerConfigYaml.yml"))
+		require.NoError(t, err)
+		expectedYAML := string(b)
+
+		b, err = os.ReadFile(filepath.Join("testdata", "expectedGetConfigIncludeServerConfigJson.json"))
+		require.NoError(t, err)
+		expectedJSON := string(b)
 
 		assert.YAMLEq(t, expectedYAML, runAppForTest(t, []string{"get", "config", "--include-server-config"}))
 		assert.YAMLEq(t, expectedYAML, runAppForTest(t, []string{"get", "config", "--include-server-config", "--yaml"}))

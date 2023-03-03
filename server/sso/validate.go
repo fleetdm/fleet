@@ -120,13 +120,10 @@ func (v *validator) ValidateSignature(auth fleet.Auth) (fleet.Auth, error) {
 	if status != Success {
 		return nil, fmt.Errorf("response status %s", info.statusDescription())
 	}
-	decoded, err := base64.StdEncoding.DecodeString(info.rawResponse())
-	if err != nil {
-		return nil, fmt.Errorf("base64 decode response: %w", err)
-	}
 
 	// Examine the response for attempts to exploit weaknesses in Go's
 	// encoding/xml
+	decoded := info.rawResponse()
 	err = rtvalidator.Validate(bytes.NewReader(decoded))
 	if err != nil {
 		return nil, fmt.Errorf("response XML failed validation: %w", err)

@@ -668,10 +668,10 @@ type Datastore interface {
 	// EnrollHost will enroll a new host with the given identifier, setting the node key, and team. Implementations of
 	// this method should respect the provided host enrollment cooldown, by returning an error if the host has enrolled
 	// within the cooldown period.
-	EnrollHost(ctx context.Context, osqueryHostId, nodeKey string, teamID *uint, cooldown time.Duration) (*Host, error)
+	EnrollHost(ctx context.Context, isMDMEnabled bool, osqueryHostId, hardwareUUID, hardwareSerial, nodeKey string, teamID *uint, cooldown time.Duration) (*Host, error)
 
 	// EnrollOrbit will enroll a new orbit host with the given uuid, setting the orbit node key
-	EnrollOrbit(ctx context.Context, hardwareUUID string, orbitNodeKey string, teamID *uint) (*Host, error)
+	EnrollOrbit(ctx context.Context, isMDMEnabled bool, hardwareUUID, hardwareSerial, orbitNodeKey string, teamID *uint) (*Host, error)
 
 	SerialUpdateHost(ctx context.Context, host *Host) error
 
@@ -717,9 +717,13 @@ type Datastore interface {
 	// For global config profiles, specify zero as the team id.
 	ListMDMAppleConfigProfiles(ctx context.Context, teamID *uint) ([]*MDMAppleConfigProfile, error)
 
-	// DeleteMDMAppleConfigProfile deleted the mdm config profile corresponding to the specified
-	// profile id.
+	// DeleteMDMAppleConfigProfile deletes the mdm config profile corresponding
+	// to the specified profile id.
 	DeleteMDMAppleConfigProfile(ctx context.Context, profileID uint) error
+
+	// DeleteMDMAppleConfigProfileByTeamAndIdentifier deletes a configuration
+	// profile using the unique key defined by `team_id` and `identifier`
+	DeleteMDMAppleConfigProfileByTeamAndIdentifier(ctx context.Context, teamID uint, profileIdentifier string) error
 
 	// GetHostMDMProfiles returns the MDM profile information for the specified host UUID.
 	GetHostMDMProfiles(ctx context.Context, hostUUID string) ([]HostMDMAppleProfile, error)
@@ -809,6 +813,11 @@ type Datastore interface {
 
 	// GetMDMAppleCommandRequest type returns the request type for the given command
 	GetMDMAppleCommandRequestType(ctx context.Context, commandUUID string) (string, error)
+
+	// GetMDMAppleHostsProfilesSummary summarizes the current state of MDM configuration profiles on
+	// each host in the specified team (or, if no team is specified, each host that is not assigned
+	// to any team).
+	GetMDMAppleHostsProfilesSummary(ctx context.Context, teamID *uint) (*MDMAppleHostsProfilesSummary, error)
 }
 
 const (

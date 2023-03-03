@@ -314,7 +314,7 @@ Issuer URI: http://localhost:8080/simplesaml/saml2/idp/SSOService.php
 Metadata URL: http://localhost:9080/simplesaml/saml2/idp/metadata.php
 ```
 
-The identity provider is configured with two users:
+The identity provider is configured with four users:
 
 ```
 Username: sso_user
@@ -323,6 +323,17 @@ Password: user123#
 
 Username: sso_user2
 Email: sso_user2@example.com
+Password: user123#
+
+# sso_user_3_global_admin is automatically added as Global admin.
+Username: sso_user_3_global_admin
+Email: sso_user_3_global_admin@example.com
+Password: user123#
+
+# sso_user_4_team_maintainer is automatically added as maintainer of Team with ID = 1.
+# If a team with ID 1 doesn't exist then the login with this user will fail.
+Username: sso_user_4_team_maintainer
+Email: sso_user_4_team_maintainer@example.com
 Password: user123#
 ```
 

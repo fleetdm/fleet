@@ -109,6 +109,7 @@ describe("Host Actions Dropdown", () => {
           onSelect={noop}
           hostStatus="online"
           hostMdmEnrollemntStatus="On (automatic)"
+          mdmName="Fleet"
         />
       );
 
@@ -132,6 +133,7 @@ describe("Host Actions Dropdown", () => {
           onSelect={noop}
           hostStatus="online"
           hostMdmEnrollemntStatus="On (automatic)"
+          mdmName="Fleet"
         />
       );
 
@@ -155,6 +157,7 @@ describe("Host Actions Dropdown", () => {
           onSelect={noop}
           hostStatus="online"
           hostMdmEnrollemntStatus="On (automatic)"
+          mdmName="Fleet"
         />
       );
 
@@ -178,12 +181,37 @@ describe("Host Actions Dropdown", () => {
           onSelect={noop}
           hostStatus="online"
           hostMdmEnrollemntStatus="On (automatic)"
+          mdmName="Fleet"
         />
       );
 
       await user.click(screen.getByText("Actions"));
 
       expect(screen.getByText("Turn off MDM")).toBeInTheDocument();
+    });
+
+    it("does not render the action when the host is enrolled in a non Fleet MDM solution", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isMdmFeatureFlagEnabled: true, // TODO: remove when we release MDM
+            isTeamMaintainer: true,
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          onSelect={noop}
+          hostStatus="online"
+          hostMdmEnrollemntStatus="On (automatic)"
+          mdmName="Non Fleet MDM"
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      expect(screen.queryByText("Turn off MDM")).not.toBeInTheDocument();
     });
 
     it("renders as disabled when the host is offline", async () => {
@@ -201,6 +229,7 @@ describe("Host Actions Dropdown", () => {
           onSelect={noop}
           hostStatus="offline"
           hostMdmEnrollemntStatus="On (automatic)"
+          mdmName="Fleet"
         />
       );
 

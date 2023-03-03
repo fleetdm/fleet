@@ -30,7 +30,8 @@ kind: config
 spec:
   org_info:
     org_name: "Fleet"
-  macos_settings:
+  mdm:
+    macos_settings:
 `,
 			nil,
 		},
@@ -42,8 +43,9 @@ kind: config
 spec:
   org_info:
     org_name: "Fleet"
-  macos_settings:
-    custom_settings:
+  mdm:
+    macos_settings:
+      custom_settings:
 `,
 			[]string{},
 		},
@@ -55,10 +57,11 @@ kind: config
 spec:
   org_info:
     org_name: "Fleet"
-  macos_settings:
-    custom_settings:
-      - "a"
-      - "b"
+  mdm:
+    macos_settings:
+      custom_settings:
+        - "a"
+        - "b"
 `,
 			[]string{"a", "b"},
 		},
@@ -70,12 +73,13 @@ kind: config
 spec:
   org_info:
     org_name: "Fleet"
-  macos_settings:
-    custom_settings:
-      - "a"
-      - ""
-      - 4
-      - "c"
+  mdm:
+    macos_settings:
+      custom_settings:
+        - "a"
+        - ""
+        - 4
+        - "c"
 `,
 			[]string{"a", "c"},
 		},
@@ -116,14 +120,16 @@ kind: team
 spec:
   team:
     name: Fleet
-    macos_settings:
+    mdm:
+      macos_settings:
 ---
 apiVersion: v1
 kind: team
 spec:
   team:
     name: Fleet2
-    macos_settings:
+    mdm:
+      macos_settings:
 `,
 			nil,
 		},
@@ -135,16 +141,18 @@ kind: team
 spec:
   team:
     name: "Fleet"
-    macos_settings:
-      custom_settings:
+    mdm:
+      macos_settings:
+        custom_settings:
 ---
 apiVersion: v1
 kind: team
 spec:
   team:
     name: "Fleet2"
-    macos_settings:
-      custom_settings:
+    mdm:
+      macos_settings:
+        custom_settings:
 `,
 			map[string][]string{"Fleet": {}, "Fleet2": {}},
 		},
@@ -156,10 +164,11 @@ kind: team
 spec:
   team:
     name: "Fleet"
-    macos_settings:
-      custom_settings:
-        - "a"
-        - "b"
+    mdm:
+      macos_settings:
+        custom_settings:
+          - "a"
+          - "b"
 `,
 			map[string][]string{"Fleet": {"a", "b"}},
 		},
@@ -171,12 +180,13 @@ kind: team
 spec:
   team:
     name: "Fleet"
-    macos_settings:
-      custom_settings:
-        - "a"
-        - ""
-        - 42
-        - "c"
+    mdm:
+      macos_settings:
+        custom_settings:
+          - "a"
+          - ""
+          - 42
+          - "c"
 `,
 			map[string][]string{},
 		},
