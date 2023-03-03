@@ -5,7 +5,7 @@ Expected scenario
 
 2) After running the policy check, it should return 1 indicating that setting was properly set
 
-
+Note: Manually check that the registry key (HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\WindowsFirewall\\PublicProfile) is present in the Windows machine before running the policy.
 
 Failure scenario
 ==================
@@ -13,13 +13,3 @@ Failure scenario
 'Computer Configuration\Policies\Windows Settings\Security Settings\Windows Defender Firewall with Advanced Security\Windows Defender Firewall with Advanced Security - Local Group Policy Object\Windows Defender Firewall Properties\Public Profile\Settings Customize\Apply local firewall rules'
 
 2) After running the policy check, it should return nothing, indicating that setting was set to a non-compliant value
-
-TODO
-==================
-Figure out why HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\WindowsFirewall\PublicProfile is not showing up in the registry
-
-Notes
-==================
-The path 'PublicProfile' does not exist in the registry even after configured (Even though path 'PrivateProfile' does exist)
-CIS Benchmark Page 430: https://drive.google.com/file/d/16M2AuKHu_x-WJZWObhl_7MpZkPkKSQaq/view 
-Tenable item: https://www.tenable.com/audits/items/CIS_Microsoft_Windows_10_Stand-alone_v1.0.1_L1.audit:4b6d63de94514fb298f1cae369cada24
