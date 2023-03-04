@@ -428,6 +428,17 @@ We're happy you've ventured a trip around the sun with Fleet. Let's celebrate!
 - Mike McNeil updates the respective payroll platform (Gusto or Pilot) and update the [Equity spreadsheet](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit?usp=sharing) (internal doc).
 - If additional follow-up is required for the compensation change, Mike McNeil works with the business operations team to take care of it.
 
+### Equity grants
+Equity grants for new hires are queued up as part of the hiring process, then grants and consents are processed quarterly.
+
+Doing an equity grant involves:
+1. executing a board consent
+2. the recipient and CEO signing paperwork about the stock options
+3. updating the number of shares for the recipient in the equity plan
+4. updating Carta to reflect the grant
+
+To queue up an equity grant:
+1. TODO
 
 
 ## Departures
@@ -579,10 +590,11 @@ The following table lists the People group's rituals, frequency, and Directly Re
 
 
 
+## Kanban
+Any contributor can [view the kanban board](https://app.zenhub.com/workspaces/-g-business-operations-63f3dc3cc931f6247fcf55a9/board?sprints=none) for the business operations department, including pending tasks in the active sprint and any new requests.
 
-## Roadmap
-
-https://github.com/orgs/fleetdm/projects/51/views/1
+## Intake
+To make a request of the business operations department, [create an issue using one of our issue templates](https://github.com/fleetdm/confidential/issues/new/choose).  If you don't see what you need, or you are unsure, add your question to the agenda for the next bizops office hours call (weekly).  If you're not sure that your request can wait that long, then please ask for help in our group Slack channel: `#g-business-operations`.
 
 
 ## Slack channels
