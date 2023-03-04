@@ -1065,53 +1065,54 @@ func (ds *Datastore) GetMDMAppleHostsProfilesSummary(ctx context.Context, teamID
 	// TODO(sarah): add cases to handle Fleet-managed profiles (e.g., disk encryption)
 	sqlFmt := `
 SELECT
-	COUNT(
-		CASE WHEN h.failed > 0 THEN
-			'failed'
-		END) AS failed,
-	COUNT(
-		CASE WHEN h.failed = 0
-			AND h.pending > 0 THEN
-			'pending'
-		END) AS pending,
-	COUNT(
-		CASE WHEN h.failed = 0
-			AND h.pending = 0 THEN
-			'applied'
-		END) AS applied
-FROM (
-	SELECT
-		host_uuid,
-		COUNT(
-			CASE WHEN status = 'applied' THEN
-				1
-			END) AS applied,
-		COUNT(
-			CASE WHEN status = 'failed' THEN
-				1
-			END) AS failed,
-		COUNT(
-			CASE WHEN status = 'pending' THEN
-				1
-			END) AS pending
-	FROM
-		host_mdm_apple_profiles hmap
-	GROUP BY
-		host_uuid) AS h
-WHERE
-	EXISTS (
-		SELECT
+	count(
+		CASE WHEN EXISTS (
+			SELECT
+				1 FROM host_mdm_apple_profiles hmap
+			WHERE
+				h.uuid = hmap.host_uuid
+				AND hmap.status = 'failed') THEN
 			1
-		FROM
-			hosts
-		WHERE
-			hosts.uuid = host_uuid
-			AND %s)
-`
+		END) AS failed, 
+	count(
+		CASE WHEN EXISTS (
+			SELECT
+				1 FROM host_mdm_apple_profiles hmap
+			WHERE
+				h.uuid = hmap.host_uuid
+				AND hmap.status = 'pending')
+			AND NOT EXISTS (
+				SELECT
+					1 FROM host_mdm_apple_profiles hmap
+				WHERE
+					h.uuid = hmap.host_uuid
+					AND hmap.status = 'failed') THEN
+			1
+		END) AS pending, 
+	count(
+		CASE WHEN EXISTS (
+			SELECT
+				1 FROM host_mdm_apple_profiles hmap
+			WHERE
+				h.uuid = hmap.host_uuid
+				AND hmap.status = 'applied')
+			AND NOT EXISTS (
+				SELECT
+					1 FROM host_mdm_apple_profiles hmap
+				WHERE
+					h.uuid = hmap.host_uuid
+					AND(hmap.status = 'failed'
+						OR hmap.status = 'pending')) THEN
+			1
+		END) AS applied
+FROM
+	hosts h
+WHERE
+	%s`
 
-	teamFilter := "hosts.team_id IS NULL"
+	teamFilter := "h.team_id IS NULL"
 	if teamID != nil && *teamID > 0 {
-		teamFilter = fmt.Sprintf("hosts.team_id = %d", *teamID)
+		teamFilter = fmt.Sprintf("h.team_id = %d", *teamID)
 	}
 
 	var res fleet.MDMAppleHostsProfilesSummary
