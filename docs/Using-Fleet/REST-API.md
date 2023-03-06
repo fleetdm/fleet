@@ -5410,6 +5410,12 @@ _Available in Fleet Premium_
         "policy_ids": null,
         "host_batch_size": 0
       }
+    },
+    "mdm": {
+      "macos_settings": {
+        "custom_settings": [],
+        "enable_disk_encryption": false
+      }
     }
   }
 }
@@ -5518,6 +5524,8 @@ _Available in Fleet Premium_
 | &nbsp;&nbsp;macos_updates                               | object  | body | MacOS updates settings.                                                                                                                                                                                   |
 | &nbsp;&nbsp;&nbsp;&nbsp;minimum_version                 | string  | body | Hosts that belong to this team and are enrolled into Fleet's MDM will be nudged until their macOS is at or above this version.                                                                            |
 | &nbsp;&nbsp;&nbsp;&nbsp;deadline                        | string  | body | Hosts that belong to this team and are enrolled into Fleet's MDM won't be able to dismiss the Nudge window once this deadline is past.                                                                    |
+| &nbsp;&nbsp;macos_settings                              | object  | body | MacOS-specific settings.                                                                                                                                                                                  |
+| &nbsp;&nbsp;&nbsp;&nbsp;enable_disk_encryption          | boolean | body | Hosts that belong to this team and are enrolled into Fleet's MDM will have disk encryption enabled if set to true.                                                                                        |
 
 
 #### Example (add users to a team)
@@ -5576,8 +5584,12 @@ _Available in Fleet Premium_
       "macos_updates": {
         "minimum_version": "12.3.1",
         "deadline": "2022-01-01"
+      },
+      "macos_settings": {
+        "custom_settings": [],
+        "enable_disk_encryption": false
       }
-    },
+    }
   }
 }
 ```

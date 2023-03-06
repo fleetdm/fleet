@@ -531,13 +531,13 @@ The MDM endpoints exist to support the related command-line interface sub-comman
 - [Unenroll host from Fleet MDM](#unenroll-host-from-fleet-mdm)
 - [Generate Apple DEP Key Pair](#generate-apple-dep-key-pair)
 - [Request Certificate Signing Request (CSR)](#request-certificate-signing-request-csr)
-- [Batch-apply Apple MDM custom settings](#batch-apply-apple-mdm-custom-settings)
-
 - [New configuration profile](#new-mdm-apple-configuration-profile)
 - [List configuration profiles](#list-mdm-apple-configuration-profiles)
 - [Download configuration profile](#download-mdm-apple-configuration-profile)
 - [Delete configuration profile](#delete-mdm-apple-confugruation-profile)
 - [Get Apple MDM profiles summary](#get-mdm-apple-profiles-summary)
+- [Batch-apply Apple MDM custom settings](#batch-apply-apple-mdm-custom-settings)
+- [Update Apple MDM settings](#update-apple-mdm-settings)
 
 ### Get Apple MDM
 
@@ -895,6 +895,27 @@ If no team (id or name) is provided, the profiles are applied for all hosts (for
 #### Example
 
 `POST /api/v1/fleet/mdm/apple/profiles/batch`
+
+##### Default response
+
+`204`
+
+### Update Apple MDM settings
+
+_Available in Fleet Premium_
+
+`PATCH /api/v1/fleet/mdm/apple/settings`
+
+#### Parameters
+
+| Name                   | Type    | In    | Description                                                                                 |
+| -------------          | ------  | ----  | --------------------------------------------------------------------------------------      |
+| team_id                | integer | body  | The team ID to apply the settings to. Settings applied to hosts in no team if absent.       |
+| enable_disk_encryption | boolean | body  | Whether disk encryption should be enforced on devices that belong to the team (or no team). |
+
+#### Example
+
+`PATCH /api/v1/fleet/mdm/apple/settings`
 
 ##### Default response
 
