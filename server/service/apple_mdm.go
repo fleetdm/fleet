@@ -1625,17 +1625,21 @@ func (svc *Service) updateAppConfigMDMAppleSettings(ctx context.Context, payload
 		return err
 	}
 
-	var didUpdate bool
+	var didUpdate, didUpdateMacOSDiskEncryption bool
 	if payload.EnableDiskEncryption != nil {
 		if ac.MDM.MacOSSettings.EnableDiskEncryption != *payload.EnableDiskEncryption {
 			ac.MDM.MacOSSettings.EnableDiskEncryption = *payload.EnableDiskEncryption
 			didUpdate = true
+			didUpdateMacOSDiskEncryption = true
 		}
 	}
 
 	if didUpdate {
 		if err := svc.ds.SaveAppConfig(ctx, ac); err != nil {
 			return err
+		}
+		if didUpdateMacOSDiskEncryption {
+			// TODO(mna): save enabled/disabled activity
 		}
 	}
 	return nil

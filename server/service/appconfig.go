@@ -443,6 +443,10 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	}
 
+	if oldAppConfig.MDM.MacOSSettings.EnableDiskEncryption != appConfig.MDM.MacOSSettings.EnableDiskEncryption {
+		// TODO(mna): save enabled/disabled activity
+	}
+
 	return obfuscatedConfig, nil
 }
 
