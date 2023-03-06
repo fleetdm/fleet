@@ -153,6 +153,29 @@ The Fleet product is released every three weeks. By syncing the whole company to
 - keep all team members (especially those who aren't directly involved with the core product) aware of the current version of Fleet and when the next release is shipping.
 - align project planning and milestones across all teams, which helps us schedule our content calendar and manage company-wide goals.
 
+## Why spend so much energy responding to every potential production incident?
+
+At Fleet, we consider every 5xx error, timeout, or errored scheduled job a P1 incident.  We create an outage issue for it, no matter the environment, as soon as the issue is detected, even before we understand.  We always determine impact quickly, reach out to affected users to acknowledge their problem, and determine the root cause. Why?
+
+- It helps us learn.
+- You never know whether an error like this is a real issue until you take a close look.  Even if you think it probably isn't.
+- It incentivizes us to fix the root cause sooner.
+- It keeps the number of errors low.
+- It ensures the team understands exactly what errors are happening.
+- It helps us fix bugs sooner, preventing them from stacking and bleeding into one another and making fixes harder.
+- It gets everyone on the same page about what an issue is.
+- It prevents stoppage of information about bugs and problems.  Every outage is visible.
+- It allows us to reach out to affected users ASAP and acknowledge their challenge, showing them that Fleet takes quality and stability seriously.
+
+### What is a P1?
+Every 5xx error, timeout, or failed scheduled job is a P1.  
+
+That means:
+1. It gets a postmortem issue created within the production issue response time SLA, even before we know the impact, the root cause, or even what the error message says.
+2. It gets a close look right away, even if we think it might not matter.  If there is any chance of it affecting even one user, we keep digging.
+3. Including a situation where a user has to wait longer than 5 seconds during signup on fleetdm.com  (or any time we breach an agreed upon response time guarantee)
+4. Including when a scheduled job fails and we aren't sure yet whether or not any real users are affected.
+
 
 
 <meta name="maintainedBy" value="mikermcneil">
