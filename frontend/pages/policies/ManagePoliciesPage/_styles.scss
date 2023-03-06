@@ -153,5 +153,7 @@
 
   .policy-icon {
     margin-left: $pad-xsmall;
+    position: relative;
+    bottom: -1px;
   }
 }
