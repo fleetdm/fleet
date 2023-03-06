@@ -615,11 +615,7 @@ func (svc *Service) createTeamFromSpec(
 		return &fleet.Team{Name: spec.Name}, nil
 	}
 
-	if macOSSettings.EnableDiskEncryption {
-		// TODO(mna): save Enabled disk encryption activity
-	}
-
-	return svc.ds.NewTeam(ctx, &fleet.Team{
+	tm, err := svc.ds.NewTeam(ctx, &fleet.Team{
 		Name: spec.Name,
 		Config: fleet.TeamConfig{
 			AgentOptions: agentOptions,
@@ -631,6 +627,20 @@ func (svc *Service) createTeamFromSpec(
 		},
 		Secrets: secrets,
 	})
+	if err != nil {
+		return nil, err
+	}
+
+	if macOSSettings.EnableDiskEncryption {
+		if err := svc.ds.NewActivity(
+			ctx,
+			authz.UserFromContext(ctx),
+			fleet.ActivityTypeEnabledMacosDiskEncryption{TeamID: &tm.ID, TeamName: &tm.Name},
+		); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "create activity for team macos disk encryption")
+		}
+	}
+	return tm, nil
 }
 
 func (svc *Service) editTeamFromSpec(
@@ -686,7 +696,15 @@ func (svc *Service) editTeamFromSpec(
 		}
 	}
 	if oldMacOSDiskEncryption != newMacOSDiskEncryption {
-		// TODO(mna): save enabled/disabled disk encryption activity
+		var act fleet.ActivityDetails
+		if team.Config.MDM.MacOSSettings.EnableDiskEncryption {
+			act = fleet.ActivityTypeEnabledMacosDiskEncryption{TeamID: &team.ID, TeamName: &team.Name}
+		} else {
+			act = fleet.ActivityTypeDisabledMacosDiskEncryption{TeamID: &team.ID, TeamName: &team.Name}
+		}
+		if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+			return ctxerr.Wrap(ctx, err, "create activity for team macos disk encryption")
+		}
 	}
 	return nil
 }
@@ -746,7 +764,15 @@ func (svc *Service) updateTeamMDMAppleSettings(ctx context.Context, tm *fleet.Te
 			return err
 		}
 		if didUpdateMacOSDiskEncryption {
-			// TODO(mna): save enabled/disabled disk encryption activity
+			var act fleet.ActivityDetails
+			if tm.Config.MDM.MacOSSettings.EnableDiskEncryption {
+				act = fleet.ActivityTypeEnabledMacosDiskEncryption{TeamID: &tm.ID, TeamName: &tm.Name}
+			} else {
+				act = fleet.ActivityTypeDisabledMacosDiskEncryption{TeamID: &tm.ID, TeamName: &tm.Name}
+			}
+			if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+				return ctxerr.Wrap(ctx, err, "create activity for team macos disk encryption")
+			}
 		}
 	}
 	return nil

@@ -444,7 +444,15 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	}
 
 	if oldAppConfig.MDM.MacOSSettings.EnableDiskEncryption != appConfig.MDM.MacOSSettings.EnableDiskEncryption {
-		// TODO(mna): save enabled/disabled activity
+		var act fleet.ActivityDetails
+		if appConfig.MDM.MacOSSettings.EnableDiskEncryption {
+			act = fleet.ActivityTypeEnabledMacosDiskEncryption{}
+		} else {
+			act = fleet.ActivityTypeDisabledMacosDiskEncryption{}
+		}
+		if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "create activity for app config macos disk encryption")
+		}
 	}
 
 	return obfuscatedConfig, nil
