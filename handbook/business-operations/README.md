@@ -303,7 +303,7 @@ Every new position being created goes through this process before interviewing, 
   - Using Pave, determine an anticipated salary and equity range, then add that research to "Compensation decisions" as a new heading.
   - Share a direct link to the new heading in "Compensation decisions" with the CEO.
 6. The CEO will then:
-  - Determine whether this fits into the budget and equity plan.
+  - Determine whether this fits into the [budgeted equity plan]([https](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit#gid=0)).
   - Decide whether Fleet will open this position at this time.
   - Set tentative compensation in the budget and equity plan.
   - Set a tentative start date in the Fleeties doc to indicate this position is now part of the hiring plan.
@@ -429,7 +429,7 @@ We're happy you've ventured a trip around the sun with Fleet. Let's celebrate!
 - If additional follow-up is required for the compensation change, Mike McNeil works with the business operations team to take care of it.
 
 ### Equity grants
-Equity grants for new hires are queued up as part of the hiring process, then grants and consents are processed quarterly.
+Equity grants for new hires are queued up as part of the [hiring process](https://fleetdm.com/handbook/business-operations#hiring), then grants and consents are [batched and processed quarterly](https://github.com/fleetdm/confidential/issues/new/choose).
 
 Doing an equity grant involves:
 1. executing a board consent
@@ -437,9 +437,11 @@ Doing an equity grant involves:
 3. updating the number of shares for the recipient in the equity plan
 4. updating Carta to reflect the grant
 
-To queue up an equity grant:
-1. TODO
+For the status of stock option grants, exercises, and all other _common stock_ including advisor, founder, and team member equity ownership, see [Fleet's equity plan](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit#gid=0).  For information about investor ownership, see [Carta](https://app.carta.com/corporations/1234715/summary/).
 
+> Fleet's [equity plan](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit#gid=0) is the source of truth, not Carta.  Not any other pro formas sent in an email attachment.
+> 
+> If you notice what might be a discrepancy between the equity plan and any other secondary source of information, please ask Fleet's CEO for help.
 
 ## Departures
 
