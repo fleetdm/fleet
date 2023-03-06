@@ -257,6 +257,30 @@ type MDMHostData struct {
 	// if the slice is empty, but when unset, it doesn't get marshaled
 	// (e.g. we don't return that information for the List Hosts endpoint).
 	Profiles *[]HostMDMAppleProfile `json:"profiles,omitempty" db:"profiles" csv:"-"`
+
+	MacOSSettings *MDMHostMacOSSettings `json:"macos_settings,omitempty" db:"-" csv:"-"`
+}
+
+type DiskEncryptionState string
+
+const (
+	DiskEncryptionApplied             DiskEncryptionState = "applied"
+	DiskEncryptionActionRequired      DiskEncryptionState = "action_required"
+	DiskEncryptionEnforcing           DiskEncryptionState = "enforcing"
+	DiskEncryptionFailed              DiskEncryptionState = "failed"
+	DiskEncryptionRemovingEnforcement DiskEncryptionState = "removing_enforcement"
+)
+
+type ActionRequiredState string
+
+const (
+	ActionRequiredLogOut    ActionRequiredState = "log_out"
+	ActionRequiredRotateKey ActionRequiredState = "rotate_key"
+)
+
+type MDMHostMacOSSettings struct {
+	DiskEncryption DiskEncryptionState `json:"disk_encryption"`
+	ActionRequired ActionRequiredState `json:"action_required"`
 }
 
 // Scan implements the Scanner interface for sqlx, to support unmarshaling a
