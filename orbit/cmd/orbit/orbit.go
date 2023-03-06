@@ -407,7 +407,6 @@ func main() {
 			return fmt.Errorf("cleanup old files: %w", err)
 		}
 
-		log.Debug().Msg("running single query (SELECT uuid, hardware_serial FROM system_info)")
 		orbitHostInfo, err := getHostInfo(osquerydPath, filepath.Join(c.String("root-dir"), "osquery.db"))
 		if err != nil {
 			return fmt.Errorf("get UUID: %w", err)
@@ -984,11 +983,13 @@ func getHostInfo(osqueryPath string, osqueryDBPath string) (fleet.OrbitHostInfo,
 			Platform:       "windows",
 		}, nil
 	}
+	const systemQuery = "SELECT si.uuid, si.hardware_serial, si.hostname, os.platform FROM system_info si, os_version os"
 	args := []string{
 		"-S",
 		"--database_path", osqueryDBPath,
-		"--json", "SELECT si.uuid, si.hardware_serial, si.hostname, os.platform FROM system_info si, os_version os",
+		"--json", systemQuery,
 	}
+	log.Debug().Str("query", systemQuery).Msg("running single query")
 	out, err := exec.Command(osqueryPath, args...).Output()
 	if err != nil {
 		return fleet.OrbitHostInfo{}, err
