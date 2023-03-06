@@ -167,12 +167,6 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	}))
 	s.T().Setenv("TEST_FLEETDM_API_URL", fleetdmSrv.URL)
 
-	appCfg, err := s.ds.AppConfig(context.Background())
-	require.NoError(s.T(), err)
-	appCfg.MDM.EnabledAndConfigured = true
-	err = s.ds.SaveAppConfig(context.Background(), appCfg)
-	require.NoError(s.T(), err)
-
 	s.T().Cleanup(fleetdmSrv.Close)
 }
 

@@ -1651,8 +1651,14 @@ func (svc *Service) updateAppConfigMDMAppleSettings(ctx context.Context, payload
 			var act fleet.ActivityDetails
 			if ac.MDM.MacOSSettings.EnableDiskEncryption {
 				act = fleet.ActivityTypeEnabledMacosDiskEncryption{}
+				if err := svc.EnterpriseOverrides.MDMAppleEnableFileVaultAndEscrow(ctx, nil); err != nil {
+					return ctxerr.Wrap(ctx, err, "enable no-team filevault and escrow")
+				}
 			} else {
 				act = fleet.ActivityTypeDisabledMacosDiskEncryption{}
+				if err := svc.EnterpriseOverrides.MDMAppleDisableFileVaultAndEscrow(ctx, nil); err != nil {
+					return ctxerr.Wrap(ctx, err, "disable no-team filevault and escrow")
+				}
 			}
 			if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
 				return ctxerr.Wrap(ctx, err, "create activity for app config macos disk encryption")
@@ -1666,11 +1672,11 @@ func (svc *Service) updateAppConfigMDMAppleSettings(ctx context.Context, payload
 // FileVault-related free version implementation
 ////////////////////////////////////////////////////////////////////////////////
 
-func (svc *Service) MDMAppleEnableFileVaultAndEscrow(ctx context.Context, teamID uint) error {
+func (svc *Service) MDMAppleEnableFileVaultAndEscrow(ctx context.Context, teamID *uint) error {
 	return fleet.ErrMissingLicense
 }
 
-func (svc *Service) MDMAppleDisableFileVaultAndEscrow(ctx context.Context, teamID uint) error {
+func (svc *Service) MDMAppleDisableFileVaultAndEscrow(ctx context.Context, teamID *uint) error {
 	return fleet.ErrMissingLicense
 }
 

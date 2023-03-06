@@ -180,8 +180,14 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		var act fleet.ActivityDetails
 		if team.Config.MDM.MacOSSettings.EnableDiskEncryption {
 			act = fleet.ActivityTypeEnabledMacosDiskEncryption{TeamID: &team.ID, TeamName: &team.Name}
+			if err := svc.MDMAppleEnableFileVaultAndEscrow(ctx, &team.ID); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "enable team filevault and escrow")
+			}
 		} else {
 			act = fleet.ActivityTypeDisabledMacosDiskEncryption{TeamID: &team.ID, TeamName: &team.Name}
+			if err := svc.MDMAppleDisableFileVaultAndEscrow(ctx, &team.ID); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "disable team filevault and escrow")
+			}
 		}
 		if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "create activity for team macos disk encryption")
@@ -632,6 +638,10 @@ func (svc *Service) createTeamFromSpec(
 	}
 
 	if macOSSettings.EnableDiskEncryption {
+		if err := svc.MDMAppleEnableFileVaultAndEscrow(ctx, &tm.ID); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "enable team filevault and escrow")
+		}
+
 		if err := svc.ds.NewActivity(
 			ctx,
 			authz.UserFromContext(ctx),
@@ -699,8 +709,14 @@ func (svc *Service) editTeamFromSpec(
 		var act fleet.ActivityDetails
 		if team.Config.MDM.MacOSSettings.EnableDiskEncryption {
 			act = fleet.ActivityTypeEnabledMacosDiskEncryption{TeamID: &team.ID, TeamName: &team.Name}
+			if err := svc.MDMAppleEnableFileVaultAndEscrow(ctx, &team.ID); err != nil {
+				return ctxerr.Wrap(ctx, err, "enable team filevault and escrow")
+			}
 		} else {
 			act = fleet.ActivityTypeDisabledMacosDiskEncryption{TeamID: &team.ID, TeamName: &team.Name}
+			if err := svc.MDMAppleDisableFileVaultAndEscrow(ctx, &team.ID); err != nil {
+				return ctxerr.Wrap(ctx, err, "disable team filevault and escrow")
+			}
 		}
 		if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
 			return ctxerr.Wrap(ctx, err, "create activity for team macos disk encryption")
@@ -767,8 +783,14 @@ func (svc *Service) updateTeamMDMAppleSettings(ctx context.Context, tm *fleet.Te
 			var act fleet.ActivityDetails
 			if tm.Config.MDM.MacOSSettings.EnableDiskEncryption {
 				act = fleet.ActivityTypeEnabledMacosDiskEncryption{TeamID: &tm.ID, TeamName: &tm.Name}
+				if err := svc.MDMAppleEnableFileVaultAndEscrow(ctx, &tm.ID); err != nil {
+					return ctxerr.Wrap(ctx, err, "enable team filevault and escrow")
+				}
 			} else {
 				act = fleet.ActivityTypeDisabledMacosDiskEncryption{TeamID: &tm.ID, TeamName: &tm.Name}
+				if err := svc.MDMAppleDisableFileVaultAndEscrow(ctx, &tm.ID); err != nil {
+					return ctxerr.Wrap(ctx, err, "disable team filevault and escrow")
+				}
 			}
 			if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
 				return ctxerr.Wrap(ctx, err, "create activity for team macos disk encryption")
