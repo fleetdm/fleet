@@ -109,14 +109,14 @@ const generateTableHeaders = (options: {
           classes="w250"
           value={
             <>
-              {cellProps.cell.value}{" "}
+              {cellProps.cell.value}
               {cellProps.row.original.critical && (
                 <>
                   <span
                     data-tip
                     data-for={`critical-tooltip-${cellProps.row.original.id}`}
                   >
-                    <Icon name="policy" />
+                    <Icon className="policy-icon" name="policy" />
                   </span>
                   <ReactTooltip
                     className="critical-tooltip"
