@@ -99,6 +99,13 @@ func (ml *MockLock) GetLockCount() int {
 	return ml.LockCount
 }
 
+func (ml *MockLock) GetExpiration() time.Time {
+	ml.mu.Lock()
+	defer ml.mu.Unlock()
+
+	return ml.expiresAt
+}
+
 func (ml *MockLock) AddChannels(t *testing.T, chanNames ...string) error {
 	ml.mu.Lock()
 	defer ml.mu.Unlock()
