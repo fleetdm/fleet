@@ -303,7 +303,7 @@ Every new position being created goes through this process before interviewing, 
   - Using Pave, determine an anticipated salary and equity range, then add that research to "Compensation decisions" as a new heading.
   - Share a direct link to the new heading in "Compensation decisions" with the CEO.
 6. The CEO will then:
-  - Determine whether this fits into the [budgeted equity plan]([https](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit#gid=0)).
+  - Determine whether this fits into the [budgeted equity plan](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit#gid=0).
   - Decide whether Fleet will open this position at this time.
   - Set tentative compensation in the budget and equity plan.
   - Set a tentative start date in the Fleeties doc to indicate this position is now part of the hiring plan.
