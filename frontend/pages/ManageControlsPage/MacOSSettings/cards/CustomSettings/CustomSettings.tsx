@@ -1,12 +1,11 @@
 import React, { useContext, useRef, useState } from "react";
-import { useQuery } from "react-query";
 import { AxiosResponse } from "axios";
 import { format } from "date-fns";
 import formatDistanceToNow from "date-fns/formatDistanceToNow";
 import FileSaver from "file-saver";
 
 import { IApiError } from "interfaces/errors";
-import { IMdmProfile, IMdmProfilesResponse } from "interfaces/mdm";
+import { IMdmProfile } from "interfaces/mdm";
 import mdmAPI from "services/entities/mdm";
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
@@ -20,7 +19,17 @@ import DeleteProfileModal from "./components/DeleteProfileModal/DeleteProfileMod
 
 const baseClass = "custom-settings";
 
-const CustomSettings = () => {
+interface ICustomSettingsProps {
+  profiles: IMdmProfile[];
+  onProfileUpload: () => void;
+  onProfileDelete: () => void;
+}
+
+const CustomSettings = ({
+  profiles,
+  onProfileUpload,
+  onProfileDelete,
+}: ICustomSettingsProps) => {
   const { renderFlash } = useContext(NotificationContext);
   const { currentTeam } = useContext(AppContext);
 
@@ -28,19 +37,6 @@ const CustomSettings = () => {
   const [showLoading, setShowLoading] = useState(false);
 
   const selectedProfile = useRef<IMdmProfile | null>(null);
-
-  const {
-    data: profiles,
-    error: errorProfiles,
-    refetch: refectchProfiles,
-  } = useQuery<IMdmProfilesResponse, unknown, IMdmProfile[] | null>(
-    ["profiles", currentTeam?.id],
-    () => mdmAPI.getProfiles(currentTeam?.id),
-    {
-      select: (data) => data.profiles,
-      refetchOnWindowFocus: false,
-    }
-  );
 
   const onClickDownload = async (profile: IMdmProfile) => {
     const fileContent = await mdmAPI.downloadProfile(profile.profile_id);
@@ -122,7 +118,7 @@ const CustomSettings = () => {
 
     try {
       await mdmAPI.uploadProfile(file, currentTeam?.id);
-      refectchProfiles();
+      onProfileUpload();
       renderFlash("success", "Successfully uploaded!");
     } catch (e) {
       const error = e as AxiosResponse<IApiError>;
@@ -141,7 +137,7 @@ const CustomSettings = () => {
   const onDeleteProfile = async (profileId: number) => {
     try {
       await mdmAPI.deleteProfile(profileId);
-      refectchProfiles();
+      onProfileDelete();
       renderFlash("success", "Successfully deleted!");
     } catch (e) {
       renderFlash("error", "Couldn’t delete. Please try again.");

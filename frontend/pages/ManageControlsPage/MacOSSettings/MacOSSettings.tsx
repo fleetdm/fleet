@@ -26,18 +26,14 @@ const MacOSSettings = ({ params, location }: IMacOSSettingsProps) => {
   // Avoids possible case where Number(undefined) returns NaN
   const teamId = team_id === undefined ? 0 : Number(team_id); // team_id===0 for 'No teams'
 
-  const {
-    data: profiles,
-    error: errorProfiles,
-    refetch: refectchProfiles,
-  } = useQuery<IMdmProfilesResponse, unknown, IMdmProfile[] | null>(
-    ["profiles", teamId],
-    () => mdmAPI.getProfiles(teamId),
-    {
-      select: (data) => data.profiles,
-      refetchOnWindowFocus: false,
-    }
-  );
+  const { data: profiles, refetch: refectchProfiles } = useQuery<
+    IMdmProfilesResponse,
+    unknown,
+    IMdmProfile[] | null
+  >(["profiles", teamId], () => mdmAPI.getProfiles(teamId), {
+    select: (data) => data.profiles,
+    refetchOnWindowFocus: false,
+  });
 
   const DEFAULT_SETTINGS_SECTION = MAC_OS_SETTINGS_NAV_ITEMS[0];
 
@@ -57,7 +53,13 @@ const MacOSSettings = ({ params, location }: IMacOSSettingsProps) => {
         className={`${baseClass}__side-nav`}
         navItems={MAC_OS_SETTINGS_NAV_ITEMS}
         activeItem={currentFormSection.urlSection}
-        CurrentCard={<CurrentCard />}
+        CurrentCard={
+          <CurrentCard
+            profiles={profiles}
+            onProfileUpload={refectchProfiles}
+            onProfileDelete={refectchProfiles}
+          />
+        }
       />
     </div>
   );
