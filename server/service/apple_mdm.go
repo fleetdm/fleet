@@ -1469,12 +1469,6 @@ func batchSetMDMAppleProfilesEndpoint(ctx context.Context, request interface{}, 
 }
 
 func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tmName *string, profiles [][]byte, dryRun bool) error {
-	if !svc.config.MDMApple.Enable {
-		// TODO(mna): eventually we should detect the minimum config required for
-		// this to be allowed, probably just SCEP/APNs?
-		svc.authz.SkipAuthorization(ctx) // so that the error message is not replaced by "forbidden"
-		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("mdm", "cannot set custom settings: Fleet MDM is not enabled"))
-	}
 	if tmID != nil && tmName != nil {
 		svc.authz.SkipAuthorization(ctx) // so that the error message is not replaced by "forbidden"
 		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("team_name", "cannot specify both team_id and team_name"))
@@ -1512,6 +1506,21 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 
 	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleConfigProfile{TeamID: tmID}, fleet.ActionWrite); err != nil {
 		return ctxerr.Wrap(ctx, err)
+	}
+
+	if !svc.config.MDMApple.Enable {
+		// NOTE: in order to prevent an error when Fleet MDM is not enabled but no
+		// profile is provided, which can happen if a user runs `fleetctl get
+		// config` and tries to apply that YAML, as it will contain an empty/null
+		// custom_settings key, we just return a success response in this
+		// situation.
+		if len(profiles) == 0 {
+			return nil
+		}
+
+		// TODO(mna): eventually we should detect the minimum config required for
+		// this to be allowed, probably just SCEP/APNs?
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("mdm", "cannot set custom settings: Fleet MDM is not enabled"))
 	}
 
 	// any duplicate identifier or name in the provided set results in an error
