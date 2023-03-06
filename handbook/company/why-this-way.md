@@ -140,12 +140,47 @@ It's helpful to have a consistent framework for how every team works, plans, and
 2. **Planning:** Give the team's manager and other team members a way to plan the next three-week iteration of what the team is working on in a world (the board) where the team has ownership and feels confident making changes.
 3. **Shared to-do list:** What should I work on next? Who needs help? What important work is blocked? Is that bug fix merged yet? When will it be released? When will that new feature ship? What did I do yesterday?
 
+## Why agile?
+Releasing software iteratively gets changes and improvements into the hands of users faster and generally results in software that works. This makes contributors fitter, happier, and more productive. We apply the twelve principles of agile to our development process:
+
+1. Our highest priority is to satisfy the customer through early and continuous delivery of valuable software.
+
+2. Welcome changing requirements, even late in development. Agile processes harness change for the customer's competitive advantage.
+
+3. Deliver working software frequently, from a couple of weeks to a couple of months, with a preference to the shorter timescale.
+
+4. Business people and developers must work together daily throughout the project.
+
+5. Build projects around motivated individuals. Give them the environment and support they need, and trust them to get the job done.
+
+6. The most efficient and effective method of conveying information to and within a development team is face-to-face conversation.
+
+7. Working software is the primary measure of progress.
+
+8. Agile processes promote sustainable development. The sponsors, developers, and users should be able to maintain a constant pace indefinitely.
+
+9. Continuous attention to technical excellence and good design enhances agility.
+
+10. Simplicity--the art of maximizing the amount of work not done--is essential.
+
+11. The best architectures, requirements, and designs emerge from self-organizing teams.
+
+12. At regular intervals, the team reflects on how to become more effective, then tunes and adjusts its behavior accordingly.
+
+See [the agile manifesto](https://agilemanifesto.org/) for more information.
 
 ## Why scrum?
-Releasing software iteratively gets changes and improvements into the hands of users faster and generally results in software that works. This makes contributors fitter, happier, and more productive. See [the agile manifesto](https://agilemanifesto.org/) for more information.
+Scrum is an agile framework for software development that helps teams deliver high quality software faster. It emphasizes teamwork, collaboration, and continuous improvement to achieve business objectives. Here are some of the key reasons why [we use scrum at Fleet]([url](https://fleetdm.com/handbook/engineering#scrum)): 
 
-> TODO: expand
+- Improved collaboration and communication: Scrum emphasizes teamwork and collaboration, which leads to better communication between team members and stakeholders. This helps ensure that everyone is aligned and working towards the same goals.
 
+- Flexibility and adaptability: Scrum allows teams to respond quickly to changing requirements and market conditions. By working in short sprints, teams can continuously adapt to new information and feedback, and adjust their approach as needed.
+
+- Continuous improvement: Scrum encourages teams to reflect on their processes and identify areas for improvement. The regular sprint retrospective meetings provide a forum for the team to discuss what went well and what could be improved, and to make changes to their processes accordingly.
+
+- Faster delivery of working software: Scrum helps teams deliver working software faster by breaking down the development process into manageable chunks that can be completed within a sprint. Stakeholders can see progress and provide feedback more quickly, which helps ensure the final product meets their needs.
+
+- Higher quality software: Scrum includes regular testing and quality assurance activities, which help ensure that the software being developed is of high quality and meets the required standards.
 
 ## Why a three-week cadence?
 The Fleet product is released every three weeks. By syncing the whole company to this schedule, we can:
