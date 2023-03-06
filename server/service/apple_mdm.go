@@ -1469,7 +1469,7 @@ func batchSetMDMAppleProfilesEndpoint(ctx context.Context, request interface{}, 
 }
 
 func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tmName *string, profiles [][]byte, dryRun bool) error {
-	if !svc.config.MDMApple.Enable {
+	if len(profiles) > 0 && !svc.config.MDMApple.Enable {
 		// TODO(mna): eventually we should detect the minimum config required for
 		// this to be allowed, probably just SCEP/APNs?
 		svc.authz.SkipAuthorization(ctx) // so that the error message is not replaced by "forbidden"
