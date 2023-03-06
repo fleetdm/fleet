@@ -2321,6 +2321,58 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
+  name: CIS - Ensure the Hide IP Address in Safari is Enabled (Optional)
+  platforms: macOS
+  platform: darwin
+  description: |
+    Public (Routable) IP addresses can be used to track people to their current location, including
+    home and business addresses. While a valid IP addess is necessary to load the site the valid
+    address does not need to be provided to known trackers and should be hidden.
+  resolution: |
+    Perform the following steps to set Safari whether or not to hide IP addresses from trackers:
+    1. Open Safari
+    2. Select Safari from the menu bar
+    3. Select Settings
+    4. Select Privacy
+    5. Set Hide IP address from trackers to Enabled
+  query: |
+    SELECT 1 WHERE NOT EXISTS(SELECT 1 FROM plist WHERE path LIKE
+    "/Users/%/Library/Containers/com.apple.Safari/Data/Library/Preferences/com.apple.Safari.plist"
+    AND key = "WBSPrivacyProxyAvailabilityTraffic" AND (value >> 2) & 1 == 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS-macos-13-6.3.5
+  contributors: artemist-work
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure the Hide IP Address in Safari is Disabled (Optional)
+  platforms: macOS
+  platform: darwin
+  description: |
+    Public (Routable) IP addresses can be used to track people to their current location, including
+    home and business addresses. While a valid IP addess is necessary to load the site the valid
+    address does not need to be provided to known trackers and should be hidden.
+    However, enabling this setting will proxy web information through a 3rd party service, which may
+    not be allowed by your organization's policy.
+  resolution: |
+    Perform the following steps to set Safari whether or not to hide IP addresses from trackers:
+    1. Open Safari
+    2. Select Safari from the menu bar
+    3. Select Settings
+    4. Select Privacy
+    5. Set Hide IP address from trackers to Disabled
+  query: |
+    SELECT 1 WHERE NOT EXISTS(SELECT 1 FROM plist WHERE path LIKE
+    "/Users/%/Library/Containers/com.apple.Safari/Data/Library/Preferences/com.apple.Safari.plist"
+    AND key = "WBSPrivacyProxyAvailabilityTraffic" AND (value >> 2) & 1 == 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS-macos-13-6.3.5
+  contributors: artemist-work
+---
+apiVersion: v1
+kind: policy
+spec:
   name: CIS - Ensure Advertising Privacy Protection in Safari Is Enabled (FDA Required)
   platforms: macOS
   platform: darwin
