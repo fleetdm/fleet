@@ -28,6 +28,8 @@ import M1 from "./M1";
 import Centos from "./Centos";
 import Ubuntu from "./Ubuntu";
 
+import Policy from "./Policy";
+
 // Encircled
 import ApplePurple from "./ApplePurple";
 import LinuxGreen from "./LinuxGreen";
@@ -81,6 +83,7 @@ export const ICON_MAP = {
   m1: M1,
   centos: Centos,
   ubuntu: Ubuntu,
+  policy: Policy,
   "darwin-purple": ApplePurple,
   "windows-blue": WindowsBlue,
   "linux-green": LinuxGreen,
