@@ -279,8 +279,8 @@ const (
 )
 
 type MDMHostMacOSSettings struct {
-	DiskEncryption DiskEncryptionState `json:"disk_encryption"`
-	ActionRequired ActionRequiredState `json:"action_required"`
+	DiskEncryption DiskEncryptionState `json:"disk_encryption" csv:"-"`
+	ActionRequired ActionRequiredState `json:"action_required" csv:"-"`
 }
 
 // Scan implements the Scanner interface for sqlx, to support unmarshaling a
