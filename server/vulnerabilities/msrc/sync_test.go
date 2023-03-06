@@ -15,6 +15,46 @@ func newMetadataFile(t *testing.T, name string) io.MetadataFileName {
 	return mfn
 }
 
+type testData struct {
+	RemoteList       map[io.MetadataFileName]string
+	RemoteDownloaded []string
+	LocalList        []io.MetadataFileName
+	LocalDeleted     []io.MetadataFileName
+}
+
+type ghMock struct{ TestData *testData }
+
+func (gh ghMock) MSRCBulletins(ctx context.Context) (map[io.MetadataFileName]string, error) {
+	return gh.TestData.RemoteList, nil
+}
+
+func (gh ghMock) MacOfficeReleaseNotes(ctx context.Context) (io.MetadataFileName, string, error) {
+	for k, v := range gh.TestData.RemoteList {
+		return k, v, nil
+	}
+	return io.MetadataFileName{}, "", nil
+}
+
+func (gh ghMock) Download(url string) (string, error) {
+	gh.TestData.RemoteDownloaded = append(gh.TestData.RemoteDownloaded, url)
+	return "", nil
+}
+
+type fsMock struct{ TestData *testData }
+
+func (fs fsMock) MSRCBulletins() ([]io.MetadataFileName, error) {
+	return fs.TestData.LocalList, nil
+}
+
+func (fs fsMock) MacOfficeReleaseNotes() ([]io.MetadataFileName, error) {
+	return fs.TestData.LocalList, nil
+}
+
+func (fs fsMock) Delete(d io.MetadataFileName) error {
+	fs.TestData.LocalDeleted = append(fs.TestData.LocalDeleted, d)
+	return nil
+}
+
 func TestSync(t *testing.T) {
 	ctx := context.Background()
 	t.Run("#sync", func(t *testing.T) {
@@ -33,14 +73,14 @@ func TestSync(t *testing.T) {
 			},
 		}
 
-		testData := io.TestData{
+		testData := testData{
 			RemoteList: map[io.MetadataFileName]string{
 				newMetadataFile(t, "Windows_10-2022_10_10.json"): "http://somebulletin.com",
 			},
 			LocalList: []io.MetadataFileName{newMetadataFile(t, "Windows_10-2022_09_10.json")},
 		}
 
-		err := sync(ctx, os, io.FsMock{TestData: &testData}, io.GhMock{TestData: &testData})
+		err := sync(ctx, os, fsMock{TestData: &testData}, ghMock{TestData: &testData})
 		require.NoError(t, err)
 		require.ElementsMatch(t, testData.RemoteDownloaded, []string{"http://somebulletin.com"})
 
