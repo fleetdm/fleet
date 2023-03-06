@@ -51,13 +51,9 @@ const ManageControlsPage = ({
   location,
   router,
 }: IManageControlsPageProps): JSX.Element => {
-  const {
-    availableTeams,
-    isPremiumTier,
-    currentTeam,
-    setCurrentTeam,
-    config,
-  } = useContext(AppContext);
+  const { availableTeams, currentTeam, setCurrentTeam, config } = useContext(
+    AppContext
+  );
 
   const navigateToNav = (i: number): void => {
     const navPath = controlsSubNav[i].pathname;
@@ -98,7 +94,7 @@ const ManageControlsPage = ({
   const onConnectClick = () => router.push(PATHS.ADMIN_INTEGRATIONS_MDM);
 
   const renderBody = () => {
-    return isPremiumTier && config?.mdm.enabled_and_configured ? (
+    return config?.mdm.enabled_and_configured ? (
       <div>
         <TabsWrapper>
           <Tabs
