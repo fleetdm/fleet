@@ -250,6 +250,12 @@ type MDMHostData struct {
 	// decode an encryption key for the host.
 	EncryptionKeyAvailable bool `json:"encryption_key_available" db:"-" csv:"-"`
 
+	// this is set to nil if NULL in the db, 1 if decryptable and 0 if
+	// non-decryptable. Used internally to determine the disk_encryption status
+	// and action_required fields. See MDMHostData.Scan as for where this gets
+	// filled.
+	rawDecryptable *int
+
 	// Profiles is a list of HostMDMProfiles for the host. Note that as for many
 	// other host fields, it is not filled in by all host-returning datastore methods.
 	//
@@ -291,9 +297,19 @@ type MDMHostMacOSSettings struct {
 // Scan implements the Scanner interface for sqlx, to support unmarshaling a
 // JSON object from the database into a MDMHostData struct.
 func (d *MDMHostData) Scan(v interface{}) error {
+	var dst struct {
+		MDMHostData
+		RawDecryptable *int `json:"raw_decryptable"`
+	}
 	switch v := v.(type) {
 	case []byte:
-		return json.Unmarshal(v, d)
+		if err := json.Unmarshal(v, &dst); err != nil {
+			return err
+		}
+		*d = dst.MDMHostData
+		d.rawDecryptable = dst.RawDecryptable
+		return nil
+
 	default:
 		return fmt.Errorf("unsupported type: %T", v)
 	}
