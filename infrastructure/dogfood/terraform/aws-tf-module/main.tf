@@ -24,13 +24,18 @@ terraform {
   }
 }
 
+variable "fleet_license" {}
+variable "fleet_image" {
+  default = "${aws_ecr_repository.fleet.repository_url}:7408a0df90802fbd602b52015546dd46590051bd"
+}
+
 data "aws_caller_identity" "current" {}
 
 locals {
   customer    = "fleet-dogfood"
-  fleet_image = "${aws_ecr_repository.fleet.repository_url}:7408a0df90802fbd602b52015546dd46590051bd" # Set this to the version of fleet to be deployed
+  fleet_image = var.fleet_license # Set this to the version of fleet to be deployed
   extra_environment_variables = {
-    FLEET_LICENSE_KEY                          = "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJGbGVldCBEZXZpY2UgTWFuYWdlbWVudCBJbmMuIiwiZXhwIjoxOTQ5ODc1MjAwLCJzdWIiOiJmbGVldCIsImRldmljZXMiOjEwMDAwMDAsIm5vdGUiOiJkb2dmb29kIGVudiBsaWNlbnNlIiwidGllciI6ImJhc2ljIiwiaWF0IjoxNjMxODQwMDM5fQ.7d-y2YVEZ3goHbeFpPIQlpu-rVV24tD9D1JhtYtY49pMvV-bvbKGrWmuqTVAbG6iGwX_9FAWgJISmjTlPWkXiw"
+    FLEET_LICENSE_KEY                          = var.fleet_license
     FLEET_LOGGING_DEBUG                        = "true"
     FLEET_LOGGING_JSON                         = "true"
     FLEET_MYSQL_MAX_OPEN_CONNS                 = "50"

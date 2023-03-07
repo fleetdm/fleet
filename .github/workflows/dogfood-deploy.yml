@@ -16,25 +16,16 @@ defaults:
   run:
     # fail-fast using bash -eo pipefail. See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#exit-codes-and-error-action-preference
     shell: bash
-    working-directory: infrastructure/dogfood/terraform/aws
+    working-directory: infrastructure/dogfood/terraform/aws-tf-module
 
 env:
   AWS_REGION: us-east-2
   ECR_REPOSITORY: fleet-test
   AWS_IAM_ROLE: arn:aws:iam::160035666661:role/github-actions-role
-  TF_ACTIONS_WORKING_DIR: infrastructure/dogfood/terraform/aws
+  TF_ACTIONS_WORKING_DIR: infrastructure/dogfood/terraform/aws-tf-module
   TF_WORKSPACE: fleet
-  TF_VAR_fleet_backend_cpu: 512
-  TF_VAR_fleet_backend_mem: 4096
-  TF_VAR_redis_instance: cache.t3.micro
-  TF_VAR_fleet_min_capacity: 2
-  TF_VAR_fleet_max_capacity: 5
   TF_VAR_fleet_image: ${{ github.event.inputs.DOCKER_IMAGE || 'fleetdm/fleet:main' }}
-  TF_VAR_logging_debug: true
   TF_VAR_fleet_license: ${{ secrets.DOGFOOD_LICENSE_KEY }}
-  TF_VAR_cloudwatch_log_retention: 30
-  TF_VAR_rds_backup_retention_period: 30
-  TF_VAR_extra_security_group_cidrs: '["10.255.1.0/24", "10.255.2.0/24", "10.255.3.0/24"]'
 
 permissions:
   id-token: write
