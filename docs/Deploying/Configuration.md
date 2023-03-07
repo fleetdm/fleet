@@ -2580,7 +2580,19 @@ packaging:
 
 #### Mobile device management (MDM)
 
-> MDM features are not ready for production and are currently in development. These features are disabled by default.
+> MDM features are not ready for production and are currently in beta. These features are disabled by default. To enable these features, set `FLEET_DEV_MDM_ENABLED=1` as an environment variable.
+
+##### apple_mdm_enable
+
+This is the second feature flag required to turn on MDM features. This feature flag must be set to `1` at the same time as when you set the certificate and keys for Apple Push Certificate server (APNs) and Apple Business Manager (ABM). Otherwise, the Fleet server won't start.
+
+- Default value: ""
+- Environment variable: `FLEET_MDM_APPLE_ENABLE`
+- Config file format:
+  ```
+  mdm:
+    apple_enable: 1
+  ```
 
 ##### apple_apns_cert
 
