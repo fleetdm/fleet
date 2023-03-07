@@ -11,11 +11,11 @@ func init() {
 func Up_20230303135738(tx *sql.Tx) error {
 	_, err := tx.Exec(`
     CREATE TABLE mdm_idp_accounts (
-      uuid       varchar(255) NOT NULL,
-      email      varchar(255) NOT NULL, 
-      salt       varchar(255) NOT NULL,
-      entropy    varchar(255) NOT NULL,
-      iterations int unsigned NOT NULL,
+      uuid         varchar(255) NOT NULL,
+      username     varchar(255) NOT NULL,
+      salt         varchar(255) NOT NULL,
+      entropy      varchar(255) NOT NULL,
+      iterations   int unsigned NOT NULL,
     
       PRIMARY KEY (uuid)
     )`)

@@ -532,7 +532,7 @@ INSERT INTO `mdm_apple_operation_types` VALUES ('install'),('remove');
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `mdm_idp_accounts` (
   `uuid` varchar(255) NOT NULL,
-  `email` varchar(255) NOT NULL,
+  `username` varchar(255) NOT NULL,
   `salt` varchar(255) NOT NULL,
   `entropy` varchar(255) NOT NULL,
   `iterations` int(10) unsigned NOT NULL,

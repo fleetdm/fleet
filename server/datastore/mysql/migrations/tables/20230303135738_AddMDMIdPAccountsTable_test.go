@@ -13,7 +13,7 @@ func TestUp_20230303135738(t *testing.T) {
 
 	insertStmt := `
     INSERT INTO  mdm_idp_accounts
-      (uuid, email, salt, entropy, iterations)
+      (uuid, username, salt, entropy, iterations)
 		VALUES
       (?, ?, ?, ?, ?)
 	`
@@ -25,7 +25,7 @@ func TestUp_20230303135738(t *testing.T) {
 	// retrieve the stored value
 	var mdmIdPAccount struct {
 		UUID       string
-		Email      string
+		Username   string
 		Salt       string
 		Entropy    string
 		Iterations int
@@ -33,7 +33,7 @@ func TestUp_20230303135738(t *testing.T) {
 	err := db.Get(&mdmIdPAccount, "SELECT * FROM mdm_idp_accounts WHERE uuid = ?", uuidVal)
 	require.NoError(t, err)
 	require.Equal(t, uuidVal, mdmIdPAccount.UUID)
-	require.Equal(t, "test@example.com", mdmIdPAccount.Email)
+	require.Equal(t, "test@example.com", mdmIdPAccount.Username)
 	require.Equal(t, "salt", mdmIdPAccount.Salt)
 	require.Equal(t, "entropy", mdmIdPAccount.Entropy)
 	require.Equal(t, 10000, mdmIdPAccount.Iterations)
