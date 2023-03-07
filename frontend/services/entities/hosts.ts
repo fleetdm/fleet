@@ -49,6 +49,7 @@ export interface IExportHostsOptions {
   teamId?: number;
   policyId?: number;
   policyResponse?: string;
+  macSettingsStatus?: MacSettingsStatusQueryParam;
   softwareId?: number;
   status?: HostStatus;
   mdmId?: number;
@@ -143,6 +144,7 @@ export default {
     const policyId = options?.policyId;
     const policyResponse = options?.policyResponse || "passing";
     const softwareId = options?.softwareId;
+    const macSettingsStatus = options?.macSettingsStatus;
     const status = options?.status;
     const mdmId = options?.mdmId;
     const mdmEnrollmentStatus = options?.mdmEnrollmentStatus;
@@ -189,6 +191,7 @@ export default {
     teamId,
     policyId,
     policyResponse = "passing",
+    macSettingsStatus,
     softwareId,
     status,
     mdmId,
@@ -214,6 +217,7 @@ export default {
       order_key: sortParams.order_key,
       order_direction: sortParams.order_direction,
       status,
+      macos_settings: macSettingsStatus,
       ...reconcileMutuallyExclusiveHostParams({
         label,
         policyId,

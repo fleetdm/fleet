@@ -424,25 +424,20 @@ const ManageHostsPage = ({
     setIsHostsLoading(true);
     options = {
       ...options,
-      teamId: currentTeam?.id,
+      teamId: queryParams.team_id ? queryParams.team_id : currentTeam?.id,
     };
-
-    if (queryParams.team_id) {
-      options.teamId = queryParams.team_id;
-    }
 
     try {
       const {
         hosts: returnedHosts,
         software,
-        mobile_device_management_solution,
-        munki_issue,
+        mobile_device_management_solution: mdmSolution,
+        munki_issue: munkiIssue,
       } = await hostsAPI.loadHosts(options);
       setHosts(returnedHosts);
       software && setSoftwareDetails(software);
-      mobile_device_management_solution &&
-        setMDMSolutionDetails(mobile_device_management_solution);
-      munki_issue && setMunkiIssueDetails(munki_issue);
+      mdmSolution && setMDMSolutionDetails(mdmSolution);
+      munkiIssue && setMunkiIssueDetails(munkiIssue);
     } catch (error) {
       console.error(error);
       setHasHostErrors(true);
