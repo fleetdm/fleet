@@ -16,10 +16,10 @@ spec:
     To establish the recommended configuration via GP, set the following UI path to Enabled:
     'Computer Configuration\Policies\Administrative Templates\MS Security Guide\Apply UAC restrictions to local accounts on network logons'
   query: |
-    TODO
+    TBD
     HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System:LocalAccountTokenFilterPolicy
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.3.1
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.3.1, CIS_not_completed
   contributors: rachelelysia
 ---
 apiVersion: v1
@@ -35,10 +35,10 @@ spec:
     To establish the recommended configuration via GP, set the following UI path to 'Enabled: Disable driver (recommended)':
     'Computer Configuration\Policies\Administrative Templates\MS Security Guide\Configure SMB v1 client driver'
   query: |
-    TODO
+    TBD
     HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\mrxsmb10:Start
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.3.2
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.3.2, CIS_not_completed
   contributors: rachelelysia
 ---
 apiVersion: v1
@@ -54,10 +54,10 @@ spec:
     To establish the recommended configuration via GP, set the following UI path to Disabled:
     'Computer Configuration\Policies\Administrative Templates\MS Security Guide\Configure SMB v1 server'
   query: |
-    TODO
+    TBD
     HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\LanmanServer\Parameters:SMB1
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.3.3
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.3.3, CIS_not_completed
   contributors: rachelelysia
 ---
 apiVersion: v1
@@ -73,10 +73,10 @@ spec:
     To establish the recommended configuration via GP, set the following UI path to Enabled:
     'Computer Configuration\Policies\Administrative Templates\MS Security Guide\Enable Structured Exception Handling Overwrite Protection (SEHOP)'
   query: |
-    TODO 
+    TBD 
     HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\kernel:DisableExceptionChainValidation
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.3.4
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.3.4, CIS_not_completed
   contributors: rachelelysia
 ---
 apiVersion: v1
@@ -92,10 +92,10 @@ spec:
     To establish the recommended configuration via GP, set the following UI path to Enabled.
     'Computer Configuration\Policies\Administrative Templates\MS Security Guide\Limits print driver installation to Administrators'
   query: |
-    TODO
+    TBD
     HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\Printers\PointAndPrint:RestrictDriverInstallationToAdministrators
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.3.5
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.3.5, CIS_not_completed
   contributors: rachelelysia
 ---
 apiVersion: v1
@@ -115,10 +115,10 @@ spec:
     To establish the recommended configuration via GP, set the following UI path to Enabled: P-node (recommended):
     'Computer Configuration\Policies\Administrative Templates\MS Security Guide\NetBT NodeType configuration'
   query: |
-    TODO
+    TBD
     HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\NetBT\Parameters:NodeType
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.3.6
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.3.6, CIS_not_completed
   contributors: rachelelysia
 ---
 apiVersion: v1
@@ -136,10 +136,10 @@ spec:
     To establish the recommended configuration via GP, set the following UI path to Disabled:
     'Computer Configuration\Policies\Administrative Templates\MS Security Guide\WDigest Authentication (disabling may require KB2871997)'
   query: |
-    TODO
+    TBD
     HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\SecurityProviders\WDigest:UseLogonCredential
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.3.7
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.3.7, CIS_not_completed
   contributors: rachelelysia
 ---
 
