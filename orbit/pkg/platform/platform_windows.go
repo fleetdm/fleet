@@ -400,6 +400,22 @@ func getOrbitVersion(path string) (string, error) {
 	return versionStr, nil
 }
 
+// fixSymlinkNotPresentCheckForBuggyOrbitVersion checks if the target orbit version has the problematic logic
+func fixSymlinkNotPresentCheckForBuggyOrbitVersion(orbitPath string) (bool, error) {
+	// gathering target orbit version
+	versionOrbit, err := getOrbitVersion(orbitPath)
+	if err != nil {
+		return false, fmt.Errorf("getting orbit version: %w", err)
+	}
+
+	// checking if target orbit has the problematic logic
+	if versionOrbit != "1.6.0" && versionOrbit != "1.7.0" {
+		return true, nil
+	}
+
+	return false, errors.New("Orbit version does not have the problematic logic")
+}
+
 // fixSymlinkNotPresent fixes the issue where the symlink to the orbit service binary is not present
 // this is a workaround for the issue described here https://github.com/fleetdm/fleet/issues/10300
 func fixSymlinkNotPresent() error {
@@ -413,14 +429,9 @@ func fixSymlinkNotPresent() error {
 	orbitPath := execPath + "\\..\\bin\\orbit\\orbit.exe"
 
 	// gathering target orbit version
-	versionOrbit, err := getOrbitVersion(orbitPath)
-	if err != nil {
-		return fmt.Errorf("getting orbit version: %w", err)
-	}
-
-	// checking if target orbit has the problematic logic
-	if versionOrbit != "1.6.0" && versionOrbit != "1.7.0" {
-		return nil
+	versionOrbit, err := fixSymlinkNotPresentCheckForBuggyOrbitVersion(orbitPath)
+	if err != nil || !versionOrbit {
+		return err
 	}
 
 	// checking if the orbit service binary symlink needs to be regenerated
