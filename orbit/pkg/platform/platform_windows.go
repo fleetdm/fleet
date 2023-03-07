@@ -400,8 +400,8 @@ func getOrbitVersion(path string) (string, error) {
 	return versionStr, nil
 }
 
-// fixSymlinkNotPresentCheckForBuggyOrbitVersion checks if the target orbit version has the problematic logic
-func fixSymlinkNotPresentCheckForBuggyOrbitVersion(orbitPath string) (bool, error) {
+// versionCheckForfixSymlinkNotPresentQuirk checks if the target orbit version has the problematic logic
+func versionCheckForfixSymlinkNotPresentQuirk(orbitPath string) (bool, error) {
 	// gathering target orbit version
 	versionOrbit, err := getOrbitVersion(orbitPath)
 	if err != nil {
@@ -409,11 +409,11 @@ func fixSymlinkNotPresentCheckForBuggyOrbitVersion(orbitPath string) (bool, erro
 	}
 
 	// checking if target orbit has the problematic logic
-	if versionOrbit != "1.6.0" && versionOrbit != "1.7.0" {
+	if versionOrbit == "1.6.0" || versionOrbit == "1.7.0" {
 		return true, nil
 	}
 
-	return false, errors.New("Orbit version does not have the problematic logic")
+	return false, fmt.Errorf("Orbit version does not have the problematic logic: %s", versionOrbit)
 }
 
 // fixSymlinkNotPresent fixes the issue where the symlink to the orbit service binary is not present
@@ -429,8 +429,8 @@ func fixSymlinkNotPresent() error {
 	orbitPath := execPath + "\\..\\bin\\orbit\\orbit.exe"
 
 	// gathering target orbit version
-	versionOrbit, err := fixSymlinkNotPresentCheckForBuggyOrbitVersion(orbitPath)
-	if err != nil || !versionOrbit {
+	buggyVersion, err := versionCheckForfixSymlinkNotPresentQuirk(orbitPath)
+	if err != nil || !buggyVersion {
 		return err
 	}
 
@@ -446,40 +446,27 @@ func fixSymlinkNotPresent() error {
 	// regenerating the symlink
 	if !errors.Is(err, os.ErrNotExist) {
 
-		// symlink is going to be recreated - so better check that symlink target is present
-		targetSymlinkPath := ""
-		stableOrbitPath := execPath + "\\..\\bin\\orbit\\windows\\stable\\orbit.exe"
-		edgeOrbitPath := execPath + "\\..\\bin\\orbit\\windows\\edge\\orbit.exe"
-
-		if _, err := os.Stat(stableOrbitPath); err == nil {
-			targetSymlinkPath = stableOrbitPath
-		} else if _, err := os.Stat(edgeOrbitPath); err == nil {
-			targetSymlinkPath = edgeOrbitPath
-		}
-
-		if len(targetSymlinkPath) == 0 {
-			return errors.New("symlink target cannot be found")
-		}
-
 		// We are now about to perform a sensitive operation
-		// by first renaming current orbit file and then recreating recreating the symlink
 
 		// renaming locked binary to a different file, the process will keep running, but it will be renamed
-		// target process is not terminated on purpose to avoid potential erros
-		targetOrbitPath := orbitPath + "." + strings.ToUpper(uuid.New().String())
-		if err := os.Rename(orbitPath, targetOrbitPath); err != nil {
+		// target orbit process is not terminated on purpose to avoid potential erros
+		temporaryOrbitPath := orbitPath + "." + strings.ToUpper(uuid.New().String())
+
+		if err := os.Rename(orbitPath, temporaryOrbitPath); err != nil {
 			return fmt.Errorf("rename: %w", err)
 		}
 
-		// regenerating the symlink
-		if err := os.Symlink(targetSymlinkPath, orbitPath); err != nil {
+		// we need the symlink check to pass, so we are regenerating it to the newly renamed orbit binary.
+		// We avoid using child directories here to reduce logic complexity.
+		// The symlink is going to be regenerated and deleted during update process
+		if err := os.Symlink(temporaryOrbitPath, orbitPath); err != nil {
 			return fmt.Errorf("symlink current: %w", err)
 		}
 
 		// the renamed binary file is locked because is used by a running process
 		// so only thing possible is to mark it to be deleted upon reboot by using MOVEFILE_DELAY_UNTIL_REBOOT flag
 		// https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-movefileexw
-		if err := windows.MoveFileEx(windows.StringToUTF16Ptr(targetOrbitPath), nil, windows.MOVEFILE_DELAY_UNTIL_REBOOT); err != nil {
+		if err := windows.MoveFileEx(windows.StringToUTF16Ptr(temporaryOrbitPath), nil, windows.MOVEFILE_DELAY_UNTIL_REBOOT); err != nil {
 			return fmt.Errorf("movefileex: %w", err)
 		}
 	}
@@ -555,4 +542,9 @@ func PreUpdateQuirks() {
 		// This is a best-effort fix, any error in fixSymlinkNotPresent is ignored
 		fixSymlinkNotPresent()
 	}
+}
+
+// IsInvalidReparsePoint returns true if the error is ERROR_NOT_A_REPARSE_POINT
+func IsInvalidReparsePoint(err error) bool {
+	return errors.Is(err, windows.ERROR_NOT_A_REPARSE_POINT)
 }

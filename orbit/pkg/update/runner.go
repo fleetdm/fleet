@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/orbit/pkg/platform"
 	"github.com/rs/zerolog/log"
 )
 
@@ -232,6 +233,13 @@ func (r *Runner) needsOrbitSymlinkUpdate() (bool, error) {
 		if errors.Is(err, os.ErrNotExist) {
 			return true, nil
 		}
+
+		if platform.IsInvalidReparsePoint(err) {
+			// On Windows, the symlink may be a file instead of a symlink.
+			// let's handle this case by forcing the update to happen
+			return true, nil
+		}
+
 		return false, fmt.Errorf("read existing symlink: %w", err)
 	}
 

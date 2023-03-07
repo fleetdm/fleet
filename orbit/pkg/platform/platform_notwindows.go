@@ -93,3 +93,8 @@ func GetSMBiosUUID() (string, UUIDSource, error) {
 // RunUpdateQuirks is a no-op on non-windows platforms
 func PreUpdateQuirks() {
 }
+
+// IsInvalidReparsePoint is a no-op on non-windows platforms
+func IsInvalidReparsePoint(err error) bool {
+	return false
+}
