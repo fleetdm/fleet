@@ -53,8 +53,9 @@ func NewService(
 	// Override methods that can't be easily overriden via
 	// embedding.
 	svc.SetEnterpriseOverrides(fleet.EnterpriseOverrides{
-		HostFeatures:   eeservice.HostFeatures,
-		TeamByIDOrName: eeservice.teamByIDOrName,
+		HostFeatures:               eeservice.HostFeatures,
+		TeamByIDOrName:             eeservice.teamByIDOrName,
+		UpdateTeamMDMAppleSettings: eeservice.updateTeamMDMAppleSettings,
 	})
 
 	return eeservice, nil

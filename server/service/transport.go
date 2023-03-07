@@ -311,6 +311,16 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 		return hopt, ctxerr.Errorf(r.Context(), "invalid mdm enrollment status %s", enrollmentStatus)
 	}
 
+	macOSSettingsStatus := r.URL.Query().Get("macos_settings")
+	switch fleet.MacOSSettingsStatus(macOSSettingsStatus) {
+	case fleet.MacOSSettingsStatusFailing, fleet.MacOSSettingsStatusPending, fleet.MacOSSettingsStatusLatest:
+		hopt.MacOSSettingsFilter = fleet.MacOSSettingsStatus(macOSSettingsStatus)
+	case "":
+		// No error when unset
+	default:
+		return hopt, ctxerr.Errorf(r.Context(), "invalid macos_settings status %s", macOSSettingsStatus)
+	}
+
 	munkiIssueID := r.URL.Query().Get("munki_issue_id")
 	if munkiIssueID != "" {
 		id, err := strconv.Atoi(munkiIssueID)

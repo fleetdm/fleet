@@ -28,6 +28,8 @@ import M1 from "./M1";
 import Centos from "./Centos";
 import Ubuntu from "./Ubuntu";
 
+import Policy from "./Policy";
+
 // Encircled
 import ApplePurple from "./ApplePurple";
 import LinuxGreen from "./LinuxGreen";
@@ -42,6 +44,12 @@ import Pencil from "./Pencil";
 import TrashCan from "./TrashCan";
 import Profile from "./Profile";
 import Download from "./Download";
+import Files from "./Files";
+import Refresh from "./Refresh";
+import FilePython from "./FilePython";
+import FileZsh from "./FileZsh";
+import FileBash from "./FileBash";
+import FileGeneric from "./FileGeneric";
 
 // a mapping of the usable names of icons to the icon source.
 export const ICON_MAP = {
@@ -81,11 +89,18 @@ export const ICON_MAP = {
   m1: M1,
   centos: Centos,
   ubuntu: Ubuntu,
+  policy: Policy,
   "darwin-purple": ApplePurple,
   "windows-blue": WindowsBlue,
   "linux-green": LinuxGreen,
   profile: Profile,
   download: Download,
+  files: Files,
+  "file-python": FilePython,
+  "file-zsh": FileZsh,
+  "file-bash": FileBash,
+  "file-generic": FileGeneric,
+  refresh: Refresh,
 };
 
 export type IconNames = keyof typeof ICON_MAP;

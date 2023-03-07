@@ -506,7 +506,7 @@ func TestTriggerReleaseLock(t *testing.T) {
 		require.Equal(t, seedStats, statsByType[fleet.CronStatsTypeScheduled])
 	}
 
-	require.True(t, locker.expiresAt.Before(time.Now()))
+	require.True(t, locker.GetExpiration().Before(time.Now()))
 }
 
 func TestMultipleScheduleInstancesConfigChangesDS(t *testing.T) {

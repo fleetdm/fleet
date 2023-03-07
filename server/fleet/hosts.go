@@ -49,6 +49,25 @@ const (
 	MDMEnrollStatusUnenrolled = MDMEnrollStatus("unenrolled")
 )
 
+// MacOSSettingsStatus defines the possible statuses of the host's macOS settings, which is derived from the
+// status of MDM configuration profiles applied to the host.
+type MacOSSettingsStatus string
+
+const (
+	MacOSSettingsStatusLatest  = MacOSSettingsStatus("latest")
+	MacOSSettingsStatusPending = MacOSSettingsStatus("pending")
+	MacOSSettingsStatusFailing = MacOSSettingsStatus("failing")
+)
+
+func (s MacOSSettingsStatus) IsValid() bool {
+	switch s {
+	case MacOSSettingsStatusFailing, MacOSSettingsStatusPending, MacOSSettingsStatusLatest:
+		return true
+	default:
+		return false
+	}
+}
+
 // NOTE: any changes to the hosts filters is likely to impact at least the following
 // endpoints, due to how they share the same implementation at the Datastore level:
 //
@@ -82,6 +101,10 @@ type HostListOptions struct {
 	OSVersionFilter *string
 
 	DisableFailingPolicies bool
+
+	// MacOSSettingsFilter filters the hosts by the status of MDM configuration profiles
+	// appled to the hosts.
+	MacOSSettingsFilter MacOSSettingsStatus
 
 	// MDMIDFilter filters the hosts by MDM ID.
 	MDMIDFilter *uint

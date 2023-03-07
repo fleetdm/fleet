@@ -274,7 +274,8 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: err.Error()})
 	}
 
-	if newAppConfig.FleetDesktop.TransparencyURL != "" {
+	// default transparency URL is https://fleetdm.com/transparency so you are allowed to apply as long as it's not changing
+	if newAppConfig.FleetDesktop.TransparencyURL != "" && newAppConfig.FleetDesktop.TransparencyURL != fleet.DefaultTransparencyURL {
 		if license.Tier != "premium" {
 			invalid.Append("transparency_url", ErrMissingLicense.Error())
 			return nil, ctxerr.Wrap(ctx, invalid)

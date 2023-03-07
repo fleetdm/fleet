@@ -468,3 +468,15 @@ type MDMAppleFleetdConfig struct {
 	FleetURL     string
 	EnrollSecret string
 }
+
+// MDMAppleSettingsPayload describes the payload accepted by the endpoint to
+// update specific MDM macos settings for a team (or no team).
+type MDMAppleSettingsPayload struct {
+	TeamID               *uint `json:"team_id"`
+	EnableDiskEncryption *bool `json:"enable_disk_encryption"`
+}
+
+// AuthzType implements authz.AuthzTyper.
+func (p MDMAppleSettingsPayload) AuthzType() string {
+	return "mdm_apple_settings"
+}

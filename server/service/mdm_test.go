@@ -55,33 +55,29 @@ func TestMDMAppleAuthorization(t *testing.T) {
 			require.NotEqual(t, (&authz.Forbidden{}).Error(), err.Error())
 		}
 	}
+	testAuthdMethods := func(t *testing.T, user *fleet.User, shouldFailWithAuth bool) {
+		ctx := test.UserContext(ctx, user)
+		_, err := svc.GetAppleMDM(ctx)
+		checkAuthErr(t, shouldFailWithAuth, err)
+		_, err = svc.GetAppleBM(ctx)
+		checkAuthErr(t, shouldFailWithAuth, err)
 
-	cases := []struct {
-		name       string
-		user       *fleet.User
-		shouldFail bool
-	}{
-		{"TestGlobalAdmin", test.UserAdmin, false},
-		{"TestGlobalMaintainer", test.UserMaintainer, false},
-		{"TestTeamAdmin", test.UserTeamAdminTeam1, false},
-		{"TestTeamMaintainer", test.UserTeamMaintainerTeam1, false},
-		{"TestGlobalObserver", test.UserObserver, true},
-		{"TestTeamObserver", test.UserTeamObserverTeam1, true},
-		{"TestNoRoles", test.UserNoRoles, true},
+		// deliberately send invalid args so it doesn't actually generate a CSR
+		_, err = svc.RequestMDMAppleCSR(ctx, "not-an-email", "")
+		require.Error(t, err) // it *will* always fail, but not necessarily due to authorization
+		checkAuthErr(t, shouldFailWithAuth, err)
 	}
 
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			ctx := test.UserContext(ctx, c.user)
-			_, err := svc.GetAppleMDM(ctx)
-			checkAuthErr(t, c.shouldFail, err)
-			_, err = svc.GetAppleBM(ctx)
-			checkAuthErr(t, c.shouldFail, err)
+	// Only global admins can access the endpoints.
+	testAuthdMethods(t, test.UserAdmin, false)
 
-			// deliberately send invalid args so it doesn't actually generate a CSR
-			_, err = svc.RequestMDMAppleCSR(ctx, "not-an-email", "")
-			require.Error(t, err) // it *will* always fail, but not necessarily due to authorization
-			checkAuthErr(t, c.shouldFail, err)
-		})
+	// All other users should not have access to the endpoints.
+	for _, user := range []*fleet.User{
+		test.UserNoRoles,
+		test.UserMaintainer,
+		test.UserObserver,
+		test.UserTeamAdminTeam1,
+	} {
+		testAuthdMethods(t, user, true)
 	}
 }
