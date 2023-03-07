@@ -156,18 +156,18 @@ func (ds *Datastore) DeleteMDMAppleConfigProfileByTeamAndIdentifier(ctx context.
 
 func (ds *Datastore) GetHostMDMProfiles(ctx context.Context, hostUUID string) ([]fleet.HostMDMAppleProfile, error) {
 	stmt := fmt.Sprintf(`
-SELECT 
+SELECT
 	hmap.profile_id,
-	name, 
-	status, 
-	operation_type, 
+	name,
+	status,
+	operation_type,
 	detail
-	
-FROM 
+
+FROM
 	host_mdm_apple_profiles hmap
 JOIN
 	mdm_apple_configuration_profiles hmacp ON hmap.profile_id = hmacp.profile_id
-WHERE 
+WHERE
 	host_uuid = ? AND NOT (operation_type = '%s' AND status = '%s')`,
 		fleet.MDMAppleOperationTypeRemove,
 		fleet.MDMAppleDeliveryApplied,
@@ -951,7 +951,7 @@ func (ds *Datastore) ListMDMAppleProfilesToInstall(ctx context.Context) ([]*flee
           AND hmap.host_uuid IS NULL
           AND hmap.status != 'pending' OR hmap.status IS NULL
           AND hmap.operation_type != 'install' OR hmap.operation_type IS NULL
-          -- accounts for the edge case of having profiles but not having hosts 
+          -- accounts for the edge case of having profiles but not having hosts
           AND ds.host_uuid IS NOT NULL
 	`
 
@@ -972,7 +972,7 @@ func (ds *Datastore) ListMDMAppleProfilesToRemove(ctx context.Context) ([]*fleet
           SELECT hmap.profile_id, hmap.profile_identifier, hmap.host_uuid
           FROM (
             SELECT h.uuid, macp.profile_id
-            FROM mdm_apple_configuration_profiles macp 
+            FROM mdm_apple_configuration_profiles macp
             JOIN hosts h ON h.team_id = macp.team_id OR (h.team_id IS NULL AND macp.team_id = 0)
             JOIN nano_enrollments ne ON ne.device_id = h.uuid
             WHERE h.platform = 'darwin' AND ne.enabled = 1
@@ -1052,7 +1052,16 @@ func (ds *Datastore) BulkUpsertMDMAppleHostProfiles(ctx context.Context, payload
 	return err
 }
 
-func (ds *Datastore) UpdateHostMDMAppleProfile(ctx context.Context, profile *fleet.HostMDMAppleProfile) error {
+func (ds *Datastore) UpdateOrDeleteHostMDMAppleProfile(ctx context.Context, profile *fleet.HostMDMAppleProfile) error {
+	if profile.OperationType == fleet.MDMAppleOperationTypeRemove &&
+		profile.Status != nil && *profile.Status == fleet.MDMAppleDeliveryApplied {
+		_, err := ds.writer.ExecContext(ctx, `
+          DELETE FROM host_mdm_apple_profiles
+          WHERE host_uuid = ? AND command_uuid = ?
+        `, profile.HostUUID, profile.CommandUUID)
+		return err
+	}
+
 	_, err := ds.writer.ExecContext(ctx, `
           UPDATE host_mdm_apple_profiles
           SET status = ?, operation_type = ?, detail = ?
@@ -1073,7 +1082,7 @@ SELECT
 				h.uuid = hmap.host_uuid
 				AND hmap.status = 'failed') THEN
 			1
-		END) AS failed, 
+		END) AS failed,
 	count(
 		CASE WHEN EXISTS (
 			SELECT
@@ -1088,7 +1097,7 @@ SELECT
 					h.uuid = hmap.host_uuid
 					AND hmap.status = 'failed') THEN
 			1
-		END) AS pending, 
+		END) AS pending,
 	count(
 		CASE WHEN EXISTS (
 			SELECT

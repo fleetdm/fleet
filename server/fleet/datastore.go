@@ -807,9 +807,10 @@ type Datastore interface {
 	// profiles requested.
 	GetMDMAppleProfilesContents(ctx context.Context, profileIDs []uint) (map[uint]Mobileconfig, error)
 
-	// UpdateHostMDMAppleProfile updates information about a single profile
-	// status.
-	UpdateHostMDMAppleProfile(ctx context.Context, profile *HostMDMAppleProfile) error
+	// UpdateOrDeleteHostMDMAppleProfile updates information about a single
+	// profile status. It deletes the row if the profile operation is "remove"
+	// and the status is "applied" (i.e. successfully removed).
+	UpdateOrDeleteHostMDMAppleProfile(ctx context.Context, profile *HostMDMAppleProfile) error
 
 	// GetMDMAppleCommandRequest type returns the request type for the given command
 	GetMDMAppleCommandRequestType(ctx context.Context, commandUUID string) (string, error)

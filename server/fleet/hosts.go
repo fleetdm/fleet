@@ -258,6 +258,11 @@ type MDMHostData struct {
 	// (e.g. we don't return that information for the List Hosts endpoint).
 	Profiles *[]HostMDMAppleProfile `json:"profiles,omitempty" db:"profiles" csv:"-"`
 
+	// MacOSSettings indicates macOS-specific MDM settings for the host, such
+	// as disk encryption status and whether any user action is required to
+	// complete the disk encryption process.
+	//
+	// It is not filled in by all host-returning datastore methods.
 	MacOSSettings *MDMHostMacOSSettings `json:"macos_settings,omitempty" db:"-" csv:"-"`
 }
 
