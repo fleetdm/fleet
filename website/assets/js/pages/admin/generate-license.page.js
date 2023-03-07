@@ -4,7 +4,9 @@ parasails.registerPage('generate-license', {
   //  ╩╝╚╝╩ ╩ ╩╩ ╩╩═╝  ╚═╝ ╩ ╩ ╩ ╩ ╚═╝
   data: {
     // Form data
-    formData: {},
+    formData: {
+      tier: 'premium'
+    },
     // For tracking client-side validation errors in our form.
     // > Has property set to `true` for each invalid property in `formData`.
     formErrors: {},
@@ -13,6 +15,7 @@ parasails.registerPage('generate-license', {
       numberOfHosts: {required: true},
       organization: {required: true},
       expiresAt: {required: true},
+      tier: {required: true},
     },
     // Syncing / loading state
     syncing: false,
@@ -46,6 +49,7 @@ parasails.registerPage('generate-license', {
       this.generatedLicenseKey = await Cloud.generateLicenseKey.with({
         numberOfHosts: this.formData.numberOfHosts,
         organization: this.formData.organization,
+        tier: this.formData.tier,
         expiresAt: licenseExpiresAt
       });
     },

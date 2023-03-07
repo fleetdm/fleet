@@ -22,6 +22,16 @@
                 <div class="invalid-feedback" v-if="formErrors.numberOfHosts">Please enter a number of hosts</div>
               </div>
 
+              <div class="form-group col-12 px-0 mb-4">
+                <label for="tier">License Tier</label>
+                <select class="form-control" min="1" id="tier" type="number" :class="[formErrors.tier ? 'is-invalid' : formErrors.tier < 1 ]" v-model.trim="formData.tier" >
+                  <option value="trial">Trial</option>
+                  <option value="premium" default>Premium</option>
+                  <option value="ultimate">Ultimate</option>
+                </select>
+                <div class="invalid-feedback" v-if="formErrors.tier">Please pick a license tier</div>
+              </div>
+
 
               <div class="form-group col-12 px-0">
                 <label for="expiresAt">When should this license expire?</label>
