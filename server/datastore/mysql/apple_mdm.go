@@ -1123,3 +1123,19 @@ WHERE
 
 	return &res, nil
 }
+
+func (ds *Datastore) InsertMDMIdPAccount(ctx context.Context, account *fleet.MDMIdPAccount) error {
+	stmt := `
+      INSERT INTO mdm_idp_accounts
+        (uuid, username, salt, entropy, iterations)
+      VALUES
+        (?, ?, ?, ?, ?)
+      ON DUPLICATE KEY UPDATE
+        username   = VALUES(username),
+        salt       = VALUES(salt),
+        entropy    = VALUES(entropy),
+        iterations = VALUES(iterations)`
+
+	_, err := ds.writer.ExecContext(ctx, stmt, account.UUID, account.Username, account.Salt, account.Entropy, account.Iterations)
+	return ctxerr.Wrap(ctx, err, "creating new MDM IdP account")
+}

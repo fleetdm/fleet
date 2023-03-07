@@ -603,6 +603,7 @@ the way that the Fleet server works.
 					clock.C,
 					depStorage,
 					service.NewMDMAppleCommander(mdmStorage, mdmPushService),
+					mdmPushCertTopic,
 				)
 				if err != nil {
 					initFatal(err, "initial Fleet Premium service")

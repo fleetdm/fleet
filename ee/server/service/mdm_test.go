@@ -10,10 +10,12 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	"github.com/fleetdm/fleet/v4/server/service/externalsvc"
 	"github.com/stretchr/testify/require"
 )
 
-func setup() (*mock.Store, *Service) {
+func setup(t *testing.T) (*mock.Store, *Service, *externalsvc.MockOktaServer) {
+	oktaMock := externalsvc.RunMockOktaServer(t)
 	ds := new(mock.Store)
 	svc := &Service{
 		ds: ds,
@@ -21,10 +23,65 @@ func setup() (*mock.Store, *Service) {
 			MDM: config.MDMConfig{
 				AppleSCEPCertBytes: testCert,
 				AppleSCEPKeyBytes:  testKey,
+				OktaServerURL:      oktaMock.Srv.URL,
+				OktaClientID:       oktaMock.ClientID,
+				OktaClientSecret:   oktaMock.ClientSecret(),
 			},
 		},
 	}
-	return ds, svc
+	return ds, svc, oktaMock
+}
+
+func TestMDMAppleOktaLogin(t *testing.T) {
+	ctx := context.Background()
+	ds, svc, oktaMock := setup(t)
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			OrgInfo:        fleet.OrgInfo{OrgName: "Acme Inc."},
+			ServerSettings: fleet.ServerSettings{ServerURL: "https://example.com"},
+		}, nil
+	}
+
+	var uuid string
+	ds.InsertMDMIdPAccountFunc = func(ctx context.Context, account *fleet.MDMIdPAccount) error {
+		uuid = account.UUID
+		require.NotEmpty(t, account.UUID)
+		require.NotEmpty(t, account.SaltedSHA512PBKDF2Dictionary.Entropy)
+		require.NotEmpty(t, account.SaltedSHA512PBKDF2Dictionary.Iterations)
+		require.NotEmpty(t, account.SaltedSHA512PBKDF2Dictionary.Salt)
+		return nil
+	}
+
+	profile, err := svc.MDMAppleOktaLogin(ctx, "bad", "bad")
+	require.Error(t, err)
+	require.Nil(t, profile)
+
+	profile, err = svc.MDMAppleOktaLogin(ctx, oktaMock.Username, oktaMock.UserPassword)
+	require.NoError(t, err)
+	// enrollment profile contains necessary data
+	require.Contains(t, string(profile), "https://example.com/mdm/apple/mdm?dep_uuid="+uuid)
+	require.True(t, ds.AppConfigFuncInvoked)
+	require.True(t, ds.InsertMDMIdPAccountFuncInvoked)
+
+	// error handling
+	idpErr := errors.New("idp err")
+	ds.InsertMDMIdPAccountFunc = func(ctx context.Context, account *fleet.MDMIdPAccount) error {
+		return idpErr
+	}
+	profile, err = svc.MDMAppleOktaLogin(ctx, oktaMock.Username, oktaMock.UserPassword)
+	require.ErrorIs(t, err, idpErr)
+	require.Nil(t, profile)
+
+	appCfgErr := errors.New("appconfig err")
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return nil, appCfgErr
+	}
+
+	profile, err = svc.MDMAppleOktaLogin(ctx, oktaMock.Username, oktaMock.UserPassword)
+	require.ErrorIs(t, err, appCfgErr)
+	require.Nil(t, profile)
+
 }
 
 func TestMDMAppleEnableFileVaultAndEscrow(t *testing.T) {
@@ -38,7 +95,7 @@ func TestMDMAppleEnableFileVaultAndEscrow(t *testing.T) {
 	})
 
 	t.Run("fails if the profile can't be saved in the db", func(t *testing.T) {
-		ds, svc := setup()
+		ds, svc, _ := setup(t)
 		testErr := errors.New("test")
 		ds.NewMDMAppleConfigProfileFunc = func(ctx context.Context, p fleet.MDMAppleConfigProfile) (*fleet.MDMAppleConfigProfile, error) {
 			return nil, testErr
@@ -50,7 +107,7 @@ func TestMDMAppleEnableFileVaultAndEscrow(t *testing.T) {
 
 	t.Run("happy path", func(t *testing.T) {
 		var teamID uint = 4
-		ds, svc := setup()
+		ds, svc, _ := setup(t)
 		ds.NewMDMAppleConfigProfileFunc = func(ctx context.Context, p fleet.MDMAppleConfigProfile) (*fleet.MDMAppleConfigProfile, error) {
 			require.Equal(t, &teamID, p.TeamID)
 			require.Equal(t, p.Identifier, apple_mdm.FleetFileVaultPayloadIdentifier)
@@ -67,7 +124,7 @@ func TestMDMAppleEnableFileVaultAndEscrow(t *testing.T) {
 
 func TestMDMAppleDisableFileVaultAndEscrow(t *testing.T) {
 	var wantTeamID uint
-	ds, svc := setup()
+	ds, svc, _ := setup(t)
 	ds.DeleteMDMAppleConfigProfileByTeamAndIdentifierFunc = func(ctx context.Context, teamID uint, profileIdentifier string) error {
 		require.Equal(t, wantTeamID, teamID)
 		require.Equal(t, apple_mdm.FleetFileVaultPayloadIdentifier, profileIdentifier)
