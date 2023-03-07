@@ -838,17 +838,31 @@ func (s *integrationMDMTestSuite) TestMDMAppleGetEncryptionKey() {
 	require.NoError(t, err)
 	fileVaultProf, err := s.ds.NewMDMAppleConfigProfile(ctx, *prof)
 	require.NoError(t, err)
+	hostCmdUUID := uuid.New().String()
 	err = s.ds.BulkUpsertMDMAppleHostProfiles(ctx, []*fleet.MDMAppleBulkUpsertHostProfilePayload{
 		{
 			ProfileID:         fileVaultProf.ProfileID,
 			ProfileIdentifier: fileVaultProf.Identifier,
 			HostUUID:          host.UUID,
-			CommandUUID:       uuid.New().String(),
+			CommandUUID:       hostCmdUUID,
 			OperationType:     fleet.MDMAppleOperationTypeInstall,
 			Status:            &fleet.MDMAppleDeliveryApplied,
 		},
 	})
 	require.NoError(t, err)
+
+	t.Cleanup(func() {
+		err := s.ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
+			HostUUID:      host.UUID,
+			CommandUUID:   hostCmdUUID,
+			ProfileID:     fileVaultProf.ProfileID,
+			Status:        &fleet.MDMAppleDeliveryApplied,
+			OperationType: fleet.MDMAppleOperationTypeRemove,
+		})
+		require.NoError(t, err)
+		err = s.ds.DeleteMDMAppleConfigProfile(ctx, fileVaultProf.ProfileID)
+		require.NoError(t, err)
+	})
 
 	// get that host - it has no encryption key at this point, so it should
 	// report "action_required" disk encryption and "log_out" action.
