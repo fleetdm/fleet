@@ -364,6 +364,12 @@ func (d *MDMHostData) DetermineDiskEncryptionStatus(profiles []HostMDMAppleProfi
 	d.MacOSSettings = &settings
 }
 
+// Only exposed for Datastore tests, to be able to assert the rawDecryptable
+// unexported field.
+func (d *MDMHostData) TestGetRawDecryptable() *int {
+	return d.rawDecryptable
+}
+
 // Scan implements the Scanner interface for sqlx, to support unmarshaling a
 // JSON object from the database into a MDMHostData struct.
 func (d *MDMHostData) Scan(v interface{}) error {
