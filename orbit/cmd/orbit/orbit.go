@@ -790,8 +790,9 @@ func main() {
 	}
 
 	if len(os.Args) == 2 && os.Args[1] == "--help" {
-		selfHealing()
+		platform.RunUpdateQuirks()
 	}
+
 	if err := app.Run(os.Args); err != nil {
 		log.Error().Err(err).Msg("run orbit failed")
 	}
@@ -988,18 +989,6 @@ var versionCommand = &cli.Command{
 		fmt.Println("date - " + build.Date)
 		return nil
 	},
-}
-
-// selfHealing attempts to fix an issue with the auto-update mechanism in
-// an Orbit version released for Windows. See https://github.com/fleetdm/fleet/issues/10300.
-func selfHealing() {
-	if runtime.GOOS != "windows" {
-		return
-	}
-
-	//
-	// SELF HEALING ROUTINE FOR WINDOWS HERE.
-	//
 }
 
 // serviceChecker is a helper to gracefully shutdown the runners group when a
