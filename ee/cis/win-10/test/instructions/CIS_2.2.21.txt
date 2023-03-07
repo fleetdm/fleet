@@ -1,0 +1,15 @@
+Expected scenario
+==================
+1) Open "Edit Group Policy" tool and set the following UI path to an empty list:
+'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Enable computer and user accounts to be trusted for delegation'
+
+2) After running the policy check, it should return 1 indicating that setting was properly set
+
+
+
+Failure scenario
+==================
+1) Open "Edit Group Policy" tool and set the following UI path to a value other than an empty list:
+'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Enable computer and user accounts to be trusted for delegation'
+
+2) After running the policy check, it should return nothing, indicating that setting was set to a non-compliant value

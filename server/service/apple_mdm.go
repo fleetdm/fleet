@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"encoding/xml"
 	"errors"
 	"fmt"
 	"io"
@@ -1124,6 +1125,11 @@ func generateEnrollmentProfileMobileconfig(orgName, fleetURL, scepChallenge, top
 		return nil, fmt.Errorf("resolve Apple MDM url: %w", err)
 	}
 
+	var escaped strings.Builder
+	if err := xml.EscapeText(&escaped, []byte(scepChallenge)); err != nil {
+		return nil, fmt.Errorf("escape SCEP challenge for XML: %w", err)
+	}
+
 	var buf bytes.Buffer
 	if err := enrollmentProfileMobileconfigTemplate.Execute(&buf, struct {
 		Organization  string
@@ -1134,7 +1140,7 @@ func generateEnrollmentProfileMobileconfig(orgName, fleetURL, scepChallenge, top
 	}{
 		Organization:  orgName,
 		SCEPURL:       scepURL,
-		SCEPChallenge: scepChallenge,
+		SCEPChallenge: escaped.String(),
 		Topic:         topic,
 		ServerURL:     serverURL,
 	}); err != nil {
@@ -1554,6 +1560,83 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 		TeamName: tmName,
 	}); err != nil {
 		return ctxerr.Wrap(ctx, err, "logging activity for edited macos profile")
+	}
+	return nil
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Update MDM Apple Settings
+////////////////////////////////////////////////////////////////////////////////
+
+type updateMDMAppleSettingsRequest struct {
+	fleet.MDMAppleSettingsPayload
+}
+
+type updateMDMAppleSettingsResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r updateMDMAppleSettingsResponse) error() error { return r.Err }
+
+func (r updateMDMAppleSettingsResponse) Status() int { return http.StatusNoContent }
+
+// This endpoint is required because the UI must allow maintainers (in addition
+// to admins) to update some MDM Apple settings, while the update config/update
+// team endpoints only allow write access to admins.
+func updateMDMAppleSettingsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*updateMDMAppleSettingsRequest)
+	if err := svc.UpdateMDMAppleSettings(ctx, req.MDMAppleSettingsPayload); err != nil {
+		return updateMDMAppleSettingsResponse{Err: err}, nil
+	}
+	return updateMDMAppleSettingsResponse{}, nil
+}
+
+func (svc *Service) UpdateMDMAppleSettings(ctx context.Context, payload fleet.MDMAppleSettingsPayload) error {
+	// for now, assume all settings require premium (this is true for the first
+	// supported setting, enable_disk_encryption. Adjust as needed in the future
+	// if this is not always the case).
+	license, err := svc.License(ctx)
+	if err != nil {
+		svc.authz.SkipAuthorization(ctx) // so that the error message is not replaced by "forbidden"
+		return err
+	}
+	if !license.IsPremium() {
+		svc.authz.SkipAuthorization(ctx) // so that the error message is not replaced by "forbidden"
+		return ErrMissingLicense
+	}
+
+	if err := svc.authz.Authorize(ctx, payload, fleet.ActionWrite); err != nil {
+		return ctxerr.Wrap(ctx, err)
+	}
+
+	if payload.TeamID != nil {
+		tm, err := svc.EnterpriseOverrides.TeamByIDOrName(ctx, payload.TeamID, nil)
+		if err != nil {
+			return err
+		}
+		return svc.EnterpriseOverrides.UpdateTeamMDMAppleSettings(ctx, tm, payload)
+	}
+	return svc.updateAppConfigMDMAppleSettings(ctx, payload)
+}
+
+func (svc *Service) updateAppConfigMDMAppleSettings(ctx context.Context, payload fleet.MDMAppleSettingsPayload) error {
+	ac, err := svc.AppConfig(ctx)
+	if err != nil {
+		return err
+	}
+
+	var didUpdate bool
+	if payload.EnableDiskEncryption != nil {
+		if ac.MDM.MacOSSettings.EnableDiskEncryption != *payload.EnableDiskEncryption {
+			ac.MDM.MacOSSettings.EnableDiskEncryption = *payload.EnableDiskEncryption
+			didUpdate = true
+		}
+	}
+
+	if didUpdate {
+		if err := svc.ds.SaveAppConfig(ctx, ac); err != nil {
+			return err
+		}
 	}
 	return nil
 }

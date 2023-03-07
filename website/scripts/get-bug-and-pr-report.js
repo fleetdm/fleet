@@ -111,9 +111,9 @@ module.exports = {
             baseHeaders
           ).retry();
 
-          // Filter the PRs we received from Github using the pull request's merged_at date.
+          // Exclude draft PRs and filter the PRs we received from Github using the pull request's merged_at date.
           let resultsToAdd = closedPullRequests.filter((pullRequest)=>{
-            return threeWeeksAgo <= new Date(pullRequest.merged_at);
+            return !pullRequest.draft && threeWeeksAgo <= new Date(pullRequest.merged_at);
           });
 
           // Add the filtered array of PRs to the array of all pull requests merged in the past three weeks.
@@ -168,6 +168,7 @@ module.exports = {
           // If we received less results than we requested, we've reached the last page of the results.
           return pullRequests.length !== NUMBER_OF_RESULTS_REQUESTED;
         }, 10000);
+
         for(let pullRequest of allOpenPullRequests) {
           // Create a date object from the PR's created_at timestamp.
           let pullRequestOpenedOn = new Date(pullRequest.created_at);
@@ -175,8 +176,10 @@ module.exports = {
           let timeOpenInMS = Math.abs(todaysDate - pullRequestOpenedOn);
           // Convert the miliseconds to days and add the value to the daysSincePullRequestsWereOpened array
           let timeOpenInDays = timeOpenInMS / ONE_DAY_IN_MILLISECONDS;
-          daysSincePullRequestsWereOpened.push(timeOpenInDays);
-        }
+          if (!pullRequest.draft) {// Exclude draft PRs
+            daysSincePullRequestsWereOpened.push(timeOpenInDays);
+          }
+        }//∞
 
       }
 
