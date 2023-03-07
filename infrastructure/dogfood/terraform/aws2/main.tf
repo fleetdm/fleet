@@ -28,7 +28,7 @@ data "aws_caller_identity" "current" {}
 
 locals {
   customer    = "fleet-dogfood"
-  fleet_image = "611884880216.dkr.ecr.us-east-2.amazonaws.com/fleet:7408a0df90802fbd602b52015546dd46590051bd" # Set this to the version of fleet to be deployed
+  fleet_image = "${aws_ecr_repository.fleet.repository_url}:7408a0df90802fbd602b52015546dd46590051bd" # Set this to the version of fleet to be deployed
   extra_environment_variables = {
     FLEET_LICENSE_KEY                          = "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJGbGVldCBEZXZpY2UgTWFuYWdlbWVudCBJbmMuIiwiZXhwIjoxOTQ5ODc1MjAwLCJzdWIiOiJmbGVldCIsImRldmljZXMiOjEwMDAwMDAsIm5vdGUiOiJkb2dmb29kIGVudiBsaWNlbnNlIiwidGllciI6ImJhc2ljIiwiaWF0IjoxNjMxODQwMDM5fQ.7d-y2YVEZ3goHbeFpPIQlpu-rVV24tD9D1JhtYtY49pMvV-bvbKGrWmuqTVAbG6iGwX_9FAWgJISmjTlPWkXiw"
     FLEET_LOGGING_DEBUG                        = "true"
@@ -78,11 +78,11 @@ module "main" {
   }
   alb_config = {
     name = local.customer
-    access_logs = {
-      bucket  = module.logging_alb.log_s3_bucket_id
-      prefix  = local.customer
-      enabled = true
-    }
+    #access_logs = {
+    #  bucket  = module.logging_alb.log_s3_bucket_id
+    #  prefix  = local.customer
+    #  enabled = true
+    #}
     allowed_cidrs = [
       "128.0.0.0/1",
       "64.0.0.0/2",
@@ -188,22 +188,48 @@ module "logging_alb" {
   enable_athena = true
 }
 
-moved {
-  from = module.vpc
-  to   = module.main.module.vpc
+resource "aws_iam_policy" "ecr" {
+  name   = "fleet-ecr-policy"
+  policy = data.aws_iam_policy_document.ecr.json
 }
 
-moved {
-  from = aws_secrets_manager_secret.dep
-  to   = module.mdm.aws_secrets_manager_secret.dep
+data "aws_iam_policy_document" "ecr" {
+  statement {
+    actions = [
+      "ecr:BatchCheckLayerAvailability",
+      "ecr:BatchGetImage",
+      "ecr:GetDownloadUrlForLayer",
+      "ecr:GetAuthorizationToken"
+    ]
+    resources = ["*"]
+  }
+  statement {
+    actions = [ #tfsec:ignore:aws-iam-no-policy-wildcards
+      "kms:Encrypt*",
+      "kms:Decrypt*",
+      "kms:ReEncrypt*",
+      "kms:GenerateDataKey*",
+      "kms:Describe*"
+    ]
+    resources = [aws_kms_key.ecr.arn]
+  }
 }
 
-moved {
-  from = aws_secrets_manager_secret.scep
-  to   = module.mdm.aws_secrets_manager_secret.scep
+resource "aws_ecr_repository" "fleet" {
+  name                 = "fleet"
+  image_tag_mutability = "IMMUTABLE"
+
+  image_scanning_configuration {
+    scan_on_push = true
+  }
+
+  encryption_configuration {
+    encryption_type = "KMS"
+    kms_key         = aws_kms_key.ecr.arn
+  }
 }
 
-moved {
-  from = aws_secrets_manager_secret.apn
-  to   = module.mdm.aws_secrets_manager_secret.apn
+resource "aws_kms_key" "ecr" {
+  deletion_window_in_days = 10
+  enable_key_rotation     = true
 }
