@@ -14,6 +14,8 @@ export interface ISortOption {
   direction: string;
 }
 
+export type MacSettingsStatusQueryParam = "latest" | "pending" | "failing";
+
 export interface ILoadHostsOptions {
   page?: number;
   perPage?: number;
@@ -23,6 +25,7 @@ export interface ILoadHostsOptions {
   teamId?: number;
   policyId?: number;
   policyResponse?: string;
+  macSettingsStatus?: MacSettingsStatusQueryParam;
   softwareId?: number;
   status?: HostStatus;
   mdmId?: number;
