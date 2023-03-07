@@ -790,7 +790,7 @@ func main() {
 	}
 
 	if len(os.Args) == 2 && os.Args[1] == "--help" {
-		platform.RunUpdateQuirks()
+		platform.PreUpdateQuirks()
 	}
 
 	if err := app.Run(os.Args); err != nil {

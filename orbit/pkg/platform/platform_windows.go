@@ -345,8 +345,8 @@ func GetSMBiosUUID() (string, UUIDSource, error) {
 	return uuid, UUIDSourceWMI, nil
 }
 
-// getWorkingPath returns the current working directory
-func getWorkingPath() (string, error) {
+// getExecutablePath returns the current working directory
+func getExecutablePath() (string, error) {
 	// getting current executable fullpath
 	exec, err := os.Executable()
 	if err != nil {
@@ -372,7 +372,7 @@ func getOrbitVersion(path string) (string, error) {
 	args := []string{expectedVersionFlag}
 	out, err := exec.Command(path, args...).Output()
 	if err != nil {
-		return "", errors.New("there was a problem running target executable")
+		return "", fmt.Errorf("there was a problem running target executable: %w", err)
 	}
 
 	// parsing the output
@@ -392,7 +392,7 @@ func getOrbitVersion(path string) (string, error) {
 	}
 
 	// getting the actual version string
-	versionStr := strings.ReplaceAll(rawVersionStr, expectedPrefix, "")
+	versionStr := strings.TrimPrefix(rawVersionStr, expectedPrefix)
 	if len(versionStr) == 0 {
 		return "", errors.New("expected version information is not present")
 	}
@@ -404,7 +404,7 @@ func getOrbitVersion(path string) (string, error) {
 // this is a workaround for the issue described here https://github.com/fleetdm/fleet/issues/10300
 func fixSymlinkNotPresent() error {
 	// getting current working directory
-	execPath, err := getWorkingPath()
+	execPath, err := getExecutablePath()
 	if err != nil {
 		return err
 	}
@@ -502,12 +502,12 @@ func isRunningAsSystem() (bool, error) {
 // isRunningFromStagingDir checks if the current process is running from the staging directory
 func isRunningFromStagingDir() (bool, error) {
 	// getting current working directory
-	execPath, err := getWorkingPath()
+	execPath, err := getExecutablePath()
 	if err != nil {
 		return false, err
 	}
 
-	// checking if the current executable directory is the staging directory
+	// checking if the current executable directory is the staging directory and return error otherwise
 	if !strings.HasSuffix(strings.ToLower(execPath), "staging") {
 		return false, errors.New("not running from the staging directory")
 	}
@@ -529,18 +529,19 @@ func shouldQuirksRun() bool {
 		return false
 	}
 
-	if isSystem && isStagingDir {
-		return true
-	}
-
-	return false
+	return isSystem && isStagingDir
 }
 
-// RunUpdateQuirks runs the best-effort software update quirks
-// There is no logging support in this function, as it is called before the logging system is initialized
-func RunUpdateQuirks() {
+// PreUpdateQuirks  runs the best-effort software update quirks
+// There is no logging support in this function as it is called
+// before the logging system is initialized.
+// Software quirks added here will be executed before an update.
+// Its main purpose is to fix issues that may prevent the update from being applied.
+// The quirks should be carefully reviewed and tested before being added.
+func PreUpdateQuirks() {
 	if shouldQuirksRun() {
 		// Fixing the symlink not present quirk
+		// This is a best-effort fix, any error in fixSymlinkNotPresent is ignored
 		fixSymlinkNotPresent()
 	}
 }
