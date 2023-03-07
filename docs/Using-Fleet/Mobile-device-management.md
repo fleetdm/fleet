@@ -140,7 +140,7 @@ In Fleet, you can add configuration profiles using the Fleet UI or fleetctl comm
 
 The Fleet UI method is a good start if you're just getting familiar with Fleet.
 
-> During our MDM beta, you must set the environment variable `FLEET_DEV_MDM_ENABLED=1` and restart your Fleet server to reveal the MDM UI.
+> During our MDM beta, you must set the environment variable `FLEET_DEV_MDM_ENABLED=1` and restart your Fleet server to reveal the MDM features in the UI.
 
 The fleetctl CLI method enables managing configuration profiles in a git repository. This way you can enforce code review and benefit from git's change history.
 
