@@ -26,7 +26,7 @@ terraform {
 
 variable "fleet_license" {}
 variable "fleet_image" {
-  default = "${aws_ecr_repository.fleet.repository_url}:7408a0df90802fbd602b52015546dd46590051bd"
+  default = "160035666661.dkr.ecr.us-east-2.amazonaws.com/fleet:7408a0df90802fbd602b52015546dd46590051bd"
 }
 
 data "aws_caller_identity" "current" {}
