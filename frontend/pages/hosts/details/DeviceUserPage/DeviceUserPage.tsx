@@ -312,9 +312,21 @@ const DeviceUserPage = ({
     const isMdmUnenrolled =
       host?.mdm.enrollment_status === "Off" || !host?.mdm.enrollment_status;
 
-    // TODO: actually determine below
-    const diskEncryptionUserActionRequired = true;
-    const diskEncryptionKeyResetRequired = true;
+    const diskEncryptionBannersEnabled =
+      globalConfig?.mdm.enabled_and_configured && host?.mdm.name === "Fleet";
+
+    // TODO: replace below with commented conditions once API is finished
+    const showDiskEncryptionLogoutRestart = true;
+    const showDiskEncryptionKeyResetRequired = true;
+    // const showDiskEncryptionLogoutRestart =
+    //   diskEncryptionBannersEnabled &&
+    //   host?.mdm.macos_settings.disk_encryption === "action_required" &&
+    //   host?.mdm.macos_settings.action_required === "log_out";
+    // const showDiskEncryptionKeyResetRequired =
+    //   diskEncryptionBannersEnabled &&
+    //   mdm.macos_settings.disk_encryption === "action_required" &&
+    //   mdm.macos_settings.action_required === "rotate_key";
+
     return (
       <div className="fleet-desktop-wrapper">
         {isLoadingHost ? (
@@ -332,25 +344,15 @@ const DeviceUserPage = ({
                   don’t have to.
                 </InfoBanner>
               )}
-            {/* TODO: remove below true to restore actual render conditions */}
-            {(true ||
-              (isPremiumTier &&
-                !isMdmUnenrolled &&
-                globalConfig?.mdm.enabled_and_configured &&
-                diskEncryptionUserActionRequired)) && (
-              // MDM - Disk Encryption: My Device user action required banner
+            {showDiskEncryptionLogoutRestart && (
+              // MDM - Disk Encryption: Logout or restart banner
               <InfoBanner color="yellow">
                 Disk encryption: Log out of your device or restart to turn on
                 disk encryption. This prevents unauthorized access to the
                 information on your device.
               </InfoBanner>
             )}
-            {/* TODO: remove below true to restore actual render conditions */}
-            {(true ||
-              (isPremiumTier &&
-                !isMdmUnenrolled &&
-                globalConfig?.mdm.enabled_and_configured &&
-                diskEncryptionKeyResetRequired)) && (
+            {showDiskEncryptionKeyResetRequired && (
               // MDM - Disk Encryption: Reset key required banner
               <InfoBanner color="yellow" cta={resetKeyButton}>
                 Disk encryption: Reset your disk encryption key. This lets your
