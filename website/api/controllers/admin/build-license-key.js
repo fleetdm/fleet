@@ -1,10 +1,10 @@
 module.exports = {
 
 
-  friendlyName: 'Generate license key',// FUTURE: Rename this to avoid confusion w/ generators.  For example: 'Build license key'
+  friendlyName: 'Build license key',
 
 
-  description: 'Generate and return a Fleet Premium license key.',
+  description: 'Build and return a Fleet Premium license key.',
 
 
   inputs: {
