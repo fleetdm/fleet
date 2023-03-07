@@ -250,9 +250,10 @@ type MDMHostData struct {
 	// decode an encryption key for the host.
 	EncryptionKeyAvailable bool `json:"encryption_key_available" db:"-" csv:"-"`
 
-	// this is set to nil if NULL in the db, 1 if decryptable and 0 if
-	// non-decryptable. Used internally to determine the disk_encryption status
-	// and action_required fields. See MDMHostData.Scan as for where this gets
+	// this is set to nil if NULL in the db, 1 if decryptable, 0 if
+	// non-decryptable and -1 if no disk encryption key row exists for this host.
+	// Used internally to determine the disk_encryption status and
+	// action_required fields. See MDMHostData.Scan as for where this gets
 	// filled.
 	rawDecryptable *int
 
@@ -292,6 +293,26 @@ const (
 type MDMHostMacOSSettings struct {
 	DiskEncryption DiskEncryptionState `json:"disk_encryption" csv:"-"`
 	ActionRequired ActionRequiredState `json:"action_required" csv:"-"`
+}
+
+// DetermineDiskEncryptionStatus determines the disk encryption status for the
+// host based on the file-vault profile in its list of profiles and whether its
+// disk encryption key is available and decryptable. The file-vault profile
+// identifier is received as argument to avoid a circular dependency.
+func (d *MDMHostData) DetermineDiskEncryptionStatus(profiles []HostMDMAppleProfile, fileVaultIdentifier string) {
+	var settings MDMHostMacOSSettings
+
+	var fvprof *HostMDMAppleProfile
+	for _, p := range profiles {
+		p := p
+		if p.Identifier == fileVaultIdentifier {
+			fvprof = &p
+			break
+		}
+	}
+	if fvprof != nil {
+	}
+	d.MacOSSettings = &settings
 }
 
 // Scan implements the Scanner interface for sqlx, to support unmarshaling a

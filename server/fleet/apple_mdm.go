@@ -426,6 +426,7 @@ type HostMDMAppleProfile struct {
 	CommandUUID   string                  `db:"command_uuid" json:"-"`
 	ProfileID     uint                    `db:"profile_id" json:"profile_id"`
 	Name          string                  `db:"name" json:"name"`
+	Identifier    string                  `db:"identifier" json:"-"`
 	Status        *MDMAppleDeliveryStatus `db:"status" json:"status"`
 	OperationType MDMAppleOperationType   `db:"operation_type" json:"operation_type"`
 	Detail        string                  `db:"detail" json:"detail"`

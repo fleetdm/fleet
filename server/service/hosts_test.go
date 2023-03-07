@@ -77,6 +77,8 @@ func TestHostDetails(t *testing.T) {
 	assert.Equal(t, expectedPacks, hostDetail.Packs)
 	require.NotNil(t, hostDetail.Batteries)
 	assert.Equal(t, expectedBats, *hostDetail.Batteries)
+
+	// TODO(mna): add getHostDetails tests here for host profiles/encryption status
 }
 
 func TestHostAuth(t *testing.T) {

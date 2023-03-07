@@ -158,11 +158,11 @@ func (ds *Datastore) GetHostMDMProfiles(ctx context.Context, hostUUID string) ([
 	stmt := fmt.Sprintf(`
 SELECT
 	hmap.profile_id,
-	name,
-	status,
-	operation_type,
-	detail
-
+	hmacp.name,
+	hmacp.identifier,
+	hmap.status,
+	hmap.operation_type,
+	hmap.detail
 FROM
 	host_mdm_apple_profiles hmap
 JOIN

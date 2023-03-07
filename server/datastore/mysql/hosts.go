@@ -503,7 +503,11 @@ const hostMDMSelect = `,
 			WHEN hdek.decryptable IS NULL OR hdek.decryptable = 0 THEN CAST(FALSE AS JSON)
 			ELSE CAST(TRUE AS JSON)
 		END,
-		'raw_decryptable', hdek.decryptable,
+		'raw_decryptable',
+		CASE
+			WHEN hdek.host_id IS NULL THEN -1
+			ELSE hdek.decryptable
+		END,
 		'name', hmdm.name
 	) mdm_host_data
 	`
