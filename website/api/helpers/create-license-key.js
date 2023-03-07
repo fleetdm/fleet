@@ -19,6 +19,12 @@ module.exports = {
       required: true,
     },
 
+    tier: {
+      type: 'string',
+      isIn: ['premium', 'trial', 'ultimate'],
+      defaultsTo: 'premium',
+    },
+
     expiresAt: {
       type: 'number',
       required: true,
@@ -37,7 +43,7 @@ module.exports = {
   },
 
 
-  fn: async function ({numberOfHosts, organization, expiresAt}) {
+  fn: async function ({numberOfHosts, organization, tier, expiresAt}) {
 
     let jwt = require('jsonwebtoken');
 
@@ -49,7 +55,7 @@ module.exports = {
         sub: organization,
         devices: numberOfHosts,
         note: 'Created with Fleet License key dispenser',
-        tier: 'premium',
+        tier: tier,
       },
       {
         key: sails.config.custom.licenseKeyGeneratorPrivateKey,

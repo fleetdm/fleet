@@ -18,6 +18,12 @@ module.exports = {
       required: true,
     },
 
+    tier: {
+      type: 'string',
+      isIn: ['premium', 'trial', 'ultimate'],
+      required: true,
+    },
+
     expiresAt: {
       type: 'number',
       required: true,
@@ -34,11 +40,12 @@ module.exports = {
   },
 
 
-  fn: async function ({numberOfHosts, organization, expiresAt}) {
+  fn: async function ({numberOfHosts, organization, expiresAt, tier}) {
 
     let licenseKey = await sails.helpers.createLicenseKey.with({
       numberOfHosts: numberOfHosts,
       organization: organization,
+      tier: tier,
       expiresAt: expiresAt
     });
 
