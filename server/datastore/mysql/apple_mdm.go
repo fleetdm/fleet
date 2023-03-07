@@ -161,8 +161,8 @@ SELECT
 	hmacp.name,
 	hmacp.identifier,
 	hmap.status,
-	hmap.operation_type,
-	hmap.detail
+	COALESCE(hmap.operation_type, '') AS operation_type,
+	COALESCE(hmap.detail, '') AS detail
 FROM
 	host_mdm_apple_profiles hmap
 JOIN
