@@ -146,4 +146,14 @@
       display: none;
     }
   }
+
+  .critical-tooltip {
+    font-weight: $regular;
+  }
+
+  .policy-icon {
+    margin-left: $pad-xsmall;
+    position: relative;
+    bottom: -1px;
+  }
 }

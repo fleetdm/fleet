@@ -108,7 +108,7 @@ func updateVulnsInDB(
 	toInsert, toDelete := utils.VulnsDelta(detected, existing)
 
 	// Remove any possible dups...
-	toInsertSet := make(map[string]fleet.SoftwareVulnerability)
+	toInsertSet := make(map[string]fleet.SoftwareVulnerability, len(toInsert))
 	for _, i := range toInsert {
 		toInsertSet[i.Key()] = i
 	}
