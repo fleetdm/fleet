@@ -326,9 +326,6 @@ Every job description page ends with a "call to action", including a link that c
 
 When a candidate clicks applies for a job at Fleet, they are taken to a generic Typeform.  When they submit their job application, the Typeform triggers a Zapier automation that will posts the submission to `g-business-operations` in Slack.  The candidate's job application answers are then forwarded to the applicable `#hiring-xxxxx-202x` Slack channel and the hiring manager is @mentioned.
 
-> FUTURE: Have the Zapier automation directly notify the appropriate `#hiring-` channel (e.g. using a `<meta>` tag in the job description page)
-
-
 
 ### Recruiting
 #### Checking legal restrictions on hiring
