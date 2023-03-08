@@ -2556,7 +2556,17 @@ Returns the host information about the device that makes the request.
         "cycle_count": 999,
         "health": "Good"
       }
-    ]
+    ],
+    "mdm": {
+      "encryption_key_available": false,
+      "enrollment_status": null,
+      "name": "",
+      "server_url": null,
+      "macos_settings": {
+        "disk_encryption": null,
+        "action_required": null
+      }
+    }
   },
   "org_logo_url": "https://example.com/logo.jpg",
   "license": {

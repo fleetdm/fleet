@@ -931,7 +931,7 @@ func TestMDMCommandAndReportResultsProfileHandling(t *testing.T) {
 			return c.requestType, nil
 		}
 
-		ds.UpdateHostMDMAppleProfileFunc = func(ctx context.Context, profile *fleet.HostMDMAppleProfile) error {
+		ds.UpdateOrDeleteHostMDMAppleProfileFunc = func(ctx context.Context, profile *fleet.HostMDMAppleProfile) error {
 			c.want.CommandUUID = commandUUID
 			c.want.HostUUID = hostUUID
 			require.Equal(t, c.want, profile)
@@ -950,7 +950,7 @@ func TestMDMCommandAndReportResultsProfileHandling(t *testing.T) {
 		)
 		require.NoError(t, err)
 		require.True(t, ds.GetMDMAppleCommandRequestTypeFuncInvoked)
-		require.True(t, ds.UpdateHostMDMAppleProfileFuncInvoked)
+		require.True(t, ds.UpdateOrDeleteHostMDMAppleProfileFuncInvoked)
 	}
 }
 

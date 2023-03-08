@@ -162,11 +162,11 @@ func (ds *Datastore) GetHostMDMProfiles(ctx context.Context, hostUUID string) ([
 	stmt := fmt.Sprintf(`
 SELECT
 	hmap.profile_id,
-	name,
-	status,
-	operation_type,
-	detail
-
+	hmacp.name,
+	hmacp.identifier,
+	hmap.status,
+	COALESCE(hmap.operation_type, '') AS operation_type,
+	COALESCE(hmap.detail, '') AS detail
 FROM
 	host_mdm_apple_profiles hmap
 JOIN
@@ -1056,7 +1056,16 @@ func (ds *Datastore) BulkUpsertMDMAppleHostProfiles(ctx context.Context, payload
 	return err
 }
 
-func (ds *Datastore) UpdateHostMDMAppleProfile(ctx context.Context, profile *fleet.HostMDMAppleProfile) error {
+func (ds *Datastore) UpdateOrDeleteHostMDMAppleProfile(ctx context.Context, profile *fleet.HostMDMAppleProfile) error {
+	if profile.OperationType == fleet.MDMAppleOperationTypeRemove &&
+		profile.Status != nil && *profile.Status == fleet.MDMAppleDeliveryApplied {
+		_, err := ds.writer.ExecContext(ctx, `
+          DELETE FROM host_mdm_apple_profiles
+          WHERE host_uuid = ? AND command_uuid = ?
+        `, profile.HostUUID, profile.CommandUUID)
+		return err
+	}
+
 	_, err := ds.writer.ExecContext(ctx, `
           UPDATE host_mdm_apple_profiles
           SET status = ?, operation_type = ?, detail = ?
@@ -1077,7 +1086,7 @@ SELECT
 				h.uuid = hmap.host_uuid
 				AND hmap.status = 'failed') THEN
 			1
-		END) AS failed, 
+		END) AS failed,
 	count(
 		CASE WHEN EXISTS (
 			SELECT
@@ -1092,7 +1101,7 @@ SELECT
 					h.uuid = hmap.host_uuid
 					AND hmap.status = 'failed') THEN
 			1
-		END) AS pending, 
+		END) AS pending,
 	count(
 		CASE WHEN EXISTS (
 			SELECT
