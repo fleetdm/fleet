@@ -58,7 +58,7 @@ module.exports = {
       isDRIForAllChangedPathsStill = _.all(changedPaths, (changedPath) => {
         changedPath = changedPath.replace(/\/+$/, '');// « trim trailing slashes, just in case (b/c otherwise could loop forever)
 
-        if (changedPath.indexOf('/infrastructure/') > -1) {
+        if (changedPath.indexOf('infrastructure/') > -1) {
           isInfraPR = true;
         }
 
