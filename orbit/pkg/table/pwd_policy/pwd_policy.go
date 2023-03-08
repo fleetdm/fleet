@@ -22,6 +22,7 @@ func Columns() []table.ColumnDefinition {
 		table.IntegerColumn("expires_every_n_days"),
 		table.IntegerColumn("days_to_expiration"),
 		table.IntegerColumn("history_depth"),
+		table.IntegerColumn("min_mixed_case_charachters"),
 	}
 }
 
@@ -70,13 +71,19 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 		historyDepth = ""
 		log.Debug().Err(err).Msg("get policyAttributePasswordHistoryDepth failed")
 	}
+	minMixedCaseCharachters, err := tbl_common.GetValFromXMLWithTags(pwpolicyXMLData, "dict", "key", "minimumMixedCaseCharacters", "integer")
+	if err != nil {
+		minMixedCaseCharachters = ""
+		log.Debug().Err(err).Msg("get minimumMixedCaseCharacters failed")
+	}
 
 	return []map[string]string{
 		{
-			"max_failed_attempts":  maxFailedAttempts,
-			"expires_every_n_days": expiresEveryNDays,
-			"days_to_expiration":   daysToExpiration,
-			"history_depth":        historyDepth,
+			"max_failed_attempts":        maxFailedAttempts,
+			"expires_every_n_days":       expiresEveryNDays,
+			"days_to_expiration":         daysToExpiration,
+			"history_depth":              historyDepth,
+			"min_mixed_case_charachters": minMixedCaseCharachters,
 		},
 	}, nil
 }
