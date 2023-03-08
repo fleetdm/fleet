@@ -146,7 +146,12 @@ module.exports = {
         return host.platform === 'darwin';
       });
 
+      let windowsHosts = allHostsOnThisFleetInstance.filter((host)=>{
+        return host.platform === 'windows';
+      });
+
       let macHostsToSyncWithVanta = [];
+      let windowsHostsToSyncWithVanta = [];
 
 
       await sails.helpers.flow.simultaneouslyForEach(macOsHosts, async (host) => {
@@ -155,7 +160,7 @@ module.exports = {
         let macOsHostToSyncWithVanta = {
           displayName: host.display_name,
           uniqueId: hostIdAsString,
-          externalUrl: updatedRecord.fleetInstanceUrl + encodeURIComponent('/hosts/'+hostIdAsString),
+          externalUrl: updatedRecord.fleetInstanceUrl + '/hosts/'+encodeURIComponent(hostIdAsString),
           collectedTimestamp: host.updated_at,
           osName: 'macOS', // Setting the osName for all macOS hosts to 'macOS'. Different versions of macOS have different prefixes, (e.g., a macOS host running 12.6 would be returned as "macOS 12.6.1", while a mac running version 10.15.7 would be displayed as "Mac OS X 10.15.7")
           osVersion: host.os_version.replace(/^([\D]+)\s(.+)/g, '$2'), // removing everything but the version number (XX.XX.XX) from the host's os_version value.
@@ -170,9 +175,14 @@ module.exports = {
           autoUpdatesEnabled: false, // Always sending this value as false
         };
 
+        // If the host has an mdm property, set the `isManaged` parameter to be the value of the host's enrollment status (if it is not null)
+        if(host.mdm !== undefined && host.mdm.enrollment_status !== null) {
+          macOsHostToSyncWithVanta.isManaged = host.mdm.enrollment_status;
+        }
+
         // Send a request to this host's API endpoint to get the required information about this host.
         let detailedInformationAboutThisHost = await sails.helpers.http.get(
-          updatedRecord.fleetInstanceUrl + '/api/v1/fleet/hosts/'+host.id,
+          updatedRecord.fleetInstanceUrl + '/api/v1/fleet/hosts/'+encodeURIComponent(hostIdAsString),
           {},
           {'Authorization': 'bearer '+updatedRecord.fleetApiKey}
         )
@@ -226,6 +236,84 @@ module.exports = {
       }
 
 
+      await sails.helpers.flow.simultaneouslyForEach(windowsHosts, async (host) => {
+        let hostIdAsString = String(host.id);
+        // Start building the host resource to send to Vanta, using information we get from the Fleet instance's get Hosts endpoint
+        let windowsHostToSyncWithVanta = {
+          displayName: host.display_name,
+          uniqueId: hostIdAsString,
+          externalUrl: updatedRecord.fleetInstanceUrl + '/hosts/'+encodeURIComponent(hostIdAsString),
+          collectedTimestamp: host.updated_at,
+          osName: 'Windows',
+          osVersion: host.code_name,
+          hardwareUuid: host.uuid,
+          serialNumber: host.hardware_serial,
+          programs: [],
+          browserExtensions: [],
+          drives: [],
+          users: [],
+          systemScreenlockPolicies: [],
+          isManaged: false, // Defaulting to false, if the host is enrolled in an MDM, we'll set this value to true.
+          autoUpdatesEnabled: false, // Defaulting this value to false.
+          lastEnrolledTimestamp: host.last_enrolled_at,
+        };
+
+        // If the host has an mdm property, set the `isManaged` parameter to be the value of the host's enrollment status (if it is not null)
+        if(host.mdm !== undefined && host.mdm.enrollment_status !== null){
+          windowsHostToSyncWithVanta.isManaged = host.mdm.enrollment_status;
+        }
+
+        // Send a request to this host's API endpoint to get the required information about this host.
+        let detailedInformationAboutThisHost = await sails.helpers.http.get(
+          updatedRecord.fleetInstanceUrl + '/api/v1/fleet/hosts/'+encodeURIComponent(hostIdAsString),
+          {},
+          {'Authorization': 'bearer '+updatedRecord.fleetApiKey}
+        )
+        .retry()
+        .intercept((err)=>{// If an error occurs while sending a request to the Fleet instance, we'll throw an error.
+          return new Error(`When sending a request to the Fleet instance's /hosts/${host.id} endpoint for a Vanta connection (id: ${connectionIdAsString}), an error occurred: ${err}`);
+        });
+
+        if (detailedInformationAboutThisHost.host.disk_encryption_enabled !== undefined && detailedInformationAboutThisHost.host.disk_encryption_enabled !== null) {
+          // Build a drive object for this host, using the host's disk_encryption_enabled value to set the boolean values for `encrytped` and `filevaultEnabled`
+          let driveInformationForThisHost = {
+            name: 'Hard drive',
+            encrypted: detailedInformationAboutThisHost.host.disk_encryption_enabled,
+          };
+          windowsHostToSyncWithVanta.drives.push(driveInformationForThisHost);
+        }
+
+        // Iterate through the array of software on a host to populate this hosts applications and
+        // browserExtensions arrays.
+        const softwareList = detailedInformationAboutThisHost.host.software;
+        if (softwareList) {
+          for (let software of softwareList) {
+            let softwareToAdd = {};
+            if (software.source === 'firefox_addons') {
+              softwareToAdd.name = software.name;
+              softwareToAdd.browser = 'FIREFOX';
+              softwareToAdd.extensionId = software.name + ' ' + software.version;// Set the extensionId to be the software's name and the software version.
+              windowsHostToSyncWithVanta.browserExtensions.push(softwareToAdd);
+            } else if (software.source === 'chrome_extensions') {
+              softwareToAdd.name = software.name;
+              softwareToAdd.extensionId = software.name + ' ' + software.version;
+              softwareToAdd.browser = 'CHROME';
+              windowsHostToSyncWithVanta.browserExtensions.push(softwareToAdd);
+            } else if (software.source === 'programs') {
+              softwareToAdd.name = software.name;
+              windowsHostToSyncWithVanta.programs.push(softwareToAdd);
+            }
+          }
+        }
+        // Add the host to the array of macOS hosts to sync with Vanta
+        windowsHostsToSyncWithVanta.push(windowsHostToSyncWithVanta);
+      }).tolerate((err)=>{// If an error occurs while sending requests for each host, add the error to the errorReportById object.
+        errorReportById[connectionIdAsString] = new Error(`When building an array of Windows hosts for a Vanta connection (id: ${connectionIdAsString}), an error occured: ${err}`);
+      });// After every Windows host
+
+      if(errorReportById[connectionIdAsString]){// If an error occured while gathering detailed host information, we'll bail early for this connection.
+        return;
+      }
       //  ┌─┐┬ ┬┌┐┌┌─┐  ┬ ┬┌─┐┌─┐┬─┐┌─┐  ┬ ┬┬┌┬┐┬ ┬  ╦  ╦┌─┐┌┐┌┌┬┐┌─┐
       //  └─┐└┬┘││││    │ │└─┐├┤ ├┬┘└─┐  ││││ │ ├─┤  ╚╗╔╝├─┤│││ │ ├─┤
       //  └─┘ ┴ ┘└┘└─┘  └─┘└─┘└─┘┴└─└─┘  └┴┘┴ ┴ ┴ ┴   ╚╝ ┴ ┴┘└┘ ┴ ┴ ┴
@@ -250,9 +338,9 @@ module.exports = {
         return;
       }
 
-      //  ┌─┐┬ ┬┌┐┌┌─┐  ┬ ┬┌─┐┌─┐┌┬┐┌─┐  ┬ ┬┬┌┬┐┬ ┬  ╦  ╦┌─┐┌┐┌┌┬┐┌─┐
-      //  └─┐└┬┘││││    ├─┤│ │└─┐ │ └─┐  ││││ │ ├─┤  ╚╗╔╝├─┤│││ │ ├─┤
-      //  └─┘ ┴ ┘└┘└─┘  ┴ ┴└─┘└─┘ ┴ └─┘  └┴┘┴ ┴ ┴ ┴   ╚╝ ┴ ┴┘└┘ ┴ ┴ ┴
+      //  ╔═╗┬ ┬┌┐┌┌─┐  ┌┬┐┌─┐┌─┐╔═╗╔═╗  ┬ ┬┌─┐┌─┐┌┬┐┌─┐  ┬ ┬┬┌┬┐┬ ┬  ╦  ╦┌─┐┌┐┌┌┬┐┌─┐
+      //  ╚═╗└┬┘││││    │││├─┤│  ║ ║╚═╗  ├─┤│ │└─┐ │ └─┐  ││││ │ ├─┤  ╚╗╔╝├─┤│││ │ ├─┤
+      //  ╚═╝ ┴ ┘└┘└─┘  ┴ ┴┴ ┴└─┘╚═╝╚═╝  ┴ ┴└─┘└─┘ ┴ └─┘  └┴┘┴ ┴ ┴ ┴   ╚╝ ┴ ┴┘└┘ ┴ ┴ ┴
       await sails.helpers.http.sendHttpRequest.with({
         method: 'PUT',
         url: 'https://api.vanta.com/v1/resources/macos_user_computer/sync_all',
@@ -260,6 +348,30 @@ module.exports = {
           sourceId: vantaConnection.vantaSourceId,
           resourceId: '63868a569c18bd7adc6b7907',
           resources: macHostsToSyncWithVanta,
+        },
+        headers: {
+          'accept': 'application/json',
+          'authorization': 'Bearer '+updatedRecord.vantaAuthToken,
+          'content-type': 'application/json',
+        },
+      }).tolerate((err)=>{// If an error occurs while sending a request to Vanta, we'll add the error to the errorReportById object, with this connections ID set as the key.
+        errorReportById[connectionIdAsString] = new Error(`vantaError: When sending a PUT request to the Vanta's '/macos_user_computer/sync_all' endpoint for a Vanta connection (id: ${connectionIdAsString}), an error occurred: ${err}`);
+      });
+
+      if(errorReportById[connectionIdAsString]){// If an error occured in the previous request, we'll bail early for this connection.
+        return;
+      }
+
+      //  ╔═╗┬ ┬┌┐┌┌─┐  ╦ ╦┬┌┐┌┌┬┐┌─┐┬ ┬┌─┐  ┬ ┬┌─┐┌─┐┌┬┐┌─┐  ┬ ┬┬┌┬┐┬ ┬  ╦  ╦┌─┐┌┐┌┌┬┐┌─┐
+      //  ╚═╗└┬┘││││    ║║║││││ │││ ││││└─┐  ├─┤│ │└─┐ │ └─┐  ││││ │ ├─┤  ╚╗╔╝├─┤│││ │ ├─┤
+      //  ╚═╝ ┴ ┘└┘└─┘  ╚╩╝┴┘└┘─┴┘└─┘└┴┘└─┘  ┴ ┴└─┘└─┘ ┴ └─┘  └┴┘┴ ┴ ┴ ┴   ╚╝ ┴ ┴┘└┘ ┴ ┴ ┴
+      await sails.helpers.http.sendHttpRequest.with({
+        method: 'PUT',
+        url: 'https://api.vanta.com/v1/resources/windows_user_computer/sync_all',
+        body: {
+          sourceId: vantaConnection.vantaSourceId,
+          resourceId: '64012c3f4bd5adc73b133459',
+          resources: windowsHostsToSyncWithVanta,
         },
         headers: {
           'accept': 'application/json',
