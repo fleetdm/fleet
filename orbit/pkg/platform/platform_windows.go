@@ -6,7 +6,9 @@ package platform
 import (
 	"errors"
 	"fmt"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
@@ -15,6 +17,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 
 	"github.com/digitalocean/go-smbios/smbios"
+	"github.com/google/uuid"
 	"github.com/hectane/go-acl"
 	gopsutil_process "github.com/shirou/gopsutil/v3/process"
 	"golang.org/x/sys/windows"
@@ -340,4 +343,206 @@ func GetSMBiosUUID() (string, UUIDSource, error) {
 
 	// UUID was obtained from calling WMI infrastructure
 	return uuid, UUIDSourceWMI, nil
+}
+
+// getExecutablePath returns the current working directory
+func getExecutablePath() (string, error) {
+	// getting current executable fullpath
+	exec, err := os.Executable()
+	if err != nil {
+		return "", err
+	}
+
+	// returns the current executable directory
+	return filepath.Dir(exec), nil
+}
+
+// getOrbitVersion returns the version of the Orbit executable
+func getOrbitVersion(path string) (string, error) {
+	const (
+		expectedPrefix      = "orbit "
+		expectedVersionFlag = "-version"
+	)
+
+	if len(path) == 0 {
+		return "", errors.New("input executable is empty")
+	}
+
+	// running the executable with the version flag
+	args := []string{expectedVersionFlag}
+	out, err := exec.Command(path, args...).Output()
+	if err != nil {
+		return "", fmt.Errorf("there was a problem running target executable: %w", err)
+	}
+
+	// parsing the output
+	versionOutputStr := string(out)
+	if len(versionOutputStr) == 0 {
+		return "", errors.New("empty executable output")
+	}
+
+	outputByLines := strings.Split(strings.TrimRight(versionOutputStr, "\n"), "\n")
+	if len(outputByLines) < 1 {
+		return "", errors.New("expected number of lines is not present")
+	}
+
+	rawVersionStr := strings.TrimSpace(strings.ToLower(outputByLines[0]))
+	if !strings.HasPrefix(rawVersionStr, expectedPrefix) {
+		return "", errors.New("expected version prefix is not present")
+	}
+
+	// getting the actual version string
+	versionStr := strings.TrimPrefix(rawVersionStr, expectedPrefix)
+	if len(versionStr) == 0 {
+		return "", errors.New("expected version information is not present")
+	}
+
+	return versionStr, nil
+}
+
+// versionCheckForfixSymlinkNotPresentQuirk checks if the target orbit version has the problematic logic
+func versionCheckForfixSymlinkNotPresentQuirk(orbitPath string) error {
+	// gathering target orbit version
+	versionOrbit, err := getOrbitVersion(orbitPath)
+	if err != nil {
+		return fmt.Errorf("getting orbit version: %w", err)
+	}
+
+	// checking if target orbit has the problematic logic
+	if versionOrbit == "1.6.0" || versionOrbit == "1.7.0" {
+		return nil
+	}
+
+	return fmt.Errorf("Orbit version does not have the problematic logic: %s", versionOrbit)
+}
+
+// fixSymlinkNotPresent fixes the issue where the symlink to the orbit service binary is not present
+// this is a workaround for the issue described here https://github.com/fleetdm/fleet/issues/10300
+func fixSymlinkNotPresent() error {
+	// getting current working directory
+	execPath, err := getExecutablePath()
+	if err != nil {
+		return err
+	}
+
+	// getting the path to orbit service binary
+	orbitPath := execPath + "\\..\\bin\\orbit\\orbit.exe"
+
+	// gathering target orbit version
+	err = versionCheckForfixSymlinkNotPresentQuirk(orbitPath)
+	if err != nil {
+		return err
+	}
+
+	// checking if the orbit service binary symlink needs to be regenerated
+	_, err = os.Readlink(orbitPath)
+
+	// if there are no errors or file is not present, there is nothing to do
+	if err == nil || errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+
+	// handling error by renaming the locked binary file, marking it for deletion on reboot and
+	// regenerating the symlink
+
+	// We are now about to perform a sensitive operation
+
+	// renaming locked binary to a different file, the process will keep running, but it will be renamed
+	// target orbit process is not terminated on purpose to avoid potential erros
+	temporaryOrbitPath := orbitPath + "." + strings.ToUpper(uuid.New().String())
+
+	if err := os.Rename(orbitPath, temporaryOrbitPath); err != nil {
+		return fmt.Errorf("rename: %w", err)
+	}
+
+	// we need the symlink check to pass, so we are regenerating it to the newly renamed orbit binary.
+	// We avoid using child directories here to reduce logic complexity.
+	// The symlink is going to be regenerated and deleted during update process
+	if err := os.Symlink(temporaryOrbitPath, orbitPath); err != nil {
+		return fmt.Errorf("symlink current: %w", err)
+	}
+
+	// the renamed binary file is locked because is used by a running process
+	// so only thing possible is to mark it to be deleted upon reboot by using MOVEFILE_DELAY_UNTIL_REBOOT flag
+	// https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-movefileexw
+	if err := windows.MoveFileEx(windows.StringToUTF16Ptr(temporaryOrbitPath), nil, windows.MOVEFILE_DELAY_UNTIL_REBOOT); err != nil {
+		return fmt.Errorf("movefileex: %w", err)
+	}
+
+	return nil
+}
+
+// isRunningAsSystem checks if the current process is running as SYSTEM
+func isRunningAsSystem() (bool, error) {
+	// getting the current process token
+	token, err := windows.OpenCurrentProcessToken()
+	if err != nil {
+		return false, err
+	}
+	defer token.Close()
+
+	// getting the current process user
+	user, err := token.GetTokenUser()
+	if err != nil {
+		return false, err
+	}
+
+	// checking if the current process user is SYSTEM
+	if windows.EqualSid(user.User.Sid, constant.SystemSID) {
+		return true, nil
+	}
+
+	return false, nil
+}
+
+// isRunningFromStagingDir checks if the current process is running from the staging directory
+func isRunningFromStagingDir() (bool, error) {
+	// getting current working directory
+	execPath, err := getExecutablePath()
+	if err != nil {
+		return false, err
+	}
+
+	// checking if the current executable directory is the staging directory and return error otherwise
+	if !strings.HasSuffix(strings.ToLower(execPath), "staging") {
+		return false, errors.New("not running from the staging directory")
+	}
+
+	return true, nil
+}
+
+// shouldQuirksRun determines if the software update quirks should be run
+// by checking if process is running as system and from staging directory
+// we can relax the constrains a bit if needed and just check for SYSTEM execution context
+func shouldQuirksRun() bool {
+	isSystem, err := isRunningAsSystem()
+	if err != nil {
+		return false
+	}
+
+	isStagingDir, err := isRunningFromStagingDir()
+	if err != nil {
+		return false
+	}
+
+	return isSystem && isStagingDir
+}
+
+// PreUpdateQuirks  runs the best-effort software update quirks
+// There is no logging support in this function as it is called
+// before the logging system is initialized.
+// Software quirks added here will be executed before an update.
+// Its main purpose is to fix issues that may prevent the update from being applied.
+// The quirks should be carefully reviewed and tested before being added.
+func PreUpdateQuirks() {
+	if shouldQuirksRun() {
+		// Fixing the symlink not present quirk
+		// This is a best-effort fix, any error in fixSymlinkNotPresent is ignored
+		fixSymlinkNotPresent()
+	}
+}
+
+// IsInvalidReparsePoint returns true if the error is ERROR_NOT_A_REPARSE_POINT
+func IsInvalidReparsePoint(err error) bool {
+	return errors.Is(err, windows.ERROR_NOT_A_REPARSE_POINT)
 }

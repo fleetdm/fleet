@@ -405,14 +405,22 @@ Then hit send!  After all of the signatures are there, the completed document wi
 #### Purchasing a company-issued device
 Fleet provides laptops for team members to use while working at Fleet. As soon as an offer is accepted, Nathan Holliday will reach out to the new team member to start this process, and will work with the new team member to get their laptop purchased and shipped to them on time.
 
+
 ##### Selecting a laptop
 Most of the team at Fleet uses 16" MacBook Pros, but team members are free to choose any laptop or operating system that works for them, as long as the price [is within reason](#spending-company-money) and supported by our device management solution.  (Good news: Since Fleet uses Fleet for device management, every operating system is supported!)
 
-When selecting your new laptop, optimize your configuration to:
-1. have a reasonably large hard drive
-2. while still being available for delivery or pickup quickly, without waiting for customization.
+When selecting a new laptop for a team member, optimize their configuration to:
+1. have a reasonably large hard drive (at least 512GB hard drive, and if there's any concern go biger)
+2. BUT make sure it's still available for delivery or pickup as quickly as possible, and prior to the start date
 
-To request new equipment, post in #g-business-operations. Include a link to the requested equipment (including any specs), reason for request, and timeline for when the device is needed. 
+> Play around with build until it ships as quickly as possible.  Sometimes small changes lead to much faster ship times.  More standard configurations (with fewer customizations) usually ship more quickly.  Sometimes MacBook Pros ship more quickly than MacBook Airs, and vice versa.  This varies.  Remember: Always play around with the build and optimize for something that will **ship quickly**!
+
+For example, someone in sales, marketing, or business operations might use a 14" Macbook Air, whereas someone in engineering, product, or a primarily design role might use a 16" MacBook Pro.
+
+Windows and Linux devices are available upon request for team members in product and engineering.  (See [Buying other new equipment](#buying-other-new-equipment).)
+
+##### Buying other new equipment
+At Fleet, we [spend company money like it's our own money](https://fleetdm.com/handbook/business-operations#spending-company-money).  If you need equipment above and beyond those standard guidelines, you can request new equipment by creating a GitHub issue in fleetdm/fleet and attaching the `#g-business-operations`.  Please include a link to the requested equipment (including any specs), reason for request, and timeline for when the device is needed. 
 
 ##### Tracking equipment
 When a device has been purchased, it's added to the [spreadsheet of company equipment](https://docs.google.com/spreadsheets/d/1hFlymLlRWIaWeVh14IRz03yE-ytBLfUaqVz0VVmmoGI/edit#gid=0) where we keep track of devices and equipment, purchased by Fleet.
