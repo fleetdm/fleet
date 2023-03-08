@@ -46,6 +46,9 @@ func sync(
 	}
 
 	if len(local) == 0 {
+		if _, err := ghClient.Download(url); err != nil {
+			return err
+		}
 		return nil
 	}
 
