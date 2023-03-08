@@ -2254,7 +2254,16 @@ Returns the information of the specified host.
       "macos_settings": {
         "disk_encryption": null,
         "action_required": null
-      }
+      },
+      "profiles": [
+        {
+          "profile_id": 999,
+          "name": "profile1",
+          "status": "applied",
+          "operation_type": "install",
+          "detail": ""
+        }
+      ]
     }
   }
 }
@@ -2438,7 +2447,16 @@ Returns the information of the host specified using the `uuid`, `osquery_host_id
       "macos_settings": {
         "disk_encryption": null,
         "action_required": null
-      }
+      },
+      "profiles": [
+        {
+          "profile_id": 999,
+          "name": "profile1",
+          "status": "applied",
+          "operation_type": "install",
+          "detail": ""
+        }
+      ]
     }
   }
 }
