@@ -182,6 +182,26 @@ Scrum is an agile framework for software development that helps teams deliver hi
 
 - Higher quality software: Scrum includes regular testing and quality assurance activities, which help ensure that the software being developed is of high quality and meets the required standards.
 
+## Why lean software development?
+[Lean software development](https://en.wikipedia.org/wiki/Lean_software_development) is an iterative and incremental approach to software development that aims to eliminate waste and deliver value to
+customers quickly. It is based on the principles of [lean manufacturing](https://en.wikipedia.org/wiki/Lean_manufacturing) and emphasizes continuous improvement, collaboration, and customer focus. 
+
+Lean development can be summarized by its seven principles:
+
+1. Eliminate waste: Eliminate anything that doesn't add value to the customer, such as unnecessary features, extra processing, and waiting times.
+
+2. Amplify learning: Share knowledge and expertise across the team to continuously improve the process and increase efficiency.
+
+3. Decide as late as possible: Defer major decisions and commitments until the last possible moment to enable more informed and optimal decisions.
+
+4. Deliver as fast as possible: Deliver value to customers as quickly as possible to ensure their needs are met and to receive feedback for continuous improvement.
+
+5. Empower the team: Respect and empower the team, including customers, stakeholders, and developers, by providing a supportive environment and clear communication.
+
+6. Build integrity in:  Build quality into the software by continuously testing, reviewing, and improving the code throughout the development process.
+
+7. Optimize the whole: Optimize the entire process and focus on the system's overall performance rather than just individual parts to ensure the most efficient and effective use of resources.
+
 ## Why a three-week cadence?
 The Fleet product is released every three weeks. By syncing the whole company to this schedule, we can:
 
