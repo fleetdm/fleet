@@ -144,6 +144,7 @@ module.exports.custom = {
     // Folders of configuration files
     'mdm_profiles': ['lukeheath', 'zwass'],
     'vpn': ['rfairburn', 'zwass'],
+    'infrastructure': ['rfairburn', 'zwinnerman-fleetdm', 'edwardsb', 'zwass'],
 
     // Folder that any fleetie (team member contracted with company) can push to, willy-nilly
     'free-for-all': '*',
