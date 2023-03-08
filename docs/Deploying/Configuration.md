@@ -2580,7 +2580,7 @@ packaging:
 
 #### Mobile device management (MDM)
 
-> MDM features are not ready for production and are currently in beta. These features are disabled by default. To enable these features set `FLEET_DEV_MDM_ENABLED=1` and `FLEET_MDM_APPLE_ENABLE=1` as an environment variables.
+> MDM features are not ready for production and are currently in beta. These features are disabled by default. To enable these features set `FLEET_DEV_MDM_ENABLED=1` as an environment variable.
 
 #### dev_mdm_enabled
 
