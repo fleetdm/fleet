@@ -283,6 +283,10 @@ const (
 	DiskEncryptionRemovingEnforcement DiskEncryptionState = "removing_enforcement"
 )
 
+func (s DiskEncryptionState) addrOf() *DiskEncryptionState {
+	return &s
+}
+
 type ActionRequiredState string
 
 const (
@@ -290,9 +294,13 @@ const (
 	ActionRequiredRotateKey ActionRequiredState = "rotate_key"
 )
 
+func (s ActionRequiredState) addrOf() *ActionRequiredState {
+	return &s
+}
+
 type MDMHostMacOSSettings struct {
-	DiskEncryption DiskEncryptionState `json:"disk_encryption" csv:"-"`
-	ActionRequired ActionRequiredState `json:"action_required" csv:"-"`
+	DiskEncryption *DiskEncryptionState `json:"disk_encryption" csv:"-"`
+	ActionRequired *ActionRequiredState `json:"action_required" csv:"-"`
 }
 
 // DetermineDiskEncryptionStatus determines the disk encryption status for the
@@ -318,32 +326,32 @@ func (d *MDMHostData) DetermineDiskEncryptionStatus(profiles []HostMDMAppleProfi
 				if d.rawDecryptable != nil && *d.rawDecryptable == 1 {
 					//  if a FileVault profile has been successfully installed on the host
 					//  AND we have fetched and are able to decrypt the key
-					settings.DiskEncryption = DiskEncryptionApplied
+					settings.DiskEncryption = DiskEncryptionApplied.addrOf()
 				} else if d.rawDecryptable != nil {
 					// if a FileVault profile has been successfully installed on the host
 					// but either we didn't get an encryption key or we're not able to
 					// decrypt the key we've got
-					settings.DiskEncryption = DiskEncryptionActionRequired
+					settings.DiskEncryption = DiskEncryptionActionRequired.addrOf()
 					if *d.rawDecryptable == 0 {
-						settings.ActionRequired = ActionRequiredRotateKey
+						settings.ActionRequired = ActionRequiredRotateKey.addrOf()
 					} else {
-						settings.ActionRequired = ActionRequiredLogOut
+						settings.ActionRequired = ActionRequiredLogOut.addrOf()
 					}
 				} else {
 					// if [a FileVault profile is pending to be installed or] the
 					// matching row in host_disk_encryption_keys has a field decryptable
 					// = NULL
-					settings.DiskEncryption = DiskEncryptionEnforcing
+					settings.DiskEncryption = DiskEncryptionEnforcing.addrOf()
 				}
 
 			case fvprof.Status != nil && *fvprof.Status == MDMAppleDeliveryFailed:
 				// if a FileVault profile failed to be installed [or removed]
-				settings.DiskEncryption = DiskEncryptionFailed
+				settings.DiskEncryption = DiskEncryptionFailed.addrOf()
 
 			default:
 				// if a FileVault profile is pending to be installed [or the matching
 				// row in host_disk_encryption_keys has a field decryptable = NULL]
-				settings.DiskEncryption = DiskEncryptionEnforcing
+				settings.DiskEncryption = DiskEncryptionEnforcing.addrOf()
 			}
 
 		case MDMAppleOperationTypeRemove:
@@ -353,11 +361,11 @@ func (d *MDMHostData) DetermineDiskEncryptionStatus(profiles []HostMDMAppleProfi
 
 			case fvprof.Status != nil && *fvprof.Status == MDMAppleDeliveryFailed:
 				// if a FileVault profile failed to be [installed or] removed
-				settings.DiskEncryption = DiskEncryptionFailed
+				settings.DiskEncryption = DiskEncryptionFailed.addrOf()
 
 			default:
 				// if a FileVault profile is pending to be removed
-				settings.DiskEncryption = DiskEncryptionRemovingEnforcement
+				settings.DiskEncryption = DiskEncryptionRemovingEnforcement.addrOf()
 			}
 		}
 	}

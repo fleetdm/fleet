@@ -293,8 +293,19 @@ func TestHostDetailsMDMDiskEncryption(t *testing.T) {
 			}
 			hostDetail, err := svc.getHostDetails(test.UserContext(context.Background(), test.UserAdmin), host, opts)
 			require.NoError(t, err)
-			require.Equal(t, c.wantStatus, hostDetail.MDM.MacOSSettings.DiskEncryption)
-			require.Equal(t, c.wantAction, hostDetail.MDM.MacOSSettings.ActionRequired)
+
+			if c.wantStatus == "" {
+				require.Nil(t, hostDetail.MDM.MacOSSettings.DiskEncryption)
+			} else {
+				require.NotNil(t, hostDetail.MDM.MacOSSettings.DiskEncryption)
+				require.Equal(t, c.wantStatus, *hostDetail.MDM.MacOSSettings.DiskEncryption)
+			}
+			if c.wantAction == "" {
+				require.Nil(t, hostDetail.MDM.MacOSSettings.ActionRequired)
+			} else {
+				require.NotNil(t, hostDetail.MDM.MacOSSettings.ActionRequired)
+				require.Equal(t, c.wantAction, *hostDetail.MDM.MacOSSettings.ActionRequired)
+			}
 		})
 	}
 }
