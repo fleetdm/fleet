@@ -770,14 +770,14 @@ At this state, the [bug review DRI](#rituals) (QA) is responsible for going thro
 #### Weekly bug review
 QA has weekly check-in with product to go over the inbox items. QA is responsible for proposing “not a bug”, closing due to lack of response (with a nice message), or raising other relevant questions. All requires product agreement
 
-Requesters have six weeks to provide follow-up information for each request. We'll ping them again as a reminder at three weeks. After six weeks, we'll close the bug to remove it from our visibility, but requesters are welcome to re-open and provide context.
-
 QA may also propose that a reported bug is not actually a bug. A bug is defined as “behavior that is not according to spec or implied by spec.” If agreed that it is not a bug, then it's assigned to the relevant product manager to determine its priority.
 
 #### Acknowledging bugs
 If the inbox item is a bug, QA should apply the acknowledged state to the bug. QA has one week to reproduce the bug.
 
-Once reproduced, QA should document the reproduction steps and move it to the reproduced state.
+For community-reported bugs, this may require QA to gather more information from the reporter. QA should acknowledge the bug and reach out to the reporter if more information is needed to reproduce the issue. Reporters have six weeks to provide follow-up information for each report. We'll ping them again as a reminder at three weeks. After six weeks, we'll close the bug to remove it from our visibility, but reporters are welcome to re-open and provide context.
+
+Once reproduced, QA should document the reproduction steps in the description, align with product on what is the desired outcome during the weekly bug review meetings, and move it to the reproduced state.
 
 #### Reproduced
 When reproduced, the bug is assigned to the appropriate EM and added to the product backlog. The EM is responsible for investigating the root cause of the bug and proposing solutions to their product counterpart if it requires discussion. Otherwise, the EM includes it in this release (if there's space) or the next release.
