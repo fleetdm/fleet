@@ -2032,7 +2032,7 @@ spec:
         role != "Preboot" AND
         role != "xART" AND
         role != "Hardware" AND
-        encryption != 1
+        filevault != 1
     );
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-macos-13-5.3.1
