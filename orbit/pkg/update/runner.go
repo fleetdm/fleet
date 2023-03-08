@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sync"
 	"time"
 
@@ -203,9 +204,14 @@ func (r *Runner) UpdateAction() (bool, error) {
 		// Check whether the hash of the repository is different than that of the target local file
 		localBinaryNotUpdated := !bytes.Equal(r.localHashes[target], metaHash)
 
+		// Preventing the update of the symlink on Windows if the binary does not need to be updated
+		if runtime.GOOS == "windows" && needsSymlinkUpdate && !localBinaryNotUpdated {
+			needsSymlinkUpdate = false
+		}
+
 		// Performing update if either the binary is not updated
 		// or the symlink needs to be updated and binary is not updated.
-		if localBinaryNotUpdated || (needsSymlinkUpdate && localBinaryNotUpdated) {
+		if localBinaryNotUpdated || needsSymlinkUpdate {
 			// Update detected
 			log.Info().Str("target", target).Msg("update detected")
 			if err := r.updateTarget(target); err != nil {
