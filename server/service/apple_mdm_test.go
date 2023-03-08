@@ -1589,10 +1589,10 @@ func TestMDMAppleReconcileProfiles(t *testing.T) {
 func TestAppleMDMFileVaultEscrowFunctions(t *testing.T) {
 	svc := Service{}
 
-	err := svc.MDMAppleEnableFileVaultAndEscrow(context.Background(), uint(1))
+	err := svc.MDMAppleEnableFileVaultAndEscrow(context.Background(), ptr.Uint(1))
 	require.ErrorIs(t, fleet.ErrMissingLicense, err)
 
-	err = svc.MDMAppleDisableFileVaultAndEscrow(context.Background(), uint(1))
+	err = svc.MDMAppleDisableFileVaultAndEscrow(context.Background(), ptr.Uint(1))
 	require.ErrorIs(t, fleet.ErrMissingLicense, err)
 }
 
