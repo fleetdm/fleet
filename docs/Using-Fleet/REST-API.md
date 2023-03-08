@@ -2252,8 +2252,8 @@ Returns the information of the specified host.
       "name": "",
       "server_url": null,
       "macos_settings": {
-        "disk_encryption": "",
-        "action_required": ""
+        "disk_encryption": null,
+        "action_required": null
       }
     }
   }
@@ -2436,8 +2436,8 @@ Returns the information of the host specified using the `uuid`, `osquery_host_id
       "name": "",
       "server_url": null,
       "macos_settings": {
-        "disk_encryption": "",
-        "action_required": ""
+        "disk_encryption": null,
+        "action_required": null
       }
     }
   }

@@ -2563,8 +2563,8 @@ Returns the host information about the device that makes the request.
       "name": "",
       "server_url": null,
       "macos_settings": {
-        "disk_encryption": "",
-        "action_required": ""
+        "disk_encryption": null,
+        "action_required": null
       }
     }
   },
