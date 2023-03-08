@@ -818,13 +818,22 @@ spec:
     2. The key to include is allowAssistant.
     3. The key must be set to <true/>.
   query: |
-      SELECT 1 WHERE NOT EXISTS (
+  SELECT 1 WHERE 
+    NOT EXISTS (
         SELECT 1 FROM managed_policies WHERE 
             domain='com.apple.applicationaccess' 
             AND 
             name='allowAssistant' 
              AND (value = '0' OR value = 'false')
-        );  
+    )
+    AND
+    EXISTS (
+         SELECT 1 FROM managed_policies WHERE 
+            domain='com.apple.applicationaccess' 
+            AND 
+            name='allowAssistant' 
+             AND (value = '1' OR value = 'true')
+    );  
     /*CIS does not make a hard recommendation for this policy. Fleet has provided two policies (one failing, one succeeding). 
       Depending on your organization's decision, you can delete this policy or its counterpart.*/
   purpose: Informational
@@ -849,13 +858,22 @@ spec:
     2. The key to include is allowAssistant.
     3. The key must be set to <false/>.
   query: |
-      SELECT 1 WHERE NOT EXISTS (
+  SELECT 1 WHERE 
+    NOT EXISTS (
         SELECT 1 FROM managed_policies WHERE 
             domain='com.apple.applicationaccess' 
             AND 
             name='allowAssistant' 
              AND (value = '1' OR value = 'true')
-        );  
+    )
+    AND
+    EXISTS (
+         SELECT 1 FROM managed_policies WHERE 
+            domain='com.apple.applicationaccess' 
+            AND 
+            name='allowAssistant' 
+             AND (value = '0' OR value = 'false')
+    );  
     /*CIS does not make a hard recommendation for this policy. Fleet has provided two policies (one failing, one succeeding). 
       Depending on your organization's decision, you can delete this policy or its counterpart.*/
   purpose: Informational
