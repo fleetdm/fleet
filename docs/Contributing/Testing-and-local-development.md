@@ -156,26 +156,13 @@ go tool cover -func=coverage.txt
 
 ## End-to-end tests
 
-E2E tests are run using Docker and Cypress.
+We have partnered with [QA Wolf](https://www.qawolf.com/) to help manage and maintain our E2E testing suite.
+The code is deployed and tested once daily on the testing instance.
 
-E2E tests are constantly evolving, and running them or examining CI results is the best way to understand what they cover, but at a high level, they cover:
-1. Setup
-2. Log in/out flows
-3. Host page
-    Add hosts
-    Label flows
-4. Query flows
-5. Policy flows
-6. Schedule flows
-    scheduling
-    packs
-6. Permissions
-    Admin
-    Observer (global and team)
-    Maintainer
-7. Organizational Settings
-    Settings adjustments
-    Users
+QA Wolf manages any issues found from these tests and will raise github issues. Engineers should not
+have to worry about working with E2E testing code or raising issues themselves.
+
+For Fleet employees, if you would like access to the QA Wolf platform you can reach out in the [#help-engineering](https://fleetdm.slack.com/archives/C019WG4GH0A) slack channel.
 
 ### Preparation
 
