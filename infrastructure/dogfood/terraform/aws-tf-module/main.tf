@@ -83,6 +83,7 @@ module "main" {
   }
   alb_config = {
     name = local.customer
+    # TODO: This is broken, idk why
     #access_logs = {
     #  bucket  = module.logging_alb.log_s3_bucket_id
     #  prefix  = local.customer
@@ -179,7 +180,7 @@ module "monitoring" {
   alb_target_group_arn_suffix = module.main.byo-vpc.byo-db.alb.target_group_arn_suffixes[0]
   alb_arn_suffix              = module.main.byo-vpc.byo-db.alb.lb_arn_suffix
   sns_topic_arns_map = {
-    alb_httpcode_5xx = ["arn:aws:sns:us-east-2:160035666661:cloudwatch-alarm-fleet"]
+    alb_httpcode_5xx = [module.notify_slack.slack_topic_arn]
   }
   mysql_cluster_members = module.main.byo-vpc.rds.cluster_members
   # The cloudposse module seems to have a nested list here.
@@ -237,4 +238,19 @@ resource "aws_ecr_repository" "fleet" {
 resource "aws_kms_key" "ecr" {
   deletion_window_in_days = 10
   enable_key_rotation     = true
+}
+
+variable "slack_webhook" {
+  type = string
+}
+
+module "notify_slack" {
+  source  = "terraform-aws-modules/notify-slack/aws"
+  version = "5.5.0"
+
+  sns_topic_name = "fleet-dogfood"
+
+  slack_webhook_url = var.slack_webhook
+  slack_channel     = "#help-p1"
+  slack_username    = "monitoring"
 }
