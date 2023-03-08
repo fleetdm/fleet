@@ -33,7 +33,7 @@ data "aws_caller_identity" "current" {}
 
 locals {
   customer    = "fleet-dogfood"
-  fleet_image = var.fleet_license # Set this to the version of fleet to be deployed
+  fleet_image = var.fleet_image # Set this to the version of fleet to be deployed
   extra_environment_variables = {
     FLEET_LICENSE_KEY                          = var.fleet_license
     FLEET_LOGGING_DEBUG                        = "true"
