@@ -13,20 +13,7 @@
   input {
     display: none;
   }
-
-  .button {
-    padding: 0;
-  }
-
-  label {
-    height: 36px;
-    width: 78.2667px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-
-    &:hover {
-      cursor: pointer;
-    }
+  label:hover {
+    cursor: pointer;
   }
 }

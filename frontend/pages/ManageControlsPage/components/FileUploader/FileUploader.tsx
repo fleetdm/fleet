@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useRef } from "react";
 
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
@@ -19,12 +19,19 @@ const FileUploader = ({
   isLoading = false,
   onFileUpload,
 }: IFileUploaderProps) => {
+  const labelRef = useRef<HTMLLabelElement>(null);
+  const onUploadClick = () => {
+    labelRef.current?.click();
+  };
+
   return (
     <div className={baseClass}>
       <Icon name={icon} />
       <p>{message}</p>
-      <Button variant="brand" isLoading={isLoading}>
-        <label htmlFor="upload-profile">Upload</label>
+      <Button variant="brand" onClick={onUploadClick} isLoading={isLoading}>
+        <label htmlFor="upload-profile" ref={labelRef}>
+          Upload
+        </label>
       </Button>
       <input
         accept=".mobileconfig,application/x-apple-aspen-config"
