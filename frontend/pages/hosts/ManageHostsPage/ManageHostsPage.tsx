@@ -1186,7 +1186,7 @@ const ManageHostsPage = ({
         icon={PolicyIcon}
         label={policy?.name ?? "..."}
         onClear={handleClearPoliciesFilter}
-        className={`${baseClass}__policies-filter-pill con`}
+        className={`${baseClass}__policies-filter-pill`}
       />
     </>
   );
@@ -1194,7 +1194,6 @@ const ManageHostsPage = ({
   const renderMacSettingsStatusFilterBlock = () => {
     const label = "macOS settings";
     return (
-      // <div className={`${baseClass}__macsettings-filter-block`}>
       <>
         <Dropdown
           value={macSettingsStatus}

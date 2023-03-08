@@ -208,6 +208,12 @@ export default {
     const label = getLabel(selectedLabels);
     const sortParams = getSortParams(sortBy);
 
+    // ensure macos_settings filter is always applied in
+    // conjuction with a team_id, 0 (no teams) by default
+    if (macSettingsStatus) {
+      teamId = teamId ?? 0;
+    }
+
     const queryParams = {
       page,
       per_page: perPage,
