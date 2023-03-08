@@ -48,14 +48,19 @@ module.exports = {
     return await sails.helpers.flow.build(async()=>{
 
       let isDRIForAllChangedPathsStill = false;
+      let isInfraPR = false;
 
       // [?] https://docs.github.com/en/rest/reference/pulls#list-pull-requests-files
       let changedPaths = _.pluck(await sails.helpers.http.get(`https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}/files`, {
         per_page: 100,//eslint-disable-line camelcase
       }, baseHeaders).retry(), 'filename');// (don't worry, it's the whole path, not the filename)
 
-      isDRIForAllChangedPathsStill = _.all(changedPaths, (changedPath)=>{
-        changedPath = changedPath.replace(/\/+$/,'');// « trim trailing slashes, just in case (b/c otherwise could loop forever)
+      isDRIForAllChangedPathsStill = _.all(changedPaths, (changedPath) => {
+        changedPath = changedPath.replace(/\/+$/, '');// « trim trailing slashes, just in case (b/c otherwise could loop forever)
+
+        if (changedPath.indexOf('/infrastructure/') > -1) {
+          isInfraPR = true;
+        }
 
         // sails.log.verbose(`…checking DRI of changed path "${changedPath}"`);
 
@@ -80,6 +85,10 @@ module.exports = {
           numRemainingPathsToCheck--;
         }//∞
       });//∞
+
+      if (isInfraPR) {
+        return false;
+      }
 
       if (isDRIForAllChangedPathsStill && changedPaths.length < 100) {
         return true;
