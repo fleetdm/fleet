@@ -175,7 +175,7 @@ module.exports = {
           autoUpdatesEnabled: false, // Always sending this value as false
         };
 
-        // If the host has an mdm property, set the `isMaganged` parameter to be the value of the host's enrollment status (if it is not null)
+        // If the host has an mdm property, set the `isManaged` parameter to be the value of the host's enrollment status (if it is not null)
         if(host.mdm !== undefined && host.mdm.enrollment_status !== null) {
           macOsHostToSyncWithVanta.isManaged = host.mdm.enrollment_status;
         }
