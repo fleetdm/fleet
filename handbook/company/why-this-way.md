@@ -198,7 +198,7 @@ Lean development can be summarized by its seven principles:
 
 5. Empower the team: Respect and empower the team, including customers, stakeholders, and developers, by providing a supportive environment and clear communication.
 
-6. Build integrity in:  Build quality into the software by continuously testing, reviewing, and improving the code throughout the development process.
+6. Build integrity in: Build quality into the software by continuously testing, reviewing, and improving the code throughout the development process.
 
 7. Optimize the whole: Optimize the entire process and focus on the system's overall performance rather than just individual parts to ensure the most efficient and effective use of resources.
 
