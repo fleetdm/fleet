@@ -1,6 +1,6 @@
 # Using Fleet and Tines together
 
-(../website/assets/images/articles/using-fleet-and-tines-together-1600x900@2x.png)
+![](../website/assets/images/articles/using-fleet-and-tines-together-1600x900@2x.png)
 
 Not long ago, I had never heard of Tines. I would have happily created custom python scripts to parse data coming from a REST API and have been done with it. Sure, accomplishing a data ingestion and transformation initiative with python is something that many people still do and, in some cases, still needed. The problem that Tines solves for me is the quick connection and data transformation use case when getting data out of the Fleet REST API. With Tines, I can quickly access all of the endpoints available in Fleet and use a simple lo-code solution to solve problems. Plus, the interface is stellar!
 
