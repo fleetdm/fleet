@@ -6,9 +6,11 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sync"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/orbit/pkg/platform"
 	"github.com/rs/zerolog/log"
 )
 
@@ -199,9 +201,17 @@ func (r *Runner) UpdateAction() (bool, error) {
 			}
 		}
 
-		// Check whether the hash of the repository is different than
-		// that of the target local file.
-		if !bytes.Equal(r.localHashes[target], metaHash) || needsSymlinkUpdate {
+		// Check whether the hash of the repository is different than that of the target local file
+		localBinaryNotUpdated := !bytes.Equal(r.localHashes[target], metaHash)
+
+		// Preventing the update of the symlink on Windows if the binary does not need to be updated
+		if runtime.GOOS == "windows" && needsSymlinkUpdate && !localBinaryNotUpdated {
+			needsSymlinkUpdate = false
+		}
+
+		// Performing update if either the binary is not updated
+		// or the symlink needs to be updated and binary is not updated.
+		if localBinaryNotUpdated || needsSymlinkUpdate {
 			// Update detected
 			log.Info().Str("target", target).Msg("update detected")
 			if err := r.updateTarget(target); err != nil {
@@ -232,6 +242,13 @@ func (r *Runner) needsOrbitSymlinkUpdate() (bool, error) {
 		if errors.Is(err, os.ErrNotExist) {
 			return true, nil
 		}
+
+		if platform.IsInvalidReparsePoint(err) {
+			// On Windows, the symlink may be a file instead of a symlink.
+			// let's handle this case by forcing the update to happen
+			return true, nil
+		}
+
 		return false, fmt.Errorf("read existing symlink: %w", err)
 	}
 
