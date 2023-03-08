@@ -160,7 +160,7 @@ module.exports = {
         let macOsHostToSyncWithVanta = {
           displayName: host.display_name,
           uniqueId: hostIdAsString,
-          externalUrl: updatedRecord.fleetInstanceUrl + encodeURIComponent('/hosts/'+hostIdAsString),
+          externalUrl: updatedRecord.fleetInstanceUrl + '/hosts/'+encodeURIComponent(hostIdAsString),
           collectedTimestamp: host.updated_at,
           osName: 'macOS', // Setting the osName for all macOS hosts to 'macOS'. Different versions of macOS have different prefixes, (e.g., a macOS host running 12.6 would be returned as "macOS 12.6.1", while a mac running version 10.15.7 would be displayed as "Mac OS X 10.15.7")
           osVersion: host.os_version.replace(/^([\D]+)\s(.+)/g, '$2'), // removing everything but the version number (XX.XX.XX) from the host's os_version value.
@@ -182,7 +182,7 @@ module.exports = {
 
         // Send a request to this host's API endpoint to get the required information about this host.
         let detailedInformationAboutThisHost = await sails.helpers.http.get(
-          updatedRecord.fleetInstanceUrl + '/api/v1/fleet/hosts/'+host.id,
+          updatedRecord.fleetInstanceUrl + '/api/v1/fleet/hosts/'+encodeURIComponent(hostIdAsString),
           {},
           {'Authorization': 'bearer '+updatedRecord.fleetApiKey}
         )
@@ -258,14 +258,14 @@ module.exports = {
           lastEnrolledTimestamp: host.last_enrolled_at,
         };
 
-        // If the host has an mdm property, set the `isMaganged` parameter to be the value of the host's enrollment status (if it is not null)
+        // If the host has an mdm property, set the `isManaged` parameter to be the value of the host's enrollment status (if it is not null)
         if(host.mdm !== undefined && host.mdm.enrollment_status !== null){
           windowsHostToSyncWithVanta.isManaged = host.mdm.enrollment_status;
         }
 
         // Send a request to this host's API endpoint to get the required information about this host.
         let detailedInformationAboutThisHost = await sails.helpers.http.get(
-          updatedRecord.fleetInstanceUrl + '/api/v1/fleet/hosts/'+host.id,
+          updatedRecord.fleetInstanceUrl + '/api/v1/fleet/hosts/'+encodeURIComponent(hostIdAsString),
           {},
           {'Authorization': 'bearer '+updatedRecord.fleetApiKey}
         )
