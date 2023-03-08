@@ -2594,7 +2594,7 @@ This is the first of two feature flags required to turn on MDM features. This fe
     mdm_enable: 1
   ```
 
-##### apple_mdm_enable
+##### apple_enable
 
 This is the second feature flag required to turn on MDM features. This feature flag must be set to `1` at the same time as when you set the certificate and keys for Apple Push Certificate server (APNs) and Apple Business Manager (ABM). Otherwise, the Fleet server won't start.
 

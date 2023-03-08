@@ -561,7 +561,7 @@ type BulkUpsertMDMAppleHostProfilesFunc func(ctx context.Context, payload []*fle
 
 type GetMDMAppleProfilesContentsFunc func(ctx context.Context, profileIDs []uint) (map[uint]fleet.Mobileconfig, error)
 
-type UpdateHostMDMAppleProfileFunc func(ctx context.Context, profile *fleet.HostMDMAppleProfile) error
+type UpdateOrDeleteHostMDMAppleProfileFunc func(ctx context.Context, profile *fleet.HostMDMAppleProfile) error
 
 type GetMDMAppleCommandRequestTypeFunc func(ctx context.Context, commandUUID string) (string, error)
 
@@ -1387,8 +1387,8 @@ type DataStore struct {
 	GetMDMAppleProfilesContentsFunc        GetMDMAppleProfilesContentsFunc
 	GetMDMAppleProfilesContentsFuncInvoked bool
 
-	UpdateHostMDMAppleProfileFunc        UpdateHostMDMAppleProfileFunc
-	UpdateHostMDMAppleProfileFuncInvoked bool
+	UpdateOrDeleteHostMDMAppleProfileFunc        UpdateOrDeleteHostMDMAppleProfileFunc
+	UpdateOrDeleteHostMDMAppleProfileFuncInvoked bool
 
 	GetMDMAppleCommandRequestTypeFunc        GetMDMAppleCommandRequestTypeFunc
 	GetMDMAppleCommandRequestTypeFuncInvoked bool
@@ -3310,11 +3310,11 @@ func (s *DataStore) GetMDMAppleProfilesContents(ctx context.Context, profileIDs 
 	return s.GetMDMAppleProfilesContentsFunc(ctx, profileIDs)
 }
 
-func (s *DataStore) UpdateHostMDMAppleProfile(ctx context.Context, profile *fleet.HostMDMAppleProfile) error {
+func (s *DataStore) UpdateOrDeleteHostMDMAppleProfile(ctx context.Context, profile *fleet.HostMDMAppleProfile) error {
 	s.mu.Lock()
-	s.UpdateHostMDMAppleProfileFuncInvoked = true
+	s.UpdateOrDeleteHostMDMAppleProfileFuncInvoked = true
 	s.mu.Unlock()
-	return s.UpdateHostMDMAppleProfileFunc(ctx, profile)
+	return s.UpdateOrDeleteHostMDMAppleProfileFunc(ctx, profile)
 }
 
 func (s *DataStore) GetMDMAppleCommandRequestType(ctx context.Context, commandUUID string) (string, error) {

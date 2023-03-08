@@ -1810,7 +1810,7 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 
 	switch requestType {
 	case "InstallProfile":
-		return nil, svc.ds.UpdateHostMDMAppleProfile(r.Context, &fleet.HostMDMAppleProfile{
+		return nil, svc.ds.UpdateOrDeleteHostMDMAppleProfile(r.Context, &fleet.HostMDMAppleProfile{
 			CommandUUID:   res.CommandUUID,
 			HostUUID:      res.UDID,
 			Status:        fleet.MDMAppleDeliveryStatusFromCommandStatus(res.Status),
@@ -1818,7 +1818,7 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 			OperationType: fleet.MDMAppleOperationTypeInstall,
 		})
 	case "RemoveProfile":
-		return nil, svc.ds.UpdateHostMDMAppleProfile(r.Context, &fleet.HostMDMAppleProfile{
+		return nil, svc.ds.UpdateOrDeleteHostMDMAppleProfile(r.Context, &fleet.HostMDMAppleProfile{
 			CommandUUID:   res.CommandUUID,
 			HostUUID:      res.UDID,
 			Status:        fleet.MDMAppleDeliveryStatusFromCommandStatus(res.Status),
@@ -2103,7 +2103,9 @@ func ReconcileProfiles(
 				level.Debug(logger).Log("err", "sending push notifications, profiles still enqueued", "details", err)
 			case err != nil:
 				level.Error(logger).Log("err", "removing profiles from devices", "details", err)
+				// TODO(mna): Am I missing something or are we sending two times for a single host here in case of error?
 				ch <- remoteResult{err, pp}
+				return
 			}
 
 			ch <- remoteResult{nil, pp}
@@ -2128,7 +2130,6 @@ func ReconcileProfiles(
 				failed = append(failed, &newPayload)
 			}
 		}
-
 	}
 	err = ds.BulkUpsertMDMAppleHostProfiles(ctx, failed)
 	if err != nil {
