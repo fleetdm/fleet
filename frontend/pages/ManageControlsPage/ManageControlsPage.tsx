@@ -91,7 +91,9 @@ const ManageControlsPage = ({
     </div>
   );
 
-  const onConnectClick = () => router.push(PATHS.ADMIN_INTEGRATIONS_MDM);
+  const onConnectClick = () => {
+    router.push(PATHS.ADMIN_INTEGRATIONS_MDM);
+  };
 
   const renderBody = () => {
     return config?.mdm.enabled_and_configured ? (
