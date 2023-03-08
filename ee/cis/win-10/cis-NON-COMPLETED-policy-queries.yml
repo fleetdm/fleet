@@ -2,6 +2,109 @@
 apiVersion: v1
 kind: policy
 spec:
+  name: CIS - Ensure 'Account lockout duration' is set to '15 or more minute(s)'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting determines the length of time that must pass before a locked account is unlocked and a user can try to log on again. The setting does this by specifying the number of minutes a locked out account will remain unavailable. If the value for this policy setting is configured to 0, locked out accounts will remain locked out until an administrator manually unlocks them.
+    Although it might seem like a good idea to configure the value for this policy setting to a high value, such a configuration will likely increase the number of calls that the help desk receives to unlock accounts locked by mistake. Users should be aware of the length of time a lock remains in place, so that they realize they only need to call the help desk if they have an extremely urgent need to regain access to their computer.
+    The recommended state for this setting is: 15 or more minute(s).
+    Note: Password Policy settings (section 1.1) and Account Lockout Policy settings (section 1.2) must be applied via the Default Domain Policy GPO in order to be globally in effect on domain user accounts as their default behavior. If these settings are configured in another GPO, they will only affect local user accounts on the computers that receive the GPO. However, custom exceptions to the default password policy and account lockout policy rules for specific domain users and/or groups can be defined using Password Settings Objects (PSOs), which are completely separate from Group Policy and most easily configured using Active Directory Administrative Center.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to '15 or more minute(s)':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Account Policies\Account Lockout Policy\Account lockout duration'
+  query: |
+    tbd
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_1.2.1, CIS_not_completed
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Account lockout threshold' is set to '5 or fewer invalid logon attempt(s), but not 0'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting determines the number of failed logon attempts before the account is locked. Setting this policy to 0 does not conform to the benchmark as doing so disables the account lockout threshold.
+    The recommended state for this setting is: 5 or fewer invalid logon attempt(s), but not 0.
+    Note: Password Policy settings (section 1.1) and Account Lockout Policy settings (section 1.2) must be applied via the Default Domain Policy GPO in order to be globally in effect on domain user accounts as their default behavior. If these settings are configured in another GPO, they will only affect local user accounts on the computers that receive the GPO. However, custom exceptions to the default password policy and account lockout policy rules for specific domain users and/or groups can be defined using Password Settings Objects (PSOs), which are completely separate from Group Policy and most easily configured using Active Directory Administrative Center.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to '5 or fewer invalid login attempt(s), but not 0':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Account Policies\Account Lockout Policy\Account lockout threshold'
+  query: |
+    tbd
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_1.2.2, CIS_not_completed
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Reset account lockout counter after' is set to '15 or more minute(s)'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting determines the length of time before the Account lockout threshold resets to zero. The default value for this policy setting is Not Defined. If the Account lockout threshold is defined, this reset time must be less than or equal to the value for the Account lockout duration setting.
+    If you leave this policy setting at its default value or configure the value to an interval that is too long, your environment could be vulnerable to a DoS attack. An attacker could maliciously perform a number of failed logon attempts on all users in the organization, which will lock out their accounts. If no policy were determined to reset the account lockout, it would be a manual task for administrators. Conversely, if a reasonable time value is configured for this policy setting, users would be locked out for a set period until all of the accounts are unlocked automatically.
+    The recommended state for this setting is: 15 or more minute(s).
+    Note: Password Policy settings (section 1.1) and Account Lockout Policy settings (section 1.2) must be applied via the Default Domain Policy GPO in order to be globally in effect on domain user accounts as their default behavior. If these settings are configured in another GPO, they will only affect local user accounts on the computers that receive the GPO. However, custom exceptions to the default password policy and account lockout policy rules for specific domain users and/or groups can be defined using Password Settings Objects (PSOs), which are completely separate from Group Policy and most easily configured using Active Directory Administrative Center.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to '15 or more minute(s)':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Account Policies\Account Lockout Policy\Reset account lockout counter after'
+  query: |
+    tbd
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_1.2.3, CIS_not_completed
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Adjust memory quotas for a process' is set to 'Administrators, LOCAL SERVICE, NETWORK SERVICE'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting allows a user to adjust the maximum amount of memory that is available to a process. The ability to adjust memory quotas is useful for system tuning, but it can be abused. In the wrong hands, it could be used to launch a denial of service (DoS) attack.
+    The recommended state for this setting is: Administrators, LOCAL SERVICE, NETWORK SERVICE.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to a list of only 'Administrators', 'LOCAL SERVICE' and 'NETWORK SERVICE':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Adjust memory quotas for a process'
+  query: |
+    Tbd
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.2.4, CIS_not_completed, english-support-only
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Allow log on through Remote Desktop Services' is set to 'Administrators, Remote Desktop Users'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting determines which users or groups have the right to log on as a Remote Desktop Services client. If your organization uses Remote Assistance as part of its help desk strategy, create a group and assign it this user right through Group Policy. If the help desk in your organization does not use Remote Assistance, assign this user right only to the Administrators group or use the Restricted Groups feature to ensure that no user accounts are part of the Remote Desktop Users group.
+    Restrict this user right to the Administrators group, and possibly the Remote Desktop Users group, to prevent unwanted users from gaining access to computers on your network by means of the Remote Assistance feature.
+    The recommended state for this setting is: Administrators, Remote Desktop Users. Note: The above list is to be treated as a whitelist, which implies that the above
+    principals need not be present for assessment of this recommendation to pass.
+    Note #2: In all versions of Windows prior to Windows 7, Remote Desktop Services was known as Terminal Services, so you should substitute the older term if comparing against an older OS.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'Administrators, Remote Desktop Users':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Allow log on through Remote Desktop Services'
+  query: |
+    Tbd
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.2.6, CIS_not_completed, english-support-only
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
   name: CIS - Ensure 'Change the time zone' is set to 'Administrators, LOCAL SERVICE, Users'
   platforms: win10
   platform: windows
@@ -214,106 +317,3 @@ spec:
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.11.6, CIS_not_completed
   contributors: marcosd4h
----
-apiVersion: v1
-kind: policy
-spec:
-  name: CIS - Ensure 'Account lockout duration' is set to '15 or more minute(s)'
-  platforms: win10
-  platform: windows
-  description: |
-    This policy setting determines the length of time that must pass before a locked account is unlocked and a user can try to log on again. The setting does this by specifying the number of minutes a locked out account will remain unavailable. If the value for this policy setting is configured to 0, locked out accounts will remain locked out until an administrator manually unlocks them.
-    Although it might seem like a good idea to configure the value for this policy setting to a high value, such a configuration will likely increase the number of calls that the help desk receives to unlock accounts locked by mistake. Users should be aware of the length of time a lock remains in place, so that they realize they only need to call the help desk if they have an extremely urgent need to regain access to their computer.
-    The recommended state for this setting is: 15 or more minute(s).
-    Note: Password Policy settings (section 1.1) and Account Lockout Policy settings (section 1.2) must be applied via the Default Domain Policy GPO in order to be globally in effect on domain user accounts as their default behavior. If these settings are configured in another GPO, they will only affect local user accounts on the computers that receive the GPO. However, custom exceptions to the default password policy and account lockout policy rules for specific domain users and/or groups can be defined using Password Settings Objects (PSOs), which are completely separate from Group Policy and most easily configured using Active Directory Administrative Center.
-  resolution: |
-    Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to '15 or more minute(s)':
-    'Computer Configuration\Policies\Windows Settings\Security Settings\Account Policies\Account Lockout Policy\Account lockout duration'
-  query: |
-    SELECT 1 FROM todo_add_query;
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_1.2.1
-  contributors: sharon-fdm
----
-apiVersion: v1
-kind: policy
-spec:
-  name: CIS - Ensure 'Account lockout threshold' is set to '5 or fewer invalid logon attempt(s), but not 0'
-  platforms: win10
-  platform: windows
-  description: |
-    This policy setting determines the number of failed logon attempts before the account is locked. Setting this policy to 0 does not conform to the benchmark as doing so disables the account lockout threshold.
-    The recommended state for this setting is: 5 or fewer invalid logon attempt(s), but not 0.
-    Note: Password Policy settings (section 1.1) and Account Lockout Policy settings (section 1.2) must be applied via the Default Domain Policy GPO in order to be globally in effect on domain user accounts as their default behavior. If these settings are configured in another GPO, they will only affect local user accounts on the computers that receive the GPO. However, custom exceptions to the default password policy and account lockout policy rules for specific domain users and/or groups can be defined using Password Settings Objects (PSOs), which are completely separate from Group Policy and most easily configured using Active Directory Administrative Center.
-  resolution: |
-    Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to '5 or fewer invalid login attempt(s), but not 0':
-    'Computer Configuration\Policies\Windows Settings\Security Settings\Account Policies\Account Lockout Policy\Account lockout threshold'
-  query: |
-    SELECT 1 FROM todo_add_query;
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_1.2.2
-  contributors: sharon-fdm
----
-apiVersion: v1
-kind: policy
-spec:
-  name: CIS - Ensure 'Reset account lockout counter after' is set to '15 or more minute(s)'
-  platforms: win10
-  platform: windows
-  description: |
-    This policy setting determines the length of time before the Account lockout threshold resets to zero. The default value for this policy setting is Not Defined. If the Account lockout threshold is defined, this reset time must be less than or equal to the value for the Account lockout duration setting.
-    If you leave this policy setting at its default value or configure the value to an interval that is too long, your environment could be vulnerable to a DoS attack. An attacker could maliciously perform a number of failed logon attempts on all users in the organization, which will lock out their accounts. If no policy were determined to reset the account lockout, it would be a manual task for administrators. Conversely, if a reasonable time value is configured for this policy setting, users would be locked out for a set period until all of the accounts are unlocked automatically.
-    The recommended state for this setting is: 15 or more minute(s).
-    Note: Password Policy settings (section 1.1) and Account Lockout Policy settings (section 1.2) must be applied via the Default Domain Policy GPO in order to be globally in effect on domain user accounts as their default behavior. If these settings are configured in another GPO, they will only affect local user accounts on the computers that receive the GPO. However, custom exceptions to the default password policy and account lockout policy rules for specific domain users and/or groups can be defined using Password Settings Objects (PSOs), which are completely separate from Group Policy and most easily configured using Active Directory Administrative Center.
-  resolution: |
-    Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to '15 or more minute(s)':
-    'Computer Configuration\Policies\Windows Settings\Security Settings\Account Policies\Account Lockout Policy\Reset account lockout counter after'
-  query: |
-    SELECT 1 FROM todo_add_query;
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_1.2.3
-  contributors: sharon-fdm
----
-apiVersion: v1
-kind: policy
-spec:
-  name: CIS - Ensure 'Adjust memory quotas for a process' is set to 'Administrators, LOCAL SERVICE, NETWORK SERVICE'
-  platforms: win10
-  platform: windows
-  description: |
-    This policy setting allows a user to adjust the maximum amount of memory that is available to a process. The ability to adjust memory quotas is useful for system tuning, but it can be abused. In the wrong hands, it could be used to launch a denial of service (DoS) attack.
-    The recommended state for this setting is: Administrators, LOCAL SERVICE, NETWORK SERVICE.
-  resolution: |
-    Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to a list of only 'Administrators', 'LOCAL SERVICE' and 'NETWORK SERVICE':
-    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Adjust memory quotas for a process'
-  query: |
-    SELECT 1 FROM todo_add_query;
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.2.4, english-support-only
-  contributors: sharon-fdm
----
-apiVersion: v1
-kind: policy
-spec:
-  name: CIS - Ensure 'Allow log on through Remote Desktop Services' is set to 'Administrators, Remote Desktop Users'
-  platforms: win10
-  platform: windows
-  description: |
-    This policy setting determines which users or groups have the right to log on as a Remote Desktop Services client. If your organization uses Remote Assistance as part of its help desk strategy, create a group and assign it this user right through Group Policy. If the help desk in your organization does not use Remote Assistance, assign this user right only to the Administrators group or use the Restricted Groups feature to ensure that no user accounts are part of the Remote Desktop Users group.
-    Restrict this user right to the Administrators group, and possibly the Remote Desktop Users group, to prevent unwanted users from gaining access to computers on your network by means of the Remote Assistance feature.
-    The recommended state for this setting is: Administrators, Remote Desktop Users. Note: The above list is to be treated as a whitelist, which implies that the above
-    principals need not be present for assessment of this recommendation to pass.
-    Note #2: In all versions of Windows prior to Windows 7, Remote Desktop Services was known as Terminal Services, so you should substitute the older term if comparing against an older OS.
-  resolution: |
-    Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'Administrators, Remote Desktop Users':
-    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Allow log on through Remote Desktop Services'
-  query: |
-    SELECT 1 FROM todo_add_query;
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.2.6, english-support-only
-  contributors: sharon-fdm
