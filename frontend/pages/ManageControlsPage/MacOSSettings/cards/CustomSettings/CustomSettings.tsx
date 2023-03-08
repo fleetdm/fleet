@@ -95,7 +95,7 @@ const CustomSettings = () => {
 
   return (
     <div className={baseClass}>
-      <h2>Custom Settings</h2>
+      <h2>Custom settings</h2>
       <p className={`${baseClass}__description`}>
         Create and upload configuration profiles to apply custom settings.{" "}
         <CustomLink
