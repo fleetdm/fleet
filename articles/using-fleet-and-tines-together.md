@@ -1,5 +1,7 @@
 # Using Fleet and Tines together
 
+(../website/assets/images/articles/using-fleet-and-tines-together-1600x900@2x.png)
+
 Not long ago, I had never heard of Tines. I would have happily created custom python scripts to parse data coming from a REST API and have been done with it. Sure, accomplishing a data ingestion and transformation initiative with python is something that many people still do and, in some cases, still needed. The problem that Tines solves for me is the quick connection and data transformation use case when getting data out of the Fleet REST API. With Tines, I can quickly access all of the endpoints available in Fleet and use a simple lo-code solution to solve problems. Plus, the interface is stellar!
 
 Fleet collects a large amount of data, and in many cases, it is not possible (or feasible) to represent that data in the UI in a way that solves all user needs. In the Fleet UI, the relationship between hosts and software installed on those hosts is illustrated in a couple of ways. 
@@ -73,7 +75,8 @@ The final email with the above definition looks like this:
 The Fleet API is very flexible, but with the addition of Tines, the options for data transformation are endless. In the above example, we easily connected to the Fleet API and transformed the data response with a single Tines Transform function, and allowed the end user to receive a customized report of vulnerable software on an individual host.
 
 <meta name="category" value="guides">
-<meta name="authorGitHubUsername" value="spokanemac">
-<meta name="authorFullName" value="JD Strong">
+<meta name="authorFullName" value="Dave Herder">
+<meta name="authorGitHubUsername" value="dherder">
 <meta name="publishedOn" value="2023-03-08">
 <meta name="articleTitle" value="Using Fleet and Tines together">
+<meta name="articleImageUrl" value="../website/assets/images/articles/using-fleet-and-tines-together-1600x900@2x.png">
