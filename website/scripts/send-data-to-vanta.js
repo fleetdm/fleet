@@ -175,9 +175,11 @@ module.exports = {
           autoUpdatesEnabled: false, // Always sending this value as false
         };
 
-        // If the host has an mdm property, set the `isManaged` parameter to be the value of the host's enrollment status (if it is not null)
+        // If the host has an mdm property, set the `isManaged` parameter to true if the hosts's mdm enrollment_status is either "On (automatic)" or "On (manual)")
         if(host.mdm !== undefined && host.mdm.enrollment_status !== null) {
-          macOsHostToSyncWithVanta.isManaged = host.mdm.enrollment_status;
+          if(host.mdm.enrollment_status === 'On (automatic)' || host.mdm.enrollment_status === 'On (manual)'){
+            macOsHostToSyncWithVanta.isManaged = true;
+          }
         }
 
         // Send a request to this host's API endpoint to get the required information about this host.
@@ -258,9 +260,11 @@ module.exports = {
           lastEnrolledTimestamp: host.last_enrolled_at,
         };
 
-        // If the host has an mdm property, set the `isManaged` parameter to be the value of the host's enrollment status (if it is not null)
+        // If the host has an mdm property, set the `isManaged` parameter to true if the hosts's mdm enrollment_status is either "On (automatic)" or "On (manual)")
         if(host.mdm !== undefined && host.mdm.enrollment_status !== null){
-          windowsHostToSyncWithVanta.isManaged = host.mdm.enrollment_status;
+          if(host.mdm.enrollment_status === 'On (automatic)' || host.mdm.enrollment_status === 'On (manual)'){
+            windowsHostToSyncWithVanta.isManaged = true;
+          }
         }
 
         // Send a request to this host's API endpoint to get the required information about this host.
