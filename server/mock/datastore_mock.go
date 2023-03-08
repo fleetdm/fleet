@@ -567,6 +567,8 @@ type GetMDMAppleCommandRequestTypeFunc func(ctx context.Context, commandUUID str
 
 type GetMDMAppleHostsProfilesSummaryFunc func(ctx context.Context, teamID *uint) (*fleet.MDMAppleHostsProfilesSummary, error)
 
+type GetMDMAppleFileVaultSummaryFunc func(ctx context.Context, teamID *uint) (*fleet.MDMAppleFileVaultSummary, error)
+
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
 	HealthCheckFuncInvoked bool
@@ -1395,6 +1397,9 @@ type DataStore struct {
 
 	GetMDMAppleHostsProfilesSummaryFunc        GetMDMAppleHostsProfilesSummaryFunc
 	GetMDMAppleHostsProfilesSummaryFuncInvoked bool
+
+	GetMDMAppleFileVaultSummaryFunc        GetMDMAppleFileVaultSummaryFunc
+	GetMDMAppleFileVaultSummaryFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -3329,4 +3334,11 @@ func (s *DataStore) GetMDMAppleHostsProfilesSummary(ctx context.Context, teamID 
 	s.GetMDMAppleHostsProfilesSummaryFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetMDMAppleHostsProfilesSummaryFunc(ctx, teamID)
+}
+
+func (s *DataStore) GetMDMAppleFileVaultSummary(ctx context.Context, teamID *uint) (*fleet.MDMAppleFileVaultSummary, error) {
+	s.mu.Lock()
+	s.GetMDMAppleFileVaultSummaryFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetMDMAppleFileVaultSummaryFunc(ctx, teamID)
 }

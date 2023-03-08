@@ -819,6 +819,10 @@ type Datastore interface {
 	// each host in the specified team (or, if no team is specified, each host that is not assigned
 	// to any team).
 	GetMDMAppleHostsProfilesSummary(ctx context.Context, teamID *uint) (*MDMAppleHostsProfilesSummary, error)
+
+	// TODO: docs
+	// QUESTION: how do we have access to MDMAppleFileVaultSummary here?
+	GetMDMAppleFileVaultSummary(ctx context.Context, teamID *uint) (*MDMAppleFileVaultSummary, error)
 }
 
 const (
