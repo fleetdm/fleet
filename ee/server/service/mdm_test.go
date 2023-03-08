@@ -10,6 +10,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/stretchr/testify/require"
 )
 
@@ -33,7 +34,7 @@ func TestMDMAppleEnableFileVaultAndEscrow(t *testing.T) {
 	t.Run("fails if SCEP is not configured", func(t *testing.T) {
 		ds := new(mock.Store)
 		svc := &Service{ds: ds, config: config.FleetConfig{}}
-		err := svc.MDMAppleEnableFileVaultAndEscrow(ctx, 0)
+		err := svc.MDMAppleEnableFileVaultAndEscrow(ctx, nil)
 		require.Error(t, err)
 	})
 
@@ -43,7 +44,7 @@ func TestMDMAppleEnableFileVaultAndEscrow(t *testing.T) {
 		ds.NewMDMAppleConfigProfileFunc = func(ctx context.Context, p fleet.MDMAppleConfigProfile) (*fleet.MDMAppleConfigProfile, error) {
 			return nil, testErr
 		}
-		err := svc.MDMAppleEnableFileVaultAndEscrow(ctx, 0)
+		err := svc.MDMAppleEnableFileVaultAndEscrow(ctx, nil)
 		require.ErrorIs(t, err, testErr)
 		require.True(t, ds.NewMDMAppleConfigProfileFuncInvoked)
 	})
@@ -59,7 +60,7 @@ func TestMDMAppleEnableFileVaultAndEscrow(t *testing.T) {
 			return nil, nil
 		}
 
-		err := svc.MDMAppleEnableFileVaultAndEscrow(ctx, teamID)
+		err := svc.MDMAppleEnableFileVaultAndEscrow(ctx, ptr.Uint(teamID))
 		require.NoError(t, err)
 		require.True(t, ds.NewMDMAppleConfigProfileFuncInvoked)
 	})
@@ -68,13 +69,14 @@ func TestMDMAppleEnableFileVaultAndEscrow(t *testing.T) {
 func TestMDMAppleDisableFileVaultAndEscrow(t *testing.T) {
 	var wantTeamID uint
 	ds, svc := setup()
-	ds.DeleteMDMAppleConfigProfileByTeamAndIdentifierFunc = func(ctx context.Context, teamID uint, profileIdentifier string) error {
-		require.Equal(t, wantTeamID, teamID)
+	ds.DeleteMDMAppleConfigProfileByTeamAndIdentifierFunc = func(ctx context.Context, teamID *uint, profileIdentifier string) error {
+		require.NotNil(t, teamID)
+		require.Equal(t, wantTeamID, *teamID)
 		require.Equal(t, apple_mdm.FleetFileVaultPayloadIdentifier, profileIdentifier)
 		return nil
 	}
 
-	err := svc.MDMAppleDisableFileVaultAndEscrow(context.Background(), wantTeamID)
+	err := svc.MDMAppleDisableFileVaultAndEscrow(context.Background(), ptr.Uint(wantTeamID))
 	require.NoError(t, err)
 	require.True(t, ds.DeleteMDMAppleConfigProfileByTeamAndIdentifierFuncInvoked)
 

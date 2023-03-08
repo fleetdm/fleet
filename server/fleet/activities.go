@@ -54,6 +54,9 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityTypeCreatedMacosProfile{},
 	ActivityTypeDeletedMacosProfile{},
 	ActivityTypeEditedMacosProfile{},
+
+	ActivityTypeEnabledMacosDiskEncryption{},
+	ActivityTypeDisabledMacosDiskEncryption{},
 }
 
 type ActivityDetails interface {
@@ -799,6 +802,44 @@ func (a ActivityTypeEditedMacosProfile) Documentation() (activity, details, deta
 		`This activity contains the following fields:
 - "team_id": The ID of the team that the profiles apply to, null if they apply to devices that are not in a team.
 - "team_name": The name of the team that the profiles apply to, null if they apply to devices that are not in a team.`, `{
+  "team_id": 123,
+  "team_name": "Workstations"
+}`
+}
+
+type ActivityTypeEnabledMacosDiskEncryption struct {
+	TeamID   *uint   `json:"team_id"`
+	TeamName *string `json:"team_name"`
+}
+
+func (a ActivityTypeEnabledMacosDiskEncryption) ActivityName() string {
+	return "enabled_macos_disk_encryption"
+}
+
+func (a ActivityTypeEnabledMacosDiskEncryption) Documentation() (activity, details, detailsExample string) {
+	return `Generated when a user turns on macOS disk encryption for a team (or no team).`,
+		`This activity contains the following fields:
+- "team_id": The ID of the team that disk encryption applies to, null if it applies to devices that are not in a team.
+- "team_name": The name of the team that disk encryption applies to, null if it applies to devices that are not in a team.`, `{
+  "team_id": 123,
+  "team_name": "Workstations"
+}`
+}
+
+type ActivityTypeDisabledMacosDiskEncryption struct {
+	TeamID   *uint   `json:"team_id"`
+	TeamName *string `json:"team_name"`
+}
+
+func (a ActivityTypeDisabledMacosDiskEncryption) ActivityName() string {
+	return "disabled_macos_disk_encryption"
+}
+
+func (a ActivityTypeDisabledMacosDiskEncryption) Documentation() (activity, details, detailsExample string) {
+	return `Generated when a user turns off macOS disk encryption for a team (or no team).`,
+		`This activity contains the following fields:
+- "team_id": The ID of the team that disk encryption applies to, null if it applies to devices that are not in a team.
+- "team_name": The name of the team that disk encryption applies to, null if it applies to devices that are not in a team.`, `{
   "team_id": 123,
   "team_name": "Workstations"
 }`

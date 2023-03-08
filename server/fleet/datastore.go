@@ -714,7 +714,7 @@ type Datastore interface {
 	GetMDMAppleConfigProfile(ctx context.Context, profileID uint) (*MDMAppleConfigProfile, error)
 
 	// ListMDMAppleConfigProfiles lists mdm config profiles associated with the specified team id.
-	// For global config profiles, specify zero as the team id.
+	// For global config profiles, specify nil as the team id.
 	ListMDMAppleConfigProfiles(ctx context.Context, teamID *uint) ([]*MDMAppleConfigProfile, error)
 
 	// DeleteMDMAppleConfigProfile deletes the mdm config profile corresponding
@@ -723,7 +723,7 @@ type Datastore interface {
 
 	// DeleteMDMAppleConfigProfileByTeamAndIdentifier deletes a configuration
 	// profile using the unique key defined by `team_id` and `identifier`
-	DeleteMDMAppleConfigProfileByTeamAndIdentifier(ctx context.Context, teamID uint, profileIdentifier string) error
+	DeleteMDMAppleConfigProfileByTeamAndIdentifier(ctx context.Context, teamID *uint, profileIdentifier string) error
 
 	// GetHostMDMProfiles returns the MDM profile information for the specified host UUID.
 	GetHostMDMProfiles(ctx context.Context, hostUUID string) ([]HostMDMAppleProfile, error)

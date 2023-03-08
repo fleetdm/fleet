@@ -372,7 +372,7 @@ var (
 type MDMAppleConfigProfile struct {
 	// ProfileID is the unique id of the configuration profile in Fleet
 	ProfileID uint `db:"profile_id" json:"profile_id"`
-	// TeamID is the id of the team with which the configuration is associated. A team id of zero
+	// TeamID is the id of the team with which the configuration is associated. A nil team id
 	// represents a configuration profile that is not associated with any team.
 	TeamID *uint `db:"team_id" json:"team_id"`
 	// Identifier corresponds to the payload identifier of the associated mobileconfig payload.
