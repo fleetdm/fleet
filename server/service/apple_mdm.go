@@ -2105,6 +2105,7 @@ func ReconcileProfiles(
 				level.Error(logger).Log("err", "removing profiles from devices", "details", err)
 				// TODO(mna): Am I missing something or are we sending two times for a single host here in case of error?
 				ch <- remoteResult{err, pp}
+				return
 			}
 
 			ch <- remoteResult{nil, pp}
