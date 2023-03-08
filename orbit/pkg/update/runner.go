@@ -201,11 +201,11 @@ func (r *Runner) UpdateAction() (bool, error) {
 		}
 
 		// Check whether the hash of the repository is different than that of the target local file
-		binaryNotUpdated := !bytes.Equal(r.localHashes[target], metaHash)
+		localBinaryNotUpdated := !bytes.Equal(r.localHashes[target], metaHash)
 
 		// Performing update if either the binary is not updated
 		// or the symlink needs to be updated and binary is not updated.
-		if binaryNotUpdated || (needsSymlinkUpdate && binaryNotUpdated) {
+		if localBinaryNotUpdated || (needsSymlinkUpdate && localBinaryNotUpdated) {
 			// Update detected
 			log.Info().Str("target", target).Msg("update detected")
 			if err := r.updateTarget(target); err != nil {
