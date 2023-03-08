@@ -173,13 +173,13 @@ func testDeleteMDMAppleConfigProfileByTeamAndIdentifier(t *testing.T, ds *Datast
 	ctx := context.Background()
 	initialCP := storeDummyConfigProfileForTest(t, ds)
 
-	err := ds.DeleteMDMAppleConfigProfileByTeamAndIdentifier(ctx, *initialCP.TeamID, initialCP.Identifier)
+	err := ds.DeleteMDMAppleConfigProfileByTeamAndIdentifier(ctx, initialCP.TeamID, initialCP.Identifier)
 	require.NoError(t, err)
 
 	_, err = ds.GetMDMAppleConfigProfile(ctx, initialCP.ProfileID)
 	require.ErrorIs(t, err, sql.ErrNoRows)
 
-	err = ds.DeleteMDMAppleConfigProfileByTeamAndIdentifier(ctx, *initialCP.TeamID, initialCP.Identifier)
+	err = ds.DeleteMDMAppleConfigProfileByTeamAndIdentifier(ctx, initialCP.TeamID, initialCP.Identifier)
 	require.ErrorIs(t, err, sql.ErrNoRows)
 }
 
