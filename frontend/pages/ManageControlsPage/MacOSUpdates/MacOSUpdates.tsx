@@ -14,6 +14,8 @@ interface IMacOSUpdatesProps {
 
 const MacOSUpdates = ({ location }: IMacOSUpdatesProps) => {
   const { team_id } = location.query;
+
+  // Avoids possible case where Number(undefined) returns NaN
   const teamId = team_id === undefined ? team_id : Number(team_id);
 
   const OperatingSystemCard = useInfoCard({

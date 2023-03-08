@@ -2580,7 +2580,31 @@ packaging:
 
 #### Mobile device management (MDM)
 
-> MDM features are not ready for production and are currently in development. These features are disabled by default.
+> MDM features are not ready for production and are currently in beta. These features are disabled by default. To enable these features set `FLEET_DEV_MDM_ENABLED=1` as an environment variable.
+
+#### dev_mdm_enabled
+
+This is the first of two feature flags required to turn on MDM features. This feature flag should be set to `1` before you follow the [setup MDM instructions](../Using-Fleet/Mobile-device-management.md#set-up).
+
+- Default value: ""
+- Environment variable: `FLEET_DEV_MDM_ENABLE`
+- Config file format:
+  ```
+  dev:
+    mdm_enable: 1
+  ```
+
+##### apple_mdm_enable
+
+This is the second feature flag required to turn on MDM features. This feature flag must be set to `1` at the same time as when you set the certificate and keys for Apple Push Certificate server (APNs) and Apple Business Manager (ABM). Otherwise, the Fleet server won't start.
+
+- Default value: ""
+- Environment variable: `FLEET_MDM_APPLE_ENABLE`
+- Config file format:
+  ```
+  mdm:
+    apple_enable: 1
+  ```
 
 ##### apple_apns_cert
 
@@ -2688,6 +2712,18 @@ The content of the PEM-encoded private key for the Simple Certificate Enrollment
       -----BEGIN RSA PRIVATE KEY-----
       ... PEM-encoded content ...
       -----END RSA PRIVATE KEY-----
+  ```
+
+##### apple_scep_challenge
+
+An alphanumeric secret for the Simple Certificate Enrollment Protocol (SCEP). Should be 32 characters in length and only include alphanumeric characters.
+
+- Default value: ""
+- Environment variable: `FLEET_MDM_APPLE_SCEP_CHALLENGE`
+- Config file format:
+  ```
+  mdm:
+    apple_scep_challenge: scepchallenge
   ```
 
 ##### apple_bm_server_token

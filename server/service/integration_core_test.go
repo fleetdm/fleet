@@ -4511,8 +4511,15 @@ func (s *integrationTestSuite) TestPremiumEndpointsWithoutLicense() {
 	s.DoJSON("GET", "/api/latest/fleet/mdm/apple_bm", nil, http.StatusPaymentRequired, &appleBMResp)
 	assert.Nil(t, appleBMResp.AppleBM)
 
-	// batch-apply a set of MDM profiles
-	res := s.Do("POST", "/api/latest/fleet/mdm/apple/profiles/batch", nil, http.StatusUnprocessableEntity)
+	// batch-apply an empty set of MDM profiles succeeds even though MDM is not
+	// enabled, because it wouldn't change anything (and it needs to support the
+	// case where `fleetctl get config`'s output is used as input to `fleetctl
+	// apply`).
+	s.Do("POST", "/api/latest/fleet/mdm/apple/profiles/batch", nil, http.StatusNoContent)
+
+	// batch-apply a non-empty set of MDM profiles fails
+	res := s.Do("POST", "/api/latest/fleet/mdm/apple/profiles/batch",
+		map[string]interface{}{"profiles": [][]byte{[]byte(`xyz`)}}, http.StatusUnprocessableEntity)
 	errMsg := extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "Fleet MDM is not enabled")
 
