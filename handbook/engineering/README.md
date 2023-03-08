@@ -310,7 +310,7 @@ This is a document that evolves and will likely always be incomplete. If you fee
 ### Prerequisites
 
 1. Setup [VPN](https://github.com/fleetdm/confidential/blob/main/vpn/README.md)
-2. Configure [SSO](https://github.com/fleetdm/fleet-infra/tree/master/sso#how-to-use-sso)
+2. Configure [SSO](https://github.com/fleetdm/confidential/tree/main/infrastructure/sso#how-to-use-sso)
 
 ### Connecting
 
