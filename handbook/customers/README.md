@@ -65,6 +65,12 @@ This workflow outlines the process that sales and customer success can follow wh
     - Schedule the recurring customer check-in
     - Owns running the meeting, note taking, TODO follow up, etc. 
 
+### Voicemails from potential customers
+
+- When a party interested in Fleet leaves a voicemail, notifications will be sent to Fleet's head of sales.
+- The sales team will respond to these voicemails within one (1) business day.
+- If the head of sales is out-of-office, notifications will be routed to the CEO during their absence.
+
 
 ## Fleet's W-9
 
