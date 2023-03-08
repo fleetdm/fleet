@@ -8,6 +8,7 @@ import ReactTooltip from "react-tooltip";
 import Checkbox from "components/forms/fields/Checkbox";
 import LinkCell from "components/TableContainer/DataTable/LinkCell/LinkCell";
 import StatusIndicator from "components/StatusIndicator";
+import Icon from "components/Icon";
 import { IPolicyStats } from "interfaces/policy";
 import PATHS from "router/paths";
 import sortUtils from "utilities/sort";
@@ -106,7 +107,31 @@ const generateTableHeaders = (options: {
       Cell: (cellProps: ICellProps): JSX.Element => (
         <LinkCell
           classes="w250"
-          value={cellProps.cell.value}
+          value={
+            <>
+              {cellProps.cell.value}
+              {cellProps.row.original.critical && (
+                <>
+                  <span
+                    data-tip
+                    data-for={`critical-tooltip-${cellProps.row.original.id}`}
+                  >
+                    <Icon className="policy-icon" name="policy" />
+                  </span>
+                  <ReactTooltip
+                    className="critical-tooltip"
+                    place="top"
+                    type="dark"
+                    effect="solid"
+                    id={`critical-tooltip-${cellProps.row.original.id}`}
+                    backgroundColor="#3e4771"
+                  >
+                    This policy has been marked as critical.
+                  </ReactTooltip>
+                </>
+              )}
+            </>
+          }
           path={PATHS.EDIT_POLICY(cellProps.row.original)}
         />
       ),

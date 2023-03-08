@@ -19,8 +19,16 @@ type TeamPayload struct {
 	Secrets         []*EnrollSecret      `json:"secrets"`
 	WebhookSettings *TeamWebhookSettings `json:"webhook_settings"`
 	Integrations    *TeamIntegrations    `json:"integrations"`
-	MDM             *TeamMDM             `json:"mdm"`
+	MDM             *TeamPayloadMDM      `json:"mdm"`
 	// Note AgentOptions must be set by a separate endpoint.
+}
+
+// TeamPayloadMDM is a distinct struct than TeamMDM because in ModifyTeam we
+// need to be able which part of the MDM config was provided in the request,
+// so the fields are pointers to structs.
+type TeamPayloadMDM struct {
+	MacOSUpdates  *MacOSUpdates  `json:"macos_updates"`
+	MacOSSettings *MacOSSettings `json:"macos_settings"`
 }
 
 // Team is the data representation for the "Team" concept (group of hosts and

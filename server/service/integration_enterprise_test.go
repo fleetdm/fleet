@@ -562,6 +562,15 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", tm1ID), team, http.StatusOK, &tmResp)
 	assert.Contains(t, tmResp.Team.Description, "Alt ")
 
+	// modify team's disk encryption, impossible without mdm enabled
+	res := s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", tm1ID), fleet.TeamPayload{
+		MDM: &fleet.TeamPayloadMDM{
+			MacOSSettings: &fleet.MacOSSettings{EnableDiskEncryption: true},
+		},
+	}, http.StatusUnprocessableEntity)
+	errMsg := extractServerErrorText(res.Body)
+	assert.Contains(t, errMsg, `Couldn't update macos_settings because MDM features aren't turned on in Fleet.`)
+
 	// modify a team with a NULL config
 	defaultFeatures := fleet.Features{}
 	defaultFeatures.ApplyDefaultsForNewInstalls()
@@ -1263,8 +1272,8 @@ func (s *integrationEnterpriseTestSuite) TestMacOSUpdatesConfig() {
 
 	// modify the team's config
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
-		MDM: &fleet.TeamMDM{
-			MacOSUpdates: fleet.MacOSUpdates{
+		MDM: &fleet.TeamPayloadMDM{
+			MacOSUpdates: &fleet.MacOSUpdates{
 				MinimumVersion: "10.15.0",
 				Deadline:       "2021-01-01",
 			},
@@ -1276,8 +1285,8 @@ func (s *integrationEnterpriseTestSuite) TestMacOSUpdatesConfig() {
 
 	// only update the deadline
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
-		MDM: &fleet.TeamMDM{
-			MacOSUpdates: fleet.MacOSUpdates{
+		MDM: &fleet.TeamPayloadMDM{
+			MacOSUpdates: &fleet.MacOSUpdates{
 				MinimumVersion: "10.15.0",
 				Deadline:       "2025-10-01",
 			},
@@ -1295,7 +1304,7 @@ func (s *integrationEnterpriseTestSuite) TestMacOSUpdatesConfig() {
 	s.lastActivityMatches("", "", lastActivity)
 
 	// sending an empty MacOSUpdate empties both fields
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{MDM: &fleet.TeamMDM{MacOSUpdates: fleet.MacOSUpdates{}}}, http.StatusOK, &tmResp)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{MDM: &fleet.TeamPayloadMDM{MacOSUpdates: &fleet.MacOSUpdates{}}}, http.StatusOK, &tmResp)
 	require.Empty(t, tmResp.Team.Config.MDM.MacOSUpdates.MinimumVersion)
 	require.Empty(t, tmResp.Team.Config.MDM.MacOSUpdates.Deadline)
 	s.lastActivityMatches(fleet.ActivityTypeEditedMacOSMinVersion{}.ActivityName(), fmt.Sprintf(`{"team_id": %d, "team_name": %q, "minimum_version": "", "deadline": ""}`, team.ID, team.Name), 0)
@@ -1304,8 +1313,8 @@ func (s *integrationEnterpriseTestSuite) TestMacOSUpdatesConfig() {
 
 	// try to set an invalid deadline
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
-		MDM: &fleet.TeamMDM{
-			MacOSUpdates: fleet.MacOSUpdates{
+		MDM: &fleet.TeamPayloadMDM{
+			MacOSUpdates: &fleet.MacOSUpdates{
 				MinimumVersion: "10.15.0",
 				Deadline:       "2021-01-01T00:00:00Z",
 			},
@@ -1314,8 +1323,8 @@ func (s *integrationEnterpriseTestSuite) TestMacOSUpdatesConfig() {
 
 	// try to set an invalid minimum version
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
-		MDM: &fleet.TeamMDM{
-			MacOSUpdates: fleet.MacOSUpdates{
+		MDM: &fleet.TeamPayloadMDM{
+			MacOSUpdates: &fleet.MacOSUpdates{
 				MinimumVersion: "10.15.0 (19A583)",
 				Deadline:       "2021-01-01T00:00:00Z",
 			},
@@ -1324,8 +1333,8 @@ func (s *integrationEnterpriseTestSuite) TestMacOSUpdatesConfig() {
 
 	// try to set a deadline but not a minimum version
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
-		MDM: &fleet.TeamMDM{
-			MacOSUpdates: fleet.MacOSUpdates{
+		MDM: &fleet.TeamPayloadMDM{
+			MacOSUpdates: &fleet.MacOSUpdates{
 				Deadline: "2021-01-01T00:00:00Z",
 			},
 		},
@@ -1333,8 +1342,8 @@ func (s *integrationEnterpriseTestSuite) TestMacOSUpdatesConfig() {
 
 	// try to set a minimum version but not a deadline
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
-		MDM: &fleet.TeamMDM{
-			MacOSUpdates: fleet.MacOSUpdates{
+		MDM: &fleet.TeamPayloadMDM{
+			MacOSUpdates: &fleet.MacOSUpdates{
 				MinimumVersion: "10.15.0 (19A583)",
 			},
 		},
@@ -1751,6 +1760,48 @@ func (s *integrationEnterpriseTestSuite) TestSSOJITProvisioning() {
 		}
 		return false
 	})
+
+	// A user with pre-configured roles can be created
+	// see `tools/saml/users.php` for details.
+	auth, body = s.LoginSSOUser("sso_user_3_global_admin", "user123#")
+	assert.Equal(t, "sso_user_3_global_admin@example.com", auth.UserID())
+	assert.Equal(t, "SSO User 3", auth.UserDisplayName())
+	assert.Contains(t, auth.AssertionAttributes(), fleet.SAMLAttribute{
+		Name: "FLEET_JIT_USER_ROLE_GLOBAL",
+		Values: []fleet.SAMLAttributeValue{{
+			Value: "admin",
+		}},
+	})
+	require.Contains(t, body, "Redirecting to Fleet at  ...")
+
+	// We cannot use NewTeam and must use adhoc SQL because the teams.id is
+	// auto-incremented and other tests cause it to be different than what we need (ID=1).
+	var execErr error
+	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+		_, execErr = db.ExecContext(context.Background(), `INSERT INTO teams (id, name) VALUES (1, 'Foobar') ON DUPLICATE KEY UPDATE name = VALUES(name);`)
+		return execErr
+	})
+	require.NoError(t, execErr)
+
+	// Create a team for the test below.
+	_, err = s.ds.NewTeam(context.Background(), &fleet.Team{
+		Name:        "team_" + t.Name(),
+		Description: "desc team_" + t.Name(),
+	})
+	require.NoError(t, err)
+
+	// A user with pre-configured roles can be created
+	// see `tools/saml/users.php` for details.
+	auth, body = s.LoginSSOUser("sso_user_4_team_maintainer", "user123#")
+	assert.Equal(t, "sso_user_4_team_maintainer@example.com", auth.UserID())
+	assert.Equal(t, "SSO User 4", auth.UserDisplayName())
+	assert.Contains(t, auth.AssertionAttributes(), fleet.SAMLAttribute{
+		Name: "FLEET_JIT_USER_ROLE_TEAM_1",
+		Values: []fleet.SAMLAttributeValue{{
+			Value: "maintainer",
+		}},
+	})
+	require.Contains(t, body, "Redirecting to Fleet at  ...")
 }
 
 func (s *integrationEnterpriseTestSuite) TestDistributedReadWithFeatures() {
@@ -1927,6 +1978,8 @@ func (s *integrationEnterpriseTestSuite) TestAppleMDMNotConfigured() {
 	var rawResp json.RawMessage
 	s.DoJSON("GET", "/api/latest/fleet/mdm/apple", nil, http.StatusNotFound, &rawResp)
 	s.DoJSON("GET", "/api/latest/fleet/mdm/apple_bm", nil, http.StatusNotFound, &rawResp)
+	// update MDM settings, the endpoint is not even mounted if MDM is not enabled
+	s.Do("PATCH", "/api/latest/fleet/mdm/apple/settings", fleet.MDMAppleSettingsPayload{}, http.StatusNotFound)
 }
 
 func (s *integrationEnterpriseTestSuite) TestGlobalPolicyCreateReadPatch() {
@@ -2256,8 +2309,8 @@ func (s *integrationEnterpriseTestSuite) TestOrbitConfigNudgeSettings() {
 	// modify the team config, add macos_updates config
 	var tmResp teamResponse
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
-		MDM: &fleet.TeamMDM{
-			MacOSUpdates: fleet.MacOSUpdates{
+		MDM: &fleet.TeamPayloadMDM{
+			MacOSUpdates: &fleet.MacOSUpdates{
 				Deadline:       "1992-01-01",
 				MinimumVersion: "13.1.1",
 			},

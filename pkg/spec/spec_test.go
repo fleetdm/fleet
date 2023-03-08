@@ -60,3 +60,12 @@ func TestGroupFromBytesWithMacOS13CISQueries(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, g.Policies)
 }
+
+func TestGroupFromBytesWithWin10CISQueries(t *testing.T) {
+	cisQueries := loadSpec(t,
+		"ee", "cis", "win-10", "cis-policy-queries.yml",
+	)
+	g, err := GroupFromBytes(cisQueries)
+	require.NoError(t, err)
+	require.NotEmpty(t, g.Policies)
+}

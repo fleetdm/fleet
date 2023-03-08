@@ -2771,6 +2771,55 @@ This is the content of the PEM-encoded private key for the Apple Business Manage
       -----END RSA PRIVATE KEY-----
   ```
 
+##### okta_server_url
+
+This is the URL of your Okta [authorization server](https://developer.okta.com/docs/concepts/auth-servers/)
+
+- Default value: ""
+- Environment variable: `FLEET_MDM_OKTA_SERVER_URL`
+- Config file format:
+  ```
+  mdm:
+    okta_server_url: https://example.okta.com
+```
+
+##### okta_client_id
+
+This is the client ID of the Okta application that will be used to authenticate users. This value can be found in the Okta admin page under "Applications > Client Credentials."
+
+- Default value: ""
+- Environment variable: `FLEET_MDM_OKTA_CLIENT_ID`
+- Config file format:
+  ```
+  mdm:
+    okta_client_id: 9oa4eoxample2rpdi1087
+```
+
+##### okta_client_secret
+
+This is the client secret of the Okta application that will be used to authenticate users. This value can be found in the Okta admin page under "Applications > Client Credentials."
+
+- Default value: ""
+- Environment variable: `FLEET_MDM_OKTA_CLIENT_SECRET`
+- Config file format:
+  ```
+  mdm:
+    okta_client_secret: COp8o5zskEQ0OylgjqTrd0xu7rQLx-VteaQW4YGf
+```
+
+##### eula_url
+
+An URL containing a PDF file that will be used as an EULA during DEP onboarding.
+
+- Default value: ""
+- Environment variable: `FLEET_MDM_OKTA_EULA_URL`
+- Config file format:
+  ```
+  mdm:
+    eula_url: https://example.com/eula.pdf
+```
+
+
 ##### Example YAML
 
 ```yaml
@@ -2782,6 +2831,10 @@ mdm:
   apple_bm_server_token: /path/to/server_token.p7m
   apple_bm_cert: /path/to/bm_cert
   apple_bm_key: /path/to/private_key
+  okta_server_url: https://example.okta.com
+  okta_client_id: 9oa4eoxample2rpdi1087
+  okta_client_secret: COp8o5zskEQ0OylgjqTrd0xu7rQLx-VteaQW4YGf
+  eula_url: https://example.com/eula.pdf
 ```
 
 ## Managing osquery configurations
@@ -2930,7 +2983,9 @@ As an admin, you can enable SSO for existing users in Fleet. To do this, go to t
 
 When JIT user provisioning is turned on, Fleet will automatically create an account when a user logs in for the first time with the configured SSO. This removes the need to create individual user accounts for a large organization.
 
-Accounts created via JIT provisioning are assigned the [Observer role](https://fleetdm.com/docs/using-fleet/permissions). The new account's email and full name are copied from the user data in the SSO response.
+The new account's email and full name are copied from the user data in the SSO response.
+By default, accounts created via JIT provisioning are assigned the [Global Observer role](https://fleetdm.com/docs/using-fleet/permissions).
+To assign different roles for accounts created via JIT provisioning see [Customization of user roles](#customization-of-user-roles) below.
 
 To enable this option, go to **Settings > Organization settings > single sign-on options** and check "_Automatically create Observer user on login_" or [adjust your config](#sso-settings-enable-jit-provisioning).
 
@@ -2943,6 +2998,71 @@ For this to work correctly make sure that:
   - `cn`
   - `urn:oid:2.5.4.3`
   - `http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name`
+
+#### Customization of user roles
+
+Users created via JIT provisioning can be assigned Fleet roles using SAML custom attributes that are sent by the IdP in `SAMLResponse`s during login.
+Fleet will attempt to parse SAML custom attributes with the following format:
+- `FLEET_JIT_USER_ROLE_GLOBAL`: Specifies the global role to use when creating the user.
+- `FLEET_JIT_USER_ROLE_TEAM_<TEAM_ID>`: Specifies team role for team with ID `<TEAM_ID>` to use when creating the user.
+
+Currently supported values for the above attributes are: `admin`, `maintainer` and `observer`.
+SAML supports multi-valued attributes, Fleet will always use the last value.
+
+NOTE: Setting both `FLEET_JIT_USER_ROLE_GLOBAL` and `FLEET_JIT_USER_ROLE_TEAM_<TEAM_ID>` will cause an error during login as Fleet users cannot be Global users and belong to teams.
+
+During SSO login, if the account already exists, the roles of the Fleet account will be updated to match those set in the SAML custom attributes.
+
+If none of the attributes above are set, then Fleet will default to use the `Global Observer` role.
+
+Here's a `SAMLResponse` sample to set the role of SSO users to Global `admin`:
+```xml
+[...]
+<saml2:Assertion ID="id16311976805446352575023709" IssueInstant="2023-02-27T17:41:53.505Z" Version="2.0" xmlns:saml2="urn:oasis:names:tc:SAML:2.0:assertion" xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <saml2:Issuer Format="urn:oasis:names:tc:SAML:2.0:nameid-format:entity" xmlns:saml2="urn:oasis:names:tc:SAML:2.0:assertion">http://www.okta.com/exk8glknbnr9Lpdkl5d7</saml2:Issuer>
+  [...]
+  <saml2:Subject xmlns:saml2="urn:oasis:names:tc:SAML:2.0:assertion">
+    <saml2:NameID Format="urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress">bar@foo.example.com</saml2:NameID>
+    <saml2:SubjectConfirmation Method="urn:oasis:names:tc:SAML:2.0:cm:bearer">
+      <saml2:SubjectConfirmationData InResponseTo="id1Juy6Mx2IHYxLwsi" NotOnOrAfter="2023-02-27T17:46:53.506Z" Recipient="https://foo.example.com/api/v1/fleet/sso/callback"/>
+    </saml2:SubjectConfirmation>
+  </saml2:Subject>
+  [...]
+  <saml2:AttributeStatement xmlns:saml2="urn:oasis:names:tc:SAML:2.0:assertion">
+    <saml2:Attribute Name="FLEET_JIT_USER_ROLE_GLOBAL" NameFormat="urn:oasis:names:tc:SAML:2.0:attrname-format:unspecified">
+      <saml2:AttributeValue xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="xs:string">admin</saml2:AttributeValue>
+    </saml2:Attribute>
+  </saml2:AttributeStatement>
+</saml2:Assertion>
+[...]
+```
+
+Here's a `SAMLResponse` sample to set the role of SSO users to `observer` in team with ID `1` and `maintainer` in team with ID `2`:
+```xml
+[...]
+<saml2:Assertion ID="id16311976805446352575023709" IssueInstant="2023-02-27T17:41:53.505Z" Version="2.0" xmlns:saml2="urn:oasis:names:tc:SAML:2.0:assertion" xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <saml2:Issuer Format="urn:oasis:names:tc:SAML:2.0:nameid-format:entity" xmlns:saml2="urn:oasis:names:tc:SAML:2.0:assertion">http://www.okta.com/exk8glknbnr9Lpdkl5d7</saml2:Issuer>
+  [...]
+  <saml2:Subject xmlns:saml2="urn:oasis:names:tc:SAML:2.0:assertion">
+    <saml2:NameID Format="urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress">bar@foo.example.com</saml2:NameID>
+    <saml2:SubjectConfirmation Method="urn:oasis:names:tc:SAML:2.0:cm:bearer">
+      <saml2:SubjectConfirmationData InResponseTo="id1Juy6Mx2IHYxLwsi" NotOnOrAfter="2023-02-27T17:46:53.506Z" Recipient="https://foo.example.com/api/v1/fleet/sso/callback"/>
+    </saml2:SubjectConfirmation>
+  </saml2:Subject>
+  [...]
+  <saml2:AttributeStatement xmlns:saml2="urn:oasis:names:tc:SAML:2.0:assertion">
+    <saml2:Attribute Name="FLEET_JIT_USER_ROLE_TEAM_1" NameFormat="urn:oasis:names:tc:SAML:2.0:attrname-format:unspecified">
+      <saml2:AttributeValue xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="xs:string">observer</saml2:AttributeValue>
+    </saml2:Attribute>
+    <saml2:Attribute Name="FLEET_JIT_USER_ROLE_TEAM_2" NameFormat="urn:oasis:names:tc:SAML:2.0:attrname-format:unspecified">
+      <saml2:AttributeValue xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="xs:string">maintainer</saml2:AttributeValue>
+    </saml2:Attribute>
+  </saml2:AttributeStatement>
+</saml2:Assertion>
+[...]
+```
+
+Each IdP will have its own way of setting these SAML custom attributes, here are instructions for how to set it for Okta: https://support.okta.com/help/s/article/How-to-define-and-configure-a-custom-SAML-attribute-statement?language=en_US.
 
 #### Okta IDP configuration
 

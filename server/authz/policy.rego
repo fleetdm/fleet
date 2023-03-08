@@ -549,17 +549,10 @@ allow {
   action == mdm_command
 }
 
-# Global admins and maintainers can read and write MDM apple information.
+# Global admins can read and write MDM apple information.
 allow {
   object.type == "mdm_apple"
-  subject.global_role == [admin, maintainer][_]
-  action == [read, write][_]
-}
-
-# Team admins and maintainers can read and write MDM apple information.
-allow {
-  object.type == "mdm_apple"
-  team_role(subject, subject.teams[_].id) == [admin,maintainer][_]
+  subject.global_role == admin
   action == [read, write][_]
 }
 
@@ -609,5 +602,20 @@ allow {
 allow {
   object.type == "cron_schedules"
   subject.global_role == admin
+  action == [read, write][_]
+}
+
+# Global admins and maintainers can read and write MDM Apple settings.
+allow {
+  object.type == "mdm_apple_settings"
+  subject.global_role == [admin, maintainer][_]
+  action == [read, write][_]
+}
+
+# Team admins and maintainers can read and write MDM Apple Settings of their teams.
+allow {
+  not is_null(object.team_id)
+  object.type == "mdm_apple_settings"
+  team_role(subject, object.team_id) == [admin, maintainer][_]
   action == [read, write][_]
 }

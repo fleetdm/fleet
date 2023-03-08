@@ -140,7 +140,11 @@ func (ds *Datastore) DeleteMDMAppleConfigProfile(ctx context.Context, profileID 
 	return nil
 }
 
-func (ds *Datastore) DeleteMDMAppleConfigProfileByTeamAndIdentifier(ctx context.Context, teamID uint, profileIdentifier string) error {
+func (ds *Datastore) DeleteMDMAppleConfigProfileByTeamAndIdentifier(ctx context.Context, teamID *uint, profileIdentifier string) error {
+	if teamID == nil {
+		teamID = ptr.Uint(0)
+	}
+
 	res, err := ds.writer.ExecContext(ctx, `DELETE FROM mdm_apple_configuration_profiles WHERE team_id = ? AND identifier = ?`, teamID, profileIdentifier)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err)
@@ -156,18 +160,18 @@ func (ds *Datastore) DeleteMDMAppleConfigProfileByTeamAndIdentifier(ctx context.
 
 func (ds *Datastore) GetHostMDMProfiles(ctx context.Context, hostUUID string) ([]fleet.HostMDMAppleProfile, error) {
 	stmt := fmt.Sprintf(`
-SELECT 
+SELECT
 	hmap.profile_id,
-	name, 
-	status, 
-	operation_type, 
+	name,
+	status,
+	operation_type,
 	detail
-	
-FROM 
+
+FROM
 	host_mdm_apple_profiles hmap
 JOIN
 	mdm_apple_configuration_profiles hmacp ON hmap.profile_id = hmacp.profile_id
-WHERE 
+WHERE
 	host_uuid = ? AND NOT (operation_type = '%s' AND status = '%s')`,
 		fleet.MDMAppleOperationTypeRemove,
 		fleet.MDMAppleDeliveryApplied,
@@ -951,7 +955,7 @@ func (ds *Datastore) ListMDMAppleProfilesToInstall(ctx context.Context) ([]*flee
           AND hmap.host_uuid IS NULL
           AND hmap.status != 'pending' OR hmap.status IS NULL
           AND hmap.operation_type != 'install' OR hmap.operation_type IS NULL
-          -- accounts for the edge case of having profiles but not having hosts 
+          -- accounts for the edge case of having profiles but not having hosts
           AND ds.host_uuid IS NOT NULL
 	`
 
@@ -972,7 +976,7 @@ func (ds *Datastore) ListMDMAppleProfilesToRemove(ctx context.Context) ([]*fleet
           SELECT hmap.profile_id, hmap.profile_identifier, hmap.host_uuid
           FROM (
             SELECT h.uuid, macp.profile_id
-            FROM mdm_apple_configuration_profiles macp 
+            FROM mdm_apple_configuration_profiles macp
             JOIN hosts h ON h.team_id = macp.team_id OR (h.team_id IS NULL AND macp.team_id = 0)
             JOIN nano_enrollments ne ON ne.device_id = h.uuid
             WHERE h.platform = 'darwin' AND ne.enabled = 1
@@ -1059,4 +1063,67 @@ func (ds *Datastore) UpdateHostMDMAppleProfile(ctx context.Context, profile *fle
           WHERE host_uuid = ? AND command_uuid = ?
         `, profile.Status, profile.OperationType, profile.Detail, profile.HostUUID, profile.CommandUUID)
 	return err
+}
+
+func (ds *Datastore) GetMDMAppleHostsProfilesSummary(ctx context.Context, teamID *uint) (*fleet.MDMAppleHostsProfilesSummary, error) {
+	// TODO(sarah): add cases to handle Fleet-managed profiles (e.g., disk encryption)
+	sqlFmt := `
+SELECT
+	count(
+		CASE WHEN EXISTS (
+			SELECT
+				1 FROM host_mdm_apple_profiles hmap
+			WHERE
+				h.uuid = hmap.host_uuid
+				AND hmap.status = 'failed') THEN
+			1
+		END) AS failed, 
+	count(
+		CASE WHEN EXISTS (
+			SELECT
+				1 FROM host_mdm_apple_profiles hmap
+			WHERE
+				h.uuid = hmap.host_uuid
+				AND hmap.status = 'pending')
+			AND NOT EXISTS (
+				SELECT
+					1 FROM host_mdm_apple_profiles hmap
+				WHERE
+					h.uuid = hmap.host_uuid
+					AND hmap.status = 'failed') THEN
+			1
+		END) AS pending, 
+	count(
+		CASE WHEN EXISTS (
+			SELECT
+				1 FROM host_mdm_apple_profiles hmap
+			WHERE
+				h.uuid = hmap.host_uuid
+				AND hmap.status = 'applied')
+			AND NOT EXISTS (
+				SELECT
+					1 FROM host_mdm_apple_profiles hmap
+				WHERE
+					h.uuid = hmap.host_uuid
+					AND(hmap.status = 'failed'
+						OR hmap.status = 'pending')) THEN
+			1
+		END) AS applied
+FROM
+	hosts h
+WHERE
+	%s`
+
+	teamFilter := "h.team_id IS NULL"
+	if teamID != nil && *teamID > 0 {
+		teamFilter = fmt.Sprintf("h.team_id = %d", *teamID)
+	}
+
+	var res fleet.MDMAppleHostsProfilesSummary
+	err := sqlx.GetContext(ctx, ds.reader, &res, fmt.Sprintf(sqlFmt, teamFilter))
+	if err != nil {
+		return nil, err
+	}
+
+	return &res, nil
 }

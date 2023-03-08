@@ -140,6 +140,8 @@ In Fleet, you can add configuration profiles using the Fleet UI or fleetctl comm
 
 The Fleet UI method is a good start if you're just getting familiar with Fleet.
 
+> During our MDM beta, you must set the environment variable `FLEET_DEV_MDM_ENABLED=1` and restart your Fleet server to reveal the MDM features in the UI.
+
 The fleetctl CLI method enables managing configuration profiles in a git repository. This way you can enforce code review and benefit from git's change history.
 
 Fleet UI:
@@ -228,9 +230,15 @@ Connect Fleet to your ABM account to automatically enroll macOS hosts to Fleet w
 
 If a new macOS host that appears in ABM hasn't been unboxed, it will appear in Fleet with **MDM status** set to "Pending." These hosts will automatically enroll to the default team in Fleet. Learn how to update the default team [here](#default-team).
 
-To connect Fleet to ABM, get these four files using the Fleet UI or the `fleetctl` command-line interface: An ABM certificate, private key and server token.
+To connect Fleet to ABM, first create a new MDM server in ABM and then get these two files using the Fleet UI or the `fleetctl` command-line interface: An ABM certificate and private key.
 
-To do this, choose the "Fleet UI" or "fleetctl" method and follow the steps below.
+How to create a new MDM server in ABM:
+
+1. Login to [ABM](https://business.apple.com) and click your name at the bottom of the sidebar, click **Preferences**, then click **MDM Server Assignment**.
+
+2. Click the **Add** button, then enter a unique name for the server. A good name to start is "Fleet MDM."
+
+To get the two files, choose the "Fleet UI" or "fleetctl" method and follow the steps below.
 
 Fleet UI:
 

@@ -531,12 +531,13 @@ The MDM endpoints exist to support the related command-line interface sub-comman
 - [Unenroll host from Fleet MDM](#unenroll-host-from-fleet-mdm)
 - [Generate Apple DEP Key Pair](#generate-apple-dep-key-pair)
 - [Request Certificate Signing Request (CSR)](#request-certificate-signing-request-csr)
-- [Batch-apply Apple MDM custom settings](#batch-apply-apple-mdm-custom-settings)
-
 - [New configuration profile](#new-mdm-apple-configuration-profile)
 - [List configuration profiles](#list-mdm-apple-configuration-profiles)
 - [Download configuration profile](#download-mdm-apple-configuration-profile)
 - [Delete configuration profile](#delete-mdm-apple-confugruation-profile)
+- [Get Apple MDM profiles summary](#get-mdm-apple-profiles-summary)
+- [Batch-apply Apple MDM custom settings](#batch-apply-apple-mdm-custom-settings)
+- [Update Apple MDM settings](#update-apple-mdm-settings)
 
 ### Get Apple MDM
 
@@ -843,6 +844,39 @@ solely on the response status code returned by this endpoint.
 
 `Status: 200`
 
+### Get MDM Apple profiles summary
+
+Get aggregate status counts of MDM profiles applying to hosts. For Fleet Premium uses, the summary can
+optionally be filtered by team id. If no team id is specified, team profiles are excluded from the
+results (i.e., only profiles that are not associated with a team are listed).
+
+`GET /api/v1/fleet/mdm/apple/profiles/summary`
+
+#### Parameters
+
+| Name                      | Type   | In    | Description                                                               |
+| ------------------------- | ------ | ----- | ------------------------------------------------------------------------- |
+| team_id                   | string | query | _Available in Fleet Premium_ The team id to filter profiles.              |
+
+#### Example
+
+Get aggregate status counts of MDM profiles applying to macOS hosts enrolled to Fleet's MDM that are not assigned to any team.
+
+`GET /api/v1/fleet/mdm/apple/profiles/summary`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "latest": 123,
+  "failing": 123,
+  "pending": 123
+}
+```
+
+
 ### Batch-apply Apple MDM custom settings
 
 `POST /api/v1/fleet/mdm/apple/profiles/batch`
@@ -861,6 +895,27 @@ If no team (id or name) is provided, the profiles are applied for all hosts (for
 #### Example
 
 `POST /api/v1/fleet/mdm/apple/profiles/batch`
+
+##### Default response
+
+`204`
+
+### Update Apple MDM settings
+
+_Available in Fleet Premium_
+
+`PATCH /api/v1/fleet/mdm/apple/settings`
+
+#### Parameters
+
+| Name                   | Type    | In    | Description                                                                                 |
+| -------------          | ------  | ----  | --------------------------------------------------------------------------------------      |
+| team_id                | integer | body  | The team ID to apply the settings to. Settings applied to hosts in no team if absent.       |
+| enable_disk_encryption | boolean | body  | Whether disk encryption should be enforced on devices that belong to the team (or no team). |
+
+#### Example
+
+`PATCH /api/v1/fleet/mdm/apple/settings`
 
 ##### Default response
 

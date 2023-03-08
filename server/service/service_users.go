@@ -56,7 +56,7 @@ func (svc *Service) NewUser(ctx context.Context, p fleet.UserPayload) (*fleet.Us
 	); err != nil {
 		return nil, err
 	}
-	if err := logRoleChangeActivities(ctx, svc.ds, adminUser, nil, nil, user); err != nil {
+	if err := fleet.LogRoleChangeActivities(ctx, svc.ds, adminUser, nil, nil, user); err != nil {
 		return nil, err
 	}
 
