@@ -91,7 +91,7 @@ Openness leads to better products and stronger partnerships. Being open about yo
 - **Welcome contributions.** Be friendly, inclusive, and approachable. Get comfortable letting others contribute to your domain.
 - **Embrace candor.** Be positive and assume positive intent. Don’t be afraid to speak up. Give pointed and respectful feedback. 
 - **Write everything down.** Let people learn about your work. Use simple language. Avoid acronyms and idioms that might not translate.
-- **Be transparent.** We build in the open. Everything we do is public by default. Declassify confidential information with care. 
+- **Be transparent.** We build in the open. Everything we do is [public by default](https://fleetdm.com/handbook/company/why-this-way#why-open-source). Declassify confidential information with care. 
 
 
 ## History
