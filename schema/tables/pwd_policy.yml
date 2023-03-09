@@ -23,7 +23,7 @@ columns:
     required: false
     description: |
           This parameter indicates the depth of password history which a new password can't be identical to.
-  - name: min_mixed_case_charachters
+  - name: min_mixed_case_characters
     type: integer
     required: false
     description: |
