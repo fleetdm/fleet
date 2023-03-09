@@ -276,8 +276,7 @@ spec:
     To establish the recommended configuration via GP, set the following UI path to 'Enabled', and check the 'Also apply to matching devices that are already installed.' checkbox:
     'Computer Configuration\Policies\Administrative Templates\System\Device Installation\Device Installation Restrictions\Prevent installation of devices using drivers that match these device setup classes'
   query: |
-    TODO
-    SELECT 1 FROM REGISTRY WHERE (PATH = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\DeviceInstall\\Restrictions\DenyDeviceClassesRetroactive');
+    SELECT 1 FROM REGISTRY WHERE (PATH = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\DeviceInstall\\Restrictions\DenyDeviceClassesRetroactive' AND data = 1);
   purpose: Informational
   tags: compliance, CIS, CIS_BL, CIS_win10_enterprise_1.12.0, CIS_bullet_18.8.7.1.6
   contributors: rachelelysia
@@ -295,8 +294,7 @@ spec:
     To establish the recommended configuration via GP, set the following UI path to Enabled:
     'Computer Configuration\Policies\Administrative Templates\System\Device Installation\Prevent device metadata retrieval from the Internet'
   query: |
-    TODO
-    SELECT 1 FROM REGISTRY WHERE (PATH = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\Device Metadata\PreventDeviceMetadataFromNetwork');
+    SELECT 1 FROM REGISTRY WHERE (PATH = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\Device Metadata\PreventDeviceMetadataFromNetwork' AND data = 1);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.8.7.2
   contributors: rachelelysia
@@ -317,11 +315,10 @@ spec:
     If you enable this policy setting you will be able to choose which boot-start drivers to initialize the next time the computer is started.
     If your malware detection application does not include an Early Launch Antimalware boot- start driver or if your Early Launch Antimalware boot-start driver has been disabled, this setting has no effect and all boot-start drivers are initialized.
   resolution: |
-    To establish the recommended configuration via GP, set the following UI path to Enabled: Good, unknown and bad but critical:
+    To establish the recommended configuration via GP, set the following UI path to Enabled: 'Good, unknown and bad but critical':
     'Computer Configuration\Policies\Administrative Templates\System\Early Launch Antimalware\Boot-Start Driver Initialization Policy'
   query: |
-    TODO
-    SELECT 1 FROM REGISTRY WHERE (PATH = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Policies\\EarlyLaunch\DriverLoadPolicy');
+    SELECT 1 FROM REGISTRY WHERE (PATH = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Policies\\EarlyLaunch\DriverLoadPolicy' AND data = 3);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.8.14.1
   contributors: rachelelysia
