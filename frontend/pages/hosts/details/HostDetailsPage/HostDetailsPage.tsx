@@ -605,8 +605,6 @@ const HostDetailsPage = ({
     host?.mdm.name === "Fleet" &&
     host?.mdm.macos_settings.disk_encryption === "action_required";
 
-  const isAppleBmTermsExpired = config?.mdm?.apple_bm_terms_expired;
-
   return (
     <MainContent className={baseClass}>
       <div className={`${baseClass}__wrapper`}>
