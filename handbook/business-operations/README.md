@@ -635,5 +635,5 @@ These groups maintain the following [Slack channels](https://fleetdm.com/handboo
 | `#help-open-core-ventures` _(¶¶)_       | Mike McNeil
 
 
-<meta name="maintainedBy" value="hollidayn">
+<meta name="maintainedBy" value="mikermcneil">
 <meta name="title" value="🔦 Business Operations">
