@@ -79,7 +79,7 @@ func VolumesGenerate(ctx context.Context, queryContext table.QueryContext) ([]ma
 
 	cmdResult, err := parseReadOutput(out)
 	if err != nil {
-		return nil, fmt.Errorf("parse authorizationdb read output: %w", err)
+		return nil, fmt.Errorf("parse diskutil apfs read output: %w", err)
 	}
 
 	rows := make([]map[string]string, 0)
@@ -140,7 +140,7 @@ func PhysicalStoresGenerate(ctx context.Context, queryContext table.QueryContext
 
 	cmdResult, err := parseReadOutput(out)
 	if err != nil {
-		return nil, fmt.Errorf("parse authorizationdb read output: %w", err)
+		return nil, fmt.Errorf("parse diskutil apfs read output: %w", err)
 	}
 
 	rows := make([]map[string]string, 0)
