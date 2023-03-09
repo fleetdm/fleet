@@ -17,7 +17,7 @@ We are dedicated to:
 Fleet Device Management Inc. is an all-remote company with 30+ team members spread across four continents and eight time zones.  The broader team of contributors [worldwide](https://github.com/fleetdm/fleet/graphs/contributors) submits patches, bug reports, troubleshooting tips, improvements, and real-world insights to Fleet's open-source code base, documentation, website, and [company handbook](https://fleetdm.com/handbook/company/why-this-way#why-handbook-first-strategy).
 
 ### Open source
-The majority of the code, documentation, and content we create at Fleet is public and source-available.  The Fleet handbook is the central guide for how we run the company, and even it is open to the world.  We [strive to be open](https://fleetdm.com/handbook/company/why-this-way#why-open-source) and transparent in the way we run the business, as much as confidentiality agreements (and time) allow. We perform better with an audience, and our audience [performs better](https://fleetdm.com/handbook/company/why-this-way#why-open-source) with us.
+The majority of the code, documentation, and content we create at Fleet is public and [source-available](https://fleetdm.com/handbook/company/why-this-way#why-open-source).  The Fleet handbook is the central guide for how we run the company, and even it is open to the world.  We [strive to be open](https://fleetdm.com/handbook/company/values#openness) and transparent in the way we run the business, as much as [confidentiality](https://fleetdm.com/handbook/company#levels-of-confidentiality) agreements (and time) allow. We perform better with an audience, and our audience performs better with us.
 
 
 ## Why this way?
