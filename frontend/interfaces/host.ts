@@ -86,13 +86,29 @@ export interface IMunkiData {
   version: string;
 }
 
+type MacDiskEncryptionState =
+  | "applied"
+  | "action_required"
+  | "enforcing"
+  | "failed"
+  | "removing_enforcement"
+  | null;
+
+type MacDiskEncryptionActionRequired = "log_out" | "rotate_key" | null;
+
+interface IMdmMacOsSettings {
+  disk_encryption: MacDiskEncryptionState;
+  action_required: MacDiskEncryptionActionRequired;
+}
+
 export interface IHostMdmData {
   encryption_key_available: boolean;
   enrollment_status: MdmEnrollmentStatus | null;
-  server_url: string;
-  profiles?: IMacSettings;
-  id?: number;
   name?: string;
+  server_url: string;
+  id?: number;
+  profiles?: IMacSettings;
+  macos_settings: IMdmMacOsSettings;
 }
 
 export interface IMunkiIssue {

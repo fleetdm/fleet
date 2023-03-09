@@ -315,17 +315,14 @@ const DeviceUserPage = ({
     const diskEncryptionBannersEnabled =
       globalConfig?.mdm.enabled_and_configured && host?.mdm.name === "Fleet";
 
-    // TODO: replace below with commented conditions once API is finished
-    const showDiskEncryptionLogoutRestart = true;
-    const showDiskEncryptionKeyResetRequired = true;
-    // const showDiskEncryptionLogoutRestart =
-    //   diskEncryptionBannersEnabled &&
-    //   host?.mdm.macos_settings.disk_encryption === "action_required" &&
-    //   host?.mdm.macos_settings.action_required === "log_out";
-    // const showDiskEncryptionKeyResetRequired =
-    //   diskEncryptionBannersEnabled &&
-    //   mdm.macos_settings.disk_encryption === "action_required" &&
-    //   mdm.macos_settings.action_required === "rotate_key";
+    const showDiskEncryptionLogoutRestart =
+      diskEncryptionBannersEnabled &&
+      host?.mdm.macos_settings.disk_encryption === "action_required" &&
+      host?.mdm.macos_settings.action_required === "log_out";
+    const showDiskEncryptionKeyResetRequired =
+      diskEncryptionBannersEnabled &&
+      host?.mdm.macos_settings.disk_encryption === "action_required" &&
+      host?.mdm.macos_settings.action_required === "rotate_key";
 
     return (
       <div className="fleet-desktop-wrapper">

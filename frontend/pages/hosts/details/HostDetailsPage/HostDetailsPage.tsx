@@ -600,12 +600,10 @@ const HostDetailsPage = ({
   const isMdmUnenrolled =
     host?.mdm.enrollment_status === "Off" || !host?.mdm.enrollment_status;
 
-  // TODO: swap below once API is finished
-  const showDiskEncryptionUserActionRequired = true;
-  // const showDiskEncryptionUserActionRequired =
-  //   config?.mdm.enabled_and_configured &&
-  //   host?.mdm.name === "Fleet" &&
-  //   host?.mdm.macos_settings.disk_encryption === "action_required";
+  const showDiskEncryptionUserActionRequired =
+    config?.mdm.enabled_and_configured &&
+    host?.mdm.name === "Fleet" &&
+    host?.mdm.macos_settings.disk_encryption === "action_required";
 
   const isAppleBmTermsExpired = config?.mdm?.apple_bm_terms_expired;
 
