@@ -12,10 +12,11 @@ spec:
     To establish the recommended configuration via GP, set the following UI path to Enabled, then set the Do not apply during periodic background processing option to FALSE (unchecked):
     'Computer Configuration\Policies\Administrative Templates\System\Group Policy\Configure registry policy processing'
   query: |
-    TODO
-    HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\Group Policy\{35378EAC-683F-11D2-A89A-00C04FBBCFA2}:NoBackgroundPolicy
+    TBD
+  # This does not work because editing the setting does not modify this registry path
+  # SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\Group Policy\\{35378EAC-683F-11D2-A89A-00C04FBBCFA2}\NoBackgroundPolicy' AND data = 1);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.8.21.2
+  tags: compliance, CIS, CIS_Level1, CIS_not_completed, CIS_win10_enterprise_1.12.0, CIS_bullet_18.8.21.2
   contributors: rachelelysia
 ---
 apiVersion: v1
@@ -32,7 +33,7 @@ spec:
     'Computer Configuration\Policies\Administrative Templates\System\Group Policy\Configure registry policy processing'
   query: |
     TODO
-    HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\Group Policy\{35378EAC-683F-11D2-A89A-00C04FBBCFA2}:NoGPOListChanges
+         SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\Group Policy\\{35378EAC-683F-11D2-A89A-00C04FBBCFA2}\NoGPOListChanges' AND data = 1);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.8.21.3
   contributors: rachelelysia
@@ -50,8 +51,9 @@ spec:
     To establish the recommended configuration via GP, set the following UI path to Disabled:
     'Computer Configuration\Policies\Administrative Templates\System\Group Policy\Continue experiences on this device'
   query: |
-    TODO
-    HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\System:EnableCdp
+    TBD
+  # This does not work because editing the setting does not modify this registry path
+  # SELECT 1 FROM REGISTRY WHERE (PATH = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\System:EnableCdp
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.8.21.4
   contributors: rachelelysia
@@ -70,8 +72,9 @@ spec:
     To establish the recommended configuration via GP, set the following UI path to Disabled:
     'Computer Configuration\Policies\Administrative Templates\System\Group Policy\Turn off background refresh of Group Policy'
   query: |
-    TODO
-    HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System:DisableBkGndGroupPolicy
+    TBD
+  # name 'DisableBkGndGroupPolicy' does not exist on path
+  # SELECT 1 FROM REGISTRY WHERE (PATH = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System\DisableBkGndGroupPolicy' AND data = 0);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.8.21.5
   contributors: rachelelysia
@@ -89,8 +92,9 @@ spec:
     To establish the recommended configuration via GP, set the following UI path to Enabled:
 'Computer Configuration\Policies\Administrative Templates\System\Internet Communication Management\Internet Communication settings\Turn off access to the Store'
   query: |
-    TODO
-    HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\Explorer:NoUseStoreOpenWith
+    TBD
+  # \\Explorer does not exist
+  # SELECT 1 FROM REGISTRY WHERE (PATH = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\Explorer\NoUseStoreOpenWith' AND data = 1);
   purpose: Informational
   tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_18.8.22.1.1
   contributors: rachelelysia
@@ -108,8 +112,9 @@ spec:
     To establish the recommended configuration via GP, set the following UI path to Enabled:
     'Computer Configuration\Policies\Administrative Templates\System\Internet Communication Management\Internet Communication settings\Turn off downloading of print drivers over HTTP'
   query: |
-    TODO
-    HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\Printers:DisableWebPnPDownload
+    TBD
+  # Name: DisableWebPnPDownload does not exist
+  # SELECT 1 FROM REGISTRY WHERE (PATH = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows NT\\Printers\DisableWebPnPDownload');
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.8.22.1.2
   contributors: rachelelysia
@@ -129,7 +134,7 @@ spec:
     'Computer Configuration\Policies\Administrative Templates\System\Internet Communication Management\Internet Communication settings\Turn off handwriting personalization data sharing'
   query: |
     TODO
-    HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\TabletPC:PreventHandwritingDataSharing
+         SELECT 1 FROM REGISTRY WHERE (PATH = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\TabletPC:PreventHandwritingDataSharing
   purpose: Informational
   tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_18.8.22.1.3
   contributors: rachelelysia
@@ -149,7 +154,7 @@ spec:
     'Computer Configuration\Policies\Administrative Templates\System\Internet Communication Management\Internet Communication settings\Turn off handwriting recognition error reporting'
   query: |
     TODO
-    HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\HandwritingErrorReports:PreventHandwritingErrorReports
+         SELECT 1 FROM REGISTRY WHERE (PATH = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\HandwritingErrorReports:PreventHandwritingErrorReports
   purpose: Informational
   tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_18.8.22.1.4
   contributors: rachelelysia
@@ -168,7 +173,7 @@ spec:
     'Computer Configuration\Policies\Administrative Templates\System\Internet Communication Management\Internet Communication settings\Turn off Internet Connection Wizard if URL connection is referring to Microsoft.com'
   query: |
     TODO
-    HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\Internet Connection Wizard:ExitOnMSICW
+         SELECT 1 FROM REGISTRY WHERE (PATH = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\Internet Connection Wizard:ExitOnMSICW
   purpose: Informational
   tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_18.8.22.1.5
   contributors: rachelelysia
@@ -187,7 +192,7 @@ spec:
     'Computer Configuration\Policies\Administrative Templates\System\Internet Communication Management\Internet Communication settings\Turn off Internet download for Web publishing and online ordering wizards'
   query: |
     TODO
-    HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer:NoWebServices
+         SELECT 1 FROM REGISTRY WHERE (PATH = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer:NoWebServices
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.8.22.1.6
   contributors: rachelelysia
@@ -206,7 +211,7 @@ spec:
     'Computer Configuration\Policies\Administrative Templates\System\Internet Communication Management\Internet Communication settings\Turn off printing over HTTP'
   query: |
     TODO
-    HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\Printers:DisableHTTPPrinting
+         SELECT 1 FROM REGISTRY WHERE (PATH = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\Printers:DisableHTTPPrinting
   purpose: Informational
   tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_18.8.22.1.7
   contributors: rachelelysia
@@ -225,7 +230,7 @@ spec:
     'Computer Configuration\Policies\Administrative Templates\System\Internet Communication Management\Internet Communication settings\Turn off Registration if URL connection is referring to Microsoft.com'
   query: |
     TODO
-    HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\Registration Wizard Control:NoRegistration
+         SELECT 1 FROM REGISTRY WHERE (PATH = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\Registration Wizard Control:NoRegistration
   purpose: Informational
   tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_18.8.22.1.8
   contributors: rachelelysia
@@ -244,7 +249,7 @@ spec:
     'Computer Configuration\Policies\Administrative Templates\System\Internet Communication Management\Internet Communication settings\Turn off Search Companion content file updates'
   query: |
     TODO
-    HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\SearchCompanion:DisableContentFileUpdates
+         SELECT 1 FROM REGISTRY WHERE (PATH = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\SearchCompanion:DisableContentFileUpdates
   purpose: Informational
   tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_18.8.22.1.9
   contributors: rachelelysia
@@ -264,7 +269,7 @@ spec:
     'Computer Configuration\Policies\Administrative Templates\System\Internet Communication Management\Internet Communication settings\Turn off the "Order Prints" picture task'
   query: |
     TODO
-    HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer:NoOnlinePrintsWizard
+         SELECT 1 FROM REGISTRY WHERE (PATH = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer:NoOnlinePrintsWizard
   purpose: Informational
   tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_18.8.22.1.10
   contributors: rachelelysia
@@ -283,7 +288,7 @@ spec:
     'Computer Configuration\Policies\Administrative Templates\System\InternetCommunication Management\Internet Communication settings\Turn off the "Publish to Web" task for files and folders'
   query: |
     TODO
-    HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer:NoPublishingWizard
+         SELECT 1 FROM REGISTRY WHERE (PATH = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer:NoPublishingWizard
   purpose: Informational
   tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_18.8.22.1.11
   contributors: rachelelysia
@@ -302,7 +307,7 @@ spec:
     'Computer Configuration\Policies\Administrative Templates\System\Internet Communication Management\Internet Communication settings\Turn off the Windows Messenger Customer Experience Improvement Program'
   query: |
     TODO
-    HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Messenger\Client:CEIP
+         SELECT 1 FROM REGISTRY WHERE (PATH = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Messenger\Client:CEIP
   purpose: Informational
   tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_18.8.22.1.12
   contributors: rachelelysia
@@ -322,7 +327,7 @@ spec:
     'Computer Configuration\Policies\Administrative Templates\System\Internet Communication Management\Internet Communication settings\Turn off Windows Customer Experience Improvement Program'
   query: |
     TODO
-    HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\SQMClient\Windows:CEIPEnable
+         SELECT 1 FROM REGISTRY WHERE (PATH = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\SQMClient\Windows:CEIPEnable
   purpose: Informational
   tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_18.8.22.1.13
   contributors: rachelelysia
@@ -341,7 +346,7 @@ spec:
     'Computer Configuration\Policies\Administrative Templates\System\Internet Communication Management\Internet Communication settings\Turn off Windows Error Reporting'
   query: |
     TODO
-    HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\Windows Error Reporting:Disabled
+         SELECT 1 FROM REGISTRY WHERE (PATH = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\Windows Error Reporting:Disabled
     HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\PCHealth\ErrorReporting:DoReport
   purpose: Informational
   tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_18.8.22.1.14
@@ -362,7 +367,7 @@ spec:
     'Computer Configuration\Policies\Administrative Templates\System\Kerberos\Support device authentication using certificate'
   query: |
     TODO
-    HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System\kerberos\parameters:DevicePKInitBehavior
+         SELECT 1 FROM REGISTRY WHERE (PATH = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System\kerberos\parameters:DevicePKInitBehavior
     HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System\kerberos\parameters:DevicePKInitEnabled
   purpose: Informational
   tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_18.8.25.1
@@ -382,7 +387,7 @@ spec:
     'Computer Configuration\Policies\Administrative Templates\System\Kernel DMA Protection\Enumeration policy for external devices incompatible with Kernel DMA Protection'
   query: |
     TODO
-    HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\Kernel DMA Protection:DeviceEnumerationPolicy
+         SELECT 1 FROM REGISTRY WHERE (PATH = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\Kernel DMA Protection:DeviceEnumerationPolicy
   purpose: Informational
   tags: compliance, CIS, CIS_BL, CIS_win10_enterprise_1.12.0, CIS_bullet_18.8.26.1
   contributors: rachelelysia
@@ -401,7 +406,7 @@ spec:
     'Computer Configuration\Policies\Administrative Templates\System\Locale Services\Disallow copying of user input methods to the system account for sign-in'
   query: |
     TODO
-    HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Control Panel\International:BlockUserInputMethodsForSignIn
+         SELECT 1 FROM REGISTRY WHERE (PATH = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Control Panel\International:BlockUserInputMethodsForSignIn
   purpose: Informational
   tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_18.8.27.1
   contributors: rachelelysia
