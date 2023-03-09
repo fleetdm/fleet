@@ -107,7 +107,7 @@ export interface IHostMdmData {
   name?: string;
   server_url: string;
   id?: number;
-  profiles?: IMacSettings;
+  profiles: IMacSettings;
   macos_settings: IMdmMacOsSettings;
 }
 
