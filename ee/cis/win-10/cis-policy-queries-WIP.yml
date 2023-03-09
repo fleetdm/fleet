@@ -133,8 +133,9 @@ spec:
     To establish the recommended configuration via GP, set the following UI path to Enabled:
     'Computer Configuration\Policies\Administrative Templates\System\Internet Communication Management\Internet Communication settings\Turn off handwriting personalization data sharing'
   query: |
-    TODO
-         SELECT 1 FROM REGISTRY WHERE (PATH = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\TabletPC:PreventHandwritingDataSharing
+    TBD
+  # TabletPC directory does not exist
+  # SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\TabletPC\PreventHandwritingDataSharing');
   purpose: Informational
   tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_18.8.22.1.3
   contributors: rachelelysia
@@ -154,7 +155,7 @@ spec:
     'Computer Configuration\Policies\Administrative Templates\System\Internet Communication Management\Internet Communication settings\Turn off handwriting recognition error reporting'
   query: |
     TODO
-         SELECT 1 FROM REGISTRY WHERE (PATH = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\HandwritingErrorReports:PreventHandwritingErrorReports
+         SELECT 1 FROM REGISTRY WHERE (PATH = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\HandwritingErrorReports:PreventHandwritingErrorReports');
   purpose: Informational
   tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_18.8.22.1.4
   contributors: rachelelysia
@@ -367,8 +368,9 @@ spec:
     'Computer Configuration\Policies\Administrative Templates\System\Kerberos\Support device authentication using certificate'
   query: |
     TODO
-         SELECT 1 FROM REGISTRY WHERE (PATH = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System\kerberos\parameters:DevicePKInitBehavior
-    HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System\kerberos\parameters:DevicePKInitEnabled
+  # Directory \systems does not exist
+  #  SELECT 1 FROM REGISTRY WHERE (PATH = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System\kerberos\parameters:DevicePKInitBehavior
+  # HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System\kerberos\parameters:DevicePKInitEnabled
   purpose: Informational
   tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_18.8.25.1
   contributors: rachelelysia
@@ -387,7 +389,7 @@ spec:
     'Computer Configuration\Policies\Administrative Templates\System\Kernel DMA Protection\Enumeration policy for external devices incompatible with Kernel DMA Protection'
   query: |
     TODO
-         SELECT 1 FROM REGISTRY WHERE (PATH = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\Kernel DMA Protection:DeviceEnumerationPolicy
+         SELECT 1 FROM REGISTRY WHERE (PATH = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\Kernel DMA Protection:DeviceEnumerationPolicy
   purpose: Informational
   tags: compliance, CIS, CIS_BL, CIS_win10_enterprise_1.12.0, CIS_bullet_18.8.26.1
   contributors: rachelelysia
@@ -406,7 +408,7 @@ spec:
     'Computer Configuration\Policies\Administrative Templates\System\Locale Services\Disallow copying of user input methods to the system account for sign-in'
   query: |
     TODO
-         SELECT 1 FROM REGISTRY WHERE (PATH = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Control Panel\International:BlockUserInputMethodsForSignIn
+         SELECT 1 FROM REGISTRY WHERE (PATH = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Control Panel\\International\BlockUserInputMethodsForSignIn
   purpose: Informational
   tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_18.8.27.1
   contributors: rachelelysia
