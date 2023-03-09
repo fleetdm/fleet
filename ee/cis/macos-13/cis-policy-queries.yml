@@ -1955,7 +1955,7 @@ spec:
   resolution: |
     Ask your system administrator to deploy the following script:
     /usr/bin/sudo /usr/bin/pwpolicy -n /Local/Default -setglobalpolicy "requiresMixedCase=<value>=1>"
-  query: SELECT 1 FROM  pwd_policy where min_mixed_case_charachters >= 1;
+  query: SELECT 1 FROM  pwd_policy where min_mixed_case_characters >= 1;
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-macos-13-5.2.6
   contributors: sharon-fdm
