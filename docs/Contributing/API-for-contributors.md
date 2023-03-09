@@ -2565,7 +2565,16 @@ Returns the host information about the device that makes the request.
       "macos_settings": {
         "disk_encryption": null,
         "action_required": null
-      }
+      },
+      "profiles": [
+        {
+          "profile_id": 999,
+          "name": "profile1",
+          "status": "applied",
+          "operation_type": "install",
+          "detail": ""
+        }
+      ]
     }
   },
   "org_logo_url": "https://example.com/logo.jpg",
