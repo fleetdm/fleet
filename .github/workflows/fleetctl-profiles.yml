@@ -1,0 +1,76 @@
+# This workflow applies the latest MDM profiles to the workstations team.
+# It uses a fleet instance also built and executed from source.
+#
+# It runs automatically when a file is changed in /mdm_profiles.
+name: Apply latest MDM profiles
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'mdm_profiles/**.mobileconfig'
+  workflow_dispatch: # Manual
+
+# This allows a subsequently queued workflow run to interrupt previous runs
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id}}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    # fail-fast using bash -eo pipefail. See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#exit-codes-and-error-action-preference
+    shell: bash
+
+permissions:
+  contents: read
+
+env:
+  DOGFOOD_API_TOKEN: ${{ secrets.DOGFOOD_API_TOKEN }}
+  DOGFOOD_URL: ${{ secrets.DOGFOOD_URL }}
+  CLOUD_MANAGEMENT_ENROLLMENT_TOKEN: ${{ secrets.CLOUD_MANAGEMENT_ENROLLMENT_TOKEN }}
+
+jobs:
+  apply-profiles:
+    timeout-minutes: 15
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go-version: ['^1.19.4']
+    steps:
+    - name: Install Go
+      uses: actions/setup-go@268d8c0ca0432bb2cf416faae41297df9d262d7f # v2
+      with:
+        go-version: ${{ matrix.go-version }}
+
+    - name: Checkout Code
+      uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b # v2
+      with:
+        repository: fleetdm/fleet
+
+    - name: Build Fleetctl
+      run: make fleetctl
+
+    - name: Configure Fleetctl
+      run: build/fleetctl config set --address $DOGFOOD_URL --token $DOGFOOD_API_TOKEN
+
+    - name: Run fleetctl apply
+      run: |
+        profiles=""
+          for file in mdm_profiles/*.mobileconfig; do
+            envsubst < "$file" > "${file}.new"
+            mv "${file}.new" "$file"
+            profiles+="- $file
+                  "
+        done
+        echo "apiVersion: v1
+        kind: team
+        spec:
+          team:
+            name: 🧪 g-mdm lab
+            mdm:
+              macos_settings:
+                custom_settings:
+                  $profiles
+        " > team-workstations-config.yml
+        build/fleetctl apply -f team-workstations-config.yml
