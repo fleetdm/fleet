@@ -27670,7 +27670,7 @@
         "description": "This parameter indicates the depth of password history which a new password can't be identical to.\n"
       },
       {
-        "name": "min_mixed_case_charachters",
+        "name": "min_mixed_case_characters",
         "type": "integer",
         "required": false,
         "description": "This parameter indicates the minimum number of mixed characters in a password.\n"
