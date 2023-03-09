@@ -2580,7 +2580,31 @@ packaging:
 
 #### Mobile device management (MDM)
 
-> MDM features are not ready for production and are currently in development. These features are disabled by default.
+> MDM features are not ready for production and are currently in beta. These features are disabled by default. To enable these features set `FLEET_DEV_MDM_ENABLED=1` as an environment variable.
+
+#### dev_mdm_enabled
+
+This is the first of two feature flags required to turn on MDM features. This feature flag should be set to `1` before you follow the [setup MDM instructions](../Using-Fleet/Mobile-device-management.md#set-up).
+
+- Default value: ""
+- Environment variable: `FLEET_DEV_MDM_ENABLE`
+- Config file format:
+  ```
+  dev:
+    mdm_enable: 1
+  ```
+
+##### apple_enable
+
+This is the second feature flag required to turn on MDM features. This feature flag must be set to `1` at the same time as when you set the certificate and keys for Apple Push Certificate server (APNs) and Apple Business Manager (ABM). Otherwise, the Fleet server won't start.
+
+- Default value: ""
+- Environment variable: `FLEET_MDM_APPLE_ENABLE`
+- Config file format:
+  ```
+  mdm:
+    apple_enable: 1
+  ```
 
 ##### apple_apns_cert
 
@@ -2690,6 +2714,18 @@ The content of the PEM-encoded private key for the Simple Certificate Enrollment
       -----END RSA PRIVATE KEY-----
   ```
 
+##### apple_scep_challenge
+
+An alphanumeric secret for the Simple Certificate Enrollment Protocol (SCEP). Should be 32 characters in length and only include alphanumeric characters.
+
+- Default value: ""
+- Environment variable: `FLEET_MDM_APPLE_SCEP_CHALLENGE`
+- Config file format:
+  ```
+  mdm:
+    apple_scep_challenge: scepchallenge
+  ```
+
 ##### apple_bm_server_token
 
 This is the path to the Apple Business Manager encrypted server token (a `.p7m` file) downloaded from Apple Business Manager. Only one of `apple_bm_server_token` and `apple_bm_server_token_bytes` can be set.
@@ -2771,6 +2807,55 @@ This is the content of the PEM-encoded private key for the Apple Business Manage
       -----END RSA PRIVATE KEY-----
   ```
 
+##### okta_server_url
+
+This is the URL of your Okta [authorization server](https://developer.okta.com/docs/concepts/auth-servers/)
+
+- Default value: ""
+- Environment variable: `FLEET_MDM_OKTA_SERVER_URL`
+- Config file format:
+  ```
+  mdm:
+    okta_server_url: https://example.okta.com
+```
+
+##### okta_client_id
+
+This is the client ID of the Okta application that will be used to authenticate users. This value can be found in the Okta admin page under "Applications > Client Credentials."
+
+- Default value: ""
+- Environment variable: `FLEET_MDM_OKTA_CLIENT_ID`
+- Config file format:
+  ```
+  mdm:
+    okta_client_id: 9oa4eoxample2rpdi1087
+```
+
+##### okta_client_secret
+
+This is the client secret of the Okta application that will be used to authenticate users. This value can be found in the Okta admin page under "Applications > Client Credentials."
+
+- Default value: ""
+- Environment variable: `FLEET_MDM_OKTA_CLIENT_SECRET`
+- Config file format:
+  ```
+  mdm:
+    okta_client_secret: COp8o5zskEQ0OylgjqTrd0xu7rQLx-VteaQW4YGf
+```
+
+##### eula_url
+
+An URL containing a PDF file that will be used as an EULA during DEP onboarding.
+
+- Default value: ""
+- Environment variable: `FLEET_MDM_OKTA_EULA_URL`
+- Config file format:
+  ```
+  mdm:
+    eula_url: https://example.com/eula.pdf
+```
+
+
 ##### Example YAML
 
 ```yaml
@@ -2782,6 +2867,10 @@ mdm:
   apple_bm_server_token: /path/to/server_token.p7m
   apple_bm_cert: /path/to/bm_cert
   apple_bm_key: /path/to/private_key
+  okta_server_url: https://example.okta.com
+  okta_client_id: 9oa4eoxample2rpdi1087
+  okta_client_secret: COp8o5zskEQ0OylgjqTrd0xu7rQLx-VteaQW4YGf
+  eula_url: https://example.com/eula.pdf
 ```
 
 ## Managing osquery configurations

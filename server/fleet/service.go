@@ -17,6 +17,17 @@ import (
 type EnterpriseOverrides struct {
 	HostFeatures   func(context context.Context, host *Host) (*Features, error)
 	TeamByIDOrName func(ctx context.Context, id *uint, name *string) (*Team, error)
+	// UpdateTeamMDMAppleSettings is the team-specific service method for when
+	// a team ID is provided to the UpdateMDMAppleSettings method.
+	UpdateTeamMDMAppleSettings func(ctx context.Context, tm *Team, payload MDMAppleSettingsPayload) error
+
+	// The next two functions are implemented by the ee/service, and called
+	// properly when called from an ee/service method (e.g. Modify Team), but
+	// they also need to be called from the standard server/service method (e.g.
+	// Modify AppConfig), so in this case we need to use the enterprise
+	// overrides.
+	MDMAppleEnableFileVaultAndEscrow  func(ctx context.Context, teamID *uint) error
+	MDMAppleDisableFileVaultAndEscrow func(ctx context.Context, teamID *uint) error
 }
 
 type OsqueryService interface {
@@ -636,11 +647,15 @@ type Service interface {
 	// MDMAppleEnableFileVaultAndEscrow adds a configuration profile for the
 	// given team that enables FileVault with a config that allows Fleet to
 	// escrow the recovery key.
-	MDMAppleEnableFileVaultAndEscrow(ctx context.Context, teamID uint) error
+	MDMAppleEnableFileVaultAndEscrow(ctx context.Context, teamID *uint) error
 
 	// MDMAppleDisableFileVaultAndEscrow removes the FileVault configuration
 	// profile for the given team.
-	MDMAppleDisableFileVaultAndEscrow(ctx context.Context, teamID uint) error
+	MDMAppleDisableFileVaultAndEscrow(ctx context.Context, teamID *uint) error
+
+	// UpdateMDMAppleSettings updates the specified MDM Apple settings for a
+	// specified team or for hosts with no team.
+	UpdateMDMAppleSettings(ctx context.Context, payload MDMAppleSettingsPayload) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// CronSchedulesService

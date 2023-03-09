@@ -503,24 +503,29 @@ const hostMDMSelect = `,
 			WHEN hdek.decryptable IS NULL OR hdek.decryptable = 0 THEN CAST(FALSE AS JSON)
 			ELSE CAST(TRUE AS JSON)
 		END,
+		'raw_decryptable',
+		CASE
+			WHEN hdek.host_id IS NULL THEN -1
+			ELSE hdek.decryptable
+		END,
 		'name', hmdm.name
 	) mdm_host_data
 	`
 
 // hostMDMJoin is the SQL fragment used to join MDM-related tables to the hosts table. It is a
 // dependency of the hostMDMSelect fragment.
-const hostMDMJoin = `  
+const hostMDMJoin = `
   LEFT JOIN (
-	SELECT 
-	  host_mdm.is_server, 
-	  host_mdm.enrolled, 
-	  host_mdm.installed_from_dep, 
-	  host_mdm.server_url, 
-	  host_mdm.mdm_id, 
-	  host_mdm.host_id, 
-	  name 
-	FROM 
-	  host_mdm 
+	SELECT
+	  host_mdm.is_server,
+	  host_mdm.enrolled,
+	  host_mdm.installed_from_dep,
+	  host_mdm.server_url,
+	  host_mdm.mdm_id,
+	  host_mdm.host_id,
+	  name
+	FROM
+	  host_mdm
 	  LEFT JOIN mobile_device_management_solutions ON host_mdm.mdm_id = mobile_device_management_solutions.id
   ) hmdm ON hmdm.host_id = h.id
   LEFT JOIN host_disk_encryption_keys hdek ON hdek.host_id = h.id
@@ -748,6 +753,7 @@ func (ds *Datastore) applyHostFilters(opt fleet.HostListOptions, sql string, fil
 	sql, params = filterHostsByTeam(sql, opt, params)
 	sql, params = filterHostsByPolicy(sql, opt, params)
 	sql, params = filterHostsByMDM(sql, opt, params)
+	sql, params = filterHostsByMacOSSettingsStatus(sql, opt, params)
 	sql, params = filterHostsByOS(sql, opt, params)
 	sql, params = hostSearchLike(sql, params, opt.MatchQuery, hostSearchColumns...)
 	sql, params = appendListOptionsWithCursorToSQL(sql, params, &opt.ListOptions)
@@ -824,6 +830,38 @@ func filterHostsByStatus(now time.Time, sql string, opt fleet.HostListOptions, p
 		params = append(params, now)
 	}
 	return sql, params
+}
+
+func filterHostsByMacOSSettingsStatus(sql string, opt fleet.HostListOptions, params []interface{}) (string, []interface{}) {
+	if !opt.MacOSSettingsFilter.IsValid() {
+		return sql, params
+	}
+
+	newSQL := ""
+	newParams := []interface{}{}
+
+	if opt.TeamFilter == nil || *opt.TeamFilter == 0 {
+		// add "no team" filter
+		newSQL += ` AND h.team_id IS NULL`
+	}
+
+	newSQL += ` AND EXISTS (SELECT 1 FROM host_mdm_apple_profiles hmap WHERE hmap.host_uuid = h.uuid AND status = ?`
+
+	switch opt.MacOSSettingsFilter {
+	case fleet.MacOSSettingsStatusFailing:
+		newSQL += `)`
+		newParams = append(newParams, fleet.MDMAppleDeliveryFailed)
+
+	case fleet.MacOSSettingsStatusPending:
+		newSQL += ` AND NOT EXISTS (SELECT 1 FROM host_mdm_apple_profiles hmap2 WHERE h.uuid = hmap2.host_uuid AND hmap2.status = ?))`
+		newParams = append(newParams, fleet.MDMAppleDeliveryPending, fleet.MDMAppleDeliveryFailed)
+
+	case fleet.MacOSSettingsStatusLatest:
+		newSQL += ` AND NOT EXISTS (SELECT 1 FROM host_mdm_apple_profiles hmap2 WHERE h.uuid = hmap2.host_uuid AND (hmap2.status = ? OR hmap2.status = ?)))`
+		newParams = append(newParams, fleet.MDMAppleDeliveryApplied, fleet.MDMAppleDeliveryPending, fleet.MDMAppleDeliveryFailed)
+	}
+
+	return sql + newSQL, append(params, newParams...)
 }
 
 func (ds *Datastore) CountHosts(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) (int, error) {

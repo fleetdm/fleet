@@ -84,3 +84,23 @@ func TestLoadLicenseIncorrectAlgorithm(t *testing.T) {
 	_, err := LoadLicense(key)
 	require.Error(t, err)
 }
+
+func TestLoadLicenseTrialTier(t *testing.T) {
+	t.Parallel()
+
+	key := "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJGbGVldCBEZXZpY2UgTWFuYWdlbWVudCBJbmMuIiwiZXhwIjoxNjQwOTk1MjAwLCJzdWIiOiJ0ZXN0IiwiZGV2aWNlcyI6MTAwLCJub3RlIjoiZm9yIGRldmVsb3BtZW50IG9ubHkiLCJ0aWVyIjoidHJpYWwiLCJpYXQiOjE2Nzc1NTMwMzh9.q1lJeGSbeeQhMYwnQb4l3-kh3GFGlAAv-yHzxKhFRmK3vMpgwwyYaieo-hLxfFdCIjts2xd84Ql4q8e9-ixkUg"
+	license, err := LoadLicense(key)
+	require.NoError(t, err)
+	require.Equal(t, "trial", license.Tier)
+	require.True(t, license.IsPremium())
+}
+
+func TestForceUpgrade(t *testing.T) {
+	t.Parallel()
+	// tier = basic
+	key := "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJGbGVldCBEZXZpY2UgTWFuYWdlbWVudCBJbmMuIiwiZXhwIjoxNjQwOTk1MjAwLCJzdWIiOiJ0ZXN0IiwiZGV2aWNlcyI6MTAwLCJub3RlIjoiZm9yIGRldmVsb3BtZW50IG9ubHkiLCJ0aWVyIjoiYmFzaWMiLCJpYXQiOjE2Nzc3ODkzMjZ9.DOQ5AGHthInA3pGv6U4xf3PGdGZCRTkbkn96g45PPEvpUN0LwNMOc8FL-wWowZ2rp5yvqmKlb_gzkAh7jkhz8g"
+	license, err := LoadLicense(key)
+	require.NoError(t, err)
+	require.Equal(t, fleet.TierPremium, license.Tier)
+	require.True(t, license.IsPremium())
+}

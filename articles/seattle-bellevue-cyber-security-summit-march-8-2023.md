@@ -1,6 +1,6 @@
 # Join Fleet at Cyber Security Summit Seattle/Bellevue 
 
-![Seattle/Bellevue Cyber Security Summit](../website/assets/images/articles/seattle-bellevue-cyber-security-summit-social-post-1200x628@2x.png)
+[![Seattle/Bellevue Cyber Security Summit](../website/assets/images/articles/seattle-bellevue-cyber-security-summit-social-post-1200x628@2x.png)](https://cybersecuritysummit.com/summit/seattle23/)
 
 Join Fleet on Wednesday, March 8, 2023, in Bellevue, Washington, for the seventh annual Seattle/Bellevue Cyber Security Summit. Zach Wasserman, Fleet Chief Technology Officer, will join a panel of industry experts to discuss the key security measures organizations must take beyond backup, recovery, anti-malware, and anti-virus.
 

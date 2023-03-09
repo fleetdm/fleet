@@ -163,7 +163,6 @@ func main() {
 				return fmt.Errorf("failed to set root-dir: %w", err)
 			}
 		}
-
 		return nil
 	}
 	app.Action = func(c *cli.Context) error {
@@ -785,6 +784,10 @@ func main() {
 
 		close(appDoneCh) // Signal to indicate runners have just ended
 		return nil
+	}
+
+	if len(os.Args) == 2 && os.Args[1] == "--help" {
+		platform.PreUpdateQuirks()
 	}
 
 	if err := app.Run(os.Args); err != nil {

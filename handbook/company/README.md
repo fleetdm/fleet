@@ -17,7 +17,7 @@ We are dedicated to:
 Fleet Device Management Inc. is an all-remote company with 30+ team members spread across four continents and eight time zones.  The broader team of contributors [worldwide](https://github.com/fleetdm/fleet/graphs/contributors) submits patches, bug reports, troubleshooting tips, improvements, and real-world insights to Fleet's open-source code base, documentation, website, and [company handbook](https://fleetdm.com/handbook/company/why-this-way#why-handbook-first-strategy).
 
 ### Open source
-The majority of the code, documentation, and content we create at Fleet is public and source-available.  The Fleet handbook is the central guide for how we run the company, and even it is open to the world.  We [strive to be open](https://fleetdm.com/handbook/company/why-this-way#why-open-source) and transparent in the way we run the business, as much as confidentiality agreements (and time) allow. We perform better with an audience, and our audience [performs better](https://fleetdm.com/handbook/company/why-this-way#why-open-source) with us.
+The majority of the code, documentation, and content we create at Fleet is public and [source-available](https://fleetdm.com/handbook/company/why-this-way#why-open-source).  The Fleet handbook is the central guide for how we run the company, and even it is open to the world.  We [strive to be open](https://fleetdm.com/handbook/company#openness) and transparent in the way we run the business, as much as [confidentiality](https://fleetdm.com/handbook/company#levels-of-confidentiality) agreements (and time) allow. We perform better with an audience, and our audience performs better with us.
 
 
 ## Why this way?
@@ -31,7 +31,6 @@ Fleet is currently hiring for the following positions:
 - 🔦 Head of Business Operations
 - 🔦 Executive Assistant
 - ⚗️ [Product Designer](https://fleetdm.com/handbook/company/product-designer)
-- 🔦 [Revenue Operations Manager](https://fleetdm.com/handbook/company/revenue-operations-manager)
 - 🫧 [Field Marketer](https://fleetdm.com/handbook/company/field-marketer)
 
 > **🛸 Join us!**  Interested in joining the team at Fleet, or know someone who might be?  Click one of the positions to read the job description and apply.  Or [copy a direct link to this page](https://fleetdm.com/handbook/company#open-positions) to share a short summary about the company, including our vision, values, history, and all currently open positions.  Thank you for the help!
@@ -92,7 +91,7 @@ Openness leads to better products and stronger partnerships. Being open about yo
 - **Welcome contributions.** Be friendly, inclusive, and approachable. Get comfortable letting others contribute to your domain.
 - **Embrace candor.** Be positive and assume positive intent. Don’t be afraid to speak up. Give pointed and respectful feedback. 
 - **Write everything down.** Let people learn about your work. Use simple language. Avoid acronyms and idioms that might not translate.
-- **Be transparent.** We build in the open. Everything we do is public by default. Declassify confidential information with care. 
+- **Be transparent.** We build in the open. Everything we do is [public by default](https://fleetdm.com/handbook/company/why-this-way#why-open-source). Declassify confidential information with care. 
 
 
 ## History
@@ -118,6 +117,11 @@ To provide clarity about decision-making, responsibility, and resources, everyon
 
 ## Product groups
 Above and beyond the organizational chart, Fleet organizes cross-functional groups focused on particular business goals.  This helps product development teams move more quickly by eliminating roundtrips spent waiting for feedback and answers from people in other departments. Product groups include a designer, a product quality lead, developers, a product manager, and an engineering manager.  For more information, check out the ["Product groups"](./development-groups.md) page.
+
+## Advisors
+While most improvements at Fleet are driven by informal conversations with customers and open-source contributors, the company also has a few dozen advisors and investors, including
+[Sid](https://about.gitlab.com/blog/2022/10/14/one-third-of-what-we-learned-about-ipos-in-taking-gitlab-public/) [Sijbrandij](https://about.gitlab.com/handbook/ceo/#sijbrandij-pronunciation-hint) _(GitLab)_, [Dylan Field](https://en.wikipedia.org/wiki/Dylan_Field) _(Figma)_, [Jack Naglieri](https://councils.forbes.com/profile/Jack-Naglieri-Founder-CEO-Panther/a5f3a285-e983-4f4c-9f9d-2f0d4335f00d) _(Panther Labs)_, [Mike Arpaia](https://www.youtube.com/watch?v=zfCak2UIOD8) _(osquery)_, and [other smart people who are eager to help](https://docs.google.com/spreadsheets/d/15knBE2-PrQ1Ad-QcIk0mxCN-xFsATKK9hcifqrm0qFQ/edit).  If you have a question for one of them, Fleet's CEO is happy to introduce you.  (Just ask.)
+
 
 ## Positioning
 Read about [Fleet's positioning in this confidential Google Doc](https://docs.google.com/document/d/140q7SZ4T_sbsTsL7tdTKsqMqDtXbGBh_8Yiqy36bRI0/edit).

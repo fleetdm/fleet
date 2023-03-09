@@ -49,6 +49,25 @@ const (
 	MDMEnrollStatusUnenrolled = MDMEnrollStatus("unenrolled")
 )
 
+// MacOSSettingsStatus defines the possible statuses of the host's macOS settings, which is derived from the
+// status of MDM configuration profiles applied to the host.
+type MacOSSettingsStatus string
+
+const (
+	MacOSSettingsStatusLatest  = MacOSSettingsStatus("latest")
+	MacOSSettingsStatusPending = MacOSSettingsStatus("pending")
+	MacOSSettingsStatusFailing = MacOSSettingsStatus("failing")
+)
+
+func (s MacOSSettingsStatus) IsValid() bool {
+	switch s {
+	case MacOSSettingsStatusFailing, MacOSSettingsStatusPending, MacOSSettingsStatusLatest:
+		return true
+	default:
+		return false
+	}
+}
+
 // NOTE: any changes to the hosts filters is likely to impact at least the following
 // endpoints, due to how they share the same implementation at the Datastore level:
 //
@@ -82,6 +101,10 @@ type HostListOptions struct {
 	OSVersionFilter *string
 
 	DisableFailingPolicies bool
+
+	// MacOSSettingsFilter filters the hosts by the status of MDM configuration profiles
+	// appled to the hosts.
+	MacOSSettingsFilter MacOSSettingsStatus
 
 	// MDMIDFilter filters the hosts by MDM ID.
 	MDMIDFilter *uint
@@ -227,6 +250,13 @@ type MDMHostData struct {
 	// decode an encryption key for the host.
 	EncryptionKeyAvailable bool `json:"encryption_key_available" db:"-" csv:"-"`
 
+	// this is set to nil if the key exists but decryptable is NULL in the db, 1
+	// if decryptable, 0 if non-decryptable and -1 if no disk encryption key row
+	// exists for this host. Used internally to determine the disk_encryption
+	// status and action_required fields. See MDMHostData.Scan as for where this
+	// gets filled.
+	rawDecryptable *int
+
 	// Profiles is a list of HostMDMProfiles for the host. Note that as for many
 	// other host fields, it is not filled in by all host-returning datastore methods.
 	//
@@ -234,14 +264,136 @@ type MDMHostData struct {
 	// if the slice is empty, but when unset, it doesn't get marshaled
 	// (e.g. we don't return that information for the List Hosts endpoint).
 	Profiles *[]HostMDMAppleProfile `json:"profiles,omitempty" db:"profiles" csv:"-"`
+
+	// MacOSSettings indicates macOS-specific MDM settings for the host, such
+	// as disk encryption status and whether any user action is required to
+	// complete the disk encryption process.
+	//
+	// It is not filled in by all host-returning datastore methods.
+	MacOSSettings *MDMHostMacOSSettings `json:"macos_settings,omitempty" db:"-" csv:"-"`
+}
+
+type DiskEncryptionState string
+
+const (
+	DiskEncryptionApplied             DiskEncryptionState = "applied"
+	DiskEncryptionActionRequired      DiskEncryptionState = "action_required"
+	DiskEncryptionEnforcing           DiskEncryptionState = "enforcing"
+	DiskEncryptionFailed              DiskEncryptionState = "failed"
+	DiskEncryptionRemovingEnforcement DiskEncryptionState = "removing_enforcement"
+)
+
+func (s DiskEncryptionState) addrOf() *DiskEncryptionState {
+	return &s
+}
+
+type ActionRequiredState string
+
+const (
+	ActionRequiredLogOut    ActionRequiredState = "log_out"
+	ActionRequiredRotateKey ActionRequiredState = "rotate_key"
+)
+
+func (s ActionRequiredState) addrOf() *ActionRequiredState {
+	return &s
+}
+
+type MDMHostMacOSSettings struct {
+	DiskEncryption *DiskEncryptionState `json:"disk_encryption" csv:"-"`
+	ActionRequired *ActionRequiredState `json:"action_required" csv:"-"`
+}
+
+// DetermineDiskEncryptionStatus determines the disk encryption status for the
+// host based on the file-vault profile in its list of profiles and whether its
+// disk encryption key is available and decryptable. The file-vault profile
+// identifier is received as argument to avoid a circular dependency.
+func (d *MDMHostData) DetermineDiskEncryptionStatus(profiles []HostMDMAppleProfile, fileVaultIdentifier string) {
+	var settings MDMHostMacOSSettings
+
+	var fvprof *HostMDMAppleProfile
+	for _, p := range profiles {
+		p := p
+		if p.Identifier == fileVaultIdentifier {
+			fvprof = &p
+			break
+		}
+	}
+	if fvprof != nil {
+		switch fvprof.OperationType {
+		case MDMAppleOperationTypeInstall:
+			switch {
+			case fvprof.Status != nil && *fvprof.Status == MDMAppleDeliveryApplied:
+				if d.rawDecryptable != nil && *d.rawDecryptable == 1 {
+					//  if a FileVault profile has been successfully installed on the host
+					//  AND we have fetched and are able to decrypt the key
+					settings.DiskEncryption = DiskEncryptionApplied.addrOf()
+				} else if d.rawDecryptable != nil {
+					// if a FileVault profile has been successfully installed on the host
+					// but either we didn't get an encryption key or we're not able to
+					// decrypt the key we've got
+					settings.DiskEncryption = DiskEncryptionActionRequired.addrOf()
+					if *d.rawDecryptable == 0 {
+						settings.ActionRequired = ActionRequiredRotateKey.addrOf()
+					} else {
+						settings.ActionRequired = ActionRequiredLogOut.addrOf()
+					}
+				} else {
+					// if [a FileVault profile is pending to be installed or] the
+					// matching row in host_disk_encryption_keys has a field decryptable
+					// = NULL
+					settings.DiskEncryption = DiskEncryptionEnforcing.addrOf()
+				}
+
+			case fvprof.Status != nil && *fvprof.Status == MDMAppleDeliveryFailed:
+				// if a FileVault profile failed to be installed [or removed]
+				settings.DiskEncryption = DiskEncryptionFailed.addrOf()
+
+			default:
+				// if a FileVault profile is pending to be installed [or the matching
+				// row in host_disk_encryption_keys has a field decryptable = NULL]
+				settings.DiskEncryption = DiskEncryptionEnforcing.addrOf()
+			}
+
+		case MDMAppleOperationTypeRemove:
+			switch {
+			case fvprof.Status != nil && *fvprof.Status == MDMAppleDeliveryApplied:
+				// successfully removed, same as if	no filevault profile was found
+
+			case fvprof.Status != nil && *fvprof.Status == MDMAppleDeliveryFailed:
+				// if a FileVault profile failed to be [installed or] removed
+				settings.DiskEncryption = DiskEncryptionFailed.addrOf()
+
+			default:
+				// if a FileVault profile is pending to be removed
+				settings.DiskEncryption = DiskEncryptionRemovingEnforcement.addrOf()
+			}
+		}
+	}
+	d.MacOSSettings = &settings
+}
+
+// Only exposed for Datastore tests, to be able to assert the rawDecryptable
+// unexported field.
+func (d *MDMHostData) TestGetRawDecryptable() *int {
+	return d.rawDecryptable
 }
 
 // Scan implements the Scanner interface for sqlx, to support unmarshaling a
 // JSON object from the database into a MDMHostData struct.
 func (d *MDMHostData) Scan(v interface{}) error {
+	var dst struct {
+		MDMHostData
+		RawDecryptable *int `json:"raw_decryptable"`
+	}
 	switch v := v.(type) {
 	case []byte:
-		return json.Unmarshal(v, d)
+		if err := json.Unmarshal(v, &dst); err != nil {
+			return err
+		}
+		*d = dst.MDMHostData
+		d.rawDecryptable = dst.RawDecryptable
+		return nil
+
 	default:
 		return fmt.Errorf("unsupported type: %T", v)
 	}
