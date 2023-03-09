@@ -2250,7 +2250,11 @@ Returns the information of the specified host.
       "encryption_key_available": false,
       "enrollment_status": null,
       "name": "",
-      "server_url": null
+      "server_url": null,
+      "macos_settings": {
+        "disk_encryption": null,
+        "action_required": null
+      }
     }
   }
 }
@@ -2430,7 +2434,11 @@ Returns the information of the host specified using the `uuid`, `osquery_host_id
       "encryption_key_available": false,
       "enrollment_status": null,
       "name": "",
-      "server_url": null
+      "server_url": null,
+      "macos_settings": {
+        "disk_encryption": null,
+        "action_required": null
+      }
     }
   }
 }

@@ -814,7 +814,7 @@ func (s *integrationMDMTestSuite) TestMDMAppleGetEncryptionKey() {
 	ctx := context.Background()
 
 	// create a host
-	host, err := s.ds.NewHost(context.Background(), &fleet.Host{
+	host, err := s.ds.NewHost(ctx, &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
@@ -826,6 +826,46 @@ func (s *integrationMDMTestSuite) TestMDMAppleGetEncryptionKey() {
 		Platform:        "darwin",
 	})
 	require.NoError(t, err)
+
+	// install a filevault profile for that host
+	prof, err := fleet.Mobileconfig(mobileconfigForTest("N1", apple_mdm.FleetFileVaultPayloadIdentifier)).ParseConfigProfile()
+	require.NoError(t, err)
+	fileVaultProf, err := s.ds.NewMDMAppleConfigProfile(ctx, *prof)
+	require.NoError(t, err)
+	hostCmdUUID := uuid.New().String()
+	err = s.ds.BulkUpsertMDMAppleHostProfiles(ctx, []*fleet.MDMAppleBulkUpsertHostProfilePayload{
+		{
+			ProfileID:         fileVaultProf.ProfileID,
+			ProfileIdentifier: fileVaultProf.Identifier,
+			HostUUID:          host.UUID,
+			CommandUUID:       hostCmdUUID,
+			OperationType:     fleet.MDMAppleOperationTypeInstall,
+			Status:            &fleet.MDMAppleDeliveryApplied,
+		},
+	})
+	require.NoError(t, err)
+
+	t.Cleanup(func() {
+		err := s.ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
+			HostUUID:      host.UUID,
+			CommandUUID:   hostCmdUUID,
+			ProfileID:     fileVaultProf.ProfileID,
+			Status:        &fleet.MDMAppleDeliveryApplied,
+			OperationType: fleet.MDMAppleOperationTypeRemove,
+		})
+		require.NoError(t, err)
+		err = s.ds.DeleteMDMAppleConfigProfile(ctx, fileVaultProf.ProfileID)
+		require.NoError(t, err)
+	})
+
+	// get that host - it has no encryption key at this point, so it should
+	// report "action_required" disk encryption and "log_out" action.
+	getHostResp := getHostResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
+	require.NotNil(t, getHostResp.Host.MDM.MacOSSettings.DiskEncryption)
+	require.Equal(t, fleet.DiskEncryptionActionRequired, *getHostResp.Host.MDM.MacOSSettings.DiskEncryption)
+	require.NotNil(t, getHostResp.Host.MDM.MacOSSettings.ActionRequired)
+	require.Equal(t, fleet.ActionRequiredLogOut, *getHostResp.Host.MDM.MacOSSettings.ActionRequired)
 
 	// add an encryption key for the host
 	cert, _, _, err := s.fleetCfg.MDM.AppleSCEP()
@@ -840,6 +880,14 @@ func (s *integrationMDMTestSuite) TestMDMAppleGetEncryptionKey() {
 	err = s.ds.SetOrUpdateHostDiskEncryptionKey(ctx, host.ID, base64EncryptedKey)
 	require.NoError(t, err)
 
+	// get that host - it has an encryption key with unknown decryptability, so
+	// it should report "enforcing" disk encryption.
+	getHostResp = getHostResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
+	require.NotNil(t, getHostResp.Host.MDM.MacOSSettings.DiskEncryption)
+	require.Equal(t, fleet.DiskEncryptionEnforcing, *getHostResp.Host.MDM.MacOSSettings.DiskEncryption)
+	require.Nil(t, getHostResp.Host.MDM.MacOSSettings.ActionRequired)
+
 	// request with no token
 	res := s.DoRawNoAuth("GET", fmt.Sprintf("/api/latest/fleet/mdm/hosts/%d/encryption_key", host.ID), nil, http.StatusUnauthorized)
 	res.Body.Close()
@@ -853,6 +901,15 @@ func (s *integrationMDMTestSuite) TestMDMAppleGetEncryptionKey() {
 	require.NoError(t, err)
 	resp = getHostEncryptionKeyResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/mdm/hosts/%d/encryption_key", host.ID), nil, http.StatusNotFound, &resp)
+
+	// get that host - it has an encryption key that is un-decryptable, so it
+	// should report "action_required" disk encryption and "rotate_key" action.
+	getHostResp = getHostResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
+	require.NotNil(t, getHostResp.Host.MDM.MacOSSettings.DiskEncryption)
+	require.Equal(t, fleet.DiskEncryptionActionRequired, *getHostResp.Host.MDM.MacOSSettings.DiskEncryption)
+	require.NotNil(t, getHostResp.Host.MDM.MacOSSettings.ActionRequired)
+	require.Equal(t, fleet.ActionRequiredRotateKey, *getHostResp.Host.MDM.MacOSSettings.ActionRequired)
 
 	// no activities created so far
 	activities := listActivitiesResponse{}
@@ -892,6 +949,14 @@ func (s *integrationMDMTestSuite) TestMDMAppleGetEncryptionKey() {
 	// admins are able to see the host encryption key
 	s.token = s.getTestAdminToken()
 	checkDecryptableKey(s.users["admin1@example.com"])
+
+	// get that host - it has an encryption key that is decryptable, so it
+	// should report "applied" disk encryption.
+	getHostResp = getHostResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
+	require.NotNil(t, getHostResp.Host.MDM.MacOSSettings.DiskEncryption)
+	require.Equal(t, fleet.DiskEncryptionApplied, *getHostResp.Host.MDM.MacOSSettings.DiskEncryption)
+	require.Nil(t, getHostResp.Host.MDM.MacOSSettings.ActionRequired)
 
 	// maintainers are able to see the token
 	u := s.users["user1@example.com"]
