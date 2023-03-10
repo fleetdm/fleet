@@ -2054,7 +2054,7 @@ func (s *integrationTestSuite) TestTeamPoliciesProprietaryInvalid() {
 			tname:      "Invalid query",
 			testUpdate: true,
 			name:       "Invalid query",
-			query:      "ATTACH 'foo' AS bar;",
+			query:      "",
 		},
 	} {
 		t.Run(tc.tname, func(t *testing.T) {
@@ -4394,7 +4394,7 @@ func (s *integrationTestSuite) TestQueriesBadRequests() {
 		{
 			tname: "Invalid query",
 			name:  "Invalid query",
-			query: "ATTACH 'foo' AS bar;",
+			query: "",
 		},
 	} {
 		t.Run(tc.tname, func(t *testing.T) {
@@ -6305,7 +6305,7 @@ func (s *integrationTestSuite) TestPingEndpoints() {
 func (s *integrationTestSuite) TestAppleMDMNotConfigured() {
 	var rawResp json.RawMessage
 	s.DoJSON("GET", "/api/latest/fleet/mdm/apple", nil, http.StatusNotFound, &rawResp)
-	s.DoJSON("GET", "/api/latest/fleet/mdm/apple_bm", nil, http.StatusPaymentRequired, &rawResp) //premium only
+	s.DoJSON("GET", "/api/latest/fleet/mdm/apple_bm", nil, http.StatusPaymentRequired, &rawResp) // premium only
 }
 
 func (s *integrationTestSuite) TestOrbitConfigNotifications() {
@@ -6394,7 +6394,7 @@ func (s *integrationTestSuite) TestEnrollOrbitExistingHostNoSerialMatch() {
 	// host identifier.
 	// See https://github.com/fleetdm/fleet/issues/9033#issuecomment-1411150758
 
-	//osqueryID := uuid.New().String()
+	// osqueryID := uuid.New().String()
 	osqueryID := hostUUID
 
 	s.DoJSON("POST", "/api/osquery/enroll", enrollAgentRequest{
