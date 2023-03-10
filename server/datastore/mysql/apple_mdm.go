@@ -1139,88 +1139,7 @@ WHERE
 
 func (ds *Datastore) GetMDMAppleFileVaultSummary(ctx context.Context, teamID *uint) (*fleet.MDMAppleFileVaultSummary, error) {
 	sqlFmt := `
-				SELECT
-					COUNT(
-						CASE WHEN h.failed = 0
-							AND h.pending = 0 THEN
-							'applied'
-						END) AS applied
-					COUNT(
-						CASE WHEN h.failed = 0
-							AND h.pending = 0 THEN
-							'applied'
-						END) AS action_required
-					COUNT(
-						CASE WHEN h.failed > 0 THEN
-							'failed'
-						END) AS enforcing,
-					COUNT(
-						CASE WHEN h.failed > 0 THEN
-							'failed'
-						END) AS failed,
-					COUNT(
-						CASE WHEN h.failed = 0
-							AND h.pending > 0 THEN
-							'pending'
-						END) AS removing_enforcement,
-				FROM
-					hosts h
-				JOIN ON
-				WHERE
-					%s`
-
-	// sqlFmt := `
-	// 	SELECT
-	// 	COUNT(
-	// 		CASE WHEN h.failed = 0
-	// 			AND h.pending = 0 THEN
-	// 			'applied'
-	// 		END) AS applied
-	// // 	COUNT(
-	// // 		CASE WHEN h.failed > 0 THEN
-	// // 			'failed'
-	// // 		END) AS action_required,
-	// // 	COUNT(
-	// // 		CASE WHEN h.failed > 0 THEN
-	// // 			'failed'
-	// // 		END) AS enforcing,
-	// // 	COUNT(
-	// // 		CASE WHEN h.failed > 0 THEN
-	// // 			'failed'
-	// // 		END) AS failed,
-	// // 	COUNT(
-	// // 		CASE WHEN h.failed = 0
-	// // 			AND h.pending > 0 THEN
-	// // 			'pending'
-	// // 		END) AS removing_enforcement,
-	// FROM
-	// 	hosts h
-	// WHERE
-	// 	%s`
-
-	// 	teamFilter := "hosts.team_id IS NULL"
-	// 	if teamID != nil && *teamID > 0 {
-	// 		teamFilter = fmt.Sprintf("hosts.team_id = %d", *teamID)
-	// 	}
-
-	// 	var res fleet.MDMAppleFileVaultSummary
-	// 	err := sqlx.GetContext(ctx, ds.reader, &res, fmt.Sprintf(sqlFmt, teamFilter))
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
-
-	// 	return &res, nil
-
-	return &fleet.MDMAppleFileVaultSummary{
-		Applied:             1,
-		ActionRequired:      1,
-		Enforcing:           1,
-		Failed:              1,
-		RemovingEnforcement: 1,
-	}, nil
-}
-
-SELECT
+	SELECT
 	COUNT(
 		CASE WHEN EXISTS (
 			SELECT
@@ -1229,8 +1148,8 @@ SELECT
 				h.uuid = hmap.host_uuid
 				AND hdek.decryptable = 1
 				AND hmap.profile_identifier = 'com.fleetdm.fleet.mdm.filevault'
-				AND hmap.status = "applied"
-				AND hmap.operation_type = "install") THEN
+				AND hmap.status = 'applied'
+				AND hmap.operation_type = 'install') THEN
 			1
 		END) AS applied, COUNT(
 		CASE WHEN EXISTS (
@@ -1241,8 +1160,8 @@ SELECT
 				AND(hdek.decryptable = 0
 					OR hdek.decryptable IS NULL)
 				AND hmap.profile_identifier = 'com.fleetdm.fleet.mdm.filevault'
-				AND hmap.status = "applied"
-				AND hmap.operation_type = "install") THEN
+				AND hmap.status = 'applied'
+				AND hmap.operation_type = 'install') THEN
 			1
 		END) AS action_required, COUNT(
 		CASE WHEN EXISTS (
@@ -1251,8 +1170,8 @@ SELECT
 			WHERE
 				h.uuid = hmap.host_uuid
 				AND hmap.profile_identifier = 'com.fleetdm.fleet.mdm.filevault'
-				AND hmap.status = "pending"
-				AND hmap.operation_type = "install") THEN
+				AND hmap.status = 'pending'
+				AND hmap.operation_type = 'install') THEN
 			1
 		END) AS enforcing, COUNT(
 		CASE WHEN EXISTS (
@@ -1261,7 +1180,7 @@ SELECT
 			WHERE
 				h.uuid = hmap.host_uuid
 				AND hmap.profile_identifier = 'com.fleetdm.fleet.mdm.filevault'
-				AND hmap.status = "failed") THEN
+				AND hmap.status = 'failed') THEN
 			1
 		END) AS failed, COUNT(
 		CASE WHEN EXISTS (
@@ -1270,10 +1189,28 @@ SELECT
 			WHERE
 				h.uuid = hmap.host_uuid
 				AND hmap.profile_identifier = 'com.fleetdm.fleet.mdm.filevault'
-				AND hmap.status = "pending"
-				AND hmap.operation_type = "remove") THEN
+				AND hmap.status = 'pending'
+				AND hmap.operation_type = 'remove') THEN
 			1
 		END) AS removing_enforcement
 FROM
 	hosts h
 	LEFT JOIN host_disk_encryption_keys hdek ON h.id = hdek.host_id
+WHERE
+	%s`
+
+	teamFilter := "h.team_id IS NULL"
+	if teamID != nil && *teamID > 0 {
+		teamFilter = fmt.Sprintf("h.team_id = %d", *teamID)
+	}
+
+	var res fleet.MDMAppleFileVaultSummary
+
+	// QUESTION: GetContext vs SelectContext
+	err := sqlx.GetContext(ctx, ds.reader, &res, fmt.Sprintf(sqlFmt, teamFilter))
+	if err != nil {
+		return nil, err
+	}
+
+	return &res, nil
+}
