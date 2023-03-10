@@ -88,7 +88,7 @@ const enroll = async () => {
     host_identifier,
   };
   const response_body = await request({
-    path: "/api/osquery/enroll",
+    path: "/api/v1/osquery/enroll",
     body: enroll_request,
   });
 
@@ -101,7 +101,7 @@ const enroll = async () => {
 
 const live_query = async () => {
   const response = await authenticatedRequest({
-    path: "/api/osquery/distributed/read",
+    path: "/api/v1/osquery/distributed/read",
   });
 
   if (!response.queries || Object.keys(response.queries).length === 0) {
@@ -153,7 +153,7 @@ const live_query = async () => {
   };
 
   await authenticatedRequest({
-    path: "/api/osquery/distributed/write",
+    path: "/api/v1/osquery/distributed/write",
     body: live_query_result_request,
   });
 };
