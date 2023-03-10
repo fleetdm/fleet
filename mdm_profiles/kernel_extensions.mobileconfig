@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array>
+		<dict>
+			<key>AllowNonAdminUserApprovals</key>
+			<false/>
+			<key>AllowUserOverrides</key>
+			<false/>
+			<key>AllowedKernelExtensions</key>
+			<dict/>
+			<key>AllowedTeamIdentifiers</key>
+			<array/>
+			<key>PayloadDescription</key>
+			<string>Configures Kernel Extension Policy settings</string>
+			<key>PayloadDisplayName</key>
+			<string>Kernel Extension Policy</string>
+			<key>PayloadIdentifier</key>
+			<string>com.github.erikberglund.ProfileCreator.75031211-FF2D-46A8-9AB8-2EADAECC1D75.com.apple.syspolicy.kernel-extension-policy.E2F5C072-5106-494B-B433-CE465D8B5B03</string>
+			<key>PayloadOrganization</key>
+			<string></string>
+			<key>PayloadType</key>
+			<string>com.apple.syspolicy.kernel-extension-policy</string>
+			<key>PayloadUUID</key>
+			<string>E2F5C072-5106-494B-B433-CE465D8B5B03</string>
+			<key>PayloadVersion</key>
+			<integer>1</integer>
+		</dict>
+	</array>
+	<key>PayloadDescription</key>
+	<string>Prevents the use of kernel extensions unless explicitly allowed</string>
+	<key>PayloadDisplayName</key>
+	<string>Kernel extensions</string>
+	<key>PayloadIdentifier</key>
+	<string>com.github.erikberglund.ProfileCreator.75031211-FF2D-46A8-9AB8-2EADAECC1D75</string>
+	<key>PayloadOrganization</key>
+	<string>FleetDM</string>
+	<key>PayloadScope</key>
+	<string>System</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>75031211-FF2D-46A8-9AB8-2EADAECC1D75</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+</dict>
+</plist>
