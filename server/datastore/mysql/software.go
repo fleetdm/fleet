@@ -402,6 +402,7 @@ func listSoftwareDB(
 				cve.CVSSScore = &result.CVSSScore
 				cve.EPSSProbability = &result.EPSSProbability
 				cve.CISAKnownExploit = &result.CISAKnownExploit
+				cve.CVEPublished = &result.CVEPublished
 			}
 			softwares[idx].Vulnerabilities = append(softwares[idx].Vulnerabilities, cve)
 		}
@@ -510,6 +511,7 @@ func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, e
 				goqu.MAX("c.cvss_score").As("cvss_score"),                 // for ordering
 				goqu.MAX("c.epss_probability").As("epss_probability"),     // for ordering
 				goqu.MAX("c.cisa_known_exploit").As("cisa_known_exploit"), // for ordering
+				goqu.MAX("c.published").As("cve_published"),               // for ordering
 			)
 	}
 
@@ -577,6 +579,7 @@ func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, e
 			"c.cvss_score",
 			"c.epss_probability",
 			"c.cisa_known_exploit",
+			goqu.I("c.published").As("cve_published"),
 		)
 	}
 

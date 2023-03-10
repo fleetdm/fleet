@@ -519,24 +519,28 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 	_, err := ds.InsertSoftwareVulnerabilities(context.Background(), vulns, fleet.NVDSource)
 	require.NoError(t, err)
 
+	now := time.Now().UTC().Truncate(time.Second)
 	cveMeta := []fleet.CVEMeta{
 		{
 			CVE:              "CVE-2022-0001",
 			CVSSScore:        ptr.Float64(2.0),
 			EPSSProbability:  ptr.Float64(0.01),
 			CISAKnownExploit: ptr.Bool(false),
+			Published:        ptr.Time(now.Add(-2 * time.Hour)),
 		},
 		{
 			CVE:              "CVE-2022-0002",
 			CVSSScore:        ptr.Float64(1.0),
 			EPSSProbability:  ptr.Float64(0.99),
 			CISAKnownExploit: ptr.Bool(false),
+			Published:        ptr.Time(now),
 		},
 		{
 			CVE:              "CVE-2022-0003",
 			CVSSScore:        ptr.Float64(3.0),
 			EPSSProbability:  ptr.Float64(0.98),
 			CISAKnownExploit: ptr.Bool(true),
+			Published:        ptr.Time(now.Add(-1 * time.Hour)),
 		},
 	}
 	err = ds.InsertCVEMeta(context.Background(), cveMeta)
@@ -554,6 +558,7 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 				CVSSScore:        ptr.Float64Ptr(2.0),
 				EPSSProbability:  ptr.Float64Ptr(0.01),
 				CISAKnownExploit: ptr.BoolPtr(false),
+				CVEPublished:     ptr.TimePtr(now.Add(-2 * time.Hour)),
 			},
 			{
 				CVE:              "CVE-2022-0002",
@@ -561,6 +566,7 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 				CVSSScore:        ptr.Float64Ptr(1.0),
 				EPSSProbability:  ptr.Float64Ptr(0.99),
 				CISAKnownExploit: ptr.BoolPtr(false),
+				CVEPublished:     ptr.TimePtr(now),
 			},
 		},
 	}
@@ -579,6 +585,7 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 				CVSSScore:        ptr.Float64Ptr(3.0),
 				EPSSProbability:  ptr.Float64Ptr(0.98),
 				CISAKnownExploit: ptr.BoolPtr(true),
+				CVEPublished:     ptr.TimePtr(now.Add(-1 * time.Hour)),
 			},
 		},
 	}
@@ -788,6 +795,20 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 		software := listSoftwareCheckCount(t, ds, 5, 5, opts, false)
 		assert.Equal(t, baz001.Name, software[0].Name)
 		assert.Equal(t, baz001.Version, software[0].Version)
+	})
+
+	t.Run("order by cve_published", func(t *testing.T) {
+		opts := fleet.SoftwareListOptions{
+			ListOptions: fleet.ListOptions{
+				OrderKey:       "cve_published",
+				OrderDirection: fleet.OrderDescending,
+			},
+			IncludeCVEScores: true,
+		}
+
+		software := listSoftwareCheckCount(t, ds, 5, 5, opts, false)
+		assert.Equal(t, foo001.Name, software[0].Name)
+		assert.Equal(t, foo001.Version, software[0].Version)
 	})
 
 	t.Run("nil cve scores if IncludeCVEScores is false", func(t *testing.T) {
@@ -1711,7 +1732,7 @@ func testSoftwareByIDIncludesCVEPublishedDate(t *testing.T, ds *Datastore) {
 	t.Run("software.vulnerabilities includes the published date", func(t *testing.T) {
 		ctx := context.Background()
 		host := test.NewHost(t, ds, "hostA", "", "hostAkey", "hostAuuid", time.Now())
-		now := time.Now()
+		now := time.Now().UTC().Truncate(time.Second)
 
 		testCases := []struct {
 			name             string
@@ -1825,7 +1846,7 @@ func testSoftwareByIDIncludesCVEPublishedDate(t *testing.T, ds *Datastore) {
 					if tC.hasPublishedDate {
 						require.NotNil(t, withScores.Vulnerabilities[0].CVEPublished)
 						require.NotNil(t, *withScores.Vulnerabilities[0].CVEPublished)
-						require.Equal(t, (**withScores.Vulnerabilities[0].CVEPublished).Year(), now.Year())
+						require.Equal(t, (**withScores.Vulnerabilities[0].CVEPublished), now)
 					}
 				}
 			} else {
