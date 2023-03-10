@@ -81,6 +81,12 @@ export interface IHostMacMdmProfile {
 export type IMacSettings = IHostMacMdmProfile[];
 export type MacSettingsStatus = "Failing" | "Latest" | "Pending";
 
+export interface IAggregateMacSettingsStatus {
+  latest: number;
+  pending: number;
+  failing: number;
+}
+
 export interface IDiskEncryptionStatusAggregate {
   applied: number;
   action_required: number;

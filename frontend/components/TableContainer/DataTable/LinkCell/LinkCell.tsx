@@ -7,7 +7,7 @@ import { browserHistory } from "react-router";
 import Button from "components/buttons/Button/Button";
 
 interface ILinkCellProps {
-  value: string;
+  value: string | JSX.Element;
   path: string;
   title?: string;
   classes?: string;

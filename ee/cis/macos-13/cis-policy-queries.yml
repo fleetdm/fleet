@@ -1946,6 +1946,23 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
+  name: CIS - Ensure Complex Password Must Contain Uppercase and Lowercase Characters Is Configured (Fleetd required)
+  platforms: macOS
+  platform: darwin
+  description: |
+    Complex passwords contain one character from each of the following classes: English uppercase letters, English lowercase letters, Westernized Arabic numerals, and non- alphanumeric characters.
+    Ensure that both uppercase and lowercase letters are part of the password policy on the computer.
+  resolution: |
+    Ask your system administrator to deploy the following script:
+    /usr/bin/sudo /usr/bin/pwpolicy -n /Local/Default -setglobalpolicy "requiresMixedCase=<value>=1>"
+  query: SELECT 1 FROM  pwd_policy where min_mixed_case_characters >= 1;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS-macos-13-5.2.6
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
   name: CIS - Ensure Password Age Is Configured (Fleetd Required)
   platforms: macOS
   platform: darwin

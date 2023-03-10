@@ -1,11 +1,20 @@
 import PATHS from "router/paths";
-
 import { ISideNavItem } from "pages/admin/components/SideNav/SideNav";
+import { IMdmProfile } from "interfaces/mdm";
+
 import DiskEncryption from "./cards/DiskEncryption";
 import CustomSettings from "./cards/CustomSettings";
 
+interface IMacOSSettingsCardProps {
+  profiles?: IMdmProfile[];
+  onProfileUpload?: () => void;
+  onProfileDelete?: () => void;
+}
+
 // TODO: types
-const MAC_OS_SETTINGS_NAV_ITEMS: ISideNavItem<any>[] = [
+const MAC_OS_SETTINGS_NAV_ITEMS: ISideNavItem<
+  IMacOSSettingsCardProps | any
+>[] = [
   {
     title: "Disk encryption",
     urlSection: "disk-encryption",

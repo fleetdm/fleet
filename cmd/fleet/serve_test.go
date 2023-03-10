@@ -479,6 +479,20 @@ func TestScanVulnerabilities(t *testing.T) {
 			},
 		}, nil
 	}
+	ds.ListSoftwareBySourceIterFunc = func(ctx context.Context, sources []string) (fleet.SoftwareIterator, error) {
+		iterator := &softwareIterator{
+			softwares: []*fleet.Software{
+				{
+					ID:               1,
+					Name:             "Twisted",
+					Version:          "22.2.0",
+					BundleIdentifier: "",
+					Source:           "python_packages",
+				},
+			},
+		}
+		return iterator, nil
+	}
 
 	vulnPath := t.TempDir()
 

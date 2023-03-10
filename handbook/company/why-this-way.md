@@ -140,18 +140,96 @@ It's helpful to have a consistent framework for how every team works, plans, and
 2. **Planning:** Give the team's manager and other team members a way to plan the next three-week iteration of what the team is working on in a world (the board) where the team has ownership and feels confident making changes.
 3. **Shared to-do list:** What should I work on next? Who needs help? What important work is blocked? Is that bug fix merged yet? When will it be released? When will that new feature ship? What did I do yesterday?
 
+## Why agile?
+Releasing software iteratively gets changes and improvements into the hands of users faster and generally results in software that works. This makes contributors fitter, happier, and more productive. We apply the twelve principles of agile to our development process:
+
+1. Our highest priority is to satisfy the customer through early and continuous delivery of valuable software.
+
+2. Welcome changing requirements, even late in development. Agile processes harness change for the customer's competitive advantage.
+
+3. Deliver working software frequently, from a couple of weeks to a couple of months, with a preference to the shorter timescale.
+
+4. Business people and developers must work together daily throughout the project.
+
+5. Build projects around motivated individuals. Give them the environment and support they need, and trust them to get the job done.
+
+6. The most efficient and effective method of conveying information to and within a development team is face-to-face conversation.
+
+7. Working software is the primary measure of progress.
+
+8. Agile processes promote sustainable development. The sponsors, developers, and users should be able to maintain a constant pace indefinitely.
+
+9. Continuous attention to technical excellence and good design enhances agility.
+
+10. Simplicity--the art of maximizing the amount of work not done--is essential.
+
+11. The best architectures, requirements, and designs emerge from self-organizing teams.
+
+12. At regular intervals, the team reflects on how to become more effective, then tunes and adjusts its behavior accordingly.
+
+See [the agile manifesto](https://agilemanifesto.org/) for more information.
 
 ## Why scrum?
-Releasing software iteratively gets changes and improvements into the hands of users faster and generally results in software that works. This makes contributors fitter, happier, and more productive. See [the agile manifesto](https://agilemanifesto.org/) for more information.
+Scrum is an agile framework for software development that helps teams deliver high quality software faster. It emphasizes teamwork, collaboration, and continuous improvement to achieve business objectives. Here are some of the key reasons why [we use scrum at Fleet](https://fleetdm.com/handbook/engineering#scrum)): 
 
-> TODO: expand
+- Improved collaboration and communication: Scrum emphasizes teamwork and collaboration, which leads to better communication between team members and stakeholders. This helps ensure that everyone is aligned and working towards the same goals.
 
+- Flexibility and adaptability: Scrum allows teams to respond quickly to changing requirements and market conditions. By working in short sprints, teams can continuously adapt to new information and feedback, and adjust their approach as needed.
+
+- Continuous improvement: Scrum encourages teams to reflect on their processes and identify areas for improvement. The regular sprint retrospective meetings provide a forum for the team to discuss what went well and what could be improved, and to make changes to their processes accordingly.
+
+- Faster delivery of working software: Scrum helps teams deliver working software faster by breaking down the development process into manageable chunks that can be completed within a sprint. Stakeholders can see progress and provide feedback more quickly, which helps ensure the final product meets their needs.
+
+- Higher quality software: Scrum includes regular testing and quality assurance activities, which help ensure that the software being developed is of high quality and meets the required standards.
+
+## Why lean software development?
+[Lean software development](https://en.wikipedia.org/wiki/Lean_software_development) is an iterative and incremental approach to software development that aims to eliminate waste and deliver value to
+customers quickly. It is based on the principles of [lean manufacturing](https://en.wikipedia.org/wiki/Lean_manufacturing) and emphasizes continuous improvement, collaboration, and customer focus. 
+
+Lean development can be summarized by its seven principles:
+
+1. Eliminate waste: Eliminate anything that doesn't add value to the customer, such as unnecessary features, extra processing, and waiting times.
+
+2. Amplify learning: Share knowledge and expertise across the team to continuously improve the process and increase efficiency.
+
+3. Decide as late as possible: Defer major decisions and commitments until the last possible moment to enable more informed and optimal decisions.
+
+4. Deliver as fast as possible: Deliver value to customers as quickly as possible to ensure their needs are met and to receive feedback for continuous improvement.
+
+5. Empower the team: Respect and empower the team, including customers, stakeholders, and developers, by providing a supportive environment and clear communication.
+
+6. Build integrity in: Build quality into the software by continuously testing, reviewing, and improving the code throughout the development process.
+
+7. Optimize the whole: Optimize the entire process and focus on the system's overall performance rather than just individual parts to ensure the most efficient and effective use of resources.
 
 ## Why a three-week cadence?
 The Fleet product is released every three weeks. By syncing the whole company to this schedule, we can:
 
 - keep all team members (especially those who aren't directly involved with the core product) aware of the current version of Fleet and when the next release is shipping.
 - align project planning and milestones across all teams, which helps us schedule our content calendar and manage company-wide goals.
+
+## Why spend so much energy responding to every potential production incident?
+
+At Fleet, we consider every 5xx error, timeout, or errored scheduled job a P1 incident.  We create an outage issue for it, no matter the environment, as soon as the issue is detected, even before we understand.  We always determine impact quickly, reach out to affected users to acknowledge their problem, and determine the root cause. Why?
+
+- It helps us learn.
+- You never know whether an error like this is a real issue until you take a close look.  Even if you think it probably isn't.
+- It incentivizes us to fix the root cause sooner.
+- It keeps the number of errors low.
+- It ensures the team understands exactly what errors are happening.
+- It helps us fix bugs sooner, preventing them from stacking and bleeding into one another and making fixes harder.
+- It gets everyone on the same page about what an issue is.
+- It prevents stoppage of information about bugs and problems.  Every outage is visible.
+- It allows us to reach out to affected users ASAP and acknowledge their challenge, showing them that Fleet takes quality and stability seriously.
+
+### What is a P1?
+Every 5xx error, timeout, or failed scheduled job is a P1.  
+
+That means:
+1. It gets a postmortem issue created within the production issue response time SLA, even before we know the impact, the root cause, or even what the error message says.
+2. It gets a close look right away, even if we think it might not matter.  If there is any chance of it affecting even one user, we keep digging.
+3. Including a situation where a user has to wait longer than 5 seconds during signup on fleetdm.com  (or any time we breach an agreed upon response time guarantee)
+4. Including when a scheduled job fails and we aren't sure yet whether or not any real users are affected.
 
 
 

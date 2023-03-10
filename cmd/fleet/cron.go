@@ -391,7 +391,7 @@ func checkMacOfficeVulnerabilities(
 			errHandler(ctx, logger, "updating mac office release notes", err)
 		}
 
-		level.Debug(logger).Log("finished sync mac office release notes")
+		level.Debug(logger).Log("msg", "finished sync mac office release notes")
 	}
 
 	start := time.Now()

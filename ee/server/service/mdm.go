@@ -114,7 +114,7 @@ func (svc *Service) MDMAppleEraseDevice(ctx context.Context, hostID uint) error 
 	return nil
 }
 
-func (svc *Service) MDMAppleEnableFileVaultAndEscrow(ctx context.Context, teamID uint) error {
+func (svc *Service) MDMAppleEnableFileVaultAndEscrow(ctx context.Context, teamID *uint) error {
 	cert, _, _, err := svc.config.MDM.AppleSCEP()
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "enabling FileVault")
@@ -134,13 +134,13 @@ func (svc *Service) MDMAppleEnableFileVaultAndEscrow(ctx context.Context, teamID
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "enabling FileVault")
 	}
-	cp.TeamID = &teamID
+	cp.TeamID = teamID
 
 	_, err = svc.ds.NewMDMAppleConfigProfile(ctx, *cp)
 	return ctxerr.Wrap(ctx, err, "enabling FileVault")
 }
 
-func (svc *Service) MDMAppleDisableFileVaultAndEscrow(ctx context.Context, teamID uint) error {
+func (svc *Service) MDMAppleDisableFileVaultAndEscrow(ctx context.Context, teamID *uint) error {
 	err := svc.ds.DeleteMDMAppleConfigProfileByTeamAndIdentifier(ctx, teamID, apple_mdm.FleetFileVaultPayloadIdentifier)
 	return ctxerr.Wrap(ctx, err, "disabling FileVault")
 }

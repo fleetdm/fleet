@@ -503,24 +503,29 @@ const hostMDMSelect = `,
 			WHEN hdek.decryptable IS NULL OR hdek.decryptable = 0 THEN CAST(FALSE AS JSON)
 			ELSE CAST(TRUE AS JSON)
 		END,
+		'raw_decryptable',
+		CASE
+			WHEN hdek.host_id IS NULL THEN -1
+			ELSE hdek.decryptable
+		END,
 		'name', hmdm.name
 	) mdm_host_data
 	`
 
 // hostMDMJoin is the SQL fragment used to join MDM-related tables to the hosts table. It is a
 // dependency of the hostMDMSelect fragment.
-const hostMDMJoin = `  
+const hostMDMJoin = `
   LEFT JOIN (
-	SELECT 
-	  host_mdm.is_server, 
-	  host_mdm.enrolled, 
-	  host_mdm.installed_from_dep, 
-	  host_mdm.server_url, 
-	  host_mdm.mdm_id, 
-	  host_mdm.host_id, 
-	  name 
-	FROM 
-	  host_mdm 
+	SELECT
+	  host_mdm.is_server,
+	  host_mdm.enrolled,
+	  host_mdm.installed_from_dep,
+	  host_mdm.server_url,
+	  host_mdm.mdm_id,
+	  host_mdm.host_id,
+	  name
+	FROM
+	  host_mdm
 	  LEFT JOIN mobile_device_management_solutions ON host_mdm.mdm_id = mobile_device_management_solutions.id
   ) hmdm ON hmdm.host_id = h.id
   LEFT JOIN host_disk_encryption_keys hdek ON hdek.host_id = h.id
