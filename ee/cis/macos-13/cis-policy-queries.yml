@@ -2357,7 +2357,7 @@ name: CIS - Ensure the Hide IP Address in Safari is Enabled (Based on organizati
     "/Users/%/Library/Containers/com.apple.Safari/Data/Library/Preferences/com.apple.Safari.plist"
     AND key = "WBSPrivacyProxyAvailabilityTraffic" AND (value >> 2) & 1 == 0);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-macos-13-6.3.5-enabled
+  tags: compliance, CIS, CIS_Level1, CIS-macos-13-6.3.5-enabled, decision-needed
   contributors: artemist-work
 ---
 apiVersion: v1
@@ -2384,7 +2384,7 @@ spec:
     "/Users/%/Library/Containers/com.apple.Safari/Data/Library/Preferences/com.apple.Safari.plist"
     AND key = "WBSPrivacyProxyAvailabilityTraffic" AND (value >> 2) & 1 == 1);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-macos-13-6.3.5-disabled
+  tags: compliance, CIS, CIS_Level1, CIS-macos-13-6.3.5-disabled, decision-needed
   contributors: artemist-work
 ---
 apiVersion: v1
