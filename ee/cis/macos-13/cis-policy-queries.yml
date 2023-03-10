@@ -2338,7 +2338,7 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure the Hide IP Address in Safari is Enabled (Optional)
+name: CIS - Ensure the Hide IP Address in Safari is Enabled (Based on organization's policy)
   platforms: macOS
   platform: darwin
   description: |
@@ -2357,13 +2357,13 @@ spec:
     "/Users/%/Library/Containers/com.apple.Safari/Data/Library/Preferences/com.apple.Safari.plist"
     AND key = "WBSPrivacyProxyAvailabilityTraffic" AND (value >> 2) & 1 == 0);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-macos-13-6.3.5
+  tags: compliance, CIS, CIS_Level1, CIS-macos-13-6.3.5-enabled
   contributors: artemist-work
 ---
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure the Hide IP Address in Safari is Disabled (Optional)
+  name: CIS - Ensure the Hide IP Address in Safari is Disabled (Based on organization's policy)
   platforms: macOS
   platform: darwin
   description: |
@@ -2384,7 +2384,7 @@ spec:
     "/Users/%/Library/Containers/com.apple.Safari/Data/Library/Preferences/com.apple.Safari.plist"
     AND key = "WBSPrivacyProxyAvailabilityTraffic" AND (value >> 2) & 1 == 1);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-macos-13-6.3.5
+  tags: compliance, CIS, CIS_Level1, CIS-macos-13-6.3.5-disabled
   contributors: artemist-work
 ---
 apiVersion: v1
