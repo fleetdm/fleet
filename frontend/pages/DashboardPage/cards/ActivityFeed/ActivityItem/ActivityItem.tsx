@@ -12,7 +12,7 @@ import ReactTooltip from "react-tooltip";
 
 const baseClass = "activity-item";
 
-const getMacOsActivityMessageSuffix = (
+const getProfileMessageSuffix = (
   isPremiumTier: boolean,
   teamName?: string | null
 ) => {
@@ -27,6 +27,17 @@ const getMacOsActivityMessageSuffix = (
     );
   }
   return messageSuffix;
+};
+
+const getDiskEncryptionMessageSuffix = (teamName?: string | null) => {
+  return teamName ? (
+    <>
+      {" "}
+      assigned to the <b>{teamName}</b> team
+    </>
+  ) : (
+    <>with no team</>
+  );
 };
 
 const TAGGED_TEMPLATES = {
@@ -232,11 +243,7 @@ const TAGGED_TEMPLATES = {
       <>
         {" "}
         added configuration profile {activity.details?.profile_name} to{" "}
-        {getMacOsActivityMessageSuffix(
-          isPremiumTier,
-          activity.details?.team_name
-        )}
-        .
+        {getProfileMessageSuffix(isPremiumTier, activity.details?.team_name)}.
       </>
     );
   },
@@ -248,11 +255,7 @@ const TAGGED_TEMPLATES = {
         deleted configuration profile {
           activity.details?.host_display_name
         } from{" "}
-        {getMacOsActivityMessageSuffix(
-          isPremiumTier,
-          activity.details?.team_name
-        )}
-        .
+        {getProfileMessageSuffix(isPremiumTier, activity.details?.team_name)}.
       </>
     );
   },
@@ -262,7 +265,7 @@ const TAGGED_TEMPLATES = {
       <>
         {" "}
         edited configuration profiles for{" "}
-        {getMacOsActivityMessageSuffix(
+        {getProfileMessageSuffix(
           isPremiumTier,
           activity.details?.team_name
         )}{" "}
@@ -270,29 +273,21 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
-  enableMacDiskEncryption: (activity: IActivity, isPremiumTier: boolean) => {
+  enableMacDiskEncryption: (activity: IActivity) => {
     return (
       <>
         {" "}
-        enforced disk encryption for{" "}
-        {getMacOsActivityMessageSuffix(
-          isPremiumTier,
-          activity.details?.team_name
-        )}{" "}
-        .
+        enforced disk encryption for macOS hosts{" "}
+        {getDiskEncryptionMessageSuffix(activity.details?.team_name)} .
       </>
     );
   },
-  disableMacDiskEncryption: (activity: IActivity, isPremiumTier: boolean) => {
+  disableMacDiskEncryption: (activity: IActivity) => {
     return (
       <>
         {" "}
-        removed disk encryption enforecement for{" "}
-        {getMacOsActivityMessageSuffix(
-          isPremiumTier,
-          activity.details?.team_name
-        )}{" "}
-        .
+        removed disk encryption enforcement for macOS hosts{" "}
+        {getDiskEncryptionMessageSuffix(activity.details?.team_name)} .
       </>
     );
   },
@@ -389,10 +384,10 @@ const getDetail = (
       return TAGGED_TEMPLATES.editMacOSProfile(activity, isPremiumTier);
     }
     case ActivityType.EnabledMacDiskEncryption: {
-      return TAGGED_TEMPLATES.enableMacDiskEncryption(activity, isPremiumTier);
+      return TAGGED_TEMPLATES.enableMacDiskEncryption(activity);
     }
     case ActivityType.DisabledMacDiskEncryption: {
-      return TAGGED_TEMPLATES.disableMacDiskEncryption(activity, isPremiumTier);
+      return TAGGED_TEMPLATES.disableMacDiskEncryption(activity);
     }
     default: {
       return TAGGED_TEMPLATES.defaultActivityTemplate(activity);
