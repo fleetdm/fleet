@@ -101,10 +101,7 @@ type InvalidArgument struct {
 // one error.
 func NewInvalidArgumentError(name, reason string) *InvalidArgumentError {
 	var invalid InvalidArgumentError
-	invalid.Errors = append(invalid.Errors, InvalidArgument{
-		name:   name,
-		reason: reason,
-	})
+	invalid.Append(name, reason)
 	return &invalid
 }
 
@@ -116,10 +113,7 @@ func (e *InvalidArgumentError) Append(name, reason string) {
 }
 
 func (e *InvalidArgumentError) Appendf(name, reasonFmt string, args ...interface{}) {
-	e.Errors = append(e.Errors, InvalidArgument{
-		name:   name,
-		reason: fmt.Sprintf(reasonFmt, args...),
-	})
+	e.Append(name, fmt.Sprintf(reasonFmt, args...))
 }
 
 // WithStatus returns an error that combines the InvalidArgumentError
