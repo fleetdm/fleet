@@ -1,6 +1,10 @@
 import OperatingSystems from "pages/DashboardPage/cards/OperatingSystems";
 import useInfoCard from "pages/DashboardPage/components/InfoCard";
-import React from "react";
+import React, { useContext } from "react";
+import { isPremiumTier } from "utilities/permissions/permissions";
+import { AppContext } from "context/app";
+import CustomLink from "components/CustomLink";
+import Icon from "components/Icon";
 import OsMinVersionForm from "./components/OsMinVersionForm";
 import NudgePreview from "./components/NudgePreview";
 
@@ -14,7 +18,8 @@ interface IMacOSUpdatesProps {
 
 const MacOSUpdates = ({ location }: IMacOSUpdatesProps) => {
   const { team_id } = location.query;
-
+  const { config } = useContext(AppContext);
+  const isPremium = config ? isPremiumTier(config) : false;
   // Avoids possible case where Number(undefined) returns NaN
   const teamId = team_id === undefined ? team_id : Number(team_id);
 
@@ -34,23 +39,35 @@ const MacOSUpdates = ({ location }: IMacOSUpdatesProps) => {
     ),
   });
 
-  return (
+  return isPremium ? (
     <div className={baseClass}>
-      <p className={`${baseClass}__description`}>
-        Remotely encourage the installation of macOS updates on hosts assigned
-        to this team.
-      </p>
-      <div className={`${baseClass}__content`}>
-        <div className={`${baseClass}__form-table-content`}>
-          <div className={`${baseClass}__os-versions-card`}>
-            {OperatingSystemCard}
+      <>
+        <p className={`${baseClass}__description`}>
+          Remotely encourage the installation of macOS updates on hosts assigned
+          to this team.
+        </p>
+        <div className={`${baseClass}__content`}>
+          <div className={`${baseClass}__form-table-content`}>
+            <div className={`${baseClass}__os-versions-card`}>
+              {OperatingSystemCard}
+            </div>
+            <div className={`${baseClass}__os-version-form`}>
+              <OsMinVersionForm currentTeamId={teamId} key={teamId} />
+            </div>
           </div>
-          <div className={`${baseClass}__os-version-form`}>
-            <OsMinVersionForm currentTeamId={teamId} key={teamId} />
+          <div className={`${baseClass}__nudge-preview`}>
+            <NudgePreview />
           </div>
         </div>
-        <div className={`${baseClass}__nudge-preview`}>
-          <NudgePreview />
+      </>
+    </div>
+  ) : (
+    <div className={`${baseClass}-upsell-container`}>
+      <div className="upsell">
+        <p>This feature is included in Fleet Premium.</p>
+        <div className="external-link">
+          <CustomLink url="https://fleetdm.com/pricing" text="Learn more" />
+          <Icon name="external-link" />
         </div>
       </div>
     </div>
