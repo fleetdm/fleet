@@ -8,7 +8,7 @@
 - [Team settings](#team-settings)
   - [Team agent options](#team-agent-options)
   - [Team enroll secrets](#team-enroll-secrets)
-- [Mobile device management settings](#mobile-device-management-mdm-settings)
+  - [Mobile device management settings for teams](#mobile-device-management-mdm-settings-for-teams)
 - [Organization settings](#organization-settings)
 
 Fleet can be managed with configuration files (YAML syntax) and the fleetctl command line tool. This page tells you how to write these configuration files.
@@ -291,13 +291,13 @@ webhook_settings
 
 You can bypass these errors by removing the key from your YAML or adding the `--force` flag. This flag will force application of the changes without validation. Proceed with caution.
 
-## Mobile device management (MDM) settings
+### Mobile device management (MDM) settings for teams
 
 > MDM features are not ready for production and are currently in development. These features are disabled by default.
 
 The `mdm` section of this configuration YAML lets you control MDM settings for each team in Fleet.
 
-To specify Team MDM configuration, as opposed to [Organization-wide MDM configuration](#mobile-device-management-mdm-settings2), follow the below YAML format. Note the `kind: team` field, as well as the  `name` and `mdm` fields under `team`.
+To specify Team MDM configuration, as opposed to [Organization-wide MDM configuration](#mobile-device-management-mdm-settings), follow the below YAML format. Note the `kind: team` field, as well as the  `name` and `mdm` fields under `team`.
 
 ```yaml
 apiVersion: v1

@@ -339,7 +339,7 @@ Here are some of the things you can anticipate throughout this process:
 If you've been invited to "book with us," you'll have a Zoom meeting with the hiring team to discuss the next steps. 
 
 ### Candidate correspondence email templates
-[We use email templates]([url](https://docs.google.com/document/d/1E_gTunZBMNF4AhsOFuDVi9EnvsIGbAYrmmEzdGmnc9U)) to meet our commitment of replying to all applications within one business day.
+[We use email templates](https://docs.google.com/document/d/1E_gTunZBMNF4AhsOFuDVi9EnvsIGbAYrmmEzdGmnc9U) to meet our commitment of replying to all applications within one business day.
 
 ### Hiring a new team member
 > Fleet is unable to hire team members in some countries. See [this internal document](https://docs.google.com/document/d/1jHHJqShIyvlVwzx1C-FB9GC74Di_Rfdgmhpai1SPC0g/edit) for the list.
@@ -635,5 +635,5 @@ These groups maintain the following [Slack channels](https://fleetdm.com/handboo
 | `#help-open-core-ventures` _(¶¶)_       | Mike McNeil
 
 
-<meta name="maintainedBy" value="hollidayn">
+<meta name="maintainedBy" value="mikermcneil">
 <meta name="title" value="🔦 Business Operations">

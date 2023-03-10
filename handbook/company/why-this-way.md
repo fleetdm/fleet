@@ -170,7 +170,7 @@ Releasing software iteratively gets changes and improvements into the hands of u
 See [the agile manifesto](https://agilemanifesto.org/) for more information.
 
 ## Why scrum?
-Scrum is an agile framework for software development that helps teams deliver high quality software faster. It emphasizes teamwork, collaboration, and continuous improvement to achieve business objectives. Here are some of the key reasons why [we use scrum at Fleet]([url](https://fleetdm.com/handbook/engineering#scrum)): 
+Scrum is an agile framework for software development that helps teams deliver high quality software faster. It emphasizes teamwork, collaboration, and continuous improvement to achieve business objectives. Here are some of the key reasons why [we use scrum at Fleet](https://fleetdm.com/handbook/engineering#scrum)): 
 
 - Improved collaboration and communication: Scrum emphasizes teamwork and collaboration, which leads to better communication between team members and stakeholders. This helps ensure that everyone is aligned and working towards the same goals.
 
