@@ -13,10 +13,10 @@ spec:
     'Computer Configuration\Policies\Administrative Templates\System\Group Policy\Configure registry policy processing'
   query: |
     TBD
-  # This does not work because editing the setting does not modify this registry path
-  # SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\Group Policy\\{35378EAC-683F-11D2-A89A-00C04FBBCFA2}\NoBackgroundPolicy' AND data = 1);
+  # Path exists but does not change with modifications to group policy
+  # Untested: SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\Group Policy\\{35378EAC-683F-11D2-A89A-00C04FBBCFA2}\NoBackgroundPolicy' AND data = 0);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_not_completed, CIS_win10_enterprise_1.12.0, CIS_bullet_18.8.21.2
+  tags: compliance, CIS, CIS_Level1, CIS_not_completed, CIS_win10_enterprise_1.12.0, CIS_not_completed, CIS_domain_joined_required, CIS_bullet_18.8.21.2
   contributors: rachelelysia
 ---
 apiVersion: v1
@@ -32,10 +32,11 @@ spec:
     To establish the recommended configuration via GP, set the following UI path to Enabled, then set the Process even if the Group Policy objects have not changed option to TRUE (checked):
     'Computer Configuration\Policies\Administrative Templates\System\Group Policy\Configure registry policy processing'
   query: |
-    TODO
-         SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\Group Policy\\{35378EAC-683F-11D2-A89A-00C04FBBCFA2}\NoGPOListChanges' AND data = 1);
+    TBD
+  # Path exists but does not change with modifications to group policy
+  # Untested: SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\Group Policy\\{35378EAC-683F-11D2-A89A-00C04FBBCFA2}\NoGPOListChanges' AND data = 0);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.8.21.3
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0,  CIS_not_completed, CIS_domain_joined_required, CIS_bullet_18.8.21.3
   contributors: rachelelysia
 ---
 apiVersion: v1
@@ -52,10 +53,10 @@ spec:
     'Computer Configuration\Policies\Administrative Templates\System\Group Policy\Continue experiences on this device'
   query: |
     TBD
-  # This does not work because editing the setting does not modify this registry path
-  # SELECT 1 FROM REGISTRY WHERE (PATH = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\System:EnableCdp
+  # EnableCdp path does not exist
+  # Untested: SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\System\EnableCdp' AND data = 0);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.8.21.4
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0,  CIS_not_completed, CIS_domain_joined_required, CIS_bullet_18.8.21.4
   contributors: rachelelysia
 ---
 apiVersion: v1
@@ -73,10 +74,10 @@ spec:
     'Computer Configuration\Policies\Administrative Templates\System\Group Policy\Turn off background refresh of Group Policy'
   query: |
     TBD
-  # name 'DisableBkGndGroupPolicy' does not exist on path
-  # SELECT 1 FROM REGISTRY WHERE (PATH = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System\DisableBkGndGroupPolicy' AND data = 0);
+  # DisableBkGndGroupPolicy does not exist on path
+  # Untested: SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System\DisableBkGndGroupPolicy' AND data = 0);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.8.21.5
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_not_completed, CIS_domain_joined_required, CIS_bullet_18.8.21.5
   contributors: rachelelysia
 ---
 apiVersion: v1
@@ -93,10 +94,10 @@ spec:
 'Computer Configuration\Policies\Administrative Templates\System\Internet Communication Management\Internet Communication settings\Turn off access to the Store'
   query: |
     TBD
-  # \\Explorer does not exist
-  # SELECT 1 FROM REGISTRY WHERE (PATH = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\Explorer\NoUseStoreOpenWith' AND data = 1);
+  # Explorer path does not exist
+  # Untested: SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\Explorer\NoUseStoreOpenWith' AND data = 1);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_18.8.22.1.1
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_not_completed, CIS_domain_joined_required, CIS_bullet_18.8.22.1.1
   contributors: rachelelysia
 ---
 apiVersion: v1
@@ -113,10 +114,10 @@ spec:
     'Computer Configuration\Policies\Administrative Templates\System\Internet Communication Management\Internet Communication settings\Turn off downloading of print drivers over HTTP'
   query: |
     TBD
-  # Name: DisableWebPnPDownload does not exist
-  # SELECT 1 FROM REGISTRY WHERE (PATH = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows NT\\Printers\DisableWebPnPDownload');
+  # DisableWebPnPDownload path does not exist
+  # Untested: SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows NT\\Printers\DisableWebPnPDownload' AND data);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.8.22.1.2
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_not_completed, CIS_domain_joined_required, CIS_bullet_18.8.22.1.2
   contributors: rachelelysia
 ---
 apiVersion: v1
@@ -135,9 +136,9 @@ spec:
   query: |
     TBD
   # TabletPC directory does not exist
-  # SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\TabletPC\PreventHandwritingDataSharing');
+  # Untested: SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\TabletPC\PreventHandwritingDataSharing');
   purpose: Informational
-  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_18.8.22.1.3
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_not_completed, CIS_domain_joined_required, CIS_bullet_18.8.22.1.3
   contributors: rachelelysia
 ---
 apiVersion: v1
@@ -154,10 +155,11 @@ spec:
     To establish the recommended configuration via GP, set the following UI path to Enabled:
     'Computer Configuration\Policies\Administrative Templates\System\Internet Communication Management\Internet Communication settings\Turn off handwriting recognition error reporting'
   query: |
-    TODO
-         SELECT 1 FROM REGISTRY WHERE (PATH = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\HandwritingErrorReports:PreventHandwritingErrorReports');
+    TBD
+  # HandwritingErrorReports path does not exist
+  # Untested: SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\HandwritingErrorReports\PreventHandwritingErrorReports' AND data = 1);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_18.8.22.1.4
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_not_completed, CIS_domain_joined_required, CIS_bullet_18.8.22.1.4
   contributors: rachelelysia
 ---
 apiVersion: v1
@@ -173,10 +175,11 @@ spec:
     To establish the recommended configuration via GP, set the following UI path to Enabled:
     'Computer Configuration\Policies\Administrative Templates\System\Internet Communication Management\Internet Communication settings\Turn off Internet Connection Wizard if URL connection is referring to Microsoft.com'
   query: |
-    TODO
-         SELECT 1 FROM REGISTRY WHERE (PATH = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\Internet Connection Wizard:ExitOnMSICW
+    TBD
+  # Internet Connection Wizard path does not exist
+  # Untested: 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\Internet Connection Wizard\ExitOnMSICW' AND data = 1);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_18.8.22.1.5
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_not_completed, CIS_domain_joined_required, CIS_bullet_18.8.22.1.5
   contributors: rachelelysia
 ---
 apiVersion: v1
@@ -192,10 +195,11 @@ spec:
     To establish the recommended configuration via GP, set the following UI path to Enabled:
     'Computer Configuration\Policies\Administrative Templates\System\Internet Communication Management\Internet Communication settings\Turn off Internet download for Web publishing and online ordering wizards'
   query: |
-    TODO
-         SELECT 1 FROM REGISTRY WHERE (PATH = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer:NoWebServices
+    TBD
+  # NoWebServices path does not exist
+  # Untested: 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer\NoWebServices' AND data = 1);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.8.22.1.6
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_not_completed, CIS_domain_joined_required, CIS_bullet_18.8.22.1.6
   contributors: rachelelysia
 ---
 apiVersion: v1
@@ -211,10 +215,10 @@ spec:
     To establish the recommended configuration via GP, set the following UI path to Enabled:
     'Computer Configuration\Policies\Administrative Templates\System\Internet Communication Management\Internet Communication settings\Turn off printing over HTTP'
   query: |
-    TODO
-         SELECT 1 FROM REGISTRY WHERE (PATH = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\Printers:DisableHTTPPrinting
+    TBD
+  # Untested: 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\Printers:DisableHTTPPrinting
   purpose: Informational
-  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_18.8.22.1.7
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_not_completed, CIS_domain_joined_required, CIS_bullet_18.8.22.1.7
   contributors: rachelelysia
 ---
 apiVersion: v1
@@ -230,10 +234,10 @@ spec:
     To establish the recommended configuration via GP, set the following UI path to Enabled:
     'Computer Configuration\Policies\Administrative Templates\System\Internet Communication Management\Internet Communication settings\Turn off Registration if URL connection is referring to Microsoft.com'
   query: |
-    TODO
-         SELECT 1 FROM REGISTRY WHERE (PATH = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\Registration Wizard Control:NoRegistration
+    TBD
+  # Untested: 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\Registration Wizard Control:NoRegistration
   purpose: Informational
-  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_18.8.22.1.8
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_not_completed, CIS_domain_joined_required, CIS_bullet_18.8.22.1.8
   contributors: rachelelysia
 ---
 apiVersion: v1
@@ -249,10 +253,11 @@ spec:
     To establish the recommended configuration via GP, set the following UI path to Enabled:
     'Computer Configuration\Policies\Administrative Templates\System\Internet Communication Management\Internet Communication settings\Turn off Search Companion content file updates'
   query: |
-    TODO
-         SELECT 1 FROM REGISTRY WHERE (PATH = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\SearchCompanion:DisableContentFileUpdates
+    TBD
+  # SearchCompanion path does not exist in registry
+  # Untested: SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\SearchCompanion:DisableContentFileUpdates' AND data = );
   purpose: Informational
-  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_18.8.22.1.9
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0,  CIS_not_completed, CIS_domain_joined_required, CIS_bullet_18.8.22.1.9
   contributors: rachelelysia
 ---
 apiVersion: v1
@@ -269,10 +274,10 @@ spec:
     To establish the recommended configuration via GP, set the following UI path to Enabled:
     'Computer Configuration\Policies\Administrative Templates\System\Internet Communication Management\Internet Communication settings\Turn off the "Order Prints" picture task'
   query: |
-    TODO
-         SELECT 1 FROM REGISTRY WHERE (PATH = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer:NoOnlinePrintsWizard
+    TBD
+  # Untested: 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer:NoOnlinePrintsWizard
   purpose: Informational
-  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_18.8.22.1.10
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0,  CIS_not_completed, CIS_domain_joined_required, CIS_bullet_18.8.22.1.10
   contributors: rachelelysia
 ---
 apiVersion: v1
@@ -288,10 +293,10 @@ spec:
     To establish the recommended configuration via GP, set the following UI path to Enabled:
     'Computer Configuration\Policies\Administrative Templates\System\InternetCommunication Management\Internet Communication settings\Turn off the "Publish to Web" task for files and folders'
   query: |
-    TODO
-         SELECT 1 FROM REGISTRY WHERE (PATH = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer:NoPublishingWizard
+    TBD
+  # Untested: 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer:NoPublishingWizard
   purpose: Informational
-  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_18.8.22.1.11
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0,  CIS_not_completed, CIS_domain_joined_required, CIS_bullet_18.8.22.1.11
   contributors: rachelelysia
 ---
 apiVersion: v1
@@ -307,10 +312,10 @@ spec:
     To establish the recommended configuration via GP, set the following UI path to Enabled:
     'Computer Configuration\Policies\Administrative Templates\System\Internet Communication Management\Internet Communication settings\Turn off the Windows Messenger Customer Experience Improvement Program'
   query: |
-    TODO
-         SELECT 1 FROM REGISTRY WHERE (PATH = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Messenger\Client:CEIP
+    TBD
+  # Untested: 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Messenger\Client:CEIP
   purpose: Informational
-  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_18.8.22.1.12
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_not_completed, CIS_domain_joined_required, CIS_bullet_18.8.22.1.12
   contributors: rachelelysia
 ---
 apiVersion: v1
@@ -327,10 +332,10 @@ spec:
     To establish the recommended configuration via GP, set the following UI path to Enabled:
     'Computer Configuration\Policies\Administrative Templates\System\Internet Communication Management\Internet Communication settings\Turn off Windows Customer Experience Improvement Program'
   query: |
-    TODO
-         SELECT 1 FROM REGISTRY WHERE (PATH = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\SQMClient\Windows:CEIPEnable
+    TBD
+  # Untested: 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\SQMClient\Windows:CEIPEnable
   purpose: Informational
-  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_18.8.22.1.13
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0,  CIS_not_completed, CIS_domain_joined_required, CIS_bullet_18.8.22.1.13
   contributors: rachelelysia
 ---
 apiVersion: v1
@@ -346,11 +351,11 @@ spec:
     To establish the recommended configuration via GP, set the following UI path to Enabled:
     'Computer Configuration\Policies\Administrative Templates\System\Internet Communication Management\Internet Communication settings\Turn off Windows Error Reporting'
   query: |
-    TODO
-         SELECT 1 FROM REGISTRY WHERE (PATH = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\Windows Error Reporting:Disabled
-    HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\PCHealth\ErrorReporting:DoReport
+    TBD
+  # Untested: SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\Windows Error Reporting\Disabled' AND data = 1);
+  # Untested: SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\PCHealth\\ErrorReporting\DoReport' AND data = 0);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_18.8.22.1.14
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_not_completed, CIS_domain_joined_required, CIS_bullet_18.8.22.1.14
   contributors: rachelelysia
 ---
 apiVersion: v1
@@ -367,12 +372,11 @@ spec:
     To establish the recommended configuration via GP, set the following UI path to Enabled: Automatic:
     'Computer Configuration\Policies\Administrative Templates\System\Kerberos\Support device authentication using certificate'
   query: |
-    TODO
-  # Directory \systems does not exist
-  #  SELECT 1 FROM REGISTRY WHERE (PATH = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System\kerberos\parameters:DevicePKInitBehavior
-  # HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System\kerberos\parameters:DevicePKInitEnabled
+    TBD
+  # kerberos directory does not exist
+  # Untested:  SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System\\kerberos\\parameters\DevicePKInitBehavior' AND data = 0);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_18.8.25.1
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_not_completed, CIS_domain_joined_required, CIS_bullet_18.8.25.1
   contributors: rachelelysia
 ---
 apiVersion: v1
@@ -388,10 +392,11 @@ spec:
     To establish the recommended configuration via GP, set the following UI path to Enabled: Block All:
     'Computer Configuration\Policies\Administrative Templates\System\Kernel DMA Protection\Enumeration policy for external devices incompatible with Kernel DMA Protection'
   query: |
-    TODO
-         SELECT 1 FROM REGISTRY WHERE (PATH = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\Kernel DMA Protection:DeviceEnumerationPolicy
+    TBD
+  # Kernel DMA Protection directory does not exist
+  # Untested: SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\Kernel DMA Protection\DeviceEnumerationPolicy' AND data = 0);
   purpose: Informational
-  tags: compliance, CIS, CIS_BL, CIS_win10_enterprise_1.12.0, CIS_bullet_18.8.26.1
+  tags: compliance, CIS, CIS_BL, CIS_win10_enterprise_1.12.0, CIS_not_completed, CIS_domain_joined_required, CIS_bullet_18.8.26.1
   contributors: rachelelysia
 ---
 apiVersion: v1
@@ -407,10 +412,11 @@ spec:
     To establish the recommended configuration via GP, set the following UI path to Enabled:
     'Computer Configuration\Policies\Administrative Templates\System\Locale Services\Disallow copying of user input methods to the system account for sign-in'
   query: |
-    TODO
-         SELECT 1 FROM REGISTRY WHERE (PATH = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Control Panel\\International\BlockUserInputMethodsForSignIn
+    TBD
+  # Control Panel directory does not exist
+  # Untested:  SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Control Panel\\International\BlockUserInputMethodsForSignIn' AND data = 1);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_18.8.27.1
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_not_completed, CIS_domain_joined_required, CIS_bullet_18.8.27.1
   contributors: rachelelysia
 ---
 
