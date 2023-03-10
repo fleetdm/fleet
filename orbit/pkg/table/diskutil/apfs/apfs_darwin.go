@@ -77,14 +77,22 @@ func VolumesGenerate(ctx context.Context, queryContext table.QueryContext) ([]ma
 		return nil, fmt.Errorf("generate failed: %w", err)
 	}
 
-	cmdResult, err := parseReadOutput(out)
+	rows, err := parseDiskutilVolumes(out)
 	if err != nil {
-		return nil, fmt.Errorf("parse diskutil apfs read output: %w", err)
+		return nil, err
 	}
 
+	return rows, nil
+}
+
+func parseDiskutilVolumes(out []byte) ([]map[string]string, error) {
+	var m CmdResult
+	if _, err := plist.Unmarshal(out, &m); err != nil {
+		return nil, fmt.Errorf("parse diskutil apfs list -plist output: %w", err)
+	}
 	rows := make([]map[string]string, 0)
 
-	for _, container := range cmdResult.Containers {
+	for _, container := range m.Containers {
 		for _, volume := range container.Volumes {
 			role := ""
 			if len(volume.Roles) > 0 {
@@ -111,6 +119,7 @@ func VolumesGenerate(ctx context.Context, queryContext table.QueryContext) ([]ma
 			})
 		}
 	}
+
 	return rows, nil
 }
 
@@ -138,14 +147,22 @@ func PhysicalStoresGenerate(ctx context.Context, queryContext table.QueryContext
 		return nil, fmt.Errorf("generate failed: %w", err)
 	}
 
-	cmdResult, err := parseReadOutput(out)
+	rows, err := parseDiskutilPhysicalStores(out)
 	if err != nil {
-		return nil, fmt.Errorf("parse diskutil apfs read output: %w", err)
+		return nil, err
 	}
 
+	return rows, nil
+}
+
+func parseDiskutilPhysicalStores(out []byte) ([]map[string]string, error) {
+	var m CmdResult
+	if _, err := plist.Unmarshal(out, &m); err != nil {
+		return nil, err
+	}
 	rows := make([]map[string]string, 0)
 
-	for _, container := range cmdResult.Containers {
+	for _, container := range m.Containers {
 		for _, physicalStore := range container.PhysicalStores {
 			rows = append(rows, map[string]string{
 				"container_uuid":                      container.APFSContainerUUID,
@@ -160,15 +177,8 @@ func PhysicalStoresGenerate(ctx context.Context, queryContext table.QueryContext
 			})
 		}
 	}
-	return rows, nil
-}
 
-func parseReadOutput(out []byte) (*CmdResult, error) {
-	var m CmdResult
-	if _, err := plist.Unmarshal(out, &m); err != nil {
-		return nil, err
-	}
-	return &m, nil
+	return rows, nil
 }
 
 func convertBool(b bool) string {
