@@ -61,4 +61,14 @@ export default {
     const { MDM_PROFILE } = endpoints;
     return sendRequest("DELETE", MDM_PROFILE(profileId));
   },
+
+  getAggregateProfileStatuses: (teamId?: number) => {
+    let { MDM_PROFILES_AGGREGATE_STATUSES: path } = endpoints;
+
+    if (teamId) {
+      path = `${path}?${buildQueryStringFromParams({ team_id: teamId })}`;
+    }
+
+    return sendRequest("GET", path);
+  },
 };

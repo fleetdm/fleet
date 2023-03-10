@@ -2250,7 +2250,20 @@ Returns the information of the specified host.
       "encryption_key_available": false,
       "enrollment_status": null,
       "name": "",
-      "server_url": null
+      "server_url": null,
+      "macos_settings": {
+        "disk_encryption": null,
+        "action_required": null
+      },
+      "profiles": [
+        {
+          "profile_id": 999,
+          "name": "profile1",
+          "status": "applied",
+          "operation_type": "install",
+          "detail": ""
+        }
+      ]
     }
   }
 }
@@ -2430,7 +2443,20 @@ Returns the information of the host specified using the `uuid`, `osquery_host_id
       "encryption_key_available": false,
       "enrollment_status": null,
       "name": "",
-      "server_url": null
+      "server_url": null,
+      "macos_settings": {
+        "disk_encryption": null,
+        "action_required": null
+      },
+      "profiles": [
+        {
+          "profile_id": 999,
+          "name": "profile1",
+          "status": "applied",
+          "operation_type": "install",
+          "detail": ""
+        }
+      ]
     }
   }
 }
