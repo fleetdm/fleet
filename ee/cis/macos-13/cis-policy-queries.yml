@@ -2385,9 +2385,19 @@ name: CIS - Ensure the Hide IP Address in Safari is Enabled (Based on organizati
       /Users/<username>/Library/Containers/com.apple.Safari/Data/Library/Preferences
       /com.apple.Safari WBSPrivacyProxyAvailabilityTraffic -int 130276
   query: |
-    SELECT 1 WHERE NOT EXISTS(SELECT 1 FROM plist WHERE path LIKE
-    "/Users/%/Library/Containers/com.apple.Safari/Data/Library/Preferences/com.apple.Safari.plist"
-    AND key = "WBSPrivacyProxyAvailabilityTraffic" AND ((value >> 2) & 1) == 0);
+    SELECT 1 WHERE 
+    NOT EXISTS(
+        SELECT 1 FROM plist 
+        WHERE path LIKE "/Users/%/Library/Containers/com.apple.Safari/Data/Library/Preferences/com.apple.Safari.plist"
+        AND key = "WBSPrivacyProxyAvailabilityTraffic" 
+        AND ((value >> 2) & 1) == 0
+        )
+    AND EXISTS(
+        SELECT 1 FROM plist 
+        WHERE path LIKE "/Users/%/Library/Containers/com.apple.Safari/Data/Library/Preferences/com.apple.Safari.plist"
+        AND key = "WBSPrivacyProxyAvailabilityTraffic" 
+        AND ((value >> 2) & 1) == 1
+    );
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-macos-13-6.3.5-enabled, decision-needed
   contributors: artemist-work
@@ -2410,9 +2420,19 @@ spec:
       /Users/<username>/Library/Containers/com.apple.Safari/Data/Library/Preferences
       /com.apple.Safari WBSPrivacyProxyAvailabilityTraffic -int 130272
   query: |
-    SELECT 1 WHERE NOT EXISTS(SELECT 1 FROM plist WHERE path LIKE
-    "/Users/%/Library/Containers/com.apple.Safari/Data/Library/Preferences/com.apple.Safari.plist"
-    AND key = "WBSPrivacyProxyAvailabilityTraffic" AND ((value >> 2) & 1) == 1);
+    SELECT 1 WHERE 
+    NOT EXISTS(
+        SELECT 1 FROM plist 
+        WHERE path LIKE "/Users/%/Library/Containers/com.apple.Safari/Data/Library/Preferences/com.apple.Safari.plist"
+        AND key = "WBSPrivacyProxyAvailabilityTraffic" 
+        AND ((value >> 2) & 1) == 1
+        )
+    AND EXISTS(
+        SELECT 1 FROM plist 
+        WHERE path LIKE "/Users/%/Library/Containers/com.apple.Safari/Data/Library/Preferences/com.apple.Safari.plist"
+        AND key = "WBSPrivacyProxyAvailabilityTraffic" 
+        AND ((value >> 2) & 1) == 0
+    );
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-macos-13-6.3.5-disabled, decision-needed
   contributors: artemist-work
