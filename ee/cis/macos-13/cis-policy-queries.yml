@@ -2380,12 +2380,10 @@ name: CIS - Ensure the Hide IP Address in Safari is Enabled (Based on organizati
     home and business addresses. While a valid IP addess is necessary to load the site the valid
     address does not need to be provided to known trackers and should be hidden.
   resolution: |
-    Perform the following steps to set Safari whether or not to hide IP addresses from trackers:
-    1. Open Safari
-    2. Select Safari from the menu bar
-    3. Select Settings
-    4. Select Privacy
-    5. Set Hide IP address from trackers to Enabled
+    Ask your system administrator to deploy a script that will configure "Hide IP Address in Safari" to Enabled
+      $ /usr/bin/sudo -u <username> /usr/bin/defaults write
+      /Users/<username>/Library/Containers/com.apple.Safari/Data/Library/Preferences
+      /com.apple.Safari WBSPrivacyProxyAvailabilityTraffic -int 130276
   query: |
     SELECT 1 WHERE NOT EXISTS(SELECT 1 FROM plist WHERE path LIKE
     "/Users/%/Library/Containers/com.apple.Safari/Data/Library/Preferences/com.apple.Safari.plist"
@@ -2407,12 +2405,10 @@ spec:
     However, enabling this setting will proxy web information through a 3rd party service, which may
     not be allowed by your organization's policy.
   resolution: |
-    Perform the following steps to set Safari whether or not to hide IP addresses from trackers:
-    1. Open Safari
-    2. Select Safari from the menu bar
-    3. Select Settings
-    4. Select Privacy
-    5. Set Hide IP address from trackers to Disabled
+    Ask your system administrator to deploy a script that will configure "Hide IP Address in Safari" to Enabled
+      $ /usr/bin/sudo -u <username> /usr/bin/defaults write
+      /Users/<username>/Library/Containers/com.apple.Safari/Data/Library/Preferences
+      /com.apple.Safari WBSPrivacyProxyAvailabilityTraffic -int 130272
   query: |
     SELECT 1 WHERE NOT EXISTS(SELECT 1 FROM plist WHERE path LIKE
     "/Users/%/Library/Containers/com.apple.Safari/Data/Library/Preferences/com.apple.Safari.plist"
