@@ -1,4 +1,4 @@
-name: apfs_volumes
+name: apfs_physical_stores
 platforms:
   - darwin
 description: Information about APFS physical stores from the `diskutil apfs list -plist` command.

@@ -26636,7 +26636,7 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/yum_sources.yml"
   },
   {
-    "name": "apfs_volumes",
+    "name": "apfs_physical_stores",
     "platforms": [
       "darwin"
     ],
@@ -26699,8 +26699,8 @@
     ],
     "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
     "evented": false,
-    "url": "https://fleetdm.com/tables/apfs_volumes",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/apfs_volumes.yml"
+    "url": "https://fleetdm.com/tables/apfs_physical_stores",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/apfs_physical_stores.yml"
   },
   {
     "name": "apfs_volumes",
