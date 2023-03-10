@@ -2007,6 +2007,40 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
+  name: CIS - Ensure all user storage APFS volumes are encrypted (Fleetd Required)
+  platforms: macOS
+  platform: darwin
+  description: |
+    Apple developed a new file system which was first made available in 10.12 and then became the
+    default in 10.13. The file system is optimized for Flash and Solid-State storage and encryption.
+    https://en.wikipedia.org/wiki/Apple_File_System macOS computers generally have several volumes
+    created as part of APFS formatting, including Preboot, Recovery and Virtual Memory (VM), as well
+    as traditional user disks.
+    All APFS volumes that do not have specific roles and do not require encryption should be
+    encrypted. "Role" disks include Preboot, Recovery and VM. User disks are labelled with "(No
+    specific role)" by default.
+  resolution: |
+    Manual method:
+    Use Disk Utility to erase a user disk and format as APFS (Encrypted).
+    Note: APFS Encrypted disks will be described as "FileVault" whether they are the boot volume or not in the ap list.
+  query: |
+    SELECT 1 WHERE NOT EXISTS (
+      SELECT 1 FROM apfs_volumes WHERE
+        role != "VM" AND
+        role != "Update" AND
+        role != "Recovery" AND
+        role != "Preboot" AND
+        role != "xART" AND
+        role != "Hardware" AND
+        filevault != 1
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS-macos-13-5.3.1
+  contributors: artemist-work
+---
+apiVersion: v1
+kind: policy
+spec:
   name: CIS - Ensure the Sudo Timeout Period Is Set to Zero (Fleetd Required)
   platforms: macOS
   platform: darwin
