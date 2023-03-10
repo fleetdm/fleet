@@ -103,8 +103,8 @@ const ManualEnrollMdmModal = ({
             <b>System Settings</b> or <b>System Preferences</b>.
           </li>
           <li>
-            In the search bar, type “Profiles”. Select <b>Profiles</b>, find and
-            select <b>Enrollment Profile</b>, and select <b>Install</b>.
+            In the search bar, type “Profiles”. Select <b>Profiles</b>, double
+            click <b>Enrollment Profile</b>, and select <b>Install</b>.
           </li>
           <li>
             Enter your password, and select <b>Enroll</b>.
