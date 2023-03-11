@@ -33,5 +33,5 @@ func TestGetPaylaod(t *testing.T) {
 	require.Empty(t, result.CISAKnownExploit)
 	require.Empty(t, result.EPSSProbability)
 	require.Empty(t, result.CVSSScore)
-	require.Empty(t, meta.Published)
+	require.Empty(t, result.CVEPublished)
 }
