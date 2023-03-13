@@ -234,7 +234,7 @@ func TestGetSSOUser(t *testing.T) {
 	}
 
 	ds.UserByEmailFunc = func(ctx context.Context, email string) (*fleet.User, error) {
-		return nil, notFoundError{}
+		return nil, newNotFoundError()
 	}
 
 	var newUser *fleet.User
@@ -318,7 +318,7 @@ func TestGetSSOUser(t *testing.T) {
 	// (3) Test with invalid team ID in the attributes
 
 	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
-		return nil, notFoundError{}
+		return nil, newNotFoundError()
 	}
 
 	auth.assertionAttributes = []fleet.SAMLAttribute{

@@ -170,9 +170,7 @@ func getNodeKey(r interface{}) (string, error) {
 	if hnk, ok := r.(interface{ hostNodeKey() string }); ok {
 		return hnk.hostNodeKey(), nil
 	}
-	return "", osqueryError{
-		message: "request type does not implement hostNodeKey method. This is likely a Fleet programmer error.",
-	}
+	return "", newOsqueryError("request type does not implement hostNodeKey method. This is likely a Fleet programmer error.")
 }
 
 // authenticatedUser wraps an endpoint, requires that the Fleet user is

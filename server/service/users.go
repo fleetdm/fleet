@@ -743,7 +743,7 @@ func (svc *Service) modifyEmailAddress(ctx context.Context, user *fleet.User, em
 
 	switch _, err = svc.ds.UserByEmail(ctx, email); {
 	case err == nil:
-		return ctxerr.Wrap(ctx, alreadyExistsError{})
+		return ctxerr.Wrap(ctx, newAlreadyExistsError())
 	case errors.Is(err, sql.ErrNoRows):
 		// OK
 	default:
@@ -752,7 +752,7 @@ func (svc *Service) modifyEmailAddress(ctx context.Context, user *fleet.User, em
 
 	switch _, err = svc.ds.InviteByEmail(ctx, email); {
 	case err == nil:
-		return ctxerr.Wrap(ctx, alreadyExistsError{})
+		return ctxerr.Wrap(ctx, newAlreadyExistsError())
 	case errors.Is(err, sql.ErrNoRows):
 		// OK
 	default:

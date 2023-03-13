@@ -740,11 +740,6 @@ func newCleanupsAndAggregationSchedule(
 				return ds.CleanupExpiredPasswordResetRequests(ctx)
 			},
 		),
-		schedule.WithJob(
-			"cleanup_cron_stats", func(ctx context.Context) error {
-				return ds.CleanupCronStats(ctx)
-			},
-		),
 		// Run aggregation jobs after cleanups.
 		schedule.WithJob(
 			"query_aggregated_stats",

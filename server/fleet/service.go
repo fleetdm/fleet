@@ -653,6 +653,13 @@ type Service interface {
 	// specified team or for hosts with no team.
 	UpdateMDMAppleSettings(ctx context.Context, payload MDMAppleSettingsPayload) error
 
+	// MDMAppleOktaLogin authenticates an user using Okta ROP flow, and, if the
+	// credentials are valid, returns a MDM enrollment profile.
+	//
+	// ROP refers to the "Resource Owner Password Flow" as specified by
+	// RFC 6749 and described in https://developer.okta.com/docs/guides/implement-grant-type/ropassword/main/
+	MDMAppleOktaLogin(ctx context.Context, username, password string) ([]byte, error)
+
 	///////////////////////////////////////////////////////////////////////////////
 	// CronSchedulesService
 

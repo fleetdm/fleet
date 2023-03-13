@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
@@ -50,7 +51,7 @@ func (svc *Service) NewDistributedQueryCampaign(ctx context.Context, queryString
 		return nil, fleet.ErrNoContext
 	}
 
-	if queryID == nil && queryString == "" {
+	if queryID == nil && strings.TrimSpace(queryString) == "" {
 		return nil, fleet.NewInvalidArgumentError("query", "one of query or query_id must be specified")
 	}
 
@@ -73,7 +74,9 @@ func (svc *Service) NewDistributedQueryCampaign(ctx context.Context, queryString
 			AuthorID: ptr.Uint(vc.UserID()),
 		}
 		if err := query.Verify(); err != nil {
-			return nil, err
+			return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+				Message: fmt.Sprintf("query payload verification: %s", err),
+			})
 		}
 		query, err = svc.ds.NewQuery(ctx, query)
 		if err != nil {

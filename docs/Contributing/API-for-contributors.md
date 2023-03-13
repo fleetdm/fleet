@@ -538,6 +538,7 @@ The MDM endpoints exist to support the related command-line interface sub-comman
 - [Get Apple MDM profiles summary](#get-mdm-apple-profiles-summary)
 - [Batch-apply Apple MDM custom settings](#batch-apply-apple-mdm-custom-settings)
 - [Update Apple MDM settings](#update-apple-mdm-settings)
+- [Download an enrollment profile using IdP authentication](#download-an-enrollment-profile-using-idp-authentication)
 
 ### Get Apple MDM
 
@@ -920,6 +921,62 @@ _Available in Fleet Premium_
 ##### Default response
 
 `204`
+
+
+### Download an enrollment profile using IdP authentication
+
+_Available in Fleet Premium_
+
+This endpoint returns an enrollment profile after validating the provided username/password combination with a configured identity provider.
+
+Currently, the only IdP supported is Okta.
+
+`POST /api/v1/fleet/mdm/apple/dep_login`
+
+#### Parameters
+
+| Name     | Type   | In   | Description                                                  |
+| -------- | ------ | ---- | ------------------------------------------------------------ |
+| username | string | body | **Required** The username used to authenticate this request. |
+| password | string | body | **Required** The password used to authenticate this request. |
+
+#### Example
+
+`POST /api/v1/fleet/mdm/apple/dep_login`
+
+##### Default response
+
+`Status: 200`
+
+##### Example response headers
+
+```
+	Content-Length: 542
+	Content-Type: application/octet-stream
+	Content-Disposition: attachment;filename="2023-03-31 Example profile.mobileconfig"
+```
+
+###### Example response body
+```
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array/>
+	<key>PayloadDisplayName</key>
+	<string>Example profile</string>
+	<key>PayloadIdentifier</key>
+	<string>com.example.profile</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>0BBF3E23-7F56-48FC-A2B6-5ACC598A4A69</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+</dict>
+</plist>
+```
 
 ## Get or apply configuration files
 

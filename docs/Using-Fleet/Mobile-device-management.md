@@ -148,7 +148,7 @@ Fleet UI:
 
 1. In the Fleet UI, head to the **Controls > macOS settings > Custom settings** page.
 
-2. Select **Upload** and choose your configuration profile. After your configuration profile is uploaded to Fleet, Fleet will apply the profile on your macOS hosts. The profile will be applied to new macOS hosts that enroll to Fleet.
+2. Select **Upload** and choose your configuration profile. After your configuration profile is uploaded to Fleet, Fleet will apply the profile to all macOS hosts in the selected team. Thereafter, the profile will be applied to new macOS hosts that enroll to that team.
 
 fleetctl CLI:
 

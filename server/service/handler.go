@@ -56,6 +56,11 @@ func (h *errorHandler) Handle(ctx context.Context, err error) {
 		logger = kitlog.With(logger, ewlf.LogFields()...)
 	}
 
+	var uuider fleet.ErrorUUIDer
+	if errors.As(err, &uuider) {
+		logger = kitlog.With(logger, "uuid", uuider.UUID())
+	}
+
 	var rle ratelimit.Error
 	if errors.As(err, &rle) {
 		res := rle.Result()
@@ -578,6 +583,11 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	// Fleet Sandbox demo login (always errors unless config.server.sandbox_enabled is set)
 	ne.WithCustomMiddleware(limiter.Limit("login", throttled.RateQuota{MaxRate: loginRateLimit, MaxBurst: 9})).
 		POST("/api/_version_/fleet/demologin", makeDemologinEndpoint(config.Server.URLPrefix), demologinRequest{})
+
+	if config.MDMApple.Enable {
+		ne.WithCustomMiddleware(limiter.Limit("login", throttled.RateQuota{MaxRate: loginRateLimit, MaxBurst: 9})).
+			POST("/api/_version_/fleet/mdm/apple/dep_login", mdmAppleDEPLoginEndpoint, mdmAppleDEPLoginRequest{})
+	}
 
 	ne.WithCustomMiddleware(
 		errorLimiter.Limit("ping_device", desktopQuota),

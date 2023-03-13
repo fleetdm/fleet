@@ -299,7 +299,7 @@ func (svc *Service) InitiateSSO(ctx context.Context, redirectURL string) (string
 
 	if !appConfig.SSOSettings.EnableSSO {
 		err := &fleet.BadRequestError{Message: "organization not configured to use sso"}
-		return "", ctxerr.Wrap(ctx, ssoError{err: err, code: ssoOrgDisabled}, "callback sso")
+		return "", ctxerr.Wrap(ctx, newSSOError(err, ssoOrgDisabled), "callback sso")
 	}
 
 	metadata, err := svc.getMetadata(appConfig)
@@ -346,11 +346,17 @@ type callbackSSORequest struct{}
 func (callbackSSORequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	err := r.ParseForm()
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: err.Error()}, "decode sso callback")
+		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+			Message:     "failed to parse form",
+			InternalErr: err,
+		}, "decode sso callback")
 	}
 	authResponse, err := sso.DecodeAuthResponse(r.FormValue("SAMLResponse"))
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: err.Error()}, "decoding sso callback")
+		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+			Message:     "failed to decode SAMLResponse",
+			InternalErr: err,
+		}, "decoding sso callback")
 	}
 	return authResponse, nil
 }
@@ -380,7 +386,7 @@ func makeCallbackSSOEndpoint(urlPrefix string) handlerFunc {
 				), level.Info)
 			}
 
-			var ssoErr ssoError
+			var ssoErr *ssoError
 
 			status := ssoOtherError
 			if errors.As(err, &ssoErr) {
@@ -447,7 +453,7 @@ func (svc *Service) InitSSOCallback(ctx context.Context, auth fleet.Auth) (strin
 
 	if !appConfig.SSOSettings.EnableSSO {
 		err := ctxerr.New(ctx, "organization not configured to use sso")
-		return "", ctxerr.Wrap(ctx, ssoError{err: err, code: ssoOrgDisabled}, "callback sso")
+		return "", ctxerr.Wrap(ctx, newSSOError(err, ssoOrgDisabled), "callback sso")
 	}
 
 	// Load the request metadata if available.
@@ -505,7 +511,7 @@ func (svc *Service) GetSSOUser(ctx context.Context, auth fleet.Auth) (*fleet.Use
 	if err != nil {
 		var nfe notFoundErrorInterface
 		if errors.As(err, &nfe) {
-			return nil, ctxerr.Wrap(ctx, ssoError{err: err, code: ssoAccountInvalid})
+			return nil, ctxerr.Wrap(ctx, newSSOError(err, ssoAccountInvalid))
 		}
 		return nil, ctxerr.Wrap(ctx, err, "find user in sso callback")
 	}
@@ -518,7 +524,7 @@ func (svc *Service) LoginSSOUser(ctx context.Context, user *fleet.User, redirect
 	// if the user is not sso enabled they are not authorized
 	if !user.SSOEnabled {
 		err := ctxerr.New(ctx, "user not configured to use sso")
-		return nil, ctxerr.Wrap(ctx, ssoError{err: err, code: ssoAccountDisabled})
+		return nil, ctxerr.Wrap(ctx, newSSOError(err, ssoAccountDisabled))
 	}
 	session, err := svc.makeSession(ctx, user.ID)
 	if err != nil {
@@ -670,7 +676,10 @@ type demologinRequest struct {
 func (demologinRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	err := r.ParseForm()
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: err.Error()}, "decode demo login")
+		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+			Message:     "failed to parse form",
+			InternalErr: err,
+		}, "decode demo login")
 	}
 
 	return demologinRequest{
