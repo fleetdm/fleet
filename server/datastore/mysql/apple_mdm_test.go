@@ -34,6 +34,7 @@ func TestMDMAppleConfigProfile(t *testing.T) {
 		{"TestMDMAppleProfileManagement", testMDMAppleProfileManagement},
 		{"TestGetMDMAppleProfilesContents", testGetMDMAppleProfilesContents},
 		{"TestMDMAppleHostsProfilesStatus", testMDMAppleHostsProfilesStatus},
+		{"TestMDMAppleInsertIdPAccount", testMDMAppleInsertIdPAccount},
 	}
 
 	for _, c := range cases {
@@ -1395,4 +1396,39 @@ func testMDMAppleHostsProfilesStatus(t *testing.T, ds *Datastore) {
 	require.True(t, checkListHosts(fleet.MacOSSettingsStatusPending, nil, hosts[2:9]))
 	require.True(t, checkListHosts(fleet.MacOSSettingsStatusFailing, nil, hosts[0:2]))
 	require.True(t, checkListHosts(fleet.MacOSSettingsStatusLatest, nil, []*fleet.Host{}))
+}
+
+func testMDMAppleInsertIdPAccount(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	acc := &fleet.MDMIdPAccount{
+		UUID:     "ABC-DEF",
+		Username: "email@example.com",
+		SaltedSHA512PBKDF2Dictionary: fleet.SaltedSHA512PBKDF2Dictionary{
+			Iterations: 50000,
+			Salt:       []byte("salt"),
+			Entropy:    []byte("entropy"),
+		},
+	}
+
+	err := ds.InsertMDMIdPAccount(ctx, acc)
+	require.NoError(t, err)
+
+	// try to instert the same account
+	err = ds.InsertMDMIdPAccount(ctx, acc)
+	require.NoError(t, err)
+
+	// try to insert an empty account
+	err = ds.InsertMDMIdPAccount(ctx, &fleet.MDMIdPAccount{})
+	require.Error(t, err)
+
+	// duplicated values get updated
+	acc.SaltedSHA512PBKDF2Dictionary.Iterations = 3000
+	acc.SaltedSHA512PBKDF2Dictionary.Salt = []byte("tlas")
+	acc.SaltedSHA512PBKDF2Dictionary.Entropy = []byte("yportne")
+	err = ds.InsertMDMIdPAccount(ctx, acc)
+	require.NoError(t, err)
+	var out fleet.MDMIdPAccount
+	err = sqlx.GetContext(ctx, ds.reader, &out, "SELECT * FROM mdm_idp_accounts WHERE uuid = 'ABC-DEF'")
+	require.NoError(t, err)
+	require.Equal(t, acc, &out)
 }

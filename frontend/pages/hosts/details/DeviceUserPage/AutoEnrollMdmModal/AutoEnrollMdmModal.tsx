@@ -24,7 +24,7 @@ const AutoEnrollMdmModal = ({
             <b>System Settings</b> or <b>System Preferences</b>.
           </li>
           <li>
-            In the search bar, type “Profiles.” Select <b>Profiles</b>, double
+            In the search bar, type “Profiles”. Select <b>Profiles</b>, double
             click on <b>Enrollment Profile</b>, and select <b>Install</b>.
           </li>
           <li>
