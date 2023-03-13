@@ -8,9 +8,11 @@ Fleet collects a large amount of data, and in many cases, it is not possible (or
 
 First, by leveraging the “Software” tab, you can add a filter that will display only the software that has detected vulnerabilities.
 
-![](../website/assets/images/articles/using-fleet-and-tines-together-hosts-800x450@2x.gif)
+![](../website/assets/images/articles/using-fleet-and-tines-together-filter-800x450@2x.gif)
 
-From the “Hosts” column, you can see the count of hosts in the respective team that have the vulnerable software installed. If you click “View all hosts,” you can get the list of hosts displayed. Additionally, in this view, you can export the list of hosts to take further action toward remediation or compliance reporting. 
+From the “Hosts” column, you can see the count of hosts in the respective team that have the vulnerable software installed. If you click “View all hosts,” you can get the list of hosts displayed. Additionally, in this view, you can export the list of hosts to take further action toward remediation or compliance reporting.
+
+![](../website/assets/images/articles/using-fleet-and-tines-together-hosts-800x450@2x.gif)
 
 But what if I wanted that list of hosts (in the above example, there is only one host that has the vulnerable software “UTM.app” installed) as well as the CVSS score, probability of exploit, and CVE numbers associated with the list of hosts? Or, just show me a list of hosts with all vulnerable software and the related CVE?
 
