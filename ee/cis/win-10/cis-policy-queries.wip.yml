@@ -16,7 +16,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\CurrentVersion\\AppModel\\StateManager\\AllowSharedLocalAppData' AND data == 0);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.4.1
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.4.1
   contributors: marcosd4h
 ---
 apiVersion: v1
@@ -69,8 +69,82 @@ spec:
     Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'Enabled':
     'Computer Configuration\Policies\Administrative Templates\Windows Components\App runtime\Allow Microsoft accounts to be optional'
   query: |
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\CurrentVersion\\Policies\\System\\MSAOptional' AND data != 0);
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System\\MSAOptional' AND data != 0);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.6.1
+  contributors: marcosd4h
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Block launching Universal Windows apps with Windows Runtime API access from hosted content' is set to 'Enabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting controls whether Microsoft Store apps with Windows Runtime API access directly from web content can be launched.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'Enabled':
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\App runtime\Block launching Universal Windows apps with Windows Runtime API access from hosted content'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System\\BlockHostedAppAccessWinRT' AND data != 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.6.2
+  contributors: marcosd4h
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Disallow Autoplay for non-volume devices' is set to 'Enabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting disallows AutoPlay for MTP devices like cameras or phones.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'Enabled':
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\AutoPlay Policies\Disallow Autoplay for non-volume devices'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\Explorer\\NoAutoplayfornonVolume' AND data != 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.8.1
+  contributors: marcosd4h
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Set the default behavior for AutoRun' is set to 'Enabled Do not execute any autorun commands'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting sets the default behavior for Autorun commands. Autorun commands are
+    generally stored in autorun.inf files. They often launch the installation program or other routines.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'Enabled Do not execute any autorun commands':
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\AutoPlay Policies\Set the default behavior for AutoRun'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer\\NoAutorun' AND data == 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.8.2
+  contributors: marcosd4h
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Turn off Autoplay' is set to 'Enabled All drives'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting sets the default behavior for Autorun commands. Autorun commands are
+    generally stored in autorun.inf files. They often launch the installation program or other routines.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'Enabled All drives':
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\AutoPlay Policies\Turn off Autoplay'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer\\NoDriveTypeAutoRun' AND data == 255);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.8.3
   contributors: marcosd4h
 ---
