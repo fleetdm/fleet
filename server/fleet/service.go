@@ -64,7 +64,7 @@ type Service interface {
 
 	// AuthenticateOrbitHost loads host identified by orbit's nodeKey. Returns an error if that nodeKey doesn't exist
 	AuthenticateOrbitHost(ctx context.Context, nodeKey string) (host *Host, debug bool, err error)
-	// EnrollOrbit enrolls an orbit instance to Fleet by using the the host information + enroll secret
+	// EnrollOrbit enrolls an orbit instance to Fleet by using the host information + enroll secret
 	// and returns the orbit node key if successful.
 	//
 	//	- If an entry for the host exists (osquery enrolled first) then it will update the host's orbit node key and team.
