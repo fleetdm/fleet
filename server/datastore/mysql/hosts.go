@@ -503,24 +503,29 @@ const hostMDMSelect = `,
 			WHEN hdek.decryptable IS NULL OR hdek.decryptable = 0 THEN CAST(FALSE AS JSON)
 			ELSE CAST(TRUE AS JSON)
 		END,
+		'raw_decryptable',
+		CASE
+			WHEN hdek.host_id IS NULL THEN -1
+			ELSE hdek.decryptable
+		END,
 		'name', hmdm.name
 	) mdm_host_data
 	`
 
 // hostMDMJoin is the SQL fragment used to join MDM-related tables to the hosts table. It is a
 // dependency of the hostMDMSelect fragment.
-const hostMDMJoin = `  
+const hostMDMJoin = `
   LEFT JOIN (
-	SELECT 
-	  host_mdm.is_server, 
-	  host_mdm.enrolled, 
-	  host_mdm.installed_from_dep, 
-	  host_mdm.server_url, 
-	  host_mdm.mdm_id, 
-	  host_mdm.host_id, 
-	  name 
-	FROM 
-	  host_mdm 
+	SELECT
+	  host_mdm.is_server,
+	  host_mdm.enrolled,
+	  host_mdm.installed_from_dep,
+	  host_mdm.server_url,
+	  host_mdm.mdm_id,
+	  host_mdm.host_id,
+	  name
+	FROM
+	  host_mdm
 	  LEFT JOIN mobile_device_management_solutions ON host_mdm.mdm_id = mobile_device_management_solutions.id
   ) hmdm ON hmdm.host_id = h.id
   LEFT JOIN host_disk_encryption_keys hdek ON hdek.host_id = h.id
@@ -1909,7 +1914,7 @@ func (ds *Datastore) DeleteHosts(ctx context.Context, ids []uint) error {
 func (ds *Datastore) FailingPoliciesCount(ctx context.Context, host *fleet.Host) (uint, error) {
 	if host.FleetPlatform() == "" {
 		// We log to help troubleshooting in case this happens.
-		level.Error(ds.logger).Log("err", fmt.Sprintf("host %d with empty platform", host.ID))
+		level.Error(ds.logger).Log("err", "unrecognized platform", "hostID", host.ID, "platform", host.Platform) //nolint:errcheck
 	}
 
 	query := `
@@ -1932,7 +1937,7 @@ func (ds *Datastore) FailingPoliciesCount(ctx context.Context, host *fleet.Host)
 func (ds *Datastore) ListPoliciesForHost(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
 	if host.FleetPlatform() == "" {
 		// We log to help troubleshooting in case this happens.
-		level.Error(ds.logger).Log("err", fmt.Sprintf("host %d with empty platform", host.ID))
+		level.Error(ds.logger).Log("err", "unrecognized platform", "hostID", host.ID, "platform", host.Platform) //nolint:errcheck
 	}
 	query := `SELECT p.*,
 		COALESCE(u.name, '<deleted>') AS author_name,

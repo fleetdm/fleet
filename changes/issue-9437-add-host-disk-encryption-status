@@ -1,0 +1,1 @@
+* Added `mdm.macos_settings.disk_encryption` and `mdm.macos_settings.action_required` status fields in the response for a single host (`GET /hosts/{id}` and `GET /device/{token}` endpoints).

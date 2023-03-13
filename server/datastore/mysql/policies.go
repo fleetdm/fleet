@@ -382,7 +382,7 @@ func (ds *Datastore) PolicyQueriesForHost(ctx context.Context, host *fleet.Host)
 	if host.FleetPlatform() == "" {
 		// We log to help troubleshooting in case this happens, as the host
 		// won't be receiving any policies targeted for specific platforms.
-		level.Error(ds.logger).Log("err", fmt.Sprintf("host %d with empty platform", host.ID)) //nolint:errcheck
+		level.Error(ds.logger).Log("err", "unrecognized platform", "hostID", host.ID, "platform", host.Platform) //nolint:errcheck
 	}
 	q := dialect.From("policies").Select(
 		goqu.I("id"),

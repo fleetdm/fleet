@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
-	"encoding/xml"
 	"errors"
 	"fmt"
 	"io"
@@ -15,7 +14,6 @@ import (
 	"path"
 	"strconv"
 	"strings"
-	"text/template"
 	"time"
 
 	"github.com/docker/go-units"
@@ -122,9 +120,8 @@ func (svc *Service) setDEPProfile(ctx context.Context, enrollmentProfile *fleet.
 	if err != nil {
 		return fmt.Errorf("generating enrollment URL: %w", err)
 	}
-	// Override url and configuration_web_url with Fleet's enroll path (publicly accessible address).
+	// Override url with Fleet's enroll path (publicly accessible address).
 	depProfileRequest.URL = enrollURL
-	depProfileRequest.ConfigurationWebURL = enrollURL
 
 	depClient := apple_mdm.NewDEPClient(svc.depStorage, svc.ds, svc.logger)
 	res, err := depClient.DefineProfile(ctx, apple_mdm.DEPName, &depProfileRequest)
@@ -1019,7 +1016,7 @@ func (svc *Service) GetMDMAppleEnrollmentProfileByToken(ctx context.Context, tok
 
 	// TODO(lucas): Actually use enrollment (when we define which configuration we want to define
 	// on enrollments).
-	mobileconfig, err := generateEnrollmentProfileMobileconfig(
+	mobileconfig, err := apple_mdm.GenerateEnrollmentProfileMobileconfig(
 		appConfig.OrgInfo.OrgName,
 		appConfig.ServerSettings.ServerURL,
 		svc.config.MDMApple.SCEP.Challenge,
@@ -1029,124 +1026,6 @@ func (svc *Service) GetMDMAppleEnrollmentProfileByToken(ctx context.Context, tok
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 	return mobileconfig, nil
-}
-
-// enrollmentProfileMobileconfigTemplate is the template Fleet uses to assemble a .mobileconfig enrollment profile to serve to devices.
-//
-// During a profile replacement, the system updates payloads with the same PayloadIdentifier and
-// PayloadUUID in the old and new profiles.
-var enrollmentProfileMobileconfigTemplate = template.Must(template.New("").Parse(`
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-	<key>PayloadContent</key>
-	<array>
-		<dict>
-			<key>PayloadContent</key>
-			<dict>
-				<key>Key Type</key>
-				<string>RSA</string>
-				<key>Challenge</key>
-				<string>{{ .SCEPChallenge }}</string>
-				<key>Key Usage</key>
-				<integer>5</integer>
-				<key>Keysize</key>
-				<integer>2048</integer>
-				<key>URL</key>
-				<string>{{ .SCEPURL }}</string>
-				<key>Subject</key>
-				<array>
-					<array><array><string>O</string><string>FleetDM</string></array></array>
-					<array><array><string>CN</string><string>FleetDM Identity</string></array></array>
-				</array>
-			</dict>
-			<key>PayloadIdentifier</key>
-			<string>com.fleetdm.fleet.mdm.apple.scep</string>
-			<key>PayloadType</key>
-			<string>com.apple.security.scep</string>
-			<key>PayloadUUID</key>
-			<string>BCA53F9D-5DD2-494D-98D3-0D0F20FF6BA1</string>
-			<key>PayloadVersion</key>
-			<integer>1</integer>
-		</dict>
-		<dict>
-			<key>AccessRights</key>
-			<integer>8191</integer>
-			<key>CheckOutWhenRemoved</key>
-			<true/>
-			<key>IdentityCertificateUUID</key>
-			<string>BCA53F9D-5DD2-494D-98D3-0D0F20FF6BA1</string>
-			<key>PayloadIdentifier</key>
-			<string>com.fleetdm.fleet.mdm.apple.mdm</string>
-			<key>PayloadType</key>
-			<string>com.apple.mdm</string>
-			<key>PayloadUUID</key>
-			<string>29713130-1602-4D27-90C9-B822A295E44E</string>
-			<key>PayloadVersion</key>
-			<integer>1</integer>
-			<key>ServerCapabilities</key>
-			<array>
-				<string>com.apple.mdm.per-user-connections</string>
-				<string>com.apple.mdm.bootstraptoken</string>
-			</array>
-			<key>ServerURL</key>
-			<string>{{ .ServerURL }}</string>
-			<key>SignMessage</key>
-			<true/>
-			<key>Topic</key>
-			<string>{{ .Topic }}</string>
-		</dict>
-	</array>
-	<key>PayloadDisplayName</key>
-	<string>{{ .Organization }} Enrollment</string>
-	<key>PayloadIdentifier</key>
-	<string>` + apple_mdm.FleetPayloadIdentifier + `</string>
-	<key>PayloadOrganization</key>
-	<string>{{ .Organization }}</string>
-	<key>PayloadScope</key>
-	<string>System</string>
-	<key>PayloadType</key>
-	<string>Configuration</string>
-	<key>PayloadUUID</key>
-	<string>5ACABE91-CE30-4C05-93E3-B235C152404E</string>
-	<key>PayloadVersion</key>
-	<integer>1</integer>
-</dict>
-</plist>`))
-
-func generateEnrollmentProfileMobileconfig(orgName, fleetURL, scepChallenge, topic string) ([]byte, error) {
-	scepURL, err := apple_mdm.ResolveAppleSCEPURL(fleetURL)
-	if err != nil {
-		return nil, fmt.Errorf("resolve Apple SCEP url: %w", err)
-	}
-	serverURL, err := apple_mdm.ResolveAppleMDMURL(fleetURL)
-	if err != nil {
-		return nil, fmt.Errorf("resolve Apple MDM url: %w", err)
-	}
-
-	var escaped strings.Builder
-	if err := xml.EscapeText(&escaped, []byte(scepChallenge)); err != nil {
-		return nil, fmt.Errorf("escape SCEP challenge for XML: %w", err)
-	}
-
-	var buf bytes.Buffer
-	if err := enrollmentProfileMobileconfigTemplate.Execute(&buf, struct {
-		Organization  string
-		SCEPURL       string
-		SCEPChallenge string
-		Topic         string
-		ServerURL     string
-	}{
-		Organization:  orgName,
-		SCEPURL:       scepURL,
-		SCEPChallenge: escaped.String(),
-		Topic:         topic,
-		ServerURL:     serverURL,
-	}); err != nil {
-		return nil, fmt.Errorf("execute template: %w", err)
-	}
-	return buf.Bytes(), nil
 }
 
 type mdmAppleCommandRemoveEnrollmentProfileRequest struct {
@@ -1469,12 +1348,6 @@ func batchSetMDMAppleProfilesEndpoint(ctx context.Context, request interface{}, 
 }
 
 func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tmName *string, profiles [][]byte, dryRun bool) error {
-	if !svc.config.MDMApple.Enable {
-		// TODO(mna): eventually we should detect the minimum config required for
-		// this to be allowed, probably just SCEP/APNs?
-		svc.authz.SkipAuthorization(ctx) // so that the error message is not replaced by "forbidden"
-		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("mdm", "cannot set custom settings: Fleet MDM is not enabled"))
-	}
 	if tmID != nil && tmName != nil {
 		svc.authz.SkipAuthorization(ctx) // so that the error message is not replaced by "forbidden"
 		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("team_name", "cannot specify both team_id and team_name"))
@@ -1512,6 +1385,21 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 
 	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleConfigProfile{TeamID: tmID}, fleet.ActionWrite); err != nil {
 		return ctxerr.Wrap(ctx, err)
+	}
+
+	if !svc.config.MDMApple.Enable {
+		// NOTE: in order to prevent an error when Fleet MDM is not enabled but no
+		// profile is provided, which can happen if a user runs `fleetctl get
+		// config` and tries to apply that YAML, as it will contain an empty/null
+		// custom_settings key, we just return a success response in this
+		// situation.
+		if len(profiles) == 0 {
+			return nil
+		}
+
+		// TODO(mna): eventually we should detect the minimum config required for
+		// this to be allowed, probably just SCEP/APNs?
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("mdm", "cannot set custom settings: Fleet MDM is not enabled"))
 	}
 
 	// any duplicate identifier or name in the provided set results in an error
@@ -1565,14 +1453,109 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+// Update MDM Apple Settings
+////////////////////////////////////////////////////////////////////////////////
+
+type updateMDMAppleSettingsRequest struct {
+	fleet.MDMAppleSettingsPayload
+}
+
+type updateMDMAppleSettingsResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r updateMDMAppleSettingsResponse) error() error { return r.Err }
+
+func (r updateMDMAppleSettingsResponse) Status() int { return http.StatusNoContent }
+
+// This endpoint is required because the UI must allow maintainers (in addition
+// to admins) to update some MDM Apple settings, while the update config/update
+// team endpoints only allow write access to admins.
+func updateMDMAppleSettingsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*updateMDMAppleSettingsRequest)
+	if err := svc.UpdateMDMAppleSettings(ctx, req.MDMAppleSettingsPayload); err != nil {
+		return updateMDMAppleSettingsResponse{Err: err}, nil
+	}
+	return updateMDMAppleSettingsResponse{}, nil
+}
+
+func (svc *Service) UpdateMDMAppleSettings(ctx context.Context, payload fleet.MDMAppleSettingsPayload) error {
+	// for now, assume all settings require premium (this is true for the first
+	// supported setting, enable_disk_encryption. Adjust as needed in the future
+	// if this is not always the case).
+	license, err := svc.License(ctx)
+	if err != nil {
+		svc.authz.SkipAuthorization(ctx) // so that the error message is not replaced by "forbidden"
+		return err
+	}
+	if !license.IsPremium() {
+		svc.authz.SkipAuthorization(ctx) // so that the error message is not replaced by "forbidden"
+		return ErrMissingLicense
+	}
+
+	if err := svc.authz.Authorize(ctx, payload, fleet.ActionWrite); err != nil {
+		return ctxerr.Wrap(ctx, err)
+	}
+
+	if payload.TeamID != nil {
+		tm, err := svc.EnterpriseOverrides.TeamByIDOrName(ctx, payload.TeamID, nil)
+		if err != nil {
+			return err
+		}
+		return svc.EnterpriseOverrides.UpdateTeamMDMAppleSettings(ctx, tm, payload)
+	}
+	return svc.updateAppConfigMDMAppleSettings(ctx, payload)
+}
+
+func (svc *Service) updateAppConfigMDMAppleSettings(ctx context.Context, payload fleet.MDMAppleSettingsPayload) error {
+	ac, err := svc.AppConfig(ctx)
+	if err != nil {
+		return err
+	}
+
+	var didUpdate, didUpdateMacOSDiskEncryption bool
+	if payload.EnableDiskEncryption != nil {
+		if ac.MDM.MacOSSettings.EnableDiskEncryption != *payload.EnableDiskEncryption {
+			ac.MDM.MacOSSettings.EnableDiskEncryption = *payload.EnableDiskEncryption
+			didUpdate = true
+			didUpdateMacOSDiskEncryption = true
+		}
+	}
+
+	if didUpdate {
+		if err := svc.ds.SaveAppConfig(ctx, ac); err != nil {
+			return err
+		}
+		if didUpdateMacOSDiskEncryption {
+			var act fleet.ActivityDetails
+			if ac.MDM.MacOSSettings.EnableDiskEncryption {
+				act = fleet.ActivityTypeEnabledMacosDiskEncryption{}
+				if err := svc.EnterpriseOverrides.MDMAppleEnableFileVaultAndEscrow(ctx, nil); err != nil {
+					return ctxerr.Wrap(ctx, err, "enable no-team filevault and escrow")
+				}
+			} else {
+				act = fleet.ActivityTypeDisabledMacosDiskEncryption{}
+				if err := svc.EnterpriseOverrides.MDMAppleDisableFileVaultAndEscrow(ctx, nil); err != nil {
+					return ctxerr.Wrap(ctx, err, "disable no-team filevault and escrow")
+				}
+			}
+			if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+				return ctxerr.Wrap(ctx, err, "create activity for app config macos disk encryption")
+			}
+		}
+	}
+	return nil
+}
+
+////////////////////////////////////////////////////////////////////////////////
 // FileVault-related free version implementation
 ////////////////////////////////////////////////////////////////////////////////
 
-func (svc *Service) MDMAppleEnableFileVaultAndEscrow(ctx context.Context, teamID uint) error {
+func (svc *Service) MDMAppleEnableFileVaultAndEscrow(ctx context.Context, teamID *uint) error {
 	return fleet.ErrMissingLicense
 }
 
-func (svc *Service) MDMAppleDisableFileVaultAndEscrow(ctx context.Context, teamID uint) error {
+func (svc *Service) MDMAppleDisableFileVaultAndEscrow(ctx context.Context, teamID *uint) error {
 	return fleet.ErrMissingLicense
 }
 
@@ -1706,7 +1689,7 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 
 	switch requestType {
 	case "InstallProfile":
-		return nil, svc.ds.UpdateHostMDMAppleProfile(r.Context, &fleet.HostMDMAppleProfile{
+		return nil, svc.ds.UpdateOrDeleteHostMDMAppleProfile(r.Context, &fleet.HostMDMAppleProfile{
 			CommandUUID:   res.CommandUUID,
 			HostUUID:      res.UDID,
 			Status:        fleet.MDMAppleDeliveryStatusFromCommandStatus(res.Status),
@@ -1714,7 +1697,7 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 			OperationType: fleet.MDMAppleOperationTypeInstall,
 		})
 	case "RemoveProfile":
-		return nil, svc.ds.UpdateHostMDMAppleProfile(r.Context, &fleet.HostMDMAppleProfile{
+		return nil, svc.ds.UpdateOrDeleteHostMDMAppleProfile(r.Context, &fleet.HostMDMAppleProfile{
 			CommandUUID:   res.CommandUUID,
 			HostUUID:      res.UDID,
 			Status:        fleet.MDMAppleDeliveryStatusFromCommandStatus(res.Status),
@@ -1999,7 +1982,9 @@ func ReconcileProfiles(
 				level.Debug(logger).Log("err", "sending push notifications, profiles still enqueued", "details", err)
 			case err != nil:
 				level.Error(logger).Log("err", "removing profiles from devices", "details", err)
+				// TODO(mna): Am I missing something or are we sending two times for a single host here in case of error?
 				ch <- remoteResult{err, pp}
+				return
 			}
 
 			ch <- remoteResult{nil, pp}
@@ -2024,7 +2009,6 @@ func ReconcileProfiles(
 				failed = append(failed, &newPayload)
 			}
 		}
-
 	}
 	err = ds.BulkUpsertMDMAppleHostProfiles(ctx, failed)
 	if err != nil {

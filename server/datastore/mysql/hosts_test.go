@@ -143,6 +143,7 @@ func TestHosts(t *testing.T) {
 		{"GetUnverifiedDiskEncryptionKeys", testHostsGetUnverifiedDiskEncryptionKeys},
 		{"EnrollOrbit", testHostsEnrollOrbit},
 		{"EnrollUpdatesMissingInfo", testHostsEnrollUpdatesMissingInfo},
+		{"EncryptionKeyRawDecryption", testHostsEncryptionKeyRawDecryption},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -6344,4 +6345,57 @@ func testHostsEnrollUpdatesMissingInfo(t *testing.T, ds *Datastore) {
 	require.Equal(t, "osquery", *got.NodeKey)
 	require.NotNil(t, got.TeamID)
 	require.Equal(t, tm.ID, *got.TeamID)
+}
+
+func testHostsEncryptionKeyRawDecryption(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         ptr.String("1"),
+		UUID:            "1",
+		OsqueryHostID:   ptr.String("1"),
+		Hostname:        "foo.local",
+		PrimaryIP:       "192.168.1.1",
+		PrimaryMac:      "30-65-EC-6F-C4-58",
+	})
+	require.NoError(t, err)
+
+	// no disk encryption key information
+	got, err := ds.Host(ctx, host.ID)
+	require.NoError(t, err)
+	require.False(t, got.MDM.EncryptionKeyAvailable)
+	require.NotNil(t, got.MDM.TestGetRawDecryptable())
+	require.Equal(t, -1, *got.MDM.TestGetRawDecryptable())
+
+	// create the encryption key row, but unknown decryptable
+	err = ds.SetOrUpdateHostDiskEncryptionKey(ctx, host.ID, "abc")
+	require.NoError(t, err)
+
+	got, err = ds.Host(ctx, host.ID)
+	require.NoError(t, err)
+	require.False(t, got.MDM.EncryptionKeyAvailable)
+	require.Nil(t, got.MDM.TestGetRawDecryptable())
+
+	// mark the key as non-decryptable
+	err = ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{host.ID}, false, time.Now())
+	require.NoError(t, err)
+
+	got, err = ds.Host(ctx, host.ID)
+	require.NoError(t, err)
+	require.False(t, got.MDM.EncryptionKeyAvailable)
+	require.NotNil(t, got.MDM.TestGetRawDecryptable())
+	require.Equal(t, 0, *got.MDM.TestGetRawDecryptable())
+
+	// mark the key as decryptable
+	err = ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{host.ID}, true, time.Now())
+	require.NoError(t, err)
+
+	got, err = ds.Host(ctx, host.ID)
+	require.NoError(t, err)
+	require.True(t, got.MDM.EncryptionKeyAvailable)
+	require.NotNil(t, got.MDM.TestGetRawDecryptable())
+	require.Equal(t, 1, *got.MDM.TestGetRawDecryptable())
 }

@@ -22,6 +22,7 @@ type Service struct {
 	authz             *authz.Authorizer
 	depStorage        storage.AllStorage
 	mdmAppleCommander fleet.MDMAppleCommandIssuer
+	mdmPushCertTopic  string
 }
 
 func NewService(
@@ -33,6 +34,7 @@ func NewService(
 	c clock.Clock,
 	depStorage storage.AllStorage,
 	mdmAppleCommander fleet.MDMAppleCommandIssuer,
+	mdmPushCertTopic string,
 ) (*Service, error) {
 	authorizer, err := authz.NewAuthorizer()
 	if err != nil {
@@ -48,13 +50,17 @@ func NewService(
 		authz:             authorizer,
 		depStorage:        depStorage,
 		mdmAppleCommander: mdmAppleCommander,
+		mdmPushCertTopic:  mdmPushCertTopic,
 	}
 
 	// Override methods that can't be easily overriden via
 	// embedding.
 	svc.SetEnterpriseOverrides(fleet.EnterpriseOverrides{
-		HostFeatures:   eeservice.HostFeatures,
-		TeamByIDOrName: eeservice.teamByIDOrName,
+		HostFeatures:                      eeservice.HostFeatures,
+		TeamByIDOrName:                    eeservice.teamByIDOrName,
+		UpdateTeamMDMAppleSettings:        eeservice.updateTeamMDMAppleSettings,
+		MDMAppleEnableFileVaultAndEscrow:  eeservice.MDMAppleEnableFileVaultAndEscrow,
+		MDMAppleDisableFileVaultAndEscrow: eeservice.MDMAppleDisableFileVaultAndEscrow,
 	})
 
 	return eeservice, nil
