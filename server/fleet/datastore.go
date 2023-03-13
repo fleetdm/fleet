@@ -819,6 +819,9 @@ type Datastore interface {
 	// each host in the specified team (or, if no team is specified, each host that is not assigned
 	// to any team).
 	GetMDMAppleHostsProfilesSummary(ctx context.Context, teamID *uint) (*MDMAppleHostsProfilesSummary, error)
+
+	// InsertMDMIdPAccount inserts a new MDM IdP account
+	InsertMDMIdPAccount(ctx context.Context, account *MDMIdPAccount) error
 }
 
 const (

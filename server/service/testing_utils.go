@@ -151,6 +151,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 			c,
 			depStorage,
 			NewMDMAppleCommander(mdmStorage, mdmPusher),
+			"",
 		)
 		if err != nil {
 			panic(err)
