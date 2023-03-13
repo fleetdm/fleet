@@ -2372,7 +2372,7 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-name: CIS - Ensure the Hide IP Address in Safari is Enabled (Based on organization's policy)
+  name: CIS - Ensure the Hide IP Address in Safari is Enabled (Based on organization's policy)
   platforms: macOS
   platform: darwin
   description: |
