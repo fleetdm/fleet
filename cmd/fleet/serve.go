@@ -614,6 +614,7 @@ the way that the Fleet server works.
 			if err != nil {
 				initFatal(errors.New("Error generating random instance identifier"), "")
 			}
+			level.Info(logger).Log("instanceID", instanceID)
 
 			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
 				return newCleanupsAndAggregationSchedule(ctx, instanceID, ds, logger, redisWrapperDS, &config)

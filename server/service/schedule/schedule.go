@@ -152,6 +152,10 @@ func New(
 	for _, fn := range opts {
 		fn(sch)
 	}
+	if sch.logger == nil {
+		sch.logger = log.NewNopLogger()
+	}
+	sch.logger = log.With(sch.logger, "instanceID", instanceID)
 	return sch
 }
 
