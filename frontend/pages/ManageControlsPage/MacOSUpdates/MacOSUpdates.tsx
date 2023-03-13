@@ -66,7 +66,7 @@ const MacOSUpdates = ({ location }: IMacOSUpdatesProps) => {
       <div className="upsell">
         <p>This feature is included in Fleet Premium.</p>
         <div className="external-link">
-          <CustomLink url="https://fleetdm.com/pricing" text="Learn more" />
+          <CustomLink url="https://fleetdm.com/upgrade" text="Learn more" />
           <Icon name="external-link" />
         </div>
       </div>
