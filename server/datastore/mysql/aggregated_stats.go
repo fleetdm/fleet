@@ -141,8 +141,15 @@ func calculatePercentiles(ctx context.Context, tx sqlx.ExtContext, aggregate str
 		return ctxerr.Wrap(ctx, err, "marshaling stats")
 	}
 
+	// NOTE: this function gets called for query and scheduled_query, so the id
+	// refers to a query/scheduled_query id, and it never computes "global"
+	// stats. For that reason, we always set global_stats=0.
 	_, err = tx.ExecContext(ctx,
-		`INSERT INTO aggregated_stats(id, type, json_value) VALUES(?, ?, ?) ON DUPLICATE KEY UPDATE json_value=VALUES(json_value)`,
+		`
+		INSERT INTO aggregated_stats(id, type, global_stats, json_value)
+		VALUES (?, ?, 0, ?)
+		ON DUPLICATE KEY UPDATE json_value=VALUES(json_value)
+		`,
 		id, aggregate, statsJson,
 	)
 	if err != nil {
