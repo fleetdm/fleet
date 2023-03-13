@@ -662,7 +662,7 @@ func listHostsCheckCount(t *testing.T, ds *Datastore, filter fleet.TeamFilter, o
 }
 
 func testHostListOptionsTeamFilter(t *testing.T, ds *Datastore) {
-	var teamIDFilterNil *uint = nil          // "All teams" option should include all hosts regardless of team assignment
+	var teamIDFilterNil *uint                // "All teams" option should include all hosts regardless of team assignment
 	var teamIDFilterZero *uint = ptr.Uint(0) // "No team" option should include only hosts that are not assigned to any team
 
 	team1, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
@@ -818,7 +818,7 @@ func testHostsListQuery(t *testing.T, ds *Datastore) {
 
 	filter := fleet.TeamFilter{User: test.UserAdmin}
 
-	var teamIDFilterNil *uint = nil          // "All teams" filter
+	var teamIDFilterNil *uint                // "All teams" filter
 	var teamIDFilterZero *uint = ptr.Uint(0) // "No team" filter
 
 	team1, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})

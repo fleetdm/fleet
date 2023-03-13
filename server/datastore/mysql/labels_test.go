@@ -446,7 +446,7 @@ func testLabelsListHostsInLabelAndTeamFilter(deferred bool, t *testing.T, db *Da
 	require.NoError(t, db.AddHostsToTeam(context.Background(), &team1.ID, []uint{h1.ID}))
 
 	filter := fleet.TeamFilter{User: test.UserAdmin}
-	var teamIDFilterNil *uint = nil          // "All teams" option should include all hosts regardless of team assignment
+	var teamIDFilterNil *uint                // "All teams" option should include all hosts regardless of team assignment
 	var teamIDFilterZero *uint = ptr.Uint(0) // "No team" option should include only hosts that are not assigned to any team
 
 	for _, h := range []*fleet.Host{h1, h2} {
