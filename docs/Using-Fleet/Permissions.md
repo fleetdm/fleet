@@ -96,6 +96,6 @@ Users that are members of multiple teams can be assigned different roles for eac
 | View disk encryption key for macOS hosts enrolled in Fleet's MDM                                                                 | ✅            | ✅              | ✅         |
 | Create edit and delete configuration profiles for macOS hosts enrolled in Fleet's MDM                                            |               | ✅              | ✅         |
 
-\** Applies only to [Fleet REST API](https://fleetdm.com/docs/using-fleet/rest-api)
+\* Applies only to [Fleet REST API](https://fleetdm.com/docs/using-fleet/rest-api)
 
 <meta name="pageOrderInSection" value="900">
