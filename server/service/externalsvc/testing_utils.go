@@ -66,13 +66,15 @@ func RunMockOktaServer(t *testing.T) *MockOktaServer {
 
 		if clientID != mock.ClientID || clientSecret != mock.ClientSecret() {
 			w.WriteHeader(http.StatusBadRequest)
-			w.Write([]byte(`{"error": "invalid_client", "error_description": "The client secret supplied for a confidential client is invalid."}`))
+			_, err := w.Write([]byte(`{"error": "invalid_client", "error_description": "The client secret supplied for a confidential client is invalid."}`))
+			require.NoError(t, err)
 			return
 		}
 
 		if r.FormValue("username") != mock.Username || r.FormValue("password") != mock.UserPassword {
 			w.WriteHeader(http.StatusUnauthorized)
-			w.Write([]byte(`{"error": "invalid_grant", "error_description": "The credentials provided were invalid."}`))
+			_, err := w.Write([]byte(`{"error": "invalid_grant", "error_description": "The credentials provided were invalid."}`))
+			require.NoError(t, err)
 			return
 		}
 

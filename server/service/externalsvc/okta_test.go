@@ -61,7 +61,8 @@ func TestOktaROPFlow(t *testing.T) {
 
 		mockOkta.SetCustomResp(func(w http.ResponseWriter) {
 			w.WriteHeader(http.StatusInternalServerError)
-			w.Write([]byte(`{invalid}`))
+			_, err := w.Write([]byte(`{invalid}`))
+			require.NoError(t, err)
 		})
 		err := okta.ROPLogin(context.Background(), mockOkta.Username, mockOkta.UserPassword)
 		require.Error(t, err)
