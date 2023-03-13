@@ -1930,7 +1930,7 @@ func ReconcileProfiles(
 
 	// Perform aggregations to support all the operations we need to do
 
-	/// toGetContents contains the IDs of all the profiles from which we
+	// toGetContents contains the IDs of all the profiles from which we
 	// need to retrieve contents. Since the previous query returns one row
 	// per host, it would be too expensive to retrieve the profile contents
 	// there, so we make another request.
@@ -2000,6 +2000,10 @@ func ReconcileProfiles(
 	for _, p := range hostProfiles {
 		go func(pp *fleet.MDMAppleBulkUpsertHostProfilePayload) {
 			var err error
+			// TODO(mna): I'm not sure this is correct? We pass multiple host UUIDs
+			// to Install/Remove profile, but we loop over each hostProfiles (so p
+			// represents a single host), and we send a single CommandUUID which is
+			// unique per host?
 			switch pp.OperationType {
 			case fleet.MDMAppleOperationTypeInstall:
 				err = commander.InstallProfile(ctx, targets[pp.ProfileID], profileContents[pp.ProfileID], pp.CommandUUID)
@@ -2012,8 +2016,9 @@ func ReconcileProfiles(
 			case errors.As(err, &e):
 				level.Debug(logger).Log("err", "sending push notifications, profiles still enqueued", "details", err)
 			case err != nil:
+				// TODO(mna): this log message seems erroneous, this might be for
+				// installing profiles too?
 				level.Error(logger).Log("err", "removing profiles from devices", "details", err)
-				// TODO(mna): Am I missing something or are we sending two times for a single host here in case of error?
 				ch <- remoteResult{err, pp}
 				return
 			}
@@ -2033,6 +2038,10 @@ func ReconcileProfiles(
 		resp := <-ch
 		if resp.Err != nil {
 			resp.Payload.CommandUUID = ""
+			// TODO(mna): so we set status to nil instead of pending so that it gets
+			// picked up again? This means that if we set it to pending immediately
+			// when a new profile is added or a host moves to a team, it would not
+			// get picked currently?
 			resp.Payload.Status = nil
 			for _, hostUUID := range targets[resp.Payload.ProfileID] {
 				newPayload := *resp.Payload

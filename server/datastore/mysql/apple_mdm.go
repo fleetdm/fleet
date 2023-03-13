@@ -956,8 +956,15 @@ func (ds *Datastore) ListMDMAppleProfilesToInstall(ctx context.Context) ([]*flee
           WHERE
           hmap.profile_id IS NULL
           AND hmap.host_uuid IS NULL
-          AND hmap.status != 'pending' OR hmap.status IS NULL
-          AND hmap.operation_type != 'install' OR hmap.operation_type IS NULL
+					-- TODO(mna): correct me if I'm wrong but if hmap.profile_id and hmap.host_uuid
+					-- must be NULL, and those are the non-nullable primary keys of hmap, then any
+					-- other hmap conditions don't matter - we care about profiles that exist in macp but
+					-- not at all in hmap? (i.e. it's impossible for hmap.profile_id to be NULL AND for
+					-- hmap.status to be anything but NULL, same for hmap.operation_type).
+					-- I think what we want here is actually not just profile_id+host_uuid being NULL,
+					-- but EITHER NULL OR NOT NULL and the status/operation conditions?
+          -- AND hmap.status != 'pending' OR hmap.status IS NULL
+          -- AND hmap.operation_type != 'install' OR hmap.operation_type IS NULL
           -- accounts for the edge case of having profiles but not having hosts
           AND ds.host_uuid IS NOT NULL
 	`
@@ -986,6 +993,10 @@ func (ds *Datastore) ListMDMAppleProfilesToRemove(ctx context.Context) ([]*fleet
           ) as ds
           RIGHT JOIN host_mdm_apple_profiles hmap
             ON hmap.profile_id = ds.profile_id AND hmap.host_uuid = ds.uuid
+					-- TODO(mna): I think it should also return profiles that have a row in hmap
+					-- where operation_type == 'remove' but status is NULL, so that they are
+					-- processed again/retried in ReconcileProfiles? If they failed to be removed,
+					-- the row will still exist with operation_type but the status will be set to NULL.
           WHERE ds.profile_id IS NULL AND ds.uuid IS NULL
           AND hmap.operation_type != 'remove'
 	`
@@ -1130,6 +1141,8 @@ SELECT
 						OR hmap.status = 'pending')) THEN
 			1
 		END) AS applied
+		-- TODO(mna): currently the NULL status don't show up anywhere in the stats,
+		-- should NULL status count as pending? I think this is technicall correct?
 FROM
 	hosts h
 WHERE

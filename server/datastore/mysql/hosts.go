@@ -856,6 +856,8 @@ func filterHostsByMacOSSettingsStatus(sql string, opt fleet.HostListOptions, par
 		newSQL += ` AND h.team_id IS NULL`
 	}
 
+	// TODO(mna): we'd have to support the case where the status is NULL in this
+	// host filter.
 	newSQL += ` AND EXISTS (SELECT 1 FROM host_mdm_apple_profiles hmap WHERE hmap.host_uuid = h.uuid AND status = ?`
 
 	switch opt.MacOSSettingsFilter {
