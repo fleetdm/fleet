@@ -16,6 +16,8 @@ type notFoundError struct {
 	Name         string
 	Message      string
 	ResourceType string
+
+	fleet.ErrorWithUUID
 }
 
 var _ fleet.NotFoundError = (*notFoundError)(nil)
@@ -69,6 +71,8 @@ type existsError struct {
 	Identifier   interface{}
 	ResourceType string
 	TeamID       *uint
+
+	fleet.ErrorWithUUID
 }
 
 func alreadyExists(kind string, identifier interface{}) error {
@@ -111,6 +115,8 @@ func isDuplicate(err error) bool {
 type foreignKeyError struct {
 	Name         string
 	ResourceType string
+
+	fleet.ErrorWithUUID
 }
 
 func foreignKey(kind string, name string) error {

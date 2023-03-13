@@ -719,7 +719,7 @@ func TestEmptyTeamOSVersions(t *testing.T) {
 			}, nil
 		}
 
-		return nil, notFoundError{}
+		return nil, newNotFoundError()
 	}
 
 	ds.OSVersionsFunc = func(ctx context.Context, teamID *uint, platform *string, name *string, version *string) (*fleet.OSVersions, error) {
@@ -730,7 +730,7 @@ func TestEmptyTeamOSVersions(t *testing.T) {
 			return nil, errors.New("some unknown error")
 		}
 
-		return nil, notFoundError{}
+		return nil, newNotFoundError()
 	}
 
 	// team exists with stats

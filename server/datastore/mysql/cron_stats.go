@@ -84,16 +84,21 @@ func (ds *Datastore) UpdateAllCronStatsForInstance(ctx context.Context, instance
 }
 
 func (ds *Datastore) CleanupCronStats(ctx context.Context) error {
-	deleteStmt := `DELETE FROM cron_stats WHERE created_at < DATE_SUB(NOW(), INTERVAL ? DAY)`
-	const MAX_DAYS_RETAINED = 2
-	if _, err := ds.writer.ExecContext(ctx, deleteStmt, MAX_DAYS_RETAINED); err != nil {
-		return ctxerr.Wrap(ctx, err, "deleting old cron stats")
-	}
-	const MAX_HOURS_PENDING = 2
-	updateStmt := `UPDATE cron_stats SET status = ? WHERE created_at < DATE_SUB(NOW(), INTERVAL ? HOUR) AND status = ?`
-	if _, err := ds.writer.ExecContext(ctx, updateStmt, fleet.CronStatsStatusExpired, MAX_HOURS_PENDING, fleet.CronStatsStatusPending); err != nil {
-		return ctxerr.Wrap(ctx, err, "updating expired cron stats")
-	}
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		// Delete cron_stats entries that are older than two days.
+		deleteStmt := `DELETE FROM cron_stats WHERE created_at < DATE_SUB(NOW(), INTERVAL 2 DAY)`
+		if _, err := tx.ExecContext(ctx, deleteStmt); err != nil {
+			return ctxerr.Wrap(ctx, err, "deleting old cron stats")
+		}
+		// Delete cron_stats entries that have been in pending state for more than two hours.
+		//
+		// NOTE(lucas): We don't know of any job that is taking longer than two hours. This value might need changing
+		// if that is not true anymore in the future.
+		updateStmt := `UPDATE cron_stats SET status = ? WHERE created_at < DATE_SUB(NOW(), INTERVAL 2 HOUR) AND status = ?`
+		if _, err := tx.ExecContext(ctx, updateStmt, fleet.CronStatsStatusExpired, fleet.CronStatsStatusPending); err != nil {
+			return ctxerr.Wrap(ctx, err, "updating expired cron stats")
+		}
 
-	return nil
+		return nil
+	})
 }

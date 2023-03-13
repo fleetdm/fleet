@@ -516,7 +516,7 @@ func TestModifyUserEmailNoPassword(t *testing.T) {
 	var iae *fleet.InvalidArgumentError
 	ok := errors.As(err, &iae)
 	require.True(t, ok)
-	require.Len(t, *iae, 1)
+	require.Len(t, iae.Errors, 1)
 	assert.False(t, ms.PendingEmailChangeFuncInvoked)
 	assert.False(t, ms.SaveUserFuncInvoked)
 }
@@ -565,7 +565,7 @@ func TestModifyAdminUserEmailNoPassword(t *testing.T) {
 	var iae *fleet.InvalidArgumentError
 	ok := errors.As(err, &iae)
 	require.True(t, ok)
-	require.Len(t, *iae, 1)
+	require.Len(t, iae.Errors, 1)
 	assert.False(t, ms.PendingEmailChangeFuncInvoked)
 	assert.False(t, ms.SaveUserFuncInvoked)
 }
@@ -1277,7 +1277,7 @@ func TestTeamAdminAddRoleOtherTeam(t *testing.T) {
 
 	ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
 		if id != 1 {
-			return nil, &notFoundError{}
+			return nil, newNotFoundError()
 		}
 		return adminTeam2, nil
 	}

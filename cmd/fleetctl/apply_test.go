@@ -1115,7 +1115,7 @@ spec:
   server_settings:
     server_url: 123
 `,
-			wantErr: `400 Bad request: json: cannot unmarshal number into Go struct field ServerSettings.server_settings.server_url of type string`,
+			wantErr: `400 Bad request: failed to decode app config`,
 		},
 		{
 			desc: "config with invalid agent options in dry-run",
@@ -1570,7 +1570,7 @@ spec:
     macos_settings:
       enable_disk_encryption: 123
 `,
-			wantErr: `400 Bad request: json: cannot unmarshal number into Go struct field MacOSSettings.mdm.macos_settings.enable_disk_encryption of type bool`,
+			wantErr: `400 Bad request: failed to decode app config`,
 		},
 		{
 			desc: "app config macos_settings.enable_disk_encryption true",
