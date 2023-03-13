@@ -74,9 +74,6 @@ func verifyPolicyQuery(query string) error {
 	if emptyString(query) {
 		return errPolicyEmptyQuery
 	}
-	if validateSQLRegexp.MatchString(query) {
-		return errPolicyInvalidQuery
-	}
 	return nil
 }
 
