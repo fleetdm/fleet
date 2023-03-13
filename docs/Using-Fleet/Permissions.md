@@ -36,6 +36,7 @@ Users with the Admin role receive all permissions.
 | Create, edit, and delete teams\*                                                                                                           |          |            | ✅    |
 | Create, edit, and delete [enroll secrets](https://fleetdm.com/docs/deploying/faq#when-do-i-need-to-deploy-a-new-enroll-secret-to-my-hosts) |          | ✅         | ✅    |
 | Create, edit, and delete [enroll secrets for teams](https://fleetdm.com/docs/using-fleet/rest-api#get-enroll-secrets-for-a-team)\*         |          | ✅         | ✅    |
+| Read organization settings and agent options\** | ✅        | ✅          | ✅    |
 | Edit [organization settings](https://fleetdm.com/docs/using-fleet/configuration-files#organization-settings)                               |          |            | ✅    |
 | Edit [agent options](https://fleetdm.com/docs/using-fleet/configuration-files#agent-options)                                               |          |            | ✅    |
 | Edit [agent options for hosts assigned to teams](https://fleetdm.com/docs/using-fleet/configuration-files#team-agent-options)\*            |          |            | ✅    |
@@ -48,6 +49,8 @@ Users with the Admin role receive all permissions.
 | Create edit and delete configuration profiles for macOS hosts enrolled in Fleet's MDM                                                      |         | ✅         | ✅    |
 
 \*Applies only to Fleet Premium
+
+\** Applies only to [Fleet REST API](https://fleetdm.com/docs/using-fleet/rest-api)
 
 ## Team member permissions
 
@@ -87,9 +90,12 @@ Users that are members of multiple teams can be assigned different roles for eac
 | Add and remove team members                                                                                                      |               |                 | ✅         |
 | Edit team name                                                                                                                   |               |                 | ✅         |
 | Create, edit, and delete [team enroll secrets](https://fleetdm.com/docs/using-fleet/rest-api#get-enroll-secrets-for-a-team)      |               | ✅              | ✅         |
+| Read agent options\* | ✅              | ✅         | ✅         |
 | Edit [agent options](https://fleetdm.com/docs/using-fleet/configuration-files#agent-options)                                     |               |                 | ✅         |
 | Initiate [file carving](https://fleetdm.com/docs/using-fleet/rest-api#file-carving)                                              |               | ✅              | ✅         |
 | View disk encryption key for macOS hosts enrolled in Fleet's MDM                                                                 | ✅            | ✅              | ✅         |
 | Create edit and delete configuration profiles for macOS hosts enrolled in Fleet's MDM                                            |               | ✅              | ✅         |
+
+\* Applies only to [Fleet REST API](https://fleetdm.com/docs/using-fleet/rest-api)
 
 <meta name="pageOrderInSection" value="900">
