@@ -1982,7 +1982,7 @@ func TestAuthenticationErrors(t *testing.T) {
 
 	_, _, err := svc.AuthenticateHost(ctx, "")
 	require.Error(t, err)
-	require.True(t, err.(osqueryError).NodeInvalid())
+	require.True(t, err.(*osqueryError).NodeInvalid())
 
 	ms.LoadHostByNodeKeyFunc = func(ctx context.Context, nodeKey string) (*fleet.Host, error) {
 		return &fleet.Host{ID: 1}, nil
@@ -1995,12 +1995,12 @@ func TestAuthenticationErrors(t *testing.T) {
 
 	// return not found error
 	ms.LoadHostByNodeKeyFunc = func(ctx context.Context, nodeKey string) (*fleet.Host, error) {
-		return nil, notFoundError{}
+		return nil, newNotFoundError()
 	}
 
 	_, _, err = svc.AuthenticateHost(ctx, "foo")
 	require.Error(t, err)
-	require.True(t, err.(osqueryError).NodeInvalid())
+	require.True(t, err.(*osqueryError).NodeInvalid())
 
 	// return other error
 	ms.LoadHostByNodeKeyFunc = func(ctx context.Context, nodeKey string) (*fleet.Host, error) {
@@ -2009,7 +2009,7 @@ func TestAuthenticationErrors(t *testing.T) {
 
 	_, _, err = svc.AuthenticateHost(ctx, "foo")
 	require.NotNil(t, err)
-	require.False(t, err.(osqueryError).NodeInvalid())
+	require.False(t, err.(*osqueryError).NodeInvalid())
 }
 
 func TestGetHostIdentifier(t *testing.T) {

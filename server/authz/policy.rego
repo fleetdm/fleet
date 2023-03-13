@@ -71,18 +71,18 @@ allow {
   not is_null(subject)
   action == read
 }
-# For specific teams, only members can read
+# For specific teams, only members can read.
 allow {
   object.type == "team"
   object.id != 0
-  team_role(subject, object.id) == [admin,maintainer][_]
+  team_role(subject, object.id) == [admin,maintainer,observer][_]
   action == read
 }
-# or global admins or global maintainers
+# Global users can read all teams.
 allow {
   object.type == "team"
   object.id != 0
-  subject.global_role == [admin, maintainer][_]
+  subject.global_role == [admin, maintainer, observer][_]
   action == read
 }
 

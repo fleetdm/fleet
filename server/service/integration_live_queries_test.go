@@ -563,3 +563,49 @@ func (s *liveQueriesTestSuite) TestOsqueryDistributedReadWithFeatures() {
 	require.Contains(t, dqResp.Queries, "fleet_detail_query_users")
 	require.Contains(t, dqResp.Queries, "fleet_detail_query_software_macos")
 }
+
+func (s *liveQueriesTestSuite) TestCreateDistributedQueryCampaignBadRequest() {
+	t := s.T()
+
+	host, err := s.ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now().Add(-1 * time.Minute),
+		OsqueryHostID:   ptr.String(t.Name()),
+		NodeKey:         ptr.String(t.Name()),
+		UUID:            uuid.New().String(),
+		Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
+		Platform:        "darwin",
+	})
+	require.NoError(t, err)
+
+	// Query provided but no targets provided
+	req := createDistributedQueryCampaignRequest{
+		QuerySQL: "SELECT * FROM osquery_info;",
+	}
+	var createResp createDistributedQueryCampaignResponse
+	s.DoJSON("POST", "/api/latest/fleet/queries/run", req, http.StatusBadRequest, &createResp)
+
+	// Target provided but no query provided.
+	req = createDistributedQueryCampaignRequest{
+		Selected: fleet.HostTargets{HostIDs: []uint{host.ID}},
+	}
+	s.DoJSON("POST", "/api/latest/fleet/queries/run", req, http.StatusUnprocessableEntity, &createResp)
+
+	// Query "provided" but empty.
+	req = createDistributedQueryCampaignRequest{
+		QuerySQL: " ",
+		Selected: fleet.HostTargets{HostIDs: []uint{host.ID}},
+	}
+	s.DoJSON("POST", "/api/latest/fleet/queries/run", req, http.StatusUnprocessableEntity, &createResp)
+
+	s.lq.On("RunQuery", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Query and targets provided.
+	req = createDistributedQueryCampaignRequest{
+		QuerySQL: "select \"With automounting enabled anyone with physical access could attach a USB drive or disc and have its contents available in system even if they lacked permissions to mount it themselves.\" as Rationale;",
+		Selected: fleet.HostTargets{HostIDs: []uint{host.ID}},
+	}
+	s.DoJSON("POST", "/api/latest/fleet/queries/run", req, http.StatusOK, &createResp)
+}

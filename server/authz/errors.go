@@ -19,6 +19,8 @@ type Forbidden struct {
 	subject  *fleet.User
 	object   interface{}
 	action   interface{}
+
+	fleet.ErrorWithUUID
 }
 
 // ForbiddenWithInternal creates a new error that will return a simple
@@ -61,6 +63,8 @@ func (e *Forbidden) LogFields() []interface{} {
 // by the service.
 type CheckMissing struct {
 	response interface{}
+
+	fleet.ErrorWithUUID
 }
 
 // CheckMissingWithResponse creates a new error indicating the authorization

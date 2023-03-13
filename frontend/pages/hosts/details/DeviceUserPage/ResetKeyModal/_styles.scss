@@ -1,0 +1,20 @@
+.reset-key-modal {
+  &__start-button {
+    margin-top: 12px;
+  }
+
+  &__success {
+    margin-top: 12px;
+    padding: $pad-small;
+    height: 22px;
+  }
+
+  ol {
+    padding-left: 0;
+  }
+
+  li {
+    margin-bottom: $pad-large;
+    list-style: number inside;
+  }
+}
