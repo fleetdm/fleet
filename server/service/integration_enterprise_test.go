@@ -1980,6 +1980,7 @@ func (s *integrationEnterpriseTestSuite) TestAppleMDMNotConfigured() {
 	s.DoJSON("GET", "/api/latest/fleet/mdm/apple_bm", nil, http.StatusNotFound, &rawResp)
 	// update MDM settings, the endpoint is not even mounted if MDM is not enabled
 	s.Do("PATCH", "/api/latest/fleet/mdm/apple/settings", fleet.MDMAppleSettingsPayload{}, http.StatusNotFound)
+	s.Do("POST", "/api/latest/fleet/mdm/apple/dep_login", nil, http.StatusNotFound)
 }
 
 func (s *integrationEnterpriseTestSuite) TestGlobalPolicyCreateReadPatch() {

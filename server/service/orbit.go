@@ -75,7 +75,7 @@ func (r EnrollOrbitResponse) hijackRender(ctx context.Context, w http.ResponseWr
 	enc.SetIndent("", "  ")
 
 	if err := enc.Encode(r); err != nil {
-		encodeError(ctx, osqueryError{message: fmt.Sprintf("orbit enroll failed: %s", err)}, w)
+		encodeError(ctx, newOsqueryError(fmt.Sprintf("orbit enroll failed: %s", err)), w)
 	}
 }
 
@@ -300,13 +300,11 @@ func (svc *Service) SetOrUpdateDeviceAuthToken(ctx context.Context, deviceAuthTo
 
 	host, ok := hostctx.FromContext(ctx)
 	if !ok {
-		return osqueryError{message: "internal error: missing host from request context"}
+		return newOsqueryError("internal error: missing host from request context")
 	}
 
 	if err := svc.ds.SetOrUpdateDeviceAuthToken(ctx, host.ID, deviceAuthToken); err != nil {
-		return osqueryError{
-			message: fmt.Sprintf("internal error: failed to set or update device auth token: %e", err),
-		}
+		return newOsqueryError(fmt.Sprintf("internal error: failed to set or update device auth token: %e", err))
 	}
 
 	return nil

@@ -2054,7 +2054,7 @@ func (s *integrationTestSuite) TestTeamPoliciesProprietaryInvalid() {
 			tname:      "Invalid query",
 			testUpdate: true,
 			name:       "Invalid query",
-			query:      "ATTACH 'foo' AS bar;",
+			query:      "",
 		},
 	} {
 		t.Run(tc.tname, func(t *testing.T) {
@@ -4394,7 +4394,7 @@ func (s *integrationTestSuite) TestQueriesBadRequests() {
 		{
 			tname: "Invalid query",
 			name:  "Invalid query",
-			query: "ATTACH 'foo' AS bar;",
+			query: "",
 		},
 	} {
 		t.Run(tc.tname, func(t *testing.T) {
@@ -6305,6 +6305,7 @@ func (s *integrationTestSuite) TestPingEndpoints() {
 func (s *integrationTestSuite) TestAppleMDMNotConfigured() {
 	var rawResp json.RawMessage
 	s.DoJSON("GET", "/api/latest/fleet/mdm/apple", nil, http.StatusNotFound, &rawResp)
+	s.Do("POST", "/api/latest/fleet/mdm/apple/dep_login", nil, http.StatusNotFound)
 	s.DoJSON("GET", "/api/latest/fleet/mdm/apple_bm", nil, http.StatusPaymentRequired, &rawResp) // premium only
 }
 

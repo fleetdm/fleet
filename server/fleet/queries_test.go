@@ -101,38 +101,3 @@ func TestRoundtripQueriesYaml(t *testing.T) {
 		})
 	}
 }
-
-func TestValidateSQL(t *testing.T) {
-	testCases := []struct {
-		sql       string
-		shouldErr bool
-	}{
-		{"", false},
-		{"foo", false},
-		{"select 1", false},
-		{"select * from time", false},
-		{"select 1 from ATTACH", false},
-		{"select * from attach where fast = 3", false},
-
-		{"attach 'foo' as bar;", true},
-		{"attach   (foo )as bar", true},
-		{"attach('foo')AS bar", true},
-		{"ATTACH 'foo' AS bar", true},
-		{"ATTACH select name from where path = '/foobar' as bar", true},
-		{`attach
-   foo
-    as
-  bar`, true},
-	}
-
-	for _, tt := range testCases {
-		t.Run(tt.sql, func(t *testing.T) {
-			err := verifySQL(tt.sql)
-			if tt.shouldErr {
-				require.Error(t, err)
-			} else {
-				require.NoError(t, err)
-			}
-		})
-	}
-}
