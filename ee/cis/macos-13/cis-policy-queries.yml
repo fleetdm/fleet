@@ -2372,6 +2372,74 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
+name: CIS - Ensure the Hide IP Address in Safari is Enabled (Based on organization's policy)
+  platforms: macOS
+  platform: darwin
+  description: |
+    Public (Routable) IP addresses can be used to track people to their current location, including
+    home and business addresses. While a valid IP addess is necessary to load the site the valid
+    address does not need to be provided to known trackers and should be hidden.
+  resolution: |
+    Ask your system administrator to deploy a script that will configure "Hide IP Address in Safari" to Enabled
+      $ /usr/bin/sudo -u <username> /usr/bin/defaults write
+      /Users/<username>/Library/Containers/com.apple.Safari/Data/Library/Preferences
+      /com.apple.Safari WBSPrivacyProxyAvailabilityTraffic -int 130276
+  query: |
+    SELECT 1 WHERE 
+    NOT EXISTS(
+        SELECT 1 FROM plist 
+        WHERE path LIKE "/Users/%/Library/Containers/com.apple.Safari/Data/Library/Preferences/com.apple.Safari.plist"
+        AND key = "WBSPrivacyProxyAvailabilityTraffic" 
+        AND ((value >> 2) & 1) == 0
+        )
+    AND EXISTS(
+        SELECT 1 FROM plist 
+        WHERE path LIKE "/Users/%/Library/Containers/com.apple.Safari/Data/Library/Preferences/com.apple.Safari.plist"
+        AND key = "WBSPrivacyProxyAvailabilityTraffic" 
+        AND ((value >> 2) & 1) == 1
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS-macos-13-6.3.5-enabled, decision-needed
+  contributors: artemist-work
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure the Hide IP Address in Safari is Disabled (Based on organization's policy)
+  platforms: macOS
+  platform: darwin
+  description: |
+    Public (Routable) IP addresses can be used to track people to their current location, including
+    home and business addresses. While a valid IP addess is necessary to load the site the valid
+    address does not need to be provided to known trackers and should be hidden.
+    However, enabling this setting will proxy web information through a 3rd party service, which may
+    not be allowed by your organization's policy.
+  resolution: |
+    Ask your system administrator to deploy a script that will configure "Hide IP Address in Safari" to Enabled
+      $ /usr/bin/sudo -u <username> /usr/bin/defaults write
+      /Users/<username>/Library/Containers/com.apple.Safari/Data/Library/Preferences
+      /com.apple.Safari WBSPrivacyProxyAvailabilityTraffic -int 130272
+  query: |
+    SELECT 1 WHERE 
+    NOT EXISTS(
+        SELECT 1 FROM plist 
+        WHERE path LIKE "/Users/%/Library/Containers/com.apple.Safari/Data/Library/Preferences/com.apple.Safari.plist"
+        AND key = "WBSPrivacyProxyAvailabilityTraffic" 
+        AND ((value >> 2) & 1) == 1
+        )
+    AND EXISTS(
+        SELECT 1 FROM plist 
+        WHERE path LIKE "/Users/%/Library/Containers/com.apple.Safari/Data/Library/Preferences/com.apple.Safari.plist"
+        AND key = "WBSPrivacyProxyAvailabilityTraffic" 
+        AND ((value >> 2) & 1) == 0
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS-macos-13-6.3.5-disabled, decision-needed
+  contributors: artemist-work
+---
+apiVersion: v1
+kind: policy
+spec:
   name: CIS - Ensure Advertising Privacy Protection in Safari Is Enabled (FDA Required)
   platforms: macOS
   platform: darwin
