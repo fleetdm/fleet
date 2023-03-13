@@ -1435,7 +1435,7 @@ func (svc *Service) HostEncryptionKey(ctx context.Context, id uint) (*fleet.Host
 	}
 
 	if key.Decryptable == nil || !*key.Decryptable {
-		return nil, ctxerr.Wrap(ctx, notFoundError{}, "getting host encryption key")
+		return nil, ctxerr.Wrap(ctx, newNotFoundError(), "getting host encryption key")
 	}
 
 	cert, _, _, err := svc.config.MDM.AppleSCEP()
