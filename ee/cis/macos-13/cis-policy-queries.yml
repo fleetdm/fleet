@@ -847,7 +847,7 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure Location Services Is Disabled
+  name: CIS - Ensure Location Services Is Disabled to all applications (Based on organization's policy)
   platforms: macOS
   platform: darwin
   description: |
@@ -858,17 +858,53 @@ spec:
     Access should be evaluated to ensure that privacy controls are as expected.
     This query verifies that location services is disabled for all apps.    
   resolution: |
-    Automated method:
-    Ask your system administrator to deploy an MDM profile that enables the "location services" icon in menu bar when System Services request your location.
     Graphical Method:
         Perform the following steps to disable unnecessary applications from accessing Location Services:
         1. Open System Settings
         2. Select Privacy & Security
         3. Select Location Services
-        4. Setanyapplicationslistedtoyourorganization'srequirements
+        4. Set Location Services to disabled.
   query:  SELECT 1 FROM location_services WHERE enabled = 0;
   purpose: Informational
   tags: compliance, CIS, CIS_Level2, CIS-macos-13-2.6.1.3-Location-Service-disabled
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Location Services Is Enabled for a specific list of applications (Based on organization's policy) (MDM Required)
+  platforms: macOS
+  platform: darwin
+  description: |
+    macOS uses location information gathered through local Wi-Fi networks to enable applications to supply relevant information to users. While Location Services may be very useful, it may not be desirable to allow all applications that can use Location Services to use your location for Internet queries in order to provide tailored content based on your current location.
+    Ensure applications that can use Location Services are authorized and provide that information where the application interacts with external systems. Apple offers feedback within System Preferences and may be enabled to supply information on the menu bar when Location Services are used.
+    Safari can deny access from websites or prompt for access.
+    Applications that support Location Services can be individually controlled in the Privacy tab in Security & Privacy under System Preferences.
+    Access should be evaluated to ensure that privacy controls are as expected.
+    This query verifies that location services is enabled and a specific list of application can use it.
+  resolution: |
+    Graphical Method:
+        Perform the following steps to disable unnecessary applications from accessing Location Services:
+        1. Open System Settings
+        2. Select Privacy & Security
+        3. Select Location Services
+        4. Set any applications listed to your organization's requirements
+  query: |
+    SELECT 1 WHERE 
+        EXISTS(
+          SELECT 1 FROM location_services WHERE enabled = 1
+        )
+        AND EXISTS(
+          // APP 1 is in the list
+          // APP 2 is in the list
+          // ...
+          // APP N is in the list
+        )
+        AND EXISTS(
+          SELECT 1 FROM location_services_allowed_apps WHERE total_allowed <= N
+        );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS-macos-13-2.6.1.3-Location-Service-specifc-app-enabled, decision-needed
   contributors: sharon-fdm
 ---
 apiVersion: v1
