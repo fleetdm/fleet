@@ -527,13 +527,6 @@ the way that the Fleet server works.
 					initFatal(errors.New("Apple APNs and SCEP configuration must be provided to enable MDM"), "validate Apple MDM")
 				}
 
-				// TODO: for now (dogfood), Apple BM must be set when MDM is enabled,
-				// but when the MDM will be production-ready, Apple BM will be
-				// optional.
-				if !config.MDM.IsAppleBMSet() {
-					initFatal(errors.New("Apple BM configuration must be provided to enable MDM"), "validate Apple MDM")
-				}
-
 				scepStorage, err = mds.NewSCEPDepot(appleSCEPCertPEM, appleSCEPKeyPEM)
 				if err != nil {
 					initFatal(err, "initialize mdm apple scep storage")
@@ -678,10 +671,13 @@ the way that the Fleet server works.
 			}
 
 			if config.MDMApple.Enable {
-				if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-					return newAppleMDMDEPProfileAssigner(ctx, instanceID, config.MDMApple.DEP.SyncPeriodicity, ds, depStorage, logger, config.Logging.Debug)
-				}); err != nil {
-					initFatal(err, "failed to register apple_mdm_dep_profile_assigner schedule")
+
+				if license.IsPremium() && config.MDM.IsAppleBMSet() {
+					if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
+						return newAppleMDMDEPProfileAssigner(ctx, instanceID, config.MDMApple.DEP.SyncPeriodicity, ds, depStorage, logger, config.Logging.Debug)
+					}); err != nil {
+						initFatal(err, "failed to register apple_mdm_dep_profile_assigner schedule")
+					}
 				}
 				if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
 					return newMDMAppleProfileManager(
