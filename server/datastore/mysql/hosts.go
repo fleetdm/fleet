@@ -762,10 +762,20 @@ func (ds *Datastore) applyHostFilters(opt fleet.HostListOptions, sql string, fil
 }
 
 func filterHostsByTeam(sql string, opt fleet.HostListOptions, params []interface{}) (string, []interface{}) {
-	if opt.TeamFilter != nil {
-		sql += ` AND h.team_id = ?`
-		params = append(params, *opt.TeamFilter)
+	if opt.TeamFilter == nil {
+		// default "all teams" option
+		return sql, params
 	}
+
+	if *opt.TeamFilter == uint(0) {
+		// "no team" option (where TeamFilter is explicitly zero) excludes hosts that are assigned to any team
+		sql += ` AND h.team_id IS NULL`
+		return sql, params
+	}
+
+	sql += ` AND h.team_id = ?`
+	params = append(params, *opt.TeamFilter)
+
 	return sql, params
 }
 
@@ -840,9 +850,13 @@ func filterHostsByMacOSSettingsStatus(sql string, opt fleet.HostListOptions, par
 	newSQL := ""
 	newParams := []interface{}{}
 
-	if opt.TeamFilter == nil || *opt.TeamFilter == 0 {
-		// add "no team" filter
-		newSQL += ` AND h.team_id IS NULL`
+	if opt.TeamFilter == nil {
+		// TODO(sarah): "All teams" option is not compatible with the macOS settings filter. Should we
+		// coerce to the "no team" option here? Or surface some kind of a usage error in cases where the macOS
+		// settings filter is used without an explicit team id filter? How/where would we
+		// want to surface the error? Maybe follow the approach of processHostFilters at service level?
+
+		newSQL += ` AND h.team_id IS NULL` // add "no team" filter
 	}
 
 	newSQL += ` AND EXISTS (SELECT 1 FROM host_mdm_apple_profiles hmap WHERE hmap.host_uuid = h.uuid AND status = ?`

@@ -77,6 +77,8 @@ func (s MacOSSettingsStatus) IsValid() bool {
 // - GET /hosts/report
 //
 // Make sure the docs are updated accordingly and all endpoints behave as expected.
+// TODO(sarah): Refresh the list of service/datastore methods that incorporate HostListOptions
+// (directly or indirectly)
 type HostListOptions struct {
 	ListOptions
 
