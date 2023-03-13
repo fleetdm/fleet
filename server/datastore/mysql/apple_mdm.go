@@ -935,7 +935,7 @@ func (ds *Datastore) ListMDMAppleProfilesToInstall(ctx context.Context) ([]*flee
 	//
 	// A - B gives us the profiles that need to be installed.
 	query := `
-          SELECT ds.profile_id, ds.host_uuid, ds.profile_identifier
+          SELECT ds.profile_id, ds.host_uuid, ds.profile_identifier, ds.profile_name
           FROM (
             SELECT
               macp.profile_id,
@@ -1038,7 +1038,7 @@ func (ds *Datastore) BulkUpsertMDMAppleHostProfiles(ctx context.Context, payload
 	    INSERT INTO host_mdm_apple_profiles (
               profile_id,
               profile_identifier,
-			  profile_name,
+              profile_name,
               host_uuid,
               status,
               operation_type,
