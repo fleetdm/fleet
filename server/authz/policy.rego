@@ -78,7 +78,7 @@ allow {
   team_role(subject, object.id) == [admin,maintainer,observer][_]
   action == read
 }
-# or global admins or global maintainers
+# or global users can read
 allow {
   object.type == "team"
   object.id != 0
