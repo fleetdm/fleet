@@ -925,6 +925,8 @@ _Available in Fleet Premium_
 
 ### Download an enrollment profile using IdP authentication
 
+_Available in Fleet Premium_
+
 This endpoint returns an enrollment profile after validating the provided username/password combination with a configured identity provider.
 
 Currently, the only IdP supported is Okta.

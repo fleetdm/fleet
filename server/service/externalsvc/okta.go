@@ -23,8 +23,12 @@ type Okta struct {
 
 // oktaError is the response body for requests with errors coming from Okta.
 type oktaError struct {
-	Error       string `json:"error"`
+	Err         string `json:"error"`
 	Description string `json:"error_description"`
+}
+
+func (o oktaError) Error() string {
+	return fmt.Sprintf("okta error: %s: %s", o.Err, o.Description)
 }
 
 // ROPLogin performs a login using the "Resource Owner Password Flow" as
@@ -42,13 +46,13 @@ func (o *Okta) ROPLogin(ctx context.Context, username, password string) error {
 		strings.NewReader(params.Encode()),
 	)
 	if err != nil {
-		return err
+		return fmt.Errorf("okta: build request: %w", err)
 	}
 
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 	resp, err := o.do(req)
 	if err != nil {
-		return err
+		return fmt.Errorf("okta: send request: %w", err)
 	}
 	defer resp.Body.Close()
 
@@ -62,14 +66,14 @@ func (o *Okta) ROPLogin(ctx context.Context, username, password string) error {
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return fmt.Errorf("reading response body: %s", err)
+		return fmt.Errorf("okta: read response: %w", err)
 	}
 
 	var oktaErr oktaError
 	if err := json.Unmarshal(body, &oktaErr); err != nil {
-		return fmt.Errorf("decoding okta response: %s", err)
+		return fmt.Errorf("okta: decode response: %w", err)
 	}
-	return fmt.Errorf("okta error: %s: %s", oktaErr.Error, oktaErr.Description)
+	return oktaErr
 }
 
 func (o *Okta) do(req *http.Request) (*http.Response, error) {

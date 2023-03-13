@@ -55,25 +55,19 @@ func TestMDMAppleOktaLogin(t *testing.T) {
 	}
 
 	profile, err := svc.MDMAppleOktaLogin(ctx, "bad", "bad")
-	require.Error(t, err)
+	var authFailedError *fleet.AuthFailedError
+	require.ErrorAs(t, err, &authFailedError)
 	require.Nil(t, profile)
+	require.False(t, ds.InsertMDMIdPAccountFuncInvoked)
 
 	profile, err = svc.MDMAppleOktaLogin(ctx, oktaMock.Username, oktaMock.UserPassword)
 	require.NoError(t, err)
 	// enrollment profile contains necessary data
-	require.Contains(t, string(profile), "https://example.com/mdm/apple/mdm?dep_uuid="+uuid)
+	require.Contains(t, string(profile), "https://example.com/mdm/apple/mdm?ref="+uuid)
 	require.True(t, ds.AppConfigFuncInvoked)
 	require.True(t, ds.InsertMDMIdPAccountFuncInvoked)
 
 	// error handling
-	idpErr := errors.New("idp err")
-	ds.InsertMDMIdPAccountFunc = func(ctx context.Context, account *fleet.MDMIdPAccount) error {
-		return idpErr
-	}
-	profile, err = svc.MDMAppleOktaLogin(ctx, oktaMock.Username, oktaMock.UserPassword)
-	require.ErrorIs(t, err, idpErr)
-	require.Nil(t, profile)
-
 	appCfgErr := errors.New("appconfig err")
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return nil, appCfgErr
@@ -81,6 +75,14 @@ func TestMDMAppleOktaLogin(t *testing.T) {
 
 	profile, err = svc.MDMAppleOktaLogin(ctx, oktaMock.Username, oktaMock.UserPassword)
 	require.ErrorIs(t, err, appCfgErr)
+	require.Nil(t, profile)
+
+	idpErr := errors.New("idp err")
+	ds.InsertMDMIdPAccountFunc = func(ctx context.Context, account *fleet.MDMIdPAccount) error {
+		return idpErr
+	}
+	profile, err = svc.MDMAppleOktaLogin(ctx, oktaMock.Username, oktaMock.UserPassword)
+	require.ErrorIs(t, err, idpErr)
 	require.Nil(t, profile)
 
 }
