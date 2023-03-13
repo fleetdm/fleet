@@ -1,0 +1,1 @@
+- Observers can now view the manage software page

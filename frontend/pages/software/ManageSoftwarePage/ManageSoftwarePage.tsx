@@ -32,7 +32,7 @@ import {
   GITHUB_NEW_ISSUE_LINK,
   VULNERABLE_DROPDOWN_OPTIONS,
 } from "utilities/constants";
-import { buildQueryStringFromParams, QueryParams } from "utilities/url";
+import { buildQueryStringFromParams } from "utilities/url";
 
 import Button from "components/buttons/Button";
 // @ts-ignore
