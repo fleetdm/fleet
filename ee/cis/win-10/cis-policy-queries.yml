@@ -1954,6 +1954,453 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
+  name: CIS - Ensure 'Remote Desktop Services UserMode Port Redirector (UmRdpService)' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting determines the redirection of Printers/Drives/Ports for RDP connections.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to 'Disabled':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\Remote Desktop Services UserMode Port Redirector'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\UmRdpService\\Start' AND data == 4);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_5.23
+  contributors: marcosd4h
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Remote Procedure Call (RPC) Locator (RpcLocator)' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    In Windows 2003 and older versions of Windows, the Remote Procedure Call (RPC) Locator service
+    manages the RPC name service database. In Windows Vista and newer versions of Windows, this
+    service does not provide any functionality and is present for application compatibility.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to 'Disabled':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\Remote Procedure Call (RPC) Locator'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\RpcLocator\\Start' AND data == 4);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_5.24
+  contributors: marcosd4h
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Remote Registry (RemoteRegistry)' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    The service enables remote users to view and modify registry settings on this computer.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to 'Disabled':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\Remote Registry'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\RemoteRegistry\\Start' AND data == 4);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_5.25
+  contributors: marcosd4h
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Routing and Remote Access (RemoteAccess)' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    The service offers routing services to businesses in local area and wide area network environments.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to 'Disabled':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\Routing and Remote Access'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\RemoteAccess\\Start' AND data == 4);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_5.26
+  contributors: marcosd4h
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Server (LanmanServer)' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    The service supports file, print, and named-pipe sharing over the network for this computer.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to 'Disabled':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\Server'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\LanmanServer\\Start' AND data == 4);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_5.27
+  contributors: marcosd4h
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Simple TCP/IP Services (simptcp)' is set to 'Disabled' or to 'Not Installed' 
+  platforms: win10
+  platform: windows
+  description: |
+    The service supports the following TCP/IP services: Character Generator, Daytime, Discard, Echo, and Quote of the Day.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to 'Disabled' or to 'Not Installed':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\Simple TCP/IP Services'
+  query: |
+    SELECT CASE 
+        WHEN NOT EXISTS (SELECT * FROM registry WHERE key = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\simptcp\\Start') THEN 1 
+        WHEN (SELECT data FROM registry WHERE key = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\simptcp\\Start') == '4' THEN 1 
+        ELSE 0 
+    END AS result;    
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_5.28
+  contributors: marcosd4h
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'SNMP Service (SNMP)' is set to 'Disabled' or to 'Not Installed'
+  platforms: win10
+  platform: windows
+  description: |
+    The service enables Simple Network Management Protocol (SNMP) requests to be processed by this computer.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to 'Disabled' or to 'Not Installed':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\SNMP Service'
+  query: |
+    SELECT CASE 
+        WHEN NOT EXISTS (SELECT * FROM registry WHERE key = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\SNMP\\Start') THEN 1 
+        WHEN (SELECT data FROM registry WHERE key = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\SNMP\\Start') == '4' THEN 1 
+        ELSE 0 
+    END AS result;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_5.29
+  contributors: marcosd4h
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Special Administration Console Helper (sacsvr)' is set to 'Disabled' or to 'Not Installed'
+  platforms: win10
+  platform: windows
+  description: |
+    The service allows administrators to remotely access a command prompt using Emergency Management Services.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to 'Disabled' or to 'Not Installed':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\Special Administration Console Helper'
+  query: |
+    SELECT CASE 
+        WHEN NOT EXISTS (SELECT * FROM registry WHERE key = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\sacsvr\\Start') THEN 1 
+        WHEN (SELECT data FROM registry WHERE key = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\sacsvr\\Start') == '4' THEN 1 
+        ELSE 0 
+    END AS result;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_5.30
+  contributors: marcosd4h
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'SSDP Discovery (SSDPSRV)' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This service discovers networked devices and services that use the SSDP discovery protocol, such
+    as UPnP devices. Also announces SSDP devices and services running on the local computer.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to 'Disabled':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\SSDP Discovery'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\SSDPSRV\\Start' AND data == 4);    
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_5.31
+  contributors: marcosd4h
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'UPnP Device Host (upnphost)' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This service allows UPnP devices to be hosted on this computer.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to 'Disabled':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\UPnP Device Host'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\upnphost\\Start' AND data == 4);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_5.32
+  contributors: marcosd4h
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Web Management Service (WMSvc)' is set to 'Disabled' or to 'Not Installed'
+  platforms: win10
+  platform: windows
+  description: |
+    This web management Service enables remote and delegated management capabilities for administrators to manage for the Web server, sites and applications present on the machine.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to 'Disabled' or to 'Not Installed':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\Web Management Service'
+  query: |
+    SELECT CASE 
+        WHEN NOT EXISTS (SELECT * FROM registry WHERE key = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\WMSvc\\Start') THEN 1 
+        WHEN (SELECT data FROM registry WHERE key = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\WMSvc\\Start') == '4' THEN 1 
+        ELSE 0 
+    END AS result;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_5.33
+  contributors: marcosd4h
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Windows Error Reporting Service (WerSvc)' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This service allows errors to be reported when programs stop working or responding and allows
+    existing solutions to be delivered. Also allows logs to be generated for diagnostic and repair
+    services.
+  resolution: |    
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to 'Disabled':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\Windows Error Reporting Service'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\WerSvc\\Start' AND data == 4);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_5.34
+  contributors: marcosd4h
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Windows Event Collector (Wecsvc)' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This service manages persistent subscriptions to events from remote sources that support
+    WS-Management protocol. This includes Windows Vista event logs, hardware and IPMI-enabled event
+    sources. The service stores forwarded events in a local Event Log.
+  resolution: |    
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to 'Disabled':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\Windows Event Collector'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\Wecsvc\\Start' AND data == 4);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_5.35
+  contributors: marcosd4h
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Windows Media Player Network Sharing Service (WMPNetworkSvc)' is set to 'Disabled' or to 'Not Installed'
+  platforms: win10
+  platform: windows
+  description: |
+    This service shares Windows Media Player libraries to other networked players and media devices using Universal Plug and Play.
+  resolution: |    
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to 'Disabled' or to 'Not Installed':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\Windows Media Player Network Sharing Service'
+  query: |
+    SELECT CASE 
+        WHEN NOT EXISTS (SELECT * FROM registry WHERE key = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\WMPNetworkSvc\\Start') THEN 1 
+        WHEN (SELECT data FROM registry WHERE key = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\WMPNetworkSvc\\Start') == '4' THEN 1 
+        ELSE 0 
+    END AS result;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_5.36
+  contributors: marcosd4h
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Windows Mobile Hotspot Service (icssvc)' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This service provides the ability to share a cellular data connection with another device.
+  resolution: |    
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to 'Disabled':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\Windows Mobile Hotspot Service'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\icssvc\\Start' AND data == 4);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_5.37
+  contributors: marcosd4h
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Windows Push Notifications System Service (WpnService)' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This service runs in session 0 and hosts the notification platform and connection provider which handles the connection between the device and WNS server.
+  resolution: |    
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to 'Disabled':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\Windows Push Notifications System Service'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\WpnService\\Start' AND data == 4);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_5.38
+  contributors: marcosd4h
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Windows PushToInstall Service (PushToInstall)' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This service manages Apps that are pushed to the device from the Microsoft Store App running on other devices or the web.
+  resolution: |    
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to 'Disabled':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\Windows PushToInstall Service (PushToInstall)'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\PushToInstall\\Start' AND data == 4);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_5.39
+  contributors: marcosd4h
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Windows Remote Management (WSManagement) (WinRM)' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    The Windows Remote Management (WinRM) service implements the WS-Management protocol for remote
+    management. WS-Management is a standard web services protocol used for remote software and
+    hardware management. The WinRM service listens on the network for WS-Management requests and processes them.
+  resolution: |    
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to 'Disabled':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\Windows Remote Management (WS-Management)'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\WinRM\\Start' AND data == 4);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_5.40
+  contributors: marcosd4h
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'World Wide Web Publishing Service (W3SVC)' is set to 'Disabled' or to 'Not Installed'
+  platforms: win10
+  platform: windows
+  description: |
+    This service provides Web connectivity and administration through the Internet Information Services Manager.
+  resolution: |    
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to 'Disabled' or to 'Not Installed':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\World Wide Web Publishing Service'
+  query: |
+    SELECT CASE 
+        WHEN NOT EXISTS (SELECT * FROM registry WHERE key = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\W3SVC\\Start') THEN 1 
+        WHEN (SELECT data FROM registry WHERE key = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\W3SVC\\Start') == '4' THEN 1 
+        ELSE 0 
+    END AS result;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_5.41
+  contributors: marcosd4h
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Xbox Accessory Management Service (XboxGipSvc)' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This service manages connected Xbox accessories.
+  resolution: |    
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to 'Disabled':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\Xbox Accessory Management Service'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\XboxGipSvc\\Start' AND data == 4);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_5.42
+  contributors: marcosd4h
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Xbox Live Auth Manager (XblAuthManager)' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This service provides authentication and authorization services for interacting with Xbox Live.
+  resolution: |    
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to 'Disabled':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\Xbox Live Auth Manager'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\XblAuthManager\\Start' AND data == 4);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_5.43
+  contributors: marcosd4h
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Xbox Live Game Save (XblGameSave)' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This service syncs save data for Xbox Live save enabled game.
+  resolution: |    
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to 'Disabled':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\Xbox Live Game Save'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\XblGameSave\\Start' AND data == 4);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_5.44
+  contributors: marcosd4h
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Xbox Live Networking Service (XboxNetApiSvc)' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This service supports the Windows.Networking.XboxLive application programming interface.
+  resolution: |    
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to 'Disabled':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\Xbox Live Networking Service'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\XboxNetApiSvc\\Start' AND data == 4);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_5.45
+  contributors: marcosd4h
+---
+apiVersion: v1
+kind: policy
+spec:
   name: >
     CIS - Ensure 'Windows Firewall: Domain: Firewall state' is set to 'On (recommended)'
   platforms: win10
