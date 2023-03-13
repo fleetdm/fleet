@@ -75,10 +75,10 @@ func (s MacOSSettingsStatus) IsValid() bool {
 // - GET /hosts/count (count hosts, which calls svc.CountHosts or svc.CountHostsInLabel)
 // - GET /labels/{id}/hosts (list hosts in label)
 // - GET /hosts/report
+// - POST /hosts/delete (calls svc.hostIDsFromFilters)
+// - POST /hosts/transfer/filter (calls svc.hostIDsFromFilters)
 //
 // Make sure the docs are updated accordingly and all endpoints behave as expected.
-// TODO(sarah): Refresh the list of service/datastore methods that incorporate HostListOptions
-// (directly or indirectly)
 type HostListOptions struct {
 	ListOptions
 
