@@ -139,22 +139,6 @@ The following Slack channels are maintained by Fleet's founders:
 
 
 
-#### Stubs
-The following stubs are included only to make links backward compatible.
-
-##### Levels of confidentiality
-
-Please see [handbook/business-operations#levels-of-confidentiality](https://fleetdm.com/handbook/business-operations#levels-of-confidentiality).
-
-##### Email relays
-
-Please see [handbook/business-operations#email-relays](https://fleetdm.com/handbook/business-operations#email-relays).
-
-
-##### Tools we use
-
-Please see [handbook/business-operations#tools-we-use](https://fleetdm.com/handbook/business-operations#tools-we-use).
-
 
 
 <meta name="maintainedBy" value="mikermcneil">
