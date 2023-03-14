@@ -17,9 +17,9 @@ spec:
     'Computer Configuration\Policies\Administrative Templates\MS Security Guide\Apply UAC restrictions to local accounts on network logons'
   query: |
     TBD
-    HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System:LocalAccountTokenFilterPolicy
+    Untested: SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System\LocalAccountTokenFilterPolicy' AND data = 0);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.3.1, CIS_not_completed
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.3.1, CIS_requires_admx_download
   contributors: rachelelysia
 ---
 apiVersion: v1
@@ -36,9 +36,9 @@ spec:
     'Computer Configuration\Policies\Administrative Templates\MS Security Guide\Configure SMB v1 client driver'
   query: |
     TBD
-    HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\mrxsmb10:Start
+    Untested: SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\mrxsmb10\Start' AND data = 4);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.3.2, CIS_not_completed
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.3.2, CIS_requires_admx_download
   contributors: rachelelysia
 ---
 apiVersion: v1
@@ -55,9 +55,9 @@ spec:
     'Computer Configuration\Policies\Administrative Templates\MS Security Guide\Configure SMB v1 server'
   query: |
     TBD
-    HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\LanmanServer\Parameters:SMB1
+    Untested: SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\LanmanServer\\Parameters\SMB1' AND data = 0);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.3.3, CIS_not_completed
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.3.3, CIS_requires_admx_download
   contributors: rachelelysia
 ---
 apiVersion: v1
@@ -74,9 +74,9 @@ spec:
     'Computer Configuration\Policies\Administrative Templates\MS Security Guide\Enable Structured Exception Handling Overwrite Protection (SEHOP)'
   query: |
     TBD 
-    HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\kernel:DisableExceptionChainValidation
+    Untested: SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\Session Manager\\kernel\DisableExceptionChainValidation' AND data = 0);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.3.4, CIS_not_completed
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.3.4, CIS_requires_admx_download
   contributors: rachelelysia
 ---
 apiVersion: v1
@@ -93,9 +93,9 @@ spec:
     'Computer Configuration\Policies\Administrative Templates\MS Security Guide\Limits print driver installation to Administrators'
   query: |
     TBD
-    HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\Printers\PointAndPrint:RestrictDriverInstallationToAdministrators
+    Untested: SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows NT\\Printers\\PointAndPrint\RestrictDriverInstallationToAdministrators' AND data = 1);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.3.5, CIS_not_completed
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.3.5, CIS_requires_admx_download
   contributors: rachelelysia
 ---
 apiVersion: v1
@@ -116,9 +116,9 @@ spec:
     'Computer Configuration\Policies\Administrative Templates\MS Security Guide\NetBT NodeType configuration'
   query: |
     TBD
-    HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\NetBT\Parameters:NodeType
+    Untested: SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\NetBT\\Parameters\NodeType' AND data = 2);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.3.6, CIS_not_completed
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.3.6, CIS_requires_admx_download
   contributors: rachelelysia
 ---
 apiVersion: v1
@@ -137,9 +137,9 @@ spec:
     'Computer Configuration\Policies\Administrative Templates\MS Security Guide\WDigest Authentication (disabling may require KB2871997)'
   query: |
     TBD
-    HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\SecurityProviders\WDigest:UseLogonCredential
+    Untested: SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\SecurityProviders\\WDigest\UseLogonCredential' AND data = 0);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.3.7, CIS_not_completed
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.3.7, CIS_requires_admx_download
   contributors: rachelelysia
 ---
 
