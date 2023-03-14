@@ -3,8 +3,7 @@ import useInfoCard from "pages/DashboardPage/components/InfoCard";
 import React, { useContext } from "react";
 import { isPremiumTier } from "utilities/permissions/permissions";
 import { AppContext } from "context/app";
-import CustomLink from "components/CustomLink";
-import Icon from "components/Icon";
+import Upsell from "components/Upsell";
 import OsMinVersionForm from "./components/OsMinVersionForm";
 import NudgePreview from "./components/NudgePreview";
 
@@ -62,15 +61,7 @@ const MacOSUpdates = ({ location }: IMacOSUpdatesProps) => {
       </>
     </div>
   ) : (
-    <div className={`${baseClass}-upsell-container`}>
-      <div className="upsell">
-        <p>This feature is included in Fleet Premium.</p>
-        <div className="external-link">
-          <CustomLink url="https://fleetdm.com/upgrade" text="Learn more" />
-          <Icon name="external-link" />
-        </div>
-      </div>
-    </div>
+    <Upsell />
   );
 };
 
