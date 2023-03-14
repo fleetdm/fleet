@@ -6,6 +6,7 @@ import {
   buildQueryStringFromParams,
   getLabelParam,
   reconcileMutuallyExclusiveHostParams,
+  reconcileMutuallyInclusiveHostParams,
 } from "utilities/url";
 import { ISelectedPlatform } from "interfaces/platform";
 
@@ -208,22 +209,18 @@ export default {
     const label = getLabel(selectedLabels);
     const sortParams = getSortParams(sortBy);
 
-    // ensure macos_settings filter is always applied in
-    // conjuction with a team_id, 0 (no teams) by default
-    if (macSettingsStatus) {
-      teamId = teamId ?? 0;
-    }
-
     const queryParams = {
       page,
       per_page: perPage,
       query: globalFilter,
-      team_id: teamId,
       device_mapping,
       order_key: sortParams.order_key,
       order_direction: sortParams.order_direction,
       status,
-      macos_settings: macSettingsStatus,
+      ...reconcileMutuallyInclusiveHostParams({
+        teamId,
+        macSettingsStatus,
+      }),
       ...reconcileMutuallyExclusiveHostParams({
         label,
         policyId,
