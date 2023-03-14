@@ -173,8 +173,7 @@ spec:
     To establish the recommended configuration via GP, set the following UI path to Disabled:
     'Computer Configuration\Policies\Administrative Templates\System\Power Management\Sleep Settings\Allow network connectivity during connected-standby (on battery)'
   query: |
-    TBD
-    Untested: SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Power\\PowerSettings\\f15576e8-98b7-4186-b944-eafa664402d9\DCSettingIndex' AND data = 0);
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Power\\PowerSettings\\f15576e8-98b7-4186-b944-eafa664402d9\DCSettingIndex' AND data = 0);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.8.34.6.1
   contributors: rachelelysia
@@ -192,8 +191,7 @@ spec:
     To establish the recommended configuration via GP, set the following UI path to Disabled:
     'Computer Configuration\Policies\Administrative Templates\System\Power Management\Sleep Settings\Allow network connectivity during connected-standby (plugged in)'
   query: |
-    TBD
-    Untested: SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Power\\PowerSettings\\f15576e8-98b7-4186-b944-eafa664402d9\ACSettingIndex' AND data = 0);
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Power\\PowerSettings\\f15576e8-98b7-4186-b944-eafa664402d9\ACSettingIndex' AND data = 0);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.8.34.6.2
   contributors: rachelelysia
@@ -211,8 +209,7 @@ spec:
     To establish the recommended configuration via GP, set the following UI path to Disabled:
     'Computer Configuration\Policies\Administrative Templates\System\Power Management\Sleep Settings\Allow standby states (S1-S3) when sleeping (on battery)''
   query: |
-    TBD
-    Untested: SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Power\\PowerSettings\\abfc2519-3608-4c2a-94ea-171b0ed546ab\DCSettingIndex' AND data = 0);
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Power\\PowerSettings\\abfc2519-3608-4c2a-94ea-171b0ed546ab\DCSettingIndex' AND data = 0);
   purpose: Informational
   tags: compliance, CIS, CIS_BL, CIS_win10_enterprise_1.12.0, CIS_bullet_18.8.34.6.3
   contributors: rachelelysia
@@ -230,8 +227,7 @@ spec:
     To establish the recommended configuration via GP, set the following UI path to Disabled:
     'Computer Configuration\Policies\Administrative Templates\System\Power Management\Sleep Settings\Allow standby states (S1-S3) when sleeping (plugged in)'
   query: |
-    TBD
-    Untested: SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Power\\PowerSettings\\abfc2519-3608-4c2a-94ea-171b0ed546ab\ACSettingIndex' AND data = 0);
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Power\\PowerSettings\\abfc2519-3608-4c2a-94ea-171b0ed546ab\ACSettingIndex' AND data = 0);
   purpose: Informational
   tags: compliance, CIS, CIS_LevelBL, CIS_win10_enterprise_1.12.0, CIS_bullet_18.8.34.6.4
   contributors: rachelelysia
@@ -249,8 +245,7 @@ spec:
     To establish the recommended configuration via GP, set the following UI path to Enabled:
     'Computer Configuration\Policies\Administrative Templates\System\Power Management\Sleep Settings\Require a password when a computer wakes (on battery)'
   query: |
-    TBD
-    Untested: SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Power\\PowerSettings\\0e796bdb-100d-47d6-a2d5-f7d2daa51f51\DCSettingIndex' AND data = 1);
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Power\\PowerSettings\\0e796bdb-100d-47d6-a2d5-f7d2daa51f51\DCSettingIndex' AND data = 1);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.8.34.6.5
   contributors: rachelelysia
@@ -268,8 +263,7 @@ spec:
     To establish the recommended configuration via GP, set the following UI path to Enabled:
     'Computer Configuration\Policies\Administrative Templates\System\Power Management\Sleep Settings\Require a password when a computer wakes (plugged in)'
   query: |
-    TBD
-    Untested: SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Power\\PowerSettings\\0e796bdb-100d-47d6-a2d5-f7d2daa51f51\ACSettingIndex' AND data = 1);
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Power\\PowerSettings\\0e796bdb-100d-47d6-a2d5-f7d2daa51f51\ACSettingIndex' AND data = 1);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.8.34.6.6
   contributors: rachelelysia
@@ -287,8 +281,7 @@ spec:
     To establish the recommended configuration via GP, set the following UI path to Disabled:
     'Computer Configuration\Policies\Administrative Templates\System\Remote Assistance\Configure Offer Remote Assistance'
   query: |
-    TBD
-    Untested: SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows NT\\Terminal Services\fAllowUnsolicited' AND data = 0);
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows NT\\Terminal Services\fAllowUnsolicited' AND data = 0);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.8.36.1
   contributors: rachelelysia
@@ -306,8 +299,7 @@ spec:
     To establish the recommended configuration via GP, set the following UI path to Disabled:
     'Computer Configuration\Policies\Administrative Templates\System\Remote Assistance\Configure Solicited Remote Assistance'
   query: |
-    TBD
-    Untested: SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\\Policies\\Microsoft\\Windows NT\\TerminalServices\fAllowToGetHelp' AND data = 0);
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows NT\\Terminal Services\fAllowToGetHelp' AND data = 0);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.8.36.2
   contributors: rachelelysia
@@ -326,8 +318,7 @@ spec:
     To establish the recommended configuration via GP, set the following UI path to Enabled:
     'Computer Configuration\Policies\Administrative Templates\System\Remote Procedure Call\Enable RPC Endpoint Mapper Client Authentication'
   query: |
-    TBD
-    Untested: SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows NT\\Rpc\EnableAuthEpResolution' AND data = 1);
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows NT\\Rpc\EnableAuthEpResolution' AND data = 1);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.8.37.1
   contributors: rachelelysia
@@ -348,11 +339,10 @@ spec:
     -- "Authenticated without exceptions" allows only authenticated RPC Clients (per the definition above) to connect to RPC Servers running on the machine on which the policy setting is applied. No exceptions are allowed. This value has the potential to cause serious problems and is not recommended.
     Note: This policy setting will not be applied until the system is rebooted.
   resolution: |
-    To establish the recommended configuration via GP, set the following UI path to Enabled: Authenticated:
+    To establish the recommended configuration via GP, set the following UI path to 'Enabled: Authenticated':
     'Computer Configuration\Policies\Administrative Templates\System\Remote Procedure Call\Restrict Unauthenticated RPC clients'
   query: |
-    TBD
-    Untested: SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows NT\\Rpc\RestrictRemoteClients' AND data = 1);
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows NT\\Rpc\RestrictRemoteClients' AND data = 1);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.8.37.2
   contributors: rachelelysia
