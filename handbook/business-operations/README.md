@@ -76,9 +76,6 @@ Operations will review the expense and reach out to the team member if they have
 
 ## Benefits
 
-### Coworking
-Your Brex card may be used for up to $500 USD per month in coworking costs. Please get prior approval from your manager. Once approved, get started by reaching out to Mike McNeil via direct message in Slack.
-
 ### Paid time off
 What matters most is your results, which are driven by your focus, your availability to collaborate, and the time and consideration you put into your work. Fleet offers all team members unlimited time off. Whether you're sick, you want to take a trip, you are eager for some time to relax, or you need to get some chores done around the house, any reason is a good reason.
 For team members working in jurisdictions that require certain mandatory sick leave or PTO policies, Fleet complies to the extent required by law.
@@ -105,10 +102,12 @@ Either way, it's up to you to make sure that your responsibilities are covered, 
 Fleet gives new parents six weeks of paid leave. After six weeks, if you don't feel ready to return yet, we'll set up a quick call to discuss and work together to come up with a plan to help you return to work gradually or when you're ready.
 
 ### Relocating
-When Fleeties relocate there are vendors that need to be notified of the change. 
+When Fleeties relocate, there are vendors that need to be notified of the change. 
 
-Team member directions:
-  - Please follow the directions listed in the ["Moving" template](https://github.com/fleetdm/confidential/blob/main/.github/ISSUE_TEMPLATE/x-moving.md) to create a confidential issue and assign to the [🔦#g-business-operations kanban (project) board](https://github.com/orgs/fleetdm/projects/51/views/1).
+Before relocating, please [let the company know in advance](#intake) by following the directions listed in the relevant issue template ("Moving").
+
+### Coworking
+Your Brex card may be used for up to $500 USD per month in coworking costs. Please get prior approval by making a [custom request to the business operations team](#intake).
 
 
 ## Performance feedback
@@ -427,6 +426,20 @@ When a device has been purchased, it's added to the [spreadsheet of company equi
 
 When you receive your new their computer, complete the entry by adding a description, model, and serial number to the spreadsheet.
 
+## Recurring expenses
+Recurring monthly or annual expenses are tracked as recurring, non-personnel expenses in ["🧮 The Numbers"](https://docs.google.com/spreadsheets/d/1X-brkmUK7_Rgp7aq42drNcUg8ZipzEiS153uKZSabWc/edit#gid=2112277278) _(classified Google Sheet)_, along with their payment source.
+
+> Use this spreadsheet as the source of truth.  Always make changes to it first before adding or removing a recurring expense.
+
+### Individualized expenses
+Recurring expenses related to a particular team member, such as coworking fees, are called _individualized expenses_.  These expenses are still considered [non-personnel expenses](https://docs.google.com/spreadsheets/d/1X-brkmUK7_Rgp7aq42drNcUg8ZipzEiS153uKZSabWc/edit#gid=2112277278), with a few extra considerations:
+
+- Non-recurring (one-off) expenses such as an Uber ride from the airport are NOT considered "individualized".
+- Seat licenses for tools like Salesforce or GitHub are NOT considered "individualized".
+- Individualized expenses should include the team member's name explicitly in the name of the expense.
+- If multiple team members use the same vendor for an individualized expense (for example, "WeWork"), use a separate row for each individualized expense.  (For example: "Coworking, Mungojerry (WeWork)" and "Coworking, Jennyanydots (WeWork)")
+- Individualized expenses are always attributed to the  "🔦 Business operations" department.
+- These expenses are still considered non-personnel expenses, in the same way seat licenses for tools like Salesforce or GitHub are considered non-personnel expenses.
 
 
 ## Celebrations
@@ -614,7 +627,7 @@ The following table lists the People group's rituals, frequency, and Directly Re
 
 
 ## Kanban
-Any contributor can [view the kanban board](https://app.zenhub.com/workspaces/-g-business-operations-63f3dc3cc931f6247fcf55a9/board?sprints=none) for the business operations department, including pending tasks in the active sprint and any new requests.
+Any Fleet team member can [view the 🔦#g-business-operations kanban board](https://app.zenhub.com/workspaces/-g-business-operations-63f3dc3cc931f6247fcf55a9/board?sprints=none) (confidential) for this department, including pending tasks in the active sprint and any new requests.
 
 ## Intake
 To make a request of the business operations department, [create an issue using one of our issue templates](https://github.com/fleetdm/confidential/issues/new/choose).  If you don't see what you need, or you are unsure, add your question to the agenda for the next bizops office hours call (weekly).  If you're not sure that your request can wait that long, then please ask for help in our group Slack channel: `#g-business-operations`.
