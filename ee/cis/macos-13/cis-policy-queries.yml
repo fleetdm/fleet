@@ -872,7 +872,7 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure Location Services Is Enabled for a specific list of applications (Based on organization's policy) (MDM Required)
+  name: CIS - Ensure Location Services Is Enabled for a specific list of applications (Based on organization's policy)
   platforms: macOS
   platform: darwin
   description: |
