@@ -55,6 +55,8 @@ const MacOSSettings = ({ params, location }: IMacOSSettingsProps) => {
         activeItem={currentFormSection.urlSection}
         CurrentCard={
           <CurrentCard
+            key={team_id}
+            currentTeamId={teamId}
             profiles={profiles}
             onProfileUpload={refectchProfiles}
             onProfileDelete={refectchProfiles}

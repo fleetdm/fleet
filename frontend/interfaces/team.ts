@@ -46,6 +46,10 @@ export interface ITeam extends ITeamSummary {
       minimum_version: string;
       deadline: string;
     };
+    macos_settings: {
+      custom_settings: null; // TODO: types?
+      enable_disk_encryption: boolean;
+    };
   };
 }
 

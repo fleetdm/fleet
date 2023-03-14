@@ -1,0 +1,11 @@
+.status-indicator-with-icon {
+  &__value {
+    display: inline-flex;
+    align-items: center;
+    vertical-align: middle;
+
+    .icon {
+      margin-right: $pad-xsmall;
+    }
+  }
+}
