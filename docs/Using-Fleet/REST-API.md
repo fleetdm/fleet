@@ -2709,8 +2709,10 @@ Retrieves MDM enrollment summary. Windows servers are excluded from the aggregat
 
 | Name     | Type    | In    | Description                                                                                                                                                                                                                                                                                                                        |
 | -------- | ------- | ----- | -------------------------------------------------------------------------------- |
-| team_id  | integer | query | Filter by team                                                                   |
+| team_id  | integer | query | _Available in Fleet Premium_ Filter by team                                      |
 | platform | string  | query | Filter by platform ("windows" or "darwin")                                       |
+
+A `team_id` of `0` returns the statistics for hosts that are not part of any team. A `null` or missing `team_id` returns statistics for all hosts regardless of the team.
 
 #### Example
 
@@ -2824,6 +2826,8 @@ Retrieves aggregated host's MDM enrollment status and Munki versions.
 | Name    | Type    | In    | Description                                                                                                                                                                                                                                                                                                                        |
 | ------- | ------- | ----- | ---------------------------------------------------------------------------------------------------------------- |
 | team_id | integer | query | _Available in Fleet Premium_ Filters the aggregate host information to only include hosts in the specified team. |                           |
+
+A `team_id` of `0` returns the statistics for hosts that are not part of any team. A `null` or missing `team_id` returns statistics for all hosts regardless of the team.
 
 #### Example
 

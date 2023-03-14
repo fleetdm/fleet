@@ -766,7 +766,8 @@ func (ds *Datastore) OutdatedAutomationBatch(ctx context.Context) ([]fleet.Polic
 func incrementViolationDaysDB(ctx context.Context, tx sqlx.ExtContext) error {
 	const (
 		statsID        = 0
-		statsType      = "policy_violation_days"
+		globalStats    = true
+		statsType      = aggregatedStatsTypePolicyViolationsDays
 		updateInterval = 24 * time.Hour
 	)
 
@@ -776,21 +777,21 @@ func incrementViolationDaysDB(ctx context.Context, tx sqlx.ExtContext) error {
 
 	// get current count of policy violation days from `aggregated_stats``
 	selectStmt := `
-		SELECT 
-			json_value, 
-			created_at, 
-			updated_at 
-		FROM 
-			aggregated_stats 
-		WHERE 
-			id = ? AND type = ?`
+		SELECT
+			json_value,
+			created_at,
+			updated_at
+		FROM
+			aggregated_stats
+		WHERE
+			id = ? AND global_stats = ? AND type = ?`
 	dest := struct {
 		CreatedAt time.Time       `json:"created_at" db:"created_at"`
 		UpdatedAt time.Time       `json:"updated_at" db:"updated_at"`
 		StatsJSON json.RawMessage `json:"json_value" db:"json_value"`
 	}{}
 
-	err := sqlx.GetContext(ctx, tx, &dest, selectStmt, statsID, statsType)
+	err := sqlx.GetContext(ctx, tx, &dest, selectStmt, statsID, globalStats, statsType)
 	switch {
 	case err == sql.ErrNoRows:
 		// no previous counts exists so initialize counts as zero and proceed to increment
@@ -832,12 +833,12 @@ func incrementViolationDaysDB(ctx context.Context, tx sqlx.ExtContext) error {
 
 	// upsert `aggregated_stats` with new count
 	upsertStmt := `
-		INSERT INTO 
-			aggregated_stats (id, type, json_value) 
-		VALUES (?, ?, ?)
-		ON DUPLICATE KEY UPDATE 
+		INSERT INTO
+			aggregated_stats (id, global_stats, type, json_value)
+		VALUES (?, ?, ?, ?)
+		ON DUPLICATE KEY UPDATE
 			json_value = VALUES(json_value)`
-	if _, err := tx.ExecContext(ctx, upsertStmt, statsID, statsType, statsJSON); err != nil {
+	if _, err := tx.ExecContext(ctx, upsertStmt, statsID, globalStats, statsType, statsJSON); err != nil {
 		return ctxerr.Wrap(ctx, err, "update policy violation days aggregated stats")
 	}
 
@@ -852,8 +853,9 @@ func (ds *Datastore) InitializePolicyViolationDays(ctx context.Context) error {
 
 func initializePolicyViolationDaysDB(ctx context.Context, tx sqlx.ExtContext) error {
 	const (
-		statsID   = 0
-		statsType = "policy_violation_days"
+		statsID     = 0
+		globalStats = true
+		statsType   = aggregatedStatsTypePolicyViolationsDays
 	)
 
 	statsJSON, err := json.Marshal(PolicyViolationDays{})
@@ -862,13 +864,13 @@ func initializePolicyViolationDaysDB(ctx context.Context, tx sqlx.ExtContext) er
 	}
 
 	stmt := `
-		INSERT INTO 
-			aggregated_stats (id, type, json_value) 
-		VALUES (?, ?, ?)
-		ON DUPLICATE KEY UPDATE 
+		INSERT INTO
+			aggregated_stats (id, global_stats, type, json_value)
+		VALUES (?, ?, ?, ?)
+		ON DUPLICATE KEY UPDATE
 			json_value = VALUES(json_value),
 			created_at = CURRENT_TIMESTAMP`
-	if _, err := tx.ExecContext(ctx, stmt, statsID, statsType, statsJSON); err != nil {
+	if _, err := tx.ExecContext(ctx, stmt, statsID, globalStats, statsType, statsJSON); err != nil {
 		return ctxerr.Wrap(ctx, err, "initialize policy violation days aggregated stats")
 	}
 
@@ -877,18 +879,19 @@ func initializePolicyViolationDaysDB(ctx context.Context, tx sqlx.ExtContext) er
 
 func amountPolicyViolationDaysDB(ctx context.Context, tx sqlx.QueryerContext) (int, int, error) {
 	const (
-		statsID   = 0
-		statsType = "policy_violation_days"
+		statsID     = 0
+		globalStats = true
+		statsType   = aggregatedStatsTypePolicyViolationsDays
 	)
 	var statsJSON json.RawMessage
 	if err := sqlx.GetContext(ctx, tx, &statsJSON, `
-		SELECT 
-			json_value 
-		FROM 
-			aggregated_stats 
-		WHERE 
-			id = ? AND type = ?
-	`, statsID, statsType); err != nil {
+		SELECT
+			json_value
+		FROM
+			aggregated_stats
+		WHERE
+			id = ? AND global_stats = ? AND type = ?
+	`, statsID, globalStats, statsType); err != nil {
 		return 0, 0, err
 	}
 
