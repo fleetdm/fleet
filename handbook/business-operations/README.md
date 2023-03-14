@@ -289,32 +289,41 @@ When the final signature is added to an envelope in DocuSign, it is marked as co
 
 ### Creating a new position
 Every new position being created goes through this process before interviewing, accepting applicants, or extending offers.
-1. Add the proposed position to ["Fleeties"](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) as a new row, with a blank start date.  Be sure to include job title, manager, and department.
-2. Add a job description to the ["Roles."](https://docs.google.com/document/d/1wS5jFfrZtO4xMH-3U_S8pE59gNXOTR3rS1WWD8pkq9E/edit#heading=h.5z24knw25190)  Include only "Responsibilities" and "Experience." (You will insert these into the existing job description template.)
-3. Create a private "#hiring-xxxxxx-2022" Slack channel (where "xxxxxx" is the job title) and invite the CEO (Mike McNeil).
-  - Mike McNeil is the DRI for all `#hiring-xxxxx-2022` Slack channels.
-4. In that channel, post a message proposing the position:
-  - At-mention CEO (@mikermcneil).
-  - Include a link to the job description in "Roles."
-  - Include a link to the Fleeties document.
-5. Mike McNeil will:
-  - Confirm the "Roles" document has the job description, consisting only of "Responsibilities" and "Experience," and that both look accurate, grammatically correct, and otherwise ready to post in a public job description.
-  - Confirm the "Fleeties" document has a manager, job title, and department, and that the start date is not entered yet (so we can tell the position is proposed but not planned, yet).
-  - Using Pave, determine an anticipated salary and equity range, then add that research to "Compensation decisions" as a new heading.
-  - Share a direct link to the new heading in "Compensation decisions" with the CEO.
-6. The CEO will then:
-  - Determine whether this fits into the budget and equity plan.
-  - Decide whether Fleet will open this position at this time.
-  - Set tentative compensation in the budget and equity plan.
-  - Set a tentative start date in the Fleeties doc to indicate this position is now part of the hiring plan.
-  - Reply in the `#hiring-xxxxx-2022` Slack channel, at-mentioning the original proposer, to let them know the new position is approved.
-After getting CEO approval, create a position in Breezy.
 
-#### Creating a new position 
-1. A new handbook subpage is created on the "Company" page and a link to the subpage is added to the "Open positions" section on the "Company" page.
-2. The job description is copy/pasted in the new subpage.
-3. When an applicant has completed an application, there is a Zapier automation that will post to `g-business-operations`. 
-4. The applicant information is then forwarded to the applicable `#hiring-xxxxx-202x` Slack channel` and the hiring manager is @mentioned.
+> If you think this job posting may need to stay temporarily classified (¶¶) and not shared company-wide or publicly yet, for any reason, then stop here and send a Slack DM with your proposal to the CEO instead of modifying "🧑‍🚀 Fleeties" (which is visible company-wide) or submitting a draft pull request to "Open positions" (which is public).
+
+1. **Propose headcount:** Add the proposed position to ["🧑‍🚀 Fleeties"](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) in an empty row (but using one of the existing IDs.  Unsure?  Ask for help.)  Be sure to include job title, manager, and department.  For now, leave the start date blank.
+2. **Propose job description:** Locate one of the existing job descriptions inside the `handbook/company/` folder and duplicate it into a new handbook subpage.  Use the same style of filename, but based on the new job title.  (This filename will determine the URL where candidates can apply.)
+  - Keep the structure of the document identical.  Change only the job title, "Responsibilities", and "Experience".
+  - In the same pull request, add a link to your new job posting to the bottom of ["📖 Company#Open positions"](https://fleetdm.com/handbook/company#open-positions) in the handbook.
+  - State the proposed job title, include the appropriate departmental emoji, and link to the "living" fleetdm.com URL; not the GitHub URL.  _(This is where the new page _will eventually exist_, once this pull request is merged.  For now, if you were to visit this URL, you'd just see a 404 error.  So how can you determine this URL?  To understand the pattern, visit other job description pages from the [live handbook](https://fleetdm.com/handbook/company#open-positions), and examine their URLs in your browser.)_
+3. **Get it approved and merged:**  When you submit your proposed job description, the CEO will be automatically tagged for review and get a notification.  He will consider where this role fits into Fleet's strategy and decide whether Fleet will open this position at this time.  He will review the data carefully to try and catch any simple mistakes, then tentatively budget cash and equity compensation and document this compensation research.  He will set a tentative start date (which also indicates this position is no longer just "proposed"; it's now part of the hiring plan.)  Then the CEO will reply promptly in the `#hiring-xxxxx-YYYY` Slack channel, at-mentioning the original proposer and letting them know their position is approved.  (Unless it isn't.)
+
+> #### Steps for Mike
+>  - Confirm the new row in "Fleeties" has a manager, job title, and department, that it doesn't have any corrupted spreadsheet formulas or formatting, and that the start date is still blank (so that it is clear to everyone that this position has been proposed, but that it is not confirmed and planned, yet).
+>  - Confirm the job description consists only of changes to "Responsibilities" and "Experience," with an appropriate filename, and that the content looks accurate, is grammatically correct, and is otherwise ready to post in a public job description on fleetdm.com.  Then approve and merge the pull request.
+>  - Ballpark, budget, and document compensation research for the role
+>    - Scroll to the very bottom of ["¶¶ 💌 Compensation decisions (offer math)"](https://docs.google.com/document/d/1NQ-IjcOTbyFluCWqsFLMfP4SvnopoXDcX0civ-STS5c/edit#heading=h.slomq4whmyas) and add a new heading for the role, pattern-matching off of the names of other nearby role headings.
+>    - Use [Pave](https://pave.com) to determine anticipated compensation in terms of base salary, variable compensation, and equity, then write those ballpark compensation numbers under the new heading in "Compensation decisions".  (Write equity as a percentage.  And when ballparking salary, err on the side of the role costing more.)
+>    - Then create written documentation of your research for future reference.  Take a screenshot of the relevant Pave screens and paste those screenshots under the new heading.
+>  - Update the row in ["¶¶ 🥧 Equity plan"](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit#gid=0) using the benchmarked compensation and share count.
+>    - Note: Most columns of the equity plan are updated automatically when Fleeties is, based on the unique identifier of each row, like `🧑‍🚀890`.  (Advisors have their own flavor of unique IDs, such as `🦉755`.)
+>    - Enter the salary: If the role has variable compensation, use the role's OTE (on-target earning estimate) as the budgeted salary amount, and leave a note in the "Notes (¶¶)" cell clarifying the role's bonus or commission structure.
+>    - Enter the equity as a number of shares, watching the percentage that is automatically calculated in the next cell.  Keep guessing different numbers of shares until you get the derived percentage looking like what you want to see.
+>  - Create a private "#hiring-xxxxxx-YYYY" Slack channel (where "xxxxxx" is the job title and YYYY is the current year).
+>    - Invite the hiring manager.  (Mike McNeil is the DRI for all `#hiring-xxxxx-2022` Slack channels, but the hiring manager is also included.)
+>    - In the channel, post a message at-mentioning the hiring manager to let them know that their proposed position has been reviewed and approved, and now the job description and application form are live on the website.  Include a direct link to their live job description on fleetdm.com.  (This is the URL where candidates can go to read about the job and apply.  For example: `fleetdm.com/handbook/company/product-designer`)
+
+
+
+
+### Receiving job applications
+Every job description page ends with a "call to action", including a link that candidates can click to apply for the job.  Fleet replies to all candidates within **1 business day** and always provides either a **rejection** or **decisive next steps**; even if the next step is just a promise.  For example:
+
+> "We are still working our way through applications and _still_ have not been able to review yours yet.  We think we will be able to review and give you an update about your application update by Thursday at the latest.  I'll let you know as soon as I have news.  I'll assume we're both still in the running if I don't hear from you, so please let me know if anything comes up."
+
+
+When a candidate clicks applies for a job at Fleet, they are taken to a generic Typeform.  When they submit their job application, the Typeform triggers a Zapier automation that will posts the submission to `g-business-operations` in Slack.  The candidate's job application answers are then forwarded to the applicable `#hiring-xxxxx-202x` Slack channel and the hiring manager is @mentioned.
 
 ### Recruiting
 #### Checking legal restrictions on hiring
@@ -324,10 +333,13 @@ Fleet maintains a list of companies with whom Fleet has do-not-solicit terms tha
 ### Interviewing at Fleet
 We're glad you're interested in joining the team! 
 Here are some of the things you can anticipate throughout this process:
-  - We try to reply by email within one business day from the time when the application arrives.
+  - We will reply by email within one business day from the time when the application arrives.
   - You may receive a rejection email (Bummer, consider applying again in the future).
   - You may receive an invitation to "book with us."
 If you've been invited to "book with us," you'll have a Zoom meeting with the hiring team to discuss the next steps. 
+
+### Candidate correspondence email templates
+[We use email templates](https://docs.google.com/document/d/1E_gTunZBMNF4AhsOFuDVi9EnvsIGbAYrmmEzdGmnc9U) to meet our commitment of replying to all applications within one business day.
 
 ### Hiring a new team member
 > Fleet is unable to hire team members in some countries. See [this internal document](https://docs.google.com/document/d/1jHHJqShIyvlVwzx1C-FB9GC74Di_Rfdgmhpai1SPC0g/edit) for the list.
@@ -392,14 +404,22 @@ Then hit send!  After all of the signatures are there, the completed document wi
 #### Purchasing a company-issued device
 Fleet provides laptops for team members to use while working at Fleet. As soon as an offer is accepted, Nathan Holliday will reach out to the new team member to start this process, and will work with the new team member to get their laptop purchased and shipped to them on time.
 
+
 ##### Selecting a laptop
 Most of the team at Fleet uses 16" MacBook Pros, but team members are free to choose any laptop or operating system that works for them, as long as the price [is within reason](#spending-company-money) and supported by our device management solution.  (Good news: Since Fleet uses Fleet for device management, every operating system is supported!)
 
-When selecting your new laptop, optimize your configuration to:
-1. have a reasonably large hard drive
-2. while still being available for delivery or pickup quickly, without waiting for customization.
+When selecting a new laptop for a team member, optimize their configuration to:
+1. have a reasonably large hard drive (at least 512GB hard drive, and if there's any concern go biger)
+2. BUT make sure it's still available for delivery or pickup as quickly as possible, and prior to the start date
 
-To request new equipment, post in #g-business-operations. Include a link to the requested equipment (including any specs), reason for request, and timeline for when the device is needed. 
+> Play around with build until it ships as quickly as possible.  Sometimes small changes lead to much faster ship times.  More standard configurations (with fewer customizations) usually ship more quickly.  Sometimes MacBook Pros ship more quickly than MacBook Airs, and vice versa.  This varies.  Remember: Always play around with the build and optimize for something that will **ship quickly**!
+
+For example, someone in sales, marketing, or business operations might use a 14" Macbook Air, whereas someone in engineering, product, or a primarily design role might use a 16" MacBook Pro.
+
+Windows and Linux devices are available upon request for team members in product and engineering.  (See [Buying other new equipment](#buying-other-new-equipment).)
+
+##### Buying other new equipment
+At Fleet, we [spend company money like it's our own money](https://fleetdm.com/handbook/business-operations#spending-company-money).  If you need equipment above and beyond those standard guidelines, you can request new equipment by creating a GitHub issue in fleetdm/fleet and attaching the `#g-business-operations`.  Please include a link to the requested equipment (including any specs), reason for request, and timeline for when the device is needed. 
 
 ##### Tracking equipment
 When a device has been purchased, it's added to the [spreadsheet of company equipment](https://docs.google.com/spreadsheets/d/1hFlymLlRWIaWeVh14IRz03yE-ytBLfUaqVz0VVmmoGI/edit#gid=0) where we keep track of devices and equipment, purchased by Fleet.
@@ -428,7 +448,20 @@ We're happy you've ventured a trip around the sun with Fleet. Let's celebrate!
 - Mike McNeil updates the respective payroll platform (Gusto or Pilot) and update the [Equity spreadsheet](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit?usp=sharing) (internal doc).
 - If additional follow-up is required for the compensation change, Mike McNeil works with the business operations team to take care of it.
 
+### Equity grants
+Equity grants for new hires are queued up as part of the [hiring process](https://fleetdm.com/handbook/business-operations#hiring), then grants and consents are [batched and processed quarterly](https://github.com/fleetdm/confidential/issues/new/choose).
 
+Doing an equity grant involves:
+1. executing a board consent
+2. the recipient and CEO signing paperwork about the stock options
+3. updating the number of shares for the recipient in the equity plan
+4. updating Carta to reflect the grant
+
+For the status of stock option grants, exercises, and all other _common stock_ including advisor, founder, and team member equity ownership, see [Fleet's equity plan](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit#gid=0).  For information about investor ownership, see [Carta](https://app.carta.com/corporations/1234715/summary/).
+
+> Fleet's [equity plan](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit#gid=0) is the source of truth, not Carta.  Neither are pro formas sent in an email attachment, even if they come from lawyers.
+> 
+> Anyone can make mistakes, and none of us are perfect.  Even when we triple check.  Small mistakes in share counts can be hard to attribute, and can cause headaches and eat up nights of our CEO's and operations team's time.  If you notice what might be a discrepancy between the equity plan and any other secondary source of information, please speak up and let Fleet's CEO know ASAP.  Even if you're wrong, your note will be appreciated.
 
 ## Departures
 
@@ -579,10 +612,11 @@ The following table lists the People group's rituals, frequency, and Directly Re
 
 
 
+## Kanban
+Any contributor can [view the kanban board](https://app.zenhub.com/workspaces/-g-business-operations-63f3dc3cc931f6247fcf55a9/board?sprints=none) for the business operations department, including pending tasks in the active sprint and any new requests.
 
-## Roadmap
-
-https://github.com/orgs/fleetdm/projects/51/views/1
+## Intake
+To make a request of the business operations department, [create an issue using one of our issue templates](https://github.com/fleetdm/confidential/issues/new/choose).  If you don't see what you need, or you are unsure, add your question to the agenda for the next bizops office hours call (weekly).  If you're not sure that your request can wait that long, then please ask for help in our group Slack channel: `#g-business-operations`.
 
 
 ## Slack channels
@@ -601,5 +635,5 @@ These groups maintain the following [Slack channels](https://fleetdm.com/handboo
 | `#help-open-core-ventures` _(¶¶)_       | Mike McNeil
 
 
-<meta name="maintainedBy" value="hollidayn">
+<meta name="maintainedBy" value="mikermcneil">
 <meta name="title" value="🔦 Business Operations">

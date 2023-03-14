@@ -17,6 +17,17 @@ import (
 type EnterpriseOverrides struct {
 	HostFeatures   func(context context.Context, host *Host) (*Features, error)
 	TeamByIDOrName func(ctx context.Context, id *uint, name *string) (*Team, error)
+	// UpdateTeamMDMAppleSettings is the team-specific service method for when
+	// a team ID is provided to the UpdateMDMAppleSettings method.
+	UpdateTeamMDMAppleSettings func(ctx context.Context, tm *Team, payload MDMAppleSettingsPayload) error
+
+	// The next two functions are implemented by the ee/service, and called
+	// properly when called from an ee/service method (e.g. Modify Team), but
+	// they also need to be called from the standard server/service method (e.g.
+	// Modify AppConfig), so in this case we need to use the enterprise
+	// overrides.
+	MDMAppleEnableFileVaultAndEscrow  func(ctx context.Context, teamID *uint) error
+	MDMAppleDisableFileVaultAndEscrow func(ctx context.Context, teamID *uint) error
 }
 
 type OsqueryService interface {
@@ -53,8 +64,12 @@ type Service interface {
 
 	// AuthenticateOrbitHost loads host identified by orbit's nodeKey. Returns an error if that nodeKey doesn't exist
 	AuthenticateOrbitHost(ctx context.Context, nodeKey string) (host *Host, debug bool, err error)
-	// EnrollOrbit enrolls orbit to Fleet by using the enrollSecret and returns the orbitNodeKey if successful
-	EnrollOrbit(ctx context.Context, hardwareUUID, hardwareSerial, enrollSecret string) (orbitNodeKey string, err error)
+	// EnrollOrbit enrolls an orbit instance to Fleet by using the host information + enroll secret
+	// and returns the orbit node key if successful.
+	//
+	//	- If an entry for the host exists (osquery enrolled first) then it will update the host's orbit node key and team.
+	//	- If an entry for the host doesn't exist (osquery enrolls later) then it will create a new entry in the hosts table.
+	EnrollOrbit(ctx context.Context, hostInfo OrbitHostInfo, enrollSecret string) (orbitNodeKey string, err error)
 	// GetOrbitConfig returns team specific flags and extensions in agent options
 	// if the team id is not nil for host, otherwise it returns flags from global
 	// agent options. It also returns any notifications that fleet wants to surface
@@ -632,11 +647,22 @@ type Service interface {
 	// MDMAppleEnableFileVaultAndEscrow adds a configuration profile for the
 	// given team that enables FileVault with a config that allows Fleet to
 	// escrow the recovery key.
-	MDMAppleEnableFileVaultAndEscrow(ctx context.Context, teamID uint) error
+	MDMAppleEnableFileVaultAndEscrow(ctx context.Context, teamID *uint) error
 
 	// MDMAppleDisableFileVaultAndEscrow removes the FileVault configuration
 	// profile for the given team.
-	MDMAppleDisableFileVaultAndEscrow(ctx context.Context, teamID uint) error
+	MDMAppleDisableFileVaultAndEscrow(ctx context.Context, teamID *uint) error
+
+	// UpdateMDMAppleSettings updates the specified MDM Apple settings for a
+	// specified team or for hosts with no team.
+	UpdateMDMAppleSettings(ctx context.Context, payload MDMAppleSettingsPayload) error
+
+	// MDMAppleOktaLogin authenticates an user using Okta ROP flow, and, if the
+	// credentials are valid, returns a MDM enrollment profile.
+	//
+	// ROP refers to the "Resource Owner Password Flow" as specified by
+	// RFC 6749 and described in https://developer.okta.com/docs/guides/implement-grant-type/ropassword/main/
+	MDMAppleOktaLogin(ctx context.Context, username, password string) ([]byte, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// CronSchedulesService

@@ -118,3 +118,4 @@ The following CIS benchmark checks cannot be automated and must be addressed man
 Please refer to the "CIS Apple macOS 13.0 Ventura Benchmark v1.0.0 - 11-14-2022" PDF for descriptions and instructions on how to remediate.
 
 <meta name="pageOrderInSection" value="1700">
+<meta name="title" value="CIS Benchmarks">

@@ -271,10 +271,14 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	invalid := &fleet.InvalidArgumentError{}
 	var newAppConfig fleet.AppConfig
 	if err := json.Unmarshal(p, &newAppConfig); err != nil {
-		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: err.Error()})
+		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+			Message:     "failed to decode app config",
+			InternalErr: err,
+		})
 	}
 
-	if newAppConfig.FleetDesktop.TransparencyURL != "" {
+	// default transparency URL is https://fleetdm.com/transparency so you are allowed to apply as long as it's not changing
+	if newAppConfig.FleetDesktop.TransparencyURL != "" && newAppConfig.FleetDesktop.TransparencyURL != fleet.DefaultTransparencyURL {
 		if license.Tier != "premium" {
 			invalid.Append("transparency_url", ErrMissingLicense.Error())
 			return nil, ctxerr.Wrap(ctx, invalid)
@@ -374,7 +378,9 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	delJira, err := fleet.ValidateJiraIntegrations(ctx, storedJiraByProjectKey, newAppConfig.Integrations.Jira)
 	if err != nil {
 		if errors.As(err, &fleet.IntegrationTestError{}) {
-			return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: err.Error()})
+			return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+				Message: err.Error(),
+			})
 		}
 		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("Jira integration", err.Error()))
 	}
@@ -383,7 +389,9 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	delZendesk, err := fleet.ValidateZendeskIntegrations(ctx, storedZendeskByGroupID, newAppConfig.Integrations.Zendesk)
 	if err != nil {
 		if errors.As(err, &fleet.IntegrationTestError{}) {
-			return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: err.Error()})
+			return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+				Message: err.Error(),
+			})
 		}
 		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("Zendesk integration", err.Error()))
 	}
@@ -440,6 +448,24 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 			},
 		); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "create activity for app config macos min version modification")
+		}
+	}
+
+	if oldAppConfig.MDM.MacOSSettings.EnableDiskEncryption != appConfig.MDM.MacOSSettings.EnableDiskEncryption {
+		var act fleet.ActivityDetails
+		if appConfig.MDM.MacOSSettings.EnableDiskEncryption {
+			act = fleet.ActivityTypeEnabledMacosDiskEncryption{}
+			if err := svc.EnterpriseOverrides.MDMAppleEnableFileVaultAndEscrow(ctx, nil); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "enable no-team filevault and escrow")
+			}
+		} else {
+			act = fleet.ActivityTypeDisabledMacosDiskEncryption{}
+			if err := svc.EnterpriseOverrides.MDMAppleDisableFileVaultAndEscrow(ctx, nil); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "disable no-team filevault and escrow")
+			}
+		}
+		if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "create activity for app config macos disk encryption")
 		}
 	}
 

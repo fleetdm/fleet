@@ -80,7 +80,7 @@ go.mod @fleetdm/go
 /handbook/product @zhumo
 /handbook/customers @alexmitchelliii
 /handbook/marketing @jarodreyes
-/handbook/README.md @eashaw
+/handbook/README.md @mikermcneil
 
 #
 # For configuration that determines auto-approval + auto-unfreezing, so that contributors

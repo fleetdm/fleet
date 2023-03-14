@@ -795,7 +795,8 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 		policies = &hp
 	}
 
-	// If Fleet MDM is enabled and configured, we want to include MDM profiles.
+	// If Fleet MDM is enabled and configured, we want to include MDM profiles
+	// and host's disk encryption status.
 	var profiles []fleet.HostMDMAppleProfile
 	ac, err := svc.ds.AppConfig(ctx)
 	if err != nil {
@@ -807,6 +808,10 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 			return nil, ctxerr.Wrap(ctx, err, "get host mdm profiles")
 		}
 		profiles = p
+
+		// determine disk encryption and action required here based on profiles and
+		// raw decryptable key status.
+		host.MDM.DetermineDiskEncryptionStatus(profiles, apple_mdm.FleetFileVaultPayloadIdentifier)
 	}
 	host.MDM.Profiles = &profiles
 
@@ -1430,7 +1435,7 @@ func (svc *Service) HostEncryptionKey(ctx context.Context, id uint) (*fleet.Host
 	}
 
 	if key.Decryptable == nil || !*key.Decryptable {
-		return nil, ctxerr.Wrap(ctx, notFoundError{}, "getting host encryption key")
+		return nil, ctxerr.Wrap(ctx, newNotFoundError(), "getting host encryption key")
 	}
 
 	cert, _, _, err := svc.config.MDM.AppleSCEP()

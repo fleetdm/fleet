@@ -391,7 +391,7 @@ func checkMacOfficeVulnerabilities(
 			errHandler(ctx, logger, "updating mac office release notes", err)
 		}
 
-		level.Debug(logger).Log("finished sync mac office release notes")
+		level.Debug(logger).Log("msg", "finished sync mac office release notes")
 	}
 
 	start := time.Now()
@@ -738,11 +738,6 @@ func newCleanupsAndAggregationSchedule(
 			"cleanup_expired_password_reset_requests",
 			func(ctx context.Context) error {
 				return ds.CleanupExpiredPasswordResetRequests(ctx)
-			},
-		),
-		schedule.WithJob(
-			"cleanup_cron_stats", func(ctx context.Context) error {
-				return ds.CleanupCronStats(ctx)
 			},
 		),
 		// Run aggregation jobs after cleanups.

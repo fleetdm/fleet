@@ -466,6 +466,11 @@ type MDMConfig struct {
 	// the following fields hold the decrypted, validated Apple BM token set the
 	// first time AppleBM is called.
 	appleBMToken *nanodep_client.OAuth1Tokens
+
+	OktaClientID        string `yaml:"okta_client_id"`
+	OktaClientSecret    string `yaml:"okta_client_secret"`
+	OktaServerURL       string `yaml:"okta_server_url"`
+	EndUserAgreementURL string `yaml:"eula_url"`
 }
 
 type x509KeyPairConfig struct {
@@ -1036,6 +1041,10 @@ func (man Manager) addConfigs() {
 	man.addConfigString("mdm.apple_bm_cert_bytes", "", "Apple Business Manager PEM-encoded certificate bytes")
 	man.addConfigString("mdm.apple_bm_key", "", "Apple Business Manager PEM-encoded private key path")
 	man.addConfigString("mdm.apple_bm_key_bytes", "", "Apple Business Manager PEM-encoded private key bytes")
+	man.addConfigString("mdm.okta_client_id", "", "Public client ID of the Okta application")
+	man.addConfigString("mdm.okta_client_secret", "", "Private client secret of the Okta application")
+	man.addConfigString("mdm.okta_server_url", "The Okta server URL, eg: https://my-subdomain.okta.com", "")
+	man.addConfigString("mdm.eula_url", "", "A link to a PDF document containing an EULA document")
 
 	// Hide the official MDM flags as we don't want it to be discoverable for users for now
 	mdmFlags := []string{
@@ -1053,6 +1062,10 @@ func (man Manager) addConfigs() {
 		"mdm.apple_bm_cert_bytes",
 		"mdm.apple_bm_key",
 		"mdm.apple_bm_key_bytes",
+		"mdm.okta_client_id",
+		"mdm.okta_client_secret",
+		"mdm.okta_server_url",
+		"mdm.eula_url",
 	}
 	for _, mdmFlag := range mdmFlags {
 		if flag := man.command.PersistentFlags().Lookup(flagNameFromConfigKey(mdmFlag)); flag != nil {
@@ -1314,6 +1327,10 @@ func (man Manager) LoadConfig() FleetConfig {
 			AppleBMCertBytes:        man.getConfigString("mdm.apple_bm_cert_bytes"),
 			AppleBMKey:              man.getConfigString("mdm.apple_bm_key"),
 			AppleBMKeyBytes:         man.getConfigString("mdm.apple_bm_key_bytes"),
+			OktaClientID:            man.getConfigString("mdm.okta_client_id"),
+			OktaClientSecret:        man.getConfigString("mdm.okta_client_secret"),
+			OktaServerURL:           man.getConfigString("mdm.okta_server_url"),
+			EndUserAgreementURL:     man.getConfigString("mdm.eula_url"),
 		},
 	}
 

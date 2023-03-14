@@ -503,24 +503,29 @@ const hostMDMSelect = `,
 			WHEN hdek.decryptable IS NULL OR hdek.decryptable = 0 THEN CAST(FALSE AS JSON)
 			ELSE CAST(TRUE AS JSON)
 		END,
+		'raw_decryptable',
+		CASE
+			WHEN hdek.host_id IS NULL THEN -1
+			ELSE hdek.decryptable
+		END,
 		'name', hmdm.name
 	) mdm_host_data
 	`
 
 // hostMDMJoin is the SQL fragment used to join MDM-related tables to the hosts table. It is a
 // dependency of the hostMDMSelect fragment.
-const hostMDMJoin = `  
+const hostMDMJoin = `
   LEFT JOIN (
-	SELECT 
-	  host_mdm.is_server, 
-	  host_mdm.enrolled, 
-	  host_mdm.installed_from_dep, 
-	  host_mdm.server_url, 
-	  host_mdm.mdm_id, 
-	  host_mdm.host_id, 
-	  name 
-	FROM 
-	  host_mdm 
+	SELECT
+	  host_mdm.is_server,
+	  host_mdm.enrolled,
+	  host_mdm.installed_from_dep,
+	  host_mdm.server_url,
+	  host_mdm.mdm_id,
+	  host_mdm.host_id,
+	  name
+	FROM
+	  host_mdm
 	  LEFT JOIN mobile_device_management_solutions ON host_mdm.mdm_id = mobile_device_management_solutions.id
   ) hmdm ON hmdm.host_id = h.id
   LEFT JOIN host_disk_encryption_keys hdek ON hdek.host_id = h.id
@@ -748,6 +753,7 @@ func (ds *Datastore) applyHostFilters(opt fleet.HostListOptions, sql string, fil
 	sql, params = filterHostsByTeam(sql, opt, params)
 	sql, params = filterHostsByPolicy(sql, opt, params)
 	sql, params = filterHostsByMDM(sql, opt, params)
+	sql, params = filterHostsByMacOSSettingsStatus(sql, opt, params)
 	sql, params = filterHostsByOS(sql, opt, params)
 	sql, params = hostSearchLike(sql, params, opt.MatchQuery, hostSearchColumns...)
 	sql, params = appendListOptionsWithCursorToSQL(sql, params, &opt.ListOptions)
@@ -824,6 +830,38 @@ func filterHostsByStatus(now time.Time, sql string, opt fleet.HostListOptions, p
 		params = append(params, now)
 	}
 	return sql, params
+}
+
+func filterHostsByMacOSSettingsStatus(sql string, opt fleet.HostListOptions, params []interface{}) (string, []interface{}) {
+	if !opt.MacOSSettingsFilter.IsValid() {
+		return sql, params
+	}
+
+	newSQL := ""
+	newParams := []interface{}{}
+
+	if opt.TeamFilter == nil || *opt.TeamFilter == 0 {
+		// add "no team" filter
+		newSQL += ` AND h.team_id IS NULL`
+	}
+
+	newSQL += ` AND EXISTS (SELECT 1 FROM host_mdm_apple_profiles hmap WHERE hmap.host_uuid = h.uuid AND status = ?`
+
+	switch opt.MacOSSettingsFilter {
+	case fleet.MacOSSettingsStatusFailing:
+		newSQL += `)`
+		newParams = append(newParams, fleet.MDMAppleDeliveryFailed)
+
+	case fleet.MacOSSettingsStatusPending:
+		newSQL += ` AND NOT EXISTS (SELECT 1 FROM host_mdm_apple_profiles hmap2 WHERE h.uuid = hmap2.host_uuid AND hmap2.status = ?))`
+		newParams = append(newParams, fleet.MDMAppleDeliveryPending, fleet.MDMAppleDeliveryFailed)
+
+	case fleet.MacOSSettingsStatusLatest:
+		newSQL += ` AND NOT EXISTS (SELECT 1 FROM host_mdm_apple_profiles hmap2 WHERE h.uuid = hmap2.host_uuid AND (hmap2.status = ? OR hmap2.status = ?)))`
+		newParams = append(newParams, fleet.MDMAppleDeliveryApplied, fleet.MDMAppleDeliveryPending, fleet.MDMAppleDeliveryFailed)
+	}
+
+	return sql + newSQL, append(params, newParams...)
 }
 
 func (ds *Datastore) CountHosts(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) (int, error) {
@@ -1037,18 +1075,18 @@ func matchHostDuringEnrollment(ctx context.Context, q sqlx.QueryerContext, isMDM
 	return rows[0].ID, rows[0].LastEnrolledAt, nil
 }
 
-func (ds *Datastore) EnrollOrbit(ctx context.Context, isMDMEnabled bool, hardwareUUID, hardwareSerial, orbitNodeKey string, teamID *uint) (*fleet.Host, error) {
+func (ds *Datastore) EnrollOrbit(ctx context.Context, isMDMEnabled bool, hostInfo fleet.OrbitHostInfo, orbitNodeKey string, teamID *uint) (*fleet.Host, error) {
 	if orbitNodeKey == "" {
 		return nil, ctxerr.New(ctx, "orbit node key is empty")
 	}
-	if hardwareUUID == "" {
+	if hostInfo.HardwareUUID == "" {
 		return nil, ctxerr.New(ctx, "hardware uuid is empty")
 	}
-	// NOTE: allow an empty serial, it will be for Windows.
+	// NOTE: allow an empty serial, currently it is empty for Windows.
 
 	var host fleet.Host
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		hostID, _, err := matchHostDuringEnrollment(ctx, tx, isMDMEnabled, "", hardwareUUID, hardwareSerial)
+		hostID, _, err := matchHostDuringEnrollment(ctx, tx, isMDMEnabled, "", hostInfo.HardwareUUID, hostInfo.HardwareSerial)
 		switch {
 		case err == nil:
 			sqlUpdate := `
@@ -1059,9 +1097,16 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, isMDMEnabled bool, hardwar
         uuid = COALESCE(NULLIF(uuid, ''), ?),
         osquery_host_id = COALESCE(NULLIF(osquery_host_id, ''), ?),
         hardware_serial = COALESCE(NULLIF(hardware_serial, ''), ?),
-				team_id = ?
+		team_id = ?
       WHERE id = ?`
-			_, err := tx.ExecContext(ctx, sqlUpdate, orbitNodeKey, hardwareUUID, hardwareUUID, hardwareSerial, teamID, hostID)
+			_, err := tx.ExecContext(ctx, sqlUpdate,
+				orbitNodeKey,
+				hostInfo.HardwareUUID,
+				hostInfo.HardwareUUID,
+				hostInfo.HardwareSerial,
+				teamID,
+				hostID,
+			)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "orbit enroll error updating host details")
 			}
@@ -1086,15 +1131,29 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, isMDMEnabled bool, hardwar
 					team_id,
 					refetch_requested,
 					orbit_node_key,
-					hardware_serial
-				) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
+					hardware_serial,
+					hostname,
+					platform
+				) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?)
 			`
-			result, err := tx.ExecContext(ctx, sqlInsert, zeroTime, zeroTime, zeroTime, zeroTime, hardwareUUID, hardwareUUID, orbitNodeKey, teamID, orbitNodeKey, hardwareSerial)
+			result, err := tx.ExecContext(ctx, sqlInsert,
+				zeroTime,
+				zeroTime,
+				zeroTime,
+				zeroTime,
+				hostInfo.HardwareUUID,
+				hostInfo.HardwareUUID,
+				orbitNodeKey,
+				teamID,
+				orbitNodeKey,
+				hostInfo.HardwareSerial,
+				hostInfo.Hostname,
+				hostInfo.Platform,
+			)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "orbit enroll error inserting host details")
 			}
 			hostID, _ := result.LastInsertId()
-			level.Info(ds.logger).Log("hostID", hostID)
 			const sqlHostDisplayName = `
 				INSERT INTO host_display_names (host_id, display_name) VALUES (?, '')
 			`
@@ -1154,7 +1213,6 @@ func (ds *Datastore) EnrollHost(ctx context.Context, isMDMEnabled bool, osqueryH
 				return ctxerr.Wrap(ctx, err, "insert host")
 			}
 			hostID, _ := result.LastInsertId()
-			level.Info(ds.logger).Log("hostID", hostID)
 			const sqlHostDisplayName = `
 				INSERT INTO host_display_names (host_id, display_name) VALUES (?, '')
 			`
@@ -1876,7 +1934,7 @@ func (ds *Datastore) DeleteHosts(ctx context.Context, ids []uint) error {
 func (ds *Datastore) FailingPoliciesCount(ctx context.Context, host *fleet.Host) (uint, error) {
 	if host.FleetPlatform() == "" {
 		// We log to help troubleshooting in case this happens.
-		level.Error(ds.logger).Log("err", fmt.Sprintf("host %d with empty platform", host.ID))
+		level.Error(ds.logger).Log("err", "unrecognized platform", "hostID", host.ID, "platform", host.Platform) //nolint:errcheck
 	}
 
 	query := `
@@ -1899,7 +1957,7 @@ func (ds *Datastore) FailingPoliciesCount(ctx context.Context, host *fleet.Host)
 func (ds *Datastore) ListPoliciesForHost(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
 	if host.FleetPlatform() == "" {
 		// We log to help troubleshooting in case this happens.
-		level.Error(ds.logger).Log("err", fmt.Sprintf("host %d with empty platform", host.ID))
+		level.Error(ds.logger).Log("err", "unrecognized platform", "hostID", host.ID, "platform", host.Platform) //nolint:errcheck
 	}
 	query := `SELECT p.*,
 		COALESCE(u.name, '<deleted>') AS author_name,

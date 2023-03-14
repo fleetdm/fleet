@@ -372,7 +372,7 @@ var (
 type MDMAppleConfigProfile struct {
 	// ProfileID is the unique id of the configuration profile in Fleet
 	ProfileID uint `db:"profile_id" json:"profile_id"`
-	// TeamID is the id of the team with which the configuration is associated. A team id of zero
+	// TeamID is the id of the team with which the configuration is associated. A nil team id
 	// represents a configuration profile that is not associated with any team.
 	TeamID *uint `db:"team_id" json:"team_id"`
 	// Identifier corresponds to the payload identifier of the associated mobileconfig payload.
@@ -426,6 +426,7 @@ type HostMDMAppleProfile struct {
 	CommandUUID   string                  `db:"command_uuid" json:"-"`
 	ProfileID     uint                    `db:"profile_id" json:"profile_id"`
 	Name          string                  `db:"name" json:"name"`
+	Identifier    string                  `db:"identifier" json:"-"`
 	Status        *MDMAppleDeliveryStatus `db:"status" json:"status"`
 	OperationType MDMAppleOperationType   `db:"operation_type" json:"operation_type"`
 	Detail        string                  `db:"detail" json:"detail"`
@@ -453,13 +454,13 @@ type MDMAppleHostsProfilesSummary struct {
 	// Latest includes each host that has successfully applied all of the profiles currently
 	// applicable to the host. If any of the profiles are pending or failed for the host, the host
 	// is not counted as latest.
-	Latest uint `json:"latest" db:"latest"`
-	// Failed includes each host that has failed to apply one or more of the profiles currently
-	// applicable to the host.
-	Failed uint `json:"failed" db:"failed"`
+	Latest uint `json:"latest" db:"applied"`
 	// Pending includes each host that has not yet applied one or more of the profiles currently
 	// applicable to the host. If a host failed to apply any profiles, it is not counted as pending.
 	Pending uint `json:"pending" db:"pending"`
+	// Failed includes each host that has failed to apply one or more of the profiles currently
+	// applicable to the host.
+	Failed uint `json:"failing" db:"failed"`
 }
 
 // MDMAppleFleetdConfig contains the fields used to configure
@@ -467,4 +468,16 @@ type MDMAppleHostsProfilesSummary struct {
 type MDMAppleFleetdConfig struct {
 	FleetURL     string
 	EnrollSecret string
+}
+
+// MDMAppleSettingsPayload describes the payload accepted by the endpoint to
+// update specific MDM macos settings for a team (or no team).
+type MDMAppleSettingsPayload struct {
+	TeamID               *uint `json:"team_id"`
+	EnableDiskEncryption *bool `json:"enable_disk_encryption"`
+}
+
+// AuthzType implements authz.AuthzTyper.
+func (p MDMAppleSettingsPayload) AuthzType() string {
+	return "mdm_apple_settings"
 }

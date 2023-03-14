@@ -164,6 +164,16 @@ SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND na
 select version, errors, warnings from munki_info;
 ```
 
+## network_interface_chrome
+
+- Platforms: chrome
+
+- Query:
+
+```sql
+SELECT address, mac FROM network_interfaces LIMIT 1
+```
+
 ## network_interface_unix
 
 - Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, darwin
