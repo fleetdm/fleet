@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState } from "react";
+import React, { useContext, useState } from "react";
 import { useQuery } from "react-query";
 
 import { AppContext } from "context/app";
@@ -10,28 +10,11 @@ import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
 import Checkbox from "components/forms/fields/Checkbox";
-import Icon from "components/Icon";
+import Upsell from "components/Upsell";
 
 import DiskEncryptionTable from "./components/DiskEncryptionTable";
 
 const baseClass = "disk-encryption";
-
-const PremiumFeatureMessage = () => {
-  return (
-    <div className={`${baseClass}__premium-feature-message`}>
-      <Icon name="premium-feature" />
-      <p>
-        This feature is included in Fleet Premium.{" "}
-        <CustomLink
-          text="Learn more"
-          url="https://fleetdm.com/upgrade"
-          newTab
-        />
-      </p>
-    </div>
-  );
-};
-
 interface IDiskEncryptionProps {
   currentTeamId?: number;
 }
@@ -91,7 +74,7 @@ const DiskEncryption = ({ currentTeamId }: IDiskEncryptionProps) => {
     <div className={baseClass}>
       <h2>Disk encryption</h2>
       {!isPremiumTier ? (
-        <PremiumFeatureMessage />
+        <Upsell />
       ) : (
         <>
           {showAggregate ? (
