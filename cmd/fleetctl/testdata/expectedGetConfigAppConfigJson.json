@@ -43,6 +43,7 @@
 			"metadata_url": "",
 			"idp_name": "",
 			"enable_jit_provisioning": false,
+			"enable_jit_role_sync": false,
 			"enable_sso": false,
 			"enable_sso_idp_login": false
 		},
