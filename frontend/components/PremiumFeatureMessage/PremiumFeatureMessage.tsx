@@ -2,10 +2,10 @@ import CustomLink from "components/CustomLink";
 import Icon from "components/Icon";
 import React from "react";
 
-const Upsell = () => {
+const PremiumFeatureMessage = () => {
   return (
-    <div className="upsell-container">
-      <div className="upsell">
+    <div className="premium-feature-message-container">
+      <div className="premium-feature-message">
         <Icon name="premium-feature" />
         <p>This feature is included in Fleet Premium.</p>
         <div className="external-link-and-icon">
@@ -17,4 +17,4 @@ const Upsell = () => {
   );
 };
 
-export default Upsell;
+export default PremiumFeatureMessage;

@@ -3,7 +3,7 @@ import useInfoCard from "pages/DashboardPage/components/InfoCard";
 import React, { useContext } from "react";
 import { isPremiumTier } from "utilities/permissions/permissions";
 import { AppContext } from "context/app";
-import Upsell from "components/Upsell";
+import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import OsMinVersionForm from "./components/OsMinVersionForm";
 import NudgePreview from "./components/NudgePreview";
 
@@ -61,7 +61,7 @@ const MacOSUpdates = ({ location }: IMacOSUpdatesProps) => {
       </>
     </div>
   ) : (
-    <Upsell />
+    <PremiumFeatureMessage />
   );
 };
 

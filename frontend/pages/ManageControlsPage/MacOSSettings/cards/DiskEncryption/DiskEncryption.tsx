@@ -10,7 +10,7 @@ import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
 import Checkbox from "components/forms/fields/Checkbox";
-import Upsell from "components/Upsell";
+import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 
 import DiskEncryptionTable from "./components/DiskEncryptionTable";
 
@@ -74,7 +74,7 @@ const DiskEncryption = ({ currentTeamId }: IDiskEncryptionProps) => {
     <div className={baseClass}>
       <h2>Disk encryption</h2>
       {!isPremiumTier ? (
-        <Upsell />
+        <PremiumFeatureMessage />
       ) : (
         <>
           {showAggregate ? (
