@@ -1,9 +1,12 @@
 import React from "react";
+import { useQuery } from "react-query";
 
 import { IDiskEncryptionStatusAggregate } from "interfaces/mdm";
+import mdmAPI from "services/entities/mdm";
 
 import TableContainer from "components/TableContainer";
 import EmptyTable from "components/EmptyTable";
+import DataError from "components/DataError";
 
 import {
   generateTableHeaders,
@@ -13,15 +16,34 @@ import {
 const baseClass = "disk-encryption-table";
 
 interface IDiskEncryptionTableProps {
-  aggregateData: IDiskEncryptionStatusAggregate;
+  currentTeamId?: number;
 }
 
 const DEFAULT_SORT_HEADER = "hosts";
 const DEFAULT_SORT_DIRECTION = "asc";
 
-const DiskEncryptionTable = ({ aggregateData }: IDiskEncryptionTableProps) => {
+const DiskEncryptionTable = ({ currentTeamId }: IDiskEncryptionTableProps) => {
+  const { data, error } = useQuery<
+    IDiskEncryptionStatusAggregate,
+    Error,
+    IDiskEncryptionStatusAggregate
+  >(
+    ["disk-encryption-summary", currentTeamId],
+    () => mdmAPI.getDiskEncryptionAggregate(currentTeamId),
+    {
+      refetchOnWindowFocus: false,
+      retry: false,
+    }
+  );
+
   const tableHeaders = generateTableHeaders();
-  const tableData = generateTableData(aggregateData);
+  const tableData = generateTableData(data);
+
+  if (error) {
+    return <DataError />;
+  }
+
+  if (!data) return null;
 
   return (
     <div className={baseClass}>
@@ -38,7 +60,11 @@ const DiskEncryptionTable = ({ aggregateData }: IDiskEncryptionTableProps) => {
         disablePagination
         disableCount
         emptyComponent={() => (
-          <EmptyTable header="No Disk Encryption Status" info="test" />
+          <EmptyTable
+            header="No Disk Encryption Status"
+            info="Expecting to status data? Try again in a few seconds as the system
+              catches up."
+          />
         )}
       />
     </div>

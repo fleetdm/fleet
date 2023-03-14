@@ -6,6 +6,7 @@ import DiskEncryption from "./cards/DiskEncryption";
 import CustomSettings from "./cards/CustomSettings";
 
 interface IMacOSSettingsCardProps {
+  currentTeamId?: number;
   profiles?: IMdmProfile[];
   onProfileUpload?: () => void;
   onProfileDelete?: () => void;

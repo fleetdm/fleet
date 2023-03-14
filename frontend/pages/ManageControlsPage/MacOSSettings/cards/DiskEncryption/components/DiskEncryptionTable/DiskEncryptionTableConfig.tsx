@@ -115,7 +115,8 @@ const STATUS_CELL_VALUES: Record<StatusNames, IStatusCellValue> = {
   },
 };
 
-export const generateTableData = (data: IDiskEncryptionStatusAggregate) => {
+export const generateTableData = (data?: IDiskEncryptionStatusAggregate) => {
+  if (!data) return [];
   const entries = Object.entries(data) as StatusEntry[];
 
   return entries.map(([status, numHosts]) => ({

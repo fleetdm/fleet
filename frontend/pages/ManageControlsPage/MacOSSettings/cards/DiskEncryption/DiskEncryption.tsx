@@ -1,10 +1,16 @@
-import React, { useContext, useState } from "react";
+import React, { useContext, useEffect, useState } from "react";
+import { useQuery } from "react-query";
 
 import { AppContext } from "context/app";
+import { NotificationContext } from "context/notification";
+import { ITeamConfig } from "interfaces/team";
+import mdmAPI from "services/entities/mdm";
+import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
 import Checkbox from "components/forms/fields/Checkbox";
+import Icon from "components/Icon";
 
 import DiskEncryptionTable from "./components/DiskEncryptionTable";
 
@@ -13,6 +19,7 @@ const baseClass = "disk-encryption";
 const PremiumFeatureMessage = () => {
   return (
     <div className={`${baseClass}__premium-feature-message`}>
+      <Icon name="premium-feature" />
       <p>
         This feature is included in Fleet Premium.{" "}
         <CustomLink
@@ -25,27 +32,59 @@ const PremiumFeatureMessage = () => {
   );
 };
 
-const DiskEncryption = () => {
-  const data = {
-    applied: 1,
-    action_required: 10,
-    enforcing: 1000,
-    failed: 10000,
-    removing_enforcement: 100000,
-  };
+interface IDiskEncryptionProps {
+  currentTeamId?: number;
+}
 
-  // TODO: replace default value with enable disk encryption API call
-  const [showAggregate, setShowAggregate] = useState(false);
-  const [isChecked, setIsChecked] = useState(false);
+const DiskEncryption = ({ currentTeamId }: IDiskEncryptionProps) => {
+  const { isPremiumTier, config } = useContext(AppContext);
+  const { renderFlash } = useContext(NotificationContext);
 
-  const { isPremiumTier } = useContext(AppContext);
+  const defaultShowDiskEncryption = currentTeamId
+    ? false
+    : config?.mdm.macos_settings.enable_disk_encryption ?? false;
+
+  const [showAggregate, setShowAggregate] = useState(defaultShowDiskEncryption);
+  const [diskEncryptionEnabled, setDiskEncryptionEnabled] = useState(
+    defaultShowDiskEncryption
+  );
 
   const onToggleCheckbox = (value: boolean) => {
-    setIsChecked(value);
+    setDiskEncryptionEnabled(value);
   };
 
-  const onUpdateDiskEncryption = () => {
-    setShowAggregate(isChecked);
+  useQuery<ILoadTeamResponse, Error, ITeamConfig>(
+    ["team", currentTeamId],
+    () => teamsAPI.load(currentTeamId ?? 0),
+    {
+      refetchOnWindowFocus: false,
+      retry: false,
+      enabled: Boolean(currentTeamId),
+      select: (res) => res.team,
+      onSuccess: (res) => {
+        const enableDiskEncryption =
+          res.mdm?.macos_settings.enable_disk_encryption ?? false;
+        setDiskEncryptionEnabled(enableDiskEncryption);
+        setShowAggregate(enableDiskEncryption);
+      },
+    }
+  );
+
+  const onUpdateDiskEncryption = async () => {
+    try {
+      await mdmAPI.updateAppleMdmSettings(diskEncryptionEnabled, currentTeamId);
+      renderFlash(
+        "success",
+        "Successfully updated disk encryption key storage setting."
+      );
+      setShowAggregate(diskEncryptionEnabled);
+    } catch {
+      console.error("error updating");
+      renderFlash(
+        "error",
+        "Could not update the disk encryption key storage setting. Please try again."
+      );
+    }
   };
 
   return (
@@ -55,17 +94,19 @@ const DiskEncryption = () => {
         <PremiumFeatureMessage />
       ) : (
         <>
-          {showAggregate ? <DiskEncryptionTable aggregateData={data} /> : null}
+          {showAggregate ? (
+            <DiskEncryptionTable currentTeamId={currentTeamId} />
+          ) : null}
           <Checkbox
             onChange={onToggleCheckbox}
-            value={isChecked}
+            value={diskEncryptionEnabled}
             className={`${baseClass}__checkbox`}
           >
             On
           </Checkbox>
           <p>
-            Apple calls this “FileVault.” If turned on, hosts’ disk encryption
-            keys will be stored in Fleet.{" "}
+            Apple calls this “FileVault.” If turned on, hosts&apos; disk
+            encryption keys will be stored in Fleet.{" "}
             <CustomLink
               text="Learn more"
               url="https://fleetdm.com/docs/controls#disk-encryption"

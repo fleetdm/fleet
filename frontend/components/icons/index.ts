@@ -50,6 +50,7 @@ import FilePython from "./FilePython";
 import FileZsh from "./FileZsh";
 import FileBash from "./FileBash";
 import FileGeneric from "./FileGeneric";
+import PremiumFeature from "./PremiumFeature";
 
 // a mapping of the usable names of icons to the icon source.
 export const ICON_MAP = {
@@ -101,6 +102,7 @@ export const ICON_MAP = {
   "file-bash": FileBash,
   "file-generic": FileGeneric,
   refresh: Refresh,
+  "premium-feature": PremiumFeature,
 };
 
 export type IconNames = keyof typeof ICON_MAP;

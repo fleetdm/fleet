@@ -41,7 +41,9 @@ export default {
   MDM_REQUEST_CSR: `/${API_VERSION}/fleet/mdm/apple/request_csr`,
   MDM_PROFILES: `/${API_VERSION}/fleet/mdm/apple/profiles`,
   MDM_PROFILE: (id: number) => `/${API_VERSION}/fleet/mdm/apple/profiles/${id}`,
+  MDM_UPDATE_APPLE_SETTINGS: `/${API_VERSION}/fleet/mdm/apple/settings`,
   MDM_PROFILES_AGGREGATE_STATUSES: `/${API_VERSION}/fleet/mdm/apple/profiles/summary`,
+  MDM_APPLE_DISK_ENCRYPTION_AGGREGATE: `/${API_VERSION}/fleet/mdm/apple/filevault/summary`,
   // Should below 2 endpoints be consistent?
   HOST_MDM: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/mdm`,
   HOST_MDM_UNENROLL: (id: number) =>
