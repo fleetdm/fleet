@@ -182,16 +182,23 @@ If you would like to manage hosts that can travel outside your VPN or intranet w
 - `/api/osquery`
 - `/api/v1/osquery`
 
-If you are using Fleet Desk, top and want it to work on remote devices, the bare minimum API to expose is `/api/latest/fleet/device/*/desktop`. This minimal endpoint will only provide the number of failing policies. 
+If you are using Fleet Desktop and want it to work on remote devices, the bare minimum API to expose is `/api/latest/fleet/device/*/desktop`. This minimal endpoint will only provide the number of failing policies. 
 
 For full Fleet Desktop functionality, `/api/fleet/orbit/*` and`/api/fleet/device/ping` must also be exposed.
 
 If you would like to use the fleetctl CLI from outside of your network, the following endpoints will also need to be exposed for `fleetctl`:
 
-- /api/setup
-- /api/v1/setup
-- /api/latest/fleet/*
-- /api/v1/fleet/*
+- `/api/setup`
+- `/api/v1/setup`
+- `/api/latest/fleet/*`
+- `/api/v1/fleet/*`
+
+**IN PROGRESS** If you would like to use Fleet MDM, the following endpoints need to be exposed:
+
+- `/mdm/apple/scep` to allow hosts to obtain a SCEP certificate.
+- `/mdm/apple/mdm` to allow hosts to reach the server using the MDM protocol.
+- `/mdm/apple/enroll` to allow DEP enrolled devices to get an enrollment profile.
+- `/api/v1/fleet/device/*/mdm/apple/manual_enrollment_profile` to allow manually enrolled devices to download an enrollment profile.
 
 ## What is the minimum version of MySQL required by Fleet?
 
