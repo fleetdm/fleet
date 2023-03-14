@@ -2,10 +2,6 @@ import CustomLink from "components/CustomLink";
 import Icon from "components/Icon";
 import React from "react";
 
-// interface IUpsellProps {
-//   className: string;
-// }
-// const Upsell = ({ className }: IUpsellProps) => {
 const Upsell = () => {
   return (
     <div className="upsell-container">
