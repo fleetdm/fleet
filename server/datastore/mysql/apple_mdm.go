@@ -937,7 +937,21 @@ func (ds *Datastore) ListMDMAppleProfilesToInstall(ctx context.Context) ([]*flee
 	//   mdm_apple_configuration_profiles and hosts.
 	// - Set B, the current state given by host_mdm_apple_profiles.
 	//
-	// A - B gives us the profiles that need to be installed.
+	// A - B gives us the profiles that need to be installed:
+	//
+	//   - profiles that are in A but not in B
+	//
+	//   - profiles that are in A and in B, but with an operation type of
+	//   "remove", regardless of the status. (technically, if status is NULL then
+	//   the profile is already installed - it has not been queued for remove -,
+	//   and same if status is failed, but the proper thing to do with it would
+	//   be to remove the row, not return it as "to install". For simplicity of
+	//   implementation here, we'll return it as "to install" for now, which will
+	//   cause the row to be updated with the correct operation type and status).
+	//
+	//   - profiles that are in A and in B, with an operation type of "install"
+	//   and a NULL status. Other statuses mean that the operation is already
+	//   in flight (pending) or in a terminal state (failed or applied).
 	query := `
           SELECT ds.profile_id, ds.host_uuid, ds.profile_identifier, ds.profile_name
           FROM (
@@ -975,7 +989,13 @@ func (ds *Datastore) ListMDMAppleProfilesToRemove(ctx context.Context) ([]*fleet
 	// mdm_apple_configuration_profiles and hosts.
 	// - Set B, the current state given by host_mdm_apple_profiles.
 	//
-	// B - A gives us the profiles that need to be removed.
+	// B - A gives us the profiles that need to be removed:
+	//
+	//   - profiles that are in B but not in A
+	//
+	// Any other case are profiles that are in both B and A, and as such are
+	// processed by the ListMDMAppleProfilesToInstall method (since they are in
+	// both, their desired state is necessarily to be installed).
 	query := `
           SELECT hmap.profile_id, hmap.profile_identifier, hmap.profile_name, hmap.host_uuid
           FROM (
