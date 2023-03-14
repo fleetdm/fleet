@@ -2871,6 +2871,8 @@ func (ds *Datastore) GenerateAggregatedMunkiAndMDM(ctx context.Context) error {
 		return ctxerr.Wrap(ctx, err, "list teams")
 	}
 
+	// generate stats per team, append team id "0" to generate for "no team"
+	teamIDs = append(teamIDs, 0)
 	for _, teamID := range teamIDs {
 		if err := ds.generateAggregatedMunkiVersion(ctx, &teamID); err != nil {
 			return ctxerr.Wrap(ctx, err, "generating aggregated munki version")
@@ -2888,6 +2890,7 @@ func (ds *Datastore) GenerateAggregatedMunkiAndMDM(ctx context.Context) error {
 		}
 	}
 
+	// generate global stats, for "all teams"
 	if err := ds.generateAggregatedMunkiVersion(ctx, nil); err != nil {
 		return ctxerr.Wrap(ctx, err, "generating aggregated munki version")
 	}
