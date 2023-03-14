@@ -28,28 +28,3 @@
     }
   }
 }
-
-.mac-os-updates-upsell-container {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  font-size: $x-small;
-
-  .upsell {
-    margin-top: 15vh;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    text-align: center;
-
-    p {
-      margin: 0;
-    }
-
-    .external-link {
-      display: flex;
-      gap: 4px;
-      align-items: center;
-    }
-  }
-}

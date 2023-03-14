@@ -5,20 +5,22 @@
   font-size: $x-small;
 
   .upsell {
-    margin-top: 15vh;
+    margin-top: 80px;
     display: flex;
-    flex-direction: column;
     gap: 4px;
-    text-align: center;
 
     p {
       margin: 0;
     }
 
-    .external-link {
+    .external-link-and-icon {
       display: flex;
       gap: 4px;
       align-items: center;
+
+      .custom-link {
+        font-weight: normal;
+      }
     }
   }
 }

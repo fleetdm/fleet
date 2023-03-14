@@ -2,12 +2,17 @@ import CustomLink from "components/CustomLink";
 import Icon from "components/Icon";
 import React from "react";
 
+// interface IUpsellProps {
+//   className: string;
+// }
+// const Upsell = ({ className }: IUpsellProps) => {
 const Upsell = () => {
   return (
     <div className="upsell-container">
       <div className="upsell">
+        <Icon name="premium-feature" />
         <p>This feature is included in Fleet Premium.</p>
-        <div className="external-link">
+        <div className="external-link-and-icon">
           <CustomLink url="https://fleetdm.com/upgrade" text="Learn more" />
           <Icon name="external-link" />
         </div>
