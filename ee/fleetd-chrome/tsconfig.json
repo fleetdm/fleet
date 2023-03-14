@@ -13,5 +13,11 @@
         "rootDir": "src",
         "sourceMap": true,
         "target": "es2015"
-    }
+    },
+    "exclude": [
+        "node_modules",
+        "jest.config.ts",
+        "jest.setup.ts",
+        "jsdomwithfetch.ts"
+    ],
 }
