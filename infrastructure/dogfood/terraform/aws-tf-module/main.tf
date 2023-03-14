@@ -38,7 +38,7 @@ locals {
     FLEET_LICENSE_KEY                          = var.fleet_license
     FLEET_LOGGING_DEBUG                        = "true"
     FLEET_LOGGING_JSON                         = "true"
-    FLEET_MYSQL_MAX_OPEN_CONNS                 = "50"
+    FLEET_MYSQL_MAX_OPEN_CONNS                 = "25"
     FLEET_VULNERABILITIES_DATABASES_PATH       = "/home/fleet"
     FLEET_OSQUERY_ENABLE_ASYNC_HOST_PROCESSING = "false"
   }
