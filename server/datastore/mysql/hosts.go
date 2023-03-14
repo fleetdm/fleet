@@ -762,10 +762,20 @@ func (ds *Datastore) applyHostFilters(opt fleet.HostListOptions, sql string, fil
 }
 
 func filterHostsByTeam(sql string, opt fleet.HostListOptions, params []interface{}) (string, []interface{}) {
-	if opt.TeamFilter != nil {
-		sql += ` AND h.team_id = ?`
-		params = append(params, *opt.TeamFilter)
+	if opt.TeamFilter == nil {
+		// default "all teams" option
+		return sql, params
 	}
+
+	if *opt.TeamFilter == uint(0) {
+		// "no team" option (where TeamFilter is explicitly zero) excludes hosts that are assigned to any team
+		sql += ` AND h.team_id IS NULL`
+		return sql, params
+	}
+
+	sql += ` AND h.team_id = ?`
+	params = append(params, *opt.TeamFilter)
+
 	return sql, params
 }
 
@@ -840,8 +850,9 @@ func filterHostsByMacOSSettingsStatus(sql string, opt fleet.HostListOptions, par
 	newSQL := ""
 	newParams := []interface{}{}
 
-	if opt.TeamFilter == nil || *opt.TeamFilter == 0 {
-		// add "no team" filter
+	if opt.TeamFilter == nil {
+		// macOS settings filter is not compatible with the "all teams" option so append the "no
+		// team" filter here (note that filterHostsByTeam applies the "no team" filter if TeamFilter == 0)
 		newSQL += ` AND h.team_id IS NULL`
 	}
 
