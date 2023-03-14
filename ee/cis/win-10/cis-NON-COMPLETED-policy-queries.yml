@@ -317,3 +317,25 @@ spec:
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_2.3.11.6, CIS_not_completed
   contributors: marcosd4h
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Turn off cloud consumer account state content' is set to 'Enabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting determines whether cloud consumer account state content is allowed in all Windows experiences.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Cloud Content\Turn off cloud consumer account state content'
+  query: |
+    # TBD
+    # 'Turn off cloud consumer account state content does not exist in group policy editor'
+    # Untested: Select 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\\Windows\\CloudContent\DisableConsumerAccountStateContent' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.14.1, CIS_not_completed
+  contributors: rachelelysia
+---
+
