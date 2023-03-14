@@ -151,7 +151,9 @@ describe("Activity Feed", () => {
     });
     render(<ActivityItem activity={activity} isPremiumTier />);
 
-    expect(screen.getByText("edited team using fleetctl.")).toBeInTheDocument();
+    expect(
+      screen.getByText("edited the team using fleetctl.")
+    ).toBeInTheDocument();
     expect(screen.getByText("Team 1")).toBeInTheDocument();
   });
 
