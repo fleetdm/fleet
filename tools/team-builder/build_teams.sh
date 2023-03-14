@@ -40,7 +40,7 @@ run(){
 
 
 	#Verify that passed file exists
-	if !(test -f $source)
+	if !(test -f "$source")
 		then
 			echo "Source file not found"
 			return
@@ -67,7 +67,7 @@ run(){
 
 create_teams(){
    
-  #If a header is provided, parse the first line of the file to retreive columns and skip first line of file when creating teams
+  # If a header is provided, parse the first line of the file to retrieve columns and skip first line of file when creating teams
   if ($header == true )
 	  then
 	    i=1
@@ -93,10 +93,15 @@ create_team(){
 
   #Generate yml based on template provided
 
-	( echo "cat <<EOF >final.yml";
-	cat team_config.yml;
-	) >temp.yml
-	. temp.yml
+	cat <<EOF > final.yml
+apiVersion: v1
+kind: team
+spec:
+  team:
+    name: ${name}
+    secrets:
+      - secret: ${secret}
+EOF
 
   # Apply the new team to fleet
 	echo "Adding $name team to Fleet"
