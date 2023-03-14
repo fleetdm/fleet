@@ -23,6 +23,8 @@ Fleetctl (pronounced "Fleet control") is a CLI tool for managing Fleet from the 
 
 Fleetctl also provides a quick way to work with all the data exposed by Fleet without having to use the Fleet UI or work directly with the Fleet API.
 
+You can find and download the latest version of `fleetctl` in [GitHub](https://github.com/fleetdm/fleet/releases).
+
 ## Using fleetctl
 
 You can use `fleetctl` to accomplish many tasks you would typically need to do through the Fleet UI. You can even set up or apply configuration files to the Fleet server.
