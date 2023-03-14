@@ -11,8 +11,7 @@ spec:
     To establish the recommended configuration via GP, set the following UI path to Enabled:
     'Computer Configuration\Policies\Administrative Templates\System\Logon\Block user from showing account details on sign-in'
   query: |
-    TBD
-    Untested: SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\System\BlockUserFromShowingAccountDetailsOnSignin' AND data =  1);
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\System\BlockUserFromShowingAccountDetailsOnSignin' AND data =  1);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.8.28.1
   contributors: rachelelysia
@@ -30,8 +29,7 @@ spec:
     To establish the recommended configuration via GP, set the following UI path to Enabled:
     'Computer Configuration\Policies\Administrative Templates\System\Logon\Do not display network selection UI'
   query: |
-    TBD
-    Untested: SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\System\DontDisplayNetworkSelectionUI' AND data = 1);
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\System\DontDisplayNetworkSelectionUI' AND data = 1);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.8.28.2
   contributors: rachelelysia
@@ -49,8 +47,7 @@ spec:
     To establish the recommended configuration via GP, set the following UI path to Enabled:
     'Computer Configuration\Policies\Administrative Templates\System\Logon\Do not enumerate connected users on domain-joined computers'
   query: |
-    TBD
-    Untested: SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\System\DontEnumerateConnectedUsers' AND data = 1);
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\System\DontEnumerateConnectedUsers' AND data = 1);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.8.28.3
   contributors: rachelelysia
@@ -68,8 +65,7 @@ spec:
     To establish the recommended configuration via GP, set the following UI path to Disabled:
     'Computer Configuration\Policies\Administrative Templates\System\Logon\Enumerate local users on domain-joined computers'
   query: |
-    TBD 
-    Untested: SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\System\EnumerateLocalUsers' AND data = 0);
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\System\EnumerateLocalUsers' AND data = 0);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.8.28.4
   contributors: rachelelysia
@@ -87,8 +83,7 @@ spec:
     To establish the recommended configuration via GP, set the following UI path to Enabled:
     'Computer Configuration\Policies\Administrative Templates\System\Logon\Turn off app notifications on the lock screen'
   query: |
-    TBD
-    Untested: SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\System\DisableLockScreenAppNotifications' AND data = 1);
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\System\DisableLockScreenAppNotifications' AND data = 1);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.8.28.5
   contributors: rachelelysia
@@ -106,8 +101,7 @@ spec:
     To establish the recommended configuration via GP, set the following UI path to Enabled:
     'Computer Configuration\Policies\Administrative Templates\System\Logon\Turn off picture password sign-in'
   query: |
-    TBD
-    Untested: SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\System\BlockDomainPicturePassword' AND data = 1);
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\System\BlockDomainPicturePassword' AND data = 1);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.8.28.6
   contributors: rachelelysia
@@ -125,8 +119,7 @@ spec:
     To establish the recommended configuration via GP, set the following UI path to Disabled:
     'Computer Configuration\Policies\Administrative Templates\System\Logon\Turn on convenience PIN sign-in'
   query: |
-    TBD
-    Untested: SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\System\AllowDomainPINLogon' AND data = 0);
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\System\AllowDomainPINLogon' AND data = 0);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.8.28.7
   contributors: rachelelysia
@@ -144,8 +137,7 @@ spec:
     To establish the recommended configuration via GP, set the following UI path to Disabled:
     'Computer Configuration\Policies\Administrative Templates\System\OS Policies\Allow Clipboard synchronization across devices'
   query: |
-    TBD
-    Untested: SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\System\AllowCrossDeviceClipboard' AND data = 0);
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\System\AllowCrossDeviceClipboard' AND data = 0);
   purpose: Informational
   tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_18.8.31.1
   contributors: rachelelysia
@@ -163,8 +155,7 @@ spec:
     To establish the recommended configuration via GP, set the following UI path to Disabled:
     'Computer Configuration\Policies\Administrative Templates\System\OS Policies\Allow upload of User Activities'
   query: |
-    TBD
-    Untested: SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\System\UploadUserActivities' AND data = 0);
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\System\UploadUserActivities' AND data = 0);
   purpose: Informational
   tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_18.8.31.2
   contributors: rachelelysia
