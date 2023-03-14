@@ -890,22 +890,36 @@ spec:
         3. Select Location Services
         4. Set any applications listed to your organization's requirements
   query: |
+    ------------------------------------------------------------------------------------------------------
+    -- Instructions for IT person:
+    -- Put the list of allowed applications in the designated area below.
+    -- To see what apps are currently allowed (and get the exact name format of the app), use this query:
+    --    SELECT * FROM plist WHERE 
+    --    path='/var/db/locationd/clients.plist'  
+    --    AND subkey = "Authorized"  
+    --    AND value = '1'; 
+    ------------------------------------------------------------------------------------------------------
     SELECT 1 WHERE 
+        -- If location_services is not allowed at all, we are good. 
         EXISTS(
-          SELECT 1 FROM location_services WHERE enabled = 1
+          SELECT 1 FROM location_services WHERE enabled = 0
         )
-        AND NOT EXISTS(
+        OR 
+        -- If location_services is allowed, make sure allowed apps are approved. 
+        NOT EXISTS(
           SELECT 1 FROM plist WHERE 
-            path='/var/db/locationd/clients.plist' AND 
-            subkey = "Authorized" AND 
-            value = '1' AND 
-            NOT(
+            path='/var/db/locationd/clients.plist'  
+            AND subkey = "Authorized"  
+            AND value = '1'  
+            AND NOT(
                 ------------------------------------------------------------------------------------
-                -- Put the list of applications your organisation allows to use location services --
+                -- Designated area to add applications allowed to use location-services
                 ------------------------------------------------------------------------------------
-                key = "14FBD039-753B-42C9-A802-6B0B563BC971:com.apple.TV"
+                key LIKE "%:com.apple.TV"
                 OR 
-                key = "root:com.apple.locationd.bundle-/System/Library/LocationBundles/DoNotDisturb.bundle"
+                key LIKE "%com.apple.locationd.bundle-/System/Library/PrivateFrameworks/CoreParsec.framework"
+                OR 
+                key LIKE "%:com.apple.locationd.bundle-/System/Library/LocationBundles/DoNotDisturb.bundle"
                 ------------------------------------------------------------------------------------
             )
         );
