@@ -39,7 +39,8 @@ const AggregateMacSettingsIndicators = ({
     data: aggregateProfileStatusesResponse,
   } = useQuery<IAggregateMacSettingsStatus>(
     ["aggregateProfileStatuses", teamId],
-    () => mdmAPI.getAggregateProfileStatuses(teamId)
+    () => mdmAPI.getAggregateProfileStatuses(teamId),
+    { refetchOnWindowFocus: false }
   );
 
   const DISPLAY_ORDER = ["latest", "pending", "failing"] as const;

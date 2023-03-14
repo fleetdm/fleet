@@ -97,6 +97,10 @@ export interface IMdmConfig {
     minimum_version: string;
     deadline: string;
   };
+  macos_settings: {
+    custom_settings: null; // TODO: type?
+    enable_disk_encryption: boolean;
+  };
 }
 
 export interface IDeviceGlobalConfig {
