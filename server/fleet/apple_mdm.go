@@ -435,12 +435,14 @@ type HostMDMAppleProfile struct {
 type MDMAppleProfilePayload struct {
 	ProfileID         uint   `db:"profile_id"`
 	ProfileIdentifier string `db:"profile_identifier"`
+	ProfileName       string `db:"profile_name"`
 	HostUUID          string `db:"host_uuid"`
 }
 
 type MDMAppleBulkUpsertHostProfilePayload struct {
 	ProfileID         uint
 	ProfileIdentifier string
+	ProfileName       string
 	HostUUID          string
 	CommandUUID       string
 	OperationType     MDMAppleOperationType

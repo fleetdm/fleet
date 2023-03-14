@@ -2054,7 +2054,7 @@ func (s *integrationTestSuite) TestTeamPoliciesProprietaryInvalid() {
 			tname:      "Invalid query",
 			testUpdate: true,
 			name:       "Invalid query",
-			query:      "ATTACH 'foo' AS bar;",
+			query:      "",
 		},
 	} {
 		t.Run(tc.tname, func(t *testing.T) {
@@ -4394,7 +4394,7 @@ func (s *integrationTestSuite) TestQueriesBadRequests() {
 		{
 			tname: "Invalid query",
 			name:  "Invalid query",
-			query: "ATTACH 'foo' AS bar;",
+			query: "",
 		},
 	} {
 		t.Run(tc.tname, func(t *testing.T) {
@@ -6306,7 +6306,7 @@ func (s *integrationTestSuite) TestAppleMDMNotConfigured() {
 	var rawResp json.RawMessage
 	s.DoJSON("GET", "/api/latest/fleet/mdm/apple", nil, http.StatusNotFound, &rawResp)
 	s.Do("POST", "/api/latest/fleet/mdm/apple/dep_login", nil, http.StatusNotFound)
-	s.DoJSON("GET", "/api/latest/fleet/mdm/apple_bm", nil, http.StatusPaymentRequired, &rawResp) //premium only
+	s.DoJSON("GET", "/api/latest/fleet/mdm/apple_bm", nil, http.StatusPaymentRequired, &rawResp) // premium only
 }
 
 func (s *integrationTestSuite) TestOrbitConfigNotifications() {
@@ -6395,7 +6395,6 @@ func (s *integrationTestSuite) TestEnrollOrbitExistingHostNoSerialMatch() {
 	// host identifier.
 	// See https://github.com/fleetdm/fleet/issues/9033#issuecomment-1411150758
 
-	//osqueryID := uuid.New().String()
 	osqueryID := hostUUID
 
 	s.DoJSON("POST", "/api/osquery/enroll", enrollAgentRequest{
@@ -6477,7 +6476,10 @@ func createOrbitEnrolledHost(t *testing.T, os, suffix string, ds fleet.Datastore
 	})
 	require.NoError(t, err)
 	orbitKey := uuid.New().String()
-	_, err = ds.EnrollOrbit(context.Background(), false, *h.OsqueryHostID, h.HardwareSerial, orbitKey, nil)
+	_, err = ds.EnrollOrbit(context.Background(), false, fleet.OrbitHostInfo{
+		HardwareUUID:   *h.OsqueryHostID,
+		HardwareSerial: h.HardwareSerial,
+	}, orbitKey, nil)
 	require.NoError(t, err)
 	h.OrbitNodeKey = &orbitKey
 	return h
