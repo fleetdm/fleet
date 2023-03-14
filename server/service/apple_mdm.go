@@ -1938,6 +1938,7 @@ func ReconcileProfiles(
 				Status:            &fleet.MDMAppleDeliveryPending,
 				CommandUUID:       uuid.New().String(),
 				ProfileIdentifier: p.ProfileIdentifier,
+				ProfileName:       p.ProfileName,
 			},
 		)
 	}
@@ -1953,6 +1954,7 @@ func ReconcileProfiles(
 				Status:            &fleet.MDMAppleDeliveryPending,
 				CommandUUID:       uuid.New().String(),
 				ProfileIdentifier: p.ProfileIdentifier,
+				ProfileName:       p.ProfileName,
 			},
 		)
 	}
