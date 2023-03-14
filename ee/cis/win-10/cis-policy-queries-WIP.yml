@@ -13,7 +13,7 @@ permitted.
     'Computer Configuration\Policies\Administrative Templates\Windows Components\Camera\Allow Use of Camera'
   query: |
     TBD
-    Untested: SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Camera\AllowCamera' AND data = );
+    Untested: SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Camera\AllowCamera' AND data = 0);
   purpose: Informational
   tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.
   contributors: rachelelysia
@@ -28,11 +28,13 @@ spec:
   description: |
     This policy setting determines whether cloud consumer account state content is allowed in all Windows experiences.
   resolution: |
+    TODO
+    # This does not exist
     To establish the recommended configuration via GP, set the following UI path to Enabled:
     'Computer Configuration\Policies\Administrative Templates\Windows Components\Cloud Content\Turn off cloud consumer account state content'
   query: |
     TBD
-    Untested: Select 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\\Windows\\CloudContent\DisableConsumerAccountStateContent' AND data = );
+    Untested: Select 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\\Windows\\CloudContent\DisableConsumerAccountStateContent' AND data = 1);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.14.1
   contributors: rachelelysia
@@ -51,7 +53,7 @@ spec:
     'Computer Configuration\Policies\Administrative Templates\Windows Components\Cloud Content\Turn off cloud optimized content'
   query: |
     TBD
-    Untested: Select 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\CloudContent\DisableCloudOptimizedContent' AND data = );
+    Untested: Select 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\CloudContent\DisableCloudOptimizedContent' AND data = 1);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.14.2
   contributors: rachelelysia
@@ -70,7 +72,7 @@ spec:
     'Computer Configuration\Policies\Administrative Templates\Windows Components\Cloud Content\Turn off Microsoft consumer experiences'
   query: |
     TBD
-    Untested: Select 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\CloudContent\DisableWindowsConsumerFeatures' AND data = );
+    Untested: Select 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\CloudContent\DisableWindowsConsumerFeatures' AND data = 1);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.14.3
   contributors: rachelelysia
@@ -89,7 +91,7 @@ spec:
     'Computer Configuration\Policies\Administrative Templates\Windows Components\Connect\Require pin for pairing'
   query: |
     TBD
-    Untested: Select 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\Windows\\Connect\RequirePinForPairing' AND data = );
+    Untested: Select 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\Windows\\Connect\RequirePinForPairing' AND data = 2);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.15.1
   contributors: rachelelysia
@@ -108,7 +110,7 @@ spec:
     'Computer Configuration\Policies\Administrative Templates\Windows Components\Credential User Interface\Do not display the password reveal button'
   query: |
     TBD
-    Untested: Select 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\CredUI\DisablePasswordReveal' AND data = );
+    Untested: Select 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\CredUI\DisablePasswordReveal' AND data = 1);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.16.1
   contributors: rachelelysia
