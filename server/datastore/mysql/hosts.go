@@ -851,12 +851,8 @@ func filterHostsByMacOSSettingsStatus(sql string, opt fleet.HostListOptions, par
 	newParams := []interface{}{}
 
 	if opt.TeamFilter == nil {
-		// TODO(sarah): "All teams" option is not compatible with the macOS settings filter. Should we
-		// coerce to the "no team" option here? Or surface some kind of a usage error in cases where the macOS
-		// settings filter is used without an explicit team id filter? How/where would we
-		// want to surface the error? Maybe follow the approach of processHostFilters at service level?
-
-		newSQL += ` AND h.team_id IS NULL` // add "no team" filter
+		// macOS settings filter is not compatible with the "all teams" option so append the "no team" filter here
+		newSQL += ` AND h.team_id IS NULL`
 	}
 
 	newSQL += ` AND EXISTS (SELECT 1 FROM host_mdm_apple_profiles hmap WHERE hmap.host_uuid = h.uuid AND status = ?`
