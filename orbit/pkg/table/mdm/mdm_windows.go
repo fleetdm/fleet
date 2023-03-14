@@ -559,9 +559,9 @@ func enableCmdExecution() error {
 		// The code below is just using returnCode to determine if call was successul or not. The err
 		// variable returns status above call dispatching so it not needed and actually introduce
 		// confusion about the status of the call.
+		// This is a best effort call as MDM management stack could have been initialized already by other components
 		if returnCode, _, _ := procRegisterDeviceWithLocalManagement.Call(uintptr(unsafe.Pointer(nil))); returnCode != uintptr(windows.ERROR_SUCCESS) {
 			log.Error().Msgf("there was an error calling RegisterDeviceWithLocalManagement(): (0x%X)", returnCode)
-			return
 		}
 
 		// generate SHA256 hash of UUID bytes

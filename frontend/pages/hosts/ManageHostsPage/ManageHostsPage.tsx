@@ -13,6 +13,7 @@ import globalPoliciesAPI from "services/entities/global_policies";
 import hostsAPI, {
   ILoadHostsOptions,
   ISortOption,
+  MacSettingsStatusQueryParam,
 } from "services/entities/hosts";
 import hostCountAPI, {
   IHostCountLoadOptions,
@@ -73,6 +74,7 @@ import {
   DEFAULT_SORT_DIRECTION,
   DEFAULT_PAGE_SIZE,
   HOST_SELECT_STATUSES,
+  MAC_SETTINGS_FILTER_OPTIONS,
 } from "./constants";
 import { isAcceptableStatus, getNextLocationPath } from "./helpers";
 import DeleteSecretModal from "../../../components/EnrollSecrets/DeleteSecretModal";
@@ -242,6 +244,7 @@ const ManageHostsPage = ({
   const routeTemplate = route?.path ?? "";
   const policyId = queryParams?.policy_id;
   const policyResponse: PolicyResponse = queryParams?.policy_response;
+  const macSettingsStatus = queryParams?.macos_settings;
   const softwareId =
     queryParams?.software_id !== undefined
       ? parseInt(queryParams.software_id, 10)
@@ -421,25 +424,20 @@ const ManageHostsPage = ({
     setIsHostsLoading(true);
     options = {
       ...options,
-      teamId: currentTeam?.id,
+      teamId: queryParams.team_id ? queryParams.team_id : currentTeam?.id,
     };
-
-    if (queryParams.team_id) {
-      options.teamId = queryParams.team_id;
-    }
 
     try {
       const {
         hosts: returnedHosts,
         software,
-        mobile_device_management_solution,
-        munki_issue,
+        mobile_device_management_solution: mdmSolution,
+        munki_issue: munkiIssue,
       } = await hostsAPI.loadHosts(options);
       setHosts(returnedHosts);
       software && setSoftwareDetails(software);
-      mobile_device_management_solution &&
-        setMDMSolutionDetails(mobile_device_management_solution);
-      munki_issue && setMunkiIssueDetails(munki_issue);
+      mdmSolution && setMDMSolutionDetails(mdmSolution);
+      munkiIssue && setMunkiIssueDetails(munkiIssue);
     } catch (error) {
       console.error(error);
       setHasHostErrors(true);
@@ -514,6 +512,7 @@ const ManageHostsPage = ({
       teamId: selectedTeam?.id,
       policyId,
       policyResponse,
+      macSettingsStatus,
       softwareId,
       status,
       mdmId,
@@ -632,6 +631,10 @@ const ManageHostsPage = ({
     handleClearFilter(["os_id", "os_name", "os_version"]);
   };
 
+  const handleClearMacSettingsStatusFilter = () => {
+    handleClearFilter(["macos_settings"]);
+  };
+
   const handleClearSoftwareFilter = () => {
     handleClearFilter(["software_id"]);
   };
@@ -683,6 +686,21 @@ const ManageHostsPage = ({
         routeTemplate,
         routeParams,
         queryParams: { ...queryParams, status: statusName },
+      })
+    );
+  };
+
+  const handleMacSettingsStatusDropdownChange = (
+    newMacSettingsStatus: MacSettingsStatusQueryParam
+  ) => {
+    handleResetPageIndex();
+
+    router.replace(
+      getNextLocationPath({
+        pathPrefix: PATHS.MANAGE_HOSTS,
+        routeTemplate,
+        routeParams,
+        queryParams: { ...queryParams, macos_settings: newMacSettingsStatus },
       })
     );
   };
@@ -764,6 +782,8 @@ const ManageHostsPage = ({
       if (policyId && policyResponse) {
         newQueryParams.policy_id = policyId;
         newQueryParams.policy_response = policyResponse;
+      } else if (macSettingsStatus) {
+        newQueryParams.macos_settings = macSettingsStatus;
       } else if (softwareId) {
         newQueryParams.software_id = softwareId;
       } else if (mdmId) {
@@ -801,6 +821,7 @@ const ManageHostsPage = ({
       currentUser,
       policyId,
       queryParams,
+      macSettingsStatus,
       softwareId,
       status,
       mdmId,
@@ -989,6 +1010,7 @@ const ManageHostsPage = ({
         teamId: currentTeam?.id,
         policyId,
         policyResponse,
+        macSettingsStatus,
         softwareId,
         status,
         mdmId,
@@ -1044,6 +1066,7 @@ const ManageHostsPage = ({
         teamId: currentTeam?.id,
         policyId,
         policyResponse,
+        macSettingsStatus,
         softwareId,
         status,
         mdmId,
@@ -1167,6 +1190,24 @@ const ManageHostsPage = ({
       />
     </>
   );
+
+  const renderMacSettingsStatusFilterBlock = () => {
+    const label = "macOS settings";
+    return (
+      <>
+        <Dropdown
+          value={macSettingsStatus}
+          className={`${baseClass}__macsettings-dropdown`}
+          options={MAC_SETTINGS_FILTER_OPTIONS}
+          onChange={handleMacSettingsStatusDropdownChange}
+        />
+        <FilterPill
+          label={label}
+          onClear={handleClearMacSettingsStatusFilter}
+        />
+      </>
+    );
+  };
 
   const renderSoftwareFilterBlock = () => {
     if (!softwareDetails) return null;
@@ -1464,6 +1505,7 @@ const ManageHostsPage = ({
       teamId: currentTeam?.id,
       policyId,
       policyResponse,
+      macSettingsStatus,
       softwareId,
       status,
       mdmId,
@@ -1534,6 +1576,7 @@ const ManageHostsPage = ({
     if (
       showSelectedLabel ||
       policyId ||
+      macSettingsStatus ||
       softwareId ||
       showSelectedLabel ||
       mdmId ||
@@ -1570,6 +1613,8 @@ const ManageHostsPage = ({
             return renderLabelFilterPill();
           case !!policyId:
             return renderPoliciesFilterBlock();
+          case !!macSettingsStatus:
+            return renderMacSettingsStatusFilterBlock();
           case !!softwareId:
             return renderSoftwareFilterBlock();
           case !!mdmId:

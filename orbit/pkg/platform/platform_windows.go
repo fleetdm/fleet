@@ -14,11 +14,11 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
-
 	"github.com/digitalocean/go-smbios/smbios"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/google/uuid"
 	"github.com/hectane/go-acl"
+	"github.com/rs/zerolog/log"
 	gopsutil_process "github.com/shirou/gopsutil/v3/process"
 	"golang.org/x/sys/windows"
 )
@@ -328,9 +328,10 @@ func hardwareGetSMBiosUUID() (string, error) {
 // the actual SMBIOS hardware interface.
 func GetSMBiosUUID() (string, UUIDSource, error) {
 	// It attempts first to get the UUID from WMI
+	log.Debug().Msg("running wmiGetSMBiosUUID to retrieve UUID")
 	uuid, err := wmiGetSMBiosUUID()
 	if err != nil {
-
+		log.Debug().Err(err).Msg("wmiGetSMBiosUUID failed, fallback to reading SMBIOS HW interface")
 		// If WMI fails, it fallback into reading the SMBIOS HW interface
 		uuid, err := hardwareGetSMBiosUUID()
 		if err != nil {
