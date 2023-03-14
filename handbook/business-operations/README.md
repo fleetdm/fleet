@@ -301,6 +301,7 @@ Every new position being created goes through this process before interviewing, 
 
 > #### Steps for Mike
 >  - Confirm the new row in "Fleeties" has a manager, job title, and department, that it doesn't have any corrupted spreadsheet formulas or formatting, and that the start date is still blank (so that it is clear to everyone that this position has been proposed, but that it is not confirmed and planned, yet).
+>  - Schedule 30m for the CEO to meet with the candidate, if they haven't met each other.  Also consider whether the CTO should meet the candidate as well (always, if this is an engineering position.)
 >  - Confirm the job description consists only of changes to "Responsibilities" and "Experience," with an appropriate filename, and that the content looks accurate, is grammatically correct, and is otherwise ready to post in a public job description on fleetdm.com.  Then approve and merge the pull request.
 >  - Ballpark, budget, and document compensation research for the role
 >    - Scroll to the very bottom of ["¶¶ 💌 Compensation decisions (offer math)"](https://docs.google.com/document/d/1NQ-IjcOTbyFluCWqsFLMfP4SvnopoXDcX0civ-STS5c/edit#heading=h.slomq4whmyas) and add a new heading for the role, pattern-matching off of the names of other nearby role headings.
