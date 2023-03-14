@@ -895,10 +895,8 @@ spec:
           SELECT 1 FROM location_services WHERE enabled = 1
         )
         AND EXISTS(
-          SELECT 1 FROM location_services_permissions WHERE 
-              allowed_app_list = ["app1", "app2", "app3"] AND 
-              contained = 1 AND
-              total_allowed <= 3
+          SELECT app_list FROM plist WHERE path='/var/db/locationd/clients.plist' AND subkey = "Authorized" AND value = '1'
+          AND app_list CONTAINED_IN ("app1", "app2", "app3")
         );
   purpose: Informational
   tags: compliance, CIS, CIS_Level2, CIS-macos-13-2.6.1.3-Location-Service-specifc-app-enabled, decision-needed
