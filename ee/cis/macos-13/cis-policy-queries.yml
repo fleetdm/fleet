@@ -889,16 +889,18 @@ spec:
         2. Select Privacy & Security
         3. Select Location Services
         4. Set any applications listed to your organization's requirements
+        5. Select System Services
+        6. Set any System Services listed to your organization's requirements
   query: |
-    ------------------------------------------------------------------------------------------------------
-    -- Instructions for IT person:
+    -----------------------------------------------------------------------------------------------------------
+    -- Instructions for running and modifying this query:
     -- Put the list of allowed applications in the designated area below.
-    -- To see what apps are currently allowed (and get the exact name format of the app), use this query:
+    -- To see what apps are currently allowed (and get the exact name format of the app name), use this query:
     --    SELECT * FROM plist WHERE 
     --    path='/var/db/locationd/clients.plist'  
     --    AND subkey = "Authorized"  
     --    AND value = '1'; 
-    ------------------------------------------------------------------------------------------------------
+    -----------------------------------------------------------------------------------------------------------
     SELECT 1 WHERE 
         -- If location_services is not allowed at all, we are good. 
         EXISTS(
@@ -915,8 +917,10 @@ spec:
                 ------------------------------------------------------------------------------------
                 -- Designated area to add applications allowed to use location-services
                 ------------------------------------------------------------------------------------
+                -- Typical app name
                 key LIKE "%:com.apple.TV"
                 OR 
+                -- Typical system service name
                 key LIKE "%com.apple.locationd.bundle-/System/Library/PrivateFrameworks/CoreParsec.framework"
                 OR 
                 key LIKE "%:com.apple.locationd.bundle-/System/Library/LocationBundles/DoNotDisturb.bundle"
