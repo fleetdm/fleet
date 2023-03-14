@@ -336,8 +336,11 @@ func (a *agent) runOrbitLoop() {
 		"",
 		true,
 		a.EnrollSecret,
-		a.UUID,
-		a.SerialNumber,
+		fleet.OrbitHostInfo{
+			HardwareUUID:   a.UUID,
+			HardwareSerial: a.SerialNumber,
+			Hostname:       a.CachedString("hostname"),
+		},
 	)
 	if err != nil {
 		log.Println("creating orbit client: ", err)

@@ -670,8 +670,10 @@ type Datastore interface {
 	// within the cooldown period.
 	EnrollHost(ctx context.Context, isMDMEnabled bool, osqueryHostId, hardwareUUID, hardwareSerial, nodeKey string, teamID *uint, cooldown time.Duration) (*Host, error)
 
-	// EnrollOrbit will enroll a new orbit host with the given uuid, setting the orbit node key
-	EnrollOrbit(ctx context.Context, isMDMEnabled bool, hardwareUUID, hardwareSerial, orbitNodeKey string, teamID *uint) (*Host, error)
+	// EnrollOrbit will enroll a new orbit instance.
+	//	- If an entry for the host exists (osquery enrolled first) then it will update the host's orbit node key and team.
+	//	- If an entry for the host doesn't exist (osquery enrolls later) then it will create a new entry in the hosts table.
+	EnrollOrbit(ctx context.Context, isMDMEnabled bool, hostInfo OrbitHostInfo, orbitNodeKey string, teamID *uint) (*Host, error)
 
 	SerialUpdateHost(ctx context.Context, host *Host) error
 

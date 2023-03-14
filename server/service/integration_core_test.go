@@ -6395,7 +6395,6 @@ func (s *integrationTestSuite) TestEnrollOrbitExistingHostNoSerialMatch() {
 	// host identifier.
 	// See https://github.com/fleetdm/fleet/issues/9033#issuecomment-1411150758
 
-	// osqueryID := uuid.New().String()
 	osqueryID := hostUUID
 
 	s.DoJSON("POST", "/api/osquery/enroll", enrollAgentRequest{
@@ -6477,7 +6476,10 @@ func createOrbitEnrolledHost(t *testing.T, os, suffix string, ds fleet.Datastore
 	})
 	require.NoError(t, err)
 	orbitKey := uuid.New().String()
-	_, err = ds.EnrollOrbit(context.Background(), false, *h.OsqueryHostID, h.HardwareSerial, orbitKey, nil)
+	_, err = ds.EnrollOrbit(context.Background(), false, fleet.OrbitHostInfo{
+		HardwareUUID:   *h.OsqueryHostID,
+		HardwareSerial: h.HardwareSerial,
+	}, orbitKey, nil)
 	require.NoError(t, err)
 	h.OrbitNodeKey = &orbitKey
 	return h
