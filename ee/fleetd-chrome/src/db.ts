@@ -1,3 +1,6 @@
+import SQLiteAsyncESMFactory from "wa-sqlite/dist/wa-sqlite-async.mjs";
+import * as SQLite from "wa-sqlite";
+
 import TableOSVersion from "./tables/os_version";
 import TableGeolocation from "./tables/geolocation";
 import TableSystemInfo from "./tables/system_info";
@@ -11,7 +14,7 @@ export default class VirtualDatabase {
   sqlite3: SQLiteAPI;
   db: number;
 
-  constructor(sqlite3: SQLiteAPI, db: number) {
+  private constructor(sqlite3: SQLiteAPI, db: number) {
     this.sqlite3 = sqlite3;
     this.db = db;
 
@@ -30,6 +33,13 @@ export default class VirtualDatabase {
       db,
       new TableChromeExtensions(sqlite3, db)
     );
+  }
+
+  public static async init(): Promise<VirtualDatabase> {
+    const module = await SQLiteAsyncESMFactory();
+    const sqlite3 = SQLite.Factory(module);
+    const db = await sqlite3.open_v2(":memory:");
+    return new VirtualDatabase(sqlite3, db);
   }
 
   static register(sqlite3: SQLiteAPI, db: number, table: Table) {

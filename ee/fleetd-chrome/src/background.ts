@@ -1,7 +1,3 @@
-import SQLiteAsyncESMFactory from "wa-sqlite/dist/wa-sqlite-async.mjs";
-
-import * as SQLite from "wa-sqlite";
-
 import VirtualDatabase from "./db";
 
 // TODO: Globals should probably be cleaned up into a class encapsulating state.
@@ -183,11 +179,7 @@ const main = async () => {
   }
 
   if (!DATABASE) {
-    const module = await SQLiteAsyncESMFactory();
-    const sqlite3 = SQLite.Factory(module);
-    const db = await sqlite3.open_v2(":memory:");
-
-    const virtual = new VirtualDatabase(sqlite3, db);
+    const virtual = await VirtualDatabase.init();
     DATABASE = virtual;
 
     // Expose it for debugging in console

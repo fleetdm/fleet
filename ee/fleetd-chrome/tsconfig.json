@@ -4,10 +4,10 @@
         "esModuleInterop": true,
         "jsx": "react",
         "lib": [
-            "es2015",
+            "es2020",
             "dom"
         ],
-        "module": "es2015",
+        "module": "es2020",
         "moduleResolution": "node",
         "outDir": "dist/js",
         "rootDir": "src",
