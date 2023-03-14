@@ -39,8 +39,46 @@ const (
 	MDMAppleStatusNotNow             = "NotNow"
 )
 
+// MDMAppleDeliveryStatus is the status of an MDM command to apply a profile
+// to a device (whether it is installing or removing).
 type MDMAppleDeliveryStatus string
 
+// List of possible MDMAppleDeliveryStatus values. For a given host, the status
+// of a profile can be either of those, or NULL. The meaning of the status is
+// as follows:
+//
+//   - failed: the MDM command failed to apply, and it won't retry. This is
+//     currently a terminal state. TODO(mna): currently we only retry if the
+//     command failed to enqueue in ReconcileProfile (it resets the status to
+//     NULL). A failure in the asynchronous actual response of the MDM command
+//     (via MDMAppleCheckinAndCommandService.CommandAndReportResults) results in
+//     the failed state being applied and no retry. We should probably support
+//     some retries for such failures, and determine a maximum number of retries
+//     before giving up (either as a count of attempts - which would require
+//     storing somewhere - or as a time period, which we could determine based on
+//     the timestamps, e.g. time since created_at, if we added them to
+//     host_mdm_apple_profiles).
+//
+//   - applied: the MDM command successfully applied the profile. This is a
+//     terminal state.
+//
+//   - pending: the cron job that executes the MDM commands to apply profiles
+//     is processing this host, and the MDM command may even be enqueued. This
+//     is a temporary state, it may transition to failed, applied or NULL.
+//
+//   - NULL: the status set for profiles that need to be applied to a host
+//     (installed or removed), e.g. because the profile just got added to the
+//     host's team, or because the host moved to a new team, etc. This is a
+//     temporary state, it may transition to pending when the cron job runs to
+//     apply the profile. It may also be simply deleted from the host's profiles
+//     without the need to run an MDM command if the profile becomes unneeded and
+//     that status is for an Install operation (e.g. the profile got deleted from
+//     the team, or the host was moved to a team that doesn't apply that profile)
+//     or vice-versa if that status is for a Remove but the profile becomes
+//     required again. For the sake of statistics, as reported by
+//     GetMDMAppleHostsProfilesSummary or for the list hosts filter
+//     (filterHostsByMacOSSettingsStatus), a NULL status is equivalent to a
+//     Pending status.
 var (
 	MDMAppleDeliveryFailed  MDMAppleDeliveryStatus = "failed"
 	MDMAppleDeliveryApplied MDMAppleDeliveryStatus = "applied"

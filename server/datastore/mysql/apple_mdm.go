@@ -934,7 +934,7 @@ func (ds *Datastore) ListMDMAppleProfilesToInstall(ctx context.Context) ([]*flee
 	// The query below is a set difference between:
 	//
 	// - Set A (ds), the desired state, can be obtained from a JOIN between
-	// mdm_apple_configuration_profiles and hosts.
+	//   mdm_apple_configuration_profiles and hosts.
 	// - Set B, the current state given by host_mdm_apple_profiles.
 	//
 	// A - B gives us the profiles that need to be installed.
@@ -945,7 +945,7 @@ func (ds *Datastore) ListMDMAppleProfilesToInstall(ctx context.Context) ([]*flee
               macp.profile_id,
               h.uuid as host_uuid,
               macp.identifier as profile_identifier,
-			  macp.name as profile_name
+              macp.name as profile_name
             FROM mdm_apple_configuration_profiles macp
             JOIN hosts h ON h.team_id = macp.team_id OR (h.team_id IS NULL AND macp.team_id = 0)
             JOIN nano_enrollments ne ON ne.device_id = h.uuid
@@ -954,20 +954,14 @@ func (ds *Datastore) ListMDMAppleProfilesToInstall(ctx context.Context) ([]*flee
           LEFT JOIN host_mdm_apple_profiles hmap
             ON hmap.profile_id = ds.profile_id AND hmap.host_uuid = ds.host_uuid
           WHERE
-          hmap.profile_id IS NULL
-          AND hmap.host_uuid IS NULL
-					-- TODO(mna): correct me if I'm wrong but if hmap.profile_id and hmap.host_uuid
-					-- must be NULL, and those are the non-nullable primary keys of hmap, then any
-					-- other hmap conditions don't matter - we care about profiles that exist in macp but
-					-- not at all in hmap? (i.e. it's impossible for hmap.profile_id to be NULL AND for
-					-- hmap.status to be anything but NULL, same for hmap.operation_type).
-					-- I think what we want here is actually not just profile_id+host_uuid being NULL,
-					-- but EITHER NULL OR NOT NULL and the status/operation conditions?
+          ( hmap.profile_id IS NULL AND hmap.host_uuid IS NULL ) OR
+          -- I think what we want here is actually not just profile_id+host_uuid being NULL,
+          -- but EITHER NULL OR NOT NULL and the status/operation conditions?
           -- AND hmap.status != 'pending' OR hmap.status IS NULL
           -- AND hmap.operation_type != 'install' OR hmap.operation_type IS NULL
           -- accounts for the edge case of having profiles but not having hosts
           AND ds.host_uuid IS NOT NULL
-	`
+`
 
 	var profiles []*fleet.MDMAppleProfilePayload
 	err := sqlx.SelectContext(ctx, ds.reader, &profiles, query)
@@ -993,13 +987,13 @@ func (ds *Datastore) ListMDMAppleProfilesToRemove(ctx context.Context) ([]*fleet
           ) as ds
           RIGHT JOIN host_mdm_apple_profiles hmap
             ON hmap.profile_id = ds.profile_id AND hmap.host_uuid = ds.uuid
-					-- TODO(mna): I think it should also return profiles that have a row in hmap
-					-- where operation_type == 'remove' but status is NULL, so that they are
-					-- processed again/retried in ReconcileProfiles? If they failed to be removed,
-					-- the row will still exist with operation_type but the status will be set to NULL.
+          -- TODO(mna): I think it should also return profiles that have a row in hmap
+          -- where operation_type == 'remove' but status is NULL, so that they are
+          -- processed again/retried in ReconcileProfiles? If they failed to be removed,
+          -- the row will still exist with operation_type but the status will be set to NULL.
           WHERE ds.profile_id IS NULL AND ds.uuid IS NULL
           AND hmap.operation_type != 'remove'
-	`
+`
 
 	var profiles []*fleet.MDMAppleProfilePayload
 	err := sqlx.SelectContext(ctx, ds.reader, &profiles, query)
