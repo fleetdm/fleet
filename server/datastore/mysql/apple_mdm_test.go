@@ -32,8 +32,9 @@ func TestMDMAppleConfigProfile(t *testing.T) {
 		{"TestHostDetailsMDMProfiles", testHostDetailsMDMProfiles},
 		{"TestBatchSetMDMAppleProfiles", testBatchSetMDMAppleProfiles},
 		{"TestMDMAppleProfileManagement", testMDMAppleProfileManagement},
-		{"TestUpdateHostMDMAppleProfile", testGetMDMAppleProfilesContents},
+		{"TestGetMDMAppleProfilesContents", testGetMDMAppleProfilesContents},
 		{"TestMDMAppleHostsProfilesStatus", testMDMAppleHostsProfilesStatus},
+		{"TestMDMAppleInsertIdPAccount", testMDMAppleInsertIdPAccount},
 	}
 
 	for _, c := range cases {
@@ -297,7 +298,7 @@ func testHostDetailsMDMProfiles(t *testing.T, ds *Datastore) {
 		return nil
 	})
 
-	gotHost, err = ds.Host(ctx, h1.ID)
+	gotHost, err = ds.Host(ctx, h0.ID)
 	require.NoError(t, err)
 	require.Nil(t, gotHost.MDM.Profiles) // ds.Host never returns MDM profiles
 
@@ -320,6 +321,50 @@ func testHostDetailsMDMProfiles(t *testing.T, ds *Datastore) {
 	gotProfs, err = ds.GetHostMDMProfiles(ctx, h1.UUID)
 	require.NoError(t, err)
 	require.Len(t, gotProfs, 3)
+	for _, gp := range gotProfs {
+		ep, ok := expectedProfiles1[gp.ProfileID]
+		require.True(t, ok)
+		require.Equal(t, ep.Name, gp.Name)
+		require.Equal(t, *ep.Status, *gp.Status)
+		require.Equal(t, ep.OperationType, gp.OperationType)
+		require.Equal(t, ep.Detail, gp.Detail)
+	}
+
+	// mark h1's install+failed profile as install+pending
+	h1InstallFailed := expectedProfiles1[p0.ProfileID]
+	err = ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
+		HostUUID:      h1InstallFailed.HostUUID,
+		CommandUUID:   h1InstallFailed.CommandUUID,
+		ProfileID:     h1InstallFailed.ProfileID,
+		Name:          h1InstallFailed.Name,
+		Status:        &fleet.MDMAppleDeliveryPending,
+		OperationType: fleet.MDMAppleOperationTypeInstall,
+		Detail:        "",
+	})
+	require.NoError(t, err)
+
+	// mark h1's remove+failed profile as remove+applied, deletes the host profile row
+	h1RemoveFailed := expectedProfiles1[p2.ProfileID]
+	err = ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
+		HostUUID:      h1RemoveFailed.HostUUID,
+		CommandUUID:   h1RemoveFailed.CommandUUID,
+		ProfileID:     h1RemoveFailed.ProfileID,
+		Name:          h1RemoveFailed.Name,
+		Status:        &fleet.MDMAppleDeliveryApplied,
+		OperationType: fleet.MDMAppleOperationTypeRemove,
+		Detail:        "",
+	})
+	require.NoError(t, err)
+
+	gotProfs, err = ds.GetHostMDMProfiles(ctx, h1.UUID)
+	require.NoError(t, err)
+	require.Len(t, gotProfs, 2) // remove+applied is not there anymore
+
+	h1InstallPending := h1InstallFailed
+	h1InstallPending.Status = &fleet.MDMAppleDeliveryPending
+	h1InstallPending.Detail = ""
+	expectedProfiles1[p0.ProfileID] = h1InstallPending
+	delete(expectedProfiles1, p2.ProfileID)
 	for _, gp := range gotProfs {
 		ep, ok := expectedProfiles1[gp.ProfileID]
 		require.True(t, ok)
@@ -1351,4 +1396,39 @@ func testMDMAppleHostsProfilesStatus(t *testing.T, ds *Datastore) {
 	require.True(t, checkListHosts(fleet.MacOSSettingsStatusPending, nil, hosts[2:9]))
 	require.True(t, checkListHosts(fleet.MacOSSettingsStatusFailing, nil, hosts[0:2]))
 	require.True(t, checkListHosts(fleet.MacOSSettingsStatusLatest, nil, []*fleet.Host{}))
+}
+
+func testMDMAppleInsertIdPAccount(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	acc := &fleet.MDMIdPAccount{
+		UUID:     "ABC-DEF",
+		Username: "email@example.com",
+		SaltedSHA512PBKDF2Dictionary: fleet.SaltedSHA512PBKDF2Dictionary{
+			Iterations: 50000,
+			Salt:       []byte("salt"),
+			Entropy:    []byte("entropy"),
+		},
+	}
+
+	err := ds.InsertMDMIdPAccount(ctx, acc)
+	require.NoError(t, err)
+
+	// try to instert the same account
+	err = ds.InsertMDMIdPAccount(ctx, acc)
+	require.NoError(t, err)
+
+	// try to insert an empty account
+	err = ds.InsertMDMIdPAccount(ctx, &fleet.MDMIdPAccount{})
+	require.Error(t, err)
+
+	// duplicated values get updated
+	acc.SaltedSHA512PBKDF2Dictionary.Iterations = 3000
+	acc.SaltedSHA512PBKDF2Dictionary.Salt = []byte("tlas")
+	acc.SaltedSHA512PBKDF2Dictionary.Entropy = []byte("yportne")
+	err = ds.InsertMDMIdPAccount(ctx, acc)
+	require.NoError(t, err)
+	var out fleet.MDMIdPAccount
+	err = sqlx.GetContext(ctx, ds.reader, &out, "SELECT * FROM mdm_idp_accounts WHERE uuid = 'ABC-DEF'")
+	require.NoError(t, err)
+	require.Equal(t, acc, &out)
 }

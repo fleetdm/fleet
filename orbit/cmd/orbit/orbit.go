@@ -163,7 +163,6 @@ func main() {
 				return fmt.Errorf("failed to set root-dir: %w", err)
 			}
 		}
-
 		return nil
 	}
 	app.Action = func(c *cli.Context) error {
@@ -407,12 +406,11 @@ func main() {
 			return fmt.Errorf("cleanup old files: %w", err)
 		}
 
-		log.Debug().Msg("running single query (SELECT uuid, hardware_serial FROM system_info)")
-		uuidStr, serial, err := getUUIDAndSerial(osquerydPath)
+		orbitHostInfo, err := getHostInfo(osquerydPath, filepath.Join(c.String("root-dir"), "osquery.db"))
 		if err != nil {
 			return fmt.Errorf("get UUID: %w", err)
 		}
-		log.Debug().Msgf("UUID is %s, serial is %s", uuidStr, serial)
+		log.Debug().Str("info", fmt.Sprint(orbitHostInfo)).Msg("retrieved host info")
 
 		var options []osquery.Option
 		options = append(options, osquery.WithDataPath(c.String("root-dir")))
@@ -542,8 +540,7 @@ func main() {
 			c.String("fleet-certificate"),
 			c.Bool("insecure"),
 			enrollSecret,
-			uuidStr,
-			serial,
+			orbitHostInfo,
 		)
 		if err != nil {
 			return fmt.Errorf("error new orbit client: %w", err)
@@ -749,8 +746,7 @@ func main() {
 			c.String("fleet-certificate"),
 			c.Bool("insecure"),
 			enrollSecret,
-			uuidStr,
-			serial,
+			orbitHostInfo,
 		)
 		if err != nil {
 			return fmt.Errorf("new client for capabilities checker: %w", err)
@@ -788,6 +784,10 @@ func main() {
 
 		close(appDoneCh) // Signal to indicate runners have just ended
 		return nil
+	}
+
+	if len(os.Args) == 2 && os.Args[1] == "--help" {
+		platform.PreUpdateQuirks()
 	}
 
 	if err := app.Run(os.Args); err != nil {
@@ -936,44 +936,81 @@ func (d *desktopRunner) interrupt(err error) {
 	}
 }
 
-// shell out to osquery (on Linux and macOS) or to wmic (on Windows), and get
-// the system uuid and serial number
-func getUUIDAndSerial(osqueryPath string) (uuid, serial string, err error) {
+// hostInfo is used to parse osquery JSON output from `system_info` and `os_version` tables.
+type hostInfo struct {
+	// HardwareUUID is the unique identifier for this device (extracted from `system_info` osquery table).
+	HardwareUUID string `json:"uuid"`
+	// HardwareSerial is the unique serial number for this device (extracted from `system_info` osquery table).
+	HardwareSerial string `json:"hardware_serial"`
+	// Hostname is the device's hostname (extracted from `system_info` osquery table).
+	Hostname string `json:"hostname"`
+	// Platform is the device's platform as defined by osquery (extracted from `os_version` osquery table).
+	Platform string `json:"platform"`
+}
+
+// getHostInfo retrieves system information about the host.
+//
+// On macOS and Linux it shells out to osqueryd to retrieve the information.
+//
+// On Windows:
+//
+//   - HardwareUUID is retrieved by shelling out to wmic, if that fails
+//     then the windows API are used.
+//   - HardwareSerial is currently not retrieved for Windows devices.
+//   - Hostname is retrieved using stdlib method.
+//   - Platform is always "windows" for windows hosts.
+//
+// NOTE: Windows uses a different approach to retrieve the device information
+// as there were issues at the time with shelling out to osquery - from what the
+// team remembers it would sometimes fail due to the osquery process not being ready yet.
+// A recent CI run without the Windows special-case did succeed, but since we don't
+// need the serial number for Windows at the moment, we opted to keep the
+// code as it is.
+func getHostInfo(osqueryPath string, osqueryDBPath string) (fleet.OrbitHostInfo, error) {
 	if runtime.GOOS == "windows" {
-		// NOTE: Windows uses a different approach as there were issues at the time
-		// with shelling out to osquery - from what the team remembers it would
-		// sometimes fail due to the osquery process not being ready yet. A recent
-		// CI run without the Windows special-case did succeed, but since we don't
-		// need the serial number for Windows at the moment, we opted to keep the
-		// code as it is.
 		uuidData, uuidSource, err := platform.GetSMBiosUUID()
 		if err != nil {
-			return "", "", err
+			return fleet.OrbitHostInfo{}, err
 		}
-
-		log.Debug().Msgf("UUID source was %s.", uuidSource)
-		return uuidData, "", nil
+		log.Debug().Str("source", string(uuidSource)).Msg("UUID")
+		// Hostname might differ from the one provided by osquery but we are sending it
+		// for troubleshooting purposes and to avoid empty host entries in the UI.
+		hostname, err := os.Hostname()
+		if err != nil {
+			return fleet.OrbitHostInfo{}, err
+		}
+		return fleet.OrbitHostInfo{
+			HardwareUUID:   uuidData,
+			HardwareSerial: "", // currently not needed for Windows.
+			Hostname:       hostname,
+			Platform:       "windows",
+		}, nil
 	}
-	type Output struct {
-		UuidString     string `json:"uuid"`
-		HardwareSerial string `json:"hardware_serial"`
+	const systemQuery = "SELECT si.uuid, si.hardware_serial, si.hostname, os.platform FROM system_info si, os_version os"
+	args := []string{
+		"-S",
+		"--database_path", osqueryDBPath,
+		"--json", systemQuery,
 	}
-
-	args := []string{"-S", "--json", "select uuid, hardware_serial from system_info"}
+	log.Debug().Str("query", systemQuery).Msg("running single query")
 	out, err := exec.Command(osqueryPath, args...).Output()
 	if err != nil {
-		return "", "", err
+		return fleet.OrbitHostInfo{}, err
 	}
-	var sysinfo []Output
-	err = json.Unmarshal(out, &sysinfo)
+	var info []hostInfo
+	err = json.Unmarshal(out, &info)
 	if err != nil {
-		return "", "", err
+		return fleet.OrbitHostInfo{}, err
 	}
-
-	if len(sysinfo) != 1 {
-		return "", "", fmt.Errorf("invalid number of rows from system_info query: %d", len(sysinfo))
+	if len(info) != 1 {
+		return fleet.OrbitHostInfo{}, fmt.Errorf("invalid number of rows from system info query: %d", len(info))
 	}
-	return sysinfo[0].UuidString, sysinfo[0].HardwareSerial, nil
+	return fleet.OrbitHostInfo{
+		HardwareSerial: info[0].HardwareSerial,
+		HardwareUUID:   info[0].HardwareUUID,
+		Hostname:       info[0].Hostname,
+		Platform:       info[0].Platform,
+	}, nil
 }
 
 var versionCommand = &cli.Command{

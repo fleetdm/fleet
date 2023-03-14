@@ -896,7 +896,7 @@ This setting works in combination with the `--host_identifier` flag in osquery. 
 
 Users that have duplicate UUIDs in their environment can benefit from setting this flag to `instance`.
 
-> If you are enrolling your hosts using Fleet generated packages, it is reccommended to use `uuid` as your indentifier. This prevents potential issues with duplicate host enrollments. 
+> If you are enrolling your hosts using Fleet generated packages, it is reccommended to use `uuid` as your indentifier. This prevents potential issues with duplicate host enrollments.
 
 - Default value: `provided`
 - Environment variable: `FLEET_OSQUERY_HOST_IDENTIFIER`
@@ -1197,7 +1197,7 @@ See the `activity_audit_log_plugin` option below that specifies the logging dest
 ##### activity_audit_log_plugin
 
 This is the log output plugin that should be used for audit logs.
-This flag only has effect if `activity_enable_audit_log` is set to `true`. 
+This flag only has effect if `activity_enable_audit_log` is set to `true`.
 
 Each plugin has additional configuration options. Please see the configuration section linked below for your logging plugin.
 
@@ -2580,9 +2580,23 @@ packaging:
 
 #### Mobile device management (MDM)
 
-> MDM features are not ready for production and are currently in development. These features are disabled by default.
+> MDM features are not ready for production and are currently in beta. These features are disabled by default. To enable these features set `FLEET_DEV_MDM_ENABLED=1` as an environment variable.
 
-##### apple_apns_cert
+> MDM features require some endpoints to be publicly accessible outside your VPN or intranet, for more details see [What API endpoints should I expose to the public internet?](./FAQ.md#what-api-endpoints-should-i-expose-to-the-public-internet)
+
+##### mdm_apple.enable
+
+This is the second feature flag required to turn on MDM features. This feature flag must be set to `1` at the same time as when you set the certificate and keys for Apple Push Certificate server (APNs) and Apple Business Manager (ABM). Otherwise, the Fleet server won't start.
+
+- Default value: ""
+- Environment variable: `FLEET_MDM_APPLE_ENABLE`
+- Config file format:
+  ```
+  mdm_apple:
+    enable: 1
+  ```
+
+##### mdm.apple_apns_cert
 
 This is the path to the Apple Push Notification service (APNs) certificate. The APNs certificate is a PEM-encoded X.509 certificate that's typically generated via `fleetctl generate mdm-apple`. Only one of `apple_apns_cert` and `apple_apns_cert_bytes` can be set.
 
@@ -2594,7 +2608,7 @@ This is the path to the Apple Push Notification service (APNs) certificate. The 
     apple_apns_cert: /path/to/apns_cert.pem
   ```
 
-##### apple_apns_cert_bytes
+##### mdm.apple_apns_cert_bytes
 
 The content of the Apple Push Notification service (APNs) certificate. An X.509 certificate, PEM-encoded. Typically generated via `fleetctl generate mdm-apple`. Only one of `apple_apns_cert` and `apple_apns_cert_bytes` can be set.
 
@@ -2609,7 +2623,7 @@ The content of the Apple Push Notification service (APNs) certificate. An X.509 
       -----END CERTIFICATE-----
   ```
 
-##### apple_apns_key
+##### mdm.apple_apns_key
 
 This is the path to a PEM-encoded private key for the Apple Push Notification service (APNs). It's typically generated via `fleetctl generate mdm-apple`. Only one of `apple_apns_key` and `apple_apns_key_bytes` can be set.
 
@@ -2621,7 +2635,7 @@ This is the path to a PEM-encoded private key for the Apple Push Notification se
     apple_apns_key: /path/to/apns_key.pem
   ```
 
-##### apple_apns_key_bytes
+##### mdm.apple_apns_key_bytes
 
 The content of the PEM-encoded private key for the Apple Push Notification service (APNs). Typically generated via `fleetctl generate mdm-apple`. Only one of `apple_apns_key` and `apple_apns_key_bytes` can be set.
 
@@ -2636,7 +2650,7 @@ The content of the PEM-encoded private key for the Apple Push Notification servi
       -----END RSA PRIVATE KEY-----
   ```
 
-##### apple_scep_cert
+##### mdm.apple_scep_cert
 
 This is the path to the Simple Certificate Enrollment Protocol (SCEP) certificate.  The SCEP certificate is a PEM-encoded X.509 certificate that's typically generated via `fleetctl generate mdm-apple`. Only one of `apple_scep_cert` and `apple_scep_cert_bytes` can be set.
 
@@ -2648,7 +2662,7 @@ This is the path to the Simple Certificate Enrollment Protocol (SCEP) certificat
     apple_scep_cert: /path/to/scep_cert.pem
   ```
 
-##### apple_scep_cert_bytes
+##### mdm.apple_scep_cert_bytes
 
 The content of the Simple Certificate Enrollment Protocol (SCEP) certificate. An X.509 certificate, PEM-encoded. Typically generated via `fleetctl generate mdm-apple`. Only one of `apple_scep_cert` and `apple_scep_cert_bytes` can be set.
 
@@ -2663,7 +2677,7 @@ The content of the Simple Certificate Enrollment Protocol (SCEP) certificate. An
       -----END CERTIFICATE-----
   ```
 
-##### apple_scep_key
+##### mdm.apple_scep_key
 
 This is the path to a PEM-encoded private key for the Simple Certificate Enrollment Protocol (SCEP). It's typically generated via `fleetctl generate mdm-apple`. Only one of `apple_scep_key` and `apple_scep_key_bytes` can be set.
 
@@ -2675,7 +2689,7 @@ This is the path to a PEM-encoded private key for the Simple Certificate Enrollm
     apple_scep_key: /path/to/scep_key.pem
   ```
 
-##### apple_scep_key_bytes
+##### mdm.apple_scep_key_bytes
 
 The content of the PEM-encoded private key for the Simple Certificate Enrollment Protocol (SCEP). Typically generated via `fleetctl generate mdm-apple`. Only one of `apple_scep_key` and `apple_scep_key_bytes` can be set.
 
@@ -2690,7 +2704,20 @@ The content of the PEM-encoded private key for the Simple Certificate Enrollment
       -----END RSA PRIVATE KEY-----
   ```
 
-##### apple_bm_server_token
+##### mdm_apple.scep.challenge
+
+An alphanumeric secret for the Simple Certificate Enrollment Protocol (SCEP). Should be 32 characters in length and only include alphanumeric characters.
+
+- Default value: ""
+- Environment variable: `FLEET_MDM_APPLE_SCEP_CHALLENGE`
+- Config file format:
+  ```
+  mdm_apple:
+    scep:
+      challenge: scepchallenge
+  ```
+
+##### mdm.apple_bm_server_token
 
 This is the path to the Apple Business Manager encrypted server token (a `.p7m` file) downloaded from Apple Business Manager. Only one of `apple_bm_server_token` and `apple_bm_server_token_bytes` can be set.
 
@@ -2702,7 +2729,7 @@ This is the path to the Apple Business Manager encrypted server token (a `.p7m` 
     apple_bm_server_token: /path/to/server_token.p7m
   ```
 
-##### apple_bm_server_token_bytes
+##### mdm.apple_bm_server_token_bytes
 
 This is the content of the Apple Business Manager encrypted server token downloaded from Apple Business Manager. Only one of `apple_bm_server_token` and `apple_bm_server_token_bytes` can be set.
 
@@ -2717,7 +2744,7 @@ This is the content of the Apple Business Manager encrypted server token downloa
       ... rest of content ...
   ```
 
-##### apple_bm_cert
+##### mdm.apple_bm_cert
 
 This is the path to the Apple Business Manager certificate.  The certificate is a PEM-encoded X.509 certificate that's typically generated via `fleetctl generate mdm-apple-bm`. Only one of `apple_bm_cert` and `apple_bm_cert_bytes` can be set.
 
@@ -2729,7 +2756,7 @@ This is the path to the Apple Business Manager certificate.  The certificate is 
     apple_bm_cert: /path/to/bm_cert.pem
   ```
 
-##### apple_bm_cert_bytes
+##### mdm.apple_bm_cert_bytes
 
 This is the content of the Apple Business Manager certificate. The certificate is a PEM-encoded X.509 certificate that's typically generated via `fleetctl generate mdm-apple-bm`. Only one of `apple_bm_cert` and `apple_bm_cert_bytes` can be set.
 
@@ -2744,7 +2771,7 @@ This is the content of the Apple Business Manager certificate. The certificate i
       -----END CERTIFICATE-----
   ```
 
-##### apple_bm_key
+##### mdm.apple_bm_key
 
 This is the path to a PEM-encoded private key for the Apple Business Manager. It's typically generated via `fleetctl generate mdm-apple-bm`. Only one of `apple_bm_key` and `apple_bm_key_bytes` can be set.
 
@@ -2756,7 +2783,7 @@ This is the path to a PEM-encoded private key for the Apple Business Manager. It
     apple_bm_key: /path/to/private_key.pem
   ```
 
-##### apple_bm_key_bytes
+##### mdm.apple_bm_key_bytes
 
 This is the content of the PEM-encoded private key for the Apple Business Manager. It's typically generated via `fleetctl generate mdm-apple-bm`. Only one of `apple_bm_key` and `apple_bm_key_bytes` can be set.
 
@@ -2771,7 +2798,7 @@ This is the content of the PEM-encoded private key for the Apple Business Manage
       -----END RSA PRIVATE KEY-----
   ```
 
-##### okta_server_url
+##### mdm.okta_server_url
 
 This is the URL of your Okta [authorization server](https://developer.okta.com/docs/concepts/auth-servers/)
 
@@ -2783,7 +2810,7 @@ This is the URL of your Okta [authorization server](https://developer.okta.com/d
     okta_server_url: https://example.okta.com
 ```
 
-##### okta_client_id
+##### mdm.okta_client_id
 
 This is the client ID of the Okta application that will be used to authenticate users. This value can be found in the Okta admin page under "Applications > Client Credentials."
 
@@ -2795,7 +2822,7 @@ This is the client ID of the Okta application that will be used to authenticate 
     okta_client_id: 9oa4eoxample2rpdi1087
 ```
 
-##### okta_client_secret
+##### mdm.okta_client_secret
 
 This is the client secret of the Okta application that will be used to authenticate users. This value can be found in the Okta admin page under "Applications > Client Credentials."
 
@@ -2807,7 +2834,7 @@ This is the client secret of the Okta application that will be used to authentic
     okta_client_secret: COp8o5zskEQ0OylgjqTrd0xu7rQLx-VteaQW4YGf
 ```
 
-##### eula_url
+##### mdm.eula_url
 
 An URL containing a PDF file that will be used as an EULA during DEP onboarding.
 

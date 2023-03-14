@@ -18,6 +18,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
 	nanomdm_mock "github.com/fleetdm/fleet/v4/server/mock/nanomdm"
@@ -931,7 +932,7 @@ func TestMDMCommandAndReportResultsProfileHandling(t *testing.T) {
 			return c.requestType, nil
 		}
 
-		ds.UpdateHostMDMAppleProfileFunc = func(ctx context.Context, profile *fleet.HostMDMAppleProfile) error {
+		ds.UpdateOrDeleteHostMDMAppleProfileFunc = func(ctx context.Context, profile *fleet.HostMDMAppleProfile) error {
 			c.want.CommandUUID = commandUUID
 			c.want.HostUUID = hostUUID
 			require.Equal(t, c.want, profile)
@@ -950,7 +951,7 @@ func TestMDMCommandAndReportResultsProfileHandling(t *testing.T) {
 		)
 		require.NoError(t, err)
 		require.True(t, ds.GetMDMAppleCommandRequestTypeFuncInvoked)
-		require.True(t, ds.UpdateHostMDMAppleProfileFuncInvoked)
+		require.True(t, ds.UpdateOrDeleteHostMDMAppleProfileFuncInvoked)
 	}
 }
 
@@ -1598,7 +1599,7 @@ func TestAppleMDMFileVaultEscrowFunctions(t *testing.T) {
 
 func TestGenerateEnrollmentProfileMobileConfig(t *testing.T) {
 	// SCEP challenge should be escaped for XML
-	b, err := generateEnrollmentProfileMobileconfig("foo", "https://example.com", "foo&bar", "topic")
+	b, err := apple_mdm.GenerateEnrollmentProfileMobileconfig("foo", "https://example.com", "foo&bar", "topic")
 	require.NoError(t, err)
 	require.Contains(t, string(b), "foo&amp;bar")
 }

@@ -185,7 +185,7 @@ func TestAuthenticatedHost(t *testing.T) {
 			r := &testNodeKeyRequest{NodeKey: tt.nodeKey}
 			_, err := endpoint(ctx, r)
 			if tt.shouldErr {
-				assert.IsType(t, osqueryError{}, err)
+				assert.IsType(t, &osqueryError{}, err)
 			} else {
 				assert.Nil(t, err)
 			}

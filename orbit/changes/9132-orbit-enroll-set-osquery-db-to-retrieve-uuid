@@ -1,0 +1,1 @@
+* Set `--database_path` in the shell osqueryd invocation to retrieve UUID and other fields.
