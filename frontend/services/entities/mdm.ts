@@ -71,4 +71,23 @@ export default {
 
     return sendRequest("GET", path);
   },
+
+  getDiskEncryptionAggregate: (teamId?: number) => {
+    let { MDM_APPLE_DISK_ENCRYPTION_AGGREGATE: path } = endpoints;
+
+    if (teamId) {
+      path = `${path}?${buildQueryStringFromParams({ team_id: teamId })}`;
+    }
+
+    return sendRequest("GET", path);
+  },
+
+  updateAppleMdmSettings: (enableDiskEncryption: boolean, teamId?: number) => {
+    const { MDM_UPDATE_APPLE_SETTINGS } = endpoints;
+
+    return sendRequest("PATCH", MDM_UPDATE_APPLE_SETTINGS, {
+      enable_disk_encryption: enableDiskEncryption,
+      team_id: teamId,
+    });
+  },
 };
