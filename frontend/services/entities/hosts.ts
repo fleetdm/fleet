@@ -14,6 +14,8 @@ export interface ISortOption {
   direction: string;
 }
 
+export type MacSettingsStatusQueryParam = "latest" | "pending" | "failing";
+
 export interface ILoadHostsOptions {
   page?: number;
   perPage?: number;
@@ -23,6 +25,7 @@ export interface ILoadHostsOptions {
   teamId?: number;
   policyId?: number;
   policyResponse?: string;
+  macSettingsStatus?: MacSettingsStatusQueryParam;
   softwareId?: number;
   status?: HostStatus;
   mdmId?: number;
@@ -46,6 +49,7 @@ export interface IExportHostsOptions {
   teamId?: number;
   policyId?: number;
   policyResponse?: string;
+  macSettingsStatus?: MacSettingsStatusQueryParam;
   softwareId?: number;
   status?: HostStatus;
   mdmId?: number;
@@ -140,6 +144,7 @@ export default {
     const policyId = options?.policyId;
     const policyResponse = options?.policyResponse || "passing";
     const softwareId = options?.softwareId;
+    const macSettingsStatus = options?.macSettingsStatus;
     const status = options?.status;
     const mdmId = options?.mdmId;
     const mdmEnrollmentStatus = options?.mdmEnrollmentStatus;
@@ -186,6 +191,7 @@ export default {
     teamId,
     policyId,
     policyResponse = "passing",
+    macSettingsStatus,
     softwareId,
     status,
     mdmId,
@@ -202,6 +208,12 @@ export default {
     const label = getLabel(selectedLabels);
     const sortParams = getSortParams(sortBy);
 
+    // ensure macos_settings filter is always applied in
+    // conjuction with a team_id, 0 (no teams) by default
+    if (macSettingsStatus) {
+      teamId = teamId ?? 0;
+    }
+
     const queryParams = {
       page,
       per_page: perPage,
@@ -211,6 +223,7 @@ export default {
       order_key: sortParams.order_key,
       order_direction: sortParams.order_direction,
       status,
+      macos_settings: macSettingsStatus,
       ...reconcileMutuallyExclusiveHostParams({
         label,
         policyId,
