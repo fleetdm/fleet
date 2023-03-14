@@ -50,6 +50,7 @@
 		},
 		"sso_settings": {
 			"enable_jit_provisioning": false,
+			"enable_jit_role_sync": false,
 			"entity_id": "",
 			"issuer_uri": "",
 			"idp_image_url": "",
