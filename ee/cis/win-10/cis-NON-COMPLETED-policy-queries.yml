@@ -332,7 +332,7 @@ spec:
     'Computer Configuration\Policies\Administrative Templates\Windows Components\Cloud Content\Turn off cloud consumer account state content'
   query: |
     # TBD
-    # 'Turn off cloud consumer account state content does not exist in group policy editor'
+    # 'Turn off cloud consumer account state content' does not exist in group policy editor
     # Untested: Select 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\\Windows\\CloudContent\DisableConsumerAccountStateContent' AND data = 1);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.14.1, CIS_not_completed
