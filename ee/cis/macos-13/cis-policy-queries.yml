@@ -895,7 +895,7 @@ spec:
           SELECT 1 FROM location_services WHERE enabled = 1
         )
         AND EXISTS(
-          SELECT 1 FROM location_services_allowed_apps WHERE 
+          SELECT 1 FROM location_services_permissions WHERE 
               allowed_app_list = ["app1", "app2", "app3"] AND 
               contained = 1 AND
               total_allowed <= 3
