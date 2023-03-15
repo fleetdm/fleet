@@ -81,7 +81,7 @@ EOF
 
   # Apply the new team to fleet
 	echo "Adding $name team to Fleet"
-	fleetctl apply --context preview -f config.yml $dry_run
+	fleetctl apply -f config.yml $dry_run
 	rm -f config.yml 
 }
 
