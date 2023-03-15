@@ -427,8 +427,17 @@ When you receive your new their computer, complete the entry by adding a descrip
 
 In addition to [full team members](#hiring-a-new-team-member), from time to time Fleet hires consultants who may work for only a handful of hours on short projects.
 
-#### What is a consultant?
-Any consultant who plans to work more than 10 hours per week for longer than 6 weeks should instead be hired as a [full team member](#hiring-a-new-team-member).  That means they:
+A consultant is someone who we expect to either:
+- complete their relationship with the company in less than 6 weeks
+- or have a longer-term relationship with the company, but never work more than 10 hours per week.
+
+> Consultants do NOT receive company-issued laptops, do NOT receive Yubikeys, and do NOT go through training using the contributor onboarding issue.
+
+#### Who ISN'T a consultant?
+
+If a consultant plans to work _more_ than 10 hours per week, or for _longer_ than 6 weeks, they should instead be hired as a [full team member](#hiring-a-new-team-member).
+
+Full team members:
 - are hired using Fleet's "Hiring" issue template, including receiving a company-issued laptop and Yubikeys
 - complete the entire, unabridged onboarding process in Fleet's "Onboarding" issue template
 - must be offboarded
@@ -439,9 +448,9 @@ Any consultant who plans to work more than 10 hours per week for longer than 6 w
 #### Sending a consulting agreement
 Consultant agreements are sent through [DocuSign](https://www.docusign.com/), using the "Consulting Agreement" template.
 
-> The Docusign template labeled "US consulting agreement" is actually used both consultants, as well as for [full team members](#hiring-a-new-team-member) classified as contractors.
+> _**Note:** The Docusign template labeled "US consulting agreement" is actually used both consultants, as well as for [full team members](#hiring-a-new-team-member) classified as contractors._
 
-To send a new consulting agreement, you'll need the new consultant's name, the term of the service, a summary of the services provided, and the consultant's fee. 
+To send a US consulting agreement, you'll need the new consultant's name, the term of the service, a summary of the services provided, and the consultant's fee. 
 There are some defaults that we use for these agreements:
    - Term: Default to one month unless otherwise discussed.
    - Services rendered: Copy and paste from the [language in this doc](https://docs.google.com/document/d/1b5SGgYEHqDmq5QF8p29WWN3it3XJh3xRT3zG0RdXARo/edit)
