@@ -485,7 +485,7 @@ Recurring expenses related to a particular team member, such as coworking fees, 
 
 ### Weekly updates
 We like to celebrate our achievements weekly in `#general`.
-  - Every Thursday night, Mike McNeil creates a thread in #help-manage requesting weekly updates, and managers will reply to the thread with their weekly updates.
+  - Every Thursday night, department heads [report their KPIs for the week]()
   - Friday afternoons, Mike McNeil updates the KPIs in the [weekly updates spreadsheet](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0), and Friday nights, Mike McNeil will post the updates in #general.
 Weekly update principles
    - Each department's update is 20-40 words or less.
@@ -559,7 +559,7 @@ In order to fulfill our monthly reporting requirement of providing GAAP financia
 #### SLA?
 The monthly accounting issue should be completed and closed before the 7th of the month.
 
-The date of the run is measured in [KPIs]().
+The close date is tracked each month in [KPIs](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit).
 
 ### Payroll
 Many of these processes are automated, but it's vital to check Gusto and Pilot manually for accuracy.
@@ -568,11 +568,10 @@ Many of these processes are automated, but it's vital to check Gusto and Pilot m
 
 | Unique payrolls              | Action                       | DRI                          |
 |:-----------------------------|:-----------------------------|:-----------------------------|
-| Commissions                  | "Off-cycle" payroll          | Nathan
+| Commissions and ramp         | "Off-cycle" payroll          | Nathan
 | Sign-on bonus                | "Bonus" payroll              | Mike McNeil
 | Performance bonus            | "Bonus" payroll              | Mike McNeil                     
-| Ramp                         | "Off-cycle" payroll          | Nathan 
-| Accelerations                | "Off-cycle" payroll          | Nathan
+| Accelerations (quarterly)    | "Off-cycle" payroll          | Nathan
 
 Add the amount to be paid to the "Gross" line.
 For Fleet's US contractors, running payroll is a manual process. 
@@ -585,6 +584,9 @@ The steps for doing this are highlighted in this loom, TODO.
 6. Run contractor payroll
 
 #### Commission payroll
+
+> TODO: bit more process here.  Maybe revops is DRI of commission calculator, creates "2023-03 commission payroll", transfered to Nathan when it's time to run?  SLA == payroll run by the 7th, with commission sheet 100% accurate.
+
 - Update [commission calculator](https://docs.google.com/spreadsheets/d/1vw6Q7kCC7-FdG5Fgx3ghgUdQiF2qwxk6njgK6z8_O9U/edit) with new revenue from any deals that are closed/won (have a subscription agreement signed by both parties) and have an **effective start date** within the previous month.
   - Find detailed notes on this process in [Notes - Run commission payroll in Gusto](https://docs.google.com/document/d/1FQLpGxvHPW6X801HYYLPs5y8o943mmasQD3m9k_c0so/edit#). 
 - Contact Mike McNeil in Slack and let her know he can run the commission payroll. Use the off-cycle payroll option in Gusto. Be sure to classify the payment as "Commission" in the "other earnings" field and not the generic "Bonus."
