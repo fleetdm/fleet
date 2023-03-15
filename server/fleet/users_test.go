@@ -143,7 +143,7 @@ func TestAdminCreateValidate(t *testing.T) {
 				require.NoError(t, err)
 			} else {
 				ierr := err.(*InvalidArgumentError)
-				require.Equal(t, len(tc.errContains), len(*ierr))
+				require.Equal(t, len(tc.errContains), len(ierr.Errors))
 				for _, expected := range tc.errContains {
 					assertContainsErrorName(t, *ierr, expected)
 				}
@@ -192,7 +192,7 @@ func TestInviteCreateValidate(t *testing.T) {
 			} else {
 				ierr := err.(*InvalidArgumentError)
 				for _, expected := range tc.errContains {
-					require.Equal(t, len(tc.errContains), len(*ierr))
+					require.Equal(t, len(tc.errContains), len(ierr.Errors))
 					assertContainsErrorName(t, *ierr, expected)
 				}
 			}
@@ -226,7 +226,7 @@ func TestValidateEmail(t *testing.T) {
 }
 
 func assertContainsErrorName(t *testing.T, invalid InvalidArgumentError, name string) {
-	for _, argErr := range invalid {
+	for _, argErr := range invalid.Errors {
 		if argErr.name == name {
 			return
 		}

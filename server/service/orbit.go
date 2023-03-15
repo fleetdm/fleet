@@ -11,6 +11,7 @@ import (
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/go-kit/kit/log/level"
 )
 
 type setOrbitNodeKeyer interface {
@@ -21,9 +22,18 @@ type orbitError struct {
 	message string
 }
 
+// EnrollOrbitRequest is the request Orbit instances use to enroll to Fleet.
 type EnrollOrbitRequest struct {
+	// EnrollSecret is the secret to authenticate the enroll request.
 	EnrollSecret string `json:"enroll_secret"`
+	// HardwareUUID is the device's hardware UUID.
 	HardwareUUID string `json:"hardware_uuid"`
+	// HardwareSerial is the device's serial number.
+	HardwareSerial string `json:"hardware_serial"`
+	// Hostname is the device's hostname.
+	Hostname string `json:"hostname"`
+	// Platform is the device's platform as defined by osquery.
+	Platform string `json:"platform"`
 }
 
 type EnrollOrbitResponse struct {
@@ -65,13 +75,18 @@ func (r EnrollOrbitResponse) hijackRender(ctx context.Context, w http.ResponseWr
 	enc.SetIndent("", "  ")
 
 	if err := enc.Encode(r); err != nil {
-		encodeError(ctx, osqueryError{message: fmt.Sprintf("orbit enroll failed: %s", err)}, w)
+		encodeError(ctx, newOsqueryError(fmt.Sprintf("orbit enroll failed: %s", err)), w)
 	}
 }
 
 func enrollOrbitEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*EnrollOrbitRequest)
-	nodeKey, err := svc.EnrollOrbit(ctx, req.HardwareUUID, req.EnrollSecret)
+	nodeKey, err := svc.EnrollOrbit(ctx, fleet.OrbitHostInfo{
+		HardwareUUID:   req.HardwareUUID,
+		HardwareSerial: req.HardwareSerial,
+		Hostname:       req.Hostname,
+		Platform:       req.Platform,
+	}, req.EnrollSecret)
 	if err != nil {
 		return EnrollOrbitResponse{Err: err}, nil
 	}
@@ -98,11 +113,20 @@ func (svc *Service) AuthenticateOrbitHost(ctx context.Context, orbitNodeKey stri
 	return host, svc.debugEnabledForHost(ctx, host.ID), nil
 }
 
-// EnrollOrbit returns an orbit nodeKey on successful enroll
-func (svc *Service) EnrollOrbit(ctx context.Context, hardwareUUID string, enrollSecret string) (string, error) {
+// EnrollOrbit enrolls an Orbit instance to Fleet and returns the orbit node key.
+func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInfo, enrollSecret string) (string, error) {
 	// this is not a user-authenticated endpoint
 	svc.authz.SkipAuthorization(ctx)
-	logging.WithExtras(ctx, "hardware_uuid", hardwareUUID)
+
+	logging.WithLevel(
+		logging.WithExtras(ctx,
+			"hardware_uuid", hostInfo.HardwareUUID,
+			"hardware_serial", hostInfo.HardwareSerial,
+			"hostname", hostInfo.Hostname,
+			"platform", hostInfo.Platform,
+		),
+		level.Info,
+	)
 
 	secret, err := svc.ds.VerifyEnrollSecret(ctx, enrollSecret)
 	if err != nil {
@@ -114,7 +138,12 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hardwareUUID string, enroll
 		return "", orbitError{message: "failed to generate orbit node key: " + err.Error()}
 	}
 
-	_, err = svc.ds.EnrollOrbit(ctx, hardwareUUID, orbitNodeKey, secret.TeamID)
+	appConfig, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return "", orbitError{message: "app config load failed: " + err.Error()}
+	}
+
+	_, err = svc.ds.EnrollOrbit(ctx, appConfig.MDM.EnabledAndConfigured, hostInfo, orbitNodeKey, secret.TeamID)
 	if err != nil {
 		return "", orbitError{message: "failed to enroll " + err.Error()}
 	}
@@ -271,13 +300,11 @@ func (svc *Service) SetOrUpdateDeviceAuthToken(ctx context.Context, deviceAuthTo
 
 	host, ok := hostctx.FromContext(ctx)
 	if !ok {
-		return osqueryError{message: "internal error: missing host from request context"}
+		return newOsqueryError("internal error: missing host from request context")
 	}
 
 	if err := svc.ds.SetOrUpdateDeviceAuthToken(ctx, host.ID, deviceAuthToken); err != nil {
-		return osqueryError{
-			message: fmt.Sprintf("internal error: failed to set or update device auth token: %e", err),
-		}
+		return newOsqueryError(fmt.Sprintf("internal error: failed to set or update device auth token: %e", err))
 	}
 
 	return nil

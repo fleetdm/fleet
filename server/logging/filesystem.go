@@ -6,16 +6,16 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/fleetdm/fleet/v4/pkg/secure"
-	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
-	lumberjack "gopkg.in/natefinch/lumberjack.v2"
 	"io"
 	"os"
 	"os/signal"
 	"sync"
 	"syscall"
 
+	"github.com/fleetdm/fleet/v4/pkg/secure"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/go-kit/kit/log"
+	lumberjack "gopkg.in/natefinch/lumberjack.v2"
 )
 
 type filesystemLogWriter struct {

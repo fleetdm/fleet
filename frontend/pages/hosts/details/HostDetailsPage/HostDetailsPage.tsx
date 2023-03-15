@@ -543,6 +543,7 @@ const HostDetailsPage = ({
         hostStatus={host.status}
         hostMdmEnrollemntStatus={host.mdm.enrollment_status}
         doesStoreEncryptionKey={host.mdm.encryption_key_available}
+        mdmName={mdm?.name}
       />
     );
   };
@@ -599,6 +600,11 @@ const HostDetailsPage = ({
   const isMdmUnenrolled =
     host?.mdm.enrollment_status === "Off" || !host?.mdm.enrollment_status;
 
+  const showDiskEncryptionUserActionRequired =
+    config?.mdm.enabled_and_configured &&
+    host?.mdm.name === "Fleet" &&
+    host?.mdm.macos_settings.disk_encryption === "action_required";
+
   return (
     <MainContent className={baseClass}>
       <div className={`${baseClass}__wrapper`}>
@@ -612,6 +618,13 @@ const HostDetailsPage = ({
                 <strong>My device</strong> page.
               </InfoBanner>
             )}
+          {showDiskEncryptionUserActionRequired && (
+            <InfoBanner color="yellow">
+              Disk encryption: Requires action from the end user. Ask the end
+              user to follow <b>Disk encryption</b> instructions on their{" "}
+              <b>My device</b> page.
+            </InfoBanner>
+          )}
           <BackLink
             text="Back to all hosts"
             path={filteredHostsPath || PATHS.MANAGE_HOSTS}

@@ -20,13 +20,17 @@
     margin: $pad-large 0;
   }
 
+  &__download-button {
+    margin-top: 12px;
+  }
+
   ol {
     padding-left: 0;
   }
 
   li {
     margin-bottom: $pad-large;
-    list-style: number inside;
+    list-style-position: inside;
   }
 }
 

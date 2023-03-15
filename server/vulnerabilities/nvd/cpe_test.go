@@ -424,33 +424,7 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				BundleIdentifier: "com.apple.mail",
 			}, cpe: "cpe:2.3:a:apple:mail:16.0:*:*:*:*:macos:*:*",
 		},
-		{
-			software: fleet.Software{
-				Name:             "Microsoft Excel.app",
-				Source:           "apps",
-				Version:          "16.65",
-				Vendor:           "",
-				BundleIdentifier: "com.microsoft.Excel",
-			}, cpe: "cpe:2.3:a:microsoft:excel:16.65:*:*:*:*:macos:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:             "Microsoft PowerPoint.app",
-				Source:           "apps",
-				Version:          "16.65",
-				Vendor:           "",
-				BundleIdentifier: "com.microsoft.Powerpoint",
-			}, cpe: "cpe:2.3:a:microsoft:powerpoint:16.65:*:*:*:*:macos:*:*",
-		},
-		{
-			software: fleet.Software{
-				Name:             "Microsoft Word.app",
-				Source:           "apps",
-				Version:          "16.65",
-				Vendor:           "",
-				BundleIdentifier: "com.microsoft.Word",
-			}, cpe: "cpe:2.3:a:microsoft:word:16.65:*:*:*:*:macos:*:*",
-		},
+
 		{
 			software: fleet.Software{
 				Name:             "Music.app",
@@ -1140,6 +1114,63 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Source:           "chrome_extensions",
 				Version:          "0.10",
 				BundleIdentifier: "",
+			}, cpe: "",
+		},
+		// We don't use NVD to detect Mac Office vulnerabilities so all these should have an empty CPE
+		{
+			software: fleet.Software{
+				Name:             "Microsoft PowerPoint.app",
+				Source:           "apps",
+				Version:          "16.69.1",
+				BundleIdentifier: "com.microsoft.Powerpoint",
+			}, cpe: "",
+		},
+		{
+			software: fleet.Software{
+				Name:             "Microsoft Word.app",
+				Source:           "apps",
+				Version:          "16.69.1",
+				BundleIdentifier: "com.microsoft.Word",
+			}, cpe: "",
+		},
+		{
+			software: fleet.Software{
+				Name:             "Microsoft Excel.app",
+				Source:           "apps",
+				Version:          "16.69.1",
+				BundleIdentifier: "com.microsoft.Excel",
+			}, cpe: "",
+		},
+		{
+			software: fleet.Software{
+				Name:             "Docker.app",
+				Source:           "apps",
+				Version:          "4.7.1",
+				BundleIdentifier: "com.docker.docker",
+			}, cpe: "cpe:2.3:a:docker:docker_desktop:4.7.1:*:*:*:*:macos:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:             "Docker Desktop.app",
+				Source:           "apps",
+				Version:          "4.16.2",
+				BundleIdentifier: "com.electron.dockerdesktop",
+			}, cpe: "cpe:2.3:a:docker:docker_desktop:4.16.2:*:*:*:*:macos:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:             "Docker Desktop.app",
+				Source:           "apps",
+				Version:          "3.5.0",
+				BundleIdentifier: "com.electron.docker-frontend",
+			}, cpe: "cpe:2.3:a:docker:docker_desktop:3.5.0:*:*:*:*:macos:*:*",
+		},
+		// 2023-03-06: there are no entries for the docker python package at the NVD dataset.
+		{
+			software: fleet.Software{
+				Name:    "docker",
+				Source:  "python_packages",
+				Version: "6.0.1",
 			}, cpe: "",
 		},
 	}

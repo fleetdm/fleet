@@ -177,9 +177,11 @@ How to file videos from Gong recordings (**marking as "private" in gong is not a
     - Include in the doc "link to video:"
     - Include in the doc "link to transcript:"
 
-
+<!-- 
 # Participation in the CEO shadow program
 This section explains more about the CEO shadow program.
+
+> I commented out this section on 2023-02-28.  I also removed the issue template here: https://github.com/fleetdm/confidential/pull/2059#issue-1603849677  This was because CEO shadowing at Fleet is still evolving and we're experimenting with the right way to implement it at our scale.  -Mike
 
 #### In this section
 - [Eligibility](#eligibility)
@@ -203,7 +205,7 @@ All Fleet team members are eligibile to apply for the CEO Shadow Program. Eligib
 ### How to apply
  1. Create a pull request to add yourself to the [rotation schedule](https://github.com/fleetdm/fleet/edit/main/handbook/people/ceo-handbook.md#rotation-schedule).
  2. Assign your manager and ask them to approve (but not merge) the pull request.
- 3. Once your manager approves the pull request, assign the pull request to `CharlotteChance`, link to the pull request in the #help-ceo-shadow channel, and tag `@Charlie`.
+ 3. Once your manager approves the pull request, assign the pull request to `mikermcneil`, link to the pull request in the #help-ceo-shadow channel, and tag `@mikermcneil`.
 
 ### Parental participation 
 To allow flexibility for parents to participate, there will be some rotations identified as "parent-friendly" weeks. These are weeks when Mike doesn't need a shadow for the full 5 workdays or where the program is split so the weeks are not consecutive.
@@ -294,6 +296,7 @@ GitLab co-founder and CEO Sid Sijbrandij [answered questions in a YouTube livest
  2. A well-designed CEO Shadow program shouldn't burden a CEO; in fact, Shadows should actively make a CEO's day easier by assisting with notes and changing relevant portions of the company handbook upon request.
  3. Non-obvious benefits for a CEO (and their organization) include CEO empathy and humanizing a CEO, such that team members are more comfortable contributing input to an executive. Shadow alumni can translate real-world examples of [assuming positive intent](https://about.gitlab.com/handbook/values/#assume-positive-intent) from their time in the program to their direct reports, further fortifying company culture.
  4. Make certain that CEO Shadows do not plan to do any of their usual work. Shadows should prepare their team as if they were on vacation. Attempting to shadow the CEO while also maintaining a full workload creates undue stress for the CEO Shadow.
-
-<meta name="maintainedBy" value="charlottechance">
+ -->
+ 
+<meta name="maintainedBy" value="mikermcneil">
 <meta name="title" value="CEO handbook">

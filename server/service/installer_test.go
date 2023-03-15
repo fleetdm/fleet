@@ -50,11 +50,12 @@ func TestGetInstaller(t *testing.T) {
 	t.Run("errors if the provided enroll secret cannot be found", func(t *testing.T) {
 		ctx, ds, _, svc := setup(t)
 		ds.VerifyEnrollSecretFunc = func(ctx context.Context, enrollSecret string) (*fleet.EnrollSecret, error) {
-			return nil, notFoundError{}
+			return nil, newNotFoundError()
 		}
 		_, _, err := svc.GetInstaller(ctx, fleet.Installer{})
 		require.Error(t, err)
-		require.ErrorAs(t, err, &notFoundError{})
+		var nfe *notFoundError
+		require.ErrorAs(t, err, &nfe)
 		require.True(t, ds.VerifyEnrollSecretFuncInvoked)
 	})
 
@@ -120,11 +121,12 @@ func TestCheckInstallerExistence(t *testing.T) {
 	t.Run("errors if the provided enroll secret cannot be found", func(t *testing.T) {
 		ctx, ds, _, svc := setup(t)
 		ds.VerifyEnrollSecretFunc = func(ctx context.Context, enrollSecret string) (*fleet.EnrollSecret, error) {
-			return nil, notFoundError{}
+			return nil, newNotFoundError()
 		}
 		err := svc.CheckInstallerExistence(ctx, fleet.Installer{})
 		require.Error(t, err)
-		require.ErrorAs(t, err, &notFoundError{})
+		var nfe *notFoundError
+		require.ErrorAs(t, err, &nfe)
 		require.True(t, ds.VerifyEnrollSecretFuncInvoked)
 	})
 
@@ -158,7 +160,8 @@ func TestCheckInstallerExistence(t *testing.T) {
 		}
 		err := svc.CheckInstallerExistence(ctx, fleet.Installer{})
 		require.Error(t, err)
-		require.ErrorAs(t, err, &notFoundError{})
+		var nfe *notFoundError
+		require.ErrorAs(t, err, &nfe)
 		require.True(t, ds.VerifyEnrollSecretFuncInvoked)
 		require.True(t, is.ExistsFuncInvoked)
 	})

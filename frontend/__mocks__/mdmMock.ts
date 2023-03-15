@@ -20,6 +20,11 @@ const DEFAULT_HOST_MDM_DATA: IHostMdmData = {
   server_url: "http://mdmsolution.com",
   name: "MDM Solution",
   id: 1,
+  profiles: [],
+  macos_settings: {
+    disk_encryption: null,
+    action_required: null,
+  },
 };
 
 export const createMockHostMdmData = (

@@ -104,6 +104,128 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
+  name: CIS - Ensure iCloud Drive storage solution is disabled (MDM Required)
+  platforms: macOS
+  platform: darwin
+  description: |
+    iCloud Drive is Apple's storage solution for applications on both macOS and iOS to use the same files that are resident in Apple's cloud storage. The iCloud Drive folder is available much like Dropbox, Microsoft OneDrive, or Google Drive.
+    One of the concerns in public cloud storage is that proprietary data may be inappropriately stored in an end user's personal repository. Organizations that need specific controls on information should ensure that this service is turned off or the user knows what information must be stored on services that are approved for storage of controlled information.
+    This query will check for the existance of the policy not its value (That should be set per organization's decision)
+  resolution: |
+    The administrator should configure this via MDM profile.
+    Create or edit a configuration profile with the following information:
+      1. The PayloadType string is com.apple.applicationaccess.
+      2. The key to include is allowCloudDocumentSync.
+      3. The key must be set to <false/>.
+  query: |
+    SELECT 1 WHERE NOT EXISTS (
+        SELECT 1 FROM managed_policies WHERE 
+            domain='com.apple.applicationaccess' 
+            AND 
+            name='allowCloudDocumentSync' 
+             AND (value = '1' OR value = 'true')
+        );  
+    /*CIS does not make a hard recommendation for this policy. Fleet has provided two policies (one failing, one succeeding). 
+      Depending on your organization's decision, you can delete this policy or its counterpart.*/
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS-macos-13-2.1.1.2-disabled, decision-needed
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure iCloud Drive storage solution is enabled (MDM Required)
+  platforms: macOS
+  platform: darwin
+  description: |
+    iCloud Drive is Apple's storage solution for applications on both macOS and iOS to use the same files that are resident in Apple's cloud storage. The iCloud Drive folder is available much like Dropbox, Microsoft OneDrive, or Google Drive.
+    One of the concerns in public cloud storage is that proprietary data may be inappropriately stored in an end user's personal repository. Organizations that need specific controls on information should ensure that this service is turned off or the user knows what information must be stored on services that are approved for storage of controlled information.
+    This query will check for the existance of the policy not its value (That should be set per organization's decision)
+  resolution: |
+    The administrator should configure this via MDM profile.
+    Create or edit a configuration profile with the following information:
+      1. The PayloadType string is com.apple.applicationaccess.
+      2. The key to include is allowCloudDocumentSync.
+      3. The key must be set to <true/>.
+  query: |
+    SELECT 1 WHERE NOT EXISTS (
+        SELECT 1 FROM managed_policies WHERE 
+            domain='com.apple.applicationaccess' 
+            AND 
+            name='allowCloudDocumentSync' 
+             AND (value = '0' OR value = 'false')
+        );  
+    /*CIS does not make a hard recommendation for this policy. Fleet has provided two policies (one failing, one succeeding). 
+      Depending on your organization's decision, you can delete this policy or its counterpart.*/
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS-macos-13-2.1.1.2-enabled, decision-needed
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure iCloud Keychain is disabled (if your org policy is to disable it) (MDM Required)
+  platforms: macOS
+  platform: darwin
+  description: |
+    The iCloud keychain is Apple's password manager that works with macOS and iOS. The capability allows users to store passwords in either iOS or macOS for use in Safari on both platforms and other iOS-integrated applications. The most pervasive use is driven by iOS use rather than macOS. The passwords stored in a macOS keychain on an Enterprise-managed computer could be stored in Apple's cloud and then be available on a personal computer using the same account. The stored passwords could be for organizational as well as for personal accounts.
+    If passwords are no longer being used as organizational tokens, they are not in scope for iCloud keychain storage.
+    Rationale:
+    Ensure that the iCloud keychain is used consistently with organizational requirements.
+  resolution: |
+    The administrator should configure this via MDM profile.
+    Create or edit a configuration profile with the following information:
+      1. The PayloadType string is com.apple.applicationaccess.
+      2. The key to include is allowCloudKeychainSync.
+      3. The key must be set to <false/>.
+  query: |
+    SELECT 1 WHERE NOT EXISTS (
+        SELECT 1 FROM managed_policies WHERE 
+            domain='com.apple.applicationaccess' 
+            AND 
+            name='allowCloudKeychainSync' 
+            AND (value = '1' OR value = 'true') 
+        );
+    /*CIS does not make a hard recommendation for this policy. Fleet has provided two policies (one failing, one succeeding). 
+      Depending on your organization's decision, you can delete this policy or its counterpart.*/
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS-macos-13-2.1.1.1-disable, decision-needed
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure iCloud Keychain is enabled (if your org policy is to enable it) (MDM Required)
+  platforms: macOS
+  platform: darwin
+  description: |
+    The iCloud keychain is Apple's password manager that works with macOS and iOS. The capability allows users to store passwords in either iOS or macOS for use in Safari on both platforms and other iOS-integrated applications. The most pervasive use is driven by iOS use rather than macOS. The passwords stored in a macOS keychain on an Enterprise-managed computer could be stored in Apple's cloud and then be available on a personal computer using the same account. The stored passwords could be for organizational as well as for personal accounts.
+    If passwords are no longer being used as organizational tokens, they are not in scope for iCloud keychain storage.
+    Rationale:
+    Ensure that the iCloud keychain is used consistently with organizational requirements.
+  resolution: |
+    The administrator should configure this via MDM profile.
+    Create or edit a configuration profile with the following information:
+      1. The PayloadType string is com.apple.applicationaccess.
+      2. The key to include is allowCloudKeychainSync.
+      3. The key must be set to <true/>.
+  query: |
+    SELECT 1 WHERE NOT EXISTS (
+        SELECT 1 FROM managed_policies WHERE 
+            domain='com.apple.applicationaccess' 
+            AND 
+            name='allowCloudKeychainSync' 
+             AND (value = '0' OR value = 'false')
+        );  
+    /*CIS does not make a hard recommendation for this policy. Fleet has provided two policies (one failing, one succeeding). 
+      Depending on your organization's decision, you can delete this policy or its counterpart.*/
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS-macos-13-2.1.1.1-enable, decision-needed
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
   name: CIS - Ensure iCloud Drive Document and Desktop Sync Is Disabled (MDM Required)
   platforms: macOS
   platform: darwin
@@ -745,6 +867,25 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
+  name: CIS - Ensure an Administrator Password Is Required to Access System-Wide Preferences (Fleetd required)
+  platforms: macOS
+  platform: darwin
+  description: Checks that an Administrator Password Is Required to Access System-Wide Preferences
+  resolution: |
+    Graphical method:
+      Perform the following steps to ensure an administrator password is required to access system-wide preferences:
+        1. Open System Settings
+        2. Open Privacy & Security
+        3. Select Advanced
+        4. Set Require an administrator password to access system-wide settings to enabled
+  query: SELECT 1 FROM authdb WHERE right_name = 'system.preferences' AND json_extract(json_result, '$.shared') == 0;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS-macos-13-2.6.7
+  contributors: artemist-work
+---
+apiVersion: v1
+kind: policy
+spec:
   name: CIS - Ensure Screen Saver Corners Are Secure (FDA Required)
   platforms: macOS
   platform: darwin
@@ -777,6 +918,62 @@ spec:
   purpose: Informational
   tags: compliance, CIS, CIS_Level2, CIS-macos-13-2.7.1
   contributors: lucasmrod
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Universal Control is enabled (Based on organization's policy) (MDM Required)
+  platforms: macOS
+  platform: darwin
+  description: |
+    Universal Control is an Apple feature that allows Mac users to control multiple other Macs and iPads with the same keyboard, mouse, and trackpad using the same Apple ID. The technology relies on already available iCloud services, particularly Handoff.
+    Universal Control simplifies the use of iCloud connectivity of multiple computers using the same Apple ID. This may simplify data transfer from organizationally-managed and personal devices. The use of the same iCloud account and Handoff is the underlying concern that should be evaluated. The use of the same keyboard or mouse across multiple devices does not by itself decrease organizational security.
+  resolution: |
+    Automated method:
+    Ask your system administrator to deploy an MDM profile that enables the Bluetooth status in the menu bar.
+    Create or edit a configuration profile with the following information:
+    1. The `PayloadType` string is com.apple.universalcontrol.
+    2. The key to include is 'Disable'.
+    3. The key must be set to <false/>.
+  query: |
+    SELECT 1 FROM managed_policies WHERE 
+      domain='com.apple.universalcontrol' 
+      AND 
+      name='Disable' 
+      AND value = '0';  
+    /*CIS does not make a hard recommendation for this policy. Fleet has provided two policies (one failing, one succeeding). 
+      Depending on your organization's decision, you can delete this policy or its counterpart.*/
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS-macos-13-2.8.1-enabled, decision-needed
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Universal Control is disabled (Based on organization's policy) (MDM Required)
+  platforms: macOS
+  platform: darwin
+  description: |
+    Universal Control is an Apple feature that allows Mac users to control multiple other Macs and iPads with the same keyboard, mouse, and trackpad using the same Apple ID. The technology relies on already available iCloud services, particularly Handoff.
+    Universal Control simplifies the use of iCloud connectivity of multiple computers using the same Apple ID. This may simplify data transfer from organizationally-managed and personal devices. The use of the same iCloud account and Handoff is the underlying concern that should be evaluated. The use of the same keyboard or mouse across multiple devices does not by itself decrease organizational security.
+  resolution: |
+    Automated method:
+    Ask your system administrator to deploy an MDM profile that enables the Bluetooth status in the menu bar.
+    Create or edit a configuration profile with the following information:
+    1. The `PayloadType` string is com.apple.universalcontrol.
+    2. The key to include is 'Disable'.
+    3. The key must be set to <true/>.
+  query: |
+    SELECT 1 FROM managed_policies WHERE 
+      domain='com.apple.universalcontrol' 
+      AND 
+      name='Disable' 
+      AND value = '1';  
+    /*CIS does not make a hard recommendation for this policy. Fleet has provided two policies (one failing, one succeeding). 
+      Depending on your organization's decision, you can delete this policy or its counterpart.*/
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS-macos-13-2.8.1-disabled, decision-needed
+  contributors: sharon-fdm
 ---
 apiVersion: v1
 kind: policy
@@ -1706,6 +1903,66 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
+  name: CIS - Ensure Complex Password Must Contain Alphabetic Characters AND Numeric Characters Is Configured (MDM Required)
+  platforms: macOS
+  platform: darwin
+  description: |
+    CIS - 5.2.3 - Complex passwords contain one character from each of the following classes: English uppercase letters, English lowercase letters, Westernized Arabic numerals, and non- alphanumeric characters.
+    Ensure that an Alphabetic character is part of the password policy on the computer.
+    CIS - 5.2.4 - Complex passwords contain one character from each of the following classes: English uppercase letters, English lowercase letters, Westernized Arabic numerals, and non- alphanumeric characters.
+    Ensure that a number or numeric value is part of the password policy on the computer.
+  resolution: |
+    Ask your system administrator to deploy an MDM profile that ensures Complex Password Must Contain Alphabetic Characters
+  query: |
+    SELECT 1 FROM managed_policies WHERE
+      domain = 'com.apple.mobiledevice.passwordpolicy' AND
+      name = 'requireAlphanumeric' AND
+      (value = 1 OR value = 'true')
+      LIMIT 1;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS-macos-13-5.2.3, CIS-macos-13-5.2.4
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Complex Password Must Contain Special Character Is Configured (MDM Required)
+  platforms: macOS
+  platform: darwin
+  description: |
+    Complex passwords contain one character from each of the following classes: English uppercase letters, English lowercase letters, Westernized Arabic numerals, and non- alphanumeric characters. Ensure that a special character is part of the password policy on the computer.
+  resolution: |
+    Ask your system administrator to deploy an MDM profile that ensures Complex Password Must Contain Special Characters
+  query: |
+    SELECT 1 FROM managed_policies WHERE
+      domain = 'com.apple.mobiledevice.passwordpolicy' AND
+      name = 'minComplexChars' AND
+      value >= 1
+      LIMIT 1;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS-macos-13-5.2.5
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Complex Password Must Contain Uppercase and Lowercase Characters Is Configured (Fleetd required)
+  platforms: macOS
+  platform: darwin
+  description: |
+    Complex passwords contain one character from each of the following classes: English uppercase letters, English lowercase letters, Westernized Arabic numerals, and non- alphanumeric characters.
+    Ensure that both uppercase and lowercase letters are part of the password policy on the computer.
+  resolution: |
+    Ask your system administrator to deploy the following script:
+    /usr/bin/sudo /usr/bin/pwpolicy -n /Local/Default -setglobalpolicy "requiresMixedCase=<value>=1>"
+  query: SELECT 1 FROM  pwd_policy where min_mixed_case_characters >= 1;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS-macos-13-5.2.6
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
   name: CIS - Ensure Password Age Is Configured (Fleetd Required)
   platforms: macOS
   platform: darwin
@@ -1746,6 +2003,40 @@ spec:
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-macos-13-5.2.8
   contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure all user storage APFS volumes are encrypted (Fleetd Required)
+  platforms: macOS
+  platform: darwin
+  description: |
+    Apple developed a new file system which was first made available in 10.12 and then became the
+    default in 10.13. The file system is optimized for Flash and Solid-State storage and encryption.
+    https://en.wikipedia.org/wiki/Apple_File_System macOS computers generally have several volumes
+    created as part of APFS formatting, including Preboot, Recovery and Virtual Memory (VM), as well
+    as traditional user disks.
+    All APFS volumes that do not have specific roles and do not require encryption should be
+    encrypted. "Role" disks include Preboot, Recovery and VM. User disks are labelled with "(No
+    specific role)" by default.
+  resolution: |
+    Manual method:
+    Use Disk Utility to erase a user disk and format as APFS (Encrypted).
+    Note: APFS Encrypted disks will be described as "FileVault" whether they are the boot volume or not in the ap list.
+  query: |
+    SELECT 1 WHERE NOT EXISTS (
+      SELECT 1 FROM apfs_volumes WHERE
+        role != "VM" AND
+        role != "Update" AND
+        role != "Recovery" AND
+        role != "Preboot" AND
+        role != "xART" AND
+        role != "Hardware" AND
+        filevault != 1
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS-macos-13-5.3.1
+  contributors: artemist-work
 ---
 apiVersion: v1
 kind: policy
@@ -1984,6 +2275,49 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
+  name: CIS - Audit Safari Web Browser History and Remove History Items (organization decision needed)(MDM Required)
+  platforms: macOS
+  platform: darwin
+  description: |
+    Organizational management of user web browsing history is a challenge effected by multiple facets. Organizations should decide whether to manage browser history and how much history should be maintained.
+    Rationale:
+    There are conflicting concerns in the retention of browser history. Unlimited retention:
+    - Consumes disk space
+    - Preferred by on disk forensics teams
+    - User searchable for old visited pages
+    - User privacy concerns
+    - Security concerns to retain old links that may be stale or lead to compromised
+    pages or pages with changes or inappropriate content
+    Old browser history becomes stale and the use or misuse of the data can lead to unwanted outcomes. Search engine results are maintained and often provide much more relevant current information than old website visit information.
+  resolution: |
+    Ask your system administrator to deploy an MDM profile that set the history per organization decision
+    Profile Method:
+      Create or edit a configuration profile with the following information:
+      1. The PayloadType string is com.apple.Safari
+      2. The key to include is HistoryAgeInDaysLimit
+      3. The key must be set to: <integer><1,7,14,31,365,36500></integer>
+  query: |
+    SELECT 1 FROM managed_policies WHERE
+      domain = 'com.apple.Safari' AND
+      name = 'HistoryAgeInDaysLimit' AND
+      /*
+       Please replace the checked value bellow to match the one decided by your organization.
+       1 - After one day
+       7 - After one week
+       14 - After two weeks
+       31 - After one month
+       365 - After one year
+       36500 - Set Manually
+      */
+      value = '1' 
+      LIMIT 1;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS-macos-13-6.3.2, decision-needed
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
   name: CIS - Ensure Warn When Visiting A Fraudulent Website in Safari Is Enabled (MDM Required)
   platforms: macOS
   platform: darwin
@@ -2034,6 +2368,74 @@ spec:
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-macos-13-6.3.4
   contributors: lucasmrod
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure the Hide IP Address in Safari is Enabled (Based on organization's policy)
+  platforms: macOS
+  platform: darwin
+  description: |
+    Public (Routable) IP addresses can be used to track people to their current location, including
+    home and business addresses. While a valid IP addess is necessary to load the site the valid
+    address does not need to be provided to known trackers and should be hidden.
+  resolution: |
+    Ask your system administrator to deploy a script that will configure "Hide IP Address in Safari" to Enabled
+      $ /usr/bin/sudo -u <username> /usr/bin/defaults write
+      /Users/<username>/Library/Containers/com.apple.Safari/Data/Library/Preferences
+      /com.apple.Safari WBSPrivacyProxyAvailabilityTraffic -int 130276
+  query: |
+    SELECT 1 WHERE 
+    NOT EXISTS(
+        SELECT 1 FROM plist 
+        WHERE path LIKE "/Users/%/Library/Containers/com.apple.Safari/Data/Library/Preferences/com.apple.Safari.plist"
+        AND key = "WBSPrivacyProxyAvailabilityTraffic" 
+        AND ((value >> 2) & 1) == 0
+        )
+    AND EXISTS(
+        SELECT 1 FROM plist 
+        WHERE path LIKE "/Users/%/Library/Containers/com.apple.Safari/Data/Library/Preferences/com.apple.Safari.plist"
+        AND key = "WBSPrivacyProxyAvailabilityTraffic" 
+        AND ((value >> 2) & 1) == 1
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS-macos-13-6.3.5-enabled, decision-needed
+  contributors: artemist-work
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure the Hide IP Address in Safari is Disabled (Based on organization's policy)
+  platforms: macOS
+  platform: darwin
+  description: |
+    Public (Routable) IP addresses can be used to track people to their current location, including
+    home and business addresses. While a valid IP addess is necessary to load the site the valid
+    address does not need to be provided to known trackers and should be hidden.
+    However, enabling this setting will proxy web information through a 3rd party service, which may
+    not be allowed by your organization's policy.
+  resolution: |
+    Ask your system administrator to deploy a script that will configure "Hide IP Address in Safari" to Enabled
+      $ /usr/bin/sudo -u <username> /usr/bin/defaults write
+      /Users/<username>/Library/Containers/com.apple.Safari/Data/Library/Preferences
+      /com.apple.Safari WBSPrivacyProxyAvailabilityTraffic -int 130272
+  query: |
+    SELECT 1 WHERE 
+    NOT EXISTS(
+        SELECT 1 FROM plist 
+        WHERE path LIKE "/Users/%/Library/Containers/com.apple.Safari/Data/Library/Preferences/com.apple.Safari.plist"
+        AND key = "WBSPrivacyProxyAvailabilityTraffic" 
+        AND ((value >> 2) & 1) == 1
+        )
+    AND EXISTS(
+        SELECT 1 FROM plist 
+        WHERE path LIKE "/Users/%/Library/Containers/com.apple.Safari/Data/Library/Preferences/com.apple.Safari.plist"
+        AND key = "WBSPrivacyProxyAvailabilityTraffic" 
+        AND ((value >> 2) & 1) == 0
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS-macos-13-6.3.5-disabled, decision-needed
+  contributors: artemist-work
 ---
 apiVersion: v1
 kind: policy

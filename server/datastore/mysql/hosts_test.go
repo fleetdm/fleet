@@ -141,6 +141,9 @@ func TestHosts(t *testing.T) {
 		{"SetOrUpdateHostDiskEncryptionKeys", testHostsSetOrUpdateHostDisksEncryptionKey},
 		{"SetHostsDiskEncryptionKeyStatus", testHostsSetDiskEncryptionKeyStatus},
 		{"GetUnverifiedDiskEncryptionKeys", testHostsGetUnverifiedDiskEncryptionKeys},
+		{"EnrollOrbit", testHostsEnrollOrbit},
+		{"EnrollUpdatesMissingInfo", testHostsEnrollUpdatesMissingInfo},
+		{"EncryptionKeyRawDecryption", testHostsEncryptionKeyRawDecryption},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -1161,6 +1164,7 @@ func testHostMDMSelect(t *testing.T, ds *Datastore) {
 		require.Equal(t, h.ID, hosts[0].ID)
 		require.Equal(t, c.expectedMDMStatus, hosts[0].MDM.EnrollmentStatus)
 		require.Equal(t, c.expectedMDMServerURL, hosts[0].MDM.ServerURL)
+		require.Equal(t, "test", hosts[0].MDM.Name)
 
 		hosts, err = ds.SearchHosts(ctx, fleet.TeamFilter{User: test.UserAdmin}, "")
 		require.NoError(t, err)
@@ -1168,16 +1172,19 @@ func testHostMDMSelect(t *testing.T, ds *Datastore) {
 		require.Equal(t, h.ID, hosts[0].ID)
 		require.Equal(t, c.expectedMDMStatus, hosts[0].MDM.EnrollmentStatus)
 		require.Equal(t, c.expectedMDMServerURL, hosts[0].MDM.ServerURL)
+		require.Equal(t, "test", hosts[0].MDM.Name)
 
 		host, err := ds.Host(ctx, h.ID)
 		require.NoError(t, err)
 		require.Equal(t, c.expectedMDMStatus, host.MDM.EnrollmentStatus)
 		require.Equal(t, c.expectedMDMServerURL, host.MDM.ServerURL)
+		require.Equal(t, "test", hosts[0].MDM.Name)
 
 		host, err = ds.HostByIdentifier(ctx, h.UUID)
 		require.NoError(t, err)
 		require.Equal(t, c.expectedMDMStatus, host.MDM.EnrollmentStatus)
 		require.Equal(t, c.expectedMDMServerURL, host.MDM.ServerURL)
+		require.Equal(t, "test", hosts[0].MDM.Name)
 	}
 }
 
@@ -1267,7 +1274,7 @@ func testHostsEnroll(t *testing.T, ds *Datastore) {
 	}
 
 	for _, tt := range enrollTests {
-		h, err := ds.EnrollHost(context.Background(), tt.uuid, tt.nodeKey, &team.ID, 0)
+		h, err := ds.EnrollHost(context.Background(), false, tt.uuid, "", "", tt.nodeKey, &team.ID, 0)
 		require.NoError(t, err)
 		assert.NotZero(t, h.LastEnrolledAt)
 
@@ -1275,12 +1282,12 @@ func testHostsEnroll(t *testing.T, ds *Datastore) {
 		assert.Equal(t, tt.nodeKey, *h.NodeKey)
 
 		// This host should be allowed to re-enroll immediately if cooldown is disabled
-		_, err = ds.EnrollHost(context.Background(), tt.uuid, tt.nodeKey+"new", nil, 0)
+		_, err = ds.EnrollHost(context.Background(), false, tt.uuid, "", "", tt.nodeKey+"new", nil, 0)
 		require.NoError(t, err)
 		assert.NotZero(t, h.LastEnrolledAt)
 
 		// This host should not be allowed to re-enroll immediately if cooldown is enabled
-		_, err = ds.EnrollHost(context.Background(), tt.uuid, tt.nodeKey+"new", nil, 10*time.Second)
+		_, err = ds.EnrollHost(context.Background(), false, tt.uuid, "", "", tt.nodeKey+"new", nil, 10*time.Second)
 		require.Error(t, err)
 		assert.NotZero(t, h.LastEnrolledAt)
 	}
@@ -1296,7 +1303,7 @@ func testHostsEnroll(t *testing.T, ds *Datastore) {
 func testHostsLoadHostByNodeKey(t *testing.T, ds *Datastore) {
 	test.AddAllHostsLabel(t, ds)
 	for _, tt := range enrollTests {
-		h, err := ds.EnrollHost(context.Background(), tt.uuid, tt.nodeKey, nil, 0)
+		h, err := ds.EnrollHost(context.Background(), false, tt.uuid, "", "", tt.nodeKey, nil, 0)
 		require.NoError(t, err)
 
 		returned, err := ds.LoadHostByNodeKey(context.Background(), *h.NodeKey)
@@ -1314,7 +1321,7 @@ func testHostsLoadHostByNodeKey(t *testing.T, ds *Datastore) {
 func testHostsLoadHostByNodeKeyCaseSensitive(t *testing.T, ds *Datastore) {
 	test.AddAllHostsLabel(t, ds)
 	for _, tt := range enrollTests {
-		h, err := ds.EnrollHost(context.Background(), tt.uuid, tt.nodeKey, nil, 0)
+		h, err := ds.EnrollHost(context.Background(), false, tt.uuid, "", "", tt.nodeKey, nil, 0)
 		require.NoError(t, err)
 
 		_, err = ds.LoadHostByNodeKey(context.Background(), strings.ToUpper(*h.NodeKey))
@@ -3866,7 +3873,7 @@ func testHostsNoSeenTime(t *testing.T, ds *Datastore) {
 	require.Zero(t, count[0])
 
 	// Enroll existing host.
-	_, err = ds.EnrollHost(context.Background(), "1", "1", nil, 0)
+	_, err = ds.EnrollHost(context.Background(), false, "1", "", "", "1", nil, 0)
 	require.NoError(t, err)
 
 	var seenTime1 []time.Time
@@ -3878,7 +3885,7 @@ func testHostsNoSeenTime(t *testing.T, ds *Datastore) {
 	time.Sleep(1 * time.Second)
 
 	// Enroll again to trigger an update of host_seen_times.
-	_, err = ds.EnrollHost(context.Background(), "1", "1", nil, 0)
+	_, err = ds.EnrollHost(context.Background(), false, "1", "", "", "1", nil, 0)
 	require.NoError(t, err)
 
 	var seenTime2 []time.Time
@@ -5924,13 +5931,16 @@ func testHostsLoadHostByOrbitNodeKey(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
 	for _, tt := range enrollTests {
-		h, err := ds.EnrollHost(ctx, tt.uuid, tt.nodeKey, nil, 0)
+		h, err := ds.EnrollHost(ctx, false, tt.uuid, tt.uuid, "", tt.nodeKey, nil, 0)
 		require.NoError(t, err)
 
 		orbitKey := uuid.New().String()
 		// on orbit enrollment, the "hardware UUID" is matched with the osquery
 		// host ID to identify the host being enrolled
-		_, err = ds.EnrollOrbit(ctx, *h.OsqueryHostID, orbitKey, nil)
+		_, err = ds.EnrollOrbit(ctx, false, fleet.OrbitHostInfo{
+			HardwareUUID:   *h.OsqueryHostID,
+			HardwareSerial: h.HardwareSerial,
+		}, orbitKey, nil)
 		require.NoError(t, err)
 
 		// the returned host by LoadHostByOrbitNodeKey will have the orbit key stored
@@ -5960,7 +5970,10 @@ func testHostsLoadHostByOrbitNodeKey(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 
 		orbitKey := uuid.New().String()
-		_, err = ds.EnrollOrbit(ctx, *h.OsqueryHostID, orbitKey, nil)
+		_, err = ds.EnrollOrbit(ctx, false, fleet.OrbitHostInfo{
+			HardwareUUID:   *h.OsqueryHostID,
+			HardwareSerial: h.HardwareSerial,
+		}, orbitKey, nil)
 		require.NoError(t, err)
 		h.OrbitNodeKey = &orbitKey
 		return h
@@ -6217,4 +6230,222 @@ func testHostsGetUnverifiedDiskEncryptionKeys(t *testing.T, ds *Datastore) {
 	keys, err = ds.GetUnverifiedDiskEncryptionKeys(ctx)
 	require.NoError(t, err)
 	require.Empty(t, keys)
+}
+
+func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	createHost := func(osqueryID, serial string) *fleet.Host {
+		dbZeroTime := time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
+		var osqueryIDPtr *string
+		if osqueryID != "" {
+			osqueryIDPtr = &osqueryID
+		}
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			Hostname:         "foo",
+			HardwareSerial:   serial,
+			Platform:         "darwin",
+			LastEnrolledAt:   dbZeroTime,
+			DetailUpdatedAt:  dbZeroTime,
+			OsqueryHostID:    osqueryIDPtr,
+			RefetchRequested: true,
+		})
+		require.NoError(t, err)
+		return h
+	}
+
+	// create and enroll a host with just an osquery ID, no serial
+	hOsqueryNoSerial := createHost(uuid.New().String(), "")
+	h, err := ds.EnrollOrbit(ctx, true, fleet.OrbitHostInfo{
+		HardwareUUID:   *hOsqueryNoSerial.OsqueryHostID,
+		HardwareSerial: hOsqueryNoSerial.HardwareSerial,
+	}, uuid.New().String(), nil)
+	require.NoError(t, err)
+	require.Equal(t, hOsqueryNoSerial.ID, h.ID)
+	require.Empty(t, h.HardwareSerial)
+	// Hostname and platform values should not be overriden by the orbit enroll.
+	h, err = ds.Host(ctx, h.ID)
+	require.NoError(t, err)
+	require.Equal(t, "foo", h.Hostname)
+	require.Equal(t, "darwin", h.Platform)
+
+	// create and enroll a host with just a serial, no osquery ID (that is, it
+	// got created this way, but when enrolling in orbit it does have an osquery
+	// ID)
+	hSerialNoOsquery := createHost("", uuid.New().String())
+	h, err = ds.EnrollOrbit(ctx, true, fleet.OrbitHostInfo{
+		HardwareUUID:   uuid.New().String(),
+		HardwareSerial: hSerialNoOsquery.HardwareSerial,
+	}, uuid.New().String(), nil)
+	require.NoError(t, err)
+	require.Equal(t, hSerialNoOsquery.ID, h.ID)
+	require.Empty(t, h.OsqueryHostID)
+
+	// create and enroll a host with both
+	hBoth := createHost(uuid.New().String(), uuid.New().String())
+	h, err = ds.EnrollOrbit(ctx, true, fleet.OrbitHostInfo{
+		HardwareUUID:   *hBoth.OsqueryHostID,
+		HardwareSerial: hBoth.HardwareSerial,
+	}, uuid.New().String(), nil)
+	require.NoError(t, err)
+	require.Equal(t, hBoth.ID, h.ID)
+	require.Empty(t, h.HardwareSerial) // this is just to prove that it was loaded based on osquery_node_id, the serial was not set in the lookup
+
+	// enroll with osquery id from hBoth and serial from hSerialNoOsquery (should
+	// use the osquery match)
+	h, err = ds.EnrollOrbit(ctx, true, fleet.OrbitHostInfo{
+		HardwareUUID:   *hBoth.OsqueryHostID,
+		HardwareSerial: hSerialNoOsquery.HardwareSerial,
+	}, uuid.New().String(), nil)
+	require.NoError(t, err)
+	require.Equal(t, hBoth.ID, h.ID)
+	require.Empty(t, h.HardwareSerial)
+
+	// enroll with no match, will create a new one
+	h, err = ds.EnrollOrbit(ctx, true, fleet.OrbitHostInfo{
+		HardwareUUID:   uuid.New().String(),
+		HardwareSerial: uuid.New().String(),
+		Hostname:       "foo2",
+		Platform:       "darwin",
+	}, uuid.New().String(), nil)
+	require.NoError(t, err)
+	require.Greater(t, h.ID, hBoth.ID)
+	// Hostname and platform values should be set by the Orbit enroll.
+	h, err = ds.Host(ctx, h.ID)
+	require.NoError(t, err)
+	require.Equal(t, "foo2", h.Hostname)
+	require.Equal(t, "darwin", h.Platform)
+
+	// simulate a "corrupt database" where two hosts have the same serial and
+	// enroll by serial should always use the same (the smaller ID)
+	hDupSerial1 := createHost("", uuid.New().String())
+	hDupSerial2 := createHost("", hDupSerial1.HardwareSerial)
+	require.Greater(t, hDupSerial2.ID, hDupSerial1.ID)
+	h, err = ds.EnrollOrbit(ctx, true, fleet.OrbitHostInfo{
+		HardwareUUID:   uuid.New().String(),
+		HardwareSerial: hDupSerial1.HardwareSerial,
+	}, uuid.New().String(), nil)
+	require.NoError(t, err)
+	require.Equal(t, hDupSerial1.ID, h.ID)
+
+	// enroll with osquery ID from hOsqueryNoSerial and the duplicate serial,
+	// will always match osquery ID
+	h, err = ds.EnrollOrbit(ctx, true, fleet.OrbitHostInfo{
+		HardwareUUID:   *hOsqueryNoSerial.OsqueryHostID,
+		HardwareSerial: hDupSerial1.HardwareSerial,
+	}, uuid.New().String(), nil)
+	require.NoError(t, err)
+	require.Equal(t, hOsqueryNoSerial.ID, h.ID)
+}
+
+func testHostsEnrollUpdatesMissingInfo(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// create a bare minimal host (as if created via DEP enrollment)
+	// no team, osquery id, uuid.
+	dbZeroTime := time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
+	h, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:         "foobar",
+		HardwareSerial:   "serial",
+		Platform:         "darwin",
+		LastEnrolledAt:   dbZeroTime,
+		DetailUpdatedAt:  dbZeroTime,
+		RefetchRequested: true,
+	})
+	require.NoError(t, err)
+
+	tm, err := ds.NewTeam(ctx, &fleet.Team{
+		Name: "team1",
+	})
+	require.NoError(t, err)
+
+	// enroll with orbit and a uuid (will match on serial)
+	_, err = ds.EnrollOrbit(ctx, true, fleet.OrbitHostInfo{
+		HardwareUUID:   "uuid",
+		HardwareSerial: "serial",
+	}, "orbit", nil)
+	require.NoError(t, err)
+	got, err := ds.LoadHostByOrbitNodeKey(ctx, "orbit")
+	require.NoError(t, err)
+	require.Equal(t, h.ID, got.ID)
+	require.Equal(t, "serial", got.HardwareSerial)
+	require.Equal(t, "uuid", got.UUID)
+	require.NotNil(t, got.OsqueryHostID)
+	require.Equal(t, "uuid", *got.OsqueryHostID)
+	require.Nil(t, got.TeamID)
+	require.Nil(t, got.NodeKey)
+	// Verify that the orbit enroll didn't override these values set by a previous osquery enroll.
+	require.Equal(t, "foobar", got.Hostname)
+	require.Equal(t, "darwin", got.Platform)
+
+	// enroll with osquery using uuid identifier, team
+	_, err = ds.EnrollHost(ctx, true, "uuid", "uuid", "different-serial", "osquery", &tm.ID, 0)
+	require.NoError(t, err)
+	got, err = ds.LoadHostByOrbitNodeKey(ctx, "orbit")
+	require.NoError(t, err)
+	require.Equal(t, h.ID, got.ID)
+	require.Equal(t, "serial", got.HardwareSerial) // unchanged as it was already filled
+	require.Equal(t, "uuid", got.UUID)
+	require.NotNil(t, got.OsqueryHostID)
+	require.Equal(t, "uuid", *got.OsqueryHostID)
+	require.NotNil(t, got.NodeKey)
+	require.Equal(t, "osquery", *got.NodeKey)
+	require.NotNil(t, got.TeamID)
+	require.Equal(t, tm.ID, *got.TeamID)
+	// Verify that the orbit enroll didn't override these values set by a previous osquery enroll.
+	require.Equal(t, "foobar", got.Hostname)
+	require.Equal(t, "darwin", got.Platform)
+}
+
+func testHostsEncryptionKeyRawDecryption(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         ptr.String("1"),
+		UUID:            "1",
+		OsqueryHostID:   ptr.String("1"),
+		Hostname:        "foo.local",
+		PrimaryIP:       "192.168.1.1",
+		PrimaryMac:      "30-65-EC-6F-C4-58",
+	})
+	require.NoError(t, err)
+
+	// no disk encryption key information
+	got, err := ds.Host(ctx, host.ID)
+	require.NoError(t, err)
+	require.False(t, got.MDM.EncryptionKeyAvailable)
+	require.NotNil(t, got.MDM.TestGetRawDecryptable())
+	require.Equal(t, -1, *got.MDM.TestGetRawDecryptable())
+
+	// create the encryption key row, but unknown decryptable
+	err = ds.SetOrUpdateHostDiskEncryptionKey(ctx, host.ID, "abc")
+	require.NoError(t, err)
+
+	got, err = ds.Host(ctx, host.ID)
+	require.NoError(t, err)
+	require.False(t, got.MDM.EncryptionKeyAvailable)
+	require.Nil(t, got.MDM.TestGetRawDecryptable())
+
+	// mark the key as non-decryptable
+	err = ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{host.ID}, false, time.Now())
+	require.NoError(t, err)
+
+	got, err = ds.Host(ctx, host.ID)
+	require.NoError(t, err)
+	require.False(t, got.MDM.EncryptionKeyAvailable)
+	require.NotNil(t, got.MDM.TestGetRawDecryptable())
+	require.Equal(t, 0, *got.MDM.TestGetRawDecryptable())
+
+	// mark the key as decryptable
+	err = ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{host.ID}, true, time.Now())
+	require.NoError(t, err)
+
+	got, err = ds.Host(ctx, host.ID)
+	require.NoError(t, err)
+	require.True(t, got.MDM.EncryptionKeyAvailable)
+	require.NotNil(t, got.MDM.TestGetRawDecryptable())
+	require.Equal(t, 1, *got.MDM.TestGetRawDecryptable())
 }

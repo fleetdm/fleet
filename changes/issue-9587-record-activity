@@ -1,1 +1,0 @@
-* Added "edited macos profiles" activity when updating a team's (or no team's) custom macOS settings via `fleetctl apply`.

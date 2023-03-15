@@ -8,6 +8,11 @@ const DEFAULT_MAC_ADMINS_MOCK: IMacadminsResponse = {
       server_url: "https://kandji.com/2",
       name: "Kandji",
       id: 11,
+      profiles: [],
+      macos_settings: {
+        disk_encryption: null,
+        action_required: null,
+      },
     },
     munki: {
       version: "1.2.3",

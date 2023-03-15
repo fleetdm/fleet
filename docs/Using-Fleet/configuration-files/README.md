@@ -8,7 +8,7 @@
 - [Team settings](#team-settings)
   - [Team agent options](#team-agent-options)
   - [Team enroll secrets](#team-enroll-secrets)
-- [Mobile device management settings](#mobile-device-management-mdm-settings)
+  - [Mobile device management settings for teams](#mobile-device-management-mdm-settings-for-teams)
 - [Organization settings](#organization-settings)
 
 Fleet can be managed with configuration files (YAML syntax) and the fleetctl command line tool. This page tells you how to write these configuration files.
@@ -109,7 +109,7 @@ Currently enrolled hosts do not necessarily need enroll secrets updated, as the 
 
 Deploying a new enroll secret cannot be done centrally from Fleet.
 
-### Multiple enroll secrets 
+### Multiple enroll secrets
 
 Fleet allows the abiility to maintain multiple enroll secrets. Some organizations have internal goals  around rotating secrets. Having multiple secrets allows some of them to work at the same time the rotation is happening.
 Another reason you might want to use multiple enroll secrets is to use a certain [team enroll secret](#team-enroll-secrets) to auto-enroll hosts into a specific [team](https://fleetdm.com/docs/using-fleet/teams) (Fleet Premium).
@@ -220,6 +220,11 @@ spec:
       macos_updates:
         minimum_version: 12.3.1
         deadline: 2022-01-04
+      macos_settings:
+        custom_settings:
+          - path/to/profile1.mobileconfig
+          - path/to/profile2.mobileconfig
+        enable_disk_encryption: true
 ```
 
 ### Team agent options
@@ -254,7 +259,7 @@ The `secrets` section provides the list of enroll secrets that will be valid for
   ```
 ### Modify an existing team
 
-You can modify an existing team by applying a new team configuration file with the same `name` as an existing team. The new team configuration will completely replace the previous configuration. In order to avoid overiding existing settings, we reccomend retreiving the existing configuration and modifying it. 
+You can modify an existing team by applying a new team configuration file with the same `name` as an existing team. The new team configuration will completely replace the previous configuration. In order to avoid overiding existing settings, we reccomend retreiving the existing configuration and modifying it.
 
 Retrieve the team configuration and output to a YAML file:
 
@@ -270,29 +275,29 @@ After updating the generated YAML, apply the changes:
 Depending on your Fleet version, you may see `unsupported key` errors for the following keys when applying the new team configuration:
 
 ```
-id 
-user_count 
-host_count 
-integrations 
-webhook_settings 
-description 
-agent_options 
-created_at 
-user_count 
-host_count 
-integrations 
+id
+user_count
+host_count
+integrations
+webhook_settings
+description
+agent_options
+created_at
+user_count
+host_count
+integrations
 webhook_settings
 ```
 
 You can bypass these errors by removing the key from your YAML or adding the `--force` flag. This flag will force application of the changes without validation. Proceed with caution.
 
-## Mobile device management (MDM) settings
+### Mobile device management (MDM) settings for teams
 
 > MDM features are not ready for production and are currently in development. These features are disabled by default.
 
 The `mdm` section of this configuration YAML lets you control MDM settings for each team in Fleet.
 
-To specify Team MDM configuration, as opposed to [Organization-wide MDM configuration](#mobile-device-management-mdm-settings2), follow the below YAML format. Note the `kind: team` field, as well as the  `name` and `mdm` fields under `team`.
+To specify Team MDM configuration, as opposed to [Organization-wide MDM configuration](#mobile-device-management-mdm-settings), follow the below YAML format. Note the `kind: team` field, as well as the  `name` and `mdm` fields under `team`.
 
 ```yaml
 apiVersion: v1
@@ -403,6 +408,11 @@ spec:
     macos_updates:
       minimum_version: ""
       deadline: ""
+    macos_settings:
+      custom_settings:
+        - path/to/profile1.mobileconfig
+        - path/to/profile2.mobileconfig
+      enable_disk_encryption: true
 ```
 
 ### Settings
@@ -983,7 +993,7 @@ The `agent_options` key controls the settings applied to the agent on all your h
 
 See the [osquery documentation](https://osquery.readthedocs.io/en/stable/installation/cli-flags/#configuration-control-flags) for the available options. This document shows all examples in command line flag format. Remove the dashed lines (`--`) for Fleet to successfully update the setting. For example, use `distributed_interval` instead of `--distributed_interval`.
 
-Agent options are validated using the latest version of osquery. 
+Agent options are validated using the latest version of osquery.
 
 When updating agent options, you may see an error similar to this:
 
@@ -1006,7 +1016,7 @@ Existing options will be overwritten by the application of this file.
 
 > This feature requires [Orbit, the Fleet agent manager](https://fleetdm.com/announcements/introducing-orbit-your-fleet-agent-manager).
 
-The `command_line_flags` key inside of `agent_options` allows you to remotely manage the osquery command line flags. These command line flags are options that typically require osquery to restart for them to take effect. But with Orbit, you can use the `command_line_flags` key to take care of that. Orbit will write these to the flagfile on the host and pass it to osquery. 
+The `command_line_flags` key inside of `agent_options` allows you to remotely manage the osquery command line flags. These command line flags are options that typically require osquery to restart for them to take effect. But with Orbit, you can use the `command_line_flags` key to take care of that. Orbit will write these to the flagfile on the host and pass it to osquery.
 
 To see the full list of these osquery command line flags, please run `osquery` with the `--help` switch.
 
@@ -1049,7 +1059,7 @@ If you prefer to deploy a new package with the updated enroll secret:
 
 
 
-> In order for these options to be applied to your hosts, the `osquery` agent must be configured to use the `tls` config plugin and pointed to the correct endpoint. If you are using Orbit to enroll your hosts, this is done automatically. 
+> In order for these options to be applied to your hosts, the `osquery` agent must be configured to use the `tls` config plugin and pointed to the correct endpoint. If you are using Orbit to enroll your hosts, this is done automatically.
 
 ```
 "--config_plugin=tls",
@@ -1067,7 +1077,7 @@ spec:
 
 > This feature requires [Orbit, the Fleet agent manager](https://fleetdm.com/announcements/introducing-orbit-your-fleet-agent-manager), along with a custom TUF auto-update server.
 
-The `extensions` key inside of `agent_options` allows you to remotely manage and deploy osquery extensions. Just like other `agent_options` the `extensions` key can be applied either to a team specific one or the global one. 
+The `extensions` key inside of `agent_options` allows you to remotely manage and deploy osquery extensions. Just like other `agent_options` the `extensions` key can be applied either to a team specific one or the global one.
 
 
 This is best illustrated with an example. Here is an example of using the `extensions` key:
@@ -1082,8 +1092,8 @@ spec:
         channel: 'stable'
         platform: 'macos'
 ```
- 
-In the above example, we are configuring our `hello_world` extension. We do this by creating a `hello_world` subkey under `extensions`, and then specifying the `channel` and `platform` keys for that extension. 
+
+In the above example, we are configuring our `hello_world` extension. We do this by creating a `hello_world` subkey under `extensions`, and then specifying the `channel` and `platform` keys for that extension.
 
 Next, you will need to make sure to push the binary file of our `hello_world` extension as a target on your TUF server. This step needs to follow these conventions:
 
@@ -1097,7 +1107,7 @@ If you are using `fleetctl` to manage your TUF server, these same conventions ap
 fleetctl updates add --path /path/to/local/TUF/repo --target /path/to/extensions/binary/hello_world.ext --name extensions/hello_world --platform macos --version 0.1
 ```
 
-After successfully configuring the agent options, and pushing the extension as a target on your TUF server, Orbit will periodically check with the TUF server for updates to these extensions. 
+After successfully configuring the agent options, and pushing the extension as a target on your TUF server, Orbit will periodically check with the TUF server for updates to these extensions.
 
 If you are using a self-hosted TUF server, you must also manage all of Orbit's versions, including osquery, Fleet Desktop and osquery extensions.
 
@@ -1127,19 +1137,19 @@ spec:
           3600: "SELECT total_seconds AS uptime FROM uptime"
     overrides:
       # Note configs in overrides take precedence over the default config defined
-      # under the config key above. Be aware that these overrides are NOT merged 
-      # with the top-level configuration!! This means that settings values defined 
+      # under the config key above. Be aware that these overrides are NOT merged
+      # with the top-level configuration!! This means that settings values defined
       # on the top-level config.options section will not be propagated to the platform
-      # override sections. So for example, the config.options.distributed_interval value 
-      # will be discarded on a platform override section, and only the section value 
-      # for distributed_interval will be used. If the given setting is not specified 
-      # in the override section, its default value will be enforced. 
-      # Going back to the example, if the override section is windows, 
-      # overrides.platforms.windows.distributed_interval will have to be set again to 5 
-      # for this setting to be enforced as expected, otherwise the setting will get 
-      # its default value (60 in the case of distributed_interval). 
-      # Hosts receive overrides based on the platform returned by `SELECT platform FROM os_version`. 
-      # In this example, the base config would be used for Windows and CentOS hosts, 
+      # override sections. So for example, the config.options.distributed_interval value
+      # will be discarded on a platform override section, and only the section value
+      # for distributed_interval will be used. If the given setting is not specified
+      # in the override section, its default value will be enforced.
+      # Going back to the example, if the override section is windows,
+      # overrides.platforms.windows.distributed_interval will have to be set again to 5
+      # for this setting to be enforced as expected, otherwise the setting will get
+      # its default value (60 in the case of distributed_interval).
+      # Hosts receive overrides based on the platform returned by `SELECT platform FROM os_version`.
+      # In this example, the base config would be used for Windows and CentOS hosts,
       # while Mac and Ubuntu hosts would receive their respective overrides.
       platforms:
         darwin:
@@ -1189,15 +1199,15 @@ spec:
 ```
 ##### agent_options.config
 
-The config key sets the osqueryd configuration options for your agents. In a plain osquery deployment, these would typically be set in `osquery.conf`. Each key below represents a corresponding key in the osquery documentation. 
+The config key sets the osqueryd configuration options for your agents. In a plain osquery deployment, these would typically be set in `osquery.conf`. Each key below represents a corresponding key in the osquery documentation.
 
-For detailed information on osquery configuration options, check out the [osquery configuration docs](https://osquery.readthedocs.io/en/stable/deployment/configuration/). 
+For detailed information on osquery configuration options, check out the [osquery configuration docs](https://osquery.readthedocs.io/en/stable/deployment/configuration/).
 
 ```yaml
 agent_options:
     config:
       options: ~
-      decorators: ~ 
+      decorators: ~
       yara: ~
     overrides: ~
 
@@ -1205,11 +1215,11 @@ agent_options:
 
 ###### agent_options.config.options
 
-In the options key, you can set your osqueryd options and feature flags. 
+In the options key, you can set your osqueryd options and feature flags.
 
-Any command line only flags must be set using the `command_line_flags` key for Orbit agents, or by modifying the osquery flags on your hosts if you're using plain osquery. 
+Any command line only flags must be set using the `command_line_flags` key for Orbit agents, or by modifying the osquery flags on your hosts if you're using plain osquery.
 
-To see a full list of flags, broken down by the method you can use to set them (configuration options vs command line flags), you can run `osqueryd --help` on a plain osquery agent. For Orbit agents, run `sudo orbit osqueryd --help`. The options will be shown there in command line format as `--key value`. In `yaml` format, that would become `key: value`. 
+To see a full list of flags, broken down by the method you can use to set them (configuration options vs command line flags), you can run `osqueryd --help` on a plain osquery agent. For Orbit agents, run `sudo orbit osqueryd --help`. The options will be shown there in command line format as `--key value`. In `yaml` format, that would become `key: value`.
 
 ```yaml
 agent_options:
@@ -1223,9 +1233,9 @@ agent_options:
 ```
 ###### agent_options.config.decorators
 
-In the decorators key, you can specify queries to include additional information in your osquery results logs. 
+In the decorators key, you can specify queries to include additional information in your osquery results logs.
 
-Use `load` for details you want to update values when the configuration loads, `always` to update every time a scheduled query is run, and `interval` if you want to update on a schedule. 
+Use `load` for details you want to update values when the configuration loads, `always` to update every time a scheduled query is run, and `interval` if you want to update on a schedule.
 
 ```yaml
 agent_options:
@@ -1403,6 +1413,38 @@ Requires `mdm.macos_updates.minimum_version` to be set.
   mdm:
     macos_updates:
       deadline: "2022-01-01"
+  ```
+
+##### mdm.macos_settings
+
+The following settings are macOS-specific settings for Fleet's MDM solution.
+
+##### mdm.macos_settings.custom_settings
+
+List of profile files to apply to hosts that are not part of any team or to all hosts for Fleet Free (use the [team-specific `mdm.macos_settings.custom_settings` setting](#team-settings) to configure hosts that belong to a team).
+
+- Default value: none
+- Config file format:
+  ```yaml
+  mdm:
+    macos_settings:
+      custom_settings:
+        - path/to/profile1.mobileconfig
+        - path/to/profile2.mobileconfig
+  ```
+
+##### mdm.macos_settings.enable_disk_encryption
+
+**Applies only to Fleet Premium**.
+
+Enable disk encryption to hosts that are not part of any team (use the [team-specific `mdm.macos_settings.enable_disk_encryption` setting](#team-settings) to configure hosts that belong to a team).
+
+- Default value: false
+- Config file format:
+  ```yaml
+  mdm:
+    macos_settings:
+      enable_disk_encryption: true
   ```
 
 #### Advanced configuration

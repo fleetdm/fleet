@@ -18,6 +18,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
 	nanomdm_mock "github.com/fleetdm/fleet/v4/server/mock/nanomdm"
@@ -340,6 +341,9 @@ func TestMDMAppleConfigProfileAuthz(t *testing.T) {
 	ds.NewActivityFunc = func(context.Context, *fleet.User, fleet.ActivityDetails) error {
 		return nil
 	}
+	ds.GetMDMAppleHostsProfilesSummaryFunc = func(context.Context, *uint) (*fleet.MDMAppleHostsProfilesSummary, error) {
+		return nil, nil
+	}
 	mockGetFuncWithTeamID := func(teamID uint) mock.GetMDMAppleConfigProfileFunc {
 		return func(ctx context.Context, profileID uint) (*fleet.MDMAppleConfigProfile, error) {
 			require.Equal(t, uint(42), profileID)
@@ -415,6 +419,14 @@ func TestMDMAppleConfigProfileAuthz(t *testing.T) {
 			// test authz delete config profile (team 1)
 			ds.DeleteMDMAppleConfigProfileFunc = mockDeleteFuncWithTeamID(1)
 			err = svc.DeleteMDMAppleConfigProfile(ctx, 42)
+			checkShouldFail(err, tt.shouldFailTeam)
+
+			// test authz get profiles summary (no team)
+			_, err = svc.GetMDMAppleProfilesSummary(ctx, nil)
+			checkShouldFail(err, tt.shouldFailGlobal)
+
+			// test authz get profiles summary (no team)
+			_, err = svc.GetMDMAppleProfilesSummary(ctx, ptr.Uint(1))
 			checkShouldFail(err, tt.shouldFailTeam)
 		})
 	}
@@ -920,7 +932,7 @@ func TestMDMCommandAndReportResultsProfileHandling(t *testing.T) {
 			return c.requestType, nil
 		}
 
-		ds.UpdateHostMDMAppleProfileFunc = func(ctx context.Context, profile *fleet.HostMDMAppleProfile) error {
+		ds.UpdateOrDeleteHostMDMAppleProfileFunc = func(ctx context.Context, profile *fleet.HostMDMAppleProfile) error {
 			c.want.CommandUUID = commandUUID
 			c.want.HostUUID = hostUUID
 			require.Equal(t, c.want, profile)
@@ -939,7 +951,7 @@ func TestMDMCommandAndReportResultsProfileHandling(t *testing.T) {
 		)
 		require.NoError(t, err)
 		require.True(t, ds.GetMDMAppleCommandRequestTypeFuncInvoked)
-		require.True(t, ds.UpdateHostMDMAppleProfileFuncInvoked)
+		require.True(t, ds.UpdateOrDeleteHostMDMAppleProfileFuncInvoked)
 	}
 }
 
@@ -1159,6 +1171,47 @@ func TestMDMBatchSetAppleProfiles(t *testing.T) {
 			},
 			``,
 		},
+		{
+			"unsupported payload type",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+			false,
+			nil,
+			nil,
+			[][]byte{[]byte(`<?xml version="1.0" encoding="UTF-8"?>
+			<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+			<plist version="1.0">
+			<dict>
+				<key>PayloadContent</key>
+				<array>
+					<dict>
+						<key>Enable</key>
+						<string>On</string>
+						<key>PayloadDisplayName</key>
+						<string>FileVault 2</string>
+						<key>PayloadIdentifier</key>
+						<string>com.apple.MCX.FileVault2.A5874654-D6BA-4649-84B5-43847953B369</string>
+						<key>PayloadType</key>
+						<string>com.apple.MCX.FileVault2</string>
+						<key>PayloadUUID</key>
+						<string>A5874654-D6BA-4649-84B5-43847953B369</string>
+						<key>PayloadVersion</key>
+						<integer>1</integer>
+					</dict>
+				</array>
+				<key>PayloadDisplayName</key>
+				<string>Config Profile Name</string>
+				<key>PayloadIdentifier</key>
+				<string>com.example.config.FE42D0A2-DBA9-4B72-BC67-9288665B8D59</string>
+				<key>PayloadType</key>
+				<string>Configuration</string>
+				<key>PayloadUUID</key>
+				<string>FE42D0A2-DBA9-4B72-BC67-9288665B8D59</string>
+				<key>PayloadVersion</key>
+				<integer>1</integer>
+			</dict>
+			</plist>`)},
+			"unsupported PayloadType(s)",
+		},
 	}
 
 	for _, tt := range testCases {
@@ -1182,6 +1235,160 @@ func TestMDMBatchSetAppleProfiles(t *testing.T) {
 			require.Error(t, err)
 			require.ErrorContains(t, err, tt.wantErr)
 			require.False(t, ds.BatchSetMDMAppleProfilesFuncInvoked)
+		})
+	}
+}
+
+func TestUpdateMDMAppleSettings(t *testing.T) {
+	svc, ctx, ds := setupAppleMDMService(t)
+
+	ds.TeamFunc = func(ctx context.Context, id uint) (*fleet.Team, error) {
+		return &fleet.Team{ID: id, Name: "team"}, nil
+	}
+	ds.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
+		return team, nil
+	}
+	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+		return nil
+	}
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+	ds.SaveAppConfigFunc = func(ctx context.Context, appConfig *fleet.AppConfig) error {
+		return nil
+	}
+
+	testCases := []struct {
+		name    string
+		user    *fleet.User
+		premium bool
+		teamID  *uint
+		wantErr string
+	}{
+		{
+			"global admin",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+			false,
+			nil,
+			ErrMissingLicense.Error(),
+		},
+		{
+			"global admin premium",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+			true,
+			nil,
+			"",
+		},
+		{
+			"global admin, team",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+			true,
+			ptr.Uint(1),
+			"",
+		},
+		{
+			"global maintainer",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleMaintainer)},
+			false,
+			nil,
+			ErrMissingLicense.Error(),
+		},
+		{
+			"global maintainer premium",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleMaintainer)},
+			true,
+			nil,
+			"",
+		},
+		{
+			"global maintainer, team",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleMaintainer)},
+			true,
+			ptr.Uint(1),
+			"",
+		},
+		{
+			"global observer",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)},
+			true,
+			nil,
+			authz.ForbiddenErrorMessage,
+		},
+		{
+			"team admin, DOES belong to team",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}}},
+			true,
+			ptr.Uint(1),
+			"",
+		},
+		{
+			"team admin, DOES NOT belong to team",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleAdmin}}},
+			true,
+			ptr.Uint(1),
+			authz.ForbiddenErrorMessage,
+		},
+		{
+			"team maintainer, DOES belong to team",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleMaintainer}}},
+			true,
+			ptr.Uint(1),
+			"",
+		},
+		{
+			"team maintainer, DOES NOT belong to team",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleMaintainer}}},
+			true,
+			ptr.Uint(1),
+			authz.ForbiddenErrorMessage,
+		},
+		{
+			"team observer, DOES belong to team",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver}}},
+			true,
+			ptr.Uint(1),
+			authz.ForbiddenErrorMessage,
+		},
+		{
+			"team observer, DOES NOT belong to team",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleObserver}}},
+			true,
+			ptr.Uint(1),
+			authz.ForbiddenErrorMessage,
+		},
+		{
+			"user no roles",
+			&fleet.User{ID: 1337},
+			true,
+			nil,
+			authz.ForbiddenErrorMessage,
+		},
+		{
+			"team id with free license",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+			false,
+			ptr.Uint(1),
+			ErrMissingLicense.Error(),
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			// prepare the context with the user and license
+			ctx := viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
+			tier := fleet.TierFree
+			if tt.premium {
+				tier = fleet.TierPremium
+			}
+			ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: tier})
+
+			err := svc.UpdateMDMAppleSettings(ctx, fleet.MDMAppleSettingsPayload{TeamID: tt.teamID})
+			if tt.wantErr == "" {
+				require.NoError(t, err)
+				return
+			}
+			require.Error(t, err)
+			require.ErrorContains(t, err, tt.wantErr)
 		})
 	}
 }
@@ -1378,6 +1585,23 @@ func TestMDMAppleReconcileProfiles(t *testing.T) {
 	require.True(t, ds.ListMDMAppleProfilesToRemoveFuncInvoked)
 	require.True(t, ds.GetMDMAppleProfilesContentsFuncInvoked)
 	require.True(t, ds.BulkUpsertMDMAppleHostProfilesFuncInvoked)
+}
+
+func TestAppleMDMFileVaultEscrowFunctions(t *testing.T) {
+	svc := Service{}
+
+	err := svc.MDMAppleEnableFileVaultAndEscrow(context.Background(), ptr.Uint(1))
+	require.ErrorIs(t, fleet.ErrMissingLicense, err)
+
+	err = svc.MDMAppleDisableFileVaultAndEscrow(context.Background(), ptr.Uint(1))
+	require.ErrorIs(t, fleet.ErrMissingLicense, err)
+}
+
+func TestGenerateEnrollmentProfileMobileConfig(t *testing.T) {
+	// SCEP challenge should be escaped for XML
+	b, err := apple_mdm.GenerateEnrollmentProfileMobileconfig("foo", "https://example.com", "foo&bar", "topic")
+	require.NoError(t, err)
+	require.Contains(t, string(b), "foo&amp;bar")
 }
 
 func mobileconfigForTest(name, identifier string) []byte {

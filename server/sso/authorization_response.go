@@ -80,8 +80,10 @@ var validDisplayNameAttrs = map[string]struct{}{
 
 type resp struct {
 	response *Response
-	rawResp  string
+	rawResp  []byte
 }
+
+var _ fleet.Auth = resp{}
 
 func (r *resp) setResponse(val *Response) {
 	r.response = val
@@ -94,6 +96,7 @@ func (r resp) statusDescription() string {
 	return "missing response"
 }
 
+// UserID partially implements the fleet.Auth interface.
 func (r resp) UserID() string {
 	if r.response != nil {
 		return r.response.Assertion.Subject.NameID.Value
@@ -101,6 +104,7 @@ func (r resp) UserID() string {
 	return ""
 }
 
+// UserDisplayName partially implements the fleet.Auth interface.
 func (r resp) UserDisplayName() string {
 	if r.response != nil {
 		for _, attr := range r.response.Assertion.AttributeStatement.Attributes {
@@ -127,6 +131,7 @@ func (r resp) status() (int, error) {
 	return AuthnFailed, errors.New("malformed or missing auth response")
 }
 
+// RequestID partially implements the fleet.Auth interface.
 func (r resp) RequestID() string {
 	if r.response != nil {
 		return r.response.InResponseTo
@@ -134,24 +139,49 @@ func (r resp) RequestID() string {
 	return ""
 }
 
-func (r resp) rawResponse() string {
+// AssertionAttributes partially implements the fleet.Auth interface.
+func (r resp) AssertionAttributes() []fleet.SAMLAttribute {
+	if r.response == nil {
+		return nil
+	}
+	var attrs []fleet.SAMLAttribute
+	for _, attr := range r.response.Assertion.AttributeStatement.Attributes {
+		var values []fleet.SAMLAttributeValue
+		for _, value := range attr.AttributeValues {
+			values = append(values, fleet.SAMLAttributeValue{
+				Type:  value.Type,
+				Value: value.Value,
+			})
+		}
+		attrs = append(attrs, fleet.SAMLAttribute{
+			Name:   attr.Name,
+			Values: values,
+		})
+	}
+	return attrs
+}
+
+func (r resp) rawResponse() []byte {
 	return r.rawResp
 }
 
-// DecodeAuthResponse extracts SAML assertions from IDP response
+// DecodeAuthResponse extracts SAML assertions from the IDP response (base64 encoded).
 func DecodeAuthResponse(samlResponse string) (fleet.Auth, error) {
-	var authInfo resp
-	authInfo.rawResp = samlResponse
-
 	decoded, err := base64.StdEncoding.DecodeString(samlResponse)
 	if err != nil {
 		return nil, fmt.Errorf("decoding saml response: %w", err)
 	}
+
+	return decodeSAMLResponse(decoded)
+}
+
+func decodeSAMLResponse(rawXML []byte) (fleet.Auth, error) {
 	var saml Response
-	err = xml.NewDecoder(bytes.NewBuffer(decoded)).Decode(&saml)
-	if err != nil {
+	if err := xml.NewDecoder(bytes.NewBuffer(rawXML)).Decode(&saml); err != nil {
 		return nil, fmt.Errorf("decoding response xml: %w", err)
 	}
-	authInfo.response = &saml
-	return &authInfo, nil
+	return &resp{
+		response: &saml,
+		rawResp:  rawXML,
+	}, nil
 }

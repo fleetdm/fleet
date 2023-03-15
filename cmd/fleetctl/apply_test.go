@@ -1115,7 +1115,7 @@ spec:
   server_settings:
     server_url: 123
 `,
-			wantErr: `400 Bad request: json: cannot unmarshal number into Go struct field ServerSettings.server_settings.server_url of type string`,
+			wantErr: `400 Bad request: failed to decode app config`,
 		},
 		{
 			desc: "config with invalid agent options in dry-run",
@@ -1547,6 +1547,110 @@ spec:
       deadline: "2022-01"
 `,
 			wantErr: `422 Validation Failed: deadline accepts YYYY-MM-DD format only (E.g., "2023-06-01.")`,
+		},
+		{
+			desc: "app config macos_settings.enable_disk_encryption without a value",
+			spec: `
+apiVersion: v1
+kind: config
+spec:
+  mdm:
+    macos_settings:
+      enable_disk_encryption:
+`,
+			wantOutput: `[+] applied fleet config`,
+		},
+		{
+			desc: "app config macos_settings.enable_disk_encryption with invalid value type",
+			spec: `
+apiVersion: v1
+kind: config
+spec:
+  mdm:
+    macos_settings:
+      enable_disk_encryption: 123
+`,
+			wantErr: `400 Bad request: failed to decode app config`,
+		},
+		{
+			desc: "app config macos_settings.enable_disk_encryption true",
+			spec: `
+apiVersion: v1
+kind: config
+spec:
+  mdm:
+    macos_settings:
+      enable_disk_encryption: true
+`,
+			wantErr: `Couldn't update macos_settings because MDM features aren't turned on in Fleet.`,
+		},
+		{
+			desc: "app config macos_settings.enable_disk_encryption false",
+			spec: `
+apiVersion: v1
+kind: config
+spec:
+  mdm:
+    macos_settings:
+      enable_disk_encryption: false
+`,
+			wantOutput: `[+] applied fleet config`,
+		},
+		{
+			desc: "team config macos_settings.enable_disk_encryption without a value",
+			spec: `
+apiVersion: v1
+kind: team
+spec:
+  team:
+    name: team1
+    mdm:
+      macos_settings:
+        enable_disk_encryption:
+`,
+			wantErr: `400 Bad Request: invalid value type at 'macos_settings.enable_disk_encryption': expected bool but got <nil>`,
+		},
+		{
+			desc: "team config macos_settings.enable_disk_encryption with invalid value type",
+			spec: `
+apiVersion: v1
+kind: team
+spec:
+  team:
+    name: team1
+    mdm:
+      macos_settings:
+        enable_disk_encryption: 123
+`,
+			wantErr: `400 Bad Request: invalid value type at 'macos_settings.enable_disk_encryption': expected bool but got float64`,
+		},
+		{
+			desc: "team config macos_settings.enable_disk_encryption true",
+			spec: `
+apiVersion: v1
+kind: team
+spec:
+  team:
+    name: team1
+    mdm:
+      macos_settings:
+        enable_disk_encryption: true
+`,
+			wantErr: `Couldn't update macos_settings because MDM features aren't turned on in Fleet.`,
+		},
+		{
+			desc: "team config macos_settings.enable_disk_encryption false",
+			spec: `
+apiVersion: v1
+kind: team
+spec:
+  team:
+    name: team1
+    mdm:
+      macos_settings:
+        enable_disk_encryption: false
+`,
+			wantOutput: `[+] applied 1 teams`,
 		},
 	}
 	// NOTE: Integrations required fields are not tested (Jira/Zendesk) because

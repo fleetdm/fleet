@@ -28,7 +28,7 @@ To edit an event where someone else at Fleet is the organizer, you can first su
 ### External meeting scheduling
 When scheduling external meetings, provide external participants with a
 [Calendly](https://calendly.com) link to schedule with the relevant internal participants. If you
-need a Calendly account, reach out to `@charlottechance` via Slack.
+need a Calendly account, reach out to `mikermcneil` via Slack.
 
 ### Scheduling a Zoom meeting
 We use the Zoom add-on for Google Calendar to schedule Zoom meetings when we create calendar events. To add a Zoom meeting to a calendar event, click the "Add video conferencing" dropdown and select "Zoom Meeting." Google Calendar will automatically add the Zoom meeting details and instructions to join the event.
@@ -77,7 +77,7 @@ Operations will review the expense and reach out to the team member if they have
 ## Benefits
 
 ### Coworking
-Your Brex card may be used for up to $500 USD per month in coworking costs. Please get prior approval from your manager. Once approved, get started by reaching out to Charlie Chance via direct message in Slack.
+Your Brex card may be used for up to $500 USD per month in coworking costs. Please get prior approval from your manager. Once approved, get started by reaching out to Mike McNeil via direct message in Slack.
 
 ### Paid time off
 What matters most is your results, which are driven by your focus, your availability to collaborate, and the time and consideration you put into your work. Fleet offers all team members unlimited time off. Whether you're sick, you want to take a trip, you are eager for some time to relax, or you need to get some chores done around the house, any reason is a good reason.
@@ -158,7 +158,7 @@ During their onboarding at Fleet, new team members are asked to schedule a sight
   - The watering hole (#oooh-, #random, #news, #help-).
 
 ### Contributor experience training
-During their first week at Fleet, new team members are asked to schedule a contributor experience training call with People operations. During this call, the new team member will share their screen, and People operations will:
+During their first week at Fleet, new team members are asked to schedule a contributor experience training call with Mike McNeil. During this call, the new team member will share their screen, and People operations will:
 - make sure emails will get seen and responded to quickly.
 - make sure Slack messages will get seen and responded to quickly.
 - make sure you know where your issues are tracked, which kanban board you use, and what the columns mean.
@@ -285,58 +285,66 @@ When the final signature is added to an envelope in DocuSign, it is marked as co
 
 ## Hiring
 
+> Are you a new fleetie joining the Business Operations team?  For Loom recordings demonstrating how to make offers, hire, onboard, and more please see [this classified Google Doc](https://docs.google.com/document/d/1fimxQguPOtK-2YLAVjWRNCYqs5TszAHJslhtT_23Ly0/edit).
+
 ### Creating a new position
 Every new position being created goes through this process before interviewing, accepting applicants, or extending offers.
-1. Add the proposed position to ["Fleeties"](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) as a new row, with a blank start date.  Be sure to include job title, manager, and department.
-2. Add a job description to the ["Roles."](https://docs.google.com/document/d/1wS5jFfrZtO4xMH-3U_S8pE59gNXOTR3rS1WWD8pkq9E/edit#heading=h.5z24knw25190)  Include only "Responsibilities" and "Experience." (You will insert these into the existing job description template.)
-3. Create a private "#hiring-xxxxxx-2022" Slack channel (where "xxxxxx" is the job title) and invite the CEO (Mike McNeil) and People Operations (Charlie Chance).
-  - People Ops is the DRI for all `#hiring-xxxxx-2022` Slack channels.
-4. In that channel, post a message proposing the position:
-  - At-mention CEO (@mikermcneil) and Charlie (@charlie).
-  - Include a link to the job description in "Roles."
-  - Include a link to the Fleeties document.
-5. People Ops will:
-  - Confirm the "Roles" document has the job description, consisting only of "Responsibilities" and "Experience," and that both look accurate, grammatically correct, and otherwise ready to post in a public job description.
-  - Confirm the "Fleeties" document has a manager, job title, and department, and that the start date is not entered yet (so we can tell the position is proposed but not planned, yet).
-  - Using Pave, determine an anticipated salary and equity range, then add that research to "Compensation decisions" as a new heading.
-  - Share a direct link to the new heading in "Compensation decisions" with the CEO.
-6. The CEO will then:
-  - Determine whether this fits into the budget and equity plan.
-  - Decide whether Fleet will open this position at this time.
-  - Set tentative compensation in the budget and equity plan.
-  - Set a tentative start date in the Fleeties doc to indicate this position is now part of the hiring plan.
-  - Reply in the `#hiring-xxxxx-2022` Slack channel, at-mentioning the original proposer, to let them know the new position is approved.
-After getting CEO approval, create a position in Breezy.
 
-#### Creating a new position 
-1. A new handbook subpage is created on the "Company" page and a link to the subpage is added to the "Open positions" section on the "Company" page.
-2. The job description is copy/pasted in the new subpage.
-3. When an applicant has completed an application, there is a Zapier automation that will post to `g-business-operations`. 
-4. The applicant information is then forwarded to the applicable `#hiring-xxxxx-202x` Slack channel` and the hiring manager is @mentioned.
+> If you think this job posting may need to stay temporarily classified (¶¶) and not shared company-wide or publicly yet, for any reason, then stop here and send a Slack DM with your proposal to the CEO instead of modifying "🧑‍🚀 Fleeties" (which is visible company-wide) or submitting a draft pull request to "Open positions" (which is public).
+
+1. **Propose headcount:** Add the proposed position to ["🧑‍🚀 Fleeties"](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) in an empty row (but using one of the existing IDs.  Unsure?  Ask for help.)  Be sure to include job title, manager, and department.  For now, leave the start date blank.
+2. **Propose job description:** Locate one of the existing job descriptions inside the `handbook/company/` folder and duplicate it into a new handbook subpage.  Use the same style of filename, but based on the new job title.  (This filename will determine the URL where candidates can apply.)
+  - Keep the structure of the document identical.  Change only the job title, "Responsibilities", and "Experience".
+  - In the same pull request, add a link to your new job posting to the bottom of ["📖 Company#Open positions"](https://fleetdm.com/handbook/company#open-positions) in the handbook.
+  - State the proposed job title, include the appropriate departmental emoji, and link to the "living" fleetdm.com URL; not the GitHub URL.  _(This is where the new page _will eventually exist_, once this pull request is merged.  For now, if you were to visit this URL, you'd just see a 404 error.  So how can you determine this URL?  To understand the pattern, visit other job description pages from the [live handbook](https://fleetdm.com/handbook/company#open-positions), and examine their URLs in your browser.)_
+3. **Get it approved and merged:**  When you submit your proposed job description, the CEO will be automatically tagged for review and get a notification.  He will consider where this role fits into Fleet's strategy and decide whether Fleet will open this position at this time.  He will review the data carefully to try and catch any simple mistakes, then tentatively budget cash and equity compensation and document this compensation research.  He will set a tentative start date (which also indicates this position is no longer just "proposed"; it's now part of the hiring plan.)  Then the CEO will reply promptly in the `#hiring-xxxxx-YYYY` Slack channel, at-mentioning the original proposer and letting them know their position is approved.  (Unless it isn't.)
+
+> #### Steps for Mike
+>  - Confirm the new row in "Fleeties" has a manager, job title, and department, that it doesn't have any corrupted spreadsheet formulas or formatting, and that the start date is still blank (so that it is clear to everyone that this position has been proposed, but that it is not confirmed and planned, yet).
+>  - Confirm the job description consists only of changes to "Responsibilities" and "Experience," with an appropriate filename, and that the content looks accurate, is grammatically correct, and is otherwise ready to post in a public job description on fleetdm.com.  Then approve and merge the pull request.
+>  - Ballpark, budget, and document compensation research for the role
+>    - Scroll to the very bottom of ["¶¶ 💌 Compensation decisions (offer math)"](https://docs.google.com/document/d/1NQ-IjcOTbyFluCWqsFLMfP4SvnopoXDcX0civ-STS5c/edit#heading=h.slomq4whmyas) and add a new heading for the role, pattern-matching off of the names of other nearby role headings.
+>    - Use [Pave](https://pave.com) to determine anticipated compensation in terms of base salary, variable compensation, and equity, then write those ballpark compensation numbers under the new heading in "Compensation decisions".  (Write equity as a percentage.  And when ballparking salary, err on the side of the role costing more.)
+>    - Then create written documentation of your research for future reference.  Take a screenshot of the relevant Pave screens and paste those screenshots under the new heading.
+>  - Update the row in ["¶¶ 🥧 Equity plan"](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit#gid=0) using the benchmarked compensation and share count.
+>    - Note: Most columns of the equity plan are updated automatically when Fleeties is, based on the unique identifier of each row, like `🧑‍🚀890`.  (Advisors have their own flavor of unique IDs, such as `🦉755`.)
+>    - Enter the salary: If the role has variable compensation, use the role's OTE (on-target earning estimate) as the budgeted salary amount, and leave a note in the "Notes (¶¶)" cell clarifying the role's bonus or commission structure.
+>    - Enter the equity as a number of shares, watching the percentage that is automatically calculated in the next cell.  Keep guessing different numbers of shares until you get the derived percentage looking like what you want to see.
+>  - Create a private "#hiring-xxxxxx-YYYY" Slack channel (where "xxxxxx" is the job title and YYYY is the current year).
+>    - Invite the hiring manager.  (Mike McNeil is the DRI for all `#hiring-xxxxx-2022` Slack channels, but the hiring manager is also included.)
+>    - In the channel, post a message at-mentioning the hiring manager to let them know that their proposed position has been reviewed and approved, and now the job description and application form are live on the website.  Include a direct link to their live job description on fleetdm.com.  (This is the URL where candidates can go to read about the job and apply.  For example: `fleetdm.com/handbook/company/product-designer`)
+
+
+
+
+### Receiving job applications
+Every job description page ends with a "call to action", including a link that candidates can click to apply for the job.  Fleet replies to all candidates within **1 business day** and always provides either a **rejection** or **decisive next steps**; even if the next step is just a promise.  For example:
+
+> "We are still working our way through applications and _still_ have not been able to review yours yet.  We think we will be able to review and give you an update about your application update by Thursday at the latest.  I'll let you know as soon as I have news.  I'll assume we're both still in the running if I don't hear from you, so please let me know if anything comes up."
+
+
+When a candidate clicks applies for a job at Fleet, they are taken to a generic Typeform.  When they submit their job application, the Typeform triggers a Zapier automation that will posts the submission to `g-business-operations` in Slack.  The candidate's job application answers are then forwarded to the applicable `#hiring-xxxxx-202x` Slack channel and the hiring manager is @mentioned.
 
 ### Recruiting
 #### Checking legal restrictions on hiring
 Fleet maintains a list of companies with whom Fleet has do-not-solicit terms that prevents us from making offers to employees of these companies.  The list is in the Do Not Solicit tab of the [BizOps spreadhseet](https://docs.google.com/spreadsheets/d/1lp3OugxfPfMjAgQWRi_rbyL_3opILq-duHmlng_pwyo/edit#gid=0).
 
-#### Recruiting progress checkup
-Weekly, Charlie looks in the [Fleeties spreadsheet](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) and reports on each open position:
- - Is the position in [BreezyHR](https://app.breezy.hr/signin)?
- - Is the position listed on fleetdm.com/jobs?
- - What is the total # applicants?
- - Total # interviews? 
 
 ### Interviewing at Fleet
 We're glad you're interested in joining the team! 
 Here are some of the things you can anticipate throughout this process:
-  - We try to reply by email within one business day from the time when the application arrives.
+  - We will reply by email within one business day from the time when the application arrives.
   - You may receive a rejection email (Bummer, consider applying again in the future).
   - You may receive an invitation to "book with us."
 If you've been invited to "book with us," you'll have a Zoom meeting with the hiring team to discuss the next steps. 
 
+### Candidate correspondence email templates
+[We use email templates](https://docs.google.com/document/d/1E_gTunZBMNF4AhsOFuDVi9EnvsIGbAYrmmEzdGmnc9U) to meet our commitment of replying to all applications within one business day.
+
 ### Hiring a new team member
 > Fleet is unable to hire team members in some countries. See [this internal document](https://docs.google.com/document/d/1jHHJqShIyvlVwzx1C-FB9GC74Di_Rfdgmhpai1SPC0g/edit) for the list.
-1. **Manager:** At-mention People Operations in the `#hiring-xxxxx-2022` channel and indicate that you would like for Fleet to make an offer to the candidate.  Include the candidate's name, personal email address, the timeframe for their start date, and the country where they will be working. 
-2. **People Ops:** People Operations will research compensation using [Pave](https://www.pave.com), making sure to adjust for the cost of living where the candidate will do the work.  _If People Ops is unsure of their findings, ask for help from the CEO._  People Ops will then document this decision in the [compensation decisions document](https://docs.google.com/document/d/1NQ-IjcOTbyFluCWqsFLMfP4SvnopoXDcX0civ-STS5c/edit) for future reference.
+1. **Manager:** At-mention Mike McNeil in the `#hiring-xxxxx-2022` channel and indicate that you would like for Fleet to make an offer to the candidate.  Include the candidate's name, personal email address, the timeframe for their start date, and the country where they will be working. 
+2. **People Ops:** Mike McNeil will research compensation using [Pave](https://www.pave.com), making sure to adjust for the cost of living where the candidate will do the work. Mike McNeil will then document this decision in the [compensation decisions document](https://docs.google.com/document/d/1NQ-IjcOTbyFluCWqsFLMfP4SvnopoXDcX0civ-STS5c/edit) for future reference.
 3. **People Ops:** After you have determined compensation, make copies of these two templates and customize them for this candidate:
    - [Exit scenarios (template)](https://docs.google.com/spreadsheets/d/1k2TzsFYR0QxlD-KGPxuhuvvlJMrCvLPo2z8s8oGChT0/copy)
    - [Informal offer email (template)](https://docs.google.com/document/d/1zpNN2LWzAj-dVBC8iOg9jLurNlSe7XWKU69j7ntWtbY/copy)
@@ -379,26 +387,44 @@ Then hit send!  After all of the signatures are there, the completed document wi
 
 
 ### Steps after an offer is accepted
-1. Once an applicant accepts an offer in writing, People Ops replies to the candidate.
-2. People Ops creates a [hiring issue](https://github.com/fleetdm/confidential/blob/main/.github/ISSUE_TEMPLATE/hiring.md) for the new team member in the [fleetdm/confidential](https://github.com/fleetdm/confidential/issues) repo. People Ops will use this issue to keep track of the hiring tasks for the new team member.
-3. People Ops reaches out to the new team member via email to get any information they will need to prepare an agreement and add them to our payroll system.
-   - **US team members**: People Ops will send the new team member's agreement through [DocuSign](https://www.docusign.com/).
-  After signing and storing an in the correct Google Drive folder, People Ops will invite the new team member to onboard in [Gusto](https://www.gusto.com/). People Ops will reach out to them if the new team member is a W-2 employee and schedule an I-9 verification meeting.
+1. Once an applicant accepts an offer in writing, Mike McNeil replies to the candidate.
+2. Mike McNeil creates a [hiring issue](https://github.com/fleetdm/confidential/blob/main/.github/ISSUE_TEMPLATE/hiring.md) for the new team member in the [fleetdm/confidential](https://github.com/fleetdm/confidential/issues) repo. People Ops will use this issue to keep track of the hiring tasks for the new team member.
+3. Mike McNeil reaches out to the new team member via email to get any information they will need to prepare an agreement and add them to our payroll system.
+   - **US team members**: Mike McNeil will send the new team member's agreement through [DocuSign](https://www.docusign.com/).
+  After signing and storing an in the correct Google Drive folder, Mike McNeil will invite the new team member to onboard in [Gusto](https://www.gusto.com/). Mike McNeil will reach out to them if the new team member is a W-2 employee and schedule an I-9 verification meeting.
    >*If we're hiring in a new state, we'll have to register for state taxes and unemployment. Gusto usually handles this process.*
-   - **For international team members:** People Ops enters the new team member's information into [Pilot](https://pilot.co/) to kick off their hiring process. Pilot creates an agreement for the new team member, and People Ops reviews it to make sure everything looks correct. After People Ops confirms the information about the new hire, Pilot invites the new team member to enter the rest of their information and informs People Ops via email when a new Fleetie signs their agreement.
-4. **As soon as we have a signed agreement with a new team member:** People Ops reaches out to the new team member to provide them with a [work device](#purchasing-a-company-issued-device) and a pair of [YubiKeys](./../security.md#hardware-security-keys). People Ops then requests a screenshot or link to the new Fleetie's preferred device and configuration. People Ops orders their device and Yubikeys using his Brex card and has them shipped directly to the new team member.
+   - **For international team members:** Mike McNeil enters the new team member's information into [Pilot](https://pilot.co/) to kick off their hiring process. Pilot creates an agreement for the new team member, and People Ops reviews it to make sure everything looks correct. After Mike McNeil confirms the information about the new hire, Pilot invites the new team member to enter the rest of their information and informs Mike McNeil via email when a new Fleetie signs their agreement.
+4. **As soon as we have a signed agreement with a new team member:** Mike McNeil reaches out to the new team member to provide them with a [work device](#purchasing-a-company-issued-device) and a pair of [YubiKeys](./../security.md#hardware-security-keys). Mike McNeil then requests a screenshot or link to the new Fleetie's preferred device and configuration. People Ops orders their device and Yubikeys using his Brex card and has them shipped directly to the new team member.
    >*If the new team member is in the US and requests a MacBook, It will be purchased using our Apple business account. For MacBooks purchased with this account, Apple will ship pre-configured and enrolled in our MDM.*
-5. **Two weeks before their first day at Fleet:** People Ops creates a [Google Workspace account](https://admin.google.com/ac/users) for the new team member and invites them to join the [FleetDM](https://github.com/fleetdm) GitHub organization. 
-   When the new team member's work email is active, People Ops will send invitations to join Fleet's Slack and to create Fleet-managed 1Password and Zoom accounts with their Fleet email. People Ops sends the sign-in instructions to the new team member, accompanied by a brief explanation of the invitations sent.
-6. **Before a new team member's first day:** People Ops creates an onboarding issue in the [fleetdm/confidential](https://github.com/fleetdm/confidential/issues) GitHub repo for the new team member. Before creating the issue, People Ops will go through it and comment on any steps that the new team member will not have to complete.
+5. **Two weeks before their first day at Fleet:** Mike McNeil creates a [Google Workspace account](https://admin.google.com/ac/users) for the new team member and invites them to join the [FleetDM](https://github.com/fleetdm) GitHub organization. 
+   When the new team member's work email is active, Mike McNeil will send invitations to join Fleet's Slack and to create Fleet-managed 1Password and Zoom accounts with their Fleet email. Mike McNeil sends the sign-in instructions to the new team member, accompanied by a brief explanation of the invitations sent.
+6. **Before a new team member's first day:** Mike McNeil creates an onboarding issue in the [fleetdm/confidential](https://github.com/fleetdm/confidential/issues) GitHub repo for the new team member. Before creating the issue, Mike McNeil will go through it and comment on any steps that the new team member will not have to complete.
 
 
 #### Purchasing a company-issued device
-Fleet provides laptops for team members to use while working at Fleet. As soon as an offer is accepted, `@charlottechance` will reach out to the new team member to start this process. `@charlottechance` will work with the new team member to get their laptop purchased and shipped to them.
-Most of the team at Fleet uses 16" MacBook Pros, but team members are free to choose any laptop or operating system that works for them, as long as the price [is within reason](#spending-company-money).
-When selecting your new laptop, we ask that you optimize your configuration to have a large hard drive and be available for delivery or pickup quickly, without waiting for customization.
-New equipment for projects are requested in #help-business-operations, please tag `@charlottechance` in your post. Include device requested (specs), reason for request, and timeline for when the device is needed. 
-When a device has been purchased, it's added to the [spreadsheet of company equipment](https://docs.google.com/spreadsheets/d/1hFlymLlRWIaWeVh14IRz03yE-ytBLfUaqVz0VVmmoGI/edit#gid=0) where we keep track of devices and equipment, purchased by Fleet. When the team member receives their computer, they will complete the entry by adding a description, model, and serial number to the spreadsheet.
+Fleet provides laptops for team members to use while working at Fleet. As soon as an offer is accepted, Nathan Holliday will reach out to the new team member to start this process, and will work with the new team member to get their laptop purchased and shipped to them on time.
+
+
+##### Selecting a laptop
+Most of the team at Fleet uses 16" MacBook Pros, but team members are free to choose any laptop or operating system that works for them, as long as the price [is within reason](#spending-company-money) and supported by our device management solution.  (Good news: Since Fleet uses Fleet for device management, every operating system is supported!)
+
+When selecting a new laptop for a team member, optimize their configuration to:
+1. have a reasonably large hard drive (at least 512GB hard drive, and if there's any concern go biger)
+2. BUT make sure it's still available for delivery or pickup as quickly as possible, and prior to the start date
+
+> Play around with build until it ships as quickly as possible.  Sometimes small changes lead to much faster ship times.  More standard configurations (with fewer customizations) usually ship more quickly.  Sometimes MacBook Pros ship more quickly than MacBook Airs, and vice versa.  This varies.  Remember: Always play around with the build and optimize for something that will **ship quickly**!
+
+For example, someone in sales, marketing, or business operations might use a 14" Macbook Air, whereas someone in engineering, product, or a primarily design role might use a 16" MacBook Pro.
+
+Windows and Linux devices are available upon request for team members in product and engineering.  (See [Buying other new equipment](#buying-other-new-equipment).)
+
+##### Buying other new equipment
+At Fleet, we [spend company money like it's our own money](https://fleetdm.com/handbook/business-operations#spending-company-money).  If you need equipment above and beyond those standard guidelines, you can request new equipment by creating a GitHub issue in fleetdm/fleet and attaching the `#g-business-operations`.  Please include a link to the requested equipment (including any specs), reason for request, and timeline for when the device is needed. 
+
+##### Tracking equipment
+When a device has been purchased, it's added to the [spreadsheet of company equipment](https://docs.google.com/spreadsheets/d/1hFlymLlRWIaWeVh14IRz03yE-ytBLfUaqVz0VVmmoGI/edit#gid=0) where we keep track of devices and equipment, purchased by Fleet.
+
+When you receive your new their computer, complete the entry by adding a description, model, and serial number to the spreadsheet.
 
 
 
@@ -406,8 +432,8 @@ When a device has been purchased, it's added to the [spreadsheet of company equi
 
 ### Weekly updates
 We like to celebrate our achievements weekly in `#general`.
-  - Every Thursday night, Charlie creates a thread in #help-manage requesting weekly updates, and managers will reply to the thread with their weekly updates.
-  - Friday afternoons, Charlie updates the KPIs in the [weekly updates spreadsheet](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0), and Friday nights, Charlie will post the updates in #general.
+  - Every Thursday night, Mike McNeil creates a thread in #help-manage requesting weekly updates, and managers will reply to the thread with their weekly updates.
+  - Friday afternoons, Mike McNeil updates the KPIs in the [weekly updates spreadsheet](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0), and Friday nights, Mike McNeil will post the updates in #general.
 Weekly update principles
    - Each department's update is 20-40 words or less.
    - Erring on the side of referring to items that are completely done and/or mentioning news that is potentially very exciting to folks throughout the company.
@@ -415,14 +441,27 @@ Weekly update principles
 ### Workiversaries
 We're happy you've ventured a trip around the sun with Fleet. Let's celebrate!
 
-- Each Friday, if there are any upcoming workiversaries in the next seven days, Charlie posts about them in #g-people and tags @mikermcneil to let them know.
+- Each Friday, if there are any upcoming workiversaries in the next seven days, Mike McNeil posts about them in #g-people and tags @mikermcneil to let them know.
 - Founders discuss during their 1:1, reviewing performance and the latest compensation benchmarks for this person's role and geography.
 - If a compensation change is decided, Mike or Zach posts to Slack in `#g-people` with the change to compensation and effective date, if any.
-- Charlie makes sure that a copy of the compensation change is added to the [¶¶People Operations folder](https://drive.google.com/drive/folders/1NKZ0UTmLbOPOeAA-iaEote3_diqu8Cbw?usp=share_link) for record keeping.
-- Charlie updates the respective payroll platform (Gusto or Pilot) and update the [Equity spreadsheet](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit?usp=sharing) (internal doc).
-- If additional follow-up is required for the compensation change, Charlie works with the business operations team to take care of it.
+- Mike McNeil makes sure that a copy of the compensation change is added to the [¶¶People Operations folder](https://drive.google.com/drive/folders/1NKZ0UTmLbOPOeAA-iaEote3_diqu8Cbw?usp=share_link) for record keeping.
+- Mike McNeil updates the respective payroll platform (Gusto or Pilot) and update the [Equity spreadsheet](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit?usp=sharing) (internal doc).
+- If additional follow-up is required for the compensation change, Mike McNeil works with the business operations team to take care of it.
 
+### Equity grants
+Equity grants for new hires are queued up as part of the [hiring process](https://fleetdm.com/handbook/business-operations#hiring), then grants and consents are [batched and processed quarterly](https://github.com/fleetdm/confidential/issues/new/choose).
 
+Doing an equity grant involves:
+1. executing a board consent
+2. the recipient and CEO signing paperwork about the stock options
+3. updating the number of shares for the recipient in the equity plan
+4. updating Carta to reflect the grant
+
+For the status of stock option grants, exercises, and all other _common stock_ including advisor, founder, and team member equity ownership, see [Fleet's equity plan](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit#gid=0).  For information about investor ownership, see [Carta](https://app.carta.com/corporations/1234715/summary/).
+
+> Fleet's [equity plan](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit#gid=0) is the source of truth, not Carta.  Neither are pro formas sent in an email attachment, even if they come from lawyers.
+> 
+> Anyone can make mistakes, and none of us are perfect.  Even when we triple check.  Small mistakes in share counts can be hard to attribute, and can cause headaches and eat up nights of our CEO's and operations team's time.  If you notice what might be a discrepancy between the equity plan and any other secondary source of information, please speak up and let Fleet's CEO know ASAP.  Even if you're wrong, your note will be appreciated.
 
 ## Departures
 
@@ -430,7 +469,7 @@ We're happy you've ventured a trip around the sun with Fleet. Let's celebrate!
 Although it's sad to see you go, Fleet understands that not everything is meant to be forever like open-source is. There are a few steps that we'll need to take to communicate to the team of your departure. 
 1. Direct team: The CEO will reach out to the departing teammember's direct reports in 1:1 calls.
 2. Key stakeholders: The CEO will reach out to his direct reports about the departing teammember's departure.
-3. Announcement: Charlie will make an announcement during the "🌈 Weekly Update" post on Friday in the `#general` channel on Slack. 
+3. Announcement: Mike McNeil will make an announcement during the "🌈 Weekly Update" post on Friday in the `#general` channel on Slack. 
 
 
 
@@ -458,7 +497,13 @@ At Fleet, we care about security. Here are a few resources about Fleet's securit
 ## Finance
 
 ### Monthly accounting
-Create a new issue for the current month and year named "Closing out YYYY-MM" using the [monthly accounting issue template](https://github.com/fleetdm/confidential/blob/main/.github/ISSUE_TEMPLATE/5-monthly-accounting.md) in GitHub and complete all of the tasks in the issue. 
+Create a [new montly accounting issue](https://github.com/fleetdm/confidential/issues/new/choose) for the current month and year named "Closing out YYYY-MM" in GitHub and complete all of the tasks in the issue. (This uses the [monthly accounting issue template](https://github.com/fleetdm/confidential/blob/main/.github/ISSUE_TEMPLATE/5-monthly-accounting.md).
+
+#### When is the issue created?
+In order to fulfill our monthly reporting requirement of providing GAAP financials which are not ready until after several days into the next month, we create the monthly accounting issue for the previous month on the third Friday of the following month.  For example, the monthly accounting issue to close out the month of January is created on the second Friday in February.  (This is because we won't necessarily have the GAAP financials from our accountants until as late as the 21st of the following month.)
+
+#### SLA?
+After it is created, the monthly accounting issue should be completed and closed within 3 business days.
 
 
 ### Payroll
@@ -469,8 +514,8 @@ Many of these processes are automated, but it's vital to check Gusto and Pilot m
 | Unique payrolls              | Action                       | DRI                          |
 |:-----------------------------|:-----------------------------|:-----------------------------|
 | Commissions                  | "Off-cycle" payroll          | Nathan
-| Sign-on bonus                | "Bonus" payroll              | Charlie
-| Performance bonus            | "Bonus" payroll              | Charlie                     
+| Sign-on bonus                | "Bonus" payroll              | Mike McNeil
+| Performance bonus            | "Bonus" payroll              | Mike McNeil                     
 | Ramp                         | "Off-cycle" payroll          | Nathan 
 | Accelerations                | "Off-cycle" payroll          | Nathan
 
@@ -487,13 +532,12 @@ The steps for doing this are highlighted in this loom, TODO.
 #### Commission payroll
 - Update [commission calculator](https://docs.google.com/spreadsheets/d/1vw6Q7kCC7-FdG5Fgx3ghgUdQiF2qwxk6njgK6z8_O9U/edit) with new revenue from any deals that are closed/won (have a subscription agreement signed by both parties) and have an **effective start date** within the previous month.
   - Find detailed notes on this process in [Notes - Run commission payroll in Gusto](https://docs.google.com/document/d/1FQLpGxvHPW6X801HYYLPs5y8o943mmasQD3m9k_c0so/edit#). 
-- Contact Charlie Chance in Slack and let her know she can run the commission payroll. Use the off-cycle payroll option in Gusto. Be sure to classify the payment as "Commission" in the "other earnings" field and not the generic  "Bonus."
+- Contact Mike McNeil in Slack and let her know he can run the commission payroll. Use the off-cycle payroll option in Gusto. Be sure to classify the payment as "Commission" in the "other earnings" field and not the generic  "Bonus."
 - Once commission payroll has been run, update the [commission calculator](https://docs.google.com/spreadsheets/d/1vw6Q7kCC7-FdG5Fgx3ghgUdQiF2qwxk6njgK6z8_O9U/edit) to mark the commission as paid. 
 
 #### Updating a consultant's fee
- - Direct message Charlie with hourly rate change information.
- - Charlie will post the information to `#g-people` and tag the CEO for approval.
- - After CEO approval, Charlie will issue a new contractor agreement with the updated fee via DocuSign.
+ - Direct message Mike McNeil with hourly rate change information.
+ - After CEO approval, Mike McNeil will issue a new contractor agreement with the updated fee via DocuSign.
 
 
 ### Annual reporting for capital credit line
@@ -510,7 +554,7 @@ The steps for doing this are highlighted in this loom, TODO.
 ## Taxes and compliance
 
 From time to time, you may get notices in the mail from the IRS and/or state agencies regarding your company’s withholding and/or unemployment tax accounts. You can resolve many of these notices on your own by verifying and/or updating the settings in your Gusto account. 
-If the notice is regarding an upcoming change to your deposit schedule or unemployment tax rate, Charlie will make the change in Gusto. Including: 
+If the notice is regarding an upcoming change to your deposit schedule or unemployment tax rate, Mike McNeil will make the change in Gusto. Including: 
  - Update your unemployment tax rate.
  - Update your federal deposit schedule.
  - Update your state deposit schedule.
@@ -538,40 +582,41 @@ The following table lists the People group's rituals, frequency, and Directly Re
 
 | Ritual                       | Frequency                | Description                                         | [DRI](https://fleetdm.com/handbook/company/why-this-way#why-group-slack-channels)               |
 |:-----------------------------|:-----------------------------|:----------------------------------------------------|-------------------|
-| Weekly update reminder | Weekly | On Thursday, Charlie starts a thread in the `#help-manage` channel and asks managers to reply to the thread with a summary of what their team did in the past week. | Charlie Chance |
-| Weekly update | Weekly | On Friday, Charlie updates the KPIs in the ["🌈 Weekly updates" spreadsheet](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0) and posts a single message recognizing each of the week's on-duty people for each of the on-call rotations, along with any hiring and departure announcements. Charlie posts the company update in the `#general` channel. | Charlie Chance |
+| Weekly update reminder | Weekly | On Thursday, Mike McNeil starts a thread in the `#help-manage` channel and asks managers to reply to the thread with a summary of what their team did in the past week. | Mike McNeil |
+| Weekly update | Weekly | On Friday, Mike McNeil updates the KPIs in the ["🌈 Weekly updates" spreadsheet](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0) and posts a single message recognizing each of the week's on-duty people for each of the on-call rotations, along with any hiring and departure announcements. Mike McNeil posts the company update in the `#general` channel. | Mike McNeil |
 | AP invoice monitoring | Daily | Look for new accounts payable invoices and make sure that Fleet's suppliers are paid. | Nathanael Holliday | 
-| Hours update | Weekly | Screenshots of contractor hours as shown in Gusto are sent via Slack to each contractor's manager with no further action necessary if everything appears normal. | Charlie Chance |
+| Hours update | Weekly | Screenshots of contractor hours as shown in Gusto are sent via Slack to each contractor's manager with no further action necessary if everything appears normal. | Mike McNeil |
 | Prepare Mike and Sid's 1:1 doc | Bi-weekly | Run through the document preparation GitHub issue for Mike's call with Sid. | Nathanael Holliday |
 | Brex reconciliation | Monthly | Make sure all company-issued credit card transactions include memos. | Nathanael Holliday |
 | Monthly accounting | Monthly | Use the monthly accounting template in GitHub to go through the process of validating Fleet's books. | Nathanael Holliday |
 | Commission payroll | Monthly | Use the [commission calculator](https://docs.google.com/spreadsheets/d/1vw6Q7kCC7-FdG5Fgx3ghgUdQiF2qwxk6njgK6z8_O9U/edit#gid=0) to determine the commission payroll to be run in Gusto. | Nathanael Holliday |
-| US contractor payroll | Monthly | Sync contractor hours to payments in Gusto and run payroll for the month. | Charlie Chance |
-| 550C update | Annually | File California 550C. | Charlie Chance |
-| [Workiversaries](#workiversaries) | Weekly/PRN | People Operations posts in `#g-people` and tags @mikermcneil about any upcoming workiversaries. | Charlie Chance |
-| Investor and Advisor updates | PRN | People Operations tracks the last contact with investors and coordinates outreach with CEO. | Charlie Chance |
-| CEO inbox sweep | Daily unless OOO | Charlie does a morning sweep of the CEO's inbox to remove spam and grab action items. | Charlie Chance |
-| Recruiting progress checkup | Weekly | Charlie looks in the [Fleeties spreadsheet](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) and reports on each open position. | Charlie Chance |
-| Payroll | Monthly before payroll runs | Every month, Charlie audits the payroll platforms for accuracy. | Charlie Chance |
-| Calendar audit | Daily | Daily Charlie audits CEOs calendar and set notes for meetings. | Charlie Chance |
-| TPA verifications | Quarterly | Every quarter before tax filing due dates, Charlie audits state accounts to ensure TPA is set up or renewed. | Charlie Chance |
+| US contractor payroll | Monthly | Sync contractor hours to payments in Gusto and run payroll for the month. | Mike McNeil |
+| 550C update | Annually | File California 550C. | Mike McNeil |
+| [Workiversaries](#workiversaries) | Weekly/PRN | Mike McNeil posts in `#g-people` and tags @mikermcneil about any upcoming workiversaries. | Mike McNeil |
+| Investor and Advisor updates | PRN | Mike McNeil tracks the last contact with investors and coordinates outreach with CEO. | Mike McNeil |
+| CEO inbox sweep | Daily unless OOO | Mike McNeil does a morning sweep of the CEO's inbox to remove spam and grab action items. | Mike McNeil |
+| Recruiting progress checkup | Weekly | Mike McNeil looks in the [Fleeties spreadsheet](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) and reports on each open position. | Mike McNeil |
+| Payroll | Monthly before payroll runs | Every month, Mike McNeil audits the payroll platforms for accuracy. | Mike McNeil |
+| Calendar audit | Daily | Daily Mike McNeil audits CEOs calendar and set notes for meetings. | Mike McNeil |
+| TPA verifications | Quarterly | Every quarter before tax filing due dates, Mike McNeil audits state accounts to ensure TPA is set up or renewed. | Mike McNeil |
 | Revenue report | Weekly | At the start of every week, check the Salesforce reports for past due invoices, non-invoiced opportunities, and past due renewals.  Report any findings to Mike Mcneil and Alex Mitchell in the `#g-sales` channel and follow up with customers as necessary to resolve. | Nathanael Holliday |
 | Capital credit reporting | Annually | Within 60 days of the new year, provide financial statements to SVB. | Nathanael Holliday |
 | QBO check | Quarterly | The first month after the previous quarter has closed, make sure that QBO is accurate compared to Fleet's records. | Nathanael Holliday | 
 | Business Ops key review | every three weeks | Every release cycle a key review deck is prepared and presented. | Nathanael Holliday |
-| YubiKey adoption | Monthly | Track YubiKey adoption in Google workspace and follow up with those that aren't using it. | Charlie Chance |
+| YubiKey adoption | Monthly | Track YubiKey adoption in Google workspace and follow up with those that aren't using it. | Mike McNeil |
 | MDM device enrollment | Quarterly | Provide export of MDM enrolled devices to the ops team. | Luke Heath |
-| Access revalidation | Quarterly | Review critical access groups to make sure they contain only relevant people. | Charlie Chance |
+| Access revalidation | Quarterly | Review critical access groups to make sure they contain only relevant people. | Mike McNeil |
 | Security policy update | Annually | Update security policies and have them approved by the CEO. | Nathanael Holliday |
 | Security notifications check | Daily | Check Slack, Google, Vanta, and Fleet dogfood for security-related notifications. | Nathanael Holliday |
-| Changeset for onboarding issue template | Quarterly | pull up the changeset in the onboarding issue template and send out a link to the diff to all team members by posting in Slack's `#general` channel. | Charlie Chance |
+| Changeset for onboarding issue template | Quarterly | pull up the changeset in the onboarding issue template and send out a link to the diff to all team members by posting in Slack's `#general` channel. | Mike McNeil |
 
 
 
+## Kanban
+Any contributor can [view the kanban board](https://app.zenhub.com/workspaces/-g-business-operations-63f3dc3cc931f6247fcf55a9/board?sprints=none) for the business operations department, including pending tasks in the active sprint and any new requests.
 
-## Roadmap
-
-https://github.com/orgs/fleetdm/projects/51/views/1
+## Intake
+To make a request of the business operations department, [create an issue using one of our issue templates](https://github.com/fleetdm/confidential/issues/new/choose).  If you don't see what you need, or you are unsure, add your question to the agenda for the next bizops office hours call (weekly).  If you're not sure that your request can wait that long, then please ask for help in our group Slack channel: `#g-business-operations`.
 
 
 ## Slack channels
@@ -580,15 +625,15 @@ These groups maintain the following [Slack channels](https://fleetdm.com/handboo
 | Slack channel                           | [DRI](https://fleetdm.com/handbook/company/why-this-way#why-group-slack-channels)    |
 |:----------------------------------------|:--------------------------------------------------------------------|
 | `#g-business-operations`                | Nathan Holliday
-| `#help-onboarding`                      | Charlie Chance
+| `#help-onboarding`                      | Mike McNeil
 | `#help-login`                           | Nathan Holliday
-| `#help-manage`                          | Charlie Chance
+| `#help-manage`                          | Mike McNeil
 | `#help-brex`                            | Nathan Holliday
-| `#help-ceo`                             | Charlie Chance
-| `#help-mission-control` _(¶¶)_          | Charlie Chance
-| `#g-people` _(¶¶)_                      | Charlie Chance
+| `#help-ceo`                             | Mike McNeil
+| `#help-mission-control` _(¶¶)_          | Mike McNeil
+| `#g-people` _(¶¶)_                      | Mike McNeil
 | `#help-open-core-ventures` _(¶¶)_       | Mike McNeil
 
 
-<meta name="maintainedBy" value="hollidayn">
+<meta name="maintainedBy" value="mikermcneil">
 <meta name="title" value="🔦 Business Operations">

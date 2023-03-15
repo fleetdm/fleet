@@ -137,7 +137,6 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 			WebhookSettings: config.WebhookSettings,
 			Integrations:    config.Integrations,
 			MDM:             config.MDM,
-			MacOSSettings:   config.MacOSSettings,
 		},
 		appConfigResponseFields: appConfigResponseFields{
 			UpdateInterval:  updateIntervalConfig,
@@ -248,10 +247,6 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	}
 	oldAppConfig := appConfig.Copy()
 
-	// keep this original values, as they cannot be modified via this request.
-	origAppleBMTerms := oldAppConfig.MDM.AppleBMTermsExpired
-	origMDMEnabled := oldAppConfig.MDM.EnabledAndConfigured
-
 	license, err := svc.License(ctx)
 	if err != nil {
 		return nil, err
@@ -273,25 +268,17 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		return nil, ctxerr.Wrap(ctx, err, "modify AppConfig")
 	}
 
-	// TODO(mna): this ports the validations from the old validationMiddleware
-	// correctly, but this could be optimized so that we don't unmarshal the
-	// incoming bytes twice.
 	invalid := &fleet.InvalidArgumentError{}
 	var newAppConfig fleet.AppConfig
 	if err := json.Unmarshal(p, &newAppConfig); err != nil {
-		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: err.Error()})
+		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+			Message:     "failed to decode app config",
+			InternalErr: err,
+		})
 	}
 
-	if len(newAppConfig.MacOSSettings.CustomSettings) != 0 {
-		if !svc.config.MDMApple.Enable {
-			// TODO(mna): eventually we should detect the minimum config required for
-			// this to be allowed, probably just SCEP/APNs?
-			invalid.Append("macos_settings.custom_settings", "cannot set custom settings: Fleet MDM is not enabled")
-			return nil, ctxerr.Wrap(ctx, invalid)
-		}
-	}
-
-	if newAppConfig.FleetDesktop.TransparencyURL != "" {
+	// default transparency URL is https://fleetdm.com/transparency so you are allowed to apply as long as it's not changing
+	if newAppConfig.FleetDesktop.TransparencyURL != "" && newAppConfig.FleetDesktop.TransparencyURL != fleet.DefaultTransparencyURL {
 		if license.Tier != "premium" {
 			invalid.Append("transparency_url", ErrMissingLicense.Error())
 			return nil, ctxerr.Wrap(ctx, invalid)
@@ -358,8 +345,8 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	// payload we don't return an error in this case because it would
 	// prevent using the output of fleetctl get config as input to fleetctl
 	// apply or this endpoint.
-	appConfig.MDM.AppleBMTermsExpired = origAppleBMTerms
-	appConfig.MDM.EnabledAndConfigured = origMDMEnabled
+	appConfig.MDM.AppleBMTermsExpired = oldAppConfig.MDM.AppleBMTermsExpired
+	appConfig.MDM.EnabledAndConfigured = oldAppConfig.MDM.EnabledAndConfigured
 
 	// do not send a test email in dry-run mode, so this is a good place to stop
 	// (we also delete the removed integrations after that, which we don't want
@@ -391,7 +378,9 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	delJira, err := fleet.ValidateJiraIntegrations(ctx, storedJiraByProjectKey, newAppConfig.Integrations.Jira)
 	if err != nil {
 		if errors.As(err, &fleet.IntegrationTestError{}) {
-			return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: err.Error()})
+			return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+				Message: err.Error(),
+			})
 		}
 		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("Jira integration", err.Error()))
 	}
@@ -400,7 +389,9 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	delZendesk, err := fleet.ValidateZendeskIntegrations(ctx, storedZendeskByGroupID, newAppConfig.Integrations.Zendesk)
 	if err != nil {
 		if errors.As(err, &fleet.IntegrationTestError{}) {
-			return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: err.Error()})
+			return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+				Message: err.Error(),
+			})
 		}
 		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("Zendesk integration", err.Error()))
 	}
@@ -460,6 +451,24 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	}
 
+	if oldAppConfig.MDM.MacOSSettings.EnableDiskEncryption != appConfig.MDM.MacOSSettings.EnableDiskEncryption {
+		var act fleet.ActivityDetails
+		if appConfig.MDM.MacOSSettings.EnableDiskEncryption {
+			act = fleet.ActivityTypeEnabledMacosDiskEncryption{}
+			if err := svc.EnterpriseOverrides.MDMAppleEnableFileVaultAndEscrow(ctx, nil); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "enable no-team filevault and escrow")
+			}
+		} else {
+			act = fleet.ActivityTypeDisabledMacosDiskEncryption{}
+			if err := svc.EnterpriseOverrides.MDMAppleDisableFileVaultAndEscrow(ctx, nil); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "disable no-team filevault and escrow")
+			}
+		}
+		if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "create activity for app config macos disk encryption")
+		}
+	}
+
 	return obfuscatedConfig, nil
 }
 
@@ -470,6 +479,25 @@ func (svc *Service) validateMDM(
 	mdm *fleet.MDM,
 	invalid *fleet.InvalidArgumentError,
 ) {
+	if mdm.MacOSSettings.EnableDiskEncryption && !license.IsPremium() {
+		invalid.Append("macos_settings.enable_disk_encryption", ErrMissingLicense.Error())
+	}
+
+	if !svc.config.MDMApple.Enable {
+		// TODO(mna): eventually we should detect the minimum config required for
+		// this to be allowed, probably just SCEP/APNs?
+
+		if len(mdm.MacOSSettings.CustomSettings) != 0 {
+			invalid.Append("macos_settings.custom_settings",
+				`Couldn't update macos_settings because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`)
+		}
+
+		if mdm.MacOSSettings.EnableDiskEncryption {
+			invalid.Append("macos_settings.enable_disk_encryption",
+				`Couldn't update macos_settings because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`)
+		}
+	}
+
 	if name := mdm.AppleBMDefaultTeam; name != "" && name != oldMdm.AppleBMDefaultTeam {
 		if !license.IsPremium() {
 			invalid.Append("mdm.apple_bm_default_team", ErrMissingLicense.Error())

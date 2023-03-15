@@ -3,7 +3,6 @@ package fleet
 import (
 	"errors"
 	"fmt"
-	"regexp"
 	"strings"
 
 	"github.com/ghodss/yaml"
@@ -80,10 +79,8 @@ func (tq *TargetedQuery) AuthzType() string {
 }
 
 var (
-	validateSQLRegexp  = regexp.MustCompile(`(?i)attach[^\w]+.*[^\w]+as[^\w]+`)
 	errQueryEmptyName  = errors.New("query name cannot be empty")
 	errQueryEmptyQuery = errors.New("query's SQL query cannot be empty")
-	errQueryInvalidSQL = errors.New("invalid query's SQL")
 )
 
 func verifyQueryName(name string) error {
@@ -96,16 +93,6 @@ func verifyQueryName(name string) error {
 func verifyQuerySQL(query string) error {
 	if emptyString(query) {
 		return errQueryEmptyQuery
-	}
-	if err := verifySQL(query); err != nil {
-		return err
-	}
-	return nil
-}
-
-func verifySQL(query string) error {
-	if validateSQLRegexp.MatchString(query) {
-		return errQueryInvalidSQL
 	}
 	return nil
 }

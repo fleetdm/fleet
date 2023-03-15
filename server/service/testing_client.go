@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/live_query/live_query_mock"
@@ -65,9 +66,12 @@ func (ts *withServer) SetupSuite(dbName string) {
 	ts.withDS.SetupSuite(dbName)
 
 	rs := pubsub.NewInmemQueryResults()
+	cfg := config.TestConfig()
+	cfg.Osquery.EnrollCooldown = 0
 	users, server := RunServerForTestsWithDS(ts.s.T(), ts.ds, &TestServerOpts{
-		Rs: rs,
-		Lq: ts.lq,
+		Rs:          rs,
+		Lq:          ts.lq,
+		FleetConfig: &cfg,
 	})
 	ts.server = server
 	ts.users = users
@@ -326,4 +330,37 @@ func (ts *withServer) lastActivityMatches(name, details string, id uint) uint {
 		assert.Equal(t, id, act.ID)
 	}
 	return act.ID
+}
+
+// gets the latest activity with the specified type name and checks that it
+// matches any provided properties. empty string or 0 id means do not check
+// that property. It returns the ID of that latest activity.
+//
+// The difference with lastActivityMatches is that the asserted activity does
+// not need to be the very last one, it will look for the last one of this
+// specified type, which must be in one of the last 10 activities otherwise the
+// test is failed.
+func (ts *withServer) lastActivityOfTypeMatches(name, details string, id uint) uint {
+	t := ts.s.T()
+
+	var listActivities listActivitiesResponse
+	ts.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK,
+		&listActivities, "order_key", "a.id", "order_direction", "desc", "per_page", "10")
+	require.True(t, len(listActivities.Activities) > 0)
+
+	for _, act := range listActivities.Activities {
+		if act.Type == name {
+			if details != "" {
+				require.NotNil(t, act.Details)
+				assert.JSONEq(t, details, string(*act.Details))
+			}
+			if id > 0 {
+				assert.Equal(t, id, act.ID)
+			}
+			return act.ID
+		}
+	}
+
+	t.Fatalf("no activity of type %s found in the last %d activities", name, len(listActivities.Activities))
+	return 0
 }

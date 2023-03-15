@@ -1060,6 +1060,9 @@ func (s *integrationTestSuite) TestHostsCount() {
 	require.Equal(t, pendingMDMHost.ID, hostResp.Host.ID)
 	require.Equal(t, "Pending", *hostResp.Host.MDM.EnrollmentStatus)
 	require.Equal(t, "https://fleetdm.com", *hostResp.Host.MDM.ServerURL)
+
+	// no macos_settings is returned when MDM is not configured
+	require.Nil(t, hostResp.Host.MDM.MacOSSettings)
 }
 
 func (s *integrationTestSuite) TestPacks() {
@@ -2051,7 +2054,7 @@ func (s *integrationTestSuite) TestTeamPoliciesProprietaryInvalid() {
 			tname:      "Invalid query",
 			testUpdate: true,
 			name:       "Invalid query",
-			query:      "ATTACH 'foo' AS bar;",
+			query:      "",
 		},
 	} {
 		t.Run(tc.tname, func(t *testing.T) {
@@ -4391,7 +4394,7 @@ func (s *integrationTestSuite) TestQueriesBadRequests() {
 		{
 			tname: "Invalid query",
 			name:  "Invalid query",
-			query: "ATTACH 'foo' AS bar;",
+			query: "",
 		},
 	} {
 		t.Run(tc.tname, func(t *testing.T) {
@@ -4511,10 +4514,20 @@ func (s *integrationTestSuite) TestPremiumEndpointsWithoutLicense() {
 	s.DoJSON("GET", "/api/latest/fleet/mdm/apple_bm", nil, http.StatusPaymentRequired, &appleBMResp)
 	assert.Nil(t, appleBMResp.AppleBM)
 
-	// batch-apply a set of MDM profiles
-	res := s.Do("POST", "/api/latest/fleet/mdm/apple/profiles/batch", nil, http.StatusUnprocessableEntity)
+	// batch-apply an empty set of MDM profiles succeeds even though MDM is not
+	// enabled, because it wouldn't change anything (and it needs to support the
+	// case where `fleetctl get config`'s output is used as input to `fleetctl
+	// apply`).
+	s.Do("POST", "/api/latest/fleet/mdm/apple/profiles/batch", nil, http.StatusNoContent)
+
+	// batch-apply a non-empty set of MDM profiles fails
+	res := s.Do("POST", "/api/latest/fleet/mdm/apple/profiles/batch",
+		map[string]interface{}{"profiles": [][]byte{[]byte(`xyz`)}}, http.StatusUnprocessableEntity)
 	errMsg := extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "Fleet MDM is not enabled")
+
+	// update MDM settings, the endpoint is not even mounted if MDM is not enabled
+	s.Do("PATCH", "/api/latest/fleet/mdm/apple/settings", fleet.MDMAppleSettingsPayload{}, http.StatusNotFound)
 }
 
 // TestGlobalPoliciesBrowsing tests that team users can browse (read) global policies (see #3722).
@@ -4814,10 +4827,17 @@ func (s *integrationTestSuite) TestAppConfig() {
 
 	// set the macos custom settings fields, fails due to MDM not configured
 	res := s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-	  "macos_settings": { "custom_settings": ["foo", "bar"] }
+		"mdm": { "macos_settings": { "custom_settings": ["foo", "bar"] } }
   }`), http.StatusUnprocessableEntity)
 	errMsg := extractServerErrorText(res.Body)
-	assert.Contains(t, errMsg, "Fleet MDM is not enabled")
+	assert.Contains(t, errMsg, "Couldn't update macos_settings because MDM features aren't turned on in Fleet.")
+
+	// set the macos disk encryption field, fails due to license
+	res = s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": { "macos_settings": { "enable_disk_encryption": true } }
+  }`), http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	assert.Contains(t, errMsg, "missing or invalid license")
 
 	// try to set the apple bm default team, which is premium only
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
@@ -6285,7 +6305,8 @@ func (s *integrationTestSuite) TestPingEndpoints() {
 func (s *integrationTestSuite) TestAppleMDMNotConfigured() {
 	var rawResp json.RawMessage
 	s.DoJSON("GET", "/api/latest/fleet/mdm/apple", nil, http.StatusNotFound, &rawResp)
-	s.DoJSON("GET", "/api/latest/fleet/mdm/apple_bm", nil, http.StatusPaymentRequired, &rawResp) //premium only
+	s.Do("POST", "/api/latest/fleet/mdm/apple/dep_login", nil, http.StatusNotFound)
+	s.DoJSON("GET", "/api/latest/fleet/mdm/apple_bm", nil, http.StatusPaymentRequired, &rawResp) // premium only
 }
 
 func (s *integrationTestSuite) TestOrbitConfigNotifications() {
@@ -6320,6 +6341,78 @@ func (s *integrationTestSuite) TestOrbitConfigNotifications() {
 	resp = orbitGetConfigResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *hFleetMDM.OrbitNodeKey)), http.StatusOK, &resp)
 	require.False(t, resp.Notifications.RenewEnrollmentProfile)
+}
+
+func (s *integrationTestSuite) TestEnrollOrbitExistingHostNoSerialMatch() {
+	t := s.T()
+	ctx := context.Background()
+
+	// create a host with minimal information and the serial, no uuid/osquery id
+	// (as when created via DEP sync).
+	dbZeroTime := time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
+	h, err := s.ds.NewHost(ctx, &fleet.Host{
+		HardwareSerial:   uuid.New().String(),
+		Platform:         "darwin",
+		LastEnrolledAt:   dbZeroTime,
+		DetailUpdatedAt:  dbZeroTime,
+		RefetchRequested: true,
+	})
+	require.NoError(t, err)
+
+	// create an enroll secret
+	secret := uuid.New().String()
+	var applyResp applyEnrollSecretSpecResponse
+	s.DoJSON("POST", "/api/latest/fleet/spec/enroll_secret", applyEnrollSecretSpecRequest{
+		Spec: &fleet.EnrollSecretSpec{
+			Secrets: []*fleet.EnrollSecret{{Secret: secret}},
+		},
+	}, http.StatusOK, &applyResp)
+
+	// enroll the host from orbit, it will NOT match the existing host since MDM
+	// is not configured (it will only look for a match by osquery_host_id with
+	// the provided uuid).
+	var resp EnrollOrbitResponse
+	hostUUID := uuid.New().String()
+	s.DoJSON("POST", "/api/fleet/orbit/enroll", EnrollOrbitRequest{
+		EnrollSecret:   secret,
+		HardwareUUID:   hostUUID, // will not match any existing host
+		HardwareSerial: h.HardwareSerial,
+	}, http.StatusOK, &resp)
+	require.NotEmpty(t, resp.OrbitNodeKey)
+
+	// fetch the host, it will NOT match the one created above
+	orbitHost, err := s.ds.LoadHostByOrbitNodeKey(ctx, resp.OrbitNodeKey)
+	require.NoError(t, err)
+	require.NotEqual(t, h.ID, orbitHost.ID)
+
+	// enroll the host from osquery, it should match the Orbit-enrolled host
+	var osqueryResp enrollAgentResponse
+
+	// NOTE(mna): using an osquery_host_id that is NOT the host's UUID would not work,
+	// because we haven't enabled lookup by UUID due to not having an index and possible
+	// side-effects of this on host ingestion performance. However, this should not happen
+	// anyway in MDM-enabled environments as we will recommend using the UUID as osquery
+	// host identifier.
+	// See https://github.com/fleetdm/fleet/issues/9033#issuecomment-1411150758
+
+	osqueryID := hostUUID
+
+	s.DoJSON("POST", "/api/osquery/enroll", enrollAgentRequest{
+		EnrollSecret:   secret,
+		HostIdentifier: osqueryID,
+		HostDetails: map[string]map[string]string{
+			"system_info": {
+				"uuid":            hostUUID,
+				"hardware_serial": h.HardwareSerial,
+			},
+		},
+	}, http.StatusOK, &osqueryResp)
+	require.NotEmpty(t, osqueryResp.NodeKey)
+
+	// load the host by osquery node key, should match the orbit host
+	got, err := s.ds.LoadHostByNodeKey(ctx, osqueryResp.NodeKey)
+	require.NoError(t, err)
+	require.Equal(t, orbitHost.ID, got.ID)
 }
 
 // this test can be deleted once the "v1" version is removed.
@@ -6383,7 +6476,10 @@ func createOrbitEnrolledHost(t *testing.T, os, suffix string, ds fleet.Datastore
 	})
 	require.NoError(t, err)
 	orbitKey := uuid.New().String()
-	_, err = ds.EnrollOrbit(context.Background(), *h.OsqueryHostID, orbitKey, nil)
+	_, err = ds.EnrollOrbit(context.Background(), false, fleet.OrbitHostInfo{
+		HardwareUUID:   *h.OsqueryHostID,
+		HardwareSerial: h.HardwareSerial,
+	}, orbitKey, nil)
 	require.NoError(t, err)
 	h.OrbitNodeKey = &orbitKey
 	return h

@@ -134,6 +134,7 @@ variable "fleet_config" {
     cpu                          = optional(number, 512)
     image                        = optional(string, "fleetdm/fleet:v4.22.1")
     family                       = optional(string, "fleet")
+    sidecars                     = optional(list(any), [])
     extra_environment_variables  = optional(map(string), {})
     extra_iam_policies           = optional(list(string), [])
     extra_execution_iam_policies = optional(list(string), [])
@@ -211,6 +212,7 @@ variable "fleet_config" {
     cpu                          = 256
     image                        = "fleetdm/fleet:v4.22.1"
     family                       = "fleet"
+    sidecars                     = []
     extra_environment_variables  = {}
     extra_iam_policies           = []
     extra_execution_iam_policies = []
@@ -287,5 +289,6 @@ variable "alb_config" {
     security_groups = optional(list(string), [])
     access_logs     = optional(map(string), {})
     certificate_arn = string
+    allowed_cidrs   = optional(list(string), ["0.0.0.0/0"])
   })
 }

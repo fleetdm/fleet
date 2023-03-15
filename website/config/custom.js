@@ -109,12 +109,11 @@ module.exports.custom = {
 
     'articles': ['jarodreyes', 'mike-j-thomas', 'eashaw', 'zwass', 'mikermcneil'],
 
-    'handbook': ['mike-j-thomas', 'eashaw', 'mikermcneil', 'zwass', 'charlottechance'],// (default for handbook)
+    'handbook': ['mike-j-thomas', 'eashaw', 'mikermcneil', 'zwass'],// (default for handbook)
     'handbook/company': 'mikermcneil',
-    'handbook/business-operations': ['hollidayn', 'charlottechance'],
+    'handbook/business-operations': ['hollidayn', 'mikermcneil'],
     'handbook/engineering': 'zwass',
     'handbook/product': ['noahtalerman', 'zhumo'],
-    'handbook/security': 'mikermcneil',
     'handbook/customers': ['alexmitchelliii','zayhanlon','dherder'],
     'handbook/marketing': ['jarodreyes', 'mike-j-thomas'],
 
@@ -124,9 +123,8 @@ module.exports.custom = {
     'website/package.json': 'eashaw',
     '.github/workflows/deploy-fleet-website.yml': ['eashaw','mikermcneil'],// (website deploy script)
     '.github/workflows/test-website.yml': ['eashaw','mikermcneil'],// (website CI test script)
-
     'website/config/routes.js': ['eashaw', 'mike-j-thomas', 'jarodreyes'],// (for managing website URLs)
-
+    'website/config/policies.js': ['eashaw', 'mikermcneil'],// (for adding new pages and managing permissions)
     'website/api/controllers/imagine': ['eashaw', 'jarodreyes'],// landing pages
 
     'docs': ['zwass', 'mikermcneil', 'zhumo', 'jarodreyes', 'ksatter'],// (default for docs)
@@ -151,12 +149,12 @@ module.exports.custom = {
     'free-for-all': '*',
 
     // Boilerplate
-    'README.md': ['mikermcneil', 'zwass', 'charlottechance', 'hollidayn'],
-    'CODEOWNERS': ['mikermcneil', 'zwass', 'charlottechance', 'hollidayn', 'dherder', 'zayhanlon'],
-    '.gitignore': ['mikermcneil', 'zwass', 'charlottechance', 'hollidayn', 'dherder', 'zayhanlon'],
+    'README.md': ['mikermcneil', 'zwass', 'hollidayn'],
+    'CODEOWNERS': ['mikermcneil', 'zwass', 'hollidayn', 'dherder', 'zayhanlon'],
+    '.gitignore': ['mikermcneil', 'zwass', 'hollidayn', 'dherder', 'zayhanlon'],
 
     // CI/CD workflows
-    '.github': ['mikermcneil', 'zwass', 'charlottechance', 'hollidayn'],
+    '.github': ['mikermcneil', 'zwass', 'hollidayn'],
 
     // GitHub issue templates
     '.github/ISSUE_TEMPLATE': ['mikermcneil', 'zwass', 'zayhanlon', 'hollidayn', 'alexmitchelliii', 'dherder'],
@@ -167,13 +165,13 @@ module.exports.custom = {
     '.github/ISSUE_TEMPLATE/5-monthly-accounting.md': 'hollidayn',
     '.github/ISSUE_TEMPLATE/6-speaking-event.md': ['mike-j-thomas', 'jarodreyes'],
     '.github/ISSUE_TEMPLATE/9-renewal.md': ['zayhanlon', 'hollidayn', 'alexmitchelliii'],
-    '.github/ISSUE_TEMPLATE/hiring.md': 'charlottechance',
-    '.github/ISSUE_TEMPLATE/onboarding.md': 'charlottechance',
-    '.github/ISSUE_TEMPLATE/y-offboarding.md': 'charlottechance',
-    '.github/ISSUE_TEMPLATE/x-moving.md': ['charlottechance'],
-    '.github/ISSUE_TEMPLATE/equity-grants.md': ['charlottechance','hollidayn'],
-    '.github/ISSUE_TEMPLATE/signature-or-legal-review.md': ['hollidayn'],
-    '.github/ISSUE_TEMPLATE/new-fleet-instance.md': ['charlottechance','hollidayn', 'zayhanlon'],
+    '.github/ISSUE_TEMPLATE/hiring.md': 'mikermcneil',
+    '.github/ISSUE_TEMPLATE/onboarding.md': 'mikermcneil',
+    '.github/ISSUE_TEMPLATE/y-offboarding.md': 'hollidayn',
+    '.github/ISSUE_TEMPLATE/x-moving.md': 'hollidayn',
+    '.github/ISSUE_TEMPLATE/equity-grants.md': 'mikermcneil',
+    '.github/ISSUE_TEMPLATE/signature-or-legal-review.md': 'hollidayn',
+    '.github/ISSUE_TEMPLATE/new-fleet-instance.md': ['hollidayn', 'zayhanlon'],
 
   },
 

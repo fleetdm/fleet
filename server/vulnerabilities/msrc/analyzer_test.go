@@ -9,7 +9,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	io "github.com/fleetdm/fleet/v4/server/vulnerabilities/msrc/io"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/io"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/msrc/parsed"
 	"github.com/stretchr/testify/require"
 )
@@ -113,7 +113,7 @@ func TestAnalyzer(t *testing.T) {
 			b := parsed.NewSecurityBulletin(prod.Name())
 			b.Products["1235"] = prod
 
-			fileName := io.FileName(b.ProductName, d)
+			fileName := io.MSRCFileName(b.ProductName, d)
 			filePath := filepath.Join(dir, fileName)
 
 			payload, err := json.Marshal(b)

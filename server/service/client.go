@@ -393,7 +393,11 @@ func extractAppCfgMacOSCustomSettings(appCfg interface{}) []string {
 	if !ok {
 		return nil
 	}
-	mos, ok := asMap["macos_settings"].(map[string]interface{})
+	mmdm, ok := asMap["mdm"].(map[string]interface{})
+	if !ok {
+		return nil
+	}
+	mos, ok := mmdm["macos_settings"].(map[string]interface{})
 	if !ok || mos == nil {
 		return nil
 	}
@@ -426,21 +430,23 @@ func extractTmSpecsMacOSCustomSettings(tmSpecs []json.RawMessage) map[string][]s
 	var m map[string][]string
 	for _, tm := range tmSpecs {
 		var spec struct {
-			Name          string `json:"name"`
-			MacOSSettings struct {
-				CustomSettings json.RawMessage `json:"custom_settings"`
-			} `json:"macos_settings"`
+			Name string `json:"name"`
+			MDM  struct {
+				MacOSSettings struct {
+					CustomSettings json.RawMessage `json:"custom_settings"`
+				} `json:"macos_settings"`
+			} `json:"mdm"`
 		}
 		if err := json.Unmarshal(tm, &spec); err != nil {
 			// ignore, this will fail in the call to apply team specs
 			continue
 		}
-		if spec.Name != "" && len(spec.MacOSSettings.CustomSettings) > 0 {
+		if spec.Name != "" && len(spec.MDM.MacOSSettings.CustomSettings) > 0 {
 			if m == nil {
 				m = make(map[string][]string)
 			}
 			var cs []string
-			if err := json.Unmarshal(spec.MacOSSettings.CustomSettings, &cs); err != nil {
+			if err := json.Unmarshal(spec.MDM.MacOSSettings.CustomSettings, &cs); err != nil {
 				// ignore, will fail in apply team specs call
 				continue
 			}

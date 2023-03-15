@@ -570,7 +570,7 @@ var mdmQueries = map[string]DetailQuery{
 		// > location at any time.
 		//
 		// [1]: https://developer.apple.com/documentation/devicemanagement/fderecoverykeyescrow
-		Query:            `SELECT to_base64(group_concat(line)) as filevault_key FROM file_lines WHERE path='/var/db/FileVaultPRK.dat'`,
+		Query:            `SELECT to_base64(group_concat(line, x'0a')) as filevault_key FROM file_lines WHERE path='/var/db/FileVaultPRK.dat'`,
 		Platforms:        []string{"darwin"},
 		DirectIngestFunc: directIngestDiskEncryptionKeyDarwin,
 		Discovery:        discoveryTable("file_lines"),
@@ -1314,6 +1314,16 @@ func directIngestDiskEncryptionKeyDarwin(
 			"msg", fmt.Sprintf("/var/db/FileVaultPRK.dat should have a single line, but got %d", len(rows)),
 			"host", host.Hostname,
 		)
+	}
+
+	if strings.TrimSpace(rows[0]["filevault_key"]) == "" {
+		level.Debug(logger).Log(
+			"component", "service",
+			"method", "directIngestDiskEncryptionKeyDarwin",
+			"msg", "host reported empty /var/db/FileVaultPRK.dat contents",
+			"host", host.Hostname,
+		)
+		return nil
 	}
 
 	return ds.SetOrUpdateHostDiskEncryptionKey(ctx, host.ID, rows[0]["filevault_key"])

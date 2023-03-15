@@ -31,7 +31,7 @@ jobs:
           fetch-depth: 0 # Needed for goreleaser
 
       - name: Login to Docker Hub
-        uses: docker/login-action@49ed152c8eca782a232dede0303416e8f356c37b # v1.10.0
+        uses: docker/login-action@f4ef78c080cd8ba55a85445d5b36e214a81df20a
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_ACCESS_TOKEN }}
@@ -48,7 +48,7 @@ jobs:
         run: make deps-go
 
       - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@68acf3b1adf004ac9c2f0a4259e85c5f66e99bef
+        uses: goreleaser/goreleaser-action@f82d6c1c344bcacabba2c841718984797f664a6b
         with:
           distribution: goreleaser-pro
           version: latest
@@ -64,7 +64,7 @@ jobs:
 
       - name: Push To quay.io
         id: push-to-quay
-        uses: redhat-actions/push-to-registry@v2
+        uses: redhat-actions/push-to-registry@9986a6552bc4571882a4a67e016b17361412b4df # v2.7.1
         with:
           image: fleetdm/fleet
           tags: ${{ steps.docker.outputs.TAG }}
