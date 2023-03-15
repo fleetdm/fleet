@@ -162,7 +162,7 @@ export default {
       order_key: sortBy[0].key,
       order_direction: sortBy[0].direction,
       query: globalFilter,
-      team_id: teamId,
+      ...reconcileMutuallyInclusiveHostParams({ teamId, macSettingsStatus }),
       ...reconcileMutuallyExclusiveHostParams({
         label,
         policyId,
