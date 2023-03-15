@@ -7,6 +7,7 @@ import * as SQLite from "wa-sqlite";
 class cursorState {
   rowIndex: number;
   rows: Record<string, string | number>[];
+  error: any;
 }
 
 export default abstract class Table implements SQLiteModule {
@@ -30,7 +31,9 @@ export default abstract class Table implements SQLiteModule {
 
   // This is replaced by wa-sqlite when SQLite is loaded up, but missing from the SQLiteModule
   // definition. We add it here to make Typescript happy.
-  handleAsync(f: () => Promise<any>): any {}
+  handleAsync(f: () => Promise<number>): Promise<number> {
+    throw new Error("should be replaced in build");
+  }
 
   // All the methods below are documented in https://www.sqlite.org/vtab.html#virtual_table_methods.
 
@@ -87,7 +90,13 @@ export default abstract class Table implements SQLiteModule {
     return this.handleAsync(async () => {
       const cursorState = this.cursorStates.get(pCursor);
       cursorState.rowIndex = 0;
-      cursorState.rows = await this.generate(idxNum, idxStr, values);
+      try {
+        cursorState.rows = await this.generate(idxNum, idxStr, values);
+      } catch (err) {
+        // Throwing here doesn't seem to work as expected in unit testing, so instead we save the
+        // error and throw in xEof.
+        cursorState.error = err;
+      }
       return SQLite.SQLITE_OK;
     });
   }
@@ -102,6 +111,11 @@ export default abstract class Table implements SQLiteModule {
   xEof(pCursor: number): number | Promise<number> {
     // Check whether we've returned all rows (cursor index is beyond number of rows).
     const cursorState = this.cursorStates.get(pCursor);
+    // Throw any error saved in the cursor state (because throwing in xFilter doesn't seem to work
+    // correctly with async code).
+    if (cursorState.error) {
+      throw cursorState.error;
+    }
     return Number(cursorState.rowIndex >= cursorState.rows.length);
   }
 
