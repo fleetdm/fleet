@@ -930,6 +930,103 @@ VALUES
 	})
 }
 
+func (ds *Datastore) BulkSetPendingMDMAppleHostProfiles(ctx context.Context, hostIDs, teamIDs, profileIDs []uint) error {
+	var countArgs int
+	if len(hostIDs) > 0 {
+		countArgs++
+	}
+	if len(teamIDs) > 0 {
+		countArgs++
+	}
+	if len(profileIDs) > 0 {
+		countArgs++
+	}
+	if countArgs > 1 {
+		return errors.New("only one of hostIDs, teamIDs or profileIDs can be provided")
+	}
+	if countArgs == 0 {
+		return nil
+	}
+
+	hostsStmt := `
+INSERT INTO host_mdm_apple_profiles (
+	profile_id,
+	host_uuid,
+	profile_identifier,
+	profile_name,
+	operation_type,
+	status,
+	command_uuid
+) (
+	-- profiles to install, i.e. those part of the host's team/no team.
+	-- Except for the SELECT list, filtering on specific hosts and ignoring
+	-- hmap rows that are already "install" and NULL status, this is the same
+	-- as ListMDMAppleProfilesToInstall.
+	SELECT
+		ds.profile_id,
+		ds.host_uuid,
+		ds.profile_identifier,
+		ds.profile_name,
+		?,
+		NULL,
+		''
+	FROM (
+		SELECT
+			macp.profile_id,
+			h.uuid as host_uuid,
+			macp.identifier as profile_identifier,
+			macp.name as profile_name
+		FROM mdm_apple_configuration_profiles macp
+			JOIN hosts h ON h.team_id = macp.team_id OR (h.team_id IS NULL AND macp.team_id = 0)
+			JOIN nano_enrollments ne ON ne.device_id = h.uuid
+		WHERE h.platform = 'darwin' AND ne.enabled = 1 AND h.id IN (?)
+	) as ds
+	LEFT JOIN host_mdm_apple_profiles hmap
+		ON hmap.profile_id = ds.profile_id AND hmap.host_uuid = ds.host_uuid
+	WHERE
+	-- profiles in A but not in B
+	( hmap.profile_id IS NULL AND hmap.host_uuid IS NULL ) OR
+	-- profiles in A and B but with operation type "remove"
+	( hmap.host_uuid IS NOT NULL AND hmap.operation_type = ? OR hmap.operation_type IS NULL ) OR
+
+) UNION (
+
+	-- profiles to remove, i.e. those not part of the host's team/no team.
+	-- Except for the SELECT list, filtering on specific hosts and ignoring
+	-- hmap rows that are already "remove" in any status, this is the same
+	-- as ListMDMAppleProfilesToRemove.
+	SELECT
+		hmap.profile_id,
+		hmap.host_uuid,
+		hmap.profile_identifier,
+		hmap.profile_name,
+		?,
+		NULL,
+		''
+	FROM (
+		SELECT
+			h.uuid, macp.profile_id
+		FROM mdm_apple_configuration_profiles macp
+			JOIN hosts h ON h.team_id = macp.team_id OR (h.team_id IS NULL AND macp.team_id = 0)
+			JOIN nano_enrollments ne ON ne.device_id = h.uuid
+		WHERE h.platform = 'darwin' AND ne.enabled = 1 AND h.id IN (?)
+	) as ds
+	RIGHT JOIN host_mdm_apple_profiles hmap
+		ON hmap.profile_id = ds.profile_id AND hmap.host_uuid = ds.uuid
+	WHERE
+	-- profiles that are in B but not in A
+	ds.profile_id IS NULL AND ds.uuid IS NULL
+	-- except "remove" operations in any state
+	AND ( hmap.operation_type != ? )
+)
+ON DUPLICATE KEY UPDATE
+	operation_type = VALUES(operation_type),
+	status = VALUES(status),
+	command_uuid = VALUES(command_uuid),
+	details = ''
+`
+}
+
 func (ds *Datastore) ListMDMAppleProfilesToInstall(ctx context.Context) ([]*fleet.MDMAppleProfilePayload, error) {
 	// The query below is a set difference between:
 	//
@@ -943,15 +1040,19 @@ func (ds *Datastore) ListMDMAppleProfilesToInstall(ctx context.Context) ([]*flee
 	//
 	//   - profiles that are in A and in B, but with an operation type of
 	//   "remove", regardless of the status. (technically, if status is NULL then
-	//   the profile is already installed - it has not been queued for remove -,
-	//   and same if status is failed, but the proper thing to do with it would
-	//   be to remove the row, not return it as "to install". For simplicity of
-	//   implementation here, we'll return it as "to install" for now, which will
-	//   cause the row to be updated with the correct operation type and status).
+	//   the profile should be already installed - it has not been queued for
+	//   remove yet -, and same if status is failed, but the proper thing to do
+	//   with it would be to remove the row, not return it as "to install". For
+	//   simplicity of implementation here (and to err on the safer side - the
+	//   profile's content could've changed), we'll return it as "to install" for
+	//   now, which will cause the row to be updated with the correct operation
+	//   type and status).
 	//
 	//   - profiles that are in A and in B, with an operation type of "install"
-	//   and a NULL status. Other statuses mean that the operation is already
-	//   in flight (pending) or in a terminal state (failed or applied).
+	//   and a NULL status. Other statuses mean that the operation is already in
+	//   flight (pending) or in a terminal state (failed or applied). If the
+	//   profile's content is edited, all relevant hosts will be marked as status
+	//   NULL so that it gets re-installed.
 	query := `
           SELECT ds.profile_id, ds.host_uuid, ds.profile_identifier, ds.profile_name
           FROM (
@@ -1011,11 +1112,11 @@ func (ds *Datastore) ListMDMAppleProfilesToRemove(ctx context.Context) ([]*fleet
           -- profiles that are in B but not in A
           WHERE ds.profile_id IS NULL AND ds.uuid IS NULL
           -- except "remove" operations in a terminal state or already pending
-          AND ( hmap.operation_type != 'remove' OR hmap.status IS NULL )
+          AND ( hmap.operation_type != ? OR hmap.status IS NULL )
 `
 
 	var profiles []*fleet.MDMAppleProfilePayload
-	err := sqlx.SelectContext(ctx, ds.reader, &profiles, query)
+	err := sqlx.SelectContext(ctx, ds.reader, &profiles, query, fleet.MDMAppleOperationTypeRemove)
 	return profiles, err
 }
 
