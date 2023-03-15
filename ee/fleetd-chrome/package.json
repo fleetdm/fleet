@@ -6,8 +6,8 @@
     "wa-sqlite": "github:rhashimoto/wa-sqlite#buildless"
   },
   "devDependencies": {
-    "@types/chrome": "^0.0.217",
-    "@types/jest": "^29.4.1",
+    "@jest/globals": "^29.5.0",
+    "@types/chrome": "^0.0.224",
     "copy-webpack-plugin": "^11.0.0",
     "css-loader": "^6.7.3",
     "html-webpack-plugin": "^5.5.0",
@@ -27,7 +27,8 @@
     "build": "webpack --config webpack.prod.js",
     "dev": "webpack --config webpack.dev.js",
     "watch": "webpack -w --config webpack.dev.js",
-    "test": "NODE_OPTIONS=--experimental-vm-modules jest"
+    "test": "NODE_OPTIONS=--experimental-vm-modules jest",
+    "test-watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "type": "module",
   "eslintConfig": {

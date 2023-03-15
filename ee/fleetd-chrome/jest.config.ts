@@ -26,8 +26,15 @@ export default {
       },
     ],
   },
-  // The paths to modules that run some code to configure or set up the testing environment before each test
+  // The paths to modules that run some code to configure or set up the testing environment before
+  // each test
+  setupFiles: [],
   setupFilesAfterEnv: ["./jest.setup.ts"],
   // The test environment that will be used for testing
   testEnvironment: "./jsdomwithfetch.ts",
+  // Define additional global variables
+  globals: {
+    // Neither jest nor jsdom include the chrome global, so we need to define it here.
+    chrome: { runtime: {} },
+  },
 };

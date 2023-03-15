@@ -18,10 +18,9 @@ export default class TableOSVersion extends Table {
   async generate() {
     // @ts-expect-error Typescript doesn't include the userAgentData API yet.
     const data = await navigator.userAgentData.getHighEntropyValues([
-      "architecture",
-      "model",
-      "platformVersion",
       "fullVersionList",
+      "platform",
+      "platformVersion",
     ]);
 
     let version = "";
@@ -30,6 +29,9 @@ export default class TableOSVersion extends Table {
         version = entry.version;
         break;
       }
+    }
+    if (version === "") {
+      throw new Error("environment does not look like Chrome");
     }
 
     // Note MAJOR.MINOR.BUILD.PATCH (see https://www.chromium.org/developers/version-numbers/)
