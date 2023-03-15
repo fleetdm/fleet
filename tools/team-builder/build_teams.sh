@@ -5,11 +5,11 @@ run(){
 	local OPTIND
 
   #default values
-	output="fleet_osquery_packages"
+	output="fleetd_installers"
 	flags+="--disable-open-folder"
 
   #Read flags
-	while getopts s:p:u:f:d:o:t flag
+	while getopts s:p:u:f:d:o:x flag
 	 do
 		case "${flag}" in
 			f) #path to file containing team names. Must end with newline char.
@@ -24,7 +24,7 @@ run(){
 				flags+="--desktop";;
 			o) #Directory for created packages
 		    output=($OPTARG);;
-      t) #Test only
+      x) #Test only
         dry_run="--dry-run";;
 		esac
 	 done
@@ -49,7 +49,6 @@ run(){
 		  types=("deb" "pkg" "msi" "rpm")
 	fi
 
-  echo $types
   create_teams
 }
 
@@ -69,7 +68,8 @@ create_team(){
 
   #Generate yml based on template provided
 
-	cat <<EOF > final.yml
+	cat <<EOF > config.yml
+---
 apiVersion: v1
 kind: team
 spec:
@@ -81,8 +81,8 @@ EOF
 
   # Apply the new team to fleet
 	echo "Adding $name team to Fleet"
-	fleetctl apply -f final.yml $dry_run
-	rm -f final.yml temp.yml
+	fleetctl apply --context preview -f config.yml $dry_run
+	rm -f config.yml 
 }
 
 generate_packages(){
@@ -90,22 +90,24 @@ generate_packages(){
 	echo "Generating installers for $name"  
 
   #Set up directory to hold installers for this team
-  name_formatted=$(printf "$name" | tr '[:upper:]' '[:lower:]' | tr -s ' ' | tr ' ' '_')
+  name_formatted=$(printf "$name" | tr '[:upper:]' '[:lower:]' | tr -s ' ' | tr ' ' '-')
 	team_dir=$output/$name_formatted
-
   cwd=$(pwd)
+  
   if !(test -d "$team_dir")
 		then
 				mkdir "$team_dir"
 	fi
   
   cd "$team_dir"
+
   #In the team directory, create a package for each specified type
 	for type in ${types[@]}
     do
-      fleetctl package --type=$type --fleet-url=$url --enroll-secret=$secret ${flags[@]}
+      fleetctl package ${flags[@]} --type=$type --fleet-url=$url --enroll-secret=$secret 
     done
-  find . -type f -name 'fleet-osquery*' -exec mv -f {} fleet_osquery_$name_formatted.$type ';'
+  
+  find . -type f -name 'fleet-osquery*' -exec mv -f {} fleetd-$name_formatted.$type ';'
 
   cd "$cwd"
   
