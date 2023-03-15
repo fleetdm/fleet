@@ -268,6 +268,17 @@ func TestTranslateSoftwareToCPE(t *testing.T) {
 				Version:          "0.3",
 				BundleIdentifier: "vendor2",
 				Source:           "apps",
+				GenerateCPE:      "something_wrong",
+			},
+			// Next 'duplicated' entry if for testing that 'InsertSoftwareCPEs' is only called iff
+			// software.GenerateCPE != detected CPE
+			{
+				ID:               3,
+				Name:             "Product2",
+				Version:          "0.3",
+				BundleIdentifier: "vendor2",
+				Source:           "apps",
+				GenerateCPE:      "cpe:2.3:a:vendor2:product4:0.3:*:*:*:*:macos:*:*",
 			},
 		},
 	}
@@ -361,7 +372,8 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Version:          "22.002.20191",
 				Vendor:           "",
 				BundleIdentifier: "com.adobe.Reader",
-			}, cpe: "cpe:2.3:a:adobe:acrobat_reader_dc:22.002.20191:*:*:*:*:macos:*:*",
+			},
+			cpe: "cpe:2.3:a:adobe:acrobat_reader_dc:22.002.20191:*:*:*:*:macos:*:*",
 		},
 		{
 			software: fleet.Software{

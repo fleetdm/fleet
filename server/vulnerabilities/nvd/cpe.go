@@ -348,7 +348,6 @@ func TranslateSoftwareToCPE(
 		}
 
 		buffer = append(buffer, fleet.SoftwareCPE{SoftwareID: software.ID, CPE: cpe})
-
 		if len(buffer) == bufferMaxSize {
 			if err = consumeBuffer(buffer); err != nil {
 				return ctxerr.Wrap(ctx, err, "inserting cpe")
