@@ -716,7 +716,6 @@ func (ds *Datastore) InsertSoftwareCPEs(ctx context.Context, cpes []fleet.Softwa
 	}
 
 	values := strings.TrimSuffix(strings.Repeat("(?,?),", len(cpes)), ",")
-	// TODO Juan: Add unq. constraint
 	sql := fmt.Sprintf(
 		`INSERT INTO software_cpe (software_id, cpe) VALUES %s ON DUPLICATE KEY UPDATE cpe = VALUES(cpe)`,
 		values,
