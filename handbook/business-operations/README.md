@@ -537,7 +537,9 @@ When you complete the agreement, make sure it is in the correct Google Drive fol
 
 ## Security
 
-Here are a few resources about Fleet's security policies and best practices.
+Security policies are best when they're alive, in context in how an organization operates.  Fleeties carry Yubikeys, and change control of policies and access control is driven primarily through GitOps and SSO.
+
+Here are a few different entry points for a tour of Fleet's security policies and best practices:
 1. [Security policies](https://fleetdm.com/handbook/security/security-policies#security-policies)
 2. [Human resources security policy](https://fleetdm.com/handbook/security/security-policies#human-resources-security-policy)
 3. [Account recovery process](https://fleetdm.com/handbook/security#account-recovery-process)
@@ -555,13 +557,14 @@ Create a [new montly accounting issue](https://github.com/fleetdm/confidential/i
 In order to fulfill our monthly reporting requirement of providing GAAP financials which are not ready until after several days into the next month, we create the monthly accounting issue for the previous month on the third Friday of the following month.  For example, the monthly accounting issue to close out the month of January is created on the second Friday in February.  (This is because we won't necessarily have the GAAP financials from our accountants until as late as the 21st of the following month.)
 
 #### SLA?
-After it is created, the monthly accounting issue should be completed and closed within 3 business days.
+The monthly accounting issue should be completed and closed before the 7th of the month.
 
+The date of the run is measured in [KPIs]().
 
 ### Payroll
 Many of these processes are automated, but it's vital to check Gusto and Pilot manually for accuracy.
- - Salary employees are automated in Gusto and Pilot
- - Contractors are a manual process in Gusto and Pilot
+ - Salaried fleeties are automated in Gusto and Pilot
+ - Hourly fleeties and consultants are a manual process in Gusto and Pilot.
 
 | Unique payrolls              | Action                       | DRI                          |
 |:-----------------------------|:-----------------------------|:-----------------------------|
@@ -584,7 +587,7 @@ The steps for doing this are highlighted in this loom, TODO.
 #### Commission payroll
 - Update [commission calculator](https://docs.google.com/spreadsheets/d/1vw6Q7kCC7-FdG5Fgx3ghgUdQiF2qwxk6njgK6z8_O9U/edit) with new revenue from any deals that are closed/won (have a subscription agreement signed by both parties) and have an **effective start date** within the previous month.
   - Find detailed notes on this process in [Notes - Run commission payroll in Gusto](https://docs.google.com/document/d/1FQLpGxvHPW6X801HYYLPs5y8o943mmasQD3m9k_c0so/edit#). 
-- Contact Mike McNeil in Slack and let her know he can run the commission payroll. Use the off-cycle payroll option in Gusto. Be sure to classify the payment as "Commission" in the "other earnings" field and not the generic  "Bonus."
+- Contact Mike McNeil in Slack and let her know he can run the commission payroll. Use the off-cycle payroll option in Gusto. Be sure to classify the payment as "Commission" in the "other earnings" field and not the generic "Bonus."
 - Once commission payroll has been run, update the [commission calculator](https://docs.google.com/spreadsheets/d/1vw6Q7kCC7-FdG5Fgx3ghgUdQiF2qwxk6njgK6z8_O9U/edit) to mark the commission as paid. 
 
 #### Updating a consultant's fee
