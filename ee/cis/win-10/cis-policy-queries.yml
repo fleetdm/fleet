@@ -3522,7 +3522,7 @@ spec:
   platform: windows
   description: |
     This policy setting controls whether the use of Camera devices on the machine are
-permitted.
+    permitted.
   resolution: |
     To establish the recommended configuration via GP, set the following UI path to Disabled:
     'Computer Configuration\Policies\Administrative Templates\Windows Components\Camera\Allow Use of Camera'
