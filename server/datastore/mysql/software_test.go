@@ -45,6 +45,7 @@ func TestSoftware(t *testing.T) {
 		{"ListSoftwareForVulnDetection", testListSoftwareForVulnDetection},
 		{"SoftwareByID", testSoftwareByID},
 		{"AllSoftwareIterator", testAllSoftwareIterator},
+		{"InsertSoftwareCPEs", testInsertSoftwareCPEs},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -1745,4 +1746,44 @@ func testAllSoftwareIterator(t *testing.T, ds *Datastore) {
 		iter.Close()
 		test.ElementsMatchSkipID(t, tC.expected, actual)
 	}
+}
+
+func testInsertSoftwareCPEs(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+
+	software := []fleet.Software{
+		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
+	}
+	require.NoError(t, ds.UpdateHostSoftware(ctx, host.ID, software))
+	require.NoError(t, ds.LoadHostSoftware(ctx, host, false))
+
+	cpes := []fleet.SoftwareCPE{
+		{SoftwareID: host.Software[0].ID, CPE: "cpe:foo_ce_v1"},
+		{SoftwareID: host.Software[0].ID, CPE: "cpe:foo_ce_v2"},
+	}
+	_, err := ds.InsertSoftwareCPEs(ctx, cpes)
+	require.NoError(t, err)
+
+	cpes, err = ds.ListSoftwareCPEs(ctx)
+	require.NoError(t, err)
+	require.Equal(t, len(cpes), 1)
+	require.Equal(t, cpes[0].CPE, "cpe:foo_ce_v2")
+
+	cpes = []fleet.SoftwareCPE{
+		{SoftwareID: host.Software[0].ID, CPE: "cpe:foo_ce_v3"},
+	}
+	_, err = ds.InsertSoftwareCPEs(ctx, cpes)
+	require.NoError(t, err)
+
+	cpes = []fleet.SoftwareCPE{
+		{SoftwareID: host.Software[0].ID, CPE: "cpe:foo_ce_v4"},
+	}
+	_, err = ds.InsertSoftwareCPEs(ctx, cpes)
+	require.NoError(t, err)
+
+	cpes, err = ds.ListSoftwareCPEs(ctx)
+	require.NoError(t, err)
+	require.Equal(t, len(cpes), 1)
+	require.Equal(t, cpes[0].CPE, "cpe:foo_ce_v4")
 }
