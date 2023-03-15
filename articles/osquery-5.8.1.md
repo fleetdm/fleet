@@ -1,4 +1,4 @@
-# osquery 5.8.1 | Process auditing, stats, and additional tables.
+# Osquery 5.8.1 | Process auditing, stats, and additional tables.
 
 ![osquery 5.8.1](../website/assets/images/articles/osquery-5.8.1-cover-1600x900@2x.png)
 
@@ -16,7 +16,7 @@ The Windows `process_etw_events` table brings osquery towards parity with System
 _Fleetie, Marcos contributed this [pull request](https://github.com/osquery/osquery/pull/7821) to the osquery project._
 
 
-## Live Query Statistics
+## Live query statistics
 
 This PR creates a new top-level `stats` key when writing a distributed query response. This includes the data in `QueryPerformance` class, indexed by the query ID in the server's read endpoint. A new stats JSON subkey exposes the `stats` key in the distributed query response. Performance stats are not stored. When a query executes, the stats for that execution are returned.
 
