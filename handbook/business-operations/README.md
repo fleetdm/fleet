@@ -419,7 +419,7 @@ For example, someone in sales, marketing, or business operations might use a 14"
 
 Windows and Linux devices are available upon request for team members in product and engineering.  (See [Buying other new equipment](#buying-other-new-equipment).)
 
-#### Buying other new equipment
+##### Buying other new equipment
 At Fleet, we [spend company money like it's our own money](https://fleetdm.com/handbook/business-operations#spending-company-money).  If you need equipment above and beyond those standard guidelines, you can request new equipment by creating a GitHub issue in fleetdm/fleet and attaching the `#g-business-operations`.  Please include a link to the requested equipment (including any specs), reason for request, and timeline for when the device is needed. 
 
 ##### Tracking equipment
@@ -450,13 +450,13 @@ Consultant agreements are sent through [DocuSign](https://www.docusign.com/), us
 
 To send a new consulting agreement, you'll need the new consultant's name, the term of the service, a summary of the services provided, and the consultant's fee. 
 There are some defaults that we use for these agreements:
-   - Term: one month
+   - Term: Default to one month unless otherwise discussed.
    - Services rendered: Copy and paste from the [language in this doc](https://docs.google.com/document/d/1b5SGgYEHqDmq5QF8p29WWN3it3XJh3xRT3zG0RdXARo/edit)
    - Work will commence and complete by dates: Start date and end of term date
-   - Fee: Get from the contractor
-   - Hours: Default to 10 hr/week - 40 hr/week
-Then hit send!  After all of the signatures are there, the completed document will automatically be uploaded to the appropriate Google Drive folder, and a Slack message will appear in the `#g-people` channel.
+   - Fee: Get from the consultant.
+   - Hours: Default to 10 hr/week.
 
+Then hit send!  After all of the signatures are there, the completed document will automatically be uploaded to the appropriate Google Drive folder, and a Slack message will appear in the `#help-classified` channel.
 
 
 
@@ -489,12 +489,11 @@ Weekly update principles
 ### Workiversaries
 We're happy you've ventured a trip around the sun with Fleet. Let's celebrate!
 
-- Each Friday, if there are any upcoming workiversaries in the next seven days, Mike McNeil posts about them in #g-people and tags @mikermcneil to let them know.
+- Each Friday, if there are any upcoming workiversaries in the next seven days, Mike McNeil posts about them in #help-classified and tags `@mikermcneil` to let them know.
 - Founders discuss during their 1:1, reviewing performance and the latest compensation benchmarks for this person's role and geography.
-- If a compensation change is decided, Mike or Zach posts to Slack in `#g-people` with the change to compensation and effective date, if any.
-- Mike McNeil makes sure that a copy of the compensation change is added to the [¶¶People Operations folder](https://drive.google.com/drive/folders/1NKZ0UTmLbOPOeAA-iaEote3_diqu8Cbw?usp=share_link) for record keeping.
-- Mike McNeil updates the respective payroll platform (Gusto or Pilot) and update the [Equity spreadsheet](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit?usp=sharing) (internal doc).
-- If additional follow-up is required for the compensation change, Mike McNeil works with the business operations team to take care of it.
+- If a compensation change is decided, Mike or Zach posts to Slack in `#help-classified` with the change to compensation and effective date, if any.
+- CEO updates the respective payroll platform (Gusto or Pilot) and [equity spreadsheet](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit?usp=sharing) (internal doc).
+- If an additional equity grant is part of this compensation change, the previous equity and new situation is noted in detail in the "Notes" column of the equity plan, and the "Grant started?" column is set back to "todo" to add it to the queue for the next time grants are processed (quarterly).
 
 ### Equity grants
 Equity grants for new hires are queued up as part of the [hiring process](https://fleetdm.com/handbook/business-operations#hiring), then grants and consents are [batched and processed quarterly](https://github.com/fleetdm/confidential/issues/new/choose).
