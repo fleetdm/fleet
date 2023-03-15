@@ -55,6 +55,7 @@ const CustomSettings = ({
       !file.name.includes(".mobileconfig")
     ) {
       renderFlash("error", UPLOAD_ERROR_MESSAGES.wrongType.message);
+      setShowLoading(false);
       return;
     }
 

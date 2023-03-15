@@ -24,7 +24,7 @@
 		</dict>
 	</array>
 	<key>PayloadDisplayName</key>
-	<string>Chrome Enrollment</string>
+	<string>Enroll in managed Google Chrome</string>
 	<key>PayloadIdentifier</key>
 	<string>com.github.erikberglund.ProfileCreator.B6965621-36DF-46F6-839D-0F6591C9CA57</string>
 	<key>PayloadOrganization</key>
