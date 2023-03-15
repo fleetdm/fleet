@@ -870,19 +870,17 @@ spec:
         Ask your system administrator to deploy a script that will configure
         $ /usr/bin/sudo -u <username> /usr/bin/defaults write com.apple.Siri.plist TypeToSiriEnabled -bool true
   query: |
-     SELECT 1 WHERE  
-        NOT EXISTS( 
-            SELECT 1 FROM plist  
-            WHERE path LIKE '/Users/%/Library/Preferences/com.apple.Siri.plist' 
-            AND key = "TypeToSiriEnabled"  
-            AND value = '0'
-            ) 
-        AND EXISTS( 
-            SELECT 1 FROM plist  
-            WHERE path LIKE '/Users/%/Library/Preferences/com.apple.Siri.plist' 
-            AND key = "TypeToSiriEnabled"  
-            AND value = '1'
-        ); 
+    SELECT 1 WHERE NOT EXISTS (
+      SELECT 1 FROM users AS u
+      LEFT JOIN (
+        SELECT * FROM plist WHERE
+          path LIKE '/Users/%/Library/Preferences/com.apple.Siri.plist' AND
+          key = 'TypeToSiriEnabled' AND
+          value = '1') AS p
+      ON p.path = CONCAT(u.directory, '/Library/Preferences/com.apple.Siri.plist')
+      WHERE u.directory LIKE '/Users/%' AND
+      p.value IS NULL
+    );
     /*CIS does not make a hard recommendation for this policy. Fleet has provided two policies (one failing, one succeeding). 
       Depending on your organization's decision, you can delete this policy or its counterpart.*/
   purpose: Informational
@@ -901,19 +899,17 @@ spec:
         Ask your system administrator to deploy a script that will configure
         $ /usr/bin/sudo -u <username> /usr/bin/defaults write com.apple.Siri.plist TypeToSiriEnabled -bool false
   query: |
-    SELECT 1 WHERE  
-       NOT EXISTS( 
-           SELECT 1 FROM plist  
-           WHERE path LIKE '/Users/%/Library/Preferences/com.apple.Siri.plist' 
-           AND key = "TypeToSiriEnabled"  
-           AND value = '1'
-           ) 
-       AND EXISTS( 
-           SELECT 1 FROM plist  
-           WHERE path LIKE '/Users/%/Library/Preferences/com.apple.Siri.plist' 
-           AND key = "TypeToSiriEnabled"  
-           AND value = '0'
-       ); 
+    SELECT 1 WHERE NOT EXISTS (
+      SELECT 1 FROM users AS u
+      LEFT JOIN (
+        SELECT * FROM plist WHERE
+          path LIKE '/Users/%/Library/Preferences/com.apple.Siri.plist' AND
+          key = 'TypeToSiriEnabled' AND
+          value = '0') AS p
+      ON p.path = CONCAT(u.directory, '/Library/Preferences/com.apple.Siri.plist')
+      WHERE u.directory LIKE '/Users/%' AND
+      p.value IS NULL
+    );
     /*CIS does not make a hard recommendation for this policy. Fleet has provided two policies (one failing, one succeeding). 
       Depending on your organization's decision, you can delete this policy or its counterpart.*/
   purpose: Informational
@@ -932,19 +928,17 @@ spec:
         Ask your system administrator to deploy a script that will configure
         $ /usr/bin/sudo -u <username> /usr/bin/defaults write com.apple.Siri.plist StatusMenuVisible -bool true
   query: |
-    SELECT 1 WHERE  
-       NOT EXISTS( 
-           SELECT 1 FROM plist  
-           WHERE path LIKE '/Users/%/Library/Preferences/com.apple.Siri.plist' 
-           AND key = "StatusMenuVisible"  
-           AND value = '0'
-           ) 
-       AND EXISTS( 
-           SELECT 1 FROM plist  
-           WHERE path LIKE '/Users/%/Library/Preferences/com.apple.Siri.plist' 
-           AND key = "StatusMenuVisible"  
-           AND value = '1'
-       ); 
+    SELECT 1 WHERE NOT EXISTS (
+      SELECT 1 FROM users AS u
+      LEFT JOIN (
+        SELECT * FROM plist WHERE
+          path LIKE '/Users/%/Library/Preferences/com.apple.Siri.plist' AND
+          key = 'StatusMenuVisible' AND
+          value = '1') AS p
+      ON p.path = CONCAT(u.directory, '/Library/Preferences/com.apple.Siri.plist')
+      WHERE u.directory LIKE '/Users/%' AND
+      p.value IS NULL
+    );
     /*CIS does not make a hard recommendation for this policy. Fleet has provided two policies (one failing, one succeeding). 
       Depending on your organization's decision, you can delete this policy or its counterpart.*/
   purpose: Informational
@@ -963,19 +957,17 @@ spec:
         Ask your system administrator to deploy a script that will configure
         $ /usr/bin/sudo -u <username> /usr/bin/defaults write com.apple.Siri.plist StatusMenuVisible -bool false
   query: |
-    SELECT 1 WHERE  
-       NOT EXISTS( 
-           SELECT 1 FROM plist  
-           WHERE path LIKE '/Users/%/Library/Preferences/com.apple.Siri.plist' 
-           AND key = "StatusMenuVisible"  
-           AND value = '1'
-           ) 
-       AND EXISTS( 
-           SELECT 1 FROM plist  
-           WHERE path LIKE '/Users/%/Library/Preferences/com.apple.Siri.plist' 
-           AND key = "StatusMenuVisible"  
-           AND value = '0'
-       ); 
+    SELECT 1 WHERE NOT EXISTS (
+      SELECT 1 FROM users AS u
+      LEFT JOIN (
+        SELECT * FROM plist WHERE
+          path LIKE '/Users/%/Library/Preferences/com.apple.Siri.plist' AND
+          key = 'StatusMenuVisible' AND
+          value = '0') AS p
+      ON p.path = CONCAT(u.directory, '/Library/Preferences/com.apple.Siri.plist')
+      WHERE u.directory LIKE '/Users/%' AND
+      p.value IS NULL
+    );
     /*CIS does not make a hard recommendation for this policy. Fleet has provided two policies (one failing, one succeeding). 
       Depending on your organization's decision, you can delete this policy or its counterpart.*/
   purpose: Informational
@@ -994,19 +986,17 @@ spec:
         Ask your system administrator to deploy a script that will configure
         $ /usr/bin/sudo -u <username> /usr/bin/defaults write com.apple.Siri.plist VoiceTriggerUserEnabled -bool true
   query: |
-    SELECT 1 WHERE  
-       NOT EXISTS( 
-           SELECT 1 FROM plist  
-           WHERE path LIKE '/Users/%/Library/Preferences/com.apple.Siri.plist' 
-           AND key = "VoiceTriggerUserEnabled"  
-           AND value = '0'
-           ) 
-       AND EXISTS( 
-           SELECT 1 FROM plist  
-           WHERE path LIKE '/Users/%/Library/Preferences/com.apple.Siri.plist' 
-           AND key = "VoiceTriggerUserEnabled"  
-           AND value = '1'
-       ); 
+    SELECT 1 WHERE NOT EXISTS (
+      SELECT 1 FROM users AS u
+      LEFT JOIN (
+        SELECT * FROM plist WHERE
+          path LIKE '/Users/%/Library/Preferences/com.apple.Siri.plist' AND
+          key = 'VoiceTriggerUserEnabled' AND
+          value = '1') AS p
+      ON p.path = CONCAT(u.directory, '/Library/Preferences/com.apple.Siri.plist')
+      WHERE u.directory LIKE '/Users/%' AND
+      p.value IS NULL
+    );
     /*CIS does not make a hard recommendation for this policy. Fleet has provided two policies (one failing, one succeeding). 
       Depending on your organization's decision, you can delete this policy or its counterpart.*/
   purpose: Informational
@@ -1025,19 +1015,17 @@ spec:
         Ask your system administrator to deploy a script that will configure
         $ /usr/bin/sudo -u <username> /usr/bin/defaults write com.apple.Siri.plist VoiceTriggerUserEnabled -bool false
   query: |
-    SELECT 1 WHERE  
-       NOT EXISTS( 
-           SELECT 1 FROM plist  
-           WHERE path LIKE '/Users/%/Library/Preferences/com.apple.Siri.plist' 
-           AND key = "VoiceTriggerUserEnabled"  
-           AND value = '1'
-           ) 
-       AND EXISTS( 
-           SELECT 1 FROM plist  
-           WHERE path LIKE '/Users/%/Library/Preferences/com.apple.Siri.plist' 
-           AND key = "VoiceTriggerUserEnabled"  
-           AND value = '0'
-       ); 
+    SELECT 1 WHERE NOT EXISTS (
+      SELECT 1 FROM users AS u
+      LEFT JOIN (
+        SELECT * FROM plist WHERE
+          path LIKE '/Users/%/Library/Preferences/com.apple.Siri.plist' AND
+          key = 'VoiceTriggerUserEnabled' AND
+          value = '0') AS p
+      ON p.path = CONCAT(u.directory, '/Library/Preferences/com.apple.Siri.plist')
+      WHERE u.directory LIKE '/Users/%' AND
+      p.value IS NULL
+    );
     /*CIS does not make a hard recommendation for this policy. Fleet has provided two policies (one failing, one succeeding). 
       Depending on your organization's decision, you can delete this policy or its counterpart.*/
   purpose: Informational
@@ -1056,19 +1044,17 @@ spec:
         Ask your system administrator to deploy a script that will configure
         $ /usr/bin/sudo -u <username> /usr/bin/defaults write com.apple.Siri.plist LockscreenEnabled -bool true
   query: |
-    SELECT 1 WHERE  
-       NOT EXISTS( 
-           SELECT 1 FROM plist  
-           WHERE path LIKE '/Users/%/Library/Preferences/com.apple.Siri.plist' 
-           AND key = "LockscreenEnabled"  
-           AND value = '0'
-           ) 
-       AND EXISTS( 
-           SELECT 1 FROM plist  
-           WHERE path LIKE '/Users/%/Library/Preferences/com.apple.Siri.plist' 
-           AND key = "LockscreenEnabled"  
-           AND value = '1'
-       ); 
+    SELECT 1 WHERE NOT EXISTS (
+      SELECT 1 FROM users AS u
+      LEFT JOIN (
+        SELECT * FROM plist WHERE
+          path LIKE '/Users/%/Library/Preferences/com.apple.Siri.plist' AND
+          key = 'LockscreenEnabled' AND
+          value = '1') AS p
+      ON p.path = CONCAT(u.directory, '/Library/Preferences/com.apple.Siri.plist')
+      WHERE u.directory LIKE '/Users/%' AND
+      p.value IS NULL
+    );
     /*CIS does not make a hard recommendation for this policy. Fleet has provided two policies (one failing, one succeeding). 
       Depending on your organization's decision, you can delete this policy or its counterpart.*/
   purpose: Informational
@@ -1087,19 +1073,17 @@ spec:
         Ask your system administrator to deploy a script that will configure
         $ /usr/bin/sudo -u <username> /usr/bin/defaults write com.apple.Siri.plist LockscreenEnabled -bool false
   query: |
-    SELECT 1 WHERE  
-       NOT EXISTS( 
-           SELECT 1 FROM plist  
-           WHERE path LIKE '/Users/%/Library/Preferences/com.apple.Siri.plist' 
-           AND key = "LockscreenEnabled"  
-           AND value = '1'
-           ) 
-       AND EXISTS( 
-           SELECT 1 FROM plist  
-           WHERE path LIKE '/Users/%/Library/Preferences/com.apple.Siri.plist' 
-           AND key = "LockscreenEnabled"  
-           AND value = '0'
-       ); 
+    SELECT 1 WHERE NOT EXISTS (
+      SELECT 1 FROM users AS u
+      LEFT JOIN (
+        SELECT * FROM plist WHERE
+          path LIKE '/Users/%/Library/Preferences/com.apple.Siri.plist' AND
+          key = 'LockscreenEnabled' AND
+          value = '0') AS p
+      ON p.path = CONCAT(u.directory, '/Library/Preferences/com.apple.Siri.plist')
+      WHERE u.directory LIKE '/Users/%' AND
+      p.value IS NULL
+    );
     /*CIS does not make a hard recommendation for this policy. Fleet has provided two policies (one failing, one succeeding). 
       Depending on your organization's decision, you can delete this policy or its counterpart.*/
   purpose: Informational
