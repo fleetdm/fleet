@@ -413,8 +413,8 @@ func TestScanVulnerabilities(t *testing.T) {
 	ds.InsertSoftwareVulnerabilitiesFunc = func(ctx context.Context, vulns []fleet.SoftwareVulnerability, src fleet.VulnerabilitySource) (int64, error) {
 		return 1, nil
 	}
-	ds.AddCPEForSoftwareFunc = func(ctx context.Context, software fleet.Software, cpe string) error {
-		return nil
+	ds.InsertSoftwareCPEsFunc = func(ctx context.Context, cpes []fleet.SoftwareCPE) (int64, error) {
+		return int64(0), nil
 	}
 	ds.OSVersionsFunc = func(ctx context.Context, teamID *uint, platform *string, name *string, version *string) (*fleet.OSVersions, error) {
 		return &fleet.OSVersions{

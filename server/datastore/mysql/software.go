@@ -696,19 +696,30 @@ func (ds *Datastore) AllSoftwareIterator(
 	return &softwareIterator{rows: rows}, nil
 }
 
-func (ds *Datastore) AddCPEForSoftware(ctx context.Context, software fleet.Software, cpe string) error {
-	_, err := addCPEForSoftwareDB(ctx, ds.writer, software, cpe)
-	return err
-}
+func (ds *Datastore) InsertSoftwareCPEs(ctx context.Context, cpes []fleet.SoftwareCPE) (int64, error) {
+	var args []interface{}
 
-func addCPEForSoftwareDB(ctx context.Context, exec sqlx.ExecerContext, software fleet.Software, cpe string) (uint, error) {
-	sql := `INSERT INTO software_cpe (software_id, cpe) VALUES (?, ?)`
-	res, err := exec.ExecContext(ctx, sql, software.ID, cpe)
-	if err != nil {
-		return 0, ctxerr.Wrap(ctx, err, "insert software cpe")
+	if len(cpes) == 0 {
+		return 0, nil
 	}
-	id, _ := res.LastInsertId() // cannot fail with the mysql driver
-	return uint(id), nil
+
+	values := strings.TrimSuffix(strings.Repeat("(?,?),", len(cpes)), ",")
+	// TODO Juan: Add unq. constraint
+	sql := fmt.Sprintf(
+		`INSERT INTO software_cpe (software_id, cpe) VALUES %s ON DUPLICATE KEY UPDATE cpe = VALUES(cpe)`,
+		values,
+	)
+
+	for _, cpe := range cpes {
+		args = append(args, cpe.SoftwareID, cpe.CPE)
+	}
+	res, err := ds.writer.ExecContext(ctx, sql, args...)
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "insert software cpes")
+	}
+	count, _ := res.RowsAffected()
+
+	return count, nil
 }
 
 func (ds *Datastore) ListSoftwareCPEs(ctx context.Context) ([]fleet.SoftwareCPE, error) {

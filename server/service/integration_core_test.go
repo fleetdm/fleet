@@ -632,7 +632,9 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 		soft1 = host.Software[1]
 	}
 
-	require.NoError(t, s.ds.AddCPEForSoftware(context.Background(), soft1, "somecpe"))
+	cpes := []fleet.SoftwareCPE{{SoftwareID: soft1.ID, CPE: "somecpe"}}
+	_, err = s.ds.InsertSoftwareCPEs(context.Background(), cpes)
+	require.NoError(t, err)
 
 	// Reload software so that 'GeneratedCPEID is set.
 	require.NoError(t, s.ds.LoadHostSoftware(context.Background(), host, false))
@@ -4982,10 +4984,13 @@ func (s *integrationTestSuite) TestPaginateListSoftware() {
 		}
 	}
 
+	var cpes []fleet.SoftwareCPE
 	for i, sw := range sws {
-		cpe := "somecpe" + strconv.Itoa(i)
-		require.NoError(t, s.ds.AddCPEForSoftware(context.Background(), sw, cpe))
+		cpes = append(cpes, fleet.SoftwareCPE{SoftwareID: sw.ID, CPE: "somecpe" + strconv.Itoa(i)})
 	}
+
+	_, err := s.ds.InsertSoftwareCPEs(context.Background(), cpes)
+	require.NoError(t, err)
 
 	// Reload software to load GeneratedCPEID
 	require.NoError(t, s.ds.LoadHostSoftware(context.Background(), hosts[0], false))

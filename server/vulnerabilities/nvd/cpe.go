@@ -326,6 +326,13 @@ func TranslateSoftwareToCPE(
 
 	reCache := newRegexpCache()
 
+	var buffer []fleet.SoftwareCPE
+	bufferMaxSize := 1_000
+	consumeBuffer := func(b []fleet.SoftwareCPE) error {
+		_, err = ds.InsertSoftwareCPEs(ctx, buffer)
+		return err
+	}
+
 	for iterator.Next() {
 		software, err := iterator.Value()
 		if err != nil {
@@ -336,12 +343,22 @@ func TranslateSoftwareToCPE(
 			level.Error(logger).Log("software->cpe", "error translating to CPE, skipping...", "err", err)
 			continue
 		}
-		if cpe == "" {
+		if cpe == software.GenerateCPE {
 			continue
 		}
-		// TODO Juan: Insert in batches
-		err = ds.AddCPEForSoftware(ctx, *software, cpe)
-		if err != nil {
+
+		buffer = append(buffer, fleet.SoftwareCPE{SoftwareID: software.ID, CPE: cpe})
+
+		if len(buffer) == bufferMaxSize {
+			if err = consumeBuffer(buffer); err != nil {
+				return ctxerr.Wrap(ctx, err, "inserting cpe")
+			}
+			buffer = nil
+		}
+	}
+
+	if len(buffer) != 0 {
+		if err = consumeBuffer(buffer); err != nil {
 			return ctxerr.Wrap(ctx, err, "inserting cpe")
 		}
 	}

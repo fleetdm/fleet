@@ -398,7 +398,7 @@ type Datastore interface {
 	LoadHostSoftware(ctx context.Context, host *Host, includeCVEScores bool) error
 
 	AllSoftwareIterator(ctx context.Context, query SoftwareIterQueryOptions) (SoftwareIterator, error)
-	AddCPEForSoftware(ctx context.Context, software Software, cpe string) error
+	InsertSoftwareCPEs(ctx context.Context, cpes []SoftwareCPE) (int64, error)
 	ListSoftwareCPEs(ctx context.Context) ([]SoftwareCPE, error)
 	// InsertSoftwareVulnerabilities inserts the given vulnerabilities in the datastore, returns the number
 	// of rows inserted. If a vulnerability already exists in the datastore, then it will be ignored.
