@@ -1,3 +1,7 @@
+// This server can be used to serve the chrome extension during local
+// development (though it is usually easier to use the "load unpacked" option in
+// Chrome).
+
 package main
 
 import (
@@ -10,7 +14,7 @@ import (
 var (
 	d          = http.Dir(".")
 	fileserver = http.FileServer(d)
-	tFile      = regexp.MustCompile("\\.crx$")
+	tFile      = regexp.MustCompile(`\.crx$`)
 )
 
 func myfileserver(w http.ResponseWriter, r *http.Request) {
@@ -24,5 +28,5 @@ func myfileserver(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 	http.HandleFunc("/", myfileserver)
-	log.Fatal(http.ListenAndServe("localhost:1337", nil))
+	log.Fatal(http.ListenAndServe("localhost:1337", nil)) //nolint:gosec
 }
