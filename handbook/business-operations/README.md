@@ -382,10 +382,10 @@ After meeting with the candidate for their final interview, the CEO uses the fol
 
 > **_Note:_** _Some Fleet team members are contractors and others are employees.  The distinction between "contractor" and "employee" varies in different geographies, and the appropriate contract for any given team member and the place where they work is determined during the hiring process._
 
-1. Once an applicant accepts an offer in writing, Mike McNeil replies to the candidate.
-2. Mike McNeil creates a [hiring issue](https://github.com/fleetdm/confidential/blob/main/.github/ISSUE_TEMPLATE/hiring.md) for the new team member in the [fleetdm/confidential](https://github.com/fleetdm/confidential/issues) repo. People Ops will use this issue to keep track of the hiring tasks for the new team member.
-3. Mike McNeil reaches out to the new team member via email to get any information they will need to prepare an agreement and add them to our payroll system.
-   - **US team members**: Mike McNeil will send the new team member's agreement through [DocuSign](https://www.docusign.com/).
+1. Once the new team member replies and accepts their offer in writing, Mike or Zach replies to the candidate.
+2. Whoever replies [creates a hiring issue](https://github.com/fleetdm/confidential/issues/new/choose) for the new team member. This will inform the Business Operations team to get involved.  They will use this issue to keep track of the hiring tasks for the new team member.
+3. Business Operations on-call reaches out to the new team member via email to get any information they will need to prepare an agreement and add them to our payroll system.
+   - **US team members**: CEO will send the new team member's agreement through [DocuSign](https://www.docusign.com/).
   After signing and storing an in the correct Google Drive folder, Mike McNeil will invite the new team member to onboard in [Gusto](https://www.gusto.com/). Mike McNeil will reach out to them if the new team member is a W-2 employee and schedule an I-9 verification meeting.
    >*If we're hiring in a new state, we'll have to register for state taxes and unemployment. Gusto usually handles this process.*
    - **For international team members:** Mike McNeil enters the new team member's information into [Pilot](https://pilot.co/) to kick off their hiring process. Pilot creates an agreement for the new team member, and People Ops reviews it to make sure everything looks correct. After Mike McNeil confirms the information about the new hire, Pilot invites the new team member to enter the rest of their information and informs Mike McNeil via email when a new Fleetie signs their agreement.
@@ -397,7 +397,7 @@ After meeting with the candidate for their final interview, the CEO uses the fol
 
 
 #### Purchasing a company-issued device
-Fleet provides laptops for team members to use while working at Fleet. As soon as an offer is accepted, Nathan Holliday will reach out to the new team member to start this process, and will work with the new team member to get their laptop purchased and shipped to them on time.
+Fleet provides laptops for core team members to use while working at Fleet. As soon as an offer is accepted, Nathan Holliday will reach out to the new team member to start this process, and will work with the new team member to get their laptop purchased and shipped to them on time.
 
 ##### Selecting a laptop
 Most of the team at Fleet uses 16" MacBook Pros, but team members are free to choose any laptop or operating system that works for them, as long as the price [is within reason](#spending-company-money) and supported by our device management solution.  (Good news: Since Fleet uses Fleet for device management, every operating system is supported!)
@@ -425,7 +425,7 @@ When you receive your new their computer, complete the entry by adding a descrip
 
 ### Hiring a new consultant
 
-In addition to [full team members](#hiring-a-new-team-member), from time to time Fleet hires consultants who may work for only a handful of hours on short projects.
+In addition to [core team members](#hiring-a-new-team-member), from time to time Fleet hires consultants who may work for only a handful of hours on short projects.
 
 A consultant is someone who we expect to either:
 - complete their relationship with the company in less than 6 weeks
@@ -435,15 +435,18 @@ A consultant is someone who we expect to either:
 
 #### Who ISN'T a consultant?
 
-If a consultant plans to work _more_ than 10 hours per week, or for _longer_ than 6 weeks, they should instead be hired as a [full team member](#hiring-a-new-team-member).
+If a consultant plans to work _more_ than 10 hours per week, or for _longer_ than 6 weeks, they should instead be hired as a [core team member](#hiring-a-new-team-member).
 
-Full team members:
+Core team members:
 - are hired using Fleet's "Hiring" issue template, including receiving a company-issued laptop and Yubikeys
 - complete the entire, unabridged onboarding process in Fleet's "Onboarding" issue template
 - must be offboarded
+- get an email address
 - have a manager and a formal place in the company [org chart](https://fleetdm.com/handbook/company#org-chart)
 - are listed in ["🧑‍🚀 Fleeties"](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0)
 - are paid as part of the standard payroll ritual for the place they work and their employment classification.
+
+Consultants aren't required to do any of those things.
 
 #### Sending a consulting agreement
 Consultant agreements are sent through [DocuSign](https://www.docusign.com/), using the "Consulting Agreement" template.
@@ -465,7 +468,7 @@ Then hit send!  After all of the signatures are there, the completed document wi
 ## Recurring expenses
 Recurring monthly or annual expenses are tracked as recurring, non-personnel expenses in ["🧮 The Numbers"](https://docs.google.com/spreadsheets/d/1X-brkmUK7_Rgp7aq42drNcUg8ZipzEiS153uKZSabWc/edit#gid=2112277278) _(classified Google Sheet)_, along with their payment source.
 
-> Use this spreadsheet as the source of truth.  Always make changes to it first before adding or removing a recurring expense.
+> Use this spreadsheet as the source of truth.  Always make changes to it first before adding or removing a recurring expense. Only track significant expenses. (Other things besides amount can make a payment significant; like it being an individualized expense, for example.)
 
 ### Individualized expenses
 Recurring expenses related to a particular team member, such as coworking fees, are called _individualized expenses_.  These expenses are still considered [non-personnel expenses](https://docs.google.com/spreadsheets/d/1X-brkmUK7_Rgp7aq42drNcUg8ZipzEiS153uKZSabWc/edit#gid=2112277278), with a few extra considerations:
@@ -534,7 +537,7 @@ When you complete the agreement, make sure it is in the correct Google Drive fol
 
 ## Security
 
-At Fleet, we care about security. Here are a few resources about Fleet's security policies and best practices.
+Here are a few resources about Fleet's security policies and best practices.
 1. [Security policies](https://fleetdm.com/handbook/security/security-policies#security-policies)
 2. [Human resources security policy](https://fleetdm.com/handbook/security/security-policies#human-resources-security-policy)
 3. [Account recovery process](https://fleetdm.com/handbook/security#account-recovery-process)
@@ -627,7 +630,7 @@ For more information, check out [Fleet - who does what](https://docs.google.com/
 
 
 ## Rituals
-The following table lists the People group's rituals, frequency, and Directly Responsible Individual (DRI).
+The following table lists this group's rituals, frequency, and Directly Responsible Individual (DRI).
 
 | Ritual                       | Frequency                | Description                                         | [DRI](https://fleetdm.com/handbook/company/why-this-way#why-group-slack-channels)               |
 |:-----------------------------|:-----------------------------|:----------------------------------------------------|-------------------|
