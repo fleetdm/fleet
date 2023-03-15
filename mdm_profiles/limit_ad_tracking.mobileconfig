@@ -5,7 +5,7 @@
 	<key>PayloadDescription</key>
 	<string>This profile configuration is designed to apply the CIS Benchmark for macOS 10.14 (v2.0.0), 10.15 (v2.0.0), 11.0 (v2.0.0), and 12.0 (v1.0.0)</string>
 	<key>PayloadDisplayName</key>
-	<string>CIS - Limit Ad Tracking and Personalized Ads</string>
+	<string>Turn off ad tracking and personalized ads</string>
 	<key>PayloadIdentifier</key>
 	<string>cis.macOSBenchmark.section2.LimitAdTracking</string>
 	<key>PayloadOrganization</key>

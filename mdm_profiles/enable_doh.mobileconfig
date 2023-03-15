@@ -20,9 +20,9 @@
 				<string>https://cloudflare-dns.com/dns-query</string>
 			</dict>
 			<key>PayloadDescription</key>
-			<string>Configures device to use Cloudflare Encrypted DNS over HTTPS</string>
+			<string>Configure to use Cloudflare Encrypted DNS over HTTPS</string>
 			<key>PayloadDisplayName</key>
-			<string>Cloudflare DNS over HTTPS</string>
+			<string>Configure Cloudflare encrypted DNS over HTTPS</string>
 			<key>PayloadIdentifier</key>
 			<string>com.apple.dnsSettings.managed.9d6e5fdf-e404-4f34-ae94-27ed2f636ac4</string>
 			<key>PayloadType</key>
