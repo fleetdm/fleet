@@ -271,7 +271,7 @@ func TestCronVulnerabilitiesCreatesDatabasesPath(t *testing.T) {
 	ds.InsertCVEMetaFunc = func(ctx context.Context, x []fleet.CVEMeta) error {
 		return nil
 	}
-	ds.AllSoftwareWithoutCPEIteratorFunc = func(ctx context.Context, excludedPlatforms []string) (fleet.SoftwareIterator, error) {
+	ds.AllSoftwareIteratorFunc = func(ctx context.Context, query fleet.SoftwareIterQueryOptions) (fleet.SoftwareIterator, error) {
 		// we should not get this far before we see the directory being created
 		return nil, errors.New("shouldn't happen")
 	}
@@ -387,7 +387,7 @@ func TestScanVulnerabilities(t *testing.T) {
 	ds.InsertCVEMetaFunc = func(ctx context.Context, x []fleet.CVEMeta) error {
 		return nil
 	}
-	ds.AllSoftwareWithoutCPEIteratorFunc = func(ctx context.Context, excludedPlatforms []string) (fleet.SoftwareIterator, error) {
+	ds.AllSoftwareIteratorFunc = func(ctx context.Context, query fleet.SoftwareIterQueryOptions) (fleet.SoftwareIterator, error) {
 		iterator := &softwareIterator{
 			softwares: []*fleet.Software{
 				{
@@ -478,20 +478,6 @@ func TestScanVulnerabilities(t *testing.T) {
 				DisplayName: "1",
 			},
 		}, nil
-	}
-	ds.ListSoftwareBySourceIterFunc = func(ctx context.Context, sources []string) (fleet.SoftwareIterator, error) {
-		iterator := &softwareIterator{
-			softwares: []*fleet.Software{
-				{
-					ID:               1,
-					Name:             "Twisted",
-					Version:          "22.2.0",
-					BundleIdentifier: "",
-					Source:           "python_packages",
-				},
-			},
-		}
-		return iterator, nil
 	}
 
 	vulnPath := t.TempDir()

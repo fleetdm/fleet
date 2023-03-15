@@ -397,11 +397,7 @@ type Datastore interface {
 	ListSoftwareVulnerabilitiesByHostIDsSource(ctx context.Context, hostIDs []uint, source VulnerabilitySource) (map[uint][]SoftwareVulnerability, error)
 	LoadHostSoftware(ctx context.Context, host *Host, includeCVEScores bool) error
 
-	// ListSoftwareBySourceIter returns an iterator for consuming all software rows filtered by
-	// their 'source'.
-	ListSoftwareBySourceIter(ctx context.Context, sources []string) (SoftwareIterator, error)
-
-	AllSoftwareWithoutCPEIterator(ctx context.Context, excludedPlatforms []string) (SoftwareIterator, error)
+	AllSoftwareIterator(ctx context.Context, query SoftwareIterQueryOptions) (SoftwareIterator, error)
 	AddCPEForSoftware(ctx context.Context, software Software, cpe string) error
 	ListSoftwareCPEs(ctx context.Context) ([]SoftwareCPE, error)
 	// InsertSoftwareVulnerabilities inserts the given vulnerabilities in the datastore, returns the number

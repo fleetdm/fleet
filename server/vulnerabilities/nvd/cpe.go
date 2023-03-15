@@ -306,7 +306,7 @@ func TranslateSoftwareToCPE(
 	dbPath := filepath.Join(vulnPath, cpeDBFilename)
 
 	// Skip software from sources for which we will be using OVAL for vulnerability detection.
-	iterator, err := ds.AllSoftwareWithoutCPEIterator(ctx, oval.SupportedSoftwareSources)
+	iterator, err := ds.AllSoftwareIterator(ctx, fleet.SoftwareIterQueryOptions{ExcludedSources: oval.SupportedSoftwareSources})
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "all software iterator")
 	}
@@ -339,6 +339,7 @@ func TranslateSoftwareToCPE(
 		if cpe == "" {
 			continue
 		}
+		// TODO Juan: Insert in batches
 		err = ds.AddCPEForSoftware(ctx, *software, cpe)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "inserting cpe")

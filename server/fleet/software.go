@@ -100,3 +100,8 @@ type SoftwareListOptions struct {
 	// a count of hosts > 0.
 	WithHostCounts bool
 }
+
+type SoftwareIterQueryOptions struct {
+	ExcludedSources []string // what sources to exclude
+	IncludedSources []string // what sources to include
+}

@@ -157,7 +157,8 @@ func Analyze(
 		return nil, nil
 	}
 
-	iter, err := ds.ListSoftwareBySourceIter(ctx, []string{"apps"})
+	queryParams := fleet.SoftwareIterQueryOptions{IncludedSources: []string{"apps"}}
+	iter, err := ds.AllSoftwareIterator(ctx, queryParams)
 	if err != nil {
 		return nil, err
 	}

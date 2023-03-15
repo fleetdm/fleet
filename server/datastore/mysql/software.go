@@ -659,57 +659,34 @@ func (si *softwareIterator) Next() bool {
 	return si.rows.Next()
 }
 
-func (ds *Datastore) ListSoftwareBySourceIter(
+// AllSoftwareIterator Returns an iterator for the 'software' table, filtering out
+// software entries based on the 'query' param.
+func (ds *Datastore) AllSoftwareIterator(
 	ctx context.Context,
-	sources []string,
+	query fleet.SoftwareIterQueryOptions,
 ) (fleet.SoftwareIterator, error) {
-	if len(sources) == 0 {
-		return nil, errors.New("please provide at least one source")
-	}
-
 	var err error
 	var args []interface{}
 
 	stmt := `SELECT 
-		s.id, 
-		s.name,
-		s.version,
-		s.bundle_identifier,
-		s.release,
-		s.vendor,
-		s.arch,
-		s.source 
-	FROM software s
-	WHERE source IN (?)`
-
-	stmt, args, err = sqlx.In(stmt, sources)
-
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "error while trying to bind sources")
-	}
-
-	rows, err := ds.reader.QueryxContext(ctx, stmt, args...) //nolint:sqlclosecheck
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "error executing SQL statement")
-	}
-	return &softwareIterator{rows: rows}, nil
-}
-
-// AllSoftwareWithoutCPEIterator Returns an iterator for the 'software' table, filtering out
-// software entries with CPEs and from the sources included in the 'excludedSources' param.
-func (ds *Datastore) AllSoftwareWithoutCPEIterator(ctx context.Context, excludedSources []string) (fleet.SoftwareIterator, error) {
-	var err error
-	var args []interface{}
-
-	stmt := `SELECT s.* FROM software s LEFT JOIN software_cpe sc ON (s.id=sc.software_id) WHERE sc.id IS NULL`
+		s.* ,
+		sc.cpe AS generated_cpe
+	FROM software s 
+	LEFT JOIN software_cpe sc ON (s.id=sc.software_id)`
 	// The rows.Close call is done by the caller once iteration using the
 	// returned fleet.SoftwareIterator is done.
-	if excludedSources != nil {
+
+	if len(query.ExcludedSources) != 0 {
 		stmt += ` AND s.source NOT IN (?)`
-		stmt, args, err = sqlx.In(stmt, excludedSources)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "loads cpes")
-		}
+	}
+
+	if len(query.IncludedSources) != 0 {
+		stmt += ` AND s.source IN (?)`
+	}
+
+	stmt, args, err = sqlx.In(stmt, query.ExcludedSources, query.IncludedSources)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "load host software")
 	}
 
 	rows, err := ds.reader.QueryxContext(ctx, stmt, args...) //nolint:sqlclosecheck

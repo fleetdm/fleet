@@ -15,6 +15,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/oval"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/exp/slices"
 )
 
 func TestSoftware(t *testing.T) {
@@ -37,13 +38,13 @@ func TestSoftware(t *testing.T) {
 		{"HostsByCVE", testHostsByCVE},
 		{"HostsBySoftwareIDs", testHostsBySoftwareIDs},
 		{"UpdateHostSoftware", testUpdateHostSoftware},
-		{"ListSoftwareBySourceIter", testListSoftwareBySourceIter},
 		{"ListSoftwareByHostIDShort", testListSoftwareByHostIDShort},
 		{"ListSoftwareVulnerabilitiesByHostIDsSource", testListSoftwareVulnerabilitiesByHostIDsSource},
 		{"InsertSoftwareVulnerabilities", testInsertSoftwareVulnerabilities},
 		{"ListCVEs", testListCVEs},
 		{"ListSoftwareForVulnDetection", testListSoftwareForVulnDetection},
 		{"SoftwareByID", testSoftwareByID},
+		{"AllSoftwareIterator", testAllSoftwareIterator},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -148,7 +149,8 @@ func testSoftwareCPE(t *testing.T, ds *Datastore) {
 	err = ds.UpdateHostSoftware(context.Background(), host1.ID, software2)
 	require.NoError(t, err)
 
-	iterator, err := ds.AllSoftwareWithoutCPEIterator(context.Background(), oval.SupportedSoftwareSources)
+	q := fleet.SoftwareIterQueryOptions{ExcludedSources: oval.SupportedSoftwareSources}
+	iterator, err := ds.AllSoftwareIterator(context.Background(), q)
 	defer iterator.Close()
 	require.NoError(t, err)
 
@@ -180,7 +182,8 @@ func testSoftwareCPE(t *testing.T, ds *Datastore) {
 	err = ds.AddCPEForSoftware(context.Background(), fleet.Software{ID: id}, "some:cpe")
 	require.NoError(t, err)
 
-	iterator, err = ds.AllSoftwareWithoutCPEIterator(context.Background(), oval.SupportedSoftwareSources)
+	q = fleet.SoftwareIterQueryOptions{ExcludedSources: oval.SupportedSoftwareSources}
+	iterator, err = ds.AllSoftwareIterator(context.Background(), q)
 	defer iterator.Close()
 	require.NoError(t, err)
 
@@ -1392,39 +1395,6 @@ func testUpdateHostSoftware(t *testing.T, ds *Datastore) {
 	validateSoftware(tup{"bar", lastYear}, tup{"baz", future}, tup{"qux", future})
 }
 
-func testListSoftwareBySourceIter(t *testing.T, ds *Datastore) {
-	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
-
-	software := []fleet.Software{
-		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
-		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
-		{Name: "foo", Version: "v0.0.2", Source: "apps"},
-		{Name: "foo", Version: "0.0.3", Source: "apps"},
-		{Name: "bar", Version: "0.0.3", Source: "deb_packages"},
-	}
-
-	require.NoError(t, ds.UpdateHostSoftware(context.Background(), host.ID, software))
-
-	expected := []fleet.Software{
-		{Name: "foo", Version: "v0.0.2", Source: "apps"},
-		{Name: "foo", Version: "0.0.3", Source: "apps"},
-	}
-
-	var actual []fleet.Software
-
-	iter, err := ds.ListSoftwareBySourceIter(context.Background(), []string{"apps"})
-	require.NoError(t, err)
-	defer iter.Close()
-
-	for iter.Next() {
-		software, err := iter.Value()
-		require.NoError(t, err)
-		actual = append(actual, *software)
-	}
-
-	test.ElementsMatchSkipID(t, expected, actual)
-}
-
 func testListSoftwareByHostIDShort(t *testing.T, ds *Datastore) {
 	host1 := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
 	host2 := test.NewHost(t, ds, "host2", "", "host2key", "host2uuid", time.Now())
@@ -1705,4 +1675,73 @@ func testSoftwareByID(t *testing.T, ds *Datastore) {
 			require.Len(t, result.Vulnerabilities, 1)
 		}
 	})
+}
+
+func testAllSoftwareIterator(t *testing.T, ds *Datastore) {
+	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+
+	software := []fleet.Software{
+		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
+		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
+		{Name: "foo", Version: "v0.0.2", Source: "apps"},
+		{Name: "foo", Version: "0.0.3", Source: "apps"},
+		{Name: "bar", Version: "0.0.3", Source: "deb_packages"},
+	}
+	require.NoError(t, ds.UpdateHostSoftware(context.Background(), host.ID, software))
+
+	foo_ce_v1 := slices.IndexFunc(host.Software, func(c fleet.Software) bool {
+		return c.Name == "foo" && c.Version == "0.0.1" && c.Source == "chrome_extensions"
+	})
+	foo_app_v2 := slices.IndexFunc(host.Software, func(c fleet.Software) bool { return c.Name == "foo" && c.Version == "v0.0.2" && c.Source == "apps" })
+	bar_v3 := slices.IndexFunc(host.Software, func(c fleet.Software) bool {
+		return c.Name == "bar" && c.Version == "0.0.3" && c.Source == "deb_packages"
+	})
+
+	require.NoError(t, ds.AddCPEForSoftware(context.Background(), host.Software[foo_ce_v1], "cpe:foo_ce_v1"))
+	require.NoError(t, ds.AddCPEForSoftware(context.Background(), host.Software[foo_app_v2], "cpe:foo_app_v2"))
+	require.NoError(t, ds.AddCPEForSoftware(context.Background(), host.Software[bar_v3], "cpe:bar_v3"))
+
+	testCases := []struct {
+		q        fleet.SoftwareIterQueryOptions
+		expected []fleet.Software
+	}{
+		{
+			expected: []fleet.Software{
+				{Name: "foo", Version: "v0.0.2", Source: "apps", GenerateCPE: "cpe:foo_app_v2"},
+				{Name: "foo", Version: "0.0.3", Source: "apps"},
+			},
+			q: fleet.SoftwareIterQueryOptions{IncludedSources: []string{"apps"}},
+		},
+		{
+			expected: []fleet.Software{
+				{Name: "foo", Version: "0.0.1", Source: "chrome_extensions", GenerateCPE: "cpe:foo_ce_v1"},
+				{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
+				{Name: "bar", Version: "0.0.3", Source: "deb_packages", GenerateCPE: "cpe:bar_v3"},
+			},
+			q: fleet.SoftwareIterQueryOptions{ExcludedSources: []string{"apps"}},
+		},
+		{
+			expected: []fleet.Software{
+				{Name: "foo", Version: "0.0.1", Source: "chrome_extensions", GenerateCPE: "cpe:foo_ce_v1"},
+				{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
+				{Name: "foo", Version: "v0.0.2", Source: "apps", GenerateCPE: "cpe:foo_app_v2"},
+				{Name: "foo", Version: "0.0.3", Source: "apps"},
+			},
+			q: fleet.SoftwareIterQueryOptions{ExcludedSources: []string{"deb_packages"}, IncludedSources: []string{"apps"}},
+		},
+	}
+
+	for _, tC := range testCases {
+		var actual []fleet.Software
+
+		iter, err := ds.AllSoftwareIterator(context.Background(), tC.q)
+		require.NoError(t, err)
+		for iter.Next() {
+			software, err := iter.Value()
+			require.NoError(t, err)
+			actual = append(actual, *software)
+		}
+		iter.Close()
+		test.ElementsMatchSkipID(t, tC.expected, actual)
+	}
 }
