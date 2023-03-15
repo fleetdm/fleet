@@ -484,9 +484,9 @@ Recurring expenses related to a particular team member, such as coworking fees, 
 ## Celebrations
 
 ### Weekly updates
-We like to celebrate our achievements weekly in `#general`.
-  - Every Thursday night, department heads [report their KPIs for the week]()
-  - Friday afternoons, Mike McNeil updates the KPIs in the [weekly updates spreadsheet](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0), and Friday nights, Mike McNeil will post the updates in #general.
+We like to open about milestones and announcements.
+  - Every Thursday night, department heads [report their KPIs for the week](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit)
+  - Friday nights, Mike McNeil will post a short update in #general.
 Weekly update principles
    - Each department's update is 20-40 words or less.
    - Erring on the side of referring to items that are completely done and/or mentioning news that is potentially very exciting to folks throughout the company.
