@@ -3100,7 +3100,6 @@ spec:
   purpose: Informational
   tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_18.5.10.2
   contributors: DefensiveDepth
-
 ---
 apiVersion: v1
 kind: policy
