@@ -416,7 +416,10 @@ const DeviceUserPage = ({
             {showInfoModal && <InfoModal onCancel={toggleInfoModal} />}
             {showEnrollMdmModal && renderEnrollMdmModal()}
             {showResetKeyModal && (
-              <ResetKeyModal onCancel={toggleResetKeyModal} />
+              <ResetKeyModal
+                onClose={toggleResetKeyModal}
+                deviceAuthToken={deviceAuthToken}
+              />
             )}
           </div>
         )}

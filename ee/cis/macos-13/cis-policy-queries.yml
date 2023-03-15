@@ -803,6 +803,296 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
+  name: CIS - Ensure Siri is enabled (Based on organization's policy) (MDM Required)
+  platforms: macOS
+  platform: darwin
+  description: |
+    With macOS 10.12 Sierra, Apple has introduced Siri from iOS to macOS. While there are data spillage concerns with the use of data-gathering personal assistant software, the risk here does not seem greater in sending queries to Apple through Siri than in sending search terms in a browser to Google or Microsoft. While it is possible that Siri will be used for local actions rather than Internet searches, Siri could, in theory, tell Apple about confidential Programs and Projects that should not be revealed. This appears be a usage edge case.
+    In cases where sensitive or protected data is processed and Siri could expose that information through assisting a user in navigating their machine, it should be disabled. Siri does need to phone home to Apple, so it should not be available from air-gapped networks as part of its requirements.
+    Most of the use case data published has shown that Siri is a tremendous time saver on iOS where multiple screens and menus need to be navigated through. Information like sports scores, weather, movie times, and simple to-do items on existing calendars can be easily found with Siri. None of the standard use cases should be more risky than already approved activity.
+  resolution: |
+    Automated method:
+    Ask your system administrator to deploy an MDM profile that enables the Bluetooth status in the menu bar.
+    Create or edit a configuration profile with the following information:
+    1. The `PayloadType` string is com.apple.applicationaccess.
+    2. The key to include is allowAssistant.
+    3. The key must be set to <true/>.
+  query: |
+    SELECT 1 FROM managed_policies WHERE 
+        domain='com.apple.applicationaccess' 
+        AND 
+        name='allowAssistant' 
+        AND (value = '1' OR value = 'true');
+    /*CIS does not make a hard recommendation for this policy. Fleet has provided two policies (one failing, one succeeding). 
+      Depending on your organization's decision, you can delete this policy or its counterpart.*/
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS-macos-13-2.5.1-enabled, decision-needed
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Siri is disabled (Based on organization's policy) (MDM Required)
+  platforms: macOS
+  platform: darwin
+  description: |
+    With macOS 10.12 Sierra, Apple has introduced Siri from iOS to macOS. While there are data spillage concerns with the use of data-gathering personal assistant software, the risk here does not seem greater in sending queries to Apple through Siri than in sending search terms in a browser to Google or Microsoft. While it is possible that Siri will be used for local actions rather than Internet searches, Siri could, in theory, tell Apple about confidential Programs and Projects that should not be revealed. This appears be a usage edge case.
+    In cases where sensitive or protected data is processed and Siri could expose that information through assisting a user in navigating their machine, it should be disabled. Siri does need to phone home to Apple, so it should not be available from air-gapped networks as part of its requirements.
+    Most of the use case data published has shown that Siri is a tremendous time saver on iOS where multiple screens and menus need to be navigated through. Information like sports scores, weather, movie times, and simple to-do items on existing calendars can be easily found with Siri. None of the standard use cases should be more risky than already approved activity.
+  resolution: |
+    Automated method:
+    Ask your system administrator to deploy an MDM profile that enables the Bluetooth status in the menu bar.
+    Create or edit a configuration profile with the following information:
+    1. The `PayloadType` string is com.apple.applicationaccess.
+    2. The key to include is allowAssistant.
+    3. The key must be set to <false/>.
+  query: |
+    SELECT 1 FROM managed_policies WHERE 
+        domain='com.apple.applicationaccess' 
+        AND 
+        name='allowAssistant' 
+        AND (value = '0' OR value = 'false');
+    /*CIS does not make a hard recommendation for this policy. Fleet has provided two policies (one failing, one succeeding). 
+      Depending on your organization's decision, you can delete this policy or its counterpart.*/
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS-macos-13-2.5.1-disabled, decision-needed
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Siri field TypeToSiriEnabled is true (Based on organization's policy)
+  platforms: macOS
+  platform: darwin
+  description: |
+    Extention of CIS-2.5.1. This will check that Siri TypeToSiriEnabled field is true.
+  resolution: |
+        Ask your system administrator to deploy a script that will configure
+        $ /usr/bin/sudo -u <username> /usr/bin/defaults write com.apple.Siri.plist TypeToSiriEnabled -bool true
+  query: |
+    SELECT 1 WHERE NOT EXISTS (
+      SELECT 1 FROM users AS u
+      LEFT JOIN (
+        SELECT * FROM plist WHERE
+          path LIKE '/Users/%/Library/Preferences/com.apple.Siri.plist' AND
+          key = 'TypeToSiriEnabled' AND
+          value = '1') AS p
+      ON p.path = CONCAT(u.directory, '/Library/Preferences/com.apple.Siri.plist')
+      WHERE u.directory LIKE '/Users/%' AND
+      p.value IS NULL
+    );
+    /*CIS does not make a hard recommendation for this policy. Fleet has provided two policies (one failing, one succeeding). 
+      Depending on your organization's decision, you can delete this policy or its counterpart.*/
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS-macos-13-2.5.1-TypeToSiriEnabled-true, decision-needed
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Siri field TypeToSiriEnabled is false (Based on organization's policy)
+  platforms: macOS
+  platform: darwin
+  description: |
+    Extention of CIS-2.5.1. This will check that Siri TypeToSiriEnabled field is false.
+  resolution: |
+        Ask your system administrator to deploy a script that will configure
+        $ /usr/bin/sudo -u <username> /usr/bin/defaults write com.apple.Siri.plist TypeToSiriEnabled -bool false
+  query: |
+    SELECT 1 WHERE NOT EXISTS (
+      SELECT 1 FROM users AS u
+      LEFT JOIN (
+        SELECT * FROM plist WHERE
+          path LIKE '/Users/%/Library/Preferences/com.apple.Siri.plist' AND
+          key = 'TypeToSiriEnabled' AND
+          value = '0') AS p
+      ON p.path = CONCAT(u.directory, '/Library/Preferences/com.apple.Siri.plist')
+      WHERE u.directory LIKE '/Users/%' AND
+      p.value IS NULL
+    );
+    /*CIS does not make a hard recommendation for this policy. Fleet has provided two policies (one failing, one succeeding). 
+      Depending on your organization's decision, you can delete this policy or its counterpart.*/
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS-macos-13-2.5.1-TypeToSiriEnabled-false, decision-needed
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Siri field StatusMenuVisible is true (Based on organization's policy)
+  platforms: macOS
+  platform: darwin
+  description: |
+    Extention of CIS-2.5.1. This will check that Siri StatusMenuVisible field is true.
+  resolution: |
+        Ask your system administrator to deploy a script that will configure
+        $ /usr/bin/sudo -u <username> /usr/bin/defaults write com.apple.Siri.plist StatusMenuVisible -bool true
+  query: |
+    SELECT 1 WHERE NOT EXISTS (
+      SELECT 1 FROM users AS u
+      LEFT JOIN (
+        SELECT * FROM plist WHERE
+          path LIKE '/Users/%/Library/Preferences/com.apple.Siri.plist' AND
+          key = 'StatusMenuVisible' AND
+          value = '1') AS p
+      ON p.path = CONCAT(u.directory, '/Library/Preferences/com.apple.Siri.plist')
+      WHERE u.directory LIKE '/Users/%' AND
+      p.value IS NULL
+    );
+    /*CIS does not make a hard recommendation for this policy. Fleet has provided two policies (one failing, one succeeding). 
+      Depending on your organization's decision, you can delete this policy or its counterpart.*/
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS-macos-13-2.5.1-StatusMenuVisible-true, decision-needed
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Siri field StatusMenuVisible is false (Based on organization's policy)
+  platforms: macOS
+  platform: darwin
+  description: |
+    Extention of CIS-2.5.1. This will check that Siri StatusMenuVisible field is false.
+  resolution: |
+        Ask your system administrator to deploy a script that will configure
+        $ /usr/bin/sudo -u <username> /usr/bin/defaults write com.apple.Siri.plist StatusMenuVisible -bool false
+  query: |
+    SELECT 1 WHERE NOT EXISTS (
+      SELECT 1 FROM users AS u
+      LEFT JOIN (
+        SELECT * FROM plist WHERE
+          path LIKE '/Users/%/Library/Preferences/com.apple.Siri.plist' AND
+          key = 'StatusMenuVisible' AND
+          value = '0') AS p
+      ON p.path = CONCAT(u.directory, '/Library/Preferences/com.apple.Siri.plist')
+      WHERE u.directory LIKE '/Users/%' AND
+      p.value IS NULL
+    );
+    /*CIS does not make a hard recommendation for this policy. Fleet has provided two policies (one failing, one succeeding). 
+      Depending on your organization's decision, you can delete this policy or its counterpart.*/
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS-macos-13-2.5.1-StatusMenuVisible-false, decision-needed
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Siri field VoiceTriggerUserEnabled is true (Based on organization's policy)
+  platforms: macOS
+  platform: darwin
+  description: |
+    Extention of CIS-2.5.1. This will check that Siri VoiceTriggerUserEnabled field is true.
+  resolution: |
+        Ask your system administrator to deploy a script that will configure
+        $ /usr/bin/sudo -u <username> /usr/bin/defaults write com.apple.Siri.plist VoiceTriggerUserEnabled -bool true
+  query: |
+    SELECT 1 WHERE NOT EXISTS (
+      SELECT 1 FROM users AS u
+      LEFT JOIN (
+        SELECT * FROM plist WHERE
+          path LIKE '/Users/%/Library/Preferences/com.apple.Siri.plist' AND
+          key = 'VoiceTriggerUserEnabled' AND
+          value = '1') AS p
+      ON p.path = CONCAT(u.directory, '/Library/Preferences/com.apple.Siri.plist')
+      WHERE u.directory LIKE '/Users/%' AND
+      p.value IS NULL
+    );
+    /*CIS does not make a hard recommendation for this policy. Fleet has provided two policies (one failing, one succeeding). 
+      Depending on your organization's decision, you can delete this policy or its counterpart.*/
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS-macos-13-2.5.1-VoiceTriggerUserEnabled-true, decision-needed
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Siri field VoiceTriggerUserEnabled is false (Based on organization's policy)
+  platforms: macOS
+  platform: darwin
+  description: |
+    Extention of CIS-2.5.1. This will check that Siri VoiceTriggerUserEnabled field is false.
+  resolution: |
+        Ask your system administrator to deploy a script that will configure
+        $ /usr/bin/sudo -u <username> /usr/bin/defaults write com.apple.Siri.plist VoiceTriggerUserEnabled -bool false
+  query: |
+    SELECT 1 WHERE NOT EXISTS (
+      SELECT 1 FROM users AS u
+      LEFT JOIN (
+        SELECT * FROM plist WHERE
+          path LIKE '/Users/%/Library/Preferences/com.apple.Siri.plist' AND
+          key = 'VoiceTriggerUserEnabled' AND
+          value = '0') AS p
+      ON p.path = CONCAT(u.directory, '/Library/Preferences/com.apple.Siri.plist')
+      WHERE u.directory LIKE '/Users/%' AND
+      p.value IS NULL
+    );
+    /*CIS does not make a hard recommendation for this policy. Fleet has provided two policies (one failing, one succeeding). 
+      Depending on your organization's decision, you can delete this policy or its counterpart.*/
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS-macos-13-2.5.1-VoiceTriggerUserEnabled-false, decision-needed
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Siri field LockscreenEnabled is true (Based on organization's policy)
+  platforms: macOS
+  platform: darwin
+  description: |
+    Extention of CIS-2.5.1. This will check that Siri LockscreenEnabled field is true.
+  resolution: |
+        Ask your system administrator to deploy a script that will configure
+        $ /usr/bin/sudo -u <username> /usr/bin/defaults write com.apple.Siri.plist LockscreenEnabled -bool true
+  query: |
+    SELECT 1 WHERE NOT EXISTS (
+      SELECT 1 FROM users AS u
+      LEFT JOIN (
+        SELECT * FROM plist WHERE
+          path LIKE '/Users/%/Library/Preferences/com.apple.Siri.plist' AND
+          key = 'LockscreenEnabled' AND
+          value = '1') AS p
+      ON p.path = CONCAT(u.directory, '/Library/Preferences/com.apple.Siri.plist')
+      WHERE u.directory LIKE '/Users/%' AND
+      p.value IS NULL
+    );
+    /*CIS does not make a hard recommendation for this policy. Fleet has provided two policies (one failing, one succeeding). 
+      Depending on your organization's decision, you can delete this policy or its counterpart.*/
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS-macos-13-2.5.1-LockscreenEnabled-true, decision-needed
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Siri field LockscreenEnabled is false (Based on organization's policy)
+  platforms: macOS
+  platform: darwin
+  description: |
+    Extention of CIS-2.5.1. This will check that Siri LockscreenEnabled field is false.
+  resolution: |
+        Ask your system administrator to deploy a script that will configure
+        $ /usr/bin/sudo -u <username> /usr/bin/defaults write com.apple.Siri.plist LockscreenEnabled -bool false
+  query: |
+    SELECT 1 WHERE NOT EXISTS (
+      SELECT 1 FROM users AS u
+      LEFT JOIN (
+        SELECT * FROM plist WHERE
+          path LIKE '/Users/%/Library/Preferences/com.apple.Siri.plist' AND
+          key = 'LockscreenEnabled' AND
+          value = '0') AS p
+      ON p.path = CONCAT(u.directory, '/Library/Preferences/com.apple.Siri.plist')
+      WHERE u.directory LIKE '/Users/%' AND
+      p.value IS NULL
+    );
+    /*CIS does not make a hard recommendation for this policy. Fleet has provided two policies (one failing, one succeeding). 
+      Depending on your organization's decision, you can delete this policy or its counterpart.*/
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS-macos-13-2.5.1-LockscreenEnabled-false, decision-needed
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
   name: CIS - Ensure Location Services Is Enabled
   platforms: macOS
   platform: darwin
@@ -842,6 +1132,93 @@ spec:
   query:  SELECT 1 FROM plist WHERE path='/Library/Preferences/com.apple.locationmenu.plist' AND key='ShowSystemServices' AND value=1;
   purpose: Informational
   tags: compliance, CIS, CIS_Level2, CIS-macos-13-2.6.1.2
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Location Services Is Disabled to all applications (Based on organization's policy)
+  platforms: macOS
+  platform: darwin
+  description: |
+    macOS uses location information gathered through local Wi-Fi networks to enable applications to supply relevant information to users. While Location Services may be very useful, it may not be desirable to allow all applications that can use Location Services to use your location for Internet queries in order to provide tailored content based on your current location.
+    Ensure applications that can use Location Services are authorized and provide that information where the application interacts with external systems. Apple offers feedback within System Preferences and may be enabled to supply information on the menu bar when Location Services are used.
+    Safari can deny access from websites or prompt for access.
+    Applications that support Location Services can be individually controlled in the Privacy tab in Security & Privacy under System Preferences.
+    Access should be evaluated to ensure that privacy controls are as expected.
+    This query verifies that location services is disabled for all apps.    
+  resolution: |
+    Graphical Method:
+        Perform the following steps to disable unnecessary applications from accessing Location Services:
+        1. Open System Settings
+        2. Select Privacy & Security
+        3. Select Location Services
+        4. Set Location Services to disabled.
+  query:  SELECT 1 FROM location_services WHERE enabled = 0;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS-macos-13-2.6.1.3-Location-Service-disabled
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Location Services Is Enabled for a specific list of applications (Based on organization's policy)
+  platforms: macOS
+  platform: darwin
+  description: |
+    macOS uses location information gathered through local Wi-Fi networks to enable applications to supply relevant information to users. While Location Services may be very useful, it may not be desirable to allow all applications that can use Location Services to use your location for Internet queries in order to provide tailored content based on your current location.
+    Ensure applications that can use Location Services are authorized and provide that information where the application interacts with external systems. Apple offers feedback within System Preferences and may be enabled to supply information on the menu bar when Location Services are used.
+    Safari can deny access from websites or prompt for access.
+    Applications that support Location Services can be individually controlled in the Privacy tab in Security & Privacy under System Preferences.
+    Access should be evaluated to ensure that privacy controls are as expected.
+    This query verifies that location services is enabled and a specific list of application can use it.
+  resolution: |
+    Graphical Method:
+        Perform the following steps to disable unnecessary applications from accessing Location Services:
+        1. Open System Settings
+        2. Select Privacy & Security
+        3. Select Location Services
+        4. Set any applications listed to your organization's requirements
+        5. Select System Services
+        6. Set any System Services listed to your organization's requirements
+  query: |
+    -----------------------------------------------------------------------------------------------------------
+    -- Instructions for running and modifying this query:
+    -- Put the list of allowed applications in the designated area below.
+    -- To see what apps are currently allowed (and get the exact name format of the app name), use this query:
+    --    SELECT * FROM plist WHERE 
+    --    path='/var/db/locationd/clients.plist'  
+    --    AND subkey = "Authorized"  
+    --    AND value = '1'; 
+    -----------------------------------------------------------------------------------------------------------
+    SELECT 1 WHERE 
+        -- If location_services is not allowed at all, we are good. 
+        EXISTS(
+          SELECT 1 FROM location_services WHERE enabled = 0
+        )
+        OR 
+        -- If location_services is allowed, make sure allowed apps are approved. 
+        NOT EXISTS(
+          SELECT 1 FROM plist WHERE 
+            path='/var/db/locationd/clients.plist'  
+            AND subkey = "Authorized"  
+            AND value = '1'  
+            AND NOT(
+                ------------------------------------------------------------------------------------
+                -- Designated area to add applications allowed to use location-services
+                ------------------------------------------------------------------------------------
+                -- Typical app name
+                key LIKE "%:com.apple.TV"
+                OR 
+                -- Typical system service name
+                key LIKE "%com.apple.locationd.bundle-/System/Library/PrivateFrameworks/CoreParsec.framework"
+                OR 
+                key LIKE "%:com.apple.locationd.bundle-/System/Library/LocationBundles/DoNotDisturb.bundle"
+                ------------------------------------------------------------------------------------
+            )
+        );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS-macos-13-2.6.1.3-Location-Service-specifc-app-enabled, decision-needed
   contributors: sharon-fdm
 ---
 apiVersion: v1

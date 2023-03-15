@@ -93,7 +93,8 @@ data "aws_iam_policy_document" "gha-permissions" {
       "dynamodb:*",
       "kinesis:*",
       "firehose:*",
-      "athena:*"
+      "athena:*",
+      "glue:*",
     ]
     resources = ["*"]
   }

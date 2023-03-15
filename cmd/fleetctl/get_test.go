@@ -1005,7 +1005,8 @@ func TestEnrichedAppConfig(t *testing.T) {
           "idp_name": "",
           "enable_sso": false,
           "enable_sso_idp_login": false,
-          "enable_jit_provisioning": false
+          "enable_jit_provisioning": false,
+          "enable_jit_role_sync": false
         },
         "fleet_desktop": {
           "transparency_url": "https://fleetdm.com/transparency"
