@@ -1,7 +1,6 @@
 package tables
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/jmoiron/sqlx"
@@ -32,13 +31,13 @@ func TestUp_20230315104937(t *testing.T) {
 	require.NoError(t, err)
 
 	// force a query with an error
-	_, err = db.Query("SELECT 1 FROM host_mdm_apple_profiles hmap JOIN hosts h WHERE h.uuid = hmap.host_uuid AND hmap.status = 'failed'")
-	fmt.Println(err)
+	var c int
+	err = sqlx.Select(db, &c, "SELECT 1 FROM host_mdm_apple_profiles hmap JOIN hosts h WHERE h.uuid = hmap.host_uuid AND hmap.status = 'failed'")
 	require.ErrorContains(t, err, "Error 1267")
 
 	applyNext(t, db)
 
-	_, err = db.Query("SELECT 1 FROM host_mdm_apple_profiles hmap JOIN hosts h WHERE h.uuid = hmap.host_uuid AND hmap.status = 'failed'")
+	err = sqlx.Select(db, &c, "SELECT 1 FROM host_mdm_apple_profiles hmap JOIN hosts h WHERE h.uuid = hmap.host_uuid AND hmap.status = 'failed'")
 	require.NoError(t, err)
 
 	// verify that there are no tables with the wrong collation
