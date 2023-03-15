@@ -298,9 +298,8 @@ Every new position being created goes through this process before interviewing, 
   - State the proposed job title, include the appropriate departmental emoji, and link to the "living" fleetdm.com URL; not the GitHub URL.  _(This is where the new page _will eventually exist_, once this pull request is merged.  For now, if you were to visit this URL, you'd just see a 404 error.  So how can you determine this URL?  To understand the pattern, visit other job description pages from the [live handbook](https://fleetdm.com/handbook/company#open-positions), and examine their URLs in your browser.)_
 3. **Get it approved and merged:**  When you submit your proposed job description, the CEO will be automatically tagged for review and get a notification.  He will consider where this role fits into Fleet's strategy and decide whether Fleet will open this position at this time.  He will review the data carefully to try and catch any simple mistakes, then tentatively budget cash and equity compensation and document this compensation research.  He will set a tentative start date (which also indicates this position is no longer just "proposed"; it's now part of the hiring plan.)  Then the CEO will reply promptly in the `#hiring-xxxxx-YYYY` Slack channel, at-mentioning the original proposer and letting them know their position is approved.  (Unless it isn't.)
 
-> #### Steps for Mike
+> #### Steps for CEO
 >  - Confirm the new row in "Fleeties" has a manager, job title, and department, that it doesn't have any corrupted spreadsheet formulas or formatting, and that the start date is still blank (so that it is clear to everyone that this position has been proposed, but that it is not confirmed and planned, yet).
->  - Schedule 30m for the CEO to meet with the candidate, if they haven't met each other.  Also consider whether the CTO should meet the candidate as well (always, if this is an engineering position.)
 >  - Confirm the job description consists only of changes to "Responsibilities" and "Experience," with an appropriate filename, and that the content looks accurate, is grammatically correct, and is otherwise ready to post in a public job description on fleetdm.com.  Then approve and merge the pull request.
 >  - Ballpark, budget, and document compensation research for the role
 >    - Scroll to the very bottom of ["¶¶ 💌 Compensation decisions (offer math)"](https://docs.google.com/document/d/1NQ-IjcOTbyFluCWqsFLMfP4SvnopoXDcX0civ-STS5c/edit#heading=h.slomq4whmyas) and add a new heading for the role, pattern-matching off of the names of other nearby role headings.
@@ -315,22 +314,27 @@ Every new position being created goes through this process before interviewing, 
 >    - In the channel, post a message at-mentioning the hiring manager to let them know that their proposed position has been reviewed and approved, and now the job description and application form are live on the website.  Include a direct link to their live job description on fleetdm.com.  (This is the URL where candidates can go to read about the job and apply.  For example: `fleetdm.com/handbook/company/product-designer`)
 
 
+### Recruiting
+Fleet accepts job applications, but the company does not list positions on general purpose job boards.  This prevents us being overwhelmed with candidates so we can fulfill our goal of responding promptly to every applicant.
 
+This means that outbound recruiting, 3rd party recruiters, and references from team members are important aspect of the company's hiring strategy.  Fleet's CEO is happy to assist with outreach, intros, and recruiting strategy for candidates.
 
-### Receiving job applications
+#### Receiving job applications
 Every job description page ends with a "call to action", including a link that candidates can click to apply for the job.  Fleet replies to all candidates within **1 business day** and always provides either a **rejection** or **decisive next steps**; even if the next step is just a promise.  For example:
 
 > "We are still working our way through applications and _still_ have not been able to review yours yet.  We think we will be able to review and give you an update about your application update by Thursday at the latest.  I'll let you know as soon as I have news.  I'll assume we're both still in the running if I don't hear from you, so please let me know if anything comes up."
 
-
 When a candidate clicks applies for a job at Fleet, they are taken to a generic Typeform.  When they submit their job application, the Typeform triggers a Zapier automation that will posts the submission to `g-business-operations` in Slack.  The candidate's job application answers are then forwarded to the applicable `#hiring-xxxxx-202x` Slack channel and the hiring manager is @mentioned.
 
-### Recruiting
-#### Checking legal restrictions on hiring
+#### Hiring restrictions
+
+##### Incompatible former employers
 Fleet maintains a list of companies with whom Fleet has do-not-solicit terms that prevents us from making offers to employees of these companies.  The list is in the Do Not Solicit tab of the [BizOps spreadhseet](https://docs.google.com/spreadsheets/d/1lp3OugxfPfMjAgQWRi_rbyL_3opILq-duHmlng_pwyo/edit#gid=0).
 
+##### Incompatible locations
+Fleet is unable to hire team members in some countries. See [this internal document](https://docs.google.com/document/d/1jHHJqShIyvlVwzx1C-FB9GC74Di_Rfdgmhpai1SPC0g/edit) for the list.
 
-### Interviewing at Fleet
+#### Interviewing
 We're glad you're interested in joining the team! 
 Here are some of the things you can anticipate throughout this process:
   - We will reply by email within one business day from the time when the application arrives.
@@ -338,55 +342,53 @@ Here are some of the things you can anticipate throughout this process:
   - You may receive an invitation to "book with us."
 If you've been invited to "book with us," you'll have a Zoom meeting with the hiring team to discuss the next steps. 
 
-### Candidate correspondence email templates
+#### Candidate correspondence email templates
 [We use email templates](https://docs.google.com/document/d/1E_gTunZBMNF4AhsOFuDVi9EnvsIGbAYrmmEzdGmnc9U) to meet our commitment of replying to all applications within one business day.
 
+
 ### Hiring a new team member
-> Fleet is unable to hire team members in some countries. See [this internal document](https://docs.google.com/document/d/1jHHJqShIyvlVwzx1C-FB9GC74Di_Rfdgmhpai1SPC0g/edit) for the list.
-1. **Manager:** At-mention Mike McNeil in the `#hiring-xxxxx-2022` channel and indicate that you would like for Fleet to make an offer to the candidate.  Include the candidate's name, personal email address, the timeframe for their start date, and the country where they will be working. 
-2. **People Ops:** Mike McNeil will research compensation using [Pave](https://www.pave.com), making sure to adjust for the cost of living where the candidate will do the work. Mike McNeil will then document this decision in the [compensation decisions document](https://docs.google.com/document/d/1NQ-IjcOTbyFluCWqsFLMfP4SvnopoXDcX0civ-STS5c/edit) for future reference.
-3. **People Ops:** After you have determined compensation, make copies of these two templates and customize them for this candidate:
-   - [Exit scenarios (template)](https://docs.google.com/spreadsheets/d/1k2TzsFYR0QxlD-KGPxuhuvvlJMrCvLPo2z8s8oGChT0/copy)
-   - [Informal offer email (template)](https://docs.google.com/document/d/1zpNN2LWzAj-dVBC8iOg9jLurNlSe7XWKU69j7ntWtbY/copy)
-Change the name of the copied documents accordingly (e.g., "[candidate's name]'s a copy of exit scenarios") and link to the exit scenarios spreadsheet from the offer email.
-4. **People Ops:** Next, prepare the informal offer email. Post in the `#g-people` Slack channel and at-mention the CEO for assistance with determining the number of shares.  You'll then need to add the following information to the template: 
-   - Candidate's name and email address
-   - Candidate's start date
-   - Candidate's compensation
-   - Candidate's manager (the person they report to)
-   - Equity offered to the candidate (specify the number of shares, and highlight it with a link to the candidate's exit scenarios spreadsheet)
-   - Benefits (determined by the candidate's location)
-5. **People Ops:** Prepare the exit scenarios spreadsheet. Enter the number of shares offered to the candidate, and the spreadsheet will update to reflect this. 
-      >**_Note:_** *Don't play with numbers in the exit scenarios spreadsheet. The revision history is visible to the candidate, and they might misunderstand.*
-6. **People Ops:** Once both documents are complete, share the offer email draft, exit scenarios copy, and a link to the compensation decision with the CEO for approval by mentioning @mikermcneil in #g-people.
-7. **CEO:** Confirm:
-  - The compensation decision has been documented sufficiently and adjusted for the cost of living.
-  - The equity plan and budget are up to date with the actual offer that is about to be sent.
-  - The Fleeties doc now reflects the actual start date from the offer email, as well as the candidate's name, LinkedIn URL, and preferred pronoun.
-  - It still makes business sense to make this offer by reviewing the budget and equity plan.
-The CEO will then reply in `#g-people` to indicate that the offer is approved.
-   >**_Note:_** *When hiring an international employee, Pilot.co recommends starting the hiring process a month before the new employee's start date.*
-8. **People Ops:** After obtaining CEO approval, confirm everything is correct one more time, then mention the CEO or CTO, who will send the offer email.
-  - The offer email is copied directly from Google Drive into Gmail before being sent to the candidate.
-  - When sending the offer, the CEO or CTO will edit the permissions of the exit scenarios sheet so it is accessible to the candidate.
-  - People Ops is cc'd on the offer email but will not participate in the email thread until after the offer is accepted.
 
-#### Hiring a new consultant
+> **_Note:_** _When hiring an international employee, Pilot.co recommends starting the hiring process a month before the new employee's start date._
 
-> The words "consultant" and "contractor" are used interchangably, where appropriate.
-> Some Fleet team members are contractors and others are employees.
+Here are the steps hiring managers can follow to get an offer out to a candidate:
+1. **Schedule founder interview:** Schedule 30m for the CEO to interview the candidate, if they haven't already done so.
+   - At Fleet, the CEO interviews every new team member at least once before Fleet extends an offer.  (We plan to continue this practice until headcount reaches 100.)
+   - No need to check with the CEO first.  You can just book the meeting on his calendar.
+   - If this is an engineering position, before the CEO interview, please also be sure that the candidate has already been interviewed by the CTO.
+   - The personal email the candidate uses for this calendar event is where they will receive the offer.
+2. **Add to team database:** Update the [Fleeties](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) doc to reflect:
+   - updated timeframe for start date
+   - candidate's name
+   - LinkedIn URL
+   - preferred pronoun
+   - country and state where they will be working
+3. **Confirm intent to offer:** At-mention `@mikermcneil` in the `#hiring-` channel and indicate that you would like for Fleet to make an offer to the candidate and archive the channel.
 
-Consultant agreements are sent through [DocuSign](https://www.docusign.com/), using the "Consulting Agreement" template. To send a new consulting agreement, you'll need the new consultant's name, the term of the service, a summary of the services provided, and the consultant's fee. 
-There are some defaults that we use for these agreements:
-   - Term: one month
-   - Services rendered: [use this doc](https://docs.google.com/document/d/1b5SGgYEHqDmq5QF8p29WWN3it3XJh3xRT3zG0RdXARo/edit)
-   - Work will commence and complete by dates: Start date and end of term date
-   - Fee: Get from the contractor
-   - Hours: Default to 10 hr/week - 40 hr/week
-Then hit send!  After all of the signatures are there, the completed document will automatically be uploaded to the appropriate Google Drive folder, and a Slack message will appear in the `#g-people` channel.
+#### Making an offer
+After meeting with the candidate for their final interview, the CEO uses the following steps to make an offer:
+1. **Review decision:** The CEO reviews the data and decides whether it still makes sense to make this offer to this person in this role.  If not, he lets the manager know.  Otherwise, he continues with the offer.
+2. **Adjust salary:** [Re-benchmark salary](https://www.pave.com), adjusting for cost of living where the candidate will do the work.
+   - Paste a screenshot of Pave showing the adjusted benchmark into the [compensation decision for this position](https://docs.google.com/document/d/1NQ-IjcOTbyFluCWqsFLMfP4SvnopoXDcX0civ-STS5c/edit)
+   - Update the [equity plan](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit#gid=0) with the actual salary and equity offer that is about to be sent.
+Equity plan contains OTE salary, as well as clarification about base salary.
+3. **Prepare the "exit scenarios" spreadsheet:** [Copy the "Exit scenarios (template)"](https://docs.google.com/spreadsheets/d/1k2TzsFYR0QxlD-KGPxuhuvvlJMrCvLPo2z8s8oGChT0/copy) for the candidate, and rename the copy to e.g. "Exit scenarios for Jane Doe".  Edit the candidate's copy of the exit scenarios spreadsheet to include the number of shares they will be offered.  Enter the number of shares offered to the candidate, and the spreadsheet will update to reflect this.
+   > **_Note:_** *Don't play with numbers in the exit scenarios spreadsheet. The revision history is visible to the candidate, and they might misunderstand.*
+4. **Prepare offer email:** [Copy "Offer email (template)"](https://docs.google.com/document/d/1zpNN2LWzAj-dVBC8iOg9jLurNlSe7XWKU69j7ntWtbY/copy) and rename to e.g. "Offer email for Jane Doe".  Edit the candidate's copy of the offer email template doc and fill in the missing information:
+   - _Benefits:_ If candidate will work outside the US, [change the "Benefits" bullet](https://docs.google.com/document/d/1zpNN2LWzAj-dVBC8iOg9jLurNlSe7XWKU69j7ntWtbY/edit) to reflect what will be included through Fleet's international payroll provider, depending on the candidate's location.
+   - _Equity:_ Specify the number of shares, then highlight the number of shares with a link to the candidate's personalized copy of the "Exit scenarios" spreadsheet.
+   - _Other information_: Read the offer email very carefully and double-check correctness versus the equity plan, especially in regards to salary, equity, and start date.
+5. **Send offer:** Once both documents are complete, send the offer email:
+   - To: The candidate's personal email address
+   - Cc: Zach Wasserman and Nathan Holliday should be included as recipients, but will not participate in the email thread until after the offer is accepted.
+   - Subject: "Full time?"
+   - Body: _(The offer email is copied verbatim from Google Drive into Gmail as the body of the message, formatting and all.)_
+   > _**Note:** When sending the offer, Gmail will automatically offer to change the permissions of the exit scenarios sheet so it is accessible to the candidate.  Grant the candidate "edit" access._
 
 
 ### Steps after an offer is accepted
+
+> **_Note:_** _Some Fleet team members are contractors and others are employees.  The distinction between "contractor" and "employee" varies in different geographies, and the appropriate contract for any given team member and the place where they work is determined during the hiring process._
+
 1. Once an applicant accepts an offer in writing, Mike McNeil replies to the candidate.
 2. Mike McNeil creates a [hiring issue](https://github.com/fleetdm/confidential/blob/main/.github/ISSUE_TEMPLATE/hiring.md) for the new team member in the [fleetdm/confidential](https://github.com/fleetdm/confidential/issues) repo. People Ops will use this issue to keep track of the hiring tasks for the new team member.
 3. Mike McNeil reaches out to the new team member via email to get any information they will need to prepare an agreement and add them to our payroll system.
@@ -404,7 +406,6 @@ Then hit send!  After all of the signatures are there, the completed document wi
 #### Purchasing a company-issued device
 Fleet provides laptops for team members to use while working at Fleet. As soon as an offer is accepted, Nathan Holliday will reach out to the new team member to start this process, and will work with the new team member to get their laptop purchased and shipped to them on time.
 
-
 ##### Selecting a laptop
 Most of the team at Fleet uses 16" MacBook Pros, but team members are free to choose any laptop or operating system that works for them, as long as the price [is within reason](#spending-company-money) and supported by our device management solution.  (Good news: Since Fleet uses Fleet for device management, every operating system is supported!)
 
@@ -418,13 +419,46 @@ For example, someone in sales, marketing, or business operations might use a 14"
 
 Windows and Linux devices are available upon request for team members in product and engineering.  (See [Buying other new equipment](#buying-other-new-equipment).)
 
-##### Buying other new equipment
+#### Buying other new equipment
 At Fleet, we [spend company money like it's our own money](https://fleetdm.com/handbook/business-operations#spending-company-money).  If you need equipment above and beyond those standard guidelines, you can request new equipment by creating a GitHub issue in fleetdm/fleet and attaching the `#g-business-operations`.  Please include a link to the requested equipment (including any specs), reason for request, and timeline for when the device is needed. 
 
 ##### Tracking equipment
 When a device has been purchased, it's added to the [spreadsheet of company equipment](https://docs.google.com/spreadsheets/d/1hFlymLlRWIaWeVh14IRz03yE-ytBLfUaqVz0VVmmoGI/edit#gid=0) where we keep track of devices and equipment, purchased by Fleet.
 
 When you receive your new their computer, complete the entry by adding a description, model, and serial number to the spreadsheet.
+
+
+
+
+### Hiring a new consultant
+
+In addition to [full team members](#hiring-a-new-team-member), from time to time Fleet hires consultants who may work for only a handful of hours on short projects.
+
+#### What is a consultant?
+Any consultant who plans to work more than 10 hours per week for longer than 6 weeks should instead be hired as a [full team member](#hiring-a-new-team-member).  That means they:
+- are hired using Fleet's "Hiring" issue template, including receiving a company-issued laptop and Yubikeys
+- complete the entire, unabridged onboarding process in Fleet's "Onboarding" issue template
+- must be offboarded
+- have a manager and a formal place in the company [org chart](https://fleetdm.com/handbook/company#org-chart)
+- are listed in ["🧑‍🚀 Fleeties"](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0)
+- are paid as part of the standard payroll ritual for the place they work and their employment classification.
+
+#### Sending a consulting agreement
+Consultant agreements are sent through [DocuSign](https://www.docusign.com/), using the "Consulting Agreement" template.
+
+> The Docusign template labeled "US consulting agreement" is actually used both consultants, as well as for [full team members](#hiring-a-new-team-member) classified as contractors.
+
+To send a new consulting agreement, you'll need the new consultant's name, the term of the service, a summary of the services provided, and the consultant's fee. 
+There are some defaults that we use for these agreements:
+   - Term: one month
+   - Services rendered: Copy and paste from the [language in this doc](https://docs.google.com/document/d/1b5SGgYEHqDmq5QF8p29WWN3it3XJh3xRT3zG0RdXARo/edit)
+   - Work will commence and complete by dates: Start date and end of term date
+   - Fee: Get from the contractor
+   - Hours: Default to 10 hr/week - 40 hr/week
+Then hit send!  After all of the signatures are there, the completed document will automatically be uploaded to the appropriate Google Drive folder, and a Slack message will appear in the `#g-people` channel.
+
+
+
 
 ## Recurring expenses
 Recurring monthly or annual expenses are tracked as recurring, non-personnel expenses in ["🧮 The Numbers"](https://docs.google.com/spreadsheets/d/1X-brkmUK7_Rgp7aq42drNcUg8ZipzEiS153uKZSabWc/edit#gid=2112277278) _(classified Google Sheet)_, along with their payment source.
