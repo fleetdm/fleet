@@ -38,7 +38,7 @@
 	<key>PayloadDescription</key>
 	<string>Enables automatic updates</string>
 	<key>PayloadDisplayName</key>
-	<string>Automatic updates</string>
+	<string>Turn on automatic updates</string>
 	<key>PayloadIdentifier</key>
 	<string>com.github.erikberglund.ProfileCreator.BEBA0740-4DDB-4AC4-85DC-BA48B96C0DC8</string>
 	<key>PayloadOrganization</key>

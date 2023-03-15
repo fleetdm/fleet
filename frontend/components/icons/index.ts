@@ -17,6 +17,7 @@ import ExternalLink from "./ExternalLink";
 import Issue from "./Issue";
 import Plus from "./Plus";
 import Pending from "./Pending";
+import PremiumFeature from "./PremiumFeature";
 
 import LowDiskSpaceHosts from "./LowDiskSpaceHosts";
 import MissingHosts from "./MissingHosts";
@@ -50,7 +51,6 @@ import FilePython from "./FilePython";
 import FileZsh from "./FileZsh";
 import FileBash from "./FileBash";
 import FileGeneric from "./FileGeneric";
-import PremiumFeature from "./PremiumFeature";
 
 // a mapping of the usable names of icons to the icon source.
 export const ICON_MAP = {
@@ -91,6 +91,7 @@ export const ICON_MAP = {
   centos: Centos,
   ubuntu: Ubuntu,
   policy: Policy,
+  "premium-feature": PremiumFeature,
   "darwin-purple": ApplePurple,
   "windows-blue": WindowsBlue,
   "linux-green": LinuxGreen,
@@ -102,7 +103,6 @@ export const ICON_MAP = {
   "file-bash": FileBash,
   "file-generic": FileGeneric,
   refresh: Refresh,
-  "premium-feature": PremiumFeature,
 };
 
 export type IconNames = keyof typeof ICON_MAP;

@@ -8,6 +8,10 @@ export default {
     const { DEVICE_USER_MDM_ENROLLMENT_PROFILE } = endpoints;
     return sendRequest("GET", DEVICE_USER_MDM_ENROLLMENT_PROFILE(token));
   },
+  resetEncryptionKey: (token: string) => {
+    const { DEVICE_USER_RESET_ENCRYPTION_KEY } = endpoints;
+    return sendRequest("POST", DEVICE_USER_RESET_ENCRYPTION_KEY(token));
+  },
   unenrollHostFromMdm: (hostId: number, timeout?: number) => {
     const { HOST_MDM_UNENROLL } = endpoints;
     return sendRequest(

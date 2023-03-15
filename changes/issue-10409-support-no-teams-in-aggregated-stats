@@ -1,0 +1,1 @@
+* Adjusted the `aggregated_stats` table to compute and store statistics for "no team" in addition to per-team and for all teams.
