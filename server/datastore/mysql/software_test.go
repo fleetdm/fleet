@@ -151,19 +151,16 @@ func testSoftwareCPE(t *testing.T, ds *Datastore) {
 
 	q := fleet.SoftwareIterQueryOptions{ExcludedSources: oval.SupportedSoftwareSources}
 	iterator, err := ds.AllSoftwareIterator(context.Background(), q)
-	defer iterator.Close()
 	require.NoError(t, err)
+	defer iterator.Close()
 
 	loops := 0
-	id := uint(0)
 	for iterator.Next() {
 		software, err := iterator.Value()
 		require.NoError(t, err)
 		require.NoError(t, iterator.Err())
 
 		require.NotEmpty(t, software.ID)
-		id = software.ID
-
 		require.NotEmpty(t, software.Name)
 		require.NotEmpty(t, software.Version)
 		require.NotEmpty(t, software.Source)
@@ -177,36 +174,6 @@ func testSoftwareCPE(t *testing.T, ds *Datastore) {
 		loops++
 	}
 	assert.Equal(t, len(software1), loops)
-	require.NoError(t, iterator.Close())
-
-	cpes := []fleet.SoftwareCPE{{SoftwareID: id, CPE: "some:cpe"}}
-	_, err = ds.InsertSoftwareCPEs(context.Background(), cpes)
-	require.NoError(t, err)
-
-	q = fleet.SoftwareIterQueryOptions{ExcludedSources: oval.SupportedSoftwareSources}
-	iterator, err = ds.AllSoftwareIterator(context.Background(), q)
-	defer iterator.Close()
-	require.NoError(t, err)
-
-	loops = 0
-	for iterator.Next() {
-		software, err := iterator.Value()
-		require.NoError(t, err)
-		require.NoError(t, iterator.Err())
-
-		require.NotEmpty(t, software.ID)
-		require.NotEqual(t, id, software.ID)
-
-		require.NotEmpty(t, software.Name)
-		require.NotEmpty(t, software.Version)
-		require.NotEmpty(t, software.Source)
-
-		if loops > 1 {
-			t.Error("Looping through more software than we have")
-		}
-		loops++
-	}
-	assert.Equal(t, len(software1)-1, loops)
 	require.NoError(t, iterator.Close())
 }
 
@@ -1719,6 +1686,7 @@ func testAllSoftwareIterator(t *testing.T, ds *Datastore) {
 		{Name: "bar", Version: "0.0.3", Source: "deb_packages"},
 	}
 	require.NoError(t, ds.UpdateHostSoftware(context.Background(), host.ID, software))
+	require.NoError(t, ds.LoadHostSoftware(context.Background(), host, false))
 
 	foo_ce_v1 := slices.IndexFunc(host.Software, func(c fleet.Software) bool {
 		return c.Name == "foo" && c.Version == "0.0.1" && c.Source == "chrome_extensions"
@@ -1757,8 +1725,6 @@ func testAllSoftwareIterator(t *testing.T, ds *Datastore) {
 		},
 		{
 			expected: []fleet.Software{
-				{Name: "foo", Version: "0.0.1", Source: "chrome_extensions", GenerateCPE: "cpe:foo_ce_v1"},
-				{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
 				{Name: "foo", Version: "v0.0.2", Source: "apps", GenerateCPE: "cpe:foo_app_v2"},
 				{Name: "foo", Version: "0.0.3", Source: "apps"},
 			},

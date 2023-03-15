@@ -246,9 +246,11 @@ func TestTranslateSoftwareToCPE(t *testing.T) {
 
 	var cpes []string
 
-	ds.InsertSoftwareCPEsFunc = func(ctx context.Context, cpes []fleet.SoftwareCPE) (int64, error) {
-		cpes = append(cpes, cpes...)
-		return int64(len(cpes)), nil
+	ds.InsertSoftwareCPEsFunc = func(ctx context.Context, vals []fleet.SoftwareCPE) (int64, error) {
+		for _, v := range vals {
+			cpes = append(cpes, v.CPE)
+		}
+		return int64(len(vals)), nil
 	}
 
 	iterator := &fakeSoftwareIterator{

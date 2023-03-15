@@ -670,23 +670,35 @@ func (ds *Datastore) AllSoftwareIterator(
 
 	stmt := `SELECT 
 		s.* ,
-		sc.cpe AS generated_cpe
+		COALESCE(sc.cpe, '') AS generated_cpe
 	FROM software s 
 	LEFT JOIN software_cpe sc ON (s.id=sc.software_id)`
 	// The rows.Close call is done by the caller once iteration using the
 	// returned fleet.SoftwareIterator is done.
 
+	var conditionals []string
+	arg := map[string]interface{}{}
+
 	if len(query.ExcludedSources) != 0 {
-		stmt += ` AND s.source NOT IN (?)`
+		conditionals = append(conditionals, "s.source NOT IN (:excluded_sources)")
+		arg["excluded_sources"] = query.ExcludedSources
 	}
 
 	if len(query.IncludedSources) != 0 {
-		stmt += ` AND s.source IN (?)`
+		conditionals = append(conditionals, "s.source IN (:included_sources)")
+		arg["included_sources"] = query.IncludedSources
 	}
 
-	stmt, args, err = sqlx.In(stmt, query.ExcludedSources, query.IncludedSources)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "load host software")
+	if len(conditionals) != 0 {
+		cond := strings.Join(conditionals, " AND ")
+		stmt, args, err = sqlx.Named(stmt+" WHERE "+cond, arg)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "load host software")
+		}
+		stmt, args, err = sqlx.In(stmt, args...)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "load host software")
+		}
 	}
 
 	rows, err := ds.reader.QueryxContext(ctx, stmt, args...) //nolint:sqlclosecheck
