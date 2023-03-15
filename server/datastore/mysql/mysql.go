@@ -990,7 +990,7 @@ func generateMysqlConnectionString(conf config.MysqlConfig) string {
 		// using collation implicitly sets the charset too
 		// and it's the recommended way to do it per the
 		// driver documentation:
-		// https://github.com/go-sql-driver/mysql#collation
+		// https://github.com/go-sql-driver/mysql#charset
 		"collation":            []string{"utf8mb4_general_ci"},
 		"parseTime":            []string{"true"},
 		"loc":                  []string{"UTC"},

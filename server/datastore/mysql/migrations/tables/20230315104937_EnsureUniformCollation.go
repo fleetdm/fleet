@@ -3,6 +3,8 @@ package tables
 import (
 	"database/sql"
 	"fmt"
+
+	"github.com/jmoiron/sqlx"
 )
 
 func init() {
@@ -15,12 +17,15 @@ func init() {
 // This is based on the changeCharacterSet function that's included in this
 // module and part of the 20170306075207_UseUTF8MB migration.
 func changeCollation(tx *sql.Tx, charset string, collation string) error {
-	_, err := tx.Exec(fmt.Sprintf("ALTER DATABASE DEFAULT CHARACTER SET %s COLLATE %s", charset, collation))
+	_, err := tx.Exec(fmt.Sprintf(`ALTER DATABASE DEFAULT CHARACTER SET %s COLLATE %s`, charset, collation))
 	if err != nil {
 		return fmt.Errorf("alter database: %w", err)
 	}
 
-	rows, err := tx.Query(`
+	txx := sqlx.Tx{Tx: tx}
+
+	var names []string
+	err = txx.Select(&names, `
           SELECT table_name
           FROM information_schema.TABLES AS T, information_schema.COLLATION_CHARACTER_SET_APPLICABILITY AS C
           WHERE C.collation_name = T.table_collation
@@ -29,36 +34,24 @@ func changeCollation(tx *sql.Tx, charset string, collation string) error {
 	if err != nil {
 		return fmt.Errorf("selecting tables: %w", err)
 	}
-	defer rows.Close()
-
-	var names []string
-	for rows.Next() {
-		var name string
-		if err := rows.Scan(&name); err != nil {
-			return fmt.Errorf("scanning ID: %w", err)
-		}
-		names = append(names, name)
-	}
-
-	if err := rows.Err(); err != nil {
-		return fmt.Errorf("scanning rows: %w", err)
-	}
 
 	// disable foreign checks before changing the collations, otherwise the
-	// migration might fail. These are re-enabled afterwards.
+	// migration might fail. These are re-enabled after we're done.
+	defer func() {
+		if _, execErr := tx.Exec("SET FOREIGN_KEY_CHECKS = 1"); execErr != nil {
+			err = fmt.Errorf("re-enabling foreign key checks: %w", err)
+		}
+	}()
 	if _, err := tx.Exec("SET FOREIGN_KEY_CHECKS = 0"); err != nil {
 		return fmt.Errorf("disabling foreign key checks: %w", err)
 	}
 	for _, name := range names {
-		_, err = tx.Exec(fmt.Sprintf("ALTER TABLE %s CONVERT TO CHARACTER SET %s COLLATE %s", name, charset, collation))
+		_, err = tx.Exec(fmt.Sprintf(`ALTER TABLE %s CONVERT TO CHARACTER SET %s COLLATE %s`, name, charset, collation))
 		if err != nil {
 			return fmt.Errorf("alter table %s: %w", name, err)
 		}
 	}
-	if _, err := tx.Exec("SET FOREIGN_KEY_CHECKS = 1"); err != nil {
-		return fmt.Errorf("re-enabling foreign key checks: %w", err)
-	}
-	return nil
+	return err
 }
 
 func Up_20230315104937(tx *sql.Tx) error {
