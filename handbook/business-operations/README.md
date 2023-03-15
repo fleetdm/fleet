@@ -122,12 +122,6 @@ Fleet's founders [evaluate and update compensation decisions yearly](#workiversa
 The [CEO handbook](./ceo-handbook.md) details processes specific to Mike McNeil, CEO of Fleet. 
 
 
-## Open positions
-
-Please see [handbook/company#open-positions](https://fleetdm.com/handbook/company#open-positions) for a list of open job postings at Fleet.
-
-> Interested in joining the team at Fleet, or know someone who might be?  The [company handbook page](https://fleetdm.com/handbook/company) is a short read with more information about the company, including our vision, values, and history.
-
 
 ## Team member onboarding
 
@@ -680,6 +674,13 @@ These groups maintain the following [Slack channels](https://fleetdm.com/handboo
 | `#g-people` _(¶¶)_                      | Mike McNeil
 | `#help-open-core-ventures` _(¶¶)_       | Mike McNeil
 
+#### Stubs
+The following stubs are included only to make links backward compatible.
+
+
+##### Open positions
+
+Please see [handbook/company#open-positions](https://fleetdm.com/handbook/company#open-positions) for a list of open job postings at Fleet.
 
 <meta name="maintainedBy" value="mikermcneil">
 <meta name="title" value="🔦 Business Operations">

@@ -137,8 +137,6 @@ The following Slack channels are maintained by Fleet's founders:
 | `#random`                   | N/A _(be random)_
 
 
-
-
 #### Stubs
 The following stubs are included only to make links backward compatible.
 
