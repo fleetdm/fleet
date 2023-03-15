@@ -930,6 +930,8 @@ VALUES
 	})
 }
 
+// Note that team ID 0 is used for profiles that apply to hosts in no team
+// (i.e. pass 0 in that case as part of the teamIDs slice).
 func (ds *Datastore) BulkSetPendingMDMAppleHostProfiles(ctx context.Context, hostIDs, teamIDs, profileIDs []uint) error {
 	var countArgs int
 	if len(hostIDs) > 0 {
@@ -948,7 +950,7 @@ func (ds *Datastore) BulkSetPendingMDMAppleHostProfiles(ctx context.Context, hos
 		return nil
 	}
 
-	hostsStmt := `
+	const baseStmt = `
 INSERT INTO host_mdm_apple_profiles (
 	profile_id,
 	host_uuid,
@@ -959,9 +961,10 @@ INSERT INTO host_mdm_apple_profiles (
 	command_uuid
 ) (
 	-- profiles to install, i.e. those part of the host's team/no team.
-	-- Except for the SELECT list, filtering on specific hosts and ignoring
-	-- hmap rows that are already "install" and NULL status, this is the same
-	-- as ListMDMAppleProfilesToInstall.
+	-- Except for the SELECT list, filtering on specific target IDs
+	-- (host/team/profile) and ignoring hmap rows that are already
+	-- "install" and NULL status, this is the same as
+	-- ListMDMAppleProfilesToInstall.
 	SELECT
 		ds.profile_id,
 		ds.host_uuid,
@@ -979,7 +982,9 @@ INSERT INTO host_mdm_apple_profiles (
 		FROM mdm_apple_configuration_profiles macp
 			JOIN hosts h ON h.team_id = macp.team_id OR (h.team_id IS NULL AND macp.team_id = 0)
 			JOIN nano_enrollments ne ON ne.device_id = h.uuid
-		WHERE h.platform = 'darwin' AND ne.enabled = 1 AND h.id IN (?)
+		-- Note the format verb here, this will be replaced by the proper column
+		-- depending on the type of target IDs provided.
+		WHERE h.platform = 'darwin' AND ne.enabled = 1 AND %s IN (?)
 	) as ds
 	LEFT JOIN host_mdm_apple_profiles hmap
 		ON hmap.profile_id = ds.profile_id AND hmap.host_uuid = ds.host_uuid
@@ -992,7 +997,7 @@ INSERT INTO host_mdm_apple_profiles (
 ) UNION (
 
 	-- profiles to remove, i.e. those not part of the host's team/no team.
-	-- Except for the SELECT list, filtering on specific hosts and ignoring
+	-- Except for the SELECT list, filtering on specific target IDs and ignoring
 	-- hmap rows that are already "remove" in any status, this is the same
 	-- as ListMDMAppleProfilesToRemove.
 	SELECT
@@ -1009,7 +1014,9 @@ INSERT INTO host_mdm_apple_profiles (
 		FROM mdm_apple_configuration_profiles macp
 			JOIN hosts h ON h.team_id = macp.team_id OR (h.team_id IS NULL AND macp.team_id = 0)
 			JOIN nano_enrollments ne ON ne.device_id = h.uuid
-		WHERE h.platform = 'darwin' AND ne.enabled = 1 AND h.id IN (?)
+		-- Note the format verb here, this will be replaced by the proper column
+		-- depending on the type of target IDs provided.
+		WHERE h.platform = 'darwin' AND ne.enabled = 1 AND %[1]s IN (?)
 	) as ds
 	RIGHT JOIN host_mdm_apple_profiles hmap
 		ON hmap.profile_id = ds.profile_id AND hmap.host_uuid = ds.uuid
@@ -1025,6 +1032,27 @@ ON DUPLICATE KEY UPDATE
 	command_uuid = VALUES(command_uuid),
 	details = ''
 `
+	var targetIDs []uint
+	var stmt string
+	switch {
+	case len(hostIDs) > 0:
+		stmt = fmt.Sprintf(baseStmt, "h.id")
+		targetIDs = hostIDs
+	case len(teamIDs) > 0:
+		stmt = fmt.Sprintf(baseStmt, "macp.team_id")
+		targetIDs = teamIDs
+	case len(profileIDs) > 0:
+		stmt = fmt.Sprintf(baseStmt, "macp.profile_id")
+		targetIDs = profileIDs
+	}
+
+	stmt, args, err := sqlx.In(stmt, fleet.MDMAppleOperationTypeInstall, targetIDs,
+		fleet.MDMAppleOperationTypeRemove, fleet.MDMAppleOperationTypeRemove, targetIDs, fleet.MDMAppleOperationTypeRemove)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "bulk set pending profile status build args")
+	}
+	_, err = ds.writer.ExecContext(ctx, stmt, args...)
+	return ctxerr.Wrap(ctx, err, "bulk set pending profile status execute")
 }
 
 func (ds *Datastore) ListMDMAppleProfilesToInstall(ctx context.Context) ([]*fleet.MDMAppleProfilePayload, error) {
