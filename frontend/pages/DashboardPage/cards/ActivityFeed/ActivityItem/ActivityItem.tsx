@@ -9,7 +9,6 @@ import Avatar from "components/Avatar";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 import ReactTooltip from "react-tooltip";
-import { actions } from "react-table";
 
 const baseClass = "activity-item";
 
@@ -28,6 +27,17 @@ const getProfileMessageSuffix = (
     );
   }
   return messageSuffix;
+};
+
+const getDiskEncryptionMessageSuffix = (teamName?: string | null) => {
+  return teamName ? (
+    <>
+      {" "}
+      assigned to the <b>{teamName}</b> team
+    </>
+  ) : (
+    <>with no team</>
+  );
 };
 
 const TAGGED_TEMPLATES = {
@@ -88,7 +98,7 @@ const TAGGED_TEMPLATES = {
     const count = activity.details?.teams?.length;
     return count === 1 && activity.details?.teams ? (
       <>
-        edited <b>{activity.details?.teams[0].name}</b> team using fleetctl.
+        edited the <b>{activity.details?.teams[0].name}</b> team using fleetctl.
       </>
     ) : (
       "edited multiple teams using fleetctl."
@@ -229,22 +239,34 @@ const TAGGED_TEMPLATES = {
   },
 
   createMacOSProfile: (activity: IActivity, isPremiumTier: boolean) => {
+    const profileName = activity.details?.profile_name;
     return (
       <>
         {" "}
-        added configuration profile {activity.details?.profile_name} to{" "}
-        {getProfileMessageSuffix(isPremiumTier, activity.details?.team_name)}.
+        added{" "}
+        {profileName ? (
+          <>configuration profile {profileName}</>
+        ) : (
+          <>a configuration profile</>
+        )}{" "}
+        to {getProfileMessageSuffix(isPremiumTier, activity.details?.team_name)}
+        .
       </>
     );
   },
 
   deleteMacOSProfile: (activity: IActivity, isPremiumTier: boolean) => {
+    const profileName = activity.details?.profile_name;
     return (
       <>
         {" "}
-        deleted configuration profile {
-          activity.details?.host_display_name
-        } from{" "}
+        deleted{" "}
+        {profileName ? (
+          <>configuration profile {profileName}</>
+        ) : (
+          <>a configuration profile</>
+        )}{" "}
+        from{" "}
         {getProfileMessageSuffix(isPremiumTier, activity.details?.team_name)}.
       </>
     );
@@ -260,6 +282,24 @@ const TAGGED_TEMPLATES = {
           activity.details?.team_name
         )}{" "}
         via fleetctl.
+      </>
+    );
+  },
+  enableMacDiskEncryption: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        enforced disk encryption for macOS hosts{" "}
+        {getDiskEncryptionMessageSuffix(activity.details?.team_name)} .
+      </>
+    );
+  },
+  disableMacDiskEncryption: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        removed disk encryption enforcement for macOS hosts{" "}
+        {getDiskEncryptionMessageSuffix(activity.details?.team_name)} .
       </>
     );
   },
@@ -354,6 +394,12 @@ const getDetail = (
     }
     case ActivityType.EditedMacOSProfile: {
       return TAGGED_TEMPLATES.editMacOSProfile(activity, isPremiumTier);
+    }
+    case ActivityType.EnabledMacDiskEncryption: {
+      return TAGGED_TEMPLATES.enableMacDiskEncryption(activity);
+    }
+    case ActivityType.DisabledMacDiskEncryption: {
+      return TAGGED_TEMPLATES.disableMacDiskEncryption(activity);
     }
     default: {
       return TAGGED_TEMPLATES.defaultActivityTemplate(activity);

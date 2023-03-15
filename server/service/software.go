@@ -45,7 +45,7 @@ func listSoftwareEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 	return listResp, nil
 }
 
-func (svc Service) ListSoftware(ctx context.Context, opt fleet.SoftwareListOptions) ([]fleet.Software, error) {
+func (svc *Service) ListSoftware(ctx context.Context, opt fleet.SoftwareListOptions) ([]fleet.Software, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.AuthzSoftwareInventory{
 		TeamID: opt.TeamID,
 	}, fleet.ActionRead); err != nil {

@@ -186,7 +186,7 @@ func (ds *Datastore) ListQueries(ctx context.Context, opt fleet.ListQueryOptions
 					 JSON_EXTRACT(json_value, '$.total_executions') as total_executions
 		FROM queries q
 		LEFT JOIN users u ON (q.author_id = u.id)
-		LEFT JOIN aggregated_stats ag ON (ag.id=q.id AND ag.type='query')
+		LEFT JOIN aggregated_stats ag ON (ag.id = q.id AND ag.global_stats = ? AND ag.type = ?)
 		WHERE saved = true
 	`
 	if opt.OnlyObserverCanRun {
@@ -196,7 +196,7 @@ func (ds *Datastore) ListQueries(ctx context.Context, opt fleet.ListQueryOptions
 
 	results := []*fleet.Query{}
 
-	if err := sqlx.SelectContext(ctx, ds.reader, &results, sql); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader, &results, sql, false, aggregatedStatsTypeQuery); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "listing queries")
 	}
 

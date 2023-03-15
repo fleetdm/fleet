@@ -7,8 +7,8 @@ on:
       - patch-*
   pull_request:
     paths:
+      - '**.go'
       - 'server/datastore/mysql/schema.sql'
-      - 'server/datastore/mysql/migrations/**.go'
       - '.github/workflows/test-schema-changes.yml'
   workflow_dispatch: # Manual
 

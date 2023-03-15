@@ -13,7 +13,7 @@
 	<key>PayloadUUID</key>
 	<string>D1DCE625-F264-4F01-81A0-B091EABC89AF</string>
 	<key>PayloadDisplayName</key>
-	<string>CIS - Content Caching</string>
+	<string>Disable content caching</string>
 	<key>PayloadEnabled</key>
 	<true/>
 	<key>PayloadVersion</key>

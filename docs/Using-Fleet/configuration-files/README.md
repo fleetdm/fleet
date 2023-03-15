@@ -701,6 +701,21 @@ For additional information on SSO configuration, including just-in-time (JIT) us
     enable_jit_provisioning: true
   ```
 
+##### sso_settings.enable_jit_role_sync
+
+**Available in Fleet Premium**.
+
+If set to `true` Fleet account roles will be updated to match those set in the SAML custom attributes at every login. See [customization of user roles](../../Deploying/Configuration.md#customization-of-user-roles).
+This flag only has effect if `sso_settings.enable_jit_provisioning` is set to `true`.
+
+- Optional setting (boolean)
+- Default value: `false`
+- Config file format:
+  ```yaml
+  sso_settings:
+    enable_jit_role_sync: true
+  ```
+
 ##### sso_settings.enable_sso
 
 Configures if single sign-on is enabled.

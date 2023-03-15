@@ -85,6 +85,7 @@ interface ITableContainerProps {
   renderFooter?: () => JSX.Element | null;
   setExportRows?: (rows: Row[]) => void;
   resetPageIndex?: boolean;
+  disableTableHeader?: boolean;
 }
 
 const baseClass = "table-container";
@@ -144,6 +145,7 @@ const TableContainer = ({
   renderFooter,
   setExportRows,
   resetPageIndex,
+  disableTableHeader,
 }: ITableContainerProps): JSX.Element => {
   const [searchQuery, setSearchQuery] = useState(defaultSearchQuery);
   const [sortHeader, setSortHeader] = useState(defaultSortHeader || "");
@@ -276,100 +278,102 @@ const TableContainer = ({
           />
         </div>
       )}
-      <div
-        className={`${baseClass}__header ${
-          stackControls ? "stack-table-controls" : ""
-        }`}
-      >
+      {!disableTableHeader && (
         <div
-          className={`${baseClass}__header-left ${
+          className={`${baseClass}__header ${
             stackControls ? "stack-table-controls" : ""
           }`}
         >
-          <span className="results-count">
-            {renderCount && (
-              <div
-                className={`${baseClass}__results-count ${
-                  stackControls ? "stack-table-controls" : ""
-                }`}
-                style={opacity}
-              >
-                {renderCount()}
-              </div>
-            )}
-            {!renderCount &&
-            !disableCount &&
-            (isMultiColumnFilter || displayCount()) ? (
-              <div
-                className={`${baseClass}__results-count ${
-                  stackControls ? "stack-table-controls" : ""
-                }`}
-                style={opacity}
-              >
-                {TableContainerUtils.generateResultsCountText(
-                  resultsTitle,
-                  displayCount()
-                )}
-                {resultsHtml}
-              </div>
-            ) : (
-              <div />
-            )}
-          </span>
-          <span className={"controls"}>
-            {!hideActionButton && actionButtonText && (
-              <Button
-                disabled={disableActionButton}
-                onClick={onActionButtonClick}
-                variant={actionButtonVariant}
-                className={`${baseClass}__table-action-button`}
-              >
-                <>
-                  {actionButtonText}
-                  {actionButtonIcon && (
-                    <img
-                      src={actionButtonIcon}
-                      alt={`${actionButtonText} icon`}
-                    />
+          <div
+            className={`${baseClass}__header-left ${
+              stackControls ? "stack-table-controls" : ""
+            }`}
+          >
+            <span className="results-count">
+              {renderCount && (
+                <div
+                  className={`${baseClass}__results-count ${
+                    stackControls ? "stack-table-controls" : ""
+                  }`}
+                  style={opacity}
+                >
+                  {renderCount()}
+                </div>
+              )}
+              {!renderCount &&
+              !disableCount &&
+              (isMultiColumnFilter || displayCount()) ? (
+                <div
+                  className={`${baseClass}__results-count ${
+                    stackControls ? "stack-table-controls" : ""
+                  }`}
+                  style={opacity}
+                >
+                  {TableContainerUtils.generateResultsCountText(
+                    resultsTitle,
+                    displayCount()
                   )}
-                </>
-              </Button>
+                  {resultsHtml}
+                </div>
+              ) : (
+                <div />
+              )}
+            </span>
+            <span className={"controls"}>
+              {!hideActionButton && actionButtonText && (
+                <Button
+                  disabled={disableActionButton}
+                  onClick={onActionButtonClick}
+                  variant={actionButtonVariant}
+                  className={`${baseClass}__table-action-button`}
+                >
+                  <>
+                    {actionButtonText}
+                    {actionButtonIcon && (
+                      <img
+                        src={actionButtonIcon}
+                        alt={`${actionButtonText} icon`}
+                      />
+                    )}
+                  </>
+                </Button>
+              )}
+              {customControl && customControl()}
+            </span>
+          </div>
+          <div className={`${baseClass}__search`}>
+            {/* Render search bar only if not empty component */}
+            {searchable && !wideSearch && (
+              <>
+                <div
+                  className={`${baseClass}__search-input ${
+                    stackControls ? "stack-table-controls" : ""
+                  }`}
+                  data-tip
+                  data-for="search-tooltip"
+                  data-tip-disable={!searchToolTipText}
+                >
+                  <SearchField
+                    placeholder={inputPlaceHolder}
+                    defaultValue={searchQuery}
+                    onChange={onSearchQueryChange}
+                  />
+                </div>
+                <ReactTooltip
+                  effect="solid"
+                  backgroundColor="#3e4771"
+                  id="search-tooltip"
+                  data-html
+                >
+                  <span className={`tooltip ${baseClass}__tooltip-text`}>
+                    {searchToolTipText}
+                  </span>
+                </ReactTooltip>
+              </>
             )}
-            {customControl && customControl()}
-          </span>
+          </div>
         </div>
-        <div className={`${baseClass}__search`}>
-          {/* Render search bar only if not empty component */}
-          {searchable && !wideSearch && (
-            <>
-              <div
-                className={`${baseClass}__search-input ${
-                  stackControls ? "stack-table-controls" : ""
-                }`}
-                data-tip
-                data-for="search-tooltip"
-                data-tip-disable={!searchToolTipText}
-              >
-                <SearchField
-                  placeholder={inputPlaceHolder}
-                  defaultValue={searchQuery}
-                  onChange={onSearchQueryChange}
-                />
-              </div>
-              <ReactTooltip
-                effect="solid"
-                backgroundColor="#3e4771"
-                id="search-tooltip"
-                data-html
-              >
-                <span className={`tooltip ${baseClass}__tooltip-text`}>
-                  {searchToolTipText}
-                </span>
-              </ReactTooltip>
-            </>
-          )}
-        </div>
-      </div>
+      )}
       <div className={`${baseClass}__data-table-block`}>
         {/* No entities for this result. */}
         {(!isLoading && data.length === 0 && !isMultiColumnFilter) ||
