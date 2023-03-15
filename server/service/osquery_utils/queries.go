@@ -847,7 +847,7 @@ var usersQuery = DetailQuery{
 	// with many user accounts and groups, this query could be very expensive as the `groups` table
 	// was generated once for each user.
 	Query:            usersQueryStr,
-	Platforms:        []string{"linux", "macos", "windows"},
+	Platforms:        []string{"linux", "darwin", "windows"},
 	DirectIngestFunc: directIngestUsers,
 }
 
@@ -1354,7 +1354,7 @@ func GetDetailQueries(
 
 	if features != nil && features.EnableHostUsers {
 		generatedMap["users"] = usersQuery
-		generatedMap["users"] = usersQueryChrome
+		generatedMap["users_chrome"] = usersQueryChrome
 	}
 
 	if !fleetConfig.Vulnerabilities.DisableWinOSVulnerabilities {
