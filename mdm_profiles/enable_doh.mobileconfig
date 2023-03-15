@@ -20,7 +20,7 @@
 				<string>https://cloudflare-dns.com/dns-query</string>
 			</dict>
 			<key>PayloadDescription</key>
-			<string>Configure to use Cloudflare Encrypted DNS over HTTPS</string>
+			<string>Configures device to use Cloudflare Encrypted DNS over HTTPS</string>
 			<key>PayloadDisplayName</key>
 			<string>Configure Cloudflare encrypted DNS over HTTPS</string>
 			<key>PayloadIdentifier</key>
@@ -38,7 +38,7 @@
 	<key>PayloadDescription</key>
 	<string>Adds the Cloudflare DNS to Big Sur and iOS 14 based systems</string>
 	<key>PayloadDisplayName</key>
-	<string>Cloudflare DNS over HTTPS</string>
+	<string>Configure Cloudflare encrypted DNS over HTTPS</string>
 	<key>PayloadIdentifier</key>
 	<string>com.paulmillr.apple-dns</string>
 	<key>PayloadRemovalDisallowed</key>
