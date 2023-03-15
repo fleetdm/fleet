@@ -950,6 +950,18 @@ func (ds *Datastore) BulkSetPendingMDMAppleHostProfiles(ctx context.Context, hos
 		return nil
 	}
 
+	// TODO(mna): currently only supports receiving a list of host IDs. Loading the UUIDs in a
+	// prior step to simplify the JOINs and conditions in the big query below that is already
+	// complex enough (one may say overly complex).
+	var uuids []string
+	uuidStmt, args, err := sqlx.In(`SELECT uuid FROM hosts WHERE id IN (?)`, hostIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "prepare query to load host UUIDs")
+	}
+	if err := sqlx.SelectContext(ctx, ds.writer, &uuids, uuidStmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "execute query to load host UUIDs")
+	}
+
 	const baseStmt = `
 INSERT INTO host_mdm_apple_profiles (
 	profile_id,
@@ -959,7 +971,7 @@ INSERT INTO host_mdm_apple_profiles (
 	operation_type,
 	status,
 	command_uuid
-) (
+)
 	-- profiles to install, i.e. those part of the host's team/no team.
 	-- Except for the SELECT list, filtering on specific target IDs
 	-- (host/team/profile) and ignoring hmap rows that are already
@@ -982,9 +994,7 @@ INSERT INTO host_mdm_apple_profiles (
 		FROM mdm_apple_configuration_profiles macp
 			JOIN hosts h ON h.team_id = macp.team_id OR (h.team_id IS NULL AND macp.team_id = 0)
 			JOIN nano_enrollments ne ON ne.device_id = h.uuid
-		-- Note the format verb here, this will be replaced by the proper column
-		-- depending on the type of target IDs provided.
-		WHERE h.platform = 'darwin' AND ne.enabled = 1 AND %s IN (?)
+		WHERE h.platform = 'darwin' AND ne.enabled = 1 AND h.uuid IN (?)
 	) as ds
 	LEFT JOIN host_mdm_apple_profiles hmap
 		ON hmap.profile_id = ds.profile_id AND hmap.host_uuid = ds.host_uuid
@@ -992,9 +1002,9 @@ INSERT INTO host_mdm_apple_profiles (
 	-- profiles in A but not in B
 	( hmap.profile_id IS NULL AND hmap.host_uuid IS NULL ) OR
 	-- profiles in A and B but with operation type "remove"
-	( hmap.host_uuid IS NOT NULL AND hmap.operation_type = ? OR hmap.operation_type IS NULL ) OR
+	( hmap.host_uuid IS NOT NULL AND hmap.operation_type = ? OR hmap.operation_type IS NULL )
 
-) UNION (
+UNION
 
 	-- profiles to remove, i.e. those not part of the host's team/no team.
 	-- Except for the SELECT list, filtering on specific target IDs and ignoring
@@ -1014,40 +1024,28 @@ INSERT INTO host_mdm_apple_profiles (
 		FROM mdm_apple_configuration_profiles macp
 			JOIN hosts h ON h.team_id = macp.team_id OR (h.team_id IS NULL AND macp.team_id = 0)
 			JOIN nano_enrollments ne ON ne.device_id = h.uuid
-		-- Note the format verb here, this will be replaced by the proper column
-		-- depending on the type of target IDs provided.
-		WHERE h.platform = 'darwin' AND ne.enabled = 1 AND %[1]s IN (?)
+		WHERE h.platform = 'darwin' AND ne.enabled = 1 AND h.uuid IN (?)
 	) as ds
 	RIGHT JOIN host_mdm_apple_profiles hmap
 		ON hmap.profile_id = ds.profile_id AND hmap.host_uuid = ds.uuid
 	WHERE
+	-- Note the format verb here, this will be replaced by the proper column
+	-- depending on the type of target IDs provided.
+	hmap.host_uuid IN (?) AND
 	-- profiles that are in B but not in A
 	ds.profile_id IS NULL AND ds.uuid IS NULL
 	-- except "remove" operations in any state
 	AND ( hmap.operation_type != ? )
-)
+
 ON DUPLICATE KEY UPDATE
 	operation_type = VALUES(operation_type),
 	status = VALUES(status),
 	command_uuid = VALUES(command_uuid),
-	details = ''
+	detail = ''
 `
-	var targetIDs []uint
-	var stmt string
-	switch {
-	case len(hostIDs) > 0:
-		stmt = fmt.Sprintf(baseStmt, "h.id")
-		targetIDs = hostIDs
-	case len(teamIDs) > 0:
-		stmt = fmt.Sprintf(baseStmt, "macp.team_id")
-		targetIDs = teamIDs
-	case len(profileIDs) > 0:
-		stmt = fmt.Sprintf(baseStmt, "macp.profile_id")
-		targetIDs = profileIDs
-	}
 
-	stmt, args, err := sqlx.In(stmt, fleet.MDMAppleOperationTypeInstall, targetIDs,
-		fleet.MDMAppleOperationTypeRemove, fleet.MDMAppleOperationTypeRemove, targetIDs, fleet.MDMAppleOperationTypeRemove)
+	stmt, args, err := sqlx.In(baseStmt, fleet.MDMAppleOperationTypeInstall, uuids,
+		fleet.MDMAppleOperationTypeRemove, fleet.MDMAppleOperationTypeRemove, uuids, uuids, fleet.MDMAppleOperationTypeRemove)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "bulk set pending profile status build args")
 	}
