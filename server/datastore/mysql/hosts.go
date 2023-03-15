@@ -856,22 +856,30 @@ func filterHostsByMacOSSettingsStatus(sql string, opt fleet.HostListOptions, par
 		newSQL += ` AND h.team_id IS NULL`
 	}
 
-	// TODO(mna): we'd have to support the case where the status is NULL in this
-	// host filter.
-	newSQL += ` AND EXISTS (SELECT 1 FROM host_mdm_apple_profiles hmap WHERE hmap.host_uuid = h.uuid AND status = ?`
+	newSQL += ` AND EXISTS (
+		SELECT 1
+		FROM host_mdm_apple_profiles hmap
+		WHERE hmap.host_uuid = h.uuid
+		AND `
+
+	// TODO(mna): same here, if a host with no profiles should be reporte as
+	// "applied", it would require having a NOT EXISTS where status != "applied"
+	// instead. This filtering logic must always be in sync with the logic in
+	// GetMDMAppleHostsProfilesSummary.
 
 	switch opt.MacOSSettingsFilter {
 	case fleet.MacOSSettingsStatusFailing:
-		newSQL += `)`
+		newSQL += `hmap.status = ?)`
 		newParams = append(newParams, fleet.MDMAppleDeliveryFailed)
 
 	case fleet.MacOSSettingsStatusPending:
-		newSQL += ` AND NOT EXISTS (SELECT 1 FROM host_mdm_apple_profiles hmap2 WHERE h.uuid = hmap2.host_uuid AND hmap2.status = ?))`
+		newSQL += `(hmap.status = ? OR hmap.status IS NULL) AND NOT EXISTS
+		(SELECT 1 FROM host_mdm_apple_profiles hmap2 WHERE h.uuid = hmap2.host_uuid AND hmap2.status = ?))`
 		newParams = append(newParams, fleet.MDMAppleDeliveryPending, fleet.MDMAppleDeliveryFailed)
 
 	case fleet.MacOSSettingsStatusLatest:
-		newSQL += ` AND NOT EXISTS (SELECT 1 FROM host_mdm_apple_profiles hmap2 WHERE h.uuid = hmap2.host_uuid AND (hmap2.status = ? OR hmap2.status = ?)))`
-		newParams = append(newParams, fleet.MDMAppleDeliveryApplied, fleet.MDMAppleDeliveryPending, fleet.MDMAppleDeliveryFailed)
+		newSQL += `hmap.status = ? AND NOT EXISTS (SELECT 1 FROM host_mdm_apple_profiles hmap2 WHERE h.uuid = hmap2.host_uuid AND hmap2.status != ? ))`
+		newParams = append(newParams, fleet.MDMAppleDeliveryApplied, fleet.MDMAppleDeliveryApplied)
 	}
 
 	return sql + newSQL, append(params, newParams...)

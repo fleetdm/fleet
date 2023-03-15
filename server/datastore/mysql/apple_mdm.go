@@ -968,17 +968,16 @@ func (ds *Datastore) ListMDMAppleProfilesToInstall(ctx context.Context) ([]*flee
           LEFT JOIN host_mdm_apple_profiles hmap
             ON hmap.profile_id = ds.profile_id AND hmap.host_uuid = ds.host_uuid
           WHERE
+          -- profiles in A but not in B
           ( hmap.profile_id IS NULL AND hmap.host_uuid IS NULL ) OR
-          -- I think what we want here is actually not just profile_id+host_uuid being NULL,
-          -- but EITHER NULL OR NOT NULL and the status/operation conditions?
-          -- AND hmap.status != 'pending' OR hmap.status IS NULL
-          -- AND hmap.operation_type != 'install' OR hmap.operation_type IS NULL
-          -- accounts for the edge case of having profiles but not having hosts
-          AND ds.host_uuid IS NOT NULL
+          -- profiles in A and B but with operation type "remove"
+          ( hmap.host_uuid IS NOT NULL AND hmap.operation_type = ? OR hmap.operation_type IS NULL ) OR
+          -- profiles in A and B with operation type "install" and NULL status
+          ( hmap.host_uuid IS NOT NULL AND hmap.operation_type = ? AND hmap.status IS NULL )
 `
 
 	var profiles []*fleet.MDMAppleProfilePayload
-	err := sqlx.SelectContext(ctx, ds.reader, &profiles, query)
+	err := sqlx.SelectContext(ctx, ds.reader, &profiles, query, fleet.MDMAppleOperationTypeRemove, fleet.MDMAppleOperationTypeInstall)
 	return profiles, err
 }
 
@@ -991,7 +990,9 @@ func (ds *Datastore) ListMDMAppleProfilesToRemove(ctx context.Context) ([]*fleet
 	//
 	// B - A gives us the profiles that need to be removed:
 	//
-	//   - profiles that are in B but not in A
+	//   - profiles that are in B but not in A, except those with operation type
+	//   "remove" and a terminal state (applied or failed) or a state indicating
+	//   that the operation is in flight (pending).
 	//
 	// Any other case are profiles that are in both B and A, and as such are
 	// processed by the ListMDMAppleProfilesToInstall method (since they are in
@@ -1007,12 +1008,10 @@ func (ds *Datastore) ListMDMAppleProfilesToRemove(ctx context.Context) ([]*fleet
           ) as ds
           RIGHT JOIN host_mdm_apple_profiles hmap
             ON hmap.profile_id = ds.profile_id AND hmap.host_uuid = ds.uuid
-          -- TODO(mna): I think it should also return profiles that have a row in hmap
-          -- where operation_type == 'remove' but status is NULL, so that they are
-          -- processed again/retried in ReconcileProfiles? If they failed to be removed,
-          -- the row will still exist with operation_type but the status will be set to NULL.
+          -- profiles that are in B but not in A
           WHERE ds.profile_id IS NULL AND ds.uuid IS NULL
-          AND hmap.operation_type != 'remove'
+          -- except "remove" operations in a terminal state or already pending
+          AND ( hmap.operation_type != 'remove' OR hmap.status IS NULL )
 `
 
 	var profiles []*fleet.MDMAppleProfilePayload
@@ -1130,7 +1129,7 @@ SELECT
 				1 FROM host_mdm_apple_profiles hmap
 			WHERE
 				h.uuid = hmap.host_uuid
-				AND hmap.status = 'pending')
+				AND (hmap.status = 'pending' OR hmap.status IS NULL))
 			AND NOT EXISTS (
 				SELECT
 					1 FROM host_mdm_apple_profiles hmap
@@ -1151,16 +1150,15 @@ SELECT
 					1 FROM host_mdm_apple_profiles hmap
 				WHERE
 					h.uuid = hmap.host_uuid
-					AND(hmap.status = 'failed'
-						OR hmap.status = 'pending')) THEN
+					AND (hmap.status != 'applied')) THEN
 			1
 		END) AS applied
-		-- TODO(mna): currently the NULL status don't show up anywhere in the stats,
-		-- should NULL status count as pending? I think this is technicall correct?
 FROM
 	hosts h
 WHERE
 	%s`
+	// TODO(mna): what if there's no row in host_mdm_apple_profiles? Should it report as "applied"?
+	// If so I think the "applied" case should only be if NOT EXISTS a case with status != "applied".
 
 	teamFilter := "h.team_id IS NULL"
 	if teamID != nil && *teamID > 0 {
