@@ -62,6 +62,12 @@ jobs:
           echo "TAG=$(git describe --tags |  sed -e "s/^fleet-//")" >> $GITHUB_OUTPUT
         id: docker
 
+      - name: Login to Github Packages registry with ephemeral token
+        run: docker login ghcr.io --username ${{ github.actor }} --password ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push to Github Packages Container registry
+        run: docker push ghcr.io/fleetdm/fleet:${{ steps.docker.outputs.TAG }}
+
       - name: Push To quay.io
         id: push-to-quay
         uses: redhat-actions/push-to-registry@9986a6552bc4571882a4a67e016b17361412b4df # v2.7.1
