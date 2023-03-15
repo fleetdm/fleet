@@ -74,7 +74,7 @@ spec:
     'Computer Configuration\Policies\Administrative Templates\System\Group Policy\Turn off background refresh of Group Policy'
   query: |
     TBD
-  # DisableBkGndGroupPolicy registry path does not exist
+  # DisableBkGndGroupPolicy registry path does not exist even with psexec.exe
   # Untested: SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System\DisableBkGndGroupPolicy' AND data = 0);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_not_completed, CIS_domain_joined_required, CIS_bullet_18.8.21.5
@@ -91,10 +91,10 @@ spec:
     This policy setting specifies whether to use the Store service for finding an application to open a file with an unhandled file type or protocol association. When a user opens a file type or protocol that is not associated with any applications on the computer, the user is given the choice to select a local application or use the Store service to find an application.
   resolution: |
     To establish the recommended configuration via GP, set the following UI path to Enabled:
-'Computer Configuration\Policies\Administrative Templates\System\Internet Communication Management\Internet Communication settings\Turn off access to the Store'
+    'Computer Configuration\Policies\Administrative Templates\System\Internet Communication Management\Internet Communication settings\Turn off access to the Store'
   query: |
     TBD
-  # Explorer registry path does not exist
+  # Explorer registry path does not exist even with psexec.exe
   # Untested: SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\Explorer\NoUseStoreOpenWith' AND data = 1);
   purpose: Informational
   tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_not_completed, CIS_domain_joined_required, CIS_bullet_18.8.22.1.1
@@ -396,7 +396,7 @@ spec:
   # Kernel DMA Protection registry directory does not exist
   # Untested: SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\Kernel DMA Protection\DeviceEnumerationPolicy' AND data = 0);
   purpose: Informational
-  tags: compliance, CIS, CIS_BL, CIS_win10_enterprise_1.12.0, CIS_not_completed, CIS_domain_joined_required, CIS_bullet_18.8.26.1
+  tags: compliance, CIS, CIS_LevelBL, CIS_win10_enterprise_1.12.0, CIS_not_completed, CIS_domain_joined_required, CIS_bullet_18.8.26.1
   contributors: rachelelysia
 ---
 apiVersion: v1
@@ -413,7 +413,7 @@ spec:
     'Computer Configuration\Policies\Administrative Templates\System\Locale Services\Disallow copying of user input methods to the system account for sign-in'
   query: |
     TBD
-  # Control Panel registry directory does not exist
+  # Control Panel registry directory does not exist even with psexec.exe
   # Untested:  SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Control Panel\\International\BlockUserInputMethodsForSignIn' AND data = 1);
   purpose: Informational
   tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_not_completed, CIS_domain_joined_required, CIS_bullet_18.8.27.1
