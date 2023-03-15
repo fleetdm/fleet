@@ -270,12 +270,12 @@ func TestGetDetailQueries(t *testing.T) {
 	require.Len(t, queriesWithoutWinOSVuln, 23)
 
 	queriesWithUsers := GetDetailQueries(context.Background(), config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}}, nil, &fleet.Features{EnableHostUsers: true})
-	qs := append(baseQueries, "users", "scheduled_query_stats")
+	qs := append(baseQueries, "users", "users_chrome", "scheduled_query_stats")
 	require.Len(t, queriesWithUsers, len(qs))
 	sortedKeysCompare(t, queriesWithUsers, qs)
 
 	queriesWithUsersAndSoftware := GetDetailQueries(context.Background(), config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}}, nil, &fleet.Features{EnableHostUsers: true, EnableSoftwareInventory: true})
-	qs = append(baseQueries, "users", "software_macos", "software_linux", "software_windows", "scheduled_query_stats")
+	qs = append(baseQueries, "users", "users_chrome", "software_macos", "software_linux", "software_windows", "software_chrome", "scheduled_query_stats")
 	require.Len(t, queriesWithUsersAndSoftware, len(qs))
 	sortedKeysCompare(t, queriesWithUsersAndSoftware, qs)
 }
@@ -437,7 +437,7 @@ func TestDetailQueriesOSVersionChrome(t *testing.T) {
 	))
 
 	assert.NoError(t, ingest(context.Background(), log.NewNopLogger(), &host, rows))
-	assert.Equal(t, "chromeos chrome-build", host.OSVersion)
+	assert.Equal(t, "chromeos 1.3.3.7", host.OSVersion)
 }
 
 func TestDirectIngestMDMMac(t *testing.T) {
