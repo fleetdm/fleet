@@ -326,6 +326,9 @@ Every job description page ends with a "call to action", including a link that c
 
 When a candidate clicks applies for a job at Fleet, they are taken to a generic Typeform.  When they submit their job application, the Typeform triggers a Zapier automation that will posts the submission to `g-business-operations` in Slack.  The candidate's job application answers are then forwarded to the applicable `#hiring-xxxxx-202x` Slack channel and the hiring manager is @mentioned.
 
+##### Candidate correspondence email templates
+Fleet uses [certain email templates](https://docs.google.com/document/d/1E_gTunZBMNF4AhsOFuDVi9EnvsIGbAYrmmEzdGmnc9U) when responding to candidates.  This helps the company meet our commitment of replying to all applications within one business day.
+
 #### Hiring restrictions
 
 ##### Incompatible former employers
@@ -341,9 +344,6 @@ Here are some of the things you can anticipate throughout this process:
   - You may receive a rejection email (Bummer, consider applying again in the future).
   - You may receive an invitation to "book with us."
 If you've been invited to "book with us," you'll have a Zoom meeting with the hiring team to discuss the next steps. 
-
-#### Candidate correspondence email templates
-[We use email templates](https://docs.google.com/document/d/1E_gTunZBMNF4AhsOFuDVi9EnvsIGbAYrmmEzdGmnc9U) to meet our commitment of replying to all applications within one business day.
 
 
 ### Hiring a new team member
