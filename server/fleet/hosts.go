@@ -75,6 +75,8 @@ func (s MacOSSettingsStatus) IsValid() bool {
 // - GET /hosts/count (count hosts, which calls svc.CountHosts or svc.CountHostsInLabel)
 // - GET /labels/{id}/hosts (list hosts in label)
 // - GET /hosts/report
+// - POST /hosts/delete (calls svc.hostIDsFromFilters)
+// - POST /hosts/transfer/filter (calls svc.hostIDsFromFilters)
 //
 // Make sure the docs are updated accordingly and all endpoints behave as expected.
 type HostListOptions struct {
@@ -513,7 +515,7 @@ func (h *Host) FleetPlatform() string {
 
 // HostLinuxOSs are the possible linux values for Host.Platform.
 var HostLinuxOSs = []string{
-	"linux", "ubuntu", "debian", "rhel", "centos", "sles", "kali", "gentoo", "amzn", "pop", "arch", "linuxmint", "void", "nixos",
+	"linux", "ubuntu", "debian", "rhel", "centos", "sles", "kali", "gentoo", "amzn", "pop", "arch", "linuxmint", "void", "nixos", "endeavouros", "manjaro", "opensuse-leap", "opensuse-tumbleweed",
 }
 
 func IsLinux(hostPlatform string) bool {

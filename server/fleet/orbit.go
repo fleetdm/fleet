@@ -15,3 +15,16 @@ type OrbitConfig struct {
 	NudgeConfig   *NudgeConfig             `json:"nudge_config,omitempty"`
 	Notifications OrbitConfigNotifications `json:"notifications,omitempty"`
 }
+
+// OrbitHostInfo holds device information used during Orbit enroll.
+type OrbitHostInfo struct {
+	// HardwareUUID is the device's hardware UUID.
+	HardwareUUID string
+	// HardwareSerial is the device's serial number. Only set for
+	// macOS and Linux hosts.
+	HardwareSerial string
+	// Hostname is the device hostname.
+	Hostname string
+	// Platform is the device's platform as defined by osquery.
+	Platform string
+}

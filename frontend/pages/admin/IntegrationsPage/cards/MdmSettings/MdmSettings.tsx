@@ -1,6 +1,7 @@
 import React, { useContext, useState } from "react";
 import { useQuery } from "react-query";
 import FileSaver from "file-saver";
+import { AxiosError } from "axios";
 
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
@@ -39,11 +40,12 @@ const Mdm = (): JSX.Element => {
     data: appleAPNInfo,
     isLoading: isLoadingMdmApple,
     error: errorMdmApple,
-  } = useQuery<IMdmApple, Error, IMdmApple>(
+  } = useQuery<IMdmApple, AxiosError, IMdmApple>(
     ["appleAPNInfo"],
     () => mdmAppleAPI.getAppleAPNInfo(),
     {
-      enabled: isPremiumTier && config?.mdm.enabled_and_configured,
+      retry: (tries, error) => error.status !== 404 && tries <= 3,
+      enabled: config?.mdm.enabled_and_configured,
       staleTime: 5000,
     }
   );
@@ -52,10 +54,11 @@ const Mdm = (): JSX.Element => {
     data: mdmAppleBm,
     isLoading: isLoadingMdmAppleBm,
     error: errorMdmAppleBm,
-  } = useQuery<IMdmAppleBm, Error, IMdmAppleBm>(
+  } = useQuery<IMdmAppleBm, AxiosError, IMdmAppleBm>(
     ["mdmAppleBmAPI"],
     () => mdmAppleBmAPI.getAppleBMInfo(),
     {
+      retry: (tries, error) => error.status !== 404 && tries <= 3,
       enabled: isPremiumTier && config?.mdm.enabled_and_configured,
       staleTime: 5000,
       onSuccess: (appleBmData) => {
@@ -125,8 +128,13 @@ const Mdm = (): JSX.Element => {
     return false;
   };
 
+  // The API returns a 404 error if APNs is not configured yet, in that case we
+  // want to prompt the user to download the certs and keys to configure the
+  // server instead of the default error message.
+  const showMdmAppleError = errorMdmApple && errorMdmApple.status !== 404;
+
   const renderMdmAppleSection = () => {
-    if (errorMdmApple) {
+    if (showMdmAppleError) {
       return <DataError />;
     }
 
@@ -195,8 +203,13 @@ const Mdm = (): JSX.Element => {
     );
   };
 
+  // The API returns a 404 error if ABM is not configured yet, in that case we
+  // want to prompt the user to download the certs and keys to configure the
+  // server instead of the default error message.
+  const showMdmAppleBmError = errorMdmAppleBm && errorMdmAppleBm.status !== 404;
+
   const renderMdmAppleBm = () => {
-    if (errorMdmAppleBm) {
+    if (showMdmAppleBmError) {
       return <DataError />;
     }
 

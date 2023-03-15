@@ -155,7 +155,7 @@ func (s *integrationSSOTestSuite) TestSSOLogin() {
 	// A new activity item for the failed SSO login is created.
 	checkNewFailedLoginActivity()
 
-	// an user created by an admin with SSOEnabled is able to log-in
+	// A user created by an admin with SSOEnabled is able to log-in
 	params = fleet.UserPayload{
 		Name:       ptr.String("SSO User 2"),
 		Email:      ptr.String("sso_user2@example.com"),

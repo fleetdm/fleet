@@ -1701,6 +1701,7 @@ func (s *integrationEnterpriseTestSuite) TestSSOJITProvisioning() {
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
 	require.NotNil(t, acResp)
 	require.False(t, acResp.SSOSettings.EnableJITProvisioning)
+	require.False(t, acResp.SSOSettings.EnableJITRoleSync)
 
 	acResp = appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
@@ -1715,6 +1716,7 @@ func (s *integrationEnterpriseTestSuite) TestSSOJITProvisioning() {
 	}`), http.StatusOK, &acResp)
 	require.NotNil(t, acResp)
 	require.False(t, acResp.SSOSettings.EnableJITProvisioning)
+	require.False(t, acResp.SSOSettings.EnableJITRoleSync)
 
 	// users can't be created if SSO is disabled
 	auth, body := s.LoginSSOUser("sso_user", "user123#")
@@ -1733,11 +1735,13 @@ func (s *integrationEnterpriseTestSuite) TestSSOJITProvisioning() {
 			"issuer_uri": "http://localhost:8080/simplesaml/saml2/idp/SSOService.php",
 			"idp_name": "SimpleSAML",
 			"metadata_url": "http://localhost:9080/simplesaml/saml2/idp/metadata.php",
-			"enable_jit_provisioning": true
+			"enable_jit_provisioning": true,
+			"enable_jit_role_sync": false
 		}
 	}`), http.StatusOK, &acResp)
 	require.NotNil(t, acResp)
 	require.True(t, acResp.SSOSettings.EnableJITProvisioning)
+	require.False(t, acResp.SSOSettings.EnableJITRoleSync)
 
 	// a new user is created and redirected accordingly
 	auth, body = s.LoginSSOUser("sso_user", "user123#")
@@ -1760,6 +1764,48 @@ func (s *integrationEnterpriseTestSuite) TestSSOJITProvisioning() {
 		}
 		return false
 	})
+
+	// Test that roles are not updated for an existing user because enable_jit_role_sync is false.
+
+	// Change role to global admin first.
+	user.GlobalRole = ptr.String("admin")
+	err = s.ds.SaveUser(context.Background(), user)
+	require.NoError(t, err)
+	// Login should NOT change the role to the default (global observer).
+	auth, body = s.LoginSSOUser("sso_user", "user123#")
+	assert.Equal(t, "sso_user@example.com", auth.UserID())
+	assert.Equal(t, "SSO User 1", auth.UserDisplayName())
+	require.Contains(t, body, "Redirecting to Fleet at  ...")
+	user, err = s.ds.UserByEmail(context.Background(), "sso_user@example.com")
+	require.NoError(t, err)
+	require.NotNil(t, user.GlobalRole)
+	require.Equal(t, *user.GlobalRole, "admin")
+
+	// Test that roles are updated for an existing user because enable_jit_role_sync is true.
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"sso_settings": {
+			"enable_sso": true,
+			"entity_id": "https://localhost:8080",
+			"issuer_uri": "http://localhost:8080/simplesaml/saml2/idp/SSOService.php",
+			"idp_name": "SimpleSAML",
+			"metadata_url": "http://localhost:9080/simplesaml/saml2/idp/metadata.php",
+			"enable_jit_provisioning": true,
+			"enable_jit_role_sync": true
+		}
+	}`), http.StatusOK, &acResp)
+	require.NotNil(t, acResp)
+	require.True(t, acResp.SSOSettings.EnableJITProvisioning)
+	require.True(t, acResp.SSOSettings.EnableJITRoleSync)
+	// Login should change the role to the default role (global observer).
+	auth, body = s.LoginSSOUser("sso_user", "user123#")
+	assert.Equal(t, "sso_user@example.com", auth.UserID())
+	assert.Equal(t, "SSO User 1", auth.UserDisplayName())
+	require.Contains(t, body, "Redirecting to Fleet at  ...")
+	user, err = s.ds.UserByEmail(context.Background(), "sso_user@example.com")
+	require.NoError(t, err)
+	require.NotNil(t, user.GlobalRole)
+	require.Equal(t, *user.GlobalRole, "observer")
 
 	// A user with pre-configured roles can be created
 	// see `tools/saml/users.php` for details.
@@ -1980,6 +2026,7 @@ func (s *integrationEnterpriseTestSuite) TestAppleMDMNotConfigured() {
 	s.DoJSON("GET", "/api/latest/fleet/mdm/apple_bm", nil, http.StatusNotFound, &rawResp)
 	// update MDM settings, the endpoint is not even mounted if MDM is not enabled
 	s.Do("PATCH", "/api/latest/fleet/mdm/apple/settings", fleet.MDMAppleSettingsPayload{}, http.StatusNotFound)
+	s.Do("POST", "/api/latest/fleet/mdm/apple/dep_login", nil, http.StatusNotFound)
 }
 
 func (s *integrationEnterpriseTestSuite) TestGlobalPolicyCreateReadPatch() {

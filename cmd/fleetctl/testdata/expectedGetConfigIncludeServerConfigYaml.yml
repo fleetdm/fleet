@@ -86,6 +86,7 @@ spec:
     verify_ssl_certs: false
   sso_settings:
     enable_jit_provisioning: false
+    enable_jit_role_sync: false
     enable_sso: false
     enable_sso_idp_login: false
     entity_id: ""

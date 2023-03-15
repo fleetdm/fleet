@@ -483,7 +483,7 @@ type VerifyEnrollSecretFunc func(ctx context.Context, secret string) (*fleet.Enr
 
 type EnrollHostFunc func(ctx context.Context, isMDMEnabled bool, osqueryHostId string, hardwareUUID string, hardwareSerial string, nodeKey string, teamID *uint, cooldown time.Duration) (*fleet.Host, error)
 
-type EnrollOrbitFunc func(ctx context.Context, isMDMEnabled bool, hardwareUUID string, hardwareSerial string, orbitNodeKey string, teamID *uint) (*fleet.Host, error)
+type EnrollOrbitFunc func(ctx context.Context, isMDMEnabled bool, hostInfo fleet.OrbitHostInfo, orbitNodeKey string, teamID *uint) (*fleet.Host, error)
 
 type SerialUpdateHostFunc func(ctx context.Context, host *fleet.Host) error
 
@@ -566,6 +566,8 @@ type UpdateOrDeleteHostMDMAppleProfileFunc func(ctx context.Context, profile *fl
 type GetMDMAppleCommandRequestTypeFunc func(ctx context.Context, commandUUID string) (string, error)
 
 type GetMDMAppleHostsProfilesSummaryFunc func(ctx context.Context, teamID *uint) (*fleet.MDMAppleHostsProfilesSummary, error)
+
+type InsertMDMIdPAccountFunc func(ctx context.Context, account *fleet.MDMIdPAccount) error
 
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
@@ -1395,6 +1397,9 @@ type DataStore struct {
 
 	GetMDMAppleHostsProfilesSummaryFunc        GetMDMAppleHostsProfilesSummaryFunc
 	GetMDMAppleHostsProfilesSummaryFuncInvoked bool
+
+	InsertMDMIdPAccountFunc        InsertMDMIdPAccountFunc
+	InsertMDMIdPAccountFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -3037,11 +3042,11 @@ func (s *DataStore) EnrollHost(ctx context.Context, isMDMEnabled bool, osqueryHo
 	return s.EnrollHostFunc(ctx, isMDMEnabled, osqueryHostId, hardwareUUID, hardwareSerial, nodeKey, teamID, cooldown)
 }
 
-func (s *DataStore) EnrollOrbit(ctx context.Context, isMDMEnabled bool, hardwareUUID string, hardwareSerial string, orbitNodeKey string, teamID *uint) (*fleet.Host, error) {
+func (s *DataStore) EnrollOrbit(ctx context.Context, isMDMEnabled bool, hostInfo fleet.OrbitHostInfo, orbitNodeKey string, teamID *uint) (*fleet.Host, error) {
 	s.mu.Lock()
 	s.EnrollOrbitFuncInvoked = true
 	s.mu.Unlock()
-	return s.EnrollOrbitFunc(ctx, isMDMEnabled, hardwareUUID, hardwareSerial, orbitNodeKey, teamID)
+	return s.EnrollOrbitFunc(ctx, isMDMEnabled, hostInfo, orbitNodeKey, teamID)
 }
 
 func (s *DataStore) SerialUpdateHost(ctx context.Context, host *fleet.Host) error {
@@ -3329,4 +3334,11 @@ func (s *DataStore) GetMDMAppleHostsProfilesSummary(ctx context.Context, teamID 
 	s.GetMDMAppleHostsProfilesSummaryFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetMDMAppleHostsProfilesSummaryFunc(ctx, teamID)
+}
+
+func (s *DataStore) InsertMDMIdPAccount(ctx context.Context, account *fleet.MDMIdPAccount) error {
+	s.mu.Lock()
+	s.InsertMDMIdPAccountFuncInvoked = true
+	s.mu.Unlock()
+	return s.InsertMDMIdPAccountFunc(ctx, account)
 }

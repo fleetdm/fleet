@@ -174,12 +174,23 @@ func (s *integrationLoggerTestSuite) TestOsqueryEndpointsLogErrors() {
 	requestBody := io.NopCloser(bytes.NewBuffer([]byte(`{"node_key":"1234","log_type":"status","data":[}`)))
 	req, _ := http.NewRequest("POST", s.server.URL+"/api/osquery/log", requestBody)
 	client := fleethttp.NewClient()
-	_, err = client.Do(req)
-	require.Nil(t, err)
+	resp, err := client.Do(req)
+	require.NoError(t, err)
+	jsn := struct {
+		Message string              `json:"message"`
+		Errs    []map[string]string `json:"errors,omitempty"`
+		UUID    string              `json:"uuid"`
+	}{}
+	err = json.NewDecoder(resp.Body).Decode(&jsn)
+	require.NoError(t, err)
+	assert.Equal(t, "Bad request", jsn.Message)
+	assert.Len(t, jsn.Errs, 1)
+	assert.Equal(t, "base", jsn.Errs[0]["name"])
+	assert.Equal(t, "json decoder error", jsn.Errs[0]["reason"])
+	require.NotEmpty(t, jsn.UUID)
 
 	logString := s.buf.String()
-	assert.Contains(t, logString, `invalid character '}' looking for beginning of value","level":"info","path":"/api/osquery/log"}
-`, logString)
+	assert.Contains(t, logString, `invalid character '}' looking for beginning of value","level":"info","path":"/api/osquery/log","uuid":"`+jsn.UUID+`"}`, logString)
 }
 
 func (s *integrationLoggerTestSuite) TestSubmitLog() {
