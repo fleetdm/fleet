@@ -46,7 +46,7 @@ export default class VirtualDatabase {
     sqlite3.create_module(db, table.name, table);
   }
 
-  async query(sql: string) {
+  async query(sql: string): Promise<Record<string, string | number>[]> {
     let rows = [];
     await this.sqlite3.exec(this.db, sql, (row, columns) => {
       // map each row to object

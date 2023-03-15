@@ -93,8 +93,9 @@ export default abstract class Table implements SQLiteModule {
       try {
         cursorState.rows = await this.generate(idxNum, idxStr, values);
       } catch (err) {
-        // Throwing here doesn't seem to work as expected in unit testing, so instead we save the
-        // error and throw in xEof.
+        // Throwing here doesn't seem to work as expected in testing (the error doesn't seem to be
+        // thrown in away that it can be caught appropriately), so instead we save the error and
+        // throw in xEof.
         cursorState.error = err;
       }
       return SQLite.SQLITE_OK;

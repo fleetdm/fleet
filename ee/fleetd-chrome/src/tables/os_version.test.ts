@@ -1,8 +1,7 @@
-import { SQLiteError } from "wa-sqlite";
 import VirtualDatabase from "../db";
 
 describe("os_version", () => {
-  test("simple query", async () => {
+  test("success", async () => {
     // @ts-expect-error Typescript doesn't include the userAgentData API yet.
     global.navigator.userAgentData = {
       getHighEntropyValues: jest.fn(() =>
@@ -63,6 +62,7 @@ describe("os_version", () => {
     chrome.runtime.getPlatformInfo = jest.fn(() =>
       Promise.resolve({ os: "cros", arch: "x86-64", nacl_arch: "x86-64" })
     );
+    console.warn = jest.fn();
 
     const db = await VirtualDatabase.init();
     const res = await db.query("select * from os_version");
@@ -80,6 +80,9 @@ describe("os_version", () => {
         codename: "Chrome OS 13.2.1",
       },
     ]);
+    expect(console.warn).toHaveBeenCalledWith(
+      expect.stringContaining("expected 4 segments")
+    );
   });
 
   test("not even chrome", async () => {
