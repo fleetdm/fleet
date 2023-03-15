@@ -58,7 +58,7 @@
 	<key>PayloadDescription</key>
 	<string>Grants full disk access to orbit and orbit edge</string>
 	<key>PayloadDisplayName</key>
-	<string>Full disk access for orbit</string>
+	<string>Turn on full disk access for fleetd</string>
 	<key>PayloadIdentifier</key>
 	<string>com.github.erikberglund.ProfileCreator.2C1ED825-A0C3-4274-B0AD-40B80FCA4F71</string>
 	<key>PayloadOrganization</key>
