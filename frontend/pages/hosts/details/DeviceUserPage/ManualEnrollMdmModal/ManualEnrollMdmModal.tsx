@@ -104,7 +104,7 @@ const ManualEnrollMdmModal = ({
           </li>
           <li>
             In the search bar, type “Profiles”. Select <b>Profiles</b>, double
-            click <b>Fleet Enrollment</b>, and select <b>Install</b>.
+            click <b>Fleet Enrollment</b>, and select <b>Enroll</b>.
           </li>
           <li>
             Enter your password, and select <b>Enroll</b>.
