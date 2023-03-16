@@ -98,6 +98,7 @@ parasails.registerPage('osquery-table-details', {
     })();
     // Adjust the height of the sidebar navigation to match the height of the html partial
     (()=>{
+      $('[purpose="table-of-contents"]').css({'max-height': 120});
       let tablePartialHeight = $('[purpose="table-container"]').height();
       $('[purpose="table-of-contents"]').css({'max-height': tablePartialHeight - 120});
     })();
