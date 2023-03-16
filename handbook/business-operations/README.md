@@ -361,6 +361,7 @@ Here are the steps hiring managers can follow to get an offer out to a candidate
    - If hiring, move on the next steps.
    - If not hiring, issue a decline message to the candidate.
 4. **Add to team database:** Update the [Fleeties](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) doc to reflect:
+   - updated timeframe for start date (make a guess here)
    - candidate's name
    - LinkedIn URL
    - preferred pronoun
