@@ -829,12 +829,31 @@ FROM cached_users CROSS JOIN atom_packages USING (uid);
 	DirectIngestFunc: directIngestSoftware,
 }
 
+var softwareChrome = DetailQuery{
+	Query: `SELECT
+  name AS name,
+  version AS version,
+  'Browser plugin (Chrome)' AS type,
+  'chrome_extensions' AS source,
+  '' AS vendor
+FROM chrome_extensions`,
+	Platforms:        []string{"chrome"},
+	DirectIngestFunc: directIngestSoftware,
+}
+
 var usersQuery = DetailQuery{
 	// Note we use the cached_groups CTE (`WITH` clause) here to suggest to SQLite that it generate
 	// the `groups` table only once. Without doing this, on some Windows systems (Domain Controllers)
 	// with many user accounts and groups, this query could be very expensive as the `groups` table
 	// was generated once for each user.
 	Query:            usersQueryStr,
+	Platforms:        []string{"linux", "darwin", "windows"},
+	DirectIngestFunc: directIngestUsers,
+}
+
+var usersQueryChrome = DetailQuery{
+	Query:            `SELECT uid, username, email FROM users`,
+	Platforms:        []string{"chrome"},
 	DirectIngestFunc: directIngestUsers,
 }
 
@@ -915,7 +934,7 @@ func parseOSVersion(name string, version string, major string, minor string, pat
 		regx := regexp.MustCompile(`\(.*\)`)
 		osVersion = strings.TrimSpace(regx.ReplaceAllString(version, ""))
 	case strings.Contains(strings.ToLower(name), "chrome"):
-		osVersion = build
+		osVersion = version
 	case major != "0" || minor != "0" || patch != "0":
 		osVersion = fmt.Sprintf("%s.%s.%s", major, minor, patch)
 	default:
@@ -1139,7 +1158,12 @@ func directIngestUsers(ctx context.Context, logger log.Logger, host *fleet.Host,
 	for _, row := range rows {
 		uid, err := strconv.Atoi(row["uid"])
 		if err != nil {
-			return fmt.Errorf("converting uid %s to int: %w", row["uid"], err)
+			// Chrome returns uids that are much larger than a 32 bit int, ignore this.
+			if host.Platform == "chrome" {
+				uid = 0
+			} else {
+				return fmt.Errorf("converting uid %s to int: %w", row["uid"], err)
+			}
 		}
 		username := row["username"]
 		type_ := row["type"]
@@ -1325,10 +1349,12 @@ func GetDetailQueries(
 		generatedMap["software_macos"] = softwareMacOS
 		generatedMap["software_linux"] = softwareLinux
 		generatedMap["software_windows"] = softwareWindows
+		generatedMap["software_chrome"] = softwareChrome
 	}
 
 	if features != nil && features.EnableHostUsers {
 		generatedMap["users"] = usersQuery
+		generatedMap["users_chrome"] = usersQueryChrome
 	}
 
 	if !fleetConfig.Vulnerabilities.DisableWinOSVulnerabilities {
