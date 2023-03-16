@@ -56,9 +56,23 @@ func changeCollation(tx *sql.Tx, charset string, collation string) (err error) {
 		}
 	}
 
+	// enroll secrets was intentionally excluded because it contains only
+	// one "text" column, and that column contains a specific collation.
+	//
+	// note the use of DEFAULT above to indicate that new columns will
+	// contain the desired collation unless explicitly stated.
+	_, err = tx.Exec(fmt.Sprintf("ALTER TABLE enroll_secrets DEFAULT CHARACTER SET `%s` COLLATE `%s`", charset, collation))
+	if err != nil {
+		return fmt.Errorf("alter table enroll_secrets: %w", err)
+	}
+
 	// `hosts` was intentionally excluded, change the collation of all
 	// "text" columns except for `node_key` and `orbit_node_key`
-	tmpl := template.Must(template.New("").Parse(`ALTER TABLE hosts 
+	//
+	// note the use of DEFAULT above to indicate that new columns will
+	// contain the desired collation unless explicitly stated.
+	tmpl := template.Must(template.New("").Parse(`
+	        ALTER TABLE hosts DEFAULT CHARACTER SET {{ .Cs }} COLLATE {{ .Co }},
 		MODIFY osquery_host_id   varchar(255) CHARACTER SET {{ .Cs }} COLLATE {{ .Co }} DEFAULT NULL,
 		MODIFY hostname          varchar(255) CHARACTER SET {{ .Cs }} COLLATE {{ .Co }} NOT NULL DEFAULT '',
 		MODIFY uuid              varchar(255) CHARACTER SET {{ .Cs }} COLLATE {{ .Co }} NOT NULL DEFAULT '',
