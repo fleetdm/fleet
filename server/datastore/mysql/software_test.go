@@ -46,6 +46,7 @@ func TestSoftware(t *testing.T) {
 		{"SoftwareByID", testSoftwareByID},
 		{"AllSoftwareIterator", testAllSoftwareIterator},
 		{"InsertSoftwareCPEs", testInsertSoftwareCPEs},
+		{"DeleteOutOfDateVulnerabilities", testDeleteOutOfDateVulnerabilities},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -1786,4 +1787,46 @@ func testInsertSoftwareCPEs(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, len(cpes), 1)
 	require.Equal(t, cpes[0].CPE, "cpe:foo_ce_v4")
+}
+
+func testDeleteOutOfDateVulnerabilities(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+
+	software := []fleet.Software{
+		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
+	}
+	require.NoError(t, ds.UpdateHostSoftware(ctx, host.ID, software))
+	require.NoError(t, ds.LoadHostSoftware(ctx, host, false))
+
+	vulns := []fleet.SoftwareVulnerability{
+		{
+			SoftwareID: host.Software[0].ID,
+			CVE:        "CVE-2023-001",
+		},
+		{
+			SoftwareID: host.Software[0].ID,
+			CVE:        "CVE-2023-002",
+		},
+	}
+
+	n, err := ds.InsertSoftwareVulnerabilities(ctx, vulns, fleet.NVDSource)
+	require.NoError(t, err)
+	require.Equal(t, 2, int(n))
+
+	_, err = ds.writer.ExecContext(ctx, "UPDATE software_cve SET updated_at = '2020-10-10 12:00:00'")
+	require.NoError(t, err)
+
+	// This should update the 'updated_at' timestamp.
+	n, err = ds.InsertSoftwareVulnerabilities(ctx, vulns[:1], fleet.NVDSource)
+	require.NoError(t, err)
+	require.Equal(t, 0, int(n))
+
+	err = ds.DeleteOutOfDateVulnerabilities(ctx, fleet.NVDSource, 2*time.Hour)
+	require.NoError(t, err)
+
+	storedSoftware, err := ds.SoftwareByID(ctx, host.Software[0].ID, false)
+	require.NoError(t, err)
+	require.Equal(t, 1, len(storedSoftware.Vulnerabilities))
+	require.Equal(t, "CVE-2023-001", storedSoftware.Vulnerabilities[0].CVE)
 }

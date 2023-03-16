@@ -385,6 +385,8 @@ type CountSoftwareFunc func(ctx context.Context, opt fleet.SoftwareListOptions) 
 
 type DeleteSoftwareVulnerabilitiesFunc func(ctx context.Context, vulnerabilities []fleet.SoftwareVulnerability) error
 
+type DeleteOutOfDateVulnerabilitiesFunc func(ctx context.Context, source fleet.VulnerabilitySource, duration time.Duration) error
+
 type NewTeamPolicyFunc func(ctx context.Context, teamID uint, authorID *uint, args fleet.PolicyPayload) (*fleet.Policy, error)
 
 type ListTeamPoliciesFunc func(ctx context.Context, teamID uint) (teamPolicies []*fleet.Policy, inheritedPolicies []*fleet.Policy, err error)
@@ -1122,6 +1124,9 @@ type DataStore struct {
 
 	DeleteSoftwareVulnerabilitiesFunc        DeleteSoftwareVulnerabilitiesFunc
 	DeleteSoftwareVulnerabilitiesFuncInvoked bool
+
+	DeleteOutOfDateVulnerabilitiesFunc        DeleteOutOfDateVulnerabilitiesFunc
+	DeleteOutOfDateVulnerabilitiesFuncInvoked bool
 
 	NewTeamPolicyFunc        NewTeamPolicyFunc
 	NewTeamPolicyFuncInvoked bool
@@ -2692,6 +2697,13 @@ func (s *DataStore) DeleteSoftwareVulnerabilities(ctx context.Context, vulnerabi
 	s.DeleteSoftwareVulnerabilitiesFuncInvoked = true
 	s.mu.Unlock()
 	return s.DeleteSoftwareVulnerabilitiesFunc(ctx, vulnerabilities)
+}
+
+func (s *DataStore) DeleteOutOfDateVulnerabilities(ctx context.Context, source fleet.VulnerabilitySource, duration time.Duration) error {
+	s.mu.Lock()
+	s.DeleteOutOfDateVulnerabilitiesFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteOutOfDateVulnerabilitiesFunc(ctx, source, duration)
 }
 
 func (s *DataStore) NewTeamPolicy(ctx context.Context, teamID uint, authorID *uint, args fleet.PolicyPayload) (*fleet.Policy, error) {

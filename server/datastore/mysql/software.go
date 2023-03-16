@@ -776,6 +776,19 @@ func (ds *Datastore) DeleteSoftwareVulnerabilities(ctx context.Context, vulnerab
 	return nil
 }
 
+func (ds *Datastore) DeleteOutOfDateVulnerabilities(ctx context.Context, source fleet.VulnerabilitySource, duration time.Duration) error {
+	sql := `DELETE FROM software_cve WHERE source = ? AND updated_at < ?`
+
+	var args []interface{}
+	cutPoint := time.Now().UTC().Add(-1 * duration)
+	args = append(args, source, cutPoint)
+
+	if _, err := ds.writer.ExecContext(ctx, sql, args...); err != nil {
+		return ctxerr.Wrapf(ctx, err, "deleting out of date vulnerabilities")
+	}
+	return nil
+}
+
 func (ds *Datastore) SoftwareByID(ctx context.Context, id uint, includeCVEScores bool) (*fleet.Software, error) {
 	q := dialect.From(goqu.I("software").As("s")).
 		Select(
@@ -1095,25 +1108,51 @@ func (ds *Datastore) InsertSoftwareVulnerabilities(
 	vulns []fleet.SoftwareVulnerability,
 	source fleet.VulnerabilitySource,
 ) (int64, error) {
+	// Remove any possible duplicates
+	set := make(map[string]fleet.SoftwareVulnerability)
+	var unq []fleet.SoftwareVulnerability
+	for _, e := range vulns {
+		set[e.Key()] = e
+	}
+	for _, v := range set {
+		unq = append(unq, v)
+	}
+
 	var args []interface{}
 
-	if len(vulns) == 0 {
+	if len(unq) == 0 {
 		return 0, nil
 	}
 
-	values := strings.TrimSuffix(strings.Repeat("(?,?,?),", len(vulns)), ",")
-	sql := fmt.Sprintf(`INSERT IGNORE INTO software_cve (cve, source, software_id) VALUES %s`, values)
+	values := strings.TrimSuffix(strings.Repeat("(?,?,?),", len(unq)), ",")
+	sql := fmt.Sprintf(`INSERT INTO software_cve (cve, source, software_id) VALUES %s ON DUPLICATE KEY UPDATE updated_at=?`, values)
 
-	for _, v := range vulns {
+	for _, v := range unq {
 		args = append(args, v.CVE, source, v.SoftwareID)
 	}
+
+	args = append(args, time.Now().UTC())
+
 	res, err := ds.writer.ExecContext(ctx, sql, args...)
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "insert software vulnerabilities")
 	}
-	count, _ := res.RowsAffected()
 
-	return count, nil
+	lastID, err := res.LastInsertId()
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "insert software vulnerabilities")
+	}
+
+	affected, err := res.RowsAffected()
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "insert software vulnerabilities")
+	}
+
+	if lastID != 0 && int(affected) == len(unq) {
+		return affected, nil
+	}
+
+	return 0, nil
 }
 
 func (ds *Datastore) ListSoftwareVulnerabilitiesByHostIDsSource(

@@ -492,6 +492,9 @@ type Datastore interface {
 	CountSoftware(ctx context.Context, opt SoftwareListOptions) (int, error)
 	// DeleteVulnerabilities deletes the given list of vulnerabilities identified by CPE+CVE.
 	DeleteSoftwareVulnerabilities(ctx context.Context, vulnerabilities []SoftwareVulnerability) error
+	// DeleteOutOfDateVulnerabilities deletes 'software_cve' entries from the provided source where
+	// the updated_at timestamp is older than the provided duration
+	DeleteOutOfDateVulnerabilities(ctx context.Context, source VulnerabilitySource, duration time.Duration) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Team Policies

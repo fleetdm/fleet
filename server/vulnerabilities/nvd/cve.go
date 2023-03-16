@@ -161,6 +161,10 @@ func TranslateCPEToCVE(
 		}
 	}
 
+	if err = ds.DeleteOutOfDateVulnerabilities(ctx, fleet.NVDSource, 2*time.Hour); err != nil {
+		level.Error(logger).Log("msg", "error deleting out of date vulnerabilities", "err", err)
+	}
+
 	return newVulns, nil
 }
 
