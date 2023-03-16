@@ -82,7 +82,8 @@ parasails.registerPage('osquery-table-details', {
         // Now iterate through the keywordsToHighlight, replacing all matches in the elements innerHTML.
         let replacementHMTL = block.innerHTML;
         for(let keywordInExample of keywordsToHighlight) {
-          replacementHMTL = replacementHMTL.replaceAll(keywordInExample, '<span class="hljs-attr">'+keywordInExample+'</span>');
+          let regexForThisExample = new RegExp(keywordInExample, 'g');
+          replacementHMTL = replacementHMTL.replace(regexForThisExample, '<span class="hljs-attr">'+keywordInExample+'</span>');
         }
         $(block).html(replacementHMTL);
         // After we've highlighted our keywords, we'll highlight the rest of the codeblock
