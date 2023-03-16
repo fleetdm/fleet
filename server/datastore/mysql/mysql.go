@@ -987,7 +987,11 @@ func registerTLS(conf config.MysqlConfig) error {
 // provided configuration.
 func generateMysqlConnectionString(conf config.MysqlConfig) string {
 	params := url.Values{
-		"charset":              []string{"utf8mb4"},
+		// using collation implicitly sets the charset too
+		// and it's the recommended way to do it per the
+		// driver documentation:
+		// https://github.com/go-sql-driver/mysql#charset
+		"collation":            []string{"utf8mb4_unicode_ci"},
 		"parseTime":            []string{"true"},
 		"loc":                  []string{"UTC"},
 		"time_zone":            []string{"'-00:00'"},
