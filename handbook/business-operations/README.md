@@ -350,13 +350,17 @@ Here are the steps hiring managers can follow to get an offer out to a candidate
    - No need to check with the CEO first.  You can just book the meeting on his calendar.
    - If this is an engineering position, before the CEO interview, please also be sure that the candidate has already been interviewed by the CTO.
    - The personal email the candidate uses for this calendar event is where they will receive the offer.
-2. **Add to team database:** Update the [Fleeties](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) doc to reflect:
+2. **After feedback from founder interview**
+   - Get feedback from the interview and determine hiring decision.
+   - If hiring, move on the next steps.
+   - If not hiring, issue a decline message to the candidate.
+3. **Add to team database:** Update the [Fleeties](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) doc to reflect:
    - updated timeframe for start date
    - candidate's name
    - LinkedIn URL
    - preferred pronoun
    - country and state where they will be working
-3. **Confirm intent to offer:** At-mention `@mikermcneil` in the `#hiring-` channel and indicate that you would like for Fleet to make an offer to the candidate and archive the channel.
+4. **Confirm intent to offer:** At-mention `@mikermcneil` in the `#hiring-` channel and indicate that you would like for Fleet to make an offer to the candidate and archive the channel.
 
 #### Making an offer
 After meeting with the candidate for their final interview, the CEO uses the following steps to make an offer:
