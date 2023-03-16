@@ -18,8 +18,8 @@ func init() {
 //
 // This is based on the changeCharacterSet function that's included in this
 // module and part of the 20170306075207_UseUTF8MB migration.
-func changeCollation(tx *sql.Tx, charset string, collation string) error {
-	_, err := tx.Exec(fmt.Sprintf("ALTER DATABASE DEFAULT CHARACTER SET `%s` COLLATE `%s`", charset, collation))
+func changeCollation(tx *sql.Tx, charset string, collation string) (err error) {
+	_, err = tx.Exec(fmt.Sprintf("ALTER DATABASE DEFAULT CHARACTER SET `%s` COLLATE `%s`", charset, collation))
 	if err != nil {
 		return fmt.Errorf("alter database: %w", err)
 	}
