@@ -15,9 +15,7 @@ spec:
     To establish the recommended configuration via GP, set the following UI path to Enabled: 'Diagnostic data off (not recommended)' or Enabled: 'Send required diagnostic data':
     'Computer Configuration\Policies\Administrative Templates\Windows Components\Data Collection and Preview Builds\Allow Telemetry'
   query: |
-    TODO
-    # DataCollection not updated with change
-    Untested: SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\DataCollection\AllowTelemetry' AND (data = 0 OR data = 1));
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\DataCollection\AllowTelemetry' AND (data = 0 OR data = 1));
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.1
   contributors: rachelelysia
@@ -35,30 +33,9 @@ spec:
     To establish the recommended configuration via GP, set the following UI path to 'Enabled: Disable Authenticated Proxy usage':
     'Computer Configuration\Policies\Administrative Templates\Windows Components\Data Collection and Preview Builds\Configure Authenticated Proxy usage for the Connected User Experience and Telemetry service'
   query: |
-    TODO
-    Untested: SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\DataCollection\DisableEnterpriseAuthProxy' AND data = 1);
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\DataCollection\DisableEnterpriseAuthProxy' AND data = 1);
   purpose: Informational
   tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.17.2
-  contributors: rachelelysia
----
-apiVersion: v1
-kind: policy
-spec:
-  name: >
-    CIS - Ensure 'Disable OneSettings Downloads' is set to 'Enabled'
-  platforms: win10
-  platform: windows
-  description: |
-    This policy setting controls whether Windows attempts to connect with the OneSettings service to download configuration settings.
-  resolution: |
-    To establish the recommended configuration via GP, set the following UI path to Enabled:
-    'Computer Configuration\Policies\Administrative Templates\Windows Components\Data Collection and Preview Builds\Disable OneSettings Downloads'
-  query: |
-    TODO
-    # Disable OneSettings Downloads does not exist in group policy editor
-    # Untested: SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\DataCollection\DisableOneSettingsDownloads' AND data = 1);
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.17.3
   contributors: rachelelysia
 ---
 apiVersion: v1
@@ -74,69 +51,9 @@ spec:
     To establish the recommended configuration via GP, set the following UI path to Enabled:
     'Computer Configuration\Policies\Administrative Templates\Windows Components\Data Collection and Preview Builds\Do not show feedback notifications'
   query: |
-    TODO
-    # Path is not being created on change
-    # Untested: SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\DataCollection\DoNotShowFeedbackNotifications' AND data = 1);
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\DataCollection\DoNotShowFeedbackNotifications' AND data = 1);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.17.4
-  contributors: rachelelysia
----
-apiVersion: v1
-kind: policy
-spec:
-  name: >
-    CIS - Ensure 'Enable OneSettings Auditing' is set to 'Enabled'
-  platforms: win10
-  platform: windows
-  description: |
-    This policy setting controls whether Windows records attempts to connect with the OneSettings service to the Operational EventLog.
-  resolution: |
-    To establish the recommended configuration via GP, set the following UI path to Enabled:
-    'Computer Configuration\Policies\Administrative Templates\Windows Components\Data Collection and Preview Builds\Enable OneSettings Auditing'
-  query: |
-    TODO
-    # Enable OneSettings Auditing does not exist in group policy editor
-    # Untested: SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\DataCollection\EnableOneSettingsAuditing' AND data = 1);
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.17.5
-  contributors: rachelelysia
----
-apiVersion: v1
-kind: policy
-spec:
-  name: >
-    CIS - Ensure 'Limit Diagnostic Log Collection' is set to 'Enabled'
-  platforms: win10
-  platform: windows
-  description: |
-    This policy setting controls whether additional diagnostic logs are collected when more information is needed to troubleshoot a problem on the device.
-  resolution: |
-    To establish the recommended configuration via GP, set the following UI path to Enabled:
-    'Computer Configuration\Policies\Administrative Templates\Windows Components\Data Collection and Preview Builds\Limit Diagnostic Log Collection'
-  query: |
-    TODO
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\DataCollection\LimitDiagnosticLogCollection' AND data = );
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.17.6
-  contributors: rachelelysia
----
-apiVersion: v1
-kind: policy
-spec:
-  name: >
-    CIS - Ensure 'Limit Dump Collection' is set to 'Enabled'
-  platforms: win10
-  platform: windows
-  description: |
-    This policy setting limits the type of dumps that can be collected when more information is needed to troubleshoot a problem.
-  resolution: |
-    To establish the recommended configuration via GP, set the following UI path to Enabled.
-    'Computer Configuration\Policies\Administrative Templates\Windows Components\Data Collection and Preview Builds\Limit Dump Collection'
-  query: |
-    TODO
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\DataCollection\LimitDumpCollection' AND data = );
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.17.7
   contributors: rachelelysia
 ---
 apiVersion: v1
@@ -152,8 +69,7 @@ spec:
     To establish the recommended configuration via GP, set the following UI path to Disabled:
     'Computer Configuration\Policies\Administrative Templates\Windows Components\Data Collection and Preview Builds\Toggle user control over Insider builds'
   query: |
-    TODO
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\PreviewBuilds\AllowBuildPreview' AND data = );
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\PreviewBuilds\AllowBuildPreview' AND data = 0);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.17.8
   contributors: rachelelysia

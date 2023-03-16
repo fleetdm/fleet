@@ -338,4 +338,88 @@ spec:
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.14.1, CIS_not_completed
   contributors: rachelelysia
 ---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Disable OneSettings Downloads' is set to 'Enabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting controls whether Windows attempts to connect with the OneSettings service to download configuration settings.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Data Collection and Preview Builds\Disable OneSettings Downloads'
+  query: |
+    # TBD
+    # Disable OneSettings Downloads does not exist in group policy editor
+    # Untested: SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\DataCollection\DisableOneSettingsDownloads' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.17.3, CIS_not_completed
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Enable OneSettings Auditing' is set to 'Enabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting controls whether Windows records attempts to connect with the OneSettings service to the Operational EventLog.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Data Collection and Preview Builds\Enable OneSettings Auditing'
+  query: |
+    # TBD
+    # Enable OneSettings Auditing does not exist in group policy editor
+    # Untested: SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\DataCollection\EnableOneSettingsAuditing' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.17.5, CIS_not_completed
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Limit Diagnostic Log Collection' is set to 'Enabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting controls whether additional diagnostic logs are collected when more information is needed to troubleshoot a problem on the device.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Data Collection and Preview Builds\Limit Diagnostic Log Collection'
+  query: |
+    # TBD
+    # I found this policy on Windows 11 and not on Windows 10
+    # https://admx.help/?Category=Windows_11_2022&Policy=Microsoft.Policies.DataCollection::LimitDiagnosticLogCollection
+    # https://admx.help/?Category=Windows_10_2016&Policy=Microsoft.Policies.DataCollection::LimitEnhancedDiagnosticDataWindowsAnalytics
+    # Untested: SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\DataCollection\LimitDiagnosticLogCollection' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.17.6, CIS_not_completed
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Limit Dump Collection' is set to 'Enabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting limits the type of dumps that can be collected when more information is needed to troubleshoot a problem.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled.
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Data Collection and Preview Builds\Limit Dump Collection'
+  query: |
+    # TBD
+    # I found this policy on Windows 11 and not on Windows 10
+    # https://admx.help/?Category=Windows_11_2022&Policy=Microsoft.Policies.DataCollection::LimitDumpCollection
+    # https://admx.help/?Category=Windows_10_2016&Policy=Microsoft.Policies.DataCollection::LimitEnhancedDiagnosticDataWindowsAnalytics
+    # Untested:  SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\DataCollection\LimitDumpCollection' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.17.7, CIS_not_completed
+  contributors: rachelelysia
+---
 
