@@ -95,6 +95,22 @@ const LoginPage = ({ router, location }: ILoginPageProps) => {
     return false;
   };
 
+  const testGravatarAvailability = async () => {
+    try {
+      const response = await fetch("https://gravatar.com/avatar");
+      console.log("got response: ", response);
+      if (response.ok) {
+        localStorage.setItem("gravatar_available", "true");
+      } else {
+        localStorage.setItem("gravatar_available", "false");
+      }
+    } catch (error) {
+      localStorage.setItem("gravatar_available", "false");
+    }
+  };
+
+  testGravatarAvailability();
+
   const onSubmit = async (formData: ILoginData) => {
     const { DASHBOARD, RESET_PASSWORD } = paths;
 
