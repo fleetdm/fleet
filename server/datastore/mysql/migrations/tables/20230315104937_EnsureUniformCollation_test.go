@@ -45,7 +45,16 @@ func TestUp_20230315104937(t *testing.T) {
 	err = sqlx.Select(db, &names, `
           SELECT table_name
           FROM information_schema.TABLES
-	  WHERE table_collation != ? AND table_schema = (SELECT database())`, "utf8mb4_general_ci")
+	  WHERE table_collation != "utf8mb4_general_ci" AND table_schema = (SELECT database())`)
 	require.NoError(t, err)
 	require.Empty(t, names)
+
+	// verify that the collation was maintained for certain columns
+	var columns []string
+	err = sqlx.Select(db, &columns, `
+	  SELECT column_name
+	  FROM information_schema.COLUMNS
+	  WHERE collation_name != "utf8mb4_general_ci" AND table_schema = (SELECT database())`)
+	require.NoError(t, err)
+	require.Equal(t, []string{"secret", "node_key", "orbit_node_key"}, columns)
 }
