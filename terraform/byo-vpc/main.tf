@@ -114,6 +114,14 @@ resource "aws_db_parameter_group" "main" {
   name        = var.rds_config.name
   family      = "aurora-mysql8.0"
   description = "fleet"
+
+  dynamic "parameter" {
+    for_each = var.rds_config.db_parameters
+    content {
+      name  = parameter.key
+      value = parameter.value
+    }
+  }
 }
 
 resource "aws_rds_cluster_parameter_group" "main" {
@@ -121,4 +129,13 @@ resource "aws_rds_cluster_parameter_group" "main" {
   name        = var.rds_config.name
   family      = "aurora-mysql8.0"
   description = "fleet"
+
+  dynamic "parameter" {
+    for_each = var.rds_config.db_cluster_parameters
+    content {
+      name  = parameter.key
+      value = parameter.value
+    }
+  }
+
 }
