@@ -991,7 +991,7 @@ func generateMysqlConnectionString(conf config.MysqlConfig) string {
 		// and it's the recommended way to do it per the
 		// driver documentation:
 		// https://github.com/go-sql-driver/mysql#charset
-		"collation":            []string{"utf8mb4_general_ci"},
+		"collation":            []string{"utf8mb4_unicode_ci"},
 		"parseTime":            []string{"true"},
 		"loc":                  []string{"UTC"},
 		"time_zone":            []string{"'-00:00'"},

@@ -104,10 +104,11 @@ func changeCollation(tx *sql.Tx, charset string, collation string) (err error) {
 }
 
 func Up_20230315104937(tx *sql.Tx) error {
-	// while newer versions of MySQL default to
-	// utf8mb4_0900_ai_ci, we still need to support 5.7, which
-	// defaults to utf8mb4_general_ci
-	return changeCollation(tx, "utf8mb4", "utf8mb4_general_ci")
+	// while newer versions of MySQL default to utf8mb4_0900_ai_ci, we
+	// still need to support 5.7, so we choose utf8mb4_unicode_ci for more
+	// details on the rationale, see:
+	// https://github.com/fleetdm/fleet/pull/10515#discussion_r1137611693
+	return changeCollation(tx, "utf8mb4", "utf8mb4_unicode_ci")
 }
 
 func Down_20230315104937(tx *sql.Tx) error {

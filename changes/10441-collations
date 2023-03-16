@@ -1,1 +1,1 @@
-* Added a migration to ensure all tables in the database use the same collation (`utf8mb4_general_ci`)
+* Added a migration to ensure all tables in the database use the same collation (`utf8mb4_unicode_ci`)
