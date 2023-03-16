@@ -1,7 +1,0 @@
-This section contains settings for configuring additional settings from the MS Security
-Guide.
-
-This Group Policy section is provided by the Group Policy template SecGuide.admx/adml
-that is available from Microsoft at this link (https://techcommunity.microsoft.com/t5/microsoft-security-baselines/security-baseline-final-for-windows-10-v1903-and-windows-server/ba-p/701084)
-
-This template must be downloaded and applied to set the group policies and run checks against them.
