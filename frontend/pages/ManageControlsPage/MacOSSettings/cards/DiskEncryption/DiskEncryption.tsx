@@ -77,7 +77,8 @@ const DiskEncryption = ({ currentTeamId }: IDiskEncryptionProps) => {
         <PremiumFeatureMessage />
       ) : (
         <>
-          {showAggregate ? (
+          {/* remove && false to show the table once the API is finished */}
+          {showAggregate && false ? (
             <DiskEncryptionTable currentTeamId={currentTeamId} />
           ) : null}
           <Checkbox
