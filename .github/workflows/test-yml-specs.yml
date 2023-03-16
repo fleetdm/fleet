@@ -7,9 +7,11 @@ on:
       - patch-*
     paths:
       - 'ee/cis/**.yml'
+      - '.github/workflows/test-yml-specs.yml'
   pull_request:
     paths:
       - 'ee/cis/**.yml'
+      - '.github/workflows/test-yml-specs.yml'
   workflow_dispatch: # Manual
 
 # This allows a subsequently queued workflow run to interrupt previous runs
