@@ -345,22 +345,27 @@ If you've been invited to "book with us," you'll have a Zoom meeting with the hi
 > **_Note:_** _When hiring an international employee, Pilot.co recommends starting the hiring process a month before the new employee's start date._
 
 Here are the steps hiring managers can follow to get an offer out to a candidate:
-1. **Schedule founder interview:** Schedule 30m for the CEO to interview the candidate, if they haven't already done so.
+1. **References** Ask the candidate for 2 references and conduct the reference checks
+   - The reference check template, with further instructions, can be found [here](https://docs.google.com/document/d/1LMOUkLJlAohuFykdgxTPL0RjAQxWkypzEYP_AT-bUAw/edit?usp=sharing).
+   - Reference checks can be conducted in parallel with the following steps.
+1. **Compile feedback on the candidate**
+   - Compile the feedback in one document including links to supporting documents such as links to portfolio or challenge submissions.
+   - Share this document with the CEO.
+2. **Schedule founder interview:** Schedule 30m for the CEO to interview the candidate, if they haven't already done so.
    - At Fleet, the CEO interviews every new team member at least once before Fleet extends an offer.  (We plan to continue this practice until headcount reaches 100.)
    - No need to check with the CEO first.  You can just book the meeting on his calendar.
    - If this is an engineering position, before the CEO interview, please also be sure that the candidate has already been interviewed by the CTO.
    - The personal email the candidate uses for this calendar event is where they will receive the offer.
-2. **After feedback from founder interview**
+3. **After feedback from founder interview**
    - Get feedback from the interview and determine hiring decision.
    - If hiring, move on the next steps.
    - If not hiring, issue a decline message to the candidate.
-3. **Add to team database:** Update the [Fleeties](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) doc to reflect:
-   - updated timeframe for start date
+4. **Add to team database:** Update the [Fleeties](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) doc to reflect:
    - candidate's name
    - LinkedIn URL
    - preferred pronoun
    - country and state where they will be working
-4. **Confirm intent to offer:** At-mention `@mikermcneil` in the `#hiring-` channel and indicate that you would like for Fleet to make an offer to the candidate and archive the channel.
+5. **Confirm intent to offer:** At-mention `@mikermcneil` in the `#hiring-` channel and indicate that you would like for Fleet to make an offer to the candidate and archive the channel.
 
 #### Making an offer
 After meeting with the candidate for their final interview, the CEO uses the following steps to make an offer:
