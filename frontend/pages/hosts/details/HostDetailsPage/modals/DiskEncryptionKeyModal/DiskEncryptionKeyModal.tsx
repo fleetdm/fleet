@@ -48,7 +48,7 @@ const DiskEncryptionKeyModal = ({
             Use this key to log in to the host if you forgot the password.{" "}
             <CustomLink
               text="View recovery instructions"
-              url="https://fleetdm.com/docs/using-fleet/mobile-device-management#unlock-a-device-using-the-disk-encryption-key"
+              url="https://fleetdm.com/docs/using-fleet/mdm-settings#reset-a-macos-hosts-password-using-the-disk-encryption-key"
               newTab
             />
           </p>
