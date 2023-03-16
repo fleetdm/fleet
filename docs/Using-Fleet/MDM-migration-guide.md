@@ -101,3 +101,4 @@ Want to know what your organization can see? Read about [transparency](https://f
 ![My device page - turn on disk encryption](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/my-device-page-turn-on-disk-encryption.png)
 
 <meta name="pageOrderInSection" value="1501">
+<meta name="title" value="MDM Migration Guide">

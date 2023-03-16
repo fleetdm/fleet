@@ -51,3 +51,4 @@ Sometimes the end user's Mac will say that macOS is up to date when it isn't. Th
 Built-in macOS update reminders are available for all Fleet instances. To trigger these reminders, run the ["Schedule an OS update" MDM command](https://developer.apple.com/documentation/devicemanagement/schedule_an_os_update).
 
 <meta name="pageOrderInSection" value="1502">
+<meta name="title" value="MDM macOS Updates">
