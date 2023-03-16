@@ -59,7 +59,7 @@ func changeCollation(tx *sql.Tx, charset string, collation string) (err error) {
 	// enroll secrets was intentionally excluded because it contains only
 	// one "text" column, and that column contains a specific collation.
 	//
-	// note the use of DEFAULT above to indicate that new columns will
+	// note the use of DEFAULT below to indicate that new columns will
 	// contain the desired collation unless explicitly stated.
 	_, err = tx.Exec(fmt.Sprintf("ALTER TABLE enroll_secrets DEFAULT CHARACTER SET `%s` COLLATE `%s`", charset, collation))
 	if err != nil {
@@ -69,7 +69,7 @@ func changeCollation(tx *sql.Tx, charset string, collation string) (err error) {
 	// `hosts` was intentionally excluded, change the collation of all
 	// "text" columns except for `node_key` and `orbit_node_key`
 	//
-	// note the use of DEFAULT above to indicate that new columns will
+	// note the use of DEFAULT below to indicate that new columns will
 	// contain the desired collation unless explicitly stated.
 	tmpl := template.Must(template.New("").Parse(`
 	        ALTER TABLE hosts DEFAULT CHARACTER SET {{ .Cs }} COLLATE {{ .Co }},
