@@ -5,7 +5,7 @@
 - [Enroll secrets](#enroll-secrets)
   - [Multiple enroll secrets](#multiple-enroll-secrets)
   - [Rotating enroll secrets](#rotating-enroll-secrets)
-- [Team settings](#team-settings)
+- [Teams](#teams)
   - [Team agent options](#team-agent-options)
   - [Team enroll secrets](#team-enroll-secrets)
   - [Mobile device management settings for teams](#mobile-device-management-mdm-settings-for-teams)
@@ -175,7 +175,7 @@ complete.
 A similar process may be followed for rotating team-specific enroll secrets. For teams, the secrets
 are managed in the team yaml.
 
-## Team settings
+## Teams
 
 **Applies only to Fleet Premium**.
 
@@ -218,8 +218,8 @@ spec:
       - secret: JZ/C/Z7ucq22dt/zjx2kEuDBN0iLjqfz
     mdm:
       macos_updates:
-        minimum_version: 12.3.1
-        deadline: 2022-01-04
+        minimum_version: "12.3.1"
+        deadline: "2022-01-04"
       macos_settings:
         custom_settings:
           - path/to/profile1.mobileconfig
@@ -1436,7 +1436,11 @@ The following settings are macOS-specific settings for Fleet's MDM solution.
 
 ##### mdm.macos_settings.custom_settings
 
-List of profile files to apply to hosts that are not part of any team or to all hosts for Fleet Free (use the [team-specific `mdm.macos_settings.custom_settings` setting](#team-settings) to configure hosts that belong to a team).
+List of configuration profile files to apply to all hosts. 
+
+If you're using Fleet Premium, these profiles apply to all hosts assigned to no team.
+
+> If you want to add profiles to all macOS hosts on a specific team in Fleet, use the `team` YAML document. Learn how to create one [here](#teams).
 
 - Default value: none
 - Config file format:
@@ -1452,7 +1456,11 @@ List of profile files to apply to hosts that are not part of any team or to all 
 
 **Applies only to Fleet Premium**.
 
-Enable disk encryption to hosts that are not part of any team (use the [team-specific `mdm.macos_settings.enable_disk_encryption` setting](#team-settings) to configure hosts that belong to a team).
+Enforce disk encryption and disk encryption key escrow on all hosts.
+
+If you're using Fleet Premium, this enforces disk encryption on all hosts assigned to no team.
+
+> If you want to enforce disk encryption on all macOS hosts on a specific team in Fleet, use the `team` YAML document. Learn how to create one [here](#teams).
 
 - Default value: false
 - Config file format:

@@ -68,7 +68,9 @@ variable "rds_config" {
     apply_immediately               = optional(bool, true)
     monitoring_interval             = optional(number, 10)
     db_parameter_group_name         = optional(string)
+    db_parameters                   = optional(map(string), {})
     db_cluster_parameter_group_name = optional(string)
+    db_cluster_parameters           = optional(map(string), {})
     enabled_cloudwatch_logs_exports = optional(list(string), [])
     master_username                 = optional(string, "fleet")
     snapshot_identifier             = optional(string)
@@ -83,7 +85,9 @@ variable "rds_config" {
     apply_immediately               = true
     monitoring_interval             = 10
     db_parameter_group_name         = null
+    db_parameters                   = {}
     db_cluster_parameter_group_name = null
+    db_cluster_parameters           = {}
     enabled_cloudwatch_logs_exports = []
     master_username                 = "fleet"
     snapshot_identifier             = null

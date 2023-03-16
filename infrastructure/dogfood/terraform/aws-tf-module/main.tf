@@ -26,7 +26,7 @@ terraform {
 
 variable "fleet_license" {}
 variable "fleet_image" {
-  default = "160035666661.dkr.ecr.us-east-2.amazonaws.com/fleet:7408a0df90802fbd602b52015546dd46590051bd"
+  default = "160035666661.dkr.ecr.us-east-2.amazonaws.com/fleet:1f68e7a5e39339d763da26a0c8ae3e459b2e1f016538d7962312310493381f7c"
 }
 
 data "aws_caller_identity" "current" {}
@@ -53,6 +53,10 @@ module "main" {
   rds_config = {
     name                = local.customer
     snapshot_identifier = "arn:aws:rds:us-east-2:611884880216:cluster-snapshot:a2023-03-06-pre-migration"
+    db_parameters       = {
+      # 8mb up from 262144 (256k) default
+      sort_buffer_size = 8388608
+    }
   }
   redis_config = {
     name = local.customer

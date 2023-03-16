@@ -12,7 +12,7 @@ variable "scep_secret_name" {
 
 variable "dep_secret_name" {
   default  = "fleet-dep"
-  nullable = false
+  nullable = true
   type     = string
 }
 

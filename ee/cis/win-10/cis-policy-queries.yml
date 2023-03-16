@@ -3605,7 +3605,7 @@ spec:
     CIS - Ensure 'Require a password when a computer wakes (on battery)' is set to 'Enabled'
   platforms: win10
   platform: windows
-   description: |
+  description: |
     Specifies whether or not the user is prompted for a password when the system resumes from sleep.
   resolution: |
     To establish the recommended configuration via GP, set the following UI path to Enabled:
