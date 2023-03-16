@@ -1103,56 +1103,22 @@ ON DUPLICATE KEY UPDATE
 	return nil
 }
 
-func (ds *Datastore) InsertSoftwareVulnerabilities(
+func (ds *Datastore) InsertSoftwareVulnerability(
 	ctx context.Context,
-	vulns []fleet.SoftwareVulnerability,
+	vuln fleet.SoftwareVulnerability,
 	source fleet.VulnerabilitySource,
-) (int64, error) {
-	// Remove any possible duplicates
-	set := make(map[string]fleet.SoftwareVulnerability)
-	var unq []fleet.SoftwareVulnerability
-	for _, e := range vulns {
-		set[e.Key()] = e
-	}
-	for _, v := range set {
-		unq = append(unq, v)
-	}
-
+) (bool, error) {
 	var args []interface{}
 
-	if len(unq) == 0 {
-		return 0, nil
-	}
+	stmt := `INSERT INTO software_cve (cve, source, software_id) VALUES (?,?,?) ON DUPLICATE KEY UPDATE updated_at=?`
+	args = append(args, vuln.CVE, source, vuln.SoftwareID, args, time.Now().UTC())
 
-	values := strings.TrimSuffix(strings.Repeat("(?,?,?),", len(unq)), ",")
-	sql := fmt.Sprintf(`INSERT INTO software_cve (cve, source, software_id) VALUES %s ON DUPLICATE KEY UPDATE updated_at=?`, values)
-
-	for _, v := range unq {
-		args = append(args, v.CVE, source, v.SoftwareID)
-	}
-
-	args = append(args, time.Now().UTC())
-
-	res, err := ds.writer.ExecContext(ctx, sql, args...)
+	res, err := ds.writer.ExecContext(ctx, stmt, args...)
 	if err != nil {
-		return 0, ctxerr.Wrap(ctx, err, "insert software vulnerabilities")
+		return false, ctxerr.Wrap(ctx, err, "insert software vulnerability")
 	}
 
-	lastID, err := res.LastInsertId()
-	if err != nil {
-		return 0, ctxerr.Wrap(ctx, err, "insert software vulnerabilities")
-	}
-
-	affected, err := res.RowsAffected()
-	if err != nil {
-		return 0, ctxerr.Wrap(ctx, err, "insert software vulnerabilities")
-	}
-
-	if lastID != 0 && int(affected) == len(unq) {
-		return affected, nil
-	}
-
-	return 0, nil
+	return insertOnDuplicateDidInsert(res), nil
 }
 
 func (ds *Datastore) ListSoftwareVulnerabilitiesByHostIDsSource(

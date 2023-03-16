@@ -147,16 +147,16 @@ func TranslateCPEToCVE(
 
 	var newVulns []fleet.SoftwareVulnerability
 	for _, vuln := range vulns {
-		newCount, err := ds.InsertSoftwareVulnerabilities(ctx, []fleet.SoftwareVulnerability{vuln}, fleet.NVDSource)
+		ok, err := ds.InsertSoftwareVulnerability(ctx, vuln, fleet.NVDSource)
 		if err != nil {
 			level.Error(logger).Log("cpe processing", "error", "err", err)
 			continue
 		}
 
-		// collect vuln only if newCount > 0, otherwise we would send
+		// collect vuln only if inserted, otherwise we would send
 		// webhook requests for the same vulnerability over and over again until
 		// it is older than 2 days.
-		if collectVulns && newCount > 0 {
+		if collectVulns && ok {
 			newVulns = append(newVulns, vuln)
 		}
 	}

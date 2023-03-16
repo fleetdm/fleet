@@ -40,7 +40,7 @@ func TestSoftware(t *testing.T) {
 		{"UpdateHostSoftware", testUpdateHostSoftware},
 		{"ListSoftwareByHostIDShort", testListSoftwareByHostIDShort},
 		{"ListSoftwareVulnerabilitiesByHostIDsSource", testListSoftwareVulnerabilitiesByHostIDsSource},
-		{"InsertSoftwareVulnerabilities", testInsertSoftwareVulnerabilities},
+		{"InsertSoftwareVulnerability", testInsertSoftwareVulnerability},
 		{"ListCVEs", testListCVEs},
 		{"ListSoftwareForVulnDetection", testListSoftwareForVulnDetection},
 		{"SoftwareByID", testSoftwareByID},
@@ -236,9 +236,10 @@ func testSoftwareLoadVulnerabilities(t *testing.T, ds *Datastore) {
 		{SoftwareID: host.Software[0].ID, CVE: "CVE-2022-0001"},
 		{SoftwareID: host.Software[0].ID, CVE: "CVE-2022-0002"},
 	}
-	_, err = ds.InsertSoftwareVulnerabilities(context.Background(), vulns, fleet.NVDSource)
-	require.NoError(t, err)
-
+	for _, v := range vulns {
+		_, err = ds.InsertSoftwareVulnerability(context.Background(), v, fleet.NVDSource)
+		require.NoError(t, err)
+	}
 	require.NoError(t, ds.LoadHostSoftware(context.Background(), host, false))
 
 	softByID, err := ds.SoftwareByID(context.Background(), host.HostSoftware.Software[0].ID, false)
@@ -501,8 +502,10 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 		{SoftwareID: host3.Software[0].ID, CVE: "CVE-2022-0003"},
 	}
 
-	_, err = ds.InsertSoftwareVulnerabilities(context.Background(), vulns, fleet.NVDSource)
-	require.NoError(t, err)
+	for _, v := range vulns {
+		_, err = ds.InsertSoftwareVulnerability(context.Background(), v, fleet.NVDSource)
+		require.NoError(t, err)
+	}
 
 	cveMeta := []fleet.CVEMeta{
 		{
@@ -1110,31 +1113,31 @@ func insertVulnSoftwareForTest(t *testing.T, ds *Datastore) {
 	})
 
 	chrome3 := host2.Software[2]
-	n, err := ds.InsertSoftwareVulnerabilities(context.Background(), []fleet.SoftwareVulnerability{
-		{
-			SoftwareID: chrome3.ID,
-			CVE:        "CVE-2022-0001",
-		},
+	inserted, err := ds.InsertSoftwareVulnerability(context.Background(), fleet.SoftwareVulnerability{
+		SoftwareID: chrome3.ID,
+		CVE:        "CVE-2022-0001",
 	}, fleet.NVDSource)
 
 	require.NoError(t, err)
-	require.Equal(t, 1, int(n))
+	require.True(t, inserted)
 
 	barRpm := host2.Software[0]
-	n, err = ds.InsertSoftwareVulnerabilities(context.Background(),
-		[]fleet.SoftwareVulnerability{
-			{
-				SoftwareID: barRpm.ID,
-				CVE:        "CVE-2022-0002",
-			},
-			{
-				SoftwareID: barRpm.ID,
-				CVE:        "CVE-2022-0003",
-			},
-		}, fleet.NVDSource)
+	vulns := []fleet.SoftwareVulnerability{
+		{
+			SoftwareID: barRpm.ID,
+			CVE:        "CVE-2022-0002",
+		},
+		{
+			SoftwareID: barRpm.ID,
+			CVE:        "CVE-2022-0003",
+		},
+	}
 
-	require.NoError(t, err)
-	require.Equal(t, 2, int(n))
+	for _, v := range vulns {
+		inserted, err := ds.InsertSoftwareVulnerability(context.Background(), v, fleet.NVDSource)
+		require.NoError(t, err)
+		require.True(t, inserted)
+	}
 
 	require.NoError(t, ds.SyncHostsSoftware(context.Background(), time.Now()))
 }
@@ -1442,21 +1445,18 @@ func testListSoftwareVulnerabilitiesByHostIDsSource(t *testing.T, ds *Datastore)
 		1: "cve-456",
 	}
 
-	var vulns []fleet.SoftwareVulnerability
 	for i, s := range host.Software {
 		cve, ok := cveMap[i]
 		if ok {
-			vulns = append(vulns, fleet.SoftwareVulnerability{
+			n, err := ds.InsertSoftwareVulnerability(ctx, fleet.SoftwareVulnerability{
 				SoftwareID: s.ID,
 				CVE:        cve,
-			})
+			}, fleet.NVDSource)
+			require.NoError(t, err)
+			require.Equal(t, int64(2), n)
 		}
 
 	}
-	n, err := ds.InsertSoftwareVulnerabilities(ctx, vulns, fleet.NVDSource)
-	require.NoError(t, err)
-	require.Equal(t, int64(2), n)
-
 	result, err := ds.ListSoftwareVulnerabilitiesByHostIDsSource(ctx, []uint{host.ID}, fleet.NVDSource)
 	require.NoError(t, err)
 
@@ -1473,11 +1473,11 @@ func testListSoftwareVulnerabilitiesByHostIDsSource(t *testing.T, ds *Datastore)
 	}
 }
 
-func testInsertSoftwareVulnerabilities(t *testing.T, ds *Datastore) {
+func testInsertSoftwareVulnerability(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
 	t.Run("no vulnerabilities to insert", func(t *testing.T) {
-		r, err := ds.InsertSoftwareVulnerabilities(ctx, nil, fleet.UbuntuOVALSource)
+		r, err := ds.InsertSoftwareVulnerability(ctx, fleet.SoftwareVulnerability{}, fleet.UbuntuOVALSource)
 		require.NoError(t, err)
 		require.Zero(t, r)
 	})
@@ -1496,19 +1496,17 @@ func testInsertSoftwareVulnerabilities(t *testing.T, ds *Datastore) {
 		_, err := ds.InsertSoftwareCPEs(ctx, cpes)
 		require.NoError(t, err)
 
-		var vulns []fleet.SoftwareVulnerability
-		for _, s := range host.Software {
-			vulns = append(vulns, fleet.SoftwareVulnerability{
-				SoftwareID: s.ID, CVE: "cve-1",
-			})
-			vulns = append(vulns, fleet.SoftwareVulnerability{
-				SoftwareID: s.ID, CVE: "cve-1",
-			})
-		}
-
-		n, err := ds.InsertSoftwareVulnerabilities(ctx, vulns, fleet.UbuntuOVALSource)
+		inserted, err := ds.InsertSoftwareVulnerability(ctx, fleet.SoftwareVulnerability{
+			SoftwareID: host.Software[0].ID, CVE: "cve-1",
+		}, fleet.UbuntuOVALSource)
 		require.NoError(t, err)
-		require.Equal(t, int64(1), n)
+		require.True(t, inserted)
+
+		inserted, err = ds.InsertSoftwareVulnerability(ctx, fleet.SoftwareVulnerability{
+			SoftwareID: host.Software[0].ID, CVE: "cve-1",
+		}, fleet.UbuntuOVALSource)
+		require.NoError(t, err)
+		require.False(t, inserted)
 
 		storedVulns, err := ds.ListSoftwareVulnerabilitiesByHostIDsSource(ctx, []uint{host.ID}, fleet.UbuntuOVALSource)
 		require.NoError(t, err)
@@ -1542,13 +1540,13 @@ func testInsertSoftwareVulnerabilities(t *testing.T, ds *Datastore) {
 			})
 		}
 
-		n, err := ds.InsertSoftwareVulnerabilities(ctx, vulns, fleet.UbuntuOVALSource)
+		inserted, err := ds.InsertSoftwareVulnerability(ctx, vulns[0], fleet.UbuntuOVALSource)
 		require.NoError(t, err)
-		require.Equal(t, 1, int(n))
+		require.True(t, inserted)
 
-		n, err = ds.InsertSoftwareVulnerabilities(ctx, vulns, fleet.UbuntuOVALSource)
+		inserted, err = ds.InsertSoftwareVulnerability(ctx, vulns[0], fleet.UbuntuOVALSource)
 		require.NoError(t, err)
-		require.Equal(t, 0, int(n))
+		require.False(t, inserted)
 
 		storedVulns, err := ds.ListSoftwareVulnerabilitiesByHostIDsSource(ctx, []uint{host.ID}, fleet.UbuntuOVALSource)
 		require.NoError(t, err)
@@ -1660,14 +1658,14 @@ func testSoftwareByID(t *testing.T, ds *Datastore) {
 		// Add one vulnerability to each software
 		var vulns []fleet.SoftwareVulnerability
 		for i, s := range hostA.Software {
-			vulns = append(vulns, fleet.SoftwareVulnerability{
+			inserted, err := ds.InsertSoftwareVulnerability(ctx, fleet.SoftwareVulnerability{
 				SoftwareID: s.ID,
 				CVE:        fmt.Sprintf("cve-%d", i),
-			})
+			}, fleet.UbuntuOVALSource)
+			require.NoError(t, err)
+			require.True(t, inserted)
+			vulns = append(vulns)
 		}
-		n, err := ds.InsertSoftwareVulnerabilities(ctx, vulns, fleet.UbuntuOVALSource)
-		require.NoError(t, err)
-		require.Equal(t, 4, int(n))
 
 		for _, s := range hostA.Software {
 			result, err := ds.SoftwareByID(ctx, s.ID, true)
@@ -1810,17 +1808,21 @@ func testDeleteOutOfDateVulnerabilities(t *testing.T, ds *Datastore) {
 		},
 	}
 
-	n, err := ds.InsertSoftwareVulnerabilities(ctx, vulns, fleet.NVDSource)
+	inserted, err := ds.InsertSoftwareVulnerability(ctx, vulns[0], fleet.NVDSource)
 	require.NoError(t, err)
-	require.Equal(t, 2, int(n))
+	require.True(t, inserted)
+
+	inserted, err = ds.InsertSoftwareVulnerability(ctx, vulns[1], fleet.NVDSource)
+	require.NoError(t, err)
+	require.True(t, inserted)
 
 	_, err = ds.writer.ExecContext(ctx, "UPDATE software_cve SET updated_at = '2020-10-10 12:00:00'")
 	require.NoError(t, err)
 
 	// This should update the 'updated_at' timestamp.
-	n, err = ds.InsertSoftwareVulnerabilities(ctx, vulns[:1], fleet.NVDSource)
+	inserted, err = ds.InsertSoftwareVulnerability(ctx, vulns[0], fleet.NVDSource)
 	require.NoError(t, err)
-	require.Equal(t, 0, int(n))
+	require.False(t, inserted)
 
 	err = ds.DeleteOutOfDateVulnerabilities(ctx, fleet.NVDSource, 2*time.Hour)
 	require.NoError(t, err)
