@@ -232,44 +232,35 @@ $ fleetctl get hosts --json | jq '.spec .os_version' | sort | uniq -c
 
 ## How do I downgrade from Fleet Premium to Fleet Free?
 
-If you'd like to renew your Fleet Premium license key, please contact us [here](https://fleetdm.com/company/contact).
+> If you'd like to renew your Fleet Premium license key, please contact us [here](https://fleetdm.com/company/contact).
 
-How to downgrade from Fleet Premium to Fleet Free:
+**Back up your users and update all team-level users to global users**
 
-First, back up your users and update all team-level users to global users:
-
-1. Run the `fleetctl get user_roles > user_roles.yml` command. Save the `user_roles.yml` file so
-   that, if you choose to upgrade later, you can restore user roles.
+1. Run the `fleetctl get user_roles > user_roles.yml` command. Save the `user_roles.yml` file so that, if you choose to upgrade later, you can restore user roles.
 2. Head to the **Settings > Users** page in the Fleet UI.
-3. For each user that has any team listed under the **Teams** column, select **Actions > Edit**,
-   then select
-   **Global user**, and then select **Save**. If a user shouldn't have global access, delete this user.
+3. For each user that has any team listed under the **Teams** column, select **Actions > Edit**, then select **Global user**, and then select **Save**. If a user shouldn't have global access, delete this user.
 
-Next, move all team-level scheduled queries to the global level:
+**Move all team-level scheduled queries to the global level**
+
 1. Head to the **Schedule** page in the Fleet UI.
-2. For each scheduled query that belongs to a team, copy the name in the **Query** column, select
-   **All teams** in the top dropdown, select **Schedule a query**, past the name in the **Select
-   query** field, choose the frequency, and select **Schedule**.
-3. Delete each scheduled query that belongs to a team because they will no longer run on any hosts
-   following the downgrade process.
+2. For each scheduled query that belongs to a team, copy the name in the **Query** column, select **All teams** in the top dropdown, select **Schedule a query**, past the name in the **Select query** field, choose the frequency, and select **Schedule**.
+3. Delete each scheduled query that belongs to a team because they will no longer run on any hosts following the downgrade process.
 
-Next, move all team level policies to the global level:
+**Move all team level policies to the global level**
+
 1. Head to the **Policies** page in the Fleet UI.
-2. For each policy that belongs to a team, copy the **Name**, **Description**, **Resolve**,
-  and **Query**. Then, select **All teams** in the top dropdown, select **Add a policy**, select
-  **create your own policy**, paste each item in the appropriate field, and select **Save**.
-3. Delete each policy that belongs to a team because they will no longer run on any hosts
-following the downgrade process.
+2. For each policy that belongs to a team, copy the **Name**, **Description**, **Resolve**, and **Query**. Then, select **All teams** in the top dropdown, select **Add a policy**, select **create your own policy**, paste each item in the appropriate field, and select **Save**.
+3. Delete each policy that belongs to a team because they will no longer run on any hosts following the downgrade process.
 
-Next, back up your teams:
-1. Run the `fleetctl get teams > teams.yml` command. Save the `teams.yml` file so
-that, if you choose to upgrade later, you can restore teams.
+**Back up your teams**
+
+1. Run the `fleetctl get teams > teams.yml` command. Save the `teams.yml` file so that, if you choose to upgrade later, you can restore teams.
 2. Head to the **Settings > Teams** page in the Fleet UI.
 3. Delete all teams. This will move all hosts to the global level.
 
-Lastly, remove your Fleet Premium license key:
-1. Remove your license key from your Fleet configuration. Documentation on where the license key is
-   located in your configuration is [here](https://fleetdm.com/docs/deploying/configuration#license).
+**Remove your Fleet Premium license key**
+
+1. Remove your license key from your Fleet configuration. Documentation on where the license key is located in your configuration is [here](https://fleetdm.com/docs/deploying/configuration#license).
 2. Restart your Fleet server.
 
 ## If I use a software orchestration tool (Ansible, Chef, Puppet, etc.) to manage agent options, do I have to apply the same options in the Fleet UI?
