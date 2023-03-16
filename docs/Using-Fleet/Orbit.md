@@ -174,28 +174,35 @@ When the Fleet server uses a self-signed (or otherwise invalid) TLS certificate,
 
 The following command-line flags allow you to configure an osquery installer further to communicate with a specific Fleet instance.
 
-| Flag                | Options                                                                                                                                 |
-| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| --type              | **Required** - Type of package to build.<br> Options: `pkg`(macOS),`msi`(Windows), `deb`(Debian based Linux), `rpm`(RHEL, CentOS, etc.) |
-| --fleet-desktop     | Include Fleet Desktop.                                                                                                                  |
-| --enroll-secret     | Enroll secret for authenticating to Fleet server                                                                                        |
-| --fleet-url         | URL (`host:port`) of Fleet server                                                                                                       |
-| --fleet-certificate | Path to server certificate bundle                                                                                                       |
-| --identifier        | Identifier for package product (default: `com.fleetdm.orbit`)                                                                           |
-| --version           | Version for package product (default: `0.0.3`)                                                                                          |
-| --insecure          | Disable TLS certificate verification (default: `false`)                                                                                 |
-| --service           | Install osquery with a persistence service (launchd, systemd, etc.) (default: `true`)                                                   |
-| --sign-identity     | Identity to use for macOS codesigning                                                                                                   |
-| --notarize          | Whether to notarize macOS packages (default: `false`)                                                                                   |
-| --disable-updates   | Disable auto updates on the generated package (default: false)                                                                          |
-| --osqueryd-channel  | Update channel of osqueryd to use (default: `stable`)                                                                                   |
-| --orbit-channel     | Update channel of Orbit to use (default: `stable`)                                                                                      |
-| --desktop-channel   | Update channel of desktop to use (default: `stable`)                                                                                    |
-| --update-url        | URL for update server (default: `https://tuf.fleetctl.com`)                                                                             |
-| --update-roots      | Root key JSON metadata for update server (from fleetctl updates roots)                                                                  |
-| --debug             | Enable debug logging (default: `false`)                                                                                                 |
-| --verbose           | Log detailed information when building the package (default: false)                                                                     |
-| --help, -h          | show help (default: `false`)                                                                                                            |
+
+   --type value                               Type of package to build
+   --enroll-secret value                      Enroll secret for authenticating to Fleet server
+   --fleet-url value                          URL (host:port) of Fleet server
+   --fleet-certificate value                  Path to server certificate chain
+   --identifier value                         Identifier for package product (default: "com.fleetdm.orbit")
+   --version value                            Version for package product
+   --insecure                                 Disable TLS certificate verification (default: false)
+   --service                                  Install orbit/osquery with a persistence service (launchd, systemd, etc.) (default: true)
+   --sign-identity value                      Identity to use for macOS codesigning
+   --notarize                                 Whether to notarize macOS packages (default: false)
+   --osqueryd-channel value                   Update channel of osqueryd to use (default: "stable")
+   --desktop-channel value                    Update channel of desktop to use (default: "stable")
+   --orbit-channel value                      Update channel of Orbit to use (default: "stable")
+   --disable-updates                          Disable auto updates on the generated package (default: false)
+   --update-url value                         URL for update server (default: "https://tuf.fleetctl.com")
+   --update-roots value                       Root key JSON metadata for update server (from fleetctl updates roots)
+   --osquery-flagfile value                   Flagfile to package and provide to osquery
+   --debug                                    Enable debug logging in orbit (default: false)
+   --verbose                                  Log detailed information when building the package (default: false)
+   --fleet-desktop                            Include the Fleet Desktop Application in the package (default: false)
+   --update-interval value                    Interval that Orbit will use to check for new updates (10s, 1h, etc.) (default: 15m0s)
+   --disable-open-folder                      Disable opening the folder at the end (default: false)
+   --native-tooling                           Build the package using native tooling (only available in Linux) (default: false) [$FLEETCTL_NATIVE_TOOLING]
+   --macos-devid-pem-content value            Dev ID certificate keypair content in PEM format [$FLEETCTL_MACOS_DEVID_PEM_CONTENT]
+   --app-store-connect-api-key-id value       App Store Connect API key used for notarization [$FLEETCTL_APP_STORE_CONNECT_API_KEY_ID]
+   --app-store-connect-api-key-issuer value   Issuer of the App Store Connect API key [$FLEETCTL_APP_STORE_CONNECT_API_KEY_ISSUER]
+   --app-store-connect-api-key-content value  Contents of the .p8 App Store Connect API key [$FLEETCTL_APP_STORE_CONNECT_API_KEY_CONTENT]
+   --help, -h                                 show help (default: false)
 
 #### Fleet Desktop
 
