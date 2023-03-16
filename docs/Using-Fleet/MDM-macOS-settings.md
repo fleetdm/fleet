@@ -1,4 +1,4 @@
-## macOS settings
+# macOS settings
 
 In Fleet you can enforce settings on your macOS hosts remotely.
 
@@ -6,7 +6,7 @@ If you enforce disk encryption with Fleet, the disk encryption key (recovery key
 
 You can also enforce custom macOS settings. Learn how [here](#custom-settings).
 
-### Disk encryption
+## Disk encryption
 
 _Available in Fleet Premium_
 
@@ -30,7 +30,7 @@ Fleet UI:
 
 3. Run the `fleetctl apply -f <your-YAML-file-here>` command.
 
-#### Viewing a disk encryption key
+### Viewing a disk encryption key
 
 The disk encryption key allows you to reset a macOS host's password if you don't know it. This way, if you plan to prepare a host for a new employee, you can login to it and erase all its content and settings.
 
@@ -42,7 +42,7 @@ How to view the disk encryption key:
 
 2. On the **Host details** page, select **Actions > Show disk encryption key**.
 
-#### Reset a macOS host's password using the disk encryption key
+### Reset a macOS host's password using the disk encryption key
 
 How to reset a macOS host's password using the disk encryption key:
 
@@ -54,13 +54,13 @@ How to reset a macOS host's password using the disk encryption key:
 
 4. The Mac will display a prompt to reset the password. Reset the password and save this password somewhere safe. If you plan to prepare this Mac for a new employee, you'll need this password to erase all content and settings on the Mac.
 
-### Custom settings
+## Custom settings
 
 In Fleet you can enforce custom settings on your macOS hosts using configuration profiles.
 
 To enforce custom settings, first create configuration profiles with iMazing Profile editor and then add the profiles to Fleet.
 
-#### Create a configuration profiles with iMazing Profile Creator
+### Create a configuration profiles with iMazing Profile Creator
 
 How to create a configuration profile with iMazing Profile Creator:
 
@@ -74,7 +74,7 @@ How to create a configuration profile with iMazing Profile Creator:
 
 5. In your top menu bar select **File** > **Save As...** and save your configuration profile. Make sure the file is saved as .mobileconfig.
 
-#### Add configuration profiles to Fleet
+### Add configuration profiles to Fleet
 
 In Fleet, you can add configuration profiles using the Fleet UI or fleetctl command-line tool.
 

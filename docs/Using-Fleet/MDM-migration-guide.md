@@ -1,10 +1,10 @@
-## Migration
+# Migration
 
 Only one MDM solution can be used for MDM features, like enforcing settings, on each of your macOS hosts. This section provides instructions for migrating away from your old MDM solution so that you can use Fleet for MDM features.
 
 To migrate hosts from your old MDM solution to Fleet you’ll first have to [deploy Fleet](../Deploying/Introduction.md), [add your hosts](./Adding-hosts.md), and [connect Fleet to Apple](#set-up).
 
-### Manually enrolled hosts
+## Manually enrolled hosts
 
 If you have macOS hosts that were manually enrolled to your old MDM solution, you can migrate them to Fleet.
 
@@ -16,7 +16,7 @@ How to migrate manually enrolled hosts:
 
 2. The **My Device** page in Fleet Desktop will present end users with instructions to turn on MDM. Share [these guided instructions](#instructions-for-end-users) with your end users.
 
-### Automatically enrolled (DEP) hosts
+## Automatically enrolled (DEP) hosts
 
 _Available in Fleet Premium_
 
@@ -38,7 +38,7 @@ How to migrate these hosts:
 
 5. The **My Device** page in Fleet Desktop will present end users with instructions to turn on MDM. Share [these guided instructions](#instructions-for-end-users) with your end users.
 
-### FileVault recovery keys
+## FileVault recovery keys
 
 _Available in Fleet Premium_
 
@@ -48,7 +48,7 @@ During migration from your old MDM solution, disk encryption will be turned off 
 
 If your old MDM solution enforced disk encryption, your end users will need to reset their disk encryption key for Fleet to be able to store the key. The **My device** page in Fleet Desktop will present users with instructions to reset their key. Share [these guided instructions](#how-to-turn-on-disk-encryption) with your end users.
 
-### Activation Lock Bypass codes
+## Activation Lock Bypass codes
 
 In Fleet, the [Activation Lock](https://support.apple.com/en-us/HT208987) feature is disabled by default for automatically enrolled (DEP) hosts.
 
@@ -58,7 +58,7 @@ This is because if the Activation Lock is enabled, you will need the Activation 
 
 Activation Lock bypass codes can only be retrieved from the Mac up to 30 days after the device is enrolled. This means that when migrating from your old MDM solution, it’s likely that you’ll be unable to retrieve the Activation Lock bypass code.
 
-### Migrate settings
+## Migrate settings
 
 To enforce the same settings on your macOS hosts in Fleet as you did using your old MDM solution, you have to migrate these settings to Fleet.
 
@@ -72,8 +72,7 @@ How to export settings as configuration profiles:
 
 2. Follow the instructions to add configuration profiles to Fleet [here](#add-configuration-profiles-to-fleet).
 
-
-### Instructions for end users
+## Instructions for end users
 
 Your organization uses Fleet to check if all devices meet its security policies.
 
@@ -81,7 +80,7 @@ Fleet includes device management features (called “MDM”) that allow your IT 
 
 Want to know what your organization can see? Read about [transparency](https://fleetdm.com/transparency).
 
-#### How to turn on MDM:
+### How to turn on MDM:
 
 1. Select the Fleet icon in your menu bar and select **My device**.
 
@@ -91,7 +90,7 @@ Want to know what your organization can see? Read about [transparency](https://f
 
 ![My device page - turn on MDM](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/my-device-page-turn-on-mdm.png)
 
-#### How to turn on disk encryption
+### How to turn on disk encryption
 
 1. Select the Fleet icon in your menu bar and select **My device**.
 

@@ -1,6 +1,6 @@
-## macOS updates
+# macOS updates
 
-### End user macOS update reminders via Nudge
+## End user macOS update reminders via Nudge
 
 _Available in Fleet Premium_
 
@@ -20,7 +20,7 @@ If there is less than 1 day, the window is shown every 2 hours. The end user can
 
 If the end user is past the deadline, Fleet shows the window and end user can't close the window until they update.
 
-### End user experience
+## End user experience
 
 Apple has a two-step process for macOS updates. First, the host downloads the macOS update in the background without interrupting the end user. Then, the host installs the update, which prevents the end user from using the host.
 
@@ -30,7 +30,7 @@ Fleet downloads macOS updates programmatically on Intel Macs. This way, end user
 
 > On Macs with Apple silicon (e.g. M1), downloading the macOS update may require end user action. Apple doesn't support downloading the update programmatically on Macs with Apple silicon.
 
-#### Known issue
+### Known issue
 
 Sometimes the end user's Mac will say that macOS is up to date when it isn't. This known issue creates a frustrating experience for the end user. Ask the end user to follow the steps below to troubleshoot:
 
@@ -46,7 +46,7 @@ Sometimes the end user's Mac will say that macOS is up to date when it isn't. Th
 
 6. In the search bar, type "Software Update." Select **Software Update** and select **Restart Now** to update.
 
-### End user macOS update via built-in macOS notifications
+## End user macOS update via built-in macOS notifications
 
 Built-in macOS update reminders are available for all Fleet instances. To trigger these reminders, run the ["Schedule an OS update" MDM command](https://developer.apple.com/documentation/devicemanagement/schedule_an_os_update).
 
