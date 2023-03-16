@@ -59,6 +59,8 @@ module "rds" {
   database_name                   = "fleet"
   skip_final_snapshot             = true
   snapshot_identifier             = var.rds_config.snapshot_identifier
+
+  cluster_tags = var.rds_config.cluster_tags
 }
 
 data "aws_subnet" "redis" {
@@ -94,6 +96,7 @@ module "redis" {
     protocol    = "tcp"
     cidr_blocks = ["10.0.0.0/8"]
   }]
+  tags = var.redis_config.tags
 }
 
 module "secrets-manager-1" {
