@@ -120,9 +120,9 @@ This would include the CTO + Engineering managers.
 
 Our QA process should be strong enough to not allow bugs (and specifically severe bug) to get to our customers.
 
-However no QA is a perfect safety net and some severe bugs may at specific occasions get to our customer.
+However no QA is a perfect safety net and some severe bugs may, at specific occasions, get to our customer.
 
-In those specific cases, we need to investigate what happened and come up with remedations so that siliar events will not happen.
+In those specific cases, we need to investigate what happened and come up with remedations so that similiar events will not happen.
 
 #### Document
 
