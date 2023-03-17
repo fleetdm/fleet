@@ -356,12 +356,12 @@ Here are the steps hiring managers can follow to get an offer out to a candidate
    - If this is an engineering position, before the CEO interview, please also be sure that the candidate has already been interviewed by the CTO.
    - The personal email the candidate uses for this calendar event is where they will receive the offer.
 2. **Add to team database:** Update the [Fleeties](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) doc to reflect:
-   - updated timeframe for start date
-   - candidate's name
-   - LinkedIn URL
+   - start date _(No need to check with the candidate if you haven't already.  Just guess.)_
+   - candidate's first and last name
    - preferred pronoun
+   - LinkedIn URL
    - country and state where they will be working
-3. **Confirm intent to offer:** At-mention `@mikermcneil` in the `#hiring-` channel and indicate that you would like for Fleet to make an offer to the candidate and archive the channel.
+3. **Confirm intent to offer:** At-mention `@mikermcneil` in the `#hiring-` channel and indicate that you would like for Fleet to make an offer to the candidate.  Let him know 
 
 #### Making an offer
 After meeting with the candidate for their final interview, the CEO uses the following steps to make an offer:
@@ -377,12 +377,12 @@ After meeting with the candidate for their final interview, the CEO uses the fol
    - [ ] _Equity:_ Specify the number of shares, then highlight the number of shares with a link to the candidate's personalized copy of the "Exit scenarios" spreadsheet.
    - [ ] _Other information_: Read the offer email very carefully and double-check correctness versus the equity plan, especially in regards to salary, equity, and start date.
 5. **Send offer:** Once both documents are complete, send the offer email:
-   - To: The candidate's personal email address
+   - To: The candidate's personal email address _(use the email from the CEO interview calendar event)_
    - Cc: Zach Wasserman is included as a recipient, but will not participate in the email thread until after the offer is accepted.
    - Subject: "Full time?"
    - Body: _(The offer email is copied verbatim from Google Drive into Gmail as the body of the message, formatting and all.)_
    - Sending: _(When sending the offer, Gmail will automatically offer to change the permissions of the exit scenarios sheet so it is accessible to the candidate.  Choose to grant the candidate **"Edit"** access.)_
-
+6. **Archive channel:** Post to the `hiring-xxxxx` Slack channel to let folks know the offer was sent.  Then archive and close the channel.  (It can always be reopened, as needed.)
 
 ### Steps after an offer is accepted
 
