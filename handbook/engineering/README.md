@@ -136,6 +136,8 @@ Follow the document topic by topic. Keep the end in mind which is to take action
 
 Distinguish between the root-cause of the bug which by that time was solved and released and the root-cause of why this issue reached our customers. These could be different issues. (e.g. the root-cause of the bug was a coding issue, but the root causes (plural) of the event was the test plan did not cover a specific scenario, a lack of unit tests and a lack of metrics to identify the issue quickly).
 
+[Example Finished Document](https://docs.google.com/document/d/1YnETKhH9R7STAY-PaFnPy2qxhNht2EAFfkv-kyEwebQ/edit?usp=share_link
+
 ## Release process
 
 This section outlines the release process at Fleet.
