@@ -292,20 +292,24 @@ Every new position being created goes through this process before interviewing, 
   - State the proposed job title, include the appropriate departmental emoji, and link to the "living" fleetdm.com URL; not the GitHub URL.  _(This is where the new page _will eventually exist_, once this pull request is merged.  For now, if you were to visit this URL, you'd just see a 404 error.  So how can you determine this URL?  To understand the pattern, visit other job description pages from the [live handbook](https://fleetdm.com/handbook/company#open-positions), and examine their URLs in your browser.)_
 3. **Get it approved and merged:**  When you submit your proposed job description, the CEO will be automatically tagged for review and get a notification.  He will consider where this role fits into Fleet's strategy and decide whether Fleet will open this position at this time.  He will review the data carefully to try and catch any simple mistakes, then tentatively budget cash and equity compensation and document this compensation research.  He will set a tentative start date (which also indicates this position is no longer just "proposed"; it's now part of the hiring plan.)  Then the CEO will reply promptly in the `#hiring-xxxxx-YYYY` Slack channel, at-mentioning the original proposer and letting them know their position is approved.  (Unless it isn't.)
 
-> #### Steps for CEO
->  - Confirm the new row in "Fleeties" has a manager, job title, and department, that it doesn't have any corrupted spreadsheet formulas or formatting, and that the start date is still blank (so that it is clear to everyone that this position has been proposed, but that it is not confirmed and planned, yet).
->  - Confirm the job description consists only of changes to "Responsibilities" and "Experience," with an appropriate filename, and that the content looks accurate, is grammatically correct, and is otherwise ready to post in a public job description on fleetdm.com.  Then approve and merge the pull request.
->  - Ballpark, budget, and document compensation research for the role
->    - Scroll to the very bottom of ["¶¶ 💌 Compensation decisions (offer math)"](https://docs.google.com/document/d/1NQ-IjcOTbyFluCWqsFLMfP4SvnopoXDcX0civ-STS5c/edit#heading=h.slomq4whmyas) and add a new heading for the role, pattern-matching off of the names of other nearby role headings.
->    - Use [Pave](https://pave.com) to determine anticipated compensation in terms of base salary, variable compensation, and equity, then write those ballpark compensation numbers under the new heading in "Compensation decisions".  (Write equity as a percentage.  And when ballparking salary, err on the side of the role costing more.)
->    - Then create written documentation of your research for future reference.  Take a screenshot of the relevant Pave screens and paste those screenshots under the new heading.
->  - Update the row in ["¶¶ 🥧 Equity plan"](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit#gid=0) using the benchmarked compensation and share count.
->    - Note: Most columns of the equity plan are updated automatically when Fleeties is, based on the unique identifier of each row, like `🧑‍🚀890`.  (Advisors have their own flavor of unique IDs, such as `🦉755`.)
->    - Enter the salary: If the role has variable compensation, use the role's OTE (on-target earning estimate) as the budgeted salary amount, and leave a note in the "Notes (¶¶)" cell clarifying the role's bonus or commission structure.
->    - Enter the equity as a number of shares, watching the percentage that is automatically calculated in the next cell.  Keep guessing different numbers of shares until you get the derived percentage looking like what you want to see.
->  - Create a private "#hiring-xxxxxx-YYYY" Slack channel (where "xxxxxx" is the job title and YYYY is the current year).
->    - Invite the hiring manager.  (Mike McNeil is the DRI for all `#hiring-xxxxx-2022` Slack channels, but the hiring manager is also included.)
->    - In the channel, post a message at-mentioning the hiring manager to let them know that their proposed position has been reviewed and approved, and now the job description and application form are live on the website.  Include a direct link to their live job description on fleetdm.com.  (This is the URL where candidates can go to read about the job and apply.  For example: `fleetdm.com/handbook/company/product-designer`)
+#### Approving a new position
+When review is requested on a proposal to open a new position, the CEO will complete the following steps when reviewing the pull request:
+
+1. **Consider role and reporting structure:** Confirm the new row in "Fleeties" has a manager, job title, and department, that it doesn't have any corrupted spreadsheet formulas or formatting, and that the start date is still blank (so that it is clear to everyone that this position has been proposed, but that it is not confirmed and planned, yet).
+2. **Read job description:** Confirm the job description consists only of changes to "Responsibilities" and "Experience," with an appropriate filename, and that the content looks accurate, is grammatically correct, and is otherwise ready to post in a public job description on fleetdm.com.
+3. **Budget compensation:** Ballpark and document compensation research for the role based on 
+   - [ ] Scroll to the very bottom of ["¶¶ 💌 Compensation decisions (offer math)"](https://docs.google.com/document/d/1NQ-IjcOTbyFluCWqsFLMfP4SvnopoXDcX0civ-STS5c/edit#heading=h.slomq4whmyas) and add a new heading for the role, pattern-matching off of the names of other nearby role headings. Then create written documentation of your research for future reference.  The easiest way to do this is to take screenshots of the [relevant benchmarks in Pave](https://pave.com) and paste those screenshots under the new heading.
+   - [ ] Update the row in ["¶¶ 🥧 Equity plan"](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit#gid=0) using the benchmarked compensation and share count.
+   > _**Note:** Most columns of the equity plan are updated automatically when Fleeties is, based on the unique identifier of each row, like `🧑‍🚀890`.  (Advisors have their own flavor of unique IDs, such as `🦉755`.)_
+    - _Salary:_ Enter the salary: If the role has variable compensation, use the role's OTE (on-target earning estimate) as the budgeted salary amount, and leave a note in the "Notes (¶¶)" cell clarifying the role's bonus or commission structure.
+    - _Equity:_ Enter the equity as a number of shares, watching the percentage that is automatically calculated in the next cell.  Keep guessing different numbers of shares until you get the derived percentage looking like what you want to see.
+5. **Decide**: Decide whether to approve this role or to consider it a different time.  If approving, then:
+   - _Publish opening:_ Approve and merge the pull request.  The job posting go live within ≤10 minutes.
+   - _Create Slack channel:_ Create a private "#hiring-xxxxxx-YYYY" Slack channel (where "xxxxxx" is the job title and YYYY is the current year) for discussion and invite the hiring manager.
+   - _Reply to requestor:_ Post a comment on the pull request, being sure to include a direct link to their live job description on fleetdm.com.  (This is the URL where candidates can go to read about the job and apply.  For example: `fleetdm.com/handbook/company/product-designer`).  For example:
+     ```
+     The new opening is now live!  Candidates can apply at fleetdm.com/handbook/company/railway-conductor.
+      ```
 
 
 ### Recruiting
@@ -362,38 +366,31 @@ Here are the steps hiring managers can follow to get an offer out to a candidate
 After meeting with the candidate for their final interview, the CEO uses the following steps to make an offer:
 1. **Review decision:** The CEO reviews the data and decides whether it still makes sense to make this offer to this person in this role.  If not, he lets the manager know.  Otherwise, he continues with the offer.
 2. **Adjust salary:** [Re-benchmark salary](https://www.pave.com), adjusting for cost of living where the candidate will do the work.
-   - Paste a screenshot of Pave showing the adjusted benchmark into the [compensation decision for this position](https://docs.google.com/document/d/1NQ-IjcOTbyFluCWqsFLMfP4SvnopoXDcX0civ-STS5c/edit)
-   - Update the [equity plan](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit#gid=0) with the actual adjusted salary and equity offer that is about to be sent.  
-3. **Prepare the "exit scenarios" spreadsheet:** [Copy the "Exit scenarios (template)"](https://docs.google.com/spreadsheets/d/1k2TzsFYR0QxlD-KGPxuhuvvlJMrCvLPo2z8s8oGChT0/copy) for the candidate, and rename the copy to e.g. "Exit scenarios for Jane Doe".  Edit the candidate's copy of the exit scenarios spreadsheet to include the number of shares they will be offered.  Enter the number of shares offered to the candidate, and the spreadsheet will update to reflect this.
+   - [ ] Paste a screenshot of Pave showing the adjusted benchmark under the [heading for this position in " 💌 Compensation decisions"](https://docs.google.com/document/d/1NQ-IjcOTbyFluCWqsFLMfP4SvnopoXDcX0civ-STS5c/edit)
+   - [ ] Update the [equity plan](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit#gid=0) with the actual adjusted salary and equity offer that is about to be sent.  
+3. **Prepare the "exit scenarios" spreadsheet:** [Copy the "Exit scenarios (template)"](https://docs.google.com/spreadsheets/d/1k2TzsFYR0QxlD-KGPxuhuvvlJMrCvLPo2z8s8oGChT0/copy) for the candidate, and rename the copy to e.g. "Exit scenarios for Jane Doe".
+   - [ ] Edit the candidate's copy of the exit scenarios spreadsheet to include the number of shares they will be offered, and the spreadsheet will update automatically to reflect their approximate ownership percentage.
    > **_Note:_** *Don't play with numbers in the exit scenarios spreadsheet. The revision history is visible to the candidate, and they might misunderstand.*
 4. **Prepare offer email:** [Copy "Offer email (template)"](https://docs.google.com/document/d/1zpNN2LWzAj-dVBC8iOg9jLurNlSe7XWKU69j7ntWtbY/copy) and rename to e.g. "Offer email for Jane Doe".  Edit the candidate's copy of the offer email template doc and fill in the missing information:
-   - _Benefits:_ If candidate will work outside the US, [change the "Benefits" bullet](https://docs.google.com/document/d/1zpNN2LWzAj-dVBC8iOg9jLurNlSe7XWKU69j7ntWtbY/edit) to reflect what will be included through Fleet's international payroll provider, depending on the candidate's location.
-   - _Equity:_ Specify the number of shares, then highlight the number of shares with a link to the candidate's personalized copy of the "Exit scenarios" spreadsheet.
-   - _Other information_: Read the offer email very carefully and double-check correctness versus the equity plan, especially in regards to salary, equity, and start date.
+   - [ ] _Benefits:_ If candidate will work outside the US, [change the "Benefits" bullet](https://docs.google.com/document/d/1zpNN2LWzAj-dVBC8iOg9jLurNlSe7XWKU69j7ntWtbY/edit) to reflect what will be included through Fleet's international payroll provider, depending on the candidate's location.
+   - [ ] _Equity:_ Specify the number of shares, then highlight the number of shares with a link to the candidate's personalized copy of the "Exit scenarios" spreadsheet.
+   - [ ] _Other information_: Read the offer email very carefully and double-check correctness versus the equity plan, especially in regards to salary, equity, and start date.
 5. **Send offer:** Once both documents are complete, send the offer email:
    - To: The candidate's personal email address
-   - Cc: Zach Wasserman and Nathan Holliday should be included as recipients, but will not participate in the email thread until after the offer is accepted.
+   - Cc: Zach Wasserman is included as a recipient, but will not participate in the email thread until after the offer is accepted.
    - Subject: "Full time?"
    - Body: _(The offer email is copied verbatim from Google Drive into Gmail as the body of the message, formatting and all.)_
-   > _**Note:** When sending the offer, Gmail will automatically offer to change the permissions of the exit scenarios sheet so it is accessible to the candidate.  Grant the candidate "edit" access._
+   - Sending: _(When sending the offer, Gmail will automatically offer to change the permissions of the exit scenarios sheet so it is accessible to the candidate.  Choose to grant the candidate **"Edit"** access.)_
 
 
 ### Steps after an offer is accepted
 
-> **_Note:_** _Some Fleet team members are contractors and others are employees.  The distinction between "contractor" and "employee" varies in different geographies, and the appropriate contract for any given team member and the place where they work is determined during the hiring process._
-
-1. Once the new team member replies and accepts their offer in writing, Mike or Zach replies to the candidate.
+Once the new team member replies and accepts their offer in writing:
+1. The CEO or Zach Wasserman replies to the candidate.
 2. Whoever replies [creates a hiring issue](https://github.com/fleetdm/confidential/issues/new/choose) for the new team member. This will inform the Business Operations team to get involved.  They will use this issue to keep track of the hiring tasks for the new team member.
-3. Business Operations on-call reaches out to the new team member via email to get any information they will need to prepare an agreement and add them to our payroll system.
-   - **US team members**: CEO will send the new team member's agreement through [DocuSign](https://www.docusign.com/).
-  After signing and storing an in the correct Google Drive folder, Mike McNeil will invite the new team member to onboard in [Gusto](https://www.gusto.com/). Mike McNeil will reach out to them if the new team member is a W-2 employee and schedule an I-9 verification meeting.
-   >*If we're hiring in a new state, we'll have to register for state taxes and unemployment. Gusto usually handles this process.*
-   - **For international team members:** Mike McNeil enters the new team member's information into [Pilot](https://pilot.co/) to kick off their hiring process. Pilot creates an agreement for the new team member, and People Ops reviews it to make sure everything looks correct. After Mike McNeil confirms the information about the new hire, Pilot invites the new team member to enter the rest of their information and informs Mike McNeil via email when a new Fleetie signs their agreement.
-4. **As soon as we have a signed agreement with a new team member:** Mike McNeil reaches out to the new team member to provide them with a [work device](#purchasing-a-company-issued-device) and a pair of [YubiKeys](./../security.md#hardware-security-keys). Mike McNeil then requests a screenshot or link to the new Fleetie's preferred device and configuration. People Ops orders their device and Yubikeys using his Brex card and has them shipped directly to the new team member.
-   >*If the new team member is in the US and requests a MacBook, It will be purchased using our Apple business account. For MacBooks purchased with this account, Apple will ship pre-configured and enrolled in our MDM.*
-5. **Two weeks before their first day at Fleet:** Mike McNeil creates a [Google Workspace account](https://admin.google.com/ac/users) for the new team member and invites them to join the [FleetDM](https://github.com/fleetdm) GitHub organization. 
-   When the new team member's work email is active, Mike McNeil will send invitations to join Fleet's Slack and to create Fleet-managed 1Password and Zoom accounts with their Fleet email. Mike McNeil sends the sign-in instructions to the new team member, accompanied by a brief explanation of the invitations sent.
-6. **Before a new team member's first day:** Mike McNeil creates an onboarding issue in the [fleetdm/confidential](https://github.com/fleetdm/confidential/issues) GitHub repo for the new team member. Before creating the issue, Mike McNeil will go through it and comment on any steps that the new team member will not have to complete.
+3. Business Operations will then reach out to the new team member within 1 business day from a separate email thread to get any information they will need to prepare their agreement, add them to our payroll system, and get their new laptop and hardware security keys ordered so that everything is ready for them to start on their first day.
+
+> **_Note:_** _Some Fleet team members are contractors and others are employees.  The distinction between "contractor" and "employee" varies in different geographies, and the appropriate contract for any given team member and the place where they work is determined during the hiring process._
 
 
 #### Purchasing a company-issued device
