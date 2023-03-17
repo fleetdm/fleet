@@ -11,6 +11,8 @@ import (
 )
 
 const (
+	// FleetFileVaultPayloadIdentifier is the value for the PayloadIdentifier
+	// used by Fleet to configure FileVault and FileVault Escrow.
 	FleetFileVaultPayloadIdentifier = "com.fleetdm.fleet.mdm.filevault"
 
 	// FleetdConfigPayloadIdentifier is the value for the PayloadIdentifier used
@@ -18,16 +20,25 @@ const (
 	FleetdConfigPayloadIdentifier = "com.fleetdm.fleetd.config"
 )
 
-// FleetPayloadIdentifiers returns a map of profile identifiers
+// FleetPayloadIdentifiers returns a map of PayloadIdentifier strings
 // that are handled and delivered by Fleet.
+//
+// TODO(roperzh): at some point we should also include
+// apple_mdm.FletPayloadIdentifier here too, but that requires moving a lot of
+// files around due to import cycles.
 func FleetPayloadIdentifiers() map[string]struct{} {
 	return map[string]struct{}{
-		//FleetPayloadIdentifier:          {},
 		FleetFileVaultPayloadIdentifier: {},
 		FleetdConfigPayloadIdentifier:   {},
 	}
 }
 
+// FleetPayloadTypes returns a map of PayloadType strings
+// that are handled and delivered by Fleet.
+//
+// TODO(roperzh): when I was refactoring this, I noticed that the strings are
+// not constants, we should refactor that and use the constant in the templates
+// we use to generate the FileVault mobileconfig.
 func FleetPayloadTypes() map[string]struct{} {
 	return map[string]struct{}{
 		"com.apple.security.FDERecoveryKeyEscrow": {},
@@ -68,9 +79,8 @@ func (mc Mobileconfig) ParseConfigProfile() (*Parsed, error) {
 		}
 		mcBytes = Mobileconfig(p7.Content)
 	}
-	p := &Parsed{}
-	_, err := plist.Unmarshal(mcBytes, &p)
-	if err != nil {
+	var p Parsed
+	if _, err := plist.Unmarshal(mcBytes, &p); err != nil {
 		return nil, err
 	}
 	if p.PayloadType != "Configuration" {
@@ -79,23 +89,26 @@ func (mc Mobileconfig) ParseConfigProfile() (*Parsed, error) {
 	if p.PayloadIdentifier == "" {
 		return nil, errors.New("empty PayloadIdentifier in profile")
 	}
+	if _, ok := FleetPayloadIdentifiers()[p.PayloadIdentifier]; ok {
+		return nil, fmt.Errorf("payload identifier %s is not allowed", p.PayloadIdentifier)
+	}
 	if p.PayloadDisplayName == "" {
 		return nil, errors.New("empty PayloadDisplayName in profile")
 	}
 
-	return p, nil
+	return &p, nil
 }
 
-type PayloadSummary struct {
+type payloadSummary struct {
 	Type       string
 	Identifier string
 }
 
-// GetPayloadSummary attempts to parse the PayloadContent list of the Mobileconfig's TopLevel object.
+// payloadSummary attempts to parse the PayloadContent list of the Mobileconfig's TopLevel object.
 // It returns the PayloadType for each PayloadContentItem.
 //
 // See also https://developer.apple.com/documentation/devicemanagement/toplevel
-func (mc Mobileconfig) GetPayloadSummary() ([]PayloadSummary, error) {
+func (mc Mobileconfig) payloadSummary() ([]payloadSummary, error) {
 	mcBytes := mc
 	if !bytes.HasPrefix(mcBytes, []byte("<?xml")) {
 		p7, err := pkcs7.Parse(mcBytes)
@@ -133,9 +146,9 @@ func (mc Mobileconfig) GetPayloadSummary() ([]PayloadSummary, error) {
 
 	// extract the payload types of each payload content item from the array of
 	// payload dictionaries
-	var result []PayloadSummary
+	var result []payloadSummary
 	for _, payloadDict := range tlo.PayloadContent {
-		summary := PayloadSummary{}
+		summary := payloadSummary{}
 
 		pt, ok := payloadDict["PayloadType"]
 		if ok {
@@ -161,10 +174,10 @@ func (mc Mobileconfig) GetPayloadSummary() ([]PayloadSummary, error) {
 }
 
 func (mc *Mobileconfig) ScreenPayloads() error {
-	pct, err := mc.GetPayloadSummary()
+	pct, err := mc.payloadSummary()
 	if err != nil {
 		// don't error if there's nothing for us to screen.
-		if !errors.Is(err, ErrEmptyPayloadContent) || !errors.Is(err, ErrEncryptedPayloadContent) {
+		if !errors.Is(err, ErrEmptyPayloadContent) && !errors.Is(err, ErrEncryptedPayloadContent) {
 			return err
 		}
 	}

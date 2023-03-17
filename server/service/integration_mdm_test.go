@@ -1057,10 +1057,14 @@ func (s *integrationMDMTestSuite) TestMDMAppleConfigProfileCRUD() {
 	require.NoError(t, err)
 
 	testProfiles := make(map[string]fleet.MDMAppleConfigProfile)
-	generateTestProfile := func(name string) {
+	generateTestProfile := func(name string, identifier string) {
+		i := identifier
+		if i == "" {
+			i = fmt.Sprintf("%s.SomeIdentifier", name)
+		}
 		cp := fleet.MDMAppleConfigProfile{
 			Name:       name,
-			Identifier: fmt.Sprintf("%s.SomeIdentifier", name),
+			Identifier: i,
 		}
 		cp.Mobileconfig = mcBytesForTest(cp.Name, cp.Identifier, fmt.Sprintf("%s.UUID", name))
 		testProfiles[name] = cp
@@ -1110,7 +1114,7 @@ func (s *integrationMDMTestSuite) TestMDMAppleConfigProfileCRUD() {
 	}
 
 	// create new profile (no team)
-	generateTestProfile("TestNoTeam")
+	generateTestProfile("TestNoTeam", "")
 	body, headers := generateNewReq("TestNoTeam", nil)
 	newResp := s.DoRawWithHeaders("POST", "/api/latest/fleet/mdm/apple/profiles", body.Bytes(), http.StatusOK, headers)
 	var newCP fleet.MDMAppleConfigProfile
@@ -1120,7 +1124,7 @@ func (s *integrationMDMTestSuite) TestMDMAppleConfigProfileCRUD() {
 	setTestProfileID("TestNoTeam", newCP.ProfileID)
 
 	// create new profile (with team id)
-	generateTestProfile("TestWithTeamID")
+	generateTestProfile("TestWithTeamID", "")
 	body, headers = generateNewReq("TestWithTeamID", ptr.Uint(1))
 	newResp = s.DoRawWithHeaders("POST", "/api/latest/fleet/mdm/apple/profiles", body.Bytes(), http.StatusOK, headers)
 	err = json.NewDecoder(newResp.Body).Decode(&newCP)
@@ -1185,6 +1189,17 @@ func (s *integrationMDMTestSuite) TestMDMAppleConfigProfileCRUD() {
 	require.Len(t, listResp.ConfigProfiles, 0)
 	getPath = fmt.Sprintf("/api/latest/fleet/mdm/apple/profiles/%d", deletedCP.ProfileID)
 	_ = s.DoRawWithHeaders("GET", getPath, nil, http.StatusNotFound, map[string]string{"Authorization": fmt.Sprintf("Bearer %s", s.token)})
+
+	// trying to add profiles managed by Fleet fails
+	for p := range mobileconfig.FleetPayloadIdentifiers() {
+		generateTestProfile("TestNoTeam", p)
+		body, headers := generateNewReq("TestNoTeam", nil)
+		s.DoRawWithHeaders("POST", "/api/latest/fleet/mdm/apple/profiles", body.Bytes(), http.StatusBadRequest, headers)
+
+		generateTestProfile("TestWithTeamID", p)
+		body, headers = generateNewReq("TestWithTeamID", nil)
+		s.DoRawWithHeaders("POST", "/api/latest/fleet/mdm/apple/profiles", body.Bytes(), http.StatusBadRequest, headers)
+	}
 }
 
 func (s *integrationMDMTestSuite) TestAppConfigMDMAppleProfiles() {
