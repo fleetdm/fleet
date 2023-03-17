@@ -25,6 +25,11 @@ interface ICustomSettingsProps {
   refetchConfig: () => void;
 }
 
+interface IDeleteProfileProps {
+  profileId: number;
+  profileName: string;
+}
+
 const CustomSettings = ({
   profiles,
   refetchProfiles,
@@ -78,12 +83,19 @@ const CustomSettings = ({
     setShowDeleteProfileModal(false);
   };
 
-  const onDeleteProfile = async (profileId: number) => {
+  const onDeleteProfile = async ({
+    profileId,
+    profileName,
+  }: IDeleteProfileProps) => {
     try {
-      await mdmAPI.deleteProfile(profileId);
-      refetchProfiles();
-      refetchConfig();
-      renderFlash("success", "Successfully deleted!");
+      profileName === "Disk encryption"
+        ? mdmAPI.updateAppleMdmSettings(false, currentTeam?.id || 0)
+        : mdmAPI.deleteProfile(profileId);
+      const timer = setTimeout(() => {
+        renderFlash("success", "Successfully deleted!");
+        refetchProfiles();
+        refetchConfig();
+      }, 1000);
     } catch (e) {
       renderFlash("error", "Couldn’t delete. Please try again.");
     } finally {
@@ -91,6 +103,7 @@ const CustomSettings = ({
       setShowDeleteProfileModal(false);
     }
   };
+  console.log("profiles", profiles);
 
   return (
     <div className={baseClass}>

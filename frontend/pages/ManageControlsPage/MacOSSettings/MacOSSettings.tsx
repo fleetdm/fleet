@@ -1,4 +1,4 @@
-import React, { useContext } from "react";
+import React, { useContext, useState } from "react";
 import { Params } from "react-router/lib/Router";
 
 import { AppContext } from "context/app";
@@ -32,12 +32,17 @@ const MacOSSettings = ({ params, location }: IMacOSSettingsProps) => {
 
   const { setConfig } = useContext(AppContext);
 
-  const { data: profiles, refetch: refetchProfiles } = useQuery<
+  const [profiles, setProfiles] = useState<IMdmProfile[] | null>();
+
+  const { data: mdmProfiles, refetch: refetchProfiles } = useQuery<
     IMdmProfilesResponse,
     unknown,
     IMdmProfile[] | null
   >(["profiles", teamId], () => mdmAPI.getProfiles(teamId), {
     select: (data) => data.profiles,
+    onSuccess: (data) => {
+      setProfiles(data);
+    },
     refetchOnWindowFocus: false,
   });
 

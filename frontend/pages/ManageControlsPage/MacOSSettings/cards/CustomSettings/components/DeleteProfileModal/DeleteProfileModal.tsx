@@ -5,11 +5,16 @@ import { AppContext } from "context/app";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 
+interface IDeleteProfileProps {
+  profileId: number;
+  profileName: string;
+}
+
 interface DeleteProfileModalProps {
   profileName: string;
   profileId: number;
   onCancel: () => void;
-  onDelete: (profileId: number) => void;
+  onDelete: ({ profileId, profileName }: IDeleteProfileProps) => void;
 }
 
 const baseClass = "delete-profile-modal";
@@ -36,7 +41,7 @@ const DeleteProfileModal = ({
       className={baseClass}
       title={"Delete configuration profile"}
       onExit={onCancel}
-      onEnter={() => onDelete(profileId)}
+      onEnter={() => onDelete({ profileId, profileName })}
     >
       <>
         <p>
@@ -47,7 +52,7 @@ const DeleteProfileModal = ({
         <div className="modal-cta-wrap">
           <Button
             type="button"
-            onClick={() => onDelete(profileId)}
+            onClick={() => onDelete({ profileId, profileName })}
             variant="alert"
             className="delete-loading"
           >

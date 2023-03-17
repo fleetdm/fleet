@@ -8,6 +8,7 @@ import { IConfig } from "interfaces/config";
 import mdmAPI from "services/entities/mdm";
 import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 
+import Spinner from "components/Spinner";
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
 import Checkbox from "components/forms/fields/Checkbox";
@@ -38,29 +39,29 @@ const DiskEncryption = ({
 
   const [showAggregate, setShowAggregate] = useState(defaultShowDiskEncryption);
   const [diskEncryptionEnabled, setDiskEncryptionEnabled] = useState(
-    config?.mdm.macos_settings.enable_disk_encryption
+    defaultShowDiskEncryption
   );
 
   const onToggleCheckbox = (value: boolean) => {
     setDiskEncryptionEnabled(value);
   };
 
-  useQuery<ILoadTeamResponse, Error, ITeamConfig>(
-    ["team", currentTeamId],
-    () => teamsAPI.load(currentTeamId ?? 0),
-    {
-      refetchOnWindowFocus: false,
-      retry: false,
-      enabled: Boolean(currentTeamId),
-      select: (res) => res.team,
-      onSuccess: (res) => {
-        const enableDiskEncryption =
-          res.mdm?.macos_settings.enable_disk_encryption ?? false;
-        setDiskEncryptionEnabled(enableDiskEncryption);
-        setShowAggregate(enableDiskEncryption);
-      },
-    }
-  );
+  const { isLoading: isLoadingTeam } = useQuery<
+    ILoadTeamResponse,
+    Error,
+    ITeamConfig
+  >(["team", currentTeamId], () => teamsAPI.load(currentTeamId ?? 0), {
+    refetchOnWindowFocus: false,
+    retry: false,
+    enabled: Boolean(currentTeamId),
+    select: (res) => res.team,
+    onSuccess: (res) => {
+      const enableDiskEncryption =
+        res.mdm?.macos_settings.enable_disk_encryption ?? false;
+      setDiskEncryptionEnabled(enableDiskEncryption);
+      setShowAggregate(enableDiskEncryption);
+    },
+  });
 
   const onUpdateDiskEncryption = async () => {
     try {
@@ -80,6 +81,10 @@ const DiskEncryption = ({
       );
     }
   };
+
+  if (isLoadingTeam) {
+    return <Spinner />;
+  }
 
   return (
     <div className={baseClass}>
