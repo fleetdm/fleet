@@ -432,6 +432,17 @@ type HostMDMAppleProfile struct {
 	Detail        string                  `db:"detail" json:"detail"`
 }
 
+func (p HostMDMAppleProfile) IgnoreMDMClientError() bool {
+	switch p.OperationType {
+	case MDMAppleOperationTypeRemove:
+		switch {
+		case strings.Contains(p.Detail, "MDMClientError (89)"):
+			return true
+		}
+	}
+	return false
+}
+
 type MDMAppleProfilePayload struct {
 	ProfileID         uint   `db:"profile_id"`
 	ProfileIdentifier string `db:"profile_identifier"`
