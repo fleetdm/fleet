@@ -303,7 +303,7 @@ When review is requested on a proposal to open a new position, the CEO will comp
    > _**Note:** Most columns of the equity plan are updated automatically when Fleeties is, based on the unique identifier of each row, like `🧑‍🚀890`.  (Advisors have their own flavor of unique IDs, such as `🦉755`.)_
     - _Salary:_ Enter the salary: If the role has variable compensation, use the role's OTE (on-target earning estimate) as the budgeted salary amount, and leave a note in the "Notes (¶¶)" cell clarifying the role's bonus or commission structure.
     - _Equity:_ Enter the equity as a number of shares, watching the percentage that is automatically calculated in the next cell.  Keep guessing different numbers of shares until you get the derived percentage looking like what you want to see.
-5. **Decide**: Decide whether to approve this role or to consider it a different time.  If approving, then:
+4. **Decide**: Decide whether to approve this role or to consider it a different time.  If approving, then:
    - _Publish opening:_ Approve and merge the pull request.  The job posting go live within ≤10 minutes.
    - _Create Slack channel:_ Create a private "#hiring-xxxxxx-YYYY" Slack channel (where "xxxxxx" is the job title and YYYY is the current year) for discussion and invite the hiring manager.
    - _Reply to requestor:_ Post a comment on the pull request, being sure to include a direct link to their live job description on fleetdm.com.  (This is the URL where candidates can go to read about the job and apply.  For example: `fleetdm.com/handbook/company/product-designer`).  For example:
