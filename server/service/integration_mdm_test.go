@@ -1444,6 +1444,13 @@ func (s *integrationMDMTestSuite) TestTeamsMDMAppleDiskEncryption() {
 	errMsg := extractServerErrorText(res.Body)
 	assert.Contains(t, errMsg, `invalid value type at 'macos_settings.enable_disk_encryption': expected bool but got float64`)
 
+	// apply an empty set of batch profiles to the team
+	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: nil},
+		http.StatusUnprocessableEntity, "team_id", strconv.Itoa(int(team.ID)), "team_name", team.Name)
+
+	// the configuration profile is still there
+	s.assertConfigProfilesByIdentifier(ptr.Uint(team.ID), apple_mdm.FleetFileVaultPayloadIdentifier, true)
+
 	// apply without disk encryption settings specified and unrelated field,
 	// should not replace existing disk encryption
 	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{

@@ -52,6 +52,16 @@ const (
 	FleetdConfigPayloadIdentifier = "com.fleetdm.fleetd.config"
 )
 
+// ProfilesManagedByFleet returns a list of profile identifiers
+// that are handled and delivered by Fleet.
+func ProfilesManagedByFleet() []string {
+	return []string{
+		FleetPayloadIdentifier,
+		FleetFileVaultPayloadIdentifier,
+		FleetdConfigPayloadIdentifier,
+	}
+}
+
 func ResolveAppleMDMURL(serverURL string) (string, error) {
 	return resolveURL(serverURL, MDMPath)
 }

@@ -838,13 +838,6 @@ WHERE
   identifier NOT IN (?)
 `
 
-	const deleteAllExistingProfiles = `
-DELETE FROM
-  mdm_apple_configuration_profiles
-WHERE
-  team_id = ?
-`
-
 	const insertNewOrEditedProfile = `
 INSERT INTO
   mdm_apple_configuration_profiles (
@@ -898,19 +891,18 @@ VALUES
 			}
 		}
 
+		// profiles that are managed and delivered by Fleet
+		fleetIdents := apple_mdm.ProfilesManagedByFleet()
+
 		var (
 			stmt string
 			args []interface{}
 			err  error
 		)
-		if len(keepIdents) > 0 {
-			// delete the obsolete profiles (all those that are not in keepIdents)
-			stmt, args, err = sqlx.In(deleteProfilesNotInList, profTeamID, keepIdents)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "build statement to delete obsolete profiles")
-			}
-		} else {
-			stmt, args = deleteAllExistingProfiles, []interface{}{profTeamID}
+		// delete the obsolete profiles (all those that are not in keepIdents or delivered by Fleet)
+		stmt, args, err = sqlx.In(deleteProfilesNotInList, profTeamID, append(keepIdents, fleetIdents...))
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "build statement to delete obsolete profiles")
 		}
 		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
 			return ctxerr.Wrap(ctx, err, "delete obsolete profiles")

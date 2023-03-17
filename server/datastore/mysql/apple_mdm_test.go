@@ -813,6 +813,37 @@ func testBatchSetMDMAppleProfiles(t *testing.T, ds *Datastore) {
 
 	// clear profiles for tm1
 	applyAndExpect(nil, ptr.Uint(1), nil)
+
+	// simulate profiles being added by fleet
+	fleetProfiles := []*fleet.MDMAppleConfigProfile{}
+	expectFleetProfiles := []*fleet.MDMAppleConfigProfile{}
+	for _, fp := range apple_mdm.ProfilesManagedByFleet() {
+		fleetProfiles = append(fleetProfiles, configProfileForTest(t, fp, fp, fp))
+		expectFleetProfiles = append(expectFleetProfiles, withTeamID(configProfileForTest(t, fp, fp, fp), 1))
+	}
+
+	applyAndExpect(fleetProfiles, nil, fleetProfiles)
+	applyAndExpect(fleetProfiles, ptr.Uint(1), expectFleetProfiles)
+
+	// add no-team profiles
+	applyAndExpect([]*fleet.MDMAppleConfigProfile{
+		configProfileForTest(t, "N1", "I1", "b"),
+	}, nil, append([]*fleet.MDMAppleConfigProfile{
+		configProfileForTest(t, "N1", "I1", "b"),
+	}, fleetProfiles...))
+
+	// add team profiles
+	applyAndExpect([]*fleet.MDMAppleConfigProfile{
+		configProfileForTest(t, "N1", "I1", "a"),
+		configProfileForTest(t, "N2", "I2", "b"),
+	}, ptr.Uint(1), append([]*fleet.MDMAppleConfigProfile{
+		withTeamID(configProfileForTest(t, "N1", "I1", "a"), 1),
+		withTeamID(configProfileForTest(t, "N2", "I2", "b"), 1),
+	}, expectFleetProfiles...))
+
+	// cleaning profiles still leaves the profile managed by Fleet
+	applyAndExpect(nil, nil, fleetProfiles)
+	applyAndExpect(nil, ptr.Uint(1), expectFleetProfiles)
 }
 
 func configProfileForTest(t *testing.T, name, identifier, uuid string) *fleet.MDMAppleConfigProfile {
