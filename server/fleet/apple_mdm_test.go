@@ -211,3 +211,21 @@ func mcPayloadContentForTest(payloadTypes []string) string {
 
 	return formatted
 }
+
+func TestHostMDMAppleProfileIgnoreClientError(t *testing.T) {
+	require.True(t, HostMDMAppleProfile{
+		CommandUUID:   "c1",
+		HostUUID:      "h1",
+		Status:        &MDMAppleDeliveryFailed,
+		Detail:        "MDMClientError (89): Profile with identifier 'p1' not found.",
+		OperationType: MDMAppleOperationTypeRemove,
+	}.IgnoreMDMClientError())
+
+	require.False(t, HostMDMAppleProfile{
+		CommandUUID:   "c1",
+		HostUUID:      "h1",
+		Status:        &MDMAppleDeliveryFailed,
+		Detail:        "MDMClientError (96): Cannot replace profile 'p2' because it was not installed by the MDM server.",
+		OperationType: MDMAppleOperationTypeRemove,
+	}.IgnoreMDMClientError())
+}
