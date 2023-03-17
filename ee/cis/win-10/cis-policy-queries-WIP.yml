@@ -11,8 +11,7 @@ spec:
     To establish the recommended configuration via GP, set the following UI path to Disabled:
     'Computer Configuration\Policies\Administrative Templates\System\Troubleshooting and Diagnostics\Microsoft Support Diagnostic Tool\Microsoft Support Diagnostic Tool: Turn on MSDT interactive communication with support provider
   query: |
-    TBD
-    Untested: SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\ScriptedDiagnosticsProvider\\Policy\DisableQueryRemoteServer' AND data = 0);
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\ScriptedDiagnosticsProvider\\Policy\DisableQueryRemoteServer' AND data = 0);
   purpose: Informational
   tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_18.8.48.5.1
   contributors: rachelelysia
@@ -30,8 +29,7 @@ spec:
     To establish the recommended configuration via GP, set the following UI path to Disabled:
     'Computer Configuration\Policies\Administrative Templates\System\Troubleshooting and Diagnostics\Windows Performance PerfTrack\Enable/Disable PerfTrack'
   query: |
-    TBD
-    Untested: SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\Microsoft\\Windows\\WDI\\{9c5a40da-b965-4fc3-8781-88dd50a6299d}\ScenarioExecutionEnabled' AND data = 0);
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\Microsoft\\Windows\\WDI\\{9c5a40da-b965-4fc3-8781-88dd50a6299d}\ScenarioExecutionEnabled' AND data = 0);
   purpose: Informational
   tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_18.8.48.11.1
   contributors: rachelelysia
@@ -49,8 +47,7 @@ spec:
     To establish the recommended configuration via GP, set the following UI path to Enabled:
     'Computer Configuration\Policies\Administrative Templates\System\User Profiles\Turn off the advertising ID'
   query: |
-    TBD
-    Untested: SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\Microsoft\\Windows\\AdvertisingInfo\DisabledByGroupPolicy' AND data = 1);
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\Microsoft\\Windows\\AdvertisingInfo\DisabledByGroupPolicy' AND data = 1);
   purpose: Informational
   tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_18.8.50.1
   contributors: rachelelysia
@@ -68,8 +65,7 @@ spec:
     To establish the recommended configuration via GP, set the following UI path to Enabled:
     'Computer Configuration\Policies\Administrative Templates\System\Windows Time Service\Time Providers\Enable Windows NTP Client'
   query: |
-    TBD
-    Untested: SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\Microsoft\\W32Time\\TimeProviders\\NtpClient\Enabled' AND data = 1);
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\Microsoft\\W32Time\\TimeProviders\\NtpClient\Enabled' AND data = 1);
   purpose: Informational
   tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_18.8.53.1.1
   contributors: rachelelysia
@@ -87,8 +83,7 @@ spec:
     To establish the recommended configuration via GP, set the following UI path to Disabled:
     'Computer Configuration\Policies\Administrative Templates\System\Windows Time Service\Time Providers\Enable Windows NTP Server'
   query: |
-    TBD
-    Untested: SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\Software\\Policies\\Microsoft\\W32Time\\TimeProviders\\NtpServer' AND data = 0);
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\Software\\Policies\\Microsoft\\W32Time\\TimeProviders\\NtpServer' AND data = 0);
   purpose: Informational
   tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_18.8.53.1.2
   contributors: rachelelysia
