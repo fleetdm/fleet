@@ -83,15 +83,23 @@ SELECT
 FROM
 	mdm_apple_configuration_profiles
 WHERE
-	team_id=?`
+	team_id=? AND identifier NOT IN (?)`
 
 	if teamID == nil {
 		teamID = ptr.Uint(0)
 	}
 
-	var res []*fleet.MDMAppleConfigProfile
-	err := sqlx.SelectContext(ctx, ds.reader, &res, stmt, teamID)
+	fleetIdentifiers := []string{}
+	for idf := range mobileconfig.FleetPayloadIdentifiers() {
+		fleetIdentifiers = append(fleetIdentifiers, idf)
+	}
+	stmt, args, err := sqlx.In(stmt, teamID, fleetIdentifiers)
 	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "sqlx.In loadTeamsForUsers")
+	}
+
+	var res []*fleet.MDMAppleConfigProfile
+	if err = sqlx.SelectContext(ctx, ds.reader, &res, stmt, args...); err != nil {
 		return nil, err
 	}
 	return res, nil

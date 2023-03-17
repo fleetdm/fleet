@@ -122,6 +122,14 @@ func testListMDMAppleConfigProfiles(t *testing.T, ds *Datastore) {
 	require.Len(t, cps, 1)
 	checkConfigProfile(t, *expectedTeam0[0], *cps[0])
 
+	// add fleet-managed profiles for the team and globally
+	for idf := range mobileconfig.FleetPayloadIdentifiers() {
+		_, err = ds.NewMDMAppleConfigProfile(ctx, *generateCP("name_"+idf, idf, 1))
+		require.NoError(t, err)
+		_, err = ds.NewMDMAppleConfigProfile(ctx, *generateCP("name_"+idf, idf, 0))
+		require.NoError(t, err)
+	}
+
 	// add profile with team id 1
 	cp, err = ds.NewMDMAppleConfigProfile(ctx, *generateCP("name1", "identifier1", 1))
 	require.NoError(t, err)
@@ -725,8 +733,16 @@ func testBatchSetMDMAppleProfiles(t *testing.T, ds *Datastore) {
 	applyAndExpect := func(newSet []*fleet.MDMAppleConfigProfile, tmID *uint, want []*fleet.MDMAppleConfigProfile) map[string]uint {
 		err := ds.BatchSetMDMAppleProfiles(ctx, tmID, newSet)
 		require.NoError(t, err)
-		got, err := ds.ListMDMAppleConfigProfiles(ctx, tmID)
-		require.NoError(t, err)
+
+		if tmID == nil {
+			tmID = ptr.Uint(0)
+		}
+		// don't use ds.ListMDMAppleConfigProfiles as it leaves out
+		// fleet-managed profiles.
+		var got []*fleet.MDMAppleConfigProfile
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &got, `SELECT * FROM mdm_apple_configuration_profiles WHERE team_id = ?`, tmID)
+		})
 
 		// compare only the fields we care about, and build the resulting map of
 		// profile identifier as key to profile ID as value
