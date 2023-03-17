@@ -12,6 +12,7 @@
 - [Group Weeklies](#group-weeklies)
 - [Standup](#standup)
 - [Product and Eng Weekly](#product-and-eng-weekly)
+- [Customer Events Postmortem](#customer-events-postmortem)
 
 ### Goals
 
@@ -114,6 +115,14 @@ This would include the CTO + Engineering managers.
 - Fullstack engineer hiring
 - Engineering process discussion
 - Review Q2 OKRs
+
+### Customer Events Postmortem
+
+Our QA process should be strong enough to not allow bugs (and specifically severe bug) to get to our customers.
+However no QA is a perfect safety net and some severe bugs may at specific occasions get to our customer.
+In those specific cases, we need to investigate what happened and come up with remedations so that siliar events will not happen.
+
+#### Document
 
 ## Release process
 
