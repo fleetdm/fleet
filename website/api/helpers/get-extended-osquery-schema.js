@@ -25,7 +25,7 @@ module.exports = {
 
     require('assert')(sails.config.custom.sails.config.custom.versionOfOsquerySchemaToUseWhenGeneratingDocumentation, 'Please set sails.config.custom.sails.config.custom.versionOfOsquerySchemaToUseWhenGeneratingDocumentation to the version of osquery to use, for example \'5.8.1\'.');
     let VERSION_OF_OSQUERY_SCHEMA_TO_USE = sails.config.custom.versionOfOsquerySchemaToUseWhenGeneratingDocumentation;
-    
+
     // Getting the specified osquery schema from the osquery/osquery-site GitHub repo.
     let rawOsqueryTables = await sails.helpers.http.get('https://raw.githubusercontent.com/osquery/osquery-site/source/src/data/osquery_schema_versions/'+VERSION_OF_OSQUERY_SCHEMA_TO_USE+'.json');
 
