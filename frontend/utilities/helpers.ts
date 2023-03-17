@@ -40,7 +40,9 @@ import sortUtils from "utilities/sort";
 import {
   DEFAULT_EMPTY_CELL_VALUE,
   DEFAULT_GRAVATAR_LINK,
+  DEFAULT_GRAVATAR_LINK_FALLBACK,
   DEFAULT_GRAVATAR_LINK_DARK,
+  DEFAULT_GRAVATAR_LINK_DARK_FALLBACK,
   PLATFORM_LABEL_DISPLAY_TYPES,
 } from "utilities/constants";
 import { IScheduledQueryStats } from "interfaces/scheduled_query_stats";
@@ -66,8 +68,8 @@ export const addGravatarUrlToResource = (resource: any): any => {
       DEFAULT_GRAVATAR_LINK_DARK
     )}&size=200`;
   } else {
-    gravatar_url = DEFAULT_GRAVATAR_LINK;
-    gravatar_url_dark = DEFAULT_GRAVATAR_LINK_DARK;
+    gravatar_url = DEFAULT_GRAVATAR_LINK_FALLBACK;
+    gravatar_url_dark = DEFAULT_GRAVATAR_LINK_DARK_FALLBACK;
   }
 
   return {
