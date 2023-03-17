@@ -836,10 +836,13 @@ func (s *integrationMDMTestSuite) TestMDMAppleGetEncryptionKey() {
 	require.NoError(t, err)
 
 	// install a filevault profile for that host
-	prof, err := fleet.NewMDMAppleConfigProfile(mobileconfigForTest("N1", mobileconfig.FleetFileVaultPayloadIdentifier), nil)
-	require.NoError(t, err)
-	fileVaultProf, err := s.ds.NewMDMAppleConfigProfile(ctx, *prof)
-	require.NoError(t, err)
+
+	acResp := appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": { "macos_settings": { "enable_disk_encryption": true } }
+  }`), http.StatusOK, &acResp)
+	assert.True(t, acResp.MDM.MacOSSettings.EnableDiskEncryption)
+	fileVaultProf := s.assertConfigProfilesByIdentifier(nil, mobileconfig.FleetFileVaultPayloadIdentifier, true)
 	hostCmdUUID := uuid.New().String()
 	err = s.ds.BulkUpsertMDMAppleHostProfiles(ctx, []*fleet.MDMAppleBulkUpsertHostProfilePayload{
 		{
@@ -1212,10 +1215,10 @@ func (s *integrationMDMTestSuite) TestMDMAppleConfigProfileCRUD() {
 		"mdm": { "macos_settings": { "enable_disk_encryption": true } }
   }`), http.StatusOK, &acResp)
 	assert.True(t, acResp.MDM.MacOSSettings.EnableDiskEncryption)
-	id := s.assertConfigProfilesByIdentifier(nil, mobileconfig.FleetFileVaultPayloadIdentifier, true)
+	profile := s.assertConfigProfilesByIdentifier(nil, mobileconfig.FleetFileVaultPayloadIdentifier, true)
 
 	// try to delete the profile
-	deletePath = fmt.Sprintf("/api/latest/fleet/mdm/apple/profiles/%d", id)
+	deletePath = fmt.Sprintf("/api/latest/fleet/mdm/apple/profiles/%d", profile.ProfileID)
 	deleteResp = deleteMDMAppleConfigProfileResponse{}
 	s.DoJSON("DELETE", deletePath, nil, http.StatusBadRequest, &deleteResp)
 }
@@ -1777,11 +1780,15 @@ func (s *integrationMDMTestSuite) TestDEPOktaLogin() {
 	require.NotEmpty(t, uuid)
 }
 
-func (s *integrationMDMTestSuite) assertConfigProfilesByIdentifier(teamID *uint, profileIdent string, exists bool) (profileID uint) {
+func (s *integrationMDMTestSuite) assertConfigProfilesByIdentifier(teamID *uint, profileIdent string, exists bool) (profile *fleet.MDMAppleConfigProfile) {
 	t := s.T()
-
-	cfgProfs, err := s.ds.ListMDMAppleConfigProfiles(context.Background(), teamID)
-	require.NoError(t, err)
+	if teamID == nil {
+		teamID = ptr.Uint(0)
+	}
+	var cfgProfs []*fleet.MDMAppleConfigProfile
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(context.Background(), q, &cfgProfs, `SELECT * FROM mdm_apple_configuration_profiles WHERE team_id = ?`, teamID)
+	})
 
 	label := "exist"
 	if !exists {
@@ -1790,14 +1797,14 @@ func (s *integrationMDMTestSuite) assertConfigProfilesByIdentifier(teamID *uint,
 	require.Condition(t, func() bool {
 		for _, p := range cfgProfs {
 			if p.Identifier == profileIdent {
-				profileID = p.ProfileID
+				profile = p
 				return exists // success if we want it to exist, failure if we don't
 			}
 		}
 		return !exists
 	}, "a config profile must %s with identifier: %s", label, profileIdent)
 
-	return profileID
+	return profile
 }
 
 type device struct {
