@@ -12,7 +12,6 @@
 - [Group Weeklies](#group-weeklies)
 - [Standup](#standup)
 - [Product and Eng Weekly](#product-and-eng-weekly)
-- [Customer Events Postmortem](#customer-events-postmortem)
 
 ### Goals
 
@@ -115,28 +114,6 @@ This would include the CTO + Engineering managers.
 - Fullstack engineer hiring
 - Engineering process discussion
 - Review Q2 OKRs
-
-### Customer Events Postmortem
-
-Our QA process should be strong enough to not allow bugs (and specifically severe bug) to get to our customers.
-
-However no QA is a perfect safety net and some severe bugs may, at specific occasions, get to our customer.
-
-In those specific cases, we need to investigate what happened and come up with remedations so that similiar events will not happen.
-
-#### Document
-
-Before running the postmortem meeting this [Postmortem Template](https://docs.google.com/document/d/17xbobhzCINtVmeRT2HPMlSwvw7MjVvoPSUVxmVy4wNY/edit?usp=share_link) document should be copied and filled with some initial data allowing smooth run of the discussion. 
-
-#### The meeting
-
-Invite all stake holders. Typically the team involved and QA representatives.
-
-Follow the document topic by topic. Keep the end in mind which is to take action items for addressing the root cause and making sure it does not happen again. 
-
-Distinguish between the root-cause of the bug which by that time was solved and released and the root-cause of why this issue reached our customers. These could be different issues. (e.g. the root-cause of the bug was a coding issue, but the root causes (plural) of the event was the test plan did not cover a specific scenario, a lack of unit tests and a lack of metrics to identify the issue quickly).
-
-[Example Finished Document](https://docs.google.com/document/d/1YnETKhH9R7STAY-PaFnPy2qxhNht2EAFfkv-kyEwebQ/edit?usp=share_link)
 
 ## Release process
 
@@ -287,6 +264,20 @@ At the weekly "Eng Together" meeting, the oncall is asked to make a report of ho
 At Fleet, we take customer incidents very seriously. After working with customers to resolve issues, we will conduct an internal postmortem to determine any documentation or coding changes to prevent similar incidents from happening in the future. Why? We strive to make Fleet the best osquery management platform globally, and we sincerely believe that starts with sharing lessons learned with the community to become stronger together.
 
 At Fleet, we do postmortem meetings for every production incident, whether it's a customer's environment or on fleetdm.com.
+
+#### Document
+
+Before running the postmortem meeting this [Postmortem Template](https://docs.google.com/document/d/17xbobhzCINtVmeRT2HPMlSwvw7MjVvoPSUVxmVy4wNY/edit?usp=share_link) document should be copied and filled with some initial data allowing smooth run of the discussion. 
+
+#### The meeting
+
+Invite all stake holders. Typically the team involved and QA representatives.
+
+Follow the document topic by topic. Keep the end in mind which is to take action items for addressing the root cause and making sure it does not happen again. 
+
+Distinguish between the root-cause of the bug which by that time was solved and released and the root-cause of why this issue reached our customers. These could be different issues. (e.g. the root-cause of the bug was a coding issue, but the root causes (plural) of the event was the test plan did not cover a specific scenario, a lack of unit tests and a lack of metrics to identify the issue quickly).
+
+[Example Finished Document](https://docs.google.com/document/d/1YnETKhH9R7STAY-PaFnPy2qxhNht2EAFfkv-kyEwebQ/edit?usp=share_link)
 
 ## Outages
 
