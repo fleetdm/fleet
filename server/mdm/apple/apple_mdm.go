@@ -45,22 +45,7 @@ const (
 
 	// FleetFileVaultPayloadIdentifier is the value for the PayloadIdentifier
 	// used by Fleet to configure FileVault and FileVault Escrow.
-	FleetFileVaultPayloadIdentifier = "com.fleetdm.fleet.mdm.filevault"
-
-	// FleetdConfigPayloadIdentifier is the value for the PayloadIdentifier used
-	// by fleetd to read configuration values from the system.
-	FleetdConfigPayloadIdentifier = "com.fleetdm.fleetd.config"
 )
-
-// ProfilesManagedByFleet returns a list of profile identifiers
-// that are handled and delivered by Fleet.
-func ProfilesManagedByFleet() []string {
-	return []string{
-		FleetPayloadIdentifier,
-		FleetFileVaultPayloadIdentifier,
-		FleetdConfigPayloadIdentifier,
-	}
-}
 
 func ResolveAppleMDMURL(serverURL string) (string, error) {
 	return resolveURL(serverURL, MDMPath)

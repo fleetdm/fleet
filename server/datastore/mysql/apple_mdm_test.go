@@ -9,6 +9,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/jmoiron/sqlx"
@@ -100,7 +101,7 @@ func testListMDMAppleConfigProfiles(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
 	generateCP := func(name string, identifier string, teamID uint) *fleet.MDMAppleConfigProfile {
-		mc := fleet.Mobileconfig([]byte(name + identifier))
+		mc := mobileconfig.Mobileconfig([]byte(name + identifier))
 		return &fleet.MDMAppleConfigProfile{
 			Name:         name,
 			Identifier:   identifier,
@@ -185,7 +186,7 @@ func testDeleteMDMAppleConfigProfileByTeamAndIdentifier(t *testing.T, ds *Datast
 }
 
 func storeDummyConfigProfileForTest(t *testing.T, ds *Datastore) *fleet.MDMAppleConfigProfile {
-	dummyMC := fleet.Mobileconfig([]byte("DummyTestMobileconfigBytes"))
+	dummyMC := mobileconfig.Mobileconfig([]byte("DummyTestMobileconfigBytes"))
 	dummyCP := fleet.MDMAppleConfigProfile{
 		Name:         "DummyTestName",
 		Identifier:   "DummyTestIdentifier",
@@ -817,7 +818,7 @@ func testBatchSetMDMAppleProfiles(t *testing.T, ds *Datastore) {
 	// simulate profiles being added by fleet
 	fleetProfiles := []*fleet.MDMAppleConfigProfile{}
 	expectFleetProfiles := []*fleet.MDMAppleConfigProfile{}
-	for _, fp := range apple_mdm.ProfilesManagedByFleet() {
+	for fp := range mobileconfig.FleetPayloadIdentifiers() {
 		fleetProfiles = append(fleetProfiles, configProfileForTest(t, fp, fp, fp))
 		expectFleetProfiles = append(expectFleetProfiles, withTeamID(configProfileForTest(t, fp, fp, fp), 1))
 	}
@@ -847,7 +848,7 @@ func testBatchSetMDMAppleProfiles(t *testing.T, ds *Datastore) {
 }
 
 func configProfileForTest(t *testing.T, name, identifier, uuid string) *fleet.MDMAppleConfigProfile {
-	prof := fleet.Mobileconfig(fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+	prof := []byte(fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
@@ -866,7 +867,7 @@ func configProfileForTest(t *testing.T, name, identifier, uuid string) *fleet.MD
 </dict>
 </plist>
 `, name, identifier, uuid))
-	cp, err := prof.ParseConfigProfile()
+	cp, err := fleet.NewMDMAppleConfigProfile(prof, nil)
 	require.NoError(t, err)
 	return cp
 }
@@ -1175,14 +1176,14 @@ func testGetMDMAppleProfilesContents(t *testing.T, ds *Datastore) {
 
 	cases := []struct {
 		ids  []uint
-		want map[uint]fleet.Mobileconfig
+		want map[uint]mobileconfig.Mobileconfig
 	}{
 		{[]uint{}, nil},
 		{nil, nil},
-		{[]uint{profiles[0].ProfileID}, map[uint]fleet.Mobileconfig{profiles[0].ProfileID: profiles[0].Mobileconfig}},
+		{[]uint{profiles[0].ProfileID}, map[uint]mobileconfig.Mobileconfig{profiles[0].ProfileID: profiles[0].Mobileconfig}},
 		{
 			[]uint{profiles[0].ProfileID, profiles[1].ProfileID, profiles[2].ProfileID},
-			map[uint]fleet.Mobileconfig{
+			map[uint]mobileconfig.Mobileconfig{
 				profiles[0].ProfileID: profiles[0].Mobileconfig,
 				profiles[1].ProfileID: profiles[1].Mobileconfig,
 				profiles[2].ProfileID: profiles[2].Mobileconfig,
@@ -1246,7 +1247,7 @@ func testMDMAppleHostsProfilesStatus(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
 	generateCP := func(name string, identifier string, teamID uint) *fleet.MDMAppleConfigProfile {
-		mc := fleet.Mobileconfig([]byte(name + identifier))
+		mc := mobileconfig.Mobileconfig([]byte(name + identifier))
 		return &fleet.MDMAppleConfigProfile{
 			Name:         name,
 			Identifier:   identifier,

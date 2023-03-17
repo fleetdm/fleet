@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 	"go.mozilla.org/pkcs7"
@@ -19,7 +20,7 @@ import (
 func TestMDMAppleConfigProfile(t *testing.T) {
 	cases := []struct {
 		testName     string
-		mobileconfig Mobileconfig
+		mobileconfig mobileconfig.Mobileconfig
 		shouldFail   bool
 	}{
 		{
@@ -81,11 +82,7 @@ func TestMDMAppleConfigProfile(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.testName, func(t *testing.T) {
-			mc := c.mobileconfig
-			cp := new(MDMAppleConfigProfile)
-			cp.Mobileconfig = mc
-
-			parsed, err := cp.Mobileconfig.ParseConfigProfile()
+			parsed, err := NewMDMAppleConfigProfile(c.mobileconfig, nil)
 			if c.shouldFail {
 				require.Error(t, err)
 			} else {
@@ -143,14 +140,12 @@ func TestMDMAppleConfigProfileScreenPayloadContent(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.testName, func(t *testing.T) {
 			mc := mobileconfigForTest("ValidName", "ValidIdentifier", uuid.NewString(), mcPayloadContentForTest(c.payloadTypes))
-			cp := new(MDMAppleConfigProfile)
-			cp.Mobileconfig = mc
-			parsed, err := cp.Mobileconfig.ParseConfigProfile()
+			parsed, err := NewMDMAppleConfigProfile(mc, nil)
 			require.NoError(t, err)
 			require.Equal(t, "ValidName", parsed.Name)
 			require.Equal(t, "ValidIdentifier", parsed.Identifier)
 
-			err = cp.ScreenPayloadTypes()
+			err = parsed.ScreenPayloads()
 			for _, pt := range c.shouldFail {
 				require.Error(t, err)
 				require.ErrorContains(t, err, pt)
@@ -159,7 +154,7 @@ func TestMDMAppleConfigProfileScreenPayloadContent(t *testing.T) {
 	}
 }
 
-func mobileconfigForTest(name string, identifier string, uuid string, payloadContent string) Mobileconfig {
+func mobileconfigForTest(name string, identifier string, uuid string, payloadContent string) mobileconfig.Mobileconfig {
 	pc := "<array/>"
 	if payloadContent != "" {
 		pc = fmt.Sprintf(`<array>%s

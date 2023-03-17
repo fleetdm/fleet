@@ -11,6 +11,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
@@ -892,7 +893,10 @@ VALUES
 		}
 
 		// profiles that are managed and delivered by Fleet
-		fleetIdents := apple_mdm.ProfilesManagedByFleet()
+		fleetIdents := []string{}
+		for ident := range mobileconfig.FleetPayloadIdentifiers() {
+			fleetIdents = append(fleetIdents, ident)
+		}
 
 		var (
 			stmt string
@@ -983,7 +987,7 @@ func (ds *Datastore) ListMDMAppleProfilesToRemove(ctx context.Context) ([]*fleet
 	return profiles, err
 }
 
-func (ds *Datastore) GetMDMAppleProfilesContents(ctx context.Context, ids []uint) (map[uint]fleet.Mobileconfig, error) {
+func (ds *Datastore) GetMDMAppleProfilesContents(ctx context.Context, ids []uint) (map[uint]mobileconfig.Mobileconfig, error) {
 	if len(ids) == 0 {
 		return nil, nil
 	}
@@ -1001,10 +1005,10 @@ func (ds *Datastore) GetMDMAppleProfilesContents(ctx context.Context, ids []uint
 		return nil, err
 	}
 	defer rows.Close()
-	results := make(map[uint]fleet.Mobileconfig)
+	results := make(map[uint]mobileconfig.Mobileconfig)
 	for rows.Next() {
 		var id uint
-		var mobileconfig fleet.Mobileconfig
+		var mobileconfig mobileconfig.Mobileconfig
 		if err := rows.Scan(&id, &mobileconfig); err != nil {
 			return nil, err
 		}
