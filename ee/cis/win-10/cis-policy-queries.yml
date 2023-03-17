@@ -3380,7 +3380,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\Group Policy\\{35378EAC-683F-11D2-A89A-00C04FBBCFA2}\NoBackgroundPolicy' AND data = 0);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_not_completed, CIS_win10_enterprise_1.12.0, CIS_not_completed, CIS_domain_joined_required, CIS_bullet_18.8.21.2
+  tags: compliance, CIS, CIS_Level1, CIS_not_completed, CIS_win10_enterprise_1.12.0, CIS_bullet_18.8.21.2
   contributors: rachelelysia
 ---
 apiVersion: v1
@@ -3399,7 +3399,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\Explorer\NoUseStoreOpenWith' AND data = 1);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_not_completed, CIS_domain_joined_required, CIS_bullet_18.8.22.1.1
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_group_policy_template_required, CIS_bullet_18.8.22.1.1
   contributors: rachelelysia
 ---
 apiVersion: v1
@@ -3418,7 +3418,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows NT\\Printers\DisableWebPnPDownload' AND data = 1);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_not_completed, CIS_domain_joined_required, CIS_bullet_18.8.22.1.2
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_group_policy_template_required, CIS_bullet_18.8.22.1.2
   contributors: rachelelysia
 ---
 apiVersion: v1
@@ -3438,7 +3438,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\TabletPC\PreventHandwritingDataSharing' AND data = 1);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_not_completed, CIS_domain_joined_required, CIS_bullet_18.8.22.1.3
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_group_policy_template_required, CIS_bullet_18.8.22.1.3
   contributors: rachelelysia
 ---
 apiVersion: v1
@@ -3458,7 +3458,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\HandwritingErrorReports\PreventHandwritingErrorReports' AND data = 1);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_not_completed, CIS_domain_joined_required, CIS_bullet_18.8.22.1.4
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_group_policy_template_required, CIS_bullet_18.8.22.1.4
   contributors: rachelelysia
 ---
 apiVersion: v1
@@ -3477,7 +3477,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\Internet Connection Wizard\ExitOnMSICW' AND data = 1);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_not_completed, CIS_domain_joined_required, CIS_bullet_18.8.22.1.5
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_group_policy_template_required, CIS_bullet_18.8.22.1.5
   contributors: rachelelysia
 ---
 apiVersion: v1
@@ -3496,7 +3496,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer\NoWebServices' AND data = 1);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_not_completed, CIS_domain_joined_required, CIS_bullet_18.8.22.1.6
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_group_policy_template_required, CIS_bullet_18.8.22.1.6
   contributors: rachelelysia
 ---
 apiVersion: v1
@@ -3515,7 +3515,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows NT\\Printers\DisableHTTPPrinting' AND data = 1);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_not_completed, CIS_domain_joined_required, CIS_bullet_18.8.22.1.7
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_group_policy_template_required, CIS_bullet_18.8.22.1.7
   contributors: rachelelysia
 ---
 apiVersion: v1
@@ -3534,7 +3534,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\Registration Wizard Control\NoRegistration' AND data = 1);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_not_completed, CIS_domain_joined_required, CIS_bullet_18.8.22.1.8
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_group_policy_template_required, CIS_bullet_18.8.22.1.8
   contributors: rachelelysia
 ---
 apiVersion: v1
@@ -3553,7 +3553,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\SearchCompanion\DisableContentFileUpdates' AND data = 1);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0,  CIS_not_completed, CIS_domain_joined_required, CIS_bullet_18.8.22.1.9
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0,  CIS_group_policy_template_required, CIS_bullet_18.8.22.1.9
   contributors: rachelelysia
 ---
 apiVersion: v1
@@ -3573,7 +3573,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer\NoOnlinePrintsWizard' AND data = 1);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0,  CIS_not_completed, CIS_domain_joined_required, CIS_bullet_18.8.22.1.10
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0,  CIS_group_policy_template_required, CIS_bullet_18.8.22.1.10
   contributors: rachelelysia
 ---
 apiVersion: v1
@@ -3591,7 +3591,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer\NoPublishingWizard' AND data = 1);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0,  CIS_not_completed, CIS_domain_joined_required, CIS_bullet_18.8.22.1.11
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0,  CIS_group_policy_template_required, CIS_bullet_18.8.22.1.11
   contributors: rachelelysia
 ---
 apiVersion: v1
@@ -3609,7 +3609,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Messenger\\Client\CEIP' AND data = 2);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_not_completed, CIS_domain_joined_required, CIS_bullet_18.8.22.1.12
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_group_policy_template_required, CIS_bullet_18.8.22.1.12
   contributors: rachelelysia
 ---
 apiVersion: v1
@@ -3628,7 +3628,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\SQMClient\\Windows\CEIPEnable' AND data = 0);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0,  CIS_not_completed, CIS_domain_joined_required, CIS_bullet_18.8.22.1.13
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0,  CIS_group_policy_template_required, CIS_bullet_18.8.22.1.13
   contributors: rachelelysia
 ---
 apiVersion: v1
@@ -3646,7 +3646,7 @@ spec:
   query: |
     SELECT COUNT(*) FROM registry WHERE ((path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\Windows Error Reporting\Disabled' AND data = 1) OR (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\PCHealth\\ErrorReporting\DoReport' AND data = 0))=2;
   purpose: Informational
-  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_not_completed, CIS_domain_joined_required, CIS_bullet_18.8.22.1.14
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_group_policy_template_required, CIS_bullet_18.8.22.1.14
   contributors: rachelelysia
 ---
 apiVersion: v1
@@ -3666,7 +3666,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System\\kerberos\\parameters\DevicePKInitBehavior' AND data = 0) AND (SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System\\kerberos\\parameters\DevicePKInitEnabled' AND data = 1));
   purpose: Informational
-  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_not_completed, CIS_domain_joined_required, CIS_bullet_18.8.25.1
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_group_policy_template_required, CIS_bullet_18.8.25.1
   contributors: rachelelysia
 ---
 apiVersion: v1
@@ -3685,7 +3685,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\Kernel DMA Protection\DeviceEnumerationPolicy' AND data = 0);
   purpose: Informational
-  tags: compliance, CIS, CIS_LevelBL, CIS_win10_enterprise_1.12.0, CIS_not_completed, CIS_domain_joined_required, CIS_bullet_18.8.26.1
+  tags: compliance, CIS, CIS_LevelBL, CIS_win10_enterprise_1.12.0, CIS_group_policy_template_required, CIS_bullet_18.8.26.1
   contributors: rachelelysia
 ---
 apiVersion: v1
@@ -3704,7 +3704,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Control Panel\\International\BlockUserInputMethodsForSignIn' AND data = 1);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_not_completed, CIS_domain_joined_required, CIS_bullet_18.8.27.1
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_group_policy_template_required, CIS_bullet_18.8.27.1
   contributors: rachelelysia
 ---
 apiVersion: v1
