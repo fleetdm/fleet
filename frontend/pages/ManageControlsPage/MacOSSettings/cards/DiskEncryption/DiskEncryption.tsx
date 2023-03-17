@@ -58,14 +58,14 @@ const DiskEncryption = ({ currentTeamId }: IDiskEncryptionProps) => {
       await mdmAPI.updateAppleMdmSettings(diskEncryptionEnabled, currentTeamId);
       renderFlash(
         "success",
-        "Successfully updated disk encryption key storage setting."
+        "Successfully updated disk encryption enforcement!"
       );
       setShowAggregate(diskEncryptionEnabled);
     } catch {
       console.error("error updating");
       renderFlash(
         "error",
-        "Could not update the disk encryption key storage setting. Please try again."
+        "Could not update the disk encryption enforcement. Please try again."
       );
     }
   };
