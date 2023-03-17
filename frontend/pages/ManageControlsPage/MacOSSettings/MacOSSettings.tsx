@@ -48,7 +48,9 @@ const MacOSSettings = ({ params, location }: IMacOSSettingsProps) => {
       <p className={`${baseClass}__description`}>
         Remotely enforce settings on macOS hosts assigned to this team.
       </p>
-      {profiles && <AggregateMacSettingsIndicators teamId={teamId} />}
+      {/* {profiles && <AggregateMacSettingsIndicators teamId={teamId} />} 
+      TODO: Enable when the feature is ready
+      */}
       <SideNav
         className={`${baseClass}__side-nav`}
         navItems={MAC_OS_SETTINGS_NAV_ITEMS}
