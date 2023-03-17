@@ -278,7 +278,59 @@ When the final signature is added to an envelope in DocuSign, it is marked as co
 
 ## Hiring
 
+At Fleet, we collaborate with [core team members](#creating-a-new-position), [consultants](#hiring-a-consultant), [advisors](#adding-an-advisor), and [outside contributors](https://github.com/fleetdm/fleet/graphs/contributors) from the community.  
+
 > Are you a new fleetie joining the Business Operations team?  For Loom recordings demonstrating how to make offers, hire, onboard, and more please see [this classified Google Doc](https://docs.google.com/document/d/1fimxQguPOtK-2YLAVjWRNCYqs5TszAHJslhtT_23Ly0/edit).
+
+
+### Hiring a consultant
+
+In addition to [core team members](#hiring-a-new-team-member), from time to time Fleet hires consultants who may work for only a handful of hours on short projects.
+
+A consultant is someone who we expect to either:
+- complete their relationship with the company in less than 6 weeks
+- or have a longer-term relationship with the company, but never work more than 10 hours per week.
+
+Consultants:
+- do NOT receive company-issued laptops
+- do NOT receive Yubikeys
+- do NOT get a "Hiring" issue created for them
+- do NOT go through training using the contributor onboarding issue.
+- do NOT fill any existing [open position](#creating-a-new-position)
+
+#### Who ISN'T a consultant?
+
+If a consultant plans to work _more_ than 10 hours per week, or for _longer_ than 6 weeks, they should instead be hired as a [core team member](#hiring-a-new-team-member).
+
+Core team members:
+- are hired for an existing [open position](#creating-a-new-position)
+- are hired using Fleet's "Hiring" issue template, including receiving a company-issued laptop and Yubikeys
+- must be onboarded (complete the entire, unabridged onboarding process in Fleet's "Onboarding" issue template)
+- must be offboarded
+- get an email address
+- have a manager and a formal place in the company [org chart](https://fleetdm.com/handbook/company#org-chart)
+- are listed in ["🧑‍🚀 Fleeties"](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0)
+- are paid as part of the standard payroll ritual for the place they work and their employment classification.
+
+Consultants aren't required to do any of those things.
+
+#### Sending a consulting agreement
+Consultant agreements are sent through [DocuSign](https://www.docusign.com/), using the "Consulting Agreement" template.
+
+> _**Note:** The Docusign template labeled "US consulting agreement" is actually used both consultants, as well as for [full team members](#hiring-a-new-team-member) classified as contractors._
+
+To send a US consulting agreement, you'll need the new consultant's name, the term of the service, a summary of the services provided, and the consultant's fee. 
+There are some defaults that we use for these agreements:
+   - Term: Default to one month unless otherwise discussed.
+   - Services rendered: Copy and paste from the [language in this doc](https://docs.google.com/document/d/1b5SGgYEHqDmq5QF8p29WWN3it3XJh3xRT3zG0RdXARo/edit)
+   - Work will commence and complete by dates: Start date and end of term date
+   - Fee: Get from the consultant.
+   - Hours: Default to 10 hr/week.
+
+Then hit send!  After all of the signatures are there, the completed document will automatically be uploaded to the appropriate Google Drive folder, and a Slack message will appear in the `#help-classified` channel.
+
+
+
 
 ### Creating a new position
 Every new position being created goes through this process before interviewing, accepting applicants, or extending offers.
@@ -325,7 +377,7 @@ Every job description page ends with a "call to action", including a link that c
 
 When a candidate clicks applies for a job at Fleet, they are taken to a generic Typeform.  When they submit their job application, the Typeform triggers a Zapier automation that will posts the submission to `g-business-operations` in Slack.  The candidate's job application answers are then forwarded to the applicable `#hiring-xxxxx-202x` Slack channel and the hiring manager is @mentioned.
 
-##### Candidate correspondence email templates
+#### Candidate correspondence email templates
 Fleet uses [certain email templates](https://docs.google.com/document/d/1E_gTunZBMNF4AhsOFuDVi9EnvsIGbAYrmmEzdGmnc9U) when responding to candidates.  This helps the company meet our commitment of replying to all applications within one business day.
 
 #### Hiring restrictions
@@ -336,7 +388,7 @@ Fleet maintains a list of companies with whom Fleet has do-not-solicit terms tha
 ##### Incompatible locations
 Fleet is unable to hire team members in some countries. See [this internal document](https://docs.google.com/document/d/1jHHJqShIyvlVwzx1C-FB9GC74Di_Rfdgmhpai1SPC0g/edit) for the list.
 
-#### Interviewing
+### Interviewing
 We're glad you're interested in joining the team! 
 Here are some of the things you can anticipate throughout this process:
   - We will reply by email within one business day from the time when the application arrives.
@@ -347,7 +399,9 @@ If you've been invited to "book with us," you'll have a Zoom meeting with the hi
 
 ### Hiring a new team member
 
-> **_Note:_** _When hiring an international employee, Pilot.co recommends starting the hiring process a month before the new employee's start date._
+This section is about hiring a new core team member, or fleetie.
+
+> **_Note:_** _Employment classification isn't what makes someone a fleetie.  Some Fleet team members are contractors and others are employees.  The distinction between "contractor" and "employee" varies in different geographies, and the appropriate employment classification and agreement for any given team member and the place where they work is determined by CEO during the process of making an offer._
 
 Here are the steps hiring managers can follow to get an offer out to a candidate:
 1. **Schedule founder interview:** Schedule 30m for the CEO to interview the candidate, if they haven't already done so.
@@ -356,19 +410,22 @@ Here are the steps hiring managers can follow to get an offer out to a candidate
    - If this is an engineering position, before the CEO interview, please also be sure that the candidate has already been interviewed by the CTO.
    - The personal email the candidate uses for this calendar event is where they will receive the offer.
 2. **Add to team database:** Update the [Fleeties](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) doc to reflect:
-   - start date _(No need to check with the candidate if you haven't already.  Just guess.)_
    - candidate's first and last name
    - preferred pronoun
    - LinkedIn URL
    - country and state where they will be working
+   - start date
+    > **_Note:_** _No need to check with the candidate if you haven't already.  Just guess.  First Mondays tend to make good start dates.  When hiring an international employee, Pilot.co recommends starting the hiring process a month before the new employee's start date._
 3. **Confirm intent to offer:** At-mention `@mikermcneil` in the `#hiring-` channel and indicate that you would like for Fleet to make an offer to the candidate.  Let him know 
 
 #### Making an offer
 After meeting with the candidate for their final interview, the CEO uses the following steps to make an offer:
 1. **Review decision:** The CEO reviews the data and decides whether it still makes sense to make this offer to this person in this role.  If not, he lets the manager know.  Otherwise, he continues with the offer.
 2. **Adjust salary:** [Re-benchmark salary](https://www.pave.com), adjusting for cost of living where the candidate will do the work.
-   - [ ] Paste a screenshot of Pave showing the adjusted benchmark under the [heading for this position in " 💌 Compensation decisions"](https://docs.google.com/document/d/1NQ-IjcOTbyFluCWqsFLMfP4SvnopoXDcX0civ-STS5c/edit)
-   - [ ] Update the [equity plan](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit#gid=0) with the actual adjusted salary and equity offer that is about to be sent.  
+   - [ ] Write 1-2 sentences about what is being offered to this candidate and why alongside the existing [heading for this position in " 💌 Compensation decisions"](https://docs.google.com/document/d/1NQ-IjcOTbyFluCWqsFLMfP4SvnopoXDcX0civ-STS5c/edit)
+   - [ ] Update the ["🥧 Equity plan"](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit#gid=0):
+     - set the actual adjusted salary and equity offer that is about to be sent
+     - set the "Offer sent?" status to `TRUE` and make sure the other status columns are set to `todo`
 3. **Prepare the "exit scenarios" spreadsheet:** [Copy the "Exit scenarios (template)"](https://docs.google.com/spreadsheets/d/1k2TzsFYR0QxlD-KGPxuhuvvlJMrCvLPo2z8s8oGChT0/copy) for the candidate, and rename the copy to e.g. "Exit scenarios for Jane Doe".
    - [ ] Edit the candidate's copy of the exit scenarios spreadsheet to include the number of shares they will be offered, and the spreadsheet will update automatically to reflect their approximate ownership percentage.
    > **_Note:_** *Don't play with numbers in the exit scenarios spreadsheet. The revision history is visible to the candidate, and they might misunderstand.*
@@ -387,11 +444,11 @@ After meeting with the candidate for their final interview, the CEO uses the fol
 ### Steps after an offer is accepted
 
 Once the new team member replies and accepts their offer in writing:
-1. The CEO or Zach Wasserman replies to the candidate.
-2. Whoever replies [creates a hiring issue](https://github.com/fleetdm/confidential/issues/new/choose) for the new team member. This will inform the Business Operations team to get involved.  They will use this issue to keep track of the hiring tasks for the new team member.
-3. Business Operations will then reach out to the new team member within 1 business day from a separate email thread to get any information they will need to prepare their agreement, add them to our payroll system, and get their new laptop and hardware security keys ordered so that everything is ready for them to start on their first day.
+1. **Reply:** The CEO or Zach Wasserman replies to the candidate.
+2. **Create hiring issue:** Whoever replies [creates a hiring issue](https://github.com/fleetdm/confidential/issues/new/choose) for the new team member. This will inform the Business Operations team to get involved.  They will use this issue to keep track of the hiring tasks for the new team member.
 
-> **_Note:_** _Some Fleet team members are contractors and others are employees.  The distinction between "contractor" and "employee" varies in different geographies, and the appropriate contract for any given team member and the place where they work is determined during the hiring process._
+Within 1 business day from when the "Hiring" issue is created, Business Operations reaches out to the new team member in a separate email thread to get any information they will need to prepare their agreement, add them to our payroll system, and get their new laptop and hardware security keys ordered so that everything is ready for them to start on their first day.
+
 
 
 #### Purchasing a company-issued device
@@ -419,47 +476,6 @@ When a device has been purchased, it's added to the [spreadsheet of company equi
 When you receive your new their computer, complete the entry by adding a description, model, and serial number to the spreadsheet.
 
 
-
-
-### Hiring a new consultant
-
-In addition to [core team members](#hiring-a-new-team-member), from time to time Fleet hires consultants who may work for only a handful of hours on short projects.
-
-A consultant is someone who we expect to either:
-- complete their relationship with the company in less than 6 weeks
-- or have a longer-term relationship with the company, but never work more than 10 hours per week.
-
-> Consultants do NOT receive company-issued laptops, do NOT receive Yubikeys, and do NOT go through training using the contributor onboarding issue.
-
-#### Who ISN'T a consultant?
-
-If a consultant plans to work _more_ than 10 hours per week, or for _longer_ than 6 weeks, they should instead be hired as a [core team member](#hiring-a-new-team-member).
-
-Core team members:
-- are hired using Fleet's "Hiring" issue template, including receiving a company-issued laptop and Yubikeys
-- complete the entire, unabridged onboarding process in Fleet's "Onboarding" issue template
-- must be offboarded
-- get an email address
-- have a manager and a formal place in the company [org chart](https://fleetdm.com/handbook/company#org-chart)
-- are listed in ["🧑‍🚀 Fleeties"](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0)
-- are paid as part of the standard payroll ritual for the place they work and their employment classification.
-
-Consultants aren't required to do any of those things.
-
-#### Sending a consulting agreement
-Consultant agreements are sent through [DocuSign](https://www.docusign.com/), using the "Consulting Agreement" template.
-
-> _**Note:** The Docusign template labeled "US consulting agreement" is actually used both consultants, as well as for [full team members](#hiring-a-new-team-member) classified as contractors._
-
-To send a US consulting agreement, you'll need the new consultant's name, the term of the service, a summary of the services provided, and the consultant's fee. 
-There are some defaults that we use for these agreements:
-   - Term: Default to one month unless otherwise discussed.
-   - Services rendered: Copy and paste from the [language in this doc](https://docs.google.com/document/d/1b5SGgYEHqDmq5QF8p29WWN3it3XJh3xRT3zG0RdXARo/edit)
-   - Work will commence and complete by dates: Start date and end of term date
-   - Fee: Get from the consultant.
-   - Hours: Default to 10 hr/week.
-
-Then hit send!  After all of the signatures are there, the completed document will automatically be uploaded to the appropriate Google Drive folder, and a Slack message will appear in the `#help-classified` channel.
 
 
 
@@ -523,13 +539,16 @@ Although it's sad to see you go, Fleet understands that not everything is meant 
 
 
 
-## Onboarding a new advisor
+## Adding an advisor
 Advisor agreements are sent through [DocuSign](https://www.docusign.com/), using the "Advisor Agreement"
-template. To send a new advisor agreement, you'll need the new advisor's name and the number of shares they
-are offered. 
-Once you send the agreement, add a new row to the [advisory board spreadsheet](https://docs.google.com/spreadsheets/d/15knBE2-PrQ1Ad-QcIk0mxCN-xFsATKK9hcifqrm0qFQ/edit#gid=1803674483) and enter the new advisor's information. Use this spreadsheet to track the advisor's progress through the onboarding process.
+template.
+- Send the advisor agreement. To send a new advisor agreement, you'll need the new advisor's name and the number of shares they are offered. 
+- Once you send the agreement, locate an existing empty row and available ID in ["Advisors"](https://docs.google.com/spreadsheets/d/15knBE2-PrQ1Ad-QcIk0mxCN-xFsATKK9hcifqrm0qFQ/edit#gid=1803674483) and enter the new advisor's information.
    >**_Note:_** *Be sure to mark any columns that haven't been completed yet as "TODO"*
-When you complete the agreement, make sure it is in the correct Google Drive folder, update the [advisory board spreadsheet](https://docs.google.com/spreadsheets/d/15knBE2-PrQ1Ad-QcIk0mxCN-xFsATKK9hcifqrm0qFQ/edit#gid=1803674483) to show that the agreement has been signed, and ask the new advisor to add us on [Linkedin](https://www.linkedin.com/company/71111416), [Crunchbase](https://www.crunchbase.com/organization/fleet-device-management), and [Angellist](https://angel.co/company/fleetdm).
+
+### Finalizing a new advisor
+- Update the ["Advisors"](https://docs.google.com/spreadsheets/d/15knBE2-PrQ1Ad-QcIk0mxCN-xFsATKK9hcifqrm0qFQ/edit#gid=1803674483) to show that the agreement has been signed, and ask the new advisor to add us on [LinkedIn](https://www.linkedin.com/company/71111416), [Crunchbase](https://www.crunchbase.com/organization/fleet-device-management), and [Angellist](https://angel.co/company/fleetdm).
+- Update "Equity plan" to reflect updated status and equity grant for this advisor, and to ensure the advisor's equity is queued up for the next quarterly equity grant ritual.
 
 
 
