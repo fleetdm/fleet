@@ -95,7 +95,7 @@ WHERE
 	}
 	stmt, args, err := sqlx.In(stmt, teamID, fleetIdentifiers)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "sqlx.In loadTeamsForUsers")
+		return nil, ctxerr.Wrap(ctx, err, "sqlx.In ListMDMAppleConfigProfiles")
 	}
 
 	var res []*fleet.MDMAppleConfigProfile
