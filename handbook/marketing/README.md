@@ -497,6 +497,7 @@ The Brand team is responsible for production and maintenance of the Fleet websit
 - [Design reviews](#design-reviews)
 - [Estimation sessions](#estimation-sessions)
 - [When can I merge changes to the website?](#when-can-i-merge-a-change-to-the-website)
+- [How can I test changes to the website?](#how-can-i-test-changes-to-the-website)
 - [How to export images for the website](#how-to-export-images-for-the-website)
 - [Maintaining browser compatibility](#maintaining-browser-compatibility)
 - [Responding to a 5xx error on fleetdm.com](#responding-to-a-5-xx-error-on-fleetdm-com)
@@ -546,6 +547,36 @@ We use the following story points to estimate website tasks:
 When merging a PR to master, remember that whatever you merge to master gets deployed live immediately. So if the PR's changes contain anything that you don't think is appropriate to be seen publicly by all guests of [fleetdm.com](https://fleetdm.com/), please do not merge.
 
 Merge a PR (aka deploy the website) when you think it is appropriately clean to represent our brand. When in doubt, use the standards and quality seen on existing pages, ensure correct functionality, and check responsive behavior - starting widescreen and resizing down to ≈320px width.
+
+#### How can I test changes to the website?
+
+When making changes to the Fleet website, you can test your changes by running the website locally. To do this, you'll need the following:
+
+- A local copy of the [Fleet repo](https://github.com/fleetdm/fleet).
+- [Node.js](https://nodejs.org/en/download/)
+- (Optional) [Sails.js](https://sailsjs.com/) installed globally on your machine (`npm install sails -g`)
+
+Once you have the above follow these steps:
+
+1. Open your terminal program, and navigate to the `website/` folder of your local copy of the Fleet repo.
+    
+    > Note: If this is your first time running this script, you will need to run `npm install` inside of the website/ folder to install the website's dependencies.
+
+
+2. Run the `build-static-content` script to generate HTML pages from our Markdown and YAML content.
+  - **With Node**, you will need to use `node ./node_modules/sails/bin/sails run build-static-content` to execute the script.
+  - **With Sails.js installed globally** you can use `sails run build-static-content` to execute the script.
+    
+    > You can use the `--skipGithubRequests` flag to skip requests made to GitHub if you get rate-limited by GitHub’s API while running this script. 
+    > 
+    > e.g., `node ./node_modules/sails/bin/sails run build-static-content --skipGithubRequests`
+
+3. Once the script is complete, start the website server. From the `website/` folder:
+  - **With Node.js:** start the server by running `node ./node_modules/sails/bin/sails lift`
+  - **With Sails.js installed globally:** start the server by running `sails lift`.
+4. When the server has started, the Fleet website will be availible at [http://localhost:2024](http://localhost:2024/admin/email-preview)
+    
+  > Note: Some features, such as Fleet Sandbox, Self-service license dispenser, and account creation are not availible when running the website locally. If you need help testing features on a local copy, reach out to `@eashaw`.
 
 #### How to export images for the website
 In Figma:
