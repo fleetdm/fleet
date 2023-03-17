@@ -11,73 +11,11 @@ spec:
   resolution: |
     To establish the recommended configuration via GP, set the following UI path to Enabled, then set the Do not apply during periodic background processing option to FALSE (unchecked):
     'Computer Configuration\Policies\Administrative Templates\System\Group Policy\Configure registry policy processing'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template GroupPolicy.admx/adml that is included with the Microsoft Windows 8.0 & Server 2012 (non-R2) Administrative Templates (or newer).
   query: |
-    TBD
-  # Path exists but does not change with modifications to group policy
-  # Untested: SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\Group Policy\\{35378EAC-683F-11D2-A89A-00C04FBBCFA2}\NoBackgroundPolicy' AND data = 0);
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\Group Policy\\{35378EAC-683F-11D2-A89A-00C04FBBCFA2}\NoBackgroundPolicy' AND data = 0);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_not_completed, CIS_win10_enterprise_1.12.0, CIS_not_completed, CIS_domain_joined_required, CIS_bullet_18.8.21.2
-  contributors: rachelelysia
----
-apiVersion: v1
-kind: policy
-spec:
-  name: >
-    CIS - Ensure 'Configure registry policy processing: Process even if the Group Policy objects have not changed' is set to 'Enabled: TRUE'
-  platforms: win10
-  platform: windows
-  description: |
-    The "Process even if the Group Policy objects have not changed" option updates and reapplies policies even if the policies have not changed.
-  resolution: |
-    To establish the recommended configuration via GP, set the following UI path to Enabled, then set the Process even if the Group Policy objects have not changed option to TRUE (checked):
-    'Computer Configuration\Policies\Administrative Templates\System\Group Policy\Configure registry policy processing'
-  query: |
-    TBD
-  # Path exists but does not change with modifications to group policy
-  # Untested: SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\Group Policy\\{35378EAC-683F-11D2-A89A-00C04FBBCFA2}\NoGPOListChanges' AND data = 0);
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0,  CIS_not_completed, CIS_domain_joined_required, CIS_bullet_18.8.21.3
-  contributors: rachelelysia
----
-apiVersion: v1
-kind: policy
-spec:
-  name: >
-    CIS - Ensure 'Continue experiences on this device' is set to 'Disabled'
-  platforms: win10
-  platform: windows
-  description: |
-    This policy setting determines whether the Windows device is allowed to participate in cross-device experiences (continue experiences).
-  resolution: |
-    To establish the recommended configuration via GP, set the following UI path to Disabled:
-    'Computer Configuration\Policies\Administrative Templates\System\Group Policy\Continue experiences on this device'
-  query: |
-    TBD
-  # EnableCdp registry path does not exist
-  # Untested: SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\System\EnableCdp' AND data = 0);
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0,  CIS_not_completed, CIS_domain_joined_required, CIS_bullet_18.8.21.4
-  contributors: rachelelysia
----
-apiVersion: v1
-kind: policy
-spec:
-  name: >
-    CIS - Ensure 'Turn off background refresh of Group Policy' is set to 'Disabled'
-  platforms: win10
-  platform: windows
-  description: |
-    This policy setting prevents Group Policy from being updated while the computer is in use.
-    This policy setting applies to Group Policy for computers, users and Domain Controllers.
-  resolution: |
-    To establish the recommended configuration via GP, set the following UI path to Disabled:
-    'Computer Configuration\Policies\Administrative Templates\System\Group Policy\Turn off background refresh of Group Policy'
-  query: |
-    TBD
-  # DisableBkGndGroupPolicy registry path does not exist even with psexec.exe
-  # Untested: SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System\DisableBkGndGroupPolicy' AND data = 0);
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_not_completed, CIS_domain_joined_required, CIS_bullet_18.8.21.5
   contributors: rachelelysia
 ---
 apiVersion: v1
@@ -92,10 +30,9 @@ spec:
   resolution: |
     To establish the recommended configuration via GP, set the following UI path to Enabled:
     'Computer Configuration\Policies\Administrative Templates\System\Internet Communication Management\Internet Communication settings\Turn off access to the Store'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template ICM.admx/adml that is included with the Microsoft Windows 8.0 & Server 2012 (non-R2) Administrative Templates (or newer).
   query: |
-    TBD
-  # Explorer registry path does not exist even with psexec.exe
-  # Untested: SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\Explorer\NoUseStoreOpenWith' AND data = 1);
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\Explorer\NoUseStoreOpenWith' AND data = 1);
   purpose: Informational
   tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_not_completed, CIS_domain_joined_required, CIS_bullet_18.8.22.1.1
   contributors: rachelelysia
@@ -112,10 +49,9 @@ spec:
   resolution: |
     To establish the recommended configuration via GP, set the following UI path to Enabled:
     'Computer Configuration\Policies\Administrative Templates\System\Internet Communication Management\Internet Communication settings\Turn off downloading of print drivers over HTTP'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template ICM.admx/adml that is included with the Microsoft Windows 8.0 & Server 2012 (non-R2) Administrative Templates (or newer).
   query: |
-    TBD
-  # DisableWebPnPDownload path does not exist
-  # Untested: SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows NT\\Printers\DisableWebPnPDownload' AND data = 1);
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows NT\\Printers\DisableWebPnPDownload' AND data = 1);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_not_completed, CIS_domain_joined_required, CIS_bullet_18.8.22.1.2
   contributors: rachelelysia
@@ -133,10 +69,9 @@ spec:
   resolution: |
     To establish the recommended configuration via GP, set the following UI path to Enabled:
     'Computer Configuration\Policies\Administrative Templates\System\Internet Communication Management\Internet Communication settings\Turn off handwriting personalization data sharing'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template ShapeCollector.admx/adml that is included with the Microsoft Windows 7 & Server 2008 R2 Administrative Templates (or newer).
   query: |
-    TBD
-  # TabletPC registry directory does not exist
-  # Untested: SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\TabletPC\PreventHandwritingDataSharing' AND data = 1);
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\TabletPC\PreventHandwritingDataSharing' AND data = 1);
   purpose: Informational
   tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_not_completed, CIS_domain_joined_required, CIS_bullet_18.8.22.1.3
   contributors: rachelelysia
@@ -154,10 +89,9 @@ spec:
   resolution: |
     To establish the recommended configuration via GP, set the following UI path to Enabled:
     'Computer Configuration\Policies\Administrative Templates\System\Internet Communication Management\Internet Communication settings\Turn off handwriting recognition error reporting'
+    Note: This Group Policy path is provided by the Group Policy template InkWatson.admx/adml that is included with all versions of the Microsoft Windows Administrative Templates.
   query: |
-    TBD
-  # HandwritingErrorReports registry path does not exist
-  # Untested: SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\HandwritingErrorReports\PreventHandwritingErrorReports' AND data = 1);
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\HandwritingErrorReports\PreventHandwritingErrorReports' AND data = 1);
   purpose: Informational
   tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_not_completed, CIS_domain_joined_required, CIS_bullet_18.8.22.1.4
   contributors: rachelelysia
@@ -174,10 +108,9 @@ spec:
   resolution: |
     To establish the recommended configuration via GP, set the following UI path to Enabled:
     'Computer Configuration\Policies\Administrative Templates\System\Internet Communication Management\Internet Communication settings\Turn off Internet Connection Wizard if URL connection is referring to Microsoft.com'
+    Note: This Group Policy path is provided by the Group Policy template ICM.admx/adml that is included with all versions of the Microsoft Windows Administrative Templates.
   query: |
-    TBD
-  # Internet Connection Wizard registry path does not exist
-  # Untested: 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\Internet Connection Wizard\ExitOnMSICW' AND data = 1);
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\Internet Connection Wizard\ExitOnMSICW' AND data = 1);
   purpose: Informational
   tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_not_completed, CIS_domain_joined_required, CIS_bullet_18.8.22.1.5
   contributors: rachelelysia
@@ -194,10 +127,9 @@ spec:
   resolution: |
     To establish the recommended configuration via GP, set the following UI path to Enabled:
     'Computer Configuration\Policies\Administrative Templates\System\Internet Communication Management\Internet Communication settings\Turn off Internet download for Web publishing and online ordering wizards'
+    Note: This Group Policy path is provided by the Group Policy template ICM.admx/adml that is included with all versions of the Microsoft Windows Administrative Templates.
   query: |
-    TBD
-  # NoWebServices registry path does not exist
-  # Untested: 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer\NoWebServices' AND data = 1);
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer\NoWebServices' AND data = 1);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_not_completed, CIS_domain_joined_required, CIS_bullet_18.8.22.1.6
   contributors: rachelelysia
@@ -214,9 +146,9 @@ spec:
   resolution: |
     To establish the recommended configuration via GP, set the following UI path to Enabled:
     'Computer Configuration\Policies\Administrative Templates\System\Internet Communication Management\Internet Communication settings\Turn off printing over HTTP'
+    Note: This Group Policy path is provided by the Group Policy template ICM.admx/adml that is included with all versions of the Microsoft Windows Administrative Templates.
   query: |
-    TBD
-  # Untested: SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows NT\\Printers\DisableHTTPPrinting' AND data = 1);
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows NT\\Printers\DisableHTTPPrinting' AND data = 1);
   purpose: Informational
   tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_not_completed, CIS_domain_joined_required, CIS_bullet_18.8.22.1.7
   contributors: rachelelysia
@@ -233,9 +165,9 @@ spec:
   resolution: |
     To establish the recommended configuration via GP, set the following UI path to Enabled:
     'Computer Configuration\Policies\Administrative Templates\System\Internet Communication Management\Internet Communication settings\Turn off Registration if URL connection is referring to Microsoft.com'
+    Note: This Group Policy path is provided by the Group Policy template ICM.admx/adml that is included with all versions of the Microsoft Windows Administrative Templates.
   query: |
-    TBD
-  # Untested: SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\Registration Wizard Control\NoRegistration' AND data = 1);
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\Registration Wizard Control\NoRegistration' AND data = 1);
   purpose: Informational
   tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_not_completed, CIS_domain_joined_required, CIS_bullet_18.8.22.1.8
   contributors: rachelelysia
@@ -252,10 +184,9 @@ spec:
   resolution: |
     To establish the recommended configuration via GP, set the following UI path to Enabled:
     'Computer Configuration\Policies\Administrative Templates\System\Internet Communication Management\Internet Communication settings\Turn off Search Companion content file updates'
+    Note: This Group Policy path is provided by the Group Policy template ICM.admx/adml that is included with all versions of the Microsoft Windows Administrative Templates.
   query: |
-    TBD
-  # SearchCompanion registry path does not exist in registry
-  # Untested: SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\SearchCompanion:DisableContentFileUpdates' AND data = 1);
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\SearchCompanion:DisableContentFileUpdates' AND data = 1);
   purpose: Informational
   tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0,  CIS_not_completed, CIS_domain_joined_required, CIS_bullet_18.8.22.1.9
   contributors: rachelelysia
@@ -273,9 +204,9 @@ spec:
   resolution: |
     To establish the recommended configuration via GP, set the following UI path to Enabled:
     'Computer Configuration\Policies\Administrative Templates\System\Internet Communication Management\Internet Communication settings\Turn off the "Order Prints" picture task'
+     Note: This Group Policy path is provided by the Group Policy template ICM.admx/adml that is included with all versions of the Microsoft Windows Administrative Templates.
   query: |
-    TBD
-  # Untested: SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer\NoOnlinePrintsWizard' AND data = 1);
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer\NoOnlinePrintsWizard' AND data = 1);
   purpose: Informational
   tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0,  CIS_not_completed, CIS_domain_joined_required, CIS_bullet_18.8.22.1.10
   contributors: rachelelysia
@@ -293,8 +224,7 @@ spec:
     To establish the recommended configuration via GP, set the following UI path to Enabled:
     'Computer Configuration\Policies\Administrative Templates\System\Internet Communication Management\Internet Communication settings\Turn off the "Publish to Web" task for files and folders'
   query: |
-    TBD
-  # Untested: 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer\NoPublishingWizard' AND data = 1);
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer\NoPublishingWizard' AND data = 1);
   purpose: Informational
   tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0,  CIS_not_completed, CIS_domain_joined_required, CIS_bullet_18.8.22.1.11
   contributors: rachelelysia
@@ -312,8 +242,7 @@ spec:
     To establish the recommended configuration via GP, set the following UI path to Enabled:
     'Computer Configuration\Policies\Administrative Templates\System\Internet Communication Management\Internet Communication settings\Turn off the Windows Messenger Customer Experience Improvement Program'
   query: |
-    TBD
-  # Untested: SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Messenger\\Client\CEIP' AND data = 2);
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Messenger\\Client\CEIP' AND data = 2);
   purpose: Informational
   tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_not_completed, CIS_domain_joined_required, CIS_bullet_18.8.22.1.12
   contributors: rachelelysia
@@ -332,8 +261,7 @@ spec:
     To establish the recommended configuration via GP, set the following UI path to Enabled:
     'Computer Configuration\Policies\Administrative Templates\System\Internet Communication Management\Internet Communication settings\Turn off Windows Customer Experience Improvement Program'
   query: |
-    TBD
-  # Untested: SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\SQMClient\\Windows\CEIPEnable' AND data = 0);
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\SQMClient\\Windows\CEIPEnable' AND data = 0);
   purpose: Informational
   tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0,  CIS_not_completed, CIS_domain_joined_required, CIS_bullet_18.8.22.1.13
   contributors: rachelelysia
@@ -351,9 +279,7 @@ spec:
     To establish the recommended configuration via GP, set the following UI path to Enabled:
     'Computer Configuration\Policies\Administrative Templates\System\Internet Communication Management\Internet Communication settings\Turn off Windows Error Reporting'
   query: |
-    TBD
-  # Windows Error Reporting registry path does not exist
-  # Untested: (SELECT COUNT(*) FROM registry FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\Windows Error Reporting\Disabled' AND data = 1 OR path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\PCHealth\\ErrorReporting\DoReport' AND data = 0))=2;
+    SELECT COUNT(*) FROM registry WHERE ((path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\Windows Error Reporting\Disabled' AND data = 1) OR (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\PCHealth\\ErrorReporting\DoReport' AND data = 0))=2;
   purpose: Informational
   tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_not_completed, CIS_domain_joined_required, CIS_bullet_18.8.22.1.14
   contributors: rachelelysia
@@ -371,10 +297,9 @@ spec:
   resolution: |
     To establish the recommended configuration via GP, set the following UI path to Enabled: Automatic:
     'Computer Configuration\Policies\Administrative Templates\System\Kerberos\Support device authentication using certificate'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template Kerberos.admx/adml that is included with the Microsoft Windows 10 RTM (Release 1507) Administrative Templates (or newer).
   query: |
-    TBD
-  # kerberos registry directory does not exist
-  # Untested:  SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System\\kerberos\\parameters\DevicePKInitBehavior' AND data = 0);
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System\\kerberos\\parameters\DevicePKInitBehavior' AND data = 0) AND (SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System\\kerberos\\parameters\DevicePKInitEnabled' AND data = 1));
   purpose: Informational
   tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_not_completed, CIS_domain_joined_required, CIS_bullet_18.8.25.1
   contributors: rachelelysia
@@ -391,10 +316,9 @@ spec:
   resolution: |
     To establish the recommended configuration via GP, set the following UI path to Enabled: Block All:
     'Computer Configuration\Policies\Administrative Templates\System\Kernel DMA Protection\Enumeration policy for external devices incompatible with Kernel DMA Protection'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template DmaGuard.admx/adml that is included with the Microsoft Windows 10 Release 1809 & Server 2019 Administrative Templates (or newer).
   query: |
-    TBD
-  # Kernel DMA Protection registry directory does not exist
-  # Untested: SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\Kernel DMA Protection\DeviceEnumerationPolicy' AND data = 0);
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\Kernel DMA Protection\DeviceEnumerationPolicy' AND data = 0);
   purpose: Informational
   tags: compliance, CIS, CIS_LevelBL, CIS_win10_enterprise_1.12.0, CIS_not_completed, CIS_domain_joined_required, CIS_bullet_18.8.26.1
   contributors: rachelelysia
@@ -411,10 +335,9 @@ spec:
   resolution: |
     To establish the recommended configuration via GP, set the following UI path to Enabled:
     'Computer Configuration\Policies\Administrative Templates\System\Locale Services\Disallow copying of user input methods to the system account for sign-in'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template Globalization.admx/adml that is included with the Microsoft Windows 8.0 & Server 2012 (non-R2) Administrative Templates (or newer).
   query: |
-    TBD
-  # Control Panel registry directory does not exist even with psexec.exe
-  # Untested:  SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Control Panel\\International\BlockUserInputMethodsForSignIn' AND data = 1);
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Control Panel\\International\BlockUserInputMethodsForSignIn' AND data = 1);
   purpose: Informational
   tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_not_completed, CIS_domain_joined_required, CIS_bullet_18.8.27.1
   contributors: rachelelysia
