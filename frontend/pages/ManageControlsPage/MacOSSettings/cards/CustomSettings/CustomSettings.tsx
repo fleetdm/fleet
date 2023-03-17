@@ -103,7 +103,6 @@ const CustomSettings = ({
       setShowDeleteProfileModal(false);
     }
   };
-  console.log("profiles", profiles);
 
   return (
     <div className={baseClass}>
