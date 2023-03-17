@@ -125,6 +125,20 @@ The [CEO handbook](./ceo-handbook.md) details processes specific to Mike McNeil,
 
 ## Team member onboarding
 
+### Before the start date
+
+Fleet is open source and anyone can contribute at any time.  Before a core team member's start date, they are welcome to contribute, but not expected to.
+
+### Recommendations for new teammates
+Welcome to Fleet!
+
+1. Understand the company
+2. Take the time to get trained
+3. Get comfortable with the tools
+4. Immerse yourself in the world of device management and cybersecurity.
+
+> Please see Fleet's ["🥽 Recommendations for new teammates"](https://docs.google.com/document/d/1xcnqKB9HHPd94POnZ_7LATiy_VjO2kJdbYx0SAgKVao/edit#).
+
 ### Training
 It's [important](https://fleetdm.com/handbook/company/why-this-way#why-the-emphasis-on-training) that every team member at Fleet takes the time to get fully trained and onboarded. 
 When a new team member joins Fleet, we create an onboarding issue for them in the [fleetdm/confidential](https://github.com/fleetdm/confidential) repo using this [issue template](https://github.com/fleetdm/confidential/blob/main/.github/ISSUE_TEMPLATE/onboarding.md). 
