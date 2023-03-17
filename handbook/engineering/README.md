@@ -125,9 +125,11 @@ However no QA is a perfect safety net and some severe bugs may at specific occas
 In those specific cases, we need to investigate what happened and come up with remedations so that siliar events will not happen.
 
 #### Document
+
 Before running the postmortem meeting this [Postmortem Template](https://docs.google.com/document/d/17xbobhzCINtVmeRT2HPMlSwvw7MjVvoPSUVxmVy4wNY/edit?usp=share_link) document should be copied and filled with some initial data allowing smooth run of the discussion. 
 
 #### The meeting
+
 Invite all stake holders. Typically the team involved and QA representatives.
 
 Follow the document topic by topic. Keep the end in mind which is to take action items for addressing the root cause and making sure it does not happen again. 
