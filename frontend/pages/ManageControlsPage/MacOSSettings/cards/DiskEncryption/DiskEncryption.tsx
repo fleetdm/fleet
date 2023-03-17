@@ -4,6 +4,7 @@ import { useQuery } from "react-query";
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
 import { ITeamConfig } from "interfaces/team";
+import { IConfig } from "interfaces/config";
 import mdmAPI from "services/entities/mdm";
 import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 
@@ -17,10 +18,18 @@ import DiskEncryptionTable from "./components/DiskEncryptionTable";
 const baseClass = "disk-encryption";
 interface IDiskEncryptionProps {
   currentTeamId?: number;
+  config: IConfig;
+  refetchProfiles: () => void;
+  refetchConfig: () => void;
 }
 
-const DiskEncryption = ({ currentTeamId }: IDiskEncryptionProps) => {
-  const { isPremiumTier, config } = useContext(AppContext);
+const DiskEncryption = ({
+  currentTeamId,
+  refetchProfiles,
+  refetchConfig,
+  config,
+}: IDiskEncryptionProps) => {
+  const { isPremiumTier } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
   const defaultShowDiskEncryption = currentTeamId
@@ -29,7 +38,7 @@ const DiskEncryption = ({ currentTeamId }: IDiskEncryptionProps) => {
 
   const [showAggregate, setShowAggregate] = useState(defaultShowDiskEncryption);
   const [diskEncryptionEnabled, setDiskEncryptionEnabled] = useState(
-    defaultShowDiskEncryption
+    config?.mdm.macos_settings.enable_disk_encryption
   );
 
   const onToggleCheckbox = (value: boolean) => {
@@ -61,6 +70,8 @@ const DiskEncryption = ({ currentTeamId }: IDiskEncryptionProps) => {
         "Successfully updated disk encryption key storage setting."
       );
       setShowAggregate(diskEncryptionEnabled);
+      refetchProfiles();
+      refetchConfig();
     } catch {
       console.error("error updating");
       renderFlash(

@@ -1,10 +1,14 @@
-import React from "react";
+import React, { useContext } from "react";
 import { Params } from "react-router/lib/Router";
 
+import { AppContext } from "context/app";
 import SideNav from "pages/admin/components/SideNav";
 import { useQuery } from "react-query";
 import { IMdmProfile, IMdmProfilesResponse } from "interfaces/mdm";
+import { IConfig } from "interfaces/config";
+
 import mdmAPI from "services/entities/mdm";
+import configAPI from "services/entities/config";
 
 import MAC_OS_SETTINGS_NAV_ITEMS from "./MacOSSettingsNavItems";
 import AggregateMacSettingsIndicators from "./AggregateMacSettingsIndicators/AggregateMacSettingsIndicators";
@@ -26,7 +30,9 @@ const MacOSSettings = ({ params, location }: IMacOSSettingsProps) => {
   // Avoids possible case where Number(undefined) returns NaN
   const teamId = team_id === undefined ? 0 : Number(team_id); // team_id===0 for 'No teams'
 
-  const { data: profiles, refetch: refectchProfiles } = useQuery<
+  const { setConfig } = useContext(AppContext);
+
+  const { data: profiles, refetch: refetchProfiles } = useQuery<
     IMdmProfilesResponse,
     unknown,
     IMdmProfile[] | null
@@ -34,6 +40,18 @@ const MacOSSettings = ({ params, location }: IMacOSSettingsProps) => {
     select: (data) => data.profiles,
     refetchOnWindowFocus: false,
   });
+
+  const { data: config, refetch: refetchConfig } = useQuery<IConfig, Error>(
+    ["config"],
+    () => {
+      return configAPI.loadAll();
+    },
+    {
+      onSuccess: (data) => {
+        setConfig(data);
+      },
+    }
+  );
 
   const DEFAULT_SETTINGS_SECTION = MAC_OS_SETTINGS_NAV_ITEMS[0];
 
@@ -58,8 +76,9 @@ const MacOSSettings = ({ params, location }: IMacOSSettingsProps) => {
             key={team_id}
             currentTeamId={teamId}
             profiles={profiles}
-            onProfileUpload={refectchProfiles}
-            onProfileDelete={refectchProfiles}
+            refetchProfiles={refetchProfiles}
+            config={config}
+            refetchConfig={refetchConfig}
           />
         }
       />

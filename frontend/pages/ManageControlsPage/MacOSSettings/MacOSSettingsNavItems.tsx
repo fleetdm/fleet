@@ -1,6 +1,7 @@
 import PATHS from "router/paths";
 import { ISideNavItem } from "pages/admin/components/SideNav/SideNav";
 import { IMdmProfile } from "interfaces/mdm";
+import { IConfig } from "interfaces/config";
 
 import DiskEncryption from "./cards/DiskEncryption";
 import CustomSettings from "./cards/CustomSettings";
@@ -8,8 +9,9 @@ import CustomSettings from "./cards/CustomSettings";
 interface IMacOSSettingsCardProps {
   currentTeamId?: number;
   profiles?: IMdmProfile[];
-  onProfileUpload?: () => void;
-  onProfileDelete?: () => void;
+  refetchProfiles?: () => void;
+  config: IConfig;
+  refetchConfig?: () => void;
 }
 
 // TODO: types

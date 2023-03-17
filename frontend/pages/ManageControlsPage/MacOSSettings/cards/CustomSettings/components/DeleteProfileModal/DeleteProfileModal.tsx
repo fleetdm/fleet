@@ -18,7 +18,7 @@ const generateMessageSuffix = (isPremiumTier?: boolean, teamId?: number) => {
   if (!isPremiumTier) {
     return "";
   }
-  return teamId ? " assigned to this team" : " with no team";
+  return teamId ? "assigned to this team" : "with no team";
 };
 
 const DeleteProfileModal = ({
@@ -42,7 +42,7 @@ const DeleteProfileModal = ({
         <p>
           This action will delete configuration profile{" "}
           <span className={`${baseClass}__profile-name`}>{profileName}</span>{" "}
-          from all macOS hosts{messageSuffix}.
+          from all macOS hosts {messageSuffix}.
         </p>
         <div className="modal-cta-wrap">
           <Button

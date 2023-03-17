@@ -21,14 +21,14 @@ const baseClass = "custom-settings";
 
 interface ICustomSettingsProps {
   profiles: IMdmProfile[];
-  onProfileUpload: () => void;
-  onProfileDelete: () => void;
+  refetchProfiles: () => void;
+  refetchConfig: () => void;
 }
 
 const CustomSettings = ({
   profiles,
-  onProfileUpload,
-  onProfileDelete,
+  refetchProfiles,
+  refetchConfig,
 }: ICustomSettingsProps) => {
   const { renderFlash } = useContext(NotificationContext);
   const { currentTeam } = useContext(AppContext);
@@ -61,7 +61,8 @@ const CustomSettings = ({
 
     try {
       await mdmAPI.uploadProfile(file, currentTeam?.id);
-      onProfileUpload();
+      refetchProfiles();
+      refetchConfig();
       renderFlash("success", "Successfully uploaded!");
     } catch (e) {
       const error = e as AxiosResponse<IApiError>;
@@ -80,7 +81,8 @@ const CustomSettings = ({
   const onDeleteProfile = async (profileId: number) => {
     try {
       await mdmAPI.deleteProfile(profileId);
-      onProfileDelete();
+      refetchProfiles();
+      refetchConfig();
       renderFlash("success", "Successfully deleted!");
     } catch (e) {
       renderFlash("error", "Couldn’t delete. Please try again.");
