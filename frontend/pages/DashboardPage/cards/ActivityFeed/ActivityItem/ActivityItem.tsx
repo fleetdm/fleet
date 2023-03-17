@@ -290,7 +290,7 @@ const TAGGED_TEMPLATES = {
       <>
         {" "}
         enforced disk encryption for macOS hosts{" "}
-        {getDiskEncryptionMessageSuffix(activity.details?.team_name)} .
+        {getDiskEncryptionMessageSuffix(activity.details?.team_name)}.
       </>
     );
   },
@@ -299,7 +299,7 @@ const TAGGED_TEMPLATES = {
       <>
         {" "}
         removed disk encryption enforcement for macOS hosts{" "}
-        {getDiskEncryptionMessageSuffix(activity.details?.team_name)} .
+        {getDiskEncryptionMessageSuffix(activity.details?.team_name)}.
       </>
     );
   },

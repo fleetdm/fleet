@@ -57,6 +57,8 @@ module "main" {
       # 8mb up from 262144 (256k) default
       sort_buffer_size = 8388608
     }
+    # VPN
+    allowed_cidr_blocks = ["10.255.1.0/24", "10.255.2.0/24", "10.255.3.0/24"]
   }
   redis_config = {
     name = local.customer
