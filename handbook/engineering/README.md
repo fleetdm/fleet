@@ -265,11 +265,11 @@ At Fleet, we take customer incidents very seriously. After working with customer
 
 At Fleet, we do postmortem meetings for every production incident, whether it's a customer's environment or on fleetdm.com.
 
-#### Document
+### Postmortem Document
 
 Before running the postmortem meeting this [Postmortem Template](https://docs.google.com/document/d/17xbobhzCINtVmeRT2HPMlSwvw7MjVvoPSUVxmVy4wNY/edit?usp=share_link) document should be copied and filled with some initial data allowing smooth run of the discussion. 
 
-#### The meeting
+### Postmortem meeting
 
 Invite all stake holders. Typically the team involved and QA representatives.
 
