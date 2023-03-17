@@ -46,22 +46,22 @@ const DiskEncryption = ({
     setDiskEncryptionEnabled(value);
   };
 
-  const { isLoading: isLoadingTeam } = useQuery<
-    ILoadTeamResponse,
-    Error,
-    ITeamConfig
-  >(["team", currentTeamId], () => teamsAPI.load(currentTeamId ?? 0), {
-    refetchOnWindowFocus: false,
-    retry: false,
-    enabled: Boolean(currentTeamId),
-    select: (res) => res.team,
-    onSuccess: (res) => {
-      const enableDiskEncryption =
-        res.mdm?.macos_settings.enable_disk_encryption ?? false;
-      setDiskEncryptionEnabled(enableDiskEncryption);
-      setShowAggregate(enableDiskEncryption);
-    },
-  });
+  useQuery<ILoadTeamResponse, Error, ITeamConfig>(
+    ["team", currentTeamId],
+    () => teamsAPI.load(currentTeamId ?? 0),
+    {
+      refetchOnWindowFocus: false,
+      retry: false,
+      enabled: Boolean(currentTeamId),
+      select: (res) => res.team,
+      onSuccess: (res) => {
+        const enableDiskEncryption =
+          res.mdm?.macos_settings.enable_disk_encryption ?? false;
+        setDiskEncryptionEnabled(enableDiskEncryption);
+        setShowAggregate(enableDiskEncryption);
+      },
+    }
+  );
 
   const onUpdateDiskEncryption = async () => {
     try {
@@ -81,10 +81,6 @@ const DiskEncryption = ({
       );
     }
   };
-
-  if (isLoadingTeam) {
-    return <Spinner />;
-  }
 
   return (
     <div className={baseClass}>
