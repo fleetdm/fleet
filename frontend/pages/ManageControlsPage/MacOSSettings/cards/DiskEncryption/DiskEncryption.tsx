@@ -93,7 +93,7 @@ const DiskEncryption = ({ currentTeamId }: IDiskEncryptionProps) => {
             encryption keys will be stored in Fleet.{" "}
             <CustomLink
               text="Learn more"
-              url="https://fleetdm.com/docs/controls#disk-encryption"
+              url="https://fleetdm.com/docs/using-fleet/mobile-device-management#disk-encryption"
               newTab
             />
           </p>

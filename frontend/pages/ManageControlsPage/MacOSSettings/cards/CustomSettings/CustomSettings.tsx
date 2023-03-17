@@ -98,7 +98,7 @@ const CustomSettings = ({
         <CustomLink
           newTab
           text="Learn how"
-          url="https://fleetdm.com/docs/using-fleet/mobile-device-management#custom-settings"
+          url="https://fleetdm.com/docs/using-fleet/mdm-macos-settings#custom-settings"
         />
       </p>
 

@@ -322,8 +322,10 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r
 	}
 
 	if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeCreatedMacosProfile{
-		TeamID:   &teamID,
-		TeamName: &teamName,
+		TeamID:            &teamID,
+		TeamName:          &teamName,
+		ProfileName:       newCP.Name,
+		ProfileIdentifier: newCP.Identifier,
 	}); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "logging activity for create mdm apple config profile")
 	}
@@ -491,8 +493,10 @@ func (svc *Service) DeleteMDMAppleConfigProfile(ctx context.Context, profileID u
 	}
 
 	if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeDeletedMacosProfile{
-		TeamID:   &teamID,
-		TeamName: &teamName,
+		TeamID:            &teamID,
+		TeamName:          &teamName,
+		ProfileName:       cp.Name,
+		ProfileIdentifier: cp.Identifier,
 	}); err != nil {
 		return ctxerr.Wrap(ctx, err, "logging activity for delete mdm apple config profile")
 	}
