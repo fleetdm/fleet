@@ -54,10 +54,10 @@ Values play an important role in hiring, performance management, and compensatio
 ### 🔴 Empathy
 Empathy leads to better understanding, better communication, and better decisions.  Try to understand what people may be going through, so you can help make it better.
 
-- **Be a helper.** Think and say [positive things](https://www.theatlantic.com/family/archive/2018/06/mr-rogers-neighborhood-talking-to-kids/562352/). Keep the needs of customers, contributors, and colleagues in mind. Treat others the way you’d like to be treated.
-- **Be curious.** Ask questions. Try seeing situations from different perspectives. Use your imagination to find understanding.
+- **Invest in hospitality.** Think and say [positive things](https://www.theatlantic.com/family/archive/2018/06/mr-rogers-neighborhood-talking-to-kids/562352/). Apply customer service principles to all community members, especially outsiders.  
+- **Be curious.** Ask questions. Really care about the answers. Try seeing situations from different perspectives. Use your imagination to find understanding.
 - **Remember the user.** Prioritize product quality. Create patches with care. Fix bugs quickly. Take time writing error messages.
-- **Invest in hospitality.** Apply customer service principles to all community members, especially outsiders. Be generous with your time.
+- **Be [a helper](https://en.m.wikipedia.org/wiki/Fred_Rogers#Legacy). Treat the needs of customers, contributors, and colleagues like your own.
 
 ### 🟠 Ownership
 Achieving ambitious goals requires reliability and initiative. That’s why we encourage every Fleetie to think like an owner. Your impact goes beyond the responsibilities of your role.
