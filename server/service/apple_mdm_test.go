@@ -1626,3 +1626,40 @@ func mobileconfigForTest(name, identifier string) []byte {
 </plist>
 `, name, identifier, uuid.New().String()))
 }
+
+func mobileconfigForTestWithContent(name, identifier, inneridentifier, innertype string) []byte {
+	return []byte(fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array>
+          <dict>
+            <key>PayloadDisplayName</key>
+            <string>%s</string>
+            <key>PayloadIdentifier</key>
+            <string>%s</string>
+            <key>PayloadType</key>
+            <string>%s</string>
+            <key>PayloadUUID</key>
+            <string>3548D750-6357-4910-8DEA-D80ADCE2C787</string>
+            <key>PayloadVersion</key>
+            <integer>1</integer>
+            <key>ShowRecoveryKey</key>
+            <false/>
+          </dict>
+	</array>
+	<key>PayloadDisplayName</key>
+	<string>%s</string>
+	<key>PayloadIdentifier</key>
+	<string>%s</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>%s</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+</dict>
+</plist>
+`, name+".inner", inneridentifier, innertype, name, identifier, uuid.New().String()))
+}

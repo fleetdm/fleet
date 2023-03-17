@@ -145,7 +145,7 @@ func TestMDMAppleConfigProfileScreenPayloadContent(t *testing.T) {
 			require.Equal(t, "ValidName", parsed.Name)
 			require.Equal(t, "ValidIdentifier", parsed.Identifier)
 
-			err = parsed.ScreenPayloads()
+			err = parsed.ValidateUserProvided()
 			for _, pt := range c.shouldFail {
 				require.Error(t, err)
 				require.ErrorContains(t, err, pt)
@@ -200,7 +200,7 @@ func TestMDMAppleConfigProfileScreenPayloadIdentifiers(t *testing.T) {
 			require.Equal(t, "ValidName", parsed.Name)
 			require.Equal(t, "ValidIdentifier", parsed.Identifier)
 
-			err = parsed.ScreenPayloads()
+			err = parsed.ValidateUserProvided()
 			for _, pt := range c.shouldFail {
 				require.Error(t, err)
 				require.ErrorContains(t, err, pt)

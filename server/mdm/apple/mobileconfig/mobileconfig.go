@@ -89,9 +89,6 @@ func (mc Mobileconfig) ParseConfigProfile() (*Parsed, error) {
 	if p.PayloadIdentifier == "" {
 		return nil, errors.New("empty PayloadIdentifier in profile")
 	}
-	if _, ok := FleetPayloadIdentifiers()[p.PayloadIdentifier]; ok {
-		return nil, fmt.Errorf("payload identifier %s is not allowed", p.PayloadIdentifier)
-	}
 	if p.PayloadDisplayName == "" {
 		return nil, errors.New("empty PayloadDisplayName in profile")
 	}

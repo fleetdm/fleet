@@ -269,7 +269,6 @@ func NewMDMAppleConfigProfile(raw []byte, teamID *uint) (*MDMAppleConfigProfile,
 	if err != nil {
 		return nil, fmt.Errorf("new MDMAppleConfigProfile: %w", err)
 	}
-
 	return &MDMAppleConfigProfile{
 		TeamID:       teamID,
 		Identifier:   cp.PayloadIdentifier,
@@ -283,9 +282,11 @@ func (cp MDMAppleConfigProfile) AuthzType() string {
 	return "mdm_apple_config_profile"
 }
 
-// ScreenPayloads screens the profile's Mobileconfig and returns an error if it
-// detects certain PayloadTypes or PayloadIdentifiers managed by Fleet.
-func (cp MDMAppleConfigProfile) ScreenPayloads() error {
+func (cp MDMAppleConfigProfile) ValidateUserProvided() error {
+	if _, ok := mobileconfig.FleetPayloadIdentifiers()[cp.Identifier]; ok {
+		return fmt.Errorf("payload identifier %s is not allowed", cp.Identifier)
+	}
+
 	return cp.Mobileconfig.ScreenPayloads()
 }
 
