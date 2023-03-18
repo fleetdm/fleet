@@ -8,7 +8,7 @@ import (
 	"os/exec"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/groob/plist"
 )
 
@@ -29,7 +29,7 @@ type profilesOutput struct {
 // GetFleetdConfig searches and parses a device level configuration profile
 // with Fleet's payload identifier.
 func GetFleetdConfig() (*fleet.MDMAppleFleetdConfig, error) {
-	p, err := getProfile(apple_mdm.FleetdConfigPayloadIdentifier)
+	p, err := getProfile(mobileconfig.FleetdConfigPayloadIdentifier)
 	if err != nil {
 		return nil, err
 	}
