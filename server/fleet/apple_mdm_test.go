@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 	"go.mozilla.org/pkcs7"
@@ -19,7 +20,7 @@ import (
 func TestMDMAppleConfigProfile(t *testing.T) {
 	cases := []struct {
 		testName     string
-		mobileconfig Mobileconfig
+		mobileconfig mobileconfig.Mobileconfig
 		shouldFail   bool
 	}{
 		{
@@ -81,11 +82,7 @@ func TestMDMAppleConfigProfile(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.testName, func(t *testing.T) {
-			mc := c.mobileconfig
-			cp := new(MDMAppleConfigProfile)
-			cp.Mobileconfig = mc
-
-			parsed, err := cp.Mobileconfig.ParseConfigProfile()
+			parsed, err := NewMDMAppleConfigProfile(c.mobileconfig, nil)
 			if c.shouldFail {
 				require.Error(t, err)
 			} else {
@@ -143,14 +140,12 @@ func TestMDMAppleConfigProfileScreenPayloadContent(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.testName, func(t *testing.T) {
 			mc := mobileconfigForTest("ValidName", "ValidIdentifier", uuid.NewString(), mcPayloadContentForTest(c.payloadTypes))
-			cp := new(MDMAppleConfigProfile)
-			cp.Mobileconfig = mc
-			parsed, err := cp.Mobileconfig.ParseConfigProfile()
+			parsed, err := NewMDMAppleConfigProfile(mc, nil)
 			require.NoError(t, err)
 			require.Equal(t, "ValidName", parsed.Name)
 			require.Equal(t, "ValidIdentifier", parsed.Identifier)
 
-			err = cp.ScreenPayloadTypes()
+			err = parsed.ValidateUserProvided()
 			for _, pt := range c.shouldFail {
 				require.Error(t, err)
 				require.ErrorContains(t, err, pt)
@@ -159,7 +154,62 @@ func TestMDMAppleConfigProfileScreenPayloadContent(t *testing.T) {
 	}
 }
 
-func mobileconfigForTest(name string, identifier string, uuid string, payloadContent string) Mobileconfig {
+func TestMDMAppleConfigProfileScreenPayloadIdentifiers(t *testing.T) {
+	cases := []struct {
+		testName           string
+		payloadIdentifiers []string
+		shouldFail         []string
+	}{
+		{
+			testName:           "AllFleetProfilesScreened",
+			payloadIdentifiers: []string{"com.fleetdm.fleet.mdm.filevault", "com.fleetdm.fleetd.config"},
+			shouldFail:         []string{"com.fleetdm.fleet.mdm.filevault", "com.fleetdm.fleetd.config"},
+		},
+		{
+			testName:           "FileVault",
+			payloadIdentifiers: []string{"com.fleetdm.fleet.mdm.filevault"},
+			shouldFail:         []string{"com.fleetdm.fleet.mdm.filevault"},
+		},
+		{
+			testName:           "Fleetd config",
+			payloadIdentifiers: []string{"com.fleetdm.fleetd.config"},
+			shouldFail:         []string{"com.fleetdm.fleetd.config"},
+		},
+		{
+			testName:           "OtherPayloadTypesOK",
+			payloadIdentifiers: []string{"com.my.custom.profile", "com.test.example"},
+			shouldFail:         nil,
+		},
+		{
+			testName:           "Mixed",
+			payloadIdentifiers: []string{"com.fleetdm.fleet.mdm.filevault", "com.my.custom.profile", "com.test.example"},
+			shouldFail:         []string{"com.fleetdm.fleet.mdm.filevault"},
+		},
+		{
+			testName:           "NoPayloadContent",
+			payloadIdentifiers: nil,
+			shouldFail:         nil,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.testName, func(t *testing.T) {
+			mc := mobileconfigForTest("ValidName", "ValidIdentifier", uuid.NewString(), mcPayloadContentForTest(c.payloadIdentifiers))
+			parsed, err := NewMDMAppleConfigProfile(mc, nil)
+			require.NoError(t, err)
+			require.Equal(t, "ValidName", parsed.Name)
+			require.Equal(t, "ValidIdentifier", parsed.Identifier)
+
+			err = parsed.ValidateUserProvided()
+			for _, pt := range c.shouldFail {
+				require.Error(t, err)
+				require.ErrorContains(t, err, pt)
+			}
+		})
+	}
+}
+
+func mobileconfigForTest(name string, identifier string, uuid string, payloadContent string) mobileconfig.Mobileconfig {
 	pc := "<array/>"
 	if payloadContent != "" {
 		pc = fmt.Sprintf(`<array>%s
@@ -186,27 +236,27 @@ func mobileconfigForTest(name string, identifier string, uuid string, payloadCon
 `, pc, name, identifier, uuid))
 }
 
-func mcPayloadContentForTest(payloadTypes []string) string {
+func mcPayloadContentForTest(refs []string) string {
 	formatted := ""
-	for _, pt := range payloadTypes {
-		if pt == "" {
+	for _, ref := range refs {
+		if ref == "" {
 			continue
 		}
-		ss := strings.Split(pt, ".")
+		ss := strings.Split(ref, ".")
 		uuid := uuid.New()
 		formatted += fmt.Sprintf(`
 		<dict>
 			<key>PayloadDisplayName</key>
 			<string>%s</string>
 			<key>PayloadIdentifier</key>
-			<string>%s.%s</string>
+			<string>%s</string>
 			<key>PayloadType</key>
 			<string>%s</string>
 			<key>PayloadUUID</key>
 			<string>%s</string>
 			<key>PayloadVersion</key>
 			<integer>1</integer>
-		</dict>`, ss[len(ss)-1], pt, uuid, pt, uuid)
+		</dict>`, ss[len(ss)-1], ref, ref, uuid)
 	}
 
 	return formatted
