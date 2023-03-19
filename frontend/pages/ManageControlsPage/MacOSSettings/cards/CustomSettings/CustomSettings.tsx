@@ -46,6 +46,8 @@ const CustomSettings = ({
   const onFileUpload = async (files: FileList | null) => {
     setShowLoading(true);
 
+    console.log("On upload: ", files);
+
     if (!files || files.length === 0) return;
 
     const file = files[0];
@@ -55,6 +57,7 @@ const CustomSettings = ({
       !file.name.includes(".mobileconfig")
     ) {
       renderFlash("error", UPLOAD_ERROR_MESSAGES.wrongType.message);
+      setShowLoading(false);
       return;
     }
 
@@ -97,7 +100,7 @@ const CustomSettings = ({
         <CustomLink
           newTab
           text="Learn how"
-          url="https://fleetdm.com/docs/using-fleet/mobile-device-management#custom-settings"
+          url="https://fleetdm.com/docs/using-fleet/mdm-macos-settings#custom-settings"
         />
       </p>
 

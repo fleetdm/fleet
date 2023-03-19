@@ -33,6 +33,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/externalsvc"
 	"github.com/fleetdm/fleet/v4/server/service/mock"
@@ -835,10 +836,13 @@ func (s *integrationMDMTestSuite) TestMDMAppleGetEncryptionKey() {
 	require.NoError(t, err)
 
 	// install a filevault profile for that host
-	prof, err := fleet.Mobileconfig(mobileconfigForTest("N1", apple_mdm.FleetFileVaultPayloadIdentifier)).ParseConfigProfile()
-	require.NoError(t, err)
-	fileVaultProf, err := s.ds.NewMDMAppleConfigProfile(ctx, *prof)
-	require.NoError(t, err)
+
+	acResp := appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": { "macos_settings": { "enable_disk_encryption": true } }
+  }`), http.StatusOK, &acResp)
+	assert.True(t, acResp.MDM.MacOSSettings.EnableDiskEncryption)
+	fileVaultProf := s.assertConfigProfilesByIdentifier(nil, mobileconfig.FleetFileVaultPayloadIdentifier, true)
 	hostCmdUUID := uuid.New().String()
 	err = s.ds.BulkUpsertMDMAppleHostProfiles(ctx, []*fleet.MDMAppleBulkUpsertHostProfilePayload{
 		{
@@ -1056,10 +1060,14 @@ func (s *integrationMDMTestSuite) TestMDMAppleConfigProfileCRUD() {
 	require.NoError(t, err)
 
 	testProfiles := make(map[string]fleet.MDMAppleConfigProfile)
-	generateTestProfile := func(name string) {
+	generateTestProfile := func(name string, identifier string) {
+		i := identifier
+		if i == "" {
+			i = fmt.Sprintf("%s.SomeIdentifier", name)
+		}
 		cp := fleet.MDMAppleConfigProfile{
 			Name:       name,
-			Identifier: fmt.Sprintf("%s.SomeIdentifier", name),
+			Identifier: i,
 		}
 		cp.Mobileconfig = mcBytesForTest(cp.Name, cp.Identifier, fmt.Sprintf("%s.UUID", name))
 		testProfiles[name] = cp
@@ -1109,7 +1117,7 @@ func (s *integrationMDMTestSuite) TestMDMAppleConfigProfileCRUD() {
 	}
 
 	// create new profile (no team)
-	generateTestProfile("TestNoTeam")
+	generateTestProfile("TestNoTeam", "")
 	body, headers := generateNewReq("TestNoTeam", nil)
 	newResp := s.DoRawWithHeaders("POST", "/api/latest/fleet/mdm/apple/profiles", body.Bytes(), http.StatusOK, headers)
 	var newCP fleet.MDMAppleConfigProfile
@@ -1119,7 +1127,7 @@ func (s *integrationMDMTestSuite) TestMDMAppleConfigProfileCRUD() {
 	setTestProfileID("TestNoTeam", newCP.ProfileID)
 
 	// create new profile (with team id)
-	generateTestProfile("TestWithTeamID")
+	generateTestProfile("TestWithTeamID", "")
 	body, headers = generateNewReq("TestWithTeamID", ptr.Uint(1))
 	newResp = s.DoRawWithHeaders("POST", "/api/latest/fleet/mdm/apple/profiles", body.Bytes(), http.StatusOK, headers)
 	err = json.NewDecoder(newResp.Body).Decode(&newCP)
@@ -1184,6 +1192,35 @@ func (s *integrationMDMTestSuite) TestMDMAppleConfigProfileCRUD() {
 	require.Len(t, listResp.ConfigProfiles, 0)
 	getPath = fmt.Sprintf("/api/latest/fleet/mdm/apple/profiles/%d", deletedCP.ProfileID)
 	_ = s.DoRawWithHeaders("GET", getPath, nil, http.StatusNotFound, map[string]string{"Authorization": fmt.Sprintf("Bearer %s", s.token)})
+
+	// trying to add/delete profiles managed by Fleet fails
+	for p := range mobileconfig.FleetPayloadIdentifiers() {
+		generateTestProfile("TestNoTeam", p)
+		body, headers := generateNewReq("TestNoTeam", nil)
+		s.DoRawWithHeaders("POST", "/api/latest/fleet/mdm/apple/profiles", body.Bytes(), http.StatusBadRequest, headers)
+
+		generateTestProfile("TestWithTeamID", p)
+		body, headers = generateNewReq("TestWithTeamID", nil)
+		s.DoRawWithHeaders("POST", "/api/latest/fleet/mdm/apple/profiles", body.Bytes(), http.StatusBadRequest, headers)
+		cp, err := fleet.NewMDMAppleConfigProfile(mobileconfigForTestWithContent("N1", "I1", p, "random"), nil)
+		require.NoError(t, err)
+		testProfiles["WithContent"] = *cp
+		body, headers = generateNewReq("WithContent", nil)
+		s.DoRawWithHeaders("POST", "/api/latest/fleet/mdm/apple/profiles", body.Bytes(), http.StatusBadRequest, headers)
+	}
+
+	// make fleet add a FileVault profile
+	acResp := appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": { "macos_settings": { "enable_disk_encryption": true } }
+  }`), http.StatusOK, &acResp)
+	assert.True(t, acResp.MDM.MacOSSettings.EnableDiskEncryption)
+	profile := s.assertConfigProfilesByIdentifier(nil, mobileconfig.FleetFileVaultPayloadIdentifier, true)
+
+	// try to delete the profile
+	deletePath = fmt.Sprintf("/api/latest/fleet/mdm/apple/profiles/%d", profile.ProfileID)
+	deleteResp = deleteMDMAppleConfigProfileResponse{}
+	s.DoJSON("DELETE", deletePath, nil, http.StatusBadRequest, &deleteResp)
 }
 
 func (s *integrationMDMTestSuite) TestAppConfigMDMAppleProfiles() {
@@ -1238,7 +1275,7 @@ func (s *integrationMDMTestSuite) TestAppConfigMDMAppleDiskEncryption() {
 		`{"team_id": null, "team_name": null}`, 0)
 
 	// will have generated the macos config profile
-	s.assertConfigProfilesByIdentifier(nil, apple_mdm.FleetFileVaultPayloadIdentifier, true)
+	s.assertConfigProfilesByIdentifier(nil, mobileconfig.FleetFileVaultPayloadIdentifier, true)
 
 	// check that they are returned by a GET /config
 	acResp = appConfigResponse{}
@@ -1277,7 +1314,7 @@ func (s *integrationMDMTestSuite) TestAppConfigMDMAppleDiskEncryption() {
 		`{"team_id": null, "team_name": null}`, 0)
 
 	// will have deleted the macos config profile
-	s.assertConfigProfilesByIdentifier(nil, apple_mdm.FleetFileVaultPayloadIdentifier, false)
+	s.assertConfigProfilesByIdentifier(nil, mobileconfig.FleetFileVaultPayloadIdentifier, false)
 
 	// use the MDM settings endpoint to set it to true
 	s.Do("PATCH", "/api/latest/fleet/mdm/apple/settings",
@@ -1286,7 +1323,7 @@ func (s *integrationMDMTestSuite) TestAppConfigMDMAppleDiskEncryption() {
 		`{"team_id": null, "team_name": null}`, 0)
 
 	// will have created the macos config profile
-	s.assertConfigProfilesByIdentifier(nil, apple_mdm.FleetFileVaultPayloadIdentifier, true)
+	s.assertConfigProfilesByIdentifier(nil, mobileconfig.FleetFileVaultPayloadIdentifier, true)
 
 	acResp = appConfigResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
@@ -1300,7 +1337,7 @@ func (s *integrationMDMTestSuite) TestAppConfigMDMAppleDiskEncryption() {
 		``, enabledDiskActID)
 
 	// the macos config profile still exists
-	s.assertConfigProfilesByIdentifier(nil, apple_mdm.FleetFileVaultPayloadIdentifier, true)
+	s.assertConfigProfilesByIdentifier(nil, mobileconfig.FleetFileVaultPayloadIdentifier, true)
 
 	acResp = appConfigResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
@@ -1412,7 +1449,7 @@ func (s *integrationMDMTestSuite) TestTeamsMDMAppleDiskEncryption() {
 	team = createTeamResp.Team
 
 	// no macos config profile yet
-	s.assertConfigProfilesByIdentifier(ptr.Uint(team.ID), apple_mdm.FleetFileVaultPayloadIdentifier, false)
+	s.assertConfigProfilesByIdentifier(ptr.Uint(team.ID), mobileconfig.FleetFileVaultPayloadIdentifier, false)
 
 	// apply with disk encryption
 	teamSpecs := applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
@@ -1426,7 +1463,7 @@ func (s *integrationMDMTestSuite) TestTeamsMDMAppleDiskEncryption() {
 		fmt.Sprintf(`{"team_id": %d, "team_name": %q}`, team.ID, teamName), 0)
 
 	// macos config profile created
-	s.assertConfigProfilesByIdentifier(ptr.Uint(team.ID), apple_mdm.FleetFileVaultPayloadIdentifier, true)
+	s.assertConfigProfilesByIdentifier(ptr.Uint(team.ID), mobileconfig.FleetFileVaultPayloadIdentifier, true)
 
 	// retrieving the team returns the disk encryption setting
 	var teamResp getTeamResponse
@@ -1443,6 +1480,13 @@ func (s *integrationMDMTestSuite) TestTeamsMDMAppleDiskEncryption() {
 	res := s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusBadRequest)
 	errMsg := extractServerErrorText(res.Body)
 	assert.Contains(t, errMsg, `invalid value type at 'macos_settings.enable_disk_encryption': expected bool but got float64`)
+
+	// apply an empty set of batch profiles to the team
+	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: nil},
+		http.StatusUnprocessableEntity, "team_id", strconv.Itoa(int(team.ID)), "team_name", team.Name)
+
+	// the configuration profile is still there
+	s.assertConfigProfilesByIdentifier(ptr.Uint(team.ID), mobileconfig.FleetFileVaultPayloadIdentifier, true)
 
 	// apply without disk encryption settings specified and unrelated field,
 	// should not replace existing disk encryption
@@ -1489,7 +1533,7 @@ func (s *integrationMDMTestSuite) TestTeamsMDMAppleDiskEncryption() {
 		fmt.Sprintf(`{"team_id": %d, "team_name": %q}`, team.ID, teamName), 0)
 
 	// macos config profile deleted
-	s.assertConfigProfilesByIdentifier(ptr.Uint(team.ID), apple_mdm.FleetFileVaultPayloadIdentifier, false)
+	s.assertConfigProfilesByIdentifier(ptr.Uint(team.ID), mobileconfig.FleetFileVaultPayloadIdentifier, false)
 
 	// modify team's disk encryption via ModifyTeam endpoint
 	var modResp teamResponse
@@ -1503,7 +1547,7 @@ func (s *integrationMDMTestSuite) TestTeamsMDMAppleDiskEncryption() {
 		fmt.Sprintf(`{"team_id": %d, "team_name": %q}`, team.ID, teamName), 0)
 
 	// macos config profile created
-	s.assertConfigProfilesByIdentifier(ptr.Uint(team.ID), apple_mdm.FleetFileVaultPayloadIdentifier, true)
+	s.assertConfigProfilesByIdentifier(ptr.Uint(team.ID), mobileconfig.FleetFileVaultPayloadIdentifier, true)
 
 	// modify team's disk encryption and description via ModifyTeam endpoint
 	modResp = teamResponse{}
@@ -1519,7 +1563,7 @@ func (s *integrationMDMTestSuite) TestTeamsMDMAppleDiskEncryption() {
 		fmt.Sprintf(`{"team_id": %d, "team_name": %q}`, team.ID, teamName), 0)
 
 	// macos config profile deleted
-	s.assertConfigProfilesByIdentifier(ptr.Uint(team.ID), apple_mdm.FleetFileVaultPayloadIdentifier, false)
+	s.assertConfigProfilesByIdentifier(ptr.Uint(team.ID), mobileconfig.FleetFileVaultPayloadIdentifier, false)
 
 	// use the MDM settings endpoint to set it to true
 	s.Do("PATCH", "/api/latest/fleet/mdm/apple/settings",
@@ -1528,7 +1572,7 @@ func (s *integrationMDMTestSuite) TestTeamsMDMAppleDiskEncryption() {
 		fmt.Sprintf(`{"team_id": %d, "team_name": %q}`, team.ID, teamName), 0)
 
 	// macos config profile created
-	s.assertConfigProfilesByIdentifier(ptr.Uint(team.ID), apple_mdm.FleetFileVaultPayloadIdentifier, true)
+	s.assertConfigProfilesByIdentifier(ptr.Uint(team.ID), mobileconfig.FleetFileVaultPayloadIdentifier, true)
 
 	teamResp = getTeamResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
@@ -1541,7 +1585,7 @@ func (s *integrationMDMTestSuite) TestTeamsMDMAppleDiskEncryption() {
 		``, lastDiskActID)
 
 	// macos config profile still exists
-	s.assertConfigProfilesByIdentifier(ptr.Uint(team.ID), apple_mdm.FleetFileVaultPayloadIdentifier, true)
+	s.assertConfigProfilesByIdentifier(ptr.Uint(team.ID), mobileconfig.FleetFileVaultPayloadIdentifier, true)
 
 	teamResp = getTeamResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
@@ -1581,6 +1625,34 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMAppleProfiles() {
 		mobileconfigForTest("N1", "I1"),
 		mobileconfigForTest("N1", "I2"),
 	}}, http.StatusUnprocessableEntity, "team_id", strconv.Itoa(int(tm.ID)))
+
+	// profiles with reserved identifiers
+	for p := range mobileconfig.FleetPayloadIdentifiers() {
+		res := s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: [][]byte{
+			mobileconfigForTest("N1", "I1"),
+			mobileconfigForTest(p, p),
+		}}, http.StatusUnprocessableEntity, "team_id", strconv.Itoa(int(tm.ID)))
+		errMsg := extractServerErrorText(res.Body)
+		require.Contains(t, errMsg, fmt.Sprintf("Validation Failed: payload identifier %s is not allowed", p))
+	}
+
+	// payloads with reserved types
+	for p := range mobileconfig.FleetPayloadTypes() {
+		res := s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: [][]byte{
+			mobileconfigForTestWithContent("N1", "I1", "II1", p),
+		}}, http.StatusUnprocessableEntity, "team_id", strconv.Itoa(int(tm.ID)))
+		errMsg := extractServerErrorText(res.Body)
+		require.Contains(t, errMsg, fmt.Sprintf("Validation Failed: unsupported PayloadType(s): %s", p))
+	}
+
+	// payloads with reserved identifiers
+	for p := range mobileconfig.FleetPayloadIdentifiers() {
+		res := s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: [][]byte{
+			mobileconfigForTestWithContent("N1", "I1", p, "random"),
+		}}, http.StatusUnprocessableEntity, "team_id", strconv.Itoa(int(tm.ID)))
+		errMsg := extractServerErrorText(res.Body)
+		require.Contains(t, errMsg, fmt.Sprintf("Validation Failed: unsupported PayloadIdentifier(s): %s", p))
+	}
 
 	// successfully apply a profile for the team
 	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: [][]byte{
@@ -1708,11 +1780,15 @@ func (s *integrationMDMTestSuite) TestDEPOktaLogin() {
 	require.NotEmpty(t, uuid)
 }
 
-func (s *integrationMDMTestSuite) assertConfigProfilesByIdentifier(teamID *uint, profileIdent string, exists bool) {
+func (s *integrationMDMTestSuite) assertConfigProfilesByIdentifier(teamID *uint, profileIdent string, exists bool) (profile *fleet.MDMAppleConfigProfile) {
 	t := s.T()
-
-	cfgProfs, err := s.ds.ListMDMAppleConfigProfiles(context.Background(), teamID)
-	require.NoError(t, err)
+	if teamID == nil {
+		teamID = ptr.Uint(0)
+	}
+	var cfgProfs []*fleet.MDMAppleConfigProfile
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(context.Background(), q, &cfgProfs, `SELECT * FROM mdm_apple_configuration_profiles WHERE team_id = ?`, teamID)
+	})
 
 	label := "exist"
 	if !exists {
@@ -1721,11 +1797,14 @@ func (s *integrationMDMTestSuite) assertConfigProfilesByIdentifier(teamID *uint,
 	require.Condition(t, func() bool {
 		for _, p := range cfgProfs {
 			if p.Identifier == profileIdent {
+				profile = p
 				return exists // success if we want it to exist, failure if we don't
 			}
 		}
 		return !exists
 	}, "a config profile must %s with identifier: %s", label, profileIdent)
+
+	return profile
 }
 
 type device struct {

@@ -36,6 +36,8 @@ export enum ActivityType {
   CreatedMacOSProfile = "created_macos_profile",
   DeletedMacOSProfile = "deleted_macos_profile",
   EditedMacOSProfile = "edited_macos_profile",
+  EnabledMacDiskEncryption = "enabled_macos_disk_encryption",
+  DisabledMacDiskEncryption = "disabled_macos_disk_encryption",
 }
 export interface IActivity {
   created_at: string;

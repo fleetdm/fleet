@@ -1787,8 +1787,8 @@ func testPolicyViolationDays(t *testing.T, ds *Datastore) {
 
 	setStatsTimestampDB := func(updatedAt time.Time) error {
 		_, err := ds.writer.ExecContext(ctx, `
-			UPDATE aggregated_stats SET created_at = ?, updated_at = ? WHERE id = ? AND type = ?
-		`, then, updatedAt, 0, "policy_violation_days")
+			UPDATE aggregated_stats SET created_at = ?, updated_at = ? WHERE id = ? AND global_stats = ? AND type = ?
+		`, then, updatedAt, 0, true, aggregatedStatsTypePolicyViolationsDays)
 		return err
 	}
 

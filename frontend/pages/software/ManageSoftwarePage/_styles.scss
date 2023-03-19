@@ -149,6 +149,11 @@
             tbody {
               .name__cell {
                 width: $col-md;
+
+                // Tooltip does not get cut off
+                .children-wrapper {
+                  overflow: initial;
+                }
               }
               .version__cell {
                 width: 0;

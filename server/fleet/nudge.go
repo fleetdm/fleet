@@ -62,7 +62,7 @@ func NewNudgeConfig(macOSUpdates MacOSUpdates) (*NudgeConfig, error) {
 			RequiredMinimumOSVersion: macOSUpdates.MinimumVersion,
 			AboutUpdateURLs: []nudgeAboutUpdateURLs{{
 				Language:       "en",
-				AboutUpdateURL: "https://fleetdm.com/docs/using-fleet/mobile-device-management#macos-updates",
+				AboutUpdateURL: "https://fleetdm.com/docs/using-fleet/mdm-macos-updates",
 			}},
 		}},
 		UserInterface: nudgeUserInterface{

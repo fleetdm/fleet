@@ -71,7 +71,7 @@ func (n *NudgeConfigFetcher) GetConfig() (*fleet.OrbitConfig, error) {
 	}
 
 	if cfg.NudgeConfig == nil {
-		log.Info().Msg("empty nudge config, removing nudge as target")
+		log.Debug().Msg("empty nudge config, removing nudge as target")
 		// TODO(roberto): by early returning and removing the target from the
 		// runner/updater we ensure Nudge won't be opened/updated again
 		// but we don't actually remove the file from disk. We

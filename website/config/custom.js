@@ -98,7 +98,10 @@ module.exports.custom = {
     'README.md': ['mikermcneil', 'jarodreyes', 'mike-j-thomas', 'zwass'],// (github brandfront)
     'tools/fleetctl-npm/README.md': ['mikermcneil', 'mike-j-thomas', 'jarodreyes', 'zwass'],//« brandfront for fleetctl package on npm
 
-    'CODEOWNERS': ['zwass', 'mikermcneil'],
+    // Directly responsible individual (DRI) automation
+    'CODEOWNERS': ['zwass', 'mikermcneil'],// (« for changing who reviews is automatically requested from for given paths)
+    'website/config/custom.js': ['eashaw', 'mikermcneil'],// (« for changing whose changes automatically approve and unfreeze relevant PRs changing given paths)
+
     '.github/workflows': ['zwass', 'mikermcneil'],// (misc GitHub Actions. Note that some are also addressed more specifically below in relevant sections)
 
     // GitHub issue templates
@@ -175,6 +178,9 @@ module.exports.custom = {
 
   },
 
+  // The version of osquery to use when generating schema docs
+  // (both in Fleet's query console and on fleetdm.com)
+  versionOfOsquerySchemaToUseWhenGeneratingDocumentation: '5.8.1',
 
   /***************************************************************************
   *                                                                          *

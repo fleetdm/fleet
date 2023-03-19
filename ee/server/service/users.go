@@ -32,8 +32,9 @@ func (svc *Service) GetSSOUser(ctx context.Context, auth fleet.Auth) (*fleet.Use
 		// If the user exists, we want to update the user roles from the attributes received
 		// in the SAMLResponse.
 
-		// If JIT provisioning is disabled, then we don't attempt to change the role of the user.
-		if !config.SSOSettings.EnableJITProvisioning {
+		// If JIT provisioning or role sync are disabled, then we don't attempt to change the
+		// role of the existing user.
+		if !config.SSOSettings.EnableJITProvisioning || !config.SSOSettings.EnableJITRoleSync {
 			return user, nil
 		}
 
