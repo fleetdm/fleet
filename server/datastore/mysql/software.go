@@ -1108,10 +1108,14 @@ func (ds *Datastore) InsertSoftwareVulnerability(
 	vuln fleet.SoftwareVulnerability,
 	source fleet.VulnerabilitySource,
 ) (bool, error) {
+	if vuln.CVE == "" {
+		return false, nil
+	}
+
 	var args []interface{}
 
 	stmt := `INSERT INTO software_cve (cve, source, software_id) VALUES (?,?,?) ON DUPLICATE KEY UPDATE updated_at=?`
-	args = append(args, vuln.CVE, source, vuln.SoftwareID, args, time.Now().UTC())
+	args = append(args, vuln.CVE, source, vuln.SoftwareID, time.Now().UTC())
 
 	res, err := ds.writer.ExecContext(ctx, stmt, args...)
 	if err != nil {

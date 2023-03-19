@@ -1448,12 +1448,12 @@ func testListSoftwareVulnerabilitiesByHostIDsSource(t *testing.T, ds *Datastore)
 	for i, s := range host.Software {
 		cve, ok := cveMap[i]
 		if ok {
-			n, err := ds.InsertSoftwareVulnerability(ctx, fleet.SoftwareVulnerability{
+			inserted, err := ds.InsertSoftwareVulnerability(ctx, fleet.SoftwareVulnerability{
 				SoftwareID: s.ID,
 				CVE:        cve,
 			}, fleet.NVDSource)
 			require.NoError(t, err)
-			require.Equal(t, int64(2), n)
+			require.True(t, inserted)
 		}
 
 	}
@@ -1477,9 +1477,9 @@ func testInsertSoftwareVulnerability(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
 	t.Run("no vulnerabilities to insert", func(t *testing.T) {
-		r, err := ds.InsertSoftwareVulnerability(ctx, fleet.SoftwareVulnerability{}, fleet.UbuntuOVALSource)
+		inserted, err := ds.InsertSoftwareVulnerability(ctx, fleet.SoftwareVulnerability{}, fleet.UbuntuOVALSource)
 		require.NoError(t, err)
-		require.Zero(t, r)
+		require.False(t, inserted)
 	})
 
 	t.Run("duplicated vulnerabilities", func(t *testing.T) {
