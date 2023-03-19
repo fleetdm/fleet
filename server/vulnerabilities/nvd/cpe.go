@@ -306,14 +306,14 @@ func consumeCPEBuffer(
 	var toDelete []fleet.SoftwareCPE
 	var toUpsert []fleet.SoftwareCPE
 
-	for _, item := range batch {
+	for i := range batch {
 		// This could be because of a new translation rule or because we fixed a bug with the CPE
 		// detection process
-		if item.CPE == "" {
-			toDelete = append(toDelete, item)
+		if batch[i].CPE == "" {
+			toDelete = append(toDelete, batch[i])
 			continue
 		}
-		toUpsert = append(toUpsert, item)
+		toUpsert = append(toUpsert, batch[i])
 	}
 
 	upserted, err := ds.UpsertSoftwareCPEs(ctx, toUpsert)

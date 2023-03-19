@@ -10,6 +10,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/nettest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -204,6 +205,9 @@ func TestTranslateCPEToCVE(t *testing.T) {
 				defer cveLock.Unlock()
 				cvesFound = append(cvesFound, vuln.CVE)
 				return false, nil
+			}
+			ds.DeleteOutOfDateVulnerabilitiesFunc = func(ctx context.Context, source fleet.VulnerabilitySource, duration time.Duration) error {
+				return nil
 			}
 
 			_, err := TranslateCPEToCVE(ctx, ds, tempDir, kitlog.NewLogfmtLogger(os.Stdout), false)
