@@ -226,6 +226,8 @@ func TestTranslateCPEToCVE(t *testing.T) {
 				// Check for exact match of CVEs found.
 				require.ElementsMatch(t, cvesFound, tt.cves, tt.cpe)
 			}
+
+			require.True(t, ds.DeleteOutOfDateVulnerabilitiesFuncInvoked)
 		})
 	}
 
