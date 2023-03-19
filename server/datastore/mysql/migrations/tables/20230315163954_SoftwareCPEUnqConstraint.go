@@ -12,7 +12,7 @@ func init() {
 }
 
 func Up_20230315163954(tx *sql.Tx) error {
-	// Since we will be adding a uniqueness constrain on (software_id) on the  - we need to remove any
+	// Since we will be adding a uniqueness constrain on (software_id) on the software_cpe table - we need to remove any
 	// possible duplicates. Also because there's a chance we remove the duplicate rows before adding
 	// the constraint and new duplicates get generated in between, we need to try to acquire the
 	// vulnerability lock. In case the lock can't be acquired a warning is issued and the migration
