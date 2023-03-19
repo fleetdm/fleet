@@ -733,6 +733,30 @@ func (ds *Datastore) UpsertSoftwareCPEs(ctx context.Context, cpes []fleet.Softwa
 	return count, nil
 }
 
+func (ds *Datastore) DeleteSoftwareCPEs(ctx context.Context, cpes []fleet.SoftwareCPE) (int64, error) {
+	if len(cpes) == 0 {
+		return 0, nil
+	}
+
+	sql := fmt.Sprintf(
+		`DELETE FROM software_cpe WHERE (software_id) IN (%s)`,
+		strings.TrimSuffix(strings.Repeat("?,", len(cpes)), ","),
+	)
+	var args []interface{}
+	for _, cpe := range cpes {
+		args = append(args, cpe.SoftwareID)
+	}
+
+	res, err := ds.writer.ExecContext(ctx, sql, args...)
+	if err != nil {
+		return 0, ctxerr.Wrapf(ctx, err, "deleting cpes software")
+	}
+
+	count, _ := res.RowsAffected()
+
+	return count, nil
+}
+
 func (ds *Datastore) ListSoftwareCPEs(ctx context.Context) ([]fleet.SoftwareCPE, error) {
 	var result []fleet.SoftwareCPE
 

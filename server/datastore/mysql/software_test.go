@@ -47,6 +47,7 @@ func TestSoftware(t *testing.T) {
 		{"AllSoftwareIterator", testAllSoftwareIterator},
 		{"UpsertSoftwareCPEs", testUpsertSoftwareCPEs},
 		{"DeleteOutOfDateVulnerabilities", testDeleteOutOfDateVulnerabilities},
+		{"DeleteSoftwareCPEs", testDeleteSoftwareCPEs},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -1831,4 +1832,54 @@ func testDeleteOutOfDateVulnerabilities(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, 1, len(storedSoftware.Vulnerabilities))
 	require.Equal(t, "CVE-2023-001", storedSoftware.Vulnerabilities[0].CVE)
+}
+
+func testDeleteSoftwareCPEs(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+
+	software := []fleet.Software{
+		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
+		{Name: "bar", Version: "0.0.1", Source: "chrome_extensions"},
+	}
+	require.NoError(t, ds.UpdateHostSoftware(ctx, host.ID, software))
+	require.NoError(t, ds.LoadHostSoftware(ctx, host, false))
+
+	cpes := []fleet.SoftwareCPE{
+		{
+			SoftwareID: host.Software[0].ID,
+			CPE:        "CPE-001",
+		},
+		{
+			SoftwareID: host.Software[1].ID,
+			CPE:        "CPE-002",
+		},
+	}
+	_, err := ds.UpsertSoftwareCPEs(ctx, cpes)
+	require.NoError(t, err)
+
+	t.Run("nothing to delete", func(t *testing.T) {
+		affected, err := ds.DeleteSoftwareCPEs(ctx, nil)
+		require.NoError(t, err)
+		require.Zero(t, affected)
+	})
+
+	t.Run("with invalid software id", func(t *testing.T) {
+		toDelete := []fleet.SoftwareCPE{cpes[0], {
+			SoftwareID: host.Software[1].ID + 1234,
+			CPE:        "CPE-002",
+		}}
+
+		affected, err := ds.DeleteSoftwareCPEs(ctx, toDelete)
+		require.NoError(t, err)
+		require.Equal(t, int64(1), affected)
+
+		storedCPEs, err := ds.ListSoftwareCPEs(ctx)
+		require.NoError(t, err)
+		test.ElementsMatchSkipID(t, cpes[1:], storedCPEs)
+
+		storedSoftware, err := ds.SoftwareByID(ctx, cpes[0].SoftwareID, false)
+		require.NoError(t, err)
+		require.Empty(t, storedSoftware.GenerateCPE)
+	})
 }

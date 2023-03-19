@@ -238,15 +238,61 @@ func (f *fakeSoftwareIterator) Err() error   { return nil }
 func (f *fakeSoftwareIterator) Close() error { f.closed = true; return nil }
 
 func TestConsumeCPEBuffer(t *testing.T) {
-	var upserted []fleet.SoftwareCPE
+	ctx := context.Background()
 
-	ds := new(mock.Store)
-	ds.UpsertSoftwareCPEsFunc = func(ctx context.Context, cpes []fleet.SoftwareCPE) (int64, error) {
-		upserted = append(upserted, cpes...)
-		return int64(len(upserted)), nil
-	}
+	t.Run("empty buffer", func(t *testing.T) {
+		var upserted []fleet.SoftwareCPE
+		var deleted []fleet.SoftwareCPE
 
-	t.Run("empty buffer", func(t *testing.T) {})
+		ds := new(mock.Store)
+		ds.UpsertSoftwareCPEsFunc = func(ctx context.Context, cpes []fleet.SoftwareCPE) (int64, error) {
+			upserted = append(upserted, cpes...)
+			return int64(len(upserted)), nil
+		}
+
+		ds.DeleteSoftwareCPEsFunc = func(ctx context.Context, cpes []fleet.SoftwareCPE) (int64, error) {
+			deleted = append(deleted, cpes...)
+			return int64(len(deleted)), nil
+		}
+		err := consumeCPEBuffer(ctx, ds, nil, nil)
+		require.NoError(t, err)
+		require.Empty(t, upserted)
+		require.Empty(t, deleted)
+	})
+
+	t.Run("inserts and deletes accordantly", func(t *testing.T) {
+		var upserted []fleet.SoftwareCPE
+		var deleted []fleet.SoftwareCPE
+
+		ds := new(mock.Store)
+		ds.UpsertSoftwareCPEsFunc = func(ctx context.Context, cpes []fleet.SoftwareCPE) (int64, error) {
+			upserted = append(upserted, cpes...)
+			return int64(len(upserted)), nil
+		}
+
+		ds.DeleteSoftwareCPEsFunc = func(ctx context.Context, cpes []fleet.SoftwareCPE) (int64, error) {
+			deleted = append(deleted, cpes...)
+			return int64(len(deleted)), nil
+		}
+
+		cpes := []fleet.SoftwareCPE{
+			{
+				SoftwareID: 1,
+				CPE:        "",
+			},
+			{
+				SoftwareID: 2,
+				CPE:        "cpe-1",
+			},
+		}
+
+		err := consumeCPEBuffer(ctx, ds, nil, nil)
+		require.NoError(t, err)
+		require.Equal(t, len(upserted), 1)
+		require.Equal(t, upserted[0].CPE, cpes[1].CPE)
+		require.Equal(t, len(deleted), 1)
+		require.Equal(t, deleted[0].CPE, cpes[0].CPE)
+	})
 }
 
 func TestTranslateSoftwareToCPE(t *testing.T) {

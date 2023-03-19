@@ -316,6 +316,8 @@ type AllSoftwareIteratorFunc func(ctx context.Context, query fleet.SoftwareIterQ
 
 type UpsertSoftwareCPEsFunc func(ctx context.Context, cpes []fleet.SoftwareCPE) (int64, error)
 
+type DeleteSoftwareCPEsFunc func(ctx context.Context, cpes []fleet.SoftwareCPE) (int64, error)
+
 type ListSoftwareCPEsFunc func(ctx context.Context) ([]fleet.SoftwareCPE, error)
 
 type InsertSoftwareVulnerabilityFunc func(ctx context.Context, vuln fleet.SoftwareVulnerability, source fleet.VulnerabilitySource) (bool, error)
@@ -1020,6 +1022,9 @@ type DataStore struct {
 
 	UpsertSoftwareCPEsFunc        UpsertSoftwareCPEsFunc
 	UpsertSoftwareCPEsFuncInvoked bool
+
+	DeleteSoftwareCPEsFunc        DeleteSoftwareCPEsFunc
+	DeleteSoftwareCPEsFuncInvoked bool
 
 	ListSoftwareCPEsFunc        ListSoftwareCPEsFunc
 	ListSoftwareCPEsFuncInvoked bool
@@ -2453,6 +2458,13 @@ func (s *DataStore) UpsertSoftwareCPEs(ctx context.Context, cpes []fleet.Softwar
 	s.UpsertSoftwareCPEsFuncInvoked = true
 	s.mu.Unlock()
 	return s.UpsertSoftwareCPEsFunc(ctx, cpes)
+}
+
+func (s *DataStore) DeleteSoftwareCPEs(ctx context.Context, cpes []fleet.SoftwareCPE) (int64, error) {
+	s.mu.Lock()
+	s.DeleteSoftwareCPEsFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteSoftwareCPEsFunc(ctx, cpes)
 }
 
 func (s *DataStore) ListSoftwareCPEs(ctx context.Context) ([]fleet.SoftwareCPE, error) {

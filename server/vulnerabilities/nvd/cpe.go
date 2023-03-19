@@ -303,19 +303,36 @@ func consumeCPEBuffer(
 	logger kitlog.Logger,
 	batch []fleet.SoftwareCPE,
 ) error {
-	var emptyCPEs []fleet.SoftwareCPE
-	var newCPEs []fleet.SoftwareCPE
+	var toDelete []fleet.SoftwareCPE
+	var toUpsert []fleet.SoftwareCPE
 
 	for _, item := range batch {
+		// This could be because of a new translation rule or because we fixed a bug with the CPE
+		// detection process
 		if item.CPE == "" {
-			emptyCPEs = append(emptyCPEs, item)
+			toDelete = append(toDelete, item)
 			continue
 		}
-		newCPEs = append(newCPEs, item)
+		toUpsert = append(toUpsert, item)
 	}
 
-	_, err := ds.UpsertSoftwareCPEs(ctx, newCPEs)
-	return err
+	upserted, err := ds.UpsertSoftwareCPEs(ctx, toUpsert)
+	if err != nil {
+		return err
+	}
+	if int(upserted) != len(toUpsert) {
+		level.Debug(logger).Log("toUpsert", len(toUpsert), "upserted", upserted)
+	}
+
+	deleted, err := ds.DeleteSoftwareCPEs(ctx, toDelete)
+	if err != nil {
+		return err
+	}
+	if int(deleted) != len(toDelete) {
+		level.Debug(logger).Log("toDelete", len(toDelete), "deleted", deleted)
+	}
+
+	return nil
 }
 
 func TranslateSoftwareToCPE(

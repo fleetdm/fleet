@@ -399,7 +399,12 @@ type Datastore interface {
 	LoadHostSoftware(ctx context.Context, host *Host, includeCVEScores bool) error
 
 	AllSoftwareIterator(ctx context.Context, query SoftwareIterQueryOptions) (SoftwareIterator, error)
+	// UpsertSoftwareCPEs either inserts new 'software_cpe' entries, or if a now with the same CPE
+	// already exists, performs an update operation. Returns the number of rows affected.
 	UpsertSoftwareCPEs(ctx context.Context, cpes []SoftwareCPE) (int64, error)
+	// DeleteSoftwareCPEs removes entries from 'software_cpe' by matching the software_id in the
+	// provided cpes. Returns the number of rows affected.
+	DeleteSoftwareCPEs(ctx context.Context, cpes []SoftwareCPE) (int64, error)
 	ListSoftwareCPEs(ctx context.Context) ([]SoftwareCPE, error)
 	// InsertSoftwareVulnerabilities inserts the given vulnerabilities in the datastore, returns the number
 	// of rows inserted. If a vulnerability already exists in the datastore, then it will be ignored.
