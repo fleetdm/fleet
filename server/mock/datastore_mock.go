@@ -10,6 +10,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/micromdm/nanodep/godep"
 )
 
@@ -559,7 +560,7 @@ type ListMDMAppleProfilesToRemoveFunc func(ctx context.Context) ([]*fleet.MDMApp
 
 type BulkUpsertMDMAppleHostProfilesFunc func(ctx context.Context, payload []*fleet.MDMAppleBulkUpsertHostProfilePayload) error
 
-type GetMDMAppleProfilesContentsFunc func(ctx context.Context, profileIDs []uint) (map[uint]fleet.Mobileconfig, error)
+type GetMDMAppleProfilesContentsFunc func(ctx context.Context, profileIDs []uint) (map[uint]mobileconfig.Mobileconfig, error)
 
 type UpdateOrDeleteHostMDMAppleProfileFunc func(ctx context.Context, profile *fleet.HostMDMAppleProfile) error
 
@@ -3308,7 +3309,7 @@ func (s *DataStore) BulkUpsertMDMAppleHostProfiles(ctx context.Context, payload 
 	return s.BulkUpsertMDMAppleHostProfilesFunc(ctx, payload)
 }
 
-func (s *DataStore) GetMDMAppleProfilesContents(ctx context.Context, profileIDs []uint) (map[uint]fleet.Mobileconfig, error) {
+func (s *DataStore) GetMDMAppleProfilesContents(ctx context.Context, profileIDs []uint) (map[uint]mobileconfig.Mobileconfig, error) {
 	s.mu.Lock()
 	s.GetMDMAppleProfilesContentsFuncInvoked = true
 	s.mu.Unlock()

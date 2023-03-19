@@ -2046,7 +2046,7 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure 'Simple TCP/IP Services (simptcp)' is set to 'Disabled' or to 'Not Installed' 
+  name: CIS - Ensure 'Simple TCP/IP Services (simptcp)' is set to 'Disabled' or to 'Not Installed'
   platforms: win10
   platform: windows
   description: |
@@ -2060,7 +2060,7 @@ spec:
         WHEN NOT EXISTS (SELECT * FROM registry WHERE key = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\simptcp\\Start') THEN 1 
         WHEN (SELECT data FROM registry WHERE key = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\simptcp\\Start') == '4' THEN 1 
         ELSE 0 
-    END AS result;    
+    END AS result;
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_5.28
   contributors: marcosd4h
@@ -2123,7 +2123,7 @@ spec:
     Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to 'Disabled':
     'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\SSDP Discovery'
   query: |
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\SSDPSRV\\Start' AND data == 4);    
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\SSDPSRV\\Start' AND data == 4);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_5.31
   contributors: marcosd4h
@@ -2178,7 +2178,7 @@ spec:
     This service allows errors to be reported when programs stop working or responding and allows
     existing solutions to be delivered. Also allows logs to be generated for diagnostic and repair
     services.
-  resolution: |    
+  resolution: |
     Automatic method:
     Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to 'Disabled':
     'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\Windows Error Reporting Service'
@@ -2198,7 +2198,7 @@ spec:
     This service manages persistent subscriptions to events from remote sources that support
     WS-Management protocol. This includes Windows Vista event logs, hardware and IPMI-enabled event
     sources. The service stores forwarded events in a local Event Log.
-  resolution: |    
+  resolution: |
     Automatic method:
     Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to 'Disabled':
     'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\Windows Event Collector'
@@ -2216,7 +2216,7 @@ spec:
   platform: windows
   description: |
     This service shares Windows Media Player libraries to other networked players and media devices using Universal Plug and Play.
-  resolution: |    
+  resolution: |
     Automatic method:
     Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to 'Disabled' or to 'Not Installed':
     'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\Windows Media Player Network Sharing Service'
@@ -2238,7 +2238,7 @@ spec:
   platform: windows
   description: |
     This service provides the ability to share a cellular data connection with another device.
-  resolution: |    
+  resolution: |
     Automatic method:
     Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to 'Disabled':
     'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\Windows Mobile Hotspot Service'
@@ -2256,7 +2256,7 @@ spec:
   platform: windows
   description: |
     This service runs in session 0 and hosts the notification platform and connection provider which handles the connection between the device and WNS server.
-  resolution: |    
+  resolution: |
     Automatic method:
     Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to 'Disabled':
     'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\Windows Push Notifications System Service'
@@ -2274,7 +2274,7 @@ spec:
   platform: windows
   description: |
     This service manages Apps that are pushed to the device from the Microsoft Store App running on other devices or the web.
-  resolution: |    
+  resolution: |
     Automatic method:
     Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to 'Disabled':
     'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\Windows PushToInstall Service (PushToInstall)'
@@ -2294,7 +2294,7 @@ spec:
     The Windows Remote Management (WinRM) service implements the WS-Management protocol for remote
     management. WS-Management is a standard web services protocol used for remote software and
     hardware management. The WinRM service listens on the network for WS-Management requests and processes them.
-  resolution: |    
+  resolution: |
     Automatic method:
     Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to 'Disabled':
     'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\Windows Remote Management (WS-Management)'
@@ -2312,7 +2312,7 @@ spec:
   platform: windows
   description: |
     This service provides Web connectivity and administration through the Internet Information Services Manager.
-  resolution: |    
+  resolution: |
     Automatic method:
     Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to 'Disabled' or to 'Not Installed':
     'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\World Wide Web Publishing Service'
@@ -2334,7 +2334,7 @@ spec:
   platform: windows
   description: |
     This service manages connected Xbox accessories.
-  resolution: |    
+  resolution: |
     Automatic method:
     Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to 'Disabled':
     'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\Xbox Accessory Management Service'
@@ -2352,7 +2352,7 @@ spec:
   platform: windows
   description: |
     This service provides authentication and authorization services for interacting with Xbox Live.
-  resolution: |    
+  resolution: |
     Automatic method:
     Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to 'Disabled':
     'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\Xbox Live Auth Manager'
@@ -2370,7 +2370,7 @@ spec:
   platform: windows
   description: |
     This service syncs save data for Xbox Live save enabled game.
-  resolution: |    
+  resolution: |
     Automatic method:
     Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to 'Disabled':
     'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\Xbox Live Game Save'
@@ -2388,7 +2388,7 @@ spec:
   platform: windows
   description: |
     This service supports the Windows.Networking.XboxLive application programming interface.
-  resolution: |    
+  resolution: |
     Automatic method:
     Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to 'Disabled':
     'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\Xbox Live Networking Service'
@@ -3716,6 +3716,101 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
+  name: >
+    CIS - Ensure 'Microsoft Support Diagnostic Tool: Turn on MSDT interactive communication with support provider' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting configures Microsoft Support Diagnostic Tool (MSDT) interactive communication with the support provider. MSDT gathers diagnostic data for analysis by support professionals.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Disabled:
+    'Computer Configuration\Policies\Administrative Templates\System\Troubleshooting and Diagnostics\Microsoft Support Diagnostic Tool\Microsoft Support Diagnostic Tool: Turn on MSDT interactive communication with support provider
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template MSDT.admx/adml that is included with the Microsoft Windows 8.0 & Server 2012 (non-R2) Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\ScriptedDiagnosticsProvider\\Policy\DisableQueryRemoteServer' AND data = 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_18.8.48.5.1
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Enable/Disable PerfTrack' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting specifies whether to enable or disable tracking of responsiveness events.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Disabled:
+    'Computer Configuration\Policies\Administrative Templates\System\Troubleshooting and Diagnostics\Windows Performance PerfTrack\Enable/Disable PerfTrack'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template PerformancePerftrack.admx/adml that is included with the Microsoft Windows 7 & Server 2008 R2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\Microsoft\\Windows\\WDI\\{9c5a40da-b965-4fc3-8781-88dd50a6299d}\ScenarioExecutionEnabled' AND data = 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_18.8.48.11.1
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Turn off the advertising ID' is set to 'Enabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting turns off the advertising ID, preventing apps from using the ID for experiences across apps.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\System\User Profiles\Turn off the advertising ID'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template UserProfiles.admx/adml that is included with the Microsoft Windows 8.1 & Server 2012 R2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\Microsoft\\Windows\\AdvertisingInfo\DisabledByGroupPolicy' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_18.8.50.1
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Enable Windows NTP Client' is set to 'Enabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting specifies whether the Windows NTP Client is enabled. Enabling the Windows NTP Client allows your computer to synchronize its computer clock with other NTP servers. You might want to disable this service if you decide to use a third-party time provider.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\System\Windows Time Service\Time Providers\Enable Windows NTP Client'
+    Note: This Group Policy path is provided by the Group Policy template W32Time.admx/adml that is included with all versions of the Microsoft Windows Administrative Templates.
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\Microsoft\\W32Time\\TimeProviders\\NtpClient\Enabled' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_18.8.53.1.1
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Enable Windows NTP Server' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting allows you to specify whether the Windows NTP Server is enabled.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Disabled:
+    'Computer Configuration\Policies\Administrative Templates\System\Windows Time Service\Time Providers\Enable Windows NTP Server'
+    Note: This Group Policy path is provided by the Group Policy template W32Time.admx/adml that is included with all versions of the Microsoft Windows Administrative Templates.
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\Software\\Policies\\Microsoft\\W32Time\\TimeProviders\\NtpServer' AND data = 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_18.8.53.1.2
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
   name: CIS - Ensure 'Allow a Windows app to share application data between users' is set to 'Disabled'
   platforms: win10
   platform: windows
@@ -3989,3 +4084,80 @@ spec:
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.16.3
   contributors: rachelelysia
 ---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Allow Diagnostic Data' is set to 'Enabled: Diagnostic data off (not recommended)' or 'Enabled: Send required diagnostic data'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting determines the amount of diagnostic and usage data reported to Microsoft:
+    - A value of (0) Diagnostic data off (not recommended). Using this value, no diagnostic data is sent from the device. This value is only supported on Enterprise, Education, and Server editions. If you choose this setting, devices in your organization will still be secure.
+    - A value of (1) Send required diagnostic data. This is the minimum diagnostic data necessary to keep Windows secure, up to date, and performing as expected. Using this value disables the Optional diagnostic data control in the Settings app.
+    - A value of (3)Send optional diagnostic data. Additional diagnostic data is collected that helps us to detect, diagnose and fix issues, as well as make product improvements. Required diagnostic data will always be included when you choose to send optional diagnostic data. Optional diagnostic data can also include diagnostic log files and crash dumps. Use the Limit Dump Collection and the Limit Diagnostic Log Collection policies for more granular control of what optional diagnostic data is sent.
+    Windows telemetry settings apply to the Windows operating system and some first party apps. This setting does not apply to third party apps running on Windows 10/11.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled: 'Diagnostic data off (not recommended)' or Enabled: 'Send required diagnostic data':
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Data Collection and Preview Builds\Allow Telemetry'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\DataCollection\AllowTelemetry' AND (data = 0 OR data = 1));
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.17.1
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Configure Authenticated Proxy usage for the Connected User Experience and Telemetry service' is set to 'Enabled: Disable Authenticated Proxy usage'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting controls whether the Connected User Experience and Telemetry service can automatically use an authenticated proxy to send data back to Microsoft.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to 'Enabled: Disable Authenticated Proxy usage':
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Data Collection and Preview Builds\Configure Authenticated Proxy usage for the Connected User Experience and Telemetry service'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\DataCollection\DisableEnterpriseAuthProxy' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.17.2
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Do not show feedback notifications' is set to 'Enabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting allows an organization to prevent its devices from showing feedback questions from Microsoft.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Data Collection and Preview Builds\Do not show feedback notifications'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\DataCollection\DoNotShowFeedbackNotifications' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.17.4
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Toggle user control over Insider builds' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting determines whether users can access the Insider build controls in the Advanced Options for Windows Update. These controls are located under "Get Insider builds," and enable users to make their devices available for downloading and installing Windows preview software.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Disabled:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Data Collection and Preview Builds\Toggle user control over Insider builds'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\PreviewBuilds\AllowBuildPreview' AND data = 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.17.8
+  contributors: rachelelysia
+---
+

@@ -9,6 +9,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/health"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/micromdm/nanodep/godep"
 )
 
@@ -806,7 +807,7 @@ type Datastore interface {
 
 	// GetMDMAppleProfilesContents retrieves the XML contents of the
 	// profiles requested.
-	GetMDMAppleProfilesContents(ctx context.Context, profileIDs []uint) (map[uint]Mobileconfig, error)
+	GetMDMAppleProfilesContents(ctx context.Context, profileIDs []uint) (map[uint]mobileconfig.Mobileconfig, error)
 
 	// UpdateOrDeleteHostMDMAppleProfile updates information about a single
 	// profile status. It deletes the row if the profile operation is "remove"
