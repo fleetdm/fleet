@@ -45,7 +45,7 @@ func TestSoftware(t *testing.T) {
 		{"ListSoftwareForVulnDetection", testListSoftwareForVulnDetection},
 		{"SoftwareByID", testSoftwareByID},
 		{"AllSoftwareIterator", testAllSoftwareIterator},
-		{"InsertSoftwareCPEs", testInsertSoftwareCPEs},
+		{"UpsertSoftwareCPEs", testUpsertSoftwareCPEs},
 		{"DeleteOutOfDateVulnerabilities", testDeleteOutOfDateVulnerabilities},
 	}
 	for _, c := range cases {
@@ -228,7 +228,7 @@ func testSoftwareLoadVulnerabilities(t *testing.T, ds *Datastore) {
 		{SoftwareID: host.Software[0].ID, CPE: "somecpe"},
 		{SoftwareID: host.Software[1].ID, CPE: "someothercpewithoutvulns"},
 	}
-	_, err := ds.InsertSoftwareCPEs(context.Background(), cpes)
+	_, err := ds.UpsertSoftwareCPEs(context.Background(), cpes)
 	require.NoError(t, err)
 	require.NoError(t, ds.LoadHostSoftware(context.Background(), host, false))
 
@@ -289,7 +289,7 @@ func testListSoftwareCPEs(t *testing.T, ds *Datastore) {
 		{SoftwareID: ubuntu.Software[0].ID, CPE: "cpe3"},
 		{SoftwareID: ubuntu.Software[1].ID, CPE: "cpe4"},
 	}
-	_, err := ds.InsertSoftwareCPEs(ctx, cpes)
+	_, err := ds.UpsertSoftwareCPEs(ctx, cpes)
 	require.NoError(t, err)
 
 	cpes, err = ds.ListSoftwareCPEs(ctx)
@@ -411,7 +411,7 @@ func testSoftwareLoadSupportsTonsOfCVEs(t *testing.T, ds *Datastore) {
 		{SoftwareID: host.Software[1].ID, CPE: "someothercpewithoutvulns"},
 		{SoftwareID: host.Software[0].ID, CPE: "somecpe"},
 	}
-	_, err := ds.InsertSoftwareCPEs(context.Background(), cpes)
+	_, err := ds.UpsertSoftwareCPEs(context.Background(), cpes)
 	require.NoError(t, err)
 
 	var cveMeta []fleet.CVEMeta
@@ -486,7 +486,7 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 		{SoftwareID: host1.Software[1].ID, CPE: "someothercpewithoutvulns"},
 		{SoftwareID: host3.Software[0].ID, CPE: "somecpe2"},
 	}
-	_, err := ds.InsertSoftwareCPEs(context.Background(), cpes)
+	_, err := ds.UpsertSoftwareCPEs(context.Background(), cpes)
 	require.NoError(t, err)
 
 	require.NoError(t, ds.LoadHostSoftware(context.Background(), host1, false))
@@ -1100,7 +1100,7 @@ func insertVulnSoftwareForTest(t *testing.T, ds *Datastore) {
 		{SoftwareID: host2.Software[1].ID, CPE: "cpe_foo_chrome_2"},
 		{SoftwareID: host2.Software[2].ID, CPE: "cpe_foo_chrome_3"},
 	}
-	_, err := ds.InsertSoftwareCPEs(context.Background(), cpes)
+	_, err := ds.UpsertSoftwareCPEs(context.Background(), cpes)
 	require.NoError(t, err)
 
 	require.NoError(t, ds.LoadHostSoftware(context.Background(), host1, false))
@@ -1435,7 +1435,7 @@ func testListSoftwareVulnerabilitiesByHostIDsSource(t *testing.T, ds *Datastore)
 		{SoftwareID: host.Software[1].ID, CPE: "bar_cpe"},
 		{SoftwareID: host.Software[2].ID, CPE: "blah_cpe"},
 	}
-	_, err := ds.InsertSoftwareCPEs(ctx, cpes)
+	_, err := ds.UpsertSoftwareCPEs(ctx, cpes)
 	require.NoError(t, err)
 
 	require.NoError(t, ds.LoadHostSoftware(ctx, host, false))
@@ -1493,7 +1493,7 @@ func testInsertSoftwareVulnerability(t *testing.T, ds *Datastore) {
 		cpes := []fleet.SoftwareCPE{
 			{SoftwareID: host.Software[0].ID, CPE: "foo_cpe_1"},
 		}
-		_, err := ds.InsertSoftwareCPEs(ctx, cpes)
+		_, err := ds.UpsertSoftwareCPEs(ctx, cpes)
 		require.NoError(t, err)
 
 		inserted, err := ds.InsertSoftwareVulnerability(ctx, fleet.SoftwareVulnerability{
@@ -1529,7 +1529,7 @@ func testInsertSoftwareVulnerability(t *testing.T, ds *Datastore) {
 		cpes := []fleet.SoftwareCPE{
 			{SoftwareID: host.Software[0].ID, CPE: "foo_cpe_2"},
 		}
-		_, err := ds.InsertSoftwareCPEs(ctx, cpes)
+		_, err := ds.UpsertSoftwareCPEs(ctx, cpes)
 		require.NoError(t, err)
 
 		var vulns []fleet.SoftwareVulnerability
@@ -1606,7 +1606,7 @@ func testListSoftwareForVulnDetection(t *testing.T, ds *Datastore) {
 		}
 		require.NoError(t, ds.UpdateHostSoftware(ctx, host.ID, software))
 		require.NoError(t, ds.LoadHostSoftware(ctx, host, false))
-		_, err := ds.InsertSoftwareCPEs(ctx, []fleet.SoftwareCPE{{SoftwareID: host.Software[0].ID, CPE: "cpe1"}})
+		_, err := ds.UpsertSoftwareCPEs(ctx, []fleet.SoftwareCPE{{SoftwareID: host.Software[0].ID, CPE: "cpe1"}})
 		require.NoError(t, err)
 		// Load software again so that CPE data is included.
 		require.NoError(t, ds.LoadHostSoftware(ctx, host, false))
@@ -1701,7 +1701,7 @@ func testAllSoftwareIterator(t *testing.T, ds *Datastore) {
 		{SoftwareID: host.Software[foo_app_v2].ID, CPE: "cpe:foo_app_v2"},
 		{SoftwareID: host.Software[bar_v3].ID, CPE: "cpe:bar_v3"},
 	}
-	_, err := ds.InsertSoftwareCPEs(context.Background(), cpes)
+	_, err := ds.UpsertSoftwareCPEs(context.Background(), cpes)
 	require.NoError(t, err)
 
 	testCases := []struct {
@@ -1747,7 +1747,7 @@ func testAllSoftwareIterator(t *testing.T, ds *Datastore) {
 	}
 }
 
-func testInsertSoftwareCPEs(t *testing.T, ds *Datastore) {
+func testUpsertSoftwareCPEs(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
 
@@ -1761,7 +1761,7 @@ func testInsertSoftwareCPEs(t *testing.T, ds *Datastore) {
 		{SoftwareID: host.Software[0].ID, CPE: "cpe:foo_ce_v1"},
 		{SoftwareID: host.Software[0].ID, CPE: "cpe:foo_ce_v2"},
 	}
-	_, err := ds.InsertSoftwareCPEs(ctx, cpes)
+	_, err := ds.UpsertSoftwareCPEs(ctx, cpes)
 	require.NoError(t, err)
 
 	cpes, err = ds.ListSoftwareCPEs(ctx)
@@ -1772,13 +1772,13 @@ func testInsertSoftwareCPEs(t *testing.T, ds *Datastore) {
 	cpes = []fleet.SoftwareCPE{
 		{SoftwareID: host.Software[0].ID, CPE: "cpe:foo_ce_v3"},
 	}
-	_, err = ds.InsertSoftwareCPEs(ctx, cpes)
+	_, err = ds.UpsertSoftwareCPEs(ctx, cpes)
 	require.NoError(t, err)
 
 	cpes = []fleet.SoftwareCPE{
 		{SoftwareID: host.Software[0].ID, CPE: "cpe:foo_ce_v4"},
 	}
-	_, err = ds.InsertSoftwareCPEs(ctx, cpes)
+	_, err = ds.UpsertSoftwareCPEs(ctx, cpes)
 	require.NoError(t, err)
 
 	cpes, err = ds.ListSoftwareCPEs(ctx)

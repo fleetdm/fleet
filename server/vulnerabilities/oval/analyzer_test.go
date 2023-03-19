@@ -94,7 +94,7 @@ func loadSoftware(
 	for _, s := range h.Software {
 		cpes = append(cpes, fleet.SoftwareCPE{SoftwareID: s.ID, CPE: fmt.Sprintf("%s-%s", s.Name, s.Version)})
 	}
-	_, err = ds.InsertSoftwareCPEs(ctx, cpes)
+	_, err = ds.UpsertSoftwareCPEs(ctx, cpes)
 	require.NoError(t, err)
 
 	return h

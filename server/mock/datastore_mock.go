@@ -314,7 +314,7 @@ type LoadHostSoftwareFunc func(ctx context.Context, host *fleet.Host, includeCVE
 
 type AllSoftwareIteratorFunc func(ctx context.Context, query fleet.SoftwareIterQueryOptions) (fleet.SoftwareIterator, error)
 
-type InsertSoftwareCPEsFunc func(ctx context.Context, cpes []fleet.SoftwareCPE) (int64, error)
+type UpsertSoftwareCPEsFunc func(ctx context.Context, cpes []fleet.SoftwareCPE) (int64, error)
 
 type ListSoftwareCPEsFunc func(ctx context.Context) ([]fleet.SoftwareCPE, error)
 
@@ -1018,8 +1018,8 @@ type DataStore struct {
 	AllSoftwareIteratorFunc        AllSoftwareIteratorFunc
 	AllSoftwareIteratorFuncInvoked bool
 
-	InsertSoftwareCPEsFunc        InsertSoftwareCPEsFunc
-	InsertSoftwareCPEsFuncInvoked bool
+	UpsertSoftwareCPEsFunc        UpsertSoftwareCPEsFunc
+	UpsertSoftwareCPEsFuncInvoked bool
 
 	ListSoftwareCPEsFunc        ListSoftwareCPEsFunc
 	ListSoftwareCPEsFuncInvoked bool
@@ -2448,11 +2448,11 @@ func (s *DataStore) AllSoftwareIterator(ctx context.Context, query fleet.Softwar
 	return s.AllSoftwareIteratorFunc(ctx, query)
 }
 
-func (s *DataStore) InsertSoftwareCPEs(ctx context.Context, cpes []fleet.SoftwareCPE) (int64, error) {
+func (s *DataStore) UpsertSoftwareCPEs(ctx context.Context, cpes []fleet.SoftwareCPE) (int64, error) {
 	s.mu.Lock()
-	s.InsertSoftwareCPEsFuncInvoked = true
+	s.UpsertSoftwareCPEsFuncInvoked = true
 	s.mu.Unlock()
-	return s.InsertSoftwareCPEsFunc(ctx, cpes)
+	return s.UpsertSoftwareCPEsFunc(ctx, cpes)
 }
 
 func (s *DataStore) ListSoftwareCPEs(ctx context.Context) ([]fleet.SoftwareCPE, error) {

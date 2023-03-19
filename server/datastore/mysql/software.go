@@ -708,7 +708,7 @@ func (ds *Datastore) AllSoftwareIterator(
 	return &softwareIterator{rows: rows}, nil
 }
 
-func (ds *Datastore) InsertSoftwareCPEs(ctx context.Context, cpes []fleet.SoftwareCPE) (int64, error) {
+func (ds *Datastore) UpsertSoftwareCPEs(ctx context.Context, cpes []fleet.SoftwareCPE) (int64, error) {
 	var args []interface{}
 
 	if len(cpes) == 0 {

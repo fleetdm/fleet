@@ -633,7 +633,7 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 	}
 
 	cpes := []fleet.SoftwareCPE{{SoftwareID: soft1.ID, CPE: "somecpe"}}
-	_, err = s.ds.InsertSoftwareCPEs(context.Background(), cpes)
+	_, err = s.ds.UpsertSoftwareCPEs(context.Background(), cpes)
 	require.NoError(t, err)
 
 	// Reload software so that 'GeneratedCPEID is set.
@@ -4987,7 +4987,7 @@ func (s *integrationTestSuite) TestPaginateListSoftware() {
 		cpes = append(cpes, fleet.SoftwareCPE{SoftwareID: sw.ID, CPE: "somecpe" + strconv.Itoa(i)})
 	}
 
-	_, err := s.ds.InsertSoftwareCPEs(context.Background(), cpes)
+	_, err := s.ds.UpsertSoftwareCPEs(context.Background(), cpes)
 	require.NoError(t, err)
 
 	// Reload software to load GeneratedCPEID

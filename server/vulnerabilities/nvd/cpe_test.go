@@ -237,6 +237,18 @@ func (f *fakeSoftwareIterator) Value() (*fleet.Software, error) {
 func (f *fakeSoftwareIterator) Err() error   { return nil }
 func (f *fakeSoftwareIterator) Close() error { f.closed = true; return nil }
 
+func TestConsumeCPEBuffer(t *testing.T) {
+	var upserted []fleet.SoftwareCPE
+
+	ds := new(mock.Store)
+	ds.UpsertSoftwareCPEsFunc = func(ctx context.Context, cpes []fleet.SoftwareCPE) (int64, error) {
+		upserted = append(upserted, cpes...)
+		return int64(len(upserted)), nil
+	}
+
+	t.Run("empty buffer", func(t *testing.T) {})
+}
+
 func TestTranslateSoftwareToCPE(t *testing.T) {
 	nettest.Run(t)
 
@@ -246,7 +258,7 @@ func TestTranslateSoftwareToCPE(t *testing.T) {
 
 	var cpes []string
 
-	ds.InsertSoftwareCPEsFunc = func(ctx context.Context, vals []fleet.SoftwareCPE) (int64, error) {
+	ds.UpsertSoftwareCPEsFunc = func(ctx context.Context, vals []fleet.SoftwareCPE) (int64, error) {
 		for _, v := range vals {
 			cpes = append(cpes, v.CPE)
 		}
@@ -270,7 +282,7 @@ func TestTranslateSoftwareToCPE(t *testing.T) {
 				Source:           "apps",
 				GenerateCPE:      "something_wrong",
 			},
-			// This 'duplicated' entry if for testing that 'InsertSoftwareCPEs' is only called iff
+			// This 'duplicated' entry if for testing that 'UpsertSoftwareCPEs' is only called iff
 			// software.GenerateCPE != detected CPE
 			{
 				ID:               3,

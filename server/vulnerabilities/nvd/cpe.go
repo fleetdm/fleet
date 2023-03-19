@@ -297,6 +297,27 @@ func CPEFromSoftware(db *sqlx.DB, software *fleet.Software, translations CPETran
 	return "", nil
 }
 
+func consumeCPEBuffer(
+	ctx context.Context,
+	ds fleet.Datastore,
+	logger kitlog.Logger,
+	batch []fleet.SoftwareCPE,
+) error {
+	var emptyCPEs []fleet.SoftwareCPE
+	var newCPEs []fleet.SoftwareCPE
+
+	for _, item := range batch {
+		if item.CPE == "" {
+			emptyCPEs = append(emptyCPEs, item)
+			continue
+		}
+		newCPEs = append(newCPEs, item)
+	}
+
+	_, err := ds.UpsertSoftwareCPEs(ctx, newCPEs)
+	return err
+}
+
 func TranslateSoftwareToCPE(
 	ctx context.Context,
 	ds fleet.Datastore,
@@ -306,9 +327,14 @@ func TranslateSoftwareToCPE(
 	dbPath := filepath.Join(vulnPath, cpeDBFilename)
 
 	// Skip software from sources for which we will be using OVAL for vulnerability detection.
-	iterator, err := ds.AllSoftwareIterator(ctx, fleet.SoftwareIterQueryOptions{ExcludedSources: oval.SupportedSoftwareSources})
+	iterator, err := ds.AllSoftwareIterator(
+		ctx,
+		fleet.SoftwareIterQueryOptions{
+			ExcludedSources: oval.SupportedSoftwareSources,
+		},
+	)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "all software iterator")
+		return ctxerr.Wrap(ctx, err, "software iterator")
 	}
 	defer iterator.Close()
 
@@ -327,11 +353,7 @@ func TranslateSoftwareToCPE(
 	reCache := newRegexpCache()
 
 	var buffer []fleet.SoftwareCPE
-	bufferMaxSize := 1_000
-	consumeBuffer := func(b []fleet.SoftwareCPE) error {
-		_, err = ds.InsertSoftwareCPEs(ctx, buffer)
-		return err
-	}
+	bufferMaxSize := 500
 
 	for iterator.Next() {
 		software, err := iterator.Value()
@@ -349,17 +371,15 @@ func TranslateSoftwareToCPE(
 
 		buffer = append(buffer, fleet.SoftwareCPE{SoftwareID: software.ID, CPE: cpe})
 		if len(buffer) == bufferMaxSize {
-			if err = consumeBuffer(buffer); err != nil {
+			if err = consumeCPEBuffer(ctx, ds, logger, buffer); err != nil {
 				return ctxerr.Wrap(ctx, err, "inserting cpe")
 			}
 			buffer = nil
 		}
 	}
 
-	if len(buffer) != 0 {
-		if err = consumeBuffer(buffer); err != nil {
-			return ctxerr.Wrap(ctx, err, "inserting cpe")
-		}
+	if err = consumeCPEBuffer(ctx, ds, logger, buffer); err != nil {
+		return ctxerr.Wrap(ctx, err, "inserting cpe")
 	}
 
 	return nil
