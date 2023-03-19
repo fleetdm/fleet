@@ -410,8 +410,8 @@ func TestScanVulnerabilities(t *testing.T) {
 			},
 		}, nil
 	}
-	ds.InsertSoftwareVulnerabilitiesFunc = func(ctx context.Context, vulns []fleet.SoftwareVulnerability, src fleet.VulnerabilitySource) (int64, error) {
-		return 1, nil
+	ds.InsertSoftwareVulnerabilityFunc = func(ctx context.Context, vuln fleet.SoftwareVulnerability, src fleet.VulnerabilitySource) (bool, error) {
+		return true, nil
 	}
 	ds.InsertSoftwareCPEsFunc = func(ctx context.Context, cpes []fleet.SoftwareCPE) (int64, error) {
 		return int64(0), nil
