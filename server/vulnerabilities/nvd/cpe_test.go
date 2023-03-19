@@ -286,10 +286,11 @@ func TestConsumeCPEBuffer(t *testing.T) {
 			},
 		}
 
-		err := consumeCPEBuffer(ctx, ds, nil, nil)
+		err := consumeCPEBuffer(ctx, ds, nil, cpes)
 		require.NoError(t, err)
 		require.Equal(t, len(upserted), 1)
 		require.Equal(t, upserted[0].CPE, cpes[1].CPE)
+
 		require.Equal(t, len(deleted), 1)
 		require.Equal(t, deleted[0].CPE, cpes[0].CPE)
 	})

@@ -316,20 +316,24 @@ func consumeCPEBuffer(
 		toUpsert = append(toUpsert, batch[i])
 	}
 
-	upserted, err := ds.UpsertSoftwareCPEs(ctx, toUpsert)
-	if err != nil {
-		return err
-	}
-	if int(upserted) != len(toUpsert) {
-		level.Debug(logger).Log("toUpsert", len(toUpsert), "upserted", upserted)
+	if len(toUpsert) != 0 {
+		upserted, err := ds.UpsertSoftwareCPEs(ctx, toUpsert)
+		if err != nil {
+			return err
+		}
+		if int(upserted) != len(toUpsert) {
+			level.Debug(logger).Log("toUpsert", len(toUpsert), "upserted", upserted)
+		}
 	}
 
-	deleted, err := ds.DeleteSoftwareCPEs(ctx, toDelete)
-	if err != nil {
-		return err
-	}
-	if int(deleted) != len(toDelete) {
-		level.Debug(logger).Log("toDelete", len(toDelete), "deleted", deleted)
+	if len(toDelete) != 0 {
+		deleted, err := ds.DeleteSoftwareCPEs(ctx, toDelete)
+		if err != nil {
+			return err
+		}
+		if int(deleted) != len(toDelete) {
+			level.Debug(logger).Log("toDelete", len(toDelete), "deleted", deleted)
+		}
 	}
 
 	return nil
