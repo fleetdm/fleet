@@ -109,10 +109,11 @@ func TestHostDetailsMDMDiskEncryption(t *testing.T) {
 		name       string
 		rawDecrypt *int
 		fvProf     *fleet.HostMDMAppleProfile
-		wantStatus fleet.DiskEncryptionState
+		wantState  fleet.DiskEncryptionState
 		wantAction fleet.ActionRequiredState
+		wantStatus *fleet.MDMAppleDeliveryStatus
 	}{
-		{"no profile", ptr.Int(-1), nil, "", ""},
+		{"no profile", ptr.Int(-1), nil, "", "", nil},
 
 		{
 			"installed profile, no key",
@@ -125,6 +126,7 @@ func TestHostDetailsMDMDiskEncryption(t *testing.T) {
 			},
 			fleet.DiskEncryptionActionRequired,
 			fleet.ActionRequiredLogOut,
+			&fleet.MDMAppleDeliveryPending,
 		},
 		{
 			"installed profile, unknown decryptable",
@@ -137,6 +139,7 @@ func TestHostDetailsMDMDiskEncryption(t *testing.T) {
 			},
 			fleet.DiskEncryptionEnforcing,
 			"",
+			&fleet.MDMAppleDeliveryPending,
 		},
 		{
 			"installed profile, not decryptable",
@@ -149,6 +152,7 @@ func TestHostDetailsMDMDiskEncryption(t *testing.T) {
 			},
 			fleet.DiskEncryptionActionRequired,
 			fleet.ActionRequiredRotateKey,
+			&fleet.MDMAppleDeliveryPending,
 		},
 		{
 			"installed profile, decryptable",
@@ -161,6 +165,7 @@ func TestHostDetailsMDMDiskEncryption(t *testing.T) {
 			},
 			fleet.DiskEncryptionApplied,
 			"",
+			&fleet.MDMAppleDeliveryApplied,
 		},
 		{
 			"pending install, decryptable",
@@ -173,6 +178,7 @@ func TestHostDetailsMDMDiskEncryption(t *testing.T) {
 			},
 			fleet.DiskEncryptionEnforcing,
 			"",
+			&fleet.MDMAppleDeliveryPending,
 		},
 		{
 			"pending install, unknown decryptable",
@@ -185,6 +191,7 @@ func TestHostDetailsMDMDiskEncryption(t *testing.T) {
 			},
 			fleet.DiskEncryptionEnforcing,
 			"",
+			&fleet.MDMAppleDeliveryPending,
 		},
 		{
 			"pending install, no key",
@@ -197,6 +204,7 @@ func TestHostDetailsMDMDiskEncryption(t *testing.T) {
 			},
 			fleet.DiskEncryptionEnforcing,
 			"",
+			&fleet.MDMAppleDeliveryPending,
 		},
 		{
 			"failed install, no key",
@@ -209,6 +217,7 @@ func TestHostDetailsMDMDiskEncryption(t *testing.T) {
 			},
 			fleet.DiskEncryptionFailed,
 			"",
+			&fleet.MDMAppleDeliveryFailed,
 		},
 		{
 			"failed install, not decryptable",
@@ -221,6 +230,7 @@ func TestHostDetailsMDMDiskEncryption(t *testing.T) {
 			},
 			fleet.DiskEncryptionFailed,
 			"",
+			&fleet.MDMAppleDeliveryFailed,
 		},
 		{
 			"pending remove, decryptable",
@@ -233,6 +243,7 @@ func TestHostDetailsMDMDiskEncryption(t *testing.T) {
 			},
 			fleet.DiskEncryptionRemovingEnforcement,
 			"",
+			&fleet.MDMAppleDeliveryPending,
 		},
 		{
 			"pending remove, no key",
@@ -245,6 +256,7 @@ func TestHostDetailsMDMDiskEncryption(t *testing.T) {
 			},
 			fleet.DiskEncryptionRemovingEnforcement,
 			"",
+			&fleet.MDMAppleDeliveryPending,
 		},
 		{
 			"failed remove, unknown decryptable",
@@ -257,6 +269,7 @@ func TestHostDetailsMDMDiskEncryption(t *testing.T) {
 			},
 			fleet.DiskEncryptionFailed,
 			"",
+			&fleet.MDMAppleDeliveryFailed,
 		},
 		{
 			"removed profile, not decryptable",
@@ -269,6 +282,7 @@ func TestHostDetailsMDMDiskEncryption(t *testing.T) {
 			},
 			"",
 			"",
+			&fleet.MDMAppleDeliveryApplied,
 		},
 	}
 	for _, c := range cases {
@@ -295,17 +309,24 @@ func TestHostDetailsMDMDiskEncryption(t *testing.T) {
 			hostDetail, err := svc.getHostDetails(test.UserContext(context.Background(), test.UserAdmin), host, opts)
 			require.NoError(t, err)
 
-			if c.wantStatus == "" {
+			if c.wantState == "" {
 				require.Nil(t, hostDetail.MDM.MacOSSettings.DiskEncryption)
 			} else {
 				require.NotNil(t, hostDetail.MDM.MacOSSettings.DiskEncryption)
-				require.Equal(t, c.wantStatus, *hostDetail.MDM.MacOSSettings.DiskEncryption)
+				require.Equal(t, c.wantState, *hostDetail.MDM.MacOSSettings.DiskEncryption)
 			}
 			if c.wantAction == "" {
 				require.Nil(t, hostDetail.MDM.MacOSSettings.ActionRequired)
 			} else {
 				require.NotNil(t, hostDetail.MDM.MacOSSettings.ActionRequired)
 				require.Equal(t, c.wantAction, *hostDetail.MDM.MacOSSettings.ActionRequired)
+			}
+			if c.wantStatus != nil {
+				require.NotNil(t, hostDetail.MDM.Profiles)
+				profs := *hostDetail.MDM.Profiles
+				require.Equal(t, c.wantStatus, profs[0].Status)
+			} else {
+				require.Nil(t, *hostDetail.MDM.Profiles)
 			}
 		})
 	}
