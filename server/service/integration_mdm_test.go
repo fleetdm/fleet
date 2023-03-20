@@ -778,6 +778,21 @@ func (s *integrationMDMTestSuite) TestMDMAppleUnenroll() {
 	require.Len(t, listHostsRes.Hosts, 1)
 	h := listHostsRes.Hosts[0]
 
+	// assign profiles to the host
+	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: [][]byte{
+		mobileconfigForTest("N1", "I1"),
+		mobileconfigForTest("N2", "I2"),
+		mobileconfigForTest("N3", "I3"),
+	}}, http.StatusNoContent)
+
+	// trigger a sync and verify that there are profiles assigned to the host
+	_, err = s.profileSchedule.Trigger()
+	require.NoError(t, err)
+
+	var hostResp getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d", h.ID), getHostRequest{}, http.StatusOK, &hostResp)
+	require.Len(t, *hostResp.Host.MDM.Profiles, 3)
+
 	// try to unenroll the host, fails since the host doesn't respond
 	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/mdm/hosts/%d/unenroll", h.ID), nil, http.StatusGatewayTimeout)
 
@@ -815,6 +830,12 @@ func (s *integrationMDMTestSuite) TestMDMAppleUnenroll() {
 		return res, err
 	}
 	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/mdm/hosts/%d/unenroll", h.ID), nil, http.StatusOK)
+
+	// profiles are removed and the host is no longer enrolled
+	hostResp = getHostResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d", h.ID), getHostRequest{}, http.StatusOK, &hostResp)
+	require.Nil(t, hostResp.Host.MDM.Profiles)
+	require.Equal(t, "", hostResp.Host.MDM.Name)
 }
 
 func (s *integrationMDMTestSuite) TestMDMAppleGetEncryptionKey() {
