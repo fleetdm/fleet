@@ -5,6 +5,8 @@ The following secrets are created:
 - scep
 - apn
 
+Note: dep is optional.  If Apple Business Manager (ABM) is not used, set the dep variable to `null` and it will be omitted.
+
 Since this module cannot determine the value for the secrets at apply time, this module must be applied in 2 phases:
 
 1. In the first phase, just add the module without passing additional config to the main Fleet module
@@ -56,9 +58,11 @@ No modules.
 
 | Name | Type |
 |------|------|
+| [aws_iam_policy.main](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_policy) | resource |
 | [aws_secretsmanager_secret.apn](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/secretsmanager_secret) | resource |
 | [aws_secretsmanager_secret.dep](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/secretsmanager_secret) | resource |
 | [aws_secretsmanager_secret.scep](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/secretsmanager_secret) | resource |
+| [aws_iam_policy_document.main](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document) | data source |
 | [aws_region.current](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/region) | data source |
 
 ## Inputs
@@ -67,11 +71,16 @@ No modules.
 |------|-------------|------|---------|:--------:|
 | <a name="input_apn_secret_name"></a> [apn\_secret\_name](#input\_apn\_secret\_name) | n/a | `string` | `"fleet-apn"` | no |
 | <a name="input_dep_secret_name"></a> [dep\_secret\_name](#input\_dep\_secret\_name) | n/a | `string` | `"fleet-dep"` | no |
+| <a name="input_public_domain_name"></a> [public\_domain\_name](#input\_public\_domain\_name) | n/a | `string` | n/a | yes |
 | <a name="input_scep_secret_name"></a> [scep\_secret\_name](#input\_scep\_secret\_name) | n/a | `string` | `"fleet-scep"` | no |
 
 ## Outputs
 
 | Name | Description |
 |------|-------------|
+| <a name="output_apn"></a> [apn](#output\_apn) | n/a |
+| <a name="output_dep"></a> [dep](#output\_dep) | n/a |
 | <a name="output_extra_environment_variables"></a> [extra\_environment\_variables](#output\_extra\_environment\_variables) | n/a |
+| <a name="output_extra_execution_iam_policies"></a> [extra\_execution\_iam\_policies](#output\_extra\_execution\_iam\_policies) | n/a |
 | <a name="output_extra_secrets"></a> [extra\_secrets](#output\_extra\_secrets) | n/a |
+| <a name="output_scep"></a> [scep](#output\_scep) | n/a |

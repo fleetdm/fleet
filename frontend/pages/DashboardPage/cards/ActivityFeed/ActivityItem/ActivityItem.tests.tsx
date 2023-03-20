@@ -151,7 +151,9 @@ describe("Activity Feed", () => {
     });
     render(<ActivityItem activity={activity} isPremiumTier />);
 
-    expect(screen.getByText("edited team using fleetctl.")).toBeInTheDocument();
+    expect(
+      screen.getByText("edited the team using fleetctl.")
+    ).toBeInTheDocument();
     expect(screen.getByText("Team 1")).toBeInTheDocument();
   });
 
@@ -344,5 +346,78 @@ describe("Activity Feed", () => {
     expect(screen.getByText("maintainer")).toBeInTheDocument();
     const forAllTeams = screen.queryByText("for all teams.");
     expect(forAllTeams).toBeNull();
+  });
+
+  it("renders an 'enabled_macos_disk_encryption' type activity for a team", () => {
+    const activity = createMockActivity({
+      type: ActivityType.EnabledMacDiskEncryption,
+      details: { team_name: "Alphas" },
+    });
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText(
+        "enforced disk encryption for macOS hosts assigned to the",
+        {
+          exact: false,
+        }
+      )
+    ).toBeInTheDocument();
+    expect(screen.getByText("Alphas")).toBeInTheDocument();
+    expect(screen.getByText(" team.", { exact: false })).toBeInTheDocument();
+    const withNoTeams = screen.queryByText("with no team");
+    expect(withNoTeams).toBeNull();
+  });
+
+  it("renders a 'disabled_macos_disk_encryption' type activity for a team", () => {
+    const activity = createMockActivity({
+      type: ActivityType.DisabledMacDiskEncryption,
+      details: { team_name: "Alphas" },
+    });
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText(
+        "removed disk encryption enforcement for macOS hosts assigned to the",
+        {
+          exact: false,
+        }
+      )
+    ).toBeInTheDocument();
+    expect(screen.getByText("Alphas")).toBeInTheDocument();
+    expect(screen.getByText(" team.", { exact: false })).toBeInTheDocument();
+    const withNoTeams = screen.queryByText("with no team");
+    expect(withNoTeams).toBeNull();
+  });
+
+  it("renders an 'enabled_macos_disk_encryption' type activity for hosts with no team.", () => {
+    const activity = createMockActivity({
+      type: ActivityType.EnabledMacDiskEncryption,
+      details: {},
+    });
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText("enforced disk encryption for macOS hosts with no team.")
+    ).toBeInTheDocument();
+    expect(screen.queryByText("assigned to the")).toBeNull();
+  });
+
+  it("renders a 'disabled_macos_disk_encryption' type activity for hosts with no team.", () => {
+    const activity = createMockActivity({
+      type: ActivityType.DisabledMacDiskEncryption,
+      details: {},
+    });
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText(
+        "removed disk encryption enforcement for macOS hosts with no team.",
+        {
+          exact: false,
+        }
+      )
+    ).toBeInTheDocument();
+    expect(screen.queryByText("assigned to the")).toBeNull();
   });
 });

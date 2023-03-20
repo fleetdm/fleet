@@ -2046,7 +2046,7 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure 'Simple TCP/IP Services (simptcp)' is set to 'Disabled' or to 'Not Installed' 
+  name: CIS - Ensure 'Simple TCP/IP Services (simptcp)' is set to 'Disabled' or to 'Not Installed'
   platforms: win10
   platform: windows
   description: |
@@ -2060,7 +2060,7 @@ spec:
         WHEN NOT EXISTS (SELECT * FROM registry WHERE key = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\simptcp\\Start') THEN 1 
         WHEN (SELECT data FROM registry WHERE key = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\simptcp\\Start') == '4' THEN 1 
         ELSE 0 
-    END AS result;    
+    END AS result;
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_5.28
   contributors: marcosd4h
@@ -2123,7 +2123,7 @@ spec:
     Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to 'Disabled':
     'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\SSDP Discovery'
   query: |
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\SSDPSRV\\Start' AND data == 4);    
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\SSDPSRV\\Start' AND data == 4);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_5.31
   contributors: marcosd4h
@@ -2178,7 +2178,7 @@ spec:
     This service allows errors to be reported when programs stop working or responding and allows
     existing solutions to be delivered. Also allows logs to be generated for diagnostic and repair
     services.
-  resolution: |    
+  resolution: |
     Automatic method:
     Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to 'Disabled':
     'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\Windows Error Reporting Service'
@@ -2198,7 +2198,7 @@ spec:
     This service manages persistent subscriptions to events from remote sources that support
     WS-Management protocol. This includes Windows Vista event logs, hardware and IPMI-enabled event
     sources. The service stores forwarded events in a local Event Log.
-  resolution: |    
+  resolution: |
     Automatic method:
     Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to 'Disabled':
     'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\Windows Event Collector'
@@ -2216,7 +2216,7 @@ spec:
   platform: windows
   description: |
     This service shares Windows Media Player libraries to other networked players and media devices using Universal Plug and Play.
-  resolution: |    
+  resolution: |
     Automatic method:
     Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to 'Disabled' or to 'Not Installed':
     'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\Windows Media Player Network Sharing Service'
@@ -2238,7 +2238,7 @@ spec:
   platform: windows
   description: |
     This service provides the ability to share a cellular data connection with another device.
-  resolution: |    
+  resolution: |
     Automatic method:
     Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to 'Disabled':
     'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\Windows Mobile Hotspot Service'
@@ -2256,7 +2256,7 @@ spec:
   platform: windows
   description: |
     This service runs in session 0 and hosts the notification platform and connection provider which handles the connection between the device and WNS server.
-  resolution: |    
+  resolution: |
     Automatic method:
     Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to 'Disabled':
     'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\Windows Push Notifications System Service'
@@ -2274,7 +2274,7 @@ spec:
   platform: windows
   description: |
     This service manages Apps that are pushed to the device from the Microsoft Store App running on other devices or the web.
-  resolution: |    
+  resolution: |
     Automatic method:
     Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to 'Disabled':
     'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\Windows PushToInstall Service (PushToInstall)'
@@ -2294,7 +2294,7 @@ spec:
     The Windows Remote Management (WinRM) service implements the WS-Management protocol for remote
     management. WS-Management is a standard web services protocol used for remote software and
     hardware management. The WinRM service listens on the network for WS-Management requests and processes them.
-  resolution: |    
+  resolution: |
     Automatic method:
     Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to 'Disabled':
     'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\Windows Remote Management (WS-Management)'
@@ -2312,7 +2312,7 @@ spec:
   platform: windows
   description: |
     This service provides Web connectivity and administration through the Internet Information Services Manager.
-  resolution: |    
+  resolution: |
     Automatic method:
     Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to 'Disabled' or to 'Not Installed':
     'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\World Wide Web Publishing Service'
@@ -2334,7 +2334,7 @@ spec:
   platform: windows
   description: |
     This service manages connected Xbox accessories.
-  resolution: |    
+  resolution: |
     Automatic method:
     Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to 'Disabled':
     'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\Xbox Accessory Management Service'
@@ -2352,7 +2352,7 @@ spec:
   platform: windows
   description: |
     This service provides authentication and authorization services for interacting with Xbox Live.
-  resolution: |    
+  resolution: |
     Automatic method:
     Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to 'Disabled':
     'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\Xbox Live Auth Manager'
@@ -2370,7 +2370,7 @@ spec:
   platform: windows
   description: |
     This service syncs save data for Xbox Live save enabled game.
-  resolution: |    
+  resolution: |
     Automatic method:
     Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to 'Disabled':
     'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\Xbox Live Game Save'
@@ -2388,7 +2388,7 @@ spec:
   platform: windows
   description: |
     This service supports the Windows.Networking.XboxLive application programming interface.
-  resolution: |    
+  resolution: |
     Automatic method:
     Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to 'Disabled':
     'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\Xbox Live Networking Service'
@@ -3367,6 +3367,793 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
+  name: >
+    CIS - Ensure 'Configure registry policy processing: Do not apply during periodic background processing' is set to 'Enabled: FALSE'
+  platforms: win10
+  platform: windows
+  description: |
+    The "Do not apply during periodic background processing" option prevents the system from updating affected policies in the background while the computer is in use. When background updates are disabled, policy changes will not take effect until the next user logon or system restart.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled, then set the Do not apply during periodic background processing option to FALSE (unchecked):
+    'Computer Configuration\Policies\Administrative Templates\System\Group Policy\Configure registry policy processing'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template GroupPolicy.admx/adml that is included with the Microsoft Windows 8.0 & Server 2012 (non-R2) Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\Group Policy\\{35378EAC-683F-11D2-A89A-00C04FBBCFA2}\NoBackgroundPolicy' AND data = 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_group_policy_template_required, CIS_bullet_18.8.21.2
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Turn off access to the Store' is set to 'Enabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting specifies whether to use the Store service for finding an application to open a file with an unhandled file type or protocol association. When a user opens a file type or protocol that is not associated with any applications on the computer, the user is given the choice to select a local application or use the Store service to find an application.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\System\Internet Communication Management\Internet Communication settings\Turn off access to the Store'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template ICM.admx/adml that is included with the Microsoft Windows 8.0 & Server 2012 (non-R2) Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\Explorer\NoUseStoreOpenWith' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_group_policy_template_required, CIS_bullet_18.8.22.1.1
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Turn off downloading of print drivers over HTTP' is set to 'Enabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting controls whether the computer can download print driver packages over HTTP. To set up HTTP printing, printer drivers that are not available in the standard operating system installation might need to be downloaded over HTTP.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\System\Internet Communication Management\Internet Communication settings\Turn off downloading of print drivers over HTTP'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template ICM.admx/adml that is included with the Microsoft Windows 8.0 & Server 2012 (non-R2) Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows NT\\Printers\DisableWebPnPDownload' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_group_policy_template_required, CIS_bullet_18.8.22.1.2
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Turn off handwriting personalization data sharing' is set to 'Enabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This setting turns off data sharing from the handwriting recognition personalization tool.
+    The handwriting recognition personalization tool enables Tablet PC users to adapt handwriting recognition to their own writing style by providing writing samples. The tool can optionally share user writing samples with Microsoft to improve handwriting recognition in future versions of Windows. The tool generates reports and transmits them to Microsoft over a secure connection.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\System\Internet Communication Management\Internet Communication settings\Turn off handwriting personalization data sharing'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template ShapeCollector.admx/adml that is included with the Microsoft Windows 7 & Server 2008 R2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\TabletPC\PreventHandwritingDataSharing' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_group_policy_template_required, CIS_bullet_18.8.22.1.3
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Turn off handwriting recognition error reporting' is set to 'Enabled'
+  platforms: win10
+  platform: windows
+  description: |
+    Turns off the handwriting recognition error reporting tool.
+    The handwriting recognition error reporting tool enables users to report errors encountered in Tablet PC Input Panel. The tool generates error reports and transmits them to Microsoft over a secure connection. Microsoft uses these error reports to improve handwriting recognition in future versions of Windows.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\System\Internet Communication Management\Internet Communication settings\Turn off handwriting recognition error reporting'
+    Note: This Group Policy path is provided by the Group Policy template InkWatson.admx/adml that is included with all versions of the Microsoft Windows Administrative Templates.
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\HandwritingErrorReports\PreventHandwritingErrorReports' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_group_policy_template_required, CIS_bullet_18.8.22.1.4
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Turn off Internet Connection Wizard if URL connection is referring to Microsoft.com' is set to 'Enabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting specifies whether the Internet Connection Wizard can connect to Microsoft to download a list of Internet Service Providers (ISPs).
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\System\Internet Communication Management\Internet Communication settings\Turn off Internet Connection Wizard if URL connection is referring to Microsoft.com'
+    Note: This Group Policy path is provided by the Group Policy template ICM.admx/adml that is included with all versions of the Microsoft Windows Administrative Templates.
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\Internet Connection Wizard\ExitOnMSICW' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_group_policy_template_required, CIS_bullet_18.8.22.1.5
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Turn off Internet download for Web publishing and online ordering wizards' is set to 'Enabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting controls whether Windows will download a list of providers for the Web publishing and online ordering wizards.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\System\Internet Communication Management\Internet Communication settings\Turn off Internet download for Web publishing and online ordering wizards'
+    Note: This Group Policy path is provided by the Group Policy template ICM.admx/adml that is included with all versions of the Microsoft Windows Administrative Templates.
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer\NoWebServices' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_group_policy_template_required, CIS_bullet_18.8.22.1.6
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Turn off printing over HTTP' is set to 'Enabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting allows you to disable the client computer's ability to print over HTTP, which allows the computer to print to printers on the intranet as well as the Internet.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\System\Internet Communication Management\Internet Communication settings\Turn off printing over HTTP'
+    Note: This Group Policy path is provided by the Group Policy template ICM.admx/adml that is included with all versions of the Microsoft Windows Administrative Templates.
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows NT\\Printers\DisableHTTPPrinting' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_group_policy_template_required, CIS_bullet_18.8.22.1.7
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Turn off Registration if URL connection is referring to Microsoft.com' is set to 'Enabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting specifies whether the Windows Registration Wizard connects to Microsoft.com for online registration.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\System\Internet Communication Management\Internet Communication settings\Turn off Registration if URL connection is referring to Microsoft.com'
+    Note: This Group Policy path is provided by the Group Policy template ICM.admx/adml that is included with all versions of the Microsoft Windows Administrative Templates.
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\Registration Wizard Control\NoRegistration' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_group_policy_template_required, CIS_bullet_18.8.22.1.8
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Turn off Search Companion content file updates' is set to 'Enabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting specifies whether Search Companion should automatically download content updates during local and Internet searches.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\System\Internet Communication Management\Internet Communication settings\Turn off Search Companion content file updates'
+    Note: This Group Policy path is provided by the Group Policy template ICM.admx/adml that is included with all versions of the Microsoft Windows Administrative Templates.
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\SearchCompanion\DisableContentFileUpdates' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0,  CIS_group_policy_template_required, CIS_bullet_18.8.22.1.9
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Turn off the "Order Prints" picture task' is set to 'Enabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting specifies whether the "Order Prints Online" task is available from Picture Tasks in Windows folders.
+    The Order Prints Online Wizard is used to download a list of providers and allow users to order prints online.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\System\Internet Communication Management\Internet Communication settings\Turn off the "Order Prints" picture task'
+     Note: This Group Policy path is provided by the Group Policy template ICM.admx/adml that is included with all versions of the Microsoft Windows Administrative Templates.
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer\NoOnlinePrintsWizard' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0,  CIS_group_policy_template_required, CIS_bullet_18.8.22.1.10
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Turn off the "Publish to Web" task for files and folders' is set to 'Enabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting specifies whether the tasks Publish this file to the Web, Publish this folder to the Web, and Publish the selected items to the Web are available from File and Folder Tasks in Windows folders. The Web Publishing wizard is used to download a list of providers and allow users to publish content to the Web.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\System\Internet Communication Management\Internet Communication settings\Turn off the "Publish to Web" task for files and folders'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer\NoPublishingWizard' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0,  CIS_group_policy_template_required, CIS_bullet_18.8.22.1.11
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Turn off the Windows Messenger Customer Experience Improvement Program' is set to 'Enabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting specifies whether the Windows Customer Experience Improvement Program can collect anonymous information about how Windows is used. Microsoft uses information collected through the Windows Customer Experience Improvement Program to improve features that are most used and to detect flaws so that they can be corrected more quickly. Enabling this setting will reduce the amount of data Microsoft is able to gather for this purpose.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\System\Internet Communication Management\Internet Communication settings\Turn off the Windows Messenger Customer Experience Improvement Program'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Messenger\\Client\CEIP' AND data = 2);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_group_policy_template_required, CIS_bullet_18.8.22.1.12
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Turn off Windows Customer Experience Improvement Program' is set to 'Enabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting specifies whether Windows Messenger can collect anonymous information about how the Windows Messenger software and service is used.
+    Microsoft uses information collected through the Windows Customer Experience Improvement Program to detect software flaws so that they can be corrected more quickly, enabling this setting will reduce the amount of data Microsoft is able to gather for this purpose.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\System\Internet Communication Management\Internet Communication settings\Turn off Windows Customer Experience Improvement Program'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\SQMClient\\Windows\CEIPEnable' AND data = 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0,  CIS_group_policy_template_required, CIS_bullet_18.8.22.1.13
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Turn off Windows Error Reporting' is set to 'Enabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting controls whether or not errors are reported to Microsoft. Error Reporting is used to report information about a system or application that has failed or has stopped responding and is used to improve the quality of the product.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\System\Internet Communication Management\Internet Communication settings\Turn off Windows Error Reporting'
+  query: |
+    SELECT COUNT(*) FROM registry WHERE ((path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\Windows Error Reporting\Disabled' AND data = 1) OR (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\PCHealth\\ErrorReporting\DoReport' AND data = 0))=2;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_group_policy_template_required, CIS_bullet_18.8.22.1.14
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Support device authentication using certificate' is set to 'Enabled: Automatic'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting allows you to set support for Kerberos to attempt authentication using the certificate for the device to the domain.
+    Support for device authentication using certificate will require connectivity to a DC in the device account domain which supports certificate authentication for computer accounts.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled: Automatic:
+    'Computer Configuration\Policies\Administrative Templates\System\Kerberos\Support device authentication using certificate'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template Kerberos.admx/adml that is included with the Microsoft Windows 10 RTM (Release 1507) Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System\\kerberos\\parameters\DevicePKInitBehavior' AND data = 0) AND (SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System\\kerberos\\parameters\DevicePKInitEnabled' AND data = 1));
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_group_policy_template_required, CIS_bullet_18.8.25.1
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Enumeration policy for external devices incompatible with Kernel DMA Protection' is set to 'Enabled: Block All'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy is intended to provide additional security against external DMA-capable devices. It allows for more control over the enumeration of external DMA-capable devices that are not compatible with DMA Remapping/device memory isolation and sandboxing.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled: Block All:
+    'Computer Configuration\Policies\Administrative Templates\System\Kernel DMA Protection\Enumeration policy for external devices incompatible with Kernel DMA Protection'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template DmaGuard.admx/adml that is included with the Microsoft Windows 10 Release 1809 & Server 2019 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\Kernel DMA Protection\DeviceEnumerationPolicy' AND data = 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_LevelBL, CIS_win10_enterprise_1.12.0, CIS_group_policy_template_required, CIS_bullet_18.8.26.1
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Disallow copying of user input methods to the system account for sign-in' is set to 'Enabled' (Automated)
+  platforms: win10
+  platform: windows
+  description: |
+    This policy prevents automatic copying of user input methods to the system account for use on the sign-in screen. The user is restricted to the set of input methods that are enabled in the system account.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\System\Locale Services\Disallow copying of user input methods to the system account for sign-in'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template Globalization.admx/adml that is included with the Microsoft Windows 8.0 & Server 2012 (non-R2) Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Control Panel\\International\BlockUserInputMethodsForSignIn' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_group_policy_template_required, CIS_bullet_18.8.27.1
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Block user from showing account details on sign-in' is set to 'Enabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy prevents the user from showing account details (email address or user name) on the sign-in screen.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\System\Logon\Block user from showing account details on sign-in'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\System\BlockUserFromShowingAccountDetailsOnSignin' AND data =  1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.8.28.1
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Do not display network selection UI' is set to 'Enabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting allows you to control whether anyone can interact with available networks UI on the logon screen.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\System\Logon\Do not display network selection UI'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\System\DontDisplayNetworkSelectionUI' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.8.28.2
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Do not enumerate connected users on domain-joined computers' is set to 'Enabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting prevents connected users from being enumerated on domain-joined computers.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\System\Logon\Do not enumerate connected users on domain-joined computers'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\System\DontEnumerateConnectedUsers' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.8.28.3
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Enumerate local users on domain-joined computers' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting allows local users to be enumerated on domain-joined computers.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Disabled:
+    'Computer Configuration\Policies\Administrative Templates\System\Logon\Enumerate local users on domain-joined computers'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\System\EnumerateLocalUsers' AND data = 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.8.28.4
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Turn off app notifications on the lock screen' is set to 'Enabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting allows you to prevent app notifications from appearing on the lock screen.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\System\Logon\Turn off app notifications on the lock screen'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\System\DisableLockScreenAppNotifications' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.8.28.5
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Turn off picture password sign-in' is set to 'Enabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting allows you to control whether a domain user can sign in using a picture password.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\System\Logon\Turn off picture password sign-in'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\System\BlockDomainPicturePassword' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.8.28.6
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Turn on convenience PIN sign-in' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting allows you to control whether a domain user can sign in using a convenience PIN. In Windows 10, convenience PIN was replaced with Passport, which has stronger security properties. To configure Passport for domain users, use the policies under Computer Configuration\Administrative Templates\Windows Components\Microsoft Passport for Work.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Disabled:
+    'Computer Configuration\Policies\Administrative Templates\System\Logon\Turn on convenience PIN sign-in'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\System\AllowDomainPINLogon' AND data = 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.8.28.7
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Allow Clipboard synchronization across devices' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This setting determines whether Clipboard contents can be synchronized across devices.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Disabled:
+    'Computer Configuration\Policies\Administrative Templates\System\OS Policies\Allow Clipboard synchronization across devices'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\System\AllowCrossDeviceClipboard' AND data = 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_18.8.31.1
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Allow upload of User Activities' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting determines whether published User Activities can be uploaded to the cloud.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Disabled:
+    'Computer Configuration\Policies\Administrative Templates\System\OS Policies\Allow upload of User Activities'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\System\UploadUserActivities' AND data = 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_18.8.31.2
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Allow network connectivity during connected-standby (on battery)' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting allows you to control the network connectivity state in standby on modern standby-capable systems.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Disabled:
+    'Computer Configuration\Policies\Administrative Templates\System\Power Management\Sleep Settings\Allow network connectivity during connected-standby (on battery)'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Power\\PowerSettings\\f15576e8-98b7-4186-b944-eafa664402d9\DCSettingIndex' AND data = 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.8.34.6.1
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Allow network connectivity during connected-standby (plugged in)' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting allows you to control the network connectivity state in standby on modern standby-capable systems.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Disabled:
+    'Computer Configuration\Policies\Administrative Templates\System\Power Management\Sleep Settings\Allow network connectivity during connected-standby (plugged in)'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Power\\PowerSettings\\f15576e8-98b7-4186-b944-eafa664402d9\ACSettingIndex' AND data = 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.8.34.6.2
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Allow standby states (S1-S3) when sleeping (on battery)' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting manages whether or not Windows is allowed to use standby states when putting the computer in a sleep state.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Disabled:
+    'Computer Configuration\Policies\Administrative Templates\System\Power Management\Sleep Settings\Allow standby states (S1-S3) when sleeping (on battery)''
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Power\\PowerSettings\\abfc2519-3608-4c2a-94ea-171b0ed546ab\DCSettingIndex' AND data = 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_LevelBL, CIS_win10_enterprise_1.12.0, CIS_bullet_18.8.34.6.3
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Allow standby states (S1-S3) when sleeping (plugged in)' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting manages whether or not Windows is allowed to use standby states when putting the computer in a sleep state.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Disabled:
+    'Computer Configuration\Policies\Administrative Templates\System\Power Management\Sleep Settings\Allow standby states (S1-S3) when sleeping (plugged in)'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Power\\PowerSettings\\abfc2519-3608-4c2a-94ea-171b0ed546ab\ACSettingIndex' AND data = 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_LevelBL, CIS_win10_enterprise_1.12.0, CIS_bullet_18.8.34.6.4
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Require a password when a computer wakes (on battery)' is set to 'Enabled'
+  platforms: win10
+  platform: windows
+  description: |
+    Specifies whether or not the user is prompted for a password when the system resumes from sleep.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\System\Power Management\Sleep Settings\Require a password when a computer wakes (on battery)'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Power\\PowerSettings\\0e796bdb-100d-47d6-a2d5-f7d2daa51f51\DCSettingIndex' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.8.34.6.5
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Require a password when a computer wakes (plugged in)' is set to 'Enabled'
+  platforms: win10
+  platform: windows
+  description: |
+    Specifies whether or not the user is prompted for a password when the system resumes from sleep.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\System\Power Management\Sleep Settings\Require a password when a computer wakes (plugged in)'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Power\\PowerSettings\\0e796bdb-100d-47d6-a2d5-f7d2daa51f51\ACSettingIndex' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.8.34.6.6
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Configure Offer Remote Assistance' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting allows you to turn on or turn off Offer (Unsolicited) Remote Assistance on this computer. Help desk and support personnel will not be able to proactively offer assistance, although they can still respond to user assistance requests.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Disabled:
+    'Computer Configuration\Policies\Administrative Templates\System\Remote Assistance\Configure Offer Remote Assistance'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows NT\\Terminal Services\fAllowUnsolicited' AND data = 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.8.36.1
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Configure Solicited Remote Assistance' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting allows you to turn on or turn off Solicited (Ask for) Remote Assistance on this computer.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Disabled:
+    'Computer Configuration\Policies\Administrative Templates\System\Remote Assistance\Configure Solicited Remote Assistance'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows NT\\Terminal Services\fAllowToGetHelp' AND data = 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.8.36.2
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Enable RPC Endpoint Mapper Client Authentication' is set to 'Enabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting controls whether RPC clients authenticate with the Endpoint Mapper Service when the call they are making contains authentication information. The Endpoint Mapper Service on computers running Windows NT4 (all service packs) cannot process authentication information supplied in this manner. This policy setting can cause a specific issue with 1-way forest trusts if it is applied to the trusting domain DCs (see Microsoft KB3073942), so we do not recommend applying it to Domain Controllers.
+    Note: This policy will not in effect until the system is rebooted.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\System\Remote Procedure Call\Enable RPC Endpoint Mapper Client Authentication'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows NT\\Rpc\EnableAuthEpResolution' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.8.37.1
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Restrict Unauthenticated RPC clients' is set to 'Enabled: Authenticated'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting controls how the RPC server runtime handles unauthenticated RPC clients connecting to RPC servers.
+    This policy setting impacts all RPC applications. In a domain environment this policy setting should be used with caution as it can impact a wide range of functionality including group policy processing itself. Reverting a change to this policy setting can require manual intervention on each affected machine. This policy setting should never be applied to a Domain Controller.
+    A client will be considered an authenticated client if it uses a named pipe to communicate with the server or if it uses RPC Security. RPC Interfaces that have specifically requested to be accessible by unauthenticated clients may be exempt from this restriction, depending on the selected value for this policy setting.
+    -- "None" allows all RPC clients to connect to RPC Servers running on the machine on which the policy setting is applied.
+    -- "Authenticated" allows only authenticated RPC Clients (per the definition above) to connect to RPC Servers running on the machine on which the policy setting is applied. Exemptions are granted to interfaces that have requested them.
+    -- "Authenticated without exceptions" allows only authenticated RPC Clients (per the definition above) to connect to RPC Servers running on the machine on which the policy setting is applied. No exceptions are allowed. This value has the potential to cause serious problems and is not recommended.
+    Note: This policy setting will not be applied until the system is rebooted.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to 'Enabled: Authenticated':
+    'Computer Configuration\Policies\Administrative Templates\System\Remote Procedure Call\Restrict Unauthenticated RPC clients'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows NT\\Rpc\RestrictRemoteClients' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.8.37.2
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Microsoft Support Diagnostic Tool: Turn on MSDT interactive communication with support provider' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting configures Microsoft Support Diagnostic Tool (MSDT) interactive communication with the support provider. MSDT gathers diagnostic data for analysis by support professionals.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Disabled:
+    'Computer Configuration\Policies\Administrative Templates\System\Troubleshooting and Diagnostics\Microsoft Support Diagnostic Tool\Microsoft Support Diagnostic Tool: Turn on MSDT interactive communication with support provider
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template MSDT.admx/adml that is included with the Microsoft Windows 8.0 & Server 2012 (non-R2) Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\ScriptedDiagnosticsProvider\\Policy\DisableQueryRemoteServer' AND data = 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_18.8.48.5.1
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Enable/Disable PerfTrack' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting specifies whether to enable or disable tracking of responsiveness events.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Disabled:
+    'Computer Configuration\Policies\Administrative Templates\System\Troubleshooting and Diagnostics\Windows Performance PerfTrack\Enable/Disable PerfTrack'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template PerformancePerftrack.admx/adml that is included with the Microsoft Windows 7 & Server 2008 R2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\Microsoft\\Windows\\WDI\\{9c5a40da-b965-4fc3-8781-88dd50a6299d}\ScenarioExecutionEnabled' AND data = 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_18.8.48.11.1
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Turn off the advertising ID' is set to 'Enabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting turns off the advertising ID, preventing apps from using the ID for experiences across apps.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\System\User Profiles\Turn off the advertising ID'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template UserProfiles.admx/adml that is included with the Microsoft Windows 8.1 & Server 2012 R2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\Microsoft\\Windows\\AdvertisingInfo\DisabledByGroupPolicy' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_18.8.50.1
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Enable Windows NTP Client' is set to 'Enabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting specifies whether the Windows NTP Client is enabled. Enabling the Windows NTP Client allows your computer to synchronize its computer clock with other NTP servers. You might want to disable this service if you decide to use a third-party time provider.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\System\Windows Time Service\Time Providers\Enable Windows NTP Client'
+    Note: This Group Policy path is provided by the Group Policy template W32Time.admx/adml that is included with all versions of the Microsoft Windows Administrative Templates.
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\Microsoft\\W32Time\\TimeProviders\\NtpClient\Enabled' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_18.8.53.1.1
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Enable Windows NTP Server' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting allows you to specify whether the Windows NTP Server is enabled.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Disabled:
+    'Computer Configuration\Policies\Administrative Templates\System\Windows Time Service\Time Providers\Enable Windows NTP Server'
+    Note: This Group Policy path is provided by the Group Policy template W32Time.admx/adml that is included with all versions of the Microsoft Windows Administrative Templates.
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\Software\\Policies\\Microsoft\\W32Time\\TimeProviders\\NtpServer' AND data = 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_18.8.53.1.2
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
   name: CIS - Ensure 'Allow a Windows app to share application data between users' is set to 'Disabled'
   platforms: win10
   platform: windows
@@ -3513,3 +4300,207 @@ spec:
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.8.3
   contributors: marcosd4h
 ---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Allow Use of Camera' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting controls whether the use of Camera devices on the machine are
+    permitted.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Disabled:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Camera\Allow Use of Camera'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Camera\AllowCamera' AND data = 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.12.1
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Turn off cloud optimized content' is set to 'Enabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting turns off cloud optimized content in all Windows experiences.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Cloud Content\Turn off cloud optimized content'
+  query: |
+    Select 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\CloudContent\DisableCloudOptimizedContent' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.14.2
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Turn off Microsoft consumer experiences' is set to 'Enabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting turns off experiences that help consumers make the most of their devices and Microsoft account.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Cloud Content\Turn off Microsoft consumer experiences'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\CloudContent\DisableWindowsConsumerFeatures' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.14.3
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Require pin for pairing' is set to 'Enabled: First Time' OR 'Enabled: Always'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting controls whether or not a PIN is required for pairing to a wireless display device.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to 'Enabled: First Time' OR 'Enabled: Always':
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Connect\Require pin for pairing'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\Windows\\Connect\RequirePinForPairing' AND data = 2);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.15.1
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Do not display the password reveal button' is set to 'Enabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting allows you to configure the display of the password reveal button in password entry user experiences.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Credential User Interface\Do not display the password reveal button'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\CredUI\DisablePasswordReveal' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.16.1
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Enumerate administrator accounts on elevation' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting controls whether administrator accounts are displayed when a user attempts to elevate a running application.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Disabled:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Credential User Interface\Enumerate administrator accounts on elevation'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\CredUI\EnumerateAdministrators' AND data = 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.16.2
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Prevent the use of security questions for local accounts' is set to 'Enabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting controls whether security questions can be used to reset local account passwords. The security question feature does not apply to domain accounts, only local accounts on the workstation.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Credential User Interface\Prevent the use of security questions for local accounts'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\System\NoLocalPasswordResetQuestions' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.16.3
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Allow Diagnostic Data' is set to 'Enabled: Diagnostic data off (not recommended)' or 'Enabled: Send required diagnostic data'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting determines the amount of diagnostic and usage data reported to Microsoft:
+    - A value of (0) Diagnostic data off (not recommended). Using this value, no diagnostic data is sent from the device. This value is only supported on Enterprise, Education, and Server editions. If you choose this setting, devices in your organization will still be secure.
+    - A value of (1) Send required diagnostic data. This is the minimum diagnostic data necessary to keep Windows secure, up to date, and performing as expected. Using this value disables the Optional diagnostic data control in the Settings app.
+    - A value of (3)Send optional diagnostic data. Additional diagnostic data is collected that helps us to detect, diagnose and fix issues, as well as make product improvements. Required diagnostic data will always be included when you choose to send optional diagnostic data. Optional diagnostic data can also include diagnostic log files and crash dumps. Use the Limit Dump Collection and the Limit Diagnostic Log Collection policies for more granular control of what optional diagnostic data is sent.
+    Windows telemetry settings apply to the Windows operating system and some first party apps. This setting does not apply to third party apps running on Windows 10/11.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled: 'Diagnostic data off (not recommended)' or Enabled: 'Send required diagnostic data':
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Data Collection and Preview Builds\Allow Telemetry'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\DataCollection\AllowTelemetry' AND (data = 0 OR data = 1));
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.17.1
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Configure Authenticated Proxy usage for the Connected User Experience and Telemetry service' is set to 'Enabled: Disable Authenticated Proxy usage'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting controls whether the Connected User Experience and Telemetry service can automatically use an authenticated proxy to send data back to Microsoft.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to 'Enabled: Disable Authenticated Proxy usage':
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Data Collection and Preview Builds\Configure Authenticated Proxy usage for the Connected User Experience and Telemetry service'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\DataCollection\DisableEnterpriseAuthProxy' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.17.2
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Do not show feedback notifications' is set to 'Enabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting allows an organization to prevent its devices from showing feedback questions from Microsoft.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Data Collection and Preview Builds\Do not show feedback notifications'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\DataCollection\DoNotShowFeedbackNotifications' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.17.4
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Toggle user control over Insider builds' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting determines whether users can access the Insider build controls in the Advanced Options for Windows Update. These controls are located under "Get Insider builds," and enable users to make their devices available for downloading and installing Windows preview software.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Disabled:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Data Collection and Preview Builds\Toggle user control over Insider builds'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\PreviewBuilds\AllowBuildPreview' AND data = 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.17.8
+  contributors: rachelelysia
+---
+

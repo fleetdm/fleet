@@ -9,6 +9,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/health"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/micromdm/nanodep/godep"
 )
 
@@ -653,6 +654,8 @@ type Datastore interface {
 	SetHostsDiskEncryptionKeyStatus(ctx context.Context, hostIDs []uint, encryptable bool, threshold time.Time) error
 	// GetHostDiskEncryptionKey returns the encryption key information for a given host
 	GetHostDiskEncryptionKey(ctx context.Context, hostID uint) (*HostDiskEncryptionKey, error)
+
+	SetDiskEncryptionResetStatus(ctx context.Context, hostID uint, status bool) error
 	// SetOrUpdateHostOrbitInfo inserts of updates the orbit info for a host
 	SetOrUpdateHostOrbitInfo(ctx context.Context, hostID uint, version string) error
 
@@ -670,8 +673,10 @@ type Datastore interface {
 	// within the cooldown period.
 	EnrollHost(ctx context.Context, isMDMEnabled bool, osqueryHostId, hardwareUUID, hardwareSerial, nodeKey string, teamID *uint, cooldown time.Duration) (*Host, error)
 
-	// EnrollOrbit will enroll a new orbit host with the given uuid, setting the orbit node key
-	EnrollOrbit(ctx context.Context, isMDMEnabled bool, hardwareUUID, hardwareSerial, orbitNodeKey string, teamID *uint) (*Host, error)
+	// EnrollOrbit will enroll a new orbit instance.
+	//	- If an entry for the host exists (osquery enrolled first) then it will update the host's orbit node key and team.
+	//	- If an entry for the host doesn't exist (osquery enrolls later) then it will create a new entry in the hosts table.
+	EnrollOrbit(ctx context.Context, isMDMEnabled bool, hostInfo OrbitHostInfo, orbitNodeKey string, teamID *uint) (*Host, error)
 
 	SerialUpdateHost(ctx context.Context, host *Host) error
 
@@ -805,7 +810,7 @@ type Datastore interface {
 
 	// GetMDMAppleProfilesContents retrieves the XML contents of the
 	// profiles requested.
-	GetMDMAppleProfilesContents(ctx context.Context, profileIDs []uint) (map[uint]Mobileconfig, error)
+	GetMDMAppleProfilesContents(ctx context.Context, profileIDs []uint) (map[uint]mobileconfig.Mobileconfig, error)
 
 	// UpdateOrDeleteHostMDMAppleProfile updates information about a single
 	// profile status. It deletes the row if the profile operation is "remove"

@@ -6,6 +6,7 @@ import {
   buildQueryStringFromParams,
   getLabelParam,
   reconcileMutuallyExclusiveHostParams,
+  reconcileMutuallyInclusiveHostParams,
 } from "utilities/url";
 import { ISelectedPlatform } from "interfaces/platform";
 import { ISoftware } from "interfaces/software";
@@ -28,6 +29,8 @@ export interface ILoadHostsQueryKey extends ILoadHostsOptions {
   scope: "hosts";
 }
 
+export type MacSettingsStatusQueryParam = "latest" | "pending" | "failing";
+
 export interface ILoadHostsOptions {
   page?: number;
   perPage?: number;
@@ -37,6 +40,7 @@ export interface ILoadHostsOptions {
   teamId?: number;
   policyId?: number;
   policyResponse?: string;
+  macSettingsStatus?: MacSettingsStatusQueryParam;
   softwareId?: number;
   status?: HostStatus;
   mdmId?: number;
@@ -60,6 +64,7 @@ export interface IExportHostsOptions {
   teamId?: number;
   policyId?: number;
   policyResponse?: string;
+  macSettingsStatus?: MacSettingsStatusQueryParam;
   softwareId?: number;
   status?: HostStatus;
   mdmId?: number;
@@ -154,6 +159,7 @@ export default {
     const policyId = options?.policyId;
     const policyResponse = options?.policyResponse || "passing";
     const softwareId = options?.softwareId;
+    const macSettingsStatus = options?.macSettingsStatus;
     const status = options?.status;
     const mdmId = options?.mdmId;
     const mdmEnrollmentStatus = options?.mdmEnrollmentStatus;
@@ -170,7 +176,7 @@ export default {
       order_key: sortBy[0].key,
       order_direction: sortBy[0].direction,
       query: globalFilter,
-      team_id: teamId,
+      ...reconcileMutuallyInclusiveHostParams({ teamId, macSettingsStatus }),
       ...reconcileMutuallyExclusiveHostParams({
         label,
         policyId,
@@ -200,6 +206,7 @@ export default {
     teamId,
     policyId,
     policyResponse = "passing",
+    macSettingsStatus,
     softwareId,
     status,
     mdmId,
@@ -220,11 +227,14 @@ export default {
       page,
       per_page: perPage,
       query: globalFilter,
-      team_id: teamId,
       device_mapping,
       order_key: sortParams.order_key,
       order_direction: sortParams.order_direction,
       status,
+      ...reconcileMutuallyInclusiveHostParams({
+        teamId,
+        macSettingsStatus,
+      }),
       ...reconcileMutuallyExclusiveHostParams({
         label,
         policyId,

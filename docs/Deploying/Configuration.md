@@ -2582,6 +2582,8 @@ packaging:
 
 > MDM features are not ready for production and are currently in beta. These features are disabled by default. To enable these features set `FLEET_DEV_MDM_ENABLED=1` as an environment variable.
 
+> MDM features require some endpoints to be publicly accessible outside your VPN or intranet, for more details see [What API endpoints should I expose to the public internet?](./FAQ.md#what-api-endpoints-should-i-expose-to-the-public-internet)
+
 ##### mdm_apple.enable
 
 This is the second feature flag required to turn on MDM features. This feature flag must be set to `1` at the same time as when you set the certificate and keys for Apple Push Certificate server (APNs) and Apple Business Manager (ABM). Otherwise, the Fleet server won't start.
@@ -3036,7 +3038,8 @@ SAML supports multi-valued attributes, Fleet will always use the last value.
 
 NOTE: Setting both `FLEET_JIT_USER_ROLE_GLOBAL` and `FLEET_JIT_USER_ROLE_TEAM_<TEAM_ID>` will cause an error during login as Fleet users cannot be Global users and belong to teams.
 
-During SSO login, if the account already exists, the roles of the Fleet account will be updated to match those set in the SAML custom attributes.
+During every SSO login, if `sso_settings.enable_jit_role_sync` is set to `true` (default is `false`) and if the account already exists, the roles of the Fleet account will be updated to match those set in the SAML custom attributes.
+> IMPORTANT: Beware that if `sso_settings.enable_jit_role_sync` is set to `true` but no SAML role attributes are configured for accounts then all Fleet users are changed to Global observers on every SSO login (overriding any previous role change).
 
 If none of the attributes above are set, then Fleet will default to use the `Global Observer` role.
 

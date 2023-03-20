@@ -11,6 +11,7 @@ import (
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/go-kit/kit/log/level"
 )
 
 type setOrbitNodeKeyer interface {
@@ -21,10 +22,18 @@ type orbitError struct {
 	message string
 }
 
+// EnrollOrbitRequest is the request Orbit instances use to enroll to Fleet.
 type EnrollOrbitRequest struct {
-	EnrollSecret   string `json:"enroll_secret"`
-	HardwareUUID   string `json:"hardware_uuid"`
+	// EnrollSecret is the secret to authenticate the enroll request.
+	EnrollSecret string `json:"enroll_secret"`
+	// HardwareUUID is the device's hardware UUID.
+	HardwareUUID string `json:"hardware_uuid"`
+	// HardwareSerial is the device's serial number.
 	HardwareSerial string `json:"hardware_serial"`
+	// Hostname is the device's hostname.
+	Hostname string `json:"hostname"`
+	// Platform is the device's platform as defined by osquery.
+	Platform string `json:"platform"`
 }
 
 type EnrollOrbitResponse struct {
@@ -72,7 +81,12 @@ func (r EnrollOrbitResponse) hijackRender(ctx context.Context, w http.ResponseWr
 
 func enrollOrbitEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*EnrollOrbitRequest)
-	nodeKey, err := svc.EnrollOrbit(ctx, req.HardwareUUID, req.HardwareSerial, req.EnrollSecret)
+	nodeKey, err := svc.EnrollOrbit(ctx, fleet.OrbitHostInfo{
+		HardwareUUID:   req.HardwareUUID,
+		HardwareSerial: req.HardwareSerial,
+		Hostname:       req.Hostname,
+		Platform:       req.Platform,
+	}, req.EnrollSecret)
 	if err != nil {
 		return EnrollOrbitResponse{Err: err}, nil
 	}
@@ -99,11 +113,20 @@ func (svc *Service) AuthenticateOrbitHost(ctx context.Context, orbitNodeKey stri
 	return host, svc.debugEnabledForHost(ctx, host.ID), nil
 }
 
-// EnrollOrbit returns an orbit nodeKey on successful enroll
-func (svc *Service) EnrollOrbit(ctx context.Context, hardwareUUID, hardwareSerial, enrollSecret string) (string, error) {
+// EnrollOrbit enrolls an Orbit instance to Fleet and returns the orbit node key.
+func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInfo, enrollSecret string) (string, error) {
 	// this is not a user-authenticated endpoint
 	svc.authz.SkipAuthorization(ctx)
-	logging.WithExtras(ctx, "hardware_uuid", hardwareUUID, "hardware_serial", hardwareSerial)
+
+	logging.WithLevel(
+		logging.WithExtras(ctx,
+			"hardware_uuid", hostInfo.HardwareUUID,
+			"hardware_serial", hostInfo.HardwareSerial,
+			"hostname", hostInfo.Hostname,
+			"platform", hostInfo.Platform,
+		),
+		level.Info,
+	)
 
 	secret, err := svc.ds.VerifyEnrollSecret(ctx, enrollSecret)
 	if err != nil {
@@ -120,7 +143,7 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hardwareUUID, hardwareSeria
 		return "", orbitError{message: "app config load failed: " + err.Error()}
 	}
 
-	_, err = svc.ds.EnrollOrbit(ctx, appConfig.MDM.EnabledAndConfigured, hardwareUUID, hardwareSerial, orbitNodeKey, secret.TeamID)
+	_, err = svc.ds.EnrollOrbit(ctx, appConfig.MDM.EnabledAndConfigured, hostInfo, orbitNodeKey, secret.TeamID)
 	if err != nil {
 		return "", orbitError{message: "failed to enroll " + err.Error()}
 	}
@@ -148,8 +171,20 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 	}
 
 	// set the host's orbit notifications
-	if host.IsOsqueryEnrolled() && host.MDMInfo.IsPendingDEPFleetEnrollment() {
-		notifs.RenewEnrollmentProfile = true
+	if host.IsOsqueryEnrolled() {
+		if host.MDMInfo.IsPendingDEPFleetEnrollment() {
+			notifs.RenewEnrollmentProfile = true
+		}
+
+		if host.DiskEncryptionResetRequested != nil && *host.DiskEncryptionResetRequested {
+			notifs.RotateDiskEncryptionKey = true
+
+			// Since this is an user initiated action, we disable
+			// the flag when we deliver the notification to Orbit
+			if err := svc.ds.SetDiskEncryptionResetStatus(ctx, host.ID, false); err != nil {
+				return fleet.OrbitConfig{Notifications: notifs}, err
+			}
+		}
 	}
 
 	// team ID is not nil, get team specific flags and options

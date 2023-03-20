@@ -38,13 +38,13 @@ func (ds *Datastore) ListScheduledQueriesInPackWithStats(ctx context.Context, id
 			JSON_EXTRACT(ag.json_value, '$.total_executions') as total_executions
 		FROM scheduled_queries sq
 		JOIN queries q ON (sq.query_name = q.name)
-		LEFT JOIN aggregated_stats ag ON (ag.id=sq.id AND ag.type='scheduled_query')
+		LEFT JOIN aggregated_stats ag ON (ag.id = sq.id AND ag.global_stats = ? AND ag.type = ?)
 		WHERE sq.pack_id = ?
 	`
 	query = appendListOptionsToSQL(query, &opts)
 	results := []*fleet.ScheduledQuery{}
 
-	if err := sqlx.SelectContext(ctx, ds.reader, &results, query, id); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader, &results, query, false, aggregatedStatsTypeScheduledQuery, id); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "listing scheduled queries")
 	}
 

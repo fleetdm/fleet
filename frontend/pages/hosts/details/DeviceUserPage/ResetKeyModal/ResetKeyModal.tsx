@@ -1,45 +1,46 @@
-import React, { useState } from "react";
+import React from "react";
 
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
+import mdmAPI from "services/entities/mdm";
+import { useQuery } from "react-query";
+import Spinner from "components/Spinner";
+import DataError from "components/DataError";
 
 interface IResetKeyModalProps {
-  onCancel: () => void;
+  onClose: () => void;
+  deviceAuthToken: string;
 }
 
 const baseClass = "reset-key-modal";
 
-const ResetKeyModal = ({ onCancel }: IResetKeyModalProps): JSX.Element => {
-  const [success, setSuccess] = useState<boolean>(false);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+const ResetKeyModal = ({
+  onClose,
+  deviceAuthToken,
+}: IResetKeyModalProps): JSX.Element => {
+  const { isLoading: isLoadingResetDEKey, error: errorResetDEKey } = useQuery(
+    ["resetDEkey"],
+    () => mdmAPI.resetEncryptionKey(deviceAuthToken),
+    { refetchOnWindowFocus: false }
+  );
 
-  //  TODO: actually make this work: https://www.figma.com/file/hdALBDsrti77QuDNSzLdkx/%F0%9F%9A%A7-Fleet-EE-(dev-ready%2C-scratchpad)?node-id=11728%3A323033&t=GbmGwTkgjENhmJmO-1
-  const startNativeKeyReset = () => {
-    setIsLoading(true);
-    setTimeout(() => {
-      setSuccess(true);
-    }, 1000);
-  };
+  const renderModalBody = () => {
+    if (isLoadingResetDEKey) {
+      return <Spinner />;
+    }
+    if (errorResetDEKey) {
+      return <DataError />;
+    }
 
-  return (
-    <Modal title="Reset key" onExit={onCancel} className={baseClass}>
+    return (
       <div>
         <ol>
           <li>
-            Click <b>Start</b> and enter your username and password.
-            {success ? (
-              <div className={`${baseClass}__success`}>Success!</div>
-            ) : (
-              <Button
-                type="button"
-                onClick={startNativeKeyReset}
-                variant="brand"
-                className={`${baseClass}__start-button`}
-                isLoading={isLoading}
-              >
-                Start
-              </Button>
-            )}
+            Wait 30 seconds for the <b>Reset disk encryption key</b> pop up to
+            open.
+          </li>
+          <li>
+            In the popup, enter the password you use to login to your Mac.
           </li>
           <li>
             Close this window and select <b>Refetch</b> on your My device page.
@@ -47,11 +48,16 @@ const ResetKeyModal = ({ onCancel }: IResetKeyModalProps): JSX.Element => {
           </li>
         </ol>
         <div className="modal-cta-wrap">
-          <Button type="button" onClick={onCancel} variant="brand">
+          <Button type="button" onClick={onClose} variant="brand">
             Done
           </Button>
         </div>
       </div>
+    );
+  };
+  return (
+    <Modal title="Reset key" onExit={onClose} className={baseClass}>
+      {renderModalBody()}
     </Modal>
   );
 };

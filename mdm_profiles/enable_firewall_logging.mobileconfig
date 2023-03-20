@@ -5,7 +5,7 @@
 	<key>PayloadDescription</key>
 	<string>This profile configuration is designed to apply the CIS Benchmark for macOS 12.0 (v1.0.0)</string>
 	<key>PayloadDisplayName</key>
-	<string>CIS - Firewall Logging</string>
+	<string>Turn on Firewall logging</string>
 	<key>PayloadIdentifier</key>
 	<string>cis.macOSBenchmark.section3.Logging</string>
 	<key>PayloadOrganization</key>

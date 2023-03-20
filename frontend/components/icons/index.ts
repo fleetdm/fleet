@@ -17,6 +17,7 @@ import ExternalLink from "./ExternalLink";
 import Issue from "./Issue";
 import Plus from "./Plus";
 import Pending from "./Pending";
+import PremiumFeature from "./PremiumFeature";
 
 import LowDiskSpaceHosts from "./LowDiskSpaceHosts";
 import MissingHosts from "./MissingHosts";
@@ -90,6 +91,7 @@ export const ICON_MAP = {
   centos: Centos,
   ubuntu: Ubuntu,
   policy: Policy,
+  "premium-feature": PremiumFeature,
   "darwin-purple": ApplePurple,
   "windows-blue": WindowsBlue,
   "linux-green": LinuxGreen,

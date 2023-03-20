@@ -6,7 +6,9 @@ import {
   buildQueryStringFromParams,
   getLabelParam,
   reconcileMutuallyExclusiveHostParams,
+  reconcileMutuallyInclusiveHostParams,
 } from "utilities/url";
+import { MacSettingsStatusQueryParam } from "./hosts";
 
 export interface ISortOption {
   key: string;
@@ -30,6 +32,7 @@ export interface IHostCountLoadOptions {
   teamId?: number;
   policyId?: number;
   policyResponse?: string;
+  macSettingsStatus?: MacSettingsStatusQueryParam;
   softwareId?: number;
   lowDiskSpaceHosts?: number;
   mdmId?: number;
@@ -50,6 +53,7 @@ export default {
     const globalFilter = options?.globalFilter || "";
     const teamId = options?.teamId;
     const softwareId = options?.softwareId;
+    const macSettingsStatus = options?.macSettingsStatus;
     const status = options?.status;
     const mdmId = options?.mdmId;
     const mdmEnrollmentStatus = options?.mdmEnrollmentStatus;
@@ -62,7 +66,7 @@ export default {
 
     const queryParams = {
       query: globalFilter,
-      team_id: teamId,
+      ...reconcileMutuallyInclusiveHostParams({ teamId, macSettingsStatus }),
       ...reconcileMutuallyExclusiveHostParams({
         label,
         policyId,
