@@ -1,6 +1,6 @@
 # Product
 
-⚗️ Roadmap: https://github.com/orgs/fleetdm/projects/41/views/2
+⚗️ Backlog: https://app.zenhub.com/workspaces/-product-backlog-coming-soon-6192dd66ea2562000faea25c/board
 
 ## Job to be done
 
@@ -13,15 +13,13 @@ compliant."
 
 ## Product design process
 
-The product team is responsible for product design tasks. These include drafting
-changes to the Fleet product, reviewing and collecting feedback from engineering, sales, customer success, and marketing counterparts, and delivering
-these changes to the engineering team. 
+The product team is responsible for product design tasks. These include drafting changes to the Fleet product, reviewing and collecting feedback from engineering, sales, customer success, and marketing counterparts, and delivering these changes to the engineering team. 
 
 Look here for more information about [Using Figma](https://fleetdm.com/handbook/digital-experience#fleet-website).
 
 ### Drafting
 
-* Move an issue that is assigned to you from the "Ready" column of the [🛸 Product team (weekly) board](https://github.com/orgs/fleetdm/projects/17) to the "In progress" column.
+* Take the top issue that is assigned to you in the "Prioritized" column of the Backlog board.
 
 * Create a page in the [Fleet EE (scratchpad, dev-ready) Figma file](https://www.figma.com/file/hdALBDsrti77QuDNSzLdkx/%F0%9F%9A%A7-Fleet-EE-dev-ready%2C-scratchpad?node-id=3923%3A208793) and combine your issue's number and
   title to name the Figma page.
@@ -30,26 +28,22 @@ Look here for more information about [Using Figma](https://fleetdm.com/handbook/
   yourself in the shoes of a user while drafting changes. Place these drafts in the appropriate
   Figma page in Fleet EE (scratchpad, dev-ready).
 
-* While drafting, reach out to sales, customer success, and marketing for a new perspective.
+* While drafting, reach out to sales, customer success, and marketing for a business perspective.
 
 * While drafting, engage engineering to gain insight into technical costs and feasibility.
 
 ### Review
 
-* Move the issue into the "Ready for review" column. Schedule a design review to review the design. 
-
+* Schedule a design review to review the draft. 
 * During the product huddle meeting, record and address any feedback on the draft.
-
-> As drafting occurs, inevitably, the requirements will change. The main description of the issue should be the single source of truth for the problem to be solved and the required outcome. The product manager is responsible for keeping the main description of the issue up-to-date. Comments and other items can and should be kept in the issue for historical record-keeping.
 
 ### Deliver
 
-* Once your work is complete and all feedback is addressed, make sure that the issue is updated with
-  a link to the correct page in the Fleet EE (scratchpad) Figma. This page is where the design
-  specifications live.
+Once the draft has been approved: 
+* move it to the "Designed" column in the Backlog board
+* make sure that the issue is updated with the latest information on the work to be done, such as link to the correct page in the Fleet EE (scratchpad) Figma and most recent requirements.
 
-* Add the issue to the 🏛 Architect column in [the 🛸 Product project](https://github.com/orgs/fleetdm/projects/27). This way, an architect on the engineering team knows that the issue is ready for engineering specifications and, later,
-  engineering estimation.
+> As drafting occurs, inevitably, the requirements will change. The main description of the issue should be the single source of truth for the problem to be solved and the required outcome. The product manager is responsible for keeping the main description of the issue up-to-date. Comments and other items can and should be kept in the issue for historical record-keeping.
 
 #### Priority drafting
 
@@ -125,25 +119,6 @@ For the Interface group, "estimated" means UI wireframes and API design are comp
 ≤One business day from discovering some blocker or change necessary to already prioritized and estimated work. The group PM decides how the usage/UI will be changed and notifies the original requestor of changes to the spec.
 
 ## UI design
-
-### Communicating design changes to the engineering team.
-NEW feature that have been added to [Figma Fleet EE (current, dev-ready)](https://www.figma.com/file/qpdty1e2n22uZntKUZKEJl/?node-id=0%3A1):
-1. Create a new [GitHub issue](https://github.com/fleetdm/fleet/issues/new)
-2. Detail the required changes (including page links to the relevant layouts), then assign the issue to the __"Initiatives"__ project.
-
-<img src="https://user-images.githubusercontent.com/78363703/129840932-67d55b5b-8e0e-4fb9-9300-5d458e1b91e4.png" alt="Assign to Initiatives project"/>
-
-> ___NOTE:___ Artwork and layouts in Figma Fleet EE (current) are final assets, ready for implementation. Therefore, it’s important NOT to use the "idea" label, as designs in this document are more than ideas - they are something that WILL be implemented.
-
-3. Navigate to the [Initiatives project](https://github.com/orgs/fleetdm/projects/8), hit "+ Add cards," pick the new issue, and drag it into the "🤩Inspire me" column. 
-
-<img src="https://user-images.githubusercontent.com/78363703/129840496-54ea4301-be20-46c2-9138-b70bff7198d0.png" alt="Add cards"/>
-
-<img src="https://user-images.githubusercontent.com/78363703/129840735-3b270429-a92a-476d-87b4-86b93057b2dd.png" alt="Inspire me"/>
-
-### Communicating unplanned design changes
-
-For issues related to something that was ALREADY in Figma Fleet EE (current, dev-ready), but __implemented differently__, e.g., padding/spacing inconsistency, etc. Create a [bug issue](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&template=bug-report.md&title=) and detail the required changes.
 
 ### Design conventions
 
@@ -239,7 +214,7 @@ The following highlights should be considered when deciding if we should leverag
   release.
 - The feature flag will not be advertised. For example, advertising in the documentation on fleetdm.com/docs, release notes, release blog posts, and Twitter.
 
-Fleet's feature flag guidelines is borrowed from GitLab's ["When to use feature flags" section](https://about.gitlab.com/handbook/product-development-flow/feature-flag-lifecycle/#when-to-use-feature-flags) of their handbook. Check out [GitLab's "Feature flags only when needed" video](https://www.youtube.com/watch?v=DQaGqyolOd8) for an explanation of the costs of introducing feature flags.
+> Fleet's feature flag guidelines is borrowed from GitLab's ["When to use feature flags" section](https://about.gitlab.com/handbook/product-development-flow/feature-flag-lifecycle/#when-to-use-feature-flags) of their handbook. Check out [GitLab's "Feature flags only when needed" video](https://www.youtube.com/watch?v=DQaGqyolOd8) for an explanation of the costs of introducing feature flags.
 
 ## Significant changes
 
@@ -289,16 +264,18 @@ To make a request or advocate for a request from a customer or community member,
 doc](https://docs.google.com/document/d/1mwu5WfdWBWwJ2C3zFDOMSUC9QCyYuKP4LssO_sIHDd0/edit#heading=h.zahrflvvks7q).
 Then attend the next scheduled 🗣 Product Feature Requests meeting.
 
-All members of the Fleet organization are welcome to attend the 🗣 Product Feature Requests meeting. Requests will be
+All members of the Fleet organization are required to attend the 🗣 Product Feature Requests meeting. Requests will be
 weighed from top to bottom while prioritizing attendee requests. 
 
 This means that if the individual that added a feature request is not in attendance, the feature request will be discussed towards the end of the call if there's time.
 
-All 🗣 Product Feature Requests meetings are recorded and uploaded to the [🗣 Product Feature Requests
-folder](https://drive.google.com/drive/folders/1nsjqDyX5WDQ0HJhg_2yOaqBu4J-hqRIW) in the shared
-Google drive.
+All 🗣 Product Feature Requests meetings are recorded and uploaded to Gong.
 
-Each week Noah Talerman follows the [directions in this document](https://docs.google.com/document/d/1MkM57cLNzkN51Hqq5CyBG4HaauAaf446ZhwWJlVho0M/edit?usp=sharing) (internal doc) and a backup copy of the 🗣️ Product Feature Requests document is created and dropped in the [🗣️ Product Feature Requests backup folder](https://drive.google.com/drive/folders/1WTSSLxA-P3OlspkMKjlRXKjzZsDRoe-4?usp=sharing) in the shared drive.
+### PFR Cleanup 
+Each week the DRI for the 🗣 Product Feature Requests meeting resets the document to blank by doing the following:
+1. Create issues for accepted items
+2. Notify absent requesters of decisions
+3. Move that week's feature requests to the backup journal document
 
 ## Usage statistics
 
