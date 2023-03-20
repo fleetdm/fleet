@@ -662,6 +662,10 @@ func TestMDMCommandAuthz(t *testing.T) {
 		return nil
 	}
 
+	ds.DeleteMDMAppleProfilesForHostFunc = func(ctx context.Context, hostUUID string) error {
+		return nil
+	}
+
 	var mdmEnabled atomic.Bool
 	ds.GetNanoMDMEnrollmentStatusFunc = func(ctx context.Context, hostUUID string) (bool, error) {
 		// This function is called twice during EnqueueMDMAppleCommandRemoveEnrollmentProfile.
