@@ -378,6 +378,22 @@ func (d *MDMHostData) DetermineDiskEncryptionStatus(profiles []HostMDMAppleProfi
 	d.MacOSSettings = &settings
 }
 
+func (d *MDMHostData) ProfileStatusFromDiskEncryptionState(currStatus *MDMAppleDeliveryStatus) *MDMAppleDeliveryStatus {
+	if d.MacOSSettings == nil || d.MacOSSettings.DiskEncryption == nil {
+		return currStatus
+	}
+	switch *d.MacOSSettings.DiskEncryption {
+	case DiskEncryptionActionRequired, DiskEncryptionEnforcing, DiskEncryptionRemovingEnforcement:
+		return &MDMAppleDeliveryPending
+	case DiskEncryptionFailed:
+		return &MDMAppleDeliveryFailed
+	case DiskEncryptionApplied:
+		return &MDMAppleDeliveryApplied
+	default:
+		return currStatus
+	}
+}
+
 // Only exposed for Datastore tests, to be able to assert the rawDecryptable
 // unexported field.
 func (d *MDMHostData) TestGetRawDecryptable() *int {
