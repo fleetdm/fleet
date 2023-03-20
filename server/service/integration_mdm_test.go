@@ -1780,6 +1780,37 @@ func (s *integrationMDMTestSuite) TestDEPOktaLogin() {
 	require.NotEmpty(t, uuid)
 }
 
+func (s *integrationMDMTestSuite) TestDiskEncryptionRotation() {
+	t := s.T()
+	h := createOrbitEnrolledHost(t, "darwin", "h", s.ds)
+
+	// false by default
+	resp := orbitGetConfigResponse{}
+	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *h.OrbitNodeKey)), http.StatusOK, &resp)
+	require.False(t, resp.Notifications.RotateDiskEncryptionKey)
+
+	// create an auth token for h
+	token := "much_valid"
+	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+		_, err := db.ExecContext(context.Background(), `INSERT INTO host_device_auth (host_id, token) VALUES (?, ?)`, h.ID, token)
+		return err
+	})
+
+	tokRes := s.DoRawNoAuth("POST", "/api/latest/fleet/device/"+token+"/rotate_encryption_key", nil, http.StatusOK)
+	tokRes.Body.Close()
+
+	// true after the POST request
+	resp = orbitGetConfigResponse{}
+	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *h.OrbitNodeKey)), http.StatusOK, &resp)
+	require.True(t, resp.Notifications.RotateDiskEncryptionKey)
+
+	// false on following requests
+	resp = orbitGetConfigResponse{}
+	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *h.OrbitNodeKey)), http.StatusOK, &resp)
+	require.False(t, resp.Notifications.RotateDiskEncryptionKey)
+
+}
+
 func (s *integrationMDMTestSuite) assertConfigProfilesByIdentifier(teamID *uint, profileIdent string, exists bool) (profile *fleet.MDMAppleConfigProfile) {
 	t := s.T()
 	if teamID == nil {
