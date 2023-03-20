@@ -7,7 +7,7 @@ go.mod @fleetdm/go
 /cmd/ @fleetdm/go
 
 # Compliance
-/ee/cis/ @sharon-fdm @artemist-work @lucasmrod @marcosd4h
+/ee/cis/ @sharon-fdm @artemist-work @lucasmrod @marcosd4h @rachelElysia
 
 # React engineers are automatically added as reviewers when changes are made to react files
 /frontend/ @fleetdm/frontend
@@ -38,7 +38,7 @@ go.mod @fleetdm/go
 /docs/01-Using-Fleet/standard-query-library/standard-query-library.yml @zwass
 
 # Exapnded table documentation
-/schema @sharon-fdm 
+/schema @eashaw
 
 # Articles
 /articles @jarodreyes

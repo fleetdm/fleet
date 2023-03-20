@@ -19,6 +19,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/gocarina/gocsv"
 )
 
@@ -811,7 +812,7 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 
 		// determine disk encryption and action required here based on profiles and
 		// raw decryptable key status.
-		host.MDM.DetermineDiskEncryptionStatus(profiles, apple_mdm.FleetFileVaultPayloadIdentifier)
+		host.MDM.DetermineDiskEncryptionStatus(profiles, mobileconfig.FleetFileVaultPayloadIdentifier)
 	}
 	host.MDM.Profiles = &profiles
 
