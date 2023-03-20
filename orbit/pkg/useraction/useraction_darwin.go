@@ -135,7 +135,7 @@ func displayDialog(opts dialogOptions) (string, error) {
 	}
 
 	var d appleScriptDialogOutput
-	if json.Unmarshal(out, &d); err != nil {
+	if err := json.Unmarshal(out, &d); err != nil {
 		return "", fmt.Errorf("unmarshal osascript output: %w", err)
 	}
 
