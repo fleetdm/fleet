@@ -20,4 +20,8 @@
   &__save-button {
     margin-top: $pad-large;
   }
+
+  .disk-encryption-content {
+    animation: fade-in 250ms ease-out;
+  }
 }

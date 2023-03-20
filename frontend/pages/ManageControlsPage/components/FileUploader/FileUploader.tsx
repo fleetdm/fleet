@@ -30,7 +30,10 @@ const FileUploader = ({
         accept=".mobileconfig,application/x-apple-aspen-config"
         id="upload-profile"
         type="file"
-        onChange={(e) => onFileUpload(e.target.files)}
+        onChange={(e) => {
+          onFileUpload(e.target.files);
+          e.target.value = "";
+        }}
       />
     </div>
   );
