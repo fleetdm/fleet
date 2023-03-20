@@ -46,7 +46,12 @@ const CustomSettings = ({
   const onFileUpload = async (files: FileList | null) => {
     setShowLoading(true);
 
-    if (!files || files.length === 0) return;
+    console.log("On upload: ", files);
+
+    if (!files || files.length === 0) {
+      setShowLoading(false);
+      return;
+    }
 
     const file = files[0];
 

@@ -22,6 +22,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"github.com/google/uuid"
@@ -303,16 +304,14 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r
 		})
 	}
 
-	mc := fleet.Mobileconfig(b)
-	cp, err := mc.ParseConfigProfile()
+	cp, err := fleet.NewMDMAppleConfigProfile(b, &teamID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
 			Message: fmt.Sprintf("failed to parse config profile: %s", err.Error()),
 		})
 	}
-	cp.TeamID = &teamID
 
-	if err := cp.ScreenPayloadTypes(); err != nil {
+	if err := cp.ValidateUserProvided(); err != nil {
 		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: err.Error()})
 	}
 
@@ -322,8 +321,10 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r
 	}
 
 	if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeCreatedMacosProfile{
-		TeamID:   &teamID,
-		TeamName: &teamName,
+		TeamID:            &teamID,
+		TeamName:          &teamName,
+		ProfileName:       newCP.Name,
+		ProfileIdentifier: newCP.Identifier,
 	}); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "logging activity for create mdm apple config profile")
 	}
@@ -486,13 +487,23 @@ func (svc *Service) DeleteMDMAppleConfigProfile(ctx context.Context, profileID u
 		return ctxerr.Wrap(ctx, err)
 	}
 
+	// prevent deleting profiles that are managed by Fleet
+	if _, ok := mobileconfig.FleetPayloadIdentifiers()[cp.Identifier]; ok {
+		return &fleet.BadRequestError{
+			Message:     "profiles managed by Fleet can't be deleted using this endpoint.",
+			InternalErr: fmt.Errorf("deleting profile %s for team %s not allowed because it's managed by Fleet", cp.Identifier, teamName),
+		}
+	}
+
 	if err := svc.ds.DeleteMDMAppleConfigProfile(ctx, profileID); err != nil {
 		return ctxerr.Wrap(ctx, err)
 	}
 
 	if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeDeletedMacosProfile{
-		TeamID:   &teamID,
-		TeamName: &teamName,
+		TeamID:            &teamID,
+		TeamName:          &teamName,
+		ProfileName:       cp.Name,
+		ProfileIdentifier: cp.Identifier,
 	}); err != nil {
 		return ctxerr.Wrap(ctx, err, "logging activity for delete mdm apple config profile")
 	}
@@ -1417,15 +1428,14 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 	profs := make([]*fleet.MDMAppleConfigProfile, 0, len(profiles))
 	byName, byIdent := make(map[string]bool, len(profiles)), make(map[string]bool, len(profiles))
 	for i, prof := range profiles {
-		mobConf := fleet.Mobileconfig(prof)
-		mdmProf, err := mobConf.ParseConfigProfile()
+		mdmProf, err := fleet.NewMDMAppleConfigProfile(prof, tmID)
 		if err != nil {
 			return ctxerr.Wrap(ctx,
 				fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%d]", i), err.Error()),
 				"invalid mobileconfig profile")
 		}
 
-		if err := mdmProf.ScreenPayloadTypes(); err != nil {
+		if err := mdmProf.ValidateUserProvided(); err != nil {
 			return ctxerr.Wrap(ctx,
 				fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%d]", i), err.Error()))
 		}
@@ -1752,7 +1762,7 @@ func NewMDMAppleCommander(mdmStorage nanomdm_storage.AllStorage, mdmPushService 
 
 // InstallProfile sends the homonymous MDM command to the given hosts, it also
 // takes care of the base64 encoding of the provided profile bytes.
-func (svc *MDMAppleCommander) InstallProfile(ctx context.Context, hostUUIDs []string, profile fleet.Mobileconfig, uuid string) error {
+func (svc *MDMAppleCommander) InstallProfile(ctx context.Context, hostUUIDs []string, profile mobileconfig.Mobileconfig, uuid string) error {
 	base64Profile := base64.StdEncoding.EncodeToString(profile)
 	raw := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">

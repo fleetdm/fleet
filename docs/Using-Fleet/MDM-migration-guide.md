@@ -2,7 +2,7 @@
 
 Only one MDM solution can be used for MDM features, like enforcing settings, on each of your macOS hosts. This section provides instructions for migrating away from your old MDM solution so that you can use Fleet for MDM features.
 
-To migrate hosts from your old MDM solution to Fleet you’ll first have to [deploy Fleet](../Deploying/Introduction.md), [add your hosts](./Adding-hosts.md), and [connect Fleet to Apple](#set-up).
+To migrate hosts from your old MDM solution to Fleet you’ll first have to [deploy Fleet](../Deploying/Introduction.md), [add your hosts](./Adding-hosts.md), and [connect Fleet to Apple](./MDM-setup.md).
 
 ## Manually enrolled hosts
 
@@ -28,7 +28,7 @@ To check if you have hosts that were automatically enrolled, login to [Apple Bus
 
 How to migrate these hosts:
 
-1. Connect Fleet to Apple Business Manager (ABM). Learn how [here](#apple-business-manager-abm).
+1. Connect Fleet to Apple Business Manager (ABM). Learn how [here](./MDM-setup.md#apple-business-manager-abm).
 
 2. In ABM, unassign these hosts' MDM server from the old MDM solution: In ABM, select **Devices** and then select **All Devices**. Then, select **Edit** next to **Edit MDM Server**, select **Unassign from the current MDM**, and select **Continue**.
 
@@ -42,7 +42,7 @@ How to migrate these hosts:
 
 _Available in Fleet Premium_
 
-In Fleet, you can enforce FileVault (disk encryption) to be on. If turned on, hosts’ disk encryption keys will be stored in Fleet. Learn how [here](#disk-encryption).
+In Fleet, you can enforce FileVault (disk encryption) to be on. If turned on, hosts’ disk encryption keys will be stored in Fleet. Learn how [here](./MDM-macOS-settings.md#disk-encryption).
 
 During migration from your old MDM solution, disk encryption will be turned off for your macOS hosts until they are enrolled to Fleet and MDM is turned on for these hosts.
 
@@ -68,9 +68,9 @@ For all other settings you enforced, you have to first export these settings as 
 
 How to export settings as configuration profiles:
 
-1. Check if your MDM solution has a feature that allows you to export settings as configuration profiles. If it does, make sure these configuration profiles are exported as .mobileconfig files. If it doesn't, follow the instructions to create configuration profiles using iMazing Profile Creator [here](#create-a-configuration-profiles-with-imazing-profile-creator). Use iMazing Profile Creator to replicate the settings you enforced.
+1. Check if your MDM solution has a feature that allows you to export settings as configuration profiles. If it does, make sure these configuration profiles are exported as .mobileconfig files. If it doesn't, follow the instructions to create configuration profiles using iMazing Profile Creator [here](./MDM-macOS-settings.md#create-a-configuration-profiles-with-imazing-profile-creator). Use iMazing Profile Creator to replicate the settings you enforced.
 
-2. Follow the instructions to add configuration profiles to Fleet [here](#add-configuration-profiles-to-fleet).
+2. Follow the instructions to add configuration profiles to Fleet [here](./MDM-macOS-settings.md#add-configuration-profiles-to-fleet).
 
 ## Instructions for end users
 

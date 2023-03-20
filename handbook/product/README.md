@@ -319,6 +319,19 @@ The following highlights should be considered when deciding if we should leverag
 
 Fleet's feature flag guidelines is borrowed from GitLab's ["When to use feature flags" section](https://about.gitlab.com/handbook/product-development-flow/feature-flag-lifecycle/#when-to-use-feature-flags) of their handbook. Check out [GitLab's "Feature flags only when needed" video](https://www.youtube.com/watch?v=DQaGqyolOd8) for an explanation of the costs of introducing feature flags.
 
+## Significant changes
+
+For product changes that cause major impact for users, or even just create impression of major impact, the company plans migration thoughtfully.  That means the product department and E-group:
+
+1. **Written:** Write a migration guide, even if that's just a Google Doc
+2. **Tested:** Test out the migration ourselves, first-hand, as an engineer.
+3. **Gamed out:** We pretend we are one or two key customers and try it out as a role play.
+4. **Adapt:** If it becomes clear that the plan is insufficient, then fix it.
+5. **Communicate:** Develop a plan for how to proactively communicate the change to customers.
+
+That all happens prior to work getting prioritized for the change.
+
+
 ## Competition
 
 We track competitors' capabilities and adjacent (or commonly integrated) products in Google doc [Competition](https://docs.google.com/document/d/1Bqdui6oQthdv5XtD5l7EZVB-duNRcqVRg7NVA4lCXeI/edit) (private).

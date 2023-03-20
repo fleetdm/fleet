@@ -87,9 +87,18 @@ export default {
   },
 
   updateAppleMdmSettings: (enableDiskEncryption: boolean, teamId?: number) => {
-    const { MDM_UPDATE_APPLE_SETTINGS } = endpoints;
-
-    return sendRequest("PATCH", MDM_UPDATE_APPLE_SETTINGS, {
+    const {
+      MDM_UPDATE_APPLE_SETTINGS: teamsEndpoint,
+      CONFIG: noTeamsEndpoint,
+    } = endpoints;
+    if (teamId === 0) {
+      return sendRequest("PATCH", noTeamsEndpoint, {
+        mdm: {
+          macos_settings: { enable_disk_encryption: enableDiskEncryption },
+        },
+      });
+    }
+    return sendRequest("PATCH", teamsEndpoint, {
       enable_disk_encryption: enableDiskEncryption,
       team_id: teamId,
     });

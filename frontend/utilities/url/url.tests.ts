@@ -14,6 +14,19 @@ describe("url utilities > reconcileMutuallyInclusiveHostParams", () => {
     });
   });
 
+  it("leaves macSettingsStatus and teamId unchanged when both are present, teamId=0", () => {
+    const [macSettingsStatus, teamId] = ["pending" as const, 0];
+    expect(
+      reconcileMutuallyInclusiveHostParams({
+        macSettingsStatus,
+        teamId,
+      })
+    ).toEqual({
+      macos_settings: "pending",
+      team_id: 0,
+    });
+  });
+
   it("adds team_id: 0 when macSettingsStatus is present and teamId is not", () => {
     const [macSettingsStatus, teamId] = ["pending" as const, undefined];
     expect(

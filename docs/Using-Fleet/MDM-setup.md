@@ -21,7 +21,7 @@ To do this, choose the "Fleet UI" or "fleetctl" method and follow the steps belo
 
 Fleet UI:
 
-1. Head to the **Settings > Integrations > Mobile device management (MDM)** page. 
+1. Head to the **Settings > Integrations > Mobile device management (MDM)** page. Users with the admin role can access the settings pages.
 
 2. Follow the instructions under **Apple Push Certificates Portal**.
 
