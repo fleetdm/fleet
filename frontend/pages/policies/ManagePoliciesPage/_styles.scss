@@ -152,8 +152,17 @@
   }
 
   .policy-icon {
-    margin-left: $pad-xsmall;
+    margin-left: 1px;
     position: relative;
-    bottom: -1px;
+  }
+
+  .policy-name-cell {
+    .children-wrapper {
+      display: flex;
+      align-items: center;
+      span {
+        display: inline-flex;
+      }
+    }
   }
 }
