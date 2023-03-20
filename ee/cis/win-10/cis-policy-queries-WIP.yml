@@ -19,8 +19,8 @@ spec:
     Note: This Group Policy path may not exist by default. It is provided by the Group Policy template DeliveryOptimization.admx/adml that is included with the Microsoft Windows 10 RTM (Release 1507) Administrative Templates (or newer).
   query: |
     TODO
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\DeliveryOptimization:D
-ODownloadMode' AND data = );
+    # Registry not updating when modified
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\DeliveryOptimization\DODownloadMode' AND data = 3);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.18.1
   contributors: rachelelysia
@@ -41,7 +41,8 @@ spec:
     Note #2: In older Microsoft Windows Administrative Templates, this setting was initially named Retain old events, but it was renamed starting with the Windows 8.0 & Server 2012 (non-R2) Administrative Templates.
   query: |
     TODO
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\EventLog\Application:Retention' AND data = );
+    # Registry not updating when modified
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\Policies\\Microsoft\\Windows\\EventLog\\Application\Retention' AND data = 0);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.27.1.1
   contributors: rachelelysia
@@ -62,7 +63,7 @@ spec:
     Note #2: In older Microsoft Windows Administrative Templates, this setting was initially named Maximum Log Size (KB), but it was renamed starting with the Windows 8.0 & Server 2012 (non-R2) Administrative Templates.
   query: |
     TODO
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\EventLog\Application:MaxSize' AND data = );
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\EventLog\\Application\\MaxSize' AND data = );
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.27.1.2
   contributors: rachelelysia
