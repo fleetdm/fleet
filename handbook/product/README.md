@@ -167,9 +167,7 @@ After the kickoff of a product sprint, the marketing and product teams should de
 
 ### Blog post
 
-The product team is responsible for providing the [marketing team](../marketing/README.md) with the necessary information for writing
-the release blog post. This is accomplished by filing a release blog post issue and adding
-the issue to the growth board on GitHub.
+The product team is responsible for providing the marketing team with the necessary information for writing the release blog post. Every three weeks after the sprint is kicked off, the product team meets with the relevant marketing team members to go over the features for that sprint and recommend items to highlight.
 
 The release blog post issue includes a list of the primary *Tier 2/3* features included in the upcoming
 release. This list of features should point the reader to the GitHub issue that explains each
@@ -297,6 +295,8 @@ Directly Responsible Individuals (DRI) engage in the ritual(s) below at the freq
 | Sprint release notes kick-off meeting | Triweekly (Wednesday) | Communicate high-value features from the current sprint to prepare release blog post and drumbeat social posts, etc in the leadup to release at the end of each sprint.  Marketing is responsible for getting what they need to publish and promote the release, including a great release post.  Product is responsible for helping marketing understand what is coming early enough that there is time to prepare.
 | ⚗️✨🗣 Design review (MDM)  | Daily | Review designs from the MDM team | Noah Talerman |
 | ⚗️✨🗣 Design review (CX)   | Daily | Review designs from the CX team | Zay Hanlon |
+| ⚗️✅🎉Product confirm and celebrate | Weekly | Product teams gets together to review work completed | Mo Zhu |
+| ⚗️ Sprint release notes kickoff | Tri-weekly | Product provides recommended features to highlight for the current sprint to enable the Marketing team to start writing release notes | Mo Zhu |
 
 ## Slack channels
 
