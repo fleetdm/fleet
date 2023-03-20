@@ -14,6 +14,7 @@ import (
 	"path"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/docker/go-units"
@@ -1905,13 +1906,6 @@ func (e *APNSDeliveryError) Unwrap() error { return e.Err }
 
 func (e *APNSDeliveryError) StatusCode() int { return http.StatusBadGateway }
 
-// remoteResult is used to capture the results of delivering a payload to a
-// group of hosts.
-type remoteResult struct {
-	Err     error
-	Payload *fleet.MDMAppleBulkUpsertHostProfilePayload
-}
-
 func ReconcileProfiles(
 	ctx context.Context,
 	ds fleet.Datastore,
@@ -1933,48 +1927,67 @@ func ReconcileProfiles(
 	// toGetContents contains the IDs of all the profiles from which we
 	// need to retrieve contents. Since the previous query returns one row
 	// per host, it would be too expensive to retrieve the profile contents
-	// there, so we make another request.
-	toGetContents := []uint{}
+	// there, so we make another request. Using a map to deduplicate.
+	toGetContents := make(map[uint]bool)
 
 	// hostProfiles tracks each host_mdm_apple_profile we need to upsert
 	// with the new status, operation_type, etc.
-	hostProfiles := []*fleet.MDMAppleBulkUpsertHostProfilePayload{}
+	hostProfiles := make([]*fleet.MDMAppleBulkUpsertHostProfilePayload, 0, len(toInstall)+len(toRemove))
 
-	// targets is a map from profileID -> targetHosts as the underlying MDM
-	// services are optimized to send one command to multiple hosts at the
-	// same time.
-	targets := map[uint][]string{}
+	// install/removeTargets are maps from profileID -> command uuid and host
+	// UUIDs as the underlying MDM services are optimized to send one command to
+	// multiple hosts at the same time. Note that the same command uuid is used
+	// for all hosts in a given install/remove target operation.
+	type cmdTarget struct {
+		cmdUUID   string
+		profIdent string
+		hostUUIDs []string
+	}
+	installTargets, removeTargets := make(map[uint]*cmdTarget), make(map[uint]*cmdTarget)
 	for _, p := range toInstall {
-		toGetContents = append(toGetContents, p.ProfileID)
-		targets[p.ProfileID] = append(targets[p.ProfileID], p.HostUUID)
-		hostProfiles = append(
-			hostProfiles,
-			&fleet.MDMAppleBulkUpsertHostProfilePayload{
-				ProfileID:         p.ProfileID,
-				HostUUID:          p.HostUUID,
-				OperationType:     fleet.MDMAppleOperationTypeInstall,
-				Status:            &fleet.MDMAppleDeliveryPending,
-				CommandUUID:       uuid.New().String(),
-				ProfileIdentifier: p.ProfileIdentifier,
-				ProfileName:       p.ProfileName,
-			},
-		)
+		toGetContents[p.ProfileID] = true
+
+		target := installTargets[p.ProfileID]
+		if target == nil {
+			target = &cmdTarget{
+				cmdUUID:   uuid.New().String(),
+				profIdent: p.ProfileIdentifier,
+			}
+			installTargets[p.ProfileID] = target
+		}
+		target.hostUUIDs = append(target.hostUUIDs, p.HostUUID)
+
+		hostProfiles = append(hostProfiles, &fleet.MDMAppleBulkUpsertHostProfilePayload{
+			ProfileID:         p.ProfileID,
+			HostUUID:          p.HostUUID,
+			OperationType:     fleet.MDMAppleOperationTypeInstall,
+			Status:            &fleet.MDMAppleDeliveryPending,
+			CommandUUID:       target.cmdUUID,
+			ProfileIdentifier: p.ProfileIdentifier,
+			ProfileName:       p.ProfileName,
+		})
 	}
 
 	for _, p := range toRemove {
-		targets[p.ProfileID] = append(targets[p.ProfileID], p.HostUUID)
-		hostProfiles = append(
-			hostProfiles,
-			&fleet.MDMAppleBulkUpsertHostProfilePayload{
-				ProfileID:         p.ProfileID,
-				HostUUID:          p.HostUUID,
-				OperationType:     fleet.MDMAppleOperationTypeRemove,
-				Status:            &fleet.MDMAppleDeliveryPending,
-				CommandUUID:       uuid.New().String(),
-				ProfileIdentifier: p.ProfileIdentifier,
-				ProfileName:       p.ProfileName,
-			},
-		)
+		target := removeTargets[p.ProfileID]
+		if target == nil {
+			target = &cmdTarget{
+				cmdUUID:   uuid.New().String(),
+				profIdent: p.ProfileIdentifier,
+			}
+			removeTargets[p.ProfileID] = target
+		}
+		target.hostUUIDs = append(target.hostUUIDs, p.HostUUID)
+
+		hostProfiles = append(hostProfiles, &fleet.MDMAppleBulkUpsertHostProfilePayload{
+			ProfileID:         p.ProfileID,
+			HostUUID:          p.HostUUID,
+			OperationType:     fleet.MDMAppleOperationTypeRemove,
+			Status:            &fleet.MDMAppleDeliveryPending,
+			CommandUUID:       target.cmdUUID,
+			ProfileIdentifier: p.ProfileIdentifier,
+			ProfileName:       p.ProfileName,
+		})
 	}
 
 	// First update all the profiles in the database before sending the
@@ -1983,77 +1996,94 @@ func ReconcileProfiles(
 	//
 	// We'll do another pass at the end to revert any changes for failed
 	// delivieries.
-	err = ds.BulkUpsertMDMAppleHostProfiles(ctx, hostProfiles)
-	if err != nil {
+	if err := ds.BulkUpsertMDMAppleHostProfiles(ctx, hostProfiles); err != nil {
 		return ctxerr.Wrap(ctx, err, "updating host profiles")
 	}
 
 	// Grab the contents of all the profiles we need to install
-	profileContents, err := ds.GetMDMAppleProfilesContents(ctx, toGetContents)
+	profileIDs := make([]uint, 0, len(toGetContents))
+	for pid := range toGetContents {
+		profileIDs = append(profileIDs, pid)
+	}
+	profileContents, err := ds.GetMDMAppleProfilesContents(ctx, profileIDs)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get profile contents")
 	}
 
-	// Send the install/remove commands for each profile.
-	ch := make(chan remoteResult)
-	defer close(ch)
-	for _, p := range hostProfiles {
-		go func(pp *fleet.MDMAppleBulkUpsertHostProfilePayload) {
-			var err error
-			// TODO(mna): I'm not sure this is correct? We pass multiple host UUIDs
-			// to Install/Remove profile, but we loop over each hostProfiles (so p
-			// represents a single host), and we send a single CommandUUID which is
-			// unique per host?
-			switch pp.OperationType {
-			case fleet.MDMAppleOperationTypeInstall:
-				err = commander.InstallProfile(ctx, targets[pp.ProfileID], profileContents[pp.ProfileID], pp.CommandUUID)
-			case fleet.MDMAppleOperationTypeRemove:
-				err = commander.RemoveProfile(ctx, targets[pp.ProfileID], pp.ProfileIdentifier, pp.CommandUUID)
-			}
-
-			var e *APNSDeliveryError
-			switch {
-			case errors.As(err, &e):
-				level.Debug(logger).Log("err", "sending push notifications, profiles still enqueued", "details", err)
-			case err != nil:
-				// TODO(mna): this log message seems erroneous, this might be for
-				// installing profiles too?
-				level.Error(logger).Log("err", "removing profiles from devices", "details", err)
-				ch <- remoteResult{err, pp}
-				return
-			}
-
-			ch <- remoteResult{nil, pp}
-		}(p)
+	type remoteResult struct {
+		Err     error
+		CmdUUID string
 	}
 
-	// Grab all the failed deliveries and update the status so they're
-	// picked up again in the next run.
-	//
-	// Note that if the APNs push failed we won't try again, as the command
-	// was successfully enqueued, this is only to account for internal
-	// errors like DB failures.
-	failed := []*fleet.MDMAppleBulkUpsertHostProfilePayload{}
-	for i := 0; i < len(hostProfiles); i++ {
-		resp := <-ch
-		if resp.Err != nil {
-			resp.Payload.CommandUUID = ""
-			// TODO(mna): so we set status to nil instead of pending so that it gets
-			// picked up again? This means that if we set it to pending immediately
-			// when a new profile is added or a host moves to a team, it would not
-			// get picked currently?
-			resp.Payload.Status = nil
-			for _, hostUUID := range targets[resp.Payload.ProfileID] {
-				newPayload := *resp.Payload
-				newPayload.HostUUID = hostUUID
-				failed = append(failed, &newPayload)
-			}
+	// Send the install/remove commands for each profile.
+	var wgProd, wgCons sync.WaitGroup
+	ch := make(chan remoteResult)
+
+	execCmd := func(profID uint, target *cmdTarget, op fleet.MDMAppleOperationType) {
+		defer wgProd.Done()
+
+		var err error
+		switch op {
+		case fleet.MDMAppleOperationTypeInstall:
+			err = commander.InstallProfile(ctx, target.hostUUIDs, profileContents[profID], target.cmdUUID)
+		case fleet.MDMAppleOperationTypeRemove:
+			err = commander.RemoveProfile(ctx, target.hostUUIDs, target.profIdent, target.cmdUUID)
+		}
+
+		var e *APNSDeliveryError
+		switch {
+		case errors.As(err, &e):
+			level.Debug(logger).Log("err", "sending push notifications, profiles still enqueued", "details", err)
+		case err != nil:
+			level.Error(logger).Log("err", fmt.Sprintf("enqueue command to %s profiles", op), "details", err)
+			ch <- remoteResult{err, target.cmdUUID}
 		}
 	}
-	err = ds.BulkUpsertMDMAppleHostProfiles(ctx, failed)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "reverting status of failed profiles")
+	for profID, target := range installTargets {
+		wgProd.Add(1)
+		go execCmd(profID, target, fleet.MDMAppleOperationTypeInstall)
+	}
+	for profID, target := range removeTargets {
+		wgProd.Add(1)
+		go execCmd(profID, target, fleet.MDMAppleOperationTypeRemove)
 	}
 
+	// index the host profiles by cmdUUID, for ease of error processing in the
+	// consumer goroutine below.
+	hostProfsByCmdUUID := make(map[string][]*fleet.MDMAppleBulkUpsertHostProfilePayload, len(installTargets)+len(removeTargets))
+	for _, hp := range hostProfiles {
+		hostProfsByCmdUUID[hp.CommandUUID] = append(hostProfsByCmdUUID[hp.CommandUUID], hp)
+	}
+
+	// Grab all the failed deliveries and update the status so they're picked up
+	// again in the next run.
+	//
+	// Note that if the APNs push failed we won't try again, as the command was
+	// successfully enqueued, this is only to account for internal errors like DB
+	// failures.
+	failed := []*fleet.MDMAppleBulkUpsertHostProfilePayload{}
+	wgCons.Add(1)
+	go func() {
+		defer wgCons.Done()
+
+		for resp := range ch {
+			hostProfs := hostProfsByCmdUUID[resp.CmdUUID]
+			for _, hp := range hostProfs {
+				// clear the command as it failed to enqueue, will need to emit a new command
+				hp.CommandUUID = ""
+				// set status to nil so it is retried on the next cron run
+				hp.Status = nil
+				failed = append(failed, hp)
+			}
+		}
+	}()
+
+	wgProd.Wait()
+	close(ch) // done sending at this point, this triggers end of for loop in consumer
+	wgCons.Wait()
+
+	if err := ds.BulkUpsertMDMAppleHostProfiles(ctx, failed); err != nil {
+		return ctxerr.Wrap(ctx, err, "reverting status of failed profiles")
+	}
 	return nil
 }

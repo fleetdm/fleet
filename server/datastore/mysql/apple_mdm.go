@@ -1181,7 +1181,7 @@ func (ds *Datastore) ListMDMAppleProfilesToRemove(ctx context.Context) ([]*fleet
           -- profiles that are in B but not in A
           WHERE ds.profile_id IS NULL AND ds.uuid IS NULL
           -- except "remove" operations in a terminal state or already pending
-          AND ( hmap.operation_type != ? OR hmap.status IS NULL )
+          AND ( hmap.operation_type IS NULL OR hmap.operation_type != ? OR hmap.status IS NULL )
 `
 
 	var profiles []*fleet.MDMAppleProfilePayload
