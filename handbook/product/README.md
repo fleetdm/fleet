@@ -36,10 +36,9 @@ Look here for more information about [Using Figma](https://fleetdm.com/handbook/
 
 ### Review
 
-* Move the issue into the "Ready for review" column. The drafted changes that correspond to each
-  issue in this column will be reviewed during the recurring product huddle meeting.
+* Move the issue into the "Ready for review" column. Schedule a design review to review the design. 
 
-* During the product huddle meeting, record any feedback on the drafted changes.
+* During the product huddle meeting, record and address any feedback on the draft.
 
 ### Deliver
 
@@ -176,16 +175,14 @@ There are two types of tooltips. The two types of tooltips have some unique styl
 
 ## Release 
 
-This section outlines the communication between the product team, marketing team, product team,
-and customer success team prior to a release of Fleet.
+This section outlines the communication between the product, marketing, and customer success teams prior to a release of Fleet.
 
 ### Goal
 
-Keep the business up to date with improvements and changes to the Fleet product so that all stakeholders can communicate
-with customers and users.
+Keep non-engineering and product departments up to date with improvements and changes to the Fleet product so that all stakeholders can communicate with customers and users.
 
 ### Product marketing tiers 
-After the kickoff of a product sprint, the marketing and product teams should decide which features are most important to highlight. When a feature gets scheduled for release the Tier helps marketing give it the biggest impact. Once the features have been discussed the next step is to bucket them into tiers for marketing prioritization. The current tiers are 1-3. 
+After the kickoff of a product sprint, the marketing and product teams should decide which features are most important to highlight. When a feature gets scheduled for release, the Tier determines the marketing effort for the feature. Once the features have been discussed the next step is to bucket them into tiers for marketing prioritization. The current tiers are 1-3. 
 
 - Tier 1: A separate product feature announcement. The most important release types, these require a specific and custom marketing package. Usually including an individual blog post, a demo video and potentially a press release or official product marketing launch. Due to limited availability there is only room for one Tier 1 product announcement per release sprint.
 - Tier 2: A highlighted feature in the release notes. This product feature will be highlighted at the top of the Sprint Release blog post. Depending on the feature specifics this will include: a 1-2 paragraph write-up of the feature, a demo video (if applicable) and a link to the docs. Ideally there would be no more than 3 *Tier 2* features in a release post, otherwise the top features will be crowded.
@@ -254,7 +251,6 @@ For product changes that cause major impact for users, or even just create impre
 
 That all happens prior to work getting prioritized for the change.
 
-
 ## Competition
 
 We track competitors' capabilities and adjacent (or commonly integrated) products in Google doc [Competition](https://docs.google.com/document/d/1Bqdui6oQthdv5XtD5l7EZVB-duNRcqVRg7NVA4lCXeI/edit) (private).
@@ -319,8 +315,9 @@ Directly Responsible Individuals (DRI) engage in the ritual(s) below at the freq
 | 🗣 Product feature requests  | Weekly (Tuesdays) | We make a decision regarding which customer and community feature requests can be committed to in the next six weeks. We create issues for any requests that don't already have one. | Mo Zhu |
 | 🗣️ Product feature requests prep and cleanup | Weekly (Tuesdays) | Every week a backup doc is created to accompany the 🗣️ Product Feature Requests event | Mo Zhu |
 | 🗣 Product office hours  | Weekly (Thursdays) | Ask questions to the product team | Mo Zhu |
-| ✨ Product design review  | Weekly (Thursdays) | The Product team discusses "ready for review" items and makes the decision on whether the UI changes are ready for engineering specification and later implementation. | Noah Talerman |
 | Sprint release notes kick-off meeting | Triweekly (Wednesday) | Communicate high-value features from the current sprint to prepare release blog post and drumbeat social posts, etc in the leadup to release at the end of each sprint.  Marketing is responsible for getting what they need to publish and promote the release, including a great release post.  Product is responsible for helping marketing understand what is coming early enough that there is time to prepare.
+| ⚗️✨🗣 Design review (MDM)  | Daily | Review designs from the MDM team | Noah Talerman |
+| ⚗️✨🗣 Design review (CX)   | Daily | Review designs from the CX team | Zay Hanlon |
 
 ## Slack channels
 
@@ -330,7 +327,7 @@ This group maintains the following [Slack channels](https://fleetdm.com/handbook
 |:------------------------------------|:--------------------------------------------------------------------|
 | `#help-product`                     | Mo Zhu                                                              |
 | `#g-mdm`                            | Noah Talerman                                                       |
-| `#g-customer-experience`            | Zay Hanlon                                                          |
+| `#g-cx`                             | Zay Hanlon                                                          |
 
 <meta name="maintainedBy" value="zhumo">
 <meta name="title" value="⚗️ Product">
