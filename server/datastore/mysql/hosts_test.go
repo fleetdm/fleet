@@ -6028,6 +6028,7 @@ func testHostsLoadHostByOrbitNodeKey(t *testing.T, ds *Datastore) {
 
 		// the returned host by LoadHostByOrbitNodeKey will have the orbit key stored
 		h.OrbitNodeKey = &orbitKey
+		h.DiskEncryptionResetRequested = ptr.Bool(false)
 		returned, err := ds.LoadHostByOrbitNodeKey(ctx, orbitKey)
 		require.NoError(t, err)
 		assert.Equal(t, h, returned)
@@ -6047,7 +6048,7 @@ func testHostsLoadHostByOrbitNodeKey(t *testing.T, ds *Datastore) {
 			SeenTime:        time.Now(),
 			OsqueryHostID:   ptr.String(tag),
 			NodeKey:         ptr.String(tag),
-			UUID:            fmt.Sprintf(tag),
+			UUID:            tag,
 			Hostname:        tag + ".local",
 		})
 		require.NoError(t, err)
