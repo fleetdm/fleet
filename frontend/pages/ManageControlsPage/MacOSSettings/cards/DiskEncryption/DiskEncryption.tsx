@@ -43,7 +43,6 @@ const DiskEncryption = ({ currentTeamId }: IDiskEncryptionProps) => {
       const updatedConfig = await configAPI.loadAll();
       setConfig(updatedConfig);
     } catch {
-      console.log("Error getting app config");
       renderFlash(
         "error",
         "Could not retrieve updated app config. Please try again."
@@ -75,7 +74,6 @@ const DiskEncryption = ({ currentTeamId }: IDiskEncryptionProps) => {
 
   const onUpdateDiskEncryption = async () => {
     try {
-      console.log("update currentTeamId: ", currentTeamId);
       await mdmAPI.updateAppleMdmSettings(diskEncryptionEnabled, currentTeamId);
       renderFlash(
         "success",
@@ -86,7 +84,6 @@ const DiskEncryption = ({ currentTeamId }: IDiskEncryptionProps) => {
         getUpdatedAppConfig();
       }
     } catch {
-      console.error("error updating");
       renderFlash(
         "error",
         "Could not update the disk encryption enforcement. Please try again."
