@@ -40,6 +40,8 @@ Look here for more information about [Using Figma](https://fleetdm.com/handbook/
 
 * During the product huddle meeting, record and address any feedback on the draft.
 
+> As drafting occurs, inevitably, the requirements will change. The main description of the issue should be the single source of truth for the problem to be solved and the required outcome. The product manager is responsible for keeping the main description of the issue up-to-date. Comments and other items can and should be kept in the issue for historical record-keeping.
+
 ### Deliver
 
 * Once your work is complete and all feedback is addressed, make sure that the issue is updated with
