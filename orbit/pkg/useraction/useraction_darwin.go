@@ -99,7 +99,7 @@ if (opts.withIcon) {
 }
 app.displayDialog({{json .Text}}, opts)`))
 
-// displayDialog uses builds a new dialog from the template with the provided
+// displayDialog builds a new dialog from the template with the provided
 // options and runs `osascript` to display it to the user.
 //
 // It makes sure the dialog doesn't stay open forever by enforcing a timeout.
@@ -115,7 +115,7 @@ func displayDialog(opts dialogOptions) (string, error) {
 	}
 
 	// -l to choose the language
-	// -s to make the output machine-redable (JSON)
+	// -s to make the output machine-readable (JSON)
 	cmd := exec.Command("osascript", "-l", "JavaScript", "-s", "s")
 	cmd.Stdin = &script
 	out, err := cmd.Output()
