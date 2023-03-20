@@ -8,6 +8,7 @@ import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCel
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import TooltipWrapper from "components/TooltipWrapper";
 import CustomLink from "components/CustomLink";
+import HumanTimeDiffWithDateTip from "components/HumanTimeDiffWithDateTip";
 
 interface IHeaderProps {
   column: {
@@ -158,6 +159,36 @@ const generateVulnTableHeaders = (isPremiumTier: boolean): IDataColumn[] => {
       Cell: ({ cell: { value } }: ITextCellProps): JSX.Element => (
         <TextCell value={value ? "Yes" : "No"} />
       ),
+    },
+    {
+      title: "Published",
+      accessor: "cve_published",
+      disableSortBy: false,
+      sortType: "boolean",
+      Header: (headerProps: IHeaderProps): JSX.Element => {
+        const titleWithToolTip = (
+          <TooltipWrapper
+            tipContent={`The date this vulnerability was published in the National Vulnerability Database (NVD).`}
+          >
+            Published
+          </TooltipWrapper>
+        );
+        return (
+          <HeaderCell
+            value={titleWithToolTip}
+            isSortedDesc={headerProps.column.isSortedDesc}
+          />
+        );
+      },
+      Cell: ({ cell: { value } }: ITextCellProps): JSX.Element => {
+        const valString = typeof value === "number" ? value.toString() : value;
+        return (
+          <TextCell
+            value={{ timeString: valString }}
+            formatter={HumanTimeDiffWithDateTip}
+          />
+        );
+      },
     },
   ];
 
