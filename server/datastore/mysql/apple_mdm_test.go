@@ -1644,9 +1644,9 @@ func testBulkSetPendingMDMAppleHostProfiles(t *testing.T, ds *Datastore) {
 			})
 			for i, wp := range wantProfs {
 				gp := gotProfs[i]
-				require.Equal(t, wp.ProfileID, gp.ProfileID, "host uuid: %s", h.UUID)
-				require.Equal(t, wp.Status, gp.Status, "host uuid: %s", h.UUID)
-				require.Equal(t, wp.OperationType, gp.OperationType, "host uuid: %s", h.UUID)
+				require.Equal(t, wp.ProfileID, gp.ProfileID, "host uuid: %s, prof id: %s", h.UUID, gp.Identifier)
+				require.Equal(t, wp.Status, gp.Status, "host uuid: %s, prof id: %s", h.UUID, gp.Identifier)
+				require.Equal(t, wp.OperationType, gp.OperationType, "host uuid: %s, prof id: %s", h.UUID, gp.Identifier)
 			}
 		}
 	}
@@ -1664,10 +1664,11 @@ func testBulkSetPendingMDMAppleHostProfiles(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		nanoEnroll(t, ds, h)
 		enrolledHosts[i] = h
+		t.Logf("enrolled host [%d]: %s", i, h.UUID)
 	}
 
 	// create a non-enrolled host
-	i := 4
+	i := 3
 	unenrolledHost, err := ds.NewHost(ctx, &fleet.Host{
 		Hostname:      fmt.Sprintf("test-host%d-name", i),
 		OsqueryHostID: ptr.String(fmt.Sprintf("osquery-%d", i)),
@@ -1678,7 +1679,7 @@ func testBulkSetPendingMDMAppleHostProfiles(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// create a non-darwin host
-	i = 5
+	i = 4
 	linuxHost, err := ds.NewHost(ctx, &fleet.Host{
 		Hostname:      fmt.Sprintf("test-host%d-name", i),
 		OsqueryHostID: ptr.String(fmt.Sprintf("osquery-%d", i)),
@@ -1760,16 +1761,25 @@ func testBulkSetPendingMDMAppleHostProfiles(t *testing.T, ds *Datastore) {
 	err = ds.AddHostsToTeam(ctx, &team1.ID, []uint{enrolledHosts[0].ID})
 	require.NoError(t, err)
 
+	// 6 are still reported as "to install" because op=install and status=nil
+	toInstall, err = ds.ListMDMAppleProfilesToInstall(ctx)
+	require.NoError(t, err)
+	require.Len(t, toInstall, 6)
+
+	// those applied to enrolledHosts[0] are listed as "to remove"
+	toRemove, err = ds.ListMDMAppleProfilesToRemove(ctx)
+	require.NoError(t, err)
+	require.Len(t, toRemove, 3)
+
 	// update status of the moved host (team has no profiles)
 	err = ds.BulkSetPendingMDMAppleHostProfiles(ctx, hostIDsFromHosts(enrolledHosts[0]), nil, nil)
 	require.NoError(t, err)
 	assertHostProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
-		// TODO(mna): this should be the expected result for enrolledHosts[0], but it fails
-		//enrolledHosts[0]: {
-		//	{ProfileID: globalProfiles[0].ProfileID, Status: nil, OperationType: fleet.MDMAppleOperationTypeRemove},
-		//	{ProfileID: globalProfiles[1].ProfileID, Status: nil, OperationType: fleet.MDMAppleOperationTypeRemove},
-		//	{ProfileID: globalProfiles[2].ProfileID, Status: nil, OperationType: fleet.MDMAppleOperationTypeRemove},
-		//},
+		enrolledHosts[0]: {
+			{ProfileID: globalProfiles[0].ProfileID, Status: nil, OperationType: fleet.MDMAppleOperationTypeRemove},
+			{ProfileID: globalProfiles[1].ProfileID, Status: nil, OperationType: fleet.MDMAppleOperationTypeRemove},
+			{ProfileID: globalProfiles[2].ProfileID, Status: nil, OperationType: fleet.MDMAppleOperationTypeRemove},
+		},
 		enrolledHosts[1]: {
 			{ProfileID: globalProfiles[0].ProfileID, Status: nil, OperationType: fleet.MDMAppleOperationTypeInstall},
 			{ProfileID: globalProfiles[1].ProfileID, Status: nil, OperationType: fleet.MDMAppleOperationTypeInstall},
@@ -1779,6 +1789,326 @@ func testBulkSetPendingMDMAppleHostProfiles(t *testing.T, ds *Datastore) {
 			{ProfileID: globalProfiles[0].ProfileID, Status: nil, OperationType: fleet.MDMAppleOperationTypeInstall},
 			{ProfileID: globalProfiles[1].ProfileID, Status: nil, OperationType: fleet.MDMAppleOperationTypeInstall},
 			{ProfileID: globalProfiles[2].ProfileID, Status: nil, OperationType: fleet.MDMAppleOperationTypeInstall},
+		},
+		unenrolledHost: {},
+		linuxHost:      {},
+	})
+
+	// create another team
+	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "team 2"})
+	require.NoError(t, err)
+
+	// move enrolledHosts[1] to that team
+	err = ds.AddHostsToTeam(ctx, &team2.ID, []uint{enrolledHosts[1].ID})
+	require.NoError(t, err)
+
+	// 3 are still reported as "to install" because op=install and status=nil
+	toInstall, err = ds.ListMDMAppleProfilesToInstall(ctx)
+	require.NoError(t, err)
+	require.Len(t, toInstall, 3)
+
+	// 6 are now "to remove"
+	toRemove, err = ds.ListMDMAppleProfilesToRemove(ctx)
+	require.NoError(t, err)
+	require.Len(t, toRemove, 6)
+
+	// update status of the moved host (team has no profiles)
+	err = ds.BulkSetPendingMDMAppleHostProfiles(ctx, hostIDsFromHosts(enrolledHosts[1]), nil, nil)
+	require.NoError(t, err)
+	assertHostProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
+		enrolledHosts[0]: {
+			{ProfileID: globalProfiles[0].ProfileID, Status: nil, OperationType: fleet.MDMAppleOperationTypeRemove},
+			{ProfileID: globalProfiles[1].ProfileID, Status: nil, OperationType: fleet.MDMAppleOperationTypeRemove},
+			{ProfileID: globalProfiles[2].ProfileID, Status: nil, OperationType: fleet.MDMAppleOperationTypeRemove},
+		},
+		enrolledHosts[1]: {
+			{ProfileID: globalProfiles[0].ProfileID, Status: nil, OperationType: fleet.MDMAppleOperationTypeRemove},
+			{ProfileID: globalProfiles[1].ProfileID, Status: nil, OperationType: fleet.MDMAppleOperationTypeRemove},
+			{ProfileID: globalProfiles[2].ProfileID, Status: nil, OperationType: fleet.MDMAppleOperationTypeRemove},
+		},
+		enrolledHosts[2]: {
+			{ProfileID: globalProfiles[0].ProfileID, Status: nil, OperationType: fleet.MDMAppleOperationTypeInstall},
+			{ProfileID: globalProfiles[1].ProfileID, Status: nil, OperationType: fleet.MDMAppleOperationTypeInstall},
+			{ProfileID: globalProfiles[2].ProfileID, Status: nil, OperationType: fleet.MDMAppleOperationTypeInstall},
+		},
+		unenrolledHost: {},
+		linuxHost:      {},
+	})
+
+	// create profiles for team 1
+	tm1Profiles := []*fleet.MDMAppleConfigProfile{
+		configProfileForTest(t, "T1.1", "T1.1", "d"),
+		configProfileForTest(t, "T1.2", "T1.2", "e"),
+	}
+	err = ds.BatchSetMDMAppleProfiles(ctx, &team1.ID, tm1Profiles)
+	require.NoError(t, err)
+	tm1Profiles, err = ds.ListMDMAppleConfigProfiles(ctx, &team1.ID)
+	require.NoError(t, err)
+	require.Len(t, tm1Profiles, 2)
+
+	// 5 are now reported as "to install" (3 global + 2 team1)
+	toInstall, err = ds.ListMDMAppleProfilesToInstall(ctx)
+	require.NoError(t, err)
+	require.Len(t, toInstall, 5)
+
+	// 6 are still "to remove"
+	toRemove, err = ds.ListMDMAppleProfilesToRemove(ctx)
+	require.NoError(t, err)
+	require.Len(t, toRemove, 6)
+
+	// update status of the affected team
+	err = ds.BulkSetPendingMDMAppleHostProfiles(ctx, nil, []uint{team1.ID}, nil)
+	require.NoError(t, err)
+	assertHostProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
+		enrolledHosts[0]: {
+			{ProfileID: globalProfiles[0].ProfileID, Status: nil, OperationType: fleet.MDMAppleOperationTypeRemove},
+			{ProfileID: globalProfiles[1].ProfileID, Status: nil, OperationType: fleet.MDMAppleOperationTypeRemove},
+			{ProfileID: globalProfiles[2].ProfileID, Status: nil, OperationType: fleet.MDMAppleOperationTypeRemove},
+			{ProfileID: tm1Profiles[0].ProfileID, Status: nil, OperationType: fleet.MDMAppleOperationTypeInstall},
+			{ProfileID: tm1Profiles[1].ProfileID, Status: nil, OperationType: fleet.MDMAppleOperationTypeInstall},
+		},
+		enrolledHosts[1]: {
+			{ProfileID: globalProfiles[0].ProfileID, Status: nil, OperationType: fleet.MDMAppleOperationTypeRemove},
+			{ProfileID: globalProfiles[1].ProfileID, Status: nil, OperationType: fleet.MDMAppleOperationTypeRemove},
+			{ProfileID: globalProfiles[2].ProfileID, Status: nil, OperationType: fleet.MDMAppleOperationTypeRemove},
+		},
+		enrolledHosts[2]: {
+			{ProfileID: globalProfiles[0].ProfileID, Status: nil, OperationType: fleet.MDMAppleOperationTypeInstall},
+			{ProfileID: globalProfiles[1].ProfileID, Status: nil, OperationType: fleet.MDMAppleOperationTypeInstall},
+			{ProfileID: globalProfiles[2].ProfileID, Status: nil, OperationType: fleet.MDMAppleOperationTypeInstall},
+		},
+		unenrolledHost: {},
+		linuxHost:      {},
+	})
+
+	// successfully remove globalProfiles[0, 1] for enrolledHosts[0], and remove as failed globalProfiles[2]
+	// Do *not* use UpdateOrDeleteHostMDMAppleProfile here, as it deletes/updates based on command uuid
+	// (meant to be called from the MDMDirector in response from MDM commands), it would delete/update
+	// all rows in this test since we don't have command uuids.
+	err = ds.BulkUpsertMDMAppleHostProfiles(ctx, []*fleet.MDMAppleBulkUpsertHostProfilePayload{
+		{HostUUID: enrolledHosts[0].UUID, ProfileID: globalProfiles[0].ProfileID,
+			Status: &fleet.MDMAppleDeliveryApplied, OperationType: fleet.MDMAppleOperationTypeRemove},
+		{HostUUID: enrolledHosts[0].UUID, ProfileID: globalProfiles[1].ProfileID,
+			Status: &fleet.MDMAppleDeliveryApplied, OperationType: fleet.MDMAppleOperationTypeRemove},
+		{HostUUID: enrolledHosts[0].UUID, ProfileID: globalProfiles[2].ProfileID,
+			Status: &fleet.MDMAppleDeliveryFailed, OperationType: fleet.MDMAppleOperationTypeRemove},
+	})
+	require.NoError(t, err)
+
+	// add a profile to team1, and remove profile T1.1
+	newTm1Profiles := []*fleet.MDMAppleConfigProfile{
+		configProfileForTest(t, "T1.2", "T1.2", "e"),
+		configProfileForTest(t, "T1.3", "T1.3", "f"),
+	}
+	err = ds.BatchSetMDMAppleProfiles(ctx, &team1.ID, newTm1Profiles)
+	require.NoError(t, err)
+	newTm1Profiles, err = ds.ListMDMAppleConfigProfiles(ctx, &team1.ID)
+	require.NoError(t, err)
+	require.Len(t, newTm1Profiles, 2)
+
+	// update status of the affected team
+	err = ds.BulkSetPendingMDMAppleHostProfiles(ctx, nil, []uint{team1.ID}, nil)
+	require.NoError(t, err)
+	assertHostProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
+		enrolledHosts[0]: {
+			{ProfileID: globalProfiles[2].ProfileID, Status: &fleet.MDMAppleDeliveryFailed, OperationType: fleet.MDMAppleOperationTypeRemove},
+			{ProfileID: tm1Profiles[0].ProfileID, Status: nil, OperationType: fleet.MDMAppleOperationTypeRemove},
+			{ProfileID: newTm1Profiles[0].ProfileID, Status: nil, OperationType: fleet.MDMAppleOperationTypeInstall},
+			{ProfileID: newTm1Profiles[1].ProfileID, Status: nil, OperationType: fleet.MDMAppleOperationTypeInstall},
+		},
+		enrolledHosts[1]: {
+			{ProfileID: globalProfiles[0].ProfileID, Status: nil, OperationType: fleet.MDMAppleOperationTypeRemove},
+			{ProfileID: globalProfiles[1].ProfileID, Status: nil, OperationType: fleet.MDMAppleOperationTypeRemove},
+			{ProfileID: globalProfiles[2].ProfileID, Status: nil, OperationType: fleet.MDMAppleOperationTypeRemove},
+		},
+		enrolledHosts[2]: {
+			{ProfileID: globalProfiles[0].ProfileID, Status: nil, OperationType: fleet.MDMAppleOperationTypeInstall},
+			{ProfileID: globalProfiles[1].ProfileID, Status: nil, OperationType: fleet.MDMAppleOperationTypeInstall},
+			{ProfileID: globalProfiles[2].ProfileID, Status: nil, OperationType: fleet.MDMAppleOperationTypeInstall},
+		},
+		unenrolledHost: {},
+		linuxHost:      {},
+	})
+
+	// re-add tm1Profiles[0] to list of team1 profiles
+	// NOTE: even though it is the same profile, it's unique DB ID is different because
+	// it got deleted and re-inserted from the team's profiles, so this is reflected in
+	// the host's profiles list.
+	newTm1Profiles = []*fleet.MDMAppleConfigProfile{
+		tm1Profiles[0],
+		configProfileForTest(t, "T1.2", "T1.2", "e"),
+		configProfileForTest(t, "T1.3", "T1.3", "f"),
+	}
+	err = ds.BatchSetMDMAppleProfiles(ctx, &team1.ID, newTm1Profiles)
+	require.NoError(t, err)
+	newTm1Profiles, err = ds.ListMDMAppleConfigProfiles(ctx, &team1.ID)
+	require.NoError(t, err)
+	require.Len(t, newTm1Profiles, 3)
+
+	// update status of the affected team
+	err = ds.BulkSetPendingMDMAppleHostProfiles(ctx, nil, []uint{team1.ID}, nil)
+	require.NoError(t, err)
+	assertHostProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
+		enrolledHosts[0]: {
+			{ProfileID: globalProfiles[2].ProfileID, Status: &fleet.MDMAppleDeliveryFailed, OperationType: fleet.MDMAppleOperationTypeRemove},
+			{ProfileID: tm1Profiles[0].ProfileID, Status: nil, OperationType: fleet.MDMAppleOperationTypeRemove},
+			{ProfileID: newTm1Profiles[0].ProfileID, Status: nil, OperationType: fleet.MDMAppleOperationTypeInstall},
+			{ProfileID: newTm1Profiles[1].ProfileID, Status: nil, OperationType: fleet.MDMAppleOperationTypeInstall},
+			{ProfileID: newTm1Profiles[2].ProfileID, Status: nil, OperationType: fleet.MDMAppleOperationTypeInstall},
+		},
+		enrolledHosts[1]: {
+			{ProfileID: globalProfiles[0].ProfileID, Status: nil, OperationType: fleet.MDMAppleOperationTypeRemove},
+			{ProfileID: globalProfiles[1].ProfileID, Status: nil, OperationType: fleet.MDMAppleOperationTypeRemove},
+			{ProfileID: globalProfiles[2].ProfileID, Status: nil, OperationType: fleet.MDMAppleOperationTypeRemove},
+		},
+		enrolledHosts[2]: {
+			{ProfileID: globalProfiles[0].ProfileID, Status: nil, OperationType: fleet.MDMAppleOperationTypeInstall},
+			{ProfileID: globalProfiles[1].ProfileID, Status: nil, OperationType: fleet.MDMAppleOperationTypeInstall},
+			{ProfileID: globalProfiles[2].ProfileID, Status: nil, OperationType: fleet.MDMAppleOperationTypeInstall},
+		},
+		unenrolledHost: {},
+		linuxHost:      {},
+	})
+
+	// remove a global profile and add a new one
+	newGlobalProfiles := []*fleet.MDMAppleConfigProfile{
+		configProfileForTest(t, "G2", "G2", "b"),
+		configProfileForTest(t, "G3", "G3", "c"),
+		configProfileForTest(t, "G4", "G4", "d"),
+	}
+	err = ds.BatchSetMDMAppleProfiles(ctx, nil, newGlobalProfiles)
+	require.NoError(t, err)
+	newGlobalProfiles, err = ds.ListMDMAppleConfigProfiles(ctx, nil)
+	require.NoError(t, err)
+	require.Len(t, newGlobalProfiles, 3)
+
+	// update status of the affected "no-team"
+	err = ds.BulkSetPendingMDMAppleHostProfiles(ctx, nil, []uint{0}, nil)
+	require.NoError(t, err)
+	assertHostProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
+		enrolledHosts[0]: {
+			{ProfileID: globalProfiles[2].ProfileID, Status: &fleet.MDMAppleDeliveryFailed, OperationType: fleet.MDMAppleOperationTypeRemove},
+			{ProfileID: tm1Profiles[0].ProfileID, Status: nil, OperationType: fleet.MDMAppleOperationTypeRemove},
+			{ProfileID: newTm1Profiles[0].ProfileID, Status: nil, OperationType: fleet.MDMAppleOperationTypeInstall},
+			{ProfileID: newTm1Profiles[1].ProfileID, Status: nil, OperationType: fleet.MDMAppleOperationTypeInstall},
+			{ProfileID: newTm1Profiles[2].ProfileID, Status: nil, OperationType: fleet.MDMAppleOperationTypeInstall},
+		},
+		enrolledHosts[1]: {
+			{ProfileID: globalProfiles[0].ProfileID, Status: nil, OperationType: fleet.MDMAppleOperationTypeRemove},
+			{ProfileID: globalProfiles[1].ProfileID, Status: nil, OperationType: fleet.MDMAppleOperationTypeRemove},
+			{ProfileID: globalProfiles[2].ProfileID, Status: nil, OperationType: fleet.MDMAppleOperationTypeRemove},
+		},
+		enrolledHosts[2]: {
+			{ProfileID: globalProfiles[0].ProfileID, Status: nil, OperationType: fleet.MDMAppleOperationTypeRemove},
+			{ProfileID: newGlobalProfiles[0].ProfileID, Status: nil, OperationType: fleet.MDMAppleOperationTypeInstall},
+			{ProfileID: newGlobalProfiles[1].ProfileID, Status: nil, OperationType: fleet.MDMAppleOperationTypeInstall},
+			{ProfileID: newGlobalProfiles[2].ProfileID, Status: nil, OperationType: fleet.MDMAppleOperationTypeInstall},
+		},
+		unenrolledHost: {},
+		linuxHost:      {},
+	})
+
+	// add another global profile
+	newGlobalProfiles = []*fleet.MDMAppleConfigProfile{
+		configProfileForTest(t, "G2", "G2", "b"),
+		configProfileForTest(t, "G3", "G3", "c"),
+		configProfileForTest(t, "G4", "G4", "d"),
+		configProfileForTest(t, "G5", "G5", "e"),
+	}
+	err = ds.BatchSetMDMAppleProfiles(ctx, nil, newGlobalProfiles)
+	require.NoError(t, err)
+	newGlobalProfiles, err = ds.ListMDMAppleConfigProfiles(ctx, nil)
+	require.NoError(t, err)
+	require.Len(t, newGlobalProfiles, 4)
+
+	// update status via the new profile's ID
+	err = ds.BulkSetPendingMDMAppleHostProfiles(ctx, nil, nil, []uint{newGlobalProfiles[3].ProfileID})
+	require.NoError(t, err)
+	assertHostProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
+		enrolledHosts[0]: {
+			{ProfileID: globalProfiles[2].ProfileID, Status: &fleet.MDMAppleDeliveryFailed, OperationType: fleet.MDMAppleOperationTypeRemove},
+			{ProfileID: tm1Profiles[0].ProfileID, Status: nil, OperationType: fleet.MDMAppleOperationTypeRemove},
+			{ProfileID: newTm1Profiles[0].ProfileID, Status: nil, OperationType: fleet.MDMAppleOperationTypeInstall},
+			{ProfileID: newTm1Profiles[1].ProfileID, Status: nil, OperationType: fleet.MDMAppleOperationTypeInstall},
+			{ProfileID: newTm1Profiles[2].ProfileID, Status: nil, OperationType: fleet.MDMAppleOperationTypeInstall},
+		},
+		enrolledHosts[1]: {
+			{ProfileID: globalProfiles[0].ProfileID, Status: nil, OperationType: fleet.MDMAppleOperationTypeRemove},
+			{ProfileID: globalProfiles[1].ProfileID, Status: nil, OperationType: fleet.MDMAppleOperationTypeRemove},
+			{ProfileID: globalProfiles[2].ProfileID, Status: nil, OperationType: fleet.MDMAppleOperationTypeRemove},
+		},
+		enrolledHosts[2]: {
+			{ProfileID: globalProfiles[0].ProfileID, Status: nil, OperationType: fleet.MDMAppleOperationTypeRemove},
+			{ProfileID: newGlobalProfiles[0].ProfileID, Status: nil, OperationType: fleet.MDMAppleOperationTypeInstall},
+			{ProfileID: newGlobalProfiles[1].ProfileID, Status: nil, OperationType: fleet.MDMAppleOperationTypeInstall},
+			{ProfileID: newGlobalProfiles[2].ProfileID, Status: nil, OperationType: fleet.MDMAppleOperationTypeInstall},
+			{ProfileID: newGlobalProfiles[3].ProfileID, Status: nil, OperationType: fleet.MDMAppleOperationTypeInstall},
+		},
+		unenrolledHost: {},
+		linuxHost:      {},
+	})
+
+	// add a profile to team2
+	tm2Profiles := []*fleet.MDMAppleConfigProfile{
+		configProfileForTest(t, "T2.1", "T2.1", "a"),
+	}
+	err = ds.BatchSetMDMAppleProfiles(ctx, &team2.ID, tm2Profiles)
+	require.NoError(t, err)
+	tm2Profiles, err = ds.ListMDMAppleConfigProfiles(ctx, &team2.ID)
+	require.NoError(t, err)
+	require.Len(t, tm2Profiles, 1)
+
+	// update status via tm2 id and the global 0 id to test that custom sql statement
+	err = ds.BulkSetPendingMDMAppleHostProfiles(ctx, nil, []uint{team2.ID, 0}, nil)
+	require.NoError(t, err)
+	assertHostProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
+		enrolledHosts[0]: {
+			{ProfileID: globalProfiles[2].ProfileID, Status: &fleet.MDMAppleDeliveryFailed, OperationType: fleet.MDMAppleOperationTypeRemove},
+			{ProfileID: tm1Profiles[0].ProfileID, Status: nil, OperationType: fleet.MDMAppleOperationTypeRemove},
+			{ProfileID: newTm1Profiles[0].ProfileID, Status: nil, OperationType: fleet.MDMAppleOperationTypeInstall},
+			{ProfileID: newTm1Profiles[1].ProfileID, Status: nil, OperationType: fleet.MDMAppleOperationTypeInstall},
+			{ProfileID: newTm1Profiles[2].ProfileID, Status: nil, OperationType: fleet.MDMAppleOperationTypeInstall},
+		},
+		enrolledHosts[1]: {
+			{ProfileID: globalProfiles[0].ProfileID, Status: nil, OperationType: fleet.MDMAppleOperationTypeRemove},
+			{ProfileID: globalProfiles[1].ProfileID, Status: nil, OperationType: fleet.MDMAppleOperationTypeRemove},
+			{ProfileID: globalProfiles[2].ProfileID, Status: nil, OperationType: fleet.MDMAppleOperationTypeRemove},
+			{ProfileID: tm2Profiles[0].ProfileID, Status: nil, OperationType: fleet.MDMAppleOperationTypeInstall},
+		},
+		enrolledHosts[2]: {
+			{ProfileID: globalProfiles[0].ProfileID, Status: nil, OperationType: fleet.MDMAppleOperationTypeRemove},
+			{ProfileID: newGlobalProfiles[0].ProfileID, Status: nil, OperationType: fleet.MDMAppleOperationTypeInstall},
+			{ProfileID: newGlobalProfiles[1].ProfileID, Status: nil, OperationType: fleet.MDMAppleOperationTypeInstall},
+			{ProfileID: newGlobalProfiles[2].ProfileID, Status: nil, OperationType: fleet.MDMAppleOperationTypeInstall},
+			{ProfileID: newGlobalProfiles[3].ProfileID, Status: nil, OperationType: fleet.MDMAppleOperationTypeInstall},
+		},
+		unenrolledHost: {},
+		linuxHost:      {},
+	})
+
+	// do a final sync of all hosts, should not change anything
+	err = ds.BulkSetPendingMDMAppleHostProfiles(ctx, hostIDsFromHosts(append(enrolledHosts, unenrolledHost, linuxHost)...), nil, nil)
+	require.NoError(t, err)
+	assertHostProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
+		enrolledHosts[0]: {
+			{ProfileID: globalProfiles[2].ProfileID, Status: &fleet.MDMAppleDeliveryFailed, OperationType: fleet.MDMAppleOperationTypeRemove},
+			{ProfileID: tm1Profiles[0].ProfileID, Status: nil, OperationType: fleet.MDMAppleOperationTypeRemove},
+			{ProfileID: newTm1Profiles[0].ProfileID, Status: nil, OperationType: fleet.MDMAppleOperationTypeInstall},
+			{ProfileID: newTm1Profiles[1].ProfileID, Status: nil, OperationType: fleet.MDMAppleOperationTypeInstall},
+			{ProfileID: newTm1Profiles[2].ProfileID, Status: nil, OperationType: fleet.MDMAppleOperationTypeInstall},
+		},
+		enrolledHosts[1]: {
+			{ProfileID: globalProfiles[0].ProfileID, Status: nil, OperationType: fleet.MDMAppleOperationTypeRemove},
+			{ProfileID: globalProfiles[1].ProfileID, Status: nil, OperationType: fleet.MDMAppleOperationTypeRemove},
+			{ProfileID: globalProfiles[2].ProfileID, Status: nil, OperationType: fleet.MDMAppleOperationTypeRemove},
+			{ProfileID: tm2Profiles[0].ProfileID, Status: nil, OperationType: fleet.MDMAppleOperationTypeInstall},
+		},
+		enrolledHosts[2]: {
+			{ProfileID: globalProfiles[0].ProfileID, Status: nil, OperationType: fleet.MDMAppleOperationTypeRemove},
+			{ProfileID: newGlobalProfiles[0].ProfileID, Status: nil, OperationType: fleet.MDMAppleOperationTypeInstall},
+			{ProfileID: newGlobalProfiles[1].ProfileID, Status: nil, OperationType: fleet.MDMAppleOperationTypeInstall},
+			{ProfileID: newGlobalProfiles[2].ProfileID, Status: nil, OperationType: fleet.MDMAppleOperationTypeInstall},
+			{ProfileID: newGlobalProfiles[3].ProfileID, Status: nil, OperationType: fleet.MDMAppleOperationTypeInstall},
 		},
 		unenrolledHost: {},
 		linuxHost:      {},

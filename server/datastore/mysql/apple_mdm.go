@@ -83,7 +83,8 @@ SELECT
 FROM
 	mdm_apple_configuration_profiles
 WHERE
-	team_id=? AND identifier NOT IN (?)`
+	team_id=? AND identifier NOT IN (?)
+ORDER BY name`
 
 	if teamID == nil {
 		teamID = ptr.Uint(0)
@@ -179,7 +180,7 @@ SELECT
 FROM
 	host_mdm_apple_profiles
 WHERE
-	host_uuid = ? AND NOT (operation_type = '%s' AND status = '%s')`,
+	host_uuid = ? AND NOT (operation_type = '%s' AND COALESCE(status, '') = '%s')`,
 		fleet.MDMAppleOperationTypeRemove,
 		fleet.MDMAppleDeliveryApplied,
 	)
@@ -950,11 +951,44 @@ func (ds *Datastore) BulkSetPendingMDMAppleHostProfiles(ctx context.Context, hos
 		return nil
 	}
 
-	// TODO(mna): currently only supports receiving a list of host IDs. Loading the UUIDs in a
-	// prior step to simplify the JOINs and conditions in the big query below that is already
-	// complex enough (one may say overly complex).
-	var uuids []string
-	uuidStmt, args, err := sqlx.In(`SELECT uuid FROM hosts WHERE id IN (?)`, hostIDs)
+	var (
+		uuids    []string
+		args     []any
+		uuidStmt string
+	)
+
+	switch {
+	case len(hostIDs) > 0:
+		uuidStmt = `SELECT uuid FROM hosts WHERE id IN (?)`
+		args = append(args, hostIDs)
+
+	case len(teamIDs) > 0:
+		uuidStmt = `SELECT uuid FROM hosts WHERE `
+		if len(teamIDs) == 1 && teamIDs[0] == 0 {
+			uuidStmt += `team_id IS NULL`
+		} else {
+			uuidStmt += `team_id IN (?)`
+			args = append(args, teamIDs)
+			for _, tmID := range teamIDs {
+				if tmID == 0 {
+					uuidStmt += ` OR team_id IS NULL`
+					break
+				}
+			}
+		}
+
+	case len(profileIDs) > 0:
+		uuidStmt = `
+SELECT DISTINCT h.uuid
+FROM hosts h
+JOIN mdm_apple_configuration_profiles macp
+	ON h.team_id = macp.team_id OR (h.team_id IS NULL AND macp.team_id = 0)
+WHERE
+	macp.profile_id IN (?)`
+		args = append(args, profileIDs)
+	}
+
+	uuidStmt, args, err := sqlx.In(uuidStmt, args...)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "prepare query to load host UUIDs")
 	}
@@ -972,70 +1006,75 @@ INSERT INTO host_mdm_apple_profiles (
 	status,
 	command_uuid
 )
-	-- profiles to install, i.e. those part of the host's team/no team.
-	-- Except for the SELECT list, filtering on specific target IDs
-	-- (host/team/profile) and ignoring hmap rows that are already
-	-- "install" and NULL status, this is the same as
-	-- ListMDMAppleProfilesToInstall.
-	SELECT
-		ds.profile_id,
-		ds.host_uuid,
-		ds.profile_identifier,
-		ds.profile_name,
-		?,
-		NULL,
-		''
-	FROM (
+	-- NOTE: from https://dev.mysql.com/doc/refman/5.7/en/insert-on-duplicate.html
+	-- In an ON DUPLICATE KEY UPDATE clause:
+	-- References to columns from a UNION do not work reliably. To work
+	-- around this restriction, rewrite the UNION as a derived table so that its
+	-- rows can be treated as a single-table result set.
+	SELECT * FROM (
+		-- profiles to install, i.e. those part of the host's team/no team.
+		-- Except for the SELECT list, filtering on specific target IDs
+		-- (host/team/profile) and ignoring hmap rows that are already
+		-- "install" and NULL status, this is the same as
+		-- ListMDMAppleProfilesToInstall.
 		SELECT
-			macp.profile_id,
-			h.uuid as host_uuid,
-			macp.identifier as profile_identifier,
-			macp.name as profile_name
-		FROM mdm_apple_configuration_profiles macp
-			JOIN hosts h ON h.team_id = macp.team_id OR (h.team_id IS NULL AND macp.team_id = 0)
-			JOIN nano_enrollments ne ON ne.device_id = h.uuid
-		WHERE h.platform = 'darwin' AND ne.enabled = 1 AND h.uuid IN (?)
-	) as ds
-	LEFT JOIN host_mdm_apple_profiles hmap
-		ON hmap.profile_id = ds.profile_id AND hmap.host_uuid = ds.host_uuid
-	WHERE
-	-- profiles in A but not in B
-	( hmap.profile_id IS NULL AND hmap.host_uuid IS NULL ) OR
-	-- profiles in A and B but with operation type "remove"
-	( hmap.host_uuid IS NOT NULL AND hmap.operation_type = ? OR hmap.operation_type IS NULL )
+			ds.profile_id as profile_id,
+			ds.host_uuid as host_uuid,
+			ds.profile_identifier as profile_identifier,
+			ds.profile_name as profile_name,
+			? as operation_type,
+			NULL as status,
+			'' as command_uuid
+		FROM (
+			SELECT
+				macp.profile_id,
+				h.uuid as host_uuid,
+				macp.identifier as profile_identifier,
+				macp.name as profile_name
+			FROM mdm_apple_configuration_profiles macp
+				JOIN hosts h ON h.team_id = macp.team_id OR (h.team_id IS NULL AND macp.team_id = 0)
+				JOIN nano_enrollments ne ON ne.device_id = h.uuid
+			WHERE h.platform = 'darwin' AND ne.enabled = 1 AND h.uuid IN (?)
+		) as ds
+		LEFT JOIN host_mdm_apple_profiles hmap
+			ON hmap.profile_id = ds.profile_id AND hmap.host_uuid = ds.host_uuid
+		WHERE
+		-- profiles in A but not in B
+		( hmap.profile_id IS NULL AND hmap.host_uuid IS NULL ) OR
+		-- profiles in A and B but with operation type "remove"
+		( hmap.host_uuid IS NOT NULL AND ( hmap.operation_type = ? OR hmap.operation_type IS NULL ) )
 
-UNION
+	UNION
 
-	-- profiles to remove, i.e. those not part of the host's team/no team.
-	-- Except for the SELECT list, filtering on specific target IDs and ignoring
-	-- hmap rows that are already "remove" in any status, this is the same
-	-- as ListMDMAppleProfilesToRemove.
-	SELECT
-		hmap.profile_id,
-		hmap.host_uuid,
-		hmap.profile_identifier,
-		hmap.profile_name,
-		?,
-		NULL,
-		''
-	FROM (
+		-- profiles to remove, i.e. those not part of the host's team/no team.
+		-- Except for the SELECT list, filtering on specific target IDs and ignoring
+		-- hmap rows that are already "remove" in any status, this is the same
+		-- as ListMDMAppleProfilesToRemove.
 		SELECT
-			h.uuid, macp.profile_id
-		FROM mdm_apple_configuration_profiles macp
-			JOIN hosts h ON h.team_id = macp.team_id OR (h.team_id IS NULL AND macp.team_id = 0)
-			JOIN nano_enrollments ne ON ne.device_id = h.uuid
-		WHERE h.platform = 'darwin' AND ne.enabled = 1 AND h.uuid IN (?)
-	) as ds
-	RIGHT JOIN host_mdm_apple_profiles hmap
-		ON hmap.profile_id = ds.profile_id AND hmap.host_uuid = ds.uuid
-	WHERE
-	-- Note the format verb here, this will be replaced by the proper column
-	-- depending on the type of target IDs provided.
-	hmap.host_uuid IN (?) AND
-	-- profiles that are in B but not in A
-	ds.profile_id IS NULL AND ds.uuid IS NULL
-	-- except "remove" operations in any state
-	AND ( hmap.operation_type != ? )
+			hmap.profile_id as profile_id,
+			hmap.host_uuid as host_uuid,
+			hmap.profile_identifier as profile_identifier,
+			hmap.profile_name as profile_name,
+			? as operation_type,
+			NULL as status,
+			'' as command_uuid
+		FROM (
+			SELECT
+				h.uuid, macp.profile_id
+			FROM mdm_apple_configuration_profiles macp
+				JOIN hosts h ON h.team_id = macp.team_id OR (h.team_id IS NULL AND macp.team_id = 0)
+				JOIN nano_enrollments ne ON ne.device_id = h.uuid
+			WHERE h.platform = 'darwin' AND ne.enabled = 1 AND h.uuid IN (?)
+		) as ds
+		RIGHT JOIN host_mdm_apple_profiles hmap
+			ON hmap.profile_id = ds.profile_id AND hmap.host_uuid = ds.uuid
+		WHERE
+		hmap.host_uuid IN (?)
+		-- profiles that are in B but not in A
+		AND ds.profile_id IS NULL AND ds.uuid IS NULL
+		-- except "remove" operations in any state
+		AND ( hmap.operation_type IS NULL OR hmap.operation_type != ? )
+	) AS dt
 
 ON DUPLICATE KEY UPDATE
 	operation_type = VALUES(operation_type),
@@ -1044,8 +1083,12 @@ ON DUPLICATE KEY UPDATE
 	detail = ''
 `
 
-	stmt, args, err := sqlx.In(baseStmt, fleet.MDMAppleOperationTypeInstall, uuids,
-		fleet.MDMAppleOperationTypeRemove, fleet.MDMAppleOperationTypeRemove, uuids, uuids, fleet.MDMAppleOperationTypeRemove)
+	stmt, args, err := sqlx.In(baseStmt,
+		// to install parameters:
+		fleet.MDMAppleOperationTypeInstall, uuids, fleet.MDMAppleOperationTypeRemove,
+		// to remove parameters:
+		fleet.MDMAppleOperationTypeRemove, uuids, uuids, fleet.MDMAppleOperationTypeRemove,
+	)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "bulk set pending profile status build args")
 	}
@@ -1098,7 +1141,7 @@ func (ds *Datastore) ListMDMAppleProfilesToInstall(ctx context.Context) ([]*flee
           -- profiles in A but not in B
           ( hmap.profile_id IS NULL AND hmap.host_uuid IS NULL ) OR
           -- profiles in A and B but with operation type "remove"
-          ( hmap.host_uuid IS NOT NULL AND hmap.operation_type = ? OR hmap.operation_type IS NULL ) OR
+          ( hmap.host_uuid IS NOT NULL AND ( hmap.operation_type = ? OR hmap.operation_type IS NULL ) ) OR
           -- profiles in A and B with operation type "install" and NULL status
           ( hmap.host_uuid IS NOT NULL AND hmap.operation_type = ? AND hmap.status IS NULL )
 `

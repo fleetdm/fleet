@@ -377,3 +377,40 @@ func explainSQLStatement(w io.Writer, db sqlx.QueryerContext, stmt string, args 
 		panic(err)
 	}
 }
+
+func dumpTable(t *testing.T, q sqlx.QueryerContext, tableName string) {
+	rows, err := q.QueryContext(context.Background(), fmt.Sprintf(`SELECT * FROM %s`, tableName))
+	require.NoError(t, err)
+	defer rows.Close()
+
+	t.Logf(">> dumping table %s:", tableName)
+
+	var anyDst []any
+	var strDst []sql.NullString
+	var sb strings.Builder
+	for rows.Next() {
+		if anyDst == nil {
+			cols, err := rows.Columns()
+			require.NoError(t, err)
+			anyDst = make([]any, len(cols))
+			strDst = make([]sql.NullString, len(cols))
+			for i := 0; i < len(cols); i++ {
+				anyDst[i] = &strDst[i]
+			}
+			t.Logf("%v", cols)
+		}
+		require.NoError(t, rows.Scan(anyDst...))
+
+		sb.Reset()
+		for _, v := range strDst {
+			if v.Valid {
+				sb.WriteString(v.String)
+			} else {
+				sb.WriteString("NULL")
+			}
+			sb.WriteString("\t")
+		}
+		t.Logf("%s", sb.String())
+	}
+	t.Logf("<< dumping table %s completed", tableName)
+}
