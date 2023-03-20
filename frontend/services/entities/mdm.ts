@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
+import { NO_TEAM_ID } from "interfaces/team";
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 import { buildQueryStringFromParams } from "utilities/url";
@@ -27,14 +28,10 @@ export default {
     });
   },
 
-  getProfiles: (teamId?: number) => {
-    const { MDM_PROFILES } = endpoints;
-
-    let path = MDM_PROFILES;
-
-    if (teamId) {
-      path = `${path}?${buildQueryStringFromParams({ team_id: teamId })}`;
-    }
+  getProfiles: (teamId = NO_TEAM_ID) => {
+    const path = `${endpoints.MDM_PROFILES}?${buildQueryStringFromParams({
+      team_id: teamId,
+    })}`;
 
     return sendRequest("GET", path);
   },
@@ -62,12 +59,10 @@ export default {
     return sendRequest("DELETE", MDM_PROFILE(profileId));
   },
 
-  getAggregateProfileStatuses: (teamId?: number) => {
-    let { MDM_PROFILES_AGGREGATE_STATUSES: path } = endpoints;
-
-    if (teamId) {
-      path = `${path}?${buildQueryStringFromParams({ team_id: teamId })}`;
-    }
+  getAggregateProfileStatuses: (teamId = NO_TEAM_ID) => {
+    const path = `${
+      endpoints.MDM_PROFILES_AGGREGATE_STATUSES
+    }?${buildQueryStringFromParams({ team_id: teamId })}`;
 
     return sendRequest("GET", path);
   },

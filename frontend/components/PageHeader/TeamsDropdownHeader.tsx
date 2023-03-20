@@ -1,7 +1,8 @@
-import React, { useCallback, useContext, useEffect } from "react";
+import React, { useCallback, useContext } from "react";
 import { InjectedRouter } from "react-router/lib/Router";
 
 import { AppContext, IAppContext } from "context/app";
+import { ALL_TEAMS_ID, NO_TEAM_ID } from "interfaces/team";
 
 import TeamsDropdown from "../TeamsDropdown/TeamsDropdown";
 
@@ -19,9 +20,9 @@ interface ITeamsDropdownHeaderProps {
   baseClass: string;
   defaultTitle: string;
   buttons?: (ctx: ITeamsDropdownState) => JSX.Element | null;
-  onChange: (ctx: ITeamsDropdownState) => void;
+  onChange?: (ctx: ITeamsDropdownState) => void;
   description: (ctx: ITeamsDropdownState) => JSX.Element | string | null;
-  includeNoTeams?: boolean;
+  includeNoTeam?: boolean;
   includeAll?: boolean;
 }
 
@@ -33,11 +34,9 @@ const TeamsDropdownHeader = ({
   buttons,
   description,
   onChange,
-  includeNoTeams = false,
+  includeNoTeam = false,
   includeAll = true,
 }: ITeamsDropdownHeaderProps): JSX.Element | null => {
-  const teamId = parseInt(location?.query?.team_id || "", 10) || 0;
-
   const {
     availableTeams,
     currentUser,
@@ -54,7 +53,6 @@ const TeamsDropdownHeader = ({
     isAnyTeamAdmin,
     isTeamAdmin,
     isOnlyObserver,
-    setCurrentTeam,
   } = useContext(AppContext);
 
   // The dropdownState is the context and local state made available to callback functions.
@@ -63,7 +61,7 @@ const TeamsDropdownHeader = ({
     // NOTE: teamId is the value independently determined by this component
     // and may briefly be a step ahead of the AppContext for currentTeam
     // depending on the cycle of state updating and rendering
-    teamId,
+    teamId: currentTeam?.id,
     availableTeams,
     currentUser,
     isPreviewMode,
@@ -91,19 +89,16 @@ const TeamsDropdownHeader = ({
     const queryParams = queryString.split("&").filter((el) => el.includes("="));
     const teamIndex = queryParams.findIndex((el) => el.includes("team_id"));
 
-    if (newTeamId) {
-      const teamParam = `team_id=${newTeamId}`;
-      if (teamIndex >= 0) {
-        // replace old team param
-        queryParams.splice(teamIndex, 1, teamParam);
-      } else {
-        // add new team param
-        queryParams.push(teamParam);
-      }
-    } else {
-      // remove old team param
+    if (newTeamId === ALL_TEAMS_ID) {
+      // remove old team param if any
       teamIndex >= 0 && queryParams.splice(teamIndex, 1);
+    } else {
+      const teamParam = `team_id=${newTeamId}`;
+      teamIndex >= 0
+        ? queryParams.splice(teamIndex, 1, teamParam) // replace old param
+        : queryParams.push(teamParam); // add new param
     }
+
     queryString = queryParams.length ? "?".concat(queryParams.join("&")) : "";
 
     return queryString;
@@ -112,47 +107,39 @@ const TeamsDropdownHeader = ({
   // TODO: Add support for pages that use teamId in route params as alternative to query string
   const handleTeamSelect = useCallback(
     (id: number) => {
-      const availableTeam = findAvailableTeam(id);
-      setCurrentTeam(availableTeam);
       const queryString = buildQueryString(location?.search, id);
       if (location?.search !== queryString) {
         const path = location?.pathname?.concat(queryString) || "";
         !!path && router.replace(path);
       }
       if (onChange) {
-        onChange({ ...dropdownState, teamId: availableTeam?.id });
+        onChange({ ...dropdownState, teamId: id });
       }
     },
     // TODO: add missing deps to this array if doens't cause bugs
     [location, router]
   );
 
-  // If team_id from URL query params is not valid, we instead use a default team
-  // either the current team (if any) or all teams (for global users) or
-  // the first available team (for non-global users)
-  const getValidatedTeamId = () => {
-    if (findAvailableTeam(teamId)) {
-      return teamId;
-    }
-    if (!teamId && currentTeam) {
-      return currentTeam.id;
-    }
-    if (!teamId && !currentTeam && !isOnGlobalTeam && availableTeams) {
-      return availableTeams[0]?.id;
-    }
-    return 0;
-  };
+  if (!availableTeams?.length) {
+    return null;
+  }
 
-  // If team_id or currentTeam doesn't match validated id, switch to validated id
-  useEffect(() => {
-    if (availableTeams) {
-      const validatedId = getValidatedTeamId();
+  let defaultId = availableTeams[0].id;
+  if (includeAll) {
+    defaultId = findAvailableTeam(ALL_TEAMS_ID) ? ALL_TEAMS_ID : defaultId;
+  } else if (includeNoTeam) {
+    defaultId = findAvailableTeam(NO_TEAM_ID) ? NO_TEAM_ID : defaultId;
+  } else {
+    const defaultTeam = availableTeams.find((t) => t.id > NO_TEAM_ID);
+    defaultId = defaultTeam ? defaultTeam.id : defaultId;
+  }
 
-      if (validatedId !== currentTeam?.id || validatedId !== teamId) {
-        handleTeamSelect(validatedId);
-      }
-    }
-  }, [availableTeams]);
+  if (currentTeam?.id === ALL_TEAMS_ID && !includeAll) {
+    handleTeamSelect(defaultId);
+  }
+  if (currentTeam?.id === NO_TEAM_ID && !includeNoTeam) {
+    handleTeamSelect(defaultId);
+  }
 
   const renderButtons = () => {
     return buttons ? (
@@ -191,7 +178,7 @@ const TeamsDropdownHeader = ({
                       onChange={(newSelectedValue: number) =>
                         handleTeamSelect(newSelectedValue)
                       }
-                      includeNoTeams={includeNoTeams}
+                      includeNoTeams={includeNoTeam}
                       includeAll={includeAll}
                     />
                   )}

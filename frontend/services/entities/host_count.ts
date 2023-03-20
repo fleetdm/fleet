@@ -13,6 +13,14 @@ export interface ISortOption {
   direction: string;
 }
 
+export interface IHostsCountResponse {
+  count: number;
+}
+
+export interface IHostsCountQueryKey extends IHostCountLoadOptions {
+  scope: "hosts_count";
+}
+
 export interface IHostCountLoadOptions {
   page?: number;
   perPage?: number;
@@ -33,7 +41,9 @@ export interface IHostCountLoadOptions {
 }
 
 export default {
-  load: (options: IHostCountLoadOptions | undefined) => {
+  load: (
+    options: IHostCountLoadOptions | undefined
+  ): Promise<IHostsCountResponse> => {
     const selectedLabels = options?.selectedLabels || [];
     const policyId = options?.policyId;
     const policyResponse = options?.policyResponse;

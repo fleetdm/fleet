@@ -132,7 +132,7 @@ const TeamDetailsWrapper = ({
     enabled: false,
     onSuccess: ({ user, available_teams }: IGetMeResponse) => {
       setCurrentUser(user);
-      setAvailableTeams(available_teams);
+      setAvailableTeams(user, available_teams);
     },
   });
 

@@ -1,5 +1,4 @@
 import React, { useContext } from "react";
-import { find } from "lodash";
 import { Tab, Tabs, TabList } from "react-tabs";
 import { InjectedRouter } from "react-router";
 import { Location } from "history";
@@ -9,11 +8,10 @@ import { AppContext } from "context/app";
 
 import TabsWrapper from "components/TabsWrapper";
 import MainContent from "components/MainContent";
-import TeamsDropdownHeader, {
-  ITeamsDropdownState,
-} from "components/PageHeader/TeamsDropdownHeader";
+import TeamsDropdownHeader from "components/PageHeader/TeamsDropdownHeader";
 import EmptyTable from "components/EmptyTable";
 import Button from "components/buttons/Button";
+import { NO_TEAM_ID } from "interfaces/team";
 
 interface IControlsSubNavItem {
   name: string;
@@ -51,23 +49,13 @@ const ManageControlsPage = ({
   location,
   router,
 }: IManageControlsPageProps): JSX.Element => {
-  const { availableTeams, currentTeam, setCurrentTeam, config } = useContext(
-    AppContext
-  );
+  const { currentTeam, config } = useContext(AppContext);
 
   const navigateToNav = (i: number): void => {
     const navPath = controlsSubNav[i].pathname;
-    const teamId = currentTeam?.id || undefined;
-    const queryString = teamId === undefined ? "" : `?team_id=${teamId}`;
+    const teamId = currentTeam?.id || NO_TEAM_ID;
+    const queryString = `?team_id=${teamId}`;
     router.replace(navPath + queryString);
-  };
-
-  const handleTeamSelect = (ctx: ITeamsDropdownState) => {
-    const teamId = ctx.teamId;
-    const queryString = teamId === undefined ? "" : `?team_id=${teamId}`;
-    router.replace(location.pathname + queryString);
-    const selectedTeam = find(availableTeams, ["id", teamId]);
-    setCurrentTeam(selectedTeam);
   };
 
   const renderHeader = () => (
@@ -79,11 +67,11 @@ const ManageControlsPage = ({
             location={location}
             baseClass={baseClass}
             defaultTitle="Controls"
-            onChange={handleTeamSelect}
+            // onChange={handleTeamSelect}
             description={() => {
               return null;
             }}
-            includeNoTeams
+            includeNoTeam
             includeAll={false}
           />
         </div>

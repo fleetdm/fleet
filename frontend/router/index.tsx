@@ -67,6 +67,7 @@ interface IAppWrapperProps {
   children: JSX.Element;
   location?: {
     pathname: string;
+    search: string;
   };
 }
 

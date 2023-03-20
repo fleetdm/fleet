@@ -106,7 +106,7 @@ const LoginPage = ({ router, location }: ILoginPageProps) => {
 
       setLoginVisible(false);
       setCurrentUser(user);
-      setAvailableTeams(available_teams);
+      setAvailableTeams(user, available_teams);
       setCurrentTeam(undefined);
 
       // Redirect to password reset page if user is forced to reset password.

@@ -98,3 +98,57 @@ export interface INewTeamSecretBody {
 export interface IRemoveTeamSecretBody {
   secrets: { secret: string }[];
 }
+
+export const teamIdParamFromUrlSearch = (s: string) => {
+  return s.match(/(?:team_id=\d+)/i)?.[0]?.split("=")?.[1] || "";
+};
+
+export const parseTeamIdParam = (s: string) => {
+  const parsed = parseInt(s, 10);
+
+  return isNaN(parsed) ? -1 : parsed;
+};
+
+export const teamIdFromLocation = (location: { search: string }) => {
+  return parseTeamIdParam(teamIdParamFromUrlSearch(location.search));
+};
+
+export const teamFromAvailableTeams = (
+  teamId: number,
+  availableTeams: ITeamSummary[]
+) => {
+  return availableTeams?.find((t) => t.id === teamId) || availableTeams?.[0];
+};
+
+export const ALL_TEAMS_ID = -1;
+export const ALL_TEAMS_SUMMARY: ITeamSummary = {
+  id: ALL_TEAMS_ID,
+  name: "All teams",
+} as const;
+
+export const NO_TEAM_ID = 0;
+export const NO_TEAM_SUMMARY: ITeamSummary = {
+  id: NO_TEAM_ID,
+  name: "No team",
+} as const;
+
+export const getDefaultTeamId = (
+  availableTeams: ITeamSummary[],
+  includeAll: boolean,
+  includeNoTeam: boolean
+) => {
+  let defaultId = availableTeams[0].id;
+  if (includeAll) {
+    defaultId = availableTeams.find((t) => t.id === ALL_TEAMS_ID)
+      ? ALL_TEAMS_ID
+      : defaultId;
+  } else if (includeNoTeam) {
+    defaultId = availableTeams.find((t) => t.id === NO_TEAM_ID)
+      ? NO_TEAM_ID
+      : defaultId;
+  } else {
+    const defaultTeam = availableTeams.find((t) => t.id > NO_TEAM_ID);
+    defaultId = defaultTeam ? defaultTeam.id : defaultId;
+  }
+  return defaultId;
+};

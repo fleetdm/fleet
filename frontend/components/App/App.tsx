@@ -1,7 +1,6 @@
 import React, { useContext, useEffect, useState } from "react";
 import { AxiosResponse } from "axios";
 import { QueryClient, QueryClientProvider } from "react-query";
-import classnames from "classnames";
 
 import TableProvider from "context/table";
 import QueryProvider from "context/query";
@@ -22,12 +21,14 @@ import Fleet404 from "pages/errors/Fleet404";
 // @ts-ignore
 import Fleet500 from "pages/errors/Fleet500";
 import Spinner from "components/Spinner";
+import { teamFromAvailableTeams, teamIdFromLocation } from "interfaces/team";
 
 interface IAppProps {
   children: JSX.Element;
   location:
     | {
         pathname: string;
+        search: string;
       }
     | undefined;
 }
@@ -37,11 +38,14 @@ const baseClass = "app";
 const App = ({ children, location }: IAppProps): JSX.Element => {
   const queryClient = new QueryClient();
   const {
+    availableTeams,
+    currentTeam,
     currentUser,
     isGlobalObserver,
     isOnlyObserver,
     isAnyTeamMaintainerOrTeamAdmin,
     setAvailableTeams,
+    setCurrentTeam,
     setCurrentUser,
     setConfig,
     setEnrollSecret,
@@ -71,7 +75,7 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
     try {
       const { user, available_teams } = await usersAPI.me();
       setCurrentUser(user);
-      setAvailableTeams(available_teams);
+      setAvailableTeams(user, available_teams);
       fetchConfig();
     } catch (error) {
       if (!location?.pathname.includes("/login/reset")) {
@@ -87,6 +91,20 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
     }
     return true;
   };
+
+  useEffect(() => {
+    if (!availableTeams) {
+      return;
+    }
+    const teamId = teamIdFromLocation({ search: location?.search || "" });
+    if (teamId === currentTeam?.id) {
+      return;
+    }
+    const team = teamFromAvailableTeams(teamId, availableTeams);
+    if (team && team.id !== currentTeam?.id) {
+      setCurrentTeam(team);
+    }
+  }, [location?.search, availableTeams, currentTeam, setCurrentTeam]);
 
   useEffect(() => {
     if (authToken() && !location?.pathname.includes("/device/")) {

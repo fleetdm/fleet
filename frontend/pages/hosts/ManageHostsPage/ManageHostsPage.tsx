@@ -1,4 +1,10 @@
-import React, { useState, useContext, useEffect, useCallback } from "react";
+import React, {
+  useState,
+  useContext,
+  useEffect,
+  useCallback,
+  useMemo,
+} from "react";
 import { useQuery } from "react-query";
 import { InjectedRouter, Params } from "react-router/lib/Router";
 import { RouteProps } from "react-router/lib/Route";
@@ -11,11 +17,13 @@ import labelsAPI, { ILabelsResponse } from "services/entities/labels";
 import teamsAPI, { ILoadTeamsResponse } from "services/entities/teams";
 import globalPoliciesAPI from "services/entities/global_policies";
 import hostsAPI, {
-  ILoadHostsOptions,
+  ILoadHostsQueryKey,
+  ILoadHostsResponse,
   ISortOption,
 } from "services/entities/hosts";
 import hostCountAPI, {
-  IHostCountLoadOptions,
+  IHostsCountQueryKey,
+  IHostsCountResponse,
 } from "services/entities/host_count";
 import {
   getOSVersions,
@@ -31,17 +39,14 @@ import {
   IEnrollSecret,
   IEnrollSecretsResponse,
 } from "interfaces/enroll_secret";
-import { IHost } from "interfaces/host";
 import { ILabel } from "interfaces/label";
-import { IMunkiIssuesAggregate } from "interfaces/macadmins";
-import { IMdmSolution, MDM_ENROLLMENT_STATUS } from "interfaces/mdm";
+import { MDM_ENROLLMENT_STATUS } from "interfaces/mdm";
 import {
   formatOperatingSystemDisplayName,
   IOperatingSystemVersion,
 } from "interfaces/operating_system";
 import { IPolicy, IStoredPolicyResponse } from "interfaces/policy";
-import { ISoftware } from "interfaces/software";
-import { ITeam } from "interfaces/team";
+import { ALL_TEAMS_ID, ITeam, NO_TEAM_ID } from "interfaces/team";
 import { IEmptyTableProps } from "interfaces/empty_table";
 
 import sortUtils from "utilities/sort";
@@ -119,6 +124,7 @@ const ManageHostsPage = ({
   params: routeParams,
   location,
 }: IManageHostsProps): JSX.Element => {
+  const routeTemplate = route?.path ?? "";
   const queryParams = location.query;
 
   const {
@@ -126,6 +132,7 @@ const ManageHostsPage = ({
     config,
     currentTeam,
     currentUser,
+    filteredHostsPath,
     isGlobalAdmin,
     isGlobalMaintainer,
     isTeamMaintainer,
@@ -135,28 +142,11 @@ const ManageHostsPage = ({
     isPremiumTier,
     isFreeTier,
     isSandboxMode,
-    setAvailableTeams,
     setCurrentTeam,
     setFilteredHostsPath,
   } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
-  if (queryParams.team_id) {
-    const teamIdParam = parseInt(queryParams.team_id, 10);
-    if (
-      isNaN(teamIdParam) ||
-      (teamIdParam &&
-        availableTeams &&
-        !availableTeams.find(
-          (availableTeam) => availableTeam.id === teamIdParam
-        ))
-    ) {
-      router.replace({
-        pathname: location.pathname,
-        query: omit(queryParams, "team_id"),
-      });
-    }
-  }
   const { setResetSelectedRows } = useContext(TableContext);
 
   const hostHiddenColumns = localStorage.getItem("hostHiddenColumns");
@@ -209,37 +199,19 @@ const ManageHostsPage = ({
     false
   );
   const [searchQuery, setSearchQuery] = useState(initialQuery);
-  const [hosts, setHosts] = useState<IHost[]>();
-  const [isHostsLoading, setIsHostsLoading] = useState(false);
-  const [hasHostErrors, setHasHostErrors] = useState(false);
-  const [filteredHostCount, setFilteredHostCount] = useState<number>();
-  const [isHostCountLoading, setIsHostCountLoading] = useState(false);
-  const [hasHostCountErrors, setHasHostCountErrors] = useState(false);
   const [sortBy, setSortBy] = useState<ISortOption[]>(initialSortBy);
   const [policy, setPolicy] = useState<IPolicy>();
-  const [softwareDetails, setSoftwareDetails] = useState<ISoftware | null>(
-    null
-  );
-  const [
-    mdmSolutionDetails,
-    setMDMSolutionDetails,
-  ] = useState<IMdmSolution | null>(null);
-  const [
-    munkiIssueDetails,
-    setMunkiIssueDetails,
-  ] = useState<IMunkiIssuesAggregate | null>(null);
   const [tableQueryData, setTableQueryData] = useState<ITableQueryProps>();
-  const [
-    currentQueryOptions,
-    setCurrentQueryOptions,
-  ] = useState<ILoadHostsOptions>();
+  // const [
+  //   currentQueryOptions,
+  //   setCurrentQueryOptions,
+  // ] = useState<ILoadHostsOptions>();
   const [resetPageIndex, setResetPageIndex] = useState<boolean>(false);
   const [isUpdatingLabel, setIsUpdatingLabel] = useState<boolean>(false);
   const [isUpdatingSecret, setIsUpdatingSecret] = useState<boolean>(false);
   const [isUpdatingHosts, setIsUpdatingHosts] = useState<boolean>(false);
 
-  // ======== end states
-  const routeTemplate = route?.path ?? "";
+  // ========= queryParams
   const policyId = queryParams?.policy_id;
   const policyResponse: PolicyResponse = queryParams?.policy_response;
   const softwareId =
@@ -264,14 +236,17 @@ const ManageHostsPage = ({
       ? parseInt(queryParams.low_disk_space, 10)
       : undefined;
   const missingHosts = queryParams?.status === "missing";
+
+  // ========= routeParams
   const { active_label: activeLabel, label_id: labelID } = routeParams;
+  const selectedFilters = useMemo(() => {
+    const filters: string[] = [];
+    labelID && filters.push(`${LABEL_SLUG_PREFIX}${labelID}`);
+    activeLabel && filters.push(activeLabel);
+    return filters;
+  }, [activeLabel, labelID]);
 
-  // ===== filter matching
-  const selectedFilters: string[] = [];
-  labelID && selectedFilters.push(`${LABEL_SLUG_PREFIX}${labelID}`);
-  activeLabel && selectedFilters.push(activeLabel);
-  // ===== end filter matching
-
+  // ========= derived permissions
   const canEnrollHosts =
     isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
   const canEnrollGlobalHosts = isGlobalAdmin || isGlobalMaintainer;
@@ -310,13 +285,13 @@ const ManageHostsPage = ({
   } = useQuery<IEnrollSecretsResponse, Error, IEnrollSecret[]>(
     ["team secrets", currentTeam],
     () => {
-      if (currentTeam) {
+      if (currentTeam && currentTeam.id > NO_TEAM_ID) {
         return enrollSecretsAPI.getTeamEnrollSecrets(currentTeam.id);
       }
       return { secrets: [] };
     },
     {
-      enabled: !!currentTeam?.id && !!canEnrollHosts,
+      enabled: currentTeam && currentTeam.id > NO_TEAM_ID && !!canEnrollHosts,
       select: (data: IEnrollSecretsResponse) => data.secrets,
     }
   );
@@ -332,35 +307,18 @@ const ManageHostsPage = ({
       enabled: !!isPremiumTier,
       select: (data: ILoadTeamsResponse) =>
         data.teams.sort((a, b) => sortUtils.caseInsensitiveAsc(a.name, b.name)),
-      onSuccess: (responseTeams: ITeam[]) => {
-        setAvailableTeams(responseTeams);
-        if (
-          responseTeams.filter(
-            (responseTeam) => responseTeam.id === currentTeam?.id
-          )
-        ) {
-          setCurrentTeam(undefined);
-        }
-        if (!currentTeam && !isOnGlobalTeam && responseTeams.length) {
-          setCurrentTeam(responseTeams[0]);
-        }
-      },
     }
   );
 
-  const { isLoading: isLoadingPolicy } = useQuery<IStoredPolicyResponse, Error>(
-    ["policy"],
-    () => globalPoliciesAPI.load(policyId),
-    {
-      enabled: !!policyId,
-      onSuccess: ({ policy: policyAPIResponse }) => {
-        setPolicy(policyAPIResponse);
-      },
-      onError: () => {
-        setHasHostErrors(true);
-      },
-    }
-  );
+  const { isLoading: isLoadingPolicy, error: errorPolicy } = useQuery<
+    IStoredPolicyResponse,
+    Error
+  >(["policy", policyId], () => globalPoliciesAPI.load(policyId), {
+    enabled: !!policyId,
+    onSuccess: ({ policy: policyAPIResponse }) => {
+      setPolicy(policyAPIResponse);
+    },
+  });
 
   const { data: osVersions } = useQuery<
     IOSVersionsResponse,
@@ -374,6 +332,131 @@ const ManageHostsPage = ({
     keepPreviousData: true,
     select: (data) => data.os_versions,
   });
+
+  const {
+    data: hostsData,
+    error: errorHosts,
+    isFetching: isLoadingHosts,
+    refetch: refetchHostsAPI,
+  } = useQuery<
+    ILoadHostsResponse,
+    Error,
+    ILoadHostsResponse,
+    ILoadHostsQueryKey[]
+  >(
+    [
+      {
+        scope: "hosts",
+        selectedLabels: selectedFilters,
+        globalFilter: searchQuery,
+        sortBy,
+        teamId: currentTeam?.id === -1 ? undefined : currentTeam?.id,
+        policyId,
+        policyResponse,
+        softwareId,
+        status,
+        mdmId,
+        mdmEnrollmentStatus,
+        munkiIssueId,
+        lowDiskSpaceHosts,
+        osId,
+        osName,
+        osVersion,
+        page: tableQueryData ? tableQueryData.pageIndex : 0,
+        perPage: tableQueryData ? tableQueryData.pageSize : 50,
+        device_mapping: true,
+      },
+    ],
+    ({ queryKey }) => hostsAPI.loadHosts(queryKey[0]),
+    {
+      keepPreviousData: true,
+      staleTime: 10000, // stale time can be adjusted if fresher data is desired
+    }
+  );
+
+  const {
+    data: hostsCount,
+    error: errorHostsCount,
+    isFetching: isLoadingHostsCount,
+    refetch: refetchHostsCountAPI,
+  } = useQuery<IHostsCountResponse, Error, number, IHostsCountQueryKey[]>(
+    [
+      {
+        scope: "hosts_count",
+        selectedLabels: selectedFilters,
+        globalFilter: searchQuery,
+        teamId: currentTeam?.id === -1 ? undefined : currentTeam?.id,
+        policyId,
+        policyResponse,
+        softwareId,
+        status,
+        mdmId,
+        mdmEnrollmentStatus,
+        munkiIssueId,
+        lowDiskSpaceHosts,
+        osId,
+        osName,
+        osVersion,
+        page: tableQueryData ? tableQueryData.pageIndex : 0,
+        perPage: tableQueryData ? tableQueryData.pageSize : 50,
+      },
+    ],
+    ({ queryKey }) => hostCountAPI.load(queryKey[0]),
+    {
+      select: (data) => data.count,
+      keepPreviousData: true,
+      staleTime: 10000, // stale time can be adjusted if fresher data is desired
+    }
+  );
+
+  const refetchHosts = () => {
+    refetchHostsAPI();
+    refetchHostsCountAPI();
+  };
+
+  useEffect(() => {
+    const slugToFind =
+      (selectedFilters.length > 0 &&
+        selectedFilters.find((f) => f.includes(LABEL_SLUG_PREFIX))) ||
+      selectedFilters[0];
+    const validLabel = find(labels, ["slug", slugToFind]) as ILabel;
+    if (selectedLabel !== validLabel) {
+      setSelectedLabel(validLabel);
+    }
+  }, [labels, selectedFilters, selectedLabel]);
+
+  useEffect(() => {
+    if (location.search.includes("software_id")) {
+      return;
+    }
+    const path = location.pathname + location.search;
+    if (filteredHostsPath !== path) {
+      setFilteredHostsPath(location.pathname + location.search);
+    }
+  }, [
+    location.pathname,
+    location.search,
+    filteredHostsPath,
+    setFilteredHostsPath,
+  ]);
+
+  useEffect(() => {
+    setShowNoEnrollSecretBanner(true);
+  }, [currentTeam?.id]);
+
+  // NOTE: used to reset page number to 0 when modifying filters
+  useEffect(() => {
+    setResetPageIndex(false);
+  }, [location.query]);
+
+  const isLastPage =
+    tableQueryData &&
+    !!hostsCount &&
+    DEFAULT_PAGE_SIZE * tableQueryData.pageIndex +
+      (hostsData?.hosts?.length || 0) >=
+      hostsCount;
+
+  const hasErrors = !!errorHosts || !!errorHostsCount || !!errorPolicy;
 
   const toggleDeleteSecretModal = () => {
     // open and closes delete modal
@@ -417,137 +500,6 @@ const ManageHostsPage = ({
     }
   };
 
-  const retrieveHosts = async (options: ILoadHostsOptions = {}) => {
-    setIsHostsLoading(true);
-    options = {
-      ...options,
-      teamId: currentTeam?.id,
-    };
-
-    if (queryParams.team_id) {
-      options.teamId = queryParams.team_id;
-    }
-
-    try {
-      const {
-        hosts: returnedHosts,
-        software,
-        mobile_device_management_solution,
-        munki_issue,
-      } = await hostsAPI.loadHosts(options);
-      setHosts(returnedHosts);
-      software && setSoftwareDetails(software);
-      mobile_device_management_solution &&
-        setMDMSolutionDetails(mobile_device_management_solution);
-      munki_issue && setMunkiIssueDetails(munki_issue);
-    } catch (error) {
-      console.error(error);
-      setHasHostErrors(true);
-    } finally {
-      setIsHostsLoading(false);
-    }
-  };
-
-  const retrieveHostCount = async (options: IHostCountLoadOptions = {}) => {
-    setIsHostCountLoading(true);
-
-    options = {
-      ...options,
-      teamId: currentTeam?.id,
-    };
-
-    if (queryParams.team_id) {
-      options.teamId = queryParams.team_id;
-    }
-    try {
-      const { count: returnedHostCount } = await hostCountAPI.load(options);
-      setFilteredHostCount(returnedHostCount);
-    } catch (error) {
-      console.error(error);
-      setHasHostCountErrors(true);
-    } finally {
-      setIsHostCountLoading(false);
-    }
-  };
-
-  const refetchHosts = (options: ILoadHostsOptions) => {
-    retrieveHosts(options);
-    if (options.sortBy) {
-      delete options.sortBy;
-    }
-    retrieveHostCount(omit(options, "device_mapping"));
-  };
-
-  let teamSync = false;
-  if (currentUser && availableTeams) {
-    const teamIdParam = queryParams.team_id
-      ? parseInt(queryParams.team_id, 10) // we don't want to parse undefined so we can differntiate non-numeric strings as NaN
-      : undefined;
-    if (currentTeam?.id && !teamIdParam) {
-      teamSync = true;
-    } else if (teamIdParam === currentTeam?.id) {
-      teamSync = true;
-    }
-  }
-
-  useEffect(() => {
-    const teamId = parseInt(queryParams?.team_id, 10) || 0;
-    const selectedTeam = find(availableTeams, ["id", teamId]);
-    if (selectedTeam) {
-      setCurrentTeam(selectedTeam);
-    }
-    setShowNoEnrollSecretBanner(true);
-
-    const slugToFind =
-      (selectedFilters.length > 0 &&
-        selectedFilters.find((f) => f.includes(LABEL_SLUG_PREFIX))) ||
-      selectedFilters[0];
-
-    const validLabel = find(labels, ["slug", slugToFind]) as ILabel;
-
-    setSelectedLabel(validLabel);
-
-    const options: ILoadHostsOptions = {
-      selectedLabels: selectedFilters,
-      globalFilter: searchQuery,
-      sortBy,
-      teamId: selectedTeam?.id,
-      policyId,
-      policyResponse,
-      softwareId,
-      status,
-      mdmId,
-      mdmEnrollmentStatus,
-      munkiIssueId,
-      lowDiskSpaceHosts,
-      osId,
-      osName,
-      osVersion,
-      page: tableQueryData ? tableQueryData.pageIndex : 0,
-      perPage: tableQueryData ? tableQueryData.pageSize : 50,
-      device_mapping: true,
-    };
-
-    if (isEqual(options, currentQueryOptions)) {
-      return;
-    }
-
-    if (teamSync) {
-      retrieveHosts(options);
-      retrieveHostCount(omit(options, "device_mapping"));
-      setCurrentQueryOptions(options);
-    }
-    if (!location.search.includes("software_id")) {
-      setFilteredHostsPath(location.pathname + location.search);
-    }
-  }, [availableTeams, currentTeam, location, labels]);
-
-  const isLastPage =
-    tableQueryData &&
-    !!filteredHostCount &&
-    DEFAULT_PAGE_SIZE * tableQueryData.pageIndex + (hosts?.length || 0) >=
-      filteredHostCount;
-
   const handleLabelChange = ({ slug }: ILabel): boolean => {
     const { MANAGE_HOSTS } = PATHS;
 
@@ -573,14 +525,16 @@ const ManageHostsPage = ({
   };
 
   // NOTE: used to reset page number to 0 when modifying filters
-  const handleResetPageIndex = () => {
-    setTableQueryData({
-      ...tableQueryData,
-      pageIndex: 0,
-    } as ITableQueryProps);
-
+  const handleResetPageIndex = useCallback(() => {
+    setTableQueryData(
+      (prevState) =>
+        ({
+          ...prevState,
+          pageIndex: 0,
+        } as ITableQueryProps)
+    );
     setResetPageIndex(true);
-  };
+  }, []);
 
   const handleChangePoliciesFilter = (response: PolicyResponse) => {
     handleResetPageIndex();
@@ -652,27 +606,39 @@ const ManageHostsPage = ({
     handleClearFilter(["low_disk_space"]);
   };
 
-  const handleTeamSelect = (teamId: number) => {
-    const { MANAGE_HOSTS } = PATHS;
+  const handleTeamSelect = useCallback(
+    (teamId: number) => {
+      const { MANAGE_HOSTS } = PATHS;
 
-    const slimmerParams = omit(queryParams, ["team_id"]);
+      const slimmerParams = omit(location.query, ["team_id"]);
 
-    const newQueryParams = !teamId
-      ? slimmerParams
-      : Object.assign(slimmerParams, { team_id: teamId });
+      const newQueryParams =
+        teamId >= NO_TEAM_ID
+          ? Object.assign(slimmerParams, { team_id: teamId })
+          : slimmerParams;
 
-    const nextLocation = getNextLocationPath({
-      pathPrefix: MANAGE_HOSTS,
-      routeTemplate,
+      const nextLocation = getNextLocationPath({
+        pathPrefix: MANAGE_HOSTS,
+        routeTemplate,
+        routeParams,
+        queryParams: newQueryParams,
+      });
+
+      handleResetPageIndex();
+      router.replace(nextLocation);
+      const selectedTeam = find(availableTeams, ["id", teamId]);
+      setCurrentTeam(selectedTeam);
+    },
+    [
+      router,
+      handleResetPageIndex,
+      setCurrentTeam,
+      availableTeams,
+      location.query,
       routeParams,
-      queryParams: newQueryParams,
-    });
-
-    handleResetPageIndex();
-    router.replace(nextLocation);
-    const selectedTeam = find(availableTeams, ["id", teamId]);
-    setCurrentTeam(selectedTeam);
-  };
+      routeTemplate,
+    ]
+  );
 
   const handleStatusDropdownChange = (statusName: string) => {
     handleResetPageIndex();
@@ -701,11 +667,6 @@ const ManageHostsPage = ({
     setHiddenColumns(newHiddenColumns);
     setShowEditColumnsModal(false);
   };
-
-  // NOTE: used to reset page number to 0 when modifying filters
-  useEffect(() => {
-    setResetPageIndex(false);
-  }, [queryParams]);
 
   // NOTE: this is called once on initial render and every time the query changes
   const onTableQueryChange = useCallback(
@@ -754,7 +715,7 @@ const ManageHostsPage = ({
       newQueryParams.order_direction =
         sort[0].direction || DEFAULT_SORT_DIRECTION;
 
-      if (currentTeam) {
+      if (currentTeam && currentTeam.id >= NO_TEAM_ID) {
         newQueryParams.team_id = currentTeam.id;
       }
 
@@ -792,25 +753,28 @@ const ManageHostsPage = ({
           queryParams: newQueryParams,
         })
       );
-
-      return 0;
     },
     [
-      availableTeams,
+      tableQueryData,
+      searchQuery,
       currentTeam,
-      currentUser,
       policyId,
-      queryParams,
+      policyResponse,
       softwareId,
       status,
       mdmId,
       mdmEnrollmentStatus,
       munkiIssueId,
+      missingHosts,
       lowDiskSpaceHosts,
+      isPremiumTier,
       osId,
       osName,
       osVersion,
       sortBy,
+      routeTemplate,
+      routeParams,
+      router,
     ]
   );
 
@@ -982,24 +946,7 @@ const ManageHostsPage = ({
 
       renderFlash("success", successMessage);
       setResetSelectedRows(true);
-      refetchHosts({
-        selectedLabels: selectedFilters,
-        globalFilter: searchQuery,
-        sortBy,
-        teamId: currentTeam?.id,
-        policyId,
-        policyResponse,
-        softwareId,
-        status,
-        mdmId,
-        mdmEnrollmentStatus,
-        munkiIssueId,
-        lowDiskSpaceHosts,
-        osId,
-        osName,
-        osVersion,
-      });
-
+      refetchHosts();
       toggleTransferHostModal();
       setSelectedHostIds([]);
       setIsAllMatchingHostsSelected(false);
@@ -1037,24 +984,7 @@ const ManageHostsPage = ({
 
       renderFlash("success", successMessage);
       setResetSelectedRows(true);
-      refetchHosts({
-        selectedLabels: selectedFilters,
-        globalFilter: searchQuery,
-        sortBy,
-        teamId: currentTeam?.id,
-        policyId,
-        policyResponse,
-        softwareId,
-        status,
-        mdmId,
-        mdmEnrollmentStatus,
-        munkiIssueId,
-        lowDiskSpaceHosts,
-        osId,
-        osName,
-        osVersion,
-      });
-
+      refetchHosts();
       refetchLabels();
       toggleDeleteHostModal();
       setSelectedHostIds([]);
@@ -1075,10 +1005,9 @@ const ManageHostsPage = ({
     <TeamsDropdown
       currentUserTeams={availableTeams || []}
       selectedTeamId={currentTeam?.id}
-      isDisabled={isHostsLoading || isHostCountLoading}
-      onChange={(newSelectedValue: number) =>
-        handleTeamSelect(newSelectedValue)
-      }
+      isDisabled={isLoadingHosts || isLoadingHostsCount} // TODO: why?
+      onChange={handleTeamSelect}
+      includeNoTeams
     />
   );
 
@@ -1169,9 +1098,9 @@ const ManageHostsPage = ({
   );
 
   const renderSoftwareFilterBlock = () => {
-    if (!softwareDetails) return null;
+    if (!hostsData?.software) return null;
 
-    const { name, version } = softwareDetails;
+    const { name, version } = hostsData.software;
     const label = `${name || "Unknown software"} ${version || ""}`;
 
     const TooltipDescription = (
@@ -1192,9 +1121,9 @@ const ManageHostsPage = ({
   };
 
   const renderMDMSolutionFilterBlock = () => {
-    if (!mdmSolutionDetails) return null;
+    if (!hostsData?.mobile_device_management_solution) return null;
 
-    const { name, server_url } = mdmSolutionDetails;
+    const { name, server_url } = hostsData.mobile_device_management_solution;
     const label = name ? `${name} ${server_url}` : `${server_url}`;
 
     const TooltipDescription = (
@@ -1271,10 +1200,10 @@ const ManageHostsPage = ({
   };
 
   const renderMunkiIssueFilterBlock = () => {
-    if (munkiIssueDetails) {
+    if (hostsData?.munki_issue) {
       return (
         <FilterPill
-          label={munkiIssueDetails.name}
+          label={hostsData.munki_issue.name}
           tooltipDescription={
             <span className="tooltip__tooltip-text">
               Hosts that reported this Munki issue <br />
@@ -1502,12 +1431,12 @@ const ManageHostsPage = ({
   };
 
   const renderHostCount = useCallback(() => {
-    const count = filteredHostCount;
+    const count = hostsCount;
 
     return (
       <div
         className={`${baseClass}__count ${
-          isHostCountLoading ? "count-loading" : ""
+          isLoadingHostsCount ? "count-loading" : ""
         }`}
       >
         {count !== undefined && (
@@ -1526,7 +1455,7 @@ const ManageHostsPage = ({
         )}
       </div>
     );
-  }, [isHostCountLoading, filteredHostCount]);
+  }, [isLoadingHostsCount, hostsCount]);
 
   const renderActiveFilterBlock = () => {
     const showSelectedLabel = selectedLabel && selectedLabel.type !== "all";
@@ -1626,22 +1555,16 @@ const ManageHostsPage = ({
   };
 
   const renderTable = () => {
-    if (!config || !currentUser || !teamSync) {
+    if (!config || !currentUser) {
       return <Spinner />;
     }
 
-    if (hasHostErrors || hasHostCountErrors) {
+    if (hasErrors) {
       return <TableDataError />;
     }
 
     // There are no hosts for this instance yet
-    if (
-      filteredHostCount === 0 &&
-      searchQuery === "" &&
-      teamSync &&
-      !labelID &&
-      !status
-    ) {
+    if (hostsCount === 0 && searchQuery === "" && !labelID && !status) {
       const {
         software_id,
         policy_id,
@@ -1734,8 +1657,8 @@ const ManageHostsPage = ({
     return (
       <TableContainer
         columns={tableColumns}
-        data={hosts || []}
-        isLoading={isHostsLoading || isHostCountLoading || isLoadingPolicy}
+        data={hostsData?.hosts || []}
+        isLoading={isLoadingHosts || isLoadingHostsCount || isLoadingPolicy}
         manualSortBy
         defaultSortHeader={(sortBy[0] && sortBy[0].key) || DEFAULT_SORT_HEADER}
         defaultSortDirection={
@@ -1778,12 +1701,15 @@ const ManageHostsPage = ({
   const renderNoEnrollSecretBanner = () => {
     const noTeamEnrollSecrets =
       currentTeam &&
-      !!currentTeam?.id &&
+      currentTeam?.id > NO_TEAM_ID &&
       !isTeamSecretsLoading &&
       !teamSecrets?.length;
     const noGlobalEnrollSecrets =
       (!isPremiumTier ||
-        (isPremiumTier && !currentTeam?.id && !isLoadingTeams)) &&
+        (isPremiumTier &&
+          (currentTeam?.id === NO_TEAM_ID ||
+            currentTeam?.id === ALL_TEAMS_ID) &&
+          !isLoadingTeams)) &&
       !isGlobalSecretsLoading &&
       !globalSecrets?.length;
 
@@ -1813,10 +1739,6 @@ const ManageHostsPage = ({
     );
   };
 
-  if (!teamSync) {
-    return <Spinner />;
-  }
-
   return (
     <>
       <MainContent>
@@ -1824,26 +1746,21 @@ const ManageHostsPage = ({
           <div className="header-wrap">
             {renderHeader()}
             <div className={`${baseClass} button-wrap`}>
-              {!isSandboxMode &&
-                canEnrollHosts &&
-                !hasHostErrors &&
-                !hasHostCountErrors && (
-                  <Button
-                    onClick={() => setShowEnrollSecretModal(true)}
-                    className={`${baseClass}__enroll-hosts button`}
-                    variant="inverse"
-                  >
-                    <span>Manage enroll secret</span>
-                  </Button>
-                )}
+              {!isSandboxMode && canEnrollHosts && !hasErrors && (
+                <Button
+                  onClick={() => setShowEnrollSecretModal(true)}
+                  className={`${baseClass}__enroll-hosts button`}
+                  variant="inverse"
+                >
+                  <span>Manage enroll secret</span>
+                </Button>
+              )}
               {canEnrollHosts &&
-                !hasHostErrors &&
-                !hasHostCountErrors &&
+                !hasErrors &&
                 !(
                   !status &&
-                  filteredHostCount === 0 &&
+                  hostsCount === 0 &&
                   searchQuery === "" &&
-                  teamSync &&
                   !labelID
                 ) && (
                   <Button

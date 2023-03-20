@@ -60,7 +60,7 @@ const RegistrationPage = ({ router }: IRegistrationPageProps) => {
 
       const { user, available_teams } = await usersAPI.me();
       setCurrentUser(user);
-      setAvailableTeams(available_teams);
+      setAvailableTeams(user, available_teams);
       return router.push(MANAGE_HOSTS);
     } catch (error) {
       setPage(1);

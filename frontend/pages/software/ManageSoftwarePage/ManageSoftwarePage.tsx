@@ -23,7 +23,7 @@ import {
   IIntegrations,
 } from "interfaces/integration";
 import { ISoftwareResponse, ISoftwareCountResponse } from "interfaces/software";
-import { ITeamConfig } from "interfaces/team";
+import { ALL_TEAMS_ID, ITeamConfig, NO_TEAM_ID } from "interfaces/team";
 import { IWebhookSoftwareVulnerabilities } from "interfaces/webhook"; // @ts-ignore
 import configAPI from "services/entities/config";
 import softwareAPI from "services/entities/software";
@@ -101,6 +101,14 @@ const DEFAULT_PAGE_SIZE = 20;
 
 const baseClass = "manage-software-page";
 
+const canManageAutomations = (
+  isGlobalAdmin?: boolean,
+  isPremiumTier?: boolean,
+  teamId?: number
+) => {
+  return !!isGlobalAdmin && (!isPremiumTier || teamId === ALL_TEAMS_ID);
+};
+
 const ManageSoftwarePage = ({
   router,
   location,
@@ -151,7 +159,12 @@ const ManageSoftwarePage = ({
     IConfig | ITeamConfig,
     ISoftwareConfigQueryKey[]
   >(
-    [{ scope: "softwareConfig", teamId: currentTeam?.id }],
+    [
+      {
+        scope: "softwareConfig",
+        teamId: currentTeam?.id === -1 ? undefined : currentTeam?.id,
+      },
+    ],
     ({ queryKey }) => {
       const { teamId } = queryKey[0];
       return teamId ? teamsAPI.load(teamId) : configAPI.loadAll();
@@ -219,7 +232,7 @@ const ManageSoftwarePage = ({
           isPremiumTier && sortHeader === "vulnerabilities"
             ? "epss_probability"
             : sortHeader,
-        teamId: currentTeam?.id,
+        teamId: currentTeam?.id === -1 ? undefined : currentTeam?.id,
         vulnerable: !!location.query.vulnerable,
       },
     ],
@@ -249,12 +262,10 @@ const ManageSoftwarePage = ({
         scope: "softwareCount",
         query: searchQuery,
         vulnerable: !!location.query.vulnerable,
-        teamId: currentTeam?.id,
+        teamId: currentTeam?.id === -1 ? undefined : currentTeam?.id,
       },
     ],
-    ({ queryKey }) => {
-      return softwareAPI.count(queryKey[0]);
-    },
+    ({ queryKey }) => softwareAPI.count(queryKey[0]),
     {
       enabled:
         isSoftwareConfigLoaded &&
@@ -339,9 +350,12 @@ const ManageSoftwarePage = ({
         isGlobalAdmin,
         isPremiumTier: isPremium,
       } = state;
-      const canManageAutomations =
-        isGlobalAdmin && (!isPremium || teamId === 0);
-      if (canManageAutomations && !softwareError && !isLoading) {
+      const hasPermissions = canManageAutomations(
+        isGlobalAdmin,
+        isPremium,
+        teamId
+      );
+      if (hasPermissions && !softwareError && !isLoading) {
         return (
           <Button
             onClick={toggleManageAutomationsModal}
@@ -363,11 +377,11 @@ const ManageSoftwarePage = ({
       <p>
         Search for installed software{" "}
         {(state.isGlobalAdmin || state.isGlobalMaintainer) &&
-          (!state.isPremiumTier || state.teamId === 0) &&
+          (!state.isPremiumTier || state.teamId === ALL_TEAMS_ID) &&
           "and manage automations for detected vulnerabilities (CVEs)"}{" "}
         on{" "}
         <b>
-          {state.isPremiumTier && !!state.teamId
+          {state.isPremiumTier && !!state.teamId && state.teamId > NO_TEAM_ID
             ? "all hosts assigned to this team"
             : "all of your hosts"}
         </b>
