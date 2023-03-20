@@ -23,7 +23,7 @@ const FileUploader = ({
     <div className={baseClass}>
       <Icon name={icon} />
       <p>{message}</p>
-      <Button isLoading={isLoading}>
+      <Button variant="brand" isLoading={isLoading}>
         <label htmlFor="upload-profile">Upload</label>
       </Button>
       <input

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
@@ -300,6 +301,17 @@ type HostMDMAppleProfile struct {
 	Status        *MDMAppleDeliveryStatus `db:"status" json:"status"`
 	OperationType MDMAppleOperationType   `db:"operation_type" json:"operation_type"`
 	Detail        string                  `db:"detail" json:"detail"`
+}
+
+func (p HostMDMAppleProfile) IgnoreMDMClientError() bool {
+	switch p.OperationType {
+	case MDMAppleOperationTypeRemove:
+		switch {
+		case strings.Contains(p.Detail, "MDMClientError (89)"):
+			return true
+		}
+	}
+	return false
 }
 
 type MDMAppleProfilePayload struct {
