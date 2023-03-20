@@ -16,7 +16,7 @@ describe("Integrations Page", () => {
     render(<IntegrationsPage params={{ section: "mdm" }} />);
 
     expect(
-      screen.getByText("Mobile Device Management (MDM)")
+      screen.getByText("Mobile device management (MDM)")
     ).toBeInTheDocument();
   });
 });

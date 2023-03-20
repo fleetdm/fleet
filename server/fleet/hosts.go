@@ -220,6 +220,10 @@ type Host struct {
 	// omitted if we don't have encryption information yet.
 	DiskEncryptionEnabled *bool `json:"disk_encryption_enabled,omitempty" db:"disk_encryption_enabled" csv:"-"`
 
+	// DiskEncryptionResetRequested is only fetched when loading a host by
+	// orbit_node_key, and so it's not used in the UI.
+	DiskEncryptionResetRequested *bool `json:"disk_encryption_reset_requested,omitempty" db:"disk_encryption_reset_requested" csv:"-"`
+
 	HostIssues `json:"issues,omitempty" csv:"-"`
 
 	// DeviceMapping is in fact included in the CSV export, but it is not directly

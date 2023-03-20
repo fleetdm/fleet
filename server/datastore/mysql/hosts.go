@@ -1461,7 +1461,8 @@ func (ds *Datastore) LoadHostByOrbitNodeKey(ctx context.Context, nodeKey string)
       hm.installed_from_dep,
       hm.mdm_id,
       COALESCE(hm.is_server, false) AS is_server,
-      COALESCE(mdms.name, ?) AS name
+      COALESCE(mdms.name, ?) AS name,
+      COALESCE(hdek.reset_requested, false) AS disk_encryption_reset_requested
     FROM
       hosts h
     LEFT OUTER JOIN
@@ -1472,6 +1473,10 @@ func (ds *Datastore) LoadHostByOrbitNodeKey(ctx context.Context, nodeKey string)
       mobile_device_management_solutions mdms
     ON
       hm.mdm_id = mdms.id
+    LEFT OUTER JOIN
+      host_disk_encryption_keys hdek
+    ON
+      hdek.host_id = h.id
     WHERE
       h.orbit_node_key = ?`
 
@@ -3619,6 +3624,21 @@ func (ds *Datastore) ListHostBatteries(ctx context.Context, hid uint) ([]*fleet.
 		return nil, ctxerr.Wrap(ctx, err, "select host batteries")
 	}
 	return batteries, nil
+}
+
+func (ds *Datastore) SetDiskEncryptionResetStatus(ctx context.Context, hostID uint, status bool) error {
+	const stmt = `
+          INSERT INTO host_disk_encryption_keys (host_id, reset_requested, base64_encrypted)
+            VALUES (?, ?, '')
+          ON DUPLICATE KEY UPDATE
+            reset_requested = VALUES(reset_requested)`
+
+	_, err := ds.writer.ExecContext(ctx, stmt, hostID, status)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "upsert disk encryption reset status")
+	}
+	return nil
+
 }
 
 // countHostNotResponding counts the hosts that haven't been submitting results for sent queries.
