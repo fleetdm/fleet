@@ -817,6 +817,9 @@ type Datastore interface {
 	// and the status is "applied" (i.e. successfully removed).
 	UpdateOrDeleteHostMDMAppleProfile(ctx context.Context, profile *HostMDMAppleProfile) error
 
+	// DeleteMDMAppleProfilesForHost deletes all MDM profiles for a host
+	DeleteMDMAppleProfilesForHost(ctx context.Context, hostUUID string) error
+
 	// GetMDMAppleCommandRequest type returns the request type for the given command
 	GetMDMAppleCommandRequestType(ctx context.Context, commandUUID string) (string, error)
 

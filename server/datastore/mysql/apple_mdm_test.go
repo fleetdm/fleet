@@ -37,6 +37,7 @@ func TestMDMAppleConfigProfile(t *testing.T) {
 		{"TestMDMAppleHostsProfilesStatus", testMDMAppleHostsProfilesStatus},
 		{"TestMDMAppleInsertIdPAccount", testMDMAppleInsertIdPAccount},
 		{"TestIgnoreMDMClientError", testIgnoreMDMClientError},
+		{"TestDeleteMDMAppleProfilesForHost", testDeleteMDMAppleProfilesForHost},
 	}
 
 	for _, c := range cases {
@@ -1576,4 +1577,39 @@ func testIgnoreMDMClientError(t *testing.T, ds *Datastore) {
 	require.NotNil(t, cps[0].Status)
 	require.Equal(t, fleet.MDMAppleDeliveryFailed, *cps[0].Status)
 	require.Equal(t, "MDMClientError (96): Cannot replace profile 'p2' because it was not installed by the MDM server.", cps[0].Detail)
+}
+
+func testDeleteMDMAppleProfilesForHost(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	h, err := ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   ptr.String("host0-osquery-id"),
+		NodeKey:         ptr.String("host0-node-key"),
+		UUID:            "host0-test-mdm-profiles",
+		Hostname:        "hostname0",
+	})
+	require.NoError(t, err)
+
+	require.NoError(t, ds.BulkUpsertMDMAppleHostProfiles(ctx, []*fleet.MDMAppleBulkUpsertHostProfilePayload{{
+		ProfileID:         uint(1),
+		ProfileIdentifier: "p1",
+		ProfileName:       "name1",
+		HostUUID:          h.UUID,
+		CommandUUID:       "c1",
+		OperationType:     fleet.MDMAppleOperationTypeRemove,
+		Status:            &fleet.MDMAppleDeliveryPending,
+	}}))
+
+	gotProfs, err := ds.GetHostMDMProfiles(ctx, h.UUID)
+	require.NoError(t, err)
+	require.Len(t, gotProfs, 1)
+
+	err = ds.DeleteMDMAppleProfilesForHost(ctx, h.UUID)
+	require.NoError(t, err)
+	gotProfs, err = ds.GetHostMDMProfiles(ctx, h.UUID)
+	require.NoError(t, err)
+	require.Nil(t, gotProfs)
 }
