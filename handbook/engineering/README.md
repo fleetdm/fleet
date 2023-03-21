@@ -281,7 +281,7 @@ Distinguish between the root-cause of the bug, which by that time was solved and
 
 ### Postmortem Action Items
 
-Each action item will have an owner that will be responsible for creating a github issue promptly after the meeting. This github issue should be prioritized with the relevant PM and/or engineering manager.
+Each action item will have an owner that will be responsible for creating a Github issue promptly after the meeting. This Github issue should be prioritized with the relevant PM and/or engineering manager.
 
 ## Outages
 
