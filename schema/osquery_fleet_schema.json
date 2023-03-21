@@ -27201,6 +27201,25 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/authdb.yml"
   },
   {
+    "name": "software_update",
+    "platforms": [
+      "darwin"
+    ],
+    "description": "returns details about apple software update availability and status.",
+    "columns": [
+      {
+        "name": "new_software_available",
+        "type": "text",
+        "required": false,
+        "description": "Answers whether there is an automatic update available for any of the Apple softwares installed.\n"
+      }
+    ],
+    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
+    "evented": false,
+    "url": "https://fleetdm.com/tables/authdb",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/authdb.yml"
+  },
+  {
     "name": "csrutil_info",
     "platforms": [
       "darwin"
