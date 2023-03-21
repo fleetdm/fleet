@@ -2379,7 +2379,10 @@ If set, then `Fleet serve` will capture errors and panics and push them to Sentr
 ##### basic_auth.username
 
 This is the username to use for HTTP Basic Auth on the `/metrics` endpoint.
-If not set, then the Prometheus `/metrics` endpoint is disabled.
+
+If `basic_auth.username` is not set, then:
+  - If `basic_auth.disable` is not set then the Prometheus `/metrics` endpoint is disabled.
+  - If `basic_auth.disable` is set then the Prometheus `/metrics` endpoint is enabled but without HTTP Basic Auth.
 
 - Default value: `""`
 - Environment variable: `FLEET_PROMETHEUS_BASIC_AUTH_USERNAME`
@@ -2393,7 +2396,10 @@ If not set, then the Prometheus `/metrics` endpoint is disabled.
 ##### basic_auth.password
 
 This is the password to use for HTTP Basic Auth on the `/metrics` endpoint.
-If not set, then the Prometheus `/metrics` endpoint is disabled.
+
+If `basic_auth.password` is not set, then:
+  - If `basic_auth.disable` is not set then the Prometheus `/metrics` endpoint is disabled.
+  - If `basic_auth.disable` is set then the Prometheus `/metrics` endpoint is enabled but without HTTP Basic Auth.
 
 - Default value: `""`
 - Environment variable: `FLEET_PROMETHEUS_BASIC_AUTH_PASSWORD`
@@ -2402,6 +2408,21 @@ If not set, then the Prometheus `/metrics` endpoint is disabled.
   prometheus:
     basic_auth:
       password: "bar"
+  ```
+
+##### basic_auth.disable
+
+This allows running the Prometheus endpoint `/metrics` without HTTP Basic Auth.
+
+If both `basic_auth.username` and `basic_auth.password` are set, then this setting is ignored.
+
+- Default value: false
+- Environment variable: `FLEET_PROMETHEUS_BASIC_AUTH_DISABLE`
+- Config file format:
+  ```yaml
+  prometheus:
+    basic_auth:
+      disable: true
   ```
 
 #### Packaging

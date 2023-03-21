@@ -358,6 +358,8 @@ type HTTPBasicAuthConfig struct {
 	Username string `json:"username" yaml:"username"`
 	// Password is the HTTP Basic Auth password.
 	Password string `json:"password" yaml:"password"`
+	// Disable allows running the Prometheus metrics endpoint without Basic Auth.
+	Disable bool `json:"disable" yaml:"disable"`
 }
 
 // PackagingConfig holds configuration to build and retrieve Fleet packages
@@ -1006,6 +1008,7 @@ func (man Manager) addConfigs() {
 	// Prometheus
 	man.addConfigString("prometheus.basic_auth.username", "", "Prometheus username for HTTP Basic Auth")
 	man.addConfigString("prometheus.basic_auth.password", "", "Prometheus password for HTTP Basic Auth")
+	man.addConfigBool("prometheus.basic_auth.disable", false, "Disable HTTP Basic Auth for Prometheus")
 
 	// Packaging config
 	man.addConfigString("packaging.global_enroll_secret", "", "Enroll secret to be used for the global domain (instead of randomly generating one)")
@@ -1283,6 +1286,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			BasicAuth: HTTPBasicAuthConfig{
 				Username: man.getConfigString("prometheus.basic_auth.username"),
 				Password: man.getConfigString("prometheus.basic_auth.password"),
+				Disable:  man.getConfigBool("prometheus.basic_auth.disable"),
 			},
 		},
 		Packaging: PackagingConfig{
