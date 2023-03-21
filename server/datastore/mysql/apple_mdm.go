@@ -1320,7 +1320,7 @@ SELECT
 					1 FROM host_mdm_apple_profiles hmap
 				WHERE
 					h.uuid = hmap.host_uuid
-					AND (hmap.status != 'applied')) THEN
+					AND (hmap.status IS NULL OR hmap.status != 'applied')) THEN
 			1
 		END) AS applied
 FROM
@@ -1329,6 +1329,11 @@ WHERE
 	%s`
 	// TODO(mna): what if there's no row in host_mdm_apple_profiles? Should it report as "applied"?
 	// If so I think the "applied" case should only be if NOT EXISTS a case with status != "applied".
+	// Not changing it until confirmed because there's a test (TestIntegrationsMDM/TestProfileManagement)
+	// that's failing with that change, so it seems it is behaving as intended as it is (i.e. the host
+	// must have at least one profile to be reported as applied/pending/failed, which makes sense too,
+	// it's just that if it had one and it got removed, once successfully removed that host would
+	// not show up anymore in those stats).
 
 	teamFilter := "h.team_id IS NULL"
 	if teamID != nil && *teamID > 0 {

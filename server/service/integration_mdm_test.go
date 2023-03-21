@@ -70,6 +70,7 @@ type integrationMDMTestSuite struct {
 	fleetCfg             config.FleetConfig
 	fleetDMNextCSRStatus atomic.Value
 	pushProvider         *mock.APNSPushProvider
+	mdmCommander         *MDMAppleCommander
 	depStorage           nanodep_storage.AllStorage
 	depSchedule          *schedule.Schedule
 	profileSchedule      *schedule.Schedule
@@ -1829,7 +1830,13 @@ func (s *integrationMDMTestSuite) TestDiskEncryptionRotation() {
 	resp = orbitGetConfigResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *h.OrbitNodeKey)), http.StatusOK, &resp)
 	require.False(t, resp.Notifications.RotateDiskEncryptionKey)
+}
 
+func (s *integrationMDMTestSuite) TestHostMDMProfilesStatus() {
+	t := s.T()
+	ctx := context.Background()
+	_ = ctx
+	t.Skip("unimplemented")
 }
 
 func (s *integrationMDMTestSuite) assertConfigProfilesByIdentifier(teamID *uint, profileIdent string, exists bool) (profile *fleet.MDMAppleConfigProfile) {

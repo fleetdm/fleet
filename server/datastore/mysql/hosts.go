@@ -878,7 +878,9 @@ func filterHostsByMacOSSettingsStatus(sql string, opt fleet.HostListOptions, par
 		newParams = append(newParams, fleet.MDMAppleDeliveryPending, fleet.MDMAppleDeliveryFailed)
 
 	case fleet.MacOSSettingsStatusLatest:
-		newSQL += `hmap.status = ? AND NOT EXISTS (SELECT 1 FROM host_mdm_apple_profiles hmap2 WHERE h.uuid = hmap2.host_uuid AND hmap2.status != ? ))`
+		newSQL += `hmap.status = ? AND NOT EXISTS (
+			SELECT 1 FROM host_mdm_apple_profiles hmap2
+			WHERE h.uuid = hmap2.host_uuid AND (hmap2.status IS NULL OR hmap2.status != ?) ))`
 		newParams = append(newParams, fleet.MDMAppleDeliveryApplied, fleet.MDMAppleDeliveryApplied)
 	}
 
