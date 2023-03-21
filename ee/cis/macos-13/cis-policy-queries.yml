@@ -3,7 +3,7 @@
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure All Apple-provided Software Is Current
+  name: CIS - Ensure All Apple-provided Software Is Current (Fleetd Required)
   platforms: macOS
   platform: darwin
   description: |
@@ -13,7 +13,7 @@ spec:
     Graphical Method:
     Perform the following to install all available software updates:
       1. Open System Settings 
-      2. SelectGeneral
+      2. Select General
       3. Select Software Update
       4. Select Update All
   query: SELECT 1 FROM software_update WHERE new_software_available = '0';
