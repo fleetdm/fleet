@@ -341,7 +341,7 @@ Every job description page ends with a "call to action", including a link that c
 When a candidate clicks applies for a job at Fleet, they are taken to a generic Typeform.  When they submit their job application, the Typeform triggers a Zapier automation that will posts the submission to `g-business-operations` in Slack.  The candidate's job application answers are then forwarded to the applicable `#hiring-xxxxx-202x` Slack channel and the hiring manager is @mentioned.
 
 ##### Candidate correspondence email templates
-Fleet uses [certain email templates](https://docs.google.com/document/d/1E_gTunZBMNF4AhsOFuDVi9EnvsIGbAYrmmEzdGmnc9U) when responding to candidates.  This helps the company meet our commitment of replying to all applications within one business day.
+Fleet uses [certain email templates](https://docs.google.com/document/d/1E_gTunZBMNF4AhsOFuDVi9EnvsIGbAYrmmEzdGmnc9U) when responding to candidates as part of the recruiting, interviewing, and hiring processes.  These templates help us live our value of [🔴 empathy](https://fleetdm.com/handbook/company#empathy) and meet the company's aspiration to reply to all job applications within one business day.
 
 #### Hiring restrictions
 
@@ -371,7 +371,7 @@ Here are the steps hiring managers can follow to get an offer out to a candidate
      - Schedule the meeting directly on the CEO's calendar during a time he and the candidate are both explicitly available according to that calendar.  Available means whitespace.
      - Either use Google Calendar directly, or offer to use the CEO's 30m Calendly link.  _It is up to you, the hiring manager, to get this meeting scheduled and showing up at a time on the CEO's calendar._
    - _If this is an engineering position_, before scheduling the CEO interview, please also be sure that the candidate has already been interviewed by the CTO.  If not, include the CTO in this interview.
-   - The candidate's email address involved in this calendar event with the CEO is also where they will receive their offer or rejection email from the CEO.
+   - The candidate's email address involved in this calendar event with the CEO is also where they will receive their offer or rejection email.
 2. **Add to team database:** Update the [Fleeties](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) doc to accurately reflect:
    - start date _(No need to check with the candidate if you haven't already.  Just guess.)_
    - candidate's first and last name
@@ -385,9 +385,14 @@ After meeting with the candidate for their final interview, the CEO uses the fol
 1. **Review decision:** The CEO reviews the data and decides whether it still makes sense to make this offer to this person in this role.  If not, he lets the manager know.  Otherwise, he continues with the offer.
 2. **Adjust compensation:** [Re-benchmark salary](https://www.pave.com), adjusting for cost of living where the candidate will do the work.
    - _Paste a screenshot_ of Pave showing the adjusted benchmark under the [heading for this position in " 💌 Compensation decisions"](https://docs.google.com/document/d/1NQ-IjcOTbyFluCWqsFLMfP4SvnopoXDcX0civ-STS5c/edit)
-   - _Update the [equity plan](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit#gid=0)_ with the actual adjusted salary and equity offer that is about to be sent.  
+   - _Update the [equity plan](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit#gid=0)_ with the actual adjusted salary and equity offer that is about to be sent.
+     -  Salary _(OTE actually offered)_
+     -  Equity _(stock options actually offered)_
+     -  "Notes" _(include base salary versus commission or bonus plan, if relevant)_
+     -  "Offer sent?" _(set this to `TRUE`)_
 3. **Prepare the "exit scenarios" spreadsheet:** [Copy the "Exit scenarios (template)"](https://docs.google.com/spreadsheets/d/1k2TzsFYR0QxlD-KGPxuhuvvlJMrCvLPo2z8s8oGChT0/copy) for the candidate, and rename the copy to e.g. "Exit scenarios for Jane Doe".
    - _Edit the candidate's copy of the exit scenarios spreadsheet_ to include the number of shares they will be offered, and the spreadsheet will update automatically to reflect their approximate ownership percentage.
+   - _Share the candidate's copy_ of the spreadsheet with their personal email, granting **"Edit"** access.
    > _**Note:** Don't play with numbers in the exit scenarios spreadsheet. The revision history is visible to the candidate, and they might misunderstand._
 4. **Prepare offer email:** [Copy "Offer email (template)"](https://docs.google.com/document/d/1zpNN2LWzAj-dVBC8iOg9jLurNlSe7XWKU69j7ntWtbY/copy) and rename to e.g. "Offer email for Jane Doe".  Edit the candidate's copy of the offer email template doc and fill in the missing information:
    - _Benefits:_ If candidate will work outside the US, [change the "Benefits" bullet](https://docs.google.com/document/d/1zpNN2LWzAj-dVBC8iOg9jLurNlSe7XWKU69j7ntWtbY/edit) to reflect what will be included through Fleet's international payroll provider, depending on the candidate's location.
@@ -398,20 +403,29 @@ After meeting with the candidate for their final interview, the CEO uses the fol
    - Cc: Zach Wasserman is included as a recipient, but will not participate in the email thread until after the offer is accepted.
    - Subject: "Full time?"
    - Body: _(The offer email is copied verbatim from Google Drive into Gmail as the body of the message, formatting and all.)_
-   - Sending: _(When sending the offer, Gmail will automatically offer to change the permissions of the exit scenarios sheet so it is accessible to the candidate.  Choose to grant the candidate **"Edit"** access.)_
-6. **Archive Slack channel:** Post to the `hiring-xxxxx` Slack channel to let folks know the offer was sent.  Then archive and close the channel.  (It can always be reopened, as needed.)
 
-### Steps after an offer is accepted
+#### Steps after an offer is accepted
 
-Once the new team member replies and accepts their offer in writing:
-1. **Accept:** Either CEO or Zach Wasserman replies to the candidate.  Whoever replies first is responsible for these steps:
+Once the new team member replies and accepts their offer in writing, either the CEO or Zach Wasserman replies to the candidate.  Whoever replies first is responsible for these steps:
+1. **Verify, track, and reply:** Reply to the candidate:
    - _Verify the candidate replied with their physical address… or else keep asking._  If they did not reply with their physical address, or it's not a usable address, then we are not done.  Fleet will reply and ask for it, and no offer should is "accepted" until we've received a physical address.
-   - _Update the team database_ so that the new team member's row in ["🥧 Equity plan"](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit#gid=0) now includes:
+   - _Review and update the team database_ so that the new team member's row in ["🥧 Equity plan"](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit#gid=0) now includes:
      - physical address _(The full street address of the location where work will typically be performed.)_
      - personal email _(Use the personal email they're replying from, e.g. `@gmail.com`")_
+     - "Offer accepted?" _(Set this to `TRUE`)_
+     - salary, equity, and "Notes" _(Check that compensation information is accurate, one last time.)_
    - _[Create a "Hiring" issue](https://github.com/fleetdm/confidential/issues/new/choose)_ for the new team member.  (This is what will inform the Business Operations team to get involved.  The company will use this issue to keep track of the hiring tasks for the new team member.)
-   - _Send a reply_ welcoming the team member to Fleet and letting them know to expect a separate email with next steps for getting the team member's laptop, Yubikeys, and agreement going ASAP so they can start on time.
-2. Business Operations will then follow the steps in the "Hiring" issue, which includes reaching out to the new team member within 1 business day from a separate email thread to get additional information as needed, prepare their agreement, add them to the company's payroll system, and get their new laptop and hardware security keys ordered so that everything is ready for them to start on their first day.
+   - _Send a reply_ welcoming the team member to Fleet and letting them know to expect a separate email with next steps for getting the team member's laptop, Yubikeys, and agreement going ASAP so they can start on time.  For example:
+   >\o/  It's official!
+   >
+   >Be on the lookout for an email in a separate thread with next steps for quickly signing the paperwork and getting your company laptop and hardware 2FA keys (Yubikeys), which we recommend setting up ASAP.
+   >
+   >Thanks, and welcome to the team!
+   >-Mike
+2. **Ask hiring manager to help:** Post to the `hiring-xxxxx-yyyy` Slack channel to let folks know the offer was accepted, and at-mention the _hiring manager_ to ask them to communicate with [all other interviewees](https://fleetdm.com/handbook/company#empathy) who are still in the running and [let them know that we chose a different person](https://fleetdm.com/handbook/business-operations#candidate-correspondence-email-templates).
+3. **Close Slack channel:** Then archive and close the channel.
+
+Now what happens?  Business Operations will then follow the steps in the "Hiring" issue, which includes reaching out to the new team member within 1 business day from a separate email thread to get additional information as needed, prepare their agreement, add them to the company's payroll system, and get their new laptop and hardware security keys ordered so that everything is ready for them to start on their first day.
 
 > **_Note:_** _Some Fleet team members are contractors and others are employees.  The distinction between "contractor" and "employee" varies in different geographies, and the appropriate contract for any given team member and the place where they work is determined during the hiring process._
 
