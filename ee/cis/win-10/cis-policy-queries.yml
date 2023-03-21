@@ -4651,6 +4651,191 @@ apiVersion: v1
 kind: policy
 spec:
   name: >
+    CIS - Ensure 'Download Mode' is NOT set to 'Enabled: Internet'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting specifies the download method that Delivery Optimization can use in downloads of Windows Updates, Apps and App updates. The following methods are supported:
+    0 = HTTP only, no peering.
+    1 = HTTP blended with peering behind the same NAT.
+    2 = HTTP blended with peering across a private group. Peering occurs on devices in the same Active Directory Site (if exist) or the same domain by default. When this option is selected, peering will cross NATs. To create a custom group use Group ID in combination with Mode 2.
+    3 = HTTP blended with Internet Peering.
+    99 = Simple download mode with no peering. Delivery Optimization downloads using HTTP only and does not attempt to contact the Delivery Optimization cloud services.
+    100 = Bypass mode. Do not use Delivery Optimization and use BITS instead.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to any value other than Enabled: Internet (3):
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Delivery Optimization\Download Mode'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template DeliveryOptimization.admx/adml that is included with the Microsoft Windows 10 RTM (Release 1507) Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\DeliveryOptimization\DODownloadMode' AND data = 3);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.18.1
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Application: Control Event Log behavior when the log file reaches its maximum size' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting controls Event Log behavior when the log file reaches its maximum size.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Disabled:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Event Log Service\Application\Control Event Log behavior when the log file reaches its maximum size'
+    Note: This Group Policy path is provided by the Group Policy template EventLog.admx/adml that is included with all versions of the Microsoft Windows Administrative Templates.
+    Note #2: In older Microsoft Windows Administrative Templates, this setting was initially named Retain old events, but it was renamed starting with the Windows 8.0 & Server 2012 (non-R2) Administrative Templates.
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\Policies\\Microsoft\\Windows\\EventLog\\Application\Retention' AND data = 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.27.1.1
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Application: Specify the maximum log file size (KB)' is set to 'Enabled: 32,768 or greater'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting specifies the maximum size of the log file in kilobytes. The maximum log file size can be configured between 1 megabyte (1,024 kilobytes) and 4 terabytes (4,194,240 kilobytes) in kilobyte increments.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled: 32,768 or greater:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Event Log Service\Application\Specify the maximum log file size (KB)'
+    Note: This Group Policy path is provided by the Group Policy template EventLog.admx/adml that is included with all versions of the Microsoft Windows Administrative Templates.
+    Note #2: In older Microsoft Windows Administrative Templates, this setting was initially named Maximum Log Size (KB), but it was renamed starting with the Windows 8.0 & Server 2012 (non-R2) Administrative Templates.
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\EventLog\\Application\\MaxSize' AND data >= 32768 );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.27.1.2
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Security: Control Event Log behavior when the log file reaches its maximum size' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting controls Event Log behavior when the log file reaches its maximum size.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Disabled:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Event Log Service\Security\Control Event Log behavior when the log file reaches its maximum size'
+    Note: This Group Policy path is provided by the Group Policy template EventLog.admx/adml that is included with all versions of the Microsoft Windows Administrative Templates.
+    Note #2: In older Microsoft Windows Administrative Templates, this setting was initially named Retain old events, but it was renamed starting with the Windows 8.0 & Server 2012 (non-R2) Administrative Templates.
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\EventLog\\Security\Retention' AND data = 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.27.2.1
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Security: Specify the maximum log file size (KB)' is set to 'Enabled: 196,608 or greater'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting specifies the maximum size of the log file in kilobytes. The maximum log file size can be configured between 1 megabyte (1,024 kilobytes) and 4 terabytes (4,194,240 kilobytes) in kilobyte increments.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled: 196,608 or greater:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Event Log Service\Security\Specify the maximum log file size (KB)'
+    Note: This Group Policy path is provided by the Group Policy template EventLog.admx/adml that is included with all versions of the Microsoft Windows Administrative Templates.
+    Note #2: In older Microsoft Windows Administrative Templates, this setting was initially named Maximum Log Size (KB), but it was renamed starting with the Windows 8.0 & Server 2012 (non-R2) Administrative Templates.
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\EventLog\\Security\MaxSize' AND data >= 196608 );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.27.2.2
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Setup: Control Event Log behavior when the log file reaches its maximum size' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting controls Event Log behavior when the log file reaches its maximum size.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Disabled:
+    Computer Configuration\Policies\Administrative Templates\Windows Components\Event Log Service\Setup\Control Event Log behavior when the log file reaches its maximum size
+    Note: This Group Policy path is provided by the Group Policy template EventLog.admx/adml that is included with all versions of the Microsoft Windows Administrative Templates.
+    Note #2: In older Microsoft Windows Administrative Templates, this setting was initially named Retain old events, but it was renamed starting with the Windows 8.0 & Server 2012 (non-R2) Administrative Templates.
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\EventLog\\Setup\Retention' AND data = 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.27.3.1
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Setup: Specify the maximum log file size (KB)' is set to 'Enabled: 32,768 or greater'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting specifies the maximum size of the log file in kilobytes. The maximum log file size can be configured between 1 megabyte (1,024 kilobytes) and 4 terabytes (4,194,240 kilobytes) in kilobyte increments.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled: 32,768 or greater:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Event Log Service\Setup\Specify the maximum log file size (KB)'
+    Note: This Group Policy path is provided by the Group Policy template EventLog.admx/adml that is included with all versions of the Microsoft Windows Administrative Templates.
+    Note #2: In older Microsoft Windows Administrative Templates, this setting was initially named Maximum Log Size (KB), but it was renamed starting with the Windows 8.0 & Server 2012 (non-R2) Administrative Templates.
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\EventLog\\Setup\MaxSize' AND data >= 32768);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.27.3.2
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'System: Control Event Log behavior when the log file reaches its maximum size' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting controls Event Log behavior when the log file reaches its maximum size.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Disabled:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Event Log Service\System\Control Event Log behavior when the log file reaches its maximum size'
+    Note: This Group Policy path is provided by the Group Policy template EventLog.admx/adml that is included with all versions of the Microsoft Windows Administrative Templates.
+    Note #2: In older Microsoft Windows Administrative Templates, this setting was initially named Maximum Log Size (KB), but it was renamed starting with the Windows 8.0 & Server 2012 (non-R2) Administrative Templates.
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\EventLog\\System\Retention' AND data = 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.27.4.1
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'System: Specify the maximum log file size (KB)' is set to 'Enabled: 32,768 or greater'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting specifies the maximum size of the log file in kilobytes. The maximum log file size can be configured between 1 megabyte (1,024 kilobytes) and 4 terabytes (4,194,240 kilobytes) in kilobyte increments.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled: 32,768 or greater:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Event Log Service\System\Specify the maximum log file size (KB)'
+    Note: This Group Policy path is provided by the Group Policy template EventLog.admx/adml that is included with all versions of the Microsoft Windows Administrative Templates.
+    Note #2: In older Microsoft Windows Administrative Templates, this setting was initially named Maximum Log Size (KB), but it was renamed starting with the Windows 8.0 & Server 2012 (non-R2) Administrative Templates.
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\EventLog\\System\MaxSize' AND data >= 32768 );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.27.4.2
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
     CIS - Ensure 'Turn off Data Execution Prevention for Explorer' is set to 'Disabled'
   platforms: win10
   platform: windows

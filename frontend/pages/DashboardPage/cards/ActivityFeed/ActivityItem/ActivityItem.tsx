@@ -232,8 +232,8 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         {" "}
-        viewed the disk encryption key for {activity.details?.host_display_name}
-        .
+        viewed the disk encryption key for{" "}
+        <b>{activity.details?.host_display_name}</b>.
       </>
     );
   },
