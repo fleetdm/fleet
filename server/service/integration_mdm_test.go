@@ -70,7 +70,6 @@ type integrationMDMTestSuite struct {
 	fleetCfg             config.FleetConfig
 	fleetDMNextCSRStatus atomic.Value
 	pushProvider         *mock.APNSPushProvider
-	mdmCommander         *MDMAppleCommander
 	depStorage           nanodep_storage.AllStorage
 	depSchedule          *schedule.Schedule
 	profileSchedule      *schedule.Schedule
