@@ -1876,7 +1876,7 @@ If `after` is being used with `created_at` or `updated_at`, the table must be sp
 }
 ```
 
-> Note: the response above assumes a [GeoIP database is configured](https://fleetdm.com/docs/deploying/configuration#geo-ip), otherwise the `geolocation` object won't be included.
+> Note: the response above assumes a [GeoIP database is configured](https://fleetdm.com/docs/deploying/configuration#geoip), otherwise the `geolocation` object won't be included.
 
 Response payload with the `mdm_id` filter provided:
 
@@ -2270,7 +2270,7 @@ Returns the information of the specified host.
 }
 ```
 
-> Note: the response above assumes a [GeoIP database is configured](https://fleetdm.com/docs/deploying/configuration#geo-ip), otherwise the `geolocation` object won't be included.
+> Note: the response above assumes a [GeoIP database is configured](https://fleetdm.com/docs/deploying/configuration#geoip), otherwise the `geolocation` object won't be included.
 
 ### Get host by identifier
 
@@ -2463,7 +2463,7 @@ Returns the information of the host specified using the `uuid`, `osquery_host_id
 }
 ```
 
-> Note: the response above assumes a [GeoIP database is configured](https://fleetdm.com/docs/deploying/configuration#geo-ip), otherwise the `geolocation` object won't be included.
+> Note: the response above assumes a [GeoIP database is configured](https://fleetdm.com/docs/deploying/configuration#geoip), otherwise the `geolocation` object won't be included.
 
 ### Delete host
 
