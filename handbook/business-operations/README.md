@@ -129,7 +129,7 @@ The [CEO handbook](./ceo-handbook.md) details processes specific to Mike McNeil,
 
 Fleet is open source and anyone can contribute at any time.  Before a core team member's start date, they are welcome to contribute, but not expected to.
 
-### Recommendations for new teammates
+#### Recommendations for new teammates
 Welcome to Fleet!
 
 1. Understand the company
@@ -138,6 +138,21 @@ Welcome to Fleet!
 4. Immerse yourself in the world of device management and cybersecurity.
 
 > Please see Fleet's ["🥽 Recommendations for new teammates"](https://docs.google.com/document/d/1xcnqKB9HHPd94POnZ_7LATiy_VjO2kJdbYx0SAgKVao/edit#).
+
+#### Role-specific licenses
+Certain new team members, especially in go-to-market (GTM) roles, will need paid access to paid tools like Salesforce and LinkedIn Sales Navigator immediately on their first day with the company.  The table below can be used to determine which paid licenses they will need, based on their role:
+
+| Role                 | Salesforce CRM | Salesforce "Inbox" | LinkedIn _(paid)_ | Gong _(paid)_ | Zoom _(paid)_ |
+|:-----------------|:--|:---|:---|:---|:--|
+| 🐋 AE            | ✅ | ✅ | ✅ | ✅ | ✅
+| 🐋 CSM           | ✅ | ✅ | ❌ | ✅ | ✅
+| 🐋 SA            | ✅ | ✅ | ❌ | ❌ | ❌
+| 🫧 SDR           | ✅ | ✅ | ✅ | ❌ | ❌
+| 🐋 Other role    | ❌ | ❌ | ❌ | ❌ | ❌
+| 🫧 Other role    | ❌ | ❌ | ❌ | ❌ | ❌
+| Other department | ❌ | ❌ | ❌ | ❌ | ❌
+
+> _**Warning:** Do NOT buy LinkedIn Recruiter.  Use the cheapest possible LinkedIn tier.  The goal is access to profile views and data, not InMail.  Fleet does not send InMail._
 
 ### Training
 It's [important](https://fleetdm.com/handbook/company/why-this-way#why-the-emphasis-on-training) that every team member at Fleet takes the time to get fully trained and onboarded. 
@@ -237,12 +252,17 @@ Settings that have a lock icon next to them have been locked by an administrator
 
 
 ### Salesforce 
-We consider Salesforce to be our Rolodex for customer information. During the onboarding process, you may need to add a license for the new hire. Here are the steps we take: 
-1. Go to “Your account.”
+We consider Salesforce to be our Rolodex for customer information.
+
+Here are the steps we take to grant appropriate Salesforce licenses to a new hire:
+1. Go to ["My Account"](https://fleetdm.lightning.force.com/lightning/n/standard-OnlineSalesHome).
 2. View contracts -> pick current contract.
-3. Add the number of licenses.
+3. Add the desired number of licenses.
 4. Sign DocuSign sent to the email.
 5. The order will be processed in ~30m.
+6. Once the basic license has been added, you can create a new user using the new team member's `@fleetdm.com` email and assign a license to it.
+7. To also assign a user an "Inbox license", go to the ["Setup" page](https://fleetdm.lightning.force.com/lightning/setup/SetupOneHome/home) and select "User > Permission sets". Find the [inbox permission set](https://fleetdm.lightning.force.com/lightning/setup/PermSets/page?address=%2F005%3Fid%3D0PS4x000002uUn2%26isUserEntityOverride%3D1%26SetupNode%3DPermSets%26sfdcIFrameOrigin%3Dhttps%253A%252F%252Ffleetdm.lightning.force.com%26clc%3D1) and assign it to the new team member.
+
 
 ### Gong
 Capturing video from meetings with customers, prospects, and community members outside the company is an important part of building world-class sales and customer success teams and is a widespread practice across the industry. At Fleet, we use Gong to capture Zoom meetings and share them company-wide. If a team member with a Gong license attends certain meetings, generally those with at least one person from outside of Fleet in attendance.  
