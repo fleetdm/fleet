@@ -197,13 +197,12 @@ func (s *integrationMDMTestSuite) TearDownTest() {
 
 	s.withServer.commonTearDownTest(t)
 
-	// delete global mdm config profiles
-	profs, err := s.ds.ListMDMAppleConfigProfiles(ctx, nil)
-	require.NoError(t, err)
-	for _, prof := range profs {
-		err = s.ds.DeleteMDMAppleConfigProfile(ctx, prof.ProfileID)
-		require.NoError(t, err)
-	}
+	// delete global mdm config profiles, using adhoc to delete _all_
+	// because ListMDMAppleConfigProfiles ignores the fleet profiles.
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, "DELETE FROM mdm_apple_configuration_profiles")
+		return err
+	})
 }
 
 func (s *integrationMDMTestSuite) mockDEPResponse(handler http.Handler) {
@@ -1875,11 +1874,11 @@ func (s *integrationMDMTestSuite) TestHostMDMProfilesStatus() {
 		batchSetMDMAppleProfilesRequest{Profiles: globalProfiles}, http.StatusNoContent)
 	// create the no-team enroll secret
 	var applyResp applyEnrollSecretSpecResponse
-	globalSecret := "global_enroll_secret"
+	globalEnrollSec := "global_enroll_sec"
 	s.DoJSON("POST", "/api/latest/fleet/spec/enroll_secret",
 		applyEnrollSecretSpecRequest{
 			Spec: &fleet.EnrollSecretSpec{
-				Secrets: []*fleet.EnrollSecret{{Secret: globalSecret}},
+				Secrets: []*fleet.EnrollSecret{{Secret: globalEnrollSec}},
 			},
 		}, http.StatusOK, &applyResp)
 
@@ -1895,10 +1894,10 @@ func (s *integrationMDMTestSuite) TestHostMDMProfilesStatus() {
 		"team_id", strconv.Itoa(int(tm1.ID)))
 	// create the team 1 enroll secret
 	var teamResp teamEnrollSecretsResponse
-	tm1Secret := "team1_enroll_secret"
+	tm1EnrollSec := "team1_enroll_sec"
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/secrets", tm1.ID),
 		modifyTeamEnrollSecretsRequest{
-			Secrets: []fleet.EnrollSecret{{Secret: tm1Secret}},
+			Secrets: []fleet.EnrollSecret{{Secret: tm1EnrollSec}},
 		}, http.StatusOK, &teamResp)
 
 	// create another team with different profiles
@@ -1918,9 +1917,9 @@ func (s *integrationMDMTestSuite) TestHostMDMProfilesStatus() {
 		}, http.StatusOK, &teamResp)
 
 	// enroll a couple hosts in no team
-	h1 := createManualMDMEnrollWithOrbit(globalSecret)
+	h1 := createManualMDMEnrollWithOrbit(globalEnrollSec)
 	require.Nil(t, h1.TeamID)
-	h2 := createManualMDMEnrollWithOrbit(globalSecret)
+	h2 := createManualMDMEnrollWithOrbit(globalEnrollSec)
 	require.Nil(t, h2.TeamID)
 	s.assertHostConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
 		h1: {
@@ -1934,10 +1933,10 @@ func (s *integrationMDMTestSuite) TestHostMDMProfilesStatus() {
 	})
 
 	// enroll a couple hosts in team 1
-	h3 := createManualMDMEnrollWithOrbit(tm1Secret)
+	h3 := createManualMDMEnrollWithOrbit(tm1EnrollSec)
 	require.NotNil(t, h3.TeamID)
 	require.Equal(t, tm1.ID, *h3.TeamID)
-	h4 := createManualMDMEnrollWithOrbit(tm1Secret)
+	h4 := createManualMDMEnrollWithOrbit(tm1EnrollSec)
 	require.NotNil(t, h4.TeamID)
 	require.Equal(t, tm1.ID, *h4.TeamID)
 	s.assertHostConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{

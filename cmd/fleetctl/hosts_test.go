@@ -42,6 +42,10 @@ func TestHostsTransferByHosts(t *testing.T) {
 		return nil
 	}
 
+	ds.BulkSetPendingMDMAppleHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs, profileIDs []uint) error {
+		return nil
+	}
+
 	assert.Equal(t, "", runAppForTest(t, []string{"hosts", "transfer", "--team", "team1", "--hosts", "host1"}))
 }
 
@@ -73,6 +77,10 @@ func TestHostsTransferByLabel(t *testing.T) {
 		require.NotNil(t, teamID)
 		require.Equal(t, uint(99), *teamID)
 		require.Equal(t, []uint{32, 12}, hostIDs)
+		return nil
+	}
+
+	ds.BulkSetPendingMDMAppleHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs, profileIDs []uint) error {
 		return nil
 	}
 
@@ -109,6 +117,10 @@ func TestHostsTransferByStatus(t *testing.T) {
 		return nil
 	}
 
+	ds.BulkSetPendingMDMAppleHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs, profileIDs []uint) error {
+		return nil
+	}
+
 	assert.Equal(t, "", runAppForTest(t,
 		[]string{"hosts", "transfer", "--team", "team1", "--status", "online"}))
 }
@@ -141,6 +153,10 @@ func TestHostsTransferByStatusAndSearchQuery(t *testing.T) {
 		require.NotNil(t, teamID)
 		require.Equal(t, uint(99), *teamID)
 		require.Equal(t, []uint{32, 12}, hostIDs)
+		return nil
+	}
+
+	ds.BulkSetPendingMDMAppleHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs, profileIDs []uint) error {
 		return nil
 	}
 
