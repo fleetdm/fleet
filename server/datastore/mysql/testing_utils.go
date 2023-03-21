@@ -378,7 +378,7 @@ func explainSQLStatement(w io.Writer, db sqlx.QueryerContext, stmt string, args 
 	}
 }
 
-func dumpTable(t *testing.T, q sqlx.QueryerContext, tableName string) {
+func dumpTable(t *testing.T, q sqlx.QueryerContext, tableName string) { //nolint: unused
 	rows, err := q.QueryContext(context.Background(), fmt.Sprintf(`SELECT * FROM %s`, tableName))
 	require.NoError(t, err)
 	defer rows.Close()
