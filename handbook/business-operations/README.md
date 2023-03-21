@@ -353,11 +353,16 @@ Core team members:
 Consultants aren't required to do any of those things.
 
 #### Sending a consulting agreement
-Consultant agreements are sent through [DocuSign](https://www.docusign.com/), using the "Consulting Agreement" template.
 
-> _**Note:** The Docusign template labeled "US consulting agreement" is actually used both consultants, as well as for [full team members](#hiring-a-new-team-member) classified as contractors._
+To hire a non-US consultant, please [submit a custom request](#intake).
+
+To hire a US-based consultant, send them an agreement using the "Contractor agreement (US)" template in [DocuSign](https://www.docusign.com/).
+(This template is located in the "¶¶ Classified templates" folder, which is only accessible via certain Docusign accounts in 1Password.)
+
+> _**Note:** The Docusign template labeled "Contractor agreement (US)" is actually used for both consultants and [core team members in the US who are classified as 1099 contractors or billed corp-to-corp as vendors](#hiring-a-new-team-member).  You may also sometimes hear this referred to as Fleet's "Consulting agreement". Same thing._
 
 To send a US consulting agreement, you'll need the new consultant's name, the term of the service, a summary of the services provided, and the consultant's fee. 
+
 There are some defaults that we use for these agreements:
    - Term: Default to one month unless otherwise discussed.
    - Services rendered: Copy and paste from the [language in this doc](https://docs.google.com/document/d/1b5SGgYEHqDmq5QF8p29WWN3it3XJh3xRT3zG0RdXARo/edit)
