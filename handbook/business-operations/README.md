@@ -37,6 +37,7 @@ We configure our Zoom meetings to let participants join before the host starts t
 ### Key reviews
 Every release cycle, each department leader prepares a [key review deck](https://about.gitlab.com/handbook/key-review/#purpose) and presents it to the CEO. In this deck, the department will highlight KPI metrics (numbers measuring everyday excellence) and progress of timebound goals for a particular quarter (OKRs). The information for creating this deck is located in the ["🌈 Fleet" Google drive](https://drive.google.com/drive/folders/1lizTSi7YotG_zA7zJeHuOXTg_KF1Ji8k) using ["How to create key review"](https://docs.google.com/document/d/1PDwJL0HiCz-KbEGZMfldAYX_aLk5OVAU1MMSgMYYF2A/edit?usp=sharing)(internal doc).
 
+> TODO: extrapolate "key reviews" to fleetdm.com/handbook/company/why-this-way -- maybe a section on "why measure KPIs and set goals?"
 
 ## Spending company money
 As we continue to expand our company policies, we use [GitLab's open expense policy](https://about.gitlab.com/handbook/spending-company-money/) as a guide for company spending.
@@ -129,7 +130,7 @@ The [CEO handbook](./ceo-handbook.md) details processes specific to Mike McNeil,
 
 Fleet is open source and anyone can contribute at any time.  Before a core team member's start date, they are welcome to contribute, but not expected to.
 
-### Recommendations for new teammates
+#### Recommendations for new teammates
 Welcome to Fleet!
 
 1. Understand the company
@@ -138,6 +139,21 @@ Welcome to Fleet!
 4. Immerse yourself in the world of device management and cybersecurity.
 
 > Please see Fleet's ["🥽 Recommendations for new teammates"](https://docs.google.com/document/d/1xcnqKB9HHPd94POnZ_7LATiy_VjO2kJdbYx0SAgKVao/edit#).
+
+#### Role-specific licenses
+Certain new team members, especially in go-to-market (GTM) roles, will need paid access to paid tools like Salesforce and LinkedIn Sales Navigator immediately on their first day with the company.  The table below can be used to determine which paid licenses they will need, based on their role:
+
+| Role                 | Salesforce CRM | Salesforce "Inbox" | LinkedIn _(paid)_ | Gong _(paid)_ | Zoom _(paid)_ |
+|:-----------------|:--|:---|:---|:---|:--|
+| 🐋 AE            | ✅ | ✅ | ✅ | ✅ | ✅
+| 🐋 CSM           | ✅ | ✅ | ❌ | ✅ | ✅
+| 🐋 SA            | ✅ | ✅ | ❌ | ❌ | ❌
+| 🫧 SDR           | ✅ | ✅ | ✅ | ❌ | ❌
+| 🐋 Other role    | ❌ | ❌ | ❌ | ❌ | ❌
+| 🫧 Other role    | ❌ | ❌ | ❌ | ❌ | ❌
+| Other department | ❌ | ❌ | ❌ | ❌ | ❌
+
+> _**Warning:** Do NOT buy LinkedIn Recruiter.  Use the cheapest possible LinkedIn tier.  The goal is access to profile views and data, not InMail.  Fleet does not send InMail._
 
 ### Training
 It's [important](https://fleetdm.com/handbook/company/why-this-way#why-the-emphasis-on-training) that every team member at Fleet takes the time to get fully trained and onboarded. 
@@ -184,10 +200,13 @@ Please read ["Why direct responsibility?"](https://fleetdm.com/handbook/company/
 - *Confidential*  _(share only with team members who've signed an NDA, consulting agreement, or employment agreement)_
 - *Classified*  _(share only with founders of Fleet, peepops, and/or the people involved.  e.g., US social security numbers during hiring)_
 
+> TODO: extrapolate to "why this way" page
 
 ### Email relays
 
 There are several special email addresses that automatically relay messages to the appropriate people at Fleet. Each email address meets a minimum response time ("Min RT"), expressed in business hours/days, and has a dedicated, directly responsible individual (DRI) who is responsible for reading and replying to emails sent to that address.  You can see a list of those email addresses in ["Contacting Fleet" (private Google doc)](https://docs.google.com/document/d/1tE-NpNfw1icmU2MjYuBRib0VWBPVAdmq4NiCrpuI0F0/edit#).
+
+> TODO: extrapolate to "why this way" page
 
 ### GitHub labels
 
@@ -202,7 +221,7 @@ maintaining an expressive labeling system. For example, instead of a label calle
 | `:`               | Verb        | `:dev`, `:research`, `:design`
 | `~`               | Adjective   | `~blocked`, `~frontend`, `~backend`
 
-
+> TODO: extrapolate to "why this way" page
 
 ## Tools we use
 
@@ -237,12 +256,17 @@ Settings that have a lock icon next to them have been locked by an administrator
 
 
 ### Salesforce 
-We consider Salesforce to be our Rolodex for customer information. During the onboarding process, you may need to add a license for the new hire. Here are the steps we take: 
-1. Go to “Your account.”
+We consider Salesforce to be our Rolodex for customer information.
+
+Here are the steps we take to grant appropriate Salesforce licenses to a new hire:
+1. Go to ["My Account"](https://fleetdm.lightning.force.com/lightning/n/standard-OnlineSalesHome).
 2. View contracts -> pick current contract.
-3. Add the number of licenses.
+3. Add the desired number of licenses.
 4. Sign DocuSign sent to the email.
 5. The order will be processed in ~30m.
+6. Once the basic license has been added, you can create a new user using the new team member's `@fleetdm.com` email and assign a license to it.
+7. To also assign a user an "Inbox license", go to the ["Setup" page](https://fleetdm.lightning.force.com/lightning/setup/SetupOneHome/home) and select "User > Permission sets". Find the [inbox permission set](https://fleetdm.lightning.force.com/lightning/setup/PermSets/page?address=%2F005%3Fid%3D0PS4x000002uUn2%26isUserEntityOverride%3D1%26SetupNode%3DPermSets%26sfdcIFrameOrigin%3Dhttps%253A%252F%252Ffleetdm.lightning.force.com%26clc%3D1) and assign it to the new team member.
+
 
 ### Gong
 Capturing video from meetings with customers, prospects, and community members outside the company is an important part of building world-class sales and customer success teams and is a widespread practice across the industry. At Fleet, we use Gong to capture Zoom meetings and share them company-wide. If a team member with a Gong license attends certain meetings, generally those with at least one person from outside of Fleet in attendance.  
@@ -341,7 +365,7 @@ Every job description page ends with a "call to action", including a link that c
 When a candidate clicks applies for a job at Fleet, they are taken to a generic Typeform.  When they submit their job application, the Typeform triggers a Zapier automation that will posts the submission to `g-business-operations` in Slack.  The candidate's job application answers are then forwarded to the applicable `#hiring-xxxxx-202x` Slack channel and the hiring manager is @mentioned.
 
 ##### Candidate correspondence email templates
-Fleet uses [certain email templates](https://docs.google.com/document/d/1E_gTunZBMNF4AhsOFuDVi9EnvsIGbAYrmmEzdGmnc9U) when responding to candidates.  This helps the company meet our commitment of replying to all applications within one business day.
+Fleet uses [certain email templates](https://docs.google.com/document/d/1E_gTunZBMNF4AhsOFuDVi9EnvsIGbAYrmmEzdGmnc9U) when responding to candidates as part of the recruiting, interviewing, and hiring processes.  These templates help us live our value of [🔴 empathy](https://fleetdm.com/handbook/company#empathy) and meet the company's aspiration to reply to all job applications within one business day.
 
 #### Hiring restrictions
 
@@ -371,13 +395,15 @@ Here are the steps hiring managers can follow to get an offer out to a candidate
      - Schedule the meeting directly on the CEO's calendar during a time he and the candidate are both explicitly available according to that calendar.  Available means whitespace.
      - Either use Google Calendar directly, or offer to use the CEO's 30m Calendly link.  _It is up to you, the hiring manager, to get this meeting scheduled and showing up at a time on the CEO's calendar._
    - _If this is an engineering position_, before scheduling the CEO interview, please also be sure that the candidate has already been interviewed by the CTO.  If not, include the CTO in this interview.
-   - The candidate's email address involved in this calendar event with the CEO is also where they will receive their offer or rejection email from the CEO.
+   - The candidate's email address involved in this calendar event with the CEO is also where they will receive their offer or rejection email.
 2. **Add to team database:** Update the [Fleeties](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) doc to accurately reflect:
-   - start date _(No need to check with the candidate if you haven't already.  Just guess.)_
-   - candidate's first and last name
-   - preferred pronoun
-   - LinkedIn URL
-   - country and state where they will be working
+   - Start date _(No need to check with the candidate if you haven't already.  Just guess.)_
+   - First and last name
+   - Preferred pronoun _("them", "her", or "him")
+   - Country and state where they will be working _(Pattern-match from how other rows do it.  Please be mindful of spreadsheet formulas.)_
+   - LinkedIn URL _(If the fleetie does not have a LinkedIn account, enter `N/A`)_
+   - GitHub handle _(Every candidate must have a GitHub account in "Fleeties" before the company makes them an offer.  If the the candidate does not have a GitHub account, ask them to create one, and make sure it's tracked in "Fleeties".)_
+     > _**Tip:** A revealing live interview question can be to ask a candidate to quickly share their screen, sign up for GitHub, and then hit the "Edit" button on one of the pages in [the Fleet handbook](https://fleetdm.com/handbook) to make their first pull request.  This should not take more than 5 minutes._
 3. **Confirm intent to offer:** At-mention `@mikermcneil` in the `#hiring-` channel and indicate that you would like for Fleet to make an offer to the candidate.  Let him know 
 
 #### Making an offer
@@ -385,10 +411,15 @@ After meeting with the candidate for their final interview, the CEO uses the fol
 1. **Review decision:** The CEO reviews the data and decides whether it still makes sense to make this offer to this person in this role.  If not, he lets the manager know.  Otherwise, he continues with the offer.
 2. **Adjust compensation:** [Re-benchmark salary](https://www.pave.com), adjusting for cost of living where the candidate will do the work.
    - _Paste a screenshot_ of Pave showing the adjusted benchmark under the [heading for this position in " 💌 Compensation decisions"](https://docs.google.com/document/d/1NQ-IjcOTbyFluCWqsFLMfP4SvnopoXDcX0civ-STS5c/edit)
-   - _Update the [equity plan](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit#gid=0)_ with the actual adjusted salary and equity offer that is about to be sent.  
+   - _Update the [equity plan](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit#gid=0)_ with the actual adjusted salary and equity offer that is about to be sent.
+     -  Salary _(OTE actually offered)_
+     -  Equity _(stock options actually offered)_
+     -  "Notes" _(include base salary versus commission or bonus plan, if relevant)_
+     -  "Offer sent?" _(set this to `TRUE`)_
 3. **Prepare the "exit scenarios" spreadsheet:** [Copy the "Exit scenarios (template)"](https://docs.google.com/spreadsheets/d/1k2TzsFYR0QxlD-KGPxuhuvvlJMrCvLPo2z8s8oGChT0/copy) for the candidate, and rename the copy to e.g. "Exit scenarios for Jane Doe".
    - _Edit the candidate's copy of the exit scenarios spreadsheet_ to include the number of shares they will be offered, and the spreadsheet will update automatically to reflect their approximate ownership percentage.
-   > _**Note:** Don't play with numbers in the exit scenarios spreadsheet. The revision history is visible to the candidate, and they might misunderstand._
+   - _Share the candidate's copy_ of the spreadsheet with their personal email, granting **"Edit"** access.
+     > _**Note:** Don't play with numbers in the exit scenarios spreadsheet. The revision history is visible to the candidate, and they might misunderstand._
 4. **Prepare offer email:** [Copy "Offer email (template)"](https://docs.google.com/document/d/1zpNN2LWzAj-dVBC8iOg9jLurNlSe7XWKU69j7ntWtbY/copy) and rename to e.g. "Offer email for Jane Doe".  Edit the candidate's copy of the offer email template doc and fill in the missing information:
    - _Benefits:_ If candidate will work outside the US, [change the "Benefits" bullet](https://docs.google.com/document/d/1zpNN2LWzAj-dVBC8iOg9jLurNlSe7XWKU69j7ntWtbY/edit) to reflect what will be included through Fleet's international payroll provider, depending on the candidate's location.
    - _Equity:_ Specify the number of shares, then highlight the number of shares with a link to the candidate's personalized copy of the "Exit scenarios" spreadsheet.
@@ -398,20 +429,29 @@ After meeting with the candidate for their final interview, the CEO uses the fol
    - Cc: Zach Wasserman is included as a recipient, but will not participate in the email thread until after the offer is accepted.
    - Subject: "Full time?"
    - Body: _(The offer email is copied verbatim from Google Drive into Gmail as the body of the message, formatting and all.)_
-   - Sending: _(When sending the offer, Gmail will automatically offer to change the permissions of the exit scenarios sheet so it is accessible to the candidate.  Choose to grant the candidate **"Edit"** access.)_
-6. **Archive Slack channel:** Post to the `hiring-xxxxx` Slack channel to let folks know the offer was sent.  Then archive and close the channel.  (It can always be reopened, as needed.)
 
-### Steps after an offer is accepted
+#### Steps after an offer is accepted
 
-Once the new team member replies and accepts their offer in writing:
-1. **Accept:** Either CEO or Zach Wasserman replies to the candidate.  Whoever replies first is responsible for these steps:
+Once the new team member replies and accepts their offer in writing, either the CEO or Zach Wasserman replies to the candidate.  Whoever replies first is responsible for these steps:
+1. **Verify, track, and reply:** Reply to the candidate:
    - _Verify the candidate replied with their physical address… or else keep asking._  If they did not reply with their physical address, or it's not a usable address, then we are not done.  Fleet will reply and ask for it, and no offer should is "accepted" until we've received a physical address.
-   - _Update the team database_ so that the new team member's row in ["🥧 Equity plan"](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit#gid=0) now includes:
+   - _Review and update the team database_ so that the new team member's row in ["🥧 Equity plan"](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit#gid=0) now includes:
      - physical address _(The full street address of the location where work will typically be performed.)_
      - personal email _(Use the personal email they're replying from, e.g. `@gmail.com`")_
+     - "Offer accepted?" _(Set this to `TRUE`)_
+     - salary, equity, and "Notes" _(Check that compensation information is accurate, one last time.)_
    - _[Create a "Hiring" issue](https://github.com/fleetdm/confidential/issues/new/choose)_ for the new team member.  (This is what will inform the Business Operations team to get involved.  The company will use this issue to keep track of the hiring tasks for the new team member.)
-   - _Send a reply_ welcoming the team member to Fleet and letting them know to expect a separate email with next steps for getting the team member's laptop, Yubikeys, and agreement going ASAP so they can start on time.
-2. Business Operations will then follow the steps in the "Hiring" issue, which includes reaching out to the new team member within 1 business day from a separate email thread to get additional information as needed, prepare their agreement, add them to the company's payroll system, and get their new laptop and hardware security keys ordered so that everything is ready for them to start on their first day.
+   - _Send a reply_ welcoming the team member to Fleet and letting them know to expect a separate email with next steps for getting the team member's laptop, Yubikeys, and agreement going ASAP so they can start on time.  For example:
+   >\o/  It's official!
+   >
+   >Be on the lookout for an email in a separate thread with next steps for quickly signing the paperwork and getting your company laptop and hardware 2FA keys (Yubikeys), which we recommend setting up ASAP.
+   >
+   >Thanks, and welcome to the team!
+   >-Mike
+2. **Ask hiring manager to help:** Post to the `hiring-xxxxx-yyyy` Slack channel to let folks know the offer was accepted, and at-mention the _hiring manager_ to ask them to communicate with [all other interviewees](https://fleetdm.com/handbook/company#empathy) who are still in the running and [let them know that we chose a different person](https://fleetdm.com/handbook/business-operations#candidate-correspondence-email-templates).
+3. **Close Slack channel:** Then archive and close the channel.
+
+Now what happens?  Business Operations will then follow the steps in the "Hiring" issue, which includes reaching out to the new team member within 1 business day from a separate email thread to get additional information as needed, prepare their agreement, add them to the company's payroll system, and get their new laptop and hardware security keys ordered so that everything is ready for them to start on their first day.
 
 > **_Note:_** _Some Fleet team members are contractors and others are employees.  The distinction between "contractor" and "employee" varies in different geographies, and the appropriate contract for any given team member and the place where they work is determined during the hiring process._
 
