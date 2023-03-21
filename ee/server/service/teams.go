@@ -385,6 +385,10 @@ func (svc *Service) DeleteTeam(ctx context.Context, teamID uint) error {
 	if err := svc.ds.DeleteTeam(ctx, teamID); err != nil {
 		return err
 	}
+	// team id 0 is provided since the team's hosts are now part of no team
+	if err := svc.ds.BulkSetPendingMDMAppleHostProfiles(ctx, nil, []uint{0}, nil); err != nil {
+		return ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
+	}
 
 	logging.WithExtras(ctx, "id", teamID)
 

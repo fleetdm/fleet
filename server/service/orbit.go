@@ -143,9 +143,12 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 		return "", orbitError{message: "app config load failed: " + err.Error()}
 	}
 
-	_, err = svc.ds.EnrollOrbit(ctx, appConfig.MDM.EnabledAndConfigured, hostInfo, orbitNodeKey, secret.TeamID)
+	h, err := svc.ds.EnrollOrbit(ctx, appConfig.MDM.EnabledAndConfigured, hostInfo, orbitNodeKey, secret.TeamID)
 	if err != nil {
 		return "", orbitError{message: "failed to enroll " + err.Error()}
+	}
+	if err := svc.ds.BulkSetPendingMDMAppleHostProfiles(ctx, []uint{h.ID}, nil, nil); err != nil {
+		return "", orbitError{message: "failed to bulk set pending host profiles " + err.Error()}
 	}
 
 	return orbitNodeKey, nil

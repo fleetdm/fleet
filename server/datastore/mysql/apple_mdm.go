@@ -996,6 +996,10 @@ WHERE
 		return ctxerr.Wrap(ctx, err, "execute query to load host UUIDs")
 	}
 
+	if len(uuids) == 0 {
+		return nil
+	}
+
 	const baseStmt = `
 INSERT INTO host_mdm_apple_profiles (
 	profile_id,

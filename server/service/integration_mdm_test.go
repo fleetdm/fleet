@@ -74,6 +74,7 @@ type integrationMDMTestSuite struct {
 	depStorage           nanodep_storage.AllStorage
 	depSchedule          *schedule.Schedule
 	profileSchedule      *schedule.Schedule
+	onScheduleDone       func() // function called when profileSchedule.Trigger() job completed
 	oktaMock             *externalsvc.MockOktaServer
 }
 
@@ -149,6 +150,9 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 						ctx, name, s.T().Name(), 1*time.Hour, ds, ds,
 						schedule.WithLogger(logger),
 						schedule.WithJob("manage_profiles", func(ctx context.Context) error {
+							if s.onScheduleDone != nil {
+								defer s.onScheduleDone()
+							}
 							return ReconcileProfiles(ctx, ds, NewMDMAppleCommander(mdmStorage, mdmPushService), logger)
 						}),
 					)
@@ -1847,6 +1851,21 @@ func (s *integrationMDMTestSuite) TestHostMDMProfilesStatus() {
 		return h
 	}
 
+	triggerReconcileProfiles := func() {
+		ch := make(chan bool)
+		s.onScheduleDone = func() { close(ch) }
+		_, err := s.profileSchedule.Trigger()
+		require.NoError(t, err)
+		<-ch
+		// this will only mark them as "pending", as the response to confirm
+		// profile deployment is asynchronous, so we simulate it here by
+		// updating any "pending" (not NULL) profiles to "applied"
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `UPDATE host_mdm_apple_profiles SET status = 'applied' WHERE status = 'pending'`)
+			return err
+		})
+	}
+
 	// add a couple global profiles
 	globalProfiles := [][]byte{
 		mobileconfigForTest("G1", "G1"),
@@ -1903,16 +1922,16 @@ func (s *integrationMDMTestSuite) TestHostMDMProfilesStatus() {
 	require.Nil(t, h1.TeamID)
 	h2 := createManualMDMEnrollWithOrbit(globalSecret)
 	require.Nil(t, h2.TeamID)
-	//s.assertHostConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
-	//	h1: {
-	//		{Identifier: "G1", OperationType: fleet.MDMAppleOperationTypeInstall, Status: nil},
-	//		{Identifier: "G2", OperationType: fleet.MDMAppleOperationTypeInstall, Status: nil},
-	//	},
-	//	h2: {
-	//		{Identifier: "G1", OperationType: fleet.MDMAppleOperationTypeInstall, Status: nil},
-	//		{Identifier: "G2", OperationType: fleet.MDMAppleOperationTypeInstall, Status: nil},
-	//	},
-	//})
+	s.assertHostConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
+		h1: {
+			{Identifier: "G1", OperationType: fleet.MDMAppleOperationTypeInstall, Status: nil},
+			{Identifier: "G2", OperationType: fleet.MDMAppleOperationTypeInstall, Status: nil},
+		},
+		h2: {
+			{Identifier: "G1", OperationType: fleet.MDMAppleOperationTypeInstall, Status: nil},
+			{Identifier: "G2", OperationType: fleet.MDMAppleOperationTypeInstall, Status: nil},
+		},
+	})
 
 	// enroll a couple hosts in team 1
 	h3 := createManualMDMEnrollWithOrbit(tm1Secret)
@@ -1921,108 +1940,105 @@ func (s *integrationMDMTestSuite) TestHostMDMProfilesStatus() {
 	h4 := createManualMDMEnrollWithOrbit(tm1Secret)
 	require.NotNil(t, h4.TeamID)
 	require.Equal(t, tm1.ID, *h4.TeamID)
-	//s.assertHostConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
-	//	h3: {
-	//		{Identifier: "T1.1", OperationType: fleet.MDMAppleOperationTypeInstall, Status: nil},
-	//		{Identifier: "T1.2", OperationType: fleet.MDMAppleOperationTypeInstall, Status: nil},
-	//	},
-	//	h4: {
-	//		{Identifier: "T1.1", OperationType: fleet.MDMAppleOperationTypeInstall, Status: nil},
-	//		{Identifier: "T1.2", OperationType: fleet.MDMAppleOperationTypeInstall, Status: nil},
-	//	},
-	//})
+	s.assertHostConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
+		h3: {
+			{Identifier: "T1.1", OperationType: fleet.MDMAppleOperationTypeInstall, Status: nil},
+			{Identifier: "T1.2", OperationType: fleet.MDMAppleOperationTypeInstall, Status: nil},
+		},
+		h4: {
+			{Identifier: "T1.1", OperationType: fleet.MDMAppleOperationTypeInstall, Status: nil},
+			{Identifier: "T1.2", OperationType: fleet.MDMAppleOperationTypeInstall, Status: nil},
+		},
+	})
 
 	// apply the pending profiles
-	_, err = s.profileSchedule.Trigger()
-	require.NoError(t, err)
+	triggerReconcileProfiles()
 
 	// switch a no team host (h1) to a team (tm2)
 	var moveHostResp addHostsToTeamResponse
 	s.DoJSON("POST", "/api/v1/fleet/hosts/transfer",
 		addHostsToTeamRequest{TeamID: &tm2.ID, HostIDs: []uint{h1.ID}}, http.StatusOK, &moveHostResp)
-	//s.assertHostConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
-	//	h1: {
-	//		{Identifier: "G1", OperationType: fleet.MDMAppleOperationTypeRemove, Status: nil},
-	//		{Identifier: "G2", OperationType: fleet.MDMAppleOperationTypeRemove, Status: nil},
-	//		{Identifier: "T2.1", OperationType: fleet.MDMAppleOperationTypeInstall, Status: nil},
-	//	},
-	//	h2: {
-	//		{Identifier: "G1", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
-	//		{Identifier: "G2", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
-	//	},
-	//})
+	s.assertHostConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
+		h1: {
+			{Identifier: "G1", OperationType: fleet.MDMAppleOperationTypeRemove, Status: nil},
+			{Identifier: "G2", OperationType: fleet.MDMAppleOperationTypeRemove, Status: nil},
+			{Identifier: "T2.1", OperationType: fleet.MDMAppleOperationTypeInstall, Status: nil},
+		},
+		h2: {
+			{Identifier: "G1", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
+			{Identifier: "G2", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
+		},
+	})
 
 	// switch a team host (h3) to another team (tm2)
 	s.DoJSON("POST", "/api/v1/fleet/hosts/transfer",
 		addHostsToTeamRequest{TeamID: &tm2.ID, HostIDs: []uint{h3.ID}}, http.StatusOK, &moveHostResp)
-	//s.assertHostConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
-	//	h3: {
-	//		{Identifier: "T1.1", OperationType: fleet.MDMAppleOperationTypeRemove, Status: nil},
-	//		{Identifier: "T1.2", OperationType: fleet.MDMAppleOperationTypeRemove, Status: nil},
-	//		{Identifier: "T2.1", OperationType: fleet.MDMAppleOperationTypeInstall, Status: nil},
-	//	},
-	//	h4: {
-	//		{Identifier: "T1.1", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
-	//		{Identifier: "T1.2", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
-	//	},
-	//})
+	s.assertHostConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
+		h3: {
+			{Identifier: "T1.1", OperationType: fleet.MDMAppleOperationTypeRemove, Status: nil},
+			{Identifier: "T1.2", OperationType: fleet.MDMAppleOperationTypeRemove, Status: nil},
+			{Identifier: "T2.1", OperationType: fleet.MDMAppleOperationTypeInstall, Status: nil},
+		},
+		h4: {
+			{Identifier: "T1.1", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
+			{Identifier: "T1.2", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
+		},
+	})
 
 	// switch a team host (h4) to no team
 	s.DoJSON("POST", "/api/v1/fleet/hosts/transfer",
 		addHostsToTeamRequest{TeamID: nil, HostIDs: []uint{h4.ID}}, http.StatusOK, &moveHostResp)
-	//s.assertHostConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
-	//	h3: {
-	//		{Identifier: "T1.1", OperationType: fleet.MDMAppleOperationTypeRemove, Status: nil},
-	//		{Identifier: "T1.2", OperationType: fleet.MDMAppleOperationTypeRemove, Status: nil},
-	//		{Identifier: "T2.1", OperationType: fleet.MDMAppleOperationTypeInstall, Status: nil},
-	//	},
-	//	h4: {
-	//		{Identifier: "T1.1", OperationType: fleet.MDMAppleOperationTypeRemove, Status: nil},
-	//		{Identifier: "T1.2", OperationType: fleet.MDMAppleOperationTypeRemove, Status: nil},
-	//		{Identifier: "G1", OperationType: fleet.MDMAppleOperationTypeInstall, Status: nil},
-	//		{Identifier: "G2", OperationType: fleet.MDMAppleOperationTypeInstall, Status: nil},
-	//	},
-	//})
+	s.assertHostConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
+		h3: {
+			{Identifier: "T1.1", OperationType: fleet.MDMAppleOperationTypeRemove, Status: nil},
+			{Identifier: "T1.2", OperationType: fleet.MDMAppleOperationTypeRemove, Status: nil},
+			{Identifier: "T2.1", OperationType: fleet.MDMAppleOperationTypeInstall, Status: nil},
+		},
+		h4: {
+			{Identifier: "T1.1", OperationType: fleet.MDMAppleOperationTypeRemove, Status: nil},
+			{Identifier: "T1.2", OperationType: fleet.MDMAppleOperationTypeRemove, Status: nil},
+			{Identifier: "G1", OperationType: fleet.MDMAppleOperationTypeInstall, Status: nil},
+			{Identifier: "G2", OperationType: fleet.MDMAppleOperationTypeInstall, Status: nil},
+		},
+	})
 
 	// apply the pending profiles
-	_, err = s.profileSchedule.Trigger()
-	require.NoError(t, err)
+	triggerReconcileProfiles()
 
 	// add a profile to no team (h2 and h4 are now part of no team)
 	body, headers := generateNewProfileMultipartRequest(t, nil,
 		"some_name", mobileconfigForTest("G3", "G3"), s.token)
 	s.DoRawWithHeaders("POST", "/api/latest/fleet/mdm/apple/profiles", body.Bytes(), http.StatusOK, headers)
-	//s.assertHostConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
-	//	h2: {
-	//		{Identifier: "G1", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
-	//		{Identifier: "G2", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
-	//		{Identifier: "G3", OperationType: fleet.MDMAppleOperationTypeInstall, Status: nil},
-	//	},
-	//	h4: {
-	//		{Identifier: "G1", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
-	//		{Identifier: "G2", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
-	//		{Identifier: "G3", OperationType: fleet.MDMAppleOperationTypeInstall, Status: nil},
-	//	},
-	//})
+	s.assertHostConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
+		h2: {
+			{Identifier: "G1", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
+			{Identifier: "G2", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
+			{Identifier: "G3", OperationType: fleet.MDMAppleOperationTypeInstall, Status: nil},
+		},
+		h4: {
+			{Identifier: "G1", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
+			{Identifier: "G2", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
+			{Identifier: "G3", OperationType: fleet.MDMAppleOperationTypeInstall, Status: nil},
+		},
+	})
 
 	// add a profile to team 2 (h1 and h3 are now part of team 2)
 	body, headers = generateNewProfileMultipartRequest(t, &tm2.ID,
 		"some_name", mobileconfigForTest("T2.2", "T2.2"), s.token)
 	s.DoRawWithHeaders("POST", "/api/latest/fleet/mdm/apple/profiles", body.Bytes(), http.StatusOK, headers)
-	//s.assertHostConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
-	//	h1: {
-	//		{Identifier: "T2.1", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
-	//		{Identifier: "T2.2", OperationType: fleet.MDMAppleOperationTypeInstall, Status: nil},
-	//	},
-	//	h3: {
-	//		{Identifier: "T2.1", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
-	//		{Identifier: "T2.2", OperationType: fleet.MDMAppleOperationTypeInstall, Status: nil},
-	//	},
-	//})
+	s.assertHostConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
+		h1: {
+			{Identifier: "T2.1", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
+			{Identifier: "T2.2", OperationType: fleet.MDMAppleOperationTypeInstall, Status: nil},
+		},
+		h3: {
+			{Identifier: "T2.1", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
+			{Identifier: "T2.2", OperationType: fleet.MDMAppleOperationTypeInstall, Status: nil},
+		},
+	})
 
 	// apply the pending profiles
-	_, err = s.profileSchedule.Trigger()
-	require.NoError(t, err)
+	triggerReconcileProfiles()
 
 	// delete a no team profile
 	noTeamProfs, err := s.ds.ListMDMAppleConfigProfiles(ctx, nil)
@@ -2038,18 +2054,18 @@ func (s *integrationMDMTestSuite) TestHostMDMProfilesStatus() {
 	var delProfResp deleteMDMAppleConfigProfileResponse
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/mdm/apple/profiles/%d", g1ProfID),
 		deleteMDMAppleConfigProfileRequest{}, http.StatusOK, &delProfResp)
-	//s.assertHostConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
-	//	h2: {
-	//		{Identifier: "G1", OperationType: fleet.MDMAppleOperationTypeRemove, Status: nil},
-	//		{Identifier: "G2", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
-	//		{Identifier: "G3", OperationType: fleet.MDMAppleOperationTypeInstall, Status: nil},
-	//	},
-	//	h4: {
-	//		{Identifier: "G1", OperationType: fleet.MDMAppleOperationTypeRemove, Status: nil},
-	//		{Identifier: "G2", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
-	//		{Identifier: "G3", OperationType: fleet.MDMAppleOperationTypeInstall, Status: nil},
-	//	},
-	//})
+	s.assertHostConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
+		h2: {
+			{Identifier: "G1", OperationType: fleet.MDMAppleOperationTypeRemove, Status: nil},
+			{Identifier: "G2", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
+			{Identifier: "G3", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
+		},
+		h4: {
+			{Identifier: "G1", OperationType: fleet.MDMAppleOperationTypeRemove, Status: nil},
+			{Identifier: "G2", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
+			{Identifier: "G3", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
+		},
+	})
 
 	// delete a team profile
 	tm2Profs, err := s.ds.ListMDMAppleConfigProfiles(ctx, &tm2.ID)
@@ -2064,23 +2080,26 @@ func (s *integrationMDMTestSuite) TestHostMDMProfilesStatus() {
 	require.NotZero(t, tm21ProfID)
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/mdm/apple/profiles/%d", tm21ProfID),
 		deleteMDMAppleConfigProfileRequest{}, http.StatusOK, &delProfResp)
-	//s.assertHostConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
-	//	h1: {
-	//		{Identifier: "T2.1", OperationType: fleet.MDMAppleOperationTypeRemove, Status: nil},
-	//		{Identifier: "T2.2", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
-	//	},
-	//	h3: {
-	//		{Identifier: "T2.1", OperationType: fleet.MDMAppleOperationTypeRemove, Status: nil},
-	//		{Identifier: "T2.2", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
-	//	},
-	//})
+	s.assertHostConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
+		h1: {
+			{Identifier: "T2.1", OperationType: fleet.MDMAppleOperationTypeRemove, Status: nil},
+			{Identifier: "T2.2", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
+		},
+		h3: {
+			{Identifier: "T2.1", OperationType: fleet.MDMAppleOperationTypeRemove, Status: nil},
+			{Identifier: "T2.2", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
+		},
+	})
 
 	// apply the pending profiles
-	_, err = s.profileSchedule.Trigger()
-	require.NoError(t, err)
+	triggerReconcileProfiles()
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysql.DumpTable(t, q, "host_mdm_apple_profiles")
+		return nil
+	})
 
 	// bulk-set profiles for no team, with add/delete/edit
-	g2Edited := mobileconfigForTest("G2", "G2") // same identifier, but content changed due to UUID inside
+	g2Edited := mobileconfigForTest("G2b", "G2b")
 	g4Content := mobileconfigForTest("G4", "G4")
 	s.Do("POST", "/api/latest/fleet/mdm/apple/profiles/batch",
 		batchSetMDMAppleProfilesRequest{
@@ -2090,21 +2109,24 @@ func (s *integrationMDMTestSuite) TestHostMDMProfilesStatus() {
 				g4Content,
 			},
 		}, http.StatusNoContent)
-	//s.assertHostConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
-	//	h2: {
-	//		{Identifier: "G2", OperationType: fleet.MDMAppleOperationTypeInstall, Status: nil},
-	//		{Identifier: "G3", OperationType: fleet.MDMAppleOperationTypeRemove, Status: nil},
-	//		{Identifier: "G4", OperationType: fleet.MDMAppleOperationTypeInstall, Status: nil},
-	//	},
-	//	h4: {
-	//		{Identifier: "G2", OperationType: fleet.MDMAppleOperationTypeInstall, Status: nil},
-	//		{Identifier: "G3", OperationType: fleet.MDMAppleOperationTypeRemove, Status: nil},
-	//		{Identifier: "G4", OperationType: fleet.MDMAppleOperationTypeInstall, Status: nil},
-	//	},
-	//})
+
+	s.assertHostConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
+		h2: {
+			{Identifier: "G2", OperationType: fleet.MDMAppleOperationTypeRemove, Status: nil},
+			{Identifier: "G2b", OperationType: fleet.MDMAppleOperationTypeInstall, Status: nil},
+			{Identifier: "G3", OperationType: fleet.MDMAppleOperationTypeRemove, Status: nil},
+			{Identifier: "G4", OperationType: fleet.MDMAppleOperationTypeInstall, Status: nil},
+		},
+		h4: {
+			{Identifier: "G2", OperationType: fleet.MDMAppleOperationTypeRemove, Status: nil},
+			{Identifier: "G2b", OperationType: fleet.MDMAppleOperationTypeInstall, Status: nil},
+			{Identifier: "G3", OperationType: fleet.MDMAppleOperationTypeRemove, Status: nil},
+			{Identifier: "G4", OperationType: fleet.MDMAppleOperationTypeInstall, Status: nil},
+		},
+	})
 
 	// bulk-set profiles for a team, with add/delete/edit
-	t22Edited := mobileconfigForTest("T2.2", "T2.2") // same identifier, but content changed due to UUID inside
+	t22Edited := mobileconfigForTest("T2.2b", "T2.2b")
 	t23Content := mobileconfigForTest("T2.3", "T2.3")
 	s.Do("POST", "/api/latest/fleet/mdm/apple/profiles/batch",
 		batchSetMDMAppleProfilesRequest{
@@ -2113,20 +2135,21 @@ func (s *integrationMDMTestSuite) TestHostMDMProfilesStatus() {
 				t23Content,
 			},
 		}, http.StatusNoContent, "team_id", fmt.Sprint(tm2.ID))
-	//s.assertHostConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
-	//	h1: {
-	//		{Identifier: "T2.2", OperationType: fleet.MDMAppleOperationTypeInstall, Status: nil},
-	//		{Identifier: "T2.3", OperationType: fleet.MDMAppleOperationTypeInstall, Status: nil},
-	//	},
-	//	h3: {
-	//		{Identifier: "T2.2", OperationType: fleet.MDMAppleOperationTypeInstall, Status: nil},
-	//		{Identifier: "T2.3", OperationType: fleet.MDMAppleOperationTypeInstall, Status: nil},
-	//	},
-	//})
+	s.assertHostConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
+		h1: {
+			{Identifier: "T2.2", OperationType: fleet.MDMAppleOperationTypeRemove, Status: nil},
+			{Identifier: "T2.2b", OperationType: fleet.MDMAppleOperationTypeInstall, Status: nil},
+			{Identifier: "T2.3", OperationType: fleet.MDMAppleOperationTypeInstall, Status: nil},
+		},
+		h3: {
+			{Identifier: "T2.2", OperationType: fleet.MDMAppleOperationTypeRemove, Status: nil},
+			{Identifier: "T2.2b", OperationType: fleet.MDMAppleOperationTypeInstall, Status: nil},
+			{Identifier: "T2.3", OperationType: fleet.MDMAppleOperationTypeInstall, Status: nil},
+		},
+	})
 
 	// apply the pending profiles
-	_, err = s.profileSchedule.Trigger()
-	require.NoError(t, err)
+	triggerReconcileProfiles()
 
 	// bulk-set profiles for no team and team 2, without changes, and team 1 added (but no host affected)
 	s.Do("POST", "/api/latest/fleet/mdm/apple/profiles/batch",
@@ -2149,55 +2172,64 @@ func (s *integrationMDMTestSuite) TestHostMDMProfilesStatus() {
 				mobileconfigForTest("T1.3", "T1.3"),
 			},
 		}, http.StatusNoContent, "team_id", fmt.Sprint(tm1.ID))
-	//s.assertHostConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
-	//	h1: {
-	//		{Identifier: "T2.2", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
-	//		{Identifier: "T2.3", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
-	//	},
-	//	h2: {
-	//		{Identifier: "G2", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
-	//		{Identifier: "G4", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
-	//	},
-	//	h3: {
-	//		{Identifier: "T2.2", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
-	//		{Identifier: "T2.3", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
-	//	},
-	//	h4: {
-	//		{Identifier: "G2", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
-	//		{Identifier: "G4", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
-	//	},
-	//})
+	s.assertHostConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
+		h1: {
+			{Identifier: "T2.2b", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
+			{Identifier: "T2.3", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
+		},
+		h2: {
+			{Identifier: "G2b", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
+			{Identifier: "G4", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
+		},
+		h3: {
+			{Identifier: "T2.2b", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
+			{Identifier: "T2.3", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
+		},
+		h4: {
+			{Identifier: "G2b", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
+			{Identifier: "G4", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
+		},
+	})
 
 	// delete team 2 (h1 and h3 are part of that team)
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/teams/%d", tm2.ID), nil, http.StatusOK)
-	//s.assertHostConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
-	//	h1: {
-	//		{Identifier: "T2.2", OperationType: fleet.MDMAppleOperationTypeRemove, Status: nil},
-	//		{Identifier: "T2.3", OperationType: fleet.MDMAppleOperationTypeRemove, Status: nil},
-	//	},
-	//	h3: {
-	//		{Identifier: "T2.2", OperationType: fleet.MDMAppleOperationTypeRemove, Status: nil},
-	//		{Identifier: "T2.3", OperationType: fleet.MDMAppleOperationTypeRemove, Status: nil},
-	//	},
-	//})
+	s.assertHostConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
+		h1: {
+			{Identifier: "T2.2b", OperationType: fleet.MDMAppleOperationTypeRemove, Status: nil},
+			{Identifier: "T2.3", OperationType: fleet.MDMAppleOperationTypeRemove, Status: nil},
+			{Identifier: "G2b", OperationType: fleet.MDMAppleOperationTypeInstall, Status: nil},
+			{Identifier: "G4", OperationType: fleet.MDMAppleOperationTypeInstall, Status: nil},
+		},
+		h3: {
+			{Identifier: "T2.2b", OperationType: fleet.MDMAppleOperationTypeRemove, Status: nil},
+			{Identifier: "T2.3", OperationType: fleet.MDMAppleOperationTypeRemove, Status: nil},
+			{Identifier: "G2b", OperationType: fleet.MDMAppleOperationTypeInstall, Status: nil},
+			{Identifier: "G4", OperationType: fleet.MDMAppleOperationTypeInstall, Status: nil},
+		},
+	})
 
 	// apply the pending profiles
-	_, err = s.profileSchedule.Trigger()
-	require.NoError(t, err)
+	triggerReconcileProfiles()
 
 	// final state
-	//s.assertHostConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
-	//	h1: {},
-	//	h2: {
-	//		{Identifier: "G2", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
-	//		{Identifier: "G4", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
-	//	},
-	//	h3: {},
-	//	h4: {
-	//		{Identifier: "G2", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
-	//		{Identifier: "G4", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
-	//	},
-	//})
+	s.assertHostConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
+		h1: {
+			{Identifier: "G2b", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
+			{Identifier: "G4", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
+		},
+		h2: {
+			{Identifier: "G2b", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
+			{Identifier: "G4", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
+		},
+		h3: {
+			{Identifier: "G2b", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
+			{Identifier: "G4", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
+		},
+		h4: {
+			{Identifier: "G2b", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
+			{Identifier: "G4", OperationType: fleet.MDMAppleOperationTypeInstall, Status: &fleet.MDMAppleDeliveryApplied},
+		},
+	})
 }
 
 // only asserts the profile identifier, status and operation (per host)
@@ -2209,21 +2241,26 @@ func (s *integrationMDMTestSuite) assertHostConfigProfiles(want map[*fleet.Host]
 	for h, wantProfs := range want {
 		gotProfs, err := ds.GetHostMDMProfiles(ctx, h.UUID)
 		require.NoError(t, err)
-		require.Equal(t, len(wantProfs), len(gotProfs), "host uuid: %s", h.UUID)
+		if !assert.Equal(t, len(wantProfs), len(gotProfs), "host uuid: %s", h.UUID) {
+			for i, gp := range gotProfs {
+				fmt.Println(i, gp.Identifier, gp.Status, gp.OperationType)
+			}
+		}
 
 		sort.Slice(gotProfs, func(i, j int) bool {
 			l, r := gotProfs[i], gotProfs[j]
-			return l.ProfileID < r.ProfileID
+			return l.Identifier < r.Identifier
 		})
 		sort.Slice(wantProfs, func(i, j int) bool {
 			l, r := wantProfs[i], wantProfs[j]
-			return l.ProfileID < r.ProfileID
+			return l.Identifier < r.Identifier
 		})
 		for i, wp := range wantProfs {
 			gp := gotProfs[i]
+			fmt.Println(i, gp.Identifier, gp.Status, gp.OperationType)
 			require.Equal(t, wp.Identifier, gp.Identifier, "host uuid: %s, prof id: %s", h.UUID, gp.Identifier)
-			require.Equal(t, wp.Status, gp.Status, "host uuid: %s, prof id: %s", h.UUID, gp.Identifier)
 			require.Equal(t, wp.OperationType, gp.OperationType, "host uuid: %s, prof id: %s", h.UUID, gp.Identifier)
+			require.Equal(t, wp.Status, gp.Status, "host uuid: %s, prof id: %s", h.UUID, gp.Identifier)
 		}
 	}
 }
