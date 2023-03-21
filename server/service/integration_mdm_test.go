@@ -1400,7 +1400,7 @@ func (s *integrationMDMTestSuite) TestMDMAppleDiskEncryptionAggregate() {
 	// no team tests ====
 
 	// new filevault profile with no team
-	prof, err := fleet.Mobileconfig(mobileconfigForTest("filevault-1", apple_mdm.FleetFileVaultPayloadIdentifier)).ParseConfigProfile()
+	prof, err := fleet.NewMDMAppleConfigProfile(mobileconfigForTest("filevault-1", mobileconfig.FleetFileVaultPayloadIdentifier), ptr.Uint(0))
 	require.NoError(t, err)
 	fileVaultProf, err := s.ds.NewMDMAppleConfigProfile(ctx, *prof)
 	require.NoError(t, err)
@@ -1486,12 +1486,12 @@ func (s *integrationMDMTestSuite) TestMDMAppleDiskEncryptionAggregate() {
 	// team tests ====
 
 	// host 1,2 added to team 1
-	tm, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "team-1"})
+	tm, _ := s.ds.NewTeam(ctx, &fleet.Team{Name: "team-1"})
 	err = s.ds.AddHostsToTeam(ctx, &tm.ID, []uint{hosts[0].ID, hosts[1].ID})
 	require.NoError(t, err)
 
 	// new filevault profile for team 1
-	prof, err = fleet.Mobileconfig(mobileconfigForTest("filevault-1", apple_mdm.FleetFileVaultPayloadIdentifier)).ParseConfigProfile()
+	prof, err = fleet.NewMDMAppleConfigProfile(mobileconfigForTest("filevault-1", mobileconfig.FleetFileVaultPayloadIdentifier), ptr.Uint(1))
 	require.NoError(t, err)
 	prof.TeamID = &tm.ID
 	require.NoError(t, err)
@@ -1972,7 +1972,6 @@ func (s *integrationMDMTestSuite) TestDiskEncryptionRotation() {
 	resp = orbitGetConfigResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *h.OrbitNodeKey)), http.StatusOK, &resp)
 	require.False(t, resp.Notifications.RotateDiskEncryptionKey)
-
 }
 
 func (s *integrationMDMTestSuite) assertConfigProfilesByIdentifier(teamID *uint, profileIdent string, exists bool) (profile *fleet.MDMAppleConfigProfile) {
