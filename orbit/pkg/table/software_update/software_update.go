@@ -49,7 +49,7 @@ func runCommand(ctx context.Context, name string, arg ...string) (res string, er
 
 	out, err := cmd.Output()
 	if err != nil {
-		log.Debug().Err(err).Msg("failed while generating nvram table")
+		log.Debug().Err(err).Msg("failed while generating software_update table")
 		return "", err
 	}
 	return string(out), nil
