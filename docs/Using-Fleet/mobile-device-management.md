@@ -8,5 +8,5 @@ To learn more about Fleet's MDM features, see:
 * [macOS Settings](https://fleetdm.com/docs/using-fleet/mdm-macos-settings)
 
 
-<meta name="pageOrderInSection" value="`1499">
+<meta name="pageOrderInSection" value="1499">
 <meta name="title" value="Mobile Device Management in Fleet">
