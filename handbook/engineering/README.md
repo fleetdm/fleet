@@ -362,7 +362,7 @@ In particular, host_id is a foreign key we’ve been skipping in all the new add
 ### In this section
 
 - [Insert on duplicate update](#insert-on-duplicate-update)
-- [Host extra data and JOINs](#host-extra-data-and-joi-ns)
+- [Host extra data and JOINs](#host-extra-data-and-joins)
 - [What DB tables matter more when thinking about performance?](#what-db-tables-matter-more-when-thinking-about-performance)
 - [Expose more host data in the host listing](#expose-more-host-data-in-the-host-listing)
 - [Understand main use-cases for queries](#understand-main-use-cases-for-queries)
