@@ -273,7 +273,7 @@ Before running the postmortem meeting this [Postmortem Template](https://docs.go
 
 Invite all stake holders, typically the team involved and QA representatives.
 
-Follow the document topic by topic. Keep the end in mind which is to take action items for addressing the root cause and making sure a similar incident will not happen again. 
+Follow the document topic by topic. Keep the goal in mind which is to take action items for addressing the root cause and making sure a similar incident will not happen again. 
 
 Distinguish between the root-cause of the bug which by that time was solved and released and the root-cause of why this issue reached our customers. These could be different issues. (e.g. the root-cause of the bug was a coding issue, but the root causes (plural) of the event was the test plan did not cover a specific scenario, a lack of unit tests and a lack of metrics to identify the issue quickly).
 
