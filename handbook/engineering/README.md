@@ -271,7 +271,7 @@ Before running the postmortem meeting this [Postmortem Template](https://docs.go
 
 ### Postmortem meeting
 
-Invite all stake holders. Typically the team involved and QA representatives.
+Invite all stake holders, typically the team involved and QA representatives.
 
 Follow the document topic by topic. Keep the end in mind which is to take action items for addressing the root cause and making sure a similar incident will not happen again. 
 
