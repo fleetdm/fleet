@@ -160,8 +160,15 @@
     .children-wrapper {
       display: flex;
       align-items: center;
-      span {
+      gap: 2px;
+
+      .tooltip-base {
         display: inline-flex;
+      }
+
+      .policy-name-text {
+        text-overflow: ellipsis;
+        overflow: hidden;
       }
     }
   }
