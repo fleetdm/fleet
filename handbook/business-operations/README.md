@@ -442,21 +442,8 @@ This section is about hiring a new core team member, or fleetie.
 
 > **_Note:_** _Employment classification isn't what makes someone a fleetie.  Some Fleet team members are contractors and others are employees.  The distinction between "contractor" and "employee" varies in different geographies, and the appropriate employment classification and agreement for any given team member and the place where they work is determined by CEO during the process of making an offer._
 
-Here are the steps hiring managers can follow to get an offer out to a candidate:
-1. **References** Ask the candidate for 2 references and conduct the reference checks
-   - The reference check template, with further instructions, can be found [here](https://docs.google.com/document/d/1LMOUkLJlAohuFykdgxTPL0RjAQxWkypzEYP_AT-bUAw/edit?usp=sharing).
-   - Reference checks can be conducted in parallel with the following steps.
-2. **Compile feedback on the candidate**
-   - Compile the feedback in one document including links to supporting documents such as links to portfolio or challenge submissions.
-   - Share this document with the CEO.
-3. **Schedule founder interview:** Schedule 30m for the CEO to interview the candidate, if they haven't already done so.
-   - At Fleet, the CEO interviews every new team member at least once before Fleet extends an offer.  (We plan to continue this practice until headcount reaches 100.)
-     - No need to check with the CEO first.  You can just book the meeting on his calendar.
-     - Schedule the meeting directly on the CEO's calendar during a time he and the candidate are both explicitly available according to that calendar.  Available means whitespace.
-     - Either use Google Calendar directly, or offer to use the CEO's 30m Calendly link.  _It is up to you, the hiring manager, to get this meeting scheduled and showing up at a time on the CEO's calendar._
-   - _If this is an engineering position_, before the CEO interview, please also be sure that the candidate has already been interviewed by Zach Wasserman.  (If not, feel free to include Zach in this final interview.)
-   - The personal email the candidate uses for this calendar event is where they will receive their offer or rejection email.
-2. **Add to team database:** Update the [Fleeties](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) doc to accurately reflect the candidate's:
+Here are the steps hiring managers follow to get an offer out to a candidate:
+1. **Add to team database:** Update the [Fleeties](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) doc to accurately reflect the candidate's:
    - Start date
      > _**Tip:** No need to check with the candidate if you haven't already.  Just guess.  First Mondays tend to make good start dates.  When hiring an international employee, Pilot.co recommends starting the hiring process a month before the new employee's start date._
    - First and last name
@@ -465,14 +452,29 @@ Here are the steps hiring managers can follow to get an offer out to a candidate
    - LinkedIn URL _(If the fleetie does not have a LinkedIn account, enter `N/A`)_
    - GitHub username _(Every candidate must have a GitHub account in "Fleeties" before the company makes them an offer.  If the the candidate does not have a GitHub account, ask them to create one, and make sure it's tracked in "Fleeties".)_
      > _**Tip:** A revealing live interview question can be to ask a candidate to quickly share their screen, sign up for GitHub, and then hit the "Edit" button on one of the pages in [the Fleet handbook](https://fleetdm.com/handbook) to make their first pull request.  This should not take more than 5 minutes._
-3. **Confirm intent to offer:** At-mention `@mikermcneil` in the `#hiring-` channel and indicate that you would like for Fleet to make an offer to the candidate.
+2. **Call references:** Ask the candidate for at least 2+ references and contact each reference in parallel using the instructions and tips in [Fleet's reference check template](https://docs.google.com/document/d/1LMOUkLJlAohuFykdgxTPL0RjAQxWkypzEYP_AT-bUAw/edit?usp=sharing).  Be respectful and keep these calls very short.
+3. **Schedule CEO interview:** Schedule 30m for the CEO to interview the candidate, if they haven't already done so.
+   - At Fleet, the CEO interviews every new team member at least once before Fleet extends an offer.  (We plan to continue this practice until headcount reaches 100.)
+     - No need to check with the CEO first.  You can just book the meeting on his calendar.
+     - Schedule the meeting directly on the CEO's calendar during a time he and the candidate are both explicitly available according to that calendar.  Available means whitespace.
+     - Either use Google Calendar directly, or offer to use the CEO's 30m Calendly link.  _It is up to you, the hiring manager, to get this meeting scheduled and showing up at a time on the CEO's calendar._
+   - _If this is an engineering position_, before the CEO interview, please also be sure that the candidate has already been interviewed by Zach Wasserman.  (If not, feel free to include Zach in this final interview.)
+   - The personal email the candidate uses for this calendar event is where they will receive their offer or rejection email.
+4. **Confirm intent to offer:** Compile feedback about the candidate into a single document and share that document with the CEO via Google Drive.  _This will be interpreted by the CEO as a signal that you are ready for him to make an offer to this candidate._
+   - _Compile feedback into a single doc:_ Include feedback from interviews, reference checks, and challenge submissions.  Include any other notes you can think of offhand, and embed links to any supporting documents that were impactful in your final decision-making, such as portfolios or challenge submissions.
+   - _Share_ this single document with the CEO via email.
+     - Share only _one, single Google Doc, please_; with a short, formulaic name that's easy to understand in an instant from just an email subject line.  For example, you could title it:
+       >Why hire Jane Doe ("Train Conductor") - 2023-03-21
+     - When the CEO receives this doc shared doc in his email with the compiled feedback about the candidate, he will understand that to mean that it is time for Fleet to make an offer to the candidate.
+
+
 
 #### Making an offer (CEO only)
 After meeting with the candidate for their final interview, the CEO uses the following steps to make an offer:
 1. **Review decision:** The CEO reviews the data and decides whether it still makes sense to make this offer to this person in this role.  If not, he lets the manager know.  Otherwise, he continues with the offer.
 2. **Adjust compensation:** [Re-benchmark salary](https://www.pave.com), adjusting for cost of living where the candidate will do the work.
    - _Paste a screenshot_ from Pave showing the amount of cash and equity in the offer (or write 1-2 sentences about what is being offered to this candidate and why) under the [heading for this position in " 💌 Compensation decisions"](https://docs.google.com/document/d/1NQ-IjcOTbyFluCWqsFLMfP4SvnopoXDcX0civ-STS5c/edit)
-   - [ ] Update the ["🥧 Equity plan"](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit#gid=0) to reflect the offer offer that is about to be sent:
+   - _Update the ["🥧 Equity plan"](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit#gid=0)_ to reflect the offer offer that is about to be sent:
      -  Salary _(OTE actually offered)_
      -  Equity _(stock options actually offered)_
      -  "Notes" _(include base salary versus commission or bonus plan, if relevant)_
@@ -499,20 +501,26 @@ Once the new team member replies and accepts their offer in writing, either the 
 1. **Verify, track, and reply:** Reply to the candidate:
    - _Verify the candidate replied with their physical address… or else keep asking._  If they did not reply with their physical address, or it's not a usable address, then we are not done.  Fleet will reply and ask for it, and no offer should is "accepted" until we've received a physical address.
    - _Review and update the team database_ so that the new team member's row in ["🥧 Equity plan"](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit#gid=0) now includes:
-     - physical address _(The full street address of the location where work will typically be performed.)_
-     - personal email _(Use the personal email they're replying from, e.g. `@gmail.com`")_
-     - "Offer accepted?" _(Set this to `TRUE`)_
-     - salary, equity, and "Notes" _(Check that compensation information is accurate, one last time.)_
+     - **Physical address** _(The full street address of the location where work will typically be performed.)_
+     - **Personal email** _(Use the personal email they're replying from, e.g. `@gmail.com`)_
+     - **"Offer accepted?"** _(Set this to `TRUE`)_
+     - **OTE** _(salary, expressed as anticipated "on-target" earnings)_
+     - **Equity** _(stock options)_
+     - **"Notes"** _(Track base salary here, as well as a very short explanation of commission or bonus structure.)_
+     - Be sure everything is accurate, one last time!
    - _[Create a "Hiring" issue](https://github.com/fleetdm/confidential/issues/new/choose)_ for the new team member.  (This is what will inform the Business Operations team to get involved.  The company will use this issue to keep track of the hiring tasks for the new team member.)
    - _Send a reply_ welcoming the team member to Fleet and letting them know to expect a separate email with next steps for getting the team member's laptop, Yubikeys, and agreement going ASAP so they can start on time.  For example:
-     >\o/  It's official!
-     >
-     >Be on the lookout for an email in a separate thread with next steps for quickly signing the paperwork and getting your company laptop and hardware 2FA keys (Yubikeys), which we recommend setting up ASAP.
-     >
-     >Thanks, and welcome to the team!
-     >-Mike
-2. **Ask hiring manager to send rejections quickly:** Post to the `hiring-xxxxx-yyyy` Slack channel to let folks know the offer was accepted, and at-mention the _hiring manager_ to ask them to communicate with [all other interviewees](https://fleetdm.com/handbook/company#empathy) who are still in the running and [let them know that we chose a different person](https://fleetdm.com/handbook/business-operations#candidate-correspondence-email-templates).
-  >_**Note:** Send rejection emails quickly, within 1 business day.  It only gets harder if you wait._
+     ```
+     \o/  It's official!
+     
+     Be on the lookout for an email in a separate thread with next steps for quickly signing the paperwork and getting your company laptop and hardware 2FA keys (Yubikeys), which we recommend setting up ASAP.
+     
+     Thanks, and welcome to the team!
+     
+     -Mike
+     ```
+2. **Ask hiring manager to send rejections:** Post to the `hiring-xxxxx-yyyy` Slack channel to let folks know the offer was accepted, and at-mention the _hiring manager_ to ask them to communicate with [all other interviewees](https://fleetdm.com/handbook/company#empathy) who are still in the running and [let them know that we chose a different person](https://fleetdm.com/handbook/business-operations#candidate-correspondence-email-templates).
+   >_**Note:** Send rejection emails quickly, within 1 business day.  It only gets harder if you wait._
 3. **Close Slack channel:** Then archive and close the channel.
 
 Now what happens?  Business Operations will then follow the steps in the "Hiring" issue, which includes reaching out to the new team member within 1 business day from a separate email thread to get additional information as needed, prepare their agreement, add them to the company's payroll system, and get their new laptop and hardware security keys ordered so that everything is ready for them to start on their first day.
