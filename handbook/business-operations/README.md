@@ -366,10 +366,12 @@ If you've been invited to "book with us," you'll have a Zoom meeting with the hi
 Here are the steps hiring managers can follow to get an offer out to a candidate:
 1. **Schedule founder interview:** Schedule 30m for the CEO to interview the candidate, if they haven't already done so.
    - At Fleet, the CEO interviews every new team member at least once before Fleet extends an offer.  (We plan to continue this practice until headcount reaches 100.)
-   - No need to check with the CEO first.  You can just book the meeting on his calendar.
-   - If this is an engineering position, before the CEO interview, please also be sure that the candidate has already been interviewed by the CTO.
-   - The personal email the candidate uses for this calendar event is where they will receive the offer.
-2. **Add to team database:** Update the [Fleeties](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) doc to reflect:
+     - No need to check with the CEO first.  You can just book the meeting on his calendar.
+     - Schedule the meeting directly on the CEO's calendar during a time he and the candidate are both explicitly available according to that calendar.  Available means whitespace.
+     - Either use Google Calendar directly, or offer to use the CEO's 30m Calendly link.  _It is up to you, the hiring manager, to get this meeting scheduled and showing up at a time on the CEO's calendar._
+   - _If this is an engineering position_, before scheduling the CEO interview, please also be sure that the candidate has already been interviewed by the CTO.  If not, include the CTO in this interview.
+   - The candidate's email address involved in this calendar event with the CEO is also where they will receive their offer or rejection email from the CEO.
+2. **Add to team database:** Update the [Fleeties](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) doc to accurately reflect:
    - start date _(No need to check with the candidate if you haven't already.  Just guess.)_
    - candidate's first and last name
    - preferred pronoun
@@ -380,7 +382,7 @@ Here are the steps hiring managers can follow to get an offer out to a candidate
 #### Making an offer
 After meeting with the candidate for their final interview, the CEO uses the following steps to make an offer:
 1. **Review decision:** The CEO reviews the data and decides whether it still makes sense to make this offer to this person in this role.  If not, he lets the manager know.  Otherwise, he continues with the offer.
-2. **Adjust salary:** [Re-benchmark salary](https://www.pave.com), adjusting for cost of living where the candidate will do the work.
+2. **Adjust compensation:** [Re-benchmark salary](https://www.pave.com), adjusting for cost of living where the candidate will do the work.
    - [ ] Paste a screenshot of Pave showing the adjusted benchmark under the [heading for this position in " 💌 Compensation decisions"](https://docs.google.com/document/d/1NQ-IjcOTbyFluCWqsFLMfP4SvnopoXDcX0civ-STS5c/edit)
    - [ ] Update the [equity plan](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit#gid=0) with the actual adjusted salary and equity offer that is about to be sent.  
 3. **Prepare the "exit scenarios" spreadsheet:** [Copy the "Exit scenarios (template)"](https://docs.google.com/spreadsheets/d/1k2TzsFYR0QxlD-KGPxuhuvvlJMrCvLPo2z8s8oGChT0/copy) for the candidate, and rename the copy to e.g. "Exit scenarios for Jane Doe".
@@ -401,9 +403,14 @@ After meeting with the candidate for their final interview, the CEO uses the fol
 ### Steps after an offer is accepted
 
 Once the new team member replies and accepts their offer in writing:
-1. The CEO or Zach Wasserman replies to the candidate.
-2. Whoever replies [creates a hiring issue](https://github.com/fleetdm/confidential/issues/new/choose) for the new team member. This will inform the Business Operations team to get involved.  They will use this issue to keep track of the hiring tasks for the new team member.
-3. Business Operations will then reach out to the new team member within 1 business day from a separate email thread to get any information they will need to prepare their agreement, add them to our payroll system, and get their new laptop and hardware security keys ordered so that everything is ready for them to start on their first day.
+1. **Accept:** Either CEO or Zach Wasserman replies to the candidate.  Whoever replies first is responsible for these steps:
+   - [ ] _Verify the candidate replied with their physical address… or else keep asking._  If they did not reply with their physical address, or it's not a usable address, then we are not done.  Fleet will reply and ask for it, and no offer should is "accepted" until we've received a physical address.
+   - [ ] _Update the team database_ so that the new team member's row in ["🥧 Equity plan"](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit#gid=0) now includes:
+     - physical address _(The full street address of the location where work will typically be performed.)_
+     - personal email _(Use the personal email they're replying from, e.g. `@gmail.com`")_
+   - [ ] _[Create a "Hiring" issue](https://github.com/fleetdm/confidential/issues/new/choose)_ for the new team member.  (This is what will inform the Business Operations team to get involved.  The company will use this issue to keep track of the hiring tasks for the new team member.)
+   - [ ] _Send a reply_ welcoming the team member to Fleet and letting them know to expect a separate email with next steps for getting the team member's laptop, Yubikeys, and agreement going ASAP so they can start on time.
+2. Business Operations will then follow the steps in the "Hiring" issue, which includes reaching out to the new team member within 1 business day from a separate email thread to get additional information as needed, prepare their agreement, add them to the company's payroll system, and get their new laptop and hardware security keys ordered so that everything is ready for them to start on their first day.
 
 > **_Note:_** _Some Fleet team members are contractors and others are employees.  The distinction between "contractor" and "employee" varies in different geographies, and the appropriate contract for any given team member and the place where they work is determined during the hiring process._
 
