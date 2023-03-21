@@ -28263,7 +28263,7 @@
     "columns": [
       {
         "name": "software_update_required",
-        "type": "text",
+        "type": "integer",
         "required": false,
         "description": "Software vendors release security patches and software updates for their products when security vulnerabilities are discovered. There is no simple way to complete this action without a network connection to an Apple software repository. Please ensure appropriate access for this control. This check is only for what Apple provides through software update.      \n"
       }
