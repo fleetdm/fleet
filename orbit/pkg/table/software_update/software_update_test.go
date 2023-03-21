@@ -5,6 +5,7 @@ package software_update
 
 import (
 	"github.com/osquery/osquery-go/plugin/table"
+	"github.com/stretchr/testify/require"
 	"golang.org/x/net/context"
 	"testing"
 	"time"
@@ -31,7 +32,10 @@ func TestIsNewSoftwareAvailable(t *testing.T) {
 	if newSoftwareAvailable != "0" && newSoftwareAvailable != "1" {
 		t.Fatalf(`newSoftwareAvailable expected 0 or 1. got %s`, newSoftwareAvailable)
 	}
-	if err != nil {
-		t.Fatalf(`Expected no error. got %s`, err)
-	}
+	require.Nil(t, err)
+}
+
+func TestColumns(t *testing.T) {
+	col := Columns()
+	require.Equal(t, []table.ColumnDefinition([]table.ColumnDefinition{table.ColumnDefinition{Name: "new_software_available", Type: "INTEGER"}}), col)
 }
