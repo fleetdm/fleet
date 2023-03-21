@@ -279,7 +279,7 @@ Distinguish between the root-cause of the bug, which by that time was solved and
 
 [Example Finished Document](https://docs.google.com/document/d/1YnETKhH9R7STAY-PaFnPy2qxhNht2EAFfkv-kyEwebQ/edit?usp=share_link)
 
-### Postmortem Action Items
+### Postmortem action items
 
 Each action item will have an owner that will be responsible for creating a Github issue promptly after the meeting. This Github issue should be prioritized with the relevant PM and/or engineering manager.
 
