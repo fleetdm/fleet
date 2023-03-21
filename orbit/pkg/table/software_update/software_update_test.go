@@ -1,7 +1,7 @@
 //go:build darwin
 // +build darwin
 
-package nvram_info
+package software_update
 
 import (
 	"github.com/osquery/osquery-go/plugin/table"
@@ -24,12 +24,12 @@ func TestGenerate(t *testing.T) {
 	}
 }
 
-func TestGetAMFIEnabled(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+func TestIsNewSoftwareAvailable(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	amfiEnabled, err := getAMFIEnabled(ctx)
-	if amfiEnabled != "0" && amfiEnabled != "1" {
-		t.Fatalf(`amfiEnabled expected 0 or 1. got %s`, amfiEnabled)
+	newSoftwareAvailable, err := isNewSoftwareAvailable(ctx)
+	if newSoftwareAvailable != "0" && newSoftwareAvailable != "1" {
+		t.Fatalf(`newSoftwareAvailable expected 0 or 1. got %s`, newSoftwareAvailable)
 	}
 	if err != nil {
 		t.Fatalf(`Expected no error. got %s`, err)
