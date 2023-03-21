@@ -557,6 +557,8 @@ func main() {
 			configFetcher = update.ApplyNudgeConfigFetcherMiddleware(configFetcher, update.NudgeConfigFetcherOptions{
 				UpdateRunner: updateRunner, RootDir: c.String("root-dir"), Interval: nudgeLaunchInterval,
 			})
+
+			configFetcher = update.ApplyDiskEncryptionRunnerMiddleware(configFetcher)
 		}
 
 		const orbitFlagsUpdateInterval = 30 * time.Second
