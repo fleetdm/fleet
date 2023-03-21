@@ -8,9 +8,9 @@
 			<key>AllowPreReleaseInstallation</key>
 			<true/>
 			<key>AutomaticCheckEnabled</key>
-			<true/>
+			<false/>
 			<key>AutomaticDownload</key>
-			<true/>
+			<false/>
 			<key>AutomaticallyInstallAppUpdates</key>
 			<true/>
 			<key>AutomaticallyInstallMacOSUpdates</key>
