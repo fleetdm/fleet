@@ -396,10 +396,10 @@ When review is requested on a proposal to open a new position, the CEO will comp
 4. **Decide**: Decide whether to approve this role or to consider it a different time.  If approving, then:
    - _Create Slack channel:_ Create a private "#hiring-xxxxxx-YYYY" Slack channel (where "xxxxxx" is the job title and YYYY is the current year) for discussion and invite the hiring manager.
    - _Publish opening:_ Approve and merge the pull request.  The job posting go live within ≤10 minutes.
-   - _Reply to requestor:_ Post a comment on the pull request, being sure to include a direct link to their live job description on fleetdm.com.  (This is the URL where candidates can go to read about the job and apply.  For example: `fleetdm.com/handbook/company/product-designer`).  For example:
+   - _Reply to requestor:_ Post a comment on the pull request, being sure to include a direct link to their live job description on fleetdm.com.  (This is the URL where candidates can go to read about the job and apply.  For example: `fleetdm.com/handbook/company/product-designer`):
      ```
      The new opening is now live!  Candidates can apply at fleetdm.com/handbook/company/railway-conductor.
-      ```
+     ```
 
 > _**Note:** Most columns of the "Equity plan" are updated automatically when "Fleeties" is, based on the unique identifier of each row, like `🧑‍🚀890`.  (Advisors have their own flavor of unique IDs, such as `🦉755`, which are defined in ["Advisors and investors"](https://docs.google.com/spreadsheets/d/15knBE2-PrQ1Ad-QcIk0mxCN-xFsATKK9hcifqrm0qFQ/edit).)_
 
