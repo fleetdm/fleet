@@ -371,7 +371,10 @@ Then hit send!  After all of the signatures are there, the completed document wi
 
 
 ### Creating a new position
-Every new position being created goes through this process before interviewing, accepting applicants, or extending offers.
+
+Use this process to create a new position before interviewing, recruiting, or extending offers.
+
+Any position created this way is considered a position on the core team, which means it is filled by a [fleetie, not a consultant](https://fleetdm.com/handbook/business-operations#who-isnt-a-consultant).
 
 > If you think this job posting may need to stay temporarily classified (¶¶) and not shared company-wide or publicly yet, for any reason, then stop here and send a Slack DM with your proposal to the CEO instead of modifying "🧑‍🚀 Fleeties" (which is visible company-wide) or submitting a draft pull request to "Open positions" (which is public).
 
