@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+
+	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
 var (
@@ -49,6 +51,8 @@ type NotFoundErr interface {
 
 type notFoundErr struct {
 	msg string
+
+	fleet.ErrorWithUUID
 }
 
 func (e notFoundErr) Error() string {

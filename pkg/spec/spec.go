@@ -42,7 +42,7 @@ func GroupFromBytes(b []byte) (*Group, error) {
 	for _, specItem := range SplitYaml(string(b)) {
 		var s Metadata
 		if err := yaml.Unmarshal([]byte(specItem), &s); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to unmarshal spec item %w: \n%s", err, specItem)
 		}
 
 		if s.Spec == nil {

@@ -75,6 +75,8 @@ func (s MacOSSettingsStatus) IsValid() bool {
 // - GET /hosts/count (count hosts, which calls svc.CountHosts or svc.CountHostsInLabel)
 // - GET /labels/{id}/hosts (list hosts in label)
 // - GET /hosts/report
+// - POST /hosts/delete (calls svc.hostIDsFromFilters)
+// - POST /hosts/transfer/filter (calls svc.hostIDsFromFilters)
 //
 // Make sure the docs are updated accordingly and all endpoints behave as expected.
 type HostListOptions struct {
@@ -217,6 +219,10 @@ type Host struct {
 	// response if the host does not have disk encryption enabled. It is also
 	// omitted if we don't have encryption information yet.
 	DiskEncryptionEnabled *bool `json:"disk_encryption_enabled,omitempty" db:"disk_encryption_enabled" csv:"-"`
+
+	// DiskEncryptionResetRequested is only fetched when loading a host by
+	// orbit_node_key, and so it's not used in the UI.
+	DiskEncryptionResetRequested *bool `json:"disk_encryption_reset_requested,omitempty" db:"disk_encryption_reset_requested" csv:"-"`
 
 	HostIssues `json:"issues,omitempty" csv:"-"`
 
@@ -372,6 +378,22 @@ func (d *MDMHostData) DetermineDiskEncryptionStatus(profiles []HostMDMAppleProfi
 	d.MacOSSettings = &settings
 }
 
+func (d *MDMHostData) ProfileStatusFromDiskEncryptionState(currStatus *MDMAppleDeliveryStatus) *MDMAppleDeliveryStatus {
+	if d.MacOSSettings == nil || d.MacOSSettings.DiskEncryption == nil {
+		return currStatus
+	}
+	switch *d.MacOSSettings.DiskEncryption {
+	case DiskEncryptionActionRequired, DiskEncryptionEnforcing, DiskEncryptionRemovingEnforcement:
+		return &MDMAppleDeliveryPending
+	case DiskEncryptionFailed:
+		return &MDMAppleDeliveryFailed
+	case DiskEncryptionApplied:
+		return &MDMAppleDeliveryApplied
+	default:
+		return currStatus
+	}
+}
+
 // Only exposed for Datastore tests, to be able to assert the rawDecryptable
 // unexported field.
 func (d *MDMHostData) TestGetRawDecryptable() *int {
@@ -513,7 +535,7 @@ func (h *Host) FleetPlatform() string {
 
 // HostLinuxOSs are the possible linux values for Host.Platform.
 var HostLinuxOSs = []string{
-	"linux", "ubuntu", "debian", "rhel", "centos", "sles", "kali", "gentoo", "amzn", "pop", "arch", "linuxmint", "void", "nixos",
+	"linux", "ubuntu", "debian", "rhel", "centos", "sles", "kali", "gentoo", "amzn", "pop", "arch", "linuxmint", "void", "nixos", "endeavouros", "manjaro", "opensuse-leap", "opensuse-tumbleweed",
 }
 
 func IsLinux(hostPlatform string) bool {

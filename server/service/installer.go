@@ -163,7 +163,7 @@ func (svc *Service) CheckInstallerExistence(ctx context.Context, installer fleet
 	}
 
 	if !exists {
-		return notFoundError{}
+		return newNotFoundError()
 	}
 
 	return nil

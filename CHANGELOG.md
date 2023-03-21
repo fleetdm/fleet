@@ -1,3 +1,7 @@
+## Fleet 4.28.1 (March 14, 2023) 
+
+* Fixed a bug that prevented starting the Fleet server with MDM features if Apple Business Manager (ABM) was not configured.
+
 ## Fleet 4.28.0 (Feb 24, 2023)
 
 * Added logic to ingest and decrypt FileVault recovery keys on macOS if Fleet's MDM is enabled.

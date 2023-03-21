@@ -1,6 +1,6 @@
 # Product
 
-⚗️ Roadmap: https://github.com/orgs/fleetdm/projects/41/views/2
+⚗️ Backlog: https://app.zenhub.com/workspaces/-product-backlog-coming-soon-6192dd66ea2562000faea25c/board
 
 ## Job to be done
 
@@ -11,94 +11,15 @@ overarching job to be done is the following:
 "I need a way to see what laptops and servers I have and what I need to do to keep them secure and
 compliant."
 
-## Objectives and key results (OKRs) and Key Performance Indicators (KPIs)
-
-Fleet uses objectives and key results (OKRs) to align the organization with measurable
-goals, and key performance indicators (KPIs) to measure the work that achieves the goals of the OKRs. Rephased, the objectives and key results describes what you want to accomplish and the key performance indicators describe how you know you're making progress.
-
-The product team is responsible for sub-OKRs that contribute to organization-wide OKRs.
-
-| Year, Quarter  | OKR file |   
-|---------------|------------------|
-| 2022, Q2      | [internal doc](https://docs.google.com/document/d/1SfzdeY0mLXSg1Ew0N4yhJppakCgGnDW7Bf8xpKkBczo/edit?usp=sharing)   |
-| 2022, Q3      | [internal doc](https://docs.google.com/document/d/1i0ovyamy6MqyFDgiMtPO_OkAzetPuNKryAeu12KbMFk/edit?usp=sharing)   |
-| 2022, Q4      | TODO             |
-
-## Q1 2022 product objectives
-
-In Q1 2022, Fleet set company-wide objectives. The product team was responsible for
-the product objectives that contributed to the company-wide objectives.
-
-The following list includes the company-wide objectives, product objectives ("How?" sections), and whether or not the
-product team hit or missed each objective:
-
-#### Ultimate source of truth
-
-Fleet + osquery gives organizations the ability to see an almost [endless amount of
-data](https://osquery.io/schema/5.1.0/) for all their devices. We want to build on this reputation
-by consistently providing the freshest, most accurate, and most understandable data possible
-in the UI and API.
-
-##### How?
-
-- Solve the "Undetermined" performance impact limitation for new scheduled queries as well as
-reflect unfinished policy runs in the UI/API (Miss).
-- Only advertise working osquery tables inside the product by looking at your `wifi_networks` table
-  (Miss).
-
-#### Programmable
-
-Fleet differentiates itself from other security tools by providing a simple and easy-to-use API and
-CLI tool (fleetctl). This allows users and customers to leverage Fleet's superb ability to gather
-device data in unique ways to their organization.
-
-##### How?
-
-- Add integrations for policy and vulnerability automations (Miss).
-- Take steps toward feature parity with other vulnerability management solutions (Miss).
-- Roll up software and vulnerabilities across the entire organization and teams (Hit).
-
-#### Who's watching the watchers
-
-Many current Fleet users and customers hire Fleet to increase their confidence that other security
-tools are functioning properly. We will continue to expose valuable information about these tools to meet customer requirements.
-
-##### How?
-
-- Detect the health of other installed agents and verify device enrollment in Jamf,
-Kandji, and SimpleMDM. (Hit)
-- Roll up mobile device management (MDM) and Munki data across the entire organization and teams. (Hit)
-
-#### Self-service, 2-way IT
-
-Fleet is poised to enable an organization's employees to resolve issues with their devices on their own. This saves for IT administrators and security practitioners, but it also builds
-trust so that an organization can focus on achieving its business outcomes together.
-
-##### How?
-
-- Enable end-users to self-serve issues with their devices using Fleet Desktop(Miss).
-- Enable end-users to see what information is collected about their device by maintaining the scope transparency(Hit).
-
-#### Easy to use
-
-We'd like to make maintaining secure laptops and servers as easy as possible.
-
-##### How?
-
-- Improve the standard query library to include 80% of the most common
-policies that any organization needs(Miss).
-
 ## Product design process
 
-The product team is responsible for product design tasks. These include drafting
-changes to the Fleet product, reviewing and collecting feedback from engineering, sales, customer success, and marketing counterparts, and delivering
-these changes to the engineering team. 
+The product team is responsible for product design tasks. These include drafting changes to the Fleet product, reviewing and collecting feedback from engineering, sales, customer success, and marketing counterparts, and delivering these changes to the engineering team. 
 
 Look here for more information about [Using Figma](https://fleetdm.com/handbook/digital-experience#fleet-website).
 
 ### Drafting
 
-* Move an issue that is assigned to you from the "Ready" column of the [🛸 Product team (weekly) board](https://github.com/orgs/fleetdm/projects/17) to the "In progress" column.
+* Take the top issue that is assigned to you in the "Prioritized" column of the Backlog board.
 
 * Create a page in the [Fleet EE (scratchpad, dev-ready) Figma file](https://www.figma.com/file/hdALBDsrti77QuDNSzLdkx/%F0%9F%9A%A7-Fleet-EE-dev-ready%2C-scratchpad?node-id=3923%3A208793) and combine your issue's number and
   title to name the Figma page.
@@ -107,25 +28,22 @@ Look here for more information about [Using Figma](https://fleetdm.com/handbook/
   yourself in the shoes of a user while drafting changes. Place these drafts in the appropriate
   Figma page in Fleet EE (scratchpad, dev-ready).
 
-* While drafting, reach out to sales, customer success, and marketing for a new perspective.
+* While drafting, reach out to sales, customer success, and marketing for a business perspective.
 
 * While drafting, engage engineering to gain insight into technical costs and feasibility.
 
 ### Review
 
-* Move the issue into the "Ready for review" column. The drafted changes that correspond to each
-  issue in this column will be reviewed during the recurring product huddle meeting.
-
-* During the product huddle meeting, record any feedback on the drafted changes.
+* Schedule a design review to review the draft. 
+* During the product huddle meeting, record and address any feedback on the draft.
 
 ### Deliver
 
-* Once your work is complete and all feedback is addressed, make sure that the issue is updated with
-  a link to the correct page in the Fleet EE (scratchpad) Figma. This page is where the design
-  specifications live.
+Once the draft has been approved: 
+* move it to the "Designed" column in the Backlog board
+* make sure that the issue is updated with the latest information on the work to be done, such as link to the correct page in the Fleet EE (scratchpad) Figma and most recent requirements.
 
-* Add the issue to the 🏛 Architect column in [the 🛸 Product project](https://github.com/orgs/fleetdm/projects/27). This way, an architect on the engineering team knows that the issue is ready for engineering specifications and, later,
-  engineering estimation.
+> As drafting occurs, inevitably, the requirements will change. The main description of the issue should be the single source of truth for the problem to be solved and the required outcome. The product manager is responsible for keeping the main description of the issue up-to-date. Comments and other items can and should be kept in the issue for historical record-keeping.
 
 #### Priority drafting
 
@@ -202,25 +120,6 @@ For the Interface group, "estimated" means UI wireframes and API design are comp
 
 ## UI design
 
-### Communicating design changes to the engineering team.
-NEW feature that have been added to [Figma Fleet EE (current, dev-ready)](https://www.figma.com/file/qpdty1e2n22uZntKUZKEJl/?node-id=0%3A1):
-1. Create a new [GitHub issue](https://github.com/fleetdm/fleet/issues/new)
-2. Detail the required changes (including page links to the relevant layouts), then assign the issue to the __"Initiatives"__ project.
-
-<img src="https://user-images.githubusercontent.com/78363703/129840932-67d55b5b-8e0e-4fb9-9300-5d458e1b91e4.png" alt="Assign to Initiatives project"/>
-
-> ___NOTE:___ Artwork and layouts in Figma Fleet EE (current) are final assets, ready for implementation. Therefore, it’s important NOT to use the "idea" label, as designs in this document are more than ideas - they are something that WILL be implemented.
-
-3. Navigate to the [Initiatives project](https://github.com/orgs/fleetdm/projects/8), hit "+ Add cards," pick the new issue, and drag it into the "🤩Inspire me" column. 
-
-<img src="https://user-images.githubusercontent.com/78363703/129840496-54ea4301-be20-46c2-9138-b70bff7198d0.png" alt="Add cards"/>
-
-<img src="https://user-images.githubusercontent.com/78363703/129840735-3b270429-a92a-476d-87b4-86b93057b2dd.png" alt="Inspire me"/>
-
-### Communicating unplanned design changes
-
-For issues related to something that was ALREADY in Figma Fleet EE (current, dev-ready), but __implemented differently__, e.g., padding/spacing inconsistency, etc. Create a [bug issue](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&template=bug-report.md&title=) and detail the required changes.
-
 ### Design conventions
 
 We have certain design conventions that we include in Fleet. We will document more of these over time.
@@ -253,16 +152,14 @@ There are two types of tooltips. The two types of tooltips have some unique styl
 
 ## Release 
 
-This section outlines the communication between the product team, marketing team, product team,
-and customer success team prior to a release of Fleet.
+This section outlines the communication between the product, marketing, and customer success teams prior to a release of Fleet.
 
 ### Goal
 
-Keep the business up to date with improvements and changes to the Fleet product so that all stakeholders can communicate
-with customers and users.
+Keep non-engineering and product departments up to date with improvements and changes to the Fleet product so that all stakeholders can communicate with customers and users.
 
 ### Product marketing tiers 
-After the kickoff of a product sprint, the marketing and product teams should decide which features are most important to highlight. When a feature gets scheduled for release the Tier helps marketing give it the biggest impact. Once the features have been discussed the next step is to bucket them into tiers for marketing prioritization. The current tiers are 1-3. 
+After the kickoff of a product sprint, the marketing and product teams should decide which features are most important to highlight. When a feature gets scheduled for release, the Tier determines the marketing effort for the feature. Once the features have been discussed the next step is to bucket them into tiers for marketing prioritization. The current tiers are 1-3. 
 
 - Tier 1: A separate product feature announcement. The most important release types, these require a specific and custom marketing package. Usually including an individual blog post, a demo video and potentially a press release or official product marketing launch. Due to limited availability there is only room for one Tier 1 product announcement per release sprint.
 - Tier 2: A highlighted feature in the release notes. This product feature will be highlighted at the top of the Sprint Release blog post. Depending on the feature specifics this will include: a 1-2 paragraph write-up of the feature, a demo video (if applicable) and a link to the docs. Ideally there would be no more than 3 *Tier 2* features in a release post, otherwise the top features will be crowded.
@@ -270,9 +167,7 @@ After the kickoff of a product sprint, the marketing and product teams should de
 
 ### Blog post
 
-The product team is responsible for providing the [marketing team](../marketing/README.md) with the necessary information for writing
-the release blog post. This is accomplished by filing a release blog post issue and adding
-the issue to the growth board on GitHub.
+The product team is responsible for providing the marketing team with the necessary information for writing the release blog post. Every three weeks after the sprint is kicked off, the product team meets with the relevant marketing team members to go over the features for that sprint and recommend items to highlight.
 
 The release blog post issue includes a list of the primary *Tier 2/3* features included in the upcoming
 release. This list of features should point the reader to the GitHub issue that explains each
@@ -317,7 +212,19 @@ The following highlights should be considered when deciding if we should leverag
   release.
 - The feature flag will not be advertised. For example, advertising in the documentation on fleetdm.com/docs, release notes, release blog posts, and Twitter.
 
-Fleet's feature flag guidelines is borrowed from GitLab's ["When to use feature flags" section](https://about.gitlab.com/handbook/product-development-flow/feature-flag-lifecycle/#when-to-use-feature-flags) of their handbook. Check out [GitLab's "Feature flags only when needed" video](https://www.youtube.com/watch?v=DQaGqyolOd8) for an explanation of the costs of introducing feature flags.
+> Fleet's feature flag guidelines is borrowed from GitLab's ["When to use feature flags" section](https://about.gitlab.com/handbook/product-development-flow/feature-flag-lifecycle/#when-to-use-feature-flags) of their handbook. Check out [GitLab's "Feature flags only when needed" video](https://www.youtube.com/watch?v=DQaGqyolOd8) for an explanation of the costs of introducing feature flags.
+
+## Significant changes
+
+For product changes that cause major impact for users, or even just create impression of major impact, the company plans migration thoughtfully.  That means the product department and E-group:
+
+1. **Written:** Write a migration guide, even if that's just a Google Doc
+2. **Tested:** Test out the migration ourselves, first-hand, as an engineer.
+3. **Gamed out:** We pretend we are one or two key customers and try it out as a role play.
+4. **Adapt:** If it becomes clear that the plan is insufficient, then fix it.
+5. **Communicate:** Develop a plan for how to proactively communicate the change to customers.
+
+That all happens prior to work getting prioritized for the change.
 
 ## Competition
 
@@ -355,16 +262,18 @@ To make a request or advocate for a request from a customer or community member,
 doc](https://docs.google.com/document/d/1mwu5WfdWBWwJ2C3zFDOMSUC9QCyYuKP4LssO_sIHDd0/edit#heading=h.zahrflvvks7q).
 Then attend the next scheduled 🗣 Product Feature Requests meeting.
 
-All members of the Fleet organization are welcome to attend the 🗣 Product Feature Requests meeting. Requests will be
+All members of the Fleet organization are required to attend the 🗣 Product Feature Requests meeting. Requests will be
 weighed from top to bottom while prioritizing attendee requests. 
 
 This means that if the individual that added a feature request is not in attendance, the feature request will be discussed towards the end of the call if there's time.
 
-All 🗣 Product Feature Requests meetings are recorded and uploaded to the [🗣 Product Feature Requests
-folder](https://drive.google.com/drive/folders/1nsjqDyX5WDQ0HJhg_2yOaqBu4J-hqRIW) in the shared
-Google drive.
+All 🗣 Product Feature Requests meetings are recorded and uploaded to Gong.
 
-Each week Noah Talerman follows the [directions in this document](https://docs.google.com/document/d/1MkM57cLNzkN51Hqq5CyBG4HaauAaf446ZhwWJlVho0M/edit?usp=sharing) (internal doc) and a backup copy of the 🗣️ Product Feature Requests document is created and dropped in the [🗣️ Product Feature Requests backup folder](https://drive.google.com/drive/folders/1WTSSLxA-P3OlspkMKjlRXKjzZsDRoe-4?usp=sharing) in the shared drive.
+### PFR Cleanup 
+Each week the DRI for the 🗣 Product Feature Requests meeting resets the document to blank by doing the following:
+1. Create issues for accepted items
+2. Notify absent requesters of decisions
+3. Move that week's feature requests to the backup journal document
 
 ## Usage statistics
 
@@ -383,8 +292,11 @@ Directly Responsible Individuals (DRI) engage in the ritual(s) below at the freq
 | 🗣 Product feature requests  | Weekly (Tuesdays) | We make a decision regarding which customer and community feature requests can be committed to in the next six weeks. We create issues for any requests that don't already have one. | Mo Zhu |
 | 🗣️ Product feature requests prep and cleanup | Weekly (Tuesdays) | Every week a backup doc is created to accompany the 🗣️ Product Feature Requests event | Mo Zhu |
 | 🗣 Product office hours  | Weekly (Thursdays) | Ask questions to the product team | Mo Zhu |
-| ✨ Product design review  | Weekly (Thursdays) | The Product team discusses "ready for review" items and makes the decision on whether the UI changes are ready for engineering specification and later implementation. | Noah Talerman |
 | Sprint release notes kick-off meeting | Triweekly (Wednesday) | Communicate high-value features from the current sprint to prepare release blog post and drumbeat social posts, etc in the leadup to release at the end of each sprint.  Marketing is responsible for getting what they need to publish and promote the release, including a great release post.  Product is responsible for helping marketing understand what is coming early enough that there is time to prepare.
+| ⚗️✨🗣 Design review (MDM)  | Daily | Review designs from the MDM team | Noah Talerman |
+| ⚗️✨🗣 Design review (CX)   | Daily | Review designs from the CX team | Zay Hanlon |
+| ⚗️✅🎉Product confirm and celebrate | Weekly | Product teams gets together to review work completed | Mo Zhu |
+| ⚗️ Sprint release notes kickoff | Tri-weekly | Product provides recommended features to highlight for the current sprint to enable the Marketing team to start writing release notes | Mo Zhu |
 
 ## Slack channels
 
@@ -394,7 +306,7 @@ This group maintains the following [Slack channels](https://fleetdm.com/handbook
 |:------------------------------------|:--------------------------------------------------------------------|
 | `#help-product`                     | Mo Zhu                                                              |
 | `#g-mdm`                            | Noah Talerman                                                       |
-| `#g-customer-experience`            | Zay Hanlon                                                          |
+| `#g-cx`                             | Zay Hanlon                                                          |
 
 <meta name="maintainedBy" value="zhumo">
 <meta name="title" value="⚗️ Product">

@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       DOCKER_IMAGE:
-        description: 'The full name of the docker image to be deployed. (e.g. fleetdm/fleet:v4.28.0)'
+        description: 'The full name of the docker image to be deployed. (e.g. fleetdm/fleet:v4.28.1)'
         required: true
 
 # This allows a subsequently queued workflow run to interrupt previous runs
@@ -26,7 +26,7 @@ env:
   TF_WORKSPACE: fleet
   TF_VAR_fleet_image: ${{ github.event.inputs.DOCKER_IMAGE || 'fleetdm/fleet:main' }}
   TF_VAR_fleet_license: ${{ secrets.DOGFOOD_LICENSE_KEY }}
-  TF_VAR_slack_webhook: ${{ secrets.P1_SLACK_WEBHOOK }}
+  TF_VAR_slack_webhook: ${{ secrets.SLACK_G_HELP_P1_WEBHOOK_URL }}
 
 permissions:
   id-token: write
@@ -47,7 +47,7 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
       - uses: hashicorp/setup-terraform@633666f66e0061ca3b725c73b2ec20cd13a8fdd1 # v2.0.3
         with:
-          terraform_version: 1.0.4
+          terraform_version: 1.3.8
           terraform_wrapper: false
       - name: Terraform Init
         id: init
@@ -64,22 +64,6 @@ jobs:
         run: terraform plan -no-color
         continue-on-error: true
         # first we'll scale everything down and create the new task definitions
-      - name: Terraform Apply Scale Down
-        id: apply_scale_down
-        run: terraform apply -auto-approve
-        env:
-          TF_VAR_fleet_min_capacity: 0
-          TF_VAR_fleet_max_capacity: 0
-      - name: Run migration task
-        id: run_migrate
-        run: |
-          CLUSTER_NAME=$(terraform output -raw ecs_cluster_name)
-          FAMILY=$(terraform output -raw migrate_task_definition_family)
-          REVISION=$(terraform output -raw fleet-migration-task-revision)
-          SUBNET=$(terraform output -raw private_subnet)
-          SECURITY_GROUP=$(terraform output -raw backend_security_group_id)
-          echo $CLUSTER_NAME $FAMILY $REVISION $SUBNET $SECURITY_GROUP
-          aws ecs run-task --cluster "${CLUSTER_NAME}" --task-definition "${FAMILY}":"${REVISION}" --launch-type FARGATE --network-configuration "awsvpcConfiguration={subnets=["${SUBNET}"],securityGroups=["${SECURITY_GROUP}"]}"
-      - name: Terraform Apply Scale Up
-        id: apply_scale_up
+      - name: Terraform Apply
+        id: apply
         run: terraform apply -auto-approve

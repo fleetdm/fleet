@@ -10,6 +10,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/micromdm/nanodep/godep"
 )
 
@@ -473,6 +474,8 @@ type SetHostsDiskEncryptionKeyStatusFunc func(ctx context.Context, hostIDs []uin
 
 type GetHostDiskEncryptionKeyFunc func(ctx context.Context, hostID uint) (*fleet.HostDiskEncryptionKey, error)
 
+type SetDiskEncryptionResetStatusFunc func(ctx context.Context, hostID uint, status bool) error
+
 type SetOrUpdateHostOrbitInfoFunc func(ctx context.Context, hostID uint, version string) error
 
 type ReplaceHostDeviceMappingFunc func(ctx context.Context, id uint, mappings []*fleet.HostDeviceMapping) error
@@ -483,7 +486,7 @@ type VerifyEnrollSecretFunc func(ctx context.Context, secret string) (*fleet.Enr
 
 type EnrollHostFunc func(ctx context.Context, isMDMEnabled bool, osqueryHostId string, hardwareUUID string, hardwareSerial string, nodeKey string, teamID *uint, cooldown time.Duration) (*fleet.Host, error)
 
-type EnrollOrbitFunc func(ctx context.Context, isMDMEnabled bool, hardwareUUID string, hardwareSerial string, orbitNodeKey string, teamID *uint) (*fleet.Host, error)
+type EnrollOrbitFunc func(ctx context.Context, isMDMEnabled bool, hostInfo fleet.OrbitHostInfo, orbitNodeKey string, teamID *uint) (*fleet.Host, error)
 
 type SerialUpdateHostFunc func(ctx context.Context, host *fleet.Host) error
 
@@ -559,13 +562,17 @@ type ListMDMAppleProfilesToRemoveFunc func(ctx context.Context) ([]*fleet.MDMApp
 
 type BulkUpsertMDMAppleHostProfilesFunc func(ctx context.Context, payload []*fleet.MDMAppleBulkUpsertHostProfilePayload) error
 
-type GetMDMAppleProfilesContentsFunc func(ctx context.Context, profileIDs []uint) (map[uint]fleet.Mobileconfig, error)
+type GetMDMAppleProfilesContentsFunc func(ctx context.Context, profileIDs []uint) (map[uint]mobileconfig.Mobileconfig, error)
 
 type UpdateOrDeleteHostMDMAppleProfileFunc func(ctx context.Context, profile *fleet.HostMDMAppleProfile) error
+
+type DeleteMDMAppleProfilesForHostFunc func(ctx context.Context, hostUUID string) error
 
 type GetMDMAppleCommandRequestTypeFunc func(ctx context.Context, commandUUID string) (string, error)
 
 type GetMDMAppleHostsProfilesSummaryFunc func(ctx context.Context, teamID *uint) (*fleet.MDMAppleHostsProfilesSummary, error)
+
+type InsertMDMIdPAccountFunc func(ctx context.Context, account *fleet.MDMIdPAccount) error
 
 type GetMDMAppleFileVaultSummaryFunc func(ctx context.Context, teamID *uint) (*fleet.MDMAppleFileVaultSummary, error)
 
@@ -1257,6 +1264,9 @@ type DataStore struct {
 	GetHostDiskEncryptionKeyFunc        GetHostDiskEncryptionKeyFunc
 	GetHostDiskEncryptionKeyFuncInvoked bool
 
+	SetDiskEncryptionResetStatusFunc        SetDiskEncryptionResetStatusFunc
+	SetDiskEncryptionResetStatusFuncInvoked bool
+
 	SetOrUpdateHostOrbitInfoFunc        SetOrUpdateHostOrbitInfoFunc
 	SetOrUpdateHostOrbitInfoFuncInvoked bool
 
@@ -1392,11 +1402,17 @@ type DataStore struct {
 	UpdateOrDeleteHostMDMAppleProfileFunc        UpdateOrDeleteHostMDMAppleProfileFunc
 	UpdateOrDeleteHostMDMAppleProfileFuncInvoked bool
 
+	DeleteMDMAppleProfilesForHostFunc        DeleteMDMAppleProfilesForHostFunc
+	DeleteMDMAppleProfilesForHostFuncInvoked bool
+
 	GetMDMAppleCommandRequestTypeFunc        GetMDMAppleCommandRequestTypeFunc
 	GetMDMAppleCommandRequestTypeFuncInvoked bool
 
 	GetMDMAppleHostsProfilesSummaryFunc        GetMDMAppleHostsProfilesSummaryFunc
 	GetMDMAppleHostsProfilesSummaryFuncInvoked bool
+
+	InsertMDMIdPAccountFunc        InsertMDMIdPAccountFunc
+	InsertMDMIdPAccountFuncInvoked bool
 
 	GetMDMAppleFileVaultSummaryFunc        GetMDMAppleFileVaultSummaryFunc
 	GetMDMAppleFileVaultSummaryFuncInvoked bool
@@ -3007,6 +3023,13 @@ func (s *DataStore) GetHostDiskEncryptionKey(ctx context.Context, hostID uint) (
 	return s.GetHostDiskEncryptionKeyFunc(ctx, hostID)
 }
 
+func (s *DataStore) SetDiskEncryptionResetStatus(ctx context.Context, hostID uint, status bool) error {
+	s.mu.Lock()
+	s.SetDiskEncryptionResetStatusFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetDiskEncryptionResetStatusFunc(ctx, hostID, status)
+}
+
 func (s *DataStore) SetOrUpdateHostOrbitInfo(ctx context.Context, hostID uint, version string) error {
 	s.mu.Lock()
 	s.SetOrUpdateHostOrbitInfoFuncInvoked = true
@@ -3042,11 +3065,11 @@ func (s *DataStore) EnrollHost(ctx context.Context, isMDMEnabled bool, osqueryHo
 	return s.EnrollHostFunc(ctx, isMDMEnabled, osqueryHostId, hardwareUUID, hardwareSerial, nodeKey, teamID, cooldown)
 }
 
-func (s *DataStore) EnrollOrbit(ctx context.Context, isMDMEnabled bool, hardwareUUID string, hardwareSerial string, orbitNodeKey string, teamID *uint) (*fleet.Host, error) {
+func (s *DataStore) EnrollOrbit(ctx context.Context, isMDMEnabled bool, hostInfo fleet.OrbitHostInfo, orbitNodeKey string, teamID *uint) (*fleet.Host, error) {
 	s.mu.Lock()
 	s.EnrollOrbitFuncInvoked = true
 	s.mu.Unlock()
-	return s.EnrollOrbitFunc(ctx, isMDMEnabled, hardwareUUID, hardwareSerial, orbitNodeKey, teamID)
+	return s.EnrollOrbitFunc(ctx, isMDMEnabled, hostInfo, orbitNodeKey, teamID)
 }
 
 func (s *DataStore) SerialUpdateHost(ctx context.Context, host *fleet.Host) error {
@@ -3308,7 +3331,7 @@ func (s *DataStore) BulkUpsertMDMAppleHostProfiles(ctx context.Context, payload 
 	return s.BulkUpsertMDMAppleHostProfilesFunc(ctx, payload)
 }
 
-func (s *DataStore) GetMDMAppleProfilesContents(ctx context.Context, profileIDs []uint) (map[uint]fleet.Mobileconfig, error) {
+func (s *DataStore) GetMDMAppleProfilesContents(ctx context.Context, profileIDs []uint) (map[uint]mobileconfig.Mobileconfig, error) {
 	s.mu.Lock()
 	s.GetMDMAppleProfilesContentsFuncInvoked = true
 	s.mu.Unlock()
@@ -3320,6 +3343,13 @@ func (s *DataStore) UpdateOrDeleteHostMDMAppleProfile(ctx context.Context, profi
 	s.UpdateOrDeleteHostMDMAppleProfileFuncInvoked = true
 	s.mu.Unlock()
 	return s.UpdateOrDeleteHostMDMAppleProfileFunc(ctx, profile)
+}
+
+func (s *DataStore) DeleteMDMAppleProfilesForHost(ctx context.Context, hostUUID string) error {
+	s.mu.Lock()
+	s.DeleteMDMAppleProfilesForHostFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteMDMAppleProfilesForHostFunc(ctx, hostUUID)
 }
 
 func (s *DataStore) GetMDMAppleCommandRequestType(ctx context.Context, commandUUID string) (string, error) {
@@ -3334,6 +3364,13 @@ func (s *DataStore) GetMDMAppleHostsProfilesSummary(ctx context.Context, teamID 
 	s.GetMDMAppleHostsProfilesSummaryFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetMDMAppleHostsProfilesSummaryFunc(ctx, teamID)
+}
+
+func (s *DataStore) InsertMDMIdPAccount(ctx context.Context, account *fleet.MDMIdPAccount) error {
+	s.mu.Lock()
+	s.InsertMDMIdPAccountFuncInvoked = true
+	s.mu.Unlock()
+	return s.InsertMDMIdPAccountFunc(ctx, account)
 }
 
 func (s *DataStore) GetMDMAppleFileVaultSummary(ctx context.Context, teamID *uint) (*fleet.MDMAppleFileVaultSummary, error) {

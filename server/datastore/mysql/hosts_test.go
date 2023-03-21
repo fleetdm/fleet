@@ -76,6 +76,7 @@ func TestHosts(t *testing.T) {
 		{"SavePackStatsOverwrites", testHostsSavePackStatsOverwrites},
 		{"WithTeamPackStats", testHostsWithTeamPackStats},
 		{"Delete", testHostsDelete},
+		{"HostListOptionsTeamFilter", testHostListOptionsTeamFilter},
 		{"ListFilterAdditional", testHostsListFilterAdditional},
 		{"ListStatus", testHostsListStatus},
 		{"ListQuery", testHostsListQuery},
@@ -660,6 +661,82 @@ func listHostsCheckCount(t *testing.T, ds *Datastore, filter fleet.TeamFilter, o
 	return hosts
 }
 
+func testHostListOptionsTeamFilter(t *testing.T, ds *Datastore) {
+	var teamIDFilterNil *uint                // "All teams" option should include all hosts regardless of team assignment
+	var teamIDFilterZero *uint = ptr.Uint(0) // "No team" option should include only hosts that are not assigned to any team
+
+	team1, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+	team2, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team2"})
+	require.NoError(t, err)
+
+	var hosts []*fleet.Host
+	for i := 0; i < 10; i++ {
+		h := test.NewHost(t, ds, fmt.Sprintf("foo.local.%d", i), "1.1.1.1",
+			fmt.Sprintf("%d", i), fmt.Sprintf("%d", i), time.Now())
+		hosts = append(hosts, h)
+	}
+	userFilter := fleet.TeamFilter{User: test.UserAdmin}
+
+	// confirm intial state
+	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{}, len(hosts))
+	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: teamIDFilterNil}, len(hosts))
+	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: teamIDFilterZero}, len(hosts))
+	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: &team1.ID}, 0)
+	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: &team2.ID}, 0)
+
+	// assign three hosts to team 1
+	require.NoError(t, ds.AddHostsToTeam(context.Background(), &team1.ID, []uint{hosts[0].ID, hosts[1].ID, hosts[2].ID}))
+	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{}, len(hosts))
+	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: teamIDFilterNil}, len(hosts))
+	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: teamIDFilterZero}, len(hosts)-3)
+	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: &team1.ID}, 3)
+	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: &team2.ID}, 0)
+
+	// assign four hosts to team 2
+	require.NoError(t, ds.AddHostsToTeam(context.Background(), &team2.ID, []uint{hosts[3].ID, hosts[4].ID, hosts[5].ID, hosts[6].ID}))
+	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{}, len(hosts))
+	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: teamIDFilterNil}, len(hosts))
+	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: teamIDFilterZero}, len(hosts)-7)
+	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: &team1.ID}, 3)
+	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: &team2.ID}, 4)
+
+	// test team filter in combination with macos settings filter
+	require.NoError(t, ds.BulkUpsertMDMAppleHostProfiles(context.Background(), []*fleet.MDMAppleBulkUpsertHostProfilePayload{
+		{
+			ProfileID:         1,
+			ProfileIdentifier: "identifier",
+			HostUUID:          hosts[0].UUID, // hosts[0] is assgined to team 1
+			CommandUUID:       "command-uuid-1",
+			OperationType:     fleet.MDMAppleOperationTypeInstall,
+			Status:            &fleet.MDMAppleDeliveryApplied,
+		},
+	}))
+	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: &team1.ID, MacOSSettingsFilter: "latest"}, 1) // hosts[0]
+	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: &team2.ID, MacOSSettingsFilter: "latest"}, 0) // wrong team
+	// macos settings filter does not support "all teams" so teamIDFilterNil acts the same as teamIDFilterZero
+	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: teamIDFilterZero, MacOSSettingsFilter: "latest"}, 0) // no team
+	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: teamIDFilterNil, MacOSSettingsFilter: "latest"}, 0)  // no team
+	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{MacOSSettingsFilter: "latest"}, 0)                               // no team
+
+	require.NoError(t, ds.BulkUpsertMDMAppleHostProfiles(context.Background(), []*fleet.MDMAppleBulkUpsertHostProfilePayload{
+		{
+			ProfileID:         1,
+			ProfileIdentifier: "identifier",
+			HostUUID:          hosts[9].UUID, // hosts[9] is assgined to no team
+			CommandUUID:       "command-uuid-2",
+			OperationType:     fleet.MDMAppleOperationTypeInstall,
+			Status:            &fleet.MDMAppleDeliveryApplied,
+		},
+	}))
+	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: &team1.ID, MacOSSettingsFilter: "latest"}, 1) // hosts[0]
+	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: &team2.ID, MacOSSettingsFilter: "latest"}, 0) // wrong team
+	// macos settings filter does not support "all teams" so both teamIDFilterNil acts the same as teamIDFilterZero
+	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: teamIDFilterZero, MacOSSettingsFilter: "latest"}, 1) // hosts[9]
+	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: teamIDFilterNil, MacOSSettingsFilter: "latest"}, 1)  // hosts[9]
+	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{MacOSSettingsFilter: "latest"}, 1)                               // hosts[9]
+}
+
 func testHostsListFilterAdditional(t *testing.T, ds *Datastore) {
 	h, err := ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
@@ -776,6 +853,9 @@ func testHostsListQuery(t *testing.T, ds *Datastore) {
 
 	filter := fleet.TeamFilter{User: test.UserAdmin}
 
+	var teamIDFilterNil *uint                // "All teams" filter
+	var teamIDFilterZero *uint = ptr.Uint(0) // "No team" filter
+
 	team1, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
 	require.NoError(t, err)
 	team2, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team2"})
@@ -794,8 +874,11 @@ func testHostsListQuery(t *testing.T, ds *Datastore) {
 	gotHosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{TeamFilter: &team2.ID}, 0)
 	assert.Equal(t, 0, len(gotHosts))
 
-	gotHosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{TeamFilter: nil}, len(hosts))
+	gotHosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{TeamFilter: teamIDFilterNil}, len(hosts))
 	assert.Equal(t, len(hosts), len(gotHosts))
+
+	gotHosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{TeamFilter: teamIDFilterZero}, 0)
+	assert.Equal(t, 0, len(gotHosts))
 
 	gotHosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{LowDiskSpaceFilter: ptr.Int(32)}, 3)
 	assert.Equal(t, 3, len(gotHosts))
@@ -5937,11 +6020,15 @@ func testHostsLoadHostByOrbitNodeKey(t *testing.T, ds *Datastore) {
 		orbitKey := uuid.New().String()
 		// on orbit enrollment, the "hardware UUID" is matched with the osquery
 		// host ID to identify the host being enrolled
-		_, err = ds.EnrollOrbit(ctx, false, *h.OsqueryHostID, h.HardwareSerial, orbitKey, nil)
+		_, err = ds.EnrollOrbit(ctx, false, fleet.OrbitHostInfo{
+			HardwareUUID:   *h.OsqueryHostID,
+			HardwareSerial: h.HardwareSerial,
+		}, orbitKey, nil)
 		require.NoError(t, err)
 
 		// the returned host by LoadHostByOrbitNodeKey will have the orbit key stored
 		h.OrbitNodeKey = &orbitKey
+		h.DiskEncryptionResetRequested = ptr.Bool(false)
 		returned, err := ds.LoadHostByOrbitNodeKey(ctx, orbitKey)
 		require.NoError(t, err)
 		assert.Equal(t, h, returned)
@@ -5961,13 +6048,16 @@ func testHostsLoadHostByOrbitNodeKey(t *testing.T, ds *Datastore) {
 			SeenTime:        time.Now(),
 			OsqueryHostID:   ptr.String(tag),
 			NodeKey:         ptr.String(tag),
-			UUID:            fmt.Sprintf(tag),
+			UUID:            tag,
 			Hostname:        tag + ".local",
 		})
 		require.NoError(t, err)
 
 		orbitKey := uuid.New().String()
-		_, err = ds.EnrollOrbit(ctx, false, *h.OsqueryHostID, h.HardwareSerial, orbitKey, nil)
+		_, err = ds.EnrollOrbit(ctx, false, fleet.OrbitHostInfo{
+			HardwareUUID:   *h.OsqueryHostID,
+			HardwareSerial: h.HardwareSerial,
+		}, orbitKey, nil)
 		require.NoError(t, err)
 		h.OrbitNodeKey = &orbitKey
 		return h
@@ -6236,6 +6326,7 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 			osqueryIDPtr = &osqueryID
 		}
 		h, err := ds.NewHost(ctx, &fleet.Host{
+			Hostname:         "foo",
 			HardwareSerial:   serial,
 			Platform:         "darwin",
 			LastEnrolledAt:   dbZeroTime,
@@ -6249,51 +6340,84 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 
 	// create and enroll a host with just an osquery ID, no serial
 	hOsqueryNoSerial := createHost(uuid.New().String(), "")
-	h, err := ds.EnrollOrbit(ctx, true, *hOsqueryNoSerial.OsqueryHostID, hOsqueryNoSerial.HardwareSerial, uuid.New().String(), nil)
+	h, err := ds.EnrollOrbit(ctx, true, fleet.OrbitHostInfo{
+		HardwareUUID:   *hOsqueryNoSerial.OsqueryHostID,
+		HardwareSerial: hOsqueryNoSerial.HardwareSerial,
+	}, uuid.New().String(), nil)
 	require.NoError(t, err)
 	require.Equal(t, hOsqueryNoSerial.ID, h.ID)
 	require.Empty(t, h.HardwareSerial)
+	// Hostname and platform values should not be overriden by the orbit enroll.
+	h, err = ds.Host(ctx, h.ID)
+	require.NoError(t, err)
+	require.Equal(t, "foo", h.Hostname)
+	require.Equal(t, "darwin", h.Platform)
 
 	// create and enroll a host with just a serial, no osquery ID (that is, it
 	// got created this way, but when enrolling in orbit it does have an osquery
 	// ID)
 	hSerialNoOsquery := createHost("", uuid.New().String())
-	h, err = ds.EnrollOrbit(ctx, true, uuid.New().String(), hSerialNoOsquery.HardwareSerial, uuid.New().String(), nil)
+	h, err = ds.EnrollOrbit(ctx, true, fleet.OrbitHostInfo{
+		HardwareUUID:   uuid.New().String(),
+		HardwareSerial: hSerialNoOsquery.HardwareSerial,
+	}, uuid.New().String(), nil)
 	require.NoError(t, err)
 	require.Equal(t, hSerialNoOsquery.ID, h.ID)
 	require.Empty(t, h.OsqueryHostID)
 
 	// create and enroll a host with both
 	hBoth := createHost(uuid.New().String(), uuid.New().String())
-	h, err = ds.EnrollOrbit(ctx, true, *hBoth.OsqueryHostID, hBoth.HardwareSerial, uuid.New().String(), nil)
+	h, err = ds.EnrollOrbit(ctx, true, fleet.OrbitHostInfo{
+		HardwareUUID:   *hBoth.OsqueryHostID,
+		HardwareSerial: hBoth.HardwareSerial,
+	}, uuid.New().String(), nil)
 	require.NoError(t, err)
 	require.Equal(t, hBoth.ID, h.ID)
 	require.Empty(t, h.HardwareSerial) // this is just to prove that it was loaded based on osquery_node_id, the serial was not set in the lookup
 
 	// enroll with osquery id from hBoth and serial from hSerialNoOsquery (should
 	// use the osquery match)
-	h, err = ds.EnrollOrbit(ctx, true, *hBoth.OsqueryHostID, hSerialNoOsquery.HardwareSerial, uuid.New().String(), nil)
+	h, err = ds.EnrollOrbit(ctx, true, fleet.OrbitHostInfo{
+		HardwareUUID:   *hBoth.OsqueryHostID,
+		HardwareSerial: hSerialNoOsquery.HardwareSerial,
+	}, uuid.New().String(), nil)
 	require.NoError(t, err)
 	require.Equal(t, hBoth.ID, h.ID)
 	require.Empty(t, h.HardwareSerial)
 
 	// enroll with no match, will create a new one
-	h, err = ds.EnrollOrbit(ctx, true, uuid.New().String(), uuid.New().String(), uuid.New().String(), nil)
+	h, err = ds.EnrollOrbit(ctx, true, fleet.OrbitHostInfo{
+		HardwareUUID:   uuid.New().String(),
+		HardwareSerial: uuid.New().String(),
+		Hostname:       "foo2",
+		Platform:       "darwin",
+	}, uuid.New().String(), nil)
 	require.NoError(t, err)
 	require.Greater(t, h.ID, hBoth.ID)
+	// Hostname and platform values should be set by the Orbit enroll.
+	h, err = ds.Host(ctx, h.ID)
+	require.NoError(t, err)
+	require.Equal(t, "foo2", h.Hostname)
+	require.Equal(t, "darwin", h.Platform)
 
 	// simulate a "corrupt database" where two hosts have the same serial and
 	// enroll by serial should always use the same (the smaller ID)
 	hDupSerial1 := createHost("", uuid.New().String())
 	hDupSerial2 := createHost("", hDupSerial1.HardwareSerial)
 	require.Greater(t, hDupSerial2.ID, hDupSerial1.ID)
-	h, err = ds.EnrollOrbit(ctx, true, uuid.New().String(), hDupSerial1.HardwareSerial, uuid.New().String(), nil)
+	h, err = ds.EnrollOrbit(ctx, true, fleet.OrbitHostInfo{
+		HardwareUUID:   uuid.New().String(),
+		HardwareSerial: hDupSerial1.HardwareSerial,
+	}, uuid.New().String(), nil)
 	require.NoError(t, err)
 	require.Equal(t, hDupSerial1.ID, h.ID)
 
 	// enroll with osquery ID from hOsqueryNoSerial and the duplicate serial,
 	// will always match osquery ID
-	h, err = ds.EnrollOrbit(ctx, true, *hOsqueryNoSerial.OsqueryHostID, hDupSerial1.HardwareSerial, uuid.New().String(), nil)
+	h, err = ds.EnrollOrbit(ctx, true, fleet.OrbitHostInfo{
+		HardwareUUID:   *hOsqueryNoSerial.OsqueryHostID,
+		HardwareSerial: hDupSerial1.HardwareSerial,
+	}, uuid.New().String(), nil)
 	require.NoError(t, err)
 	require.Equal(t, hOsqueryNoSerial.ID, h.ID)
 }
@@ -6305,6 +6429,7 @@ func testHostsEnrollUpdatesMissingInfo(t *testing.T, ds *Datastore) {
 	// no team, osquery id, uuid.
 	dbZeroTime := time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
 	h, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:         "foobar",
 		HardwareSerial:   "serial",
 		Platform:         "darwin",
 		LastEnrolledAt:   dbZeroTime,
@@ -6319,7 +6444,10 @@ func testHostsEnrollUpdatesMissingInfo(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// enroll with orbit and a uuid (will match on serial)
-	_, err = ds.EnrollOrbit(ctx, true, "uuid", "serial", "orbit", nil)
+	_, err = ds.EnrollOrbit(ctx, true, fleet.OrbitHostInfo{
+		HardwareUUID:   "uuid",
+		HardwareSerial: "serial",
+	}, "orbit", nil)
 	require.NoError(t, err)
 	got, err := ds.LoadHostByOrbitNodeKey(ctx, "orbit")
 	require.NoError(t, err)
@@ -6330,6 +6458,9 @@ func testHostsEnrollUpdatesMissingInfo(t *testing.T, ds *Datastore) {
 	require.Equal(t, "uuid", *got.OsqueryHostID)
 	require.Nil(t, got.TeamID)
 	require.Nil(t, got.NodeKey)
+	// Verify that the orbit enroll didn't override these values set by a previous osquery enroll.
+	require.Equal(t, "foobar", got.Hostname)
+	require.Equal(t, "darwin", got.Platform)
 
 	// enroll with osquery using uuid identifier, team
 	_, err = ds.EnrollHost(ctx, true, "uuid", "uuid", "different-serial", "osquery", &tm.ID, 0)
@@ -6345,6 +6476,9 @@ func testHostsEnrollUpdatesMissingInfo(t *testing.T, ds *Datastore) {
 	require.Equal(t, "osquery", *got.NodeKey)
 	require.NotNil(t, got.TeamID)
 	require.Equal(t, tm.ID, *got.TeamID)
+	// Verify that the orbit enroll didn't override these values set by a previous osquery enroll.
+	require.Equal(t, "foobar", got.Hostname)
+	require.Equal(t, "darwin", got.Platform)
 }
 
 func testHostsEncryptionKeyRawDecryption(t *testing.T, ds *Datastore) {

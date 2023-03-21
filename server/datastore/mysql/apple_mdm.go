@@ -11,6 +11,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
@@ -82,15 +83,23 @@ SELECT
 FROM
 	mdm_apple_configuration_profiles
 WHERE
-	team_id=?`
+	team_id=? AND identifier NOT IN (?)`
 
 	if teamID == nil {
 		teamID = ptr.Uint(0)
 	}
 
-	var res []*fleet.MDMAppleConfigProfile
-	err := sqlx.SelectContext(ctx, ds.reader, &res, stmt, teamID)
+	fleetIdentifiers := []string{}
+	for idf := range mobileconfig.FleetPayloadIdentifiers() {
+		fleetIdentifiers = append(fleetIdentifiers, idf)
+	}
+	stmt, args, err := sqlx.In(stmt, teamID, fleetIdentifiers)
 	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "sqlx.In ListMDMAppleConfigProfiles")
+	}
+
+	var res []*fleet.MDMAppleConfigProfile
+	if err = sqlx.SelectContext(ctx, ds.reader, &res, stmt, args...); err != nil {
 		return nil, err
 	}
 	return res, nil
@@ -161,16 +170,14 @@ func (ds *Datastore) DeleteMDMAppleConfigProfileByTeamAndIdentifier(ctx context.
 func (ds *Datastore) GetHostMDMProfiles(ctx context.Context, hostUUID string) ([]fleet.HostMDMAppleProfile, error) {
 	stmt := fmt.Sprintf(`
 SELECT
-	hmap.profile_id,
-	hmacp.name,
-	hmacp.identifier,
-	hmap.status,
-	COALESCE(hmap.operation_type, '') AS operation_type,
-	COALESCE(hmap.detail, '') AS detail
+	profile_id,
+	profile_name AS name,
+	profile_identifier AS identifier,
+	status,
+	COALESCE(operation_type, '') AS operation_type,
+	COALESCE(detail, '') AS detail
 FROM
-	host_mdm_apple_profiles hmap
-JOIN
-	mdm_apple_configuration_profiles hmacp ON hmap.profile_id = hmacp.profile_id
+	host_mdm_apple_profiles
 WHERE
 	host_uuid = ? AND NOT (operation_type = '%s' AND status = '%s')`,
 		fleet.MDMAppleOperationTypeRemove,
@@ -840,13 +847,6 @@ WHERE
   identifier NOT IN (?)
 `
 
-	const deleteAllExistingProfiles = `
-DELETE FROM
-  mdm_apple_configuration_profiles
-WHERE
-  team_id = ?
-`
-
 	const insertNewOrEditedProfile = `
 INSERT INTO
   mdm_apple_configuration_profiles (
@@ -900,19 +900,21 @@ VALUES
 			}
 		}
 
+		// profiles that are managed and delivered by Fleet
+		fleetIdents := []string{}
+		for ident := range mobileconfig.FleetPayloadIdentifiers() {
+			fleetIdents = append(fleetIdents, ident)
+		}
+
 		var (
 			stmt string
 			args []interface{}
 			err  error
 		)
-		if len(keepIdents) > 0 {
-			// delete the obsolete profiles (all those that are not in keepIdents)
-			stmt, args, err = sqlx.In(deleteProfilesNotInList, profTeamID, keepIdents)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "build statement to delete obsolete profiles")
-			}
-		} else {
-			stmt, args = deleteAllExistingProfiles, []interface{}{profTeamID}
+		// delete the obsolete profiles (all those that are not in keepIdents or delivered by Fleet)
+		stmt, args, err = sqlx.In(deleteProfilesNotInList, profTeamID, append(keepIdents, fleetIdents...))
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "build statement to delete obsolete profiles")
 		}
 		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
 			return ctxerr.Wrap(ctx, err, "delete obsolete profiles")
@@ -937,12 +939,13 @@ func (ds *Datastore) ListMDMAppleProfilesToInstall(ctx context.Context) ([]*flee
 	//
 	// A - B gives us the profiles that need to be installed.
 	query := `
-          SELECT ds.profile_id, ds.host_uuid, ds.profile_identifier
+          SELECT ds.profile_id, ds.host_uuid, ds.profile_identifier, ds.profile_name
           FROM (
             SELECT
               macp.profile_id,
               h.uuid as host_uuid,
-              macp.identifier as profile_identifier
+              macp.identifier as profile_identifier,
+			  macp.name as profile_name
             FROM mdm_apple_configuration_profiles macp
             JOIN hosts h ON h.team_id = macp.team_id OR (h.team_id IS NULL AND macp.team_id = 0)
             JOIN nano_enrollments ne ON ne.device_id = h.uuid
@@ -973,7 +976,7 @@ func (ds *Datastore) ListMDMAppleProfilesToRemove(ctx context.Context) ([]*fleet
 	//
 	// B - A gives us the profiles that need to be removed.
 	query := `
-          SELECT hmap.profile_id, hmap.profile_identifier, hmap.host_uuid
+          SELECT hmap.profile_id, hmap.profile_identifier, hmap.profile_name, hmap.host_uuid
           FROM (
             SELECT h.uuid, macp.profile_id
             FROM mdm_apple_configuration_profiles macp
@@ -992,7 +995,7 @@ func (ds *Datastore) ListMDMAppleProfilesToRemove(ctx context.Context) ([]*fleet
 	return profiles, err
 }
 
-func (ds *Datastore) GetMDMAppleProfilesContents(ctx context.Context, ids []uint) (map[uint]fleet.Mobileconfig, error) {
+func (ds *Datastore) GetMDMAppleProfilesContents(ctx context.Context, ids []uint) (map[uint]mobileconfig.Mobileconfig, error) {
 	if len(ids) == 0 {
 		return nil, nil
 	}
@@ -1010,10 +1013,10 @@ func (ds *Datastore) GetMDMAppleProfilesContents(ctx context.Context, ids []uint
 		return nil, err
 	}
 	defer rows.Close()
-	results := make(map[uint]fleet.Mobileconfig)
+	results := make(map[uint]mobileconfig.Mobileconfig)
 	for rows.Next() {
 		var id uint
-		var mobileconfig fleet.Mobileconfig
+		var mobileconfig mobileconfig.Mobileconfig
 		if err := rows.Scan(&id, &mobileconfig); err != nil {
 			return nil, err
 		}
@@ -1031,14 +1034,15 @@ func (ds *Datastore) BulkUpsertMDMAppleHostProfiles(ctx context.Context, payload
 	var sb strings.Builder
 
 	for _, p := range payload {
-		args = append(args, p.ProfileID, p.ProfileIdentifier, p.HostUUID, p.Status, p.OperationType, p.CommandUUID)
-		sb.WriteString("(?, ?, ?, ?, ?, ?),")
+		args = append(args, p.ProfileID, p.ProfileIdentifier, p.ProfileName, p.HostUUID, p.Status, p.OperationType, p.CommandUUID)
+		sb.WriteString("(?, ?, ?, ?, ?, ?, ?),")
 	}
 
 	stmt := fmt.Sprintf(`
 	    INSERT INTO host_mdm_apple_profiles (
               profile_id,
               profile_identifier,
+              profile_name,
               host_uuid,
               status,
               operation_type,
@@ -1056,9 +1060,17 @@ func (ds *Datastore) BulkUpsertMDMAppleHostProfiles(ctx context.Context, payload
 	return err
 }
 
+func (ds *Datastore) DeleteMDMAppleProfilesForHost(ctx context.Context, hostUUID string) error {
+	_, err := ds.writer.ExecContext(ctx, `
+          DELETE FROM host_mdm_apple_profiles
+          WHERE host_uuid = ?
+        `, hostUUID)
+	return err
+}
+
 func (ds *Datastore) UpdateOrDeleteHostMDMAppleProfile(ctx context.Context, profile *fleet.HostMDMAppleProfile) error {
 	if profile.OperationType == fleet.MDMAppleOperationTypeRemove &&
-		profile.Status != nil && *profile.Status == fleet.MDMAppleDeliveryApplied {
+		profile.Status != nil && (*profile.Status == fleet.MDMAppleDeliveryApplied || profile.IgnoreMDMClientError()) {
 		_, err := ds.writer.ExecContext(ctx, `
           DELETE FROM host_mdm_apple_profiles
           WHERE host_uuid = ? AND command_uuid = ?
@@ -1135,6 +1147,22 @@ WHERE
 	}
 
 	return &res, nil
+}
+
+func (ds *Datastore) InsertMDMIdPAccount(ctx context.Context, account *fleet.MDMIdPAccount) error {
+	stmt := `
+      INSERT INTO mdm_idp_accounts
+        (uuid, username, salt, entropy, iterations)
+      VALUES
+        (?, ?, ?, ?, ?)
+      ON DUPLICATE KEY UPDATE
+        username   = VALUES(username),
+        salt       = VALUES(salt),
+        entropy    = VALUES(entropy),
+        iterations = VALUES(iterations)`
+
+	_, err := ds.writer.ExecContext(ctx, stmt, account.UUID, account.Username, account.Salt, account.Entropy, account.Iterations)
+	return ctxerr.Wrap(ctx, err, "creating new MDM IdP account")
 }
 
 func (ds *Datastore) GetMDMAppleFileVaultSummary(ctx context.Context, teamID *uint) (*fleet.MDMAppleFileVaultSummary, error) {

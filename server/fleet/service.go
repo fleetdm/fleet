@@ -64,8 +64,12 @@ type Service interface {
 
 	// AuthenticateOrbitHost loads host identified by orbit's nodeKey. Returns an error if that nodeKey doesn't exist
 	AuthenticateOrbitHost(ctx context.Context, nodeKey string) (host *Host, debug bool, err error)
-	// EnrollOrbit enrolls orbit to Fleet by using the enrollSecret and returns the orbitNodeKey if successful
-	EnrollOrbit(ctx context.Context, hardwareUUID, hardwareSerial, enrollSecret string) (orbitNodeKey string, err error)
+	// EnrollOrbit enrolls an orbit instance to Fleet by using the host information + enroll secret
+	// and returns the orbit node key if successful.
+	//
+	//	- If an entry for the host exists (osquery enrolled first) then it will update the host's orbit node key and team.
+	//	- If an entry for the host doesn't exist (osquery enrolls later) then it will create a new entry in the hosts table.
+	EnrollOrbit(ctx context.Context, hostInfo OrbitHostInfo, enrollSecret string) (orbitNodeKey string, err error)
 	// GetOrbitConfig returns team specific flags and extensions in agent options
 	// if the team id is not nil for host, otherwise it returns flags from global
 	// agent options. It also returns any notifications that fleet wants to surface
@@ -656,6 +660,13 @@ type Service interface {
 	// specified team or for hosts with no team.
 	UpdateMDMAppleSettings(ctx context.Context, payload MDMAppleSettingsPayload) error
 
+	// MDMAppleOktaLogin authenticates an user using Okta ROP flow, and, if the
+	// credentials are valid, returns a MDM enrollment profile.
+	//
+	// ROP refers to the "Resource Owner Password Flow" as specified by
+	// RFC 6749 and described in https://developer.okta.com/docs/guides/implement-grant-type/ropassword/main/
+	MDMAppleOktaLogin(ctx context.Context, username, password string) ([]byte, error)
+
 	///////////////////////////////////////////////////////////////////////////////
 	// CronSchedulesService
 
@@ -665,4 +676,6 @@ type Service interface {
 	// ResetAutomation sets the policies and all policies of the listed teams to fire again
 	// for all hosts that are already marked as failing.
 	ResetAutomation(ctx context.Context, teamIDs, policyIDs []uint) error
+
+	RequestEncryptionKeyRotation(ctx context.Context, hostID uint) error
 }

@@ -18,6 +18,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
 	nanomdm_mock "github.com/fleetdm/fleet/v4/server/mock/nanomdm"
@@ -657,6 +659,10 @@ func TestMDMCommandAuthz(t *testing.T) {
 	}
 
 	ds.NewActivityFunc = func(context.Context, *fleet.User, fleet.ActivityDetails) error {
+		return nil
+	}
+
+	ds.DeleteMDMAppleProfilesForHostFunc = func(ctx context.Context, hostUUID string) error {
 		return nil
 	}
 
@@ -1497,9 +1503,9 @@ func TestMDMAppleReconcileProfiles(t *testing.T) {
 		}, nil
 	}
 
-	ds.GetMDMAppleProfilesContentsFunc = func(ctx context.Context, profileIDs []uint) (map[uint]fleet.Mobileconfig, error) {
+	ds.GetMDMAppleProfilesContentsFunc = func(ctx context.Context, profileIDs []uint) (map[uint]mobileconfig.Mobileconfig, error) {
 		require.ElementsMatch(t, []uint{1, 2}, profileIDs)
-		return map[uint]fleet.Mobileconfig{
+		return map[uint]mobileconfig.Mobileconfig{
 			1: contents1,
 			2: contents2,
 		}, nil
@@ -1598,7 +1604,7 @@ func TestAppleMDMFileVaultEscrowFunctions(t *testing.T) {
 
 func TestGenerateEnrollmentProfileMobileConfig(t *testing.T) {
 	// SCEP challenge should be escaped for XML
-	b, err := generateEnrollmentProfileMobileconfig("foo", "https://example.com", "foo&bar", "topic")
+	b, err := apple_mdm.GenerateEnrollmentProfileMobileconfig("foo", "https://example.com", "foo&bar", "topic")
 	require.NoError(t, err)
 	require.Contains(t, string(b), "foo&amp;bar")
 }
@@ -1623,4 +1629,41 @@ func mobileconfigForTest(name, identifier string) []byte {
 </dict>
 </plist>
 `, name, identifier, uuid.New().String()))
+}
+
+func mobileconfigForTestWithContent(name, identifier, inneridentifier, innertype string) []byte {
+	return []byte(fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array>
+          <dict>
+            <key>PayloadDisplayName</key>
+            <string>%s</string>
+            <key>PayloadIdentifier</key>
+            <string>%s</string>
+            <key>PayloadType</key>
+            <string>%s</string>
+            <key>PayloadUUID</key>
+            <string>3548D750-6357-4910-8DEA-D80ADCE2C787</string>
+            <key>PayloadVersion</key>
+            <integer>1</integer>
+            <key>ShowRecoveryKey</key>
+            <false/>
+          </dict>
+	</array>
+	<key>PayloadDisplayName</key>
+	<string>%s</string>
+	<key>PayloadIdentifier</key>
+	<string>%s</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>%s</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+</dict>
+</plist>
+`, name+".inner", inneridentifier, innertype, name, identifier, uuid.New().String()))
 }

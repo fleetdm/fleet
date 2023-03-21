@@ -1,10 +1,14 @@
 package apple_mdm
 
 import (
+	"bytes"
 	"context"
+	"encoding/xml"
 	"fmt"
 	"net/url"
 	"path"
+	"strings"
+	"text/template"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -38,14 +42,6 @@ const (
 	// FleetPayloadIdentifier is the value for the "<key>PayloadIdentifier</key>"
 	// used by Fleet MDM on the enrollment profile.
 	FleetPayloadIdentifier = "com.fleetdm.fleet.mdm.apple"
-
-	// FleetFileVaultPayloadIdentifier is the value for the PayloadIdentifier
-	// used by Fleet to configure FileVault and FileVault Escrow.
-	FleetFileVaultPayloadIdentifier = "com.fleetdm.fleet.mdm.filevault"
-
-	// FleetdConfigPayloadIdentifier is the value for the PayloadIdentifier used
-	// by fleetd to read configuration values from the system.
-	FleetdConfigPayloadIdentifier = "com.fleetdm.fleetd.config"
 )
 
 func ResolveAppleMDMURL(serverURL string) (string, error) {
@@ -184,4 +180,122 @@ func NewDEPClient(storage godep.ClientStorage, appCfgUpdater fleet.AppConfigUpda
 		}
 		return reqErr
 	}))
+}
+
+// enrollmentProfileMobileconfigTemplate is the template Fleet uses to assemble a .mobileconfig enrollment profile to serve to devices.
+//
+// During a profile replacement, the system updates payloads with the same PayloadIdentifier and
+// PayloadUUID in the old and new profiles.
+var enrollmentProfileMobileconfigTemplate = template.Must(template.New("").Parse(`
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array>
+		<dict>
+			<key>PayloadContent</key>
+			<dict>
+				<key>Key Type</key>
+				<string>RSA</string>
+				<key>Challenge</key>
+				<string>{{ .SCEPChallenge }}</string>
+				<key>Key Usage</key>
+				<integer>5</integer>
+				<key>Keysize</key>
+				<integer>2048</integer>
+				<key>URL</key>
+				<string>{{ .SCEPURL }}</string>
+				<key>Subject</key>
+				<array>
+					<array><array><string>O</string><string>FleetDM</string></array></array>
+					<array><array><string>CN</string><string>FleetDM Identity</string></array></array>
+				</array>
+			</dict>
+			<key>PayloadIdentifier</key>
+			<string>com.fleetdm.fleet.mdm.apple.scep</string>
+			<key>PayloadType</key>
+			<string>com.apple.security.scep</string>
+			<key>PayloadUUID</key>
+			<string>BCA53F9D-5DD2-494D-98D3-0D0F20FF6BA1</string>
+			<key>PayloadVersion</key>
+			<integer>1</integer>
+		</dict>
+		<dict>
+			<key>AccessRights</key>
+			<integer>8191</integer>
+			<key>CheckOutWhenRemoved</key>
+			<true/>
+			<key>IdentityCertificateUUID</key>
+			<string>BCA53F9D-5DD2-494D-98D3-0D0F20FF6BA1</string>
+			<key>PayloadIdentifier</key>
+			<string>com.fleetdm.fleet.mdm.apple.mdm</string>
+			<key>PayloadType</key>
+			<string>com.apple.mdm</string>
+			<key>PayloadUUID</key>
+			<string>29713130-1602-4D27-90C9-B822A295E44E</string>
+			<key>PayloadVersion</key>
+			<integer>1</integer>
+			<key>ServerCapabilities</key>
+			<array>
+				<string>com.apple.mdm.per-user-connections</string>
+				<string>com.apple.mdm.bootstraptoken</string>
+			</array>
+			<key>ServerURL</key>
+			<string>{{ .ServerURL }}</string>
+			<key>SignMessage</key>
+			<true/>
+			<key>Topic</key>
+			<string>{{ .Topic }}</string>
+		</dict>
+	</array>
+	<key>PayloadDisplayName</key>
+	<string>{{ .Organization }} Enrollment</string>
+	<key>PayloadIdentifier</key>
+	<string>` + FleetPayloadIdentifier + `</string>
+	<key>PayloadOrganization</key>
+	<string>{{ .Organization }}</string>
+	<key>PayloadScope</key>
+	<string>System</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>5ACABE91-CE30-4C05-93E3-B235C152404E</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+</dict>
+</plist>`))
+
+func GenerateEnrollmentProfileMobileconfig(orgName, fleetURL, scepChallenge, topic string) ([]byte, error) {
+	scepURL, err := ResolveAppleSCEPURL(fleetURL)
+	if err != nil {
+		return nil, fmt.Errorf("resolve Apple SCEP url: %w", err)
+	}
+	serverURL, err := ResolveAppleMDMURL(fleetURL)
+	if err != nil {
+		return nil, fmt.Errorf("resolve Apple MDM url: %w", err)
+	}
+
+	var escaped strings.Builder
+	if err := xml.EscapeText(&escaped, []byte(scepChallenge)); err != nil {
+		return nil, fmt.Errorf("escape SCEP challenge for XML: %w", err)
+	}
+
+	var buf bytes.Buffer
+	if err := enrollmentProfileMobileconfigTemplate.Execute(&buf, struct {
+		Organization  string
+		SCEPURL       string
+		SCEPChallenge string
+		Topic         string
+		ServerURL     string
+	}{
+		Organization:  orgName,
+		SCEPURL:       scepURL,
+		SCEPChallenge: escaped.String(),
+		Topic:         topic,
+		ServerURL:     serverURL,
+	}); err != nil {
+		return nil, fmt.Errorf("execute template: %w", err)
+	}
+	return buf.Bytes(), nil
 }

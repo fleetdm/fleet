@@ -36,3 +36,21 @@ export const HOST_SELECT_STATUSES = [
     helpText: "Hosts added to Fleet in the last 24 hours.",
   },
 ];
+
+export const MAC_SETTINGS_FILTER_OPTIONS = [
+  {
+    disabled: false,
+    label: "Latest",
+    value: "latest",
+  },
+  {
+    disabled: false,
+    label: "Pending",
+    value: "pending",
+  },
+  {
+    disabled: false,
+    label: "Failing",
+    value: "failing",
+  },
+];

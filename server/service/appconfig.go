@@ -271,7 +271,10 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	invalid := &fleet.InvalidArgumentError{}
 	var newAppConfig fleet.AppConfig
 	if err := json.Unmarshal(p, &newAppConfig); err != nil {
-		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: err.Error()})
+		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+			Message:     "failed to decode app config",
+			InternalErr: err,
+		})
 	}
 
 	// default transparency URL is https://fleetdm.com/transparency so you are allowed to apply as long as it's not changing
@@ -375,7 +378,9 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	delJira, err := fleet.ValidateJiraIntegrations(ctx, storedJiraByProjectKey, newAppConfig.Integrations.Jira)
 	if err != nil {
 		if errors.As(err, &fleet.IntegrationTestError{}) {
-			return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: err.Error()})
+			return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+				Message: err.Error(),
+			})
 		}
 		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("Jira integration", err.Error()))
 	}
@@ -384,7 +389,9 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	delZendesk, err := fleet.ValidateZendeskIntegrations(ctx, storedZendeskByGroupID, newAppConfig.Integrations.Zendesk)
 	if err != nil {
 		if errors.As(err, &fleet.IntegrationTestError{}) {
-			return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: err.Error()})
+			return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+				Message: err.Error(),
+			})
 		}
 		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("Zendesk integration", err.Error()))
 	}
@@ -542,8 +549,13 @@ func validateSSOSettings(p fleet.AppConfig, existing *fleet.AppConfig, invalid *
 				invalid.Append("idp_name", "required")
 			}
 		}
-		if !license.IsPremium() && p.SSOSettings.EnableJITProvisioning {
-			invalid.Append("enable_jit_provisioning", ErrMissingLicense.Error())
+		if !license.IsPremium() {
+			if p.SSOSettings.EnableJITProvisioning {
+				invalid.Append("enable_jit_provisioning", ErrMissingLicense.Error())
+			}
+			if p.SSOSettings.EnableJITRoleSync {
+				invalid.Append("enable_jit_role_sync", ErrMissingLicense.Error())
+			}
 		}
 	}
 }

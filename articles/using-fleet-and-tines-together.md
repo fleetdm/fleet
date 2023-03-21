@@ -8,11 +8,11 @@ Fleet collects a large amount of data, and in many cases, it is not possible (or
 
 First, by leveraging the “Software” tab, you can add a filter that will display only the software that has detected vulnerabilities.
 
-![](../website/assets/images/articles/using-fleet-and-tines-together-filter-1600x898@2x.png)
+![](../website/assets/images/articles/using-fleet-and-tines-together-filter-800x450@2x.gif)
 
-From the “Hosts” column, you can see the count of hosts in the respective team that have the vulnerable software installed. If you click “View all hosts,” you can get the list of hosts displayed. Additionally, in this view, you can export the list of hosts to take further action toward remediation or compliance reporting. 
+From the “Hosts” column, you can see the count of hosts in the respective team that have the vulnerable software installed. If you click “View all hosts,” you can get the list of hosts displayed. Additionally, in this view, you can export the list of hosts to take further action toward remediation or compliance reporting.
 
-![](../website/assets/images/articles/using-fleet-and-tines-together-hosts-1600x434@2x.png)
+![](../website/assets/images/articles/using-fleet-and-tines-together-hosts-800x450@2x.gif)
 
 But what if I wanted that list of hosts (in the above example, there is only one host that has the vulnerable software “UTM.app” installed) as well as the CVSS score, probability of exploit, and CVE numbers associated with the list of hosts? Or, just show me a list of hosts with all vulnerable software and the related CVE?
 
@@ -70,9 +70,11 @@ In the Tines Editor, the formatting would look something like this:
 
 The final email with the above definition looks like this:
 
-![](../website/assets/images/articles/using-fleet-and-tines-together-final-email-780x914@2x.png)
+![](../website/assets/images/articles/using-fleet-and-tines-together-final-email-800x615@2x.png)
 
 The Fleet API is very flexible, but with the addition of Tines, the options for data transformation are endless. In the above example, we easily connected to the Fleet API and transformed the data response with a single Tines Transform function, and allowed the end user to receive a customized report of vulnerable software on an individual host.
+
+<call-to-action preset="premium-upgrade"></call-to-action>
 
 <meta name="category" value="guides">
 <meta name="authorFullName" value="Dave Herder">

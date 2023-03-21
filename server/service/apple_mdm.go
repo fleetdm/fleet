@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
-	"encoding/xml"
 	"errors"
 	"fmt"
 	"io"
@@ -15,7 +14,6 @@ import (
 	"path"
 	"strconv"
 	"strings"
-	"text/template"
 	"time"
 
 	"github.com/docker/go-units"
@@ -24,6 +22,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"github.com/google/uuid"
@@ -122,9 +121,8 @@ func (svc *Service) setDEPProfile(ctx context.Context, enrollmentProfile *fleet.
 	if err != nil {
 		return fmt.Errorf("generating enrollment URL: %w", err)
 	}
-	// Override url and configuration_web_url with Fleet's enroll path (publicly accessible address).
+	// Override url with Fleet's enroll path (publicly accessible address).
 	depProfileRequest.URL = enrollURL
-	depProfileRequest.ConfigurationWebURL = enrollURL
 
 	depClient := apple_mdm.NewDEPClient(svc.depStorage, svc.ds, svc.logger)
 	res, err := depClient.DefineProfile(ctx, apple_mdm.DEPName, &depProfileRequest)
@@ -238,7 +236,10 @@ func (newMDMAppleConfigProfileRequest) DecodeRequest(ctx context.Context, r *htt
 
 	err := r.ParseMultipartForm(512 * units.MiB)
 	if err != nil {
-		return nil, &fleet.BadRequestError{Message: err.Error()}
+		return nil, &fleet.BadRequestError{
+			Message:     "failed to parse multipart form",
+			InternalErr: err,
+		}
 	}
 
 	val, ok := r.MultipartForm.Value["team_id"]
@@ -248,7 +249,7 @@ func (newMDMAppleConfigProfileRequest) DecodeRequest(ctx context.Context, r *htt
 	} else {
 		teamID, err := strconv.Atoi(val[0])
 		if err != nil {
-			return nil, &fleet.BadRequestError{Message: err.Error()}
+			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("failed to decode team_id in multipart form: %s", err.Error())}
 		}
 		decoded.TeamID = uint(teamID)
 	}
@@ -297,17 +298,20 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r
 	b := make([]byte, size)
 	_, err := r.Read(b)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: err.Error()})
+		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+			Message:     "failed to read config profile",
+			InternalErr: err,
+		})
 	}
 
-	mc := fleet.Mobileconfig(b)
-	cp, err := mc.ParseConfigProfile()
+	cp, err := fleet.NewMDMAppleConfigProfile(b, &teamID)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: err.Error()})
+		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+			Message: fmt.Sprintf("failed to parse config profile: %s", err.Error()),
+		})
 	}
-	cp.TeamID = &teamID
 
-	if err := cp.ScreenPayloadTypes(); err != nil {
+	if err := cp.ValidateUserProvided(); err != nil {
 		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: err.Error()})
 	}
 
@@ -317,8 +321,10 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r
 	}
 
 	if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeCreatedMacosProfile{
-		TeamID:   &teamID,
-		TeamName: &teamName,
+		TeamID:            &teamID,
+		TeamName:          &teamName,
+		ProfileName:       newCP.Name,
+		ProfileIdentifier: newCP.Identifier,
 	}); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "logging activity for create mdm apple config profile")
 	}
@@ -481,13 +487,23 @@ func (svc *Service) DeleteMDMAppleConfigProfile(ctx context.Context, profileID u
 		return ctxerr.Wrap(ctx, err)
 	}
 
+	// prevent deleting profiles that are managed by Fleet
+	if _, ok := mobileconfig.FleetPayloadIdentifiers()[cp.Identifier]; ok {
+		return &fleet.BadRequestError{
+			Message:     "profiles managed by Fleet can't be deleted using this endpoint.",
+			InternalErr: fmt.Errorf("deleting profile %s for team %s not allowed because it's managed by Fleet", cp.Identifier, teamName),
+		}
+	}
+
 	if err := svc.ds.DeleteMDMAppleConfigProfile(ctx, profileID); err != nil {
 		return ctxerr.Wrap(ctx, err)
 	}
 
 	if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeDeletedMacosProfile{
-		TeamID:   &teamID,
-		TeamName: &teamName,
+		TeamID:            &teamID,
+		TeamName:          &teamName,
+		ProfileName:       cp.Name,
+		ProfileIdentifier: cp.Identifier,
 	}); err != nil {
 		return ctxerr.Wrap(ctx, err, "logging activity for delete mdm apple config profile")
 	}
@@ -603,7 +619,10 @@ type uploadAppleInstallerResponse struct {
 func (uploadAppleInstallerRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	err := r.ParseMultipartForm(512 * units.MiB)
 	if err != nil {
-		return nil, &fleet.BadRequestError{Message: err.Error()}
+		return nil, &fleet.BadRequestError{
+			Message:     "failed to parse multipart form",
+			InternalErr: err,
+		}
 	}
 	installer := r.MultipartForm.File["installer"][0]
 	return &uploadAppleInstallerRequest{
@@ -1073,7 +1092,7 @@ func (svc *Service) GetMDMAppleEnrollmentProfileByToken(ctx context.Context, tok
 
 	// TODO(lucas): Actually use enrollment (when we define which configuration we want to define
 	// on enrollments).
-	mobileconfig, err := generateEnrollmentProfileMobileconfig(
+	mobileconfig, err := apple_mdm.GenerateEnrollmentProfileMobileconfig(
 		appConfig.OrgInfo.OrgName,
 		appConfig.ServerSettings.ServerURL,
 		svc.config.MDMApple.SCEP.Challenge,
@@ -1083,124 +1102,6 @@ func (svc *Service) GetMDMAppleEnrollmentProfileByToken(ctx context.Context, tok
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 	return mobileconfig, nil
-}
-
-// enrollmentProfileMobileconfigTemplate is the template Fleet uses to assemble a .mobileconfig enrollment profile to serve to devices.
-//
-// During a profile replacement, the system updates payloads with the same PayloadIdentifier and
-// PayloadUUID in the old and new profiles.
-var enrollmentProfileMobileconfigTemplate = template.Must(template.New("").Parse(`
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-	<key>PayloadContent</key>
-	<array>
-		<dict>
-			<key>PayloadContent</key>
-			<dict>
-				<key>Key Type</key>
-				<string>RSA</string>
-				<key>Challenge</key>
-				<string>{{ .SCEPChallenge }}</string>
-				<key>Key Usage</key>
-				<integer>5</integer>
-				<key>Keysize</key>
-				<integer>2048</integer>
-				<key>URL</key>
-				<string>{{ .SCEPURL }}</string>
-				<key>Subject</key>
-				<array>
-					<array><array><string>O</string><string>FleetDM</string></array></array>
-					<array><array><string>CN</string><string>FleetDM Identity</string></array></array>
-				</array>
-			</dict>
-			<key>PayloadIdentifier</key>
-			<string>com.fleetdm.fleet.mdm.apple.scep</string>
-			<key>PayloadType</key>
-			<string>com.apple.security.scep</string>
-			<key>PayloadUUID</key>
-			<string>BCA53F9D-5DD2-494D-98D3-0D0F20FF6BA1</string>
-			<key>PayloadVersion</key>
-			<integer>1</integer>
-		</dict>
-		<dict>
-			<key>AccessRights</key>
-			<integer>8191</integer>
-			<key>CheckOutWhenRemoved</key>
-			<true/>
-			<key>IdentityCertificateUUID</key>
-			<string>BCA53F9D-5DD2-494D-98D3-0D0F20FF6BA1</string>
-			<key>PayloadIdentifier</key>
-			<string>com.fleetdm.fleet.mdm.apple.mdm</string>
-			<key>PayloadType</key>
-			<string>com.apple.mdm</string>
-			<key>PayloadUUID</key>
-			<string>29713130-1602-4D27-90C9-B822A295E44E</string>
-			<key>PayloadVersion</key>
-			<integer>1</integer>
-			<key>ServerCapabilities</key>
-			<array>
-				<string>com.apple.mdm.per-user-connections</string>
-				<string>com.apple.mdm.bootstraptoken</string>
-			</array>
-			<key>ServerURL</key>
-			<string>{{ .ServerURL }}</string>
-			<key>SignMessage</key>
-			<true/>
-			<key>Topic</key>
-			<string>{{ .Topic }}</string>
-		</dict>
-	</array>
-	<key>PayloadDisplayName</key>
-	<string>{{ .Organization }} Enrollment</string>
-	<key>PayloadIdentifier</key>
-	<string>` + apple_mdm.FleetPayloadIdentifier + `</string>
-	<key>PayloadOrganization</key>
-	<string>{{ .Organization }}</string>
-	<key>PayloadScope</key>
-	<string>System</string>
-	<key>PayloadType</key>
-	<string>Configuration</string>
-	<key>PayloadUUID</key>
-	<string>5ACABE91-CE30-4C05-93E3-B235C152404E</string>
-	<key>PayloadVersion</key>
-	<integer>1</integer>
-</dict>
-</plist>`))
-
-func generateEnrollmentProfileMobileconfig(orgName, fleetURL, scepChallenge, topic string) ([]byte, error) {
-	scepURL, err := apple_mdm.ResolveAppleSCEPURL(fleetURL)
-	if err != nil {
-		return nil, fmt.Errorf("resolve Apple SCEP url: %w", err)
-	}
-	serverURL, err := apple_mdm.ResolveAppleMDMURL(fleetURL)
-	if err != nil {
-		return nil, fmt.Errorf("resolve Apple MDM url: %w", err)
-	}
-
-	var escaped strings.Builder
-	if err := xml.EscapeText(&escaped, []byte(scepChallenge)); err != nil {
-		return nil, fmt.Errorf("escape SCEP challenge for XML: %w", err)
-	}
-
-	var buf bytes.Buffer
-	if err := enrollmentProfileMobileconfigTemplate.Execute(&buf, struct {
-		Organization  string
-		SCEPURL       string
-		SCEPChallenge string
-		Topic         string
-		ServerURL     string
-	}{
-		Organization:  orgName,
-		SCEPURL:       scepURL,
-		SCEPChallenge: escaped.String(),
-		Topic:         topic,
-		ServerURL:     serverURL,
-	}); err != nil {
-		return nil, fmt.Errorf("execute template: %w", err)
-	}
-	return buf.Bytes(), nil
 }
 
 type mdmAppleCommandRemoveEnrollmentProfileRequest struct {
@@ -1254,6 +1155,14 @@ func (svc *Service) EnqueueMDMAppleCommandRemoveEnrollmentProfile(ctx context.Co
 	err = svc.mdmAppleCommander.RemoveProfile(ctx, []string{h.UUID}, apple_mdm.FleetPayloadIdentifier, cmdUUID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "enqueuing mdm apple remove profile command")
+	}
+
+	// Since the host is unenrolled, delete all profiles assigned to the
+	// host manually, the device won't Acknowledge any more requests (eg:
+	// to delete profiles) and profiles are automatically removed on
+	// unenrollment.
+	if err := svc.ds.DeleteMDMAppleProfilesForHost(ctx, h.UUID); err != nil {
+		return ctxerr.Wrap(ctx, err, "removing all profiles from host")
 	}
 
 	if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeMDMUnenrolled{
@@ -1581,15 +1490,14 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 	profs := make([]*fleet.MDMAppleConfigProfile, 0, len(profiles))
 	byName, byIdent := make(map[string]bool, len(profiles)), make(map[string]bool, len(profiles))
 	for i, prof := range profiles {
-		mobConf := fleet.Mobileconfig(prof)
-		mdmProf, err := mobConf.ParseConfigProfile()
+		mdmProf, err := fleet.NewMDMAppleConfigProfile(prof, tmID)
 		if err != nil {
 			return ctxerr.Wrap(ctx,
 				fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%d]", i), err.Error()),
 				"invalid mobileconfig profile")
 		}
 
-		if err := mdmProf.ScreenPayloadTypes(); err != nil {
+		if err := mdmProf.ValidateUserProvided(); err != nil {
 			return ctxerr.Wrap(ctx,
 				fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%d]", i), err.Error()))
 		}
@@ -1916,7 +1824,7 @@ func NewMDMAppleCommander(mdmStorage nanomdm_storage.AllStorage, mdmPushService 
 
 // InstallProfile sends the homonymous MDM command to the given hosts, it also
 // takes care of the base64 encoding of the provided profile bytes.
-func (svc *MDMAppleCommander) InstallProfile(ctx context.Context, hostUUIDs []string, profile fleet.Mobileconfig, uuid string) error {
+func (svc *MDMAppleCommander) InstallProfile(ctx context.Context, hostUUIDs []string, profile mobileconfig.Mobileconfig, uuid string) error {
 	base64Profile := base64.StdEncoding.EncodeToString(profile)
 	raw := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -2102,6 +2010,7 @@ func ReconcileProfiles(
 				Status:            &fleet.MDMAppleDeliveryPending,
 				CommandUUID:       uuid.New().String(),
 				ProfileIdentifier: p.ProfileIdentifier,
+				ProfileName:       p.ProfileName,
 			},
 		)
 	}
@@ -2117,6 +2026,7 @@ func ReconcileProfiles(
 				Status:            &fleet.MDMAppleDeliveryPending,
 				CommandUUID:       uuid.New().String(),
 				ProfileIdentifier: p.ProfileIdentifier,
+				ProfileName:       p.ProfileName,
 			},
 		)
 	}

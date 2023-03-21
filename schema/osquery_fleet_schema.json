@@ -3993,6 +3993,7 @@
     "description": "Retrieve cpu hardware info of the machine.",
     "url": "https://fleetdm.com/tables/cpu_info",
     "platforms": [
+      "darwin",
       "linux",
       "windows"
     ],
@@ -4113,9 +4114,33 @@
           "win32",
           "cygwin"
         ]
+      },
+      {
+        "name": "number_of_efficiency_cores",
+        "description": "The number of efficiency cores of the CPU. Only available on Apple Silicon",
+        "type": "integer",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false,
+        "platforms": [
+          "darwin"
+        ]
+      },
+      {
+        "name": "number_of_performance_cores",
+        "description": "The number of performance cores of the CPU. Only available on Apple Silicon",
+        "type": "integer",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false,
+        "platforms": [
+          "darwin"
+        ]
       }
     ],
-    "osqueryRepoUrl": "https://github.com/osquery/osquery/blob/master/specs/linwin/cpu_info.table",
+    "osqueryRepoUrl": "https://github.com/osquery/osquery/blob/master/specs/cpu_info.table",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/new/main/schema/tables/?filename=%2Ftables%2Fcpu_info.yml&value=name%3A%20cpu_info%0Adescription%3A%20%3E-%20%23%20(required)%20string%20-%20The%20description%20for%20this%20table.%20Note%3A%20this%20field%20supports%20markdown%0A%09%23%20Add%20description%20here%0Aexamples%3A%20%3E-%20%23%20(optional)%20string%20-%20An%20example%20query%20for%20this%20table.%20Note%3A%20This%20field%20supports%20markdown%0A%09%23%20Add%20examples%20here%0Anotes%3A%20%3E-%20%23%20(optional)%20string%20-%20Notes%20about%20this%20table.%20Note%3A%20This%20field%20supports%20markdown.%0A%09%23%20Add%20notes%20here%0Acolumns%3A%20%23%20(required)%0A%09-%20name%3A%20%23%20(required)%20string%20-%20The%20name%20of%20the%20column%0A%09%20%20description%3A%20%23%20(required)%20string%20-%20The%20column's%20description%0A%09%20%20type%3A%20%23%20(required)%20string%20-%20the%20column's%20data%20type%0A%09%20%20required%3A%20%23%20(required)%20boolean%20-%20whether%20or%20not%20this%20column%20is%20required%20to%20query%20this%20table."
   },
   {
@@ -6913,6 +6938,15 @@
       {
         "name": "memory_usage",
         "description": "Memory usage",
+        "type": "bigint",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "memory_cached",
+        "description": "Memory cached",
         "type": "bigint",
         "notes": "",
         "hidden": false,
@@ -11377,6 +11411,103 @@
       }
     ],
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/kernel_info.yml"
+  },
+  {
+    "name": "kernel_keys",
+    "description": "List of security data, authentication keys and encryption keys.",
+    "url": "https://fleetdm.com/tables/kernel_keys",
+    "platforms": [
+      "linux"
+    ],
+    "evented": false,
+    "cacheable": false,
+    "notes": "",
+    "examples": "```\nselect * from kernel_keys\n```",
+    "columns": [
+      {
+        "name": "serial_number",
+        "description": "The serial key of the key.",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "flags",
+        "description": "A set of flags describing the state of the key.",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "usage",
+        "description": "the number of threads and open file references thatrefer to this key.",
+        "type": "bigint",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "timeout",
+        "description": "The amount of time until the key will expire,expressed in human-readable form. The string perm heremeans that the key is permanent (no timeout).  Thestring expd means that the key has already expired.",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "permissions",
+        "description": "The key permissions, expressed as four hexadecimalbytes containing, from left to right, thepossessor, user, group, and other permissions.",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "uid",
+        "description": "The user ID of the key owner.",
+        "type": "bigint",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "gid",
+        "description": "The group ID of the key.",
+        "type": "bigint",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "type",
+        "description": "The key type.",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "description",
+        "description": "The key description.",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      }
+    ],
+    "osqueryRepoUrl": "https://github.com/osquery/osquery/blob/master/specs/linux/kernel_keys.table",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/new/main/schema/tables/?filename=%2Ftables%2Fkernel_keys.yml&value=name%3A%20kernel_keys%0Adescription%3A%20%3E-%20%23%20(required)%20string%20-%20The%20description%20for%20this%20table.%20Note%3A%20this%20field%20supports%20markdown%0A%09%23%20Add%20description%20here%0Aexamples%3A%20%3E-%20%23%20(optional)%20string%20-%20An%20example%20query%20for%20this%20table.%20Note%3A%20This%20field%20supports%20markdown%0A%09%23%20Add%20examples%20here%0Anotes%3A%20%3E-%20%23%20(optional)%20string%20-%20Notes%20about%20this%20table.%20Note%3A%20This%20field%20supports%20markdown.%0A%09%23%20Add%20notes%20here%0Acolumns%3A%20%23%20(required)%0A%09-%20name%3A%20%23%20(required)%20string%20-%20The%20name%20of%20the%20column%0A%09%20%20description%3A%20%23%20(required)%20string%20-%20The%20column's%20description%0A%09%20%20type%3A%20%23%20(required)%20string%20-%20the%20column's%20data%20type%0A%09%20%20required%3A%20%23%20(required)%20boolean%20-%20whether%20or%20not%20this%20column%20is%20required%20to%20query%20this%20table."
   },
   {
     "name": "kernel_modules",
@@ -17838,6 +17969,193 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/process_envs.yml"
   },
   {
+    "name": "process_etw_events",
+    "description": "Windows process execution events.",
+    "url": "https://fleetdm.com/tables/process_etw_events",
+    "platforms": [
+      "windows"
+    ],
+    "evented": true,
+    "cacheable": false,
+    "notes": "",
+    "examples": "```\nselect * from process_etw_events WHERE datetime BETWEEN '2022-11-18 16:40:00' AND '2022-11-18 16:50:00';\n```",
+    "columns": [
+      {
+        "name": "type",
+        "description": "Event Type (ProcessStart, ProcessStop)",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "pid",
+        "description": "Process ID",
+        "type": "bigint",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "ppid",
+        "description": "Parent Process ID",
+        "type": "bigint",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "session_id",
+        "description": "Session ID",
+        "type": "integer",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "flags",
+        "description": "Process Flags",
+        "type": "integer",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "exit_code",
+        "description": "Exit Code - Present only on ProcessStop events",
+        "type": "integer",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "path",
+        "description": "Path of executed binary",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "cmdline",
+        "description": "Command Line",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "username",
+        "description": "User rights - primary token username",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "token_elevation_type",
+        "description": "Primary token elevation type - Present only on ProcessStart events",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "token_elevation_status",
+        "description": "Primary token elevation status - Present only on ProcessStart events",
+        "type": "integer",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "mandatory_label",
+        "description": "Primary token mandatory label sid - Present only on ProcessStart events",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "datetime",
+        "description": "Event timestamp in DATETIME format",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "time_windows",
+        "description": "Event timestamp in Windows format",
+        "type": "bigint",
+        "notes": "",
+        "hidden": true,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "time",
+        "description": "Event timestamp in Unix format",
+        "type": "bigint",
+        "notes": "",
+        "hidden": true,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "eid",
+        "description": "Event ID",
+        "type": "integer",
+        "notes": "",
+        "hidden": true,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "header_pid",
+        "description": "Process ID of the process reporting the event",
+        "type": "bigint",
+        "notes": "",
+        "hidden": true,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "process_sequence_number",
+        "description": "Process Sequence Number - Present only on ProcessStart events",
+        "type": "bigint",
+        "notes": "",
+        "hidden": true,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "parent_process_sequence_number",
+        "description": "Parent Process Sequence Number - Present only on ProcessStart events",
+        "type": "bigint",
+        "notes": "",
+        "hidden": true,
+        "required": false,
+        "index": false
+      }
+    ],
+    "osqueryRepoUrl": "https://github.com/osquery/osquery/blob/master/specs/windows/process_etw_events.table",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/new/main/schema/tables/?filename=%2Ftables%2Fprocess_etw_events.yml&value=name%3A%20process_etw_events%0Adescription%3A%20%3E-%20%23%20(required)%20string%20-%20The%20description%20for%20this%20table.%20Note%3A%20this%20field%20supports%20markdown%0A%09%23%20Add%20description%20here%0Aexamples%3A%20%3E-%20%23%20(optional)%20string%20-%20An%20example%20query%20for%20this%20table.%20Note%3A%20This%20field%20supports%20markdown%0A%09%23%20Add%20examples%20here%0Anotes%3A%20%3E-%20%23%20(optional)%20string%20-%20Notes%20about%20this%20table.%20Note%3A%20This%20field%20supports%20markdown.%0A%09%23%20Add%20notes%20here%0Acolumns%3A%20%23%20(required)%0A%09-%20name%3A%20%23%20(required)%20string%20-%20The%20name%20of%20the%20column%0A%09%20%20description%3A%20%23%20(required)%20string%20-%20The%20column's%20description%0A%09%20%20type%3A%20%23%20(required)%20string%20-%20the%20column's%20data%20type%0A%09%20%20required%3A%20%23%20(required)%20boolean%20-%20whether%20or%20not%20this%20column%20is%20required%20to%20query%20this%20table."
+  },
+  {
     "name": "process_events",
     "description": "Track time/action process executions.",
     "url": "https://fleetdm.com/tables/process_events",
@@ -20483,6 +20801,7 @@
     "description": "Secure Boot UEFI Settings.",
     "url": "https://fleetdm.com/tables/secureboot",
     "platforms": [
+      "darwin",
       "linux",
       "windows"
     ],
@@ -20501,13 +20820,31 @@
         "index": false
       },
       {
-        "name": "setup_mode",
-        "description": "Whether setup mode is enabled",
+        "name": "secure_mode",
+        "description": "Secure mode for Intel-based macOS: 0 disabled, 1 full security, 2 medium security",
         "type": "integer",
         "notes": "",
         "hidden": false,
         "required": false,
-        "index": false
+        "index": false,
+        "platforms": [
+          "darwin"
+        ]
+      },
+      {
+        "name": "setup_mode",
+        "description": "Whether setup mode is enabled",
+        "type": "integer",
+        "notes": "",
+        "hidden": true,
+        "required": false,
+        "index": false,
+        "platforms": [
+          "linux",
+          "windows",
+          "win32",
+          "cygwin"
+        ]
       }
     ],
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/secureboot.yml"
@@ -22812,6 +23149,15 @@
       {
         "name": "sub_state",
         "description": "The low-level unit activation state, values depend on unit type",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "unit_file_state",
+        "description": "Whether the unit file is enabled, e.g. `enabled`, `masked`, `disabled`, etc",
         "type": "text",
         "notes": "",
         "hidden": false,
@@ -25608,7 +25954,7 @@
   },
   {
     "name": "windows_security_products",
-    "description": "Enumeration of registered Windows security products.",
+    "description": "Enumeration of registered Windows security products. Note: Not compatible with Windows Server.",
     "url": "https://fleetdm.com/tables/windows_security_products",
     "platforms": [
       "windows"
@@ -26343,6 +26689,18 @@
         "hidden": true,
         "required": false,
         "index": false
+      },
+      {
+        "name": "pid_with_namespace",
+        "description": "Pids that contain a namespace",
+        "type": "integer",
+        "notes": "",
+        "hidden": true,
+        "required": false,
+        "index": false,
+        "platforms": [
+          "linux"
+        ]
       }
     ],
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/yara.yml"
@@ -26636,6 +26994,188 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/yum_sources.yml"
   },
   {
+    "name": "apfs_physical_stores",
+    "platforms": [
+      "darwin"
+    ],
+    "description": "Information about APFS physical stores from the `diskutil apfs list -plist` command.",
+    "columns": [
+      {
+        "name": "container_uuid",
+        "type": "text",
+        "required": false,
+        "description": "The UUID of the APFS Contianer"
+      },
+      {
+        "name": "container_designated_physical_store",
+        "type": "text",
+        "required": false,
+        "description": "The disk displayed as the backing store of the container. There may be multiple,\nuse `apfs_physical_stores` to see all actual physical stores\n"
+      },
+      {
+        "name": "container_reference",
+        "type": "text",
+        "required": false,
+        "description": "The current reference for the APFS container, e.g. \"disk3\""
+      },
+      {
+        "name": "container_fusion",
+        "type": "text",
+        "required": false,
+        "description": "Whether this container is on a \"fusion drive\" (i.e. SSHD)"
+      },
+      {
+        "name": "container_capacity_ceiling",
+        "type": "bigint",
+        "required": false,
+        "description": "The total amount of space in the container"
+      },
+      {
+        "name": "container_capacity_free",
+        "type": "bigint",
+        "required": false,
+        "description": "The amount of remaining free space in the container"
+      },
+      {
+        "name": "uuid",
+        "type": "text",
+        "required": false,
+        "description": "The UUID of the physical store"
+      },
+      {
+        "name": "identifier",
+        "type": "text",
+        "required": false,
+        "description": "The current identifier of the physical store (e.g. disk1s2)"
+      },
+      {
+        "name": "size",
+        "type": "bigint",
+        "required": false,
+        "description": "The size of the physical store in byptes"
+      }
+    ],
+    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
+    "evented": false,
+    "url": "https://fleetdm.com/tables/apfs_physical_stores",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/apfs_physical_stores.yml"
+  },
+  {
+    "name": "apfs_volumes",
+    "platforms": [
+      "darwin"
+    ],
+    "description": "Information about APFS volumes from the `diskutil apfs list -plist` command.",
+    "columns": [
+      {
+        "name": "container_uuid",
+        "type": "text",
+        "required": false,
+        "description": "The UUID of the APFS Contianer"
+      },
+      {
+        "name": "container_designated_physical_store",
+        "type": "text",
+        "required": false,
+        "description": "The disk displayed as the backing store of the container. There may be multiple,\nuse `apfs_physical_stores` to see all actual physical stores\n"
+      },
+      {
+        "name": "container_reference",
+        "type": "text",
+        "required": false,
+        "description": "The current reference for the APFS container, e.g. \"disk3\""
+      },
+      {
+        "name": "container_fusion",
+        "type": "text",
+        "required": false,
+        "description": "Whether this container is on a \"fusion drive\" (i.e. SSHD)"
+      },
+      {
+        "name": "container_capacity_ceiling",
+        "type": "bigint",
+        "required": false,
+        "description": "The total amount of space in the container"
+      },
+      {
+        "name": "container_capacity_free",
+        "type": "bigint",
+        "required": false,
+        "description": "The amount of remaining free space in the container"
+      },
+      {
+        "name": "uuid",
+        "type": "text",
+        "required": false,
+        "description": "The UUID of the volume"
+      },
+      {
+        "name": "device_identifier",
+        "type": "text",
+        "required": false,
+        "description": "The current identifier of the volume (e.g. disk3s2)"
+      },
+      {
+        "name": "name",
+        "type": "text",
+        "required": false,
+        "description": "The user-selected name of the volume (e.g. \"Macintosh HD\")"
+      },
+      {
+        "name": "role",
+        "type": "text",
+        "required": false,
+        "description": "The first role of the volume. User-created volumes will have no role (this will be empty).\nSystem volumes might have roles like \"Data\", \"Hardware\", etc.\n"
+      },
+      {
+        "name": "capacity_in_use",
+        "type": "bigint",
+        "required": false,
+        "description": "Storage space used by the volume"
+      },
+      {
+        "name": "capacity_quota",
+        "type": "bigint",
+        "required": false,
+        "description": "Storage quota for the volume, or 0 if disabled"
+      },
+      {
+        "name": "capacity_reserve",
+        "type": "bigint",
+        "required": false,
+        "description": "Storage reserved for this volume even if contianer is otherwise full, or 0 if disabled"
+      },
+      {
+        "name": "crypto_migration_on",
+        "type": "integer",
+        "required": false,
+        "description": "Whether the volume is in the process of being encrypted"
+      },
+      {
+        "name": "encryption",
+        "type": "integer",
+        "required": false,
+        "description": "Whether the volume is encrypted, including without requiring a password"
+      },
+      {
+        "name": "filevault",
+        "type": "integer",
+        "required": false,
+        "description": "Whether the volume requires a password to decrypt"
+      },
+      {
+        "name": "locked",
+        "type": "integer",
+        "required": false,
+        "description": "Whether the volume is unreadable because it does not have a key entered"
+      }
+    ],
+    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
+    "evented": false,
+    "url": "https://fleetdm.com/tables/apfs_volumes",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/apfs_volumes.yml"
+  },
+  {
     "name": "authdb",
     "platforms": [
       "darwin"
@@ -26771,31 +27311,6 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/filevault_users.yml"
   },
   {
-    "name": "firmware_eficheck_integrity_check",
-    "platforms": [
-      "darwin"
-    ],
-    "description": "Performs eficheck's integrity check on macOS Intel T1 chips (CIS 5.9).",
-    "columns": [
-      {
-        "name": "chip",
-        "type": "text",
-        "required": false,
-        "description": "Contains the chip type, values are \"apple\", \"intel-t1\" and \"intel-t2\".\nIf chip type is \"apple\" or \"intel-t2\" then no eficheck integrity check is executed.\n"
-      },
-      {
-        "name": "output",
-        "type": "text",
-        "required": false,
-        "description": "Output of the `/usr/libexec/firmwarecheckers/eficheck/eficheck --integrity-check` command.\nThis value is only valid when chip is \"intel-t1\".\n"
-      }
-    ],
-    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
-    "evented": false,
-    "url": "https://fleetdm.com/tables/firmware_eficheck_integrity_check",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/firmware_eficheck_integrity_check.yml"
-  },
-  {
     "name": "google_chrome_profiles",
     "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
     "description": "Profiles configured in Google Chrome.",
@@ -26834,6 +27349,31 @@
     ],
     "url": "https://fleetdm.com/tables/google_chrome_profiles",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/google_chrome_profiles.yml"
+  },
+  {
+    "name": "firmware_eficheck_integrity_check",
+    "platforms": [
+      "darwin"
+    ],
+    "description": "Performs eficheck's integrity check on macOS Intel T1 chips (CIS 5.9).",
+    "columns": [
+      {
+        "name": "chip",
+        "type": "text",
+        "required": false,
+        "description": "Contains the chip type, values are \"apple\", \"intel-t1\" and \"intel-t2\".\nIf chip type is \"apple\" or \"intel-t2\" then no eficheck integrity check is executed.\n"
+      },
+      {
+        "name": "output",
+        "type": "text",
+        "required": false,
+        "description": "Output of the `/usr/libexec/firmwarecheckers/eficheck/eficheck --integrity-check` command.\nThis value is only valid when chip is \"intel-t1\".\n"
+      }
+    ],
+    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
+    "evented": false,
+    "url": "https://fleetdm.com/tables/firmware_eficheck_integrity_check",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/firmware_eficheck_integrity_check.yml"
   },
   {
     "name": "icloud_private_relay",

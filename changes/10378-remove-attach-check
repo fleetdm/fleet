@@ -1,0 +1,1 @@
+* Remove the `ATTACH` check on SQL osquery queries (osquery bug fixed a while ago in 4.6.0)
