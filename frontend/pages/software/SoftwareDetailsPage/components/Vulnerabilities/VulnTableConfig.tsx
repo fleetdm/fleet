@@ -184,8 +184,8 @@ const generateVulnTableHeaders = (isPremiumTier: boolean): IDataColumn[] => {
         const valString = typeof value === "number" ? value.toString() : value;
         return (
           <TextCell
-            value={{ timeString: valString }}
-            formatter={HumanTimeDiffWithDateTip}
+            value={valString ? { timeString: valString } : undefined}
+            formatter={valString ? HumanTimeDiffWithDateTip : undefined}
           />
         );
       },
