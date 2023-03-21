@@ -80,6 +80,7 @@ Keeping up with Slack is tough enough, even more so if you’re the CEO. That’
   - “Emergency” requests must be addressed the same day. If you need to contact the CEO ASAP, please post in `#help-p1` Slack channel. This will send a text message to Mike’s cell phone, even if it’s in "do not disturb" mode.
 
 
+<!--
 ## OKR planning
 OKRs (Objective Key Results) help to inform what to prioritize and communicate company goals while encouraging cross-team collaboration.
 At the end of the quarter and key points throughout the quarter (every three weeks), we review the status of each OKR (depending on the KR, either 100% or ≥70% completion is considered "success")
@@ -87,11 +88,14 @@ At the end of the quarter and key points throughout the quarter (every three wee
 - OKRs are finalized one week from when topdown OKRs were initially reviewed.
 - Finalized OKRs are shared company-wide and at the "All hands" meeting and, at least to some degree, become public.
 - Throughout the quarter, Mike and Zach have OKR preplanning meetings (every three weeks) to prepare OKRs for the upcoming quarter. 
-
+-->
 
 ## Prep work
 
 ### All Hands prep
+
+> DISCUSS -mike, 2023-03
+
 Every month Charlie will do the prep work for the monthly "✌️ All hands 🖐👋🤲👏🙌🤘" call.
   1. In the ["👋 All hands" folder](https://drive.google.com/drive/folders/1cw_lL3_Xu9ZOXKGPghh8F4tc0ND9kQeY?usp=sharing), create a new folder using "yyyy-mm - All Hands - yyyy month name".
   2. Download a copy of the previous month's keynote file and rename the copy with the same name used to create the new folder.
