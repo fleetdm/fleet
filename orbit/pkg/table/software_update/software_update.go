@@ -43,7 +43,7 @@ func isNewSoftwareAvailable(ctx context.Context) (newSoftwareAvailable string, e
 }
 
 func runCommand(ctx context.Context, name string, arg ...string) (res string, err error) {
-	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, name, arg...)
 
