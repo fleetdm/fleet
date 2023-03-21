@@ -16,7 +16,7 @@ spec:
       2. Select General
       3. Select Software Update
       4. Select Update All
-  query: SELECT 1 FROM software_update WHERE new_software_available = '0';
+  query: SELECT 1 FROM software_update WHERE software_update_required = '0';
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-macos-13-1.1
   contributors: sharon-fdm

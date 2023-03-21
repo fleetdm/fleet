@@ -3,7 +3,7 @@ platforms:
   - darwin
 description: Information about available Apple software updates.
 columns:
-  - name: new_software_available
+  - name: software_update_required
     type: text
     required: false
     description: |

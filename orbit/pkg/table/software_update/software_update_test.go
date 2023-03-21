@@ -17,11 +17,10 @@ func TestGenerate(t *testing.T) {
 	var tbl table.QueryContext
 
 	table, err := Generate(ctx, tbl)
-	if err != nil {
-		t.Fatalf(`Expected no error. got %s`, err)
-	}
-	if table[0]["new_software_available"] != "0" && table[0]["new_software_available"] != "1" {
-		t.Fatalf(`new_software_available expected 0 or 1. got %s`, table[0]["new_software_available"])
+	require.Nil(t, err)
+
+	if table[0]["software_update_required"] != "0" && table[0]["software_update_required"] != "1" {
+		t.Fatalf(`software_update_required expected 0 or 1. got %s`, table[0]["software_update_required"])
 	}
 }
 
@@ -37,5 +36,5 @@ func TestIsNewSoftwareAvailable(t *testing.T) {
 
 func TestColumns(t *testing.T) {
 	col := Columns()
-	require.Equal(t, []table.ColumnDefinition([]table.ColumnDefinition{table.ColumnDefinition{Name: "new_software_available", Type: "INTEGER"}}), col)
+	require.Equal(t, []table.ColumnDefinition([]table.ColumnDefinition{table.ColumnDefinition{Name: "software_update_required", Type: "INTEGER"}}), col)
 }

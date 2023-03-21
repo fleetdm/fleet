@@ -16,7 +16,7 @@ import (
 // Columns is the schema of the table.
 func Columns() []table.ColumnDefinition {
 	return []table.ColumnDefinition{
-		table.IntegerColumn("new_software_available"),
+		table.IntegerColumn("software_update_required"),
 	}
 }
 
@@ -26,7 +26,7 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 	newSoftwareAvailable, err := isNewSoftwareAvailable(ctx)
 
 	return []map[string]string{
-		{"new_software_available": newSoftwareAvailable},
+		{"software_update_required": newSoftwareAvailable},
 	}, err
 }
 

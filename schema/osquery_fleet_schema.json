@@ -27208,7 +27208,7 @@
     "description": "returns details about apple software update availability and status.",
     "columns": [
       {
-        "name": "new_software_available",
+        "name": "software_update_required",
         "type": "text",
         "required": false,
         "description": "Answers whether there is an automatic update available for any of the Apple softwares installed.\n"
