@@ -1578,7 +1578,7 @@ func TestMDMAppleReconcileProfiles(t *testing.T) {
 			return nil
 		}
 
-		// next call will be failed call
+		// next call will be failed call, until reset
 		failedCall = true
 
 		// first time it is called, it is to set the status to pending and all
@@ -1668,12 +1668,15 @@ func TestMDMAppleReconcileProfiles(t *testing.T) {
 	}
 
 	t.Run("success", func(t *testing.T) {
+		var failedCount int
 		failedCall = false
 		failedCheck = func(payload []*fleet.MDMAppleBulkUpsertHostProfilePayload) {
+			failedCount++
 			require.Len(t, payload, 0)
 		}
 		err := ReconcileProfiles(ctx, ds, cmdr, kitlog.NewNopLogger())
 		require.NoError(t, err)
+		require.Equal(t, 1, failedCount)
 		checkAndReset(t, true, &ds.ListMDMAppleProfilesToInstallFuncInvoked)
 		checkAndReset(t, true, &ds.ListMDMAppleProfilesToRemoveFuncInvoked)
 		checkAndReset(t, true, &ds.GetMDMAppleProfilesContentsFuncInvoked)
@@ -1681,8 +1684,10 @@ func TestMDMAppleReconcileProfiles(t *testing.T) {
 	})
 
 	t.Run("fail enqueue remove ops", func(t *testing.T) {
+		var failedCount int
 		failedCall = false
 		failedCheck = func(payload []*fleet.MDMAppleBulkUpsertHostProfilePayload) {
+			failedCount++
 			require.Len(t, payload, 2) // the 2 remove ops
 			require.ElementsMatch(t, []*fleet.MDMAppleBulkUpsertHostProfilePayload{
 				{
@@ -1707,6 +1712,7 @@ func TestMDMAppleReconcileProfiles(t *testing.T) {
 		enqueueFailForOp = fleet.MDMAppleOperationTypeRemove
 		err := ReconcileProfiles(ctx, ds, cmdr, kitlog.NewNopLogger())
 		require.NoError(t, err)
+		require.Equal(t, 1, failedCount)
 		checkAndReset(t, true, &ds.ListMDMAppleProfilesToInstallFuncInvoked)
 		checkAndReset(t, true, &ds.ListMDMAppleProfilesToRemoveFuncInvoked)
 		checkAndReset(t, true, &ds.GetMDMAppleProfilesContentsFuncInvoked)
@@ -1714,7 +1720,56 @@ func TestMDMAppleReconcileProfiles(t *testing.T) {
 	})
 
 	t.Run("fail enqueue install ops", func(t *testing.T) {
-		t.Fatal("unimplemented")
+		var failedCount int
+		failedCall = false
+		failedCheck = func(payload []*fleet.MDMAppleBulkUpsertHostProfilePayload) {
+			failedCount++
+
+			require.Len(t, payload, 4) // the 4 install ops
+			require.ElementsMatch(t, []*fleet.MDMAppleBulkUpsertHostProfilePayload{
+				{
+					ProfileID:         1,
+					ProfileIdentifier: "com.add.profile",
+					HostUUID:          hostUUID,
+					OperationType:     fleet.MDMAppleOperationTypeInstall,
+					Status:            nil,
+					CommandUUID:       "",
+				},
+				{
+					ProfileID:         2,
+					ProfileIdentifier: "com.add.profile.two",
+					HostUUID:          hostUUID,
+					OperationType:     fleet.MDMAppleOperationTypeInstall,
+					Status:            nil,
+					CommandUUID:       "",
+				},
+				{
+					ProfileID:         2,
+					ProfileIdentifier: "com.add.profile.two",
+					HostUUID:          hostUUID2,
+					OperationType:     fleet.MDMAppleOperationTypeInstall,
+					Status:            nil,
+					CommandUUID:       "",
+				},
+				{
+					ProfileID:         4,
+					ProfileIdentifier: "com.add.profile.four",
+					HostUUID:          hostUUID2,
+					OperationType:     fleet.MDMAppleOperationTypeInstall,
+					Status:            nil,
+					CommandUUID:       "",
+				},
+			}, payload)
+		}
+
+		enqueueFailForOp = fleet.MDMAppleOperationTypeInstall
+		err := ReconcileProfiles(ctx, ds, cmdr, kitlog.NewNopLogger())
+		require.NoError(t, err)
+		require.Equal(t, 1, failedCount)
+		checkAndReset(t, true, &ds.ListMDMAppleProfilesToInstallFuncInvoked)
+		checkAndReset(t, true, &ds.ListMDMAppleProfilesToRemoveFuncInvoked)
+		checkAndReset(t, true, &ds.GetMDMAppleProfilesContentsFuncInvoked)
+		checkAndReset(t, true, &ds.BulkUpsertMDMAppleHostProfilesFuncInvoked)
 	})
 }
 
