@@ -469,7 +469,7 @@ Here are the steps hiring managers follow to get an offer out to a candidate:
 
 
 
-#### Making an offer (CEO only)
+#### Making an offer
 After meeting with the candidate for their final interview, the CEO uses the following steps to make an offer:
 1. **Review decision:** The CEO reviews the data and decides whether it still makes sense to make this offer to this person in this role.  If not, he lets the manager know.  Otherwise, he continues with the offer.
 2. **Adjust compensation:** [Re-benchmark salary](https://www.pave.com), adjusting for cost of living where the candidate will do the work.
