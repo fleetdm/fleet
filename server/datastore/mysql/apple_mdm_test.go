@@ -1395,20 +1395,51 @@ func testMDMAppleHostsProfilesStatus(t *testing.T, ds *Datastore) {
 	require.True(t, checkListHosts(fleet.MacOSSettingsStatusLatest, ptr.Uint(0), []*fleet.Host{}))
 
 	// hosts[6] deletes all its profiles
-	// TODO(mna): implement this...
-
-	// hosts[9] applied all profiles
-	upsertHostCPs(hosts[9:10], noTeamCPs, fleet.MDMAppleOperationTypeInstall, &fleet.MDMAppleDeliveryApplied)
+	require.NoError(t, ds.DeleteMDMAppleProfilesForHost(ctx, hosts[6].UUID))
+	pendingHosts := append(hosts[2:6:6], hosts[7:]...)
 	res, err = ds.GetMDMAppleHostsProfilesSummary(ctx, nil) // get summary for profiles with no team
 	require.NoError(t, err)
 	require.NotNil(t, res)
-	require.Equal(t, uint(len(hosts)-3), res.Pending) // subtract third host from pending
+	require.Equal(t, uint(len(hosts)-3), res.Pending) // hosts[6] not reported here anymore
+	require.Equal(t, uint(2), res.Failed)             // no change
+	require.Equal(t, uint(0), res.Latest)             // no change, host must apply all profiles count as latest
+	require.True(t, checkListHosts(fleet.MacOSSettingsStatusPending, nil, pendingHosts))
+	require.True(t, checkListHosts(fleet.MacOSSettingsStatusFailing, nil, hosts[0:2]))
+	require.True(t, checkListHosts(fleet.MacOSSettingsStatusLatest, nil, []*fleet.Host{}))
+	require.True(t, checkListHosts(fleet.MacOSSettingsStatusPending, ptr.Uint(0), pendingHosts))
+	require.True(t, checkListHosts(fleet.MacOSSettingsStatusFailing, ptr.Uint(0), hosts[0:2]))
+	require.True(t, checkListHosts(fleet.MacOSSettingsStatusLatest, ptr.Uint(0), []*fleet.Host{}))
+
+	// hosts[9] applied all profiles but one is with status nil (pending)
+	upsertHostCPs(hosts[9:10], noTeamCPs[:9], fleet.MDMAppleOperationTypeInstall, &fleet.MDMAppleDeliveryApplied)
+	upsertHostCPs(hosts[9:10], noTeamCPs[9:10], fleet.MDMAppleOperationTypeInstall, nil)
+	pendingHosts = append(hosts[2:6:6], hosts[7:]...)
+	res, err = ds.GetMDMAppleHostsProfilesSummary(ctx, nil) // get summary for profiles with no team
+	require.NoError(t, err)
+	require.NotNil(t, res)
+	require.Equal(t, uint(len(hosts)-3), res.Pending) // hosts[6] not reported here anymore, hosts[9] still pending
+	require.Equal(t, uint(2), res.Failed)             // no change
+	require.Equal(t, uint(0), res.Latest)             // no change, host must apply all profiles count as latest
+	require.True(t, checkListHosts(fleet.MacOSSettingsStatusPending, nil, pendingHosts))
+	require.True(t, checkListHosts(fleet.MacOSSettingsStatusFailing, nil, hosts[0:2]))
+	require.True(t, checkListHosts(fleet.MacOSSettingsStatusLatest, nil, []*fleet.Host{}))
+	require.True(t, checkListHosts(fleet.MacOSSettingsStatusPending, ptr.Uint(0), pendingHosts))
+	require.True(t, checkListHosts(fleet.MacOSSettingsStatusFailing, ptr.Uint(0), hosts[0:2]))
+	require.True(t, checkListHosts(fleet.MacOSSettingsStatusLatest, ptr.Uint(0), []*fleet.Host{}))
+
+	// hosts[9] applied all profiles
+	upsertHostCPs(hosts[9:10], noTeamCPs, fleet.MDMAppleOperationTypeInstall, &fleet.MDMAppleDeliveryApplied)
+	pendingHosts = append(hosts[2:6:6], hosts[7:9]...)
+	res, err = ds.GetMDMAppleHostsProfilesSummary(ctx, nil) // get summary for profiles with no team
+	require.NoError(t, err)
+	require.NotNil(t, res)
+	require.Equal(t, uint(len(hosts)-4), res.Pending) // subtract hosts[6 and 9] from pending
 	require.Equal(t, uint(2), res.Failed)             // no change
 	require.Equal(t, uint(1), res.Latest)             // add one host that has applied all profiles
-	require.True(t, checkListHosts(fleet.MacOSSettingsStatusPending, nil, hosts[2:9]))
+	require.True(t, checkListHosts(fleet.MacOSSettingsStatusPending, nil, pendingHosts))
 	require.True(t, checkListHosts(fleet.MacOSSettingsStatusFailing, nil, hosts[0:2]))
 	require.True(t, checkListHosts(fleet.MacOSSettingsStatusLatest, nil, hosts[9:10]))
-	require.True(t, checkListHosts(fleet.MacOSSettingsStatusPending, ptr.Uint(0), hosts[2:9]))
+	require.True(t, checkListHosts(fleet.MacOSSettingsStatusPending, ptr.Uint(0), pendingHosts))
 	require.True(t, checkListHosts(fleet.MacOSSettingsStatusFailing, ptr.Uint(0), hosts[0:2]))
 	require.True(t, checkListHosts(fleet.MacOSSettingsStatusLatest, ptr.Uint(0), hosts[9:10]))
 
@@ -1434,13 +1465,14 @@ func testMDMAppleHostsProfilesStatus(t *testing.T, ds *Datastore) {
 	res, err = ds.GetMDMAppleHostsProfilesSummary(ctx, nil) // get summary for profiles with no team
 	require.NoError(t, err)
 	require.NotNil(t, res)
-	require.Equal(t, uint(len(hosts)-3), res.Pending) // subtract two failed hosts and one transferred host
+	pendingHosts = append(hosts[2:6:6], hosts[7:9]...)
+	require.Equal(t, uint(len(hosts)-4), res.Pending) // hosts[9] is still not pending, transferred to team
 	require.Equal(t, uint(2), res.Failed)             // no change
 	require.Equal(t, uint(0), res.Latest)             // hosts[9] was transferred so this is now zero
-	require.True(t, checkListHosts(fleet.MacOSSettingsStatusPending, nil, hosts[2:9]))
+	require.True(t, checkListHosts(fleet.MacOSSettingsStatusPending, nil, pendingHosts))
 	require.True(t, checkListHosts(fleet.MacOSSettingsStatusFailing, nil, hosts[0:2]))
 	require.True(t, checkListHosts(fleet.MacOSSettingsStatusLatest, nil, []*fleet.Host{}))
-	require.True(t, checkListHosts(fleet.MacOSSettingsStatusPending, ptr.Uint(0), hosts[2:9]))
+	require.True(t, checkListHosts(fleet.MacOSSettingsStatusPending, ptr.Uint(0), pendingHosts))
 	require.True(t, checkListHosts(fleet.MacOSSettingsStatusFailing, ptr.Uint(0), hosts[0:2]))
 	require.True(t, checkListHosts(fleet.MacOSSettingsStatusLatest, ptr.Uint(0), []*fleet.Host{}))
 
@@ -1490,13 +1522,14 @@ func testMDMAppleHostsProfilesStatus(t *testing.T, ds *Datastore) {
 	res, err = ds.GetMDMAppleHostsProfilesSummary(ctx, ptr.Uint(0)) // team id zero represents no team
 	require.NoError(t, err)
 	require.NotNil(t, res)
-	require.Equal(t, uint(len(hosts)-3), res.Pending) // subtract two failed hosts and one transferred host
+	pendingHosts = append(hosts[2:6:6], hosts[7:9]...)
+	require.Equal(t, uint(len(hosts)-4), res.Pending) // subtract two failed hosts, one without profiles and hosts[9] transferred
 	require.Equal(t, uint(2), res.Failed)             // two failed hosts
 	require.Equal(t, uint(0), res.Latest)             // hosts[9] transferred to new team so is not counted under no team
-	require.True(t, checkListHosts(fleet.MacOSSettingsStatusPending, nil, hosts[2:9]))
+	require.True(t, checkListHosts(fleet.MacOSSettingsStatusPending, nil, pendingHosts))
 	require.True(t, checkListHosts(fleet.MacOSSettingsStatusFailing, nil, hosts[0:2]))
 	require.True(t, checkListHosts(fleet.MacOSSettingsStatusLatest, nil, []*fleet.Host{}))
-	require.True(t, checkListHosts(fleet.MacOSSettingsStatusPending, ptr.Uint(0), hosts[2:9]))
+	require.True(t, checkListHosts(fleet.MacOSSettingsStatusPending, ptr.Uint(0), pendingHosts))
 	require.True(t, checkListHosts(fleet.MacOSSettingsStatusFailing, ptr.Uint(0), hosts[0:2]))
 	require.True(t, checkListHosts(fleet.MacOSSettingsStatusLatest, ptr.Uint(0), []*fleet.Host{}))
 }
