@@ -1,18 +1,6 @@
 # CEO handbook
 This page details processes specific to Mike McNeil, CEO of Fleet. Below are a list of processes the Executive Assistant collaborates with the CEO. 
 
-
-#### In this section
-
-- [The CEO support team](#the-ceo-support-team)
-- [CEO preferences](#ceo-preferences)
-- [Contacting the CEO](#contacting-the-ceo)
-- [Scheduling with the CEO](#scheduling-with-the-ceo)
-- [OKR planning](#okr-planning)
-- [Prep work](#prep-work)
-- [Tasks as assigned](#tasks-as-assigned)
-
-
 ## The CEO support team
 ### EA to the CEO
 
@@ -58,6 +46,9 @@ Last minute changes or cancellations should be communicated to Mike via DM rathe
 
 
 ### CEO email management
+
+> TODO: let's rethink this.  -Mike, March 2023
+
  - Labels: /DOTO Mike, /FYI Mike, /EA is monitoring, /Signature needed
  - Emails that need the CEO's attention should be "starred" 
  - EA should prepare draft responses, move drafts to the Inbox, and label
@@ -177,6 +168,8 @@ How to file videos from Gong recordings (**marking as "private" in gong is not a
     - Include in the doc "link to video:"
     - Include in the doc "link to transcript:"
 
+
+
 <!-- 
 # Participation in the CEO shadow program
 This section explains more about the CEO shadow program.
@@ -242,7 +235,7 @@ To allow flexibility for parents to participate, there will be some rotations id
  - Revenue definitions such as [ARR (Annual Recurring Revenue)](https://www.investopedia.com/terms/a/arr.asp)
  - Keep a [finance dictionary](https://www.investopedia.com/financial-term-dictionary-4769738) handy
 
-```This list is not meant to be exhaustive and should not become a glossary. While we strive to be handbook first, you may find that we are using acronyms without a clear handbook definition. If you can't find it in the handbook or find a standard definition on Google, ask someone what the acronym means. Not being able to find it could be a sign that we need to do a better job with documentation.```
+> This list is not meant to be exhaustive and should not become a glossary. While we strive to be handbook first, you may find that we are using acronyms without a clear handbook definition. If you can't find it in the handbook or find a standard definition on Google, ask someone what the acronym means. Not being able to find it could be a sign that we need to do a better job with documentation.
 
 ### What to expect during the program 
 The value of the CEO Shadow Program comes from the broader context you'll gain and the interesting conversations you'll witness.
