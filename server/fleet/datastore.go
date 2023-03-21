@@ -654,6 +654,8 @@ type Datastore interface {
 	SetHostsDiskEncryptionKeyStatus(ctx context.Context, hostIDs []uint, encryptable bool, threshold time.Time) error
 	// GetHostDiskEncryptionKey returns the encryption key information for a given host
 	GetHostDiskEncryptionKey(ctx context.Context, hostID uint) (*HostDiskEncryptionKey, error)
+
+	SetDiskEncryptionResetStatus(ctx context.Context, hostID uint, status bool) error
 	// SetOrUpdateHostOrbitInfo inserts of updates the orbit info for a host
 	SetOrUpdateHostOrbitInfo(ctx context.Context, hostID uint, version string) error
 
@@ -814,6 +816,9 @@ type Datastore interface {
 	// profile status. It deletes the row if the profile operation is "remove"
 	// and the status is "applied" (i.e. successfully removed).
 	UpdateOrDeleteHostMDMAppleProfile(ctx context.Context, profile *HostMDMAppleProfile) error
+
+	// DeleteMDMAppleProfilesForHost deletes all MDM profiles for a host
+	DeleteMDMAppleProfilesForHost(ctx context.Context, hostUUID string) error
 
 	// GetMDMAppleCommandRequest type returns the request type for the given command
 	GetMDMAppleCommandRequestType(ctx context.Context, commandUUID string) (string, error)

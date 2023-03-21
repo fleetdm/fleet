@@ -1,6 +1,7 @@
-import React from "react";
+import React, { useContext } from "react";
 import { Params } from "react-router/lib/Router";
 
+import { AppContext } from "context/app";
 import SideNav from "pages/admin/components/SideNav";
 import { useQuery } from "react-query";
 import { IMdmProfile, IMdmProfilesResponse } from "interfaces/mdm";
@@ -17,14 +18,20 @@ interface IMacOSSettingsProps {
   // renders this one
   location: {
     query: { team_id?: string };
+    action: string;
   };
 }
 
 const MacOSSettings = ({ params, location }: IMacOSSettingsProps) => {
   const { section } = params;
   const { team_id } = location.query;
+  const { currentTeam } = useContext(AppContext);
+
   // Avoids possible case where Number(undefined) returns NaN
-  const teamId = team_id === undefined ? 0 : Number(team_id); // team_id===0 for 'No teams'
+  const teamId =
+    team_id === undefined && currentTeam === undefined
+      ? 0
+      : Number(team_id || (currentTeam && currentTeam.id)); // team_id===0 for 'No teams'
 
   const { data: profiles, refetch: refectchProfiles } = useQuery<
     IMdmProfilesResponse,

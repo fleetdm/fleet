@@ -474,6 +474,8 @@ type SetHostsDiskEncryptionKeyStatusFunc func(ctx context.Context, hostIDs []uin
 
 type GetHostDiskEncryptionKeyFunc func(ctx context.Context, hostID uint) (*fleet.HostDiskEncryptionKey, error)
 
+type SetDiskEncryptionResetStatusFunc func(ctx context.Context, hostID uint, status bool) error
+
 type SetOrUpdateHostOrbitInfoFunc func(ctx context.Context, hostID uint, version string) error
 
 type ReplaceHostDeviceMappingFunc func(ctx context.Context, id uint, mappings []*fleet.HostDeviceMapping) error
@@ -563,6 +565,8 @@ type BulkUpsertMDMAppleHostProfilesFunc func(ctx context.Context, payload []*fle
 type GetMDMAppleProfilesContentsFunc func(ctx context.Context, profileIDs []uint) (map[uint]mobileconfig.Mobileconfig, error)
 
 type UpdateOrDeleteHostMDMAppleProfileFunc func(ctx context.Context, profile *fleet.HostMDMAppleProfile) error
+
+type DeleteMDMAppleProfilesForHostFunc func(ctx context.Context, hostUUID string) error
 
 type GetMDMAppleCommandRequestTypeFunc func(ctx context.Context, commandUUID string) (string, error)
 
@@ -1258,6 +1262,9 @@ type DataStore struct {
 	GetHostDiskEncryptionKeyFunc        GetHostDiskEncryptionKeyFunc
 	GetHostDiskEncryptionKeyFuncInvoked bool
 
+	SetDiskEncryptionResetStatusFunc        SetDiskEncryptionResetStatusFunc
+	SetDiskEncryptionResetStatusFuncInvoked bool
+
 	SetOrUpdateHostOrbitInfoFunc        SetOrUpdateHostOrbitInfoFunc
 	SetOrUpdateHostOrbitInfoFuncInvoked bool
 
@@ -1392,6 +1399,9 @@ type DataStore struct {
 
 	UpdateOrDeleteHostMDMAppleProfileFunc        UpdateOrDeleteHostMDMAppleProfileFunc
 	UpdateOrDeleteHostMDMAppleProfileFuncInvoked bool
+
+	DeleteMDMAppleProfilesForHostFunc        DeleteMDMAppleProfilesForHostFunc
+	DeleteMDMAppleProfilesForHostFuncInvoked bool
 
 	GetMDMAppleCommandRequestTypeFunc        GetMDMAppleCommandRequestTypeFunc
 	GetMDMAppleCommandRequestTypeFuncInvoked bool
@@ -3008,6 +3018,13 @@ func (s *DataStore) GetHostDiskEncryptionKey(ctx context.Context, hostID uint) (
 	return s.GetHostDiskEncryptionKeyFunc(ctx, hostID)
 }
 
+func (s *DataStore) SetDiskEncryptionResetStatus(ctx context.Context, hostID uint, status bool) error {
+	s.mu.Lock()
+	s.SetDiskEncryptionResetStatusFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetDiskEncryptionResetStatusFunc(ctx, hostID, status)
+}
+
 func (s *DataStore) SetOrUpdateHostOrbitInfo(ctx context.Context, hostID uint, version string) error {
 	s.mu.Lock()
 	s.SetOrUpdateHostOrbitInfoFuncInvoked = true
@@ -3321,6 +3338,13 @@ func (s *DataStore) UpdateOrDeleteHostMDMAppleProfile(ctx context.Context, profi
 	s.UpdateOrDeleteHostMDMAppleProfileFuncInvoked = true
 	s.mu.Unlock()
 	return s.UpdateOrDeleteHostMDMAppleProfileFunc(ctx, profile)
+}
+
+func (s *DataStore) DeleteMDMAppleProfilesForHost(ctx context.Context, hostUUID string) error {
+	s.mu.Lock()
+	s.DeleteMDMAppleProfilesForHostFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteMDMAppleProfilesForHostFunc(ctx, hostUUID)
 }
 
 func (s *DataStore) GetMDMAppleCommandRequestType(ctx context.Context, commandUUID string) (string, error) {

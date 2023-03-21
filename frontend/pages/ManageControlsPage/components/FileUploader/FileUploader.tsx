@@ -23,14 +23,17 @@ const FileUploader = ({
     <div className={baseClass}>
       <Icon name={icon} />
       <p>{message}</p>
-      <Button isLoading={isLoading}>
+      <Button variant="brand" isLoading={isLoading}>
         <label htmlFor="upload-profile">Upload</label>
       </Button>
       <input
         accept=".mobileconfig,application/x-apple-aspen-config"
         id="upload-profile"
         type="file"
-        onChange={(e) => onFileUpload(e.target.files)}
+        onChange={(e) => {
+          onFileUpload(e.target.files);
+          e.target.value = "";
+        }}
       />
     </div>
   );

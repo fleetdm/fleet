@@ -778,6 +778,21 @@ func (s *integrationMDMTestSuite) TestMDMAppleUnenroll() {
 	require.Len(t, listHostsRes.Hosts, 1)
 	h := listHostsRes.Hosts[0]
 
+	// assign profiles to the host
+	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: [][]byte{
+		mobileconfigForTest("N1", "I1"),
+		mobileconfigForTest("N2", "I2"),
+		mobileconfigForTest("N3", "I3"),
+	}}, http.StatusNoContent)
+
+	// trigger a sync and verify that there are profiles assigned to the host
+	_, err = s.profileSchedule.Trigger()
+	require.NoError(t, err)
+
+	var hostResp getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d", h.ID), getHostRequest{}, http.StatusOK, &hostResp)
+	require.Len(t, *hostResp.Host.MDM.Profiles, 3)
+
 	// try to unenroll the host, fails since the host doesn't respond
 	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/mdm/hosts/%d/unenroll", h.ID), nil, http.StatusGatewayTimeout)
 
@@ -815,6 +830,12 @@ func (s *integrationMDMTestSuite) TestMDMAppleUnenroll() {
 		return res, err
 	}
 	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/mdm/hosts/%d/unenroll", h.ID), nil, http.StatusOK)
+
+	// profiles are removed and the host is no longer enrolled
+	hostResp = getHostResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d", h.ID), getHostRequest{}, http.StatusOK, &hostResp)
+	require.Nil(t, hostResp.Host.MDM.Profiles)
+	require.Equal(t, "", hostResp.Host.MDM.Name)
 }
 
 func (s *integrationMDMTestSuite) TestMDMAppleGetEncryptionKey() {
@@ -1778,6 +1799,37 @@ func (s *integrationMDMTestSuite) TestDEPOktaLogin() {
 			`SELECT uuid FROM mdm_idp_accounts WHERE username = ?`, s.oktaMock.Username)
 	})
 	require.NotEmpty(t, uuid)
+}
+
+func (s *integrationMDMTestSuite) TestDiskEncryptionRotation() {
+	t := s.T()
+	h := createOrbitEnrolledHost(t, "darwin", "h", s.ds)
+
+	// false by default
+	resp := orbitGetConfigResponse{}
+	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *h.OrbitNodeKey)), http.StatusOK, &resp)
+	require.False(t, resp.Notifications.RotateDiskEncryptionKey)
+
+	// create an auth token for h
+	token := "much_valid"
+	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+		_, err := db.ExecContext(context.Background(), `INSERT INTO host_device_auth (host_id, token) VALUES (?, ?)`, h.ID, token)
+		return err
+	})
+
+	tokRes := s.DoRawNoAuth("POST", "/api/latest/fleet/device/"+token+"/rotate_encryption_key", nil, http.StatusOK)
+	tokRes.Body.Close()
+
+	// true after the POST request
+	resp = orbitGetConfigResponse{}
+	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *h.OrbitNodeKey)), http.StatusOK, &resp)
+	require.True(t, resp.Notifications.RotateDiskEncryptionKey)
+
+	// false on following requests
+	resp = orbitGetConfigResponse{}
+	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *h.OrbitNodeKey)), http.StatusOK, &resp)
+	require.False(t, resp.Notifications.RotateDiskEncryptionKey)
+
 }
 
 func (s *integrationMDMTestSuite) assertConfigProfilesByIdentifier(teamID *uint, profileIdent string, exists bool) (profile *fleet.MDMAppleConfigProfile) {

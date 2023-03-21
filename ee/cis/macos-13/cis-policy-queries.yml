@@ -2762,18 +2762,16 @@ spec:
       /Users/<username>/Library/Containers/com.apple.Safari/Data/Library/Preferences
       /com.apple.Safari WBSPrivacyProxyAvailabilityTraffic -int 130276
   query: |
-    SELECT 1 WHERE 
-    NOT EXISTS(
-        SELECT 1 FROM plist 
-        WHERE path LIKE "/Users/%/Library/Containers/com.apple.Safari/Data/Library/Preferences/com.apple.Safari.plist"
-        AND key = "WBSPrivacyProxyAvailabilityTraffic" 
-        AND ((value >> 2) & 1) == 0
-        )
-    AND EXISTS(
-        SELECT 1 FROM plist 
-        WHERE path LIKE "/Users/%/Library/Containers/com.apple.Safari/Data/Library/Preferences/com.apple.Safari.plist"
-        AND key = "WBSPrivacyProxyAvailabilityTraffic" 
-        AND ((value >> 2) & 1) == 1
+    SELECT 1 WHERE NOT EXISTS (
+      SELECT 1 FROM users AS u
+      LEFT JOIN (
+        SELECT * FROM plist WHERE
+          path LIKE '/Users/%/Library/Containers/com.apple.Safari/Data/Library/Preferences/com.apple.Safari.plist' AND
+          key = 'WBSPrivacyProxyAvailabilityTraffic' AND
+           ((value >> 2) & 1) = 1) AS p
+      ON p.path = CONCAT(u.directory, '/Library/Containers/com.apple.Safari/Data/Library/Preferences/com.apple.Safari.plist')
+      WHERE u.directory LIKE '/Users/%' AND
+      p.value IS NULL
     );
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-macos-13-6.3.5-enabled, decision-needed
@@ -2797,18 +2795,16 @@ spec:
       /Users/<username>/Library/Containers/com.apple.Safari/Data/Library/Preferences
       /com.apple.Safari WBSPrivacyProxyAvailabilityTraffic -int 130272
   query: |
-    SELECT 1 WHERE 
-    NOT EXISTS(
-        SELECT 1 FROM plist 
-        WHERE path LIKE "/Users/%/Library/Containers/com.apple.Safari/Data/Library/Preferences/com.apple.Safari.plist"
-        AND key = "WBSPrivacyProxyAvailabilityTraffic" 
-        AND ((value >> 2) & 1) == 1
-        )
-    AND EXISTS(
-        SELECT 1 FROM plist 
-        WHERE path LIKE "/Users/%/Library/Containers/com.apple.Safari/Data/Library/Preferences/com.apple.Safari.plist"
-        AND key = "WBSPrivacyProxyAvailabilityTraffic" 
-        AND ((value >> 2) & 1) == 0
+    SELECT 1 WHERE NOT EXISTS (
+      SELECT 1 FROM users AS u
+      LEFT JOIN (
+        SELECT * FROM plist WHERE
+          path LIKE '/Users/%/Library/Containers/com.apple.Safari/Data/Library/Preferences/com.apple.Safari.plist' AND
+          key = 'WBSPrivacyProxyAvailabilityTraffic' AND
+           ((value >> 2) & 1) = 0) AS p
+      ON p.path = CONCAT(u.directory, '/Library/Containers/com.apple.Safari/Data/Library/Preferences/com.apple.Safari.plist')
+      WHERE u.directory LIKE '/Users/%' AND
+      p.value IS NULL
     );
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-macos-13-6.3.5-disabled, decision-needed

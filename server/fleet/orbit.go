@@ -6,7 +6,8 @@ import "encoding/json"
 // fleetd (orbit) so that it can run commands or more generally react to this
 // information.
 type OrbitConfigNotifications struct {
-	RenewEnrollmentProfile bool `json:"renew_enrollment_profile,omitempty"`
+	RenewEnrollmentProfile  bool `json:"renew_enrollment_profile,omitempty"`
+	RotateDiskEncryptionKey bool `json:"rotate_disk_encryption_key,omitempty"`
 }
 
 type OrbitConfig struct {

@@ -36,6 +36,8 @@ func TestMDMAppleConfigProfile(t *testing.T) {
 		{"TestGetMDMAppleProfilesContents", testGetMDMAppleProfilesContents},
 		{"TestMDMAppleHostsProfilesStatus", testMDMAppleHostsProfilesStatus},
 		{"TestMDMAppleInsertIdPAccount", testMDMAppleInsertIdPAccount},
+		{"TestIgnoreMDMClientError", testIgnoreMDMClientError},
+		{"TestDeleteMDMAppleProfilesForHost", testDeleteMDMAppleProfilesForHost},
 	}
 
 	for _, c := range cases {
@@ -1506,4 +1508,108 @@ func testMDMAppleInsertIdPAccount(t *testing.T, ds *Datastore) {
 	err = sqlx.GetContext(ctx, ds.reader, &out, "SELECT * FROM mdm_idp_accounts WHERE uuid = 'ABC-DEF'")
 	require.NoError(t, err)
 	require.Equal(t, acc, &out)
+}
+
+func testIgnoreMDMClientError(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// create new record for remove pending
+	require.NoError(t, ds.BulkUpsertMDMAppleHostProfiles(ctx, []*fleet.MDMAppleBulkUpsertHostProfilePayload{{
+		ProfileID:         uint(1),
+		ProfileIdentifier: "p1",
+		ProfileName:       "name1",
+		HostUUID:          "h1",
+		CommandUUID:       "c1",
+		OperationType:     fleet.MDMAppleOperationTypeRemove,
+		Status:            &fleet.MDMAppleDeliveryPending,
+	}}))
+	cps, err := ds.GetHostMDMProfiles(ctx, "h1")
+	require.NoError(t, err)
+	require.Len(t, cps, 1)
+	require.Equal(t, "name1", cps[0].Name)
+	require.Equal(t, fleet.MDMAppleOperationTypeRemove, cps[0].OperationType)
+	require.NotNil(t, cps[0].Status)
+	require.Equal(t, fleet.MDMAppleDeliveryPending, *cps[0].Status)
+
+	// simulate remove failed with client error message
+	require.NoError(t, ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
+		CommandUUID:   "c1",
+		HostUUID:      "h1",
+		Status:        &fleet.MDMAppleDeliveryFailed,
+		Detail:        "MDMClientError (89): Profile with identifier 'p1' not found.",
+		OperationType: fleet.MDMAppleOperationTypeRemove,
+	}))
+	cps, err = ds.GetHostMDMProfiles(ctx, "h1")
+	require.NoError(t, err)
+	require.Len(t, cps, 0) // we ignore error code 89 and delete the pending record as well
+
+	// create another new record
+	require.NoError(t, ds.BulkUpsertMDMAppleHostProfiles(ctx, []*fleet.MDMAppleBulkUpsertHostProfilePayload{{
+		ProfileID:         uint(2),
+		ProfileIdentifier: "p2",
+		ProfileName:       "name2",
+		HostUUID:          "h2",
+		CommandUUID:       "c2",
+		OperationType:     fleet.MDMAppleOperationTypeRemove,
+		Status:            &fleet.MDMAppleDeliveryPending,
+	}}))
+	cps, err = ds.GetHostMDMProfiles(ctx, "h2")
+	require.NoError(t, err)
+	require.Len(t, cps, 1)
+	require.Equal(t, "name2", cps[0].Name)
+	require.Equal(t, fleet.MDMAppleOperationTypeRemove, cps[0].OperationType)
+	require.NotNil(t, cps[0].Status)
+	require.Equal(t, fleet.MDMAppleDeliveryPending, *cps[0].Status)
+
+	// simulate remove failed with another client error message that we don't want to ignore
+	require.NoError(t, ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
+		CommandUUID:   "c2",
+		HostUUID:      "h2",
+		Status:        &fleet.MDMAppleDeliveryFailed,
+		Detail:        "MDMClientError (96): Cannot replace profile 'p2' because it was not installed by the MDM server.",
+		OperationType: fleet.MDMAppleOperationTypeRemove,
+	}))
+	cps, err = ds.GetHostMDMProfiles(ctx, "h2")
+	require.NoError(t, err)
+	require.Len(t, cps, 1)
+	require.Equal(t, "name2", cps[0].Name)
+	require.Equal(t, fleet.MDMAppleOperationTypeRemove, cps[0].OperationType)
+	require.NotNil(t, cps[0].Status)
+	require.Equal(t, fleet.MDMAppleDeliveryFailed, *cps[0].Status)
+	require.Equal(t, "MDMClientError (96): Cannot replace profile 'p2' because it was not installed by the MDM server.", cps[0].Detail)
+}
+
+func testDeleteMDMAppleProfilesForHost(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	h, err := ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   ptr.String("host0-osquery-id"),
+		NodeKey:         ptr.String("host0-node-key"),
+		UUID:            "host0-test-mdm-profiles",
+		Hostname:        "hostname0",
+	})
+	require.NoError(t, err)
+
+	require.NoError(t, ds.BulkUpsertMDMAppleHostProfiles(ctx, []*fleet.MDMAppleBulkUpsertHostProfilePayload{{
+		ProfileID:         uint(1),
+		ProfileIdentifier: "p1",
+		ProfileName:       "name1",
+		HostUUID:          h.UUID,
+		CommandUUID:       "c1",
+		OperationType:     fleet.MDMAppleOperationTypeRemove,
+		Status:            &fleet.MDMAppleDeliveryPending,
+	}}))
+
+	gotProfs, err := ds.GetHostMDMProfiles(ctx, h.UUID)
+	require.NoError(t, err)
+	require.Len(t, gotProfs, 1)
+
+	err = ds.DeleteMDMAppleProfilesForHost(ctx, h.UUID)
+	require.NoError(t, err)
+	gotProfs, err = ds.GetHostMDMProfiles(ctx, h.UUID)
+	require.NoError(t, err)
+	require.Nil(t, gotProfs)
 }
