@@ -43,6 +43,8 @@ func isNewSoftwareAvailable(ctx context.Context) (newSoftwareAvailable string, e
 }
 
 func runCommand(ctx context.Context, name string, arg ...string) (res string, err error) {
+	// This query may take more than the avg query
+	// I doubled the typical time from my tests and ended up with 30 seconds timeout.
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, name, arg...)
