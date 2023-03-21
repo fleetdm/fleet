@@ -347,8 +347,9 @@ type MDMAppleHostsProfilesSummary struct {
 	Failed uint `json:"failing" db:"failed"`
 }
 
-// TODO: docs
-// QUESTION: what is `fleet` directory for?
+// MDMAppleFileVaultSummary reports the number of macOS hosts being managed with Apples disk
+// encryption profiles. Each host may be counted in only one of five mutually-exclusive categories:
+// Applied, ActionRequired, Enforcing, Failed, RemovingEnforcement.
 type MDMAppleFileVaultSummary struct {
 	Applied             uint `json:"applied" db:"applied"`
 	ActionRequired      uint `json:"action_required" db:"action_required"`

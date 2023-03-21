@@ -577,7 +577,9 @@ type Service interface {
 	// to any team).
 	GetMDMAppleProfilesSummary(ctx context.Context, teamID *uint) (*MDMAppleHostsProfilesSummary, error)
 
-	// TODO: docs
+	// GetMDMAppleFileVaultSummary summarizes the current state of Apple disk encryption profiles on
+	// each macOS host in the specified team (or, if no team is specified, each host that is not assigned
+	// to any team).
 	GetMDMAppleFileVaultSummary(ctx context.Context, teamID *uint) (*MDMAppleFileVaultSummary, error)
 
 	// NewMDMAppleEnrollmentProfile creates and returns new enrollment profile.

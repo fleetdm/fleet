@@ -539,6 +539,7 @@ The MDM endpoints exist to support the related command-line interface sub-comman
 - [Batch-apply Apple MDM custom settings](#batch-apply-apple-mdm-custom-settings)
 - [Update Apple MDM settings](#update-apple-mdm-settings)
 - [Download an enrollment profile using IdP authentication](#download-an-enrollment-profile-using-idp-authentication)
+- [Get Apple disk encryption summary](#get-apple-disk-encryption-summary)
 
 ### Get Apple MDM
 
@@ -976,6 +977,42 @@ Currently, the only IdP supported is Okta.
 	<integer>1</integer>
 </dict>
 </plist>
+```
+
+### Get Apple disk encryption summary
+
+_Available in Fleet Premium_
+
+This endpoint returns a summary of the disk encryption profiles aggregate status counts.
+
+The summary can optionally be filtered by team id.
+
+`GET /api/v1/fleet/mdm/apple/filevault/summary`
+
+#### Parameters
+
+| Name                      | Type   | In    | Description                                                               |
+| ------------------------- | ------ | ----- | ------------------------------------------------------------------------- |
+| team_id                   | string | query | _Available in Fleet Premium_ The team id to filter the summary.            |
+
+#### Example
+
+Get aggregate status counts of Apple disk encryption profiles applying to macOS hosts enrolled to Fleet's MDM that are not assigned to any team.
+
+`GET /api/v1/fleet/mdm/apple/filevault/summary`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "applied": 123,
+  "action_required": 123,
+  "enforcing": 123,
+  "failed": 123,
+  "removing_enforcement": 123,
+}
 ```
 
 ## Get or apply configuration files
