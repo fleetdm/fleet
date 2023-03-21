@@ -55,7 +55,7 @@ go.mod @fleetdm/go
 /website/views/pages/pricing.ejs @mikermcneil
 
 # Website redirects and URLs
-/website/config/routes.js @eashaw @jarodreyes
+/website/config/routes.js @mikermcneil @eashaw
 
 # Website backend, scripts, deps
 /website/api/ @mikermcneil @eashaw
@@ -64,23 +64,25 @@ go.mod @fleetdm/go
 /website/package.json @mikermcneil @eashaw
 
 # GitHub brandfront
-/README.md @jarodreyes @mikermcneil
+/README.md @mikermcneil
 
 # NPM brandfront (npmjs.com/package/fleetctl)
-/tools/fleetctl-npm/README.md @jarodreyes
+/tools/fleetctl-npm/README.md @mikermcneil
 
 # Handbook
 /handbook/company @mikermcneil
 /handbook/company/* @mikermcneil
-/handbook/business-operations @hollidayn
-/handbook/business-operations/ceo-handbook.md @mikermcneil
-/handbook/business-operations/* @hollidayn
-/handbook/security @mikermcneil
-/handbook/engineering @zwass
+/handbook/business-operations @mikermcneil
+/handbook/business-operations/* @mikermcneil
+/handbook/engineering @lukeheath
+/handbook/engineering/* @lukeheath
 /handbook/product @zhumo
+/handbook/product/* @zhumo
 /handbook/customers @alexmitchelliii
+/handbook/customers/* @alexmitchelliii
 /handbook/marketing @jarodreyes
-/handbook/README.md @mikermcneil
+/handbook/marketing/* @jarodreyes
+/handbook/README.md @mikermcneil # « This is the "Table of contents"
 
 #
 # For configuration that determines auto-approval + auto-unfreezing, so that contributors
