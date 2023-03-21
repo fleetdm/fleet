@@ -27201,25 +27201,6 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/authdb.yml"
   },
   {
-    "name": "software_update",
-    "platforms": [
-      "darwin"
-    ],
-    "description": "returns details about apple software update availability and status.",
-    "columns": [
-      {
-        "name": "software_update_required",
-        "type": "integer",
-        "required": false,
-        "description": "Answers whether there is an automatic update available for any of the Apple softwares installed.\n"
-      }
-    ],
-    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
-    "evented": false,
-    "url": "https://fleetdm.com/tables/software_update",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/software_update.yml"
-  },
-  {
     "name": "csrutil_info",
     "platforms": [
       "darwin"
@@ -27330,6 +27311,31 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/filevault_users.yml"
   },
   {
+    "name": "firmware_eficheck_integrity_check",
+    "platforms": [
+      "darwin"
+    ],
+    "description": "Performs eficheck's integrity check on macOS Intel T1 chips (CIS 5.9).",
+    "columns": [
+      {
+        "name": "chip",
+        "type": "text",
+        "required": false,
+        "description": "Contains the chip type, values are \"apple\", \"intel-t1\" and \"intel-t2\".\nIf chip type is \"apple\" or \"intel-t2\" then no eficheck integrity check is executed.\n"
+      },
+      {
+        "name": "output",
+        "type": "text",
+        "required": false,
+        "description": "Output of the `/usr/libexec/firmwarecheckers/eficheck/eficheck --integrity-check` command.\nThis value is only valid when chip is \"intel-t1\".\n"
+      }
+    ],
+    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
+    "evented": false,
+    "url": "https://fleetdm.com/tables/firmware_eficheck_integrity_check",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/firmware_eficheck_integrity_check.yml"
+  },
+  {
     "name": "google_chrome_profiles",
     "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
     "description": "Profiles configured in Google Chrome.",
@@ -27368,31 +27374,6 @@
     ],
     "url": "https://fleetdm.com/tables/google_chrome_profiles",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/google_chrome_profiles.yml"
-  },
-  {
-    "name": "firmware_eficheck_integrity_check",
-    "platforms": [
-      "darwin"
-    ],
-    "description": "Performs eficheck's integrity check on macOS Intel T1 chips (CIS 5.9).",
-    "columns": [
-      {
-        "name": "chip",
-        "type": "text",
-        "required": false,
-        "description": "Contains the chip type, values are \"apple\", \"intel-t1\" and \"intel-t2\".\nIf chip type is \"apple\" or \"intel-t2\" then no eficheck integrity check is executed.\n"
-      },
-      {
-        "name": "output",
-        "type": "text",
-        "required": false,
-        "description": "Output of the `/usr/libexec/firmwarecheckers/eficheck/eficheck --integrity-check` command.\nThis value is only valid when chip is \"intel-t1\".\n"
-      }
-    ],
-    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
-    "evented": false,
-    "url": "https://fleetdm.com/tables/firmware_eficheck_integrity_check",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/firmware_eficheck_integrity_check.yml"
   },
   {
     "name": "icloud_private_relay",
@@ -28272,6 +28253,25 @@
     "evented": false,
     "url": "https://fleetdm.com/tables/sntp_request",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/sntp_request.yml"
+  },
+  {
+    "name": "software_update",
+    "platforms": [
+      "darwin"
+    ],
+    "description": "Information about available Apple software updates.",
+    "columns": [
+      {
+        "name": "software_update_required",
+        "type": "text",
+        "required": false,
+        "description": "Software vendors release security patches and software updates for their products when security vulnerabilities are discovered. There is no simple way to complete this action without a network connection to an Apple software repository. Please ensure appropriate access for this control. This check is only for what Apple provides through software update.      \n"
+      }
+    ],
+    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
+    "evented": false,
+    "url": "https://fleetdm.com/tables/software_update",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/software_update.yml"
   },
   {
     "name": "sudo_info",
