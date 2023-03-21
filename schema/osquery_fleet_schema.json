@@ -27209,15 +27209,15 @@
     "columns": [
       {
         "name": "software_update_required",
-        "type": "text",
+        "type": "integer",
         "required": false,
         "description": "Answers whether there is an automatic update available for any of the Apple softwares installed.\n"
       }
     ],
     "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
     "evented": false,
-    "url": "https://fleetdm.com/tables/authdb",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/authdb.yml"
+    "url": "https://fleetdm.com/tables/software_update",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/software_update.yml"
   },
   {
     "name": "csrutil_info",
