@@ -37,6 +37,7 @@ We configure our Zoom meetings to let participants join before the host starts t
 ### Key reviews
 Every release cycle, each department leader prepares a [key review deck](https://about.gitlab.com/handbook/key-review/#purpose) and presents it to the CEO. In this deck, the department will highlight KPI metrics (numbers measuring everyday excellence) and progress of timebound goals for a particular quarter (OKRs). The information for creating this deck is located in the ["🌈 Fleet" Google drive](https://drive.google.com/drive/folders/1lizTSi7YotG_zA7zJeHuOXTg_KF1Ji8k) using ["How to create key review"](https://docs.google.com/document/d/1PDwJL0HiCz-KbEGZMfldAYX_aLk5OVAU1MMSgMYYF2A/edit?usp=sharing)(internal doc).
 
+> TODO: extrapolate "key reviews" to fleetdm.com/handbook/company/why-this-way -- maybe a section on "why measure KPIs and set goals?"
 
 ## Spending company money
 As we continue to expand our company policies, we use [GitLab's open expense policy](https://about.gitlab.com/handbook/spending-company-money/) as a guide for company spending.
@@ -199,10 +200,13 @@ Please read ["Why direct responsibility?"](https://fleetdm.com/handbook/company/
 - *Confidential*  _(share only with team members who've signed an NDA, consulting agreement, or employment agreement)_
 - *Classified*  _(share only with founders of Fleet, peepops, and/or the people involved.  e.g., US social security numbers during hiring)_
 
+> TODO: extrapolate to "why this way" page
 
 ### Email relays
 
 There are several special email addresses that automatically relay messages to the appropriate people at Fleet. Each email address meets a minimum response time ("Min RT"), expressed in business hours/days, and has a dedicated, directly responsible individual (DRI) who is responsible for reading and replying to emails sent to that address.  You can see a list of those email addresses in ["Contacting Fleet" (private Google doc)](https://docs.google.com/document/d/1tE-NpNfw1icmU2MjYuBRib0VWBPVAdmq4NiCrpuI0F0/edit#).
+
+> TODO: extrapolate to "why this way" page
 
 ### GitHub labels
 
@@ -217,7 +221,7 @@ maintaining an expressive labeling system. For example, instead of a label calle
 | `:`               | Verb        | `:dev`, `:research`, `:design`
 | `~`               | Adjective   | `~blocked`, `~frontend`, `~backend`
 
-
+> TODO: extrapolate to "why this way" page
 
 ## Tools we use
 
@@ -393,11 +397,13 @@ Here are the steps hiring managers can follow to get an offer out to a candidate
    - _If this is an engineering position_, before scheduling the CEO interview, please also be sure that the candidate has already been interviewed by the CTO.  If not, include the CTO in this interview.
    - The candidate's email address involved in this calendar event with the CEO is also where they will receive their offer or rejection email.
 2. **Add to team database:** Update the [Fleeties](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) doc to accurately reflect:
-   - start date _(No need to check with the candidate if you haven't already.  Just guess.)_
-   - candidate's first and last name
-   - preferred pronoun
-   - LinkedIn URL
-   - country and state where they will be working
+   - Start date _(No need to check with the candidate if you haven't already.  Just guess.)_
+   - First and last name
+   - Preferred pronoun _("them", "her", or "him")
+   - Country and state where they will be working _(Pattern-match from how other rows do it.  Please be mindful of spreadsheet formulas.)_
+   - LinkedIn URL _(If the fleetie does not have a LinkedIn account, enter `N/A`)_
+   - GitHub handle _(Every candidate must have a GitHub account in "Fleeties" before the company makes them an offer.  If the the candidate does not have a GitHub account, ask them to create one, and make sure it's tracked in "Fleeties".)_
+     > _**Tip:** A revealing live interview question can be to ask a candidate to quickly share their screen, sign up for GitHub, and then hit the "Edit" button on one of the pages in [the Fleet handbook](https://fleetdm.com/handbook) to make their first pull request.  This should not take more than 5 minutes._
 3. **Confirm intent to offer:** At-mention `@mikermcneil` in the `#hiring-` channel and indicate that you would like for Fleet to make an offer to the candidate.  Let him know 
 
 #### Making an offer
@@ -413,7 +419,7 @@ After meeting with the candidate for their final interview, the CEO uses the fol
 3. **Prepare the "exit scenarios" spreadsheet:** [Copy the "Exit scenarios (template)"](https://docs.google.com/spreadsheets/d/1k2TzsFYR0QxlD-KGPxuhuvvlJMrCvLPo2z8s8oGChT0/copy) for the candidate, and rename the copy to e.g. "Exit scenarios for Jane Doe".
    - _Edit the candidate's copy of the exit scenarios spreadsheet_ to include the number of shares they will be offered, and the spreadsheet will update automatically to reflect their approximate ownership percentage.
    - _Share the candidate's copy_ of the spreadsheet with their personal email, granting **"Edit"** access.
-   > _**Note:** Don't play with numbers in the exit scenarios spreadsheet. The revision history is visible to the candidate, and they might misunderstand._
+     > _**Note:** Don't play with numbers in the exit scenarios spreadsheet. The revision history is visible to the candidate, and they might misunderstand._
 4. **Prepare offer email:** [Copy "Offer email (template)"](https://docs.google.com/document/d/1zpNN2LWzAj-dVBC8iOg9jLurNlSe7XWKU69j7ntWtbY/copy) and rename to e.g. "Offer email for Jane Doe".  Edit the candidate's copy of the offer email template doc and fill in the missing information:
    - _Benefits:_ If candidate will work outside the US, [change the "Benefits" bullet](https://docs.google.com/document/d/1zpNN2LWzAj-dVBC8iOg9jLurNlSe7XWKU69j7ntWtbY/edit) to reflect what will be included through Fleet's international payroll provider, depending on the candidate's location.
    - _Equity:_ Specify the number of shares, then highlight the number of shares with a link to the candidate's personalized copy of the "Exit scenarios" spreadsheet.
