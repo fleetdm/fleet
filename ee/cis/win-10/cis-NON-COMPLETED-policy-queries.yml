@@ -322,6 +322,70 @@ apiVersion: v1
 kind: policy
 spec:
   name: >
+    CIS - Ensure 'Configure registry policy processing: Process even if the Group Policy objects have not changed' is set to 'Enabled: TRUE'
+  platforms: win10
+  platform: windows
+  description: |
+    The "Process even if the Group Policy objects have not changed" option updates and reapplies policies even if the policies have not changed.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled, then set the Process even if the Group Policy objects have not changed option to TRUE (checked):
+    'Computer Configuration\Policies\Administrative Templates\System\Group Policy\Configure registry policy processing'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template GroupPolicy.admx/adml that is included with the Microsoft Windows 8.0 & Server 2012 (non-R2) Administrative Templates (or newer).
+  query: |
+    TBD
+  # Registry key wont change on edit (from 1 to 0)
+  # SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\Group Policy\\{35378EAC-683F-11D2-A89A-00C04FBBCFA2}\NoGPOListChanges' AND data = 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0,  CIS_not_completed, CIS_domain_joined_required, CIS_bullet_18.8.21.3, CIS_not_completed
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Continue experiences on this device' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting determines whether the Windows device is allowed to participate in cross-device experiences (continue experiences).
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Disabled:
+    'Computer Configuration\Policies\Administrative Templates\System\Group Policy\Continue experiences on this device'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template GroupPolicy.admx/adml that is included with the Microsoft Windows 8.0 & Server 2012 (non-R2) Administrative Templates (or newer).
+  query: |
+    TBD
+  # Registry key wont change on edit (from 1 to 0)
+  # SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\System\EnableCdp' AND data = 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0,  CIS_not_completed, CIS_domain_joined_required, CIS_bullet_18.8.21.4, CIS_not_completed
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Turn off background refresh of Group Policy' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting prevents Group Policy from being updated while the computer is in use.
+    This policy setting applies to Group Policy for computers, users and Domain Controllers.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Disabled:
+    'Computer Configuration\Policies\Administrative Templates\System\Group Policy\Turn off background refresh of Group Policy'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template GroupPolicy.admx/adml that is included with the Microsoft Windows 8.0 & Server 2012 (non-R2) Administrative Templates (or newer).
+  query: |
+    TBD
+  # DisableBkGndGroupPolicy registry path does not exist even with psexec.exe
+  # Untested: SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System\DisableBkGndGroupPolicy' AND data = 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_not_completed, CIS_domain_joined_required, CIS_bullet_18.8.21.5
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
     CIS - Ensure 'Turn off cloud consumer account state content' is set to 'Enabled'
   platforms: win10
   platform: windows
@@ -336,6 +400,82 @@ spec:
     # Untested: Select 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\\Windows\\CloudContent\DisableConsumerAccountStateContent' AND data = 1);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.14.1, CIS_not_completed
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Disable OneSettings Downloads' is set to 'Enabled'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy is meant for Windows 11.
+    This policy setting controls whether Windows attempts to connect with the OneSettings service to download configuration settings.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Data Collection and Preview Builds\Disable OneSettings Downloads'
+  query: |
+    # Untested on Win11: SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\DataCollection\DisableOneSettingsDownloads' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.17.3, CIS_not_completed
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Enable OneSettings Auditing' is set to 'Enabled'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy is meant for Windows 11.
+    This policy setting controls whether Windows records attempts to connect with the OneSettings service to the Operational EventLog.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Data Collection and Preview Builds\Enable OneSettings Auditing'
+  query: |
+    # Untested on Win11: SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\DataCollection\EnableOneSettingsAuditing' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.17.5, CIS_not_completed
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Limit Diagnostic Log Collection' is set to 'Enabled'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy is meant for Windows 11.
+    This policy setting controls whether additional diagnostic logs are collected when more information is needed to troubleshoot a problem on the device.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Data Collection and Preview Builds\Limit Diagnostic Log Collection'
+  query: |
+    # Untested on Win 11: SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\DataCollection\LimitDiagnosticLogCollection' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.17.6, CIS_not_completed
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Limit Dump Collection' is set to 'Enabled'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy is meant for Windows 11.
+    This policy setting limits the type of dumps that can be collected when more information is needed to troubleshoot a problem.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled.
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Data Collection and Preview Builds\Limit Dump Collection'
+  query: |
+    # Untested on Win 11:  SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\DataCollection\LimitDumpCollection' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.17.7, CIS_not_completed
   contributors: rachelelysia
 ---
 

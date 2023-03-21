@@ -171,8 +171,20 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 	}
 
 	// set the host's orbit notifications
-	if host.IsOsqueryEnrolled() && host.MDMInfo.IsPendingDEPFleetEnrollment() {
-		notifs.RenewEnrollmentProfile = true
+	if host.IsOsqueryEnrolled() {
+		if host.MDMInfo.IsPendingDEPFleetEnrollment() {
+			notifs.RenewEnrollmentProfile = true
+		}
+
+		if host.DiskEncryptionResetRequested != nil && *host.DiskEncryptionResetRequested {
+			notifs.RotateDiskEncryptionKey = true
+
+			// Since this is an user initiated action, we disable
+			// the flag when we deliver the notification to Orbit
+			if err := svc.ds.SetDiskEncryptionResetStatus(ctx, host.ID, false); err != nil {
+				return fleet.OrbitConfig{Notifications: notifs}, err
+			}
+		}
 	}
 
 	// team ID is not nil, get team specific flags and options

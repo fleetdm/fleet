@@ -13,7 +13,7 @@ const INTEGRATION_SETTINGS_NAV_ITEMS: ISideNavItem<any>[] = [
     Card: Integrations,
   },
   {
-    title: "Mobile Device Management (MDM)",
+    title: "Mobile device management (MDM)",
     urlSection: "mdm",
     path: PATHS.ADMIN_INTEGRATIONS_MDM,
     Card: Mdm,
