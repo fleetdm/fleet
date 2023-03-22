@@ -12,6 +12,7 @@ const (
 	RoleMaintainer   = "maintainer"
 	RoleObserver     = "observer"
 	RoleObserverPlus = "observer_plus"
+	RoleGitOps       = "gitops"
 )
 
 type TeamPayload struct {
@@ -201,10 +202,12 @@ var teamRoles = map[string]struct{}{
 	RoleObserver:     {},
 	RoleMaintainer:   {},
 	RoleObserverPlus: {},
+	RoleGitOps:       {},
 }
 
 var premiumTeamRoles = map[string]struct{}{
 	RoleObserverPlus: {},
+	RoleGitOps:       {},
 }
 
 // ValidTeamRole returns whether the role provided is valid for a team user.
@@ -227,10 +230,12 @@ var globalRoles = map[string]struct{}{
 	RoleMaintainer:   {},
 	RoleAdmin:        {},
 	RoleObserverPlus: {},
+	RoleGitOps:       {},
 }
 
 var premiumGlobalRoles = map[string]struct{}{
 	RoleObserverPlus: {},
+	RoleGitOps:       {},
 }
 
 // ValidGlobalRole returns whether the role provided is valid for a global user.
@@ -274,21 +279,31 @@ func ValidateRole(globalRole *string, teamUsers []UserTeam) error {
 	return nil
 }
 
-func ValidateRoleForLicense(globalRole *string, teamUsers *[]UserTeam, license LicenseInfo) error {
+// ValidateUserRoles verifies the roles to be applied to a new or existing user.
+//
+// Argument createNew sets whether the user is being created (true) or is being modified (false).
+func ValidateUserRoles(createNew bool, payload UserPayload, license LicenseInfo) error {
 	var teamUsers_ []UserTeam
-	if teamUsers != nil {
-		teamUsers_ = *teamUsers
+	if payload.Teams != nil {
+		teamUsers_ = *payload.Teams
 	}
-	if err := ValidateRole(globalRole, teamUsers_); err != nil {
+	if err := ValidateRole(payload.GlobalRole, teamUsers_); err != nil {
 		return err
 	}
 	premiumRolesPresent := false
-	if globalRole != nil {
-		if _, ok := premiumGlobalRoles[*globalRole]; ok {
+	gitOpsRolePresent := false
+	if payload.GlobalRole != nil {
+		if *payload.GlobalRole == RoleGitOps {
+			gitOpsRolePresent = true
+		}
+		if _, ok := premiumGlobalRoles[*payload.GlobalRole]; ok {
 			premiumRolesPresent = true
 		}
 	}
 	for _, teamUser := range teamUsers_ {
+		if teamUser.Role == RoleGitOps {
+			gitOpsRolePresent = true
+		}
 		if _, ok := premiumTeamRoles[teamUser.Role]; ok {
 			premiumRolesPresent = true
 		}
@@ -296,6 +311,14 @@ func ValidateRoleForLicense(globalRole *string, teamUsers *[]UserTeam, license L
 	if !license.IsPremium() && premiumRolesPresent {
 		return ErrMissingLicense
 	}
+	if gitOpsRolePresent &&
+		// New user is not API only.
+		(createNew && (payload.APIOnly == nil || !*payload.APIOnly)) ||
+		// Removing API only status from existing user.
+		(!createNew && payload.APIOnly != nil && !*payload.APIOnly) {
+		return NewErrorf(ErrAPIOnlyRole, "role GitOps can only be set for API only users")
+	}
+
 	return nil
 }
 

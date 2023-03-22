@@ -389,10 +389,10 @@ func TestAuthorizeHost(t *testing.T) {
 		{user: nil, object: hostTeam2, action: write, allow: false},
 		{user: nil, object: hostTeam2, action: mdmCommand, allow: false},
 
-		// List but no specific host access
+		// No host access if the user has no roles.
 		{user: test.UserNoRoles, object: host, action: read, allow: false},
 		{user: test.UserNoRoles, object: host, action: write, allow: false},
-		{user: test.UserNoRoles, object: host, action: list, allow: true},
+		{user: test.UserNoRoles, object: host, action: list, allow: false},
 		{user: test.UserNoRoles, object: host, action: mdmCommand, allow: false},
 		{user: test.UserNoRoles, object: hostTeam1, action: read, allow: false},
 		{user: test.UserNoRoles, object: hostTeam1, action: write, allow: false},

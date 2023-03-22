@@ -302,7 +302,7 @@ func (svc *Service) ModifyUser(ctx context.Context, userID uint, p fleet.UserPay
 		if license == nil {
 			return nil, ctxerr.New(ctx, "license not found")
 		}
-		if err := fleet.ValidateRoleForLicense(p.GlobalRole, p.Teams, *license); err != nil {
+		if err := fleet.ValidateUserRoles(false, p, *license); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "validate role")
 		}
 	}
