@@ -1402,8 +1402,6 @@ func (s *integrationMDMTestSuite) TestMDMAppleDiskEncryptionAggregate() {
 	// new filevault profile with no team
 	prof, err := fleet.NewMDMAppleConfigProfile(mobileconfigForTest("filevault-1", mobileconfig.FleetFileVaultPayloadIdentifier), ptr.Uint(0))
 	require.NoError(t, err)
-	fileVaultProf, err := s.ds.NewMDMAppleConfigProfile(ctx, *prof)
-	require.NoError(t, err)
 
 	// generates a disk encryption aggregate value based on the arguments passed in
 	generateAggregateValue := func(
@@ -1416,8 +1414,8 @@ func (s *integrationMDMTestSuite) TestMDMAppleDiskEncryptionAggregate() {
 			hostCmdUUID := uuid.New().String()
 			err := s.ds.BulkUpsertMDMAppleHostProfiles(ctx, []*fleet.MDMAppleBulkUpsertHostProfilePayload{
 				{
-					ProfileID:         fileVaultProf.ProfileID,
-					ProfileIdentifier: fileVaultProf.Identifier,
+					ProfileID:         prof.ProfileID,
+					ProfileIdentifier: prof.Identifier,
 					HostUUID:          host.UUID,
 					CommandUUID:       hostCmdUUID,
 					OperationType:     operationType,
@@ -1494,8 +1492,6 @@ func (s *integrationMDMTestSuite) TestMDMAppleDiskEncryptionAggregate() {
 	prof, err = fleet.NewMDMAppleConfigProfile(mobileconfigForTest("filevault-1", mobileconfig.FleetFileVaultPayloadIdentifier), ptr.Uint(1))
 	require.NoError(t, err)
 	prof.TeamID = &tm.ID
-	require.NoError(t, err)
-	fileVaultProf, err = s.ds.NewMDMAppleConfigProfile(ctx, *prof)
 	require.NoError(t, err)
 
 	// filtering by the "team_id" query param
