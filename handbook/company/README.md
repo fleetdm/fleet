@@ -78,7 +78,7 @@ We work to get results. How we work determines the results we deliver. Between o
 Our objective as a company is to make money. This is how we measure success. Customers pay for products that make a difference. Approach every project with this in mind.
 
 - **Think for yourself.** Seek understanding. Remember how often conventional wisdom isn't.
-- **Be humble.** Be conservative about what's possible.  Don't overpromise.  No solution is just the “happy path".  Pick boring solutionS and save time for edge cases.
+- **Be humble.** Be conservative about what's possible.  Don't overpromise.  No solution is just the “happy path".  Pick boring solutions and save time for edge cases.
 - **Prioritize the truth.** Feel free to change your mind in the face of new evidence. Avoid the sunk cost fallacy. Give credit where credit is due.
 - **Be rigorous.** A lucky fix without understanding does more harm than good. When something isn't working, use the scientific method.
 
@@ -121,7 +121,7 @@ While most improvements at Fleet are driven by informal conversations with custo
 
 
 ## Positioning
-Read about [Fleet's positioning in this confidential Google Doc](https://docs.google.com/document/d/140q7SZ4T_sbsTsL7tdTKsqMqDtXbGBh_8Yiqy36bRI0/edit).
+Read about [Fleet's positioning in this confidential Google Doc](https://docs.google.com/document/d/1E0VU4AcB6UTVRd4JKD45Saxh9Gz-mkO3LnGSTBDLEZo/edit#).
 
 ## Slack channels
 
