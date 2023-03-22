@@ -2973,9 +2973,10 @@ kind: policy
 spec:
   name: >
     CIS - Ensure 'Configure DNS over HTTPS (DoH) name resolution' is set to 'Enabled: Allow DoH' or higher
-  platforms: win10
+  platforms: win11
   platform: windows
   description: |
+    This policy is meant for Windows 11.
     This setting determines if DNS over HTTPS (DoH) is used by the system. DNS over HTTPS (DoH) is a protocol for performing remote Domain Name System (DNS) resolution over the Hypertext Transfer Protocol Secure (HTTPS). For additional information on DNS over HTTPS (DoH), visit: Secure DNS Client over HTTPS (DoH) on Windows Server 2022 | Microsoft Docs.
     The recommended state for this setting is: 'Enabled: Allow DoH'. Configuring this setting to 'Enabled: Require DoH' also conforms to the benchmark.
   resolution: |
@@ -2984,7 +2985,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\DNSClient\DoHPolicy' AND data IN (2,3));
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.5.4.1
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.5.4.1, CIS_not_completed
   contributors: DefensiveDepth
 ---
 apiVersion: v1
