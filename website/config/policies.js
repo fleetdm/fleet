@@ -57,4 +57,5 @@ module.exports.policies = {
   'view-compliance': true,
   'view-osquery-management': true,
   'experimental/*': true, // For internal Fleet demos
+  'landing-pages/*': true, // For internal Fleet demos
 };

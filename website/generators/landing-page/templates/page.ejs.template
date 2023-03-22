@@ -4,12 +4,12 @@
 
     <div purpose="hero-container" class="d-flex flex-column align-items-center">
       <div purpose="hero-text">
-        <h4 class="mb-2">Visibility and compliance in a single platform</h4>
-        <h1>Simplify security compliance</h1>
-        <p>Automate security workflows in a single application by creating or installing policies to identify which devices comply with your security guidelines.</p>
+        <h4 class="mb-2">A magni, recusandae qui omnis in quod?</h4>
+        <h1><%= stem %></h1>
+        <p>Vitae architecto reiciendis in temporibus consequatur doloremque reprehenderit perferendis? Eaque quod voluptates earum corporis, quo labore reprehenderit libero sint.</p>
         <div purpose="button-row" class="d-flex flex-sm-row flex-column justify-content-center align-items-center">
           <a purpose="cta-button" href="/try-fleet/register?tryitnow">Try Fleet today</a>
-          <a href="https://calendly.com/fleetdm/demo?utm_source=compliance+demo" target="_blank" purpose="animated-arrow-button-red">Talk to an expert</a>
+          <a href="https://calendly.com/fleetdm/demo?utm_source=<%= stem %>+demo" target="_blank" purpose="animated-arrow-button-red">Talk to an expert</a>
         </div>
       </div>
     </div>
@@ -20,52 +20,52 @@
 
     <div purpose="feature" class="d-flex flex-md-row flex-column-reverse justify-content-between mx-auto align-items-center">
       <div class="d-flex flex-column">
-        <h3>Out-the-box CIS benchmark policies</h3>
-        <p>All organizations deal with compliance requirements. With Center for Internet Security (CIS) compliance policies in Fleet,  cybersecurity best practices are at your fingertips.</p>
+        <h3>Culpa ab maiores alias ut, non.</h3>
+        <p>Do vero et, voluptatem fugiat consequatur? totam ut dolores ut velit! Sapiente et quasi et voluptas et doloribus quaerat minima saepe enim?</p>
         <div purpose="checklist" class="flex-column d-flex">
-          <p>Out of the box policies for Mac, Windows, and Linux.</p>
-          <p>Fleet will keep these policies updated for you.</p>
-          <p>Identify which devices are failing the most so you can prioritize your work.</p>
+          <p>Necessitatibus qui harum non dolore a quis!</p>
+          <p>Mollitia ipsum dicta hic quidem aut debitis qui iusto.</p>
+          <p>Esse dolor animi nostrum quidem expedita.</p>
         </div>
       </div>
       <div purpose="feature-image" class="mx-md-5">
-        <img alt="Compliance feature image" src="/images/compliance-feature-image-1.svg">
+        <img alt="<%= stem %> feature image" src="https://my.feralgoblin.com/cass/300/300?text=feature+image+1">
       </div>
     </div>
 
     <div purpose="feature" class="d-flex flex-md-row flex-column justify-content-between mx-auto align-items-center">
       <div purpose="feature-image" class="mx-md-5">
-        <img alt="Compliance feature image" src="/images/compliance-feature-image-2.svg">
+        <img alt="<%= stem %> feature image" src="https://my.feralgoblin.com/cass/300/300?text=feature+image+2">
       </div>
       <div class="d-flex flex-column">
-        <h3>Verify SOC2, NIST compliance</h3>
-        <p>Use the growing list of community-sourced query packs to verify your machines are in-line with new and emerging compliance standards. </p>
+        <h3>Doloribus natus nihil alias earum, eius ducimus.</h3>
+        <p>Laboriosam iusto magnam suscipit quasi ut quod, non, exercitationem. Enim aut consectetur repellat nihil pariatur? blanditiis.</p>
         <div purpose="checklist" class="flex-column d-flex">
-          <p>Powerful visibility of your entire fleet gives you confidence that your SOC2 and NIST policies are being followed. </p>
-          <p>Measure how quickly failures are resolved and make sure that they fall within your service level agreement (SLA).</p>
-          <p>Identify which devices and policies are failing in real time.</p>
+          <p>Necessitatibus qui harum non dolore a quis!</p>
+          <p>Mollitia ipsum dicta hic quidem aut debitis qui iusto.</p>
+          <p>Esse dolor animi nostrum quidem expedita.</p>
         </div>
       </div>
     </div>
 
     <div purpose="feature" class="d-flex flex-md-row flex-column-reverse justify-content-between mx-auto align-items-center">
       <div class="d-flex flex-column">
-        <h3>Automations in response to failing policies</h3>
-        <p>Fleet Premium comes out-of-the-box ready for audits. Integrate with the security tools and services in your stack. Get answers immediately, even when you’re not looking.</p>
+        <h3>Ex, illum voluptates impedit nulla, et sunt cupiditate quas illo mollitia pariatur?? Tempora et delectus ut atque vel eaque optio, inventore.</h3>
+        <p>Similique ea provident ducimus nulla ea debitis sequi nihil.</p>
         <div purpose="checklist" class="flex-column d-flex">
-          <p>Configurable scan intervals for policies.</p>
-          <p>Trigger webhooks and integrate with Jira, Zendesk, or Tines.</p>
-          <p>Encourage end-user self-remediation with Fleet Desktop.</p>
+          <p>Necessitatibus qui harum non dolore a quis!</p>
+          <p>Mollitia ipsum dicta hic quidem aut debitis qui iusto.</p>
+          <p>Esse dolor animi nostrum quidem expedita.</p>
         </div>
       </div>
       <div purpose="feature-image" class="mx-md-5">
-        <img alt="Comliance feature image" src="/images/compliance-feature-image-3.svg">
+        <img alt="<%= stem %> feature image" src="https://my.feralgoblin.com/cass/300/300?text=feature+image+3">
       </div>
     </div>
 
     <div purpose="button-row" style="margin-top: 60px;" class="d-flex flex-sm-row flex-column justify-content-center align-items-center mx-auto">
       <a purpose="cta-button" href="/try-fleet/register?tryitnow">Try Fleet today</a>
-      <a href="https://calendly.com/fleetdm/demo?utm_source=compliance+demo" target="_blank" purpose="animated-arrow-button-red">Talk to an expert</a>
+      <a href="https://calendly.com/fleetdm/demo?utm_source=<%= stem %>+demo" target="_blank" purpose="animated-arrow-button-red">Talk to an expert</a>
     </div>
 
   </div>
@@ -74,7 +74,6 @@
     <div purpose="section-heading" style="max-width: 720px" class="mx-auto text-center">
       <h4>Don’t know osquery?</h4>
       <h2>Dedicated support from osquery experts</h2>
-
       <p>Osquery is the open-source agent that powers Fleet. And we have the most osquery experts around. We’ll help you realize the potential of this tool for your organization.</p>
     </div>
   </div>
