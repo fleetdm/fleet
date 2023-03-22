@@ -198,7 +198,7 @@ Please read ["Why direct responsibility?"](https://fleetdm.com/handbook/company/
 
 - *Public*   _(share with anyone, anywhere in the world)_
 - *Confidential*  _(share only with team members who've signed an NDA, consulting agreement, or employment agreement)_
-- *Classified*  _(share only with founders of Fleet, peepops, and/or the people involved.  e.g., US social security numbers during hiring)_
+- *Classified*  _(share only with founders of Fleet, business operations, and/or the people involved.  e.g., US social security numbers during hiring)_
 
 > TODO: extrapolate to "why this way" page
 
