@@ -1737,7 +1737,7 @@ func testBulkSetPendingMDMAppleHostProfiles(t *testing.T, ds *Datastore) {
 			Platform:      "darwin",
 		})
 		require.NoError(t, err)
-		nanoEnroll(t, ds, h)
+		nanoEnroll(t, ds, h, false)
 		enrolledHosts[i] = h
 		t.Logf("enrolled host [%d]: %s", i, h.UUID)
 	}

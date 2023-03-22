@@ -1918,12 +1918,6 @@ func (s *integrationMDMTestSuite) TestHostMDMProfilesStatus() {
 	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch",
 		batchSetMDMAppleProfilesRequest{Profiles: tm2Profiles}, http.StatusNoContent,
 		"team_id", strconv.Itoa(int(tm2.ID)))
-	// create the team 2 enroll secret
-	tm2Secret := "team2_enroll_secret"
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/secrets", tm2.ID),
-		modifyTeamEnrollSecretsRequest{
-			Secrets: []fleet.EnrollSecret{{Secret: tm2Secret}},
-		}, http.StatusOK, &teamResp)
 
 	// enroll a couple hosts in no team
 	h1 := createManualMDMEnrollWithOrbit(globalEnrollSec)
