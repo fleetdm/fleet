@@ -19,6 +19,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/gocarina/gocsv"
 )
 
@@ -323,7 +324,7 @@ func searchHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 }
 
 func (svc *Service) SearchHosts(ctx context.Context, matchQuery string, queryID *uint, excludedHostIDs []uint) ([]*fleet.Host, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionRead); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 		return nil, err
 	}
 
@@ -803,15 +804,21 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 		return nil, ctxerr.Wrap(ctx, err, "get app config for host mdm profiles")
 	}
 	if ac.MDM.EnabledAndConfigured {
-		p, err := svc.ds.GetHostMDMProfiles(ctx, host.UUID)
+		profs, err := svc.ds.GetHostMDMProfiles(ctx, host.UUID)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "get host mdm profiles")
 		}
-		profiles = p
 
 		// determine disk encryption and action required here based on profiles and
 		// raw decryptable key status.
-		host.MDM.DetermineDiskEncryptionStatus(profiles, apple_mdm.FleetFileVaultPayloadIdentifier)
+		host.MDM.DetermineDiskEncryptionStatus(profs, mobileconfig.FleetFileVaultPayloadIdentifier)
+
+		for _, p := range profs {
+			if p.Identifier == mobileconfig.FleetFileVaultPayloadIdentifier {
+				p.Status = host.MDM.ProfileStatusFromDiskEncryptionState(p.Status)
+			}
+			profiles = append(profiles, p)
+		}
 	}
 	host.MDM.Profiles = &profiles
 

@@ -500,6 +500,10 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 		de.WithCustomMiddleware(
 			errorLimiter.Limit("get_device_mdm", desktopQuota),
 		).GET("/api/_version_/fleet/device/{token}/mdm/apple/manual_enrollment_profile", getDeviceMDMManualEnrollProfileEndpoint, getDeviceMDMManualEnrollProfileRequest{})
+
+		de.WithCustomMiddleware(
+			errorLimiter.Limit("post_device_rotate_encryption_key", desktopQuota),
+		).POST("/api/_version_/fleet/device/{token}/rotate_encryption_key", rotateEncryptionKeyEndpoint, rotateEncryptionKeyRequest{})
 	}
 
 	// host-authenticated endpoints

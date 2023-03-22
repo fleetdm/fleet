@@ -84,3 +84,6 @@ macoffice_rel_notes/
 # (e.g. with ./build/fleetctl generate ...).
 /*.key
 /*.crt
+
+# IDE
+.vscode

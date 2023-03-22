@@ -51,9 +51,17 @@
       height: 48px;
       font-size: 16px;
       color: @core-fleet-black;
+      -webkit-appearance: none;
+    }
+    select {
+    // for hiding the <select> dropdown arrow on Firefox 54
+      -moz-appearance: none;
+      text-indent: 0.01px;
+      text-overflow: '';
     }
     input::-webkit-outer-spin-button, input::-webkit-inner-spin-button {
       -webkit-appearance: none;
+      -moz-appearance: none;
       margin: 0;
     }
     input[type='number'] {

@@ -29,9 +29,6 @@ At Fleet, we write things down.  Even when we might be wrong.  This helps us mov
 Fleet is currently hiring for the following positions:
 
 - 🔦 Head of Business Operations
-- 🔦 Executive Assistant
-- ⚗️ [Product Designer](https://fleetdm.com/handbook/company/product-designer)
-- 🫧 [Field Marketer](https://fleetdm.com/handbook/company/field-marketer)
 
 > **🛸 Join us!**  Interested in joining the team at Fleet, or know someone who might be?  Click one of the positions to read the job description and apply.  Or [copy a direct link to this page](https://fleetdm.com/handbook/company#open-positions) to share a short summary about the company, including our vision, values, history, and all currently open positions.  Thank you for the help!
 
@@ -56,10 +53,10 @@ Values play an important role in hiring, performance management, and compensatio
 ### 🔴 Empathy
 Empathy leads to better understanding, better communication, and better decisions.  Try to understand what people may be going through, so you can help make it better.
 
-- **Be considerate.** Keep the needs of customers, contributors, and colleagues in mind. Treat others the way you’d like to be treated.
-- **Be curious.** Ask questions. Try seeing situations from different perspectives. Use your imagination to find understanding.
+- **Invest in hospitality.** Think and say [positive things](https://www.theatlantic.com/family/archive/2018/06/mr-rogers-neighborhood-talking-to-kids/562352/). Apply customer service principles to all community members, especially outsiders.  
+- **Be curious.** Ask questions. Really care about the answers. Try seeing situations from different perspectives. Use your imagination to find understanding.
 - **Remember the user.** Prioritize product quality. Create patches with care. Fix bugs quickly. Take time writing error messages.
-- **Invest in hospitality.** Apply customer service principles to all users. Be generous with your time. Think and say [positive things](https://www.theatlantic.com/family/archive/2018/06/mr-rogers-neighborhood-talking-to-kids/562352/).
+- **Be [a helper](https://en.m.wikipedia.org/wiki/Fred_Rogers#Legacy).** Treat the needs of customers, contributors, and colleagues like your own.
 
 ### 🟠 Ownership
 Achieving ambitious goals requires reliability and initiative. That’s why we encourage every Fleetie to think like an owner. Your impact goes beyond the responsibilities of your role.
@@ -80,15 +77,15 @@ We work to get results. How we work determines the results we deliver. Between o
 ### 🔵 Objectivity
 Our objective as a company is to make money. This is how we measure success. Customers pay for products that make a difference. Approach every project with this in mind.
 
-- **Be humble.** Seek feedback and understanding. Remember, it’s rare to get things right the first time. Question yourself.
-- **Underpromise and overdeliver.** Be practical about what's possible. But don’t settle for the “happy path” right away.
+- **Think for yourself.** Seek understanding. Remember how often conventional wisdom isn't.
+- **Be humble.** Be conservative about what's possible.  Don't overpromise.  No solution is just the “happy path".  Pick boring solutions and save time for edge cases.
 - **Prioritize the truth.** Feel free to change your mind in the face of new evidence. Avoid the sunk cost fallacy. Give credit where credit is due.
 - **Be rigorous.** A lucky fix without understanding does more harm than good. When something isn't working, use the scientific method.
 
 ### 🟣 Openness
 Openness leads to better products and stronger partnerships. Being open about your work isn’t always easy. But practicing this skill will help you throughout your career.
 
-- **Welcome contributions.** Be friendly, inclusive, and approachable. Get comfortable letting others contribute to your domain.
+- **Welcome contributions.** Be friendly, inclusive, and approachable. Get comfortable letting others contribute to your domain. Have short toes.
 - **Embrace candor.** Be positive and assume positive intent. Don’t be afraid to speak up. Give pointed and respectful feedback. 
 - **Write everything down.** Let people learn about your work. Use simple language. Avoid acronyms and idioms that might not translate.
 - **Be transparent.** We build in the open. Everything we do is [public by default](https://fleetdm.com/handbook/company/why-this-way#why-open-source). Declassify confidential information with care. 
@@ -124,7 +121,7 @@ While most improvements at Fleet are driven by informal conversations with custo
 
 
 ## Positioning
-Read about [Fleet's positioning in this confidential Google Doc](https://docs.google.com/document/d/140q7SZ4T_sbsTsL7tdTKsqMqDtXbGBh_8Yiqy36bRI0/edit).
+Read about [Fleet's positioning in this confidential Google Doc](https://docs.google.com/document/d/1E0VU4AcB6UTVRd4JKD45Saxh9Gz-mkO3LnGSTBDLEZo/edit#).
 
 ## Slack channels
 

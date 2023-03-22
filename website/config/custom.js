@@ -98,7 +98,10 @@ module.exports.custom = {
     'README.md': ['mikermcneil', 'jarodreyes', 'mike-j-thomas', 'zwass'],// (github brandfront)
     'tools/fleetctl-npm/README.md': ['mikermcneil', 'mike-j-thomas', 'jarodreyes', 'zwass'],//« brandfront for fleetctl package on npm
 
-    'CODEOWNERS': ['zwass', 'mikermcneil'],
+    // Directly responsible individual (DRI) automation
+    'CODEOWNERS': ['zwass', 'mikermcneil'],// (« for changing who reviews is automatically requested from for given paths)
+    'website/config/custom.js': ['eashaw', 'mikermcneil'],// (« for changing whose changes automatically approve and unfreeze relevant PRs changing given paths)
+
     '.github/workflows': ['zwass', 'mikermcneil'],// (misc GitHub Actions. Note that some are also addressed more specifically below in relevant sections)
 
     // GitHub issue templates
@@ -154,27 +157,16 @@ module.exports.custom = {
     '.gitignore': ['mikermcneil', 'zwass', 'hollidayn', 'dherder', 'zayhanlon'],
 
     // CI/CD workflows
-    '.github': ['mikermcneil', 'zwass', 'hollidayn'],
+    '.github/workflows': ['mikermcneil', 'zwass', 'hollidayn'],
 
     // GitHub issue templates
-    '.github/ISSUE_TEMPLATE': ['mikermcneil', 'zwass', 'zayhanlon', 'hollidayn', 'alexmitchelliii', 'dherder'],
-    '.github/ISSUE_TEMPLATE/2-website-changes.md': 'mike-j-thomas',
-    '.github/ISSUE_TEMPLATE/3-opportunity Fleet Premium PoV.md': 'alexmitchelliii',
-    '.github/ISSUE_TEMPLATE/3-sale.md': 'alexmitchelliii',
-    '.github/ISSUE_TEMPLATE/4-release.md': ['noahtalerman', 'zwass', 'zhumo'],
-    '.github/ISSUE_TEMPLATE/5-monthly-accounting.md': 'hollidayn',
-    '.github/ISSUE_TEMPLATE/6-speaking-event.md': ['mike-j-thomas', 'jarodreyes'],
-    '.github/ISSUE_TEMPLATE/9-renewal.md': ['zayhanlon', 'hollidayn', 'alexmitchelliii'],
-    '.github/ISSUE_TEMPLATE/hiring.md': 'mikermcneil',
-    '.github/ISSUE_TEMPLATE/onboarding.md': 'mikermcneil',
-    '.github/ISSUE_TEMPLATE/y-offboarding.md': 'hollidayn',
-    '.github/ISSUE_TEMPLATE/x-moving.md': 'hollidayn',
-    '.github/ISSUE_TEMPLATE/equity-grants.md': 'mikermcneil',
-    '.github/ISSUE_TEMPLATE/signature-or-legal-review.md': 'hollidayn',
-    '.github/ISSUE_TEMPLATE/new-fleet-instance.md': ['hollidayn', 'zayhanlon'],
+    '.github/ISSUE_TEMPLATE': ['mikermcneil'],
 
   },
 
+  // The version of osquery to use when generating schema docs
+  // (both in Fleet's query console and on fleetdm.com)
+  versionOfOsquerySchemaToUseWhenGeneratingDocumentation: '5.8.1',
 
   /***************************************************************************
   *                                                                          *

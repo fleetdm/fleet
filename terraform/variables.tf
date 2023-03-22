@@ -68,10 +68,13 @@ variable "rds_config" {
     apply_immediately               = optional(bool, true)
     monitoring_interval             = optional(number, 10)
     db_parameter_group_name         = optional(string)
+    db_parameters                   = optional(map(string), {})
     db_cluster_parameter_group_name = optional(string)
+    db_cluster_parameters           = optional(map(string), {})
     enabled_cloudwatch_logs_exports = optional(list(string), [])
     master_username                 = optional(string, "fleet")
     snapshot_identifier             = optional(string)
+    cluster_tags                    = optional(map(string), {})
   })
   default = {
     name                            = "fleet"
@@ -83,10 +86,13 @@ variable "rds_config" {
     apply_immediately               = true
     monitoring_interval             = 10
     db_parameter_group_name         = null
+    db_parameters                   = {}
     db_cluster_parameter_group_name = null
+    db_cluster_parameters           = {}
     enabled_cloudwatch_logs_exports = []
     master_username                 = "fleet"
     snapshot_identifier             = null
+    cluster_tags                    = {}
   }
   description = "The config for the terraform-aws-modules/rds-aurora/aws module"
   nullable    = false
@@ -112,6 +118,7 @@ variable "redis_config" {
       name  = string
       value = string
     })), [])
+    tags = optional(map(string), {})
   })
   default = {
     name                          = "fleet"
@@ -129,6 +136,7 @@ variable "redis_config" {
     at_rest_encryption_enabled    = true
     transit_encryption_enabled    = true
     parameter                     = []
+    tags                          = {}
   }
 }
 
