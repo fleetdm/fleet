@@ -39,7 +39,7 @@ jobs:
   test-go:
     strategy:
       matrix:
-        os: [ubuntu-latest]
+        os: [macos-latest]
         go-version: ['^1.19.4']
         mysql: ["mysql:5.7.21", "mysql:8.0.28"]
     runs-on: ${{ matrix.os }}
@@ -49,6 +49,28 @@ jobs:
       GO_TEST_TIMEOUT: 10m
 
     steps:
+
+    # Docker needs to be installed manually on macOS.
+    # From https://github.com/docker/for-mac/issues/2359#issuecomment-943131345
+    # FIXME: lock Docker version to 4.10.0 as newer versions fail to initialize
+    - name: Install Docker
+      timeout-minutes: 20
+      if: matrix.os == 'macos-latest'
+      run: |
+        curl -L https://raw.githubusercontent.com/Homebrew/homebrew-cask/c65030146a5cf2070c2499b6c68e2c3495c99731/Casks/docker.rb > docker.rb
+        brew install --cask docker.rb
+        sudo /Applications/Docker.app/Contents/MacOS/Docker --unattended --install-privileged-components
+        open -a /Applications/Docker.app --args --unattended --accept-license
+        echo "Waiting for Docker to start up..."
+        while ! /Applications/Docker.app/Contents/Resources/bin/docker info &>/dev/null; do
+          sleep 1;
+        done
+        echo "Docker is ready."
+
+    - name: Pull fleetdm/wix
+      # Run in background while other steps complete to speed up the workflow
+      run: docker pull fleetdm/wix:latest &
+
     - name: Install Go
       uses: actions/setup-go@268d8c0ca0432bb2cf416faae41297df9d262d7f # v2
       with:
@@ -77,6 +99,11 @@ jobs:
         echo "RACE_ENABLED=true" >> $GITHUB_ENV
         echo "GO_TEST_TIMEOUT=1h" >> $GITHUB_ENV
 
+    - name: Set temp dir for ubuntu-latest
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        echo "TMPDIR=/tmp" >> $GITHUB_ENV
+
     - name: Wait for mysql
       run: |
         echo "waiting for mysql..."
@@ -96,7 +123,7 @@ jobs:
           MINIO_STORAGE_TEST=1 \
           SAML_IDP_TEST=1 \
           NETWORK_TEST_GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }} \
-          make test-go 2>&1 | tee /tmp/gotest.log
+          make test-go 2>&1 | tee $TMPDIR/gotest.log
 
     - name: Upload to Codecov
       uses: codecov/codecov-action@d9f34f8cd5cb3b3eb79b3e4b5dae3a16df499a70
@@ -129,5 +156,5 @@ jobs:
       uses: actions/upload-artifact@3cea5372237819ed00197afe530f5a7ea3e805c8 # v2
       with:
         name: test-log
-        path: /tmp/gotest.log
+        path: $TMPDIR/gotest.log
         if-no-files-found: error
