@@ -39,7 +39,7 @@ WHERE sc.id < sc2.max_id;`
 		return nil
 	}
 
-	addConstraint := func(tx *sql.Tx) error {
+	addUniqueConstraintOnSoftwareID := func(tx *sql.Tx) error {
 		_, err := tx.Exec(`
 	ALTER TABLE software_cpe ADD CONSTRAINT unq_software_id UNIQUE (software_id), ALGORITHM=INPLACE, LOCK=NONE;
 `)
@@ -66,8 +66,10 @@ WHERE sc.id < sc2.max_id;`
 		return err
 	}
 
-	if err := addConstraint(tx); err != nil {
-		return err
+	if !unqConstraintExists(tx, "software_cpe", "unq_software_id") {
+		if err := addUniqueConstraintOnSoftwareID(tx); err != nil {
+			return err
+		}
 	}
 
 	if err := releaseLock(tx, identifier); err != nil {

@@ -27,6 +27,22 @@ AND CONSTRAINT_NAME = ?
 	return count > 0
 }
 
+func unqConstraintExists(tx *sql.Tx, table string, name string) bool {
+	var count int
+	err := tx.QueryRow(`
+SELECT COUNT(1)
+FROM information_schema.TABLE_CONSTRAINTS
+WHERE TABLE_NAME = ? AND CONSTRAINT_TYPE = 'UNIQUE' AND CONSTRAINT_NAME = ?
+`,
+		table, name,
+	).Scan(&count)
+	if err != nil {
+		return false
+	}
+
+	return count > 0
+}
+
 func columnExists(tx *sql.Tx, table, column string) bool {
 	var count int
 	err := tx.QueryRow(
