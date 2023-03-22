@@ -78,7 +78,7 @@ We work to get results. How we work determines the results we deliver. Between o
 Our objective as a company is to make money. This is how we measure success. Customers pay for products that make a difference. Approach every project with this in mind.
 
 - **Think for yourself.** Seek understanding. Remember how often conventional wisdom isn't.
-- **Be humble.** Be conservative about what's possible.  Don't overpromise.  No solution is just the “happy path".  Pick boring solutionS and save time for edge cases.
+- **Be humble.** Be conservative about what's possible.  Don't overpromise.  No solution is just the “happy path".  Pick boring solutions and save time for edge cases.
 - **Prioritize the truth.** Feel free to change your mind in the face of new evidence. Avoid the sunk cost fallacy. Give credit where credit is due.
 - **Be rigorous.** A lucky fix without understanding does more harm than good. When something isn't working, use the scientific method.
 
