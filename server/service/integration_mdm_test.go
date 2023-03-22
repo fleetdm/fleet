@@ -206,16 +206,12 @@ func (s *integrationMDMTestSuite) TearDownTest() {
 
 	s.withServer.commonTearDownTest(t)
 
+	// use a sql statement to delete all profiles, since the datastore prevents
+	// deleting the fleet-specific ones.
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, "DELETE FROM mdm_apple_configuration_profiles")
 		return err
 	})
-
-	//gprofs, err := s.ds.ListMDMAppleConfigProfiles(ctx, nil)
-	//require.NoError(t, err)
-	//for _, prof := range gprofs {
-	//	require.NoError(t, s.ds.DeleteMDMAppleConfigProfile(ctx, prof.ProfileID))
-	//}
 }
 
 func (s *integrationMDMTestSuite) mockDEPResponse(handler http.Handler) {
