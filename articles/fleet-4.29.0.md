@@ -105,4 +105,4 @@ Visit our [upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in
 <meta name="authorGitHubUsername" value="spokanemac">
 <meta name="publishedOn" value="2023-03-22">
 <meta name="articleTitle" value="Fleet 4.29.0 | CIS benchmarks for Ventura">
-<meta name="articleImageUrl" value="../website/assets/images/articles/fleet-4.29.0-800x450@2x.png">
+<meta name="articleImageUrl" value="../website/assets/images/articles/fleet-4.29.0-1600x900@2x.png">
