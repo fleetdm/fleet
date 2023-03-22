@@ -369,40 +369,6 @@ type PackagingConfig struct {
 	S3 S3Config `yaml:"s3"`
 }
 
-// MDMAppleConfig holds all the configuration for Apple MDM.
-type MDMAppleConfig struct {
-	// Enable enables MDM functionality on Fleet.
-	Enable bool `yaml:"enable"`
-
-	// SCEP holds the SCEP protocol and server configuration.
-	SCEP MDMAppleSCEPConfig `yaml:"scep"`
-	// DEP holds the MDM DEP configuration.
-	DEP MDMAppleDEP `yaml:"dep"`
-}
-
-// MDMAppleDEP holds the Apple DEP (Device Enrollment Program) configuration.
-type MDMAppleDEP struct {
-	// SyncPeriodicity is the duration between DEP device syncing (fetching and setting
-	// of DEP profiles).
-	SyncPeriodicity time.Duration `yaml:"sync_periodicity"`
-}
-
-// MDMAppleSCEPConfig holds SCEP protocol and server configuration.
-type MDMAppleSCEPConfig struct {
-	// Signer holds the SCEP signer configuration.
-	Signer SCEPSignerConfig `yaml:"signer"`
-	// Challenge is the SCEP challenge for SCEP enrollment requests.
-	Challenge string `yaml:"challenge"`
-}
-
-// SCEPSignerConfig holds the SCEP signer configuration.
-type SCEPSignerConfig struct {
-	// ValidityDays are the days signed client certificates will be valid.
-	ValidityDays int `yaml:"validity_days"`
-	// AllowRenewalDays are the allowable renewal days for certificates.
-	AllowRenewalDays int `yaml:"allow_renewal_days"`
-}
-
 // FleetConfig stores the application configuration. Each subcategory is
 // broken up into it's own struct, defined above. When editing any of these
 // structs, Manager.addConfigs and Manager.LoadConfig should be
@@ -433,7 +399,6 @@ type FleetConfig struct {
 	Prometheus       PrometheusConfig
 	Packaging        PackagingConfig
 	MDM              MDMConfig
-	MDMApple         MDMAppleConfig `yaml:"mdm_apple"`
 }
 
 type MDMConfig struct {
@@ -471,6 +436,20 @@ type MDMConfig struct {
 	OktaClientSecret    string `yaml:"okta_client_secret"`
 	OktaServerURL       string `yaml:"okta_server_url"`
 	EndUserAgreementURL string `yaml:"eula_url"`
+
+	// AppleEnable enables Apple MDM functionality on Fleet.
+	AppleEnable bool `yaml:"apple_enable"` // FLEET_MDM_APPLE_ENABLE
+	// AppleDEPSyncPeriodicity is the duration between DEP device syncing
+	// (fetching and setting of DEP profiles).
+	AppleDEPSyncPeriodicity time.Duration `yaml:"apple_dep_sync_periodicity"` // FLEET_MDM_APPLE_DEP_SYNC_PERIODICITY
+	// AppleSCEPChallenge is the SCEP challenge for SCEP enrollment requests.
+	AppleSCEPChallenge string `yaml:"apple_scep_challenge"` // FLEET_MDM_APPLE_SCEP_CHALLENGE
+	// AppleSCEPSignerValidityDays are the days signed client certificates will
+	// be valid.
+	AppleSCEPSignerValidityDays int `yaml:"apple_scep_signer_validity_days"` // FLEET_MDM_APPLE_SCEP_SIGNER_VALIDITY_DAYS
+	// AppleSCEPSignerAllowRenewalDays are the allowable renewal days for
+	// certificates.
+	AppleSCEPSignerAllowRenewalDays int `yaml:"apple_scep_signer_allow_renewal_days"` // FLEET_MDM_APPLE_SCEP_SIGNER_ALLOW_RENEWAL_DAYS
 }
 
 type x509KeyPairConfig struct {
@@ -1019,13 +998,6 @@ func (man Manager) addConfigs() {
 	man.addConfigBool("packaging.s3.disable_ssl", false, "Disable SSL (typically for local testing)")
 	man.addConfigBool("packaging.s3.force_s3_path_style", false, "Set this to true to force path-style addressing, i.e., `http://s3.amazonaws.com/BUCKET/KEY`")
 
-	// MDM Apple config (prototype)
-	man.addConfigBool("mdm_apple.enable", false, "Enable MDM Apple functionality")
-	man.addConfigInt("mdm_apple.scep.signer.validity_days", 365, "Days signed client certificates will be valid")
-	man.addConfigInt("mdm_apple.scep.signer.allow_renewal_days", 14, "Allowable renewal days for client certificates")
-	man.addConfigString("mdm_apple.scep.challenge", "", "SCEP static challenge for enrollment")
-	man.addConfigDuration("mdm_apple.dep.sync_periodicity", 1*time.Minute, "How much time to wait for DEP profile assignment")
-
 	// MDM config
 	man.addConfigString("mdm.apple_apns_cert", "", "Apple APNs PEM-encoded certificate path")
 	man.addConfigString("mdm.apple_apns_cert_bytes", "", "Apple APNs PEM-encoded certificate bytes")
@@ -1045,33 +1017,11 @@ func (man Manager) addConfigs() {
 	man.addConfigString("mdm.okta_client_secret", "", "Private client secret of the Okta application")
 	man.addConfigString("mdm.okta_server_url", "The Okta server URL, eg: https://my-subdomain.okta.com", "")
 	man.addConfigString("mdm.eula_url", "", "A link to a PDF document containing an EULA document")
-
-	// Hide the official MDM flags as we don't want it to be discoverable for users for now
-	mdmFlags := []string{
-		"mdm.apple_apns_cert",
-		"mdm.apple_apns_cert_bytes",
-		"mdm.apple_apns_key",
-		"mdm.apple_apns_key_bytes",
-		"mdm.apple_scep_cert",
-		"mdm.apple_scep_cert_bytes",
-		"mdm.apple_scep_key",
-		"mdm.apple_scep_key_bytes",
-		"mdm.apple_bm_server_token",
-		"mdm.apple_bm_server_token_bytes",
-		"mdm.apple_bm_cert",
-		"mdm.apple_bm_cert_bytes",
-		"mdm.apple_bm_key",
-		"mdm.apple_bm_key_bytes",
-		"mdm.okta_client_id",
-		"mdm.okta_client_secret",
-		"mdm.okta_server_url",
-		"mdm.eula_url",
-	}
-	for _, mdmFlag := range mdmFlags {
-		if flag := man.command.PersistentFlags().Lookup(flagNameFromConfigKey(mdmFlag)); flag != nil {
-			flag.Hidden = true
-		}
-	}
+	man.addConfigBool("mdm.apple_enable", false, "Enable MDM Apple functionality")
+	man.addConfigInt("mdm.apple_scep_signer_validity_days", 365, "Days signed client certificates will be valid")
+	man.addConfigInt("mdm.apple_scep_signer_allow_renewal_days", 14, "Allowable renewal days for client certificates")
+	man.addConfigString("mdm.apple_scep_challenge", "", "SCEP static challenge for enrollment")
+	man.addConfigDuration("mdm.apple_dep_sync_periodicity", 1*time.Minute, "How much time to wait for DEP profile assignment")
 }
 
 // LoadConfig will load the config variables into a fully initialized
@@ -1299,38 +1249,30 @@ func (man Manager) LoadConfig() FleetConfig {
 				ForceS3PathStyle: man.getConfigBool("packaging.s3.force_s3_path_style"),
 			},
 		},
-		MDMApple: MDMAppleConfig{
-			Enable: man.getConfigBool("mdm_apple.enable"),
-			SCEP: MDMAppleSCEPConfig{
-				Signer: SCEPSignerConfig{
-					ValidityDays:     man.getConfigInt("mdm_apple.scep.signer.validity_days"),
-					AllowRenewalDays: man.getConfigInt("mdm_apple.scep.signer.allow_renewal_days"),
-				},
-				Challenge: man.getConfigString("mdm_apple.scep.challenge"),
-			},
-			DEP: MDMAppleDEP{
-				SyncPeriodicity: man.getConfigDuration("mdm_apple.dep.sync_periodicity"),
-			},
-		},
 		MDM: MDMConfig{
-			AppleAPNsCert:           man.getConfigString("mdm.apple_apns_cert"),
-			AppleAPNsCertBytes:      man.getConfigString("mdm.apple_apns_cert_bytes"),
-			AppleAPNsKey:            man.getConfigString("mdm.apple_apns_key"),
-			AppleAPNsKeyBytes:       man.getConfigString("mdm.apple_apns_key_bytes"),
-			AppleSCEPCert:           man.getConfigString("mdm.apple_scep_cert"),
-			AppleSCEPCertBytes:      man.getConfigString("mdm.apple_scep_cert_bytes"),
-			AppleSCEPKey:            man.getConfigString("mdm.apple_scep_key"),
-			AppleSCEPKeyBytes:       man.getConfigString("mdm.apple_scep_key_bytes"),
-			AppleBMServerToken:      man.getConfigString("mdm.apple_bm_server_token"),
-			AppleBMServerTokenBytes: man.getConfigString("mdm.apple_bm_server_token_bytes"),
-			AppleBMCert:             man.getConfigString("mdm.apple_bm_cert"),
-			AppleBMCertBytes:        man.getConfigString("mdm.apple_bm_cert_bytes"),
-			AppleBMKey:              man.getConfigString("mdm.apple_bm_key"),
-			AppleBMKeyBytes:         man.getConfigString("mdm.apple_bm_key_bytes"),
-			OktaClientID:            man.getConfigString("mdm.okta_client_id"),
-			OktaClientSecret:        man.getConfigString("mdm.okta_client_secret"),
-			OktaServerURL:           man.getConfigString("mdm.okta_server_url"),
-			EndUserAgreementURL:     man.getConfigString("mdm.eula_url"),
+			AppleAPNsCert:                   man.getConfigString("mdm.apple_apns_cert"),
+			AppleAPNsCertBytes:              man.getConfigString("mdm.apple_apns_cert_bytes"),
+			AppleAPNsKey:                    man.getConfigString("mdm.apple_apns_key"),
+			AppleAPNsKeyBytes:               man.getConfigString("mdm.apple_apns_key_bytes"),
+			AppleSCEPCert:                   man.getConfigString("mdm.apple_scep_cert"),
+			AppleSCEPCertBytes:              man.getConfigString("mdm.apple_scep_cert_bytes"),
+			AppleSCEPKey:                    man.getConfigString("mdm.apple_scep_key"),
+			AppleSCEPKeyBytes:               man.getConfigString("mdm.apple_scep_key_bytes"),
+			AppleBMServerToken:              man.getConfigString("mdm.apple_bm_server_token"),
+			AppleBMServerTokenBytes:         man.getConfigString("mdm.apple_bm_server_token_bytes"),
+			AppleBMCert:                     man.getConfigString("mdm.apple_bm_cert"),
+			AppleBMCertBytes:                man.getConfigString("mdm.apple_bm_cert_bytes"),
+			AppleBMKey:                      man.getConfigString("mdm.apple_bm_key"),
+			AppleBMKeyBytes:                 man.getConfigString("mdm.apple_bm_key_bytes"),
+			OktaClientID:                    man.getConfigString("mdm.okta_client_id"),
+			OktaClientSecret:                man.getConfigString("mdm.okta_client_secret"),
+			OktaServerURL:                   man.getConfigString("mdm.okta_server_url"),
+			EndUserAgreementURL:             man.getConfigString("mdm.eula_url"),
+			AppleEnable:                     man.getConfigBool("mdm.apple_enable"),
+			AppleSCEPSignerValidityDays:     man.getConfigInt("mdm.apple_scep_signer_validity_days"),
+			AppleSCEPSignerAllowRenewalDays: man.getConfigInt("mdm.apple_scep_signer_allow_renewal_days"),
+			AppleSCEPChallenge:              man.getConfigString("mdm.apple_scep_challenge"),
+			AppleDEPSyncPeriodicity:         man.getConfigDuration("mdm.apple_dep_sync_periodicity"),
 		},
 	}
 
@@ -1682,12 +1624,7 @@ func SetTestMDMConfig(t testing.TB, cfg *FleetConfig, cert, key []byte, appleBMT
 	cfg.MDM.appleSCEPPEMCert = cert
 	cfg.MDM.appleSCEPPEMKey = key
 	cfg.MDM.appleBMToken = appleBMToken
-	cfg.MDMApple.Enable = true
-
-	cfg.MDMApple.SCEP = MDMAppleSCEPConfig{
-		Signer: SCEPSignerConfig{
-			ValidityDays: 365,
-		},
-		Challenge: "testchallenge",
-	}
+	cfg.MDM.AppleEnable = true
+	cfg.MDM.AppleSCEPSignerValidityDays = 365
+	cfg.MDM.AppleSCEPChallenge = "testchallenge"
 }
