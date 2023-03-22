@@ -9,6 +9,7 @@ For upgrade instructions, see our [upgrade guide](https://fleetdm.com/docs/deplo
 ## Highlights
 
 *   SSO provides JIT Fleet user roles
+*   CIS benchmarks manual intervention
 *   Critical policies
 
 
