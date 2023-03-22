@@ -157,24 +157,10 @@ module.exports.custom = {
     '.gitignore': ['mikermcneil', 'zwass', 'hollidayn', 'dherder', 'zayhanlon'],
 
     // CI/CD workflows
-    '.github': ['mikermcneil', 'zwass', 'hollidayn'],
+    '.github/workflows': ['mikermcneil', 'zwass', 'hollidayn'],
 
     // GitHub issue templates
-    '.github/ISSUE_TEMPLATE': ['mikermcneil', 'zwass', 'zayhanlon', 'hollidayn', 'alexmitchelliii', 'dherder'],
-    '.github/ISSUE_TEMPLATE/2-website-changes.md': 'mike-j-thomas',
-    '.github/ISSUE_TEMPLATE/3-opportunity Fleet Premium PoV.md': 'alexmitchelliii',
-    '.github/ISSUE_TEMPLATE/3-sale.md': 'alexmitchelliii',
-    '.github/ISSUE_TEMPLATE/4-release.md': ['noahtalerman', 'zwass', 'zhumo'],
-    '.github/ISSUE_TEMPLATE/5-monthly-accounting.md': 'hollidayn',
-    '.github/ISSUE_TEMPLATE/6-speaking-event.md': ['mike-j-thomas', 'jarodreyes'],
-    '.github/ISSUE_TEMPLATE/9-renewal.md': ['zayhanlon', 'hollidayn', 'alexmitchelliii'],
-    '.github/ISSUE_TEMPLATE/hiring.md': 'mikermcneil',
-    '.github/ISSUE_TEMPLATE/onboarding.md': 'mikermcneil',
-    '.github/ISSUE_TEMPLATE/y-offboarding.md': 'hollidayn',
-    '.github/ISSUE_TEMPLATE/x-moving.md': 'hollidayn',
-    '.github/ISSUE_TEMPLATE/equity-grants.md': 'mikermcneil',
-    '.github/ISSUE_TEMPLATE/signature-or-legal-review.md': 'hollidayn',
-    '.github/ISSUE_TEMPLATE/new-fleet-instance.md': ['hollidayn', 'zayhanlon'],
+    '.github/ISSUE_TEMPLATE': ['mikermcneil'],
 
   },
 
