@@ -36,6 +36,9 @@ import PATHS from "router/paths";
 import { AppContext } from "context/app";
 import { TableContext } from "context/table";
 import { NotificationContext } from "context/notification";
+
+import useTeamIdParam from "hooks/useTeamIdParam";
+
 import {
   IEnrollSecret,
   IEnrollSecretsResponse,
@@ -132,7 +135,6 @@ const ManageHostsPage = ({
   const {
     availableTeams,
     config,
-    currentTeam,
     currentUser,
     filteredHostsPath,
     isGlobalAdmin,
@@ -144,12 +146,24 @@ const ManageHostsPage = ({
     isPremiumTier,
     isFreeTier,
     isSandboxMode,
-    setCurrentTeam,
     setFilteredHostsPath,
   } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
   const { setResetSelectedRows } = useContext(TableContext);
+
+  const {
+    currentTeamId,
+    currentTeamName,
+    isAnyTeamSelected,
+    teamIdForApi,
+    handleTeamSelect,
+  } = useTeamIdParam({
+    location,
+    router,
+    includeAllTeams: true,
+    includeNoTeam: true,
+  });
 
   const hostHiddenColumns = localStorage.getItem("hostHiddenColumns");
   const storedHiddenColumns = hostHiddenColumns
@@ -286,15 +300,15 @@ const ManageHostsPage = ({
     data: teamSecrets,
     refetch: refetchTeamSecrets,
   } = useQuery<IEnrollSecretsResponse, Error, IEnrollSecret[]>(
-    ["team secrets", currentTeam],
+    ["team secrets", currentTeamId],
     () => {
-      if (currentTeam && currentTeam.id > NO_TEAM_ID) {
-        return enrollSecretsAPI.getTeamEnrollSecrets(currentTeam.id);
+      if (isAnyTeamSelected) {
+        return enrollSecretsAPI.getTeamEnrollSecrets(currentTeamId);
       }
       return { secrets: [] };
     },
     {
-      enabled: currentTeam && currentTeam.id > NO_TEAM_ID && !!canEnrollHosts,
+      enabled: canEnrollHosts && isAnyTeamSelected,
       select: (data: IEnrollSecretsResponse) => data.secrets,
     }
   );
@@ -353,7 +367,7 @@ const ManageHostsPage = ({
         selectedLabels: selectedFilters,
         globalFilter: searchQuery,
         sortBy,
-        teamId: currentTeam?.id === -1 ? undefined : currentTeam?.id,
+        teamId: teamIdForApi,
         policyId,
         policyResponse,
         softwareId,
@@ -388,7 +402,7 @@ const ManageHostsPage = ({
         scope: "hosts_count",
         selectedLabels: selectedFilters,
         globalFilter: searchQuery,
-        teamId: currentTeam?.id === -1 ? undefined : currentTeam?.id,
+        teamId: teamIdForApi,
         policyId,
         policyResponse,
         softwareId,
@@ -445,7 +459,7 @@ const ManageHostsPage = ({
 
   useEffect(() => {
     setShowNoEnrollSecretBanner(true);
-  }, [currentTeam?.id]);
+  }, [currentTeamId]);
 
   // NOTE: used to reset page number to 0 when modifying filters
   useEffect(() => {
@@ -528,7 +542,8 @@ const ManageHostsPage = ({
   };
 
   // NOTE: used to reset page number to 0 when modifying filters
-  const handleResetPageIndex = useCallback(() => {
+  const handleResetPageIndex = () => {
+    console.log("reset page index");
     setTableQueryData(
       (prevState) =>
         ({
@@ -537,7 +552,7 @@ const ManageHostsPage = ({
         } as ITableQueryProps)
     );
     setResetPageIndex(true);
-  }, []);
+  };
 
   const handleChangePoliciesFilter = (response: PolicyResponse) => {
     handleResetPageIndex();
@@ -613,39 +628,11 @@ const ManageHostsPage = ({
     handleClearFilter(["low_disk_space"]);
   };
 
-  const handleTeamSelect = useCallback(
-    (teamId: number) => {
-      const { MANAGE_HOSTS } = PATHS;
-
-      const slimmerParams = omit(location.query, ["team_id"]);
-
-      const newQueryParams =
-        teamId >= NO_TEAM_ID
-          ? Object.assign(slimmerParams, { team_id: teamId })
-          : slimmerParams;
-
-      const nextLocation = getNextLocationPath({
-        pathPrefix: MANAGE_HOSTS,
-        routeTemplate,
-        routeParams,
-        queryParams: newQueryParams,
-      });
-
-      handleResetPageIndex();
-      router.replace(nextLocation);
-      const selectedTeam = find(availableTeams, ["id", teamId]);
-      setCurrentTeam(selectedTeam);
-    },
-    [
-      router,
-      handleResetPageIndex,
-      setCurrentTeam,
-      availableTeams,
-      location.query,
-      routeParams,
-      routeTemplate,
-    ]
-  );
+  const onTeamChange = (teamId: number) => {
+    // TODO(sarah): refactor so that this doesn't trigger two api calls
+    handleTeamSelect(teamId);
+    handleResetPageIndex();
+  };
 
   const handleStatusDropdownChange = (statusName: string) => {
     handleResetPageIndex();
@@ -737,8 +724,8 @@ const ManageHostsPage = ({
       newQueryParams.order_direction =
         sort[0].direction || DEFAULT_SORT_DIRECTION;
 
-      if (currentTeam && currentTeam.id >= NO_TEAM_ID) {
-        newQueryParams.team_id = currentTeam.id;
+      if (teamIdForApi !== undefined) {
+        newQueryParams.team_id = teamIdForApi;
       }
 
       if (status) {
@@ -781,7 +768,7 @@ const ManageHostsPage = ({
     [
       tableQueryData,
       searchQuery,
-      currentTeam,
+      teamIdForApi,
       policyId,
       policyResponse,
       // queryParams,
@@ -808,7 +795,7 @@ const ManageHostsPage = ({
     const { MANAGE_HOSTS } = PATHS;
 
     // Creates new list of secrets removing selected secret and adding new secret
-    const currentSecrets = currentTeam
+    const currentSecrets = isAnyTeamSelected
       ? teamSecrets || []
       : globalSecrets || [];
 
@@ -823,9 +810,9 @@ const ManageHostsPage = ({
     setIsUpdatingSecret(true);
 
     try {
-      if (currentTeam?.id) {
+      if (isAnyTeamSelected) {
         await enrollSecretsAPI.modifyTeamEnrollSecrets(
-          currentTeam.id,
+          currentTeamId,
           newSecrets
         );
         refetchTeamSecrets();
@@ -865,7 +852,7 @@ const ManageHostsPage = ({
     const { MANAGE_HOSTS } = PATHS;
 
     // create new list of secrets removing selected secret
-    const currentSecrets = currentTeam
+    const currentSecrets = isAnyTeamSelected
       ? teamSecrets || []
       : globalSecrets || [];
 
@@ -876,9 +863,9 @@ const ManageHostsPage = ({
     setIsUpdatingSecret(true);
 
     try {
-      if (currentTeam?.id) {
+      if (isAnyTeamSelected) {
         await enrollSecretsAPI.modifyTeamEnrollSecrets(
-          currentTeam.id,
+          currentTeamId,
           newSecrets
         );
         refetchTeamSecrets();
@@ -989,7 +976,7 @@ const ManageHostsPage = ({
     let action = hostsAPI.destroyBulk(selectedHostIds);
 
     if (isAllMatchingHostsSelected) {
-      const teamId = currentTeam?.id || null;
+      const teamId = isAnyTeamSelected ? currentTeamId ?? null : null;
 
       const labelId = selectedLabel?.id;
 
@@ -1030,9 +1017,9 @@ const ManageHostsPage = ({
   const renderTeamsFilterDropdown = () => (
     <TeamsDropdown
       currentUserTeams={availableTeams || []}
-      selectedTeamId={currentTeam?.id}
+      selectedTeamId={currentTeamId}
       isDisabled={isLoadingHosts || isLoadingHostsCount} // TODO: why?
-      onChange={handleTeamSelect}
+      onChange={onTeamChange}
       includeNoTeams
     />
   );
@@ -1285,11 +1272,7 @@ const ManageHostsPage = ({
 
     return (
       <EditColumnsModal
-        columns={generateAvailableTableHeaders(
-          config,
-          currentUser,
-          currentTeam
-        )}
+        columns={generateAvailableTableHeaders({ isFreeTier, isOnlyObserver })}
         hiddenColumns={hiddenColumns}
         onSaveColumns={onSaveColumns}
         onCancelColumns={toggleEditColumnsModal}
@@ -1299,7 +1282,7 @@ const ManageHostsPage = ({
 
   const renderSecretEditorModal = () => (
     <SecretEditorModal
-      selectedTeam={currentTeam?.id || 0}
+      selectedTeam={teamIdForApi || 0}
       teams={teams || []}
       onSaveSecret={onSaveSecret}
       toggleSecretEditorModal={toggleSecretEditorModal}
@@ -1311,7 +1294,7 @@ const ManageHostsPage = ({
   const renderDeleteSecretModal = () => (
     <DeleteSecretModal
       onDeleteSecret={onDeleteSecret}
-      selectedTeam={currentTeam?.id || 0}
+      selectedTeam={teamIdForApi || 0}
       teams={teams || []}
       toggleDeleteSecretModal={toggleDeleteSecretModal}
       isUpdatingSecret={isUpdatingSecret}
@@ -1320,7 +1303,7 @@ const ManageHostsPage = ({
 
   const renderEnrollSecretModal = () => (
     <EnrollSecretModal
-      selectedTeam={currentTeam?.id || 0}
+      selectedTeam={teamIdForApi || 0}
       teams={teams || []}
       onReturnToApp={() => setShowEnrollSecretModal(false)}
       toggleSecretEditorModal={toggleSecretEditorModal}
@@ -1344,13 +1327,14 @@ const ManageHostsPage = ({
       // and Fleet Sandbox runs Fleet Free so the isSandboxMode check here is an
       // additional precaution/reminder to revisit this in connection with future changes.
       // See https://github.com/fleetdm/fleet/issues/4970#issuecomment-1187679407.
-      currentTeam && !isSandboxMode
+      isAnyTeamSelected && !isSandboxMode
         ? teamSecrets?.[0].secret
         : globalSecrets?.[0].secret;
     return (
       <AddHostsModal
-        currentTeam={currentTeam}
+        currentTeamName={currentTeamName || "Fleet"}
         enrollSecret={enrollSecret}
+        isAnyTeamSelected={isAnyTeamSelected}
         isLoading={isLoadingTeams || isGlobalSecretsLoading}
         isSandboxMode={!!isSandboxMode}
         onCancel={toggleAddHostsModal}
@@ -1417,12 +1401,11 @@ const ManageHostsPage = ({
     }
 
     if (config && currentUser) {
-      const tableColumns = generateVisibleTableColumns(
-        currentHiddenColumns,
-        config,
-        currentUser,
-        currentTeam
-      );
+      const tableColumns = generateVisibleTableColumns({
+        hiddenColumns: currentHiddenColumns,
+        isFreeTier,
+        isOnlyObserver,
+      });
 
       const columnAccessors = tableColumns
         .map((column) => (column.accessor ? column.accessor : ""))
@@ -1434,7 +1417,7 @@ const ManageHostsPage = ({
       selectedLabels: selectedFilters,
       globalFilter: searchQuery,
       sortBy,
-      teamId: currentTeam?.id,
+      teamId: teamIdForApi,
       policyId,
       policyResponse,
       macSettingsStatus,
@@ -1452,7 +1435,7 @@ const ManageHostsPage = ({
 
     options = {
       ...options,
-      teamId: currentTeam?.id,
+      teamId: teamIdForApi,
     };
 
     if (queryParams.team_id) {
@@ -1680,12 +1663,11 @@ const ManageHostsPage = ({
       },
     ];
 
-    const tableColumns = generateVisibleTableColumns(
+    const tableColumns = generateVisibleTableColumns({
       hiddenColumns,
-      config,
-      currentUser,
-      currentTeam
-    );
+      isFreeTier,
+      isOnlyObserver,
+    });
 
     const emptyState = () => {
       const emptyHosts: IEmptyTableProps = {
@@ -1748,16 +1730,10 @@ const ManageHostsPage = ({
 
   const renderNoEnrollSecretBanner = () => {
     const noTeamEnrollSecrets =
-      currentTeam &&
-      currentTeam?.id > NO_TEAM_ID &&
-      !isTeamSecretsLoading &&
-      !teamSecrets?.length;
+      isAnyTeamSelected && !isTeamSecretsLoading && !teamSecrets?.length;
     const noGlobalEnrollSecrets =
       (!isPremiumTier ||
-        (isPremiumTier &&
-          (currentTeam?.id === NO_TEAM_ID ||
-            currentTeam?.id === ALL_TEAMS_ID) &&
-          !isLoadingTeams)) &&
+        (isPremiumTier && !isAnyTeamSelected && !isLoadingTeams)) &&
       !isGlobalSecretsLoading &&
       !globalSecrets?.length;
 
@@ -1769,7 +1745,7 @@ const ManageHostsPage = ({
           <div>
             <span>
               You have no enroll secrets. Manage enroll secrets to enroll hosts
-              to <b>{currentTeam?.id ? currentTeam.name : "Fleet"}</b>.
+              to <b>{isAnyTeamSelected ? currentTeamName : "Fleet"}</b>.
             </span>
           </div>
           <div className={`dismiss-banner-button`}>

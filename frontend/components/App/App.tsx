@@ -10,6 +10,8 @@ import { AppContext } from "context/app";
 import local, { authToken } from "utilities/local";
 import useDeepEffect from "hooks/useDeepEffect";
 
+import { teamFromAvailableTeams, teamIdFromLocation } from "interfaces/team";
+
 import usersAPI from "services/entities/users";
 import configAPI from "services/entities/config";
 
@@ -21,21 +23,23 @@ import Fleet404 from "pages/errors/Fleet404";
 // @ts-ignore
 import Fleet500 from "pages/errors/Fleet500";
 import Spinner from "components/Spinner";
-import { teamFromAvailableTeams, teamIdFromLocation } from "interfaces/team";
+import { InjectedRouter } from "react-router";
+import { QueryParams } from "utilities/url";
 
 interface IAppProps {
   children: JSX.Element;
-  location:
-    | {
-        pathname: string;
-        search: string;
-      }
-    | undefined;
+  location?: {
+    // hash: string;
+    pathname: string;
+    query: QueryParams;
+    search: string;
+  };
+  router: InjectedRouter;
 }
 
 const baseClass = "app";
 
-const App = ({ children, location }: IAppProps): JSX.Element => {
+const App = ({ children, location, router }: IAppProps): JSX.Element => {
   const queryClient = new QueryClient();
   const {
     availableTeams,
@@ -92,6 +96,7 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
     return true;
   };
 
+  // listen to location and update context with current team based on team id param in url
   useEffect(() => {
     if (!availableTeams) {
       return;
@@ -101,7 +106,7 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
       return;
     }
     const team = teamFromAvailableTeams(teamId, availableTeams);
-    if (team && team.id !== currentTeam?.id) {
+    if (team?.id !== currentTeam?.id) {
       setCurrentTeam(team);
     }
   }, [location?.search, availableTeams, currentTeam, setCurrentTeam]);

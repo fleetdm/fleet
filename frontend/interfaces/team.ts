@@ -121,7 +121,7 @@ export const teamFromAvailableTeams = (
   teamId: number,
   availableTeams: ITeamSummary[]
 ) => {
-  return availableTeams?.find((t) => t.id === teamId) || availableTeams?.[0];
+  return availableTeams?.find((t) => t.id === teamId);
 };
 
 export const ALL_TEAMS_ID = -1;
@@ -136,23 +136,5 @@ export const NO_TEAM_SUMMARY: ITeamSummary = {
   name: "No team",
 } as const;
 
-export const getDefaultTeamId = (
-  availableTeams: ITeamSummary[],
-  includeAll: boolean,
-  includeNoTeam: boolean
-) => {
-  let defaultId = availableTeams[0].id;
-  if (includeAll) {
-    defaultId = availableTeams.find((t) => t.id === ALL_TEAMS_ID)
-      ? ALL_TEAMS_ID
-      : defaultId;
-  } else if (includeNoTeam) {
-    defaultId = availableTeams.find((t) => t.id === NO_TEAM_ID)
-      ? NO_TEAM_ID
-      : defaultId;
-  } else {
-    const defaultTeam = availableTeams.find((t) => t.id > NO_TEAM_ID);
-    defaultId = defaultTeam ? defaultTeam.id : defaultId;
-  }
-  return defaultId;
-};
+export const isAnyTeamSelected = (currentTeam?: ITeamSummary) =>
+  !!currentTeam && currentTeam.id > NO_TEAM_ID;

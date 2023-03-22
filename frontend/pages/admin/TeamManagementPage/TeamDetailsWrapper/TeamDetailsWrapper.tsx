@@ -8,7 +8,7 @@ import { find, toNumber } from "lodash";
 import { NotificationContext } from "context/notification";
 import { AppContext } from "context/app";
 import PATHS from "router/paths";
-import { ITeam, ITeamSummary } from "interfaces/team";
+import { isAnyTeamSelected, ITeam, ITeamSummary } from "interfaces/team";
 import teamsAPI, {
   ILoadTeamsResponse,
   ITeamFormData,
@@ -474,8 +474,9 @@ const TeamDetailsWrapper = ({
         </TabsWrapper>
         {showAddHostsModal && (
           <AddHostsModal
-            currentTeam={currentTeam}
+            currentTeamName={currentTeam?.name}
             enrollSecret={teamSecrets?.[0]?.secret}
+            isAnyTeamSelected={isAnyTeamSelected(currentTeam)}
             isLoading={isLoadingTeams}
             // TODO: Currently, prepacked installers in Fleet Sandbox use the global enroll secret,
             // and Fleet Sandbox runs Fleet Free so explicitly setting isSandboxMode here is an
