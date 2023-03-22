@@ -438,18 +438,18 @@ type MDMConfig struct {
 	EndUserAgreementURL string `yaml:"eula_url"`
 
 	// AppleEnable enables Apple MDM functionality on Fleet.
-	AppleEnable bool `yaml:"apple_enable"` // FLEET_MDM_APPLE_ENABLE
+	AppleEnable bool `yaml:"apple_enable"`
 	// AppleDEPSyncPeriodicity is the duration between DEP device syncing
 	// (fetching and setting of DEP profiles).
-	AppleDEPSyncPeriodicity time.Duration `yaml:"apple_dep_sync_periodicity"` // FLEET_MDM_APPLE_DEP_SYNC_PERIODICITY
+	AppleDEPSyncPeriodicity time.Duration `yaml:"apple_dep_sync_periodicity"`
 	// AppleSCEPChallenge is the SCEP challenge for SCEP enrollment requests.
-	AppleSCEPChallenge string `yaml:"apple_scep_challenge"` // FLEET_MDM_APPLE_SCEP_CHALLENGE
+	AppleSCEPChallenge string `yaml:"apple_scep_challenge"`
 	// AppleSCEPSignerValidityDays are the days signed client certificates will
 	// be valid.
-	AppleSCEPSignerValidityDays int `yaml:"apple_scep_signer_validity_days"` // FLEET_MDM_APPLE_SCEP_SIGNER_VALIDITY_DAYS
+	AppleSCEPSignerValidityDays int `yaml:"apple_scep_signer_validity_days"`
 	// AppleSCEPSignerAllowRenewalDays are the allowable renewal days for
 	// certificates.
-	AppleSCEPSignerAllowRenewalDays int `yaml:"apple_scep_signer_allow_renewal_days"` // FLEET_MDM_APPLE_SCEP_SIGNER_ALLOW_RENEWAL_DAYS
+	AppleSCEPSignerAllowRenewalDays int `yaml:"apple_scep_signer_allow_renewal_days"`
 }
 
 type x509KeyPairConfig struct {
