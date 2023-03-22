@@ -121,7 +121,7 @@ While most improvements at Fleet are driven by informal conversations with custo
 
 
 ## Positioning
-Read about [Fleet's positioning in this confidential Google Doc](https://docs.google.com/document/d/140q7SZ4T_sbsTsL7tdTKsqMqDtXbGBh_8Yiqy36bRI0/edit).
+Read about [Fleet's positioning in this confidential Google Doc](https://docs.google.com/document/d/1E0VU4AcB6UTVRd4JKD45Saxh9Gz-mkO3LnGSTBDLEZo/edit#).
 
 ## Slack channels
 
