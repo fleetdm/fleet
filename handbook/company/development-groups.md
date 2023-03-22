@@ -48,7 +48,7 @@ The goal of the customer experience (CX) group is to make customers happier and 
 | Product manager                   | Zay Hanlon
 | Software engineers (developers)   | Artemis Tosini, Eric Shaw _(fleetdm.com specialty)_, Jacob Shandling, Juan Fernandez*, Lucas Rodriguez, Rachel Perkins, Robert Fairburn _(infrastructure specialty)_, Zach Winnerman _(infrastructure specialty)_
 
-> The Slack channel, kanban release board, and label for this product group is `#g-customer-experience`.
+> The Slack channel, kanban release board, and label for this product group is `#g-cx`.
 
 
 ## Making changes
