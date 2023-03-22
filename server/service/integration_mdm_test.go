@@ -195,14 +195,27 @@ func (s *integrationMDMTestSuite) TearDownTest() {
 	t := s.T()
 	ctx := context.Background()
 
+	appCfg := s.getConfig()
+	if appCfg.MDM.MacOSSettings.EnableDiskEncryption {
+		s.token = s.getTestAdminToken()
+		// ensure global disk encryption is disabled on exit
+		s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": { "macos_settings": { "enable_disk_encryption": false } }
+  }`), http.StatusOK)
+	}
+
 	s.withServer.commonTearDownTest(t)
 
-	// delete global mdm config profiles, using adhoc to delete _all_
-	// because ListMDMAppleConfigProfiles ignores the fleet profiles.
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, "DELETE FROM mdm_apple_configuration_profiles")
 		return err
 	})
+
+	//gprofs, err := s.ds.ListMDMAppleConfigProfiles(ctx, nil)
+	//require.NoError(t, err)
+	//for _, prof := range gprofs {
+	//	require.NoError(t, s.ds.DeleteMDMAppleConfigProfile(ctx, prof.ProfileID))
+	//}
 }
 
 func (s *integrationMDMTestSuite) mockDEPResponse(handler http.Handler) {
@@ -901,8 +914,8 @@ func (s *integrationMDMTestSuite) TestMDMAppleGetEncryptionKey() {
 			OperationType: fleet.MDMAppleOperationTypeRemove,
 		})
 		require.NoError(t, err)
-		err = s.ds.DeleteMDMAppleConfigProfile(ctx, fileVaultProf.ProfileID)
-		require.NoError(t, err)
+		// not an error if the profile does not exist
+		_ = s.ds.DeleteMDMAppleConfigProfile(ctx, fileVaultProf.ProfileID)
 	})
 
 	// get that host - it has no encryption key at this point, so it should
@@ -2092,10 +2105,6 @@ func (s *integrationMDMTestSuite) TestHostMDMProfilesStatus() {
 
 	// apply the pending profiles
 	triggerReconcileProfiles()
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		mysql.DumpTable(t, q, "host_mdm_apple_profiles")
-		return nil
-	})
 
 	// bulk-set profiles for no team, with add/delete/edit
 	g2Edited := mobileconfigForTest("G2b", "G2b")
@@ -2240,11 +2249,7 @@ func (s *integrationMDMTestSuite) assertHostConfigProfiles(want map[*fleet.Host]
 	for h, wantProfs := range want {
 		gotProfs, err := ds.GetHostMDMProfiles(ctx, h.UUID)
 		require.NoError(t, err)
-		if !assert.Equal(t, len(wantProfs), len(gotProfs), "host uuid: %s", h.UUID) {
-			for i, gp := range gotProfs {
-				fmt.Println(i, gp.Identifier, gp.Status, gp.OperationType)
-			}
-		}
+		require.Equal(t, len(wantProfs), len(gotProfs), "host uuid: %s", h.UUID)
 
 		sort.Slice(gotProfs, func(i, j int) bool {
 			l, r := gotProfs[i], gotProfs[j]
@@ -2256,7 +2261,6 @@ func (s *integrationMDMTestSuite) assertHostConfigProfiles(want map[*fleet.Host]
 		})
 		for i, wp := range wantProfs {
 			gp := gotProfs[i]
-			fmt.Println(i, gp.Identifier, gp.Status, gp.OperationType)
 			require.Equal(t, wp.Identifier, gp.Identifier, "host uuid: %s, prof id: %s", h.UUID, gp.Identifier)
 			require.Equal(t, wp.OperationType, gp.OperationType, "host uuid: %s, prof id: %s", h.UUID, gp.Identifier)
 			require.Equal(t, wp.Status, gp.Status, "host uuid: %s, prof id: %s", h.UUID, gp.Identifier)
