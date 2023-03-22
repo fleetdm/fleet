@@ -198,7 +198,7 @@ Please read ["Why direct responsibility?"](https://fleetdm.com/handbook/company/
 
 - *Public*   _(share with anyone, anywhere in the world)_
 - *Confidential*  _(share only with team members who've signed an NDA, consulting agreement, or employment agreement)_
-- *Classified*  _(share only with founders of Fleet, peepops, and/or the people involved.  e.g., US social security numbers during hiring)_
+- *Classified*  _(share only with founders of Fleet, business operations, and/or the people involved.  e.g., US social security numbers during hiring)_
 
 > TODO: extrapolate to "why this way" page
 
@@ -796,7 +796,9 @@ The following table lists this group's rituals, frequency, and Directly Responsi
 Any Fleet team member can [view the 🔦#g-business-operations kanban board](https://app.zenhub.com/workspaces/-g-business-operations-63f3dc3cc931f6247fcf55a9/board?sprints=none) (confidential) for this department, including pending tasks in the active sprint and any new requests.
 
 ## Intake
-To make a request of the business operations department, [create an issue using one of our issue templates](https://github.com/fleetdm/confidential/issues/new/choose).  If you don't see what you need, or you are unsure, add your question to the agenda for the next bizops office hours call (weekly).  If you're not sure that your request can wait that long, then please ask for help in our group Slack channel: `#g-business-operations`.
+To make a request of the business operations department, [create an issue using one of our issue templates](https://github.com/fleetdm/confidential/issues/new/choose).  If you don't see what you need, or you are unsure, [create a custom request issue](https://github.com/fleetdm/confidential/issues/new/choose) and someone in business operations will reply within 1 business day.
+
+> If you're not sure that your request can wait that long, then please ask for urgent help in our group Slack channel: `#g-business-operations`.  Only use this approach or at-mention contributors in business operations directly in urgent situations.  Otherwise, create an issue.
 
 
 ## Slack channels
