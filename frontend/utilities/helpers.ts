@@ -53,7 +53,7 @@ const ADMIN_ATTRS = ["email", "name", "password", "password_confirmation"];
 export const addGravatarUrlToResource = (resource: any): any => {
   const { email } = resource;
   const gravatarAvailable =
-    localStorage.getItem("gravatar_available") === "true";
+    localStorage.getItem("gravatar_available") !== "false"; // Only fallback if explicitly set to "false"
 
   const emailHash = md5(email.toLowerCase());
 

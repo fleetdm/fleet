@@ -48,7 +48,7 @@ The goal of the customer experience (CX) group is to make customers happier and 
 | Product manager                   | Zay Hanlon
 | Software engineers (developers)   | Artemis Tosini, Eric Shaw _(fleetdm.com specialty)_, Jacob Shandling, Juan Fernandez*, Lucas Rodriguez, Rachel Perkins, Robert Fairburn _(infrastructure specialty)_, Zach Winnerman _(infrastructure specialty)_
 
-> The Slack channel, kanban release board, and label for this product group is `#g-customer-experience`.
+> The Slack channel, kanban release board, and label for this product group is `#g-cx`.
 
 
 ## Making changes
@@ -82,7 +82,7 @@ The DRI for defining and drafting issues for a product group is the product mana
 
 A user story is considered ready for implementation once:
 - [ ] User story [issue created](https://github.com/fleetdm/fleet/issues/new/choose)
-- [ ] [Product group](https://fleetdm.com/handbook/company/product-groups) label added (e.g. `#cx`, `#mdm`)
+- [ ] [Product group](https://fleetdm.com/handbook/company/product-groups) label added (e.g. `#g-cx`, `#g-mdm`)
 - [ ] Changes [specified](https://fleetdm.com/handbook/company/development-groups#drafting) and [designed](https://fleetdm.com/handbook/company/why-this-way#why-do-we-use-a-wireframe-first-approach)
 - [ ] [Designs revised and approved](https://fleetdm.com/handbook/business-operations/ceo-handbook#calendar-audit)
 - [ ] [Estimated](https://fleetdm.com/handbook/company/why-this-way#why-scrum)

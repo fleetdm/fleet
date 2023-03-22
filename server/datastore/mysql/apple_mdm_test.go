@@ -926,7 +926,8 @@ func testMDMAppleProfileManagement(t *testing.T, ds *Datastore) {
 		Platform:      "darwin",
 	})
 	require.NoError(t, err)
-	nanoEnroll(t, ds, host1)
+	// add a user enrollment for this device, nothing else should be modified
+	nanoEnroll(t, ds, host1, true)
 
 	// non-macOS hosts shouldn't modify any of the results below
 	_, err = ds.NewHost(ctx, &fleet.Host{
@@ -972,7 +973,7 @@ func testMDMAppleProfileManagement(t *testing.T, ds *Datastore) {
 		Platform:      "darwin",
 	})
 	require.NoError(t, err)
-	nanoEnroll(t, ds, host2)
+	nanoEnroll(t, ds, host2, false)
 
 	// still the same profiles to assign as there are no profiles for team 1
 	profiles, err = ds.ListMDMAppleProfilesToInstall(ctx)
@@ -1018,7 +1019,7 @@ func testMDMAppleProfileManagement(t *testing.T, ds *Datastore) {
 		Platform:      "darwin",
 	})
 	require.NoError(t, err)
-	nanoEnroll(t, ds, host3)
+	nanoEnroll(t, ds, host3, false)
 
 	// more profiles, this time for both global hosts and the team
 	profiles, err = ds.ListMDMAppleProfilesToInstall(ctx)
@@ -1243,7 +1244,7 @@ func createBuiltinLabels(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 }
 
-func nanoEnroll(t *testing.T, ds *Datastore, host *fleet.Host) {
+func nanoEnroll(t *testing.T, ds *Datastore, host *fleet.Host, withUser bool) {
 	_, err := ds.writer.Exec(`INSERT INTO nano_devices (id, authenticate) VALUES (?, 'test')`, host.UUID)
 	require.NoError(t, err)
 
@@ -1261,6 +1262,23 @@ VALUES
 		host.UUID,
 	)
 	require.NoError(t, err)
+
+	if withUser {
+		_, err = ds.writer.Exec(`
+INSERT INTO nano_enrollments
+	(id, device_id, user_id, type, topic, push_magic, token_hex)
+VALUES
+	(?, ?, ?, ?, ?, ?, ?)`,
+			host.UUID+":Device",
+			host.UUID,
+			nil,
+			"User",
+			host.UUID+".topic",
+			host.UUID+".magic",
+			host.UUID,
+		)
+		require.NoError(t, err)
+	}
 }
 
 func testMDMAppleHostsProfilesStatus(t *testing.T, ds *Datastore) {

@@ -125,6 +125,13 @@ func (svc *Service) setDEPProfile(ctx context.Context, enrollmentProfile *fleet.
 	// Override url with Fleet's enroll path (publicly accessible address).
 	depProfileRequest.URL = enrollURL
 
+	// If the profile doesn't have a configuration_web_url, use Fleet's
+	// enrollURL, otherwise the request for the enrollment profile is
+	// submitted as a POST instead of GET.
+	if depProfileRequest.ConfigurationWebURL == "" {
+		depProfileRequest.ConfigurationWebURL = enrollURL
+	}
+
 	depClient := apple_mdm.NewDEPClient(svc.depStorage, svc.ds, svc.logger)
 	res, err := depClient.DefineProfile(ctx, apple_mdm.DEPName, &depProfileRequest)
 	if err != nil {

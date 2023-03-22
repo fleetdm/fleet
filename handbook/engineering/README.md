@@ -265,6 +265,24 @@ At Fleet, we take customer incidents very seriously. After working with customer
 
 At Fleet, we do postmortem meetings for every production incident, whether it's a customer's environment or on fleetdm.com.
 
+### Postmortem document
+
+Before running the postmortem meeting this [Postmortem Template](https://docs.google.com/document/d/17xbobhzCINtVmeRT2HPMlSwvw7MjVvoPSUVxmVy4wNY/edit?usp=share_link) document should be copied and filled with some initial data, allowing smooth run of the discussion. 
+
+### Postmortem meeting
+
+Invite all stake holders, typically the team involved and QA representatives.
+
+Follow the document topic by topic. Keep the goal in mind which is to take action items for addressing the root cause and making sure a similar incident will not happen again. 
+
+Distinguish between the root-cause of the bug, which by that time was solved and released, and the root-cause of why this issue reached our customers. These could be different issues. (e.g. the root-cause of the bug was a coding issue, but the root causes (plural) of the event was the test plan did not cover a specific scenario, a lack of unit tests and a lack of metrics to identify the issue quickly).
+
+[Example Finished Document](https://docs.google.com/document/d/1YnETKhH9R7STAY-PaFnPy2qxhNht2EAFfkv-kyEwebQ/edit?usp=share_link)
+
+### Postmortem action items
+
+Each action item will have an owner that will be responsible for creating a Github issue promptly after the meeting. This Github issue should be prioritized with the relevant PM and/or engineering manager.
+
 ## Outages
 
 At Fleet, we consider an outage to be a situation where new features or previously stable features are broken or unusable.
