@@ -813,7 +813,7 @@ These groups maintain the following [Slack channels](https://fleetdm.com/handboo
 | `#help-brex`                            | Nathan Holliday
 | `#help-ceo`                             | Mike McNeil
 | `#help-mission-control` _(¶¶)_          | Mike McNeil
-| `#g-people` _(¶¶)_                      | Mike McNeil
+| `#help-classified` _(¶¶)_               | Mike McNeil
 | `#help-open-core-ventures` _(¶¶)_       | Mike McNeil
 
 #### Stubs
