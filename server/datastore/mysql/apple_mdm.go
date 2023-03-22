@@ -1186,7 +1186,7 @@ func (ds *Datastore) GetMDMAppleFileVaultSummary(ctx context.Context, teamID *ui
 			WHERE
 				h.uuid = hmap.host_uuid
 				AND(hdek.decryptable = 0
-					OR hdek.decryptable IS NULL)
+					OR (hdek.host_id IS NULL AND hdek.decryptable IS NULL))
 				AND hmap.profile_identifier = 'com.fleetdm.fleet.mdm.filevault'
 				AND hmap.status = 'applied'
 				AND hmap.operation_type = 'install') THEN
@@ -1198,7 +1198,7 @@ func (ds *Datastore) GetMDMAppleFileVaultSummary(ctx context.Context, teamID *ui
 			WHERE
 				h.uuid = hmap.host_uuid
 				AND hmap.profile_identifier = 'com.fleetdm.fleet.mdm.filevault'
-				AND hmap.status = 'pending'
+				AND (hmap.status IS NULL OR hmap.status = 'pending')
 				AND hmap.operation_type = 'install') THEN
 			1
 		END) AS enforcing, COUNT(
@@ -1217,7 +1217,7 @@ func (ds *Datastore) GetMDMAppleFileVaultSummary(ctx context.Context, teamID *ui
 			WHERE
 				h.uuid = hmap.host_uuid
 				AND hmap.profile_identifier = 'com.fleetdm.fleet.mdm.filevault'
-				AND hmap.status = 'pending'
+				AND (hmap.status IS NULL OR hmap.status = 'pending')
 				AND hmap.operation_type = 'remove') THEN
 			1
 		END) AS removing_enforcement

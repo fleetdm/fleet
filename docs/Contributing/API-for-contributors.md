@@ -1011,7 +1011,7 @@ Get aggregate status counts of Apple disk encryption profiles applying to macOS 
   "action_required": 123,
   "enforcing": 123,
   "failed": 123,
-  "removing_enforcement": 123,
+  "removing_enforcement": 123
 }
 ```
 
