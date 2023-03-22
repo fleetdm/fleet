@@ -862,11 +862,6 @@ func filterHostsByMacOSSettingsStatus(sql string, opt fleet.HostListOptions, par
 		WHERE hmap.host_uuid = h.uuid
 		AND `
 
-	// TODO(mna): same here, if a host with no profiles should be reporte as
-	// "applied", it would require having a NOT EXISTS where status != "applied"
-	// instead. This filtering logic must always be in sync with the logic in
-	// GetMDMAppleHostsProfilesSummary.
-
 	switch opt.MacOSSettingsFilter {
 	case fleet.MacOSSettingsStatusFailing:
 		newSQL += `hmap.status = ?)`
