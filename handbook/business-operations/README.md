@@ -631,6 +631,8 @@ This applies to anyone who gets paid by the hour, including consultants and hour
 
 > _**Note:** If a contributor uses their own time tracking process or tools, then it is OK to track the extra time spent tracking!  Contributors at Fleet are evaluated based on their results, not the number of hours they work._
 
+Every Friday, Nathan Holliday logs into Gusto to capture contractor hours logged and send them to the appropriate managers for approval.
+
 
 ## Departures
 
