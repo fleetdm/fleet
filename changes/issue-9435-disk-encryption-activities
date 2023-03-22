@@ -1,2 +1,0 @@
-* Added activities for when macOS disk encryption setting is enabled or disabled.
-* Fixed an issue when applying the configuration YAML returned by `fleetctl get config` with `fleetctl apply` when MDM is not enabled.

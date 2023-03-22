@@ -1,2 +1,0 @@
-* Add indicators of aggregate host count for each possible status of MDM-enforced mac settings ("Latest", "Pending," "Failing") to
-the Controls > macOS settings > Custom settings page.

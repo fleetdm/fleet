@@ -1,3 +1,105 @@
+## Fleet 4.29.0 (Mar 22, 2023)
+
+* Added implementation of Fleetd for Chrome.
+
+* Added the `mdm.macos_settings.enable_disk_encryption` option to the `fleetctl apply` configuration
+  files of "config" and "team" kind as a Fleet Premium feature.
+
+* Added `mdm.macos_settings.disk_encryption` and `mdm.macos_settings.action_required` status fields in the response for a single host (`GET /hosts/{id}` and `GET /device/{token}` endpoints).
+
+* Added MDM solution name to `host.mdm`in API responses.
+
+* Added support for fleetd to enroll a device using its serial number (in addition to its system
+  UUID) to help avoid host-matching issues when a host is first created in Fleet via the MDM
+  automatic enrollment (Apple Business Manager).
+
+* Added ability to filter data under the Hosts tab by the aggregate status of hosts' MDM-managed macos
+settings.
+
+* Added activity feed items for enabling and disabling disk encryption with MDM.
+
+* Added FileVault banners on the Host Details and My Device pages.
+
+* Added activities for when macOS disk encryption setting is enabled or disabled.
+
+* Added UI for fleet mdm managed disk encryption toggling and the disk encryption aggregate data.
+
+* Added support to update a team's disk encryption via the Modify Team (`PATCH /api/latest/fleet/teams/{id}`) endpoint.
+
+* Added a new API endpoint to gate access to an enrollment profile behind Okta authentication.
+
+* Added new configuration values to integrate Okta in the DEP MDM flow.
+
+* Added `GET /mdm/apple/profiles/summary` endpoint.
+
+* Updated API endpoints that use `team_id` query parameter so that `team_id=0`
+  filters results to include only hosts that are not assigned to any team.
+
+* Adjusted the `aggregated_stats` table to compute and store statistics for "no team" in addition to
+  per-team and for all teams.
+
+* Added MDM profiles status filter to hosts endpoints.
+
+* Added indicators of aggregate host count for each possible status of MDM-enforced mac settings
+  (hidden until 4.30.0).
+
+* As part of JIT provisioning, read user roles from SAML custom attributes.
+
+* Added Win 10 policies for CIS Benchmark 18.x.
+
+* Added Win 10 policies for CIS Benchmark 2.3.17.x.
+
+* Added Win 10 policies for CIS Benchmark 2.3.10.x.
+
+* Documented CIS Windows10 Benchmarks 9.2.x to cis policy queries.
+
+* Document CIS Windows10 Benchmarks 9.3.x to cis policy queries.
+
+* Added button to show query on policy results page.
+
+* Run periodic cleanup of pending `cron_stats` outside the `schedule` package to prevent Fleet outages from breaking cron jobs.
+
+* Added an invitation for users to upgrade to Premium when viewing the Premium-only "macOS updates"
+  feature.
+
+* Added an icon on the policy table to indicate if a policy is marked critical.
+
+* Added `"instanceID"` (aka `owner` of `locks`) to `schedule` logging (to help troubleshooting when
+  running multiple Fleet instances).
+
+* Introduce UUIDs to Fleet errors and logs.
+
+* Added EndeavourOS, Manjaro, openSUSE Leap and Tumbleweed to HostLinuxOSs.
+
+* Global observer can view settings for all teams.
+
+* Team observers can view the team's settings.
+
+* Updated translation rules so that Docker Desktop can be mapped to the correct CPE.
+
+* Pinned Docker image hashes in Dockerfiles for increased security.
+
+* Remove the `ATTACH` check on SQL osquery queries (osquery bug fixed a while ago in 4.6.0).
+
+* Don't return internal error information on Fleet API requests (internal errors are logged to stderr).
+
+* Fixed an issue when applying the configuration YAML returned by `fleetctl get config` with
+  `fleetctl apply` when MDM is not enabled.
+
+* Fixed a bug where `fleetctl trigger` doesn't release the schedule lock when the triggered run
+  spans the regularly scheduled interval.
+
+* Fixed a bug that prevented starting the Fleet server with MDM features if Apple Business Manager
+  (ABM) was not configured.
+
+* Fixed incorrect MDM-related settings documentation and payload response examples.
+
+* Fixed bug to keep team when clicking on policy tab twice.
+
+* Fixed software table links that were cutting off tooltip.
+
+* Fixed authorization action used on host/search endpoint.
+
 ## Fleet 4.28.1 (March 14, 2023) 
 
 * Fixed a bug that prevented starting the Fleet server with MDM features if Apple Business Manager (ABM) was not configured.
