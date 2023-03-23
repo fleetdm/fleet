@@ -151,7 +151,7 @@ module.exports.custom = {
 
     // Folder that any fleetie (core team member, not consultants) can push to, willy-nilly
     'free-for-all': '*',
-    
+
     // Cold outbound strategy (see fleetdm.com/handbook/company/why-this-way for our vision of a better way to sell)
     'cold-outbound-strategy.md': ['mikermcneil'],
 
