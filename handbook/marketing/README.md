@@ -8,7 +8,7 @@ contributors. The purpose of the marketing team is to own and improve the growth
 #### In this section
 
 - [Positioning](#positioning)
-- [Marketing Qualified Opportunities (MQOs)](#marketing-qualified-opportunities-(MQOs)
+- [Marketing Qualified Opportunities (MQOs)](#marketing-qualified-opportunities-mqos)
 - [Lead enrichment](#lead-enrichment)
 - [Posting on social media as Fleet](#posting-on-social-media-as-fleet)
 - [Promoting blog posts on social media](#promoting-blog-posts-on-social-media)
@@ -325,7 +325,7 @@ Learn how to communicate as Fleet with guidelines for tone of voice, our approac
 
 #### In this section
 
-- [How to make edits with GitHub](#how-to-make-edits-with-git-hub)
+- [How to make edits with GitHub](#how-to-make-edits-with-github)
 - [How to edit recently merged pull requests for the handbook](#how-to-edit-recently-merged-pull-requests-for-the-handbook)
 - [How to edit Markdown pull requests for the docs](#how-to-edit-markdown-pull-requests-for-the-docs)
 - [How to edit articles, release posts, and press releases](#how-to-edit-articles-release-posts-and-press-releases)
@@ -384,7 +384,7 @@ Editing articles, release posts, and press releases usually comes in three flavo
 
 * For unpublished articles, please read the review process in [How to submit and publish an article](https://fleetdm.com/handbook/digital-experience/how-to-submit-and-publish-an-article#review-process).
 
-* To edit an existing article, see [How to make edits with GitHub](https://fleetdm.com/handbook/digital-experience#how-to-make-edits-with-git-hub).
+* To edit an existing article, see [How to make edits with GitHub](https://fleetdm.com/handbook/digital-experience#how-to-make-edits-with-github).
 
 #### How to edit social media posts
 
@@ -501,7 +501,7 @@ The Brand team is responsible for production and maintenance of the Fleet websit
 - [How to export images for the website](#how-to-export-images-for-the-website)
 - [Maintaining browser compatibility](#maintaining-browser-compatibility)
 - [Responding to a 5xx error on fleetdm.com](#responding-to-a-5-xx-error-on-fleetdm-com)
-- [The "Deploy Fleet Website" GitHub action failed](#the-deploy-fleet-website-git-hub-action-failed)
+- [The "Deploy Fleet Website" GitHub action failed](#the-deploy-fleet-website-github-action-failed)
 - [Vulnerability monitoring](#vulnerability-monitoring)
 - [How to make usability changes to the website](#how-to-make-usability-changes-to-the-website)
 

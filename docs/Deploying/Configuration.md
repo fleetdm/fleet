@@ -2379,7 +2379,10 @@ If set, then `Fleet serve` will capture errors and panics and push them to Sentr
 ##### basic_auth.username
 
 This is the username to use for HTTP Basic Auth on the `/metrics` endpoint.
-If not set, then the Prometheus `/metrics` endpoint is disabled.
+
+If `basic_auth.username` is not set, then:
+  - If `basic_auth.disable` is not set then the Prometheus `/metrics` endpoint is disabled.
+  - If `basic_auth.disable` is set then the Prometheus `/metrics` endpoint is enabled but without HTTP Basic Auth.
 
 - Default value: `""`
 - Environment variable: `FLEET_PROMETHEUS_BASIC_AUTH_USERNAME`
@@ -2393,7 +2396,10 @@ If not set, then the Prometheus `/metrics` endpoint is disabled.
 ##### basic_auth.password
 
 This is the password to use for HTTP Basic Auth on the `/metrics` endpoint.
-If not set, then the Prometheus `/metrics` endpoint is disabled.
+
+If `basic_auth.password` is not set, then:
+  - If `basic_auth.disable` is not set then the Prometheus `/metrics` endpoint is disabled.
+  - If `basic_auth.disable` is set then the Prometheus `/metrics` endpoint is enabled but without HTTP Basic Auth.
 
 - Default value: `""`
 - Environment variable: `FLEET_PROMETHEUS_BASIC_AUTH_PASSWORD`
@@ -2402,6 +2408,21 @@ If not set, then the Prometheus `/metrics` endpoint is disabled.
   prometheus:
     basic_auth:
       password: "bar"
+  ```
+
+##### basic_auth.disable
+
+This allows running the Prometheus endpoint `/metrics` without HTTP Basic Auth.
+
+If both `basic_auth.username` and `basic_auth.password` are set, then this setting is ignored.
+
+- Default value: false
+- Environment variable: `FLEET_PROMETHEUS_BASIC_AUTH_DISABLE`
+- Config file format:
+  ```yaml
+  prometheus:
+    basic_auth:
+      disable: true
   ```
 
 #### Packaging
@@ -2584,16 +2605,16 @@ packaging:
 
 > MDM features require some endpoints to be publicly accessible outside your VPN or intranet, for more details see [What API endpoints should I expose to the public internet?](./FAQ.md#what-api-endpoints-should-i-expose-to-the-public-internet)
 
-##### mdm_apple.enable
+##### mdm.apple_enable
 
-This is the second feature flag required to turn on MDM features. This feature flag must be set to `1` at the same time as when you set the certificate and keys for Apple Push Certificate server (APNs) and Apple Business Manager (ABM). Otherwise, the Fleet server won't start.
+This is the second feature flag required to turn on MDM features. This environment variable flag must be set to `1` (or `true` in the `yaml`) at the same time as when you set the certificate and keys for Apple Push Certificate server (APNs) and Apple Business Manager (ABM). Otherwise, the Fleet server won't start.
 
 - Default value: ""
 - Environment variable: `FLEET_MDM_APPLE_ENABLE`
 - Config file format:
   ```
-  mdm_apple:
-    enable: 1
+  mdm:
+    apple_enable: true
   ```
 
 ##### mdm.apple_apns_cert
@@ -2704,7 +2725,7 @@ The content of the PEM-encoded private key for the Simple Certificate Enrollment
       -----END RSA PRIVATE KEY-----
   ```
 
-##### mdm_apple.scep.challenge
+##### mdm.apple_scep_challenge
 
 An alphanumeric secret for the Simple Certificate Enrollment Protocol (SCEP). Should be 32 characters in length and only include alphanumeric characters.
 
@@ -2712,9 +2733,32 @@ An alphanumeric secret for the Simple Certificate Enrollment Protocol (SCEP). Sh
 - Environment variable: `FLEET_MDM_APPLE_SCEP_CHALLENGE`
 - Config file format:
   ```
-  mdm_apple:
-    scep:
-      challenge: scepchallenge
+  mdm:
+    apple_scep_challenge: scepchallenge
+  ```
+
+##### mdm.apple_scep_signer_validity_days
+
+The number of days the signed SCEP client certificates will be valid.
+
+- Default value: 365
+- Environment variable: `FLEET_MDM_APPLE_SCEP_SIGNER_VALIDITY_DAYS`
+- Config file format:
+  ```
+  mdm:
+    apple_scep_signer_validity_days: 100
+  ```
+
+##### mdm.apple_scep_signer_allow_renewal_days
+
+The number of days allowed to renew SCEP certificates.
+
+- Default value: 14
+- Environment variable: `FLEET_MDM_APPLE_SCEP_SIGNER_ALLOW_RENEWAL_DAYS`
+- Config file format:
+  ```
+  mdm:
+    apple_scep_signer_allow_renewal_days: 30
   ```
 
 ##### mdm.apple_bm_server_token
@@ -2846,15 +2890,28 @@ An URL containing a PDF file that will be used as an EULA during DEP onboarding.
     eula_url: https://example.com/eula.pdf
 ```
 
+##### mdm.apple_dep_sync_periodicity
+
+The duration between DEP device syncing (fetching and setting of DEP profiles). Only relevant if Apple Business Manager (ABM) is configured.
+
+- Default value: 1m
+- Environment variable: `FLEET_MDM_APPLE_DEP_SYNC_PERIODICITY`
+- Config file format:
+  ```
+  mdm:
+    apple_dep_sync_periodicity: 10m
+  ```
 
 ##### Example YAML
 
 ```yaml
 mdm:
+  apple_enable: true
   apple_apns_cert: /path/to/apns_cert
   apple_apns_key: /path/to/apns_key
   apple_scep_cert: /path/to/scep_cert
   apple_scep_key: /path/to/scep_key
+  apple_scep_challenge: scepchallenge
   apple_bm_server_token: /path/to/server_token.p7m
   apple_bm_cert: /path/to/bm_cert
   apple_bm_key: /path/to/private_key
