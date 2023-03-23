@@ -127,11 +127,11 @@ allow {
   action == [read, write, write_role, change_password][_]
 }
 
-# Global gitops can read users and modify their roles.
+# Global gitops can write users and modify their roles.
 allow {
   object.type == "user"
   subject.global_role == gitops
-  action == [read, write_role][_]
+  action == [write, write_role][_]
 }
 
 # Team admins can perform all operations on the team users (except changing their password).
@@ -141,11 +141,11 @@ allow {
   action == [read, write, write_role][_]
 }
 
-# Team gitops can read team users and modify their roles.
+# Team gitops can write team users and modify their roles.
 allow {
   object.type == "user"
   team_role(subject, object.teams[_].id) == gitops
-  action == [read, write_role][_]
+  action == [write, write_role][_]
 }
 
 ##
@@ -192,17 +192,25 @@ allow {
 # Enroll Secrets
 ##
 
-# Global admins, maintainers and gitops can read/write enroll secrets.
+# Global admins and maintainers can read/write enroll secrets.
 allow {
 	object.type == "enroll_secret"
-	subject.global_role == [admin, maintainer, gitops][_]
+	subject.global_role == [admin, maintainer][_]
   action == [read, write][_]
 }
 
-# Team admins, maintainers and gitops can read/write for appropriate teams.
+# Global gitops can write global enroll secrets.
 allow {
 	object.type == "enroll_secret"
-	team_role(subject, object.team_id) == [admin, maintainer, gitops][_]
+  is_null(object.team_id)
+	subject.global_role == gitops
+  action == write
+}
+
+# Team admins and maintainers can read/write for appropriate teams.
+allow {
+	object.type == "enroll_secret"
+	team_role(subject, object.team_id) == [admin, maintainer][_]
 	action == [read, write][_]
 }
 
@@ -232,6 +240,13 @@ allow {
 	object.type == "host"
   subject.global_role == [admin, maintainer][_]
 	action == [read, write][_]
+}
+
+# Global gitops can write hosts.
+allow {
+	object.type == "host"
+  subject.global_role == gitops
+	action == write
 }
 
 # Allow read for global observer and observer_plus.
@@ -285,18 +300,18 @@ allow {
 # Queries
 ##
 
-# All logged in users can read queries.
+# Global admins, maintainers, observer_plus and observers can read queries.
 allow {
   object.type == "query"
-  not is_null(subject)
+  subject.global_role == [admin, maintainer, observer_plus, observer][_]
   action == read
 }
 
-# Team admins, maintainers, observer_plus and observers, gitops can read queries.
+# Team admins, maintainers, observer_plus and observers can read queries.
 allow {
 	object.type == "query"
-  # If role is admin, maintainer, observer_plus, observer or gitops on any team.
-  team_role(subject, subject.teams[_].id) == [admin, maintainer, observer_plus, observer, gitops][_]
+  # If role is admin, maintainer, observer_plus or observer on any team.
+  team_role(subject, subject.teams[_].id) == [admin, maintainer, observer_plus, observer][_]
 	action == read
 }
 
@@ -473,33 +488,48 @@ allow {
 # Policies
 ##
 
-# Global admins, maintainers and gitops can read and write policies
+# Global admins and maintainers can read and write policies.
 allow {
   object.type == "policy"
-  subject.global_role == [admin, maintainer, gitops][_]
+  subject.global_role == [admin, maintainer][_]
   action == [read, write][_]
 }
 
-# Global observer and observer_plus can read any policies
+# Global gitops can write policies.
+allow {
+  object.type == "policy"
+  subject.global_role == gitops
+  action == write
+}
+
+# Global observer and observer_plus can read any policies.
 allow {
   object.type == "policy"
   subject.global_role == [observer, observer_plus][_]
   action == read
 }
 
-# Team admin, maintainers and gitops can read and write policies for their teams
+# Team admin and maintainers can read and write policies for their teams.
 allow {
   not is_null(object.team_id)
   object.type == "policy"
-  team_role(subject, object.team_id) == [admin, maintainer, gitops][_]
+  team_role(subject, object.team_id) == [admin, maintainer][_]
   action == [read, write][_]
 }
 
-# Team admin, maintainers, observers, observers_plus and gitops can read global policies
+# Team gitops can write policies for their teams.
+allow {
+  not is_null(object.team_id)
+  object.type == "policy"
+  team_role(subject, object.team_id) == gitops
+  action == write
+}
+
+# Team admin, maintainers, observers and observers_plus can read global policies
 allow {
   is_null(object.team_id)
   object.type == "policy"
-  team_role(subject, subject.teams[_].id) == [admin, maintainer, observer, observer_plus, gitops][_]
+  team_role(subject, subject.teams[_].id) == [admin, maintainer, observer, observer_plus][_]
   action == read
 }
 

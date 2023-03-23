@@ -554,14 +554,14 @@ func TestAuthorizeQuery(t *testing.T) {
 		{user: nil, object: team1ObsQuery, action: run, allow: false},
 		{user: nil, object: observerQuery, action: runNew, allow: false},
 
-		// User can still read queries with no roles
-		{user: test.UserNoRoles, object: query, action: read, allow: true},
+		// User with no roles cannot access queries.
+		{user: test.UserNoRoles, object: query, action: read, allow: false},
 		{user: test.UserNoRoles, object: query, action: write, allow: false},
 		{user: test.UserNoRoles, object: teamAdminQuery, action: write, allow: false},
 		{user: test.UserNoRoles, object: emptyTquery, action: run, allow: false},
 		{user: test.UserNoRoles, object: team1Query, action: run, allow: false},
 		{user: test.UserNoRoles, object: query, action: runNew, allow: false},
-		{user: test.UserNoRoles, object: observerQuery, action: read, allow: true},
+		{user: test.UserNoRoles, object: observerQuery, action: read, allow: false},
 		{user: test.UserNoRoles, object: observerQuery, action: write, allow: false},
 		{user: test.UserNoRoles, object: emptyTobsQuery, action: run, allow: false},
 		{user: test.UserNoRoles, object: team1ObsQuery, action: run, allow: false},
