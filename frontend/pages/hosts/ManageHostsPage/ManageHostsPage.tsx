@@ -157,7 +157,7 @@ const ManageHostsPage = ({
     currentTeamName,
     isAnyTeamSelected,
     teamIdForApi,
-    handleTeamSelect,
+    handleTeamChange,
   } = useTeamIdParam({
     location,
     router,
@@ -628,15 +628,6 @@ const ManageHostsPage = ({
     handleClearFilter(["low_disk_space"]);
   };
 
-  const onTeamChange = useCallback(
-    (teamId: number) => {
-      // TODO(sarah): refactor so that this doesn't trigger two api calls
-      handleTeamSelect(teamId);
-      handleResetPageIndex();
-    },
-    [handleTeamSelect]
-  );
-
   const handleStatusDropdownChange = (statusName: string) => {
     handleResetPageIndex();
 
@@ -792,6 +783,16 @@ const ManageHostsPage = ({
       routeParams,
       router,
     ]
+  );
+
+  const onTeamChange = useCallback(
+    (teamId: number) => {
+      // TODO(sarah): refactor so that this doesn't trigger two api calls (reset page index updates
+      // tableQueryData)
+      handleTeamChange(teamId);
+      handleResetPageIndex();
+    },
+    [handleTeamChange]
   );
 
   const onSaveSecret = async (enrollSecretString: string) => {

@@ -66,7 +66,7 @@ const ManageControlsPage = ({
     isPremiumTier,
   } = useContext(AppContext);
 
-  const { currentTeamId, handleTeamSelect } = useTeamIdParam({
+  const { currentTeamId, handleTeamChange } = useTeamIdParam({
     location,
     router,
     includeAllTeams: false,
@@ -140,7 +140,7 @@ const ManageControlsPage = ({
                       <TeamsDropdown
                         currentUserTeams={availableTeams}
                         selectedTeamId={currentTeamId}
-                        onChange={handleTeamSelect}
+                        onChange={handleTeamChange}
                         includeAll={false}
                         includeNoTeams
                       />

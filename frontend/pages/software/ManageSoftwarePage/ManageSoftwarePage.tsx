@@ -118,7 +118,7 @@ const ManageSoftwarePage = ({
     currentTeamId,
     isAnyTeamSelected,
     teamIdForApi,
-    handleTeamSelect,
+    handleTeamChange,
   } = useTeamIdParam({
     location,
     router,
@@ -345,10 +345,10 @@ const ManageSoftwarePage = ({
 
   const onTeamChange = useCallback(
     (teamId: number) => {
-      handleTeamSelect(teamId);
+      handleTeamChange(teamId);
       setPageIndex(0);
     },
-    [handleTeamSelect]
+    [handleTeamChange]
   );
 
   const renderHeaderDescription = () => {

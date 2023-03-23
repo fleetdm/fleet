@@ -76,6 +76,7 @@ interface IDashboardProps {
 }
 
 const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
+  const { pathname } = location;
   const {
     config,
     availableTeams,
@@ -131,19 +132,18 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
 
   useEffect(() => {
     const platformByPathname =
-      PLATFORM_DROPDOWN_OPTIONS?.find(
-        (platform) => platform.path === location.pathname
-      )?.value || "all";
+      PLATFORM_DROPDOWN_OPTIONS?.find((platform) => platform.path === pathname)
+        ?.value || "all";
 
     setSelectedPlatform(platformByPathname);
-  }, [location.pathname]);
+  }, [pathname]);
 
   const {
     currentTeamId,
     currentTeamName,
     isAnyTeamSelected,
     teamIdForApi,
-    handleTeamSelect,
+    handleTeamChange,
   } = useTeamIdParam({
     location,
     router,
@@ -661,7 +661,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
                   <TeamsDropdown
                     selectedTeamId={currentTeamId}
                     currentUserTeams={availableTeams}
-                    onChange={handleTeamSelect}
+                    onChange={handleTeamChange}
                   />
                 )}
               {isPremiumTier &&

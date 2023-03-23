@@ -26,10 +26,10 @@ import { QueryParams } from "utilities/url";
 interface IAppProps {
   children: JSX.Element;
   location?: {
-    // hash: string;
     pathname: string;
-    query: QueryParams;
     search: string;
+    hash?: string;
+    query: QueryParams;
   };
 }
 

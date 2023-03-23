@@ -118,7 +118,7 @@ export const initialState = {
   isSandboxMode: false,
   isFreeTier: undefined,
   isPremiumTier: undefined,
-  isMdmFeatureFlagEnabled: true,
+  isMdmFeatureFlagEnabled: undefined,
   isGlobalAdmin: undefined,
   isGlobalMaintainer: undefined,
   isGlobalObserver: undefined,
@@ -157,6 +157,7 @@ const setPermissions = (
     return {};
   }
 
+  // TODO(sarah): can this be improved?
   if (teamId < 0) {
     teamId = 0;
   }
@@ -191,6 +192,8 @@ const reducer = (state: InitialStateType, action: IAction) => {
   switch (action.type) {
     case ACTIONS.SET_AVAILABLE_TEAMS: {
       const { user, availableTeams } = action;
+
+      // TODO(sarah): can this be improved?
       let sortedTeams = availableTeams.sort(
         (a: ITeamSummary, b: ITeamSummary) =>
           sort.caseInsensitiveAsc(a.name, b.name)
@@ -278,7 +281,7 @@ const AppProvider = ({ children }: Props): JSX.Element => {
     isSandboxMode: state.isSandboxMode,
     isFreeTier: state.isFreeTier,
     isPremiumTier: state.isPremiumTier,
-    isMdmFeatureFlagEnabled: true,
+    isMdmFeatureFlagEnabled: undefined,
     isGlobalAdmin: state.isGlobalAdmin,
     isGlobalMaintainer: state.isGlobalMaintainer,
     isGlobalObserver: state.isGlobalObserver,

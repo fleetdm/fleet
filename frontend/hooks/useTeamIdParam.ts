@@ -15,7 +15,7 @@ const getDefaultTeam = (
   includeAll: boolean,
   includeNoTeam: boolean
 ) => {
-  let defaultTeam: ITeamSummary | undefined = availableTeams[0]; // TODO: fix this
+  let defaultTeam: ITeamSummary | undefined = availableTeams[0]; // TODO(sarah): can this be improved?
   if (includeAll) {
     defaultTeam =
       availableTeams.find((t) => t.id === ALL_TEAMS_ID) || defaultTeam;
@@ -82,23 +82,7 @@ const rebuildQueryStringWithTeamId = (
   return !parts.length ? "" : `?${parts.join("&")}`;
 };
 
-export const curryRouterReplaceTeamId = ({
-  pathname,
-  search,
-  hash = "",
-  router,
-}: {
-  pathname: string;
-  search: string;
-  hash?: string;
-  router: InjectedRouter;
-}) => (teamId: number) => {
-  router.replace(
-    pathname.concat(rebuildQueryStringWithTeamId(search, teamId)).concat(hash)
-  );
-};
-
-export const isValidTeamId = ({
+const isValidTeamId = ({
   availableTeams,
   includeAllTeams,
   includeNoTeam,
@@ -141,16 +125,6 @@ export const useTeamIdParam = ({
     AppContext
   );
 
-  const memoizedIsAnyTeamSelected = useMemo(
-    () => isAnyTeamSelected(currentTeam),
-    [currentTeam]
-  );
-
-  const memoizedTeamIdForApi = useMemo(
-    () => teamIdForApi({ currentTeam, includeNoTeam }),
-    [currentTeam, includeNoTeam]
-  );
-
   const memoizedDefaultTeam = useMemo(() => {
     if (!availableTeams?.length) {
       return undefined;
@@ -158,9 +132,13 @@ export const useTeamIdParam = ({
     return getDefaultTeam(availableTeams, includeAllTeams, includeNoTeam);
   }, [availableTeams, includeAllTeams, includeNoTeam]);
 
-  const handleTeamSelect = useCallback(
+  const handleTeamChange = useCallback(
     (teamId: number) => {
-      curryRouterReplaceTeamId({ pathname, search, hash, router })(teamId);
+      router.replace(
+        pathname
+          .concat(rebuildQueryStringWithTeamId(search, teamId))
+          .concat(hash || "")
+      );
     },
     [pathname, search, hash, router]
   );
@@ -174,18 +152,18 @@ export const useTeamIdParam = ({
     let parsedTeamId = parseInt(teamIdString, 10);
 
     if (teamIdString.length && isNaN(parsedTeamId)) {
-      handleTeamSelect(memoizedDefaultTeam.id);
+      handleTeamChange(memoizedDefaultTeam.id);
       return;
     }
 
     if (teamIdString.length && parsedTeamId < 0) {
-      handleTeamSelect(memoizedDefaultTeam.id);
+      handleTeamChange(memoizedDefaultTeam.id);
       return;
     }
 
     parsedTeamId = isNaN(parsedTeamId) ? -1 : parsedTeamId;
     if (parsedTeamId < memoizedDefaultTeam.id) {
-      handleTeamSelect(memoizedDefaultTeam.id);
+      handleTeamChange(memoizedDefaultTeam.id);
       return;
     }
 
@@ -197,7 +175,7 @@ export const useTeamIdParam = ({
         teamId: parsedTeamId,
       })
     ) {
-      handleTeamSelect(memoizedDefaultTeam.id);
+      handleTeamChange(memoizedDefaultTeam.id);
       return;
     }
 
@@ -212,17 +190,16 @@ export const useTeamIdParam = ({
     memoizedDefaultTeam,
     query,
     search,
-    handleTeamSelect,
+    handleTeamChange,
     setCurrentTeam,
   ]);
 
   return {
     currentTeamId: currentTeam?.id,
     currentTeamName: currentTeam?.name,
-    defaultTeam: memoizedDefaultTeam,
-    isAnyTeamSelected: memoizedIsAnyTeamSelected,
-    teamIdForApi: memoizedTeamIdForApi,
-    handleTeamSelect,
+    isAnyTeamSelected: isAnyTeamSelected(currentTeam),
+    teamIdForApi: teamIdForApi({ currentTeam, includeNoTeam }),
+    handleTeamChange,
   };
 };
 
