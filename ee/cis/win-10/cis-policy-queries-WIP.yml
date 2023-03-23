@@ -10,10 +10,9 @@ spec:
   resolution: |
     To establish the recommended configuration via GP, set the following UI path to Disabled:
     'Computer Configuration\Policies\Administrative Templates\MSS (Legacy)\MSS: (AutoAdminLogon) Enable Automatic Logon (not recommended)'
-    Note: This Group Policy path does not exist by default. An additional Group Policy template (MSS-legacy.admx/adml) is required - it is available from this TechNet blog post: The MSS settings – Microsoft Security Guidance blog
+    Note: This Group Policy path does not exist by default. An additional Group Policy template (MSS-legacy.admx/adml) is required - it is available from the Security Compliance Toolkit 1.0 (https://www.microsoft.com/en-us/download/details.aspx?id=55319)
   query: |
-    TODO
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon\AutoAdminLogon' AND data = );
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon\AutoAdminLogon' AND data = 0);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.4.1
   contributors: rachelelysia
@@ -30,7 +29,7 @@ spec:
   resolution: |
     To establish the recommended configuration via GP, set the following UI path to 'Enabled: Highest protection, source routing is completely disabled':
     'Computer Configuration\Policies\Administrative Templates\MSS (Legacy)\MSS: (DisableIPSourceRouting IPv6) IP source routing protection level (protects against packet spoofing)'
-    Note: This Group Policy path does not exist by default. An additional Group Policy template (MSS-legacy.admx/adml) is required - it is available from this TechNet blog post: The MSS settings – Microsoft Security Guidance blog
+    Note: This Group Policy path does not exist by default. An additional Group Policy template (MSS-legacy.admx/adml) is required - it is available from the Security Compliance Toolkit 1.0 (https://www.microsoft.com/en-us/download/details.aspx?id=55319)
   query: |
     TODO
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\Tcpip6\\Parameters\DisableIPSourceRouting' AND data = );
@@ -50,10 +49,9 @@ spec:
   resolution: |
     To establish the recommended configuration via GP, set the following UI path to 'Enabled: Highest protection, source routing is completely disabled':
     'Computer Configuration\Policies\Administrative Templates\MSS (Legacy)\MSS: (DisableIPSourceRouting) IP source routing protection level (protects against packet spoofing)'
-    Note: This Group Policy path does not exist by default. An additional Group Policy template (MSS-legacy.admx/adml) is required - it is available from this TechNet blog post: The MSS settings – Microsoft Security Guidance blog
+    Note: This Group Policy path does not exist by default. An additional Group Policy template (MSS-legacy.admx/adml) is required - it is available from the Security Compliance Toolkit 1.0 (https://www.microsoft.com/en-us/download/details.aspx?id=55319)
   query: |
-    TODO
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters\DisableIPSourceRouting' AND data = );
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters\DisableIPSourceRouting' AND data = 2);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.4.3
   contributors: rachelelysia
@@ -70,10 +68,9 @@ spec:
   resolution: |
     To establish the recommended configuration via GP, set the following UI path to Enabled:
     'Computer Configuration\Policies\Administrative Templates\MSS (Legacy)\MSS:(DisableSavePassword) Prevent the dial-up password from being saved'
-    Note: This Group Policy path does not exist by default. An additional Group Policy template (MSS-legacy.admx/adml) is required - it is available from this TechNet blog post: The MSS settings – Microsoft Security Guidance blog
+    Note: This Group Policy path does not exist by default. An additional Group Policy template (MSS-legacy.admx/adml) is required - it is available from the Security Compliance Toolkit 1.0 (https://www.microsoft.com/en-us/download/details.aspx?id=55319)
   query: |
-    TODO
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\RasMan\\Parameters\DisableSavePassword' AND data = );
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\RasMan\\Parameters\DisableSavePassword' AND data = 2);
   purpose: Informational
   tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_18.4.4
   contributors: rachelelysia
@@ -90,10 +87,9 @@ spec:
   resolution: |
     To establish the recommended configuration via GP, set the following UI path to Disabled:
     'Computer Configuration\Policies\Administrative Templates\MSS (Legacy)\MSS: (EnableICMPRedirect) Allow ICMP redirects to override OSPF generated routes'
-    Note: This Group Policy path does not exist by default. An additional Group Policy template (MSS-legacy.admx/adml) is required - it is available from this TechNet blog post: The MSS settings – Microsoft Security Guidance blog
+    Note: This Group Policy path does not exist by default. An additional Group Policy template (MSS-legacy.admx/adml) is required - it is available from the Security Compliance Toolkit 1.0 (https://www.microsoft.com/en-us/download/details.aspx?id=55319)
   query: |
-    TODO
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters\EnableICMPRedirect' AND data = );
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters\EnableICMPRedirect' AND data = 0);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.4.5
   contributors: rachelelysia
@@ -102,18 +98,17 @@ apiVersion: v1
 kind: policy
 spec:
   name: >
-    CIS - Ensure 'MSS: (KeepAliveTime) How often keep-alive packets are sent in milliseconds' is set to 'Enabled: 300,000 or 5 minutes
+    CIS - Ensure 'MSS: (KeepAliveTime) How often keep-alive packets are sent in milliseconds' is set to 'Enabled: 300,000 or 5 minutes'
   platforms: win10
   platform: windows
   description: |
     This value controls how often TCP attempts to verify that an idle connection is still intact by sending a keep-alive packet. If the remote computer is still reachable, it acknowledges the keep-alive packet.
   resolution: |
-    To establish the recommended configuration via GP, set the following UI path to 'Enabled: 300,000 or 5 minutes (recommended)'':
+    To establish the recommended configuration via GP, set the following UI path to 'Enabled: 300,000 or 5 minutes (recommended)':
     'Computer Configuration\Policies\Administrative Templates\MSS (Legacy)\MSS: (KeepAliveTime) How often keep-alive packets are sent in milliseconds'
-    Note: This Group Policy path does not exist by default. An additional Group Policy template (MSS-legacy.admx/adml) is required - it is available from this TechNet blog post: The MSS settings – Microsoft Security Guidance blog
+    Note: This Group Policy path does not exist by default. An additional Group Policy template (MSS-legacy.admx/adml) is required - it is available from the Security Compliance Toolkit 1.0 (https://www.microsoft.com/en-us/download/details.aspx?id=55319)
   query: |
-    TODO
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters\KeepAliveTime' AND data = );
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters\KeepAliveTime' AND data = 300000);
   purpose: Informational
   tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_18.4.6
   contributors: rachelelysia
@@ -130,10 +125,9 @@ spec:
   resolution: |
     To establish the recommended configuration via GP, set the following UI path to Enabled:
     'Computer Configuration\Policies\Administrative Templates\MSS (Legacy)\MSS: (NoNameReleaseOnDemand) Allow the computer to ignore NetBIOS name release requests except from WINS servers'
-    Note: This Group Policy path does not exist by default. An additional Group Policy template (MSS-legacy.admx/adml) is required - it is available from this TechNet blog post: The MSS settings – Microsoft Security Guidance blog
+    Note: This Group Policy path does not exist by default. An additional Group Policy template (MSS-legacy.admx/adml) is required - it is available from the Security Compliance Toolkit 1.0 (https://www.microsoft.com/en-us/download/details.aspx?id=55319)
   query: |
-    TODO
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\NetBT\\Parameters\NoNameReleaseOnDemand' AND data = );
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\NetBT\\Parameters\NoNameReleaseOnDemand' AND data = 1);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.4.7
   contributors: rachelelysia
@@ -150,10 +144,9 @@ spec:
   resolution: |
     To establish the recommended configuration via GP, set the following UI path to Disabled:
     'Computer Configuration\Policies\Administrative Templates\MSS (Legacy)\MSS: (PerformRouterDiscovery) Allow IRDP to detect and configure Default Gateway addresses (could lead to DoS)'
-    Note: This Group Policy path does not exist by default. An additional Group Policy template (MSS-legacy.admx/adml) is required - it is available from this TechNet blog post: The MSS settings – Microsoft Security Guidance blog
+    Note: This Group Policy path does not exist by default. An additional Group Policy template (MSS-legacy.admx/adml) is required - it is available from the Security Compliance Toolkit 1.0 (https://www.microsoft.com/en-us/download/details.aspx?id=55319)
   query: |
-    TODO
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters\PerformRouterDiscovery' AND data = );
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters\PerformRouterDiscovery' AND data = 0);
   purpose: Informational
   tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_18.4.8
   contributors: rachelelysia
@@ -175,10 +168,9 @@ spec:
   resolution: |
     To establish the recommended configuration via GP, set the following UI path to Enabled:
     'Computer Configuration\Policies\Administrative Templates\MSS (Legacy)\MSS: (SafeDllSearchMode) Enable Safe DLL search mode (recommended)'
-    Note: This Group Policy path does not exist by default. An additional Group Policy template (MSS-legacy.admx/adml) is required - it is available from this TechNet blog post: The MSS settings – Microsoft Security Guidance blog
+    Note: This Group Policy path does not exist by default. An additional Group Policy template (MSS-legacy.admx/adml) is required - it is available from the Security Compliance Toolkit 1.0 (https://www.microsoft.com/en-us/download/details.aspx?id=55319)
   query: |
-    TODO
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\Session Manager\SafeDllSearchMode' AND data = );
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\Session Manager\SafeDllSearchMode' AND data = 1);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.4.9
   contributors: rachelelysia
@@ -195,10 +187,9 @@ spec:
   resolution: |
     To establish the recommended configuration via GP, set the following UI path to Enabled: 5 or fewer seconds:
     'Computer Configuration\Policies\Administrative Templates\MSS (Legacy)\MSS: (ScreenSaverGracePeriod) The time in seconds before the screen saver grace period expires (0 recommended)'
-    Note: This Group Policy path does not exist by default. An additional Group Policy template (MSS-legacy.admx/adml) is required - it is available from this TechNet blog post: The MSS settings – Microsoft Security Guidance blog
+    Note: This Group Policy path does not exist by default. An additional Group Policy template (MSS-legacy.admx/adml) is required - it is available from the Security Compliance Toolkit 1.0 (https://www.microsoft.com/en-us/download/details.aspx?id=55319)
   query: |
-    TODO
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon\ScreenSaverGracePeriod' AND data = );
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon\ScreenSaverGracePeriod' AND data <= 5);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.4.10
   contributors: rachelelysia
@@ -215,10 +206,9 @@ spec:
   resolution: |
     To establish the recommended configuration via GP, set the following UI path to 'Enabled: 3':
     'Computer Configuration\Policies\Administrative Templates\MSS (Legacy)\MSS:(TcpMaxDataRetransmissions IPv6) How many times unacknowledged data is retransmitted'
-    Note: This Group Policy path does not exist by default. An additional Group Policy template (MSS-legacy.admx/adml) is required - it is available from this TechNet blog post: The MSS settings – Microsoft Security Guidance blog
+    Note: This Group Policy path does not exist by default. An additional Group Policy template (MSS-legacy.admx/adml) is required - it is available from the Security Compliance Toolkit 1.0 (https://www.microsoft.com/en-us/download/details.aspx?id=55319)
   query: |
-    TODO
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\TCPIP6\\Parameters\TcpMaxDataRetransmissions' AND data = );
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\TCPIP6\\Parameters\TcpMaxDataRetransmissions' AND data = 3);
   purpose: Informational
   tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_18.4.11
   contributors: rachelelysia
@@ -235,10 +225,9 @@ spec:
   resolution: |
     To establish the recommended configuration via GP, set the following UI path to 'Enabled: 3':
     'Computer Configuration\Policies\Administrative Templates\MSS (Legacy)\MSS:(TcpMaxDataRetransmissions) How many times unacknowledged data is retransmitted'
-    Note: This Group Policy path does not exist by default. An additional Group Policy template (MSS-legacy.admx/adml) is required - it is available from this TechNet blog post: The MSS settings – Microsoft Security Guidance blog
+    Note: This Group Policy path does not exist by default. An additional Group Policy template (MSS-legacy.admx/adml) is required - it is available from the Security Compliance Toolkit 1.0 (https://www.microsoft.com/en-us/download/details.aspx?id=55319)
   query: |
-    TODO
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters\TcpMaxDataRetransmissions' AND data = );
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters\TcpMaxDataRetransmissions' AND data = 3);
   purpose: Informational
   tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_18.4.12
   contributors: rachelelysia
@@ -247,7 +236,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: >
-    CIS - Ensure 'MSS: (WarningLevel) Percentage threshold for the security event log at which the system will generate a warning' is set to 'Enabled: 90% or 0 987654
+    CIS - Ensure 'MSS: (WarningLevel) Percentage threshold for the security event log at which the system will generate a warning' is set to 'Enabled: 90% or 0 987654'
   platforms: win10
   platform: windows
   description: |
@@ -255,10 +244,9 @@ spec:
   resolution: |
     To establish the recommended configuration via GP, set the following UI path to Enabled: 90% or less:
     'Computer Configuration\Policies\Administrative Templates\MSS (Legacy)\MSS: (WarningLevel) Percentage threshold for the security event log at which the system will generate a warning'
-    Note: This Group Policy path does not exist by default. An additional Group Policy template (MSS-legacy.admx/adml) is required - it is available from this TechNet blog post: The MSS settings – Microsoft Security Guidance blog
+    Note: This Group Policy path does not exist by default. An additional Group Policy template (MSS-legacy.admx/adml) is required - it is available from the Security Compliance Toolkit 1.0 (https://www.microsoft.com/en-us/download/details.aspx?id=55319)
   query: |
-    TODO
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\Eventlog\\Security\WarningLevel' AND data = );
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\Eventlog\\Security\WarningLevel' AND data = 90);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.4.13
   contributors: rachelelysia
