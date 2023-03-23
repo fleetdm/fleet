@@ -50,7 +50,7 @@ import {
   IOperatingSystemVersion,
 } from "interfaces/operating_system";
 import { IPolicy, IStoredPolicyResponse } from "interfaces/policy";
-import { ALL_TEAMS_ID, ITeam, NO_TEAM_ID } from "interfaces/team";
+import { ITeam } from "interfaces/team";
 import { IEmptyTableProps } from "interfaces/empty_table";
 
 import sortUtils from "utilities/sort";
@@ -216,12 +216,7 @@ const ManageHostsPage = ({
   );
   const [searchQuery, setSearchQuery] = useState(initialQuery);
   const [sortBy, setSortBy] = useState<ISortOption[]>(initialSortBy);
-  const [policy, setPolicy] = useState<IPolicy>();
   const [tableQueryData, setTableQueryData] = useState<ITableQueryProps>();
-  // const [
-  //   currentQueryOptions,
-  //   setCurrentQueryOptions,
-  // ] = useState<ILoadHostsOptions>();
   const [resetPageIndex, setResetPageIndex] = useState<boolean>(false);
   const [isUpdatingLabel, setIsUpdatingLabel] = useState<boolean>(false);
   const [isUpdatingSecret, setIsUpdatingSecret] = useState<boolean>(false);
@@ -327,15 +322,18 @@ const ManageHostsPage = ({
     }
   );
 
-  const { isLoading: isLoadingPolicy, error: errorPolicy } = useQuery<
-    IStoredPolicyResponse,
-    Error
-  >(["policy", policyId], () => globalPoliciesAPI.load(policyId), {
-    enabled: !!policyId,
-    onSuccess: ({ policy: policyAPIResponse }) => {
-      setPolicy(policyAPIResponse);
-    },
-  });
+  const {
+    data: policy,
+    isLoading: isLoadingPolicy,
+    error: errorPolicy,
+  } = useQuery<IStoredPolicyResponse, Error, IPolicy>(
+    ["policy", policyId],
+    () => globalPoliciesAPI.load(policyId),
+    {
+      enabled: !!policyId,
+      select: (data) => data.policy,
+    }
+  );
 
   const { data: osVersions } = useQuery<
     IOSVersionsResponse,
@@ -431,48 +429,6 @@ const ManageHostsPage = ({
     refetchHostsCountAPI();
   };
 
-  useEffect(() => {
-    const slugToFind =
-      (selectedFilters.length > 0 &&
-        selectedFilters.find((f) => f.includes(LABEL_SLUG_PREFIX))) ||
-      selectedFilters[0];
-    const validLabel = find(labels, ["slug", slugToFind]) as ILabel;
-    if (selectedLabel !== validLabel) {
-      setSelectedLabel(validLabel);
-    }
-  }, [labels, selectedFilters, selectedLabel]);
-
-  useEffect(() => {
-    if (location.search.includes("software_id")) {
-      return;
-    }
-    const path = location.pathname + location.search;
-    if (filteredHostsPath !== path) {
-      setFilteredHostsPath(location.pathname + location.search);
-    }
-  }, [
-    location.pathname,
-    location.search,
-    filteredHostsPath,
-    setFilteredHostsPath,
-  ]);
-
-  useEffect(() => {
-    setShowNoEnrollSecretBanner(true);
-  }, [currentTeamId]);
-
-  // NOTE: used to reset page number to 0 when modifying filters
-  useEffect(() => {
-    setResetPageIndex(false);
-  }, [location.query]);
-
-  const isLastPage =
-    tableQueryData &&
-    !!hostsCount &&
-    DEFAULT_PAGE_SIZE * tableQueryData.pageIndex +
-      (hostsData?.hosts?.length || 0) >=
-      hostsCount;
-
   const hasErrors = !!errorHosts || !!errorHostsCount || !!errorPolicy;
 
   const toggleDeleteSecretModal = () => {
@@ -517,6 +473,42 @@ const ManageHostsPage = ({
     }
   };
 
+  // TODO: cleanup this effect
+  useEffect(() => {
+    setShowNoEnrollSecretBanner(true);
+  }, [currentTeamId]);
+
+  // TODO: cleanup this effect
+  useEffect(() => {
+    const slugToFind =
+      (selectedFilters.length > 0 &&
+        selectedFilters.find((f) => f.includes(LABEL_SLUG_PREFIX))) ||
+      selectedFilters[0];
+    const validLabel = find(labels, ["slug", slugToFind]) as ILabel;
+    if (selectedLabel !== validLabel) {
+      setSelectedLabel(validLabel);
+    }
+  }, [labels, selectedFilters, selectedLabel]);
+
+  // TODO: cleanup this effect
+  useEffect(() => {
+    if (location.search.includes("software_id")) {
+      return;
+    }
+    const path = location.pathname + location.search;
+    if (filteredHostsPath !== path) {
+      console.log("set filtered hosts path", path);
+      setFilteredHostsPath(location.pathname + location.search);
+    }
+  }, [filteredHostsPath, location, setFilteredHostsPath]);
+
+  const isLastPage =
+    tableQueryData &&
+    !!hostsCount &&
+    DEFAULT_PAGE_SIZE * tableQueryData.pageIndex +
+      (hostsData?.hosts?.length || 0) >=
+      hostsCount;
+
   const handleLabelChange = ({ slug }: ILabel): boolean => {
     const { MANAGE_HOSTS } = PATHS;
 
@@ -543,7 +535,6 @@ const ManageHostsPage = ({
 
   // NOTE: used to reset page number to 0 when modifying filters
   const handleResetPageIndex = () => {
-    console.log("reset page index");
     setTableQueryData(
       (prevState) =>
         ({
@@ -670,6 +661,12 @@ const ManageHostsPage = ({
     setHiddenColumns(newHiddenColumns);
     setShowEditColumnsModal(false);
   };
+
+  // NOTE: used to reset page number to 0 when modifying filters
+  useEffect(() => {
+    // TODO: cleanup this effect
+    setResetPageIndex(false);
+  }, [queryParams]);
 
   // NOTE: this is called once on initial render and every time the query changes
   const onTableQueryChange = useCallback(

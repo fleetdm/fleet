@@ -100,7 +100,6 @@ const isValidTeamId = ({
   ) {
     return false;
   }
-
   return true;
 };
 
@@ -151,22 +150,14 @@ export const useTeamIdParam = ({
     const teamIdString = query?.team_id || "";
     let parsedTeamId = parseInt(teamIdString, 10);
 
-    if (teamIdString.length && isNaN(parsedTeamId)) {
+    // test for negative numbers or non-numeric values and redirect to default
+    if (teamIdString.length && (isNaN(parsedTeamId) || parsedTeamId < 0)) {
       handleTeamChange(memoizedDefaultTeam.id);
       return;
     }
 
-    if (teamIdString.length && parsedTeamId < 0) {
-      handleTeamChange(memoizedDefaultTeam.id);
-      return;
-    }
-
-    parsedTeamId = isNaN(parsedTeamId) ? -1 : parsedTeamId;
-    if (parsedTeamId < memoizedDefaultTeam.id) {
-      handleTeamChange(memoizedDefaultTeam.id);
-      return;
-    }
-
+    // coerce undefined/empty string to -1
+    parsedTeamId = !teamIdString.length ? ALL_TEAMS_ID : parsedTeamId;
     if (
       !isValidTeamId({
         availableTeams,
@@ -178,7 +169,6 @@ export const useTeamIdParam = ({
       handleTeamChange(memoizedDefaultTeam.id);
       return;
     }
-
     if (parsedTeamId !== currentTeam?.id) {
       setCurrentTeam(availableTeams?.find((t) => t.id === parsedTeamId));
     }
