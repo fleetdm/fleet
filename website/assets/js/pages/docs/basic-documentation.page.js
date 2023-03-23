@@ -123,7 +123,7 @@ parasails.registerPage('basic-documentation', {
         let kebabCaseFriendlyTitle = title.replace(/[\’]/g, '');
         return {
           title,
-          url: '#' + _.kebabCase(kebabCaseFriendlyTitle),
+          url: '#' + _.kebabCase(kebabCaseFriendlyTitle.toLowerCase()),
         };
       });
       return subtopics;
