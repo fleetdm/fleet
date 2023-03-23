@@ -198,7 +198,7 @@ Please read ["Why direct responsibility?"](https://fleetdm.com/handbook/company/
 
 - *Public*   _(share with anyone, anywhere in the world)_
 - *Confidential*  _(share only with team members who've signed an NDA, consulting agreement, or employment agreement)_
-- *Classified*  _(share only with founders of Fleet, peepops, and/or the people involved.  e.g., US social security numbers during hiring)_
+- *Classified*  _(share only with founders of Fleet, business operations, and/or the people involved.  e.g., US social security numbers during hiring)_
 
 > TODO: extrapolate to "why this way" page
 
@@ -813,7 +813,7 @@ These groups maintain the following [Slack channels](https://fleetdm.com/handboo
 | `#help-brex`                            | Nathan Holliday
 | `#help-ceo`                             | Mike McNeil
 | `#help-mission-control` _(¶¶)_          | Mike McNeil
-| `#g-people` _(¶¶)_                      | Mike McNeil
+| `#help-classified` _(¶¶)_               | Mike McNeil
 | `#help-open-core-ventures` _(¶¶)_       | Mike McNeil
 
 #### Stubs

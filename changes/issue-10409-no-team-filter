@@ -1,2 +1,0 @@
-- Updated API endpoints that use `team_id` query parameter so that `team_id=0`
-  filters results to include only hosts that are not assigned to any team.
