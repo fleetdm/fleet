@@ -21,7 +21,7 @@ spec:
   platform: darwin
   description: Checks that the system is configured via MDM to automatically install updates.
   resolution: "Ask your system administrator to deploy an MDM profile that enables automatic updates."
-  query: SELECT 1 FROM managed_policies WHERE domain='com.apple.SoftwareUpdate' AND name='AutomaticCheckEnabled' AND value=1 LIMIT 1;
+  query: SELECT 1 FROM managed_policies WHERE domain='com.apple.SoftwareUpdate' AND name='AutomaticCheckEnabled' AND value=1 AND username = '' LIMIT 1;
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-macos-13-1.2
   contributors: sharon-fdm
@@ -34,7 +34,7 @@ spec:
   platform: darwin
   description: Checks that the system is configured via MDM to automatically download updates.
   resolution: "Ask your system administrator to deploy an MDM profile that enables automatic update downloads."
-  query: SELECT 1 FROM managed_policies WHERE domain='com.apple.SoftwareUpdate' AND name='AutomaticDownload' AND value=1 LIMIT 1;
+  query: SELECT 1 FROM managed_policies WHERE domain='com.apple.SoftwareUpdate' AND name='AutomaticDownload' AND value=1 AND username = '' LIMIT 1;
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-macos-13-1.3
   contributors: sharon-fdm
@@ -47,7 +47,7 @@ spec:
   platform: darwin
   description: Ensure that macOS updates are installed after they are available from Apple.
   resolution: "Ask your system administrator to deploy an MDM profile that enables automatic install of macOS updates."
-  query: SELECT 1 FROM managed_policies WHERE domain='com.apple.SoftwareUpdate' AND name='AutomaticallyInstallMacOSUpdates' AND value=1 LIMIT 1;
+  query: SELECT 1 FROM managed_policies WHERE domain='com.apple.SoftwareUpdate' AND name='AutomaticallyInstallMacOSUpdates' AND value=1 AND username = '' LIMIT 1;
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-macos-13-1.4
   contributors: sharon-fdm
@@ -60,7 +60,7 @@ spec:
   platform: darwin
   description: Ensure that application updates are installed after they are available from Apple.
   resolution: Ask your system administrator to deploy an MDM profile that enables automatic updates of Apple apps.
-  query: SELECT 1 FROM managed_policies WHERE domain='com.apple.SoftwareUpdate' AND name='AutomaticallyInstallAppUpdates' AND value=1;
+  query: SELECT 1 FROM managed_policies WHERE domain='com.apple.SoftwareUpdate' AND name='AutomaticallyInstallAppUpdates' AND value=1 AND username = '';
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-macos-13-1.5
   contributors: lucasmrod
@@ -77,7 +77,7 @@ spec:
     setting in place, new malware and adware that Apple has added to the list of malware or
     untrusted software will not execute.
   resolution: "Ask your system administrator to deploy an MDM profile that enables automatic critical system and security updates."
-  query: SELECT 1 FROM managed_policies WHERE domain='com.apple.SoftwareUpdate' AND name='CriticalUpdateInstall' AND value=1 LIMIT 1;
+  query: SELECT 1 FROM managed_policies WHERE domain='com.apple.SoftwareUpdate' AND name='CriticalUpdateInstall' AND value=1 AND username = '' LIMIT 1;
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-macos-13-1.6
   contributors: sharon-fdm
@@ -96,7 +96,7 @@ spec:
     updates are deferred, they should not be deferred for more than 30 days.
     This control only verifies that deferred software updates are not deferred for more than 30 days.
   resolution: "Ask your system administrator to deploy an MDM profile configures update deferment to a value of 30 days or less."
-  query: SELECT 1 FROM managed_policies WHERE domain='com.apple.applicationaccess' AND name='enforcedSoftwareUpdateDelay' AND value <= 30;
+  query: SELECT 1 FROM managed_policies WHERE domain='com.apple.applicationaccess' AND name='enforcedSoftwareUpdateDelay' AND value <= 30 AND username = '';
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-macos-13-1.7
   contributors: lucasmrod
@@ -236,7 +236,7 @@ spec:
       1. The PayloadType string is com.apple.applicationaccess.
       2. The key to include is allowCloudDesktopAndDocuments.
       3. The key must be set to <false/>.
-  query: SELECT 1 FROM managed_policies WHERE domain='com.apple.applicationaccess' AND name='allowCloudDesktopAndDocuments' AND (value = 0 OR value = 'false') LIMIT 1;
+  query: SELECT 1 FROM managed_policies WHERE domain='com.apple.applicationaccess' AND name='allowCloudDesktopAndDocuments' AND (value = 0 OR value = 'false') AND username = '' LIMIT 1;
   purpose: Informational
   tags: compliance, CIS, CIS_Level2, CIS-macos-13-2.1.1.3
   contributors: zwass
@@ -290,7 +290,7 @@ spec:
       1. The PayloadType string is com.apple.applicationaccess
       2. The key to include is allowAirDrop
       3. The key must be set to <false/>
-  query: SELECT 1 FROM managed_policies WHERE domain='com.apple.applicationaccess' AND name='allowAirDrop' AND (value = 0 OR value = 'false') LIMIT 1;
+  query: SELECT 1 FROM managed_policies WHERE domain='com.apple.applicationaccess' AND name='allowAirDrop' AND (value = 0 OR value = 'false') AND username = '' LIMIT 1;
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-macos-13-2.3.1.1
   contributors: lucasmrod
@@ -316,7 +316,7 @@ spec:
       1. The PayloadType string is com.apple.applicationaccess
       2. The key to include is allowAirPlayIncomingRequests
       3. The key must be set to <false/>
-  query: SELECT 1 FROM managed_policies WHERE domain='com.apple.applicationaccess' AND name='allowAirPlayIncomingRequests' AND (value = 0 OR value = 'false') LIMIT 1;
+  query: SELECT 1 FROM managed_policies WHERE domain='com.apple.applicationaccess' AND name='allowAirPlayIncomingRequests' AND (value = 0 OR value = 'false') AND username = '' LIMIT 1;
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-macos-13-2.3.1.2
   contributors: lucasmrod
@@ -334,7 +334,7 @@ spec:
         1. The PayloadType string is com.apple.applicationaccess.
         2. The key to include is forceAutomaticDateAndTime.
         3. The key must be set to <true/>.
-  query: SELECT 1 FROM managed_policies WHERE domain='com.apple.applicationaccess' AND name='forceAutomaticDateAndTime' AND value=1 LIMIT 1;
+  query: SELECT 1 FROM managed_policies WHERE domain='com.apple.applicationaccess' AND name='forceAutomaticDateAndTime' AND value=1 AND username = '' LIMIT 1;
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-macos-13-2.3.2.1
   contributors: sharon-fdm
@@ -616,7 +616,7 @@ spec:
       2. The key to include is allowContentCaching
       3. The key must be set to <false/>
   query: |
-    SELECT 1 WHERE EXISTS (SELECT * FROM managed_policies mp WHERE domain = 'com.apple.applicationaccess' AND name = 'allowContentCaching' AND value = 0)
+    SELECT 1 WHERE EXISTS (SELECT * FROM managed_policies mp WHERE domain = 'com.apple.applicationaccess' AND name = 'allowContentCaching' AND value = 0 AND username = '')
     AND NOT EXISTS (SELECT * FROM managed_policies mp WHERE domain = 'com.apple.applicationaccess' AND name = 'allowContentCaching' AND value != 0);
   purpose: Informational
   tags: compliance, CIS, CIS_Level2, CIS-macos-13-2.3.3.9
@@ -671,17 +671,20 @@ spec:
       SELECT 1 FROM managed_policies WHERE
         domain = 'com.apple.preferences.sharing.SharingPrefsExtension' AND
         name = 'homeSharingUIStatus' AND
-        value = '0'
+        value = '0' AND 
+        username = ''
     ) AND EXISTS (
       SELECT 1 FROM managed_policies WHERE
         domain = 'com.apple.preferences.sharing.SharingPrefsExtension' AND
         name = 'legacySharingUIStatus' AND
-        value = '0'
+        value = '0' AND 
+        username = ''
     ) AND EXISTS (
       SELECT 1 FROM managed_policies WHERE
         domain = 'com.apple.preferences.sharing.SharingPrefsExtension' AND
         name = 'mediaSharingUIStatus' AND
-        value = '0'
+        value = '0' AND 
+        username = ''
     );
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-macos-13-2.3.3.10
@@ -773,7 +776,7 @@ spec:
     1. The `PayloadType` string is `com.apple.controlcenter`.
     2. The key to include is `WiFi`.
     3. The key must be set to `<integer>18</integer>`.
-  query: SELECT 1 FROM managed_policies WHERE domain = 'com.apple.controlcenter' AND name = 'WiFi' AND value = 18;
+  query: SELECT 1 FROM managed_policies WHERE domain = 'com.apple.controlcenter' AND name = 'WiFi' AND value = 18 AND username = '';
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-macos-13-2.4.1
   contributors: lucasmrod
@@ -795,7 +798,7 @@ spec:
     1. The `PayloadType` string is `com.apple.controlcenter`.
     2. The key to include is `Bluetooth`.
     3. The key must be set to `<integer>18</integer>`.
-  query: SELECT 1 FROM managed_policies WHERE domain = 'com.apple.controlcenter' AND name = 'Bluetooth' AND value = 18;
+  query: SELECT 1 FROM managed_policies WHERE domain = 'com.apple.controlcenter' AND name = 'Bluetooth' AND value = 18 AND username = '';
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-macos-13-2.4.2
   contributors: lucasmrod
@@ -822,7 +825,8 @@ spec:
         domain='com.apple.applicationaccess' 
         AND 
         name='allowAssistant' 
-        AND (value = '1' OR value = 'true');
+        AND (value = '1' OR value = 'true') 
+        AND username = '';
     /*CIS does not make a hard recommendation for this policy. Fleet has provided two policies (one failing, one succeeding). 
       Depending on your organization's decision, you can delete this policy or its counterpart.*/
   purpose: Informational
@@ -851,7 +855,8 @@ spec:
         domain='com.apple.applicationaccess' 
         AND 
         name='allowAssistant' 
-        AND (value = '0' OR value = 'false');
+        AND (value = '0' OR value = 'false') 
+        AND username = '';
     /*CIS does not make a hard recommendation for this policy. Fleet has provided two policies (one failing, one succeeding). 
       Depending on your organization's decision, you can delete this policy or its counterpart.*/
   purpose: Informational
@@ -1236,7 +1241,7 @@ spec:
         1. Open Privacy & Security
         2. Select Apple Advertising
         3. Verify that Personalized Ads is not enabled
-  query: SELECT 1 FROM managed_policies WHERE domain='com.apple.applicationaccess' AND name='allowApplePersonalizedAdvertising' AND value=0;
+  query: SELECT 1 FROM managed_policies WHERE domain='com.apple.applicationaccess' AND name='allowApplePersonalizedAdvertising' AND value=0 AND username = '';
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-macos-13-2.6.3
   contributors: sharon-fdm
@@ -1317,7 +1322,8 @@ spec:
       domain='com.apple.universalcontrol' 
       AND 
       name='Disable' 
-      AND value = '0';  
+      AND value = '0'
+      AND username = '';  
     /*CIS does not make a hard recommendation for this policy. Fleet has provided two policies (one failing, one succeeding). 
       Depending on your organization's decision, you can delete this policy or its counterpart.*/
   purpose: Informational
@@ -1345,7 +1351,8 @@ spec:
       domain='com.apple.universalcontrol' 
       AND 
       name='Disable' 
-      AND value = '1';  
+      AND value = '1'
+      AND username = '';  
     /*CIS does not make a hard recommendation for this policy. Fleet has provided two policies (one failing, one succeeding). 
       Depending on your organization's decision, you can delete this policy or its counterpart.*/
   purpose: Informational
@@ -1508,7 +1515,7 @@ spec:
         3. Verify that Require password after screensaver begins or display is turned
         off is set with After 0 seconds or After 5 seconds
   query: |
-    SELECT 1 WHERE EXISTS(select 1 FROM managed_policies WHERE domain='com.apple.screensaver' AND name='askForPassword' AND value=1)  AND EXISTS(select 1 FROM managed_policies WHERE domain='com.apple.screensaver' AND name='askForPasswordDelay' AND value <= 5)
+    SELECT 1 WHERE EXISTS(select 1 FROM managed_policies WHERE domain='com.apple.screensaver' AND name='askForPassword' AND value=1)  AND EXISTS(select 1 FROM managed_policies WHERE domain='com.apple.screensaver' AND name='askForPasswordDelay' AND value <= 5 AND username = '')
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-macos-13-2.10.2
   contributors: sharon-fdm
@@ -1554,11 +1561,11 @@ spec:
         6. Verify that Improve Siri & Dictation is not enabled
   query: |
     SELECT 1 WHERE 
-    EXISTS(select 1 FROM managed_policies WHERE domain='com.apple.SubmitDiagInfo' AND name='AutoSubmit' AND value = 0)  
+    EXISTS(select 1 FROM managed_policies WHERE domain='com.apple.SubmitDiagInfo' AND name='AutoSubmit' AND value = 0 AND username = '')  
     AND 
-    EXISTS(select 1 FROM managed_policies WHERE domain='com.apple.applicationaccess' AND name='allowDiagnosticSubmission' AND value = 0)
+    EXISTS(select 1 FROM managed_policies WHERE domain='com.apple.applicationaccess' AND name='allowDiagnosticSubmission' AND value = 0 AND username = '')
     AND 
-    EXISTS(select 1 FROM managed_policies WHERE domain='com.apple.applicationaccess' AND name='Siri Data Sharing Opt-In Status' AND value = 2);
+    EXISTS(select 1 FROM managed_policies WHERE domain='com.apple.applicationaccess' AND name='Siri Data Sharing Opt-In Status' AND value = 2 AND username = '');
   purpose: Informational
   tags: compliance, CIS, CIS_Level2, CIS-macos-13-2.6.2
   contributors: sharon-fdm
@@ -1578,7 +1585,7 @@ spec:
         1. Open System Settings
         2. Select Lock Screen
         3. Verify that Start Screen Saver when inactive is set for 20 minutes or less (≤1200 seconds)
-  query: SELECT 1 FROM managed_policies WHERE domain='com.apple.screensaver' AND name='idleTime' AND value <= 1200;
+  query: SELECT 1 FROM managed_policies WHERE domain='com.apple.screensaver' AND name='idleTime' AND value <= 1200 AND username = '';
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-macos-13-2.10.1
   contributors: sharon-fdm
