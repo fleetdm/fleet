@@ -483,7 +483,7 @@ Once you have access to ABM, follow [these guided instructions](../Using-Fleet/M
 
 The server also needs a private key + certificate to identify with Apple's [APNs](https://github.com/fleetdm/fleet/blob/main/tools/mdm/apple/glossary-and-protocols.md#apns-apple-push-notification-service) servers, and another for [SCEP](https://github.com/fleetdm/fleet/blob/main/tools/mdm/apple/glossary-and-protocols.md#scep-simple-certificate-enrollment-protocol).
 
-To generate both, follow [these guided instructions](../Using-Fleet/Mobile-device-management.md#apple-push-notification-service-ap-ns).
+To generate both, follow [these guided instructions](../Using-Fleet/Mobile-device-management.md#apple-push-notification-service-apns).
 
 Note that:
 

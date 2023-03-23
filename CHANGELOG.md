@@ -618,7 +618,7 @@ settings.
 
 * Fixed a bug in which logging in with single sign-on (SSO) did not work after a failed authorization attempt.
 
-* Fixed a migration error. This only affects Fleet instances that use MariaDB. MariaDB is not [officially supported](https://fleetdm.com/docs/deploying/faq#what-my-sql-versions-are-supported). Future issues specific to MariaDB may not be fixed quickly (or at all). We strongly advise migrating to MySQL 8.0.19+.
+* Fixed a migration error. This only affects Fleet instances that use MariaDB. MariaDB is not [officially supported](https://fleetdm.com/docs/deploying/faq#what-mysql-versions-are-supported). Future issues specific to MariaDB may not be fixed quickly (or at all). We strongly advise migrating to MySQL 8.0.19+.
 
 * Fixed a bug on the **Edit pack** page in which no targets are shown in the target picker.
 
@@ -991,7 +991,7 @@ was not in the `tmp/` directory.
 * Fixed a bug in which Fleet failed to connect to Redis in standalone mode.
 ## Fleet 4.12.1 (Apr 4, 2022)
 
-* Fixed a bug in which a user could not log in with basic authentication. This only affects Fleet deployments that use a [MySQL read replica](https://fleetdm.com/docs/deploying/configuration#my-sql).
+* Fixed a bug in which a user could not log in with basic authentication. This only affects Fleet deployments that use a [MySQL read replica](https://fleetdm.com/docs/deploying/configuration#mysql).
 
 ## Fleet 4.12.0 (Mar 24, 2022)
 
