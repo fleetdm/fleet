@@ -291,6 +291,14 @@ module.exports.routes = {
     }
   },
 
+  'GET /launch-party': {
+    action: 'landing-page/view-launch-party',
+    locals: {
+      pageTitleForMeta: '',
+      pageDescriptionForMeta: '',
+    }
+  },
+
 
 
   //  ╦╔╦╗╔═╗╔═╗╦╔╗╔╔═╗  ┌─┬  ┌─┐┌┐┌┌┬┐┬┌┐┌┌─┐  ┌─┐┌─┐┌─┐┌─┐┌─┐─┐
