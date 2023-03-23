@@ -292,10 +292,12 @@ module.exports.routes = {
   },
 
   'GET /launch-party': {
-    action: 'landing-page/view-launch-party',
+    action: 'landing-pages/view-launch-party',
     locals: {
+      layout: 'layouts/layout-sandbox',
       pageTitleForMeta: '',
       pageDescriptionForMeta: '',
+      headerCTAHidden: true,
     }
   },
 
@@ -458,6 +460,7 @@ module.exports.routes = {
   'POST /api/v1/admin/generate-license-key': { action: 'admin/generate-license-key' },
   'POST /api/v1/create-vanta-authorization-request': { action: 'create-vanta-authorization-request' },
   'POST /api/v1/deliver-mdm-beta-signup':                   { action: 'deliver-mdm-beta-signup' },
+  'POST /api/v1/deliver-launch-party-signup':                   { action: 'landing-pages/deliver-launch-party-signup' },
   'POST /api/v1/deliver-apple-csr ': { action: 'deliver-apple-csr', csrf: false},
   'POST /api/v1/deliver-premium-upgrade-form': { action: 'deliver-premium-upgrade-form' },
 };
