@@ -149,16 +149,19 @@ module.exports.custom = {
     'mdm_profiles': ['lukeheath', 'zwass'],
     'vpn': ['rfairburn', 'zwass'],
 
-    // Folder that any fleetie (team member contracted with company) can push to, willy-nilly
+    // Folder that any fleetie (core team member, not consultants) can push to, willy-nilly
     'free-for-all': '*',
 
+    // Cold outbound strategy (see fleetdm.com/handbook/company/why-this-way for our vision of a better way to sell)
+    'cold-outbound-strategy.md': ['mikermcneil'],
+
     // Boilerplate
-    'README.md': ['mikermcneil', 'zwass', 'hollidayn'],
-    'CODEOWNERS': ['mikermcneil', 'zwass', 'hollidayn', 'dherder', 'zayhanlon'],
-    '.gitignore': ['mikermcneil', 'zwass', 'hollidayn', 'dherder', 'zayhanlon'],
+    'README.md': ['mikermcneil'],
+    'CODEOWNERS': ['mikermcneil'],
+    '.gitignore': ['mikermcneil', 'zwass', 'hollidayn', 'dherder', 'zayhanlon', 'lukeheath', 'zwinnerman-fleetdm', 'rfairburn'],
 
     // CI/CD workflows
-    '.github/workflows': ['mikermcneil', 'zwass', 'hollidayn'],
+    '.github/workflows': ['mikermcneil', 'zwass', 'hollidayn', 'lukeheath'],
 
     // GitHub issue templates
     '.github/ISSUE_TEMPLATE': ['mikermcneil'],
