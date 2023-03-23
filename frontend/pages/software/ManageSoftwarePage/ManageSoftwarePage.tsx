@@ -239,7 +239,7 @@ const ManageSoftwarePage = ({
             ? "epss_probability"
             : sortHeader,
         teamId: teamIdForApi,
-        vulnerable: !!location.query.vulnerable,
+        vulnerable: filterVuln,
       },
     ],
     ({ queryKey }) => softwareAPI.load(queryKey[0]),
@@ -267,7 +267,7 @@ const ManageSoftwarePage = ({
       {
         scope: "softwareCount",
         query: searchQuery,
-        vulnerable: !!location.query.vulnerable,
+        vulnerable: filterVuln,
         teamId: teamIdForApi,
       },
     ],
