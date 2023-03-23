@@ -188,7 +188,7 @@ func (svc *Service) MDMAppleOktaLogin(ctx context.Context, username, password st
 	return apple_mdm.GenerateEnrollmentProfileMobileconfig(
 		appConfig.OrgInfo.OrgName,
 		appConfig.ServerSettings.ServerURL+"?"+query.Encode(),
-		svc.config.MDMApple.SCEP.Challenge,
+		svc.config.MDM.AppleSCEPChallenge,
 		svc.mdmPushCertTopic,
 	)
 }
