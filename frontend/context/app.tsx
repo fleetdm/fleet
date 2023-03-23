@@ -3,9 +3,9 @@ import React, { createContext, useReducer, ReactNode } from "react";
 import { IConfig } from "interfaces/config";
 import { IEnrollSecret } from "interfaces/enroll_secret";
 import {
-  ALL_TEAMS_SUMMARY,
+  APP_CONTEXT_ALL_TEAMS_SUMMARY,
   ITeamSummary,
-  NO_TEAM_SUMMARY,
+  APP_CONTEX_NO_TEAM_SUMMARY,
 } from "interfaces/team";
 import { IUser } from "interfaces/user";
 import permissions from "utilities/permissions";
@@ -200,10 +200,14 @@ const reducer = (state: InitialStateType, action: IAction) => {
       );
       sortedTeams = sortedTeams.filter(
         (t) =>
-          t.name !== ALL_TEAMS_SUMMARY.name && t.name !== NO_TEAM_SUMMARY.name
+          t.name !== APP_CONTEXT_ALL_TEAMS_SUMMARY.name &&
+          t.name !== APP_CONTEX_NO_TEAM_SUMMARY.name
       );
       if (user && permissions.isOnGlobalTeam(user)) {
-        sortedTeams.unshift(ALL_TEAMS_SUMMARY, NO_TEAM_SUMMARY);
+        sortedTeams.unshift(
+          APP_CONTEXT_ALL_TEAMS_SUMMARY,
+          APP_CONTEX_NO_TEAM_SUMMARY
+        );
       }
 
       return {

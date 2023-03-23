@@ -4,46 +4,17 @@ import { findLastIndex, trimStart } from "lodash";
 
 import { AppContext } from "context/app";
 import {
-  ALL_TEAMS_ID,
+  APP_CONTEXT_ALL_TEAMS_ID,
   isAnyTeamSelected,
   ITeamSummary,
-  NO_TEAM_ID,
+  APP_CONTEXT_NO_TEAM_ID,
 } from "interfaces/team";
 
-const getDefaultTeam = (
-  availableTeams: ITeamSummary[],
-  includeAll: boolean,
-  includeNoTeam: boolean
-) => {
-  let defaultTeam: ITeamSummary | undefined = availableTeams[0]; // TODO(sarah): can this be improved?
-  if (includeAll) {
-    defaultTeam =
-      availableTeams.find((t) => t.id === ALL_TEAMS_ID) || defaultTeam;
-  } else if (includeNoTeam) {
-    defaultTeam =
-      availableTeams.find((t) => t.id === NO_TEAM_ID) || defaultTeam;
-  } else {
-    defaultTeam = availableTeams.find((t) => t.id > NO_TEAM_ID) || defaultTeam;
-  }
-  return defaultTeam;
-};
-
-const teamIdForApi = ({
-  currentTeam,
-  includeNoTeam = false,
-}: {
-  currentTeam?: ITeamSummary;
-  includeNoTeam?: boolean;
-}) => {
-  if (includeNoTeam && currentTeam?.id === NO_TEAM_ID) {
-    return NO_TEAM_ID;
-  }
-
-  if (currentTeam && currentTeam.id > NO_TEAM_ID) {
-    return currentTeam.id;
-  }
-
-  return undefined;
+const coerceAllTeamsId = (s: string) => {
+  // URLs for the app represent "All teams" by the absence of the team id param
+  // "All teams" is represented in AppContext with -1 as the team id so empty
+  // strings are coerced to -1 by this function
+  return s.length ? parseInt(s, 10) : APP_CONTEXT_ALL_TEAMS_ID;
 };
 
 const splitQueryStringParts = (queryString: string) =>
@@ -51,35 +22,76 @@ const splitQueryStringParts = (queryString: string) =>
     .split("&")
     .filter((p) => p.includes("="));
 
+const joinQueryStringParts = (parts: string[]) =>
+  parts.length ? `?${parts.join("&")}` : "";
+
 const rebuildQueryStringWithTeamId = (
   queryString: string,
   newTeamId: number
 ) => {
   const parts = splitQueryStringParts(queryString);
+  const teamIndex = parts.findIndex((p) => p.startsWith("team_id="));
 
-  const teamIndex = parts.findIndex((p) => p.includes("team_id"));
+  // URLs for the app represent "All teams" by the absence of the team id param
+  const newTeamPart =
+    newTeamId > APP_CONTEXT_ALL_TEAMS_ID ? `team_id=${newTeamId}` : "";
 
-  if (
-    teamIndex >= 0 &&
-    teamIndex !== findLastIndex(parts, (p) => p.includes("team_id"))
-  ) {
+  if (teamIndex < 0) {
+    // nothing to remove/replace so add the new part (if any) and rejoin
+    return joinQueryStringParts(
+      newTeamPart ? parts.concat(newTeamPart) : parts
+    );
+  }
+
+  if (teamIndex !== findLastIndex(parts, (p) => p.startsWith("team_id="))) {
     console.warn(
       `URL contains more than one team_id parameter: ${queryString}`
     );
   }
 
-  if (newTeamId === ALL_TEAMS_ID) {
-    // remove old team param if any
-    teamIndex >= 0 && parts.splice(teamIndex, 1);
+  if (newTeamPart) {
+    parts.splice(teamIndex, 1, newTeamPart); // remove the old part and replace with the new
   } else {
-    const teamPart = `team_id=${newTeamId}`;
-    teamIndex >= 0
-      ? parts.splice(teamIndex, 1, teamPart) // replace old param
-      : parts.push(teamPart); // add new param
+    parts.splice(teamIndex, 1); // just remove the old team part
   }
-  console.log("newQueryParams", parts);
+  return joinQueryStringParts(parts);
+};
 
-  return !parts.length ? "" : `?${parts.join("&")}`;
+const getTeamIdForApi = ({
+  currentTeam,
+  includeNoTeam = false,
+}: {
+  currentTeam?: ITeamSummary;
+  includeNoTeam?: boolean;
+}) => {
+  if (includeNoTeam && currentTeam?.id === APP_CONTEXT_NO_TEAM_ID) {
+    return APP_CONTEXT_NO_TEAM_ID;
+  }
+  if (currentTeam && currentTeam.id > APP_CONTEXT_NO_TEAM_ID) {
+    return currentTeam.id;
+  }
+  return undefined; // API will treat undefined as equivalent to "All teams"
+};
+
+const getDefaultTeam = (
+  availableTeams: ITeamSummary[],
+  includeAllTeams: boolean,
+  includeNoTeam: boolean
+) => {
+  let defaultTeam: ITeamSummary | undefined = availableTeams[0]; // TODO(sarah): can this be improved?
+  if (includeAllTeams) {
+    defaultTeam =
+      availableTeams.find((t) => t.id === APP_CONTEXT_ALL_TEAMS_ID) ||
+      defaultTeam;
+  } else if (includeNoTeam) {
+    defaultTeam =
+      availableTeams.find((t) => t.id === APP_CONTEXT_NO_TEAM_ID) ||
+      defaultTeam;
+  } else {
+    defaultTeam =
+      availableTeams.find((t) => t.id > APP_CONTEXT_NO_TEAM_ID) || defaultTeam;
+  }
+  return defaultTeam;
 };
 
 const isValidTeamId = ({
@@ -94,13 +106,45 @@ const isValidTeamId = ({
   teamId: number;
 }) => {
   if (
-    (teamId === ALL_TEAMS_ID && !includeAllTeams) ||
-    (teamId === NO_TEAM_ID && !includeNoTeam) ||
+    (teamId === APP_CONTEXT_ALL_TEAMS_ID && !includeAllTeams) ||
+    (teamId === APP_CONTEXT_NO_TEAM_ID && !includeNoTeam) ||
     !availableTeams?.find((t) => t.id === teamId)
   ) {
     return false;
   }
   return true;
+};
+
+const shouldRedirectToDefaultTeam = ({
+  availableTeams,
+  includeAllTeams,
+  includeNoTeam,
+  query,
+}: {
+  availableTeams: ITeamSummary[];
+  defaultTeamId: number;
+  includeAllTeams: boolean;
+  includeNoTeam: boolean;
+  query: { team_id?: string };
+}) => {
+  const teamIdString = query?.team_id || "";
+  const parsedTeamId = parseInt(teamIdString, 10);
+
+  // redirect non-numeric strings and negative numbers to default (e.g., `/hosts?team_id=-1` should
+  // be redirected to `/hosts`)
+  if (teamIdString.length && (isNaN(parsedTeamId) || parsedTeamId < 0)) {
+    return true;
+  }
+
+  // coerce empty string to -1 (i.e. `ALL_TEAMS_ID`) and test again (this ensures that non-global users will be
+  // redirected to their default team when they attempt to access the `/hosts` page and also ensures
+  // all users are redirected to their default when they attempt to acess non-existent team ids).
+  return !isValidTeamId({
+    availableTeams,
+    includeAllTeams,
+    includeNoTeam,
+    teamId: coerceAllTeamsId(teamIdString),
+  });
 };
 
 export const useTeamIdParam = ({
@@ -144,33 +188,27 @@ export const useTeamIdParam = ({
 
   useEffect(() => {
     if (!availableTeams?.length || !memoizedDefaultTeam) {
-      return;
+      return; // skip effect until these values are available
     }
 
-    const teamIdString = query?.team_id || "";
-    let parsedTeamId = parseInt(teamIdString, 10);
-
-    // test for negative numbers or non-numeric values and redirect to default
-    if (teamIdString.length && (isNaN(parsedTeamId) || parsedTeamId < 0)) {
-      handleTeamChange(memoizedDefaultTeam.id);
-      return;
-    }
-
-    // coerce undefined/empty string to -1
-    parsedTeamId = !teamIdString.length ? ALL_TEAMS_ID : parsedTeamId;
+    // first reconcile router location and redirect to default team as applicable
     if (
-      !isValidTeamId({
+      shouldRedirectToDefaultTeam({
         availableTeams,
+        defaultTeamId: memoizedDefaultTeam.id,
         includeAllTeams,
         includeNoTeam,
-        teamId: parsedTeamId,
+        query,
       })
     ) {
       handleTeamChange(memoizedDefaultTeam.id);
-      return;
+      return; // allow router to update first before updating context
     }
-    if (parsedTeamId !== currentTeam?.id) {
-      setCurrentTeam(availableTeams?.find((t) => t.id === parsedTeamId));
+
+    // location is resolved, so proceed to update team context
+    const teamId = coerceAllTeamsId(query?.team_id || "");
+    if (teamId !== currentTeam?.id) {
+      setCurrentTeam(availableTeams?.find((t) => t.id === teamId));
     }
   }, [
     availableTeams,
@@ -188,7 +226,7 @@ export const useTeamIdParam = ({
     currentTeamId: currentTeam?.id,
     currentTeamName: currentTeam?.name,
     isAnyTeamSelected: isAnyTeamSelected(currentTeam),
-    teamIdForApi: teamIdForApi({ currentTeam, includeNoTeam }),
+    teamIdForApi: getTeamIdForApi({ currentTeam, includeNoTeam }),
     handleTeamChange,
   };
 };

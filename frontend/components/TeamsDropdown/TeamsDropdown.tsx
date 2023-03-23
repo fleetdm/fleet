@@ -1,9 +1,9 @@
 import React, { useMemo } from "react";
 import classnames from "classnames";
 import {
-  ALL_TEAMS_SUMMARY,
+  APP_CONTEXT_ALL_TEAMS_SUMMARY,
   ITeamSummary,
-  NO_TEAM_SUMMARY,
+  APP_CONTEX_NO_TEAM_SUMMARY,
 } from "interfaces/team";
 
 // @ts-ignore
@@ -27,8 +27,8 @@ const generateDropdownOptions = (
   const filtered = options.filter(
     (o) =>
       !(
-        (o.label === NO_TEAM_SUMMARY.name && !includeNoTeams) ||
-        (o.label === ALL_TEAMS_SUMMARY.name && !includeAll)
+        (o.label === APP_CONTEX_NO_TEAM_SUMMARY.name && !includeNoTeams) ||
+        (o.label === APP_CONTEXT_ALL_TEAMS_SUMMARY.name && !includeAll)
       )
   );
 

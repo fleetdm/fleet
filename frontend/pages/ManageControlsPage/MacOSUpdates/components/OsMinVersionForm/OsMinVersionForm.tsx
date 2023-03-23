@@ -11,7 +11,7 @@ import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button";
 import validatePresence from "components/forms/validators/validate_presence";
-import { NO_TEAM_ID } from "interfaces/team";
+import { APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
 
 const baseClass = "os-min-version-form";
 
@@ -67,19 +67,21 @@ interface IOsMinVersionForm {
 }
 
 const OsMinVersionForm = ({
-  currentTeamId = NO_TEAM_ID,
+  currentTeamId = APP_CONTEXT_NO_TEAM_ID,
 }: IOsMinVersionForm) => {
   const { renderFlash } = useContext(NotificationContext);
   const { config } = useContext(AppContext);
 
   const [isSaving, setIsSaving] = useState(false);
   const [minOsVersion, setMinOsVersion] = useState(
-    currentTeamId === NO_TEAM_ID
+    currentTeamId === APP_CONTEXT_NO_TEAM_ID
       ? config?.mdm.macos_updates.minimum_version ?? ""
       : ""
   );
   const [deadline, setDeadline] = useState(
-    currentTeamId === NO_TEAM_ID ? config?.mdm.macos_updates.deadline ?? "" : ""
+    currentTeamId === APP_CONTEXT_NO_TEAM_ID
+      ? config?.mdm.macos_updates.deadline ?? ""
+      : ""
   );
   const [minOsVersionError, setMinOsVersionError] = useState<
     string | undefined
@@ -96,7 +98,7 @@ const OsMinVersionForm = ({
     {
       refetchOnWindowFocus: false,
       staleTime: Infinity,
-      enabled: currentTeamId > NO_TEAM_ID,
+      enabled: currentTeamId > APP_CONTEXT_NO_TEAM_ID,
       onSuccess: (data) => {
         setMinOsVersion(data.team?.mdm?.macos_updates?.minimum_version ?? "");
         setDeadline(data.team?.mdm?.macos_updates?.deadline ?? "");
@@ -118,7 +120,7 @@ const OsMinVersionForm = ({
       setIsSaving(true);
       const updateData = createMdmConfigData(minOsVersion, deadline);
       try {
-        currentTeamId === NO_TEAM_ID
+        currentTeamId === APP_CONTEXT_NO_TEAM_ID
           ? await configAPI.update(updateData)
           : await teamsAPI.update(updateData, currentTeamId);
         renderFlash("success", "Successfully updated minimum version!");
