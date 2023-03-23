@@ -76,16 +76,40 @@ Keep headings brief, organized, and in a logical order:
 
 Try to stay within three or four heading levels. Detailed documents may use more, but pages with a simpler structure are easier to read.
 
-#### Sentence case
-Fleet uses sentence case capitalization for all headings across the Fleet product, fleetdm.com, our documentation, and our marketing material. In sentence case, we write titles as if they were sentences:
+#### Punctuation in headings
+Fleet headings do not use end punctuation unless the heading is a question:
+
+> Learn how to use osquery, nanoMDM, and Nudge to manage and monitor laptops and servers running Linux, Windows, ChromeOS, and macOS
+
+If the heading is a question, end the heading with a question mark.
+
+
+### Sentence case
+Fleet uses sentence case capitalization for all headings, subheadings, button text in the Fleet product, fleetdm.com, the documentation, the handbook, marketing material, direct emails, in Slack, and in every other conceivable situation.
+
+In sentence case, we write and capitalize words as if they were in sentences:
 
 > Ask questions about your servers, containers, and laptops running Linux, Windows, and macOS
 
-As we use sentence case, only the first word of a heading and subheading is capitalized. However, if a word would normally be capitalized in the sentence (e.g., a proper noun) it should remain capitalized in the heading.
+As we use sentence case, only the first word is capitalized. But, if a word would normally be capitalized in the sentence (e.g., a proper noun, an acronym, or a stylization) it should remain capitalized.
 
-Note the capitalization of “macOS” in the example above. Although this is a proper noun, macOS uses its own style guide from Apple, to which we adhere.
+- Proper nouns _("Nudge", "Skimbleshanks", "Kleenex")_
+  - "Yeah, we use Nudge"
+  - "Introducing our friend Skimbleshanks"
+  - "Please, can I have a Kleenex?"
+- Acronyms _("MDM", "REST", "API", "JSON")_
+  - "MDM commands in Fleet are available over a REST API that returns JSON"
+- Stylizations _("macOS", "osquery", "MySQL")
+  - "Although 'macOS' is a proper noun, macOS uses its own style guide from Apple, to which we adhere"
+  - "Zach is the co-creator of osquery"
+  - "Does it work with MySQL?"
 
-You might’ve noticed that there isn’t a period at the end of the example heading. Fleet headings do not use end punctuation unless the heading is a question. If the heading is a question, end the heading with a question mark.
+#### Why sentence case?
+The reason for sentence case at Fleet is that everyone capitalizes differently in English, and capitalization conventions have not been taught very consistently in schools.  Sentence case simplifies capitalization rules so that contributors can deliver more natural, even-looking content with a voice that feels similar no matter where you're reading it.
+
+> Struggling with this?  It takes some adjustment, and you need repetitions of seeing things written this way and correcting yourself.  Many contributors have given the feedback that this opinionated solution is a huge relief once you build the habit of using sentence case capitalization, since it frees up mental capacity in every copywriting situation.  You don't have to think as hard, nor choose between flouting and laboriously adhering to the (likely somewhat complex and out of date) styleguide.
+
+> TODO: extrapolate the bulk of this whole sentence-case section to "Why this way", since it applies for every department at Fleet
 
 ### Contractions
 They’re great! Don’t be afraid to use them. They’ll help your writing sound more approachable.
