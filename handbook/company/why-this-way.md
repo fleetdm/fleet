@@ -233,6 +233,11 @@ That means:
 3. Including a situation where a user has to wait longer than 5 seconds during signup on fleetdm.com  (or any time we breach an agreed upon response time guarantee)
 4. Including when a scheduled job fails and we aren't sure yet whether or not any real users are affected.
 
+## Why isn't our Sales, Sales?
+Instead of having sales people 'spray and pray' messages, we take a different approach.
+We have engineers reach out to organizations using Fleet and ask 'how's it going'.
+There's multiple versions of Fleet - we want to help you pick the right one.
+(https://github.com/fleetdm/confidential/blob/main/free-for-all/cold-outbound-strategy.md)
 
 
 <meta name="maintainedBy" value="mikermcneil">
