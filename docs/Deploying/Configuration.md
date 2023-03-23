@@ -3059,7 +3059,11 @@ configuration problems.
 > Individual users must also be set up on the IDP before signing in to Fleet.
 
 ### Enabling SSO for existing users in Fleet
-As an admin, you can enable SSO for existing users in Fleet. To do this, go to the Settings page, then click on the Users tab. Locate the user you want to enable SSO for and on the Actions dropdown menu for that user, click on "Enable single sign-on."
+As an admin, you can enable SSO for existing users in Fleet. To do this, go to the Settings page,
+then click on the Users tab. Locate the user you want to enable SSO for, and in the Actions dropdown
+menu for that user, click on "Edit." In the dialogue that opens, check the box labeled "Enable
+single sign-on," then click "Save." If you are unable to check that box, you must first [configure
+and enable SSO for the organization](https://fleetdm.com/docs/deploying/configuration#configuring-single-sign-on-sso).
 
 ### Just-in-time (JIT) user provisioning
 
