@@ -12,8 +12,7 @@ spec:
     'User Configuration\Policies\Administrative Templates\Windows Components\Attachment Manager\Do not preserve zone information in file attachments'
     Note: This Group Policy path is provided by the Group Policy template AttachmentManager.admx/adml that is included with all versions of the Microsoft Windows Administrative Templates.
   query: |
-    TODO
-    SELECT 1 FROM registry WHERE (path = 'HKEY_USERS\\[USERSID]\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Attachments\SaveZoneInformation' AND data = );
+    SELECT 1 FROM registry WHERE (path = 'HKEY_USERS\\[USERSID]\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Attachments\SaveZoneInformation' AND data = 2);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_19.7.4.1
   contributors: rachelelysia
@@ -32,8 +31,7 @@ spec:
     'User Configuration\Policies\Administrative Templates\Windows Components\Attachment Manager\Notify antivirus programs when opening attachments'
     Note: This Group Policy path is provided by the Group Policy template AttachmentManager.admx/adml that is included with all versions of the Microsoft Windows Administrative Templates.
   query: |
-    TODO
-    SELECT 1 FROM registry WHERE (path = 'HKEY_USERS\\[USERSID]\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Attachments\ScanWithAntiVirus' AND data = );
+    SELECT 1 FROM registry WHERE (path = 'HKEY_USERS\\[USERSID]\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Attachments\ScanWithAntiVirus' AND data = 3);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_19.7.4.2
   contributors: rachelelysia
@@ -52,8 +50,7 @@ spec:
     'User Configuration\Policies\Administrative Templates\Windows Components\Cloud Content\Configure Windows spotlight on lock screen'
     Note: This Group Policy path may not exist by default. It is provided by the Group Policy template CloudContent.admx/adml that is included with the Microsoft Windows 10 Release 1607 & Server 2016 Administrative Templates (or newer).
   query: |
-    TODO
-    SELECT 1 FROM registry WHERE (path = 'HKEY_USERS\\[USERSID]\\Software\\Policies\\Microsoft\\Windows\\CloudContent\ConfigureWindowsSpotlight' AND data = );
+    SELECT 1 FROM registry WHERE (path = 'HKEY_USERS\\[USERSID]\\Software\\Policies\\Microsoft\\Windows\\CloudContent\ConfigureWindowsSpotlight' AND data = 1);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_19.7.8.1
   contributors: rachelelysia
@@ -72,8 +69,7 @@ spec:
     'User Configuration\Policies\Administrative Templates\Windows Components\Cloud Content\Do not suggest third-party content in Windows spotlight'
     Note: This Group Policy path may not exist by default. It is provided by the Group Policy template CloudContent.admx/adml that is included with the Microsoft Windows 10 Release 1607 & Server 2016 Administrative Templates (or newer).
   query: |
-    TODO
-    SELECT 1 FROM registry WHERE (path = 'HKEY_USERS\\[USERSID]\\Software\\Policies\\Microsoft\\Windows\\CloudContent\DisableThirdPartySuggestions' AND data = );
+    SELECT 1 FROM registry WHERE (path = 'HKEY_USERS\\[USERSID]\\Software\\Policies\\Microsoft\\Windows\\CloudContent\DisableThirdPartySuggestions' AND data = 1);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_19.7.8.2
   contributors: rachelelysia
@@ -92,8 +88,7 @@ spec:
     'User Configuration\Policies\Administrative Templates\Windows Components\Cloud Content\Do not use diagnostic data for tailored experiences'
     Note: This Group Policy path may not exist by default. It is provided by the Group Policy template CloudContent.admx/adml that is included with the Microsoft Windows 10 Release 1703 Administrative Templates (or newer).
   query: |
-    TODO
-    SELECT 1 FROM registry WHERE (path = 'HKEY_USERS\\[USERSID]\\Software\\Policies\\Microsoft\\Windows\\CloudContent\DisableTailoredExperiencesWithDiagnosticData' AND data = );
+    SELECT 1 FROM registry WHERE (path = 'HKEY_USERS\\[USERSID]\\Software\\Policies\\Microsoft\\Windows\\CloudContent\DisableTailoredExperiencesWithDiagnosticData' AND data = 1);
   purpose: Informational
   tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_19.7.8.3
   contributors: rachelelysia
@@ -112,7 +107,6 @@ spec:
     'User Configuration\Policies\Administrative Templates\Windows Components\Cloud Content\Turn off all Windows spotlight features'
     Note: This Group Policy path may not exist by default. It is provided by the Group Policy template CloudContent.admx/adml that is included with the Microsoft Windows 10 Release 1607 & Server 2016 Administrative Templates (or newer).
   query: |
-    TODO
     SELECT 1 FROM registry WHERE (path = 'HKEY_USERS\\[USERSID]\\Software\\Policies\\Microsoft\\Windows\\CloudContent\DisableWindowsSpotlightFeatures' AND data = );
   purpose: Informational
   tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_19.7.8.4
@@ -123,9 +117,10 @@ kind: policy
 spec:
   name: >
     CIS - Ensure 'Turn off Spotlight collection on Desktop' is set to 'Enabled'
-  platforms: win10
+  platforms: win11
   platform: windows
   description: |
+    This policy is meant for Windows 11.
     This policy setting removes the Spotlight collection setting in Personalization, rendering the user unable to select and subsequently download daily images from Microsoft to the system desktop.
   resolution: |
     To establish the recommended configuration via GP, set the following UI path to Enabled:
@@ -133,9 +128,9 @@ spec:
     Note: This Group Policy path may not exist by default. It is provided by the Group Policy template CloudContent.admx/adml that is included with the Microsoft Windows 10 Release 21H2 Administrative Templates (or newer).
   query: |
     TODO
-    SELECT 1 FROM registry WHERE (path = 'HKEY_USERS\\[USERSID]\\SOFTWARE\\Policies\\Microsoft\\Windows\\CloudContent\DisableSpotlightCollectionOnDesktop' AND data = );
+    # Untested: SELECT 1 FROM registry WHERE (path = 'HKEY_USERS\\[USERSID]\\SOFTWARE\\Policies\\Microsoft\\Windows\\CloudContent\DisableSpotlightCollectionOnDesktop' AND data = 1);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_19.7.8.5
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_19.7.8.5, CIS_not_completed
   contributors: rachelelysia
 ---
 
