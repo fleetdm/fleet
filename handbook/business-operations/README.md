@@ -320,6 +320,7 @@ At Fleet, we collaborate with [core team members](#creating-a-new-position), [co
 
 > Are you a new fleetie joining the Business Operations team?  For Loom recordings demonstrating how to make offers, hire, onboard, and more please see [this classified Google Doc](https://docs.google.com/document/d/1fimxQguPOtK-2YLAVjWRNCYqs5TszAHJslhtT_23Ly0/edit).
 
+During final CEO interview, make sure 2fa is enabled.
 
 ### Hiring a consultant
 
