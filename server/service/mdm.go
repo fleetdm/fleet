@@ -1,18 +1,19 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"html/template"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
-	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	"github.com/fleetdm/fleet/v4/server/sso"
 )
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -199,39 +200,89 @@ func (svc *Service) RequestMDMAppleCSR(ctx context.Context, email, org string) (
 ////////////////////////////////////////////////////////////////////////////////
 
 type mdmAppleDEPLoginRequest struct {
-	Username string `json:"username"`
-	Password string `json:"password"`
 }
 
 type mdmAppleDEPLoginResponse struct {
-	// profile is used in hijackRender for the response.
-	profile []byte
-	Err     error `json:"error,omitempty"`
-}
-
-func (r mdmAppleDEPLoginResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
-	w.Header().Set("Content-Length", strconv.FormatInt(int64(len(r.profile)), 10))
-	w.Header().Set("Content-Type", "application/x-apple-aspen-config")
-
-	// OK to just log the error here as writing anything on
-	// `http.ResponseWriter` sets the status code to 200 (and it can't be
-	// changed.) Clients should rely on matching content-length with the
-	// header provided.
-	if n, err := w.Write(r.profile); err != nil {
-		logging.WithExtras(ctx, "err", err, "written", n)
-	}
+	URL string `json:"url,omitempty"`
+	Err error  `json:"error,omitempty"`
 }
 
 func (r mdmAppleDEPLoginResponse) error() error { return r.Err }
 
 func mdmAppleDEPLoginEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
-	req := request.(*mdmAppleDEPLoginRequest)
-	enrollProfile, err := svc.MDMAppleOktaLogin(ctx, req.Username, req.Password)
+
+	// FIXME: this is done this way just to prototype.
+	profiles, err := svc.ListMDMAppleEnrollmentProfiles(ctx)
 	if err != nil {
 		return mdmAppleDEPLoginResponse{Err: err}, nil
 	}
 
-	return mdmAppleDEPLoginResponse{profile: enrollProfile}, nil
+	idProviderURL, err := svc.InitiateSSO(ctx, profiles[0].EnrollmentURL, "/api/v1/fleet/mdm/apple/dep_login/callback")
+	if err != nil {
+		return mdmAppleDEPLoginResponse{Err: err}, nil
+	}
+	return mdmAppleDEPLoginResponse{URL: idProviderURL}, nil
+}
+
+type callbackSSODEPRequest struct{}
+
+func (callbackSSODEPRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	err := r.ParseForm()
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+			Message:     "failed to parse form",
+			InternalErr: err,
+		}, "decode sso callback")
+	}
+	authResponse, err := sso.DecodeAuthResponse(r.FormValue("SAMLResponse"))
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+			Message:     "failed to decode SAMLResponse",
+			InternalErr: err,
+		}, "decoding sso callback")
+	}
+	return authResponse, nil
+}
+
+type callbackSSODEPResponse struct {
+	content string
+	Err     error `json:"error,omitempty"`
+}
+
+func (r callbackSSODEPResponse) error() error { return r.Err }
+
+// If html is present we return a web page
+func (r callbackSSODEPResponse) html() string { return r.content }
+
+func makeCallbackSSODEPEndpoint(urlPrefix string) handlerFunc {
+	return func(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+		auth := request.(fleet.Auth)
+		redirectURL, err := svc.InitSSOCallback(ctx, auth, "/api/v1/fleet/mdm/apple/dep_login/callback")
+		if err != nil {
+			return nil, err
+		}
+		var resp callbackSSODEPResponse
+		tmpl, err := template.New("").Parse(` <html>
+     <script type='text/javascript'>
+     console.log({{ .RedirectURL }})
+     window.location = {{ .RedirectURL }};
+     </script>
+     <body>
+     Enrolling...
+     </body>
+     </html>
+    `)
+		if err != nil {
+			return nil, err
+		}
+		var writer bytes.Buffer
+		err = tmpl.Execute(&writer, map[string]string{"RedirectURL": redirectURL})
+		if err != nil {
+			return nil, err
+		}
+		resp.content = writer.String()
+		return resp, nil
+	}
 }
 
 func (svc *Service) MDMAppleOktaLogin(ctx context.Context, username, password string) ([]byte, error) {

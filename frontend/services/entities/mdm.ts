@@ -66,6 +66,11 @@ export default {
     return sendRequest("DELETE", MDM_PROFILE(profileId));
   },
 
+  initiateDEPSSO: () => {
+    const { MDM_DEP_SSO_LOGIN } = endpoints;
+    return sendRequest("POST", MDM_DEP_SSO_LOGIN, {});
+  },
+
   getAggregateProfileStatuses: (teamId?: number) => {
     let { MDM_PROFILES_AGGREGATE_STATUSES: path } = endpoints;
 

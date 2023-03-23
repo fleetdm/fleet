@@ -38,6 +38,7 @@ import PolicyPage from "pages/policies/PolicyPage";
 import QueryPage from "pages/queries/QueryPage";
 import RegistrationPage from "pages/RegistrationPage";
 import ResetPasswordPage from "pages/ResetPasswordPage";
+import DEPSSOLoginPage from "pages/DEPSSOLoginPage";
 import SoftwareDetailsPage from "pages/software/SoftwareDetailsPage";
 import ApiOnlyUser from "pages/ApiOnlyUser";
 import Fleet403 from "pages/errors/Fleet403";
@@ -97,6 +98,7 @@ const routes = (
           />
           <Route path="login/forgot" component={ForgotPasswordPage} />
           <Route path="login/reset" component={ResetPasswordPage} />
+          <Route path="dep_sso_login" component={DEPSSOLoginPage} />
         </Route>
       </Route>
       <Route component={AuthenticatedRoutes as RouteComponent}>

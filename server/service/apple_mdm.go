@@ -165,9 +165,9 @@ func listMDMAppleEnrollmentsEndpoint(ctx context.Context, request interface{}, s
 }
 
 func (svc *Service) ListMDMAppleEnrollmentProfiles(ctx context.Context) ([]*fleet.MDMAppleEnrollmentProfile, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleEnrollmentProfile{}, fleet.ActionWrite); err != nil {
-		return nil, ctxerr.Wrap(ctx, err)
-	}
+	//	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleEnrollmentProfile{}, fleet.ActionWrite); err != nil {
+	//		return nil, ctxerr.Wrap(ctx, err)
+	//	}
 
 	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {

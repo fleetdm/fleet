@@ -151,11 +151,11 @@ type Service interface {
 	// InitiateSSO is used to initiate an SSO session and returns a URL that can be used in a redirect to the IDP.
 	// Arguments: redirectURL is the URL of the protected resource that the user was trying to access when they were
 	// prompted to log in.
-	InitiateSSO(ctx context.Context, redirectURL string) (string, error)
+	InitiateSSO(ctx context.Context, redirectURL, callbackURL string) (string, error)
 
 	// InitSSOCallback handles the IDP response and ensures the credentials
 	// are valid
-	InitSSOCallback(ctx context.Context, auth Auth) (string, error)
+	InitSSOCallback(ctx context.Context, auth Auth, suffix string) (string, error)
 	// GetSSOUser handles retrieval of an user that is trying to authenticate
 	// via SSO
 	GetSSOUser(ctx context.Context, auth Auth) (*User, error)
