@@ -2599,7 +2599,7 @@ packaging:
     region: us-east-1
 ```
 
-#### Mobile device management (MDM)
+## Mobile device management (MDM)
 
 > MDM features are not ready for production and are currently in beta. These features are disabled by default. To enable these features set `FLEET_DEV_MDM_ENABLED=1` as an environment variable.
 
