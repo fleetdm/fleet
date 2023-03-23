@@ -1316,16 +1316,8 @@ func directIngestDiskEncryptionKeyDarwin(
 		)
 	}
 
-	if strings.TrimSpace(rows[0]["filevault_key"]) == "" {
-		level.Debug(logger).Log(
-			"component", "service",
-			"method", "directIngestDiskEncryptionKeyDarwin",
-			"msg", "host reported empty /var/db/FileVaultPRK.dat contents",
-			"host", host.Hostname,
-		)
-		return nil
-	}
-
+	// it's okay if the key comes empty, this can happen and if the disk is
+	// encrypted it means we need to reset the encryption key
 	return ds.SetOrUpdateHostDiskEncryptionKey(ctx, host.ID, rows[0]["filevault_key"])
 }
 
