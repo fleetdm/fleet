@@ -233,12 +233,18 @@ That means:
 3. Including a situation where a user has to wait longer than 5 seconds during signup on fleetdm.com  (or any time we breach an agreed upon response time guarantee)
 4. Including when a scheduled job fails and we aren't sure yet whether or not any real users are affected.
 
-## Why isn't our Sales, Sales?
-Instead of having sales people 'spray and pray' messages, we take a different approach.
-We have engineers reach out to organizations using Fleet and ask 'how's it going'.
-There's multiple versions of Fleet - we want to help you pick the right one.
-(https://github.com/fleetdm/confidential/blob/main/free-for-all/cold-outbound-strategy.md)
+## Why don't we sell like everyone else?
 
+Many companies encourage salespeople to "spray and pray" email blasts, and to do whatever it takes to close deals.  This can sometimes be temporarily effective.  But Fleet takes a different approach:
+- **No spam.**  Fleet is deliberate and thoughtful in the way we do [🧊 ice cold sales, community-building, and education](https://github.com/fleetdm/confidential/blob/main/free-for-all/cold-outbound-strategy.md).
+- **Be a helper.**  We focus on [being helpers](https://fleetdm.com/handbook/company#empathy).  Always be depositing value.  This is how we create a virtuous cycle. (That doesn't mean sharing a random article; it means genuinely hearing, doing whatever it takes to fully understand, and offering only advice or links that we would actually want.)  We are genuinely curious and desperate to help, because creating real value for poeple is the way we win.
+- **Engineers first.** We always talk to engineers first, and learn how it's going.  Security and IT engineers are the people closest to the work, and the people best positioned to know what their organizations need.
+- **Fewer words.  Fewer pings.**  People are busy.  We don't waste their time.  Avoid dumping work on peole's plates.  Light touches, no asks.  Every notification from Fleet is a ping they have to deal with.  We don't overload people with words and links.  We [write briefly](http://www.paulgraham.com/writing44.html).
+- **Community-first.**  We go to conferences.  We write docs.  We are participants, not sponsors.  We don't write spammy articles and landing pages. We want people who choose Fleet to be successful, whether they are paying customers or not.  We are not pushy.  We are only as commercial as we have to be to help people out.
+- **Be genuine.**  No puffery. No impressive-sounding words.  We are open and outsider friendly.  We expand acronyms, and insist on using simple language that lets everyone understand and contribute.  We help the people we work with grow in their careers and learn from each other.  We are sincere, curious, and [fair to competitors](https://fleetdm.com/handbook/company#objectivity).
+- **Step up.** We look at the big picture.  The goal is for the organization using Fleet to be successful, as well as the individuals who decide to use or buy the product.  There are multiple versions of Fleet, and so many ways to "do" open-source security and IT.  It is in the company's best interest to help engineers pick the right one; even if that's Fleet Free, or vanilla osquery, or using another solution altogether.  We think about our customers needs like they are our own.
+
+> Looking for Fleet's cold outbound strategy?  Look no further. Here's how we do [🧊 ice cold sales, community-building, and education](https://github.com/fleetdm/confidential/blob/main/free-for-all/cold-outbound-strategy.md).
 
 <meta name="maintainedBy" value="mikermcneil">
 <meta name="title" value="Why this way?">
