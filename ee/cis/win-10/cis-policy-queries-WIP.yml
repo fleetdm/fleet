@@ -29,10 +29,12 @@ spec:
     This setting controls whether or not Windows Installer should use system permissions when it installs any program on the system.
     Note: This setting appears both in the Computer Configuration and User Configuration folders. To make this setting effective, you must enable the setting in both folders.
   resolution: |
-    TODO
+    To establish the recommended configuration via GP, set the following UI path to Disabled:
+    'User Configuration\Policies\Administrative Templates\Windows Components\Windows Installer\Always install with elevated privileges'
+    Note: This Group Policy path is provided by the Group Policy template MSI.admx/adml thatis included with all versions of the Microsoft Windows Administrative Templates.
   query: |
     TODO
-    SELECT 1 FROM registry WHERE (path = '' AND data = );
+    SELECT 1 FROM registry WHERE (path = 'HKEY_USERS\[USERSID]\Software\Policies\Microsoft\Windows\Installer:AlwaysInstallElevated' AND data = );
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_19.7.43.1
   contributors: rachelelysia
