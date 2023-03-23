@@ -19,6 +19,9 @@ const TextCell = ({
   if (typeof value === "boolean") {
     val = value.toString();
   }
+  if (!val) {
+    greyed = true;
+  }
   return (
     <span className={`text-cell ${classes} ${greyed && "grey-cell"}`}>
       {formatter(val) || DEFAULT_EMPTY_CELL_VALUE}
