@@ -1,17 +1,16 @@
-import React, { useContext } from "react";
+import React, { useCallback, useContext } from "react";
 import { Tab, Tabs, TabList } from "react-tabs";
 import { InjectedRouter } from "react-router";
-import { Location } from "history";
 
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
+import useTeamIdParam from "hooks/useTeamIdParam";
 
 import TabsWrapper from "components/TabsWrapper";
 import MainContent from "components/MainContent";
-import TeamsDropdownHeader from "components/PageHeader/TeamsDropdownHeader";
+import TeamsDropdown from "components/TeamsDropdown";
 import EmptyTable from "components/EmptyTable";
 import Button from "components/buttons/Button";
-import { NO_TEAM_ID } from "interfaces/team";
 
 interface IControlsSubNavItem {
   name: string;
@@ -31,7 +30,14 @@ const controlsSubNav: IControlsSubNavItem[] = [
 
 interface IManageControlsPageProps {
   children: JSX.Element;
-  location: Location;
+  location: {
+    pathname: string;
+    search: string;
+    hash?: string;
+    query: {
+      team_id?: string;
+    };
+  };
   router: InjectedRouter; // v3
 }
 
@@ -45,38 +51,36 @@ const getTabIndex = (path: string): number => {
 const baseClass = "manage-controls-page";
 
 const ManageControlsPage = ({
+  // TODO(sarah): decide on pattern to pass team id to subcomponents.
+  // using children makes it difficult to centralize page-level control
+  // over team id param
   children,
   location,
   router,
 }: IManageControlsPageProps): JSX.Element => {
-  const { currentTeam, config } = useContext(AppContext);
+  const {
+    availableTeams,
+    config,
+    isFreeTier,
+    isOnGlobalTeam,
+    isPremiumTier,
+  } = useContext(AppContext);
 
-  const navigateToNav = (i: number): void => {
-    const navPath = controlsSubNav[i].pathname;
-    const teamId = currentTeam?.id || NO_TEAM_ID;
-    const queryString = `?team_id=${teamId}`;
-    router.replace(navPath + queryString);
-  };
+  const { currentTeamId, handleTeamSelect } = useTeamIdParam({
+    location,
+    router,
+    includeAllTeams: false,
+    includeNoTeam: true,
+  });
 
-  const renderHeader = () => (
-    <div className={`${baseClass}__header`}>
-      <div className={`${baseClass}__text`}>
-        <div className={`${baseClass}__title`}>
-          <TeamsDropdownHeader
-            router={router}
-            location={location}
-            baseClass={baseClass}
-            defaultTitle="Controls"
-            // onChange={handleTeamSelect}
-            description={() => {
-              return null;
-            }}
-            includeNoTeam
-            includeAll={false}
-          />
-        </div>
-      </div>
-    </div>
+  const navigateToNav = useCallback(
+    (i: number): void => {
+      const navPath = controlsSubNav[i].pathname;
+      router.replace(
+        navPath.concat(location?.search || "").concat(location?.hash || "")
+      );
+    },
+    [location, router]
   );
 
   const onConnectClick = () => {
@@ -88,8 +92,8 @@ const ManageControlsPage = ({
       <div>
         <TabsWrapper>
           <Tabs
-            selectedIndex={getTabIndex(location.pathname)}
-            onSelect={(i) => navigateToNav(i)}
+            selectedIndex={getTabIndex(location?.pathname || "")}
+            onSelect={navigateToNav}
           >
             <TabList>
               {controlsSubNav.map((navItem) => {
@@ -124,7 +128,34 @@ const ManageControlsPage = ({
   return (
     <MainContent>
       <div className={`${baseClass}__wrapper`}>
-        <div className={`${baseClass}__header-wrap`}>{renderHeader()}</div>
+        <div className={`${baseClass}__header-wrap`}>
+          <div className={`${baseClass}__header-wrap`}>
+            <div className={`${baseClass}__header`}>
+              <div className={`${baseClass}__text`}>
+                <div className={`${baseClass}__title`}>
+                  {isFreeTier && <h1>Controls</h1>}
+                  {isPremiumTier &&
+                    availableTeams &&
+                    (availableTeams.length > 1 || isOnGlobalTeam) && (
+                      <TeamsDropdown
+                        currentUserTeams={availableTeams}
+                        selectedTeamId={currentTeamId}
+                        onChange={handleTeamSelect}
+                        includeAll={false}
+                        includeNoTeams
+                      />
+                    )}
+                  {isPremiumTier &&
+                    !isOnGlobalTeam &&
+                    availableTeams &&
+                    availableTeams.length === 1 && (
+                      <h1>{availableTeams[0].name}</h1>
+                    )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
         {renderBody()}
       </div>
     </MainContent>

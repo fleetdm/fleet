@@ -13,6 +13,7 @@ import { useDebouncedCallback } from "use-debounce";
 
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
+import useTeamIdParam from "hooks/useTeamIdParam";
 import {
   IConfig,
   CONFIG_DEFAULT_RECENT_VULNERABILITY_MAX_AGE_IN_DAYS,
@@ -23,8 +24,9 @@ import {
   IIntegrations,
 } from "interfaces/integration";
 import { ISoftwareResponse, ISoftwareCountResponse } from "interfaces/software";
-import { ALL_TEAMS_ID, ITeamConfig, NO_TEAM_ID } from "interfaces/team";
-import { IWebhookSoftwareVulnerabilities } from "interfaces/webhook"; // @ts-ignore
+import { ITeamConfig } from "interfaces/team";
+import { IWebhookSoftwareVulnerabilities } from "interfaces/webhook";
+
 import configAPI from "services/entities/config";
 import softwareAPI from "services/entities/software";
 import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
@@ -32,21 +34,19 @@ import {
   GITHUB_NEW_ISSUE_LINK,
   VULNERABLE_DROPDOWN_OPTIONS,
 } from "utilities/constants";
-import { buildQueryStringFromParams, QueryParams } from "utilities/url";
+import { buildQueryStringFromParams } from "utilities/url";
 
 import Button from "components/buttons/Button";
+import CustomLink from "components/CustomLink";
+import TableDataError from "components/DataError";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
-// @ts-ignore
-import Spinner from "components/Spinner";
-import TableContainer, { ITableQueryData } from "components/TableContainer";
-import TableDataError from "components/DataError";
-import TeamsDropdownHeader, {
-  ITeamsDropdownState,
-} from "components/PageHeader/TeamsDropdownHeader";
 import LastUpdatedText from "components/LastUpdatedText";
 import MainContent from "components/MainContent";
-import CustomLink from "components/CustomLink";
+import Spinner from "components/Spinner";
+import TableContainer, { ITableQueryData } from "components/TableContainer";
+import TeamsDropdown from "components/TeamsDropdown";
+
 import EmptySoftwareTable from "../components/EmptySoftwareTable";
 
 import generateSoftwareTableHeaders from "./SoftwareTableConfig";
@@ -56,7 +56,7 @@ interface IManageSoftwarePageProps {
   router: InjectedRouter;
   location: {
     pathname: string;
-    query: { vulnerable?: string };
+    query: { team_id?: string; vulnerable?: string };
     search: string;
   };
 }
@@ -86,9 +86,6 @@ interface ISoftwareAutomations {
     zendesk: IZendeskIntegration[];
   };
 }
-interface IHeaderButtonsState extends ITeamsDropdownState {
-  isLoading: boolean;
-}
 
 interface IRowProps extends Row {
   original: {
@@ -101,14 +98,6 @@ const DEFAULT_PAGE_SIZE = 20;
 
 const baseClass = "manage-software-page";
 
-const canManageAutomations = (
-  isGlobalAdmin?: boolean,
-  isPremiumTier?: boolean,
-  teamId?: number
-) => {
-  return !!isGlobalAdmin && (!isPremiumTier || teamId === ALL_TEAMS_ID);
-};
-
 const ManageSoftwarePage = ({
   router,
   location,
@@ -116,12 +105,29 @@ const ManageSoftwarePage = ({
   const {
     availableTeams,
     config: globalConfig,
-    currentTeam,
+    isFreeTier,
+    isGlobalAdmin,
+    isGlobalMaintainer,
     isOnGlobalTeam,
     isPremiumTier,
     isSandboxMode,
   } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
+
+  const {
+    currentTeamId,
+    isAnyTeamSelected,
+    teamIdForApi,
+    handleTeamSelect,
+  } = useTeamIdParam({
+    location,
+    router,
+    includeAllTeams: true,
+    includeNoTeam: false,
+  });
+
+  const canManageAutomations =
+    isGlobalAdmin && (!isPremiumTier || !isAnyTeamSelected);
 
   const DEFAULT_SORT_HEADER = isPremiumTier ? "vulnerabilities" : "hosts_count";
 
@@ -162,7 +168,7 @@ const ManageSoftwarePage = ({
     [
       {
         scope: "softwareConfig",
-        teamId: currentTeam?.id === -1 ? undefined : currentTeam?.id,
+        teamId: teamIdForApi,
       },
     ],
     ({ queryKey }) => {
@@ -232,7 +238,7 @@ const ManageSoftwarePage = ({
           isPremiumTier && sortHeader === "vulnerabilities"
             ? "epss_probability"
             : sortHeader,
-        teamId: currentTeam?.id === -1 ? undefined : currentTeam?.id,
+        teamId: teamIdForApi,
         vulnerable: !!location.query.vulnerable,
       },
     ],
@@ -241,7 +247,7 @@ const ManageSoftwarePage = ({
       enabled:
         isSoftwareConfigLoaded &&
         (isOnGlobalTeam ||
-          !!availableTeams?.find((t) => t.id === currentTeam?.id)),
+          !!availableTeams?.find((t) => t.id === currentTeamId)),
       keepPreviousData: true,
       staleTime: 30000, // stale time can be adjusted if fresher data is desired based on software inventory interval
     }
@@ -262,7 +268,7 @@ const ManageSoftwarePage = ({
         scope: "softwareCount",
         query: searchQuery,
         vulnerable: !!location.query.vulnerable,
-        teamId: currentTeam?.id === -1 ? undefined : currentTeam?.id,
+        teamId: teamIdForApi,
       },
     ],
     ({ queryKey }) => softwareAPI.count(queryKey[0]),
@@ -270,7 +276,7 @@ const ManageSoftwarePage = ({
       enabled:
         isSoftwareConfigLoaded &&
         (isOnGlobalTeam ||
-          !!availableTeams?.find((t) => t.id === currentTeam?.id)),
+          !!availableTeams?.find((t) => t.id === currentTeamId)),
       keepPreviousData: true,
       staleTime: 30000, // stale time can be adjusted if fresher data is desired based on software inventory interval
       refetchOnWindowFocus: false,
@@ -337,51 +343,24 @@ const ManageSoftwarePage = ({
     }
   };
 
-  const onTeamSelect = () => {
-    setPageIndex(0);
-  };
-
-  // TODO: refactor/replace team dropdown header component in accordance with new patterns
-  const renderHeaderButtons = useCallback(
-    (state: IHeaderButtonsState): JSX.Element | null => {
-      const {
-        teamId,
-        isLoading,
-        isGlobalAdmin,
-        isPremiumTier: isPremium,
-      } = state;
-      const hasPermissions = canManageAutomations(
-        isGlobalAdmin,
-        isPremium,
-        teamId
-      );
-      if (hasPermissions && !softwareError && !isLoading) {
-        return (
-          <Button
-            onClick={toggleManageAutomationsModal}
-            className={`${baseClass}__manage-automations button`}
-            variant="brand"
-          >
-            <span>Manage automations</span>
-          </Button>
-        );
-      }
-      return null;
+  const onTeamChange = useCallback(
+    (teamId: number) => {
+      handleTeamSelect(teamId);
+      setPageIndex(0);
     },
-    [softwareError, toggleManageAutomationsModal]
+    [handleTeamSelect]
   );
 
-  // TODO: refactor/replace team dropdown header component in accordance with new patterns
-  const renderHeaderDescription = (state: ITeamsDropdownState) => {
+  const renderHeaderDescription = () => {
     return (
       <p>
         Search for installed software{" "}
-        {(state.isGlobalAdmin || state.isGlobalMaintainer) &&
-          (!state.isPremiumTier || state.teamId === ALL_TEAMS_ID) &&
+        {(isGlobalAdmin || isGlobalMaintainer) &&
+          (!isPremiumTier || !isAnyTeamSelected) &&
           "and manage automations for detected vulnerabilities (CVEs)"}{" "}
         on{" "}
         <b>
-          {state.isPremiumTier && !!state.teamId && state.teamId > NO_TEAM_ID
+          {isPremiumTier && isAnyTeamSelected
             ? "all hosts assigned to this team"
             : "all of your hosts"}
         </b>
@@ -389,26 +368,6 @@ const ManageSoftwarePage = ({
       </p>
     );
   };
-
-  // TODO: refactor/replace team dropdown header component in accordance with new patterns
-  const renderHeader = useCallback(() => {
-    return (
-      <TeamsDropdownHeader
-        location={location}
-        router={router}
-        baseClass={baseClass}
-        onChange={onTeamSelect}
-        defaultTitle="Software"
-        description={renderHeaderDescription}
-        buttons={(state) =>
-          renderHeaderButtons({
-            ...state,
-            isLoading: !isSoftwareConfigLoaded,
-          })
-        }
-      />
-    );
-  }, [router, location, isSoftwareConfigLoaded, renderHeaderButtons]);
 
   const renderSoftwareCount = useCallback(() => {
     const count = softwareCount;
@@ -521,7 +480,7 @@ const ManageSoftwarePage = ({
   const isCollectingInventory =
     !searchQuery &&
     !filterVuln &&
-    !currentTeam?.id &&
+    !isAnyTeamSelected &&
     !pageIndex &&
     !software?.software &&
     software?.counts_updated_at === null;
@@ -555,7 +514,40 @@ const ManageSoftwarePage = ({
   ) : (
     <MainContent>
       <div className={`${baseClass}__wrapper`}>
-        {renderHeader()}
+        <div className={`${baseClass}__header-wrap`}>
+          <div className={`${baseClass}__header`}>
+            <div className={`${baseClass}__text`}>
+              <div className={`${baseClass}__title`}>
+                {isFreeTier && <h1>Software</h1>}
+                {isPremiumTier &&
+                  (availableTeams.length > 1 || isOnGlobalTeam) && (
+                    <TeamsDropdown
+                      currentUserTeams={availableTeams}
+                      selectedTeamId={currentTeamId}
+                      onChange={onTeamChange}
+                    />
+                  )}
+                {isPremiumTier &&
+                  !isOnGlobalTeam &&
+                  availableTeams.length === 1 && (
+                    <h1>{availableTeams[0].name}</h1>
+                  )}
+              </div>
+            </div>
+          </div>
+          {canManageAutomations && !softwareError && isSoftwareConfigLoaded && (
+            <Button
+              onClick={toggleManageAutomationsModal}
+              className={`${baseClass}__manage-automations button`}
+              variant="brand"
+            >
+              <span>Manage automations</span>
+            </Button>
+          )}
+        </div>
+        <div className={`${baseClass}__description`}>
+          {renderHeaderDescription()}
+        </div>
         <div className={`${baseClass}__table`}>
           {(softwareError && !isFetchingSoftware) ||
           (softwareConfigError && !isFetchingSoftwareConfig) ? (

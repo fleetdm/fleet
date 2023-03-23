@@ -3,7 +3,6 @@ import {
   browserHistory,
   IndexRedirect,
   IndexRoute,
-  InjectedRouter,
   Route,
   RouteComponent,
   Router,
@@ -52,7 +51,6 @@ import MacOSUpdates from "pages/ManageControlsPage/MacOSUpdates";
 import MacOSSettings from "pages/ManageControlsPage/MacOSSettings";
 
 import PATHS from "router/paths";
-import { QueryParams } from "utilities/url";
 
 import AppProvider from "context/app";
 import RoutingProvider from "context/routing";
@@ -68,21 +66,13 @@ import MdmEnabledRoutes from "./components/MdmEnabledRoutes/MdmEnabledRoutes";
 
 interface IAppWrapperProps {
   children: JSX.Element;
-  location?: {
-    pathname: string;
-    search: string;
-    query: QueryParams;
-  };
-  router: InjectedRouter;
 }
 
 // App.tsx needs the context for user and config
-const AppWrapper = ({ children, location, router }: IAppWrapperProps) => (
+const AppWrapper = ({ children }: IAppWrapperProps) => (
   <AppProvider>
     <RoutingProvider>
-      <App location={location} router={router}>
-        {children}
-      </App>
+      <App>{children}</App>
     </RoutingProvider>
   </AppProvider>
 );

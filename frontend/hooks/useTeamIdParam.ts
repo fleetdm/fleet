@@ -1,16 +1,14 @@
+import { useCallback, useContext, useEffect, useMemo } from "react";
+import { InjectedRouter } from "react-router";
+import { findLastIndex, trimStart } from "lodash";
+
 import { AppContext } from "context/app";
 import {
   ALL_TEAMS_ID,
   isAnyTeamSelected,
   ITeamSummary,
   NO_TEAM_ID,
-  parseTeamIdParam,
-  teamIdParamFromUrlSearch,
 } from "interfaces/team";
-import { findLastIndex, trimStart } from "lodash";
-import { useCallback, useContext, useEffect, useMemo } from "react";
-import { InjectedRouter } from "react-router";
-import { QueryParams } from "utilities/url";
 
 const getDefaultTeam = (
   availableTeams: ITeamSummary[],
@@ -95,31 +93,30 @@ export const curryRouterReplaceTeamId = ({
   hash?: string;
   router: InjectedRouter;
 }) => (teamId: number) => {
-  console.log("routerReplaceTeamId called", teamId, pathname, search);
   router.replace(
     pathname.concat(rebuildQueryStringWithTeamId(search, teamId)).concat(hash)
   );
 };
 
-export const isValidCurrentTeam = ({
-  currentTeam,
+export const isValidTeamId = ({
   availableTeams,
   includeAllTeams,
   includeNoTeam,
+  teamId,
 }: {
-  currentTeam?: ITeamSummary;
   availableTeams: ITeamSummary[];
   includeAllTeams: boolean;
   includeNoTeam: boolean;
+  teamId: number;
 }) => {
   if (
-    currentTeam === undefined ||
-    (currentTeam.id === ALL_TEAMS_ID && !includeAllTeams) ||
-    (currentTeam.id === NO_TEAM_ID && !includeNoTeam) ||
-    !availableTeams?.find((t) => t.id === currentTeam.id)
+    (teamId === ALL_TEAMS_ID && !includeAllTeams) ||
+    (teamId === NO_TEAM_ID && !includeNoTeam) ||
+    !availableTeams?.find((t) => t.id === teamId)
   ) {
     return false;
   }
+
   return true;
 };
 
@@ -132,7 +129,7 @@ export const useTeamIdParam = ({
   location?: {
     pathname: string;
     search: string;
-    query: QueryParams;
+    query: { team_id?: string };
     hash?: string;
   };
   router: InjectedRouter;
@@ -140,16 +137,13 @@ export const useTeamIdParam = ({
   includeNoTeam: boolean;
 }) => {
   const { hash, pathname, query, search } = location;
-  const { currentTeam, availableTeams } = useContext(AppContext);
+  const { currentTeam, availableTeams, setCurrentTeam } = useContext(
+    AppContext
+  );
 
   const memoizedIsAnyTeamSelected = useMemo(
     () => isAnyTeamSelected(currentTeam),
     [currentTeam]
-  );
-
-  const memoizedTeamIdFromLocation = useMemo(
-    () => parseTeamIdParam(teamIdParamFromUrlSearch(search)),
-    [search]
   );
 
   const memoizedTeamIdForApi = useMemo(
@@ -172,44 +166,54 @@ export const useTeamIdParam = ({
   );
 
   useEffect(() => {
-    console.log("useEffect: validating currentTeam inside useTeamIdParam");
     if (!availableTeams?.length || !memoizedDefaultTeam) {
-      console.log("skipping, not ready");
       return;
     }
-    if (
-      currentTeam?.id === memoizedDefaultTeam.id &&
-      memoizedTeamIdFromLocation === memoizedDefaultTeam.id
-    ) {
-      console.log("skipping, location already default team");
+
+    const teamIdString = query?.team_id || "";
+    let parsedTeamId = parseInt(teamIdString, 10);
+
+    if (teamIdString.length && isNaN(parsedTeamId)) {
+      handleTeamSelect(memoizedDefaultTeam.id);
+      return;
+    }
+
+    if (teamIdString.length && parsedTeamId < 0) {
+      handleTeamSelect(memoizedDefaultTeam.id);
+      return;
+    }
+
+    parsedTeamId = isNaN(parsedTeamId) ? -1 : parsedTeamId;
+    if (parsedTeamId < memoizedDefaultTeam.id) {
+      handleTeamSelect(memoizedDefaultTeam.id);
       return;
     }
 
     if (
-      isValidCurrentTeam({
-        currentTeam,
+      !isValidTeamId({
         availableTeams,
         includeAllTeams,
         includeNoTeam,
+        teamId: parsedTeamId,
       })
     ) {
-      console.log("validated currentTeam");
+      handleTeamSelect(memoizedDefaultTeam.id);
       return;
     }
-    console.log("invalid currentTeam, switching to defaultTeam");
-    handleTeamSelect(memoizedDefaultTeam.id);
+
+    if (parsedTeamId !== currentTeam?.id) {
+      setCurrentTeam(availableTeams?.find((t) => t.id === parsedTeamId));
+    }
   }, [
     availableTeams,
     currentTeam,
     includeAllTeams,
     includeNoTeam,
     memoizedDefaultTeam,
-    memoizedTeamIdFromLocation,
-    pathname,
     query,
-    router,
     search,
     handleTeamSelect,
+    setCurrentTeam,
   ]);
 
   return {

@@ -103,27 +103,6 @@ export interface IRemoveTeamSecretBody {
   secrets: { secret: string }[];
 }
 
-export const teamIdParamFromUrlSearch = (s: string) => {
-  return s.match(/(?:team_id=\d+)/i)?.[0]?.split("=")?.[1] || "";
-};
-
-export const parseTeamIdParam = (s: string) => {
-  const parsed = parseInt(s, 10);
-
-  return isNaN(parsed) ? -1 : parsed;
-};
-
-export const teamIdFromLocation = (location: { search: string }) => {
-  return parseTeamIdParam(teamIdParamFromUrlSearch(location.search));
-};
-
-export const teamFromAvailableTeams = (
-  teamId: number,
-  availableTeams: ITeamSummary[]
-) => {
-  return availableTeams?.find((t) => t.id === teamId);
-};
-
 export const ALL_TEAMS_ID = -1;
 export const ALL_TEAMS_SUMMARY: ITeamSummary = {
   id: ALL_TEAMS_ID,

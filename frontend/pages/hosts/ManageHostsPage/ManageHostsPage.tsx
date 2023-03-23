@@ -628,11 +628,14 @@ const ManageHostsPage = ({
     handleClearFilter(["low_disk_space"]);
   };
 
-  const onTeamChange = (teamId: number) => {
-    // TODO(sarah): refactor so that this doesn't trigger two api calls
-    handleTeamSelect(teamId);
-    handleResetPageIndex();
-  };
+  const onTeamChange = useCallback(
+    (teamId: number) => {
+      // TODO(sarah): refactor so that this doesn't trigger two api calls
+      handleTeamSelect(teamId);
+      handleResetPageIndex();
+    },
+    [handleTeamSelect]
+  );
 
   const handleStatusDropdownChange = (statusName: string) => {
     handleResetPageIndex();

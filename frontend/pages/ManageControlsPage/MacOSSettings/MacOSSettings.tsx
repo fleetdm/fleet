@@ -18,7 +18,7 @@ interface IMacOSSettingsProps {
   // renders this one
   location: {
     query: { team_id?: string };
-    action: string;
+    action: string; // TODO: ask Luke why this was added
   };
 }
 
