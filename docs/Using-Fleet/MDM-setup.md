@@ -1,7 +1,7 @@
 # Warning
 MDM features are not ready for production and are currently in development. These features are disabled by default.
 
-# Supported MacOS Versions
+# Supported macOS versions
 
 In Fleet, MDM features are supported for Macs running macOS 12 (Monterey) and higher.
 
