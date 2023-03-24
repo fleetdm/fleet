@@ -11,12 +11,19 @@ import SiteTopNav from "components/top_nav/SiteTopNav";
 import CustomLink from "components/CustomLink";
 import { INotification } from "interfaces/notification";
 import { licenseExpirationWarning } from "utilities/helpers";
+import { QueryParams } from "utilities/url";
 
 import smallScreenImage from "../../../assets/images/small-screen-160x80@2x.png";
 
 interface ICoreLayoutProps {
   children: React.ReactNode;
   router: InjectedRouter; // v3
+  location: {
+    pathname: string;
+    search: string;
+    hash?: string;
+    query: QueryParams;
+  };
 }
 
 const expirationMessage = (
@@ -32,7 +39,7 @@ const expirationMessage = (
   </>
 );
 
-const CoreLayout = ({ children, router }: ICoreLayoutProps) => {
+const CoreLayout = ({ children, router, location }: ICoreLayoutProps) => {
   const { config, currentUser, isPremiumTier } = useContext(AppContext);
   const { notification, hideFlash } = useContext(NotificationContext);
   const { setResetSelectedRows } = useContext(TableContext);
@@ -100,7 +107,7 @@ const CoreLayout = ({ children, router }: ICoreLayoutProps) => {
     return null;
   }
 
-  const { pathname } = global.window.location;
+  const { pathname, query } = location;
 
   return (
     <div className="app-wrap">
@@ -117,6 +124,7 @@ const CoreLayout = ({ children, router }: ICoreLayoutProps) => {
           onLogoutUser={onLogoutUser}
           onNavItemClick={onNavItemClick}
           pathname={pathname}
+          query={query}
           currentUser={currentUser}
         />
       </nav>

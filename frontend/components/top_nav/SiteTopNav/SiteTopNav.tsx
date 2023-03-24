@@ -5,6 +5,7 @@ import classnames from "classnames";
 import { IUser } from "interfaces/user";
 import { IConfig } from "interfaces/config";
 import { AppContext } from "context/app";
+import { QueryParams } from "utilities/url";
 
 import LinkWithContext from "components/LinkWithContext";
 import UserMenu from "components/top_nav/UserMenu";
@@ -17,6 +18,7 @@ interface ISiteTopNavProps {
   onLogoutUser: () => void;
   onNavItemClick: (path: string) => void;
   pathname: string;
+  query: QueryParams;
   currentUser: IUser;
   config: IConfig;
 }
@@ -25,6 +27,7 @@ const SiteTopNav = ({
   onLogoutUser,
   onNavItemClick,
   pathname,
+  query,
   currentUser,
   config,
 }: ISiteTopNavProps): JSX.Element => {
@@ -38,7 +41,7 @@ const SiteTopNav = ({
   } = useContext(AppContext);
 
   const renderNavItem = (navItem: INavItem) => {
-    const { name, iconName, withContext } = navItem;
+    const { name, iconName, withUrlQueryParams } = navItem;
     const orgLogoURL = config.org_info.org_logo_url;
     const active = navItem.location.regex.test(pathname);
 
@@ -65,9 +68,11 @@ const SiteTopNav = ({
 
     return (
       <li className={navItemClasses} key={`nav-item-${name}`}>
-        {withContext ? (
+        {withUrlQueryParams?.length ? (
           <LinkWithContext
             className={`${navItemBaseClass}__link`}
+            withUrlQueryParams={withUrlQueryParams}
+            query={query}
             to={navItem.location.pathname}
           >
             <span
