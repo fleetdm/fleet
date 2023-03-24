@@ -1,7 +1,7 @@
 # Warning
 MDM features are not ready for production and are currently in development. These features are disabled by default.
 
-# Supported MacOS Versions
+# Supported macOS versions
 
 In Fleet, MDM features are supported for Macs running macOS 12 (Monterey) and higher.
 
@@ -116,4 +116,4 @@ Fleet UI:
 The Apple Business Manager server token expires after a year or whenever the account that downloaded the token has their password changed. To renew the token, follow the [instructions documented in this FAQ](https://fleetdm.com/docs/using-fleet/faq#how-can-i-renew-my-apple-business-manager-server-token).
 
 <meta name="pageOrderInSection" value="1500">
-<meta name="title" value="MDM Setup">
+<meta name="title" value="MDM setup">

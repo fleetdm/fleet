@@ -60,6 +60,8 @@ In Fleet you can enforce custom settings on your macOS hosts using configuration
 
 To enforce custom settings, first create configuration profiles with iMazing Profile editor and then add the profiles to Fleet.
 
+> There is no need for you to sign the profiles. Fleet signs all profiles before sending them to the host. 
+
 ### Create a configuration profiles with iMazing Profile Creator
 
 How to create a configuration profile with iMazing Profile Creator:
@@ -72,7 +74,7 @@ How to create a configuration profile with iMazing Profile Creator:
 
 4. In iMazing Profile Creator, select the **General** tab. Enter a descriptive name in the **Name** field. When you add this profile to Fleet, Fleet will display this name in the Fleet UI.
 
-5. In your top menu bar select **File** > **Save As...** and save your configuration profile. Make sure the file is saved as .mobileconfig.
+5. In your top menu bar select **File** > **Save As...** and save your configuration profile as a `.mobileconfig` file. 
 
 ### Add configuration profiles to Fleet
 
@@ -113,4 +115,4 @@ spec:
 3. Run the `fleetctl apply -f <your-config-here>.yml` command to add the configuration profiles to Fleet. Note that this will override any configuration profiles added using the Fleet UI method.
 
 <meta name="pageOrderInSection" value="1503">
-<meta name="title" value="MDM macOS Settings">
+<meta name="title" value="MDM macOS settings">
