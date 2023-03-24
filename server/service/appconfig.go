@@ -79,7 +79,7 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 	if !ok {
 		return nil, errors.New("could not fetch user")
 	}
-	config, err := svc.AppConfig(ctx)
+	config, err := svc.AppConfigObfuscated(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -160,7 +160,7 @@ func (svc *Service) SandboxEnabled() bool {
 	return svc.config.Server.SandboxEnabled
 }
 
-func (svc *Service) AppConfig(ctx context.Context) (*fleet.AppConfig, error) {
+func (svc *Service) AppConfigObfuscated(ctx context.Context) (*fleet.AppConfig, error) {
 	if !svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceToken) {
 		if err := svc.authz.Authorize(ctx, &fleet.AppConfig{}, fleet.ActionRead); err != nil {
 			return nil, err
@@ -356,7 +356,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 			return nil, legacyUsedWarning
 		}
 		// must reload to get the unchanged app config
-		return svc.AppConfig(ctx)
+		return svc.AppConfigObfuscated(ctx)
 	}
 
 	// ignore the values for SMTPEnabled and SMTPConfigured
@@ -414,7 +414,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	}
 
 	// retrieve new app config with obfuscated secrets
-	obfuscatedConfig, err := svc.AppConfig(ctx)
+	obfuscatedConfig, err := svc.AppConfigObfuscated(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -684,7 +684,7 @@ func getCertificateEndpoint(ctx context.Context, request interface{}, svc fleet.
 
 // Certificate returns the PEM encoded certificate chain for osqueryd TLS termination.
 func (svc *Service) CertificateChain(ctx context.Context) ([]byte, error) {
-	config, err := svc.AppConfig(ctx)
+	config, err := svc.AppConfigObfuscated(ctx)
 	if err != nil {
 		return nil, err
 	}

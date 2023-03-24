@@ -19,6 +19,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/logging"
+	"github.com/fleetdm/fleet/v4/server/mail"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/async"
 	"github.com/fleetdm/fleet/v4/server/service/mock"
@@ -43,7 +44,6 @@ func newTestService(t *testing.T, ds fleet.Datastore, rs fleet.QueryResultStore,
 }
 
 func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig config.FleetConfig, rs fleet.QueryResultStore, lq fleet.LiveQueryStore, opts ...*TestServerOpts) (fleet.Service, context.Context) {
-	mailer := &mockMailService{SendEmailFn: func(e fleet.Email) error { return nil }}
 	lic := &fleet.LicenseInfo{Tier: fleet.TierFree}
 	writer, err := logging.NewFilesystemLogWriter(fleetConfig.Filesystem.StatusLogFile, kitlog.NewNopLogger(), fleetConfig.Filesystem.EnableLogRotation, fleetConfig.Filesystem.EnableLogCompression, 500, 28, 3)
 	require.NoError(t, err)
@@ -60,6 +60,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		mdmStorage        nanomdm_storage.AllStorage
 		depStorage        nanodep_storage.AllStorage
 		mdmPusher         nanomdm_push.Pusher
+		mailer            fleet.MailService = &mockMailService{SendEmailFn: func(e fleet.Email) error { return nil }}
 	)
 	var c clock.Clock = clock.C
 	if len(opts) > 0 {
@@ -92,6 +93,9 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		}
 		if opts[0].EnrollHostLimiter != nil {
 			enrollHostLimiter = opts[0].EnrollHostLimiter
+		}
+		if opts[0].UseMailService {
+			mailer = mail.NewService()
 		}
 
 		// allow to explicitly set installer store to nil
@@ -252,6 +256,7 @@ type TestServerOpts struct {
 	MDMPusher           nanomdm_push.Pusher
 	HTTPServerConfig    *http.Server
 	StartCronSchedules  []TestNewScheduleFunc
+	UseMailService      bool
 }
 
 func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServerOpts) (map[string]fleet.User, *httptest.Server) {

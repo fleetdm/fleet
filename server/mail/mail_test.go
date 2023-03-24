@@ -17,7 +17,6 @@ func (m *mockMailer) SendEmail(e fleet.Email) error {
 }
 
 func getMailer() fleet.MailService {
-
 	if os.Getenv("MAIL_TEST") == "" {
 		return &mockMailer{}
 	}
@@ -26,6 +25,7 @@ func getMailer() fleet.MailService {
 
 var testFunctions = [...]func(*testing.T, fleet.MailService){
 	testSMTPPlainAuth,
+	testSMTPPlainAuthInvalidCreds,
 	testSMTPSkipVerify,
 	testSMTPNoAuth,
 	testMailTest,
@@ -50,12 +50,12 @@ func testSMTPPlainAuth(t *testing.T, mailer fleet.MailService) {
 				SMTPConfigured:           true,
 				SMTPAuthenticationType:   fleet.AuthTypeNameUserNamePassword,
 				SMTPAuthenticationMethod: fleet.AuthMethodNamePlain,
-				SMTPUserName:             "bob",
-				SMTPPassword:             "secret",
+				SMTPUserName:             "mailpit-username",
+				SMTPPassword:             "mailpit-password",
 				SMTPEnableTLS:            true,
 				SMTPVerifySSLCerts:       true,
 				SMTPEnableStartTLS:       true,
-				SMTPPort:                 1025,
+				SMTPPort:                 1026,
 				SMTPServer:               "localhost",
 				SMTPSenderAddress:        "test@example.com",
 			},
@@ -69,6 +69,34 @@ func testSMTPPlainAuth(t *testing.T, mailer fleet.MailService) {
 	assert.Nil(t, err)
 }
 
+func testSMTPPlainAuthInvalidCreds(t *testing.T, mailer fleet.MailService) {
+	mail := fleet.Email{
+		Subject: "smtp plain auth with invalid credentials",
+		To:      []string{"john@fleet.co"},
+		Config: &fleet.AppConfig{
+			SMTPSettings: fleet.SMTPSettings{
+				SMTPConfigured:           true,
+				SMTPAuthenticationType:   fleet.AuthTypeNameUserNamePassword,
+				SMTPAuthenticationMethod: fleet.AuthMethodNamePlain,
+				SMTPUserName:             "mailpit-username",
+				SMTPPassword:             "wrong",
+				SMTPEnableTLS:            true,
+				SMTPVerifySSLCerts:       true,
+				SMTPEnableStartTLS:       true,
+				SMTPPort:                 1026,
+				SMTPServer:               "localhost",
+				SMTPSenderAddress:        "test@example.com",
+			},
+		},
+		Mailer: &SMTPTestMailer{
+			BaseURL: "https://localhost:8080",
+		},
+	}
+
+	err := mailer.SendEmail(mail)
+	assert.Error(t, err)
+}
+
 func testSMTPSkipVerify(t *testing.T, mailer fleet.MailService) {
 	mail := fleet.Email{
 		Subject: "skip verify",
@@ -78,8 +106,8 @@ func testSMTPSkipVerify(t *testing.T, mailer fleet.MailService) {
 				SMTPConfigured:           true,
 				SMTPAuthenticationType:   fleet.AuthTypeNameUserNamePassword,
 				SMTPAuthenticationMethod: fleet.AuthMethodNamePlain,
-				SMTPUserName:             "bob",
-				SMTPPassword:             "secret",
+				SMTPUserName:             "mailpit-username",
+				SMTPPassword:             "mailpit-password",
 				SMTPEnableTLS:            true,
 				SMTPVerifySSLCerts:       false,
 				SMTPEnableStartTLS:       true,
@@ -127,13 +155,16 @@ func testMailTest(t *testing.T, mailer fleet.MailService) {
 		To:      []string{"bob@foo.com"},
 		Config: &fleet.AppConfig{
 			SMTPSettings: fleet.SMTPSettings{
-				SMTPConfigured:         true,
-				SMTPAuthenticationType: fleet.AuthTypeNameNone,
-				SMTPEnableTLS:          true,
-				SMTPVerifySSLCerts:     true,
-				SMTPPort:               1025,
-				SMTPServer:             "localhost",
-				SMTPSenderAddress:      "test@example.com",
+				SMTPConfigured:           true,
+				SMTPAuthenticationType:   fleet.AuthTypeNameUserNamePassword,
+				SMTPAuthenticationMethod: fleet.AuthMethodNamePlain,
+				SMTPUserName:             "mailpit-username",
+				SMTPPassword:             "mailpit-password",
+				SMTPEnableTLS:            true,
+				SMTPVerifySSLCerts:       true,
+				SMTPPort:                 1026,
+				SMTPServer:               "localhost",
+				SMTPSenderAddress:        "test@example.com",
 			},
 		},
 		Mailer: &SMTPTestMailer{
@@ -142,7 +173,6 @@ func testMailTest(t *testing.T, mailer fleet.MailService) {
 	}
 	err := Test(mailer, mail)
 	assert.Nil(t, err)
-
 }
 
 func TestTemplateProcessor(t *testing.T) {
