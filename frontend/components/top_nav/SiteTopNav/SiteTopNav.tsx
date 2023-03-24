@@ -17,8 +17,12 @@ import navItems, { INavItem } from "./navItems";
 interface ISiteTopNavProps {
   onLogoutUser: () => void;
   onNavItemClick: (path: string) => void;
-  pathname: string;
-  query: QueryParams;
+  location: {
+    pathname: string;
+    search: string;
+    hash?: string;
+    query: QueryParams;
+  };
   currentUser: IUser;
   config: IConfig;
 }
@@ -26,8 +30,7 @@ interface ISiteTopNavProps {
 const SiteTopNav = ({
   onLogoutUser,
   onNavItemClick,
-  pathname,
-  query,
+  location: { pathname, search, hash = "", query },
   currentUser,
   config,
 }: ISiteTopNavProps): JSX.Element => {
@@ -62,6 +65,29 @@ const SiteTopNav = ({
               <OrgLogoIcon className="logo" src={orgLogoURL} />
             </div>
           </Link>
+        </li>
+      );
+    }
+
+    if (active) {
+      // TODO: confirm link should be noop and find best pattern (one that doesn't dispatch a
+      // replace to the same url, which triggers a re-render)
+      return (
+        <li className={navItemClasses} key={`nav-item-${name}`}>
+          <Link
+            className={`${navItemBaseClass}__link`}
+            to={pathname.concat(search).concat(hash)}
+          >
+            <span
+              className={`${navItemBaseClass}__name`}
+              data-text={navItem.name}
+            >
+              {name}
+            </span>
+          </Link>
+          {/* <div className={`${navItemBaseClass}__link`}>
+            <span className={`${navItemBaseClass}__name`}>{name}</span>
+          </div> */}
         </li>
       );
     }

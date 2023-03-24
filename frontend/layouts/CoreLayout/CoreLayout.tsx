@@ -18,6 +18,7 @@ import smallScreenImage from "../../../assets/images/small-screen-160x80@2x.png"
 interface ICoreLayoutProps {
   children: React.ReactNode;
   router: InjectedRouter; // v3
+  // TODO: standardize typing and usage of location across app components
   location: {
     pathname: string;
     search: string;
@@ -107,8 +108,6 @@ const CoreLayout = ({ children, router, location }: ICoreLayoutProps) => {
     return null;
   }
 
-  const { pathname, query } = location;
-
   return (
     <div className="app-wrap">
       <div className="overlay">
@@ -123,8 +122,7 @@ const CoreLayout = ({ children, router, location }: ICoreLayoutProps) => {
           config={config}
           onLogoutUser={onLogoutUser}
           onNavItemClick={onNavItemClick}
-          pathname={pathname}
-          query={query}
+          location={location}
           currentUser={currentUser}
         />
       </nav>
