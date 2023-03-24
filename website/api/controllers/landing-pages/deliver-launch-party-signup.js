@@ -34,7 +34,7 @@ module.exports = {
     },
 
     phoneNumber: {
-      type: 'number',
+      type: 'string',
       description: 'The phone number provided when a user submitted the launch party waitlist form',
     },
   },
