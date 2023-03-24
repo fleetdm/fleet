@@ -13,7 +13,6 @@ set -e
 # FLEET_TIMESTAMP_PASSPHRASE: Timestamp role passphrase.
 # SYSTEMS: Space separated list of systems to support in the TUF repository. Default value is: "macos windows linux"
 # MACOS_USE_PREBUILT_DESKTOP_APP_TAR_GZ: Set variable to use a pre-built desktop.app.tar.gz. Useful when running on non-macOS host.
-# MACOS_USE_PREBUILT_OSQUERYD_APP_TAR_GZ: Set variable to use a pre-built osqueryd.app.tar.gz. Useful when running on non-macOS host.
 
 if [[ -z "$TUF_PATH" ]]; then
     echo "Must set the TUF_PATH environment variable."
@@ -24,9 +23,12 @@ if [[ -d "$TUF_PATH" ]]; then
     exit 0
 fi
 
-OSQUERY_MACOS_APP_BUNDLE_VERSION=5.7.0
 NUDGE_MACOS_APP_BUNDLE_VERSION=1.1.10.81462
 SYSTEMS=${SYSTEMS:-macos linux windows}
+
+if [[ -z "$OSQUERY_VERSION" ]]; then
+    OSQUERY_VERSION=5.8.1
+fi
 
 mkdir -p $TUF_PATH/tmp
 
@@ -34,35 +36,27 @@ mkdir -p $TUF_PATH/tmp
 
 for system in $SYSTEMS; do
 
-    if [[ $system == "macos" ]]; then
-        if [[ -z "$MACOS_USE_PREBUILT_OSQUERYD_APP_TAR_GZ" ]]; then
-            # Generate and add osqueryd .app bundle for macos-app.
-            make osqueryd-app-tar-gz version=$OSQUERY_MACOS_APP_BUNDLE_VERSION out-path=.
-        fi
-        ./build/fleetctl updates add \
-            --path $TUF_PATH \
-            --target osqueryd.app.tar.gz \
-            --platform macos-app \
-            --name osqueryd \
-            --version 42.0.0 -t 42.0 -t 42 -t stable
-        rm osqueryd.app.tar.gz
-    else
-        # Use latest stable version of osqueryd from our TUF server.
-        osqueryd="osqueryd"
-        if [[ $system == "windows" ]]; then
-            osqueryd="$osqueryd.exe"
-        fi
-        osqueryd_path="$TUF_PATH/tmp/$osqueryd"
-        curl https://tuf.fleetctl.com/targets/osqueryd/$system/stable/$osqueryd --output $osqueryd_path
-
-        ./build/fleetctl updates add \
-            --path $TUF_PATH \
-            --target $osqueryd_path \
-            --platform $system \
-            --name osqueryd \
-            --version 42.0.0 -t 42.0 -t 42 -t stable
-        rm $osqueryd_path
+    # Use latest stable version of osqueryd from our TUF server.
+    osqueryd="osqueryd"
+    osqueryd_system="$system"
+    if [[ $system == "windows" ]]; then
+        osqueryd="$osqueryd.exe"
+    elif [[ $system == "macos" ]]; then
+        osqueryd="$osqueryd.app.tar.gz"
+        osqueryd_system="macos-app"
     fi
+    osqueryd_path="$TUF_PATH/tmp/$osqueryd"
+    curl https://tuf.fleetctl.com/targets/osqueryd/$osqueryd_system/$OSQUERY_VERSION/$osqueryd --output $osqueryd_path
+
+    major=$(echo "$OSQUERY_VERSION" | cut -d "." -f 1)
+    min=$(echo "$OSQUERY_VERSION" | cut -d "." -f 2)
+    ./build/fleetctl updates add \
+        --path $TUF_PATH \
+        --target $osqueryd_path \
+        --platform $osqueryd_system \
+        --name osqueryd \
+        --version $OSQUERY_VERSION -t $major.$min -t $major -t stable
+    rm $osqueryd_path
 
     goose_value="$system"
     if [[ $system == "macos" ]]; then
@@ -74,7 +68,7 @@ for system in $SYSTEMS; do
     fi
 
     # Compile the latest version of orbit from source.
-    GOOS=$goose_value GOARCH=amd64 go build -o $orbit_target ./orbit/cmd/orbit
+    GOOS=$goose_value GOARCH=amd64 go build -ldflags="-X github.com/fleetdm/fleet/v4/orbit/pkg/build.Version=42" -o $orbit_target ./orbit/cmd/orbit
 
     # If macOS and CODESIGN_IDENTITY is defined, sign the executable.
     if [[ $system == "macos" && -n "$CODESIGN_IDENTITY" ]]; then
