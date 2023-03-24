@@ -590,3 +590,5 @@ Reference the [Apple DEP Profile documentation](https://developer.apple.com/docu
 2. In ABM, look for the computer with the serial number that matches the one your VM has, click on it and click on "Edit MDM Server" to assign that computer to your MDM server.
 
 3. Boot the machine, it should automatically enroll into MDM.
+
+<meta name="pageOrderInSection" value="1500">
