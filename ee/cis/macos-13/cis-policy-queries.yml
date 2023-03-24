@@ -2452,7 +2452,21 @@ spec:
         1. The Payload Type string is `com.apple.mDNSResponder`.
         2. The key to include is `NoMulticastAdvertisements`.
         3. The key must be set to `<true/>`.
-  query: SELECT 1 FROM managed_policies WHERE domain='com.apple.mDNSResponder' AND name='NoMulticastAdvertisements' AND value = 1;
+  query: |
+    SELECT 1 WHERE 
+      EXISTS (
+        SELECT 1 FROM managed_policies WHERE 
+            domain='com.apple.mDNSResponder' AND 
+            name='NoMulticastAdvertisements' AND 
+            (value = 1 OR value = 'true') AND 
+            username = ''
+        )
+      AND NOT EXISTS (
+        SELECT 1 FROM managed_policies WHERE 
+            domain='com.apple.mDNSResponder' AND 
+            name='NoMulticastAdvertisements' AND 
+            (value != 1 AND value != 'true')
+        );  
   purpose: Informational
   tags: compliance, CIS, CIS_Level2, CIS-macos-13-4.1
   contributors: lucasmrod
@@ -2736,11 +2750,20 @@ spec:
   resolution: |
     Ask your system administrator to deploy an MDM profile that ensures Complex Password Must Contain Alphabetic Characters
   query: |
-    SELECT 1 FROM managed_policies WHERE
-      domain = 'com.apple.mobiledevice.passwordpolicy' AND
-      name = 'requireAlphanumeric' AND
-      (value = 1 OR value = 'true')
-      LIMIT 1;
+    SELECT 1 WHERE 
+      EXISTS (
+        SELECT 1 FROM managed_policies WHERE 
+            domain='com.apple.mobiledevice.passwordpolicy' AND 
+            name='requireAlphanumeric' AND 
+            (value = 1 OR value = 'true') AND 
+            username = ''
+        )
+      AND NOT EXISTS (
+        SELECT 1 FROM managed_policies WHERE 
+            domain='com.apple.mobiledevice.passwordpolicy' AND 
+            name='requireAlphanumeric' AND 
+            (value != 1 AND value != 'true')
+        );  
   purpose: Informational
   tags: compliance, CIS, CIS_Level2, CIS-macos-13-5.2.3, CIS-macos-13-5.2.4
   contributors: sharon-fdm
@@ -2756,11 +2779,20 @@ spec:
   resolution: |
     Ask your system administrator to deploy an MDM profile that ensures Complex Password Must Contain Special Characters
   query: |
-    SELECT 1 FROM managed_policies WHERE
-      domain = 'com.apple.mobiledevice.passwordpolicy' AND
-      name = 'minComplexChars' AND
-      value >= 1
-      LIMIT 1;
+    SELECT 1 WHERE 
+      EXISTS (
+        SELECT 1 FROM managed_policies WHERE 
+            domain='com.apple.mobiledevice.passwordpolicy' AND 
+            name='minComplexChars' AND 
+            value >= 1 AND 
+            username = ''
+        )
+      AND NOT EXISTS (
+        SELECT 1 FROM managed_policies WHERE 
+            domain='com.apple.mobiledevice.passwordpolicy' AND 
+            name='minComplexChars' AND 
+            value < 1
+        );  
   purpose: Informational
   tags: compliance, CIS, CIS_Level2, CIS-macos-13-5.2.5
   contributors: sharon-fdm
@@ -3085,11 +3117,20 @@ spec:
     Payload Method:
     Ask your administrator to deploy a profile which disables AutoOpenSafeDownloads in Safari
   query: |
-    SELECT 1 FROM managed_policies WHERE
-      domain = 'com.apple.Safari' AND
-      name = 'AutoOpenSafeDownloads' AND
-      value = '0'
-      LIMIT 1;
+    SELECT 1 WHERE 
+      EXISTS (
+        SELECT 1 FROM managed_policies WHERE 
+            domain='com.apple.Safari' AND 
+            name='AutoOpenSafeDownloads' AND 
+            (value = 0 OR value = 'false') AND 
+            username = ''
+        )
+      AND NOT EXISTS (
+        SELECT 1 FROM managed_policies WHERE 
+            domain='com.apple.Safari' AND 
+            name='AutoOpenSafeDownloads' AND 
+            (value != 0 AND value != 'false')
+        );  
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-macos-13-6.3.1
   contributors: artemist-work
@@ -3119,20 +3160,29 @@ spec:
       2. The key to include is HistoryAgeInDaysLimit
       3. The key must be set to: <integer><1,7,14,31,365,36500></integer>
   query: |
-    SELECT 1 FROM managed_policies WHERE
-      domain = 'com.apple.Safari' AND
-      name = 'HistoryAgeInDaysLimit' AND
-      /*
-       Please replace the checked value bellow to match the one decided by your organization.
-       1 - After one day
-       7 - After one week
-       14 - After two weeks
-       31 - After one month
-       365 - After one year
-       36500 - Set Manually
-      */
-      value = '1' 
-      LIMIT 1;
+    SELECT 1 WHERE 
+      EXISTS (
+        SELECT 1 FROM managed_policies WHERE 
+            domain='com.apple.Safari' AND 
+            name='HistoryAgeInDaysLimit' AND 
+              /*
+              Please replace the checked value bellow to match the one decided by your organization.
+              1 - After one day
+              7 - After one week
+              14 - After two weeks
+              31 - After one month
+              365 - After one year
+              36500 - Set Manually
+              */
+            value = 1 AND 
+            username = ''
+        )
+      AND NOT EXISTS (
+        SELECT 1 FROM managed_policies WHERE 
+            domain='com.apple.Safari' AND 
+            name='HistoryAgeInDaysLimit' AND 
+            value != 1
+        );  
   purpose: Informational
   tags: compliance, CIS, CIS_Level2, CIS-macos-13-6.3.2, decision-needed
   contributors: sharon-fdm
@@ -3151,11 +3201,20 @@ spec:
     Payload Method:
     Ask your administrator to deploy a profile which enableds WarnAboutFraudulentWebsites in Safari
   query: |
-    SELECT 1 FROM managed_policies WHERE
-      domain = 'com.apple.Safari' AND
-      name = 'WarnAboutFraudulentWebsites' AND
-      value = '1'
-      LIMIT 1;
+    SELECT 1 WHERE 
+      EXISTS (
+        SELECT 1 FROM managed_policies WHERE 
+            domain='com.apple.Safari' AND 
+            name='WarnAboutFraudulentWebsites' AND 
+            (value = 1 OR value = 'true') AND 
+            username = ''
+        )
+      AND NOT EXISTS (
+        SELECT 1 FROM managed_policies WHERE 
+            domain='com.apple.loginwindow' AND 
+            name='WarnAboutFraudulentWebsites' AND 
+            (value != 1 AND value != 'true')
+        );  
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-macos-13-6.3.3
   contributors: artemist-work
@@ -3180,13 +3239,46 @@ spec:
       6. The key to also include is WebKitStorageBlockingPolicy
       7. The key must be set to: 1
   query: |
-    SELECT 1 WHERE EXISTS (
-      SELECT 1 FROM managed_policies WHERE domain = 'com.apple.Safari' AND name = 'BlockStoragePolicy' AND value = '2'
-    ) AND EXISTS (
-      SELECT 1 FROM managed_policies WHERE domain = 'com.apple.Safari' AND name = 'WebKitPreferences.storageBlockingPolicy' AND value = '1'
-    ) AND EXISTS (
-      SELECT 1 FROM managed_policies WHERE domain = 'com.apple.Safari' AND name = 'WebKitStorageBlockingPolicy' AND value = '1'
-    );
+    SELECT 1 WHERE 
+      EXISTS (
+        SELECT 1 FROM managed_policies WHERE 
+            domain='com.apple.Safari' AND 
+            name='BlockStoragePolicy' AND 
+            value = '2' AND 
+            username = ''
+        )
+      EXISTS (
+        SELECT 1 FROM managed_policies WHERE 
+            domain='com.apple.Safari' AND 
+            name='WebKitPreferences.storageBlockingPolicy' AND 
+            value = '1' AND 
+            username = ''
+        )
+      EXISTS (
+        SELECT 1 FROM managed_policies WHERE 
+            domain='com.apple.Safari' AND 
+            name='WebKitStorageBlockingPolicy' AND 
+            value = '1' AND 
+            username = ''
+        )
+      AND NOT EXISTS (
+        SELECT 1 FROM managed_policies WHERE 
+            domain='com.apple.Safari' AND 
+            name='BlockStoragePolicy' AND 
+            value != '2' 
+        )
+      AND NOT EXISTS (
+        SELECT 1 FROM managed_policies WHERE 
+            domain='com.apple.Safari' AND 
+            name='WebKitPreferences.storageBlockingPolicy' AND 
+            value != '1' 
+        )
+      AND NOT EXISTS (
+        SELECT 1 FROM managed_policies WHERE 
+            domain='com.apple.Safari' AND 
+            name='WebKitStorageBlockingPolicy' AND 
+            value != '1' 
+        );  
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-macos-13-6.3.4
   contributors: lucasmrod
