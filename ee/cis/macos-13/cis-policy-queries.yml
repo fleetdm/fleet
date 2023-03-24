@@ -3402,12 +3402,22 @@ spec:
     Create or edit a configuration profile with the following information:
       1. The PayloadType string is com.apple.Safari
       2. The key to include is ShowFullURLInSmartSearchField 
-      3. The key must be set to:
-      <true/>
+      3. The key must be set to: <true/>
   query: |
-      SELECT 1 from managed_policies WHERE domain = 'com.apple.Safari'
-      AND name = 'ShowFullURLInSmartSearchField' 
-      AND value = 1;
+    SELECT 1 WHERE 
+      EXISTS (
+        SELECT 1 FROM managed_policies WHERE 
+            domain='com.apple.Safari' AND 
+            name='ShowFullURLInSmartSearchField' AND 
+            (value = 1 OR value = 'true') AND 
+            username = ''
+        )
+      AND NOT EXISTS (
+        SELECT 1 FROM managed_policies WHERE 
+            domain='com.apple.Safari' AND 
+            name='ShowFullURLInSmartSearchField' AND 
+            (value != 1 AND value != 'true')
+        );  
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-macos-13-6.3.7
   contributors: sharon-fdm
@@ -3429,9 +3439,20 @@ spec:
       3. The key must be set to
       <true/>
   query: |
-    SELECT 1 from managed_policies WHERE domain = 'com.apple.Terminal'
-      AND name = 'SecureKeyboardEntry' 
-      AND value == 1;
-  purpose: Informational
+    SELECT 1 WHERE 
+      EXISTS (
+        SELECT 1 FROM managed_policies WHERE 
+            domain='com.apple.Terminal' AND 
+            name='SecureKeyboardEntry' AND 
+            (value = 1 OR value = 'true') AND 
+            username = ''
+        )
+      AND NOT EXISTS (
+        SELECT 1 FROM managed_policies WHERE 
+            domain='com.apple.Terminal' AND 
+            name='SecureKeyboardEntry' AND 
+            (value != 1 AND value != 'true')
+        );  
+purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-macos-13-6.4.1
   contributors: sharon-fdm
