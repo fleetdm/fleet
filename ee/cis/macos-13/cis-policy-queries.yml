@@ -166,7 +166,6 @@ spec:
     updates are deferred, they should not be deferred for more than 30 days.
     This control only verifies that deferred software updates are not deferred for more than 30 days.
   resolution: "Ask your system administrator to deploy an MDM profile configures update deferment to a value of 30 days or less."
-  query: SELECT 1 FROM managed_policies WHERE domain='com.apple.applicationaccess' AND name='enforcedSoftwareUpdateDelay' AND value <= 30 AND username = '';
   query: |
     SELECT 1 WHERE 
       EXISTS (
