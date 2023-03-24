@@ -46,7 +46,7 @@ Here are a few reasons to work at Fleet:
 
 ## Values
 
-Fleet's values are a set of five ideals adopted by everyone on the team. They describe the culture we are working together to deliver, inside and outside the company: [🔴 Empathy](#empathy), [🟠 Ownership](#ownership), [🟢 Results](#results), [🔵 Objectivity](#objectivity), and 🟣 [Openness](#openness).
+Fleet's values are a set of five ideals adopted by everyone on the team. They describe the culture we are working together to deliver, inside and outside the company: [🔴 Empathy](#empathy), [🟠 Ownership](#ownership), [🟢 Results](#results), [🔵 Objectivity](#objectivity), and [🟣 Openness](#openness).
 
 Values play an important role in hiring, performance management, and compensation decisions. When a new team member joins Fleet, they adopt the values, from day one.  This way, even as the company grows, everybody knows what to expect from the people they work with.  Having a shared mindset keeps us quick and determined.
 
