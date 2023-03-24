@@ -9,34 +9,23 @@ import (
 	"github.com/go-kit/kit/endpoint"
 )
 
-type appConfigGetter func(context.Context) (*fleet.AppConfig, error)
-
 type Middleware struct {
-	appConfigGetter
+	svc fleet.Service
 }
 
-func NewMiddleware(cfg appConfigGetter) *Middleware {
-	return &Middleware{appConfigGetter: cfg}
+func NewAppleMiddleware(svc fleet.Service) *Middleware {
+	return &Middleware{svc: svc}
 }
 
 func (m *Middleware) Verify() endpoint.Middleware {
 	return func(next endpoint.Endpoint) endpoint.Endpoint {
-		return func(ctx context.Context, req interface{}) (response interface{}, err error) {
-			res, err := next(ctx, req)
-			if err != nil {
-				return res, err
-			}
+		return func(ctx context.Context, req interface{}) (interface{}, error) {
 
-			appCfg, err := m.appConfigGetter(ctx)
-			if err != nil {
+			if err := m.svc.VerifyMDMAppleConfigured(ctx); err != nil {
 				return nil, err
 			}
 
-			if !appCfg.MDM.EnabledAndConfigured {
-				return nil, fleet.MDMNotConfiguredError{}
-			}
-
-			return res, nil
+			return next(ctx, req)
 		}
 	}
 }

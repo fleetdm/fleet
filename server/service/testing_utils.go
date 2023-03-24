@@ -523,3 +523,30 @@ func mockSuccessfulPush(pushes []*mdm.Push) (map[string]*push.Response, error) {
 	}
 	return res, nil
 }
+
+func mdmAppleConfigurationRequiredEndpoints() [][2]string {
+	return [][2]string{
+		{"POST", "/api/latest/fleet/mdm/apple/enrollmentprofiles"},
+		{"GET", "/api/latest/fleet/mdm/apple/enrollmentprofiles"},
+		{"POST", "/api/latest/fleet/mdm/apple/enqueue"},
+		{"GET", "/api/latest/fleet/mdm/apple/commandresults"},
+		{"GET", "/api/latest/fleet/mdm/apple/installers/1"},
+		{"DELETE", "/api/latest/fleet/mdm/apple/installers/1"},
+		{"GET", "/api/latest/fleet/mdm/apple/installers"},
+		{"GET", "/api/latest/fleet/mdm/apple/devices"},
+		{"GET", "/api/latest/fleet/mdm/apple/dep/devices"},
+		{"GET", "/api/latest/fleet/mdm/apple/profiles"},
+		{"GET", "/api/latest/fleet/mdm/apple/profiles/1"},
+		{"DELETE", "/api/latest/fleet/mdm/apple/profiles/1"},
+		{"GET", "/api/latest/fleet/mdm/apple/profiles/summary"},
+		{"PATCH", "/api/latest/fleet/mdm/hosts/1/unenroll"},
+		{"GET", "/api/latest/fleet/mdm/hosts/1/encryption_key"},
+		{"POST", "/api/latest/fleet/mdm/hosts/1/lock"},
+		{"POST", "/api/latest/fleet/mdm/hosts/1/wipe"},
+		{"PATCH", "/api/latest/fleet/mdm/apple/settings"},
+		{"POST", "/api/latest/fleet/mdm/apple/profiles/batch"},
+		{"GET", "/api/latest/fleet/mdm/apple"},
+		{"GET", "/api/latest/fleet/mdm/apple_bm"},
+		{"POST", "/api/latest/fleet/mdm/apple/dep_login"},
+	}
+}

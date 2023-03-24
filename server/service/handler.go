@@ -432,7 +432,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.GET("/api/_version_/fleet/status/live_query", statusLiveQueryEndpoint, nil)
 
 	// Only Fleet MDM specific endpoints should be within the root /mdm/ path.
-	mdmConfiguredMiddleware := mdmconfigured.NewMiddleware(svc.AppConfig)
+	mdmConfiguredMiddleware := mdmconfigured.NewAppleMiddleware(svc)
 	mdm := ue.WithCustomMiddleware(mdmConfiguredMiddleware.Verify())
 	mdm.POST("/api/_version_/fleet/mdm/apple/enrollmentprofiles", createMDMAppleEnrollmentProfilesEndpoint, createMDMAppleEnrollmentProfileRequest{})
 	mdm.GET("/api/_version_/fleet/mdm/apple/enrollmentprofiles", listMDMAppleEnrollmentsEndpoint, listMDMAppleEnrollmentProfilesRequest{})
@@ -500,13 +500,12 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	).GET("/api/_version_/fleet/device/{token}/transparency", transparencyURL, transparencyURLRequest{})
 
 	// mdm-related endpoints available via device authentication
-	de.WithCustomMiddleware(
-		mdmConfiguredMiddleware.Verify(),
+	demdm := de.WithCustomMiddleware(mdmConfiguredMiddleware.Verify())
+	demdm.WithCustomMiddleware(
 		errorLimiter.Limit("get_device_mdm", desktopQuota),
 	).GET("/api/_version_/fleet/device/{token}/mdm/apple/manual_enrollment_profile", getDeviceMDMManualEnrollProfileEndpoint, getDeviceMDMManualEnrollProfileRequest{})
 
-	de.WithCustomMiddleware(
-		mdmConfiguredMiddleware.Verify(),
+	demdm.WithCustomMiddleware(
 		errorLimiter.Limit("post_device_rotate_encryption_key", desktopQuota),
 	).POST("/api/_version_/fleet/device/{token}/rotate_encryption_key", rotateEncryptionKeyEndpoint, rotateEncryptionKeyRequest{})
 

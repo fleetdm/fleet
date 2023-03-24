@@ -6303,10 +6303,24 @@ func (s *integrationTestSuite) TestPingEndpoints() {
 }
 
 func (s *integrationTestSuite) TestAppleMDMNotConfigured() {
-	var rawResp json.RawMessage
-	s.DoJSON("GET", "/api/latest/fleet/mdm/apple", nil, http.StatusNotFound, &rawResp)
-	s.Do("POST", "/api/latest/fleet/mdm/apple/dep_login", nil, http.StatusNotFound)
-	s.DoJSON("GET", "/api/latest/fleet/mdm/apple_bm", nil, http.StatusPaymentRequired, &rawResp) // premium only
+	t := s.T()
+
+	for _, route := range mdmAppleConfigurationRequiredEndpoints() {
+		res := s.Do(route[0], route[1], nil, http.StatusInternalServerError)
+		errMsg := extractServerErrorText(res.Body)
+		assert.Contains(t, errMsg, fleet.MDMNotConfiguredError{}.Error())
+	}
+
+	fleetdmSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Setenv("TEST_FLEETDM_API_URL", fleetdmSrv.URL)
+	t.Cleanup(fleetdmSrv.Close)
+
+	// Always accessible
+	var reqCSRResp requestMDMAppleCSRResponse
+	s.DoJSON("POST", "/api/latest/fleet/mdm/apple/request_csr", requestMDMAppleCSRRequest{EmailAddress: "a@b.c", Organization: "test"}, http.StatusOK, &reqCSRResp)
+	s.Do("POST", "/api/latest/fleet/mdm/apple/dep/key_pair", nil, http.StatusOK)
 }
 
 func (s *integrationTestSuite) TestOrbitConfigNotifications() {
