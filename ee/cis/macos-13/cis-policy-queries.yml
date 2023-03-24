@@ -1609,12 +1609,20 @@ spec:
     2. The key to include is 'Disable'.
     3. The key must be set to <true/>.
   query: |
-    SELECT 1 FROM managed_policies WHERE 
-      domain='com.apple.universalcontrol' 
-      AND 
-      name='Disable' 
-      AND value = '1'
-      AND username = '';  
+    SELECT 1 WHERE 
+      EXISTS (
+        SELECT 1 FROM managed_policies WHERE 
+            domain='com.apple.universalcontrol' AND 
+            name='Disable' AND 
+            (value = 1 OR value = 'true') AND 
+            username = ''
+        )
+      AND NOT EXISTS (
+        SELECT 1 FROM managed_policies WHERE 
+            domain='com.apple.universalcontrol' AND 
+            name='Disable' AND 
+            (value != 1 AND value != 'true')
+        );  
     /*CIS does not make a hard recommendation for this policy. Fleet has provided two policies (one failing, one succeeding). 
       Depending on your organization's decision, you can delete this policy or its counterpart.*/
   purpose: Informational
@@ -1777,7 +1785,33 @@ spec:
         3. Verify that Require password after screensaver begins or display is turned
         off is set with After 0 seconds or After 5 seconds
   query: |
-    SELECT 1 WHERE EXISTS(select 1 FROM managed_policies WHERE domain='com.apple.screensaver' AND name='askForPassword' AND value=1)  AND EXISTS(select 1 FROM managed_policies WHERE domain='com.apple.screensaver' AND name='askForPasswordDelay' AND value <= 5 AND username = '')
+    SELECT 1 WHERE 
+      EXISTS (
+        SELECT 1 FROM managed_policies WHERE 
+            domain='com.apple.screensaver' AND 
+            name='askForPassword' AND 
+            (value = 1 OR value = 'true') AND 
+            username = ''
+        )
+      AND EXISTS (
+        SELECT 1 FROM managed_policies WHERE 
+            domain='com.apple.screensaver' AND 
+            name='askForPasswordDelay' AND 
+            value <= 5 AND 
+            username = ''
+        )
+      AND NOT EXISTS (
+        SELECT 1 FROM managed_policies WHERE 
+            domain='com.apple.screensaver' AND 
+            name='askForPassword' AND 
+            (value != 1 AND value != 'true')
+        )
+      AND NOT EXISTS (
+        SELECT 1 FROM managed_policies WHERE 
+            domain='com.apple.screensaver' AND 
+            name='askForPasswordDelay' AND 
+            value > 5
+        );  
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-macos-13-2.10.2
   contributors: sharon-fdm
