@@ -16,10 +16,16 @@ module.exports = {
       example: 'hermione@hogwarts.edu'
     },
 
-    fullName: {
+    firstName: {
       required: true,
       type: 'string',
-      description: 'The name provided when a user submitted the launch party waitlist form',
+      description: 'The first name provided when a user submitted the launch party waitlist form',
+    },
+
+    lastName: {
+      required: true,
+      type: 'string',
+      description: 'The last name provided when a user submitted the launch party waitlist form',
     },
 
     jobTitle: {
@@ -43,17 +49,18 @@ module.exports = {
   },
 
 
-  fn: async function({emailAddress, fullName, jobTitle, phoneNumber}) {
+  fn: async function({emailAddress, firstName, lastName, jobTitle, phoneNumber}) {
 
     if(!sails.config.custom.zapierSandboxWebhookSecret) {
       throw new Error('Message not delivered: zapierSandboxWebhookSecret needs to be configured in sails.config.custom.');
     }
     // Send a POST request to Zapier
     await sails.helpers.http.post(
-      'https://hooks.zapier.com/hooks/catch/3627242/bj5nh8y/',
+      'https://hooks.zapier.com/hooks/catch/3627242/33kdpw0/',
       {
+        'firstName': firstName,
+        'lastName': lastName,
         'emailAddress': emailAddress,
-        'fullName': fullName,
         'jobTitle': jobTitle,
         'phoneNumber': phoneNumber,
         'webhookSecret': sails.config.custom.zapierSandboxWebhookSecret

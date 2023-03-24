@@ -11,7 +11,8 @@ parasails.registerPage('launch-party', {
 
     // Form rules
     formRules: {
-      fullName: {required: true },
+      firstName: {required: true },
+      lastName: {required: true },
       emailAddress: {required: true, isEmail: true},
     },
     cloudError: '',

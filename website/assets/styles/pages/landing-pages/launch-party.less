@@ -30,6 +30,7 @@
     flex-direction: column;
     align-content: center;
     align-items: center;
+    border-radius: 8px;
   }
 
   [purpose='meet-the-team'] {
@@ -47,13 +48,14 @@
     }
   }
   [purpose='hero'] {
-    height: 480px;
     background-image: url('/images/rsa-map-hero-680x480@2x.png');
+    height: 480px;
     background-size: cover;
     background-repeat: no-repeat;
     background-position: center;
     width: 100%;
     margin-bottom: 40px;
+    border-radius: 8px;
   }
 
   [purpose='rsa-cta'] {
@@ -77,6 +79,8 @@
 
   [purpose='cta-button'] {
     cursor: pointer;
+    font-size: 18px;
+    font-weight: 700;
     margin-right: 32px;
     background: @core-vibrant-red;
     border-radius: 8px;
@@ -108,13 +112,13 @@
     left: 160px;
     width: 110%;
   }
- [purpose='section'] {
+  [purpose='section'] {
     margin-bottom: 40px;
     display: flex;
     flex-direction: column;
     align-items: center;
     width: 100%;
- }
+  }
  [purpose='checklist'] {
   margin-bottom: 40px;
    p {
@@ -133,7 +137,21 @@
      width: 16px;
      height: 16px;
    }
- }
+  }
+   [purpose='modal-content'] {
+     padding-top: 80px;
+     padding-left: 80px;
+     padding-right: 80px;
+     padding-bottom: 120px;
+     margin-right: auto;
+     margin-left: auto;
+   }
+   [purpose='modal-dialog']{
+    max-width: 100%;
+   }
+
+
+
 
  [purpose='modal-form'] {
    input {
@@ -152,47 +170,26 @@
      font-weight: 700;
    }
    width: 100%;
-   max-width: 600px;
+   // max-width: 600px;
  }
 
  [purpose='submit-button'] {
    border-radius: 8px;
  }
- // [purpose='modal']{
- //   [purpose='modal-dialog'] {
- //     max-width: 800px;
- //     [purpose='modal-content'] {
- //       margin-left: auto;
- //       margin-right: auto;
- //       padding-top: 80px;
- //       padding-left: 80px;
- //       padding-right: 80px;
- //       padding-bottom: 120px;
- //       width: 100%;
- //       max-width: 600px;
- //     }
- //   }
- // }
 
+ @media(max-width: 756px){
+  [purpose='modal-content'] {
+    padding-top: 40px;
+    padding-left: 25px;
+    padding-right: 25px;
+    padding-bottom: 40px;
+  }
+
+ }
 
  @media(max-width: 600px){
   padding-left: 20px;
   padding-right: 20px;
-  // [purpose='modal']{
-  //   [purpose='modal-dialog'] {
-  //     max-width: 800px;
-  //     [purpose='modal-content'] {
-  //       margin-left: auto;
-  //       margin-right: auto;
-  //       padding-top: 40px;
-  //       padding-left: 25px;
-  //       padding-right: 25px;
-  //       padding-bottom: 40px;
-  //       width: 100%;
-  //       max-width: 600px;
-  //     }
-  //   }
-  // }
  }
  @media(max-width: 459px) {
   [purpose='hero'] {

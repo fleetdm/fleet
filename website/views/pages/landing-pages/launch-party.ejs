@@ -51,7 +51,7 @@
       <a class="mx-auto" purpose="cta-button" @click="clickOpenModal()">Join the wait list</a>
     </div>
     <hr>
-    <div style="display:  inline-flex; padding-top: 40px; padding-bottom: 40px">
+    <div style="display: inline-flex; padding-bottom: 40px">
       <a href="https://fleetdm.com"><img style="height: 20px; width: 20px; margin-right: 24px;" alt="Fleet logo" src="/images/logo-fleet-20x20@2x.png"></a>
       <a href="https://twitter.com/fleetctl"><img style="height: 20px; width: 24px; margin-right: 24px;" alt="Follow Fleet on Twitter" src="/images/logo-twitter-50x44@2x.png"></a>
       <a href="https://fleetdm.com/slack"><img style="height: 20px; width: 20px;" alt="Join the osquery Slack community" src="/images/logo-slack-24x24@2x.png"></a>
@@ -60,15 +60,22 @@
 
   <modal v-if="modal === 'happy-hour-waitlist'" @close="closeModal()" data-backdrop="false" v-cloak purpose="modal">
     <div class="container d-flex flex-column justify-content-around align-items-center" purpose="modal-container">
-      <div class="modal-header mb-5">
-        <h2>Join us at Fleet’s MDM launch party</h2>
+      <div class="modal-header">
+        <h2>Join us at Fleet’s MDM<br> launch party</h2>
       </div>
-      <div purpose="modal-form" v-if="!showSignupFormSuccess">
+      <div purpose="modal-form" class="pt-5" v-if="!showSignupFormSuccess">
       <ajax-form action="deliverLaunchPartySignup" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-data="formData" :form-rules="formRules" :form-errors.sync="formErrors" @submitted="submittedForm()">
-          <div class="form-group">
-            <label for="fullName">Full Name</label>
-            <input class="form-control" id="fullName" :class="[formErrors.fullName ? 'is-invalid' : '']" v-model.trim="formData.fullName" @input="typeClearOneFormError('fullName')" focus-first>
-            <div class="invalid-feedback" v-if="formErrors.fullName">Please enter your full name.</div>
+          <div class="d-flex flex-md-row flex-column">
+            <div class="form-group pr-0 pr-md-3">
+              <label for="firstName">First Name</label>
+              <input class="form-control" id="firstName" :class="[formErrors.firstName ? 'is-invalid' : '']" v-model.trim="formData.firstName" @input="typeClearOneFormError('firstName')">
+              <div class="invalid-feedback" v-if="formErrors.firstName">Please enter your first name.</div>
+            </div>
+            <div class="form-group">
+              <label for="lastName">Last Name</label>
+              <input class="form-control" id="lastName" :class="[formErrors.lastName ? 'is-invalid' : '']" v-model.trim="formData.lastName" @input="typeClearOneFormError('lastName')">
+              <div class="invalid-feedback" v-if="formErrors.lastName">Please enter your last name.</div>
+            </div>
           </div>
           <div class="form-group">
             <label for="emailAddress">Email</label>
