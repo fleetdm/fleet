@@ -8,14 +8,9 @@ import {
   isAnyTeamSelected,
   ITeamSummary,
   APP_CONTEXT_NO_TEAM_ID,
+  API_NO_TEAM_ID,
+  API_ALL_TEAMS_ID,
 } from "interfaces/team";
-
-const coerceAllTeamsId = (s: string) => {
-  // URLs for the app represent "All teams" by the absence of the team id param
-  // "All teams" is represented in AppContext with -1 as the team id so empty
-  // strings are coerced to -1 by this function
-  return s.length ? parseInt(s, 10) : APP_CONTEXT_ALL_TEAMS_ID;
-};
 
 const splitQueryStringParts = (queryString: string) =>
   trimStart(queryString, "?")
@@ -65,12 +60,12 @@ const getTeamIdForApi = ({
   includeNoTeam?: boolean;
 }) => {
   if (includeNoTeam && currentTeam?.id === APP_CONTEXT_NO_TEAM_ID) {
-    return APP_CONTEXT_NO_TEAM_ID;
+    return API_NO_TEAM_ID;
   }
   if (currentTeam && currentTeam.id > APP_CONTEXT_NO_TEAM_ID) {
     return currentTeam.id;
   }
-  return undefined; // API will treat undefined as equivalent to "All teams"
+  return API_ALL_TEAMS_ID;
 };
 
 const getDefaultTeam = (
@@ -113,6 +108,13 @@ const isValidTeamId = ({
     return false;
   }
   return true;
+};
+
+const coerceAllTeamsId = (s: string) => {
+  // URLs for the app represent "All teams" by the absence of the team id param
+  // "All teams" is represented in AppContext with -1 as the team id so empty
+  // strings are coerced to -1 by this function
+  return s.length ? parseInt(s, 10) : APP_CONTEXT_ALL_TEAMS_ID;
 };
 
 const shouldRedirectToDefaultTeam = ({
@@ -225,7 +227,7 @@ export const useTeamIdParam = ({
   return {
     currentTeamId: currentTeam?.id,
     currentTeamName: currentTeam?.name,
-    isAnyTeamSelected: isAnyTeamSelected(currentTeam),
+    isAnyTeamSelected: isAnyTeamSelected(currentTeam?.id),
     teamIdForApi: getTeamIdForApi({ currentTeam, includeNoTeam }),
     handleTeamChange,
   };

@@ -5,7 +5,7 @@ import { AppContext } from "context/app";
 import SideNav from "pages/admin/components/SideNav";
 import { useQuery } from "react-query";
 import { IMdmProfile, IMdmProfilesResponse } from "interfaces/mdm";
-import { APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
+import { API_NO_TEAM_ID, APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
 import mdmAPI from "services/entities/mdm";
 
 import MAC_OS_SETTINGS_NAV_ITEMS from "./MacOSSettingsNavItems";
@@ -23,7 +23,7 @@ const MacOSSettings = ({ params }: IMacOSSettingsProps) => {
 
   const teamId =
     currentTeam?.id === undefined || currentTeam.id < APP_CONTEXT_NO_TEAM_ID
-      ? 0 // coerce undefined and -1 to 0 for 'No team'
+      ? API_NO_TEAM_ID // coerce undefined and -1 to 0 for 'No team'
       : currentTeam.id;
 
   const { data: profiles, refetch: refectchProfiles } = useQuery<

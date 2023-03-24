@@ -61,7 +61,7 @@ const softwareTableHeaders = [
     Cell: (cellProps: ICellProps) => {
       return (
         <ViewAllHostsLink
-          queryParams={{ software_id: cellProps.cell.value }}
+          queryParams={{ software_id: cellProps.cell.value }} // TODO: Should redirect with the current team id?
           className="software-link"
           condensed
         />

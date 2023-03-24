@@ -476,7 +476,7 @@ const TeamDetailsWrapper = ({
           <AddHostsModal
             currentTeamName={currentTeam?.name}
             enrollSecret={teamSecrets?.[0]?.secret}
-            isAnyTeamSelected={isAnyTeamSelected(currentTeam)}
+            isAnyTeamSelected={isAnyTeamSelected(currentTeam?.id)}
             isLoading={isLoadingTeams}
             // TODO: Currently, prepacked installers in Fleet Sandbox use the global enroll secret,
             // and Fleet Sandbox runs Fleet Free so explicitly setting isSandboxMode here is an
