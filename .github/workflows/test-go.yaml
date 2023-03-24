@@ -95,6 +95,7 @@ jobs:
           MYSQL_TEST=1 \
           MINIO_STORAGE_TEST=1 \
           SAML_IDP_TEST=1 \
+          MAIL_TEST=1 \
           NETWORK_TEST_GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }} \
           make test-go 2>&1 | tee /tmp/gotest.log
 

@@ -10,19 +10,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type mockMailer struct{}
-
-func (m *mockMailer) SendEmail(e fleet.Email) error {
-	return nil
-}
-
-func getMailer() fleet.MailService {
-	if os.Getenv("MAIL_TEST") == "" {
-		return &mockMailer{}
-	}
-	return NewService()
-}
-
 var testFunctions = [...]func(*testing.T, fleet.MailService){
 	testSMTPPlainAuth,
 	testSMTPPlainAuthInvalidCreds,
@@ -32,8 +19,14 @@ var testFunctions = [...]func(*testing.T, fleet.MailService){
 }
 
 func TestMail(t *testing.T) {
+	// This mail test requires mailhog unauthenticated running on localhost:1025
+	// and mailpit running on localhost:1026.
+	if _, ok := os.LookupEnv("MAIL_TEST"); !ok {
+		t.Skip("Mail tests are disabled")
+	}
+
 	for _, f := range testFunctions {
-		r := getMailer()
+		r := NewService()
 
 		t.Run(test.FunctionName(f), func(t *testing.T) {
 			f(t, r)
