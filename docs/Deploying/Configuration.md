@@ -2619,7 +2619,7 @@ This is the second feature flag required to turn on MDM features. This environme
 
 ##### mdm.apple_apns_cert
 
-This is the path to the Apple Push Notification service (APNs) certificate downloaded from Apple Push Certificates Portal. See how to download teh certificate [here](../Using-Fleet/MDM-setup.md#apple-push-notification-service-apns). Only one of `apple_apns_cert` and `apple_apns_cert_bytes` can be set.
+This is the path to the Apple Push Notification service (APNs) certificate downloaded from [Apple Push Certificates Portal](https://identity.apple.com). See how to download teh certificate [here](../Using-Fleet/MDM-setup.md#apple-push-notification-service-apns). Only one of `apple_apns_cert` and `apple_apns_cert_bytes` can be set.
 
 - Default value: ""
 - Environment variable: `FLEET_MDM_APPLE_APNS_CERT`
