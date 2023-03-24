@@ -28,7 +28,7 @@ const HostActionsDropdown = ({
     isPremiumTier = false,
     isGlobalAdmin = false,
     isGlobalMaintainer = false,
-    isMdmFeatureFlagEnabled = false,
+    isMdmEnabledAndConfigured = false,
     isTeamAdmin = false,
     isTeamMaintainer = false,
   } = useContext(AppContext);
@@ -44,7 +44,7 @@ const HostActionsDropdown = ({
       hostMdmEnrollemntStatus ?? ""
     ),
     isFleetMdm: mdmName === "Fleet",
-    isMdmFeatureFlagEnabled,
+    isMdmEnabledAndConfigured,
     doesStoreEncryptionKey: doesStoreEncryptionKey ?? false,
   });
 

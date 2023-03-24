@@ -1424,7 +1424,12 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 		return ctxerr.Wrap(ctx, err)
 	}
 
-	if !svc.config.MDM.AppleEnable {
+	appCfg, err := svc.AppConfig(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err)
+	}
+
+	if !appCfg.MDM.EnabledAndConfigured {
 		// NOTE: in order to prevent an error when Fleet MDM is not enabled but no
 		// profile is provided, which can happen if a user runs `fleetctl get
 		// config` and tries to apply that YAML, as it will contain an empty/null
@@ -1434,9 +1439,7 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 			return nil
 		}
 
-		// TODO(mna): eventually we should detect the minimum config required for
-		// this to be allowed, probably just SCEP/APNs?
-		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("mdm", "cannot set custom settings: Fleet MDM is not enabled"))
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("mdm", "cannot set custom settings: Fleet MDM is not configured"))
 	}
 
 	// any duplicate identifier or name in the provided set results in an error

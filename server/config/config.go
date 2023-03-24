@@ -1628,7 +1628,6 @@ func SetTestMDMConfig(t testing.TB, cfg *FleetConfig, cert, key []byte, appleBMT
 	cfg.MDM.appleSCEPPEMCert = cert
 	cfg.MDM.appleSCEPPEMKey = key
 	cfg.MDM.appleBMToken = appleBMToken
-	cfg.MDM.AppleEnable = true
 	cfg.MDM.AppleSCEPSignerValidityDays = 365
 	cfg.MDM.AppleSCEPChallenge = "testchallenge"
 }

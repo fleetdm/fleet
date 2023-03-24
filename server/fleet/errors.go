@@ -289,6 +289,20 @@ func (e passwordResetRequiredError) StatusCode() int {
 	return http.StatusUnauthorized
 }
 
+// MDMNotConfiguredError is used when an MDM endpoint or resource is accessed
+// without having MDM correctly configured.
+type MDMNotConfiguredError struct{}
+
+// Status implements the transport.statuser interface so we can customize the
+// HTTP status code of the response returning this error.
+func (e MDMNotConfiguredError) Status() int {
+	return http.StatusInternalServerError
+}
+
+func (e MDMNotConfiguredError) Error() string {
+	return "MDM features aren't turned on in Fleet. For more information about setting up MDM, please visit https://fleetdm.com/docs/using-fleet/mobile-device-management"
+}
+
 // Error is a user facing error (API user). It's meant to be used for errors that are
 // related to fleet logic specifically. Other errors, such as mysql errors, shouldn't
 // be translated to this.
