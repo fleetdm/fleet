@@ -104,5 +104,5 @@ Visit our [upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in
 <meta name="authorFullName" value="JD Strong">
 <meta name="authorGitHubUsername" value="spokanemac">
 <meta name="publishedOn" value="2023-03-22">
-<meta name="articleTitle" value="Fleet 4.29.0 | CIS benchmarks for Ventura">
+<meta name="articleTitle" value="Fleet 4.29.0 | SSO provides JIT Fleet user roles">
 <meta name="articleImageUrl" value="../website/assets/images/articles/fleet-4.29.0-1600x900@2x.png">

@@ -2379,7 +2379,10 @@ If set, then `Fleet serve` will capture errors and panics and push them to Sentr
 ##### basic_auth.username
 
 This is the username to use for HTTP Basic Auth on the `/metrics` endpoint.
-If not set, then the Prometheus `/metrics` endpoint is disabled.
+
+If `basic_auth.username` is not set, then:
+  - If `basic_auth.disable` is not set then the Prometheus `/metrics` endpoint is disabled.
+  - If `basic_auth.disable` is set then the Prometheus `/metrics` endpoint is enabled but without HTTP Basic Auth.
 
 - Default value: `""`
 - Environment variable: `FLEET_PROMETHEUS_BASIC_AUTH_USERNAME`
@@ -2393,7 +2396,10 @@ If not set, then the Prometheus `/metrics` endpoint is disabled.
 ##### basic_auth.password
 
 This is the password to use for HTTP Basic Auth on the `/metrics` endpoint.
-If not set, then the Prometheus `/metrics` endpoint is disabled.
+
+If `basic_auth.password` is not set, then:
+  - If `basic_auth.disable` is not set then the Prometheus `/metrics` endpoint is disabled.
+  - If `basic_auth.disable` is set then the Prometheus `/metrics` endpoint is enabled but without HTTP Basic Auth.
 
 - Default value: `""`
 - Environment variable: `FLEET_PROMETHEUS_BASIC_AUTH_PASSWORD`
@@ -2402,6 +2408,21 @@ If not set, then the Prometheus `/metrics` endpoint is disabled.
   prometheus:
     basic_auth:
       password: "bar"
+  ```
+
+##### basic_auth.disable
+
+This allows running the Prometheus endpoint `/metrics` without HTTP Basic Auth.
+
+If both `basic_auth.username` and `basic_auth.password` are set, then this setting is ignored.
+
+- Default value: false
+- Environment variable: `FLEET_PROMETHEUS_BASIC_AUTH_DISABLE`
+- Config file format:
+  ```yaml
+  prometheus:
+    basic_auth:
+      disable: true
   ```
 
 #### Packaging
@@ -2578,7 +2599,7 @@ packaging:
     region: us-east-1
 ```
 
-#### Mobile device management (MDM)
+## Mobile device management (MDM)
 
 > MDM features are not ready for production and are currently in beta. These features are disabled by default. To enable these features set `FLEET_DEV_MDM_ENABLED=1` as an environment variable.
 
@@ -2632,7 +2653,7 @@ This is the path to a PEM-encoded private key for the Apple Push Notification se
 - Config file format:
   ```
   mdm:
-    apple_apns_key: /path/to/apns_key.pem
+    apple_apns_key: /path/to/fleet-mdm-apple-apns.key
   ```
 
 ##### mdm.apple_apns_key_bytes
@@ -2659,7 +2680,7 @@ This is the path to the Simple Certificate Enrollment Protocol (SCEP) certificat
 - Config file format:
   ```
   mdm:
-    apple_scep_cert: /path/to/scep_cert.pem
+    apple_scep_cert: /path/to/fleet-mdm-apple-scep.crt
   ```
 
 ##### mdm.apple_scep_cert_bytes
@@ -2686,7 +2707,7 @@ This is the path to a PEM-encoded private key for the Simple Certificate Enrollm
 - Config file format:
   ```
   mdm:
-    apple_scep_key: /path/to/scep_key.pem
+    apple_scep_key: /path/to/fleet-mdm-apple-scep.key
   ```
 
 ##### mdm.apple_scep_key_bytes
@@ -2776,7 +2797,7 @@ This is the path to the Apple Business Manager certificate.  The certificate is 
 - Config file format:
   ```
   mdm:
-    apple_bm_cert: /path/to/bm_cert.pem
+    apple_bm_cert: /path/to/fleet-apple-mdm-bm-public-key.crt
   ```
 
 ##### mdm.apple_bm_cert_bytes
@@ -2803,7 +2824,7 @@ This is the path to a PEM-encoded private key for the Apple Business Manager. It
 - Config file format:
   ```
   mdm:
-    apple_bm_key: /path/to/private_key.pem
+    apple_bm_key: /path/to/fleet-apple-mdm-bm-private.key
   ```
 
 ##### mdm.apple_bm_key_bytes
