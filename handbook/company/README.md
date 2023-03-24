@@ -61,10 +61,10 @@ Empathy leads to better understanding and better decisions.  Try to understand w
 ### 🟠 Ownership
 It takes reliable execution and a fully-activated mind to achieve ambitious goals. Think like an owner of the company.
 
-- **Take responsibility.** Follow through on commitments. Own up to mistakes. 
+- **Take responsibility.** Follow through on commitments. Own up to mistakes. Loop in [the right people](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility).
 - **Be responsive.** Reply quickly, consistently, whether or not you can take immediate action. Listen. Be present.
 - **Think bigger.** Remember [the big picture](https://fleetdm.com/handbook/company#purpose) beyond your department's goals. Think long-term.
-- **Take initiative.** No one is coming.  Do work that furthers the company's goals. Look for [bottlenecks](https://en.wikipedia.org/wiki/Theory_of_constraints).
+- **Take initiative.** No one is coming. Understand Fleet's goals yourself. Look for [bottlenecks](https://en.wikipedia.org/wiki/Theory_of_constraints).
 
 ### 🟢 Results
 We work to get results. How we work determines the results we deliver. Between overthinking and rushing, there's a [golden mean](https://en.wikipedia.org/wiki/Golden_mean_%28philosophy%29).
