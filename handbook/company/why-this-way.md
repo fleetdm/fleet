@@ -244,7 +244,7 @@ Many companies encourage salespeople to "spray and pray" email blasts, and to do
 - **Be genuine.**  No puffery. No impressive-sounding words.  We are open and outsider friendly.  We expand acronyms, and insist on using simple language that lets everyone understand and contribute.  We help the people we work with grow in their careers and learn from each other.  We are sincere, curious, and [fair to competitors](https://fleetdm.com/handbook/company#objectivity).
 - **Step up.** We look at the big picture.  The goal is for the organization using Fleet to be successful, as well as the individuals who decide to use or buy the product.  There are multiple versions of Fleet, and so many ways to "do" open-source security and IT.  It is in the company's best interest to help engineers pick the right one; even if that's Fleet Free, or vanilla osquery, or using another solution altogether.  We think about our customers needs like they are our own.
 
-> Looking for Fleet's cold outbound strategy?  Look no further. Here's how we do [🧊 ice cold sales, community-building, and education](https://github.com/fleetdm/confidential/blob/main/free-for-all/cold-outbound-strategy.md).
+> Looking for Fleet's cold outbound strategy?  Look no further. Here's how we do [🧊 ice cold sales, community-building, and education](https://github.com/fleetdm/confidential/blob/main/cold-outbound-strategy.md).
 
 <meta name="maintainedBy" value="mikermcneil">
 <meta name="title" value="Why this way?">
