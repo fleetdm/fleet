@@ -470,7 +470,7 @@ func (svc *Service) validateMDM(
 	// we want to use `oldMdm` here as this boolean is set by the fleet
 	// server at startup and can't be modified by the user
 	if !oldMdm.EnabledAndConfigured {
-		if len(mdm.MacOSSettings.CustomSettings) != 0 {
+		if len(mdm.MacOSSettings.CustomSettings) != len(oldMdm.MacOSSettings.CustomSettings) {
 			invalid.Append("macos_settings.custom_settings",
 				`Couldn't update macos_settings because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`)
 		}

@@ -4511,7 +4511,7 @@ func (s *integrationTestSuite) TestPremiumEndpointsWithoutLicense() {
 
 	// get apple BM configuration
 	var appleBMResp getAppleBMResponse
-	s.DoJSON("GET", "/api/latest/fleet/mdm/apple_bm", nil, http.StatusInternalServerError, &appleBMResp)
+	s.DoJSON("GET", "/api/latest/fleet/mdm/apple_bm", nil, http.StatusPaymentRequired, &appleBMResp)
 	assert.Nil(t, appleBMResp.AppleBM)
 
 	// batch-apply an empty set of MDM profiles succeeds even though MDM is not
@@ -4823,28 +4823,21 @@ func (s *integrationTestSuite) TestAppConfig() {
 	// try to update the mdm configured flag via PATCH /config
 	// request is ok but modified value is ignored
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-	  "mdm": { "enabled_and_configured": true }
+	  "mdm": { "enabled_and_configured": false }
   }`), http.StatusOK, &acResp)
 	assert.True(t, acResp.MDM.EnabledAndConfigured)
 
-	// set the macos custom settings fields, fails due to MDM not configured
-	res := s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-		"mdm": { "macos_settings": { "custom_settings": ["foo", "bar"] } }
-  }`), http.StatusInternalServerError)
-	errMsg := extractServerErrorText(res.Body)
-	assert.Contains(t, errMsg, "Couldn't update macos_settings because MDM features aren't turned on in Fleet.")
-
 	// set the macos disk encryption field, fails due to license
-	res = s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+	res := s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"mdm": { "macos_settings": { "enable_disk_encryption": true } }
-  }`), http.StatusInternalServerError)
-	errMsg = extractServerErrorText(res.Body)
+  }`), http.StatusUnprocessableEntity)
+	errMsg := extractServerErrorText(res.Body)
 	assert.Contains(t, errMsg, "missing or invalid license")
 
 	// try to set the apple bm default team, which is premium only
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"mdm": { "apple_bm_default_team": "xyz" }
-  }`), http.StatusInternalServerError, &acResp)
+  }`), http.StatusUnprocessableEntity, &acResp)
 
 	// verify that the Apple BM terms expired flag was never modified
 	acResp = appConfigResponse{}
@@ -4858,6 +4851,13 @@ func (s *integrationTestSuite) TestAppConfig() {
 	appCfg.MDM.EnabledAndConfigured = false
 	err = s.ds.SaveAppConfig(ctx, appCfg)
 	require.NoError(t, err)
+
+	// set the macos custom settings fields, fails due to MDM not configured
+	res = s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+			"mdm": { "macos_settings": { "custom_settings": ["foo", "bar"] } }
+	  }`), http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	assert.Contains(t, errMsg, "Couldn't update macos_settings because MDM features aren't turned on in Fleet.")
 
 	// test setting the default app config we use for new installs (this check
 	// ensures that the default config passes the validation)
