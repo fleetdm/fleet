@@ -460,7 +460,6 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 
 	mdm.PATCH("/api/_version_/fleet/mdm/apple/settings", updateMDMAppleSettingsEndpoint, updateMDMAppleSettingsRequest{})
 
-	mdm.POST("/api/_version_/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesEndpoint, batchSetMDMAppleProfilesRequest{})
 	mdm.GET("/api/_version_/fleet/mdm/apple", getAppleMDMEndpoint, nil)
 	mdm.GET("/api/_version_/fleet/mdm/apple_bm", getAppleBMEndpoint, nil)
 
@@ -469,6 +468,10 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	// (generates CSR request for APNs, plus the SCEP and ABM keypairs).
 	ue.POST("/api/_version_/fleet/mdm/apple/request_csr", requestMDMAppleCSREndpoint, requestMDMAppleCSRRequest{})
 	ue.POST("/api/_version_/fleet/mdm/apple/dep/key_pair", newMDMAppleDEPKeyPairEndpoint, nil)
+	// batch-apply is accessible even though MDM is not enabled, it needs
+	// to support the case where `fleetctl get config`'s output is used as
+	// input to `fleetctl apply`
+	ue.POST("/api/_version_/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesEndpoint, batchSetMDMAppleProfilesRequest{})
 
 	errorLimiter := ratelimit.NewErrorMiddleware(limitStore)
 

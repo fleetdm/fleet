@@ -544,7 +544,6 @@ func mdmAppleConfigurationRequiredEndpoints() [][2]string {
 		{"POST", "/api/latest/fleet/mdm/hosts/1/lock"},
 		{"POST", "/api/latest/fleet/mdm/hosts/1/wipe"},
 		{"PATCH", "/api/latest/fleet/mdm/apple/settings"},
-		{"POST", "/api/latest/fleet/mdm/apple/profiles/batch"},
 		{"GET", "/api/latest/fleet/mdm/apple"},
 		{"GET", "/api/latest/fleet/mdm/apple_bm"},
 		{"POST", "/api/latest/fleet/mdm/apple/dep_login"},

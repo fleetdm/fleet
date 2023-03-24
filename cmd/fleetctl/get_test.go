@@ -1092,7 +1092,11 @@ func TestEnrichedAppConfig(t *testing.T) {
 }
 
 func TestGetAppleMDM(t *testing.T) {
-	runServerWithMockedDS(t)
+	_, ds := runServerWithMockedDS(t)
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
+	}
 
 	// can only test when no MDM cert is provided, otherwise they would have to
 	// be valid Apple APNs and SCEP certs.
