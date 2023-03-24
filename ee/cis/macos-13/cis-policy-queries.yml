@@ -1915,7 +1915,21 @@ spec:
         1. Open System Settings
         2. Select Lock Screen
         3. Verify that Start Screen Saver when inactive is set for 20 minutes or less (≤1200 seconds)
-  query: SELECT 1 FROM managed_policies WHERE domain='com.apple.screensaver' AND name='idleTime' AND value <= 1200 AND username = '';
+  query: |
+    SELECT 1 WHERE 
+      EXISTS (
+        SELECT 1 FROM managed_policies WHERE 
+            domain='com.apple.screensaver' AND 
+            name='idleTime' AND 
+            value <= 1200 AND 
+            username = ''
+        )
+      AND NOT EXISTS (
+        SELECT 1 FROM managed_policies WHERE 
+            domain='com.apple.screensaver' AND 
+            name='idleTime' AND 
+            value > 1200
+        );  
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-macos-13-2.10.1
   contributors: sharon-fdm
@@ -1963,6 +1977,26 @@ spec:
     EXISTS(SELECT 1 FROM managed_policies WHERE domain='com.apple.MCX' AND name='dontAllowFDEDisable' AND value=1)  
     AND 
     EXISTS(SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT "" AND filevault_status = 'on' LIMIT 1);
+  query: |
+    SELECT 1 WHERE 
+      EXISTS (
+        SELECT 1 FROM managed_policies WHERE 
+            domain='com.apple.MCX' AND 
+            name='dontAllowFDEDisable' AND 
+            (value = 1 OR value = 'true') AND 
+            username = ''
+        )
+      AND NOT EXISTS (
+        SELECT 1 FROM managed_policies WHERE 
+            domain='com.apple.MCX' AND 
+            name='dontAllowFDEDisable' AND 
+            (value != 1 AND value != 'true')
+        )
+      AND EXISTS (
+        SELECT 1 FROM disk_encryption WHERE 
+            user_uuid IS NOT "" AND 
+            filevault_status = 'on' 
+        );  
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-macos-13-2.6.5
   contributors: sharon-fdm
@@ -1982,7 +2016,21 @@ spec:
         1. Open System Settings
         2. Select Lock Screen
         3. Verify that Login window shows is set to Name and Password
-  query: SELECT 1 FROM managed_policies where domain='com.apple.loginwindow' AND name='SHOWFULLNAME' AND value=1;
+  query: |
+    SELECT 1 WHERE 
+      EXISTS (
+        SELECT 1 FROM managed_policies WHERE 
+            domain='com.apple.loginwindow' AND 
+            name='SHOWFULLNAME' AND 
+            (value = 1 OR value = 'true') AND 
+            username = ''
+        )
+      AND NOT EXISTS (
+        SELECT 1 FROM managed_policies WHERE 
+            domain='com.apple.loginwindow' AND 
+            name='SHOWFULLNAME' AND 
+            (value != 1 AND value != 'true')
+        );  
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-macos-13-2.10.4
   contributors: sharon-fdm
@@ -2002,7 +2050,21 @@ spec:
         1. OpenSystemSettings
         2. Select Lock Screen
         3. Verify that Show password hints is disabled
-  query: SELECT 1 FROM managed_policies WHERE domain = 'com.apple.loginwindow' AND name = 'RetriesUntilHint' AND value = 0;
+  query: |
+    SELECT 1 WHERE 
+      EXISTS (
+        SELECT 1 FROM managed_policies WHERE 
+            domain='com.apple.loginwindow' AND 
+            name='RetriesUntilHint' AND 
+            value = 0 AND 
+            username = ''
+        )
+      AND NOT EXISTS (
+        SELECT 1 FROM managed_policies WHERE 
+            domain='com.apple.loginwindow' AND 
+            name='RetriesUntilHint' AND 
+            value != 0
+        );  
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-macos-13-2.10.5
   contributors: sharon-fdm
@@ -2097,7 +2159,21 @@ spec:
         1. The Payload Type string is com.apple.loginwindow
         2. The key to include is com.apple.login.mcx.DisableAutoLoginClient 
         3. The key must be set to <true/>
-  query: SELECT 1 FROM managed_policies WHERE domain='com.apple.loginwindow' AND name='com.apple.login.mcx.DisableAutoLoginClient' AND value = 1;
+  query: |
+    SELECT 1 WHERE 
+      EXISTS (
+        SELECT 1 FROM managed_policies WHERE 
+            domain='com.apple.login.mcx.DisableAutoLoginClient' AND 
+            name='Disable' AND 
+            (value = 1 OR value = 'true') AND 
+            username = ''
+        )
+      AND NOT EXISTS (
+        SELECT 1 FROM managed_policies WHERE 
+            domain='com.apple.login.mcx.DisableAutoLoginClient' AND 
+            name='Disable' AND 
+            (value != 1 AND value != 'true')
+        );  
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-macos-13-2.12.3
   contributors: sharon-fdm
@@ -2312,15 +2388,47 @@ spec:
   query: |
     SELECT 1 WHERE
     (
-      EXISTS ( SELECT 1 FROM managed_policies WHERE domain='com.apple.security.firewall' AND name='EnableLogging' AND value=1 )
-      AND
-      EXISTS ( SELECT 1 FROM managed_policies WHERE domain='com.apple.security.firewall' AND name='LoggingOption' AND value="detail" )
+      EXISTS (
+        SELECT 1 FROM managed_policies WHERE 
+            domain='com.apple.security.firewall' AND 
+            name='EnableLogging' AND 
+            (value = 1 OR value = 'true') AND 
+            username = ''
+        )
+      EXISTS (
+        SELECT 1 FROM managed_policies WHERE 
+            domain='com.apple.security.firewall' AND 
+            name='LoggingOption' AND 
+            value = "detail" AND 
+            username = ''
+        )
+      AND NOT EXISTS (
+        SELECT 1 FROM managed_policies WHERE 
+            domain='com.apple.security.firewall' AND 
+            name='EnableLogging' AND 
+            (value != 1 AND value != 'true')
+        )
+      AND NOT EXISTS (
+        SELECT 1 FROM managed_policies WHERE 
+            domain='com.apple.security.firewall' AND 
+            name='LoggingOption' AND 
+            value != "detail"
+        )
     )
     OR
     (
-      EXISTS ( SELECT 1 FROM plist WHERE path='/Library/Preferences/com.apple.alf.plist' AND key='loggingenabled' AND value = 1 )
-      AND
-      EXISTS ( SELECT 1 FROM plist WHERE path='/Library/Preferences/com.apple.alf.plist' AND key='loggingoption' AND value = 2 )
+      EXISTS ( 
+        SELECT 1 FROM plist WHERE 
+            path='/Library/Preferences/com.apple.alf.plist' AND 
+            key='loggingenabled' AND 
+            value = 1 
+        )
+      AND EXISTS ( 
+        SELECT 1 FROM plist WHERE 
+        path='/Library/Preferences/com.apple.alf.plist' AND 
+        key='loggingoption' AND 
+        value = 2 
+        )
     );
 
   purpose: Informational
