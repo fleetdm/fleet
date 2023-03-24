@@ -74,9 +74,6 @@
       color: #515774;
     }
   }
-
-
-
   [purpose='cta-button'] {
     cursor: pointer;
     font-size: 18px;
@@ -112,6 +109,9 @@
     left: 160px;
     width: 110%;
   }
+
+
+
   [purpose='section'] {
     margin-bottom: 40px;
     display: flex;
@@ -119,96 +119,82 @@
     align-items: center;
     width: 100%;
   }
- [purpose='checklist'] {
-  margin-bottom: 40px;
-   p {
-     padding-left: 28px;
-     text-indent: -28px;
-     margin-bottom: 16px;
-   }
-   p::before {
-     content: ' ';
-     background-image: url('/images/icon-checkmark-circle.svg');
-     background-size: 16px 16px;
-     display: inline-block;
-     position: relative;
-     top: 2px;
-     margin-right: 12px;
-     width: 16px;
-     height: 16px;
-   }
+  [purpose='checklist'] {
+    margin-bottom: 40px;
+    p {
+      padding-left: 28px;
+      text-indent: -28px;
+      margin-bottom: 16px;
+    }
+    p::before {
+      content: ' ';
+      background-image: url('/images/icon-checkmark-circle.svg');
+      background-size: 16px 16px;
+      display: inline-block;
+      position: relative;
+      top: 2px;
+      margin-right: 12px;
+      width: 16px;
+      height: 16px;
+    }
   }
-   [purpose='modal-content'] {
-     padding-top: 80px;
-     padding-left: 80px;
-     padding-right: 80px;
-     padding-bottom: 120px;
-     margin-right: auto;
-     margin-left: auto;
-   }
-   [purpose='modal-dialog']{
-    max-width: 100%;
-   }
-
-
-
-
- [purpose='modal-form'] {
-   input {
-     border-radius: 6px;
-     height: 48px;
-   }
-   // Disable default buttons on type="number" inputs
-   input::-webkit-outer-spin-button, input::-webkit-inner-spin-button {
-     -webkit-appearance: none;
-     margin: 0;
-   }
-   input[type='number'] {
-     -moz-appearance: textfield;
-   }
-   label {
-     font-weight: 700;
-   }
-   width: 100%;
-   // max-width: 600px;
- }
-
- [purpose='submit-button'] {
-   border-radius: 8px;
- }
-
- @media(max-width: 756px){
   [purpose='modal-content'] {
-    padding-top: 40px;
-    padding-left: 25px;
-    padding-right: 25px;
-    padding-bottom: 40px;
+    padding-top: 80px;
+    padding-left: 80px;
+    padding-right: 80px;
+    padding-bottom: 120px;
+    margin-right: auto;
+    margin-left: auto;
+    max-width: 680px;
   }
 
- }
+  [purpose='modal-form'] {
+    input {
+      border-radius: 6px;
+      height: 48px;
+    }
+    label {
+      font-weight: 700;
+    }
+    width: 100%;
+  }
+
+  [purpose='submit-button'] {
+   border-radius: 8px;
+  }
 
  @media(max-width: 600px){
-  padding-left: 20px;
-  padding-right: 20px;
  }
- @media(max-width: 459px) {
-  [purpose='hero'] {
-    // height: 480px;
-    background-image: url('/images/rsa-map-hero-small-335x480@2x.png');
-    background-size: cover;
+
+  @media(max-width: 575px) {
+    padding-left: 20px;
+    padding-right: 20px;
+    [purpose='hero'] {
+      background-image: url('/images/rsa-map-hero-small-335x480@2x.png');
+      background-size: cover;
+    }
+    [purpose='meet-the-team'] {
+      img:first-of-type {
+        margin-top: 24px;
+      }
+    }
+    [purpose='modal-content'] {
+      padding-top: 40px;
+      padding-left: 25px;
+      padding-right: 25px;
+      padding-bottom: 80px;
+    }
   }
-  [purpose='meet-the-team'] {
-    img:first-of-type {
-      margin-top: 24px;
+  @media(max-width: 375px){
+    [purpose='modal-content'] {
+      padding: 40px 20px 80px 20px;
+    }
+    h1 {
+      font-size: 28px;
     }
   }
 
- }
- @media(max-width: 375px){
-  h1 {
-    font-size: 28px;
-  }
 
- }
+
 
 }

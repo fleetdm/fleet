@@ -28,10 +28,15 @@ parasails.registerPage('launch-party', {
   //  ║  ║╠╣ ║╣ ║  ╚╦╝║  ║  ║╣
   //  ╩═╝╩╚  ╚═╝╚═╝ ╩ ╚═╝╩═╝╚═╝
   beforeMount: function() {
+
     //…
   },
   mounted: async function() {
-    //…
+
+    if(window.location.search && window.location.search === '?showForm') {
+      this.modal = 'happy-hour-waitlist';
+    }
+
   },
 
   //  ╦╔╗╔╔╦╗╔═╗╦═╗╔═╗╔═╗╔╦╗╦╔═╗╔╗╔╔═╗
