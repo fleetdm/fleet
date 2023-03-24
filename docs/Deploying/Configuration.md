@@ -2653,7 +2653,7 @@ This is the path to a PEM-encoded private key for the Apple Push Notification se
 - Config file format:
   ```
   mdm:
-    apple_apns_key: /path/to/apns_key.pem
+    apple_apns_key: /path/to/fleet-mdm-apple-apns.key
   ```
 
 ##### mdm.apple_apns_key_bytes
@@ -2680,7 +2680,7 @@ This is the path to the Simple Certificate Enrollment Protocol (SCEP) certificat
 - Config file format:
   ```
   mdm:
-    apple_scep_cert: /path/to/scep_cert.pem
+    apple_scep_cert: /path/to/fleet-mdm-apple-scep.crt
   ```
 
 ##### mdm.apple_scep_cert_bytes
@@ -2707,7 +2707,7 @@ This is the path to a PEM-encoded private key for the Simple Certificate Enrollm
 - Config file format:
   ```
   mdm:
-    apple_scep_key: /path/to/scep_key.pem
+    apple_scep_key: /path/to/fleet-mdm-apple-scep.key
   ```
 
 ##### mdm.apple_scep_key_bytes
@@ -2797,7 +2797,7 @@ This is the path to the Apple Business Manager certificate.  The certificate is 
 - Config file format:
   ```
   mdm:
-    apple_bm_cert: /path/to/bm_cert.pem
+    apple_bm_cert: /path/to/fleet-apple-mdm-bm-public-key.crt
   ```
 
 ##### mdm.apple_bm_cert_bytes
@@ -2824,7 +2824,7 @@ This is the path to a PEM-encoded private key for the Apple Business Manager. It
 - Config file format:
   ```
   mdm:
-    apple_bm_key: /path/to/private_key.pem
+    apple_bm_key: /path/to/fleet-apple-mdm-bm-private.key
   ```
 
 ##### mdm.apple_bm_key_bytes
