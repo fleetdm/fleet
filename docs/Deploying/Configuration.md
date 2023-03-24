@@ -2717,21 +2717,9 @@ The number of days allowed to renew SCEP certificates.
     apple_scep_signer_allow_renewal_days: 30
   ```
 
-##### mdm.apple_bm_server_token
-
-This is the path to the Apple Business Manager encrypted server token (a `.p7m` file) downloaded from Apple Business Manager. Only one of `apple_bm_server_token` and `apple_bm_server_token_bytes` can be set.
-
-- Default value: ""
-- Environment variable: `FLEET_MDM_APPLE_BM_SERVER_TOKEN`
-- Config file format:
-  ```
-  mdm:
-    apple_bm_server_token: /path/to/server_token.p7m
-  ```
-
 ##### mdm.apple_bm_server_token_bytes
 
-This is the content of the Apple Business Manager encrypted server token downloaded from Apple Business Manager. Only one of `apple_bm_server_token` and `apple_bm_server_token_bytes` can be set.
+This is the content of the Apple Business Manager encrypted server token downloaded from Apple Business Manager.
 
 - Default value: ""
 - Environment variable: `FLEET_MDM_APPLE_BM_SERVER_TOKEN_BYTES`
@@ -2744,21 +2732,9 @@ This is the content of the Apple Business Manager encrypted server token downloa
       ... rest of content ...
   ```
 
-##### mdm.apple_bm_cert
-
-This is the path to the Apple Business Manager certificate.  The certificate is a PEM-encoded X.509 certificate that's typically generated via `fleetctl generate mdm-apple-bm`. Only one of `apple_bm_cert` and `apple_bm_cert_bytes` can be set.
-
-- Default value: ""
-- Environment variable: `FLEET_MDM_APPLE_BM_CERT`
-- Config file format:
-  ```
-  mdm:
-    apple_bm_cert: /path/to/fleet-apple-mdm-bm-public-key.crt
-  ```
-
 ##### mdm.apple_bm_cert_bytes
 
-This is the content of the Apple Business Manager certificate. The certificate is a PEM-encoded X.509 certificate that's typically generated via `fleetctl generate mdm-apple-bm`. Only one of `apple_bm_cert` and `apple_bm_cert_bytes` can be set.
+This is the content of the Apple Business Manager certificate. The certificate is a PEM-encoded X.509 certificate that's typically generated via `fleetctl generate mdm-apple-bm`.
 
 - Default value: ""
 - Environment variable: `FLEET_MDM_APPLE_BM_CERT_BYTES`
@@ -2771,21 +2747,9 @@ This is the content of the Apple Business Manager certificate. The certificate i
       -----END CERTIFICATE-----
   ```
 
-##### mdm.apple_bm_key
-
-This is the path to a PEM-encoded private key for the Apple Business Manager. It's typically generated via `fleetctl generate mdm-apple-bm`. Only one of `apple_bm_key` and `apple_bm_key_bytes` can be set.
-
-- Default value: ""
-- Environment variable: `FLEET_MDM_APPLE_BM_KEY`
-- Config file format:
-  ```
-  mdm:
-    apple_bm_key: /path/to/fleet-apple-mdm-bm-private.key
-  ```
-
 ##### mdm.apple_bm_key_bytes
 
-This is the content of the PEM-encoded private key for the Apple Business Manager. It's typically generated via `fleetctl generate mdm-apple-bm`. Only one of `apple_bm_key` and `apple_bm_key_bytes` can be set.
+This is the content of the PEM-encoded private key for the Apple Business Manager. It's typically generated via `fleetctl generate mdm-apple-bm`.
 
 - Default value: ""
 - Environment variable: `FLEET_MDM_APPLE_BM_KEY_BYTES`
