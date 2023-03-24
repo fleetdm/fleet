@@ -235,8 +235,8 @@ That means:
 
 ## Why don't we sell like everyone else?
 
-Many companies encourage salespeople to "spray and pray" email blasts, and to do whatever it takes to close deals.  This can sometimes be temporarily effective.  But Fleet takes a different approach:
-- **No spam.**  Fleet is deliberate and thoughtful in the way we do [🧊 ice cold sales, community-building, and education](https://github.com/fleetdm/confidential/blob/main/free-for-all/cold-outbound-strategy.md).
+Many companies encourage salespeople to "spray and pray" email blasts, and to do whatever it takes to close deals.  This can sometimes be temporarily effective.  But Fleet takes a [🟠longer-term](https://fleetdm.com/handbook/company#ownership) approach:
+- **No spam.**  Fleet is deliberate and thoughtful in the way we do [🧊 ice cold sales, community-building, and education](https://github.com/fleetdm/confidential/blob/main/cold-outbound-strategy.md).
 - **Be a helper.**  We focus on [being helpers](https://fleetdm.com/handbook/company#empathy).  Always be depositing value.  This is how we create a virtuous cycle. (That doesn't mean sharing a random article; it means genuinely hearing, doing whatever it takes to fully understand, and offering only advice or links that we would actually want.)  We are genuinely curious and desperate to help, because creating real value for poeple is the way we win.
 - **Engineers first.** We always talk to engineers first, and learn how it's going.  Security and IT engineers are the people closest to the work, and the people best positioned to know what their organizations need.
 - **Fewer words.  Fewer pings.**  People are busy.  We don't waste their time.  Avoid dumping work on peole's plates.  Light touches, no asks.  Every notification from Fleet is a ping they have to deal with.  We don't overload people with words and links.  We [write briefly](http://www.paulgraham.com/writing44.html).
