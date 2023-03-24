@@ -1857,11 +1857,45 @@ spec:
         6. Verify that Improve Siri & Dictation is not enabled
   query: |
     SELECT 1 WHERE 
-    EXISTS(select 1 FROM managed_policies WHERE domain='com.apple.SubmitDiagInfo' AND name='AutoSubmit' AND value = 0 AND username = '')  
-    AND 
-    EXISTS(select 1 FROM managed_policies WHERE domain='com.apple.applicationaccess' AND name='allowDiagnosticSubmission' AND value = 0 AND username = '')
-    AND 
-    EXISTS(select 1 FROM managed_policies WHERE domain='com.apple.applicationaccess' AND name='Siri Data Sharing Opt-In Status' AND value = 2 AND username = '');
+      EXISTS (
+        SELECT 1 FROM managed_policies WHERE 
+            domain='com.apple.SubmitDiagInfo' AND 
+            name='AutoSubmit' AND 
+            (value = 0 OR value = 'false') AND 
+            username = ''
+        )
+      AND EXISTS (
+        SELECT 1 FROM managed_policies WHERE 
+            domain='com.apple.applicationaccess' AND 
+            name='allowDiagnosticSubmission' AND 
+            (value = 0 OR value = 'false') AND 
+            username = ''
+        )
+      AND EXISTS (
+        SELECT 1 FROM managed_policies WHERE 
+            domain='com.apple.applicationaccess' AND 
+            name='Siri Data Sharing Opt-In Status' AND 
+            value = 2 AND 
+            username = ''
+        )
+      AND NOT EXISTS (
+        SELECT 1 FROM managed_policies WHERE 
+            domain='com.apple.SubmitDiagInfo' AND 
+            name='Disable' AND 
+            (value != 0 OR value != 'false') AND 
+        )
+      AND NOT EXISTS (
+        SELECT 1 FROM managed_policies WHERE 
+            domain='com.apple.applicationaccess' AND 
+            name='Disable' AND 
+            (value != 0 OR value != 'false') AND 
+        )
+      AND NOT EXISTS (
+        SELECT 1 FROM managed_policies WHERE 
+            domain='com.apple.applicationaccess' AND 
+            name='Disable' AND 
+            value != 2
+        );  
   purpose: Informational
   tags: compliance, CIS, CIS_Level2, CIS-macos-13-2.6.2
   contributors: sharon-fdm
