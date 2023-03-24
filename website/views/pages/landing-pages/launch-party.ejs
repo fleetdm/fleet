@@ -59,26 +59,26 @@
   </div>
 
   <modal v-if="modal === 'happy-hour-waitlist'" @close="closeModal()" data-backdrop="false" v-cloak purpose="modal">
-    <div class="container d-flex flex-column justify-content-around align-items-center" purpose="modal-container">
-      <div class="modal-header">
-        <h2>Join us at Fleet’s MDM<br> launch party</h2>
+    <div class="d-flex flex-column justify-content-around align-items-center" purpose="modal-container">
+      <div class="modal-header" v-if="!showSignupFormSuccess">
+        <h1>Join us at Fleet’s MDM<br> launch party</h1>
       </div>
       <div purpose="modal-form" class="pt-5" v-if="!showSignupFormSuccess">
       <ajax-form action="deliverLaunchPartySignup" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-data="formData" :form-rules="formRules" :form-errors.sync="formErrors" @submitted="submittedForm()">
           <div class="d-flex flex-md-row flex-column">
-            <div class="form-group pr-0 pr-md-3">
-              <label for="firstName">First Name</label>
-              <input class="form-control" id="firstName" :class="[formErrors.firstName ? 'is-invalid' : '']" v-model.trim="formData.firstName" @input="typeClearOneFormError('firstName')">
+            <div class="form-group pr-0 pr-md-3 w-100">
+              <label for="firstName">First Name <span class="text-danger">*</span></label>
+              <input class="form-control" id="firstName" :class="[formErrors.firstName ? 'is-invalid' : '']" v-model.trim="formData.firstName" @input="typeClearOneFormError('firstName')" focus-first>
               <div class="invalid-feedback" v-if="formErrors.firstName">Please enter your first name.</div>
             </div>
-            <div class="form-group">
-              <label for="lastName">Last Name</label>
+            <div class="form-group w-100">
+              <label for="lastName">Last Name <span class="text-danger">*</span></label>
               <input class="form-control" id="lastName" :class="[formErrors.lastName ? 'is-invalid' : '']" v-model.trim="formData.lastName" @input="typeClearOneFormError('lastName')">
               <div class="invalid-feedback" v-if="formErrors.lastName">Please enter your last name.</div>
             </div>
           </div>
           <div class="form-group">
-            <label for="emailAddress">Email</label>
+            <label for="emailAddress">Email <span class="text-danger">*</span></label>
             <input class="form-control" id="emailAddress" :class="[formErrors.emailAddress ? 'is-invalid' : '']" v-model.trim="formData.emailAddress" @input="typeClearOneFormError('emailAddress')">
             <div class="invalid-feedback" v-if="formErrors.emailAddress">This doesn’t appear to be a valid email address</div>
           </div>
@@ -101,7 +101,7 @@
       </div>
       <div purpose="modal-form" class="text-center" v-else>
         <h3>You're all set!</h3>
-        <p>A Fleet team member will reach out via email with more information if selected.</p>
+        <p>A Fleet team member will reach out via email with more information.</p>
       </div>
     </div>
   </modal>
