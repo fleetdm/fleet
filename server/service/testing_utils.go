@@ -285,7 +285,7 @@ func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServ
 		if mdmStorage != nil && scepStorage != nil {
 			err := RegisterAppleMDMProtocolServices(
 				rootMux,
-				cfg.MDMApple.SCEP,
+				cfg.MDM,
 				mdmStorage,
 				scepStorage,
 				logger,

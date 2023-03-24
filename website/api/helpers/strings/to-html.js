@@ -83,7 +83,7 @@ module.exports = {
         if(text.match(/\S(\w+\_\S)+(\w\S)+/g) && !text.match(/\s/g)){
           textWithLineBreaks = text.replace(/(\_)/g, '&#8203;_');
         }
-        var headingID = _.kebabCase(_.unescape(text).replace(/[\’\']/g, ''));
+        var headingID = _.kebabCase(_.unescape(text.toLowerCase()).replace(/[\’\']/g, ''));
         if(!_.contains(headingsRenderedOnThisPage, headingID)){
           headingsRenderedOnThisPage.push(headingID);
         } else {
