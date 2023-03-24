@@ -252,7 +252,7 @@ spec:
         SELECT 1 FROM managed_policies WHERE 
             domain='com.apple.applicationaccess' AND 
             name='allowCloudDocumentSync' AND 
-            (value != 01 AND value != 'true')
+            (value != 1 AND value != 'true')
         );  
     /*CIS does not make a hard recommendation for this policy. Fleet has provided two policies (one failing, one succeeding). 
       Depending on your organization's decision, you can delete this policy or its counterpart.*/
@@ -278,13 +278,20 @@ spec:
       2. The key to include is allowCloudKeychainSync.
       3. The key must be set to <false/>.
   query: |
-    SELECT 1 WHERE NOT EXISTS (
+    SELECT 1 WHERE 
+      EXISTS (
         SELECT 1 FROM managed_policies WHERE 
-            domain='com.apple.applicationaccess' 
-            AND 
-            name='allowCloudKeychainSync' 
-            AND (value = '1' OR value = 'true') 
-        );
+            domain='com.apple.applicationaccess' AND 
+            name='allowCloudKeychainSync' AND 
+            (value = 0 OR value = 'false') AND 
+            username = ''
+        )
+      AND NOT EXISTS (
+        SELECT 1 FROM managed_policies WHERE 
+            domain='com.apple.applicationaccess' AND 
+            name='allowCloudKeychainSync' AND 
+            (value != 0 AND value != 'false')
+        );  
     /*CIS does not make a hard recommendation for this policy. Fleet has provided two policies (one failing, one succeeding). 
       Depending on your organization's decision, you can delete this policy or its counterpart.*/
   purpose: Informational
@@ -309,12 +316,19 @@ spec:
       2. The key to include is allowCloudKeychainSync.
       3. The key must be set to <true/>.
   query: |
-    SELECT 1 WHERE NOT EXISTS (
+    SELECT 1 WHERE 
+      EXISTS (
         SELECT 1 FROM managed_policies WHERE 
-            domain='com.apple.applicationaccess' 
-            AND 
-            name='allowCloudKeychainSync' 
-             AND (value = '0' OR value = 'false')
+            domain='com.apple.applicationaccess' AND 
+            name='allowCloudKeychainSync' AND 
+            (value = 1 OR value = 'true') AND 
+            username = ''
+        )
+      AND NOT EXISTS (
+        SELECT 1 FROM managed_policies WHERE 
+            domain='com.apple.applicationaccess' AND 
+            name='allowCloudKeychainSync' AND 
+            (value != 1 AND value != 'true')
         );  
     /*CIS does not make a hard recommendation for this policy. Fleet has provided two policies (one failing, one succeeding). 
       Depending on your organization's decision, you can delete this policy or its counterpart.*/
@@ -335,7 +349,21 @@ spec:
       1. The PayloadType string is com.apple.applicationaccess.
       2. The key to include is allowCloudDesktopAndDocuments.
       3. The key must be set to <false/>.
-  query: SELECT 1 FROM managed_policies WHERE domain='com.apple.applicationaccess' AND name='allowCloudDesktopAndDocuments' AND (value = 0 OR value = 'false') AND username = '' LIMIT 1;
+  query: |
+    SELECT 1 WHERE 
+      EXISTS (
+        SELECT 1 FROM managed_policies WHERE 
+            domain='com.apple.applicationaccess' AND 
+            name='allowCloudDesktopAndDocuments' AND 
+            (value = 0 OR value = 'false') AND 
+            username = ''
+        )
+      AND NOT EXISTS (
+        SELECT 1 FROM managed_policies WHERE 
+            domain='com.apple.applicationaccess' AND 
+            name='allowCloudDesktopAndDocuments' AND 
+            (value != 0 AND value != 'false')
+        );  
   purpose: Informational
   tags: compliance, CIS, CIS_Level2, CIS-macos-13-2.1.1.3
   contributors: zwass
@@ -389,7 +417,21 @@ spec:
       1. The PayloadType string is com.apple.applicationaccess
       2. The key to include is allowAirDrop
       3. The key must be set to <false/>
-  query: SELECT 1 FROM managed_policies WHERE domain='com.apple.applicationaccess' AND name='allowAirDrop' AND (value = 0 OR value = 'false') AND username = '' LIMIT 1;
+  query: |
+    SELECT 1 WHERE 
+      EXISTS (
+        SELECT 1 FROM managed_policies WHERE 
+            domain='com.apple.applicationaccess' AND 
+            name='allowAirDrop' AND 
+            (value = 0 OR value = 'false') AND 
+            username = ''
+        )
+      AND NOT EXISTS (
+        SELECT 1 FROM managed_policies WHERE 
+            domain='com.apple.applicationaccess' AND 
+            name='allowAirDrop' AND 
+            (value != 0 AND value != 'false')
+        );  
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-macos-13-2.3.1.1
   contributors: lucasmrod
@@ -415,7 +457,21 @@ spec:
       1. The PayloadType string is com.apple.applicationaccess
       2. The key to include is allowAirPlayIncomingRequests
       3. The key must be set to <false/>
-  query: SELECT 1 FROM managed_policies WHERE domain='com.apple.applicationaccess' AND name='allowAirPlayIncomingRequests' AND (value = 0 OR value = 'false') AND username = '' LIMIT 1;
+  query: |
+    SELECT 1 WHERE 
+      EXISTS (
+        SELECT 1 FROM managed_policies WHERE 
+            domain='com.apple.applicationaccess' AND 
+            name='allowAirPlayIncomingRequests' AND 
+            (value = 0 OR value = 'false') AND 
+            username = ''
+        )
+      AND NOT EXISTS (
+        SELECT 1 FROM managed_policies WHERE 
+            domain='com.apple.applicationaccess' AND 
+            name='allowAirPlayIncomingRequests' AND 
+            (value != 0 AND value != 'false')
+        );  
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-macos-13-2.3.1.2
   contributors: lucasmrod
@@ -433,7 +489,21 @@ spec:
         1. The PayloadType string is com.apple.applicationaccess.
         2. The key to include is forceAutomaticDateAndTime.
         3. The key must be set to <true/>.
-  query: SELECT 1 FROM managed_policies WHERE domain='com.apple.applicationaccess' AND name='forceAutomaticDateAndTime' AND value=1 AND username = '' LIMIT 1;
+  query: |
+    SELECT 1 WHERE 
+      EXISTS (
+        SELECT 1 FROM managed_policies WHERE 
+            domain='com.apple.applicationaccess' AND 
+            name='forceAutomaticDateAndTime' AND 
+            (value = 1 OR value = 'true') AND 
+            username = ''
+        )
+      AND NOT EXISTS (
+        SELECT 1 FROM managed_policies WHERE 
+            domain='com.apple.applicationaccess' AND 
+            name='forceAutomaticDateAndTime' AND 
+            (value != 1 AND value != 'true')
+        );  
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-macos-13-2.3.2.1
   contributors: sharon-fdm
@@ -715,8 +785,20 @@ spec:
       2. The key to include is allowContentCaching
       3. The key must be set to <false/>
   query: |
-    SELECT 1 WHERE EXISTS (SELECT * FROM managed_policies mp WHERE domain = 'com.apple.applicationaccess' AND name = 'allowContentCaching' AND value = 0 AND username = '')
-    AND NOT EXISTS (SELECT * FROM managed_policies mp WHERE domain = 'com.apple.applicationaccess' AND name = 'allowContentCaching' AND value != 0);
+    SELECT 1 WHERE 
+      EXISTS (
+        SELECT 1 FROM managed_policies WHERE 
+            domain='com.apple.applicationaccess' AND 
+            name='allowContentCaching' AND 
+            (value = 0 OR value = 'false') AND 
+            username = ''
+        )
+      AND NOT EXISTS (
+        SELECT 1 FROM managed_policies WHERE 
+            domain='com.apple.applicationaccess' AND 
+            name='allowContentCaching' AND 
+            (value != 0 AND value != 'false')
+        );  
   purpose: Informational
   tags: compliance, CIS, CIS_Level2, CIS-macos-13-2.3.3.9
   contributors: sharon-fdm
@@ -784,6 +866,21 @@ spec:
         name = 'mediaSharingUIStatus' AND
         value = '0' AND 
         username = ''
+    ) AND NOT EXISTS (
+      SELECT 1 FROM managed_policies WHERE
+        domain = 'com.apple.preferences.sharing.SharingPrefsExtension' AND
+        name = 'homeSharingUIStatus' AND
+        value != '0'
+    ) AND NOT EXISTS (
+      SELECT 1 FROM managed_policies WHERE
+        domain = 'com.apple.preferences.sharing.SharingPrefsExtension' AND
+        name = 'legacySharingUIStatus' AND
+        value != '0'
+    ) AND NOT EXISTS (
+      SELECT 1 FROM managed_policies WHERE
+        domain = 'com.apple.preferences.sharing.SharingPrefsExtension' AND
+        name = 'mediaSharingUIStatus' AND
+        value != '0'
     );
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-macos-13-2.3.3.10
@@ -875,7 +972,21 @@ spec:
     1. The `PayloadType` string is `com.apple.controlcenter`.
     2. The key to include is `WiFi`.
     3. The key must be set to `<integer>18</integer>`.
-  query: SELECT 1 FROM managed_policies WHERE domain = 'com.apple.controlcenter' AND name = 'WiFi' AND value = 18 AND username = '';
+  query: |
+    SELECT 1 WHERE 
+      EXISTS (
+        SELECT 1 FROM managed_policies WHERE 
+            domain='com.apple.controlcenter' AND 
+            name='WiFi' AND 
+            value = 18 AND 
+            username = ''
+        )
+      AND NOT EXISTS (
+        SELECT 1 FROM managed_policies WHERE 
+            domain='com.apple.controlcenter' AND 
+            name='WiFi' AND 
+            value != 18
+        );  
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-macos-13-2.4.1
   contributors: lucasmrod
@@ -897,7 +1008,21 @@ spec:
     1. The `PayloadType` string is `com.apple.controlcenter`.
     2. The key to include is `Bluetooth`.
     3. The key must be set to `<integer>18</integer>`.
-  query: SELECT 1 FROM managed_policies WHERE domain = 'com.apple.controlcenter' AND name = 'Bluetooth' AND value = 18 AND username = '';
+  query: |
+    SELECT 1 WHERE 
+      EXISTS (
+        SELECT 1 FROM managed_policies WHERE 
+            domain='com.apple.controlcenter' AND 
+            name='Bluetooth' AND 
+            value = 18 AND 
+            username = ''
+        )
+      AND NOT EXISTS (
+        SELECT 1 FROM managed_policies WHERE 
+            domain='com.apple.controlcenter' AND 
+            name='Bluetooth' AND 
+            value != 18
+        );  
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-macos-13-2.4.2
   contributors: lucasmrod
@@ -920,13 +1045,21 @@ spec:
     2. The key to include is allowAssistant.
     3. The key must be set to <true/>.
   query: |
-    SELECT 1 FROM managed_policies WHERE 
-        domain='com.apple.applicationaccess' 
-        AND 
-        name='allowAssistant' 
-        AND (value = '1' OR value = 'true') 
-        AND username = '';
-    /*CIS does not make a hard recommendation for this policy. Fleet has provided two policies (one failing, one succeeding). 
+    SELECT 1 WHERE 
+      EXISTS (
+        SELECT 1 FROM managed_policies WHERE 
+            domain='com.apple.applicationaccess' AND 
+            name='allowAssistant' AND 
+            (value = 1 OR value = 'true') AND 
+            username = ''
+        )
+      AND NOT EXISTS (
+        SELECT 1 FROM managed_policies WHERE 
+            domain='com.apple.applicationaccess' AND 
+            name='allowAssistant' AND 
+            (value != 1 AND value != 'true')
+        );  
+     /*CIS does not make a hard recommendation for this policy. Fleet has provided two policies (one failing, one succeeding). 
       Depending on your organization's decision, you can delete this policy or its counterpart.*/
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-macos-13-2.5.1-enabled, decision-needed
@@ -950,12 +1083,20 @@ spec:
     2. The key to include is allowAssistant.
     3. The key must be set to <false/>.
   query: |
-    SELECT 1 FROM managed_policies WHERE 
-        domain='com.apple.applicationaccess' 
-        AND 
-        name='allowAssistant' 
-        AND (value = '0' OR value = 'false') 
-        AND username = '';
+    SELECT 1 WHERE 
+      EXISTS (
+        SELECT 1 FROM managed_policies WHERE 
+            domain='com.apple.applicationaccess' AND 
+            name='allowAssistant' AND 
+            (value = 0 OR value = 'false') AND 
+            username = ''
+        )
+      AND NOT EXISTS (
+        SELECT 1 FROM managed_policies WHERE 
+            domain='com.apple.applicationaccess' AND 
+            name='allowAssistant' AND 
+            (value != 0 AND value != 'false')
+        );  
     /*CIS does not make a hard recommendation for this policy. Fleet has provided two policies (one failing, one succeeding). 
       Depending on your organization's decision, you can delete this policy or its counterpart.*/
   purpose: Informational
@@ -1340,7 +1481,21 @@ spec:
         1. Open Privacy & Security
         2. Select Apple Advertising
         3. Verify that Personalized Ads is not enabled
-  query: SELECT 1 FROM managed_policies WHERE domain='com.apple.applicationaccess' AND name='allowApplePersonalizedAdvertising' AND value=0 AND username = '';
+  query: |
+    SELECT 1 WHERE 
+      EXISTS (
+        SELECT 1 FROM managed_policies WHERE 
+            domain='com.apple.applicationaccess' AND 
+            name='allowApplePersonalizedAdvertising' AND 
+            (value = 0 OR value = 'false') AND 
+            username = ''
+        )
+      AND NOT EXISTS (
+        SELECT 1 FROM managed_policies WHERE 
+            domain='com.apple.applicationaccess' AND 
+            name='allowApplePersonalizedAdvertising' AND 
+            (value != 0 AND value != 'false')
+        );  
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-macos-13-2.6.3
   contributors: sharon-fdm
@@ -1417,12 +1572,20 @@ spec:
     2. The key to include is 'Disable'.
     3. The key must be set to <false/>.
   query: |
-    SELECT 1 FROM managed_policies WHERE 
-      domain='com.apple.universalcontrol' 
-      AND 
-      name='Disable' 
-      AND value = '0'
-      AND username = '';  
+    SELECT 1 WHERE 
+      EXISTS (
+        SELECT 1 FROM managed_policies WHERE 
+            domain='com.apple.universalcontrol' AND 
+            name='Disable' AND 
+            (value = 0 OR value = 'false') AND 
+            username = ''
+        )
+      AND NOT EXISTS (
+        SELECT 1 FROM managed_policies WHERE 
+            domain='com.apple.universalcontrol' AND 
+            name='Disable' AND 
+            (value != 0 AND value != 'false')
+        );  
     /*CIS does not make a hard recommendation for this policy. Fleet has provided two policies (one failing, one succeeding). 
       Depending on your organization's decision, you can delete this policy or its counterpart.*/
   purpose: Informational
