@@ -94,8 +94,6 @@ parasails.registerComponent('modal', {
       show: true
     });
 
-    // Hide the Papercups chat widget to prevent it from resizing the page.
-    $('#PapercupsChatWidget').css({'display': 'none'})
 
     // Attach listener for underlying custom modal closing event,
     // and when that happens, have Vue emit a custom "close" event.
