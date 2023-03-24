@@ -1973,11 +1973,6 @@ spec:
         6. Verify that an installed profile has FileVault Can't Disable set to True
   query: |
     SELECT 1 WHERE 
-    EXISTS(SELECT 1 FROM managed_policies WHERE domain='com.apple.MCX' AND name='dontAllowFDEDisable' AND value=1)  
-    AND 
-    EXISTS(SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT "" AND filevault_status = 'on' LIMIT 1);
-  query: |
-    SELECT 1 WHERE 
       EXISTS (
         SELECT 1 FROM managed_policies WHERE 
             domain='com.apple.MCX' AND 
