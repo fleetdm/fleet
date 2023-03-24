@@ -4,7 +4,7 @@ module.exports = {
   friendlyName: 'Deliver launch party signup',
 
 
-  description: 'Delivers a message to an internal slack channel to notify us when someone signs up for our RSA Happy hour',
+  description: 'Delivers a form submission to a Zapier webhook when someone RSVPs to our MDM launch party.',
 
 
   inputs: {
