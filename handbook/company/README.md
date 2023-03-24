@@ -85,9 +85,9 @@ To reach our goals, we need to see reality clearly.  The objective of software i
 ### 🟣 Openness
 Openness [leads to](https://fleetdm.com/handbook/company/why-this-way#why-open-source) better products and stronger partnerships.
 
-- **Welcome contributions.** Have short toes. Get comfortable letting others contribute to your domain. 
+- **Welcome contributions.** Have [short toes](https://about.gitlab.com/handbook/values/#short-toes). Get comfortable letting others contribute to your domain. 
 - **Embrace candor.** Speak up. Give pointed and respectful feedback, even [when you disagree](https://fleetdm.com/handbook/company/why-this-way).
-- **Write it down.** Let people learn about your work.  Remove outdated content so your writing is trustworthy.
+- **Write it down.** Let people learn about your work.  Remove outdated content so your writing is trustworthy. Write in the [handbook first](https://fleetdm.com/handbook/company/why-this-way#why-handbook-first-strategy).
 - **Be transparent.** We build in the open. Everything we do is [public by default](https://fleetdm.com/handbook/company/why-this-way#why-open-source). Declassify non-public information with care. 
 
 
