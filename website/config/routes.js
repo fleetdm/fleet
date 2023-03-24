@@ -295,8 +295,8 @@ module.exports.routes = {
     action: 'landing-pages/view-launch-party',
     locals: {
       layout: 'layouts/layout-sandbox',
-      pageTitleForMeta: '',
-      pageDescriptionForMeta: '',
+      pageTitleForMeta: 'Fleet MDM launch party waitlist | Fleet for osquery',
+      pageDescriptionForMeta: 'Celebrate with us at our MDM launch party on April 27th, 2023 at Press Club. Meet our team, enjoy drinks and learn how our MDM solution can benefit your organization.',
       headerCTAHidden: true,
     }
   },
