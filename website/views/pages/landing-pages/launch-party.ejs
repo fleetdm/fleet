@@ -78,7 +78,7 @@
             </div>
           </div>
           <div class="form-group">
-            <label for="emailAddress">Email <span class="text-danger">*</span></label>
+            <label for="emailAddress">Work Email <span class="text-danger">*</span></label>
             <input class="form-control" id="emailAddress" :class="[formErrors.emailAddress ? 'is-invalid' : '']" v-model.trim="formData.emailAddress" @input="typeClearOneFormError('emailAddress')">
             <div class="invalid-feedback" v-if="formErrors.emailAddress">This doesn’t appear to be a valid email address</div>
           </div>
