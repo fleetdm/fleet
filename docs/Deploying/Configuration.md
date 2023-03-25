@@ -2379,7 +2379,10 @@ If set, then `Fleet serve` will capture errors and panics and push them to Sentr
 ##### basic_auth.username
 
 This is the username to use for HTTP Basic Auth on the `/metrics` endpoint.
-If not set, then the Prometheus `/metrics` endpoint is disabled.
+
+If `basic_auth.username` is not set, then:
+  - If `basic_auth.disable` is not set then the Prometheus `/metrics` endpoint is disabled.
+  - If `basic_auth.disable` is set then the Prometheus `/metrics` endpoint is enabled but without HTTP Basic Auth.
 
 - Default value: `""`
 - Environment variable: `FLEET_PROMETHEUS_BASIC_AUTH_USERNAME`
@@ -2393,7 +2396,10 @@ If not set, then the Prometheus `/metrics` endpoint is disabled.
 ##### basic_auth.password
 
 This is the password to use for HTTP Basic Auth on the `/metrics` endpoint.
-If not set, then the Prometheus `/metrics` endpoint is disabled.
+
+If `basic_auth.password` is not set, then:
+  - If `basic_auth.disable` is not set then the Prometheus `/metrics` endpoint is disabled.
+  - If `basic_auth.disable` is set then the Prometheus `/metrics` endpoint is enabled but without HTTP Basic Auth.
 
 - Default value: `""`
 - Environment variable: `FLEET_PROMETHEUS_BASIC_AUTH_PASSWORD`
@@ -2402,6 +2408,21 @@ If not set, then the Prometheus `/metrics` endpoint is disabled.
   prometheus:
     basic_auth:
       password: "bar"
+  ```
+
+##### basic_auth.disable
+
+This allows running the Prometheus endpoint `/metrics` without HTTP Basic Auth.
+
+If both `basic_auth.username` and `basic_auth.password` are set, then this setting is ignored.
+
+- Default value: false
+- Environment variable: `FLEET_PROMETHEUS_BASIC_AUTH_DISABLE`
+- Config file format:
+  ```yaml
+  prometheus:
+    basic_auth:
+      disable: true
   ```
 
 #### Packaging
@@ -2578,11 +2599,15 @@ packaging:
     region: us-east-1
 ```
 
-#### Mobile device management (MDM)
+## Mobile device management (MDM)
 
 > MDM features are not ready for production and are currently in beta. These features are disabled by default. To enable these features set `FLEET_DEV_MDM_ENABLED=1` as an environment variable.
 
 > MDM features require some endpoints to be publicly accessible outside your VPN or intranet, for more details see [What API endpoints should I expose to the public internet?](./FAQ.md#what-api-endpoints-should-i-expose-to-the-public-internet)
+
+This section is a reference for the configuration required to turn on MDM features in production.
+
+If you're a Fleet contributor and you'd like to turn on MDM features in a local environment, see the guided instructions [here](../Contributing/Testing-and-local-development.md#mdm-setup-and-testing).
 
 ##### mdm.apple_enable
 
@@ -2596,21 +2621,9 @@ This is the second feature flag required to turn on MDM features. This environme
     apple_enable: true
   ```
 
-##### mdm.apple_apns_cert
-
-This is the path to the Apple Push Notification service (APNs) certificate. The APNs certificate is a PEM-encoded X.509 certificate that's typically generated via `fleetctl generate mdm-apple`. Only one of `apple_apns_cert` and `apple_apns_cert_bytes` can be set.
-
-- Default value: ""
-- Environment variable: `FLEET_MDM_APPLE_APNS_CERT`
-- Config file format:
-  ```
-  mdm:
-    apple_apns_cert: /path/to/apns_cert.pem
-  ```
-
 ##### mdm.apple_apns_cert_bytes
 
-The content of the Apple Push Notification service (APNs) certificate. An X.509 certificate, PEM-encoded. Typically generated via `fleetctl generate mdm-apple`. Only one of `apple_apns_cert` and `apple_apns_cert_bytes` can be set.
+The content of the Apple Push Notification service (APNs) certificate. An X.509 certificate, PEM-encoded. Typically generated via `fleetctl generate mdm-apple`.
 
 - Default value: ""
 - Environment variable: `FLEET_MDM_APPLE_APNS_CERT_BYTES`
@@ -2623,21 +2636,9 @@ The content of the Apple Push Notification service (APNs) certificate. An X.509 
       -----END CERTIFICATE-----
   ```
 
-##### mdm.apple_apns_key
-
-This is the path to a PEM-encoded private key for the Apple Push Notification service (APNs). It's typically generated via `fleetctl generate mdm-apple`. Only one of `apple_apns_key` and `apple_apns_key_bytes` can be set.
-
-- Default value: ""
-- Environment variable: `FLEET_MDM_APPLE_APNS_KEY`
-- Config file format:
-  ```
-  mdm:
-    apple_apns_key: /path/to/apns_key.pem
-  ```
-
 ##### mdm.apple_apns_key_bytes
 
-The content of the PEM-encoded private key for the Apple Push Notification service (APNs). Typically generated via `fleetctl generate mdm-apple`. Only one of `apple_apns_key` and `apple_apns_key_bytes` can be set.
+The content of the PEM-encoded private key for the Apple Push Notification service (APNs). Typically generated via `fleetctl generate mdm-apple`.
 
 - Default value: ""
 - Environment variable: `FLEET_MDM_APPLE_APNS_KEY_BYTES`
@@ -2650,21 +2651,9 @@ The content of the PEM-encoded private key for the Apple Push Notification servi
       -----END RSA PRIVATE KEY-----
   ```
 
-##### mdm.apple_scep_cert
-
-This is the path to the Simple Certificate Enrollment Protocol (SCEP) certificate.  The SCEP certificate is a PEM-encoded X.509 certificate that's typically generated via `fleetctl generate mdm-apple`. Only one of `apple_scep_cert` and `apple_scep_cert_bytes` can be set.
-
-- Default value: ""
-- Environment variable: `FLEET_MDM_APPLE_SCEP_CERT`
-- Config file format:
-  ```
-  mdm:
-    apple_scep_cert: /path/to/scep_cert.pem
-  ```
-
 ##### mdm.apple_scep_cert_bytes
 
-The content of the Simple Certificate Enrollment Protocol (SCEP) certificate. An X.509 certificate, PEM-encoded. Typically generated via `fleetctl generate mdm-apple`. Only one of `apple_scep_cert` and `apple_scep_cert_bytes` can be set.
+The content of the Simple Certificate Enrollment Protocol (SCEP) certificate. An X.509 certificate, PEM-encoded. Typically generated via `fleetctl generate mdm-apple`.
 
 - Default value: ""
 - Environment variable: `FLEET_MDM_APPLE_SCEP_CERT_BYTES`
@@ -2677,21 +2666,9 @@ The content of the Simple Certificate Enrollment Protocol (SCEP) certificate. An
       -----END CERTIFICATE-----
   ```
 
-##### mdm.apple_scep_key
-
-This is the path to a PEM-encoded private key for the Simple Certificate Enrollment Protocol (SCEP). It's typically generated via `fleetctl generate mdm-apple`. Only one of `apple_scep_key` and `apple_scep_key_bytes` can be set.
-
-- Default value: ""
-- Environment variable: `FLEET_MDM_APPLE_SCEP_KEY`
-- Config file format:
-  ```
-  mdm:
-    apple_scep_key: /path/to/scep_key.pem
-  ```
-
 ##### mdm.apple_scep_key_bytes
 
-The content of the PEM-encoded private key for the Simple Certificate Enrollment Protocol (SCEP). Typically generated via `fleetctl generate mdm-apple`. Only one of `apple_scep_key` and `apple_scep_key_bytes` can be set.
+The content of the PEM-encoded private key for the Simple Certificate Enrollment Protocol (SCEP). Typically generated via `fleetctl generate mdm-apple`.
 
 - Default value: ""
 - Environment variable: `FLEET_MDM_APPLE_SCEP_KEY_BYTES`
@@ -2740,21 +2717,9 @@ The number of days allowed to renew SCEP certificates.
     apple_scep_signer_allow_renewal_days: 30
   ```
 
-##### mdm.apple_bm_server_token
-
-This is the path to the Apple Business Manager encrypted server token (a `.p7m` file) downloaded from Apple Business Manager. Only one of `apple_bm_server_token` and `apple_bm_server_token_bytes` can be set.
-
-- Default value: ""
-- Environment variable: `FLEET_MDM_APPLE_BM_SERVER_TOKEN`
-- Config file format:
-  ```
-  mdm:
-    apple_bm_server_token: /path/to/server_token.p7m
-  ```
-
 ##### mdm.apple_bm_server_token_bytes
 
-This is the content of the Apple Business Manager encrypted server token downloaded from Apple Business Manager. Only one of `apple_bm_server_token` and `apple_bm_server_token_bytes` can be set.
+This is the content of the Apple Business Manager encrypted server token downloaded from Apple Business Manager.
 
 - Default value: ""
 - Environment variable: `FLEET_MDM_APPLE_BM_SERVER_TOKEN_BYTES`
@@ -2767,21 +2732,9 @@ This is the content of the Apple Business Manager encrypted server token downloa
       ... rest of content ...
   ```
 
-##### mdm.apple_bm_cert
-
-This is the path to the Apple Business Manager certificate.  The certificate is a PEM-encoded X.509 certificate that's typically generated via `fleetctl generate mdm-apple-bm`. Only one of `apple_bm_cert` and `apple_bm_cert_bytes` can be set.
-
-- Default value: ""
-- Environment variable: `FLEET_MDM_APPLE_BM_CERT`
-- Config file format:
-  ```
-  mdm:
-    apple_bm_cert: /path/to/bm_cert.pem
-  ```
-
 ##### mdm.apple_bm_cert_bytes
 
-This is the content of the Apple Business Manager certificate. The certificate is a PEM-encoded X.509 certificate that's typically generated via `fleetctl generate mdm-apple-bm`. Only one of `apple_bm_cert` and `apple_bm_cert_bytes` can be set.
+This is the content of the Apple Business Manager certificate. The certificate is a PEM-encoded X.509 certificate that's typically generated via `fleetctl generate mdm-apple-bm`.
 
 - Default value: ""
 - Environment variable: `FLEET_MDM_APPLE_BM_CERT_BYTES`
@@ -2794,21 +2747,9 @@ This is the content of the Apple Business Manager certificate. The certificate i
       -----END CERTIFICATE-----
   ```
 
-##### mdm.apple_bm_key
-
-This is the path to a PEM-encoded private key for the Apple Business Manager. It's typically generated via `fleetctl generate mdm-apple-bm`. Only one of `apple_bm_key` and `apple_bm_key_bytes` can be set.
-
-- Default value: ""
-- Environment variable: `FLEET_MDM_APPLE_BM_KEY`
-- Config file format:
-  ```
-  mdm:
-    apple_bm_key: /path/to/private_key.pem
-  ```
-
 ##### mdm.apple_bm_key_bytes
 
-This is the content of the PEM-encoded private key for the Apple Business Manager. It's typically generated via `fleetctl generate mdm-apple-bm`. Only one of `apple_bm_key` and `apple_bm_key_bytes` can be set.
+This is the content of the PEM-encoded private key for the Apple Business Manager. It's typically generated via `fleetctl generate mdm-apple-bm`.
 
 - Default value: ""
 - Environment variable: `FLEET_MDM_APPLE_BM_KEY_BYTES`

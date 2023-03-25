@@ -497,3 +497,24 @@ spec:
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.17.7, CIS_not_completed
   contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Turn off Spotlight collection on Desktop' is set to 'Enabled'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy is meant for Windows 11.
+    This policy setting removes the Spotlight collection setting in Personalization, rendering the user unable to select and subsequently download daily images from Microsoft to the system desktop.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'User Configuration\Policies\Administrative Templates\Windows Components\Cloud Content\Turn off Spotlight collection on Desktop'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template CloudContent.admx/adml that is included with the Microsoft Windows 10 Release 21H2 Administrative Templates (or newer).
+  query: |
+    TODO
+    # Untested: SELECT 1 FROM registry WHERE (path LIKE 'HKEY_USERS\%\SOFTWARE\Microsoft\Windows\CurrentVersion\Group Policy Objects\%\Software\Policies\Microsoft\Windows\CloudContent\DisableSpotlightCollectionOnDesktop' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_19.7.8.5, CIS_not_completed
+  contributors: rachelelysia

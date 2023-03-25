@@ -809,14 +809,18 @@ the way that the Fleet server works.
 			}
 
 			if config.Prometheus.BasicAuth.Username != "" && config.Prometheus.BasicAuth.Password != "" {
-				metricsHandler := basicAuthHandler(
+				rootMux.Handle("/metrics", basicAuthHandler(
 					config.Prometheus.BasicAuth.Username,
 					config.Prometheus.BasicAuth.Password,
 					service.PrometheusMetricsHandler("metrics", promhttp.Handler()),
-				)
-				rootMux.Handle("/metrics", metricsHandler)
+				))
 			} else {
-				level.Info(logger).Log("msg", "metrics endpoint disabled (http basic auth credentials not set)")
+				if config.Prometheus.BasicAuth.Disable {
+					level.Info(logger).Log("msg", "metrics endpoint enabled with http basic auth disabled")
+					rootMux.Handle("/metrics", service.PrometheusMetricsHandler("metrics", promhttp.Handler()))
+				} else {
+					level.Info(logger).Log("msg", "metrics endpoint disabled (http basic auth credentials not set)")
+				}
 			}
 
 			rootMux.Handle("/api/", apiHandler)

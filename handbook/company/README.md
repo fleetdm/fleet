@@ -46,49 +46,49 @@ Here are a few reasons to work at Fleet:
 
 ## Values
 
-Fleet's values are a set of five ideals adopted by everyone on the team. They describe the culture we are working together to deliver, inside and outside the company: 🔴 Empathy, 🟠 Ownership, 🟢 Results, 🔵 Objectivity, and 🟣 Openness.
+Fleet's values are a set of five ideals adopted by everyone on the team. They describe the culture we are working together to deliver, inside and outside the company: [🔴 Empathy](#empathy), [🟠 Ownership](#ownership), [🟢 Results](#results), [🔵 Objectivity](#objectivity), and [🟣 Openness](#openness).
 
 Values play an important role in hiring, performance management, and compensation decisions. When a new team member joins Fleet, they adopt the values, from day one.  This way, even as the company grows, everybody knows what to expect from the people they work with.  Having a shared mindset keeps us quick and determined.
 
 ### 🔴 Empathy
-Empathy leads to better understanding, better communication, and better decisions.  Try to understand what people may be going through, so you can help make it better.
+Empathy leads to better understanding and better decisions.  Try to understand what people may be going through, so you can help make it better.
 
-- **Invest in hospitality.** Think and say [positive things](https://www.theatlantic.com/family/archive/2018/06/mr-rogers-neighborhood-talking-to-kids/562352/). Apply customer service principles to all community members, especially outsiders.  
-- **Be curious.** Ask questions. Really care about the answers. Try seeing situations from different perspectives. Use your imagination to find understanding.
-- **Remember the user.** Prioritize product quality. Create patches with care. Fix bugs quickly. Take time writing error messages.
-- **Be [a helper](https://en.m.wikipedia.org/wiki/Fred_Rogers#Legacy).** Treat the needs of customers, contributors, and colleagues like your own.
+- **Assume positive intent.** Think and say [positive things](https://www.theatlantic.com/family/archive/2018/06/mr-rogers-neighborhood-talking-to-kids/562352/), and assume others are doing the same.
+- **Get curious.** Genuinely care. Ask questions. Listen closely to the answers.
+- **Roleplay.** Use your imagination to see situations from different perspectives.  Write stuff you would want to read.
+- **Be [a helper](https://en.m.wikipedia.org/wiki/Fred_Rogers#Legacy).** Take care of customers first. But provide friendly hospitality and service with a smile to everyone you can.
 
 ### 🟠 Ownership
-Achieving ambitious goals requires reliability and initiative. That’s why we encourage every Fleetie to think like an owner. Your impact goes beyond the responsibilities of your role.
+It takes reliable execution and a fully-activated mind to achieve ambitious goals. Think like an owner of the company.
 
-- **Be accountable.** Follow through on commitments. Own up to mistakes. Understand how your work furthers Fleet’s goals.
-- **Be responsive.** Respond quickly whether or not you can take immediate action. Offer feedback freely (even if you disagree).
-- **Think bigger.** Remember the big picture beyond your team's goals. Consider how Fleet creates value for customers.
-- **Take initiative.** You don't need permission to be thoughtful. Think for yourself (from first principles). Great ideas come from everyone.
+- **Take responsibility.** Follow through on commitments. Own up to mistakes. Loop in [the right people](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility).
+- **Be responsive.** Reply quickly, consistently, whether or not you can take immediate action. Listen. Be present.
+- **Think bigger.** Remember [the big picture](https://fleetdm.com/handbook/company#purpose) beyond your department's goals. Think long-term.
+- **Take initiative.** No one is coming. Understand Fleet's goals yourself. Look for [bottlenecks](https://en.wikipedia.org/wiki/Theory_of_constraints).
 
 ### 🟢 Results
-We work to get results. How we work determines the results we deliver. Between overthinking and rushing, there's a [golden mean](https://en.wikipedia.org/wiki/Golden_mean_%28philosophy%29). We balance speed and sustainability to build high-quality products.
+We work to get results. How we work determines the results we deliver. Between overthinking and rushing, there's a [golden mean](https://en.wikipedia.org/wiki/Golden_mean_%28philosophy%29).
 
-- **[Iterate](https://youtu.be/BW6TWwNZzIQ) your work.** Look for ways to make frequent, small changes. Get perspective on complex problems. There may be a simpler solution.
-- **Move quickly.** Aim to deliver results daily. "Everything is in draft." Resist gold-plating and avoid [bike-shedding](https://en.wikipedia.org/wiki/Law_of_triviality).
-- **Be efficient.** Focus on fewer tasks at one time. Use fewer words when possible. Go with "boring solutions." Keep things simple.
+- **[Iterate](https://youtu.be/BW6TWwNZzIQ).** Constantly look for ways to make smaller improvements, more often.
+- **Move quickly.** Aim to deliver results daily. Focus on fewer tasks at one time. Resist gold-plating and avoid [bike-shedding](https://en.wikipedia.org/wiki/Law_of_triviality).
+- **Keep things simple.** Defy complexity. Go with "boring solutions", when they actually work. Use fewer words whenever possible.
 - **Practice self-care.** Remember to take breaks. Schedule time off to recharge. Organize your workday to fit your lifestyle.
 
 ### 🔵 Objectivity
-Our objective as a company is to make money. This is how we measure success. Customers pay for products that make a difference. Approach every project with this in mind.
+To reach our goals, we need to see reality clearly.  The objective of software is to be valuable.  This is how we measure success. 
 
-- **Think for yourself.** Seek understanding. Remember how often conventional wisdom isn't.
-- **Be humble.** Be conservative about what's possible.  Don't overpromise.  No solution is just the “happy path".  Pick boring solutions and save time for edge cases.
-- **Prioritize the truth.** Feel free to change your mind in the face of new evidence. Avoid the sunk cost fallacy. Give credit where credit is due.
-- **Be rigorous.** A lucky fix without understanding does more harm than good. When something isn't working, use the scientific method.
+- **Think for yourself.** Remember how often conventional wisdom isn't.
+- **Be humble.** Be realistic about what's possible.  Don't overpromise.  No solution is just the "happy path".
+- **Seek the truth.** Everything is in draft. Change your mind in the face of new evidence. Avoid the [sunk cost fallacy](https://en.wikipedia.org/wiki/Sunk_cost).
+- **Be rigorous.** A lucky fix without understanding does more harm than good. When something isn't working, use [the scientific method](https://en.wikipedia.org/wiki/Scientific_method#Problem-solving_via_scientific_method).
 
 ### 🟣 Openness
-Openness leads to better products and stronger partnerships. Being open about your work isn’t always easy. But practicing this skill will help you throughout your career.
+Openness [leads to](https://fleetdm.com/handbook/company/why-this-way#why-open-source) better products and stronger partnerships.
 
-- **Welcome contributions.** Be friendly, inclusive, and approachable. Get comfortable letting others contribute to your domain. Have short toes.
-- **Embrace candor.** Be positive and assume positive intent. Don’t be afraid to speak up. Give pointed and respectful feedback. 
-- **Write everything down.** Let people learn about your work. Use simple language. Avoid acronyms and idioms that might not translate.
-- **Be transparent.** We build in the open. Everything we do is [public by default](https://fleetdm.com/handbook/company/why-this-way#why-open-source). Declassify confidential information with care. 
+- **Welcome contributions.** Have [short toes](https://about.gitlab.com/handbook/values/#short-toes). Get comfortable letting others contribute to your domain. 
+- **Embrace candor.** Speak up. Give pointed and respectful feedback, even [when you disagree](https://fleetdm.com/handbook/company/why-this-way). It is okay to interrupt and be interrupted.
+- **Write it down.** Let people learn about your work.  Remove outdated content so your writing is trustworthy. Write in the [handbook first](https://fleetdm.com/handbook/company/why-this-way#why-handbook-first-strategy).
+- **Be transparent.** We build in the open. Everything we do is [public by default](https://fleetdm.com/handbook/company/why-this-way#why-open-source). Declassify non-public information with care. 
 
 
 ## History
