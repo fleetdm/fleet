@@ -59,6 +59,8 @@ Like Apple and GitLab, Fleet uses the concept of [directly responsible individua
 
 A DRI is a person who is singularly responsble for a given aspect of the open-source project, the product, or the company.  A DRI is responsible for making decisions, accomplishing goals, and getting any resources necessary to make a given area of Fleet successful.
 
+For example, every department maintains its own dedicated [handbook page](https://fleetdm.com/handbook) which is kept up to date with accurate, current information, including the group's [kanban board](https://fleetdm.com/handbook/company/why-this-way#why-make-work-visible), Slack channels, and recurring tasks ("rituals"). Changes are always approved by the DRI [first, before they become real](https://fleetdm.com/handbook/company/why-this-way#why-handbook-first-strategy).
+
 DRIs help us collaborate efficiently by knowing exactly who is responsible and can make decisions about the work they're doing.  This saves time by eliminating a requirement for consensus decisions or political presenteeism, enables faster decision-making, and ensures a single individual is aware of what to do next.
 
 ### Reporting structure
@@ -147,14 +149,12 @@ Every group at Fleet maintains their own Slack channel, which all group members 
 
 ## Why make work visible?
 
-Work is tracked in GitHub issues.
+Work is tracked in [GitHub issues](https://github.com/issues?q=archived%3Afalse+org%3Afleetdm+is%3Aissue+is%3Aopen+).
 
-Every department maintains its own dedicated [handbook page](https://fleetdm.com/handbook) which is kept up to date with accurate, current information, including the group's [kanban board](https://fleetdm.com/handbook/company/why-this-way#why-make-work-visible), Slack channels, and recurring tasks ("rituals"). Changes are always approved by the [DRI](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) before they become real.
-
-Fleet organizes work into team-based kanban boards.  This provides a consistent framework for how every team works, plans, and requests things from each other.
+Every department organizes their work into [team-based kanban boards](https://app.zenhub.com/workspaces/-g-business-operations-63f3dc3cc931f6247fcf55a9/board?sprints=none).  This provides a consistent framework for how every team works, plans, and requests things from each other.
 
 1. **Intake:** Give people from anywhere in the world the ability to [request something](https://github.com/fleetdm/confidential/issues/new/choose) from a particular team.
-2. **Planning:** Give the team's manager and other team members a way to plan the next three-week iteration of what the team is working on.  Provide a world (the kanban board) where the team has clarity, and the appropriate DRI can confidently [prioritize and plan changes](https://fleetdm.com/handbook/company/development-groups#planned-and-unplanned-changes) with enough context to make the right decisions.
+2. **Planning:** Give the team's manager and other team members a way to plan the next three-week iteration of what the team is working on.  Provide a world (the kanban board) where the team has clarity, and the appropriate [DRI](https://fleetdm.com/handbook/company#why-direct-responsibility) can confidently [prioritize and plan changes](https://fleetdm.com/handbook/company/development-groups#planned-and-unplanned-changes) with enough context to make the right decisions.
 3. **Shared to-do list:** What should I work on next? Who needs help? What important work is blocked? Is that bug fix merged yet? When will it be released? When will that new feature ship? What did I do yesterday?
 
 ## Why agile?
