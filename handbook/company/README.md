@@ -7,7 +7,7 @@ Fleet Device Management Inc is an [open-core company](https://fleetdm.com/handbo
 We are dedicated to:
 
 - 🧑‍🚀 automating IT and security with a living, breathing API.
-- 🪟 privacy, transparency, and trust through open source software.
+- 🪟 privacy, transparency, and trust through open-source software.
 - 💻 a better way to manage computers.
 
 
@@ -74,19 +74,19 @@ We work to get results. How we work determines what we get.  Aim to deliver resu
 - **Iterate.** [Look for ways](https://youtu.be/BW6TWwNZzIQ) to make smaller changes, more often.  Always be cutting scope.  But finish what you bite off.
 - **Move quickly.** Resist [gold plating](https://en.wikipedia.org/wiki/Gold_plating_(project_management)) and [bike-shedding](https://en.wikipedia.org/wiki/Law_of_triviality).  Between overthinking and rushing, there is a [golden mean](https://en.wikipedia.org/wiki/Golden_mean_%28philosophy%29).
 - **Keep things simple.** Focus on fewer tasks. Choose ["boring solutions"](https://about.gitlab.com/blog/2020/08/18/boring-solutions-faster-iteration/). Use [fewer words](http://www.paulgraham.com/writing44.html). Avoid preemptive structure.
-- **Practice self-care.** When you can't take on [more work](http://www.paulgraham.com/hwh.html), speak up and set boundaries.  Schedule time off to recharge.
+- **Practice self-care.** When you can't take on [more work](http://www.paulgraham.com/hwh.html), speak up.  Set boundaries.  Schedule time off to recharge.
 
 ### 🔵 Objectivity
 To reach our goals, we need to see reality clearly.
 
-- **Think for yourself.** Remember how often [conventional wisdom](http://www.paulgraham.com/think.html) isn't.  Be uncool _and_ right.
-- **Seek the truth.** What's true matters. [Change your mind](https://fleetdm.com/handbook/company/why-this-way#why-this-way) in the face of new evidence. Avoid the [sunk cost fallacy](https://en.wikipedia.org/wiki/Sunk_cost).
+- **Think for yourself.** Remember how often [conventional wisdom](http://www.paulgraham.com/think.html) isn't.
+- **Seek the truth.** What's true matters. [Change your mind](https://fleetdm.com/handbook/company#why-this-way) in the face of new evidence. Avoid the [sunk cost fallacy](https://en.wikipedia.org/wiki/Sunk_cost).
 - **Be humble.** When something isn't working, stop assuming.  Use [the scientific method](https://en.wikipedia.org/wiki/Empirical_research) and [first principles thinking](https://en.wikipedia.org/wiki/First_principle).
 - **Stop and think.** A lucky fix without understanding does more harm than good.  Beware [the "happy path"](https://en.wikipedia.org/wiki/Happy_path).
 
 
 ### 🟣 Openness
-Take the time to make [yourself](https://fleetdm.com/handbook/business-operations#meetings) and [your work](https://fleetdm.com/handbook/company/why-this-way#why-make-work-visible) visible.  This also takes courage.  Hire people like that.
+Take the time to make [yourself](https://fleetdm.com/handbook/business-operations#meetings) and [your work](https://fleetdm.com/handbook/company/why-this-way#why-make-work-visible) visible.  This also takes courage.
 
 - **Write it down.** Let people learn about your [decisions](https://fleetdm.com/handbook/company/why-this-way#why-handbook-first-strategy).  Remove outdated content so your writing is trustworthy. 
 - **Welcome contributions.** Have [short toes](https://about.gitlab.com/handbook/values/#short-toes). Get comfortable letting others contribute to your domain. [Write simply](http://www.paulgraham.com/simply.html).
@@ -113,7 +113,7 @@ Fleet raised its Series A funding round.  The world now has at least 1.65 millio
 
 
 ## Org chart
-To provide clarity about decision-making, responsibility, and resources, everyone at Fleet has a manager, and every manager has direct reports.  Fleet's organizational chart is accessible company-wide as a sub-tab in ["🧑‍🚀 Fleeties" (private google doc)](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0).  On the other sub-tabs, you can also check out a world map of where everyone is located, hiring stats, and fun facts about each team member.
+To provide clarity about decision-making, [responsibility](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility), and resources, everyone at Fleet has a manager, and every manager has direct reports.  Fleet's organizational chart is accessible company-wide as a sub-tab in ["🧑‍🚀 Fleeties" (private google doc)](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0).  On the other sub-tabs, you can also check out a world map of where everyone is located, hiring stats, and fun facts about each team member.
 
 ## Product groups
 Above and beyond the organizational chart, Fleet organizes cross-functional groups focused on particular business goals.  This helps product development teams move more quickly by eliminating roundtrips spent waiting for feedback and answers from people in other departments. Product groups include a designer, a product quality lead, developers, a product manager, and an engineering manager.  For more information, check out the ["Product groups"](./development-groups.md) page.
@@ -124,7 +124,7 @@ While most improvements at Fleet are driven by informal conversations with custo
 
 
 ## Positioning
-Read about [Fleet's positioning in this confidential Google Doc](https://docs.google.com/document/d/1E0VU4AcB6UTVRd4JKD45Saxh9Gz-mkO3LnGSTBDLEZo/edit#).
+Read about the company's positioning in ["👑 Crown jewels"](https://docs.google.com/document/d/1E0VU4AcB6UTVRd4JKD45Saxh9Gz-mkO3LnGSTBDLEZo/edit#).
 
 ## Slack channels
 
