@@ -67,28 +67,28 @@ It takes reliable execution and a fully-activated mind to achieve ambitious goal
 - **Take initiative.** No one is coming. Understand Fleet's goals yourself. Look for [bottlenecks](https://en.wikipedia.org/wiki/Theory_of_constraints).
 
 ### 🟢 Results
-We work to get results. How we work determines the results we deliver. Between overthinking and rushing, there's a [golden mean](https://en.wikipedia.org/wiki/Golden_mean_%28philosophy%29).
+We work to get results. How we work determines the results we get.
 
-- **[Iterate](https://youtu.be/BW6TWwNZzIQ).** Constantly look for ways to make smaller improvements, more often.
-- **Move quickly.** Aim to deliver results daily. Focus on fewer tasks at one time. Resist gold-plating and avoid [bike-shedding](https://en.wikipedia.org/wiki/Law_of_triviality).
-- **Keep things simple.** Defy complexity. Go with "boring solutions", when they actually work. Use fewer words whenever possible.
-- **Practice self-care.** Remember to take breaks. Schedule time off to recharge. Organize your workday to fit your lifestyle.
+- **Iterate.** Constantly [look for ways](https://youtu.be/BW6TWwNZzIQ) to make smaller improvements, more often.
+- **Move quickly.** Aim to deliver results daily. Focus on fewer tasks at one time. Resist gold-plating and avoid [bike-shedding](https://en.wikipedia.org/wiki/Law_of_triviality). Between overthinking and rushing, there's a [golden mean](https://en.wikipedia.org/wiki/Golden_mean_%28philosophy%29).
+- **Keep things simple.** Defy complexity. Go with "boring solutions", when they actually work. Use [fewer words](http://www.paulgraham.com/writing44.html).
+- **Practice self-care.** Remember to take breaks.  Schedule time off to recharge.  Organize your workday to fit your lifestyle.  When you can't take on more work, say so.
 
 ### 🔵 Objectivity
-To reach our goals, we need to see reality clearly.  The objective of software is to be valuable.  This is how we measure success. 
+To reach our goals, we need to see reality clearly.  The objective of software is to be valuable.  This is how we measure success.
 
 - **Think for yourself.** Remember how often conventional wisdom isn't.
 - **Be humble.** Be realistic about what's possible.  Don't overpromise.  No solution is just the "happy path".
-- **Seek the truth.** Everything is in draft. Change your mind in the face of new evidence. Avoid the [sunk cost fallacy](https://en.wikipedia.org/wiki/Sunk_cost).
-- **Be rigorous.** A lucky fix without understanding does more harm than good. When something isn't working, use [the scientific method](https://en.wikipedia.org/wiki/Scientific_method#Problem-solving_via_scientific_method).
+- **Seek the truth.** Everything is [in draft](https://fleetdm.com/handbook/company/why-this-way#why-this-way). Change your mind in the face of new evidence. Avoid the [sunk cost fallacy](https://en.wikipedia.org/wiki/Sunk_cost).
+- **Be rigorous.** A lucky fix without understanding does more harm than good. When something isn't working, use [the scientific method](https://en.wikipedia.org/wiki/Empirical_research).
 
 ### 🟣 Openness
-Openness [leads to](https://fleetdm.com/handbook/company/why-this-way#why-open-source) better products and stronger partnerships.
+Openness leads to [better products](https://fleetdm.com/handbook/company/why-this-way#why-open-source) and stronger relationships.  Work should be [visible](https://fleetdm.com/handbook/company/why-this-way#why-make-work-visible) and [clear](http://selmiak.bplaced.net/games/pc/index.php?lang=eng&game=Loom&page=Audio-Drama--Game-Script#:~:text=Above%20all%20else%20...%20clarity.).
 
-- **Welcome contributions.** Have [short toes](https://about.gitlab.com/handbook/values/#short-toes). Get comfortable letting others contribute to your domain. 
-- **Embrace candor.** Speak up. Give pointed and respectful feedback, even [when you disagree](https://fleetdm.com/handbook/company/why-this-way). It is okay to interrupt and be interrupted.
+- **Welcome contributions.** Have [short toes](https://about.gitlab.com/handbook/values/#short-toes). Get comfortable letting others contribute to your domain.
+- **Embrace candor.** Speak up.  Give pointed and respectful feedback, even [when you disagree](https://fleetdm.com/handbook/company/why-this-way).  It is okay to interrupt and be interrupted.
 - **Write it down.** Let people learn about your work.  Remove outdated content so your writing is trustworthy. Write in the [handbook first](https://fleetdm.com/handbook/company/why-this-way#why-handbook-first-strategy).
-- **Be transparent.** We build in the open. Everything we do is [public by default](https://fleetdm.com/handbook/company/why-this-way#why-open-source). Declassify non-public information with care. 
+- **Be transparent.** Build in the open. Everything we do is [public by default](https://fleetdm.com/handbook/company/why-this-way#why-open-source). Declassify non-public information with care. 
 
 
 ## History
