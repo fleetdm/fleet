@@ -147,7 +147,9 @@ Every group at Fleet maintains their own Slack channel, which all group members 
 
 ## Why make work visible?
 
-Every department maintains its own dedicated [handbook page](https://fleetdm.com/handbook) which is kept up to date with accurate, current information, including the group's [kanban board](https://fleetdm.com/handbook/company/why-this-way#why-make-work-visible), Slack channels, and recurring tasks ("rituals"). Changes are approved by the [DRI](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) before they become real.
+Work is tracked in GitHub issues.
+
+Every department maintains its own dedicated [handbook page](https://fleetdm.com/handbook) which is kept up to date with accurate, current information, including the group's [kanban board](https://fleetdm.com/handbook/company/why-this-way#why-make-work-visible), Slack channels, and recurring tasks ("rituals"). Changes are always approved by the [DRI](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) before they become real.
 
 Fleet organizes work into team-based kanban boards.  This provides a consistent framework for how every team works, plans, and requests things from each other.
 
@@ -156,33 +158,21 @@ Fleet organizes work into team-based kanban boards.  This provides a consistent 
 3. **Shared to-do list:** What should I work on next? Who needs help? What important work is blocked? Is that bug fix merged yet? When will it be released? When will that new feature ship? What did I do yesterday?
 
 ## Why agile?
-Releasing software iteratively gets changes and improvements into the hands of users faster and generally results in software that works. This makes contributors fitter, happier, and more productive. We apply the twelve principles of agile to our development process:
+Releasing software iteratively gets changes and improvements into the hands of users faster and generally results in software that works. This makes contributors fitter, happier, and more productive. We apply aspects of the [twelve principles of agile](https://agilemanifesto.org) to our development process:
 
 1. Our highest priority is to satisfy the customer through early and continuous delivery of valuable software.
-
 2. Welcome changing requirements, even late in development. Agile processes harness change for the customer's competitive advantage.
-
 3. Deliver working software frequently, from a couple of weeks to a couple of months, with a preference to the shorter timescale.
-
-4. Business people and developers must work together daily throughout the project.
-
+4. Business people and developers must [work together daily](https://fleetdm.com/handbook/company/product-groups) throughout the project.
 5. Build projects around motivated individuals. Give them the environment and support they need, and trust them to get the job done.
-
-6. The most efficient and effective method of conveying information to and within a development team is face-to-face conversation.
-
+6. The most efficient and effective method of conveying information to and within a development team is [face-to-face conversation](https://fleetdm.com/handbook/business-operations#meetings).
 7. Working software is the primary measure of progress.
-
 8. Agile processes promote sustainable development. The sponsors, developers, and users should be able to maintain a constant pace indefinitely.
-
 9. Continuous attention to technical excellence and good design enhances agility.
-
 10. Simplicity--the art of maximizing the amount of work not done--is essential.
-
-11. The best architectures, requirements, and designs emerge from self-organizing teams.
-
+11. The best architectures, requirements, and designs emerge from self-organizing teams [with an effective process](https://fleetdm.com/handbook/company/product-groups#making-changes).
 12. At regular intervals, the team reflects on how to become more effective, then tunes and adjusts its behavior accordingly.
 
-See [the agile manifesto](https://agilemanifesto.org/) for more information.
 
 ### Why scrum?
 Scrum is an agile framework for software development that helps teams deliver high quality software faster. It emphasizes teamwork, collaboration, and continuous improvement to achieve business objectives. Here are some of the key reasons why [we use scrum at Fleet](https://fleetdm.com/handbook/engineering#scrum)): 
