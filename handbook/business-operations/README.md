@@ -632,7 +632,7 @@ This applies to anyone who gets paid by the hour, including consultants and hour
 > _**Note:** If a contributor uses their own time tracking process or tools, then it is OK to track the extra time spent tracking!  Contributors at Fleet are evaluated based on their results, not the number of hours they work._
 
 ## Informing managers about hours worked
-Every Friday at 1:00pm CST, gathers hours worked for anyone who gets paid hourly by Fleet. This includes core team members and consultants, regardless of employment classification, and regardless whether inside or outside of the United States.
+Every Friday at 1:00pm CT, we gather hours worked for anyone who gets paid hourly by Fleet. This includes core team members and consultants, regardless of employment classification, and regardless whether inside or outside of the United States.
 - For every hourly core team member in Gusto or Pilot.co, look up their manager ([who they report to](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=651024876)).
 - [Consultants](https://fleetdm.com/handbook/business-operations#hiring) don't have a formal reporting structure or manager. Instead, send their hours worked to the CEO, no matter who the consultant is.
 - Send each manager a direct message in Slack by copying and pasting the following template:
@@ -809,7 +809,7 @@ The following table lists this group's rituals, frequency, and Directly Responsi
 | Security policy update | Annually | Update security policies and have them approved by the CEO. | Nathanael Holliday |
 | Security notifications check | Daily | Check Slack, Google, Vanta, and Fleet dogfood for security-related notifications. | Nathanael Holliday |
 | Changeset for onboarding issue template | Quarterly | pull up the changeset in the onboarding issue template and send out a link to the diff to all team members by posting in Slack's `#general` channel. | Mike McNeil |
-| Informing managers about hours worked | Weekly |  Get hourly employee and contractors hours approved by the appropriate managers. | Nathanael Holliday |
+| Informing managers about hours worked | Weekly |  See [handbook entry](https://fleetdm.com/handbook/business-operations#informing-managers-about-hours-worked). | Nathanael Holliday |
 
 
 
