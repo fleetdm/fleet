@@ -21,8 +21,7 @@ The majority of the code, documentation, and content we create at Fleet is publi
 
 
 ## Why this way?
-At Fleet, we write things down.  Even when we might be wrong.  This helps us move quickly, provides clarity, and enables asynchronous work.  The "Why this way?" page in the handbook discusses some of our most important decisions about the best way to work and the reasoning for them.  For example: _"Why open source?"_, _"Why do we use a wireframe-first approach?"_, _"Why direct responsibility?_, and _"Why handbook-first strategy?"_  You can read more about these principles and suggest improvements in ["Why this way?"](https://fleetdm.com/handbook/company/why-this-way)
-
+At Fleet, we write things down.  Even when we might be wrong.  This helps us move quickly, provides clarity, and enables asynchronous work.  The "Why this way?" page in the handbook discusses some of our most important decisions about the best way to work and the reasoning for them.  For example: _"Why open source?"_, _"Why do we use a wireframe-first approach?"_, _"Why direct responsibility?_, and _"Why handbook-first strategy?"_  You can read more about these principles and suggest improvements in ["📖Company/Why this way?"](https://fleetdm.com/handbook/company/why-this-way)
 
 ## Open positions
 
@@ -35,9 +34,9 @@ Fleet is currently hiring for the following positions:
 ### Is it any good?
 
 Here are a few reasons to work at Fleet:
-- Work from anywhere with good internet. (We're 100% remote. No office. No commute.) Everyone works remote, but you don't feel remote. There is no 'headquarters'. You are free to travel and move.
+- Work from anywhere with good internet. (We're 100% remote. No office. No commute.) Everyone works remote, but you don't feel remote. There is no 'headquarters'. You are free to travel and move.  Organize your workday to fit your lifestyle.  Take breaks.  Go to the dentist.
 - Fleet can offer you a competitive salary, significant equity, and an independent, outsider-friendly culture. Work with helpful, kind, and motivated people who know what they're doing.
-- At Fleet, we value focus, iteration, and meaningful results – not 60 hour work weeks. We are non-judgmental and laser-focused on growing the company.
+- At Fleet, we value focus, iteration, and meaningful results – not [60 hour work weeks](https://fleetdm.com/handbook/company#results). We are non-judgmental and laser-focused on growing the company.
 - Work closely with experienced, well-funded founders and a great team, including the people who created osquery and Sails. We care about openness and transparency.
 - Work computers can be private and safe. Help make endpoint monitoring less intrusive and more transparent.
 - Protect the production servers and employee laptops of Earth's largest companies. Work on a product used by lots of people who care about what you do.
@@ -46,17 +45,20 @@ Here are a few reasons to work at Fleet:
 
 ## Values
 
-Fleet's values are a set of five ideals adopted by everyone on the team. They describe the culture we are working together to deliver, inside and outside the company: [🔴 Empathy](#empathy), [🟠 Ownership](#ownership), [🟢 Results](#results), [🔵 Objectivity](#objectivity), and [🟣 Openness](#openness).
+Fleet's values are a set of five ideals adopted by everyone on the team. They describe the shared mindset we are working together to create, inside and outside the company: [🔴 Empathy](#empathy), [🟠 Ownership](#ownership), [🟢 Results](#results), [🔵 Objectivity](#objectivity), and [🟣 Openness](#openness).
 
-Values play an important role in hiring, performance management, and compensation decisions. When a new team member joins Fleet, they adopt the values, from day one.  This way, even as the company grows, everybody knows what to expect from the people they work with.  Having a shared mindset keeps us quick and determined.
+Values play an important role in hiring, performance management, and compensation decisions.  When a new team member joins the company, they adopt our values, from day one.
+
+This way, everybody knows what to expect from the people they work with.
+
 
 ### 🔴 Empathy
-Empathy leads to better understanding and better decisions.  Try to understand what people may be going through, so you can help make it better.
+Empathy leads to smarter decisions.  Take an interest in what people are going through, so you can help make it better.
 
 - **Assume positive intent.** Think and say [positive things](https://www.theatlantic.com/family/archive/2018/06/mr-rogers-neighborhood-talking-to-kids/562352/), and assume others are doing the same.
 - **Get curious.** Genuinely care. Ask questions. Listen closely to the answers.
-- **Roleplay.** Use your imagination to see situations from different perspectives.  Write stuff you would want to read.
-- **Be [a helper](https://en.m.wikipedia.org/wiki/Fred_Rogers#Legacy).** Take care of customers first. But provide friendly hospitality and service with a smile to everyone you can.
+- **Roleplay.** Use your imagination to see situations from different perspectives.  Read what you write.  [Again.](http://www.paulgraham.com/useful.html)
+- **Be a helper.** Take care of customers first. But give hospitality and [service with a smile](https://en.m.wikipedia.org/wiki/Fred_Rogers#Legacy) to everyone you can.
 
 ### 🟠 Ownership
 It takes reliable execution and a fully-activated mind to achieve ambitious goals. Think like an owner of the company.
@@ -67,28 +69,29 @@ It takes reliable execution and a fully-activated mind to achieve ambitious goal
 - **Take initiative.** No one is coming. Understand Fleet's goals yourself. Look for [bottlenecks](https://en.wikipedia.org/wiki/Theory_of_constraints).
 
 ### 🟢 Results
-We work to get results. How we work determines the results we get.
+We work to get results. How we work determines what we get.  Aim to deliver results daily.
 
-- **Iterate.** Constantly [look for ways](https://youtu.be/BW6TWwNZzIQ) to make smaller improvements, more often.
-- **Move quickly.** Aim to deliver results daily. Focus on fewer tasks at one time. Resist gold-plating and avoid [bike-shedding](https://en.wikipedia.org/wiki/Law_of_triviality). Between overthinking and rushing, there's a [golden mean](https://en.wikipedia.org/wiki/Golden_mean_%28philosophy%29).
-- **Keep things simple.** Defy complexity. Go with "boring solutions", when they actually work. Use [fewer words](http://www.paulgraham.com/writing44.html).
-- **Practice self-care.** Remember to take breaks.  Schedule time off to recharge.  Organize your workday to fit your lifestyle.  When you can't take on more work, say so.
+- **Iterate.** [Look for ways](https://youtu.be/BW6TWwNZzIQ) to make smaller changes, more often.  Always be cutting scope.  But finish what you bite off.
+- **Move quickly.** Resist [gold plating](https://en.wikipedia.org/wiki/Gold_plating_(project_management)) and [bike-shedding](https://en.wikipedia.org/wiki/Law_of_triviality).  Between overthinking and rushing, there is a [golden mean](https://en.wikipedia.org/wiki/Golden_mean_%28philosophy%29).
+- **Keep things simple.** Focus on fewer tasks. Choose ["boring solutions"](https://about.gitlab.com/blog/2020/08/18/boring-solutions-faster-iteration/). Use [fewer words](http://www.paulgraham.com/writing44.html). Avoid preemptive structure.
+- **Practice self-care.** When you can't take on [more work](http://www.paulgraham.com/hwh.html), speak up and set boundaries.  Schedule time off to recharge.
 
 ### 🔵 Objectivity
-To reach our goals, we need to see reality clearly.  The objective of software is to be valuable.  This is how we measure success.
+To reach our goals, we need to see reality clearly.
 
-- **Think for yourself.** Remember how often conventional wisdom isn't.
-- **Be humble.** Be realistic about what's possible.  Don't overpromise.  No solution is just the "happy path".
-- **Seek the truth.** Everything is [in draft](https://fleetdm.com/handbook/company/why-this-way#why-this-way). Change your mind in the face of new evidence. Avoid the [sunk cost fallacy](https://en.wikipedia.org/wiki/Sunk_cost).
-- **Be rigorous.** A lucky fix without understanding does more harm than good. When something isn't working, use [the scientific method](https://en.wikipedia.org/wiki/Empirical_research).
+- **Think for yourself.** Remember how often [conventional wisdom](http://www.paulgraham.com/think.html) isn't.  Be uncool _and_ right.
+- **Seek the truth.** What's true matters. [Change your mind](https://fleetdm.com/handbook/company/why-this-way#why-this-way) in the face of new evidence. Avoid the [sunk cost fallacy](https://en.wikipedia.org/wiki/Sunk_cost).
+- **Be humble.** When something isn't working, stop assuming.  Use [the scientific method](https://en.wikipedia.org/wiki/Empirical_research) and [first principles thinking](https://en.wikipedia.org/wiki/First_principle).
+- **Stop and think.** A lucky fix without understanding does more harm than good.  Beware [the "happy path"](https://en.wikipedia.org/wiki/Happy_path).
+
 
 ### 🟣 Openness
-Openness leads to [better products](https://fleetdm.com/handbook/company/why-this-way#why-open-source) and stronger relationships.  Work should be [visible](https://fleetdm.com/handbook/company/why-this-way#why-make-work-visible) and [clear](http://selmiak.bplaced.net/games/pc/index.php?lang=eng&game=Loom&page=Audio-Drama--Game-Script#:~:text=Above%20all%20else%20...%20clarity.).
+Take the time to make [yourself](https://fleetdm.com/handbook/business-operations#meetings) and [your work](https://fleetdm.com/handbook/company/why-this-way#why-make-work-visible) visible.  This also takes courage.  Hire people like that.
 
-- **Welcome contributions.** Have [short toes](https://about.gitlab.com/handbook/values/#short-toes). Get comfortable letting others contribute to your domain.
-- **Embrace candor.** Speak up.  Give pointed and respectful feedback, even [when you disagree](https://fleetdm.com/handbook/company/why-this-way).  It is okay to interrupt and be interrupted.
-- **Write it down.** Let people learn about your work.  Remove outdated content so your writing is trustworthy. Write in the [handbook first](https://fleetdm.com/handbook/company/why-this-way#why-handbook-first-strategy).
-- **Be transparent.** Build in the open. Everything we do is [public by default](https://fleetdm.com/handbook/company/why-this-way#why-open-source). Declassify non-public information with care. 
+- **Write it down.** Let people learn about your [decisions](https://fleetdm.com/handbook/company/why-this-way#why-handbook-first-strategy).  Remove outdated content so your writing is trustworthy. 
+- **Welcome contributions.** Have [short toes](https://about.gitlab.com/handbook/values/#short-toes). Get comfortable letting others contribute to your domain. [Write simply](http://www.paulgraham.com/simply.html).
+- **Embrace candor.** Give pointed and respectful feedback, even [when you disagree](https://fleetdm.com/handbook/company/why-this-way).  Interrupt and be interrupted.
+- **Be transparent.** Build in the open. Everything we do is [public by default](https://fleetdm.com/handbook/company/why-this-way#why-open-source). Declassify non-public info with care. 
 
 
 ## History
