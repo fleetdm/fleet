@@ -59,7 +59,7 @@ Like Apple and GitLab, Fleet uses the concept of [directly responsible individua
 
 A DRI is a person who is singularly responsble for a given aspect of the open-source project, the product, or the company.  A DRI is responsible for making decisions, accomplishing goals, and getting any resources necessary to make a given area of Fleet successful.
 
-For example, every department maintains its own dedicated [handbook page](https://fleetdm.com/handbook), with a single DRI, and which is kept up to date with accurate, current information, including the group's kanban board, Slack channels, and recurring tasks ("rituals").
+For example, every department maintains its own dedicated [handbook page](https://fleetdm.com/handbook) which is kept up to date with accurate, current information, including the group's [kanban board](https://fleetdm.com/handbook/company/why-this-way#why-make-work-visible), Slack channels, and recurring tasks ("rituals"). Changes are always approved by the DRI [first, before they become real](https://fleetdm.com/handbook/company/why-this-way#why-handbook-first-strategy).
 
 DRIs help us collaborate efficiently by knowing exactly who is responsible and can make decisions about the work they're doing.  This saves time by eliminating a requirement for consensus decisions or political presenteeism, enables faster decision-making, and ensures a single individual is aware of what to do next.
 
@@ -90,7 +90,7 @@ Here's why Fleet uses a wireframe-first approach:
 - Content hierarchy, messaging, error states, interactions, URLs, API parameters, and API response data are all considered during the wireframing process (often with several rounds of review). This initial quality assurance means engineers can focus on their code and confidently catch any potential edge-cases or issues along the way.
 - Wireframing is accessible to people who understand our users but are not necessarily code-literate. So anyone can contribute a suggestion (at any level of fidelity). At the very least, you'll need a napkin and a pen, although we prefer to use Figma.
 - Wireframes can be shown to customers and other users in the community [for feedback](https://www.linkedin.com/feed/update/urn:li:activity:7034272412724555776?commentUrn=urn%3Ali%3Acomment%3A%28activity%3A7034272412724555776%2C7034276934494683136%29&replyUrn=urn%3Ali%3Acomment%3A%28activity%3A7034272412724555776%2C7034539835654569984%29&dashCommentUrn=urn%3Ali%3Afsd_comment%3A%287034276934494683136%2Curn%3Ali%3Aactivity%3A7034272412724555776%29&dashReplyUrn=urn%3Ali%3Afsd_comment%3A%287034539835654569984%2Curn%3Ali%3Aactivity%3A7034272412724555776%29).
-- Designing from the "outside, in" gives us the opportunity to obsess over details in the interaction design.  An undefined "what" exposes the results to the chaos of unplanned extra work and context shifting for engineers.  This way, every engineer doesn't have to personally spend the time to get and stay up to speed with: 
+- Designing from the "outside, in" gives us the opportunity to obsess over details in the interaction design.  An undefined "what" exposes the results to the chaos of [unplanned extra work](https://fleetdm.com/handbook/company/development-groups#planned-and-unplanned-changes) and context shifting for engineers.  This way, every engineer doesn't have to personally spend the time to get and stay up to speed with: 
   - the latest reactions from users
   - all of the motivations and discussions from the previous rounds of wireframe revisions that were thrown away
   - how the UI has evolved in previous releases to better serve the people using and building it
@@ -111,9 +111,21 @@ At Fleet, we keep everything in one repo ([`fleetdm/fleet`](https://github.com/f
 - One repo pools GitHub stars and more accurately reflects Fleet’s presence.
 - One repo means one set of automations and labels to manage, resulting in a consistent GitHub experience that is easier to keep organized.
 
-The only exception ([`fleetdm/confidential`](https://github.com/fleetdm/confidential)) is when we're working on something confidential since GitHub does not allow confidential issues inside public repos.
 
-> Tip: Did you know that you can [search through issues from both repos](https://github.com/issues?q=archived%3Afalse+org%3Afleetdm+is%3Aissue+is%3Aopen+) at the same time?  In addition to the built-in search in the handbook on fleetdm.com, you can also search for any content from the handbook, documentation, or issue templates from either repo [using GitHub search](https://github.com/search?q=org%3Afleetdm+path%3A.github%2FISSUE_TEMPLATE+path%3Ahandbook%2F+path%3Adocs%2F+foo&type=code).
+The only exceptions are:
+1. **Other open-source projects:** When we contribute to open-source projects owned by other people and organizations, we contribute to those outside repositories.  For example, Fleet contributes to [osquery](https://github.com/osquery/osquery/commits/master), [Sails.js](https://github.com/balderdashy/sails/commits/master), and [other open-source projects](https://github.com/orgs/fleetdm/sponsoring).
+2. **Non-public matters:** Since GitHub does not allow non-public issues inside public repos, we have to use separate repositories to track non-public issues.  Sometimes it is also useful to contribute files to a non-public repository, such as when they mention customer relationships that are under non-disclosure agreements.  When we work on something non-public, we contribute to the repository with the appropriate [level of confidentiality](https://fleetdm.com/handbook/company#levels-of-confidentiality):
+   - _Confidential:_ [`fleetdm/confidential`](https://github.com/fleetdm/confidential)
+   - _Classified (¶¶):_ [`fleetdm/classified`](https://github.com/fleetdm/classified)
+
+
+Besides the exceptions above, Fleet does not use any other repositories.  Other GitHub repositories in `fleetdm` should be archived and made private.
+
+
+> _**Tip:** Did you know that you can [search through issues from all public and non-public Fleet repos](https://github.com/issues?q=archived%3Afalse+org%3Afleetdm+is%3Aissue+is%3Aopen+) at the same time?_
+> 
+> _**Tip:** In addition to the built-in search available for the public handbook on fleetdm.com, you can also [search any public AND non-public content, including issue templates, at the same time](https://github.com/search?q=org%3Afleetdm+path%3A.github%2FISSUE_TEMPLATE+path%3Ahandbook%2F+path%3Adocs%2F+foo&type=code)._
+
 
 
 ## Why not continuously generate REST API reference docs from javadoc-style code comments?
@@ -135,80 +147,60 @@ Groups (`g-*`) are organized around goals. Connecting people with the same goals
 Every group at Fleet maintains their own Slack channel, which all group members join and keep unmuted.  Everyone else at Fleet is encouraged to mute these channels, using them only as needed.  Each channel has a directly responsible individual responsible for keeping up with all new messages, even if they aren't explicitly mentioned (`@`).
 
 
-## Why organize work in team-based kanban boards?
-It's helpful to have a consistent framework for how every team works, plans, and requests things from each other. Fleet's kanban boards are that framework, and they cover three goals:
+## Why make work visible?
 
-1. **Intake:** Give people from anywhere in the world the ability to request something from a particular team (i.e., add it to their backlog).
-2. **Planning:** Give the team's manager and other team members a way to plan the next three-week iteration of what the team is working on in a world (the board) where the team has ownership and feels confident making changes.
+Work is tracked in [GitHub issues](https://github.com/issues?q=archived%3Afalse+org%3Afleetdm+is%3Aissue+is%3Aopen+).
+
+Every department organizes their work into [team-based kanban boards](https://app.zenhub.com/workspaces/-g-business-operations-63f3dc3cc931f6247fcf55a9/board?sprints=none).  This provides a consistent framework for how every team works, plans, and requests things from each other.
+
+1. **Intake:** Give people from anywhere in the world the ability to [request something](https://github.com/fleetdm/confidential/issues/new/choose) from a particular team, and give that team the ability to see and [respond quickly](https://fleetdm.com/handbook/company#results) to new requests.
+2. **Planning:** Give the team's manager and other team members a way to plan the [next three-week iteration](https://fleetdm.com/handbook/company/why-this-way#why-a-three-week-cadence) of what the team is working on.  Provide a world (the kanban board) where the team has clarity, and the appropriate [DRI](https://fleetdm.com/handbook/company#why-direct-responsibility) can confidently [prioritize and plan changes](https://fleetdm.com/handbook/company/development-groups#planned-and-unplanned-changes) with enough context to make the right decisions.
 3. **Shared to-do list:** What should I work on next? Who needs help? What important work is blocked? Is that bug fix merged yet? When will it be released? When will that new feature ship? What did I do yesterday?
 
 ## Why agile?
-Releasing software iteratively gets changes and improvements into the hands of users faster and generally results in software that works. This makes contributors fitter, happier, and more productive. We apply the twelve principles of agile to our development process:
+Releasing software [🟢iteratively](https://fleetdm.com/handbook/company#results) gets changes and improvements into the hands of users faster and generally results in [🔵software that works](https://fleetdm.com/handbook/company#objectivity). This makes contributors fitter, happier, and more productive.
 
-1. Our highest priority is to satisfy the customer through early and continuous delivery of valuable software.
+We apply the [twelve principles of agile](https://agilemanifesto.org) to Fleet's [development process](https://fleetdm.com/handbook/company/product-groups#making-changes):
 
+1. Our highest priority is to [🔴satisfy the customer](https://fleetdm.com/handbook/company#empathy) through early and continuous delivery of valuable software.
 2. Welcome changing requirements, even late in development. Agile processes harness change for the customer's competitive advantage.
-
 3. Deliver working software frequently, from a couple of weeks to a couple of months, with a preference to the shorter timescale.
-
-4. Business people and developers must work together daily throughout the project.
-
+4. Business people and developers must [work together daily](https://fleetdm.com/handbook/company/product-groups) throughout the project.
 5. Build projects around motivated individuals. Give them the environment and support they need, and trust them to get the job done.
-
-6. The most efficient and effective method of conveying information to and within a development team is face-to-face conversation.
-
+6. The most efficient and effective method of conveying information to and within a development team is [face-to-face conversation](https://fleetdm.com/handbook/business-operations#meetings).
 7. Working software is the primary measure of progress.
-
 8. Agile processes promote sustainable development. The sponsors, developers, and users should be able to maintain a constant pace indefinitely.
-
 9. Continuous attention to technical excellence and good design enhances agility.
-
 10. Simplicity--the art of maximizing the amount of work not done--is essential.
-
-11. The best architectures, requirements, and designs emerge from self-organizing teams.
-
+11. The best architectures, requirements, and designs emerge from self-organizing teams [with an effective process](https://fleetdm.com/handbook/company/product-groups#making-changes).
 12. At regular intervals, the team reflects on how to become more effective, then tunes and adjusts its behavior accordingly.
 
-See [the agile manifesto](https://agilemanifesto.org/) for more information.
 
-## Why scrum?
+### Why scrum?
 Scrum is an agile framework for software development that helps teams deliver high quality software faster. It emphasizes teamwork, collaboration, and continuous improvement to achieve business objectives. Here are some of the key reasons why [we use scrum at Fleet](https://fleetdm.com/handbook/engineering#scrum)): 
-
 - Improved collaboration and communication: Scrum emphasizes teamwork and collaboration, which leads to better communication between team members and stakeholders. This helps ensure that everyone is aligned and working towards the same goals.
-
 - Flexibility and adaptability: Scrum allows teams to respond quickly to changing requirements and market conditions. By working in short sprints, teams can continuously adapt to new information and feedback, and adjust their approach as needed.
-
 - Continuous improvement: Scrum encourages teams to reflect on their processes and identify areas for improvement. The regular sprint retrospective meetings provide a forum for the team to discuss what went well and what could be improved, and to make changes to their processes accordingly.
-
 - Faster delivery of working software: Scrum helps teams deliver working software faster by breaking down the development process into manageable chunks that can be completed within a sprint. Stakeholders can see progress and provide feedback more quickly, which helps ensure the final product meets their needs.
-
 - Higher quality software: Scrum includes regular testing and quality assurance activities, which help ensure that the software being developed is of high quality and meets the required standards.
 
-## Why lean software development?
-[Lean software development](https://en.wikipedia.org/wiki/Lean_software_development) is an iterative and incremental approach to software development that aims to eliminate waste and deliver value to
-customers quickly. It is based on the principles of [lean manufacturing](https://en.wikipedia.org/wiki/Lean_manufacturing) and emphasizes continuous improvement, collaboration, and customer focus. 
+### Why lean software development?
+[Lean software development](https://en.wikipedia.org/wiki/Lean_software_development) is an iterative and incremental approach to software development that aims to eliminate waste and deliver value to customers quickly. It is based on the principles of [lean manufacturing](https://en.wikipedia.org/wiki/Lean_manufacturing) and emphasizes continuous improvement, collaboration, and customer focus.
 
 Lean development can be summarized by its seven principles:
-
 1. Eliminate waste: Eliminate anything that doesn't add value to the customer, such as unnecessary features, extra processing, and waiting times.
-
 2. Amplify learning: Share knowledge and expertise across the team to continuously improve the process and increase efficiency.
-
 3. Decide as late as possible: Defer major decisions and commitments until the last possible moment to enable more informed and optimal decisions.
-
 4. Deliver as fast as possible: Deliver value to customers as quickly as possible to ensure their needs are met and to receive feedback for continuous improvement.
-
 5. Empower the team: Respect and empower the team, including customers, stakeholders, and developers, by providing a supportive environment and clear communication.
-
 6. Build integrity in: Build quality into the software by continuously testing, reviewing, and improving the code throughout the development process.
-
 7. Optimize the whole: Optimize the entire process and focus on the system's overall performance rather than just individual parts to ensure the most efficient and effective use of resources.
 
 ## Why a three-week cadence?
 The Fleet product is released every three weeks. By syncing the whole company to this schedule, we can:
 
-- keep all team members (especially those who aren't directly involved with the core product) aware of the current version of Fleet and when the next release is shipping.
-- align project planning and milestones across all teams, which helps us schedule our content calendar and manage company-wide goals.
+- Keep all team members (especially those who aren't directly involved with the core product) aware of the current version of Fleet and when the next release is shipping.
+- Align project planning and milestones across all teams, which helps us schedule our content calendar and manage company-wide goals.
 
 ## Why spend so much energy responding to every potential production incident?
 
@@ -236,15 +228,14 @@ That means:
 ## Why don't we sell like everyone else?
 
 Many companies encourage salespeople to "spray and pray" email blasts, and to do whatever it takes to close deals.  This can sometimes be temporarily effective.  But Fleet takes a [🟠longer-term](https://fleetdm.com/handbook/company#ownership) approach:
-- **No spam.**  Fleet is deliberate and thoughtful in the way we do [🧊 ice cold sales, community-building, and education](https://github.com/fleetdm/confidential/blob/main/cold-outbound-strategy.md).
-- **Be a helper.**  We focus on [being helpers](https://fleetdm.com/handbook/company#empathy).  Always be depositing value.  This is how we create a virtuous cycle. (That doesn't mean sharing a random article; it means genuinely hearing, doing whatever it takes to fully understand, and offering only advice or links that we would actually want.)  We are genuinely curious and desperate to help, because creating real value for poeple is the way we win.
+- **No spam.**  Fleet is deliberate and thoughtful in the way we do outreach, whether that's for community-building, education, or [🧊 ice-cold sales](https://github.com/fleetdm/confidential/blob/main/cold-outbound-strategy.md).
+- **Be a helper.**  We focus on [🔴being helpers](https://fleetdm.com/handbook/company#empathy).  Always be depositing value.  This is how we create a virtuous cycle. (That doesn't mean sharing a random article; it means genuinely hearing, doing whatever it takes to fully understand, and offering only advice or links that we would actually want.)  We are genuinely curious and desperate to help, because creating real value for poeple is the way we win.
 - **Engineers first.** We always talk to engineers first, and learn how it's going.  Security and IT engineers are the people closest to the work, and the people best positioned to know what their organizations need.
-- **Fewer words.  Fewer pings.**  People are busy.  We don't waste their time.  Avoid dumping work on peole's plates.  Light touches, no asks.  Every notification from Fleet is a ping they have to deal with.  We don't overload people with words and links.  We [write briefly](http://www.paulgraham.com/writing44.html).
+- **Fewer words.  Fewer pings.**  People are busy.  We don't waste their time.  Avoid dumping work on prospect's plates at all costs.  Light touches, no asks.  Every notification from Fleet is a ping they have to deal with.  We don't overload people with words and links.  We [🟢keep things simple](https://fleetdm.com/handbook/company#results) and [write briefly](http://www.paulgraham.com/writing44.html).
 - **Community-first.**  We go to conferences.  We write docs.  We are participants, not sponsors.  We don't write spammy articles and landing pages. We want people who choose Fleet to be successful, whether they are paying customers or not.  We are not pushy.  We are only as commercial as we have to be to help people out.
-- **Be genuine.**  No puffery. No impressive-sounding words.  We are open and outsider friendly.  We expand acronyms, and insist on using simple language that lets everyone understand and contribute.  We help the people we work with grow in their careers and learn from each other.  We are sincere, curious, and [fair to competitors](https://fleetdm.com/handbook/company#objectivity).
-- **Step up.** We look at the big picture.  The goal is for the organization using Fleet to be successful, as well as the individuals who decide to use or buy the product.  There are multiple versions of Fleet, and so many ways to "do" open-source security and IT.  It is in the company's best interest to help engineers pick the right one; even if that's Fleet Free, or vanilla osquery, or using another solution altogether.  We think about our customers needs like they are our own.
+- **Be genuine.**  No puffery. No impressive-sounding words.  We are [🟣open and outsider friendly](https://fleetdm.com/handbook/company#openness).  We expand acronyms, and insist on using simple language that lets everyone understand and contribute.  We help the people we work with grow in their careers and learn from each other.  We are sincere, curious, and [🔵fair to competitors](https://fleetdm.com/handbook/company#objectivity).
+- **Step up.** We look at the [🟠big picture](https://fleetdm.com/company/handbook#ownership).  The goal is for the organization using Fleet to be successful, as well as the individuals who decide to use or buy the product.  There are multiple versions of Fleet, and so many ways to "do" open-source security and IT.  It is in the company's best interest to help engineers pick the right one; even if that's Fleet Free, or another solution altogether.  We think about our customer's needs like they are our own.
 
-> Looking for Fleet's cold outbound strategy?  Look no further. Here's how we do [🧊 ice cold sales, community-building, and education](https://github.com/fleetdm/confidential/blob/main/cold-outbound-strategy.md).
 
 <meta name="maintainedBy" value="mikermcneil">
 <meta name="title" value="Why this way?">
