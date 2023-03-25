@@ -153,14 +153,16 @@ Work is tracked in [GitHub issues](https://github.com/issues?q=archived%3Afalse+
 
 Every department organizes their work into [team-based kanban boards](https://app.zenhub.com/workspaces/-g-business-operations-63f3dc3cc931f6247fcf55a9/board?sprints=none).  This provides a consistent framework for how every team works, plans, and requests things from each other.
 
-1. **Intake:** Give people from anywhere in the world the ability to [request something](https://github.com/fleetdm/confidential/issues/new/choose) from a particular team.
-2. **Planning:** Give the team's manager and other team members a way to plan the next three-week iteration of what the team is working on.  Provide a world (the kanban board) where the team has clarity, and the appropriate [DRI](https://fleetdm.com/handbook/company#why-direct-responsibility) can confidently [prioritize and plan changes](https://fleetdm.com/handbook/company/development-groups#planned-and-unplanned-changes) with enough context to make the right decisions.
+1. **Intake:** Give people from anywhere in the world the ability to [request something](https://github.com/fleetdm/confidential/issues/new/choose) from a particular team, and give that team the ability to see and [respond quickly](https://fleetdm.com/handbook/company#results) to new requests.
+2. **Planning:** Give the team's manager and other team members a way to plan the [next three-week iteration](https://fleetdm.com/handbook/company/why-this-way#why-a-three-week-cadence) of what the team is working on.  Provide a world (the kanban board) where the team has clarity, and the appropriate [DRI](https://fleetdm.com/handbook/company#why-direct-responsibility) can confidently [prioritize and plan changes](https://fleetdm.com/handbook/company/development-groups#planned-and-unplanned-changes) with enough context to make the right decisions.
 3. **Shared to-do list:** What should I work on next? Who needs help? What important work is blocked? Is that bug fix merged yet? When will it be released? When will that new feature ship? What did I do yesterday?
 
 ## Why agile?
-Releasing software iteratively gets changes and improvements into the hands of users faster and generally results in software that works. This makes contributors fitter, happier, and more productive. We apply aspects of the [twelve principles of agile](https://agilemanifesto.org) to our development process:
+Releasing software [🟢iteratively](https://fleetdm.com/handbook/company#results) gets changes and improvements into the hands of users faster and generally results in [🔵software that works](https://fleetdm.com/handbook/company#objectivity). This makes contributors fitter, happier, and more productive.
 
-1. Our highest priority is to satisfy the customer through early and continuous delivery of valuable software.
+We apply the [twelve principles of agile](https://agilemanifesto.org) to Fleet's [development process](https://fleetdm.com/handbook/company/product-groups#making-changes):
+
+1. Our highest priority is to [🔴satisfy the customer](https://fleetdm.com/handbook/company#empathy) through early and continuous delivery of valuable software.
 2. Welcome changing requirements, even late in development. Agile processes harness change for the customer's competitive advantage.
 3. Deliver working software frequently, from a couple of weeks to a couple of months, with a preference to the shorter timescale.
 4. Business people and developers must [work together daily](https://fleetdm.com/handbook/company/product-groups) throughout the project.
