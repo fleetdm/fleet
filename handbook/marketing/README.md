@@ -583,7 +583,7 @@ Every week, we run `npm audit --only=prod` to check for vulnerabilities on the p
 
 #### How to make usability changes to the website
 
-We want to make it easy to learn how to manage devices with Fleet. Anyone inside or outside the company can suggest changes to the website to improve ease of use and clarity. 
+We want to make it easy to learn how to manage devices with Fleet. Anyone inside or outside the company can suggest changes to the website to improve ease of use and [clarity](http://selmiak.bplaced.net/games/pc/index.php?lang=eng&game=Loom&page=Audio-Drama--Game-Script#:~:text=Above%20all%20else%20...%20clarity.). 
 
 To propose changes:
 1. Decide what you want to change. A small change is the best place to start.
