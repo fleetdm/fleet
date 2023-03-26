@@ -111,6 +111,7 @@ Zach partnered with our CEO, Mike McNeil, to found a new, independent company: F
 ### 2022: Millions of hosts
 Fleet raised its Series A funding round.  The world now has at least 1.65 million computers and virtual hosts enrolled in Fleet, including enterprises, governments, startups, families, and hobbyist racks all over the world.
 
+> Still curious? Check out this [visualization of the Fleet repo over the years](https://www.linkedin.com/posts/mikermcneil_githubcomfleetdm-in-2-minutes-activity-7045448220784644096-K15O) or listen to this [conversation between Zach and Mike Arpaia about the origin story of osquery](https://www.linkedin.com/posts/mikermcneil_githubcomfleetdm-in-2-minutes-activity-7045448220784644096-K15O?utm_source=share&utm_medium=member_ios).
 
 ## Org chart
 To provide clarity about decision-making, [responsibility](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility), and resources, everyone at Fleet has a manager, and every manager has direct reports.  Fleet's organizational chart is accessible company-wide as a sub-tab in ["🧑‍🚀 Fleeties" (private google doc)](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0).  On the other sub-tabs, you can also check out a world map of where everyone is located, hiring stats, and fun facts about each team member.
