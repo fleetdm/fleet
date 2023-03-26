@@ -20,13 +20,13 @@
 		</dict>
 	</array>
 	<key>PayloadDisplayName</key>
-	<string>Untitled</string>
+	<string>Disable Siri analytics</string>
 	<key>PayloadIdentifier</key>
 	<string>Zachs-MacBook-Pro.1050BB11-C793-4B91-8B8E-5643B8347DE3</string>
 	<key>PayloadType</key>
 	<string>Configuration</string>
 	<key>PayloadUUID</key>
-	<string>D5F25081-D176-4353-9C49-10A637AF563B</string>
+	<string>89AAEC88-F124-4863-ABDA-883D53497FD5</string>
 	<key>PayloadVersion</key>
 	<integer>1</integer>
 </dict>
