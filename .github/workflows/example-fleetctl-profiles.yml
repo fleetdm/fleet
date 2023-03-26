@@ -9,12 +9,12 @@ on:
     branches:
       - main
     paths:
-      - 'example/mdm_profiles/**.mobileconfig'
+      - 'examples/mdm_profiles/**.mobileconfig'
   workflow_dispatch: # Manual
   # Normally we would only do it on push or workflow_dispatch, but it's going to be a bit easier to demonstrate this if a pull request can also trigger it.
   pull_request:
     paths:
-      - 'example/mdm_profiles/**.mobileconfig'
+      - 'examples/mdm_profiles/**.mobileconfig'
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
