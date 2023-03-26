@@ -9,11 +9,11 @@
         <key>AllowSigned</key>
         <true />
         <key>BlockAllIncoming</key>
-        <true />
+        <false />
         <key>EnableFirewall</key>
         <true />
         <key>EnableStealthMode</key>
-        <true />
+        <false />
         <key>PayloadDescription</key>
         <string>Configures Firewall settings</string>
         <key>PayloadDisplayName</key>
