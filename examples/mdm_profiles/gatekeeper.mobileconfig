@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array>
+		<dict>
+			<key>AllowIdentifiedDevelopers</key>
+			<true/>
+			<key>EnableAssessment</key>
+			<true/>
+			<key>PayloadDisplayName</key>
+			<string>System Policy: Control</string>
+			<key>PayloadIdentifier</key>
+			<string>com.apple.systempolicy.control.9995537D-E902-4EA9-9CB8-6228167D7A4A</string>
+			<key>PayloadType</key>
+			<string>com.apple.systempolicy.control</string>
+			<key>PayloadUUID</key>
+			<string>9995537D-E902-4EA9-9CB8-6228167D7A4A</string>
+			<key>PayloadVersion</key>
+			<integer>1</integer>
+		</dict>
+	</array>
+	<key>PayloadDisplayName</key>
+	<string>Enable Gatekeeper</string>
+	<key>PayloadIdentifier</key>
+	<string>Zachs-MacBook-Pro.1050BB11-C793-4B91-8B8E-5643B8347DE3</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>0E265D8C-D6FC-4A86-9077-AFB3612D8219</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+</dict>
+</plist>
