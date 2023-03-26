@@ -24,11 +24,11 @@
 	<key>PayloadDisplayName</key>
 	<string>Enable Gatekeeper</string>
 	<key>PayloadIdentifier</key>
-	<string>Zachs-MacBook-Pro.1050BB11-C793-4B91-8B8E-5643B8347DE3</string>
+	<string>Zachs-MacBook-Pro.1050BB11-FFFF-4B91-8B8E-5643B8347DE3</string>
 	<key>PayloadType</key>
 	<string>Configuration</string>
 	<key>PayloadUUID</key>
-	<string>0E265D8C-D6FC-4A86-9077-AFB3612D8219</string>
+	<string>7FACF191-E360-40CB-B738-A7E171F9D365</string>
 	<key>PayloadVersion</key>
 	<integer>1</integer>
 </dict>
