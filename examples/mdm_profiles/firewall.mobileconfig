@@ -11,7 +11,7 @@
         <key>BlockAllIncoming</key>
         <true />
         <key>EnableFirewall</key>
-        <false />
+        <true />
         <key>EnableStealthMode</key>
         <true />
         <key>PayloadDescription</key>
