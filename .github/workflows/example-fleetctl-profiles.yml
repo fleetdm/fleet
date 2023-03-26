@@ -51,7 +51,7 @@ jobs:
       run: npm install -g fleetctl
 
     - name: Configure Fleetctl
-      run: build/fleetctl config set --address $DOGFOOD_URL --token $DOGFOOD_API_TOKEN
+      run: fleetctl config set --address $DOGFOOD_URL --token $DOGFOOD_API_TOKEN
 
     - name: Run fleetctl apply
       run: |
@@ -72,4 +72,4 @@ jobs:
                 custom_settings:
                   $profiles
         " > team-workstations-config.yml
-        build/fleetctl apply -f team-workstations-config.yml
+        fleetctl apply -f team-workstations-config.yml
