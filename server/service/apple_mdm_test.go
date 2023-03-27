@@ -152,8 +152,8 @@ func setupAppleMDMService(t *testing.T) (fleet.Service, context.Context, *mock.S
 	ds.MDMAppleListDevicesFunc = func(ctx context.Context) ([]fleet.MDMAppleDevice, error) {
 		return nil, nil
 	}
-	ds.GetNanoMDMEnrollmentStatusFunc = func(ctx context.Context, hostUUID string) (bool, error) {
-		return false, nil
+	ds.GetNanoMDMEnrollmentFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoEnrollment, error) {
+		return &fleet.NanoEnrollment{Enabled: false}, nil
 	}
 
 	return svc, ctx, ds
@@ -674,7 +674,7 @@ func TestMDMCommandAuthz(t *testing.T) {
 	}
 
 	var mdmEnabled atomic.Bool
-	ds.GetNanoMDMEnrollmentStatusFunc = func(ctx context.Context, hostUUID string) (bool, error) {
+	ds.GetNanoMDMEnrollmentFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoEnrollment, error) {
 		// This function is called twice during EnqueueMDMAppleCommandRemoveEnrollmentProfile.
 		// It first is called to check that the device is enrolled as a pre-condition to enqueueing the
 		// command. It is called second time after the command has been enqueued to check whether
@@ -682,7 +682,10 @@ func TestMDMCommandAuthz(t *testing.T) {
 		//
 		// For each test run, the bool should be initialized to true to simulate an existing device
 		// that is initially enrolled to Fleet's MDM.
-		return mdmEnabled.Swap(!mdmEnabled.Load()), nil
+		enroll := fleet.NanoEnrollment{
+			Enabled: mdmEnabled.Swap(!mdmEnabled.Load()),
+		}
+		return &enroll, nil
 	}
 
 	testCases := []struct {

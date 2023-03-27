@@ -327,7 +327,7 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
-	if err := svc.ds.BulkSetPendingMDMAppleHostProfiles(ctx, nil, nil, []uint{newCP.ProfileID}); err != nil {
+	if err := svc.ds.BulkSetPendingMDMAppleHostProfiles(ctx, nil, nil, []uint{newCP.ProfileID}, nil); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
 	}
 
@@ -510,7 +510,7 @@ func (svc *Service) DeleteMDMAppleConfigProfile(ctx context.Context, profileID u
 		return ctxerr.Wrap(ctx, err)
 	}
 	// cannot use the profile ID as it is now deleted
-	if err := svc.ds.BulkSetPendingMDMAppleHostProfiles(ctx, nil, []uint{teamID}, nil); err != nil {
+	if err := svc.ds.BulkSetPendingMDMAppleHostProfiles(ctx, nil, []uint{teamID}, nil, nil); err != nil {
 		return ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
 	}
 
@@ -1104,11 +1104,11 @@ func (svc *Service) EnqueueMDMAppleCommandRemoveEnrollmentProfile(ctx context.Co
 		return err
 	}
 
-	enabled, err := svc.ds.GetNanoMDMEnrollmentStatus(ctx, h.UUID)
+	nanoEnroll, err := svc.ds.GetNanoMDMEnrollment(ctx, h.UUID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "getting mdm enrollment status for mdm apple remove profile command")
 	}
-	if !enabled {
+	if nanoEnroll == nil || !nanoEnroll.Enabled {
 		return fleet.NewUserMessageError(ctxerr.New(ctx, fmt.Sprintf("mdm is not enabled for host %d", hostID)), http.StatusConflict)
 	}
 
@@ -1151,12 +1151,12 @@ func (svc *Service) pollResultMDMAppleCommandRemoveEnrollmentProfile(ctx context
 			// time out after 5 seconds
 			return fleet.MDMAppleCommandTimeoutError{}
 		case <-ticker.C:
-			enabled, err := svc.ds.GetNanoMDMEnrollmentStatus(ctx, deviceID)
+			nanoEnroll, err := svc.ds.GetNanoMDMEnrollment(ctx, deviceID)
 			if err != nil {
 				level.Error(svc.logger).Log("err", "get nanomdm enrollment status", "details", err, "id", deviceID, "command_uuid", cmdUUID)
 				return err
 			}
-			if enabled {
+			if nanoEnroll != nil && nanoEnroll.Enabled {
 				// check again on the next tick
 				continue
 			}
@@ -1490,7 +1490,7 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 	if tmID != nil {
 		bulkTeamID = *tmID
 	}
-	if err := svc.ds.BulkSetPendingMDMAppleHostProfiles(ctx, nil, []uint{bulkTeamID}, nil); err != nil {
+	if err := svc.ds.BulkSetPendingMDMAppleHostProfiles(ctx, nil, []uint{bulkTeamID}, nil, nil); err != nil {
 		return ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
 	}
 
@@ -1657,6 +1657,18 @@ func (svc *MDMAppleCheckinAndCommandService) Authenticate(r *mdm.Request, m *mdm
 //
 // [1]: https://developer.apple.com/documentation/devicemanagement/token_update
 func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.TokenUpdate) error {
+	nanoEnroll, err := svc.ds.GetNanoMDMEnrollment(r.Context, r.ID)
+	if err != nil {
+		return err
+	}
+	if nanoEnroll != nil && nanoEnroll.Enabled &&
+		nanoEnroll.Type == "Device" && nanoEnroll.TokenUpdateTally == 1 {
+		// device is enrolled for the first time, not a token update
+		// TODO(mna): get the host's ID from the uuid, or support UUIDs in bulk set?
+		if err := svc.ds.BulkSetPendingMDMAppleHostProfiles(r.Context, nil, nil, nil, []string{r.ID}); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 

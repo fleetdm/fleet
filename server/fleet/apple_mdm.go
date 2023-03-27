@@ -403,3 +403,15 @@ type MDMAppleSettingsPayload struct {
 func (p MDMAppleSettingsPayload) AuthzType() string {
 	return "mdm_apple_settings"
 }
+
+// NanoEnrollment represents a row in the nano_enrollments table managed by
+// nanomdm. It is meant to be used internally by the server, not to be returned
+// as part of endpoints, and as a precaution its json-encoding is explicitly
+// ignored.
+type NanoEnrollment struct {
+	ID               string `json:"-" db:"id"`
+	DeviceID         string `json:"-" db:"device_id"`
+	Type             string `json:"-" db:"type"`
+	Enabled          bool   `json:"-" db:"enabled"`
+	TokenUpdateTally int    `json:"-" db:"token_update_tally"`
+}

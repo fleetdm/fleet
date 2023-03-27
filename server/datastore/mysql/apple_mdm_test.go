@@ -1765,14 +1765,14 @@ func testBulkSetPendingMDMAppleHostProfiles(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// bulk set for no target ids, does nothing
-	err = ds.BulkSetPendingMDMAppleHostProfiles(ctx, nil, nil, nil)
+	err = ds.BulkSetPendingMDMAppleHostProfiles(ctx, nil, nil, nil, nil)
 	require.NoError(t, err)
 	// bulk set for combination of target ids, not allowed
-	err = ds.BulkSetPendingMDMAppleHostProfiles(ctx, []uint{1}, []uint{2}, nil)
+	err = ds.BulkSetPendingMDMAppleHostProfiles(ctx, []uint{1}, []uint{2}, nil, nil)
 	require.Error(t, err)
 
 	// bulk set for all created hosts, no profiles yet so nothing changed
-	err = ds.BulkSetPendingMDMAppleHostProfiles(ctx, hostIDsFromHosts(append(enrolledHosts, unenrolledHost, linuxHost)...), nil, nil)
+	err = ds.BulkSetPendingMDMAppleHostProfiles(ctx, hostIDsFromHosts(append(enrolledHosts, unenrolledHost, linuxHost)...), nil, nil, nil)
 	require.NoError(t, err)
 	assertHostProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
 		enrolledHosts[0]: {},
@@ -1806,7 +1806,7 @@ func testBulkSetPendingMDMAppleHostProfiles(t *testing.T, ds *Datastore) {
 	require.Len(t, toRemove, 0)
 
 	// bulk set for all created hosts, enrolled hosts get the no-team profiles
-	err = ds.BulkSetPendingMDMAppleHostProfiles(ctx, hostIDsFromHosts(append(enrolledHosts, unenrolledHost, linuxHost)...), nil, nil)
+	err = ds.BulkSetPendingMDMAppleHostProfiles(ctx, hostIDsFromHosts(append(enrolledHosts, unenrolledHost, linuxHost)...), nil, nil, nil)
 	require.NoError(t, err)
 	assertHostProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
 		enrolledHosts[0]: {
@@ -1847,7 +1847,7 @@ func testBulkSetPendingMDMAppleHostProfiles(t *testing.T, ds *Datastore) {
 	require.Len(t, toRemove, 3)
 
 	// update status of the moved host (team has no profiles)
-	err = ds.BulkSetPendingMDMAppleHostProfiles(ctx, hostIDsFromHosts(enrolledHosts[0]), nil, nil)
+	err = ds.BulkSetPendingMDMAppleHostProfiles(ctx, hostIDsFromHosts(enrolledHosts[0]), nil, nil, nil)
 	require.NoError(t, err)
 	assertHostProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
 		enrolledHosts[0]: {
@@ -1888,7 +1888,7 @@ func testBulkSetPendingMDMAppleHostProfiles(t *testing.T, ds *Datastore) {
 	require.Len(t, toRemove, 6)
 
 	// update status of the moved host (team has no profiles)
-	err = ds.BulkSetPendingMDMAppleHostProfiles(ctx, hostIDsFromHosts(enrolledHosts[1]), nil, nil)
+	err = ds.BulkSetPendingMDMAppleHostProfiles(ctx, hostIDsFromHosts(enrolledHosts[1]), nil, nil, nil)
 	require.NoError(t, err)
 	assertHostProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
 		enrolledHosts[0]: {
@@ -1932,7 +1932,7 @@ func testBulkSetPendingMDMAppleHostProfiles(t *testing.T, ds *Datastore) {
 	require.Len(t, toRemove, 6)
 
 	// update status of the affected team
-	err = ds.BulkSetPendingMDMAppleHostProfiles(ctx, nil, []uint{team1.ID}, nil)
+	err = ds.BulkSetPendingMDMAppleHostProfiles(ctx, nil, []uint{team1.ID}, nil, nil)
 	require.NoError(t, err)
 	assertHostProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
 		enrolledHosts[0]: {
@@ -1982,7 +1982,7 @@ func testBulkSetPendingMDMAppleHostProfiles(t *testing.T, ds *Datastore) {
 	require.Len(t, newTm1Profiles, 2)
 
 	// update status of the affected team
-	err = ds.BulkSetPendingMDMAppleHostProfiles(ctx, nil, []uint{team1.ID}, nil)
+	err = ds.BulkSetPendingMDMAppleHostProfiles(ctx, nil, []uint{team1.ID}, nil, nil)
 	require.NoError(t, err)
 	assertHostProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
 		enrolledHosts[0]: {
@@ -2021,7 +2021,7 @@ func testBulkSetPendingMDMAppleHostProfiles(t *testing.T, ds *Datastore) {
 	require.Len(t, newTm1Profiles, 3)
 
 	// update status of the affected team
-	err = ds.BulkSetPendingMDMAppleHostProfiles(ctx, nil, []uint{team1.ID}, nil)
+	err = ds.BulkSetPendingMDMAppleHostProfiles(ctx, nil, []uint{team1.ID}, nil, nil)
 	require.NoError(t, err)
 	assertHostProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
 		enrolledHosts[0]: {
@@ -2058,7 +2058,7 @@ func testBulkSetPendingMDMAppleHostProfiles(t *testing.T, ds *Datastore) {
 	require.Len(t, newGlobalProfiles, 3)
 
 	// update status of the affected "no-team"
-	err = ds.BulkSetPendingMDMAppleHostProfiles(ctx, nil, []uint{0}, nil)
+	err = ds.BulkSetPendingMDMAppleHostProfiles(ctx, nil, []uint{0}, nil, nil)
 	require.NoError(t, err)
 	assertHostProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
 		enrolledHosts[0]: {
@@ -2097,7 +2097,7 @@ func testBulkSetPendingMDMAppleHostProfiles(t *testing.T, ds *Datastore) {
 	require.Len(t, newGlobalProfiles, 4)
 
 	// update status via the new profile's ID
-	err = ds.BulkSetPendingMDMAppleHostProfiles(ctx, nil, nil, []uint{newGlobalProfiles[3].ProfileID})
+	err = ds.BulkSetPendingMDMAppleHostProfiles(ctx, nil, nil, []uint{newGlobalProfiles[3].ProfileID}, nil)
 	require.NoError(t, err)
 	assertHostProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
 		enrolledHosts[0]: {
@@ -2134,7 +2134,7 @@ func testBulkSetPendingMDMAppleHostProfiles(t *testing.T, ds *Datastore) {
 	require.Len(t, tm2Profiles, 1)
 
 	// update status via tm2 id and the global 0 id to test that custom sql statement
-	err = ds.BulkSetPendingMDMAppleHostProfiles(ctx, nil, []uint{team2.ID, 0}, nil)
+	err = ds.BulkSetPendingMDMAppleHostProfiles(ctx, nil, []uint{team2.ID, 0}, nil, nil)
 	require.NoError(t, err)
 	assertHostProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
 		enrolledHosts[0]: {
@@ -2162,7 +2162,7 @@ func testBulkSetPendingMDMAppleHostProfiles(t *testing.T, ds *Datastore) {
 	})
 
 	// do a final sync of all hosts, should not change anything
-	err = ds.BulkSetPendingMDMAppleHostProfiles(ctx, hostIDsFromHosts(append(enrolledHosts, unenrolledHost, linuxHost)...), nil, nil)
+	err = ds.BulkSetPendingMDMAppleHostProfiles(ctx, hostIDsFromHosts(append(enrolledHosts, unenrolledHost, linuxHost)...), nil, nil, nil)
 	require.NoError(t, err)
 	assertHostProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
 		enrolledHosts[0]: {

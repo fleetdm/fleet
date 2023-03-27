@@ -800,6 +800,10 @@ func registerMDM(
 	// the device.
 	// 5. Run actual MDM service operation (checkin handler or command and results handler).
 	coreMDMService := nanomdm.New(mdmStorage, nanomdm.WithLogger(mdmLogger))
+	// NOTE: it is critical that the coreMDMService runs first, as the first
+	// service in the multi-service feature is run to completion _before_ running
+	// the other ones in parallel. This way, subsequent services have access to
+	// the result of the core service, e.g. the device is enrolled, etc.
 	var mdmService nanomdm_service.CheckinAndCommandService = multi.New(mdmLogger, coreMDMService, checkinAndCommandService)
 
 	mdmService = certauth.New(mdmService, mdmStorage)

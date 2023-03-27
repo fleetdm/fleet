@@ -815,17 +815,18 @@ func unionSelectDevices(devices []godep.Device) (stmt string, args []interface{}
 	return stmt, args
 }
 
-func (ds *Datastore) GetNanoMDMEnrollmentStatus(ctx context.Context, id string) (bool, error) {
-	var enabled bool
-	err := sqlx.GetContext(ctx, ds.reader, &enabled, `SELECT enabled FROM nano_enrollments WHERE id = ?`, id)
+func (ds *Datastore) GetNanoMDMEnrollment(ctx context.Context, id string) (*fleet.NanoEnrollment, error) {
+	var nanoEnroll fleet.NanoEnrollment
+	err := sqlx.GetContext(ctx, ds.reader, &nanoEnroll, `SELECT id, device_id, type, enabled, token_update_tally
+		FROM nano_enrollments WHERE id = ?`, id)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return false, nil
+			return nil, nil
 		}
-		return false, ctxerr.Wrapf(ctx, err, "getting data from nano_enrollments for id %s", id)
+		return nil, ctxerr.Wrapf(ctx, err, "getting data from nano_enrollments for id %s", id)
 	}
 
-	return enabled, nil
+	return &nanoEnroll, nil
 }
 
 func (ds *Datastore) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, profiles []*fleet.MDMAppleConfigProfile) error {
@@ -932,8 +933,9 @@ VALUES
 }
 
 // Note that team ID 0 is used for profiles that apply to hosts in no team
-// (i.e. pass 0 in that case as part of the teamIDs slice).
-func (ds *Datastore) BulkSetPendingMDMAppleHostProfiles(ctx context.Context, hostIDs, teamIDs, profileIDs []uint) error {
+// (i.e. pass 0 in that case as part of the teamIDs slice). Only one of the
+// slice arguments can have values.
+func (ds *Datastore) BulkSetPendingMDMAppleHostProfiles(ctx context.Context, hostIDs, teamIDs, profileIDs []uint, hostUUIDs []string) error {
 	var countArgs int
 	if len(hostIDs) > 0 {
 		countArgs++
@@ -944,8 +946,11 @@ func (ds *Datastore) BulkSetPendingMDMAppleHostProfiles(ctx context.Context, hos
 	if len(profileIDs) > 0 {
 		countArgs++
 	}
+	if len(hostUUIDs) > 0 {
+		countArgs++
+	}
 	if countArgs > 1 {
-		return errors.New("only one of hostIDs, teamIDs or profileIDs can be provided")
+		return errors.New("only one of hostIDs, teamIDs, profileIDs or hostUUIDs can be provided")
 	}
 	if countArgs == 0 {
 		return nil
@@ -958,6 +963,11 @@ func (ds *Datastore) BulkSetPendingMDMAppleHostProfiles(ctx context.Context, hos
 	)
 
 	switch {
+	case len(hostUUIDs) > 0:
+		// no need to run a query to load host UUIDs, that's what we received
+		// directly.
+		uuids = hostUUIDs
+
 	case len(hostIDs) > 0:
 		uuidStmt = `SELECT uuid FROM hosts WHERE id IN (?)`
 		args = append(args, hostIDs)
@@ -988,12 +998,14 @@ WHERE
 		args = append(args, profileIDs)
 	}
 
-	uuidStmt, args, err := sqlx.In(uuidStmt, args...)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "prepare query to load host UUIDs")
-	}
-	if err := sqlx.SelectContext(ctx, ds.writer, &uuids, uuidStmt, args...); err != nil {
-		return ctxerr.Wrap(ctx, err, "execute query to load host UUIDs")
+	if len(uuids) == 0 {
+		uuidStmt, args, err := sqlx.In(uuidStmt, args...)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "prepare query to load host UUIDs")
+		}
+		if err := sqlx.SelectContext(ctx, ds.writer, &uuids, uuidStmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "execute query to load host UUIDs")
+		}
 	}
 
 	if len(uuids) == 0 {
