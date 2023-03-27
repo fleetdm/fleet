@@ -1313,6 +1313,9 @@ func TestGetTeamsYAMLAndApply(t *testing.T) {
 	ds.BatchSetMDMAppleProfilesFunc = func(ctx context.Context, teamID *uint, profiles []*fleet.MDMAppleConfigProfile) error {
 		return nil
 	}
+	ds.BulkSetPendingMDMAppleHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs, profileIDs []uint, uuids []string) error {
+		return nil
+	}
 
 	actualYaml := runAppForTest(t, []string{"get", "teams", "--yaml"})
 	yamlFilePath := writeTmpYml(t, actualYaml)
