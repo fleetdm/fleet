@@ -1547,24 +1547,26 @@ const ManageHostsPage = ({
           {/* TODO: look at improving the props API for this component. Im thinking
           some of the props can be defined inside HostsFilterBlock */}
           <HostsFilterBlock
-            policyResponse={policyResponse}
+            params={{
+              policyResponse,
+              policyId,
+              policy,
+              macSettingsStatus,
+              softwareId,
+              mdmId,
+              mdmEnrollmentStatus,
+              lowDiskSpaceHosts,
+              osId,
+              osName,
+              osVersion,
+              osVersions,
+              munkiIssueId,
+              munkiIssueDetails,
+              softwareDetails,
+              mdmSolutionDetails,
+            }}
             selectedLabel={selectedLabel}
-            policyId={policyId}
-            policy={policy}
-            macSettingsStatus={macSettingsStatus}
-            softwareId={softwareId}
-            mdmId={mdmId}
-            mdmEnrollmentStatus={mdmEnrollmentStatus}
-            lowDiskSpaceHosts={lowDiskSpaceHosts}
-            osId={osId}
-            osName={osName}
-            osVersion={osVersion}
-            osVersions={osVersions}
-            munkiIssueId={munkiIssueId}
-            munkiIssueDetails={munkiIssueDetails}
             isOnlyObserver={isOnlyObserver}
-            softwareDetails={softwareDetails}
-            mdmSolutionDetails={mdmSolutionDetails}
             handleClearRouteParam={handleClearRouteParam}
             handleClearFilter={handleClearFilter}
             onChangePoliciesFilter={handleChangePoliciesFilter}

@@ -33,29 +33,34 @@ import PolicyIcon from "../../../../../../assets/images/icon-policy-fleet-black-
 
 const baseClass = "hosts-filter-block";
 
-// TODO: need to look improving the props API for this component
 interface IHostsFilterBlockProps {
-  munkiIssueDetails: IMunkiIssuesAggregate | null;
-  policyResponse: PolicyResponse;
+  /**
+   * An object of params the the HostFilterBlock uses to render the correct
+   * filter pills and dropdowns.
+   *
+   * TODO: improve as some of the request for this data can happen here or lower
+   * in component tree.
+   */
+  params: {
+    munkiIssueDetails: IMunkiIssuesAggregate | null;
+    policyResponse: PolicyResponse;
+    policyId?: any;
+    policy?: IPolicy;
+    macSettingsStatus?: any;
+    softwareId?: any;
+    mdmId?: number;
+    mdmEnrollmentStatus?: any;
+    lowDiskSpaceHosts?: number;
+    osId?: any;
+    osName?: any;
+    osVersion?: any;
+    munkiIssueId?: number;
+    osVersions?: IOperatingSystemVersion[];
+    softwareDetails: ISoftware | null;
+    mdmSolutionDetails: IMdmSolution | null;
+  };
   selectedLabel?: ILabel;
-  policyId?: any;
-  policy?: IPolicy;
-  macSettingsStatus?: any;
-  softwareId?: any;
-  mdmId?: number;
-  mdmEnrollmentStatus?: any;
-  lowDiskSpaceHosts?: number;
-  osId?: any;
-  osName?: any;
-  osVersion?: any;
-  munkiIssueId?: number;
-  // TODO: request for this data can happen here or lower in component tree in os filter block
-  osVersions?: IOperatingSystemVersion[];
   isOnlyObserver?: boolean;
-  softwareDetails: ISoftware | null;
-  mdmSolutionDetails: IMdmSolution | null;
-  // TODO: change to onHandleClearRouteParam
-  // QUESTION: include router as param?
   handleClearRouteParam: () => void;
   handleClearFilter: (omitParams: string[]) => void;
   onChangePoliciesFilter: (response: PolicyResponse) => void;
@@ -71,24 +76,26 @@ interface IHostsFilterBlockProps {
  * the correct filter pills and any filter dropdowns associated with those pills.
  */
 const HostsFilterBlock = ({
+  params: {
+    policyId,
+    macSettingsStatus,
+    softwareId,
+    mdmId,
+    mdmEnrollmentStatus,
+    lowDiskSpaceHosts,
+    osId,
+    osName,
+    osVersion,
+    munkiIssueId,
+    munkiIssueDetails,
+    policyResponse,
+    osVersions,
+    softwareDetails,
+    policy,
+    mdmSolutionDetails,
+  },
   selectedLabel,
-  policyId,
-  macSettingsStatus,
-  softwareId,
-  mdmId,
-  mdmEnrollmentStatus,
-  lowDiskSpaceHosts,
-  osId,
-  osName,
-  osVersion,
-  munkiIssueId,
-  munkiIssueDetails,
-  policyResponse,
-  osVersions,
   isOnlyObserver,
-  softwareDetails,
-  policy,
-  mdmSolutionDetails,
   handleClearRouteParam,
   handleClearFilter,
   onChangePoliciesFilter,
@@ -96,38 +103,6 @@ const HostsFilterBlock = ({
   onClickEditLabel,
   onClickDeleteLabel,
 }: IHostsFilterBlockProps) => {
-  const handleClearPoliciesFilter = () => {
-    handleClearFilter(["policy_id", "policy_response"]);
-  };
-
-  const handleClearOSFilter = () => {
-    handleClearFilter(["os_id", "os_name", "os_version"]);
-  };
-
-  const handleClearMacSettingsStatusFilter = () => {
-    handleClearFilter(["macos_settings"]);
-  };
-
-  const handleClearSoftwareFilter = () => {
-    handleClearFilter(["software_id"]);
-  };
-
-  const handleClearMDMSolutionFilter = () => {
-    handleClearFilter(["mdm_id"]);
-  };
-
-  const handleClearMDMEnrollmentFilter = () => {
-    handleClearFilter(["mdm_enrollment_status"]);
-  };
-
-  const handleClearMunkiIssueFilter = () => {
-    handleClearFilter(["munki_issue_id"]);
-  };
-
-  const handleClearLowDiskSpaceFilter = () => {
-    handleClearFilter(["low_disk_space"]);
-  };
-
   const renderLabelFilterPill = () => {
     if (selectedLabel) {
       const { description, display_text, label_type } = selectedLabel;
@@ -195,7 +170,7 @@ const HostsFilterBlock = ({
       <FilterPill
         label={label}
         tooltipDescription={TooltipDescription}
-        onClear={handleClearOSFilter}
+        onClear={() => handleClearFilter(["os_id", "os_name", "os_version"])}
       />
     );
   };
@@ -210,7 +185,7 @@ const HostsFilterBlock = ({
       <FilterPill
         icon={PolicyIcon}
         label={policy?.name ?? "..."}
-        onClear={handleClearPoliciesFilter}
+        onClear={() => handleClearFilter(["policy_id", "policy_response"])}
         className={`${baseClass}__policies-filter-pill`}
       />
     </>
@@ -228,7 +203,7 @@ const HostsFilterBlock = ({
         />
         <FilterPill
           label={label}
-          onClear={handleClearMacSettingsStatusFilter}
+          onClear={() => handleClearFilter(["macos_settings"])}
         />
       </>
     );
@@ -251,7 +226,7 @@ const HostsFilterBlock = ({
     return (
       <FilterPill
         label={label}
-        onClear={handleClearSoftwareFilter}
+        onClear={() => handleClearFilter(["software_id"])}
         tooltipDescription={TooltipDescription}
       />
     );
@@ -275,7 +250,7 @@ const HostsFilterBlock = ({
       <FilterPill
         label={label}
         tooltipDescription={TooltipDescription}
-        onClear={handleClearMDMSolutionFilter}
+        onClear={() => handleClearFilter(["mdm_id"])}
       />
     );
   };
@@ -332,7 +307,7 @@ const HostsFilterBlock = ({
       <FilterPill
         label={label}
         tooltipDescription={MDM_STATUS_PILL_TOOLTIP[mdmEnrollmentStatus]}
-        onClear={handleClearMDMEnrollmentFilter}
+        onClear={() => handleClearFilter(["mdm_enrollment_status"])}
       />
     );
   };
@@ -348,7 +323,7 @@ const HostsFilterBlock = ({
               the last time Munki ran on each host.
             </span>
           }
-          onClear={handleClearMunkiIssueFilter}
+          onClear={() => handleClearFilter(["munki_issue_id"])}
         />
       );
     }
@@ -367,7 +342,7 @@ const HostsFilterBlock = ({
       <FilterPill
         label="Low disk space"
         tooltipDescription={TooltipDescription}
-        onClear={handleClearLowDiskSpaceFilter}
+        onClear={() => handleClearFilter(["low_disk_space"])}
       />
     );
   };
