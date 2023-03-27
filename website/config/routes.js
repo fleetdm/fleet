@@ -291,15 +291,6 @@ module.exports.routes = {
     }
   },
 
-  'GET /launch-party': {
-    action: 'landing-pages/view-launch-party',
-    locals: {
-      layout: 'layouts/layout-sandbox',
-      pageTitleForMeta: 'Fleet MDM launch party waitlist | Fleet for osquery',
-      pageDescriptionForMeta: 'Celebrate with us at our MDM launch party on April 27th, 2023 at Press Club. Meet our team, enjoy drinks and learn how our MDM solution can benefit your organization.',
-      headerCTAHidden: true,
-    }
-  },
 
 
 
@@ -307,6 +298,16 @@ module.exports.routes = {
   //  ║║║║╠═╣║ ╦║║║║║╣   │ │  ├─┤│││ │││││││ ┬  ├─┘├─┤│ ┬├┤ └─┐ │
   //  ╩╩ ╩╩ ╩╚═╝╩╝╚╝╚═╝  └─┴─┘┴ ┴┘└┘─┴┘┴┘└┘└─┘  ┴  ┴ ┴└─┘└─┘└─┘─┘
   'GET /imagine/unused-software': { action: 'imagine/view-unused-software' },
+
+  'GET /imagine/launch-party': {
+    action: 'imagine/view-launch-party',
+    locals: {
+      layout: 'layouts/layout-sandbox',
+      pageTitleForMeta: 'Fleet MDM launch party waitlist | Fleet for osquery',
+      pageDescriptionForMeta: 'Celebrate with us at our MDM launch party on April 27th, 2023 at Press Club. Meet our team, enjoy drinks and learn how our MDM solution can benefit your organization.',
+      headerCTAHidden: true,
+    }
+  },
 
 
   //  ╦  ╔═╗╔═╗╔═╗╔═╗╦ ╦  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗
@@ -460,7 +461,7 @@ module.exports.routes = {
   'POST /api/v1/admin/generate-license-key': { action: 'admin/generate-license-key' },
   'POST /api/v1/create-vanta-authorization-request': { action: 'create-vanta-authorization-request' },
   'POST /api/v1/deliver-mdm-beta-signup':                   { action: 'deliver-mdm-beta-signup' },
-  'POST /api/v1/deliver-launch-party-signup':                   { action: 'landing-pages/deliver-launch-party-signup' },
   'POST /api/v1/deliver-apple-csr ': { action: 'deliver-apple-csr', csrf: false},
   'POST /api/v1/deliver-premium-upgrade-form': { action: 'deliver-premium-upgrade-form' },
+  'POST /api/v1/deliver-launch-party-signup':          { action: 'imagine/deliver-launch-party-signup' },
 };

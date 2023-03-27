@@ -38,7 +38,7 @@ module.exports.policies = {
   'deliver-demo-signup': true,
   'articles/*': true,
   'reports/*': true,
-  'view-sales-one-pager': true,// FUTURE: Move this page into the landing-pages/ folder
+  'view-sales-one-pager': true,
   'try-fleet/view-register': true,
   'try-fleet/view-sandbox-login': true,
   'try-fleet/view-sandbox-teleporter-or-redirect-because-expired': true,
@@ -48,14 +48,13 @@ module.exports.policies = {
   'view-connect-vanta': true,
   'view-vanta-authorization': true,
   'create-vanta-authorization-request': true,
-  'view-fleet-mdm': true,// FUTURE: Move this page into the landing-pages/ folder
+  'view-fleet-mdm': true,
   'deliver-mdm-beta-signup': true,
   'deliver-apple-csr': true,
   'download-rss-feed': true,
-  'view-upgrade': true,// FUTURE: Move this page into the landing-pages/ folder
+  'view-upgrade': true,
   'deliver-premium-upgrade-form': true,
-  'view-compliance': true,// FUTURE: Move this page into the landing-pages/ folder
-  'view-osquery-management': true, // FUTURE: Move this page into the landing-pages/ folder
+  'view-compliance': true,
+  'view-osquery-management': true,
   'experimental/*': true, // For internal Fleet demos
-  'landing-pages/*': true, // For landing pages
 };

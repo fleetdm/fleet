@@ -10,7 +10,7 @@ module.exports = {
   exits: {
 
     success: {
-      viewTemplatePath: 'pages/landing-pages/launch-party'
+      viewTemplatePath: 'pages/imagine/launch-party'
     }
 
   },
