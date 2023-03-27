@@ -110,6 +110,7 @@ const HostDetailsPage = ({
     isGlobalAdmin = false,
     isPremiumTier = false,
     isOnlyObserver,
+    isObserverPlus,
     filteredHostsPath,
   } = useContext(AppContext);
   const {
@@ -636,6 +637,7 @@ const HostDetailsPage = ({
           diskEncryption={hostDiskEncryption}
           isPremiumTier={isPremiumTier}
           isOnlyObserver={isOnlyObserver}
+          isObserverPlus={isObserverPlus}
           toggleOSPolicyModal={toggleOSPolicyModal}
           toggleMacSettingsModal={toggleMacSettingsModal}
           hostMacSettings={host?.mdm.profiles}
@@ -728,6 +730,7 @@ const HostDetailsPage = ({
             queries={fleetQueries || []}
             queryErrors={fleetQueriesError}
             isOnlyObserver={isOnlyObserver}
+            isObserverPlus={isObserverPlus}
             onQueryHostCustom={onQueryHostCustom}
             onQueryHostSaved={onQueryHostSaved}
           />

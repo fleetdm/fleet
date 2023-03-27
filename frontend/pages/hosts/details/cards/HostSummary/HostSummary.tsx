@@ -28,6 +28,7 @@ interface IHostSummaryProps {
   diskEncryption?: IHostDiskEncryptionProps;
   isPremiumTier?: boolean;
   isOnlyObserver?: boolean;
+  isObserverPlus?: boolean;
   toggleOSPolicyModal?: () => void;
   toggleMacSettingsModal?: () => void;
   hostMacSettings?: IMacSettings;
@@ -46,6 +47,7 @@ const HostSummary = ({
   diskEncryption,
   isPremiumTier,
   isOnlyObserver,
+  isObserverPlus,
   toggleOSPolicyModal,
   toggleMacSettingsModal,
   hostMacSettings,
@@ -211,7 +213,7 @@ const HostSummary = ({
         <div className="info-flex__item info-flex__item--title">
           <span className="info-flex__header">Operating system</span>
           <span className="info-flex__data">
-            {isOnlyObserver || deviceUser ? (
+            {(isOnlyObserver && !isObserverPlus) || deviceUser ? (
               `${titleData.os_version}`
             ) : (
               <Button

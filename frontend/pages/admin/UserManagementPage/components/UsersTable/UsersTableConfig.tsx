@@ -3,6 +3,7 @@ import React from "react";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 import StatusIndicator from "components/StatusIndicator";
 import TextCell from "components/TableContainer/DataTable/TextCell/TextCell";
+import TooltipWrapper from "components/TooltipWrapper";
 import { IInvite } from "interfaces/invite";
 import { IUser, UserRole } from "interfaces/user";
 import { IDropdownOption } from "interfaces/dropdownOption";
@@ -78,12 +79,28 @@ const generateTableHeaders = (
       Header: "Role",
       accessor: "role",
       disableSortBy: true,
-      Cell: (cellProps: ICellProps) => (
-        <TextCell
-          value={cellProps.cell.value}
-          greyed={greyCell(cellProps.cell.value)}
-        />
-      ),
+      Cell: (cellProps: ICellProps) => {
+        if (cellProps.cell.value === "Observer+") {
+          return (
+            <TooltipWrapper
+              position="top"
+              tipContent={`
+            Users with the Observer+ role have access to all of<br/>
+            the same functions as an Observer, with the added<br/>
+            ability to run any live query against all hosts. 
+          `}
+            >
+              {cellProps.cell.value}
+            </TooltipWrapper>
+          );
+        }
+        return (
+          <TextCell
+            value={cellProps.cell.value}
+            greyed={greyCell(cellProps.cell.value)}
+          />
+        );
+      },
     },
     {
       title: "Status",
