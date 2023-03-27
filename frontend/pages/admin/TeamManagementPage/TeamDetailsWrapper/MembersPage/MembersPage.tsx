@@ -5,7 +5,7 @@ import { IconNames } from "components/icons";
 import { NotificationContext } from "context/notification";
 import PATHS from "router/paths";
 import { IApiError } from "interfaces/errors";
-import { IUser, IUserFormErrors } from "interfaces/user";
+import { IUpdateUserFormData, IUser, IUserFormErrors } from "interfaces/user";
 import { INewMembersBody, ITeam } from "interfaces/team";
 import { IEmptyTableProps } from "interfaces/empty_table";
 import { Link } from "react-router";
@@ -275,7 +275,7 @@ const MembersPage = ({
 
   const onEditMemberSubmit = useCallback(
     (formData: IFormData) => {
-      const updatedAttrs = userManagementHelpers.generateUpdateData(
+      const updatedAttrs: IUpdateUserFormData = userManagementHelpers.generateUpdateData(
         userEditing as IUser,
         formData
       );

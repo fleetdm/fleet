@@ -4,7 +4,7 @@ import PATHS from "router/paths";
 
 import { NotificationContext } from "context/notification";
 import { ITeam } from "interfaces/team";
-import { IUserFormErrors } from "interfaces/user";
+import { IUserFormErrors, UserRole } from "interfaces/user";
 
 import Button from "components/buttons/Button";
 import validatePresence from "components/forms/validators/validate_presence";
@@ -37,6 +37,11 @@ enum UserTeamType {
 const globalUserRoles = [
   {
     disabled: false,
+    label: "Observer+",
+    value: "observer_plus",
+  },
+  {
+    disabled: false,
     label: "Observer",
     value: "observer",
   },
@@ -58,10 +63,11 @@ export interface IFormData {
   newUserType?: NewUserType | null;
   password?: string | null;
   sso_enabled?: boolean;
-  global_role: string | null;
+  global_role: UserRole | null;
   teams: ITeam[];
   currentUserId?: number;
   invited_by?: number;
+  role?: UserRole;
 }
 
 interface ICreateUserFormProps {
@@ -74,8 +80,8 @@ interface ICreateUserFormProps {
   currentUserId?: number;
   currentTeam?: ITeam;
   isModifiedByGlobalAdmin?: boolean | false;
-  defaultGlobalRole?: string | null;
-  defaultTeamRole?: string;
+  defaultGlobalRole?: UserRole | null;
+  defaultTeamRole?: UserRole;
   defaultTeams?: ITeam[];
   isPremiumTier: boolean;
   smtpConfigured?: boolean;

@@ -2,12 +2,13 @@ import React, { useState } from "react";
 
 import { ITeam } from "interfaces/team";
 import { IRole } from "interfaces/role";
+import { UserRole } from "interfaces/user";
 // ignore TS error for now until these are rewritten in ts.
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
 
 interface ISelectRoleFormProps {
-  defaultTeamRole: string;
+  defaultTeamRole: UserRole;
   currentTeam?: ITeam;
   teams: ITeam[];
   onFormChange: (teams: ITeam[]) => void;
@@ -17,6 +18,11 @@ interface ISelectRoleFormProps {
 const baseClass = "select-role-form";
 
 const roles: IRole[] = [
+  {
+    disabled: false,
+    label: "Observer+",
+    value: "observer_plus",
+  },
   {
     disabled: false,
     label: "Observer",
@@ -66,7 +72,7 @@ const SelectRoleForm = ({
     defaultTeamRole.toLowerCase()
   );
 
-  const updateSelectedRole = (newRoleValue: string) => {
+  const updateSelectedRole = (newRoleValue: UserRole) => {
     const updatedTeam = { ...currentTeam };
 
     updatedTeam.role = newRoleValue;
@@ -85,7 +91,9 @@ const SelectRoleForm = ({
           className={`${baseClass}__role-dropdown`}
           options={roles}
           searchable={false}
-          onChange={(newRoleValue: string) => updateSelectedRole(newRoleValue)}
+          onChange={(newRoleValue: UserRole) =>
+            updateSelectedRole(newRoleValue)
+          }
           testId={`${name}-checkbox`}
         />
       </div>

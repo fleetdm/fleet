@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 
 import { ITeam } from "interfaces/team";
+import { UserRole } from "interfaces/user";
 import Checkbox from "components/forms/fields/Checkbox";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
@@ -77,7 +78,7 @@ const generateSelectedTeamData = (
 const updateFormState = (
   prevTeamItems: ITeamCheckboxListItem[],
   teamId: number,
-  newValue: string | boolean | undefined
+  newValue: UserRole | boolean | undefined
 ): ITeamCheckboxListItem[] => {
   const prevItemIndex = prevTeamItems.findIndex((item) => item.id === teamId);
   const prevItem = prevTeamItems[prevItemIndex];
@@ -100,7 +101,10 @@ const useSelectedTeamState = (
     return generateFormListItems(allTeams, currentTeams);
   });
 
-  const updateSelectedTeams = (teamId: number, newValue: string | boolean) => {
+  const updateSelectedTeams = (
+    teamId: number,
+    newValue: UserRole | boolean
+  ) => {
     setTeamsFormList((prevState) => {
       const updatedTeamFormList = updateFormState(prevState, teamId, newValue);
       const selectedTeamsData = generateSelectedTeamData(updatedTeamFormList);
@@ -144,7 +148,7 @@ const SelectedTeamsForm = ({
                 className={`${baseClass}__role-dropdown`}
                 options={roles}
                 searchable={false}
-                onChange={(newValue: string) =>
+                onChange={(newValue: UserRole) =>
                   updateSelectedTeams(teamItem.id, newValue)
                 }
                 testId={`${name}-checkbox`}

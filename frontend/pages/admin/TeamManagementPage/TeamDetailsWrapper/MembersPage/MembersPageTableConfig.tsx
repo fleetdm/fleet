@@ -1,7 +1,7 @@
 import React from "react";
 import TextCell from "components/TableContainer/DataTable/TextCell/TextCell";
 import DropdownCell from "components/TableContainer/DataTable/DropdownCell";
-import { IUser } from "interfaces/user";
+import { IUser, UserRole } from "interfaces/user";
 import { ITeam } from "interfaces/team";
 import { IDropdownOption } from "interfaces/dropdownOption";
 import stringUtils from "utilities/strings";
@@ -46,7 +46,7 @@ interface IDataColumn {
 export interface IMembersTableData {
   name: string;
   email: string;
-  role: string;
+  role: UserRole;
   teams: ITeam[];
   actions: IDropdownOption[];
   id: number;
@@ -118,9 +118,9 @@ const generateActionDropdownOptions = (): IDropdownOption[] => {
     },
   ];
 };
-const generateRole = (teamId: number, teams: ITeam[]): string => {
-  const role = teams.find((team) => teamId === team.id)?.role ?? "";
-  return stringUtils.capitalize(role);
+const generateRole = (teamId: number, teams: ITeam[]): UserRole => {
+  const role = teams.find((team) => teamId === team.id)?.role ?? "Unassigned";
+  return stringUtils.capitalizeRole(role);
 };
 
 const enhanceMembersData = (

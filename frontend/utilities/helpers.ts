@@ -33,7 +33,7 @@ import {
   IPackTargets,
 } from "interfaces/target";
 import { ITeam, ITeamSummary } from "interfaces/team";
-import { IUser } from "interfaces/user";
+import { IUser, UserRole } from "interfaces/user";
 
 import stringUtils from "utilities/strings";
 import sortUtils from "utilities/sort";
@@ -489,27 +489,29 @@ export const formatPackForClient = (pack: IPack): IPack => {
 
 export const generateRole = (
   teams: ITeam[],
-  globalRole: string | null
-): string => {
+  globalRole: UserRole | null
+): UserRole => {
   if (globalRole === null) {
-    const listOfRoles: (string | undefined)[] = teams.map((team) => team.role);
+    const listOfRoles: (UserRole | undefined)[] = teams.map(
+      (team) => team.role
+    );
 
     if (teams.length === 0) {
       // no global role and no teams
       return "Unassigned";
     } else if (teams.length === 1) {
       // no global role and only one team
-      return stringUtils.capitalize(teams[0].role ?? "");
+      return stringUtils.capitalizeRole(teams[0].role || "Unassigned");
     } else if (
       listOfRoles.every(
-        (role: string | undefined): boolean => role === "maintainer"
+        (role: UserRole | undefined): boolean => role === "maintainer"
       )
     ) {
       // only team maintainers
       return "Maintainer";
     } else if (
       listOfRoles.every(
-        (role: string | undefined): boolean => role === "observer"
+        (role: UserRole | undefined): boolean => role === "observer"
       )
     ) {
       // only team observers
@@ -521,14 +523,14 @@ export const generateRole = (
 
   if (teams.length === 0) {
     // global role and no teams
-    return stringUtils.capitalize(globalRole);
+    return stringUtils.capitalizeRole(globalRole);
   }
   return "Various"; // global role and one or more teams
 };
 
 export const generateTeam = (
   teams: ITeam[],
-  globalRole: string | null
+  globalRole: UserRole | null
 ): string => {
   if (globalRole === null) {
     if (teams.length === 0) {
