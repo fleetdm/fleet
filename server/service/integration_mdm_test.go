@@ -2474,7 +2474,7 @@ func (d *device) scepEnroll() {
 			},
 			SignatureAlgorithm: x509.SHA256WithRSA,
 		},
-		ChallengePassword: d.s.fleetCfg.MDMApple.SCEP.Challenge,
+		ChallengePassword: d.s.fleetCfg.MDM.AppleSCEPChallenge,
 	}
 	csrDerBytes, err := x509util.CreateCertificateRequest(rand.Reader, &csrTemplate, key)
 	require.NoError(t, err)
@@ -2508,7 +2508,7 @@ func (d *device) scepEnroll() {
 		SignerKey:   key,
 		SignerCert:  cert,
 		CSRReqMessage: &scep.CSRReqMessage{
-			ChallengePassword: d.s.fleetCfg.MDMApple.SCEP.Challenge,
+			ChallengePassword: d.s.fleetCfg.MDM.AppleSCEPChallenge,
 		},
 	}
 

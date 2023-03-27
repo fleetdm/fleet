@@ -26,7 +26,7 @@ func TestAPIRoutesConflicts(t *testing.T) {
 	svc, _ := newTestService(t, ds, nil, nil)
 	limitStore, _ := memstore.New(0)
 	cfg := config.TestConfig()
-	cfg.MDMApple.Enable = true // ensure we test with optional mdm-specific routes
+	cfg.MDM.AppleEnable = true // ensure we test with optional mdm-specific routes
 	h := MakeHandler(svc, cfg, kitlog.NewNopLogger(), limitStore)
 	router := h.(*mux.Router)
 

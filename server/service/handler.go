@@ -431,7 +431,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.GET("/api/_version_/fleet/status/live_query", statusLiveQueryEndpoint, nil)
 
 	// Only Fleet MDM specific endpoints should be within the root /mdm/ path.
-	if config.MDMApple.Enable {
+	if config.MDM.AppleEnable {
 		ue.POST("/api/_version_/fleet/mdm/apple/enrollmentprofiles", createMDMAppleEnrollmentProfilesEndpoint, createMDMAppleEnrollmentProfileRequest{})
 		ue.GET("/api/_version_/fleet/mdm/apple/enrollmentprofiles", listMDMAppleEnrollmentsEndpoint, listMDMAppleEnrollmentProfilesRequest{})
 		ue.POST("/api/_version_/fleet/mdm/apple/enqueue", enqueueMDMAppleCommandEndpoint, enqueueMDMAppleCommandRequest{})
@@ -495,7 +495,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 		errorLimiter.Limit("get_device_transparency", desktopQuota),
 	).GET("/api/_version_/fleet/device/{token}/transparency", transparencyURL, transparencyURLRequest{})
 
-	if config.MDMApple.Enable {
+	if config.MDM.AppleEnable {
 		// mdm-related endpoints available via device authentication
 		de.WithCustomMiddleware(
 			errorLimiter.Limit("get_device_mdm", desktopQuota),
@@ -540,7 +540,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ne.WithAltPaths("/api/v1/osquery/enroll").
 		POST("/api/osquery/enroll", enrollAgentEndpoint, enrollAgentRequest{})
 
-	if config.MDMApple.Enable {
+	if config.MDM.AppleEnable {
 		// These endpoint are token authenticated.
 		ne.GET(apple_mdm.EnrollPath, mdmAppleEnrollEndpoint, mdmAppleEnrollRequest{})
 		ne.GET(apple_mdm.InstallerPath, mdmAppleGetInstallerEndpoint, mdmAppleGetInstallerRequest{})
@@ -588,7 +588,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ne.WithCustomMiddleware(limiter.Limit("login", throttled.RateQuota{MaxRate: loginRateLimit, MaxBurst: 9})).
 		POST("/api/_version_/fleet/demologin", makeDemologinEndpoint(config.Server.URLPrefix), demologinRequest{})
 
-	if config.MDMApple.Enable {
+	if config.MDM.AppleEnable {
 		ne.WithCustomMiddleware(limiter.Limit("login", throttled.RateQuota{MaxRate: loginRateLimit, MaxBurst: 9})).
 			POST("/api/_version_/fleet/mdm/apple/dep_login", mdmAppleDEPLoginEndpoint, mdmAppleDEPLoginRequest{})
 	}
@@ -693,7 +693,7 @@ func RedirectSetupToLogin(svc fleet.Service, logger kitlog.Logger, next http.Han
 // the MDM services to Apple devices.
 func RegisterAppleMDMProtocolServices(
 	mux *http.ServeMux,
-	scepConfig config.MDMAppleSCEPConfig,
+	scepConfig config.MDMConfig,
 	mdmStorage nanomdm_storage.AllStorage,
 	scepStorage scep_depot.Depot,
 	logger kitlog.Logger,
@@ -716,7 +716,7 @@ func RegisterAppleMDMProtocolServices(
 // Returns the SCEP CA certificate that can be used by verifiers.
 func registerSCEP(
 	mux *http.ServeMux,
-	scepConfig config.MDMAppleSCEPConfig,
+	scepConfig config.MDMConfig,
 	scepCert *x509.Certificate,
 	scepKey *rsa.PrivateKey,
 	scepStorage scep_depot.Depot,
@@ -724,10 +724,10 @@ func registerSCEP(
 ) error {
 	var signer scepserver.CSRSigner = scep_depot.NewSigner(
 		scepStorage,
-		scep_depot.WithValidityDays(scepConfig.Signer.ValidityDays),
-		scep_depot.WithAllowRenewalDays(scepConfig.Signer.AllowRenewalDays),
+		scep_depot.WithValidityDays(scepConfig.AppleSCEPSignerValidityDays),
+		scep_depot.WithAllowRenewalDays(scepConfig.AppleSCEPSignerAllowRenewalDays),
 	)
-	scepChallenge := scepConfig.Challenge
+	scepChallenge := scepConfig.AppleSCEPChallenge
 	if scepChallenge == "" {
 		return errors.New("missing SCEP challenge")
 	}

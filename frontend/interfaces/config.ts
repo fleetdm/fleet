@@ -28,7 +28,6 @@ export default PropTypes.shape({
   verify_sll_certs: PropTypes.bool,
   enable_start_tls: PropTypes.bool,
   entity_id: PropTypes.string,
-  issuer_uri: PropTypes.string,
   idp_image_url: PropTypes.string,
   metadata: PropTypes.string,
   metadata_url: PropTypes.string,
@@ -127,7 +126,6 @@ export interface IConfigFormData {
   smtpUsername: string;
   verifySslCerts: boolean;
   entityId: string;
-  issuerUri: string;
   idpImageUrl: string;
   metadata: string;
   metadataUrl: string;
@@ -180,7 +178,6 @@ export interface IConfig {
   };
   sso_settings: {
     entity_id: string;
-    issuer_uri: string;
     idp_image_url: string;
     metadata: string;
     metadata_url: string;

@@ -1229,7 +1229,7 @@ func TestGetCarveWithError(t *testing.T) {
 // via the `apply` command.
 func TestGetTeamsYAMLAndApply(t *testing.T) {
 	cfg := config.TestConfig()
-	cfg.MDMApple.Enable = true
+	cfg.MDM.AppleEnable = true
 	_, ds := runServerWithMockedDS(t, &service.TestServerOpts{
 		License:     &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)},
 		FleetConfig: &cfg,
