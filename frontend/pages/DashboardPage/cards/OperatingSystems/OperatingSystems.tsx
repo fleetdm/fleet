@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useMemo } from "react";
 import { useQuery } from "react-query";
 
 import {
@@ -26,6 +26,7 @@ import generateTableHeaders from "./OperatingSystemsTableConfig";
 interface IOperatingSystemsCardProps {
   currentTeamId: number | undefined;
   selectedPlatform: ISelectedPlatform;
+  selectedTeamId?: number;
   showTitle: boolean;
   /** controls the displaying of description text under the title. Defaults to `true` */
   showDescription?: boolean;
@@ -55,6 +56,7 @@ const EmptyOperatingSystems = (platform: ISelectedPlatform): JSX.Element => (
 const OperatingSystems = ({
   currentTeamId,
   selectedPlatform,
+  selectedTeamId,
   showTitle,
   showDescription = true,
   includeNameColumn = true,
@@ -128,7 +130,11 @@ const OperatingSystems = ({
     setTitleDetail?.(null);
   }, [isFetching, osInfo, setTitleDescription, setTitleDetail]);
 
-  const tableHeaders = generateTableHeaders(includeNameColumn);
+  const tableHeaders = useMemo(
+    () => generateTableHeaders(includeNameColumn, selectedTeamId),
+    [includeNameColumn, selectedTeamId]
+  );
+
   const showPaginationControls = (osInfo?.os_versions?.length || 0) > 8;
 
   // Renders opaque information as host information is loading

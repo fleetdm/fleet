@@ -513,6 +513,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
         isSoftwareFetching={isSoftwareFetching}
         isSoftwareEnabled={isSoftwareEnabled}
         software={software}
+        teamId={currentTeamId}
         pageIndex={softwarePageIndex}
         navTabIndex={softwareNavTabIndex}
         onTabChange={onSoftwareTabChange}
@@ -542,6 +543,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
         isMacAdminsFetching={isMacAdminsFetching}
         munkiIssuesData={munkiIssuesData}
         munkiVersionsData={munkiVersionsData}
+        selectedTeamId={currentTeamId}
       />
     ),
   });
@@ -560,6 +562,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
         mdmStatusData={mdmStatusData}
         mdmSolutions={mdmSolutions}
         selectedPlatformLabelId={selectedPlatformLabelId}
+        selectedTeamId={currentTeamId}
       />
     ),
   });

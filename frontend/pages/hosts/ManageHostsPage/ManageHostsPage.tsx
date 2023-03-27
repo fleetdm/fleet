@@ -155,7 +155,7 @@ const ManageHostsPage = ({
     currentTeamId,
     currentTeamName,
     isAnyTeamSelected,
-    isRouting,
+    isRouteOk,
     teamIdForApi,
     handleTeamChange,
   } = useTeamIdParam({
@@ -384,7 +384,7 @@ const ManageHostsPage = ({
     ],
     ({ queryKey }) => hostsAPI.loadHosts(queryKey[0]),
     {
-      enabled: !isRouting,
+      enabled: isRouteOk,
       keepPreviousData: true,
       staleTime: 10000, // stale time can be adjusted if fresher data is desired
     }
@@ -477,7 +477,7 @@ const ManageHostsPage = ({
   // TODO: cleanup this effect
   useEffect(() => {
     setShowNoEnrollSecretBanner(true);
-  }, [currentTeamId]);
+  }, [teamIdForApi]);
 
   // TODO: cleanup this effect
   useEffect(() => {
@@ -671,7 +671,7 @@ const ManageHostsPage = ({
   // NOTE: this is called once on initial render and every time the query changes
   const onTableQueryChange = useCallback(
     async (newTableQuery: ITableQueryProps) => {
-      if (isEqual(newTableQuery, tableQueryData)) {
+      if (!isRouteOk || isEqual(newTableQuery, tableQueryData)) {
         return;
       }
 
@@ -706,7 +706,7 @@ const ManageHostsPage = ({
       }
 
       // Rebuild queryParams to dispatch new browser location to react-router
-      const newQueryParams: { [key: string]: string | number } = {};
+      const newQueryParams: { [key: string]: string | number | undefined } = {};
       if (!isEmpty(searchText)) {
         newQueryParams.query = searchText;
       }
@@ -715,9 +715,7 @@ const ManageHostsPage = ({
       newQueryParams.order_direction =
         sort[0].direction || DEFAULT_SORT_DIRECTION;
 
-      if (teamIdForApi !== undefined) {
-        newQueryParams.team_id = teamIdForApi;
-      }
+      newQueryParams.team_id = teamIdForApi;
 
       if (status) {
         newQueryParams.status = status;
@@ -746,6 +744,7 @@ const ManageHostsPage = ({
         newQueryParams.os_name = osName;
         newQueryParams.os_version = osVersion;
       }
+      console.log("onTableQueryChange router replace", newQueryParams);
       router.replace(
         getNextLocationPath({
           pathPrefix: PATHS.MANAGE_HOSTS,
@@ -756,15 +755,16 @@ const ManageHostsPage = ({
       );
     },
     [
+      isRouteOk,
       tableQueryData,
+      sortBy,
       searchQuery,
       teamIdForApi,
+      status,
       policyId,
       policyResponse,
-      // queryParams,
       macSettingsStatus,
       softwareId,
-      status,
       mdmId,
       mdmEnrollmentStatus,
       munkiIssueId,
@@ -774,10 +774,9 @@ const ManageHostsPage = ({
       osId,
       osName,
       osVersion,
-      sortBy,
+      router,
       routeTemplate,
       routeParams,
-      router,
     ]
   );
 
@@ -1586,7 +1585,7 @@ const ManageHostsPage = ({
   };
 
   const renderTable = () => {
-    if (!config || !currentUser || isRouting) {
+    if (!config || !currentUser || !isRouteOk) {
       return <Spinner />;
     }
 

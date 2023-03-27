@@ -117,11 +117,11 @@ const isValidTeamId = ({
   return true;
 };
 
-const coerceAllTeamsId = (s: string) => {
+const coerceAllTeamsId = (s?: string) => {
   // URLs for the app represent "All teams" by the absence of the team id param
   // "All teams" is represented in AppContext with -1 as the team id so empty
   // strings are coerced to -1 by this function
-  return s.length ? parseInt(s, 10) : APP_CONTEXT_ALL_TEAMS_ID;
+  return s?.length ? parseInt(s, 10) : APP_CONTEXT_ALL_TEAMS_ID;
 };
 
 const shouldRedirectToDefaultTeam = ({
@@ -178,10 +178,6 @@ export const useTeamIdParam = ({
     currentTeam: contextTeam,
     setCurrentTeam: setContextTeam,
   } = useContext(AppContext);
-  // const [currentTeamId, setCurrentTeamId] = useState(contextTeam?.id);
-  // const [currentTeamName, setCurrentTeamName] = useState(contextTeam?.name);
-  const [currentTeam, setCurrentTeam] = useState(contextTeam);
-  const [isRouting, setIsRouting] = useState(true);
 
   const memoizedDefaultTeam = useMemo(() => {
     if (!availableTeams?.length) {
@@ -192,7 +188,6 @@ export const useTeamIdParam = ({
 
   const handleTeamChange = useCallback(
     (teamId: number) => {
-      setIsRouting(true);
       router.replace(
         pathname
           .concat(rebuildQueryStringWithTeamId(search, teamId))
@@ -202,11 +197,12 @@ export const useTeamIdParam = ({
     [pathname, search, hash, router]
   );
 
-  useEffect(() => {
-    if (!availableTeams?.length || !memoizedDefaultTeam) {
-      return; // skip effect until these values are available
-    }
+  const foundTeam = availableTeams?.find(
+    (t) => t.id === coerceAllTeamsId(query?.team_id || "")
+  );
 
+  let isRouteOk = false;
+  if (availableTeams?.length && memoizedDefaultTeam) {
     // first reconcile router location and redirect to default team as applicable
     if (
       shouldRedirectToDefaultTeam({
@@ -218,41 +214,23 @@ export const useTeamIdParam = ({
       })
     ) {
       handleTeamChange(memoizedDefaultTeam.id);
-      return; // allow router to update first before updating context
+    } else {
+      isRouteOk = true;
     }
+  }
 
-    // location is resolved, so proceed to update team context
-    const team = availableTeams?.find(
-      (t) => t.id === coerceAllTeamsId(query?.team_id || "")
-    );
-    if (team?.id !== currentTeam?.id) {
-      setCurrentTeam(team);
+  useEffect(() => {
+    if (isRouteOk && foundTeam?.id !== contextTeam?.id) {
+      setContextTeam(foundTeam);
     }
-    if (team?.id !== contextTeam?.id) {
-      setContextTeam(team);
-    }
-    setIsRouting(false);
-  }, [
-    availableTeams,
-    contextTeam,
-    currentTeam,
-    includeAllTeams,
-    includeNoTeam,
-    memoizedDefaultTeam,
-    query,
-    search,
-    handleTeamChange,
-    setContextTeam,
-  ]);
+  }, [contextTeam?.id, foundTeam, isRouteOk, setContextTeam]);
 
   return {
-    // currentTeamId: contextTeam?.id,
-    // currentTeamName: contextTeam?.name,
-    currentTeamId: currentTeam?.id,
-    currentTeamName: currentTeam?.name,
-    isAnyTeamSelected: isAnyTeamSelected(currentTeam?.id),
-    isRouting,
-    teamIdForApi: getTeamIdForApi({ currentTeam, includeNoTeam }),
+    currentTeamId: foundTeam?.id, // TODO: fix this
+    currentTeamName: foundTeam?.name, // TODO: fix this
+    isAnyTeamSelected: isAnyTeamSelected(foundTeam?.id),
+    isRouteOk,
+    teamIdForApi: getTeamIdForApi({ currentTeam: foundTeam, includeNoTeam }),
     handleTeamChange,
   };
 };

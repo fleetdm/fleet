@@ -5,7 +5,7 @@ interface ILocationParams {
   pathPrefix?: string;
   routeTemplate?: string;
   routeParams?: { [key: string]: string };
-  queryParams?: { [key: string]: string | number };
+  queryParams?: { [key: string]: string | number | undefined };
 }
 
 type RouteParams = Record<string, string>;

@@ -285,7 +285,9 @@ const AppProvider = ({ children }: Props): JSX.Element => {
     isSandboxMode: state.isSandboxMode,
     isFreeTier: state.isFreeTier,
     isPremiumTier: state.isPremiumTier,
-    isMdmFeatureFlagEnabled: state.isMdmFeatureFlagEnabled,
+    // isMdmFeatureFlagEnabled: state.isMdmFeatureFlagEnabled,
+    isMdmFeatureFlagEnabled: true,
+
     isGlobalAdmin: state.isGlobalAdmin,
     isGlobalMaintainer: state.isGlobalMaintainer,
     isGlobalObserver: state.isGlobalObserver,

@@ -491,11 +491,14 @@ const ManageSoftwarePage = ({
       softwareCount;
 
   const softwareTableHeaders = useMemo(
-    () => generateSoftwareTableHeaders(router, isPremiumTier),
-    [isPremiumTier, router]
+    () => generateSoftwareTableHeaders(router, isPremiumTier, currentTeamId),
+    [isPremiumTier, router, currentTeamId]
   );
   const handleRowSelect = (row: IRowProps) => {
-    const queryParams = { software_id: row.original.id };
+    const queryParams = {
+      software_id: row.original.id,
+      team_id: currentTeamId,
+    };
 
     const path = queryParams
       ? `${PATHS.MANAGE_HOSTS}?${buildQueryStringFromParams(queryParams)}`
