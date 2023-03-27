@@ -131,6 +131,7 @@ const ManageHostsPage = ({
 }: IManageHostsProps): JSX.Element => {
   const routeTemplate = route?.path ?? "";
   const queryParams = location.query;
+  console.log("render manage hosts", location);
 
   const {
     availableTeams,
@@ -156,6 +157,7 @@ const ManageHostsPage = ({
     currentTeamId,
     currentTeamName,
     isAnyTeamSelected,
+    isRouting,
     teamIdForApi,
     handleTeamChange,
   } = useTeamIdParam({
@@ -164,6 +166,9 @@ const ManageHostsPage = ({
     includeAllTeams: true,
     includeNoTeam: true,
   });
+  console.log("after hook currentTeamId", currentTeamId);
+  console.log("after hook currentTeamName", currentTeamName);
+  console.log("after hook isRouting", isRouting);
 
   const hostHiddenColumns = localStorage.getItem("hostHiddenColumns");
   const storedHiddenColumns = hostHiddenColumns
@@ -384,6 +389,7 @@ const ManageHostsPage = ({
     ],
     ({ queryKey }) => hostsAPI.loadHosts(queryKey[0]),
     {
+      enabled: !isRouting,
       keepPreviousData: true,
       staleTime: 10000, // stale time can be adjusted if fresher data is desired
     }
@@ -746,7 +752,7 @@ const ManageHostsPage = ({
         newQueryParams.os_name = osName;
         newQueryParams.os_version = osVersion;
       }
-
+      console.log("queryparams replace", newQueryParams);
       router.replace(
         getNextLocationPath({
           pathPrefix: PATHS.MANAGE_HOSTS,
@@ -1587,7 +1593,7 @@ const ManageHostsPage = ({
   };
 
   const renderTable = () => {
-    if (!config || !currentUser) {
+    if (!config || !currentUser || isRouting) {
       return <Spinner />;
     }
 

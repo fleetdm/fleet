@@ -76,9 +76,12 @@ interface IDashboardProps {
 }
 
 const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
+  console.log("enter dashboard page");
+
   const { pathname } = location;
   const {
     config,
+    currentTeam,
     availableTeams,
     isGlobalAdmin,
     isGlobalMaintainer,
@@ -89,6 +92,8 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     isSandboxMode,
     isOnGlobalTeam,
   } = useContext(AppContext);
+  console.log("dashboard team context", currentTeam);
+
   const [selectedPlatform, setSelectedPlatform] = useState<ISelectedPlatform>(
     "all"
   );
@@ -142,6 +147,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     currentTeamId,
     currentTeamName,
     isAnyTeamSelected,
+    isRouting,
     teamIdForApi,
     handleTeamChange,
   } = useTeamIdParam({
@@ -150,6 +156,8 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     includeAllTeams: true,
     includeNoTeam: false,
   });
+  console.log("after hook currentTeamId", currentTeamId);
+  console.log("after hook isRouting", isRouting);
 
   const canEnrollHosts =
     isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
@@ -647,6 +655,9 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
       />
     );
   };
+
+  console.log("return from dashboard page");
+  console.log("dashboard team context", currentTeam);
 
   return (
     <MainContent className={baseClass}>

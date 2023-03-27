@@ -1,15 +1,15 @@
-import { useCallback, useContext, useEffect, useMemo } from "react";
+import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { InjectedRouter } from "react-router";
 import { findLastIndex, trimStart } from "lodash";
 
 import { AppContext } from "context/app";
 import {
   APP_CONTEXT_ALL_TEAMS_ID,
-  isAnyTeamSelected,
-  ITeamSummary,
   APP_CONTEXT_NO_TEAM_ID,
   API_NO_TEAM_ID,
   API_ALL_TEAMS_ID,
+  isAnyTeamSelected,
+  ITeamSummary,
 } from "interfaces/team";
 
 const splitQueryStringParts = (queryString: string) =>
@@ -52,22 +52,6 @@ const rebuildQueryStringWithTeamId = (
   return joinQueryStringParts(parts);
 };
 
-const getTeamIdForApi = ({
-  currentTeam,
-  includeNoTeam = false,
-}: {
-  currentTeam?: ITeamSummary;
-  includeNoTeam?: boolean;
-}) => {
-  if (includeNoTeam && currentTeam?.id === APP_CONTEXT_NO_TEAM_ID) {
-    return API_NO_TEAM_ID;
-  }
-  if (currentTeam && currentTeam.id > APP_CONTEXT_NO_TEAM_ID) {
-    return currentTeam.id;
-  }
-  return API_ALL_TEAMS_ID;
-};
-
 const getDefaultTeam = (
   availableTeams: ITeamSummary[],
   includeAllTeams: boolean,
@@ -87,6 +71,29 @@ const getDefaultTeam = (
       availableTeams.find((t) => t.id > APP_CONTEXT_NO_TEAM_ID) || defaultTeam;
   }
   return defaultTeam;
+};
+
+const getTeamIdForApi = ({
+  currentTeam,
+  includeNoTeam = false,
+}: {
+  currentTeam?: ITeamSummary;
+  includeNoTeam?: boolean;
+}) => {
+  if (includeNoTeam && currentTeam?.id === APP_CONTEXT_NO_TEAM_ID) {
+    return API_NO_TEAM_ID;
+  }
+  if (currentTeam && currentTeam.id > APP_CONTEXT_NO_TEAM_ID) {
+    return currentTeam.id;
+  }
+  return API_ALL_TEAMS_ID;
+};
+
+const getTeamSummary = (
+  id: number | undefined,
+  name: string | undefined
+): ITeamSummary | undefined => {
+  return id === undefined || name === undefined ? undefined : { id, name };
 };
 
 const isValidTeamId = ({
@@ -166,9 +173,19 @@ export const useTeamIdParam = ({
   includeNoTeam: boolean;
 }) => {
   const { hash, pathname, query, search } = location;
-  const { currentTeam, availableTeams, setCurrentTeam } = useContext(
-    AppContext
-  );
+  const {
+    availableTeams,
+    currentTeam: contextTeam,
+    setCurrentTeam: setContextTeam,
+  } = useContext(AppContext);
+  console.log("enter hook");
+  // console.log("location", location);
+  // console.log("contextTeam", contextTeam);
+
+  // const [currentTeamId, setCurrentTeamId] = useState(contextTeam?.id);
+  // const [currentTeamName, setCurrentTeamName] = useState(contextTeam?.name);
+  const [currentTeam, setCurrentTeam] = useState(contextTeam);
+  const [isRouting, setIsRouting] = useState(true);
 
   const memoizedDefaultTeam = useMemo(() => {
     if (!availableTeams?.length) {
@@ -179,6 +196,7 @@ export const useTeamIdParam = ({
 
   const handleTeamChange = useCallback(
     (teamId: number) => {
+      setIsRouting(true);
       router.replace(
         pathname
           .concat(rebuildQueryStringWithTeamId(search, teamId))
@@ -189,6 +207,11 @@ export const useTeamIdParam = ({
   );
 
   useEffect(() => {
+    console.log("hook effect");
+    console.log("query", query);
+    console.log("contextTeam", contextTeam);
+    // console.log("currentTeam", currentTeamId, currentTeamName);
+
     if (!availableTeams?.length || !memoizedDefaultTeam) {
       return; // skip effect until these values are available
     }
@@ -208,12 +231,19 @@ export const useTeamIdParam = ({
     }
 
     // location is resolved, so proceed to update team context
-    const teamId = coerceAllTeamsId(query?.team_id || "");
-    if (teamId !== currentTeam?.id) {
-      setCurrentTeam(availableTeams?.find((t) => t.id === teamId));
+    const team = availableTeams?.find(
+      (t) => t.id === coerceAllTeamsId(query?.team_id || "")
+    );
+    if (team?.id !== currentTeam?.id) {
+      setCurrentTeam(team);
     }
+    if (team?.id !== contextTeam?.id) {
+      setContextTeam(team);
+    }
+    setIsRouting(false);
   }, [
     availableTeams,
+    contextTeam,
     currentTeam,
     includeAllTeams,
     includeNoTeam,
@@ -221,13 +251,21 @@ export const useTeamIdParam = ({
     query,
     search,
     handleTeamChange,
-    setCurrentTeam,
+    setContextTeam,
   ]);
 
+  console.log("exit hook");
+  console.log("location", location);
+  console.log("contextTeam", contextTeam);
+  console.log("isRouting", isRouting);
+
   return {
+    // currentTeamId: contextTeam?.id,
+    // currentTeamName: contextTeam?.name,
     currentTeamId: currentTeam?.id,
     currentTeamName: currentTeam?.name,
     isAnyTeamSelected: isAnyTeamSelected(currentTeam?.id),
+    isRouting,
     teamIdForApi: getTeamIdForApi({ currentTeam, includeNoTeam }),
     handleTeamChange,
   };
