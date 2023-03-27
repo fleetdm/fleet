@@ -1760,6 +1760,7 @@ const ManageHostsPage = ({
       currentUser,
       currentTeam
     );
+    tableColumns[tableColumns.length - 1].isLastColumn = true;
 
     const emptyState = () => {
       const emptyHosts: IEmptyTableProps = {
