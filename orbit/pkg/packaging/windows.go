@@ -8,12 +8,15 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/packaging/wix"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
+	"github.com/josephspurrier/goversioninfo"
 	"github.com/rs/zerolog/log"
 )
 
@@ -93,6 +96,10 @@ func BuildMSI(opt Options) (string, error) {
 
 	if err := writePowershellInstallerUtilsFile(opt, orbitRoot); err != nil {
 		return "", fmt.Errorf("write powershell installer utils file: %w", err)
+	}
+
+	if err := writeResourceSyso(opt, orbitRoot); err != nil {
+		return "", fmt.Errorf("write VERSIONINFO: %w", err)
 	}
 
 	if err := writeWixFile(opt, tmpDir); err != nil {
@@ -193,6 +200,90 @@ func writePowershellInstallerUtilsFile(opt Options, rootPath string) error {
 
 	if err := ioutil.WriteFile(path, contents.Bytes(), constant.DefaultFileMode); err != nil {
 		return fmt.Errorf("powershell installer utils file write: %w", err)
+	}
+
+	return nil
+}
+
+// writeManifestXML creates the manifest.xml file used when generating the 'resource.syso' metadata
+// (see writeResourceSyso). Returns the path of the newly created file.
+func writeManifestXML(opt Options, orbitPath string) (string, error) {
+	filePath := filepath.Join(orbitPath, "manifest.xml")
+	var contents bytes.Buffer
+	if err := manifestXMLTemplate.Execute(&contents, opt); err != nil {
+		return "", fmt.Errorf("parsing manifest XML: %w", err)
+	}
+	if err := ioutil.WriteFile(filePath, contents.Bytes(), constant.DefaultFileMode); err != nil {
+		return "", fmt.Errorf("write file: %w", err)
+	}
+	return filePath, nil
+}
+
+// writeVersionInfoJSON creates the versioninfo.json used when generating the 'resource.syso'
+// metadata (see writeResourceSyso). Returns a pointer to a VersionInfo struct with the proper info.
+func writeVersionInfoJSON(opt Options, orbitPath string, manifestPath string) (*goversioninfo.VersionInfo, error) {
+	vParts := strings.Split(opt.Version, ".")
+	if len(vParts) < 3 {
+		return nil, fmt.Errorf("invalid version: %s", opt.Version)
+	}
+
+	// Append a default 'build' number if the version str contains none.
+	if len(vParts) <= 4 {
+		vParts = append(vParts, "0")
+	}
+
+	tmplOpts := struct {
+		Version      string
+		VersionParts []string
+		Copyright    string
+		ManifestPath string
+	}{
+		Version:      opt.Version,
+		VersionParts: vParts,
+		Copyright:    fmt.Sprintf("%d Fleet Device Management Inc.", time.Now().Year()),
+		ManifestPath: manifestPath,
+	}
+
+	var contents bytes.Buffer
+	if err := versionInfoJSONTemplate.Execute(&contents, tmplOpts); err != nil {
+		return nil, fmt.Errorf("parsing versioninfo.json template: %w", err)
+	}
+
+	result := &goversioninfo.VersionInfo{}
+	if err := result.ParseJSON(contents.Bytes()); err != nil {
+		return nil, fmt.Errorf("parsing versioninfo.json: %w", err)
+	}
+
+	return result, nil
+}
+
+// writeResourceSyso creates a syso file which contains the required Microsoft Windows Version Information
+func writeResourceSyso(opt Options, orbitPath string) error {
+	if err := secure.MkdirAll(orbitPath, constant.DefaultDirMode); err != nil {
+		return fmt.Errorf("mkdir: %w", err)
+	}
+
+	outPath := filepath.Join(orbitPath, "resource.syso")
+
+	// Create manifest.xml
+	manifestPath, err := writeManifestXML(opt, orbitPath)
+	if err != nil {
+		return fmt.Errorf("creating manifest.xml: %w", err)
+	}
+
+	// Create vertsioninfo.json
+	vi, err := writeVersionInfoJSON(opt, orbitPath, manifestPath)
+	if err != nil {
+		return fmt.Errorf("creating versioninfo.json: %w", err)
+	}
+
+	// Build syso file
+	vi.Build()
+	vi.Walk()
+
+	// Output syso file
+	if err := vi.WriteSyso(outPath, "amd64"); err != nil {
+		return fmt.Errorf("creating syso file: %w", err)
 	}
 
 	return nil
