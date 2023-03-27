@@ -776,18 +776,6 @@ A required human-friendly name for the identity provider that will provide singl
     idp_name: "SimpleSAML"
   ```
 
-##### sso_settings.issuer_uri
-
-The issuer URI supplied by the identity provider.
-
-- Optional setting (string)
-- Default value: ""
-- Config file format:
-  ```yaml
-  sso_settings:
-    issuer_uri: "https://example.com/saml2/sso-service"
-  ```
-
 ##### sso_settings.metadata
 
 Metadata (in XML format) provided by the identity provider.
