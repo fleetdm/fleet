@@ -2899,8 +2899,8 @@ spec:
   platforms: win10
   platform: windows
   description: |
-    Creates audit events whenever an attempt is made to authenticate, whether it is successful or
-    not. This makes it easier to investigate a future security incident if required.
+    Creates audit events whenever an attempt is made to authenticate, whether it is successful or not.
+    This makes it easier to investigate a future security incident if required.
   resolution: |
     Automatic method:
     Ask your system administrator to establish the recommended configuration via GP, set the following UI path to Success and Failure:
@@ -2945,8 +2945,7 @@ spec:
     This makes it easier to investigate a future security incident if required.
   resolution: |
     Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, set the
-    following UI path to 'Success and Failure' or 'Success':
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'Success and Failure' or 'Success':
     'Computer Configuration\Policies\Windows Settings\Security Settings\Advanced Audit Policy Configuration\Audit Policies\Account Management\Audit Security Group Management'
   query: |
     SELECT 1 FROM mdm_bridge where mdm_command_input =
@@ -2963,8 +2962,7 @@ spec:
   platforms: win10
   platform: windows
   description: |
-    Creates audit events whenever there is a change in user status, e.g. if an account is created or
-    an account's password changed.
+    Creates audit events whenever there is a change in user status, e.g. if an account is created or an account's password changed.
     This makes it easier to investigate a future security incident if required.
   resolution: |
     Automatic method:
@@ -3013,8 +3011,7 @@ spec:
     This makes it easier to investigate a future security incident if required.
   resolution: |
     Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, set the
-    following UI path to 'Success':
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'Success':
     'Computer Configuration\Policies\Windows Settings\Security Settings\Advanced Audit Policy Configuration\Audit Policies\Detailed Tracking\Audit Process Creation'
   query: |
     SELECT 1 FROM mdm_bridge where mdm_command_input =
@@ -5764,7 +5761,7 @@ spec:
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\WinRM\\Service\\AllowUnencryptedTraffic' AND data = 0);
   purpose: Informational
   tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.102.2.3
-  contributors: marcosd4h  
+  contributors: marcosd4h
 ---
 apiVersion: v1
 kind: policy
@@ -5784,7 +5781,7 @@ spec:
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.102.2.4
   contributors: marcosd4h
----  
+---
 apiVersion: v1
 kind: policy
 spec:
