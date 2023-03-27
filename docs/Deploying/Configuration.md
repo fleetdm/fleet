@@ -711,7 +711,7 @@ Turning off keepalives has helped reduce outstanding TCP connections in some dep
   	keepalive: true
   ```
 
-##### websockets_allow_unsafe_origin
+##### server_websockets_allow_unsafe_origin
 
 Controls the servers websocket origin check. If your Fleet server is behind a reverse proxy,
 the Origin header may not reflect the client's true origin. In this case, you might need to 
