@@ -4529,7 +4529,7 @@ func (s *integrationTestSuite) TestPremiumEndpointsWithoutLicense() {
 	// update MDM settings, the endpoint returns an error if MDM is not enabled
 	res = s.Do("PATCH", "/api/latest/fleet/mdm/apple/settings", fleet.MDMAppleSettingsPayload{}, http.StatusInternalServerError)
 	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, fleet.MDMNotConfiguredError{}.Error())
+	require.Contains(t, errMsg, fleet.ErrMDMNotConfigured.Error())
 }
 
 // TestGlobalPoliciesBrowsing tests that team users can browse (read) global policies (see #3722).
@@ -6310,7 +6310,7 @@ func (s *integrationTestSuite) TestAppleMDMNotConfigured() {
 	for _, route := range mdmAppleConfigurationRequiredEndpoints() {
 		res := s.Do(route[0], route[1], nil, http.StatusInternalServerError)
 		errMsg := extractServerErrorText(res.Body)
-		assert.Contains(t, errMsg, fleet.MDMNotConfiguredError{}.Error())
+		assert.Contains(t, errMsg, fleet.ErrMDMNotConfigured.Error())
 	}
 
 	fleetdmSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

@@ -72,10 +72,6 @@ type conflictErrorInterface interface {
 	IsConflict() bool
 }
 
-//type mdmNotConfiguredErrorInterface interface {
-//	error
-//}
-
 func encodeErrorAndTrySentry(sentryEnabled bool) func(ctx context.Context, err error, w http.ResponseWriter) {
 	if !sentryEnabled {
 		return encodeError

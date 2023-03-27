@@ -16,6 +16,7 @@ var (
 	ErrNoContext             = errors.New("context key not set")
 	ErrPasswordResetRequired = &passwordResetRequiredError{}
 	ErrMissingLicense        = &licenseError{}
+	ErrMDMNotConfigured      = &MDMNotConfiguredError{}
 )
 
 // ErrWithInternal is an interface for errors that include extra "internal"
@@ -295,11 +296,11 @@ type MDMNotConfiguredError struct{}
 
 // Status implements the transport.statuser interface so we can customize the
 // HTTP status code of the response returning this error.
-func (e MDMNotConfiguredError) Status() int {
+func (e *MDMNotConfiguredError) Status() int {
 	return http.StatusInternalServerError
 }
 
-func (e MDMNotConfiguredError) Error() string {
+func (e *MDMNotConfiguredError) Error() string {
 	return "MDM features aren't turned on in Fleet. For more information about setting up MDM, please visit https://fleetdm.com/docs/using-fleet/mobile-device-management"
 }
 

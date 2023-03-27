@@ -2027,7 +2027,7 @@ func (s *integrationEnterpriseTestSuite) TestAppleMDMNotConfigured() {
 	for _, route := range mdmAppleConfigurationRequiredEndpoints() {
 		res := s.Do(route[0], route[1], nil, http.StatusInternalServerError)
 		errMsg := extractServerErrorText(res.Body)
-		assert.Contains(t, errMsg, fleet.MDMNotConfiguredError{}.Error())
+		assert.Contains(t, errMsg, fleet.ErrMDMNotConfigured.Error())
 	}
 
 	fleetdmSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

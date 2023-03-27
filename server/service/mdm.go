@@ -252,7 +252,7 @@ func (svc *Service) VerifyMDMAppleConfigured(ctx context.Context) error {
 	if !appCfg.MDM.EnabledAndConfigured {
 		// skipauth: Authorization is currently for user endpoints only.
 		svc.authz.SkipAuthorization(ctx)
-		return fleet.MDMNotConfiguredError{}
+		return fleet.ErrMDMNotConfigured
 
 	}
 
