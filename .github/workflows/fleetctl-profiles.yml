@@ -34,9 +34,6 @@ jobs:
   apply-profiles:
     timeout-minutes: 15
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        go-version: ['^1.19.4']
     steps:
     - name: Checkout code
       uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b # v2
