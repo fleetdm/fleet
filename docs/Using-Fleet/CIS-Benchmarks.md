@@ -7,7 +7,7 @@ Each benchmark has two elements:
 1. Audit - how to find out whether the host is in compliance with the benchmark
 2. Remediation - if the host is out of compliance with the benchmark, how to fix it
 
-Fleet implements CIS Benchmarks using [Policies](./REST-API.md#policies). Each specific CIS benchmark check is implemented with a policy query in Fleet.
+Fleet implements the audit portion of CIS Benchmarks. Where possible, each CIS benchmark audit is implemented with a [policy query](./REST-API.md#policies) in Fleet.
 <img src=https://user-images.githubusercontent.com/2073526/220428249-7a1b6433-24fe-4686-8dfb-b555c199f47d.png />
 
 The Center for Internet Security website offers documentation for all CIS Benchmarks in PDF format. Such PDFs document all the checks, their description, rationale and how to remediate them.
