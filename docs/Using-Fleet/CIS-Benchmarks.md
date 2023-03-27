@@ -3,6 +3,10 @@
 The CIS Benchmarks represent the consensus-based effort of cybersecurity experts globally to help you protect your systems against threats more confidently.
 For more information about CIS Benchmarks check out [Center for Internet Security](https://www.cisecurity.org/cis-benchmarks)'s website.
 
+Each benchmark has two elements:
+1. Audit - how to find out whether the host is in compliance with the benchmark
+2. Remediation - if the host is out of compliance with the benchmark, how to fix it
+
 Fleet implements CIS Benchmarks using [Policies](./REST-API.md#policies). Each specific CIS benchmark check is implemented with a policy query in Fleet.
 <img src=https://user-images.githubusercontent.com/2073526/220428249-7a1b6433-24fe-4686-8dfb-b555c199f47d.png />
 
