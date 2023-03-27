@@ -562,7 +562,7 @@ type ListMDMAppleProfilesToRemoveFunc func(ctx context.Context) ([]*fleet.MDMApp
 
 type BulkUpsertMDMAppleHostProfilesFunc func(ctx context.Context, payload []*fleet.MDMAppleBulkUpsertHostProfilePayload) error
 
-type BulkSetPendingMDMAppleHostProfilesFunc func(ctx context.Context, hostIDs []uint, teamIDs []uint, profileIDs []uint) error
+type BulkSetPendingMDMAppleHostProfilesFunc func(ctx context.Context, hostIDs []uint, teamIDs []uint, profileIDs []uint, hostUUIDs []string) error
 
 type GetMDMAppleProfilesContentsFunc func(ctx context.Context, profileIDs []uint) (map[uint]mobileconfig.Mobileconfig, error)
 
@@ -3331,11 +3331,11 @@ func (s *DataStore) BulkUpsertMDMAppleHostProfiles(ctx context.Context, payload 
 	return s.BulkUpsertMDMAppleHostProfilesFunc(ctx, payload)
 }
 
-func (s *DataStore) BulkSetPendingMDMAppleHostProfiles(ctx context.Context, hostIDs []uint, teamIDs []uint, profileIDs []uint) error {
+func (s *DataStore) BulkSetPendingMDMAppleHostProfiles(ctx context.Context, hostIDs []uint, teamIDs []uint, profileIDs []uint, hostUUIDs []string) error {
 	s.mu.Lock()
 	s.BulkSetPendingMDMAppleHostProfilesFuncInvoked = true
 	s.mu.Unlock()
-	return s.BulkSetPendingMDMAppleHostProfilesFunc(ctx, hostIDs, teamIDs, profileIDs)
+	return s.BulkSetPendingMDMAppleHostProfilesFunc(ctx, hostIDs, teamIDs, profileIDs, hostUUIDs)
 }
 
 func (s *DataStore) GetMDMAppleProfilesContents(ctx context.Context, profileIDs []uint) (map[uint]mobileconfig.Mobileconfig, error) {

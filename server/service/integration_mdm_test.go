@@ -1842,7 +1842,11 @@ func (s *integrationMDMTestSuite) TestHostMDMProfilesStatus() {
 	ctx := context.Background()
 
 	createManualMDMEnrollWithOrbit := func(secret string) *fleet.Host {
-		d := newMDMEnrolledDevice(s)
+		// orbit enrollment happens before mdm enrollment, otherwise the host would
+		// always receive the "no team" profiles on mdm enrollment since it would
+		// not be part of any team yet (team assignment is done when it enrolls
+		// with orbit).
+		d := newDevice(s)
 
 		// enroll the device with orbit
 		var resp EnrollOrbitResponse
@@ -1856,6 +1860,9 @@ func (s *integrationMDMTestSuite) TestHostMDMProfilesStatus() {
 		h, err := s.ds.LoadHostByOrbitNodeKey(ctx, orbitNodeKey)
 		require.NoError(t, err)
 		h.OrbitNodeKey = &orbitNodeKey
+
+		d.mdmEnroll(s)
+
 		return h
 	}
 

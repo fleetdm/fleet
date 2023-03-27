@@ -1664,7 +1664,6 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 	if nanoEnroll != nil && nanoEnroll.Enabled &&
 		nanoEnroll.Type == "Device" && nanoEnroll.TokenUpdateTally == 1 {
 		// device is enrolled for the first time, not a token update
-		// TODO(mna): get the host's ID from the uuid, or support UUIDs in bulk set?
 		if err := svc.ds.BulkSetPendingMDMAppleHostProfiles(r.Context, nil, nil, nil, []string{r.ID}); err != nil {
 			return err
 		}

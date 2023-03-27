@@ -346,7 +346,7 @@ func TestMDMAppleConfigProfileAuthz(t *testing.T) {
 	ds.GetMDMAppleHostsProfilesSummaryFunc = func(context.Context, *uint) (*fleet.MDMAppleHostsProfilesSummary, error) {
 		return nil, nil
 	}
-	ds.BulkSetPendingMDMAppleHostProfilesFunc = func(ctx context.Context, hids, tids, pids []uint) error {
+	ds.BulkSetPendingMDMAppleHostProfilesFunc = func(ctx context.Context, hids, tids, pids []uint, uuids []string) error {
 		return nil
 	}
 	mockGetFuncWithTeamID := func(teamID uint) mock.GetMDMAppleConfigProfileFunc {
@@ -454,7 +454,7 @@ func TestNewMDMAppleConfigProfile(t *testing.T) {
 	ds.NewActivityFunc = func(context.Context, *fleet.User, fleet.ActivityDetails) error {
 		return nil
 	}
-	ds.BulkSetPendingMDMAppleHostProfilesFunc = func(ctx context.Context, hids, tids, pids []uint) error {
+	ds.BulkSetPendingMDMAppleHostProfilesFunc = func(ctx context.Context, hids, tids, pids []uint, uuids []string) error {
 		return nil
 	}
 
@@ -985,7 +985,7 @@ func TestMDMBatchSetAppleProfiles(t *testing.T) {
 	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
 		return nil
 	}
-	ds.BulkSetPendingMDMAppleHostProfilesFunc = func(ctx context.Context, hids, tids, pids []uint) error {
+	ds.BulkSetPendingMDMAppleHostProfilesFunc = func(ctx context.Context, hids, tids, pids []uint, uuids []string) error {
 		return nil
 	}
 

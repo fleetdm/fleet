@@ -42,7 +42,7 @@ func TestHostsTransferByHosts(t *testing.T) {
 		return nil
 	}
 
-	ds.BulkSetPendingMDMAppleHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs, profileIDs []uint) error {
+	ds.BulkSetPendingMDMAppleHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs, profileIDs []uint, uuids []string) error {
 		return nil
 	}
 
@@ -80,7 +80,7 @@ func TestHostsTransferByLabel(t *testing.T) {
 		return nil
 	}
 
-	ds.BulkSetPendingMDMAppleHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs, profileIDs []uint) error {
+	ds.BulkSetPendingMDMAppleHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs, profileIDs []uint, uuids []string) error {
 		return nil
 	}
 
@@ -117,7 +117,7 @@ func TestHostsTransferByStatus(t *testing.T) {
 		return nil
 	}
 
-	ds.BulkSetPendingMDMAppleHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs, profileIDs []uint) error {
+	ds.BulkSetPendingMDMAppleHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs, profileIDs []uint, uuids []string) error {
 		return nil
 	}
 
@@ -156,7 +156,7 @@ func TestHostsTransferByStatusAndSearchQuery(t *testing.T) {
 		return nil
 	}
 
-	ds.BulkSetPendingMDMAppleHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs, profileIDs []uint) error {
+	ds.BulkSetPendingMDMAppleHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs, profileIDs []uint, uuids []string) error {
 		return nil
 	}
 

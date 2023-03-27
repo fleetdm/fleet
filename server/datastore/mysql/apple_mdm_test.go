@@ -1887,8 +1887,8 @@ func testBulkSetPendingMDMAppleHostProfiles(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, toRemove, 6)
 
-	// update status of the moved host (team has no profiles)
-	err = ds.BulkSetPendingMDMAppleHostProfiles(ctx, hostIDsFromHosts(enrolledHosts[1]), nil, nil, nil)
+	// update status of the moved host via its uuid (team has no profiles)
+	err = ds.BulkSetPendingMDMAppleHostProfiles(ctx, nil, nil, nil, []string{enrolledHosts[1].UUID})
 	require.NoError(t, err)
 	assertHostProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
 		enrolledHosts[0]: {
