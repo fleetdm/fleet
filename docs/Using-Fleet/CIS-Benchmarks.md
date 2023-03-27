@@ -13,8 +13,8 @@ Fleet implements the audit portion of CIS Benchmarks. Where possible, each CIS b
 The Center for Internet Security website offers documentation for all CIS Benchmarks in PDF format. Such PDFs document all the checks, their description, rationale and how to remediate them.
 
 Fleet has implemented CIS benchmarks for the following platforms:
-- CIS Apple macOS 13.0 Ventura Benchmark v1.0.0 - 11-14-2022 (82 checks) 
-- CIS Microsoft Windows 10 Enterprise Benchmark v1.12.0 - 02-15-2022 (In progress)
+- CIS Apple macOS 13.0 Ventura Benchmark v1.0.0 - 11-14-2022 (96 checks)
+- CIS Microsoft Windows 10 Enterprise Benchmark v1.12.0 - 02-15-2022 (496 checks - in progress)
 
 > All CIS Benchmarks implemented by Fleet are limited to a Fleet Premium or Fleet Ultimate license.
 
