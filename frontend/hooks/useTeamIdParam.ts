@@ -1,4 +1,4 @@
-import { useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { useCallback, useContext, useEffect, useMemo } from "react";
 import { InjectedRouter } from "react-router";
 import { findLastIndex, trimStart } from "lodash";
 
@@ -87,13 +87,6 @@ const getTeamIdForApi = ({
     return currentTeam.id;
   }
   return API_ALL_TEAMS_ID;
-};
-
-const getTeamSummary = (
-  id: number | undefined,
-  name: string | undefined
-): ITeamSummary | undefined => {
-  return id === undefined || name === undefined ? undefined : { id, name };
 };
 
 const isValidTeamId = ({

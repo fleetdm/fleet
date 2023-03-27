@@ -1,5 +1,7 @@
 import React, { useState, useContext } from "react";
 import { InjectedRouter } from "react-router";
+import { Params } from "react-router/lib/Router";
+
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
 import { TableContext } from "context/table";
@@ -25,6 +27,7 @@ interface ICoreLayoutProps {
     hash?: string;
     query: QueryParams;
   };
+  params: Params;
 }
 
 const expirationMessage = (
@@ -40,7 +43,12 @@ const expirationMessage = (
   </>
 );
 
-const CoreLayout = ({ children, router, location }: ICoreLayoutProps) => {
+const CoreLayout = ({
+  children,
+  router,
+  location,
+  params: routeParams,
+}: ICoreLayoutProps) => {
   const { config, currentUser, isPremiumTier } = useContext(AppContext);
   const { notification, hideFlash } = useContext(NotificationContext);
   const { setResetSelectedRows } = useContext(TableContext);
@@ -120,10 +128,11 @@ const CoreLayout = ({ children, router, location }: ICoreLayoutProps) => {
       <nav className="site-nav-container">
         <SiteTopNav
           config={config}
+          currentUser={currentUser}
+          location={location}
           onLogoutUser={onLogoutUser}
           onNavItemClick={onNavItemClick}
-          location={location}
-          currentUser={currentUser}
+          routeParams={routeParams}
         />
       </nav>
       <div className="core-wrapper">

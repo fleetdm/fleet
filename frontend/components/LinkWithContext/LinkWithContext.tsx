@@ -3,24 +3,33 @@ import { Link } from "react-router";
 
 import { buildQueryStringFromParams, QueryParams } from "utilities/url";
 import { pick } from "lodash";
+import { Params } from "react-router/lib/Router";
 
 interface ILinkWithContextProps {
   className: string;
   children: React.ReactChild | React.ReactChild[];
-  query: QueryParams;
+  queryParams: QueryParams;
+  routeParams: Params;
   to: string;
-  withUrlQueryParams: string[];
+  withParams: { type: "query" | "route"; names: string[] };
 }
 
 const LinkWithContext = ({
   className,
   children,
-  query,
+  queryParams,
+  routeParams,
   to,
-  withUrlQueryParams: paramsToKeep,
+  withParams,
 }: ILinkWithContextProps): JSX.Element => {
-  const queryString = buildQueryStringFromParams(pick(query, paramsToKeep));
-
+  let queryString = "";
+  if (withParams.type === "query") {
+    const newParams = pick(queryParams, withParams.names);
+    if (routeParams.team_id && newParams.team_id === undefined) {
+      newParams.team_id = routeParams.team_id;
+    }
+    queryString = buildQueryStringFromParams(newParams);
+  }
   return (
     <Link
       className={className}

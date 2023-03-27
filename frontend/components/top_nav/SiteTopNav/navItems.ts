@@ -10,8 +10,8 @@ export interface INavItem {
     regex: RegExp;
     pathname: string;
   };
-  withUrlQueryParams?: string[];
   exclude?: boolean;
+  withParams?: { type: "query" | "route"; names: string[] };
 }
 
 export default (
@@ -52,7 +52,7 @@ export default (
         regex: new RegExp(`^${URL_PREFIX}/hosts/`),
         pathname: PATHS.MANAGE_HOSTS,
       },
-      withUrlQueryParams: ["team_id"],
+      withParams: { type: "query", names: ["team_id"] },
     },
     {
       name: "Controls",
@@ -61,7 +61,7 @@ export default (
         pathname: PATHS.CONTROLS,
       },
       exclude: !isMaintainerOrAdmin || !isMdmFeatureFlagEnabled,
-      withUrlQueryParams: ["team_id"],
+      withParams: { type: "query", names: ["team_id"] },
     },
     {
       name: "Software",
@@ -69,7 +69,7 @@ export default (
         regex: new RegExp(`^${URL_PREFIX}/software/`),
         pathname: PATHS.MANAGE_SOFTWARE,
       },
-      withUrlQueryParams: ["team_id"],
+      withParams: { type: "query", names: ["team_id"] },
     },
     {
       name: "Queries",
@@ -85,7 +85,7 @@ export default (
         pathname: PATHS.MANAGE_SCHEDULE,
       },
       exclude: !isMaintainerOrAdmin,
-      withUrlQueryParams: ["team_id"],
+      withParams: { type: "route", names: ["team_id"] },
     },
     {
       name: "Policies",
@@ -93,7 +93,7 @@ export default (
         regex: new RegExp(`^${URL_PREFIX}/(policies)/`),
         pathname: PATHS.MANAGE_POLICIES,
       },
-      withUrlQueryParams: ["team_id"],
+      withParams: { type: "route", names: ["team_id"] },
     },
   ];
 

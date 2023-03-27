@@ -1,5 +1,6 @@
 import React, { useContext } from "react";
 import { Link } from "react-router";
+import { Params } from "react-router/lib/Router";
 import classnames from "classnames";
 
 import { IUser } from "interfaces/user";
@@ -15,24 +16,26 @@ import OrgLogoIcon from "components/icons/OrgLogoIcon";
 import navItems, { INavItem } from "./navItems";
 
 interface ISiteTopNavProps {
-  onLogoutUser: () => void;
-  onNavItemClick: (path: string) => void;
+  config: IConfig;
+  currentUser: IUser;
   location: {
     pathname: string;
     search: string;
     hash?: string;
     query: QueryParams;
   };
-  currentUser: IUser;
-  config: IConfig;
+  routeParams: Params;
+  onLogoutUser: () => void;
+  onNavItemClick: (path: string) => void;
 }
 
 const SiteTopNav = ({
+  config,
+  currentUser,
+  location: { pathname, search, hash = "", query: queryParams },
+  routeParams,
   onLogoutUser,
   onNavItemClick,
-  location: { pathname, search, hash = "", query },
-  currentUser,
-  config,
 }: ISiteTopNavProps): JSX.Element => {
   const {
     isAnyTeamAdmin,
@@ -44,7 +47,7 @@ const SiteTopNav = ({
   } = useContext(AppContext);
 
   const renderNavItem = (navItem: INavItem) => {
-    const { name, iconName, withUrlQueryParams } = navItem;
+    const { name, iconName, withParams } = navItem;
     const orgLogoURL = config.org_info.org_logo_url;
     const active = navItem.location.regex.test(pathname);
 
@@ -94,11 +97,12 @@ const SiteTopNav = ({
 
     return (
       <li className={navItemClasses} key={`nav-item-${name}`}>
-        {withUrlQueryParams?.length ? (
+        {withParams ? (
           <LinkWithContext
             className={`${navItemBaseClass}__link`}
-            withUrlQueryParams={withUrlQueryParams}
-            query={query}
+            withParams={withParams}
+            queryParams={queryParams}
+            routeParams={routeParams}
             to={navItem.location.pathname}
           >
             <span
