@@ -3447,6 +3447,6 @@ spec:
             name='SecureKeyboardEntry' AND 
             (value != 1 AND value != 'true')
         );  
-purpose: Informational
+  purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-macos-13-6.4.1
   contributors: sharon-fdm
