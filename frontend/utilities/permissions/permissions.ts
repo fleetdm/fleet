@@ -29,6 +29,10 @@ export const isGlobalObserver = (user: IUser): boolean => {
   return user.global_role === "observer";
 };
 
+export const isGlobalObserverPlus = (user: IUser): boolean => {
+  return user.global_role === "observer_plus";
+};
+
 export const isOnGlobalTeam = (user: IUser): boolean => {
   return user.global_role !== null;
 };
@@ -37,6 +41,11 @@ export const isOnGlobalTeam = (user: IUser): boolean => {
 const isTeamObserver = (user: IUser, teamId: number): boolean => {
   const userTeamRole = user.teams.find((team) => team.id === teamId)?.role;
   return userTeamRole === "observer";
+};
+
+const isTeamObserverPlus = (user: IUser, teamId: number): boolean => {
+  const userTeamRole = user.teams.find((team) => team.id === teamId)?.role;
+  return userTeamRole === "observer_plus";
 };
 
 const isTeamMaintainer = (
@@ -95,7 +104,28 @@ const isOnlyObserver = (user: IUser): boolean => {
   // Return false if any role is team maintainer
   if (!isOnGlobalTeam(user)) {
     return !user.teams.some(
-      (team) => team?.role === "maintainer" || team?.role === "admin"
+      (team) =>
+        team?.role === "maintainer" ||
+        team?.role === "admin" ||
+        team?.role === "observer"
+    );
+  }
+
+  return false;
+};
+
+const isOnlyObserverPlus = (user: IUser): boolean => {
+  if (isGlobalObserverPlus(user)) {
+    return true;
+  }
+
+  // Return false if any role is team maintainer
+  if (!isOnGlobalTeam(user)) {
+    return !user.teams.some(
+      (team) =>
+        team?.role === "maintainer" ||
+        team?.role === "admin" ||
+        team?.role === "observer"
     );
   }
 
@@ -114,8 +144,10 @@ export default {
   isGlobalAdmin,
   isGlobalMaintainer,
   isGlobalObserver,
+  isGlobalObserverPlus,
   isOnGlobalTeam,
   isTeamObserver,
+  isTeamObserverPlus,
   isTeamMaintainer,
   isTeamMaintainerOrTeamAdmin,
   isAnyTeamMaintainer,
@@ -123,5 +155,6 @@ export default {
   isTeamAdmin,
   isAnyTeamAdmin,
   isOnlyObserver,
+  isOnlyObserverPlus,
   isNoAccess,
 };
