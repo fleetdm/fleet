@@ -131,8 +131,6 @@ const ManageHostsPage = ({
 }: IManageHostsProps): JSX.Element => {
   const routeTemplate = route?.path ?? "";
   const queryParams = location.query;
-  console.log("render manage hosts", location);
-
   const {
     availableTeams,
     config,
@@ -166,9 +164,6 @@ const ManageHostsPage = ({
     includeAllTeams: true,
     includeNoTeam: true,
   });
-  console.log("after hook currentTeamId", currentTeamId);
-  console.log("after hook currentTeamName", currentTeamName);
-  console.log("after hook isRouting", isRouting);
 
   const hostHiddenColumns = localStorage.getItem("hostHiddenColumns");
   const storedHiddenColumns = hostHiddenColumns
@@ -503,7 +498,6 @@ const ManageHostsPage = ({
     }
     const path = location.pathname + location.search;
     if (filteredHostsPath !== path) {
-      console.log("set filtered hosts path", path);
       setFilteredHostsPath(location.pathname + location.search);
     }
   }, [filteredHostsPath, location, setFilteredHostsPath]);
@@ -752,7 +746,6 @@ const ManageHostsPage = ({
         newQueryParams.os_name = osName;
         newQueryParams.os_version = osVersion;
       }
-      console.log("queryparams replace", newQueryParams);
       router.replace(
         getNextLocationPath({
           pathPrefix: PATHS.MANAGE_HOSTS,

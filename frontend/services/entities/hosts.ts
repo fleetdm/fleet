@@ -220,7 +220,6 @@ export default {
     selectedLabels,
     sortBy,
   }: ILoadHostsOptions): Promise<ILoadHostsResponse> => {
-    console.log("loadHosts teamId", teamId);
     const label = getLabel(selectedLabels);
     const sortParams = getSortParams(sortBy);
 

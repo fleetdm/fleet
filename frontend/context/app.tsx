@@ -226,7 +226,6 @@ const reducer = (state: InitialStateType, action: IAction) => {
     }
     case ACTIONS.SET_CURRENT_TEAM: {
       const { currentTeam } = action;
-      console.log("app context set current team", currentTeam?.id);
       return {
         ...state,
         currentTeam,
@@ -326,7 +325,6 @@ const AppProvider = ({ children }: Props): JSX.Element => {
       dispatch({ type: ACTIONS.SET_FILTERED_HOSTS_PATH, filteredHostsPath });
     },
   };
-  console.log("return from app context");
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 };
 

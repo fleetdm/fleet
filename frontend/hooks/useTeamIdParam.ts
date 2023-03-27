@@ -178,10 +178,6 @@ export const useTeamIdParam = ({
     currentTeam: contextTeam,
     setCurrentTeam: setContextTeam,
   } = useContext(AppContext);
-  console.log("enter hook");
-  // console.log("location", location);
-  // console.log("contextTeam", contextTeam);
-
   // const [currentTeamId, setCurrentTeamId] = useState(contextTeam?.id);
   // const [currentTeamName, setCurrentTeamName] = useState(contextTeam?.name);
   const [currentTeam, setCurrentTeam] = useState(contextTeam);
@@ -207,11 +203,6 @@ export const useTeamIdParam = ({
   );
 
   useEffect(() => {
-    console.log("hook effect");
-    console.log("query", query);
-    console.log("contextTeam", contextTeam);
-    // console.log("currentTeam", currentTeamId, currentTeamName);
-
     if (!availableTeams?.length || !memoizedDefaultTeam) {
       return; // skip effect until these values are available
     }
@@ -253,11 +244,6 @@ export const useTeamIdParam = ({
     handleTeamChange,
     setContextTeam,
   ]);
-
-  console.log("exit hook");
-  console.log("location", location);
-  console.log("contextTeam", contextTeam);
-  console.log("isRouting", isRouting);
 
   return {
     // currentTeamId: contextTeam?.id,
