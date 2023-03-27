@@ -19,6 +19,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/logging"
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/async"
 	"github.com/fleetdm/fleet/v4/server/service/mock"
@@ -546,5 +547,7 @@ func mdmAppleConfigurationRequiredEndpoints() [][2]string {
 		{"PATCH", "/api/latest/fleet/mdm/apple/settings"},
 		{"GET", "/api/latest/fleet/mdm/apple"},
 		{"POST", "/api/latest/fleet/mdm/apple/dep_login"},
+		{"GET", apple_mdm.EnrollPath + "?token=test"},
+		{"GET", apple_mdm.InstallerPath + "?token=test"},
 	}
 }

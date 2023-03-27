@@ -20,7 +20,6 @@ func NewAppleMiddleware(svc fleet.Service) *Middleware {
 func (m *Middleware) Verify() endpoint.Middleware {
 	return func(next endpoint.Endpoint) endpoint.Endpoint {
 		return func(ctx context.Context, req interface{}) (interface{}, error) {
-
 			if err := m.svc.VerifyMDMAppleConfigured(ctx); err != nil {
 				return nil, err
 			}

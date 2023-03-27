@@ -2025,7 +2025,7 @@ func (s *integrationEnterpriseTestSuite) TestAppleMDMNotConfigured() {
 	t := s.T()
 
 	for _, route := range mdmAppleConfigurationRequiredEndpoints() {
-		res := s.Do(route[0], route[1], nil, http.StatusInternalServerError)
+		res := s.Do(route[0], route[1], nil, fleet.ErrMDMNotConfigured.StatusCode())
 		errMsg := extractServerErrorText(res.Body)
 		assert.Contains(t, errMsg, fleet.ErrMDMNotConfigured.Error())
 	}

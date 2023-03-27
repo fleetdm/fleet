@@ -294,10 +294,10 @@ func (e passwordResetRequiredError) StatusCode() int {
 // without having MDM correctly configured.
 type MDMNotConfiguredError struct{}
 
-// Status implements the transport.statuser interface so we can customize the
+// Status implements the kithttp.StatusCoder interface so we can customize the
 // HTTP status code of the response returning this error.
-func (e *MDMNotConfiguredError) Status() int {
-	return http.StatusInternalServerError
+func (e *MDMNotConfiguredError) StatusCode() int {
+	return http.StatusBadRequest
 }
 
 func (e *MDMNotConfiguredError) Error() string {

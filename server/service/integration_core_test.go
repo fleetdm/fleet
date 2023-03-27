@@ -4527,7 +4527,7 @@ func (s *integrationTestSuite) TestPremiumEndpointsWithoutLicense() {
 	require.Contains(t, errMsg, "Fleet MDM is not configured")
 
 	// update MDM settings, the endpoint returns an error if MDM is not enabled
-	res = s.Do("PATCH", "/api/latest/fleet/mdm/apple/settings", fleet.MDMAppleSettingsPayload{}, http.StatusInternalServerError)
+	res = s.Do("PATCH", "/api/latest/fleet/mdm/apple/settings", fleet.MDMAppleSettingsPayload{}, fleet.ErrMDMNotConfigured.StatusCode())
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, fleet.ErrMDMNotConfigured.Error())
 }
@@ -6308,7 +6308,7 @@ func (s *integrationTestSuite) TestAppleMDMNotConfigured() {
 	t := s.T()
 
 	for _, route := range mdmAppleConfigurationRequiredEndpoints() {
-		res := s.Do(route[0], route[1], nil, http.StatusInternalServerError)
+		res := s.Do(route[0], route[1], nil, fleet.ErrMDMNotConfigured.StatusCode())
 		errMsg := extractServerErrorText(res.Body)
 		assert.Contains(t, errMsg, fleet.ErrMDMNotConfigured.Error())
 	}
