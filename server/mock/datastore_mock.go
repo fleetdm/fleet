@@ -550,7 +550,7 @@ type IngestMDMAppleDevicesFromDEPSyncFunc func(ctx context.Context, devices []go
 
 type IngestMDMAppleDeviceFromCheckinFunc func(ctx context.Context, mdmHost fleet.MDMAppleHostDetails) error
 
-type GetNanoMDMEnrollmentStatusFunc func(ctx context.Context, id string) (bool, error)
+type GetNanoMDMEnrollmentFunc func(ctx context.Context, id string) (*fleet.NanoEnrollment, error)
 
 type IncreasePolicyAutomationIterationFunc func(ctx context.Context, policyID uint) error
 
@@ -561,6 +561,8 @@ type ListMDMAppleProfilesToInstallFunc func(ctx context.Context) ([]*fleet.MDMAp
 type ListMDMAppleProfilesToRemoveFunc func(ctx context.Context) ([]*fleet.MDMAppleProfilePayload, error)
 
 type BulkUpsertMDMAppleHostProfilesFunc func(ctx context.Context, payload []*fleet.MDMAppleBulkUpsertHostProfilePayload) error
+
+type BulkSetPendingMDMAppleHostProfilesFunc func(ctx context.Context, hostIDs []uint, teamIDs []uint, profileIDs []uint, hostUUIDs []string) error
 
 type GetMDMAppleProfilesContentsFunc func(ctx context.Context, profileIDs []uint) (map[uint]mobileconfig.Mobileconfig, error)
 
@@ -1376,8 +1378,8 @@ type DataStore struct {
 	IngestMDMAppleDeviceFromCheckinFunc        IngestMDMAppleDeviceFromCheckinFunc
 	IngestMDMAppleDeviceFromCheckinFuncInvoked bool
 
-	GetNanoMDMEnrollmentStatusFunc        GetNanoMDMEnrollmentStatusFunc
-	GetNanoMDMEnrollmentStatusFuncInvoked bool
+	GetNanoMDMEnrollmentFunc        GetNanoMDMEnrollmentFunc
+	GetNanoMDMEnrollmentFuncInvoked bool
 
 	IncreasePolicyAutomationIterationFunc        IncreasePolicyAutomationIterationFunc
 	IncreasePolicyAutomationIterationFuncInvoked bool
@@ -1393,6 +1395,9 @@ type DataStore struct {
 
 	BulkUpsertMDMAppleHostProfilesFunc        BulkUpsertMDMAppleHostProfilesFunc
 	BulkUpsertMDMAppleHostProfilesFuncInvoked bool
+
+	BulkSetPendingMDMAppleHostProfilesFunc        BulkSetPendingMDMAppleHostProfilesFunc
+	BulkSetPendingMDMAppleHostProfilesFuncInvoked bool
 
 	GetMDMAppleProfilesContentsFunc        GetMDMAppleProfilesContentsFunc
 	GetMDMAppleProfilesContentsFuncInvoked bool
@@ -3284,11 +3289,11 @@ func (s *DataStore) IngestMDMAppleDeviceFromCheckin(ctx context.Context, mdmHost
 	return s.IngestMDMAppleDeviceFromCheckinFunc(ctx, mdmHost)
 }
 
-func (s *DataStore) GetNanoMDMEnrollmentStatus(ctx context.Context, id string) (bool, error) {
+func (s *DataStore) GetNanoMDMEnrollment(ctx context.Context, id string) (*fleet.NanoEnrollment, error) {
 	s.mu.Lock()
-	s.GetNanoMDMEnrollmentStatusFuncInvoked = true
+	s.GetNanoMDMEnrollmentFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetNanoMDMEnrollmentStatusFunc(ctx, id)
+	return s.GetNanoMDMEnrollmentFunc(ctx, id)
 }
 
 func (s *DataStore) IncreasePolicyAutomationIteration(ctx context.Context, policyID uint) error {
@@ -3324,6 +3329,13 @@ func (s *DataStore) BulkUpsertMDMAppleHostProfiles(ctx context.Context, payload 
 	s.BulkUpsertMDMAppleHostProfilesFuncInvoked = true
 	s.mu.Unlock()
 	return s.BulkUpsertMDMAppleHostProfilesFunc(ctx, payload)
+}
+
+func (s *DataStore) BulkSetPendingMDMAppleHostProfiles(ctx context.Context, hostIDs []uint, teamIDs []uint, profileIDs []uint, hostUUIDs []string) error {
+	s.mu.Lock()
+	s.BulkSetPendingMDMAppleHostProfilesFuncInvoked = true
+	s.mu.Unlock()
+	return s.BulkSetPendingMDMAppleHostProfilesFunc(ctx, hostIDs, teamIDs, profileIDs, hostUUIDs)
 }
 
 func (s *DataStore) GetMDMAppleProfilesContents(ctx context.Context, profileIDs []uint) (map[uint]mobileconfig.Mobileconfig, error) {

@@ -2955,8 +2955,6 @@ Otherwise, the following values are required:
 - _Entity ID_ - A URI that identifies your Fleet instance as the issuer of authorization
   requests (e.g., `fleet.example.com`). This must match the _Entity ID_ configured with the IDP.
 
-- _Issuer URI_ - Obtain this value from the IDP.
-
 - _Metadata URL_ - Obtain this value from the IDP and is used by Fleet to
   issue authorization requests to the IDP.
 
@@ -3093,16 +3091,15 @@ Follow these steps to configure Fleet SSO with Google Workspace. This will requi
 
   ![Adding a new app to Google workspace admin dashboard](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/google-sso-configuration-step-2.png)
 
-3. Click _Download Metadata_, saving the metadata to your computer. Copy the _SSO URL_. Click _Continue_.
+3. Click _Download Metadata_, saving the metadata to your computer. Click _Continue_.
 
-  ![Download metadata and copy the SSO URL](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/google-sso-configuration-step-3.png)
+  ![Download metadata](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/google-sso-configuration-step-3.png)
 
 4. In Fleet, navigate to the _Organization Settings_ page. Configure the _SAML single sign-on options_ section.
 
   - Check the _Enable single sign-on_ checkbox.
   - For _Identity provider name_, use `Google`.
   - For _Entity ID_, use a unique identifier such as `fleet.example.com`. Note that Google seems to error when the provided ID includes `https://`.
-  - For _Issuer URI_, paste the _SSO URL_ copied from step three.
   - For _Metadata_, paste the contents of the downloaded metadata XML from step three.
   - All other fields can be left blank.
 

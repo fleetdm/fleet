@@ -505,8 +505,6 @@ $ openssl req -x509 -new -nodes -key fleet-mdm-apple-scep.key -sha256 -days 1826
 Try to store all the certificates and tokens you generated in the earlier steps together in a safe place outside of the repo, then start the server with:
 
 ```
-FLEET_MDM_APPLE_ENABLE=1 \
-FLEET_DEV_MDM_ENABLED=1 \
 FLEET_MDM_APPLE_SCEP_CHALLENGE=scepchallenge \
 FLEET_MDM_APPLE_SCEP_CERT=/path/to/fleet-mdm-apple-scep.crt \
 FLEET_MDM_APPLE_SCEP_KEY=/path/to/fleet-mdm-apple-scep.key \

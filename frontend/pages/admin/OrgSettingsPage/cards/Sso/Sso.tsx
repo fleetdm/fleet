@@ -19,7 +19,6 @@ interface ISsoFormData {
   enableSso?: boolean;
   idpName?: string;
   entityId?: string;
-  issuerUri?: string;
   idpImageUrl?: string;
   metadata?: string;
   metadataUrl?: string;
@@ -37,7 +36,6 @@ const Sso = ({
     enableSso: appConfig.sso_settings.enable_sso ?? false,
     idpName: appConfig.sso_settings.idp_name ?? "",
     entityId: appConfig.sso_settings.entity_id ?? "",
-    issuerUri: appConfig.sso_settings.issuer_uri ?? "",
     idpImageUrl: appConfig.sso_settings.idp_image_url ?? "",
     metadata: appConfig.sso_settings.metadata ?? "",
     metadataUrl: appConfig.sso_settings.metadata_url ?? "",
@@ -50,7 +48,6 @@ const Sso = ({
     enableSso,
     idpName,
     entityId,
-    issuerUri,
     idpImageUrl,
     metadata,
     metadataUrl,
@@ -108,7 +105,6 @@ const Sso = ({
     const formDataToSubmit = {
       sso_settings: {
         entity_id: entityId?.trim(),
-        issuer_uri: issuerUri?.trim(),
         idp_image_url: idpImageUrl?.trim(),
         metadata: metadata?.trim(),
         metadata_url: metadataUrl?.trim(),
@@ -164,16 +160,6 @@ const Sso = ({
             onBlur={validateForm}
             error={formErrors.entity_id}
             tooltip="The required entity ID is a URI that you use to identify Fleet when configuring the identity provider."
-          />
-        </div>
-        <div className={`${baseClass}__inputs`}>
-          <InputField
-            label="Issuer URI"
-            onChange={handleInputChange}
-            name="issuerUri"
-            value={issuerUri}
-            parseTarget
-            tooltip="The issuer URI supplied by the identity provider."
           />
         </div>
         <div className={`${baseClass}__inputs`}>
