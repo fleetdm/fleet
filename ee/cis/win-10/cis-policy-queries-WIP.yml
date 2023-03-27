@@ -12,8 +12,7 @@ spec:
     'User Configuration\Policies\Administrative Templates\Windows Components\Network Sharing\Prevent users from sharing files within their profile'
     Note: This Group Policy path is provided by the Group Policy template Sharing.admx/adml that is included with all versions of the Microsoft Windows Administrative Templates.
   query: |
-    TODO
-    SELECT 1 FROM registry WHERE (path = 'HKEY_USERS\[USERSID]\Software\Microsoft\Windows\CurrentVersion\Policies\Explorer:NoInplaceSharing' AND data = );
+    SELECT 1 FROM registry WHERE (path LIKE 'HKEY_USERS\%\Software\Microsoft\Windows\CurrentVersion\Policies\Explorer\NoInplaceSharing' AND data = 1);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_19.7.28.1
   contributors: rachelelysia
@@ -33,8 +32,7 @@ spec:
     'User Configuration\Policies\Administrative Templates\Windows Components\Windows Installer\Always install with elevated privileges'
     Note: This Group Policy path is provided by the Group Policy template MSI.admx/adml thatis included with all versions of the Microsoft Windows Administrative Templates.
   query: |
-    TODO
-    SELECT 1 FROM registry WHERE (path = 'HKEY_USERS\[USERSID]\Software\Policies\Microsoft\Windows\Installer:AlwaysInstallElevated' AND data = );
+    SELECT 1 FROM registry WHERE (path LIKE 'HKEY_USERS\%\Software\Policies\Microsoft\Windows\Installer\AlwaysInstallElevated' AND data = 0);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_19.7.43.1
   contributors: rachelelysia
@@ -53,8 +51,7 @@ spec:
     'User Configuration\Policies\Administrative Templates\Windows Components\Windows Media Player\Playback\Prevent Codec Download'
     Note: This Group Policy path is provided by the Group Policy template WindowsMediaPlayer.admx/adml that is included with all versions of the Microsoft Windows Administrative Templates.
   query: |
-    TODO
-    SELECT 1 FROM registry WHERE (path = 'HKEY_USERS\\[USERSID]\\Software\\Policies\\Microsoft\\WindowsMediaPlayer\PreventCodecDownload' AND data = );
+    SELECT 1 FROM registry WHERE (path LIKE 'HKEY_USERS\%\Software\Policies\Microsoft\WindowsMediaPlayer\PreventCodecDownload' AND data = 1);
   purpose: Informational
   tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_19.7.47.2.1
   contributors: rachelelysia
