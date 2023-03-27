@@ -1,2 +1,0 @@
-* Introduce UUIDs to Fleet errors and logs.
-* Don't return internal error information on Fleet API requests (internal errors are logged to stderr).

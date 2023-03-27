@@ -483,7 +483,7 @@ func (svc *Service) validateMDM(
 		invalid.Append("macos_settings.enable_disk_encryption", ErrMissingLicense.Error())
 	}
 
-	if !svc.config.MDMApple.Enable {
+	if !svc.config.MDM.AppleEnable {
 		// TODO(mna): eventually we should detect the minimum config required for
 		// this to be allowed, probably just SCEP/APNs?
 

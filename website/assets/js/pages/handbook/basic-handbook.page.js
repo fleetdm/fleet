@@ -83,10 +83,10 @@ parasails.registerPage('basic-handbook', {
       }
       subtopics = $.makeArray(subtopics).map((title) => {
         // Removing all apostrophes from the title to keep  _.kebabCase() from turning words like 'user’s' into 'user-s'
-        let kebabCaseFriendlyTitle = title.replace(/[\’]/g, '');
+        let kebabCaseFriendlyTitle = title.replace(/[\’\']/g, '');
         return {
           title: title.replace(/([\uE000-\uF8FF]|\uD83C[\uDF00-\uDFFF]|\uD83D[\uDC00-\uDDFF])/g, ''), // take out any emojis (they look weird in the menu)
-          url: '#' + _.kebabCase(kebabCaseFriendlyTitle),
+          url: '#' + _.kebabCase(kebabCaseFriendlyTitle.toLowerCase()),
         };
       });
       return subtopics;

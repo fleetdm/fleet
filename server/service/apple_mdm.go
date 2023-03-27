@@ -124,6 +124,13 @@ func (svc *Service) setDEPProfile(ctx context.Context, enrollmentProfile *fleet.
 	// Override url with Fleet's enroll path (publicly accessible address).
 	depProfileRequest.URL = enrollURL
 
+	// If the profile doesn't have a configuration_web_url, use Fleet's
+	// enrollURL, otherwise the request for the enrollment profile is
+	// submitted as a POST instead of GET.
+	if depProfileRequest.ConfigurationWebURL == "" {
+		depProfileRequest.ConfigurationWebURL = enrollURL
+	}
+
 	depClient := apple_mdm.NewDEPClient(svc.depStorage, svc.ds, svc.logger)
 	res, err := depClient.DefineProfile(ctx, apple_mdm.DEPName, &depProfileRequest)
 	if err != nil {
@@ -1041,7 +1048,7 @@ func (svc *Service) GetMDMAppleEnrollmentProfileByToken(ctx context.Context, tok
 	mobileconfig, err := apple_mdm.GenerateEnrollmentProfileMobileconfig(
 		appConfig.OrgInfo.OrgName,
 		appConfig.ServerSettings.ServerURL,
-		svc.config.MDMApple.SCEP.Challenge,
+		svc.config.MDM.AppleSCEPChallenge,
 		svc.mdmPushCertTopic,
 	)
 	if err != nil {
@@ -1101,6 +1108,14 @@ func (svc *Service) EnqueueMDMAppleCommandRemoveEnrollmentProfile(ctx context.Co
 	err = svc.mdmAppleCommander.RemoveProfile(ctx, []string{h.UUID}, apple_mdm.FleetPayloadIdentifier, cmdUUID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "enqueuing mdm apple remove profile command")
+	}
+
+	// Since the host is unenrolled, delete all profiles assigned to the
+	// host manually, the device won't Acknowledge any more requests (eg:
+	// to delete profiles) and profiles are automatically removed on
+	// unenrollment.
+	if err := svc.ds.DeleteMDMAppleProfilesForHost(ctx, h.UUID); err != nil {
+		return ctxerr.Wrap(ctx, err, "removing all profiles from host")
 	}
 
 	if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeMDMUnenrolled{
@@ -1409,7 +1424,7 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 		return ctxerr.Wrap(ctx, err)
 	}
 
-	if !svc.config.MDMApple.Enable {
+	if !svc.config.MDM.AppleEnable {
 		// NOTE: in order to prevent an error when Fleet MDM is not enabled but no
 		// profile is provided, which can happen if a user runs `fleetctl get
 		// config` and tries to apply that YAML, as it will contain an empty/null

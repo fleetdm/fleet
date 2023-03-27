@@ -36,7 +36,7 @@ import (
 func setupAppleMDMService(t *testing.T) (fleet.Service, context.Context, *mock.Store) {
 	ds := new(mock.Store)
 	cfg := config.TestConfig()
-	cfg.MDMApple.Enable = true
+	cfg.MDM.AppleEnable = true
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case strings.Contains(r.URL.Path, "/server/devices"):
@@ -659,6 +659,10 @@ func TestMDMCommandAuthz(t *testing.T) {
 	}
 
 	ds.NewActivityFunc = func(context.Context, *fleet.User, fleet.ActivityDetails) error {
+		return nil
+	}
+
+	ds.DeleteMDMAppleProfilesForHostFunc = func(ctx context.Context, hostUUID string) error {
 		return nil
 	}
 

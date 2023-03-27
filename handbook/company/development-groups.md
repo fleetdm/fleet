@@ -26,11 +26,11 @@ The goal of the MDM group is to reach [product maturity](https://drive.google.co
 
 | Responsibility                    | Human(s)                  |
 |:----------------------------------|:--------------------------|
-| Designer                          | Noah Talerman
+| Designer                          | Marko Lisica
+| Engineering manager               | George Karr
 | Quality assurance                 | Reed Haynes
 | Product manager                   | Noah Talerman
-| Engineering manager               | Luke Heath
-| Software engineers (developers)   | Gabe Hernandez, Jacob Shandling, Martin Angers*, Roberto Dip, Sarah Gillespie
+| Software engineers (developers)   | Gabe Hernandez, Marcos Oviedo _(Windows specialty)_, Martin Angers*, Roberto Dip, Sarah Gillespie
 
 > The Slack channel, kanban release board, and label for this product group is `#g-mdm`.
 
@@ -42,13 +42,13 @@ The goal of the customer experience (CX) group is to make customers happier and 
 
 | Responsibility                    | Human(s)                  |
 |:----------------------------------|:--------------------------|
-| Designer                          | Mike Thomas
+| Designer                          | Rachael Shaw
+| Engineering manager               | Sharon Katz
 | Quality assurance                 | Reed Haynes
 | Product manager                   | Zay Hanlon
-| Engineering manager               | Sharon Katz
-| Software engineers (developers)   | Artemis Tosini, Lucas Rodriguez, Marcos Oviedo, Rachel Perkins,Juan Fernandez*<br><br>Eric Shaw _(fleetdm.com specialty)_<br><br>Robert Fairburn, Zach Winnerman _(infrastructure specialty)_
+| Software engineers (developers)   | Artemis Tosini, Eric Shaw _(fleetdm.com specialty)_, Jacob Shandling, Juan Fernandez*, Lucas Rodriguez, Rachel Perkins, Robert Fairburn _(infrastructure specialty)_, Zach Winnerman _(infrastructure specialty)_
 
-> The Slack channel, kanban release board, and label for this product group is `#g-customer-experience`.
+> The Slack channel, kanban release board, and label for this product group is `#g-cx`.
 
 
 ## Making changes
@@ -82,7 +82,7 @@ The DRI for defining and drafting issues for a product group is the product mana
 
 A user story is considered ready for implementation once:
 - [ ] User story [issue created](https://github.com/fleetdm/fleet/issues/new/choose)
-- [ ] [Product group](https://fleetdm.com/handbook/company/product-groups) label added (e.g. `#cx`, `#mdm`)
+- [ ] [Product group](https://fleetdm.com/handbook/company/product-groups) label added (e.g. `#g-cx`, `#g-mdm`)
 - [ ] Changes [specified](https://fleetdm.com/handbook/company/development-groups#drafting) and [designed](https://fleetdm.com/handbook/company/why-this-way#why-do-we-use-a-wireframe-first-approach)
 - [ ] [Designs revised and approved](https://fleetdm.com/handbook/business-operations/ceo-handbook#calendar-audit)
 - [ ] [Estimated](https://fleetdm.com/handbook/company/why-this-way#why-scrum)
