@@ -1199,7 +1199,17 @@ func (ds *Datastore) GetMDMAppleFileVaultSummary(ctx context.Context, teamID *ui
 				h.uuid = hmap.host_uuid
 				AND hmap.profile_identifier = 'com.fleetdm.fleet.mdm.filevault'
 				AND (hmap.status IS NULL OR hmap.status = 'pending')
-				AND hmap.operation_type = 'install') THEN
+				AND hmap.operation_type = 'install'
+				UNION SELECT
+						1 FROM host_mdm_apple_profiles hmap
+					WHERE
+						h.uuid = hmap.host_uuid
+						AND hmap.profile_identifier = 'com.fleetdm.fleet.mdm.filevault'
+						AND (hmap.status IS NOT NULL AND hmap.status = 'applied')
+						AND hmap.operation_type = 'install'
+						AND hdek.decryptable IS NULL
+						AND hdek.host_id IS NOT NULL
+				) THEN
 			1
 		END) AS enforcing, COUNT(
 		CASE WHEN EXISTS (
