@@ -5712,7 +5712,8 @@ spec:
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows Defender\\Real-Time Protection\\DisableBehaviorMonitoring' AND data = 0);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.47.9.3
-  contributors: sharon-fdm---  
+  contributors: sharon-fdm
+---  
 apiVersion: v1
 kind: policy
 spec:
