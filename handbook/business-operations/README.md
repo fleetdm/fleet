@@ -153,7 +153,7 @@ Certain new team members, especially in go-to-market (GTM) roles, will need paid
 | 🫧 Other role    | ❌ | ❌ | ❌ | ❌ | ❌
 | Other department | ❌ | ❌ | ❌ | ❌ | ❌
 
-> _**Warning:** Do NOT buy LinkedIn Recruiter.  Use the cheapest possible LinkedIn tier. Fleet has a Sales Navigator account. AEs and SDRs should ask the operations team for a license. The goal is access to profile views and data, not InMail.  Fleet does not send InMail._
+> _**Warning:** Do NOT buy LinkedIn Recruiter.  Use the cheapest possible LinkedIn tier. Fleet has a Sales Navigator account. AEs and SDRs should [ask the operations team for a license.](https://fleetdm.com/handbook/business-operations#intake) The goal is access to profile views and data, not InMail.  Fleet does not send InMail._
 
 ### Training
 It's [important](https://fleetdm.com/handbook/company/why-this-way#why-the-emphasis-on-training) that every team member at Fleet takes the time to get fully trained and onboarded. 
