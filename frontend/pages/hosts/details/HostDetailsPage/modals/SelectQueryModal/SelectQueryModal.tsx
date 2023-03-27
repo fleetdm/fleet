@@ -16,7 +16,8 @@ export interface ISelectQueryModalProps {
   onQueryHostSaved: (selectedQuery: IQuery) => void;
   queries: IQuery[] | [];
   queryErrors: Error | null;
-  isOnlyObserver: boolean | undefined;
+  isOnlyObserver?: boolean;
+  isObserverPlus?: boolean;
 }
 
 const baseClass = "select-query-modal";
@@ -28,12 +29,13 @@ const SelectQueryModal = ({
   queries,
   queryErrors,
   isOnlyObserver,
+  isObserverPlus,
 }: ISelectQueryModalProps): JSX.Element => {
   let queriesAvailableToRun = queries;
 
   const [queriesFilter, setQueriesFilter] = useState("");
 
-  if (isOnlyObserver) {
+  if (isOnlyObserver && !isObserverPlus) {
     queriesAvailableToRun = queries.filter(
       (query) => query.observer_can_run === true
     );
@@ -94,7 +96,7 @@ const SelectQueryModal = ({
             catches up.
           </span>
           <div className="modal-cta-wrap">
-            {!isOnlyObserver && customQueryButton()}
+            {(!isOnlyObserver || isObserverPlus) && customQueryButton()}
           </div>
         </div>
       );
@@ -128,7 +130,7 @@ const SelectQueryModal = ({
                 autofocus
               />
             </div>
-            {!isOnlyObserver && (
+            {(!isOnlyObserver || isObserverPlus) && (
               <div className={`${baseClass}__create-query`}>
                 <span>OR</span>
                 {customQueryButton()}
@@ -153,7 +155,7 @@ const SelectQueryModal = ({
                 autofocus
               />
             </div>
-            {!isOnlyObserver && (
+            {(!isOnlyObserver || isObserverPlus) && (
               <div className={`${baseClass}__create-query`}>
                 <span>OR</span>
                 {customQueryButton()}

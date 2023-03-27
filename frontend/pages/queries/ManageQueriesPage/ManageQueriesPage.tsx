@@ -84,7 +84,7 @@ const enhanceQuery = (q: IQuery) => {
 const ManageQueriesPage = ({
   router,
 }: IManageQueriesPageProps): JSX.Element => {
-  const { isOnlyObserver } = useContext(AppContext);
+  const { isOnlyObserver, isObserverPlus } = useContext(AppContext);
   const { setResetSelectedRows } = useContext(TableContext);
   const { renderFlash } = useContext(NotificationContext);
 
@@ -188,7 +188,7 @@ const ManageQueriesPage = ({
               </h1>
             </div>
           </div>
-          {!isOnlyObserver && !!fleetQueries?.length && (
+          {(!isOnlyObserver || isObserverPlus) && !!fleetQueries?.length && (
             <div className={`${baseClass}__action-button-container`}>
               <Button
                 variant="brand"
@@ -216,6 +216,7 @@ const ManageQueriesPage = ({
               customControl={renderPlatformDropdown}
               selectedDropdownFilter={selectedDropdownFilter}
               isOnlyObserver={isOnlyObserver}
+              isObserverPlus={isObserverPlus}
             />
           )}
         </div>
