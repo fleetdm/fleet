@@ -1,45 +1,14 @@
 # CIS Benchmarks
 
-The CIS Benchmarks represent the consensus-based effort of cybersecurity experts globally to help you protect your systems against threats more confidently.
+## Overview
+CIS Benchmarks represent the consensus-based effort of cybersecurity experts globally to help you protect your systems against threats more confidently.
 For more information about CIS Benchmarks check out [Center for Internet Security](https://www.cisecurity.org/cis-benchmarks)'s website.
 
-Each benchmark has two elements:
-1. Audit - how to find out whether the host is in compliance with the benchmark
-2. Remediation - if the host is out of compliance with the benchmark, how to fix it
-
-Fleet implements the audit portion of CIS Benchmarks. Where possible, each CIS benchmark audit is implemented with a [policy query](./REST-API.md#policies) in Fleet.
-<img src=https://user-images.githubusercontent.com/2073526/220428249-7a1b6433-24fe-4686-8dfb-b555c199f47d.png />
-
-The Center for Internet Security website offers documentation for all CIS Benchmarks in PDF format. Such PDFs document all the checks, their description, rationale and how to remediate them.
-
-Fleet has implemented CIS benchmarks for the following platforms:
+Fleet has implemented native support for CIS benchmarks for the following platforms:
 - CIS Apple macOS 13.0 Ventura Benchmark v1.0.0 - 11-14-2022 (96 checks)
 - CIS Microsoft Windows 10 Enterprise Benchmark v1.12.0 - 02-15-2022 (496 checks - in progress)
 
-> All CIS Benchmarks implemented by Fleet are limited to a Fleet Premium or Fleet Ultimate license.
-
-## Manual vs Automated
-
-There are two types of CIS Benchmark checks, "Manual" and "Automated".
-- Automated: Represents recommendations for which assessment of a technical control can be fully automated and validated to a pass/fail state
-- Manual: Represents recommendations for which assessment of a technical control cannot be fully automated and requires all or some manual steps to validate that the configured state is set as expected.
-
-Fleet only implements "Automated" checks. "Manual" checks cannot be automated as a Fleet policy. As such, they require administrators to implement other processes to conduct the check.
-
-## Check Levels 1 and 2
-
-### Level 1
-
-Items in this profile intend to:
-- be practical and prudent;
-- provide a clear security benefit; and
-- not inhibit the utility of the technology beyond acceptable means.
-
-### Level 2
-
-This profile extends the "Level 1" profile. Items in this profile exhibit one or more of the following characteristics:
-- are intended for environments or use cases where security is paramount or acts as defense in depth measure
-- may negatively inhibit the utility or performance of the technology.
+[Where possible](#limitations), each CIS benchmark is implemented with a [policy query](./REST-API.md#policies) in Fleet. 
 
 ## Requirements
 
@@ -47,7 +16,7 @@ Following are the requirements to use the CIS Benchmarks in Fleet:
 
 - Fleet must be Premium or Ultimate licensed.
 - Devices must be running [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
-- Devices must be enrolled to an MDM solution.
+- Devices must be enrolled to an MDM solution. TODO: Why?
 - On macOS, the orbit executable in Fleetd must have "Full Disk Access", see [Grant Full Disk Access to Osquery on macOS](Adding-hosts.md#grant-full-disk-access-to-osquery-on-macos).
 
 ## How to add CIS Benchmarks
@@ -67,6 +36,44 @@ To apply the policies on a specific team use the `--policies-team` flag:
 ```sh
 fleetctl apply --policies-team "Workstations" -f cis-policy-queries.yml
 ```
+
+## Limitations
+Fleet's current set of benchmarks only implements benchmark auditing steps that can be automated.
+
+For a list of specific checks which are not covered by Fleet, please visit the section devoted to each benchmark.
+
+### Audit vs. Remediation
+Each benchmark has two elements:
+1. Audit - how to find out whether the host is in compliance with the benchmark
+2. Remediation - if the host is out of compliance with the benchmark, how to fix it
+
+Since Fleetd is currently read-only without the ability to execute actions on the host, Fleet does not implement the remediation portions of CIS benchmarks.
+
+To implement remediation, you can install a separate agent such as Munki, Chef, Puppet, etc. which has write functionality.
+
+### Manual vs. Automated
+
+For both the audit and remediation elements of a CIS Benchmark, there are two types:
+1. Automated - the element can be audited or remediated without human intervention
+2. Manual - the element requires human intervention to be audited or remediated
+
+Fleet only implements automated audit checks. Manual checks require administrators to implement other processes to conduct the check.
+
+## CIS Levels 1 and 2
+CIS designates various benchmarks as Level 1 or Level 2 to describe the level of thoroughness and burden that each benchmark represents.
+
+### Level 1
+
+Items in this profile intend to:
+- be practical and prudent;
+- provide a clear security benefit; and
+- not inhibit the utility of the technology beyond acceptable means.
+
+### Level 2
+
+This profile extends the "Level 1" profile. Items in this profile exhibit one or more of the following characteristics:
+- are intended for environments or use cases where security is paramount or acts as defense in depth measure
+- may negatively inhibit the utility or performance of the technology.
 
 ## CIS Apple macOS 13.0 Ventura Benchmark
 
