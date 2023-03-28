@@ -13,7 +13,6 @@ import (
 	"net"
 	"net/http"
 	"net/url"
-	"os"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
@@ -43,16 +42,8 @@ type appConfigResponseFields struct {
 	// Logging is loaded on the fly rather than from the database.
 	Logging *fleet.Logging `json:"logging,omitempty"`
 	// SandboxEnabled is true if fleet serve was ran with server.sandbox_enabled=true
-	SandboxEnabled bool `json:"sandbox_enabled,omitempty"`
-	// MDMFeatureFlagEnabled is true if fleet serve was ran with FLEET_DEV_MDM_ENABLED=1
-	//
-	// This is used only for UI development, for more details check
-	// https://github.com/fleetdm/fleet/issues/8751
-	//
-	// TODO: remove this flag once the MDM feature is ready for
-	// release.
-	MDMFeatureFlagEnabled bool  `json:"mdm_feature_flag_enabled,omitempty"`
-	Err                   error `json:"error,omitempty"`
+	SandboxEnabled bool  `json:"sandbox_enabled,omitempty"`
+	Err            error `json:"error,omitempty"`
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface to make sure we serialize
@@ -144,13 +135,6 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 			License:         license,
 			Logging:         loggingConfig,
 			SandboxEnabled:  svc.SandboxEnabled(),
-			// Undocumented feature flag for MDM, used only for UI
-			// development, for more details check
-			// https://github.com/fleetdm/fleet/issues/8751
-			//
-			// TODO: remove this flag once the MDM feature is ready
-			// for release.
-			MDMFeatureFlagEnabled: os.Getenv("FLEET_DEV_MDM_ENABLED") == "1",
 		},
 	}
 	return response, nil
@@ -483,11 +467,10 @@ func (svc *Service) validateMDM(
 		invalid.Append("macos_settings.enable_disk_encryption", ErrMissingLicense.Error())
 	}
 
-	if !svc.config.MDM.AppleEnable {
-		// TODO(mna): eventually we should detect the minimum config required for
-		// this to be allowed, probably just SCEP/APNs?
-
-		if len(mdm.MacOSSettings.CustomSettings) != 0 {
+	// we want to use `oldMdm` here as this boolean is set by the fleet
+	// server at startup and can't be modified by the user
+	if !oldMdm.EnabledAndConfigured {
+		if len(mdm.MacOSSettings.CustomSettings) != len(oldMdm.MacOSSettings.CustomSettings) {
 			invalid.Append("macos_settings.custom_settings",
 				`Couldn't update macos_settings because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`)
 		}
