@@ -1,1 +1,0 @@
-- Fixed a bug where `fleetctl trigger` doesn't release the schedule lock when the triggered run spans the regularly scheduled interval. This can prevent a second Fleet instance from using `fleetctl trigger` until the lock expires. This issue occurs infrequently under normal use. When it does occur, it resolves on its own in time; however, it may last up one full interval.

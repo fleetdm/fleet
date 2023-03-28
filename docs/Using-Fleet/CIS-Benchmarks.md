@@ -34,7 +34,7 @@ Items in this profile intend to:
 ### Level 2
 
 This profile extends the "Level 1" profile. Items in this profile exhibit one or more of the following characteristics:
-- are intended for environments or use cases where security is paramount o acts as defense in depth measure
+- are intended for environments or use cases where security is paramount or acts as defense in depth measure
 - may negatively inhibit the utility or performance of the technology.
 
 ## Requirements

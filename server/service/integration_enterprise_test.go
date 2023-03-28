@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"reflect"
 	"sort"
@@ -2024,12 +2025,24 @@ func (s *integrationEnterpriseTestSuite) TestListHosts() {
 }
 
 func (s *integrationEnterpriseTestSuite) TestAppleMDMNotConfigured() {
-	var rawResp json.RawMessage
-	s.DoJSON("GET", "/api/latest/fleet/mdm/apple", nil, http.StatusNotFound, &rawResp)
-	s.DoJSON("GET", "/api/latest/fleet/mdm/apple_bm", nil, http.StatusNotFound, &rawResp)
-	// update MDM settings, the endpoint is not even mounted if MDM is not enabled
-	s.Do("PATCH", "/api/latest/fleet/mdm/apple/settings", fleet.MDMAppleSettingsPayload{}, http.StatusNotFound)
-	s.Do("POST", "/api/latest/fleet/mdm/apple/dep_login", nil, http.StatusNotFound)
+	t := s.T()
+
+	for _, route := range mdmAppleConfigurationRequiredEndpoints() {
+		res := s.Do(route[0], route[1], nil, fleet.ErrMDMNotConfigured.StatusCode())
+		errMsg := extractServerErrorText(res.Body)
+		assert.Contains(t, errMsg, fleet.ErrMDMNotConfigured.Error())
+	}
+
+	fleetdmSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Setenv("TEST_FLEETDM_API_URL", fleetdmSrv.URL)
+	t.Cleanup(fleetdmSrv.Close)
+
+	// Always accessible
+	var reqCSRResp requestMDMAppleCSRResponse
+	s.DoJSON("POST", "/api/latest/fleet/mdm/apple/request_csr", requestMDMAppleCSRRequest{EmailAddress: "a@b.c", Organization: "test"}, http.StatusOK, &reqCSRResp)
+	s.Do("POST", "/api/latest/fleet/mdm/apple/dep/key_pair", nil, http.StatusOK)
 }
 
 func (s *integrationEnterpriseTestSuite) TestGlobalPolicyCreateReadPatch() {

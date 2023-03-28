@@ -3,9 +3,9 @@ MDM is a collection of tools that enable IT admins in companies to remotely mana
 
 To learn more about Fleet's MDM features, see:
 * [Setup](https://fleetdm.com/docs/using-fleet/mdm-setup)
-* [Migration Guide](https://fleetdm.com/docs/using-fleet/mdm-migration-guide)
-* [macOS Updates](https://fleetdm.com/docs/using-fleet/mdm-macos-updates)
-* [macOS Settings](https://fleetdm.com/docs/using-fleet/mdm-macos-settings)
+* [Migration guide](https://fleetdm.com/docs/using-fleet/mdm-migration-guide)
+* [macOS updates](https://fleetdm.com/docs/using-fleet/mdm-macos-updates)
+* [macOS settings](https://fleetdm.com/docs/using-fleet/mdm-macos-settings)
 
 
 <meta name="pageOrderInSection" value="1499">
