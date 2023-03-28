@@ -5,6 +5,7 @@ import PATHS from "router/paths";
 import { NotificationContext } from "context/notification";
 import { ITeam } from "interfaces/team";
 import { IUserFormErrors, UserRole } from "interfaces/user";
+import { IRole } from "interfaces/role";
 
 import Button from "components/buttons/Button";
 import validatePresence from "components/forms/validators/validate_presence";
@@ -34,28 +35,35 @@ enum UserTeamType {
   AssignTeams = "ASSIGN_TEAMS",
 }
 
-const globalUserRoles = [
-  {
-    disabled: false,
-    label: "Observer+",
-    value: "observer_plus",
-  },
-  {
-    disabled: false,
-    label: "Observer",
-    value: "observer",
-  },
-  {
-    disabled: false,
-    label: "Maintainer",
-    value: "maintainer",
-  },
-  {
-    disabled: false,
-    label: "Admin",
-    value: "admin",
-  },
-];
+const globalUserRoles = (isPremiumTier: boolean): IRole[] => {
+  const roles: IRole[] = [
+    {
+      disabled: false,
+      label: "Observer",
+      value: "observer",
+    },
+    {
+      disabled: false,
+      label: "Maintainer",
+      value: "maintainer",
+    },
+    {
+      disabled: false,
+      label: "Admin",
+      value: "admin",
+    },
+  ];
+
+  if (isPremiumTier) {
+    roles.unshift({
+      disabled: false,
+      label: "Observer+",
+      value: "observer_plus",
+    });
+  }
+
+  return roles;
+};
 
 export interface IFormData {
   email: string;
@@ -312,7 +320,7 @@ const UserForm = ({
           label="Role"
           value={formData.global_role || "Observer"}
           className={`${baseClass}__global-role-dropdown`}
-          options={globalUserRoles}
+          options={globalUserRoles(isPremiumTier || false)}
           searchable={false}
           onChange={onGlobalUserRoleChange}
           wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--global-role`}
