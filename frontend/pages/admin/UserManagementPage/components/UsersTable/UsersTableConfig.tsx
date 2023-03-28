@@ -131,6 +131,20 @@ const generateTableHeaders = (
       accessor: "role",
       disableSortBy: true,
       Cell: (cellProps: ICellProps) => {
+        if (cellProps.cell.value === "GitOps") {
+          return (
+            <TooltipWrapper
+              position="top"
+              tipContent={`
+            The GitOps role is only available on the command-line<br/>
+            when creating an API-only user. This user has no<br/>
+            access to the UI.
+          `}
+            >
+              {cellProps.cell.value}
+            </TooltipWrapper>
+          );
+        }
         if (cellProps.cell.value === "Observer+") {
           return (
             <TooltipWrapper

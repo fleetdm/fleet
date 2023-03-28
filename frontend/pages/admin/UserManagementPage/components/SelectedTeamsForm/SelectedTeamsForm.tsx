@@ -36,6 +36,11 @@ const roles = [
   },
   {
     disabled: false,
+    label: "GitOps",
+    value: "gitops",
+  },
+  {
+    disabled: false,
     label: "Admin",
     value: "admin",
   },

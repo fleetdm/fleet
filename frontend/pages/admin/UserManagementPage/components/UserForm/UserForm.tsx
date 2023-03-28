@@ -60,6 +60,11 @@ const globalUserRoles = (isPremiumTier: boolean): IRole[] => {
       label: "Observer+",
       value: "observer_plus",
     });
+    roles.splice(3, 0, {
+      disabled: false,
+      label: "GitOps",
+      value: "gitops",
+    });
   }
 
   return roles;

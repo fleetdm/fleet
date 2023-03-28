@@ -23,10 +23,12 @@ export type UserRole =
   | "maintainer"
   | "observer"
   | "observer_plus"
+  | "gitops"
   | "Admin"
   | "Maintainer"
   | "Observer"
   | "Observer+"
+  | "GitOps"
   | "Unassigned"
   | ""
   | "Various";
