@@ -3,6 +3,7 @@ package tables
 import (
 	"bytes"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"text/template"
 
@@ -10,7 +11,162 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20230315104937, Down_20230315104937)
+	MigrationClient.AddMigration(Up_20230328091816, Down_20230328091816)
+}
+
+func fixupSoftware(tx *sql.Tx, collation string) error {
+	rows, err := tx.Query(fmt.Sprintf(`
+         SELECT
+           COUNT(*) as total,
+           CONCAT('[', GROUP_CONCAT(id SEPARATOR ','), ']') as ids
+         FROM software
+         GROUP BY
+           name      COLLATE %s,
+           "version" COLLATE %s,
+           source    COLLATE %s,
+           "release" COLLATE %s,
+           vendor    COLLATE %s,
+           arch      COLLATE %s
+         HAVING total > 1
+         COLLATE %s`, collation, collation, collation, collation, collation, collation, collation))
+
+	if err != nil {
+		return err
+	}
+
+	defer rows.Close()
+	var idGroups [][]uint
+	for rows.Next() {
+		var rawIDs json.RawMessage
+		var total int
+		if err := rows.Scan(&total, &rawIDs); err != nil {
+			return err
+		}
+		var ids []uint
+		if err := json.Unmarshal(rawIDs, &ids); err != nil {
+			return err
+		}
+		idGroups = append(idGroups, ids)
+	}
+
+	for _, ids := range idGroups {
+		for i := 1; i < len(ids); i++ {
+			if _, err := tx.Exec("DELETE FROM software_cve WHERE software_id = ?", ids[i]); err != nil {
+				return err
+			}
+			if _, err := tx.Exec("DELETE FROM software_host_counts WHERE software_id = ?", ids[i]); err != nil {
+				return err
+			}
+			if _, err := tx.Exec("UPDATE host_software SET software_id = ? WHERE software_id = ?", ids[0], ids[i]); err != nil {
+				return err
+			}
+			if _, err := tx.Exec("DELETE FROM software WHERE id = ?", ids[i]); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+func fixupHostUsers(tx *sql.Tx, collation string) error {
+	rows, err := tx.Query(fmt.Sprintf(`
+         SELECT
+           COUNT(*) as total,
+           CONCAT('[', GROUP_CONCAT(JSON_OBJECT('username', username, 'host_id', host_id, 'uid', uid) SEPARATOR ","), ']') as ids
+         FROM host_users
+         GROUP BY
+           host_id,
+           uid,
+           username COLLATE %s
+         HAVING total > 1
+         COLLATE %s`, collation, collation))
+	if err != nil {
+		return err
+	}
+
+	type hostUser struct {
+		Username string
+		HostID   uint `json:"host_id"`
+		UID      uint
+	}
+
+	defer rows.Close()
+	var keyGroups [][]hostUser
+	for rows.Next() {
+		var raw json.RawMessage
+		var total int
+		if err := rows.Scan(&total, &raw); err != nil {
+			return err
+		}
+
+		var hu []hostUser
+		if err := json.Unmarshal(raw, &hu); err != nil {
+			return err
+		}
+		keyGroups = append(keyGroups, hu)
+	}
+
+	for _, keys := range keyGroups {
+		for i := 1; i < len(keys); i++ {
+			if _, err := tx.Exec("DELETE FROM host_users WHERE host_id = ? AND uid = ? AND username = ?", keys[i].HostID, keys[i].UID, keys[i].Username); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func fixupOS(tx *sql.Tx, collation string) error {
+	rows, err := tx.Query(fmt.Sprintf(`
+         SELECT
+           COUNT(*) as total,
+           CONCAT('[', GROUP_CONCAT(JSON_OBJECT('name', name, 'version', version, 'arch', arch, 'kernel_version', kernel_version, 'platform', platform) SEPARATOR ","), ']') as ids
+         FROM operating_systems
+         GROUP BY
+           name      COLLATE %s,
+           "version" COLLATE %s,
+           arch    COLLATE %s,
+           kernel_version COLLATE %s,
+           platform    COLLATE %s
+         HAVING total > 1
+         COLLATE %s`, collation, collation, collation, collation, collation, collation))
+	if err != nil {
+		return err
+	}
+
+	type os struct {
+		Name          string
+		Version       string
+		Arch          string
+		KernelVersion string `json:"kernel_version"`
+		Platform      string
+	}
+
+	defer rows.Close()
+	var keyGroups [][]os
+	for rows.Next() {
+		var raw json.RawMessage
+		var total int
+		if err := rows.Scan(&total, &raw); err != nil {
+			return err
+		}
+
+		var o []os
+		if err := json.Unmarshal(raw, &o); err != nil {
+			return err
+		}
+		keyGroups = append(keyGroups, o)
+	}
+
+	for _, keys := range keyGroups {
+		for i := 1; i < len(keys); i++ {
+			if _, err := tx.Exec("DELETE FROM operating_systems WHERE name = ? AND version = ? AND arch = ? AND kernel_version = ? AND platform = ?", keys[i].Name, keys[i].Version, keys[i].Arch, keys[i].KernelVersion, keys[i].Platform); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 // changeCollation changes the default collation set of the database and all
@@ -19,13 +175,24 @@ func init() {
 // This is based on the changeCharacterSet function that's included in this
 // module and part of the 20170306075207_UseUTF8MB migration.
 func changeCollation(tx *sql.Tx, charset string, collation string) (err error) {
+	if err := fixupSoftware(tx, collation); err != nil {
+		return err
+	}
+
+	if err := fixupHostUsers(tx, collation); err != nil {
+		return err
+	}
+
+	if err := fixupOS(tx, collation); err != nil {
+		return err
+	}
+
 	_, err = tx.Exec(fmt.Sprintf("ALTER DATABASE DEFAULT CHARACTER SET `%s` COLLATE `%s`", charset, collation))
 	if err != nil {
 		return fmt.Errorf("alter database: %w", err)
 	}
 
 	txx := sqlx.Tx{Tx: tx}
-
 	var names []string
 	err = txx.Select(&names, `
           SELECT table_name
@@ -103,7 +270,7 @@ func changeCollation(tx *sql.Tx, charset string, collation string) (err error) {
 	return err
 }
 
-func Up_20230315104937(tx *sql.Tx) error {
+func Up_20230328091816(tx *sql.Tx) error {
 	// while newer versions of MySQL default to utf8mb4_0900_ai_ci, we
 	// still need to support 5.7, so we choose utf8mb4_unicode_ci for more
 	// details on the rationale, see:
@@ -111,6 +278,6 @@ func Up_20230315104937(tx *sql.Tx) error {
 	return changeCollation(tx, "utf8mb4", "utf8mb4_unicode_ci")
 }
 
-func Down_20230315104937(tx *sql.Tx) error {
+func Down_20230328091816(tx *sql.Tx) error {
 	return nil
 }
