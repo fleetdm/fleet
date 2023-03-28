@@ -5,19 +5,9 @@
 As an open-core company, Fleet endeavors to build a community of engaged users, customers, and
 contributors. The purpose of the marketing team is to own and improve the growth funnel to drive awareness, adoption, and referrals of Fleet while honoring the ideals and voice of the open source community and our company values.
 
-#### In this section
-
-- [Positioning](#positioning)
-- [Marketing Qualified Opportunities (MQOs)](#marketing-qualified-opportunities-mqos)
-- [Lead enrichment](#lead-enrichment)
-- [Posting on social media as Fleet](#posting-on-social-media-as-fleet)
-- [Promoting blog posts on social media](#promoting-blog-posts-on-social-media)
-- [Press releases](#press-releases)
-- [Sponsoring events](#sponsoring-events)
-
 ### Positioning
 
-Effective market positioning is crucial to the growth of any software product. Fleet needs to maintain a unique, valuable position in the minds of our users. We keep assertions on our positioning in this [Google Doc](https://docs.google.com/document/d/177Q4_2FY5Vm7Nd3ne32vOKTQqYfDG0p_ouklvl3PnWc/edit) (private). We will update it quarterly based on the feedback of users, customers, team members, and other stakeholders. Feedback can be provided as a comment in the document or by posting in the `#g-marketing` Slack channel. 
+See [📖Company#Positioning](https://fleetdm.com/handbook/company#positioning).
 
 ### Marketing Qualified Opportunities (MQOs)
 
@@ -80,7 +70,7 @@ That means better privacy, better device performance, and better data but with l
 ### Sponsoring events
 
 When reaching out for sponsorships, Fleet's goal is to expose potential hires, contributors, and users to Fleet and osquery.
-Track prospective sponsorships in our [partnerships and outreach Google Sheet:](https://docs.google.com/spreadsheets/d/107AwHKqFjt7TWItnf8pFknSwwxb_gsp6awB66t7YE_w/edit#gid=2108184225)
+Track prospective sponsorships in ["Sponsorships"](https://docs.google.com/spreadsheets/d/107AwHKqFjt7TWItnf8pFknSwwxb_gsp6awB66t7YE_w/edit#gid=2108184225)
 
 Once a relevant sponsorship opportunity and its prospectus are reviewed:
 1. Create a new [GitHub issue](https://github.com/fleetdm/fleet/issues/new).
@@ -97,21 +87,12 @@ Once a relevant sponsorship opportunity and its prospectus are reviewed:
  
 7. Once you complete the above steps, use the [Speaking events issue template](https://github.com/fleetdm/confidential/issues/new?assignees=mike-j-thomas&labels=&template=6-speaking-event.md&title=Speaking+event) to prepare speakers and participants for the event.
 
+### Partners
+
+All of Fleet's partnerships are located in ["❤️‍🔥 Buying situations > 🚿Channels / partners"](https://docs.google.com/spreadsheets/d/1pstllb-5vfVt8FifzaXRy8ixyKbe4B56Y1O8tLMnVUQ/edit#gid=1625487826).  (This is the source of truth for any active or proposed partnership.)
+
 
 ## Community
-
-#### In this section
-
-- [Communities](#communities)
-- [Goals](#goals)
-- [Tools](#tools)
-- [Resources](#resources)
-- [Assistance from engineering](#assistance-from-engineering)
-- [Pull requests](#pull-requests)
-- [Managing community contributions](#managing-community-contributions)
-- [Communicate with contributors](#communicate-with-contributors)
-- [Making the updates](#making-the-updates)
-- [Fleet swag](#fleet-swag)
 
 ### Communities
 
@@ -266,17 +247,6 @@ At this time, double-check that information within Salesforce and Typeform is ac
 
 
 ## Brand
-
-#### In this section
-
-- [Publishing Fleet content](#publishing-fleet-content)
-- [Content style guide](#content-style-guide)
-- [For editors](#for-editors)
-- [Commonly used terms](#commonly-used-terms)
-- [Brand resources](#brand-resources)
-- [Email blasts](#email-blasts)
-- [Using Figma](#using-figma)
-- [Fleet website](#fleet-website)
 
 ### Publishing Fleet content 
 
@@ -491,20 +461,6 @@ We use Figma for most of our design work. This includes the Fleet product, our w
 
 The Brand team is responsible for production and maintenance of the Fleet website.
 
-#### In this section
-
-- [Wireframes](#wireframes)
-- [Design reviews](#design-reviews)
-- [Estimation sessions](#estimation-sessions)
-- [When can I merge changes to the website?](#when-can-i-merge-a-change-to-the-website)
-- [How can I test changes to the website?](#how-can-i-test-changes-to-the-website)
-- [How to export images for the website](#how-to-export-images-for-the-website)
-- [Maintaining browser compatibility](#maintaining-browser-compatibility)
-- [Responding to a 5xx error on fleetdm.com](#responding-to-a-5-xx-error-on-fleetdm-com)
-- [The "Deploy Fleet Website" GitHub action failed](#the-deploy-fleet-website-github-action-failed)
-- [Vulnerability monitoring](#vulnerability-monitoring)
-- [How to make usability changes to the website](#how-to-make-usability-changes-to-the-website)
-
 #### Wireframes
 
 Before committing anything to code, we create wireframes to illustrate all changes that affect the website layout and structure.
@@ -627,7 +583,7 @@ Every week, we run `npm audit --only=prod` to check for vulnerabilities on the p
 
 #### How to make usability changes to the website
 
-We want to make it easy to learn how to manage devices with Fleet. Anyone inside or outside the company can suggest changes to the website to improve ease of use and clarity. 
+We want to make it easy to learn how to manage devices with Fleet. Anyone inside or outside the company can suggest changes to the website to improve ease of use and [clarity](http://selmiak.bplaced.net/games/pc/index.php?lang=eng&game=Loom&page=Audio-Drama--Game-Script#:~:text=Above%20all%20else%20...%20clarity.). 
 
 To propose changes:
 1. Decide what you want to change. A small change is the best place to start.

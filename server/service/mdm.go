@@ -241,3 +241,20 @@ func (svc *Service) MDMAppleOktaLogin(ctx context.Context, username, password st
 
 	return nil, fleet.ErrMissingLicense
 }
+
+func (svc *Service) VerifyMDMAppleConfigured(ctx context.Context) error {
+	appCfg, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		// skipauth: Authorization is currently for user endpoints only.
+		svc.authz.SkipAuthorization(ctx)
+		return err
+	}
+	if !appCfg.MDM.EnabledAndConfigured {
+		// skipauth: Authorization is currently for user endpoints only.
+		svc.authz.SkipAuthorization(ctx)
+		return fleet.ErrMDMNotConfigured
+
+	}
+
+	return nil
+}

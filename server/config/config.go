@@ -85,14 +85,15 @@ const (
 
 // ServerConfig defines configs related to the Fleet server
 type ServerConfig struct {
-	Address        string
-	Cert           string
-	Key            string
-	TLS            bool
-	TLSProfile     string `yaml:"tls_compatibility"`
-	URLPrefix      string `yaml:"url_prefix"`
-	Keepalive      bool   `yaml:"keepalive"`
-	SandboxEnabled bool   `yaml:"sandbox_enabled"`
+	Address                     string
+	Cert                        string
+	Key                         string
+	TLS                         bool
+	TLSProfile                  string `yaml:"tls_compatibility"`
+	URLPrefix                   string `yaml:"url_prefix"`
+	Keepalive                   bool   `yaml:"keepalive"`
+	SandboxEnabled              bool   `yaml:"sandbox_enabled"`
+	WebsocketsAllowUnsafeOrigin bool   `yaml:"websockets_allow_unsafe_origin"`
 }
 
 func (s *ServerConfig) DefaultHTTPServer(ctx context.Context, handler http.Handler) *http.Server {
@@ -763,6 +764,7 @@ func (man Manager) addConfigs() {
 		"Controls whether HTTP keep-alives are enabled.")
 	man.addConfigBool("server.sandbox_enabled", false,
 		"When enabled, Fleet limits some features for the Sandbox")
+	man.addConfigBool("server.websockets_allow_unsafe_origin", false, "Disable checking the origin header on websocket connections, this is sometimes necessary when proxies rewrite origin headers between the client and the Fleet webserver")
 
 	// Hide the sandbox flag as we don't want it to be discoverable for users for now
 	sandboxFlag := man.command.PersistentFlags().Lookup(flagNameFromConfigKey("server.sandbox_enabled"))
@@ -1081,14 +1083,15 @@ func (man Manager) LoadConfig() FleetConfig {
 			ReadTimeout:               man.getConfigDuration("redis.read_timeout"),
 		},
 		Server: ServerConfig{
-			Address:        man.getConfigString("server.address"),
-			Cert:           man.getConfigString("server.cert"),
-			Key:            man.getConfigString("server.key"),
-			TLS:            man.getConfigBool("server.tls"),
-			TLSProfile:     man.getConfigTLSProfile(),
-			URLPrefix:      man.getConfigString("server.url_prefix"),
-			Keepalive:      man.getConfigBool("server.keepalive"),
-			SandboxEnabled: man.getConfigBool("server.sandbox_enabled"),
+			Address:                     man.getConfigString("server.address"),
+			Cert:                        man.getConfigString("server.cert"),
+			Key:                         man.getConfigString("server.key"),
+			TLS:                         man.getConfigBool("server.tls"),
+			TLSProfile:                  man.getConfigTLSProfile(),
+			URLPrefix:                   man.getConfigString("server.url_prefix"),
+			Keepalive:                   man.getConfigBool("server.keepalive"),
+			SandboxEnabled:              man.getConfigBool("server.sandbox_enabled"),
+			WebsocketsAllowUnsafeOrigin: man.getConfigBool("server.websockets_allow_unsafe_origin"),
 		},
 		Auth: AuthConfig{
 			BcryptCost:  man.getConfigInt("auth.bcrypt_cost"),
@@ -1628,7 +1631,6 @@ func SetTestMDMConfig(t testing.TB, cfg *FleetConfig, cert, key []byte, appleBMT
 	cfg.MDM.appleSCEPPEMCert = cert
 	cfg.MDM.appleSCEPPEMKey = key
 	cfg.MDM.appleBMToken = appleBMToken
-	cfg.MDM.AppleEnable = true
 	cfg.MDM.AppleSCEPSignerValidityDays = 365
 	cfg.MDM.AppleSCEPChallenge = "testchallenge"
 }
