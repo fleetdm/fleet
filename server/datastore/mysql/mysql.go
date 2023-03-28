@@ -596,14 +596,6 @@ var (
 		// This migration was introduced incorrectly in fleet-v4.4.0 and its
 		// timestamp was changed in fleet-v4.4.1.
 		20210924114500: {},
-		// This migration was introduced in fleet-v4.29.0 and was meant
-		// to standardize the collation of all tables, but it didn't
-		// take into account how this might affect constraints on
-		// `varchar` or `text` columns, causing the migration to fail
-		// on certain scenarios.
-		//
-		// For more details look at https://github.com/fleetdm/fleet/issues/10787
-		20230315104937: {},
 	}
 	knownUnknownDataMigrations = map[int64]struct{}{
 		// This migration was present in 2.0.0, and was removed on a subsequent release.

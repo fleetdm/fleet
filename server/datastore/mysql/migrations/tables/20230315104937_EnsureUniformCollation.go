@@ -28,11 +28,11 @@ func fixupSoftware(tx *sql.Tx, collation string) error {
 		source    COLLATE %s,
 		vendor    COLLATE %s,
 		arch      COLLATE %s
-		HAVING total
+		HAVING total > 1
 		COLLATE %s`, collation, collation, collation, collation, collation))
 
 	if err != nil {
-		return err
+		return fmt.Errorf("aggregating dupes: %w", err)
 	}
 
 	defer rows.Close()
@@ -41,11 +41,11 @@ func fixupSoftware(tx *sql.Tx, collation string) error {
 		var rawIDs json.RawMessage
 		var total int
 		if err := rows.Scan(&total, &rawIDs); err != nil {
-			return err
+			return fmt.Errorf("scanning values: %w", err)
 		}
 		var ids []uint
 		if err := json.Unmarshal(rawIDs, &ids); err != nil {
-			return err
+			return fmt.Errorf("unmarshalling keys: %w", err)
 		}
 		idGroups = append(idGroups, ids)
 	}
@@ -53,16 +53,16 @@ func fixupSoftware(tx *sql.Tx, collation string) error {
 	for _, ids := range idGroups {
 		for i := 1; i < len(ids); i++ {
 			if _, err := tx.Exec("DELETE FROM software_cve WHERE software_id = ?", ids[i]); err != nil {
-				return err
+				return fmt.Errorf("deleting duplicated software from software_cve: %w", err)
 			}
 			if _, err := tx.Exec("DELETE FROM software_host_counts WHERE software_id = ?", ids[i]); err != nil {
-				return err
+				return fmt.Errorf("deleting duplicate software from software_host_counts: %w", err)
 			}
-			if _, err := tx.Exec("UPDATE host_software SET software_id = ? WHERE software_id = ?", ids[0], ids[i]); err != nil {
-				return err
+			if _, err := tx.Exec("DELETE FROM host_software WHERE software_id = ?", ids[i]); err != nil {
+				return fmt.Errorf("deleting duplicate software from host_software: %w", err)
 			}
 			if _, err := tx.Exec("DELETE FROM software WHERE id = ?", ids[i]); err != nil {
-				return err
+				return fmt.Errorf("deleting duplicate software: %w", err)
 			}
 		}
 	}
@@ -84,7 +84,7 @@ func fixupHostUsers(tx *sql.Tx, collation string) error {
          HAVING total > 1
          COLLATE %s`, collation, collation))
 	if err != nil {
-		return err
+		return fmt.Errorf("aggregating dupes: %w", err)
 	}
 
 	type hostUser struct {
@@ -99,12 +99,12 @@ func fixupHostUsers(tx *sql.Tx, collation string) error {
 		var raw json.RawMessage
 		var total int
 		if err := rows.Scan(&total, &raw); err != nil {
-			return err
+			return fmt.Errorf("scanning dupe results: %w", err)
 		}
 
 		var hu []hostUser
 		if err := json.Unmarshal(raw, &hu); err != nil {
-			return err
+			return fmt.Errorf("unmarshalling dupe results: %w", err)
 		}
 		keyGroups = append(keyGroups, hu)
 	}
@@ -112,7 +112,7 @@ func fixupHostUsers(tx *sql.Tx, collation string) error {
 	for _, keys := range keyGroups {
 		for i := 1; i < len(keys); i++ {
 			if _, err := tx.Exec("DELETE FROM host_users WHERE host_id = ? AND uid = ? AND username = ?", keys[i].HostID, keys[i].UID, keys[i].Username); err != nil {
-				return err
+				return fmt.Errorf("deleting duplicate entries from host_users: %w", err)
 			}
 		}
 	}
@@ -135,7 +135,7 @@ func fixupOS(tx *sql.Tx, collation string) error {
          HAVING total > 1
          COLLATE %s`, collation, collation, collation, collation, collation))
 	if err != nil {
-		return err
+		return fmt.Errorf("aggregating dupes: %w", err)
 	}
 
 	type os struct {
@@ -152,12 +152,12 @@ func fixupOS(tx *sql.Tx, collation string) error {
 		var raw json.RawMessage
 		var total int
 		if err := rows.Scan(&total, &raw); err != nil {
-			return err
+			return fmt.Errorf("scanning dupes: %w", err)
 		}
 
 		var o []os
 		if err := json.Unmarshal(raw, &o); err != nil {
-			return err
+			return fmt.Errorf("unmarshalling dupes: %w", err)
 		}
 		keyGroups = append(keyGroups, o)
 	}
@@ -165,7 +165,7 @@ func fixupOS(tx *sql.Tx, collation string) error {
 	for _, keys := range keyGroups {
 		for i := 1; i < len(keys); i++ {
 			if _, err := tx.Exec("DELETE FROM operating_systems WHERE name = ? AND version = ? AND arch = ? AND kernel_version = ? AND platform = ?", keys[i].Name, keys[i].Version, keys[i].Arch, keys[i].KernelVersion, keys[i].Platform); err != nil {
-				return err
+				return fmt.Errorf("deleting dupes: %w", err)
 			}
 		}
 	}
@@ -178,21 +178,21 @@ func fixupOS(tx *sql.Tx, collation string) error {
 // This is based on the changeCharacterSet function that's included in this
 // module and part of the 20170306075207_UseUTF8MB migration.
 func changeCollation(tx *sql.Tx, charset string, collation string) (err error) {
-	if err := fixupSoftware(tx, collation); err != nil {
-		return err
-	}
-
-	if err := fixupHostUsers(tx, collation); err != nil {
-		return err
-	}
-
-	if err := fixupOS(tx, collation); err != nil {
-		return err
-	}
-
 	_, err = tx.Exec(fmt.Sprintf("ALTER DATABASE DEFAULT CHARACTER SET `%s` COLLATE `%s`", charset, collation))
 	if err != nil {
 		return fmt.Errorf("alter database: %w", err)
+	}
+
+	if err := fixupSoftware(tx, collation); err != nil {
+		return fmt.Errorf("fixing software table: %w", err)
+	}
+
+	if err := fixupHostUsers(tx, collation); err != nil {
+		return fmt.Errorf("fixing host_users table: %w", err)
+	}
+
+	if err := fixupOS(tx, collation); err != nil {
+		return fmt.Errorf("fixing operating_systems table: %w", err)
 	}
 
 	txx := sqlx.Tx{Tx: tx}
