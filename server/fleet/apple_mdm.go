@@ -385,6 +385,17 @@ type MDMAppleHostsProfilesSummary struct {
 	Failed uint `json:"failing" db:"failed"`
 }
 
+// MDMAppleFileVaultSummary reports the number of macOS hosts being managed with Apples disk
+// encryption profiles. Each host may be counted in only one of five mutually-exclusive categories:
+// Applied, ActionRequired, Enforcing, Failed, RemovingEnforcement.
+type MDMAppleFileVaultSummary struct {
+	Applied             uint `json:"applied" db:"applied"`
+	ActionRequired      uint `json:"action_required" db:"action_required"`
+	Enforcing           uint `json:"enforcing" db:"enforcing"`
+	Failed              uint `json:"failed" db:"failed"`
+	RemovingEnforcement uint `json:"removing_enforcement" db:"removing_enforcement"`
+}
+
 // MDMAppleFleetdConfig contains the fields used to configure
 // `fleetd` in macOS devices via a configuration profile.
 type MDMAppleFleetdConfig struct {
