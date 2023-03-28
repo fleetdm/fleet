@@ -35,7 +35,15 @@ enum UserTeamType {
   AssignTeams = "ASSIGN_TEAMS",
 }
 
-const globalUserRoles = (isPremiumTier: boolean): IRole[] => {
+interface GlobalRoleParams {
+  isPremiumTier: boolean;
+  isNewUser?: boolean;
+}
+
+const globalUserRoles = ({
+  isPremiumTier,
+  isNewUser,
+}: GlobalRoleParams): IRole[] => {
   const roles: IRole[] = [
     {
       disabled: false,
@@ -60,11 +68,14 @@ const globalUserRoles = (isPremiumTier: boolean): IRole[] => {
       label: "Observer+",
       value: "observer_plus",
     });
-    roles.splice(3, 0, {
-      disabled: false,
-      label: "GitOps",
-      value: "gitops",
-    });
+    // Only existing users can be converted to gitops user
+    if (!isNewUser) {
+      roles.splice(3, 0, {
+        disabled: false,
+        label: "GitOps",
+        value: "gitops",
+      });
+    }
   }
 
   return roles;
@@ -325,7 +336,10 @@ const UserForm = ({
           label="Role"
           value={formData.global_role || "Observer"}
           className={`${baseClass}__global-role-dropdown`}
-          options={globalUserRoles(isPremiumTier || false)}
+          options={globalUserRoles({
+            isPremiumTier,
+            isNewUser,
+          })}
           searchable={false}
           onChange={onGlobalUserRoleChange}
           wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--global-role`}
@@ -385,6 +399,7 @@ const UserForm = ({
               teams={formData.teams}
               defaultTeamRole={defaultTeamRole || "observer"}
               onFormChange={onTeamRoleChange}
+              isNewUser={isNewUser}
             />
           ))}
         {!availableTeams.length && renderNoTeamsMessage()}

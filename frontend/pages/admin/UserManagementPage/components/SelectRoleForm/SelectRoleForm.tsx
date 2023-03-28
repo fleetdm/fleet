@@ -14,11 +14,17 @@ interface ISelectRoleFormProps {
   teams: ITeam[];
   onFormChange: (teams: ITeam[]) => void;
   label: string | string[];
+  isNewUser?: boolean;
 }
 
 const baseClass = "select-role-form";
 
-const roleOptions = (isPremiumTier: boolean): IRole[] => {
+interface RoleParams {
+  isPremiumTier?: boolean;
+  isNewUser?: boolean;
+}
+
+const roleOptions = ({ isPremiumTier, isNewUser }: RoleParams): IRole[] => {
   const roles: IRole[] = [
     {
       disabled: false,
@@ -43,11 +49,14 @@ const roleOptions = (isPremiumTier: boolean): IRole[] => {
       label: "Observer+",
       value: "observer_plus",
     });
-    roles.splice(3, 0, {
-      disabled: false,
-      label: "GitOps",
-      value: "gitops",
-    });
+    // Only existing users can be converted to gitops user
+    if (!isNewUser) {
+      roles.splice(3, 0, {
+        disabled: false,
+        label: "GitOps",
+        value: "gitops",
+      });
+    }
   }
 
   return roles;
@@ -80,6 +89,7 @@ const SelectRoleForm = ({
   teams,
   onFormChange,
   label,
+  isNewUser,
 }: ISelectRoleFormProps): JSX.Element => {
   const { isPremiumTier } = useContext(AppContext);
 
@@ -104,7 +114,7 @@ const SelectRoleForm = ({
           label={label}
           value={selectedRole}
           className={`${baseClass}__role-dropdown`}
-          options={roleOptions(isPremiumTier || false)}
+          options={roleOptions({ isPremiumTier, isNewUser })}
           searchable={false}
           onChange={(newRoleValue: UserRole) =>
             updateSelectedRole(newRoleValue)
