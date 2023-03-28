@@ -127,7 +127,7 @@ func getDeviceHostEndpoint(ctx context.Context, request interface{}, svc fleet.S
 	// the org logo URL config is required by the frontend to render the page;
 	// we need to be careful with what we return from AppConfig in the response
 	// as this is a weakly authenticated endpoint (with the device auth token).
-	ac, err := svc.AppConfig(ctx)
+	ac, err := svc.AppConfigObfuscated(ctx)
 	if err != nil {
 		return getDeviceHostResponse{Err: err}, nil
 	}
@@ -329,7 +329,7 @@ func (r transparencyURLResponse) hijackRender(ctx context.Context, w http.Respon
 func (r transparencyURLResponse) error() error { return r.Err }
 
 func transparencyURL(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
-	config, err := svc.AppConfig(ctx)
+	config, err := svc.AppConfigObfuscated(ctx)
 	if err != nil {
 		return transparencyURLResponse{Err: err}, nil
 	}
@@ -414,11 +414,46 @@ func (svc *Service) GetDeviceMDMAppleEnrollmentProfile(ctx context.Context) ([]b
 	mobileConfig, err := apple_mdm.GenerateEnrollmentProfileMobileconfig(
 		appConfig.OrgInfo.OrgName,
 		appConfig.ServerSettings.ServerURL,
-		svc.config.MDMApple.SCEP.Challenge,
+		svc.config.MDM.AppleSCEPChallenge,
 		svc.mdmPushCertTopic,
 	)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 	return mobileConfig, nil
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Request a disk encryption reset
+////////////////////////////////////////////////////////////////////////////////
+
+type rotateEncryptionKeyRequest struct {
+	Token string `url:"token"`
+}
+
+func (r *rotateEncryptionKeyRequest) deviceAuthToken() string {
+	return r.Token
+}
+
+type rotateEncryptionKeyResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r rotateEncryptionKeyResponse) error() error { return r.Err }
+
+func rotateEncryptionKeyEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	host, ok := hostctx.FromContext(ctx)
+	if !ok {
+		err := ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
+		return rotateEncryptionKeyResponse{Err: err}, nil
+	}
+
+	if err := svc.RequestEncryptionKeyRotation(ctx, host.ID); err != nil {
+		return rotateEncryptionKeyResponse{Err: err}, nil
+	}
+	return rotateEncryptionKeyResponse{}, nil
+}
+
+func (svc *Service) RequestEncryptionKeyRotation(ctx context.Context, hostID uint) error {
+	return fleet.ErrMissingLicense
 }

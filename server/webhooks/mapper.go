@@ -5,6 +5,7 @@ import (
 	"net/url"
 	"path"
 	"strconv"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
@@ -23,12 +24,14 @@ type hostPayloadPart struct {
 }
 
 type WebhookPayload struct {
-	CVE              string             `json:"cve"`
-	Link             string             `json:"details_link"`
-	EPSSProbability  *float64           `json:"epss_probability,omitempty"`   // Premium feature only
-	CVSSScore        *float64           `json:"cvss_score,omitempty"`         // Premium feature only
-	CISAKnownExploit *bool              `json:"cisa_known_exploit,omitempty"` // Premium feature only
-	Hosts            []*hostPayloadPart `json:"hosts_affected"`
+	CVE              string     `json:"cve"`
+	Link             string     `json:"details_link"`
+	EPSSProbability  *float64   `json:"epss_probability,omitempty"`   // Premium feature only
+	CVSSScore        *float64   `json:"cvss_score,omitempty"`         // Premium feature only
+	CISAKnownExploit *bool      `json:"cisa_known_exploit,omitempty"` // Premium feature only
+	CVEPublished     *time.Time `json:"cve_published,omitempty"`      // Premium feature only
+
+	Hosts []*hostPayloadPart `json:"hosts_affected"`
 }
 
 type Mapper struct{}

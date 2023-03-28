@@ -106,13 +106,14 @@ const generateTableHeaders = (options: {
       accessor: "name",
       Cell: (cellProps: ICellProps): JSX.Element => (
         <LinkCell
-          classes="w250"
+          classes="w250 policy-name-cell"
           value={
             <>
-              {cellProps.cell.value}
+              <div className="policy-name-text">{cellProps.cell.value}</div>
               {cellProps.row.original.critical && (
                 <>
                   <span
+                    className="tooltip-base"
                     data-tip
                     data-for={`critical-tooltip-${cellProps.row.original.id}`}
                   >

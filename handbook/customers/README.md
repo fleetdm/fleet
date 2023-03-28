@@ -23,7 +23,7 @@ Customers on a paid tier of Fleet can get in touch directly for commercial suppo
 
 To close a deal with a new customer (non-self-service), create a GitHub issue using the "Sale" issue template and follow the steps.
 
-> TODO: dedupe between this section and the issue template
+> TODO: dedupe between this section and the "Sale" issue template
 
 This workflow outlines the process that sales and customer success can follow when a new deal closes. 
 
@@ -69,6 +69,15 @@ This workflow outlines the process that sales and customer success can follow wh
 ## Fleet's W-9
 
 A recent signed copy of Fleet's W-9 form can be found in [this confidential PDF in Google Drive](https://drive.google.com/file/d/1ugXazEBk1oVm_LqGbYNsIFECcv5jXLA9/view?usp=drivesdk).
+
+## Paying Fleet
+For customers with hundreds or more hosts, Fleet accepts payment via wire transfer or electronic debit (ACH/SWIFT).
+
+Fleet team members can provide remittance information to customers by exporting ["💸 Paying Fleet"](https://docs.google.com/document/d/1KP_-x9c1x3sS1X9Q8Wlib2H7tq69xRONn1KMA3nVFQc/edit) into a PDF.
+
+
+
+
 
 ## Customer success calls
 

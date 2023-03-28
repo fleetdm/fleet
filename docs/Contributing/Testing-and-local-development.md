@@ -19,7 +19,9 @@
     - [Command line](#command-line)
   - [Test hosts](#test-hosts)
   - [Email](#email)
-    - [Manually testing email with MailHog](#manually-testing-email-with-mailhog)
+    - [Manually testing email with MailHog and Mailpit](#manually-testing-email-with-mailhog-and-mailpit)
+      - [MailHog SMTP server without authentication](#mailhog-smtp-server-without-authentication)
+      - [Mailpit SMTP server with plain authentication](#mailpit-smtp-server-with-plain-authentication)
   - [Development database management](#development-database-management)
   - [MySQL shell](#mysql-shell)
   - [Redis REPL](#redis-repl)
@@ -30,8 +32,7 @@
   - [Telemetry](#telemetry)
   - [MDM setup and testing](#mdm-setup-and-testing)
     - [ABM setup](#abm-setup)
-      - [Private key + certificate](#private-key--certificate)
-      - [Encrypted token](#encrypted-token)
+      - [Private key, certificate, and encrypted token](#private-key-certificate-and-encrypted-token)
     - [APNs and SCEP setup](#apns-and-scep-setup)
     - [Running the server](#running-the-server)
     - [Testing MDM](#testing-mdm)
@@ -232,13 +233,26 @@ The Fleet repo includes tools to start testing osquery hosts. Please see the doc
 
 ## Email
 
-### Manually testing email with MailHog
+### Manually testing email with MailHog and Mailpit
+
+#### MailHog SMTP server without authentication
 
 To intercept sent emails while running a Fleet development environment, first, as an Admin in the Fleet UI, navigate to the Organization settings.
 
 Then, in the "SMTP options" section, enter any email address in the "Sender address" field, set the "SMTP server" to `localhost` on port `1025`, and set "Authentication type" to `None`. Note that you may use any active or inactive sender address.
 
 Visit [localhost:8025](http://localhost:8025) to view MailHog's admin interface displaying all emails sent using the simulated mail server.
+
+#### Mailpit SMTP server with plain authentication
+
+Alternatively, if you need to test a SMTP server with plain basic authentication enabled, set:
+- "SMTP server" to `localhost` on port `1026`
+- "Authentication type" to `Plain`.
+- "SMTP username" to `mailpit-username`.
+- "SMTP password" to `mailpit-password`.
+- Note that you may use any active or inactive sender address.
+
+Visit [localhost:8026](http://localhost:8026) to view Mailpit's admin interface displaying all emails sent using the simulated mail server.
 
 ## Development database management
 
@@ -483,7 +497,7 @@ Once you have access to ABM, follow [these guided instructions](../Using-Fleet/M
 
 The server also needs a private key + certificate to identify with Apple's [APNs](https://github.com/fleetdm/fleet/blob/main/tools/mdm/apple/glossary-and-protocols.md#apns-apple-push-notification-service) servers, and another for [SCEP](https://github.com/fleetdm/fleet/blob/main/tools/mdm/apple/glossary-and-protocols.md#scep-simple-certificate-enrollment-protocol).
 
-To generate both, follow [these guided instructions](../Using-Fleet/Mobile-device-management.md#apple-push-notification-service-ap-ns).
+To generate both, follow [these guided instructions](../Using-Fleet/Mobile-device-management.md#apple-push-notification-service-apns).
 
 Note that:
 
@@ -505,8 +519,6 @@ $ openssl req -x509 -new -nodes -key fleet-mdm-apple-scep.key -sha256 -days 1826
 Try to store all the certificates and tokens you generated in the earlier steps together in a safe place outside of the repo, then start the server with:
 
 ```
-FLEET_MDM_APPLE_ENABLE=1 \
-FLEET_DEV_MDM_ENABLED=1 \
 FLEET_MDM_APPLE_SCEP_CHALLENGE=scepchallenge \
 FLEET_MDM_APPLE_SCEP_CERT=/path/to/fleet-mdm-apple-scep.crt \
 FLEET_MDM_APPLE_SCEP_KEY=/path/to/fleet-mdm-apple-scep.key \
@@ -571,7 +583,10 @@ fleetctl apple-mdm enrollment-profiles create-manual
 ```
 fleetctl apple-mdm enrollment-profiles create-automatic --dep-profile ./tools/mdm/apple/dep_sample_profile.json
 ```
+Reference the [Apple DEP Profile documentation](https://developer.apple.com/documentation/devicemanagement/profile) for further information on each setting.
 
 2. In ABM, look for the computer with the serial number that matches the one your VM has, click on it and click on "Edit MDM Server" to assign that computer to your MDM server.
 
 3. Boot the machine, it should automatically enroll into MDM.
+
+<meta name="pageOrderInSection" value="1500">

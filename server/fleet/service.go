@@ -351,7 +351,8 @@ type Service interface {
 	// AppConfigService provides methods for configuring  the Fleet application
 
 	NewAppConfig(ctx context.Context, p AppConfig) (info *AppConfig, err error)
-	AppConfig(ctx context.Context) (info *AppConfig, err error)
+	// AppConfigObfuscated returns the global application config with obfuscated credentials.
+	AppConfigObfuscated(ctx context.Context) (info *AppConfig, err error)
 	ModifyAppConfig(ctx context.Context, p []byte, applyOpts ApplySpecOptions) (info *AppConfig, err error)
 	SandboxEnabled() bool
 
@@ -577,6 +578,11 @@ type Service interface {
 	// to any team).
 	GetMDMAppleProfilesSummary(ctx context.Context, teamID *uint) (*MDMAppleHostsProfilesSummary, error)
 
+	// GetMDMAppleFileVaultSummary summarizes the current state of Apple disk encryption profiles on
+	// each macOS host in the specified team (or, if no team is specified, each host that is not assigned
+	// to any team).
+	GetMDMAppleFileVaultSummary(ctx context.Context, teamID *uint) (*MDMAppleFileVaultSummary, error)
+
 	// NewMDMAppleEnrollmentProfile creates and returns new enrollment profile.
 	// Such enrollment profiles allow devices to enroll to Fleet MDM.
 	NewMDMAppleEnrollmentProfile(ctx context.Context, enrollmentPayload MDMAppleEnrollmentProfilePayload) (enrollmentProfile *MDMAppleEnrollmentProfile, err error)
@@ -664,6 +670,11 @@ type Service interface {
 	// RFC 6749 and described in https://developer.okta.com/docs/guides/implement-grant-type/ropassword/main/
 	MDMAppleOktaLogin(ctx context.Context, username, password string) ([]byte, error)
 
+	// VerifyMDMAppleConfigured verifies that the server is configured for
+	// Apple MDM. If an error is returned, authorization is skipped so the
+	// error can be raised to the user. See TODO for more details.
+	VerifyMDMAppleConfigured(ctx context.Context) error
+
 	///////////////////////////////////////////////////////////////////////////////
 	// CronSchedulesService
 
@@ -673,4 +684,6 @@ type Service interface {
 	// ResetAutomation sets the policies and all policies of the listed teams to fire again
 	// for all hosts that are already marked as failing.
 	ResetAutomation(ctx context.Context, teamIDs, policyIDs []uint) error
+
+	RequestEncryptionKeyRotation(ctx context.Context, hostID uint) error
 }

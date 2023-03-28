@@ -43,11 +43,12 @@ func TestSoftware(t *testing.T) {
 		{"InsertSoftwareVulnerability", testInsertSoftwareVulnerability},
 		{"ListCVEs", testListCVEs},
 		{"ListSoftwareForVulnDetection", testListSoftwareForVulnDetection},
-		{"SoftwareByID", testSoftwareByID},
 		{"AllSoftwareIterator", testAllSoftwareIterator},
 		{"UpsertSoftwareCPEs", testUpsertSoftwareCPEs},
 		{"DeleteOutOfDateVulnerabilities", testDeleteOutOfDateVulnerabilities},
 		{"DeleteSoftwareCPEs", testDeleteSoftwareCPEs},
+		{"SoftwareByIDNoDuplicatedVulns", testSoftwareByIDNoDuplicatedVulns},
+		{"SoftwareByIDIncludesCVEPublishedDate", testSoftwareByIDIncludesCVEPublishedDate},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -508,24 +509,28 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 	}
 
+	now := time.Now().UTC().Truncate(time.Second)
 	cveMeta := []fleet.CVEMeta{
 		{
 			CVE:              "CVE-2022-0001",
 			CVSSScore:        ptr.Float64(2.0),
 			EPSSProbability:  ptr.Float64(0.01),
 			CISAKnownExploit: ptr.Bool(false),
+			Published:        ptr.Time(now.Add(-2 * time.Hour)),
 		},
 		{
 			CVE:              "CVE-2022-0002",
 			CVSSScore:        ptr.Float64(1.0),
 			EPSSProbability:  ptr.Float64(0.99),
 			CISAKnownExploit: ptr.Bool(false),
+			Published:        ptr.Time(now),
 		},
 		{
 			CVE:              "CVE-2022-0003",
 			CVSSScore:        ptr.Float64(3.0),
 			EPSSProbability:  ptr.Float64(0.98),
 			CISAKnownExploit: ptr.Bool(true),
+			Published:        ptr.Time(now.Add(-1 * time.Hour)),
 		},
 	}
 	err = ds.InsertCVEMeta(context.Background(), cveMeta)
@@ -543,6 +548,7 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 				CVSSScore:        ptr.Float64Ptr(2.0),
 				EPSSProbability:  ptr.Float64Ptr(0.01),
 				CISAKnownExploit: ptr.BoolPtr(false),
+				CVEPublished:     ptr.TimePtr(now.Add(-2 * time.Hour)),
 			},
 			{
 				CVE:              "CVE-2022-0002",
@@ -550,6 +556,7 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 				CVSSScore:        ptr.Float64Ptr(1.0),
 				EPSSProbability:  ptr.Float64Ptr(0.99),
 				CISAKnownExploit: ptr.BoolPtr(false),
+				CVEPublished:     ptr.TimePtr(now),
 			},
 		},
 	}
@@ -568,6 +575,7 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 				CVSSScore:        ptr.Float64Ptr(3.0),
 				EPSSProbability:  ptr.Float64Ptr(0.98),
 				CISAKnownExploit: ptr.BoolPtr(true),
+				CVEPublished:     ptr.TimePtr(now.Add(-1 * time.Hour)),
 			},
 		},
 	}
@@ -777,6 +785,20 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 		software := listSoftwareCheckCount(t, ds, 5, 5, opts, false)
 		assert.Equal(t, baz001.Name, software[0].Name)
 		assert.Equal(t, baz001.Version, software[0].Version)
+	})
+
+	t.Run("order by cve_published", func(t *testing.T) {
+		opts := fleet.SoftwareListOptions{
+			ListOptions: fleet.ListOptions{
+				OrderKey:       "cve_published",
+				OrderDirection: fleet.OrderDescending,
+			},
+			IncludeCVEScores: true,
+		}
+
+		software := listSoftwareCheckCount(t, ds, 5, 5, opts, false)
+		assert.Equal(t, foo001.Name, software[0].Name)
+		assert.Equal(t, foo001.Version, software[0].Version)
 	})
 
 	t.Run("nil cve scores if IncludeCVEScores is false", func(t *testing.T) {
@@ -1631,10 +1653,9 @@ func testListSoftwareForVulnDetection(t *testing.T, ds *Datastore) {
 	})
 }
 
-func testSoftwareByID(t *testing.T, ds *Datastore) {
+func testSoftwareByIDNoDuplicatedVulns(t *testing.T, ds *Datastore) {
 	t.Run("software installed in multiple hosts does not have duplicated vulnerabilities", func(t *testing.T) {
 		ctx := context.Background()
-
 		hostA := test.NewHost(t, ds, "hostA", "", "hostAkey", "hostAuuid", time.Now())
 		hostA.Platform = "ubuntu"
 		require.NoError(t, ds.UpdateHost(ctx, hostA))
@@ -1672,6 +1693,132 @@ func testSoftwareByID(t *testing.T, ds *Datastore) {
 			result, err := ds.SoftwareByID(ctx, s.ID, true)
 			require.NoError(t, err)
 			require.Len(t, result.Vulnerabilities, 1)
+		}
+	})
+}
+
+func testSoftwareByIDIncludesCVEPublishedDate(t *testing.T, ds *Datastore) {
+	t.Run("software.vulnerabilities includes the published date", func(t *testing.T) {
+		ctx := context.Background()
+		host := test.NewHost(t, ds, "hostA", "", "hostAkey", "hostAuuid", time.Now())
+		now := time.Now().UTC().Truncate(time.Second)
+
+		testCases := []struct {
+			name             string
+			hasVuln          bool
+			hasMeta          bool
+			hasPublishedDate bool
+		}{
+			{"foo_123", true, true, true},
+			{"bar_123", true, true, false},
+			{"foo_456", true, false, false},
+			{"bar_456", false, true, true},
+			{"foo_789", false, true, false},
+			{"bar_789", false, false, false},
+		}
+
+		// Add software
+		var software []fleet.Software
+		for _, t := range testCases {
+			software = append(software, fleet.Software{
+				Name:    t.name,
+				Version: "0.0.1",
+				Source:  "apps",
+			})
+		}
+		require.NoError(t, ds.UpdateHostSoftware(ctx, host.ID, software))
+		require.NoError(t, ds.LoadHostSoftware(ctx, host, false))
+
+		// Add vulnerabilities and CVEMeta
+		var meta []fleet.CVEMeta
+		for _, tC := range testCases {
+			idx := -1
+			for i, s := range host.Software {
+				if s.Name == tC.name {
+					idx = i
+					break
+				}
+			}
+			require.NotEqual(t, -1, idx, "software not found")
+
+			if tC.hasVuln {
+				inserted, err := ds.InsertSoftwareVulnerability(ctx, fleet.SoftwareVulnerability{
+					SoftwareID: host.Software[idx].ID,
+					CVE:        fmt.Sprintf("cve-%s", tC.name),
+				}, fleet.UbuntuOVALSource)
+				require.NoError(t, err)
+				require.True(t, inserted)
+			}
+
+			if tC.hasMeta {
+				var published *time.Time
+				if tC.hasPublishedDate {
+					published = &now
+				}
+
+				meta = append(meta, fleet.CVEMeta{
+					CVE:              fmt.Sprintf("cve-%s", tC.name),
+					CVSSScore:        ptr.Float64(5.4),
+					EPSSProbability:  ptr.Float64(0.5),
+					CISAKnownExploit: ptr.Bool(true),
+					Published:        published,
+				})
+			}
+		}
+		require.NoError(t, ds.InsertCVEMeta(ctx, meta))
+
+		for _, tC := range testCases {
+			idx := -1
+			for i, s := range host.Software {
+				if s.Name == tC.name {
+					idx = i
+					break
+				}
+			}
+			require.NotEqual(t, -1, idx, "software not found")
+
+			// Test that scores are not included if includeCVEScores = false
+			withoutScores, err := ds.SoftwareByID(ctx, host.Software[idx].ID, false)
+			require.NoError(t, err)
+			if tC.hasVuln {
+				require.Len(t, withoutScores.Vulnerabilities, 1)
+				require.Equal(t, fmt.Sprintf("cve-%s", tC.name), withoutScores.Vulnerabilities[0].CVE)
+
+				require.Nil(t, withoutScores.Vulnerabilities[0].CVSSScore)
+				require.Nil(t, withoutScores.Vulnerabilities[0].EPSSProbability)
+				require.Nil(t, withoutScores.Vulnerabilities[0].CISAKnownExploit)
+			} else {
+				require.Empty(t, withoutScores.Vulnerabilities)
+			}
+
+			withScores, err := ds.SoftwareByID(ctx, host.Software[idx].ID, true)
+			require.NoError(t, err)
+			if tC.hasVuln {
+				require.Len(t, withScores.Vulnerabilities, 1)
+				require.Equal(t, fmt.Sprintf("cve-%s", tC.name), withoutScores.Vulnerabilities[0].CVE)
+
+				if tC.hasMeta {
+					require.NotNil(t, withScores.Vulnerabilities[0].CVSSScore)
+					require.NotNil(t, *withScores.Vulnerabilities[0].CVSSScore)
+					require.Equal(t, **withScores.Vulnerabilities[0].CVSSScore, 5.4)
+
+					require.NotNil(t, withScores.Vulnerabilities[0].EPSSProbability)
+					require.NotNil(t, *withScores.Vulnerabilities[0].EPSSProbability)
+					require.Equal(t, **withScores.Vulnerabilities[0].EPSSProbability, 0.5)
+
+					require.NotNil(t, withScores.Vulnerabilities[0].CISAKnownExploit)
+					require.NotNil(t, *withScores.Vulnerabilities[0].CISAKnownExploit)
+					require.Equal(t, **withScores.Vulnerabilities[0].CISAKnownExploit, true)
+
+					if tC.hasPublishedDate {
+						require.NotNil(t, withScores.Vulnerabilities[0].CVEPublished)
+						require.NotNil(t, *withScores.Vulnerabilities[0].CVEPublished)
+						require.Equal(t, (**withScores.Vulnerabilities[0].CVEPublished), now)
+					}
+				}
+			} else {
+				require.Empty(t, withoutScores.Vulnerabilities)
+			}
 		}
 	})
 }

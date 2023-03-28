@@ -1,1 +1,0 @@
-* Fixed a bug that prevented starting the Fleet server with MDM features if Apple Business Manager (ABM) was not configured.

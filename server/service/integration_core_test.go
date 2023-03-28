@@ -4524,10 +4524,12 @@ func (s *integrationTestSuite) TestPremiumEndpointsWithoutLicense() {
 	res := s.Do("POST", "/api/latest/fleet/mdm/apple/profiles/batch",
 		map[string]interface{}{"profiles": [][]byte{[]byte(`xyz`)}}, http.StatusUnprocessableEntity)
 	errMsg := extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "Fleet MDM is not enabled")
+	require.Contains(t, errMsg, "Fleet MDM is not configured")
 
-	// update MDM settings, the endpoint is not even mounted if MDM is not enabled
-	s.Do("PATCH", "/api/latest/fleet/mdm/apple/settings", fleet.MDMAppleSettingsPayload{}, http.StatusNotFound)
+	// update MDM settings, the endpoint returns an error if MDM is not enabled
+	res = s.Do("PATCH", "/api/latest/fleet/mdm/apple/settings", fleet.MDMAppleSettingsPayload{}, fleet.ErrMDMNotConfigured.StatusCode())
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, fleet.ErrMDMNotConfigured.Error())
 }
 
 // TestGlobalPoliciesBrowsing tests that team users can browse (read) global policies (see #3722).
@@ -4821,22 +4823,15 @@ func (s *integrationTestSuite) TestAppConfig() {
 	// try to update the mdm configured flag via PATCH /config
 	// request is ok but modified value is ignored
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-	  "mdm": { "enabled_and_configured": true }
+	  "mdm": { "enabled_and_configured": false }
   }`), http.StatusOK, &acResp)
 	assert.True(t, acResp.MDM.EnabledAndConfigured)
 
-	// set the macos custom settings fields, fails due to MDM not configured
-	res := s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-		"mdm": { "macos_settings": { "custom_settings": ["foo", "bar"] } }
-  }`), http.StatusUnprocessableEntity)
-	errMsg := extractServerErrorText(res.Body)
-	assert.Contains(t, errMsg, "Couldn't update macos_settings because MDM features aren't turned on in Fleet.")
-
 	// set the macos disk encryption field, fails due to license
-	res = s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+	res := s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"mdm": { "macos_settings": { "enable_disk_encryption": true } }
   }`), http.StatusUnprocessableEntity)
-	errMsg = extractServerErrorText(res.Body)
+	errMsg := extractServerErrorText(res.Body)
 	assert.Contains(t, errMsg, "missing or invalid license")
 
 	// try to set the apple bm default team, which is premium only
@@ -4856,6 +4851,13 @@ func (s *integrationTestSuite) TestAppConfig() {
 	appCfg.MDM.EnabledAndConfigured = false
 	err = s.ds.SaveAppConfig(ctx, appCfg)
 	require.NoError(t, err)
+
+	// set the macos custom settings fields, fails due to MDM not configured
+	res = s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+			"mdm": { "macos_settings": { "custom_settings": ["foo", "bar"] } }
+	  }`), http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	assert.Contains(t, errMsg, "Couldn't update macos_settings because MDM features aren't turned on in Fleet.")
 
 	// test setting the default app config we use for new installs (this check
 	// ensures that the default config passes the validation)
@@ -6304,10 +6306,24 @@ func (s *integrationTestSuite) TestPingEndpoints() {
 }
 
 func (s *integrationTestSuite) TestAppleMDMNotConfigured() {
-	var rawResp json.RawMessage
-	s.DoJSON("GET", "/api/latest/fleet/mdm/apple", nil, http.StatusNotFound, &rawResp)
-	s.Do("POST", "/api/latest/fleet/mdm/apple/dep_login", nil, http.StatusNotFound)
-	s.DoJSON("GET", "/api/latest/fleet/mdm/apple_bm", nil, http.StatusPaymentRequired, &rawResp) // premium only
+	t := s.T()
+
+	for _, route := range mdmAppleConfigurationRequiredEndpoints() {
+		res := s.Do(route[0], route[1], nil, fleet.ErrMDMNotConfigured.StatusCode())
+		errMsg := extractServerErrorText(res.Body)
+		assert.Contains(t, errMsg, fleet.ErrMDMNotConfigured.Error())
+	}
+
+	fleetdmSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Setenv("TEST_FLEETDM_API_URL", fleetdmSrv.URL)
+	t.Cleanup(fleetdmSrv.Close)
+
+	// Always accessible
+	var reqCSRResp requestMDMAppleCSRResponse
+	s.DoJSON("POST", "/api/latest/fleet/mdm/apple/request_csr", requestMDMAppleCSRRequest{EmailAddress: "a@b.c", Organization: "test"}, http.StatusOK, &reqCSRResp)
+	s.Do("POST", "/api/latest/fleet/mdm/apple/dep/key_pair", nil, http.StatusOK)
 }
 
 func (s *integrationTestSuite) TestOrbitConfigNotifications() {

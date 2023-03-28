@@ -856,20 +856,27 @@ func filterHostsByMacOSSettingsStatus(sql string, opt fleet.HostListOptions, par
 		newSQL += ` AND h.team_id IS NULL`
 	}
 
-	newSQL += ` AND EXISTS (SELECT 1 FROM host_mdm_apple_profiles hmap WHERE hmap.host_uuid = h.uuid AND status = ?`
+	newSQL += ` AND EXISTS (
+		SELECT 1
+		FROM host_mdm_apple_profiles hmap
+		WHERE hmap.host_uuid = h.uuid
+		AND `
 
 	switch opt.MacOSSettingsFilter {
 	case fleet.MacOSSettingsStatusFailing:
-		newSQL += `)`
+		newSQL += `hmap.status = ?)`
 		newParams = append(newParams, fleet.MDMAppleDeliveryFailed)
 
 	case fleet.MacOSSettingsStatusPending:
-		newSQL += ` AND NOT EXISTS (SELECT 1 FROM host_mdm_apple_profiles hmap2 WHERE h.uuid = hmap2.host_uuid AND hmap2.status = ?))`
+		newSQL += `(hmap.status = ? OR hmap.status IS NULL) AND NOT EXISTS
+		(SELECT 1 FROM host_mdm_apple_profiles hmap2 WHERE h.uuid = hmap2.host_uuid AND hmap2.status = ?))`
 		newParams = append(newParams, fleet.MDMAppleDeliveryPending, fleet.MDMAppleDeliveryFailed)
 
 	case fleet.MacOSSettingsStatusLatest:
-		newSQL += ` AND NOT EXISTS (SELECT 1 FROM host_mdm_apple_profiles hmap2 WHERE h.uuid = hmap2.host_uuid AND (hmap2.status = ? OR hmap2.status = ?)))`
-		newParams = append(newParams, fleet.MDMAppleDeliveryApplied, fleet.MDMAppleDeliveryPending, fleet.MDMAppleDeliveryFailed)
+		newSQL += `hmap.status = ? AND NOT EXISTS (
+			SELECT 1 FROM host_mdm_apple_profiles hmap2
+			WHERE h.uuid = hmap2.host_uuid AND (hmap2.status IS NULL OR hmap2.status != ?) ))`
+		newParams = append(newParams, fleet.MDMAppleDeliveryApplied, fleet.MDMAppleDeliveryApplied)
 	}
 
 	return sql + newSQL, append(params, newParams...)
@@ -1108,7 +1115,7 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, isMDMEnabled bool, hostInf
         uuid = COALESCE(NULLIF(uuid, ''), ?),
         osquery_host_id = COALESCE(NULLIF(osquery_host_id, ''), ?),
         hardware_serial = COALESCE(NULLIF(hardware_serial, ''), ?),
-		team_id = ?
+        team_id = ?
       WHERE id = ?`
 			_, err := tx.ExecContext(ctx, sqlUpdate,
 				orbitNodeKey,
@@ -1461,7 +1468,8 @@ func (ds *Datastore) LoadHostByOrbitNodeKey(ctx context.Context, nodeKey string)
       hm.installed_from_dep,
       hm.mdm_id,
       COALESCE(hm.is_server, false) AS is_server,
-      COALESCE(mdms.name, ?) AS name
+      COALESCE(mdms.name, ?) AS name,
+      COALESCE(hdek.reset_requested, false) AS disk_encryption_reset_requested
     FROM
       hosts h
     LEFT OUTER JOIN
@@ -1472,6 +1480,10 @@ func (ds *Datastore) LoadHostByOrbitNodeKey(ctx context.Context, nodeKey string)
       mobile_device_management_solutions mdms
     ON
       hm.mdm_id = mdms.id
+    LEFT OUTER JOIN
+      host_disk_encryption_keys hdek
+    ON
+      hdek.host_id = h.id
     WHERE
       h.orbit_node_key = ?`
 
@@ -3619,6 +3631,21 @@ func (ds *Datastore) ListHostBatteries(ctx context.Context, hid uint) ([]*fleet.
 		return nil, ctxerr.Wrap(ctx, err, "select host batteries")
 	}
 	return batteries, nil
+}
+
+func (ds *Datastore) SetDiskEncryptionResetStatus(ctx context.Context, hostID uint, status bool) error {
+	const stmt = `
+          INSERT INTO host_disk_encryption_keys (host_id, reset_requested, base64_encrypted)
+            VALUES (?, ?, '')
+          ON DUPLICATE KEY UPDATE
+            reset_requested = VALUES(reset_requested)`
+
+	_, err := ds.writer.ExecContext(ctx, stmt, hostID, status)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "upsert disk encryption reset status")
+	}
+	return nil
+
 }
 
 // countHostNotResponding counts the hosts that haven't been submitting results for sent queries.

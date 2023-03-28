@@ -659,6 +659,8 @@ type Datastore interface {
 	SetHostsDiskEncryptionKeyStatus(ctx context.Context, hostIDs []uint, encryptable bool, threshold time.Time) error
 	// GetHostDiskEncryptionKey returns the encryption key information for a given host
 	GetHostDiskEncryptionKey(ctx context.Context, hostID uint) (*HostDiskEncryptionKey, error)
+
+	SetDiskEncryptionResetStatus(ctx context.Context, hostID uint, status bool) error
 	// SetOrUpdateHostOrbitInfo inserts of updates the orbit info for a host
 	SetOrUpdateHostOrbitInfo(ctx context.Context, hostID uint, version string) error
 
@@ -788,8 +790,8 @@ type Datastore interface {
 	// not already enrolled in Fleet.
 	IngestMDMAppleDeviceFromCheckin(ctx context.Context, mdmHost MDMAppleHostDetails) error
 
-	// GetNanoMDMEnrollmentStatus returns whether the identified enrollment is enabled
-	GetNanoMDMEnrollmentStatus(ctx context.Context, id string) (bool, error)
+	// GetNanoMDMEnrollment returns the nano enrollment information for the device id.
+	GetNanoMDMEnrollment(ctx context.Context, id string) (*NanoEnrollment, error)
 
 	// IncreasePolicyAutomationIteration marks the policy to fire automation again.
 	IncreasePolicyAutomationIteration(ctx context.Context, policyID uint) error
@@ -811,6 +813,12 @@ type Datastore interface {
 	// status of a profile in a host.
 	BulkUpsertMDMAppleHostProfiles(ctx context.Context, payload []*MDMAppleBulkUpsertHostProfilePayload) error
 
+	// BulkSetPendingMDMAppleHostProfiles sets the status of profiles to install
+	// or to remove for each affected host to pending for the provided criteria,
+	// which may be either a list of hostIDs, teamIDs, profileIDs or hostUUIDs
+	// (only one of those ID types can be provided).
+	BulkSetPendingMDMAppleHostProfiles(ctx context.Context, hostIDs, teamIDs, profileIDs []uint, hostUUIDs []string) error
+
 	// GetMDMAppleProfilesContents retrieves the XML contents of the
 	// profiles requested.
 	GetMDMAppleProfilesContents(ctx context.Context, profileIDs []uint) (map[uint]mobileconfig.Mobileconfig, error)
@@ -819,6 +827,9 @@ type Datastore interface {
 	// profile status. It deletes the row if the profile operation is "remove"
 	// and the status is "applied" (i.e. successfully removed).
 	UpdateOrDeleteHostMDMAppleProfile(ctx context.Context, profile *HostMDMAppleProfile) error
+
+	// DeleteMDMAppleProfilesForHost deletes all MDM profiles for a host
+	DeleteMDMAppleProfilesForHost(ctx context.Context, hostUUID string) error
 
 	// GetMDMAppleCommandRequest type returns the request type for the given command
 	GetMDMAppleCommandRequestType(ctx context.Context, commandUUID string) (string, error)
@@ -830,6 +841,11 @@ type Datastore interface {
 
 	// InsertMDMIdPAccount inserts a new MDM IdP account
 	InsertMDMIdPAccount(ctx context.Context, account *MDMIdPAccount) error
+
+	// GetMDMAppleFileVaultSummary summarizes the current state of Apple disk encryption profiles on
+	// each macOS host in the specified team (or, if no team is specified, each host that is not assigned
+	// to any team).
+	GetMDMAppleFileVaultSummary(ctx context.Context, teamID *uint) (*MDMAppleFileVaultSummary, error)
 }
 
 const (
