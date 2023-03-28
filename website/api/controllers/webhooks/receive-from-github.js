@@ -486,7 +486,7 @@ module.exports = {
 
       // Only continue if this release came from the fleetdm/fleet repo,
       if(owner === 'fleetdm' && repo === 'fleet') {
-       // Only send requests for releases with tag names that start with 'fleet'
+        // Only send requests for releases with tag names that start with 'fleet'
         if(release && _.startsWith(release.tag_name, 'fleet')) {
           // Send a POST request to Zapier with the release object.
           await sails.helpers.http.post.with({
