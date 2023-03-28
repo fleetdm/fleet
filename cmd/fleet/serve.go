@@ -48,14 +48,12 @@ import (
 	"github.com/getsentry/sentry-go"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
-	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/kolide/kit/version"
 	"github.com/micromdm/nanomdm/cryptoutil"
 	"github.com/micromdm/nanomdm/push/buford"
 	nanomdm_pushsvc "github.com/micromdm/nanomdm/push/service"
 	scep_depot "github.com/micromdm/scep/v2/depot"
 	"github.com/ngrok/sqlmw"
-	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/cobra"
 	"go.elastic.co/apm/module/apmhttp"
@@ -716,22 +714,6 @@ the way that the Fleet server works.
 					}
 				}()
 			}
-
-			fieldKeys := []string{"method", "error"}
-			requestCount := kitprometheus.NewCounterFrom(prometheus.CounterOpts{
-				Namespace: "api",
-				Subsystem: "service",
-				Name:      "request_count",
-				Help:      "Number of requests received.",
-			}, fieldKeys)
-			requestLatency := kitprometheus.NewSummaryFrom(prometheus.SummaryOpts{
-				Namespace: "api",
-				Subsystem: "service",
-				Name:      "request_latency_microseconds",
-				Help:      "Total duration of requests in microseconds.",
-			}, fieldKeys)
-
-			svc = service.NewMetricsService(svc, requestCount, requestLatency)
 
 			httpLogger := kitlog.With(logger, "component", "http")
 
