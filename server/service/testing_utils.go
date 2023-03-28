@@ -19,6 +19,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/logging"
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/async"
 	"github.com/fleetdm/fleet/v4/server/service/mock"
@@ -285,7 +286,7 @@ func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServ
 		if mdmStorage != nil && scepStorage != nil {
 			err := RegisterAppleMDMProtocolServices(
 				rootMux,
-				cfg.MDMApple.SCEP,
+				cfg.MDM,
 				mdmStorage,
 				scepStorage,
 				logger,
@@ -522,4 +523,31 @@ func mockSuccessfulPush(pushes []*mdm.Push) (map[string]*push.Response, error) {
 		}
 	}
 	return res, nil
+}
+
+func mdmAppleConfigurationRequiredEndpoints() [][2]string {
+	return [][2]string{
+		{"POST", "/api/latest/fleet/mdm/apple/enrollmentprofiles"},
+		{"GET", "/api/latest/fleet/mdm/apple/enrollmentprofiles"},
+		{"POST", "/api/latest/fleet/mdm/apple/enqueue"},
+		{"GET", "/api/latest/fleet/mdm/apple/commandresults"},
+		{"GET", "/api/latest/fleet/mdm/apple/installers/1"},
+		{"DELETE", "/api/latest/fleet/mdm/apple/installers/1"},
+		{"GET", "/api/latest/fleet/mdm/apple/installers"},
+		{"GET", "/api/latest/fleet/mdm/apple/devices"},
+		{"GET", "/api/latest/fleet/mdm/apple/dep/devices"},
+		{"GET", "/api/latest/fleet/mdm/apple/profiles"},
+		{"GET", "/api/latest/fleet/mdm/apple/profiles/1"},
+		{"DELETE", "/api/latest/fleet/mdm/apple/profiles/1"},
+		{"GET", "/api/latest/fleet/mdm/apple/profiles/summary"},
+		{"PATCH", "/api/latest/fleet/mdm/hosts/1/unenroll"},
+		{"GET", "/api/latest/fleet/mdm/hosts/1/encryption_key"},
+		{"POST", "/api/latest/fleet/mdm/hosts/1/lock"},
+		{"POST", "/api/latest/fleet/mdm/hosts/1/wipe"},
+		{"PATCH", "/api/latest/fleet/mdm/apple/settings"},
+		{"GET", "/api/latest/fleet/mdm/apple"},
+		{"POST", "/api/latest/fleet/mdm/apple/dep_login"},
+		{"GET", apple_mdm.EnrollPath + "?token=test"},
+		{"GET", apple_mdm.InstallerPath + "?token=test"},
+	}
 }

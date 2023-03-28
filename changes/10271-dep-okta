@@ -1,1 +1,0 @@
-* Added a new API endpoint to gate access to an enrollment profile behind Okta authentication.
