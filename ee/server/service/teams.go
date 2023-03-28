@@ -104,6 +104,11 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		team.Config.WebhookSettings = *payload.WebhookSettings
 	}
 
+	appCfg, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	var macOSMinVersionUpdated, macOSDiskEncryptionUpdated bool
 	if payload.MDM != nil {
 		if payload.MDM.MacOSUpdates != nil {
@@ -115,7 +120,7 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		}
 
 		if payload.MDM.MacOSSettings != nil {
-			if !svc.config.MDMApple.Enable && payload.MDM.MacOSSettings.EnableDiskEncryption {
+			if !appCfg.MDM.EnabledAndConfigured && payload.MDM.MacOSSettings.EnableDiskEncryption {
 				return nil, fleet.NewInvalidArgumentError("macos_settings.enable_disk_encryption",
 					`Couldn't update macos_settings because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`)
 			}
@@ -126,10 +131,6 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 
 	if payload.Integrations != nil {
 		// the team integrations must reference an existing global config integration.
-		appCfg, err := svc.ds.AppConfig(ctx)
-		if err != nil {
-			return nil, err
-		}
 		if _, err := payload.Integrations.MatchWithIntegrations(appCfg.Integrations); err != nil {
 			return nil, fleet.NewInvalidArgumentError("integrations", err.Error())
 		}
@@ -384,6 +385,10 @@ func (svc *Service) DeleteTeam(ctx context.Context, teamID uint) error {
 
 	if err := svc.ds.DeleteTeam(ctx, teamID); err != nil {
 		return err
+	}
+	// team id 0 is provided since the team's hosts are now part of no team
+	if err := svc.ds.BulkSetPendingMDMAppleHostProfiles(ctx, nil, []uint{0}, nil, nil); err != nil {
+		return ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
 	}
 
 	logging.WithExtras(ctx, "id", teamID)
@@ -731,15 +736,18 @@ func (svc *Service) applyTeamMacOSSettings(ctx context.Context, spec *fleet.Team
 		return fleet.NewUserMessageError(err, http.StatusBadRequest)
 	}
 
+	appCfg, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "apply team macos settings")
+	}
+
 	if (setFields["custom_settings"] && len(applyUpon.CustomSettings) > 0) ||
 		(setFields["enable_disk_encryption"] && applyUpon.EnableDiskEncryption) {
 		field := "custom_settings"
 		if !setFields["custom_settings"] {
 			field = "enable_disk_encryption"
 		}
-		if !svc.config.MDMApple.Enable {
-			// TODO(mna): eventually we should detect the minimum config required for
-			// this to be allowed, probably just SCEP/APNs?
+		if !appCfg.MDM.EnabledAndConfigured {
 			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError(fmt.Sprintf("macos_settings.%s", field),
 				`Couldn't update macos_settings because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`))
 		}

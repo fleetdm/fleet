@@ -150,7 +150,7 @@ The user `fleet prepare db` (via environment variable `FLEET_MYSQL_USERNAME` or 
 
 ## Does Fleet support MySQL replication?
 
-You can deploy MySQL or Maria any way you want. We recommend using managed/hosted mysql so you don't have to think about it, but you can think about it more if you want. Read replicas are supported. You can read more about MySQL configuration [here](https://fleetdm.com/docs/deploying/configuration#my-sql).
+You can deploy MySQL or Maria any way you want. We recommend using managed/hosted mysql so you don't have to think about it, but you can think about it more if you want. Read replicas are supported. You can read more about MySQL configuration [here](https://fleetdm.com/docs/deploying/configuration#mysql).
 
 ## What is duplicate enrollment and how do I fix it?
 
