@@ -100,6 +100,7 @@ func TranslateCPEToCVE(
 	vulnPath string,
 	logger kitlog.Logger,
 	collectVulns bool,
+	periodicity time.Duration,
 ) ([]fleet.SoftwareVulnerability, error) {
 	files, err := getNVDCVEFeedFiles(vulnPath)
 	if err != nil {
@@ -161,7 +162,7 @@ func TranslateCPEToCVE(
 		}
 	}
 
-	if err = ds.DeleteOutOfDateVulnerabilities(ctx, fleet.NVDSource, 2*time.Hour); err != nil {
+	if err = ds.DeleteOutOfDateVulnerabilities(ctx, fleet.NVDSource, 2*periodicity); err != nil {
 		level.Error(logger).Log("msg", "error deleting out of date vulnerabilities", "err", err)
 	}
 
