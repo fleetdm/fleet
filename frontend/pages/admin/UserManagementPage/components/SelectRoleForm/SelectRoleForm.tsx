@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useContext } from "react";
 
 import { ITeam } from "interfaces/team";
 import { IRole } from "interfaces/role";
@@ -6,6 +6,7 @@ import { UserRole } from "interfaces/user";
 // ignore TS error for now until these are rewritten in ts.
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
+import { AppContext } from "context/app";
 
 interface ISelectRoleFormProps {
   defaultTeamRole: UserRole;
@@ -17,28 +18,35 @@ interface ISelectRoleFormProps {
 
 const baseClass = "select-role-form";
 
-const roles: IRole[] = [
-  {
-    disabled: false,
-    label: "Observer+",
-    value: "observer_plus",
-  },
-  {
-    disabled: false,
-    label: "Observer",
-    value: "observer",
-  },
-  {
-    disabled: false,
-    label: "Maintainer",
-    value: "maintainer",
-  },
-  {
-    disabled: false,
-    label: "Admin",
-    value: "admin",
-  },
-];
+const roleOptions = (isPremiumTier: boolean): IRole[] => {
+  const roles: IRole[] = [
+    {
+      disabled: false,
+      label: "Observer",
+      value: "observer",
+    },
+    {
+      disabled: false,
+      label: "Maintainer",
+      value: "maintainer",
+    },
+    {
+      disabled: false,
+      label: "Admin",
+      value: "admin",
+    },
+  ];
+
+  if (isPremiumTier) {
+    roles.unshift({
+      disabled: false,
+      label: "Observer+",
+      value: "observer_plus",
+    });
+  }
+
+  return roles;
+};
 
 const generateSelectedTeamData = (
   allTeams: ITeam[],
@@ -68,6 +76,8 @@ const SelectRoleForm = ({
   onFormChange,
   label,
 }: ISelectRoleFormProps): JSX.Element => {
+  const { isPremiumTier } = useContext(AppContext);
+
   const [selectedRole, setSelectedRole] = useState(
     defaultTeamRole.toLowerCase()
   );
@@ -89,7 +99,7 @@ const SelectRoleForm = ({
           label={label}
           value={selectedRole}
           className={`${baseClass}__role-dropdown`}
-          options={roles}
+          options={roleOptions(isPremiumTier || false)}
           searchable={false}
           onChange={(newRoleValue: UserRole) =>
             updateSelectedRole(newRoleValue)
