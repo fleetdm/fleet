@@ -406,8 +406,9 @@ type Datastore interface {
 	// provided cpes. Returns the number of rows affected.
 	DeleteSoftwareCPEs(ctx context.Context, cpes []SoftwareCPE) (int64, error)
 	ListSoftwareCPEs(ctx context.Context) ([]SoftwareCPE, error)
-	// InsertSoftwareVulnerabilities inserts the given vulnerabilities in the datastore, returns the number
-	// of rows inserted. If a vulnerability already exists in the datastore, then it will be ignored.
+	// InsertSoftwareVulnerability will either insert a new vulnerability in the datastore (in which
+	// case it will return true) or if a matching record already exists it will update its
+	// updated_at timestamp (in which case it will return false).
 	InsertSoftwareVulnerability(ctx context.Context, vuln SoftwareVulnerability, source VulnerabilitySource) (bool, error)
 	SoftwareByID(ctx context.Context, id uint, includeCVEScores bool) (*Software, error)
 	// ListSoftwareByHostIDShort lists software by host ID, but does not include CPEs or vulnerabilites.
