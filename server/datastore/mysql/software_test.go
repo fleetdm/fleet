@@ -1731,6 +1731,16 @@ func testAllSoftwareIterator(t *testing.T, ds *Datastore) {
 			},
 			q: fleet.SoftwareIterQueryOptions{ExcludedSources: []string{"deb_packages"}, IncludedSources: []string{"apps"}},
 		},
+		{
+			expected: []fleet.Software{
+				{Name: "foo", Version: "0.0.1", Source: "chrome_extensions", GenerateCPE: "cpe:foo_ce_v1"},
+				{Name: "foo", Version: "v0.0.2", Source: "apps", GenerateCPE: "cpe:foo_app_v2"},
+				{Name: "foo", Version: "0.0.3", Source: "apps"},
+				{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
+				{Name: "bar", Version: "0.0.3", Source: "deb_packages", GenerateCPE: "cpe:bar_v3"},
+			},
+			q: fleet.SoftwareIterQueryOptions{},
+		},
 	}
 
 	for _, tC := range testCases {
