@@ -198,7 +198,7 @@ Please read ["Why direct responsibility?"](https://fleetdm.com/handbook/company/
 
 - *Public*   _(share with anyone, anywhere in the world)_
 - *Confidential*  _(share only with team members who've signed an NDA, consulting agreement, or employment agreement)_
-- *Classified*  _(share only with founders of Fleet, peepops, and/or the people involved.  e.g., US social security numbers during hiring)_
+- *Classified*  _(share only with founders of Fleet, business operations, and/or the people involved.  e.g., US social security numbers during hiring)_
 
 > TODO: extrapolate to "why this way" page
 
@@ -631,6 +631,26 @@ This applies to anyone who gets paid by the hour, including consultants and hour
 
 > _**Note:** If a contributor uses their own time tracking process or tools, then it is OK to track the extra time spent tracking!  Contributors at Fleet are evaluated based on their results, not the number of hours they work._
 
+## Informing managers about hours worked
+Every Friday at 1:00pm CT, we gather hours worked for anyone who gets paid hourly by Fleet. This includes core team members and consultants, regardless of employment classification, and regardless whether inside or outside of the United States.
+- For every hourly core team member in Gusto or Pilot.co, look up their manager ([who they report to](https://fleetdm.com/handbook/company#org-chart)).
+- [Consultants](https://fleetdm.com/handbook/business-operations#hiring) don't have a formal reporting structure or manager. Instead, send their hours worked to the CEO, no matter who the consultant is.
+- Send each manager a direct message in Slack by copying and pasting the following template:
+
+> Here are the hours worked by your direct reports since last Saturday at midnight (YYYY-MM-DD):
+> - 🧑‍🚀 Alice Bobberson: 21.25
+> - 🧑‍🚀 Charles David: 3.5
+>
+> And here are the hours worked by consultants:
+> - 💁 Bombalurina: 0
+> - 💁 Jennyanydots: 0
+> - 💁 Skimbleshanks: 19
+> - 💁 Grizabella: 0
+> 
+> More info: https://fleetdm.com/handbook/business-operations#informing-managers-about-hours-worked
+
+
+
 
 ## Departures
 
@@ -789,6 +809,7 @@ The following table lists this group's rituals, frequency, and Directly Responsi
 | Security policy update | Annually | Update security policies and have them approved by the CEO. | Nathanael Holliday |
 | Security notifications check | Daily | Check Slack, Google, Vanta, and Fleet dogfood for security-related notifications. | Nathanael Holliday |
 | Changeset for onboarding issue template | Quarterly | pull up the changeset in the onboarding issue template and send out a link to the diff to all team members by posting in Slack's `#general` channel. | Mike McNeil |
+| Informing managers about hours worked | Weekly |  See [handbook entry](https://fleetdm.com/handbook/business-operations#informing-managers-about-hours-worked). | Nathanael Holliday |
 
 
 
@@ -813,7 +834,7 @@ These groups maintain the following [Slack channels](https://fleetdm.com/handboo
 | `#help-brex`                            | Nathan Holliday
 | `#help-ceo`                             | Mike McNeil
 | `#help-mission-control` _(¶¶)_          | Mike McNeil
-| `#g-people` _(¶¶)_                      | Mike McNeil
+| `#help-classified` _(¶¶)_               | Mike McNeil
 | `#help-open-core-ventures` _(¶¶)_       | Mike McNeil
 
 #### Stubs

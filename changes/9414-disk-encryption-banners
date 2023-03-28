@@ -1,3 +1,0 @@
-- Add information banners on the Host Details and My Device pages that appear when the user must
-  either reset their encryption (FileVault on macOS) key, or logout/restart, to enable disk
-  encryption.

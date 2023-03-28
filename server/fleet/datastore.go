@@ -785,8 +785,8 @@ type Datastore interface {
 	// not already enrolled in Fleet.
 	IngestMDMAppleDeviceFromCheckin(ctx context.Context, mdmHost MDMAppleHostDetails) error
 
-	// GetNanoMDMEnrollmentStatus returns whether the identified enrollment is enabled
-	GetNanoMDMEnrollmentStatus(ctx context.Context, id string) (bool, error)
+	// GetNanoMDMEnrollment returns the nano enrollment information for the device id.
+	GetNanoMDMEnrollment(ctx context.Context, id string) (*NanoEnrollment, error)
 
 	// IncreasePolicyAutomationIteration marks the policy to fire automation again.
 	IncreasePolicyAutomationIteration(ctx context.Context, policyID uint) error
@@ -807,6 +807,12 @@ type Datastore interface {
 	// BulkUpsertMDMAppleHostProfiles bulk-adds/updates records to track the
 	// status of a profile in a host.
 	BulkUpsertMDMAppleHostProfiles(ctx context.Context, payload []*MDMAppleBulkUpsertHostProfilePayload) error
+
+	// BulkSetPendingMDMAppleHostProfiles sets the status of profiles to install
+	// or to remove for each affected host to pending for the provided criteria,
+	// which may be either a list of hostIDs, teamIDs, profileIDs or hostUUIDs
+	// (only one of those ID types can be provided).
+	BulkSetPendingMDMAppleHostProfiles(ctx context.Context, hostIDs, teamIDs, profileIDs []uint, hostUUIDs []string) error
 
 	// GetMDMAppleProfilesContents retrieves the XML contents of the
 	// profiles requested.

@@ -1,1 +1,0 @@
-* Run periodic cleanup of pending `cron_stats` outside the `schedule` package to prevent Fleet outages from breaking cron jobs.

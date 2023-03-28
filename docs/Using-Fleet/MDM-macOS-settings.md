@@ -113,4 +113,4 @@ spec:
 3. Run the `fleetctl apply -f <your-config-here>.yml` command to add the configuration profiles to Fleet. Note that this will override any configuration profiles added using the Fleet UI method.
 
 <meta name="pageOrderInSection" value="1503">
-<meta name="title" value="MDM macOS Settings">
+<meta name="title" value="MDM macOS settings">

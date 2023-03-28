@@ -20,8 +20,7 @@ export default (
   isAnyTeamAdmin = false,
   isAnyTeamMaintainer = false,
   isGlobalMaintainer = false,
-  isNoAccess = false,
-  isMdmFeatureFlagEnabled = false
+  isNoAccess = false
 ): INavItem[] => {
   if (!user) {
     return [];
@@ -60,7 +59,7 @@ export default (
         regex: new RegExp(`^${URL_PREFIX}/controls/`),
         pathname: PATHS.CONTROLS,
       },
-      exclude: !isMaintainerOrAdmin || !isMdmFeatureFlagEnabled,
+      exclude: !isMaintainerOrAdmin,
       withContext: true,
     },
     {

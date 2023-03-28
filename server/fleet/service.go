@@ -669,6 +669,11 @@ type Service interface {
 	// RFC 6749 and described in https://developer.okta.com/docs/guides/implement-grant-type/ropassword/main/
 	MDMAppleOktaLogin(ctx context.Context, username, password string) ([]byte, error)
 
+	// VerifyMDMAppleConfigured verifies that the server is configured for
+	// Apple MDM. If an error is returned, authorization is skipped so the
+	// error can be raised to the user. See TODO for more details.
+	VerifyMDMAppleConfigured(ctx context.Context) error
+
 	///////////////////////////////////////////////////////////////////////////////
 	// CronSchedulesService
 
