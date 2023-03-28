@@ -38,7 +38,11 @@ fleetctl apply --policies-team "Workstations" -f cis-policy-queries.yml
 ```
 
 ## Limitations
-Fleet's current set of benchmarks only implements benchmark auditing steps that can be automated.
+Fleet's current set of benchmarks only implements benchmark *auditing* steps that can be *automated*.
+
+In practice, Fleet is able to cover a large majority of benchmarks:
+* macOS 13 Ventura - 96 of 104
+* Windows 10 Enterprise - TODO
 
 For a list of specific checks which are not covered by Fleet, please visit the section devoted to each benchmark.
 
@@ -60,6 +64,8 @@ For both the audit and remediation elements of a CIS Benchmark, there are two ty
 Fleet only implements automated audit checks. Manual checks require administrators to implement other processes to conduct the check.
 
 ### MDM required
+Some of the policies created by Fleet use the [managed_policies](www.fleetdm.com/tables/managed_policies). This checks whether an MDM solution has turned on the setting to enforce the policy.
+Using MDM is the recommended way to manage and enforce CIS benchmarks. To learn how to set up MDM in Fleet, visit [here](/docs/using-fleet/mdm-setup).
 
 ## Levels 1 and 2
 CIS designates various benchmarks as Level 1 or Level 2 to describe the level of thoroughness and burden that each benchmark represents.
