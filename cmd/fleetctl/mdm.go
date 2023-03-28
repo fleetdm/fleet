@@ -76,13 +76,18 @@ func mdmRunCommand() *cli.Command {
 				return errors.New("Can't run the MDM command because the host doesn't have MDM turned on. Run the following command to see a list of hosts with MDM on: fleetctl get hosts --mdm")
 			}
 
-			result, err := client.EnqueueCommand(deviceIDs, payloadBytes)
+			result, err := client.EnqueueCommand([]string{host.UUID}, payload)
 			if err != nil {
 				return err
 			}
 
-			commandUUID := result.CommandUUID
-			fmt.Printf("Command UUID: %s\n", commandUUID)
+			fmt.Printf(`
+The hosts will run the command the next time it checks into Fleet.
+
+Copy and run this command to see results:
+
+fleetctl get mdm-command-results --id=%v
+`, result.CommandUUID)
 
 			return nil
 		},

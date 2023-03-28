@@ -59,7 +59,7 @@ func (c *Client) EnqueueCommand(deviceIDs []string, rawPlist []byte) (*fleet.Com
 	}
 	var response enqueueMDMAppleCommandResponse
 	if err := c.authenticatedRequest(request, "POST", "/api/latest/fleet/mdm/apple/enqueue", &response); err != nil {
-		return nil, fmt.Errorf("request: %w", err)
+		return nil, fmt.Errorf("run command request: %w", err)
 	}
 	return &response.Result, nil
 }

@@ -916,9 +916,30 @@ func (svc *Service) EnqueueMDMAppleCommand(
 	deviceIDs []string,
 	noPush bool,
 ) (status int, result *fleet.CommandEnqueueResult, err error) {
+	var premiumCommands = map[string]bool{
+		"EraseDevice": true,
+		"DeviceLock":  true,
+	}
+
+	// TODO(mna): load hosts (lite) by uuids, check that they are all part of the same team,
+	// or otherwise authorize the user for every team.
+
 	if err := svc.authz.Authorize(ctx, command, fleet.ActionWrite); err != nil {
 		return 0, nil, ctxerr.Wrap(ctx, err)
 	}
+
+	if premiumCommands[strings.TrimSpace(command.Command.Command.RequestType)] {
+		lic, err := svc.License(ctx)
+		if err != nil {
+			return 0, nil, ctxerr.Wrap(ctx, err, "get license")
+		}
+		if !lic.IsPremium() {
+			return 0, nil, fleet.ErrMissingLicense
+		}
+	}
+
+	// TODO(mna): hmmm is this ok to still call this (deprecated) func? Or is
+	// there a ticket to re-implement or address this?
 	return deprecatedRawCommandEnqueue(ctx, svc.mdmStorage, svc.mdmPushService, command.Command, deviceIDs, noPush, svc.logger)
 }
 

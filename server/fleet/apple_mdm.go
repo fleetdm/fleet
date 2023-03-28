@@ -254,6 +254,7 @@ type CommandEnqueueResult struct {
 // MDMAppleCommand represents an Apple MDM command.
 type MDMAppleCommand struct {
 	*mdm.Command
+	TeamID *uint `json:"team_id"` // required for authorization by team
 }
 
 // AuthzType implements authz.AuthzTyper.

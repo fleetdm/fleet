@@ -195,8 +195,6 @@ func TestAppleMDMAuthorization(t *testing.T) {
 		checkAuthErr(t, err, shouldFailWithAuth)
 		_, err = svc.ListMDMAppleDEPDevices(ctx)
 		checkAuthErr(t, err, shouldFailWithAuth)
-		_, _, err = svc.EnqueueMDMAppleCommand(ctx, &fleet.MDMAppleCommand{Command: &mdm.Command{}}, nil, false)
-		checkAuthErr(t, err, shouldFailWithAuth)
 	}
 
 	// Only global admins can access the endpoints.
@@ -231,6 +229,17 @@ func TestAppleMDMAuthorization(t *testing.T) {
 	ctx = test.HostContext(context.Background(), &fleet.Host{})
 	_, err = svc.GetDeviceMDMAppleEnrollmentProfile(ctx)
 	require.NoError(t, err)
+
+	// Admins and maintainers can enqueue (run) a command
+	ctx = test.UserContext(ctx, test.UserNoRoles)
+	_, _, err = svc.EnqueueMDMAppleCommand(ctx, &fleet.MDMAppleCommand{Command: &mdm.Command{}}, nil, false)
+	checkAuthErr(t, err, true)
+	ctx = test.UserContext(ctx, test.UserMaintainer)
+	_, _, err = svc.EnqueueMDMAppleCommand(ctx, &fleet.MDMAppleCommand{Command: &mdm.Command{}}, nil, false)
+	checkAuthErr(t, err, false)
+	ctx = test.UserContext(ctx, test.UserAdmin)
+	_, _, err = svc.EnqueueMDMAppleCommand(ctx, &fleet.MDMAppleCommand{Command: &mdm.Command{}}, nil, false)
+	checkAuthErr(t, err, false)
 }
 
 func TestMDMAppleEnrollURL(t *testing.T) {
