@@ -64,7 +64,7 @@ For both the audit and remediation elements of a CIS Benchmark, there are two ty
 Fleet only implements automated audit checks. Manual checks require administrators to implement other processes to conduct the check.
 
 ### MDM required
-Some of the policies created by Fleet use the [managed_policies](www.fleetdm.com/tables/managed_policies). This checks whether an MDM solution has turned on the setting to enforce the policy.
+Some of the policies created by Fleet use the [managed_policies](www.fleetdm.com/tables/managed_policies) table. This checks whether an MDM solution has turned on the setting to enforce the policy.
 Using MDM is the recommended way to manage and enforce CIS benchmarks. To learn how to set up MDM in Fleet, visit [here](/docs/using-fleet/mdm-setup).
 
 ## Levels 1 and 2
