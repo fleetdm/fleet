@@ -2465,8 +2465,6 @@ func (s *integrationEnterpriseTestSuite) TestListSoftware() {
 		bar = host.Software[1]
 	}
 
-	require.NoError(t, s.ds.AddCPEForSoftware(ctx, bar, "somecpe"))
-
 	n, err := s.ds.InsertSoftwareVulnerabilities(
 		ctx, []fleet.SoftwareVulnerability{
 			{
@@ -2499,7 +2497,7 @@ func (s *integrationEnterpriseTestSuite) TestListSoftware() {
 
 	fooPayload := resp.Software[1]
 	if barPayload.Name != "bar" {
-		barPayload = resp.Software[1]
+		barPayload = resp.Software[0]
 	}
 
 	require.Empty(t, fooPayload.Vulnerabilities)
