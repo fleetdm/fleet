@@ -224,10 +224,11 @@ func deleteUninstalledHostSoftwareDB(
 	// Otherwise the software will be listed by ds.ListSoftware but ds.SoftwareByID,
 	// ds.CountHosts and ds.ListHosts will return a *notFoundError error for such
 	// software.
-	stmt = `DELETE FROM software WHERE id IN (?) AND id NOT IN (
-		SELECT DISTINCT software_id FROM host_software WHERE software_id IN (?)
-	);`
-	stmt, args, err = sqlx.In(stmt, deletesHostSoftware, deletesHostSoftware)
+	stmt = `DELETE FROM software WHERE id IN (?) AND 
+	NOT EXISTS (
+		SELECT 1 FROM host_software hsw WHERE hsw.software_id = software.id
+	)`
+	stmt, args, err = sqlx.In(stmt, deletesHostSoftware)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "build delete software query")
 	}
