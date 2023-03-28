@@ -30,6 +30,8 @@ Fleet UI:
 
 3. Run the `fleetctl apply -f <your-YAML-file-here>` command.
 
+> It may take up to 30 minutes for Fleet to collect and store the encryption keys from all hosts.
+
 ### Viewing a disk encryption key
 
 The disk encryption key allows you to reset a macOS host's password if you don't know it. This way, if you plan to prepare a host for a new employee, you can login to it and erase all its content and settings.
