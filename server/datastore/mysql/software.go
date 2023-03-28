@@ -660,11 +660,16 @@ func (si *softwareIterator) Next() bool {
 }
 
 // AllSoftwareIterator Returns an iterator for the 'software' table, filtering out
-// software entries based on the 'query' param.
+// software entries based on the 'query' param. The rows.Close call is done by the caller once
+// iteration using the returned fleet.SoftwareIterator is done.
 func (ds *Datastore) AllSoftwareIterator(
 	ctx context.Context,
 	query fleet.SoftwareIterQueryOptions,
 ) (fleet.SoftwareIterator, error) {
+	if !query.IsValid() {
+		return nil, fmt.Errorf("invalid query params %+v", query)
+	}
+
 	var err error
 	var args []interface{}
 
@@ -673,8 +678,6 @@ func (ds *Datastore) AllSoftwareIterator(
 		COALESCE(sc.cpe, '') AS generated_cpe
 	FROM software s 
 	LEFT JOIN software_cpe sc ON (s.id=sc.software_id)`
-	// The rows.Close call is done by the caller once iteration using the
-	// returned fleet.SoftwareIterator is done.
 
 	var conditionals []string
 	arg := map[string]interface{}{}
@@ -693,11 +696,11 @@ func (ds *Datastore) AllSoftwareIterator(
 		cond := strings.Join(conditionals, " AND ")
 		stmt, args, err = sqlx.Named(stmt+" WHERE "+cond, arg)
 		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "load host software")
+			return nil, ctxerr.Wrap(ctx, err, "error binding named arguments on software iterator")
 		}
 		stmt, args, err = sqlx.In(stmt, args...)
 		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "load host software")
+			return nil, ctxerr.Wrap(ctx, err, "error building 'In' query part on software iterator")
 		}
 	}
 
@@ -738,16 +741,19 @@ func (ds *Datastore) DeleteSoftwareCPEs(ctx context.Context, cpes []fleet.Softwa
 		return 0, nil
 	}
 
-	sql := fmt.Sprintf(
-		`DELETE FROM software_cpe WHERE (software_id) IN (%s)`,
-		strings.TrimSuffix(strings.Repeat("?,", len(cpes)), ","),
-	)
-	var args []interface{}
+	stmt := `DELETE FROM software_cpe WHERE (software_id) IN (?)`
+
+	softwareIDs := make([]uint, 0, len(cpes))
 	for _, cpe := range cpes {
-		args = append(args, cpe.SoftwareID)
+		softwareIDs = append(softwareIDs, cpe.SoftwareID)
 	}
 
-	res, err := ds.writer.ExecContext(ctx, sql, args...)
+	query, args, err := sqlx.In(stmt, softwareIDs)
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "error building 'In' query part when deleting software CPEs")
+	}
+
+	res, err := ds.writer.ExecContext(ctx, query, args...)
 	if err != nil {
 		return 0, ctxerr.Wrapf(ctx, err, "deleting cpes software")
 	}
@@ -808,7 +814,7 @@ func (ds *Datastore) DeleteOutOfDateVulnerabilities(ctx context.Context, source 
 	args = append(args, source, cutPoint)
 
 	if _, err := ds.writer.ExecContext(ctx, sql, args...); err != nil {
-		return ctxerr.Wrapf(ctx, err, "deleting out of date vulnerabilities")
+		return ctxerr.Wrap(ctx, err, "deleting out of date vulnerabilities")
 	}
 	return nil
 }
