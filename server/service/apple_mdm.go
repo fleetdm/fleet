@@ -556,18 +556,12 @@ type getMDMAppleFileVaultSummaryRequest struct {
 }
 
 type getMDMAppleFileVauleSummaryResponse struct {
-	Applied             uint  `json:"applied"`
-	ActionRequired      uint  `json:"action_required"`
-	Enforcing           uint  `json:"enforcing"`
-	Failed              uint  `json:"failed"`
-	RemovingEnforcement uint  `json:"removing_enforcement"`
-	Err                 error `json:"error,omitempty"`
+	*fleet.MDMAppleFileVaultSummary
+	Err error `json:"error,omitempty"`
 }
 
-// QUESTION: what is this line for?
 func (r getMDMAppleFileVauleSummaryResponse) error() error { return r.Err }
 
-// QUESTION: `errorer` naming? why this name?
 func getMdmAppleFileVaultSummaryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getMDMAppleFileVaultSummaryRequest)
 
@@ -577,11 +571,7 @@ func getMdmAppleFileVaultSummaryEndpoint(ctx context.Context, request interface{
 	}
 
 	return &getMDMAppleFileVauleSummaryResponse{
-		Applied:             fvs.Applied,
-		ActionRequired:      fvs.ActionRequired,
-		Enforcing:           fvs.Enforcing,
-		Failed:              fvs.Failed,
-		RemovingEnforcement: fvs.RemovingEnforcement,
+		MDMAppleFileVaultSummary: fvs,
 	}, nil
 }
 
@@ -596,13 +586,7 @@ func (svc *Service) GetMDMAppleFileVaultSummary(ctx context.Context, teamID *uin
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 
-	return &fleet.MDMAppleFileVaultSummary{
-		Applied:             fvs.Applied,
-		ActionRequired:      fvs.ActionRequired,
-		Enforcing:           fvs.Enforcing,
-		Failed:              fvs.Failed,
-		RemovingEnforcement: fvs.RemovingEnforcement,
-	}, nil
+	return fvs, nil
 }
 
 type uploadAppleInstallerRequest struct {
