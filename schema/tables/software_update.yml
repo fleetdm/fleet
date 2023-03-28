@@ -7,6 +7,6 @@ columns:
     type: integer
     required: false
     description: |
-      Software vendors release security patches and software updates for their products when security vulnerabilities are discovered. There is no simple way to complete this action without a network connection to an Apple software repository. Please ensure appropriate access for this control. This check is only for what Apple provides through software update.      
+      If true, means one of the Apple softwares installed on this machine has a new available upgrade.
 notes: This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
 evented: false
