@@ -110,24 +110,14 @@ However, Fleet has provided these as policies. If your organization declines to 
 ### macOS 13.0 Ventura manual checks
 
 The following CIS benchmark checks cannot be automated and must be addressed manually:
-- 2.1.1.1 Audit iCloud Keychain
-- 2.1.1.2 Audit iCloud Drive
 - 2.1.2 Audit App Store Password Settings
 - 2.3.3.12 Ensure Computer Name Does Not Contain PII or Protected Organizational Information
-- 2.5.1 Audit Siri Settings
-- 2.6.1.3 Audit Location Services Access
 - 2.6.6 Audit Lockdown Mode
-- 2.6.7 Ensure an Administrator Password Is Required to Access System-Wide Preferences
-- 2.8.1 Audit Universal Control Settings
 - 2.11.2 Audit Touch ID and Wallet & Apple Pay Settings
 - 2.13.1 Audit Passwords System Preference Setting
 - 2.14.1 Audit Notification & Focus Settings
 - 3.7 Audit Software Inventory
-- 5.3.1 Ensure all user storage APFS volumes are encrypted
-- 5.3.2 Ensure all user storage CoreStorage volumes are encrypted
 - 6.2.1 Ensure Protect Mail Activity in Mail Is Enabled
-- 6.3.2 Audit History and Remove History Items
-- 6.3.5 Audit Hide IP Address in Safari Setting
 
 <meta name="pageOrderInSection" value="1700">
 <meta name="title" value="CIS Benchmarks">
