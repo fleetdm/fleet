@@ -3,7 +3,10 @@ package main
 import (
 	"errors"
 	"fmt"
+	"os"
+	"strings"
 
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/urfave/cli/v2"
 )
@@ -29,12 +32,14 @@ func mdmRunCommand() *cli.Command {
 		Usage: "Run a custom MDM command on one macOS host. Head to Apple's documentation for a list of available commands and example payloads here:  https://developer.apple.com/documentation/devicemanagement/commands_and_queries",
 		Flags: []cli.Flag{
 			&cli.StringFlag{
-				Name:  "host",
-				Usage: "The host, specified by hostname, that you want to run the MDM command on.",
+				Name:     "host",
+				Usage:    "The host, specified by hostname, uuid, osquery_host_id or node_key, that you want to run the MDM command on.",
+				Required: true,
 			},
 			&cli.StringFlag{
-				Name:  "payload",
-				Usage: "A path to an XML file containing the raw MDM request payload.",
+				Name:     "payload",
+				Usage:    "A path to an XML file containing the raw MDM request payload.",
+				Required: true,
 			},
 		},
 		Action: func(c *cli.Context) error {
@@ -47,30 +52,37 @@ func mdmRunCommand() *cli.Command {
 			if err := checkMDMEnabled(client); err != nil {
 				return err
 			}
-			fmt.Println("Running a command...")
-			/*
-				deviceIDs := strings.Split(c.String("device-ids"), ",")
-				if len(deviceIDs) == 0 {
-					return errors.New("must provide at least one device ID")
-				}
 
-				payloadFilename := c.String("command-payload")
-				if payloadFilename == "" {
-					return errors.New("must provide a command payload file")
-				}
-				payloadBytes, err := os.ReadFile(payloadFilename)
-				if err != nil {
-					return fmt.Errorf("read payload: %w", err)
-				}
+			hostIdent := c.String("host")
+			payloadFile := c.String("payload")
+			payload, err := os.ReadFile(payloadFile)
+			if err != nil {
+				return fmt.Errorf("read payload: %w", err)
+			}
 
-				result, err := fleet.EnqueueCommand(deviceIDs, payloadBytes)
-				if err != nil {
-					return err
+			host, err := client.HostByIdentifier(hostIdent)
+			if err != nil {
+				var nfe service.NotFoundErr
+				if errors.As(err, &nfe) {
+					return errors.New("The host doesn't exist. Please provide a valid hostname, uuid, osquery_host_id or node_key.")
 				}
+				return err
+			}
 
-				commandUUID := result.CommandUUID
-				fmt.Printf("Command UUID: %s\n", commandUUID)
-			*/
+			// TODO(mna): this "On" check is brittle, but looks like it's the only
+			// enrollment indication we have right now...
+			if host.MDM.EnrollmentStatus == nil || !strings.HasPrefix(*host.MDM.EnrollmentStatus, "On") ||
+				host.MDM.Name != fleet.WellKnownMDMFleet {
+				return errors.New("Can't run the MDM command because the host doesn't have MDM turned on. Run the following command to see a list of hosts with MDM on: fleetctl get hosts --mdm")
+			}
+
+			result, err := client.EnqueueCommand(deviceIDs, payloadBytes)
+			if err != nil {
+				return err
+			}
+
+			commandUUID := result.CommandUUID
+			fmt.Printf("Command UUID: %s\n", commandUUID)
 
 			return nil
 		},

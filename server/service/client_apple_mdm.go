@@ -41,7 +41,7 @@ func (c *Client) ListEnrollments() ([]*fleet.MDMAppleEnrollmentProfile, error) {
 func (c *Client) EnqueueCommand(deviceIDs []string, rawPlist []byte) (*fleet.CommandEnqueueResult, error) {
 	var commandPayload map[string]interface{}
 	if _, err := plist.Unmarshal(rawPlist, &commandPayload); err != nil {
-		return nil, fmt.Errorf("unmarshal command plist: %w", err)
+		return nil, fmt.Errorf("The payload isn't valid XML. Please provide a file with valid XML: %w", err)
 	}
 
 	// generate a random command UUID

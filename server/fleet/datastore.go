@@ -908,6 +908,11 @@ const (
 	UnknownMigrations
 )
 
+// TODO: we have a similar but different interface in the service package,
+// service.NotFoundErr - at the very least, the IsNotFound method should be the
+// same in both (the other is currently NotFound), and ideally we'd just have
+// one of those interfaces.
+
 // NotFoundError is returned when the datastore resource cannot be found.
 type NotFoundError interface {
 	error

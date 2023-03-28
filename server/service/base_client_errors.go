@@ -44,6 +44,10 @@ func (e notSetupErr) NotSetup() bool {
 	return true
 }
 
+// TODO: we have a similar but different interface in the fleet package,
+// fleet.NotFoundError - at the very least, the NotFound method should be the
+// same in both (the other is currently IsNotFound), and ideally we'd just have
+// one of those interfaces.
 type NotFoundErr interface {
 	NotFound() bool
 	Error() string
