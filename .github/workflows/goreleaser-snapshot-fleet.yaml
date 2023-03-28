@@ -77,5 +77,5 @@ jobs:
       - name: Tag and push to quay.io
         run: |
           for TAG in ${{ steps.docker.outputs.TAG }}; do
-          docker buildx imagetools create quay.io/fleetdm/fleet:${TAG} fleetdm/fleet:${TAG}
+          docker buildx imagetools create --tag quay.io/fleetdm/fleet:${TAG} fleetdm/fleet:${TAG}
           done
