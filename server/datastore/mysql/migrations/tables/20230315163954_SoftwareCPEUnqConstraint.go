@@ -10,12 +10,10 @@ func init() {
 	MigrationClient.AddMigration(Up_20230315163954, Down_20230315163954)
 }
 
-func Up_20230315163954(tx *sql.Tx) error {
-	// Since we will be adding a uniqueness constrain on (software_id) on the software_cpe table - we need to remove any
-	// possible duplicates. 
-
-	removeDuplicatedSoftwareCPEs := func(tx *sql.Tx) error {
-		const deleteStmt = `
+// Since we will be adding a uniqueness constrain on (software_id) on the software_cpe table - we need to remove any
+// possible duplicates.
+func _20230315163954_remove_duplicates(tx *sql.Tx) error {
+	const deleteStmt = `
 DELETE sc
 FROM software_cpe sc
 	INNER JOIN (
@@ -25,32 +23,33 @@ FROM software_cpe sc
 		FROM software_cpe
 		GROUP BY software_id
 		HAVING COUNT(*) > 1
-	) sc2 ON sc2.software_id = sc.software_id
-WHERE sc.id < sc2.max_id;`
+	) sc2 ON sc2.software_id = sc.software_id;
+`
 
-		if _, err := tx.Exec(deleteStmt); err != nil {
-			return errors.Wrap(err, "removing duplicated rows")
-		}
-
-		return nil
+	if _, err := tx.Exec(deleteStmt); err != nil {
+		return errors.Wrap(err, "removing duplicated rows")
 	}
 
-	addUniqueConstraintOnSoftwareID := func(tx *sql.Tx) error {
-		_, err := tx.Exec(`
+	return nil
+}
+
+func _20230315163954_add_unq_constraint(tx *sql.Tx) error {
+	_, err := tx.Exec(`
 	ALTER TABLE software_cpe ADD CONSTRAINT unq_software_id UNIQUE (software_id), ALGORITHM=INPLACE, LOCK=NONE;
 `)
-		if err != nil {
-			return errors.Wrapf(err, "adding unique constraint to software_id on software_cpe")
-		}
-		return nil
+	if err != nil {
+		return errors.Wrapf(err, "adding unique constraint to software_id on software_cpe")
 	}
+	return nil
+}
 
-	if err := removeDuplicatedSoftwareCPEs(tx); err != nil {
+func Up_20230315163954(tx *sql.Tx) error {
+	if err := _20230315163954_remove_duplicates(tx); err != nil {
 		return err
 	}
 
 	if !unqConstraintExists(tx, "software_cpe", "unq_software_id") {
-		if err := addUniqueConstraintOnSoftwareID(tx); err != nil {
+		if err := _20230315163954_add_unq_constraint(tx); err != nil {
 			return err
 		}
 	}
