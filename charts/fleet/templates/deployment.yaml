@@ -128,14 +128,10 @@ spec:
           - name: FLEET_MYSQL_TLS_KEY
             value: "/secrets/mysql/{{ .Values.mysql.tls.keyKey }}"
           {{- end }}
-          {{- if .Values.mysql.tls.config }}
           - name: FLEET_MYSQL_TLS_CONFIG
             value: "{{ .Values.mysql.tls.config }}"
-          {{- end }}
-          {{- if .Values.mysql.tls.serverName }}
           - name: FLEET_MYSQL_TLS_SERVER_NAME
             value: "{{ .Values.mysql.tls.serverName }}"
-          {{- end }}
           {{- end }}
           ## END MYSQL SECTION
           ## BEGIN REDIS SECTION

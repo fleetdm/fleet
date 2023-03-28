@@ -160,13 +160,13 @@ mysql:
   connMaxLifetime: 0
   tls:
     enabled: false
-    ## All options below are option.  Uncomment to use.
+    ## Commented options below are optional.  Uncomment to use.
     # caCertKey: ca.cert
     ## Client certificates require both the certKey and keyKey
     # certKey: client.cert
     # keyKey: client.key
-    # config: ""
-    # serverName: ""
+    config: ""
+    serverName: ""
 
 ## Section: Redis
 # All of the connection settings for Redis
