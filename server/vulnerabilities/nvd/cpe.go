@@ -403,5 +403,9 @@ func TranslateSoftwareToCPE(
 		return ctxerr.Wrap(ctx, err, "inserting cpe")
 	}
 
+	if err := iterator.Err(); err != nil {
+		return ctxerr.Wrap(ctx, err, "iterator contains error at the end of iteration")
+	}
+
 	return nil
 }
