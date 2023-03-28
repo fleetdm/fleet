@@ -63,7 +63,7 @@ jobs:
           echo "TAG=$(git rev-parse --abbrev-ref HEAD)" >> $GITHUB_OUTPUT
         id: docker
 
-      - name: List tags for push:
+      - name: List tags for push
         run: |
           echo "The following TAGs are to be pushed: ${{ steps.docker.outputs.TAG }}"
 

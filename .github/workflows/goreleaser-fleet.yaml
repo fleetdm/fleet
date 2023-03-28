@@ -62,7 +62,7 @@ jobs:
           echo "TAG=$(git describe --tags |  sed -e "s/^fleet-//")" >> $GITHUB_OUTPUT
         id: docker
 
-      - name: List tags for push:
+      - name: List tags for push
         run: |
           echo "The following TAGs are to be pushed: ${{ steps.docker.outputs.TAG }}"
 
