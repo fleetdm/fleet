@@ -480,28 +480,30 @@ module.exports = {
       //  ╚═╝  ╚═╝╚══════╝╚══════╝╚══════╝╚═╝  ╚═╝╚══════╝╚══════╝╚══════╝
       //
       // Handle new Fleet releases by sending a POST request to Zapier to
-      // trigger an automation to update the channel topics with the latest version of Fleet.
+      // trigger an automation that updates Slack channel topics with the latest version of Fleet.
+      let owner = repository.owner.login;
+      let repo = repository.name;
 
-        // Only continue if this release is has a publish date, and is not a draft or a prerelease.
-        if(!release.draft && !release.prerelease && !release.published_at) {
-          // Only continue if this is a Fleet release
-          if(_.startsWith(release.tag_name, 'fleet-v')){
-            // Send a POST request to Zapier
-            await sails.helpers.http.post(
-              'https://hooks.zapier.com/hooks/catch/3627242/3ozw6bk/',
-              {
-                'release': release,
-                'webhookSecret': sails.config.custom.zapierSandboxWebhookSecret
-              }
-            )
-            .timeout(5000)
-            .tolerate(['non200Response', 'requestFailed', {name: 'TimeoutError'}], (err)=>{
-              // Note that Zapier responds with a 2xx status code even if something goes wrong, so just because this message is not logged doesn't mean everything is hunky dory.  More info: https://github.com/fleetdm/fleet/pull/6380#issuecomment-1204395762
-              sails.log.warn(`When trying to send information about a new Fleet release to Zapier, an error occured. Raw error: ${require('util').inspect(err)}`);
-              return;
-            });
-          }
-        }//ﬁ
+      // Only continue if this release came from the fleetdm/fleet repo,
+      if(owner === 'fleetdm' && repo === 'fleet') {
+       // Only send requests for releases with tag names that start with 'fleet'
+        if(release && _.startsWith(release.tag_name, 'fleet')) {
+          // Send a POST request to Zapier with the release object.
+          await sails.helpers.http.post.with({
+            url: 'https://hooks.zapier.com/hooks/catch/3627242/3ozw6bk/',
+            data: {
+              'release': release,
+              'webhookSecret': sails.config.custom.zapierSandboxWebhookSecret,
+            }
+          })
+          .timeout(5000)
+          .tolerate(['non200Response', 'requestFailed', {name: 'TimeoutError'}], (err)=>{
+            // Note that Zapier responds with a 2xx status code even if something goes wrong, so just because this message is not logged doesn't mean everything is hunky dory.  More info: https://github.com/fleetdm/fleet/pull/6380#issuecomment-1204395762
+            sails.log.warn(`When trying to send information about a new Fleet release to Zapier, an error occured. Raw error: ${require('util').inspect(err)}`);
+            return;
+          });
+        }
+      }//ﬁ
     } else {
       //  ███╗   ███╗██╗███████╗ ██████╗
       //  ████╗ ████║██║██╔════╝██╔════╝
