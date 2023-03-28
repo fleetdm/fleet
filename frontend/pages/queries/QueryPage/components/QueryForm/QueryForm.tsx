@@ -418,8 +418,10 @@ const QueryForm = ({
         <FleetAce
           value={lastEditedQueryBody}
           name="query editor"
+          label="Query"
           wrapperClassName={`${baseClass}__text-editor-wrapper`}
-          readOnly
+          readOnly={!isObserverPlus}
+          labelActionComponent={isObserverPlus && renderLabelComponent()}
           wrapEnabled
         />
       )}
@@ -570,7 +572,7 @@ const QueryForm = ({
     return <Spinner />;
   }
 
-  if (isOnlyObserver || isGlobalObserver) {
+  if (isOnlyObserver || isGlobalObserver || isObserverPlus) {
     return renderRunForObserver;
   }
 
