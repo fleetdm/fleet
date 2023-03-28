@@ -301,6 +301,10 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 		hopt.MDMIDFilter = &mid
 	}
 
+	if mdmName := r.URL.Query().Get("mdm_name"); mdmName != "" {
+		hopt.MDMNameFilter = &mdmName
+	}
+
 	enrollmentStatus := r.URL.Query().Get("mdm_enrollment_status")
 	switch fleet.MDMEnrollStatus(enrollmentStatus) {
 	case fleet.MDMEnrollStatusManual, fleet.MDMEnrollStatusAutomatic,

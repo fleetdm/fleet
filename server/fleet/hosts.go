@@ -111,6 +111,9 @@ type HostListOptions struct {
 
 	// MDMIDFilter filters the hosts by MDM ID.
 	MDMIDFilter *uint
+	// MDMNameFilter filters the hosts by MDM solution name (e.g. one of the
+	// fleet.WellKnownMDM... constants).
+	MDMNameFilter *string
 	// MDMEnrollmentStatusFilter filters the host by their MDM enrollment status.
 	MDMEnrollmentStatusFilter MDMEnrollStatus
 	// MunkiIssueIDFilter filters the hosts by munki issue ID.
@@ -137,6 +140,7 @@ func (h HostListOptions) Empty() bool {
 		h.OSVersionFilter == nil &&
 		h.DisableFailingPolicies == false &&
 		h.MDMIDFilter == nil &&
+		h.MDMNameFilter == nil &&
 		h.MDMEnrollmentStatusFilter == "" &&
 		h.MunkiIssueIDFilter == nil &&
 		h.LowDiskSpaceFilter == nil
