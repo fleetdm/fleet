@@ -638,6 +638,14 @@ func getHostsCommand() *cli.Command {
 			configFlag(),
 			contextFlag(),
 			debugFlag(),
+			&cli.BoolFlag{
+				Name:  "mdm",
+				Usage: "Filters hosts by hosts that have MDM turned on in Fleet and are connected to Fleet's MDM server.",
+			},
+			&cli.BoolFlag{
+				Name:  "mdm-pending",
+				Usage: "Filters hosts by hosts ordered via Apple Business Manager (ABM). These will automatically enroll to Fleet and turn on MDM when they're unboxed.",
+			},
 		},
 		Action: func(c *cli.Context) error {
 			client, err := clientFromCLI(c)
@@ -652,6 +660,35 @@ func getHostsCommand() *cli.Command {
 				query.Set("additional_info_filters", "*")
 				if teamID := c.Uint("team"); teamID > 0 {
 					query.Set("team_id", strconv.FormatUint(uint64(teamID), 10))
+				}
+
+				if c.Bool("mdm") || c.Bool("mdm-pending") {
+					// print an error if MDM is not configured
+					appCfg, err := client.GetAppConfig()
+					if err != nil {
+						return err
+					}
+					if !appCfg.MDM.EnabledAndConfigured {
+						return errors.New("MDM features aren't turned on. Use `fleetctl generate mdm-apple` and then `fleet serve` with `mdm` configuration to turn on MDM features.")
+					}
+
+					// --mdm and --mdm-pending are mutually exclusive, return an error if
+					// both are set (one returns the enrolled hosts, the other the pending
+					// to be enrolled, so it would always return an empty list).
+					if c.Bool("mdm") && c.Bool("mdm-pending") {
+						return errors.New("cannot use --mdm and --mdm-pending together")
+					}
+
+					if c.Bool("mdm") {
+						// hosts enrolled (automatic or manual) in Fleet's MDM server
+						query.Set("mdm_name", fleet.WellKnownMDMFleet)
+						query.Set("mdm_enrollment_status", string(fleet.MDMEnrollStatusEnrolled))
+					}
+					if c.Bool("mdm-pending") {
+						// hosts pending enrollment in Fleet's MDM server
+						query.Set("mdm_name", fleet.WellKnownMDMFleet)
+						query.Set("mdm_enrollment_status", string(fleet.MDMEnrollStatusPending))
+					}
 				}
 				queryStr := query.Encode()
 
