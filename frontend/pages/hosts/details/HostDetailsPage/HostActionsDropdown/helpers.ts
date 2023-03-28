@@ -39,7 +39,7 @@ interface IHostActionConfigOptions {
   isHostOnline: boolean;
   isEnrolledInMdm: boolean;
   isFleetMdm: boolean;
-  isMdmFeatureFlagEnabled: boolean; // TODO: remove when we release MDM
+  isMdmEnabledAndConfigured: boolean;
   doesStoreEncryptionKey: boolean;
 }
 
@@ -56,10 +56,10 @@ const canEditMdm = (config: IHostActionConfigOptions) => {
     isTeamMaintainer,
     isEnrolledInMdm,
     isFleetMdm,
-    isMdmFeatureFlagEnabled,
+    isMdmEnabledAndConfigured,
   } = config;
   return (
-    isMdmFeatureFlagEnabled &&
+    isMdmEnabledAndConfigured &&
     isEnrolledInMdm &&
     isFleetMdm &&
     (isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer)

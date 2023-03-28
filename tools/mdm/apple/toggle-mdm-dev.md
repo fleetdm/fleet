@@ -11,12 +11,10 @@
     if [[ $USE_MDM == "1" ]]; then
 
     # MDM Feature Flag:
-    export FLEET_DEV_MDM_ENABLED=1
 
     MDM_PATH="{Replace this string, including braces, with the path to your credentials}"
 
     # Apple Push Certificates
-    export FLEET_MDM_APPLE_ENABLE=1
     export FLEET_MDM_APPLE_SCEP_CHALLENGE=scepchallenge
     export FLEET_MDM_APPLE_SCEP_CERT=$MDM_PATH"fleet-mdm-apple-scep.crt"
     export FLEET_MDM_APPLE_SCEP_KEY=$MDM_PATH"fleet-mdm-apple-scep.key"
@@ -32,8 +30,6 @@
 
     else
 
-    unset FLEET_DEV_MDM_ENABLED
-    unset FLEET_MDM_APPLE_ENABLE
     unset FLEET_MDM_APPLE_SCEP_CHALLENGE
     unset FLEET_MDM_APPLE_SCEP_CERT
     unset FLEET_MDM_APPLE_SCEP_KEY
@@ -58,13 +54,9 @@
   ```
   if [[ $USE_MDM == "1" ]]; then
 
-  # MDM Feature Flag:
-  export FLEET_DEV_MDM_ENABLED=1
-
   # MDM_PATH="/Users/jacob/.envs/fleet_env/mdm/"
 
   # # Apple Push Certificates
-  # export FLEET_MDM_APPLE_ENABLE=1
   # export FLEET_MDM_APPLE_SCEP_CHALLENGE=scepchallenge
   # export FLEET_MDM_APPLE_SCEP_CERT=$MDM_PATH"fleet-mdm-apple-scep.crt"
   # export FLEET_MDM_APPLE_SCEP_KEY=$MDM_PATH"fleet-mdm-apple-scep.key"

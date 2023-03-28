@@ -37,7 +37,6 @@ import (
 func setupAppleMDMService(t *testing.T) (fleet.Service, context.Context, *mock.Store) {
 	ds := new(mock.Store)
 	cfg := config.TestConfig()
-	cfg.MDM.AppleEnable = true
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case strings.Contains(r.URL.Path, "/server/devices"):
@@ -108,6 +107,9 @@ func setupAppleMDMService(t *testing.T) (fleet.Service, context.Context, *mock.S
 			},
 			ServerSettings: fleet.ServerSettings{
 				ServerURL: "https://foo.example.com",
+			},
+			MDM: fleet.MDM{
+				EnabledAndConfigured: true,
 			},
 		}, nil
 	}

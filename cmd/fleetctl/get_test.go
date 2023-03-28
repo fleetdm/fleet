@@ -1092,7 +1092,11 @@ func TestEnrichedAppConfig(t *testing.T) {
 }
 
 func TestGetAppleMDM(t *testing.T) {
-	runServerWithMockedDS(t)
+	_, ds := runServerWithMockedDS(t)
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
+	}
 
 	// can only test when no MDM cert is provided, otherwise they would have to
 	// be valid Apple APNs and SCEP certs.
@@ -1229,7 +1233,6 @@ func TestGetCarveWithError(t *testing.T) {
 // via the `apply` command.
 func TestGetTeamsYAMLAndApply(t *testing.T) {
 	cfg := config.TestConfig()
-	cfg.MDM.AppleEnable = true
 	_, ds := runServerWithMockedDS(t, &service.TestServerOpts{
 		License:     &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)},
 		FleetConfig: &cfg,
@@ -1291,7 +1294,7 @@ func TestGetTeamsYAMLAndApply(t *testing.T) {
 		return []*fleet.Team{team1, team2}, nil
 	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{AgentOptions: &agentOpts}, nil
+		return &fleet.AppConfig{AgentOptions: &agentOpts, MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
 	}
 	ds.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
 		return team, nil
