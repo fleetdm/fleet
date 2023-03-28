@@ -1,3 +1,0 @@
-* Add ability to filter data under the Hosts tab by the aggregate status of hosts' MDM-managed macos
-settings. This filter is used when clicking Controls > macOS settings > "# hosts" under Latest,
-Pending, or Failing.

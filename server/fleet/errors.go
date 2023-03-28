@@ -16,6 +16,7 @@ var (
 	ErrNoContext             = errors.New("context key not set")
 	ErrPasswordResetRequired = &passwordResetRequiredError{}
 	ErrMissingLicense        = &licenseError{}
+	ErrMDMNotConfigured      = &MDMNotConfiguredError{}
 )
 
 // ErrWithInternal is an interface for errors that include extra "internal"
@@ -287,6 +288,20 @@ func (e passwordResetRequiredError) Error() string {
 
 func (e passwordResetRequiredError) StatusCode() int {
 	return http.StatusUnauthorized
+}
+
+// MDMNotConfiguredError is used when an MDM endpoint or resource is accessed
+// without having MDM correctly configured.
+type MDMNotConfiguredError struct{}
+
+// Status implements the kithttp.StatusCoder interface so we can customize the
+// HTTP status code of the response returning this error.
+func (e *MDMNotConfiguredError) StatusCode() int {
+	return http.StatusBadRequest
+}
+
+func (e *MDMNotConfiguredError) Error() string {
+	return "MDM features aren't turned on in Fleet. For more information about setting up MDM, please visit https://fleetdm.com/docs/using-fleet/mobile-device-management"
 }
 
 // Error is a user facing error (API user). It's meant to be used for errors that are

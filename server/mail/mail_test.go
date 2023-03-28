@@ -10,30 +10,23 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type mockMailer struct{}
-
-func (m *mockMailer) SendEmail(e fleet.Email) error {
-	return nil
-}
-
-func getMailer() fleet.MailService {
-
-	if os.Getenv("MAIL_TEST") == "" {
-		return &mockMailer{}
-	}
-	return NewService()
-}
-
 var testFunctions = [...]func(*testing.T, fleet.MailService){
 	testSMTPPlainAuth,
+	testSMTPPlainAuthInvalidCreds,
 	testSMTPSkipVerify,
 	testSMTPNoAuth,
 	testMailTest,
 }
 
 func TestMail(t *testing.T) {
+	// This mail test requires mailhog unauthenticated running on localhost:1025
+	// and mailpit running on localhost:1026.
+	if _, ok := os.LookupEnv("MAIL_TEST"); !ok {
+		t.Skip("Mail tests are disabled")
+	}
+
 	for _, f := range testFunctions {
-		r := getMailer()
+		r := NewService()
 
 		t.Run(test.FunctionName(f), func(t *testing.T) {
 			f(t, r)
@@ -50,12 +43,12 @@ func testSMTPPlainAuth(t *testing.T, mailer fleet.MailService) {
 				SMTPConfigured:           true,
 				SMTPAuthenticationType:   fleet.AuthTypeNameUserNamePassword,
 				SMTPAuthenticationMethod: fleet.AuthMethodNamePlain,
-				SMTPUserName:             "bob",
-				SMTPPassword:             "secret",
+				SMTPUserName:             "mailpit-username",
+				SMTPPassword:             "mailpit-password",
 				SMTPEnableTLS:            true,
 				SMTPVerifySSLCerts:       true,
 				SMTPEnableStartTLS:       true,
-				SMTPPort:                 1025,
+				SMTPPort:                 1026,
 				SMTPServer:               "localhost",
 				SMTPSenderAddress:        "test@example.com",
 			},
@@ -69,6 +62,34 @@ func testSMTPPlainAuth(t *testing.T, mailer fleet.MailService) {
 	assert.Nil(t, err)
 }
 
+func testSMTPPlainAuthInvalidCreds(t *testing.T, mailer fleet.MailService) {
+	mail := fleet.Email{
+		Subject: "smtp plain auth with invalid credentials",
+		To:      []string{"john@fleet.co"},
+		Config: &fleet.AppConfig{
+			SMTPSettings: fleet.SMTPSettings{
+				SMTPConfigured:           true,
+				SMTPAuthenticationType:   fleet.AuthTypeNameUserNamePassword,
+				SMTPAuthenticationMethod: fleet.AuthMethodNamePlain,
+				SMTPUserName:             "mailpit-username",
+				SMTPPassword:             "wrong",
+				SMTPEnableTLS:            true,
+				SMTPVerifySSLCerts:       true,
+				SMTPEnableStartTLS:       true,
+				SMTPPort:                 1026,
+				SMTPServer:               "localhost",
+				SMTPSenderAddress:        "test@example.com",
+			},
+		},
+		Mailer: &SMTPTestMailer{
+			BaseURL: "https://localhost:8080",
+		},
+	}
+
+	err := mailer.SendEmail(mail)
+	assert.Error(t, err)
+}
+
 func testSMTPSkipVerify(t *testing.T, mailer fleet.MailService) {
 	mail := fleet.Email{
 		Subject: "skip verify",
@@ -78,8 +99,8 @@ func testSMTPSkipVerify(t *testing.T, mailer fleet.MailService) {
 				SMTPConfigured:           true,
 				SMTPAuthenticationType:   fleet.AuthTypeNameUserNamePassword,
 				SMTPAuthenticationMethod: fleet.AuthMethodNamePlain,
-				SMTPUserName:             "bob",
-				SMTPPassword:             "secret",
+				SMTPUserName:             "mailpit-username",
+				SMTPPassword:             "mailpit-password",
 				SMTPEnableTLS:            true,
 				SMTPVerifySSLCerts:       false,
 				SMTPEnableStartTLS:       true,
@@ -127,13 +148,16 @@ func testMailTest(t *testing.T, mailer fleet.MailService) {
 		To:      []string{"bob@foo.com"},
 		Config: &fleet.AppConfig{
 			SMTPSettings: fleet.SMTPSettings{
-				SMTPConfigured:         true,
-				SMTPAuthenticationType: fleet.AuthTypeNameNone,
-				SMTPEnableTLS:          true,
-				SMTPVerifySSLCerts:     true,
-				SMTPPort:               1025,
-				SMTPServer:             "localhost",
-				SMTPSenderAddress:      "test@example.com",
+				SMTPConfigured:           true,
+				SMTPAuthenticationType:   fleet.AuthTypeNameUserNamePassword,
+				SMTPAuthenticationMethod: fleet.AuthMethodNamePlain,
+				SMTPUserName:             "mailpit-username",
+				SMTPPassword:             "mailpit-password",
+				SMTPEnableTLS:            true,
+				SMTPVerifySSLCerts:       true,
+				SMTPPort:                 1026,
+				SMTPServer:               "localhost",
+				SMTPSenderAddress:        "test@example.com",
 			},
 		},
 		Mailer: &SMTPTestMailer{
@@ -142,7 +166,6 @@ func testMailTest(t *testing.T, mailer fleet.MailService) {
 	}
 	err := Test(mailer, mail)
 	assert.Nil(t, err)
-
 }
 
 func TestTemplateProcessor(t *testing.T) {

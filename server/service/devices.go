@@ -127,7 +127,7 @@ func getDeviceHostEndpoint(ctx context.Context, request interface{}, svc fleet.S
 	// the org logo URL config is required by the frontend to render the page;
 	// we need to be careful with what we return from AppConfig in the response
 	// as this is a weakly authenticated endpoint (with the device auth token).
-	ac, err := svc.AppConfig(ctx)
+	ac, err := svc.AppConfigObfuscated(ctx)
 	if err != nil {
 		return getDeviceHostResponse{Err: err}, nil
 	}
@@ -329,7 +329,7 @@ func (r transparencyURLResponse) hijackRender(ctx context.Context, w http.Respon
 func (r transparencyURLResponse) error() error { return r.Err }
 
 func transparencyURL(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
-	config, err := svc.AppConfig(ctx)
+	config, err := svc.AppConfigObfuscated(ctx)
 	if err != nil {
 		return transparencyURLResponse{Err: err}, nil
 	}
@@ -414,7 +414,7 @@ func (svc *Service) GetDeviceMDMAppleEnrollmentProfile(ctx context.Context) ([]b
 	mobileConfig, err := apple_mdm.GenerateEnrollmentProfileMobileconfig(
 		appConfig.OrgInfo.OrgName,
 		appConfig.ServerSettings.ServerURL,
-		svc.config.MDMApple.SCEP.Challenge,
+		svc.config.MDM.AppleSCEPChallenge,
 		svc.mdmPushCertTopic,
 	)
 	if err != nil {
