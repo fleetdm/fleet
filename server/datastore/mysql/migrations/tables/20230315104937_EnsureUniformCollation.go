@@ -50,19 +50,23 @@ func fixupSoftware(tx *sql.Tx, collation string) error {
 		idGroups = append(idGroups, ids)
 	}
 
+	if len(idGroups) > 0 {
+		fmt.Printf("INFO: found %d duplicate software entries: %v\n", len(idGroups), idGroups)
+	}
+
 	for _, ids := range idGroups {
 		for i := 1; i < len(ids); i++ {
 			if _, err := tx.Exec("DELETE FROM software_cve WHERE software_id = ?", ids[i]); err != nil {
-				return fmt.Errorf("deleting duplicated software from software_cve: %w", err)
+				return fmt.Errorf("deleting duplicated software with id %d from software_cve: %w", ids[i], err)
 			}
 			if _, err := tx.Exec("DELETE FROM software_host_counts WHERE software_id = ?", ids[i]); err != nil {
-				return fmt.Errorf("deleting duplicate software from software_host_counts: %w", err)
+				return fmt.Errorf("deleting duplicate software with id %d from software_host_counts: %w", ids[i], err)
 			}
 			if _, err := tx.Exec("DELETE FROM host_software WHERE software_id = ?", ids[i]); err != nil {
-				return fmt.Errorf("deleting duplicate software from host_software: %w", err)
+				return fmt.Errorf("deleting duplicate software with id %d from host_software: %w", ids[i], err)
 			}
 			if _, err := tx.Exec("DELETE FROM software WHERE id = ?", ids[i]); err != nil {
-				return fmt.Errorf("deleting duplicate software: %w", err)
+				return fmt.Errorf("deleting duplicate software with id %d: %w", ids[i], err)
 			}
 		}
 	}
@@ -109,10 +113,14 @@ func fixupHostUsers(tx *sql.Tx, collation string) error {
 		keyGroups = append(keyGroups, hu)
 	}
 
+	if len(keyGroups) > 0 {
+		fmt.Printf("INFO: found %d duplicate host_software entries: %v\n", len(keyGroups), keyGroups)
+	}
+
 	for _, keys := range keyGroups {
 		for i := 1; i < len(keys); i++ {
 			if _, err := tx.Exec("DELETE FROM host_users WHERE host_id = ? AND uid = ? AND username = ?", keys[i].HostID, keys[i].UID, keys[i].Username); err != nil {
-				return fmt.Errorf("deleting duplicate entries from host_users: %w", err)
+				return fmt.Errorf("deleting duplicate entries with key (host_id=%d, uid=%d, username=%s) from host_users: %w", keys[i].HostID, keys[i].UID, keys[i].Username, err)
 			}
 		}
 	}
@@ -162,10 +170,14 @@ func fixupOS(tx *sql.Tx, collation string) error {
 		keyGroups = append(keyGroups, o)
 	}
 
+	if len(keyGroups) > 0 {
+		fmt.Printf("INFO: found %d duplicate operating_system entries: %v\n", len(keyGroups), keyGroups)
+	}
+
 	for _, keys := range keyGroups {
 		for i := 1; i < len(keys); i++ {
 			if _, err := tx.Exec("DELETE FROM operating_systems WHERE name = ? AND version = ? AND arch = ? AND kernel_version = ? AND platform = ?", keys[i].Name, keys[i].Version, keys[i].Arch, keys[i].KernelVersion, keys[i].Platform); err != nil {
-				return fmt.Errorf("deleting dupes: %w", err)
+				return fmt.Errorf("deleting dupes with key (name=%s, version=%s, arch=%s, kernel_version=%s, platfrom=%s): %w", keys[i].Name, keys[i].Version, keys[i].Arch, keys[i].KernelVersion, keys[i].Platform, err)
 			}
 		}
 	}
