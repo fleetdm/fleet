@@ -5043,7 +5043,7 @@ Deletes the session specified by ID. When the user associated with the session n
 | ----------------------- | ------- | ----- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | page                    | integer | query | Page number of the results to fetch.                                                                                                                                       |
 | per_page                | integer | query | Results per page.                                                                                                                                                          |
-| order_key               | string  | query | What to order results by. Allowed fields are `name`, `hosts_count`, `cvss_score`, `epss_probability` and `cisa_known_exploit`. Default is `hosts_count` (descending).      |
+| order_key               | string  | query | What to order results by. Allowed fields are `name`, `hosts_count`, `cve_published`, `cvss_score`, `epss_probability` and `cisa_known_exploit`. Default is `hosts_count` (descending).      |
 | order_direction         | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`.                                              |
 | query                   | string  | query | Search query keywords. Searchable fields include `name`, `version`, and `cve`.                                                                                             |
 | team_id                 | integer | query | _Available in Fleet Premium_ Filters the software to only include the software installed on the hosts that are assigned to the specified team.                             |
@@ -5076,7 +5076,8 @@ Deletes the session specified by ID. When the user associated with the session n
             "details_link": "https://nvd.nist.gov/vuln/detail/CVE-2009-5155",
             "cvss_score": 7.5,
             "epss_probability": 0.01537,
-            "cisa_known_exploit": false
+            "cisa_known_exploit": false,
+            "cve_published": "2022-01-01 12:32:00"
           }
         ],
         "hosts_count": 1
