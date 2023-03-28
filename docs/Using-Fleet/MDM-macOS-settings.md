@@ -30,7 +30,7 @@ Fleet UI:
 
 3. Run the `fleetctl apply -f <your-YAML-file-here>` command.
 
-> It may take up to 30 minutes for Fleet to collect and store the encryption keys from all hosts.
+> It may take up to one hour for Fleet to collect and store the disk encryption keys from all hosts.
 
 ### Viewing a disk encryption key
 
