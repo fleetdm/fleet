@@ -1,8 +1,10 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 
+	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/urfave/cli/v2"
 )
 
@@ -36,12 +38,15 @@ func mdmRunCommand() *cli.Command {
 			},
 		},
 		Action: func(c *cli.Context) error {
-			fleet, err := clientFromCLI(c)
+			client, err := clientFromCLI(c)
 			if err != nil {
 				return fmt.Errorf("create client: %w", err)
 			}
 
-			_ = fleet
+			// print an error if MDM is not configured
+			if err := checkMDMEnabled(client); err != nil {
+				return err
+			}
 			fmt.Println("Running a command...")
 			/*
 				deviceIDs := strings.Split(c.String("device-ids"), ",")
@@ -70,4 +75,15 @@ func mdmRunCommand() *cli.Command {
 			return nil
 		},
 	}
+}
+
+func checkMDMEnabled(client *service.Client) error {
+	appCfg, err := client.GetAppConfig()
+	if err != nil {
+		return err
+	}
+	if !appCfg.MDM.EnabledAndConfigured {
+		return errors.New("MDM features aren't turned on. Use `fleetctl generate mdm-apple` and then `fleet serve` with `mdm` configuration to turn on MDM features.")
+	}
+	return nil
 }

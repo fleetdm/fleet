@@ -664,12 +664,8 @@ func getHostsCommand() *cli.Command {
 
 				if c.Bool("mdm") || c.Bool("mdm-pending") {
 					// print an error if MDM is not configured
-					appCfg, err := client.GetAppConfig()
-					if err != nil {
+					if err := checkMDMEnabled(client); err != nil {
 						return err
-					}
-					if !appCfg.MDM.EnabledAndConfigured {
-						return errors.New("MDM features aren't turned on. Use `fleetctl generate mdm-apple` and then `fleet serve` with `mdm` configuration to turn on MDM features.")
 					}
 
 					// --mdm and --mdm-pending are mutually exclusive, return an error if
