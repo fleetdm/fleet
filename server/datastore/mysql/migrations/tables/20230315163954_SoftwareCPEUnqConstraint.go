@@ -3,7 +3,6 @@ package tables
 import (
 	"database/sql"
 
-	"github.com/fleetdm/fleet/v4/server"
 	"github.com/pkg/errors"
 )
 
@@ -13,10 +12,7 @@ func init() {
 
 func Up_20230315163954(tx *sql.Tx) error {
 	// Since we will be adding a uniqueness constrain on (software_id) on the software_cpe table - we need to remove any
-	// possible duplicates. Also because there's a chance we remove the duplicate rows before adding
-	// the constraint and new duplicates get generated in between, we need to try to acquire the
-	// vulnerability lock. In case the lock can't be acquired a warning is issued and the migration
-	// will proceed without it.
+	// possible duplicates. 
 
 	removeDuplicatedSoftwareCPEs := func(tx *sql.Tx) error {
 		const deleteStmt = `
@@ -49,19 +45,6 @@ WHERE sc.id < sc2.max_id;`
 		return nil
 	}
 
-	identifier, err := server.GenerateRandomText(64)
-
-	if err != nil {
-		logger.Warn.Println("Could not generate identifier for lock, might not be able to remove duplicates in a reliable way...")
-	} else {
-		locked, err := acquireLock(tx, identifier)
-		if !locked || err != nil {
-			logger.Warn.Println("Could not acquire lock, might not be able to remove duplicates in a reliable way...")
-		} else {
-			defer releaseLock(tx, identifier) //nolint:errcheck
-		}
-	}
-
 	if err := removeDuplicatedSoftwareCPEs(tx); err != nil {
 		return err
 	}
@@ -70,10 +53,6 @@ WHERE sc.id < sc2.max_id;`
 		if err := addUniqueConstraintOnSoftwareID(tx); err != nil {
 			return err
 		}
-	}
-
-	if err := releaseLock(tx, identifier); err != nil {
-		return err
 	}
 
 	return nil
