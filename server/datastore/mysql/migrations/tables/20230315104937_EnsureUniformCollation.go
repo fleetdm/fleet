@@ -11,10 +11,11 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20230328091816, Down_20230328091816)
+	MigrationClient.AddMigration(Up_20230315104937, Down_20230315104937)
 }
 
 func fixupSoftware(tx *sql.Tx, collation string) error {
+	//nolint:gosec // string formatting must be used here, but input is not user-controllable
 	rows, err := tx.Query(`
          SELECT
            COUNT(*) as total,
@@ -70,6 +71,7 @@ func fixupSoftware(tx *sql.Tx, collation string) error {
 }
 
 func fixupHostUsers(tx *sql.Tx, collation string) error {
+	//nolint:gosec // string formatting must be used here, but input is not user-controllable
 	rows, err := tx.Query(fmt.Sprintf(`
          SELECT
            COUNT(*) as total,
@@ -118,6 +120,7 @@ func fixupHostUsers(tx *sql.Tx, collation string) error {
 }
 
 func fixupOS(tx *sql.Tx, collation string) error {
+	//nolint:gosec // string formatting must be used here, but input is not user-controllable
 	rows, err := tx.Query(fmt.Sprintf(`
          SELECT
            COUNT(*) as total,
@@ -270,7 +273,7 @@ func changeCollation(tx *sql.Tx, charset string, collation string) (err error) {
 	return err
 }
 
-func Up_20230328091816(tx *sql.Tx) error {
+func Up_20230315104937(tx *sql.Tx) error {
 	// while newer versions of MySQL default to utf8mb4_0900_ai_ci, we
 	// still need to support 5.7, so we choose utf8mb4_unicode_ci for more
 	// details on the rationale, see:
@@ -278,6 +281,6 @@ func Up_20230328091816(tx *sql.Tx) error {
 	return changeCollation(tx, "utf8mb4", "utf8mb4_unicode_ci")
 }
 
-func Down_20230328091816(tx *sql.Tx) error {
+func Down_20230315104937(tx *sql.Tx) error {
 	return nil
 }

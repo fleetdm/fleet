@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20230328091816(t *testing.T) {
+func TestUp_20230315104937(t *testing.T) {
 	db := applyUpToPrev(t)
 	_, err := db.Exec("SET FOREIGN_KEY_CHECKS = 0")
 	require.NoError(t, err)
