@@ -20,15 +20,15 @@ func fixupSoftware(tx *sql.Tx, collation string) error {
            COUNT(*) as total,
            CONCAT('[', GROUP_CONCAT(id SEPARATOR ','), ']') as ids
          FROM software
-         GROUP BY
-           name      COLLATE %s,
-           "version" COLLATE %s,
-           source    COLLATE %s,
-           "release" COLLATE %s,
-           vendor    COLLATE %s,
-           arch      COLLATE %s
-         HAVING total > 1
-         COLLATE %s`, collation, collation, collation, collation, collation, collation, collation))
+         GROUP BY` +
+		fmt.Sprintf("name      COLLATE %s,", collation) +
+		fmt.Sprintf("`version` COLLATE %s,", collation) +
+		fmt.Sprintf("source    COLLATE %s,", collation) +
+		fmt.Sprintf("`release` COLLATE %s,", collation) +
+		fmt.Sprintf("vendor    COLLATE %s,", collation) +
+		fmt.Sprintf("arch      COLLATE %s", collation) +
+		"HAVING total > 1" +
+		fmt.Sprintf("COLLATE %s", collation)))
 
 	if err != nil {
 		return err
@@ -123,14 +123,14 @@ func fixupOS(tx *sql.Tx, collation string) error {
            COUNT(*) as total,
            CONCAT('[', GROUP_CONCAT(JSON_OBJECT('name', name, 'version', version, 'arch', arch, 'kernel_version', kernel_version, 'platform', platform) SEPARATOR ","), ']') as ids
          FROM operating_systems
-         GROUP BY
-           name      COLLATE %s,
-           "version" COLLATE %s,
+         GROUP BY`+
+		fmt.Sprintf("`version` COLLATE %s,", collation)+
+		`name      COLLATE %s,
            arch    COLLATE %s,
            kernel_version COLLATE %s,
            platform    COLLATE %s
          HAVING total > 1
-         COLLATE %s`, collation, collation, collation, collation, collation, collation))
+         COLLATE %s`, collation, collation, collation, collation, collation))
 	if err != nil {
 		return err
 	}
