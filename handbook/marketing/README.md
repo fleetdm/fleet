@@ -5,19 +5,9 @@
 As an open-core company, Fleet endeavors to build a community of engaged users, customers, and
 contributors. The purpose of the marketing team is to own and improve the growth funnel to drive awareness, adoption, and referrals of Fleet while honoring the ideals and voice of the open source community and our company values.
 
-#### In this section
-
-- [Positioning](#positioning)
-- [Marketing Qualified Opportunities (MQOs)](#marketing-qualified-opportunities-(MQOs)
-- [Lead enrichment](#lead-enrichment)
-- [Posting on social media as Fleet](#posting-on-social-media-as-fleet)
-- [Promoting blog posts on social media](#promoting-blog-posts-on-social-media)
-- [Press releases](#press-releases)
-- [Sponsoring events](#sponsoring-events)
-
 ### Positioning
 
-Effective market positioning is crucial to the growth of any software product. Fleet needs to maintain a unique, valuable position in the minds of our users. We keep assertions on our positioning in this [Google Doc](https://docs.google.com/document/d/177Q4_2FY5Vm7Nd3ne32vOKTQqYfDG0p_ouklvl3PnWc/edit) (private). We will update it quarterly based on the feedback of users, customers, team members, and other stakeholders. Feedback can be provided as a comment in the document or by posting in the `#g-marketing` Slack channel. 
+See [📖Company#Positioning](https://fleetdm.com/handbook/company#positioning).
 
 ### Marketing Qualified Opportunities (MQOs)
 
@@ -80,7 +70,7 @@ That means better privacy, better device performance, and better data but with l
 ### Sponsoring events
 
 When reaching out for sponsorships, Fleet's goal is to expose potential hires, contributors, and users to Fleet and osquery.
-Track prospective sponsorships in our [partnerships and outreach Google Sheet:](https://docs.google.com/spreadsheets/d/107AwHKqFjt7TWItnf8pFknSwwxb_gsp6awB66t7YE_w/edit#gid=2108184225)
+Track prospective sponsorships in ["Sponsorships"](https://docs.google.com/spreadsheets/d/107AwHKqFjt7TWItnf8pFknSwwxb_gsp6awB66t7YE_w/edit#gid=2108184225)
 
 Once a relevant sponsorship opportunity and its prospectus are reviewed:
 1. Create a new [GitHub issue](https://github.com/fleetdm/fleet/issues/new).
@@ -97,21 +87,12 @@ Once a relevant sponsorship opportunity and its prospectus are reviewed:
  
 7. Once you complete the above steps, use the [Speaking events issue template](https://github.com/fleetdm/confidential/issues/new?assignees=mike-j-thomas&labels=&template=6-speaking-event.md&title=Speaking+event) to prepare speakers and participants for the event.
 
+### Partners
+
+All of Fleet's partnerships are located in ["❤️‍🔥 Buying situations > 🚿Channels / partners"](https://docs.google.com/spreadsheets/d/1pstllb-5vfVt8FifzaXRy8ixyKbe4B56Y1O8tLMnVUQ/edit#gid=1625487826).  (This is the source of truth for any active or proposed partnership.)
+
 
 ## Community
-
-#### In this section
-
-- [Communities](#communities)
-- [Goals](#goals)
-- [Tools](#tools)
-- [Resources](#resources)
-- [Assistance from engineering](#assistance-from-engineering)
-- [Pull requests](#pull-requests)
-- [Managing community contributions](#managing-community-contributions)
-- [Communicate with contributors](#communicate-with-contributors)
-- [Making the updates](#making-the-updates)
-- [Fleet swag](#fleet-swag)
 
 ### Communities
 
@@ -267,17 +248,6 @@ At this time, double-check that information within Salesforce and Typeform is ac
 
 ## Brand
 
-#### In this section
-
-- [Publishing Fleet content](#publishing-fleet-content)
-- [Content style guide](#content-style-guide)
-- [For editors](#for-editors)
-- [Commonly used terms](#commonly-used-terms)
-- [Brand resources](#brand-resources)
-- [Email blasts](#email-blasts)
-- [Using Figma](#using-figma)
-- [Fleet website](#fleet-website)
-
 ### Publishing Fleet content 
 
 The following describes how to go about publishing and editing content at Fleet.
@@ -325,7 +295,7 @@ Learn how to communicate as Fleet with guidelines for tone of voice, our approac
 
 #### In this section
 
-- [How to make edits with GitHub](#how-to-make-edits-with-git-hub)
+- [How to make edits with GitHub](#how-to-make-edits-with-github)
 - [How to edit recently merged pull requests for the handbook](#how-to-edit-recently-merged-pull-requests-for-the-handbook)
 - [How to edit Markdown pull requests for the docs](#how-to-edit-markdown-pull-requests-for-the-docs)
 - [How to edit articles, release posts, and press releases](#how-to-edit-articles-release-posts-and-press-releases)
@@ -384,7 +354,7 @@ Editing articles, release posts, and press releases usually comes in three flavo
 
 * For unpublished articles, please read the review process in [How to submit and publish an article](https://fleetdm.com/handbook/digital-experience/how-to-submit-and-publish-an-article#review-process).
 
-* To edit an existing article, see [How to make edits with GitHub](https://fleetdm.com/handbook/digital-experience#how-to-make-edits-with-git-hub).
+* To edit an existing article, see [How to make edits with GitHub](https://fleetdm.com/handbook/digital-experience#how-to-make-edits-with-github).
 
 #### How to edit social media posts
 
@@ -491,19 +461,6 @@ We use Figma for most of our design work. This includes the Fleet product, our w
 
 The Brand team is responsible for production and maintenance of the Fleet website.
 
-#### In this section
-
-- [Wireframes](#wireframes)
-- [Design reviews](#design-reviews)
-- [Estimation sessions](#estimation-sessions)
-- [When can I merge changes to the website?](#when-can-i-merge-a-change-to-the-website)
-- [How to export images for the website](#how-to-export-images-for-the-website)
-- [Maintaining browser compatibility](#maintaining-browser-compatibility)
-- [Responding to a 5xx error on fleetdm.com](#responding-to-a-5-xx-error-on-fleetdm-com)
-- [The "Deploy Fleet Website" GitHub action failed](#the-deploy-fleet-website-git-hub-action-failed)
-- [Vulnerability monitoring](#vulnerability-monitoring)
-- [How to make usability changes to the website](#how-to-make-usability-changes-to-the-website)
-
 #### Wireframes
 
 Before committing anything to code, we create wireframes to illustrate all changes that affect the website layout and structure.
@@ -546,6 +503,36 @@ We use the following story points to estimate website tasks:
 When merging a PR to master, remember that whatever you merge to master gets deployed live immediately. So if the PR's changes contain anything that you don't think is appropriate to be seen publicly by all guests of [fleetdm.com](https://fleetdm.com/), please do not merge.
 
 Merge a PR (aka deploy the website) when you think it is appropriately clean to represent our brand. When in doubt, use the standards and quality seen on existing pages, ensure correct functionality, and check responsive behavior - starting widescreen and resizing down to ≈320px width.
+
+#### How can I test changes to the website?
+
+When making changes to the Fleet website, you can test your changes by running the website locally. To do this, you'll need the following:
+
+- A local copy of the [Fleet repo](https://github.com/fleetdm/fleet).
+- [Node.js](https://nodejs.org/en/download/)
+- (Optional) [Sails.js](https://sailsjs.com/) installed globally on your machine (`npm install sails -g`)
+
+Once you have the above follow these steps:
+
+1. Open your terminal program, and navigate to the `website/` folder of your local copy of the Fleet repo.
+    
+    > Note: If this is your first time running this script, you will need to run `npm install` inside of the website/ folder to install the website's dependencies.
+
+
+2. Run the `build-static-content` script to generate HTML pages from our Markdown and YAML content.
+  - **With Node**, you will need to use `node ./node_modules/sails/bin/sails run build-static-content` to execute the script.
+  - **With Sails.js installed globally** you can use `sails run build-static-content` to execute the script.
+    
+    > You can use the `--skipGithubRequests` flag to skip requests made to GitHub if you get rate-limited by GitHub’s API while running this script. 
+    > 
+    > e.g., `node ./node_modules/sails/bin/sails run build-static-content --skipGithubRequests`
+
+3. Once the script is complete, start the website server. From the `website/` folder:
+  - **With Node.js:** start the server by running `node ./node_modules/sails/bin/sails lift`
+  - **With Sails.js installed globally:** start the server by running `sails lift`.
+4. When the server has started, the Fleet website will be availible at [http://localhost:2024](http://localhost:2024/admin/email-preview)
+    
+  > Note: Some features, such as Fleet Sandbox, Self-service license dispenser, and account creation are not availible when running the website locally. If you need help testing features on a local copy, reach out to `@eashaw`.
 
 #### How to export images for the website
 In Figma:
@@ -596,7 +583,7 @@ Every week, we run `npm audit --only=prod` to check for vulnerabilities on the p
 
 #### How to make usability changes to the website
 
-We want to make it easy to learn how to manage devices with Fleet. Anyone inside or outside the company can suggest changes to the website to improve ease of use and clarity. 
+We want to make it easy to learn how to manage devices with Fleet. Anyone inside or outside the company can suggest changes to the website to improve ease of use and [clarity](http://selmiak.bplaced.net/games/pc/index.php?lang=eng&game=Loom&page=Audio-Drama--Game-Script#:~:text=Above%20all%20else%20...%20clarity.). 
 
 To propose changes:
 1. Decide what you want to change. A small change is the best place to start.

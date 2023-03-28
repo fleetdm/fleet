@@ -40,7 +40,9 @@ import sortUtils from "utilities/sort";
 import {
   DEFAULT_EMPTY_CELL_VALUE,
   DEFAULT_GRAVATAR_LINK,
+  DEFAULT_GRAVATAR_LINK_FALLBACK,
   DEFAULT_GRAVATAR_LINK_DARK,
+  DEFAULT_GRAVATAR_LINK_DARK_FALLBACK,
   PLATFORM_LABEL_DISPLAY_TYPES,
 } from "utilities/constants";
 import { IScheduledQueryStats } from "interfaces/scheduled_query_stats";
@@ -50,14 +52,26 @@ const ADMIN_ATTRS = ["email", "name", "password", "password_confirmation"];
 
 export const addGravatarUrlToResource = (resource: any): any => {
   const { email } = resource;
+  const gravatarAvailable =
+    localStorage.getItem("gravatar_available") !== "false"; // Only fallback if explicitly set to "false"
 
   const emailHash = md5(email.toLowerCase());
-  const gravatar_url = `https://www.gravatar.com/avatar/${emailHash}?d=${encodeURIComponent(
-    DEFAULT_GRAVATAR_LINK
-  )}&size=200`;
-  const gravatar_url_dark = `https://www.gravatar.com/avatar/${emailHash}?d=${encodeURIComponent(
-    DEFAULT_GRAVATAR_LINK_DARK
-  )}&size=200`;
+
+  let gravatar_url;
+  let gravatar_url_dark;
+
+  if (gravatarAvailable) {
+    gravatar_url = `https://www.gravatar.com/avatar/${emailHash}?d=${encodeURIComponent(
+      DEFAULT_GRAVATAR_LINK
+    )}&size=200`;
+    gravatar_url_dark = `https://www.gravatar.com/avatar/${emailHash}?d=${encodeURIComponent(
+      DEFAULT_GRAVATAR_LINK_DARK
+    )}&size=200`;
+  } else {
+    gravatar_url = DEFAULT_GRAVATAR_LINK_FALLBACK;
+    gravatar_url_dark = DEFAULT_GRAVATAR_LINK_DARK_FALLBACK;
+  }
+
   return {
     ...resource,
     gravatar_url,
@@ -160,7 +174,6 @@ export const formatConfigDataForServer = (config: any): any => {
   ]);
   const ssoSettingsAttrs = pick(config, [
     "entity_id",
-    "issuer_uri",
     "idp_image_url",
     "metadata",
     "metadata_url",

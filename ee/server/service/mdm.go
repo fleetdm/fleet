@@ -10,6 +10,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/service/externalsvc"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/google/uuid"
@@ -125,26 +126,24 @@ func (svc *Service) MDMAppleEnableFileVaultAndEscrow(ctx context.Context, teamID
 
 	var contents bytes.Buffer
 	params := fileVaultProfileOptions{
-		PayloadIdentifier:    apple_mdm.FleetFileVaultPayloadIdentifier,
+		PayloadIdentifier:    mobileconfig.FleetFileVaultPayloadIdentifier,
 		Base64DerCertificate: base64.StdEncoding.EncodeToString(cert.Leaf.Raw),
 	}
 	if err := fileVaultProfileTemplate.Execute(&contents, params); err != nil {
 		return ctxerr.Wrap(ctx, err, "enabling FileVault")
 	}
 
-	mc := fleet.Mobileconfig(contents.Bytes())
-	cp, err := mc.ParseConfigProfile()
+	cp, err := fleet.NewMDMAppleConfigProfile(contents.Bytes(), teamID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "enabling FileVault")
 	}
-	cp.TeamID = teamID
 
 	_, err = svc.ds.NewMDMAppleConfigProfile(ctx, *cp)
 	return ctxerr.Wrap(ctx, err, "enabling FileVault")
 }
 
 func (svc *Service) MDMAppleDisableFileVaultAndEscrow(ctx context.Context, teamID *uint) error {
-	err := svc.ds.DeleteMDMAppleConfigProfileByTeamAndIdentifier(ctx, teamID, apple_mdm.FleetFileVaultPayloadIdentifier)
+	err := svc.ds.DeleteMDMAppleConfigProfileByTeamAndIdentifier(ctx, teamID, mobileconfig.FleetFileVaultPayloadIdentifier)
 	return ctxerr.Wrap(ctx, err, "disabling FileVault")
 }
 
@@ -189,7 +188,7 @@ func (svc *Service) MDMAppleOktaLogin(ctx context.Context, username, password st
 	return apple_mdm.GenerateEnrollmentProfileMobileconfig(
 		appConfig.OrgInfo.OrgName,
 		appConfig.ServerSettings.ServerURL+"?"+query.Encode(),
-		svc.config.MDMApple.SCEP.Challenge,
+		svc.config.MDM.AppleSCEPChallenge,
 		svc.mdmPushCertTopic,
 	)
 }

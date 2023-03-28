@@ -483,7 +483,7 @@ Once you have access to ABM, follow [these guided instructions](../Using-Fleet/M
 
 The server also needs a private key + certificate to identify with Apple's [APNs](https://github.com/fleetdm/fleet/blob/main/tools/mdm/apple/glossary-and-protocols.md#apns-apple-push-notification-service) servers, and another for [SCEP](https://github.com/fleetdm/fleet/blob/main/tools/mdm/apple/glossary-and-protocols.md#scep-simple-certificate-enrollment-protocol).
 
-To generate both, follow [these guided instructions](../Using-Fleet/Mobile-device-management.md#apple-push-notification-service-ap-ns).
+To generate both, follow [these guided instructions](../Using-Fleet/Mobile-device-management.md#apple-push-notification-service-apns).
 
 Note that:
 
@@ -505,8 +505,6 @@ $ openssl req -x509 -new -nodes -key fleet-mdm-apple-scep.key -sha256 -days 1826
 Try to store all the certificates and tokens you generated in the earlier steps together in a safe place outside of the repo, then start the server with:
 
 ```
-FLEET_MDM_APPLE_ENABLE=1 \
-FLEET_DEV_MDM_ENABLED=1 \
 FLEET_MDM_APPLE_SCEP_CHALLENGE=scepchallenge \
 FLEET_MDM_APPLE_SCEP_CERT=/path/to/fleet-mdm-apple-scep.crt \
 FLEET_MDM_APPLE_SCEP_KEY=/path/to/fleet-mdm-apple-scep.key \
@@ -571,6 +569,7 @@ fleetctl apple-mdm enrollment-profiles create-manual
 ```
 fleetctl apple-mdm enrollment-profiles create-automatic --dep-profile ./tools/mdm/apple/dep_sample_profile.json
 ```
+Reference the [Apple DEP Profile documentation](https://developer.apple.com/documentation/devicemanagement/profile) for further information on each setting.
 
 2. In ABM, look for the computer with the serial number that matches the one your VM has, click on it and click on "Edit MDM Server" to assign that computer to your MDM server.
 

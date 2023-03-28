@@ -232,8 +232,8 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         {" "}
-        viewed the disk encryption key for {activity.details?.host_display_name}
-        .
+        viewed the disk encryption key for{" "}
+        <b>{activity.details?.host_display_name}</b>.
       </>
     );
   },
@@ -286,22 +286,12 @@ const TAGGED_TEMPLATES = {
     );
   },
   enableMacDiskEncryption: (activity: IActivity) => {
-    return (
-      <>
-        {" "}
-        enforced disk encryption for macOS hosts{" "}
-        {getDiskEncryptionMessageSuffix(activity.details?.team_name)} .
-      </>
-    );
+    const suffix = getDiskEncryptionMessageSuffix(activity.details?.team_name);
+    return <> enforced disk encryption for macOS hosts {suffix}.</>;
   },
   disableMacDiskEncryption: (activity: IActivity) => {
-    return (
-      <>
-        {" "}
-        removed disk encryption enforcement for macOS hosts{" "}
-        {getDiskEncryptionMessageSuffix(activity.details?.team_name)} .
-      </>
-    );
+    const suffix = getDiskEncryptionMessageSuffix(activity.details?.team_name);
+    return <>removed disk encryption enforcement for macOS hosts {suffix}.</>;
   },
   defaultActivityTemplate: (activity: IActivity) => {
     const entityName = find(activity.details, (_, key) =>

@@ -53,10 +53,12 @@ module "main" {
   rds_config = {
     name                = local.customer
     snapshot_identifier = "arn:aws:rds:us-east-2:611884880216:cluster-snapshot:a2023-03-06-pre-migration"
-    db_parameters       = {
+    db_parameters = {
       # 8mb up from 262144 (256k) default
       sort_buffer_size = 8388608
     }
+    # VPN
+    allowed_cidr_blocks = ["10.255.1.0/24", "10.255.2.0/24", "10.255.3.0/24"]
   }
   redis_config = {
     name = local.customer
@@ -87,12 +89,11 @@ module "main" {
   }
   alb_config = {
     name = local.customer
-    # TODO: This is broken, idk why
-    #access_logs = {
-    #  bucket  = module.logging_alb.log_s3_bucket_id
-    #  prefix  = local.customer
-    #  enabled = true
-    #}
+    access_logs = {
+      bucket  = module.logging_alb.log_s3_bucket_id
+      prefix  = local.customer
+      enabled = true
+    }
     allowed_cidrs = [
       "128.0.0.0/1",
       "64.0.0.0/2",

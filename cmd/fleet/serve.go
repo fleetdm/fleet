@@ -522,11 +522,7 @@ the way that the Fleet server works.
 				}
 			}
 
-			if config.MDMApple.Enable {
-				if !config.MDM.IsAppleAPNsSet() || !config.MDM.IsAppleSCEPSet() {
-					initFatal(errors.New("Apple APNs and SCEP configuration must be provided to enable MDM"), "validate Apple MDM")
-				}
-
+			if config.MDM.IsAppleAPNsSet() && config.MDM.IsAppleSCEPSet() {
 				scepStorage, err = mds.NewSCEPDepot(appleSCEPCertPEM, appleSCEPKeyPEM)
 				if err != nil {
 					initFatal(err, "initialize mdm apple scep storage")
@@ -670,15 +666,15 @@ the way that the Fleet server works.
 				initFatal(err, "failed to register integrations schedule")
 			}
 
-			if config.MDMApple.Enable {
-
-				if license.IsPremium() && config.MDM.IsAppleBMSet() {
-					if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-						return newAppleMDMDEPProfileAssigner(ctx, instanceID, config.MDMApple.DEP.SyncPeriodicity, ds, depStorage, logger, config.Logging.Debug)
-					}); err != nil {
-						initFatal(err, "failed to register apple_mdm_dep_profile_assigner schedule")
-					}
+			if license.IsPremium() && appCfg.MDM.EnabledAndConfigured && config.MDM.IsAppleBMSet() {
+				if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
+					return newAppleMDMDEPProfileAssigner(ctx, instanceID, config.MDM.AppleDEPSyncPeriodicity, ds, depStorage, logger, config.Logging.Debug)
+				}); err != nil {
+					initFatal(err, "failed to register apple_mdm_dep_profile_assigner schedule")
 				}
+			}
+
+			if appCfg.MDM.EnabledAndConfigured {
 				if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
 					return newMDMAppleProfileManager(
 						ctx,
@@ -795,10 +791,10 @@ the way that the Fleet server works.
 			rootMux.Handle("/version", service.PrometheusMetricsHandler("version", version.Handler()))
 			rootMux.Handle("/assets/", service.PrometheusMetricsHandler("static_assets", service.ServeStaticAssets("/assets/")))
 
-			if config.MDMApple.Enable {
+			if appCfg.MDM.EnabledAndConfigured {
 				if err := service.RegisterAppleMDMProtocolServices(
 					rootMux,
-					config.MDMApple.SCEP,
+					config.MDM,
 					mdmStorage,
 					scepStorage,
 					logger,
@@ -809,14 +805,18 @@ the way that the Fleet server works.
 			}
 
 			if config.Prometheus.BasicAuth.Username != "" && config.Prometheus.BasicAuth.Password != "" {
-				metricsHandler := basicAuthHandler(
+				rootMux.Handle("/metrics", basicAuthHandler(
 					config.Prometheus.BasicAuth.Username,
 					config.Prometheus.BasicAuth.Password,
 					service.PrometheusMetricsHandler("metrics", promhttp.Handler()),
-				)
-				rootMux.Handle("/metrics", metricsHandler)
+				))
 			} else {
-				level.Info(logger).Log("msg", "metrics endpoint disabled (http basic auth credentials not set)")
+				if config.Prometheus.BasicAuth.Disable {
+					level.Info(logger).Log("msg", "metrics endpoint enabled with http basic auth disabled")
+					rootMux.Handle("/metrics", service.PrometheusMetricsHandler("metrics", promhttp.Handler()))
+				} else {
+					level.Info(logger).Log("msg", "metrics endpoint disabled (http basic auth credentials not set)")
+				}
 			}
 
 			rootMux.Handle("/api/", apiHandler)

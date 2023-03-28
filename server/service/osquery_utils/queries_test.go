@@ -875,8 +875,9 @@ func TestDirectIngestDiskEncryptionKeyDarwin(t *testing.T) {
 	logger := log.NewNopLogger()
 	wantKey := "OTM5ODRDQTYtOUY1Mi00NERELTkxOUEtMDlBN0ZBOUUzNUY5Cg=="
 	host := &fleet.Host{ID: 1}
+
 	ds.SetOrUpdateHostDiskEncryptionKeyFunc = func(ctx context.Context, hostID uint, encryptedBase64Key string) error {
-		require.Equal(t, wantKey, encryptedBase64Key)
+		require.Empty(t, encryptedBase64Key)
 		require.Equal(t, host.ID, hostID)
 		return nil
 	}
@@ -887,7 +888,14 @@ func TestDirectIngestDiskEncryptionKeyDarwin(t *testing.T) {
 
 	err = directIngestDiskEncryptionKeyDarwin(ctx, logger, host, ds, []map[string]string{{"filevault_key": ""}})
 	require.NoError(t, err)
-	require.False(t, ds.SetOrUpdateHostDiskEncryptionKeyFuncInvoked)
+	require.True(t, ds.SetOrUpdateHostDiskEncryptionKeyFuncInvoked)
+	ds.SetOrUpdateHostDiskEncryptionKeyFuncInvoked = false
+
+	ds.SetOrUpdateHostDiskEncryptionKeyFunc = func(ctx context.Context, hostID uint, encryptedBase64Key string) error {
+		require.Equal(t, wantKey, encryptedBase64Key)
+		require.Equal(t, host.ID, hostID)
+		return nil
+	}
 
 	err = directIngestDiskEncryptionKeyDarwin(ctx, logger, host, ds, []map[string]string{{"filevault_key": wantKey}})
 	require.NoError(t, err)

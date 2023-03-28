@@ -414,11 +414,46 @@ func (svc *Service) GetDeviceMDMAppleEnrollmentProfile(ctx context.Context) ([]b
 	mobileConfig, err := apple_mdm.GenerateEnrollmentProfileMobileconfig(
 		appConfig.OrgInfo.OrgName,
 		appConfig.ServerSettings.ServerURL,
-		svc.config.MDMApple.SCEP.Challenge,
+		svc.config.MDM.AppleSCEPChallenge,
 		svc.mdmPushCertTopic,
 	)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 	return mobileConfig, nil
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Request a disk encryption reset
+////////////////////////////////////////////////////////////////////////////////
+
+type rotateEncryptionKeyRequest struct {
+	Token string `url:"token"`
+}
+
+func (r *rotateEncryptionKeyRequest) deviceAuthToken() string {
+	return r.Token
+}
+
+type rotateEncryptionKeyResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r rotateEncryptionKeyResponse) error() error { return r.Err }
+
+func rotateEncryptionKeyEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	host, ok := hostctx.FromContext(ctx)
+	if !ok {
+		err := ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
+		return rotateEncryptionKeyResponse{Err: err}, nil
+	}
+
+	if err := svc.RequestEncryptionKeyRotation(ctx, host.ID); err != nil {
+		return rotateEncryptionKeyResponse{Err: err}, nil
+	}
+	return rotateEncryptionKeyResponse{}, nil
+}
+
+func (svc *Service) RequestEncryptionKeyRotation(ctx context.Context, hostID uint) error {
+	return fleet.ErrMissingLicense
 }

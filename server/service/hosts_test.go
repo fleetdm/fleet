@@ -17,6 +17,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
@@ -108,166 +109,180 @@ func TestHostDetailsMDMDiskEncryption(t *testing.T) {
 		name       string
 		rawDecrypt *int
 		fvProf     *fleet.HostMDMAppleProfile
-		wantStatus fleet.DiskEncryptionState
+		wantState  fleet.DiskEncryptionState
 		wantAction fleet.ActionRequiredState
+		wantStatus *fleet.MDMAppleDeliveryStatus
 	}{
-		{"no profile", ptr.Int(-1), nil, "", ""},
+		{"no profile", ptr.Int(-1), nil, "", "", nil},
 
 		{
 			"installed profile, no key",
 			ptr.Int(-1),
 			&fleet.HostMDMAppleProfile{
 				HostUUID:      "abc",
-				Identifier:    apple_mdm.FleetFileVaultPayloadIdentifier,
+				Identifier:    mobileconfig.FleetFileVaultPayloadIdentifier,
 				Status:        &fleet.MDMAppleDeliveryApplied,
 				OperationType: fleet.MDMAppleOperationTypeInstall,
 			},
 			fleet.DiskEncryptionActionRequired,
 			fleet.ActionRequiredLogOut,
+			&fleet.MDMAppleDeliveryPending,
 		},
 		{
 			"installed profile, unknown decryptable",
 			nil,
 			&fleet.HostMDMAppleProfile{
 				HostUUID:      "abc",
-				Identifier:    apple_mdm.FleetFileVaultPayloadIdentifier,
+				Identifier:    mobileconfig.FleetFileVaultPayloadIdentifier,
 				Status:        &fleet.MDMAppleDeliveryApplied,
 				OperationType: fleet.MDMAppleOperationTypeInstall,
 			},
 			fleet.DiskEncryptionEnforcing,
 			"",
+			&fleet.MDMAppleDeliveryPending,
 		},
 		{
 			"installed profile, not decryptable",
 			ptr.Int(0),
 			&fleet.HostMDMAppleProfile{
 				HostUUID:      "abc",
-				Identifier:    apple_mdm.FleetFileVaultPayloadIdentifier,
+				Identifier:    mobileconfig.FleetFileVaultPayloadIdentifier,
 				Status:        &fleet.MDMAppleDeliveryApplied,
 				OperationType: fleet.MDMAppleOperationTypeInstall,
 			},
 			fleet.DiskEncryptionActionRequired,
 			fleet.ActionRequiredRotateKey,
+			&fleet.MDMAppleDeliveryPending,
 		},
 		{
 			"installed profile, decryptable",
 			ptr.Int(1),
 			&fleet.HostMDMAppleProfile{
 				HostUUID:      "abc",
-				Identifier:    apple_mdm.FleetFileVaultPayloadIdentifier,
+				Identifier:    mobileconfig.FleetFileVaultPayloadIdentifier,
 				Status:        &fleet.MDMAppleDeliveryApplied,
 				OperationType: fleet.MDMAppleOperationTypeInstall,
 			},
 			fleet.DiskEncryptionApplied,
 			"",
+			&fleet.MDMAppleDeliveryApplied,
 		},
 		{
 			"pending install, decryptable",
 			ptr.Int(1),
 			&fleet.HostMDMAppleProfile{
 				HostUUID:      "abc",
-				Identifier:    apple_mdm.FleetFileVaultPayloadIdentifier,
+				Identifier:    mobileconfig.FleetFileVaultPayloadIdentifier,
 				Status:        &fleet.MDMAppleDeliveryPending,
 				OperationType: fleet.MDMAppleOperationTypeInstall,
 			},
 			fleet.DiskEncryptionEnforcing,
 			"",
+			&fleet.MDMAppleDeliveryPending,
 		},
 		{
 			"pending install, unknown decryptable",
 			nil,
 			&fleet.HostMDMAppleProfile{
 				HostUUID:      "abc",
-				Identifier:    apple_mdm.FleetFileVaultPayloadIdentifier,
+				Identifier:    mobileconfig.FleetFileVaultPayloadIdentifier,
 				Status:        &fleet.MDMAppleDeliveryPending,
 				OperationType: fleet.MDMAppleOperationTypeInstall,
 			},
 			fleet.DiskEncryptionEnforcing,
 			"",
+			&fleet.MDMAppleDeliveryPending,
 		},
 		{
 			"pending install, no key",
 			ptr.Int(-1),
 			&fleet.HostMDMAppleProfile{
 				HostUUID:      "abc",
-				Identifier:    apple_mdm.FleetFileVaultPayloadIdentifier,
+				Identifier:    mobileconfig.FleetFileVaultPayloadIdentifier,
 				Status:        &fleet.MDMAppleDeliveryPending,
 				OperationType: fleet.MDMAppleOperationTypeInstall,
 			},
 			fleet.DiskEncryptionEnforcing,
 			"",
+			&fleet.MDMAppleDeliveryPending,
 		},
 		{
 			"failed install, no key",
 			ptr.Int(-1),
 			&fleet.HostMDMAppleProfile{
 				HostUUID:      "abc",
-				Identifier:    apple_mdm.FleetFileVaultPayloadIdentifier,
+				Identifier:    mobileconfig.FleetFileVaultPayloadIdentifier,
 				Status:        &fleet.MDMAppleDeliveryFailed,
 				OperationType: fleet.MDMAppleOperationTypeInstall,
 			},
 			fleet.DiskEncryptionFailed,
 			"",
+			&fleet.MDMAppleDeliveryFailed,
 		},
 		{
 			"failed install, not decryptable",
 			ptr.Int(0),
 			&fleet.HostMDMAppleProfile{
 				HostUUID:      "abc",
-				Identifier:    apple_mdm.FleetFileVaultPayloadIdentifier,
+				Identifier:    mobileconfig.FleetFileVaultPayloadIdentifier,
 				Status:        &fleet.MDMAppleDeliveryFailed,
 				OperationType: fleet.MDMAppleOperationTypeInstall,
 			},
 			fleet.DiskEncryptionFailed,
 			"",
+			&fleet.MDMAppleDeliveryFailed,
 		},
 		{
 			"pending remove, decryptable",
 			ptr.Int(1),
 			&fleet.HostMDMAppleProfile{
 				HostUUID:      "abc",
-				Identifier:    apple_mdm.FleetFileVaultPayloadIdentifier,
+				Identifier:    mobileconfig.FleetFileVaultPayloadIdentifier,
 				Status:        &fleet.MDMAppleDeliveryPending,
 				OperationType: fleet.MDMAppleOperationTypeRemove,
 			},
 			fleet.DiskEncryptionRemovingEnforcement,
 			"",
+			&fleet.MDMAppleDeliveryPending,
 		},
 		{
 			"pending remove, no key",
 			ptr.Int(-1),
 			&fleet.HostMDMAppleProfile{
 				HostUUID:      "abc",
-				Identifier:    apple_mdm.FleetFileVaultPayloadIdentifier,
+				Identifier:    mobileconfig.FleetFileVaultPayloadIdentifier,
 				Status:        &fleet.MDMAppleDeliveryPending,
 				OperationType: fleet.MDMAppleOperationTypeRemove,
 			},
 			fleet.DiskEncryptionRemovingEnforcement,
 			"",
+			&fleet.MDMAppleDeliveryPending,
 		},
 		{
 			"failed remove, unknown decryptable",
 			nil,
 			&fleet.HostMDMAppleProfile{
 				HostUUID:      "abc",
-				Identifier:    apple_mdm.FleetFileVaultPayloadIdentifier,
+				Identifier:    mobileconfig.FleetFileVaultPayloadIdentifier,
 				Status:        &fleet.MDMAppleDeliveryFailed,
 				OperationType: fleet.MDMAppleOperationTypeRemove,
 			},
 			fleet.DiskEncryptionFailed,
 			"",
+			&fleet.MDMAppleDeliveryFailed,
 		},
 		{
 			"removed profile, not decryptable",
 			ptr.Int(0),
 			&fleet.HostMDMAppleProfile{
 				HostUUID:      "abc",
-				Identifier:    apple_mdm.FleetFileVaultPayloadIdentifier,
+				Identifier:    mobileconfig.FleetFileVaultPayloadIdentifier,
 				Status:        &fleet.MDMAppleDeliveryApplied,
 				OperationType: fleet.MDMAppleOperationTypeRemove,
 			},
 			"",
 			"",
+			&fleet.MDMAppleDeliveryApplied,
 		},
 	}
 	for _, c := range cases {
@@ -294,17 +309,24 @@ func TestHostDetailsMDMDiskEncryption(t *testing.T) {
 			hostDetail, err := svc.getHostDetails(test.UserContext(context.Background(), test.UserAdmin), host, opts)
 			require.NoError(t, err)
 
-			if c.wantStatus == "" {
+			if c.wantState == "" {
 				require.Nil(t, hostDetail.MDM.MacOSSettings.DiskEncryption)
 			} else {
 				require.NotNil(t, hostDetail.MDM.MacOSSettings.DiskEncryption)
-				require.Equal(t, c.wantStatus, *hostDetail.MDM.MacOSSettings.DiskEncryption)
+				require.Equal(t, c.wantState, *hostDetail.MDM.MacOSSettings.DiskEncryption)
 			}
 			if c.wantAction == "" {
 				require.Nil(t, hostDetail.MDM.MacOSSettings.ActionRequired)
 			} else {
 				require.NotNil(t, hostDetail.MDM.MacOSSettings.ActionRequired)
 				require.Equal(t, c.wantAction, *hostDetail.MDM.MacOSSettings.ActionRequired)
+			}
+			if c.wantStatus != nil {
+				require.NotNil(t, hostDetail.MDM.Profiles)
+				profs := *hostDetail.MDM.Profiles
+				require.Equal(t, c.wantStatus, profs[0].Status)
+			} else {
+				require.Nil(t, *hostDetail.MDM.Profiles)
 			}
 		})
 	}
@@ -372,6 +394,9 @@ func TestHostAuth(t *testing.T) {
 		} else {
 			globalHost.RefetchRequested = true
 		}
+		return nil
+	}
+	ds.BulkSetPendingMDMAppleHostProfilesFunc = func(ctx context.Context, hids, tids, pids []uint, uuids []string) error {
 		return nil
 	}
 
@@ -590,6 +615,9 @@ func TestAddHostsToTeamByFilter(t *testing.T) {
 		assert.Equal(t, expectedHostIDs, hostIDs)
 		return nil
 	}
+	ds.BulkSetPendingMDMAppleHostProfilesFunc = func(ctx context.Context, hids, tids, pids []uint, uuids []string) error {
+		return nil
+	}
 
 	require.NoError(t, svc.AddHostsToTeamByFilter(test.UserContext(ctx, test.UserAdmin), expectedTeam, fleet.HostListOptions{}, nil))
 	assert.True(t, ds.ListHostsFuncInvoked)
@@ -616,6 +644,9 @@ func TestAddHostsToTeamByFilterLabel(t *testing.T) {
 		assert.Equal(t, expectedHostIDs, hostIDs)
 		return nil
 	}
+	ds.BulkSetPendingMDMAppleHostProfilesFunc = func(ctx context.Context, hids, tids, pids []uint, uuids []string) error {
+		return nil
+	}
 
 	require.NoError(t, svc.AddHostsToTeamByFilter(test.UserContext(ctx, test.UserAdmin), expectedTeam, fleet.HostListOptions{}, expectedLabel))
 	assert.True(t, ds.ListHostsInLabelFuncInvoked)
@@ -630,6 +661,9 @@ func TestAddHostsToTeamByFilterEmptyHosts(t *testing.T) {
 		return []*fleet.Host{}, nil
 	}
 	ds.AddHostsToTeamFunc = func(ctx context.Context, teamID *uint, hostIDs []uint) error {
+		return nil
+	}
+	ds.BulkSetPendingMDMAppleHostProfilesFunc = func(ctx context.Context, hids, tids, pids []uint, uuids []string) error {
 		return nil
 	}
 
