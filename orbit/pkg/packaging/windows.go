@@ -2,12 +2,14 @@ package packaging
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 
@@ -207,81 +209,142 @@ func writePowershellInstallerUtilsFile(opt Options, rootPath string) error {
 
 // writeManifestXML creates the manifest.xml file used when generating the 'resource.syso' metadata
 // (see writeResourceSyso). Returns the path of the newly created file.
-func writeManifestXML(opt Options, orbitPath string) (string, error) {
+func writeManifestXML(vParts []string, orbitPath string) (string, error) {
 	filePath := filepath.Join(orbitPath, "manifest.xml")
+
+	tmplOpts := struct {
+		Version string
+	}{
+		Version: strings.Join(vParts, "."),
+	}
+
 	var contents bytes.Buffer
-	if err := manifestXMLTemplate.Execute(&contents, opt); err != nil {
-		return "", fmt.Errorf("parsing manifest XML: %w", err)
+	if err := manifestXMLTemplate.Execute(&contents, tmplOpts); err != nil {
+		return "", fmt.Errorf("parsing manifest.xml template: %w", err)
 	}
+
 	if err := ioutil.WriteFile(filePath, contents.Bytes(), constant.DefaultFileMode); err != nil {
-		return "", fmt.Errorf("write file: %w", err)
+		return "", fmt.Errorf("writing manifest.xml file: %w", err)
 	}
+
 	return filePath, nil
 }
 
-// writeVersionInfoJSON creates the versioninfo.json used when generating the 'resource.syso'
-// metadata (see writeResourceSyso). Returns a pointer to a VersionInfo struct with the proper info.
-func writeVersionInfoJSON(opt Options, orbitPath string, manifestPath string) (*goversioninfo.VersionInfo, error) {
-	vParts := strings.Split(opt.Version, ".")
-	if len(vParts) < 3 {
-		return nil, fmt.Errorf("invalid version: %s", opt.Version)
+// createVersionInfo returns a VersionInfo struct pointer to be used to generate the 'resource.syso'
+// metadata file (see writeResourceSyso).
+func createVersionInfo(vParts []string, manifestPath string) (*goversioninfo.VersionInfo, error) {
+	vIntParts := make([]int, 0, len(vParts))
+	for _, p := range vParts {
+		v, err := strconv.Atoi(p)
+		if err != nil {
+			return nil, fmt.Errorf("error parsing version part %s: %w", p, err)
+		}
+		vIntParts = append(vIntParts, v)
+	}
+	version := strings.Join(vParts, ".")
+	copyright := fmt.Sprintf("%d Fleet Device Management Inc.", time.Now().Year())
+
+	// Taken from https://github.com/josephspurrier/goversioninfo/blob/master/testdata/resource/versioninfo.json
+	langID, err := strconv.ParseUint("0409", 16, 16)
+	if err != nil {
+		return nil, errors.New("invalid LangID")
+	}
+	// Taken from https://github.com/josephspurrier/goversioninfo/blob/master/testdata/resource/versioninfo.json
+	charsetID, err := strconv.ParseUint("04B0", 16, 16)
+	if err != nil {
+		return nil, errors.New("invalid charsetID")
 	}
 
-	// Append a default 'build' number if the version str contains none.
-	if len(vParts) <= 4 {
-		vParts = append(vParts, "0")
-	}
-
-	tmplOpts := struct {
-		Version      string
-		VersionParts []string
-		Copyright    string
-		ManifestPath string
-	}{
-		Version:      opt.Version,
-		VersionParts: vParts,
-		Copyright:    fmt.Sprintf("%d Fleet Device Management Inc.", time.Now().Year()),
+	result := goversioninfo.VersionInfo{
+		FixedFileInfo: goversioninfo.FixedFileInfo{
+			FileVersion: goversioninfo.FileVersion{
+				Major: vIntParts[0],
+				Minor: vIntParts[1],
+				Patch: vIntParts[2],
+				Build: vIntParts[3],
+			},
+			ProductVersion: goversioninfo.FileVersion{
+				Major: vIntParts[0],
+				Minor: vIntParts[1],
+				Patch: vIntParts[2],
+				Build: vIntParts[3],
+			},
+			FileFlagsMask: "3f",
+			FileFlags:     "00",
+			FileOS:        "040004",
+			FileType:      "01",
+			FileSubType:   "00",
+		},
+		StringFileInfo: goversioninfo.StringFileInfo{
+			Comments:         "Fleet osquery",
+			CompanyName:      "Fleet Device Management (fleetdm.com)",
+			FileDescription:  "Fleet osquery installer",
+			FileVersion:      version,
+			InternalName:     "",
+			LegalCopyright:   copyright,
+			LegalTrademarks:  "",
+			OriginalFilename: "",
+			PrivateBuild:     "",
+			ProductName:      "Fleet osquery",
+			ProductVersion:   version,
+			SpecialBuild:     "",
+		},
+		VarFileInfo: goversioninfo.VarFileInfo{
+			Translation: goversioninfo.Translation{
+				LangID:    goversioninfo.LangID(langID),
+				CharsetID: goversioninfo.CharsetID(charsetID),
+			},
+		},
+		IconPath:     "",
 		ManifestPath: manifestPath,
 	}
 
-	var contents bytes.Buffer
-	if err := versionInfoJSONTemplate.Execute(&contents, tmplOpts); err != nil {
-		return nil, fmt.Errorf("parsing versioninfo.json template: %w", err)
-	}
-
-	result := &goversioninfo.VersionInfo{}
-	if err := result.ParseJSON(contents.Bytes()); err != nil {
-		return nil, fmt.Errorf("parsing versioninfo.json: %w", err)
-	}
-
-	return result, nil
+	return &result, nil
 }
 
-// writeResourceSyso creates a syso file which contains the required Microsoft Windows Version Information
+// sanitizeVersion returns the version parts (Major, Minor, Patch and Build), filling the Build part
+// with '0' if missing. Will error out if the version string is missing the Major, Minor or
+// Patch part(s).
+func sanitizeVersion(version string) ([]string, error) {
+	vParts := strings.Split(version, ".")
+	if len(vParts) < 3 {
+		return nil, errors.New("invalid version string")
+	}
+
+	if len(vParts) < 4 {
+		vParts = append(vParts, "0")
+	}
+
+	return vParts[:4], nil
+}
+
+// writeResourceSyso creates the 'resource.syso' metadata file which contains the required Microsoft
+// Windows Version Information
 func writeResourceSyso(opt Options, orbitPath string) error {
 	if err := secure.MkdirAll(orbitPath, constant.DefaultDirMode); err != nil {
 		return fmt.Errorf("mkdir: %w", err)
 	}
 
-	outPath := filepath.Join(orbitPath, "resource.syso")
+	vParts, err := sanitizeVersion(opt.Version)
+	if err != nil {
+		return fmt.Errorf("invalid version %s: %w", opt.Version, err)
+	}
 
-	// Create manifest.xml
-	manifestPath, err := writeManifestXML(opt, orbitPath)
+	manifestPath, err := writeManifestXML(vParts, orbitPath)
 	if err != nil {
 		return fmt.Errorf("creating manifest.xml: %w", err)
 	}
+	defer os.RemoveAll(manifestPath)
 
-	// Create vertsioninfo.json
-	vi, err := writeVersionInfoJSON(opt, orbitPath, manifestPath)
+	vi, err := createVersionInfo(vParts, manifestPath)
 	if err != nil {
-		return fmt.Errorf("creating versioninfo.json: %w", err)
+		return fmt.Errorf("parsing versioninfo: %w", err)
 	}
 
-	// Build syso file
 	vi.Build()
 	vi.Walk()
 
-	// Output syso file
+	outPath := filepath.Join(orbitPath, "resource.syso")
 	if err := vi.WriteSyso(outPath, "amd64"); err != nil {
 		return fmt.Errorf("creating syso file: %w", err)
 	}

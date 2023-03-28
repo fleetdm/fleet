@@ -3,53 +3,6 @@ package packaging
 import "text/template"
 
 // Adapted from
-// https://github.com/josephspurrier/goversioninfo/blob/master/testdata/resource/versioninfo.json
-var versionInfoJSONTemplate = template.Must(template.New("").Option("missingkey=error").Parse(
-	`{
-    "FixedFileInfo": {
-        "FileVersion": {
-            "Major": {{index .VersionParts 0}},
-            "Minor": {{index .VersionParts 1}},
-            "Patch": {{index .VersionParts 2}},
-            "Build": {{index .VersionParts 3}}
-        },
-        "ProductVersion": {
-            "Major": {{index .VersionParts 0}},
-            "Minor": {{index .VersionParts 1}},
-            "Patch": {{index .VersionParts 2}},
-            "Build": {{index .VersionParts 3}}
-        },
-        "FileFlagsMask": "3f",
-        "FileFlags ": "00",
-        "FileOS": "040004",
-        "FileType": "01",
-        "FileSubType": "00"
-    },
-    "StringFileInfo": {
-        "Comments": "Fleet osquery",
-        "CompanyName": "Fleet Device Management (fleetdm.com)",
-        "FileDescription": "Fleet osquery installer",
-        "FileVersion": "{{.Version}}",
-        "InternalName": "",
-        "LegalCopyright": "{{.Copyright}}",
-        "LegalTrademarks": "",
-        "OriginalFilename": "",
-        "PrivateBuild": "",
-        "ProductName": "Fleet osquery",
-        "ProductVersion": "{{.Version}}",
-        "SpecialBuild": ""
-    },
-    "VarFileInfo": {
-        "Translation": {
-            "LangID": "0409",
-            "CharsetID": "04B0"
-        }
-    },
-    "IconPath": "",
-    "ManifestPath": "{{.ManifestPath}}"
-}`))
-
-// Adapted from
 // https://github.com/josephspurrier/goversioninfo/blob/master/testdata/resource/goversioninfo.exe.manifest
 var manifestXMLTemplate = template.Must(template.New("").Option("missingkey=error").Parse(
 	`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
