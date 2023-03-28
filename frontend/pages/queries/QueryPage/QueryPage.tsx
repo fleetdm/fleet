@@ -46,6 +46,7 @@ const QueryPage = ({
     isGlobalAdmin,
     isGlobalMaintainer,
     isAnyTeamMaintainerOrTeamAdmin,
+    isObserverPlus,
   } = useContext(AppContext);
   const {
     selectedOsqueryTable,
@@ -230,7 +231,10 @@ const QueryPage = ({
   const showSidebar =
     isFirstStep &&
     isSidebarOpen &&
-    (isGlobalAdmin || isGlobalMaintainer || isAnyTeamMaintainerOrTeamAdmin);
+    (isGlobalAdmin ||
+      isGlobalMaintainer ||
+      isAnyTeamMaintainerOrTeamAdmin ||
+      isObserverPlus);
 
   return (
     <>
