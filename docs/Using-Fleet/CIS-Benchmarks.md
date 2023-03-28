@@ -77,35 +77,21 @@ This profile extends the "Level 1" profile. Items in this profile exhibit one or
 
 ## CIS Apple macOS 13.0 Ventura Benchmark
 
-You can import macOS 13 Ventura CIS Benchmark the following way:
-```sh
-# Download policy queries from Fleet's repository (e.g. for macOS 13)
-wget https://raw.githubusercontent.com/fleetdm/fleet/main/ee/cis/macos-13/cis-policy-queries.yml
+### Checks that require customer decision
 
-# Apply the downloaded policies to Fleet.
-fleetctl apply -f cis-policy-queries.yml
-```
+CIS has left the parameters of the following checks up to the benchmark implementer. CIS recommends that an organization make a conscious decision for these benchmarks, but does not make a specific recommendation.
 
-The above will add all the automated CIS Benchmark checks as Fleet policies.
+Fleet has provided both an "enabled" and "disabled" version of these benchmarks. When both policies are added, at least one will fail. Once your organization has made a decision, you can delete one or the other policy query.
+The policy will be appended with a `-enabled` or `-disabled` label, such as `2.1.1.1-enabled`.
 
-### macOS 13.0 Ventura Benchmark manual checks that require customer decision
-
-- 2.1.1.1 Audit iCloud Keychain (Level 2): Ensure that the iCloud keychain is used consistently with organizational requirements.
-    The customer will decide whether iCloud keychain should be enabled or disabled and use only the relevant query
-    2.1.1.1-enabled OR 2.1.1.1-disabled
-- 2.1.1.2 Audit iCloud Drive (Level 2): Ensure that the iCloud Drive is used consistently with organizational requirements.
-    The customer will decide whether iCloud Drive should be enabled or disabled and use only the relevant query
-    2.1.1.2-enabled OR 2.1.1.2-disabled
-- 2.5.1 Audit Siri (Level 1): Ensure that the Siri is used consistently with organizational requirements.
-    The customer will decide whether Siri should be enabled or disabled and use only the relevant query
-    2.5.1-enabled OR 2.5.1-disabled
-- 2.8.1 Audit Universal Control (Level 1): Ensure that the Universal Control is used consistently with organizational requirements.
-    The customer will decide whether Universal Control should be enabled or disabled and use only the relevant query
-    2.8.1-enabled OR 2.8.1-disabled
+- 2.1.1.1 Audit iCloud Keychain (Level 2)
+- 2.1.1.2 Audit iCloud Drive (Level 2)
+- 2.5.1 Audit Siri (Level 1)
+- 2.8.1 Audit Universal Control (Level 1)
 
 ### macOS 13.0 Ventura Benchmark manual checks
 
-The following CIS benchmark checks cannot be automated and must be addressed manually (they are flagged as "Manual"):
+The following CIS benchmark checks cannot be automated and must be addressed manually:
 - 2.1.1.1 Audit iCloud Keychain (Level 2): Ensure that the iCloud keychain is used consistently with organizational requirements.
 - 2.1.1.2 Audit iCloud Drive (Level 2): Organizations should review third party storage solutions pertaining to existing data confidentiality and integrity requirements.
 - 2.1.2 Audit App Store Password Settings (Level 2): Users who are not authorized to download software may have physical access to an unlocked computer where someone who is authorized recently made a purchase. If that is a concern, a password should be required at all times for App Store access in the Password Settings controls.
