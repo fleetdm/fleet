@@ -9,6 +9,7 @@ import {
   reconcileMutuallyInclusiveHostParams,
 } from "utilities/url";
 import { ISelectedPlatform } from "interfaces/platform";
+import { DiskEncryptionStatus } from "utilities/constants";
 
 export interface ISortOption {
   key: string;
@@ -39,6 +40,7 @@ export interface ILoadHostsOptions {
   device_mapping?: boolean;
   columns?: string;
   visibleColumns?: string;
+  diskEncryptionStatus?: DiskEncryptionStatus;
 }
 
 export interface IExportHostsOptions {
@@ -63,6 +65,7 @@ export interface IExportHostsOptions {
   device_mapping?: boolean;
   columns?: string;
   visibleColumns?: string;
+  diskEncryptionStatus?: DiskEncryptionStatus;
 }
 
 export interface IActionByFilter {
@@ -153,6 +156,7 @@ export default {
     const visibleColumns = options?.visibleColumns;
     const label = getLabelParam(selectedLabels);
     const munkiIssueId = options?.munkiIssueId;
+    const diskEncryptionStatus = options?.diskEncryptionStatus;
 
     if (!sortBy.length) {
       throw Error("sortBy is a required field.");
@@ -172,6 +176,7 @@ export default {
         munkiIssueId,
         softwareId,
         lowDiskSpaceHosts,
+        diskEncryptionStatus,
       }),
       status,
       label_id: label,
@@ -205,6 +210,7 @@ export default {
     device_mapping,
     selectedLabels,
     sortBy,
+    diskEncryptionStatus,
   }: ILoadHostsOptions) => {
     const label = getLabel(selectedLabels);
     const sortParams = getSortParams(sortBy);
@@ -233,6 +239,7 @@ export default {
         osId,
         osName,
         osVersion,
+        diskEncryptionStatus,
       }),
     };
 
