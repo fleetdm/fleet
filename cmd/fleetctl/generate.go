@@ -10,7 +10,8 @@ import (
 
 func generateCommand() *cli.Command {
 	return &cli.Command{
-		Name: "generate",
+		Name:  "generate",
+		Usage: "Generate certificates and keys required for MDM",
 		Flags: []cli.Flag{
 			configFlag(),
 			contextFlag(),
