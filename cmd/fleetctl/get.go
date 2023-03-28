@@ -1109,7 +1109,6 @@ func getSoftwareCommand() *cli.Command {
 func getMDMAppleCommand() *cli.Command {
 	return &cli.Command{
 		Name:    "mdm_apple",
-		Hidden:  true, // TODO: temporary, until the MDM feature is officially released
 		Aliases: []string{"mdm-apple"},
 		Usage:   "Show Apple Push Notification Service (APNs) information",
 		Flags: []cli.Flag{
@@ -1159,7 +1158,6 @@ func getMDMAppleCommand() *cli.Command {
 func getMDMAppleBMCommand() *cli.Command {
 	return &cli.Command{
 		Name:    "mdm_apple_bm",
-		Hidden:  true, // TODO: temporary, until the MDM feature is officially released
 		Aliases: []string{"mdm-apple-bm"},
 		Usage:   "Show information about Apple Business Manager for automatic enrollment",
 		Flags: []cli.Flag{
