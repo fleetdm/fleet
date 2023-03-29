@@ -784,19 +784,25 @@ func filterHostsByMDM(sql string, opt fleet.HostListOptions, params []interface{
 		sql += ` AND hmdm.mdm_id = ?`
 		params = append(params, *opt.MDMIDFilter)
 	}
+	if opt.MDMNameFilter != nil {
+		sql += ` AND hmdm.name = ?`
+		params = append(params, *opt.MDMNameFilter)
+	}
 	if opt.MDMEnrollmentStatusFilter != "" {
 		switch opt.MDMEnrollmentStatusFilter {
 		case fleet.MDMEnrollStatusAutomatic:
 			sql += ` AND hmdm.enrolled = 1 AND hmdm.installed_from_dep = 1`
 		case fleet.MDMEnrollStatusManual:
 			sql += ` AND hmdm.enrolled = 1 AND hmdm.installed_from_dep = 0`
+		case fleet.MDMEnrollStatusEnrolled:
+			sql += ` AND hmdm.enrolled = 1`
 		case fleet.MDMEnrollStatusPending:
 			sql += ` AND hmdm.enrolled = 0 AND hmdm.installed_from_dep = 1`
 		case fleet.MDMEnrollStatusUnenrolled:
 			sql += ` AND hmdm.enrolled = 0 AND hmdm.installed_from_dep = 0`
 		}
 	}
-	if opt.MDMIDFilter != nil || opt.MDMEnrollmentStatusFilter != "" {
+	if opt.MDMNameFilter != nil || opt.MDMIDFilter != nil || opt.MDMEnrollmentStatusFilter != "" {
 		sql += ` AND NOT COALESCE(hmdm.is_server, false) `
 	}
 	return sql, params
