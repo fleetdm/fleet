@@ -214,10 +214,15 @@ module.exports = {
       // generate a haiku based on this issue.
       let issueSummary = '# ' + issueOrPr.title + '\n' + _.trunc(issueOrPr.body, MAX_TOKENS);
 
-      // [?] API: https://beta.openai.com/docs/api-reference/completions/create
-      let openAiReport = await sails.helpers.http.post('https://api.openai.com/v1/completions', {
+      // [?] API: https://platform.openai.com/docs/api-reference/chat/create
+      let openAiReport = await sails.helpers.http.post('https://api.openai.com/v1/chat/completions', {
         model: BASE_MODEL,
-        prompt: `You are an empathetic product designer.  I will give you a Github issue with information about a particular improvement to Fleet, an open-source device management and security platform.  You will write a haiku about how this improvement could benefit users or contributors.  Be detailed and specific in the haiku.  Do not use hyperbole.  Be matter-of-fact.  Be positive.  Do not make Fleet (or anyone) sound bad.  But be honest.  If appropriate, mention imagery from nature, or from a glass city in the clouds.  Do not give orders.\n\nThe first GitHub issue is:\n${issueSummary}`,
+        messages: [// https://platform.openai.com/docs/guides/chat/introduction
+          {
+            role: 'user',
+            content: `You are an empathetic product designer.  I will give you a Github issue with information about a particular improvement to Fleet, an open-source device management and security platform.  You will write a haiku about how this improvement could benefit users or contributors.  Be detailed and specific in the haiku.  Do not use hyperbole.  Be matter-of-fact.  Be positive.  Do not make Fleet (or anyone) sound bad.  But be honest.  If appropriate, mention imagery from nature, or from a glass city in the clouds.  Do not give orders.\n\nThe first GitHub issue is:\n${issueSummary}`,
+          }
+        ],
         temperature: 0.7,
         max_tokens: 256//eslint-disable-line camelcase
       }, {
@@ -230,7 +235,7 @@ module.exports = {
       if (!openAiReport) {// If OpenAI could not be reached…
         newBotComment = 'I couldn\'t think of a haiku this time.  (See fleetdm.com logs for more information.)';
       } else {// Otherwise, haiku was successfully generated…
-        newBotComment = openAiReport.choices[0].text;
+        newBotComment = openAiReport.choices[0].message.content;
         newBotComment = newBotComment.replace(/^\s*\n*[^\n:]*Haiku[^\n:]*:\s*/i,'');// « eliminate "*Haiku:" prefix line, if one is generated
       }
 

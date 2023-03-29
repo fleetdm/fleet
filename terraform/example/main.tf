@@ -21,10 +21,11 @@ module "main" {
   source          = "../"
   certificate_arn = module.acm.acm_certificate_arn
   vpc = {
-    name = random_pet.main.id
+    name                 = random_pet.main.id
+    enable_dns_hostnames = module.vulnprocessing.enable_dns_hostnames
   }
   fleet_config = {
-    extra_environment_variables = module.firehose-logging.fleet_extra_environment_variables
+    extra_environment_variables = concat(module.firehose-logging.fleet_extra_environment_variables, module.vulnprocessing.fleet_extra_environment_variables)
     extra_iam_policies          = module.firehose-logging.fleet_extra_iam_policies
   }
 }
@@ -63,5 +64,32 @@ module "firehose-logging" {
   }
   osquery_status_s3_bucket = {
     name = "${random_pet.main.id}-status"
+  }
+}
+
+module "vulnprocessing" {
+  source          = "../addons/vuln-processing"
+  customer_prefix = "fleet"
+  ecs_cluster     = module.main.byo-vpc.byo-db.byo-ecs.cluster.cluster_arn
+  vpc_id          = module.main.vpc.vpc_id
+  fleet_config = {
+    image = "fleetdm/fleet:v4.28.1"
+    database = {
+      password_secret_arn = module.main.byo-vpc.secrets.secret_arns["${var.rds_config.name}-database-password"]
+      user                = module.main.byo-vpc.rds.db_instance_username
+      address             = "${module.main.byo-vpc.rds.db_instance_endpoint}:${module.main.byo-vpc.rds.db_instance_port}"
+      database            = module.main.byo-vpc.rds.db_instance_name
+    }
+    extra_environment_variables = {
+      FLEET_LOGGING_DEBUG = "true"
+      FLEET_LOGGING_JSON  = "true"
+    }
+    extra_secrets = {
+      // FLEET_LICENSE_KEY: "secret_manager_license_key_arn" // note needed for some feature of vuln processing
+    }
+    networking = {
+      subnets         = module.main.byo-vpc.byo-db.byo-ecs.service.network_configuration[0].subnets
+      security_groups = module.main.byo-vpc.byo-db.byo-ecs.service.network_configuration[0].security_groups
+    }
   }
 }

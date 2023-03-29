@@ -16,7 +16,8 @@ variable "vpc" {
     one_nat_gateway_per_az                = optional(bool, false)
     single_nat_gateway                    = optional(bool, true)
     enable_nat_gateway                    = optional(bool, true)
-
+    enable_dns_hostnames                  = optional(bool, false)
+    enable_dns_support                    = optional(bool, true)
     enable_flow_log                           = optional(bool, false)
     create_flow_log_cloudwatch_log_group      = optional(bool, false)
     create_flow_log_cloudwatch_iam_role       = optional(bool, false)
@@ -42,7 +43,8 @@ variable "vpc" {
     one_nat_gateway_per_az                = false
     single_nat_gateway                    = true
     enable_nat_gateway                    = true
-
+    enable_dns_hostnames                  = false
+    enable_dns_support                    = true
     enable_flow_log                           = false
     create_flow_log_cloudwatch_log_group      = false
     create_flow_log_cloudwatch_iam_role       = false

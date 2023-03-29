@@ -711,6 +711,23 @@ Turning off keepalives has helped reduce outstanding TCP connections in some dep
   	keepalive: true
   ```
 
+##### server_websockets_allow_unsafe_origin
+
+Controls the servers websocket origin check. If your Fleet server is behind a reverse proxy,
+the Origin header may not reflect the client's true origin. In this case, you might need to 
+disable the origin header (by setting this configuration to `true`) 
+check or configure your reverse proxy to forward the correct Origin header.
+
+Setting to true will disable the origin check.
+
+- Default value: false
+- Environment variable: `FLEET_SERVER_WEBSOCKETS_ALLOW_UNSAFE_ORIGIN`
+- Config file format:
+  ```
+  server:
+  	websockets_allow_unsafe_origin: true
+  ```
+
 ##### Example YAML
 
 ```yaml
@@ -2955,8 +2972,6 @@ Otherwise, the following values are required:
 - _Entity ID_ - A URI that identifies your Fleet instance as the issuer of authorization
   requests (e.g., `fleet.example.com`). This must match the _Entity ID_ configured with the IDP.
 
-- _Issuer URI_ - Obtain this value from the IDP.
-
 - _Metadata URL_ - Obtain this value from the IDP and is used by Fleet to
   issue authorization requests to the IDP.
 
@@ -2979,7 +2994,11 @@ configuration problems.
 > Individual users must also be set up on the IDP before signing in to Fleet.
 
 ### Enabling SSO for existing users in Fleet
-As an admin, you can enable SSO for existing users in Fleet. To do this, go to the Settings page, then click on the Users tab. Locate the user you want to enable SSO for and on the Actions dropdown menu for that user, click on "Enable single sign-on."
+As an admin, you can enable SSO for existing users in Fleet. To do this, go to the Settings page,
+then click on the Users tab. Locate the user you want to enable SSO for, and in the Actions dropdown
+menu for that user, click on "Edit." In the dialogue that opens, check the box labeled "Enable
+single sign-on," then click "Save." If you are unable to check that box, you must first [configure
+and enable SSO for the organization](https://fleetdm.com/docs/deploying/configuration#configuring-single-sign-on-sso).
 
 ### Just-in-time (JIT) user provisioning
 
@@ -3093,16 +3112,15 @@ Follow these steps to configure Fleet SSO with Google Workspace. This will requi
 
   ![Adding a new app to Google workspace admin dashboard](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/google-sso-configuration-step-2.png)
 
-3. Click _Download Metadata_, saving the metadata to your computer. Copy the _SSO URL_. Click _Continue_.
+3. Click _Download Metadata_, saving the metadata to your computer. Click _Continue_.
 
-  ![Download metadata and copy the SSO URL](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/google-sso-configuration-step-3.png)
+  ![Download metadata](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/google-sso-configuration-step-3.png)
 
 4. In Fleet, navigate to the _Organization Settings_ page. Configure the _SAML single sign-on options_ section.
 
   - Check the _Enable single sign-on_ checkbox.
   - For _Identity provider name_, use `Google`.
   - For _Entity ID_, use a unique identifier such as `fleet.example.com`. Note that Google seems to error when the provided ID includes `https://`.
-  - For _Issuer URI_, paste the _SSO URL_ copied from step three.
   - For _Metadata_, paste the contents of the downloaded metadata XML from step three.
   - All other fields can be left blank.
 

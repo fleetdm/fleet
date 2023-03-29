@@ -98,7 +98,7 @@ describe("Host Actions Dropdown", () => {
       const render = createCustomRenderer({
         context: {
           app: {
-            isMdmFeatureFlagEnabled: true, // TODO: remove when we release MDM
+            isMdmEnabledAndConfigured: true,
             isGlobalAdmin: true,
           },
         },
@@ -122,7 +122,7 @@ describe("Host Actions Dropdown", () => {
       const render = createCustomRenderer({
         context: {
           app: {
-            isMdmFeatureFlagEnabled: true, // TODO: remove when we release MDM
+            isMdmEnabledAndConfigured: true,
             isGlobalMaintainer: true,
           },
         },
@@ -146,7 +146,7 @@ describe("Host Actions Dropdown", () => {
       const render = createCustomRenderer({
         context: {
           app: {
-            isMdmFeatureFlagEnabled: true, // TODO: remove when we release MDM
+            isMdmEnabledAndConfigured: true,
             isTeamAdmin: true,
           },
         },
@@ -170,7 +170,7 @@ describe("Host Actions Dropdown", () => {
       const render = createCustomRenderer({
         context: {
           app: {
-            isMdmFeatureFlagEnabled: true, // TODO: remove when we release MDM
+            isMdmEnabledAndConfigured: true,
             isTeamMaintainer: true,
           },
         },
@@ -194,7 +194,7 @@ describe("Host Actions Dropdown", () => {
       const render = createCustomRenderer({
         context: {
           app: {
-            isMdmFeatureFlagEnabled: true, // TODO: remove when we release MDM
+            isMdmEnabledAndConfigured: true,
             isTeamMaintainer: true,
           },
         },
@@ -218,7 +218,7 @@ describe("Host Actions Dropdown", () => {
       const render = createCustomRenderer({
         context: {
           app: {
-            isMdmFeatureFlagEnabled: true, // TODO: remove when we release MDM
+            isMdmEnabledAndConfigured: true,
             isTeamMaintainer: true,
           },
         },

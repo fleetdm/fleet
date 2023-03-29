@@ -712,12 +712,12 @@ func testHostListOptionsTeamFilter(t *testing.T, ds *Datastore) {
 			Status:            &fleet.MDMAppleDeliveryApplied,
 		},
 	}))
-	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: &team1.ID, MacOSSettingsFilter: "latest"}, 1) // hosts[0]
-	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: &team2.ID, MacOSSettingsFilter: "latest"}, 0) // wrong team
+	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: &team1.ID, MacOSSettingsFilter: fleet.MacOSSettingsStatusLatest}, 1) // hosts[0]
+	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: &team2.ID, MacOSSettingsFilter: fleet.MacOSSettingsStatusLatest}, 0) // wrong team
 	// macos settings filter does not support "all teams" so teamIDFilterNil acts the same as teamIDFilterZero
-	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: teamIDFilterZero, MacOSSettingsFilter: "latest"}, 0) // no team
-	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: teamIDFilterNil, MacOSSettingsFilter: "latest"}, 0)  // no team
-	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{MacOSSettingsFilter: "latest"}, 0)                               // no team
+	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: teamIDFilterZero, MacOSSettingsFilter: fleet.MacOSSettingsStatusLatest}, 0) // no team
+	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: teamIDFilterNil, MacOSSettingsFilter: fleet.MacOSSettingsStatusLatest}, 0)  // no team
+	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{MacOSSettingsFilter: fleet.MacOSSettingsStatusLatest}, 0)                               // no team
 
 	require.NoError(t, ds.BulkUpsertMDMAppleHostProfiles(context.Background(), []*fleet.MDMAppleBulkUpsertHostProfilePayload{
 		{
@@ -729,12 +729,12 @@ func testHostListOptionsTeamFilter(t *testing.T, ds *Datastore) {
 			Status:            &fleet.MDMAppleDeliveryApplied,
 		},
 	}))
-	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: &team1.ID, MacOSSettingsFilter: "latest"}, 1) // hosts[0]
-	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: &team2.ID, MacOSSettingsFilter: "latest"}, 0) // wrong team
+	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: &team1.ID, MacOSSettingsFilter: fleet.MacOSSettingsStatusLatest}, 1) // hosts[0]
+	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: &team2.ID, MacOSSettingsFilter: fleet.MacOSSettingsStatusLatest}, 0) // wrong team
 	// macos settings filter does not support "all teams" so both teamIDFilterNil acts the same as teamIDFilterZero
-	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: teamIDFilterZero, MacOSSettingsFilter: "latest"}, 1) // hosts[9]
-	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: teamIDFilterNil, MacOSSettingsFilter: "latest"}, 1)  // hosts[9]
-	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{MacOSSettingsFilter: "latest"}, 1)                               // hosts[9]
+	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: teamIDFilterZero, MacOSSettingsFilter: fleet.MacOSSettingsStatusLatest}, 1) // hosts[9]
+	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: teamIDFilterNil, MacOSSettingsFilter: fleet.MacOSSettingsStatusLatest}, 1)  // hosts[9]
+	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{MacOSSettingsFilter: fleet.MacOSSettingsStatusLatest}, 1)                               // hosts[9]
 }
 
 func testHostsListFilterAdditional(t *testing.T, ds *Datastore) {
@@ -1093,7 +1093,7 @@ func testHostsListMDM(t *testing.T, ds *Datastore) {
 		hostIDs = append(hostIDs, h.ID)
 	}
 
-	// enrollment: pending
+	// enrollment: pending (with Fleet mdm)
 	n, err := ds.IngestMDMAppleDevicesFromDEPSync(ctx, []godep.Device{
 		{SerialNumber: "532141num832", Model: "MacBook Pro", OS: "OSX", OpType: "added"},
 	})
@@ -1136,11 +1136,32 @@ func testHostsListMDM(t *testing.T, ds *Datastore) {
 	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{MDMEnrollmentStatusFilter: fleet.MDMEnrollStatusUnenrolled}, 1)
 	assert.Equal(t, 1, len(hosts))
 
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{MDMEnrollmentStatusFilter: fleet.MDMEnrollStatusEnrolled}, 3) // 2 auto, 1 manual
+	assert.Equal(t, 3, len(hosts))
+
 	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{MDMEnrollmentStatusFilter: fleet.MDMEnrollStatusAutomatic, MDMIDFilter: &kandjiID}, 1)
+	assert.Equal(t, 1, len(hosts))
+
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{MDMEnrollmentStatusFilter: fleet.MDMEnrollStatusEnrolled, MDMIDFilter: &kandjiID}, 1)
 	assert.Equal(t, 1, len(hosts))
 
 	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{MDMEnrollmentStatusFilter: fleet.MDMEnrollStatusPending}, 1)
 	assert.Equal(t, 1, len(hosts))
+
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{MDMNameFilter: ptr.String(fleet.WellKnownMDMSimpleMDM)}, 2)
+	assert.Equal(t, 2, len(hosts))
+
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{MDMIDFilter: &simpleMDMID, MDMNameFilter: ptr.String(fleet.WellKnownMDMSimpleMDM), MDMEnrollmentStatusFilter: fleet.MDMEnrollStatusEnrolled}, 1)
+	assert.Equal(t, 1, len(hosts))
+
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{MDMNameFilter: ptr.String(fleet.WellKnownMDMKandji)}, 1)
+	assert.Equal(t, 1, len(hosts))
+
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{MDMNameFilter: ptr.String(fleet.WellKnownMDMFleet), MDMEnrollmentStatusFilter: fleet.MDMEnrollStatusPending}, 1)
+	assert.Equal(t, 1, len(hosts))
+
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{MDMNameFilter: ptr.String(fleet.WellKnownMDMJamf)}, 0)
+	assert.Equal(t, 0, len(hosts))
 }
 
 func testHostMDMSelect(t *testing.T, ds *Datastore) {
