@@ -6,6 +6,7 @@ import {
   Route,
   RouteComponent,
   Router,
+  Redirect,
 } from "react-router";
 
 import OrgSettingsPage from "pages/admin/OrgSettingsPage";
@@ -127,10 +128,13 @@ const routes = (
                 </Route>
               </Route>
             </Route>
-            <Route path="teams/:team_id" component={TeamDetailsWrapper}>
+            <Route path="teams" component={TeamDetailsWrapper}>
               <Route path="members" component={MembersPage} />
               <Route path="options" component={AgentOptionsPage} />
             </Route>
+            <Redirect from="teams/:team_id" to="teams" />
+            <Redirect from="teams/:team_id/members" to="teams" />
+            <Redirect from="teams/:team_id/options" to="teams" />
           </Route>
           <Route path="labels">
             <IndexRedirect to={"new"} />
@@ -192,10 +196,8 @@ const routes = (
             <Route path="schedule">
               <IndexRedirect to={"manage"} />
               <Route path="manage" component={ManageSchedulePage} />
-              <Route
-                path="manage/teams/:team_id"
-                component={ManageSchedulePage}
-              />
+              <Redirect from="manage/teams" to="manage" />
+              <Redirect from="manage/teams/:team_id" to="manage" />
             </Route>
           </Route>
           <Route path="queries">

@@ -744,7 +744,6 @@ const ManageHostsPage = ({
         newQueryParams.os_name = osName;
         newQueryParams.os_version = osVersion;
       }
-      console.log("onTableQueryChange router replace", newQueryParams);
       router.replace(
         getNextLocationPath({
           pathPrefix: PATHS.MANAGE_HOSTS,

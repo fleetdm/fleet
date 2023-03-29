@@ -6,7 +6,7 @@ import {
   IEnrollSecret,
   IEnrollSecretsResponse,
 } from "interfaces/enroll_secret";
-import { APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
+import { API_NO_TEAM_ID } from "interfaces/team";
 
 export default {
   getGlobalEnrollSecrets: () => {
@@ -18,10 +18,10 @@ export default {
       .then((res) => res.spec);
   },
   getTeamEnrollSecrets: (teamId?: number): Promise<IEnrollSecretsResponse> => {
-    if (!teamId || teamId <= APP_CONTEXT_NO_TEAM_ID) {
+    if (!teamId || teamId <= API_NO_TEAM_ID) {
       return Promise.reject(
         new Error(
-          `Invalid team id: ${teamId} must be greater than ${APP_CONTEXT_NO_TEAM_ID}`
+          `Invalid team id: ${teamId} must be greater than ${API_NO_TEAM_ID}`
         )
       );
     }
@@ -31,10 +31,10 @@ export default {
     teamId: number | undefined,
     secrets: IEnrollSecret[]
   ): Promise<IEnrollSecretsResponse> => {
-    if (!teamId || teamId <= APP_CONTEXT_NO_TEAM_ID) {
+    if (!teamId || teamId <= API_NO_TEAM_ID) {
       return Promise.reject(
         new Error(
-          `Invalid team id: ${teamId} must be greater than ${APP_CONTEXT_NO_TEAM_ID}`
+          `Invalid team id: ${teamId} must be greater than ${API_NO_TEAM_ID}`
         )
       );
     }

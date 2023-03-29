@@ -67,10 +67,22 @@ export default {
     }
   },
 
-  count: async (params: ISoftwareParams): Promise<ISoftwareCountResponse> => {
+  count: async ({
+    query,
+    teamId,
+    vulnerable,
+  }: Pick<
+    ISoftwareParams,
+    "query" | "teamId" | "vulnerable"
+  >): Promise<ISoftwareCountResponse> => {
     const { SOFTWARE } = endpoints;
     const path = `${SOFTWARE}/count`;
-    const snakeCaseParams = convertParamsToSnakeCase(params);
+    const queryParams = {
+      query,
+      teamId,
+      vulnerable,
+    };
+    const snakeCaseParams = convertParamsToSnakeCase(queryParams);
     const queryString = buildQueryStringFromParams(snakeCaseParams);
 
     return sendRequest("GET", path.concat(`?${queryString}`));

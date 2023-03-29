@@ -24,7 +24,6 @@ interface ISiteTopNavProps {
     hash?: string;
     query: QueryParams;
   };
-  routeParams: Params;
   onLogoutUser: () => void;
   onNavItemClick: (path: string) => void;
 }
@@ -33,7 +32,6 @@ const SiteTopNav = ({
   config,
   currentUser,
   location: { pathname, search, hash = "", query: queryParams },
-  routeParams,
   onLogoutUser,
   onNavItemClick,
 }: ISiteTopNavProps): JSX.Element => {
@@ -60,14 +58,16 @@ const SiteTopNav = ({
     if (iconName && iconName === "logo") {
       return (
         <li className={navItemClasses} key={`nav-item-${name}`}>
-          <Link
+          <LinkWithContext
             className={`${navItemBaseClass}__logo-wrapper`}
+            currentQueryParams={queryParams}
             to={navItem.location.pathname}
+            withParams={{ type: "query", names: ["team_id"] }}
           >
             <div className={`${navItemBaseClass}__logo`}>
               <OrgLogoIcon className="logo" src={orgLogoURL} />
             </div>
-          </Link>
+          </LinkWithContext>
         </li>
       );
     }
@@ -101,8 +101,7 @@ const SiteTopNav = ({
           <LinkWithContext
             className={`${navItemBaseClass}__link`}
             withParams={withParams}
-            queryParams={queryParams}
-            routeParams={routeParams}
+            currentQueryParams={queryParams}
             to={navItem.location.pathname}
           >
             <span

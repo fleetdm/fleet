@@ -132,7 +132,6 @@ const CoreLayout = ({
           location={location}
           onLogoutUser={onLogoutUser}
           onNavItemClick={onNavItemClick}
-          routeParams={routeParams}
         />
       </nav>
       <div className="core-wrapper">

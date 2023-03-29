@@ -103,7 +103,6 @@ const ManageSoftwarePage = ({
   location,
 }: IManageSoftwarePageProps): JSX.Element => {
   const {
-    availableTeams,
     config: globalConfig,
     isFreeTier,
     isGlobalAdmin,
@@ -117,7 +116,9 @@ const ManageSoftwarePage = ({
   const {
     currentTeamId,
     isAnyTeamSelected,
+    isRouteOk,
     teamIdForApi,
+    userTeams,
     handleTeamChange,
   } = useTeamIdParam({
     location,
@@ -246,8 +247,7 @@ const ManageSoftwarePage = ({
     {
       enabled:
         isSoftwareConfigLoaded &&
-        (isOnGlobalTeam ||
-          !!availableTeams?.find((t) => t.id === currentTeamId)),
+        (isOnGlobalTeam || !!userTeams?.find((t) => t.id === currentTeamId)),
       keepPreviousData: true,
       staleTime: 30000, // stale time can be adjusted if fresher data is desired based on software inventory interval
     }
@@ -261,7 +261,7 @@ const ManageSoftwarePage = ({
     ISoftwareCountResponse,
     Error,
     number,
-    Partial<ISoftwareQueryKey>[]
+    Pick<ISoftwareQueryKey, "scope" | "query" | "vulnerable" | "teamId">[]
   >(
     [
       {
@@ -275,8 +275,7 @@ const ManageSoftwarePage = ({
     {
       enabled:
         isSoftwareConfigLoaded &&
-        (isOnGlobalTeam ||
-          !!availableTeams?.find((t) => t.id === currentTeamId)),
+        (isOnGlobalTeam || !!userTeams?.find((t) => t.id === currentTeamId)),
       keepPreviousData: true,
       staleTime: 30000, // stale time can be adjusted if fresher data is desired based on software inventory interval
       refetchOnWindowFocus: false,
@@ -510,7 +509,8 @@ const ManageSoftwarePage = ({
   const searchable =
     isSoftwareEnabled && (!!software?.software || searchQuery !== "");
 
-  return !availableTeams ||
+  return !isRouteOk ||
+    (isPremiumTier && !userTeams) ||
     !globalConfig ||
     (!softwareConfig && !softwareConfigError) ? (
     <Spinner />
@@ -523,18 +523,17 @@ const ManageSoftwarePage = ({
               <div className={`${baseClass}__title`}>
                 {isFreeTier && <h1>Software</h1>}
                 {isPremiumTier &&
-                  (availableTeams.length > 1 || isOnGlobalTeam) && (
+                  ((userTeams && userTeams.length > 1) || isOnGlobalTeam) && (
                     <TeamsDropdown
-                      currentUserTeams={availableTeams}
+                      currentUserTeams={userTeams || []}
                       selectedTeamId={currentTeamId}
                       onChange={onTeamChange}
                     />
                   )}
                 {isPremiumTier &&
                   !isOnGlobalTeam &&
-                  availableTeams.length === 1 && (
-                    <h1>{availableTeams[0].name}</h1>
-                  )}
+                  userTeams &&
+                  userTeams.length === 1 && <h1>{userTeams[0].name}</h1>}
               </div>
             </div>
           </div>

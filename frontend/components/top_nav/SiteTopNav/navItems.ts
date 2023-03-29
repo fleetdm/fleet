@@ -11,7 +11,7 @@ export interface INavItem {
     pathname: string;
   };
   exclude?: boolean;
-  withParams?: { type: "query" | "route"; names: string[] };
+  withParams?: { type: "query"; names: string[] };
 }
 
 export default (
@@ -85,7 +85,7 @@ export default (
         pathname: PATHS.MANAGE_SCHEDULE,
       },
       exclude: !isMaintainerOrAdmin,
-      withParams: { type: "route", names: ["team_id"] },
+      withParams: { type: "query", names: ["team_id"] },
     },
     {
       name: "Policies",
@@ -93,7 +93,7 @@ export default (
         regex: new RegExp(`^${URL_PREFIX}/(policies)/`),
         pathname: PATHS.MANAGE_POLICIES,
       },
-      withParams: { type: "route", names: ["team_id"] },
+      withParams: { type: "query", names: ["team_id"] },
     },
   ];
 
