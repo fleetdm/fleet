@@ -1009,6 +1009,20 @@ func deprecatedRawCommandEnqueue(
 	logs := []interface{}{
 		"msg", "enqueue",
 	}
+	// TODO(mna): this fails with a Foreign Key issue if the device is no longer
+	// enrolled at the time this runs (in MySqLStorage.EnqueueCommand):
+	//
+	// 	 Cannot add or update a child row: a foreign key constraint fails
+	// 	 (`fleet`.`nano_enrollment_queue`, CONSTRAINT
+	// 	 `nano_enrollment_queue_ibfk_1` FOREIGN KEY (`id`) REFERENCES
+	// 	 `nano_enrollments` (`id`) ON DELETE CASCADE ON UPDATE CASCADE)"
+	//
+	// This happened to me because I was tricking the DB to get a Fleet-enrolled
+	// host, but this could happen with real data given that despite any checks
+	// before this call, the host could be unenrolled by the time this runs. One
+	// option would be to ignore such errors in the nanomdm implementation, or
+	// maybe it's ok to have it fail with a 500 in the rare cases where it could
+	// happen.
 	idErrs, err := enqueuer.EnqueueCommand(ctx, deviceIDs, command)
 	ct := len(deviceIDs) - len(idErrs)
 	if err != nil {
