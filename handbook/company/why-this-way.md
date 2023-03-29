@@ -100,7 +100,7 @@ Here's why Fleet uses a wireframe-first approach:
 - Wireframes created to describe individual changes are disposable and may have slight stylistic inconsistencies.  Fleet's user interface styleguide in Figma is the source of truth for overarching design decisions like spacing, typography, and colors.
 - While the "wireframe first" practice is [still sometimes misunderstood](https://about.gitlab.com/handbook/product-development-flow/#but-wait-isnt-this-waterfall), today many modern high-performing teams now use a [wireframe-first methodology](https://speakerdeck.com/mikermcneil/i-love-apis), including [startups](https://www.forbes.com/sites/danwoods/2015/10/19/dont-get-ubered-apis-hold-key-to-digital-transformation/?sh=50112fea182c#:~:text=One%20recommendation%20that,deep%20experience) and [publicly-traded companies](https://about.gitlab.com/handbook/product-development-flow/#validation-phase-3-design).
 
-_The only exception to the wireframe-first policy is for Marketing temporary pages and experiments which are housed behind /landing. You can read more about marketing's [experimentation process](https://fleetdm.com/handbook/marketing#experimentation)._
+_The only exception to the wireframe-first policy is for temporary pages and experiments not listed in the navigation or sitemap, and which are housed behind /landing ☁️🪟. You can read more about marketing's [experimentation process](https://fleetdm.com/handbook/marketing#experimentation)._
 
 > Got a question about creating wireframes or the drafting process?  Mention Noah Talerman or Luke Heath in `#help-product`.
 
