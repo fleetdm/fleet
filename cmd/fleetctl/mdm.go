@@ -95,7 +95,7 @@ func mdmRunCommand() *cli.Command {
 				return err
 			}
 
-			fmt.Printf(`
+			fmt.Fprintf(c.App.Writer, `
 The hosts will run the command the next time it checks into Fleet.
 
 Copy and run this command to see results:
