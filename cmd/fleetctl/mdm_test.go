@@ -121,6 +121,12 @@ func TestMDMRunCommand(t *testing.T) {
 	require.NoError(t, err)
 	require.Contains(t, buf.String(), `The hosts will run the command the next time it checks into Fleet.`)
 	require.Contains(t, buf.String(), `fleetctl get mdm-command-results --id=`)
+
+	// try to run a fleet premium command
+	cmdFilePath = writeTmpMDMCmd(t, "EraseDevice")
+	buf, err = runAppNoChecks([]string{"mdm", "run-command", "--host", "valid-host", "--payload", cmdFilePath})
+	require.Error(t, err)
+	require.ErrorContains(t, err, `missing or invalid license`)
 }
 
 func writeTmpMDMCmd(t *testing.T, commandName string) string {
