@@ -2895,6 +2895,135 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
+  name: CIS - Ensure 'Audit Credential Validation' is set to 'Success and Failure'
+  platforms: win10
+  platform: windows
+  description: |
+    Creates audit events whenever an attempt is made to authenticate, whether it is successful or not.
+    This makes it easier to investigate a future security incident if required.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to Success and Failure:
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Advanced Audit Policy Configuration\Audit Policies\Account Logon\Audit Credential Validation'
+  query: |
+    SELECT 1 FROM mdm_bridge where mdm_command_input =
+    "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/Audit/AccountLogon_AuditCredentialValidation</LocURI></Target></Item></Get></SyncBody>" 
+    AND mdm_command_output = "3";
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_17.1.1
+  contributors: artemist-work
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Audit Application Group Management' is set to 'Success and Failure'
+  platforms: win10
+  platform: windows
+  description: |
+    Creates audit events whenever an application group is changed, e.g. by adding members.
+    This makes it easier to investigate a future security incident if required.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to Success and Failure:
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Advanced Audit Policy Configuration\Audit Policies\Account Management\Audit Application Group Management'
+  query: |
+    SELECT 1 FROM mdm_bridge where mdm_command_input =
+    "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/Audit/AccountManagement_AuditApplicationGroupManagement</LocURI></Target></Item></Get></SyncBody>" 
+    AND mdm_command_output = "3";
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_17.2.1
+  contributors: artemist-work
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Audit Security Group Management' is set to include 'Success'
+  platforms: win10
+  platform: windows
+  description: |
+    Creates audit events whenever a security group is changed, e.g. by adding members.
+    This makes it easier to investigate a future security incident if required.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'Success and Failure' or 'Success':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Advanced Audit Policy Configuration\Audit Policies\Account Management\Audit Security Group Management'
+  query: |
+    SELECT 1 FROM mdm_bridge where mdm_command_input =
+    "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/Audit/AccountManagement_AuditSecurityGroupManagement</LocURI></Target></Item></Get></SyncBody>" 
+    AND (mdm_command_output = "1" OR mdm_command_output = "3");
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_17.2.2
+  contributors: artemist-work
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Audit PNP Activity' is set to 'Success'
+  platforms: win10
+  platform: windows
+  description: |
+    Creates audit events whenever there is a change in user status, e.g. if an account is created or an account's password changed.
+    This makes it easier to investigate a future security incident if required.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the
+    following UI path to 'Success and Failure':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Advanced Audit Policy Configuration\Audit Policies\Account Management\Audit User Account Management'
+  query: |
+    SELECT 1 FROM mdm_bridge where mdm_command_input =
+    "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/Audit/AccountManagement_AuditUserAccountManagement</LocURI></Target></Item></Get></SyncBody>" 
+    AND mdm_command_output = "3";
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_17.2.3
+  contributors: artemist-work
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Audit PNP Activity' is set to include 'Success'
+  platforms: win10
+  platform: windows
+  description: |
+    Creates audit events whenever a plug and play external device is detected.
+    Attaching unapproved devices could cause Windows to install unapproved software.
+    This also makes it easier to investigate a future security incident if required.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the
+    following UI path to 'Success':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Advanced Audit Policy Configuration\Audit Policies\Detailed Tracking\Audit PNP Activity'
+  query: |
+    SELECT 1 FROM mdm_bridge where mdm_command_input =
+    "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/Audit/DetailedTracking_AuditPNPActivity</LocURI></Target></Item></Get></SyncBody>" 
+    AND (mdm_command_output = "1" OR mdm_command_output = "3");
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_17.3.1
+  contributors: artemist-work
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Audit Process Creation' is set to include 'Success'
+  platforms: win10
+  platform: windows
+  description: |
+    Creates audit events whenever a process is executed.
+    This makes it easier to investigate a future security incident if required.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'Success':
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Advanced Audit Policy Configuration\Audit Policies\Detailed Tracking\Audit Process Creation'
+  query: |
+    SELECT 1 FROM mdm_bridge where mdm_command_input =
+    "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/Audit/DetailedTracking_AuditProcessCreation</LocURI></Target></Item></Get></SyncBody>" 
+    AND (mdm_command_output = "1" OR mdm_command_output = "3");
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_17.3.2
+  contributors: artemist-work
+---
+apiVersion: v1
+kind: policy
+spec:
   name: >
     CIS - Ensure 'Prevent enabling lock screen camera' is set to 'Enabled'
   platforms: win10
@@ -5632,7 +5761,7 @@ spec:
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\WinRM\\Service\\AllowUnencryptedTraffic' AND data = 0);
   purpose: Informational
   tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.102.2.3
-  contributors: marcosd4h  
+  contributors: marcosd4h
 ---
 apiVersion: v1
 kind: policy
@@ -5652,7 +5781,7 @@ spec:
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.102.2.4
   contributors: marcosd4h
----  
+---
 apiVersion: v1
 kind: policy
 spec:
