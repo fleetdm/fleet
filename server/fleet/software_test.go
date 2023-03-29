@@ -40,16 +40,16 @@ func TestSoftwareIterQueryOptionsIsValid(t *testing.T) {
 		},
 	}
 
-    for _, tC := range testCases {
-        sut := SoftwareIterQueryOptions {
-            ExcludedSources: tC.excluded,
-            IncludedSources: tC.included,
-        }
+	for _, tC := range testCases {
+		sut := SoftwareIterQueryOptions{
+			ExcludedSources: tC.excluded,
+			IncludedSources: tC.included,
+		}
 
-        if tC.isNotValid {
-            require.False(t, sut.IsValid())
-        } else {
-            require.True(t, sut.IsValid())
-        }
-    }
+		if tC.isNotValid {
+			require.False(t, sut.IsValid())
+		} else {
+			require.True(t, sut.IsValid())
+		}
+	}
 }
