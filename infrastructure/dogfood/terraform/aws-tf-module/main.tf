@@ -42,6 +42,9 @@ locals {
     FLEET_VULNERABILITIES_DATABASES_PATH       = "/home/fleet"
     FLEET_OSQUERY_ENABLE_ASYNC_HOST_PROCESSING = "false"
   }
+  sentry_secrets = {
+    SENTRY_DSN = "${aws_secretsmanager_secret.sentry.arn}:SENTRY_DSN::"
+  }
 }
 
 module "main" {
@@ -85,7 +88,7 @@ module "main" {
     extra_iam_policies           = concat(module.firehose-logging.fleet_extra_iam_policies, module.osquery-carve.fleet_extra_iam_policies)
     extra_execution_iam_policies = concat(module.mdm.extra_execution_iam_policies)
     extra_environment_variables  = merge(module.mdm.extra_environment_variables, module.firehose-logging.fleet_extra_environment_variables, module.osquery-carve.fleet_extra_environment_variables, local.extra_environment_variables)
-    extra_secrets                = merge(module.mdm.extra_secrets)
+    extra_secrets                = merge(module.mdm.extra_secrets, local.sentry_secrets)
   }
   alb_config = {
     name = local.customer
@@ -139,6 +142,10 @@ resource "aws_route53_record" "main" {
     zone_id                = module.main.byo-vpc.byo-db.alb.lb_zone_id
     evaluate_target_health = true
   }
+}
+
+resource "aws_secretsmanager_secret" "sentry" {
+  name = "${local.customer}-sentry"
 }
 
 module "migrations" {
