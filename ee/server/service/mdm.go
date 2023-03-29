@@ -27,7 +27,7 @@ func (svc *Service) GetAppleBM(ctx context.Context) (*fleet.AppleBM, error) {
 		return nil, notFoundError{}
 	}
 
-	appCfg, err := svc.AppConfig(ctx)
+	appCfg, err := svc.AppConfigObfuscated(ctx)
 	if err != nil {
 		return nil, err
 	}
