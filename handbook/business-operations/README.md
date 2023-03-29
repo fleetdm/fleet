@@ -634,7 +634,7 @@ This applies to anyone who gets paid by the hour, including consultants and hour
 ## Informing managers about hours worked
 Every Friday at 1:00pm CT, we gather hours worked for anyone who gets paid hourly by Fleet. This includes core team members and consultants, regardless of employment classification, and regardless whether inside or outside of the United States.
 - For every hourly core team member in Gusto or Pilot.co, look up their manager ([who they report to](https://fleetdm.com/handbook/company#org-chart)).
-- [Consultants](https://fleetdm.com/handbook/business-operations#hiring) don't have a formal reporting structure or manager. Instead, send their hours worked to the CEO, no matter who the consultant is.
+- [Consultants](https://fleetdm.com/handbook/business-operations#hiring) don't have a formal reporting structure or manager. Instead, send their hours worked to the CEO, no matter who the consultant is. (Anyone curious is welcome to ask; the lack of openness is only out of lack of having set up a solution that integrates with Gusto to share consultant hours on demand)
 - Send each manager a direct message in Slack by copying and pasting the following template:
 
 > Here are the hours worked by your direct reports since last Saturday at midnight (YYYY-MM-DD):
