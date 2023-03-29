@@ -323,6 +323,9 @@ const (
 	ErrNoUnknownTranslate = 3
 	// ErrAPIOnlyRole is returned when a selected role for a user is for API only users.
 	ErrAPIOnlyRole = 4
+	// ErrTeamGitOpsRoleMustBeUnique is returned when attempting to set GitOps role mixed with other
+	// roles in other teams. E.g. A user cannot be GitOps on team A, and maintainer on team B.
+	ErrTeamGitOpsRoleMustBeUnique = 4
 )
 
 // NewError returns a fleet error with the code and message specified
