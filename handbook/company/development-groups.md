@@ -12,7 +12,7 @@ Security, performance, stability, scalability, database migrations, release comp
 
 At Fleet, [anyone can contribute](https://fleetdm.com/handbook/company#openness), even across product groups.
 
-> Ideas expressed in wireframes, like code contributions, are welcome from everyone, inside or outside the company.
+> Ideas expressed in wireframes, like code contributions, [are welcome from everyone](https://chat.osquery.io/c/fleet), inside or outside the company.
 
 ## Current product groups
 
