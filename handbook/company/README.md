@@ -81,7 +81,7 @@ To reach our goals, we need to see reality clearly.
 
 - **Think for yourself.** Remember how often [conventional wisdom](http://www.paulgraham.com/think.html) isn't.
 - **Seek the truth.** What's true matters. [Change your mind](https://fleetdm.com/handbook/company#why-this-way) in the face of new evidence. Avoid the [sunk cost fallacy](https://en.wikipedia.org/wiki/Sunk_cost).
-- **Be humble.** When something isn't working, stop assuming.  Use [the scientific method](https://en.wikipedia.org/wiki/Empirical_research) and [first principles thinking](https://en.wikipedia.org/wiki/First_principle).
+- **Be humble.** When something isn't working, stop assuming.  Use [the scientific method](https://en.wikipedia.org/wiki/Empirical_research) and [first principles thinking](https://en.wikipedia.org/wiki/Ab_initio#Science_and_engineering).
 - **Stop and think.** A lucky fix without understanding does more harm than good.  Beware [the "happy path"](https://en.wikipedia.org/wiki/Happy_path).
 
 
