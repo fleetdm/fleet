@@ -12,6 +12,8 @@ Security, performance, stability, scalability, database migrations, release comp
 
 At Fleet, [anyone can contribute](https://fleetdm.com/handbook/company#openness), even across product groups.
 
+> Ideas expressed in wireframes, like code contributions, [are welcome from everyone](https://chat.osquery.io/c/fleet), inside or outside the company.
+
 ## Current product groups
 
 | Product group             | Goal _(value for customers and/or community)_                       |
@@ -67,7 +69,7 @@ Most changes to Fleet are planned changes. They are [prioritized](https://fleetd
 
 Occasionally, changes are unplanned.  Like a patch for an unexpected bug, or a hotfix for a security issue.  Or if an open source contributor suggests an unplanned change in the form of a pull request.  These unplanned changes are sometimes OK to merge as-is.  But if they change the user interface, the CLI usage, or the REST API, then they need to go through drafting and reconsideration before merging.
 
-> But wait, [isn't this "waterfall"?](https://about.gitlab.com/handbook/product-development-flow/#but-wait-isnt-this-waterfall)  Thankfully no.  And it isn't just a Fleet concept.  In fact, between 2015-2023, GitLab and The Sails Company independently developed and coevolved almost the exact same delivery processes from first principles.  (Albeit with slightly different names for the same things.  What we call "drafting" and "implementation" at Fleet, is called "the validation phase" and "the build phase" at GitLab.)
+> But wait, [isn't this "waterfall"?](https://about.gitlab.com/handbook/product-development-flow/#but-wait-isnt-this-waterfall) Waterfall is something else.  Between 2015-2023, GitLab and The Sails Company independently developed and coevolved similar delivery processes.  (What we call "drafting" and "implementation" at Fleet, is called "the validation phase" and "the build phase" at GitLab.)
 
 ### Drafting
 "Drafting" is the art of defining a change, designing and shepherding it through the drafting process until it is ready for implementation.
@@ -171,7 +173,7 @@ Sub-tasks:
 - Communicate any blockers ASAP in your group Slack channel or standup. [🟠](https://fleetdm.com/handbook/company#ownership)
 - Think fast and iterate.  [🟢](https://fleetdm.com/handbook/company#results)
 - If it probably works, assume it's still broken.  Assume it's your fault.  [🔵](https://fleetdm.com/handbook/company#objectivity)
-- Speak up and have short toes.  Assume positive intent. [🟣](https://fleetdm.com/handbook/company#openness)
+- Speak up and have short toes.  Write things down to make them complete. [🟣](https://fleetdm.com/handbook/company#openness)
 
 
 

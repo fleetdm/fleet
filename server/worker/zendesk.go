@@ -8,6 +8,7 @@ import (
 	"sort"
 	"sync"
 	"text/template"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
@@ -46,6 +47,8 @@ var zendeskTemplates = struct {
 Probability of exploit (reported by [FIRST.org/epss](https://www.first.org/epss/)): {{ .EPSSProbability }}
 {{ end }}
 {{ if .CVSSScore }}CVSS score (reported by [NVD](https://nvd.nist.gov/)): {{ .CVSSScore }}
+{{ end }}
+{{ if .CVEPublished }}Published (reported by [NVD|https://nvd.nist.gov/]): {{ .CVEPublished }}
 {{ end }}
 {{ if .CISAKnownExploit }}Known exploits (reported by [CISA](https://www.cisa.gov/known-exploited-vulnerabilities-catalog)): {{ if deref .CISAKnownExploit }}Yes{{ else }}No{{ end }}
 &nbsp;
@@ -102,6 +105,7 @@ type zendeskVulnTplArgs struct {
 	EPSSProbability  *float64
 	CVSSScore        *float64
 	CISAKnownExploit *bool
+	CVEPublished     *time.Time
 }
 
 // ZendeskClient defines the method required for the client that makes API calls
@@ -283,6 +287,7 @@ func (z *Zendesk) runVuln(ctx context.Context, cli ZendeskClient, args zendeskAr
 		EPSSProbability:  vargs.EPSSProbability,
 		CVSSScore:        vargs.CVSSScore,
 		CISAKnownExploit: vargs.CISAKnownExploit,
+		CVEPublished:     vargs.CVEPublished,
 	}
 
 	createdTicket, err := z.createTemplatedTicket(ctx, cli, zendeskTemplates.VulnSummary, zendeskTemplates.VulnDescription, tplArgs)
@@ -375,6 +380,7 @@ func QueueZendeskVulnJobs(
 			args.EPSSProbability = meta.EPSSProbability
 			args.CVSSScore = meta.CVSSScore
 			args.CISAKnownExploit = meta.CISAKnownExploit
+			args.CVEPublished = meta.Published
 		}
 		job, err := QueueJob(ctx, ds, zendeskName, zendeskArgs{Vulnerability: &args})
 		if err != nil {

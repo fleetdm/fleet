@@ -29,5 +29,6 @@ func (m *Mapper) GetPayload(
 	r.EPSSProbability = meta.EPSSProbability
 	r.CVSSScore = meta.CVSSScore
 	r.CISAKnownExploit = meta.CISAKnownExploit
+	r.CVEPublished = meta.Published
 	return r
 }
