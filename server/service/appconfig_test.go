@@ -98,7 +98,7 @@ func TestAppConfigAuth(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
 
-			_, err := svc.AppConfig(ctx)
+			_, err := svc.AppConfigObfuscated(ctx)
 			checkAuthErr(t, tt.shouldFailRead, err)
 
 			_, err = svc.ModifyAppConfig(ctx, []byte(`{}`), fleet.ApplySpecOptions{})
@@ -423,7 +423,7 @@ func TestAppConfigSecretsObfuscated(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
 
-			ac, err := svc.AppConfig(ctx)
+			ac, err := svc.AppConfigObfuscated(ctx)
 			require.NoError(t, err)
 			require.Equal(t, ac.SMTPSettings.SMTPPassword, fleet.MaskedPassword)
 			require.Equal(t, ac.Integrations.Jira[0].APIToken, fleet.MaskedPassword)
@@ -564,7 +564,7 @@ func TestTransparencyURL(t *testing.T) {
 				return nil
 			}
 
-			ac, err := svc.AppConfig(ctx)
+			ac, err := svc.AppConfigObfuscated(ctx)
 			require.NoError(t, err)
 			require.Equal(t, tt.initialURL, ac.FleetDesktop.TransparencyURL)
 
@@ -576,7 +576,7 @@ func TestTransparencyURL(t *testing.T) {
 
 			if modified != nil {
 				require.Equal(t, tt.expectedURL, modified.FleetDesktop.TransparencyURL)
-				ac, err = svc.AppConfig(ctx)
+				ac, err = svc.AppConfigObfuscated(ctx)
 				require.NoError(t, err)
 				require.Equal(t, tt.expectedURL, ac.FleetDesktop.TransparencyURL)
 			}
@@ -613,7 +613,7 @@ func TestTransparencyURLDowngradeLicense(t *testing.T) {
 		return nil
 	}
 
-	ac, err := svc.AppConfig(ctx)
+	ac, err := svc.AppConfigObfuscated(ctx)
 	require.NoError(t, err)
 	require.Equal(t, "https://example.com/transparency", ac.FleetDesktop.TransparencyURL)
 
@@ -633,7 +633,7 @@ func TestTransparencyURLDowngradeLicense(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, modified)
 	require.Equal(t, "", modified.FleetDesktop.TransparencyURL)
-	ac, err = svc.AppConfig(ctx)
+	ac, err = svc.AppConfigObfuscated(ctx)
 	require.NoError(t, err)
 	require.Equal(t, "f1337", ac.OrgInfo.OrgName)
 	require.Equal(t, "", ac.FleetDesktop.TransparencyURL)
@@ -716,7 +716,7 @@ func TestService_ModifyAppConfig_MDM(t *testing.T) {
 				return nil, errors.New(notFoundErr)
 			}
 
-			ac, err := svc.AppConfig(ctx)
+			ac, err := svc.AppConfigObfuscated(ctx)
 			require.NoError(t, err)
 			require.Equal(t, tt.oldMDM, ac.MDM)
 
@@ -731,7 +731,7 @@ func TestService_ModifyAppConfig_MDM(t *testing.T) {
 			}
 			require.NoError(t, err)
 			require.Equal(t, tt.expectedMDM, modified.MDM)
-			ac, err = svc.AppConfig(ctx)
+			ac, err = svc.AppConfigObfuscated(ctx)
 			require.NoError(t, err)
 			require.Equal(t, tt.expectedMDM, ac.MDM)
 		})

@@ -2426,6 +2426,28 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
+  name: CIS - Ensure all user storage CoreStorage volumes are encrypted (Fleetd Required)
+  platforms: macOS
+  platform: darwin
+  description: |
+    Apple introduced CoreStorage with 10.7. It is used as the default for formatting on macOS volumes prior to 10.13.
+    While FileVault protects the boot volume, data may be copied to other attached storage and reduce the protection afforded by FileVault.
+    Ensure all user volumes are encrypted to protect data.
+  resolution: |
+    Manual method:
+      Use Disk Utility to convert volumes to APFS or delete them.
+      It is no longer possible to encrypt CoreStorage volumes without converting them.
+  query: |
+    SELECT 1 WHERE NOT EXISTS (
+      SELECT 1 FROM corestorage_logical_volume_families WHERE EncryptionType != "AES-XTS"
+    );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS-macos-13-5.3.2
+  contributors: artemist-work
+---
+apiVersion: v1
+kind: policy
+spec:
   name: CIS - Ensure the Sudo Timeout Period Is Set to Zero (Fleetd Required)
   platforms: macOS
   platform: darwin

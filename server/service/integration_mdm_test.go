@@ -1372,6 +1372,176 @@ func (s *integrationMDMTestSuite) TestAppConfigMDMAppleDiskEncryption() {
 	assert.Equal(t, []string{"b"}, acResp.MDM.MacOSSettings.CustomSettings)
 }
 
+func (s *integrationMDMTestSuite) TestMDMAppleDiskEncryptionAggregate() {
+	t := s.T()
+	ctx := context.Background()
+
+	// no hosts with any disk encryption status's
+	fvsResp := getMDMAppleFileVauleSummaryResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/filevault/summary", nil, http.StatusOK, &fvsResp)
+	require.Equal(t, uint(0), fvsResp.Applied)
+	require.Equal(t, uint(0), fvsResp.ActionRequired)
+	require.Equal(t, uint(0), fvsResp.Enforcing)
+	require.Equal(t, uint(0), fvsResp.Failed)
+	require.Equal(t, uint(0), fvsResp.RemovingEnforcement)
+
+	// 10 new hosts
+	var hosts []*fleet.Host
+	for i := 0; i < 10; i++ {
+		h, err := s.ds.NewHost(ctx, &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now().Add(-1 * time.Minute),
+			OsqueryHostID:   ptr.String(fmt.Sprintf("%s-%d", t.Name(), i)),
+			NodeKey:         ptr.String(fmt.Sprintf("%s-%d", t.Name(), i)),
+			UUID:            fmt.Sprintf("%d-%s", i, uuid.New().String()),
+			Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
+			Platform:        "darwin",
+		})
+		require.NoError(t, err)
+		hosts = append(hosts, h)
+	}
+
+	// no team tests ====
+
+	// new filevault profile with no team
+	prof, err := fleet.NewMDMAppleConfigProfile(mobileconfigForTest("filevault-1", mobileconfig.FleetFileVaultPayloadIdentifier), ptr.Uint(0))
+	require.NoError(t, err)
+
+	// generates a disk encryption aggregate value based on the arguments passed in
+	generateAggregateValue := func(
+		hosts []*fleet.Host,
+		operationType fleet.MDMAppleOperationType,
+		status *fleet.MDMAppleDeliveryStatus,
+		decryptable bool,
+	) {
+		for _, host := range hosts {
+			hostCmdUUID := uuid.New().String()
+			err := s.ds.BulkUpsertMDMAppleHostProfiles(ctx, []*fleet.MDMAppleBulkUpsertHostProfilePayload{
+				{
+					ProfileID:         prof.ProfileID,
+					ProfileIdentifier: prof.Identifier,
+					HostUUID:          host.UUID,
+					CommandUUID:       hostCmdUUID,
+					OperationType:     operationType,
+					Status:            status,
+				},
+			})
+			require.NoError(t, err)
+			oneMinuteAfterThreshold := time.Now().Add(+1 * time.Minute)
+			err = s.ds.SetOrUpdateHostDiskEncryptionKey(ctx, host.ID, "test-key")
+			require.NoError(t, err)
+			err = s.ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{host.ID}, decryptable, oneMinuteAfterThreshold)
+			require.NoError(t, err)
+		}
+	}
+
+	// hosts 1,2 have disk encryption "applied" status
+	generateAggregateValue(hosts[0:2], fleet.MDMAppleOperationTypeInstall, &fleet.MDMAppleDeliveryApplied, true)
+	fvsResp = getMDMAppleFileVauleSummaryResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/filevault/summary", nil, http.StatusOK, &fvsResp)
+	require.Equal(t, uint(2), fvsResp.Applied)
+	require.Equal(t, uint(0), fvsResp.ActionRequired)
+	require.Equal(t, uint(0), fvsResp.Enforcing)
+	require.Equal(t, uint(0), fvsResp.Failed)
+	require.Equal(t, uint(0), fvsResp.RemovingEnforcement)
+
+	// hosts 3,4 have disk encryption "action required" status
+	generateAggregateValue(hosts[2:4], fleet.MDMAppleOperationTypeInstall, &fleet.MDMAppleDeliveryApplied, false)
+	fvsResp = getMDMAppleFileVauleSummaryResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/filevault/summary", nil, http.StatusOK, &fvsResp)
+	require.Equal(t, uint(2), fvsResp.Applied)
+	require.Equal(t, uint(2), fvsResp.ActionRequired)
+	require.Equal(t, uint(0), fvsResp.Enforcing)
+	require.Equal(t, uint(0), fvsResp.Failed)
+	require.Equal(t, uint(0), fvsResp.RemovingEnforcement)
+
+	// hosts 5,6 have disk encryption "enforcing" status
+
+	// host profiles status are `pending`
+	generateAggregateValue(hosts[4:6], fleet.MDMAppleOperationTypeInstall, &fleet.MDMAppleDeliveryPending, true)
+	fvsResp = getMDMAppleFileVauleSummaryResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/filevault/summary", nil, http.StatusOK, &fvsResp)
+	require.Equal(t, uint(2), fvsResp.Applied)
+	require.Equal(t, uint(2), fvsResp.ActionRequired)
+	require.Equal(t, uint(2), fvsResp.Enforcing)
+	require.Equal(t, uint(0), fvsResp.Failed)
+	require.Equal(t, uint(0), fvsResp.RemovingEnforcement)
+
+	// host profiles status dont exist
+	generateAggregateValue(hosts[4:6], fleet.MDMAppleOperationTypeInstall, nil, true)
+	fvsResp = getMDMAppleFileVauleSummaryResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/filevault/summary", nil, http.StatusOK, &fvsResp)
+	require.Equal(t, uint(2), fvsResp.Applied)
+	require.Equal(t, uint(2), fvsResp.ActionRequired)
+	require.Equal(t, uint(2), fvsResp.Enforcing)
+	require.Equal(t, uint(0), fvsResp.Failed)
+	require.Equal(t, uint(0), fvsResp.RemovingEnforcement)
+
+	// host profile is applied but decryptable key does not exist
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(
+			context.Background(),
+			"UPDATE host_disk_encryption_keys SET decryptable = NULL WHERE host_id IN (?, ?)",
+			hosts[5].ID,
+			hosts[6].ID,
+		)
+		require.NoError(t, err)
+		return err
+	})
+	fvsResp = getMDMAppleFileVauleSummaryResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/filevault/summary", nil, http.StatusOK, &fvsResp)
+	require.Equal(t, uint(2), fvsResp.Applied)
+	require.Equal(t, uint(2), fvsResp.ActionRequired)
+	require.Equal(t, uint(2), fvsResp.Enforcing)
+	require.Equal(t, uint(0), fvsResp.Failed)
+	require.Equal(t, uint(0), fvsResp.RemovingEnforcement)
+
+	// hosts 7,8 have disk encryption "failed" status
+	generateAggregateValue(hosts[6:8], fleet.MDMAppleOperationTypeInstall, &fleet.MDMAppleDeliveryFailed, true)
+	fvsResp = getMDMAppleFileVauleSummaryResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/filevault/summary", nil, http.StatusOK, &fvsResp)
+	require.Equal(t, uint(2), fvsResp.Applied)
+	require.Equal(t, uint(2), fvsResp.ActionRequired)
+	require.Equal(t, uint(2), fvsResp.Enforcing)
+	require.Equal(t, uint(2), fvsResp.Failed)
+	require.Equal(t, uint(0), fvsResp.RemovingEnforcement)
+
+	// hosts 9,10 have disk encryption "removing enforcement" status
+	generateAggregateValue(hosts[8:10], fleet.MDMAppleOperationTypeRemove, &fleet.MDMAppleDeliveryPending, true)
+	fvsResp = getMDMAppleFileVauleSummaryResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/filevault/summary", nil, http.StatusOK, &fvsResp)
+	require.Equal(t, uint(2), fvsResp.Applied)
+	require.Equal(t, uint(2), fvsResp.ActionRequired)
+	require.Equal(t, uint(2), fvsResp.Enforcing)
+	require.Equal(t, uint(2), fvsResp.Failed)
+	require.Equal(t, uint(2), fvsResp.RemovingEnforcement)
+
+	// team tests ====
+
+	// host 1,2 added to team 1
+	tm, _ := s.ds.NewTeam(ctx, &fleet.Team{Name: "team-1"})
+	err = s.ds.AddHostsToTeam(ctx, &tm.ID, []uint{hosts[0].ID, hosts[1].ID})
+	require.NoError(t, err)
+
+	// new filevault profile for team 1
+	prof, err = fleet.NewMDMAppleConfigProfile(mobileconfigForTest("filevault-1", mobileconfig.FleetFileVaultPayloadIdentifier), ptr.Uint(1))
+	require.NoError(t, err)
+	prof.TeamID = &tm.ID
+	require.NoError(t, err)
+
+	// filtering by the "team_id" query param
+	generateAggregateValue(hosts[0:2], fleet.MDMAppleOperationTypeInstall, &fleet.MDMAppleDeliveryApplied, true)
+	fvsResp = getMDMAppleFileVauleSummaryResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/filevault/summary", nil, http.StatusOK, &fvsResp, "team_id", strconv.Itoa(int(tm.ID)))
+	require.Equal(t, uint(2), fvsResp.Applied)
+	require.Equal(t, uint(0), fvsResp.ActionRequired)
+	require.Equal(t, uint(0), fvsResp.Enforcing)
+	require.Equal(t, uint(0), fvsResp.Failed)
+	require.Equal(t, uint(0), fvsResp.RemovingEnforcement)
+}
+
 func (s *integrationMDMTestSuite) TestApplyTeamsMDMAppleProfiles() {
 	t := s.T()
 

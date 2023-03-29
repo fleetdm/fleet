@@ -566,6 +566,44 @@ func (svc *Service) GetMDMAppleProfilesSummary(ctx context.Context, teamID *uint
 	return ps, nil
 }
 
+type getMDMAppleFileVaultSummaryRequest struct {
+	TeamID *uint `query:"team_id,optional"`
+}
+
+type getMDMAppleFileVauleSummaryResponse struct {
+	*fleet.MDMAppleFileVaultSummary
+	Err error `json:"error,omitempty"`
+}
+
+func (r getMDMAppleFileVauleSummaryResponse) error() error { return r.Err }
+
+func getMdmAppleFileVaultSummaryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*getMDMAppleFileVaultSummaryRequest)
+
+	fvs, err := svc.GetMDMAppleFileVaultSummary(ctx, req.TeamID)
+	if err != nil {
+		return &getMDMAppleFileVauleSummaryResponse{Err: err}, nil
+	}
+
+	return &getMDMAppleFileVauleSummaryResponse{
+		MDMAppleFileVaultSummary: fvs,
+	}, nil
+}
+
+// QUESTION: workflow for developing new APIs? whats your setup quickly test code working?
+func (svc *Service) GetMDMAppleFileVaultSummary(ctx context.Context, teamID *uint) (*fleet.MDMAppleFileVaultSummary, error) {
+	if err := svc.authz.Authorize(ctx, fleet.MDMAppleConfigProfile{TeamID: teamID}, fleet.ActionRead); err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+
+	fvs, err := svc.ds.GetMDMAppleFileVaultSummary(ctx, teamID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+
+	return fvs, nil
+}
+
 type uploadAppleInstallerRequest struct {
 	Installer *multipart.FileHeader
 }
@@ -1432,7 +1470,7 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 		return ctxerr.Wrap(ctx, err)
 	}
 
-	appCfg, err := svc.AppConfig(ctx)
+	appCfg, err := svc.AppConfigObfuscated(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err)
 	}
@@ -1562,7 +1600,7 @@ func (svc *Service) UpdateMDMAppleSettings(ctx context.Context, payload fleet.MD
 }
 
 func (svc *Service) updateAppConfigMDMAppleSettings(ctx context.Context, payload fleet.MDMAppleSettingsPayload) error {
-	ac, err := svc.AppConfig(ctx)
+	ac, err := svc.AppConfigObfuscated(ctx)
 	if err != nil {
 		return err
 	}

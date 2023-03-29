@@ -354,6 +354,7 @@ func TestScanVulnerabilities(t *testing.T) {
 		expected := `
 {
   "cve": "CVE-2022-39348",
+  "cve_published": "2022-10-26T14:15:00Z",
   "details_link": "https://nvd.nist.gov/vuln/detail/CVE-2022-39348",
   "epss_probability": 0.0089,
   "cvss_score": 5.4,
