@@ -566,13 +566,15 @@ settings. This creates a VM running the latest macOS.
 
 #### Testing manual enrollment
 
-1. Create a manual profile with:
+1. Create a fleetd package that you will install on your host machine. You can get this command from the fleet
+   UI on the manage hosts page when you click the `add hosts` button. Alternatively, you can run the command:
 
-```
-fleetctl apple-mdm enrollment-profiles create-manual
-```
+  ```
+  ./build/fleetctl package --type=pkg --fleet-desktop --fleet-url=<url-of-fleet-instance> --enroll-secret=<your-fleet-enroll-secret>
+  ```
 
-2. Open the URL that the command outputs in your VM, download and install the configuration profile.
+2. Install this package on the host. This will add fleet desktop to this machine and from there you
+   can go to the My Device page and see a banner at the top of the UI to enroll in Fleet MDM.
 
 #### Testing DEP enrollment
 
