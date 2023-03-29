@@ -216,6 +216,11 @@ var testUsers = map[string]struct {
 		Email:             "user2@example.com",
 		GlobalRole:        ptr.String(fleet.RoleObserver),
 	},
+	"user3": {
+		PlaintextPassword: test.GoodPassword,
+		Email:             "user3@example.com",
+		GlobalRole:        ptr.String(fleet.RoleObserverPlus),
+	},
 }
 
 func createEnrollSecrets(t *testing.T, count int) []*fleet.EnrollSecret {
