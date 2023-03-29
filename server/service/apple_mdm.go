@@ -21,6 +21,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
+	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
@@ -921,11 +922,44 @@ func (svc *Service) EnqueueMDMAppleCommand(
 		"DeviceLock":  true,
 	}
 
-	// TODO(mna): load hosts (lite) by uuids, check that they are all part of the same team,
-	// or otherwise authorize the user for every team.
-
-	if err := svc.authz.Authorize(ctx, command, fleet.ActionWrite); err != nil {
+	// load hosts (lite) by uuids, check that the user has the rigts to run
+	// commands for every affected team.
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 		return 0, nil, ctxerr.Wrap(ctx, err)
+	}
+
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return 0, nil, fleet.ErrNoContext
+	}
+	// for the team filter, we don't include observers as we require maintainer
+	// and up to run commands.
+	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: false}
+	hosts, err := svc.ds.ListHostsLiteByUUIDs(ctx, filter, deviceIDs)
+	if err != nil {
+		return 0, nil, err
+	}
+
+	// collect the team IDs and verify that the user has access to run commands
+	// on all affected teams.
+	teamIDs := make(map[uint]bool)
+	for _, h := range hosts {
+		var id uint
+		if h.TeamID != nil {
+			id = *h.TeamID
+		}
+		teamIDs[id] = true
+	}
+
+	for tmID := range teamIDs {
+		command.TeamID = &tmID
+		if tmID == 0 {
+			command.TeamID = nil
+		}
+
+		if err := svc.authz.Authorize(ctx, command, fleet.ActionWrite); err != nil {
+			return 0, nil, ctxerr.Wrap(ctx, err)
+		}
 	}
 
 	if premiumCommands[strings.TrimSpace(command.Command.Command.RequestType)] {
