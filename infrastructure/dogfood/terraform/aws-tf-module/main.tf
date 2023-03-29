@@ -28,6 +28,8 @@ variable "fleet_license" {}
 variable "fleet_image" {
   default = "160035666661.dkr.ecr.us-east-2.amazonaws.com/fleet:1f68e7a5e39339d763da26a0c8ae3e459b2e1f016538d7962312310493381f7c"
 }
+variable "sentry_dsn" {
+}
 
 data "aws_caller_identity" "current" {}
 
@@ -146,6 +148,13 @@ resource "aws_route53_record" "main" {
 
 resource "aws_secretsmanager_secret" "sentry" {
   name = "${local.customer}-sentry"
+}
+
+resource "aws_secretsmanager_secret_version" "sentry" {
+  secret_id = aws_secretsmanager_secret.sentry.id
+  secret_string = jsonencode({
+    SENTRY_DSN = var.sentry_dsn
+  })
 }
 
 module "migrations" {
