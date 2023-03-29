@@ -1760,6 +1760,11 @@ const ManageHostsPage = ({
       currentUser,
       currentTeam
     );
+
+    // Update last column
+    tableColumns.forEach((dataColumn) => {
+      dataColumn.isLastColumn = false;
+    });
     tableColumns[tableColumns.length - 1].isLastColumn = true;
 
     const emptyState = () => {

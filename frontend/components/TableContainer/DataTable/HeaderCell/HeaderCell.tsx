@@ -25,9 +25,11 @@ const HeaderCell = ({
   }
 
   let lastColumnHeaderWithTooltipClass = "";
-  // Since value will only be a string or a TooltipWrapper, this checks for a TooltipWrapper
-  // TODO - add better checking for this
-  if (typeof value !== "string" && isLastColumn) {
+  if (
+    typeof value !== "string" &&
+    value.type.name === "TooltipWrapper" &&
+    isLastColumn
+  ) {
     lastColumnHeaderWithTooltipClass = "last-col-header-with-tip";
   }
 
