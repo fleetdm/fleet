@@ -1889,13 +1889,13 @@ spec:
         SELECT 1 FROM managed_policies WHERE 
             domain='com.apple.SubmitDiagInfo' AND 
             name='Disable' AND 
-            (value != 0 OR value != 'false')
+            (value != 0 AND value != 'false')
         )
       AND NOT EXISTS (
         SELECT 1 FROM managed_policies WHERE 
             domain='com.apple.applicationaccess' AND 
             name='Disable' AND 
-            (value != 0 OR value != 'false')
+            (value != 0 AND value != 'false')
         )
       AND NOT EXISTS (
         SELECT 1 FROM managed_policies WHERE 
@@ -2058,14 +2058,14 @@ spec:
         SELECT 1 FROM managed_policies WHERE 
             domain='com.apple.loginwindow' AND 
             name='RetriesUntilHint' AND 
-            value = 0 AND 
+            (value = 0 OR value = 'false') AND 
             username = ''
         )
       AND NOT EXISTS (
         SELECT 1 FROM managed_policies WHERE 
             domain='com.apple.loginwindow' AND 
             name='RetriesUntilHint' AND 
-            value != 0
+            (value != 0 AND value != 'false')
         );  
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-macos-13-2.10.5
