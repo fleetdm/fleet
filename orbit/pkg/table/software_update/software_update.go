@@ -49,7 +49,7 @@ func runCommand(ctx context.Context, name string, arg ...string) (res string, er
 	defer cancel()
 	cmd := exec.CommandContext(ctx, name, arg...)
 
-	out, err := cmd.Output()
+	out, err := cmd.CombinedOutput()
 	if err != nil {
 		log.Debug().Err(err).Msg("failed while generating software_update table")
 		return "", err
