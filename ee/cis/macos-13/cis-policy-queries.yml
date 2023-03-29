@@ -1881,13 +1881,13 @@ spec:
         SELECT 1 FROM managed_policies WHERE 
             domain='com.apple.SubmitDiagInfo' AND 
             name='Disable' AND 
-            (value != 0 OR value != 'false') AND 
+            (value != 0 OR value != 'false')
         )
       AND NOT EXISTS (
         SELECT 1 FROM managed_policies WHERE 
             domain='com.apple.applicationaccess' AND 
             name='Disable' AND 
-            (value != 0 OR value != 'false') AND 
+            (value != 0 OR value != 'false')
         )
       AND NOT EXISTS (
         SELECT 1 FROM managed_policies WHERE 
@@ -2389,7 +2389,7 @@ spec:
             (value = 1 OR value = 'true') AND 
             username = ''
         )
-      EXISTS (
+      AND EXISTS (
         SELECT 1 FROM managed_policies WHERE 
             domain='com.apple.security.firewall' AND 
             name='LoggingOption' AND 
@@ -3241,14 +3241,14 @@ spec:
             value = '2' AND 
             username = ''
         )
-      EXISTS (
+      AND EXISTS (
         SELECT 1 FROM managed_policies WHERE 
             domain='com.apple.Safari' AND 
             name='WebKitPreferences.storageBlockingPolicy' AND 
             value = '1' AND 
             username = ''
         )
-      EXISTS (
+      AND EXISTS (
         SELECT 1 FROM managed_policies WHERE 
             domain='com.apple.Safari' AND 
             name='WebKitStorageBlockingPolicy' AND 
