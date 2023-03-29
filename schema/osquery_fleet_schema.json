@@ -28575,25 +28575,6 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/sntp_request.yml"
   },
   {
-    "name": "software_update",
-    "platforms": [
-      "darwin"
-    ],
-    "description": "Information about available Apple software updates.",
-    "columns": [
-      {
-        "name": "software_update_required",
-        "type": "integer",
-        "required": false,
-        "description": "Software vendors release security patches and software updates for their products when security vulnerabilities are discovered. There is no simple way to complete this action without a network connection to an Apple software repository. Please ensure appropriate access for this control. This check is only for what Apple provides through software update.      \n"
-      }
-    ],
-    "notes": "This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).",
-    "evented": false,
-    "url": "https://fleetdm.com/tables/software_update",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/software_update.yml"
-  },
-  {
     "name": "sudo_info",
     "platforms": [
       "darwin"
