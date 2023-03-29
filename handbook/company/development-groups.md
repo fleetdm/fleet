@@ -171,7 +171,7 @@ Sub-tasks:
 - Communicate any blockers ASAP in your group Slack channel or standup. [🟠](https://fleetdm.com/handbook/company#ownership)
 - Think fast and iterate.  [🟢](https://fleetdm.com/handbook/company#results)
 - If it probably works, assume it's still broken.  Assume it's your fault.  [🔵](https://fleetdm.com/handbook/company#objectivity)
-- Speak up and have short toes.  Assume positive intent. [🟣](https://fleetdm.com/handbook/company#openness)
+- Speak up and have short toes.  Write things down to make them complete. [🟣](https://fleetdm.com/handbook/company#openness)
 
 
 
