@@ -558,7 +558,7 @@ When selecting a new laptop for a team member, optimize their configuration to:
 
 > Play around with build until it ships as quickly as possible.  Sometimes small changes lead to much faster ship times.  More standard configurations (with fewer customizations) usually ship more quickly.  Sometimes MacBook Pros ship more quickly than MacBook Airs, and vice versa.  This varies.  Remember: Always play around with the build and optimize for something that will **ship quickly**!
 
-For example, someone in sales, marketing, or business operations might use a 14" Macbook Air, whereas someone in engineering, product, or a primarily design role might use a 16" MacBook Pro.
+For example, someone in sales, marketing, or business operations might like to use a 14" Macbook Air, whereas someone in engineering, product, or a primarily design role might use a 16" MacBook Pro.  **Default to a 16" MacBook Pro.**
 
 Windows and Linux devices are available upon request for team members in product and engineering.  (See [Buying other new equipment](#buying-other-new-equipment).)
 

@@ -7,6 +7,8 @@ In Fleet, MDM features are supported for Macs running macOS 12 (Monterey) and hi
 
 # Overview
 
+To use Fleet's MDM features you first first have to [deploy Fleet](../Deploying/Introduction.md) and [add your hosts to Fleet](./Adding-hosts.md).
+
 MDM features require Apple's Push Notification service (APNs) to control and secure Apple devices. This guide will walk you through how to generate and upload a valid APNs certificate to Fleet in order to use Fleet's MDM features.
 
 [Automated Device Enrollment](https://support.apple.com/en-us/HT204142) allows Macs to automatically enroll to Fleet when they are first set up. This guide will walk you through how to connect Apple Business Manager (ABM) to Fleet. Note that this is only required if you are using Automated Device Enrollment AKA Device Enrollment Program (DEP) AKA "Zero-touch."

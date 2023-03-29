@@ -3,12 +3,20 @@
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure All Apple-provided Software Is Current
+  name: CIS - Ensure All Apple-provided Software Is Current (Fleetd Required)
   platforms: macOS
   platform: darwin
-  description: Checks that the current version of macOS is up to date. This query requires maintenance over time.
-  resolution: "Go to System Settings/Software Update and install the latest updates manually"
-  query: SELECT 1 FROM os_version WHERE version >= '13.1';
+  description: |
+    Software vendors release security patches and software updates for their products when security vulnerabilities are discovered. There is no simple way to complete this action without a network connection to an Apple software repository. Please ensure appropriate access for this control. This check is only for what Apple provides through software update.
+    Note: This query may be longer than the avg query and may take more than 10 seconds to run.
+  resolution: |
+    Graphical Method:
+    Perform the following to install all available software updates:
+      1. Open System Settings 
+      2. Select General
+      3. Select Software Update
+      4. Select Update All
+  query: SELECT 1 FROM software_update WHERE software_update_required = '0';
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-macos-13-1.1
   contributors: sharon-fdm
