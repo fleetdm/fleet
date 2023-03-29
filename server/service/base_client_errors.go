@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -114,4 +115,17 @@ func extractServerErrorText(body io.Reader) string {
 	}
 
 	return errText
+}
+
+type statusCodeErr struct {
+	code int
+	body string
+}
+
+func (e *statusCodeErr) Error() string {
+	return fmt.Sprintf("%d %s", e.code, e.body)
+}
+
+func (e *statusCodeErr) StatusCode() int {
+	return e.code
 }

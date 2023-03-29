@@ -3,11 +3,13 @@ package main
 import (
 	"errors"
 	"fmt"
+	"net/http"
 	"os"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service"
+	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/urfave/cli/v2"
 )
 
@@ -66,6 +68,12 @@ func mdmRunCommand() *cli.Command {
 				if errors.As(err, &nfe) {
 					return errors.New("The host doesn't exist. Please provide a valid hostname, uuid, osquery_host_id or node_key.")
 				}
+				var sce kithttp.StatusCoder
+				if errors.As(err, &sce) {
+					if sce.StatusCode() == http.StatusForbidden {
+						return fmt.Errorf("Permission denied. You don't have permission to run an MDM command on this host: %w", err)
+					}
+				}
 				return err
 			}
 
@@ -78,6 +86,12 @@ func mdmRunCommand() *cli.Command {
 
 			result, err := client.EnqueueCommand([]string{host.UUID}, payload)
 			if err != nil {
+				var sce kithttp.StatusCoder
+				if errors.As(err, &sce) {
+					if sce.StatusCode() == http.StatusForbidden {
+						return fmt.Errorf("Permission denied. You don't have permission to run an MDM command on this host: %w", err)
+					}
+				}
 				return err
 			}
 
