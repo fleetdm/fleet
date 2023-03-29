@@ -125,6 +125,14 @@ resource "aws_ecs_task_definition" "backend" {
           {
             name      = "FLEET_LICENSE_KEY"
             valueFrom = data.aws_secretsmanager_secret.license.arn
+          },
+          {
+            name      = "FLEET_PROMETHEUS_BASIC_AUTH_USERNAME"
+            valueFrom = data.aws_secretsmanager_secret.prometheus.basic_auth_username
+          },
+          {
+            name      = "FLEET_PROMETHEUS_BASIC_AUTH_PASSWORD"
+            valueFrom = data.aws_secretsmanager_secret.prometheus.basic_auth_password
           }
         ]
         environment = concat([
