@@ -154,6 +154,8 @@ type HostFunc func(ctx context.Context, id uint) (*fleet.Host, error)
 
 type ListHostsFunc func(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error)
 
+type ListHostsLiteByUUIDsFunc func(ctx context.Context, filter fleet.TeamFilter, uuids []string) ([]*fleet.Host, error)
+
 type MarkHostsSeenFunc func(ctx context.Context, hostIDs []uint, t time.Time) error
 
 type SearchHostsFunc func(ctx context.Context, filter fleet.TeamFilter, query string, omit ...uint) ([]*fleet.Host, error)
@@ -785,6 +787,9 @@ type DataStore struct {
 
 	ListHostsFunc        ListHostsFunc
 	ListHostsFuncInvoked bool
+
+	ListHostsLiteByUUIDsFunc        ListHostsLiteByUUIDsFunc
+	ListHostsLiteByUUIDsFuncInvoked bool
 
 	MarkHostsSeenFunc        MarkHostsSeenFunc
 	MarkHostsSeenFuncInvoked bool
@@ -1906,6 +1911,13 @@ func (s *DataStore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt 
 	s.ListHostsFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListHostsFunc(ctx, filter, opt)
+}
+
+func (s *DataStore) ListHostsLiteByUUIDs(ctx context.Context, filter fleet.TeamFilter, uuids []string) ([]*fleet.Host, error) {
+	s.mu.Lock()
+	s.ListHostsLiteByUUIDsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListHostsLiteByUUIDsFunc(ctx, filter, uuids)
 }
 
 func (s *DataStore) MarkHostsSeen(ctx context.Context, hostIDs []uint, t time.Time) error {
