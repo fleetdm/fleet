@@ -402,6 +402,7 @@ func listSoftwareDB(
 				cve.CVSSScore = &result.CVSSScore
 				cve.EPSSProbability = &result.EPSSProbability
 				cve.CISAKnownExploit = &result.CISAKnownExploit
+				cve.CVEPublished = &result.CVEPublished
 			}
 			softwares[idx].Vulnerabilities = append(softwares[idx].Vulnerabilities, cve)
 		}
@@ -413,10 +414,11 @@ func listSoftwareDB(
 // softwareCVE is used for left joins with cve
 type softwareCVE struct {
 	fleet.Software
-	CVE              *string  `db:"cve"`
-	CVSSScore        *float64 `db:"cvss_score"`
-	EPSSProbability  *float64 `db:"epss_probability"`
-	CISAKnownExploit *bool    `db:"cisa_known_exploit"`
+	CVE              *string    `db:"cve"`
+	CVSSScore        *float64   `db:"cvss_score"`
+	EPSSProbability  *float64   `db:"epss_probability"`
+	CISAKnownExploit *bool      `db:"cisa_known_exploit"`
+	CVEPublished     *time.Time `db:"cve_published"`
 }
 
 func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, error) {
@@ -509,6 +511,7 @@ func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, e
 				goqu.MAX("c.cvss_score").As("cvss_score"),                 // for ordering
 				goqu.MAX("c.epss_probability").As("epss_probability"),     // for ordering
 				goqu.MAX("c.cisa_known_exploit").As("cisa_known_exploit"), // for ordering
+				goqu.MAX("c.published").As("cve_published"),               // for ordering
 			)
 	}
 
@@ -576,6 +579,7 @@ func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, e
 			"c.cvss_score",
 			"c.epss_probability",
 			"c.cisa_known_exploit",
+			goqu.I("c.published").As("cve_published"),
 		)
 	}
 
@@ -812,6 +816,7 @@ func (ds *Datastore) SoftwareByID(ctx context.Context, id uint, includeCVEScores
 				"c.cvss_score",
 				"c.epss_probability",
 				"c.cisa_known_exploit",
+				goqu.I("c.published").As("cve_published"),
 			)
 	}
 
@@ -852,6 +857,7 @@ func (ds *Datastore) SoftwareByID(ctx context.Context, id uint, includeCVEScores
 				cve.CVSSScore = &result.CVSSScore
 				cve.EPSSProbability = &result.EPSSProbability
 				cve.CISAKnownExploit = &result.CISAKnownExploit
+				cve.CVEPublished = &result.CVEPublished
 			}
 			software.Vulnerabilities = append(software.Vulnerabilities, cve)
 		}

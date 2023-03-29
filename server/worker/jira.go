@@ -8,6 +8,7 @@ import (
 	"sort"
 	"sync"
 	"text/template"
+	"time"
 
 	jira "github.com/andygrunwald/go-jira"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -45,6 +46,8 @@ var jiraTemplates = struct {
 {{ if .IsPremium }}{{ if .EPSSProbability }}\\Probability of exploit (reported by [FIRST.org/epss|https://www.first.org/epss/]): {{ .EPSSProbability }}
 {{ end }}
 {{ if .CVSSScore }}CVSS score (reported by [NVD|https://nvd.nist.gov/]): {{ .CVSSScore }}
+{{ end }}
+{{ if .CVEPublished }}Published (reported by [NVD|https://nvd.nist.gov/]): {{ .CVEPublished }}
 {{ end }}
 {{ if .CISAKnownExploit }}Known exploits (reported by [CISA|https://www.cisa.gov/known-exploited-vulnerabilities-catalog]): {{ if deref .CISAKnownExploit }}Yes{{ else }}No{{ end }}
 \\
@@ -101,6 +104,7 @@ type jiraVulnTplArgs struct {
 	EPSSProbability  *float64
 	CVSSScore        *float64
 	CISAKnownExploit *bool
+	CVEPublished     *time.Time
 }
 
 // JiraClient defines the method required for the client that makes API calls
@@ -281,6 +285,7 @@ func (j *Jira) runVuln(ctx context.Context, cli JiraClient, args jiraArgs) error
 		EPSSProbability:  vargs.EPSSProbability,
 		CVSSScore:        vargs.CVSSScore,
 		CISAKnownExploit: vargs.CISAKnownExploit,
+		CVEPublished:     vargs.CVEPublished,
 	}
 
 	createdIssue, err := j.createTemplatedIssue(ctx, cli, jiraTemplates.VulnSummary, jiraTemplates.VulnDescription, tplArgs)
@@ -380,6 +385,7 @@ func QueueJiraVulnJobs(
 			args.EPSSProbability = meta.EPSSProbability
 			args.CVSSScore = meta.CVSSScore
 			args.CISAKnownExploit = meta.CISAKnownExploit
+			args.CVEPublished = meta.Published
 		}
 		job, err := QueueJob(ctx, ds, jiraName, jiraArgs{Vulnerability: &args})
 		if err != nil {

@@ -106,7 +106,9 @@ const DiskEncryption = ({ currentTeamId }: IDiskEncryptionProps) => {
             <Spinner />
           ) : (
             <div className="disk-encryption-content">
-              {/* <DiskEncryptionTable currentTeamId={currentTeamId} /> */}
+              {showAggregate && (
+                <DiskEncryptionTable currentTeamId={currentTeamId} />
+              )}
               <Checkbox
                 onChange={onToggleCheckbox}
                 value={diskEncryptionEnabled}
