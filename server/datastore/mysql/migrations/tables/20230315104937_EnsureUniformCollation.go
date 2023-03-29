@@ -3,6 +3,7 @@ package tables
 import (
 	"bytes"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"text/template"
 
@@ -11,6 +12,176 @@ import (
 
 func init() {
 	MigrationClient.AddMigration(Up_20230315104937, Down_20230315104937)
+}
+
+func fixupSoftware(tx *sql.Tx, collation string) error {
+	//nolint:gosec // string formatting must be used here, but input is not user-controllable
+	rows, err := tx.Query(`
+         SELECT
+           COUNT(*) as total,
+           CONCAT('[', GROUP_CONCAT(id SEPARATOR ','), ']') as ids
+         FROM software
+         GROUP BY ` +
+		fmt.Sprintf("`version` COLLATE %s,", collation) +
+		fmt.Sprintf("`release` COLLATE %s,", collation) +
+		fmt.Sprintf(`name      COLLATE %s,
+		source    COLLATE %s,
+		vendor    COLLATE %s,
+		arch      COLLATE %s
+		HAVING total > 1
+		COLLATE %s`, collation, collation, collation, collation, collation))
+
+	if err != nil {
+		return fmt.Errorf("aggregating dupes: %w", err)
+	}
+
+	defer rows.Close()
+	var idGroups [][]uint
+	for rows.Next() {
+		var rawIDs json.RawMessage
+		var total int
+		if err := rows.Scan(&total, &rawIDs); err != nil {
+			return fmt.Errorf("scanning values: %w", err)
+		}
+		var ids []uint
+		if err := json.Unmarshal(rawIDs, &ids); err != nil {
+			return fmt.Errorf("unmarshalling keys: %w", err)
+		}
+		idGroups = append(idGroups, ids)
+	}
+
+	if len(idGroups) > 0 {
+		fmt.Printf("INFO: found %d duplicate software entries: %v\n", len(idGroups), idGroups)
+	}
+
+	for _, ids := range idGroups {
+		for i := 1; i < len(ids); i++ {
+			if _, err := tx.Exec("DELETE FROM software_cve WHERE software_id = ?", ids[i]); err != nil {
+				return fmt.Errorf("deleting duplicated software with id %d from software_cve: %w", ids[i], err)
+			}
+			if _, err := tx.Exec("DELETE FROM software_host_counts WHERE software_id = ?", ids[i]); err != nil {
+				return fmt.Errorf("deleting duplicate software with id %d from software_host_counts: %w", ids[i], err)
+			}
+			if _, err := tx.Exec("DELETE FROM host_software WHERE software_id = ?", ids[i]); err != nil {
+				return fmt.Errorf("deleting duplicate software with id %d from host_software: %w", ids[i], err)
+			}
+			if _, err := tx.Exec("DELETE FROM software WHERE id = ?", ids[i]); err != nil {
+				return fmt.Errorf("deleting duplicate software with id %d: %w", ids[i], err)
+			}
+		}
+	}
+
+	return nil
+}
+
+func fixupHostUsers(tx *sql.Tx, collation string) error {
+	//nolint:gosec // string formatting must be used here, but input is not user-controllable
+	rows, err := tx.Query(fmt.Sprintf(`
+         SELECT
+           COUNT(*) as total,
+           CONCAT('[', GROUP_CONCAT(JSON_OBJECT('username', username, 'host_id', host_id, 'uid', uid) SEPARATOR ","), ']') as ids
+         FROM host_users
+         GROUP BY
+           host_id,
+           uid,
+           username COLLATE %s
+         HAVING total > 1
+         COLLATE %s`, collation, collation))
+	if err != nil {
+		return fmt.Errorf("aggregating dupes: %w", err)
+	}
+
+	type hostUser struct {
+		Username string
+		HostID   uint `json:"host_id"`
+		UID      uint
+	}
+
+	defer rows.Close()
+	var keyGroups [][]hostUser
+	for rows.Next() {
+		var raw json.RawMessage
+		var total int
+		if err := rows.Scan(&total, &raw); err != nil {
+			return fmt.Errorf("scanning dupe results: %w", err)
+		}
+
+		var hu []hostUser
+		if err := json.Unmarshal(raw, &hu); err != nil {
+			return fmt.Errorf("unmarshalling dupe results: %w", err)
+		}
+		keyGroups = append(keyGroups, hu)
+	}
+
+	if len(keyGroups) > 0 {
+		fmt.Printf("INFO: found %d duplicate host_software entries: %v\n", len(keyGroups), keyGroups)
+	}
+
+	for _, keys := range keyGroups {
+		for i := 1; i < len(keys); i++ {
+			if _, err := tx.Exec("DELETE FROM host_users WHERE host_id = ? AND uid = ? AND username = ?", keys[i].HostID, keys[i].UID, keys[i].Username); err != nil {
+				return fmt.Errorf("deleting duplicate entries with key (host_id=%d, uid=%d, username=%s) from host_users: %w", keys[i].HostID, keys[i].UID, keys[i].Username, err)
+			}
+		}
+	}
+	return nil
+}
+
+func fixupOS(tx *sql.Tx, collation string) error {
+	//nolint:gosec // string formatting must be used here, but input is not user-controllable
+	rows, err := tx.Query(fmt.Sprintf(`
+         SELECT
+           COUNT(*) as total,
+           CONCAT('[', GROUP_CONCAT(JSON_OBJECT('name', name, 'version', version, 'arch', arch, 'kernel_version', kernel_version, 'platform', platform) SEPARATOR ","), ']') as ids
+         FROM operating_systems
+         GROUP BY `+
+		fmt.Sprintf("`version` COLLATE %s,", collation)+
+		`name      COLLATE %s,
+           arch    COLLATE %s,
+           kernel_version COLLATE %s,
+           platform    COLLATE %s
+         HAVING total > 1
+         COLLATE %s`, collation, collation, collation, collation, collation))
+	if err != nil {
+		return fmt.Errorf("aggregating dupes: %w", err)
+	}
+
+	type os struct {
+		Name          string
+		Version       string
+		Arch          string
+		KernelVersion string `json:"kernel_version"`
+		Platform      string
+	}
+
+	defer rows.Close()
+	var keyGroups [][]os
+	for rows.Next() {
+		var raw json.RawMessage
+		var total int
+		if err := rows.Scan(&total, &raw); err != nil {
+			return fmt.Errorf("scanning dupes: %w", err)
+		}
+
+		var o []os
+		if err := json.Unmarshal(raw, &o); err != nil {
+			return fmt.Errorf("unmarshalling dupes: %w", err)
+		}
+		keyGroups = append(keyGroups, o)
+	}
+
+	if len(keyGroups) > 0 {
+		fmt.Printf("INFO: found %d duplicate operating_system entries: %v\n", len(keyGroups), keyGroups)
+	}
+
+	for _, keys := range keyGroups {
+		for i := 1; i < len(keys); i++ {
+			if _, err := tx.Exec("DELETE FROM operating_systems WHERE name = ? AND version = ? AND arch = ? AND kernel_version = ? AND platform = ?", keys[i].Name, keys[i].Version, keys[i].Arch, keys[i].KernelVersion, keys[i].Platform); err != nil {
+				return fmt.Errorf("deleting dupes with key (name=%s, version=%s, arch=%s, kernel_version=%s, platfrom=%s): %w", keys[i].Name, keys[i].Version, keys[i].Arch, keys[i].KernelVersion, keys[i].Platform, err)
+			}
+		}
+	}
+	return nil
 }
 
 // changeCollation changes the default collation set of the database and all
@@ -24,8 +195,19 @@ func changeCollation(tx *sql.Tx, charset string, collation string) (err error) {
 		return fmt.Errorf("alter database: %w", err)
 	}
 
-	txx := sqlx.Tx{Tx: tx}
+	if err := fixupSoftware(tx, collation); err != nil {
+		return fmt.Errorf("fixing software table: %w", err)
+	}
 
+	if err := fixupHostUsers(tx, collation); err != nil {
+		return fmt.Errorf("fixing host_users table: %w", err)
+	}
+
+	if err := fixupOS(tx, collation); err != nil {
+		return fmt.Errorf("fixing operating_systems table: %w", err)
+	}
+
+	txx := sqlx.Tx{Tx: tx}
 	var names []string
 	err = txx.Select(&names, `
           SELECT table_name
