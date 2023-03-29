@@ -207,6 +207,7 @@ func TestAppleMDMAuthorization(t *testing.T) {
 		test.UserNoRoles,
 		test.UserMaintainer,
 		test.UserObserver,
+		test.UserObserverPlus,
 		test.UserTeamAdminTeam1,
 	} {
 		testAuthdMethods(t, user, true)
@@ -642,6 +643,7 @@ func TestAppleMDMEnrollmentProfile(t *testing.T) {
 		test.UserNoRoles,
 		test.UserMaintainer,
 		test.UserObserver,
+		test.UserObserverPlus,
 		test.UserTeamAdminTeam1,
 	} {
 		ctx := test.UserContext(ctx, user)
