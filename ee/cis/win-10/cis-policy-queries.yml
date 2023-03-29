@@ -5563,6 +5563,27 @@ apiVersion: v1
 kind: policy
 spec:
   name: >
+    CIS - Ensure 'Do not allow passwords to be saved' is set to 'Enabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting helps prevent Remote Desktop clients from saving passwords on a computer.
+    The recommended state for this setting is: Enabled.
+    Note: If this policy setting was previously configured as Disabled or Not configured, any previously saved passwords will be deleted the first time a Remote Desktop client disconnects from any server.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Remote Desktop Services\Remote Desktop Connection Client\Do not allow passwords to be saved'
+    Note: This Group Policy path is provided by the Group Policy template TerminalServer.admx/adml that is included with all versions of the Microsoft Windows Administrative Templates.
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\Terminal Services\DisablePasswordSaving' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.65.2.2
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
     CIS - Ensure 'Allow suggested apps in Windows Ink Workspace' is set to 'Disabled'
   platforms: win10
   platform: windows
