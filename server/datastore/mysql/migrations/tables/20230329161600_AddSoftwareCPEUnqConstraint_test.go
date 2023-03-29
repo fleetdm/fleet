@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20230315163954(t *testing.T) {
+func TestUp_20230329161600(t *testing.T) {
 	db := applyUpToPrev(t)
 	_, err := db.Exec(`INSERT INTO software (id, name, version, source, bundle_identifier, vendor, arch)
 	VALUES (1, 'zchunk-libs', '1.2.1', 'rpm_packages', '', 'Fedora Project','x86_64');`)

@@ -7,12 +7,12 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20230315163954, Down_20230315163954)
+	MigrationClient.AddMigration(Up_20230329161600, Down_20230329161600)
 }
 
 // Since we will be adding a uniqueness constrain on (software_id) on the software_cpe table - we need to remove any
 // possible duplicates.
-func _20230315163954_remove_duplicates(tx *sql.Tx) error {
+func _20230329161600_remove_duplicates(tx *sql.Tx) error {
 	const deleteStmt = `
 DELETE sc
 FROM software_cpe sc
@@ -33,7 +33,7 @@ FROM software_cpe sc
 	return nil
 }
 
-func _20230315163954_add_unq_constraint(tx *sql.Tx) error {
+func _20230329161600_add_unq_constraint(tx *sql.Tx) error {
 	_, err := tx.Exec(`
 	ALTER TABLE software_cpe ADD CONSTRAINT unq_software_id UNIQUE (software_id), ALGORITHM=INPLACE, LOCK=NONE;
 `)
@@ -43,8 +43,8 @@ func _20230315163954_add_unq_constraint(tx *sql.Tx) error {
 	return nil
 }
 
-func Up_20230315163954(tx *sql.Tx) error {
-	if err := _20230315163954_remove_duplicates(tx); err != nil {
+func Up_20230329161600(tx *sql.Tx) error {
+	if err := _20230329161600_remove_duplicates(tx); err != nil {
 		return err
 	}
 
@@ -54,7 +54,7 @@ func Up_20230315163954(tx *sql.Tx) error {
 	}
 
 	if !exists {
-		if err := _20230315163954_add_unq_constraint(tx); err != nil {
+		if err := _20230329161600_add_unq_constraint(tx); err != nil {
 			return err
 		}
 	}
@@ -62,6 +62,6 @@ func Up_20230315163954(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20230315163954(tx *sql.Tx) error {
+func Down_20230329161600(tx *sql.Tx) error {
 	return nil
 }
