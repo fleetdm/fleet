@@ -4,8 +4,6 @@
 
 _Available in Fleet Premium_
 
-_Requires Fleet Desktop installed on the host_
-
 End users can be reminded and encouraged to update macOS (via [Nudge](https://github.com/macadmins/nudge)).
 
 When a minimum version and deadline is saved in Fleet, the end user sees the below Nudge window until their macOS version is at or above the minimum version. 
