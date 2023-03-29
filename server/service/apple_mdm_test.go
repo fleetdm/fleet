@@ -249,6 +249,20 @@ func TestAppleMDMAuthorization(t *testing.T) {
 		return hosts, nil
 	}
 
+	rawB64FreeCmd := base64.RawStdEncoding.EncodeToString([]byte(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Command</key>
+    <dict>
+        <key>RequestType</key>
+        <string>FooBar</string>
+    </dict>
+    <key>CommandUUID</key>
+    <string>uuid</string>
+</dict>
+</plist>`))
+
 	cases := []struct {
 		desc              string
 		user              *fleet.User
@@ -268,7 +282,7 @@ func TestAppleMDMAuthorization(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.desc, func(t *testing.T) {
 			ctx = test.UserContext(ctx, c.user)
-			_, _, err = svc.EnqueueMDMAppleCommand(ctx, &fleet.MDMAppleCommand{Command: &mdm.Command{}}, c.uuids, false)
+			_, _, err = svc.EnqueueMDMAppleCommand(ctx, rawB64FreeCmd, c.uuids, false)
 			checkAuthErr(t, err, c.shoudFailWithAuth)
 		})
 	}
@@ -276,9 +290,20 @@ func TestAppleMDMAuthorization(t *testing.T) {
 	// test with a command that requires a premium license
 	ctx = test.UserContext(ctx, test.UserAdmin)
 	ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: fleet.TierFree})
-	cmd := &mdm.Command{}
-	cmd.Command.RequestType = "EraseDevice"
-	_, _, err = svc.EnqueueMDMAppleCommand(ctx, &fleet.MDMAppleCommand{Command: cmd}, []string{"host1"}, false)
+	rawB64PremiumCmd := base64.RawStdEncoding.EncodeToString([]byte(fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Command</key>
+    <dict>
+        <key>RequestType</key>
+        <string>%s</string>
+    </dict>
+    <key>CommandUUID</key>
+    <string>uuid</string>
+</dict>
+</plist>`, "DeviceLock")))
+	_, _, err = svc.EnqueueMDMAppleCommand(ctx, rawB64PremiumCmd, []string{"host1"}, false)
 	require.Error(t, err)
 	require.ErrorContains(t, err, fleet.ErrMissingLicense.Error())
 }

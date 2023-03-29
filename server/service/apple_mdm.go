@@ -893,15 +893,7 @@ func (r enqueueMDMAppleCommandResponse) Status() int  { return r.status }
 
 func enqueueMDMAppleCommandEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*enqueueMDMAppleCommandRequest)
-	rawCommand, err := base64.RawStdEncoding.DecodeString(req.Command)
-	if err != nil {
-		return enqueueMDMAppleCommandResponse{Err: err}, nil
-	}
-	command, err := mdm.DecodeCommand(rawCommand)
-	if err != nil {
-		return enqueueMDMAppleCommandResponse{Err: err}, nil
-	}
-	status, result, err := svc.EnqueueMDMAppleCommand(ctx, &fleet.MDMAppleCommand{Command: command}, req.DeviceIDs, req.NoPush)
+	status, result, err := svc.EnqueueMDMAppleCommand(ctx, req.Command, req.DeviceIDs, req.NoPush)
 	if err != nil {
 		return enqueueMDMAppleCommandResponse{Err: err}, nil
 	}
@@ -913,7 +905,7 @@ func enqueueMDMAppleCommandEndpoint(ctx context.Context, request interface{}, sv
 
 func (svc *Service) EnqueueMDMAppleCommand(
 	ctx context.Context,
-	command *fleet.MDMAppleCommand,
+	rawBase64Cmd string,
 	deviceIDs []string,
 	noPush bool,
 ) (status int, result *fleet.CommandEnqueueResult, err error) {
@@ -951,6 +943,7 @@ func (svc *Service) EnqueueMDMAppleCommand(
 		teamIDs[id] = true
 	}
 
+	var command fleet.MDMAppleCommand
 	for tmID := range teamIDs {
 		command.TeamID = &tmID
 		if tmID == 0 {
@@ -962,7 +955,16 @@ func (svc *Service) EnqueueMDMAppleCommand(
 		}
 	}
 
-	if premiumCommands[strings.TrimSpace(command.Command.Command.RequestType)] {
+	rawXMLCmd, err := base64.RawStdEncoding.DecodeString(rawBase64Cmd)
+	if err != nil {
+		return 0, nil, ctxerr.Wrap(ctx, err, "decode base64 command")
+	}
+	cmd, err := mdm.DecodeCommand(rawXMLCmd)
+	if err != nil {
+		return 0, nil, ctxerr.Wrap(ctx, err, "decode plist command")
+	}
+
+	if premiumCommands[strings.TrimSpace(cmd.Command.RequestType)] {
 		lic, err := svc.License(ctx)
 		if err != nil {
 			return 0, nil, ctxerr.Wrap(ctx, err, "get license")
@@ -974,7 +976,7 @@ func (svc *Service) EnqueueMDMAppleCommand(
 
 	// TODO(mna): hmmm is this ok to still call this (deprecated) func? Or is
 	// there a ticket to re-implement or address this?
-	return deprecatedRawCommandEnqueue(ctx, svc.mdmStorage, svc.mdmPushService, command.Command, deviceIDs, noPush, svc.logger)
+	return deprecatedRawCommandEnqueue(ctx, svc.mdmStorage, svc.mdmPushService, cmd, deviceIDs, noPush, svc.logger)
 }
 
 // deprecatedRawCommandEnqueue enqueues a command to be executed on the given devices.
