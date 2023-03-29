@@ -259,6 +259,19 @@ type KinesisConfig struct {
 	AuditStream      string `yaml:"audit_stream"`
 }
 
+// SESConfig defines configs for the AWS SES service for emailing
+type SESConfig struct {
+	Region           string
+	EndpointURL      string `yaml:"endpoint_url"`
+	AccessKeyID      string `yaml:"access_key_id"`
+	SecretAccessKey  string `yaml:"secret_access_key"`
+	StsAssumeRoleArn string `yaml:"sts_assume_role_arn"`
+}
+
+type EmailConfig struct {
+	EmailBackend string
+}
+
 // LambdaConfig defines configs for the AWS Lambda logging plugin
 type LambdaConfig struct {
 	Region           string
@@ -391,6 +404,8 @@ type FleetConfig struct {
 	Kinesis          KinesisConfig
 	Lambda           LambdaConfig
 	S3               S3Config
+	Email            EmailConfig
+	SES              SESConfig
 	PubSub           PubSubConfig
 	Filesystem       FilesystemConfig
 	KafkaREST        KafkaRESTConfig

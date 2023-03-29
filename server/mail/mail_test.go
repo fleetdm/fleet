@@ -1,6 +1,7 @@
 package mail
 
 import (
+	"github.com/fleetdm/fleet/v4/server/config"
 	"os"
 	"testing"
 
@@ -26,7 +27,8 @@ func TestMail(t *testing.T) {
 	}
 
 	for _, f := range testFunctions {
-		r := NewService()
+		r, err := NewService(config.TestConfig())
+		require.NoError(t, err)
 
 		t.Run(test.FunctionName(f), func(t *testing.T) {
 			f(t, r)

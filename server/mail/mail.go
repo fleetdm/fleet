@@ -6,6 +6,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"github.com/fleetdm/fleet/v4/server/config"
 	"html/template"
 	"net"
 	"net/smtp"
@@ -16,8 +17,13 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
-func NewService() fleet.MailService {
-	return &mailService{}
+func NewService(config config.FleetConfig) (fleet.MailService, error) {
+	switch strings.ToLower(config.Email.EmailBackend) {
+	case "ses":
+		return NewSESSender(config.SES.Region, config.SES.EndpointURL, config.SES.AccessKeyID, config.SES.SecretAccessKey, config.SES.StsAssumeRoleArn)
+	default:
+		return &mailService{}, nil
+	}
 }
 
 type mailService struct{}
