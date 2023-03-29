@@ -23,7 +23,8 @@ FROM software_cpe sc
 		FROM software_cpe
 		GROUP BY software_id
 		HAVING COUNT(*) > 1
-	) sc2 ON sc2.software_id = sc.software_id;
+	) sc2 ON sc2.software_id = sc.software_id
+	WHERE sc.id < sc2.max_id;
 `
 
 	if _, err := tx.Exec(deleteStmt); err != nil {
