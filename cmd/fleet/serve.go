@@ -161,7 +161,10 @@ the way that the Fleet server works.
 			var ds fleet.Datastore
 			var carveStore fleet.CarveStore
 			var installerStore fleet.InstallerStore
-			mailService := mail.NewService()
+			mailService, err := mail.NewService(config)
+			if err != nil {
+				level.Error(logger).Log("err", err, "msg", "failed to configure mailing service")
+			}
 
 			opts := []mysql.DBOption{mysql.Logger(logger), mysql.WithFleetConfig(&config)}
 			if config.MysqlReadReplica.Address != "" {

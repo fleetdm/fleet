@@ -96,7 +96,8 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 			enrollHostLimiter = opts[0].EnrollHostLimiter
 		}
 		if opts[0].UseMailService {
-			mailer = mail.NewService()
+			mailer, err = mail.NewService(config.TestConfig())
+			require.NoError(t, err)
 		}
 
 		// allow to explicitly set installer store to nil
