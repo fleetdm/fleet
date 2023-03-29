@@ -73,7 +73,8 @@ func (s *sesSender) sendMail(e fleet.Email, msg []byte) error {
 		if err != nil {
 			return err
 		}
-		replyToAddresses[0] = &serverURL.Host
+		reply := fmt.Sprintf("do-not-reply@%s", serverURL.Host)
+		replyToAddresses[0] = &reply
 	} else {
 		replyToAddresses[0] = &e.Config.SMTPSettings.SMTPSenderAddress
 	}
