@@ -7,7 +7,7 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20230329161600, Down_20230329161600)
+	MigrationClient.AddMigration(Up_20230330134823, Down_20230330134823)
 }
 
 // Since we will be adding a uniqueness constrain on (software_id) on the software_cpe table - we need to remove any
@@ -44,7 +44,7 @@ func _20230329161600_add_unq_constraint(tx *sql.Tx) error {
 	return nil
 }
 
-func Up_20230329161600(tx *sql.Tx) error {
+func Up_20230330134823(tx *sql.Tx) error {
 	if err := _20230329161600_remove_duplicates(tx); err != nil {
 		return err
 	}
@@ -56,6 +56,6 @@ func Up_20230329161600(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20230329161600(tx *sql.Tx) error {
+func Down_20230330134823(tx *sql.Tx) error {
 	return nil
 }

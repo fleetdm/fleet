@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20230329161600(t *testing.T) {
+func TestUp_20230330134823(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	_, err := db.Exec(`INSERT INTO software (id, name, version, source, bundle_identifier, vendor, arch)
