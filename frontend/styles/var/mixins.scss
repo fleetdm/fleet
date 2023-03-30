@@ -42,11 +42,8 @@ $max-width: 2560px;
   color: $core-white;
   font-size: $xx-small;
   font-weight: 700;
-  padding: 0 4px;
-  border-radius: 4px;
+  padding: 0 $pad-xsmall;
+  border-radius: $border-radius;
   position: relative;
-  top: -2px;
-  min-width: 95px;
-  max-height: 19px;
-  margin-left: 4px;
+  margin-left: $pad-xsmall;
 }
