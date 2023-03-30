@@ -8,29 +8,16 @@ End users can be reminded and encouraged to update macOS (via [Nudge](https://gi
 
 ![Nudge window](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/nudge-window.png)
 
-A Fleet admin can set a minimum version and deadline for Fleet-enrolled hosts. The end user will see the below Nudge window until their macOS version is at or above the minimum version. The user has the option to defer the update, but as the deadline approaches, the Nudge window appears more frequently. 
+A Fleet admin can set a minimum version and deadline for Fleet-enrolled hosts. If an end user's machine is below the minimum version, the Nudge window above will periodically appear to encourage them to upgrade. The end user has the option to defer the update, but as the deadline approaches, the Nudge window appears more frequently. 
 
+When the end user machine is below the minimum version, Nudge applies the following behavior:
 
-| Capability                           | Status |
-| ------------------------------------ | ------ |
-| Secure autoupdate for osquery        | ✅     |
-| Secure autoupdate for Orbit          | ✅     |
-| Configurable update channels         | ✅     |
-| Full osquery flag customization      | ✅     |
-| Package tooling for macOS `.pkg`     | ✅     |
-| Package tooling for Linux `.deb`     | ✅     |
-| Package tooling for Linux `.rpm`     | ✅     |
-| Package tooling for Windows `.msi`   | ✅     |
-| Manage/update osquery extensions     | ✅     |
-| Manage cgroups for Linux performance | 🔜     |
+|                                      | > 1 day before deadline | < 1 day before dealine | past deadline         |
+| ------------------------------------ | ----------------------- | ---------------------- | --------------------- |
+| Nudge window frequency               | Once a day at X pm GMT  | Once every 2 hours     | Immediately on login  |
+| End user can defer                   | ✅                      | ✅                     | ❌                    |
+| Nudge window is dismissable          | ✅                      | ✅                     | ❌                    |
 
-As the deadline gets closer, Fleet provides stronger encouragement.
-
-If the end user has more than 1 day until the deadline, the Nudge window is shown everyday. The end user can defer the update and close the window.
-
-If there is less than 1 day, the window is shown every 2 hours. The end user can defer and close the window.
-
-If the end user is past the deadline, Fleet shows the window and end user can't close the window until they update.
 
 ## How to set up
 
