@@ -27,10 +27,10 @@ AND CONSTRAINT_NAME = ?
 	return count > 0
 }
 
-func unqConstraintExists(tx *sql.Tx, table string, name string) (bool, error) {
+func uniqueConstraintExists(tx *sql.Tx, table string, name string) (bool, error) {
 	var count int
 	err := tx.QueryRow(`
-SELECT COUNT(1)
+SELECT COUNT(*)
 FROM information_schema.TABLE_CONSTRAINTS
 WHERE TABLE_NAME = ? AND CONSTRAINT_TYPE = 'UNIQUE' AND CONSTRAINT_NAME = ?
 `,

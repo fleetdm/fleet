@@ -49,7 +49,7 @@ func Up_20230329161600(tx *sql.Tx) error {
 		return err
 	}
 
-	exists, err := unqConstraintExists(tx, "software_cpe", "unq_software_id")
+	exists, err := uniqueConstraintExists(tx, "software_cpe", "unq_software_id")
 	if err != nil {
 		return err
 	}
