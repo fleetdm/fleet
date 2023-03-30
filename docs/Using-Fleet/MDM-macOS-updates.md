@@ -6,11 +6,23 @@ _Available in Fleet Premium_
 
 End users can be reminded and encouraged to update macOS (via [Nudge](https://github.com/macadmins/nudge)).
 
-When a minimum version and deadline is saved in Fleet, the end user sees the below Nudge window until their macOS version is at or above the minimum version. 
-
-To set the macOS updates settings in the UI, visit the **Controls** section and then select the **macOS updates** tab. To set the macOS updates settings programmatically, use the configurations listed [here](https://fleetdm.com/docs/using-fleet/configuration-files#mdm-macos-updates).
-
 ![Nudge window](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/nudge-window.png)
+
+A Fleet admin can set a minimum version and deadline for Fleet-enrolled hosts. The end user will see the below Nudge window until their macOS version is at or above the minimum version. The user has the option to defer the update, but as the deadline approaches, the Nudge window appears more frequently. 
+
+
+| Capability                           | Status |
+| ------------------------------------ | ------ |
+| Secure autoupdate for osquery        | ✅     |
+| Secure autoupdate for Orbit          | ✅     |
+| Configurable update channels         | ✅     |
+| Full osquery flag customization      | ✅     |
+| Package tooling for macOS `.pkg`     | ✅     |
+| Package tooling for Linux `.deb`     | ✅     |
+| Package tooling for Linux `.rpm`     | ✅     |
+| Package tooling for Windows `.msi`   | ✅     |
+| Manage/update osquery extensions     | ✅     |
+| Manage cgroups for Linux performance | 🔜     |
 
 As the deadline gets closer, Fleet provides stronger encouragement.
 
@@ -19,6 +31,14 @@ If the end user has more than 1 day until the deadline, the Nudge window is show
 If there is less than 1 day, the window is shown every 2 hours. The end user can defer and close the window.
 
 If the end user is past the deadline, Fleet shows the window and end user can't close the window until they update.
+
+## How to set up
+
+To set the macOS updates settings in the UI, visit the **Controls** section and then select the **macOS updates** tab. To set the macOS updates settings programmatically, use the configurations listed [here](https://fleetdm.com/docs/using-fleet/configuration-files#mdm-macos-updates).
+
+## Requirements
+- Fleet Premium or Ultimate
+- [Fleetd](https://fleetdm.com/docs/using-fleet/orbit) with Fleet Desktop enabled
 
 ## End user experience
 
