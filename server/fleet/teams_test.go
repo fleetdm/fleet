@@ -183,6 +183,18 @@ func TestValidateUserRolesGitOps(t *testing.T) {
 			},
 			checkErr: nil,
 		},
+		{
+			name:   "global-observer-modify-to-not-api-only",
+			create: false,
+			payload: UserPayload{
+				GlobalRole: ptr.String(RoleObserver),
+				APIOnly:    ptr.Bool(false),
+			},
+			license: LicenseInfo{
+				Tier: TierFree,
+			},
+			checkErr: nil,
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			err := ValidateUserRoles(tc.create, tc.payload, tc.license)

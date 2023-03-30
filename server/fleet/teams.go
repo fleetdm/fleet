@@ -319,9 +319,9 @@ func ValidateUserRoles(createNew bool, payload UserPayload, license LicenseInfo)
 	}
 	if gitOpsRolePresent &&
 		// New user is not API only.
-		(createNew && (payload.APIOnly == nil || !*payload.APIOnly)) ||
-		// Removing API only status from existing user.
-		(!createNew && payload.APIOnly != nil && !*payload.APIOnly) {
+		((createNew && (payload.APIOnly == nil || !*payload.APIOnly)) ||
+			// Removing API only status from existing user.
+			(!createNew && payload.APIOnly != nil && !*payload.APIOnly)) {
 		return NewErrorf(ErrAPIOnlyRole, "role GitOps can only be set for API only users")
 	}
 
