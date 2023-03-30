@@ -1,10 +1,14 @@
 resource "aws_s3_bucket" "osquery-results" { #tfsec:ignore:aws-s3-encryption-customer-key tfsec:ignore:aws-s3-enable-bucket-logging tfsec:ignore:aws-s3-enable-versioning
   bucket = "${local.prefix}-loadtest-osquery-logs-archive"
-  acl    = "private"
 
   #checkov:skip=CKV_AWS_18:dev env
   #checkov:skip=CKV_AWS_144:dev env
   #checkov:skip=CKV_AWS_21:dev env
+}
+
+resource "aws_s3_bucket_acl" "osquery-results" {
+  bucket = aws_s3_bucket.osquery-results.id
+  acl    = "private"
 }
 
 resource "aws_s3_bucket_server_side_encryption_configuration" "osquery-results" {
