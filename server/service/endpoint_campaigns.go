@@ -3,15 +3,17 @@ package service
 import (
 	"context"
 	"encoding/json"
-	"github.com/fleetdm/fleet/v4/server/config"
 	"net/http"
 	"regexp"
 	"strings"
+
+	"github.com/fleetdm/fleet/v4/server/config"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/websocket"
 	kitlog "github.com/go-kit/kit/log"
+	gws "github.com/gorilla/websocket"
 	"github.com/igm/sockjs-go/v3/sockjs"
 )
 
@@ -30,6 +32,11 @@ func makeStreamDistributedQueryCampaignResultsHandler(config config.ServerConfig
 		opt.CheckOrigin = func(r *http.Request) bool {
 			return true
 		}
+		// sockjs uses gorilla websockets under-the-hood see https://github.com/igm/sockjs-go/blob/master/v3/sockjs/rawwebsocket.go#L12-L14
+		opt.WebsocketUpgrader = &gws.Upgrader{
+			CheckOrigin: func(r *http.Request) bool {
+				return true
+			}}
 	}
 
 	return func(path string) http.Handler {
