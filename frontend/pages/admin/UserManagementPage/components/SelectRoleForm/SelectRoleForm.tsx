@@ -25,16 +25,6 @@ interface RoleParams {
 }
 
 const roleOptions = ({ isPremiumTier, isApiOnly }: RoleParams): IRole[] => {
-  if (isApiOnly) {
-    return [
-      {
-        disabled: false,
-        label: "GitOps",
-        value: "gitops",
-      },
-    ];
-  }
-
   const roles: IRole[] = [
     {
       disabled: false,
@@ -58,6 +48,11 @@ const roleOptions = ({ isPremiumTier, isApiOnly }: RoleParams): IRole[] => {
       disabled: false,
       label: "Observer+",
       value: "observer_plus",
+    });
+    roles.splice(3, 0, {
+      disabled: !isApiOnly,
+      label: "GitOps",
+      value: "gitops",
     });
   }
 

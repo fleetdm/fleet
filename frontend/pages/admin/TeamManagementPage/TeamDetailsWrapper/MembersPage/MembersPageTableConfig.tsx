@@ -7,6 +7,7 @@ import { IUser, UserRole } from "interfaces/user";
 import { ITeam } from "interfaces/team";
 import { IDropdownOption } from "interfaces/dropdownOption";
 import stringUtils from "utilities/strings";
+import TooltipWrapper from "components/TooltipWrapper";
 
 interface IHeaderProps {
   column: {
@@ -120,9 +121,37 @@ const generateTableHeaders = (
       Header: "Role",
       disableSortBy: true,
       accessor: "role",
-      Cell: (cellProps: ICellProps) => (
-        <TextCell value={cellProps.cell.value} />
-      ),
+      Cell: (cellProps: ICellProps) => {
+        if (cellProps.cell.value === "GitOps") {
+          return (
+            <TooltipWrapper
+              position="top"
+              tipContent={`
+            The GitOps role is only available on the command-line<br/>
+            when creating an API-only user. This user has no<br/>
+            access to the UI.
+          `}
+            >
+              GitOps
+            </TooltipWrapper>
+          );
+        }
+        if (cellProps.cell.value === "Observer+") {
+          return (
+            <TooltipWrapper
+              position="top"
+              tipContent={`
+            Users with the Observer+ role have access to all of<br/>
+            the same functions as an Observer, with the added<br/>
+            ability to run any live query against all hosts. 
+          `}
+            >
+              {cellProps.cell.value}
+            </TooltipWrapper>
+          );
+        }
+        return <TextCell value={cellProps.cell.value} />;
+      },
     },
     {
       title: "Email",

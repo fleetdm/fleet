@@ -40,20 +40,11 @@ interface GlobalRoleParams {
   isApiOnly?: boolean;
 }
 
+// Create and edit global user role
 const globalUserRoles = ({
   isPremiumTier,
   isApiOnly,
 }: GlobalRoleParams): IRole[] => {
-  if (isApiOnly) {
-    return [
-      {
-        disabled: false,
-        label: "GitOps",
-        value: "gitops",
-      },
-    ];
-  }
-
   const roles: IRole[] = [
     {
       disabled: false,
@@ -77,6 +68,11 @@ const globalUserRoles = ({
       disabled: false,
       label: "Observer+",
       value: "observer_plus",
+    });
+    roles.splice(3, 0, {
+      disabled: !isApiOnly,
+      label: "GitOps",
+      value: "gitops",
     });
   }
 
@@ -394,6 +390,7 @@ const UserForm = ({
                 availableTeams={availableTeams}
                 usersCurrentTeams={formData.teams}
                 onFormChange={onSelectedTeamChange}
+                isApiOnly={isApiOnly}
               />
             </>
           ) : (

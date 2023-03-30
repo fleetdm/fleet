@@ -131,7 +131,7 @@ const generateTableHeaders = (
       accessor: "role",
       disableSortBy: true,
       Cell: (cellProps: ICellProps) => {
-        if (cellProps.cell.value === "Gitops") {
+        if (cellProps.cell.value === "GitOps") {
           return (
             <TooltipWrapper
               position="top"

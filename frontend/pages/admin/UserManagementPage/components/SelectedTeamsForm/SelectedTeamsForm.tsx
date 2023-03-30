@@ -2,6 +2,7 @@ import React, { useState } from "react";
 
 import { ITeam } from "interfaces/team";
 import { UserRole } from "interfaces/user";
+import { IRole } from "interfaces/role";
 import Checkbox from "components/forms/fields/Checkbox";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
@@ -14,40 +15,43 @@ interface ISelectedTeamsFormProps {
   availableTeams: ITeam[];
   usersCurrentTeams: ITeam[];
   onFormChange: (teams: ITeam[]) => void;
+  isApiOnly?: boolean;
 }
 
 const baseClass = "selected-teams-form";
 
-const roles = [
-  {
-    disabled: false,
-    label: "Observer+",
-    value: "observer_plus",
-  },
-  {
-    disabled: false,
-    label: "Observer",
-    value: "observer",
-  },
-  {
-    disabled: false,
-    label: "Maintainer",
-    value: "maintainer",
-  },
-  {
-    disabled: false,
-    label: "Admin",
-    value: "admin",
-  },
-];
+const roleOptions = (isApiOnly = false): IRole[] => {
+  console.log("isApiOnly", isApiOnly);
+  const roles: IRole[] = [
+    {
+      disabled: false,
+      label: "Observer+",
+      value: "observer_plus",
+    },
+    {
+      disabled: false,
+      label: "Observer",
+      value: "observer",
+    },
+    {
+      disabled: !isApiOnly,
+      label: `GitOps`,
+      value: "gitops",
+    },
+    {
+      disabled: false,
+      label: "Maintainer",
+      value: "maintainer",
+    },
+    {
+      disabled: false,
+      label: "Admin",
+      value: "admin",
+    },
+  ];
 
-const gitOpsRole = [
-  {
-    disabled: false,
-    label: "GitOps",
-    value: "gitops",
-  },
-];
+  return roles;
+};
 
 const generateFormListItems = (
   allTeams: ITeam[],
@@ -133,6 +137,7 @@ const SelectedTeamsForm = ({
   availableTeams,
   usersCurrentTeams,
   onFormChange,
+  isApiOnly,
 }: ISelectedTeamsFormProps): JSX.Element => {
   const [teamsFormList, updateSelectedTeams] = useSelectedTeamState(
     availableTeams,
@@ -159,7 +164,7 @@ const SelectedTeamsForm = ({
               <Dropdown
                 value={role}
                 className={`${baseClass}__role-dropdown`}
-                options={role === "gitops" ? gitOpsRole : roles}
+                options={roleOptions(isApiOnly)}
                 searchable={false}
                 onChange={(newValue: UserRole) =>
                   updateSelectedTeams(teamItem.id, newValue)
