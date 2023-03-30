@@ -14,6 +14,7 @@ import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import TooltipWrapper from "components/TooltipWrapper";
 import ViewAllHostsLink from "components/ViewAllHostsLink";
+import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
 
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
@@ -87,7 +88,7 @@ const getMaxProbability = (vulns: IVulnerability[]) =>
     0
   );
 
-const generateEPSSColumnHeader = () => {
+const generateEPSSColumnHeader = (isSandboxMode = false) => {
   return {
     Header: (headerProps: IHeaderProps): JSX.Element => {
       const titleWithToolTip = (
@@ -104,10 +105,13 @@ const generateEPSSColumnHeader = () => {
         </TooltipWrapper>
       );
       return (
-        <HeaderCell
-          value={titleWithToolTip}
-          isSortedDesc={headerProps.column.isSortedDesc}
-        />
+        <>
+          {isSandboxMode && <PremiumFeatureIconWithTooltip />}
+          <HeaderCell
+            value={titleWithToolTip}
+            isSortedDesc={headerProps.column.isSortedDesc}
+          />
+        </>
       );
     },
     disableSortBy: false,
@@ -184,7 +188,8 @@ const generateVulnColumnHeader = () => {
 
 const generateTableHeaders = (
   router: InjectedRouter,
-  isPremiumTier?: boolean
+  isPremiumTier?: boolean,
+  isSandboxMode?: boolean
 ): Column[] => {
   const softwareTableHeaders = [
     {
@@ -228,7 +233,9 @@ const generateTableHeaders = (
         <TextCell formatter={formatSoftwareType} value={cellProps.cell.value} />
       ),
     },
-    isPremiumTier ? generateEPSSColumnHeader() : generateVulnColumnHeader(),
+    isPremiumTier
+      ? generateEPSSColumnHeader(isSandboxMode)
+      : generateVulnColumnHeader(),
     {
       title: "Hosts",
       Header: (cellProps: IHeaderProps): JSX.Element => (
