@@ -44,11 +44,11 @@ module.exports = {
     if(emailAddress){// Email address will always be provided if a user is coming here from an email link.
       formDataToPrefill.emailAddress = emailAddress;
     }
-    // If the first name provided is not '?' or Outreaches first name template, we'll prefill the first name in the waitlist form
+    // If the first name provided is not '?' or Outreach's first name template, we'll prefill the first name in the waitlist form.
     if(firstName && firstName !== '?' && firstName !== '{{first_name}}') {
       formDataToPrefill.firstName = firstName;
     }
-    // If the last name provided is not '?' or Outreaches last name template, we'll prefill the last name in the waitlist form
+    // If the last name provided is not '?' or Outreach's last name template, we'll prefill the last name in the waitlist form.
     if(lastName && lastName !== '?' && lastName !== '{{last_name}}') {
       formDataToPrefill.lastName = lastName;
     }
