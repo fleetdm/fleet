@@ -37,13 +37,23 @@ enum UserTeamType {
 
 interface GlobalRoleParams {
   isPremiumTier: boolean;
-  isNewUser?: boolean;
+  isApiOnly?: boolean;
 }
 
 const globalUserRoles = ({
   isPremiumTier,
-  isNewUser,
+  isApiOnly,
 }: GlobalRoleParams): IRole[] => {
+  if (isApiOnly) {
+    return [
+      {
+        disabled: false,
+        label: "GitOps",
+        value: "gitops",
+      },
+    ];
+  }
+
   const roles: IRole[] = [
     {
       disabled: false,
@@ -68,14 +78,6 @@ const globalUserRoles = ({
       label: "Observer+",
       value: "observer_plus",
     });
-    // Only existing users can be converted to gitops user
-    if (!isNewUser) {
-      roles.splice(3, 0, {
-        disabled: false,
-        label: "GitOps",
-        value: "gitops",
-      });
-    }
   }
 
   return roles;
@@ -111,6 +113,7 @@ interface ICreateUserFormProps {
   smtpConfigured?: boolean;
   canUseSso: boolean; // corresponds to whether SSO is enabled for the organization
   isSsoEnabled?: boolean; // corresponds to whether SSO is enabled for the individual user
+  isApiOnly?: boolean;
   isNewUser?: boolean;
   isInvitePending?: boolean;
   serverErrors?: { base: string; email: string }; // "server" because this form does its own client validation
@@ -135,6 +138,7 @@ const UserForm = ({
   smtpConfigured,
   canUseSso,
   isSsoEnabled,
+  isApiOnly,
   isNewUser,
   isInvitePending,
   serverErrors,
@@ -338,7 +342,7 @@ const UserForm = ({
           className={`${baseClass}__global-role-dropdown`}
           options={globalUserRoles({
             isPremiumTier,
-            isNewUser,
+            isApiOnly,
           })}
           searchable={false}
           onChange={onGlobalUserRoleChange}
@@ -399,7 +403,7 @@ const UserForm = ({
               teams={formData.teams}
               defaultTeamRole={defaultTeamRole || "observer"}
               onFormChange={onTeamRoleChange}
-              isNewUser={isNewUser}
+              isApiOnly={isApiOnly}
             />
           ))}
         {!availableTeams.length && renderNoTeamsMessage()}

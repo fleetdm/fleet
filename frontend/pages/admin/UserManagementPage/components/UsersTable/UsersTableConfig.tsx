@@ -131,7 +131,7 @@ const generateTableHeaders = (
       accessor: "role",
       disableSortBy: true,
       Cell: (cellProps: ICellProps) => {
-        if (cellProps.cell.value === "GitOps") {
+        if (cellProps.cell.value === "Gitops") {
           return (
             <TooltipWrapper
               position="top"
@@ -141,7 +141,7 @@ const generateTableHeaders = (
             access to the UI.
           `}
             >
-              {cellProps.cell.value}
+              GitOps
             </TooltipWrapper>
           );
         }

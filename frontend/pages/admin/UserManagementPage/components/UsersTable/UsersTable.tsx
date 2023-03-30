@@ -431,6 +431,7 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
   const renderEditUserModal = () => {
     const userData = getUser(userEditing.type, userEditing.id);
 
+    console.log("userData", userData);
     return (
       <Modal title="Edit user" onExit={toggleEditUserModal}>
         <>
@@ -446,6 +447,7 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
             smtpConfigured={config?.smtp_settings.configured || false}
             canUseSso={config?.sso_settings.enable_sso || false}
             isSsoEnabled={userData?.sso_enabled}
+            isApiOnly={userData?.api_only || false}
             isModifiedByGlobalAdmin
             isInvitePending={userEditing.type === "invite"}
             editUserErrors={editUserErrors}

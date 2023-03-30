@@ -36,13 +36,16 @@ const roles = [
   },
   {
     disabled: false,
-    label: "GitOps",
-    value: "gitops",
-  },
-  {
-    disabled: false,
     label: "Admin",
     value: "admin",
+  },
+];
+
+const gitOpsRole = [
+  {
+    disabled: false,
+    label: "GitOps",
+    value: "gitops",
   },
 ];
 
@@ -156,7 +159,7 @@ const SelectedTeamsForm = ({
               <Dropdown
                 value={role}
                 className={`${baseClass}__role-dropdown`}
-                options={roles}
+                options={role === "gitops" ? gitOpsRole : roles}
                 searchable={false}
                 onChange={(newValue: UserRole) =>
                   updateSelectedTeams(teamItem.id, newValue)

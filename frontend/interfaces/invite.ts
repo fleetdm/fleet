@@ -24,6 +24,7 @@ export interface IInvite {
   sso_enabled: boolean;
   global_role: UserRole | null;
   teams: ITeam[];
+  api_only?: boolean;
 }
 
 export interface ICreateInviteFormData {
