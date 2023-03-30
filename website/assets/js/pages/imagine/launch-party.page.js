@@ -34,11 +34,11 @@ parasails.registerPage('launch-party', {
   },
   mounted: async function() {
 
-    if(this.showFormOnPageLoad) {
+    if(this.showForm) {
       this.modal = 'happy-hour-waitlist';
-      if(!_.isEmpty(this.formDataProvidedViaQueryString)){
+      if(!_.isEmpty(this.formDataToPrefill)){
         // If the user came here via a personalized link in an email, we'll prefill the form with the user information (if provided)
-        this.formData = this.formDataProvidedViaQueryString;
+        this.formData = this.formDataToPrefill;
         this.showAlternateWaitlistText = true;
       }
     }

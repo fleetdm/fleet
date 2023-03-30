@@ -39,26 +39,24 @@ module.exports = {
 
   fn: async function ({showForm, emailAddress, firstName, lastName}) {
 
-    let showFormOnPageLoad = showForm;
-
     // If form inputs are provided via query string we'll prefill the inputs in the waitlist form. (e.g., A user is coming to this page from a personalized link in an email)
-    let formDataProvidedViaQueryString = {};
+    let formDataToPrefill = {};
     if(emailAddress){// Email address will always be provided if a user is coming here from an email link.
-      formDataProvidedViaQueryString.emailAddress = emailAddress;
+      formDataToPrefill.emailAddress = emailAddress;
     }
     // If the first name provided is not '?' or Outreaches first name template, we'll prefill the first name in the waitlist form
     if(firstName && firstName !== '?' && firstName !== '{{first_name}}') {
-      formDataProvidedViaQueryString.firstName = firstName;
+      formDataToPrefill.firstName = firstName;
     }
     // If the last name provided is not '?' or Outreaches last name template, we'll prefill the last name in the waitlist form
     if(lastName && lastName !== '?' && lastName !== '{{last_name}}') {
-      formDataProvidedViaQueryString.lastName = lastName;
+      formDataToPrefill.lastName = lastName;
     }
 
     // Respond with view.
     return {
-      showFormOnPageLoad,
-      formDataProvidedViaQueryString,
+      showForm,
+      formDataToPrefill,
     };
 
   }
