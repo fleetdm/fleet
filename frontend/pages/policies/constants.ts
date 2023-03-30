@@ -72,6 +72,7 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
       "Contact your IT administrator to ensure your Mac is receiving a profile that disables automatic login.",
     critical: false,
     platform: "darwin",
+    mdm_required: true,
   },
   {
     key: 5,
@@ -141,6 +142,7 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
       "Contact your IT administrator to ensure your Mac is receiving a profile that enables secure keyboard entry for the Terminal application.",
     critical: false,
     platform: "darwin",
+    mdm_required: true,
   },
   {
     key: 11,
@@ -175,6 +177,7 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
       "Contact your IT administrator to ensure your Mac is receiving a profile that enables screen lock.",
     critical: false,
     platform: "darwin",
+    mdm_required: true,
   },
   {
     key: 14,
@@ -221,6 +224,7 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
       "Contact your IT administrator to ensure your Mac is receiving a profile that enables automatic updates.",
     critical: false,
     platform: "darwin",
+    mdm_required: true,
   },
   {
     key: 18,
@@ -257,6 +261,7 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
       "Contact your IT administrator to ensure your Mac is receiving a profile that enables automatic security and data update installation.",
     critical: false,
     platform: "darwin",
+    mdm_required: true,
   },
   {
     key: 21,
@@ -270,6 +275,7 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
       "Contact your IT administrator to ensure your Mac is receiving a profile that enables automatic installation of operating system updates.",
     critical: false,
     platform: "darwin",
+    mdm_required: true,
   },
   {
     key: 22,
@@ -282,6 +288,7 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
       "Contact your IT administrator to ensure your Mac is receiving a profile that enables automatic time and date configuration.",
     critical: false,
     platform: "darwin",
+    mdm_required: true,
   },
   {
     key: 23,
@@ -294,6 +301,7 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
       "Contact your IT administrator to ensure your Mac is receiving a profile that enables the screen saver after inactivity of 20 minutes or less.",
     critical: false,
     platform: "darwin",
+    mdm_required: true,
   },
   {
     key: 24,
@@ -306,6 +314,7 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
       "Contact your IT administrator to ensure your Mac is receiving a profile that prevents Internet sharing.",
     critical: false,
     platform: "darwin",
+    mdm_required: true,
   },
   {
     key: 25,
@@ -318,6 +327,7 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
       "Contact your IT administrator to ensure your Mac is receiving a profile that disables content caching.",
     critical: false,
     platform: "darwin",
+    mdm_required: true,
   },
   {
     key: 26,
@@ -342,6 +352,7 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
       "Contact your IT administrator to ensure your Mac is receiving a profile to prevent iCloud Desktop and Documents sync.",
     critical: false,
     platform: "darwin",
+    mdm_required: true,
   },
   {
     key: 28,
@@ -354,6 +365,7 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
       "Contact your IT administrator to ensure your Mac is receiving a profile that enables firewall logging.",
     critical: false,
     platform: "darwin",
+    mdm_required: true,
   },
   {
     key: 29,
@@ -366,6 +378,7 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
       "Contact your IT administrator to ensure your Mac is receiving a profile that disables the guest account.",
     critical: false,
     platform: "darwin",
+    mdm_required: true,
   },
   {
     key: 30,
@@ -378,6 +391,7 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
       "Contact your IT administrator to ensure your Mac is receiving a profile that prevents guest access to shared folders.",
     critical: false,
     platform: "darwin",
+    mdm_required: true,
   },
   {
     key: 31,
@@ -465,7 +479,8 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
     key: 38,
     query:
       "SELECT EXISTS(SELECT 1 FROM file WHERE filename like '%Emergency Kit%.pdf' AND (path LIKE '/Users/%%/Downloads/%%' OR path LIKE '/Users/%%/Desktop/%%')) as does_1p_ek_exist;",
-    name: "No 1Password emergency kit stored on desktop or in downloads (macOS)",
+    name:
+      "No 1Password emergency kit stored on desktop or in downloads (macOS)",
     description:
       "Looks for PDF files with file names typically used by 1Password for emergency recovery kits.",
     resolution:

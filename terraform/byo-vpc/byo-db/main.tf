@@ -53,6 +53,9 @@ module "alb" {
       }
     }
   ]
+  
+  # Require TLS 1.2 as earlier versions are insecure
+  listener_ssl_policy_default = "ELBSecurityPolicy-TLS-1-2-2017-01"
 
   https_listeners = [
     {
