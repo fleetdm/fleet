@@ -206,8 +206,8 @@ module.exports = {
       }//•
 
       // Generate haiku
-      let BASE_MODEL = 'gpt-3.5-turbo';// The base model to use.  https://platform.openai.com/docs/models/gpt-4
-      let MAX_TOKENS = 4000;// (Max tokens for gpt-3.5 ≈≈ 4000) (Max tokens for gpt-4 ≈≈ 8000)
+      let BASE_MODEL = 'gpt-4';// The base model to use.  https://platform.openai.com/docs/models/gpt-4
+      let MAX_TOKENS = 8000;// (Max tokens for gpt-3.5 ≈≈ 4000) (Max tokens for gpt-4 ≈≈ 8000)
 
       // Grab issue title and body, then truncate the length of the body so that it fits
       // within the maximum length tolerated by OpenAI.  Then combine those into a prompt

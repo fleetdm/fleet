@@ -4,11 +4,12 @@
 package software_update
 
 import (
+	"testing"
+	"time"
+
 	"github.com/osquery/osquery-go/plugin/table"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/net/context"
-	"testing"
-	"time"
 )
 
 func TestGenerate(t *testing.T) {
@@ -36,5 +37,5 @@ func TestIsNewSoftwareAvailable(t *testing.T) {
 
 func TestColumns(t *testing.T) {
 	col := Columns()
-	require.Equal(t, []table.ColumnDefinition([]table.ColumnDefinition{table.ColumnDefinition{Name: "software_update_required", Type: "INTEGER"}}), col)
+	require.Equal(t, []table.ColumnDefinition{{Name: "software_update_required", Type: "INTEGER"}}, col)
 }
