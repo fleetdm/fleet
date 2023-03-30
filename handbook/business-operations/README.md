@@ -465,7 +465,7 @@ Here are the steps hiring managers follow to get an offer out to a candidate:
    - Start date
      > _**Tip:** No need to check with the candidate if you haven't already.  Just guess.  First Mondays tend to make good start dates.  When hiring an international employee, Pilot.co recommends starting the hiring process a month before the new employee's start date._
    - First and last name
-   - Preferred pronoun _("them", "her", or "him")
+   - Preferred pronoun _("them", "her", or "him")_
    - Country and state where they will be working _(Pattern-match from how other rows do it.  Please be mindful of spreadsheet formulas.)_
    - LinkedIn URL _(If the fleetie does not have a LinkedIn account, enter `N/A`)_
    - GitHub username _(Every candidate must have a GitHub account in "Fleeties" before the company makes them an offer.  If the the candidate does not have a GitHub account, ask them to create one, and make sure it's tracked in "Fleeties".)_
