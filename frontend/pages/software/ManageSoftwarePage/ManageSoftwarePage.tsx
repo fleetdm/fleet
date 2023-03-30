@@ -166,17 +166,13 @@ const ManageSoftwarePage = ({
     IConfig | ITeamConfig,
     ISoftwareConfigQueryKey[]
   >(
-    [
-      {
-        scope: "softwareConfig",
-        teamId: teamIdForApi,
-      },
-    ],
+    [{ scope: "softwareConfig", teamId: teamIdForApi }],
     ({ queryKey }) => {
       const { teamId } = queryKey[0];
       return teamId ? teamsAPI.load(teamId) : configAPI.loadAll();
     },
     {
+      enabled: isRouteOk,
       select: (data) => ("team" in data ? data.team : data),
     }
   );
@@ -245,9 +241,7 @@ const ManageSoftwarePage = ({
     ],
     ({ queryKey }) => softwareAPI.load(queryKey[0]),
     {
-      enabled:
-        isSoftwareConfigLoaded &&
-        (isOnGlobalTeam || !!userTeams?.find((t) => t.id === currentTeamId)),
+      enabled: isRouteOk && isSoftwareConfigLoaded,
       keepPreviousData: true,
       staleTime: 30000, // stale time can be adjusted if fresher data is desired based on software inventory interval
     }
@@ -273,9 +267,7 @@ const ManageSoftwarePage = ({
     ],
     ({ queryKey }) => softwareAPI.count(queryKey[0]),
     {
-      enabled:
-        isSoftwareConfigLoaded &&
-        (isOnGlobalTeam || !!userTeams?.find((t) => t.id === currentTeamId)),
+      enabled: isRouteOk && isSoftwareConfigLoaded,
       keepPreviousData: true,
       staleTime: 30000, // stale time can be adjusted if fresher data is desired based on software inventory interval
       refetchOnWindowFocus: false,

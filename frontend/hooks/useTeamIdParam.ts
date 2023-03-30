@@ -12,7 +12,7 @@ import {
   ITeamSummary,
   ITeam,
 } from "interfaces/team";
-import { IUserRole } from "interfaces/user";
+import { IUser, IUserRole } from "interfaces/user";
 import permissions from "utilities/permissions";
 import sort from "utilities/sort";
 
@@ -63,6 +63,7 @@ const filterUserTeamsByRole = (
   if (!permittedAccessByUserRole) {
     return userTeams;
   }
+
   return userTeams
     .filter(
       ({ role }) => role && !!permittedAccessByUserRole[role as IUserRole]
@@ -70,15 +71,37 @@ const filterUserTeamsByRole = (
     .sort((a, b) => sort.caseInsensitiveAsc(a.name, b.name));
 };
 
+const getUserTeams = ({
+  availableTeams,
+  currentUser,
+  permittedAccessByTeamRole,
+}: {
+  availableTeams?: ITeamSummary[];
+  currentUser: IUser | null;
+  permittedAccessByTeamRole?: Record<IUserRole, boolean>;
+}) => {
+  if (!currentUser || !availableTeams?.length) {
+    return undefined;
+  }
+
+  return permissions.isOnGlobalTeam(currentUser)
+    ? availableTeams
+    : filterUserTeamsByRole(currentUser.teams, permittedAccessByTeamRole);
+};
+
 const getDefaultTeam = ({
   userTeams,
   includeAllTeams,
   includeNoTeam,
 }: {
-  userTeams: ITeamSummary[];
+  userTeams?: ITeamSummary[];
   includeAllTeams: boolean;
   includeNoTeam: boolean;
 }) => {
+  if (!userTeams?.length) {
+    return undefined;
+  }
+
   let defaultTeam: ITeamSummary | undefined;
   if (includeAllTeams) {
     defaultTeam =
@@ -149,7 +172,6 @@ const shouldRedirectToDefaultTeam = ({
   query,
 }: {
   userTeams: ITeamSummary[];
-  defaultTeamId: number;
   includeAllTeams: boolean;
   includeNoTeam: boolean;
   query: { team_id?: string };
@@ -197,29 +219,27 @@ export const useTeamIdParam = ({
     availableTeams,
     currentTeam: contextTeam,
     currentUser,
-    isOnGlobalTeam,
+    isFreeTier,
+    isPremiumTier,
     setCurrentTeam: setContextTeam,
   } = useContext(AppContext);
 
-  const memoizedUserTeams = useMemo(() => {
-    if (!currentUser || !availableTeams?.length) {
-      return undefined;
-    }
-    return isOnGlobalTeam
-      ? availableTeams
-      : filterUserTeamsByRole(currentUser.teams, permittedAccessByTeamRole);
-  }, [availableTeams, currentUser, isOnGlobalTeam, permittedAccessByTeamRole]);
+  const userTeams = useMemo(
+    () =>
+      getUserTeams({ currentUser, availableTeams, permittedAccessByTeamRole }),
+    [availableTeams, currentUser, permittedAccessByTeamRole]
+  );
 
-  const memoizedDefaultTeam = useMemo(() => {
-    if (!memoizedUserTeams?.length) {
-      return undefined;
-    }
-    return getDefaultTeam({
-      userTeams: memoizedUserTeams,
-      includeAllTeams,
-      includeNoTeam,
-    });
-  }, [includeAllTeams, includeNoTeam, memoizedUserTeams]);
+  const defaultTeam = useMemo(
+    () => getDefaultTeam({ userTeams, includeAllTeams, includeNoTeam }),
+    [includeAllTeams, includeNoTeam, userTeams]
+  );
+
+  const currentTeam = useMemo(
+    () =>
+      userTeams?.find((t) => t.id === coerceAllTeamsId(query?.team_id || "")),
+    [query?.team_id, userTeams]
+  );
 
   const handleTeamChange = useCallback(
     (teamId: number) => {
@@ -232,54 +252,55 @@ export const useTeamIdParam = ({
     [pathname, search, hash, router]
   );
 
+  // reconcile router location and redirect to default team as applicable
   let isRouteOk = false;
-  if (memoizedUserTeams?.length && memoizedDefaultTeam) {
-    // first reconcile router location and redirect to default team as applicable
+  if (isFreeTier) {
+    // free tier should never have team_id param
+    if (query.team_id) {
+      handleTeamChange(-1); // remove team_id param from url
+    } else {
+      isRouteOk = true;
+    }
+  } else if (isPremiumTier && userTeams?.length && defaultTeam) {
     if (
       shouldRedirectToDefaultTeam({
-        userTeams: memoizedUserTeams,
-        defaultTeamId: memoizedDefaultTeam.id,
         includeAllTeams,
         includeNoTeam,
         query,
+        userTeams,
       })
     ) {
-      handleTeamChange(memoizedDefaultTeam.id);
+      handleTeamChange(defaultTeam.id);
     } else {
       isRouteOk = true;
     }
   }
 
-  const foundTeam = memoizedUserTeams?.find(
-    (t) => t.id === coerceAllTeamsId(query?.team_id || "")
-  );
-
   useEffect(() => {
-    if (isRouteOk && foundTeam?.id !== contextTeam?.id) {
-      setContextTeam(foundTeam);
+    if (isRouteOk && currentTeam?.id !== contextTeam?.id) {
+      setContextTeam(currentTeam);
     }
-  }, [contextTeam?.id, foundTeam, isRouteOk, setContextTeam]);
+  }, [contextTeam?.id, currentTeam, isRouteOk, setContextTeam]);
 
   return {
-    currentTeamId: foundTeam?.id,
-    currentTeamName: foundTeam?.name,
-    currentTeamSummary: foundTeam
-      ? { id: foundTeam.id, name: foundTeam.name }
-      : undefined,
-    isAnyTeamSelected: isAnyTeamSelected(foundTeam?.id),
+    currentTeamId: currentTeam?.id,
+    currentTeamName: currentTeam?.name,
+    currentTeamSummary: currentTeam,
+    isAnyTeamSelected: isAnyTeamSelected(currentTeam?.id),
     isRouteOk,
     isTeamAdmin:
-      !!foundTeam?.id && permissions.isTeamAdmin(currentUser, foundTeam.id),
+      !!currentTeam?.id && permissions.isTeamAdmin(currentUser, currentTeam.id),
     isTeamMaintainer:
-      !!foundTeam?.id &&
-      permissions.isTeamMaintainer(currentUser, foundTeam.id),
+      !!currentTeam?.id &&
+      permissions.isTeamMaintainer(currentUser, currentTeam.id),
     isTeamMaintainerOrTeamAdmin:
-      !!foundTeam?.id &&
-      permissions.isTeamMaintainerOrTeamAdmin(currentUser, foundTeam.id),
+      !!currentTeam?.id &&
+      permissions.isTeamMaintainerOrTeamAdmin(currentUser, currentTeam.id),
     isTeamObserver:
-      !!foundTeam?.id && permissions.isTeamObserver(currentUser, foundTeam.id),
-    teamIdForApi: getTeamIdForApi({ currentTeam: foundTeam, includeNoTeam }),
-    userTeams: memoizedUserTeams,
+      !!currentTeam?.id &&
+      permissions.isTeamObserver(currentUser, currentTeam.id),
+    teamIdForApi: getTeamIdForApi({ currentTeam, includeNoTeam }),
+    userTeams,
     handleTeamChange,
   };
 };

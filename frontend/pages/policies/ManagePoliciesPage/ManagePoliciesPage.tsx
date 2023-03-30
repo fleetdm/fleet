@@ -302,33 +302,6 @@ const ManagePolicyPage = ({
   const availablePoliciesForAutomation =
     (isAnyTeamSelected ? teamPolicies : globalPolicies) || [];
 
-  // // If team_id from URL query params is not valid, we instead use a default team
-  // // either the current team (if any) or all teams (for global users) or
-  // // the first available team (for non-global users)
-  // const getValidatedTeamId = () => {
-  //   if (findAvailableTeam(teamId)) {
-  //     return teamId;
-  //   }
-  //   if (!teamId && currentTeam) {
-  //     return currentTeam.id;
-  //   }
-  //   if (!teamId && !currentTeam && !isOnGlobalTeam && availableTeams) {
-  //     return availableTeams[0]?.id;
-  //   }
-  //   return 0;
-  // };
-
-  // // If team_id or currentTeam doesn't match validated id, switch to validated id
-  // useEffect(() => {
-  //   if (availableTeams) {
-  //     const validatedId = getValidatedTeamId();
-
-  //     if (validatedId !== currentTeam?.id || validatedId !== teamId) {
-  //       handleTeamSelect(validatedId);
-  //     }
-  //   }
-  // }, [availableTeams]);
-
   const showCtaButtons =
     (isAnyTeamSelected && teamPolicies) ||
     (!isAnyTeamSelected && globalPolicies);

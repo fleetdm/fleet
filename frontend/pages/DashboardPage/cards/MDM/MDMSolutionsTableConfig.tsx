@@ -98,10 +98,6 @@ export const generateSolutionsTableHeaders = (
   },
 ];
 
-// export const generateSolutionsTableHeaders = (): IDataColumn[] => {
-//   return solutionsTableHeaders;
-// };
-
 const enhanceSolutionsData = (
   solutions: IMdmSolution[],
   selectedPlatformLabelId?: number
