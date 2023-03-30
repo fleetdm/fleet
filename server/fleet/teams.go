@@ -216,15 +216,6 @@ func ValidTeamRole(role string) bool {
 	return ok
 }
 
-// ValidTeamRoles returns the list of valid roles for a team user.
-func ValidTeamRoles() []string {
-	var roles []string
-	for role := range teamRoles {
-		roles = append(roles, role)
-	}
-	return roles
-}
-
 var globalRoles = map[string]struct{}{
 	RoleObserver:     {},
 	RoleMaintainer:   {},
@@ -242,15 +233,6 @@ var premiumGlobalRoles = map[string]struct{}{
 func ValidGlobalRole(role string) bool {
 	_, ok := globalRoles[role]
 	return ok
-}
-
-// ValidGlobalRoles returns the list of valid roles for a global user.
-func ValidGlobalRoles() []string {
-	var roles []string
-	for role := range globalRoles {
-		roles = append(roles, role)
-	}
-	return roles
 }
 
 // ValidateRole returns nil if the global and team roles combination is a valid

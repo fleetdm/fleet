@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestValidateUserRolesGitOps(t *testing.T) {
+func TestValidateUserRoles(t *testing.T) {
 	checkErrCode := func(code int) func(error) bool {
 		return func(err error) bool {
 			errError, ok := err.(*Error)
@@ -194,6 +194,52 @@ func TestValidateUserRolesGitOps(t *testing.T) {
 				Tier: TierFree,
 			},
 			checkErr: nil,
+		},
+		{
+			name:   "global-invalid-role",
+			create: true,
+			payload: UserPayload{
+				GlobalRole: ptr.String("foobar"),
+			},
+			license: LicenseInfo{
+				Tier: TierFree,
+			},
+			checkErr: checkErrCode(ErrNoRoleNeeded),
+		},
+		{
+			name:   "team-invalid-role",
+			create: true,
+			payload: UserPayload{
+				Teams: &[]UserTeam{{Role: "foobar"}},
+			},
+			license: LicenseInfo{
+				Tier: TierFree,
+			},
+			checkErr: checkErrCode(ErrNoRoleNeeded),
+		},
+		{
+			name:   "global-and-team-role-set",
+			create: true,
+			payload: UserPayload{
+				GlobalRole: ptr.String(RoleObserver),
+				Teams:      &[]UserTeam{{Role: RoleObserver}},
+			},
+			license: LicenseInfo{
+				Tier: TierFree,
+			},
+			checkErr: checkErrCode(ErrNoRoleNeeded),
+		},
+		{
+			name:   "no-roles-set",
+			create: true,
+			payload: UserPayload{
+				GlobalRole: nil,
+				Teams:      &[]UserTeam{},
+			},
+			license: LicenseInfo{
+				Tier: TierFree,
+			},
+			checkErr: checkErrCode(ErrNoRoleNeeded),
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
