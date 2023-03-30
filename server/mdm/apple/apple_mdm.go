@@ -156,7 +156,7 @@ func (d *DEPService) createProfile(ctx context.Context, depProfile *godep.Profil
 		return ctxerr.Wrap(ctx, err, "saving enrollment profile in DB")
 	}
 
-	if err := d.registerProfileInDEPServer(ctx, depProfile, enrollURL); err != nil {
+	if err := d.registerProfileWithAppleDEPServer(ctx, depProfile, enrollURL); err != nil {
 		return ctxerr.Wrap(ctx, err, "registering profile in Apple servers")
 	}
 
@@ -165,7 +165,7 @@ func (d *DEPService) createProfile(ctx context.Context, depProfile *godep.Profil
 
 // registerProfileInDEPServe is in charge of registering the enrollment profile
 // in Apple's servers via the DEP API, so it can be used for assignment.
-func (d *DEPService) registerProfileInDEPServer(ctx context.Context, depProfile *godep.Profile, enrollURL string) error {
+func (d *DEPService) registerProfileWithAppleDEPServer(ctx context.Context, depProfile *godep.Profile, enrollURL string) error {
 	// Override url with Fleet's enroll path (publicly accessible address).
 	depProfile.URL = enrollURL
 
