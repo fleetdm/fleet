@@ -131,12 +131,12 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 				return func() (fleet.CronSchedule, error) {
 					const name = string(fleet.CronAppleMDMDEPProfileAssigner)
 					logger := kitlog.NewJSONLogger(os.Stdout)
-					fleetSyncer := apple_mdm.NewDEPSyncer(ds, depStorage, logger, true)
+					fleetSyncer := apple_mdm.NewDEPService(ds, depStorage, logger, true)
 					depSchedule = schedule.New(
 						ctx, name, s.T().Name(), 1*time.Hour, ds, ds,
 						schedule.WithLogger(logger),
 						schedule.WithJob("dep_syncer", func(ctx context.Context) error {
-							return fleetSyncer.Run(ctx)
+							return fleetSyncer.RunAssigner(ctx)
 						}),
 					)
 					return depSchedule, nil
@@ -507,15 +507,6 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 			_, _ = w.Write([]byte(`{}`))
 		}
 	}))
-
-	// create a DEP enrollment profile
-	profile := json.RawMessage("{}")
-	var createProfileResp createMDMAppleEnrollmentProfileResponse
-	createProfileReq := createMDMAppleEnrollmentProfileRequest{
-		Type:       "automatic",
-		DEPProfile: &profile,
-	}
-	s.DoJSON("POST", "/api/latest/fleet/mdm/apple/enrollmentprofiles", createProfileReq, http.StatusOK, &createProfileResp)
 
 	// query all hosts
 	listHostsRes := listHostsResponse{}
