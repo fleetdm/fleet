@@ -1,0 +1,32 @@
+.hosts-filter-block {
+  &__labels-active-filter-wrap {
+    display: flex;
+    align-items: center;
+    margin-bottom: $pad-medium;
+    gap: $pad-small; // between multiple filter pills
+  }
+
+  // NOTE: can probably be removed and placed anytime we have a dropdown. Need to
+  // go through other filter dropdowns and see if thats the case
+  &__policies-filter-pill {
+    margin-left: $pad-medium;
+  }
+
+  // NOTE: Look more into this styling
+  &__macsettings-dropdown {
+    width: 137px;
+
+    .Select-value {
+      display: flex;
+      align-items: center;
+
+      &::before {
+        position: relative;
+        content: url(../assets/images/icon-filter-v2-black-16x16@2x.png);
+        transform: scale(0.5);
+        left: -8px;
+        top: 4px;
+      }
+    }
+  }
+}
