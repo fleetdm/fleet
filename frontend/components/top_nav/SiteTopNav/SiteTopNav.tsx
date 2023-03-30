@@ -33,6 +33,10 @@ interface ISiteTopNavProps {
 
 const REGEX_DETAIL_PAGES = {
   HOST_DETAILS: /\/hosts\/\d+/i,
+  LABEL_EDIT: /(?<!manage)\/labels\/\d+/i, // Note: we want this to match "/labels/10" but not "/hosts/manage/labels/10"
+  LABEL_NEW: /\/labels\/new/i,
+  PACK_EDIT: /\/packs\/\d+/i,
+  PACK_NEW: /\/packs\/new/i,
   POLICY_EDIT: /\/policies\/\d+/i,
   POLICY_NEW: /\/policies\/new/i,
   QUERY_EDIT: /\/queries\/\d+/i,
@@ -42,6 +46,11 @@ const REGEX_DETAIL_PAGES = {
 
 const REGEX_GLOBAL_PAGES = {
   MANAGE_QUERIES: /\/queries\/manage/i,
+  MANAGE_PACKS: /\/packs\/manage/i,
+  ORGANIZATION: /\/settings\/organization/i,
+  USERS: /\/settings\/users/i,
+  INTEGRATIONS: /\/settings\/integrations/i,
+  PROFILE: /\/profile/i,
 };
 
 const isDetailPage = (path: string) => {
