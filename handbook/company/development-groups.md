@@ -20,6 +20,7 @@ At Fleet, [anyone can contribute](https://fleetdm.com/handbook/company#openness)
 |:--------------------------|:--------------------------------------------------------------------|
 | [MDM](#mdm-group)                                       | Reach maturity in the "MDM" product category.
 | [Customer experience (CX)](#customer-experience-group)  | Make customers happier and more successful.
+| [Infrastructure](#infrastructure-group)                 | Provide and support reliable and secure infrastructure.
 
 
 ### MDM group
@@ -52,6 +53,17 @@ The goal of the customer experience (CX) group is to make customers happier and 
 
 > The Slack channel, kanban release board, and label for this product group is `#g-cx`.
 
+### Infrastructure group
+
+The goal of the infrastructure group is to provide and support reliable and secure infrastructure for Fleet and Fleet's customers. This includes AWS provisioning, monitoring, and management, 24-hour on-call support, as well as initiatives to streamline customer deployments, enhance customer onboarding experiences, and develop infrastructure solutions that align with and support Fleet's overall business goals.
+
+| Responsibility                    | Human(s)                  |
+|:----------------------------------|:--------------------------|
+| Engineering manager               | Luke Heath                
+| Product manager                   | Luke Heath               
+| Infrastructure engineers          | Robert Fairburn, Zach Winnerman
+
+> The Slack channel, kanban release board, and label for this product group is `#g-infra`.
 
 ## Making changes
 
