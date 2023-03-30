@@ -2,9 +2,10 @@ import React, { useContext } from "react";
 import { Link } from "react-router";
 import classnames from "classnames";
 
-import { IUser } from "interfaces/user";
-import { IConfig } from "interfaces/config";
 import { AppContext } from "context/app";
+import { IConfig } from "interfaces/config";
+import { APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
+import { IUser } from "interfaces/user";
 import { QueryParams } from "utilities/url";
 
 import LinkWithContext from "components/LinkWithContext";
@@ -27,14 +28,39 @@ interface ISiteTopNavProps {
   onNavItemClick: (path: string) => void;
 }
 
+// TODO(sarah): Build RegExps for other routes that need to be differentiated in order to build
+// top nav links that match the expected UX.
+
+const REGEX_DETAIL_PAGES = {
+  HOST_DETAILS: /\/hosts\/\d+/i,
+  POLICY_EDIT: /\/policies\/\d+/i,
+  POLICY_NEW: /\/policies\/new/i,
+  QUERY_EDIT: /\/queries\/\d+/i,
+  QUERY_NEW: /\/queries\/new/i,
+  SOFTWARE_DETAILS: /\/software\/\d+/i,
+};
+
+const REGEX_GLOBAL_PAGES = {
+  MANAGE_QUERIES: /\/queries\/manage/i,
+};
+
+const isDetailPage = (path: string) => {
+  return Object.values(REGEX_DETAIL_PAGES).some((re) => path.match(re));
+};
+
+const isGlobalPage = (path: string) => {
+  return Object.values(REGEX_GLOBAL_PAGES).some((re) => path.match(re));
+};
+
 const SiteTopNav = ({
   config,
   currentUser,
-  location: { pathname, search, hash = "", query: queryParams },
+  location: { pathname: currentPath, search, hash = "", query },
   onLogoutUser,
   onNavItemClick,
 }: ISiteTopNavProps): JSX.Element => {
   const {
+    currentTeam,
     isAnyTeamAdmin,
     isGlobalAdmin,
     isGlobalMaintainer,
@@ -43,10 +69,24 @@ const SiteTopNav = ({
     isMdmEnabledAndConfigured, // TODO: confirm
   } = useContext(AppContext);
 
+  const isActiveDetailPage = isDetailPage(currentPath);
+  const isActiveGlobalPage = isGlobalPage(currentPath);
+
+  const currentQueryParams = { ...query };
+  if (isActiveDetailPage || isActiveGlobalPage) {
+    // detail pages (e.g., host details) and some manage pages (e.g., queries) don't have team_id
+    // query params that we can simply append to the top nave links so instead we need grab the team
+    // id from context
+    currentQueryParams.team_id =
+      currentTeam?.id === APP_CONTEXT_ALL_TEAMS_ID
+        ? undefined
+        : currentTeam?.id;
+  }
+
   const renderNavItem = (navItem: INavItem) => {
     const { name, iconName, withParams } = navItem;
     const orgLogoURL = config.org_info.org_logo_url;
-    const active = navItem.location.regex.test(pathname);
+    const active = navItem.location.regex.test(currentPath);
 
     const navItemBaseClass = "site-nav-item";
 
@@ -59,7 +99,7 @@ const SiteTopNav = ({
         <li className={navItemClasses} key={`nav-item-${name}`}>
           <LinkWithContext
             className={`${navItemBaseClass}__logo-wrapper`}
-            currentQueryParams={queryParams}
+            currentQueryParams={currentQueryParams}
             to={navItem.location.pathname}
             withParams={{ type: "query", names: ["team_id"] }}
           >
@@ -71,14 +111,14 @@ const SiteTopNav = ({
       );
     }
 
-    if (active) {
+    if (active && !isActiveDetailPage) {
       // TODO: confirm link should be noop and find best pattern (one that doesn't dispatch a
       // replace to the same url, which triggers a re-render)
       return (
         <li className={navItemClasses} key={`nav-item-${name}`}>
           <Link
             className={`${navItemBaseClass}__link`}
-            to={pathname.concat(search).concat(hash)}
+            to={currentPath.concat(search).concat(hash)}
           >
             <span
               className={`${navItemBaseClass}__name`}
@@ -100,7 +140,7 @@ const SiteTopNav = ({
           <LinkWithContext
             className={`${navItemBaseClass}__link`}
             withParams={withParams}
-            currentQueryParams={queryParams}
+            currentQueryParams={currentQueryParams}
             to={navItem.location.pathname}
           >
             <span
