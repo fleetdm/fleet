@@ -67,8 +67,6 @@ What happens during emergency drafting?
 2. Drafts are updated to cover edge cases or reduce functionality.
 3. UI changes [are approved](https://fleetdm.com/handbook/company/development-groups#drafting-process), and the UI changes are brought back to the engineering team to continue the development task.
 
-
-
 ## Outside contributions
 
 [Anyone can contribute](https://fleetdm.com/handbook/company#openness) at Fleet, from inside or outside the company.  Since contributors from the wider community don't receive a paycheck from Fleet, they work on whatever they want.
@@ -78,7 +76,6 @@ Many open source contributions that start as a small, seemingly innocuous pull r
 Thus, it is still important to ensure consistency, completeness, and secure development practices, no matter where a contribution comes from:
 - Prior to merging any change, small or large, that would change the expected behavior of the product, [prioritized](#prioritizing-improvements) by the [appropriate product group's](https://fleetdm.com/handbook/company/development-groups#current-product-groups) Product Manager and [drafted](https://fleetdm.com/handbook/company/development-groups#drafting) by the group's Product Designer prior to merging. 
 - All changes to the user interface should be [wireframed first](https://fleetdm.com/handbook/company/why-this-way#why-do-we-use-a-wireframe-first-approach) by the appropriate Product Designer.
-
 
 ## Prioritizing improvements
 Product Managers prioritize all potential product improvements worked on by contributors inside the company.  This includes features, bug fixes, and technical debt or other contributor experience improvements.
@@ -101,7 +98,7 @@ Sprints (aka "iterations") align with Fleet's [3-week release cycle](https://fle
 
 On the first day of each release, all estimated issues are moved into the relevant section of the new "Release" board, which has a kanban view per group. 
 
-Sprints are managed in [Zenhub](https://fleetdm.com/handbook/company/why-this-way#why-organize-work-in-team-based-kanban-boards).  To plan capacity for a sprint, [create a "Sprint" issue](https://github.com/fleetdm/confidential/issues/new/choose), replace the fake constants with real numbers, and attach the appropriate labels for your product group.
+Sprints are managed in [Zenhub](https://fleetdm.com/handbook/company/why-this-way#why-make-work-visible).  To plan capacity for a sprint, [create a "Sprint" issue](https://github.com/fleetdm/confidential/issues/new/choose), replace the fake constants with real numbers, and attach the appropriate labels for your product group.
 
 ### Sprint numbering
 Sprint 1 began at the beginning of January 2023.  Sprint 4 began in late March 2023.  And so forth.
@@ -205,17 +202,6 @@ When an improvement gets scheduled for release, the Head of Product sets its "ec
 Before each release, the Head of Product [creates a "Release" issue](https://github.com/fleetdm/confidential/issues/new/choose), which includes a list of all improvements included in the upcoming release.  Each improvement links to the relevant bug or user story issue on GitHub so it is easy to read the related discussion and history.
 
 The product team is responsible for providing the marketing team with the necessary information for writing the release blog post. Every three weeks after the sprint is kicked off, the product team meets with the relevant marketing team members to go over the features for that sprint and recommend items to highlight as _echelon 2_ features and provide relevant context for other features to help marketing decide which features to highlight.
-
-### Customer announcement
-
-The product team is responsible for providing the [customer success team](../customers/README.md) with the necessary information
-for writing a release customer announcement. This is accomplished by filing a release customer announcement issue and adding
-the issue to the customer success board on GitHub. 
-
-The release blog post issue is filed in the private fleetdm/confidential repository because the
-comment section may contain private information about Fleet's customers.
-
-Find an example release customer announcement blog post issue [here](https://github.com/fleetdm/confidential/issues/747).
 
 ## Feature flags
 

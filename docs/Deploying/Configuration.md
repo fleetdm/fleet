@@ -711,6 +711,23 @@ Turning off keepalives has helped reduce outstanding TCP connections in some dep
   	keepalive: true
   ```
 
+##### server_websockets_allow_unsafe_origin
+
+Controls the servers websocket origin check. If your Fleet server is behind a reverse proxy,
+the Origin header may not reflect the client's true origin. In this case, you might need to 
+disable the origin header (by setting this configuration to `true`) 
+check or configure your reverse proxy to forward the correct Origin header.
+
+Setting to true will disable the origin check.
+
+- Default value: false
+- Environment variable: `FLEET_SERVER_WEBSOCKETS_ALLOW_UNSAFE_ORIGIN`
+- Config file format:
+  ```
+  server:
+  	websockets_allow_unsafe_origin: true
+  ```
+
 ##### Example YAML
 
 ```yaml
@@ -2605,6 +2622,10 @@ packaging:
 
 > MDM features require some endpoints to be publicly accessible outside your VPN or intranet, for more details see [What API endpoints should I expose to the public internet?](./FAQ.md#what-api-endpoints-should-i-expose-to-the-public-internet)
 
+This section is a reference for the configuration required to turn on MDM features in production.
+
+If you're a Fleet contributor and you'd like to turn on MDM features in a local environment, see the guided instructions [here](../Contributing/Testing-and-local-development.md#mdm-setup-and-testing).
+
 ##### mdm.apple_enable
 
 This is the second feature flag required to turn on MDM features. This environment variable flag must be set to `1` (or `true` in the `yaml`) at the same time as when you set the certificate and keys for Apple Push Certificate server (APNs) and Apple Business Manager (ABM). Otherwise, the Fleet server won't start.
@@ -2617,21 +2638,9 @@ This is the second feature flag required to turn on MDM features. This environme
     apple_enable: true
   ```
 
-##### mdm.apple_apns_cert
-
-This is the path to the Apple Push Notification service (APNs) certificate. The APNs certificate is a PEM-encoded X.509 certificate that's typically generated via `fleetctl generate mdm-apple`. Only one of `apple_apns_cert` and `apple_apns_cert_bytes` can be set.
-
-- Default value: ""
-- Environment variable: `FLEET_MDM_APPLE_APNS_CERT`
-- Config file format:
-  ```
-  mdm:
-    apple_apns_cert: /path/to/apns_cert.pem
-  ```
-
 ##### mdm.apple_apns_cert_bytes
 
-The content of the Apple Push Notification service (APNs) certificate. An X.509 certificate, PEM-encoded. Typically generated via `fleetctl generate mdm-apple`. Only one of `apple_apns_cert` and `apple_apns_cert_bytes` can be set.
+The content of the Apple Push Notification service (APNs) certificate. An X.509 certificate, PEM-encoded. Typically generated via `fleetctl generate mdm-apple`.
 
 - Default value: ""
 - Environment variable: `FLEET_MDM_APPLE_APNS_CERT_BYTES`
@@ -2644,21 +2653,9 @@ The content of the Apple Push Notification service (APNs) certificate. An X.509 
       -----END CERTIFICATE-----
   ```
 
-##### mdm.apple_apns_key
-
-This is the path to a PEM-encoded private key for the Apple Push Notification service (APNs). It's typically generated via `fleetctl generate mdm-apple`. Only one of `apple_apns_key` and `apple_apns_key_bytes` can be set.
-
-- Default value: ""
-- Environment variable: `FLEET_MDM_APPLE_APNS_KEY`
-- Config file format:
-  ```
-  mdm:
-    apple_apns_key: /path/to/apns_key.pem
-  ```
-
 ##### mdm.apple_apns_key_bytes
 
-The content of the PEM-encoded private key for the Apple Push Notification service (APNs). Typically generated via `fleetctl generate mdm-apple`. Only one of `apple_apns_key` and `apple_apns_key_bytes` can be set.
+The content of the PEM-encoded private key for the Apple Push Notification service (APNs). Typically generated via `fleetctl generate mdm-apple`.
 
 - Default value: ""
 - Environment variable: `FLEET_MDM_APPLE_APNS_KEY_BYTES`
@@ -2671,21 +2668,9 @@ The content of the PEM-encoded private key for the Apple Push Notification servi
       -----END RSA PRIVATE KEY-----
   ```
 
-##### mdm.apple_scep_cert
-
-This is the path to the Simple Certificate Enrollment Protocol (SCEP) certificate.  The SCEP certificate is a PEM-encoded X.509 certificate that's typically generated via `fleetctl generate mdm-apple`. Only one of `apple_scep_cert` and `apple_scep_cert_bytes` can be set.
-
-- Default value: ""
-- Environment variable: `FLEET_MDM_APPLE_SCEP_CERT`
-- Config file format:
-  ```
-  mdm:
-    apple_scep_cert: /path/to/scep_cert.pem
-  ```
-
 ##### mdm.apple_scep_cert_bytes
 
-The content of the Simple Certificate Enrollment Protocol (SCEP) certificate. An X.509 certificate, PEM-encoded. Typically generated via `fleetctl generate mdm-apple`. Only one of `apple_scep_cert` and `apple_scep_cert_bytes` can be set.
+The content of the Simple Certificate Enrollment Protocol (SCEP) certificate. An X.509 certificate, PEM-encoded. Typically generated via `fleetctl generate mdm-apple`.
 
 - Default value: ""
 - Environment variable: `FLEET_MDM_APPLE_SCEP_CERT_BYTES`
@@ -2698,21 +2683,9 @@ The content of the Simple Certificate Enrollment Protocol (SCEP) certificate. An
       -----END CERTIFICATE-----
   ```
 
-##### mdm.apple_scep_key
-
-This is the path to a PEM-encoded private key for the Simple Certificate Enrollment Protocol (SCEP). It's typically generated via `fleetctl generate mdm-apple`. Only one of `apple_scep_key` and `apple_scep_key_bytes` can be set.
-
-- Default value: ""
-- Environment variable: `FLEET_MDM_APPLE_SCEP_KEY`
-- Config file format:
-  ```
-  mdm:
-    apple_scep_key: /path/to/scep_key.pem
-  ```
-
 ##### mdm.apple_scep_key_bytes
 
-The content of the PEM-encoded private key for the Simple Certificate Enrollment Protocol (SCEP). Typically generated via `fleetctl generate mdm-apple`. Only one of `apple_scep_key` and `apple_scep_key_bytes` can be set.
+The content of the PEM-encoded private key for the Simple Certificate Enrollment Protocol (SCEP). Typically generated via `fleetctl generate mdm-apple`.
 
 - Default value: ""
 - Environment variable: `FLEET_MDM_APPLE_SCEP_KEY_BYTES`
@@ -2761,21 +2734,9 @@ The number of days allowed to renew SCEP certificates.
     apple_scep_signer_allow_renewal_days: 30
   ```
 
-##### mdm.apple_bm_server_token
-
-This is the path to the Apple Business Manager encrypted server token (a `.p7m` file) downloaded from Apple Business Manager. Only one of `apple_bm_server_token` and `apple_bm_server_token_bytes` can be set.
-
-- Default value: ""
-- Environment variable: `FLEET_MDM_APPLE_BM_SERVER_TOKEN`
-- Config file format:
-  ```
-  mdm:
-    apple_bm_server_token: /path/to/server_token.p7m
-  ```
-
 ##### mdm.apple_bm_server_token_bytes
 
-This is the content of the Apple Business Manager encrypted server token downloaded from Apple Business Manager. Only one of `apple_bm_server_token` and `apple_bm_server_token_bytes` can be set.
+This is the content of the Apple Business Manager encrypted server token downloaded from Apple Business Manager.
 
 - Default value: ""
 - Environment variable: `FLEET_MDM_APPLE_BM_SERVER_TOKEN_BYTES`
@@ -2788,21 +2749,9 @@ This is the content of the Apple Business Manager encrypted server token downloa
       ... rest of content ...
   ```
 
-##### mdm.apple_bm_cert
-
-This is the path to the Apple Business Manager certificate.  The certificate is a PEM-encoded X.509 certificate that's typically generated via `fleetctl generate mdm-apple-bm`. Only one of `apple_bm_cert` and `apple_bm_cert_bytes` can be set.
-
-- Default value: ""
-- Environment variable: `FLEET_MDM_APPLE_BM_CERT`
-- Config file format:
-  ```
-  mdm:
-    apple_bm_cert: /path/to/bm_cert.pem
-  ```
-
 ##### mdm.apple_bm_cert_bytes
 
-This is the content of the Apple Business Manager certificate. The certificate is a PEM-encoded X.509 certificate that's typically generated via `fleetctl generate mdm-apple-bm`. Only one of `apple_bm_cert` and `apple_bm_cert_bytes` can be set.
+This is the content of the Apple Business Manager certificate. The certificate is a PEM-encoded X.509 certificate that's typically generated via `fleetctl generate mdm-apple-bm`.
 
 - Default value: ""
 - Environment variable: `FLEET_MDM_APPLE_BM_CERT_BYTES`
@@ -2815,21 +2764,9 @@ This is the content of the Apple Business Manager certificate. The certificate i
       -----END CERTIFICATE-----
   ```
 
-##### mdm.apple_bm_key
-
-This is the path to a PEM-encoded private key for the Apple Business Manager. It's typically generated via `fleetctl generate mdm-apple-bm`. Only one of `apple_bm_key` and `apple_bm_key_bytes` can be set.
-
-- Default value: ""
-- Environment variable: `FLEET_MDM_APPLE_BM_KEY`
-- Config file format:
-  ```
-  mdm:
-    apple_bm_key: /path/to/private_key.pem
-  ```
-
 ##### mdm.apple_bm_key_bytes
 
-This is the content of the PEM-encoded private key for the Apple Business Manager. It's typically generated via `fleetctl generate mdm-apple-bm`. Only one of `apple_bm_key` and `apple_bm_key_bytes` can be set.
+This is the content of the PEM-encoded private key for the Apple Business Manager. It's typically generated via `fleetctl generate mdm-apple-bm`.
 
 - Default value: ""
 - Environment variable: `FLEET_MDM_APPLE_BM_KEY_BYTES`
@@ -3035,8 +2972,6 @@ Otherwise, the following values are required:
 - _Entity ID_ - A URI that identifies your Fleet instance as the issuer of authorization
   requests (e.g., `fleet.example.com`). This must match the _Entity ID_ configured with the IDP.
 
-- _Issuer URI_ - Obtain this value from the IDP.
-
 - _Metadata URL_ - Obtain this value from the IDP and is used by Fleet to
   issue authorization requests to the IDP.
 
@@ -3059,7 +2994,11 @@ configuration problems.
 > Individual users must also be set up on the IDP before signing in to Fleet.
 
 ### Enabling SSO for existing users in Fleet
-As an admin, you can enable SSO for existing users in Fleet. To do this, go to the Settings page, then click on the Users tab. Locate the user you want to enable SSO for and on the Actions dropdown menu for that user, click on "Enable single sign-on."
+As an admin, you can enable SSO for existing users in Fleet. To do this, go to the Settings page,
+then click on the Users tab. Locate the user you want to enable SSO for, and in the Actions dropdown
+menu for that user, click on "Edit." In the dialogue that opens, check the box labeled "Enable
+single sign-on," then click "Save." If you are unable to check that box, you must first [configure
+and enable SSO for the organization](https://fleetdm.com/docs/deploying/configuration#configuring-single-sign-on-sso).
 
 ### Just-in-time (JIT) user provisioning
 
@@ -3173,16 +3112,15 @@ Follow these steps to configure Fleet SSO with Google Workspace. This will requi
 
   ![Adding a new app to Google workspace admin dashboard](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/google-sso-configuration-step-2.png)
 
-3. Click _Download Metadata_, saving the metadata to your computer. Copy the _SSO URL_. Click _Continue_.
+3. Click _Download Metadata_, saving the metadata to your computer. Click _Continue_.
 
-  ![Download metadata and copy the SSO URL](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/google-sso-configuration-step-3.png)
+  ![Download metadata](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/google-sso-configuration-step-3.png)
 
 4. In Fleet, navigate to the _Organization Settings_ page. Configure the _SAML single sign-on options_ section.
 
   - Check the _Enable single sign-on_ checkbox.
   - For _Identity provider name_, use `Google`.
   - For _Entity ID_, use a unique identifier such as `fleet.example.com`. Note that Google seems to error when the provided ID includes `https://`.
-  - For _Issuer URI_, paste the _SSO URL_ copied from step three.
   - For _Metadata_, paste the contents of the downloaded metadata XML from step three.
   - All other fields can be left blank.
 

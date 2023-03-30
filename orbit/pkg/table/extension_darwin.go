@@ -6,12 +6,14 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/authdb"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/csrutil_info"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/diskutil/apfs"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/diskutil/corestorage"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/dscl"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/firmware_eficheck_integrity_check"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/nvram_info"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/pmset"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/privaterelay"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/pwd_policy"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/software_update"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/sudo_info"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/user_login_settings"
 	"github.com/macadmins/osquery-extension/tables/filevaultusers"
@@ -34,10 +36,13 @@ func platformTables() []osquery.OsqueryPlugin {
 		table.NewPlugin("authdb", authdb.Columns(), authdb.Generate),
 		table.NewPlugin("pmset", pmset.Columns(), pmset.Generate),
 		table.NewPlugin("sudo_info", sudo_info.Columns(), sudo_info.Generate),
+		table.NewPlugin("software_update", software_update.Columns(), software_update.Generate),
 		table.NewPlugin("firmware_eficheck_integrity_check", firmware_eficheck_integrity_check.Columns(), firmware_eficheck_integrity_check.Generate),
 		table.NewPlugin("dscl", dscl.Columns(), dscl.Generate),
 		table.NewPlugin("apfs_volumes", apfs.VolumesColumns(), apfs.VolumesGenerate),
 		table.NewPlugin("apfs_physical_stores", apfs.PhysicalStoresColumns(), apfs.PhysicalStoresGenerate),
+		table.NewPlugin("corestorage_logical_volumes", corestorage.LogicalVolumesColumns(), corestorage.LogicalVolumesGenerate),
+		table.NewPlugin("corestorage_logical_volume_families", corestorage.LogicalVolumeFamiliesColumns(), corestorage.LogicalVolumeFamiliesGenerate),
 
 		// Macadmins extension tables
 		table.NewPlugin("filevault_users", filevaultusers.FileVaultUsersColumns(), filevaultusers.FileVaultUsersGenerate),

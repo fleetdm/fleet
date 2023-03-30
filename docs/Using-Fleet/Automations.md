@@ -38,6 +38,7 @@ POST https://server.com/example
     "epss_probability": 0.7, // Premium feature only
     "cvss_score": 5.7, // Premium feature only
     "cisa_known_exploit": true, // Premium feature only
+    "cve_published": "2020-10-28T00:00:00Z", // Premium feature only
     "hosts_affected": [
       {
         "id": 1,

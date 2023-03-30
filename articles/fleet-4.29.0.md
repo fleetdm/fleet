@@ -18,7 +18,7 @@ For upgrade instructions, see our [upgrade guide](https://fleetdm.com/docs/deplo
 _Available in Fleet Premium and Fleet Ultimate_
 
 <div purpose="embedded-content">
-    <iframe src="https://www.youtube.com/embed/5QuPuDfRMmY" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+    <iframe src="https://www.youtube.com/embed/qGe1bgYzxvg" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
 </div>
 
 With this update, you can take 🟠 Ownership of Fleet account roles assignment when using  Just-in-time (JIT) provisioning. When JIT user provisioning is enabled, Fleet automatically creates a user account upon first login with the configured single sign-on (SSO). The email and full name are copied from the user data in the SSO during the creation process. Large organizations no longer need to create individual users. By default, accounts created via JIT provisioning are assigned the [Global Observer role](https://fleetdm.com/docs/using-fleet/permissions).
