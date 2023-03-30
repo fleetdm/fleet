@@ -28,7 +28,7 @@ import { useTeamIdParam } from "hooks/useTeamIdParam";
 import enrollSecretsAPI from "services/entities/enroll_secret";
 import hostSummaryAPI from "services/entities/host_summary";
 import macadminsAPI from "services/entities/macadmins";
-import softwareAPI from "services/entities/software";
+import softwareAPI, { ISoftwareQueryKey } from "services/entities/software";
 import teamsAPI, { ILoadTeamsResponse } from "services/entities/teams";
 import hosts from "services/entities/hosts";
 import sortUtils from "utilities/sort";
@@ -79,16 +79,30 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
   const { pathname } = location;
   const {
     config,
-    availableTeams,
     isGlobalAdmin,
     isGlobalMaintainer,
-    isTeamAdmin,
-    isTeamMaintainer,
     isPremiumTier,
     isFreeTier,
     isSandboxMode,
     isOnGlobalTeam,
   } = useContext(AppContext);
+
+  const {
+    currentTeamId,
+    currentTeamName,
+    isAnyTeamSelected,
+    isRouteOk,
+    isTeamAdmin,
+    isTeamMaintainer,
+    teamIdForApi,
+    userTeams,
+    handleTeamChange,
+  } = useTeamIdParam({
+    location,
+    router,
+    includeAllTeams: true,
+    includeNoTeam: false,
+  });
 
   const [selectedPlatform, setSelectedPlatform] = useState<ISelectedPlatform>(
     "all"
@@ -139,19 +153,6 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     setSelectedPlatform(platformByPathname);
   }, [pathname]);
 
-  const {
-    currentTeamId,
-    currentTeamName,
-    isAnyTeamSelected,
-    teamIdForApi,
-    handleTeamChange,
-  } = useTeamIdParam({
-    location,
-    router,
-    includeAllTeams: true,
-    includeNoTeam: false,
-  });
-
   const canEnrollHosts =
     isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
   const canEnrollGlobalHosts = isGlobalAdmin || isGlobalMaintainer;
@@ -179,6 +180,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
         lowDiskSpace: isPremiumTier ? LOW_DISK_SPACE_GB : undefined,
       }),
     {
+      enabled: isRouteOk,
       select: (data: IHostSummary) => data,
       onSuccess: (data: IHostSummary) => {
         setLabels(data.builtin_labels);
@@ -207,7 +209,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     Error,
     IEnrollSecret[]
   >(["global secrets"], () => enrollSecretsAPI.getGlobalEnrollSecrets(), {
-    enabled: !!canEnrollGlobalHosts,
+    enabled: isRouteOk && canEnrollGlobalHosts,
     select: (data: IEnrollSecretsResponse) => data.secrets,
   });
 
@@ -224,7 +226,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
       return { secrets: [] };
     },
     {
-      enabled: canEnrollHosts && isAnyTeamSelected,
+      enabled: isRouteOk && isAnyTeamSelected && canEnrollHosts,
       select: (data: IEnrollSecretsResponse) => data.secrets,
     }
   );
@@ -242,31 +244,26 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     data: software,
     isFetching: isSoftwareFetching,
     error: errorSoftware,
-  } = useQuery<ISoftwareResponse, Error>(
+  } = useQuery<
+    ISoftwareResponse,
+    Error,
+    ISoftwareResponse,
+    ISoftwareQueryKey[]
+  >(
     [
-      "software",
       {
-        pageIndex: softwarePageIndex,
-        pageSize: SOFTWARE_DEFAULT_PAGE_SIZE,
-        sortDirection: SOFTWARE_DEFAULT_SORT_DIRECTION,
-        sortHeader: SOFTWARE_DEFAULT_SORT_HEADER,
+        scope: "software",
+        page: softwarePageIndex,
+        perPage: SOFTWARE_DEFAULT_PAGE_SIZE,
+        orderDirection: SOFTWARE_DEFAULT_SORT_DIRECTION,
+        orderKey: SOFTWARE_DEFAULT_SORT_HEADER,
         teamId: teamIdForApi,
         vulnerable: !!softwareNavTabIndex, // we can take the tab index as a boolean to represent the vulnerable flag :)
       },
     ],
-    () =>
-      softwareAPI.load({
-        page: softwarePageIndex,
-        perPage: SOFTWARE_DEFAULT_PAGE_SIZE,
-        orderKey: SOFTWARE_DEFAULT_SORT_HEADER,
-        orderDir: SOFTWARE_DEFAULT_SORT_DIRECTION,
-        vulnerable: !!softwareNavTabIndex, // we can take the tab index as a boolean to represent the vulnerable flag :)
-        teamId: teamIdForApi,
-      }),
+    ({ queryKey }) => softwareAPI.load(queryKey[0]),
     {
-      enabled:
-        (isSoftwareEnabled && isOnGlobalTeam) ||
-        !!availableTeams?.find((t) => t.id === currentTeamId),
+      enabled: isRouteOk && isSoftwareEnabled,
       keepPreviousData: true,
       staleTime: 30000, // stale time can be adjusted if fresher data is desired based on software inventory interval
       onSuccess: (data) => {
@@ -290,7 +287,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     [`mdm-${selectedPlatform}`, teamIdForApi],
     () => hosts.getMdmSummary(selectedPlatform, teamIdForApi), // TODO: confirm
     {
-      enabled: selectedPlatform !== "linux",
+      enabled: isRouteOk && selectedPlatform !== "linux",
       onSuccess: ({
         counts_updated_at,
         mobile_device_management_solution,
@@ -341,7 +338,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     Error
   >(["macAdmins", teamIdForApi], () => macadminsAPI.loadAll(teamIdForApi), {
     keepPreviousData: true,
-    enabled: selectedPlatform === "darwin",
+    enabled: isRouteOk && selectedPlatform === "darwin",
     onSuccess: ({
       macadmins: { munki_issues, munki_versions, counts_updated_at },
     }) => {
@@ -652,7 +649,9 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     );
   };
 
-  return (
+  return !isRouteOk ? (
+    <Spinner />
+  ) : (
     <MainContent className={baseClass}>
       <div className={`${baseClass}__wrapper`}>
         <div className={`${baseClass}__header`}>
@@ -660,20 +659,18 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
             <div className={`${baseClass}__title`}>
               {isFreeTier && <h1>{config?.org_info.org_name}</h1>}
               {isPremiumTier &&
-                availableTeams &&
-                (availableTeams.length > 1 || isOnGlobalTeam) && (
+                userTeams &&
+                (userTeams.length > 1 || isOnGlobalTeam) && (
                   <TeamsDropdown
                     selectedTeamId={currentTeamId}
-                    currentUserTeams={availableTeams}
+                    currentUserTeams={userTeams}
                     onChange={handleTeamChange}
                   />
                 )}
               {isPremiumTier &&
                 !isOnGlobalTeam &&
-                availableTeams &&
-                availableTeams.length === 1 && (
-                  <h1>{availableTeams[0].name}</h1>
-                )}
+                userTeams &&
+                userTeams.length === 1 && <h1>{userTeams[0].name}</h1>}
             </div>
           </div>
         </div>

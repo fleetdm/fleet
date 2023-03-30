@@ -51,15 +51,11 @@ interface IMembersPageProps {
 
 const MembersPage = ({ location, router }: IMembersPageProps): JSX.Element => {
   const { renderFlash } = useContext(NotificationContext);
-  const {
-    config,
-    currentUser,
-    isGlobalAdmin,
-    isPremiumTier,
-    isTeamAdmin,
-  } = useContext(AppContext);
+  const { config, currentUser, isGlobalAdmin, isPremiumTier } = useContext(
+    AppContext
+  );
 
-  const { isRouteOk, teamIdForApi } = useTeamIdParam({
+  const { isRouteOk, isTeamAdmin, teamIdForApi } = useTeamIdParam({
     location,
     router,
     includeAllTeams: false,

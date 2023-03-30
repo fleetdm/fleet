@@ -202,7 +202,7 @@ const reducer = (state: InitialStateType, action: IAction) => {
           t.name !== APP_CONTEXT_ALL_TEAMS_SUMMARY.name &&
           t.name !== APP_CONTEX_NO_TEAM_SUMMARY.name
       );
-      if (state.isPremiumTier && user && permissions.isOnGlobalTeam(user)) {
+      if (user && permissions.isOnGlobalTeam(user)) {
         sortedTeams.unshift(
           APP_CONTEXT_ALL_TEAMS_SUMMARY,
           APP_CONTEX_NO_TEAM_SUMMARY

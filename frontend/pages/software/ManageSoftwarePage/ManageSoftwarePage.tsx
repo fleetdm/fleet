@@ -28,7 +28,10 @@ import { ITeamConfig } from "interfaces/team";
 import { IWebhookSoftwareVulnerabilities } from "interfaces/webhook";
 
 import configAPI from "services/entities/config";
-import softwareAPI from "services/entities/software";
+import softwareAPI, {
+  ISoftwareCountQueryKey,
+  ISoftwareQueryKey,
+} from "services/entities/software";
 import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 import {
   GITHUB_NEW_ISSUE_LINK,
@@ -59,17 +62,6 @@ interface IManageSoftwarePageProps {
     query: { team_id?: string; vulnerable?: string };
     search: string;
   };
-}
-
-interface ISoftwareQueryKey {
-  scope: string;
-  page: number;
-  perPage: number;
-  query: string;
-  orderKey: string;
-  orderDir?: "asc" | "desc";
-  vulnerable: boolean;
-  teamId?: number;
 }
 
 interface ISoftwareConfigQueryKey {
@@ -229,7 +221,7 @@ const ManageSoftwarePage = ({
         page: pageIndex,
         perPage: DEFAULT_PAGE_SIZE,
         query: searchQuery,
-        orderDir: sortDirection || DEFAULT_SORT_DIRECTION,
+        orderDirection: sortDirection || DEFAULT_SORT_DIRECTION,
         // API expects "epss_probability" rather than "vulnerabilities"
         orderKey:
           isPremiumTier && sortHeader === "vulnerabilities"
@@ -251,12 +243,7 @@ const ManageSoftwarePage = ({
     data: softwareCount,
     error: softwareCountError,
     isFetching: isFetchingCount,
-  } = useQuery<
-    ISoftwareCountResponse,
-    Error,
-    number,
-    Pick<ISoftwareQueryKey, "scope" | "query" | "vulnerable" | "teamId">[]
-  >(
+  } = useQuery<ISoftwareCountResponse, Error, number, ISoftwareCountQueryKey[]>(
     [
       {
         scope: "softwareCount",

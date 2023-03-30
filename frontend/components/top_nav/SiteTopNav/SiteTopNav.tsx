@@ -41,7 +41,7 @@ const SiteTopNav = ({
     isGlobalMaintainer,
     isAnyTeamMaintainer,
     isNoAccess,
-    isMdmEnabledAndConfigured,
+    isMdmEnabledAndConfigured, // TODO: confirm
   } = useContext(AppContext);
 
   const renderNavItem = (navItem: INavItem) => {
