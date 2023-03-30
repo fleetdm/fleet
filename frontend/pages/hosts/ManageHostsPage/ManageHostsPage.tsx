@@ -281,6 +281,13 @@ const ManageHostsPage = ({
   >(["labels"], () => labelsAPI.loadAll(), {
     select: (data: ILabelsResponse) => data.labels,
   });
+  const { data: labels, refetch: refetchLabels } = useQuery<
+    ILabelsResponse,
+    Error,
+    ILabel[]
+  >(["labels"], () => labelsAPI.loadAll(), {
+    select: (data: ILabelsResponse) => data.labels,
+  });
 
   const {
     isLoading: isGlobalSecretsLoading,
