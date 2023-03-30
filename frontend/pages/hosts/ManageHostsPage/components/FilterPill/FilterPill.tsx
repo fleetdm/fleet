@@ -40,7 +40,9 @@ const FilterPill = ({
           data-for={`filter-pill-tooltip-${label}`}
         >
           <div className={labelClasses}>
-            {icon && <img src={icon} alt="" />}
+            {icon && (
+              <img src={icon} alt="" data-testid={`${baseClass}__icon`} />
+            )}
             {label}
             <Button
               className={`${baseClass}__clear-filter`}

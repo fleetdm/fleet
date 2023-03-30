@@ -136,7 +136,15 @@ func EnrollHandler(w http.ResponseWriter, r *http.Request) {
 						<characteristic type="` + signedClientCertFingerprint /* Signed Client Certificate (From the BinarySecurityToken) Fingureprint (SHA-1 hash of Der) */ + `">
 							<parm name="EncodedCertificate" value="` + base64.StdEncoding.EncodeToString(clientCRTRaw) /* Base64 encoded signed certificate */ + `" />
 						</characteristic>
-						<characteristic type="PrivateKeyContainer" /></characteristic>
+						<characteristic type="PrivateKeyContainer" />
+					</characteristic>
+					<characteristic type="WSTEP">
+						<characteristic type="Renew">
+							<parm name="ROBOSupport" value="true" datatype="boolean"/>
+							<parm name="RenewPeriod" value="60" datatype="integer"/>
+							<parm name="RetryInterval" value="4" datatype="integer"/>
+						</characteristic>
+					</characteristic>
 				</characteristic>
 			</characteristic>
 			<characteristic type="APPLICATION">
@@ -147,6 +155,9 @@ func EnrollHandler(w http.ResponseWriter, r *http.Request) {
 				<parm name="ServerList" value="https://` + domain + `/ManagementServer/ServerList.svc" />
 				<parm name="ROLE" value="4294967295" />
 				<parm name="BACKCOMPATRETRYDISABLED" />
+				<parm name="CONNRETRYFREQ" value="6" />
+				<parm name="INITIALBACKOFFTIME" value="30000" />
+				<parm name="MAXBACKOFFTIME" value="120000" />
 				<parm name="DEFAULTENCODING" value="application/vnd.syncml.dm+xml" />
 				<characteristic type="APPAUTH">
 					<parm name="AAUTHLEVEL" value="CLIENT" />
@@ -167,6 +178,12 @@ func EnrollHandler(w http.ResponseWriter, r *http.Request) {
 					<characteristic type="DEMO MDM">
 						<characteristic type="Poll">
 							<parm name="NumberOfFirstRetries" value="8" datatype="integer" />
+							<parm name="IntervalForFirstSetOfRetries" value="15" datatype="integer" />
+							<parm name="NumberOfSecondRetries" value="5" datatype="integer" />
+							<parm name="IntervalForSecondSetOfRetries" value="3" datatype="integer" />
+							<parm name="NumberOfRemainingScheduledRetries" value="0" datatype="integer" />
+							<parm name="IntervalForRemainingScheduledRetries" value="1560" datatype="integer" />
+							<parm name="PollOnLogin" value="true" datatype="boolean" />
 						</characteristic>
 					</characteristic>
 				</characteristic>
