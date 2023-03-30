@@ -12,34 +12,42 @@ A Fleet admin can set a minimum version and deadline for Fleet-enrolled hosts. I
 
 When the end user machine is below the minimum version, Nudge applies the following behavior:
 
-|                                      | > 1 day before deadline | < 1 day before dealine | past deadline         |
-| ------------------------------------ | ----------------------- | ---------------------- | --------------------- |
-| Nudge window frequency               | Once a day at X pm GMT  | Once every 2 hours     | Immediately on login  |
-| End user can defer                   | ✅                      | ✅                     | ❌                    |
-| Nudge window is dismissable          | ✅                      | ✅                     | ❌                    |
+|                                      | > 1 day before deadline | < 1 day before deadline | past deadline         |
+| ------------------------------------ | ----------------------- | ----------------------- | --------------------- |
+| Nudge window frequency               | Once a day at 8pm GMT   | Once every 2 hours      | Immediately on login  |
+| End user can defer                   | ✅                      | ✅                      | ❌                    |
+| Nudge window is dismissable          | ✅                      | ✅                      | ❌                    |
 
 
-## How to set up
+### How to set up
 
-To set the macOS updates settings in the UI, visit the **Controls** section and then select the **macOS updates** tab. To set the macOS updates settings programmatically, use the configurations listed [here](https://fleetdm.com/docs/using-fleet/configuration-files#mdm-macos-updates).
+To set the macOS updates settings in the UI, visit the **Controls** section and then select the **macOS updates** tab. 
 
-## Requirements
+To set the macOS updates settings via CLI, use the configurations listed [here](https://fleetdm.com/docs/using-fleet/configuration-files#mdm-macos-updates).
+
+### Requirements
 - Fleet Premium or Ultimate
 - [Fleetd](https://fleetdm.com/docs/using-fleet/orbit) with Fleet Desktop enabled
 
-## End user experience
+### End user experience
 
-Apple has a two-step process for macOS updates. First, the host downloads the macOS update in the background without interrupting the end user. Then, the host installs the update, which prevents the end user from using the host.
+After the user clicks "update" in the Nudge window, they will be taken to the standard Apple software update screen: 
 
-Downloading the macOS update can be triggered programmatically, while installing the update always requires end user action.
+![Apple software update screen on macOS 12](https://user-images.githubusercontent.com/5359586/228936740-2e8acf2e-6523-4710-9b3f-8243398bd98e.png)
 
-Fleet downloads macOS updates programmatically on Intel Macs. This way, end users don't have to wait for the update to download before they can install it.
+Here, the user would follow Apple's standard two-step process for macOS updates: 
+1. Download the macOS update. This occurs in the background and does not interrupt the end user's work.
+2. Initiate the update which does prevent the end user from using the host for a time. 
 
-> On Macs with Apple silicon (e.g. M1), downloading the macOS update may require end user action. Apple doesn't support downloading the update programmatically on Macs with Apple silicon.
+On Intel Macs, Fleet triggers step 1 (downloading the macOS update) programmatically when a new version is available. This way, when the user arrives on the software update screen, they only need to initiate step 2. 
+
+> On Macs with Apple Silicon (e.g. M1), downloading the macOS update may require end user action. Apple doesn't support downloading the update programmatically on Macs with Apple silicon. 
+
+Step 2 (installing the update) always requires end user action.
 
 ### Known issue
 
-Sometimes the end user's Mac will say that macOS is up to date when it isn't. This known issue creates a frustrating experience for the end user. Ask the end user to follow the steps below to troubleshoot:
+Sometimes after the end user clicks "update" on the Nudge window, the end user's Mac will say that macOS is up to date when it isn't. This known issue can create a frustrating experience for the end user. Ask the end user to follow the steps below to troubleshoot:
 
 1. From the Apple menu in the top left corner of your screen, select **System Settings** or **System Preferences**.
 
