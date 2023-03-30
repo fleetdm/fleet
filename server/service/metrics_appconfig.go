@@ -22,7 +22,7 @@ func (mw metricsMiddleware) NewAppConfig(ctx context.Context, p fleet.AppConfig)
 	return info, err
 }
 
-func (mw metricsMiddleware) AppConfig(ctx context.Context) (*fleet.AppConfig, error) {
+func (mw metricsMiddleware) AppConfigObfuscated(ctx context.Context) (*fleet.AppConfig, error) {
 	var (
 		info *fleet.AppConfig
 		err  error
@@ -32,7 +32,7 @@ func (mw metricsMiddleware) AppConfig(ctx context.Context) (*fleet.AppConfig, er
 		mw.requestCount.With(lvs...).Add(1)
 		mw.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds())
 	}(time.Now())
-	info, err = mw.Service.AppConfig(ctx)
+	info, err = mw.Service.AppConfigObfuscated(ctx)
 	return info, err
 }
 

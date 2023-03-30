@@ -107,7 +107,7 @@ const ManualEnrollMdmModal = ({
             click <b>Enrollment Profile</b>, and select <b>Install</b>.
           </li>
           <li>
-            Enter your password, and select <b>Enroll</b>.
+            Select <b>Enroll</b> then enter your password.
           </li>
           <li>
             Close this window and select <b>Refetch</b> on your My device page

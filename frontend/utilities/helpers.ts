@@ -174,7 +174,6 @@ export const formatConfigDataForServer = (config: any): any => {
   ]);
   const ssoSettingsAttrs = pick(config, [
     "entity_id",
-    "issuer_uri",
     "idp_image_url",
     "metadata",
     "metadata_url",

@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"github.com/fleetdm/fleet/v4/server/config"
 	"net/http"
 	"regexp"
 	"strings"
@@ -20,10 +21,16 @@ import (
 
 var reVersion = regexp.MustCompile(`\{fleetversion:\(\?:([^\}\)]+)\)\}`)
 
-func makeStreamDistributedQueryCampaignResultsHandler(svc fleet.Service, logger kitlog.Logger) func(string) http.Handler {
+func makeStreamDistributedQueryCampaignResultsHandler(config config.ServerConfig, svc fleet.Service, logger kitlog.Logger) func(string) http.Handler {
 	opt := sockjs.DefaultOptions
 	opt.Websocket = true
 	opt.RawWebsocket = true
+
+	if config.WebsocketsAllowUnsafeOrigin {
+		opt.CheckOrigin = func(r *http.Request) bool {
+			return true
+		}
+	}
 
 	return func(path string) http.Handler {
 		// expand the path's versions (with regex) to all literal paths (no regex),
