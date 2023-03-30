@@ -3101,6 +3101,25 @@ apiVersion: v1
 kind: policy
 spec:
   name: >
+    CIS - Ensure 'Allow Online Tips' is set to 'Disabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting configures the retrieval of online tips and help for the Settings app.
+    The recommended state for this setting is: Disabled.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Disabled:
+    'Computer Configuration\Policies\Administrative Templates\Control Panel\Allow Online Tips'
+  query: |
+    SELECT 1 FROM registry where (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer\AllowOnlineTips' AND data == 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.2.1
+  contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
     CIS - Ensure 'Apply UAC restrictions to local accounts on network logons' is set to 'Enabled'
   platforms: win10
   platform: windows
