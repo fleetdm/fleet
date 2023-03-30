@@ -519,8 +519,8 @@ const ManageSoftwarePage = ({
       softwareCount;
 
   const softwareTableHeaders = useMemo(
-    () => generateSoftwareTableHeaders(router, isPremiumTier),
-    [isPremiumTier, router]
+    () => generateSoftwareTableHeaders(router, isPremiumTier, isSandboxMode),
+    [isPremiumTier, isSandboxMode, router]
   );
   const handleRowSelect = (row: IRowProps) => {
     const queryParams = { software_id: row.original.id };
