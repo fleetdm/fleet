@@ -88,7 +88,7 @@ module "main" {
       }
     }
     extra_iam_policies           = concat(module.firehose-logging.fleet_extra_iam_policies, module.osquery-carve.fleet_extra_iam_policies)
-    extra_execution_iam_policies = concat(module.mdm.extra_execution_iam_policies)
+    extra_execution_iam_policies = concat(module.mdm.extra_execution_iam_policies, [aws_iam_policy.sentry.arn])
     extra_environment_variables  = merge(module.mdm.extra_environment_variables, module.firehose-logging.fleet_extra_environment_variables, module.osquery-carve.fleet_extra_environment_variables, local.extra_environment_variables)
     extra_secrets                = merge(module.mdm.extra_secrets, local.sentry_secrets)
   }
@@ -155,6 +155,20 @@ resource "aws_secretsmanager_secret_version" "sentry" {
   secret_string = jsonencode({
     SENTRY_DSN = var.sentry_dsn
   })
+}
+
+resource "aws_iam_policy" "sentry" {
+  name   = "fleet-sentry-secret-policy"
+  policy = data.aws_iam_policy_document.sentry.json
+}
+
+data "aws_iam_policy_document" "sentry" {
+  statement {
+    actions = [
+      "secretsmanager:GetSecretValue",
+    ]
+    resources = [aws_secretsmanager_secret.sentry.arn]
+  }
 }
 
 module "migrations" {
