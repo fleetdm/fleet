@@ -259,6 +259,7 @@ const ManageHostsPage = ({
     Error,
     ILabel[]
   >(["labels"], () => labelsAPI.loadAll(), {
+    enabled: isRouteOk,
     select: (data: ILabelsResponse) => data.labels,
   });
 
@@ -270,7 +271,7 @@ const ManageHostsPage = ({
     ["global secrets"],
     () => enrollSecretsAPI.getGlobalEnrollSecrets(),
     {
-      enabled: !!canEnrollGlobalHosts,
+      enabled: isRouteOk && !!canEnrollGlobalHosts,
       select: (data: IEnrollSecretsResponse) => data.secrets,
     }
   );
@@ -288,7 +289,7 @@ const ManageHostsPage = ({
       return { secrets: [] };
     },
     {
-      enabled: canEnrollHosts && isAnyTeamSelected,
+      enabled: isRouteOk && isAnyTeamSelected && canEnrollHosts,
       select: (data: IEnrollSecretsResponse) => data.secrets,
     }
   );
@@ -301,7 +302,7 @@ const ManageHostsPage = ({
     ["teams"],
     () => teamsAPI.loadAll(),
     {
-      enabled: !!isPremiumTier,
+      enabled: isRouteOk && !!isPremiumTier,
       select: (data: ILoadTeamsResponse) =>
         data.teams.sort((a, b) => sortUtils.caseInsensitiveAsc(a.name, b.name)),
     }
@@ -315,7 +316,7 @@ const ManageHostsPage = ({
     ["policy", policyId],
     () => globalPoliciesAPI.load(policyId),
     {
-      enabled: !!policyId,
+      enabled: isRouteOk && !!policyId,
       select: (data) => data.policy,
     }
   );
@@ -327,8 +328,9 @@ const ManageHostsPage = ({
     IGetOSVersionsQueryKey[]
   >([{ scope: "os_versions" }], () => getOSVersions(), {
     enabled:
-      !!queryParams?.os_id ||
-      (!!queryParams?.os_name && !!queryParams?.os_version),
+      isRouteOk &&
+      (!!queryParams?.os_id ||
+        (!!queryParams?.os_name && !!queryParams?.os_version)),
     keepPreviousData: true,
     select: (data) => data.os_versions,
   });
@@ -404,9 +406,10 @@ const ManageHostsPage = ({
     ],
     ({ queryKey }) => hostCountAPI.load(queryKey[0]),
     {
-      select: (data) => data.count,
+      enabled: isRouteOk,
       keepPreviousData: true,
       staleTime: 10000, // stale time can be adjusted if fresher data is desired
+      select: (data) => data.count,
     }
   );
 

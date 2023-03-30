@@ -475,7 +475,7 @@ const TeamDetailsWrapper = ({
         )}
         {showManageEnrollSecretsModal && (
           <EnrollSecretModal
-            selectedTeam={teamIdForApi || 0}
+            selectedTeam={teamIdForApi || 0} // TODO: confirm teamIdForApi vs currentTeamId throughout
             teams={teams || []} // TODO: confirm teams vs available teams throughout
             onReturnToApp={toggleManageEnrollSecretsModal}
             toggleSecretEditorModal={toggleSecretEditorModal}

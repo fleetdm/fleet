@@ -1,6 +1,5 @@
 import React, { useContext } from "react";
 import { Link } from "react-router";
-import { Params } from "react-router/lib/Router";
 import classnames from "classnames";
 
 import { IUser } from "interfaces/user";
