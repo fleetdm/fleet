@@ -9,4 +9,18 @@
   &__sandbox-demo-message {
     margin-top: 3.5rem;
   }
+
+  &__api-only-user {
+    background-color: $ui-fleet-black-25;
+    color: $core-white;
+    font-size: $xx-small;
+    font-weight: 700;
+    padding: 0 4px;
+    border-radius: 4px;
+    position: relative;
+    top: -2px;
+    min-width: 95px;
+    max-height: 19px;
+    margin-left: 4px;
+  }
 }
