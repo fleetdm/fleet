@@ -698,6 +698,9 @@ const ManageHostsPage = ({
   // NOTE: used to reset page number to 0 when modifying filters
   useEffect(() => {
     setResetPageIndex(false);
+    if (queryParams.add_hosts === "true") {
+      setShowAddHostsModal(true);
+    }
   }, [queryParams]);
 
   // NOTE: this is called once on initial render and every time the query changes

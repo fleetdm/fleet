@@ -465,7 +465,7 @@ Here are the steps hiring managers follow to get an offer out to a candidate:
    - Start date
      > _**Tip:** No need to check with the candidate if you haven't already.  Just guess.  First Mondays tend to make good start dates.  When hiring an international employee, Pilot.co recommends starting the hiring process a month before the new employee's start date._
    - First and last name
-   - Preferred pronoun _("them", "her", or "him")
+   - Preferred pronoun _("them", "her", or "him")_
    - Country and state where they will be working _(Pattern-match from how other rows do it.  Please be mindful of spreadsheet formulas.)_
    - LinkedIn URL _(If the fleetie does not have a LinkedIn account, enter `N/A`)_
    - GitHub username _(Every candidate must have a GitHub account in "Fleeties" before the company makes them an offer.  If the the candidate does not have a GitHub account, ask them to create one, and make sure it's tracked in "Fleeties".)_
@@ -634,7 +634,7 @@ This applies to anyone who gets paid by the hour, including consultants and hour
 ## Informing managers about hours worked
 Every Friday at 1:00pm CT, we gather hours worked for anyone who gets paid hourly by Fleet. This includes core team members and consultants, regardless of employment classification, and regardless whether inside or outside of the United States.
 - For every hourly core team member in Gusto or Pilot.co, look up their manager ([who they report to](https://fleetdm.com/handbook/company#org-chart)).
-- [Consultants](https://fleetdm.com/handbook/business-operations#hiring) don't have a formal reporting structure or manager. Instead, send their hours worked to the CEO, no matter who the consultant is.
+- [Consultants](https://fleetdm.com/handbook/business-operations#hiring) don't have a formal reporting structure or manager. Instead, send their hours worked to the CEO, no matter who the consultant is. (Anyone curious is welcome to ask; the lack of openness is only out of lack of having set up a solution that integrates with Gusto to share consultant hours on demand)
 - Send each manager a direct message in Slack by copying and pasting the following template:
 
 > Here are the hours worked by your direct reports since last Saturday at midnight (YYYY-MM-DD):

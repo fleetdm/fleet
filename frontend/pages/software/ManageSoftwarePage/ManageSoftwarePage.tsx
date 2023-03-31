@@ -112,6 +112,7 @@ const ManageSoftwarePage = ({
     isOnGlobalTeam,
     isPremiumTier,
     isSandboxMode,
+    noSandboxHosts,
   } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
@@ -559,6 +560,7 @@ const ManageSoftwarePage = ({
                   isSandboxMode={isSandboxMode}
                   isCollectingSoftware={isCollectingInventory}
                   isSearching={searchQuery !== ""}
+                  noSandboxHosts={noSandboxHosts}
                 />
               )}
               defaultSortHeader={DEFAULT_SORT_HEADER}
