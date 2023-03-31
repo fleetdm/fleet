@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       DOCKER_IMAGE:
-        description: 'The full name of the docker image to be deployed. (e.g. fleetdm/fleet:v4.29.0)'
+        description: 'The full name of the docker image to be deployed. (e.g. fleetdm/fleet:v4.29.1)'
         required: true
 
 # This allows a subsequently queued workflow run to interrupt previous runs

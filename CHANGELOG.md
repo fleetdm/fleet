@@ -1,3 +1,9 @@
+## Fleet 4.29.1 (Mar 31, 2023)
+
+* Fixed a migration that was causing `fleet prepare db` to fail due to changes in the collation of the tables. IMPORTANT: please make sure to have a database backup before running migrations.
+
+* Fixed an issue where users would see the incorrect disk encryption banners on the My Device page.
+
 ## Fleet 4.29.0 (Mar 22, 2023)
 
 * Added implementation of Fleetd for Chrome.
