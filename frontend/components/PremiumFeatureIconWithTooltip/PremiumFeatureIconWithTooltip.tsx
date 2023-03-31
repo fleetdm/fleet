@@ -27,7 +27,7 @@ const PremiumFeatureIconWithTooltip = ({
       <ReactTooltip
         place={tooltipPlace ?? "top"}
         type="dark"
-        effect="float"
+        effect="solid"
         id={tipId}
         backgroundColor="#515774"
         delayHide={100}
