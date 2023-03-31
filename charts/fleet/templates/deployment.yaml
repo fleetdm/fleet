@@ -116,12 +116,18 @@ spec:
           - name: FLEET_MYSQL_CONN_MAX_LIFETIME
             value: "{{ .Values.mysql.connMaxLifetime }}"
           {{- if .Values.mysql.tls.enabled }}
+          {{- if .Values.mysql.tls.caCertKey }}
           - name: FLEET_MYSQL_TLS_CA
             value: "/secrets/mysql/{{ .Values.mysql.tls.caCertKey }}"
+          {{- end }}
+          {{- if .Values.mysql.tls.certKey }}
           - name: FLEET_MYSQL_TLS_CERT
             value: "/secrets/mysql/{{ .Values.mysql.tls.certKey }}"
+          {{- end }}
+          {{- if .Values.mysql.tls.keyKey }}
           - name: FLEET_MYSQL_TLS_KEY
             value: "/secrets/mysql/{{ .Values.mysql.tls.keyKey }}"
+          {{- end }}
           - name: FLEET_MYSQL_TLS_CONFIG
             value: "{{ .Values.mysql.tls.config }}"
           - name: FLEET_MYSQL_TLS_SERVER_NAME

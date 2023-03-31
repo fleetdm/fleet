@@ -27,6 +27,7 @@ env:
   TF_VAR_fleet_image: ${{ github.event.inputs.DOCKER_IMAGE || 'fleetdm/fleet:main' }}
   TF_VAR_fleet_license: ${{ secrets.DOGFOOD_LICENSE_KEY }}
   TF_VAR_slack_webhook: ${{ secrets.SLACK_G_HELP_P1_WEBHOOK_URL }}
+  TF_VAR_sentry_dsn: ${{ secrets.DOGFOOD_SENTRY_DSN }}
 
 permissions:
   id-token: write

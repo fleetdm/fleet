@@ -68,7 +68,12 @@ const AddPolicyModal = ({
         onClick={() => onAddPolicy(policy)}
       >
         <>
-          <span className="info__header">{policy.name}</span>
+          <div className={`${baseClass}__policy-name`}>
+            <span className="info__header">{policy.name}</span>
+            {policy.mdm_required && (
+              <span className={`${baseClass}__mdm-policy`}>Requires MDM</span>
+            )}
+          </div>
           <span className="info__data">{policy.description}</span>
         </>
       </Button>

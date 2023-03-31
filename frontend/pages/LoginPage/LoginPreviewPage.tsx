@@ -39,7 +39,7 @@ const LoginPreviewPage = ({ router }: ILoginPreviewPageProps): JSX.Element => {
 
       setLoginVisible(false);
       setCurrentUser(user);
-      setAvailableTeams(available_teams);
+      setAvailableTeams(user, available_teams);
       setCurrentTeam(undefined);
 
       return router.push(DASHBOARD);
