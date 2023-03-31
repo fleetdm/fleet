@@ -3139,7 +3139,7 @@ spec:
     SELECT 1 FROM registry where path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft Services\AdmPwd\PwdExpirationProtectionEnabled';
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.2.2
-  contributors: rachelelysia
+  contributors: sharon-fdm
 ---
 apiVersion: v1
 kind: policy
@@ -3161,7 +3161,7 @@ spec:
     SELECT 1 FROM registry where path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft Services\\AdmPwd\\AdmPwdEnabled';
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.2.3
-  contributors: rachelelysia
+  contributors: sharon-fdm
 ---
 apiVersion: v1
 kind: policy
