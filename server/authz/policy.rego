@@ -48,10 +48,10 @@ team_role(subject, team_id) = role {
 # Global config
 ##
 
-# Any logged in user can read config.
+# Global admin, maintainer, observer_plus and observer can read config.
 allow {
-  not is_null(subject)
   object.type == "app_config"
+  subject.global_role == [admin, maintainer, observer_plus, observer][_]
   action == read
 }
 
@@ -66,28 +66,36 @@ allow {
 # Teams
 ##
 
-# Any logged in user can read teams (service must filter appropriately based on
-# access) if the overall object is specified
+# Global admin, maintainer, observer_plus and observer can read teams (rule used for listing teams).
 allow {
   object.type == "team"
   object.id == 0
-  not is_null(subject)
+  subject.global_role == [admin, maintainer, observer_plus, observer][_]
   action == read
 }
 
-# For specific teams, only members can read.
+# Team admins, maintainers, observer_plus and observers can read teams (rule used for listing teams).
 allow {
   object.type == "team"
-  object.id != 0
-  team_role(subject, object.id) == [admin, maintainer, observer, observer_plus, gitops][_]
+  object.id == 0
+  # If role is admin, maintainer, observer_plus or observer on any team.
+  team_role(subject, subject.teams[_].id) == [admin, maintainer, observer_plus, observer][_]
   action == read
 }
 
-# Global users can read all teams.
+# Global admins, maintainers, observer_plus and observers can read teams.
 allow {
   object.type == "team"
   object.id != 0
-  subject.global_role == [admin, maintainer, observer, observer_plus, gitops][_]
+  subject.global_role == [admin, maintainer, observer, observer_plus][_]
+  action == read
+}
+
+# Team admins, maintainers, observer_plus and observers can read their team.
+allow {
+  object.type == "team"
+  object.id != 0
+  team_role(subject, object.id) == [admin, maintainer, observer, observer_plus][_]
   action == read
 }
 
@@ -274,18 +282,18 @@ allow {
 # Labels
 ##
 
-# All users can read labels
+# Global admins, maintainers, observer_plus and observers can read labels.
 allow {
   object.type == "label"
-  not is_null(subject)
+	subject.global_role == [admin, maintainer, observer_plus, observer][_]
   action == read
 }
 
-# Team admins, maintainers, observer_plus, observers and gitops can read labels.
+# Team admins, maintainers, observer_plus and observers can read labels.
 allow {
 	object.type == "label"
   # If role is admin, maintainer, observer_plus or observer on any team.
-  team_role(subject, subject.teams[_].id) == [admin, maintainer, observer_plus, observer, gitops][_]
+  team_role(subject, subject.teams[_].id) == [admin, maintainer, observer_plus, observer][_]
 	action == read
 }
 
@@ -436,28 +444,44 @@ allow {
 # Packs
 ##
 
-# Global admins, maintainers and gitops can read/write all packs.
+# Global admins and maintainers can read/write all types of packs.
 allow {
   object.type == "pack"
-  subject.global_role == [admin, maintainer, gitops][_]
+  subject.global_role == [admin, maintainer][_]
   action == [read, write][_]
 }
 
-# All users can read the global pack.
+# Global gitops can write all types of packs.
 allow {
   object.type == "pack"
-  not is_null(subject)
+  subject.global_role == gitops
+  action == write
+}
+
+# Global admins, maintainers, observers and observer_plus can read the global pack.
+allow {
+  object.type == "pack"
   object.is_global_pack == true
+  subject.global_role == [admin, maintainer, observer, observer_plus][_]
   action == read
 }
 
-# Team admins, maintainers, observers, observer_plus and gitops can read their team's pack.
+# Team admins, maintainers, observer_plus and observers can read the global pack.
+allow {
+	object.type == "pack"
+  object.is_global_pack == true
+  # If role is admin, maintainer, observer_plus or observer on any team.
+  team_role(subject, subject.teams[_].id) == [admin, maintainer, observer_plus, observer][_]
+	action == read
+}
+
+# Team admins, maintainers, observers, observer_plus can read their team's pack.
 #
 # NOTE: Action "read" on a team's pack includes listing its scheduled queries.
 allow {
   object.type == "pack"
   not is_null(object.pack_team_id)
-  team_role(subject, object.pack_team_id) == [admin, maintainer, observer, observer_plus, gitops][_]
+  team_role(subject, object.pack_team_id) == [admin, maintainer, observer, observer_plus][_]
   action == read
 }
 
