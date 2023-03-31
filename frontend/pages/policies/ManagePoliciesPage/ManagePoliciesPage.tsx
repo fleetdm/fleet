@@ -63,6 +63,14 @@ const ManagePolicyPage = ({
   const { renderFlash } = useContext(NotificationContext);
 
   const {
+    setLastEditedQueryName,
+    setLastEditedQueryDescription,
+    setLastEditedQueryResolution,
+    setLastEditedQueryCritical,
+    setLastEditedQueryPlatform,
+  } = useContext(PolicyContext);
+
+  const {
     currentTeamId,
     currentTeamName,
     currentTeamSummary,
@@ -84,13 +92,6 @@ const ManagePolicyPage = ({
       observer: false,
     },
   });
-  const {
-    setLastEditedQueryName,
-    setLastEditedQueryDescription,
-    setLastEditedQueryResolution,
-    setLastEditedQueryCritical,
-    setLastEditedQueryPlatform,
-  } = useContext(PolicyContext);
 
   const { setResetSelectedRows } = useContext(TableContext);
   const [isUpdatingAutomations, setIsUpdatingAutomations] = useState(false);
