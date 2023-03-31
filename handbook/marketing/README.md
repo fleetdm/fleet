@@ -610,6 +610,8 @@ To propose changes:
 #### Cloudflare
 
 We use Cloudflare to manage the DNS records of fleetdm.com and our other domains. Cloudflare offers a free, user-friendly, and cloud-agnostic interface that allows authorized team members to manage all our domains easily.
+If you need access to Fleet's Cloudflare account, please ask the [DRI](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) Zach Wasserman in Slack for an invitation.
+
 
 To make DNS changes in Cloudflare:
 1. Log into your Cloudflare account and select the "Fleet" account.
