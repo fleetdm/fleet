@@ -58,10 +58,10 @@ Fleet UI:
 With the four generated files, we now give them to the Fleet server. 
 
 Restart the Fleet server with the contents of the APNs certificate, APNs private key, SCEP certificate, and SCEP private key in following environment variables:
-* (FLEET_MDM_APPLE_APNS_CERT_BYTES)[https://fleetdm.com/docs/deploying/configuration#mdm-apple-apns-cert-bytes]
-* (FLEET_MDM_APPLE_APNS_KEY_BYTES)[https://fleetdm.com/docs/deploying/configuration#mdm-apple-apns-key-bytes]
-* (FLEET_MDM_APPLE_SCEP_CERT_BYTES)[https://fleetdm.com/docs/deploying/configuration#mdm-apple-scep-cert-bytes]
-* (FLEET_MDM_APPLE_SCEP_KEY_BYTES)[https://fleetdm.com/docs/deploying/configuration#mdm-apple-scep-key-bytes]
+* [FLEET_MDM_APPLE_APNS_CERT_BYTES](https://fleetdm.com/docs/deploying/configuration#mdm-apple-apns-cert-bytes)
+* [FLEET_MDM_APPLE_APNS_KEY_BYTES](https://fleetdm.com/docs/deploying/configuration#mdm-apple-apns-key-bytes)
+* [FLEET_MDM_APPLE_SCEP_CERT_BYTES](https://fleetdm.com/docs/deploying/configuration#mdm-apple-scep-cert-bytes)
+* [FLEET_MDM_APPLE_SCEP_KEY_BYTES](https://fleetdm.com/docs/deploying/configuration#mdm-apple-scep-key-bytes)
 
 > You do not need to provide the APNs CSR which was emailed to you. 
 
