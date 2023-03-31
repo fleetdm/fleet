@@ -28,6 +28,7 @@ interface ICellProps {
   row: {
     original: {
       status: IStatusCellValue;
+      teamId: number;
     };
   };
 }
@@ -90,6 +91,7 @@ const defaultTableHeaders: IDataColumn[] = [
             className="view-hosts-link"
             queryParams={{
               macos_settings_disk_encryption: original.status.value,
+              team_id: original.teamId,
             }}
           />
         </div>
@@ -143,7 +145,10 @@ const STATUS_CELL_VALUES: Record<StatusNames, IStatusCellValue> = {
   },
 };
 
-export const generateTableData = (data?: IDiskEncryptionStatusAggregate) => {
+export const generateTableData = (
+  data?: IDiskEncryptionStatusAggregate,
+  currentTeamId?: number
+) => {
   if (!data) return [];
   const entries = Object.entries(data) as StatusEntry[];
 
@@ -151,5 +156,7 @@ export const generateTableData = (data?: IDiskEncryptionStatusAggregate) => {
     // eslint-disable-next-line object-shorthand
     status: STATUS_CELL_VALUES[status],
     hosts: numHosts,
+    // TODO: will probably need to remove or reworked this with sarahs `no team` changes.
+    teamId: currentTeamId === undefined ? 0 : currentTeamId,
   }));
 };
