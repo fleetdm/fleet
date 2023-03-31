@@ -26,7 +26,6 @@ import generateTableHeaders from "./OperatingSystemsTableConfig";
 interface IOperatingSystemsCardProps {
   currentTeamId: number | undefined;
   selectedPlatform: ISelectedPlatform;
-  selectedTeamId?: number;
   showTitle: boolean;
   /** controls the displaying of description text under the title. Defaults to `true` */
   showDescription?: boolean;
@@ -56,7 +55,6 @@ const EmptyOperatingSystems = (platform: ISelectedPlatform): JSX.Element => (
 const OperatingSystems = ({
   currentTeamId,
   selectedPlatform,
-  selectedTeamId,
   showTitle,
   showDescription = true,
   includeNameColumn = true,
@@ -131,8 +129,8 @@ const OperatingSystems = ({
   }, [isFetching, osInfo, setTitleDescription, setTitleDetail]);
 
   const tableHeaders = useMemo(
-    () => generateTableHeaders(includeNameColumn, selectedTeamId),
-    [includeNameColumn, selectedTeamId]
+    () => generateTableHeaders(includeNameColumn, currentTeamId),
+    [includeNameColumn, currentTeamId]
   );
 
   const showPaginationControls = (osInfo?.os_versions?.length || 0) > 8;
