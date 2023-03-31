@@ -10,9 +10,14 @@ First run (note `.ext` is required for osquery):
 go build -o fleetd_tables.ext fleetd_tables.go
 ```
 
+or using the Makefile
+```shell
+make fleetd-tables-linux
+```
+
 Then move it somewhere `osqueryd` can load it:
 ```shell
-sudo cp fleetd_tables.ext /usr/local/osquery_extentions
+sudo cp fleetd_tables.ext /usr/local/osquery_extensions
 ```
 
 And tell `osqueryd` to autoload your extension
@@ -45,7 +50,7 @@ go run ./fleetd_tables.go --socket /Users/USERNAME/.osquery/shell.em
 
 Or you can build the app and have `osqueryi` load it
 ```shell
-go build -o fleetd_tables fleetd_tables.go
-osqueryi --extension /path/to/fleetd_tables
+go build -o fleetd_tables.ext fleetd_tables.go
+osqueryi --extension /path/to/fleetd_tables.ext
 ```
 
