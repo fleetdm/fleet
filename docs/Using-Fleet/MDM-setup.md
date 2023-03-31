@@ -7,16 +7,13 @@ In Fleet, MDM features are supported for Macs running macOS 12 (Monterey) and hi
 
 # Overview
 
-To use Fleet's MDM features you first first have to [deploy Fleet](../Deploying/Introduction.md) and [add your hosts to Fleet](./Adding-hosts.md).
-
 MDM features require Apple's Push Notification service (APNs) to control and secure Apple devices. This guide will walk you through how to generate and upload a valid APNs certificate to Fleet in order to use Fleet's MDM features.
 
 [Automated Device Enrollment](https://support.apple.com/en-us/HT204142) allows Macs to automatically enroll to Fleet when they are first set up. This guide will walk you through how to connect Apple Business Manager (ABM) to Fleet. Note that this is only required if you are using Automated Device Enrollment AKA Device Enrollment Program (DEP) AKA "Zero-touch."
 
-> Only users with the admin role in Fleet can complete these setups.
-
 # Requirements
-TODO
+1. To use Fleet's MDM features you first first have to [deploy Fleet](../Deploying/Introduction.md) and [add your hosts to Fleet](./Adding-hosts.md).
+2. A Fleet user with the admin role
 
 ## Apple Push Notification service (APNs)
 
@@ -26,7 +23,7 @@ To do this, choose the "Fleet UI" or "fleetctl" method and follow the steps belo
 
 Fleet UI:
 
-1. Head to the **Settings > Integrations > Mobile device management (MDM)** page. Users with the admin role can access the settings pages.
+1. Head to the **Settings > Integrations > Mobile device management (MDM)** page.
 
 2. Follow the instructions under **Apple Push Certificates Portal**.
 
@@ -46,7 +43,7 @@ You can see the certificate's renewal date and other important APNs information 
 
 Fleet UI:
 
-1. Head to the **Settings > Integrations > Mobile device management (MDM)** page. Users with the admin role can access the settings pages.
+1. Head to the **Settings > Integrations > Mobile device management (MDM)** page.
 
 2. Look at the **Apple Push Certificates Portal** section.
 
@@ -148,7 +145,7 @@ To change the default team, choose the "Fleet UI" or "fleetctl" method and follo
 
 Fleet UI:
 
-1. In the Fleet UI, head to the **Settings > Integrations > Mobile device management (MDM)** page. Users with the admin role can access the settings pages.
+1. In the Fleet UI, head to the **Settings > Integrations > Mobile device management (MDM)** page.
 
 2. In the Apple Business Manager section, select the **Edit team** button next to **Default team**.
 
