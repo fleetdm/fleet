@@ -12,7 +12,8 @@ MDM features require Apple's Push Notification service (APNs) to control and sec
 [Automated Device Enrollment](https://support.apple.com/en-us/HT204142) allows Macs to automatically enroll to Fleet when they are first set up. This guide will walk you through how to connect Apple Business Manager (ABM) to Fleet. Note that this is only required if you are using Automated Device Enrollment AKA Device Enrollment Program (DEP) AKA "Zero-touch."
 
 # Requirements
-1. To use Fleet's MDM features you first first have to [deploy Fleet](../Deploying/Introduction.md) and [add your hosts to Fleet](./Adding-hosts.md).
+To use Fleet's MDM features you must have:
+1. A [deployed Fleet instance](../Deploying/Introduction.md)
 2. A Fleet user with the admin role
 
 ## Apple Push Notification service (APNs)
