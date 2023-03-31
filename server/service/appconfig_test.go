@@ -70,6 +70,18 @@ func TestAppConfigAuth(t *testing.T) {
 			false,
 		},
 		{
+			"global observer+",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleObserverPlus)},
+			true,
+			false,
+		},
+		{
+			"global gitops",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleGitOps)},
+			false,
+			true,
+		},
+		{
 			"team admin",
 			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}}},
 			true,
@@ -88,10 +100,22 @@ func TestAppConfigAuth(t *testing.T) {
 			false,
 		},
 		{
-			"user",
-			&fleet.User{ID: 777},
+			"team observer+",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserverPlus}}},
 			true,
 			false,
+		},
+		{
+			"team gitops",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleGitOps}}},
+			true,
+			true,
+		},
+		{
+			"user without roles",
+			&fleet.User{ID: 777},
+			true,
+			true,
 		},
 	}
 	for _, tt := range testCases {

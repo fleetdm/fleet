@@ -17,6 +17,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/authz"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/go-kit/kit/log/level"
@@ -156,6 +157,12 @@ func (svc *Service) AppConfigObfuscated(ctx context.Context) (*fleet.AppConfig, 
 		return nil, err
 	}
 
+	obfuscateAppConfig(ac)
+
+	return ac, nil
+}
+
+func obfuscateAppConfig(ac *fleet.AppConfig) {
 	if ac.SMTPSettings.SMTPPassword != "" {
 		ac.SMTPSettings.SMTPPassword = fleet.MaskedPassword
 	}
@@ -167,8 +174,6 @@ func (svc *Service) AppConfigObfuscated(ctx context.Context) (*fleet.AppConfig, 
 	for _, zdIntegration := range ac.Integrations.Zendesk {
 		zdIntegration.APIToken = fleet.MaskedPassword
 	}
-
-	return ac, nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -191,10 +196,9 @@ func modifyAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet
 		return appConfigResponse{appConfigResponseFields: appConfigResponseFields{Err: err}}, nil
 	}
 
-	license, err := svc.License(ctx)
-	if err != nil {
-		return nil, err
-	}
+	// We do not use svc.License(ctx) to allow roles (like GitOps) write but not read access to AppConfig.
+	license, _ := license.FromContext(ctx)
+
 	loggingConfig, err := svc.LoggingConfig(ctx)
 	if err != nil {
 		return nil, err
@@ -231,10 +235,8 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	}
 	oldAppConfig := appConfig.Copy()
 
-	license, err := svc.License(ctx)
-	if err != nil {
-		return nil, err
-	}
+	// We do not use svc.License(ctx) to allow roles (like GitOps) write but not read access to AppConfig.
+	license, _ := license.FromContext(ctx)
 
 	oldSmtpSettings := appConfig.SMTPSettings
 	oldAgentOptions := ""
@@ -398,15 +400,16 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	}
 
 	// retrieve new app config with obfuscated secrets
-	obfuscatedConfig, err := svc.AppConfigObfuscated(ctx)
+	obfuscatedAppConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		return nil, err
 	}
+	obfuscateAppConfig(obfuscatedAppConfig)
 
 	// if the agent options changed, create the corresponding activity
 	newAgentOptions := ""
-	if obfuscatedConfig.AgentOptions != nil {
-		newAgentOptions = string(*obfuscatedConfig.AgentOptions)
+	if obfuscatedAppConfig.AgentOptions != nil {
+		newAgentOptions = string(*obfuscatedAppConfig.AgentOptions)
 	}
 	if oldAgentOptions != newAgentOptions {
 		if err := svc.ds.NewActivity(
@@ -453,7 +456,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	}
 
-	return obfuscatedConfig, nil
+	return obfuscatedAppConfig, nil
 }
 
 func (svc *Service) validateMDM(
