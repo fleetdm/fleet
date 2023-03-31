@@ -43,41 +43,7 @@ module.exports = {
     // > https://github.com/fleetdm/fleet/pull/5628#issuecomment-1196175485
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-    let GITHUB_USERNAMES_OF_BOTS_AND_MAINTAINERS = [// « Used in multiple places below.
-      // FUTURE: move this array into website/config/custom.js alongside the other similar config
-      // and reference here as e.g. `sails.config.custom.githubUsernamesOfBotsAndMaintainers`
-
-      // Bots
-      'vercel[bot]',
-      'fleet-release',
-
-      // Humans
-      'noahtalerman',
-      'mike-j-thomas',
-      'mikermcneil',
-      'lukeheath',
-      'zwass',
-      'rachelelysia',
-      'gillespi314',
-      'mna',
-      'edwardsb',
-      'eashaw',
-      'drewbakerfdm',
-      'lucasmrod',
-      'ksatter',
-      'zwinnerman-fleetdm',
-      'hollidayn',
-      'roperzh',
-      'zhumo',
-      'ghernandez345',
-      'rfairburn',
-      'artemist-work',
-      'marcosd4h',
-      'zayhanlon',
-      'bradmacd',
-      'alexmitchelliii',
-      'jarodreyes',
-    ];
+    let GITHUB_USERNAMES_OF_BOTS_AND_MAINTAINERS = sails.config.custom.githubUsernamesOfBotsAndMaintainers;
 
     let GREEN_LABEL_COLOR = 'C2E0C6';// « Used in multiple places below.  (FUTURE: Use the "+" prefix for this instead of color.  2022-05-05)
 

@@ -168,6 +168,51 @@ module.exports.custom = {
 
   },
 
+  githubUsernamesOfBotsAndMaintainers: [
+
+    // Bots
+    'vercel[bot]',
+    'fleet-release',
+    'qawolf-fleet',
+
+    // Humans
+    'noahtalerman',
+    'mike-j-thomas',
+    'mikermcneil',
+    'lukeheath',
+    'zwass',
+    'rachelelysia',
+    'gillespi314',
+    'mna',
+    'edwardsb',
+    'eashaw',
+    'drewbakerfdm',
+    'lucasmrod',
+    'ksatter',
+    'zwinnerman-fleetdm',
+    'hollidayn',
+    'roperzh',
+    'zhumo',
+    'ghernandez345',
+    'rfairburn',
+    'artemist-work',
+    'marcosd4h',
+    'zayhanlon',
+    'bradmacd',
+    'alexmitchelliii',
+    'jarodreyes',
+    'jacobshandling',
+    'CarlosFleetDM',
+    'dherder',
+    'sharon-fdm',
+    'pauldittmer2',
+    'TomOstertag',
+    'juan-fdz-hawa',
+    'jefferyabbott',
+    'georgekarrv',
+    'MissTeeLucas',
+  ],
+
   // The version of osquery to use when generating schema docs
   // (both in Fleet's query console and on fleetdm.com)
   versionOfOsquerySchemaToUseWhenGeneratingDocumentation: '5.8.1',
