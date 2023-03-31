@@ -772,10 +772,9 @@ For unreleased bugs in an active sprint, no bug report issue is created. Instead
 #### Bug States
 The lifecycle stages of a bug at Fleet are: 
 1. Inbox 
-2. Acknowledged 
-3. Reproduced 
-4. In engineering process
-5. Awaiting QA
+2. Reproduced 
+3. In engineering process
+4. Awaiting QA
 
 The above are all the possible states for a bug as envisioned in this process. These states each correspond to a set of GitHub labels, assignees, and board memberships. 
 
@@ -783,19 +782,17 @@ See [Bug states and filters](#bug-states-and-filters) at the end of this documen
 
 #### Inbox
 When a new bug is created using the [bug report form](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&template=bug-report.md&title=), it is in the "inbox" state. 
-At this state, the [bug review DRI](#rituals) (QA) is responsible for going through the inbox and asking for more reproduction details from the reporter, asking the product team for more guidance, or acknowledging the bugs.
+
+At this state, the [bug review DRI](#rituals) (QA) is responsible for going through the inbox and documenting reproduction steps, asking for more reproduction details from the reporter, or asking the product team for more guidance. QA has one week to move the bug to the next step (reproduced).
+
+For community-reported bugs, this may require QA to gather more information from the reporter. QA should reach out to the reporter if more information is needed to reproduce the issue. Reporters have six weeks to provide follow-up information for each report. We'll ping them again as a reminder at three weeks. After six weeks, we'll close the bug to remove it from our visibility, but reporters are welcome to re-open and provide context.
+
+Once reproduced, QA should document the reproduction steps in the description, align with product on what is the desired outcome during the weekly bug review meetings, and move it to the reproduced state.
 
 #### Weekly bug review
 QA has weekly check-in with product to go over the inbox items. QA is responsible for proposing “not a bug”, closing due to lack of response (with a nice message), or raising other relevant questions. All requires product agreement
 
 QA may also propose that a reported bug is not actually a bug. A bug is defined as “behavior that is not according to spec or implied by spec.” If agreed that it is not a bug, then it's assigned to the relevant product manager to determine its priority.
-
-#### Acknowledging bugs
-If the inbox item is a bug, QA should apply the acknowledged state to the bug. QA has one week to reproduce the bug.
-
-For community-reported bugs, this may require QA to gather more information from the reporter. QA should acknowledge the bug and reach out to the reporter if more information is needed to reproduce the issue. Reporters have six weeks to provide follow-up information for each report. We'll ping them again as a reminder at three weeks. After six weeks, we'll close the bug to remove it from our visibility, but reporters are welcome to re-open and provide context.
-
-Once reproduced, QA should document the reproduction steps in the description, align with product on what is the desired outcome during the weekly bug review meetings, and move it to the reproduced state.
 
 #### Reproduced
 When reproduced, the bug is assigned to the appropriate EM and added to the product backlog. The EM is responsible for investigating the root cause of the bug and proposing solutions to their product counterpart if it requires discussion. Otherwise, the EM includes it in this release (if there's space) or the next release.
@@ -858,12 +855,7 @@ Every week, the head of product is responsible for reviewing these two states to
 #### Inbox
 The bug has just come in. 
 
-If using the standard bug report, the bug is labeled “bug” and “reproduce." It is not assigned to anyone. [See on GitHub](https://github.com/fleetdm/fleet/issues?q=archived%3Afalse+org%3Afleetdm+is%3Aissue+is%3Aopen+label%3Abug+label%3A%3Areproduce+sort%3Aupdated-asc+no%3Aassignee+).
-
-#### Acknowledged 
-QA has gone through the inbox and has accepted it as a bug to be reproduced. 
-
-QA assigns themselves to the bug, thereby acknowledging its receipt. [See on GitHub](https://github.com/fleetdm/fleet/issues?q=archived%3Afalse+org%3Afleetdm+is%3Aissue+is%3Aopen+label%3Abug+label%3A%3Areproduce+sort%3Aupdated-asc).
+If using the standard bug report, the bug is labeled “bug” and “reproduce." It is not assigned to anyone. [See on GitHub](https://github.com/fleetdm/fleet/issues?q=archived%3Afalse+org%3Afleetdm+is%3Aissue+is%3Aopen+label%3Abug+label%3A%3Areproduce+sort%3Acreated-asc+).
 
 #### Reproduced
 QA has reproduced the issue successfully. It should now be transferred to engineering. 
@@ -872,9 +864,6 @@ Remove the “reproduce” label, add the label of the relevant team (e.g. #cx, 
 
 #### Orphans 
 These are bugs that do not have the reproduce label but do not have the "release" or "product" label on them. As such, they will not appear in the boards and thus are likely to be forgotten by our process. This filter serves as a sanity check. There should be no bugs in this state. [See on GitHub](https://github.com/fleetdm/fleet/issues?q=archived%3Afalse+org%3Afleetdm+is%3Aissue+is%3Aopen+sort%3Aupdated-asc+label%3Abug+-label%3A%3Areproduce+-label%3A%3Aproduct+-label%3A%3Arelease).
-
-#### Reproduced orphans 
-These are bugs that do not have the reproduce label and do exist on the release board, but do not have one of the three teams tagged. There should be no bugs in this state. This will risk being forgotten by the process because it does not appear in any of the standard team-based filters, which means it risks never being seen by engineering. [See on GitHub](https://github.com/fleetdm/fleet/issues?q=archived%3Afalse+org%3Afleetdm+is%3Aissue+is%3Aopen+sort%3Aupdated-asc+label%3Abug+-label%3A%3Areproduce+label%3A%3Aproduct%2C%3Arelease+-assignee%3Axpkoala+-label%3A%23g-cx+-label%3A%23g-mdm+).
 
 #### All bugs
 [See on GitHub](https://github.com/fleetdm/fleet/issues?q=is%3Aissue+is%3Aopen+label%3Abug).
