@@ -15,6 +15,9 @@ MDM features require Apple's Push Notification service (APNs) to control and sec
 
 > Only users with the admin role in Fleet can complete these setups.
 
+# Requirements
+TODO
+
 ## Apple Push Notification service (APNs)
 
 To connect Fleet to Apple, get these four files using the Fleet UI or the `fleetctl` command-line interface: An APNs certificate, APNs private key, Simple Certificate Enrollment Protocol (SCEP) certificate, and SCEP private key.
@@ -67,27 +70,37 @@ _Available in Fleet Premium_
 
 Connect Fleet to your ABM account to automatically enroll macOS hosts to Fleet when they’re first unboxed.
 
-To connect Fleet to ABM, first create a new MDM server in ABM and then get these two files using the Fleet UI or the `fleetctl` command-line interface: An ABM certificate and private key.
+To connect Fleet to ABM, we will do the following steps:
+1. Generate ABM certificate and private key
+2. Create a new MDM server in ABM
+4. Set the new MDM server as the auto-enrollment server for Macs
+3. Download the MDM server token from ABM
+4. Upload the server token and private key to the Fleet server
 
-How to create a new MDM server in ABM:
-
-1. Login to [ABM](https://business.apple.com) and click your name at the bottom of the sidebar, click **Preferences**, then click **MDM Server Assignment**.
-
-2. Click the **Add** button, then enter a unique name for the server. A good name to start is "Fleet MDM."
+### Step 1: generate required certificate and private key
 
 To get the two files, choose the "Fleet UI" or "fleetctl" method and follow the steps below.
 
 Fleet UI:
 
-1. In the Fleet UI, head to the **Settings > Integrations > Mobile device management (MDM)** page. Users with the admin role can access the settings pages.
-
-2. Follow the instructions under **Apple Business Manager**.
+1. In the Fleet UI, head to the **Settings > Integrations > Mobile device management (MDM)** page.
+2. Under **Apple Business Manager**, click the "Download" button
 
 `fleetctl` CLI:
 
 1. Run `fleetctl generate mdm-apple-bm`.
 
-2. Follow the on-screen instructions.
+### Step 2: create a new MDM server in ABM
+
+How to create a new MDM server in ABM:
+
+1. Log in to or enroll in [ABM](https://business.apple.com) 
+2. Click your name at the bottom left of the screen
+3. Click **Preferences** 
+4. Click **MDM Server Assignment**
+5. Click the **Add** button at the top 
+6. Enter a name for the server such as "Fleet MDM"
+7. Upload the certificate generated in Step 1
 
 ### Pending hosts
 Some time after you purchase a Mac through Apple or an authorized reseller, but before it has been set up, the Mac will appear in ABM as in transit. When the Mac appears in ABM, it will also appear in Fleet with **MDM status** set to "Pending." After the new host is set up, the **MDM Status** will change to "On" and the host will be assigned to the default team.
