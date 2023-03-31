@@ -83,6 +83,8 @@ You should see information about the APNs certificate such as serial number and 
 ## Renewing APNs
 
 > Apple requires that APNs certificates are renewed once every year. 
+> * Be sure to do it early. If you renew after a certificate has expired, you will have to turn MDM off and back on for all macOS hosts. 
+> * Be sure to use the same Apple ID from year-to-year. If you don't, you will have to unenroll and re-enroll all macOS hosts. 
 
 You can see the certificate's renewal date and other important APNs information using the Fleet UI or the `fleetctl` command-line interface:
 
@@ -102,9 +104,9 @@ How to renew the certificate if it's expired or about to expire:
 
 1. Run the `fleetctl generate mdm-apple --email <email> --org <org>` command. 
 
-2. Sign in to [Apple Push Certificates Portal](https://identity.apple.com) using the same Apple ID you used to get your original certificate. If you don't use the same Apple ID, you will have to unenroll and re-enroll all macOS hosts.
+2. Sign in to [Apple Push Certificates Portal](https://identity.apple.com) using the same Apple ID you used to get your original certificate. 
 
-3. In the **Settings > Integrations > Mobile device management (MDM)** page, under Apple Push Certificates portal, find the serial number of your current certificate. In Apple Push Certificates Portal, click  **Renew** next to the certificate that has the matching serial number. If you don't renew and get a new certificate, you will have to turn MDM off and back on for all macOS hosts.
+3. In the **Settings > Integrations > Mobile device management (MDM)** page, under Apple Push Certificates portal, find the serial number of your current certificate. In Apple Push Certificates Portal, click  **Renew** next to the certificate that has the matching serial number. 
 
 ## Apple Business Manager (ABM)
 
