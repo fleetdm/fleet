@@ -50,6 +50,7 @@ const REGEX_GLOBAL_PAGES = {
   ORGANIZATION: /\/settings\/organization/i,
   USERS: /\/settings\/users/i,
   INTEGRATIONS: /\/settings\/integrations/i,
+  TEAMS: /\/settings\/teams$/i, // Note: we want this to only match if it is the end of the path
   PROFILE: /\/profile/i,
 };
 
