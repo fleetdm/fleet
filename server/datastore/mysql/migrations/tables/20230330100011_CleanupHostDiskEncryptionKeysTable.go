@@ -7,10 +7,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20230316104937, Down_20230316104937)
+	MigrationClient.AddMigration(Up_20230330100011, Down_20230330100011)
 }
 
-func Up_20230316104937(tx *sql.Tx) error {
+func Up_20230330100011(tx *sql.Tx) error {
 	_, err := tx.Exec(`
 	DELETE hdek
 		FROM host_disk_encryption_keys hdek
@@ -24,6 +24,6 @@ func Up_20230316104937(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20230316104937(tx *sql.Tx) error {
+func Down_20230330100011(tx *sql.Tx) error {
 	return nil
 }
