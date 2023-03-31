@@ -5508,94 +5508,13 @@ spec:
   description: |
     This policy setting configures a local override for the configuration to join Microsoft Active Protection Service, which Microsoft renamed to Windows Defender Antivirus Cloud Protection Service and then Microsoft Defender Antivirus Cloud Protection Service.
   resolution: |
-    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    To establish the recommended configuration via GP, set the following UI path to Disabled:
     'Computer Configuration\Policies\Administrative Templates\Windows Components\Microsoft Defender Antivirus\MAPS\Configure local setting override for reporting to Microsoft MAPS'
     Note: This Group Policy path may not exist by default. It is provided by the Group Policy template WindowsDefender.admx/adml that is included with the Microsoft Windows 8.1 & Server 2012 R2 Administrative Templates (or newer).
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows Defender\\Spynet\\LocalSettingOverrideSpynetReporting' AND data = 0);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.47.4.1
-  contributors: artemist-work
----
-apiVersion: v1
-kind: policy
-spec:
-  name: >
-    CIS - Ensure 'Join Microsoft MAPS' is set to 'Disabled'
-  platforms: win10
-  platform: windows
-  description: |
-    This policy setting allows you to join Microsoft Active Protection Service (MAPS), which Microsoft renamed to Windows Defender Antivirus Cloud Protection Service and then Microsoft Defender Antivirus Cloud Protection Service.
-    Microsoft MAPS / Microsoft Defender Antivirus Cloud Protection Service is the online community that helps you choose how to respond to potential threats.
-  resolution: |
-    To establish the recommended configuration via GP, set the following UI path to Enabled:
-    'Computer Configuration\Policies\Administrative Templates\Windows Components\Microsoft Defender Antivirus\MAPS\Join Microsoft MAPS'
-    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template WindowsDefender.admx/adml that is included with the Microsoft Windows 8.1 & Server 2012 R2 Administrative Templates (or newer).
-  query: |
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows Defender\\Spynet\\SpynetReporting' AND data = 0);
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.47.4.2
-  contributors: artemist-work
----
-apiVersion: v1
-kind: policy
-spec:
-  name: >
-    CIS - Ensure 'Configure Attack Surface Reduction Rules' is set to 'Enabled'
-  platforms: win10
-  platform: windows
-  description: |
-    This policy setting controls the state for the Attack Surface Reduction (ASR) rules.
-  resolution: |
-    To establish the recommended configuration via GP, set the following UI path to Enabled:
-    'Computer Configuration\Policies\Administrative Templates\Windows Components\Microsoft Defender Antivirus\Microsoft Defender Exploit Guard\Attack Surface Reduction\Configure Attack Surface Reduction rules'
-    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template WindowsDefender.admx/adml that is included with the Microsoft Windows 10 Release 1709 Administrative Templates (or newer).
-  query: |
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows Defender\\Windows Defender Exploit Guard\\ExploitGuard_ASR_Rules' AND data = 1);
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.47.5.1.1
-  contributors: artemist-work
----
-apiVersion: v1
-kind: policy
-spec:
-  name: >
-    CIS - Ensure 'Configure Attack Surface Reduction rules: Set the state for each ASR rule' is configured
-  platforms: win10
-  platform: windows
-  description: |
-    This policy setting sets the Attack Surface Reduction rules.
-  resolution: |
-    To establish the recommended configuration via GP, set the following UI path so that
-    26190899-1602-49e8-8b27-eb1d0a1ce869,
-    3b576869-a4ec-4529-8536-b80a7769e899,
-    5beb7efe-fd9a-4556-801d-275e5ffc04cc,
-    75668c1f-73b5-4cf0-bb93-3ecf5cb7cc84,
-    7674ba52-37eb-4a4f-a9a1-f0f9a1619a2c,
-    92e97fa1-2edf-4476-bdd6-9dd0b4dddc7b,
-    9e6c4e1f-7d60-472f-ba1a-a39ef669e4b2,
-    b2b3f03d-6a65-4f7b-a9c7-1c7ef74a9ba4,
-    be9ba2d9-53ea-4cdc-84e5-9b1eeee46550,
-    d3e037e1-3eb8-44c8-a917-57927947596d,
-    d4f940ab-401b-4efc-aadc-ad5f3c50688a, and
-    e6db77e5-3df2-4cf1-b95a-636979351e5b are each set to a value of 1:
-    'Computer Configuration\Policies\Administrative Templates\Windows Components\Microsoft Defender Antivirus\Microsoft Defender Exploit Guard\Attack Surface Reduction\Configure Attack Surface Reduction rules: Set the state for each ASR rule'
-    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template WindowsDefender.admx/adml that is included with the Microsoft Windows 10 Release 1709 Administrative Templates (or newer).
-  query: |
-    SELECT 1 WHERE EXISTS (SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows Defender\\Windows Defender Exploit Guard\\ASR\\Rules\\26190899-1602-49e8-8b27-eb1d0a1ce869' AND data = 1)
-    AND EXISTS (SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows Defender\\Windows Defender Exploit Guard\\ASR\\Rules\\3b576869-a4ec-4529-8536-b80a7769e899' AND data = 1)
-    AND EXISTS (SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows Defender\\Windows Defender Exploit Guard\\ASR\\Rules\\5beb7efe-fd9a-4556-801d-275e5ffc04cc' AND data = 1)
-    AND EXISTS (SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows Defender\\Windows Defender Exploit Guard\\ASR\\Rules\\75668c1f-73b5-4cf0-bb93-3ecf5cb7cc84' AND data = 1)
-    AND EXISTS (SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows Defender\\Windows Defender Exploit Guard\\ASR\\Rules\\7674ba52-37eb-4a4f-a9a1-f0f9a1619a2c' AND data = 1)
-    AND EXISTS (SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows Defender\\Windows Defender Exploit Guard\\ASR\\Rules\\92e97fa1-2edf-4476-bdd6-9dd0b4dddc7b' AND data = 1)
-    AND EXISTS (SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows Defender\\Windows Defender Exploit Guard\\ASR\\Rules\\9e6c4e1f-7d60-472f-ba1a-a39ef669e4b2' AND data = 1)
-    AND EXISTS (SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows Defender\\Windows Defender Exploit Guard\\ASR\\Rules\\b2b3f03d-6a65-4f7b-a9c7-1c7ef74a9ba4' AND data = 1)
-    AND EXISTS (SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows Defender\\Windows Defender Exploit Guard\\ASR\\Rules\\be9ba2d9-53ea-4cdc-84e5-9b1eeee46550' AND data = 1)
-    AND EXISTS (SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows Defender\\Windows Defender Exploit Guard\\ASR\\Rules\\d3e037e1-3eb8-44c8-a917-57927947596d' AND data = 1)
-    AND EXISTS (SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows Defender\\Windows Defender Exploit Guard\\ASR\\Rules\\d4f940ab-401b-4efc-aadc-ad5f3c50688a' AND data = 1)
-    AND EXISTS (SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows Defender\\Windows Defender Exploit Guard\\ASR\\Rules\\e6db77e5-3df2-4cf1-b95a-636979351e5b' AND data = 1);
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.47.5.1.2
   contributors: artemist-work
 ---
 apiVersion: v1
@@ -5615,25 +5534,6 @@ spec:
     SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows Defender\\Windows Defender Exploit Guard\\Network Protection\\EnableNetworkProtection' AND data = 1;
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.47.5.3.1
-  contributors: artemist-work
----
-apiVersion: v1
-kind: policy
-spec:
-  name: >
-    CIS - Ensure 'Enable file hash computation feature' is set to 'Enabled'
-  platforms: win10
-  platform: windows
-  description: |
-    This setting determines whether hash values are computed for files scanned by Microsoft Defender.
-  resolution: |
-    To establish the recommended configuration via GP, set the following UI path to 'Enabled':
-    'Computer Configuration\Policies\Administrative Templates\Windows Components\Microsoft Defender Antivirus\MpEngine\Enable file hash computation feature'
-    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template WindowsDefender.admx/adml that is included with the Microsoft Windows 10 Release 1709 Administrative Templates (or newer).
-  query: |
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows Defender\\MpEngine\\EnableFileHashComputation' AND data = 1);
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level2, CIS_win10_enterprise_1.12.0, CIS_bullet_18.9.47.6.1
   contributors: artemist-work
 ---
 apiVersion: v1
@@ -5785,7 +5685,7 @@ spec:
   platform: windows
   description: |
     This policy setting allows you to configure e-mail scanning. When e-mail scanning is enabled, the engine will parse the mailbox and mail files, according to their specific format, in order to analyze the mail bodies and attachments. Several e-mail formats are currently supported, for example: pst (Outlook), dbx, mbx, mime (Outlook Express), binhex (Mac).
-    The recommended state for this setting is: Enabled.   
+    The recommended state for this setting is: Enabled.
   resolution: |
     To establish the recommended configuration via GP, set the following UI path to 'Enabled':
     'Computer Configuration\Policies\Administrative Templates\Windows Components\Microsoft Defender Antivirus\Scan\Turn on e-mail scanning'
@@ -5820,7 +5720,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: >
-    CIS - Ensure 'Prevent the usage of OneDrive for file storage' is set to 'Enabled' 
+    CIS - Ensure 'Prevent the usage of OneDrive for file storage' is set to 'Enabled'
   platforms: win10
   platform: windows
   description: |
@@ -5850,7 +5750,7 @@ spec:
   resolution: |
     To establish the recommended configuration via GP, set the following UI path to Enabled:
     'Computer Configuration\Policies\Administrative Templates\Windows Components\Push to Install\Turn off Push To Install service'
-    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template PushToInstall.admx/adml that is included with the Microsoft Windows 10 Release 1709 Administrative Templates (or newer).  
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template PushToInstall.admx/adml that is included with the Microsoft Windows 10 Release 1709 Administrative Templates (or newer).
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\PushToInstall\\DisablePushToInstall' AND data = 1);
   purpose: Informational
