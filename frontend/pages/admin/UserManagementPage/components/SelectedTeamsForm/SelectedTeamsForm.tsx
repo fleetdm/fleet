@@ -21,7 +21,6 @@ interface ISelectedTeamsFormProps {
 const baseClass = "selected-teams-form";
 
 const roleOptions = (isApiOnly = false): IRole[] => {
-  console.log("isApiOnly", isApiOnly);
   const roles: IRole[] = [
     {
       disabled: false,
@@ -34,11 +33,6 @@ const roleOptions = (isApiOnly = false): IRole[] => {
       value: "observer",
     },
     {
-      disabled: !isApiOnly,
-      label: `GitOps`,
-      value: "gitops",
-    },
-    {
       disabled: false,
       label: "Maintainer",
       value: "maintainer",
@@ -49,6 +43,14 @@ const roleOptions = (isApiOnly = false): IRole[] => {
       value: "admin",
     },
   ];
+
+  if (isApiOnly) {
+    roles.splice(3, 0, {
+      disabled: false,
+      label: "GitOps",
+      value: "gitops",
+    });
+  }
 
   return roles;
 };
