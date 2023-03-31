@@ -168,7 +168,7 @@ var hostDetailQueries = map[string]DetailQuery{
 	SELECT
 		os.name,
 		os.codename as display_version
-	
+
 	FROM
 		os_version os`,
 		Platforms: []string{"windows"},
@@ -415,6 +415,8 @@ func ingestKubequeryInfo(ctx context.Context, logger log.Logger, host *fleet.Hos
 	return nil
 }
 
+const usesMacOSDiskEncryptionQuery = `SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT "" AND filevault_status = 'on' LIMIT 1`
+
 // extraDetailQueries defines extra detail queries that should be run on the host, as
 // well as how the results of those queries should be ingested into the hosts related tables
 // (via DirectIngestFunc).
@@ -487,7 +489,7 @@ var extraDetailQueries = map[string]DetailQuery{
 		os.arch,
 		k.version as kernel_version,
 		os.codename as display_version
-	
+
 	FROM
 		os_version os,
 		kernel_info k`,
@@ -521,7 +523,7 @@ var extraDetailQueries = map[string]DetailQuery{
 		Discovery:        discoveryTable("orbit_info"),
 	},
 	"disk_encryption_darwin": {
-		Query:            `SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT "" AND filevault_status = 'on' LIMIT 1;`,
+		Query:            usesMacOSDiskEncryptionQuery,
 		Platforms:        []string{"darwin"},
 		DirectIngestFunc: directIngestDiskEncryption,
 		// the "disk_encryption" table doesn't need a Discovery query as it is an official
@@ -570,7 +572,8 @@ var mdmQueries = map[string]DetailQuery{
 		// > location at any time.
 		//
 		// [1]: https://developer.apple.com/documentation/devicemanagement/fderecoverykeyescrow
-		Query:            `SELECT to_base64(group_concat(line, x'0a')) as filevault_key FROM file_lines WHERE path='/var/db/FileVaultPRK.dat'`,
+		Query: fmt.Sprintf(`SELECT to_base64(group_concat(line, x'0a')) as filevault_key,
+						(%s) as encrypted FROM file_lines WHERE path='/var/db/FileVaultPRK.dat'`, usesMacOSDiskEncryptionQuery),
 		Platforms:        []string{"darwin"},
 		DirectIngestFunc: directIngestDiskEncryptionKeyDarwin,
 		Discovery:        discoveryTable("file_lines"),
@@ -1314,6 +1317,16 @@ func directIngestDiskEncryptionKeyDarwin(
 			"msg", fmt.Sprintf("/var/db/FileVaultPRK.dat should have a single line, but got %d", len(rows)),
 			"host", host.Hostname,
 		)
+	}
+
+	if rows[0]["encrypted"] == "0" {
+		level.Debug(logger).Log(
+			"component", "service",
+			"method", "directIngestDiskEncryptionKeyDarwin",
+			"msg", "host does not use disk encryption",
+			"host", host.Hostname,
+		)
+		return nil
 	}
 
 	// it's okay if the key comes empty, this can happen and if the disk is

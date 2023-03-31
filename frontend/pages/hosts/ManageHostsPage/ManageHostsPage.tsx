@@ -2,7 +2,7 @@ import React, { useState, useContext, useEffect, useCallback } from "react";
 import { useQuery } from "react-query";
 import { InjectedRouter, Params } from "react-router/lib/Router";
 import { RouteProps } from "react-router/lib/Route";
-import { find, isEmpty, isEqual, omit, invert } from "lodash";
+import { find, isEmpty, isEqual, omit } from "lodash";
 import { format } from "date-fns";
 import FileSaver from "file-saver";
 
@@ -35,11 +35,8 @@ import {
 import { IHost } from "interfaces/host";
 import { ILabel } from "interfaces/label";
 import { IMunkiIssuesAggregate } from "interfaces/macadmins";
-import { IMdmSolution, MDM_ENROLLMENT_STATUS } from "interfaces/mdm";
-import {
-  formatOperatingSystemDisplayName,
-  IOperatingSystemVersion,
-} from "interfaces/operating_system";
+import { IMdmSolution } from "interfaces/mdm";
+import { IOperatingSystemVersion } from "interfaces/operating_system";
 import { IPolicy, IStoredPolicyResponse } from "interfaces/policy";
 import { ISoftware } from "interfaces/software";
 import { ITeam } from "interfaces/team";
@@ -49,7 +46,6 @@ import sortUtils from "utilities/sort";
 import {
   HOSTS_SEARCH_BOX_PLACEHOLDER,
   HOSTS_SEARCH_BOX_TOOLTIP,
-  PLATFORM_LABEL_DISPLAY_NAMES,
   PolicyResponse,
 } from "utilities/constants";
 
@@ -74,27 +70,22 @@ import {
   DEFAULT_SORT_DIRECTION,
   DEFAULT_PAGE_SIZE,
   HOST_SELECT_STATUSES,
-  MAC_SETTINGS_FILTER_OPTIONS,
 } from "./constants";
 import { isAcceptableStatus, getNextLocationPath } from "./helpers";
 import DeleteSecretModal from "../../../components/EnrollSecrets/DeleteSecretModal";
 import SecretEditorModal from "../../../components/EnrollSecrets/SecretEditorModal";
 import AddHostsModal from "../../../components/AddHostsModal";
 import EnrollSecretModal from "../../../components/EnrollSecrets/EnrollSecretModal";
-import PoliciesFilter from "./components/PoliciesFilter";
 // @ts-ignore
 import EditColumnsModal from "./components/EditColumnsModal/EditColumnsModal";
 import TransferHostModal from "../components/TransferHostModal";
 import DeleteHostModal from "../components/DeleteHostModal";
 import DeleteLabelModal from "./components/DeleteLabelModal";
 import EditColumnsIcon from "../../../../assets/images/icon-edit-columns-16x16@2x.png";
-import PencilIcon from "../../../../assets/images/icon-pencil-14x14@2x.png";
-import TrashIcon from "../../../../assets/images/icon-trash-14x14@2x.png";
 import CloseIconBlack from "../../../../assets/images/icon-close-fleet-black-16x16@2x.png";
-import PolicyIcon from "../../../../assets/images/icon-policy-fleet-black-12x12@2x.png";
 import DownloadIcon from "../../../../assets/images/icon-download-12x12@2x.png";
 import LabelFilterSelect from "./components/LabelFilterSelect";
-import FilterPill from "./components/FilterPill";
+import HostsFilterBlock from "./components/HostsFilterBlock";
 
 interface IManageHostsProps {
   route: RouteProps;
@@ -280,18 +271,13 @@ const ManageHostsPage = ({
   const canEnrollGlobalHosts = isGlobalAdmin || isGlobalMaintainer;
   const canAddNewLabels = (isGlobalAdmin || isGlobalMaintainer) ?? false;
 
-  const {
-    isLoading: isLoadingLabels,
-    data: labels,
-    error: labelsError,
-    refetch: refetchLabels,
-  } = useQuery<ILabelsResponse, Error, ILabel[]>(
-    ["labels"],
-    () => labelsAPI.loadAll(),
-    {
-      select: (data: ILabelsResponse) => data.labels,
-    }
-  );
+  const { data: labels, refetch: refetchLabels } = useQuery<
+    ILabelsResponse,
+    Error,
+    ILabel[]
+  >(["labels"], () => labelsAPI.loadAll(), {
+    select: (data: ILabelsResponse) => data.labels,
+  });
 
   const {
     isLoading: isGlobalSecretsLoading,
@@ -623,38 +609,6 @@ const ManageHostsPage = ({
     );
   };
 
-  const handleClearPoliciesFilter = () => {
-    handleClearFilter(["policy_id", "policy_response"]);
-  };
-
-  const handleClearOSFilter = () => {
-    handleClearFilter(["os_id", "os_name", "os_version"]);
-  };
-
-  const handleClearMacSettingsStatusFilter = () => {
-    handleClearFilter(["macos_settings"]);
-  };
-
-  const handleClearSoftwareFilter = () => {
-    handleClearFilter(["software_id"]);
-  };
-
-  const handleClearMDMSolutionFilter = () => {
-    handleClearFilter(["mdm_id"]);
-  };
-
-  const handleClearMDMEnrollmentFilter = () => {
-    handleClearFilter(["mdm_enrollment_status"]);
-  };
-
-  const handleClearMunkiIssueFilter = () => {
-    handleClearFilter(["munki_issue_id"]);
-  };
-
-  const handleClearLowDiskSpaceFilter = () => {
-    handleClearFilter(["low_disk_space"]);
-  };
-
   const handleTeamSelect = (teamId: number) => {
     const { MANAGE_HOSTS } = PATHS;
 
@@ -723,6 +677,9 @@ const ManageHostsPage = ({
   // NOTE: used to reset page number to 0 when modifying filters
   useEffect(() => {
     setResetPageIndex(false);
+    if (queryParams.add_hosts === "true") {
+      setShowAddHostsModal(true);
+    }
   }, [queryParams]);
 
   // NOTE: this is called once on initial render and every time the query changes
@@ -1105,247 +1062,6 @@ const ManageHostsPage = ({
     />
   );
 
-  const renderLabelFilterPill = () => {
-    if (selectedLabel) {
-      const { description, display_text, label_type } = selectedLabel;
-      const pillLabel =
-        PLATFORM_LABEL_DISPLAY_NAMES[display_text] ?? display_text;
-
-      return (
-        <>
-          <FilterPill
-            label={pillLabel}
-            tooltipDescription={description}
-            onClear={handleClearRouteParam}
-          />
-          {label_type !== "builtin" && !isOnlyObserver && (
-            <>
-              <Button onClick={onEditLabelClick} variant={"text-icon"}>
-                <img src={PencilIcon} alt="Edit label" />
-              </Button>
-              <Button onClick={toggleDeleteLabelModal} variant={"text-icon"}>
-                <img src={TrashIcon} alt="Delete label" />
-              </Button>
-            </>
-          )}
-        </>
-      );
-    }
-
-    return null;
-  };
-
-  const renderOSFilterBlock = () => {
-    if (!osId && !(osName && osVersion)) return null;
-
-    let os: IOperatingSystemVersion | undefined;
-    if (osId) {
-      os = osVersions?.find((v) => v.os_id === osId);
-    } else if (osName && osVersion) {
-      const name: string = osName;
-      const vers: string = osVersion;
-
-      os = osVersions?.find(
-        ({ name_only, version }) =>
-          name_only.toLowerCase() === name.toLowerCase() &&
-          version.toLowerCase() === vers.toLowerCase()
-      );
-    }
-    if (!os) return null;
-
-    const { name, name_only, version } = os;
-    const label = formatOperatingSystemDisplayName(
-      name_only || version
-        ? `${name_only || ""} ${version || ""}`
-        : `${name || ""}`
-    );
-    const TooltipDescription = (
-      <span className="tooltip__tooltip-text">
-        Hosts with {formatOperatingSystemDisplayName(name_only || name)},
-        <br />
-        {version && `${version} installed`}
-      </span>
-    );
-
-    return (
-      <FilterPill
-        label={label}
-        tooltipDescription={TooltipDescription}
-        onClear={handleClearOSFilter}
-      />
-    );
-  };
-
-  const renderPoliciesFilterBlock = () => (
-    <>
-      <PoliciesFilter
-        policyResponse={policyResponse}
-        onChange={handleChangePoliciesFilter}
-      />
-      <FilterPill
-        icon={PolicyIcon}
-        label={policy?.name ?? "..."}
-        onClear={handleClearPoliciesFilter}
-        className={`${baseClass}__policies-filter-pill`}
-      />
-    </>
-  );
-
-  const renderMacSettingsStatusFilterBlock = () => {
-    const label = "macOS settings";
-    return (
-      <>
-        <Dropdown
-          value={macSettingsStatus}
-          className={`${baseClass}__macsettings-dropdown`}
-          options={MAC_SETTINGS_FILTER_OPTIONS}
-          onChange={handleMacSettingsStatusDropdownChange}
-        />
-        <FilterPill
-          label={label}
-          onClear={handleClearMacSettingsStatusFilter}
-        />
-      </>
-    );
-  };
-
-  const renderSoftwareFilterBlock = () => {
-    if (!softwareDetails) return null;
-
-    const { name, version } = softwareDetails;
-    const label = `${name || "Unknown software"} ${version || ""}`;
-
-    const TooltipDescription = (
-      <span className={`tooltip__tooltip-text`}>
-        Hosts with {name || "Unknown software"},
-        <br />
-        {version || "version unknown"} installed
-      </span>
-    );
-
-    return (
-      <FilterPill
-        label={label}
-        onClear={handleClearSoftwareFilter}
-        tooltipDescription={TooltipDescription}
-      />
-    );
-  };
-
-  const renderMDMSolutionFilterBlock = () => {
-    if (!mdmSolutionDetails) return null;
-
-    const { name, server_url } = mdmSolutionDetails;
-    const label = name ? `${name} ${server_url}` : `${server_url}`;
-
-    const TooltipDescription = (
-      <span className="tooltip__tooltip-text">
-        Host enrolled
-        {name !== "Unknown" && ` to ${name}`}
-        <br /> at {server_url}
-      </span>
-    );
-
-    return (
-      <FilterPill
-        label={label}
-        tooltipDescription={TooltipDescription}
-        onClear={handleClearMDMSolutionFilter}
-      />
-    );
-  };
-
-  const renderMDMEnrollmentFilterBlock = () => {
-    if (!mdmEnrollmentStatus) return null;
-
-    const label = `MDM status: ${
-      invert(MDM_ENROLLMENT_STATUS)[mdmEnrollmentStatus]
-    }`;
-
-    // More narrow tooltip than other MDM tooltip
-    const MDM_STATUS_PILL_TOOLTIP: Record<string, JSX.Element> = {
-      automatic: (
-        <span className="tooltip__tooltip-text">
-          MDM was turned on <br />
-          automatically using Apple <br />
-          Automated Device <br />
-          Enrollment (DEP) or <br />
-          Windows Autopilot. <br />
-          Administrators can block <br />
-          device users from turning
-          <br /> MDM off.
-        </span>
-      ),
-      manual: (
-        <span className="tooltip__tooltip-text">
-          MDM was turned on <br />
-          manually. Device users <br />
-          can turn MDM off.
-        </span>
-      ),
-      unenrolled: (
-        <span className="tooltip__tooltip-text">
-          Hosts with MDM off <br />
-          don&apos;t receive macOS <br />
-          settings and macOS <br />
-          update encouragement.
-        </span>
-      ),
-      pending: (
-        <span className="tooltip__tooltip-text">
-          Hosts ordered using Apple <br />
-          Business Manager (ABM). <br />
-          They will automatically enroll <br />
-          to Fleet and turn on MDM <br />
-          when they&apos;re unboxed.
-        </span>
-      ),
-    };
-
-    return (
-      <FilterPill
-        label={label}
-        tooltipDescription={MDM_STATUS_PILL_TOOLTIP[mdmEnrollmentStatus]}
-        onClear={handleClearMDMEnrollmentFilter}
-      />
-    );
-  };
-
-  const renderMunkiIssueFilterBlock = () => {
-    if (munkiIssueDetails) {
-      return (
-        <FilterPill
-          label={munkiIssueDetails.name}
-          tooltipDescription={
-            <span className="tooltip__tooltip-text">
-              Hosts that reported this Munki issue <br />
-              the last time Munki ran on each host.
-            </span>
-          }
-          onClear={handleClearMunkiIssueFilter}
-        />
-      );
-    }
-    return null;
-  };
-
-  const renderLowDiskSpaceFilterBlock = () => {
-    const TooltipDescription = (
-      <span className="tooltip__tooltip-text">
-        Hosts that have {lowDiskSpaceHosts} GB or less <br />
-        disk space available.
-      </span>
-    );
-
-    return (
-      <FilterPill
-        label="Low disk space"
-        tooltipDescription={TooltipDescription}
-        onClear={handleClearLowDiskSpaceFilter}
-      />
-    );
-  };
-
   const renderEditColumnsModal = () => {
     if (!config || !currentUser) {
       return null;
@@ -1569,76 +1285,6 @@ const ManageHostsPage = ({
       </div>
     );
   }, [isHostCountLoading, filteredHostCount]);
-
-  const renderActiveFilterBlock = () => {
-    const showSelectedLabel = selectedLabel && selectedLabel.type !== "all";
-
-    if (
-      showSelectedLabel ||
-      policyId ||
-      macSettingsStatus ||
-      softwareId ||
-      showSelectedLabel ||
-      mdmId ||
-      mdmEnrollmentStatus ||
-      lowDiskSpaceHosts ||
-      osId ||
-      (osName && osVersion) ||
-      munkiIssueId
-    ) {
-      const renderFilterPill = () => {
-        switch (true) {
-          // backend allows for pill combos (label + low disk space) OR
-          // (label + mdm solution) OR (label + mdm enrollment status)
-          case showSelectedLabel && !!lowDiskSpaceHosts:
-            return (
-              <>
-                {renderLabelFilterPill()} {renderLowDiskSpaceFilterBlock()}
-              </>
-            );
-          case showSelectedLabel && !!mdmId:
-            return (
-              <>
-                {renderLabelFilterPill()} {renderMDMSolutionFilterBlock()}
-              </>
-            );
-
-          case showSelectedLabel && !!mdmEnrollmentStatus:
-            return (
-              <>
-                {renderLabelFilterPill()} {renderMDMEnrollmentFilterBlock()}
-              </>
-            );
-          case showSelectedLabel:
-            return renderLabelFilterPill();
-          case !!policyId:
-            return renderPoliciesFilterBlock();
-          case !!macSettingsStatus:
-            return renderMacSettingsStatusFilterBlock();
-          case !!softwareId:
-            return renderSoftwareFilterBlock();
-          case !!mdmId:
-            return renderMDMSolutionFilterBlock();
-          case !!mdmEnrollmentStatus:
-            return renderMDMEnrollmentFilterBlock();
-          case !!osId || (!!osName && !!osVersion):
-            return renderOSFilterBlock();
-          case !!munkiIssueId:
-            return renderMunkiIssueFilterBlock();
-          case !!lowDiskSpaceHosts:
-            return renderLowDiskSpaceFilterBlock();
-          default:
-            return null;
-        }
-      };
-
-      return (
-        <div className={`${baseClass}__labels-active-filter-wrap`}>
-          {renderFilterPill()}
-        </div>
-      );
-    }
-  };
 
   const renderCustomControls = () => {
     // we filter out the status labels as we dont want to display them in the label
@@ -1901,7 +1547,36 @@ const ManageHostsPage = ({
                 )}
             </div>
           </div>
-          {renderActiveFilterBlock()}
+          {/* TODO: look at improving the props API for this component. Im thinking
+          some of the props can be defined inside HostsFilterBlock */}
+          <HostsFilterBlock
+            params={{
+              policyResponse,
+              policyId,
+              policy,
+              macSettingsStatus,
+              softwareId,
+              mdmId,
+              mdmEnrollmentStatus,
+              lowDiskSpaceHosts,
+              osId,
+              osName,
+              osVersion,
+              osVersions,
+              munkiIssueId,
+              munkiIssueDetails,
+              softwareDetails,
+              mdmSolutionDetails,
+            }}
+            selectedLabel={selectedLabel}
+            isOnlyObserver={isOnlyObserver}
+            handleClearRouteParam={handleClearRouteParam}
+            handleClearFilter={handleClearFilter}
+            onChangePoliciesFilter={handleChangePoliciesFilter}
+            onChangeMacSettingsFilter={handleMacSettingsStatusDropdownChange}
+            onClickEditLabel={onEditLabelClick}
+            onClickDeleteLabel={toggleDeleteLabelModal}
+          />
           {renderNoEnrollSecretBanner()}
           {renderTable()}
         </div>

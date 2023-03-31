@@ -62,12 +62,19 @@ jobs:
           echo "TAG=$(git describe --tags |  sed -e "s/^fleet-//")" >> $GITHUB_OUTPUT
         id: docker
 
-      - name: Push To quay.io
-        id: push-to-quay
-        uses: redhat-actions/push-to-registry@9986a6552bc4571882a4a67e016b17361412b4df # v2.7.1
+      - name: List tags for push
+        run: |
+          echo "The following TAGs are to be pushed: ${{ steps.docker.outputs.TAG }}"
+
+      - name: Login to quay.io
+        uses: docker/login-action@f4ef78c080cd8ba55a85445d5b36e214a81df20a
         with:
-          image: fleetdm/fleet
-          tags: ${{ steps.docker.outputs.TAG }}
-          registry: quay.io/
+          registry: quay.io
           username: fleetdm+fleetreleaser
           password: ${{ secrets.QUAY_REGISTRY_PASSWORD }}
+
+      - name: Tag and push to quay.io
+        run: |
+          for TAG in ${{ steps.docker.outputs.TAG }}; do
+          docker buildx imagetools create --tag quay.io/fleetdm/fleet:${TAG} fleetdm/fleet:${TAG}
+          done
