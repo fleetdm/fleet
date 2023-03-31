@@ -31,7 +31,6 @@ interface ISoftwareDetailsProps {
 const SoftwareDetailsPage = ({
   params: { software_id },
 }: ISoftwareDetailsProps): JSX.Element => {
-
   const { isPremiumTier, isSandboxMode, currentTeam } = useContext(AppContext);
 
   const handlePageError = useErrorHandler();
