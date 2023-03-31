@@ -117,7 +117,10 @@ const generateTableHeaders = (options: {
                     data-tip
                     data-for={`critical-tooltip-${cellProps.row.original.id}`}
                   >
-                    <Icon className="policy-icon" name="policy" />
+                    <Icon
+                      className="critical-policy-icon"
+                      name="critical-policy"
+                    />
                   </span>
                   <ReactTooltip
                     className="critical-tooltip"
