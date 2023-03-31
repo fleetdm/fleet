@@ -2407,6 +2407,65 @@ func (s *integrationMDMTestSuite) TestHostMDMProfilesStatus() {
 	})
 }
 
+func (s *integrationMDMTestSuite) TestFleetdConfiguration() {
+	t := s.T()
+	s.assertConfigProfilesByIdentifier(nil, mobileconfig.FleetdConfigPayloadIdentifier, false)
+
+	triggerSchedule := func() {
+		ch := make(chan bool)
+		s.onScheduleDone = func() { close(ch) }
+		_, err := s.profileSchedule.Trigger()
+		require.NoError(t, err)
+		<-ch
+	}
+
+	var applyResp applyEnrollSecretSpecResponse
+	s.DoJSON("POST", "/api/latest/fleet/spec/enroll_secret", applyEnrollSecretSpecRequest{
+		Spec: &fleet.EnrollSecretSpec{
+			Secrets: []*fleet.EnrollSecret{{Secret: t.Name()}},
+		},
+	}, http.StatusOK, &applyResp)
+
+	// a new fleetd configuration profile for "no team" is created
+	triggerSchedule()
+	s.assertConfigProfilesByIdentifier(nil, mobileconfig.FleetdConfigPayloadIdentifier, true)
+
+	// create a new team
+	tm, err := s.ds.NewTeam(context.Background(), &fleet.Team{
+		Name:        t.Name(),
+		Description: "desc",
+	})
+	require.NoError(t, err)
+	s.assertConfigProfilesByIdentifier(&tm.ID, mobileconfig.FleetdConfigPayloadIdentifier, false)
+
+	// set the default bm assignment to that team
+	acResp := appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
+		"mdm": {
+			"apple_bm_default_team": %q
+		}
+	}`, tm.Name)), http.StatusOK, &acResp)
+
+	// the team doesn't have any enroll secrets yet, so a profile is not created
+	triggerSchedule()
+	s.assertConfigProfilesByIdentifier(&tm.ID, mobileconfig.FleetdConfigPayloadIdentifier, false)
+
+	// create an enroll secret for the team
+	teamSpecs := applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
+		Name:    tm.Name,
+		Secrets: []fleet.EnrollSecret{{Secret: "XYZ"}},
+	}}}
+	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
+
+	// a new fleetd configuration profile for that team is created
+	triggerSchedule()
+	s.assertConfigProfilesByIdentifier(&tm.ID, mobileconfig.FleetdConfigPayloadIdentifier, true)
+
+	// the old configuration profile is kept
+	s.assertConfigProfilesByIdentifier(nil, mobileconfig.FleetdConfigPayloadIdentifier, true)
+
+}
+
 // only asserts the profile identifier, status and operation (per host)
 func (s *integrationMDMTestSuite) assertHostConfigProfiles(want map[*fleet.Host][]fleet.HostMDMAppleProfile) {
 	t := s.T()

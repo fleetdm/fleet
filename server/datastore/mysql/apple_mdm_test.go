@@ -40,6 +40,7 @@ func TestMDMAppleConfigProfile(t *testing.T) {
 		{"TestIgnoreMDMClientError", testIgnoreMDMClientError},
 		{"TestDeleteMDMAppleProfilesForHost", testDeleteMDMAppleProfilesForHost},
 		{"TestBulkSetPendingMDMAppleHostProfiles", testBulkSetPendingMDMAppleHostProfiles},
+		{"TestUpsertMDMAppleConfigProfile", testUpsertMDMAppleConfigProfile},
 	}
 
 	for _, c := range cases {
@@ -2349,4 +2350,31 @@ func testBulkSetPendingMDMAppleHostProfiles(t *testing.T, ds *Datastore) {
 		unenrolledHost: {},
 		linuxHost:      {},
 	})
+}
+
+func testUpsertMDMAppleConfigProfile(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	mc := mobileconfig.Mobileconfig([]byte("TestConfigProfile"))
+	cp := fleet.MDMAppleConfigProfile{
+		Name:         "DummyTestName",
+		Identifier:   "DummyTestIdentifier",
+		Mobileconfig: mc,
+		TeamID:       nil,
+	}
+
+	newCP, err := ds.UpsertMDMAppleConfigProfile(ctx, cp)
+	require.NoError(t, err)
+	checkConfigProfile(t, cp, *newCP)
+	storedCP, err := ds.GetMDMAppleConfigProfile(ctx, newCP.ProfileID)
+	require.NoError(t, err)
+	checkConfigProfile(t, *newCP, *storedCP)
+
+	newMc := mobileconfig.Mobileconfig([]byte("TestUpdatedConfigProfile"))
+	cp.Mobileconfig = newMc
+	newCP, err = ds.UpsertMDMAppleConfigProfile(ctx, cp)
+	require.NoError(t, err)
+	checkConfigProfile(t, cp, *newCP)
+	storedCP, err = ds.GetMDMAppleConfigProfile(ctx, newCP.ProfileID)
+	require.NoError(t, err)
+	checkConfigProfile(t, *newCP, *storedCP)
 }

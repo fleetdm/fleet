@@ -1979,12 +1979,97 @@ func (e *APNSDeliveryError) Unwrap() error { return e.Err }
 
 func (e *APNSDeliveryError) StatusCode() int { return http.StatusBadGateway }
 
+// ensureFleetdConfig ensures there's a fleetd configuration profile in
+// mdm_apple_configuration_profiles for the AppConfig.MDM.AppleBMDefaultTeam or
+// for hosts in no team.
+//
+// We try our best to use AppConfig.MDM.AppleBMDefaultTeam but we default to creating a profile for "no team" if:
+//
+//   - AppConfig.MDM.AppleBMDefaultTeam is empty.
+//   - A team with the name provided in the config can't be found.
+//   - A team is found, but it doesn't have any enroll secrets.
+//
+// Also, the following is assumed:
+//
+//   - This profile will be applied to all hosts in the team (or "no team",)
+//     but it will only be used by hosts that have a fleetd installation without
+//     an enroll secret and fleet URL (mainly DEP enrolled hosts).
+//   - Once the profile is applied to a team (or "no team",) it's not removed if
+//     AppConfig.MDM.AppleBMDefaultTeam changes, this is to preserve existing
+//     agents using the configuration (mainly ServerURL as EnrollSecret is used
+//     only during enrollment)
+func ensureFleetdConfig(ctx context.Context, ds fleet.Datastore) error {
+	appCfg, err := ds.AppConfig(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting app config")
+	}
+
+	var (
+		teamID       *uint
+		enrollSecret string
+	)
+	if name := appCfg.MDM.AppleBMDefaultTeam; name != "" {
+		team, err := ds.TeamByName(context.Background(), name)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "retrieving team by name")
+
+		}
+		if len(team.Secrets) > 0 {
+			teamID = &team.ID
+			enrollSecret = team.Secrets[0].Secret
+		}
+	}
+
+	// we didn't find an enroll secret for the team, fallback to "no team"
+	if enrollSecret == "" {
+		teamID = nil
+		secrets, err := ds.GetEnrollSecrets(ctx, nil)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "retrieving enroll secrets")
+
+		}
+		if len(secrets) > 0 {
+			enrollSecret = secrets[0].Secret
+		}
+	}
+
+	if enrollSecret == "" {
+		return ctxerr.New(ctx, "unable to find an enroll secret")
+	}
+
+	var contents bytes.Buffer
+	params := mobileconfig.FleetdProfileOptions{
+		EnrollSecret: enrollSecret,
+		ServerURL:    appCfg.ServerSettings.ServerURL,
+		PayloadType:  mobileconfig.FleetdConfigPayloadIdentifier,
+	}
+
+	if err := mobileconfig.FleetdProfileTemplate.Execute(&contents, params); err != nil {
+		return ctxerr.Wrap(ctx, err, "executing fleetd config template")
+	}
+
+	cp, err := fleet.NewMDMAppleConfigProfile(contents.Bytes(), teamID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "building configuration profile")
+	}
+
+	if _, err := ds.UpsertMDMAppleConfigProfile(ctx, *cp); err != nil {
+		return ctxerr.Wrap(ctx, err, "upserting configuration profile")
+	}
+
+	return nil
+}
+
 func ReconcileProfiles(
 	ctx context.Context,
 	ds fleet.Datastore,
 	commander *MDMAppleCommander,
 	logger kitlog.Logger,
 ) error {
+	if err := ensureFleetdConfig(ctx, ds); err != nil {
+		logger.Log("err", "unable to ensure a fleetd configuration profile is in place", "details", err)
+	}
+
 	// retrieve the profiles to install/remove.
 	toInstall, err := ds.ListMDMAppleProfilesToInstall(ctx)
 	if err != nil {

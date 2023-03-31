@@ -714,6 +714,15 @@ type Datastore interface {
 	// NewMDMAppleConfigProfile creates and returns a new configuration profile.
 	NewMDMAppleConfigProfile(ctx context.Context, p MDMAppleConfigProfile) (*MDMAppleConfigProfile, error)
 
+	// UpsertMDMAppleConfigProfile inserts or updates a configuration
+	// profile with the current payload.
+	//
+	// Be careful when using this for user actions, you generally want to
+	// use NewMDMAppleConfigProfile/DeleteMDMAppleConfigProfile or the
+	// batch counterparts. With the current product vision, this is mainly
+	// aimed to internal usage within the Fleet server.
+	UpsertMDMAppleConfigProfile(ctx context.Context, p MDMAppleConfigProfile) (*MDMAppleConfigProfile, error)
+
 	// GetMDMAppleConfigProfile returns the mdm config profile corresponding to the specified
 	// profile id.
 	GetMDMAppleConfigProfile(ctx context.Context, profileID uint) (*MDMAppleConfigProfile, error)

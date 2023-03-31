@@ -512,6 +512,8 @@ type DeleteOSVulnerabilitiesFunc func(ctx context.Context, vulnerabilities []fle
 
 type NewMDMAppleConfigProfileFunc func(ctx context.Context, p fleet.MDMAppleConfigProfile) (*fleet.MDMAppleConfigProfile, error)
 
+type UpsertMDMAppleConfigProfileFunc func(ctx context.Context, p fleet.MDMAppleConfigProfile) (*fleet.MDMAppleConfigProfile, error)
+
 type GetMDMAppleConfigProfileFunc func(ctx context.Context, profileID uint) (*fleet.MDMAppleConfigProfile, error)
 
 type ListMDMAppleConfigProfilesFunc func(ctx context.Context, teamID *uint) ([]*fleet.MDMAppleConfigProfile, error)
@@ -1322,6 +1324,9 @@ type DataStore struct {
 
 	NewMDMAppleConfigProfileFunc        NewMDMAppleConfigProfileFunc
 	NewMDMAppleConfigProfileFuncInvoked bool
+
+	UpsertMDMAppleConfigProfileFunc        UpsertMDMAppleConfigProfileFunc
+	UpsertMDMAppleConfigProfileFuncInvoked bool
 
 	GetMDMAppleConfigProfileFunc        GetMDMAppleConfigProfileFunc
 	GetMDMAppleConfigProfileFuncInvoked bool
@@ -3159,6 +3164,13 @@ func (s *DataStore) NewMDMAppleConfigProfile(ctx context.Context, p fleet.MDMApp
 	s.NewMDMAppleConfigProfileFuncInvoked = true
 	s.mu.Unlock()
 	return s.NewMDMAppleConfigProfileFunc(ctx, p)
+}
+
+func (s *DataStore) UpsertMDMAppleConfigProfile(ctx context.Context, p fleet.MDMAppleConfigProfile) (*fleet.MDMAppleConfigProfile, error) {
+	s.mu.Lock()
+	s.UpsertMDMAppleConfigProfileFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpsertMDMAppleConfigProfileFunc(ctx, p)
 }
 
 func (s *DataStore) GetMDMAppleConfigProfile(ctx context.Context, profileID uint) (*fleet.MDMAppleConfigProfile, error) {
