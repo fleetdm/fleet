@@ -79,7 +79,6 @@ Fleet UI:
 
 You should see information about the APNs certificate such as serial number and renewal date. 
 
-
 ## Renewing APNs
 
 > Apple requires that APNs certificates are renewed once every year. 
@@ -107,6 +106,9 @@ How to renew the certificate if it's expired or about to expire:
 2. Sign in to [Apple Push Certificates Portal](https://identity.apple.com) using the same Apple ID you used to get your original certificate. 
 
 3. In the **Settings > Integrations > Mobile device management (MDM)** page, under Apple Push Certificates portal, find the serial number of your current certificate. In Apple Push Certificates Portal, click  **Renew** next to the certificate that has the matching serial number. 
+
+### Renewing SCEP
+TODO
 
 ## Apple Business Manager (ABM)
 
