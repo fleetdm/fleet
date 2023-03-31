@@ -68,16 +68,18 @@ How to renew the certificate if it's expired or about to expire:
 
 _Available in Fleet Premium_
 
-Connect Fleet to your ABM account to automatically enroll macOS hosts to Fleet when they’re first unboxed.
+When purchased through Apple or an authorized reseller, Macs can automatically enroll to Fleet when they’re first unboxed and set up by your end user. To do this, you must connect Fleet to Apple Business Manager (ABM).
 
 To connect Fleet to ABM, we will do the following steps:
-1. Generate ABM certificate and private key
-2. Create a new MDM server in ABM
-4. Set the new MDM server as the auto-enrollment server for Macs
+1. Generate certificate and private key for ABM
+2. Create a new MDM server record for Fleet in ABM
 3. Download the MDM server token from ABM
-4. Upload the server token and private key to the Fleet server
+4. Upload the server token, certificate, and private key to the Fleet server
+5. Set the new MDM server as the auto-enrollment server for Macs in ABM
 
 ### Step 1: generate required certificate and private key
+
+First we will generate a certificate/key pair. This pair is how Fleet authenticates itself to ABM.
 
 To get the two files, choose the "Fleet UI" or "fleetctl" method and follow the steps below.
 
@@ -92,7 +94,7 @@ Fleet UI:
 
 ### Step 2: create a new MDM server in ABM
 
-How to create a new MDM server in ABM:
+Next we create an MDM server record in ABM which represents Fleet. How to create a new MDM server in ABM:
 
 1. Log in to or enroll in [ABM](https://business.apple.com) 
 2. Click your name at the bottom left of the screen
@@ -102,12 +104,43 @@ How to create a new MDM server in ABM:
 6. Enter a name for the server such as "Fleet MDM"
 7. Upload the certificate generated in Step 1
 
-### Pending hosts
-Some time after you purchase a Mac through Apple or an authorized reseller, but before it has been set up, the Mac will appear in ABM as in transit. When the Mac appears in ABM, it will also appear in Fleet with **MDM status** set to "Pending." After the new host is set up, the **MDM Status** will change to "On" and the host will be assigned to the default team.
+### Step 3: download the server token 
+1. In the details page of the newly created server, click **Download Token** at the top. You should receive a `.p7m` file.
 
-### Default team
+### Step 4: upload server token, certificate, and private key to Fleet
+With the three generated files, we now give them to the Fleet server so that it can authenticate itself to ABM. 
 
-All automatically-enrolled hosts will be assigned to a default team of your choosing after they are unboxed and set up. If no default team is set, then the host will be placed in the "No Teams" category. The host will receive the configurations and behaviors set for that team.
+Restart the Fleet server with the contents of the server token, certificate, and private key in following environment variables:
+* [FLEET_MDM_APPLE_BM_SERVER_TOKEN_BYTES](https://fleetdm.com/docs/deploying/configuration#mdm-apple-bm-server-token-bytes)
+* [FLEET_MDM_APPLE_BM_CERT_BYTES](https://fleetdm.com/docs/deploying/configuration#mdm-apple-bm-cert-bytes)
+* [FLEET_MDM_APPLE_BM_KEY_BYTES](https://fleetdm.com/docs/deploying/configuration#mdm-apple-bm-key-bytes)
+
+Confirm that Fleet is set up by visitng the "Fleet UI" or using "fleetctl."
+
+Fleet UI:
+
+1. Head to the **Settings > Integrations > Mobile device management (MDM)** page.
+
+2. Look at the **Apple Business Manager** section.
+
+`fleetctl` CLI:
+
+1. Run `fleetctl get mdm-apple`.
+
+You should see information about the ABM server token such as organization name and renewal date. 
+
+### Step 5: set Fleet to be the MDM server for Macs in ABM
+Finally, we set Fleet to be the MDM for all future Macs purchased via Apple or an authorized reseller. 
+
+1. Log in to [Apple Business Manager](business.apple.com)
+2. Click your profile icon in the bottom left
+3. Click **Preferences**
+4. Click **MDM Server Assignment**
+5. Switch Macs to the new Fleet instance.
+
+### Step 6 (optional): set the default team for hosts enrolled via ABM
+
+All automatically-enrolled hosts will be assigned to a default team of your choosing after they are unboxed and set up. The host will receive the configurations and behaviors set for that team. If no default team is set, then the host will be placed in "No Teams". 
 
 > After a host enrolls it can be transferred to a different team. Learn how [here](./Teams.md#transfer-hosts-to-a-team). Transferring a host automatically enforces the new team's settings and removes the old team's settings.
 
@@ -129,9 +162,26 @@ Fleet UI:
 
 3. Run the `fleetctl apply -f <your-YAML-file-here>` command.
 
+### Pending hosts
+Some time after you purchase a Mac through Apple or an authorized reseller, but before it has been set up, the Mac will appear in ABM as in transit. When the Mac appears in ABM, it will also appear in Fleet with **MDM status** set to "Pending." After the new host is set up, the **MDM Status** will change to "On" and the host will be assigned to the default team.
+
 ## Renewing ABM
 
-The Apple Business Manager server token expires after a year or whenever the account that downloaded the token has their password changed. To renew the token, follow the [instructions documented in this FAQ](https://fleetdm.com/docs/using-fleet/faq#how-can-i-renew-my-apple-business-manager-server-token).
+> Apple expires ABM server tokens certificates once every year or whenever the account that downloaded the token has their password changed. 
+
+You can see the renewal date and other important ABM information using the Fleet UI or the `fleetctl` command-line interface:
+
+Fleet UI:
+
+1. Head to the **Settings > Integrations > Mobile device management (MDM)** page.
+
+2. Look at the **Apple Business Manager** section.
+
+`fleetctl` CLI:
+
+1. Run `fleetctl get mdm-apple`.
+
+To renew the token, follow the [instructions documented in this FAQ](https://fleetdm.com/docs/using-fleet/faq#how-can-i-renew-my-apple-business-manager-server-token).
 
 <meta name="pageOrderInSection" value="1500">
 <meta name="title" value="MDM setup">
