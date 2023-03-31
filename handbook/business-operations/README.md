@@ -312,7 +312,9 @@ When the final signature is added to an envelope in DocuSign, it is marked as co
       link: drive.google.com/[destinationFolderID]
    ```
 
+### Namecheap
 
+Domain name registrations are handled through Namecheap. Access is managed via 1Password.
 
 ## Hiring
 
