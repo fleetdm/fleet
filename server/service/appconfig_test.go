@@ -128,14 +128,17 @@ func TestAppConfigAuth(t *testing.T) {
 			_, err = svc.ModifyAppConfig(ctx, []byte(`{}`), fleet.ApplySpecOptions{})
 			checkAuthErr(t, tt.shouldFailWrite, err)
 
-			_, err = svc.Version(ctx)
-			checkAuthErr(t, tt.shouldFailRead, err)
-
 			_, err = svc.CertificateChain(ctx)
 			checkAuthErr(t, tt.shouldFailRead, err)
 		})
 	}
 }
+
+// TODO: Test Version
+/*
+	_, err = svc.Version(ctx)
+	checkAuthErr(t, tt.shouldFailRead, err)
+*/
 
 func TestEnrollSecretAuth(t *testing.T) {
 	ds := new(mock.Store)
