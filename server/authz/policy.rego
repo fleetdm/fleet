@@ -135,25 +135,11 @@ allow {
   action == [read, write, write_role, change_password][_]
 }
 
-# Global gitops can write users and modify their roles.
-allow {
-  object.type == "user"
-  subject.global_role == gitops
-  action == [write, write_role][_]
-}
-
 # Team admins can perform all operations on the team users (except changing their password).
 allow {
   object.type == "user"
   team_role(subject, object.teams[_].id) == admin
   action == [read, write, write_role][_]
-}
-
-# Team gitops can write team users and modify their roles.
-allow {
-  object.type == "user"
-  team_role(subject, object.teams[_].id) == gitops
-  action == [write, write_role][_]
 }
 
 ##
@@ -210,7 +196,7 @@ allow {
 # Global gitops can write global enroll secrets.
 allow {
 	object.type == "enroll_secret"
-  is_null(object.team_id)
+  object.is_global_secret
 	subject.global_role == gitops
   action == write
 }

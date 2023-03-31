@@ -126,4 +126,13 @@ var (
 			},
 		},
 	}
+	UserTeamGitOpsTeam2 = &fleet.User{
+		ID: 17,
+		Teams: []fleet.UserTeam{
+			{
+				Team: fleet.Team{ID: 2},
+				Role: fleet.RoleGitOps,
+			},
+		},
+	}
 )

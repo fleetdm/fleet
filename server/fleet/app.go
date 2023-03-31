@@ -671,6 +671,19 @@ func (e *EnrollSecret) AuthzType() string {
 	return "enroll_secret"
 }
 
+// ExtraAuthz implements authz.ExtraAuthzer.
+func (e *EnrollSecret) ExtraAuthz() (map[string]interface{}, error) {
+	return map[string]interface{}{
+		"is_global_secret": e.TeamID == nil,
+	}, nil
+}
+
+// IsGlobalSecret returns whether the secret is global.
+// This method is defined for the Policy Rego code (is_global_secret).
+func (e *EnrollSecret) IsGlobalSecret() bool {
+	return e.TeamID == nil
+}
+
 const (
 	EnrollSecretKind          = "enroll_secret"
 	EnrollSecretDefaultLength = 24

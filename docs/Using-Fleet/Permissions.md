@@ -32,7 +32,7 @@ Users with the Admin role receive all permissions.
 | Create, edit, and delete policies for all hosts assigned to team\*                                                                         |          |           | ✅          | ✅     | ✅      |
 | Manage [policy automations](https://fleetdm.com/docs/using-fleet/automations#policy-automations)                                           |          |           |            | ✅     | ✅      |
 | Create, edit, view, and delete users                                                                                                       |          |           |            | ✅     |        |
-| Add and remove team members\*                                                                                                              |          |           |            | ✅     | ✅      |
+| Add and remove team members\*                                                                                                              |          |           |            | ✅     |        |
 | Create, edit, and delete teams\*                                                                                                           |          |           |            | ✅     | ✅      |
 | Create, edit, and delete [enroll secrets](https://fleetdm.com/docs/deploying/faq#when-do-i-need-to-deploy-a-new-enroll-secret-to-my-hosts) |          |           | ✅          | ✅     | ✅      |
 | Create, edit, and delete [enroll secrets for teams](https://fleetdm.com/docs/using-fleet/rest-api#get-enroll-secrets-for-a-team)\*         |          |           | ✅          | ✅     |        |
