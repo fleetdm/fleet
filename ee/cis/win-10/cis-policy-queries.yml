@@ -3045,6 +3045,26 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
+  name: CIS - Ensure 'Audit File Share' is set to 'Success and Failure'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting allows you to audit attempts to access a shared folder. The recommended state for this setting is: Success and Failure.
+    Note: There are no system access control lists (SACLs) for shared folders. If this policy setting is enabled, access to all shared folders on the system is audited.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to Success and Failure:
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Advanced Audit Policy Configuration\Audit Policies\Object Access\Audit File Share'
+  query: |
+    SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/Audit/ObjectAccess_AuditFileShare</LocURI></Target></Item></Get></SyncBody>" 
+    AND mdm_command_output = 3;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_17.6.2
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
   name: >
     CIS - Ensure 'Prevent enabling lock screen camera' is set to 'Enabled'
   platforms: win10
