@@ -173,7 +173,6 @@ module.exports.custom = {
     // Bots
     'vercel[bot]',
     'fleet-release',
-    'qawolf-fleet',
 
     // Humans
     'noahtalerman',
