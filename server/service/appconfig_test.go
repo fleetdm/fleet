@@ -387,36 +387,64 @@ func TestAppConfigSecretsObfuscated(t *testing.T) {
 	}
 
 	testCases := []struct {
-		name string
-		user *fleet.User
+		name       string
+		user       *fleet.User
+		shouldFail bool
 	}{
 		{
 			"global admin",
 			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+			false,
 		},
 		{
 			"global maintainer",
 			&fleet.User{GlobalRole: ptr.String(fleet.RoleMaintainer)},
+			false,
 		},
 		{
 			"global observer",
 			&fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)},
+			false,
+		},
+		{
+			"global observer+",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleObserverPlus)},
+			false,
+		},
+		{
+			"global gitops",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleGitOps)},
+			true,
 		},
 		{
 			"team admin",
 			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}}},
+			false,
 		},
 		{
 			"team maintainer",
 			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleMaintainer}}},
+			false,
 		},
 		{
 			"team observer",
 			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver}}},
+			false,
 		},
 		{
-			"user",
+			"team observer+",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserverPlus}}},
+			false,
+		},
+		{
+			"team gitops",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleGitOps}}},
+			true,
+		},
+		{
+			"user without roles",
 			&fleet.User{ID: 777},
+			true,
 		},
 	}
 	for _, tt := range testCases {
@@ -424,10 +452,14 @@ func TestAppConfigSecretsObfuscated(t *testing.T) {
 			ctx := viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
 
 			ac, err := svc.AppConfigObfuscated(ctx)
-			require.NoError(t, err)
-			require.Equal(t, ac.SMTPSettings.SMTPPassword, fleet.MaskedPassword)
-			require.Equal(t, ac.Integrations.Jira[0].APIToken, fleet.MaskedPassword)
-			require.Equal(t, ac.Integrations.Zendesk[0].APIToken, fleet.MaskedPassword)
+			if tt.shouldFail {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, ac.SMTPSettings.SMTPPassword, fleet.MaskedPassword)
+				require.Equal(t, ac.Integrations.Jira[0].APIToken, fleet.MaskedPassword)
+				require.Equal(t, ac.Integrations.Zendesk[0].APIToken, fleet.MaskedPassword)
+			}
 		})
 	}
 }
