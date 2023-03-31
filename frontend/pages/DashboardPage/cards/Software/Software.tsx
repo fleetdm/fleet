@@ -1,9 +1,10 @@
-import React, { useMemo } from "react";
+import React, { useContext, useMemo } from "react";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 import { Row } from "react-table";
 import { InjectedRouter } from "react-router";
 import PATHS from "router/paths";
 
+import { AppContext } from "context/app";
 import { buildQueryStringFromParams } from "utilities/url";
 
 import TabsWrapper from "components/TabsWrapper";
@@ -11,8 +12,6 @@ import TableContainer from "components/TableContainer";
 import TableDataError from "components/DataError";
 import Spinner from "components/Spinner";
 import EmptySoftwareTable from "pages/software/components/EmptySoftwareTable";
-
-import { IEmptyTableProps } from "interfaces/empty_table";
 
 import generateTableHeaders from "./SoftwareTableConfig";
 
@@ -54,6 +53,8 @@ const Software = ({
   teamId,
   router,
 }: ISoftwareCardProps): JSX.Element => {
+  const { noSandboxHosts } = useContext(AppContext);
+
   const tableHeaders = useMemo(() => generateTableHeaders(teamId), [teamId]);
 
   const handleRowSelect = (row: IRowProps) => {
@@ -98,6 +99,7 @@ const Software = ({
                   emptyComponent={() => (
                     <EmptySoftwareTable
                       isCollectingSoftware={isCollectingInventory}
+                      noSandboxHosts={noSandboxHosts}
                     />
                   )}
                   showMarkAllPages={false}
@@ -126,6 +128,7 @@ const Software = ({
                   emptyComponent={() => (
                     <EmptySoftwareTable
                       isCollectingSoftware={isCollectingInventory}
+                      noSandboxHosts={noSandboxHosts}
                       isFilterVulnerable
                     />
                   )}

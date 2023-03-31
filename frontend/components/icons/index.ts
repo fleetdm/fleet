@@ -21,6 +21,7 @@ import PremiumFeature from "./PremiumFeature";
 
 import LowDiskSpaceHosts from "./LowDiskSpaceHosts";
 import MissingHosts from "./MissingHosts";
+import Lightbulb from "./Lightbulb";
 
 import Apple from "./Apple";
 import Windows from "./Windows";
@@ -72,6 +73,7 @@ export const ICON_MAP = {
   "external-link": ExternalLink,
   "low-disk-space-hosts": LowDiskSpaceHosts,
   "missing-hosts": MissingHosts,
+  lightbulb: Lightbulb,
   issue: Issue,
   plus: Plus,
   clipboard: Clipboard,

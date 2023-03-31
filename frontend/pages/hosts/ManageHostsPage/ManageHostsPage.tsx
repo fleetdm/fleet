@@ -622,6 +622,9 @@ const ManageHostsPage = ({
   useEffect(() => {
     // TODO: cleanup this effect
     setResetPageIndex(false);
+    if (queryParams.add_hosts === "true") {
+      setShowAddHostsModal(true);
+    }
   }, [queryParams]);
 
   // NOTE: this is called once on initial render and every time the query changes

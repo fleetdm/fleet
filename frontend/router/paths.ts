@@ -52,6 +52,7 @@ export default {
   LOGIN: `${URL_PREFIX}/login`,
   LOGOUT: `${URL_PREFIX}/logout`,
   MANAGE_HOSTS: `${URL_PREFIX}/hosts/manage`,
+  MANAGE_HOSTS_ADD_HOSTS: `${URL_PREFIX}/hosts/manage/?add_hosts=true`,
   MANAGE_HOSTS_LABEL: (labelId: number | string): string => {
     return `${URL_PREFIX}/hosts/manage/labels/${labelId}`;
   },
