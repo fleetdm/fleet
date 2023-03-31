@@ -375,14 +375,14 @@ func TestAuthorizeEnrollSecret(t *testing.T) {
 func TestAuthorizeTeam(t *testing.T) {
 	t.Parallel()
 
-	team := &fleet.Team{}
+	team := &fleet.Team{} // Empty team is used to "list teams"
 	team1 := &fleet.Team{ID: 1}
 	team2 := &fleet.Team{ID: 2}
 	runTestCases(t, []authTestCase{
 		{user: nil, object: team, action: read, allow: false},
 		{user: nil, object: team, action: write, allow: false},
 
-		{user: test.UserNoRoles, object: team, action: read, allow: false},
+		{user: test.UserNoRoles, object: team, action: read, allow: true},
 		{user: test.UserNoRoles, object: team, action: write, allow: false},
 		{user: test.UserNoRoles, object: team1, action: read, allow: false},
 		{user: test.UserNoRoles, object: team1, action: write, allow: false},
@@ -407,9 +407,7 @@ func TestAuthorizeTeam(t *testing.T) {
 		{user: test.UserObserverPlus, object: team1, action: read, allow: true},
 		{user: test.UserObserverPlus, object: team1, action: write, allow: false},
 
-		// Global GitOps cannot list teams.
-		{user: test.UserGitOps, object: team, action: read, allow: false},
-		// Global GitOps cannot read teams but can write them.
+		{user: test.UserGitOps, object: team, action: read, allow: true},
 		{user: test.UserGitOps, object: team, action: write, allow: true},
 		{user: test.UserGitOps, object: team1, action: read, allow: false},
 		{user: test.UserGitOps, object: team1, action: write, allow: true},
@@ -442,8 +440,7 @@ func TestAuthorizeTeam(t *testing.T) {
 		{user: test.UserTeamObserverPlusTeam1, object: team2, action: read, allow: false},
 		{user: test.UserTeamObserverPlusTeam1, object: team2, action: write, allow: false},
 
-		// Team GitOps cannot list teams.
-		{user: test.UserTeamGitOpsTeam1, object: team, action: read, allow: false},
+		{user: test.UserTeamGitOpsTeam1, object: team, action: read, allow: true},
 		{user: test.UserTeamGitOpsTeam1, object: team, action: write, allow: false},
 		// Team GitOps cannot read its team but can write it.
 		{user: test.UserTeamGitOpsTeam1, object: team1, action: read, allow: false},

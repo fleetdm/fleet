@@ -12,6 +12,7 @@ import (
 	"net/url"
 	"os"
 	"runtime"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -81,13 +82,16 @@ func clientFromCLI(c *cli.Context) (*service.Client, error) {
 	}
 
 	// check that AppConfig's Apple BM terms are not expired.
-	appCfg, err := fleetClient.GetAppConfig()
-	if err != nil {
+	switch appCfg, err := fleetClient.GetAppConfig(); {
+	case err == nil:
+		if appCfg.MDM.AppleBMTermsExpired {
+			fleet.WriteAppleBMTermsExpiredBanner(os.Stderr)
+			// This is just a warning, continue ...
+		}
+	case strings.Contains(err.Error(), "forbidden"):
+		// OK, could be a user without permissions to read app config (e.g. gitops).
+	default:
 		return nil, err
-	}
-	if appCfg.MDM.AppleBMTermsExpired {
-		fleet.WriteAppleBMTermsExpiredBanner(os.Stderr)
-		// This is just a warning, continue ...
 	}
 
 	return fleetClient, nil

@@ -74,20 +74,12 @@ allow {
 # Teams
 ##
 
-# Global admin, maintainer, observer_plus and observer can read teams (rule used for listing teams).
+# Any logged in user can read teams (service must filter appropriately based on
+# access) if the overall object is specified
 allow {
   object.type == "team"
   object.id == 0
-  subject.global_role == [admin, maintainer, observer_plus, observer][_]
-  action == read
-}
-
-# Team admins, maintainers, observer_plus and observers can read teams (rule used for listing teams).
-allow {
-  object.type == "team"
-  object.id == 0
-  # If role is admin, maintainer, observer_plus or observer on any team.
-  team_role(subject, subject.teams[_].id) == [admin, maintainer, observer_plus, observer][_]
+  not is_null(subject)
   action == read
 }
 
@@ -698,4 +690,15 @@ allow {
   object.type == "mdm_apple_settings"
   team_role(subject, object.team_id) == [admin, maintainer][_]
   action == [read, write][_]
+}
+
+##
+# Version
+##
+
+# Any logged in user can read Fleet's version
+allow {
+  object.type == "version"
+  not is_null(subject)
+  action == read
 }

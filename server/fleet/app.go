@@ -831,3 +831,9 @@ type DeviceGlobalConfig struct {
 type DeviceGlobalMDMConfig struct {
 	EnabledAndConfigured bool `json:"enabled_and_configured"`
 }
+
+type Version struct{}
+
+func (v *Version) AuthzType() string {
+	return "version"
+}
