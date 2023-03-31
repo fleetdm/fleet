@@ -91,11 +91,16 @@ const getTooltip = (osqueryPolicyMs: number): JSX.Element => {
 
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
-const generateTableHeaders = (options: {
-  selectedTeamId?: number | null;
-  canAddOrDeletePolicy?: boolean;
-  tableType?: string;
-}): IDataColumn[] => {
+const generateTableHeaders = (
+  options: {
+    selectedTeamId?: number | null;
+    canAddOrDeletePolicy?: boolean;
+    tableType?: string;
+  },
+
+  isPremiumTier?: boolean,
+  isSandboxMode?: boolean
+): IDataColumn[] => {
   const { selectedTeamId, tableType, canAddOrDeletePolicy } = options;
 
   const tableHeaders: IDataColumn[] = [
@@ -110,7 +115,7 @@ const generateTableHeaders = (options: {
           value={
             <>
               <div className="policy-name-text">{cellProps.cell.value}</div>
-              {cellProps.row.original.critical && (
+              {isPremiumTier && cellProps.row.original.critical && (
                 <>
                   <span
                     className="tooltip-base"
@@ -131,6 +136,12 @@ const generateTableHeaders = (options: {
                     backgroundColor="#3e4771"
                   >
                     This policy has been marked as critical.
+                    {isSandboxMode && (
+                      <>
+                        <br />
+                        This is a premium feature.
+                      </>
+                    )}
                   </ReactTooltip>
                 </>
               )}
