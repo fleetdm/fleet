@@ -17,24 +17,68 @@ To use Fleet's MDM features you must have:
 2. A Fleet user with the admin role
 
 ## Apple Push Notification service (APNs)
+Apple uses APNs to authenticate and manage interactions between Fleet and the host. 
 
-To connect Fleet to Apple, get these four files using the Fleet UI or the `fleetctl` command-line interface: An APNs certificate, APNs private key, Simple Certificate Enrollment Protocol (SCEP) certificate, and SCEP private key.
+To connect Fleet to APNs, we will do the following steps:
+1. Generate four required files
+2. Generate an APNs certificate from APNs
+3. Configure Fleet with the required files
+
+### Step 1: generate required files
+For the MDM protocol to function, we need to generate the four following files:
+1. APNs certificate 
+2. APNs private key 
+3. Simple Certificate Enrollment Protocol (SCEP) certificate 
+4. SCEP private key
+
+The APNs certificates serves as authentication between Fleet and Apple, while the SCEP certificates serve as authentication between Fleet and hosts.
 
 To do this, choose the "Fleet UI" or "fleetctl" method and follow the steps below.
 
 Fleet UI:
 
 1. Head to the **Settings > Integrations > Mobile device management (MDM)** page.
-
-2. Follow the instructions under **Apple Push Certificates Portal**.
+2. Under **Apple Push Certificates Portal**, select "Request," then fill out the form. This should generate three files and send an email to you with an attached CSR file.
 
 `fleetctl` CLI:
 
-1. Run `fleetctl generate mdm-apple --email <email> --org <org>`.
+1. Run `fleetctl generate mdm-apple --email <email> --org <org>`. This should download three files and send an email to you with an attached CSR file.
 
-2. Follow the on-screen instructions.
+### Step 2: generate an APNs certificate from APNs
+
+1. Log in to or enroll in [Apple Push Certificates Portal](https://identity.apple.com).
+2. Select **Create a Certificate**
+3. Upload your CSR and input a friendly name, such as "Fleet MDM."
+4. Download the APNs certificate
 
 > Take note of the Apple ID you use to sign into Apple Push Certificates Portal. You'll need to use the same Apple ID when renewing your APNs certificate.
+
+### Step 3: configure Fleet with the required files
+
+With the four generated files, we now give them to the Fleet server. 
+
+Restart the Fleet server with the contents of the APNs certificate, APNs private key, SCEP certificate, and SCEP private key in following environment variables:
+* (FLEET_MDM_APPLE_APNS_CERT_BYTES)[https://fleetdm.com/docs/deploying/configuration#mdm-apple-apns-cert-bytes]
+* (FLEET_MDM_APPLE_APNS_KEY_BYTES)[https://fleetdm.com/docs/deploying/configuration#mdm-apple-apns-key-bytes]
+* (FLEET_MDM_APPLE_SCEP_CERT_BYTES)[https://fleetdm.com/docs/deploying/configuration#mdm-apple-scep-cert-bytes]
+* (FLEET_MDM_APPLE_SCEP_KEY_BYTES)[https://fleetdm.com/docs/deploying/configuration#mdm-apple-scep-key-bytes]
+
+> You do not need to provide the APNs CSR which was emailed to you. 
+
+Confirm that Fleet is set up by visitng the "Fleet UI" or using "fleetctl."
+
+Fleet UI:
+
+1. Head to the **Settings > Integrations > Mobile device management (MDM)** page.
+
+2. Look at the **Apple Push Certificates Portal** section.
+
+`fleetctl` CLI:
+
+1. Run `fleetctl get mdm-apple`.
+
+You should see information about the APNs certificate such as serial number and renewal date. 
+
 
 ## Renewing APNs
 
