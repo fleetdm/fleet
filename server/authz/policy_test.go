@@ -66,6 +66,21 @@ func TestAuthorizeAppConfig(t *testing.T) {
 
 		{user: test.UserGitOps, object: config, action: read, allow: false},
 		{user: test.UserGitOps, object: config, action: write, allow: true},
+
+		{user: test.UserTeamAdminTeam1, object: config, action: read, allow: true},
+		{user: test.UserTeamAdminTeam1, object: config, action: write, allow: false},
+
+		{user: test.UserTeamMaintainerTeam1, object: config, action: read, allow: true},
+		{user: test.UserTeamMaintainerTeam1, object: config, action: write, allow: false},
+
+		{user: test.UserTeamObserverTeam1, object: config, action: read, allow: true},
+		{user: test.UserTeamObserverTeam1, object: config, action: write, allow: false},
+
+		{user: test.UserTeamObserverPlusTeam1, object: config, action: read, allow: true},
+		{user: test.UserTeamObserverPlusTeam1, object: config, action: write, allow: false},
+
+		{user: test.UserTeamGitOpsTeam1, object: config, action: read, allow: false},
+		{user: test.UserTeamGitOpsTeam1, object: config, action: write, allow: false},
 	})
 }
 

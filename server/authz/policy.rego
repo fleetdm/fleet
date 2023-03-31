@@ -48,10 +48,18 @@ team_role(subject, team_id) = role {
 # Global config
 ##
 
-# Global admin, maintainer, observer_plus and observer can read config.
+# Global admin, maintainer, observer_plus and observer can read global config.
 allow {
   object.type == "app_config"
   subject.global_role == [admin, maintainer, observer_plus, observer][_]
+  action == read
+}
+
+# Team admin, maintainer, observer_plus and observer can read global config.
+allow {
+  object.type == "app_config"
+  # If role is admin, maintainer, observer_plus or observer on any team.
+  team_role(subject, subject.teams[_].id) == [admin, maintainer, observer_plus, observer][_]
   action == read
 }
 
