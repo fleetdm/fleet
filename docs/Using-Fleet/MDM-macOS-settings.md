@@ -1,22 +1,25 @@
 # macOS settings
 
-In Fleet you can enforce settings on your macOS hosts remotely.
+In Fleet, you can enforce settings on your macOS hosts remotely by configuring .mobileconfig profiles to be sent to the hosts. Learn how [here](#custom-settings).
 
-If you enforce disk encryption with Fleet, the disk encryption key (recovery key) will be stored in Fleet automatically. Learn how [here](#disk-encryption).
+In addition, you can enforce disk encryption on enrolled macOS hosts. The disk encryption key (recovery key) will be escrowed in Fleet automatically. Learn how [here](#disk-encryption).
 
-You can also enforce custom macOS settings. Learn how [here](#custom-settings).
+## Requirements
+1. Fleet's MDM capabilities are properly configured. Learn how [here](https://fleetdm.com/docs/using-fleet/mdm-setup)
+2. Hosts on which you wish to enforce settings must be enrolled to Fleet MDM. Learn how [here]() TODO
+3. A Fleet user with the maintainer or admin role
 
 ## Disk encryption
 
 _Available in Fleet Premium_
 
-In Fleet, you can enforce disk encryption on your macOS hosts. Apple calls this [FileVault](https://support.apple.com/en-us/HT204837). If turned on, hosts’ disk encryption keys will be stored in Fleet.
+In Fleet, you can enforce disk encryption (Apple [FileVault](https://support.apple.com/en-us/HT204837)) on your macOS hosts. If turned on, host's disk encryption keys will be escrowed in Fleet.
 
 To enforce disk encryption, choose the "Fleet UI" or "fleetctl" method and follow the steps below.
 
 Fleet UI:
 
-1. In the Fleet UI, head to the **Controls > macOS settings > Disk encryption** page. Users with the maintainer and admin roles can access the settings pages.
+1. In the Fleet UI, head to the **Controls > macOS settings > Disk encryption** page.
 
 2. Check the box next to **Turn on** and select **Save**.
 
@@ -34,7 +37,7 @@ Fleet UI:
 
 ### Viewing a disk encryption key
 
-The disk encryption key allows you to reset a macOS host's password if you don't know it. This way, if you plan to prepare a host for a new employee, you can login to it and erase all its content and settings.
+The disk encryption key allows you to reset a macOS host's password if the password been forgotten. This way, if you plan to prepare a host for a new employee, you can login to it and erase all its content and settings.
 
 The key can be accessed by Fleet admin, maintainers, and observers. An event is tracked in the activity feed when a user views the key in Fleet.
 
@@ -55,6 +58,8 @@ How to reset a macOS host's password using the disk encryption key:
 3. Enter the disk encryption key. Note that Apple calls this "Recovery key." Learn how to find a host's disk encryption key [here in the docs](#viewing-a-disk-encryption-key).
 
 4. The Mac will display a prompt to reset the password. Reset the password and save this password somewhere safe. If you plan to prepare this Mac for a new employee, you'll need this password to erase all content and settings on the Mac.
+
+Once the new employee sets up the Mac, a new disk encryption key will be generated and escrowed if the Mac is enrolled to Fleet with disk encryption turned on.
 
 ## Custom settings
 
@@ -79,12 +84,6 @@ How to create a configuration profile with iMazing Profile Creator:
 ### Add configuration profiles to Fleet
 
 In Fleet, you can add configuration profiles using the Fleet UI or fleetctl command-line tool.
-
-The Fleet UI method is a good start if you're just getting familiar with Fleet.
-
-> During our MDM beta, you must set the environment variable `FLEET_DEV_MDM_ENABLED=1` and restart your Fleet server to reveal the MDM features in the UI.
-
-The fleetctl CLI method enables managing configuration profiles in a git repository. This way you can enforce code review and benefit from git's change history.
 
 Fleet UI:
 
