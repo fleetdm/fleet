@@ -33,7 +33,7 @@ interface ISiteTopNavProps {
 
 const REGEX_DETAIL_PAGES = {
   HOST_DETAILS: /\/hosts\/\d+/i,
-  LABEL_EDIT: /(?<!manage)\/labels\/\d+/i, // Note: we want this to match "/labels/10" but not "/hosts/manage/labels/10"
+  LABEL_EDIT: /\/labels\/\d+/i,
   LABEL_NEW: /\/labels\/new/i,
   PACK_EDIT: /\/packs\/\d+/i,
   PACK_NEW: /\/packs\/new/i,
@@ -54,8 +54,18 @@ const REGEX_GLOBAL_PAGES = {
   PROFILE: /\/profile/i,
 };
 
+const testDetailPage = (path: string, re: RegExp) => {
+  if (re === REGEX_DETAIL_PAGES.LABEL_EDIT) {
+    // we want to match "/labels/10" but not "/hosts/manage/labels/10"
+    return path.match(re) && !path.match(/\/hosts\/manage\/labels\/\d+/); // we're using this approach because some browsers don't support regexp negative lookbehind
+  }
+  return path.match(re);
+};
+
 const isDetailPage = (path: string) => {
-  return Object.values(REGEX_DETAIL_PAGES).some((re) => path.match(re));
+  return Object.values(REGEX_DETAIL_PAGES).some((re) =>
+    testDetailPage(path, re)
+  );
 };
 
 const isGlobalPage = (path: string) => {
