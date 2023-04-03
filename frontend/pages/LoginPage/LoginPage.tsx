@@ -109,7 +109,7 @@ const LoginPage = ({ router, location }: ILoginPageProps) => {
     })();
   }, []);
 
-  // TODO: Fix this. If renderFlash is added as a dependency is causes infinite re-renders.
+  // TODO: Fix this. If renderFlash is added as a dependency it causes infinite re-renders.
   useEffect(() => {
     let status = new URLSearchParams(location.search).get("status");
     status = status && statusMessages[status as keyof IStatusMessages];
@@ -178,7 +178,6 @@ const LoginPage = ({ router, location }: ILoginPageProps) => {
 
     try {
       const { url } = await sessionsAPI.initializeSSO(returnToAfterAuth);
-      console.log("url", url);
       window.location.href = url;
     } catch (error) {
       const err = error as AxiosError;
@@ -192,8 +191,6 @@ const LoginPage = ({ router, location }: ILoginPageProps) => {
       return false;
     }
   }, [redirectLocation]);
-
-  console.log("errors", errors);
 
   if (isLoadingSSOSettings) {
     return <Spinner />;
