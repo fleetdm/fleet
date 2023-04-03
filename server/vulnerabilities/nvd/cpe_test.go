@@ -329,8 +329,8 @@ func TestTranslateSoftwareToCPE(t *testing.T) {
 				Source:           "apps",
 				GenerateCPE:      "something_wrong",
 			},
-			// This 'duplicated' entry if for testing that 'UpsertSoftwareCPEs' is only called iff
-			// software.GenerateCPE != detected CPE
+			// For the following software entry, the matched cpe will match 'GenerateCPE', so we are
+			// adding it to test that that 'UpsertSoftwareCPEs' will only be called iff software.GenerateCPE != detected CPE.
 			{
 				ID:               3,
 				Name:             "Product2",

@@ -162,6 +162,9 @@ func TranslateCPEToCVE(
 		}
 	}
 
+	// Delete any stale vulnerabilities. A vulnerability is stale iff the last time it was
+	// updated was more than `2 * periodicity` ago. This assumes that the whole vulnerability
+	// process completes in less than `periodicity` units of time.
 	if err = ds.DeleteOutOfDateVulnerabilities(ctx, fleet.NVDSource, 2*periodicity); err != nil {
 		level.Error(logger).Log("msg", "error deleting out of date vulnerabilities", "err", err)
 	}
