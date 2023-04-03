@@ -21,7 +21,7 @@ Customers on a paid tier of Fleet can get in touch directly for commercial suppo
 
 ## Becoming a customer
 
-To close a deal with a new customer (non-self-service), create a GitHub issue using the "Sale" issue template and follow the steps.
+To close a deal with a new customer (non-self-service), create a GitHub issue using the ["Sale" issue template] (https://github.com/fleetdm/confidential/issues/new?assignees=hollidayn%2Czayhanlon&labels=project%2C%23cx%2C%23sales%2C%23business-operations&template=3-sale.md&title=New+customer%3A+_____________) and follow the steps.
 
 > TODO: dedupe between this section and the "Sale" issue template
 
