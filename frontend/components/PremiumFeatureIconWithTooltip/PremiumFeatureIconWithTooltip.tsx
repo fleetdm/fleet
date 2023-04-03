@@ -5,6 +5,7 @@ import ReactTooltip, { Place } from "react-tooltip";
 
 interface IPremiumFeatureIconWithTooltip {
   tooltipPlace?: Place;
+  tooltipDelayHide?: number;
   tooltipPositionOverrides?: {
     leftAdj?: number;
     topAdj?: number;
@@ -12,6 +13,7 @@ interface IPremiumFeatureIconWithTooltip {
 }
 const PremiumFeatureIconWithTooltip = ({
   tooltipPlace,
+  tooltipDelayHide = 100,
   tooltipPositionOverrides,
 }: IPremiumFeatureIconWithTooltip) => {
   const [leftAdj, topAdj] = [
@@ -30,7 +32,7 @@ const PremiumFeatureIconWithTooltip = ({
         effect="solid"
         id={tipId}
         backgroundColor="#515774"
-        delayHide={100}
+        delayHide={tooltipDelayHide}
         delayUpdate={500}
         overridePosition={(pos: { left: number; top: number }) => {
           return {
