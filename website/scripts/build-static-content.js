@@ -104,8 +104,8 @@ module.exports = {
         let githubDataByUsername = {};
 
         if(skipGithubRequests) {// If the --skipGithubRequests flag was provided, we'll skip querying GitHubs API
-          sails.log('Skipping GitHub API requests for contributer profiles.\nNOTE: The contributors in the standard query library will be populated with fake data. To see how the standard query library will look on fleetdm.com, run this script without the `--skipGithubRequests` flag.');
-          // Because we're not querying GitHub to get the real names for contributer profiles, we'll use their GitHub username as their name and their handle
+          sails.log('Skipping GitHub API requests for contributor profiles.\nNOTE: The contributors in the standard query library will be populated with fake data. To see how the standard query library will look on fleetdm.com, run this script without the `--skipGithubRequests` flag.');
+          // Because we're not querying GitHub to get the real names for contributor profiles, we'll use their GitHub username as their name and their handle
           for (let query of queries) {
             let usernames = query.contributors.split(',');
             let contributorProfiles = [];
@@ -166,9 +166,10 @@ module.exports = {
         let cisBenchmarksWithProblematicResolutions = [];
         let cisBenchmarksWithProblematicContributors = [];
         let cisBenchmarksWithProblematicTags = [];
-        let cisBenchmarks = YAML.parseAllDocuments(cisBenchmarksMacYaml, cisBenchmarksWindowsYaml).map((yamlDocument)=>{
+        let cisBenchmarks = YAML.parseAllDocuments(cisBenchmarksMacYaml, cisBenchmarksWindowsYaml).map((yamlDocument) => {
           let benchmark = yamlDocument.toJSON().spec;
           benchmark.kind = yamlDocument.toJSON().kind;
+          console.log("benchmark.kind", benchmark.kind);
           benchmark.slug = _.kebabCase(benchmark.name);// « unique slug to use for routing to this CIS Benchmarks's detail page
           if ((benchmark.resolution !== undefined && !_.isString(benchmark.resolution)) || (benchmark.kind !== 'policy' && _.isString(benchmark.resolution))) {
             // console.log(typeof benchmark.resolution);
@@ -237,8 +238,8 @@ module.exports = {
         let cisBenchmarksGithubDataByUsername = {};
 
         if(skipGithubRequests) {// If the --skipGithubRequests flag was provided, we'll skip querying GitHubs API
-          sails.log('Skipping GitHub API requests for contributer profiles.\nNOTE: The contributors in the standard query library will be populated with fake data. To see how the standard query library will look on fleetdm.com, run this script without the `--skipGithubRequests` flag.');
-          // Because we're not querying GitHub to get the real names for contributer profiles, we'll use their GitHub username as their name and their handle
+          sails.log('Skipping GitHub API requests for contributor profiles.\nNOTE: The contributors in the CIS benchmarks will be populated with fake data. To see how the standard query library will look on fleetdm.com, run this script without the `--skipGithubRequests` flag.');
+          // Because we're not querying GitHub to get the real names for contributor profiles, we'll use their GitHub username as their name and their handle
           for (let benchmark of cisBenchmarks) {
             let usernames = benchmark.contributors.split(',');
             let contributorProfiles = [];
