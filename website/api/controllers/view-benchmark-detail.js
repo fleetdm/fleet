@@ -8,7 +8,7 @@ module.exports = {
 
 
   inputs: {
-    slug: { type: 'string', required: true, description: 'A slug uniquely identifying this benchmark in the library.', example: 'get-macos-disk-free-space-percentage' },
+    slug: { type: 'string', required: true, description: 'A slug uniquely identifying this benchmark in the library.', example: 'cis-ensure-all-apple-provided-software-is-current-fleetd-required' },
   },
 
 
@@ -21,25 +21,28 @@ module.exports = {
 
   fn: async function ({ slug }) {
 
-    if (!_.isObject(sails.config.builtStaticContent) || !_.isArray(sails.config.builtStaticContent.benchmarks)) {
-      throw {badConfig: 'builtStaticContent.benchmarks'};
+    if (!_.isObject(sails.config.builtStaticContent) || !_.isArray(sails.config.builtStaticContent.cisBenchmarks)) {
+      console.log("line 25");
+      throw {badConfig: 'builtStaticContent.cisBenchmarks'};
     } else if (!_.isString(sails.config.builtStaticContent.cisBenchmarkLibraryMacYmlRepoPath)) {
+      console.log("line 28");
       throw {badConfig: 'builtStaticContent.cisBenchmarkLibraryMacLibraryYmlRepoPath'};
     }
 
     // Serve appropriate content for query.
     // > Inspired by https://github.com/sailshq/sailsjs.com/blob/b53c6e6a90c9afdf89e5cae00b9c9dd3f391b0e7/api/controllers/documentation/view-documentation.js
-    let query = _.find(sails.config.builtStaticContent.queries, { slug: slug });
-    if (!query) {
+    let benchmark = _.find(sails.config.builtStaticContent.cisBenchmarks, { slug: slug });
+    if (!benchmark) {
+      console.log("line 36");
       throw 'notFound';
     }
 
     // Setting the meta title and description of this page using the query object, and falling back to a generic title or description if query.name or query.description are missing.
-    let pageTitleForMeta = query.name ? query.name + ' | Query details' : 'Query details | Fleet for osquery';
-    let pageDescriptionForMeta = query.description ? query.description : 'View more information about a query in Fleet\'s standard query library';
+    let pageTitleForMeta = benchmark.name ? benchmark.name + ' | Benchmark details' : 'Benchmark details | Fleet for osquery';
+    let pageDescriptionForMeta = benchmark.description ? benchmark.description : 'View more information about a benchmark in Fleet\'s CIS benchmark library';
     // Respond with view.
     return {
-      query,
+      benchmark,
       cisBenchmarkLibraryMacYmlRepoPath: sails.config.builtStaticContent.cisBenchmarkLibraryMacYmlRepoPath,
       pageTitleForMeta,
       pageDescriptionForMeta,

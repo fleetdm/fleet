@@ -2,29 +2,29 @@
 
   <div style="max-width: 1000px;" class="container-fluid justify-content-center p-0 px-4 pb-5 mb-lg-5 mx-auto">
     <div class="d-flex flex-column p-0">
-      <a href="/queries" style="font-family: 'Nunito Sans'; font-size: 14px; font-weight: 700; text-decoration: none;" class="pt-4 pt-lg-5">
+      <a href="/cis-benchmarks" style="font-family: 'Nunito Sans'; font-size: 14px; font-weight: 700; text-decoration: none;" class="pt-4 pt-lg-5">
         <img style="display: inline-block; width: 6px; height: 9px; transform: rotate(180deg); margin-bottom: 2px;" alt="back arrow" src="/images/chevron-right-6x9@2x.png"/>
         <span class="ml-1"> Back to CIS benchmarks</span>
       </a>
       <div purpose="title-mobile" class="d-flex d-md-none flex-column pb-4 mb-3">
-        <h2 class="pt-4 pb-3 m-0">{{query.name}}</h2>
-        <h6 class="pb-3 m-0">{{query.description ? query.description : '--'}}</h6>
+        <h2 class="pt-4 pb-3 m-0">{{benchmark.name}}</h2>
+        <h6 class="pb-3 m-0">{{benchmark.description ? benchmark.description : '--'}}</h6>
       </div>
     </div>
     <div class="d-flex flex-column flex-md-row justify-content-md-between">
       <div class="container-fluid col-md-8 d-flex flex-column p-0 pr-md-3">
         <div purpose="title-widescreen" class="d-none d-md-flex flex-column">
-          <h2 class="pt-4 pb-3 m-0">{{query.name}}</h2>
-          <h6 class="pb-3 m-0">{{query.description ? query.description : '--'}}</h6>
+          <h2 class="pt-4 pb-3 m-0">{{benchmark.name}}</h2>
+          <h6 class="pb-3 m-0">{{benchmark.description ? benchmark.description : '--'}}</h6>
         </div>
         <div purpose="body" class="pt-4 pt-md-3 mt-3 mt-md-0">
-          <div purpose="query">
+          <div purpose="benchmark">
             <h3 class="pb-4 mb-3 m-0">Query</h3>
-            <code class="pb-3">{{query.query ? query.query : '--'}}</code>
+            <code class="pb-3">{{benchmark.query ? benchmark.query : '--'}}</code>
           </div>
-          <div purpose="resolution" v-if="query.kind === 'policy' && query.resolution">
+          <div purpose="resolution" v-if="benchmark.kind === 'policy' && benchmark.resolution">
             <h3 class="pt-5 pb-3">Resolve</h3>
-            <p>{{query.resolution}}</p>
+            <p>{{benchmark.resolution}}</p>
           </div>
         </div>
       </div>
@@ -32,37 +32,31 @@
         <div class="pb-2">
           <div class="d-flex flex-md-column justify-content-between justify-content-md-start align-items-center align-items-md-start pb-1 pb-md-3">
             <h5 class="pb-md-2 m-0">Platforms</h5>
-            <p class="pb-1" v-if="!query.platform || !query.platform.length">--</p>
+            <p class="pb-1" v-if="!benchmark.platform || !benchmark.platform.length">--</p>
             <div purpose="platforms" class="d-flex align-items-center align-items-md-start pb-1" v-else>
-              <img class="d-inline-flex ml-3 ml-md-0 mr-md-3" src="/images/os-macos-black-24x24@2x.png" alt="macOS" v-if="query.platform.includes('darwin')"/>
-              <img class="d-inline-flex ml-3 ml-md-0 mr-md-3" src="/images/os-windows-black-24x24@2x.png" alt="Windows" v-if="query.platform.includes('windows')"/>
-              <img class="d-inline-flex ml-3 ml-md-0 mr-md-3" src="/images/os-linux-black-24x24@2x.png" alt="Linux" v-if="query.platform.includes('linux')"/>
+              <img class="d-inline-flex ml-3 ml-md-0 mr-md-3" src="/images/os-macos-black-24x24@2x.png" alt="macOS" v-if="benchmark.platform.includes('darwin')"/>
+              <img class="d-inline-flex ml-3 ml-md-0 mr-md-3" src="/images/os-windows-black-24x24@2x.png" alt="Windows" v-if="benchmark.platform.includes('windows')"/>
+              <img class="d-inline-flex ml-3 ml-md-0 mr-md-3" src="/images/os-linux-black-24x24@2x.png" alt="Linux" v-if="benchmark.platform.includes('linux')"/>
             </div>
           </div>
         </div>
         <div class="border-top py-2 pb-md-4">
           <div class="d-flex flex-md-column justify-content-between justify-content-md-start align-items-center align-items-md-start pt-md-3">
             <h5 class="pb-md-2 m-0">Tags</h5>
-            <div :class="[query.tags.length > 2 ? 'mt-1' : '']"  class="d-flex flex-wrap align-items-center justify-content-end justify-content-sm-start">
-              <span class="mb-1" v-if="!query.tags || !query.tags.length">--</span>
-              <div purpose="query-tag" class="mr-md-1 ml-1 ml-md-0" :class="[query.tags.length > 2 ? 'mb-1' : '']" v-for="tag in query.tags">
+            <div :class="[benchmark.tags.length > 2 ? 'mt-1' : '']"  class="d-flex flex-wrap align-items-center justify-content-end justify-content-sm-start">
+              <span class="mb-1" v-if="!benchmark.tags || !benchmark.tags.length">--</span>
+              <div purpose="benchmark-tag" class="mr-md-1 ml-1 ml-md-0" :class="[benchmark.tags.length > 2 ? 'mb-1' : '']" v-for="tag in benchmark.tags">
                 {{tag}}
               </div>
             </div>
-          </div>
-        </div>
-        <div class="border-top py-2">
-          <div class="d-flex flex-md-column justify-content-between justify-content-md-start align-items-center align-items-md-start py-1 py-md-3">
-            <h5 class="pb-md-2 m-0">Purpose</h5>
-            <p class="m-0">{{query.kind === 'policy' ? 'Policy' : query.kind === 'query' ? 'Informational' : '--'}}</p>
           </div>
         </div>
         <div class="border-top py-2 pb-md-4">
           <div class="d-flex flex-md-column justify-content-between justify-content-md-start align-items-center align-items-md-start py-1 pt-md-3">
             <h5 class="pb-md-2 m-0">Contributors</h5>
             <div class="d-flex align-items-center">
-              <span class="mb-1" v-if="!query.contributors || !query.contributors.length">--</span>
-              <div class="d-flex pl-2 pl-md-0 pr-md-2" v-for="contributor in query.contributors">
+              <span class="mb-1" v-if="!benchmark.contributors || !benchmark.contributors.length">--</span>
+              <div class="d-flex pl-2 pl-md-0 pr-md-2" v-for="contributor in benchmark.contributors">
                 <div purpose="avatar-frame" class="d-flex avatar-frame" @click="clickAvatar(contributor)">
                   <img alt="a GitHub user avatar" :alt="contributor.name ? contributor.name : contributor.handle" :src="contributor.avatarUrl"/>
                 </div>

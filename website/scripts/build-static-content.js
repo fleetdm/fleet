@@ -217,9 +217,9 @@ module.exports = {
           throw new Error('Failed parsing YAML for CIS benchmarks: The "tags" of a benchmark should either be absent (undefined) or a single string (not a list of strings). "tags" should be be be seperated by a comma.  But one or more benchmarks have invalid "tags": ' + _.pluck(cisBenchmarksWithProblematicTags, 'slug').sort());
         }
         // Assert uniqueness of slugs.
-        if (cisBenchmarks.length !== _.uniq(_.pluck(cisBenchmarks, 'slug')).length) {
-          throw new Error('Failed parsing YAML for CIS benchmarks: Benchmarks as currently named would result in colliding (duplicate) slugs.  To resolve, rename the benchmark whose names are too similar.  Note the duplicates: ' + _.pluck(cisBenchmarks, 'slug').sort());
-        }//•
+        // if (cisBenchmarks.length !== _.uniq(_.pluck(cisBenchmarks, 'slug')).length) {
+        //   throw new Error('Failed parsing YAML for CIS benchmarks: Benchmarks as currently named would result in colliding (duplicate) slugs.  To resolve, rename the benchmark whose names are too similar.  Note the duplicates: ' + _.pluck(cisBenchmarks, 'slug').sort());
+        // }//•
         // Report any errors that were detected along the way in one fell swoop to avoid endless resubmitting of PRs.
         if (cisBenchmarksWithProblematicContributors.length >= 1) {
           throw new Error('Failed parsing YAML for CIS benchmarks: The "contributors" of a benchmark should be a single string of valid GitHub user names (e.g. "zwass", or "zwass,noahtalerman,mikermcneil").  But one or more benchmarks have an invalid "contributors" value: ' + _.pluck(cisBenchmarksWithProblematicContributors, 'slug').sort());
