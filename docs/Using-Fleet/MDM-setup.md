@@ -44,7 +44,7 @@ Fleet UI:
 
 1. Run `fleetctl generate mdm-apple --email <email> --org <org>`. This should download three files and send an email to you with an attached CSR file.
 
-### Step 2: generate an APNs certificate from APNs
+### Step 2: generate an APNs certificate from Apple Push Certificates Portal
 
 1. Log in to or enroll in [Apple Push Certificates Portal](https://identity.apple.com).
 2. Select **Create a Certificate**
