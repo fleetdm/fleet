@@ -106,29 +106,7 @@ type SoftwareIterQueryOptions struct {
 	IncludedSources []string // what sources to include
 }
 
-// IsValid checks that ExcludedSources and IncludedSources are mutually exclusive
+// IsValid checks that either ExcludedSources or IncludedSources is specified but not both
 func (siqo SoftwareIterQueryOptions) IsValid() bool {
-	if len(siqo.ExcludedSources) == 0 || len(siqo.IncludedSources) == 0 {
-		return true
-	}
-
-	a := siqo.ExcludedSources
-	b := siqo.IncludedSources
-	if len(b) > len(a) {
-		b = siqo.ExcludedSources
-		a = siqo.IncludedSources
-	}
-
-	set := make(map[string]struct{}, len(a))
-	for _, el := range a {
-		set[el] = struct{}{}
-	}
-
-	for _, el := range b {
-		if _, ok := set[el]; ok {
-			return false
-		}
-	}
-
-	return true
+	return !(len(siqo.IncludedSources) != 0 && len(siqo.ExcludedSources) != 0)
 }

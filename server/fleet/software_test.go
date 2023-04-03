@@ -25,16 +25,17 @@ func TestSoftwareIterQueryOptionsIsValid(t *testing.T) {
 			included: []string{"a", "b"},
 		},
 		{
-			excluded: []string{"c", "d"},
-			included: []string{"a", "b"},
-		},
-		{
 			excluded:   []string{"a", "b"},
 			included:   []string{"a"},
 			isNotValid: true,
 		},
 		{
 			excluded:   []string{"a"},
+			included:   []string{"a", "b"},
+			isNotValid: true,
+		},
+		{
+			excluded:   []string{"c"},
 			included:   []string{"a", "b"},
 			isNotValid: true,
 		},

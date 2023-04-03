@@ -1876,7 +1876,7 @@ func testAllSoftwareIterator(t *testing.T, ds *Datastore) {
 				{Name: "foo", Version: "v0.0.2", Source: "apps", GenerateCPE: "cpe:foo_app_v2"},
 				{Name: "foo", Version: "0.0.3", Source: "apps"},
 			},
-			q: fleet.SoftwareIterQueryOptions{ExcludedSources: []string{"deb_packages"}, IncludedSources: []string{"apps"}},
+			q: fleet.SoftwareIterQueryOptions{IncludedSources: []string{"apps"}},
 		},
 		{
 			expected: []fleet.Software{
