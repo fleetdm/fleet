@@ -3115,6 +3115,35 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
+  name: CIS - Ensure 'Audit Audit Policy Change' is set to include 'Success'
+  platforms: win10
+  platform: windows
+  description: |
+    This subcategory reports changes in audit policy including SACL changes. Events for this subcategory include:
+      -  4715: The audit policy (SACL) on an object was changed.
+      -  4719: System audit policy was changed.
+      -  4902: The Per-user audit policy table was created.
+      -  4904: An attempt was made to register a security event source.
+      -  4905: An attempt was made to unregister a security event source.
+      -  4906: The CrashOnAuditFail value has changed.
+      -  4907: Auditing settings on object were changed.
+      -  4908: Special Groups Logon table modified.
+      -  4912: Per User Audit Policy was changed.
+    The recommended state for this setting is to include: Success.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to include Success:
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Advanced Audit Policy Configuration\Audit Policies\Policy Change\Audit Audit Policy Change'
+  query: |
+    SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/Audit/PolicyChange_AuditPolicyChange</LocURI></Target></Item></Get></SyncBody>" 
+    AND (mdm_command_output = 1 OR mdm_command_output = 3);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_win10_enterprise_1.12.0, CIS_bullet_17.7.1
+  contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
   name: >
     CIS - Ensure 'Prevent enabling lock screen camera' is set to 'Enabled'
   platforms: win10
