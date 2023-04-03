@@ -276,7 +276,7 @@ func (ds *Datastore) GetMDMAppleCommandRequestType(ctx context.Context, commandU
 	return rt, err
 }
 
-func (ds *Datastore) GetMDMAppleCommandResults(ctx context.Context, commandUUID string) (map[string]*fleet.MDMAppleCommandResult, error) {
+func (ds *Datastore) GetMDMAppleCommandResults(ctx context.Context, commandUUID string) ([]*fleet.MDMAppleCommandResult, error) {
 	query := `
 SELECT
     id,
@@ -300,13 +300,7 @@ WHERE
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get command results")
 	}
-
-	resultsMap := make(map[string]*fleet.MDMAppleCommandResult, len(results))
-	for _, result := range results {
-		resultsMap[result.ID] = result
-	}
-
-	return resultsMap, nil
+	return results, nil
 }
 
 func (ds *Datastore) NewMDMAppleInstaller(ctx context.Context, name string, size int64, manifest string, installer []byte, urlToken string) (*fleet.MDMAppleInstaller, error) {

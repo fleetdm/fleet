@@ -130,7 +130,7 @@ func setupAppleMDMService(t *testing.T) (fleet.Service, context.Context, *mock.S
 	ds.ListMDMAppleEnrollmentProfilesFunc = func(ctx context.Context) ([]*fleet.MDMAppleEnrollmentProfile, error) {
 		return nil, nil
 	}
-	ds.GetMDMAppleCommandResultsFunc = func(ctx context.Context, commandUUID string) (map[string]*fleet.MDMAppleCommandResult, error) {
+	ds.GetMDMAppleCommandResultsFunc = func(ctx context.Context, commandUUID string) ([]*fleet.MDMAppleCommandResult, error) {
 		return nil, nil
 	}
 	ds.NewMDMAppleInstallerFunc = func(ctx context.Context, name string, size int64, manifest string, installer []byte, urlToken string) (*fleet.MDMAppleInstaller, error) {

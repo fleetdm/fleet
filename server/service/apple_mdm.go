@@ -195,8 +195,8 @@ type getMDMAppleCommandResultsRequest struct {
 }
 
 type getMDMAppleCommandResultsResponse struct {
-	Results map[string]*fleet.MDMAppleCommandResult `json:"results,omitempty"`
-	Err     error                                   `json:"error,omitempty"`
+	Results []*fleet.MDMAppleCommandResult `json:"results,omitempty"`
+	Err     error                          `json:"error,omitempty"`
 }
 
 func (r getMDMAppleCommandResultsResponse) error() error { return r.Err }
@@ -215,7 +215,7 @@ func getMDMAppleCommandResultsEndpoint(ctx context.Context, request interface{},
 	}, nil
 }
 
-func (svc *Service) GetMDMAppleCommandResults(ctx context.Context, commandUUID string) (map[string]*fleet.MDMAppleCommandResult, error) {
+func (svc *Service) GetMDMAppleCommandResults(ctx context.Context, commandUUID string) ([]*fleet.MDMAppleCommandResult, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleCommandResult{}, fleet.ActionRead); err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
@@ -224,7 +224,6 @@ func (svc *Service) GetMDMAppleCommandResults(ctx context.Context, commandUUID s
 	if err != nil {
 		return nil, err
 	}
-
 	return results, nil
 }
 
