@@ -2583,9 +2583,9 @@ func (s *integrationMDMTestSuite) assertHostConfigProfiles(want map[*fleet.Host]
 		})
 		for i, wp := range wantProfs {
 			gp := gotProfs[i]
-			require.Equal(t, wp.Identifier, gp.Identifier, "%d host uuid: %s, prof id: %s", i, h.UUID, gp.Identifier)
-			require.Equal(t, wp.OperationType, gp.OperationType, "%d host uuid: %s, prof id: %s", i, h.UUID, gp.Identifier)
-			require.Equal(t, wp.Status, gp.Status, "%d host uuid: %s, prof id: %s", i, h.UUID, gp.Identifier)
+			require.Equal(t, wp.Identifier, gp.Identifier, "host uuid: %s, prof id: %s", h.UUID, gp.Identifier)
+			require.Equal(t, wp.OperationType, gp.OperationType, "host uuid: %s, prof id: %s", h.UUID, gp.Identifier)
+			require.Equal(t, wp.Status, gp.Status, "host uuid: %s, prof id: %s", h.UUID, gp.Identifier)
 		}
 	}
 }

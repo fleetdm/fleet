@@ -2013,7 +2013,7 @@ func ensureFleetdConfig(ctx context.Context, ds fleet.Datastore, logger kitlog.L
 	}
 
 	if err := ds.BulkUpsertMDMAppleConfigProfiles(ctx, profiles); err != nil {
-		return ctxerr.Wrap(ctx, err, "batch-upserting configuration profiles")
+		return ctxerr.Wrap(ctx, err, "bulk-upserting configuration profiles")
 	}
 
 	return nil
