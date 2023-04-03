@@ -540,6 +540,7 @@ The MDM endpoints exist to support the related command-line interface sub-comman
 - [Update Apple MDM settings](#update-apple-mdm-settings)
 - [Download an enrollment profile using IdP authentication](#download-an-enrollment-profile-using-idp-authentication)
 - [Get Apple disk encryption summary](#get-apple-disk-encryption-summary)
+- [Enqueue MDM command](#enqueue-mdm-command)
 
 ### Get Apple MDM
 
@@ -1012,6 +1013,36 @@ Get aggregate status counts of Apple disk encryption profiles applying to macOS 
   "enforcing": 123,
   "failed": 123,
   "removing_enforcement": 123
+}
+```
+
+### Enqueue MDM command
+
+This endpoint enqueues an MDM command to be executed on a list of hosts identified by their UUID.
+
+`POST /api/v1/fleet/mdm/apple/enqueue`
+
+#### Parameters
+
+| Name                      | Type   | In    | Description                                                               |
+| ------------------------- | ------ | ----- | ------------------------------------------------------------------------- |
+| command                   | string | json  | A base64-encoded MDM command as described in [Apple's documentation](https://developer.apple.com/documentation/devicemanagement/commands_and_queries) |
+| device_ids                | array  | json  | An array of host UUIDs enrolled in Fleet's MDM on which the command should run.                   |
+
+Note that the `EraseDevice` and `DeviceLock` commands are _available in Fleet Premium_ only.
+
+#### Example
+
+`POST /api/v1/fleet/mdm/apple/enqueue`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "command_uuid": "a2064cef-0000-1234-afb9-283e3c1d487e",
+  "request_type": "ProfileList"
 }
 ```
 

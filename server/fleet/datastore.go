@@ -195,6 +195,7 @@ type Datastore interface {
 	DeleteHost(ctx context.Context, hid uint) error
 	Host(ctx context.Context, id uint) (*Host, error)
 	ListHosts(ctx context.Context, filter TeamFilter, opt HostListOptions) ([]*Host, error)
+	ListHostsLiteByUUIDs(ctx context.Context, filter TeamFilter, uuids []string) ([]*Host, error)
 
 	MarkHostsSeen(ctx context.Context, hostIDs []uint, t time.Time) error
 	SearchHosts(ctx context.Context, filter TeamFilter, query string, omit ...uint) ([]*Host, error)
@@ -912,6 +913,11 @@ const (
 	// UnknownMigrations means some unidentified migrations were detected on the database.
 	UnknownMigrations
 )
+
+// TODO: we have a similar but different interface in the service package,
+// service.NotFoundErr - at the very least, the IsNotFound method should be the
+// same in both (the other is currently NotFound), and ideally we'd just have
+// one of those interfaces.
 
 // NotFoundError is returned when the datastore resource cannot be found.
 type NotFoundError interface {
