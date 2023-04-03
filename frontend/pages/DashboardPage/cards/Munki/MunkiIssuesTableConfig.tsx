@@ -35,7 +35,7 @@ interface IDataColumn {
   disableSortBy?: boolean;
 }
 
-const munkiIssuesTableHeaders = [
+const generateMunkiIssuesTableHeaders = (teamId?: number): IDataColumn[] => [
   {
     title: "Issue",
     Header: (): JSX.Element => {
@@ -89,7 +89,10 @@ const munkiIssuesTableHeaders = [
         <>
           {cellProps.row.original && (
             <ViewAllHostsLink
-              queryParams={{ munki_issue_id: cellProps.row.original.id }}
+              queryParams={{
+                munki_issue_id: cellProps.row.original.id,
+                team_id: teamId,
+              }}
               className="munki-issue-link"
             />
           )}
@@ -99,4 +102,4 @@ const munkiIssuesTableHeaders = [
   },
 ];
 
-export default munkiIssuesTableHeaders;
+export default generateMunkiIssuesTableHeaders;
