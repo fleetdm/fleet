@@ -65,7 +65,7 @@ Restart the Fleet server with the contents of the APNs certificate, APNs private
 
 > You do not need to provide the APNs CSR which was emailed to you. 
 
-Confirm that Fleet is set up by visitng the "Fleet UI" or using "fleetctl."
+Confirm that Fleet is set up by visiting the "Fleet UI" or using "fleetctl."
 
 Fleet UI:
 
