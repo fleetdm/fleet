@@ -279,14 +279,20 @@ func (ds *Datastore) GetMDMAppleCommandRequestType(ctx context.Context, commandU
 func (ds *Datastore) GetMDMAppleCommandResults(ctx context.Context, commandUUID string) ([]*fleet.MDMAppleCommandResult, error) {
 	query := `
 SELECT
-    id,
-    command_uuid,
-    status,
-    result
+    ncr.id as device_id,
+    ncr.command_uuid,
+    ncr.status,
+    ncr.result,
+		ncr.updated_at,
+		nc.request_type
 FROM
-    nano_command_results
+    nano_command_results ncr
+INNER JOIN
+    nano_commands nc
+ON
+    ncr.command_uuid = nc.command_uuid
 WHERE
-    command_uuid = ?
+    ncr.command_uuid = ?
 `
 
 	var results []*fleet.MDMAppleCommandResult

@@ -712,7 +712,7 @@ func appleMDMCommandResultsCommand() *cli.Command {
 
 			for _, result := range results {
 				xml := bytes.ReplaceAll(result.Result, []byte{'\t'}, []byte{' '})
-				table.Append([]string{result.ID, result.Status, string(xml)})
+				table.Append([]string{result.DeviceID, result.Status, string(xml)})
 			}
 
 			table.Render()
