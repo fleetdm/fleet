@@ -21,7 +21,7 @@ Apple uses APNs to authenticate and manage interactions between Fleet and the ho
 
 To connect Fleet to APNs, we will do the following steps:
 1. Generate four required files
-2. Generate an APNs certificate from APNs
+2. Generate an APNs certificate from Apple Push Certificates Portal
 3. Configure Fleet with the required files
 
 ### Step 1: generate required files
