@@ -610,6 +610,15 @@ the way that the Fleet server works.
 				}
 			}
 
+			// err = svc.RequestPasswordReset(context.Background(), "admin@fleetdm.com")
+			// if err != nil {
+			// 	level.Error(logger).Log("err", err)
+			// }
+			// err = svc.ResetPassword(context.Background(), "dnF5N1QwUmdWNWhzeDhsUjQxdW5BRmtQRCtzS3FyMkk=", "password1234!")
+			// if err != nil {
+			// 	level.Error(logger).Log("err", err)
+			// }
+
 			instanceID, err := server.GenerateRandomText(64)
 			if err != nil {
 				initFatal(errors.New("Error generating random instance identifier"), "")

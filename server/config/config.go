@@ -270,7 +270,7 @@ type SESConfig struct {
 }
 
 type EmailConfig struct {
-	EmailBackend string
+	EmailBackend string `yaml:"backend"`
 }
 
 // LambdaConfig defines configs for the AWS Lambda logging plugin
