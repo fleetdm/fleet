@@ -262,6 +262,10 @@ resource "aws_sfn_state_machine" "main" {
                 {
                   "Name": "INSTANCE_ID",
                   "Value.$": "$.instanceID"
+                },
+                {
+                  "Name": "DYNAMODB_LIFECYCLE_TABLE",
+                  "Value": "${var.dynamodb_table.id}"
                 }
               ]
             }
@@ -272,7 +276,7 @@ resource "aws_sfn_state_machine" "main" {
     },
     "Idle": {
       "Type": "Wait",
-      "SecondsPath": "$.waitTime",
+      "Seconds": "2592000",
       "Next": "Deprovisioner"
     },
     "Deprovisioner": {

@@ -3,6 +3,7 @@ module github.com/fleetfm/fleet/infrastructure/sandbox/JITProvisioner/ingress_de
 go 1.19
 
 require (
+	github.com/aws/aws-sdk-go v1.44.235
 	k8s.io/apimachinery v0.26.2
 	k8s.io/client-go v0.26.2
 )
@@ -20,6 +21,7 @@ require (
 	github.com/google/go-cmp v0.5.9 // indirect
 	github.com/google/gofuzz v1.1.0 // indirect
 	github.com/imdario/mergo v0.3.6 // indirect
+	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/mailru/easyjson v0.7.6 // indirect

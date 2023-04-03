@@ -3,9 +3,13 @@ package main
 import (
 	"context"
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
 
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/dynamodb"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
@@ -13,18 +17,10 @@ import (
 
 func main() {
 	instanceID := getOrPanic("INSTANCE_ID")
+	ddbTable := getOrPanic("DYNAMODB_LIFECYCLE_TABLE")
 	clusterName := getOrPanic("CLUSTER_NAME")
-	region := getOrDefault("REGION", "us-east-2")
 
-	deleteIngress(instanceID, clusterName, region)
-}
-
-func getOrDefault(s, d string) string {
-	r, ok := os.LookupEnv(s)
-	if !ok {
-		return d
-	}
-	return r
+	deleteIngress(instanceID, clusterName, ddbTable)
 }
 
 func getOrPanic(env string) string {
@@ -35,38 +31,70 @@ func getOrPanic(env string) string {
 	return s
 }
 
-func deleteIngress(id, name, region string) {
+func deleteIngress(id, name, ddbTable string) {
 
-	//AWS_PROFILE=Sandbox aws eks --region us-east-2 update-kubeconfig --name sandbox-prod
+	sess, err := session.NewSession()
+	if err != nil {
+		panic(err)
+	}
+	// AWS_PROFILE=Sandbox aws eks --region us-east-2 update-kubeconfig --name sandbox-prod
 	conf := os.TempDir() + "/kube-config"
-	cmd := exec.Command("aws", "eks", "--region", region, "update-kubeconfig", "--name", name, "--kubeconfig", conf)
+	cmd := exec.Command("aws", "eks", "update-kubeconfig", "--name", name, "--kubeconfig", conf)
 	cmd.Env = os.Environ()
 	buf, err := cmd.CombinedOutput()
 	if err != nil {
-		fmt.Println(err)
-		fmt.Println(cmd.String())
-		fmt.Println(string(buf))
+		log.Println(err)
+		log.Println(cmd.String())
+		log.Println(string(buf))
 		return
 	}
 
 	config, err := clientcmd.BuildConfigFromFlags("", conf)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 		return
 	}
 
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 		return
 	}
 
 	// Delete the ingress using the Kubernetes clientset
 	err = clientset.NetworkingV1().Ingresses("default").Delete(context.Background(), id, v1.DeleteOptions{})
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 		return
 	}
 
-	fmt.Printf("Ingress %s deleted\n", id)
+	svc := dynamodb.New(sess)
+	err = updateFleetInstanceState(id, ddbTable, svc)
+	if err != nil {
+		log.Println(err)
+	}
+
+	log.Printf("Ingress %s deleted\n", id)
+}
+
+func updateFleetInstanceState(id, table string, svc *dynamodb.DynamoDB) (err error) {
+	log.Printf("updating instance: %+v", id)
+	// Perform a conditional update to claim the item
+	input := &dynamodb.UpdateItemInput{
+		TableName: aws.String(table),
+		Key: map[string]*dynamodb.AttributeValue{
+			"ID": {
+				S: aws.String(id),
+			},
+		},
+		UpdateExpression:         aws.String("set #fleet_state = :v2"),
+		ExpressionAttributeNames: map[string]*string{"#fleet_state": aws.String("State")},
+		ExpressionAttributeValues: map[string]*dynamodb.AttributeValue{
+			":v2": {
+				S: aws.String("ingress_destroyed"),
+			},
+		},
+	}
+	_, err = svc.UpdateItem(input)
+	return
 }
