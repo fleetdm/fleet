@@ -189,7 +189,7 @@ const generateVulnColumnHeader = () => {
 const generateTableHeaders = (
   router: InjectedRouter,
   isPremiumTier?: boolean,
-  isSandboxMode?: boolean
+  isSandboxMode?: boolean,
   teamId?: number
 ): Column[] => {
   const softwareTableHeaders = [

@@ -470,9 +470,14 @@ const ManageSoftwarePage = ({
       softwareCount;
 
   const softwareTableHeaders = useMemo(
-    () => generateSoftwareTableHeaders(router, isPremiumTier, isSandboxMode, currentTeamId),
+    () =>
+      generateSoftwareTableHeaders(
+        router,
+        isPremiumTier,
+        isSandboxMode,
+        currentTeamId
+      ),
     [isPremiumTier, isSandboxMode, router, currentTeamId]
-ox
   );
   const handleRowSelect = (row: IRowProps) => {
     const queryParams = {
