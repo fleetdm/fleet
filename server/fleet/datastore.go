@@ -325,6 +325,14 @@ type Datastore interface {
 	// ApplyEnrollSecrets replaces the current enroll secrets for a team with the provided secrets.
 	ApplyEnrollSecrets(ctx context.Context, teamID *uint, secrets []*EnrollSecret) error
 
+	// AggregateEnrollSecretPerTeam returns a slice containing one
+	// EnrollSecret per team, plus an EnrollSecret for "no team"
+	//
+	// If any of the teams doesn't have any enroll secrets, then the
+	// corresponcing EnrollSecret.Secret entry will have an empty string
+	// value.
+	AggregateEnrollSecretPerTeam(ctx context.Context) ([]*EnrollSecret, error)
+
 	///////////////////////////////////////////////////////////////////////////////
 	// InviteStore contains the methods for managing user invites in a datastore.
 
@@ -714,14 +722,14 @@ type Datastore interface {
 	// NewMDMAppleConfigProfile creates and returns a new configuration profile.
 	NewMDMAppleConfigProfile(ctx context.Context, p MDMAppleConfigProfile) (*MDMAppleConfigProfile, error)
 
-	// UpsertMDMAppleConfigProfile inserts or updates a configuration
-	// profile with the current payload.
+	// BulkUpsertMDMAppleConfigProfiles inserts or updates a configuration
+	// profiles in bulk with the current payload.
 	//
 	// Be careful when using this for user actions, you generally want to
 	// use NewMDMAppleConfigProfile/DeleteMDMAppleConfigProfile or the
-	// batch counterparts. With the current product vision, this is mainly
-	// aimed to internal usage within the Fleet server.
-	UpsertMDMAppleConfigProfile(ctx context.Context, p MDMAppleConfigProfile) (*MDMAppleConfigProfile, error)
+	// batch insert/delete counterparts. With the current product vision,
+	// this is mainly aimed to internal usage within the Fleet server.
+	BulkUpsertMDMAppleConfigProfiles(ctx context.Context, payload []*MDMAppleConfigProfile) error
 
 	// GetMDMAppleConfigProfile returns the mdm config profile corresponding to the specified
 	// profile id.

@@ -27,6 +27,7 @@ func TestAppConfig(t *testing.T) {
 		{"EnrollSecretsCaseSensitive", testAppConfigEnrollSecretsCaseSensitive},
 		{"EnrollSecretRoundtrip", testAppConfigEnrollSecretRoundtrip},
 		{"EnrollSecretUniqueness", testAppConfigEnrollSecretUniqueness},
+		{"AggregateEnrollSecretPerTeam", testAggregateEnrollSecretPerTeam},
 		{"Defaults", testAppConfigDefaults},
 		{"Backwards Compatibility", testAppConfigBackwardsCompatibility},
 	}
@@ -373,4 +374,62 @@ func testAppConfigBackwardsCompatibility(t *testing.T, ds *Datastore) {
 	require.False(t, ac.Features.EnableHostUsers)
 	require.True(t, ac.Features.EnableSoftwareInventory)
 	require.NotNil(t, ac.Features.AdditionalQueries)
+}
+
+func testAggregateEnrollSecretPerTeam(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	defer TruncateTables(t, ds)
+
+	// Add global secret
+	err := ds.ApplyEnrollSecrets(ctx, nil,
+		[]*fleet.EnrollSecret{
+			{Secret: "global_secret"},
+		},
+	)
+	assert.NoError(t, err)
+
+	// a team with two enroll secrets
+	team1, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+	err = ds.ApplyEnrollSecrets(context.Background(), &team1.ID, []*fleet.EnrollSecret{
+		{Secret: "team_1_secret_1"},
+		{Secret: "team_1_secret_2"},
+	})
+	require.NoError(t, err)
+
+	// a team with no enroll secrets
+	_, err = ds.NewTeam(context.Background(), &fleet.Team{Name: "team2"})
+	require.NoError(t, err)
+
+	// a team with a single enroll secret
+	team3, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team3"})
+	require.NoError(t, err)
+	err = ds.ApplyEnrollSecrets(context.Background(), &team3.ID, []*fleet.EnrollSecret{
+		{Secret: "team_3_secret_1"},
+	})
+	require.NoError(t, err)
+
+	agg, err := ds.AggregateEnrollSecretPerTeam(ctx)
+	require.NoError(t, err)
+
+	require.Len(t, agg, 4)
+	sort.Slice(agg, func(i, j int) bool {
+		if agg[i].TeamID == nil {
+			return true
+		}
+
+		if agg[j].TeamID == nil {
+			return false
+		}
+		return *agg[i].TeamID < *agg[j].TeamID
+	})
+
+	// can't use require.ElementsMatch because the enroll secret picked for
+	// team1 is non-deterministic.
+	require.Equal(t, &fleet.EnrollSecret{TeamID: nil, Secret: "global_secret"}, agg[0])
+	require.Equal(t, ptr.Uint(1), agg[1].TeamID)
+	require.Contains(t, agg[1].Secret, "team_1_secret_")
+	require.Equal(t, &fleet.EnrollSecret{TeamID: ptr.Uint(2), Secret: ""}, agg[2])
+	require.Equal(t, &fleet.EnrollSecret{TeamID: ptr.Uint(3), Secret: "team_3_secret_1"}, agg[3])
+
 }

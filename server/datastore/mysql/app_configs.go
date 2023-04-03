@@ -179,3 +179,15 @@ func getEnrollSecretsDB(ctx context.Context, q sqlx.QueryerContext, teamID *uint
 	}
 	return secrets, nil
 }
+
+func (ds *Datastore) AggregateEnrollSecretPerTeam(ctx context.Context) ([]*fleet.EnrollSecret, error) {
+	query := `
+          SELECT COALESCE(ANY_VALUE(secret), '') as secret, t.id as team_id FROM teams t LEFT JOIN enroll_secrets es ON t.id = es.team_id GROUP BY t.id
+        UNION
+          (SELECT COALESCE(secret,''), team_id FROM enroll_secrets WHERE team_id IS NULL LIMIT 1)`
+	var secrets []*fleet.EnrollSecret
+	if err := sqlx.SelectContext(ctx, ds.reader, &secrets, query); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get secrets")
+	}
+	return secrets, nil
+}

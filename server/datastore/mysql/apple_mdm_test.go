@@ -40,7 +40,7 @@ func TestMDMAppleConfigProfile(t *testing.T) {
 		{"TestIgnoreMDMClientError", testIgnoreMDMClientError},
 		{"TestDeleteMDMAppleProfilesForHost", testDeleteMDMAppleProfilesForHost},
 		{"TestBulkSetPendingMDMAppleHostProfiles", testBulkSetPendingMDMAppleHostProfiles},
-		{"TestUpsertMDMAppleConfigProfile", testUpsertMDMAppleConfigProfile},
+		{"TestBulkUpsertMDMAppleConfigProfiles", testBulkUpsertMDMAppleConfigProfile},
 	}
 
 	for _, c := range cases {
@@ -2352,29 +2352,40 @@ func testBulkSetPendingMDMAppleHostProfiles(t *testing.T, ds *Datastore) {
 	})
 }
 
-func testUpsertMDMAppleConfigProfile(t *testing.T, ds *Datastore) {
+func testBulkUpsertMDMAppleConfigProfile(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 	mc := mobileconfig.Mobileconfig([]byte("TestConfigProfile"))
-	cp := fleet.MDMAppleConfigProfile{
+	globalCP := &fleet.MDMAppleConfigProfile{
 		Name:         "DummyTestName",
 		Identifier:   "DummyTestIdentifier",
 		Mobileconfig: mc,
 		TeamID:       nil,
 	}
+	teamCP := &fleet.MDMAppleConfigProfile{
+		Name:         "DummyTestName",
+		Identifier:   "DummyTestIdentifier",
+		Mobileconfig: mc,
+		TeamID:       ptr.Uint(1),
+	}
+	allProfiles := []*fleet.MDMAppleConfigProfile{globalCP, teamCP}
 
-	newCP, err := ds.UpsertMDMAppleConfigProfile(ctx, cp)
+	checkProfiles := func() {
+		for _, p := range allProfiles {
+			profiles, err := ds.ListMDMAppleConfigProfiles(ctx, p.TeamID)
+			require.NoError(t, err)
+			require.Len(t, profiles, 1)
+			checkConfigProfile(t, *p, *profiles[0])
+		}
+	}
+
+	err := ds.BulkUpsertMDMAppleConfigProfiles(ctx, allProfiles)
 	require.NoError(t, err)
-	checkConfigProfile(t, cp, *newCP)
-	storedCP, err := ds.GetMDMAppleConfigProfile(ctx, newCP.ProfileID)
-	require.NoError(t, err)
-	checkConfigProfile(t, *newCP, *storedCP)
+	checkProfiles()
 
 	newMc := mobileconfig.Mobileconfig([]byte("TestUpdatedConfigProfile"))
-	cp.Mobileconfig = newMc
-	newCP, err = ds.UpsertMDMAppleConfigProfile(ctx, cp)
+	globalCP.Mobileconfig = newMc
+	teamCP.Mobileconfig = newMc
+	err = ds.BulkUpsertMDMAppleConfigProfiles(ctx, allProfiles)
 	require.NoError(t, err)
-	checkConfigProfile(t, cp, *newCP)
-	storedCP, err = ds.GetMDMAppleConfigProfile(ctx, newCP.ProfileID)
-	require.NoError(t, err)
-	checkConfigProfile(t, *newCP, *storedCP)
+	checkProfiles()
 }

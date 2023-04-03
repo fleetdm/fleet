@@ -10,7 +10,7 @@ type FleetdProfileOptions struct {
 	ServerURL    string
 }
 
-// FleetdProfileTeamplate is used to configure orbit's EnrollSecret and
+// FleetdProfileTemplate is used to configure orbit's EnrollSecret and
 // ServerURL for packages that have been generated without those values.
 //
 // This is useful when you want to have a single, publicly accessible (possibly

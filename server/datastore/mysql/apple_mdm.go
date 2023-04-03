@@ -1462,31 +1462,33 @@ WHERE
 	return &res, nil
 }
 
-func (ds *Datastore) UpsertMDMAppleConfigProfile(ctx context.Context, cp fleet.MDMAppleConfigProfile) (*fleet.MDMAppleConfigProfile, error) {
-	stmt := `
-INSERT INTO
-    mdm_apple_configuration_profiles (team_id, identifier, name, mobileconfig)
-VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE
-  updated_at = CURRENT_TIMESTAMP,
-  mobileconfig = VALUES(mobileconfig)
-`
-	var teamID uint
-	if cp.TeamID != nil {
-		teamID = *cp.TeamID
+func (ds *Datastore) BulkUpsertMDMAppleConfigProfiles(ctx context.Context, payload []*fleet.MDMAppleConfigProfile) error {
+	if len(payload) == 0 {
+		return nil
 	}
 
-	res, err := ds.writer.ExecContext(ctx, stmt, teamID, cp.Identifier, cp.Name, cp.Mobileconfig)
-	if err != nil {
-		return nil, ctxerr.Wrapf(ctx, err, "upsert mdm config profile team=%d identifier=%s name=%s", teamID, cp.Identifier, cp.Name)
+	var args []any
+	var sb strings.Builder
+	for _, cp := range payload {
+		var teamID uint
+		if cp.TeamID != nil {
+			teamID = *cp.TeamID
+		}
+
+		args = append(args, teamID, cp.Identifier, cp.Name, cp.Mobileconfig)
+		sb.WriteString("(?, ?, ?, ?),")
 	}
 
-	id, _ := res.LastInsertId()
+	stmt := fmt.Sprintf(`
+          INSERT INTO
+              mdm_apple_configuration_profiles (team_id, identifier, name, mobileconfig)
+          VALUES %s
+          ON DUPLICATE KEY UPDATE
+            mobileconfig = VALUES(mobileconfig)`, strings.TrimSuffix(sb.String(), ","))
 
-	return &fleet.MDMAppleConfigProfile{
-		ProfileID:    uint(id),
-		Identifier:   cp.Identifier,
-		Name:         cp.Name,
-		Mobileconfig: cp.Mobileconfig,
-		TeamID:       cp.TeamID,
-	}, nil
+	if _, err := ds.writer.ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrapf(ctx, err, "upsert mdm config profiles")
+	}
+
+	return nil
 }

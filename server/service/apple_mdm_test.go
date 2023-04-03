@@ -1678,12 +1678,12 @@ func TestMDMAppleReconcileProfiles(t *testing.T) {
 		return appCfg, nil
 	}
 
-	ds.GetEnrollSecretsFunc = func(ctx context.Context, teamID *uint) ([]*fleet.EnrollSecret, error) {
-		return []*fleet.EnrollSecret{{Secret: "xyz"}}, nil
+	ds.BulkUpsertMDMAppleConfigProfilesFunc = func(ctx context.Context, p []*fleet.MDMAppleConfigProfile) error {
+		return nil
 	}
 
-	ds.UpsertMDMAppleConfigProfileFunc = func(ctx context.Context, p fleet.MDMAppleConfigProfile) (*fleet.MDMAppleConfigProfile, error) {
-		return &fleet.MDMAppleConfigProfile{}, nil
+	ds.AggregateEnrollSecretPerTeamFunc = func(ctx context.Context) ([]*fleet.EnrollSecret, error) {
+		return []*fleet.EnrollSecret{}, nil
 	}
 
 	checkAndReset := func(t *testing.T, want bool, invoked *bool) {
@@ -1822,7 +1822,7 @@ func TestEnsureFleetdConfig(t *testing.T) {
 	testError := errors.New("test error")
 	testURL := "https://example.com"
 	testTeamName := "test-team"
-	testEnrollSecret := "xyz"
+	logger := kitlog.NewNopLogger()
 
 	t.Run("no enroll secret found", func(t *testing.T) {
 		ctx := context.Background()
@@ -1831,89 +1831,108 @@ func TestEnsureFleetdConfig(t *testing.T) {
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 			return &fleet.AppConfig{}, nil
 		}
-		ds.GetEnrollSecretsFunc = func(ctx context.Context, teamID *uint) ([]*fleet.EnrollSecret, error) {
+		ds.AggregateEnrollSecretPerTeamFunc = func(ctx context.Context) ([]*fleet.EnrollSecret, error) {
 			return []*fleet.EnrollSecret{}, nil
 		}
-		err := ensureFleetdConfig(ctx, ds)
-		require.ErrorContains(t, err, "unable to find an enroll secret")
+		ds.BulkUpsertMDMAppleConfigProfilesFunc = func(ctx context.Context, ps []*fleet.MDMAppleConfigProfile) error {
+			require.Empty(t, ps)
+			return nil
+		}
+		err := ensureFleetdConfig(ctx, ds, logger)
+		require.NoError(t, err)
+		require.True(t, ds.BulkUpsertMDMAppleConfigProfilesFuncInvoked)
+		require.True(t, ds.AggregateEnrollSecretPerTeamFuncInvoked)
+		require.True(t, ds.AppConfigFuncInvoked)
 	})
 
-	t.Run("error when the default team doesn't exist", func(t *testing.T) {
+	t.Run("all enroll secrets empty", func(t *testing.T) {
 		ctx := context.Background()
 		ds := new(mock.Store)
+		secrets := []*fleet.EnrollSecret{
+			{Secret: "", TeamID: nil},
+			{Secret: "", TeamID: ptr.Uint(1)},
+			{Secret: "", TeamID: ptr.Uint(2)},
+		}
+		ds.AggregateEnrollSecretPerTeamFunc = func(ctx context.Context) ([]*fleet.EnrollSecret, error) {
+			return secrets, nil
+		}
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-			appCfg := &fleet.AppConfig{}
-			appCfg.MDM.AppleBMDefaultTeam = testTeamName
-			return appCfg, nil
+			return &fleet.AppConfig{}, nil
 		}
-		ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
-			require.Equal(t, "test-team", name)
-			return nil, testError
+		ds.BulkUpsertMDMAppleConfigProfilesFunc = func(ctx context.Context, ps []*fleet.MDMAppleConfigProfile) error {
+			require.Empty(t, ps)
+			return nil
 		}
-
-		err := ensureFleetdConfig(ctx, ds)
-		require.ErrorIs(t, err, testError)
-		require.True(t, ds.TeamByNameFuncInvoked)
+		err := ensureFleetdConfig(ctx, ds, logger)
+		require.NoError(t, err)
+		require.True(t, ds.BulkUpsertMDMAppleConfigProfilesFuncInvoked)
+		require.True(t, ds.AggregateEnrollSecretPerTeamFuncInvoked)
+		require.True(t, ds.AppConfigFuncInvoked)
 	})
 
-	t.Run("if the team has an enroll secret, use it", func(t *testing.T) {
+	t.Run("uses the enroll secret of each team if available", func(t *testing.T) {
 		ctx := context.Background()
 		ds := new(mock.Store)
+		secrets := []*fleet.EnrollSecret{
+			{Secret: "global", TeamID: nil},
+			{Secret: "team-1", TeamID: ptr.Uint(1)},
+			{Secret: "team-2", TeamID: ptr.Uint(2)},
+		}
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 			appCfg := &fleet.AppConfig{}
 			appCfg.ServerSettings.ServerURL = testURL
 			appCfg.MDM.AppleBMDefaultTeam = testTeamName
 			return appCfg, nil
 		}
-		ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
-			require.Equal(t, testTeamName, name)
-			team := &fleet.Team{}
-			team.Secrets = []*fleet.EnrollSecret{{Secret: testEnrollSecret}}
-			return team, nil
+		ds.AggregateEnrollSecretPerTeamFunc = func(ctx context.Context) ([]*fleet.EnrollSecret, error) {
+			return secrets, nil
 		}
-		ds.UpsertMDMAppleConfigProfileFunc = func(ctx context.Context, p fleet.MDMAppleConfigProfile) (*fleet.MDMAppleConfigProfile, error) {
-			require.Contains(t, string(p.Mobileconfig), testURL)
-			require.Contains(t, string(p.Mobileconfig), testEnrollSecret)
-			require.Equal(t, mobileconfig.FleetdConfigPayloadIdentifier, p.Identifier)
-			return &fleet.MDMAppleConfigProfile{}, nil
+		ds.BulkUpsertMDMAppleConfigProfilesFunc = func(ctx context.Context, ps []*fleet.MDMAppleConfigProfile) error {
+			require.Len(t, ps, len(secrets))
+			for i, p := range ps {
+				require.Contains(t, string(p.Mobileconfig), testURL)
+				require.Contains(t, string(p.Mobileconfig), secrets[i].Secret)
+				require.Equal(t, mobileconfig.FleetdConfigPayloadIdentifier, p.Identifier)
+			}
+			return nil
 		}
 
-		err := ensureFleetdConfig(ctx, ds)
+		err := ensureFleetdConfig(ctx, ds, logger)
 		require.NoError(t, err)
-		require.True(t, ds.TeamByNameFuncInvoked)
-		require.False(t, ds.GetEnrollSecretsFuncInvoked)
-		require.True(t, ds.UpsertMDMAppleConfigProfileFuncInvoked)
+		require.True(t, ds.AggregateEnrollSecretPerTeamFuncInvoked)
+		require.True(t, ds.BulkUpsertMDMAppleConfigProfilesFuncInvoked)
 	})
 
 	t.Run("if the team doesn't have an enroll secret, fallback to no team", func(t *testing.T) {
-
 		ctx := context.Background()
 		ds := new(mock.Store)
+		secrets := []*fleet.EnrollSecret{
+			{Secret: "global", TeamID: nil},
+			{Secret: "", TeamID: ptr.Uint(1)},
+		}
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 			appCfg := &fleet.AppConfig{}
 			appCfg.ServerSettings.ServerURL = testURL
 			appCfg.MDM.AppleBMDefaultTeam = testTeamName
 			return appCfg, nil
 		}
-		ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
-			require.Equal(t, testTeamName, name)
-			return &fleet.Team{}, nil
+		ds.AggregateEnrollSecretPerTeamFunc = func(ctx context.Context) ([]*fleet.EnrollSecret, error) {
+			return secrets, nil
 		}
-		ds.GetEnrollSecretsFunc = func(ctx context.Context, teamID *uint) ([]*fleet.EnrollSecret, error) {
-			require.Nil(t, teamID)
-			return []*fleet.EnrollSecret{{Secret: testEnrollSecret}}, nil
+		ds.BulkUpsertMDMAppleConfigProfilesFunc = func(ctx context.Context, ps []*fleet.MDMAppleConfigProfile) error {
+			require.Len(t, ps, len(secrets))
+			for i, p := range ps {
+				require.Contains(t, string(p.Mobileconfig), testURL)
+				require.Contains(t, string(p.Mobileconfig), secrets[i].Secret)
+				require.Equal(t, mobileconfig.FleetdConfigPayloadIdentifier, p.Identifier)
+			}
+			return nil
 		}
-		ds.UpsertMDMAppleConfigProfileFunc = func(ctx context.Context, p fleet.MDMAppleConfigProfile) (*fleet.MDMAppleConfigProfile, error) {
-			require.Contains(t, string(p.Mobileconfig), testURL)
-			require.Contains(t, string(p.Mobileconfig), testEnrollSecret)
-			require.Equal(t, mobileconfig.FleetdConfigPayloadIdentifier, p.Identifier)
-			return &fleet.MDMAppleConfigProfile{}, nil
-		}
-		err := ensureFleetdConfig(ctx, ds)
+		err := ensureFleetdConfig(ctx, ds, logger)
 		require.NoError(t, err)
-		require.True(t, ds.TeamByNameFuncInvoked)
-		require.True(t, ds.GetEnrollSecretsFuncInvoked)
-		require.True(t, ds.UpsertMDMAppleConfigProfileFuncInvoked)
+		require.True(t, ds.AppConfigFuncInvoked)
+		require.True(t, ds.AggregateEnrollSecretPerTeamFuncInvoked)
+		require.True(t, ds.BulkUpsertMDMAppleConfigProfilesFuncInvoked)
 	})
 
 	t.Run("returns an error if there's a problem retrieving AppConfig", func(t *testing.T) {
@@ -1922,8 +1941,44 @@ func TestEnsureFleetdConfig(t *testing.T) {
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 			return nil, testError
 		}
-		err := ensureFleetdConfig(ctx, ds)
+		err := ensureFleetdConfig(ctx, ds, logger)
 		require.ErrorIs(t, err, testError)
+	})
+
+	t.Run("returns an error if there's a problem retrieving secrets", func(t *testing.T) {
+		ctx := context.Background()
+		ds := new(mock.Store)
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{}, nil
+		}
+		ds.AggregateEnrollSecretPerTeamFunc = func(ctx context.Context) ([]*fleet.EnrollSecret, error) {
+			return nil, testError
+		}
+		err := ensureFleetdConfig(ctx, ds, logger)
+		require.ErrorIs(t, err, testError)
+	})
+
+	t.Run("returns an error if there's a problem upserting profiles", func(t *testing.T) {
+		ctx := context.Background()
+		ds := new(mock.Store)
+		secrets := []*fleet.EnrollSecret{
+			{Secret: "global", TeamID: nil},
+			{Secret: "team-1", TeamID: ptr.Uint(1)},
+		}
+		ds.AggregateEnrollSecretPerTeamFunc = func(ctx context.Context) ([]*fleet.EnrollSecret, error) {
+			return secrets, nil
+		}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{}, nil
+		}
+		ds.BulkUpsertMDMAppleConfigProfilesFunc = func(ctx context.Context, p []*fleet.MDMAppleConfigProfile) error {
+			return testError
+		}
+		err := ensureFleetdConfig(ctx, ds, logger)
+		require.ErrorIs(t, err, testError)
+		require.True(t, ds.AppConfigFuncInvoked)
+		require.True(t, ds.AggregateEnrollSecretPerTeamFuncInvoked)
+		require.True(t, ds.BulkUpsertMDMAppleConfigProfilesFuncInvoked)
 	})
 }
 
