@@ -428,7 +428,7 @@ const PolicyForm = ({
       <div className="critical-checkbox-wrapper">
         {isSandboxMode && (
           <PremiumFeatureIconWithTooltip
-            tooltipPositionOverrides={{ leftAdj: -4, topAdj: -4 }}
+            tooltipPositionOverrides={{ leftAdj: 84, topAdj: -4 }}
           />
         )}
         <Checkbox
