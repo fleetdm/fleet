@@ -5,9 +5,9 @@ parasails.registerPage('cis-benchmark-library', {
   data: {
     inputTextValue: '',
     inputTimers: {},
-    searchString: '', // The user input string to be searched against the query library
-    selectedPlatforms: 'all platforms', // Initially set to 'all', the user may select a different option to filter queries by purpose (e.g., "Windows 10 Enterprise", "macOS 13 Ventura")
-    selectedTag: 'cis', // Initially set to the 'built-in' tag, the user may select a different tag to filter queries by.
+    searchString: '', // The user input string to be searched against the benchmarks
+    selectedPlatforms: 'all', // Initially set to 'all', the user may select a different option to filter benchmarks by purpose (e.g., "Windows 10 Enterprise", "macOS 13 Ventura")
+    selectedTag: '', // Initially set to the '' tag, the user may select a different tag to filter queries by.
   },
 
   computed: {

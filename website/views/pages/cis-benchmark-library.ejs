@@ -39,9 +39,10 @@ Fleet implements CIS Benchmarks using  <a href="https://fleetdm.com/docs/using-f
                   {{ selectedPlatforms === 'win10' ? 'Windows 10 Enterprise' : selectedPlatforms === 'macOS' ? 'Mac 13.0 Ventura' : 'all benchmarks'}}
                 </button>
                 <div class="dropdown-menu p-2" aria-labelledby="dropdownMenuSelectPurpose">
+                  <button class="dropdown-item" type="button" @click="clickSelectPlatforms('')">all benchmarks</button>
                   <button class="dropdown-item" type="button"
                     @click="clickSelectPlatforms('macOS')">macOS 13.0 Ventura</button>
-                    <button class="dropdown-item" type="button"
+                  <button class="dropdown-item" type="button"
                     @click="clickSelectPlatforms('win10')">Windows 10 Enterprise</button>
                 </div>
               </div>

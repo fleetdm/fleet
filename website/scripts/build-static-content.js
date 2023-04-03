@@ -166,10 +166,9 @@ module.exports = {
         let cisBenchmarksWithProblematicResolutions = [];
         let cisBenchmarksWithProblematicContributors = [];
         let cisBenchmarksWithProblematicTags = [];
-        let cisBenchmarks = YAML.parseAllDocuments(cisBenchmarksMacYaml, cisBenchmarksWindowsYaml).map((yamlDocument) => {
+        let cisBenchmarks = YAML.parseAllDocuments(cisBenchmarksMacYaml + cisBenchmarksWindowsYaml).map((yamlDocument) => {
           let benchmark = yamlDocument.toJSON().spec;
           benchmark.kind = yamlDocument.toJSON().kind;
-          console.log("benchmark.kind", benchmark.kind);
           benchmark.slug = _.kebabCase(benchmark.name);// « unique slug to use for routing to this CIS Benchmarks's detail page
           if ((benchmark.resolution !== undefined && !_.isString(benchmark.resolution)) || (benchmark.kind !== 'policy' && _.isString(benchmark.resolution))) {
             // console.log(typeof benchmark.resolution);
@@ -212,22 +211,22 @@ module.exports = {
         });
         // Report any errors that were detected along the way in one fell swoop to avoid endless resubmitting of PRs.
         if (cisBenchmarksWithProblematicResolutions.length >= 1) {
-          throw new Error('Failed parsing YAML for CIS benchmarks: The "resolution" of a benchmark should either be absent (undefined) or a single string (not a list of strings).  And "resolution" should only be present when a benchmark\'s kind is "policy".  But one or more queries have an invalid "resolution": ' + _.pluck(cisBenchmarksWithProblematicResolutions, 'slug').sort());
+          throw new Error('Failed parsing YAML for CIS benchmarks: The "resolution" of a benchmark should either be absent (undefined) or a single string (not a list of strings).  And "resolution" should only be present when a benchmark\'s kind is "policy".  But one or more benchmarks have an invalid "resolution": ' + _.pluck(cisBenchmarksWithProblematicResolutions, 'slug').sort());
         }//•
         if (cisBenchmarksWithProblematicTags.length >= 1) {
-          throw new Error('Failed parsing YAML for CIS benchmarks: The "tags" of a benchmark should either be absent (undefined) or a single string (not a list of strings). "tags" should be be be seperated by a comma.  But one or more queries have invalid "tags": ' + _.pluck(cisBenchmarksWithProblematicTags, 'slug').sort());
+          throw new Error('Failed parsing YAML for CIS benchmarks: The "tags" of a benchmark should either be absent (undefined) or a single string (not a list of strings). "tags" should be be be seperated by a comma.  But one or more benchmarks have invalid "tags": ' + _.pluck(cisBenchmarksWithProblematicTags, 'slug').sort());
         }
         // Assert uniqueness of slugs.
-        if (queries.length !== _.uniq(_.pluck(queries, 'slug')).length) {
-          throw new Error('Failed parsing YAML for CIS benchmarks: Queries as currently named would result in colliding (duplicate) slugs.  To resolve, rename the queries whose names are too similar.  Note the duplicates: ' + _.pluck(queries, 'slug').sort());
+        if (cisBenchmarks.length !== _.uniq(_.pluck(cisBenchmarks, 'slug')).length) {
+          throw new Error('Failed parsing YAML for CIS benchmarks: Benchmarks as currently named would result in colliding (duplicate) slugs.  To resolve, rename the benchmark whose names are too similar.  Note the duplicates: ' + _.pluck(cisBenchmarks, 'slug').sort());
         }//•
         // Report any errors that were detected along the way in one fell swoop to avoid endless resubmitting of PRs.
         if (cisBenchmarksWithProblematicContributors.length >= 1) {
-          throw new Error('Failed parsing YAML for CIS benchmarks: The "contributors" of a benchmark should be a single string of valid GitHub user names (e.g. "zwass", or "zwass,noahtalerman,mikermcneil").  But one or more queries have an invalid "contributors" value: ' + _.pluck(cisBenchmarksWithProblematicContributors, 'slug').sort());
+          throw new Error('Failed parsing YAML for CIS benchmarks: The "contributors" of a benchmark should be a single string of valid GitHub user names (e.g. "zwass", or "zwass,noahtalerman,mikermcneil").  But one or more benchmarks have an invalid "contributors" value: ' + _.pluck(cisBenchmarksWithProblematicContributors, 'slug').sort());
         }//•
 
-        // Get a distinct list of all GitHub usernames from all of our queries.
-        // Map all queries to build a list of unique contributor names then build a dictionary of user profile information from the GitHub Users API
+        // Get a distinct list of all GitHub usernames from all of our benchmarks.
+        // Map all benchmarks to build a list of unique contributor names then build a dictionary of user profile information from the GitHub Users API
         const cisBenchmarksGithubUsernames = cisBenchmarks.reduce((list, benchmark) => {
           if (!cisBenchmarksWithProblematicContributors.find((element) => element.slug === benchmark.slug)) {
             list = _.union(list, benchmark.contributors.split(','));
